@@ -61,4 +61,4 @@ impl Job for AnalyticsEventLinkFactsRollupJob {
     }
 }
 
-systemprompt_provider_contracts::submit_job!(&AnalyticsEventLinkFactsRollupJob);
+systemprompt_provider_contracts::submit_job!("scheduler", &AnalyticsEventLinkFactsRollupJob);

@@ -62,4 +62,4 @@ impl Job for CleanupInactiveSessionsJob {
     }
 }
 
-systemprompt_provider_contracts::submit_job!(&CleanupInactiveSessionsJob);
+systemprompt_provider_contracts::submit_job!("scheduler", &CleanupInactiveSessionsJob);

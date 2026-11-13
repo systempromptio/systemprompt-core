@@ -24,6 +24,7 @@ use tracing::info;
 use super::RetentionTarget;
 use super::holds::{HoldOutcome, report};
 use crate::error::{SchedulerError, SchedulerResult};
+use crate::services::EnabledExtensions;
 
 pub(super) const BATCH_ROWS: i64 = 5000;
 const RUN_BUDGET: Duration = Duration::from_mins(15);
@@ -34,9 +35,13 @@ pub(super) struct RetentionOwners {
 }
 
 impl RetentionOwners {
-    pub(super) fn discover() -> SchedulerResult<Self> {
+    pub(super) fn discover(enabled: &EnabledExtensions) -> SchedulerResult<Self> {
         let mut purges: HashMap<&'static str, &'static dyn RetentionPurge> = HashMap::new();
-        for purge in registered_retention_purges() {
+        for registration in registered_retention_purges() {
+            if !enabled.contains(registration.owner) {
+                continue;
+            }
+            let purge = registration.purge;
             if purges.insert(purge.table(), purge).is_some() {
                 return Err(SchedulerError::DuplicateRetentionPurge {
                     table: purge.table(),

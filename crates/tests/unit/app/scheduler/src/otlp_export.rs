@@ -294,7 +294,7 @@ async fn traces_export_keeps_request_and_governance_decision_correlated_in_one_p
         .await;
     let mut config = export_config(collector.uri());
     config.signals = vec![OtlpSignal::Traces];
-    let report = systemprompt_scheduler::otlp_export_now(&raw, &config, None)
+    let report = systemprompt_scheduler::otlp_export_now(&raw, &config, None, None)
         .await
         .unwrap();
     assert_eq!(report.signals[0].rows, 1);
@@ -337,6 +337,7 @@ async fn export_now_posts_a_decodable_log_batch_and_advances_the_durable_waterma
         &raw,
         &export_config(collector.uri()),
         Some(&InstanceId::new("scheduler-test")),
+        None,
     )
     .await
     .unwrap();
@@ -387,7 +388,7 @@ async fn rejected_collector_keeps_the_cursor_then_a_retry_ships_the_identical_ba
         .await;
 
     let config = export_config(collector.uri());
-    let failed = systemprompt_scheduler::otlp_export_now(&raw, &config, None)
+    let failed = systemprompt_scheduler::otlp_export_now(&raw, &config, None, None)
         .await
         .unwrap();
     assert!(failed.signals[0].error.as_deref().unwrap().contains("400"));
@@ -402,7 +403,7 @@ async fn rejected_collector_keeps_the_cursor_then_a_retry_ships_the_identical_ba
         .expect(1)
         .mount(&collector)
         .await;
-    let retried = systemprompt_scheduler::otlp_export_now(&raw, &config, None)
+    let retried = systemprompt_scheduler::otlp_export_now(&raw, &config, None, None)
         .await
         .unwrap();
     assert_eq!(retried.signals[0].rows, 1);
@@ -447,7 +448,7 @@ async fn malformed_log_row_is_skipped_and_counted_while_the_rest_of_the_batch_sh
         .await;
 
     let report =
-        systemprompt_scheduler::otlp_export_now(&raw, &export_config(collector.uri()), None)
+        systemprompt_scheduler::otlp_export_now(&raw, &export_config(collector.uri()), None, None)
             .await
             .unwrap();
     assert!(report.signals[0].error.is_none());
@@ -503,7 +504,7 @@ async fn invalid_header_keeps_the_cursor_then_repaired_config_delivers_the_batch
         "credential-sentinel".to_owned(),
     );
 
-    let failed = systemprompt_scheduler::otlp_export_now(&raw, &config, None)
+    let failed = systemprompt_scheduler::otlp_export_now(&raw, &config, None, None)
         .await
         .expect("signal failures are reported, not returned");
     assert_eq!(failed.failed(), 1);
@@ -533,7 +534,7 @@ async fn invalid_header_keeps_the_cursor_then_repaired_config_delivers_the_batch
     assert!(!failed_event.to_string().contains("credential-sentinel"));
 
     config.headers.clear();
-    let repaired = systemprompt_scheduler::otlp_export_now(&raw, &config, None)
+    let repaired = systemprompt_scheduler::otlp_export_now(&raw, &config, None, None)
         .await
         .expect("repaired collector config");
     assert_eq!(repaired.failed(), 0);
@@ -583,7 +584,7 @@ async fn a_retryable_503_retries_the_same_protobuf_payload_before_advancing() {
         .await;
 
     let report =
-        systemprompt_scheduler::otlp_export_now(&raw, &export_config(collector.uri()), None)
+        systemprompt_scheduler::otlp_export_now(&raw, &export_config(collector.uri()), None, None)
             .await
             .unwrap();
     assert_eq!(report.signals[0].rows, 1);
@@ -613,7 +614,7 @@ async fn an_empty_signal_marks_the_cursor_caught_up_without_posting_to_the_colle
     let collector = MockServer::start().await;
 
     let report =
-        systemprompt_scheduler::otlp_export_now(&raw, &export_config(collector.uri()), None)
+        systemprompt_scheduler::otlp_export_now(&raw, &export_config(collector.uri()), None, None)
             .await
             .unwrap();
     assert_eq!(report.signals[0].rows, 0);

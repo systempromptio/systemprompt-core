@@ -102,9 +102,8 @@ fn shared_seams() -> Vec<LinkedSeam> {
             "jobs",
             "systemprompt-provider-contracts",
             named(
-                inventory::iter::<&'static dyn systemprompt_traits::Job>
-                    .into_iter()
-                    .map(|job| job.name()),
+                systemprompt_traits::registered_jobs()
+                    .map(|registration| registration.job.name()),
             ),
         ),
         LinkedSeam::new(

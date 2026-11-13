@@ -80,4 +80,4 @@ impl Job for DocumentBlobGcJob {
     }
 }
 
-systemprompt_provider_contracts::submit_job!(&DocumentBlobGcJob);
+systemprompt_provider_contracts::submit_job!("files", &DocumentBlobGcJob);

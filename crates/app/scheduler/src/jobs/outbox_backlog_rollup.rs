@@ -56,4 +56,4 @@ impl Job for OutboxBacklogRollupJob {
     }
 }
 
-systemprompt_provider_contracts::submit_job!(&OutboxBacklogRollupJob);
+systemprompt_provider_contracts::submit_job!("scheduler", &OutboxBacklogRollupJob);

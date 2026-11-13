@@ -78,6 +78,9 @@ pub enum SchedulerError {
         key: i64,
     },
 
+    #[error("Extension set: {0}")]
+    Extensions(#[from] systemprompt_extension::LoaderError),
+
     #[error("two retention purges are registered for table `{table}`")]
     DuplicateRetentionPurge { table: &'static str },
 

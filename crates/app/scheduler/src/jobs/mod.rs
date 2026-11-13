@@ -1,15 +1,16 @@
-//! The kernel's built-in jobs, registered via
-//! [`systemprompt_provider_contracts::submit_job!`]: config reconcile, the
-//! licence check-in, the inventory refresh, the drainers of kernel-owned
-//! projections, session housekeeping, OTLP export, and the two jobs that
-//! iterate what capability crates contribute (`database_cleanup` over
-//! registered retention purges, `backfill_rollups` over registered projection
-//! drains). Capability jobs live in, and are registered by, their owning
-//! crates.
+//! The kernel's built-in jobs.
+//!
+//! Config reconcile, the licence check-in, the inventory refresh, the
+//! drainers of kernel-owned projections, session housekeeping, OTLP export,
+//! and the two jobs that iterate what capability crates contribute
+//! (`database_cleanup` over registered retention purges, `backfill_rollups`
+//! over registered projection drains). Capability jobs live in, and are
+//! registered by, their owning crates.
 //!
 //! Each module exposes a single zero-sized type implementing
-//! [`systemprompt_traits::Job`]; submission to the inventory registry happens
-//! at the bottom of each module.
+//! [`systemprompt_traits::Job`], submitted at the bottom of the module with
+//! [`systemprompt_provider_contracts::submit_job!`] under the `scheduler`
+//! extension id.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

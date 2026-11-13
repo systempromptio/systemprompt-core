@@ -71,4 +71,4 @@ impl Job for IssueRetentionJob {
     }
 }
 
-systemprompt_provider_contracts::submit_job!(&IssueRetentionJob);
+systemprompt_provider_contracts::submit_job!("files", &IssueRetentionJob);

@@ -120,7 +120,7 @@ impl RetentionSweep for OrphanedRequestsSweep {
     }
 }
 
-register_retention_purge!(&RequestMessagesPurge);
-register_retention_purge!(&RequestPayloadsPurge);
-register_retention_purge!(&QuotaBucketsPurge);
-register_retention_sweep!(&OrphanedRequestsSweep);
+register_retention_purge!("ai", &RequestMessagesPurge);
+register_retention_purge!("ai", &RequestPayloadsPurge);
+register_retention_purge!("ai", &QuotaBucketsPurge);
+register_retention_sweep!("ai", &OrphanedRequestsSweep);

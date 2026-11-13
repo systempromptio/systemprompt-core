@@ -19,7 +19,11 @@ pub fn kernel_state(app: &AppContext) -> Dependencies {
         .with(Arc::clone(app.files_config()))
         .with(Arc::new(app.profile().notifications))
         .with(Arc::clone(app.oauth_repositories()))
-        .with(Arc::clone(app.ai_repositories()));
+        .with(Arc::clone(app.ai_repositories()))
+        .with(Arc::clone(app.analytics_repositories()));
+    if let Some(reader) = app.geoip_reader() {
+        state.insert(Arc::clone(reader));
+    }
     if app.files_config().documents_config().is_enabled() {
         state.insert(Arc::clone(app.documents().service()));
     }

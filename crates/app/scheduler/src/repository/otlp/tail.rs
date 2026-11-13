@@ -54,7 +54,7 @@ fn malformed(column: &'static str) -> impl FnOnce(IdValidationError) -> Malforme
 /// Reads the audit rows the OTLP exporter ships, after a signal's watermark.
 #[derive(Debug, Clone)]
 pub struct OtlpAuditTailRepository {
-    pub(super) pool: PgPool,
+    pool: PgPool,
 }
 
 impl OtlpAuditTailRepository {

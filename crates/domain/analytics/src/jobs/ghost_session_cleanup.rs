@@ -54,4 +54,4 @@ impl Job for GhostSessionCleanupJob {
     }
 }
 
-systemprompt_traits::submit_job!(&GhostSessionCleanupJob);
+systemprompt_traits::submit_job!("analytics", &GhostSessionCleanupJob);

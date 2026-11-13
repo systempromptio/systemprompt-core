@@ -61,8 +61,8 @@ fn unlisted_jobs_exclude_named_and_disabled_jobs() {
 
 #[test]
 fn the_read_model_rollups_declare_a_default_schedule() {
-    let declared: Vec<&str> = inventory::iter::<&'static dyn Job>
-        .into_iter()
+    let declared: Vec<&str> = systemprompt_traits::registered_jobs()
+        .map(|registration| registration.job)
         .filter(|job| job.default_schedule().is_some())
         .map(|job| job.name())
         .collect();
@@ -81,7 +81,7 @@ fn the_read_model_rollups_declare_a_default_schedule() {
             "{rollup} must declare a default"
         );
     }
-    for job in inventory::iter::<&'static dyn Job> {
+    for job in systemprompt_traits::registered_jobs().map(|registration| registration.job) {
         if let Some(schedule) = job.default_schedule() {
             assert_eq!(schedule, job.schedule(), "{}", job.name());
         }

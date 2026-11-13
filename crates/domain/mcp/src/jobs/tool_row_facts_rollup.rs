@@ -64,4 +64,4 @@ impl Job for ToolRowFactsRollupJob {
     }
 }
 
-systemprompt_provider_contracts::submit_job!(&ToolRowFactsRollupJob);
+systemprompt_provider_contracts::submit_job!("mcp", &ToolRowFactsRollupJob);

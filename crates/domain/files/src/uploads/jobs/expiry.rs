@@ -98,4 +98,4 @@ impl Job for DocumentUploadExpiryJob {
     }
 }
 
-systemprompt_provider_contracts::submit_job!(&DocumentUploadExpiryJob);
+systemprompt_provider_contracts::submit_job!("files", &DocumentUploadExpiryJob);

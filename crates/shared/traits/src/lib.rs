@@ -67,6 +67,7 @@ pub mod context_provider;
 pub mod coordination;
 pub mod extension_error;
 pub mod ip_bans;
+pub mod job_scope;
 pub mod jwt;
 pub mod log_service;
 pub mod managed_resources;
@@ -91,9 +92,10 @@ pub mod validation;
 
 pub use systemprompt_provider_contracts::{
     BatchPlan, BatchedRun, ChangeActor, ChangeSource, DbBudget, Dependencies, Job, JobContext,
-    JobResult, JobScope, MissingDependency, ProviderError, ProviderResult, ServerListingFailure,
-    ToolCallRequest, ToolCallResult, ToolContent, ToolContext, ToolDefinition, ToolInventory,
-    ToolProvider, ToolProviderError, ToolProviderResult, run_batched, submit_job,
+    JobRegistration, JobResult, JobScope, MissingDependency, ProviderError, ProviderResult,
+    ServerListingFailure, ToolCallRequest, ToolCallResult, ToolContent, ToolContext,
+    ToolDefinition, ToolInventory, ToolProvider, ToolProviderError, ToolProviderResult,
+    registered_jobs, run_batched, submit_job,
 };
 
 pub use context::{
@@ -108,8 +110,12 @@ pub use systemprompt_identifiers::{
 pub use repository::{BoxedSource, ConstraintKind, RepositoryError};
 
 pub use ip_bans::{DynIpBanStore, IpBanRequest, IpBanStore, IpBanStoreError};
+pub use job_scope::{
+    JobRunScope, JobRunScopeRegistration, registered_job_run_scopes, run_in_job_scopes,
+};
 pub use retention_purge::{
-    RetentionPurge, RetentionSweep, registered_retention_purges, registered_retention_sweeps,
+    RetentionPurge, RetentionPurgeRegistration, RetentionSweep, RetentionSweepRegistration,
+    registered_retention_purges, registered_retention_sweeps,
 };
 
 #[doc(hidden)]

@@ -146,4 +146,4 @@ impl Job for BrainUsageJob {
     }
 }
 
-submit_job!(&BrainUsageJob);
+submit_job!("brain", &BrainUsageJob);

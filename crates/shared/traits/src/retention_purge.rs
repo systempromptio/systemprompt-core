@@ -6,7 +6,8 @@
 //! registered for that target's table, batch by batch. A target with no
 //! registered purge (its owner is not linked) is not pruned; two purges for
 //! one table refuse the run. A [`RetentionSweep`] runs once before the passes,
-//! for an owner's own orphan settlement.
+//! for an owner's own orphan settlement. Every registration names its owning
+//! extension; the job skips registrations whose owner the profile disabled.
 //!
 //! ```ignore
 //! struct ToolExecutionsPurge;
@@ -27,7 +28,7 @@
 //!     }
 //! }
 //!
-//! register_retention_purge!(&ToolExecutionsPurge);
+//! register_retention_purge!("mcp", &ToolExecutionsPurge);
 //! ```
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -60,35 +61,71 @@ pub trait RetentionSweep: Send + Sync {
     async fn sweep(&self, ctx: &JobContext, enforce: bool) -> ProviderResult<()>;
 }
 
-inventory::collect!(&'static dyn RetentionPurge);
-inventory::collect!(&'static dyn RetentionSweep);
-
-pub fn registered_retention_purges() -> impl Iterator<Item = &'static dyn RetentionPurge> {
-    inventory::iter::<&'static dyn RetentionPurge>
-        .into_iter()
-        .copied()
+/// A [`RetentionPurge`] with the id of the extension that owns its table.
+#[derive(Clone, Copy)]
+pub struct RetentionPurgeRegistration {
+    pub owner: &'static str,
+    pub purge: &'static dyn RetentionPurge,
 }
 
-pub fn registered_retention_sweeps() -> impl Iterator<Item = &'static dyn RetentionSweep> {
-    inventory::iter::<&'static dyn RetentionSweep>
-        .into_iter()
-        .copied()
+/// A [`RetentionSweep`] with the id of the extension that owns it.
+#[derive(Clone, Copy)]
+pub struct RetentionSweepRegistration {
+    pub owner: &'static str,
+    pub sweep: &'static dyn RetentionSweep,
+}
+
+impl std::fmt::Debug for RetentionPurgeRegistration {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RetentionPurgeRegistration")
+            .field("owner", &self.owner)
+            .field("table", &self.purge.table())
+            .finish()
+    }
+}
+
+impl std::fmt::Debug for RetentionSweepRegistration {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RetentionSweepRegistration")
+            .field("owner", &self.owner)
+            .field("sweep", &self.sweep.name())
+            .finish()
+    }
+}
+
+inventory::collect!(RetentionPurgeRegistration);
+inventory::collect!(RetentionSweepRegistration);
+
+pub fn registered_retention_purges() -> impl Iterator<Item = &'static RetentionPurgeRegistration>
+{
+    inventory::iter::<RetentionPurgeRegistration>.into_iter()
+}
+
+pub fn registered_retention_sweeps() -> impl Iterator<Item = &'static RetentionSweepRegistration>
+{
+    inventory::iter::<RetentionSweepRegistration>.into_iter()
 }
 
 #[macro_export]
 macro_rules! register_retention_purge {
-    ($purge:expr) => {
-        $crate::__inventory::submit!(
-            $purge as &'static dyn $crate::retention_purge::RetentionPurge
-        );
+    ($owner:literal, $purge:expr) => {
+        $crate::__inventory::submit! {
+            $crate::retention_purge::RetentionPurgeRegistration {
+                owner: $owner,
+                purge: $purge as &'static dyn $crate::retention_purge::RetentionPurge,
+            }
+        }
     };
 }
 
 #[macro_export]
 macro_rules! register_retention_sweep {
-    ($sweep:expr) => {
-        $crate::__inventory::submit!(
-            $sweep as &'static dyn $crate::retention_purge::RetentionSweep
-        );
+    ($owner:literal, $sweep:expr) => {
+        $crate::__inventory::submit! {
+            $crate::retention_purge::RetentionSweepRegistration {
+                owner: $owner,
+                sweep: $sweep as &'static dyn $crate::retention_purge::RetentionSweep,
+            }
+        }
     };
 }

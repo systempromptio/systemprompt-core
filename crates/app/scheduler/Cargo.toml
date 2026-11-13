@@ -46,7 +46,6 @@ systemprompt-config = { workspace = true }
 systemprompt-loader = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-events = { workspace = true }
-systemprompt-files = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-governance = { workspace = true }
 systemprompt-identifiers = { workspace = true }
@@ -58,8 +57,6 @@ systemprompt-runtime = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-users = { workspace = true }
 
-# Job registration and discovery
-inventory = { workspace = true }
 
 # OTLP export (otlp_export job)
 opentelemetry-proto = { workspace = true, optional = true }

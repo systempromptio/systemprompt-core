@@ -40,7 +40,6 @@ chrono = { workspace = true }
 uuid = { workspace = true }
 rmcp = { workspace = true }
 async-trait = { workspace = true }
-inventory = { workspace = true }
 tempfile = { workspace = true }
 wiremock = { workspace = true }
 futures = { workspace = true }

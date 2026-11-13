@@ -62,4 +62,4 @@ impl Job for AiRequestToolFlagRollupJob {
     }
 }
 
-systemprompt_traits::submit_job!(&AiRequestToolFlagRollupJob);
+systemprompt_traits::submit_job!("ai", &AiRequestToolFlagRollupJob);

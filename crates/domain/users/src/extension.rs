@@ -3,7 +3,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
+
+use systemprompt_database::DbPool;
 use systemprompt_extension::prelude::*;
+use systemprompt_traits::DynIpBanStore;
+
+use crate::repository::BannedIpRepository;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct UsersExtension;
@@ -99,6 +105,16 @@ impl Extension for UsersExtension {
 
     fn dependencies(&self) -> Vec<&'static str> {
         vec!["events"]
+    }
+
+    fn provide(
+        &self,
+        _ctx: &dyn ExtensionContext,
+        state: &mut StateBuilder<'_>,
+    ) -> Result<(), ExtensionStateError> {
+        let db = Arc::clone(state.state().get::<DbPool>()?);
+        let bans: DynIpBanStore = Arc::new(BannedIpRepository::new(&db));
+        state.provide(bans)
     }
 
     fn migrations(&self) -> Vec<Migration> {

@@ -10,11 +10,20 @@
 //! then the dimension provider's first value) and the gateway carries the set
 //! unchanged onto the audit row, the quota windows and the OTLP export.
 //!
+//! The stored entries are read back through [`RequestAttributionLookup`],
+//! which the AI crate implements over its attribution table and provides
+//! into the extension state as [`DynRequestAttributionLookup`].
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::HashMap;
+use std::sync::Arc;
+
+use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{ApiKeyId, ScopeDimension};
+use systemprompt_identifiers::{AiRequestId, ApiKeyId, ScopeDimension};
+use systemprompt_traits::RepositoryError;
 
 /// Which signal decided an attributed value. Persisted as
 /// `ai_request_attributions.source`, a CHECK-constrained column.
@@ -145,3 +154,16 @@ impl std::fmt::Display for TrafficClass {
         f.write_str(self.as_str())
     }
 }
+
+/// Reads the stored attribution entries of a batch of requests.
+/// `#[async_trait]` keeps the trait `dyn`-compatible for
+/// [`DynRequestAttributionLookup`].
+#[async_trait]
+pub trait RequestAttributionLookup: Send + Sync {
+    async fn attributions_for(
+        &self,
+        ids: &[AiRequestId],
+    ) -> Result<HashMap<AiRequestId, Vec<AttributionEntry>>, RepositoryError>;
+}
+
+pub type DynRequestAttributionLookup = Arc<dyn RequestAttributionLookup>;

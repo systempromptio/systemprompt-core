@@ -18,12 +18,11 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
-use systemprompt_files::documents::agents::{DocumentActor, act_as};
 
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{Actor, InstanceId, JobName};
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::{Job as JobTrait, JobResult};
+use systemprompt_traits::{Job as JobTrait, JobResult, run_in_job_scopes};
 use tracing::{debug, error, trace, warn};
 
 use super::claim::{Claim, acquire_cluster_claim, acquire_node_claim};
@@ -37,6 +36,7 @@ use crate::services::job_metrics;
 pub(super) use super::claim::{ClaimPolicy, claim_policy};
 
 pub(super) struct JobDispatch {
+    pub(super) job: &'static dyn JobTrait,
     pub(super) job_name: JobName,
     pub(super) actor: Actor,
     pub(super) db_pool: DbPool,
@@ -51,6 +51,7 @@ pub(super) struct JobDispatch {
 
 pub(super) async fn execute_job(dispatch: JobDispatch) {
     let JobDispatch {
+        job,
         job_name,
         actor,
         db_pool,
@@ -91,12 +92,12 @@ pub(super) async fn execute_job(dispatch: JobDispatch) {
 
     trace!(job_name = %job_name, "Starting job");
 
-    let budget = find_job(&job_name).and_then(JobTrait::db_budget);
+    let budget = job.db_budget();
     let ctx = make_job_context(actor, db_pool, app_context, budget, &inventory_memo)
         .with_enforce(enforce)
         .with_parameters(parameters);
     let started = std::time::Instant::now();
-    let result = find_and_execute_job(&job_name, &ctx).await;
+    let result = execute_in_scope(job, &job_name, &ctx).await;
     job_metrics::record_job_run(
         &job_name,
         job_metrics::run_status(&result),
@@ -114,27 +115,15 @@ pub(super) async fn execute_job(dispatch: JobDispatch) {
     }
 }
 
-fn find_job(job_name: &JobName) -> Option<&'static dyn JobTrait> {
-    inventory::iter::<&'static dyn JobTrait>
-        .into_iter()
-        .find(|&j| j.name() == job_name)
-        .copied()
-}
-
-async fn find_and_execute_job(
+async fn execute_in_scope(
+    job: &'static dyn JobTrait,
     job_name: &JobName,
     ctx: &systemprompt_traits::JobContext,
 ) -> SchedulerResult<JobResult> {
     use futures::FutureExt;
     use std::panic::AssertUnwindSafe;
 
-    let job = find_job(job_name).ok_or_else(|| {
-        error!(job_name = %job_name, "Job not found in inventory");
-        SchedulerError::job_not_found(job_name.clone())
-    })?;
-
-    let actor = DocumentActor::system(job.name());
-    match AssertUnwindSafe(act_as(actor, job.execute(ctx)))
+    match AssertUnwindSafe(run_in_job_scopes(job.name(), job.execute(ctx)))
         .catch_unwind()
         .await
     {

@@ -18,7 +18,7 @@ use systemprompt_identifiers::JobName;
 use systemprompt_loader::BootContext;
 use systemprompt_manifest::services::UnlistedJobs;
 use systemprompt_provider_contracts::Dependencies;
-use systemprompt_traits::Job as JobTrait;
+use systemprompt_traits::{Job as JobTrait, registered_jobs};
 use tracing::{info, warn};
 
 use super::{SchedulerService, deployment_dependencies};
@@ -27,11 +27,9 @@ use crate::models::{JobConfig, SchedulerConfig};
 
 #[must_use]
 pub fn unlisted_job_names(config: &SchedulerConfig, boot: &BootContext) -> Vec<JobName> {
-    let registered: HashMap<&'static str, &'static dyn JobTrait> =
-        inventory::iter::<&'static dyn JobTrait>
-            .into_iter()
-            .map(|&job| (job.name(), job))
-            .collect();
+    let registered: HashMap<&'static str, &'static dyn JobTrait> = registered_jobs()
+        .map(|registration| (registration.job.name(), registration.job))
+        .collect();
     collect_unlisted(config, &registered, &deployment_dependencies(boot))
         .into_iter()
         .map(|job| JobName::new(job.name()))

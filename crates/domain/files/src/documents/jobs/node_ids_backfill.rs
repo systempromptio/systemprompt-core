@@ -135,4 +135,4 @@ impl Job for DocumentNodeIdsBackfillJob {
     }
 }
 
-systemprompt_provider_contracts::submit_job!(&DocumentNodeIdsBackfillJob);
+systemprompt_provider_contracts::submit_job!("files", &DocumentNodeIdsBackfillJob);

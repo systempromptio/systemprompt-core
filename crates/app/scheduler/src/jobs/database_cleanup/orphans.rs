@@ -12,6 +12,8 @@ use systemprompt_traits::{JobContext, ProviderError, ProviderResult, registered_
 use systemprompt_users::UserRepository;
 use tracing::{debug, info};
 
+use crate::services::EnabledExtensions;
+
 pub(super) async fn delete_orphaned_logs(db_pool: &DbPool, enforce: bool) -> ProviderResult<u64> {
     let logs = LoggingRepository::new(db_pool);
     let users = UserRepository::new(db_pool);
@@ -47,8 +49,15 @@ pub(super) async fn delete_orphaned_logs(db_pool: &DbPool, enforce: bool) -> Pro
     }
 }
 
-pub(super) async fn run_sweeps(ctx: &JobContext) -> ProviderResult<()> {
-    for sweep in registered_retention_sweeps() {
+pub(super) async fn run_sweeps(
+    ctx: &JobContext,
+    enabled: &EnabledExtensions,
+) -> ProviderResult<()> {
+    for registration in registered_retention_sweeps() {
+        if !enabled.contains(registration.owner) {
+            continue;
+        }
+        let sweep = registration.sweep;
         debug!(sweep = sweep.name(), "Retention sweep");
         sweep.sweep(ctx, ctx.enforce()).await?;
     }

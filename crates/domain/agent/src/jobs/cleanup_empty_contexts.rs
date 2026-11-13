@@ -73,4 +73,4 @@ impl Job for CleanupEmptyContextsJob {
     }
 }
 
-systemprompt_traits::submit_job!(&CleanupEmptyContextsJob);
+systemprompt_traits::submit_job!("agent", &CleanupEmptyContextsJob);

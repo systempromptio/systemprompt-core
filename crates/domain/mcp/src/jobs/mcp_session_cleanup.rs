@@ -74,4 +74,4 @@ impl Job for McpSessionCleanupJob {
     }
 }
 
-systemprompt_provider_contracts::submit_job!(&McpSessionCleanupJob);
+systemprompt_provider_contracts::submit_job!("mcp", &McpSessionCleanupJob);

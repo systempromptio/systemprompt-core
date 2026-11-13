@@ -71,4 +71,4 @@ impl Job for ContentPrerenderJob {
     }
 }
 
-systemprompt_provider_contracts::submit_job!(&ContentPrerenderJob);
+systemprompt_provider_contracts::submit_job!("content", &ContentPrerenderJob);

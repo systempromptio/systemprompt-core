@@ -93,4 +93,4 @@ impl Job for AgentRunDirsCleanupJob {
     }
 }
 
-systemprompt_provider_contracts::submit_job!(&AgentRunDirsCleanupJob);
+systemprompt_provider_contracts::submit_job!("agent_runs", &AgentRunDirsCleanupJob);

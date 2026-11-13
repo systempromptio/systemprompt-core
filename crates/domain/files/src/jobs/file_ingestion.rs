@@ -261,4 +261,4 @@ async fn build_file_record(
     }
 }
 
-systemprompt_provider_contracts::submit_job!(&FileIngestionJob);
+systemprompt_provider_contracts::submit_job!("files", &FileIngestionJob);

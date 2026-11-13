@@ -132,4 +132,4 @@ fn catalog_fingerprint(app: &AppContext) -> Option<[u8; 32]> {
         .ok()
 }
 
-systemprompt_provider_contracts::submit_job!(&InventoryRefreshJob);
+systemprompt_provider_contracts::submit_job!("scheduler", &InventoryRefreshJob);

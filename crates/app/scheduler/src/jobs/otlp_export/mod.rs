@@ -37,6 +37,7 @@ use systemprompt_config::LoadedProfile;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiRequestId, InstanceId};
 use systemprompt_manifest::profile::{OtlpExportConfig, OtlpSignal};
+use systemprompt_models::attribution::DynRequestAttributionLookup;
 use systemprompt_provider_contracts::Dependencies;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::{debug, info, warn};
@@ -94,29 +95,35 @@ impl Job for OtlpExportJob {
         let pool = db_pool.write_pool();
         let instance_id = app.config().instance_id.clone();
 
-        let report = run(&pool, config, Some(&instance_id), true).await?;
+        let attributions = ctx.get::<DynRequestAttributionLookup>().ok();
+        let report = run(&pool, config, Some(&instance_id), attributions, true).await?;
         Ok(JobResult::success()
             .with_stats(report.rows(), report.failed())
             .with_duration(start.elapsed().as_millis() as u64))
     }
 }
 
-systemprompt_provider_contracts::submit_job!(&OtlpExportJob);
+systemprompt_provider_contracts::submit_job!("scheduler", &OtlpExportJob);
 
 pub async fn export_now(
     pool: &Arc<PgPool>,
     config: &OtlpExportConfig,
     instance_id: Option<&InstanceId>,
+    attributions: Option<&DynRequestAttributionLookup>,
 ) -> SchedulerResult<ExportReport> {
-    run(pool, config, instance_id, false).await
+    run(pool, config, instance_id, attributions, false).await
 }
 
 async fn run(
     pool: &Arc<PgPool>,
     config: &OtlpExportConfig,
     instance_id: Option<&InstanceId>,
+    attributions: Option<&DynRequestAttributionLookup>,
     paced: bool,
 ) -> SchedulerResult<ExportReport> {
+    if attributions.is_none() && config.exports(OtlpSignal::Traces) {
+        info!("no request attribution lookup is provided; request spans carry no scope attributes");
+    }
     let repository = OtlpExportStateRepository::new(pool.as_ref().clone());
     let tails = OtlpAuditTailRepository::new(pool.as_ref().clone());
     let client = transport::build_client();
@@ -141,6 +148,7 @@ async fn run(
             client: &client,
             state: &repository,
             tails: &tails,
+            attributions,
         };
         let outcome = export_signal(config, stores, &state, instance_id).await;
         report.signals.push(match outcome {
@@ -168,11 +176,12 @@ async fn run(
     Ok(report)
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 struct SignalStores<'a> {
     client: &'a reqwest::Client,
     state: &'a OtlpExportStateRepository,
     tails: &'a OtlpAuditTailRepository,
+    attributions: Option<&'a DynRequestAttributionLookup>,
 }
 
 async fn export_signal(
@@ -235,9 +244,11 @@ async fn load_trace_batch(
         return Ok(TraceBatch::default());
     }
     let ids: Vec<AiRequestId> = requests.iter().map(|r| r.id.clone()).collect();
-    let mut attributions = tails.attributions_for(&ids).await?;
-    for request in &mut requests {
-        request.attributions = attributions.remove(&request.id).unwrap_or_default();
+    if let Some(lookup) = stores.attributions {
+        let mut attributions = lookup.attributions_for(&ids).await?;
+        for request in &mut requests {
+            request.attributions = attributions.remove(&request.id).unwrap_or_default();
+        }
     }
     let mut batch = TraceBatch {
         requests,

@@ -45,4 +45,4 @@ impl Job for SessionBotTypeRollupJob {
     }
 }
 
-systemprompt_provider_contracts::submit_job!(&SessionBotTypeRollupJob);
+systemprompt_provider_contracts::submit_job!("scheduler", &SessionBotTypeRollupJob);

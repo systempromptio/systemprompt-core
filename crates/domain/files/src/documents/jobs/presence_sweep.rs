@@ -89,4 +89,4 @@ impl Job for DocumentPresenceSweepJob {
     }
 }
 
-systemprompt_provider_contracts::submit_job!(&DocumentPresenceSweepJob);
+systemprompt_provider_contracts::submit_job!("files", &DocumentPresenceSweepJob);

@@ -191,7 +191,7 @@ impl Job for LicenceCheckinJob {
     }
 }
 
-systemprompt_provider_contracts::submit_job!(&LicenceCheckinJob);
+systemprompt_provider_contracts::submit_job!("scheduler", &LicenceCheckinJob);
 
 async fn post_checkin(
     config: &LicenceConfig,

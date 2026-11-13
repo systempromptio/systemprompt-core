@@ -24,10 +24,9 @@ pub struct ShowArgs {
 }
 
 pub(super) async fn execute(args: ShowArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let job = inventory::iter::<&'static dyn Job>
-        .into_iter()
-        .find(|&j| j.name() == args.job_name)
-        .copied();
+    let job = systemprompt_traits::registered_jobs()
+        .map(|registration| registration.job)
+        .find(|j| j.name() == args.job_name);
 
     let Some(job) = job else {
         anyhow::bail!(

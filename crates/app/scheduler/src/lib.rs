@@ -69,9 +69,9 @@ pub use repository::{
     SchedulerRepository, find_lock_key_collision,
 };
 pub use services::{
-    ApiListenerStop, DbServiceRecord, DesiredStatus, JobBatchReport, JobExecutionService,
-    JobRunReport, JobSelection, OrphanCleanupReport, OrphanDisposition, OrphanOutcome,
-    ReconciliationResult, RestartPlan, RestartScope, RestartTarget, SchedulerHandle,
+    ApiListenerStop, DbServiceRecord, DesiredStatus, EnabledExtensions, JobBatchReport,
+    JobExecutionService, JobRunReport, JobSelection, OrphanCleanupReport, OrphanDisposition,
+    OrphanOutcome, ReconciliationResult, RestartPlan, RestartScope, RestartTarget, SchedulerHandle,
     SchedulerService, SchedulerStartup, ServiceAction, ServiceConfig, ServiceManagementService,
     ServiceReconciler, ServiceSnapshot, ServiceStateVerifier, ServiceType, StartupPlan,
     StartupRequest, VerifiedService, VerifiedServiceState, child_kind, parse_job_parameters,

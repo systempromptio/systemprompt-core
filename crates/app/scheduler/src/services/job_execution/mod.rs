@@ -27,14 +27,14 @@ pub use report::{JobBatchReport, JobRunReport, JobSelection, parse_job_parameter
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use systemprompt_files::documents::agents::{DocumentActor, act_as};
 
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_identifiers::{Actor, JobName};
 use systemprompt_manifest::SchedulerConfig;
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::Job;
+use systemprompt_traits::{Job, run_in_job_scopes};
 
+use super::EnabledExtensions;
 use super::scheduling::make_job_context;
 use crate::error::{SchedulerError, SchedulerResult};
 use crate::jobs::InventoryRefreshMemo;
@@ -102,14 +102,14 @@ impl JobExecutionService {
     pub fn resolve_job_names(&self, selection: &JobSelection) -> SchedulerResult<Vec<JobName>> {
         match selection {
             JobSelection::All => {
+                let enabled = self.enabled()?;
                 let mut names: Vec<JobName> = self
-                    .registry
-                    .all_jobs()
+                    .enabled_manifest_jobs()?
                     .into_iter()
                     .filter(|job| job.enabled())
                     .map(|job| JobName::new(job.name()))
                     .collect();
-                for job in inventory::iter::<&'static dyn Job> {
+                for job in enabled.jobs() {
                     if job.enabled() && !names.iter().any(|name| name == job.name()) {
                         names.push(JobName::new(job.name()));
                     }
@@ -118,7 +118,16 @@ impl JobExecutionService {
                 Ok(names)
             },
             JobSelection::Tag(tag) => {
-                let jobs = self.registry.jobs_by_tag(tag);
+                let mut jobs: Vec<&dyn Job> = Vec::new();
+                let manifest = self.enabled_manifest_jobs()?;
+                jobs.extend(manifest.iter().map(AsRef::as_ref));
+                let enabled = self.enabled()?;
+                for job in enabled.jobs() {
+                    if !jobs.iter().any(|seen| seen.name() == job.name()) {
+                        jobs.push(job);
+                    }
+                }
+                jobs.retain(|job| job.tags().contains(&tag.as_str()));
                 if jobs.is_empty() {
                     return Err(SchedulerError::NoJobsWithTag { tag: tag.clone() });
                 }
@@ -167,14 +176,28 @@ impl JobExecutionService {
     ) -> JobRunReport {
         let start = Instant::now();
 
-        let Some(runnable) = self.find_runnable(job_name) else {
-            let report = failed_report(
-                job_name,
-                start,
-                Some(format!("Job '{}' not found", job_name)),
-            );
-            self.record_run(&report).await;
-            return report;
+        let runnable = match self.find_runnable(job_name) {
+            Ok(Some(runnable)) => runnable,
+            Ok(None) => {
+                let report = failed_report(
+                    job_name,
+                    start,
+                    Some(format!(
+                        "Job '{job_name}' not found, or its owning extension is disabled"
+                    )),
+                );
+                self.record_run(&report).await;
+                return report;
+            },
+            Err(e) => {
+                let report = failed_report(
+                    job_name,
+                    start,
+                    Some(format!("Could not resolve the enabled extensions: {e}")),
+                );
+                self.record_run(&report).await;
+                return report;
+            },
         };
 
         let guard = match self.claim(job_name, &runnable).await {
@@ -200,15 +223,28 @@ impl JobExecutionService {
         report
     }
 
-    fn find_runnable(&self, job_name: &JobName) -> Option<RunnableJob> {
-        if let Some(job) = self.registry.job_by_name(job_name.as_str()) {
-            return Some(RunnableJob::Manifest(job));
-        }
-        inventory::iter::<&'static dyn Job>
+    fn enabled(&self) -> SchedulerResult<EnabledExtensions> {
+        EnabledExtensions::resolve(&self.registry, &self.ctx.profile().extensions.disabled)
+    }
+
+    fn enabled_manifest_jobs(&self) -> SchedulerResult<Vec<Arc<dyn Job>>> {
+        Ok(self
+            .registry
+            .enabled_extensions(&self.ctx.profile().extensions.disabled)?
+            .iter()
+            .flat_map(|ext| ext.jobs())
+            .collect())
+    }
+
+    fn find_runnable(&self, job_name: &JobName) -> SchedulerResult<Option<RunnableJob>> {
+        if let Some(job) = self
+            .enabled_manifest_jobs()?
             .into_iter()
-            .find(|&job| job.name() == job_name)
-            .copied()
-            .map(RunnableJob::Inventory)
+            .find(|job| job.name() == job_name.as_str())
+        {
+            return Ok(Some(RunnableJob::Manifest(job)));
+        }
+        Ok(self.enabled()?.job(job_name.as_str()).map(RunnableJob::Inventory))
     }
 
     async fn execute_runnable(
@@ -240,8 +276,8 @@ impl JobExecutionService {
         .with_enforce(enforce)
         .with_parameters(merged);
 
-        let actor = DocumentActor::system(runnable.as_job().name());
-        match act_as(actor, runnable.as_job().execute(&job_ctx)).await {
+        let job = runnable.as_job();
+        match run_in_job_scopes(job.name(), job.execute(&job_ctx)).await {
             Ok(result) => JobRunReport {
                 job_name: job_name.clone(),
                 success: result.success,

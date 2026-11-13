@@ -19,6 +19,7 @@ mod registration;
 mod unlisted;
 
 use crate::error::{SchedulerError, SchedulerResult};
+use crate::services::EnabledExtensions;
 use crate::jobs::InventoryRefreshMemo;
 use crate::models::{SchedulerConfig, SkippedJob};
 use crate::repository::SchedulerRepository;
@@ -28,7 +29,7 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{JobName, UserId};
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::Job as JobTrait;
+use systemprompt_traits::{Job as JobTrait, registered_jobs};
 use tokio::sync::Mutex;
 use tokio_cron_scheduler::JobScheduler;
 use tracing::{debug, info, warn};
@@ -96,13 +97,19 @@ struct RegistrationCtx<'a> {
 
 #[must_use]
 pub fn unknown_job_names(config: &SchedulerConfig) -> Vec<JobName> {
-    let registered: HashSet<&'static str> = inventory::iter::<&'static dyn JobTrait>
-        .into_iter()
-        .map(|job| job.name())
-        .collect();
+    let registered: HashSet<&'static str> = linked_jobs().into_keys().collect();
     collect_unknown_job_names(config, |name| registered.contains(name.as_str()))
         .into_iter()
         .cloned()
+        .collect()
+}
+
+/// Every job linked into the binary, whether or not its owning extension is
+/// enabled: what a configured job name is validated against, and the set of
+/// `scheduled_jobs` rows kept. Only the enabled subset is run.
+fn linked_jobs() -> HashMap<&'static str, &'static dyn JobTrait> {
+    registered_jobs()
+        .map(|registration| (registration.job.name(), registration.job))
         .collect()
 }
 
@@ -157,19 +164,21 @@ impl SchedulerService {
             return Ok(SchedulerStartup::disabled());
         }
 
-        let registered_jobs = Self::discover_jobs();
-        self.validate_configured_jobs(&registered_jobs)?;
+        let linked_jobs = linked_jobs();
+        let registered_jobs = self.enabled_jobs()?;
+        self.validate_configured_jobs(&linked_jobs)?;
         self.adopt_unlisted_jobs(&registered_jobs)?;
-        self.verify_lock_keys(&registered_jobs).await?;
+        self.verify_lock_keys(&linked_jobs).await?;
 
         let resolved = self.resolve_owners(true).await?;
 
         debug!(
-            discovered = registered_jobs.len(),
+            linked = linked_jobs.len(),
+            enabled = registered_jobs.len(),
             configured = self.config.jobs.len(),
             "Discovered jobs via inventory"
         );
-        self.forget_retired_jobs(&registered_jobs).await;
+        self.forget_retired_jobs(&linked_jobs).await;
 
         let running_jobs: RunningJobs = Arc::new(Mutex::new(HashSet::new()));
 
@@ -227,11 +236,11 @@ impl SchedulerService {
         self.repository.verify_lock_keys(&names).await
     }
 
-    fn discover_jobs() -> HashMap<&'static str, &'static dyn JobTrait> {
-        inventory::iter::<&'static dyn JobTrait>
-            .into_iter()
-            .map(|&job| (job.name(), job))
-            .collect()
+    fn enabled_jobs(&self) -> SchedulerResult<HashMap<&'static str, &'static dyn JobTrait>> {
+        Ok(EnabledExtensions::of(&self.app_context)?
+            .jobs()
+            .map(|job| (job.name(), job))
+            .collect())
     }
 
     fn validate_configured_jobs(

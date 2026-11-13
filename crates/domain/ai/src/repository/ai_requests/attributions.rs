@@ -10,7 +10,9 @@ use std::collections::HashMap;
 
 use sqlx::{Postgres, Transaction};
 use systemprompt_identifiers::{AiRequestId, ScopeDimension};
-use systemprompt_models::attribution::{AttributionEntry, AttributionSource, RequestAttribution};
+use systemprompt_models::attribution::{
+    AttributionEntry, AttributionSource, RequestAttribution, RequestAttributionLookup,
+};
 use systemprompt_traits::RepositoryError;
 
 use super::AiRequestRepository;
@@ -90,5 +92,15 @@ impl AiRequestRepository {
                 });
         }
         Ok(out)
+    }
+}
+
+#[async_trait::async_trait]
+impl RequestAttributionLookup for AiRequestRepository {
+    async fn attributions_for(
+        &self,
+        ids: &[AiRequestId],
+    ) -> Result<HashMap<AiRequestId, Vec<AttributionEntry>>, RepositoryError> {
+        Self::attributions_for(self, ids).await
     }
 }

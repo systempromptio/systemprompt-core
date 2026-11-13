@@ -42,6 +42,7 @@ use systemprompt_manifest::profile::RetentionConfig;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::debug;
 
+use crate::services::EnabledExtensions;
 use crate::services::scheduling::job_app_context;
 
 use self::archived_users::purge_archived_users;
@@ -78,11 +79,12 @@ impl Job for DatabaseCleanupJob {
         if let Some(days) = ctx.get_parameter_parsed::<u32>("log_retention_days")? {
             retention.logs_days = days;
         }
-        let owners = RetentionOwners::discover()?;
+        let enabled = EnabledExtensions::of(app)?;
+        let owners = RetentionOwners::discover(&enabled)?;
 
         debug!("Job started");
         let orphaned = delete_orphaned_logs(&db_pool, ctx.enforce()).await?;
-        run_sweeps(ctx).await?;
+        run_sweeps(ctx, &enabled).await?;
         let plan: Vec<_> = plan(&retention, app.services_state())
             .into_iter()
             .filter(|(target, _)| {
@@ -193,4 +195,4 @@ fn summary(orphaned: u64, passes: &[RetentionPass]) -> String {
     parts.join(" ")
 }
 
-systemprompt_provider_contracts::submit_job!(&DatabaseCleanupJob);
+systemprompt_provider_contracts::submit_job!("scheduler", &DatabaseCleanupJob);
