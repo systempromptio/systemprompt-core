@@ -17,7 +17,8 @@ use systemprompt_extension::{
 };
 use systemprompt_manifest::profile::FrameOptions;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_app_context_with_extensions, fixture_config, test_db_pool,
+    ensure_test_bootstrap, fixture_app_context_with_extensions, fixture_config,
+    seed_admin_credential, seed_bridge_credential, test_db_pool,
 };
 use tower::ServiceExt;
 
@@ -257,15 +258,44 @@ async fn site_auth_extension_gates_static_pages_behind_login_redirect() -> anyho
     Ok(())
 }
 
-#[tokio::test]
-async fn an_admin_declaration_refuses_an_anonymous_caller() -> anyhow::Result<()> {
-    let app = app_with_extensions(vec![Arc::new(AdminExt)]).await?;
+fn bearer_get(uri: &str, token: &str) -> Request<Body> {
+    let mut req = get_req(uri);
+    req.headers_mut().insert(
+        axum::http::header::AUTHORIZATION,
+        format!("Bearer {token}")
+            .parse()
+            .expect("bearer header must parse"),
+    );
+    req
+}
 
-    let resp = app.oneshot(get_req("/api/covadmin/only")).await?;
-    assert!(
-        resp.status().is_client_error(),
-        "an admin-only extension route must not serve an anonymous caller, got {}",
-        resp.status()
+#[tokio::test]
+async fn an_admin_declaration_refuses_an_authenticated_user_and_admits_an_admin()
+-> anyhow::Result<()> {
+    let app = app_with_extensions(vec![Arc::new(AdminExt)]).await?;
+    let pool = test_db_pool().await;
+    let user = seed_bridge_credential(&pool, "covadmin-user@example.invalid").await?;
+    let admin = seed_admin_credential(&pool, "covadmin-admin@example.invalid").await?;
+
+    let refused = app
+        .clone()
+        .oneshot(bearer_get("/api/covadmin/only", user.jwt.as_str()))
+        .await?;
+    assert_eq!(
+        refused.status().as_u16(),
+        403,
+        "the admin gate must refuse an authenticated non-admin, got {}",
+        refused.status()
+    );
+
+    let admitted = app
+        .oneshot(bearer_get("/api/covadmin/only", admin.jwt.as_str()))
+        .await?;
+    assert_eq!(
+        admitted.status().as_u16(),
+        200,
+        "the admin gate must admit an admin, got {}",
+        admitted.status()
     );
     Ok(())
 }
@@ -275,10 +305,13 @@ async fn a_declaration_whose_enable_predicate_fails_is_not_mounted() -> anyhow::
     let app = app_with_extensions(vec![Arc::new(DisabledExt)]).await?;
 
     let resp = app.oneshot(get_req("/api/covdisabled/ping")).await?;
+    let body = http_body_util::BodyExt::collect(resp.into_body())
+        .await?
+        .to_bytes();
     assert_ne!(
-        resp.status().as_u16(),
-        200,
-        "a disabled declaration must not serve its routes"
+        &body[..],
+        b"disabled",
+        "a disabled declaration must not serve its handler"
     );
     Ok(())
 }

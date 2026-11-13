@@ -10,10 +10,16 @@
 //! group and enable predicate and nests the result under its base path, or
 //! merges it at the web root.
 //!
-//! A declaration whose policy admits no caller type, or that names a bearer
+//! A declaration whose policy admits no caller type, that pairs the public
+//! context with a policy excluding anonymous callers, or that names a bearer
 //! window or protection layer the server has no primitive for, is refused
 //! with a typed [`MountError`] at boot; nothing is mounted with less
-//! protection than it declares.
+//! protection than it declares. [`admit_extension`] adds the extension
+//! ceiling: an extension may not raise its body limit above the server-wide
+//! [`DEFAULT_BODY_LIMIT_BYTES`]. Core declarations are exempt because the
+//! A2A proxy legitimately accepts `AGENT_REQUEST_BODY_LIMIT_BYTES`. A
+//! declaration skipped by its role group or enable predicate is logged at
+//! `info`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -45,6 +51,8 @@ use crate::services::session_cookie::SessionCookie;
 
 const CLIENTS_PATH: &str = "/clients";
 
+pub const DEFAULT_BODY_LIMIT_BYTES: usize = 2 * 1024 * 1024;
+
 #[derive(Debug, thiserror::Error)]
 pub enum MountError {
     #[error("route group at '{base_path}' declares a policy that admits no caller type")]
@@ -63,6 +71,22 @@ pub enum MountError {
     GuardUnavailable {
         base_path: &'static str,
         layer: ProtectionLayer,
+    },
+
+    #[error(
+        "route group at '{base_path}' pairs the public context with a policy that does not admit \
+         anonymous callers, so no request can reach it"
+    )]
+    IncoherentContext { base_path: &'static str },
+
+    #[error(
+        "extension route group at '{base_path}' declares a {declared}-byte body limit above the \
+         {ceiling}-byte server default"
+    )]
+    ExtensionBodyLimitTooLarge {
+        base_path: &'static str,
+        declared: usize,
+        ceiling: usize,
     },
 
     #[error("route group at '{base_path}' could not build its rate limit")]
@@ -179,6 +203,9 @@ pub fn protect(
     if protection.policy.allowed().is_empty() {
         return Err(MountError::NoAdmittedCaller { base_path });
     }
+    if protection.context == ContextKind::Public && protection.requires_authentication() {
+        return Err(MountError::IncoherentContext { base_path });
+    }
 
     let mut router = router;
 
@@ -264,10 +291,38 @@ pub fn mount(
     ctx: &dyn ExtensionContext,
     serves: &dyn Fn(RouteGroup) -> bool,
 ) -> Result<Router, MountError> {
-    if !serves(declared.group) || !declared.is_enabled(ctx) {
+    if !serves(declared.group) {
+        tracing::info!(
+            base_path = declared.base_path,
+            group = ?declared.group,
+            reason = "role_does_not_serve_group",
+            "Route declaration not mounted"
+        );
+        return Ok(tree);
+    }
+    if !declared.is_enabled(ctx) {
+        tracing::info!(
+            base_path = declared.base_path,
+            group = ?declared.group,
+            reason = "enable_predicate_false",
+            "Route declaration not mounted"
+        );
         return Ok(tree);
     }
     let base_path = declared.base_path;
     let protected = protect(declared.router, &declared.protection, layers, base_path)?;
     Ok(place(tree, base_path, protected))
+}
+
+pub fn admit_extension(declared: &ExtensionRouter) -> Result<(), MountError> {
+    match declared.protection.body_limit {
+        Some(declared_bytes) if declared_bytes > DEFAULT_BODY_LIMIT_BYTES => {
+            Err(MountError::ExtensionBodyLimitTooLarge {
+                base_path: declared.base_path,
+                declared: declared_bytes,
+                ceiling: DEFAULT_BODY_LIMIT_BYTES,
+            })
+        },
+        _ => Ok(()),
+    }
 }

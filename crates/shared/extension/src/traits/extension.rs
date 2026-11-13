@@ -20,7 +20,7 @@ use crate::error::{ExtensionConfigError, ExtensionStateError};
 use crate::health::{MetricDescriptor, ReadinessCheck};
 use crate::metadata::{ExtensionMetadata, ExtensionRole, SchemaDefinition};
 use crate::migration::Migration;
-use crate::router::{ExtensionRouter, ExtensionRouterConfig, SiteAuthConfig};
+use crate::router::{ExtensionRouter, SiteAuthConfig};
 use crate::seed::Seed;
 use crate::state::{StateBuilder, StateRequirement};
 
@@ -39,10 +39,6 @@ pub trait Extension: Send + Sync + 'static {
     }
 
     fn router(&self, _ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
-        None
-    }
-
-    fn router_config(&self) -> Option<ExtensionRouterConfig> {
         None
     }
 

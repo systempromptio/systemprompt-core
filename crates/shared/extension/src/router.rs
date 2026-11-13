@@ -187,14 +187,6 @@ impl RouteProtection {
 
 pub type EnablePredicate = fn(&dyn ExtensionContext) -> bool;
 
-/// The projection of an [`ExtensionRouter`] without its router.
-#[derive(Debug, Clone)]
-pub struct ExtensionRouterConfig {
-    pub base_path: &'static str,
-    pub protection: RouteProtection,
-    pub group: RouteGroup,
-}
-
 #[derive(Debug, Clone, Copy)]
 pub struct SiteAuthConfig {
     pub login_path: &'static str,
@@ -278,14 +270,5 @@ impl ExtensionRouter {
     #[must_use]
     pub fn is_enabled(&self, ctx: &dyn ExtensionContext) -> bool {
         self.enabled.is_none_or(|predicate| predicate(ctx))
-    }
-
-    #[must_use]
-    pub fn config(&self) -> ExtensionRouterConfig {
-        ExtensionRouterConfig {
-            base_path: self.base_path,
-            protection: self.protection.clone(),
-            group: self.group,
-        }
     }
 }

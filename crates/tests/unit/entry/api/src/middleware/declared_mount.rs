@@ -15,11 +15,11 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::routing::{get, post};
 use systemprompt_api::services::middleware::{
     A2AContextMiddleware, BodyBudget, ContextExtractor, McpContextMiddleware, MountError,
-    MountLayers, ProtectionGuards, PublicContextMiddleware, RateLimitState,
-    UserOnlyContextMiddleware, protect,
+    DEFAULT_BODY_LIMIT_BYTES, MountLayers, ProtectionGuards, PublicContextMiddleware,
+    RateLimitState, UserOnlyContextMiddleware, admit_extension, protect,
 };
 use systemprompt_extension::{
-    AuthzPolicy, ContextKind, FrameOptionsOverride, ProtectionLayer, RateBudget, RateLimit,
+    AuthzPolicy, ContextKind, ExtensionRouter, FrameOptionsOverride, ProtectionLayer, RateBudget, RateLimit,
     RouteProtection,
 };
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
@@ -272,4 +272,43 @@ async fn the_declared_frame_options_are_stamped_on_the_response() {
         .expect("request must complete");
     let stamped = resp.extensions().get::<FrameOptionsOverride>().map(|o| o.0);
     assert_eq!(stamped, Some(FrameOptions::AllowAll));
+}
+
+#[tokio::test]
+async fn a_public_context_with_a_policy_excluding_anonymous_callers_is_refused_at_mount() {
+    for policy in [AuthzPolicy::user(), AuthzPolicy::admin(), AuthzPolicy::authenticated()] {
+        let result = protect(
+            ok_router(),
+            &RouteProtection::new(policy, ContextKind::Public),
+            &layers(unlimited(), UserType::Anon).await,
+            BASE,
+        );
+        assert!(
+            matches!(result, Err(MountError::IncoherentContext { base_path: BASE })),
+            "{policy:?} behind the public context must not mount"
+        );
+    }
+}
+
+#[test]
+fn an_extension_body_limit_above_the_server_default_is_refused() {
+    let at_ceiling = ExtensionRouter::new(
+        Router::new(),
+        BASE,
+        AuthzPolicy::user(),
+        ContextKind::User,
+    )
+    .with_body_limit(DEFAULT_BODY_LIMIT_BYTES);
+    assert!(admit_extension(&at_ceiling).is_ok());
+
+    let above = ExtensionRouter::new(Router::new(), BASE, AuthzPolicy::user(), ContextKind::User)
+        .with_body_limit(DEFAULT_BODY_LIMIT_BYTES + 1);
+    assert!(matches!(
+        admit_extension(&above),
+        Err(MountError::ExtensionBodyLimitTooLarge {
+            declared,
+            ceiling: DEFAULT_BODY_LIMIT_BYTES,
+            ..
+        }) if declared == DEFAULT_BODY_LIMIT_BYTES + 1
+    ));
 }

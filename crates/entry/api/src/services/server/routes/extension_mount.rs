@@ -25,6 +25,7 @@ use axum::{Extension, Router};
 use systemprompt_traits::{StartupEvent, StartupEventSender};
 
 use crate::routes::admin::services::{RefreshLock, ServicesRefresh};
+use crate::services::middleware::admit_extension;
 
 pub(super) fn mount_extension_routes(
     mut router: Router,
@@ -57,7 +58,7 @@ pub(super) fn mount_extension_routes(
 
         let base_path = declared.base_path;
         if !(mount.serves)(declared.group) || !declared.is_enabled(ctx) {
-            tracing::debug!(
+            tracing::info!(
                 extension = ext_id,
                 base_path,
                 group = ?declared.group,
@@ -65,6 +66,7 @@ pub(super) fn mount_extension_routes(
             );
             continue;
         }
+        admit_extension(&declared)?;
         let auth_required = declared.protection.requires_authentication();
         tracing::debug!(
             extension = ext_id,

@@ -53,17 +53,6 @@ fn builders_record_every_protection_field() {
 }
 
 #[test]
-fn config_projects_the_declaration_without_its_router() {
-    let router = declared(AuthzPolicy::admin(), ContextKind::User)
-        .with_frame_options(FrameOptions::AllowAll);
-    let config = router.config();
-    assert_eq!(config.base_path, "/api/v2/thing");
-    assert_eq!(config.group, RouteGroup::Extensions);
-    assert_eq!(config.protection.frame_options, Some(FrameOptions::AllowAll));
-    assert!(config.protection.requires_authentication());
-}
-
-#[test]
 fn a_rate_budget_resolves_its_profile_rate() {
     let config = RateLimitsConfig {
         content_per_second: 7,

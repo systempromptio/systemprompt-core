@@ -277,12 +277,6 @@ fn extension_default_sitemap_providers_is_empty() {
 }
 
 #[test]
-fn extension_default_router_config_is_none() {
-    let ext = MinimalExt;
-    assert!(ext.router_config().is_none());
-}
-
-#[test]
 fn extension_default_site_auth_is_none() {
     let ext = MinimalExt;
     assert!(ext.site_auth().is_none());

@@ -151,8 +151,8 @@ pub use retention::{
     RetentionTarget, discover_retention_holds,
 };
 pub use router::{
-    ContextKind, EnablePredicate, ExtensionRouter, ExtensionRouterConfig, ProtectionLayer,
-    RateBudget, RateLimit, RouteGroup, RouteProtection, SiteAuthConfig,
+    ContextKind, EnablePredicate, ExtensionRouter, ProtectionLayer, RateBudget, RateLimit,
+    RouteGroup, RouteProtection, SiteAuthConfig,
 };
 pub use seed::Seed;
 pub use state::{StateBuilder, StateHandle, StateRequirement};
