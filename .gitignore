@@ -200,7 +200,7 @@ scripts/*
 !scripts/test-affected.py
 !scripts/affected-force-full.txt
 !scripts/units.txt
-!scripts/cargo_graph.py
+!scripts/lib/cargo_graph.py
 !scripts/test-scripts.sh
 !scripts/gate-scopes.txt
 !scripts/test-gate-scopes.py
@@ -208,6 +208,7 @@ scripts/*
 !scripts/lib/gate-scope.sh
 !scripts/lib/gate_scope.py
 !scripts/lib/rust-contracts.sh
+!scripts/lib/units.py
 scripts/lib/__pycache__/
 !scripts/lint-no-untyped-admin.sh
 !scripts/lint-repo-hygiene.sh
