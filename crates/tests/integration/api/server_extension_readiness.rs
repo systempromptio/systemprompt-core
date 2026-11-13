@@ -79,6 +79,7 @@ async fn readyz(outcome: Outcome) -> Result<(u16, serde_json::Value)> {
         &pool,
         fixture_config(&bootstrap.database_url),
         registry,
+        &[],
     )?;
     let readiness = std::sync::Arc::new(ReadinessState::new());
     readiness.signal_ready();
