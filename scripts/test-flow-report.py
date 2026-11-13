@@ -78,14 +78,17 @@ class GitSide(unittest.TestCase):
         radius = flow.blast_radius([commit("a", "", *(f"c{i}/f" for i in range(12)))], dirs)
         self.assertEqual(radius["crates_histogram"], {"10+": 1})
 
-    def test_parse_kernel_skips_blank_and_comment_lines(self):
-        self.assertEqual(flow.parse_kernel("# kernel\ncrates/shared/\n\n crates/app/runtime/ \n"),
-                         ["crates/shared/", "crates/app/runtime/"])
+    def test_kernel_prefixes_come_from_the_unit_table(self):
+        graph = {"crates/shared/ids": {"name": "ids"}, "crates/domain/files": {"name": "files"}}
+        self.assertEqual(flow.kernel_prefixes(graph, {"ids": "kernel", "files": "capability:files"}),
+                         ["crates/shared/ids/"])
 
-    def test_kernel_list_names_existing_crates(self):
+    def test_committed_kernel_prefixes_name_existing_crates(self):
         root = Path(__file__).resolve().parents[1]
-        for prefix in flow.parse_kernel((root / "scripts" / "flow-kernel-paths.txt").read_text()):
-            self.assertTrue((root / prefix).is_dir(), prefix)
+        prefixes = flow.kernel_prefixes(flow.repo_graph(root), flow.load_units())
+        self.assertIn("crates/shared/identifiers/", prefixes)
+        for prefix in prefixes:
+            self.assertTrue((root / prefix / "Cargo.toml").is_file(), prefix)
 
     def test_kernel_churn_groups_by_iso_week(self):
         commits = [commit("a", "2026-11-02T09:00:00+00:00", "crates/shared/models/a.rs"),
@@ -127,9 +130,20 @@ class ActionsSide(unittest.TestCase):
     def test_lead_and_share(self):
         runs = green("a", 1) + green("b", 10) + [run(20, "c", "ci.yml", "failure", updated="2026-11-01T10:10:00Z")]
         result = flow.lead_and_share(runs)
-        self.assertEqual((result["pushed_shas"], result["green_shas"]), (3, 2))
+        self.assertEqual((result["pushed_shas"], result["green_shas"], result["superseded_shas"]), (3, 2, 0))
+        self.assertEqual((result["green_rate"], result["green_rate_unsuperseded"]), (0.667, 0.667))
         self.assertEqual(result["push_to_green_minutes"], {"n": 2, "median": 20.0, "p90": 20.0})
         self.assertEqual(result["gate_minutes_per_sha"], {"n": 3, "median": 59.0, "p90": 59.0})
+
+    def test_superseded_shas_leave_the_unsuperseded_rate(self):
+        runs = green("a", 1) + [run(10, "b", "ci.yml", "cancelled"), run(11, "b", "quality.yml")]
+        result = flow.lead_and_share(runs)
+        self.assertEqual(result["superseded_shas"], 1)
+        self.assertEqual((result["green_rate"], result["green_rate_unsuperseded"]), (0.5, 1.0))
+
+    def test_rerun_after_cancel_is_not_superseded(self):
+        runs = green("a", 10) + [run(1, "a", "ci.yml", "cancelled")]
+        self.assertEqual(flow.lead_and_share(runs)["superseded_shas"], 0)
 
     def test_rework_counts_red_runs_reruns_and_conclusions(self):
         runs = (green("a", 1) + [run(5, "a", "ci.yml", "failure"), run(6, "b", "quality.yml", "failure"),
@@ -175,7 +189,7 @@ class Fetching(unittest.TestCase):
         page1 = [dict(run(i, "s", "ci.yml"), extra="x") for i in range(100)]
         pages = [{"total_count": 101, "workflow_runs": page1}, {"total_count": 101, "workflow_runs": [run(100, "s", "ci.yml")]}]
         start = datetime(2026, 11, 1, tzinfo=timezone.utc)
-        with patch.object(flow, "gh_json", side_effect=pages) as gh:
+        with patch.object(flow.gh_api, "get", side_effect=pages) as gh:
             runs = flow.fetch_slice("o/r", "next", start, start + timedelta(days=1))
         self.assertEqual(len(runs), 101)
         self.assertNotIn("extra", runs[0])
@@ -186,7 +200,7 @@ class Fetching(unittest.TestCase):
         responses = [{"total_count": 1500, "workflow_runs": []},
                      {"total_count": 1, "workflow_runs": [run(1, "s", "ci.yml")]},
                      {"total_count": 1, "workflow_runs": [run(2, "s", "ci.yml")]}]
-        with patch.object(flow, "gh_json", side_effect=responses) as gh:
+        with patch.object(flow.gh_api, "get", side_effect=responses) as gh:
             runs = flow.fetch_slice("o/r", "next", start, start + timedelta(days=2))
         self.assertEqual([item["id"] for item in runs], [1, 2])
         self.assertEqual(gh.call_count, 3)
@@ -206,20 +220,18 @@ class Fetching(unittest.TestCase):
             self.assertEqual(len(first), 3)
             self.assertEqual(len(json.loads(cache.read_text())), 3)
 
-    def test_gh_json_waits_for_rate_limit_reset(self):
-        limited = flow.subprocess.CompletedProcess([], 1, "", "API rate limit exceeded")
-        ok = flow.subprocess.CompletedProcess([], 0, '{"ok": true}', "")
-        with patch.object(flow.subprocess, "run", side_effect=[limited, ok]), \
-                patch.object(flow.release_proof, "command", return_value='{"resources": {"core": {"reset": 0}}}'), \
-                patch.object(flow.time, "sleep") as sleep:
-            self.assertEqual(flow.gh_json("x"), {"ok": True})
-        sleep.assert_called_once_with(1)
 
-    def test_gh_json_raises_on_other_errors(self):
-        failed = flow.subprocess.CompletedProcess([], 1, "", "Not Found")
-        with patch.object(flow.subprocess, "run", return_value=failed):
-            with self.assertRaises(RuntimeError):
-                flow.gh_json("x")
+class GateLog(unittest.TestCase):
+    def test_stats_cover_the_window(self):
+        records = flow.parse_gate_log("\n".join(json.dumps(r) for r in [
+            {"timestamp": "2026-11-01T10:00:00+00:00", "mode": "changed", "duration_seconds": 30.0, "result": "pass"},
+            {"timestamp": "2026-11-01T11:00:00+00:00", "mode": "changed", "duration_seconds": 10.0, "result": "fail"},
+            {"timestamp": "2026-11-01T12:00:00+00:00", "mode": "full", "duration_seconds": 900.0, "result": "pass"},
+            {"timestamp": "2026-10-01T12:00:00+00:00", "mode": "full", "duration_seconds": 1.0, "result": "fail"}]) + "\n")
+        stats = flow.gate_log_stats(records, datetime(2026, 10, 30, tzinfo=timezone.utc),
+                                    datetime(2026, 11, 2, tzinfo=timezone.utc))
+        self.assertEqual(stats, {"runs": 3, "pass_rate": 0.667,
+                                 "median_seconds_by_mode": {"changed": 10.0, "full": 900.0}})
 
 
 class Rendering(unittest.TestCase):
@@ -238,6 +250,9 @@ class Rendering(unittest.TestCase):
         text = flow.render(report)
         self.assertIn("1 of 1 pushed SHAs went green", text)
         self.assertIn("| ci.yml | 1 | 1.000 |", text)
+        self.assertIn("not superseded by a later push, rate 1.000", text)
+        report["gate_log"] = {"runs": 2, "pass_rate": 0.5, "median_seconds_by_mode": {"unit": 12.0}}
+        self.assertIn("| unit | 12.0 |", flow.render(report))
 
 
 if __name__ == "__main__":

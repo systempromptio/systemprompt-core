@@ -16,9 +16,13 @@ import math
 from pathlib import Path
 import subprocess
 import sys
-import time
 
 SCRIPTS = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPTS / "lib"))
+from cargo_graph import repo_graph  # noqa: E402
+import gh_api  # noqa: E402
+from units import load_units, unit_dirs  # noqa: E402
+
 _spec = importlib.util.spec_from_file_location("release_proof", SCRIPTS / "release-proof.py")
 release_proof = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(release_proof)
@@ -28,6 +32,7 @@ RUN_FIELDS = ("id", "name", "path", "head_sha", "event", "head_branch", "status"
               "run_attempt", "created_at", "run_started_at", "updated_at")
 API_SEARCH_CAP = 1000
 SETTLED = timedelta(days=1)
+DEFAULT_GATE_LOG = SCRIPTS.parent / "target" / "gate-log" / "runs.jsonl"
 
 
 def parse_time(value):
@@ -97,8 +102,9 @@ def blast_radius(commits, crate_dirs):
             "crates_histogram": {("10+" if key == 10 else str(key)): histogram[key] for key in sorted(histogram)}}
 
 
-def parse_kernel(text):
-    return [line.strip() for line in text.splitlines() if line.strip() and not line.startswith("#")]
+def kernel_prefixes(graph, units):
+    """Path prefixes of the kernel unit's packages, from scripts/units.txt through the cargo graph."""
+    return [f"{directory}/" for directory in unit_dirs(graph, units, "kernel")]
 
 
 def touches_kernel(commit, prefixes):
@@ -160,11 +166,25 @@ def gate_minutes(by_workflow):
                if run["status"] == "completed")
 
 
+def superseded(by_workflow):
+    """A SHA whose latest run of some gate was cancelled: a later push replaced it before it decided."""
+    return any(max(runs, key=lambda run: run["id"])["conclusion"] == "cancelled" for runs in by_workflow.values())
+
+
+def rate(part, whole):
+    return round(part / whole, 3) if whole else None
+
+
 def lead_and_share(runs, workflows=GATES):
     grouped = group_by_sha(runs, workflows)
     green = {sha: push_to_green(by, workflows) for sha, by in grouped.items()}
+    green_count = sum(1 for value in green.values() if value is not None)
+    replaced = sum(1 for by in grouped.values() if superseded(by))
     return {"pushed_shas": len(grouped),
-            "green_shas": sum(1 for value in green.values() if value is not None),
+            "green_shas": green_count,
+            "superseded_shas": replaced,
+            "green_rate": rate(green_count, len(grouped)),
+            "green_rate_unsuperseded": rate(green_count, len(grouped) - replaced),
             "push_to_green_minutes": summary(value for value in green.values() if value is not None),
             "gate_minutes_per_sha": summary(gate_minutes(by) for by in grouped.values())}
 
@@ -218,23 +238,26 @@ def slim(run):
     return {field: run.get(field) for field in RUN_FIELDS}
 
 
-def gh_json(path, attempts=5):
-    for attempt in range(attempts):
-        result = subprocess.run(["gh", "api", path], capture_output=True, text=True)
-        if result.returncode == 0:
-            return json.loads(result.stdout)
-        if "rate limit" not in result.stderr.lower() or attempt == attempts - 1:
-            raise RuntimeError(f"gh api {path}: {result.stderr.strip()}")
-        reset = json.loads(release_proof.command("gh", "api", "rate_limit"))["resources"]["core"]["reset"]
-        time.sleep(max(1, min(900, reset - time.time() + 1)))
-    raise RuntimeError(f"gh api {path}: retries exhausted")
+def parse_gate_log(text):
+    return [json.loads(line) for line in text.splitlines() if line.strip()]
+
+
+def gate_log_stats(records, since, until):
+    """Local `scripts/gate.sh` runs in the window: count, pass rate, median duration by mode."""
+    inside = [r for r in records if since <= parse_time(r["timestamp"]) < until]
+    by_mode = defaultdict(list)
+    for record in inside:
+        by_mode[record["mode"]].append(record["duration_seconds"])
+    return {"runs": len(inside),
+            "pass_rate": rate(sum(1 for r in inside if r["result"] == "pass"), len(inside)),
+            "median_seconds_by_mode": {mode: percentile(values, 0.5) for mode, values in sorted(by_mode.items())}}
 
 
 def fetch_slice(repo, branch, start, end):
     window = f"{start.strftime('%Y-%m-%dT%H:%M:%SZ')}..{end.strftime('%Y-%m-%dT%H:%M:%SZ')}"
     runs, page = [], 1
     while True:
-        body = gh_json(f"repos/{repo}/actions/runs?branch={branch}&event=push&created={window}&per_page=100&page={page}")
+        body = gh_api.get(f"repos/{repo}/actions/runs?branch={branch}&event=push&created={window}&per_page=100&page={page}")
         if page == 1 and body["total_count"] > API_SEARCH_CAP and end - start > timedelta(hours=1):
             middle = start + (end - start) / 2
             return fetch_slice(repo, branch, start, middle) + fetch_slice(repo, branch, middle, end)
@@ -312,7 +335,9 @@ def render(report):
     if actions:
         lead = actions["lead"]
         out += ["", "## Lead time: push → green (gate workflows)", "",
-                f"{lead['green_shas']} of {lead['pushed_shas']} pushed SHAs went green.", "",
+                f"{lead['green_shas']} of {lead['pushed_shas']} pushed SHAs went green (rate {fmt(lead['green_rate'], 3)}); "
+                f"over the {lead['pushed_shas'] - lead['superseded_shas']} not superseded by a later push, "
+                f"rate {fmt(lead['green_rate_unsuperseded'], 3)}.", "",
                 "| Measure (minutes) | n | median | p90 |", "|---|---|---|---|",
                 f"| push → green | {lead['push_to_green_minutes']['n']} | {fmt(lead['push_to_green_minutes']['median'])} "
                 f"| {fmt(lead['push_to_green_minutes']['p90'])} |",
@@ -332,6 +357,12 @@ def render(report):
                 "| Workflow | Runs | Success rate | median min | p90 min |", "|---|---|---|---|---|"]
         out += [f"| {row['workflow']} | {row['runs']} | {fmt(row['success_rate'], 3)} | {fmt(row['median_minutes'])} "
                 f"| {fmt(row['p90_minutes'])} |" for row in actions["workflows"]]
+    local = report.get("gate_log")
+    if local:
+        out += ["", "## Local gate runs (scripts/gate.sh)", "",
+                f"{local['runs']} runs, pass rate {fmt(local['pass_rate'], 3)}.", "",
+                "| Mode | median seconds |", "|---|---|"]
+        out += [f"| {mode} | {fmt(value)} |" for mode, value in local["median_seconds_by_mode"].items()]
     return "\n".join(out) + "\n"
 
 
@@ -342,7 +373,7 @@ def main(argv=None):
     parser.add_argument("--since")
     parser.add_argument("--until")
     parser.add_argument("--top", type=int, default=20)
-    parser.add_argument("--kernel", default=str(SCRIPTS / "flow-kernel-paths.txt"))
+    parser.add_argument("--gate-log", help=f"gate.sh run log (default {DEFAULT_GATE_LOG} when present)")
     parser.add_argument("--no-actions", action="store_true")
     parser.add_argument("--cache")
     parser.add_argument("--repo")
@@ -362,7 +393,7 @@ def main(argv=None):
               "last_sha": commits[0]["sha"][:9] if commits else None,
               "git": {"top_files": top_files(commits, args.top),
                       "blast_radius": blast_radius(commits, crate_dirs),
-                      "kernel_churn": kernel_churn(commits, parse_kernel(Path(args.kernel).read_text())),
+                      "kernel_churn": kernel_churn(commits, kernel_prefixes(repo_graph(SCRIPTS.parent), load_units())),
                       "landed_to_released": release_lead_times(commits, git_releases(args.branch))}}
     if not args.no_actions:
         repo = args.repo or release_proof.repository()
@@ -370,6 +401,10 @@ def main(argv=None):
         runs = fetch_runs(repo, branch, since, until, args.cache, now)
         report["actions"] = {"runs": len(runs), "lead": lead_and_share(runs), "rework": rework(runs),
                              "waste": waste(runs), "workflows": workflow_table(runs)}
+
+    gate_log = Path(args.gate_log) if args.gate_log else DEFAULT_GATE_LOG
+    if args.gate_log or gate_log.exists():
+        report["gate_log"] = gate_log_stats(parse_gate_log(gate_log.read_text()), since, until)
 
     markdown = render(report)
     if args.out:

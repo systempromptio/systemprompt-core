@@ -195,7 +195,7 @@ scripts/*
 # ...and the flow, affected-scope and gate scripts of the new-architecture tooling.
 !scripts/flow-report.py
 !scripts/test-flow-report.py
-!scripts/flow-kernel-paths.txt
+!scripts/test-gh-api.py
 !scripts/affected.py
 !scripts/test-affected.py
 !scripts/affected-force-full.txt
@@ -209,6 +209,7 @@ scripts/*
 !scripts/lib/gate_scope.py
 !scripts/lib/rust-contracts.sh
 !scripts/lib/units.py
+!scripts/lib/gh_api.py
 scripts/lib/__pycache__/
 !scripts/lint-no-untyped-admin.sh
 !scripts/lint-repo-hygiene.sh

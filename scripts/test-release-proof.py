@@ -123,6 +123,19 @@ class ProofTests(unittest.TestCase):
         with patch.object(proof, "api", side_effect=self.push_response([PUSH], jobs=[])), self.assertRaises(RuntimeError):
             proof.verify_push(REPO, SHA)
 
+    def test_list_endpoints_read_every_page(self):
+        filler = [dict(PUSH, id=0, head_sha="d" * 40)] * 100
+        pages = []
+
+        def response(repo, path):
+            pages.append(path)
+            if path.startswith("actions/workflows/"):
+                return {"workflow_runs": filler if path.endswith("&page=1") else [PUSH]}
+            return self.push_response([PUSH])(repo, path)
+        with patch.object(proof, "api", side_effect=response):
+            proof.verify_push(REPO, SHA)
+        self.assertTrue(any(path.endswith("&page=2") for path in pages))
+
     def test_aggregate_names_differ_per_event(self):
         self.assertEqual(proof.WORKFLOWS["pull_request"]["ci.yml"], "CI passed")
         self.assertEqual(proof.WORKFLOWS["push"]["ci.yml"], "CI passed (push)")

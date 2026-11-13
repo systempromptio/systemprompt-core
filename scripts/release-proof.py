@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """Read-only candidate and promotion evidence for this repository."""
 import argparse
-import json
+from pathlib import Path
 import re
 import subprocess
 import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import gh_api  # noqa: E402
 
 AGGREGATES = {"ci.yml": "CI passed", "quality.yml": "Quality passed", "supply-chain.yml": "Supply Chain passed"}
 WORKFLOWS = {event: {workflow: name if event == "pull_request" else f"{name} (push)" for workflow, name in AGGREGATES.items()}
@@ -16,7 +19,11 @@ def command(*args):
 
 
 def api(repo, path):
-    return json.loads(command("gh", "api", f"repos/{repo}/{path}"))
+    return gh_api.get(f"repos/{repo}/{path}")
+
+
+def api_list(repo, path, key=None):
+    return list(gh_api.paginate(path, key, fetch=lambda page: api(repo, page)))
 
 
 def require(condition, message):
@@ -57,9 +64,9 @@ def validate_push_runs(runs, sha, repo):
 
 def verify_push(repo, sha):
     for workflow in WORKFLOWS["push"]:
-        runs = api(repo, f"actions/workflows/{workflow}/runs?event=push&head_sha={sha}&per_page=100")["workflow_runs"]
+        runs = api_list(repo, f"actions/workflows/{workflow}/runs?event=push&head_sha={sha}", "workflow_runs")
         run = validate_push_runs(runs, sha, repo)
-        jobs = api(repo, f"actions/runs/{run['id']}/attempts/{run['run_attempt']}/jobs?per_page=100")["jobs"]
+        jobs = api_list(repo, f"actions/runs/{run['id']}/attempts/{run['run_attempt']}/jobs", "jobs")
         aggregate = WORKFLOWS[run["event"]][workflow]
         require(any(job["name"] == aggregate and job["conclusion"] == "success" for job in jobs),
                 f"push run {run['id']} lacks successful {aggregate}")
@@ -77,16 +84,16 @@ def verify_pr(repo, pr, sha):
     require(api(repo, f"git/commits/{merge_sha}")["tree"]["sha"] == tree, "promotion merge changes the proven tree")
     sampled = {}
     for workflow in WORKFLOWS["pull_request"]:
-        runs = api(repo, f"actions/workflows/{workflow}/runs?event=pull_request&head_sha={sha}&per_page=100")["workflow_runs"]
+        runs = api_list(repo, f"actions/workflows/{workflow}/runs?event=pull_request&head_sha={sha}", "workflow_runs")
         run = validate_runs(runs, sha, number, repo, pr["created_at"])
-        jobs = api(repo, f"actions/runs/{run['id']}/attempts/{run['run_attempt']}/jobs?per_page=100")["jobs"]
+        jobs = api_list(repo, f"actions/runs/{run['id']}/attempts/{run['run_attempt']}/jobs", "jobs")
         aggregate = WORKFLOWS[run["event"]][workflow]
         require(any(job["name"] == aggregate and job["conclusion"] == "success" for job in jobs),
                 f"run {run['id']} lacks successful {aggregate}")
         sampled[workflow] = (run["id"], run["run_attempt"])
         print(f"{aggregate}: run {run['id']} attempt {run['run_attempt']}")
     for workflow, identity in sampled.items():
-        runs = api(repo, f"actions/workflows/{workflow}/runs?event=pull_request&head_sha={sha}&per_page=100")["workflow_runs"]
+        runs = api_list(repo, f"actions/workflows/{workflow}/runs?event=pull_request&head_sha={sha}", "workflow_runs")
         run = validate_runs(runs, sha, number, repo, pr["created_at"])
         require((run["id"], run["run_attempt"]) == identity, "workflow proof changed while reading results")
     latest = api(repo, f"pulls/{number}")
@@ -102,7 +109,7 @@ def main():
     sha = command("git", "rev-parse", f"{args.ref}^{{commit}}")
     repo = repository()
     if args.mode == "merged":
-        prs = api(repo, f"commits/{sha}/pulls?per_page=100")
+        prs = api_list(repo, f"commits/{sha}/pulls")
         matches = [pr for pr in prs if pr.get("merged_at") and pr.get("merge_commit_sha") == sha
                    and pr["base"]["ref"] == "main" and pr["head"]["ref"] == "promote"]
         require(len(matches) == 1, "release commit must be the merge of one frozen promotion PR")
@@ -122,7 +129,7 @@ def main():
         return
     if args.mode == "gate":
         verify_push(repo, sha)
-    prs = api(repo, "pulls?state=open&base=main&head=" + repo.split('/')[0] + ":promote&per_page=100")
+    prs = api_list(repo, "pulls?state=open&base=main&head=" + repo.split('/')[0] + ":promote")
     matches = [pr for pr in prs if pr["head"]["sha"] == sha]
     if not matches and args.mode == "gate":
         print(f"Candidate {sha} is green on next and ready to promote. Run just promote {sha}.")
