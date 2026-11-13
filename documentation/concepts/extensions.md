@@ -6,7 +6,7 @@ systemprompt-core is a library you compile into your binary, not a framework you
 
 ## The `Extension` trait
 
-A single trait, `Extension` (`crates/shared/extension/src/traits/extension.rs:18`), aggregates every capability a crate can contribute. Every capability method has a default that returns "nothing", so an extension implements only `metadata()` and overrides the handful of methods for the capabilities it actually provides.
+A single trait, `Extension`, aggregates every capability a crate can contribute. Every capability method has a default that returns "nothing", so an extension implements only `metadata()` and overrides the handful of methods for the capabilities it actually provides.
 
 ```rust
 use systemprompt_extension::prelude::*;
@@ -26,34 +26,23 @@ impl Extension for MyExtension {
 register_extension!(MyExtension);
 ```
 
-The capability surface includes schemas and migrations, an HTTP router, background jobs, configuration schema and validation, LLM and tool providers, a family of content/template/rendering providers, required storage paths, RBAC roles, declared dependencies on other extensions, and typed shared state. An extension opts into exactly what it needs by overriding the corresponding method.
+The capability surface includes schemas, migrations, seeds and retirements, an HTTP router, background jobs and runner services, config planes, configuration schema and validation, readiness checks and metric descriptors, tool providers, a family of content/template/rendering providers, required storage paths and assets, RBAC roles, declared dependencies on other extensions, and typed shared state. AI model providers are configured through the profile and the gateway, not contributed by extensions. An extension opts into exactly what it needs by overriding the corresponding method.
 
 ### Typed extension state
 
-`Extension::provide(ctx, state)` runs once at boot for every linked extension, in dependency order, and contributes values keyed by type to one `ExtensionState` (`crates/shared/extension/src/state.rs`). The host owns that state; it is immutable after boot and reached by every factory through `ExtensionContext::extension_state()`. This is how an extension builds a repository, service or cache once and shares it between its router, readiness checks, gateway guards and other seams without a global.
+The platform has one type-keyed map, `Dependencies`, used for extension state, job contexts, config-plane contexts and prerender contexts alike. At boot the host seeds it with the kernel's own handles (database pool, paths, files configuration, notification configuration, the documents service when the document store is enabled, and on the API also the OAuth and AI repositories and, with the brain feature, the brain configuration and notification sink), then `Extension::provide(ctx, state)` runs once for every enabled extension, in dependency order, and contributes values keyed by type. The host owns the finished state; it is immutable after boot and reached by every factory through `ExtensionContext::extension_state()`, and job and runner contexts start from it. This is how an extension builds a repository, service or cache once and shares it between its router, readiness checks, gateway guards, authz hook and other seams without a global.
 
-Boot validates the graph before anything serves: an unknown dependency, a dependency cycle, two providers of one type, or a type declared in `Extension::requires()` that no linked extension provides is a typed startup error, never a failure on a request.
+The authz hook is built before the extension state exists, because the hook is an input to the context extensions provide from. Its factories receive a `StateHandle` in `AuthzHookContext::state`; the host binds the handle to the finished state before anything serves, and a read before binding fails closed.
 
-### Capability traits
+Boot validates the graph before anything serves: an unknown dependency, a dependency cycle, a second provider of a type the kernel or another extension already provided, or a type declared in `Extension::requires()` that neither the kernel nor any enabled extension provides is a typed startup error, never a failure on a request. An extension listed in the profile's `extensions.disabled` neither provides state nor has its requirements checked; an enabled extension that requires a type only a disabled one provides fails boot, and one that depends on a disabled extension is refused.
 
-Beyond the base trait, an extension declares the capabilities it needs from its context
-rather than implementing separate typed sub-traits:
+### The extension context
 
-| Trait | Grants access to |
-|-------|------------------|
-| `HasConfig` | the resolved `Config` |
-| `HasDatabase` | the database handle |
-| `HasHttpClient` | the shared outbound HTTP client |
-| `HasEventBus` | the event bus |
-| `HasAnalytics`, `HasFingerprint`, `HasUserService`, `HasRouteClassifier` | the corresponding runtime services |
-
-These live in `crates/shared/extension/src/capabilities.rs`, with `FullContext` bundling the
-complete set. Extensions that govern gateway requests also implement `GatewayRequestGuard`
-(`crates/shared/extension/src/gateway_guard.rs`).
+Every factory receives an `&dyn ExtensionContext`. It hands an extension the profile, the resolved configuration, the services view and root, the database handle, file storage, secrets, background tasks, the instance id, a token authority, subject attributes, provider tokens, the cross-replica coordination seams (instances, leases, advisory locks) and the extension state. There are no separate typed sub-traits to implement. The host context also implements four narrow capability traits — `HasAnalytics`, `HasFingerprint`, `HasUserService` and `HasRouteClassifier` — for host code that needs those services directly. Extensions that govern gateway requests implement `GatewayRequestGuard` and register it with `register_gateway_guard!`.
 
 ## Registration and link-time discovery
 
-`register_extension!` (`crates/shared/extension/src/traits/register.rs`) does not call anything at module-load time. It emits an `inventory::submit!` of a small factory that constructs the extension as `Arc<dyn Extension>`:
+`register_extension!` does not call anything at module-load time. It emits an `inventory::submit!` of a small factory that constructs the extension as `Arc<dyn Extension>`:
 
 ```rust
 inventory::submit! {
@@ -69,11 +58,11 @@ crate B  register_extension!(B)  ─┼─►  inventory static set
 crate C  register_extension!(C)  ─┘          │
                                              ▼
                               ExtensionRegistry::discover()
-                                  ├─ schema_extensions  → install schemas (migration order)
-                                  ├─ api_extensions     → mount routes
-                                  ├─ job_extensions     → scheduler
-                                  ├─ provider_extensions→ LLM / tool providers
-                                  └─ config_extensions  → startup validation
+                                  ├─ schema_extensions → install schemas and migrations
+                                  ├─ build_state       → kernel handles + provide, requires checked
+                                  ├─ api_routers       → mount routes
+                                  ├─ job_extensions    → scheduler
+                                  └─ config_extensions → startup validation
 ```
 
 ### The product-binary requirement
