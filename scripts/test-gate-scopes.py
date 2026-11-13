@@ -27,12 +27,12 @@ HELPER_MARKERS = ("lib/gate-scope.sh", "lib/rust-contracts.sh", "import gate_sco
 
 
 def gates():
-    return [l.strip() for l in (SCRIPTS / "check-gates.txt").read_text().splitlines() if l.strip()]
+    return gate_scope.gate_list()
 
 
 def rows():
     out = []
-    for line in (SCRIPTS / "gate-scopes.txt").read_text().splitlines():
+    for line in gate_scope.GATE_TABLE.read_text().splitlines():
         if line.strip() and not line.startswith("#"):
             out.append(line.split(None, 3))
     return out

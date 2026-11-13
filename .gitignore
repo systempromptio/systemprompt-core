@@ -116,7 +116,6 @@ scripts/*
 # ...except the committed shard runner, the single source of truth shared by CI
 # (.github/workflows/ci.yml) and the local `just test-shard` recipes.
 !scripts/test-shard.sh
-!scripts/check-gates.sh
 !scripts/check-gates.txt
 !scripts/check-no-vendor.sh
 !scripts/core-markup-allowlist.txt
@@ -196,6 +195,7 @@ scripts/*
 !scripts/flow-report.py
 !scripts/test-flow-report.py
 !scripts/test-gh-api.py
+!scripts/test-gate.py
 !scripts/affected.py
 !scripts/test-affected.py
 !scripts/affected-force-full.txt
@@ -210,6 +210,7 @@ scripts/*
 !scripts/lib/rust-contracts.sh
 !scripts/lib/units.py
 !scripts/lib/gh_api.py
+!scripts/lib/gate_runner.py
 scripts/lib/__pycache__/
 !scripts/lint-no-untyped-admin.sh
 !scripts/lint-repo-hygiene.sh

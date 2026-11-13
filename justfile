@@ -197,15 +197,31 @@ lint-field-copy-from *ARGS:
     python3 ./scripts/lint-field-copy-from.py {{ARGS}}
 
 # Every source gate, listed in scripts/check-gates.txt and run to completion by
-# scripts/check-gates.sh (one red gate cannot hide the rest; a summary names
-# every failure). quality.yml's `source-gates-*` jobs run each listed recipe as
+# the source-gate phase of scripts/gate.sh in full mode (one red gate cannot
+# hide the rest; a summary names every failure). quality.yml's `source-gates-*` jobs run each listed recipe as
 # its own step, and source-gates-release asserts their union equals that file — a gate added
 # there without a CI step fails the job, and a CI step for a gate not listed
 # there fails it too. `check-release-tag`, `check-crate-changelogs`, `machete`,
 # `lint-test-hack` and `bridge-bindings-check` are release-shaped (full history,
 # cargo-machete, cargo-hakari, a bridge build) and stay CI-only by design.
 check-gates:
-    bash scripts/check-gates.sh
+    bash scripts/gate.sh --full --only gates
+
+# The one gate entry point (scripts/gate.sh): fmt, clippy, doc, source gates,
+# script tests and test shards, scoped by scripts/affected.py. Extra arguments
+# pass through: `--only fmt,gates`, `--skip tests,doc`, `--dry-run`.
+# A crate and its reverse closure.
+gate-unit CRATE *ARGS:
+    bash scripts/gate.sh --unit {{CRATE}} {{ARGS}}
+
+# Everything that differs from the merge-base with origin/future or origin/next,
+# uncommitted and untracked files included.
+gate-changed *ARGS:
+    bash scripts/gate.sh --changed {{ARGS}}
+
+# Every phase over the whole repository.
+gate-full *ARGS:
+    bash scripts/gate.sh --full {{ARGS}}
 
 # A public, code-only repository: a tracked prose file outside the sanctioned set
 # (README/CHANGELOG, root AGENTS/CLAUDE/SECURITY, documentation/, the scripts/
