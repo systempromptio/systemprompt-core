@@ -189,6 +189,18 @@ scripts/*
 # ...and the supply-chain advisory scanner run by CI (.github/workflows/supply-chain.yml)
 # via the `just audit` recipe.
 !scripts/cargo-audit-all.sh
+# ...and the informational build report (.github/workflows/build-report.yml).
+!scripts/build-report.sh
+!scripts/build-report-compositions.txt
+# ...and the flow, affected-scope and gate scripts of the new-architecture tooling.
+!scripts/flow-report.py
+!scripts/test-flow-report.py
+!scripts/flow-report-kernel.txt
+!scripts/affected.py
+!scripts/test-affected.py
+!scripts/gate-scopes.txt
+!scripts/gate.sh
+!scripts/changelog-assemble.py
 
 # Local-only review notes
 review/
