@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.82.0] - 2026-11-13
+
+### Breaking
+
+- Capability jobs are exported by `systemprompt-analytics`, `systemprompt-ai`, `systemprompt-agent` and `systemprompt-mcp`; `repository::{AnalyticsRepository, SecurityRepository, IpSessionRecord}` and `SchedulerRepository::{cleanup_empty_contexts, count_empty_contexts}` are removed. Migrate by importing each job from its owner.
+- `SchedulerError` loses `Analytics`, `Managed` and `Mcp` and gains `DuplicateRetentionPurge` and `Extensions`; `otlp_export_now` takes an attribution lookup.
+
+### Added
+
+- `EnabledExtensions`: a job, retention purge, retention sweep or projection drain runs only while its owning extension is enabled.
+
+### Changed
+
+- `database_cleanup` deletes through registered `RetentionPurge`s, `backfill_rollups` drains registered projections, and job runs execute inside registered `JobRunScope`s. The crate depends on no capability crate.
+
 ## [0.81.0] - 2026-11-12
 
 ### Breaking

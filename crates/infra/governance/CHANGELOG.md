@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.82.0] - 2026-11-13
+
+### Breaking
+
+- `AuthzWiring` and `AuthzHookContext` gain a `state: StateHandle` field; a read before the host binds it fails closed. Migrate by setting the field in struct literals.
+
 ## [0.81.0] - 2026-11-12
 
 ### Breaking

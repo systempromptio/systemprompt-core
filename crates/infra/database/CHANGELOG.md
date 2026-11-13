@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.82.0] - 2026-11-13
+
+### Added
+
+- `projection::{ProjectionDrain, drain_projection, ProjectionDrainContribution, registered_drains}` and `submit_projection_drain!`, which takes the owning extension id.
+
 ## [0.81.0] - 2026-11-12
 
 ### Breaking

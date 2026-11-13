@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.82.0] - 2026-11-13
+
+### Added
+
+- The files crate registers the job-run scope that sets the system document actor.
+
+### Changed
+
+- Jobs are registered with the owning extension id.
+
 ## [0.81.0] - 2026-11-12
 
 ### Breaking

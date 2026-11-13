@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.82.0] - 2026-11-13
+
+### Breaking
+
+- `args::Commands::Build` and `Commands::serves_api` are removed; `args::Cli::command()` no longer contains registered groups. Migrate with `args::command(&CommandRegistry::collected()?)`.
+- `admin::setup::{catalog, docker_compose, postgres_access, ddl}` move to `shared::{provider_catalog, docker_compose, postgres_access, ddl}`, `admin::config::config_section::{read_yaml_file, write_yaml_file}` to `shared::yaml_document`, `admin::config::services_io::write_gateway` to `shared::provider_catalog`, `admin::session::types::ProfileInfo` to `shared::profile` and `plugins::mcp::types::McpToolEntry` to `commands::shared::mcp_tools`.
+
+### Added
+
+- `register_cli_command!`, `CliCommandGroup`, `CliCommandLeaf`, `CommandRegistry` and the `kernel` module; each command group declares its own `CommandDescriptor`.
+
 ## [0.81.0] - 2026-11-12
 
 ### Breaking

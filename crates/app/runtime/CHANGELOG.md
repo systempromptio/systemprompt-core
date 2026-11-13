@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.82.0] - 2026-11-13
+
+### Breaking
+
+- `AppContext` builds the extension state at boot and fails with `RuntimeError::ExtensionState` on an unmet requirement or a duplicate provider. Migrate by handling the new variant.
+
+### Added
+
+- `kernel_state` seeds the extension state with the kernel's handles, the analytics repositories and the GeoIP reader when configured.
+
 ## [0.81.0] - 2026-11-12
 
 ### Breaking

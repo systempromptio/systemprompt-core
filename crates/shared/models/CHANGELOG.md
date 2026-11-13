@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.82.0] - 2026-11-13
+
+### Added
+
+- `attribution::{RequestAttributionLookup, DynRequestAttributionLookup}`.
+
 ## [0.81.0] - 2026-11-12
 
 ### Breaking

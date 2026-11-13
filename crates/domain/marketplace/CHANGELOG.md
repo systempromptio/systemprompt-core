@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.82.0] - 2026-11-13
+
+### Changed
+
+- Authorization hook wiring carries the extension state handle.
+
 ## [0.81.0] - 2026-11-12
 
 ### Changed

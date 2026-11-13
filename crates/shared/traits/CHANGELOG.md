@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.82.0] - 2026-11-13
+
+### Breaking
+
+- `submit_job!`, `register_retention_purge!` and `register_retention_sweep!` take the owning extension id as their first argument, and the inventory collects `JobRegistration`, read with `registered_jobs()`. Migrate by writing `submit_job!("<extension id>", &Job)`.
+
+### Added
+
+- `RetentionPurge`, `RetentionSweep`, `JobRunScope` with `register_job_run_scope!` and `run_in_job_scopes`, and `IpBanStore`, `DynIpBanStore`, `IpBanRequest` and `IpBanStoreError`.
+
 ## [0.81.0] - 2026-11-12
 
 ### Breaking

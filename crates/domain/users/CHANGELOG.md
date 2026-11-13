@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.82.0] - 2026-11-13
+
+### Added
+
+- The users extension provides `DynIpBanStore`, implemented by `BannedIpRepository`.
+
 ## [0.81.0] - 2026-11-12
 
 ### Breaking

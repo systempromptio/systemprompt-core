@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.82.0] - 2026-11-13
+
+### Added
+
+- `jobs::{UsageAnomalyScanJob, ThoughtSignatureCleanupJob, AiRequestToolFlagRollupJob}`, the retention purges for the AI tables, and a provided `DynRequestAttributionLookup`.
+
 ## [0.81.0] - 2026-11-12
 
 ### Breaking

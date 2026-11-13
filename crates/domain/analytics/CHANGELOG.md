@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.82.0] - 2026-11-13
+
+### Added
+
+- `jobs::{BehavioralAnalysisJob, MaliciousIpBlacklistJob, GhostSessionCleanupJob, NoJsCleanupJob, BackfillSessionGeoJob}` and `repository::{IpSessionRepository, IpSessionRecord}`; the extension requires a `DynIpBanStore`.
+
 ## [0.81.0] - 2026-11-12
 
 ### Added
