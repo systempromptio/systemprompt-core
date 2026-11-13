@@ -210,12 +210,12 @@ lint-field-copy-from *ARGS:
 
 # Every source gate, listed in scripts/check-gates.txt and run to completion by
 # the source-gate phase of scripts/gate.sh in full mode (one red gate cannot
-# hide the rest; a summary names every failure). quality.yml's `source-gates-*` jobs run each listed recipe as
-# its own step, and source-gates-release asserts their union equals that file — a gate added
-# there without a CI step fails the job, and a CI step for a gate not listed
-# there fails it too. `check-release-tag`, `check-crate-changelogs`, `machete`,
+# hide the rest; a summary names every failure). quality.yml's `source-gates`
+# matrix runs the same list through `scripts/gate.sh --only gates --group <job>`
+# (the job column of scripts/gate-scopes.txt), so a gate listed there runs in CI
+# without a workflow edit. `check-release-tag`, `check-crate-changelogs`,
 # `lint-test-hack` and `bridge-bindings-check` are release-shaped (full history,
-# cargo-machete, cargo-hakari, a bridge build) and stay CI-only by design.
+# cargo-hakari, a bridge build) and stay CI-only by design.
 check-gates:
     bash scripts/gate.sh --full --only gates
 
