@@ -8,8 +8,8 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_traits::session_store::{
-    ActiveSessionLookup, CreateSessionParams, IpSessionCount, IpSessionQuery, SessionBehavioralData,
-    SessionRecord, SessionSnapshot,
+    ActiveSessionLookup, CreateSessionParams, IpSessionCount, IpSessionQuery,
+    SessionBehavioralData, SessionRecord, SessionSnapshot,
 };
 use systemprompt_traits::{AnalyticsProviderError, AnalyticsResult};
 #[async_trait]

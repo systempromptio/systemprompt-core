@@ -4,7 +4,7 @@
 
 ### Added
 
-- `jobs::ToolRowFactsRollupJob` and the tool-usage retention purge; `jobs` is public.
+- `jobs::ToolRowFactsRollupJob` and the tool-usage retention purge; `jobs` is public. The extension provides `DynToolExecutionLookup`.
 
 ## [0.81.0] - 2026-11-12
 

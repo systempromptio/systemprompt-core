@@ -190,6 +190,11 @@ impl ToolExecutionLookup for ToolUsageRepository {
         )
         .fetch_all(&*self.pool)
         .await?;
-        Ok(rows.into_iter().map(ContextId::new).collect())
+        let referenced: HashSet<String> = rows.into_iter().collect();
+        Ok(contexts
+            .iter()
+            .filter(|id| referenced.contains(id.as_str()))
+            .cloned()
+            .collect())
     }
 }

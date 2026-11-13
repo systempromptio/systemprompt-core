@@ -4,7 +4,7 @@
 
 ### Added
 
-- `Dependencies::provide`, `get_arc`, `contains_type`, `provider_of`, `len` and `is_empty`, with `DependencyProvider` and `DuplicateDependency`: entries record their provider and a second provider of one type is refused. Clones are copy-on-write.
+- `Dependencies::provide`, `find`, `get_arc`, `contains_type`, `provider_of`, `len` and `is_empty`, with `DependencyProvider` and `DuplicateDependency`: entries record their provider and a second provider of one type is refused. Clones are copy-on-write.
 
 ## [0.81.0] - 2026-11-12
 

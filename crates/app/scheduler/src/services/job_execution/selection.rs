@@ -88,10 +88,7 @@ impl JobExecutionService {
             .collect())
     }
 
-    pub(super) fn find_runnable(
-        &self,
-        job_name: &JobName,
-    ) -> SchedulerResult<Option<RunnableJob>> {
+    pub(super) fn find_runnable(&self, job_name: &JobName) -> SchedulerResult<Option<RunnableJob>> {
         if let Some(job) = self
             .enabled_manifest_jobs()?
             .into_iter()

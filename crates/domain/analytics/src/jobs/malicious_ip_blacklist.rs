@@ -9,11 +9,11 @@
 use async_trait::async_trait;
 use std::sync::Arc;
 
+use systemprompt_traits::session_store::{IpSessionCount, IpSessionQuery};
 use systemprompt_traits::{
     DynIpBanStore, IpBanRequest, IpBanStore, Job, JobContext, JobResult, ProviderError,
     ProviderResult, SessionStore,
 };
-use systemprompt_traits::session_store::{IpSessionCount, IpSessionQuery};
 use tracing::{info, warn};
 
 use crate::Result;

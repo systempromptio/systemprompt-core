@@ -28,8 +28,8 @@
 use clap::{ArgMatches, Command};
 
 use super::command::{
-    CliCommandGroup, CliCommandLeaf, RegisteredCommand, group_command, leaf_command,
-    resolve_group, resolve_leaf,
+    CliCommandGroup, CliCommandLeaf, RegisteredCommand, group_command, leaf_command, resolve_group,
+    resolve_leaf,
 };
 
 /// One `inventory` submission: a type-erased [`CliCommandGroup`].

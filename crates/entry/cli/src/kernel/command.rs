@@ -123,7 +123,9 @@ pub(super) fn leaf_command<T: CliCommandLeaf>() -> Command {
     T::augment_args(Command::new(T::NAME).about(T::ABOUT))
 }
 
-pub(super) fn resolve_leaf<T: CliCommandLeaf>(matches: &ArgMatches) -> Result<RegisteredCommand, clap::Error> {
+pub(super) fn resolve_leaf<T: CliCommandLeaf>(
+    matches: &ArgMatches,
+) -> Result<RegisteredCommand, clap::Error> {
     let parsed = T::from_arg_matches(matches)?;
     Ok(RegisteredCommand {
         descriptor: parsed.descriptor(),

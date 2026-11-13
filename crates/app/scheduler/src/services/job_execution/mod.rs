@@ -33,7 +33,7 @@ use systemprompt_extension::ExtensionRegistry;
 use systemprompt_identifiers::{Actor, JobName};
 use systemprompt_manifest::SchedulerConfig;
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::{Job, run_in_job_scopes};
+use systemprompt_traits::run_in_job_scopes;
 
 use super::scheduling::make_job_context;
 use crate::error::SchedulerResult;

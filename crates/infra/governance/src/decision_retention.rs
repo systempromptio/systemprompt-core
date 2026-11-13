@@ -1,6 +1,8 @@
-//! Age-based retention over `governance_decisions`: the owner-side purge the
-//! scheduler's retention job dispatches to, and the set of contexts a decision
-//! still references (such a context is kept by the empty-context sweep).
+//! Age-based retention over `governance_decisions`.
+//!
+//! The owner-side purge the scheduler's retention job dispatches to, and the
+//! set of contexts a decision still references (such a context is kept by the
+//! empty-context sweep).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -55,6 +57,11 @@ impl GovernanceDecisionRetention {
         )
         .fetch_all(&*self.write_pool)
         .await?;
-        Ok(rows.into_iter().map(ContextId::new).collect())
+        let referenced: HashSet<String> = rows.into_iter().collect();
+        Ok(contexts
+            .iter()
+            .filter(|id| referenced.contains(id.as_str()))
+            .cloned()
+            .collect())
     }
 }

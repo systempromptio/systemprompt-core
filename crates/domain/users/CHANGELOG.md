@@ -4,7 +4,7 @@
 
 ### Added
 
-- The users extension provides `DynIpBanStore`, implemented by `BannedIpRepository`.
+- The users extension provides `DynIpBanStore`, implemented by `BannedIpRepository`, and `SessionRepository` answers `SessionStore::ip_session_counts`.
 
 ## [0.81.0] - 2026-11-12
 

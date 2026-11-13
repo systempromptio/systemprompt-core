@@ -155,8 +155,9 @@ pub struct SessionSnapshot {
     pub activity: SessionActivityCounts,
 }
 
-/// Which per-IP session count over the last 24 hours to read: human
-/// (`v_clean_traffic`) sessions per IP at or above a threshold, scanner
+/// Which per-IP session count over the last 24 hours to read.
+///
+/// Human (`v_clean_traffic`) sessions per IP at or above a threshold, scanner
 /// sessions per IP at or above a threshold, every session per IP, or sessions
 /// per IP and country at or above a threshold.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -4,7 +4,7 @@
 
 ### Added
 
-- `jobs::{BehavioralAnalysisJob, MaliciousIpBlacklistJob, GhostSessionCleanupJob, NoJsCleanupJob, BackfillSessionGeoJob}` and `repository::{IpSessionRepository, IpSessionRecord}`; the extension requires a `DynIpBanStore`.
+- `jobs::{BehavioralAnalysisJob, MaliciousIpBlacklistJob, GhostSessionCleanupJob, NoJsCleanupJob, BackfillSessionGeoJob}` the extension requires a `DynIpBanStore`, and the IP detectors read per-IP session counts through `SessionStore::ip_session_counts`.
 
 ## [0.81.0] - 2026-11-12
 
