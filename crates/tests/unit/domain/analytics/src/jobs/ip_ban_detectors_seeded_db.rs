@@ -424,7 +424,12 @@ mod behavioral_analysis_seeded {
 }
 
 mod malicious_ip_blacklist_seeded {
+    // Why: the job bans every qualifying IP in the database it reads, so a
+    // concurrent enforcing run against a shared database bans this test's
+    // seeded IP first and this run records no ban of its own. Each test owns
+    // a disposable database.
     use super::*;
+    use systemprompt_test_fixtures::DisposableDb;
 
     async fn insert_session(
         pg: &sqlx::PgPool,
@@ -456,7 +461,8 @@ mod malicious_ip_blacklist_seeded {
 
     #[tokio::test]
     async fn execute_bans_high_volume_ip() {
-        let pool = test_db_pool().await;
+        let database = DisposableDb::with_schema("malicious_ip").await;
+        let pool = database.test_pool().await;
         let pg = pool.write_pool();
 
         let ip = unique_ip("192.168");
@@ -498,7 +504,8 @@ mod malicious_ip_blacklist_seeded {
 
     #[tokio::test]
     async fn execute_bans_scanner_ip() {
-        let pool = test_db_pool().await;
+        let database = DisposableDb::with_schema("malicious_ip").await;
+        let pool = database.test_pool().await;
         let pg = pool.write_pool();
 
         let ip = unique_ip("172.16");
@@ -535,7 +542,8 @@ mod malicious_ip_blacklist_seeded {
 
     #[tokio::test]
     async fn execute_bans_datacenter_ip() {
-        let pool = test_db_pool().await;
+        let database = DisposableDb::with_schema("malicious_ip").await;
+        let pool = database.test_pool().await;
         let pg = pool.write_pool();
 
         let ip = unique_ip("47.79");
@@ -566,7 +574,8 @@ mod malicious_ip_blacklist_seeded {
 
     #[tokio::test]
     async fn execute_bans_high_risk_country_ip() {
-        let pool = test_db_pool().await;
+        let database = DisposableDb::with_schema("malicious_ip").await;
+        let pool = database.test_pool().await;
         let pg = pool.write_pool();
 
         let ip = unique_ip("10.20");
@@ -603,7 +612,8 @@ mod malicious_ip_blacklist_seeded {
 
     #[tokio::test]
     async fn execute_skips_already_banned_ip() {
-        let pool = test_db_pool().await;
+        let database = DisposableDb::with_schema("malicious_ip").await;
+        let pool = database.test_pool().await;
         let pg = pool.write_pool();
 
         let ip = unique_ip("192.0");
@@ -652,7 +662,8 @@ mod malicious_ip_blacklist_seeded {
 
     #[tokio::test]
     async fn execute_handles_non_high_risk_country_not_banned() {
-        let pool = test_db_pool().await;
+        let database = DisposableDb::with_schema("malicious_ip").await;
+        let pool = database.test_pool().await;
         let pg = pool.write_pool();
 
         let ip = unique_ip("10.30");
@@ -689,7 +700,8 @@ mod malicious_ip_blacklist_seeded {
 
     #[tokio::test]
     async fn execute_processes_sessions_without_ip_gracefully() {
-        let pool = test_db_pool().await;
+        let database = DisposableDb::with_schema("malicious_ip").await;
+        let pool = database.test_pool().await;
         let pg = pool.write_pool();
 
         let mut session_ids = Vec::new();

@@ -29,7 +29,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use systemprompt_extension::ExtensionRegistry;
 use systemprompt_identifiers::{Actor, JobName};
 use systemprompt_manifest::SchedulerConfig;
 use systemprompt_runtime::AppContext;
@@ -46,7 +45,6 @@ use selection::{JobLookup, RunnableJob};
 
 pub struct JobExecutionService {
     ctx: Arc<AppContext>,
-    registry: ExtensionRegistry,
     scheduler_config: SchedulerConfig,
     job_repo: JobRepository,
     scheduler_repo: SchedulerRepository,
@@ -62,16 +60,11 @@ impl std::fmt::Debug for JobExecutionService {
 }
 
 impl JobExecutionService {
-    pub fn new(
-        ctx: Arc<AppContext>,
-        registry: ExtensionRegistry,
-        scheduler_config: SchedulerConfig,
-    ) -> Self {
+    pub fn new(ctx: Arc<AppContext>, scheduler_config: SchedulerConfig) -> Self {
         let job_repo = JobRepository::new(ctx.db_pool());
         let scheduler_repo = SchedulerRepository::new(ctx.db_pool());
         Self {
             ctx,
-            registry,
             scheduler_config,
             job_repo,
             scheduler_repo,

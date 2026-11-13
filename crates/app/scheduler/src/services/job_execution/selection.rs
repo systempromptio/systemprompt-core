@@ -84,12 +84,13 @@ impl JobExecutionService {
     }
 
     fn enabled(&self) -> SchedulerResult<EnabledExtensions> {
-        EnabledExtensions::resolve(&self.registry, &self.ctx.profile().extensions.disabled)
+        EnabledExtensions::of(&self.ctx)
     }
 
     fn enabled_manifest_jobs(&self) -> SchedulerResult<Vec<Arc<dyn Job>>> {
         Ok(self
-            .registry
+            .ctx
+            .extension_registry()
             .enabled_extensions(&self.ctx.profile().extensions.disabled)?
             .iter()
             .flat_map(|ext| ext.jobs())

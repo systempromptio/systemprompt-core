@@ -5,7 +5,6 @@
 use std::collections::HashMap;
 use systemprompt_identifiers::JobName;
 
-use systemprompt_extension::ExtensionRegistry;
 use systemprompt_scheduler::{
     JobExecutionService, JobRepository, JobSelection, SchedulerError, parse_job_parameters,
 };
@@ -19,7 +18,6 @@ macro_rules! db_service {
         (
             JobExecutionService::new(
                 app_ctx,
-                ExtensionRegistry::new(),
                 systemprompt_manifest::SchedulerConfig::with_system_admin(),
             ),
             pool,
@@ -270,7 +268,7 @@ mod dead_pool_recording {
         let app_ctx = test_app_context(&closed, &url);
         let mut config = systemprompt_manifest::SchedulerConfig::with_system_admin();
         config.distributed_lock = false;
-        let service = JobExecutionService::new(app_ctx, ExtensionRegistry::new(), config);
+        let service = JobExecutionService::new(app_ctx, config);
 
         // The job body and every recording query hit the closed pool; the run
         // still yields a report instead of propagating the DB failure.
@@ -288,7 +286,6 @@ mod dead_pool_recording {
         let app_ctx = test_app_context(&closed, &url);
         let service = JobExecutionService::new(
             app_ctx,
-            ExtensionRegistry::new(),
             systemprompt_manifest::SchedulerConfig::with_system_admin(),
         );
 
