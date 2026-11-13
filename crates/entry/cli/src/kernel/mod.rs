@@ -3,8 +3,8 @@
 //! A command group, whether it lives in this crate or in a capability's entry
 //! crate, reaches the kernel only through this module:
 //!
-//! - **Registration** — [`CliCommandGroup`], [`register_cli_command!`] and the
-//!   [`CommandRegistry`] the runner assembles the command tree from.
+//! - **Registration** — [`CliCommandGroup`], [`crate::register_cli_command!`]
+//!   and the [`CommandRegistry`] the runner assembles the command tree from.
 //! - **Bootstrap declaration** — [`CommandDescriptor`], [`DataImpact`],
 //!   [`DbUrlRouting`] and [`DescribeCommand`]: what a command needs before it
 //!   runs and what it does to the data behind the profile.
