@@ -44,7 +44,7 @@ systemprompt-slack                 capability:slack
 systemprompt-teams                 capability:teams
 systemprompt-notifications         capability:notifications
 systemprompt-brain                 capability:brain
-systemprompt-scheduler             capability:scheduler
+systemprompt-scheduler              kernel
 systemprompt-agent-runs            capability:agent-runs
 systemprompt-bridge                capability:bridge
 # Tooling

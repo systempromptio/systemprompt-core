@@ -198,6 +198,9 @@ scripts/*
 !scripts/flow-report-kernel.txt
 !scripts/affected.py
 !scripts/test-affected.py
+!scripts/affected-force-full.txt
+!scripts/units.txt
+!scripts/cargo_graph.py
 !scripts/gate-scopes.txt
 !scripts/gate.sh
 !scripts/changelog-assemble.py
