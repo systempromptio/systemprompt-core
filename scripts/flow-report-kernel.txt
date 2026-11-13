@@ -1,0 +1,16 @@
+crates/shared/
+crates/infra/database/
+crates/infra/events/
+crates/infra/security/
+crates/infra/governance/
+crates/infra/config/
+crates/infra/logging/
+crates/infra/loader/
+crates/infra/storage/
+crates/domain/users/
+crates/domain/oauth/
+crates/app/runtime/
+crates/app/oauth-issuance/
+crates/app/scheduler/
+crates/entry/api/
+crates/entry/cli/
