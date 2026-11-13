@@ -31,7 +31,7 @@ pub use status::{
 
 use crate::services::{DatabaseProvider, SqlExecutor};
 use std::collections::HashSet;
-use systemprompt_extension::{Extension, LoaderError, Migration};
+use systemprompt_extension::{Extension, LoaderError, Migration, MigrationFault};
 use systemprompt_identifiers::ExtensionId;
 use tracing::{debug, info, warn};
 
@@ -231,11 +231,12 @@ fn decode_applied_row(
     extension_id: &ExtensionId,
     row: &crate::models::JsonRow,
 ) -> Result<AppliedMigration, LoaderError> {
-    let malformed = |column: &str| LoaderError::MigrationFailed {
+    let malformed = |column: &'static str| LoaderError::MigrationStepFailed {
         extension: extension_id.clone(),
-        message: format!("extension_migrations row has a malformed `{column}` column"),
+        context: "Decode applied migration".to_owned(),
+        source: Box::new(MigrationFault::MalformedRow { column }),
     };
-    let text = |column: &str| -> Result<String, LoaderError> {
+    let text = |column: &'static str| -> Result<String, LoaderError> {
         row.get(column)
             .and_then(serde_json::Value::as_str)
             .map(str::to_owned)

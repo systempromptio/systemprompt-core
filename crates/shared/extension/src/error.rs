@@ -43,24 +43,12 @@ pub enum LoaderError {
         source: BoxedSource,
     },
 
-    #[error("Failed to install schema for extension '{extension}': {message}")]
-    SchemaInstallationFailed {
-        extension: ExtensionId,
-        message: String,
-    },
-
     #[error("Failed to install schema for extension '{extension}': {context}: {source}")]
     SchemaInstallationStepFailed {
         extension: ExtensionId,
         context: String,
         #[source]
         source: BoxedSource,
-    },
-
-    #[error("Migration failed for extension '{extension}': {message}")]
-    MigrationFailed {
-        extension: ExtensionId,
-        message: String,
     },
 
     #[error("Migration failed for extension '{extension}': {context}: {source}")]
@@ -93,10 +81,11 @@ pub enum LoaderError {
         current_name: String,
     },
 
-    #[error("Configuration validation failed for extension '{extension}': {message}")]
+    #[error("Configuration validation failed for extension '{extension}': {source}")]
     ConfigValidationFailed {
         extension: ExtensionId,
-        message: String,
+        #[source]
+        source: ExtensionConfigError,
     },
 
     #[error("Extension '{extension}' uses reserved API path '{path}'")]
@@ -264,6 +253,46 @@ pub enum ExtensionStateError {
 
     #[error("Failed to build provided state: {0}")]
     Provider(#[source] BoxedSource),
+}
+
+#[derive(Debug, Error)]
+pub enum MigrationFault {
+    #[error("migration history changed concurrently")]
+    ConcurrentHistoryChange,
+
+    #[error("extension_migrations row has a malformed `{column}` column")]
+    MalformedRow { column: &'static str },
+
+    #[error("migration {version} is not declared in Extension::migrations()")]
+    Undeclared { version: u32 },
+
+    #[error("migration {version} ('{name}') is a tombstone: the slot is spent and has no SQL")]
+    Tombstoned { version: u32, name: String },
+
+    #[error("migration {version} ('{name}') is already tracked as applied")]
+    AlreadyApplied { version: u32, name: String },
+}
+
+#[derive(Debug, Error)]
+pub enum SchemaFault {
+    #[error("required column '{column}' not found in table '{table}'")]
+    MissingColumn { column: String, table: String },
+
+    #[error(
+        "imperative SQL detected in declarative schema; move offending statements to \
+         schema/migrations/NNN_<name>.sql and declare them via Extension::migrations():\n{}",
+        .offences.join("\n")
+    )]
+    ImperativeSql { offences: Vec<String> },
+
+    #[error("only DROP … IF EXISTS is allowed, got `{statement}`")]
+    RetirementNotDrop { statement: String },
+
+    #[error("only triggers, functions, procedures and views can be retired, got `{statement}`")]
+    RetirementObjectType { statement: String },
+
+    #[error("a retirement must say IF EXISTS: `{statement}`")]
+    RetirementWithoutIfExists { statement: String },
 }
 
 #[derive(Debug, Error)]

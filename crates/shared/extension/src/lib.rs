@@ -112,7 +112,7 @@ pub use brain::{
 pub use brain::{BrainSink, DynBrainSink};
 pub use context::{DynExtensionContext, ExtensionContext};
 pub use cost::{CostDirective, CostDirectiveError, TriggerPolicy};
-pub use error::{ExtensionConfigError, ExtensionStateError, LoaderError};
+pub use error::{ExtensionConfigError, ExtensionStateError, LoaderError, MigrationFault, SchemaFault};
 pub use frame_options::{FrameOptionsOverride, stamp_frame_options};
 pub use gateway_guard::{
     GatewayDenyKind, GatewayDenyReason, GatewayGuardRequest, GatewayGuards, GatewayRequestGuard,

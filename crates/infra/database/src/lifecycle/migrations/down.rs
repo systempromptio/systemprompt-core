@@ -6,7 +6,7 @@
 use super::exec::{TrackingWrite, execute_statements_transactional};
 use super::{MigrationResult, MigrationService};
 use crate::services::SqlExecutor;
-use systemprompt_extension::{Extension, LoaderError, Migration};
+use systemprompt_extension::{Extension, LoaderError, Migration, MigrationFault};
 use systemprompt_identifiers::{ExtensionId, ToDbValue};
 use tracing::info;
 
@@ -44,10 +44,10 @@ impl MigrationService<'_> {
                 row.get("version")
                     .and_then(serde_json::Value::as_i64)
                     .and_then(|v| u32::try_from(v).ok())
-                    .ok_or_else(|| LoaderError::MigrationFailed {
+                    .ok_or_else(|| LoaderError::MigrationStepFailed {
                         extension: ext_id.clone(),
-                        message: "extension_migrations row has a malformed `version` column"
-                            .to_owned(),
+                        context: "Read applied migrations to revert".to_owned(),
+                        source: Box::new(MigrationFault::MalformedRow { column: "version" }),
                     })
             })
             .collect::<Result<Vec<u32>, LoaderError>>()?;
@@ -79,21 +79,20 @@ impl MigrationService<'_> {
         let migration = migrations
             .iter()
             .find(|m| m.version == version)
-            .ok_or_else(|| LoaderError::MigrationFailed {
+            .ok_or_else(|| LoaderError::MigrationStepFailed {
                 extension: ext_id.clone(),
-                message: format!(
-                    "Cannot revert migration {version}: not declared in Extension::migrations()"
-                ),
+                context: "Revert migration".to_owned(),
+                source: Box::new(MigrationFault::Undeclared { version }),
             })?;
 
         if migration.tombstone {
-            return Err(LoaderError::MigrationFailed {
+            return Err(LoaderError::MigrationStepFailed {
                 extension: ext_id.clone(),
-                message: format!(
-                    "Cannot revert migration {version} ('{}'): the slot is tombstoned — its file \
-                     was deleted, so there is no down SQL to run",
-                    migration.name
-                ),
+                context: "Revert migration".to_owned(),
+                source: Box::new(MigrationFault::Tombstoned {
+                    version,
+                    name: migration.name.clone(),
+                }),
             });
         }
 

@@ -13,7 +13,7 @@
 
 use super::{AppliedMigration, MigrationService};
 use std::hash::{Hash, Hasher};
-use systemprompt_extension::{LoaderError, Migration};
+use systemprompt_extension::{LoaderError, Migration, MigrationFault};
 use systemprompt_identifiers::ExtensionId;
 
 use crate::error::RepositoryError;
@@ -77,9 +77,10 @@ impl MigrationService<'_> {
                     tx.rollback()
                         .await
                         .map_err(|error| step("Rollback checksum transition".to_owned(), error))?;
-                    return Err(LoaderError::MigrationFailed {
+                    return Err(LoaderError::MigrationStepFailed {
                         extension: extension.clone(),
-                        message: "Migration history changed concurrently; retry verified checksum transition".to_owned(),
+                        context: "Verified checksum transition; retry it".to_owned(),
+                        source: Box::new(MigrationFault::ConcurrentHistoryChange),
                     });
                 },
                 Err(error) => {

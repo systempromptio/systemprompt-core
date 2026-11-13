@@ -16,7 +16,7 @@ use systemprompt_database::{
     QuerySelector, SlotCollision, ToDbValue, TombstonedSlot,
 };
 use systemprompt_extension::{
-    Extension, ExtensionMetadata, LoaderError, Migration, SchemaDefinition,
+    Extension, ExtensionMetadata, LoaderError, Migration, MigrationFault, SchemaDefinition,
 };
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_test_fixtures::DisposableDb;
@@ -664,13 +664,16 @@ async fn mark_applied_rejects_unknown_version() {
         .expect_err("unknown version must fail");
 
     match err {
-        LoaderError::MigrationFailed { message, .. } => {
+        LoaderError::MigrationStepFailed { source, .. } => {
             assert!(
-                message.contains("99"),
-                "error must name the missing version: {message}"
+                matches!(
+                    source.downcast_ref::<MigrationFault>(),
+                    Some(MigrationFault::Undeclared { version: 99 })
+                ),
+                "error must name the missing version: {source}"
             );
         },
-        other => panic!("expected MigrationFailed, got {other:?}"),
+        other => panic!("expected MigrationStepFailed, got {other:?}"),
     }
 }
 
