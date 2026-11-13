@@ -9,6 +9,7 @@
 ### Fixed
 
 - **API:** a `worker` node serves `POST /api/v1/internal/links` (route group `InternalLinks`, also on `api` and `all`), so `issue_attachment`, `documents_upload` and link-based `documents_export` work on a role-split install, where a managed MCP server asks its own node for a signed link; the worker mounts none of the documents surface, and the links it signs point at `api_external_url`. `LinkRefusal` gains `Unavailable` (any status but 401, 403, 409 and 500), and the tools report an unreachable link endpoint or the status it returned (`LinkIssueError::tool_message`) instead of "the upload links could not be signed".
+- **API:** a `worker` that stops gracefully withdraws its presence before it stops and releases its processes (`ServiceRepository::delete_presence`), so a surviving worker claims them on its next tick instead of after the 45 s presence staleness, and a worker preferred for a key whose lease is still held retries the claim every 2 s (`CLAIM_RETRY_EVERY`). A worker that dies without stopping still leaves after `LEASE_TTL`.
 
 ## [0.81.1] - 2026-11-13
 
