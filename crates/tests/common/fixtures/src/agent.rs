@@ -70,6 +70,17 @@ impl ToolExecutionLookup for ToolExecutionLedger {
             ))),
         }
     }
+
+    async fn contexts_with_executions(
+        &self,
+        _contexts: &[systemprompt_identifiers::ContextId],
+    ) -> Result<std::collections::HashSet<systemprompt_identifiers::ContextId>, RepositoryError>
+    {
+        match self {
+            Self::Unavailable => Err(RepositoryError::database("ledger unavailable")),
+            Self::Exists | Self::Absent => Ok(std::collections::HashSet::new()),
+        }
+    }
 }
 
 pub fn not_managed_skills() -> DynManagedSkillResolver {

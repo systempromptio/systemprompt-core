@@ -39,7 +39,7 @@ impl Job for BackfillSessionGeoJob {
         let start_time = std::time::Instant::now();
 
         let repositories = Arc::clone(ctx.get::<Arc<AnalyticsRepositories>>()?);
-        let geoip = ctx.get::<GeoIpReader>().ok();
+        let geoip = ctx.find::<GeoIpReader>();
 
         let batch_size = ctx
             .get_parameter_parsed::<i64>("batch_size")?

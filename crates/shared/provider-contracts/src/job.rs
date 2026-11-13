@@ -144,6 +144,11 @@ impl JobContext {
     }
 
     #[must_use]
+    pub fn find<T: Any + Send + Sync>(&self) -> Option<&T> {
+        self.dependencies.find::<T>()
+    }
+
+    #[must_use]
     pub const fn dependencies(&self) -> &Dependencies {
         &self.dependencies
     }

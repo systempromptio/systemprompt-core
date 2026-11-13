@@ -5,7 +5,7 @@
 //! artifact publishing needs to know whether an execution id it was handed is
 //! real before recording it. The lookup is implemented by mcp and injected as
 //! `Arc<dyn ToolExecutionLookup>`, so `#[async_trait]` is required for `dyn`
-//! dispatch.
+//! dispatch. The mcp extension provides it into the extension state.
 //!
 //! The `ai_request_tool_calls` intents are owned by the ai domain; an MCP
 //! execution claims the intent it fulfils through [`ToolCallIntentClaims`],
@@ -15,12 +15,15 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
+use std::collections::HashSet;
 use std::sync::Arc;
-use systemprompt_identifiers::{AiToolCallId, McpExecutionId, McpToolName, SessionId};
+use systemprompt_identifiers::{AiToolCallId, ContextId, McpExecutionId, McpToolName, SessionId};
 
 use crate::repository::RepositoryError;
 
-/// Answers whether an MCP execution id exists in the owning domain's ledger.
+/// Answers whether an MCP execution id exists in the owning domain's ledger,
+/// and which of a set of contexts any execution references (an execution
+/// keeps its context out of the empty-context sweep).
 ///
 /// Held as `Arc<dyn ToolExecutionLookup>` so the agent domain can be handed
 /// whichever ledger the composition root wires in, hence `#[async_trait]`
@@ -29,6 +32,11 @@ use crate::repository::RepositoryError;
 #[async_trait]
 pub trait ToolExecutionLookup: Send + Sync {
     async fn execution_exists(&self, id: &McpExecutionId) -> Result<bool, RepositoryError>;
+
+    async fn contexts_with_executions(
+        &self,
+        contexts: &[ContextId],
+    ) -> Result<HashSet<ContextId>, RepositoryError>;
 }
 
 pub type DynToolExecutionLookup = Arc<dyn ToolExecutionLookup>;

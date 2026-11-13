@@ -155,6 +155,27 @@ pub struct SessionSnapshot {
     pub activity: SessionActivityCounts,
 }
 
+/// Which per-IP session count over the last 24 hours to read: human
+/// (`v_clean_traffic`) sessions per IP at or above a threshold, scanner
+/// sessions per IP at or above a threshold, every session per IP, or sessions
+/// per IP and country at or above a threshold.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IpSessionQuery {
+    HumanAtLeast(i64),
+    ScannerAtLeast(i64),
+    All,
+    CountryAtLeast(i64),
+}
+
+/// Sessions one IP (and, for [`IpSessionQuery::CountryAtLeast`], one
+/// country) opened in the window.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IpSessionCount {
+    pub ip_address: String,
+    pub country: Option<String>,
+    pub session_count: i64,
+}
+
 use crate::{AnalyticsResult, SessionProvider, SessionUsageCounters};
 use async_trait::async_trait;
 
@@ -252,5 +273,9 @@ pub trait SessionStore: SessionProvider + SessionUsageCounters {
         region: Option<&str>,
         city: Option<&str>,
     ) -> AnalyticsResult<u64>;
+    async fn ip_session_counts(
+        &self,
+        query: IpSessionQuery,
+    ) -> AnalyticsResult<Vec<IpSessionCount>>;
 }
 pub type DynSessionStore = std::sync::Arc<dyn SessionStore>;

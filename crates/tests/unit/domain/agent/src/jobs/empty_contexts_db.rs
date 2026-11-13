@@ -1,8 +1,16 @@
 //! DB-backed tests for [`EmptyContextRepository`], the candidate query and
 //! delete behind the `cleanup_empty_contexts` job.
 
+use std::sync::Arc;
+
 use systemprompt_agent::repository::EmptyContextRepository;
+use systemprompt_database::DbPool;
+use systemprompt_mcp::repository::ToolUsageRepository;
 use systemprompt_test_fixtures::test_db_pool;
+
+fn empty_context_repository(pool: &DbPool) -> EmptyContextRepository {
+    EmptyContextRepository::new(pool, Arc::new(ToolUsageRepository::new(pool)))
+}
 
 fn unique_job_name(prefix: &str) -> String {
     use std::sync::atomic::{AtomicU64, Ordering};
@@ -23,7 +31,7 @@ mod empty_context_repository {
     #[tokio::test]
     async fn cleanup_empty_contexts_returns_rows_affected_count() {
         let pool = test_db_pool().await;
-        let repo = EmptyContextRepository::new(&pool);
+        let repo = empty_context_repository(&pool);
 
         // No seeded contexts; the DELETE simply affects whatever stale empty
         // contexts exist (0 on a fresh DB). The call must succeed and return a
@@ -38,13 +46,13 @@ mod empty_context_repository {
     #[tokio::test]
     async fn new_succeeds() {
         let pool = test_db_pool().await;
-        let _repo = EmptyContextRepository::new(&pool);
+        let _repo = empty_context_repository(&pool);
     }
 
     #[tokio::test]
     async fn cleanup_empty_contexts_executes_for_various_windows() {
         let pool = test_db_pool().await;
-        let repo = EmptyContextRepository::new(&pool);
+        let repo = empty_context_repository(&pool);
 
         for hours in [0_i64, 1, 24, 168] {
             repo.cleanup_empty_contexts(hours)
@@ -56,7 +64,7 @@ mod empty_context_repository {
     #[tokio::test]
     async fn cleanup_collects_orphaned_cli_contexts_but_spares_session_bound_ones() {
         let pool = test_db_pool().await;
-        let repo = EmptyContextRepository::new(&pool);
+        let repo = empty_context_repository(&pool);
         let raw = pool.pool();
 
         let user_id = systemprompt_test_fixtures::unique_user_id("schedgc");
@@ -237,7 +245,7 @@ mod empty_context_audit_guards {
     #[tokio::test]
     async fn context_with_tool_execution_survives_cleanup() {
         let seed = Seed::new("auditmte").await;
-        let repo = EmptyContextRepository::new(&seed.pool);
+        let repo = empty_context_repository(&seed.pool);
         // The audit row is written first: a concurrent sweep would otherwise
         // collect the context through the gap before it is protected.
         let ctx_id = systemprompt_identifiers::ContextId::generate().to_string();
@@ -257,7 +265,7 @@ mod empty_context_audit_guards {
     #[tokio::test]
     async fn context_with_governance_decision_survives_cleanup() {
         let seed = Seed::new("auditgd").await;
-        let repo = EmptyContextRepository::new(&seed.pool);
+        let repo = empty_context_repository(&seed.pool);
         let ctx_id = systemprompt_identifiers::ContextId::generate().to_string();
         seed.seed_governance_decision(&unique_job_name("auditdec"), &ctx_id)
             .await;
@@ -275,7 +283,7 @@ mod empty_context_audit_guards {
     #[tokio::test]
     async fn truly_empty_old_context_is_deleted() {
         let seed = Seed::new("auditbare").await;
-        let repo = EmptyContextRepository::new(&seed.pool);
+        let repo = empty_context_repository(&seed.pool);
         let ctx_id = systemprompt_identifiers::ContextId::generate().to_string();
         seed.seed_old_context(&ctx_id).await;
 
@@ -291,7 +299,7 @@ mod empty_context_audit_guards {
     #[tokio::test]
     async fn count_empty_contexts_counts_what_cleanup_deletes() {
         let seed = Seed::new("auditcount").await;
-        let repo = EmptyContextRepository::new(&seed.pool);
+        let repo = empty_context_repository(&seed.pool);
         let collectable = systemprompt_identifiers::ContextId::generate().to_string();
         let protected = systemprompt_identifiers::ContextId::generate().to_string();
         seed.seed_tool_execution(&unique_job_name("auditexec"), &protected)
@@ -322,7 +330,7 @@ mod empty_context_audit_guards {
     #[tokio::test]
     async fn orphaned_tool_execution_survives_all_retention_sweeps() {
         let seed = Seed::new("auditorphan").await;
-        let repo = EmptyContextRepository::new(&seed.pool);
+        let repo = empty_context_repository(&seed.pool);
         let exec_id = unique_job_name("auditexec_orphan");
         let missing_ctx = systemprompt_identifiers::ContextId::generate().to_string();
         seed.seed_tool_execution(&exec_id, &missing_ctx).await;

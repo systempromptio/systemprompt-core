@@ -38,6 +38,7 @@ inventory = { workspace = true }
 systemprompt-loader = { workspace = true }
 systemprompt-logging = { workspace = true }
 systemprompt-database = { workspace = true }
+systemprompt-governance = { workspace = true }
 systemprompt-security = { workspace = true }
 rmcp = { workspace = true }
 

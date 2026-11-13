@@ -12,7 +12,6 @@ use systemprompt_users::BannedIpRepository;
 
 mod ip_ban_detectors_db;
 mod ip_ban_detectors_seeded_db;
-mod ip_sessions_db;
 mod job_execute_db;
 mod job_properties;
 

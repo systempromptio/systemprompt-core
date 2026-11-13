@@ -1,36 +1,27 @@
-//! Per-IP session counts the malicious-IP blacklist job classifies.
-//!
-//! The repository deliberately reads from the read replica only; mutations
-//! to ban tables live in `systemprompt-users`.
+//! Per-IP session counts over the last 24 hours, read by the analytics
+//! crate's malicious-IP blacklist through
+//! `systemprompt_traits::SessionStore::ip_session_counts`. The reads go to
+//! the read replica; ban mutations live in `BannedIpRepository`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use sqlx::PgPool;
-use std::sync::Arc;
-use systemprompt_database::DbPool;
+use systemprompt_traits::session_store::{IpSessionCount, IpSessionQuery};
 
+use super::SessionRepository;
 use crate::Result;
 
-#[derive(Debug, Clone)]
-pub struct IpSessionRepository {
-    pool: Arc<PgPool>,
-}
-
-#[derive(Debug)]
-pub struct IpSessionRecord {
-    pub ip_address: Option<String>,
-    pub country: Option<String>,
-    pub session_count: i64,
-}
-
-impl IpSessionRepository {
-    pub fn new(db: &DbPool) -> Self {
-        let pool = db.pool();
-        Self { pool }
+impl SessionRepository {
+    pub async fn ip_session_counts(&self, query: IpSessionQuery) -> Result<Vec<IpSessionCount>> {
+        match query {
+            IpSessionQuery::HumanAtLeast(threshold) => self.high_volume_ips(threshold).await,
+            IpSessionQuery::ScannerAtLeast(threshold) => self.scanner_ips(threshold).await,
+            IpSessionQuery::All => self.recent_ips().await,
+            IpSessionQuery::CountryAtLeast(threshold) => self.country_ips(threshold).await,
+        }
     }
 
-    pub async fn find_high_volume_ips(&self, threshold: i64) -> Result<Vec<IpSessionRecord>> {
+    async fn high_volume_ips(&self, threshold: i64) -> Result<Vec<IpSessionCount>> {
         let rows = sqlx::query!(
             r#"
             SELECT ip_address, COUNT(*) as session_count
@@ -44,12 +35,11 @@ impl IpSessionRepository {
         )
         .fetch_all(&*self.pool)
         .await?;
-
         Ok(rows
             .into_iter()
             .filter_map(|r| {
-                r.ip_address.map(|ip| IpSessionRecord {
-                    ip_address: Some(ip),
+                r.ip_address.map(|ip_address| IpSessionCount {
+                    ip_address,
                     country: None,
                     session_count: r.session_count.unwrap_or(0),
                 })
@@ -57,7 +47,7 @@ impl IpSessionRepository {
             .collect())
     }
 
-    pub async fn find_scanner_ips(&self, threshold: i64) -> Result<Vec<IpSessionRecord>> {
+    async fn scanner_ips(&self, threshold: i64) -> Result<Vec<IpSessionCount>> {
         let rows = sqlx::query!(
             r#"
             SELECT ip_address, COUNT(*) as session_count
@@ -72,12 +62,11 @@ impl IpSessionRepository {
         )
         .fetch_all(&*self.pool)
         .await?;
-
         Ok(rows
             .into_iter()
             .filter_map(|r| {
-                r.ip_address.map(|ip| IpSessionRecord {
-                    ip_address: Some(ip),
+                r.ip_address.map(|ip_address| IpSessionCount {
+                    ip_address,
                     country: None,
                     session_count: r.session_count.unwrap_or(0),
                 })
@@ -85,7 +74,7 @@ impl IpSessionRepository {
             .collect())
     }
 
-    pub async fn find_recent_ips(&self) -> Result<Vec<IpSessionRecord>> {
+    async fn recent_ips(&self) -> Result<Vec<IpSessionCount>> {
         let rows = sqlx::query!(
             r#"
             SELECT ip_address, COUNT(*) as session_count
@@ -97,12 +86,11 @@ impl IpSessionRepository {
         )
         .fetch_all(&*self.pool)
         .await?;
-
         Ok(rows
             .into_iter()
             .filter_map(|r| {
-                r.ip_address.map(|ip| IpSessionRecord {
-                    ip_address: Some(ip),
+                r.ip_address.map(|ip_address| IpSessionCount {
+                    ip_address,
                     country: None,
                     session_count: r.session_count.unwrap_or(0),
                 })
@@ -110,7 +98,7 @@ impl IpSessionRepository {
             .collect())
     }
 
-    pub async fn find_high_risk_country_ips(&self, threshold: i64) -> Result<Vec<IpSessionRecord>> {
+    async fn country_ips(&self, threshold: i64) -> Result<Vec<IpSessionCount>> {
         let rows = sqlx::query!(
             r#"
             SELECT ip_address, country, COUNT(*) as session_count
@@ -125,12 +113,11 @@ impl IpSessionRepository {
         )
         .fetch_all(&*self.pool)
         .await?;
-
         Ok(rows
             .into_iter()
             .filter_map(|r| {
-                r.ip_address.map(|ip| IpSessionRecord {
-                    ip_address: Some(ip),
+                r.ip_address.map(|ip_address| IpSessionCount {
+                    ip_address,
                     country: r.country,
                     session_count: r.session_count.unwrap_or(0),
                 })
