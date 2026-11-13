@@ -14,6 +14,7 @@ pub mod args;
 mod bootstrap;
 pub mod confirmation;
 mod db_url;
+mod dispatch;
 pub mod interrupt;
 pub mod profile_routing;
 pub mod routing;
@@ -21,18 +22,17 @@ pub mod routing_decision;
 mod structured_output;
 
 use anyhow::{Context, Result, bail};
-use clap::{ArgMatches, Command, FromArgMatches};
 use systemprompt_cloud::CloudCredentials;
 use systemprompt_loader::subprocess::{self, ApiServerStamp, ForegroundChildren};
 use systemprompt_logging::OutputState;
 use systemprompt_runtime::DatabaseContext;
 
 use crate::cli_settings::{CliConfig, OutputFormat};
-use crate::commands::{admin, analytics, cloud, core, infrastructure, plugins, web};
 use crate::context::CommandContext;
-use crate::descriptor::{CommandDescriptor, DbUrlRouting, DescribeCommand};
+use crate::descriptor::{CommandDescriptor, DbUrlRouting};
 use crate::env_overrides::EnvOverrides;
-use crate::kernel::{CommandRegistry, RegisteredCommand};
+use crate::kernel::CommandRegistry;
+use dispatch::{Invocation, Selected, dispatch_command};
 
 pub async fn run() -> Result<()> {
     install_tls_crypto_provider();
@@ -77,67 +77,6 @@ fn install_tls_crypto_provider() {
     {
         tracing::debug!("rustls crypto provider was installed concurrently");
     }
-}
-
-struct Invocation {
-    cli: args::Cli,
-    registered: Option<RegisteredCommand>,
-    root: Command,
-}
-
-impl Invocation {
-    fn parse(
-        registry: &CommandRegistry,
-        root: Command,
-        matches: &ArgMatches,
-    ) -> Result<Self, clap::Error> {
-        if let Some(registered) = registry.resolve(matches)? {
-            return Ok(Self {
-                cli: args::Cli::from_globals(matches)?,
-                registered: Some(registered),
-                root,
-            });
-        }
-        Ok(Self {
-            cli: args::Cli::from_arg_matches(matches)?,
-            registered: None,
-            root,
-        })
-    }
-
-    fn descriptor(&self) -> CommandDescriptor {
-        match (&self.registered, &self.cli.command) {
-            (Some(registered), _) => registered.descriptor(),
-            (None, Some(command)) => command.descriptor(),
-            (None, None) => CommandDescriptor::FULL,
-        }
-    }
-
-    const fn is_bare(&self) -> bool {
-        self.registered.is_none() && self.cli.command.is_none()
-    }
-
-    const fn db_url_routing(&self) -> Option<DbUrlRouting> {
-        match (&self.registered, &self.cli.command) {
-            (Some(registered), _) => Some(registered.db_url_routing()),
-            (None, Some(command)) => Some(command.db_url_routing()),
-            (None, None) => None,
-        }
-    }
-
-    fn into_selected(self) -> Selected {
-        match (self.registered, self.cli.command) {
-            (Some(registered), _) => Selected::Registered(registered),
-            (None, Some(command)) => Selected::Kernel(Box::new(command)),
-            (None, None) => Selected::Bare(Box::new(self.root)),
-        }
-    }
-}
-
-enum Selected {
-    Kernel(Box<args::Commands>),
-    Registered(RegisteredCommand),
-    Bare(Box<Command>),
 }
 
 async fn run_inner(
@@ -271,47 +210,6 @@ fn resolve_log_level(cli_config: &CliConfig, env: &EnvOverrides) -> Option<Strin
     }
 
     Some("warn".to_owned())
-}
-
-async fn dispatch_command(selected: Selected, ctx: &CommandContext) -> Result<()> {
-    if ctx.is_database_scoped() {
-        let accepted = match &selected {
-            Selected::Kernel(command) => matches!(
-                **command,
-                args::Commands::Core(_)
-                    | args::Commands::Infra(_)
-                    | args::Commands::Admin(_)
-                    | args::Commands::Analytics(_)
-            ),
-            Selected::Registered(registered) => registered.db_url_routing() == DbUrlRouting::Direct,
-            Selected::Bare(_) => {
-                bail!("No subcommand provided. Use --help to see available commands.")
-            },
-        };
-        if !accepted {
-            bail!("This command requires full profile initialization. Remove --database-url flag.");
-        }
-    }
-
-    match selected {
-        Selected::Kernel(command) => match *command {
-            args::Commands::Core(cmd) => Box::pin(core::execute(cmd, ctx)).await?,
-            args::Commands::Infra(cmd) => infrastructure::execute(cmd, ctx).await?,
-            args::Commands::Admin(cmd) => Box::pin(admin::execute(cmd, ctx)).await?,
-            args::Commands::Cloud(cmd) => cloud::execute(cmd, ctx).await?,
-            args::Commands::Analytics(cmd) => analytics::execute(cmd, ctx).await?,
-            args::Commands::Web(cmd) => web::execute(cmd, ctx)?,
-            args::Commands::Plugins(cmd) => {
-                Box::pin(plugins::execute(cmd, ctx)).await?;
-            },
-        },
-        Selected::Registered(registered) => registered.run(ctx).await?,
-        Selected::Bare(root) => {
-            (*root).get_matches_from(["systemprompt", "--help"]);
-        },
-    }
-
-    Ok(())
 }
 
 struct RunGuards {

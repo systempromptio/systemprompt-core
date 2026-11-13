@@ -26,6 +26,7 @@ macro_rules! by_count {
     };
 }
 
+mod app_seams;
 pub mod catalog;
 mod extension_seams;
 
