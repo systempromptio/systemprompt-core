@@ -11,9 +11,15 @@ on:
     branches: [main, next]
   push:
     branches: [next, future]
+  # Accepted so a merge queue can be switched on in the ruleset; no queue is
+  # enabled. A group run resolves its base on the queue's target branch.
+  merge_group:
 
+# The event is part of the group, so a dispatched run (nightly.yml dispatches
+# the full gate every night) never shares a group with, and is never cancelled
+# by, a push.
 concurrency:
-  group: ci-${{ inputs.ref || github.ref }}
+  group: ci-${{ github.event_name }}-${{ inputs.ref || github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -41,19 +47,108 @@ env:
   CARGO_INCREMENTAL: "0"
 
 jobs:
+  # One selection per run (scripts/affected.py against the base scripts/ci-base.py
+  # resolves), turned into the run's plan by scripts/ci-plan.py. Every job
+  # below reads its run decision and matrix from these outputs, and the
+  # aggregate recomputes the decisions from the same selection.
+  affected:
+    name: Affected selection
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      plan_mode: ${{ steps.plan.outputs.plan_mode }}
+      shadow: ${{ steps.plan.outputs.shadow }}
+      base: ${{ steps.plan.outputs.base }}
+      selection: ${{ steps.plan.outputs.selection }}
+      shard_groups: ${{ steps.plan.outputs.shard_groups }}
+      archive_sets: ${{ steps.plan.outputs.archive_sets }}
+      run_fmt: ${{ steps.plan.outputs.run_fmt }}
+      run_build: ${{ steps.plan.outputs.run_build }}
+      run_build_no_engine: ${{ steps.plan.outputs.run_build_no_engine }}
+      run_migrator: ${{ steps.plan.outputs.run_migrator }}
+      run_test_tools: ${{ steps.plan.outputs.run_test_tools }}
+      run_test: ${{ steps.plan.outputs.run_test }}
+      run_schema_ladder: ${{ steps.plan.outputs.run_schema_ladder }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      # Why: affected.py reads the package graph with `cargo metadata`, which
+      # needs the pinned toolchain; nothing in this job compiles.
+      - run: rustup show
+      - name: Resolve the base
+        id: base
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          BEFORE: ${{ github.event.before }}
+          FORCED: ${{ github.event.forced }}
+          BASE_REF: ${{ github.event.merge_group.base_ref }}
+        run: |
+          python3 scripts/ci-base.py --event "$EVENT" --ref "$REF" --sha "$(git rev-parse HEAD)" \
+              --before "$BEFORE" --forced "$FORCED" --base-ref "$BASE_REF" \
+              --repo "$GITHUB_REPOSITORY" --output "$GITHUB_OUTPUT"
+      - name: Select
+        if: steps.base.outputs.base != ''
+        env:
+          BASE: ${{ steps.base.outputs.base }}
+        run: |
+          python3 scripts/affected.py --base "$BASE" --head HEAD --format json > selection.json
+          python3 scripts/affected.py --base "$BASE" --head HEAD --format text >> "$GITHUB_STEP_SUMMARY"
+      - name: Plan
+        id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          BASE: ${{ steps.base.outputs.base }}
+          BASE_REASON: ${{ steps.base.outputs.base_reason }}
+        run: |
+          python3 scripts/ci-plan.py plan --workflow ci --event "$EVENT" --ref "$REF" \
+              --selection selection.json --base "$BASE" --base-reason "$BASE_REASON" --output "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: selection
+          path: selection.json
+          retention-days: 14
+          if-no-files-found: error
+
+  # Names the plan this run executed; scripts/release-proof.py accepts a run as
+  # release proof only when this job reads `Gate plan: full`.
+  gate-plan:
+    name: "Gate plan: ${{ needs.affected.outputs.plan_mode }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: affected
+    steps:
+      - env:
+          PLAN: ${{ needs.affected.outputs.plan_mode }}
+          BASE: ${{ needs.affected.outputs.base }}
+          SHADOW: ${{ needs.affected.outputs.shadow }}
+        run: |
+          echo "plan $PLAN, base ${BASE:-none}, shadow $SHADOW" | tee -a "$GITHUB_STEP_SUMMARY"
+          test -n "$PLAN"
+
   fmt:
     name: Format
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    needs: affected
+    if: needs.affected.outputs.run_fmt == 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
       - run: rustup toolchain install "$(just --evaluate NIGHTLY)" --profile minimal --component rustfmt
-      # `just format-check` covers all three workspaces (root, crates/tests,
-      # bin/bridge); a bare root `cargo fmt` leaves the bridge unchecked.
-      - run: just format-check
+      # The fmt phase is `just format-check` over all three workspaces (root,
+      # crates/tests, bin/bridge) in every mode; a bare root `cargo fmt` leaves
+      # the bridge unchecked.
+      - run: bash scripts/gate.sh --full --only fmt
 
   # SQLX_OFFLINE is set workflow-wide, so this build is also the check that
   # every query macro resolves against the committed per-crate .sqlx caches.
@@ -61,6 +156,8 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    needs: affected
+    if: needs.affected.outputs.run_build == 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -98,6 +195,8 @@ jobs:
     name: Build (no document engine)
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    needs: affected
+    if: needs.affected.outputs.run_build_no_engine == 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -118,6 +217,8 @@ jobs:
     name: Test migrator
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    needs: affected
+    if: needs.affected.outputs.run_migrator == 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -152,11 +253,14 @@ jobs:
     name: Test tools (${{ matrix.set }})
     runs-on: ubuntu-latest
     timeout-minutes: 75
+    needs: affected
+    if: needs.affected.outputs.run_test_tools == 'true'
     strategy:
       fail-fast: false
       matrix:
-        # Set names only; the set→group mapping lives in scripts/test-shard.sh.
-        set: [unit, app, bridge, integration]
+        # The archive sets the plan needs (every set in a full plan); the
+        # set→group mapping lives in scripts/test-shard.sh.
+        set: ${{ fromJSON(needs.affected.outputs.archive_sets) }}
     services:
       postgres:
         image: postgres:18
@@ -226,14 +330,16 @@ jobs:
     name: Test (${{ matrix.group }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [test-tools, build]
+    needs: [affected, test-tools, build]
+    if: needs.affected.outputs.run_test == 'true'
     strategy:
       fail-fast: false
       matrix:
-        # Group names only; the group→prefix mapping, package filter, and
-        # nextest invocation live in scripts/test-shard.sh so CI and the local
-        # `just test-shard` recipes share one source of truth.
-        group: [shared, infra, domain, app-runtime, app-scheduler, app-agent-runs, app-generator, app-oauth-issuance, entry-api, entry-cli, bridge, integration-api, integration-cli, integration-rest-1, integration-rest-2, edge]
+        # The shard groups the plan needs (every group of
+        # `scripts/test-shard.sh --list` in a full plan); the group→prefix
+        # mapping, package filter and nextest invocation live in
+        # scripts/test-shard.sh so CI and `just test-shard` share one source.
+        group: ${{ fromJSON(needs.affected.outputs.shard_groups) }}
     services:
       postgres:
         image: postgres:18
@@ -330,25 +436,69 @@ jobs:
   # an established database (0.59.0's events 007 passed everything else).
   schema-ladder:
     name: Schema ladder
-    needs: migrator
+    needs: [affected, migrator]
+    if: needs.affected.outputs.run_schema_ladder == 'true'
     uses: ./.github/workflows/schema-ladder.yml
     with:
       ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       migrator-artifact: test-migrator
 
-  # The `main` ruleset's required context: it fails unless every gate above
-  # succeeded, so a skipped or cancelled matrix job can never pass as "not
-  # failed". Required checks name this job, never the matrix entries. Only the
-  # pull_request run posts `CI passed`; the push run posts `CI passed (push)`,
-  # so a green push run on the same SHA cannot satisfy the release PR before
-  # the PR's own run starts.
-  ci-passed:
-    name: ${{ github.event_name == 'pull_request' && 'CI passed' || 'CI passed (push)' }}
+  # Shadow mode (a push to a branch in SHADOW_BRANCHES of scripts/ci-plan.py):
+  # the run executes the full plan, and this lists every job red here that the
+  # affected plan would have skipped. Reported, never gating.
+  escapes:
+    name: Escape report
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [fmt, build, build-no-engine, migrator, test-tools, test, schema-ladder]
+    needs: [affected, fmt, build, build-no-engine, migrator, test-tools, test, schema-ladder]
+    if: ${{ always() && needs.affected.outputs.shadow == 'true' }}
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: selection
+      - name: Jobs of this run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT/jobs" \
+              --jq '.jobs[] | {name, conclusion}' | jq -s . > jobs.json
+      - run: |
+          python3 scripts/ci-plan.py escapes --workflow ci --selection selection.json --jobs jobs.json \
+              --summary "$GITHUB_STEP_SUMMARY" --out escapes.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: escapes
+          path: escapes.json
+          retention-days: 30
+          if-no-files-found: error
+
+  # The `main` ruleset's required context: it fails unless every job above
+  # succeeded or was skipped because the run's selection does not need it
+  # (scripts/ci-plan.py aggregate recomputes that from the selection), so a
+  # cancelled job, or one skipped for any other reason, can never pass as "not
+  # failed". Required checks name this job, never the matrix entries. The
+  # pull_request and merge_group runs post `CI passed`; the push run posts
+  # `CI passed (push)`, so a green push run on the same SHA cannot satisfy the
+  # release PR before the PR's own run starts.
+  ci-passed:
+    name: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && 'CI passed' || 'CI passed (push)' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [affected, gate-plan, fmt, build, build-no-engine, migrator, test-tools, test, schema-ladder]
     if: always()
     steps:
-      - run: |
-          echo '${{ toJSON(needs) }}' | jq -e 'all(.[]; .result == "success")' >/dev/null \
-            || { echo "::error::a required CI job did not succeed"; echo '${{ toJSON(needs) }}' | jq '.'; exit 1; }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
+      - env:
+          NEEDS: ${{ toJSON(needs) }}
+          SELECTION: ${{ needs.affected.outputs.selection }}
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+        run: python3 scripts/ci-plan.py aggregate --workflow ci --event "$EVENT" --ref "$REF"

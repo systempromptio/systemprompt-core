@@ -23,6 +23,7 @@ import gate_scope  # noqa: E402
 
 SCOPES = {"unit", "global"}
 COSTS = {"cheap", "compile", "db"}
+GROUPS = {"sql", "errors", "bridge", "release"}
 HELPER_MARKERS = ("lib/gate-scope.sh", "lib/rust-contracts.sh", "import gate_scope")
 
 
@@ -34,7 +35,7 @@ def rows():
     out = []
     for line in gate_scope.GATE_TABLE.read_text().splitlines():
         if line.strip() and not line.startswith("#"):
-            out.append(line.split(None, 3))
+            out.append(line.split(None, 4))
     return out
 
 
@@ -55,9 +56,10 @@ class GateScopes(unittest.TestCase):
 
     def test_vocabulary(self):
         for row in rows():
-            self.assertGreaterEqual(len(row), 3, row)
+            self.assertGreaterEqual(len(row), 4, row)
             self.assertIn(row[1], SCOPES, row)
             self.assertIn(row[2], COSTS, row)
+            self.assertIn(row[3], GROUPS, row)
 
     def test_unit_gates_source_the_helper(self):
         for name, scope, *_ in rows():

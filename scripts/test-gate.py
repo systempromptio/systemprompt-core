@@ -116,10 +116,72 @@ class Plans(unittest.TestCase):
                          "--all-features --keep-going -- -D warnings)")
 
 
+class Groups(unittest.TestCase):
+    def test_groups_partition_the_gate_list(self):
+        table = gate_scope.gate_table()
+        seen = []
+        for group in gate_runner.GROUPS:
+            plan = commands(gate_runner.plan(gate_runner.full_selection([]), [], ["gates"], group=group))
+            gates = [c.split()[1] for c in plan["gates"] if c.startswith("just ")]
+            self.assertTrue(gates, group)
+            self.assertTrue(all(table[g]["group"] == group for g in gates), group)
+            seen += gates
+            has_contracts = any("rust-contracts" in c for c in plan["gates"])
+            self.assertEqual(has_contracts, group == gate_runner.RUST_CONTRACTS_GROUP, group)
+        self.assertEqual(sorted(seen), sorted(gate_scope.gate_list()))
+
+    def test_machete_is_a_source_gate(self):
+        self.assertIn("machete", gate_scope.gate_list())
+        self.assertEqual(gate_scope.gate_table()["machete"]["group"], "release")
+
+    def test_unknown_group_is_refused(self):
+        with self.assertRaises(gate_runner.GateError):
+            gate_runner.plan(AFFECTED, [], ["gates"], group="nope")
+
+    def test_group_dry_run(self):
+        result = dry_run(AFFECTED, "--full", "--only", "gates", "--group", "release")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("  group release", result.stdout)
+        self.assertIn("  just machete", result.stdout)
+        self.assertNotIn("lint-schema", result.stdout)
+
+
+class Supply(unittest.TestCase):
+    def test_supply_runs_deny_audit_and_gitleaks(self):
+        steps = gate_runner.phase_supply(NONE, [], which=lambda name: "/usr/bin/gitleaks")
+        self.assertEqual([gate_runner.render_step(s) for s in steps],
+                         ["just deny", "just audit", "bash scripts/ci-gitleaks.sh"])
+
+    def test_absent_gitleaks_is_skipped_with_a_notice(self):
+        steps = gate_runner.phase_supply(NONE, [], which=lambda name: None)
+        self.assertTrue(steps[-1]["skip"])
+        self.assertTrue(gate_runner.render_step(steps[-1]).startswith("# gitleaks skipped: no gitleaks binary"))
+        out = io.StringIO()
+        with redirect_stdout(out):
+            results = gate_runner.execute([("supply", [steps[-1]])])
+        self.assertIn("skipped: no gitleaks binary", out.getvalue())
+        self.assertEqual(results[0]["result"], "skip")
+        self.assertEqual(results[0]["steps"][0]["result"], "skip")
+        self.assertIn("SKIP  gitleaks", gate_runner.summary(results))
+
+    def test_skipped_step_does_not_hide_a_failure(self):
+        phases = [("supply", [gate_runner.step("deny", ["false"]),
+                              gate_runner.step("gitleaks", ["true"], skip="absent")])]
+        with redirect_stdout(io.StringIO()):
+            results = gate_runner.execute(phases)
+        self.assertEqual(results[0]["result"], "fail")
+
+    def test_supply_chain_workflow_uses_the_same_scan(self):
+        workflow = (ROOT / ".github" / "workflows" / "supply-chain.yml").read_text()
+        self.assertIn("bash scripts/ci-gitleaks.sh", workflow)
+        self.assertIn("run: just deny", workflow)
+        self.assertIn("run: just audit", workflow)
+
+
 class PhaseSelection(unittest.TestCase):
     def test_only_and_skip(self):
         self.assertEqual(gate_runner.choose_phases("fmt,gates", None), ["fmt", "gates"])
-        self.assertEqual(gate_runner.choose_phases(None, "tests,doc"), ["fmt", "clippy", "gates", "scripts"])
+        self.assertEqual(gate_runner.choose_phases(None, "tests,doc"), ["fmt", "clippy", "gates", "supply", "scripts"])
         self.assertEqual(gate_runner.choose_phases("gates,fmt", "fmt"), ["gates"])
 
     def test_unknown_phase_is_refused(self):

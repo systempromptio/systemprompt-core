@@ -11,11 +11,15 @@ on:
     branches: [main, next]
   push:
     branches: [next, future]
-  schedule:
-    - cron: "17 6 * * *"
+  # Accepted so a merge queue can be switched on in the ruleset; no queue is
+  # enabled.
+  merge_group:
 
+# The daily advisory scan of `next` and `future` is nightly.yml, which
+# dispatches this workflow. The event is part of the group, so a dispatched
+# run never shares a group with, and is never cancelled by, a push.
 concurrency:
-  group: supply-chain-${{ inputs.ref || github.ref }}
+  group: supply-chain-${{ github.event_name }}-${{ inputs.ref || github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -69,20 +73,26 @@ jobs:
           curl -fsSL --retry 5 -o "$RUNNER_TEMP/$tarball" "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/$tarball"
           echo "${GITLEAKS_SHA256}  $RUNNER_TEMP/$tarball" | sha256sum -c -
           tar -xzf "$RUNNER_TEMP/$tarball" -C "$RUNNER_TEMP" gitleaks
+      # The same export-and-scan `scripts/gate.sh --only supply` runs locally.
       - name: Scan tree
-        run: |
-          git ls-files -z | tar --null -T - -cf - | tar -xf - -C "$RUNNER_TEMP" --one-top-level=tree
-          cd "$RUNNER_TEMP/tree" && "$RUNNER_TEMP/gitleaks" dir --no-banner --redact -c .gitleaks.toml .
+        run: GITLEAKS="$RUNNER_TEMP/gitleaks" bash scripts/ci-gitleaks.sh
 
-  # The `main` ruleset's required context, PR runs only; push runs post
-  # `Supply Chain passed (push)` (see ci.yml `ci-passed`).
+  # The `main` ruleset's required context on pull_request and merge_group
+  # runs; push runs post `Supply Chain passed (push)` (see ci.yml
+  # `ci-passed`). Supply-chain jobs read no selection, so every one must
+  # succeed.
   supply-chain-passed:
-    name: ${{ github.event_name == 'pull_request' && 'Supply Chain passed' || 'Supply Chain passed (push)' }}
+    name: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && 'Supply Chain passed' || 'Supply Chain passed (push)' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs: [deny, audit, secrets]
     if: always()
     steps:
-      - run: |
-          echo '${{ toJSON(needs) }}' | jq -e 'all(.[]; .result == "success")' >/dev/null \
-            || { echo "::error::a required Supply Chain job did not succeed"; echo '${{ toJSON(needs) }}' | jq '.'; exit 1; }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
+      - env:
+          NEEDS: ${{ toJSON(needs) }}
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+        run: python3 scripts/ci-plan.py aggregate --workflow supply-chain --event "$EVENT" --ref "$REF"

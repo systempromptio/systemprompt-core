@@ -15,7 +15,13 @@ Phases, in run order:
     doc      rustdoc over the same three sets (`just doc-check` in full mode)
     gates    the source gates of scripts/check-gates.txt: global gates always,
              unit gates with `--paths <affected crate dirs>`; every gate in full
-             mode, then the rust-contracts tests (`just check-gates`)
+             mode, then the rust-contracts tests (`just check-gates`).
+             `--group G` keeps the gates scripts/gate-scopes.txt assigns to the
+             quality.yml source-gates job G (the rust-contracts tests run with
+             `errors`)
+    supply   `just deny`, `just audit` and `scripts/ci-gitleaks.sh`, the three
+             jobs of supply-chain.yml; gitleaks is skipped with a notice when
+             no `gitleaks` binary is on PATH
     scripts  `scripts/test-scripts.sh` when a path under scripts/ changed
     tests    per affected shard group, `scripts/test-db.sh` then
              `scripts/test-shard.sh <group>`: a fresh migrated database per
@@ -41,7 +47,9 @@ import gate_scope
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPTS = ROOT / "scripts"
-PHASES = ("fmt", "clippy", "doc", "gates", "scripts", "tests")
+PHASES = ("fmt", "clippy", "doc", "gates", "supply", "scripts", "tests")
+GROUPS = ("sql", "errors", "bridge", "release")
+RUST_CONTRACTS_GROUP = "errors"
 UPSTREAMS = ("origin/future", "origin/next")
 DEFAULT_LOG = ROOT / "target" / "gate-log" / "runs.jsonl"
 SESSION_VARIABLES = ("CLAUDE_CODE_SESSION_ID", "GITHUB_RUN_ID")
@@ -55,10 +63,14 @@ class GateError(Exception):
     """A gate invocation that cannot be planned: bad arguments, a failed selector or git call."""
 
 
-def step(label, argv, env=None, cwd=".", db=None):
-    """One command; `db` marks a step that compiles or runs against the test database."""
+def step(label, argv, env=None, cwd=".", db=None, skip=None):
+    """One command; `db` marks a step that compiles or runs against the test database.
+
+    A step with `skip` set is planned but not run: the reason is printed and the
+    summary records it as skipped.
+    """
     return {"label": label, "argv": list(argv), "env": dict(env or {}), "cwd": cwd,
-            "db": cwd == TEST_WORKSPACE if db is None else db}
+            "db": cwd == TEST_WORKSPACE if db is None else db, "skip": skip}
 
 
 def packages(names):
@@ -71,11 +83,11 @@ def full_selection(shard_groups):
             "units": [], "scope_size": None}
 
 
-def phase_fmt(selection, changed):
+def phase_fmt(selection, changed, group=None):
     return [step("format-check", ["just", "format-check"])]
 
 
-def phase_clippy(selection, changed):
+def phase_clippy(selection, changed, group=None):
     if selection["mode"] == "full":
         return [step("clippy", ["just", "lint"]),
                 step("clippy-tests", ["cargo", "clippy", "--workspace", *CLIPPY_TAIL], cwd=TEST_WORKSPACE)]
@@ -90,7 +102,7 @@ def phase_clippy(selection, changed):
     return steps
 
 
-def phase_doc(selection, changed):
+def phase_doc(selection, changed, group=None):
     if selection["mode"] == "full":
         return [step("doc-check", ["just", "doc-check"], db=True)]
     steps = []
@@ -106,30 +118,39 @@ def phase_doc(selection, changed):
     return steps
 
 
-def phase_gates(selection, changed):
+def phase_gates(selection, changed, group=None):
     table = gate_scope.gate_table()
+    gates = [gate for gate in gate_scope.gate_list() if group is None or table[gate]["group"] == group]
+    contracts = group in (None, RUST_CONTRACTS_GROUP)
     if selection["mode"] == "full":
-        return [step(gate, ["just", gate]) for gate in gate_scope.gate_list()] + \
-            [step("rust-contracts", RUST_CONTRACTS)]
+        return [step(gate, ["just", gate]) for gate in gates] + \
+            ([step("rust-contracts", RUST_CONTRACTS)] if contracts else [])
     paths = sorted(set(selection["affected_dirs"]) | set(selection["test_dirs"]))
     steps = []
-    for gate in gate_scope.gate_list():
+    for gate in gates:
         if table[gate]["scope"] == "global":
             steps.append(step(gate, ["just", gate]))
         elif paths:
             steps.append(step(gate, ["just", gate, "--paths", *paths]))
-    if any(path.startswith("scripts/rust-contracts/") for path in changed):
+    if contracts and any(path.startswith("scripts/rust-contracts/") for path in changed):
         steps.append(step("rust-contracts", RUST_CONTRACTS))
     return steps
 
 
-def phase_scripts(selection, changed):
+def phase_supply(selection, changed, group=None, which=shutil.which):
+    gitleaks = ["bash", "scripts/ci-gitleaks.sh"]
+    absent = None if which("gitleaks") else "no gitleaks binary on PATH; supply-chain.yml runs it in CI"
+    return [step("deny", ["just", "deny"]), step("audit", ["just", "audit"]),
+            step("gitleaks", gitleaks, skip=absent)]
+
+
+def phase_scripts(selection, changed, group=None):
     if selection["mode"] == "full" or any(path.startswith("scripts/") for path in changed):
         return [step("script-tests", ["bash", "scripts/test-scripts.sh"])]
     return []
 
 
-def phase_tests(selection, changed):
+def phase_tests(selection, changed, group=None):
     steps = []
     for group in selection["shard_groups"]:
         steps.append(step(f"test-db {group}", ["bash", "scripts/test-db.sh"], db=True))
@@ -138,7 +159,7 @@ def phase_tests(selection, changed):
 
 
 BUILDERS = {"fmt": phase_fmt, "clippy": phase_clippy, "doc": phase_doc, "gates": phase_gates,
-            "scripts": phase_scripts, "tests": phase_tests}
+            "supply": phase_supply, "scripts": phase_scripts, "tests": phase_tests}
 
 
 def needs_test_db(phases):
@@ -149,14 +170,16 @@ def needs_shared_db(phases):
     return any(entry["db"] for name, steps in phases if name != "tests" for entry in steps)
 
 
-def plan(selection, changed, phases=PHASES, db_url=None):
+def plan(selection, changed, phases=PHASES, db_url=None, group=None):
     """`[(phase, [step])]` in run order for the chosen phases; a phase may hold no steps.
 
     Steps that need the test database run live against `db_url`. When a step
     compiles in the test workspace, a `db` phase preparing it comes first; each
     test shard re-prepares it, so every shard starts fresh as in CI.
     """
-    chosen = [(name, BUILDERS[name](selection, changed)) for name in PHASES if name in phases]
+    if group is not None and group not in GROUPS:
+        raise GateError(f"unknown gate group {group} (groups: {', '.join(GROUPS)})")
+    chosen = [(name, BUILDERS[name](selection, changed, group)) for name in PHASES if name in phases]
     if not needs_test_db(chosen):
         return chosen
     if db_url is None:
@@ -249,6 +272,8 @@ def tree_hash():
 
 def render_step(entry):
     env = " ".join(f"{key}={value!r}" for key, value in sorted(entry["env"].items()))
+    if entry["skip"]:
+        return f"# {entry['label']} skipped: {entry['skip']}"
     cd = f"(cd {entry['cwd']} && " if entry["cwd"] != "." else ""
     command = " ".join(entry["argv"])
     return f"{cd}{env + ' ' if env else ''}{command}{')' if cd else ''}"
@@ -270,11 +295,16 @@ def execute(phases):
         outcomes = []
         for entry in steps:
             print(f"═══ {name}: {entry['label']} ═══", flush=True)
+            if entry["skip"]:
+                print(f"skipped: {entry['skip']}", flush=True)
+                outcomes.append({"label": entry["label"], "result": "skip", "seconds": 0.0})
+                continue
             began = time.monotonic()
             code = subprocess.run(entry["argv"], cwd=ROOT / entry["cwd"], env=os.environ | entry["env"]).returncode
             outcomes.append({"label": entry["label"], "result": "pass" if code == 0 else "fail",
                              "seconds": round(time.monotonic() - began, 1)})
-        status = "skip" if not steps else ("fail" if any(o["result"] == "fail" for o in outcomes) else "pass")
+        results_seen = {o["result"] for o in outcomes}
+        status = "fail" if "fail" in results_seen else ("pass" if "pass" in results_seen else "skip")
         results.append({"phase": name, "result": status, "seconds": round(time.monotonic() - started, 1),
                         "steps": outcomes})
     return results
@@ -327,6 +357,7 @@ def parse_args(argv):
     parser.add_argument("--base", help="--changed base (default: merge-base with origin/future or origin/next)")
     parser.add_argument("--only", help=f"comma-separated phases to run ({','.join(PHASES)})")
     parser.add_argument("--skip", help="comma-separated phases to leave out")
+    parser.add_argument("--group", choices=GROUPS, help="with the gates phase: only the gates of this quality.yml job")
     parser.add_argument("--selection", help="a precomputed `affected.py --format json` result to use as the scope")
     parser.add_argument("--dry-run", action="store_true", help="print the phases and exact commands, run nothing")
     args = parser.parse_args(argv)
@@ -357,8 +388,9 @@ def main(argv=None, environ=None):
             selection = dict(full_selection(selection["shard_groups"] or all_shard_groups()),
                              reasons=selection["reasons"], scope_size=selection["scope_size"])
         mode = "full" if args.full else ("unit" if args.unit else "changed")
-        draft = plan(selection, changed, phases_chosen, db_url="")
-        phases = plan(selection, changed, phases_chosen, db_url=test_db_url() if needs_test_db(draft) else None)
+        draft = plan(selection, changed, phases_chosen, db_url="", group=args.group)
+        phases = plan(selection, changed, phases_chosen, db_url=test_db_url() if needs_test_db(draft) else None,
+                      group=args.group)
         head = git("rev-parse", "HEAD")
     except GateError as error:
         print(f"gate: {error}", file=sys.stderr)
@@ -366,6 +398,7 @@ def main(argv=None, environ=None):
     header = [f"gate: {mode} (selector {selection['mode']}, scope {selection['scope_size']})"]
     header += [f"  base {base}"] if base else []
     header += [f"  unit {' '.join(args.unit)}"] if args.unit else []
+    header += [f"  group {args.group}"] if args.group else []
     header += [f"  full because {reason}" for reason in selection.get("reasons", []) if not args.full]
     print(render_plan(header, phases), flush=True)
     if args.dry_run:

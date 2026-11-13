@@ -40,12 +40,13 @@ def gate_list(path=GATE_LIST):
 
 
 def gate_table(path=GATE_TABLE):
-    """`{gate: {"scope", "cost", "notes"}}` from scripts/gate-scopes.txt."""
+    """`{gate: {"scope", "cost", "group", "notes"}}` from scripts/gate-scopes.txt."""
     table = {}
     for line in Path(path).read_text().splitlines():
         if line.strip() and not line.startswith("#"):
-            fields = line.split(None, 3)
-            table[fields[0]] = {"scope": fields[1], "cost": fields[2], "notes": fields[3] if len(fields) > 3 else ""}
+            fields = line.split(None, 4)
+            table[fields[0]] = {"scope": fields[1], "cost": fields[2], "group": fields[3],
+                                "notes": fields[4] if len(fields) > 4 else ""}
     return table
 
 

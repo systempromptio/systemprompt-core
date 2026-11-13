@@ -12,6 +12,11 @@ import gh_api  # noqa: E402
 AGGREGATES = {"ci.yml": "CI passed", "quality.yml": "Quality passed", "supply-chain.yml": "Supply Chain passed"}
 WORKFLOWS = {event: {workflow: name if event == "pull_request" else f"{name} (push)" for workflow, name in AGGREGATES.items()}
              for event in ("push", "pull_request")}
+# The job naming the plan a run executed (scripts/ci-plan.py); a run of a
+# workflow with a selection proves a release only when it executed the full
+# plan. An affected-only run, whatever its aggregate says, is not proof.
+PLAN_JOB = "Gate plan: full"
+PLANNED = ("ci.yml", "quality.yml")
 
 
 def command(*args):
@@ -62,14 +67,24 @@ def validate_push_runs(runs, sha, repo):
     return run
 
 
+def require_proof_jobs(jobs, workflow, event, run_id):
+    """The run's aggregate succeeded and, for a planned workflow, its plan was full."""
+    aggregate = WORKFLOWS[event][workflow]
+    require(any(job["name"] == aggregate and job["conclusion"] == "success" for job in jobs),
+            f"run {run_id} lacks successful {aggregate}")
+    if workflow in PLANNED:
+        require(any(job["name"] == PLAN_JOB and job["conclusion"] == "success" for job in jobs),
+                f"run {run_id} did not execute the full gate plan (no successful {PLAN_JOB!r}); "
+                "an affected-only run is not release proof")
+    return aggregate
+
+
 def verify_push(repo, sha):
     for workflow in WORKFLOWS["push"]:
         runs = api_list(repo, f"actions/workflows/{workflow}/runs?event=push&head_sha={sha}", "workflow_runs")
         run = validate_push_runs(runs, sha, repo)
         jobs = api_list(repo, f"actions/runs/{run['id']}/attempts/{run['run_attempt']}/jobs", "jobs")
-        aggregate = WORKFLOWS[run["event"]][workflow]
-        require(any(job["name"] == aggregate and job["conclusion"] == "success" for job in jobs),
-                f"push run {run['id']} lacks successful {aggregate}")
+        aggregate = require_proof_jobs(jobs, workflow, run["event"], run["id"])
         print(f"{aggregate} on next: run {run['id']} attempt {run['run_attempt']}")
 
 
@@ -87,9 +102,7 @@ def verify_pr(repo, pr, sha):
         runs = api_list(repo, f"actions/workflows/{workflow}/runs?event=pull_request&head_sha={sha}", "workflow_runs")
         run = validate_runs(runs, sha, number, repo, pr["created_at"])
         jobs = api_list(repo, f"actions/runs/{run['id']}/attempts/{run['run_attempt']}/jobs", "jobs")
-        aggregate = WORKFLOWS[run["event"]][workflow]
-        require(any(job["name"] == aggregate and job["conclusion"] == "success" for job in jobs),
-                f"run {run['id']} lacks successful {aggregate}")
+        aggregate = require_proof_jobs(jobs, workflow, run["event"], run["id"])
         sampled[workflow] = (run["id"], run["run_attempt"])
         print(f"{aggregate}: run {run['id']} attempt {run['run_attempt']}")
     for workflow, identity in sampled.items():
