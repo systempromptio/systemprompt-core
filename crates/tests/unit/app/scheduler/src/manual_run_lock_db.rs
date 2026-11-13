@@ -11,7 +11,6 @@ use std::time::Duration;
 use sqlx::Postgres;
 use sqlx::pool::PoolConnection;
 use systemprompt_database::DbPool;
-use systemprompt_extension::ExtensionRegistry;
 use systemprompt_identifiers::JobName;
 use systemprompt_scheduler::{JobExecutionService, JobSelection, SchedulerConfig};
 use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
@@ -42,7 +41,7 @@ async fn service(config: SchedulerConfig) -> (JobExecutionService, DbPool) {
     let pool = test_db_pool().await;
     let app_ctx = test_app_context(&pool, &url);
     (
-        JobExecutionService::new(app_ctx, ExtensionRegistry::new(), config),
+        JobExecutionService::new(app_ctx, config),
         pool,
     )
 }

@@ -22,7 +22,6 @@ use anyhow::{Result, bail};
 use clap::Args;
 use std::sync::Arc;
 use std::time::Duration;
-use systemprompt_extension::ExtensionRegistry;
 use systemprompt_identifiers::JobName;
 use systemprompt_scheduler::{
     JobExecutionService, JobRunReport, JobSelection, parse_job_parameters,
@@ -76,7 +75,6 @@ pub struct RunArgs {
 
 pub(super) async fn execute(args: RunArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let app = Arc::clone(ctx.app_context().await?);
-    let registry = ExtensionRegistry::discover()?;
 
     let parameters = parse_job_parameters(&args.params)?;
     let selection = if args.all {
@@ -92,7 +90,7 @@ pub(super) async fn execute(args: RunArgs, ctx: &CommandContext) -> Result<Comma
         .load_services_config()?
         .scheduler
         .unwrap_or_else(systemprompt_manifest::SchedulerConfig::with_system_admin);
-    let service = JobExecutionService::new(app, registry, scheduler_config)
+    let service = JobExecutionService::new(app, scheduler_config)
         .with_lock_wait(Duration::from_secs(args.lock_wait_secs));
     let batch = service.run_jobs(&selection, &parameters).await?;
 
