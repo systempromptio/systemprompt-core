@@ -300,7 +300,8 @@ class CrateSeeds(unittest.TestCase):
         self.assertIn("crates/tests/unit/domain/agent", result["test_dirs"])
 
     def test_unit_dirs_select_by_unit(self):
-        self.assertEqual(units.unit_dirs(GRAPH, UNITS, "kernel"), ["crates/entry/api", "crates/infra/db", "crates/shared/ids"])
+        expected = "crates/entry/api crates/infra/db crates/shared/ids".split()
+        self.assertEqual(units.unit_dirs(GRAPH, UNITS, "kernel"), expected)
 
 
 class Output(unittest.TestCase):
