@@ -3,11 +3,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 use sqlx::PgPool;
 use systemprompt_brain::BrainRepositories;
-use systemprompt_brain::consumer::BrainConsumer;
+use systemprompt_brain::consumer::{BrainConsumer, BrainConsumerSlot};
 use systemprompt_brain::pipeline::PipelineSeams;
 use systemprompt_brain::recall::BrainRecallService;
 use systemprompt_brain::replay::{ProposalReplay, ReplayService};
@@ -17,6 +17,7 @@ use systemprompt_extension::ExtensionContext;
 use systemprompt_extension::brain::{BrainModelClient, DynBrainSink, MemoryRecall, SourceContent};
 use systemprompt_extension::notifications::DynNotificationSink;
 use systemprompt_manifest::profile::BrainProfile;
+use systemprompt_models::{AlreadyBound, LateBound};
 
 /// The runtime's brain: repositories, producer sink, service, recall and,
 /// once the API server starts it, the capture consumer.
@@ -30,8 +31,8 @@ pub struct BrainHandle {
     outbox: Arc<OutboxConsumer>,
     listener_pool: PgPool,
     profile: Arc<BrainProfile>,
-    consumer: OnceLock<Arc<BrainConsumer>>,
-    consolidation_model: OnceLock<Arc<dyn BrainModelClient>>,
+    consumer: BrainConsumerSlot,
+    consolidation_model: LateBound<dyn BrainModelClient>,
 }
 
 /// What a [`BrainHandle`] is assembled from.
@@ -45,13 +46,14 @@ pub struct BrainHandleParts {
     pub outbox: Arc<OutboxConsumer>,
     pub listener_pool: PgPool,
     pub profile: Arc<BrainProfile>,
+    pub consumer: BrainConsumerSlot,
 }
 
 impl std::fmt::Debug for BrainHandle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("BrainHandle")
             .field("recall", &self.recall)
-            .field("consumer", &self.consumer.get().is_some())
+            .field("consumer", &self.consumer)
             .finish_non_exhaustive()
     }
 }
@@ -75,8 +77,8 @@ impl BrainHandle {
             outbox: parts.outbox,
             listener_pool: parts.listener_pool,
             profile: parts.profile,
-            consumer: OnceLock::new(),
-            consolidation_model: OnceLock::new(),
+            consumer: parts.consumer,
+            consolidation_model: LateBound::default(),
         }
     }
 
@@ -142,38 +144,38 @@ impl BrainHandle {
         &self,
         extensions: &dyn ExtensionContext,
         model: Arc<dyn BrainModelClient>,
-    ) -> Arc<BrainConsumer> {
-        if self.consolidation_model.set(Arc::clone(&model)).is_err() {
-            tracing::debug!("Brain consolidation model already attached");
+    ) -> Result<Arc<BrainConsumer>, AlreadyBound> {
+        if self.consumer.is_bound() {
+            return Err(AlreadyBound);
         }
-        let consumer = self.consumer.get_or_init(|| {
-            let mut seams = PipelineSeams::discover(extensions);
-            seams.sources.push(Arc::clone(&self.source_content));
-            let replay = ReplayService::new(
+        self.consolidation_model.bind(Arc::clone(&model))?;
+        let mut seams = PipelineSeams::discover(extensions);
+        seams.sources.push(Arc::clone(&self.source_content));
+        let replay = ReplayService::new(
+            Arc::clone(&self.repos),
+            (*self.outbox).clone(),
+            seams.clone(),
+            (*self.profile).clone(),
+        );
+        if !self.service.attach_replay(ProposalReplay {
+            service: Arc::new(replay),
+            model: Arc::clone(&model),
+        }) {
+            return Err(AlreadyBound);
+        }
+        let consumer = Arc::new(
+            BrainConsumer::builder(
                 Arc::clone(&self.repos),
-                (*self.outbox).clone(),
-                seams.clone(),
-                (*self.profile).clone(),
-            );
-            if !self.service.attach_replay(ProposalReplay {
-                service: Arc::new(replay),
-                model: Arc::clone(&model),
-            }) {
-                tracing::warn!("Brain proposal replay was already attached");
-            }
-            Arc::new(
-                BrainConsumer::builder(
-                    Arc::clone(&self.repos),
-                    Arc::clone(&self.outbox),
-                    model,
-                    self.listener_pool.clone(),
-                )
-                .profile((*self.profile).clone())
-                .seams(seams)
-                .notifications(Arc::clone(&self.notifications))
-                .build(),
+                Arc::clone(&self.outbox),
+                model,
+                self.listener_pool.clone(),
             )
-        });
-        Arc::clone(consumer)
+            .profile((*self.profile).clone())
+            .seams(seams)
+            .notifications(Arc::clone(&self.notifications))
+            .build(),
+        );
+        self.consumer.bind(Arc::clone(&consumer))?;
+        Ok(consumer)
     }
 }

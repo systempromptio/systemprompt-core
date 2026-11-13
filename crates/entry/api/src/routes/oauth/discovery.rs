@@ -8,11 +8,14 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use serde::Serialize;
+use std::sync::Arc;
+use systemprompt_extension::ExtensionContext as _;
 use systemprompt_identifiers::McpServerId;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::oauth::{OAuthServerConfig, ProtectedResourceMetadata};
 use systemprompt_oauth::services::validation::id_jag::ID_JAG_GRANT_PROFILE;
 use systemprompt_runtime::AppContext;
+use systemprompt_traits::McpRegistryProvider;
 
 use crate::routes::proxy::mcp::get_mcp_server_scopes;
 use crate::services::request_base_url::RequestBaseUrl;
@@ -141,9 +144,14 @@ pub async fn handle_oauth_protected_resource_with_path(
 
     let base_url = base.as_str().to_owned();
 
-    let scopes = match McpServerId::try_new(service_name.as_str()) {
-        Ok(server) => get_mcp_server_scopes(ctx.mcp_registry(), &server).await,
-        Err(_) => None,
+    let registry = ctx
+        .extension_state()
+        .get::<Arc<dyn McpRegistryProvider>>()
+        .ok()
+        .cloned();
+    let scopes = match (McpServerId::try_new(service_name.as_str()), registry) {
+        (Ok(server), Some(registry)) => get_mcp_server_scopes(registry.as_ref(), &server).await,
+        _ => None,
     }
     .unwrap_or_else(|| vec!["user".to_owned()]);
     let resource_url = format!(

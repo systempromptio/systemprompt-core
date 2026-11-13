@@ -1,6 +1,8 @@
 //! Extension readiness checks merged into `/readyz`: a passing check is
 //! listed, and a failing, erroring or overrunning check makes the replica
-//! unready — the probe fails closed.
+//! unready — the probe fails closed. Extension diagnostics are not readiness:
+//! an erroring diagnostic leaves `/readyz` ready and is reported as a
+//! degraded entry on `/health/detail`.
 
 use std::borrow::Cow;
 use std::sync::Arc;
@@ -10,11 +12,13 @@ use anyhow::Result;
 use async_trait::async_trait;
 use axum::body::{Body, to_bytes};
 use axum::http::Request;
-use systemprompt_api::services::server::builder::discovery_router;
+use systemprompt_api::services::server::builder::{
+    authenticated_discovery_router, discovery_router,
+};
 use systemprompt_api::services::server::readiness::ReadinessState;
 use systemprompt_extension::{
-    Extension, ExtensionContext, ExtensionMetadata, ExtensionRegistry, ReadinessCheck,
-    ReadinessFailure,
+    DiagnosticDetail, DiagnosticFailure, DiagnosticProbe, Extension, ExtensionContext,
+    ExtensionMetadata, ExtensionRegistry, ReadinessCheck, ReadinessFailure,
 };
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_app_context_with_extensions, fixture_config, test_db_pool,
@@ -79,6 +83,7 @@ async fn readyz(outcome: Outcome) -> Result<(u16, serde_json::Value)> {
         &pool,
         fixture_config(&bootstrap.database_url),
         registry,
+        &[],
     )?;
     let readiness = std::sync::Arc::new(ReadinessState::new());
     readiness.signal_ready();
@@ -130,5 +135,85 @@ async fn a_check_that_overruns_the_probe_timeout_fails_closed() -> Result<()> {
     let (status, body) = readyz(Outcome::Hang).await?;
     assert_eq!(status, 503, "{body}");
     assert_eq!(body["extensions"][0]["status"], "timeout");
+    Ok(())
+}
+
+struct FailingDiagnostic;
+
+#[async_trait]
+impl DiagnosticProbe for FailingDiagnostic {
+    fn name(&self) -> &'static str {
+        "cov-backlog"
+    }
+
+    fn subject(&self) -> &'static str {
+        "backlog"
+    }
+
+    async fn probe(&self) -> Result<Option<DiagnosticDetail>, DiagnosticFailure> {
+        Err(DiagnosticFailure {
+            reason: Cow::Borrowed("backlog unavailable"),
+            source: Some(Box::new(std::io::Error::other("outbox read failed"))),
+        })
+    }
+}
+
+struct DiagnosticExt;
+
+impl Extension for DiagnosticExt {
+    fn metadata(&self) -> ExtensionMetadata {
+        ExtensionMetadata {
+            id: "cov-diagnostic",
+            name: "Diagnostic fixture",
+            version: "0.0.0",
+        }
+    }
+
+    fn readiness(&self, _ctx: &dyn ExtensionContext) -> Vec<Arc<dyn ReadinessCheck>> {
+        vec![Arc::new(Check(Outcome::Pass))]
+    }
+
+    fn diagnostics(&self, _ctx: &dyn ExtensionContext) -> Vec<Arc<dyn DiagnosticProbe>> {
+        vec![Arc::new(FailingDiagnostic)]
+    }
+}
+
+async fn get_json(app: axum::Router, uri: &str) -> Result<(u16, serde_json::Value)> {
+    let response = app
+        .oneshot(Request::builder().uri(uri).body(Body::empty())?)
+        .await?;
+    let status = response.status().as_u16();
+    let body = to_bytes(response.into_body(), 1 << 20).await?;
+    Ok((status, serde_json::from_slice(&body)?))
+}
+
+#[tokio::test]
+async fn an_erroring_diagnostic_leaves_readyz_ready_and_degrades_the_detail() -> Result<()> {
+    let bootstrap = ensure_test_bootstrap();
+    let pool = test_db_pool().await;
+    let mut registry = ExtensionRegistry::new();
+    registry.register(Arc::new(DiagnosticExt))?;
+    let ctx = fixture_app_context_with_extensions(
+        &pool,
+        fixture_config(&bootstrap.database_url),
+        registry,
+        &[],
+    )?;
+    let readiness = std::sync::Arc::new(ReadinessState::new());
+    readiness.signal_ready();
+
+    let probes = discovery_router(&ctx)?.layer(axum::Extension(std::sync::Arc::clone(&readiness)));
+    let (status, readyz) = get_json(probes, "/readyz").await?;
+    assert_eq!(status, 200, "a diagnostic never gates readiness: {readyz}");
+    assert_eq!(readyz["status"], "ready");
+
+    let (status, detail) =
+        get_json(authenticated_discovery_router(&ctx)?, "/api/v1/health/detail").await?;
+    readiness.signal_shutdown();
+    assert_ne!(status, 500, "a failed diagnostic is never a 5xx: {detail}");
+    let entry = &detail["checks"]["cov-backlog"];
+    assert_eq!(entry["status"], "degraded", "{detail}");
+    assert_eq!(entry["error"], "backlog unavailable", "{detail}");
+    assert_ne!(detail["status"], "healthy", "{detail}");
     Ok(())
 }

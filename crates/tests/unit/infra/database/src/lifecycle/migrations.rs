@@ -19,7 +19,7 @@ use systemprompt_extension::{
     Extension, ExtensionMetadata, LoaderError, Migration, MigrationFault, SchemaDefinition,
 };
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_test_fixtures::DisposableDb;
+use systemprompt_test_fixtures::{DisposableDb, error_chain};
 
 #[test]
 fn test_applied_migration_creation() {
@@ -518,11 +518,12 @@ async fn transactional_boundary_failures_never_commit_partial_migrations() {
                 "CREATE TABLE x (id TEXT); CREATE TABLE y (id TEXT);",
             )],
         };
-        let message = MigrationService::new(&provider)
-            .run_pending_migrations(&extension)
-            .await
-            .expect_err("boundary failure rejects migration")
-            .to_string();
+        let message = error_chain(
+            &MigrationService::new(&provider)
+                .run_pending_migrations(&extension)
+                .await
+                .expect_err("boundary failure rejects migration"),
+        );
         assert!(message.contains('7'), "{failure}: {message}");
         match failure {
             "begin" => assert!(message.contains("begin transaction"), "{message}"),
@@ -802,7 +803,7 @@ mod checksum_drift_db {
             .await
             .expect_err("edited migration must be refused");
         assert!(
-            err.to_string().contains("Refusing to proceed"),
+            error_chain(&err).contains("Refusing to proceed"),
             "err: {err}"
         );
 
@@ -1088,7 +1089,7 @@ async fn run_down_migrations_refuses_a_version_with_no_down_sql() {
         .await
         .expect_err("a migration with no down SQL cannot be reverted");
     assert!(
-        err.to_string().contains("not reversible"),
+        error_chain(&err).contains("not reversible"),
         "the refusal must say why, got {err}"
     );
     assert!(
@@ -1196,10 +1197,19 @@ async fn run_down_migrations_rejects_a_corrupt_ledger_version_without_writing() 
     assert_eq!(
         error.to_string(),
         format!(
-            "Migration failed for extension '{}': Read applied migrations to revert: extension_migrations row has a malformed `version` column",
-            extension_id
+            "Migration failed for extension '{extension_id}': Read applied migrations to revert"
         )
     );
+    match &error {
+        LoaderError::MigrationStepFailed { source, .. } => assert!(
+            matches!(
+                source.downcast_ref::<MigrationFault>(),
+                Some(MigrationFault::MalformedRow { column: "version" })
+            ),
+            "the cause names the malformed column: {source}"
+        ),
+        other => panic!("expected MigrationStepFailed, got {other:?}"),
+    }
     let row: (i32, String) = sqlx::query_as(
         "SELECT version, checksum FROM extension_migrations WHERE extension_id = $1",
     )
@@ -1242,11 +1252,18 @@ async fn run_down_migrations_refuses_an_applied_tombstone_without_writing() {
 
     assert_eq!(
         error.to_string(),
-        format!(
-            "Migration failed for extension '{}': Revert migration: migration 34 ('deleted_slot') is a tombstone: the slot is spent and has no SQL",
-            extension_id
-        )
+        format!("Migration failed for extension '{extension_id}': Revert migration")
     );
+    match &error {
+        LoaderError::MigrationStepFailed { source, .. } => assert!(
+            matches!(
+                source.downcast_ref::<MigrationFault>(),
+                Some(MigrationFault::Tombstoned { version: 34, name }) if name == "deleted_slot"
+            ),
+            "the cause names the tombstoned slot: {source}"
+        ),
+        other => panic!("expected MigrationStepFailed, got {other:?}"),
+    }
     let row: (i32, String) = sqlx::query_as(
         "SELECT version, checksum FROM extension_migrations WHERE extension_id = $1",
     )
@@ -1466,7 +1483,7 @@ async fn a_row_with_a_malformed_version_fails_the_query_instead_of_reading_as_pe
         .get_applied_migrations(&ExtensionId::new("rows_ext"))
         .await
         .expect_err("a version that does not fit u32 is malformed, not absent");
-    assert!(err.to_string().contains("malformed"), "{err}");
+    assert!(error_chain(&err).contains("malformed"), "{err}");
 }
 
 #[tokio::test]
@@ -1838,7 +1855,7 @@ async fn repair_drift_refuses_a_reused_slot() {
         .await
         .expect_err("a reused slot must be refused");
 
-    let message = err.to_string();
+    let message = error_chain(&err);
     assert!(message.contains("034_knowledge_bank"), "{message}");
     assert!(message.contains("034_project_activity"), "{message}");
     assert!(message.contains("tombstone"), "{message}");
@@ -1949,7 +1966,7 @@ fn refuse_slot_collisions_names_both_the_stored_and_the_current_migration() {
     let err = MigrationService::refuse_slot_collisions(&status)
         .expect_err("a reused slot must be refused");
 
-    let message = err.to_string();
+    let message = error_chain(&err);
     assert!(message.contains("034_knowledge_bank"), "{message}");
     assert!(message.contains("034_project_activity"), "{message}");
     assert!(message.contains("34"), "{message}");
@@ -1976,7 +1993,7 @@ fn refuse_slot_collisions_reports_the_first_collision_when_several_exist() {
     let err = MigrationService::refuse_slot_collisions(&status)
         .expect_err("a reused slot must be refused");
 
-    let message = err.to_string();
+    let message = error_chain(&err);
     assert!(message.contains("034_knowledge_bank"), "{message}");
     assert!(!message.contains("035_files"), "{message}");
 }

@@ -82,7 +82,7 @@ async fn copy_extension_assets_copies_required_and_tolerates_optional_missing() 
     fs::write(&src, "body { margin: 0 }").unwrap();
     fs::create_dir_all(paths.web().dist()).unwrap();
 
-    let result = execute_copy_extension_assets(&paths)
+    let result = execute_copy_extension_assets(&paths, &[])
         .await
         .expect("job must succeed with optional-missing asset");
     assert!(result.success);
@@ -121,7 +121,7 @@ async fn copy_extension_assets_fails_when_required_asset_missing() {
     .expect("paths");
     fs::create_dir_all(paths.web().dist()).unwrap();
 
-    let err = execute_copy_extension_assets(&paths)
+    let err = execute_copy_extension_assets(&paths, &[])
         .await
         .expect_err("missing required asset must fail the job");
     assert!(

@@ -48,7 +48,7 @@ async fn copy_extension_assets_no_op_when_registry_is_empty() {
     let tmp = TempDir::new().expect("tempdir");
     let paths = paths_in(&tmp);
 
-    let result = execute_copy_extension_assets(&paths)
+    let result = execute_copy_extension_assets(&paths, &[])
         .await
         .expect("copy job must succeed when no assets are registered");
 

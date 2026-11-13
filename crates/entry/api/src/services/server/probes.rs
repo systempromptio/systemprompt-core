@@ -214,8 +214,15 @@ pub(super) fn unapplied_governance(ctx: &AppContext) -> Option<serde_json::Value
     }))
 }
 
-pub(crate) struct ExtensionReadiness {
+/// The enabled extensions' readiness checks, run by `/readyz` and `/health/detail`.
+pub struct ExtensionReadiness {
     checks: Vec<ExtensionReadinessCheck>,
+}
+
+impl std::fmt::Debug for ExtensionReadiness {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ExtensionReadiness").finish_non_exhaustive()
+    }
 }
 
 impl ExtensionReadiness {
@@ -228,7 +235,7 @@ impl ExtensionReadiness {
     }
 
     // JSON: the per-check `/readyz` entries are an open JSON array.
-    async fn run(&self) -> (bool, serde_json::Value) {
+    pub(crate) async fn run(&self) -> (bool, serde_json::Value) {
         let outcomes =
             futures_util::future::join_all(self.checks.iter().map(|(extension, check)| {
                 let extension = *extension;

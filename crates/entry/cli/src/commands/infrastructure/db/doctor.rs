@@ -40,12 +40,13 @@ struct MissingColumn {
 
 pub(super) async fn execute_doctor(db_pool: &DbPool, config: &CliConfig) -> Result<()> {
     let registry = ExtensionRegistry::discover()?;
+    let schema_extensions = super::admin_migrate::install_set(&registry)?;
     let write_provider = db_pool.write();
 
     let mut declared_columns: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     let mut owner: BTreeMap<String, ExtensionId> = BTreeMap::new();
 
-    for ext in registry.schema_extensions() {
+    for ext in &schema_extensions {
         let ext_id = ExtensionId::new(ext.id());
         for schema in ext.schemas() {
             let Some(table) = schema.table else {
@@ -67,7 +68,7 @@ pub(super) async fn execute_doctor(db_pool: &DbPool, config: &CliConfig) -> Resu
     // tables; the `schema.table` list above is only for required columns.
     let mut created_tables: Vec<String> = Vec::new();
     let mut ids: Vec<ExtensionId> = Vec::new();
-    for ext in registry.schema_extensions() {
+    for ext in &schema_extensions {
         ids.push(ExtensionId::new(ext.id()));
         for schema in ext.schemas() {
             created_tables.extend(created_table_names(&schema.sql).unwrap_or_default());

@@ -37,7 +37,11 @@ impl AppContextTrait for AppContext {
     }
 
     fn session_provider(&self) -> Option<Arc<dyn systemprompt_traits::SessionProvider>> {
-        Some(self.session_store())
+        let sessions = self
+            .extension_state
+            .find::<systemprompt_traits::DynSessionStore>()?;
+        let provider: Arc<dyn systemprompt_traits::SessionProvider> = Arc::clone(sessions);
+        Some(provider)
     }
 
     fn analytics_provider(&self) -> Option<Arc<dyn AnalyticsProvider>> {

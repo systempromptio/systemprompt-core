@@ -48,7 +48,8 @@ pub use services::bot_keywords::matches_bot_pattern;
 pub use services::{
     AnalyticsService, BEHAVIORAL_BOT_THRESHOLD, BehavioralAnalysisInput, BehavioralAnalysisResult,
     BehavioralBotDetector, BehavioralSignal, ProfileUsageService, SessionAnalytics,
-    SessionAnalyticsBuilder, SignalType, detection,
+    SessionAnalyticsBuilder, SessionBehaviourService, SignalType, collect_analysis_input,
+    detection,
 };
 
 #[cfg(feature = "geolocation")]

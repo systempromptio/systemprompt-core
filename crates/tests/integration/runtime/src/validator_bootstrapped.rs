@@ -67,7 +67,7 @@ fn validate_extension_configs_over_bootstrapped_services_path() {
     let env = ensure_test_bootstrap();
 
     let outcomes =
-        validate_extension_configs(&env.services_path).expect("extension registry discovers");
+        validate_extension_configs(&env.services_path, &[]).expect("extension registry discovers");
 
     for outcome in &outcomes {
         assert!(

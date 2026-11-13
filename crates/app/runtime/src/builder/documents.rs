@@ -12,6 +12,7 @@ use systemprompt_files::FilesConfig;
 use systemprompt_files::documents::templates::load_catalog;
 use systemprompt_files::issues::{IssueReportRepository, IssueService};
 use systemprompt_governance::authz::{AccessControlRepository, SharedAuthzHook};
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_models::authz::{SubjectAttributeSource, SubjectSourceHandle};
 use systemprompt_traits::{BackgroundTasks, FileStorage};
 
@@ -32,6 +33,7 @@ pub(crate) struct DocumentsInputs<'a> {
     pub(crate) files_config: &'a FilesConfig,
     pub(crate) background_tasks: &'a BackgroundTasks,
     pub(crate) extensions: &'a ExtensionRegistry,
+    pub(crate) disabled_extensions: &'a [ExtensionId],
     pub(crate) notifications: &'a DynNotificationSink,
     pub(crate) brain: &'a DynBrainSink,
     pub(crate) audiences: &'a ExtensionAudiences,
@@ -50,7 +52,7 @@ pub(crate) fn build_documents(
         subjects,
         directory: Arc::new(UserSubjectDirectory::new(
             Arc::new(UserRepository::new(inputs.database)),
-            catalog_roles(inputs.extensions),
+            catalog_roles(inputs.extensions, inputs.disabled_extensions)?,
             inputs.audiences.clone(),
         )),
         event_router: inputs.event_router.clone(),
@@ -68,11 +70,14 @@ pub(crate) fn build_documents(
     })))
 }
 
-fn catalog_roles(extensions: &ExtensionRegistry) -> Vec<String> {
-    extensions
-        .extensions()
+fn catalog_roles(
+    extensions: &ExtensionRegistry,
+    disabled: &[ExtensionId],
+) -> RuntimeResult<Vec<String>> {
+    Ok(extensions
+        .enabled_extensions(disabled)?
         .iter()
         .flat_map(|extension| extension.roles())
         .map(|role| role.name)
-        .collect()
+        .collect())
 }

@@ -167,6 +167,7 @@ impl HostContext {
             files_config: &files_config,
             background_tasks: &background_tasks,
             extensions: &extensions,
+            disabled_extensions: &profile.extensions.disabled,
             notifications: &notification_sink,
             brain: &brain_sink,
             audiences: &audiences,

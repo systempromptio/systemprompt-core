@@ -57,7 +57,7 @@ pub fn execute(args: &ValidateArgs, _config: &CliConfig) -> (CommandOutput, bool
         }
     }
 
-    for ext in registry.asset_extensions() {
+    for ext in registry.extensions().iter().filter(|ext| ext.declares_assets()) {
         warnings.push(ValidationWarning {
             extension_id: Some(ExtensionId::new(ext.id())),
             warning_type: "asset_validation_skipped".to_owned(),

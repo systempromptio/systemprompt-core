@@ -27,7 +27,7 @@ fn sample_frontmatter(slug: &str, title: &str) -> String {
 #[tokio::test]
 async fn ingest_directory_dry_run_lists_would_create_for_new_files() {
     let db = test_db_pool().await;
-    let svc = IngestionService::new(&db, ContentRepository::new(&db));
+    let svc = IngestionService::new(&db, ContentRepository::new(&db), Vec::new());
     let dir = TempDir::new().expect("tempdir");
     let slug = format!("dry-{}", uuid::Uuid::new_v4().simple());
     write_markdown(dir.path(), &slug, &sample_frontmatter(&slug, "Dry Run"));
@@ -62,7 +62,7 @@ async fn ingest_directory_dry_run_lists_would_create_for_new_files() {
 #[tokio::test]
 async fn ingest_directory_creates_then_unchanged_on_second_pass() {
     let db = test_db_pool().await;
-    let svc = IngestionService::new(&db, ContentRepository::new(&db));
+    let svc = IngestionService::new(&db, ContentRepository::new(&db), Vec::new());
     let dir = TempDir::new().expect("tempdir");
     let slug = format!("ing-{}", uuid::Uuid::new_v4().simple());
     write_markdown(dir.path(), &slug, &sample_frontmatter(&slug, "Ingest"));
@@ -100,7 +100,7 @@ async fn ingest_directory_creates_then_unchanged_on_second_pass() {
 #[tokio::test]
 async fn ingest_directory_skips_modified_when_override_disabled() {
     let db = test_db_pool().await;
-    let svc = IngestionService::new(&db, ContentRepository::new(&db));
+    let svc = IngestionService::new(&db, ContentRepository::new(&db), Vec::new());
     let dir = TempDir::new().expect("tempdir");
     let slug = format!("skip-{}", uuid::Uuid::new_v4().simple());
     write_markdown(dir.path(), &slug, &sample_frontmatter(&slug, "Original"));
@@ -141,7 +141,7 @@ async fn ingest_directory_skips_modified_when_override_disabled() {
 #[tokio::test]
 async fn ingest_directory_reports_parse_errors() {
     let db = test_db_pool().await;
-    let svc = IngestionService::new(&db, ContentRepository::new(&db));
+    let svc = IngestionService::new(&db, ContentRepository::new(&db), Vec::new());
     let dir = TempDir::new().expect("tempdir");
     fs::write(dir.path().join("broken.md"), "no frontmatter here").expect("write");
 

@@ -1,6 +1,6 @@
 //! Implementation of the `copy_extension_assets` job: walks the extension
-//! registry for required asset declarations and copies them into the build
-//! output directory.
+//! enabled extensions for required asset declarations and copies them into
+//! the build output directory.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,13 +13,16 @@ use systemprompt_traits::JobResult;
 
 use crate::error::{GeneratorResult as Result, PublishError};
 
-pub async fn execute_copy_extension_assets(paths: &AppPaths) -> Result<JobResult> {
+pub async fn execute_copy_extension_assets(
+    paths: &AppPaths,
+    disabled: &[ExtensionId],
+) -> Result<JobResult> {
     let start_time = std::time::Instant::now();
 
     tracing::info!("Copy extension assets job started");
 
     let registry = ExtensionRegistry::discover()?;
-    let assets = registry.all_required_assets(paths);
+    let assets = registry.all_required_assets(paths, disabled)?;
 
     if assets.is_empty() {
         let duration_ms = start_time.elapsed().as_millis() as u64;

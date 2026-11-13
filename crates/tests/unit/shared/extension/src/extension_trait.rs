@@ -153,18 +153,6 @@ fn extension_has_schemas_true_when_schemas_nonempty() {
 }
 
 #[test]
-fn extension_default_jobs_is_empty() {
-    let ext = MinimalExt;
-    assert!(ext.jobs().is_empty());
-}
-
-#[test]
-fn extension_default_has_jobs_is_false() {
-    let ext = MinimalExt;
-    assert!(!ext.has_jobs());
-}
-
-#[test]
 fn extension_default_config_prefix_is_none() {
     let ext = MinimalExt;
     assert!(ext.config_prefix().is_none());

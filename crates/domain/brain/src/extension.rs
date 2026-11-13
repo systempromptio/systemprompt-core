@@ -2,19 +2,19 @@
 //! user purge, and depends on the `users` extension.
 //!
 //! It declares no runner service: the brain consumer needs the pipeline
-//! seams the runtime builder assembles, so the builder starts it.
+//! seams the runtime builder assembles, so the builder starts it and binds it
+//! into the consumer slot this extension provides. Its backlog is reported on
+//! `/health/detail` through `diagnostics()`, never `/readyz`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 
+use systemprompt_extension::DiagnosticProbe;
 use systemprompt_extension::prelude::*;
-use systemprompt_traits::Job;
 
-use crate::jobs::{
-    BrainAnalysisJob, BrainConsolidateJob, BrainRetentionJob, BrainReviewJob, BrainUsageJob,
-};
+use crate::consumer::{BacklogDiagnostic, BrainConsumerSlot};
 use crate::plane::BrainPlane;
 use crate::schema::{BRAIN_SCHEMAS, BRAIN_VIEWS};
 
@@ -61,14 +61,20 @@ impl Extension for BrainExtension {
         vec![Arc::new(BrainPlane)]
     }
 
-    fn jobs(&self) -> Vec<Arc<dyn Job>> {
-        vec![
-            Arc::new(BrainReviewJob),
-            Arc::new(BrainRetentionJob),
-            Arc::new(BrainAnalysisJob),
-            Arc::new(BrainUsageJob),
-            Arc::new(BrainConsolidateJob),
-        ]
+    fn provide(
+        &self,
+        _ctx: &dyn ExtensionContext,
+        state: &mut StateBuilder<'_>,
+    ) -> Result<(), ExtensionStateError> {
+        state.provide(BrainConsumerSlot::default())
+    }
+
+    fn diagnostics(&self, ctx: &dyn ExtensionContext) -> Vec<Arc<dyn DiagnosticProbe>> {
+        ctx.extension_state()
+            .find::<BrainConsumerSlot>()
+            .map(|slot| BacklogDiagnostic::new(slot.clone()).into_probe())
+            .into_iter()
+            .collect()
     }
 }
 

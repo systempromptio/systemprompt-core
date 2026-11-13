@@ -136,6 +136,10 @@ mod server_boot;
 mod server_extension_mount;
 
 #[cfg(test)]
+#[path = "boot_missing_providers.rs"]
+mod boot_missing_providers;
+
+#[cfg(test)]
 #[path = "server_early_bind.rs"]
 mod server_early_bind;
 

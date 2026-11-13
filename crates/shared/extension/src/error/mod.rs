@@ -59,7 +59,7 @@ pub enum LoaderError {
         source: BoxedSource,
     },
 
-    #[error("Failed to install schema for extension '{extension}': {context}: {source}")]
+    #[error("Failed to install schema for extension '{extension}': {context}")]
     SchemaInstallationStepFailed {
         extension: ExtensionId,
         context: String,
@@ -67,7 +67,7 @@ pub enum LoaderError {
         source: BoxedSource,
     },
 
-    #[error("Migration failed for extension '{extension}': {context}: {source}")]
+    #[error("Migration failed for extension '{extension}': {context}")]
     MigrationStepFailed {
         extension: ExtensionId,
         context: String,

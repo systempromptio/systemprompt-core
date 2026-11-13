@@ -211,7 +211,8 @@ impl Ctx {
         &self,
         options: IngestionOptions,
     ) -> systemprompt_content::IngestionReport {
-        let service = IngestionService::new(&self.pool, ContentRepository::new(&self.pool));
+        let service =
+            IngestionService::new(&self.pool, ContentRepository::new(&self.pool), Vec::new());
         service
             .ingest_directory(self.dir.path(), &self.source(), options)
             .await

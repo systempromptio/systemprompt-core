@@ -3,6 +3,15 @@
 //! them from the same map as every other extension's values, and cannot
 //! provide a type the kernel already holds.
 //!
+//! The process's one `AiService` (present only when inference is configured)
+//! and its one `ArtifactIngest` are composed here from several domains, so the
+//! composition root seeds them; an extension router reads them from
+//! [`ExtensionContext::extension_state`] and an absent `AiService` is a typed
+//! `MissingDependency`, never a fallback service. An absent `AiService` is
+//! still reserved for the kernel, so no extension can `provide` its own.
+//!
+//! [`ExtensionContext::extension_state`]: systemprompt_extension::ExtensionContext::extension_state
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -20,7 +29,12 @@ pub fn kernel_state(app: &AppContext) -> Dependencies {
         .with(Arc::new(app.profile().notifications))
         .with(Arc::clone(app.oauth_repositories()))
         .with(Arc::clone(app.ai_repositories()))
-        .with(Arc::clone(app.analytics_repositories()));
+        .with(Arc::clone(app.analytics_repositories()))
+        .with(app.artifact_ingest_arc());
+    match &app.subsystems.ai_service {
+        Some(ai) => state.insert(Arc::clone(ai)),
+        None => state.reserve::<Arc<systemprompt_ai::AiService>>(),
+    }
     if let Some(reader) = app.geoip_reader() {
         state.insert(Arc::clone(reader));
     }

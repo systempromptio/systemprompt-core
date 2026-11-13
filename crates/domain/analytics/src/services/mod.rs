@@ -1,7 +1,8 @@
 //! Service layer.
 //!
 //! Orchestrators on top of the repository layer. Hosts the
-//! [`AnalyticsService`], behavioural detectors, request extractors,
+//! [`AnalyticsService`], behavioural detectors and the session behaviour
+//! scorer, request extractors,
 //! and provider integrations consumed by the API and CLI.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -15,6 +16,7 @@ pub(crate) mod extractor;
 mod profile_usage;
 mod providers;
 mod service;
+mod session_behaviour;
 mod user_agent;
 
 pub use behavioral_detector::{
@@ -24,3 +26,4 @@ pub use behavioral_detector::{
 pub use extractor::{SessionAnalytics, SessionAnalyticsBuilder};
 pub use profile_usage::ProfileUsageService;
 pub use service::AnalyticsService;
+pub use session_behaviour::{SessionBehaviourService, collect_analysis_input};

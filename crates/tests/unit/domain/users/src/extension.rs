@@ -202,12 +202,6 @@ mod extension_trait_tests {
     }
 
     #[test]
-    fn extension_has_no_jobs() {
-        let ext = UsersExtension;
-        assert!(!ext.has_jobs());
-    }
-
-    #[test]
     fn extension_id_method() {
         let ext = UsersExtension;
         assert_eq!(ext.id(), "users");

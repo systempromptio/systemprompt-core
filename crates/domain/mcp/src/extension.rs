@@ -1,5 +1,7 @@
 //! `Extension` registration for the MCP domain: schemas, migrations,
-//! dependencies.
+//! dependencies, and the provided tool-execution lookup and MCP server
+//! registry (`Arc<dyn McpRegistryProvider>`, which sign-in reads for MCP
+//! resource scopes).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -8,10 +10,10 @@ use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_extension::prelude::*;
-use systemprompt_traits::{DynToolExecutionLookup, Job};
+use systemprompt_traits::{DynToolExecutionLookup, McpRegistryProvider};
 
-use crate::jobs::ToolRowFactsRollupJob;
 use crate::repository::ToolUsageRepository;
+use crate::services::registry::RegistryService;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct McpExtension;
@@ -116,16 +118,18 @@ impl Extension for McpExtension {
 
     fn provide(
         &self,
-        _ctx: &dyn ExtensionContext,
+        ctx: &dyn ExtensionContext,
         state: &mut StateBuilder<'_>,
     ) -> Result<(), ExtensionStateError> {
         let db = Arc::clone(state.state().get::<DbPool>()?);
         let executions: DynToolExecutionLookup = Arc::new(ToolUsageRepository::new(&db));
-        state.provide(executions)
-    }
-
-    fn jobs(&self) -> Vec<Arc<dyn Job>> {
-        vec![Arc::new(ToolRowFactsRollupJob)]
+        state.provide(executions)?;
+        let registry: Arc<dyn McpRegistryProvider> = Arc::new(RegistryService::new(
+            ctx.system_owner_id(),
+            ctx.services(),
+            ctx.app_config(),
+        ));
+        state.provide(registry)
     }
 }
 

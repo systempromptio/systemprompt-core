@@ -38,9 +38,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::any::{Any, TypeId, type_name};
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 use systemprompt_identifiers::ExtensionId;
+use systemprompt_models::LateBound;
 use systemprompt_provider_contracts::Dependencies;
 
 use crate::error::ExtensionStateError;
@@ -125,17 +126,20 @@ impl StateRequirement {
 /// and binds it once to the finished state before anything serves. A read
 /// before binding is [`ExtensionStateError::NotReady`], never an empty map.
 #[derive(Clone, Default)]
-pub struct StateHandle(Arc<OnceLock<Dependencies>>);
+pub struct StateHandle(LateBound<Dependencies>);
 
 impl StateHandle {
     pub fn bind(&self, state: Dependencies) -> Result<(), ExtensionStateError> {
         self.0
-            .set(state)
+            .bind(Arc::new(state))
             .map_err(|_bound| ExtensionStateError::AlreadyBound)
     }
 
     pub fn state(&self) -> Result<&Dependencies, ExtensionStateError> {
-        self.0.get().ok_or(ExtensionStateError::NotReady)
+        self.0
+            .get()
+            .map(|state| &**state)
+            .ok_or(ExtensionStateError::NotReady)
     }
 
     pub fn get_arc<T: Any + Send + Sync>(&self) -> Result<Arc<T>, ExtensionStateError> {
@@ -146,7 +150,8 @@ impl StateHandle {
 impl std::fmt::Debug for StateHandle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("StateHandle")
-            .field("bound", &self.0.get().is_some())
+            .field("bound", &self.0.is_bound())
             .finish()
     }
 }
+

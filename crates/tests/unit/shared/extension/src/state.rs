@@ -317,6 +317,28 @@ fn an_extension_cannot_provide_a_type_the_kernel_holds() {
 }
 
 #[test]
+fn an_extension_cannot_provide_a_type_the_kernel_reserves_without_a_value() {
+    let kernel = Dependencies::new().reserving::<Cache>();
+    assert!(kernel.get::<Cache>().is_err(), "a reserved type reads as missing");
+    assert!(!StateRequirement::of::<Cache>().is_met_by(&kernel));
+
+    let err = registry_with(vec![Arc::new(StateExt::new("shadow", Provides::Cache(2)))])
+        .build_state(&StubCtx, kernel, &[])
+        .expect_err("the kernel reserves Cache");
+
+    assert!(matches!(
+        &err,
+        LoaderError::ProvideFailed {
+            extension,
+            source: ExtensionStateError::DuplicateProvider(DuplicateDependency {
+                first: DependencyProvider::Host,
+                ..
+            }),
+        } if extension.as_str() == "shadow"
+    ));
+}
+
+#[test]
 fn a_disabled_extension_provides_nothing() {
     let log = Arc::new(Mutex::new(Vec::new()));
     let state = build_disabled(

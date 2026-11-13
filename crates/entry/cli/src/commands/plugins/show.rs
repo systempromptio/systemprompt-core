@@ -75,8 +75,7 @@ pub fn build_detail_output(ext: &dyn Extension) -> ExtensionDetailOutput {
 }
 
 fn job_infos(ext: &dyn Extension) -> Vec<JobInfo> {
-    ext.jobs()
-        .iter()
+    super::owned_jobs(ext.id())
         .map(|job| JobInfo {
             name: job.name().to_owned(),
             schedule: job.schedule().to_owned(),

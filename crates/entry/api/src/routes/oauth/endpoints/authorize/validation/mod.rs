@@ -58,6 +58,8 @@ pub enum AuthorizeRequestError {
     Denied(String),
     #[error("Invalid scopes requested: {0}")]
     Scope(#[source] OauthError),
+    #[error("the resource cannot be resolved: no MCP registry is provided")]
+    ResourceRegistryUnavailable,
     #[error(transparent)]
     Oauth(#[from] OauthError),
 }
@@ -68,6 +70,9 @@ impl From<AuthorizeRequestError> for OAuthHttpError {
             AuthorizeRequestError::Denied(message) => Self::invalid_request(message),
             AuthorizeRequestError::Scope(source) => {
                 internal::classify_validation(source, Self::invalid_request)
+            },
+            AuthorizeRequestError::ResourceRegistryUnavailable => {
+                Self::invalid_target("the resource cannot be resolved: no MCP registry is provided")
             },
             AuthorizeRequestError::Oauth(source) => Self::from(source),
         }
@@ -102,7 +107,12 @@ pub async fn validate_authorize_request(
     }
 
     let resource_scopes = match &params.resource {
-        Some(resource) => resource::resolve_resource_scopes(state, resource).await,
+        Some(resource) => {
+            let registry = state
+                .mcp_registry()
+                .ok_or(AuthorizeRequestError::ResourceRegistryUnavailable)?;
+            resource::resolve_resource_scopes(registry.as_ref(), resource).await
+        },
         None => None,
     };
 

@@ -1,4 +1,6 @@
-//! `Extension` registration for the users domain: schema and required flag.
+//! `Extension` registration for the users domain: schema, required flag,
+//! and the provided IP-ban store and session store (`DynSessionStore`), the
+//! one session store the API's session, sign-in and JWT paths read.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -7,9 +9,9 @@ use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_extension::prelude::*;
-use systemprompt_traits::DynIpBanStore;
+use systemprompt_traits::{DynIpBanStore, DynSessionStore};
 
-use crate::repository::BannedIpRepository;
+use crate::repository::{BannedIpRepository, SessionRepository};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct UsersExtension;
@@ -114,7 +116,9 @@ impl Extension for UsersExtension {
     ) -> Result<(), ExtensionStateError> {
         let db = Arc::clone(state.state().get::<DbPool>()?);
         let bans: DynIpBanStore = Arc::new(BannedIpRepository::new(&db));
-        state.provide(bans)
+        state.provide(bans)?;
+        let sessions: DynSessionStore = Arc::new(SessionRepository::new(&db));
+        state.provide(sessions)
     }
 
     fn migrations(&self) -> Vec<Migration> {

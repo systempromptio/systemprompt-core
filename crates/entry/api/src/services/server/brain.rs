@@ -30,7 +30,7 @@ pub(super) async fn brain_consumer(ctx: &AppContext) -> Result<Option<Arc<dyn Ru
         return Ok(None);
     };
     let model = brain_model_client(ctx).await?;
-    let consumer: Arc<dyn RunnerService> = brain.start_consumer(ctx, model);
+    let consumer: Arc<dyn RunnerService> = brain.start_consumer(ctx, model)?;
     Ok(Some(consumer))
 }
 

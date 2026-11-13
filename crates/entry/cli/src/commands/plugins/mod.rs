@@ -29,6 +29,12 @@ use crate::context::CommandContext;
 use crate::descriptor::{CommandDescriptor, DataImpact, DescribeCommand};
 use crate::shared::render_result;
 
+fn owned_jobs(owner: &str) -> impl Iterator<Item = &'static dyn systemprompt_traits::Job> + '_ {
+    systemprompt_traits::registered_jobs()
+        .filter(move |registration| registration.owner == owner)
+        .map(|registration| registration.job)
+}
+
 fn discover_registry() -> ExtensionRegistry {
     ExtensionRegistry::discover().unwrap_or_else(|e| {
         tracing::error!(error = %e, "extension dependency cycle; using empty registry");

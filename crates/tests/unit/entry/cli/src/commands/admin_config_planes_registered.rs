@@ -159,7 +159,7 @@ async fn harness(declared: Option<&str>, stored: &[(&str, &str)]) -> Harness {
             plane: Arc::clone(&plane),
         }))
         .expect("register");
-    let ctx = fixture_app_context_with_extensions(&pool, config, registry).expect("context");
+    let ctx = fixture_app_context_with_extensions(&pool, config, registry, &[]).expect("context");
     Harness { root, plane, ctx }
 }
 

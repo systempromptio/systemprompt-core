@@ -22,6 +22,11 @@
 //! this way: the kernel's handles first, then every enabled extension in
 //! dependency order.
 //!
+//! The host can also [`Dependencies::reserve`] a type it owns but holds no
+//! value for (a service that is absent because it is not configured): a
+//! reserved type reads as missing, does not satisfy a requirement, and an
+//! extension's `provide` of it is refused as a duplicate of the host's.
+//!
 //! The map is copy-on-write: a clone shares every entry, and inserting into a
 //! clone never changes the original, so the state the host owns after boot
 //! is immutable while a job or prerender context can extend its own copy.
@@ -71,6 +76,7 @@ struct Entry {
 #[derive(Clone, Default)]
 pub struct Dependencies {
     entries: Arc<HashMap<TypeId, Entry>>,
+    reserved: Arc<HashMap<TypeId, &'static str>>,
 }
 
 impl Dependencies {
@@ -83,6 +89,16 @@ impl Dependencies {
     pub fn with<T: Any + Send + Sync>(mut self, value: T) -> Self {
         self.insert(value);
         self
+    }
+
+    #[must_use]
+    pub fn reserving<T: Any + Send + Sync>(mut self) -> Self {
+        self.reserve::<T>();
+        self
+    }
+
+    pub fn reserve<T: Any + Send + Sync>(&mut self) {
+        Arc::make_mut(&mut self.reserved).insert(TypeId::of::<T>(), type_name::<T>());
     }
 
     pub fn insert<T: Any + Send + Sync>(&mut self, value: T) {
@@ -106,6 +122,13 @@ impl Dependencies {
             return Err(DuplicateDependency {
                 type_name: type_name::<T>(),
                 first: existing.provider.clone(),
+                second: provider.clone(),
+            });
+        }
+        if self.reserved.contains_key(&key) {
+            return Err(DuplicateDependency {
+                type_name: type_name::<T>(),
+                first: DependencyProvider::Host,
                 second: provider.clone(),
             });
         }

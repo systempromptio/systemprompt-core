@@ -28,6 +28,7 @@
 
 mod builder;
 mod decode;
+mod diagnostics;
 mod drain;
 mod handle;
 mod pass;
@@ -35,6 +36,7 @@ mod round_state;
 mod wake;
 
 pub use builder::BrainConsumerBuilder;
+pub use diagnostics::{BacklogDiagnostic, BrainConsumerSlot};
 pub use drain::MAX_ROUND_TRANSIENTS;
 pub use handle::MAX_EVENT_ATTEMPTS;
 

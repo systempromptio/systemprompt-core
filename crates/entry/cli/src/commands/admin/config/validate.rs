@@ -1,13 +1,12 @@
 //! `admin config validate` command: validate config files against their
 //! schemas.
 //!
-//! Resolves a target to a single file, a [`ConfigSection`], or the full set of
-//! sections, parses each as YAML, and validates a full profile document against
-//! the [`systemprompt_manifest::profile::Profile`] schema. Also prints the
-//! generated `Profile` JSON schema on demand.
+//! Resolves a target to a single file, a [`ConfigSection`], or the full set of sections,
+//! parses each as YAML, and validates a full profile document against the
+//! [`systemprompt_manifest::profile::Profile`] schema; prints its JSON schema on demand.
 //!
-//! A full validation (no target) also parses every registered config plane's
-//! declaration offline ([`super::plane_validate`]).
+//! A full validation (no target) also parses, offline, the declaration of
+//! every config plane an enabled extension registers ([`super::plane_validate`]).
 //!
 //! A full or section validation also loads the merged services tree and runs
 //! its cross-checks ([`super::validate_services`]). The command's bootstrap
@@ -70,6 +69,7 @@ pub fn execute(args: &ValidateArgs, ctx: &CommandContext) -> Result<(CommandOutp
 
     all_valid &= super::plane_validate::append_full_validation(
         ctx.config()?,
+        &ctx.boot()?.profile().extensions.disabled,
         args.target.as_ref(),
         &mut results,
     );

@@ -69,7 +69,7 @@ async fn execute_migrations_status(
     let mut total_pending = 0;
     let mut total_applied = 0;
 
-    for ext in registry.schema_extensions() {
+    for ext in super::admin_migrate::install_set(registry)? {
         let status: systemprompt_database::MigrationStatus = migration_service
             .get_migration_status(ext.as_ref())
             .await

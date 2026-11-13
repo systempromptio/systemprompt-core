@@ -42,7 +42,7 @@ pub type RuntimeResult<T> = Result<T, RuntimeError>;
 #[derive(Debug, Error)]
 pub enum RuntimeError {
     #[error(transparent)]
-    SubjectSource(#[from] systemprompt_models::authz::AlreadyBound),
+    AlreadyBound(#[from] systemprompt_models::AlreadyBound),
 
     #[error(transparent)]
     Profile(#[from] ProfileConfigError),

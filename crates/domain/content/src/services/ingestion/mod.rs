@@ -19,7 +19,7 @@ use std::path::Path;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::CategoryId;
-use systemprompt_provider_contracts::Dependencies;
+use systemprompt_provider_contracts::{Dependencies, FrontmatterProcessor};
 
 #[derive(Debug)]
 enum IngestFileResult {
@@ -39,17 +39,31 @@ struct IngestCandidate<'a> {
     parsed: &'a ParsedFrontmatter,
 }
 
-#[derive(Debug)]
 pub struct IngestionService {
     content_repo: ContentRepository,
     dependencies: Dependencies,
+    processors: Vec<Arc<dyn FrontmatterProcessor>>,
+}
+
+impl std::fmt::Debug for IngestionService {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("IngestionService")
+            .field("content_repo", &self.content_repo)
+            .field("processors", &self.processors.len())
+            .finish_non_exhaustive()
+    }
 }
 
 impl IngestionService {
-    pub fn new(db: &DbPool, content_repo: ContentRepository) -> Self {
+    pub fn new(
+        db: &DbPool,
+        content_repo: ContentRepository,
+        processors: Vec<Arc<dyn FrontmatterProcessor>>,
+    ) -> Self {
         Self {
             content_repo,
             dependencies: Dependencies::new().with(Arc::clone(db)),
+            processors,
         }
     }
 
@@ -169,6 +183,7 @@ impl IngestionService {
         let created_content = self.content_repo.create(&params).await?;
 
         processors::call_frontmatter_processors(
+            &self.processors,
             &self.dependencies,
             created_content.id.as_str(),
             &slug,
@@ -223,6 +238,7 @@ impl IngestionService {
         self.content_repo.update(&update_params).await?;
 
         processors::call_frontmatter_processors(
+            &self.processors,
             &self.dependencies,
             existing.id.as_str(),
             &slug,

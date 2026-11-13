@@ -32,11 +32,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod diagnostics;
 mod drain;
 mod handle;
 mod hold;
 mod wake;
 
+pub use diagnostics::{BacklogDiagnostic, NotificationsConsumerSlot};
 pub use drain::MAX_ROUND_TRANSIENTS;
 pub use handle::MAX_FACT_ATTEMPTS;
 

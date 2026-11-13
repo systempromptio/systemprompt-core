@@ -1,4 +1,5 @@
-//! Offline parse of every registered config plane's declaration, run by
+//! Offline parse of every config plane's declaration that an enabled
+//! extension registers, run by
 //! `admin config validate`.
 //!
 //! No database is touched: each plane's `load_declared` reads only the
@@ -12,6 +13,7 @@
 use std::path::PathBuf;
 
 use systemprompt_extension::ExtensionRegistry;
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::Config;
 use systemprompt_runtime::ConfigPlaneSet;
 
@@ -19,25 +21,30 @@ use super::types::ConfigFileInfo;
 
 pub fn append_full_validation(
     config: &Config,
+    disabled: &[ExtensionId],
     target: Option<&String>,
     results: &mut Vec<ConfigFileInfo>,
 ) -> bool {
     if target.is_some() {
         return true;
     }
-    let planes = plane_declaration_results(config);
+    let planes = plane_declaration_results(config, disabled);
     let valid = planes.iter().all(|p| p.valid);
     results.extend(planes);
     valid
 }
 
-pub fn plane_declaration_results(config: &Config) -> Vec<ConfigFileInfo> {
+pub fn plane_declaration_results(config: &Config, disabled: &[ExtensionId]) -> Vec<ConfigFileInfo> {
     let registry = match ExtensionRegistry::discover() {
         Ok(registry) => registry,
         Err(error) => return vec![failure("config_planes", &error.to_string())],
     };
+    let planes = match registry.all_config_planes(disabled) {
+        Ok(planes) => planes,
+        Err(error) => return vec![failure("config_planes", &error.to_string())],
+    };
     let set = match ConfigPlaneSet::new(
-        registry.all_config_planes(),
+        planes,
         config.planes.authority.clone(),
         PathBuf::from(&config.services_path),
     ) {

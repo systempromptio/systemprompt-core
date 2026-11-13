@@ -93,22 +93,37 @@ fn merge_refuses_a_missing_dependency() {
     }
 }
 
+fn validate(registry: &ExtensionRegistry) -> Result<(), LoaderError> {
+    let routers = registry
+        .api_routers(&StubCtx, &[])
+        .expect("nothing disabled");
+    ExtensionRegistry::validate_api_paths(&routers)
+}
+
+#[test]
+fn validate_api_paths_skips_a_disabled_extension() {
+    let registry = registry_with(vec![Arc::new(
+        RouterExt::new("bad").with_base_path("/widgets"),
+    )]);
+    let routers = registry
+        .api_routers(&StubCtx, &[systemprompt_identifiers::ExtensionId::new("bad")])
+        .expect("bad has no dependants");
+    ExtensionRegistry::validate_api_paths(&routers)
+        .expect("a disabled extension's router is neither built nor validated");
+}
+
 #[test]
 fn validate_api_paths_accepts_valid_unreserved_path() {
     let registry = registry_with(vec![Arc::new(
         RouterExt::new("ok").with_base_path("/api/v1/widgets"),
     )]);
-    registry
-        .validate_api_paths(&StubCtx)
-        .expect("a non-reserved /api/ path is valid");
+    validate(&registry).expect("a non-reserved /api/ path is valid");
 }
 
 #[test]
 fn validate_api_paths_ignores_extensions_without_a_router() {
     let registry = registry_with(vec![Arc::new(RouterExt::new("no-router"))]);
-    registry
-        .validate_api_paths(&StubCtx)
-        .expect("extensions without a router impose no path constraint");
+    validate(&registry).expect("extensions without a router impose no path constraint");
 }
 
 #[test]
@@ -117,9 +132,7 @@ fn validate_api_paths_rejects_non_api_prefix() {
         RouterExt::new("bad").with_base_path("/widgets"),
     )]);
 
-    let err = registry
-        .validate_api_paths(&StubCtx)
-        .expect_err("base path outside /api/ must fail");
+    let err = validate(&registry).expect_err("base path outside /api/ must fail");
     match err {
         LoaderError::InvalidBasePath { extension, path } => {
             assert_eq!(extension, "bad");
@@ -132,9 +145,7 @@ fn validate_api_paths_rejects_non_api_prefix() {
 #[test]
 fn validate_api_paths_accepts_the_web_root() {
     let registry = registry_with(vec![Arc::new(RouterExt::new("site").with_base_path("/"))]);
-    registry
-        .validate_api_paths(&StubCtx)
-        .expect("the web root is the one sanctioned base outside /api/");
+    validate(&registry).expect("the web root is the one sanctioned base outside /api/");
 }
 
 #[test]
@@ -143,9 +154,7 @@ fn validate_api_paths_rejects_reserved_path_collision() {
         RouterExt::new("colliding").with_base_path("/api/v1/oauth/extra"),
     )]);
 
-    let err = registry
-        .validate_api_paths(&StubCtx)
-        .expect_err("a path under a reserved prefix must fail");
+    let err = validate(&registry).expect_err("a path under a reserved prefix must fail");
     match err {
         LoaderError::ReservedPathCollision { extension, path } => {
             assert_eq!(extension, "colliding");

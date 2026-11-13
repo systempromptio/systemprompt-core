@@ -6,7 +6,7 @@
 use clap::Args;
 
 use crate::CliConfig;
-use crate::commands::plugins::discover_registry;
+use crate::commands::plugins::{discover_registry, owned_jobs};
 use crate::commands::plugins::types::{JobWithExtension, JobsListOutput};
 use crate::shared::CommandOutput;
 
@@ -27,8 +27,7 @@ pub fn execute(args: &JobsArgs, _config: &CliConfig) -> CommandOutput {
         .iter()
         .filter(|ext| args.extension.as_ref().is_none_or(|f| ext.id().contains(f)))
         .flat_map(|ext| {
-            ext.jobs()
-                .iter()
+            owned_jobs(ext.id())
                 .filter_map(|job| {
                     if args.enabled && !job.enabled() {
                         return None;

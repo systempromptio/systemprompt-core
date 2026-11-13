@@ -71,7 +71,7 @@ async fn harness_with(
             planes,
         }))
         .expect("register extension");
-    let ctx = fixture_app_context_with_extensions(&pool, config, registry).expect("context");
+    let ctx = fixture_app_context_with_extensions(&pool, config, registry, &[]).expect("context");
     let service =
         ConfigReconcileService::from_app_context(&ctx, ConfigReconcileRepository::new(&pool))
             .expect("service");
@@ -336,7 +336,7 @@ async fn an_extension_plane_depending_on_an_unregistered_plane_fails_assembly() 
             planes: vec![Arc::new(plane)],
         }))
         .expect("register extension");
-    let ctx = fixture_app_context_with_extensions(&pool, config, registry).expect("context");
+    let ctx = fixture_app_context_with_extensions(&pool, config, registry, &[]).expect("context");
 
     let err = ExtensionContext::config_planes(&*ctx).expect_err("refused");
     assert!(matches!(

@@ -6,10 +6,6 @@
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 
-pub fn banned_ips(db: &DbPool) -> Arc<systemprompt_users::BannedIpRepository> {
-    Arc::new(systemprompt_users::BannedIpRepository::new(db))
-}
-
 pub fn tool_usage(db: &DbPool) -> Arc<systemprompt_mcp::repository::ToolUsageRepository> {
     Arc::new(systemprompt_mcp::repository::ToolUsageRepository::new(db))
 }

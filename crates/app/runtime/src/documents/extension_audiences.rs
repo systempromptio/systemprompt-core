@@ -8,31 +8,32 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 use systemprompt_extension::NotificationAudienceResolver;
+use systemprompt_models::LateBound;
 
 /// A late-bound, per-context list of extension audience resolvers.
 #[derive(Clone, Default)]
-pub struct ExtensionAudiences(Arc<OnceLock<Vec<Arc<dyn NotificationAudienceResolver>>>>);
+pub struct ExtensionAudiences(LateBound<Vec<Arc<dyn NotificationAudienceResolver>>>);
 
 impl ExtensionAudiences {
     pub fn bind(&self, resolvers: Vec<Arc<dyn NotificationAudienceResolver>>) {
-        if self.0.set(resolvers).is_err() {
+        if self.0.bind(Arc::new(resolvers)).is_err() {
             tracing::warn!("Extension audience resolvers are already bound to this context");
         }
     }
 
     #[must_use]
     pub fn resolvers(&self) -> &[Arc<dyn NotificationAudienceResolver>] {
-        self.0.get().map_or(&[], Vec::as_slice)
+        self.0.get().map_or(&[], |resolvers| resolvers.as_slice())
     }
 }
 
 impl std::fmt::Debug for ExtensionAudiences {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ExtensionAudiences")
-            .field("bound", &self.0.get().map(Vec::len))
+            .field("bound", &self.0.get().map(|resolvers| resolvers.len()))
             .finish()
     }
 }

@@ -7,12 +7,11 @@
 //! real visitor as a bot (or a bot as a visitor). A closed pool fails every
 //! lookup at once, which is the shape of the outage the fallbacks exist for.
 
+use systemprompt_analytics::collect_analysis_input;
 use systemprompt_analytics::repository::AnalyticsRepositories;
-use systemprompt_api::services::middleware::analytics::detection::{
-    DetectionSubject, collect_analysis_input,
-};
 use systemprompt_identifiers::SessionId;
 use systemprompt_test_fixtures::{closed_db_pool, ensure_test_bootstrap, test_db_pool};
+use systemprompt_traits::DetectionSubject;
 
 async fn dead_repo() -> AnalyticsRepositories {
     let pool = closed_db_pool().await;

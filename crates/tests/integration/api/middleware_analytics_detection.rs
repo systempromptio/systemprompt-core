@@ -38,7 +38,7 @@ async fn setup() -> Result<(DbPool, Arc<AppContext>)> {
 }
 
 fn build(ctx: &Arc<AppContext>) -> Result<Router> {
-    let session = SessionMiddleware::new(ctx);
+    let session = SessionMiddleware::new(ctx)?;
     let analytics = AnalyticsMiddleware::new(ctx);
     let app = Router::new()
         .route("/boom", get(boom_handler))

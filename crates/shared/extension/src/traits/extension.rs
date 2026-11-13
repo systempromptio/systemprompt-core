@@ -8,16 +8,16 @@ use std::sync::Arc;
 
 use serde_json::Value as JsonValue;
 use systemprompt_provider_contracts::{
-    ComponentRenderer, ConfigPlane, ContentDataProvider, FrontmatterProcessor, Job,
-    PageDataProvider, PagePrerenderer, RssFeedProvider, SitemapProvider, TemplateDataExtender,
-    TemplateProvider, ToolProvider,
+    ComponentRenderer, ConfigPlane, ContentDataProvider, FrontmatterProcessor, PageDataProvider,
+    PagePrerenderer, RssFeedProvider, SitemapProvider, TemplateDataExtender, TemplateProvider,
+    ToolProvider,
 };
 use systemprompt_traits::RunnerService;
 
 use crate::asset::{AssetDefinition, AssetPaths};
 use crate::context::ExtensionContext;
 use crate::error::{ExtensionConfigError, ExtensionStateError};
-use crate::health::{MetricDescriptor, ReadinessCheck};
+use crate::health::{DiagnosticProbe, MetricDescriptor, ReadinessCheck};
 use crate::metadata::{ExtensionMetadata, ExtensionRole, SchemaDefinition};
 use crate::migration::Migration;
 use crate::router::{ExtensionRouter, SiteAuthConfig};
@@ -46,10 +46,6 @@ pub trait Extension: Send + Sync + 'static {
         None
     }
 
-    fn jobs(&self) -> Vec<Arc<dyn Job>> {
-        vec![]
-    }
-
     fn config_planes(&self) -> Vec<Arc<dyn ConfigPlane>> {
         vec![]
     }
@@ -59,6 +55,10 @@ pub trait Extension: Send + Sync + 'static {
     }
 
     fn readiness(&self, _ctx: &dyn ExtensionContext) -> Vec<Arc<dyn ReadinessCheck>> {
+        vec![]
+    }
+
+    fn diagnostics(&self, _ctx: &dyn ExtensionContext) -> Vec<Arc<dyn DiagnosticProbe>> {
         vec![]
     }
 
@@ -188,10 +188,6 @@ pub trait Extension: Send + Sync + 'static {
 
     fn has_schemas(&self) -> bool {
         !self.schemas().is_empty()
-    }
-
-    fn has_jobs(&self) -> bool {
-        !self.jobs().is_empty()
     }
 
     fn has_config(&self) -> bool {

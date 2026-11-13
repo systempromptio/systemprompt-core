@@ -15,7 +15,9 @@ use anyhow::Result;
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
+use systemprompt_config::LoadedProfile;
 use systemprompt_extension::ExtensionRegistry;
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_files::DocumentsConfig;
 use systemprompt_governance::authz::{
     AllowAllHook, NullAuditSink, SharedAuthzHook, SubjectProviderSet,
@@ -179,13 +181,14 @@ pub fn fixture_app_context_with(
 }
 
 pub fn fixture_app_context_with_config(pool: &DbPool, config: Config) -> Result<Arc<AppContext>> {
-    fixture_app_context_with_extensions(pool, config, ExtensionRegistry::discover()?)
+    fixture_app_context_with_extensions(pool, config, ExtensionRegistry::discover()?, &[])
 }
 
 pub fn fixture_app_context_with_extensions(
     pool: &DbPool,
     config: Config,
     extension_registry: ExtensionRegistry,
+    disabled_extensions: &[ExtensionId],
 ) -> Result<Arc<AppContext>> {
     let hook = Arc::new(AllowAllHook::new(Arc::new(NullAuditSink)));
     let user_repository = Arc::new(systemprompt_users::UserRepository::new(pool));
@@ -200,6 +203,7 @@ pub fn fixture_app_context_with_extensions(
             extension_registry: Arc::new(extension_registry),
             services: None,
             documents: enabled_documents(),
+            disabled_extensions: disabled_extensions.to_vec(),
         },
     )
 }
@@ -223,6 +227,7 @@ pub fn fixture_app_context_documents_disabled(
             extension_registry: Arc::new(ExtensionRegistry::discover()?),
             services: None,
             documents: DocumentsConfig::default(),
+            disabled_extensions: Vec::new(),
         },
     )
 }
@@ -248,6 +253,7 @@ pub fn fixture_app_context_documents_configured(
             extension_registry: Arc::new(ExtensionRegistry::discover()?),
             services: None,
             documents,
+            disabled_extensions: Vec::new(),
         },
     )
 }
@@ -277,6 +283,7 @@ pub fn fixture_app_context_with_services(
             } else {
                 DocumentsConfig::default()
             },
+            disabled_extensions: Vec::new(),
         },
     )
 }
@@ -304,6 +311,7 @@ struct FixtureSeams {
     extension_registry: Arc<ExtensionRegistry>,
     services: Option<systemprompt_loader::ServicesState>,
     documents: DocumentsConfig,
+    disabled_extensions: Vec<ExtensionId>,
 }
 
 // Build a fixture context whose user repository is supplied by the test —
@@ -328,6 +336,7 @@ pub fn fixture_app_context_with_user_repository(
             extension_registry: Arc::new(ExtensionRegistry::discover()?),
             services: None,
             documents: enabled_documents(),
+            disabled_extensions: Vec::new(),
         },
     )
 }
@@ -368,6 +377,7 @@ fn fixture_app_context_full(
             extension_registry: Arc::new(ExtensionRegistry::discover()?),
             services: None,
             documents: enabled_documents(),
+            disabled_extensions: Vec::new(),
         },
     )
 }
@@ -420,6 +430,7 @@ pub fn fixture_app_context_on_bootstrap(
             extension_registry: Arc::new(ExtensionRegistry::discover()?),
             services: None,
             documents: enabled_documents(),
+            disabled_extensions: Vec::new(),
         },
     )
 }
@@ -450,6 +461,7 @@ pub fn fixture_app_context_on_bootstrap_with_paths(
             extension_registry: Arc::new(ExtensionRegistry::discover()?),
             services: Some(services),
             documents: enabled_documents(),
+            disabled_extensions: Vec::new(),
         },
     )
 }
@@ -468,6 +480,7 @@ fn fixture_app_context_assembled_on(
         extension_registry,
         services,
         documents,
+        disabled_extensions,
     } = seams;
     let services = services.unwrap_or_else(|| bootstrap.services.clone());
     let governance = systemprompt_traits::ConfigWatch::new(
@@ -509,7 +522,7 @@ fn fixture_app_context_assembled_on(
     let config = Arc::new(config);
     let fixture_boot = &bootstrap.boot;
     let boot = BootContext::new(
-        Arc::clone(fixture_boot.loaded_profile()),
+        profile_disabling(bootstrap, &disabled_extensions)?,
         Arc::clone(fixture_boot.secrets()),
     );
     boot.install_config(config.as_ref().clone())?;
@@ -616,12 +629,49 @@ fn fixture_app_context_assembled_on(
         },
         &systemprompt_extension::StateHandle::default(),
     )?;
+    if let Some(slot) = systemprompt_extension::ExtensionContext::extension_state(&ctx)
+        .find::<systemprompt_notifications::consumer::NotificationsConsumerSlot>()
+    {
+        slot.bind(Arc::clone(&ctx.notifications().consumer))?;
+    }
 
     Ok(Arc::new(ctx))
 }
 
 // An ingest over the fixture pool with no scanners: the narrow waist itself,
 // not the installation's policy.
+// The bootstrap profile, or a copy of it whose `extensions.disabled` lists
+// the given ids, so a fixture context resolves the enabled set the way a
+// profile that disables those extensions does.
+fn profile_disabling(
+    bootstrap: &crate::bootstrap::TestBootstrap,
+    disabled_extensions: &[ExtensionId],
+) -> Result<Arc<LoadedProfile>> {
+    if disabled_extensions.is_empty() {
+        return Ok(Arc::clone(bootstrap.boot.loaded_profile()));
+    }
+    let original = std::fs::read_to_string(&bootstrap.profile_path)?;
+    let listed: String = disabled_extensions
+        .iter()
+        .map(|id| format!("\n    - {}", id.as_str()))
+        .collect();
+    let rewritten = original.replacen(
+        "extensions:\n  disabled: []",
+        &format!("extensions:\n  disabled:{listed}"),
+        1,
+    );
+    anyhow::ensure!(
+        rewritten != original,
+        "the fixture profile declares no empty extensions.disabled list to replace"
+    );
+    let path = bootstrap.profile_path.with_file_name(format!(
+        "profile-disabled-{}.yaml",
+        uuid::Uuid::new_v4().simple()
+    ));
+    std::fs::write(&path, rewritten)?;
+    Ok(LoadedProfile::from_path(&path)?)
+}
+
 pub fn fixture_event_bridge(pool: &DbPool) -> Arc<systemprompt_events::EventBridgeHandle> {
     Arc::new(
         systemprompt_events::PostgresEventBridge::new(

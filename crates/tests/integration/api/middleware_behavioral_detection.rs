@@ -7,11 +7,10 @@
 //! with an unknown session and no fingerprint (the early-return / fallback
 //! paths).
 
-use systemprompt_api::services::middleware::analytics::detection::{
-    DetectionSubject, collect_analysis_input,
-};
+use systemprompt_analytics::collect_analysis_input;
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_test_fixtures::{seed_user_row, seed_user_session};
+use systemprompt_traits::DetectionSubject;
 
 use super::common::setup_ctx;
 

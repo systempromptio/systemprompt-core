@@ -8,7 +8,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
 use std::time::Duration;
 
 use systemprompt_identifiers::{Actor, AgentName, ContextId, JwtToken, SessionId, UserId};
@@ -17,7 +16,6 @@ use systemprompt_models::execution::context::RequestContext;
 use systemprompt_security::{
     HeaderExtractor, TokenExtractionError, TokenExtractor, extract_user_context,
 };
-use systemprompt_traits::SessionProvider;
 use uuid::Uuid;
 
 use super::{RequestMeta, SessionMiddleware, attest_session, lifecycle};
@@ -180,11 +178,8 @@ impl SessionMiddleware {
             return Ok((sid, uid, token, jwt_cookie, Some(fp)));
         };
 
-        let session_store = Arc::clone(self.analytics_service.session_store());
-        let analytics_provider: Arc<dyn SessionProvider> = session_store;
-
         match attest_session(
-            &analytics_provider,
+            &self.sessions,
             &jwt_context.session_id,
             &jwt_context.user_id,
             "session_middleware",

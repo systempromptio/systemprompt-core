@@ -45,7 +45,7 @@ async fn execute_copy_extension_assets_returns_success() {
     };
     std::fs::create_dir_all(src.parent().unwrap()).unwrap();
     std::fs::write(&src, "x").unwrap();
-    let res = execute_copy_extension_assets(&paths).await;
+    let res = execute_copy_extension_assets(&paths, &[]).await;
     assert!(res.is_ok(), "must succeed: {res:?}");
     let job = res.unwrap();
     assert!(job.success);

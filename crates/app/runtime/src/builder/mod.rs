@@ -177,6 +177,7 @@ impl AppContextBuilder {
             files_config: &files_config,
             background_tasks: &background_tasks,
             extensions: &plugins.extension_registry,
+            disabled_extensions: &self.boot.profile().extensions.disabled,
             notifications: &notification_sink,
             brain: &brain_sink,
             audiences: &audiences,
@@ -249,6 +250,12 @@ impl AppContextBuilder {
             let seams = notifications::ExtensionSeams::discover(&app);
             audiences.bind(seams.audiences.clone());
             app.subsystems.notifications = notifications_core.assemble(seams);
+            if let Some(slot) = app
+                .extension_state
+                .find::<systemprompt_notifications::consumer::NotificationsConsumerSlot>()
+            {
+                slot.bind(Arc::clone(&app.subsystems.notifications.consumer))?;
+            }
             app
         };
         #[cfg(feature = "brain")]

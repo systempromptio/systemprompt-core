@@ -367,8 +367,8 @@ async fn authorize_with_an_unknown_mcp_resource_still_validates() -> anyhow::Res
         )))
         .await?;
 
-    // An unregistered resource contributes no scopes; it must not fail the
-    // request, and equally must not silently widen it.
+    // With a registry, an unregistered resource contributes no scopes and the
+    // request validates against the client's registration, as before c3.
     assert_eq!(resp.status(), StatusCode::OK, "{}", resp.status());
     Ok(())
 }
@@ -446,6 +446,60 @@ async fn authorize_without_a_resource_is_unaffected_by_the_registry() -> anyhow:
         .await?;
 
     assert_eq!(resp.status(), StatusCode::OK, "{}", resp.status());
+    Ok(())
+}
+
+#[tokio::test]
+async fn authorize_naming_a_resource_without_an_mcp_registry_is_refused() -> anyhow::Result<()> {
+    let client = seeded_client().await?;
+    let app = authorize_app().await?;
+
+    let resp = app
+        .oneshot(empty_get(&authorize_uri(
+            client.client_id.as_str(),
+            Some("http://127.0.0.1/api/v1/mcp/some-server/mcp"),
+        )))
+        .await?;
+
+    // Without a registry the resource cannot be resolved; falling back to the
+    // client's full registration would widen the grant, so it is refused.
+    assert_ne!(resp.status(), StatusCode::OK, "{}", resp.status());
+    let location = resp
+        .headers()
+        .get(header::LOCATION)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_owned);
+    let body = to_bytes(resp.into_body(), 1 << 20).await?;
+    let rendered = format!("{location:?} {}", String::from_utf8_lossy(&body));
+    assert!(rendered.contains("invalid_target"), "{rendered}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn authorize_naming_a_resource_without_a_scope_or_an_mcp_registry_is_refused()
+-> anyhow::Result<()> {
+    let client = seeded_client().await?;
+    let app = authorize_app().await?;
+
+    let uri = authorize_uri(
+        client.client_id.as_str(),
+        Some("http://127.0.0.1/api/v1/mcp/some-server/mcp"),
+    )
+    .replace("&scope=user", "");
+    assert!(!uri.contains("scope="), "{uri}");
+    let resp = app.oneshot(empty_get(&uri)).await?;
+
+    // Without `scope=` the grant would have fallen back to every scope the
+    // client registered; it is refused instead.
+    assert_ne!(resp.status(), StatusCode::OK, "{}", resp.status());
+    let location = resp
+        .headers()
+        .get(header::LOCATION)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_owned);
+    let body = to_bytes(resp.into_body(), 1 << 20).await?;
+    let rendered = format!("{location:?} {}", String::from_utf8_lossy(&body));
+    assert!(rendered.contains("invalid_target"), "{rendered}");
     Ok(())
 }
 

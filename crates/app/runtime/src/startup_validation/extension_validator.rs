@@ -1,11 +1,13 @@
-//! Per-extension config and asset validation at startup.
+//! Per-extension config and asset validation at startup, over the extensions
+//! the profile leaves enabled.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
+use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
-use systemprompt_extension::{ExtensionConfigError, ExtensionRegistry, LoaderError};
+use systemprompt_extension::{Extension, ExtensionConfigError, ExtensionRegistry, LoaderError};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_loader::BootContext;
 use systemprompt_logging::CliService;
@@ -34,8 +36,22 @@ pub(super) fn validate_extensions(
             return;
         },
     };
-    let config_extensions = extensions.config_extensions();
-    let asset_extensions = extensions.asset_extensions();
+    let disabled = &boot.profile().extensions.disabled;
+    let (config_extensions, asset_extensions) = match (
+        extensions.config_extensions(disabled),
+        extensions.asset_extensions(disabled),
+    ) {
+        (Ok(config_extensions), Ok(asset_extensions)) => (config_extensions, asset_extensions),
+        (Err(e), _) | (_, Err(e)) => {
+            let mut ext_report = ValidationReport::new("ext:registry".to_owned());
+            ext_report.add_error(ValidationIssue::new(
+                "extension_enabled_set",
+                format!("The profile's disabled extensions are refused: {e}"),
+            ));
+            report.add_extension(ext_report);
+            return;
+        },
+    };
 
     let has_extensions = !config_extensions.is_empty() || !asset_extensions.is_empty();
 
@@ -62,7 +78,7 @@ pub(super) fn validate_extensions(
         profile.path_resolution(),
         boot.services_root().map(|r| r.path.as_path()),
     ) {
-        Ok(paths) => validate_extension_assets(&extensions, &paths, report, verbose),
+        Ok(paths) => validate_extension_assets(&asset_extensions, &paths, report, verbose),
         Err(e) => {
             let mut ext_report = ValidationReport::new("ext:assets".to_owned());
             ext_report.add_error(ValidationIssue::new(
@@ -75,12 +91,12 @@ pub(super) fn validate_extensions(
 }
 
 fn validate_extension_assets(
-    registry: &ExtensionRegistry,
+    asset_extensions: &[Arc<dyn Extension>],
     paths: &AppPaths,
     report: &mut StartupValidationReport,
     verbose: bool,
 ) {
-    for ext in registry.asset_extensions() {
+    for ext in asset_extensions {
         let ext_id = ext.id();
         let mut has_errors = false;
 
@@ -156,11 +172,12 @@ fn evaluate_extension_config(
 
 pub fn validate_extension_configs(
     services_path: &Path,
+    disabled: &[ExtensionId],
 ) -> Result<Vec<ExtensionConfigOutcome>, LoaderError> {
     let extensions = ExtensionRegistry::discover()?;
 
     Ok(extensions
-        .config_extensions()
+        .config_extensions(disabled)?
         .iter()
         .filter_map(|ext| {
             let prefix = ext.config_prefix()?;

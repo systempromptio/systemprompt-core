@@ -175,7 +175,7 @@ async fn app_with_extensions(injected: Vec<Arc<dyn Extension>>) -> anyhow::Resul
         .validate()
         .map_err(|e| anyhow::anyhow!("registry: {e}"))?;
 
-    let ctx = fixture_app_context_with_extensions(&pool, config, registry)?;
+    let ctx = fixture_app_context_with_extensions(&pool, config, registry, &[])?;
 
     setup_api_server(
         &ctx,

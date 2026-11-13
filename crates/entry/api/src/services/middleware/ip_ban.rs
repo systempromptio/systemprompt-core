@@ -3,6 +3,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 //!
+//! The ban list is the `DynIpBanStore` the `users` extension provides in the
+//! extension state; the server refuses to boot without it.
+//!
 //! The gate is fail-closed: a request is served only once the ban list has
 //! affirmatively reported the caller's address as clean. An unresolvable
 //! address or an unreachable ban list denies the request rather than admitting
@@ -26,7 +29,7 @@ use ipnet::IpNet;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use systemprompt_models::modules::ApiPaths;
-use systemprompt_users::BannedIpRepository;
+use systemprompt_traits::DynIpBanStore;
 use tracing::warn;
 
 use super::client_addr::resolve_client_ip;
@@ -50,7 +53,7 @@ fn deny(reason: &'static str) -> Response {
 pub async fn ip_ban_middleware(
     request: Request,
     next: Next,
-    banned_ip_repo: Arc<BannedIpRepository>,
+    bans: DynIpBanStore,
     trusted_proxies: Arc<Vec<IpNet>>,
 ) -> Response {
     if is_probe_path(request.uri().path()) {
@@ -69,7 +72,7 @@ pub async fn ip_ban_middleware(
         return deny("ip-unresolvable");
     };
 
-    match banned_ip_repo.is_banned(ip).await {
+    match bans.is_banned(ip).await {
         Ok(true) => {
             warn!(ip = %ip, path = %request.uri().path(), "Blocked request from banned IP");
             deny("ip-banned")

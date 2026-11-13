@@ -187,8 +187,10 @@ pub use startup_events::{
     StartupEventReceiver, StartupEventSender, startup_channel,
 };
 
+pub mod session_behaviour;
 pub mod session_store;
 pub mod sso;
 pub use analytics::SessionProvider;
 pub use analytics_events::{AnalyticsEventRecord, AnalyticsEventStore, DynAnalyticsEventStore};
+pub use session_behaviour::{DetectionSubject, DynSessionBehaviourScorer, SessionBehaviourScorer};
 pub use session_store::{DynSessionStore, SessionStore};

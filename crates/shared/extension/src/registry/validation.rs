@@ -3,12 +3,14 @@
 //!
 //! An extension router is either nested under `/api/` or merged at the web
 //! root `/` (the site extension that serves pages); any other base would
-//! shadow core routes without the reserved-path table seeing it.
+//! shadow core routes without the reserved-path table seeing it. Paths are
+//! validated over the routers the enabled extensions actually declare, the
+//! same set the server mounts.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::{ExtensionRegistry, dependency_order};
+use super::{ApiRouter, ExtensionRegistry, dependency_order};
 use crate::error::LoaderError;
 use systemprompt_identifiers::ExtensionId;
 
@@ -34,26 +36,22 @@ impl ExtensionRegistry {
         dependency_order(&self.extensions).map(|_| ())
     }
 
-    pub fn validate_api_paths(&self, ctx: &dyn crate::ExtensionContext) -> Result<(), LoaderError> {
-        for ext in self.extensions.values() {
-            if let Some(router_config) = ext.router(ctx) {
-                let base_path = router_config.base_path;
+    pub fn validate_api_paths(routers: &[ApiRouter]) -> Result<(), LoaderError> {
+        for (ext, declared) in routers {
+            let base_path = declared.base_path;
 
-                if base_path != WEB_ROOT_BASE_PATH && !base_path.starts_with("/api/") {
-                    return Err(LoaderError::InvalidBasePath {
-                        extension: ExtensionId::new(ext.id()),
-                        path: base_path.to_owned(),
-                    });
-                }
+            if base_path != WEB_ROOT_BASE_PATH && !base_path.starts_with("/api/") {
+                return Err(LoaderError::InvalidBasePath {
+                    extension: ExtensionId::new(ext.id()),
+                    path: base_path.to_owned(),
+                });
+            }
 
-                for reserved in RESERVED_PATHS {
-                    if base_path.starts_with(reserved) {
-                        return Err(LoaderError::ReservedPathCollision {
-                            extension: ExtensionId::new(ext.id()),
-                            path: base_path.to_owned(),
-                        });
-                    }
-                }
+            if RESERVED_PATHS.iter().any(|reserved| base_path.starts_with(reserved)) {
+                return Err(LoaderError::ReservedPathCollision {
+                    extension: ExtensionId::new(ext.id()),
+                    path: base_path.to_owned(),
+                });
             }
         }
         Ok(())

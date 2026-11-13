@@ -32,7 +32,7 @@ use std::time::{Duration, Instant};
 use systemprompt_identifiers::{Actor, JobName};
 use systemprompt_manifest::SchedulerConfig;
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::run_in_job_scopes;
+use systemprompt_traits::{Job, run_in_job_scopes};
 
 use super::scheduling::make_job_context;
 use crate::error::SchedulerResult;
@@ -41,7 +41,7 @@ use crate::models::{JobRunRecord, JobStatus};
 use crate::repository::{JobRepository, SchedulerRepository};
 use claim::Claimed;
 use report::{elapsed_ms, failed_report};
-use selection::{JobLookup, RunnableJob};
+use selection::JobLookup;
 
 pub struct JobExecutionService {
     ctx: Arc<AppContext>,
@@ -110,7 +110,7 @@ impl JobExecutionService {
         let start = Instant::now();
 
         let runnable = match self.find_runnable(job_name) {
-            Ok(JobLookup::Runnable(runnable)) => runnable,
+            Ok(JobLookup::Runnable(job)) => job,
             Ok(JobLookup::NotLinked) => {
                 return self
                     .refuse(job_name, start, format!("Job '{job_name}' not found"))
@@ -139,7 +139,7 @@ impl JobExecutionService {
             },
         };
 
-        let guard = match self.claim(job_name, &runnable).await {
+        let guard = match self.claim(job_name, runnable).await {
             Ok(Claimed::Held(guard)) => Some(guard),
             Ok(Claimed::Free) => None,
             Ok(Claimed::Contended) => return self.contended_report(job_name, start),
@@ -153,7 +153,7 @@ impl JobExecutionService {
         };
 
         let report = self
-            .execute_runnable(job_name, &runnable, parameters, start)
+            .execute_runnable(job_name, runnable, parameters, start)
             .await;
         self.record_run(&report).await;
         if let Some(guard) = guard {
@@ -165,7 +165,7 @@ impl JobExecutionService {
     async fn execute_runnable(
         &self,
         job_name: &JobName,
-        runnable: &RunnableJob,
+        job: &'static dyn Job,
         parameters: &HashMap<String, String>,
         start: Instant,
     ) -> JobRunReport {
@@ -185,13 +185,12 @@ impl JobExecutionService {
             actor,
             Arc::clone(self.ctx.db_pool()),
             Arc::clone(&self.ctx),
-            runnable.as_job().db_budget(),
+            job.db_budget(),
             &self.inventory_memo,
         )
         .with_enforce(enforce)
         .with_parameters(merged);
 
-        let job = runnable.as_job();
         match run_in_job_scopes(job.name(), job.execute(&job_ctx)).await {
             Ok(result) => JobRunReport {
                 job_name: job_name.clone(),

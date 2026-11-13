@@ -79,7 +79,7 @@ fn execute_summary(_config: &CliConfig) -> CommandOutput {
 
     for ext in registry.extensions() {
         extension_count += 1;
-        jobs += ext.jobs().len();
+        jobs += super::owned_jobs(ext.id()).count();
         schemas += ext.schemas().len();
         roles += ext.roles().len();
         tools += ext.tool_providers().len();

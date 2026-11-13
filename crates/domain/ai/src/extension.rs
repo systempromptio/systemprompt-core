@@ -1,5 +1,5 @@
 //! `Extension` registration for the AI domain: schemas, migrations,
-//! dependencies and jobs.
+//! dependencies and provided state.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -9,9 +9,7 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_extension::prelude::*;
 use systemprompt_models::attribution::DynRequestAttributionLookup;
-use systemprompt_traits::Job;
 
-use crate::jobs::{AiRequestToolFlagRollupJob, ThoughtSignatureCleanupJob, UsageAnomalyScanJob};
 use crate::repository::AiRequestRepository;
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -48,14 +46,6 @@ impl Extension for AiExtension {
         let db = Arc::clone(state.state().get::<DbPool>()?);
         let attributions: DynRequestAttributionLookup = Arc::new(AiRequestRepository::new(&db));
         state.provide(attributions)
-    }
-
-    fn jobs(&self) -> Vec<Arc<dyn Job>> {
-        vec![
-            Arc::new(AiRequestToolFlagRollupJob),
-            Arc::new(ThoughtSignatureCleanupJob),
-            Arc::new(UsageAnomalyScanJob),
-        ]
     }
 }
 

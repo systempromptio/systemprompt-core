@@ -1,54 +1,24 @@
 //! Tests for `ExtensionRegistry` query/filter methods in
-//! `registry/queries.rs`: the capability filters (`schema_extensions`,
-//! `enabled_schema_extensions`, `enabled_job_extensions`, `api_routers`, ...)
-//! and the job introspection manifest (`all_jobs`, `job_by_name`,
-//! `jobs_by_tag`).
+//! `registry/queries.rs`: every collector walks only the enabled extensions,
+//! and the schema install set is every linked schema bearer.
 
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use async_trait::async_trait;
 use systemprompt_extension::{
-    AuthzPolicy, ContextKind, Extension, ExtensionContext, ExtensionMetadata, ExtensionRouter,
-    LoaderError, SchemaDefinition,
+    AuthzPolicy, ContextKind, Extension, ExtensionContext, ExtensionMetadata, ExtensionRegistry,
+    ExtensionRouter, LoaderError, SchemaDefinition,
 };
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_provider_contracts::{Job, JobContext, JobResult, ProviderResult};
 
 use crate::stub_ctx::{StubCtx, registry_with};
-
-#[derive(Debug)]
-struct StubJob {
-    name: &'static str,
-    tags: Vec<&'static str>,
-}
-
-#[async_trait]
-impl Job for StubJob {
-    fn name(&self) -> &'static str {
-        self.name
-    }
-
-    fn schedule(&self) -> &'static str {
-        "0 0 * * *"
-    }
-
-    fn tags(&self) -> Vec<&'static str> {
-        self.tags.clone()
-    }
-
-    async fn execute(&self, _ctx: &JobContext) -> ProviderResult<JobResult> {
-        Ok(JobResult::success())
-    }
-}
 
 struct CapExt {
     id: &'static str,
     schemas: bool,
     has_router: bool,
     router_builds: Arc<AtomicUsize>,
-    jobs: Vec<Arc<dyn Job>>,
     storage: Vec<&'static str>,
     required: bool,
 }
@@ -60,7 +30,6 @@ impl CapExt {
             schemas: false,
             has_router: false,
             router_builds: Arc::new(AtomicUsize::new(0)),
-            jobs: Vec::new(),
             storage: Vec::new(),
             required: false,
         }
@@ -98,10 +67,6 @@ impl Extension for CapExt {
         }
     }
 
-    fn jobs(&self) -> Vec<Arc<dyn Job>> {
-        self.jobs.clone()
-    }
-
     fn required_storage_paths(&self) -> Vec<&'static str> {
         self.storage.clone()
     }
@@ -112,7 +77,7 @@ impl Extension for CapExt {
 }
 
 #[test]
-fn schema_extensions_filters_to_schema_bearers() {
+fn the_install_set_is_every_linked_schema_bearer() {
     let mut with_schema = CapExt::new("schema-ext");
     with_schema.schemas = true;
     let registry = registry_with(vec![
@@ -120,7 +85,9 @@ fn schema_extensions_filters_to_schema_bearers() {
         Arc::new(CapExt::new("plain-ext")),
     ]);
 
-    let schema_exts = registry.schema_extensions();
+    let schema_exts = registry
+        .enabled_schema_extensions(ExtensionRegistry::INSTALL_EVERY_LINKED_SCHEMA)
+        .expect("the install set disables nothing");
     assert_eq!(schema_exts.len(), 1);
     assert_eq!(schema_exts[0].id(), "schema-ext");
 }
@@ -172,31 +139,7 @@ fn api_routers_builds_each_router_exactly_once() {
 }
 
 #[test]
-fn enabled_job_extensions_lists_only_job_bearers() {
-    let mut with_job = CapExt::new("worker");
-    with_job.jobs = vec![Arc::new(StubJob {
-        name: "cleanup",
-        tags: vec![],
-    })];
-    let registry = registry_with(vec![Arc::new(with_job), Arc::new(CapExt::new("idle"))]);
-
-    assert_eq!(
-        registry
-            .enabled_job_extensions(&[])
-            .expect("nothing disabled")
-            .len(),
-        1
-    );
-    assert!(
-        registry
-            .enabled_job_extensions(&[ExtensionId::new("worker")])
-            .expect("worker has no dependants")
-            .is_empty()
-    );
-}
-
-#[test]
-fn storage_extensions_and_all_required_storage_paths() {
+fn required_storage_paths_come_from_enabled_extensions_only() {
     let mut a = CapExt::new("a");
     a.storage = vec!["/data/a"];
     let mut b = CapExt::new("b");
@@ -207,85 +150,24 @@ fn storage_extensions_and_all_required_storage_paths() {
         Arc::new(CapExt::new("none")),
     ]);
 
-    assert_eq!(registry.storage_extensions().len(), 2);
-    let mut paths = registry.all_required_storage_paths();
+    let mut paths = registry
+        .all_required_storage_paths(&[])
+        .expect("nothing disabled");
     paths.sort_unstable();
     assert_eq!(paths, vec!["/data/a", "/data/b1", "/data/b2"]);
+
+    let mut enabled_paths = registry
+        .all_required_storage_paths(&[ExtensionId::new("b")])
+        .expect("b has no dependants");
+    enabled_paths.sort_unstable();
+    assert_eq!(enabled_paths, vec!["/data/a"]);
 }
 
 #[test]
 fn capability_filters_empty_when_no_extension_declares() {
     let registry = registry_with(vec![Arc::new(CapExt::new("plain"))]);
-    assert!(registry.config_extensions().is_empty());
-    assert!(registry.asset_extensions().is_empty());
-}
-
-#[test]
-fn all_jobs_flattens_across_extensions() {
-    let mut ext_a = CapExt::new("a");
-    ext_a.jobs = vec![
-        Arc::new(StubJob {
-            name: "job-a1",
-            tags: vec!["nightly"],
-        }),
-        Arc::new(StubJob {
-            name: "job-a2",
-            tags: vec!["hourly", "nightly"],
-        }),
-    ];
-    let mut ext_b = CapExt::new("b");
-    ext_b.jobs = vec![Arc::new(StubJob {
-        name: "job-b1",
-        tags: vec!["hourly"],
-    })];
-    let registry = registry_with(vec![Arc::new(ext_a), Arc::new(ext_b)]);
-
-    let mut names: Vec<_> = registry.all_jobs().iter().map(|j| j.name()).collect();
-    names.sort_unstable();
-    assert_eq!(names, vec!["job-a1", "job-a2", "job-b1"]);
-}
-
-#[test]
-fn job_by_name_finds_and_misses() {
-    let mut ext = CapExt::new("worker");
-    ext.jobs = vec![Arc::new(StubJob {
-        name: "rotate-keys",
-        tags: vec![],
-    })];
-    let registry = registry_with(vec![Arc::new(ext)]);
-
-    let found = registry.job_by_name("rotate-keys").expect("job present");
-    assert_eq!(found.name(), "rotate-keys");
-    assert!(registry.job_by_name("does-not-exist").is_none());
-}
-
-#[test]
-fn jobs_by_tag_filters_by_tag_membership() {
-    let mut ext = CapExt::new("worker");
-    ext.jobs = vec![
-        Arc::new(StubJob {
-            name: "nightly-only",
-            tags: vec!["nightly"],
-        }),
-        Arc::new(StubJob {
-            name: "both",
-            tags: vec!["nightly", "hourly"],
-        }),
-        Arc::new(StubJob {
-            name: "hourly-only",
-            tags: vec!["hourly"],
-        }),
-    ];
-    let registry = registry_with(vec![Arc::new(ext)]);
-
-    let mut nightly: Vec<_> = registry
-        .jobs_by_tag("nightly")
-        .iter()
-        .map(|j| j.name())
-        .collect();
-    nightly.sort_unstable();
-    assert_eq!(nightly, vec!["both", "nightly-only"]);
-    assert!(registry.jobs_by_tag("weekly").is_empty());
+    assert!(registry.config_extensions(&[]).expect("valid").is_empty());
+    assert!(registry.asset_extensions(&[]).expect("valid").is_empty());
 }
 
 #[test]
@@ -294,11 +176,20 @@ fn enabled_extensions_refuses_to_disable_required() {
     required.required = true;
     let registry = registry_with(vec![Arc::new(required), Arc::new(CapExt::new("optional"))]);
 
+    let disabled = [ExtensionId::new("core"), ExtensionId::new("optional")];
     let err = registry
-        .enabled_extensions(&[ExtensionId::new("core"), ExtensionId::new("optional")])
+        .enabled_extensions(&disabled)
         .err()
         .expect("required extension cannot be disabled");
     assert!(matches!(err, LoaderError::RequiredExtensionDisabled(id) if id == "core"));
+    assert!(matches!(
+        registry.all_required_storage_paths(&disabled),
+        Err(LoaderError::RequiredExtensionDisabled(_))
+    ));
+    assert!(matches!(
+        registry.all_metrics(&disabled),
+        Err(LoaderError::RequiredExtensionDisabled(_))
+    ));
 }
 
 // Guards against the `HashMap`-keyed lookups silently colliding across many

@@ -31,7 +31,7 @@ async fn ok_handler() -> &'static str {
 async fn router() -> Result<(DbPool, Router)> {
     ensure_test_bootstrap();
     let (db, ctx) = setup_ctx().await?;
-    let mw = SessionMiddleware::new(&ctx);
+    let mw = SessionMiddleware::new(&ctx)?;
     let app = Router::new()
         .route("/page", get(ok_handler))
         .layer(middleware::from_fn(move |req, next| {
@@ -212,7 +212,7 @@ async fn principal_handler(
 async fn a_degraded_request_runs_as_a_fresh_anonymous_principal() -> Result<()> {
     ensure_test_bootstrap();
     let (db, ctx) = setup_ctx().await?;
-    let mw = SessionMiddleware::new(&ctx);
+    let mw = SessionMiddleware::new(&ctx)?;
     let app = Router::new()
         .route("/page", get(principal_handler))
         .layer(middleware::from_fn(move |req, next| {
