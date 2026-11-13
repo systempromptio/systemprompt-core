@@ -287,17 +287,17 @@ impl Job for StampPanicJob {
     }
 }
 
-systemprompt_provider_contracts::submit_job!(&NodeJob);
-systemprompt_provider_contracts::submit_job!(&StampFailJob);
-systemprompt_provider_contracts::submit_job!(&StampPanicJob);
-systemprompt_provider_contracts::submit_job!(&PanicJob);
-systemprompt_provider_contracts::submit_job!(&FailingJob);
-systemprompt_provider_contracts::submit_job!(&SlowJob);
-systemprompt_provider_contracts::submit_job!(&EmptyScheduleJob);
-systemprompt_provider_contracts::submit_job!(&CancellableClusterJob);
-systemprompt_provider_contracts::submit_job!(&WorkingJob);
-systemprompt_provider_contracts::submit_job!(&IdleJob);
-systemprompt_provider_contracts::submit_job!(&BudgetedJob);
+systemprompt_provider_contracts::submit_job!("scheduler", &NodeJob);
+systemprompt_provider_contracts::submit_job!("scheduler", &StampFailJob);
+systemprompt_provider_contracts::submit_job!("scheduler", &StampPanicJob);
+systemprompt_provider_contracts::submit_job!("scheduler", &PanicJob);
+systemprompt_provider_contracts::submit_job!("scheduler", &FailingJob);
+systemprompt_provider_contracts::submit_job!("scheduler", &SlowJob);
+systemprompt_provider_contracts::submit_job!("scheduler", &EmptyScheduleJob);
+systemprompt_provider_contracts::submit_job!("scheduler", &CancellableClusterJob);
+systemprompt_provider_contracts::submit_job!("scheduler", &WorkingJob);
+systemprompt_provider_contracts::submit_job!("scheduler", &IdleJob);
+systemprompt_provider_contracts::submit_job!("scheduler", &BudgetedJob);
 
 struct BudgetedJob;
 

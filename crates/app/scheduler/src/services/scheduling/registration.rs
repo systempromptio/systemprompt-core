@@ -102,9 +102,11 @@ impl SchedulerService {
         }
 
         let Some(registered_job) = ctx.registered_jobs.get(job_config.name.as_str()) else {
-            return Err(SchedulerError::UnknownJob {
-                names: job_config.name.to_string(),
-            });
+            info!(
+                job = %job_config.name,
+                "Job's owning extension is disabled in the profile; not scheduled"
+            );
+            return Ok(Registered::No);
         };
 
         if !registered_job.configured(&deployment_dependencies(self.app_context.boot())) {
@@ -148,7 +150,7 @@ impl SchedulerService {
         schedule: &str,
         actor: Actor,
     ) -> SchedulerResult<Job> {
-        let registered_job: &dyn JobTrait = *ctx
+        let registered_job: &'static dyn JobTrait = *ctx
             .registered_jobs
             .get(job_config.name.as_str())
             .ok_or_else(|| SchedulerError::job_not_found(job_config.name.clone()))?;
@@ -183,6 +185,7 @@ impl SchedulerService {
             Box::pin(async move {
                 let span = SystemSpan::new(&format!("scheduler:{job_name}"));
                 dispatch::execute_job(dispatch::JobDispatch {
+                    job: registered_job,
                     job_name,
                     actor,
                     db_pool,

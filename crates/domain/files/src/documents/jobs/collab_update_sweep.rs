@@ -64,4 +64,4 @@ impl Job for DocumentCollabUpdateSweepJob {
     }
 }
 
-systemprompt_provider_contracts::submit_job!(&DocumentCollabUpdateSweepJob);
+systemprompt_provider_contracts::submit_job!("files", &DocumentCollabUpdateSweepJob);

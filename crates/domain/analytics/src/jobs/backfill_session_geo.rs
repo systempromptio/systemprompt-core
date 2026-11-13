@@ -77,4 +77,4 @@ impl Job for BackfillSessionGeoJob {
     }
 }
 
-systemprompt_traits::submit_job!(&BackfillSessionGeoJob);
+systemprompt_traits::submit_job!("analytics", &BackfillSessionGeoJob);

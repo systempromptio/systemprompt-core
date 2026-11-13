@@ -54,4 +54,4 @@ impl Job for NoJsCleanupJob {
     }
 }
 
-systemprompt_traits::submit_job!(&NoJsCleanupJob);
+systemprompt_traits::submit_job!("analytics", &NoJsCleanupJob);

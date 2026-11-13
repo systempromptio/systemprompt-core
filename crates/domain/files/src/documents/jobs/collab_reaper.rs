@@ -74,4 +74,4 @@ impl Job for DocumentCollabReaperJob {
     }
 }
 
-systemprompt_provider_contracts::submit_job!(&DocumentCollabReaperJob);
+systemprompt_provider_contracts::submit_job!("files", &DocumentCollabReaperJob);

@@ -6,6 +6,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod document_actor_scope;
 mod file_ingestion;
 
 pub use file_ingestion::FileIngestionJob;

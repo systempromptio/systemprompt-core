@@ -92,4 +92,4 @@ impl Job for DocumentAgentReadRetentionJob {
     }
 }
 
-systemprompt_provider_contracts::submit_job!(&DocumentAgentReadRetentionJob);
+systemprompt_provider_contracts::submit_job!("files", &DocumentAgentReadRetentionJob);

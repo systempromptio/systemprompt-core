@@ -6,9 +6,9 @@ use systemprompt_provider_contracts::{Dependencies, Job, JobContext, ProviderErr
 use systemprompt_test_fixtures::{closed_db_pool, fixture_user_id, test_db_pool};
 
 fn cleanup_job() -> &'static dyn Job {
-    inventory::iter::<&'static dyn Job>()
+    systemprompt_traits::registered_jobs()
+        .map(|registration| registration.job)
         .find(|j| j.name() == "mcp_session_cleanup")
-        .copied()
         .expect("mcp_session_cleanup registered via submit_job!")
 }
 

@@ -7,11 +7,12 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use systemprompt_identifiers::{Actor, JobName, UserId};
-use systemprompt_traits::{Job as JobTrait, StartupEventExt, StartupEventSender};
+use systemprompt_traits::{StartupEventExt, StartupEventSender};
 use tokio::sync::Mutex;
 
 use super::{RunningJobs, SchedulerService, dispatch};
 use crate::error::SchedulerResult;
+use crate::services::EnabledExtensions;
 use crate::models::JobStatus;
 
 struct BootstrapCtx<'a> {
@@ -20,6 +21,7 @@ struct BootstrapCtx<'a> {
     system_admin_id: &'a UserId,
     running_jobs: &'a RunningJobs,
     events: Option<&'a StartupEventSender>,
+    enabled: &'a EnabledExtensions,
 }
 
 impl SchedulerService {
@@ -28,8 +30,9 @@ impl SchedulerService {
         events: Option<&StartupEventSender>,
     ) -> SchedulerResult<usize> {
         let resolved = self.resolve_owners(false).await?;
-        let registered_jobs = Self::discover_jobs();
-        self.validate_configured_jobs(&registered_jobs)?;
+        let linked_jobs = super::linked_jobs();
+        self.validate_configured_jobs(&linked_jobs)?;
+        let enabled = EnabledExtensions::of(&self.app_context)?;
         let system_admin_id = self.app_context.system_admin().id().clone();
         let skipped: HashSet<&JobName> = resolved.skipped_names().collect();
         let running_jobs: RunningJobs = Arc::new(Mutex::new(HashSet::new()));
@@ -39,13 +42,14 @@ impl SchedulerService {
             system_admin_id: &system_admin_id,
             running_jobs: &running_jobs,
             events,
+            enabled: &enabled,
         };
 
         for job_name in &self.config.bootstrap_jobs {
             self.dispatch_bootstrap_job(job_name, &ctx).await;
         }
 
-        Ok(registered_jobs.len())
+        Ok(linked_jobs.len())
     }
 
     async fn dispatch_bootstrap_job(&self, job_name: &JobName, ctx: &BootstrapCtx<'_>) {
@@ -53,6 +57,13 @@ impl SchedulerService {
             tracing::warn!(job_name = %job_name, "bootstrap job owner unresolved, skipping");
             return;
         }
+        let Some(job) = ctx.enabled.job(job_name.as_str()) else {
+            tracing::info!(
+                job_name = %job_name,
+                "bootstrap job's owning extension is disabled in the profile, skipping"
+            );
+            return;
+        };
         let owner_id = ctx
             .owners
             .get(job_name)
@@ -63,17 +74,14 @@ impl SchedulerService {
         ctx.events.bootstrap_job_started(job_name.to_string());
 
         let config_entry = self.config.jobs.iter().find(|job| &job.name == job_name);
-        let registered = inventory::iter::<&'static dyn JobTrait>
-            .into_iter()
-            .find(|job| job.name() == job_name)
-            .copied();
         let claim_policy = dispatch::claim_policy(
             &self.config,
             config_entry,
-            registered,
+            Some(job),
             &self.app_context.config().instance_id,
         );
         dispatch::execute_job(dispatch::JobDispatch {
+            job,
             job_name: job_name.clone(),
             actor,
             db_pool: Arc::clone(&self.db_pool),

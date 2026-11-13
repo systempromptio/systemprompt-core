@@ -133,4 +133,4 @@ impl Job for NotificationRetentionJob {
     }
 }
 
-submit_job!(&NotificationRetentionJob);
+submit_job!("notifications", &NotificationRetentionJob);

@@ -26,6 +26,8 @@ mod dispatch_instance_stamp_db;
 #[cfg(test)]
 mod dispatch_scope_db;
 #[cfg(test)]
+mod enabled_extensions;
+#[cfg(test)]
 mod error_variants;
 #[cfg(test)]
 mod job_config;

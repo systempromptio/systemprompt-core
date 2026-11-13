@@ -60,5 +60,5 @@ impl RetentionPurge for FingerprintReputationPurge {
     }
 }
 
-register_retention_purge!(&EngagementEventsPurge);
-register_retention_purge!(&FingerprintReputationPurge);
+register_retention_purge!("analytics", &EngagementEventsPurge);
+register_retention_purge!("analytics", &FingerprintReputationPurge);

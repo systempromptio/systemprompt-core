@@ -54,4 +54,4 @@ impl Job for ThoughtSignatureCleanupJob {
     }
 }
 
-systemprompt_traits::submit_job!(&ThoughtSignatureCleanupJob);
+systemprompt_traits::submit_job!("ai", &ThoughtSignatureCleanupJob);

@@ -204,4 +204,4 @@ impl Job for BrainConsolidateJob {
     }
 }
 
-submit_job!(&BrainConsolidateJob);
+submit_job!("brain", &BrainConsolidateJob);

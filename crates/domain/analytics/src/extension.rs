@@ -11,7 +11,7 @@
 use std::sync::Arc;
 
 use systemprompt_extension::prelude::*;
-use systemprompt_traits::Job;
+use systemprompt_traits::{DynIpBanStore, Job};
 
 use crate::jobs::{
     BackfillSessionGeoJob, BehavioralAnalysisJob, GhostSessionCleanupJob, MaliciousIpBlacklistJob,
@@ -66,6 +66,10 @@ impl Extension for AnalyticsExtension {
 
     fn migrations(&self) -> Vec<Migration> {
         extension_migrations!()
+    }
+
+    fn requires(&self) -> Vec<StateRequirement> {
+        vec![StateRequirement::of::<DynIpBanStore>()]
     }
 
     fn jobs(&self) -> Vec<Arc<dyn Job>> {

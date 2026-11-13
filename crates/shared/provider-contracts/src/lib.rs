@@ -83,7 +83,7 @@ pub use error::{ProviderError, ProviderResult};
 pub use extender::{ExtendedData, ExtenderContext, ExtenderContextBuilder, TemplateDataExtender};
 pub use frame_options::FrameOptions;
 pub use frontmatter::{FrontmatterContext, FrontmatterProcessor};
-pub use job::{Job, JobContext, JobResult, JobScope};
+pub use job::{Job, JobContext, JobRegistration, JobResult, JobScope, registered_jobs};
 pub use job_batch::{BatchPlan, BatchedRun, run_batched};
 pub use job_budget::DbBudget;
 pub use page::{PageContext, PageDataProvider};

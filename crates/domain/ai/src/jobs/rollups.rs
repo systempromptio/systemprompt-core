@@ -14,6 +14,7 @@ const BATCH: i32 = 24;
 const BUDGET: Duration = Duration::from_secs(15);
 
 submit_projection_drain!(
+    "ai",
     "backfill_rollups",
     ProjectionDrain {
         projection: "ai_usage_rollup_hourly",
@@ -24,6 +25,7 @@ submit_projection_drain!(
 );
 
 submit_projection_drain!(
+    "ai",
     "backfill_rollups",
     ProjectionDrain {
         projection: "ai_context_rollup_hourly",

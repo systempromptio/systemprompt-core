@@ -1,12 +1,14 @@
-//! Shared tick for the drainer jobs of SQL-refreshed projections: drains one
-//! projection through its `refresh_<projection>(keys TEXT[])` function within
+//! Shared tick for the drainer jobs of SQL-refreshed projections.
+//!
+//! [`drain_projection`] drains one projection through its `refresh_<projection>(keys TEXT[])` function within
 //! a time budget and reports the keys done and requeued as job stats.
 //!
 //! A job that drains projections owned by several crates does not name them:
 //! each owner declares its drain against the job's name with
 //! [`submit_projection_drain!`](crate::submit_projection_drain), and the job
-//! drains every [`registered_drains`] entry for its name. A projection whose
-//! owner is not linked is not drained.
+//! drains every [`registered_drains`] entry for its name whose owning
+//! extension is enabled. A projection whose owner is not linked, or is
+//! disabled in the profile, is not drained.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -28,20 +30,23 @@ pub struct ProjectionDrain {
     pub budget: Duration,
 }
 
-/// A [`ProjectionDrain`] an owning crate contributes to the job named `job`.
+/// A [`ProjectionDrain`] the extension `owner` contributes to the job named
+/// `job`.
 #[derive(Debug, Clone, Copy)]
 pub struct ProjectionDrainContribution {
+    pub owner: &'static str,
     pub job: &'static str,
     pub drain: ProjectionDrain,
 }
 
 inventory::collect!(ProjectionDrainContribution);
 
-pub fn registered_drains(job: &str) -> impl Iterator<Item = &'static ProjectionDrain> + '_ {
+pub fn registered_drains(
+    job: &str,
+) -> impl Iterator<Item = &'static ProjectionDrainContribution> + '_ {
     inventory::iter::<ProjectionDrainContribution>
         .into_iter()
         .filter(move |contribution| contribution.job == job)
-        .map(|contribution| &contribution.drain)
 }
 
 #[doc(hidden)]
@@ -49,9 +54,10 @@ pub use inventory as __inventory;
 
 #[macro_export]
 macro_rules! submit_projection_drain {
-    ($job:literal, $drain:expr) => {
+    ($owner:literal, $job:literal, $drain:expr) => {
         $crate::projection::job::__inventory::submit! {
             $crate::projection::job::ProjectionDrainContribution {
+                owner: $owner,
                 job: $job,
                 drain: $drain,
             }

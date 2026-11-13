@@ -270,4 +270,4 @@ fn log_ban_result(
     }
 }
 
-systemprompt_traits::submit_job!(&BehavioralAnalysisJob);
+systemprompt_traits::submit_job!("analytics", &BehavioralAnalysisJob);

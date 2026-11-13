@@ -46,4 +46,4 @@ impl Job for TraceFactsRollupJob {
     }
 }
 
-systemprompt_provider_contracts::submit_job!(&TraceFactsRollupJob);
+systemprompt_provider_contracts::submit_job!("scheduler", &TraceFactsRollupJob);

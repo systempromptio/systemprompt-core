@@ -113,7 +113,7 @@ impl RetentionPurge for GovernanceDecisionsPurge {
     }
 }
 
-register_retention_purge!(&LogsPurge);
-register_retention_purge!(&AnalyticsEventsPurge);
-register_retention_purge!(&EventOutboxPurge);
-register_retention_purge!(&GovernanceDecisionsPurge);
+register_retention_purge!("scheduler", &LogsPurge);
+register_retention_purge!("scheduler", &AnalyticsEventsPurge);
+register_retention_purge!("scheduler", &EventOutboxPurge);
+register_retention_purge!("scheduler", &GovernanceDecisionsPurge);

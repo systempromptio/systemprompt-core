@@ -12,8 +12,7 @@ use systemprompt_extension::ExtensionContext;
 use systemprompt_identifiers::Actor;
 use systemprompt_loader::BootContext;
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::{DbBudget, Dependencies, DynIpBanStore, JobContext};
-use systemprompt_users::BannedIpRepository;
+use systemprompt_traits::{DbBudget, Dependencies, JobContext};
 
 use crate::error::SchedulerResult;
 use crate::jobs::InventoryRefreshMemo;
@@ -25,8 +24,7 @@ pub(crate) fn make_job_context(
     budget: Option<DbBudget>,
     inventory_memo: &Arc<InventoryRefreshMemo>,
 ) -> JobContext {
-    let ip_bans: DynIpBanStore = Arc::new(BannedIpRepository::new(&db_pool));
-    let mut dependencies = brain_dependencies(&app_context, app_context.extension_state())
+    let dependencies = brain_dependencies(&app_context, app_context.extension_state())
         .with(Arc::clone(inventory_memo))
         .with(Arc::new(app_context.profile().brain.clone()))
         .with(Arc::clone(app_context.documents().service()))
@@ -36,12 +34,7 @@ pub(crate) fn make_job_context(
         .with(db_pool)
         .with(Arc::clone(app_context.config_arc()))
         .with(extension_context(&app_context))
-        .with(ip_bans)
-        .with(Arc::clone(app_context.analytics_repositories()));
-    if let Some(reader) = app_context.geoip_reader() {
-        dependencies.insert(reader.clone());
-    }
-    dependencies.insert(app_context);
+        .with(app_context);
     JobContext::new(actor, dependencies)
 }
 

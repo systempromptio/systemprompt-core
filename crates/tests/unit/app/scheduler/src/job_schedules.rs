@@ -14,9 +14,8 @@ use tokio_cron_scheduler::Job as CronJob;
 // Every job linked into this binary: the scheduler's own and those the
 // capability crates linked through the runtime submit.
 fn all_jobs() -> Vec<&'static dyn Job> {
-    inventory::iter::<&'static dyn Job>
-        .into_iter()
-        .copied()
+    systemprompt_traits::registered_jobs()
+        .map(|registration| registration.job)
         .collect()
 }
 

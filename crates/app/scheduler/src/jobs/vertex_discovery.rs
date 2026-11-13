@@ -150,4 +150,4 @@ impl VertexDiscoveryJob {
     }
 }
 
-systemprompt_provider_contracts::submit_job!(&VertexDiscoveryJob);
+systemprompt_provider_contracts::submit_job!("scheduler", &VertexDiscoveryJob);

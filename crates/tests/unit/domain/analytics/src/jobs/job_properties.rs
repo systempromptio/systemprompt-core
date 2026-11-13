@@ -198,9 +198,9 @@ mod all_jobs_inventory {
 
     #[test]
     fn every_analytics_job_is_registered_in_inventory() {
-        let registered: HashSet<&'static str> = inventory::iter::<&'static dyn Job>
-            .into_iter()
-            .map(|j| j.name())
+        let registered: HashSet<&'static str> = systemprompt_traits::registered_jobs()
+            .filter(|registration| registration.owner == "analytics")
+            .map(|registration| registration.job.name())
             .collect();
         for name in [
             "backfill_session_geo",

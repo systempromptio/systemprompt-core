@@ -72,4 +72,4 @@ impl Job for ConfigReconcileJob {
     }
 }
 
-systemprompt_provider_contracts::submit_job!(&ConfigReconcileJob);
+systemprompt_provider_contracts::submit_job!("scheduler", &ConfigReconcileJob);

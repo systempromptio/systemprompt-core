@@ -45,4 +45,4 @@ impl Job for UserContextCountersRollupJob {
     }
 }
 
-systemprompt_traits::submit_job!(&UserContextCountersRollupJob);
+systemprompt_traits::submit_job!("agent", &UserContextCountersRollupJob);

@@ -125,4 +125,4 @@ impl Job for BrainAnalysisJob {
     }
 }
 
-submit_job!(&BrainAnalysisJob);
+submit_job!("brain", &BrainAnalysisJob);

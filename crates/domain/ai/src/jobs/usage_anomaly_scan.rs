@@ -149,4 +149,4 @@ impl Job for UsageAnomalyScanJob {
     }
 }
 
-systemprompt_traits::submit_job!(&UsageAnomalyScanJob);
+systemprompt_traits::submit_job!("ai", &UsageAnomalyScanJob);

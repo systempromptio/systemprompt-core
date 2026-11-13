@@ -264,4 +264,4 @@ async fn process_candidates(
     banned
 }
 
-systemprompt_traits::submit_job!(&MaliciousIpBlacklistJob);
+systemprompt_traits::submit_job!("analytics", &MaliciousIpBlacklistJob);

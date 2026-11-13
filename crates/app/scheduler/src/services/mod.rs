@@ -14,6 +14,7 @@
 
 pub mod config_apply;
 pub mod config_reconcile;
+mod enabled;
 mod job_execution;
 pub mod job_metrics;
 pub mod orchestration;
@@ -29,6 +30,7 @@ pub use config_reconcile::{
     AppliedPlane, ConfigReconcileService, PlaneDiff, PlaneOutcome, PlaneReport,
     RECONCILE_LOCK_WAIT, ReconcileReport, ReconcileTrigger,
 };
+pub use enabled::EnabledExtensions;
 pub use job_execution::{
     JobBatchReport, JobExecutionService, JobRunReport, JobSelection, parse_job_parameters,
 };

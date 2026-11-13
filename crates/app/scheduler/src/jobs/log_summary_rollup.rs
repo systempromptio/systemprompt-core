@@ -45,4 +45,4 @@ impl Job for LogSummaryRollupJob {
     }
 }
 
-systemprompt_provider_contracts::submit_job!(&LogSummaryRollupJob);
+systemprompt_provider_contracts::submit_job!("scheduler", &LogSummaryRollupJob);

@@ -1,5 +1,7 @@
-//! Every-minute job draining the hourly usage rollups' backlogs: the hours an
-//! upgrade queued before the rollup tables existed. The rollups are declared
+//! Every-minute job draining the hourly usage rollups' backlogs.
+//!
+//! The backlog is the hours an upgrade queued before the rollup tables
+//! existed. The rollups are declared
 //! by their owners against [`JOB_NAME`] with
 //! `systemprompt_database::submit_projection_drain!` (the AI crate's
 //! `ai_usage_rollup_hourly` and `ai_context_rollup_hourly`, the analytics
@@ -18,6 +20,9 @@ use async_trait::async_trait;
 use systemprompt_database::{DbPool, projection};
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::info;
+
+use crate::services::EnabledExtensions;
+use crate::services::scheduling::job_app_context;
 
 pub const JOB_NAME: &str = "backfill_rollups";
 
@@ -48,7 +53,12 @@ impl Job for BackfillRollupsJob {
         let mut keys = 0u64;
         let mut requeued = 0u64;
         let mut elapsed = Duration::ZERO;
-        for drain in projection::registered_drains(JOB_NAME) {
+        let enabled = EnabledExtensions::of(job_app_context(ctx)?)?;
+        for contribution in projection::registered_drains(JOB_NAME) {
+            if !enabled.contains(contribution.owner) {
+                continue;
+            }
+            let drain = &contribution.drain;
             let rollup = drain.projection;
             let report = projection::drain_with_sql(
                 &pool,
@@ -79,4 +89,4 @@ impl Job for BackfillRollupsJob {
     }
 }
 
-systemprompt_provider_contracts::submit_job!(&BackfillRollupsJob);
+systemprompt_provider_contracts::submit_job!("scheduler", &BackfillRollupsJob);

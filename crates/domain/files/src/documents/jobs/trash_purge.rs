@@ -79,4 +79,4 @@ impl Job for DocumentTrashPurgeJob {
     }
 }
 
-systemprompt_provider_contracts::submit_job!(&DocumentTrashPurgeJob);
+systemprompt_provider_contracts::submit_job!("files", &DocumentTrashPurgeJob);

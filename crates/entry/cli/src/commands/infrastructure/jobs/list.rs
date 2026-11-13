@@ -30,9 +30,10 @@ pub(super) fn execute(ctx: &CommandContext) -> Result<CommandOutput> {
         }
     }
 
-    for job in inventory::iter::<&'static dyn Job> {
+    for registration in systemprompt_traits::registered_jobs() {
+        let job = registration.job;
         if seen_names.insert(job.name().to_owned()) {
-            jobs.push(job_info(job.name(), *job, &configured));
+            jobs.push(job_info(job.name(), job, &configured));
         }
     }
 

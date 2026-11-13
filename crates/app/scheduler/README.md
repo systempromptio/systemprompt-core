@@ -67,15 +67,19 @@ systemprompt-scheduler = "0.81"
 
 ### Job Discovery
 
-Jobs are discovered via the `inventory` crate. Any crate can register jobs:
+Jobs are discovered via the `inventory` crate. Any crate can register a job
+under the id of the extension that owns it:
 
 ```rust
 use systemprompt_provider_contracts::submit_job;
 
-submit_job!(MyCustomJob);
+submit_job!("my-extension", &MyCustomJob);
 ```
 
-The scheduler discovers all registered jobs at startup and schedules them based on configuration.
+The scheduler discovers all registered jobs at startup and schedules those
+whose owning extension the profile leaves enabled. Every job run executes
+inside the job-run scopes linked crates register (`register_job_run_scope!`;
+the files crate's sets the system document actor).
 
 ```rust
 use systemprompt_scheduler::{SchedulerService, SchedulerConfig};

@@ -146,4 +146,4 @@ impl Job for BrainRetentionJob {
     }
 }
 
-submit_job!(&BrainRetentionJob);
+submit_job!("brain", &BrainRetentionJob);

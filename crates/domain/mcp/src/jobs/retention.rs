@@ -37,4 +37,4 @@ impl RetentionPurge for ToolExecutionsPurge {
     }
 }
 
-register_retention_purge!(&ToolExecutionsPurge);
+register_retention_purge!("mcp", &ToolExecutionsPurge);

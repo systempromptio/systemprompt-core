@@ -6,10 +6,13 @@
 
 use std::sync::Arc;
 
+use systemprompt_database::DbPool;
 use systemprompt_extension::prelude::*;
+use systemprompt_models::attribution::DynRequestAttributionLookup;
 use systemprompt_traits::Job;
 
 use crate::jobs::{AiRequestToolFlagRollupJob, ThoughtSignatureCleanupJob, UsageAnomalyScanJob};
+use crate::repository::AiRequestRepository;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AiExtension;
@@ -35,6 +38,16 @@ impl Extension for AiExtension {
 
     fn dependencies(&self) -> Vec<&'static str> {
         vec!["users", "mcp"]
+    }
+
+    fn provide(
+        &self,
+        _ctx: &dyn ExtensionContext,
+        state: &mut StateBuilder<'_>,
+    ) -> Result<(), ExtensionStateError> {
+        let db = Arc::clone(state.state().get::<DbPool>()?);
+        let attributions: DynRequestAttributionLookup = Arc::new(AiRequestRepository::new(&db));
+        state.provide(attributions)
     }
 
     fn jobs(&self) -> Vec<Arc<dyn Job>> {

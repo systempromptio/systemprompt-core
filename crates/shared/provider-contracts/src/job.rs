@@ -234,11 +234,37 @@ pub trait Job: Send + Sync + 'static {
     }
 }
 
-inventory::collect!(&'static dyn Job);
+/// A [`Job`] linked into the binary, with the id of the extension that owns
+/// it. The scheduler runs a registration only while its owner is enabled.
+#[derive(Clone, Copy)]
+pub struct JobRegistration {
+    pub owner: &'static str,
+    pub job: &'static dyn Job,
+}
+
+impl std::fmt::Debug for JobRegistration {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("JobRegistration")
+            .field("owner", &self.owner)
+            .field("job", &self.job.name())
+            .finish()
+    }
+}
+
+inventory::collect!(JobRegistration);
+
+pub fn registered_jobs() -> impl Iterator<Item = &'static JobRegistration> {
+    inventory::iter::<JobRegistration>.into_iter()
+}
 
 #[macro_export]
 macro_rules! submit_job {
-    ($job:expr) => {
-        $crate::__inventory::submit!($job as &'static dyn $crate::Job);
+    ($owner:literal, $job:expr) => {
+        $crate::__inventory::submit! {
+            $crate::JobRegistration {
+                owner: $owner,
+                job: $job as &'static dyn $crate::Job,
+            }
+        }
     };
 }

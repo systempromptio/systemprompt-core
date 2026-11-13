@@ -72,4 +72,4 @@ impl Job for DocumentMediaBackfillJob {
     }
 }
 
-systemprompt_provider_contracts::submit_job!(&DocumentMediaBackfillJob);
+systemprompt_provider_contracts::submit_job!("files", &DocumentMediaBackfillJob);
