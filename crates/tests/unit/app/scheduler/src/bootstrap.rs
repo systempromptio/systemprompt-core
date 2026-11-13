@@ -16,9 +16,10 @@ fn default_bootstrap_jobs_match_built_in_inventory_names() {
 #[test]
 fn every_default_bootstrap_job_is_inventory_registered() {
     let cfg = SchedulerConfig::with_system_admin();
-    let registered: std::collections::HashSet<&'static str> = systemprompt_traits::registered_jobs()
-        .map(|registration| registration.job.name())
-        .collect();
+    let registered: std::collections::HashSet<&'static str> =
+        systemprompt_traits::registered_jobs()
+            .map(|registration| registration.job.name())
+            .collect();
 
     for name in &cfg.bootstrap_jobs {
         assert!(

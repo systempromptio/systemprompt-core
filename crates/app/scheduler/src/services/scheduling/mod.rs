@@ -19,10 +19,10 @@ mod registration;
 mod unlisted;
 
 use crate::error::{SchedulerError, SchedulerResult};
-use crate::services::EnabledExtensions;
 use crate::jobs::InventoryRefreshMemo;
 use crate::models::{SchedulerConfig, SkippedJob};
 use crate::repository::SchedulerRepository;
+use crate::services::EnabledExtensions;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 

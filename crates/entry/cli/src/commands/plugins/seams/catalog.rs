@@ -102,8 +102,7 @@ fn shared_seams() -> Vec<LinkedSeam> {
             "jobs",
             "systemprompt-provider-contracts",
             named(
-                systemprompt_traits::registered_jobs()
-                    .map(|registration| registration.job.name()),
+                systemprompt_traits::registered_jobs().map(|registration| registration.job.name()),
             ),
         ),
         LinkedSeam::new(

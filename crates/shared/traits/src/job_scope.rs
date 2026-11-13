@@ -44,8 +44,7 @@ impl std::fmt::Debug for JobRunScopeRegistration {
 
 inventory::collect!(JobRunScopeRegistration);
 
-pub fn registered_job_run_scopes() -> impl Iterator<Item = &'static JobRunScopeRegistration>
-{
+pub fn registered_job_run_scopes() -> impl Iterator<Item = &'static JobRunScopeRegistration> {
     inventory::iter::<JobRunScopeRegistration>.into_iter()
 }
 

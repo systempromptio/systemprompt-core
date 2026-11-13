@@ -244,7 +244,10 @@ impl JobExecutionService {
         {
             return Ok(Some(RunnableJob::Manifest(job)));
         }
-        Ok(self.enabled()?.job(job_name.as_str()).map(RunnableJob::Inventory))
+        Ok(self
+            .enabled()?
+            .job(job_name.as_str())
+            .map(RunnableJob::Inventory))
     }
 
     async fn execute_runnable(

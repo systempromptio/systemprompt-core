@@ -96,13 +96,11 @@ impl std::fmt::Debug for RetentionSweepRegistration {
 inventory::collect!(RetentionPurgeRegistration);
 inventory::collect!(RetentionSweepRegistration);
 
-pub fn registered_retention_purges() -> impl Iterator<Item = &'static RetentionPurgeRegistration>
-{
+pub fn registered_retention_purges() -> impl Iterator<Item = &'static RetentionPurgeRegistration> {
     inventory::iter::<RetentionPurgeRegistration>.into_iter()
 }
 
-pub fn registered_retention_sweeps() -> impl Iterator<Item = &'static RetentionSweepRegistration>
-{
+pub fn registered_retention_sweeps() -> impl Iterator<Item = &'static RetentionSweepRegistration> {
     inventory::iter::<RetentionSweepRegistration>.into_iter()
 }
 

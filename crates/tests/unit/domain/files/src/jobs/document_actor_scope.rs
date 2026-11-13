@@ -30,9 +30,8 @@ async fn outside_a_job_run_the_actor_is_the_unscoped_agent() {
 #[test]
 fn the_files_crate_registers_its_job_run_scope() {
     assert!(
-        registered_job_run_scopes()
-            .any(|registration| registration.owner == "files"
-                && registration.scope.name() == "document_actor"),
+        registered_job_run_scopes().any(|registration| registration.owner == "files"
+            && registration.scope.name() == "document_actor"),
         "linking systemprompt-files must register the document actor scope"
     );
 }

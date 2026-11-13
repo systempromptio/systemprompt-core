@@ -1,7 +1,8 @@
 //! Shared tick for the drainer jobs of SQL-refreshed projections.
 //!
-//! [`drain_projection`] drains one projection through its `refresh_<projection>(keys TEXT[])` function within
-//! a time budget and reports the keys done and requeued as job stats.
+//! [`drain_projection`] drains one projection through its
+//! `refresh_<projection>(keys TEXT[])` function within a time budget and
+//! reports the keys done and requeued as job stats.
 //!
 //! A job that drains projections owned by several crates does not name them:
 //! each owner declares its drain against the job's name with

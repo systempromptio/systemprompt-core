@@ -12,8 +12,8 @@ use tokio::sync::Mutex;
 
 use super::{RunningJobs, SchedulerService, dispatch};
 use crate::error::SchedulerResult;
-use crate::services::EnabledExtensions;
 use crate::models::JobStatus;
+use crate::services::EnabledExtensions;
 
 struct BootstrapCtx<'a> {
     owners: &'a HashMap<JobName, UserId>,
