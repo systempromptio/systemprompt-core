@@ -269,6 +269,17 @@ fn bearer_get(uri: &str, token: &str) -> Request<Body> {
     req
 }
 
+async fn grant_admin_role(
+    pool: &systemprompt_database::DbPool,
+    user: &systemprompt_identifiers::UserId,
+) -> anyhow::Result<()> {
+    sqlx::query("UPDATE users SET roles = ARRAY['admin', 'user'] WHERE id = $1")
+        .bind(user.as_str())
+        .execute(pool.pool().as_ref())
+        .await?;
+    Ok(())
+}
+
 #[tokio::test]
 async fn an_admin_declaration_refuses_an_authenticated_user_and_admits_an_admin()
 -> anyhow::Result<()> {
@@ -276,6 +287,7 @@ async fn an_admin_declaration_refuses_an_authenticated_user_and_admits_an_admin(
     let pool = test_db_pool().await;
     let user = seed_bridge_credential(&pool, "covadmin-user@example.invalid").await?;
     let admin = seed_admin_credential(&pool, "covadmin-admin@example.invalid").await?;
+    grant_admin_role(&pool, &admin.user_id).await?;
 
     let refused = app
         .clone()
