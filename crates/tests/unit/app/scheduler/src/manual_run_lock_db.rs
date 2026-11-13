@@ -40,10 +40,7 @@ async fn service(config: SchedulerConfig) -> (JobExecutionService, DbPool) {
     let url = test_database_url();
     let pool = test_db_pool().await;
     let app_ctx = test_app_context(&pool, &url);
-    (
-        JobExecutionService::new(app_ctx, config),
-        pool,
-    )
+    (JobExecutionService::new(app_ctx, config), pool)
 }
 
 fn locked_config() -> SchedulerConfig {
