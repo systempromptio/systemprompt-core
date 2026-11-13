@@ -19,6 +19,7 @@
 
 use std::sync::Arc;
 
+use systemprompt_extension::StateHandle;
 use systemprompt_manifest::services::ServicesView;
 use systemprompt_models::authz::SubjectSourceHandle;
 use systemprompt_traits::CacheEpochs;
@@ -39,6 +40,7 @@ pub struct AuthzWiring {
     pub subjects: SubjectSourceHandle,
     pub providers: SubjectProviderSet,
     pub secrets: Arc<dyn systemprompt_traits::SecretStore>,
+    pub state: StateHandle,
 }
 
 impl std::fmt::Debug for AuthzWiring {
@@ -52,6 +54,12 @@ impl std::fmt::Debug for AuthzWiring {
 /// `pool` is the write-side Postgres pool already used by the audit sink;
 /// `sink` is the same [`DbAuditSink`][super::audit::DbAuditSink] core uses
 /// internally so extension hooks record through one consistent audit path.
+/// `state` is the extension state: the hook is built before the state
+/// exists, so a factory captures the handle and the hook reads the value the
+/// extension provided once the host binds it, before anything serves. A read
+/// before binding fails closed with `ExtensionStateError::NotReady`. Only the
+/// handle handed to authz hook and subject provider factories is bound;
+/// role directories discovered elsewhere receive an unbound handle.
 #[derive(Clone)]
 pub struct AuthzHookContext {
     pub pool: Arc<sqlx::PgPool>,
@@ -59,6 +67,7 @@ pub struct AuthzHookContext {
     pub services: ServicesView,
     pub subjects: SubjectSourceHandle,
     pub secrets: Arc<dyn systemprompt_traits::SecretStore>,
+    pub state: StateHandle,
 }
 
 impl std::fmt::Debug for AuthzHookContext {

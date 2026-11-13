@@ -22,6 +22,7 @@ fn hook(pool: Arc<PgPool>) -> RuleBasedHook {
             subjects: Default::default(),
             providers: Default::default(),
             secrets: systemprompt_test_fixtures::fixture_secret_store(),
+            state: Default::default(),
         },
     )
 }

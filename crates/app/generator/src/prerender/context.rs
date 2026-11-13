@@ -69,7 +69,9 @@ pub(super) async fn load_prerender_context(
 ) -> GeneratorResult<PrerenderContext> {
     let assets = Arc::new(load_prerender_assets(env.config, env.paths, env.extensions).await?);
 
-    let dependencies = Dependencies::new()
+    let dependencies = env
+        .extensions
+        .extension_state()
         .with(db_pool)
         .with(assets.config.clone());
     Ok(PrerenderContext {

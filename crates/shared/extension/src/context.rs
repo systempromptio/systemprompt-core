@@ -25,22 +25,24 @@
 //! never reads the signing keys, the process environment or a global for any
 //! of them.
 //!
-//! [`ExtensionContext::extension_state`] hands out the typed state every
-//! extension provided at boot ([`ExtensionState`]); a factory reads its own
-//! extension's caches and services from it with `get` or `require`.
+//! [`ExtensionContext::extension_state`] hands out the boot-time state: the
+//! kernel's handles plus every value the enabled extensions provided, in one
+//! [`Dependencies`] map. A factory reads its own extension's caches and
+//! services, and the kernel's handles, from it with `get` or `get_arc`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 
-use crate::state::ExtensionState;
 use systemprompt_identifiers::InstanceId;
 use systemprompt_manifest::services::ServicesView;
 use systemprompt_manifest::{Config, Profile};
 use systemprompt_models::auth::TokenAuthority;
 use systemprompt_models::authz::SubjectAttributeSource;
-use systemprompt_provider_contracts::{ConfigPlaneError, ConfigPlaneResult, ConfigPlaneSet};
+use systemprompt_provider_contracts::{
+    ConfigPlaneError, ConfigPlaneResult, ConfigPlaneSet, Dependencies,
+};
 use systemprompt_traits::{
     BackgroundTasks, ConfigProvider, DatabaseHandle, DynAdvisoryLocks, DynInstanceRegistry,
     DynLeaseRepository, FileStorage, ProviderTokenCache, SecretStore, UnavailableCoordination,
@@ -81,8 +83,6 @@ pub trait ExtensionContext: Send + Sync {
 
     fn secrets(&self) -> Arc<dyn SecretStore>;
 
-    fn dependencies(&self) -> systemprompt_provider_contracts::Dependencies;
-
     fn get_extension(&self, id: &str) -> Option<Arc<dyn crate::Extension>>;
 
     fn has_extension(&self, id: &str) -> bool {
@@ -95,7 +95,7 @@ pub trait ExtensionContext: Send + Sync {
 
     fn provider_tokens(&self) -> Arc<dyn ProviderTokenCache>;
 
-    fn extension_state(&self) -> ExtensionState;
+    fn extension_state(&self) -> Dependencies;
 
     fn config_planes(&self) -> ConfigPlaneResult<ConfigPlaneSet> {
         Err(ConfigPlaneError::PlanesUnavailable)

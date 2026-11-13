@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::ExtensionId;
+use systemprompt_provider_contracts::{DuplicateDependency, MissingDependency};
 use systemprompt_traits::BoxedSource;
 use thiserror::Error;
 
@@ -113,8 +114,9 @@ pub enum LoaderError {
     },
 
     #[error(
-        "Extension '{extension}' requires state of type '{type_name}', which no linked extension \
-         provides; link the extension that provides it or remove the requirement"
+        "Extension '{extension}' requires state of type '{type_name}', which neither the kernel \
+         nor any enabled extension provides; link and enable the extension that provides it or \
+         remove the requirement"
     )]
     UnmetStateRequirement {
         extension: ExtensionId,
@@ -238,18 +240,17 @@ pub enum LoaderError {
 
 #[derive(Debug, Error)]
 pub enum ExtensionStateError {
-    #[error("No extension provides state of type '{type_name}'")]
-    Missing { type_name: &'static str },
+    #[error("Extension state has no value of the requested type: {0}")]
+    Missing(#[from] MissingDependency),
 
-    #[error(
-        "State of type '{type_name}' is provided by both extension '{first}' and extension \
-         '{second}'; every type has exactly one provider"
-    )]
-    DuplicateProvider {
-        type_name: &'static str,
-        first: ExtensionId,
-        second: ExtensionId,
-    },
+    #[error("Extension state refused a provider: {0}")]
+    DuplicateProvider(#[from] DuplicateDependency),
+
+    #[error("Extension state is read before the host bound it")]
+    NotReady,
+
+    #[error("Extension state handle is already bound")]
+    AlreadyBound,
 
     #[error("Failed to build provided state: {0}")]
     Provider(#[source] BoxedSource),

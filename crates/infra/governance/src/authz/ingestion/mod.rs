@@ -119,6 +119,7 @@ impl AccessControlIngestionService {
             services,
             subjects,
             secrets,
+            state: Default::default(),
         });
         Self {
             write_pool: pool,

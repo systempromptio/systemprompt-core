@@ -48,6 +48,7 @@ pub use agent_host::{AgentHost, AgentHostError};
 pub use builder::brain::{BrainCore, BrainInputs, RecallSeams, brain_sink};
 #[cfg(feature = "notifications")]
 pub use builder::notifications::{NotificationsInputs, core_notifications, notification_sink};
+pub use builder::kernel_state::kernel_state;
 pub use builder::{AppContextBuilder, discover_vertex_models, owner_reassignments};
 pub use context::{AppContext, ConfigPlane, DataPlane, Plugins, ShutdownRequest, Subsystems};
 pub use database_context::DatabaseContext;
