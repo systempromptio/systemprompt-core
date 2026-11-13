@@ -279,11 +279,11 @@ pub fn fixture_app_context_with_services(
             extension_registry: Arc::new(ExtensionRegistry::discover()?),
             services: Some(services),
             documents: if documents_enabled {
-            disabled_extensions: Vec::new(),
                 enabled_documents()
             } else {
                 DocumentsConfig::default()
             },
+            disabled_extensions: Vec::new(),
         },
     )
 }
