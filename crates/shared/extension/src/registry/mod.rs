@@ -25,6 +25,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use systemprompt_identifiers::ExtensionId;
 
+pub use queries::{ApiRouter, ExtensionReadinessCheck};
 pub use validation::{RESERVED_PATHS, WEB_ROOT_BASE_PATH};
 
 #[derive(Default)]

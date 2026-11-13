@@ -30,7 +30,8 @@ use std::sync::Arc;
 use axum::Json;
 use serde_json::json;
 use systemprompt_database::PLANE_NOT_APPLIED_HINT;
-use systemprompt_extension::{LoaderError, ReadinessCheck, ReadinessFailure};
+use systemprompt_extension::registry::ExtensionReadinessCheck;
+use systemprompt_extension::{LoaderError, ReadinessFailure};
 use systemprompt_runtime::{AppContext, ConfigPlaneSet};
 use systemprompt_scheduler::repository::ConfigReconcileRepository;
 
@@ -214,7 +215,7 @@ pub(super) fn unapplied_governance(ctx: &AppContext) -> Option<serde_json::Value
 }
 
 pub(crate) struct ExtensionReadiness {
-    checks: Vec<(&'static str, Arc<dyn ReadinessCheck>)>,
+    checks: Vec<ExtensionReadinessCheck>,
 }
 
 impl ExtensionReadiness {

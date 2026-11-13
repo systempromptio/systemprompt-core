@@ -16,10 +16,10 @@ use crate::services::middleware::MountError;
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum RouteMountError {
     #[error(transparent)]
-    Loader(#[from] LoaderError),
+    Loader(Box<LoaderError>),
 
     #[error(transparent)]
-    Mount(#[from] MountError),
+    Mount(Box<MountError>),
 
     #[error("failed to initialise {component}")]
     Initialization {
@@ -32,8 +32,20 @@ pub(crate) enum RouteMountError {
     ConfigValidation {
         extension: String,
         #[source]
-        source: ExtensionConfigError,
+        source: Box<ExtensionConfigError>,
     },
+}
+
+impl From<LoaderError> for RouteMountError {
+    fn from(source: LoaderError) -> Self {
+        Self::Loader(Box::new(source))
+    }
+}
+
+impl From<MountError> for RouteMountError {
+    fn from(source: MountError) -> Self {
+        Self::Mount(Box::new(source))
+    }
 }
 
 impl RouteMountError {
