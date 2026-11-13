@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.81.1] - 2026-11-13
+
+### Fixed
+
+- `services::interpolation::VERBATIM_KEYS` includes `command` and `frontmatter`: a disk hook command and skill frontmatter keep the placeholders their client expands.
+- `services::interpolation::CLIENT_EXPANDED_VARIABLES` names the variables a client expands; `interpolate_services_yaml` leaves a placeholder naming one as written in every field.
+
 ## [0.81.0] - 2026-11-12
 
 ### Breaking

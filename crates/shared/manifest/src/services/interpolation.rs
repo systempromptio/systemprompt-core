@@ -5,10 +5,13 @@
 //! marketplace sources), with one exception: any value under a key in
 //! [`VERBATIM_KEYS`] is authored text or a runtime-expanded command and is
 //! never rewritten, so a literal `${…}` in a system prompt, skill
-//! instructions, a description or a hook command reaches its consumer
-//! unchanged. The services types carry no JSON schema, so a resolved value
-//! always enters the tree as a string: a numeric or boolean field does not
-//! accept a placeholder.
+//! instructions, a description, a hook command or a skill's carried-through
+//! frontmatter reaches its consumer unchanged. A placeholder naming one of
+//! [`CLIENT_EXPANDED_VARIABLES`] is left as written in every field: the
+//! client that receives the plugin expands it, and the server never
+//! substitutes its own environment for it. The services types carry no JSON
+//! schema, so a resolved value always enters the tree as a string: a numeric or
+//! boolean field does not accept a placeholder.
 //!
 //! [`ServicesInterpolation`] selects the unset-variable policy: `Resolve`
 //! (configuration about to run) fails with an [`InterpolationError`] naming
@@ -40,6 +43,15 @@ pub const VERBATIM_KEYS: &[&str] = &[
     "template",
     "status_message",
     "hooks",
+    "command",
+    "frontmatter",
+];
+
+pub const CLIENT_EXPANDED_VARIABLES: &[&str] = &[
+    "CLAUDE_PLUGIN_ROOT",
+    "CLAUDE_PLUGIN_DATA",
+    "CLAUDE_SKILL_DIR",
+    "CLAUDE_PROJECT_DIR",
 ];
 
 /// The unset-variable policy applied when a services file is parsed.
@@ -68,6 +80,13 @@ pub fn interpolate_services_yaml(
     lookup: &impl Fn(&str) -> Option<String>,
     mode: ServicesInterpolation,
 ) -> Result<Vec<InterpolationError>, InterpolationError> {
+    let lookup = &|name: &str| {
+        if CLIENT_EXPANDED_VARIABLES.contains(&name) {
+            Some(format!("${{{name}}}"))
+        } else {
+            lookup(name)
+        }
+    };
     match mode {
         ServicesInterpolation::Resolve => {
             interpolate_yaml(value, lookup, &services_field_kind).map(|()| Vec::new())
