@@ -5,7 +5,7 @@
 use std::sync::Arc;
 
 use systemprompt_extension::{
-    Extension, ExtensionContext, ExtensionMetadata, ExtensionRegistry, ExtensionRouter,
+    AuthzPolicy, ContextKind, Extension, ExtensionContext, ExtensionMetadata, ExtensionRegistry, ExtensionRouter,
     LoaderError, RESERVED_PATHS,
 };
 
@@ -48,7 +48,12 @@ impl Extension for RouterExt {
 
     fn router(&self, _ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
         self.base_path
-            .map(|p| ExtensionRouter::new(axum::Router::new(), p))
+            .map(|p| ExtensionRouter::new(
+                axum::Router::new(),
+                p,
+                AuthzPolicy::user(),
+                ContextKind::User,
+            ))
     }
 
     fn dependencies(&self) -> Vec<&'static str> {

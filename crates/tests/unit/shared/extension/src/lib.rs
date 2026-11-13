@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod asset;
 #[cfg(test)]
+mod authz_policy;
+#[cfg(test)]
 mod build;
 #[cfg(test)]
 mod compat;

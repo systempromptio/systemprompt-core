@@ -2,7 +2,9 @@
 //! ExtensionMetadata.
 
 use axum::Router;
-use systemprompt_extension::{ExtensionMetadata, ExtensionRouter, SchemaDefinition};
+use systemprompt_extension::{
+    AuthzPolicy, ContextKind, ExtensionMetadata, ExtensionRouter, RouteGroup, SchemaDefinition,
+};
 
 #[test]
 fn test_extension_metadata_creation() {
@@ -97,38 +99,40 @@ fn test_schema_definition_serialize() {
     assert!(json.contains("CREATE TABLE ser_table"));
 }
 
+fn user_router(path: &'static str) -> ExtensionRouter {
+    ExtensionRouter::new(Router::new(), path, AuthzPolicy::user(), ContextKind::User)
+}
+
 #[test]
-fn test_extension_router_new() {
-    let router = ExtensionRouter::new(Router::new(), "/api/v1/myext");
+fn test_extension_router_user_declaration_requires_authentication() {
+    let router = user_router("/api/v1/myext");
 
     assert_eq!(router.base_path, "/api/v1/myext");
-    assert!(router.requires_auth);
+    assert!(router.protection.requires_authentication());
+    assert_eq!(router.protection.context, ContextKind::User);
 }
 
 #[test]
-fn test_extension_router_public() {
-    let router = ExtensionRouter::public(Router::new(), "/api/v1/public");
+fn test_extension_router_public_declaration_admits_anonymous() {
+    let router = ExtensionRouter::new(
+        Router::new(),
+        "/api/v1/public",
+        AuthzPolicy::public(),
+        ContextKind::Public,
+    );
 
     assert_eq!(router.base_path, "/api/v1/public");
-    assert!(!router.requires_auth);
+    assert!(!router.protection.requires_authentication());
 }
 
 #[test]
-fn test_extension_router_requires_auth_default() {
-    let router = ExtensionRouter::new(Router::new(), "/api/v1/auth-required");
-    assert!(router.requires_auth);
-}
-
-#[test]
-fn test_extension_router_public_no_auth() {
-    let router = ExtensionRouter::public(Router::new(), "/api/v1/public-endpoint");
-    assert!(!router.requires_auth);
+fn test_extension_router_defaults_to_the_extensions_group() {
+    assert_eq!(user_router("/api/v1/g").group, RouteGroup::Extensions);
 }
 
 #[test]
 fn test_extension_router_debug() {
-    let router = ExtensionRouter::new(Router::new(), "/api/v1/debug");
-    let debug_str = format!("{:?}", router);
+    let debug_str = format!("{:?}", user_router("/api/v1/debug"));
 
     assert!(debug_str.contains("ExtensionRouter"));
     assert!(debug_str.contains("/api/v1/debug"));
@@ -136,17 +140,8 @@ fn test_extension_router_debug() {
 
 #[test]
 fn test_extension_router_different_paths() {
-    let router1 = ExtensionRouter::new(Router::new(), "/api/v1/ext1");
-    let router2 = ExtensionRouter::new(Router::new(), "/api/v2/ext2");
-
-    assert_eq!(router1.base_path, "/api/v1/ext1");
-    assert_eq!(router2.base_path, "/api/v2/ext2");
-}
-
-#[test]
-fn test_extension_router_with_nested_path() {
-    let router = ExtensionRouter::new(Router::new(), "/api/v1/deep/nested/path");
-    assert_eq!(router.base_path, "/api/v1/deep/nested/path");
+    assert_eq!(user_router("/api/v1/ext1").base_path, "/api/v1/ext1");
+    assert_eq!(user_router("/api/v2/ext2").base_path, "/api/v2/ext2");
 }
 
 #[test]

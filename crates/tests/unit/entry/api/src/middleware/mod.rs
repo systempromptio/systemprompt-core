@@ -20,6 +20,7 @@ mod client_ip_extractor;
 mod content_negotiation;
 mod context_flavours;
 mod cors_config;
+mod declared_mount;
 mod edge_bounds;
 mod edge_keyed_limiter;
 mod edge_pre_auth_limit;

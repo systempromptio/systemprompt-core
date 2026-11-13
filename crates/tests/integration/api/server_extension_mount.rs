@@ -12,7 +12,8 @@ use axum::http::Request;
 use axum::routing::get;
 use systemprompt_api::services::server::setup_api_server;
 use systemprompt_extension::{
-    Extension, ExtensionContext, ExtensionMetadata, ExtensionRegistry, ExtensionRouter,
+    AuthzPolicy, ContextKind, Extension, ExtensionContext, ExtensionMetadata, ExtensionRegistry,
+    ExtensionRouter, RateBudget, RateLimit,
 };
 use systemprompt_manifest::profile::FrameOptions;
 use systemprompt_test_fixtures::{
@@ -32,12 +33,15 @@ impl Extension for NestedPublicExt {
     }
 
     fn router(&self, _ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
-        let mut ext = ExtensionRouter::public(
-            Router::new().route("/ping", get(|| async { "ext-ok" })),
-            "/api/covmount",
-        );
-        ext.frame_options = Some(FrameOptions::AllowAll);
-        Some(ext)
+        Some(
+            ExtensionRouter::new(
+                Router::new().route("/ping", get(|| async { "ext-ok" })),
+                "/api/covmount",
+                AuthzPolicy::public(),
+                ContextKind::Public,
+            )
+            .with_frame_options(FrameOptions::AllowAll),
+        )
     }
 }
 
@@ -53,9 +57,11 @@ impl Extension for RootMergedExt {
     }
 
     fn router(&self, _ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
-        Some(ExtensionRouter::public(
+        Some(ExtensionRouter::new(
             Router::new().route("/covroot-ping", get(|| async { "root-ok" })),
             "/",
+            AuthzPolicy::public(),
+            ContextKind::Public,
         ))
     }
 }
@@ -75,7 +81,59 @@ impl Extension for AuthedExt {
         Some(ExtensionRouter::new(
             Router::new().route("/secret", get(|| async { "authed" })),
             "/api/covauth",
+            AuthzPolicy::user(),
+            ContextKind::User,
         ))
+    }
+}
+
+struct AdminExt;
+
+impl Extension for AdminExt {
+    fn metadata(&self) -> ExtensionMetadata {
+        ExtensionMetadata {
+            id: "covadmin",
+            name: "Coverage Admin Extension",
+            version: "0.0.1",
+        }
+    }
+
+    fn router(&self, _ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
+        Some(ExtensionRouter::new(
+            Router::new().route("/only", get(|| async { "admin" })),
+            "/api/covadmin",
+            AuthzPolicy::admin(),
+            ContextKind::User,
+        ))
+    }
+}
+
+fn never(_ctx: &dyn ExtensionContext) -> bool {
+    false
+}
+
+struct DisabledExt;
+
+impl Extension for DisabledExt {
+    fn metadata(&self) -> ExtensionMetadata {
+        ExtensionMetadata {
+            id: "covdisabled",
+            name: "Coverage Disabled Extension",
+            version: "0.0.1",
+        }
+    }
+
+    fn router(&self, _ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
+        Some(
+            ExtensionRouter::new(
+                Router::new().route("/ping", get(|| async { "disabled" })),
+                "/api/covdisabled",
+                AuthzPolicy::public(),
+                ContextKind::Public,
+            )
+            .with_rate_limit(RateLimit::new("covdisabled", RateBudget::PerSecond(1)))
+            .enabled_when(never),
+        )
     }
 }
 
@@ -195,6 +253,32 @@ async fn site_auth_extension_gates_static_pages_behind_login_redirect() -> anyho
         !public.status().is_redirection(),
         "public prefix must bypass the gate, got {}",
         public.status()
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn an_admin_declaration_refuses_an_anonymous_caller() -> anyhow::Result<()> {
+    let app = app_with_extensions(vec![Arc::new(AdminExt)]).await?;
+
+    let resp = app.oneshot(get_req("/api/covadmin/only")).await?;
+    assert!(
+        resp.status().is_client_error(),
+        "an admin-only extension route must not serve an anonymous caller, got {}",
+        resp.status()
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_declaration_whose_enable_predicate_fails_is_not_mounted() -> anyhow::Result<()> {
+    let app = app_with_extensions(vec![Arc::new(DisabledExt)]).await?;
+
+    let resp = app.oneshot(get_req("/api/covdisabled/ping")).await?;
+    assert_ne!(
+        resp.status().as_u16(),
+        200,
+        "a disabled declaration must not serve its routes"
     );
     Ok(())
 }
