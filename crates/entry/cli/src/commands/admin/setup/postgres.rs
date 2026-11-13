@@ -13,13 +13,13 @@ use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_logging::CliService;
 
 use super::SetupArgs;
+use super::provision::provision_role_and_db;
+use crate::CliConfig;
+use crate::interactive::Prompter;
 use crate::shared::postgres_access::{
     PostgresConfig, connect, detect_postgresql, enable_extensions, generate_password,
     test_connection,
 };
-use super::provision::provision_role_and_db;
-use crate::CliConfig;
-use crate::interactive::Prompter;
 
 pub async fn setup_non_interactive(
     args: &SetupArgs,

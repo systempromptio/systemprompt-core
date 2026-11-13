@@ -20,8 +20,8 @@ use systemprompt_identifiers::ProviderId;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::services::catalog::CATALOG_FILES;
 
-use crate::shared::provider_catalog::{self as catalog, SeedRequest};
 use super::secrets::SecretsData;
+use crate::shared::provider_catalog::{self as catalog, SeedRequest};
 
 pub(super) fn seed(
     services_dir: &Path,

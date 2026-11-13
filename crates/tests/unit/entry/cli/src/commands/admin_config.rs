@@ -10,10 +10,10 @@ use systemprompt_identifiers::JobName;
 use crate::boot_ctx::bootstrap_ctx;
 use systemprompt_cli::CommandContext;
 use systemprompt_cli::admin::config::config_section::ConfigSection;
-use systemprompt_cli::shared::yaml_document::{read_yaml_file, write_yaml_file};
 use systemprompt_cli::admin::config::validate::{
     ValidateArgs, execute, unknown_jobs_message, unlisted_jobs_message,
 };
+use systemprompt_cli::shared::yaml_document::{read_yaml_file, write_yaml_file};
 use systemprompt_manifest::services::SystemAdminConfig;
 use systemprompt_manifest::{
     ContentNegotiationConfig, ExtensionsConfig, PathsConfig, Profile, ProfileDatabaseConfig,

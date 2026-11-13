@@ -3,8 +3,8 @@
 use clap::{CommandFactory, Subcommand};
 use systemprompt_cli::args::{self, Cli};
 use systemprompt_cli::kernel::{
-    CliCommandGroup, CliCommandLeaf, CliCommandRegistration, CommandContext, CommandDescriptor, CommandRegistry,
-    DataImpact, DbUrlRouting, DescribeCommand, RegistryError,
+    CliCommandGroup, CliCommandLeaf, CliCommandRegistration, CommandContext, CommandDescriptor,
+    CommandRegistry, DataImpact, DbUrlRouting, DescribeCommand, RegistryError,
 };
 use systemprompt_cli::{CliConfig, EnvOverrides};
 
@@ -342,7 +342,10 @@ impl CliCommandLeaf for LeafProbeArgs {
 async fn a_single_command_registers_under_a_nested_kernel_group() {
     let registry = registry(vec![CliCommandRegistration::leaf::<LeafProbeArgs>()]);
     let registered = registry
-        .resolve(&matches(&registry, &["infra", "services", "lprobe", "--port", "9"]))
+        .resolve(&matches(
+            &registry,
+            &["infra", "services", "lprobe", "--port", "9"],
+        ))
         .expect("resolve")
         .expect("infra services lprobe is registered");
     assert!(registered.descriptor().serves_api());

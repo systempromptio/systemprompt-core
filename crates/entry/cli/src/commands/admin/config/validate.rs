@@ -29,9 +29,9 @@ use anyhow::{Result, anyhow};
 use clap::Args;
 
 use super::types::{ConfigFileInfo, ConfigSection, ConfigValidateOutput};
-use crate::shared::yaml_document::read_yaml_file;
 use crate::context::CommandContext;
 use crate::shared::CommandOutput;
+use crate::shared::yaml_document::read_yaml_file;
 use systemprompt_config::LoadedProfile;
 use systemprompt_loader::BootContext;
 use systemprompt_manifest::profile::Profile;

@@ -8,8 +8,8 @@ use std::process::Command;
 use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_logging::CliService;
 
-use crate::shared::postgres_access::{PostgresConfig, connect};
 use super::provision::provision_role_and_db;
+use crate::shared::postgres_access::{PostgresConfig, connect};
 
 pub(super) async fn create_database_in_docker(
     children: &ForegroundChildren,

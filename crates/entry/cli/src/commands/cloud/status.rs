@@ -15,8 +15,8 @@ use systemprompt_manifest::Profile;
 
 use crate::cli_settings::CliConfig;
 use crate::cloud::types::{CloudStatusOutput, CredentialsInfo, TenantStatusInfo};
-use crate::shared::profile::ProfileInfo;
 use crate::shared::CommandOutput;
+use crate::shared::profile::ProfileInfo;
 
 pub(super) async fn execute(
     config: &CliConfig,

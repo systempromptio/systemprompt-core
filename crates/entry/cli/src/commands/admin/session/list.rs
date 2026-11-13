@@ -8,10 +8,10 @@ use systemprompt_identifiers::ProfileName;
 use systemprompt_manifest::profile::{CloudConfig, ManagedProfile};
 
 use super::types::ProfileListOutput;
-use crate::shared::profile::ProfileInfo;
 use crate::CliConfig;
 use crate::paths::ResolvedPaths;
 use crate::shared::CommandOutput;
+use crate::shared::profile::ProfileInfo;
 
 pub(super) fn execute(_config: &CliConfig) -> CommandOutput {
     let project_ctx = ProjectContext::discover();

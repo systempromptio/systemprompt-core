@@ -4,8 +4,8 @@
 //! — including the model catalog (`ai/{credentials,providers,models,
 //! deployments}.yaml`) and the gateway (`ai/gateway.yaml`), services files the
 //! loader reads by convention rather than profile sections — and resolves them
-//! to filesystem paths. The remaining types are the serializable outputs rendered by the list, validate, and import/export
-//! flows.
+//! to filesystem paths. The remaining types are the serializable outputs
+//! rendered by the list, validate, and import/export flows.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

@@ -21,8 +21,8 @@ use systemprompt_config::{LoadedProfile, read_catalog, write_catalog, write_priv
 use systemprompt_loader::ConfigLoader;
 use systemprompt_loader::config_loader::catalog::catalog_dir;
 use systemprompt_manifest::Profile;
-use systemprompt_manifest::services::catalog::{CATALOG_FILES, CatalogDocument};
 use systemprompt_manifest::services::ServicesConfig;
+use systemprompt_manifest::services::catalog::{CATALOG_FILES, CatalogDocument};
 
 use super::config_section::ConfigSection;
 

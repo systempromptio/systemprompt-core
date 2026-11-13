@@ -16,7 +16,6 @@ use anyhow::Result;
 use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_logging::CliService;
 
-use crate::shared::postgres_access::PostgresConfig;
 use super::types::{DatabaseSetupInfo, SecretsConfiguredInfo, SetupOutput};
 use super::wizard_dry_run::execute_dry_run;
 use super::wizard_prompts::{
@@ -25,6 +24,7 @@ use super::wizard_prompts::{
 };
 use super::{SetupArgs, profile, secrets, services_files};
 use crate::CliConfig;
+use crate::shared::postgres_access::PostgresConfig;
 
 pub fn should_write(path: &Path, force: bool, config: &CliConfig) -> bool {
     if force || !path.exists() {

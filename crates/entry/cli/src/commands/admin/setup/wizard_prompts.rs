@@ -21,9 +21,9 @@ use systemprompt_identifiers::{Email, ProviderId};
 use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_logging::CliService;
 
-use crate::shared::provider_catalog::VertexSeed;
-use crate::shared::postgres_access::PostgresConfig;
 use super::{SetupArgs, postgres, secrets};
+use crate::shared::postgres_access::PostgresConfig;
+use crate::shared::provider_catalog::VertexSeed;
 
 #[doc(hidden)]
 pub fn get_environment_name(

@@ -10,9 +10,8 @@ use clap::Args;
 
 use super::types::{AgentToolsOutput, AgentToolsSummary, UnavailableServer};
 use crate::CliConfig;
-use crate::commands::shared::mcp_tools::McpToolEntry;
 use crate::commands::shared::mcp_tools::{
-    direct_url, list_tools_authenticated, list_tools_unauthenticated,
+    McpToolEntry, direct_url, list_tools_authenticated, list_tools_unauthenticated,
 };
 use crate::context::CommandContext;
 use crate::interactive::Prompter;

@@ -5,12 +5,12 @@
 
 use systemprompt_cli::CliConfig;
 use systemprompt_cli::admin::setup::SetupArgs;
-use systemprompt_cli::shared::docker_compose::create_compose_files_if_missing;
 use systemprompt_cli::admin::setup::postgres::{setup_interactive, setup_non_interactive};
+use systemprompt_cli::interactive::ScriptedPrompter;
+use systemprompt_cli::shared::docker_compose::create_compose_files_if_missing;
 use systemprompt_cli::shared::postgres_access::{
     PostgresConfig, detect_postgresql, enable_extensions, generate_password, test_connection,
 };
-use systemprompt_cli::interactive::ScriptedPrompter;
 use systemprompt_loader::subprocess::ForegroundChildren;
 
 pub(super) fn scripted(answers: &[&str]) -> ScriptedPrompter {
@@ -478,9 +478,7 @@ fn docker_non_interactive_reuses_reachable_database_without_compose() {
 
 #[test]
 fn docker_non_interactive_refuses_occupied_port() {
-    use systemprompt_cli::shared::docker_compose::{
-        is_compose_available, is_docker_available,
-    };
+    use systemprompt_cli::shared::docker_compose::{is_compose_available, is_docker_available};
     if !is_docker_available(&ForegroundChildren::default())
         || !is_compose_available(&ForegroundChildren::default())
     {

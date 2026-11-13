@@ -3,10 +3,10 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
+use systemprompt_cli::admin::setup::secrets::{SecretsData, vertex};
 use systemprompt_cli::shared::provider_catalog::{
     SeedRequest, VERTEX, VertexSeed, add_vertex, first_model_on, seed_document,
 };
-use systemprompt_cli::admin::setup::secrets::{SecretsData, vertex};
 use systemprompt_manifest::services::catalog::CatalogContext;
 
 fn seed(

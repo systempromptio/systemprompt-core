@@ -16,9 +16,7 @@ use std::time::Duration;
 use systemprompt_cloud::{DockerCli, ProjectContext};
 use systemprompt_config::write_private_atomic;
 
-use crate::shared::docker_compose::{
-    ComposeCredentials, PostgresCompose, postgres_compose,
-};
+use crate::shared::docker_compose::{ComposeCredentials, PostgresCompose, postgres_compose};
 
 const LOCAL_DB_USER: &str = "systemprompt";
 const LOCAL_DB_NAME: &str = "systemprompt";

@@ -7,9 +7,9 @@ use anyhow::Result;
 use clap::Args;
 
 use super::types::{ConfigFileInfo, ConfigListOutput, ConfigSection};
-use crate::shared::yaml_document::read_yaml_file;
 use crate::context::CommandContext;
 use crate::shared::CommandOutput;
+use crate::shared::yaml_document::read_yaml_file;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ListArgs {

@@ -280,8 +280,7 @@ pub fn update_ai_config_default_provider(provider: &str) -> Result<()> {
 
     let mut document = systemprompt_config::read_catalog(&ai_dir)
         .with_context(|| format!("Failed to read {}", ai_dir.display()))?;
-    let Some(model) = crate::shared::provider_catalog::first_model_on(&document, provider)
-    else {
+    let Some(model) = crate::shared::provider_catalog::first_model_on(&document, provider) else {
         CliService::warning(&format!(
             "The catalog deploys no model on '{provider}'; gateway.default_model is unchanged"
         ));
