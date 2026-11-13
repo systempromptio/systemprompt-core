@@ -40,7 +40,7 @@ impl CliCommandGroup for BuildCommands {
     const NAME: &'static str = "build";
     const ABOUT: &'static str = "Build MCP extensions";
 
-    fn run(self, ctx: &CommandContext) -> impl Future<Output = Result<()>> {
+    fn run(self, ctx: &CommandContext) -> impl Future<Output = Result<()>> + Send {
         std::future::ready(execute(self, ctx))
     }
 }

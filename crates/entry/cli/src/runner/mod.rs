@@ -115,11 +115,11 @@ impl Invocation {
         }
     }
 
-    fn is_bare(&self) -> bool {
+    const fn is_bare(&self) -> bool {
         self.registered.is_none() && self.cli.command.is_none()
     }
 
-    fn db_url_routing(&self) -> Option<DbUrlRouting> {
+    const fn db_url_routing(&self) -> Option<DbUrlRouting> {
         match (&self.registered, &self.cli.command) {
             (Some(registered), _) => Some(registered.db_url_routing()),
             (None, Some(command)) => Some(command.db_url_routing()),
@@ -131,7 +131,7 @@ impl Invocation {
         match (self.registered, self.cli.command) {
             (Some(registered), _) => Selected::Registered(registered),
             (None, Some(command)) => Selected::Kernel(command),
-            (None, None) => Selected::Bare(self.root),
+            (None, None) => Selected::Bare(Box::new(self.root)),
         }
     }
 }
@@ -139,7 +139,7 @@ impl Invocation {
 enum Selected {
     Kernel(args::Commands),
     Registered(RegisteredCommand),
-    Bare(Command),
+    Bare(Box<Command>),
 }
 
 async fn run_inner(
@@ -307,7 +307,7 @@ async fn dispatch_command(selected: Selected, ctx: &CommandContext) -> Result<()
         },
         Selected::Registered(registered) => registered.run(ctx).await?,
         Selected::Bare(root) => {
-            root.get_matches_from(["systemprompt", "--help"]);
+            (*root).get_matches_from(["systemprompt", "--help"]);
         },
     }
 
