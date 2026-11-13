@@ -176,7 +176,7 @@ impl PublicationPolicy {
             services: factory_ctx.services.clone(),
             subjects: factory_ctx.subjects.clone(),
             secrets: Arc::clone(&factory_ctx.secrets),
-            state: Default::default(),
+            state: systemprompt_extension::StateHandle::default(),
         };
         Ok(Self::new(
             config,

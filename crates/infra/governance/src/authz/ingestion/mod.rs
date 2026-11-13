@@ -119,7 +119,7 @@ impl AccessControlIngestionService {
             services,
             subjects,
             secrets,
-            state: Default::default(),
+            state: systemprompt_extension::StateHandle::default(),
         });
         Self {
             write_pool: pool,
