@@ -36,6 +36,8 @@ mod cloud_tenant_docker;
 mod cloud_tenant_local_guards;
 #[cfg(test)]
 #[cfg(test)]
+mod command_registry;
+#[cfg(test)]
 mod commands;
 #[cfg(test)]
 mod config_migrate_descriptor;

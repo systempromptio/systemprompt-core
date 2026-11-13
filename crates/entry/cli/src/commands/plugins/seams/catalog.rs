@@ -55,6 +55,15 @@ pub fn linked_seams() -> Vec<LinkedSeam> {
     seams.extend(infra_seams());
     seams.extend(domain_seams());
     seams.extend(app_seams());
+    seams.push(LinkedSeam::new(
+        "cli_commands",
+        "systemprompt-cli",
+        named(
+            inventory::iter::<crate::kernel::CliCommandRegistration>
+                .into_iter()
+                .map(crate::kernel::CliCommandRegistration::path),
+        ),
+    ));
     seams
 }
 

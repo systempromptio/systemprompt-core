@@ -2,14 +2,15 @@
 //! env-bound argument into `--help` unless `hide_env_values` is set.
 //!
 //! A spawned child's environment carries the secrets granted to it, so a
-//! `--help` run inside one would print them. These walk the built
-//! command tree rather than a hand-written list, so an argument added later
-//! cannot reintroduce the leak silently.
+//! `--help` run inside one would print them. These walk the assembled
+//! command tree, registered groups included, rather than a hand-written
+//! list, so an argument added later cannot reintroduce the leak silently.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use clap::{Arg, Command, CommandFactory};
-use systemprompt_cli::args::Cli;
+use systemprompt_cli::args::{self, Cli};
+use systemprompt_cli::kernel::CommandRegistry;
 
 const SENTINEL: &str = "sentinel-do-not-leak";
 
@@ -43,7 +44,9 @@ fn walk(cmd: &Command, path: &str, leaking: &mut Vec<String>) {
 #[test]
 fn no_sensitive_env_bound_arg_renders_its_value_in_help() {
     let mut leaking = Vec::new();
-    walk(&Cli::command(), "systemprompt", &mut leaking);
+    let registry = CommandRegistry::collected().expect("registrations are disjoint");
+    let root = args::command(&registry).expect("assemble the command tree");
+    walk(&root, "systemprompt", &mut leaking);
     assert!(
         leaking.is_empty(),
         "these env-bound args would print their live value in --help; \

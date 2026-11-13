@@ -2,7 +2,10 @@
 //!
 //! Owns argument parsing (`args`), profile/secrets bootstrap (`bootstrap`),
 //! and cloud routing ([`routing`], [`profile_routing`]). [`run`] is the
-//! process entry point.
+//! process entry point: it assembles the command tree from the kernel groups
+//! and the [`CommandRegistry`], parses, resolves the selected command's
+//! [`CommandDescriptor`], bootstraps what that descriptor asks for, and
+//! dispatches.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,7 +21,7 @@ pub mod routing_decision;
 mod structured_output;
 
 use anyhow::{Context, Result, bail};
-use clap::{CommandFactory, FromArgMatches, Parser};
+use clap::{ArgMatches, Command, FromArgMatches};
 use systemprompt_cloud::CloudCredentials;
 use systemprompt_loader::subprocess::{self, ApiServerStamp, ForegroundChildren};
 use systemprompt_logging::OutputState;
@@ -27,18 +30,21 @@ use systemprompt_runtime::DatabaseContext;
 use crate::cli_settings::{CliConfig, OutputFormat};
 use crate::commands::{admin, analytics, cloud, core, infrastructure, plugins, web};
 use crate::context::CommandContext;
-use crate::descriptor::{CommandDescriptor, DescribeCommand};
+use crate::descriptor::{CommandDescriptor, DbUrlRouting, DescribeCommand};
 use crate::env_overrides::EnvOverrides;
+use crate::kernel::{CommandRegistry, RegisteredCommand};
 
 pub async fn run() -> Result<()> {
     install_tls_crypto_provider();
     let output = OutputState::new();
-    let matches = args::Cli::command().get_matches();
-    let cli = args::Cli::from_arg_matches(&matches).map_err(|e| e.exit())?;
+    let registry = CommandRegistry::collected()?;
+    let root = args::command(&registry)?;
+    let matches = root.clone().get_matches();
+    let invocation = Invocation::parse(&registry, root, &matches).map_err(|e| e.exit())?;
     let confirm = confirmation::ConfirmationRequest::from_matches(
         &matches,
         &args::reconstruct_args(),
-        cli.profile_opts.profile.clone(),
+        invocation.cli.profile_opts.profile.clone(),
     );
     let env = EnvOverrides::from_process_env();
     let confirm = confirm.routed_by_gateway(env.is_remote_cli);
@@ -48,10 +54,10 @@ pub async fn run() -> Result<()> {
         shield: shield.clone(),
         children: children.clone(),
     };
-    let outcome = if cli.command.as_ref().is_some_and(args::Commands::serves_api) {
-        Box::pin(run_inner(&output, cli, confirm, guards, env)).await
+    let outcome = if invocation.descriptor().serves_api() {
+        Box::pin(run_inner(&output, invocation, confirm, guards, env)).await
     } else {
-        let command = Box::pin(run_inner(&output, cli, confirm, guards, env));
+        let command = Box::pin(run_inner(&output, invocation, confirm, guards, env));
         interrupt::run_interruptible(shield, children, command).await
     };
     structured_output::finalize(&output, &outcome);
@@ -73,24 +79,83 @@ fn install_tls_crypto_provider() {
     }
 }
 
+/// The parsed command line: global options plus the selected command, which
+/// is either a kernel command (`cli.command`), a registered group, or none.
+struct Invocation {
+    cli: args::Cli,
+    registered: Option<RegisteredCommand>,
+    root: Command,
+}
+
+impl Invocation {
+    fn parse(
+        registry: &CommandRegistry,
+        root: Command,
+        matches: &ArgMatches,
+    ) -> Result<Self, clap::Error> {
+        if let Some(registered) = registry.resolve(matches)? {
+            return Ok(Self {
+                cli: args::Cli::from_globals(matches)?,
+                registered: Some(registered),
+                root,
+            });
+        }
+        Ok(Self {
+            cli: args::Cli::from_arg_matches(matches)?,
+            registered: None,
+            root,
+        })
+    }
+
+    fn descriptor(&self) -> CommandDescriptor {
+        match (&self.registered, &self.cli.command) {
+            (Some(registered), _) => registered.descriptor(),
+            (None, Some(command)) => command.descriptor(),
+            (None, None) => CommandDescriptor::FULL,
+        }
+    }
+
+    fn is_bare(&self) -> bool {
+        self.registered.is_none() && self.cli.command.is_none()
+    }
+
+    fn db_url_routing(&self) -> Option<DbUrlRouting> {
+        match (&self.registered, &self.cli.command) {
+            (Some(registered), _) => Some(registered.db_url_routing()),
+            (None, Some(command)) => Some(command.db_url_routing()),
+            (None, None) => None,
+        }
+    }
+
+    fn into_selected(self) -> Selected {
+        match (self.registered, self.cli.command) {
+            (Some(registered), _) => Selected::Registered(registered),
+            (None, Some(command)) => Selected::Kernel(command),
+            (None, None) => Selected::Bare(self.root),
+        }
+    }
+}
+
+enum Selected {
+    Kernel(args::Commands),
+    Registered(RegisteredCommand),
+    Bare(Command),
+}
+
 async fn run_inner(
     output: &OutputState,
-    cli: args::Cli,
+    invocation: Invocation,
     confirm: confirmation::ConfirmationRequest,
     guards: RunGuards,
     env: EnvOverrides,
 ) -> Result<()> {
-    stamp_api_server_identity(&cli)?;
+    let desc = invocation.descriptor();
+    stamp_api_server_identity(&desc)?;
 
-    let cli_config = configure_output(output, &cli, &env);
+    let cli_config = configure_output(output, &invocation, &env);
 
-    let desc = cli
-        .command
-        .as_ref()
-        .map_or(CommandDescriptor::FULL, DescribeCommand::descriptor);
-
-    let database_url_override = cli.database.database_url.clone();
-    if let Some(database_url) = direct_database_url(&cli)? {
+    let database_url_override = invocation.cli.database.database_url.clone();
+    if let Some(database_url) = direct_database_url(&invocation)? {
         let direct = confirmation::ConfirmationRequest {
             target: Some("the --database-url database".to_owned()),
             ..confirm.clone()
@@ -98,7 +163,7 @@ async fn run_inner(
         confirmation::gate(&desc, &direct, &cli_config)?;
         systemprompt_logging::init_deferred_console_logging(output.clone());
         return Box::pin(run_with_database_url(
-            cli.command,
+            invocation.into_selected(),
             cli_config,
             env,
             DirectDatabase {
@@ -123,7 +188,8 @@ async fn run_inner(
     let mut boot = None;
     if desc.profile() {
         let booted =
-            profile_routing::bootstrap_profile(&cli, &desc, &cli_config, &env, &confirm).await?;
+            profile_routing::bootstrap_profile(&invocation.cli, &desc, &cli_config, &env, &confirm)
+                .await?;
         let loaded = booted.credentials;
         services = booted.services;
         profile = booted.profile;
@@ -132,7 +198,7 @@ async fn run_inner(
             profile_routing::BootstrapOutcome::RemoteExecuted => return Ok(()),
             profile_routing::BootstrapOutcome::ExternalDbUrl(external_db_url) => {
                 return Box::pin(run_with_database_url(
-                    cli.command,
+                    invocation.into_selected(),
                     cli_config,
                     env,
                     DirectDatabase {
@@ -159,11 +225,16 @@ async fn run_inner(
         .with_services(services)
         .with_profile(profile)
         .with_boot(boot);
-    Box::pin(dispatch_command(cli.command, &ctx)).await
+    Box::pin(dispatch_command(invocation.into_selected(), &ctx)).await
 }
 
-fn configure_output(output: &OutputState, cli: &args::Cli, env: &EnvOverrides) -> CliConfig {
-    output.set_startup_mode(cli.command.is_none());
+fn configure_output(
+    output: &OutputState,
+    invocation: &Invocation,
+    env: &EnvOverrides,
+) -> CliConfig {
+    output.set_startup_mode(invocation.is_bare());
+    let cli = &invocation.cli;
     let cli_config = args::build_cli_config(cli, env);
     output.set_structured_output(cli_config.output_format() != OutputFormat::Table);
     if cli.display.no_color || !cli_config.should_use_color() {
@@ -172,17 +243,17 @@ fn configure_output(output: &OutputState, cli: &args::Cli, env: &EnvOverrides) -
     cli_config
 }
 
-fn direct_database_url(cli: &args::Cli) -> Result<Option<String>> {
-    let Some(database_url) = cli.database.database_url.clone() else {
+fn direct_database_url(invocation: &Invocation) -> Result<Option<String>> {
+    let Some(database_url) = invocation.cli.database.database_url.clone() else {
         return Ok(None);
     };
-    match cli.command.as_ref().map(args::Commands::db_url_routing) {
-        Some(db_url::DbUrlRouting::Direct) => Ok(Some(database_url)),
-        Some(db_url::DbUrlRouting::Unsupported) => bail!(
+    match invocation.db_url_routing() {
+        Some(DbUrlRouting::Direct) => Ok(Some(database_url)),
+        Some(DbUrlRouting::Unsupported) => bail!(
             "This command cannot run with --database-url; it requires full profile \
              initialization. Remove --database-url."
         ),
-        Some(db_url::DbUrlRouting::ProfileDriven) | None => Ok(None),
+        Some(DbUrlRouting::ProfileDriven) | None => Ok(None),
     }
 }
 
@@ -204,35 +275,41 @@ fn resolve_log_level(cli_config: &CliConfig, env: &EnvOverrides) -> Option<Strin
     Some("warn".to_owned())
 }
 
-async fn dispatch_command(command: Option<args::Commands>, ctx: &CommandContext) -> Result<()> {
+async fn dispatch_command(selected: Selected, ctx: &CommandContext) -> Result<()> {
     if ctx.is_database_scoped() {
-        match &command {
-            Some(
+        let accepted = match &selected {
+            Selected::Kernel(
                 args::Commands::Core(_)
                 | args::Commands::Infra(_)
                 | args::Commands::Admin(_)
                 | args::Commands::Analytics(_),
-            ) => {},
-            Some(_) => bail!(
-                "This command requires full profile initialization. Remove --database-url flag."
-            ),
-            None => bail!("No subcommand provided. Use --help to see available commands."),
+            ) => true,
+            Selected::Registered(registered) => {
+                registered.db_url_routing() == DbUrlRouting::Direct
+            },
+            Selected::Kernel(_) => false,
+            Selected::Bare(_) => {
+                bail!("No subcommand provided. Use --help to see available commands.")
+            },
+        };
+        if !accepted {
+            bail!("This command requires full profile initialization. Remove --database-url flag.");
         }
     }
 
-    match command {
-        Some(args::Commands::Core(cmd)) => Box::pin(core::execute(cmd, ctx)).await?,
-        Some(args::Commands::Infra(cmd)) => infrastructure::execute(cmd, ctx).await?,
-        Some(args::Commands::Admin(cmd)) => Box::pin(admin::execute(cmd, ctx)).await?,
-        Some(args::Commands::Cloud(cmd)) => cloud::execute(cmd, ctx).await?,
-        Some(args::Commands::Analytics(cmd)) => analytics::execute(cmd, ctx).await?,
-        Some(args::Commands::Web(cmd)) => web::execute(cmd, ctx)?,
-        Some(args::Commands::Plugins(cmd)) => Box::pin(plugins::execute(cmd, ctx)).await?,
-        Some(args::Commands::Build(cmd)) => {
-            crate::commands::build::execute(cmd, ctx)?;
+    match selected {
+        Selected::Kernel(args::Commands::Core(cmd)) => Box::pin(core::execute(cmd, ctx)).await?,
+        Selected::Kernel(args::Commands::Infra(cmd)) => infrastructure::execute(cmd, ctx).await?,
+        Selected::Kernel(args::Commands::Admin(cmd)) => Box::pin(admin::execute(cmd, ctx)).await?,
+        Selected::Kernel(args::Commands::Cloud(cmd)) => cloud::execute(cmd, ctx).await?,
+        Selected::Kernel(args::Commands::Analytics(cmd)) => analytics::execute(cmd, ctx).await?,
+        Selected::Kernel(args::Commands::Web(cmd)) => web::execute(cmd, ctx)?,
+        Selected::Kernel(args::Commands::Plugins(cmd)) => {
+            Box::pin(plugins::execute(cmd, ctx)).await?;
         },
-        None => {
-            args::Cli::parse_from(["systemprompt", "--help"]);
+        Selected::Registered(registered) => registered.run(ctx).await?,
+        Selected::Bare(root) => {
+            root.get_matches_from(["systemprompt", "--help"]);
         },
     }
 
@@ -250,7 +327,7 @@ struct DirectDatabase<'a> {
 }
 
 async fn run_with_database_url(
-    command: Option<args::Commands>,
+    selected: Selected,
     cli_config: CliConfig,
     env: EnvOverrides,
     database: DirectDatabase<'_>,
@@ -270,11 +347,11 @@ async fn run_with_database_url(
         .with_cloud_credentials(credentials)
         .with_interrupt_shield(guards.shield)
         .with_foreground_children(guards.children);
-    Box::pin(dispatch_command(command, &ctx)).await
+    Box::pin(dispatch_command(selected, &ctx)).await
 }
 
-fn stamp_api_server_identity(cli: &args::Cli) -> Result<()> {
-    if !cli.command.as_ref().is_some_and(args::Commands::serves_api) {
+fn stamp_api_server_identity(desc: &CommandDescriptor) -> Result<()> {
+    if !desc.serves_api() {
         return Ok(());
     }
     match subprocess::stamp_api_server()

@@ -1,17 +1,19 @@
 //! Top-level clap argument definitions and the command tree.
 //!
-//! Defines the global option groups, the [`Cli`] parser, and the [`Commands`]
-//! subcommand tree, along with the mapping from each command to its bootstrap
-//! [`CommandDescriptor`] and the argument-reconstruction used when forwarding
-//! to a remote tenant.
+//! Defines the global option groups, the [`Cli`] parser, and the kernel's
+//! [`Commands`] subcommand tree, along with the argument-reconstruction used
+//! when forwarding to a remote tenant. Each group declares its own bootstrap
+//! [`CommandDescriptor`]; [`command`] assembles the full tree from the kernel
+//! groups plus every group registered through the [`CommandRegistry`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use clap::{Parser, Subcommand};
+use clap::{ArgMatches, Command, CommandFactory, FromArgMatches, Parser, Subcommand};
 
-use crate::commands::{admin, analytics, build, cloud, core, infrastructure, plugins, web};
+use crate::commands::{admin, analytics, cloud, core, infrastructure, plugins, web};
 use crate::descriptor::{CommandDescriptor, DescribeCommand};
+use crate::kernel::{CommandRegistry, RegistryError};
 
 #[derive(Debug, Clone, Copy, clap::Args)]
 pub struct VerbosityOpts {
@@ -151,124 +153,38 @@ pub enum Commands {
 
     #[command(subcommand, about = "Plugins, extensions, and MCP server management")]
     Plugins(plugins::PluginsCommands),
-
-    #[command(subcommand, about = "Build MCP extensions")]
-    Build(build::BuildCommands),
 }
 
 impl DescribeCommand for Commands {
     fn descriptor(&self) -> CommandDescriptor {
-        self.bootstrap_descriptor()
-            .with_data_impact(self.data_impact())
-    }
-}
-
-impl Commands {
-    #[must_use]
-    pub const fn serves_api(&self) -> bool {
-        match self {
-            Self::Infra(infrastructure::InfraCommands::Services(cmd)) => cmd.serves_api(),
-            _ => false,
-        }
-    }
-
-    fn bootstrap_descriptor(&self) -> CommandDescriptor {
-        match self {
+        let bootstrap = match self {
+            Self::Core(cmd) => cmd.descriptor(),
+            Self::Infra(cmd) => cmd.descriptor(),
+            Self::Admin(cmd) => cmd.descriptor(),
             Self::Cloud(cmd) => cmd.descriptor(),
+            Self::Analytics(cmd) => cmd.descriptor(),
+            Self::Web(cmd) => cmd.descriptor(),
             Self::Plugins(cmd) => cmd.descriptor(),
-            Self::Admin(admin::AdminCommands::Session(cmd)) => cmd.descriptor(),
-            Self::Admin(admin::AdminCommands::Config(admin::config::ConfigCommands::Secret(
-                admin::config::secret::SecretCommands::MigrateGitCredentials(_),
-            ))) => CommandDescriptor::FULL,
-            Self::Admin(
-                admin::AdminCommands::Config(admin::config::ConfigCommands::Secret(_))
-                | admin::AdminCommands::Agents(admin::agents::AgentsCommands::Run(_)),
-            )
-            | Self::Build(_) => CommandDescriptor::PROFILE_ONLY,
-            Self::Admin(
-                admin::AdminCommands::Bridge(admin::bridge::BridgeCommands::SigningKeyFingerprint(
-                    _,
-                ))
-                | admin::AdminCommands::Config(admin::config::ConfigCommands::Validate(_)),
-            ) => CommandDescriptor::PROFILE_AND_SECRETS,
-            Self::Admin(admin::AdminCommands::Config(admin::config::ConfigCommands::Migrate(
-                args,
-            ))) if args.profiles.is_some() => CommandDescriptor::NONE,
-            Self::Admin(admin::AdminCommands::Config(admin::config::ConfigCommands::Migrate(
-                args,
-            ))) if !args.data => CommandDescriptor::PROFILE_AND_SECRETS,
-            Self::Admin(admin::AdminCommands::Setup(_))
-            | Self::Core(
-                core::CoreCommands::Marketplace(core::marketplace::MarketplaceCommands::Import(_))
-                | core::CoreCommands::Services(
-                    core::services::ServicesCommands::Validate(_)
-                    | core::services::ServicesCommands::Bundle(_)
-                    | core::services::ServicesCommands::Keygen(_),
-                ),
-            ) => CommandDescriptor::NONE,
-            Self::Core(core::CoreCommands::Services(
-                core::services::ServicesCommands::Publish(args),
-            )) => {
-                if args.auth_secret.is_some() {
-                    CommandDescriptor::PROFILE_AND_SECRETS
-                } else {
-                    CommandDescriptor::NONE
-                }
-            },
-            Self::Core(core::CoreCommands::Services(
-                core::services::ServicesCommands::Inspect(args),
-            )) => {
-                if args.active {
-                    CommandDescriptor::PROFILE_SECRETS_AND_PATHS
-                } else {
-                    CommandDescriptor::NONE
-                }
-            },
-            Self::Admin(admin::AdminCommands::Config(_))
-            | Self::Web(_)
-            | Self::Core(
-                core::CoreCommands::Hooks(_)
-                | core::CoreCommands::Plugins(_)
-                | core::CoreCommands::Skills(
-                    core::skills::SkillsCommands::List(_) | core::skills::SkillsCommands::Show(_),
-                ),
-            ) => CommandDescriptor::PROFILE_SECRETS_AND_PATHS,
-            Self::Infra(cmd) => infra_descriptor(cmd),
-            Self::Admin(admin::AdminCommands::Licence(_)) => {
-                CommandDescriptor::FULL.with_read_only()
-            },
-            Self::Analytics(_) => CommandDescriptor::FULL
-                .with_skip_validation()
-                .with_read_only(),
-            _ => CommandDescriptor::FULL,
-        }
+        };
+        bootstrap.with_data_impact(self.data_impact())
     }
 }
 
-// Why: the registry lives in a OnceLock, so whoever installs it first decides
-// whether discovered models are served. The server must be that installer,
-// with discovery; a plain `try_init` here made `try_init_with_discovery` a
-// silent no-op on every boot.
-const fn infra_descriptor(cmd: &infrastructure::InfraCommands) -> CommandDescriptor {
-    use infrastructure::InfraCommands;
-    use infrastructure::jobs::JobsCommands;
-    use infrastructure::logs::LogsCommands;
-    use infrastructure::services::ServicesCommands;
-
-    match cmd {
-        InfraCommands::Services(
-            ServicesCommands::Serve { .. } | ServicesCommands::Start { .. },
-        ) => CommandDescriptor::PROFILE_SECRETS_AND_PATHS.with_model_discovery(),
-        InfraCommands::Services(_) => CommandDescriptor::PROFILE_SECRETS_AND_PATHS,
-        InfraCommands::Jobs(JobsCommands::Run(_) | JobsCommands::List) => {
-            CommandDescriptor::FULL.with_skip_validation()
-        },
-        InfraCommands::Logs(LogsCommands::Delete(_) | LogsCommands::Cleanup(_)) => {
-            CommandDescriptor::FULL
-        },
-        InfraCommands::Logs(_) => CommandDescriptor::FULL.with_read_only(),
-        _ => CommandDescriptor::FULL,
+impl Cli {
+    pub fn from_globals(matches: &ArgMatches) -> Result<Self, clap::Error> {
+        Ok(Self {
+            verbosity: VerbosityOpts::from_arg_matches(matches)?,
+            output: OutputOpts::from_arg_matches(matches)?,
+            display: DisplayOpts::from_arg_matches(matches)?,
+            database: DatabaseOpts::from_arg_matches(matches)?,
+            profile_opts: ProfileOpts::from_arg_matches(matches)?,
+            command: None,
+        })
     }
+}
+
+pub fn command(registry: &CommandRegistry) -> Result<Command, RegistryError> {
+    registry.assemble(Cli::command())
 }
 
 mod assemble;

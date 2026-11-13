@@ -2,7 +2,7 @@
 
 The complete command surface of the `systemprompt` CLI. The binary groups commands into eight top-level domains: `core`, `infra`, `admin`, `cloud`, `analytics`, `web`, `plugins`, and `build`.
 
-Command structure is defined in `crates/entry/cli/src/runner/args/mod.rs` and the modules under `crates/entry/cli/src/commands/`.
+The command tree is assembled at startup from two sources: the kernel groups named in `crates/entry/cli/src/runner/args/mod.rs`, and command groups registered at link time with `register_cli_command!` (`crates/entry/cli/src/kernel/`). A registered group declares its parent (top level, or under a kernel group such as `admin`), its name and help, and the same bootstrap descriptor kernel commands carry: whether it needs a profile, secrets, paths or a database, how it routes against a cloud profile, whether it destroys data, and whether it accepts `--database-url`. Registered groups appear in `--help` after the kernel groups, ordered by path. Two registrations of one path, a registration that shadows a kernel command, or one under a parent that does not exist stops the binary at startup with an error naming the registering types. `plugins seams` lists the registered groups under `cli_commands`. `build` is a registered group.
 
 ## Synopsis
 

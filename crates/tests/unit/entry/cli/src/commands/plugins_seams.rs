@@ -47,6 +47,7 @@ fn every_seam_is_listed_once_including_empty_ones() {
         "brain_filters",
         "notification_routers",
         "document_codecs",
+        "cli_commands",
     ] {
         assert!(names.contains(&expected), "{expected} is enumerated");
     }
@@ -58,6 +59,12 @@ fn the_compiled_binary_links_core_registrations() {
     let find = |name: &str| seams.iter().find(|s| s.name == name).unwrap();
     assert!(!find("extensions").entries.is_empty());
     assert!(!find("jobs").entries.is_empty());
+    assert!(
+        find("cli_commands")
+            .entries
+            .iter()
+            .any(|entry| entry == "build")
+    );
 }
 
 #[test]
