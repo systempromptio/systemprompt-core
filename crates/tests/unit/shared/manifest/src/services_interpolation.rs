@@ -128,3 +128,39 @@ fn prompt_instruction_description_and_hook_text_stays_literal() {
         .expect("command");
     assert_eq!(command, "${CLAUDE_PLUGIN_ROOT}/check.sh");
 }
+
+#[test]
+fn a_disk_hook_command_keeps_the_placeholder_its_client_expands() {
+    let yaml = "id: session_log\nevent: SubagentStop\ncommand: node \"${CLAUDE_PLUGIN_ROOT}/scripts/log.mjs\"\n";
+    let (value, unresolved) = run(yaml, &[], ServicesInterpolation::Resolve)
+        .expect("an unset client variable in a hook command does not fail the load");
+    assert!(unresolved.is_empty());
+    assert_eq!(
+        at(&value, &["command"]),
+        "node \"${CLAUDE_PLUGIN_ROOT}/scripts/log.mjs\""
+    );
+}
+
+#[test]
+fn skill_frontmatter_is_carried_through_unresolved_even_when_the_variable_is_set() {
+    let yaml = "id: apply\nfrontmatter:\n  allowed-tools: Bash(node \"${CLAUDE_PLUGIN_ROOT}/a.mjs\" *) Read(${CLAUDE_SKILL_DIR}/**)\n";
+    let (value, unresolved) = run(
+        yaml,
+        &[("CLAUDE_PLUGIN_ROOT", "/server/side/path")],
+        ServicesInterpolation::Resolve,
+    )
+    .expect("frontmatter placeholders belong to the client");
+    assert!(unresolved.is_empty());
+    assert_eq!(
+        at(&value, &["frontmatter", "allowed-tools"]),
+        "Bash(node \"${CLAUDE_PLUGIN_ROOT}/a.mjs\" *) Read(${CLAUDE_SKILL_DIR}/**)"
+    );
+}
+
+#[test]
+fn a_sibling_of_a_verbatim_key_still_fails_on_an_unset_variable() {
+    let yaml = "id: apply\nfrontmatter:\n  allowed-tools: ${CLAUDE_PLUGIN_ROOT}\nfile: \"${SKILL_FILE}\"\n";
+    let err = run(yaml, &[], ServicesInterpolation::Resolve)
+        .expect_err("a non-verbatim field with an unset variable fails the load");
+    assert!(format!("{err}").contains("SKILL_FILE"), "{err}");
+}

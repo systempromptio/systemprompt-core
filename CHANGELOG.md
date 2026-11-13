@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.81.1] - 2026-11-13
+
+### Fixed
+
+- **Configuration:** a disk hook's `command` and a skill's carried-through `frontmatter` are never rewritten by services `${VAR}` interpolation, so a placeholder the client expands, such as `${CLAUDE_PLUGIN_ROOT}` or `${CLAUDE_SKILL_DIR}`, loads as written instead of failing the load as an unset variable.
+
 ## [0.81.0] - 2026-11-12
 
 ### Breaking
