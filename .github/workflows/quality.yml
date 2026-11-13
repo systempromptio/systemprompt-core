@@ -384,15 +384,7 @@ jobs:
       - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
         with:
           tool: cargo-machete@0.9.2,cargo-hakari@0.9.39
-      - run: python3 scripts/test-release-proof.py
-        if: ${{ !cancelled() }}
-      - run: python3 scripts/test-test-shard.py
-        if: ${{ !cancelled() }}
-      - run: python3 scripts/test-collect-fallback-profraw.py
-        if: ${{ !cancelled() }}
-      - run: python3 scripts/test-gate-roots.py
-        if: ${{ !cancelled() }}
-      - run: python3 scripts/test-check-test-value.py
+      - run: bash scripts/test-scripts.sh
         if: ${{ !cancelled() }}
       - run: just check-release-tag
         if: ${{ !cancelled() }}

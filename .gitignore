@@ -201,6 +201,7 @@ scripts/*
 !scripts/affected-force-full.txt
 !scripts/units.txt
 !scripts/cargo_graph.py
+!scripts/test-scripts.sh
 !scripts/gate-scopes.txt
 !scripts/gate.sh
 !scripts/changelog-assemble.py
