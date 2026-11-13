@@ -238,19 +238,16 @@ fn link_passkey_router(ctx: &AppContext) -> systemprompt_extension::ExtensionRou
     .with_rate_limit(RateLimit::new("oauth_public", RateBudget::OauthPublic))
 }
 
+fn require_provider<T: std::any::Any>(
+    extension: &str,
+    provider: Option<T>,
+) -> Result<T, LoaderError> {
+    provider.ok_or_else(|| LoaderError::missing_provider::<T>(ExtensionId::new(extension)))
+}
+
 fn build_jwt_extractor(ctx: &AppContext) -> Result<JwtContextExtractor, LoaderError> {
-    let analytics = ctx
-        .session_provider()
-        .ok_or_else(|| LoaderError::InitializationFailed {
-            extension: ExtensionId::new("jwt"),
-            message: "SessionProvider is required for JWT session enforcement".to_owned(),
-        })?;
-    let user_provider = ctx
-        .user_provider()
-        .ok_or_else(|| LoaderError::InitializationFailed {
-            extension: ExtensionId::new("jwt"),
-            message: "UserProvider is required for JWT validation".to_owned(),
-        })?;
+    let analytics = require_provider("jwt", ctx.session_provider())?;
+    let user_provider = require_provider("jwt", ctx.user_provider())?;
     let jti_revocation = JtiRevocationChecker::from_repository(
         ctx.oauth_repositories().oauth.clone(),
         ctx.cache_epochs().clone(),

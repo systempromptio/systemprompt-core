@@ -24,14 +24,11 @@ fn loader_error_duplicate_extension_display() {
 }
 
 #[test]
-fn loader_error_initialization_failed_display() {
-    let err = LoaderError::InitializationFailed {
-        extension: ExtensionId::new("fail-ext"),
-        message: "startup crashed".to_string(),
-    };
-    let msg = err.to_string();
-    assert!(msg.contains("fail-ext"));
-    assert!(msg.contains("startup crashed"));
+fn loader_error_missing_provider_names_the_extension_and_keeps_the_type() {
+    let err = LoaderError::missing_provider::<std::sync::Arc<String>>(ExtensionId::new("fail-ext"));
+    assert!(err.to_string().contains("fail-ext"));
+    let source = std::error::Error::source(&err).expect("the missing type is the source");
+    assert!(source.to_string().contains("String"), "{source}");
 }
 
 #[test]

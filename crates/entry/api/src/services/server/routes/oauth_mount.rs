@@ -24,22 +24,14 @@ use systemprompt_oauth_issuance::JwksCache;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::AppContext as AppContextTrait;
 
-use super::RouteMountError;
 use super::protocol::MountCtx;
+use super::{RouteMountError, require_provider};
 use crate::services::middleware::place;
 
 fn create_oauth_state(ctx: &AppContext) -> Result<OAuthState, LoaderError> {
-    let missing = |provider: &str| LoaderError::InitializationFailed {
-        extension: ExtensionId::new("oauth"),
-        message: format!("{provider} is required to mount the OAuth routes"),
-    };
-    let analytics = ctx
-        .analytics_provider()
-        .ok_or_else(|| missing("AnalyticsProvider"))?;
-    let users = ctx.user_provider().ok_or_else(|| missing("UserProvider"))?;
-    let sessions = ctx
-        .session_provider()
-        .ok_or_else(|| missing("SessionProvider"))?;
+    let analytics = require_provider("oauth", ctx.analytics_provider())?;
+    let users = require_provider("oauth", ctx.user_provider())?;
+    let sessions = require_provider("oauth", ctx.session_provider())?;
     let mcp_registry: Arc<dyn systemprompt_traits::McpRegistryProvider> =
         Arc::new(ctx.mcp_registry().clone());
     let oauth_repository = ctx.oauth_repositories().oauth.clone();

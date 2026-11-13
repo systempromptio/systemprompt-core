@@ -7,7 +7,6 @@
 
 use axum::Router;
 use systemprompt_extension::LoaderError;
-use systemprompt_identifiers::ExtensionId;
 use systemprompt_traits::AppContext as AppContextTrait;
 
 use super::protocol::MountCtx;
@@ -19,12 +18,7 @@ pub(super) fn mount_brain_routes(
     let ctx = mount.ctx;
     let brain_routes = match ctx.brain() {
         Some(brain) => {
-            let users = ctx
-                .user_provider()
-                .ok_or_else(|| LoaderError::InitializationFailed {
-                    extension: ExtensionId::new("brain"),
-                    message: "UserProvider is required for the brain routes".to_owned(),
-                })?;
+            let users = super::require_provider("brain", ctx.user_provider())?;
             let (service, recall, profile) = brain.routes();
             Some(
                 crate::routes::brain::BrainRoutes::new(service, recall, profile, users)
