@@ -29,8 +29,13 @@
 #
 #   scripts/lint-ledger-reads.sh            # gate
 #   scripts/lint-ledger-reads.sh --list     # print every current offender as a baseline line
+#   scripts/lint-ledger-reads.sh [--list] --paths P...   # only files under P; the
+#                                           # baseline is not judged for staleness
 set -uo pipefail
-cd "$(dirname "$0")/.."
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
+gate_scope_parse "$@"
+set -- "${GATE_ARGS[@]}"
+cd "$GATE_ROOT"
 
 MODE="${1:-}"
 
@@ -39,8 +44,12 @@ for d in crates/infra/*/src crates/domain/*/src crates/app/*/src; do
     [ -d "$d" ] && SCAN_DIRS+=("$d")
 done
 [ "${#SCAN_DIRS[@]}" -gt 0 ] || { echo "lint-ledger-reads: no scan directory found" >&2; exit 2; }
+mapfile -t SCAN_DIRS < <(gate_roots "${SCAN_DIRS[@]}")
+gate_pass_if_empty lint-ledger-reads "${#SCAN_DIRS[@]}"
+FULL=0
+gate_full_mode && FULL=1
 
-MODE="$MODE" python3 - "${SCAN_DIRS[@]}" <<'PY'
+MODE="$MODE" FULL="$FULL" python3 - "${SCAN_DIRS[@]}" <<'PY'
 import hashlib, os, pathlib, re, sys
 
 BASELINE = pathlib.Path("scripts/ledger-reads-baseline.txt")
@@ -114,7 +123,7 @@ def literals(path):
 
 found = {}
 for root in (pathlib.Path(a) for a in sys.argv[1:]):
-    for path in sorted(root.rglob("*")):
+    for path in [root] if root.is_file() else sorted(root.rglob("*")):
         if path.suffix not in (".rs", ".sql") or not path.is_file():
             continue
         posix = path.as_posix()
@@ -140,7 +149,7 @@ if BASELINE.exists():
             baseline.add(raw)
 
 new = sorted(k for k in found if k not in baseline)
-stale = sorted(k for k in baseline if k not in found)
+stale = sorted(k for k in baseline if k not in found) if os.environ.get("FULL") == "1" else []
 if new:
     print("lint-ledger-reads: a page or job re-derives a fact from the ledger")
     for key in new:

@@ -11,10 +11,22 @@
 #   - a raw string literal (r"..." / r#"..."#) — the form inline SQL takes; or
 #   - a Migration::new / Migration::with_down / Migration::new_no_transaction
 #     call — migrations must come from extension_migrations!().
+#
+#   scripts/lint-extensions.sh [ROOT] [--paths P...]   (ROOT defaults to crates)
 
 set -euo pipefail
 
-ROOT="${1:-crates}"
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
+gate_scope_parse "$@"
+set -- "${GATE_ARGS[@]}"
+if [ "$#" -gt 0 ]; then
+    ROOTS=("$1")
+else
+    cd "$GATE_ROOT"
+    mapfile -t ROOTS < <(gate_roots crates)
+    gate_pass_if_empty lint-extensions "${#ROOTS[@]}"
+fi
+ROOT="${ROOTS[*]}"
 
 if ! command -v grep >/dev/null 2>&1; then
     echo "lint-extensions: grep not found" >&2
@@ -22,7 +34,7 @@ if ! command -v grep >/dev/null 2>&1; then
 fi
 
 # shellcheck disable=SC2207
-files=($(find "$ROOT" -type f -name 'extension.rs' \
+files=($(find "${ROOTS[@]}" -type f -name 'extension.rs' \
     -not -path '*/target/*' \
     | sort))
 

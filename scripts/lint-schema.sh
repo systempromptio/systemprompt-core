@@ -16,10 +16,22 @@
 # allowlist admits) are skipped: a DELETE inside a retention function is the
 # function's behaviour, not a schema mutation. The install-time linter does the
 # precise check.
+#
+#   scripts/lint-schema.sh [ROOT] [--paths P...]   (ROOT defaults to crates)
 
 set -euo pipefail
 
-ROOT="${1:-crates}"
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
+gate_scope_parse "$@"
+set -- "${GATE_ARGS[@]}"
+if [ "$#" -gt 0 ]; then
+    ROOTS=("$1")
+else
+    cd "$GATE_ROOT"
+    mapfile -t ROOTS < <(gate_roots crates)
+    gate_pass_if_empty lint-schema "${#ROOTS[@]}"
+fi
+ROOT="${ROOTS[*]}"
 
 if ! command -v grep >/dev/null 2>&1; then
     echo "lint-schema: grep not found" >&2
@@ -27,7 +39,7 @@ if ! command -v grep >/dev/null 2>&1; then
 fi
 
 # shellcheck disable=SC2207
-files=($(find "$ROOT" -type f -name '*.sql' \
+files=($(find "${ROOTS[@]}" -type f -name '*.sql' \
     -path '*/schema/*' \
     -not -path '*/schema/migrations/*' \
     -not -path '*/target/*' \

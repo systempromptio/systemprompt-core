@@ -16,9 +16,13 @@
 #
 # Allowlist: `path|reason`. A file listed here may still spell those paths; an
 # entry whose file holds no such literal fails so the list only shrinks.
+#
+#   scripts/lint-path-literals.sh [--paths P...]   # stale entries judged in full mode only
 set -euo pipefail
-
-cd "$(dirname "$0")/.."
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
+gate_scope_parse "$@"
+set -- "${GATE_ARGS[@]}"
+cd "$GATE_ROOT"
 
 canonical="crates/shared/models/src/modules/api_paths.rs"
 pattern='"/(v1/bridge|v1/auth/bridge|otel|mcp|api/public/hooks|api/v1/)[^"]*"'
@@ -37,7 +41,7 @@ declare -A allowed
 while IFS='|' read -r path reason; do
     [ -n "$path" ] || continue
     [ -n "$reason" ] || { echo "lint-path-literals: allowlist entry for $path has no reason" >&2; exit 2; }
-    [ -f "$path" ] || { echo "lint-path-literals: allowlisted file $path is gone; remove the entry" >&2; exit 2; }
+    gate_full_mode && { [ -f "$path" ] || { echo "lint-path-literals: allowlisted file $path is gone; remove the entry" >&2; exit 2; }; }
     allowed["$path"]=0
 done <<<"$allowlist"
 
@@ -53,9 +57,9 @@ while IFS= read -r file; do
         echo "    ${hit#*:}" >&2
     done <<<"$hits"
     fail=1
-done < <(find bin/bridge/src crates/entry/api/src/routes/gateway -name '*.rs' | sort)
+done < <(find bin/bridge/src crates/entry/api/src/routes/gateway -name '*.rs' | sort | gate_filter)
 
-for path in "${!allowed[@]}"; do
+gate_full_mode && for path in "${!allowed[@]}"; do
     if [ "${allowed[$path]}" -eq 0 ]; then
         echo "ERROR: lint-path-literals: stale allowlist entry $path (no path literal left; remove it)" >&2
         fail=1

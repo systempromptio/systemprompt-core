@@ -26,9 +26,14 @@
 # first, so a comment mentioning `hostStatus()` and a path ending `/bridge.js`
 # are not uses. Template `${...}` expressions are kept, but nested braces inside
 # one are not parsed -- that direction only ever misses a use, never invents one.
+#
+#   scripts/lint-bridge-js-imports.sh [--paths P...]   # exports are always read from
+#                                   # the whole web tree; only files under P are judged
 set -euo pipefail
-
-cd "$(dirname "$0")/.."
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
+gate_scope_parse "$@"
+set -- "${GATE_ARGS[@]}"
+cd "$GATE_ROOT"
 
 js="bin/bridge/web/js"
 
@@ -131,7 +136,7 @@ while IFS= read -r file; do
 "
         fail=1
     done < <(grep -nE "\(($names_alt)\)[[:space:]]*=>|\(($names_alt)[[:space:]]*,|,[[:space:]]*(($names_alt))\)[[:space:]]*=>|function[[:space:]]*\([^)]*\b($names_alt)\b[^)]*\)" "$file" || true)
-done < <(find "$js" -name '*.js' | sort)
+done < <(find "$js" -name '*.js' | sort | gate_filter)
 
 if [ -n "$unresolved_report" ]; then
     echo "lint-bridge-js-imports: helper used without importing it:"
