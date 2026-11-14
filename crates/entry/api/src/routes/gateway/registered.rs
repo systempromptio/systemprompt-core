@@ -116,8 +116,8 @@ pub enum GatewayRouteError {
     MissingState(#[from] MissingDependency),
 }
 
-pub fn admit_registrations(registrations: &[GatewayRouteRegistration]) -> Result<(), MountError> {
-    for registration in registrations {
+pub fn admit_registrations(linked: &[GatewayRouteRegistration]) -> Result<(), MountError> {
+    for registration in linked {
         admit_gateway_route(
             registration.extension,
             registration.path,
@@ -125,8 +125,8 @@ pub fn admit_registrations(registrations: &[GatewayRouteRegistration]) -> Result
             registration.budget,
         )?;
     }
-    let paths: Vec<&'static str> = registrations.iter().map(|r| r.path).collect();
-    refuse_overlap(&paths)
+    let prefixes: Vec<&'static str> = linked.iter().map(|r| r.path).collect();
+    refuse_overlap(&prefixes)
 }
 
 async fn only_under(prefix: &'static str, request: Request, next: Next) -> Response {
@@ -142,14 +142,14 @@ pub(crate) fn build_registered(
     disabled: &[ExtensionId],
     jwt: &Arc<JwtContextExtractor>,
 ) -> Result<Vec<RegisteredGatewayRoutes>, GatewayRouteError> {
-    let registrations: Vec<GatewayRouteRegistration> =
+    let linked: Vec<GatewayRouteRegistration> =
         systemprompt_extension::__inventory::iter::<GatewayRouteRegistration>
             .into_iter()
             .copied()
             .collect();
-    admit_registrations(&registrations)?;
+    admit_registrations(&linked)?;
     let mut built = Vec::new();
-    for registration in registrations {
+    for registration in linked {
         let enabled = ctx.has_extension(registration.extension)
             && !disabled.iter().any(|id| id == registration.extension);
         if !enabled {
@@ -162,9 +162,10 @@ pub(crate) fn build_registered(
             continue;
         }
         let prefix = ApiPaths::gateway_relative(registration.path);
-        let router = (registration.factory)(ctx, GatewayCredential::new(jwt))?.layer(
-            axum::middleware::from_fn(move |request, next| only_under(prefix, request, next)),
-        );
+        let router = (registration.factory)(ctx, GatewayCredential::new(jwt))?
+            .layer(axum::middleware::from_fn(move |request, next| {
+                only_under(prefix, request, next)
+            }));
         built.push(RegisteredGatewayRoutes {
             scope: registration.scope,
             budget: registration.budget,

@@ -181,7 +181,8 @@ async fn a_core_body_limit_above_the_default_must_be_exempted_for_its_own_group(
     ));
 
     for exemption in CoreDeclaration::ALL {
-        let Allowance::BodyLimit(bytes) = exemption.allowance() else {
+        let (Allowance::BodyLimit, Some(bytes)) = (exemption.allowance(), exemption.body_limit())
+        else {
             continue;
         };
         let listed = RouteProtection::new(exemption.policy(), exemption.context())

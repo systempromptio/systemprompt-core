@@ -21,15 +21,9 @@ pub enum CoreShapeField {
 }
 
 impl CoreDeclaration {
-    #[must_use]
-    pub const fn layers(self) -> &'static [ProtectionLayer] {
-        &[]
-    }
+    pub const PINNED_LAYERS: &'static [ProtectionLayer] = &[];
 
-    #[must_use]
-    pub const fn frame_options(self) -> Option<FrameOptions> {
-        None
-    }
+    pub const PINNED_FRAME_OPTIONS: Option<FrameOptions> = None;
 
     #[must_use]
     pub fn mismatch(self, protection: &RouteProtection) -> Option<CoreShapeField> {
@@ -44,9 +38,9 @@ impl CoreDeclaration {
             Some(CoreShapeField::RateLimit)
         } else if protection.body_limit != self.body_limit() {
             Some(CoreShapeField::BodyLimit)
-        } else if protection.layers.as_slice() != self.layers() {
+        } else if protection.layers.as_slice() != Self::PINNED_LAYERS {
             Some(CoreShapeField::Layers)
-        } else if protection.frame_options != self.frame_options() {
+        } else if protection.frame_options != Self::PINNED_FRAME_OPTIONS {
             Some(CoreShapeField::FrameOptions)
         } else {
             None

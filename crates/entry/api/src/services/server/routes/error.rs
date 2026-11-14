@@ -21,12 +21,16 @@ pub(crate) enum RouteMountError {
     #[error(transparent)]
     Mount(Box<MountError>),
 
-    #[error("failed to initialise {component}")]
-    Initialization {
-        component: &'static str,
-        #[source]
-        source: BoxedSource,
-    },
+    #[error(transparent)]
+    Initialization(Box<InitializationError>),
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error("failed to initialise {component}")]
+pub(crate) struct InitializationError {
+    component: &'static str,
+    #[source]
+    source: BoxedSource,
 }
 
 impl From<LoaderError> for RouteMountError {
@@ -43,9 +47,9 @@ impl From<MountError> for RouteMountError {
 
 impl RouteMountError {
     pub(super) fn initialization(component: &'static str, source: impl Into<BoxedSource>) -> Self {
-        Self::Initialization {
+        Self::Initialization(Box::new(InitializationError {
             component,
             source: source.into(),
-        }
+        }))
     }
 }
