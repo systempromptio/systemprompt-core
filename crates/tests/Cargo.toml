@@ -300,6 +300,7 @@ systemprompt-marketplace = { path = "../domain/marketplace" }
 systemprompt-slack = { path = "../domain/slack" }
 systemprompt-teams = { path = "../domain/teams" }
 systemprompt-runtime = { path = "../app/runtime", features = ["geolocation", "notifications", "brain", "engine-loro"] }
+systemprompt-mcp-host = { path = "../app/mcp-host", features = ["notifications", "brain"] }
 systemprompt-scheduler = { path = "../app/scheduler" }
 systemprompt-agent-runs = { path = "../app/agent-runs" }
 systemprompt-generator = { path = "../app/generator" }

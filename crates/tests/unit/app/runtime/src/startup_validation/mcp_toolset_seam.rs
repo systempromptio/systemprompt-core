@@ -27,11 +27,11 @@ fn unknown_enabled_toolsets_are_reported_in_server_order() {
     );
     assert_eq!(
         issues[0].message,
-        "Toolset 'phantom' is not registered by any linked crate"
+        "Toolset 'phantom' is not registered by any crate linked into this binary"
     );
     assert_eq!(
         issues[1].message,
-        "Toolset 'ghost' is not registered by any linked crate"
+        "Toolset 'ghost' is not registered by any crate linked into this binary"
     );
     assert!(
         issues[0]
@@ -51,18 +51,73 @@ fn every_known_toolset_yields_no_issue() {
 }
 
 #[test]
-fn an_internal_server_without_a_binary_is_reported() {
+fn an_internal_server_without_a_binary_or_toolsets_is_reported() {
     let mut server = deployment(McpServerType::Internal, true, false, "unused");
     server.binary = None;
     let cfg = services_with(vec![("nobin", server)]);
 
-    let errors = collect_manifest_errors(&cfg, false, |_| Ok::<(), String>(()));
+    let errors = collect_manifest_errors(&cfg, false, &["known"], |_| Ok::<(), String>(()));
 
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].field, "mcp_servers.nobin.binary");
-    assert_eq!(errors[0].message, "Internal server declares no binary");
     assert_eq!(
-        errors[0].suggestion.as_deref(),
-        Some("Set binary: <extension binary> in services/mcp/nobin.yaml")
+        errors[0].message,
+        "Internal server declares neither a binary nor toolsets"
     );
+}
+
+#[test]
+fn a_hosted_server_with_registered_toolsets_passes() {
+    let mut server = deployment(McpServerType::Internal, true, false, "unused");
+    server.binary = None;
+    server.toolsets = vec![toolset("known", true)];
+    let cfg = services_with(vec![("hosted", server)]);
+
+    let errors = collect_manifest_errors(&cfg, false, &["known"], |_| {
+        Err::<(), String>("a hosted server resolves no binary".to_owned())
+    });
+
+    assert!(errors.is_empty(), "{errors:?}");
+}
+
+#[test]
+fn a_hosted_server_naming_an_unregistered_toolset_fails() {
+    let mut server = deployment(McpServerType::Internal, true, false, "unused");
+    server.binary = None;
+    server.toolsets = vec![toolset("known", true), toolset("ghost", true)];
+    let cfg = services_with(vec![("hosted", server)]);
+
+    let errors = collect_manifest_errors(&cfg, false, &["known"], |_| Ok::<(), String>(()));
+
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].field, "mcp_servers.hosted.toolsets");
+    assert!(errors[0].message.contains("'ghost'"), "{}", errors[0].message);
+}
+
+#[test]
+fn an_empty_inventory_fails_every_hosted_toolset_closed() {
+    let mut server = deployment(McpServerType::Internal, true, false, "unused");
+    server.binary = None;
+    server.toolsets = vec![toolset("issues", true), toolset("documents", true)];
+    let cfg = services_with(vec![("hosted", server)]);
+
+    let errors = collect_manifest_errors(&cfg, false, &[], |_| Ok::<(), String>(()));
+
+    assert_eq!(errors.len(), 2);
+    assert!(errors.iter().all(|e| {
+        e.suggestion
+            .as_deref()
+            .is_some_and(|s| s.contains("none (this binary links no toolsets)"))
+    }));
+}
+
+#[test]
+fn a_binary_server_keeps_its_toolsets_unchecked_here() {
+    let mut server = deployment(McpServerType::Internal, true, false, "bin");
+    server.toolsets = vec![toolset("linked-into-its-own-binary", true)];
+    let cfg = services_with(vec![("ext", server)]);
+
+    let errors = collect_manifest_errors(&cfg, false, &[], |_| Ok::<(), String>(()));
+
+    assert!(errors.is_empty(), "{errors:?}");
 }

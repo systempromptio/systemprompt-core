@@ -65,7 +65,7 @@ fn internal_missing_manifest_yields_error() {
         deployment(McpServerType::Internal, true, false, "bin_a"),
     )]);
 
-    let errors = collect_manifest_errors(&cfg, false, |_| Err("not found".to_owned()));
+    let errors = collect_manifest_errors(&cfg, false, &[], |_| Err("not found".to_owned()));
 
     assert_eq!(errors.len(), 1, "one internal server missing its manifest");
     assert_eq!(errors[0].field, "mcp_servers.srv_a.binary");
@@ -87,7 +87,7 @@ fn internal_present_manifest_yields_no_error() {
         deployment(McpServerType::Internal, true, false, "bin_ok"),
     )]);
 
-    let errors = collect_manifest_errors(&cfg, false, |_| Ok::<(), std::io::Error>(()));
+    let errors = collect_manifest_errors(&cfg, false, &[], |_| Ok::<(), std::io::Error>(()));
 
     assert!(errors.is_empty(), "resolvable manifest produces no error");
 }
@@ -109,13 +109,13 @@ fn disabled_external_and_cloud_devonly_are_skipped() {
         ),
     ]);
 
-    let cloud_errors = collect_manifest_errors(&cfg, true, |_| Err("nope".to_owned()));
+    let cloud_errors = collect_manifest_errors(&cfg, true, &[], |_| Err("nope".to_owned()));
     assert!(
         cloud_errors.is_empty(),
         "disabled + external + cloud/dev_only servers never resolve: {cloud_errors:?}"
     );
 
-    let local_errors = collect_manifest_errors(&cfg, false, |_| Err("nope".to_owned()));
+    let local_errors = collect_manifest_errors(&cfg, false, &[], |_| Err("nope".to_owned()));
     assert_eq!(
         local_errors.len(),
         1,
@@ -181,7 +181,7 @@ fn a_server_without_a_tool_policy_is_a_validation_error() {
             ..deployment(McpServerType::Internal, true, false, "present")
         },
     )]);
-    let errors = collect_manifest_errors(&cfg, false, |_| Ok::<(), std::io::Error>(()));
+    let errors = collect_manifest_errors(&cfg, false, &[], |_| Ok::<(), std::io::Error>(()));
     assert_eq!(errors.len(), 1, "{errors:?}");
     assert_eq!(errors[0].field, "mcp_servers.unpoliced.tool_policy");
 }

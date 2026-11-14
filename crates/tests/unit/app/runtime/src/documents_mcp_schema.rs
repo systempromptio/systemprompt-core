@@ -59,9 +59,9 @@ async fn read_only_annotations_follow_the_plan() {
 }
 
 #[tokio::test]
-async fn from_host_refuses_a_disabled_store_and_names_the_switch() {
-    use systemprompt_runtime::HostContext;
-    use systemprompt_runtime::documents::mcp::DocumentsMcpError;
+async fn documents_tools_refuse_a_disabled_store_and_name_the_switch() {
+    use systemprompt_mcp_host::HostContext;
+    use systemprompt_mcp_host::toolsets::{DocumentsMcpError, documents_tools};
     use systemprompt_test_fixtures::{host_child_env, init_services_bootstrap};
 
     let bootstrap = init_services_bootstrap("mcp_servers: {}\n");
@@ -74,7 +74,7 @@ async fn from_host_refuses_a_disabled_store_and_names_the_switch() {
     let disabled = HostContext::boot(|name| env.get(name).cloned())
         .await
         .expect("host context");
-    let err = DocumentsMcpTools::from_host(&disabled, McpServerId::new(SERVER))
+    let err = documents_tools(&disabled, McpServerId::new(SERVER))
         .expect_err("a disabled store builds no tools");
     assert!(matches!(err, DocumentsMcpError::Disabled { .. }), "{err:?}");
     assert!(err.to_string().contains("files.documents.enabled"), "{err}");
@@ -87,7 +87,7 @@ async fn from_host_refuses_a_disabled_store_and_names_the_switch() {
     let enabled = HostContext::boot(|name| env.get(name).cloned())
         .await
         .expect("host context");
-    let tools = DocumentsMcpTools::from_host(&enabled, McpServerId::new(SERVER))
+    let tools = documents_tools(&enabled, McpServerId::new(SERVER))
         .expect("an enabled store builds the tools");
     assert_eq!(tools.server_name().as_str(), SERVER);
 }

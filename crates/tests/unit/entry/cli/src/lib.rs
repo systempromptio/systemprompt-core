@@ -21,6 +21,8 @@ mod boot_ctx;
 #[cfg(test)]
 mod cli_settings;
 #[cfg(test)]
+mod child_host;
+#[cfg(test)]
 mod cloud_deploy_progress;
 #[cfg(test)]
 mod cloud_fleet_guard;

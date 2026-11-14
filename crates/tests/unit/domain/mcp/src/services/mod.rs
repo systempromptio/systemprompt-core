@@ -40,6 +40,7 @@ mod schema;
 mod schema_loader;
 mod schema_loader_faults;
 mod spawn_env;
+mod spawn_target;
 mod spawner_env;
 mod startup_delay;
 mod tool_context;

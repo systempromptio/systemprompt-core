@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 use std::sync::OnceLock;
 
 use systemprompt_identifiers::{SessionId, UserId};
-use systemprompt_runtime::{AgentHost, HostContext};
+use systemprompt_mcp_host::{AgentHost, HostContext};
 use systemprompt_security::jwt::{AdminTokenParams, JwtService};
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_test_fixtures::{
