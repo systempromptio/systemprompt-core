@@ -11,7 +11,10 @@
 //! `NotificationsServiceSlot` the `notifications` extension provides and the
 //! host binds. When that extension is disabled in the profile the slot is
 //! absent: the user and admin groups are not declared and the gateway skips
-//! the inbox, so their paths answer 404.
+//! the inbox, so their paths answer 404. A slot that is present but unbound
+//! is a boot error. The admin group sits under the reserved `/api/v1/admin`
+//! prefix by the `NotificationsAdmin` row of the API's core allowance table,
+//! keyed on this extension's id, that exact path and its role group.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -20,6 +23,8 @@ use systemprompt_api::kernel::register_gateway_route;
 use systemprompt_extension::prelude::*;
 use systemprompt_extension::RouteGroup;
 use systemprompt_models::modules::ApiPaths;
+use systemprompt_notifications::{NotificationsService, NotificationsServiceSlot};
+use systemprompt_provider_contracts::MissingDependency;
 
 use crate::http::{NotificationsState, admin_router, bridge, router};
 
@@ -39,19 +44,19 @@ impl Extension for NotificationsHttpExtension {
         }
     }
 
-    fn routers(&self, ctx: &dyn ExtensionContext) -> Vec<ExtensionRouter> {
-        let state = match NotificationsState::from_extension_state(&ctx.extension_state()) {
-            Ok(state) => state,
-            Err(missing) => {
-                tracing::info!(
-                    extension = NOTIFICATIONS_EXTENSION,
-                    missing = %missing,
-                    "Notification routes not declared"
-                );
-                return Vec::new();
-            },
+    fn routers(
+        &self,
+        ctx: &dyn ExtensionContext,
+    ) -> Result<Vec<ExtensionRouter>, ExtensionStateError> {
+        let extension_state = ctx.extension_state();
+        let Some(slot) = extension_state.find::<NotificationsServiceSlot>() else {
+            return Ok(Vec::new());
         };
-        vec![
+        if !slot.is_bound() {
+            return Err(MissingDependency::of::<NotificationsService>().into());
+        }
+        let state = NotificationsState::from_extension_state(&extension_state)?;
+        Ok(vec![
             ExtensionRouter::new(
                 router(state.clone()),
                 ApiPaths::NOTIFICATIONS,
@@ -68,7 +73,7 @@ impl Extension for NotificationsHttpExtension {
             )
             .in_group(RouteGroup::ContentAndMisc)
             .with_rate_limit(RATE_LIMIT),
-        ]
+        ])
     }
 }
 

@@ -19,7 +19,10 @@
 //! - the session cookie ([`SessionCookie`], [`SameSite`]) and the request base
 //!   URL ([`RequestBaseUrl`], [`resolve_request_base_url`]);
 //! - the shared proxy service: [`ProxyService`], [`ProxyTarget`],
-//!   [`ProxyKind`], [`ProxyError`].
+//!   [`ProxyKind`], [`ProxyError`];
+//! - gateway route registration: [`register_gateway_route!`], each
+//!   [`GatewayRouteRegistration`] built with its [`GatewayRouteFactory`] and
+//!   handed the [`GatewayCredential`] the gateway authenticates with.
 //!
 //! The mount contract a route group declares against (`AuthzPolicy`,
 //! `ContextKind`, `RouteGroup`, `ExtensionRouter`) is
@@ -29,6 +32,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub use crate::error::{ApiHttpError, unreadable_body};
+pub use crate::register_gateway_route;
+pub use crate::routes::gateway::registered::{
+    GatewayCredential, GatewayRouteFactory, GatewayRouteRegistration,
+};
 pub use crate::services::middleware::client_addr::{ClientIp, resolve_client_ip};
 pub use crate::services::middleware::{
     AcceptedFormat, AcceptedMediaType, BodyReadError, JwtContextExtractor, JwtUserContext,
@@ -38,3 +45,5 @@ pub use crate::services::middleware::{
 pub use crate::services::proxy::{ProxyError, ProxyKind, ProxyService, ProxyTarget};
 pub use crate::services::request_base_url::{RequestBaseUrl, resolve as resolve_request_base_url};
 pub use crate::services::session_cookie::{SameSite, SessionCookie};
+#[doc(hidden)]
+pub use systemprompt_extension::__inventory;
