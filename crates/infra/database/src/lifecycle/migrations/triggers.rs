@@ -28,6 +28,7 @@
 use std::collections::BTreeSet;
 
 use crate::DatabaseTransaction;
+use crate::quoting::quote_identifier;
 use crate::error::DatabaseResult;
 use crate::models::{JsonRow, ToDbValue};
 use crate::services::DatabaseProvider;
@@ -104,14 +105,10 @@ fn written_tables(sql: &str) -> Result<BTreeSet<String>, pg_query::Error> {
         .collect())
 }
 
-fn quote_ident(name: &str) -> String {
-    format!("\"{}\"", name.replace('"', "\"\""))
-}
-
 fn quote_table(table: &str) -> String {
     table
         .split('.')
-        .map(quote_ident)
+        .map(quote_identifier)
         .collect::<Vec<_>>()
         .join(".")
 }
@@ -145,7 +142,7 @@ pub(super) async fn suspend(
             let sql = format!(
                 "ALTER TABLE {} DISABLE TRIGGER {}",
                 quote_table(&table),
-                quote_ident(name)
+                quote_identifier(name)
             );
             target
                 .execute(&sql)
@@ -194,7 +191,7 @@ impl Suspended {
             let sql = format!(
                 "ALTER TABLE {} ENABLE TRIGGER {}",
                 quote_table(table),
-                quote_ident(name)
+                quote_identifier(name)
             );
             target
                 .execute(&sql)

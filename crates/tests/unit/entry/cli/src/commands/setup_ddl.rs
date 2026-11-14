@@ -5,23 +5,29 @@
 
 use systemprompt_cli::shared::ddl::{
     build_alter_user_password_sql, build_create_db_sql, build_create_user_sql, build_grant_sql,
-    quote_ident, quote_literal,
+    quote_literal,
 };
+use systemprompt_database::quote_identifier;
 
 #[test]
-fn quote_ident_wraps_in_double_quotes() {
-    assert_eq!(quote_ident("app_user"), "\"app_user\"");
+fn quote_identifier_wraps_in_double_quotes() {
+    assert_eq!(quote_identifier("app_user"), "\"app_user\"");
 }
 
 #[test]
-fn quote_ident_doubles_embedded_double_quotes() {
-    assert_eq!(quote_ident("we\"ird"), "\"we\"\"ird\"");
+fn quote_identifier_doubles_embedded_double_quotes() {
+    assert_eq!(quote_identifier("we\"ird"), "\"we\"\"ird\"");
 }
 
 #[test]
-fn quote_ident_handles_injection_attempt() {
+fn quote_identifier_quotes_a_name_the_identifier_allowlist_rejects() {
+    assert_eq!(quote_identifier("uuid-ossp"), "\"uuid-ossp\"");
+}
+
+#[test]
+fn quote_identifier_handles_injection_attempt() {
     assert_eq!(
-        quote_ident("x\"; DROP TABLE users; --"),
+        quote_identifier("x\"; DROP TABLE users; --"),
         "\"x\"\"; DROP TABLE users; --\""
     );
 }
