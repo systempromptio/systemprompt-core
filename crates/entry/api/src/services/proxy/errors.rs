@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use super::auth::OAuthChallenge;
 use crate::error::ApiHttpError;
 use axum::body::Body;
 use axum::http::StatusCode;
@@ -69,7 +70,7 @@ pub enum ProxyError {
     AuthenticationRequired { service: String },
 
     #[error("OAuth challenge response")]
-    AuthChallenge(Box<Response<Body>>),
+    AuthChallenge(Box<OAuthChallenge>),
 
     #[error("Access forbidden for service '{service}'")]
     Forbidden { service: String },
@@ -194,7 +195,7 @@ impl ProxyError {
             Self::AuthenticationRequired { .. } | Self::MissingContext { .. } => {
                 StatusCode::UNAUTHORIZED
             },
-            Self::AuthChallenge(response) => response.status(),
+            Self::AuthChallenge(challenge) => challenge.status,
             Self::Forbidden { .. } => StatusCode::FORBIDDEN,
             Self::ProviderNotConnected { .. } => StatusCode::CONFLICT,
         }
@@ -241,8 +242,8 @@ impl From<ProxyError> for StatusCode {
 
 impl IntoResponse for ProxyError {
     fn into_response(self) -> Response {
-        if let Self::AuthChallenge(response) = self {
-            return *response;
+        if let Self::AuthChallenge(challenge) = self {
+            return challenge.into_response();
         }
         let status = self.to_status_code();
         let error_key = self.error_key();

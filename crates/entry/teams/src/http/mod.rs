@@ -10,7 +10,7 @@
 //!
 //! Config and secrets resolve on demand: the app is looked up by tenant id in
 //! the live services view, and the app password is read by its named ref
-//! through the platform secret lookup (built-in and custom names). The router
+//! from the extension's custom-secret store. The router
 //! state ([`TeamsState`]) holds the one outbound HTTP client and a verifier per
 //! app, so JWKS fetches are cached rather than repeated on every activity.
 //!
@@ -38,7 +38,7 @@ use systemprompt_models::modules::ApiPaths;
 use systemprompt_teams::activities::Activity;
 use systemprompt_teams::client::TeamsClient;
 use systemprompt_traits::{
-    DispatchOutcome, LinkPolicy, MessagingConversation, MessagingInbound, SecretLookup,
+    DispatchOutcome, LinkPolicy, MessagingConversation, MessagingInbound, SecretStore,
     SenderIdentity,
 };
 
@@ -189,9 +189,9 @@ fn resolve_app(services: &ServicesConfig, tenant_id: &TeamsTenantId) -> Option<T
         .cloned()
 }
 
-fn app_password(secrets: &dyn SecretLookup, app: &TeamsAppConfig) -> Option<String> {
+fn app_password(secrets: &dyn SecretStore, app: &TeamsAppConfig) -> Option<String> {
     secrets
-        .lookup(app.app_password_ref.as_str())
+        .secret(app.app_password_ref.as_str())
         .map(|secret| secret.expose().to_owned())
 }
 

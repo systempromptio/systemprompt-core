@@ -17,12 +17,6 @@
 //! only after this state is built, so the API binds it while it builds its
 //! routes and the chat-platform surfaces read the slot at dispatch time.
 //!
-//! `Arc<dyn SecretLookup>` is the live secrets document resolved by name the
-//! way the platform's own services resolve it (built-in names and custom
-//! secrets, one precedence); an extension that is handed a secret *name* by
-//! operator config reads it here, while `ExtensionContext::secrets` stays the
-//! custom-only store.
-//!
 //! [`ExtensionContext::extension_state`]: systemprompt_extension::ExtensionContext::extension_state
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -36,7 +30,7 @@ use systemprompt_files::FilesConfig;
 use systemprompt_manifest::Profile;
 use systemprompt_models::LateBound;
 use systemprompt_provider_contracts::Dependencies;
-use systemprompt_traits::{MessagingDispatcher, SecretLookup};
+use systemprompt_traits::MessagingDispatcher;
 
 use crate::context::AppContext;
 use crate::documents::DocumentsRuntime;
@@ -59,10 +53,6 @@ pub fn base_kernel_state(
     state
 }
 
-fn platform_secrets(app: &AppContext) -> Arc<dyn SecretLookup> {
-    Arc::<systemprompt_config::SecretsService>::clone(app.secrets())
-}
-
 pub fn kernel_state(app: &AppContext) -> Dependencies {
     let mut state = base_kernel_state(
         app.db_pool(),
@@ -75,8 +65,7 @@ pub fn kernel_state(app: &AppContext) -> Dependencies {
     .with(Arc::clone(app.ai_repositories()))
     .with(Arc::clone(app.analytics_repositories()))
     .with(app.artifact_ingest_arc())
-    .with(LateBound::<dyn MessagingDispatcher>::default())
-    .with(platform_secrets(app));
+    .with(LateBound::<dyn MessagingDispatcher>::default());
     match &app.subsystems.ai_service {
         Some(ai) => state.insert(Arc::clone(ai)),
         None => state.reserve::<Arc<systemprompt_ai::AiService>>(),

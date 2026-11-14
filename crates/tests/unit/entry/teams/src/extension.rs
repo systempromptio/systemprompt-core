@@ -6,6 +6,7 @@
 
 use serde_json::json;
 use systemprompt_extension::{Extension, ExtensionConfigError};
+use systemprompt_models::errors::ServicesValidationError;
 use systemprompt_teams_entry::TeamsExtension;
 
 #[test]
@@ -71,5 +72,37 @@ fn validate_config_rejects_a_structurally_invalid_app() {
     assert!(
         matches!(err, ExtensionConfigError::ParseError { .. }),
         "expected ParseError, got {err:?}"
+    );
+}
+
+fn built_in_secret_ref(err: &ExtensionConfigError) -> Option<(&'static str, String)> {
+    let ExtensionConfigError::SchemaValidation(source) = err else {
+        return None;
+    };
+    match source.downcast_ref::<ServicesValidationError>()? {
+        ServicesValidationError::BuiltInSecretRef { field, secret, .. } => {
+            Some((*field, secret.clone()))
+        },
+        _ => None,
+    }
+}
+
+#[test]
+fn validate_config_refuses_an_app_password_ref_naming_a_built_in_secret() {
+    let config = json!({
+        "primary": {
+            "tenant_id": "tenant-1",
+            "app_id": "app-1",
+            "app_password_ref": "signing_key_pem",
+            "default_agent": "support-agent",
+        }
+    });
+    let err = TeamsExtension
+        .validate_config(&config)
+        .expect_err("a built-in secret name is refused at config validation");
+    assert_eq!(
+        built_in_secret_ref(&err),
+        Some(("app_password_ref", "signing_key_pem".to_owned())),
+        "got {err:?}"
     );
 }
