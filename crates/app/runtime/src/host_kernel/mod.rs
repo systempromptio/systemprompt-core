@@ -34,7 +34,7 @@ use systemprompt_identifiers::{ExtensionId, UserId};
 use systemprompt_loader::ServicesState;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
-use systemprompt_marketplace::managed::{ManagedRepository, PublicationPolicy};
+use systemprompt_marketplace::managed::PublicationPolicy;
 use systemprompt_mcp::ArtifactIngest;
 use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_models::authz::SubjectSourceHandle;
@@ -44,12 +44,9 @@ use systemprompt_notifications::service::NotificationsService;
 use systemprompt_provider_contracts::Dependencies;
 use systemprompt_security::jwt::VerifyingTokenAuthority;
 use systemprompt_security::keys::VerificationKeyring;
-use systemprompt_traits::{
-    BackgroundTasks, DynSessionUsageCounters, DynToolCallIntentClaims, FileStorage,
-};
-use systemprompt_users::{SessionRepository, UserRepository};
+use systemprompt_traits::{BackgroundTasks, DynToolCallIntentClaims, FileStorage};
+use systemprompt_users::UserRepository;
 
-use crate::builder::composition::{a2a_repositories, organization_skills};
 #[cfg(feature = "notifications")]
 use crate::builder::notifications::{ExtensionSeams, NotificationsCore};
 use crate::documents::DocumentsRuntime;
@@ -64,9 +61,9 @@ pub enum HostBootError {
     #[error("{PROFILE_ENV} is not in the server's environment")]
     ProfileMissing,
     #[error("the profile could not be loaded")]
-    Profile(#[source] systemprompt_config::ConfigError),
+    Profile(#[source] Box<systemprompt_config::ConfigError>),
     #[error("the granted secrets could not be read")]
-    Secrets(#[source] GrantedSecretsError),
+    Secrets(#[source] Box<GrantedSecretsError>),
     #[error("{VERIFICATION_KEYS_ENV} is not in the server's environment")]
     VerificationKeysMissing,
     #[error("{VERIFICATION_KEYS_ENV} is not a verification key set")]
@@ -74,11 +71,11 @@ pub enum HostBootError {
     #[error("{VERIFICATION_KEYS_ENV} holds a key that cannot verify")]
     VerificationKey(#[source] jsonwebtoken::errors::Error),
     #[error("the services composition the API resolved could not be read")]
-    ServicesRoot(#[source] systemprompt_loader::BundleError),
+    ServicesRoot(#[source] Box<systemprompt_loader::BundleError>),
     #[error("the services configuration could not be loaded")]
-    Services(#[source] systemprompt_loader::ConfigLoadError),
+    Services(#[source] Box<systemprompt_loader::ConfigLoadError>),
     #[error("the runtime configuration could not be built")]
-    Config(#[source] systemprompt_config::ConfigError),
+    Config(#[source] Box<systemprompt_config::ConfigError>),
     #[error(transparent)]
     Runtime(Box<RuntimeError>),
 }
@@ -116,6 +113,7 @@ pub struct HostParts {
     pub file_storage: Arc<dyn FileStorage>,
     pub extensions: Arc<ExtensionRegistry>,
     pub system_owner: UserId,
+    pub a2a: Arc<A2ARepositories>,
 }
 
 impl std::fmt::Debug for HostParts {
@@ -137,21 +135,6 @@ impl HostParts {
             self.profile.profile(),
             &self.documents,
         )
-    }
-
-    #[must_use]
-    pub fn a2a_repositories(&self) -> A2ARepositories {
-        let managed = ManagedRepository::new(&self.database)
-            .with_publication_policy(self.publication.clone());
-        let session_usage: DynSessionUsageCounters =
-            Arc::new(SessionRepository::new(&self.database));
-        let a2a = a2a_repositories(
-            &self.database,
-            self.config.instance_id.clone(),
-            &managed,
-            session_usage,
-        );
-        organization_skills(&a2a, &managed, &self.system_owner)
     }
 }
 

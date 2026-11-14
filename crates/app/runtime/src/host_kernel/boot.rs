@@ -15,12 +15,13 @@ use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_models::subprocess::VERIFICATION_KEYS_ENV;
 use systemprompt_security::jwt::VerifyingTokenAuthority;
 use systemprompt_security::keys::{TokenVerificationKeys, VerificationKeyring};
-use systemprompt_traits::{BackgroundTasks, CacheEpochs, SecretStore};
-use systemprompt_users::UserRepository;
+use systemprompt_marketplace::managed::ManagedRepository;
+use systemprompt_traits::{BackgroundTasks, CacheEpochs, DynSessionUsageCounters, SecretStore};
+use systemprompt_users::{SessionRepository, UserRepository};
 
 use crate::builder::assembly::load_system_admin;
 use crate::builder::authz::authz_stage;
-use crate::builder::composition::build_artifact_ingest;
+use crate::builder::composition::{a2a_repositories, build_artifact_ingest, organization_skills};
 use crate::builder::core_layer::{SchemaPolicy, init_files_config};
 use crate::builder::database::connect_database;
 use crate::builder::documents::{DocumentsInputs, build_documents};
@@ -46,15 +47,16 @@ impl HostKernel {
         lookup: impl Fn(&str) -> Option<String> + Send + Sync,
     ) -> Result<(HostParts, Self), HostBootError> {
         let profile_path = lookup(PROFILE_ENV).ok_or(HostBootError::ProfileMissing)?;
-        let loaded =
-            LoadedProfile::from_path(Path::new(&profile_path)).map_err(HostBootError::Profile)?;
+        let loaded = LoadedProfile::from_path(Path::new(&profile_path))
+            .map_err(|e| HostBootError::Profile(Box::new(e)))?;
         let profile = loaded.profile();
-        let secrets =
-            Arc::new(GrantedSecrets::from_lookup(&lookup).map_err(HostBootError::Secrets)?);
+        let secrets = Arc::new(
+            GrantedSecrets::from_lookup(&lookup).map_err(|e| HostBootError::Secrets(Box::new(e)))?,
+        );
         let verification = verification_keyring(&lookup)?;
 
-        let services_root =
-            ServicesSourceBootstrap::read_composed(profile).map_err(HostBootError::ServicesRoot)?;
+        let services_root = ServicesSourceBootstrap::read_composed(profile)
+            .map_err(|e| HostBootError::ServicesRoot(Box::new(e)))?;
         let app_paths = Arc::new(
             AppPaths::from_profile(
                 &profile.paths,
@@ -69,14 +71,14 @@ impl HostKernel {
                 secrets.credentials(),
                 Some(services_root.path.as_path()),
             )
-            .map_err(HostBootError::Config)?,
+            .map_err(|e| HostBootError::Config(Box::new(e)))?,
         );
         let files_config = init_files_config(profile, &app_paths)?;
         let services_config = ConfigLoader::for_profile(profile, &services_root.path)
             .load()
-            .map_err(HostBootError::Services)?;
+            .map_err(|e| HostBootError::Services(Box::new(e)))?;
         let services = ServicesState::from_config(profile, services_config)
-            .map_err(HostBootError::Services)?;
+            .map_err(|e| HostBootError::Services(Box::new(e)))?;
 
         let database = connect_database(profile, &config).await?;
         let instance_id = config.instance_id.clone();
@@ -162,6 +164,15 @@ impl HostKernel {
         .id()
         .clone();
 
+        let managed =
+            ManagedRepository::new(&database).with_publication_policy(publication.clone());
+        let session_usage: DynSessionUsageCounters = Arc::new(SessionRepository::new(&database));
+        let a2a = Arc::new(organization_skills(
+            &a2a_repositories(&database, instance_id.clone(), &managed, session_usage),
+            &managed,
+            &system_owner,
+        ));
+
         let kernel = Self {
             market_state: market.state,
             extensions: Arc::clone(&extensions),
@@ -201,6 +212,7 @@ impl HostKernel {
             file_storage,
             extensions,
             system_owner,
+            a2a,
         };
         Ok((parts, kernel))
     }
