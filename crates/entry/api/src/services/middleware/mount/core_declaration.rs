@@ -190,7 +190,9 @@ impl CoreDeclaration {
     }
 
     fn granted(declarer: CoreDeclarer, declared: &ExtensionRouter, wanted: Allowance) -> bool {
-        Self::ALL.iter().any(|entry| entry.grants(declarer, declared, wanted))
+        Self::ALL
+            .iter()
+            .any(|entry| entry.grants(declarer, declared, wanted))
     }
 
     pub(super) fn admits_body_limit(base_path: &str, protection: &RouteProtection) -> bool {
@@ -206,7 +208,9 @@ impl CoreDeclaration {
 }
 
 fn reserved(base_path: &str) -> bool {
-    RESERVED_PATHS.iter().any(|prefix| base_path.starts_with(prefix))
+    RESERVED_PATHS
+        .iter()
+        .any(|prefix| base_path.starts_with(prefix))
 }
 
 pub fn admit_extension(

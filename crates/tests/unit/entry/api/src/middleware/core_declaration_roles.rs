@@ -47,7 +47,10 @@ fn the_listed_agent_runs_declaration_is_served_on_workers() {
         .into_iter()
         .filter(|role| served_on(*role, "agent_runs_api", &declared))
         .collect();
-    assert_eq!(serving, vec![NodeRole::All, NodeRole::Api, NodeRole::Worker]);
+    assert_eq!(
+        serving,
+        vec![NodeRole::All, NodeRole::Api, NodeRole::Worker]
+    );
 }
 
 #[test]

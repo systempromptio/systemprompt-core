@@ -74,7 +74,10 @@ fn a_listed_declaration_with_another_layer_set_is_refused() {
 #[test]
 fn a_listed_declaration_with_other_frame_options_is_refused() {
     let declared = row(CoreDeclaration::Slack).with_frame_options(FrameOptions::AllowAll);
-    assert_eq!(refused_for("slack", &declared), Some(CoreShapeField::FrameOptions));
+    assert_eq!(
+        refused_for("slack", &declared),
+        Some(CoreShapeField::FrameOptions)
+    );
 }
 
 #[test]

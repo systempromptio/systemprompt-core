@@ -7,8 +7,8 @@
 
 use axum::Router;
 use systemprompt_api::services::middleware::{
-    Allowance, CoreDeclaration, CoreDeclarer, CoreShapeField, DEFAULT_BODY_LIMIT_BYTES,
-    MountError, admit_extension,
+    Allowance, CoreDeclaration, CoreDeclarer, CoreShapeField, DEFAULT_BODY_LIMIT_BYTES, MountError,
+    admit_extension,
 };
 use systemprompt_extension::{
     AuthzPolicy, ContextKind, ExtensionRouter, HandlerVerifier, RESERVED_PATHS, RouteGroup,
@@ -121,8 +121,12 @@ fn an_install_extension_declaring_handler_verification_is_refused() {
 #[test]
 fn an_install_extension_under_a_reserved_prefix_is_refused() {
     for prefix in RESERVED_PATHS {
-        let declared =
-            ExtensionRouter::new(Router::new(), prefix, AuthzPolicy::admin(), ContextKind::User);
+        let declared = ExtensionRouter::new(
+            Router::new(),
+            prefix,
+            AuthzPolicy::admin(),
+            ContextKind::User,
+        );
         assert!(
             matches!(
                 admit_extension("install", &declared),
