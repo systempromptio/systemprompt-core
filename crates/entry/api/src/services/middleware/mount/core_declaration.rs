@@ -21,11 +21,12 @@
 //! served on exactly the roles it always was, whatever group it declares.
 //!
 //! Every row pins the whole protection shape its declaration is admitted
-//! with: policy, context kind, rate-limit scope and budget, and body limit.
-//! A declaration that names a row (extension id, base path and route group)
-//! with any other shape is refused at boot with
-//! `MountError::CoreDeclarationMismatch`, so a core declaration that changes
-//! its protection fails until the table changes with it.
+//! with: policy, context kind, rate-limit scope, budget and bearer window,
+//! body limit, protection layers and frame options. A declaration that names
+//! a row (extension id, base path and route group) with any other shape is
+//! refused at boot with `MountError::CoreDeclarationMismatch` naming the
+//! field that differs, so a core declaration that changes its protection
+//! fails until the table changes with it.
 //!
 //! An extension declaration is matched by its registered extension id, its
 //! base path and its route group. The table is a guard-rail against an
@@ -176,15 +177,6 @@ impl CoreDeclaration {
         }
     }
 
-    fn shape_matches(self, protection: &RouteProtection) -> bool {
-        let policy = self.policy();
-        protection.policy.allowed() == policy.allowed()
-            && protection.policy.handler_verifier() == policy.handler_verifier()
-            && protection.context == self.context()
-            && protection.rate_limit == Some(self.rate_limit())
-            && protection.body_limit == self.body_limit()
-    }
-
     fn names(self, declarer: CoreDeclarer, declared: &ExtensionRouter) -> bool {
         self.declarer() == declarer
             && self.base_path() == declared.base_path
@@ -225,13 +217,15 @@ pub fn admit_extension(
     let base_path = declared.base_path;
     let protection = &declared.protection;
 
-    let drifted = CoreDeclaration::ALL
+    let drift = CoreDeclaration::ALL
         .iter()
-        .any(|entry| entry.names(declarer, declared) && !entry.shape_matches(protection));
-    if drifted {
+        .filter(|entry| entry.names(declarer, declared))
+        .find_map(|entry| entry.mismatch(protection));
+    if let Some(field) = drift {
         return Err(MountError::CoreDeclarationMismatch {
             extension,
             base_path,
+            field,
         });
     }
 

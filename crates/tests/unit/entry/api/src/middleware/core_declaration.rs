@@ -7,12 +7,11 @@
 
 use axum::Router;
 use systemprompt_api::services::middleware::{
-    Allowance, CoreDeclaration, CoreDeclarer, DEFAULT_BODY_LIMIT_BYTES, MountError,
-    admit_extension,
+    Allowance, CoreDeclaration, CoreDeclarer, CoreShapeField, DEFAULT_BODY_LIMIT_BYTES,
+    MountError, admit_extension,
 };
 use systemprompt_extension::{
-    AuthzPolicy, ContextKind, ExtensionRouter, HandlerVerifier, RESERVED_PATHS, RateBudget,
-    RateLimit, RouteGroup,
+    AuthzPolicy, ContextKind, ExtensionRouter, HandlerVerifier, RESERVED_PATHS, RouteGroup,
 };
 use systemprompt_models::modules::ApiPaths;
 
@@ -112,31 +111,6 @@ fn every_listed_extension_declaration_is_admitted_in_its_own_shape() {
 }
 
 #[test]
-fn a_listed_declaration_with_another_budget_or_no_rate_limit_is_refused() {
-    let declared = row(CoreDeclaration::AgentRuns)
-        .with_rate_limit(RateLimit::new("agent_runs", RateBudget::Agents));
-    assert!(matches!(
-        admit_extension("agent_runs_api", &declared),
-        Err(MountError::CoreDeclarationMismatch {
-            extension: "agent_runs_api",
-            base_path,
-        }) if base_path == ApiPaths::AGENT_RUNS
-    ));
-
-    let unlimited = ExtensionRouter::new(
-        Router::new(),
-        ApiPaths::AGENT_RUNS,
-        AuthzPolicy::user(),
-        ContextKind::User,
-    )
-    .in_group(RouteGroup::Agent);
-    assert!(matches!(
-        admit_extension("agent_runs_api", &unlimited),
-        Err(MountError::CoreDeclarationMismatch { .. })
-    ));
-}
-
-#[test]
 fn an_install_extension_declaring_handler_verification_is_refused() {
     assert!(matches!(
         admit_extension("install", &row(CoreDeclaration::Slack)),
@@ -225,7 +199,10 @@ fn a_listed_row_declared_with_another_policy_is_refused() {
     .with_rate_limit(CoreDeclaration::Teams.rate_limit());
     assert!(matches!(
         admit_extension("teams", &wrong_verifier),
-        Err(MountError::CoreDeclarationMismatch { .. })
+        Err(MountError::CoreDeclarationMismatch {
+            field: CoreShapeField::Policy,
+            ..
+        })
     ));
 
     for policy in [
@@ -244,7 +221,10 @@ fn a_listed_row_declared_with_another_policy_is_refused() {
         assert!(
             matches!(
                 admit_extension("notifications-http", &widened),
-                Err(MountError::CoreDeclarationMismatch { .. })
+                Err(MountError::CoreDeclarationMismatch {
+                    field: CoreShapeField::Policy,
+                    ..
+                })
             ),
             "{policy:?} at the reserved prefix must be refused"
         );

@@ -45,13 +45,15 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod core_declaration;
+mod core_shape;
 mod error;
 mod guards;
 
-pub use error::MountError;
 pub use core_declaration::{
     Allowance, CoreDeclaration, CoreDeclarer, admit_extension, extension_served,
 };
+pub use core_shape::CoreShapeField;
+pub use error::MountError;
 pub use guards::{ClientWritesGuard, ProtectionGuards, SiteAuthGuard};
 
 use std::sync::Arc;
