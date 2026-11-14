@@ -49,6 +49,10 @@ api = [
     "dep:systemprompt-mcp-host",
     "dep:systemprompt-oauth-issuance",
     "dep:axum",
+    "systemprompt-slack-entry?/http",
+    "systemprompt-teams-entry?/http",
+    "systemprompt-agent-runs-entry?/http",
+    "systemprompt-notifications-entry?/http",
 ]
 
 # Cloud infrastructure (API client, credentials, OAuth)
@@ -63,7 +67,7 @@ client = ["dep:systemprompt-client"]
 security = ["dep:systemprompt-security", "dep:systemprompt-governance"]
 
 # CLI entry point for product binaries (standalone, use 'full' for everything)
-cli = ["dep:systemprompt-cli"]
+cli = ["dep:systemprompt-cli", "systemprompt-agent-runs-entry?/cli"]
 
 # Runtime builder for embedding systemprompt as a library
 runtime = ["cli", "dep:systemprompt-extension"]
@@ -73,19 +77,19 @@ runtime = ["cli", "dep:systemprompt-extension"]
 # admin extension, say. `full` implies it.
 analytics = ["dep:systemprompt-analytics"]
 
-# Slack integration: the domain crate and the server's `/slack` inbound routes
+# Slack integration: the domain crate and the `/api/v1/slack` inbound routes
 # (Events API, slash commands, interactivity). Opt-in: excluded from `default`
 # and `full`.
-slack = ["dep:systemprompt-slack", "systemprompt-api?/slack", "systemprompt-cli?/slack"]
+slack = ["dep:systemprompt-slack", "dep:systemprompt-slack-entry"]
 
-# Microsoft Teams integration: the domain crate and the server's `/teams`
+# Microsoft Teams integration: the domain crate and the `/api/v1/teams`
 # Bot Framework activity routes. Opt-in: excluded from `default` and `full`.
-teams = ["dep:systemprompt-teams", "systemprompt-api?/teams", "systemprompt-cli?/teams"]
+teams = ["dep:systemprompt-teams", "dep:systemprompt-teams-entry"]
 
 # Headless coding-agent executor (Claude Code, Codex CLI runs with a leased
 # claim queue): the domain crate, the `/api/v1/agent-runs` routes and the agent
 # run launcher wired into hosted agents. `full` implies it.
-agent-runs = ["dep:systemprompt-agent-runs", "systemprompt-api?/agent-runs", "systemprompt-cli?/agent-runs"]
+agent-runs = ["dep:systemprompt-agent-runs", "dep:systemprompt-agent-runs-entry"]
 
 # OpenTelemetry: the gateway's OTLP/HTTP ingest routes and the `otlp_export`
 # job that ships the audit trail to a collector. `full` implies it.
@@ -112,7 +116,7 @@ files-collab-loro = ["files-collab", "systemprompt-runtime?/engine-loro"]
 
 # The notifications domain: streams, rules, feed and the outbox consumer. `full` implies it.
 # Without it the server mounts no notification routes and comments record no notification.
-notifications = ["dep:systemprompt-notifications", "systemprompt-runtime?/notifications", "systemprompt-mcp-host?/notifications", "systemprompt-api?/notifications"]
+notifications = ["dep:systemprompt-notifications", "dep:systemprompt-notifications-entry", "systemprompt-runtime?/notifications"]
 
 # The brain: revisioned organisational memory, its capture consumer and gateway recall. `full` implies it.
 # Without it the documents store records no brain event and the gateway injects no team memory.
@@ -197,6 +201,10 @@ systemprompt-content = { workspace = true, optional = true }
 systemprompt-analytics = { workspace = true, optional = true }
 systemprompt-marketplace = { workspace = true, optional = true }
 systemprompt-slack = { workspace = true, optional = true }
+systemprompt-slack-entry = { workspace = true, optional = true }
+systemprompt-teams-entry = { workspace = true, optional = true }
+systemprompt-agent-runs-entry = { workspace = true, optional = true }
+systemprompt-notifications-entry = { workspace = true, optional = true }
 systemprompt-teams = { workspace = true, optional = true }
 systemprompt-scheduler = { workspace = true, optional = true }
 systemprompt-agent-runs = { workspace = true, optional = true }

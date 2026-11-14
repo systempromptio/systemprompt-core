@@ -23,8 +23,8 @@
 //! | `cli` | `systemprompt-cli` (which depends on `systemprompt-api`, so it compiles the `api` crate graph) | The `systemprompt` CLI as a library entry point. |
 //! | `runtime` | `cli` + `systemprompt-extension` | `RuntimeBuilder` for embedding the CLI in a custom binary. The `systemprompt::runtime` module also compiles under `full`, where it re-exports the document store runtime as `systemprompt::runtime::documents` (the document MCP tools are `systemprompt::runtime::documents::mcp`). |
 //! | `analytics` | `systemprompt-analytics` | Request, conversation, agent, tool, and cost metrics without the rest of `full`. |
-//! | `slack` | the `systemprompt::slack` module and the server's `/slack` routes | Slack Events API, slash commands, interactivity. Not part of `full`. |
-//! | `teams` | the `systemprompt::teams` module and the server's `/teams` routes | Microsoft Teams Bot Framework activities. Not part of `full`. |
+//! | `slack` | the `systemprompt::slack` module and the `/api/v1/slack` routes from `systemprompt-slack-entry` | Slack Events API, slash commands, interactivity. Not part of `full`. |
+//! | `teams` | the `systemprompt::teams` module and the `/api/v1/teams` routes from `systemprompt-teams-entry` | Microsoft Teams Bot Framework activities. Not part of `full`. |
 //! | `agent-runs` | `systemprompt-agent-runs`, the `/api/v1/agent-runs` routes and the run launcher wired into hosted agents | Durable, leased, governed coding-agent runs (Claude Code, Codex CLI) with a common event contract. In `full`. |
 //! | `notifications` | the `systemprompt::notifications` module, and the notification routes, `documents_inbox` tool and outbox consumer in the runtime and API | Notification streams, rules, the per-user feed and the outbox consumer. In `full`, not in `core`. Without it, comments and shares commit without recording a notification and a comment carrying `mention_options` is refused with `unsupported_op`. |
 //! | `brain` | the `systemprompt::brain` module, and the brain composition, capture consumer and gateway recall in the runtime and API (implies `notifications`) | Revisioned organisational memory: facts captured from documents and comments, recalled into gateway requests. In `full`, not in `core`. Without it the document store records no brain event and the gateway injects no team memory; with it, `brain.enabled: false` in the profile composes nothing. |
@@ -225,23 +225,8 @@ pub mod marketplace {
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod scheduler;
 
-#[cfg(feature = "slack")]
-#[cfg_attr(docsrs, doc(cfg(feature = "slack")))]
-pub mod slack {
-    pub use systemprompt_slack::*;
-}
-
-#[cfg(feature = "agent-runs")]
-#[cfg_attr(docsrs, doc(cfg(feature = "agent-runs")))]
-pub mod agent_runs {
-    pub use systemprompt_agent_runs::*;
-}
-
-#[cfg(feature = "teams")]
-#[cfg_attr(docsrs, doc(cfg(feature = "teams")))]
-pub mod teams {
-    pub use systemprompt_teams::*;
-}
+mod capabilities;
+pub use capabilities::*;
 
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
@@ -268,12 +253,6 @@ pub mod files {
 #[cfg(any(feature = "files-office", feature = "files-pdf"))]
 #[cfg_attr(docsrs, doc(cfg(any(feature = "files-office", feature = "files-pdf"))))]
 pub use systemprompt_files::register_agent_access_policy;
-
-#[cfg(feature = "notifications")]
-#[cfg_attr(docsrs, doc(cfg(feature = "notifications")))]
-pub mod notifications {
-    pub use systemprompt_notifications::*;
-}
 
 #[cfg(feature = "brain")]
 #[cfg_attr(docsrs, doc(cfg(feature = "brain")))]
