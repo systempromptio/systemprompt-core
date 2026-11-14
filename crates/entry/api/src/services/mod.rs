@@ -15,6 +15,6 @@ pub mod request_base_url;
 pub mod server;
 pub mod session_cookie;
 pub mod static_content;
-pub(crate) mod validation;
+pub mod validation;
 
 pub use health::{HealthChecker, HealthSummary, ModuleHealth, ProcessMonitor};

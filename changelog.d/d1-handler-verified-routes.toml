@@ -11,7 +11,7 @@ text = "`ContextKind::HandlerResolved` is a new variant of an exhaustive enum. M
 [[crate]]
 name = "systemprompt-api"
 section = "Breaking"
-text = "`routes::brain::mount_brain` and `routes::gateway::gateway_mount_router` are removed; brain, messaging, the managed consumer, gateway inference, documents, uploads, folders and internal links mount through route declarations. `services::validation` (with `is_valid_email`) and `services::middleware::client_addr::client_ip_from_request` are no longer public. `MountError` gains `IncoherentHandlerVerification`, `ExtensionHandlerVerified` and `UnlistedBodyExemption`."
+text = "`routes::brain::mount_brain` and `routes::gateway::gateway_mount_router` are removed; brain, messaging, the managed consumer, gateway inference, documents, uploads, folders and internal links mount through route declarations. `services::middleware::client_addr::client_ip_from_request` is no longer public. `MountError` gains `IncoherentHandlerVerification`, `ExtensionHandlerVerified` and `UnlistedBodyExemption`."
 
 [[crate]]
 name = "systemprompt-api"
