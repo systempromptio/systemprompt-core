@@ -1,0 +1,1 @@
+src/toolsets/serve.rs  # the standalone MCP host binary composes its own McpToolExecutor; it runs outside the API server and HostContext exposes no ToolUsageRepository accessor

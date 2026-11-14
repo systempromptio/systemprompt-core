@@ -1,0 +1,4 @@
+[root]
+section = "Changed"
+area = "Tooling"
+text = "Gate allowlists are declared per package in `<package>/gates/<gate>.allow`, read by one reader (`scripts/lib/gate_scope.py allowlist`); the central files keep only test-workspace entries, and a change to a package's allowlist selects only that package."

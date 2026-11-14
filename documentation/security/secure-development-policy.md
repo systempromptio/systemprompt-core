@@ -52,7 +52,7 @@ SHA, and every workflow declares a read-only default token, granting write scope
   never returned to the caller.
 - **Secrets.** No secrets in source. Configuration reads secrets from a profile-referenced file
   or secrets source. Environment-variable reads are restricted to an audited allowlist
-  (`scripts/env-var-allowlist.txt`).
+  (`gates/lint-env-vars.allow` beside each package).
 - **Outbound requests.** Every outbound request is checked against SSRF rules when the URL is
   parsed and again when the connection is made
   ([Outbound egress controls](outbound-egress-controls.md)).

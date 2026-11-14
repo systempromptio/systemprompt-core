@@ -1,0 +1,4 @@
+[root]
+section = "Added"
+area = "Tooling"
+text = "`just test-db-editor` gives a session its own migrated test database with the exports the lifecycle tests need; `just worktree-cache` sets per-worktree target directories with sccache; `scripts/gate.sh --cost` filters source gates by cost, and a Claude Code Stop hook runs the cheap gates over the change."

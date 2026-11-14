@@ -1,2 +1,1 @@
-src/mcp_host/serve.rs  # the standalone MCP host binary composes its own McpToolExecutor; it runs outside the API server and HostContext exposes no ToolUsageRepository accessor
-src/host/boot.rs  # HostContext composition root: the MCP child's context, built once at its boot
+src/host_kernel/boot.rs  # HostContext composition root: the MCP child's context, built once at its boot

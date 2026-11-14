@@ -1,1 +1,1 @@
-src/host/boot.rs  # MCP child boot: SYSTEMPROMPT_PROFILE, DATABASE_* URLs, VERIFICATION_KEYS and the granted secrets the API spawned it with
+src/host_kernel/boot.rs  # MCP child boot: SYSTEMPROMPT_PROFILE, DATABASE_* URLs, VERIFICATION_KEYS and the granted secrets the API spawned it with

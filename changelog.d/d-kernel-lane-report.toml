@@ -1,0 +1,4 @@
+[root]
+section = "Added"
+area = "Tooling"
+text = "The affected selection reports `kernel_crates_touched` and `capability_units_touched`, and CI and Quality print a `Kernel lane:` line in the selection step summary. Reported only."

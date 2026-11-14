@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "Tooling"
+text = "The build report counts each composition's closure from one host-filtered `cargo metadata` resolve, so offline and online runs agree; the rust-contracts gates build the scanner optimised in its own target directory."
