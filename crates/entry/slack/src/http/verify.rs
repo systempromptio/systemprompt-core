@@ -2,8 +2,8 @@
 //! config and HMAC signature verification over the raw request body.
 //!
 //! The signing secret and bot token resolve on demand by their named refs
-//! through the platform secret lookup, which reads built-in and custom
-//! secret names with the platform's one precedence. [`verify_any_app`] exists
+//! from the extension's custom-secret store; config validation refuses a ref
+//! that names a built-in platform secret. [`verify_any_app`] exists
 //! because the `url_verification` handshake carries no workspace id, so it must
 //! succeed against any configured app's secret.
 //!
@@ -14,7 +14,7 @@ use axum::http::HeaderMap;
 use systemprompt_identifiers::SlackWorkspaceId;
 use systemprompt_manifest::services::{ServicesConfig, SlackAppConfig};
 use systemprompt_slack::signature::verify_slack_signature;
-use systemprompt_traits::SecretLookup;
+use systemprompt_traits::SecretStore;
 
 pub(super) fn resolve_app(
     services: &ServicesConfig,
@@ -27,20 +27,20 @@ pub(super) fn resolve_app(
         .cloned()
 }
 
-fn signing_secret(secrets: &dyn SecretLookup, app: &SlackAppConfig) -> Option<String> {
+fn signing_secret(secrets: &dyn SecretStore, app: &SlackAppConfig) -> Option<String> {
     secrets
-        .lookup(app.signing_secret_ref.as_str())
+        .secret(app.signing_secret_ref.as_str())
         .map(|secret| secret.expose().to_owned())
 }
 
-pub(super) fn bot_token(secrets: &dyn SecretLookup, app: &SlackAppConfig) -> Option<String> {
+pub(super) fn bot_token(secrets: &dyn SecretStore, app: &SlackAppConfig) -> Option<String> {
     secrets
-        .lookup(app.bot_token_ref.as_str())
+        .secret(app.bot_token_ref.as_str())
         .map(|secret| secret.expose().to_owned())
 }
 
 pub(super) fn verify_app(
-    secrets: &dyn SecretLookup,
+    secrets: &dyn SecretStore,
     app: &SlackAppConfig,
     headers: &HeaderMap,
     body: &[u8],
@@ -52,7 +52,7 @@ pub(super) fn verify_app(
 }
 
 pub(super) fn verify_any_app(
-    secrets: &dyn SecretLookup,
+    secrets: &dyn SecretStore,
     services: &ServicesConfig,
     headers: &HeaderMap,
     body: &[u8],

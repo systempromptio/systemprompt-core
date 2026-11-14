@@ -6,8 +6,7 @@
 //! variant-to-status mapping cannot silently drift, and `ProxyError` /
 //! `ContextExtractionError` are walked through their public status classifiers.
 
-use axum::body::Body;
-use axum::http::{Response, StatusCode};
+use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use systemprompt_agent::AgentError;
 use systemprompt_api::error::ApiHttpError;
@@ -259,10 +258,17 @@ fn proxy_error_status_codes() {
     );
 }
 
+fn challenge(status: StatusCode) -> systemprompt_api::services::proxy::OAuthChallenge {
+    systemprompt_api::services::proxy::OAuthChallenge {
+        status,
+        www_authenticate: axum::http::HeaderValue::from_static("Bearer realm=\"svc\""),
+        body: "{}".to_owned(),
+    }
+}
+
 #[test]
 fn proxy_error_auth_challenge_preserves_inner_status() {
-    let inner: Response<Body> = (StatusCode::UNAUTHORIZED, "challenge").into_response();
-    let err = ProxyError::AuthChallenge(Box::new(inner));
+    let err = ProxyError::AuthChallenge(Box::new(challenge(StatusCode::UNAUTHORIZED)));
     assert_eq!(err.to_status_code(), StatusCode::UNAUTHORIZED);
 
     let status: StatusCode = err.into();
@@ -288,9 +294,15 @@ fn proxy_error_into_response_maps_status_class() {
     let bad_req = invalid_method();
     assert_eq!(bad_req.into_response().status(), StatusCode::BAD_REQUEST);
 
-    let challenge: Response<Body> = (StatusCode::FORBIDDEN, "c").into_response();
-    let ch = ProxyError::AuthChallenge(Box::new(challenge));
-    assert_eq!(ch.into_response().status(), StatusCode::FORBIDDEN);
+    let ch = ProxyError::AuthChallenge(Box::new(challenge(StatusCode::FORBIDDEN)));
+    let response = ch.into_response();
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    assert_eq!(
+        response.headers().get(axum::http::header::WWW_AUTHENTICATE),
+        Some(&axum::http::HeaderValue::from_static(
+            "Bearer realm=\"svc\""
+        ))
+    );
 }
 
 #[test]

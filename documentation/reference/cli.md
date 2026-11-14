@@ -237,7 +237,7 @@ Extensions, jobs, authz hooks, secrets sources, gateway scanners and adapters, S
 | `extension` | Extension id that owns the seam, or `kernel`. |
 | `count`, `entries` | Registered entries by stable name, id or tag; `priority=N` for priority-only seams; `unnamed#N` for factory-only seams. |
 | `requires` | Profile setting that depends on this seam, if any. |
-| `status` | `linked`, `empty`, `missing` (the profile requires an entry the binary does not link), or `owner_disabled` (the profile disables the owning extension, so nothing reads the seam's registrations). |
+| `status` | `linked`, `empty`, `missing` (the profile requires an entry the binary does not link, requires a seam no linked crate registers, or requires a seam whose owning extension it disables), or `owner_disabled` (the profile disables the owning extension and no setting requires the seam; informational). |
 
 Profile checks: `governance.authz.hook.mode: extension` requires at least one authz hook, and `secrets.source: external` requires a secrets source registered under `secrets.external.kind`. A binary that fails either check refuses to boot with that profile, so run the command against the deployment profile before shipping a custom binary.
 

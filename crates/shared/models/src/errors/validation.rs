@@ -36,6 +36,13 @@ pub enum ServicesValidationError {
     #[error("{0}")]
     BusinessRule(String),
 
+    #[error("{owner}: {field} names the built-in secret `{secret}`; it must name a custom secret")]
+    BuiltInSecretRef {
+        owner: String,
+        field: &'static str,
+        secret: String,
+    },
+
     #[error(
         "{owner}: oauth.scopes [{}] holds no scope an interactively signed-in user can carry, \
          so no non-admin user can reach it; require `user` (or `admin`, or `anonymous`) \

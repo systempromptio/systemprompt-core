@@ -9,10 +9,17 @@
 //!
 //! Every group reads the notification service from the
 //! `NotificationsServiceSlot` the `notifications` extension provides and the
-//! host binds. When that extension is disabled in the profile the slot is
-//! absent: the user and admin groups are not declared and the gateway skips
-//! the inbox, so their paths answer 404. A slot that is present but unbound
-//! is a boot error. The admin group sits under the reserved `/api/v1/admin`
+//! host binds; this extension `requires` that slot. All three groups belong
+//! to this extension's id, `notifications-http`, including the gateway
+//! registration:
+//!
+//! | profile disables | user | admin | bridge inbox |
+//! |---|---|---|---|
+//! | `notifications-http` | 404 | 404 | 404 |
+//! | `notifications` | boot refused (unmet `NotificationsServiceSlot`) | | |
+//! | both | 404 | 404 | 404 |
+//!
+//! A slot that is present but unbound is a boot error. The admin group sits under the reserved `/api/v1/admin`
 //! prefix by the `NotificationsAdmin` row of the API's core allowance table,
 //! keyed on this extension's id, that exact path and its role group.
 //!
@@ -23,12 +30,11 @@ use systemprompt_api::kernel::register_gateway_route;
 use systemprompt_extension::RouteGroup;
 use systemprompt_extension::prelude::*;
 use systemprompt_models::modules::ApiPaths;
-use systemprompt_notifications::{NotificationsService, NotificationsServiceSlot};
-use systemprompt_provider_contracts::MissingDependency;
+use systemprompt_notifications::NotificationsServiceSlot;
 
 use crate::http::{NotificationsState, admin_router, bridge, router};
 
-pub const NOTIFICATIONS_EXTENSION: &str = "notifications";
+pub const NOTIFICATIONS_HTTP_EXTENSION: &str = "notifications-http";
 
 const RATE_LIMIT: RateLimit = RateLimit::new("notifications", RateBudget::Notifications);
 
@@ -38,24 +44,21 @@ pub struct NotificationsHttpExtension;
 impl Extension for NotificationsHttpExtension {
     fn metadata(&self) -> ExtensionMetadata {
         ExtensionMetadata {
-            id: "notifications-http",
+            id: NOTIFICATIONS_HTTP_EXTENSION,
             name: "Notifications HTTP",
             version: env!("CARGO_PKG_VERSION"),
         }
+    }
+
+    fn requires(&self) -> Vec<StateRequirement> {
+        vec![StateRequirement::of::<NotificationsServiceSlot>()]
     }
 
     fn routers(
         &self,
         ctx: &dyn ExtensionContext,
     ) -> Result<Vec<ExtensionRouter>, ExtensionStateError> {
-        let extension_state = ctx.extension_state();
-        let Some(slot) = extension_state.find::<NotificationsServiceSlot>() else {
-            return Ok(Vec::new());
-        };
-        if !slot.is_bound() {
-            return Err(MissingDependency::of::<NotificationsService>().into());
-        }
-        let state = NotificationsState::from_extension_state(&extension_state)?;
+        let state = NotificationsState::from_extension_state(&ctx.extension_state())?;
         Ok(vec![
             ExtensionRouter::new(
                 router(state.clone()),
@@ -80,7 +83,7 @@ impl Extension for NotificationsHttpExtension {
 register_extension!(NotificationsHttpExtension);
 
 register_gateway_route!(
-    extension = NOTIFICATIONS_EXTENSION,
+    extension = NOTIFICATIONS_HTTP_EXTENSION,
     path = ApiPaths::BRIDGE_NOTIFICATIONS,
     scope = "bridge_notifications",
     budget = RateBudget::Notifications,

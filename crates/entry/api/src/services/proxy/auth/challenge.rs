@@ -3,16 +3,18 @@
 //! [`OAuthChallengeBuilder`] builds the `WWW-Authenticate: Bearer` 401/403
 //! responses (per RFC 6750 and RFC 9728) that drive MCP and agent clients into
 //! their OAuth discovery handshake, deriving the advertised `resource_metadata`
-//! URL from the incoming request host. [`AuthValidator`] performs the bearer
-//! check and [`challenge_or_error`] maps a failed check onto a [`ProxyError`].
+//! URL from the incoming request host, as an [`OAuthChallenge`] value the
+//! error carries until the HTTP boundary renders it. [`AuthValidator`] performs
+//! the bearer check and [`challenge_or_error`] maps a failed check onto a
+//! [`ProxyError`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::body::Body;
-use axum::http::header::{AUTHORIZATION, HOST};
-use axum::http::{HeaderMap, StatusCode};
-use axum::response::Response;
+use axum::http::header::{AUTHORIZATION, CONTENT_TYPE, HOST, WWW_AUTHENTICATE};
+use axum::http::{HeaderMap, HeaderValue, StatusCode};
+use axum::response::{IntoResponse, Response};
 use serde_json::json;
 
 use crate::services::proxy::backend::ProxyError;
@@ -58,6 +60,27 @@ pub(super) struct ChallengeRequest<'a> {
     pub has_authorization: bool,
 }
 
+/// The `WWW-Authenticate` challenge a proxied service answers with, held as
+/// its status, header and JSON body so the error stays `Send + Sync`; it is
+/// rendered into a response only at the HTTP boundary.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OAuthChallenge {
+    pub status: StatusCode,
+    pub www_authenticate: HeaderValue,
+    pub body: String,
+}
+
+impl IntoResponse for OAuthChallenge {
+    fn into_response(self) -> Response {
+        let mut response = Response::new(Body::from(self.body));
+        *response.status_mut() = self.status;
+        let headers = response.headers_mut();
+        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+        headers.insert(WWW_AUTHENTICATE, self.www_authenticate);
+        response
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct OAuthChallengeBuilder;
 
@@ -77,7 +100,7 @@ impl OAuthChallengeBuilder {
 
     pub(super) fn build_challenge_response(
         req: &ChallengeRequest<'_>,
-    ) -> Result<Response<Body>, StatusCode> {
+    ) -> Result<OAuthChallenge, StatusCode> {
         let ChallengeRequest {
             service_name,
             resource_path,
@@ -130,15 +153,15 @@ impl OAuthChallengeBuilder {
             (header, body)
         };
 
-        Response::builder()
-            .status(status_code)
-            .header("Content-Type", "application/json")
-            .header("WWW-Authenticate", auth_header_value)
-            .body(Body::from(error_body.to_string()))
-            .map_err(|e| {
-                tracing::error!(error = %e, "Failed to build OAuth challenge response");
-                StatusCode::INTERNAL_SERVER_ERROR
-            })
+        let www_authenticate = HeaderValue::from_str(&auth_header_value).map_err(|e| {
+            tracing::error!(error = %e, "Failed to build OAuth challenge response");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+        Ok(OAuthChallenge {
+            status: status_code,
+            www_authenticate,
+            body: error_body.to_string(),
+        })
     }
 }
 

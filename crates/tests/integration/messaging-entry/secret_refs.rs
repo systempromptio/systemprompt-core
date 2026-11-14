@@ -1,78 +1,61 @@
-//! A Slack signing secret or Teams app password whose named ref points at a
-//! built-in secret name (`oauth_at_rest_pepper`) resolves exactly as the
-//! platform resolves it: the Slack handshake signed with that value is
-//! accepted, and the Teams activity is acked rather than refused as an
-//! unresolvable secret.
+//! Secret access for the Slack and Teams routes. A custom-secret ref resolves
+//! and the request is accepted; the secret store an extension is handed
+//! resolves no built-in platform secret; and the shared extension state holds
+//! no unscoped secret lookup.
 
 use axum::http::StatusCode;
+use systemprompt_extension::ExtensionContext;
 use systemprompt_test_fixtures::{
-    TEST_TEAMS_UNRESOLVABLE_APP_ID, TEST_TEAMS_UNRESOLVABLE_TENANT_ID, init_services_bootstrap,
-    messaging_config_yaml_with_teams_endpoints, test_app_context_on, test_db_pool,
+    TEST_SLACK_SIGNING_SECRET, ensure_messaging_bootstrap, test_app_context, test_db_pool,
 };
+use systemprompt_traits::SecretLookup;
 use tower::ServiceExt;
-use wiremock::MockServer;
 
 use super::common::body_to_string;
-use super::{routes_slack, routes_teams};
-
-const BUILT_IN: &str = "oauth_at_rest_pepper";
-
-fn built_in_pepper(ctx: &systemprompt_runtime::AppContext) -> String {
-    ctx.secrets()
-        .get()
-        .get(BUILT_IN)
-        .cloned()
-        .expect("the at-rest pepper is always present")
-}
+use super::routes_slack;
 
 #[tokio::test]
-async fn slack_signing_secret_ref_to_a_built_in_name_verifies() -> anyhow::Result<()> {
-    let yaml = messaging_config_yaml_with_teams_endpoints(None).replace(
-        "signing_secret_ref: slack_signing_secret",
-        &format!("signing_secret_ref: {BUILT_IN}"),
-    );
-    let b = init_services_bootstrap(&yaml);
+async fn a_custom_secret_ref_resolves_and_the_request_is_accepted() -> anyhow::Result<()> {
+    let b = ensure_messaging_bootstrap();
     let pool = test_db_pool().await;
-    let ctx = test_app_context_on(&b, &pool);
-    let secret = built_in_pepper(&ctx);
+    let ctx = test_app_context(&pool, &b.database_url);
 
-    let body = r#"{"type":"url_verification","challenge":"built-in-chal"}"#;
+    let body = r#"{"type":"url_verification","challenge":"custom-chal"}"#;
     let resp = routes_slack::router(&ctx)
-        .oneshot(routes_slack::signed_post("/events", body, &secret))
+        .oneshot(routes_slack::signed_post(
+            "/events",
+            body,
+            TEST_SLACK_SIGNING_SECRET,
+        ))
         .await?;
     let (status, text) = body_to_string(resp).await?;
     assert_eq!(status, StatusCode::OK, "{text}");
-    assert_eq!(text, "built-in-chal");
+    assert_eq!(text, "custom-chal");
     Ok(())
 }
 
 #[tokio::test]
-async fn teams_app_password_ref_to_a_built_in_name_resolves() -> anyhow::Result<()> {
-    let connector = MockServer::start().await;
-    let yaml = messaging_config_yaml_with_teams_endpoints(Some((
-        &format!("{}/openid", connector.uri()),
-        &format!("{}/token", connector.uri()),
-    )))
-    .replace(
-        "app_password_ref: teams_app_password_unresolvable",
-        &format!("app_password_ref: {BUILT_IN}"),
-    );
-    let b = init_services_bootstrap(&yaml);
+async fn the_extension_secret_store_resolves_no_built_in_secret() -> anyhow::Result<()> {
+    let b = ensure_messaging_bootstrap();
     let pool = test_db_pool().await;
-    let ctx = test_app_context_on(&b, &pool);
+    let ctx = test_app_context(&pool, &b.database_url);
 
-    let signing = systemprompt_test_fixtures::next_test_key();
-    routes_teams::mount_connector_jwks(&connector, &signing).await;
-    let token =
-        routes_teams::mint_for_app(&signing, &connector.uri(), TEST_TEAMS_UNRESOLVABLE_APP_ID);
-    let body = routes_teams::activity_json(TEST_TEAMS_UNRESOLVABLE_TENANT_ID, &connector.uri());
-    let resp = routes_teams::router(&ctx)
-        .oneshot(routes_teams::post_messages(&body, Some(&token)))
-        .await?;
-    assert_eq!(
-        resp.status(),
-        StatusCode::OK,
-        "a built-in secret name resolves; only a missing secret is a 503"
+    assert!(
+        ctx.secrets().get().get("oauth_at_rest_pepper").is_some(),
+        "the platform holds the pepper, so a None below is the store's scope"
+    );
+    let store = ExtensionContext::secrets(&*ctx);
+    for name in ["signing_key_pem", "oauth_at_rest_pepper", "database_url"] {
+        assert!(
+            store.secret(name).is_none(),
+            "an extension must not read the built-in secret {name}"
+        );
+    }
+    assert!(
+        ctx.extension_state()
+            .find::<std::sync::Arc<dyn SecretLookup>>()
+            .is_none(),
+        "the shared extension state carries no unscoped secret lookup"
     );
     Ok(())
 }

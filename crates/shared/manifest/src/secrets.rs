@@ -20,7 +20,8 @@ use std::collections::HashMap;
 use std::fmt;
 use zeroize::Zeroize;
 
-use systemprompt_models::errors::SecretsError;
+use systemprompt_identifiers::SecretName;
+use systemprompt_models::errors::{SecretsError, ServicesValidationError};
 
 pub const OAUTH_AT_REST_PEPPER_MIN_LENGTH: usize = 32;
 
@@ -154,31 +155,49 @@ impl Secrets {
     }
 
     pub fn get(&self, key: &str) -> Option<&String> {
-        match key {
-            "oauth_at_rest_pepper" | "OAUTH_AT_REST_PEPPER" => Some(&self.oauth_at_rest_pepper),
-            "signing_key_pem" | "SIGNING_KEY_PEM" => self.signing_key_pem.as_ref(),
-            "signing_key_staged_pem" | "SIGNING_KEY_STAGED_PEM" => {
-                self.signing_key_staged_pem.as_ref()
-            },
-            "signing_key_previous_keys" | "SIGNING_KEY_PREVIOUS_KEYS" => {
-                self.signing_key_previous_keys.as_ref()
-            },
-            "database_url" | "DATABASE_URL" => Some(&self.database_url),
-            "database_write_url" | "DATABASE_WRITE_URL" => self.database_write_url.as_ref(),
-            "database_session_url" | "DATABASE_SESSION_URL" => self.database_session_url.as_ref(),
-            "external_database_url" | "EXTERNAL_DATABASE_URL" => {
-                self.external_database_url.as_ref()
-            },
-            "internal_database_url" | "INTERNAL_DATABASE_URL" => {
-                self.internal_database_url.as_ref()
-            },
-            "gemini" | "GEMINI_API_KEY" => self.gemini.as_ref(),
-            "anthropic" | "ANTHROPIC_API_KEY" => self.anthropic.as_ref(),
-            "openai" | "OPENAI_API_KEY" => self.openai.as_ref(),
-            "github" | "GITHUB_TOKEN" => self.github.as_ref(),
-            "moonshot" | "MOONSHOT_API_KEY" | "kimi" | "KIMI_API_KEY" => self.moonshot.as_ref(),
-            "qwen" | "QWEN_API_KEY" | "dashscope" | "DASHSCOPE_API_KEY" => self.qwen.as_ref(),
-            other => self.custom_secret(other),
+        BuiltInSecret::named(key).map_or_else(
+            || self.custom_secret(key),
+            |built_in| self.built_in(built_in),
+        )
+    }
+
+    #[must_use]
+    pub fn is_built_in_name(key: &str) -> bool {
+        BuiltInSecret::named(key).is_some()
+    }
+
+    pub fn require_custom_ref(
+        owner: &str,
+        field: &'static str,
+        name: &SecretName,
+    ) -> Result<(), ServicesValidationError> {
+        if Self::is_built_in_name(name.as_str()) {
+            return Err(ServicesValidationError::BuiltInSecretRef {
+                owner: owner.to_owned(),
+                field,
+                secret: name.as_str().to_owned(),
+            });
+        }
+        Ok(())
+    }
+
+    const fn built_in(&self, secret: BuiltInSecret) -> Option<&String> {
+        match secret {
+            BuiltInSecret::OauthAtRestPepper => Some(&self.oauth_at_rest_pepper),
+            BuiltInSecret::SigningKeyPem => self.signing_key_pem.as_ref(),
+            BuiltInSecret::SigningKeyStagedPem => self.signing_key_staged_pem.as_ref(),
+            BuiltInSecret::SigningKeyPreviousKeys => self.signing_key_previous_keys.as_ref(),
+            BuiltInSecret::DatabaseUrl => Some(&self.database_url),
+            BuiltInSecret::DatabaseWriteUrl => self.database_write_url.as_ref(),
+            BuiltInSecret::DatabaseSessionUrl => self.database_session_url.as_ref(),
+            BuiltInSecret::ExternalDatabaseUrl => self.external_database_url.as_ref(),
+            BuiltInSecret::InternalDatabaseUrl => self.internal_database_url.as_ref(),
+            BuiltInSecret::Gemini => self.gemini.as_ref(),
+            BuiltInSecret::Anthropic => self.anthropic.as_ref(),
+            BuiltInSecret::Openai => self.openai.as_ref(),
+            BuiltInSecret::Github => self.github.as_ref(),
+            BuiltInSecret::Moonshot => self.moonshot.as_ref(),
+            BuiltInSecret::Qwen => self.qwen.as_ref(),
         }
     }
 
@@ -190,6 +209,50 @@ impl Secrets {
                 key.to_uppercase()
             };
             self.custom.get(&alternate)
+        })
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BuiltInSecret {
+    OauthAtRestPepper,
+    SigningKeyPem,
+    SigningKeyStagedPem,
+    SigningKeyPreviousKeys,
+    DatabaseUrl,
+    DatabaseWriteUrl,
+    DatabaseSessionUrl,
+    ExternalDatabaseUrl,
+    InternalDatabaseUrl,
+    Gemini,
+    Anthropic,
+    Openai,
+    Github,
+    Moonshot,
+    Qwen,
+}
+
+impl BuiltInSecret {
+    fn named(key: &str) -> Option<Self> {
+        Some(match key {
+            "oauth_at_rest_pepper" | "OAUTH_AT_REST_PEPPER" => Self::OauthAtRestPepper,
+            "signing_key_pem" | "SIGNING_KEY_PEM" => Self::SigningKeyPem,
+            "signing_key_staged_pem" | "SIGNING_KEY_STAGED_PEM" => Self::SigningKeyStagedPem,
+            "signing_key_previous_keys" | "SIGNING_KEY_PREVIOUS_KEYS" => {
+                Self::SigningKeyPreviousKeys
+            },
+            "database_url" | "DATABASE_URL" => Self::DatabaseUrl,
+            "database_write_url" | "DATABASE_WRITE_URL" => Self::DatabaseWriteUrl,
+            "database_session_url" | "DATABASE_SESSION_URL" => Self::DatabaseSessionUrl,
+            "external_database_url" | "EXTERNAL_DATABASE_URL" => Self::ExternalDatabaseUrl,
+            "internal_database_url" | "INTERNAL_DATABASE_URL" => Self::InternalDatabaseUrl,
+            "gemini" | "GEMINI_API_KEY" => Self::Gemini,
+            "anthropic" | "ANTHROPIC_API_KEY" => Self::Anthropic,
+            "openai" | "OPENAI_API_KEY" => Self::Openai,
+            "github" | "GITHUB_TOKEN" => Self::Github,
+            "moonshot" | "MOONSHOT_API_KEY" | "kimi" | "KIMI_API_KEY" => Self::Moonshot,
+            "qwen" | "QWEN_API_KEY" | "dashscope" | "DASHSCOPE_API_KEY" => Self::Qwen,
+            _ => return None,
         })
     }
 }

@@ -20,6 +20,8 @@ use systemprompt_identifiers::{AgentName, SecretName, TeamsAppId, TeamsTenantId}
 
 use systemprompt_models::errors::ServicesValidationError;
 
+use crate::secrets::Secrets;
+
 pub const BOT_FRAMEWORK_OPENID_CONFIG_URL: &str =
     "https://login.botframework.com/v1/.well-known/openidconfiguration";
 pub const BOT_FRAMEWORK_TOKEN_URL: &str =
@@ -79,6 +81,11 @@ impl TeamsAppConfig {
     }
 
     pub fn validate(&self, name: &str) -> Result<(), ServicesValidationError> {
+        Secrets::require_custom_ref(
+            &format!("teams app '{name}'"),
+            "app_password_ref",
+            &self.app_password_ref,
+        )?;
         if self.app_id.as_str().is_empty() {
             return Err(ServicesValidationError::invalid_field(format!(
                 "teams app '{name}' has an empty app_id"

@@ -1,7 +1,12 @@
 //! The notification route groups on the full `setup_api_server` router: each
-//! refuses a caller without credentials, and none is mounted when the
-//! `notifications` extension is disabled in the profile (with the brain,
-//! which requires its producer sink).
+//! refuses a caller without credentials, the admin group refuses a user
+//! token, and the profile's disabled list decides mounting:
+//!
+//! | disables | user | admin | bridge inbox |
+//! |---|---|---|---|
+//! | `notifications-http` | 404 | 404 | 404 |
+//! | `notifications` (with `brain`) | boot refused | | |
+//! | all three | 404 | 404 | 404 |
 
 use std::net::SocketAddr;
 
@@ -11,16 +16,20 @@ use axum::extract::ConnectInfo;
 use axum::http::{Request, StatusCode, header};
 use http::Method;
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_identifiers::ExtensionId;
+use systemprompt_identifiers::{ExtensionId, JwtToken};
+use systemprompt_models::modules::ApiPaths;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_app_context_with_extensions, fixture_config, test_db_pool,
+    ensure_test_bootstrap, fixture_app_context_with_extensions, fixture_config,
+    seed_bridge_credential, test_db_pool,
 };
 use tower::ServiceExt;
 
+const ADMIN_SIMULATE: &str = "/api/v1/admin/notifications/simulate";
+
 const GROUPS: [(Method, &str); 3] = [
-    (Method::GET, "/api/v1/notifications"),
-    (Method::POST, "/api/v1/admin/notifications/simulate"),
-    (Method::GET, "/v1/bridge/notifications"),
+    (Method::GET, ApiPaths::NOTIFICATIONS),
+    (Method::POST, ADMIN_SIMULATE),
+    (Method::GET, ApiPaths::BRIDGE_NOTIFICATIONS),
 ];
 
 async fn full_router(disabled: &[ExtensionId]) -> anyhow::Result<Router> {
@@ -47,13 +56,19 @@ fn setup_api_server(ctx: &systemprompt_runtime::AppContext) -> anyhow::Result<Ro
 }
 
 fn request(method: Method, uri: &str) -> Request<Body> {
-    let mut req = Request::builder()
+    authed(method, uri, None)
+}
+
+fn authed(method: Method, uri: &str, bearer: Option<&JwtToken>) -> Request<Body> {
+    let mut builder = Request::builder()
         .method(method)
         .uri(uri)
         .header(header::HOST, "127.0.0.1")
-        .header(header::CONTENT_TYPE, "application/json")
-        .body(Body::from("{}"))
-        .expect("request build");
+        .header(header::CONTENT_TYPE, "application/json");
+    if let Some(token) = bearer {
+        builder = builder.header(header::AUTHORIZATION, format!("Bearer {}", token.as_str()));
+    }
+    let mut req = builder.body(Body::from("{}")).expect("request build");
     req.extensions_mut().insert(ConnectInfo(
         "127.0.0.1:40000"
             .parse::<SocketAddr>()
@@ -76,16 +91,55 @@ async fn every_notification_group_refuses_an_anonymous_caller() -> anyhow::Resul
     Ok(())
 }
 
-#[tokio::test]
-async fn no_notification_group_is_mounted_when_the_extension_is_disabled() -> anyhow::Result<()> {
-    let app = full_router(&[ExtensionId::new("notifications"), ExtensionId::new("brain")]).await?;
+async fn assert_unmounted(disabled: &[ExtensionId]) -> anyhow::Result<()> {
+    let app = full_router(disabled).await?;
     for (method, uri) in GROUPS {
         let status = app
             .clone()
             .oneshot(request(method.clone(), uri))
             .await?
             .status();
-        assert_eq!(status, StatusCode::NOT_FOUND, "{method} {uri}");
+        assert_eq!(status, StatusCode::NOT_FOUND, "{method} {uri} with {disabled:?}");
     }
+    Ok(())
+}
+
+#[tokio::test]
+async fn the_admin_group_refuses_a_user_token_at_the_admin_gate() -> anyhow::Result<()> {
+    let app = full_router(&[]).await?;
+    let user = seed_bridge_credential(&test_db_pool().await, "notifications-admin").await?;
+    let status = app
+        .oneshot(authed(Method::POST, ADMIN_SIMULATE, Some(&user.jwt)))
+        .await?
+        .status();
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    Ok(())
+}
+
+#[tokio::test]
+async fn disabling_the_routes_extension_unmounts_every_group_including_the_bridge_inbox()
+-> anyhow::Result<()> {
+    assert_unmounted(&[ExtensionId::new("notifications-http")]).await
+}
+
+#[tokio::test]
+async fn disabling_notifications_and_its_routes_unmounts_every_group() -> anyhow::Result<()> {
+    assert_unmounted(&[
+        ExtensionId::new("notifications"),
+        ExtensionId::new("notifications-http"),
+        ExtensionId::new("brain"),
+    ])
+    .await
+}
+
+#[tokio::test]
+async fn disabling_notifications_while_its_routes_stay_enabled_refuses_boot() -> anyhow::Result<()>
+{
+    let refused = full_router(&[ExtensionId::new("notifications"), ExtensionId::new("brain")]).await;
+    let error = refused.expect_err("routes requiring the notification service refuse boot");
+    assert!(
+        format!("{error:#}").contains("NotificationsService"),
+        "{error:#}"
+    );
     Ok(())
 }
