@@ -19,12 +19,12 @@ impl std::fmt::Display for RouteKey {
     }
 }
 
-pub(super) fn api_source_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../entry/api/src")
+fn entry_root() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../entry")
 }
 
 pub(super) fn router_inventory() -> BTreeSet<RouteKey> {
-    let root = api_source_root();
+    let root = entry_root().join("api/src");
     let mut files = Vec::new();
     collect_rs(&root, &mut files);
     assert!(
@@ -34,17 +34,40 @@ pub(super) fn router_inventory() -> BTreeSet<RouteKey> {
         files.len()
     );
     let mut keys = BTreeSet::new();
+    scan_tree(&root, "", &files, &mut keys);
+    for capability in capability_entry_crates() {
+        let src = entry_root().join(&capability).join("src");
+        let mut files = Vec::new();
+        collect_rs(&src, &mut files);
+        scan_tree(&src, &format!("{capability}/"), &files, &mut keys);
+    }
+    keys
+}
+
+fn capability_entry_crates() -> Vec<String> {
+    let mut names: Vec<String> = fs::read_dir(entry_root())
+        .expect("read entry dir")
+        .filter_map(|entry| {
+            let path = entry.expect("dir entry").path();
+            let name = path.file_name()?.to_string_lossy().into_owned();
+            (path.join("src").is_dir() && name != "api" && name != "cli").then_some(name)
+        })
+        .collect();
+    names.sort();
+    names
+}
+
+fn scan_tree(root: &Path, prefix: &str, files: &[PathBuf], keys: &mut BTreeSet<RouteKey>) {
     for file in files {
         let rel = file
-            .strip_prefix(&root)
+            .strip_prefix(root)
             .expect("under root")
             .to_string_lossy()
             .replace('\\', "/");
-        let text = fs::read_to_string(&file).expect("read api source");
+        let text = fs::read_to_string(file).expect("read entry source");
         let code = strip_line_comments(&text);
-        scan_file(&rel, &code, &mut keys);
+        scan_file(&format!("{prefix}{rel}"), &code, keys);
     }
-    keys
 }
 
 fn collect_rs(dir: &Path, out: &mut Vec<PathBuf>) {

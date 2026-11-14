@@ -21,8 +21,7 @@ workspace = true
 
 [features]
 default = []
-notifications = ["systemprompt-runtime/notifications"]
-brain = ["notifications", "systemprompt-runtime/brain"]
+brain = ["systemprompt-runtime/brain"]
 
 [dependencies]
 async-trait = { workspace = true }

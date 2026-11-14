@@ -77,6 +77,7 @@ pub use disposable_db::DisposableDb;
 pub use documents::{
     fixture_documents_runtime, fixture_documents_runtime_configured, fixture_documents_runtime_on,
     fixture_documents_runtime_with, fixture_notification_sink, fixture_notifications,
+    notifications_service,
 };
 pub use error_chain::error_chain;
 pub use governance::{apply_governance, apply_governance_plane, record_plane_applied};

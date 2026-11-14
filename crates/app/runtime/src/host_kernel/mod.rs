@@ -40,7 +40,7 @@ use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_models::authz::SubjectSourceHandle;
 use systemprompt_models::subprocess::VERIFICATION_KEYS_ENV;
 #[cfg(feature = "notifications")]
-use systemprompt_notifications::service::NotificationsService;
+use systemprompt_notifications::service::NotificationsServiceSlot;
 use systemprompt_provider_contracts::Dependencies;
 use systemprompt_security::jwt::VerifyingTokenAuthority;
 use systemprompt_security::keys::VerificationKeyring;
@@ -139,6 +139,13 @@ impl HostParts {
 }
 
 /// Finishes a child's composition once the context exists.
+///
+/// `bind_notifications` assembles the child's notification service with the
+/// discovered extension seams and binds it into the `NotificationsServiceSlot`
+/// of the host's extension state. A child never binds the consumer slot: it
+/// delivers escalations through the serving host's consumer. When the
+/// `notifications` extension is disabled the slot is absent and nothing is
+/// assembled, so the inbox tool is not offered.
 pub struct HostKernel {
     market_state: StateHandle,
     extensions: Arc<ExtensionRegistry>,
@@ -173,65 +180,26 @@ impl HostKernel {
         Ok(state)
     }
 
-    #[must_use]
-    pub fn notifications_without_seams(&self) -> HostNotifications {
-        #[cfg(feature = "notifications")]
-        {
-            HostNotifications(Arc::clone(
-                &self
-                    .notifications
-                    .assemble(ExtensionSeams::default())
-                    .service,
-            ))
-        }
-        #[cfg(not(feature = "notifications"))]
-        {
-            HostNotifications(())
-        }
-    }
-
     #[cfg_attr(
         not(feature = "notifications"),
         expect(
             unused_variables,
-            reason = "extension seams are discovered only by the notifications assembly"
+            clippy::unused_self,
+            reason = "the notification service is assembled only when the runtime links it"
         )
     )]
-    #[must_use]
-    pub fn notifications(&self, ctx: &dyn ExtensionContext) -> HostNotifications {
+    pub fn bind_notifications(&self, ctx: &dyn ExtensionContext) -> Result<(), HostBootError> {
         #[cfg(feature = "notifications")]
         {
+            let state = ctx.extension_state();
+            let Some(slot) = state.find::<NotificationsServiceSlot>() else {
+                return Ok(());
+            };
             let seams = ExtensionSeams::discover(ctx);
             self.audiences.bind(seams.audiences.clone());
-            HostNotifications(Arc::clone(&self.notifications.assemble(seams).service))
+            slot.bind(Arc::clone(&self.notifications.assemble(seams).service))
+                .map_err(RuntimeError::from)?;
         }
-        #[cfg(not(feature = "notifications"))]
-        {
-            HostNotifications(())
-        }
-    }
-}
-
-/// A child host's notifications service, present when the runtime is built
-/// with notifications; the host leaves escalated delivery to the API's
-/// consumer.
-#[derive(Clone)]
-#[cfg_attr(not(feature = "notifications"), derive(Copy))]
-pub struct HostNotifications(
-    #[cfg(feature = "notifications")] Arc<NotificationsService>,
-    #[cfg(not(feature = "notifications"))] (),
-);
-
-impl std::fmt::Debug for HostNotifications {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("HostNotifications").finish_non_exhaustive()
-    }
-}
-
-impl HostNotifications {
-    #[cfg(feature = "notifications")]
-    #[must_use]
-    pub const fn service(&self) -> &Arc<NotificationsService> {
-        &self.0
+        Ok(())
     }
 }

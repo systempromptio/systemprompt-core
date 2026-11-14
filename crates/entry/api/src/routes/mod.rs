@@ -29,8 +29,6 @@ pub mod marketplace;
 pub mod mcp;
 #[cfg(any(feature = "slack", feature = "teams"))]
 pub mod messaging;
-#[cfg(feature = "notifications")]
-pub mod notifications;
 pub mod oauth;
 pub mod proxy;
 #[cfg(feature = "slack")]

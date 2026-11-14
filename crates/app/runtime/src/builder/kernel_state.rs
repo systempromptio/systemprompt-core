@@ -66,11 +66,6 @@ pub fn kernel_state(app: &AppContext) -> Dependencies {
         state.insert(Arc::clone(reader));
     }
     #[cfg(feature = "brain")]
-    {
-        state.insert(Arc::new(app.profile().brain.clone()));
-        state.insert::<systemprompt_extension::DynNotificationSink>(Arc::clone(
-            &app.notifications().sink,
-        ));
-    }
+    state.insert(Arc::new(app.profile().brain.clone()));
     state
 }

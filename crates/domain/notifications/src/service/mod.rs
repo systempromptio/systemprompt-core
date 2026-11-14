@@ -21,6 +21,7 @@ use std::sync::Arc;
 use serde::Serialize;
 use systemprompt_database::DbPool;
 use systemprompt_events::{EventRouter, RelayOutcome};
+use systemprompt_extension::LateBound;
 use systemprompt_extension::notifications::{DynNotificationSink, PublishPolicy};
 use systemprompt_identifiers::UserId;
 use systemprompt_models::agui::{AgUiEventBuilder, CustomPayload, GenericCustomPayload};
@@ -34,6 +35,12 @@ pub use crate::models::SubscriptionView;
 use crate::error::NotificationsResult;
 use crate::pipeline::NotificationPipeline;
 use crate::repository::NotificationRepositories;
+
+/// The host-bound notification service in the extension state.
+///
+/// The extension provides it empty; the host that assembles the service
+/// binds it once. A surface that reads it unbound or absent does not serve.
+pub type NotificationsServiceSlot = LateBound<NotificationsService>;
 
 /// Where an escalated notification is delivered.
 ///

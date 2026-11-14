@@ -51,7 +51,7 @@ use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_provider_contracts::Dependencies;
 use systemprompt_runtime::documents::DocumentsRuntime;
 use systemprompt_runtime::documents::links::{ApiLinkIssuer, LinkIssueError, LinkIssuer};
-use systemprompt_runtime::{HostNotifications, HostParts};
+use systemprompt_runtime::HostParts;
 use systemprompt_security::credential::TokenCache;
 use systemprompt_security::keys::VerificationKeyring;
 use systemprompt_traits::{BackgroundTasks, DynToolCallIntentClaims, SecretStore};
@@ -63,7 +63,6 @@ pub use systemprompt_runtime::{HostBootError, PROFILE_ENV};
 #[derive(Clone)]
 pub struct HostContext {
     parts: HostParts,
-    notifications: HostNotifications,
     extension_state: Dependencies,
     provider_tokens: Arc<TokenCache>,
 }
@@ -176,11 +175,6 @@ impl HostContext {
     #[must_use]
     pub const fn documents(&self) -> &Arc<DocumentsRuntime> {
         &self.parts.documents
-    }
-
-    #[must_use]
-    pub const fn notifications(&self) -> &HostNotifications {
-        &self.notifications
     }
 
     #[must_use]

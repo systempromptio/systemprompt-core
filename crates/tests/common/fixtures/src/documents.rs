@@ -9,12 +9,13 @@ use systemprompt_governance::authz::{
     AccessControlRepository, SharedAuthzHook, SubjectProviderSet,
 };
 use systemprompt_manifest::profile::NotificationsProfile;
+use systemprompt_notifications::{NotificationsService, NotificationsServiceSlot};
 use systemprompt_models::authz::SubjectAttributeSource;
 use systemprompt_runtime::documents::{
     DocumentsRuntime, DocumentsRuntimeParts, ExtensionAudiences, UserSubjectDirectory,
 };
 use systemprompt_runtime::notifications::NotificationsHandle;
-use systemprompt_runtime::{core_notifications, notification_sink, NotificationsInputs};
+use systemprompt_runtime::{core_notifications, notification_sink, AppContext, NotificationsInputs};
 use systemprompt_traits::{BackgroundTasks, FileStorage};
 use systemprompt_users::UserRepository;
 
@@ -36,6 +37,14 @@ pub fn fixture_notifications(
         listener_pool: pool.write_pool().as_ref(),
         escalation: systemprompt_runtime::EscalationDelivery::InProcess,
     })
+}
+
+pub fn notifications_service(ctx: &AppContext) -> Arc<NotificationsService> {
+    let state = systemprompt_extension::ExtensionContext::extension_state(ctx);
+    let slot = state
+        .get::<NotificationsServiceSlot>()
+        .expect("the notifications extension provides its service slot");
+    Arc::clone(slot.get().expect("the fixture context binds the notification service"))
 }
 
 pub fn fixture_documents_runtime(

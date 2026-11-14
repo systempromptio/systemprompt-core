@@ -17,7 +17,6 @@ use std::time::Duration;
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
 use systemprompt_events::EventRouter;
-use systemprompt_events::services::durable::DurableOutbox;
 use systemprompt_extension::{
     DynNotificationSink, ExtensionContext, NotificationAudienceResolver, NotificationChannel,
     NotificationRouter, PublishPolicy, ResourceVisibility, discover_notification_audiences,
@@ -43,11 +42,7 @@ use crate::notifications::{
 };
 
 pub fn notification_sink(database: &DbPool, instance_id: &InstanceId) -> DynNotificationSink {
-    let outbox = DurableOutbox::new(
-        database.write_pool().as_ref().clone(),
-        systemprompt_events::process_origin(instance_id),
-    );
-    Arc::new(OutboxNotificationSink::new(Arc::new(outbox)))
+    OutboxNotificationSink::over_write_pool(database, instance_id)
 }
 
 pub fn core_notifications(inputs: &NotificationsInputs<'_>) -> Arc<NotificationsHandle> {

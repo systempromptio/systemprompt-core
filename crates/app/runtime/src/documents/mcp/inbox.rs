@@ -14,7 +14,7 @@ use systemprompt_models::notifications::{
     Attention, Escalate, KeysetCursor, MarkRead, Notification, NotificationPage, SURFACE_MCP,
 };
 use systemprompt_notifications::NotificationsError;
-use systemprompt_notifications::service::FeedQuery;
+use systemprompt_notifications::service::{FeedQuery, NotificationsService};
 use systemprompt_traits::RepositoryError;
 
 use super::DocumentsMcpTools;
@@ -114,6 +114,15 @@ fn inbox_error(error: NotificationsError) -> McpError {
 }
 
 impl InboxHandler<'_> {
+    fn service(&self) -> Result<&NotificationsService, McpError> {
+        self.tools.notifications().ok_or_else(|| {
+            refusal(
+                RefusalCode::InvalidParams,
+                "documents_inbox is not offered on this server",
+            )
+        })
+    }
+
     async fn list(&self, ctx: &RequestContext, input: InboxInput) -> Result<InboxOutput, McpError> {
         let since = input
             .since
@@ -135,8 +144,7 @@ impl InboxHandler<'_> {
             unread_only: input.unread.unwrap_or(false),
         };
         let page = self
-            .tools
-            .notifications()
+            .service()?
             .feed(ctx.user_id(), query)
             .await
             .map_err(inbox_error)?;
@@ -155,8 +163,7 @@ impl InboxHandler<'_> {
             ));
         }
         let outcome = self
-            .tools
-            .notifications()
+            .service()?
             .mark_read(
                 ctx.user_id(),
                 MarkRead {
@@ -182,8 +189,7 @@ impl InboxHandler<'_> {
             .id
             .ok_or_else(|| refusal(RefusalCode::InvalidParams, "escalate needs id"))?;
         let escalated = self
-            .tools
-            .notifications()
+            .service()?
             .escalate(
                 ctx.user_id(),
                 &id,

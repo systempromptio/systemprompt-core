@@ -29,13 +29,12 @@ impl HostContext {
 
     fn finish(parts: HostParts, kernel: &HostKernel) -> Result<Self, HostBootError> {
         let mut host = Self {
-            notifications: kernel.notifications_without_seams(),
             extension_state: Dependencies::new(),
             provider_tokens: Arc::default(),
             parts,
         };
         host.extension_state = kernel.bind_extension_state(&host, host.parts.kernel_state())?;
-        host.notifications = kernel.notifications(&host);
+        kernel.bind_notifications(&host)?;
         Ok(host)
     }
 }

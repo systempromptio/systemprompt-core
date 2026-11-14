@@ -15,7 +15,7 @@ use systemprompt_models::notifications::KeysetCursorError;
 use systemprompt_notifications::NotificationsError;
 use systemprompt_traits::RepositoryError;
 
-use crate::kernel::ApiHttpError;
+use systemprompt_api::kernel::ApiHttpError;
 
 impl From<NotificationsError> for ApiHttpError {
     fn from(error: NotificationsError) -> Self {

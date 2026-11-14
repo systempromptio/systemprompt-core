@@ -9,7 +9,7 @@ use axum::extract::State;
 use systemprompt_models::notifications::{SimulateRequest, SimulateResponse};
 
 use super::NotificationsState;
-use crate::kernel::ApiHttpError;
+use systemprompt_api::kernel::ApiHttpError;
 
 pub(super) async fn simulate(
     State(state): State<NotificationsState>,

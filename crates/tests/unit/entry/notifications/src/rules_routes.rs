@@ -4,7 +4,6 @@ use axum::Router;
 use axum::body::{Body, to_bytes};
 use axum::http::{HeaderMap, Method, Request, StatusCode};
 use serde_json::{Value, json};
-use systemprompt_api::routes::notifications::{NotificationsState, router};
 use systemprompt_api::services::middleware::{
     ContextExtractor, RouterExt, UserOnlyContextMiddleware,
 };
@@ -13,12 +12,15 @@ use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, 
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::ContextExtractionError;
+use systemprompt_notifications_entry::http::router;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, seed_user_row, test_app_context, test_db_pool,
 };
 use tower::ServiceExt;
 use uuid::Uuid;
+
+use crate::support::state;
 
 #[derive(Clone)]
 struct Caller(RequestContext);
@@ -60,7 +62,7 @@ fn app(ctx: &AppContext, user: &UserId) -> Router {
         Actor::user(user.clone()),
     )
     .with_user_type(UserType::User);
-    router(NotificationsState::from_context(ctx)).with_auth(
+    router(state(ctx)).with_auth(
         UserOnlyContextMiddleware::new(Caller(caller)),
         AuthzPolicy::user(),
     )
