@@ -19,6 +19,8 @@ mod frame_options;
 #[cfg(test)]
 mod gateway_guard;
 #[cfg(test)]
+mod gateway_guard_owner;
+#[cfg(test)]
 mod metadata;
 #[cfg(test)]
 mod migration;
