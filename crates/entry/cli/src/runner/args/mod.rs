@@ -224,6 +224,9 @@ impl Commands {
                     CommandDescriptor::NONE
                 }
             },
+            Self::Admin(admin::AdminCommands::Config(admin::config::ConfigCommands::Catalog(
+                _,
+            ))) => CommandDescriptor::PROFILE_SECRETS_AND_PATHS.with_model_discovery(),
             Self::Admin(admin::AdminCommands::Config(_))
             | Self::Web(_)
             | Self::Core(
