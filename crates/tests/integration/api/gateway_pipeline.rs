@@ -1474,7 +1474,7 @@ impl systemprompt_extension::GatewayRequestGuard for CoverageGatewayGuard {
         }
     }
 }
-systemprompt_extension::register_gateway_guard!(CoverageGatewayGuard);
+systemprompt_extension::register_gateway_guard!("gateway", CoverageGatewayGuard);
 
 async fn coverage_guard_dispatch(model: &str, status: http::StatusCode) -> anyhow::Result<()> {
     install_provider_api_key();

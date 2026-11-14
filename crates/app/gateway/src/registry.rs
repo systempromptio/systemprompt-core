@@ -232,6 +232,8 @@ pub enum GatewayEnginesError {
          goes through the built-in adapter only"
     )]
     CallerWireShadowed { wire: String, credential: String },
+    #[error("gateway guards could not be built")]
+    Guards(#[from] systemprompt_extension::GatewayGuardError),
 }
 
 impl GatewayEngines {
@@ -254,7 +256,7 @@ impl GatewayEngines {
             load: DeploymentLoad::default(),
             http,
             provider_tokens,
-            guards: GatewayGuards::discover(extensions.as_ref()),
+            guards: GatewayGuards::discover(extensions.as_ref())?,
             secrets,
             memory_recall: None,
         })

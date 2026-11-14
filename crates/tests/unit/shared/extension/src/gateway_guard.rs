@@ -14,10 +14,10 @@ use systemprompt_extension::{
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId, UserId};
 use systemprompt_traits::DatabaseHandle;
 
-use crate::stub_ctx::StubCtx;
+use crate::stub_ctx::{GUARD_OWNER, StubCtx};
 
 fn guards() -> GatewayGuards {
-    GatewayGuards::discover(&StubCtx)
+    GatewayGuards::discover(&StubCtx).expect("the guard's owner is linked and enabled")
 }
 
 static ARMED: AtomicBool = AtomicBool::new(false);
@@ -56,7 +56,15 @@ impl GatewayRequestGuard for RecordingGuard {
     }
 }
 
-register_gateway_guard!(RecordingGuard);
+register_gateway_guard!("stub-guard-owner", RecordingGuard);
+
+#[test]
+fn a_registration_names_its_owning_extension() {
+    let owners: Vec<&str> = GatewayGuards::registrations()
+        .map(|registration| registration.extension)
+        .collect();
+    assert_eq!(owners, vec![GUARD_OWNER]);
+}
 
 struct StubDb;
 

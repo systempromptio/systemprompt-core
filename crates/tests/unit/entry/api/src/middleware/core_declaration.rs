@@ -42,6 +42,7 @@ fn extension_rows() -> impl Iterator<Item = CoreDeclaration> {
         .iter()
         .copied()
         .filter(|entry| matches!(entry.declarer(), CoreDeclarer::Extension(_)))
+        .filter(|entry| entry.group() != RouteGroup::Gateway)
 }
 
 #[test]
@@ -95,6 +96,12 @@ fn the_table_lists_exactly_this_waves_core_declarations() {
                 ApiPaths::ADMIN_NOTIFICATIONS,
                 RouteGroup::ContentAndMisc,
                 Allowance::ReservedPrefix,
+            ),
+            (
+                CoreDeclarer::Extension("notifications-http"),
+                ApiPaths::BRIDGE_NOTIFICATIONS,
+                RouteGroup::Gateway,
+                Allowance::HandlerVerified(HandlerVerifier::GatewayCredential),
             ),
         ]
     );

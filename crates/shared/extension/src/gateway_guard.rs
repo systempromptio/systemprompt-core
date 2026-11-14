@@ -3,8 +3,16 @@
 //! A [`GatewayRequestGuard`] is consulted on every gateway request, right after
 //! the quota precheck. Extensions register guards with
 //! [`register_gateway_guard!`](macro@crate::register_gateway_guard) (mirroring
-//! [`register_extension!`](crate::register_extension)); the gateway runs every
-//! collected guard and denies the request on the first [`GatewayDenyReason`].
+//! [`register_extension!`](crate::register_extension)), naming the extension
+//! that owns each guard; the gateway runs every collected guard and denies
+//! the request on the first [`GatewayDenyReason`].
+//!
+//! [`GatewayGuards::discover`] installs a guard only while its owning
+//! extension is linked and enabled, as every other owner-attributed
+//! registration is collected. A guard whose owner is disabled in the profile
+//! is not installed. A guard naming an owner that is not a linked extension
+//! is refused with [`GatewayGuardError::UnknownOwner`], so a mistyped owner
+//! never silently drops a guard from the request path.
 //! This lets an extension enforce a policy — for example a per-user credit
 //! balance — without the core needing to know about it.
 //!
@@ -20,7 +28,7 @@
 
 use std::sync::Arc;
 
-use systemprompt_identifiers::{ApiKeyId, ModelId, ProviderId, RouteId, UserId};
+use systemprompt_identifiers::{ApiKeyId, ExtensionId, ModelId, ProviderId, RouteId, UserId};
 use systemprompt_models::attribution::RequestAttribution;
 use systemprompt_traits::DatabaseHandle;
 
@@ -95,10 +103,12 @@ pub trait GatewayRequestGuard: Send + Sync {
 
 /// Compile-time registration of a [`GatewayRequestGuard`].
 ///
-/// Collected via `inventory`. The factory receives the extension context so a
-/// guard can hold the services, subject attributes or token cache it needs.
+/// Collected via `inventory`. `extension` is the id of the owning extension.
+/// The factory receives the extension context so a guard can hold the
+/// services, subject attributes or token cache it needs.
 #[derive(Debug, Clone, Copy)]
 pub struct GatewayRequestGuardRegistration {
+    pub extension: &'static str,
     pub factory: fn(&dyn ExtensionContext) -> Arc<dyn GatewayRequestGuard>,
 }
 
@@ -106,21 +116,30 @@ inventory::collect!(GatewayRequestGuardRegistration);
 
 #[macro_export]
 macro_rules! register_gateway_guard {
-    (factory = $factory:expr) => {
+    ($extension:expr, factory = $factory:expr) => {
         $crate::__inventory::submit! {
             $crate::GatewayRequestGuardRegistration {
+                extension: $extension,
                 factory: $factory,
             }
         }
     };
-    ($guard_type:ty) => {
+    ($extension:expr, $guard_type:ty) => {
         $crate::__inventory::submit! {
             $crate::GatewayRequestGuardRegistration {
+                extension: $extension,
                 factory: |_| ::std::sync::Arc::new(<$guard_type>::default())
                     as ::std::sync::Arc<dyn $crate::GatewayRequestGuard>,
             }
         }
     };
+}
+
+/// Why the gateway's guard set could not be built.
+#[derive(Debug, thiserror::Error)]
+pub enum GatewayGuardError {
+    #[error("a gateway guard names owner '{0}', which is not a linked extension")]
+    UnknownOwner(ExtensionId),
 }
 
 /// The guards one gateway owns, built once at the composition root from the
@@ -137,14 +156,31 @@ impl std::fmt::Debug for GatewayGuards {
 }
 
 impl GatewayGuards {
-    #[must_use]
-    pub fn discover(ctx: &dyn ExtensionContext) -> Self {
-        Self(
-            inventory::iter::<GatewayRequestGuardRegistration>
-                .into_iter()
-                .map(|registration| (registration.factory)(ctx))
-                .collect(),
-        )
+    pub fn registrations() -> impl Iterator<Item = &'static GatewayRequestGuardRegistration> {
+        inventory::iter::<GatewayRequestGuardRegistration>.into_iter()
+    }
+
+    pub fn discover(ctx: &dyn ExtensionContext) -> Result<Self, GatewayGuardError> {
+        let profile = ctx.profile();
+        let disabled = &profile.extensions.disabled;
+        let mut guards = Vec::new();
+        for registration in Self::registrations() {
+            if !ctx.has_extension(registration.extension) {
+                return Err(GatewayGuardError::UnknownOwner(ExtensionId::new(
+                    registration.extension,
+                )));
+            }
+            if disabled.iter().any(|id| id == registration.extension) {
+                tracing::info!(
+                    extension = registration.extension,
+                    reason = "extension_disabled",
+                    "Gateway guard not installed"
+                );
+                continue;
+            }
+            guards.push((registration.factory)(ctx));
+        }
+        Ok(Self(guards))
     }
 
     #[must_use]
