@@ -29,7 +29,7 @@ use super::caller::{Caller, load};
 use super::content::{ContentRequest, rendition, serve};
 use super::error::DocumentsResult;
 use super::items::document_id;
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 
 struct DownloadQuery {
     token: String,

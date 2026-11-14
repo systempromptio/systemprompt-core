@@ -31,7 +31,7 @@ use super::DocumentsState;
 use super::caller::{api_author, caller};
 use super::error::DocumentsResult;
 use super::views::CreatedJson;
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 
 #[derive(Debug, Deserialize)]
 pub(super) struct ImportBody {

@@ -102,7 +102,10 @@ pub fn forwarded_headers_ignored(headers: &HeaderMap, peer_ip: IpAddr, trusted: 
 }
 
 #[must_use]
-pub fn client_ip_from_request(request: &axum::extract::Request, config: &Config) -> Option<IpAddr> {
+pub(crate) fn client_ip_from_request(
+    request: &axum::extract::Request,
+    config: &Config,
+) -> Option<IpAddr> {
     resolve_client_ip(
         request.headers(),
         request.extensions().get::<ConnectInfo<SocketAddr>>(),

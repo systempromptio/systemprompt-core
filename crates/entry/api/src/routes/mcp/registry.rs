@@ -8,7 +8,7 @@ use axum::extract::State;
 use axum::response::IntoResponse;
 use serde::{Deserialize, Serialize};
 
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 use systemprompt_models::CollectionResponse;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_runtime::AppContext;

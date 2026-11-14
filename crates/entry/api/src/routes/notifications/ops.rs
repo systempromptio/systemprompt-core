@@ -15,7 +15,7 @@ use systemprompt_models::notifications::{
 };
 use systemprompt_notifications::service::{FeedQuery, NotificationsService, SubscriptionView};
 
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 
 const DEFAULT_LIMIT: u32 = 50;
 

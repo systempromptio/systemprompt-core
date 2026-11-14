@@ -18,7 +18,7 @@ use systemprompt_runtime::AppContext;
 use systemprompt_traits::{AppContext as _, ExtractSignals};
 
 use super::error::RejectionError;
-use crate::services::middleware::session::{SessionAttestationError, attest_session};
+use crate::kernel::{SessionAttestationError, attest_session};
 
 const ROUTE: &str = "gateway/messages";
 

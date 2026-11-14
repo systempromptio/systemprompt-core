@@ -29,7 +29,7 @@ use systemprompt_manifest::Config;
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::documents::actor::request_actor;
 
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 
 pub async fn scope(request: Request, next: Next) -> Response {
     let Some(ctx) = request.extensions().get::<RequestContext>() else {

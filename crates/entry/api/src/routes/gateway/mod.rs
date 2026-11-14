@@ -11,7 +11,9 @@
 //! logging repository.
 //!
 //! The surface is assembled in two halves so that the server can give each its
-//! own rate-limit budget: [`gateway_mount_router`] is what the server mounts,
+//! own rate-limit budget: [`gateway_mount_parts`] hands the server the three
+//! halves, which it declares handler-verified by the gateway credential with
+//! their rate limits and bearer windows and wraps in [`with_access_log`],
 //! while [`gateway_router`] returns the same routes unlimited for tests. The
 //! bridge credential-exchange half is budgeted apart from inference traffic
 //! because the two have opposite shapes: inference is high-volume and elastic,
@@ -61,7 +63,6 @@ use axum::{Extension, Router};
 use std::sync::Arc;
 use systemprompt_gateway::GatewayEngines;
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::AppContext as _;
 
 use self::access_log::log_gateway_request;
 #[cfg(feature = "otel")]
@@ -69,31 +70,9 @@ use self::routers::otel_routes;
 use self::routers::{
     bridge_auth_routes, bridge_profile_routes, bridge_session_routes, inference_routes,
 };
-use crate::services::middleware::{
-    JtiRevocationChecker, JwtContextExtractor, RateLimitState, RouterExt,
-};
+use crate::kernel::JwtContextExtractor;
 
 pub(crate) use self::access_log::GatewayLogIdentity;
-
-fn build_jwt_extractor(ctx: &AppContext) -> anyhow::Result<Arc<JwtContextExtractor>> {
-    let sessions = ctx
-        .session_provider()
-        .ok_or_else(|| anyhow::anyhow!("gateway requires a session provider"))?;
-    let user_provider = ctx
-        .user_provider()
-        .ok_or_else(|| anyhow::anyhow!("gateway requires a user provider"))?;
-    let jti_revocation = JtiRevocationChecker::from_repository(
-        ctx.oauth_repositories().oauth.clone(),
-        ctx.cache_epochs().clone(),
-    );
-    Ok(Arc::new(JwtContextExtractor::new(
-        sessions,
-        user_provider,
-        jti_revocation,
-        ctx.config().jwt_issuer.clone(),
-        ctx.signing_keys().clone(),
-    )))
-}
 
 pub fn gateway_repositories(
     ctx: &AppContext,
@@ -150,15 +129,11 @@ fn drive_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtractor>) -> R
     ))
 }
 
-struct GatewayParts {
-    traffic: Router,
-    bridge_auth: Router,
-    notifications: Router,
-    jwt_extractor: Arc<JwtContextExtractor>,
-}
-
-fn gateway_parts(ctx: &AppContext, engines: &Arc<GatewayEngines>) -> anyhow::Result<GatewayParts> {
-    let jwt_extractor = build_jwt_extractor(ctx)?;
+pub(crate) fn gateway_mount_parts(
+    ctx: &AppContext,
+    engines: &Arc<GatewayEngines>,
+) -> anyhow::Result<GatewayMountParts> {
+    let jwt_extractor = Arc::new(JwtContextExtractor::from_app_context(ctx)?);
     let gateway_repos = Arc::new(gateway_repositories(ctx)?);
 
     let traffic = Router::new()
@@ -176,7 +151,7 @@ fn gateway_parts(ctx: &AppContext, engines: &Arc<GatewayEngines>) -> anyhow::Res
     let notifications = Router::new();
     #[cfg(feature = "otel")]
     let traffic = traffic.merge(otel_routes(ctx, &jwt_extractor));
-    Ok(GatewayParts {
+    Ok(GatewayMountParts {
         traffic: traffic
             .merge(drive_routes(ctx, &jwt_extractor))
             .merge(provider_credentials::routes(ctx, &jwt_extractor))
@@ -185,7 +160,6 @@ fn gateway_parts(ctx: &AppContext, engines: &Arc<GatewayEngines>) -> anyhow::Res
             .route("/", get(models::root)),
         bridge_auth: bridge_auth_routes(ctx, &jwt_extractor),
         notifications,
-        jwt_extractor,
     })
 }
 
@@ -208,8 +182,8 @@ pub fn gateway_engines(
 }
 
 pub fn gateway_router(ctx: &AppContext) -> anyhow::Result<Router> {
-    let parts = gateway_parts(ctx, &Arc::new(gateway_engines(ctx)?))?;
-    Ok(common_layers(
+    let parts = gateway_mount_parts(ctx, &Arc::new(gateway_engines(ctx)?))?;
+    Ok(with_access_log(
         ctx,
         parts
             .traffic
@@ -218,53 +192,14 @@ pub fn gateway_router(ctx: &AppContext) -> anyhow::Result<Router> {
     ))
 }
 
-pub fn gateway_mount_router(
-    ctx: &AppContext,
-    limits: &RateLimitState,
-    engines: &Arc<GatewayEngines>,
-) -> anyhow::Result<Router> {
-    let parts = gateway_parts(ctx, engines)?;
-    let rate_config = &ctx.config().rate_limits;
-
-    let traffic = parts
-        .traffic
-        .with_rate_limit(limits, rate_config.gateway_per_second, "gateway")?
-        .with_bearer_window(
-            limits,
-            &parts.jwt_extractor,
-            rate_config.gateway_per_second,
-            "gateway",
-        );
-    let bridge_auth = parts
-        .bridge_auth
-        .with_rate_limit(limits, rate_config.bridge_auth_per_second, "bridge_auth")?
-        .with_bearer_window(
-            limits,
-            &parts.jwt_extractor,
-            rate_config.bridge_auth_per_second,
-            "bridge_auth",
-        );
-    let notifications = parts
-        .notifications
-        .with_rate_limit(
-            limits,
-            rate_config.notifications_per_second,
-            "bridge_notifications",
-        )?
-        .with_bearer_window(
-            limits,
-            &parts.jwt_extractor,
-            rate_config.notifications_per_second,
-            "bridge_notifications",
-        );
-
-    Ok(common_layers(
-        ctx,
-        traffic.merge(bridge_auth).merge(notifications),
-    ))
+#[derive(Debug)]
+pub(crate) struct GatewayMountParts {
+    pub(crate) traffic: Router,
+    pub(crate) bridge_auth: Router,
+    pub(crate) notifications: Router,
 }
 
-fn common_layers(ctx: &AppContext, router: Router) -> Router {
+pub(crate) fn with_access_log(ctx: &AppContext, router: Router) -> Router {
     router
         .layer(Extension(ctx.clone()))
         .layer(axum::middleware::from_fn_with_state(

@@ -19,7 +19,7 @@ use systemprompt_models::documents::AccessLevel;
 use systemprompt_runtime::documents::active_user_display;
 use systemprompt_runtime::documents::views::access_view;
 
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 
 use super::DocumentsState;
 use super::caller::caller;

@@ -12,7 +12,7 @@ use systemprompt_notifications::service::SubscriptionView;
 
 use super::NotificationsState;
 use super::ops::{self, SubscriptionList};
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 
 pub(super) async fn list(
     State(state): State<NotificationsState>,

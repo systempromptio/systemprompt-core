@@ -10,7 +10,7 @@ use axum::response::IntoResponse;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 use systemprompt_analytics::{CreateEngagementEventInput, EngagementRepository};
 use systemprompt_content::ContentRepository;
 use systemprompt_identifiers::{ContentId, LocaleCode, SessionId};

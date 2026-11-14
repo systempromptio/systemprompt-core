@@ -11,7 +11,7 @@ use systemprompt_models::api::ApiError;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::AppContext as _;
 
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 
 #[derive(Debug, Clone, Copy, Serialize)]
 pub struct RevokeAllResponse {

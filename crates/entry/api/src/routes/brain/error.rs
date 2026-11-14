@@ -16,7 +16,7 @@ use systemprompt_models::api::ApiError;
 use systemprompt_models::brain::{SubjectKeyError, UnknownFactStatus};
 use systemprompt_traits::{AuthProviderError, RepositoryError};
 
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 
 /// A brain route failure, rendered through the shared API error envelope.
 #[derive(Debug)]

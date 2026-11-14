@@ -26,7 +26,7 @@ use systemprompt_runtime::AppContext;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 
 pub mod contexts;
 

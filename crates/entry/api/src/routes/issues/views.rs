@@ -9,7 +9,7 @@ use systemprompt_identifiers::{ContentHash, DocumentUploadId, IssueReportId, Use
 use systemprompt_models::api::ApiError;
 use systemprompt_models::issues::{IssueKind, IssueReport, IssueSeverity, IssueStatus};
 
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 
 const DEFAULT_LIMIT: u32 = 50;
 

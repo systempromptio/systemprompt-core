@@ -12,7 +12,7 @@ mod executions;
 
 pub use executions::{ExecutionsState, ToolExecutionResponse, executions_router};
 
-use crate::services::proxy::ProxyService;
+use crate::kernel::ProxyService;
 use axum::Router;
 use axum::extract::{Path, State};
 use axum::routing::{any, get};

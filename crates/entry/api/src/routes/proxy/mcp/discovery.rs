@@ -18,7 +18,7 @@ use systemprompt_oauth::{GrantType, PkceMethod, ResponseType, TokenAuthMethod};
 use systemprompt_traits::McpRegistryProvider;
 
 use super::{McpState, get_mcp_server_scopes};
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 
 const ACCESS_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:access_token";
 const ID_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:id_token";

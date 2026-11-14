@@ -144,32 +144,43 @@ pub(super) fn mount_messaging(
     mount: &MountCtx<'_>,
 ) -> Result<Router, super::RouteMountError> {
     use super::RouteMountError;
-    use crate::services::middleware::RouterExt;
+    use systemprompt_extension::HandlerVerifier;
 
-    let (ctx, limits) = (mount.ctx, &mount.layers.limits);
-    let rate_config = &ctx.config().rate_limits;
+    let ctx = mount.ctx;
+    let messaging_rate = RateLimit::new("agents", RateBudget::Agents);
 
     let messaging = crate::routes::messaging::MessagingState::guarded()
         .map_err(|source| RouteMountError::initialization("messaging_reply_client", source))?;
 
     #[cfg(feature = "teams")]
     {
-        router = router.nest(
-            ApiPaths::TEAMS_BASE,
-            crate::routes::teams::teams_router(ctx, &messaging)
-                .map_err(|source| RouteMountError::initialization("teams", source))?
-                .with_rate_limit(limits, rate_config.agents_per_second, "agents")?,
-        );
+        router = mount.mount(
+            router,
+            declare(
+                crate::routes::teams::teams_router(ctx, &messaging)
+                    .map_err(|source| RouteMountError::initialization("teams", source))?,
+                ApiPaths::TEAMS_BASE,
+                AuthzPolicy::handler_verified(HandlerVerifier::TeamsBotToken),
+                ContextKind::HandlerResolved,
+                RouteGroup::Messaging,
+            )
+            .with_rate_limit(messaging_rate),
+        )?;
     }
 
     #[cfg(feature = "slack")]
     {
-        router = router.nest(
-            ApiPaths::SLACK_BASE,
-            crate::routes::slack::slack_router(messaging)
-                .with_state(ctx.clone())
-                .with_rate_limit(limits, rate_config.agents_per_second, "agents")?,
-        );
+        router = mount.mount(
+            router,
+            declare(
+                crate::routes::slack::slack_router(messaging).with_state(ctx.clone()),
+                ApiPaths::SLACK_BASE,
+                AuthzPolicy::handler_verified(HandlerVerifier::SlackSignature),
+                ContextKind::HandlerResolved,
+                RouteGroup::Messaging,
+            )
+            .with_rate_limit(messaging_rate),
+        )?;
     }
 
     Ok(router)

@@ -38,7 +38,7 @@ use super::headers::{
     set_content_sha256,
 };
 use super::items::document_id;
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 use crate::routes::user_content::{USER_CONTENT_CSP, harden};
 
 #[derive(Debug, Deserialize)]

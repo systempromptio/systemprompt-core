@@ -16,7 +16,7 @@ use systemprompt_traits::{ByteRange, FileStorageError};
 
 use super::handlers::upload_id;
 use super::principal::{unauthenticated, uploader};
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 use crate::routes::documents::DocumentsState;
 use crate::routes::user_content::{USER_CONTENT_CSP, harden};
 

@@ -18,7 +18,7 @@ use systemprompt_models::attribution::ScopeBinding;
 use systemprompt_runtime::AppContext;
 use systemprompt_users::{ApiKeyLimits, ApiKeyService, IssueApiKeyParams, UserApiKey};
 
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 
 pub(super) fn router() -> Router<AppContext> {
     Router::new()

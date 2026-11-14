@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use crate::services::proxy::ProxyService;
+use crate::kernel::ProxyService;
 use axum::Router;
 use axum::extract::Path;
 use axum::routing::any;

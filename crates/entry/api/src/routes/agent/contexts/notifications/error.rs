@@ -7,7 +7,7 @@ use systemprompt_agent::AgentError;
 use systemprompt_models::api::ApiError;
 use systemprompt_traits::RepositoryError;
 
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 
 #[derive(Debug, thiserror::Error)]
 pub(super) enum NotificationError {

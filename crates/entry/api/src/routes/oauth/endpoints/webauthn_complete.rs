@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::routes::oauth::extractors::OAuthRepo;
 use crate::routes::oauth::{OAuthHttpError, internal};
-use crate::services::request_base_url::RequestBaseUrl;
+use crate::kernel::RequestBaseUrl;
 use systemprompt_identifiers::{ClientId, UserId};
 use systemprompt_models::oauth::OAuthServerConfig;
 use systemprompt_oauth::OAuthState;

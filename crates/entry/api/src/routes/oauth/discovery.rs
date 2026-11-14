@@ -18,7 +18,7 @@ use systemprompt_runtime::AppContext;
 use systemprompt_traits::McpRegistryProvider;
 
 use crate::routes::proxy::mcp::get_mcp_server_scopes;
-use crate::services::request_base_url::RequestBaseUrl;
+use crate::kernel::RequestBaseUrl;
 
 #[derive(Debug, Serialize)]
 pub struct WellKnownResponse {

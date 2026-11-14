@@ -29,10 +29,8 @@ use systemprompt_traits::{AnalyticsProvider, AppContext as _, UserProvider};
 use systemprompt_users::{ApiKeyService, IssueApiKeyParams};
 
 use super::bridge_error::BridgeError;
-use crate::error::ApiHttpError;
-use crate::services::middleware::JwtContextExtractor;
-use crate::services::middleware::client_addr::{ClientIp, client_ip_from_request};
-use crate::services::request_base_url;
+use crate::kernel::{ApiHttpError, ClientIp, JwtContextExtractor, resolve_request_base_url};
+use crate::services::middleware::client_addr::client_ip_from_request;
 
 #[derive(Debug, Serialize)]
 pub struct AuthResponse {
@@ -256,7 +254,7 @@ fn build_token_endpoint(cfg: &Config, headers: &HeaderMap) -> Result<String, Api
     let configured = url::Url::parse(&cfg.api_external_url)
         .map_err(|e| BridgeError::internal("Configured external URL is invalid", e))?;
     let raw_host = headers.get(header::HOST).and_then(|v| v.to_str().ok());
-    let base = request_base_url::resolve(raw_host, &configured);
+    let base = resolve_request_base_url(raw_host, &configured);
     Ok(format!("{}/api/v1/core/oauth/token", base.as_str()))
 }
 

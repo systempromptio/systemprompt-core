@@ -14,7 +14,7 @@ use systemprompt_runtime::AppContext;
 
 use super::event_loader::load_event_data;
 use super::types::WebhookRequest;
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 
 async fn authorize_broadcast(
     repos: &systemprompt_agent::repository::A2ARepositories,

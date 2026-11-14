@@ -16,7 +16,7 @@ use systemprompt_models::events::ContextSummary;
 use systemprompt_models::{ContextEvent, RequestContext, SystemEventBuilder};
 use systemprompt_traits::ContextProvider;
 
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 
 pub async fn stream_context_state(
     Extension(request_context): Extension<RequestContext>,

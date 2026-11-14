@@ -13,7 +13,7 @@ use systemprompt_notifications::service::{PublishOutcome, PublishRequest};
 
 use super::NotificationsState;
 use super::ops::{self, StreamList};
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 
 pub(super) async fn list(
     State(state): State<NotificationsState>,

@@ -18,7 +18,7 @@ use systemprompt_identifiers::ContextId;
 use systemprompt_models::api::ApiError;
 use systemprompt_runtime::AppContext;
 
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 
 const DEFAULT_PAGE_LIMIT: u16 = 100;
 const MAX_PAGE_LIMIT: u16 = 500;

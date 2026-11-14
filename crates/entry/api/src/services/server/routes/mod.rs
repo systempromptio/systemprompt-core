@@ -48,12 +48,12 @@ pub(super) use error::RouteMountError;
 use protocol::{MountCtx, declare};
 use systemprompt_gateway::GatewayEngines;
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::{AppContext as AppContextTrait, DynIpBanStore, StartupEventSender};
+use systemprompt_traits::{DynIpBanStore, StartupEventSender};
 
 use crate::services::middleware::{
-    A2AContextMiddleware, BodyBudget, JtiRevocationChecker, JwtContextExtractor,
-    McpContextMiddleware, MountLayers, ProtectionGuards, PublicContextMiddleware, RateLimitState,
-    UserOnlyContextMiddleware, ip_ban_middleware,
+    A2AContextMiddleware, BodyBudget, JwtContextExtractor, McpContextMiddleware, MountLayers,
+    ProtectionGuards, PublicContextMiddleware, RateLimitState, UserOnlyContextMiddleware,
+    ip_ban_middleware,
 };
 
 pub(super) fn configure_routes(
@@ -111,7 +111,7 @@ fn build_routes(
         router = mount_content(router, &mount)?;
     }
     if serves(RouteGroup::InternalLinks) {
-        router = documents::mount_internal_links(router, &mount);
+        router = documents::mount_internal_links(router, &mount)?;
     }
     if serves(RouteGroup::Gateway) {
         router = gateway::mount_gateway(router, &mount)?;
@@ -130,7 +130,7 @@ fn build_routes(
 }
 
 fn mount_layers(ctx: &AppContext, role: NodeRole) -> Result<MountLayers, LoaderError> {
-    let jwt_extractor = build_jwt_extractor(ctx)?;
+    let jwt_extractor = JwtContextExtractor::from_app_context(ctx)?;
     let limits = if role.shares_process_ownership() {
         RateLimitState::from_context(ctx).unmetered()
     } else {
@@ -253,22 +253,6 @@ fn require_provider<T: std::any::Any>(
     provider: Option<T>,
 ) -> Result<T, LoaderError> {
     provider.ok_or_else(|| LoaderError::missing_provider::<T>(ExtensionId::new(extension)))
-}
-
-fn build_jwt_extractor(ctx: &AppContext) -> Result<JwtContextExtractor, LoaderError> {
-    let analytics = require_provider("jwt", ctx.session_provider())?;
-    let user_provider = require_provider("jwt", ctx.user_provider())?;
-    let jti_revocation = JtiRevocationChecker::from_repository(
-        ctx.oauth_repositories().oauth.clone(),
-        ctx.cache_epochs().clone(),
-    );
-    Ok(JwtContextExtractor::new(
-        analytics,
-        user_provider,
-        jti_revocation,
-        ctx.config().jwt_issuer.clone(),
-        ctx.signing_keys().clone(),
-    ))
 }
 
 fn wellknown_router(ctx: &AppContext) -> Result<Router, LoaderError> {

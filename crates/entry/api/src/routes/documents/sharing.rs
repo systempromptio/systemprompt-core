@@ -18,7 +18,7 @@ use systemprompt_identifiers::EditorId;
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
 
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 use systemprompt_models::documents::{AccessLevel, PresenceBeacon, PresenceSource, PresenceState};
 use systemprompt_runtime::documents::subject_display;
 use uuid::Uuid;

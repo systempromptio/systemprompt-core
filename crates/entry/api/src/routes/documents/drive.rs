@@ -47,7 +47,7 @@ use super::drive_commit::commit;
 use super::drive_token::device_user;
 use super::error::DocumentsResult;
 use super::headers::{hash_etag, none_match, range};
-use crate::services::middleware::JwtContextExtractor;
+use crate::kernel::JwtContextExtractor;
 
 const DEFAULT_CHANGES: i64 = 500;
 

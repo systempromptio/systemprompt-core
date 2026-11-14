@@ -19,7 +19,7 @@ use systemprompt_models::{ApiError, RequestContext};
 use systemprompt_runtime::AppContext;
 use tracing::error;
 
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 
 pub async fn redirect_handler(
     State(repositories): State<Arc<ContentRepositories>>,

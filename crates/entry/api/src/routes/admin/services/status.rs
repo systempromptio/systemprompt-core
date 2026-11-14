@@ -11,7 +11,7 @@ use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_runtime::AppContext;
 
 use super::{ProvenanceView, ServicesStatusResponse, provenance_view, source_views};
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 
 pub(super) async fn status(
     State(ctx): State<AppContext>,

@@ -31,8 +31,7 @@ use systemprompt_security::keys::SigningKeys;
 
 use super::bridge_error::{BridgeError, authenticate_bridge};
 use super::bridge_resolved;
-use crate::error::ApiHttpError;
-use crate::services::middleware::JwtContextExtractor;
+use crate::kernel::{ApiHttpError, JwtContextExtractor};
 use per_user::{PerUserContext, load_per_user_context, record_catalog_grants};
 
 pub async fn manifest(

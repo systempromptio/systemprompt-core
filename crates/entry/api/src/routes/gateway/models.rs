@@ -14,7 +14,7 @@ use systemprompt_models::api::ApiError;
 use systemprompt_models::providers::ClientFamily;
 use systemprompt_runtime::AppContext;
 
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 
 #[derive(Debug, Serialize)]
 pub struct RootResponse {

@@ -29,7 +29,7 @@ use systemprompt_runtime::AppContext;
 use systemprompt_traits::{LinkPolicy, SenderIdentity};
 use systemprompt_users::UserError;
 
-use crate::services::proxy::ProxyError;
+use crate::kernel::ProxyError;
 use a2a::{authenticated_user, build_a2a_request, mint_a2a_token, run_agent};
 pub use conversation::MessagingConversation;
 use identity::resolve_or_link_user;

@@ -31,8 +31,7 @@ use systemprompt_models::bridge::profile::{
 use systemprompt_runtime::AppContext;
 
 use super::bridge_error::{BridgeError, authenticate_bridge};
-use crate::error::ApiHttpError;
-use crate::services::middleware::JwtContextExtractor;
+use crate::kernel::{ApiHttpError, JwtContextExtractor};
 
 pub async fn list(
     jwt_extractor: Arc<JwtContextExtractor>,

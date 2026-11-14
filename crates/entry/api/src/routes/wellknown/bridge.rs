@@ -17,8 +17,7 @@ use systemprompt_models::bridge::instance::{BridgeDiscovery, DISCOVERY_CONTRACT}
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_runtime::AppContext;
 
-use crate::error::ApiHttpError;
-use crate::services::middleware::{RateLimitState, RouterExt};
+use crate::kernel::{ApiHttpError, RateLimitState, RouterExt};
 use systemprompt_extension::LoaderError;
 
 const DISCOVERY_RATE_LIMIT_PER_SECOND: u64 = 5;

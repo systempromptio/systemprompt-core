@@ -11,7 +11,7 @@ use std::sync::Arc;
 use systemprompt_gateway::GatewayEngines;
 use systemprompt_runtime::AppContext;
 
-use crate::services::middleware::JwtContextExtractor;
+use crate::kernel::JwtContextExtractor;
 use systemprompt_gateway::protocol::inbound::InboundAdapter;
 use systemprompt_gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
 use systemprompt_gateway::protocol::inbound::openai_chat::OpenAiChatInbound;

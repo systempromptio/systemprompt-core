@@ -21,7 +21,7 @@ use axum::Router;
 use axum::routing::get;
 use systemprompt_oauth::OAuthState;
 
-use crate::services::session_cookie::SessionCookie;
+use crate::kernel::SessionCookie;
 use systemprompt_oauth::services::SessionCreationService;
 use systemprompt_oauth_issuance::sso::SsoDriver;
 use systemprompt_runtime::AppContext;

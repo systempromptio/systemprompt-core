@@ -5,7 +5,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 use axum::extract::{Extension, Path, State};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;

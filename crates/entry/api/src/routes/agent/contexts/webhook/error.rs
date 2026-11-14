@@ -8,7 +8,7 @@ use systemprompt_models::api::ApiError;
 use systemprompt_traits::RepositoryError;
 
 use super::validation::PayloadValidationError;
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum LoadEventError {

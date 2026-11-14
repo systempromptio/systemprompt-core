@@ -12,7 +12,7 @@ use systemprompt_models::api::ApiError;
 use systemprompt_runtime::AppContext;
 
 use super::types::{A2ABroadcastRequest, AgUiBroadcastRequest};
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 
 fn user_mismatch() -> ApiHttpError {
     ApiError::forbidden("Authenticated user does not match the request user_id")

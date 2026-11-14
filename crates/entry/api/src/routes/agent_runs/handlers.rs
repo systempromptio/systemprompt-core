@@ -20,7 +20,7 @@ use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
 
 use super::AgentRunsState;
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 
 pub(super) const EVENT_PAGE: i64 = 500;
 

@@ -30,7 +30,7 @@ use systemprompt_oauth::services::{JwtConfig, JwtSigningParams, generate_jwt};
 use systemprompt_runtime::AppContext;
 use systemprompt_users::User;
 
-use crate::services::proxy::{ProxyKind, ProxyService, ProxyTarget};
+use crate::kernel::{ProxyKind, ProxyService, ProxyTarget};
 
 use super::{MessagingError, MessagingInbound};
 

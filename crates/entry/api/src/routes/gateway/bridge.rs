@@ -26,8 +26,7 @@ pub use systemprompt_models::bridge::profile::{BridgeProfileResponse, ProviderHe
 use super::bridge_admission::{AdmissionPrincipal, ModelAdmission};
 use super::bridge_data;
 use super::bridge_error::{BridgeError, authenticate_bridge};
-use crate::error::ApiHttpError;
-use crate::services::middleware::JwtContextExtractor;
+use crate::kernel::{ApiHttpError, JwtContextExtractor};
 
 use systemprompt_models::bridge::host::HostKind;
 

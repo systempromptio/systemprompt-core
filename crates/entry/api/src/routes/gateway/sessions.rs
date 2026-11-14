@@ -22,7 +22,7 @@ use systemprompt_runtime::AppContext;
 use systemprompt_traits::{AppContext as _, ExtractSignals};
 use systemprompt_users::{API_KEY_PREFIX, ApiKeyService};
 
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 use crate::routes::gateway::messages::extract_credential;
 use crate::services::middleware::client_addr::client_ip_from_request;
 

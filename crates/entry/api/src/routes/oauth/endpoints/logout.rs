@@ -19,7 +19,7 @@ use tracing::instrument;
 
 use crate::routes::oauth::extractors::OAuthRepo;
 use crate::routes::oauth::{OAuthHttpError, internal};
-use crate::services::session_cookie::SessionCookie;
+use crate::kernel::SessionCookie;
 use std::sync::Arc;
 use systemprompt_manifest::Config;
 

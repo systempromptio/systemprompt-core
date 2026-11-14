@@ -27,7 +27,7 @@ use systemprompt_runtime::documents::refusal::{Refused, refusal_of};
 use systemprompt_traits::{AuthProviderError, FileStorageError};
 use tokio::sync::oneshot::error::RecvError;
 
-use crate::error::{ApiHttpError, unreadable_body};
+use crate::kernel::{ApiHttpError, unreadable_body};
 
 #[derive(Debug)]
 pub(crate) enum DocumentsHttpError {

@@ -28,7 +28,7 @@ use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{AuthenticatedUser, TokenAuthority};
 use systemprompt_runtime::AppContext;
 
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 
 pub const ISSUES_PATH: &str = "/api/v1/issues";
 

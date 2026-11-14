@@ -22,13 +22,11 @@ use std::sync::Arc;
 use axum::Router;
 use axum::routing::{get, patch, post};
 use systemprompt_brain::service::{BrainCaller, BrainService};
-use systemprompt_extension::LoaderError;
 use systemprompt_extension::brain::MemoryRecall;
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_manifest::profile::BrainProfile;
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
-use systemprompt_models::modules::ApiPaths;
 use systemprompt_traits::UserProvider;
 
 pub use dto::{
@@ -37,9 +35,7 @@ pub use dto::{
 };
 pub use error::BrainHttpError;
 
-use crate::error::ApiHttpError;
-use crate::services::middleware::{RateLimitState, RouterExt, UserOnlyContextMiddleware};
-use systemprompt_extension::AuthzPolicy;
+use crate::kernel::ApiHttpError;
 
 /// Router-scoped state of the brain routes: the brain service, the recall
 /// the admin simulator runs, the brain profile and the user provider that
@@ -135,26 +131,4 @@ pub fn admin_router(routes: Option<BrainRoutes>) -> Router {
     Router::new()
         .route("/simulate", post(admin::simulate))
         .with_state(state)
-}
-
-pub fn mount_brain(
-    router_in: Router,
-    limits: &RateLimitState,
-    user_middleware: &UserOnlyContextMiddleware,
-    per_second: u64,
-    routes: Option<BrainRoutes>,
-) -> Result<Router, LoaderError> {
-    Ok(router_in
-        .nest(
-            ApiPaths::BRAIN,
-            router(routes.clone())
-                .with_rate_limit(limits, per_second, "brain")?
-                .with_auth(user_middleware.clone(), AuthzPolicy::user()),
-        )
-        .nest(
-            ApiPaths::ADMIN_BRAIN,
-            admin_router(routes)
-                .with_rate_limit(limits, per_second, "brain")?
-                .with_auth(user_middleware.clone(), AuthzPolicy::admin()),
-        ))
 }

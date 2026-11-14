@@ -25,6 +25,10 @@ mod server_mount_gateway_and_mcp_scope;
 mod routes_role_gateway;
 
 #[cfg(test)]
+#[path = "server_declared_groups.rs"]
+mod server_declared_groups;
+
+#[cfg(test)]
 #[path = "gateway_overhead_metrics.rs"]
 mod gateway_overhead_metrics;
 

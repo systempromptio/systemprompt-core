@@ -42,7 +42,7 @@ use systemprompt_traits::CacheDomain;
 use super::{
     RefreshLock, ServicesRefreshResponse, composed_hash_of, provenance_view, source_views,
 };
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 
 const RESTART_DELAY: Duration = Duration::from_millis(250);
 const RESTART_REASON: &str = "admin services refresh";
