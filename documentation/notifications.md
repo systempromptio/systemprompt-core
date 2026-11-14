@@ -22,7 +22,7 @@ A server built without the feature behaves as follows:
 - A comment that sets `mention_options` is refused with `unsupported_op`, because the requested attention cannot be honoured.
 - The desktop bridge shows that notifications are not enabled on the server and hides its inbox count.
 
-A server built with the feature can still switch notifications off per profile by listing `notifications` under `extensions.disabled`. The routes then answer 404, no consumer runs, and the documents MCP server does not list `documents_inbox`. The brain records notifications, so a profile that disables `notifications` and enables `brain` refuses to boot.
+A server built with the feature can switch notifications off per profile by listing both `notifications` and `notifications-http` under `extensions.disabled`. The routes then answer 404, no consumer runs, and the documents MCP server does not list `documents_inbox`. Listing `notifications-http` alone unmounts all three route groups and keeps the service. Listing `notifications` alone refuses to boot, because the routes require its service. The brain records notifications, so a profile that disables `notifications` and enables `brain` also refuses to boot.
 
 The HTTP routes are served by the `systemprompt-notifications-entry` crate. The bridge inbox is mounted inside the gateway surface: it is authenticated with the gateway credential, rate-limited under its own `bridge_notifications` budget, and recorded in the gateway access log.
 
