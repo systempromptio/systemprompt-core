@@ -5,9 +5,12 @@
 //! the registering crate. The command lists each seam with its entries
 //! (including seams with none) and checks the active profile for settings
 //! that name a seam entry this binary does not link: such a profile fails at
-//! boot, so the command exits non-zero. A seam owned by an extension the
-//! profile disables is listed with status `owner_disabled`: its registrations
-//! are linked but nothing reads them in that deployment.
+//! boot, so the command exits non-zero. A requirement is unmet, status
+//! `missing`, when the seam lacks the entry, when the seam's owning extension
+//! is disabled (its registrations are linked but nothing reads them), or when
+//! no crate in the binary registers the seam at all (a row with owner
+//! `unregistered`). A seam whose owner is disabled and that no setting
+//! requires is listed as `owner_disabled` and does not fail the command.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -105,6 +108,22 @@ pub fn evaluate(
     disabled: &[ExtensionId],
 ) -> (Vec<SeamRow>, bool) {
     let mut all_linked = true;
+    let unregistered: Vec<LinkedSeam> = requirements
+        .iter()
+        .filter(|requirement| !seams.iter().any(|seam| seam.name == requirement.seam))
+        .map(|requirement| LinkedSeam {
+            name: requirement.seam,
+            owner: "unregistered",
+            extension: None,
+            entries: Vec::new(),
+        })
+        .collect();
+    let mut seams = seams;
+    for seam in unregistered {
+        if !seams.iter().any(|known| known.name == seam.name) {
+            seams.push(seam);
+        }
+    }
     let rows = seams
         .into_iter()
         .map(|seam| {
@@ -112,13 +131,13 @@ pub fn evaluate(
                 .iter()
                 .filter(|requirement| requirement.seam == seam.name)
                 .collect();
-            let missing = applicable
-                .iter()
-                .any(|requirement| !satisfied(&seam, &requirement.needed));
-            all_linked &= !missing;
             let owner_disabled = seam
                 .extension
                 .is_some_and(|owner| disabled.iter().any(|id| id.as_str() == owner));
+            let missing = applicable.iter().any(|requirement| {
+                owner_disabled || !satisfied(&seam, &requirement.needed)
+            });
+            all_linked &= !missing;
             let status = if missing {
                 SeamStatus::Missing
             } else if owner_disabled {

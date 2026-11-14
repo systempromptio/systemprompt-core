@@ -1,4 +1,5 @@
-//! App-layer seams: gateway policies and adapters, SSO and MCP toolsets.
+//! App-layer seams: gateway policies, adapters and the route groups capabilities
+//! register into the gateway surface, SSO and MCP toolsets.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -78,4 +79,15 @@ crate::register_linked_seam!(LinkedSeamRegistration {
     owner: "systemprompt-mcp-host",
     extension: None,
     entries: || named(systemprompt_mcp_host::toolsets::registered_toolset_ids()),
+});
+
+crate::register_linked_seam!(LinkedSeamRegistration {
+    name: "gateway_routes",
+    owner: "systemprompt-api",
+    extension: Some("gateway"),
+    entries: || named(
+        inventory::iter::<systemprompt_api::kernel::GatewayRouteRegistration>
+            .into_iter()
+            .map(|registration| format!("{}:{}", registration.extension, registration.scope)),
+    ),
 });

@@ -203,3 +203,63 @@ fn a_missing_requirement_outranks_a_disabled_owner() {
     assert!(!all_linked);
     assert_eq!(rows[0].status, SeamStatus::Missing);
 }
+
+#[test]
+fn a_required_seam_whose_owner_is_disabled_is_missing_and_fails() {
+    let (rows, all_linked) = evaluate(
+        vec![owned_seam("secrets_sources", Some("vault_ext"), &["vault-x"])],
+        &[requirement(
+            "secrets_sources",
+            Needed::Entry("vault-x".to_owned()),
+        )],
+        &[ExtensionId::new("vault_ext")],
+    );
+    assert!(!all_linked);
+    assert_eq!(rows[0].status, SeamStatus::Missing);
+    assert_eq!(rows[0].requires, "secrets_sources setting");
+}
+
+#[test]
+fn a_disabled_owner_nobody_requires_is_informational() {
+    let (rows, all_linked) = evaluate(
+        vec![owned_seam("gateway_routes", Some("gateway"), &["notifications:bridge"])],
+        &[requirement("authz_hooks", Needed::AnyEntry)],
+        &[ExtensionId::new("gateway")],
+    );
+    assert!(!all_linked, "the unregistered authz_hooks requirement fails");
+    let gateway = rows.iter().find(|row| row.seam == "gateway_routes").unwrap();
+    assert_eq!(gateway.status, SeamStatus::OwnerDisabled);
+
+    let (rows, all_linked) = evaluate(
+        vec![owned_seam("gateway_routes", Some("gateway"), &["notifications:bridge"])],
+        &[],
+        &[ExtensionId::new("gateway")],
+    );
+    assert!(all_linked);
+    assert_eq!(rows[0].status, SeamStatus::OwnerDisabled);
+}
+
+#[test]
+fn a_requirement_naming_an_unregistered_seam_is_reported_missing() {
+    let (rows, all_linked) = evaluate(
+        vec![seam("jobs", &["x"])],
+        &[requirement("authz_hooks", Needed::AnyEntry)],
+        &[],
+    );
+    assert!(!all_linked);
+    let row = rows.iter().find(|row| row.seam == "authz_hooks").unwrap();
+    assert_eq!(row.status, SeamStatus::Missing);
+    assert_eq!(row.owner, "unregistered");
+    assert_eq!(row.requires, "authz_hooks setting");
+}
+
+#[test]
+fn the_gateway_route_seam_is_registered() {
+    let seams = linked_seams();
+    let routes = seams
+        .iter()
+        .find(|s| s.name == "gateway_routes")
+        .expect("gateway route registrations are a listed seam");
+    assert_eq!(routes.owner, "systemprompt-api");
+    assert_eq!(routes.extension, Some("gateway"));
+}
