@@ -46,6 +46,10 @@ members = [
     # Entry layer
     "crates/entry/api",
     "crates/entry/cli",
+    "crates/entry/slack",
+    "crates/entry/teams",
+    "crates/entry/agent-runs",
+    "crates/entry/notifications",
     # Main library crate (for crates.io)
     "systemprompt",
 ]
@@ -357,6 +361,10 @@ systemprompt-oauth-issuance = { path = "crates/app/oauth-issuance", version = "0
 systemprompt-gateway = { path = "crates/app/gateway", version = "0.81.1" }
 systemprompt-api = { path = "crates/entry/api", version = "0.81.1" }
 systemprompt-cli = { path = "crates/entry/cli", version = "0.81.1" }
+systemprompt-slack-entry = { path = "crates/entry/slack", version = "0.81.1" }
+systemprompt-teams-entry = { path = "crates/entry/teams", version = "0.81.1" }
+systemprompt-agent-runs-entry = { path = "crates/entry/agent-runs", version = "0.81.1" }
+systemprompt-notifications-entry = { path = "crates/entry/notifications", version = "0.81.1" }
 
 # Why: several agents build one checkout against a core that moves daily, and
 # cargo never prunes stale incremental sessions; target/debug/incremental grew

@@ -6424,6 +6424,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-agent-runs-entry"
+version = "0.81.1"
+
+[[package]]
 name = "systemprompt-ai"
 version = "0.81.1"
 dependencies = [
@@ -7260,6 +7264,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-notifications-entry"
+version = "0.81.1"
+
+[[package]]
 name = "systemprompt-oauth"
 version = "0.81.1"
 dependencies = [
@@ -7495,6 +7503,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-slack-entry"
+version = "0.81.1"
+
+[[package]]
 name = "systemprompt-storage"
 version = "0.81.1"
 dependencies = [
@@ -7537,6 +7549,10 @@ dependencies = [
  "thiserror 2.0.21",
  "tracing",
 ]
+
+[[package]]
+name = "systemprompt-teams-entry"
+version = "0.81.1"
 
 [[package]]
 name = "systemprompt-template-provider"
