@@ -25,6 +25,8 @@ mod rules;
 mod streams;
 mod subscriptions;
 
+pub use error::NotificationsHttpError;
+
 use std::sync::Arc;
 
 use axum::Router;

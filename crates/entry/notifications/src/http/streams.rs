@@ -11,14 +11,13 @@ use systemprompt_identifiers::NotificationStreamId;
 use systemprompt_models::RequestContext;
 use systemprompt_notifications::service::{PublishOutcome, PublishRequest};
 
-use super::NotificationsState;
 use super::ops::{self, StreamList};
-use systemprompt_api::kernel::ApiHttpError;
+use super::{NotificationsHttpError, NotificationsState};
 
 pub(super) async fn list(
     State(state): State<NotificationsState>,
     Extension(req_ctx): Extension<RequestContext>,
-) -> Result<Json<StreamList>, ApiHttpError> {
+) -> Result<Json<StreamList>, NotificationsHttpError> {
     Ok(Json(ops::streams(&state.service, req_ctx.user_id()).await?))
 }
 
@@ -27,7 +26,7 @@ pub(super) async fn publish(
     Extension(req_ctx): Extension<RequestContext>,
     Path(id): Path<String>,
     Json(body): Json<PublishRequest>,
-) -> Result<(StatusCode, Json<PublishOutcome>), ApiHttpError> {
+) -> Result<(StatusCode, Json<PublishOutcome>), NotificationsHttpError> {
     let stream = NotificationStreamId::try_new(id)?;
     let outcome = state
         .service
