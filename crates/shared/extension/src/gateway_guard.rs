@@ -7,7 +7,9 @@
 //! that owns each guard; the gateway runs every collected guard and denies
 //! the request on the first [`GatewayDenyReason`].
 //!
-//! [`GatewayGuards::discover`] installs a guard only while its owning
+//! [`GatewayGuards::discover`] (over the linked registrations and the
+//! profile's disabled set; [`GatewayGuards::from_registrations`] over any)
+//! installs a guard only while its owning
 //! extension is linked and enabled, as every other owner-attributed
 //! registration is collected. A guard whose owner is disabled in the profile
 //! is not installed. A guard naming an owner that is not a linked extension
@@ -162,9 +164,16 @@ impl GatewayGuards {
 
     pub fn discover(ctx: &dyn ExtensionContext) -> Result<Self, GatewayGuardError> {
         let profile = ctx.profile();
-        let disabled = &profile.extensions.disabled;
+        Self::from_registrations(ctx, Self::registrations(), &profile.extensions.disabled)
+    }
+
+    pub fn from_registrations<'a>(
+        ctx: &dyn ExtensionContext,
+        registrations: impl IntoIterator<Item = &'a GatewayRequestGuardRegistration>,
+        disabled: &[ExtensionId],
+    ) -> Result<Self, GatewayGuardError> {
         let mut guards = Vec::new();
-        for registration in Self::registrations() {
+        for registration in registrations {
             if !ctx.has_extension(registration.extension) {
                 return Err(GatewayGuardError::UnknownOwner(ExtensionId::new(
                     registration.extension,
@@ -181,6 +190,11 @@ impl GatewayGuards {
             guards.push((registration.factory)(ctx));
         }
         Ok(Self(guards))
+    }
+
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.0.len()
     }
 
     #[must_use]
