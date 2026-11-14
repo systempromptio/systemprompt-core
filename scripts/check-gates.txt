@@ -54,3 +54,5 @@ lint-bridge-file-size
 lint-repo-hygiene
 changelog-check
 check-removed-config-names
+check-release-tag
+check-crate-changelogs

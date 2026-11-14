@@ -380,10 +380,6 @@ jobs:
       - if: ${{ !cancelled() && matrix.group == 'release' }}
         run: bash scripts/test-scripts.sh
       - if: ${{ !cancelled() && matrix.group == 'release' }}
-        run: just check-release-tag
-      - if: ${{ !cancelled() && matrix.group == 'release' }}
-        run: just check-crate-changelogs
-      - if: ${{ !cancelled() && matrix.group == 'release' }}
         run: just lint-test-hack
       # Why: scripts/check-gates.txt is the one gate list. gate.sh reads it and
       # scripts/gate-scopes.txt assigns every gate one of the matrix groups

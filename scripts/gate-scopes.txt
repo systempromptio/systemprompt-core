@@ -74,3 +74,5 @@ lint-bridge-file-size       unit    cheap    bridge  0.4s
 lint-repo-hygiene           global  cheap    sql     0.1s; every tracked path
 changelog-check             global  cheap    release 0.1s; every changelog.d fragment against the published crates
 check-removed-config-names  unit    cheap    bridge  1.3s
+check-release-tag           global  cheap    release the newest release tag is an ancestor and matches the workspace version
+check-crate-changelogs      global  cheap    release every crate changed since the last release is named by a changelog.d fragment

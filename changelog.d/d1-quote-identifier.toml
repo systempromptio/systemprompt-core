@@ -7,3 +7,8 @@ text = "`quote_identifier` quotes any PostgreSQL identifier without validating i
 name = "systemprompt-cli"
 section = "Breaking"
 text = "`shared::ddl::quote_ident` is removed; use `systemprompt_database::quote_identifier`."
+
+[[crate]]
+name = "systemprompt-logging"
+section = "Changed"
+text = "The database log layer's instance label is bound once through `systemprompt_models::LateBound`."
