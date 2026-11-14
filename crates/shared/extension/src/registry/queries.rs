@@ -133,11 +133,17 @@ impl ExtensionRegistry {
         ctx: &dyn ExtensionContext,
         disabled_ids: &[ExtensionId],
     ) -> Result<Vec<ApiRouter>, LoaderError> {
-        Ok(self
-            .enabled_extensions(disabled_ids)?
-            .into_iter()
-            .filter_map(|e| e.router(ctx).map(|r| (e, r)))
-            .collect())
+        let mut routers = Vec::new();
+        for ext in self.enabled_extensions(disabled_ids)? {
+            let declared = ext
+                .routers(ctx)
+                .map_err(|source| LoaderError::RouterBuildFailed {
+                    extension: ExtensionId::new(ext.id()),
+                    source,
+                })?;
+            routers.extend(declared.into_iter().map(|r| (Arc::clone(&ext), r)));
+        }
+        Ok(routers)
     }
 
     pub fn enabled_site_auth(

@@ -54,8 +54,17 @@ pub enum MountError {
     ExtensionHandlerVerified { base_path: &'static str },
 
     #[error(
-        "core route group at '{base_path}' declares a {declared}-byte body limit above the \
-         2 MiB server default that no core body exemption names for that base path"
+        "extension '{extension}' declares a route group at the reserved base path '{base_path}', \
+         which only a core route group listed in the core allowance table may declare"
+    )]
+    ExtensionReservedPath {
+        extension: &'static str,
+        base_path: &'static str,
+    },
+
+    #[error(
+        "route group at '{base_path}' declares a {declared}-byte body limit above the 2 MiB \
+         server default that no core allowance names for that base path"
     )]
     UnlistedBodyExemption {
         base_path: &'static str,

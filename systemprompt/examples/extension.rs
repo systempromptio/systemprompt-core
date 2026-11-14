@@ -22,10 +22,6 @@ impl Extension for DemoExtension {
             "CREATE TABLE IF NOT EXISTS demo_extension_state (id TEXT PRIMARY KEY)",
         )]
     }
-
-    fn router(&self, _ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
-        None
-    }
 }
 
 register_extension!(DemoExtension);

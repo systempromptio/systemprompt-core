@@ -13,7 +13,7 @@ use axum::routing::get;
 use systemprompt_api::services::server::setup_api_server;
 use systemprompt_extension::{
     AuthzPolicy, ContextKind, Extension, ExtensionContext, ExtensionMetadata, ExtensionRegistry,
-    ExtensionRouter, RateBudget, RateLimit,
+    ExtensionRouter, ExtensionStateError, RateBudget, RateLimit,
 };
 use systemprompt_manifest::profile::FrameOptions;
 use systemprompt_test_fixtures::{
@@ -21,6 +21,10 @@ use systemprompt_test_fixtures::{
     seed_admin_credential, seed_bridge_credential, test_db_pool,
 };
 use tower::ServiceExt;
+
+fn one(declared: ExtensionRouter) -> Result<Vec<ExtensionRouter>, ExtensionStateError> {
+    Ok(vec![declared])
+}
 
 struct NestedPublicExt;
 
@@ -33,8 +37,11 @@ impl Extension for NestedPublicExt {
         }
     }
 
-    fn router(&self, _ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
-        Some(
+    fn routers(
+        &self,
+        _ctx: &dyn ExtensionContext,
+    ) -> Result<Vec<ExtensionRouter>, ExtensionStateError> {
+        one(
             ExtensionRouter::new(
                 Router::new().route("/ping", get(|| async { "ext-ok" })),
                 "/api/covmount",
@@ -57,8 +64,11 @@ impl Extension for RootMergedExt {
         }
     }
 
-    fn router(&self, _ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
-        Some(ExtensionRouter::new(
+    fn routers(
+        &self,
+        _ctx: &dyn ExtensionContext,
+    ) -> Result<Vec<ExtensionRouter>, ExtensionStateError> {
+        one(ExtensionRouter::new(
             Router::new().route("/covroot-ping", get(|| async { "root-ok" })),
             "/",
             AuthzPolicy::public(),
@@ -78,8 +88,11 @@ impl Extension for AuthedExt {
         }
     }
 
-    fn router(&self, _ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
-        Some(ExtensionRouter::new(
+    fn routers(
+        &self,
+        _ctx: &dyn ExtensionContext,
+    ) -> Result<Vec<ExtensionRouter>, ExtensionStateError> {
+        one(ExtensionRouter::new(
             Router::new().route("/secret", get(|| async { "authed" })),
             "/api/covauth",
             AuthzPolicy::user(),
@@ -99,8 +112,11 @@ impl Extension for AdminExt {
         }
     }
 
-    fn router(&self, _ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
-        Some(ExtensionRouter::new(
+    fn routers(
+        &self,
+        _ctx: &dyn ExtensionContext,
+    ) -> Result<Vec<ExtensionRouter>, ExtensionStateError> {
+        one(ExtensionRouter::new(
             Router::new().route("/only", get(|| async { "admin" })),
             "/api/covadmin",
             AuthzPolicy::admin(),
@@ -124,8 +140,11 @@ impl Extension for DisabledExt {
         }
     }
 
-    fn router(&self, _ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
-        Some(
+    fn routers(
+        &self,
+        _ctx: &dyn ExtensionContext,
+    ) -> Result<Vec<ExtensionRouter>, ExtensionStateError> {
+        one(
             ExtensionRouter::new(
                 Router::new().route("/ping", get(|| async { "disabled" })),
                 "/api/covdisabled",

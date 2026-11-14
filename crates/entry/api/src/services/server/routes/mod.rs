@@ -2,7 +2,8 @@
 //!
 //! `configure_routes` composes the route tree for this node's role: protocol
 //! surfaces (OAuth, agent, MCP, stream, content, gateway), extension-mounted
-//! routes, discovery and well-known endpoints, static content, and the global
+//! routes (each declaration filtered by the role table for its own route
+//! group), discovery and well-known endpoints, static content, and the global
 //! IP-ban and metrics layers. [`role::route_groups`] decides which groups a
 //! role mounts. Each surface is a route declaration applied by
 //! `services::middleware::mount`: its `AuthzPolicy`, context middleware, rate
@@ -115,9 +116,7 @@ fn build_routes(
         router = gateway::mount_gateway(router, &mount)?;
     }
     router = feature_mount::mount_feature_routes(router, &mount)?;
-    if serves(RouteGroup::Extensions) {
-        router = extension_mount::mount_extension_routes(router, &mount, &refresh_lock, events)?;
-    }
+    router = extension_mount::mount_extension_routes(router, &mount, &refresh_lock, events)?;
     router = mount_discovery(router, &mount)?;
     if serves(RouteGroup::Oauth) {
         router = mount.mount(router, link_passkey_router())?;
