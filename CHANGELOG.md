@@ -6,6 +6,10 @@
 
 - **Breaking:** **API:** `RouteGroup` gains `InternalLinks`, and `systemprompt_runtime::documents::links::LinkRefusal` gains `Unavailable`. Migrate by adding the match arms.
 
+### Changed
+
+- **Database:** a full schema install leaves a declarative trigger in place when its statements and its live definition (`pg_get_triggerdef`) are unchanged since it was last applied, so a deploy that changes some other part of the schema takes no exclusive lock on that trigger's table; the digests live in `schema_trigger_digests` (migration `009`), a trigger changed or dropped out of band is re-applied, and `MigrationConfig::force_full_install` re-creates every trigger.
+
 ### Fixed
 
 - **API:** a `worker` node serves `POST /api/v1/internal/links` (route group `InternalLinks`, also on `api` and `all`), so `issue_attachment`, `documents_upload` and link-based `documents_export` work on a role-split install, where a managed MCP server asks its own node for a signed link; the worker mounts none of the documents surface, and the links it signs point at `api_external_url`. `LinkRefusal` gains `Unavailable` (any status but 401, 403, 409 and 500), and the tools report an unreachable link endpoint or the status it returned (`LinkIssueError::tool_message`) instead of "the upload links could not be signed".
