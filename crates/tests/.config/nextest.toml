@@ -157,9 +157,9 @@ test-group = 'logs-cleanup-db'
 
 # Why: an enforced `DatabaseCleanupJob` run deletes every expired row in the shared
 # database, so it removes the fixture the dry-run test seeds and then asserts is
-# still there (`without_enforce_an_expired_row_is_kept` failed in Coverage).
+# still there. Every suite that runs it enforced shares this slot.
 [[profile.default.overrides]]
-filter = 'package(systemprompt-scheduler-tests) and test(/^retention_(enforce|targets)_db::/)'
+filter = 'package(systemprompt-scheduler-tests) and test(/^retention_(enforce|targets|holds)_db::/)'
 test-group = 'logs-cleanup-db'
 
 [[profile.default.overrides]]
@@ -199,7 +199,7 @@ filter = 'package(systemprompt-agent-integration-tests) and test(/agent_service_
 test-group = 'scheduler-services-db'
 
 [[profile.default.overrides]]
-filter = 'package(systemprompt-scheduler-tests) and test(/(jobs_seeded_db|bootstrap_dispatch_db|dispatch_scope_db|dispatch_instance_stamp_db|job_execution_db|start_owner_resolution_db|manual_run_lock_db|unlisted_jobs_db|budgeted_dispatch_db|retention_enforce_db|registration_db)::/)'
+filter = 'package(systemprompt-scheduler-tests) and test(/(jobs_seeded_db|bootstrap_dispatch_db|dispatch_scope_db|dispatch_instance_stamp_db|job_execution_db|start_owner_resolution_db|manual_run_lock_db|unlisted_jobs_db|budgeted_dispatch_db|registration_db)::/)'
 test-group = 'scheduler-jobs-db'
 
 [[profile.default.overrides]]
