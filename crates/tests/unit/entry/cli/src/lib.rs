@@ -14,6 +14,8 @@
 
 #![allow(clippy::all)]
 
+use systemprompt_agent_runs as _;
+
 #[cfg(test)]
 mod agents_shared_prompt;
 #[cfg(test)]
