@@ -8317,6 +8317,7 @@ dependencies = [
  "sqlx",
  "systemprompt-agent",
  "systemprompt-agent-runs",
+ "systemprompt-agent-runs-entry",
  "systemprompt-ai",
  "systemprompt-analytics",
  "systemprompt-api",
@@ -8342,12 +8343,15 @@ dependencies = [
  "systemprompt-mcp-host",
  "systemprompt-models",
  "systemprompt-notifications",
+ "systemprompt-notifications-entry",
  "systemprompt-oauth",
  "systemprompt-oauth-issuance",
  "systemprompt-runtime",
  "systemprompt-scheduler",
  "systemprompt-security",
+ "systemprompt-slack-entry",
  "systemprompt-storage",
+ "systemprompt-teams-entry",
  "systemprompt-template-provider",
  "systemprompt-traits",
  "systemprompt-users",
@@ -8447,6 +8451,46 @@ dependencies = [
  "tokio-util",
  "tracing",
  "walkdir",
+]
+
+[[package]]
+name = "systemprompt-agent-runs-entry"
+version = "0.81.1"
+dependencies = [
+ "async-stream",
+ "axum",
+ "chrono",
+ "futures-util",
+ "inventory",
+ "serde",
+ "serde_json",
+ "systemprompt-agent-runs",
+ "systemprompt-api",
+ "systemprompt-cli",
+ "systemprompt-config",
+ "systemprompt-database",
+ "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "systemprompt-agent-runs-entry-tests"
+version = "0.0.11"
+dependencies = [
+ "inventory",
+ "systemprompt-agent-runs",
+ "systemprompt-agent-runs-entry",
+ "systemprompt-cli",
+ "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-test-fixtures",
+ "systemprompt-test-hack",
+ "systemprompt-traits",
+ "tokio",
 ]
 
 [[package]]
@@ -8682,7 +8726,6 @@ dependencies = [
  "sha2 0.11.1",
  "sqlx",
  "systemprompt-agent",
- "systemprompt-agent-runs",
  "systemprompt-ai",
  "systemprompt-analytics",
  "systemprompt-brain",
@@ -8702,16 +8745,13 @@ dependencies = [
  "systemprompt-marketplace",
  "systemprompt-mcp",
  "systemprompt-models",
- "systemprompt-notifications",
  "systemprompt-oauth",
  "systemprompt-oauth-issuance",
  "systemprompt-provider-contracts",
  "systemprompt-runtime",
  "systemprompt-scheduler",
  "systemprompt-security",
- "systemprompt-slack",
  "systemprompt-storage",
- "systemprompt-teams",
  "systemprompt-traits",
  "systemprompt-users",
  "systemprompt-wire",
@@ -8754,6 +8794,7 @@ dependencies = [
  "sqlx",
  "systemprompt-agent",
  "systemprompt-agent-runs",
+ "systemprompt-agent-runs-entry",
  "systemprompt-ai",
  "systemprompt-analytics",
  "systemprompt-api",
@@ -8773,6 +8814,7 @@ dependencies = [
  "systemprompt-mcp",
  "systemprompt-models",
  "systemprompt-notifications",
+ "systemprompt-notifications-entry",
  "systemprompt-oauth",
  "systemprompt-oauth-issuance",
  "systemprompt-runtime",
@@ -8795,28 +8837,6 @@ dependencies = [
  "webauthn-authenticator-rs",
  "webauthn-rs",
  "wiremock",
-]
-
-[[package]]
-name = "systemprompt-api-notifications-tests"
-version = "0.0.11"
-dependencies = [
- "async-trait",
- "axum",
- "serde_json",
- "sqlx",
- "systemprompt-api",
- "systemprompt-extension",
- "systemprompt-identifiers",
- "systemprompt-models",
- "systemprompt-notifications",
- "systemprompt-provider-contracts",
- "systemprompt-runtime",
- "systemprompt-test-fixtures",
- "systemprompt-test-hack",
- "tokio",
- "tower",
- "uuid",
 ]
 
 [[package]]
@@ -9599,7 +9619,6 @@ dependencies = [
  "sqlx",
  "sse-stream",
  "systemprompt-agent",
- "systemprompt-agent-runs",
  "systemprompt-ai",
  "systemprompt-analytics",
  "systemprompt-api",
@@ -10961,6 +10980,41 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-messaging-entry-integration-tests"
+version = "0.0.11"
+dependencies = [
+ "anyhow",
+ "axum",
+ "base64 0.23.1",
+ "http-body-util",
+ "jsonwebtoken",
+ "reqwest",
+ "rsa 0.9.10",
+ "serde_json",
+ "systemprompt-api",
+ "systemprompt-client",
+ "systemprompt-database",
+ "systemprompt-extension",
+ "systemprompt-governance",
+ "systemprompt-identifiers",
+ "systemprompt-manifest",
+ "systemprompt-models",
+ "systemprompt-runtime",
+ "systemprompt-security",
+ "systemprompt-slack",
+ "systemprompt-slack-entry",
+ "systemprompt-teams-entry",
+ "systemprompt-test-fixtures",
+ "systemprompt-test-hack",
+ "systemprompt-traits",
+ "tokio",
+ "tower",
+ "url",
+ "uuid",
+ "wiremock",
+]
+
+[[package]]
 name = "systemprompt-models"
 version = "0.81.1"
 dependencies = [
@@ -11075,6 +11129,47 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tracing",
+]
+
+[[package]]
+name = "systemprompt-notifications-entry"
+version = "0.81.1"
+dependencies = [
+ "axum",
+ "inventory",
+ "serde",
+ "systemprompt-api",
+ "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-notifications",
+ "systemprompt-provider-contracts",
+ "systemprompt-traits",
+ "thiserror 2.0.21",
+ "tracing",
+]
+
+[[package]]
+name = "systemprompt-notifications-entry-tests"
+version = "0.0.11"
+dependencies = [
+ "async-trait",
+ "axum",
+ "serde_json",
+ "sqlx",
+ "systemprompt-api",
+ "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-notifications",
+ "systemprompt-notifications-entry",
+ "systemprompt-provider-contracts",
+ "systemprompt-runtime",
+ "systemprompt-test-fixtures",
+ "systemprompt-test-hack",
+ "tokio",
+ "tower",
+ "uuid",
 ]
 
 [[package]]
@@ -11693,18 +11788,51 @@ version = "0.81.1"
 dependencies = [
  "hex",
  "hmac 0.13.0",
- "inventory",
  "reqwest",
- "schemars 1.2.3",
  "serde",
  "serde_json",
  "sha2 0.11.1",
+ "systemprompt-client",
+ "systemprompt-identifiers",
+ "systemprompt-manifest",
+ "systemprompt-models",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "systemprompt-slack-entry"
+version = "0.81.1"
+dependencies = [
+ "axum",
+ "chrono",
+ "inventory",
+ "reqwest",
+ "schemars 1.2.3",
+ "serde_json",
  "systemprompt-client",
  "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-manifest",
  "systemprompt-models",
+ "systemprompt-provider-contracts",
+ "systemprompt-slack",
+ "systemprompt-traits",
  "thiserror 2.0.21",
+ "tracing",
+ "url",
+]
+
+[[package]]
+name = "systemprompt-slack-entry-tests"
+version = "0.0.11"
+dependencies = [
+ "serde_json",
+ "systemprompt-extension",
+ "systemprompt-models",
+ "systemprompt-runtime",
+ "systemprompt-slack-entry",
+ "systemprompt-test-hack",
+ "tempfile",
 ]
 
 [[package]]
@@ -11715,13 +11843,10 @@ dependencies = [
  "serde_json",
  "serde_yaml_ng",
  "systemprompt-client",
- "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-manifest",
- "systemprompt-runtime",
  "systemprompt-slack",
  "systemprompt-test-hack",
- "tempfile",
  "tokio",
  "wiremock",
 ]
@@ -11776,19 +11901,49 @@ dependencies = [
 name = "systemprompt-teams"
 version = "0.81.1"
 dependencies = [
- "inventory",
  "jsonwebtoken",
  "reqwest",
- "schemars 1.2.3",
  "serde",
+ "serde_json",
+ "systemprompt-client",
+ "systemprompt-identifiers",
+ "systemprompt-manifest",
+ "systemprompt-models",
+ "thiserror 2.0.21",
+ "tracing",
+]
+
+[[package]]
+name = "systemprompt-teams-entry"
+version = "0.81.1"
+dependencies = [
+ "axum",
+ "chrono",
+ "inventory",
+ "reqwest",
+ "schemars 1.2.3",
  "serde_json",
  "systemprompt-client",
  "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-manifest",
  "systemprompt-models",
+ "systemprompt-provider-contracts",
+ "systemprompt-teams",
+ "systemprompt-traits",
  "thiserror 2.0.21",
  "tracing",
+]
+
+[[package]]
+name = "systemprompt-teams-entry-tests"
+version = "0.0.11"
+dependencies = [
+ "serde_json",
+ "systemprompt-extension",
+ "systemprompt-models",
+ "systemprompt-teams-entry",
+ "systemprompt-test-hack",
 ]
 
 [[package]]
@@ -11803,7 +11958,6 @@ dependencies = [
  "serde_json",
  "serde_yaml_ng",
  "systemprompt-client",
- "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-manifest",
  "systemprompt-teams",
@@ -12021,6 +12175,7 @@ dependencies = [
  "syn 2.0.119",
  "syn 3.0.10",
  "sync_wrapper",
+ "systemprompt-agent-runs-entry",
  "systemprompt-analytics",
  "systemprompt-extension",
  "systemprompt-files",
@@ -12030,6 +12185,7 @@ dependencies = [
  "systemprompt-models",
  "systemprompt-runtime",
  "systemprompt-scheduler",
+ "systemprompt-teams-entry",
  "systemprompt-traits",
  "thiserror 2.0.21",
  "time",
