@@ -10,14 +10,21 @@
 //! group and enable predicate and nests the result under its base path, or
 //! merges it at the web root.
 //!
-//! A declaration whose policy admits no caller type, that pairs the public
-//! context with a policy excluding anonymous callers, or that names a bearer
-//! window or protection layer the server has no primitive for, is refused
-//! with a typed [`MountError`] at boot; nothing is mounted with less
-//! protection than it declares. [`admit_extension`] adds the extension
-//! ceiling: an extension may not raise its body limit above the server-wide
-//! [`DEFAULT_BODY_LIMIT_BYTES`]. Core declarations are exempt because the
-//! A2A proxy legitimately accepts `AGENT_REQUEST_BODY_LIMIT_BYTES`. A
+//! A handler-verified policy (`AuthzPolicy::handler_verified`) pairs only
+//! with `ContextKind::HandlerResolved`: the group keeps its body limit, inner
+//! layers, rate limit, bearer window, outer layers and frame stamp, and gets
+//! no context middleware or gate, because its named verifier admits callers.
+//!
+//! A declaration whose policy admits no caller type and names no verifier,
+//! that pairs the public context with a policy excluding anonymous callers,
+//! that mixes a handler-verified policy with a context middleware (or the
+//! handler-resolved context with a gated policy), that names a body limit
+//! above [`DEFAULT_BODY_LIMIT_BYTES`] no [`CoreBodyExemption`] lists, or that
+//! names a bearer window or protection layer the server has no primitive
+//! for, is refused with a typed [`MountError`] at boot; nothing is mounted
+//! with less protection than it declares. [`admit_extension`] adds the
+//! extension rules: an extension may not raise its body limit above the
+//! ceiling at all and may not declare a handler-verified policy. A
 //! declaration skipped by its role group or enable predicate is logged at
 //! `info`.
 //!
@@ -47,6 +54,29 @@ use crate::services::middleware::rate_limit::{RateLimitState, RouterExt};
 
 pub const DEFAULT_BODY_LIMIT_BYTES: usize = 2 * 1024 * 1024;
 
+/// A core route group whose declared body limit is above
+/// [`DEFAULT_BODY_LIMIT_BYTES`]; the list is closed and reviewed here.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CoreBodyExemption {
+    AgentProxy,
+}
+
+impl CoreBodyExemption {
+    pub const ALL: &'static [Self] = &[Self::AgentProxy];
+
+    #[must_use]
+    pub const fn bytes(self) -> usize {
+        match self {
+            Self::AgentProxy => systemprompt_models::net::AGENT_REQUEST_BODY_LIMIT_BYTES,
+        }
+    }
+
+    fn admits(declared: usize) -> bool {
+        declared <= DEFAULT_BODY_LIMIT_BYTES
+            || Self::ALL.iter().any(|exemption| exemption.bytes() == declared)
+    }
+}
+
 /// The server's enforcement primitives a [`RouteProtection`] is applied with.
 #[derive(Clone)]
 pub struct MountLayers {
@@ -75,11 +105,23 @@ pub fn protect(
     layers: &MountLayers,
     base_path: &'static str,
 ) -> Result<Router, MountError> {
-    if protection.policy.allowed().is_empty() {
+    let handler_verified = protection.policy.handler_verifier().is_some();
+    if handler_verified != (protection.context == ContextKind::HandlerResolved) {
+        return Err(MountError::IncoherentHandlerVerification { base_path });
+    }
+    if !handler_verified && protection.policy.allowed().is_empty() {
         return Err(MountError::NoAdmittedCaller { base_path });
     }
     if protection.context == ContextKind::Public && protection.requires_authentication() {
         return Err(MountError::IncoherentContext { base_path });
+    }
+    if let Some(declared) = protection.body_limit
+        && !CoreBodyExemption::admits(declared)
+    {
+        return Err(MountError::UnlistedBodyExemption {
+            base_path,
+            declared,
+        });
     }
 
     let mut router = router;
@@ -128,6 +170,7 @@ pub fn protect(
         ContextKind::User => router.with_auth(layers.user.clone(), policy),
         ContextKind::A2a => router.with_auth(layers.a2a.clone(), policy),
         ContextKind::Mcp => router.with_auth(layers.mcp.clone(), policy),
+        ContextKind::HandlerResolved => router,
     };
 
     if protection.layers.contains(&ProtectionLayer::SiteAuth) {
@@ -192,6 +235,13 @@ pub fn mount(
 }
 
 pub const fn admit_extension(declared: &ExtensionRouter) -> Result<(), MountError> {
+    if declared.protection.policy.handler_verifier().is_some()
+        || matches!(declared.protection.context, ContextKind::HandlerResolved)
+    {
+        return Err(MountError::ExtensionHandlerVerified {
+            base_path: declared.base_path,
+        });
+    }
     match declared.protection.body_limit {
         Some(declared_bytes) if declared_bytes > DEFAULT_BODY_LIMIT_BYTES => {
             Err(MountError::ExtensionBodyLimitTooLarge {

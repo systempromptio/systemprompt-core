@@ -49,8 +49,8 @@ pub use ip_ban::ip_ban_middleware;
 pub use jwt::{JtiRevocationChecker, JwtContextExtractor, JwtUserContext};
 pub use load_shed::LoadShed;
 pub use mount::{
-    ClientWritesGuard, DEFAULT_BODY_LIMIT_BYTES, MountError, MountLayers, ProtectionGuards,
-    SiteAuthGuard, admit_extension, mount, place, protect,
+    ClientWritesGuard, CoreBodyExemption, DEFAULT_BODY_LIMIT_BYTES, MountError, MountLayers,
+    ProtectionGuards, SiteAuthGuard, admit_extension, mount, place, protect,
 };
 pub use negotiation::{
     AcceptedFormat, AcceptedMediaType, content_negotiation_middleware, parse_accept_header,

@@ -22,13 +22,16 @@ use systemprompt_provider_contracts::FrameOptions;
 use crate::authz::AuthzPolicy;
 use crate::context::ExtensionContext;
 
-/// The request-context middleware a route group is mounted behind.
+/// The request-context middleware a route group is mounted behind;
+/// `HandlerResolved` mounts none and pairs only with a handler-verified
+/// policy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ContextKind {
     Public,
     User,
     A2a,
     Mcp,
+    HandlerResolved,
 }
 
 /// The per-second budget a rate limit draws: a named profile rate or a

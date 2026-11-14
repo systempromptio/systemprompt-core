@@ -21,15 +21,36 @@
 //! mutates state must enforce its own per-resource ownership check, because
 //! the gate will admit `Anon`.
 //!
+//! A few core groups authenticate in their handlers or in a token gate the
+//! group itself carries (a signed webhook, a device credential, a gateway
+//! credential, an MCP hop token, a document or upload token). They declare
+//! [`AuthzPolicy::handler_verified`] naming the [`HandlerVerifier`]; such a
+//! policy admits no caller type at the host gate, so the host mounts it
+//! without a context middleware or gate and the named verifier is the only
+//! admission. The host refuses it for extension routers.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_models::auth::UserType;
 
+/// The in-handler admission check a handler-verified route group relies on.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum HandlerVerifier {
+    SlackSignature,
+    TeamsBotToken,
+    ManagedDeviceCredential,
+    GatewayCredential,
+    McpHopToken,
+    DocumentDownloadToken,
+    DocumentUploadToken,
+}
+
 /// The caller types a route group admits.
 #[derive(Clone, Copy, Debug)]
 pub struct AuthzPolicy {
     allowed: &'static [UserType],
+    verifier: Option<HandlerVerifier>,
 }
 
 impl AuthzPolicy {
@@ -44,6 +65,7 @@ impl AuthzPolicy {
                 UserType::Mcp,
                 UserType::Service,
             ],
+            verifier: None,
         }
     }
 
@@ -57,6 +79,7 @@ impl AuthzPolicy {
                 UserType::Mcp,
                 UserType::Service,
             ],
+            verifier: None,
         }
     }
 
@@ -64,6 +87,7 @@ impl AuthzPolicy {
     pub const fn user() -> Self {
         Self {
             allowed: &[UserType::User, UserType::Admin],
+            verifier: None,
         }
     }
 
@@ -71,12 +95,16 @@ impl AuthzPolicy {
     pub const fn admin() -> Self {
         Self {
             allowed: &[UserType::Admin],
+            verifier: None,
         }
     }
 
     #[must_use]
     pub const fn restricted_to(allowed: &'static [UserType]) -> Self {
-        Self { allowed }
+        Self {
+            allowed,
+            verifier: None,
+        }
     }
 
     // Why: MCP OAuth discovery needs the handler's WWW-Authenticate challenge, not
@@ -84,6 +112,19 @@ impl AuthzPolicy {
     #[must_use]
     pub const fn deferred_to_handler() -> Self {
         Self::public()
+    }
+
+    #[must_use]
+    pub const fn handler_verified(verifier: HandlerVerifier) -> Self {
+        Self {
+            allowed: &[],
+            verifier: Some(verifier),
+        }
+    }
+
+    #[must_use]
+    pub const fn handler_verifier(self) -> Option<HandlerVerifier> {
+        self.verifier
     }
 
     #[must_use]

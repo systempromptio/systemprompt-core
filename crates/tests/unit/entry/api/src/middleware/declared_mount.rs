@@ -31,7 +31,7 @@ use systemprompt_test_fixtures::{fixture_config, test_db_pool};
 use systemprompt_users::UserRateLimitBucketRepository;
 use tower::ServiceExt;
 
-const BASE: &str = "/api/v1/declared";
+pub(super) const BASE: &str = "/api/v1/declared";
 
 #[derive(Clone)]
 struct StubExtractor {
@@ -61,7 +61,7 @@ fn context(kind: UserType) -> RequestContext {
     .with_user_type(kind)
 }
 
-async fn layers(rate_limits: RateLimitsConfig, caller: UserType) -> MountLayers {
+pub(super) async fn layers(rate_limits: RateLimitsConfig, caller: UserType) -> MountLayers {
     let mut config = fixture_config("postgres://localhost/declared");
     config.rate_limits = rate_limits;
     config.trusted_proxies = Vec::new();
@@ -80,14 +80,14 @@ async fn layers(rate_limits: RateLimitsConfig, caller: UserType) -> MountLayers 
     }
 }
 
-fn unlimited() -> RateLimitsConfig {
+pub(super) fn unlimited() -> RateLimitsConfig {
     RateLimitsConfig {
         disabled: true,
         ..RateLimitsConfig::default()
     }
 }
 
-fn ok_router() -> Router {
+pub(super) fn ok_router() -> Router {
     Router::new().route("/", get(|| async { "ok" })).route(
         "/echo",
         post(|body: axum::body::Bytes| async move { body.len().to_string() }),
