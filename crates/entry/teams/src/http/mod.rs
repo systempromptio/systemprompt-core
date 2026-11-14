@@ -4,24 +4,23 @@
 //! handler validates the activity's `Authorization` bearer (an RS256 JWT from
 //! the Bot Connector, bound to the activity's `serviceUrl`), normalizes the
 //! activity, resolves the agent from `services/teams/*.yaml`, acks the Bot
-//! Service, and spawns the blocking [`dispatch_messaging`] pipeline — whose
-//! reply is rendered to an Adaptive Card and posted back to the conversation
-//! via the Bot Connector.
+//! Service, and spawns the dispatch through the shared `MessagingDispatcher`,
+//! whose reply is rendered to an Adaptive Card and posted back to the
+//! conversation via the Bot Connector.
 //!
-//! Config and secrets resolve on demand (the MCP-registry pattern): the app is
-//! looked up by tenant id, and the app password is read from the profile secret
-//! store. The router state ([`TeamsState`]) holds the one outbound HTTP client
-//! and a verifier per app, so JWKS fetches are cached rather than repeated on
-//! every activity.
+//! Config and secrets resolve on demand: the app is looked up by tenant id in
+//! the live services view, and the app password is read by its named ref
+//! through the platform secret lookup (built-in and custom names). The router
+//! state ([`TeamsState`]) holds the one outbound HTTP client and a verifier per
+//! app, so JWKS fetches are cached rather than repeated on every activity.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod state;
 
-pub use state::TeamsState;
+pub use state::{TeamsState, TeamsStateError};
 
-use anyhow::Context as _;
 use axum::Router;
 use axum::body::Bytes;
 use axum::extract::State;
@@ -29,28 +28,39 @@ use axum::http::header::AUTHORIZATION;
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::post;
-use systemprompt_governance::authz::EntityRef;
+use systemprompt_extension::{
+    AuthzPolicy, ContextKind, ExtensionContext, ExtensionRouter, ExtensionStateError,
+    HandlerVerifier, RateBudget, RateLimit, RouteGroup,
+};
 use systemprompt_identifiers::{TeamsAppId, TeamsConversationId, TeamsTenantId};
-use systemprompt_manifest::Secrets;
 use systemprompt_manifest::services::{ServicesConfig, TeamsAppConfig};
-use systemprompt_runtime::AppContext;
+use systemprompt_models::modules::ApiPaths;
 use systemprompt_teams::activities::Activity;
 use systemprompt_teams::client::TeamsClient;
-
-use crate::routes::messaging::{
-    DispatchOutcome, MessagingConversation, MessagingInbound, MessagingState, ReplyTarget,
-    dispatch_messaging,
+use systemprompt_traits::{
+    DispatchOutcome, LinkPolicy, MessagingConversation, MessagingInbound, SecretLookup,
+    SenderIdentity,
 };
 
 const ISSUER: &str = "https://api.botframework.com";
 
-pub fn teams_router(
-    ctx: &AppContext,
-    messaging: &MessagingState,
-) -> Result<Router, reqwest::Error> {
-    Ok(Router::new()
+pub fn declaration(ctx: &dyn ExtensionContext) -> Result<ExtensionRouter, ExtensionStateError> {
+    let state = TeamsState::from_context(ctx)
+        .map_err(|source| ExtensionStateError::Provider(Box::new(source)))?;
+    Ok(ExtensionRouter::new(
+        router(state),
+        ApiPaths::TEAMS_BASE,
+        AuthzPolicy::handler_verified(HandlerVerifier::TeamsBotToken),
+        ContextKind::HandlerResolved,
+    )
+    .in_group(RouteGroup::Messaging)
+    .with_rate_limit(RateLimit::new("agents", RateBudget::Agents)))
+}
+
+pub fn router(state: TeamsState) -> Router {
+    Router::new()
         .route("/messages", post(handle_messages))
-        .with_state(TeamsState::new(ctx, messaging.payload_url_client.clone())?))
+        .with_state(state)
 }
 
 async fn handle_messages(
@@ -67,7 +77,7 @@ async fn handle_messages(
         return StatusCode::OK.into_response();
     };
 
-    let Some(app) = resolve_app(&state.ctx.services_config(), &normalized.tenant_id) else {
+    let Some(app) = resolve_app(&state.services().config(), &normalized.tenant_id) else {
         return StatusCode::OK.into_response();
     };
 
@@ -90,33 +100,26 @@ async fn handle_messages(
     let Some(agent) = app.agent_for(&normalized.routing_key).cloned() else {
         return StatusCode::OK.into_response();
     };
-    let app_password = match app_password(&state.ctx.secrets().get(), &app) {
-        Ok(password) => password,
-        Err(err) => {
-            tracing::error!(
-                tenant = %normalized.tenant_id.as_str(),
-                error = %err,
-                "teams app password unavailable"
-            );
-            return StatusCode::SERVICE_UNAVAILABLE.into_response();
-        },
+    let Some(app_password) = app_password(state.secrets(), &app) else {
+        tracing::error!(
+            tenant = %normalized.tenant_id.as_str(),
+            secret = %app.app_password_ref,
+            "teams app password secret is not configured"
+        );
+        return StatusCode::SERVICE_UNAVAILABLE.into_response();
     };
 
     let inbound = MessagingInbound {
         issuer: ISSUER.to_owned(),
         conversation: MessagingConversation::Teams {
-            tenant_id: normalized.tenant_id.clone(),
+            tenant_id: normalized.tenant_id,
             conversation_id: normalized.conversation_id.clone(),
             user_id: normalized.teams_user_id,
         },
         text: normalized.text,
         agent_name: agent,
-        entity: EntityRef::TeamsTenant(normalized.tenant_id),
-        reply: ReplyTarget::Channel {
-            id: normalized.conversation_id.as_str().to_owned(),
-        },
-        sender: systemprompt_traits::SenderIdentity::Unlinked,
-        link: systemprompt_traits::LinkPolicy::default(),
+        sender: SenderIdentity::Unlinked,
+        link: LinkPolicy::default(),
     };
     let reply = TeamsReply {
         service_url: normalized.service_url,
@@ -138,9 +141,9 @@ struct TeamsReply {
 }
 
 fn spawn_reply(state: TeamsState, inbound: MessagingInbound, reply: TeamsReply) {
-    let background = state.ctx.background_tasks().clone();
+    let background = state.background().clone();
     background.spawn("teams_reply", async move {
-        let text = match Box::pin(dispatch_messaging(&state.ctx, inbound)).await {
+        let text = match Box::pin(state.dispatch(inbound)).await {
             Ok(DispatchOutcome::Replied(reply)) => non_empty(reply),
             Ok(DispatchOutcome::Denied(reason)) => format!("⛔ {reason}"),
             Err(err) => {
@@ -150,8 +153,8 @@ fn spawn_reply(state: TeamsState, inbound: MessagingInbound, reply: TeamsReply) 
         };
         let attachments = systemprompt_teams::cards::render_card(&text);
         let client = TeamsClient::with_endpoints(
-            state.http.clone(),
-            state.service_url_client.clone(),
+            state.http().clone(),
+            state.service_url_client().clone(),
             reply.app_id,
             reply.app_password,
             reply.token_url,
@@ -186,11 +189,10 @@ fn resolve_app(services: &ServicesConfig, tenant_id: &TeamsTenantId) -> Option<T
         .cloned()
 }
 
-fn app_password(secrets: &Secrets, app: &TeamsAppConfig) -> anyhow::Result<String> {
+fn app_password(secrets: &dyn SecretLookup, app: &TeamsAppConfig) -> Option<String> {
     secrets
-        .get(app.app_password_ref.as_str())
-        .cloned()
-        .with_context(|| format!("secret {} is not configured", app.app_password_ref))
+        .lookup(app.app_password_ref.as_str())
+        .map(|secret| secret.expose().to_owned())
 }
 
 fn bearer(headers: &HeaderMap) -> Option<&str> {

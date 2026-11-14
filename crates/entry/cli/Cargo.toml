@@ -30,8 +30,6 @@ brain = ["notifications", "systemprompt-runtime/brain", "systemprompt-mcp-host/b
 agent-runs = ["dep:systemprompt-agent-runs", "systemprompt-api/agent-runs"]
 otel = ["systemprompt-api/otel", "systemprompt-scheduler/otel"]
 bridge = ["systemprompt-api/bridge"]
-slack = ["systemprompt-api/slack"]
-teams = ["systemprompt-api/teams"]
 full = ["notifications", "brain", "engine-loro", "office", "pdf", "agent-runs", "otel", "bridge"]
 
 [lints]

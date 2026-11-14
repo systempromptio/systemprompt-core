@@ -6,4 +6,8 @@
 
 The Microsoft Teams inbound HTTP routes of systemprompt.io: Bot Framework activities, verified in the handler and dispatched to governed A2A agents.
 
-**Layer**: Entry. The `http` feature carries the routes, declared through `systemprompt-extension` and mounted by the API server; the `cli` feature carries the commands, registered with the CLI. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
+**Layer**: Entry. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
+
+The crate registers the `teams` extension: its config prefix and schema, and, behind the `http` feature, the route declaration for `/api/v1/teams/messages`. The routes mount in the `Messaging` route group with a handler-verified policy, so the handler checks the Bot Connector bearer token (RS256, bound to the activity `serviceUrl`) before it acts; there is no session context or caller-type gate in front of them. A verified message is dispatched through the `MessagingDispatcher` the agent capability binds into the extension state. A profile that disables the `teams` extension leaves the routes unmounted. The `cli` feature carries no commands.
+
+The protocol logic (payload types, verification primitives, the outbound client and reply rendering) lives in `systemprompt-teams`.

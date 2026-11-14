@@ -23,16 +23,18 @@ use systemprompt_agent::models::a2a::{
 use systemprompt_identifiers::{
     Actor, AgentName, ContextId, JwtToken, MessageId, ServiceName, SessionId, TraceId,
 };
+use systemprompt_mcp::repository::McpProxySessionRepository;
 use systemprompt_models::RequestContext;
 use systemprompt_models::a2a::methods;
 use systemprompt_models::auth::{AuthenticatedUser, BaseRoles, JwtAudience, Permission};
 use systemprompt_oauth::services::{JwtConfig, JwtSigningParams, generate_jwt};
 use systemprompt_runtime::AppContext;
+use systemprompt_traits::MessagingInbound;
 use systemprompt_users::User;
 
 use crate::kernel::{ProxyKind, ProxyService, ProxyTarget};
 
-use super::{MessagingError, MessagingInbound};
+use super::MessagingError;
 
 const MAX_A2A_RESPONSE_BYTES: usize = 1024 * 1024;
 
@@ -141,6 +143,7 @@ pub(super) fn build_a2a_request(
 
 pub(super) async fn run_agent(
     ctx: &AppContext,
+    sessions: &Arc<McpProxySessionRepository>,
     agent: &AgentName,
     request: Request<Body>,
 ) -> Result<String, MessagingError> {
@@ -150,9 +153,8 @@ pub(super) async fn run_agent(
         path: "",
         kind: ProxyKind::Agent,
     };
-    let sessions = crate::repository::proxy_sessions(ctx.db_pool());
     let response = ProxyService::new(
-        sessions,
+        Arc::clone(sessions),
         Arc::clone(ctx.connector_tokens()),
         &ctx.services_state().view(),
         Arc::clone(ctx.config_arc()),

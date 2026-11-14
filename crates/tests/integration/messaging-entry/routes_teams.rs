@@ -30,21 +30,21 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 const ISSUER: &str = "https://api.botframework.com";
 const CONVERSATION_ID: &str = "conv-test-1";
 
-fn router(ctx: &std::sync::Arc<systemprompt_runtime::AppContext>) -> axum::Router {
-    systemprompt_api::routes::teams::teams_router(
-        ctx,
-        &systemprompt_api::routes::messaging::MessagingState::new(
-            reqwest::Client::new(),
+pub(crate) fn router(ctx: &std::sync::Arc<systemprompt_runtime::AppContext>) -> axum::Router {
+    systemprompt_api::services::messaging::bind_dispatcher(ctx).expect("dispatcher slot seeded");
+    systemprompt_teams_entry::http::router(
+        systemprompt_teams_entry::http::TeamsState::with_service_url_client(
+            &**ctx,
             systemprompt_client::GuardedClient::configured(
                 &systemprompt_client::GuardedClientConfig::for_configured(),
             )
             .expect("loopback-permitting reply client"),
-        ),
+        )
+        .expect("teams router state builds"),
     )
-    .expect("teams router builds")
 }
 
-fn activity_json(tenant: &str, service_url: &str) -> String {
+pub(crate) fn activity_json(tenant: &str, service_url: &str) -> String {
     serde_json::json!({
         "type": "message",
         "id": "act-1",
@@ -56,7 +56,7 @@ fn activity_json(tenant: &str, service_url: &str) -> String {
     .to_string()
 }
 
-fn post_messages(body: &str, bearer: Option<&str>) -> Request<Body> {
+pub(crate) fn post_messages(body: &str, bearer: Option<&str>) -> Request<Body> {
     let mut builder = Request::builder()
         .method("POST")
         .uri("/messages")
@@ -121,7 +121,7 @@ fn mint(signing: &RsaSigningKey, service_url: &str) -> String {
     mint_for_app(signing, service_url, TEST_TEAMS_APP_ID)
 }
 
-fn mint_for_app(signing: &RsaSigningKey, service_url: &str, app_id: &str) -> String {
+pub(crate) fn mint_for_app(signing: &RsaSigningKey, service_url: &str, app_id: &str) -> String {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .expect("clock")
@@ -224,7 +224,7 @@ async fn signed_activity_dispatches_and_posts_the_card() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn mount_connector_jwks(connector: &MockServer, signing: &RsaSigningKey) {
+pub(crate) async fn mount_connector_jwks(connector: &MockServer, signing: &RsaSigningKey) {
     Mock::given(method("GET"))
         .and(path("/openid"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({

@@ -1,5 +1,6 @@
-//! `Extension` registration for the Teams integration: config prefix and
-//! schema.
+//! `Extension` registration for the Teams capability: config prefix and
+//! schema, and behind the `http` feature the inbound route declaration and
+//! the messaging dispatcher it requires.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -20,6 +21,22 @@ impl Extension for TeamsExtension {
             name: "Microsoft Teams",
             version: env!("CARGO_PKG_VERSION"),
         }
+    }
+
+    #[cfg(feature = "http")]
+    fn routers(
+        &self,
+        ctx: &dyn ExtensionContext,
+    ) -> Result<Vec<ExtensionRouter>, ExtensionStateError> {
+        crate::http::declaration(ctx).map(|declared| vec![declared])
+    }
+
+    #[cfg(feature = "http")]
+    fn requires(&self) -> Vec<StateRequirement> {
+        vec![
+            StateRequirement::of::<LateBound<dyn systemprompt_traits::MessagingDispatcher>>(),
+            StateRequirement::of::<std::sync::Arc<dyn systemprompt_traits::SecretLookup>>(),
+        ]
     }
 
     fn config_prefix(&self) -> Option<&str> {

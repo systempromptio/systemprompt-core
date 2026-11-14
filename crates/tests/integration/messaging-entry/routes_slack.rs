@@ -43,7 +43,7 @@ fn now_ts() -> String {
         .to_string()
 }
 
-fn signed_post(path: &str, body: &str, secret: &str) -> Request<Body> {
+pub(crate) fn signed_post(path: &str, body: &str, secret: &str) -> Request<Body> {
     let ts = now_ts();
     let signature = sign(secret.as_bytes(), &ts, body.as_bytes()).expect("sign");
     Request::builder()
@@ -56,17 +56,19 @@ fn signed_post(path: &str, body: &str, secret: &str) -> Request<Body> {
         .expect("request build")
 }
 
-fn router(ctx: &std::sync::Arc<systemprompt_runtime::AppContext>) -> axum::Router {
-    systemprompt_api::routes::slack::slack_router(
-        systemprompt_api::routes::messaging::MessagingState::new(
+pub(crate) fn router(ctx: &std::sync::Arc<systemprompt_runtime::AppContext>) -> axum::Router {
+    systemprompt_api::services::messaging::bind_dispatcher(ctx).expect("dispatcher slot seeded");
+    systemprompt_slack_entry::http::router(
+        systemprompt_slack_entry::http::SlackState::with_clients(
+            &**ctx,
             reqwest::Client::new(),
             systemprompt_client::GuardedClient::configured(
                 &systemprompt_client::GuardedClientConfig::for_configured(),
             )
             .expect("loopback-permitting reply client"),
-        ),
+        )
+        .expect("slack router state builds"),
     )
-    .with_state((**ctx).clone())
 }
 
 #[tokio::test]
@@ -186,10 +188,10 @@ async fn signed_slash_command_with_a_loopback_response_url_sends_nothing() -> an
         urlencode(&response_url)
     );
     let req = signed_post("/commands", &body, TEST_SLACK_SIGNING_SECRET);
-    let production = systemprompt_api::routes::slack::slack_router(
-        systemprompt_api::routes::messaging::MessagingState::guarded()?,
-    )
-    .with_state((*ctx).clone());
+    systemprompt_api::services::messaging::bind_dispatcher(&ctx)?;
+    let production = systemprompt_slack_entry::http::router(
+        systemprompt_slack_entry::http::SlackState::from_context(&*ctx)?,
+    );
     let resp = production.oneshot(req).await?;
     assert_eq!(resp.status(), StatusCode::OK, "the route acks immediately");
 

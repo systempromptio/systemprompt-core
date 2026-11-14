@@ -1,25 +1,25 @@
 //! End-to-end coverage for the shared messaging dispatch pipeline.
 //!
-//! `dispatch_messaging` is driven directly with a fixture `AppContext`, a real
-//! Postgres pool, the process test signing key, and a wiremock agent backend
-//! seeded as a running `agent` service. The agent's `oauth.required = false`
-//! (fixture `config.yaml`) lets the proxy forward the minted A2A token without
-//! a check, so the full path — federated identity, authz hook, token mint,
-//! blocking `SendMessage`, reply extraction — runs against live
-//! infrastructure.
+//! `A2aMessagingDispatcher::run` is driven directly with a fixture
+//! `AppContext`, a real Postgres pool, the process test signing key, and a
+//! wiremock agent backend seeded as a running `agent` service. The agent's
+//! `oauth.required = false` (fixture `config.yaml`) lets the proxy forward the
+//! minted A2A token without a check, so the full path — federated identity,
+//! authz hook, token mint, blocking `SendMessage`, reply extraction — runs
+//! against live infrastructure.
 
-use systemprompt_api::routes::messaging::{
-    DispatchOutcome, MessagingConversation, MessagingError, MessagingInbound, ReplyTarget,
-    dispatch_messaging,
-};
-use systemprompt_governance::authz::{DenyAllHook, EntityRef};
+use systemprompt_api::services::messaging::{A2aMessagingDispatcher, MessagingError};
+use systemprompt_governance::authz::DenyAllHook;
 use systemprompt_identifiers::{AgentName, SlackChannelId, SlackUserId, SlackWorkspaceId};
+use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
     TEST_SLACK_WORKSPACE_ID, agent_error_response_json, agent_reply_response_json,
     ensure_messaging_bootstrap, fixture_app_context_with_hook, seed_agent_backend,
     test_app_context, test_db_pool, test_messaging_agent,
 };
-use systemprompt_traits::{LinkPolicy, SenderIdentity};
+use systemprompt_traits::{
+    DispatchOutcome, LinkPolicy, MessagingConversation, MessagingInbound, SenderIdentity,
+};
 use uuid::Uuid;
 use wiremock::matchers::{header, method};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -36,13 +36,16 @@ pub(crate) fn inbound(external_user_id: &str, text: &str) -> MessagingInbound {
         },
         text: text.to_owned(),
         agent_name: AgentName::try_new(test_messaging_agent()).expect("valid AgentName"),
-        entity: EntityRef::SlackWorkspace(SlackWorkspaceId::new(TEST_SLACK_WORKSPACE_ID)),
-        reply: ReplyTarget::Channel {
-            id: "C_TEST".to_owned(),
-        },
         sender: SenderIdentity::Unlinked,
         link: LinkPolicy::default(),
     }
+}
+
+pub(crate) async fn dispatch_messaging(
+    ctx: &AppContext,
+    inbound: MessagingInbound,
+) -> Result<DispatchOutcome, MessagingError> {
+    A2aMessagingDispatcher::new(ctx.clone()).run(inbound).await
 }
 
 pub(crate) async fn mount_reply(mock: &MockServer, text: &str) {

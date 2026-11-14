@@ -4,9 +4,10 @@
 //! token at the admin gate. Every handler-verified group is mounted with no
 //! context middleware or gate, so each one's own verifier is exercised here
 //! and must refuse: the gateway credential, the managed device credential,
-//! the MCP hop token, the upload token, the Slack signature and the Teams bot
-//! token. Each assertion names a status or body only that verifier produces,
-//! so it fails if the verification is removed.
+//! the MCP hop token and the upload token. Each assertion names a status or
+//! body only that verifier produces, so it fails if the verification is
+//! removed. The Slack and Teams groups are declared by their entry crates and
+//! refused in `systemprompt-messaging-entry-integration-tests`.
 
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -23,10 +24,8 @@ use systemprompt_manifest::profile::{NodeRole, RateLimitsConfig};
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_runtime::documents::links::LinkTarget;
 use systemprompt_runtime::documents::upload_links::UPLOAD_TOKEN_HEADER;
-use systemprompt_slack::signature::sign;
 use systemprompt_test_fixtures::{
-    TEST_TEAMS_TENANT_ID, ensure_messaging_bootstrap, ensure_test_bootstrap,
-    fixture_app_context_with_config, fixture_config, seed_bridge_credential, test_app_context_on,
+    ensure_test_bootstrap, fixture_app_context_with_config, fixture_config, seed_bridge_credential,
     test_db_pool,
 };
 use tower::ServiceExt;
@@ -42,14 +41,6 @@ async fn all_role() -> Result<(DbPool, Router)> {
     let router = setup_api_server(&ctx, None, &Arc::new(ReadinessState::new()))
         .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
     Ok((pool, router))
-}
-
-async fn messaging_role() -> Result<Router> {
-    let bootstrap = ensure_messaging_bootstrap();
-    let pool = test_db_pool().await;
-    let ctx = test_app_context_on(&bootstrap, &pool);
-    setup_api_server(&ctx, None, &Arc::new(ReadinessState::new()))
-        .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))
 }
 
 async fn send(
@@ -189,54 +180,5 @@ async fn the_upload_token_gate_refuses_an_invalid_token() -> Result<()> {
     .await?;
     assert_eq!(status, StatusCode::UNAUTHORIZED, "{body}");
     assert!(body.contains("upload link is invalid"), "{body}");
-    Ok(())
-}
-
-#[tokio::test]
-async fn slack_refuses_an_unsigned_or_mis_signed_event() -> Result<()> {
-    let app = messaging_role().await?;
-    let uri = format!("{}/events", ApiPaths::SLACK_BASE);
-    let body = r#"{"type":"url_verification","challenge":"declared-chal"}"#;
-    let (status, text) = send(&app, "POST", &uri, &[], body.to_owned()).await?;
-    assert_eq!(status, StatusCode::UNAUTHORIZED, "unsigned: {text}");
-
-    let timestamp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)?
-        .as_secs()
-        .to_string();
-    let signature = sign(b"the-wrong-secret", &timestamp, body.as_bytes()).expect("sign");
-    let (status, text) = send(
-        &app,
-        "POST",
-        &uri,
-        &[
-            ("x-slack-request-timestamp", timestamp.as_str()),
-            ("x-slack-signature", signature.as_str()),
-        ],
-        body.to_owned(),
-    )
-    .await?;
-    assert_eq!(status, StatusCode::UNAUTHORIZED, "mis-signed: {text}");
-    assert!(!text.contains("declared-chal"), "{text}");
-    Ok(())
-}
-
-#[tokio::test]
-async fn teams_refuses_an_activity_without_a_valid_bot_token() -> Result<()> {
-    let app = messaging_role().await?;
-    let uri = format!("{}/messages", ApiPaths::TEAMS_BASE);
-    let activity = serde_json::json!({
-        "type": "message",
-        "id": "declared-act",
-        "serviceUrl": "https://smba.example",
-        "text": "hello",
-        "from": { "id": "29:user" },
-        "conversation": { "id": "declared-conv", "tenantId": TEST_TEAMS_TENANT_ID },
-    })
-    .to_string();
-    for extra in [vec![], vec![("authorization", "Bearer not-a-jwt")]] {
-        let (status, text) = send(&app, "POST", &uri, &extra, activity.clone()).await?;
-        assert_eq!(status, StatusCode::UNAUTHORIZED, "{extra:?}: {text}");
-    }
     Ok(())
 }

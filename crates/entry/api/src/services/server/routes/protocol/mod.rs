@@ -138,54 +138,6 @@ pub(super) fn mount_agent(mut router: Router, mount: &MountCtx<'_>) -> Result<Ro
     )
 }
 
-#[cfg(any(feature = "slack", feature = "teams"))]
-pub(super) fn mount_messaging(
-    mut router: Router,
-    mount: &MountCtx<'_>,
-) -> Result<Router, super::RouteMountError> {
-    use super::RouteMountError;
-    use systemprompt_extension::HandlerVerifier;
-
-    let ctx = mount.ctx;
-    let messaging_rate = RateLimit::new("agents", RateBudget::Agents);
-
-    let messaging = crate::routes::messaging::MessagingState::guarded()
-        .map_err(|source| RouteMountError::initialization("messaging_reply_client", source))?;
-
-    #[cfg(feature = "teams")]
-    {
-        router = mount.mount(
-            router,
-            declare(
-                crate::routes::teams::teams_router(ctx, &messaging)
-                    .map_err(|source| RouteMountError::initialization("teams", source))?,
-                ApiPaths::TEAMS_BASE,
-                AuthzPolicy::handler_verified(HandlerVerifier::TeamsBotToken),
-                ContextKind::HandlerResolved,
-                RouteGroup::Messaging,
-            )
-            .with_rate_limit(messaging_rate),
-        )?;
-    }
-
-    #[cfg(feature = "slack")]
-    {
-        router = mount.mount(
-            router,
-            declare(
-                crate::routes::slack::slack_router(messaging).with_state(ctx.clone()),
-                ApiPaths::SLACK_BASE,
-                AuthzPolicy::handler_verified(HandlerVerifier::SlackSignature),
-                ContextKind::HandlerResolved,
-                RouteGroup::Messaging,
-            )
-            .with_rate_limit(messaging_rate),
-        )?;
-    }
-
-    Ok(router)
-}
-
 pub(super) fn mount_mcp_and_stream(
     mut router: Router,
     mount: &MountCtx<'_>,

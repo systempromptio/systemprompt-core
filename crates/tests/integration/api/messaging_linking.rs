@@ -1,20 +1,21 @@
-//! The chat-platform path (`dispatch_messaging`) under the app's link policy:
-//! a confirmed workspace email that an existing account owns is denied unless
-//! the app links by email, and privileged or suspended accounts are never
-//! claimed.
+//! The chat-platform path (`A2aMessagingDispatcher::run`) under the app's link
+//! policy: a confirmed workspace email that an existing account owns is denied
+//! unless the app links by email, and privileged or suspended accounts are
+//! never claimed.
 
-use systemprompt_api::routes::messaging::{DispatchOutcome, MessagingInbound, dispatch_messaging};
 use systemprompt_identifiers::UserId;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
     ensure_messaging_bootstrap, seed_agent_backend, test_app_context, test_db_pool,
 };
-use systemprompt_traits::{FederatedIdentityClaims, LinkPolicy, SenderIdentity};
+use systemprompt_traits::{
+    DispatchOutcome, FederatedIdentityClaims, LinkPolicy, MessagingInbound, SenderIdentity,
+};
 use systemprompt_users::{User, UserStatus};
 use uuid::Uuid;
 use wiremock::MockServer;
 
-use crate::messaging_dispatch::{ISSUER, inbound, mount_reply};
+use crate::messaging_dispatch::{ISSUER, dispatch_messaging, inbound, mount_reply};
 
 const LINK_ON: LinkPolicy = LinkPolicy {
     link_by_email: true,

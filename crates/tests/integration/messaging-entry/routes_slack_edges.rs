@@ -43,16 +43,18 @@ fn signed_post(path: &str, body: &str, secret: &str) -> Request<Body> {
 }
 
 fn router(ctx: &Arc<AppContext>) -> axum::Router {
-    systemprompt_api::routes::slack::slack_router(
-        systemprompt_api::routes::messaging::MessagingState::new(
+    systemprompt_api::services::messaging::bind_dispatcher(ctx).expect("dispatcher slot seeded");
+    systemprompt_slack_entry::http::router(
+        systemprompt_slack_entry::http::SlackState::with_clients(
+            &**ctx,
             reqwest::Client::new(),
             systemprompt_client::GuardedClient::configured(
                 &systemprompt_client::GuardedClientConfig::for_configured(),
             )
             .expect("loopback-permitting reply client"),
-        ),
+        )
+        .expect("slack router state builds"),
     )
-    .with_state((**ctx).clone())
 }
 
 fn urlencode(s: &str) -> String {

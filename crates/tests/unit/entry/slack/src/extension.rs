@@ -1,7 +1,7 @@
 //! Tests for the Slack extension registration surface.
 
 use systemprompt_extension::Extension;
-use systemprompt_slack::SlackExtension;
+use systemprompt_slack_entry::SlackExtension;
 
 #[test]
 fn config_schema_describes_a_map_of_slack_app_configs() {

@@ -6,7 +6,7 @@
 
 use serde_json::json;
 use systemprompt_extension::{Extension, ExtensionConfigError};
-use systemprompt_teams::TeamsExtension;
+use systemprompt_teams_entry::TeamsExtension;
 
 #[test]
 fn metadata_identifies_the_teams_extension() {

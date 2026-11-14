@@ -8,7 +8,7 @@
 use std::collections::HashMap;
 
 use systemprompt_api::routes::gateway::auth::{AuthResponse, capabilities};
-use systemprompt_api::routes::messaging::MessagingError;
+use systemprompt_api::services::messaging::MessagingError;
 use systemprompt_oauth::services::BridgeAuthResult;
 
 #[test]
