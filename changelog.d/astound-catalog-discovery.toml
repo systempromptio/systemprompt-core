@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "CLI"
+text = "`admin config catalog discovery` runs the read-only Vertex discovery pass with the node's profile and credentials and reports its outcome, including a credential that cannot mint a token, instead of reading the boot report that only a serving process holds and answering \"has not run\"."

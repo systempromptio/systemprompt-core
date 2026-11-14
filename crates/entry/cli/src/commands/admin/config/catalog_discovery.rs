@@ -1,12 +1,12 @@
-//! `admin config catalog discovery` — what the last Vertex discovery pass
-//! found.
+//! `admin config catalog discovery` — what a Vertex discovery pass finds
+//! with this node's profile and credentials.
 //!
-//! One row per model id with the state it landed in and, for a rate-card id,
-//! the retirement date Google's documentation gives it.
-//!
-//! The scheduler's daily report is preferred over the boot-time one: both
-//! describe the same upstream, but the scheduler's is fresher and the boot
-//! report never changes for the life of the process.
+//! The report a server builds at boot lives in that server's memory, so the
+//! command runs the same read-only listing pass itself (its descriptor asks
+//! for model discovery) and reports that outcome: one row per model id with
+//! the state it landed in and, for a rate-card id, the retirement date
+//! Google's documentation gives it, plus every publisher or credential that
+//! failed.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -46,6 +46,14 @@ pub fn discovery_rows(report: &DiscoveryReport, card: &VertexRateCard) -> Vec<Di
         .collect()
 }
 
+const fn discovery_rows_empty(report: &DiscoveryReport) -> bool {
+    report.discovered_priced.is_empty()
+        && report.discovered_unpriced.is_empty()
+        && report.priced_not_published.is_empty()
+        && report.explicit_wins.is_empty()
+        && report.retiring.is_empty()
+}
+
 fn discovery_notes(report: &DiscoveryReport) -> Vec<NoticeLine> {
     let mut notes = vec![NoticeLine::new(
         "info",
@@ -53,6 +61,14 @@ fn discovery_notes(report: &DiscoveryReport) -> Vec<NoticeLine> {
     )];
     if report.failed_publishers.is_empty() {
         notes.push(NoticeLine::new("info", "failed_publishers: none"));
+        if discovery_rows_empty(report) {
+            notes.push(NoticeLine::new(
+                "info",
+                "nothing was listed: no enabled provider endpoint on \
+                 aiplatform.googleapis.com has a platform credential (a service-account key \
+                 secret or workload identity)",
+            ));
+        }
     } else {
         notes.push(NoticeLine::new(
             "warning",
@@ -84,9 +100,8 @@ pub fn render_discovery(
         render_result(
             &CommandOutput::message(vec![NoticeLine::new(
                 "info",
-                "Vertex model discovery has not run. It runs when the server boots, and only \
-                 when a provider endpoint is on aiplatform.googleapis.com and its secret is \
-                 a Google service-account key.",
+                "Vertex model discovery has not run: the services configuration was not \
+                 loaded for this command.",
             )])
             .with_title("Vertex Model Discovery"),
             config,

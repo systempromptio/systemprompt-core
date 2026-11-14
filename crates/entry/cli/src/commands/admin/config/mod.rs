@@ -147,6 +147,7 @@ impl DescribeCommand for ConfigCommands {
             Self::Validate(_) => CommandDescriptor::PROFILE_AND_SECRETS,
             Self::Migrate(args) if args.profiles.is_some() => CommandDescriptor::NONE,
             Self::Migrate(args) if !args.data => CommandDescriptor::PROFILE_AND_SECRETS,
+            Self::Catalog(_) => CommandDescriptor::PROFILE_SECRETS_AND_PATHS.with_model_discovery(),
             _ => CommandDescriptor::PROFILE_SECRETS_AND_PATHS,
         }
     }
