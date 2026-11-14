@@ -14,23 +14,13 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::Router;
-use systemprompt_extension::{
-    AuthzPolicy, ContextKind, HandlerVerifier, RateBudget, RateLimit, RouteGroup, RouteProtection,
-};
+use systemprompt_extension::{AuthzPolicy, ContextKind, RateBudget, RateLimit, RouteGroup};
 use systemprompt_models::modules::ApiPaths;
 
 use super::RouteMountError;
 use super::protocol::{MountCtx, declare};
 use crate::routes::gateway::{GatewayMountParts, gateway_mount_parts, with_access_log};
-use crate::services::middleware::place;
-
-const fn gateway_credential(scope: &'static str, budget: RateBudget) -> RouteProtection {
-    RouteProtection::new(
-        AuthzPolicy::handler_verified(HandlerVerifier::GatewayCredential),
-        ContextKind::HandlerResolved,
-    )
-    .with_rate_limit(RateLimit::new(scope, budget).with_bearer_window())
-}
+use crate::services::middleware::{gateway_protection, place};
 
 pub(super) fn mount_gateway(
     mut router: Router,
@@ -46,19 +36,19 @@ pub(super) fn mount_gateway(
         .map_err(|source| RouteMountError::initialization("gateway", source))?;
     let traffic = mount.protect(
         traffic,
-        &gateway_credential("gateway", RateBudget::Gateway),
+        &gateway_protection("gateway", RateBudget::Gateway),
         base,
     )?;
     let bridge_auth = mount.protect(
         bridge_auth,
-        &gateway_credential("bridge_auth", RateBudget::BridgeAuth),
+        &gateway_protection("bridge_auth", RateBudget::BridgeAuth),
         base,
     )?;
     let mut surface = traffic.merge(bridge_auth);
     for group in registered {
         surface = surface.merge(mount.protect(
             group.router,
-            &gateway_credential(group.scope, group.budget),
+            &gateway_protection(group.scope, group.budget),
             base,
         )?);
     }

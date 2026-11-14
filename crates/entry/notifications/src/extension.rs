@@ -81,6 +81,7 @@ register_extension!(NotificationsHttpExtension);
 
 register_gateway_route!(
     extension = NOTIFICATIONS_EXTENSION,
+    path = ApiPaths::BRIDGE_NOTIFICATIONS,
     scope = "bridge_notifications",
     budget = RateBudget::Notifications,
     factory = bridge::routes,

@@ -10,12 +10,18 @@
 //! gateway credential, under the registration's own rate-limit scope and
 //! budget with the bearer window, merged inside the gateway access log.
 //!
-//! The registration chooses only its router, scope and budget. The policy,
-//! the verifier, the bearer window and the access log are the gateway's, so a
-//! registration cannot mount a group that is gated differently from the rest
-//! of the surface. A registration whose extension is disabled in the profile
-//! is not built and its paths answer 404; one whose factory cannot find its
-//! state fails startup, as a gateway that cannot be built does.
+//! The registration names its owning extension, its path under the gateway
+//! base, its scope and budget, and its router factory. The policy, the
+//! verifier, the bearer window and the access log are the gateway's. Every
+//! linked registration is a core declaration: it is admitted only when the
+//! closed core declaration table lists its extension id and exact path with
+//! that scope and budget (`admit_gateway_route`), registrations may not
+//! overlap one another (`refuse_overlap`), and anything else refuses boot
+//! with a typed `MountError`, whether or not its extension is enabled. The
+//! built router answers only request paths under its own path. A
+//! registration whose extension is disabled in the profile is not built and
+//! its paths answer 404; one whose factory cannot find its state fails
+//! startup, as a gateway that cannot be built does.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -23,13 +29,18 @@
 use std::sync::Arc;
 
 use axum::Router;
-use axum::http::HeaderMap;
+use axum::extract::Request;
+use axum::http::{HeaderMap, StatusCode};
+use axum::middleware::Next;
+use axum::response::{IntoResponse, Response};
 use systemprompt_extension::{ExtensionContext, RateBudget};
 use systemprompt_identifiers::{ExtensionId, UserId};
+use systemprompt_models::modules::ApiPaths;
 use systemprompt_provider_contracts::MissingDependency;
 
 use super::bridge_error::authenticate_bridge;
 use crate::kernel::{ApiHttpError, JwtContextExtractor};
+use crate::services::middleware::{MountError, admit_gateway_route, path_under, refuse_overlap};
 
 /// The gateway's caller verification, handed to a registered route group.
 #[derive(Clone)]
@@ -59,6 +70,7 @@ pub type GatewayRouteFactory =
 #[derive(Debug, Clone, Copy)]
 pub struct GatewayRouteRegistration {
     pub extension: &'static str,
+    pub path: &'static str,
     pub scope: &'static str,
     pub budget: RateBudget,
     pub factory: GatewayRouteFactory,
@@ -70,6 +82,7 @@ systemprompt_extension::__inventory::collect!(GatewayRouteRegistration);
 macro_rules! register_gateway_route {
     (
         extension = $extension:expr,
+        path = $path:expr,
         scope = $scope:expr,
         budget = $budget:expr,
         factory = $factory:expr $(,)?
@@ -77,6 +90,7 @@ macro_rules! register_gateway_route {
         $crate::kernel::__inventory::submit! {
             $crate::kernel::GatewayRouteRegistration {
                 extension: $extension,
+                path: $path,
                 scope: $scope,
                 budget: $budget,
                 factory: $factory,
@@ -92,13 +106,52 @@ pub(crate) struct RegisteredGatewayRoutes {
     pub(crate) router: Router,
 }
 
+/// Why a gateway route registration could not be built.
+#[derive(Debug, thiserror::Error)]
+pub enum GatewayRouteError {
+    #[error(transparent)]
+    Refused(#[from] MountError),
+
+    #[error(transparent)]
+    MissingState(#[from] MissingDependency),
+}
+
+pub fn admit_registrations(
+    registrations: &[GatewayRouteRegistration],
+) -> Result<(), MountError> {
+    for registration in registrations {
+        admit_gateway_route(
+            registration.extension,
+            registration.path,
+            registration.scope,
+            registration.budget,
+        )?;
+    }
+    let paths: Vec<&'static str> = registrations.iter().map(|r| r.path).collect();
+    refuse_overlap(&paths)
+}
+
+async fn only_under(prefix: &'static str, request: Request, next: Next) -> Response {
+    if path_under(request.uri().path(), prefix) {
+        next.run(request).await
+    } else {
+        StatusCode::NOT_FOUND.into_response()
+    }
+}
+
 pub(crate) fn build_registered(
     ctx: &dyn ExtensionContext,
     disabled: &[ExtensionId],
     jwt: &Arc<JwtContextExtractor>,
-) -> Result<Vec<RegisteredGatewayRoutes>, MissingDependency> {
+) -> Result<Vec<RegisteredGatewayRoutes>, GatewayRouteError> {
+    let registrations: Vec<GatewayRouteRegistration> =
+        systemprompt_extension::__inventory::iter::<GatewayRouteRegistration>
+            .into_iter()
+            .copied()
+            .collect();
+    admit_registrations(&registrations)?;
     let mut built = Vec::new();
-    for registration in systemprompt_extension::__inventory::iter::<GatewayRouteRegistration> {
+    for registration in registrations {
         let enabled = ctx.has_extension(registration.extension)
             && !disabled.iter().any(|id| id == registration.extension);
         if !enabled {
@@ -110,7 +163,11 @@ pub(crate) fn build_registered(
             );
             continue;
         }
-        let router = (registration.factory)(ctx, GatewayCredential::new(jwt))?;
+        let prefix = ApiPaths::gateway_relative(registration.path);
+        let router = (registration.factory)(ctx, GatewayCredential::new(jwt))?
+            .layer(axum::middleware::from_fn(move |request, next| {
+                only_under(prefix, request, next)
+            }));
         built.push(RegisteredGatewayRoutes {
             scope: registration.scope,
             budget: registration.budget,

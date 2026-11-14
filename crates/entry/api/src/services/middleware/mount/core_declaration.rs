@@ -77,6 +77,7 @@ pub enum CoreDeclaration {
     Teams,
     Notifications,
     NotificationsAdmin,
+    BridgeNotifications,
 }
 
 impl CoreDeclaration {
@@ -87,6 +88,7 @@ impl CoreDeclaration {
         Self::Teams,
         Self::Notifications,
         Self::NotificationsAdmin,
+        Self::BridgeNotifications,
     ];
 
     #[must_use]
@@ -96,7 +98,7 @@ impl CoreDeclaration {
             Self::Slack => CoreDeclarer::Extension("slack"),
             Self::AgentRuns => CoreDeclarer::Extension("agent_runs_api"),
             Self::Teams => CoreDeclarer::Extension("teams"),
-            Self::Notifications | Self::NotificationsAdmin => {
+            Self::Notifications | Self::NotificationsAdmin | Self::BridgeNotifications => {
                 CoreDeclarer::Extension("notifications-http")
             },
         }
@@ -111,6 +113,7 @@ impl CoreDeclaration {
             Self::Teams => ApiPaths::TEAMS_BASE,
             Self::Notifications => ApiPaths::NOTIFICATIONS,
             Self::NotificationsAdmin => ApiPaths::ADMIN_NOTIFICATIONS,
+            Self::BridgeNotifications => ApiPaths::BRIDGE_NOTIFICATIONS,
         }
     }
 
@@ -120,6 +123,7 @@ impl CoreDeclaration {
             Self::AgentProxy | Self::AgentRuns => RouteGroup::Agent,
             Self::Slack | Self::Teams => RouteGroup::Messaging,
             Self::Notifications | Self::NotificationsAdmin => RouteGroup::ContentAndMisc,
+            Self::BridgeNotifications => RouteGroup::Gateway,
         }
     }
 
@@ -132,6 +136,9 @@ impl CoreDeclaration {
             Self::Slack => Allowance::HandlerVerified(HandlerVerifier::SlackSignature),
             Self::Teams => Allowance::HandlerVerified(HandlerVerifier::TeamsBotToken),
             Self::NotificationsAdmin => Allowance::ReservedPrefix,
+            Self::BridgeNotifications => {
+                Allowance::HandlerVerified(HandlerVerifier::GatewayCredential)
+            },
             Self::AgentRuns | Self::Notifications => Allowance::Plain,
         }
     }
@@ -144,6 +151,9 @@ impl CoreDeclaration {
             Self::Slack => AuthzPolicy::handler_verified(HandlerVerifier::SlackSignature),
             Self::Teams => AuthzPolicy::handler_verified(HandlerVerifier::TeamsBotToken),
             Self::NotificationsAdmin => AuthzPolicy::admin(),
+            Self::BridgeNotifications => {
+                AuthzPolicy::handler_verified(HandlerVerifier::GatewayCredential)
+            },
         }
     }
 
@@ -152,7 +162,7 @@ impl CoreDeclaration {
         match self {
             Self::AgentProxy => ContextKind::A2a,
             Self::AgentRuns | Self::Notifications | Self::NotificationsAdmin => ContextKind::User,
-            Self::Slack | Self::Teams => ContextKind::HandlerResolved,
+            Self::Slack | Self::Teams | Self::BridgeNotifications => ContextKind::HandlerResolved,
         }
     }
 
@@ -166,6 +176,10 @@ impl CoreDeclaration {
             Self::Notifications | Self::NotificationsAdmin => {
                 RateLimit::new("notifications", RateBudget::Notifications)
             },
+            Self::BridgeNotifications => {
+                RateLimit::new("bridge_notifications", RateBudget::Notifications)
+                    .with_bearer_window()
+            },
         }
     }
 
@@ -177,14 +191,12 @@ impl CoreDeclaration {
         }
     }
 
-    fn names(self, declarer: CoreDeclarer, declared: &ExtensionRouter) -> bool {
-        self.declarer() == declarer
-            && self.base_path() == declared.base_path
-            && self.group() == declared.group
+    pub(super) fn names(self, declarer: CoreDeclarer, base_path: &str, group: RouteGroup) -> bool {
+        self.declarer() == declarer && self.base_path() == base_path && self.group() == group
     }
 
     fn grants(self, declarer: CoreDeclarer, declared: &ExtensionRouter, wanted: Allowance) -> bool {
-        self.names(declarer, declared)
+        self.names(declarer, declared.base_path, declared.group)
             && self.allowance() == wanted
             && self.shape_matches(&declared.protection)
     }
@@ -223,7 +235,7 @@ pub fn admit_extension(
 
     let drift = CoreDeclaration::ALL
         .iter()
-        .filter(|entry| entry.names(declarer, declared))
+        .filter(|entry| entry.names(declarer, declared.base_path, declared.group))
         .find_map(|entry| entry.mismatch(protection));
     if let Some(field) = drift {
         return Err(MountError::CoreDeclarationMismatch {
@@ -270,8 +282,9 @@ pub fn extension_served(
     serves: &dyn Fn(RouteGroup) -> bool,
 ) -> bool {
     let declarer = CoreDeclarer::Extension(extension);
-    let core = CoreDeclaration::ALL
-        .iter()
-        .any(|entry| entry.names(declarer, declared) && entry.shape_matches(&declared.protection));
+    let core = CoreDeclaration::ALL.iter().any(|entry| {
+        entry.names(declarer, declared.base_path, declared.group)
+            && entry.shape_matches(&declared.protection)
+    });
     serves(declared.group) && (core || serves(RouteGroup::Extensions))
 }

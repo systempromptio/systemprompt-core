@@ -6,17 +6,26 @@
 //! protection layers, frame options, role group and enable predicate are
 //! applied exactly as declared.
 //!
-//! Every declaration is admitted (`admit_extension`, against the closed core
-//! allowance table) before any is mounted, on every node role, so an
-//! inadmissible declaration refuses boot even on a role that would not serve
-//! it. A core declaration listed in the core declaration table is then
+//! An extension's routers are built only on a role that could serve one of
+//! them (`extension_built`): a role that serves `RouteGroup::Extensions`, or
+//! one that serves the group of a core declaration row listing that
+//! extension. At the base, `mount_extension_routes` ran only on roles serving
+//! `Extensions` (the guard in `build_routes`), so a router build error, the
+//! base-path and reserved-prefix checks and admission never ran on the
+//! gateway, worker or runner roles; they still do not, except that a worker
+//! builds and admits the agent-runs extension it serves. On a role that
+//! builds them, every declaration is admitted (`admit_extension`, against the
+//! closed core declaration table) before any is mounted, so an inadmissible
+//! declaration refuses boot even when this role would not serve it. A core
+//! declaration listed in the core declaration table is then
 //! mounted by the roles that serve its own route group, and every other
 //! declaration only by the roles that serve both `RouteGroup::Extensions` and
 //! its own group, so an install extension keeps its role exposure.
 //!
 //! Extension configuration is not validated here: startup validation runs
-//! each enabled extension's `validate_config` against its own
-//! `services/config/<prefix>.yaml` before the server is built.
+//! the `validate_config` of each enabled extension with a `config_prefix`
+//! against its own `services/config/<prefix>.yaml` before the server is
+//! built.
 //!
 //! Every extension router receives the process's one governance engine as
 //! an axum extension: an extension that enforces policy (the MCP governance
@@ -39,7 +48,7 @@ use systemprompt_extension::ExtensionRegistry;
 use systemprompt_traits::{StartupEvent, StartupEventSender};
 
 use crate::routes::admin::services::{RefreshLock, ServicesRefresh};
-use crate::services::middleware::{admit_extension, extension_served};
+use crate::services::middleware::{admit_extension, extension_built, extension_served};
 
 pub(super) fn mount_extension_routes(
     mut router: Router,
@@ -49,7 +58,9 @@ pub(super) fn mount_extension_routes(
 ) -> Result<Router, RouteMountError> {
     let ctx = mount.ctx;
     let registry = ctx.extension_registry();
-    let api_extensions = registry.api_routers(ctx, &ctx.profile().extensions.disabled)?;
+    let builds = |extension: &str| extension_built(extension, mount.serves);
+    let api_extensions =
+        registry.api_routers(ctx, &ctx.profile().extensions.disabled, &builds)?;
     ExtensionRegistry::validate_api_paths(&api_extensions)?;
 
     for (ext, declared) in &api_extensions {

@@ -184,3 +184,7 @@ pub(crate) fn registry_with(exts: Vec<Arc<dyn Extension>>) -> ExtensionRegistry 
     registry.merge(exts).expect("merge stub extensions");
     registry
 }
+
+pub(crate) fn every(_extension: &str) -> bool {
+    true
+}
