@@ -216,6 +216,7 @@ impl HostKernel {
 /// with notifications; the host leaves escalated delivery to the API's
 /// consumer.
 #[derive(Clone)]
+#[cfg_attr(not(feature = "notifications"), derive(Copy))]
 pub struct HostNotifications(
     #[cfg(feature = "notifications")] Arc<NotificationsService>,
     #[cfg(not(feature = "notifications"))] (),
