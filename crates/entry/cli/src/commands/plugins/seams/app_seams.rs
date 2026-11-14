@@ -7,7 +7,7 @@
 use systemprompt_gateway as gateway;
 use systemprompt_oauth_issuance::sso;
 
-use crate::kernel::{LinkedSeamRegistration, named, unnamed};
+use crate::kernel::{LinkedSeamRegistration, named, owned, unnamed};
 
 crate::register_linked_seam!(LinkedSeamRegistration {
     name: "gateway_safety_scanners",
@@ -84,10 +84,10 @@ crate::register_linked_seam!(LinkedSeamRegistration {
 crate::register_linked_seam!(LinkedSeamRegistration {
     name: "gateway_routes",
     owner: "systemprompt-api",
-    extension: Some("gateway"),
-    entries: || named(
+    extension: None,
+    entries: || owned(
         inventory::iter::<systemprompt_api::kernel::GatewayRouteRegistration>
             .into_iter()
-            .map(|registration| format!("{}:{}", registration.extension, registration.scope)),
+            .map(|registration| (registration.scope, registration.extension)),
     ),
 });

@@ -3,12 +3,14 @@
 //! [`AgentLifecycle`] owns the transitions for a single agent's worker process,
 //! coordinating the database service and configured [`AppPaths`]. The
 //! `operations` and `verification` submodules hold the spawn/teardown logic and
-//! startup health-check probing.
+//! startup probing; [`readiness`] holds the decision each probe feeds.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod operations;
+/// The pure readiness decision for a spawned agent and its per-host guarantees.
+pub mod readiness;
 mod verification;
 
 use std::sync::Arc;

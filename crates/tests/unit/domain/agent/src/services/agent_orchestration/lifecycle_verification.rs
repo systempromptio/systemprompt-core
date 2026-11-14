@@ -1,7 +1,8 @@
 // Startup-verification tests for AgentLifecycle: prerequisite port checks
 // against free and occupied ports (an occupied port is held by this test
 // process, which is not an agent, so cleanup must refuse), TCP readiness
-// probing against a live listener, and the failure path that marks the agent
+// probing that accepts only the spawned, marked agent listening on its port
+// and refuses a port answered by a foreign process, and the failure path that marks the agent
 // errored and logs the startup diagnosis for each stored status.
 
 use std::sync::Arc;
@@ -9,6 +10,7 @@ use systemprompt_identifiers::{AgentName, InstanceId};
 
 use systemprompt_agent::repository::agent_service::AgentServiceRepository;
 use systemprompt_agent::services::agent_orchestration::database::AgentDatabaseService;
+use systemprompt_agent::services::agent_orchestration::OrchestrationError;
 use systemprompt_agent::services::agent_orchestration::lifecycle::AgentLifecycle;
 use systemprompt_config::paths::AppPaths;
 use tokio::net::TcpListener;
@@ -80,7 +82,7 @@ async fn validate_prerequisites_port_held_by_non_agent_fails() {
 }
 
 #[tokio::test]
-async fn verify_startup_succeeds_against_live_listener() {
+async fn verify_startup_refuses_a_port_answered_by_a_foreign_process() {
     let pool = test_db_pool().await;
     let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
@@ -93,10 +95,74 @@ async fn verify_startup_succeeds_against_live_listener() {
         }
     });
 
-    lc.verify_startup(&AgentName::new("lc_verify_ok"), port)
+    let err = lc
+        .verify_startup(&AgentName::new("lc_verify_foreign"), DEAD_PID, port)
         .await
-        .expect("listener answers the readiness probe");
+        .expect_err("a listener that is not the spawned agent is not readiness");
     accept_loop.abort();
+    match err {
+        OrchestrationError::PortHeldByForeignProcess { port: held, pid, .. } => {
+            assert_eq!(held, port);
+            assert_eq!(pid, std::process::id());
+        },
+        other => panic!("expected PortHeldByForeignProcess, got {other:?}"),
+    }
+}
+
+#[cfg(unix)]
+const LISTENING_AGENT_HELPER: &str =
+    "services::agent_orchestration::lifecycle_verification::listening_agent_helper";
+
+#[cfg(unix)]
+const LISTEN_PORT_FILE_ENV: &str = "SYSTEMPROMPT_TEST_AGENT_PORT_FILE";
+
+#[cfg(unix)]
+#[test]
+#[ignore = "re-executed as a marked agent that listens on a port"]
+fn listening_agent_helper() {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
+    let port = listener.local_addr().expect("addr").port();
+    let port_file = std::env::var(LISTEN_PORT_FILE_ENV).expect("port file path");
+    std::fs::write(port_file, port.to_string()).expect("write port");
+    systemprompt_test_fixtures::announce_helper_ready();
+    std::thread::sleep(std::time::Duration::from_secs(120));
+    drop(listener);
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn verify_startup_accepts_the_spawned_agent_listening_on_its_port() {
+    use std::process::{Command, Stdio};
+
+    let pool = test_db_pool().await;
+    let instance = unique_instance();
+    let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
+    let lc = lifecycle(&pool, &instance);
+    let name = unique_agent_name("lc_verify_owned");
+
+    let helper = systemprompt_test_fixtures::helper(LISTENING_AGENT_HELPER);
+    let port_dir = tempfile::tempdir().expect("tempdir");
+    let port_file = port_dir.path().join("port");
+    let mut child = Command::new(std::env::current_exe().expect("test binary path"))
+        .args(["--exact", LISTENING_AGENT_HELPER, "--ignored"])
+        .env(systemprompt_test_fixtures::HELPER_READY_ENV, helper.ready_path())
+        .env(LISTEN_PORT_FILE_ENV, &port_file)
+        .env(systemprompt_models::subprocess::SUBPROCESS_MARKER_ENV, "1")
+        .env(systemprompt_models::subprocess::AGENT_NAME_ENV, name.as_str())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("spawn listening agent helper");
+    helper.await_ready();
+    let port: u16 = std::fs::read_to_string(&port_file)
+        .expect("read port")
+        .parse()
+        .expect("port");
+
+    let verdict = lc.verify_startup(&name, child.id(), port).await;
+    let _ = child.kill();
+    let _ = child.wait();
+    verdict.expect("the spawned, marked agent listening on its port is ready");
 }
 
 #[tokio::test]
@@ -116,7 +182,7 @@ async fn verify_startup_times_out_without_clearing_the_pid() {
     drop(listener);
 
     let err = lc
-        .verify_startup(&name, port)
+        .verify_startup(&name, DEAD_PID, port)
         .await
         .expect_err("nothing listens on the probed port");
     assert!(err.to_string().contains(name.as_str()));

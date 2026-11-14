@@ -20,7 +20,7 @@ fn the_agent_run_origins_seam_lists_the_registered_origins() {
         .expect("the agent-runs entry crate registers the seam");
     assert_eq!(origins.owner, "systemprompt-agent-runs");
     assert_eq!(origins.extension, Some("agent_runs"));
-    assert!(origins.entries.iter().any(|entry| entry == ORIGIN));
+    assert!(origins.entries.iter().any(|entry| entry.name == ORIGIN));
 }
 
 #[test]

@@ -2,6 +2,7 @@
 
 mod database;
 mod lifecycle;
+mod lifecycle_readiness;
 mod lifecycle_verification;
 mod monitor_db;
 mod monitor_types;

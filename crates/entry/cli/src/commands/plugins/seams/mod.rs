@@ -5,12 +5,17 @@
 //! the registering crate. The command lists each seam with its entries
 //! (including seams with none) and checks the active profile for settings
 //! that name a seam entry this binary does not link: such a profile fails at
-//! boot, so the command exits non-zero. A requirement is unmet, status
-//! `missing`, when the seam lacks the entry, when the seam's owning extension
-//! is disabled (its registrations are linked but nothing reads them), or when
-//! no crate in the binary registers the seam at all (a row with owner
-//! `unregistered`). A seam whose owner is disabled and that no setting
-//! requires is listed as `owner_disabled` and does not fail the command.
+//! boot, so the command exits non-zero.
+//!
+//! An entry is active while the seam's owning extension and the entry's own
+//! owner (for a seam whose entries are switched on per registration, such as
+//! the gateway's guards and route groups) are both enabled; an entry whose own
+//! owner is disabled is rendered `[owner: owner_disabled]`. A requirement is
+//! met only by active entries, so it is unmet (status `missing`) when the
+//! entry is absent, when its owner or the seam's owner is disabled, or when no
+//! crate registers the seam at all (a row with owner `unregistered`). A seam
+//! with entries but none active, and no requirement on it, is
+//! `owner_disabled` and does not fail the command.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -45,6 +50,7 @@ use systemprompt_manifest::profile::{AuthzMode, SecretsSource};
 pub use catalog::{LinkedSeam, linked_seams};
 
 use super::types::{SeamRow, SeamStatus};
+use crate::kernel::SeamEntry;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
@@ -94,10 +100,24 @@ pub fn profile_requirements(profile: &Profile) -> Vec<Requirement> {
     requirements
 }
 
-fn satisfied(seam: &LinkedSeam, needed: &Needed) -> bool {
+fn is_disabled(owner: Option<&str>, disabled: &[ExtensionId]) -> bool {
+    owner.is_some_and(|owner| disabled.iter().any(|id| id.as_str() == owner))
+}
+
+fn satisfied(active: &[&SeamEntry], needed: &Needed) -> bool {
     match needed {
-        Needed::AnyEntry => !seam.entries.is_empty(),
-        Needed::Entry(name) => seam.entries.iter().any(|entry| entry == name),
+        Needed::AnyEntry => !active.is_empty(),
+        Needed::Entry(name) => active.iter().any(|entry| &entry.name == name),
+    }
+}
+
+fn render(entry: &SeamEntry, disabled: &[ExtensionId]) -> String {
+    match entry.owner {
+        Some(owner) if is_disabled(Some(owner), disabled) => {
+            format!("{} [{owner}: owner_disabled]", entry.name)
+        },
+        Some(owner) => format!("{} [{owner}]", entry.name),
+        None => entry.name.clone(),
     }
 }
 
@@ -108,20 +128,15 @@ pub fn evaluate(
     disabled: &[ExtensionId],
 ) -> (Vec<SeamRow>, bool) {
     let mut all_linked = true;
-    let unregistered: Vec<LinkedSeam> = requirements
-        .iter()
-        .filter(|requirement| !seams.iter().any(|seam| seam.name == requirement.seam))
-        .map(|requirement| LinkedSeam {
-            name: requirement.seam,
-            owner: "unregistered",
-            extension: None,
-            entries: Vec::new(),
-        })
-        .collect();
     let mut seams = seams;
-    for seam in unregistered {
-        if !seams.iter().any(|known| known.name == seam.name) {
-            seams.push(seam);
+    for requirement in requirements {
+        if !seams.iter().any(|seam| seam.name == requirement.seam) {
+            seams.push(LinkedSeam {
+                name: requirement.seam,
+                owner: "unregistered",
+                extension: None,
+                entries: Vec::new(),
+            });
         }
     }
     let rows = seams
@@ -131,16 +146,19 @@ pub fn evaluate(
                 .iter()
                 .filter(|requirement| requirement.seam == seam.name)
                 .collect();
-            let owner_disabled = seam
-                .extension
-                .is_some_and(|owner| disabled.iter().any(|id| id.as_str() == owner));
+            let seam_disabled = is_disabled(seam.extension, disabled);
+            let active: Vec<&SeamEntry> = seam
+                .entries
+                .iter()
+                .filter(|entry| !seam_disabled && !is_disabled(entry.owner, disabled))
+                .collect();
             let missing = applicable
                 .iter()
-                .any(|requirement| owner_disabled || !satisfied(&seam, &requirement.needed));
+                .any(|requirement| !satisfied(&active, &requirement.needed));
             all_linked &= !missing;
             let status = if missing {
                 SeamStatus::Missing
-            } else if owner_disabled {
+            } else if seam_disabled || (!seam.entries.is_empty() && active.is_empty()) {
                 SeamStatus::OwnerDisabled
             } else if seam.entries.is_empty() {
                 SeamStatus::Empty
@@ -152,7 +170,12 @@ pub fn evaluate(
                 owner: seam.owner.to_owned(),
                 extension: seam.extension.unwrap_or("kernel").to_owned(),
                 count: seam.entries.len(),
-                entries: seam.entries.join(", "),
+                entries: seam
+                    .entries
+                    .iter()
+                    .map(|entry| render(entry, disabled))
+                    .collect::<Vec<_>>()
+                    .join(", "),
                 requires: applicable
                     .iter()
                     .map(|requirement| requirement.setting.as_str())

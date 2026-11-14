@@ -1,4 +1,12 @@
-//! Post-start agent verification with bounded port-responsiveness retries.
+//! Post-start agent verification with bounded readiness retries.
+//!
+//! Each attempt gathers a [`StartupObservation`] and lets
+//! [`startup_verdict`](super::readiness::startup_verdict) decide. Where the
+//! port's listeners can be identified, only the spawned pid is readiness and
+//! any other listener refuses the start with `PortHeldByForeignProcess`.
+//! Where they cannot (no `lsof`, hidden sockets), the connect, the spawned
+//! child being alive and its spawn marker (Linux, macOS; not readable on
+//! Windows) decide. The `readiness` module states the guarantee per host.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -6,12 +14,41 @@
 use std::time::Duration;
 
 use systemprompt_identifiers::AgentName;
+use systemprompt_loader::subprocess;
 use systemprompt_models::net::AGENT_READINESS_TCP_TIMEOUT;
+use tokio::net::TcpStream;
 
 use super::AgentLifecycle;
+use super::readiness::{MarkerCheck, StartupObservation, StartupVerdict, startup_verdict};
 use crate::services::agent_orchestration::{
     AgentStatus, OrchestrationError, OrchestrationResult, process,
 };
+
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+async fn marker_check(pid: u32, agent_name: &AgentName) -> MarkerCheck {
+    use systemprompt_identifiers::ServiceName;
+    use systemprompt_loader::subprocess::ChildKind;
+
+    if subprocess::owns(pid, ChildKind::Agent, &ServiceName::of_agent(agent_name)).await {
+        MarkerCheck::Verified
+    } else {
+        MarkerCheck::Absent
+    }
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+#[expect(
+    clippy::unused_async,
+    reason = "the Linux and macOS probe awaits the identity check; one call site serves both"
+)]
+async fn marker_check(_pid: u32, _agent_name: &AgentName) -> MarkerCheck {
+    MarkerCheck::Unavailable
+}
+
+enum Readiness {
+    Ready,
+    NotListening,
+}
 
 impl AgentLifecycle {
     pub async fn validate_prerequisites(
@@ -49,6 +86,7 @@ impl AgentLifecycle {
     pub async fn verify_startup(
         &self,
         agent_name: &AgentName,
+        pid: u32,
         port: u16,
     ) -> OrchestrationResult<()> {
         const MAX_ATTEMPTS: u32 = 5;
@@ -57,28 +95,15 @@ impl AgentLifecycle {
         for attempt in 1..=MAX_ATTEMPTS {
             tokio::time::sleep(Duration::from_millis(SLEEP_MS)).await;
 
-            match self
-                .check_port_responsiveness(port, AGENT_READINESS_TCP_TIMEOUT.as_secs())
-                .await
-            {
-                Ok(true) => return Ok(()),
-                Ok(false) => {
+            match self.readiness(agent_name, pid, port).await? {
+                Readiness::Ready => return Ok(()),
+                Readiness::NotListening => {
                     tracing::debug!(
                         agent = %agent_name,
                         port,
                         attempt,
                         max_attempts = MAX_ATTEMPTS,
-                        "Health check returned false - agent not ready"
-                    );
-                },
-                Err(e) => {
-                    tracing::debug!(
-                        agent = %agent_name,
-                        port,
-                        attempt,
-                        max_attempts = MAX_ATTEMPTS,
-                        error = %e,
-                        "Health check connection error"
+                        "agent not yet listening on its port"
                     );
                 },
             }
@@ -90,27 +115,46 @@ impl AgentLifecycle {
         ))
     }
 
-    async fn check_port_responsiveness(
+    async fn readiness(
         &self,
+        agent_name: &AgentName,
+        pid: u32,
         port: u16,
-        timeout_secs: u64,
-    ) -> OrchestrationResult<bool> {
-        use tokio::net::TcpStream;
-        use tokio::time::timeout;
-
+    ) -> OrchestrationResult<Readiness> {
         let address = format!("127.0.0.1:{port}");
-        match timeout(
-            Duration::from_secs(timeout_secs),
-            TcpStream::connect(&address),
-        )
-        .await
-        {
-            Ok(Ok(_)) => Ok(true),
-            Ok(Err(e)) => {
-                tracing::trace!(error = %e, "TCP connection refused");
-                Ok(false)
+        let connected = matches!(
+            tokio::time::timeout(AGENT_READINESS_TCP_TIMEOUT, TcpStream::connect(&address)).await,
+            Ok(Ok(_))
+        );
+        if !connected {
+            return Ok(Readiness::NotListening);
+        }
+        let listeners = match subprocess::pids_listening_on(port).await {
+            Ok(listeners) => Some(listeners),
+            Err(error) => {
+                tracing::debug!(
+                    agent = %agent_name,
+                    port,
+                    %error,
+                    "port listeners unidentifiable; readiness rests on the spawned child"
+                );
+                None
             },
-            Err(_) => Ok(false),
+        };
+        let observed = StartupObservation {
+            connected,
+            listeners,
+            child_alive: subprocess::is_running(pid).await,
+            marker: marker_check(pid, agent_name).await,
+        };
+        match startup_verdict(pid, &observed) {
+            StartupVerdict::Ready => Ok(Readiness::Ready),
+            StartupVerdict::NotYet => Ok(Readiness::NotListening),
+            StartupVerdict::Foreign(foreign) => Err(OrchestrationError::PortHeldByForeignProcess {
+                port,
+                pid: foreign,
+                agent: agent_name.clone(),
+            }),
         }
     }
 
