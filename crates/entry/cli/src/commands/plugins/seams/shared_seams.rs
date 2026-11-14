@@ -7,7 +7,7 @@
 use systemprompt_extension::purge;
 
 use crate::commands::plugins::discover_registry;
-use crate::kernel::{LinkedSeamRegistration, named, prioritized};
+use crate::kernel::{LinkedSeamRegistration, named, owned, prioritized};
 
 crate::register_linked_seam!(LinkedSeamRegistration {
     name: "cli_commands",
@@ -61,10 +61,10 @@ crate::register_linked_seam!(LinkedSeamRegistration {
 crate::register_linked_seam!(LinkedSeamRegistration {
     name: "gateway_request_guards",
     owner: "systemprompt-extension",
-    extension: Some("gateway"),
-    entries: || named(
+    extension: None,
+    entries: || owned(
         systemprompt_extension::GatewayGuards::registrations()
-            .map(|registration| registration.extension),
+            .map(|registration| (registration.extension, registration.extension)),
     ),
 });
 

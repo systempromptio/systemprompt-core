@@ -234,8 +234,8 @@ Extensions, jobs, authz hooks, secrets sources, gateway scanners and adapters, S
 |--------|---------|
 | `seam` | Seam name, e.g. `authz_hooks`, `gateway_safety_scanners`, `agent_run_origins`. |
 | `owner` | Crate that collects the registrations. |
-| `extension` | Extension id that owns the seam, or `kernel`. |
-| `count`, `entries` | Registered entries by stable name, id or tag; `priority=N` for priority-only seams; `unnamed#N` for factory-only seams. |
+| `extension` | Extension id that owns the seam as a whole, or `kernel` (including seams whose entries carry their own owners). |
+| `count`, `entries` | Registered entries by stable name, id or tag; `priority=N` for priority-only seams; `unnamed#N` for factory-only seams. An entry switched on by its own registering extension (gateway guards and gateway route groups) shows that owner as `name [owner]`, or `name [owner: owner_disabled]` when the profile disables it; a requirement is met only by entries whose owners are enabled. |
 | `requires` | Profile setting that depends on this seam, if any. |
 | `status` | `linked`, `empty`, `missing` (the profile requires an entry the binary does not link, requires a seam no linked crate registers, or requires a seam whose owning extension it disables), or `owner_disabled` (the profile disables the owning extension and no setting requires the seam; informational). |
 

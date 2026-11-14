@@ -7,19 +7,20 @@
 //! modules, a capability's by its entry crate. A registration that carries a
 //! stable name, id or tag is listed by it; one that carries only a priority
 //! is listed by priority; one that carries only a factory is listed as
-//! `unnamed#N`.
+//! `unnamed#N`. An entry that its own registering extension switches on
+//! carries that owner.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::{LinkedSeamRegistration, registered_seams};
+use crate::kernel::{LinkedSeamRegistration, SeamEntry, registered_seams};
 
 #[derive(Debug, Clone)]
 pub struct LinkedSeam {
     pub name: &'static str,
     pub owner: &'static str,
     pub extension: Option<&'static str>,
-    pub entries: Vec<String>,
+    pub entries: Vec<SeamEntry>,
 }
 
 impl LinkedSeam {

@@ -3,7 +3,7 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::kernel::{LinkedSeamRegistration, named, registered_seams};
+use systemprompt_cli::kernel::{LinkedSeamRegistration, SeamEntry, named, registered_seams};
 use systemprompt_cli::plugins::seams::{
     LinkedSeam, Needed, Requirement, SeamsArgs, evaluate, execute, linked_seams,
 };
@@ -26,7 +26,7 @@ fn owned_seam(name: &'static str, extension: Option<&'static str>, entries: &[&s
         name,
         owner: "test-owner",
         extension,
-        entries: entries.iter().map(|e| (*e).to_owned()).collect(),
+        entries: entries.iter().map(|e| SeamEntry::new(*e)).collect(),
     }
 }
 
@@ -77,7 +77,7 @@ fn the_compiled_binary_links_core_registrations() {
         find("cli_commands")
             .entries
             .iter()
-            .any(|entry| entry == "build")
+            .any(|entry| entry.name == "build")
     );
 }
 
@@ -161,7 +161,9 @@ fn a_seam_registered_outside_the_kernel_is_listed_with_its_owner() {
         .expect("a registration from another crate is listed");
     assert_eq!(contributed.owner, "systemprompt-cli-tests");
     assert_eq!(contributed.extension, Some("test_capability"));
-    assert_eq!(contributed.entries, vec!["first", "second"]);
+    let names: Vec<&str> = contributed.entries.iter().map(|e| e.name.as_str()).collect();
+    assert_eq!(names, vec!["first", "second"]);
+    assert!(contributed.entries.iter().all(|e| e.owner.is_none()));
 }
 
 #[test]
@@ -279,7 +281,8 @@ fn the_gateway_route_seam_is_registered() {
         .find(|s| s.name == "gateway_routes")
         .expect("gateway route registrations are a listed seam");
     assert_eq!(routes.owner, "systemprompt-api");
-    assert_eq!(routes.extension, Some("gateway"));
+    assert_eq!(routes.extension, None);
+    assert!(routes.entries.iter().all(|entry| entry.owner.is_some()));
 }
 
 #[derive(Default)]
@@ -306,16 +309,88 @@ fn gateway_request_guards_are_listed_by_owning_extension() {
         .find(|s| s.name == "gateway_request_guards")
         .expect("gateway guards are a listed seam");
     assert!(!guards.entries.is_empty());
-    assert!(guards.entries.iter().any(|entry| entry == "gateway"));
-    let owners: Vec<String> = systemprompt_extension::GatewayGuards::registrations()
-        .map(|registration| registration.extension.to_owned())
-        .collect();
-    assert_eq!(guards.entries.len(), owners.len());
-    assert!(guards.entries.iter().all(|entry| owners.contains(entry)));
+    assert_eq!(guards.extension, None);
     assert!(
         guards
             .entries
             .iter()
-            .all(|entry| !entry.starts_with("unnamed#"))
+            .any(|entry| entry.name == "gateway" && entry.owner == Some("gateway"))
     );
+    let owners: Vec<&str> = systemprompt_extension::GatewayGuards::registrations()
+        .map(|registration| registration.extension)
+        .collect();
+    assert_eq!(guards.entries.len(), owners.len());
+    assert!(
+        guards
+            .entries
+            .iter()
+            .all(|entry| entry.owner.is_some_and(|owner| owners.contains(&owner)))
+    );
+}
+
+fn per_entry_seam(entries: &[(&str, &'static str)]) -> LinkedSeam {
+    LinkedSeam {
+        name: "gateway_routes",
+        owner: "test-owner",
+        extension: None,
+        entries: entries
+            .iter()
+            .map(|(name, owner)| SeamEntry::owned_by(*name, owner))
+            .collect(),
+    }
+}
+
+#[test]
+fn a_required_entry_is_unmet_when_its_own_owner_is_disabled() {
+    let required = [requirement(
+        "gateway_routes",
+        Needed::Entry("bridge_notifications".to_owned()),
+    )];
+    let (rows, all_linked) = evaluate(
+        vec![per_entry_seam(&[("bridge_notifications", "notifications-http")])],
+        &required,
+        &[ExtensionId::new("notifications-http")],
+    );
+    assert!(!all_linked);
+    assert_eq!(rows[0].status, SeamStatus::Missing);
+    assert!(rows[0].entries.contains("owner_disabled"), "{}", rows[0].entries);
+}
+
+#[test]
+fn a_required_entry_is_met_when_its_owner_is_enabled_though_gateway_is_disabled() {
+    let required = [requirement(
+        "gateway_routes",
+        Needed::Entry("bridge_notifications".to_owned()),
+    )];
+    let (rows, all_linked) = evaluate(
+        vec![per_entry_seam(&[("bridge_notifications", "notifications-http")])],
+        &required,
+        &[ExtensionId::new("gateway")],
+    );
+    assert!(all_linked);
+    assert_eq!(rows[0].status, SeamStatus::Linked);
+    assert!(!rows[0].entries.contains("owner_disabled"), "{}", rows[0].entries);
+}
+
+#[test]
+fn each_entry_is_marked_by_its_own_owner_and_the_seam_stays_linked_while_one_is_active() {
+    let (rows, all_linked) = evaluate(
+        vec![per_entry_seam(&[("a_scope", "ext_a"), ("b_scope", "ext_b")])],
+        &[requirement("gateway_routes", Needed::AnyEntry)],
+        &[ExtensionId::new("ext_a")],
+    );
+    assert!(all_linked);
+    assert_eq!(rows[0].status, SeamStatus::Linked);
+    assert_eq!(
+        rows[0].entries,
+        "a_scope [ext_a: owner_disabled], b_scope [ext_b]"
+    );
+
+    let (rows, all_linked) = evaluate(
+        vec![per_entry_seam(&[("a_scope", "ext_a"), ("b_scope", "ext_b")])],
+        &[],
+        &[ExtensionId::new("ext_a"), ExtensionId::new("ext_b")],
+    );
+    assert!(all_linked);
+    assert_eq!(rows[0].status, SeamStatus::OwnerDisabled);
 }
