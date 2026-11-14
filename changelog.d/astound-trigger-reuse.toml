@@ -1,0 +1,4 @@
+[root]
+section = "Changed"
+area = "Database"
+text = "a full schema install leaves a declarative trigger in place when its statements and its live definition (`pg_get_triggerdef`) are unchanged since it was last applied, so a deploy that changes some other part of the schema takes no exclusive lock on that trigger's table; the digests live in `schema_trigger_digests` (migration `009`), a trigger changed or dropped out of band is re-applied, and `MigrationConfig::force_full_install` re-creates every trigger."

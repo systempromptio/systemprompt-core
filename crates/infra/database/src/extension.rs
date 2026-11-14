@@ -23,20 +23,8 @@ impl Extension for DatabaseExtension {
     }
 
     fn schemas(&self) -> Vec<SchemaDefinition> {
-        vec![
-            SchemaDefinition::new(
-                "extension_migrations",
-                include_str!("../schema/extension_migrations.sql"),
-            ),
-            SchemaDefinition::new(
-                "schema_install_fingerprint",
-                include_str!("../schema/schema_install_fingerprint.sql"),
-            )
-            .with_required_columns(vec!["singleton".into(), "fingerprint".into()]),
-            SchemaDefinition::new(
-                "extension_migration_compat",
-                include_str!("../schema/extension_migration_compat.sql"),
-            ),
+        let mut schemas = install_ledger_schemas();
+        schemas.extend([
             SchemaDefinition::new("services", include_str!("../schema/services.sql"))
                 .with_required_columns(vec!["name".into(), "module_name".into(), "status".into()]),
             SchemaDefinition::new(
@@ -94,7 +82,8 @@ impl Extension for DatabaseExtension {
             .with_required_columns(vec!["plane".into(), "applied_at".into()]),
             SchemaDefinition::sql_only(include_str!("../schema/functions.sql")),
             SchemaDefinition::sql_only(include_str!("../schema/config_change_triggers.sql")),
-        ]
+        ]);
+        schemas
     }
 
     fn migrations(&self) -> Vec<Migration> {
@@ -111,3 +100,26 @@ impl Extension for DatabaseExtension {
 }
 
 register_extension!(DatabaseExtension);
+
+fn install_ledger_schemas() -> Vec<SchemaDefinition> {
+    vec![
+        SchemaDefinition::new(
+            "extension_migrations",
+            include_str!("../schema/extension_migrations.sql"),
+        ),
+        SchemaDefinition::new(
+            "schema_install_fingerprint",
+            include_str!("../schema/schema_install_fingerprint.sql"),
+        )
+        .with_required_columns(vec!["singleton".into(), "fingerprint".into()]),
+        SchemaDefinition::new(
+            "schema_trigger_digests",
+            include_str!("../schema/schema_trigger_digests.sql"),
+        )
+        .with_required_columns(vec!["relation".into(), "declared".into()]),
+        SchemaDefinition::new(
+            "extension_migration_compat",
+            include_str!("../schema/extension_migration_compat.sql"),
+        ),
+    ]
+}

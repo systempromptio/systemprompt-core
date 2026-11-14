@@ -125,7 +125,14 @@ pub(super) async fn apply_retirements(
     extensions: &[Arc<dyn Extension>],
 ) -> Result<(), LoaderError> {
     for retirement in prepare(extensions)? {
-        execute_phase(db, &retirement.statements, &[], &retirement.extension).await?;
+        execute_phase(
+            db,
+            &retirement.statements,
+            &[],
+            &retirement.extension,
+            super::trigger_reuse::TriggerReuse::Reapply,
+        )
+        .await?;
         info!(
             extension = %retirement.extension,
             statements = retirement.statements.len(),
