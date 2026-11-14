@@ -35,6 +35,8 @@
 use systemprompt_models::auth::UserType;
 
 /// The in-handler admission check a handler-verified route group relies on.
+/// The set is closed; each variant has a refusal test on the mounted router
+/// (`server_declared_groups`), and a new variant needs one.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum HandlerVerifier {
     SlackSignature,

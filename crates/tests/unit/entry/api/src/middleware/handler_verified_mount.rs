@@ -4,7 +4,7 @@
 //! still applied; it pairs only with the handler-resolved context, the
 //! handler-resolved context pairs only with it, an extension may declare
 //! neither, and a core body limit above the server default must be a listed
-//! exemption.
+//! exemption named for that group's base path.
 
 use std::net::SocketAddr;
 
@@ -164,7 +164,7 @@ fn an_extension_may_not_declare_handler_verification() {
 }
 
 #[tokio::test]
-async fn a_core_body_limit_above_the_default_must_be_a_listed_exemption() {
+async fn a_core_body_limit_above_the_default_must_be_exempted_for_its_own_group() {
     let unlisted = RouteProtection::new(AuthzPolicy::authenticated(), ContextKind::User)
         .with_body_limit(DEFAULT_BODY_LIMIT_BYTES + 1);
     let result = protect(
@@ -187,10 +187,22 @@ async fn a_core_body_limit_above_the_default_must_be_a_listed_exemption() {
                 ok_router(),
                 &listed,
                 &layers(unlimited(), UserType::User).await,
-                BASE,
+                exemption.base_path(),
             )
             .is_ok(),
-            "{exemption:?} must mount"
+            "{exemption:?} must mount at its own base path"
+        );
+        assert!(
+            matches!(
+                protect(
+                    ok_router(),
+                    &listed,
+                    &layers(unlimited(), UserType::User).await,
+                    BASE,
+                ),
+                Err(MountError::UnlistedBodyExemption { base_path: BASE, .. })
+            ),
+            "{exemption:?}'s limit must not mount under another group"
         );
     }
 }

@@ -24,7 +24,8 @@ use crate::context::ExtensionContext;
 
 /// The request-context middleware a route group is mounted behind;
 /// `HandlerResolved` mounts none and pairs only with a handler-verified
-/// policy.
+/// policy. Deliberately exhaustive: the host matches every kind, so a new kind
+/// cannot reach a wildcard arm and mount with less protection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ContextKind {
     Public,

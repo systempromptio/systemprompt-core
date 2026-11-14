@@ -18,14 +18,24 @@
 //! A declaration whose policy admits no caller type and names no verifier,
 //! that pairs the public context with a policy excluding anonymous callers,
 //! that mixes a handler-verified policy with a context middleware (or the
-//! handler-resolved context with a gated policy), that names a body limit
-//! above [`DEFAULT_BODY_LIMIT_BYTES`] no [`CoreBodyExemption`] lists, or that
-//! names a bearer window or protection layer the server has no primitive
-//! for, is refused with a typed [`MountError`] at boot; nothing is mounted
-//! with less protection than it declares. [`admit_extension`] adds the
-//! extension rules: an extension may not raise its body limit above the
-//! ceiling at all and may not declare a handler-verified policy. A
-//! declaration skipped by its role group or enable predicate is logged at
+//! handler-resolved context with a gated policy), or that names a bearer
+//! window or protection layer the server has no primitive for, is refused
+//! with a typed [`MountError`] at boot.
+//!
+//! Body limits: a group-level limit above [`DEFAULT_BODY_LIMIT_BYTES`] mounts
+//! only when a [`CoreBodyExemption`] names that group's base path and that
+//! exact limit; the agent proxy is the only one. [`admit_extension`] refuses
+//! any extension limit above the ceiling and any handler-verified extension
+//! declaration. This check sees only the group-level limit a declaration
+//! carries. A few routes set their own `DefaultBodyLimit` inside their router,
+//! which this module does not see: the document content routes (the
+//! configured `files.documents` limit, `routes/documents/mod.rs`), the bridge
+//! drive routes (the same limit, `routes/documents/drive.rs`), the upload
+//! part `PUT` (the configured part size plus slack, `routes/uploads/mod.rs`)
+//! and the managed consumer (1 MiB, `routes/managed/consumer/mod.rs`). They
+//! are reviewed at those sites.
+//!
+//! A declaration skipped by its role group or enable predicate is logged at
 //! `info`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -54,8 +64,8 @@ use crate::services::middleware::rate_limit::{RateLimitState, RouterExt};
 
 pub const DEFAULT_BODY_LIMIT_BYTES: usize = 2 * 1024 * 1024;
 
-/// A core route group whose declared body limit is above
-/// [`DEFAULT_BODY_LIMIT_BYTES`]; the list is closed and reviewed here.
+/// A core route group, named by its base path, whose group-level body limit
+/// is above [`DEFAULT_BODY_LIMIT_BYTES`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CoreBodyExemption {
     AgentProxy,
@@ -65,15 +75,24 @@ impl CoreBodyExemption {
     pub const ALL: &'static [Self] = &[Self::AgentProxy];
 
     #[must_use]
+    pub const fn base_path(self) -> &'static str {
+        match self {
+            Self::AgentProxy => systemprompt_models::modules::ApiPaths::AGENTS_BASE,
+        }
+    }
+
+    #[must_use]
     pub const fn bytes(self) -> usize {
         match self {
             Self::AgentProxy => systemprompt_models::net::AGENT_REQUEST_BODY_LIMIT_BYTES,
         }
     }
 
-    fn admits(declared: usize) -> bool {
+    fn admits(base_path: &str, declared: usize) -> bool {
         declared <= DEFAULT_BODY_LIMIT_BYTES
-            || Self::ALL.iter().any(|exemption| exemption.bytes() == declared)
+            || Self::ALL.iter().any(|exemption| {
+                exemption.base_path() == base_path && exemption.bytes() == declared
+            })
     }
 }
 
@@ -116,7 +135,7 @@ pub fn protect(
         return Err(MountError::IncoherentContext { base_path });
     }
     if let Some(declared) = protection.body_limit
-        && !CoreBodyExemption::admits(declared)
+        && !CoreBodyExemption::admits(base_path, declared)
     {
         return Err(MountError::UnlistedBodyExemption {
             base_path,

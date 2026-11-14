@@ -55,7 +55,7 @@ pub enum MountError {
 
     #[error(
         "core route group at '{base_path}' declares a {declared}-byte body limit above the \
-         2 MiB server default that no core body exemption names"
+         2 MiB server default that no core body exemption names for that base path"
     )]
     UnlistedBodyExemption {
         base_path: &'static str,
