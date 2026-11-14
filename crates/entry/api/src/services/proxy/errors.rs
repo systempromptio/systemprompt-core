@@ -5,7 +5,6 @@
 
 use super::auth::OAuthChallenge;
 use crate::error::ApiHttpError;
-use axum::body::Body;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use systemprompt_identifiers::error::IdValidationError;

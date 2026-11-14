@@ -155,10 +155,10 @@ impl Secrets {
     }
 
     pub fn get(&self, key: &str) -> Option<&String> {
-        match BuiltInSecret::named(key) {
-            Some(built_in) => self.built_in(built_in),
-            None => self.custom_secret(key),
-        }
+        BuiltInSecret::named(key).map_or_else(
+            || self.custom_secret(key),
+            |built_in| self.built_in(built_in),
+        )
     }
 
     #[must_use]
