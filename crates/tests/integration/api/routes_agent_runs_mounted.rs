@@ -113,7 +113,10 @@ async fn disabling_agent_runs_while_its_routes_stay_enabled_is_refused_at_boot()
         Ok(_) => anyhow::bail!("boot accepted agent_runs_api without the run repository"),
         Err(error) => format!("{error:#}"),
     };
-    assert!(message.contains("Extension 'agent_runs_api' requires state"), "{message}");
+    assert!(
+        message.contains("Extension 'agent_runs_api' requires state"),
+        "{message}"
+    );
     assert!(message.contains("AgentRunRepository"), "{message}");
     Ok(())
 }

@@ -48,10 +48,10 @@ mod core_declaration;
 mod error;
 mod guards;
 
-pub use error::MountError;
 pub use core_declaration::{
     Allowance, CoreDeclaration, CoreDeclarer, admit_extension, extension_served,
 };
+pub use error::MountError;
 pub use guards::{ClientWritesGuard, ProtectionGuards, SiteAuthGuard};
 
 use std::sync::Arc;

@@ -41,15 +41,13 @@ impl Extension for NestedPublicExt {
         &self,
         _ctx: &dyn ExtensionContext,
     ) -> Result<Vec<ExtensionRouter>, ExtensionStateError> {
-        one(
-            ExtensionRouter::new(
-                Router::new().route("/ping", get(|| async { "ext-ok" })),
-                "/api/covmount",
-                AuthzPolicy::public(),
-                ContextKind::Public,
-            )
-            .with_frame_options(FrameOptions::AllowAll),
+        one(ExtensionRouter::new(
+            Router::new().route("/ping", get(|| async { "ext-ok" })),
+            "/api/covmount",
+            AuthzPolicy::public(),
+            ContextKind::Public,
         )
+        .with_frame_options(FrameOptions::AllowAll))
     }
 }
 
@@ -144,16 +142,14 @@ impl Extension for DisabledExt {
         &self,
         _ctx: &dyn ExtensionContext,
     ) -> Result<Vec<ExtensionRouter>, ExtensionStateError> {
-        one(
-            ExtensionRouter::new(
-                Router::new().route("/ping", get(|| async { "disabled" })),
-                "/api/covdisabled",
-                AuthzPolicy::public(),
-                ContextKind::Public,
-            )
-            .with_rate_limit(RateLimit::new("covdisabled", RateBudget::PerSecond(1)))
-            .enabled_when(never),
+        one(ExtensionRouter::new(
+            Router::new().route("/ping", get(|| async { "disabled" })),
+            "/api/covdisabled",
+            AuthzPolicy::public(),
+            ContextKind::Public,
         )
+        .with_rate_limit(RateLimit::new("covdisabled", RateBudget::PerSecond(1)))
+        .enabled_when(never))
     }
 }
 

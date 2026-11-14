@@ -86,7 +86,7 @@ impl Extension for NotificationsExtension {
         ctx.extension_state()
             .find::<NotificationsConsumerSlot>()
             .and_then(|slot| slot.get().cloned())
-            .map(|consumer| consumer as Arc<dyn RunnerService>)
+            .map(|consumer| -> Arc<dyn RunnerService> { consumer })
             .into_iter()
             .collect()
     }

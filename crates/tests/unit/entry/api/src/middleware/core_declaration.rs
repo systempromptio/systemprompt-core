@@ -12,10 +12,10 @@ use systemprompt_api::services::middleware::{
     admit_extension, extension_served,
 };
 use systemprompt_api::services::server::routes::role::route_groups;
-use systemprompt_manifest::profile::NodeRole;
 use systemprompt_extension::{
     AuthzPolicy, ContextKind, ExtensionRouter, HandlerVerifier, RESERVED_PATHS, RouteGroup,
 };
+use systemprompt_manifest::profile::NodeRole;
 use systemprompt_models::modules::ApiPaths;
 
 fn slack(base_path: &'static str) -> ExtensionRouter {
@@ -35,7 +35,10 @@ fn notifications_admin(base_path: &'static str, policy: AuthzPolicy) -> Extensio
 
 #[test]
 fn the_table_lists_exactly_this_waves_core_declarations() {
-    let groups: Vec<_> = CoreDeclaration::ALL.iter().map(|entry| entry.group()).collect();
+    let groups: Vec<_> = CoreDeclaration::ALL
+        .iter()
+        .map(|entry| entry.group())
+        .collect();
     assert_eq!(
         groups,
         vec![

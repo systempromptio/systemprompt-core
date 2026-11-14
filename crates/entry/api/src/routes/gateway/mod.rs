@@ -145,11 +145,8 @@ pub(crate) fn gateway_mount_parts(
         ))
         .merge(bridge_profile_routes(ctx, &jwt_extractor))
         .merge(bridge_session_routes(ctx, &jwt_extractor));
-    let registered = registered::build_registered(
-        ctx,
-        &ctx.profile().extensions.disabled,
-        &jwt_extractor,
-    )?;
+    let registered =
+        registered::build_registered(ctx, &ctx.profile().extensions.disabled, &jwt_extractor)?;
     #[cfg(feature = "otel")]
     let traffic = traffic.merge(otel_routes(ctx, &jwt_extractor));
     Ok(GatewayMountParts {

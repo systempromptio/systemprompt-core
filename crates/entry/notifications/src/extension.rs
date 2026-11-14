@@ -20,8 +20,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_api::kernel::register_gateway_route;
-use systemprompt_extension::prelude::*;
 use systemprompt_extension::RouteGroup;
+use systemprompt_extension::prelude::*;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_notifications::{NotificationsService, NotificationsServiceSlot};
 use systemprompt_provider_contracts::MissingDependency;

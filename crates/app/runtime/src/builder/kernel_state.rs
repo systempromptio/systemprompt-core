@@ -60,7 +60,7 @@ pub fn base_kernel_state(
 }
 
 fn platform_secrets(app: &AppContext) -> Arc<dyn SecretLookup> {
-    let secrets: Arc<dyn SecretLookup> = Arc::clone(app.secrets());
+    let secrets = Arc::clone(app.secrets());
     secrets
 }
 

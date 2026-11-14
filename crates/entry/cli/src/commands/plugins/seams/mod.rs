@@ -160,7 +160,15 @@ pub fn execute(args: &SeamsArgs, profile: Option<&Profile>) -> (CommandOutput, b
         })
         .collect();
     let output = CommandOutput::table_of(
-        vec!["seam", "owner", "extension", "count", "entries", "requires", "status"],
+        vec![
+            "seam",
+            "owner",
+            "extension",
+            "count",
+            "entries",
+            "requires",
+            "status",
+        ],
         &rows,
     )
     .with_title("Registration Seams Linked In This Binary");

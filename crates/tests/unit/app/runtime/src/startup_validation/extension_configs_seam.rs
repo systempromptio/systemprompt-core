@@ -86,8 +86,7 @@ fn valid_config_file_passes_validation() {
 fn a_rejected_extension_config_file_is_reported_by_the_startup_pass() {
     let tmp = tempfile::tempdir().expect("tempdir");
     std::fs::create_dir_all(tmp.path().join("config")).expect("mkdir config");
-    std::fs::write(tmp.path().join("config/covextbad.yaml"), "mode: fine\n")
-        .expect("write config");
+    std::fs::write(tmp.path().join("config/covextbad.yaml"), "mode: fine\n").expect("write config");
 
     let outcomes =
         validate_extension_configs(tmp.path(), &[]).expect("registry discovery succeeds");

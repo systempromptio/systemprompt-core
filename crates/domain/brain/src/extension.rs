@@ -15,8 +15,8 @@
 
 use std::sync::Arc;
 
-use systemprompt_extension::{DiagnosticProbe, DynNotificationSink};
 use systemprompt_extension::prelude::*;
+use systemprompt_extension::{DiagnosticProbe, DynNotificationSink};
 
 use crate::consumer::{BacklogDiagnostic, BrainConsumerSlot};
 use crate::plane::BrainPlane;

@@ -141,7 +141,9 @@ impl CoreDeclaration {
     }
 
     fn granted(declarer: CoreDeclarer, declared: &ExtensionRouter, wanted: Allowance) -> bool {
-        Self::ALL.iter().any(|entry| entry.grants(declarer, declared, wanted))
+        Self::ALL
+            .iter()
+            .any(|entry| entry.grants(declarer, declared, wanted))
     }
 
     pub(super) fn admits_body_limit(base_path: &str, declared: usize) -> bool {
@@ -171,7 +173,9 @@ fn shape_matches(wanted: Allowance, declared: &ExtensionRouter) -> bool {
 }
 
 fn reserved(base_path: &str) -> bool {
-    RESERVED_PATHS.iter().any(|prefix| base_path.starts_with(prefix))
+    RESERVED_PATHS
+        .iter()
+        .any(|prefix| base_path.starts_with(prefix))
 }
 
 pub fn admit_extension(
@@ -219,6 +223,8 @@ pub fn extension_served(
     serves: &dyn Fn(RouteGroup) -> bool,
 ) -> bool {
     let declarer = CoreDeclarer::Extension(extension);
-    let core = CoreDeclaration::ALL.iter().any(|entry| entry.names(declarer, declared));
+    let core = CoreDeclaration::ALL
+        .iter()
+        .any(|entry| entry.names(declarer, declared));
     serves(declared.group) && (core || serves(RouteGroup::Extensions))
 }

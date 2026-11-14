@@ -33,8 +33,9 @@ macro_rules! register_linked_seam {
 }
 
 pub fn registered_seams() -> Vec<&'static LinkedSeamRegistration> {
-    let mut seams: Vec<&'static LinkedSeamRegistration> =
-        inventory::iter::<LinkedSeamRegistration>.into_iter().collect();
+    let mut seams: Vec<&'static LinkedSeamRegistration> = inventory::iter::<LinkedSeamRegistration>
+        .into_iter()
+        .collect();
     seams.sort_by_key(|seam| seam.name);
     seams
 }

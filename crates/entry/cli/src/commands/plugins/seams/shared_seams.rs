@@ -24,7 +24,12 @@ crate::register_linked_seam!(LinkedSeamRegistration {
     name: "extensions",
     owner: "systemprompt-extension",
     extension: None,
-    entries: || named(discover_registry().extensions().iter().map(|ext| ext.id().to_owned())),
+    entries: || named(
+        discover_registry()
+            .extensions()
+            .iter()
+            .map(|ext| ext.id().to_owned())
+    ),
 });
 
 crate::register_linked_seam!(LinkedSeamRegistration {
@@ -41,7 +46,9 @@ crate::register_linked_seam!(LinkedSeamRegistration {
     name: "orphan_sweeps",
     owner: "systemprompt-extension",
     extension: None,
-    entries: || named(purge::registered_orphan_sweeps().map(|s| format!("{}:{}", s.owner, s.table))),
+    entries: || named(
+        purge::registered_orphan_sweeps().map(|s| format!("{}:{}", s.owner, s.table))
+    ),
 });
 
 crate::register_linked_seam!(LinkedSeamRegistration {

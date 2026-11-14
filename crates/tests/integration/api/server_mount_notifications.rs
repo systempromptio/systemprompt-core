@@ -77,13 +77,8 @@ async fn every_notification_group_refuses_an_anonymous_caller() -> anyhow::Resul
 }
 
 #[tokio::test]
-async fn no_notification_group_is_mounted_when_the_extension_is_disabled() -> anyhow::Result<()>
-{
-    let app = full_router(&[
-        ExtensionId::new("notifications"),
-        ExtensionId::new("brain"),
-    ])
-    .await?;
+async fn no_notification_group_is_mounted_when_the_extension_is_disabled() -> anyhow::Result<()> {
+    let app = full_router(&[ExtensionId::new("notifications"), ExtensionId::new("brain")]).await?;
     for (method, uri) in GROUPS {
         let status = app
             .clone()

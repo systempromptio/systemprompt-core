@@ -5,11 +5,11 @@
 //!
 //! [`RunLauncher::resolve`] reads the host's extension state for a
 //! [`DynAgentRunLauncher`], which the agent-runs capability provides when it is
-//! linked and enabled. [`RunLauncher::Linked`] hands it to the A2A server, which
-//! queues the tasks of an agent that declares a run template as agent runs.
-//! [`RunLauncher::Absent`] is logged and leaves the server without one, the
-//! behaviour of an install without agent-runs: every task, including one for
-//! an agent that declares a run template, is processed by the agent itself,
+//! linked and enabled. [`RunLauncher::Linked`] hands it to the A2A server,
+//! which queues the tasks of an agent that declares a run template as agent
+//! runs. [`RunLauncher::Absent`] is logged and leaves the server without one,
+//! the behaviour of an install without agent-runs: every task, including one
+//! for an agent that declares a run template, is processed by the agent itself,
 //! `tasks/cancel` finds no run behind a task, and a streaming request receives
 //! the task's own frames.
 //!
@@ -98,8 +98,8 @@ pub(super) async fn execute(args: RunArgs) -> Result<()> {
         Arc::new(HttpWebhookBroadcaster::from_config(host.config())?),
         host.services_state().view(),
     );
-    let agent_state = RunLauncher::resolve(&host.extension_state())
-        .apply(agent_state, &args.agent_name);
+    let agent_state =
+        RunLauncher::resolve(&host.extension_state()).apply(agent_state, &args.agent_name);
     let agent_state = Arc::new(agent_state);
 
     let ai_service = Arc::clone(agent.ai_service());

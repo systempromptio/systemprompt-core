@@ -128,8 +128,9 @@ impl MessagingDispatchError {
     }
 }
 
-/// Runs one inbound chat-platform message through identity, authorization
-/// and the agent, and returns what to render back. Held as
+/// Runs one inbound chat-platform message and returns what to render back.
+///
+/// The message passes through identity, authorization and the agent. Held as
 /// `Arc<dyn MessagingDispatcher>` in the extension state, so it uses
 /// `#[async_trait]`; native `async fn` in traits is not `dyn`-compatible.
 #[async_trait]

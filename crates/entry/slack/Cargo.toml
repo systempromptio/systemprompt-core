@@ -24,6 +24,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 default = []
 http = [
+    "dep:chrono",
     "dep:axum",
     "dep:systemprompt-slack",
     "dep:reqwest",
@@ -46,6 +47,7 @@ systemprompt-extension = { workspace = true }
 systemprompt-manifest = { workspace = true }
 
 axum = { workspace = true, optional = true }
+chrono = { workspace = true, optional = true }
 systemprompt-slack = { workspace = true, optional = true }
 reqwest = { workspace = true, optional = true }
 thiserror = { workspace = true, optional = true }

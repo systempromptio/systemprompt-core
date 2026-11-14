@@ -6306,6 +6306,7 @@ dependencies = [
  "sqlx",
  "systemprompt-agent",
  "systemprompt-agent-runs",
+ "systemprompt-agent-runs-entry",
  "systemprompt-ai",
  "systemprompt-analytics",
  "systemprompt-api",
@@ -6331,14 +6332,17 @@ dependencies = [
  "systemprompt-mcp-host",
  "systemprompt-models",
  "systemprompt-notifications",
+ "systemprompt-notifications-entry",
  "systemprompt-oauth",
  "systemprompt-oauth-issuance",
  "systemprompt-runtime",
  "systemprompt-scheduler",
  "systemprompt-security",
  "systemprompt-slack",
+ "systemprompt-slack-entry",
  "systemprompt-storage",
  "systemprompt-teams",
+ "systemprompt-teams-entry",
  "systemprompt-template-provider",
  "systemprompt-traits",
  "systemprompt-users",
@@ -6426,6 +6430,25 @@ dependencies = [
 [[package]]
 name = "systemprompt-agent-runs-entry"
 version = "0.81.1"
+dependencies = [
+ "async-stream",
+ "axum",
+ "chrono",
+ "futures-util",
+ "inventory",
+ "serde",
+ "serde_json",
+ "systemprompt-agent-runs",
+ "systemprompt-api",
+ "systemprompt-cli",
+ "systemprompt-config",
+ "systemprompt-database",
+ "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "tokio",
+ "tracing",
+]
 
 [[package]]
 name = "systemprompt-ai"
@@ -6517,7 +6540,6 @@ dependencies = [
  "sha2 0.11.1",
  "sqlx",
  "systemprompt-agent",
- "systemprompt-agent-runs",
  "systemprompt-ai",
  "systemprompt-analytics",
  "systemprompt-brain",
@@ -6537,16 +6559,13 @@ dependencies = [
  "systemprompt-marketplace",
  "systemprompt-mcp",
  "systemprompt-models",
- "systemprompt-notifications",
  "systemprompt-oauth",
  "systemprompt-oauth-issuance",
  "systemprompt-provider-contracts",
  "systemprompt-runtime",
  "systemprompt-scheduler",
  "systemprompt-security",
- "systemprompt-slack",
  "systemprompt-storage",
- "systemprompt-teams",
  "systemprompt-traits",
  "systemprompt-users",
  "systemprompt-wire",
@@ -6625,7 +6644,6 @@ dependencies = [
  "sqlx",
  "sse-stream",
  "systemprompt-agent",
- "systemprompt-agent-runs",
  "systemprompt-ai",
  "systemprompt-analytics",
  "systemprompt-api",
@@ -7266,6 +7284,19 @@ dependencies = [
 [[package]]
 name = "systemprompt-notifications-entry"
 version = "0.81.1"
+dependencies = [
+ "axum",
+ "inventory",
+ "serde",
+ "systemprompt-api",
+ "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-notifications",
+ "systemprompt-provider-contracts",
+ "systemprompt-traits",
+ "tracing",
+]
 
 [[package]]
 name = "systemprompt-oauth"
@@ -7488,14 +7519,11 @@ version = "0.81.1"
 dependencies = [
  "hex",
  "hmac 0.13.0",
- "inventory",
  "reqwest",
- "schemars 1.2.3",
  "serde",
  "serde_json",
  "sha2 0.11.1",
  "systemprompt-client",
- "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-manifest",
  "systemprompt-models",
@@ -7505,6 +7533,24 @@ dependencies = [
 [[package]]
 name = "systemprompt-slack-entry"
 version = "0.81.1"
+dependencies = [
+ "axum",
+ "inventory",
+ "reqwest",
+ "schemars 1.2.3",
+ "serde_json",
+ "systemprompt-client",
+ "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-manifest",
+ "systemprompt-models",
+ "systemprompt-provider-contracts",
+ "systemprompt-slack",
+ "systemprompt-traits",
+ "thiserror 2.0.21",
+ "tracing",
+ "url",
+]
 
 [[package]]
 name = "systemprompt-storage"
@@ -7535,14 +7581,11 @@ dependencies = [
 name = "systemprompt-teams"
 version = "0.81.1"
 dependencies = [
- "inventory",
  "jsonwebtoken",
  "reqwest",
- "schemars 1.2.3",
  "serde",
  "serde_json",
  "systemprompt-client",
- "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-manifest",
  "systemprompt-models",
@@ -7553,6 +7596,24 @@ dependencies = [
 [[package]]
 name = "systemprompt-teams-entry"
 version = "0.81.1"
+dependencies = [
+ "axum",
+ "chrono",
+ "inventory",
+ "reqwest",
+ "schemars 1.2.3",
+ "serde_json",
+ "systemprompt-client",
+ "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-manifest",
+ "systemprompt-models",
+ "systemprompt-provider-contracts",
+ "systemprompt-teams",
+ "systemprompt-traits",
+ "thiserror 2.0.21",
+ "tracing",
+]
 
 [[package]]
 name = "systemprompt-template-provider"
