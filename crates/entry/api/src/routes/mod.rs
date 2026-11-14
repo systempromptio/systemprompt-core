@@ -12,8 +12,6 @@
 
 pub mod admin;
 pub mod agent;
-#[cfg(feature = "agent-runs")]
-pub mod agent_runs;
 pub mod analytics;
 #[cfg(feature = "brain")]
 pub mod brain;

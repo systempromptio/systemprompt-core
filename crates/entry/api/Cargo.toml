@@ -100,7 +100,6 @@ systemprompt-ai = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-governance = { workspace = true }
 systemprompt-marketplace = { workspace = true }
-systemprompt-agent-runs = { workspace = true, optional = true }
 
 # Authentication
 bcrypt = { workspace = true }
@@ -118,7 +117,6 @@ opentelemetry-proto = { workspace = true, optional = true }
 
 [features]
 default = []
-agent-runs = ["dep:systemprompt-agent-runs"]
 brain = ["dep:systemprompt-brain", "notifications", "systemprompt-runtime/brain", "systemprompt-gateway/brain", "systemprompt-scheduler/brain"]
 collab = ["systemprompt-files/collab", "systemprompt-runtime/collab"]
 notifications = [

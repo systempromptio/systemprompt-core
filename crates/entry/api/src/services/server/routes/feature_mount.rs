@@ -8,7 +8,7 @@ use axum::Router;
 use super::{RouteMountError, protocol};
 
 #[cfg_attr(
-    not(any(feature = "agent-runs", feature = "bridge")),
+    not(feature = "bridge"),
     expect(
         unused_mut,
         unused_variables,
@@ -21,10 +21,6 @@ pub(super) fn mount_feature_routes(
     mount: &protocol::MountCtx<'_>,
 ) -> Result<Router, RouteMountError> {
     let serves = mount.serves;
-    #[cfg(feature = "agent-runs")]
-    if serves(systemprompt_extension::RouteGroup::Agent) {
-        router = super::agent_runs::mount_agent_runs(router, mount)?;
-    }
     #[cfg(feature = "bridge")]
     if serves(systemprompt_extension::RouteGroup::Managed) {
         router = super::managed::mount(router, mount)?;

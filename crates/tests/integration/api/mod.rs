@@ -191,6 +191,9 @@ mod protocol_matrix;
 mod routes_agent_runs;
 
 #[cfg(test)]
+mod routes_agent_runs_mounted;
+
+#[cfg(test)]
 mod documents;
 #[cfg(test)]
 mod documents_access_requests;

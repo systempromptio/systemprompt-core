@@ -20,7 +20,7 @@ Cargo enables the transitive dependencies of each selected feature.
 | `database` | `dep:systemprompt-database`, `dep:sqlx` |
 | `config` | `dep:systemprompt-config` |
 | `mcp` | `dep:rmcp` |
-| `api` | `core`, `database`, `dep:systemprompt-api`, `dep:systemprompt-gateway`, `dep:systemprompt-runtime`, `dep:systemprompt-oauth-issuance`, `dep:axum` |
+| `api` | `core`, `database`, `dep:systemprompt-api`, `dep:systemprompt-gateway`, `dep:systemprompt-runtime`, `dep:systemprompt-oauth-issuance`, `dep:axum`, `systemprompt-agent-runs-entry?/http` |
 | `cloud` | `dep:systemprompt-cloud` |
 | `logging` | `dep:systemprompt-logging` |
 | `loader` | `dep:systemprompt-loader` |
@@ -28,14 +28,14 @@ Cargo enables the transitive dependencies of each selected feature.
 | `storage` | `dep:systemprompt-storage` |
 | `client` | `dep:systemprompt-client` |
 | `security` | `dep:systemprompt-security`, `dep:systemprompt-governance` |
-| `cli` | `dep:systemprompt-cli` |
+| `cli` | `dep:systemprompt-cli`, `systemprompt-agent-runs-entry?/cli` |
 | `runtime` | `cli`, `dep:systemprompt-extension` |
 | `analytics` | `dep:systemprompt-analytics` |
 | `files-office` | `dep:systemprompt-files`, `systemprompt-files/office` |
 | `files-pdf` | `dep:systemprompt-files`, `systemprompt-files/pdf`, `systemprompt-api?/pdf`, `systemprompt-cli?/pdf` |
 | `files-collab` | `dep:systemprompt-files`, `systemprompt-files/collab`, `systemprompt-runtime?/collab`, `systemprompt-api?/collab` |
 | `files-collab-loro` | `files-collab`, `systemprompt-runtime?/engine-loro` |
-| `agent-runs` | `dep:systemprompt-agent-runs`, `systemprompt-api?/agent-runs`, `systemprompt-cli?/agent-runs` |
+| `agent-runs` | `dep:systemprompt-agent-runs`, `dep:systemprompt-agent-runs-entry` |
 | `otel` | `systemprompt-api?/otel`, `systemprompt-cli?/otel`, `systemprompt-scheduler?/otel` |
 | `bridge` | `systemprompt-api?/bridge`, `systemprompt-cli?/bridge` |
 | `slack` | `dep:systemprompt-slack`, `dep:systemprompt-slack-entry`, `systemprompt-slack-entry/http` |

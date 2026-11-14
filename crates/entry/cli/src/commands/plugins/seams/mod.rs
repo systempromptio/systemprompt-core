@@ -5,7 +5,9 @@
 //! the registering crate. The command lists each seam with its entries
 //! (including seams with none) and checks the active profile for settings
 //! that name a seam entry this binary does not link: such a profile fails at
-//! boot, so the command exits non-zero.
+//! boot, so the command exits non-zero. A seam owned by an extension the
+//! profile disables is listed with status `owner_disabled`: its registrations
+//! are linked but nothing reads them in that deployment.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -28,9 +30,12 @@ macro_rules! by_count {
 
 mod app_seams;
 pub mod catalog;
+mod domain_seams;
 mod extension_seams;
+mod shared_seams;
 
 use clap::Args;
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::Profile;
 use systemprompt_manifest::profile::{AuthzMode, SecretsSource};
 
@@ -94,7 +99,11 @@ fn satisfied(seam: &LinkedSeam, needed: &Needed) -> bool {
 }
 
 #[must_use]
-pub fn evaluate(seams: Vec<LinkedSeam>, requirements: &[Requirement]) -> (Vec<SeamRow>, bool) {
+pub fn evaluate(
+    seams: Vec<LinkedSeam>,
+    requirements: &[Requirement],
+    disabled: &[ExtensionId],
+) -> (Vec<SeamRow>, bool) {
     let mut all_linked = true;
     let rows = seams
         .into_iter()
@@ -107,8 +116,13 @@ pub fn evaluate(seams: Vec<LinkedSeam>, requirements: &[Requirement]) -> (Vec<Se
                 .iter()
                 .any(|requirement| !satisfied(&seam, &requirement.needed));
             all_linked &= !missing;
+            let owner_disabled = seam
+                .extension
+                .is_some_and(|owner| disabled.iter().any(|id| id.as_str() == owner));
             let status = if missing {
                 SeamStatus::Missing
+            } else if owner_disabled {
+                SeamStatus::OwnerDisabled
             } else if seam.entries.is_empty() {
                 SeamStatus::Empty
             } else {
@@ -117,6 +131,7 @@ pub fn evaluate(seams: Vec<LinkedSeam>, requirements: &[Requirement]) -> (Vec<Se
             SeamRow {
                 seam: seam.name.to_owned(),
                 owner: seam.owner.to_owned(),
+                extension: seam.extension.unwrap_or("kernel").to_owned(),
                 count: seam.entries.len(),
                 entries: seam.entries.join(", "),
                 requires: applicable
@@ -134,7 +149,8 @@ pub fn evaluate(seams: Vec<LinkedSeam>, requirements: &[Requirement]) -> (Vec<Se
 #[must_use]
 pub fn execute(args: &SeamsArgs, profile: Option<&Profile>) -> (CommandOutput, bool) {
     let requirements = profile.map(profile_requirements).unwrap_or_default();
-    let (rows, all_linked) = evaluate(linked_seams(), &requirements);
+    let disabled = profile.map_or(&[][..], |profile| profile.extensions.disabled.as_slice());
+    let (rows, all_linked) = evaluate(linked_seams(), &requirements, disabled);
     let rows: Vec<SeamRow> = rows
         .into_iter()
         .filter(|row| {
@@ -144,7 +160,7 @@ pub fn execute(args: &SeamsArgs, profile: Option<&Profile>) -> (CommandOutput, b
         })
         .collect();
     let output = CommandOutput::table_of(
-        vec!["seam", "owner", "count", "entries", "requires", "status"],
+        vec!["seam", "owner", "extension", "count", "entries", "requires", "status"],
         &rows,
     )
     .with_title("Registration Seams Linked In This Binary");

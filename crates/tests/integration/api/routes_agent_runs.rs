@@ -5,7 +5,7 @@ use anyhow::Result;
 use axum::{Extension, Router};
 use http::StatusCode;
 use serde_json::{Value, json};
-use systemprompt_api::routes::agent_runs::{AgentRunsState, router};
+use systemprompt_agent_runs_entry::http::{AgentRunsState, router};
 use systemprompt_test_fixtures::seed_admin_credential;
 use tower::ServiceExt;
 
@@ -41,7 +41,7 @@ async fn enqueue_is_idempotent_and_scoped_to_the_caller() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
     let owner = seed_admin_credential(&pool, "agent-runs-owner").await?;
     let other = seed_admin_credential(&pool, "agent-runs-other").await?;
-    let state = AgentRunsState::build(&ctx);
+    let state = AgentRunsState::from_extension(&*ctx)?;
     let user = owner.user_id.as_str();
     let key = format!("key-{}", owner.user_id);
 
@@ -99,7 +99,7 @@ async fn enqueue_is_idempotent_and_scoped_to_the_caller() -> Result<()> {
 async fn enqueue_refuses_unregistered_origins_and_server_paths() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
     let owner = seed_admin_credential(&pool, "agent-runs-refuse").await?;
-    let state = AgentRunsState::build(&ctx);
+    let state = AgentRunsState::from_extension(&*ctx)?;
     let user = owner.user_id.as_str();
 
     let unregistered =
@@ -128,7 +128,7 @@ async fn the_event_stream_replays_from_last_event_id_and_ends_on_a_terminal_run(
     };
     let (pool, ctx) = setup_ctx().await?;
     let owner = seed_admin_credential(&pool, "agent-runs-stream").await?;
-    let state = AgentRunsState::build(&ctx);
+    let state = AgentRunsState::from_extension(&*ctx)?;
     let user = owner.user_id.as_str();
     let body = json!({ "origin_kind": STREAM_ORIGIN, "idempotency_key": format!("stream-{user}"), "request": request("s") });
     let (_, created) = send(app(state.clone(), user), json_post("/", body)).await?;
@@ -228,7 +228,7 @@ async fn claim(
 async fn outputs_are_listed_and_read_from_the_run_directory_only() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
     let owner = seed_admin_credential(&pool, "agent-runs-outputs").await?;
-    let state = AgentRunsState::build(&ctx);
+    let state = AgentRunsState::from_extension(&*ctx)?;
     let user = owner.user_id.as_str();
     let body = json!({
         "origin_kind": OUTPUTS_ORIGIN,
@@ -309,7 +309,7 @@ async fn outputs_are_listed_and_read_from_the_run_directory_only() -> Result<()>
 async fn cancelling_a_claimed_run_records_the_request() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
     let owner = seed_admin_credential(&pool, "agent-runs-cancel-claimed").await?;
-    let state = AgentRunsState::build(&ctx);
+    let state = AgentRunsState::from_extension(&*ctx)?;
     let user = owner.user_id.as_str();
     let origin = CLAIM_ORIGIN;
     let body = json!({

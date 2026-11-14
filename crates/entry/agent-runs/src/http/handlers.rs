@@ -15,12 +15,12 @@ use systemprompt_agent_runs::repository::{AgentRunRow, Enqueued, NewAgentRun};
 use systemprompt_agent_runs::{
     AgentRunsError, McpServerSpec, RunEvent, RunLayout, RunRequest, origin,
 };
+use systemprompt_api::kernel::ApiHttpError;
 use systemprompt_identifiers::{AgentRunId, HostSessionId, SessionId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
 
 use super::AgentRunsState;
-use crate::kernel::ApiHttpError;
 
 pub(super) const EVENT_PAGE: i64 = 500;
 

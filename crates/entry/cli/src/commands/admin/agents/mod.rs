@@ -25,7 +25,7 @@ mod message_request;
 pub mod message_streaming;
 pub mod process_stop;
 pub mod registry;
-mod run;
+pub mod run;
 pub mod shared;
 pub mod show;
 mod status;

@@ -23,6 +23,8 @@ pub(super) fn api_source_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../entry/api/src")
 }
 
+const ENTRY_SOURCE_ROOTS: [(&str, &str); 1] = [("agent-runs:", "../../../entry/agent-runs/src")];
+
 pub(super) fn router_inventory() -> BTreeSet<RouteKey> {
     let root = api_source_root();
     let mut files = Vec::new();
@@ -34,17 +36,28 @@ pub(super) fn router_inventory() -> BTreeSet<RouteKey> {
         files.len()
     );
     let mut keys = BTreeSet::new();
+    scan_tree("", &root, &files, &mut keys);
+    for (label, relative) in ENTRY_SOURCE_ROOTS {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join(relative);
+        let mut files = Vec::new();
+        collect_rs(&root, &mut files);
+        assert!(!files.is_empty(), "entry source tree found at {}", root.display());
+        scan_tree(label, &root, &files, &mut keys);
+    }
+    keys
+}
+
+fn scan_tree(label: &str, root: &Path, files: &[PathBuf], keys: &mut BTreeSet<RouteKey>) {
     for file in files {
         let rel = file
-            .strip_prefix(&root)
+            .strip_prefix(root)
             .expect("under root")
             .to_string_lossy()
             .replace('\\', "/");
-        let text = fs::read_to_string(&file).expect("read api source");
+        let text = fs::read_to_string(file).expect("read route source");
         let code = strip_line_comments(&text);
-        scan_file(&rel, &code, &mut keys);
+        scan_file(&format!("{label}{rel}"), &code, keys);
     }
-    keys
 }
 
 fn collect_rs(dir: &Path, out: &mut Vec<PathBuf>) {
