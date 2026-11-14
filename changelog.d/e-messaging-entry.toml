@@ -1,0 +1,64 @@
+[root]
+section = "Breaking"
+area = "Messaging"
+text = "The Slack and Teams inbound routes are declared by the `slack` and `teams` extensions, which now live in `systemprompt-slack-entry` and `systemprompt-teams-entry`; `systemprompt-api` and `systemprompt-cli` no longer have `slack` or `teams` features. The routes mount only in a binary that links the entry crates (the facade's `slack` and `teams` features, with `api` for the routes), only while the profile leaves the extension enabled (a disabled one answers 404), and on the `all` and `api` roles. Both surfaces dispatch through the `MessagingDispatcher` trait in `systemprompt-traits`, which the API binds into the extension state. A Slack app's `signing_secret_ref` and `bot_token_ref` and a Teams app's `app_password_ref` must name custom secrets; a reference naming a built-in platform secret is refused by services validation at startup. Migrate by enabling the facade's `slack` / `teams` features in place of `systemprompt-api/slack` / `systemprompt-api/teams`, and by moving any built-in secret a messaging app referenced to a custom secret."
+
+[[crate]]
+name = "systemprompt-slack-entry"
+section = "Added"
+text = "New crate: `SlackExtension` (the `slack` extension: config prefix, schema and validation) and, behind the `http` feature, the `/api/v1/slack` routes declared handler-verified by `SlackSignature` in the `Messaging` route group under the `agents` rate limit (`http::{declaration, router, SlackState, SlackStateError, parse_form, slash_command_from_form}`)."
+
+[[crate]]
+name = "systemprompt-teams-entry"
+section = "Added"
+text = "New crate: `TeamsExtension` (the `teams` extension: config prefix, schema and validation) and, behind the `http` feature, the `/api/v1/teams` route declared handler-verified by `TeamsBotToken` in the `Messaging` route group under the `agents` rate limit (`http::{declaration, router, TeamsState, TeamsStateError}`)."
+
+[[crate]]
+name = "systemprompt-slack"
+section = "Breaking"
+text = "`SlackExtension` and the `extension` module move to `systemprompt-slack-entry`; the crate no longer registers an extension. Migrate to `systemprompt_slack_entry::SlackExtension`."
+
+[[crate]]
+name = "systemprompt-teams"
+section = "Breaking"
+text = "`TeamsExtension` and the `extension` module move to `systemprompt-teams-entry`; the crate no longer registers an extension. Migrate to `systemprompt_teams_entry::TeamsExtension`."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Added"
+text = "`messaging` module: `MessagingDispatcher`, `DynMessagingDispatcher`, `MessagingInbound`, `MessagingConversation`, `DispatchOutcome` and `MessagingDispatchError`, the seam a chat-platform surface dispatches an inbound message through."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`routes::slack`, `routes::teams` and `routes::messaging` are removed, with the `slack` and `teams` features: `dispatch_messaging`, `MessagingState`, `ReplyTarget` and the API's `MessagingInbound`, `MessagingConversation` and `DispatchOutcome` are gone. The dispatcher is `services::messaging::A2aMessagingDispatcher` (`new`, `run`), bound into the extension state with `services::messaging::bind_dispatcher`; `MessagingError` and the `a2a` and `identity` modules move to `services::messaging`. Migrate to the entry crates and `systemprompt_traits::messaging`."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`ProxyError::AuthChallenge` holds a `Box<OAuthChallenge>` (status, `WWW-Authenticate` value, JSON body) instead of a built `Response`, so `ProxyError` is `Send + Sync`; `OAuthChallengeBuilder::build_challenge_response` returns `Result<OAuthChallenge, StatusCode>`. The rendered challenge response is unchanged. Migrate by matching `AuthChallenge(challenge)` and calling `challenge.into_response()`."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Added"
+text = "`services::proxy::OAuthChallenge`, rendered by its `IntoResponse`."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "The `slack` and `teams` features are removed. Migrate by enabling the facade's `slack` / `teams` features."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Changed"
+text = "The extension state seeds an unbound `LateBound<dyn MessagingDispatcher>` slot, which the API binds while building its routes."
+
+[[crate]]
+name = "systemprompt-manifest"
+section = "Breaking"
+text = "A Slack app's `signing_secret_ref` and `bot_token_ref` and a Teams app's `app_password_ref` must name custom secrets; a reference naming a built-in platform secret fails validation with `ServicesValidationError::BuiltInSecretRef`. Added `Secrets::is_built_in_name` and `Secrets::require_custom_ref`. Migrate by moving the value to a custom secret and pointing the reference at it."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Breaking"
+text = "`ServicesValidationError` gains `BuiltInSecretRef { owner, field, secret }`."

@@ -1,0 +1,29 @@
+[root]
+section = "Breaking"
+area = "Extensions"
+text = "`Extension::router` is replaced by `Extension::routers(&self, ctx) -> Result<Vec<ExtensionRouter>, ExtensionStateError>`: an extension declares every route group it serves, and an `Err` refuses boot with `LoaderError::RouterBuildFailed` naming the extension. `Extension::runner_services` takes the `&dyn ExtensionContext`. An extension's routers are built only on a node role that serves `RouteGroup::Extensions` or the route group of a core declaration listing that extension, so a worker builds and serves the agent-runs routes while install extensions keep their role exposure. The extension route mount no longer calls `Extension::validate_config`; startup validation calls it for each enabled extension with a `config_prefix`, against its own `services/config/<prefix>.yaml`. Migrate by returning `Ok(vec![router])` (or `Ok(vec![])`) from `routers` and adding the context parameter to `runner_services`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`Extension::router` is replaced by `Extension::routers(&self, ctx) -> Result<Vec<ExtensionRouter>, ExtensionStateError>`, defaulting to `Ok(vec![])`; `Extension::runner_services` takes `&dyn ExtensionContext`. Migrate by returning `Ok(vec![router])` from `routers` and adding the context parameter."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`ExtensionRegistry::api_routers` takes a predicate over extension ids (`builds: &dyn Fn(&str) -> bool`), never calls `routers` on an extension the predicate rejects, returns one entry per declared router, and fails with `LoaderError::RouterBuildFailed { extension, source }` when an extension's routers cannot be built."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Removed"
+text = "`LoaderError::ReservedPathCollision`; `ExtensionRegistry::validate_api_paths` no longer checks `RESERVED_PATHS`, and the server mount refuses an extension declaration under a reserved prefix with `MountError::ExtensionReservedPath` unless a core declaration grants it."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Changed"
+text = "Extension routers are built only on a node role that serves `RouteGroup::Extensions` or the route group of a core declaration listing the extension, and every built declaration is admitted before any is mounted. The extension route mount no longer validates extension configuration; `RouteMountError::ConfigValidation` is gone and startup validation is the one caller of `Extension::validate_config`."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`OpsSampler::with_notifications` is removed; an extension's own metric series are declared through `Extension::metrics` and sampled by that extension."

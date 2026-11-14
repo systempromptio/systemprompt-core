@@ -1,0 +1,29 @@
+[root]
+section = "Breaking"
+area = "Agent runs"
+text = "The `/api/v1/agent-runs` routes are declared by the `agent_runs_api` extension in the new `systemprompt-agent-runs-entry` crate, with the user gate, user context, the `agent_runs` rate limit on the tasks budget and the `Agent` route group, so the `all`, `api` and `worker` roles serve them. `systemprompt-api` and `systemprompt-cli` no longer have an `agent-runs` feature or depend on the agent-runs crates. A profile that disables `agent_runs_api` mounts no agent-runs route (404); one that disables `agent_runs` while `agent_runs_api` stays enabled is refused at boot with `LoaderError::UnmetStateRequirement`. `admin agents run` reads its agent-run launcher from the host's extension state; without one the agent processes every task itself. Migrate by enabling the facade's `agent-runs` feature in place of `systemprompt-api/agent-runs` / `systemprompt-cli/agent-runs`."
+
+[[crate]]
+name = "systemprompt-agent-runs-entry"
+section = "Added"
+text = "New crate: behind the `http` feature, `http::AgentRunsApiExtension` (registered as `agent_runs_api`, declaring its routes through `Extension::routers` and requiring the `AgentRunRepository` the `agent_runs` extension provides), `http::router` and `http::AgentRunsState` (`AgentRunsState::from_extension`); behind the `cli` feature, the `agent_run_origins` seam registered with `plugins seams`."
+
+[[crate]]
+name = "systemprompt-agent-runs"
+section = "Changed"
+text = "`AgentRunsExtension` provides one `AgentRunRepository` and a `DynAgentRunLauncher` over it into the extension state; the run-directory retention job reads the repository from its job context."
+
+[[crate]]
+name = "systemprompt-agent-runs"
+section = "Breaking"
+text = "`AgentRunsExtension::launcher` and `RepositoryRunLauncher::shared` are removed. Migrate by reading `DynAgentRunLauncher` from the extension state or building `RepositoryRunLauncher::new(repository)`."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "The `agent-runs` feature and `routes::agent_runs` are removed; the routes are `systemprompt_agent_runs_entry::http`, mounted from the extension registry."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "The `agent-runs` feature is removed and `full` no longer names it. `admin agents run` resolves its launcher with `commands::admin::agents::run::RunLauncher::resolve` from the host's extension state; `RunLauncher::Absent` leaves every task to the agent itself."

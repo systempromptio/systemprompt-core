@@ -1,0 +1,24 @@
+[root]
+section = "Breaking"
+area = "Gateway"
+text = "`register_gateway_guard!` takes the owning extension id as its first argument (`register_gateway_guard!(\"owner\", Type)` or `register_gateway_guard!(\"owner\", factory = f)`). A guard whose owner the profile disables is not installed, and a guard naming an owner that is not a linked extension refuses boot. A capability serves a route group inside the gateway surface with `register_gateway_route!(extension = .., path = .., scope = .., budget = .., factory = ..)`: the gateway applies its own credential verification, bearer window and access log under the registration's scope and budget, every linked registration must be listed in the core declaration table with that extension id, path, scope and budget, overlapping registrations refuse boot, a registered router answers only paths under its own path, and a registration whose extension is disabled is not built (its paths answer 404). Migrate by adding the owning extension id to each `register_gateway_guard!`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`register_gateway_guard!` takes the owning extension id as its first argument and `GatewayRequestGuardRegistration` gains `extension`; `GatewayGuards::discover` returns `Result<Self, GatewayGuardError>`, installs a guard only while its owning extension is enabled, and refuses one whose owner is not a linked extension with `GatewayGuardError::UnknownOwner`. Migrate by naming the owner in each registration and propagating the error."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`GatewayGuardError`, `GatewayGuards::registrations` (the linked registrations with their owners), `GatewayGuards::from_registrations` (selection over a given registration set and disabled set) and `GatewayGuards::len`."
+
+[[crate]]
+name = "systemprompt-gateway"
+section = "Breaking"
+text = "`GatewayEnginesError` gains `Guards(GatewayGuardError)`, raised when the gateway guard set cannot be built."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Added"
+text = "`register_gateway_route!`, `GatewayRouteRegistration { extension, path, scope, budget, factory }`, `GatewayRouteFactory` and `GatewayCredential` on `systemprompt_api::kernel`; `routes::gateway::registered::{GatewayRouteError, admit_registrations}`. The gateway mount admits every linked registration (`MountError::UnlistedGatewayRoute`, `MountError::GatewayRouteOverlap`, `MountError::CoreDeclarationMismatch`) whether or not its extension is enabled, then builds the enabled ones."
