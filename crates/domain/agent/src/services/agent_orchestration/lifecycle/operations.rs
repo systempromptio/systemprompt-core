@@ -128,7 +128,7 @@ impl AgentLifecycle {
         self.db_service
             .register_agent_starting(agent_name, pid, port)
             .await?;
-        self.verify_startup(agent_name, port).await?;
+        self.verify_startup(agent_name, pid, port).await?;
         self.db_service.mark_running(agent_name).await
     }
 
