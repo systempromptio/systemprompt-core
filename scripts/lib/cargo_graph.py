@@ -1,14 +1,20 @@
-"""Cargo package graph loader shared by the dependency gates and the affected-set selector.
+"""Cargo package graph loader shared by the dependency gates, the affected-set
+selector and the build report.
 
-`cargo metadata --no-deps` is the only input. Production edges are normal and
-build dependencies; dev-dependencies may point at test helpers anywhere and are
-not part of the shipped graph.
+`cargo metadata --no-deps` is the input of the repository graph. Production
+edges are normal and build dependencies; dev-dependencies may point at test
+helpers anywhere and are not part of the shipped graph. `resolved_closure`
+reads a full `cargo metadata` resolve instead (the build report's crate
+closure):
+
+    cargo_graph.py closure < metadata.json   prints `<packages> <path packages>`
 """
 from collections import defaultdict
 import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 
 PRODUCTION_KINDS = (None, "build")
 
@@ -76,3 +82,43 @@ def repo_graph(root, offline=True):
             if target in graph and target != directory:
                 graph[directory]["deps"].append((target, d["kind"]))
     return graph
+
+
+def resolved_closure(metadata):
+    """Package ids the root package reaches over normal and build edges of the
+    resolve, excluding the root itself.
+
+    Run `cargo metadata --filter-platform <host>` to get the host-target closure
+    `cargo tree -e normal,build` prints; without it the resolve spans every
+    target. Every count comes from this one resolve, so a run with and without
+    `--offline` over the same lock agrees.
+    """
+    resolve = metadata.get("resolve") or {}
+    root = resolve.get("root")
+    if root is None:
+        raise ValueError("cargo metadata has no resolve root; run it inside a package")
+    nodes = {node["id"]: node for node in resolve["nodes"]}
+    seen, stack = set(), [root]
+    while stack:
+        for dep in nodes[stack.pop()].get("deps", []):
+            kinds = {k["kind"] for k in dep.get("dep_kinds", [])}
+            if kinds & set(PRODUCTION_KINDS) and dep["pkg"] not in seen:
+                seen.add(dep["pkg"])
+                stack.append(dep["pkg"])
+    seen.discard(root)
+    return seen
+
+
+def path_packages(metadata, ids):
+    """The ids among `ids` that are path packages (no registry or git source)."""
+    source = {p["id"]: p.get("source") for p in metadata["packages"]}
+    return {i for i in ids if source.get(i) is None}
+
+
+if __name__ == "__main__":
+    if sys.argv[1:] != ["closure"]:
+        print("usage: cargo_graph.py closure < metadata.json", file=sys.stderr)
+        sys.exit(2)
+    loaded = json.load(sys.stdin)
+    closure = resolved_closure(loaded)
+    print(len(closure), len(path_packages(loaded, closure)))
