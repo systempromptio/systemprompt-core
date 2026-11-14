@@ -53,17 +53,15 @@ impl CoreDeclaration {
         owner: CoreDeclarer,
         declared: &ExtensionRouter,
     ) -> Option<CoreShapeField> {
-        let owned = || {
+        let rows = || {
             Self::ALL.iter().filter(move |entry| {
                 entry.declarer() == owner && entry.group() != RouteGroup::Gateway
             })
         };
-        if owned().next().is_none() {
-            return None;
-        }
-        match owned().find(|entry| entry.names(owner, declared.base_path, declared.group)) {
+        rows().next()?;
+        match rows().find(|entry| entry.names(owner, declared.base_path, declared.group)) {
             Some(row) => row.mismatch(&declared.protection),
-            None if owned().any(|entry| entry.base_path() == declared.base_path) => {
+            None if rows().any(|entry| entry.base_path() == declared.base_path) => {
                 Some(CoreShapeField::Group)
             },
             None => Some(CoreShapeField::BasePath),

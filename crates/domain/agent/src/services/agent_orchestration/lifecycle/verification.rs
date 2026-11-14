@@ -169,7 +169,7 @@ impl AgentLifecycle {
 
         match self.db_service.get_status(agent_name).await {
             Ok(AgentStatus::Running { pid, .. }) => {
-                if systemprompt_loader::subprocess::is_running(pid).await {
+                if subprocess::is_running(pid).await {
                     tracing::error!(
                         agent = %agent_name,
                         pid,

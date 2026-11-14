@@ -243,8 +243,8 @@ async fn a_registered_router_answers_404_outside_its_own_prefix() {
 fn skipped_gateway_guards_reach_the_startup_summary() {
     let (events, mut received) = startup_channel();
     report_gateway_guards(&["credits", "forbidden"], Some(&events));
-    match received.try_next() {
-        Ok(Some(StartupEvent::Warning { message, context })) => {
+    match received.try_recv() {
+        Ok(StartupEvent::Warning { message, context }) => {
             assert_eq!(message, "2 gateway guards not installed: owner disabled");
             assert_eq!(context.as_deref(), Some("credits, forbidden"));
         },
@@ -254,5 +254,5 @@ fn skipped_gateway_guards_reach_the_startup_summary() {
     let (quiet, mut nothing) = startup_channel();
     report_gateway_guards(&[], Some(&quiet));
     drop(quiet);
-    assert!(matches!(nothing.try_next(), Ok(None)));
+    assert!(nothing.try_recv().is_err());
 }

@@ -133,7 +133,7 @@ pub fn admit_registrations(
         {
             return Err(MountError::GatewayRouteShadowsBuiltin {
                 path: registration.path,
-                builtin: *shadowed,
+                builtin: shadowed,
             });
         }
     }
