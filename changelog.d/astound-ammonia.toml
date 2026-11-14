@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "Dependencies"
+text = "`ammonia` is 4.2.5 in every lockfile (RUSTSEC-2026-0533)."
