@@ -1,25 +1,49 @@
 //! Post-start agent verification with bounded readiness retries.
 //!
-//! An agent is ready when its port accepts a connection and the process
-//! listening on it is the child this lifecycle spawned: the recorded pid,
-//! carrying that agent's spawn marker. A port answered by any other process
-//! refuses the start with `PortHeldByForeignProcess` rather than being taken
-//! for the agent.
+//! Each attempt gathers a [`StartupObservation`] and lets
+//! [`startup_verdict`](super::readiness::startup_verdict) decide. Where the
+//! port's listeners can be identified, only the spawned pid is readiness and
+//! any other listener refuses the start with `PortHeldByForeignProcess`.
+//! Where they cannot (no `lsof`, hidden sockets), the connect, the spawned
+//! child being alive and its spawn marker (Linux, macOS; not readable on
+//! Windows) decide. The `readiness` module states the guarantee per host.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::time::Duration;
 
-use systemprompt_identifiers::{AgentName, ServiceName};
-use systemprompt_loader::subprocess::{self, ChildKind};
+use systemprompt_identifiers::AgentName;
+use systemprompt_loader::subprocess;
 use systemprompt_models::net::AGENT_READINESS_TCP_TIMEOUT;
 use tokio::net::TcpStream;
 
 use super::AgentLifecycle;
+use super::readiness::{MarkerCheck, StartupObservation, StartupVerdict, startup_verdict};
 use crate::services::agent_orchestration::{
     AgentStatus, OrchestrationError, OrchestrationResult, process,
 };
+
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+async fn marker_check(pid: u32, agent_name: &AgentName) -> MarkerCheck {
+    use systemprompt_identifiers::ServiceName;
+    use systemprompt_loader::subprocess::ChildKind;
+
+    if subprocess::owns(pid, ChildKind::Agent, &ServiceName::of_agent(agent_name)).await {
+        MarkerCheck::Verified
+    } else {
+        MarkerCheck::Absent
+    }
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+#[expect(
+    clippy::unused_async,
+    reason = "the Linux and macOS probe awaits the identity check; one call site serves both"
+)]
+async fn marker_check(_pid: u32, _agent_name: &AgentName) -> MarkerCheck {
+    MarkerCheck::Unavailable
+}
 
 enum Readiness {
     Ready,
@@ -98,28 +122,39 @@ impl AgentLifecycle {
         port: u16,
     ) -> OrchestrationResult<Readiness> {
         let address = format!("127.0.0.1:{port}");
-        match tokio::time::timeout(AGENT_READINESS_TCP_TIMEOUT, TcpStream::connect(&address)).await
-        {
-            Ok(Ok(_)) => {},
-            Ok(Err(e)) => {
-                tracing::trace!(error = %e, "TCP connection refused");
-                return Ok(Readiness::NotListening);
+        let connected = matches!(
+            tokio::time::timeout(AGENT_READINESS_TCP_TIMEOUT, TcpStream::connect(&address)).await,
+            Ok(Ok(_))
+        );
+        if !connected {
+            return Ok(Readiness::NotListening);
+        }
+        let listeners = match subprocess::pids_listening_on(port).await {
+            Ok(listeners) => Some(listeners),
+            Err(error) => {
+                tracing::debug!(
+                    agent = %agent_name,
+                    port,
+                    %error,
+                    "port listeners unidentifiable; readiness rests on the spawned child"
+                );
+                None
             },
-            Err(_) => return Ok(Readiness::NotListening),
-        }
-        let holders = subprocess::pids_listening_on(port).await?;
-        if holders.contains(&pid)
-            && subprocess::owns(pid, ChildKind::Agent, &ServiceName::of_agent(agent_name)).await
-        {
-            return Ok(Readiness::Ready);
-        }
-        match holders.into_iter().find(|holder| *holder != pid) {
-            Some(foreign) => Err(OrchestrationError::PortHeldByForeignProcess {
+        };
+        let observed = StartupObservation {
+            connected,
+            listeners,
+            child_alive: subprocess::is_running(pid).await,
+            marker: marker_check(pid, agent_name).await,
+        };
+        match startup_verdict(pid, &observed) {
+            StartupVerdict::Ready => Ok(Readiness::Ready),
+            StartupVerdict::NotYet => Ok(Readiness::NotListening),
+            StartupVerdict::Foreign(foreign) => Err(OrchestrationError::PortHeldByForeignProcess {
                 port,
                 pid: foreign,
                 agent: agent_name.clone(),
             }),
-            None => Ok(Readiness::NotListening),
         }
     }
 
