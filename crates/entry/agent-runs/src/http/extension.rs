@@ -7,7 +7,9 @@
 //! `provide`s: a profile that disables `agent_runs` while `agent_runs_api`
 //! stays enabled is refused at boot with `LoaderError::UnmetStateRequirement`.
 //! A profile that disables `agent_runs_api` (alone or with `agent_runs`)
-//! mounts no agent-runs route, and the path answers 404.
+//! mounts no agent-runs route, and the path answers 404. A state that lacks
+//! the repository while the extension is enabled is an `Err`
+//! (`LoaderError::RouterBuildFailed` at the host), never a silent omission.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -36,15 +38,12 @@ impl Extension for AgentRunsApiExtension {
         vec![StateRequirement::of::<AgentRunRepository>()]
     }
 
-    fn router(&self, ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
-        let state = match AgentRunsState::from_extension(ctx) {
-            Ok(state) => state,
-            Err(error) => {
-                tracing::error!(%error, "agent-runs routes not declared");
-                return None;
-            },
-        };
-        Some(
+    fn routers(
+        &self,
+        ctx: &dyn ExtensionContext,
+    ) -> Result<Vec<ExtensionRouter>, ExtensionStateError> {
+        let state = AgentRunsState::from_extension(ctx)?;
+        Ok(vec![
             ExtensionRouter::new(
                 router(state),
                 ApiPaths::AGENT_RUNS,
@@ -53,7 +52,7 @@ impl Extension for AgentRunsApiExtension {
             )
             .in_group(RouteGroup::Agent)
             .with_rate_limit(RateLimit::new("agent_runs", RateBudget::Tasks)),
-        )
+        ])
     }
 }
 

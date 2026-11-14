@@ -35,9 +35,11 @@ async fn the_agent_runs_extension_provides_the_repository_and_the_launcher() {
 #[tokio::test]
 async fn the_route_group_is_declared_user_gated_and_rate_limited() {
     let ctx = offline_extension_context();
-    let declared = AgentRunsApiExtension
-        .router(&*ctx)
+    let mut declarations = AgentRunsApiExtension
+        .routers(&*ctx)
         .expect("the routes are declared over a state with the run repository");
+    assert_eq!(declarations.len(), 1);
+    let declared = declarations.remove(0);
     assert_eq!(declared.base_path, ApiPaths::AGENT_RUNS);
     assert_eq!(declared.group, RouteGroup::Agent);
     assert_eq!(declared.protection.context, ContextKind::User);

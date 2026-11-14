@@ -8,7 +8,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use systemprompt_extension::{
     AuthzPolicy, ContextKind, Extension, ExtensionContext, ExtensionMetadata, ExtensionRegistry,
-    ExtensionRouter, LoaderError, SchemaDefinition,
+    ExtensionRouter, ExtensionStateError, LoaderError, SchemaDefinition,
 };
 use systemprompt_identifiers::ExtensionId;
 
@@ -18,6 +18,8 @@ struct CapExt {
     id: &'static str,
     schemas: bool,
     has_router: bool,
+    second_router: bool,
+    router_fails: bool,
     router_builds: Arc<AtomicUsize>,
     storage: Vec<&'static str>,
     required: bool,
@@ -29,6 +31,8 @@ impl CapExt {
             id,
             schemas: false,
             has_router: false,
+            second_router: false,
+            router_fails: false,
             router_builds: Arc::new(AtomicUsize::new(0)),
             storage: Vec::new(),
             required: false,
@@ -53,18 +57,32 @@ impl Extension for CapExt {
         }
     }
 
-    fn router(&self, _ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
+    fn routers(
+        &self,
+        _ctx: &dyn ExtensionContext,
+    ) -> Result<Vec<ExtensionRouter>, ExtensionStateError> {
         self.router_builds.fetch_add(1, Ordering::SeqCst);
+        if self.router_fails {
+            return Err(ExtensionStateError::NotReady);
+        }
+        let mut routers = Vec::new();
         if self.has_router {
-            Some(ExtensionRouter::new(
+            routers.push(ExtensionRouter::new(
                 axum::Router::new(),
                 "/api/v1/cap",
                 AuthzPolicy::user(),
                 ContextKind::User,
-            ))
-        } else {
-            None
+            ));
         }
+        if self.second_router {
+            routers.push(ExtensionRouter::new(
+                axum::Router::new(),
+                "/api/v1/cap-admin",
+                AuthzPolicy::admin(),
+                ContextKind::User,
+            ));
+        }
+        Ok(routers)
     }
 
     fn required_storage_paths(&self) -> Vec<&'static str> {
@@ -122,6 +140,46 @@ fn api_routers_filters_by_router_presence() {
     assert_eq!(api.len(), 1);
     assert_eq!(api[0].0.id(), "routed");
     assert_eq!(api[0].1.base_path, "/api/v1/cap");
+}
+
+#[test]
+fn api_routers_returns_every_declaration_of_one_extension() {
+    let mut routed = CapExt::new("routed");
+    routed.has_router = true;
+    routed.second_router = true;
+    let registry = registry_with(vec![Arc::new(routed)]);
+
+    let ctx = StubCtx;
+    let api = registry.api_routers(&ctx, &[]).expect("nothing disabled");
+    let paths: Vec<_> = api
+        .iter()
+        .map(|(ext, declared)| (ext.id(), declared.base_path))
+        .collect();
+    assert_eq!(
+        paths,
+        vec![("routed", "/api/v1/cap"), ("routed", "/api/v1/cap-admin")]
+    );
+}
+
+#[test]
+fn api_routers_refuses_an_extension_whose_routers_fail_to_build() {
+    let mut broken = CapExt::new("broken");
+    broken.router_fails = true;
+    let mut routed = CapExt::new("routed");
+    routed.has_router = true;
+    let registry = registry_with(vec![Arc::new(routed), Arc::new(broken)]);
+
+    let ctx = StubCtx;
+    let err = registry
+        .api_routers(&ctx, &[])
+        .expect_err("a router build failure refuses the whole set");
+    match err {
+        LoaderError::RouterBuildFailed { extension, source } => {
+            assert_eq!(extension, "broken");
+            assert!(matches!(source, ExtensionStateError::NotReady));
+        },
+        other => panic!("expected RouterBuildFailed, got {other:?}"),
+    }
 }
 
 #[test]

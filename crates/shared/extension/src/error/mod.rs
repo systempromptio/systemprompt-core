@@ -104,10 +104,11 @@ pub enum LoaderError {
         source: ExtensionConfigError,
     },
 
-    #[error("Extension '{extension}' uses reserved API path '{path}'")]
-    ReservedPathCollision {
+    #[error("Extension '{extension}' could not build its routers")]
+    RouterBuildFailed {
         extension: ExtensionId,
-        path: String,
+        #[source]
+        source: ExtensionStateError,
     },
 
     #[error(

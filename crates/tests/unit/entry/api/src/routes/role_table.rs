@@ -189,3 +189,34 @@ fn role_predicates_split_serving_from_supervision() {
     assert!(!NodeRole::Gateway.supervises_processes());
     assert!(!NodeRole::Runner.runs_scheduler());
 }
+
+#[test]
+fn extension_declarations_are_served_by_the_roles_of_their_own_group() {
+    let serving = |group: RouteGroup| -> HashSet<NodeRole> {
+        [
+            NodeRole::All,
+            NodeRole::Gateway,
+            NodeRole::Api,
+            NodeRole::Worker,
+            NodeRole::Runner,
+        ]
+        .into_iter()
+        .filter(|role| route_groups(*role).contains(&group))
+        .collect()
+    };
+
+    assert_eq!(
+        serving(RouteGroup::Extensions),
+        [NodeRole::All, NodeRole::Api].into_iter().collect(),
+        "an install extension's router stays on exactly the all and api roles"
+    );
+    assert_eq!(
+        serving(RouteGroup::Agent),
+        [NodeRole::All, NodeRole::Api, NodeRole::Worker]
+            .into_iter()
+            .collect(),
+        "a core capability's agent-group router is served on workers too"
+    );
+    assert!(route_groups(NodeRole::Worker).contains(&RouteGroup::Agent));
+    assert!(!route_groups(NodeRole::Worker).contains(&RouteGroup::Extensions));
+}
