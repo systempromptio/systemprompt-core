@@ -23,7 +23,9 @@ fn entry_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../entry")
 }
 
-pub(super) fn router_inventory() -> BTreeSet<RouteKey> {
+pub(super) type Source = (String, String);
+
+pub(super) fn sources() -> Vec<Source> {
     let root = entry_root().join("api/src");
     let mut files = Vec::new();
     collect_rs(&root, &mut files);
@@ -33,15 +35,61 @@ pub(super) fn router_inventory() -> BTreeSet<RouteKey> {
         root.display(),
         files.len()
     );
-    let mut keys = BTreeSet::new();
-    scan_tree(&root, "", &files, &mut keys);
+    let mut sources = Vec::new();
+    read_tree(&root, "", &files, &mut sources);
     for capability in capability_entry_crates() {
         let src = entry_root().join(&capability).join("src");
         let mut files = Vec::new();
         collect_rs(&src, &mut files);
-        scan_tree(&src, &format!("{capability}/"), &files, &mut keys);
+        read_tree(&src, &format!("{capability}/"), &files, &mut sources);
+    }
+    sources
+}
+
+pub(super) fn router_inventory() -> BTreeSet<RouteKey> {
+    let sources = sources();
+    let mut keys = BTreeSet::new();
+    for (rel, code) in &sources {
+        scan_file(rel, code, &sources, &mut keys);
     }
     keys
+}
+
+pub(super) fn fn_body<'a>(sources: &'a [Source], name: &str) -> Option<(&'a str, &'a str)> {
+    let needle = format!("fn {name}(");
+    sources.iter().find_map(|(rel, code)| {
+        let at = code.find(&needle)?;
+        let open = at + code[at..].find('{')?;
+        let close = matching_brace(code, open + 1);
+        Some((rel.as_str(), &code[at..=close]))
+    })
+}
+
+pub(super) fn each_call(code: &str, call: &str, mut found: impl FnMut(usize, &str)) {
+    let mut from = 0;
+    while let Some(at) = code[from..].find(call) {
+        let open = from + at + call.len();
+        let close = matching_close(code, open);
+        found(open, &code[open..close]);
+        from = close;
+    }
+}
+
+fn matching_brace(code: &str, open: usize) -> usize {
+    let mut depth = 1usize;
+    for (offset, c) in code[open..].char_indices() {
+        match c {
+            '{' => depth += 1,
+            '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return open + offset;
+                }
+            },
+            _ => {},
+        }
+    }
+    panic!("unbalanced fn body");
 }
 
 fn capability_entry_crates() -> Vec<String> {
@@ -57,7 +105,7 @@ fn capability_entry_crates() -> Vec<String> {
     names
 }
 
-fn scan_tree(root: &Path, prefix: &str, files: &[PathBuf], keys: &mut BTreeSet<RouteKey>) {
+fn read_tree(root: &Path, prefix: &str, files: &[PathBuf], sources: &mut Vec<Source>) {
     for file in files {
         let rel = file
             .strip_prefix(root)
@@ -65,8 +113,7 @@ fn scan_tree(root: &Path, prefix: &str, files: &[PathBuf], keys: &mut BTreeSet<R
             .to_string_lossy()
             .replace('\\', "/");
         let text = fs::read_to_string(file).expect("read entry source");
-        let code = strip_line_comments(&text);
-        scan_file(&format!("{prefix}{rel}"), &code, keys);
+        sources.push((format!("{prefix}{rel}"), strip_line_comments(&text)));
     }
 }
 
@@ -88,24 +135,43 @@ fn strip_line_comments(text: &str) -> String {
         .join("\n")
 }
 
-fn scan_file(rel: &str, code: &str, keys: &mut BTreeSet<RouteKey>) {
-    let mut from = 0;
-    while let Some(found) = code[from..].find(".route(") {
-        let open = from + found + ".route(".len();
-        let close = matching_close(code, open);
-        let inner = &code[open..close];
+fn scan_file(rel: &str, code: &str, sources: &[Source], keys: &mut BTreeSet<RouteKey>) {
+    each_call(code, ".route(", |open, inner| {
         let (path_arg, handler) = split_first_arg(inner);
         let path: String = path_arg.split_whitespace().collect();
         let site = format!("{rel}::{}", enclosing_fn(&code[..open]));
         let handler = resolve_binding(code, handler.trim());
-        for method in top_level_methods(&handler) {
+        let mut methods = top_level_methods(&handler);
+        if methods.is_empty() {
+            methods = returned_methods(sources, &handler);
+        }
+        assert!(
+            !methods.is_empty(),
+            "{site}: the method router `{}` of route `{path}` names no HTTP method the \
+             inventory can read",
+            handler.trim()
+        );
+        for method in methods {
             keys.insert(RouteKey {
                 site: site.clone(),
                 method,
                 path: path.clone(),
             });
         }
-        from = close;
+    });
+}
+
+fn returned_methods(sources: &[Source], handler: &str) -> Vec<String> {
+    let Some(call) = handler.trim().split('(').next() else {
+        return Vec::new();
+    };
+    let callee = call.rsplit("::").next().unwrap_or(call);
+    match fn_body(sources, callee) {
+        Some((_, body)) if body[..body.find('{').unwrap_or(0)].contains("MethodRouter") => {
+            let inner = &body[body.find('{').map_or(0, |b| b + 1)..body.len() - 1];
+            top_level_methods(inner)
+        },
+        _ => Vec::new(),
     }
 }
 
@@ -126,7 +192,7 @@ fn matching_close(code: &str, open: usize) -> usize {
     panic!("unbalanced .route( call");
 }
 
-fn split_first_arg(inner: &str) -> (&str, &str) {
+pub(super) fn split_first_arg(inner: &str) -> (&str, &str) {
     let mut depth = 0i32;
     for (offset, c) in inner.char_indices() {
         match c {
@@ -139,7 +205,7 @@ fn split_first_arg(inner: &str) -> (&str, &str) {
     panic!(".route( call with one argument: {inner}");
 }
 
-fn enclosing_fn(before: &str) -> String {
+pub(super) fn enclosing_fn(before: &str) -> String {
     let at = before.rfind("fn ").expect(".route( inside a fn");
     before[at + 3..]
         .chars()

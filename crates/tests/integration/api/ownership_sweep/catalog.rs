@@ -9,6 +9,7 @@ const REGISTER: &str = "RFC 7592 client configuration, authorised by the client'
 const INFERENCE: &str =
     "AI gateway call acting on the caller's own request; no stored resource is addressed";
 const BRIDGE_SELF: &str = "bridge self-service route acting only on the authenticated caller's own profile, device or session; no foreign id is addressable";
+const ENTITLED: &str = "serves a marketplace plugin file to the authenticated bridge caller after resolving that caller's own plugin entitlement; the path names a catalog plugin, not another user's resource";
 const CALLER: &str = "acts only on the authenticated caller's own identity or sessions; the path carries no resource id";
 const WEBHOOK: &str =
     "inbound platform webhook authenticated by the platform's signature, not by a user";
@@ -79,6 +80,7 @@ pub(super) const NOT_USER_OWNED: &[Row] = &[
     free("routes/gateway/routers.rs::bridge_auth_routes", "POST", "ApiPaths::gateway_relative(ApiPaths::BRIDGE_AUTH_SESSION)", OAUTH),
     free("routes/gateway/routers.rs::bridge_auth_routes", "POST", "ApiPaths::gateway_relative(ApiPaths::BRIDGE_AUTH_SESSION_PAT)", OAUTH),
     free("routes/gateway/routers.rs::bridge_profile_routes", "GET", "ApiPaths::gateway_relative(ApiPaths::BRIDGE_MANIFEST)", BRIDGE_SELF),
+    free("routes/gateway/routers.rs::bridge_profile_routes", "GET", "ApiPaths::gateway_relative(ApiPaths::BRIDGE_PLUGIN_FILE_ROUTE)", ENTITLED),
     free("routes/gateway/routers.rs::bridge_profile_routes", "GET", "ApiPaths::gateway_relative(ApiPaths::BRIDGE_PROFILE)", BRIDGE_SELF),
     free("routes/gateway/routers.rs::bridge_profile_routes", "GET", "ApiPaths::gateway_relative(ApiPaths::BRIDGE_PUBKEY)", BRIDGE_SELF),
     free("routes/gateway/routers.rs::bridge_profile_routes", "GET", "ApiPaths::gateway_relative(ApiPaths::BRIDGE_WHOAMI)", BRIDGE_SELF),

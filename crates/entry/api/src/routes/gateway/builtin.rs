@@ -2,7 +2,7 @@
 //! gateway base.
 //!
 //! [`builtin_gateway_prefixes`] is the one list both the surface and the
-//! registration check read: [`gateway_mount_parts`](super::gateway_mount_parts)
+//! registration check read: `gateway_mount_parts`
 //! confines the built-in inference and bridge routers to it (a request path
 //! outside every prefix answers 404, so a built-in route added without its
 //! prefix fails its own route tests rather than escaping the check), and
