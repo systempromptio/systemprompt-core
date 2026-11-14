@@ -101,3 +101,35 @@ fn a_listed_declaration_with_another_context_or_body_limit_is_refused() {
         Some(CoreShapeField::BodyLimit)
     );
 }
+
+#[test]
+fn a_core_declaration_moved_to_another_path_is_refused() {
+    let moved = ExtensionRouter::new(
+        Router::new(),
+        "/api/v1/agent-runs-v2",
+        AuthzPolicy::user(),
+        ContextKind::User,
+    )
+    .in_group(RouteGroup::Agent)
+    .with_rate_limit(CoreDeclaration::AgentRuns.rate_limit());
+    assert_eq!(
+        refused_for("agent_runs_api", &moved),
+        Some(CoreShapeField::BasePath)
+    );
+}
+
+#[test]
+fn a_core_declaration_moved_to_another_group_is_refused() {
+    let regrouped = row(CoreDeclaration::AgentRuns).in_group(RouteGroup::ContentAndMisc);
+    assert_eq!(
+        refused_for("agent_runs_api", &regrouped),
+        Some(CoreShapeField::Group)
+    );
+}
+
+#[test]
+fn an_install_id_is_not_judged_against_core_rows() {
+    let declared = row(CoreDeclaration::AgentRuns);
+    assert_eq!(refused_for("install", &declared), None);
+    assert!(admit_extension("install", &declared).is_ok());
+}

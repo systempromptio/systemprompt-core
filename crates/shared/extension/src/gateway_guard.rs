@@ -9,12 +9,20 @@
 //!
 //! [`GatewayGuards::discover`] (over the linked registrations and the
 //! profile's disabled set; [`GatewayGuards::from_registrations`] over any)
-//! installs a guard only while its owning
-//! extension is linked and enabled, as every other owner-attributed
-//! registration is collected. A guard whose owner is disabled in the profile
-//! is not installed. A guard naming an owner that is not a linked extension
-//! is refused with [`GatewayGuardError::UnknownOwner`], so a mistyped owner
-//! never silently drops a guard from the request path.
+//! installs a guard only while its owning extension is enabled in the
+//! context (in its registry and not in the profile's disabled set), in
+//! registration order, as every other owner-attributed registration is
+//! collected. "Linked" is judged against the extensions linked into the
+//! binary (the `register_extension!` inventory), not the context's registry:
+//! in a product binary the two are the same, and a context over a narrowed
+//! registry treats a linked owner it does not hold as not enabled. A guard
+//! whose owner is not enabled is not installed: the skip is logged at `warn`
+//! with the owners and the count, and [`GatewayGuards::not_installed`] lists
+//! the owners so the server reports them in its startup summary. A guard
+//! naming an owner that is not linked into the binary is refused with
+//! [`GatewayGuardError::UnknownOwner`], so a mistyped owner never silently
+//! drops a guard from the request path.
+//!
 //! This lets an extension enforce a policy — for example a per-user credit
 //! balance — without the core needing to know about it.
 //!
@@ -35,6 +43,7 @@ use systemprompt_models::attribution::RequestAttribution;
 use systemprompt_traits::DatabaseHandle;
 
 use crate::context::ExtensionContext;
+use crate::registry::ExtensionRegistration;
 
 /// The resolved gateway request a guard is asked to admit or deny.
 #[derive(Debug, Clone)]
@@ -140,19 +149,25 @@ macro_rules! register_gateway_guard {
 /// Why the gateway's guard set could not be built.
 #[derive(Debug, thiserror::Error)]
 pub enum GatewayGuardError {
-    #[error("a gateway guard names owner '{0}', which is not a linked extension")]
+    #[error(
+        "a gateway guard names owner '{0}', which is not an extension linked into this binary"
+    )]
     UnknownOwner(ExtensionId),
 }
 
 /// The guards one gateway owns, built once at the composition root from the
-/// registered factories.
+/// registered factories, with the owners of the guards it left out.
 #[derive(Clone, Default)]
-pub struct GatewayGuards(Vec<Arc<dyn GatewayRequestGuard>>);
+pub struct GatewayGuards {
+    installed: Vec<(&'static str, Arc<dyn GatewayRequestGuard>)>,
+    not_installed: Vec<&'static str>,
+}
 
 impl std::fmt::Debug for GatewayGuards {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("GatewayGuards")
-            .field("guards", &self.0.len())
+            .field("installed", &self.installed_owners())
+            .field("not_installed", &self.not_installed)
             .finish()
     }
 }
@@ -163,43 +178,71 @@ impl GatewayGuards {
     }
 
     pub fn discover(ctx: &dyn ExtensionContext) -> Result<Self, GatewayGuardError> {
+        let linked: Vec<&'static str> = inventory::iter::<ExtensionRegistration>
+            .into_iter()
+            .map(|registration| (registration.factory)().metadata().id)
+            .collect();
         let profile = ctx.profile();
-        Self::from_registrations(ctx, Self::registrations(), &profile.extensions.disabled)
+        Self::from_registrations(
+            ctx,
+            Self::registrations(),
+            &linked,
+            &profile.extensions.disabled,
+        )
     }
 
     pub fn from_registrations<'a>(
         ctx: &dyn ExtensionContext,
         registrations: impl IntoIterator<Item = &'a GatewayRequestGuardRegistration>,
+        linked: &[&str],
         disabled: &[ExtensionId],
     ) -> Result<Self, GatewayGuardError> {
-        let mut guards = Vec::new();
+        let mut guards = Self::default();
         for registration in registrations {
-            if !ctx.has_extension(registration.extension) {
+            if !linked.contains(&registration.extension) {
                 return Err(GatewayGuardError::UnknownOwner(ExtensionId::new(
                     registration.extension,
                 )));
             }
-            if disabled.iter().any(|id| id == registration.extension) {
-                tracing::info!(
-                    extension = registration.extension,
-                    reason = "extension_disabled",
-                    "Gateway guard not installed"
-                );
+            let enabled = ctx.has_extension(registration.extension)
+                && !disabled.iter().any(|id| id == registration.extension);
+            if !enabled {
+                guards.not_installed.push(registration.extension);
                 continue;
             }
-            guards.push((registration.factory)(ctx));
+            guards
+                .installed
+                .push((registration.extension, (registration.factory)(ctx)));
         }
-        Ok(Self(guards))
+        if !guards.not_installed.is_empty() {
+            tracing::warn!(
+                owners = ?guards.not_installed,
+                count = guards.not_installed.len(),
+                reason = "owner_not_enabled",
+                "Gateway guards not installed"
+            );
+        }
+        Ok(guards)
+    }
+
+    #[must_use]
+    pub fn installed_owners(&self) -> Vec<&'static str> {
+        self.installed.iter().map(|(owner, _)| *owner).collect()
+    }
+
+    #[must_use]
+    pub fn not_installed(&self) -> &[&'static str] {
+        &self.not_installed
     }
 
     #[must_use]
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.installed.len()
     }
 
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.installed.is_empty()
     }
 
     pub async fn run(
@@ -207,7 +250,7 @@ impl GatewayGuards {
         db: &dyn DatabaseHandle,
         request: &GatewayGuardRequest<'_>,
     ) -> Result<(), GatewayDenyReason> {
-        for guard in &self.0 {
+        for (_, guard) in &self.installed {
             guard.check(db, request).await?;
         }
         Ok(())

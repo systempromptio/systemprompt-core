@@ -1,7 +1,7 @@
 //! The stub `ExtensionContext` shared by the registry tests: every handle is
 //! inert, `extension_state` is an empty map, and the one linked extension it
-//! knows is [`GUARD_OWNER`], the owner of the gateway guard these tests
-//! register.
+//! knows are [`GUARD_OWNER`] and the ids that extend it, the owners of the
+//! gateway guards these tests register.
 
 use std::sync::Arc;
 
@@ -188,7 +188,8 @@ impl ExtensionContext for StubCtx {
         systemprompt_test_fixtures::test_token_authority(&self.app_config().jwt_issuer)
     }
     fn get_extension(&self, id: &str) -> Option<Arc<dyn Extension>> {
-        (id == GUARD_OWNER).then(|| Arc::new(GuardOwner) as Arc<dyn Extension>)
+        id.starts_with(GUARD_OWNER)
+            .then(|| Arc::new(GuardOwner) as Arc<dyn Extension>)
     }
     fn extension_state(&self) -> systemprompt_provider_contracts::Dependencies {
         systemprompt_provider_contracts::Dependencies::new()
