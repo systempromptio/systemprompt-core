@@ -170,7 +170,7 @@ pub mod gateway {
 #[cfg(feature = "cli")]
 #[cfg_attr(docsrs, doc(cfg(feature = "cli")))]
 pub mod cli {
-    pub use systemprompt_cli::{CliConfig, ColorMode, OutputFormat, VerbosityLevel, run};
+    pub use systemprompt_cli::{CliConfig, ColorMode, OutputFormat, VerbosityLevel, run, run_with};
 }
 
 #[cfg(any(feature = "runtime", feature = "full"))]

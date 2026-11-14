@@ -82,6 +82,7 @@ pub struct ConfigPlane {
     pub files_config: Arc<FilesConfig>,
     pub content_config: Option<Arc<ContentConfigRaw>>,
     pub route_classifier: Arc<RouteClassifier>,
+    pub build: systemprompt_models::BuildIdentity,
 }
 
 #[derive(Clone)]
@@ -232,9 +233,6 @@ impl AppContext {
         ))
     }
 
-    pub const fn route_classifier(&self) -> &Arc<RouteClassifier> {
-        &self.cfg.route_classifier
-    }
 
     pub fn app_paths(&self) -> &AppPaths {
         &self.cfg.app_paths

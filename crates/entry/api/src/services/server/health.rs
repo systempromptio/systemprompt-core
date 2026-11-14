@@ -2,7 +2,10 @@
 //!
 //! [`handle_health`] is the lightweight liveness probe (a single `SELECT 1`).
 //! It answers `degraded` with a `governance` block while the governance plane
-//! was never applied, naming the `unapplied_planes` mode and the fix.
+//! was never applied, naming the `unapplied_planes` mode and the fix. Next
+//! to core's `version` it reports `build`, the identity the embedding binary
+//! gave its context ([`systemprompt_models::BuildIdentity`]), so two
+//! downstream builds on one core release are told apart.
 //! `get_system_stats` gathers database, disk, and audit-log statistics for
 //! the detailed health surface, with platform-specific process-memory and
 //! disk-usage helpers.
@@ -246,7 +249,11 @@ pub async fn handle_health(
         ("degraded", StatusCode::OK)
     };
 
-    let mut body = json!({ "status": status, "version": env!("CARGO_PKG_VERSION") });
+    let mut body = json!({
+        "status": status,
+        "version": env!("CARGO_PKG_VERSION"),
+        "build": ctx.build_identity(),
+    });
     if !degraded_jobs.is_empty() {
         body["scheduler"] = json!({ "degraded_jobs": degraded_jobs });
     }

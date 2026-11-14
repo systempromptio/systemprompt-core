@@ -1,5 +1,6 @@
 //! Accessors for the handles the composition root injects into the context:
-//! the files configuration, the event broadcaster set and the connector token
+//! the route classifier, the identity of the binary being served, the files
+//! configuration, the event broadcaster set and the connector token
 //! cache, and the deployment token authority built over the signing keys.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -19,6 +20,14 @@ use systemprompt_security::credential::TokenCache;
 use super::AppContext;
 
 impl AppContext {
+    pub const fn route_classifier(&self) -> &Arc<systemprompt_models::RouteClassifier> {
+        &self.cfg.route_classifier
+    }
+
+    pub const fn build_identity(&self) -> &systemprompt_models::BuildIdentity {
+        &self.cfg.build
+    }
+
     #[cfg(feature = "notifications")]
     #[must_use]
     pub fn notifications(&self) -> &crate::notifications::NotificationsHandle {

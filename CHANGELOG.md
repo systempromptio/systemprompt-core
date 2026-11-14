@@ -4,7 +4,12 @@
 
 ### Breaking
 
+- **Breaking:** **Runtime:** `ConfigPlane` gains the `build` field. Migrate by setting it, usually to `BuildIdentity::core()`.
 - **Breaking:** **API:** `RouteGroup` gains `InternalLinks`, and `systemprompt_runtime::documents::links::LinkRefusal` gains `Unavailable`. Migrate by adding the match arms.
+
+### Added
+
+- **CLI:** `systemprompt_cli::run_with(BuildIdentity)` (also `systemprompt::cli::run_with`) lets an embedding binary name itself — product name, version and optional source revision (`systemprompt_models::BuildIdentity`); `/livez`, `/readyz`, `/api/v1/health`, `/api/v1/health/detail` and the root discovery document report it under `build` next to core's `version`, and `run` reports core itself. The runtime takes it through `AppContextBuilder::with_build_identity` and exposes it as `AppContext::build_identity`.
 
 ### Changed
 

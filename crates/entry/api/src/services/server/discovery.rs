@@ -26,6 +26,7 @@ pub async fn handle_root_discovery(
     let data = json!({
         "name": format!("{} API", ctx.config().sitename),
         "version": env!("CARGO_PKG_VERSION"),
+        "build": ctx.build_identity(),
         "description": "systemprompt.io OS API Gateway",
         "endpoints": {
             "health": format!("{}{}", base, ApiPaths::HEALTH),

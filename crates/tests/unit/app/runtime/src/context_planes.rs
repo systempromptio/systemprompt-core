@@ -122,6 +122,7 @@ async fn plane_debug_impls_flag_optional_members() {
         app_paths,
         content_config: Some(content_config()),
         route_classifier: Arc::new(RouteClassifier::new(None)),
+        build: systemprompt_models::BuildIdentity::core(),
         boot: systemprompt_test_fixtures::ensure_test_bootstrap()
             .boot
             .clone(),
