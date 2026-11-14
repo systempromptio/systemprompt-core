@@ -39,6 +39,8 @@ mod bundle_verify_edges;
 #[cfg(test)]
 mod config_loader_apps;
 #[cfg(test)]
+mod config_loader_secret_refs;
+#[cfg(test)]
 mod config_loader_discovery;
 #[cfg(test)]
 mod config_loader_errors;
