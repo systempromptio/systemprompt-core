@@ -1,24 +1,28 @@
 //! Detached spawning and binary management for MCP server processes.
 //!
-//! [`spawn_server`] launches an MCP server binary in its own process group with
+//! [`spawn_server`] launches the server's program (its extension binary, or
+//! this executable re-run as `admin mcp serve --server <id>` for a hosted
+//! server, see [`SpawnProgram`]) in its own process group with
 //! a sanitised environment (profile, the database URLs, the deployment's
 //! public verification keys, granted secrets, per-server config, and the SSRF
 //! trust allowlist; never the pepper, seed, signing PEMs or licence secret),
 //! redirecting output to a size-rotated log file and detaching the child so it
-//! outlives this call. Also covers binary verification and an on-demand debug
-//! build path.
+//! outlives this call. Both programs get the same environment and the same
+//! [`ChildKind::Mcp`] spawn marker, so ownership checks treat them alike.
+//! Also covers binary verification and an on-demand debug build path, both of
+//! which have nothing to do for a hosted server.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::McpServerConfig;
 use crate::error::McpDomainResult;
-use crate::services::spawn_target::SpawnTarget;
+use crate::services::spawn_target::{SpawnProgram, SpawnTarget, hosted_serve_args};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use systemprompt_config::SecretsService;
-use systemprompt_config::paths::AppPaths;
+use systemprompt_config::paths::{AppPaths, BuildPaths};
 use systemprompt_loader::subprocess::{self, ChildKind, Spawner};
 use systemprompt_manifest::Config;
 
@@ -150,14 +154,8 @@ pub fn spawn_server(
     paths: &AppPaths,
     config: &McpServerConfig,
 ) -> McpDomainResult<u32> {
-    let binary = config.spawn_binary()?;
     let port = config.spawn_port()?;
-    let binary_path = paths.build().resolve_binary(binary).map_err(|e| {
-        crate::error::McpDomainError::operation(
-            format!("Failed to find binary '{binary}' for {}", config.name),
-            e,
-        )
-    })?;
+    let (program_path, args) = spawn_command_line(paths, config)?;
 
     let log_file = open_server_log(paths, config)?;
     let (tools_config_json, server_model_config_json) = serialize_server_configs(config)?;
@@ -182,7 +180,8 @@ pub fn spawn_server(
         |name| std::env::var(name).ok(),
     )?;
 
-    let mut child_command = Command::new(&binary_path);
+    let mut child_command = Command::new(&program_path);
+    child_command.args(args);
     child_command.env_clear();
     child_command.envs(env);
     subprocess::mark_child(&mut child_command, ChildKind::Mcp, &config.service_name());
@@ -203,8 +202,37 @@ pub fn spawn_server(
     Ok(pid)
 }
 
+pub fn spawn_command_line(
+    paths: &AppPaths,
+    config: &McpServerConfig,
+) -> McpDomainResult<(PathBuf, Vec<String>)> {
+    match config.spawn_program()? {
+        SpawnProgram::Binary(binary) => {
+            let binary_path = paths.build().resolve_binary(binary).map_err(|e| {
+                crate::error::McpDomainError::operation(
+                    format!("Failed to find binary '{binary}' for {}", config.name),
+                    e,
+                )
+            })?;
+            Ok((binary_path, Vec::new()))
+        },
+        SpawnProgram::Hosted => {
+            let self_path = BuildPaths::resolve_self().map_err(|e| {
+                crate::error::McpDomainError::operation(
+                    format!("Failed to resolve the running binary to host {}", config.name),
+                    e,
+                )
+            })?;
+            Ok((self_path, hosted_serve_args(config)))
+        },
+    }
+}
+
 pub fn verify_binary(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResult<()> {
-    let binary = config.spawn_binary()?;
+    let SpawnProgram::Binary(binary) = config.spawn_program()? else {
+        tracing::debug!(service = %config.name, "Hosted by this binary; nothing to verify");
+        return Ok(());
+    };
     let binary_path = paths.build().resolve_binary(binary)?;
 
     let metadata = fs::metadata(&binary_path).map_err(|e| {
@@ -225,7 +253,10 @@ pub fn verify_binary(paths: &AppPaths, config: &McpServerConfig) -> McpDomainRes
 }
 
 pub fn build_server(config: &McpServerConfig) -> McpDomainResult<()> {
-    let binary = config.spawn_binary()?;
+    let SpawnProgram::Binary(binary) = config.spawn_program()? else {
+        tracing::debug!(service = %config.name, "Hosted by this binary; nothing to build");
+        return Ok(());
+    };
     tracing::info!(service = %config.name, binary, "Building service (debug mode)");
 
     let output = Command::new("cargo")

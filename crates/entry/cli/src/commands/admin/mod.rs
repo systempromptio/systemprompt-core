@@ -18,6 +18,7 @@ pub mod identity;
 pub mod issues;
 pub mod keys;
 pub mod licence;
+pub mod mcp;
 pub mod session;
 pub mod setup;
 pub mod users;
@@ -127,7 +128,7 @@ impl DescribeCommand for AdminCommands {
         match self {
             Self::Session(cmd) => cmd.descriptor(),
             Self::Config(cmd) => cmd.descriptor(),
-            Self::Agents(agents::AgentsCommands::Run(_)) => CommandDescriptor::PROFILE_ONLY,
+            Self::Agents(agents::AgentsCommands::Run(_)) => CommandDescriptor::CHILD_HOST,
             Self::Bridge(bridge::BridgeCommands::SigningKeyFingerprint(_)) => {
                 CommandDescriptor::PROFILE_AND_SECRETS
             },

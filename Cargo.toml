@@ -37,6 +37,7 @@ members = [
     "crates/domain/brain",
     # Application layer
     "crates/app/runtime",
+    "crates/app/mcp-host",
     "crates/app/scheduler",
     "crates/app/agent-runs",
     "crates/app/generator",
@@ -348,6 +349,7 @@ systemprompt-teams = { path = "crates/domain/teams", version = "0.81.1" }
 systemprompt-notifications = { path = "crates/domain/notifications", version = "0.81.1" }
 systemprompt-brain = { path = "crates/domain/brain", version = "0.81.1" }
 systemprompt-runtime = { path = "crates/app/runtime", version = "0.81.1" }
+systemprompt-mcp-host = { path = "crates/app/mcp-host", version = "0.81.1" }
 systemprompt-scheduler = { path = "crates/app/scheduler", version = "0.81.1" }
 systemprompt-agent-runs = { path = "crates/app/agent-runs", version = "0.81.1" }
 systemprompt-generator = { path = "crates/app/generator", version = "0.81.1" }

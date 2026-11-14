@@ -15,8 +15,9 @@ use systemprompt_models::auth::{self, McpHopClaims, TokenAuthority, TokenError};
 use super::{IssuedLink, LinkRequest, LinkTarget};
 use crate::documents::actor::bearer_actor;
 use crate::documents::download::{DownloadLinkError, DownloadTarget, signed_download_url};
+use crate::documents::mcp::TOOLSET_ID as DOCUMENTS_TOOLSET;
 use crate::documents::upload_links::{UploadGrant, UploadLinkTarget, signed_upload_links};
-use crate::mcp_host::{DOCUMENTS_TOOLSET, ISSUES_TOOLSET};
+use crate::issues::mcp::TOOLSET_ID as ISSUES_TOOLSET;
 
 #[derive(Debug, thiserror::Error)]
 pub enum LinkMintError {

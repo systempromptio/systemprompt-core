@@ -12,7 +12,9 @@
 //! process with status 130 — but never while an [`InterruptShield`] is held: a
 //! bounded critical section (the file swap of `admin config migrate`) finishes,
 //! and the exit follows it. The API server installs its own drain-aware handler
-//! and is never wrapped.
+//! and is never wrapped; nor is a child host the API spawns (its descriptor's
+//! `child_host`), which ends on the signal its supervisor sends rather than on
+//! a two-stage interrupt that would outlive the API's own drain.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

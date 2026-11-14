@@ -18,7 +18,7 @@ use systemprompt_agent_runs::AgentRunsExtension;
 use systemprompt_ai::AiService;
 use systemprompt_identifiers::AgentName;
 use systemprompt_models::ai::DynAiProvider;
-use systemprompt_runtime::AgentHost;
+use systemprompt_mcp_host::AgentHost;
 
 #[derive(Debug, Clone, Args)]
 pub struct RunArgs {

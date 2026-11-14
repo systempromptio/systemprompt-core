@@ -16,6 +16,6 @@ pub use systemprompt_mcp::{
 pub mod host {
     pub use systemprompt_mcp::host::*;
     pub use systemprompt_mcp::register_mcp_access_recorder;
-    pub use systemprompt_runtime::mcp_host::*;
-    pub use systemprompt_runtime::submit_toolset;
+    pub use systemprompt_mcp_host::submit_toolset;
+    pub use systemprompt_mcp_host::toolsets::*;
 }

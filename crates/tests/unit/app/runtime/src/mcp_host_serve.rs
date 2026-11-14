@@ -1,8 +1,8 @@
 use std::sync::{Arc, OnceLock};
 
 use systemprompt_identifiers::McpServerId;
-use systemprompt_runtime::HostContext;
-use systemprompt_runtime::mcp_host::{
+use systemprompt_mcp_host::HostContext;
+use systemprompt_mcp_host::toolsets::{
     DOCUMENTS_TOOLSET, ISSUES_TOOLSET, McpHostError, build_server, registered_toolset_ids, serve,
     serve_on,
 };

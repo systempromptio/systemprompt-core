@@ -83,9 +83,14 @@ impl RegistryService {
 
             let crate_path = match (deployment.server_type, deployment.binary.as_deref()) {
                 (McpServerType::Internal, Some(binary)) => registry.get_path(binary)?,
+                (McpServerType::Internal, None)
+                    if deployment.enabled_toolsets().next().is_some() =>
+                {
+                    PathBuf::new()
+                },
                 (McpServerType::Internal, None) => {
                     return Err(McpDomainError::Configuration(format!(
-                        "{server_name}: internal MCP server declares no binary"
+                        "{server_name}: internal MCP server declares neither a binary nor toolsets"
                     )));
                 },
                 (McpServerType::External, _) => PathBuf::new(),

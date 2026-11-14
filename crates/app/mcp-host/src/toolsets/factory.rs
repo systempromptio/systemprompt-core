@@ -2,7 +2,10 @@
 //!
 //! A crate that ships an [`McpToolset`] registers how to build it from the
 //! server's [`HostContext`] with [`submit_toolset!`](crate::submit_toolset); a
-//! deployment hosts it by listing the factory's `id` under `toolsets:`.
+//! deployment hosts it by listing the factory's `id` under `toolsets:`. The
+//! macro also submits the id as a
+//! [`RegisteredToolsetId`](systemprompt_runtime::RegisteredToolsetId), which
+//! API startup validation checks hosted servers against.
 //! `Ok(None)` from a factory means the toolset is unavailable in this
 //! installation and is skipped with a warning; an `Err` fails start.
 //!
@@ -35,21 +38,19 @@ pub fn find_toolset_factory(id: &str) -> Option<&'static ToolsetFactory> {
     toolset_factories().find(|factory| factory.id == id)
 }
 
-#[must_use]
-pub fn registered_toolset_ids() -> Vec<&'static str> {
-    let mut ids: Vec<&'static str> = toolset_factories().map(|factory| factory.id).collect();
-    ids.sort_unstable();
-    ids
-}
+pub use systemprompt_runtime::registered_toolset_ids;
 
 #[macro_export]
 macro_rules! submit_toolset {
     ($id:expr, $build:expr $(,)?) => {
         $crate::__toolset_inventory::submit! {
-            $crate::mcp_host::ToolsetFactory {
+            $crate::toolsets::ToolsetFactory {
                 id: $id,
                 build: $build,
             }
+        }
+        $crate::__toolset_inventory::submit! {
+            $crate::__RegisteredToolsetId { id: $id }
         }
     };
 }

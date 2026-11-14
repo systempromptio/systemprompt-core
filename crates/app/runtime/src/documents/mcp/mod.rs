@@ -90,23 +90,8 @@ pub use write::{CreateHandler, EditHandler, create_content};
 use support::run;
 
 use crate::documents::links::LinkIssuer;
-use crate::host::HostContext;
 
-/// Why [`DocumentsMcpTools::from_host`] refused to build the tools.
-#[derive(Debug, thiserror::Error)]
-pub enum DocumentsMcpError {
-    #[error(
-        "MCP server {server_name} serves document tools but the document store is disabled: set \
-         files.documents.enabled: true in services/config/files.yaml"
-    )]
-    Disabled { server_name: McpServerId },
-    #[error("MCP server {server_name}: the API link client could not be built")]
-    Links {
-        server_name: McpServerId,
-        #[source]
-        source: crate::documents::links::LinkIssueError,
-    },
-}
+pub const TOOLSET_ID: &str = "documents";
 
 /// What [`DocumentsMcpTools`] is built from.
 #[derive(Clone)]
@@ -172,28 +157,29 @@ impl DocumentsMcpTools {
         }
     }
 
-    pub fn from_host(
-        host: &HostContext,
+    #[cfg_attr(
+        not(feature = "notifications"),
+        expect(
+            unused_variables,
+            reason = "the document tools take the notifications service only when it is built"
+        )
+    )]
+    #[must_use]
+    pub fn for_host(
+        parts: &crate::HostParts,
+        notifications: &crate::HostNotifications,
+        links: Arc<dyn LinkIssuer>,
         server_name: McpServerId,
-    ) -> Result<Self, DocumentsMcpError> {
-        if !host.files_config().documents_config().is_enabled() {
-            return Err(DocumentsMcpError::Disabled { server_name });
-        }
-        let links = host
-            .link_issuer(&server_name)
-            .map_err(|source| DocumentsMcpError::Links {
-                server_name: server_name.clone(),
-                source,
-            })?;
-        Ok(Self::new(DocumentsMcpConfig {
-            service: Arc::clone(host.documents().service()),
+    ) -> Self {
+        Self::new(DocumentsMcpConfig {
+            service: Arc::clone(parts.documents.service()),
             #[cfg(feature = "notifications")]
-            notifications: Arc::clone(host.notifications()),
-            uploads: Some(Arc::clone(host.documents().uploads())),
-            users: Arc::clone(host.user_repository()),
+            notifications: Arc::clone(notifications.service()),
+            uploads: Some(Arc::clone(parts.documents.uploads())),
+            users: Arc::clone(&parts.user_repository),
             links,
             server_name,
-        }))
+        })
     }
 
     #[must_use]

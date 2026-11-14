@@ -1,4 +1,5 @@
-//! Booting a [`HostContext`] from a spawned server's environment.
+//! [`HostKernel::boot`]: the composition stages run over a child's granted
+//! environment.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -7,7 +8,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use systemprompt_config::paths::AppPaths;
-use systemprompt_config::{GrantedSecrets, GrantedSecretsError, LoadedProfile};
+use systemprompt_config::{GrantedSecrets, LoadedProfile};
 use systemprompt_database::MigrationConfig;
 use systemprompt_loader::{ConfigLoader, ServicesSourceBootstrap, ServicesState};
 use systemprompt_mcp::repository::McpSessionRepository;
@@ -17,8 +18,6 @@ use systemprompt_security::keys::{TokenVerificationKeys, VerificationKeyring};
 use systemprompt_traits::{BackgroundTasks, CacheEpochs, SecretStore};
 use systemprompt_users::UserRepository;
 
-use super::HostContext;
-use super::extension_context::ExtensionHandles;
 use crate::builder::assembly::load_system_admin;
 use crate::builder::authz::authz_stage;
 use crate::builder::composition::build_artifact_ingest;
@@ -28,54 +27,24 @@ use crate::builder::documents::{DocumentsInputs, build_documents};
 use crate::builder::events::event_plane;
 use crate::builder::governance::init_governed_extensions;
 #[cfg(feature = "notifications")]
-use crate::builder::notifications::{ExtensionSeams, NotificationsCore};
+use crate::builder::notifications::NotificationsCore;
 use crate::documents::ExtensionAudiences;
 use crate::error::RuntimeError;
 
-pub const PROFILE_ENV: &str = "SYSTEMPROMPT_PROFILE";
+use super::{HostBootError, HostKernel, HostParts, PROFILE_ENV};
 
-#[derive(Debug, thiserror::Error)]
-pub enum HostBootError {
-    #[error("{PROFILE_ENV} is not in the server's environment")]
-    ProfileMissing,
-    #[error("the profile could not be loaded")]
-    Profile(#[source] systemprompt_config::ConfigError),
-    #[error("the granted secrets could not be read")]
-    Secrets(#[source] GrantedSecretsError),
-    #[error("{VERIFICATION_KEYS_ENV} is not in the server's environment")]
-    VerificationKeysMissing,
-    #[error("{VERIFICATION_KEYS_ENV} is not a verification key set")]
-    VerificationKeysInvalid(#[source] serde_json::Error),
-    #[error("{VERIFICATION_KEYS_ENV} holds a key that cannot verify")]
-    VerificationKey(#[source] jsonwebtoken::errors::Error),
-    #[error("the services composition the API resolved could not be read")]
-    ServicesRoot(#[source] systemprompt_loader::BundleError),
-    #[error("the services configuration could not be loaded")]
-    Services(#[source] systemprompt_loader::ConfigLoadError),
-    #[error("the runtime configuration could not be built")]
-    Config(#[source] systemprompt_config::ConfigError),
-    #[error(transparent)]
-    Runtime(Box<RuntimeError>),
-}
-
-impl From<RuntimeError> for HostBootError {
-    fn from(error: RuntimeError) -> Self {
-        Self::Runtime(Box::new(error))
-    }
-}
-
-impl HostContext {
-    pub async fn from_process_env() -> Result<Self, HostBootError> {
+impl HostKernel {
+    pub async fn from_process_env() -> Result<(HostParts, Self), HostBootError> {
         Self::boot(|name| std::env::var(name).ok()).await
     }
 
     #[expect(
         clippy::too_many_lines,
-        reason = "the one assembly sequence of the host context; splitting it threads a dozen handles through helper signatures"
+        reason = "the one assembly sequence of a child host; splitting it threads a dozen handles through helper signatures"
     )]
     pub async fn boot(
         lookup: impl Fn(&str) -> Option<String> + Send + Sync,
-    ) -> Result<Self, HostBootError> {
+    ) -> Result<(HostParts, Self), HostBootError> {
         let profile_path = lookup(PROFILE_ENV).ok_or(HostBootError::ProfileMissing)?;
         let loaded =
             LoadedProfile::from_path(Path::new(&profile_path)).map_err(HostBootError::Profile)?;
@@ -173,7 +142,7 @@ impl HostContext {
             audiences: &audiences,
         })?;
         #[cfg(feature = "notifications")]
-        let notifications_core = NotificationsCore::new(&crate::NotificationsInputs {
+        let notifications = NotificationsCore::new(&crate::NotificationsInputs {
             database: &database,
             event_router: &event_router,
             sink: &notification_sink,
@@ -192,27 +161,29 @@ impl HostContext {
         .await?
         .id()
         .clone();
-        let extension = ExtensionHandles {
-            tokens: Arc::new(VerifyingTokenAuthority::new(
-                verification.clone(),
-                config.jwt_issuer.clone(),
-            )),
-            file_storage,
-            extensions,
-            state: systemprompt_provider_contracts::Dependencies::new(),
-            subjects: market.factory.subjects.clone(),
-            provider_tokens: Arc::default(),
-            system_owner,
-        };
 
-        let host = Self {
+        let kernel = Self {
+            market_state: market.state,
+            extensions: Arc::clone(&extensions),
+            disabled_extensions: profile.extensions.disabled.clone(),
+            #[cfg(feature = "notifications")]
+            audiences,
+            #[cfg(feature = "notifications")]
+            notifications,
+        };
+        let parts = HostParts {
             artifact_ingest: build_artifact_ingest(&database, &governance.get()),
             tool_call_intents: Arc::new(systemprompt_ai::repository::AiRequestRepository::new(
                 &database,
             )),
             mcp_sessions: Arc::new(McpSessionRepository::new(&database)),
-            user_repository,
+            tokens: Arc::new(VerifyingTokenAuthority::new(
+                verification.clone(),
+                config.jwt_issuer.clone(),
+            )),
+            subjects: market.factory.subjects.clone(),
             subject_providers: market.subject_providers,
+            user_repository,
             profile: Arc::clone(&loaded),
             services_root,
             config,
@@ -225,39 +196,13 @@ impl HostContext {
             authz_hook,
             publication,
             documents,
-            #[cfg(feature = "notifications")]
-            notifications: Arc::clone(
-                &notifications_core
-                    .assemble(ExtensionSeams::default())
-                    .service,
-            ),
             background_tasks,
             log_sink,
-            extension,
+            file_storage,
+            extensions,
+            system_owner,
         };
-        let host = {
-            let mut host = host;
-            let state = host
-                .extension
-                .extensions
-                .build_state(&host, host.kernel_state(), &profile.extensions.disabled)
-                .map_err(RuntimeError::from)?;
-            market
-                .state
-                .bind(state.clone())
-                .map_err(RuntimeError::from)?;
-            host.extension.state = state;
-            host
-        };
-        #[cfg(feature = "notifications")]
-        let host = {
-            let mut host = host;
-            let seams = ExtensionSeams::discover(&host);
-            audiences.bind(seams.audiences.clone());
-            host.notifications = Arc::clone(&notifications_core.assemble(seams).service);
-            host
-        };
-        Ok(host)
+        Ok((parts, kernel))
     }
 }
 

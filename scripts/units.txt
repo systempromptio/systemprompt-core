@@ -25,6 +25,7 @@ systemprompt-users                 kernel
 systemprompt-oauth                 kernel
 systemprompt-oauth-issuance        kernel
 systemprompt-runtime               kernel
+systemprompt-mcp-host              kernel
 systemprompt-api                   kernel
 systemprompt-cli                   kernel
 systemprompt                       kernel

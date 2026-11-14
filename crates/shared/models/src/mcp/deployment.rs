@@ -168,9 +168,12 @@ impl Deployment {
     }
 
     fn validate_internal(&self, name: &str) -> Result<(), ServicesValidationError> {
-        if self.binary.as_deref().is_none_or(|b| b.trim().is_empty()) || self.port.is_none() {
+        let blank_binary = self.binary.as_deref().is_some_and(|b| b.trim().is_empty());
+        let unhosted = self.binary.is_none() && self.enabled_toolsets().next().is_none();
+        if self.port.is_none() || blank_binary || unhosted {
             return Err(ServicesValidationError::invalid_field(format!(
-                "MCP server '{name}': internal servers require a binary and a port."
+                "MCP server '{name}': internal servers require a port and either a binary or \
+                 toolsets hosted by this binary."
             )));
         }
         if let Some(ep) = self.endpoint.as_deref()

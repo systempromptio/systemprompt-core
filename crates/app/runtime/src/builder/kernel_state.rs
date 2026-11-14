@@ -1,5 +1,7 @@
 //! The kernel's own entries in the extension state: the handles the host
-//! seeds the state with before any extension provides. An extension reads
+//! seeds the state with before any extension provides. [`base_kernel_state`]
+//! holds the entries every process seeds, the API and a child host alike;
+//! [`kernel_state`] adds what only the API composes. An extension reads
 //! them from the same map as every other extension's values, and cannot
 //! provide a type the kernel already holds.
 //!
@@ -17,17 +19,42 @@
 
 use std::sync::Arc;
 
+use systemprompt_config::paths::AppPaths;
+use systemprompt_database::DbPool;
+use systemprompt_files::FilesConfig;
+use systemprompt_manifest::Profile;
 use systemprompt_provider_contracts::Dependencies;
 
 use crate::context::AppContext;
+use crate::documents::DocumentsRuntime;
+
+pub fn base_kernel_state(
+    database: &DbPool,
+    app_paths: &Arc<AppPaths>,
+    files_config: &Arc<FilesConfig>,
+    profile: &Profile,
+    documents: &DocumentsRuntime,
+) -> Dependencies {
+    let mut state = Dependencies::new()
+        .with(Arc::clone(database))
+        .with(Arc::clone(app_paths))
+        .with(Arc::clone(files_config))
+        .with(Arc::new(profile.notifications));
+    if files_config.documents_config().is_enabled() {
+        state.insert(Arc::clone(documents.service()));
+    }
+    state
+}
 
 pub fn kernel_state(app: &AppContext) -> Dependencies {
-    let mut state = Dependencies::new()
-        .with(Arc::clone(app.db_pool()))
-        .with(Arc::clone(app.app_paths_arc()))
-        .with(Arc::clone(app.files_config()))
-        .with(Arc::new(app.profile().notifications))
-        .with(Arc::clone(app.oauth_repositories()))
+    let mut state = base_kernel_state(
+        app.db_pool(),
+        app.app_paths_arc(),
+        app.files_config(),
+        app.profile(),
+        app.documents(),
+    )
+    .with(Arc::clone(app.oauth_repositories()))
         .with(Arc::clone(app.ai_repositories()))
         .with(Arc::clone(app.analytics_repositories()))
         .with(app.artifact_ingest_arc());
@@ -37,9 +64,6 @@ pub fn kernel_state(app: &AppContext) -> Dependencies {
     }
     if let Some(reader) = app.geoip_reader() {
         state.insert(Arc::clone(reader));
-    }
-    if app.files_config().documents_config().is_enabled() {
-        state.insert(Arc::clone(app.documents().service()));
     }
     #[cfg(feature = "brain")]
     {

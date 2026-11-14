@@ -15,15 +15,14 @@
 
 use std::sync::Arc;
 
-use systemprompt_extension::{Extension, ExtensionContext, ExtensionRegistry};
+use systemprompt_extension::{Extension, ExtensionContext};
 use systemprompt_identifiers::{InstanceId, UserId};
 use systemprompt_manifest::services::ServicesView;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_manifest::{Config, Profile};
 use systemprompt_models::auth::TokenAuthority;
-use systemprompt_models::authz::{SubjectAttributeSource, SubjectSourceHandle};
+use systemprompt_models::authz::SubjectAttributeSource;
 use systemprompt_provider_contracts::Dependencies;
-use systemprompt_security::credential::TokenCache;
 use systemprompt_security::jwt::VerifyingTokenAuthority;
 use systemprompt_traits::{
     BackgroundTasks, ConfigProvider, DatabaseHandle, FileStorage, ProviderTokenCache, SecretStore,
@@ -31,61 +30,50 @@ use systemprompt_traits::{
 
 use super::HostContext;
 
-#[derive(Clone)]
-pub(super) struct ExtensionHandles {
-    pub(super) tokens: Arc<VerifyingTokenAuthority>,
-    pub(super) file_storage: Arc<dyn FileStorage>,
-    pub(super) extensions: Arc<ExtensionRegistry>,
-    pub(super) state: Dependencies,
-    pub(super) subjects: SubjectSourceHandle,
-    pub(super) provider_tokens: Arc<TokenCache>,
-    pub(super) system_owner: UserId,
-}
-
 impl ExtensionContext for HostContext {
     fn system_owner_id(&self) -> UserId {
-        self.extension.system_owner.clone()
+        self.parts.system_owner.clone()
     }
 
     fn config(&self) -> Arc<dyn ConfigProvider> {
-        let provider: Arc<dyn ConfigProvider> = Arc::<Config>::clone(&self.config);
+        let provider: Arc<dyn ConfigProvider> = Arc::<Config>::clone(&self.parts.config);
         provider
     }
 
     fn profile(&self) -> Arc<Profile> {
-        Arc::new(self.profile.profile().clone())
+        Arc::new(self.parts.profile.profile().clone())
     }
 
     fn app_config(&self) -> Arc<Config> {
-        Arc::clone(&self.config)
+        Arc::clone(&self.parts.config)
     }
 
     fn services_root(&self) -> ActiveServicesRoot {
-        self.services_root.clone()
+        self.parts.services_root.clone()
     }
 
     fn token_authority(&self) -> Arc<dyn TokenAuthority> {
         let tokens: Arc<dyn TokenAuthority> =
-            Arc::<VerifyingTokenAuthority>::clone(&self.extension.tokens);
+            Arc::<VerifyingTokenAuthority>::clone(&self.parts.tokens);
         tokens
     }
 
     fn database(&self) -> Arc<dyn DatabaseHandle> {
-        let concrete = Arc::clone(&self.database);
+        let concrete = Arc::clone(&self.parts.database);
         let handle: Arc<dyn DatabaseHandle> = concrete;
         handle
     }
 
     fn file_storage(&self) -> Arc<dyn FileStorage> {
-        Arc::clone(&self.extension.file_storage)
+        Arc::clone(&self.parts.file_storage)
     }
 
     fn instance_id(&self) -> InstanceId {
-        self.config.instance_id.clone()
+        self.parts.config.instance_id.clone()
     }
 
     fn background_tasks(&self) -> BackgroundTasks {
-        self.background_tasks.clone()
+        self.parts.background_tasks.clone()
     }
 
     fn secrets(&self) -> Arc<dyn SecretStore> {
@@ -93,38 +81,24 @@ impl ExtensionContext for HostContext {
     }
 
     fn get_extension(&self, id: &str) -> Option<Arc<dyn Extension>> {
-        self.extension.extensions.get(id).cloned()
+        self.parts.extensions.get(id).cloned()
     }
 
     fn services(&self) -> ServicesView {
-        self.services.view()
+        self.parts.services.view()
     }
 
     fn subject_attributes(&self) -> Arc<dyn SubjectAttributeSource> {
-        Arc::new(self.extension.subjects.clone())
+        Arc::new(self.parts.subjects.clone())
     }
 
     fn extension_state(&self) -> Dependencies {
-        self.extension.state.clone()
+        self.extension_state.clone()
     }
 
     fn provider_tokens(&self) -> Arc<dyn ProviderTokenCache> {
-        let concrete = Arc::clone(&self.extension.provider_tokens);
+        let concrete = Arc::clone(&self.provider_tokens);
         let cache: Arc<dyn ProviderTokenCache> = concrete;
         cache
-    }
-}
-
-impl HostContext {
-    pub(super) fn kernel_state(&self) -> Dependencies {
-        let mut dependencies = Dependencies::new()
-            .with(Arc::clone(&self.database))
-            .with(Arc::clone(&self.app_paths))
-            .with(Arc::clone(&self.files_config))
-            .with(Arc::new(self.profile().notifications));
-        if self.files_config.documents_config().is_enabled() {
-            dependencies.insert(Arc::clone(self.documents.service()));
-        }
-        dependencies
     }
 }

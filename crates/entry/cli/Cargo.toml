@@ -21,12 +21,12 @@ all-features = true
 # The bare binary is the core runtime alone; each feature mirrors the facade's
 # optional domain of the same name so a `--features full` build matches what a
 # facade `full` consumer ships.
-notifications = ["systemprompt-runtime/notifications", "systemprompt-api/notifications"]
+notifications = ["systemprompt-runtime/notifications", "systemprompt-mcp-host/notifications", "systemprompt-api/notifications"]
 collab = ["systemprompt-files/collab", "systemprompt-runtime/collab", "systemprompt-api/collab"]
 engine-loro = ["collab", "systemprompt-runtime/engine-loro"]
 office = ["systemprompt-files/office"]
 pdf = ["systemprompt-files/pdf", "systemprompt-api/pdf"]
-brain = ["notifications", "systemprompt-runtime/brain", "systemprompt-api/brain"]
+brain = ["notifications", "systemprompt-runtime/brain", "systemprompt-mcp-host/brain", "systemprompt-api/brain"]
 agent-runs = ["dep:systemprompt-agent-runs", "systemprompt-api/agent-runs"]
 otel = ["systemprompt-api/otel", "systemprompt-scheduler/otel"]
 bridge = ["systemprompt-api/bridge"]
@@ -54,6 +54,7 @@ thiserror = { workspace = true }
 
 # systemprompt.io crates
 systemprompt-runtime = { workspace = true, features = ["geolocation"] }
+systemprompt-mcp-host = { workspace = true }
 systemprompt-agent = { workspace = true }
 systemprompt-agent-runs = { workspace = true, optional = true }
 systemprompt-mcp = { workspace = true }

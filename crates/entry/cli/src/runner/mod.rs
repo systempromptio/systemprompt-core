@@ -61,7 +61,7 @@ pub async fn run_with(build: BuildIdentity) -> Result<()> {
         children: children.clone(),
         build,
     };
-    let outcome = if invocation.descriptor().serves_api() {
+    let outcome = if invocation.descriptor().owns_signals() {
         Box::pin(run_inner(&output, invocation, confirm, guards, env)).await
     } else {
         let command = Box::pin(run_inner(&output, invocation, confirm, guards, env));
@@ -107,7 +107,7 @@ async fn run_inner(
     if desc.database() {
         systemprompt_logging::init_deferred_console_logging(output.clone());
     } else {
-        let effective_level = resolve_log_level(&cli_config, &env);
+        let effective_level = resolve_log_level(&cli_config, &env, !desc.child_host());
         systemprompt_logging::init_console_logging_with_level(effective_level.as_deref(), output);
     }
 
@@ -185,13 +185,21 @@ fn direct_database_url(invocation: &Invocation) -> Result<Option<String>> {
     }
 }
 
-fn resolve_log_level(cli_config: &CliConfig, env: &EnvOverrides) -> Option<String> {
+fn resolve_log_level(
+    cli_config: &CliConfig,
+    env: &EnvOverrides,
+    discover_profile: bool,
+) -> Option<String> {
     if env.rust_log.is_some() {
         return None;
     }
 
     if let Some(level) = cli_config.verbosity.as_tracing_filter() {
         return Some(level.to_owned());
+    }
+
+    if !discover_profile {
+        return Some("warn".to_owned());
     }
 
     if let Ok(resolved) = bootstrap::resolve_profile(cli_config.profile_override.as_deref(), env)

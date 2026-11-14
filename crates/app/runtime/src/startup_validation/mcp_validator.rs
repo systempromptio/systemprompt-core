@@ -1,9 +1,12 @@
 //! MCP deployment manifest validation folded into the startup report.
 //!
-//! Toolset ids are not checked here: an extension's toolset is linked into
-//! its own MCP binary, which refuses an unknown id when it starts, so the
-//! main server cannot judge them. [`collect_toolset_errors`] stays public
-//! for a host binary or test that links the toolsets it hosts.
+//! An internal server is spawned one of two ways, decided by its manifest:
+//! with `binary:` it runs that extension binary, which links and checks its
+//! own toolsets; with no `binary:` and a `toolsets:` list it is hosted by this
+//! binary (`admin mcp serve`), so every listed toolset id must be registered
+//! in this binary through [`RegisteredToolsetId`]. A binary that links no
+//! toolsets has an empty inventory, so every hosted toolset in it is reported:
+//! an empty inventory is never read as "nothing to check".
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,6 +17,26 @@ use systemprompt_manifest::validators::validation_report::ValidationIssue;
 use systemprompt_manifest::validators::{StartupValidationReport, ValidationReport};
 use systemprompt_manifest::{Config, ServicesConfig};
 use systemprompt_models::mcp::McpServerType;
+use systemprompt_models::mcp::deployment::Deployment;
+
+/// One toolset id linked into this binary, submitted alongside its factory.
+#[derive(Debug, Clone, Copy)]
+pub struct RegisteredToolsetId {
+    pub id: &'static str,
+}
+
+systemprompt_mcp::__inventory::collect!(RegisteredToolsetId);
+
+#[must_use]
+pub fn registered_toolset_ids() -> Vec<&'static str> {
+    let mut ids: Vec<&'static str> = systemprompt_mcp::__inventory::iter::<RegisteredToolsetId>
+        .into_iter()
+        .map(|registered| registered.id)
+        .collect();
+    ids.sort_unstable();
+    ids.dedup();
+    ids
+}
 
 pub(super) fn validate_mcp_manifests(
     config: &Config,
@@ -26,7 +49,8 @@ pub(super) fn validate_mcp_manifests(
         &config.bin_path,
     );
 
-    let mcp_errors = collect_manifest_errors(services_config, config.is_cloud, |binary| {
+    let known = registered_toolset_ids();
+    let mcp_errors = collect_manifest_errors(services_config, config.is_cloud, &known, |binary| {
         registry.get_path(binary).map(|_| ())
     });
 
@@ -37,39 +61,48 @@ pub fn collect_toolset_errors(
     services_config: &ServicesConfig,
     known: &[&str],
 ) -> Vec<ValidationIssue> {
-    let mut issues = Vec::new();
     let mut names: Vec<&String> = services_config.mcp_servers.keys().collect();
     names.sort();
-    for name in names {
-        let deployment = &services_config.mcp_servers[name];
-        if !deployment.enabled {
-            continue;
-        }
-        for toolset in deployment.enabled_toolsets() {
-            if known.contains(&toolset.id.as_str()) {
-                continue;
-            }
-            issues.push(
-                ValidationIssue::new(
-                    format!("mcp_servers.{name}.toolsets"),
-                    format!(
-                        "Toolset '{}' is not registered by any linked crate",
-                        toolset.id
-                    ),
-                )
-                .with_suggestion(format!(
-                    "Registered toolsets: {}. Register it with submit_toolset! or fix the id",
-                    known.join(", ")
-                )),
-            );
-        }
-    }
-    issues
+    names
+        .into_iter()
+        .filter(|name| services_config.mcp_servers[*name].enabled)
+        .flat_map(|name| hosted_toolset_errors(name, &services_config.mcp_servers[name], known))
+        .collect()
+}
+
+fn hosted_toolset_errors(
+    name: &str,
+    deployment: &Deployment,
+    known: &[&str],
+) -> Vec<ValidationIssue> {
+    let registered = if known.is_empty() {
+        "none (this binary links no toolsets)".to_owned()
+    } else {
+        known.join(", ")
+    };
+    deployment
+        .enabled_toolsets()
+        .filter(|toolset| !known.contains(&toolset.id.as_str()))
+        .map(|toolset| {
+            ValidationIssue::new(
+                format!("mcp_servers.{name}.toolsets"),
+                format!(
+                    "Toolset '{}' is not registered by any crate linked into this binary",
+                    toolset.id
+                ),
+            )
+            .with_suggestion(format!(
+                "Registered toolsets: {registered}. Link the crate that registers it with \
+                 submit_toolset!, or fix the id"
+            ))
+        })
+        .collect()
 }
 
 pub fn collect_manifest_errors<F, E>(
     services_config: &ServicesConfig,
     is_cloud: bool,
+    known_toolsets: &[&str],
     resolve: F,
 ) -> Vec<ValidationIssue>
 where
@@ -103,16 +136,21 @@ where
         }
 
         let Some(binary) = deployment.binary.as_deref() else {
-            mcp_errors.push(
-                ValidationIssue::new(
-                    format!("mcp_servers.{}.binary", name),
-                    "Internal server declares no binary".to_owned(),
-                )
-                .with_suggestion(format!(
-                    "Set binary: <extension binary> in services/mcp/{}.yaml",
-                    name
-                )),
-            );
+            if deployment.enabled_toolsets().next().is_none() {
+                mcp_errors.push(
+                    ValidationIssue::new(
+                        format!("mcp_servers.{}.binary", name),
+                        "Internal server declares neither a binary nor toolsets".to_owned(),
+                    )
+                    .with_suggestion(format!(
+                        "Set binary: <extension binary>, or list toolsets: hosted by this \
+                         binary, in services/mcp/{}.yaml",
+                        name
+                    )),
+                );
+            } else {
+                mcp_errors.extend(hosted_toolset_errors(name, deployment, known_toolsets));
+            }
             continue;
         };
 
