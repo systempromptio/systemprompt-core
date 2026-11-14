@@ -8,6 +8,7 @@ mod admin_agents_create_full_fs;
 mod admin_agents_edit_flags_fs;
 mod admin_agents_message_stream;
 mod admin_agents_profile_fs;
+mod admin_agents_run_launcher;
 mod admin_bootstrap_db;
 mod admin_bridge_issue_code_db;
 mod admin_bridge_signing_rotation;
