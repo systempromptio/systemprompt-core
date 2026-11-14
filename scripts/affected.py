@@ -174,6 +174,8 @@ def select(changed, graph, rules, shard_map, units, crates=()):
     has_kernel = "kernel" in unit_names
     has_capability = any(u.startswith("capability:") for u in unit_names)
     mixed = (has_kernel and has_capability) or "unclassified" in unit_names
+    kernel_touched = sorted(graph[d]["name"] for d in changed_prod if units.get(graph[d]["name"]) == "kernel")
+    capabilities_touched = [u for u in unit_names if u.startswith("capability:")]
 
     if reasons:
         mode = "full"
@@ -204,6 +206,8 @@ def select(changed, graph, rules, shard_map, units, crates=()):
         "bridge": any(graph[d]["workspace"] == BRIDGE_WORKSPACE for d in affected),
         "units": unit_names,
         "mixed_kernel_and_capability": mixed,
+        "kernel_crates_touched": kernel_touched,
+        "capability_units_touched": capabilities_touched,
         "scope_size": len(affected) + len(test_set),
     }
 

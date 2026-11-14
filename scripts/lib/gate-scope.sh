@@ -75,16 +75,53 @@ gate_filter() {
     fi
 }
 
-# Allowlist entries: each line with its `#` comment and trailing blanks removed,
-# blank results skipped.
+# The allowlist lines of GATE with any trailing `# reason` kept: the named FILE
+# when one is given (an alternate tree's explicit allowlist), otherwise the
+# gate's central global entries plus every package's `gates/GATE.allow`, each
+# rebased onto the repository root (gate_scope.py allowlist). Exits 2 on a
+# misplaced or malformed per-unit file.
+gate_allowlist_raw() {
+    if [ -n "${2:-}" ]; then
+        grep -vE '^[[:space:]]*(#|$)' "$2" || true
+    else
+        python3 -B "$GATE_SCOPE_PY" allowlist "$1" || exit 2
+    fi
+}
+
+# The allowlist entries of GATE (see gate_allowlist_raw): each line with its
+# `#` comment and trailing blanks removed, blank results skipped.
 gate_allowlist() {
-    local line
-    while IFS= read -r line || [ -n "$line" ]; do
+    local line raw
+    raw="$(gate_allowlist_raw "$@")" || exit 2
+    while IFS= read -r line; do
         line="${line%%#*}"
         line="${line%"${line##*[![:space:]]}"}"
+        line="${line#"${line%%[![:space:]]*}"}"
         [ -n "$line" ] && printf '%s\n' "$line"
-    done < "$1"
+    done <<<"$raw"
     return 0
+}
+
+# Loads GATE's allowlist into the array named ARRAY in the calling shell, so a
+# reader failure stops the gate (exit 2) instead of yielding an empty list.
+#   gate_load_allowlist ARRAY entries|raw GATE [FILE]
+gate_load_allowlist() {
+    local -n gate_load_out="$1"
+    local reader=gate_allowlist entries
+    [ "$2" = raw ] && reader=gate_allowlist_raw
+    entries="$("$reader" "${@:3}")" || exit 2
+    gate_load_out=()
+    [ -z "$entries" ] || mapfile -t gate_load_out <<<"$entries"
+}
+
+# The name a gate's messages give its allowlist: FILE when given, otherwise the
+# per-unit layout.
+gate_allowlist_label() {
+    if [ -n "${2:-}" ]; then
+        printf '%s\n' "$2"
+    else
+        printf '%s\n' "<package>/gates/$1.allow"
+    fi
 }
 
 # Two scope operations, owned here and never mixed:

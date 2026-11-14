@@ -4,10 +4,14 @@
 # `AppContext` (and the server, gateway and bridge roots) own injected
 # services; a `static` holding an `OnceLock`, `LazyLock`, `RwLock`, `Mutex`,
 # `ArcSwap`, `Once`, `OnceCell` or an atomic is service state unless it is
-# listed in the allowlist as `path:NAME — reason`. A reason is required; an
+# listed in its package's `gates/lint-core-globals.allow` as `path:NAME —
+# reason` (path relative to the package). "immutable data" marks compiled
+# regexes, const tables and link-time inventories set once and never mutated;
+# "debt" marks service state a later package moves onto an owner, listed so the
+# gate ratchets rather than accepted as a pattern. A reason is required; an
 # entry whose static no longer exists fails so the list cannot go stale.
 #
-#   scripts/lint-core-globals.sh                       # core roots + allowlist
+#   scripts/lint-core-globals.sh                       # core roots + per-unit allowlists
 #   scripts/lint-core-globals.sh [--allowlist FILE] ROOT...
 #   scripts/lint-core-globals.sh --paths P...          # only files under P; stale
 #                                                      # entries not judged
@@ -20,7 +24,7 @@ gate_scope_parse "$@"
 set -- "${GATE_ARGS[@]}"
 
 root="$GATE_ROOT"
-allowlist="$root/scripts/core-globals-allowlist.txt"
+allowlist=""
 roots=()
 while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -38,19 +42,17 @@ fi
 
 pattern='^\s*(pub(\([a-z]+\))? )?static [A-Z_][A-Z0-9_]*: *(std::sync::|std::sync::atomic::|tokio::sync::)?(OnceLock|LazyLock|RwLock|Mutex|ArcSwap|Atomic[A-Za-z0-9]+|Once|OnceCell)\b'
 
-declare -A allowed reason_of
-while IFS= read -r line; do
-    line="${line%%#*}"
-    line="$(printf '%s' "$line" | sed 's/[[:space:]]*$//')"
-    [ -n "$line" ] || continue
+declare -A allowed
+gate_load_allowlist ALLOW_ENTRIES entries lint-core-globals "$allowlist"
+label="$(gate_allowlist_label lint-core-globals "$allowlist")"
+for line in "${ALLOW_ENTRIES[@]}"; do
     key="${line%% — *}"
     if [ "$key" = "$line" ] || [ -z "$(printf '%s' "${line#* — }" | tr -d '[:space:]')" ]; then
-        echo "lint-core-globals: $allowlist: '$line' has no reason (write: path:NAME — reason)" >&2
+        echo "lint-core-globals: $label: '$line' has no reason (write: path:NAME — reason)" >&2
         exit 1
     fi
     allowed["$key"]=1
-    reason_of["$key"]="${line#* — }"
-done < "$allowlist"
+done
 
 list_sources() {
     gate_tree_files "${roots[@]}" | grep -E '\.rs$' | grep -Ev '(^|/)(crates/tests|target)/|/build\.rs$' | sort -u

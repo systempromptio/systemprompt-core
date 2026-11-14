@@ -1,0 +1,4 @@
+# the document store's repository bundle lives in the files crate's
+# `documents` submodule, so its constructor sits under
+# src/documents/repository/ rather than src/repository/.
+src/documents/repository/mod.rs

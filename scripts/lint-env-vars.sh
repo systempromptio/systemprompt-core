@@ -5,15 +5,19 @@
 # (`SYSTEMPROMPT_VERTEX_DISCOVERY`) only because a release went wrong.
 #
 # Every production file that reads the process environment must be listed in
-# scripts/env-var-allowlist.txt with a reason naming the sanctioned variable
-# or platform constraint. Tests (crates/tests/**) are not scanned.
+# its package's `gates/lint-env-vars.allow` as `path  # reason` (path relative
+# to the package), the reason naming the sanctioned variable(s) — the
+# SYSTEMPROMPT_* boot variables, `${VAR}` interpolation in profile YAML, the
+# secrets `env` source, cargo build-script env — or the platform constraint
+# (OS-defined home/data directory probes). Tests (crates/tests/**) are not
+# scanned.
 #
 # A reader is any of: `std::env::var*`, tracing's `EnvFilter::from_env` /
 # `try_from_default_env` (RUST_LOG), and the bridge's `basedirs::env_dir(…)`
 # wrapper — a wrapper is a reader at every call site, not only where it is
 # defined, or the wrapper becomes the unlisted kill switch.
 #
-#   scripts/lint-env-vars.sh                          # core roots + allowlist
+#   scripts/lint-env-vars.sh                          # core roots + per-unit allowlists
 #   scripts/lint-env-vars.sh --paths P...             # only files under P
 #   scripts/lint-env-vars.sh [--allowlist FILE] ROOT...
 #
@@ -39,12 +43,13 @@ done
 gate_require_one_scope "${#ROOTS[@]}"
 if [ "${#ROOTS[@]}" -eq 0 ]; then
     cd "$GATE_ROOT"
-    ALLOWLIST="${ALLOWLIST:-scripts/env-var-allowlist.txt}"
-fi
-if [ -z "$ALLOWLIST" ]; then
+elif [ -z "$ALLOWLIST" ]; then
     echo "lint-env-vars: --allowlist FILE is required when roots are given" >&2
     exit 2
 fi
+LABEL="$(gate_allowlist_label lint-env-vars "$ALLOWLIST")"
+gate_load_allowlist ENTRIES entries lint-env-vars "$ALLOWLIST"
+gate_load_allowlist RAW_ENTRIES raw lint-env-vars "$ALLOWLIST"
 
 list_sources() {
     if [ "${#ROOTS[@]}" -eq 0 ]; then
@@ -57,32 +62,30 @@ list_sources() {
 PATTERN='(std::)?env::(var|var_os|vars|vars_os)\(|EnvFilter::(try_from_default_env|from_env|from_default_env)\(|(basedirs::)?env_dir\('
 
 declare -A allowed
-while IFS= read -r line; do
+for line in "${ENTRIES[@]}"; do
     allowed["$line"]=1
-done < <(gate_allowlist "$ALLOWLIST")
+done
 
 # Every allowlist line must carry a reason and point at a file that exists.
 bad_allow=0
-gate_full_mode && while IFS= read -r raw; do
-    [ -n "$(echo "$raw" | sed 's/^[[:space:]]*//')" ] || continue
-    case "$raw" in \#*) continue ;; esac
+gate_full_mode && for raw in "${RAW_ENTRIES[@]}"; do
     path="${raw%%#*}"; path="$(echo "$path" | sed 's/[[:space:]]*$//')"
     reason="${raw#*#}"
     if [ "$raw" = "$path" ] || [ -z "$(echo "$reason" | tr -d '[:space:]')" ]; then
-        echo "✗ $ALLOWLIST: '$path' has no reason (write: path  # reason)" >&2
+        echo "✗ $LABEL: '$path' has no reason (write: path  # reason)" >&2
         bad_allow=1
     fi
     if [ ! -f "$path" ]; then
-        echo "✗ $ALLOWLIST: '$path' does not exist — remove the stale line" >&2
+        echo "✗ $LABEL: '$path' does not exist — remove the stale line" >&2
         bad_allow=1
     fi
-done < "$ALLOWLIST"
+done
 
 status=$bad_allow
 while IFS= read -r file; do
     if [ -z "${allowed[$file]:-}" ]; then
         status=1
-        echo "✗ $file reads the process environment but is not in $ALLOWLIST:" >&2
+        echo "✗ $file reads the process environment but is not in $LABEL:" >&2
         grep -nE "$PATTERN" "$file" | grep -vE '^\s*[0-9]+:\s*//' | sed 's/^/    /' >&2
     fi
 done < <(list_sources | xargs -r grep -lE "$PATTERN" 2>/dev/null | sort -u)
@@ -91,7 +94,7 @@ done < <(list_sources | xargs -r grep -lE "$PATTERN" 2>/dev/null | sort -u)
 gate_full_mode && for file in "${!allowed[@]}"; do
     if ! grep -qE "$PATTERN" "$file"; then
         status=1
-        echo "✗ $ALLOWLIST: $file no longer reads the environment — remove the line" >&2
+        echo "✗ $LABEL: $file no longer reads the environment — remove the line" >&2
     fi
 done
 
@@ -99,7 +102,7 @@ if [ "$status" -ne 0 ]; then
     echo >&2
     echo "Read the value from the profile (extend Profile::validate if it is required)," >&2
     echo "delete the fallback, or — only for a sanctioned boot variable or platform" >&2
-    echo "probe — add the file to $ALLOWLIST with its reason." >&2
+    echo "probe — add the file to $LABEL with its reason." >&2
     exit 1
 fi
 echo "✓ env readers are all allowlisted with reasons (${#allowed[@]} files)"

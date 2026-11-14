@@ -1,0 +1,26 @@
+src/auth/mod.rs  # <PREFIX>_PAT inline PAT presence probe for the credential-source check
+src/auth/providers/pat.rs  # <PREFIX>_PAT inline PAT
+src/basedirs.rs  # HOME and XDG_CONFIG_HOME / XDG_CACHE_HOME / XDG_DATA_HOME / XDG_STATE_HOME base-directory probes
+src/cli/args.rs  # __CFBundleIdentifier LaunchServices app-bundle launch probe (macOS GUI-by-default)
+src/cli/doctor/claude_code.rs  # ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN presence probes: the doctor reports what the shell's Claude Code will read
+src/config/gateways/mod.rs  # <PREFIX>_CONFIG pins the process to one config file instead of the gateway profiles
+src/sysproc/mod.rs  # PATH lookup for host tool binaries
+src/config/paths/dirs.rs  # LOCALAPPDATA / USERPROFILE Windows folder probes
+src/config/paths/mod.rs  # CLAUDE_CONFIG_DIR (Claude Code-defined config-dir override): which user settings file this user's Claude Code reads; <PREFIX>_ORG_PLUGINS_SYSTEM system org-plugins root; ProgramFiles / ProgramData / LOCALAPPDATA Windows folder probes
+src/config/store/macos_plist_store.rs  # USER for the per-user managed-preferences plist path (macOS)
+src/i18n.rs  # LANG locale probe for GUI language selection
+src/install/bootstrap/unix.rs  # SUDO_USER to resolve the invoking user under sudo
+src/install/mdm/egress.rs  # <PREFIX>_EGRESS_ALLOWED_HOSTS Cowork egress allowlist when --egress-allowed-hosts is absent
+src/install/mdm/macos.rs  # USER for the per-user managed-preferences plist (macOS MDM apply)
+src/install/mdm/macos_remove/mod.rs  # USER for the per-user managed-preferences plist (macOS MDM remove)
+src/install/mdm/windows/mod.rs  # USERPROFILE Windows home probe for the MDM payload
+src/integration/app_launch/mod.rs  # PATH lookup for the host app binary
+src/integration/claude_desktop/app_lookup.rs  # LOCALAPPDATA Claude Desktop install probe (Windows)
+src/integration/claude_desktop/macos.rs  # USER for the Claude Desktop per-user managed preferences (macOS)
+src/integration/codex/config.rs  # CODEX_HOME / CODEX_SYSTEM_CONFIG (Codex-defined home overrides); USER for the per-user config path; APPDATA / LOCALAPPDATA for the CLI prefixes and the desktop app folder
+src/integration/hermes/config.rs  # HERMES_HOME (Hermes-defined home override)
+src/integration/opencode/config.rs  # ProgramData / APPDATA Windows folder probes; USER for the per-user config path; SP_BRIDGE_OPENCODE_MANAGED_DIR managed-dir override via basedirs::env_dir
+src/obs/mod.rs  # <PREFIX>_LOG_FORMAT, RUST_LOG filter presence, LOCALAPPDATA log directory (Windows)
+src/sync/manifest/errors.rs  # <PREFIX>_CONFIG presence noted in the credential-location diagnostic
+src/winproc.rs  # SystemRoot to address System32 binaries by absolute path from the elevated child (Windows)
+src/sync/provision.rs  # USER as the chown target when the elevated provisioning script creates the workspace (macOS)

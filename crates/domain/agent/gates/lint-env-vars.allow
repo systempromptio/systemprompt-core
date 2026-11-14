@@ -1,0 +1,1 @@
+src/services/agent_orchestration/process/command.rs  # env lookup closure for inherited_parent_env (deployment-host vars, HOSTNAME, POD_NAME, PATH, HOME, SYSTEMPROMPT_TRUSTED_HTTP_HOSTS) after env_clear on the agent child

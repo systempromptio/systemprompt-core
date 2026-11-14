@@ -1,0 +1,7 @@
+src/admin/
+src/services/postgres/
+# The projection drainer calls the `refresh_*(keys TEXT[])` function the
+# caller names (validated as a bare identifier) and binds the keys; the
+# queue helpers beside it stay runtime so the crate carries no offline
+# cache for them.
+src/projection/

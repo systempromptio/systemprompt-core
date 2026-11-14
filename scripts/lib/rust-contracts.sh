@@ -2,6 +2,14 @@
 # swallowed-errors, tracing-messages): runs one scan mode over the core
 # production roots, narrowed to the `--paths` scope, or over explicit ROOTs.
 # rust-contracts skips any directory literally named `tests` or `target`.
+#
+# The scanner parses every file in scope with syn, so it is built optimised
+# (`--release`: an unoptimised syn parse of the whole tree dominates a full
+# run), into its own target directory, so a worktree whose cargo config points
+# `target-dir` at the workspace build never waits on that build's lock. Scoped
+# runs (`--paths`) parse only the files in scope; one walk evaluates all four
+# modes and caches each mode's result, so the later gates over the same inputs
+# replay it.
 
 . "$(dirname "${BASH_SOURCE[0]}")/gate-scope.sh"
 
@@ -19,6 +27,7 @@ rust_contracts_gate() {
         gate_pass_if_empty "$name" "${#roots[@]}"
         set -- "${roots[@]}"
     fi
-    cargo run --quiet --locked --manifest-path "$GATE_ROOT/scripts/rust-contracts/Cargo.toml" -- \
+    cargo run --quiet --locked --release --manifest-path "$GATE_ROOT/scripts/rust-contracts/Cargo.toml" \
+        --target-dir "$GATE_ROOT/scripts/rust-contracts/target" -- \
         --cache-dir "$GATE_ROOT/scripts/rust-contracts/target/contracts-cache" "$mode" "$@"
 }

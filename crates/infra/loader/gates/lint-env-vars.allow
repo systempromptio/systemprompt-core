@@ -1,0 +1,1 @@
+src/config_loader/mod.rs  # SYSTEMPROMPT_SERVICES_PATH / SKILLS_PATH / CONFIG_PATH subprocess boot variables

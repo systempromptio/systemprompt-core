@@ -8,6 +8,7 @@
 #   --only fmt,clippy,doc,gates,supply,scripts,tests   run just these phases
 #   --skip tests,doc                                   leave these out
 #   --group sql|errors|bridge|release                  gates of one quality.yml source-gates job
+#   --cost cheap[,compile,db]                          gates of these scripts/gate-scopes.txt costs
 #   --dry-run                                          print phases and exact commands, run nothing
 #   --selection FILE                                   use a precomputed affected.py JSON as the scope
 #

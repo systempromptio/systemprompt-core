@@ -196,6 +196,12 @@ changelog-check:
 regen *ARGS:
     bash scripts/regen.sh {{ARGS}}
 
+# This editor session's own migrated database (`systemprompt_test_<NAME>`, NAME
+# defaulting to the worktree directory), never the shared `systemprompt_test`.
+# Prints the exports to evaluate: eval "$(just test-db-editor)".
+test-db-editor NAME="":
+    bash scripts/test-db.sh --editor {{NAME}}
+
 # Every published version string must match [workspace.package].version
 check-version-strings:
     ./scripts/check-version-strings.sh
@@ -409,13 +415,13 @@ lint-bridge-globals *ARGS:
 
 # Core service state lives on AppContext (and the server, gateway and bridge
 # roots), built once and injected. A `static X: OnceLock<..>` in a production
-# crate fails unless scripts/core-globals-allowlist.txt names it with a reason.
+# crate fails unless its package's gates/lint-core-globals.allow names it with a reason.
 # `just lint-core-globals ROOT...` scans other roots (the installs).
 lint-core-globals *ARGS:
     ./scripts/lint-core-globals.sh {{ARGS}}
 
 # A field has one wire name: `#[serde(alias = ...)]` fails unless
-# scripts/serde-aliases-allowlist.txt names it with a vendor reason. The same
+# its package's gates/lint-serde-aliases.allow names it with a vendor reason. The same
 # gate rejects a bare `8080`/`5432` outside `systemprompt_models::defaults`.
 lint-serde-aliases *ARGS:
     ./scripts/lint-serde-aliases.sh {{ARGS}}
@@ -510,7 +516,8 @@ deny:
 audit:
     ./scripts/cargo-audit-all.sh {{ workspaces }}
 
-# Detect unused dependencies across every workspace
+# Detect unused dependencies across every workspace. A source gate: the `release`
+# group of scripts/gate.sh runs it locally and in quality.yml alike.
 machete:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -1032,14 +1039,13 @@ worktree NAME REF="origin/next":
     git fetch -q origin
     WT="$(cd .. && pwd)/core-{{NAME}}"
     git worktree add --detach "$WT" "{{REF}}"
-    mkdir -p "$WT/.cargo"
-    if [ -f .cargo/config.toml ]; then
-        awk '/^\[build\]/{skip=1;next} /^\[/{skip=0} !skip' .cargo/config.toml > "$WT/.cargo/config.toml"
-    fi
-    printf '\n[build]\ntarget-dir = "%s/target"\n' "$WT" >> "$WT/.cargo/config.toml"
-    printf '\n[build]\ntarget-dir = "%s/crates/tests/target"\n' "$WT" >> "$WT/crates/tests/.cargo/config.toml"
-    git -C "$WT" update-index --skip-worktree crates/tests/.cargo/config.toml
+    bash scripts/worktree-cache.sh "$WT" >&2
     echo "$WT"
+
+# Per-worktree target dirs plus the shared sccache wrapper for a worktree made
+# another way (a lane branch's `git worktree add`); see scripts/worktree-cache.sh.
+worktree-cache PATH:
+    bash scripts/worktree-cache.sh "{{PATH}}"
 
 # Remove a worktree made by `just worktree`; refuses while it has changes.
 worktree-rm NAME:
@@ -1062,7 +1068,8 @@ install-hooks:
     echo "installed $HOOKS/pre-push"
 
 # Read the candidate's green push run on next, then the promotion PR proof if one
-# is open. Read-only; never dispatches.
+# is open. Read-only; never dispatches. A run is proof only when its plan job
+# reads `Gate plan: full`; an affected-plan run never proves a release.
 gate REF="origin/next":
     python3 scripts/release-proof.py gate "{{REF}}"
 
@@ -1071,7 +1078,8 @@ gate REF="origin/next":
 # `main` refuses direct pushes, so a PR is the only way in. The commit is frozen
 # on the `promote` ref first: a PR headed at `next` would merge whatever `next`
 # points at when you merge it, so anything pushed meanwhile would ride along
-# ungated. Refuses a SHA whose push run on next is missing, pending or red.
+# ungated. Refuses a SHA whose push run on next is missing, pending or red, or
+# did not execute the full plan (`Gate plan: full`).
 # This only OPENS the PR — you review and merge it.
 promote SHA="":
     #!/usr/bin/env bash
@@ -1152,7 +1160,7 @@ lint-json-value *ARGS:
     ./scripts/lint-json-value.sh {{ARGS}}
 
 # A crate queries only the tables its own schema/*.sql declares (infra may read
-# infra; app/entry may read what scripts/table-ownership-reads.txt lists, never write).
+# infra; app/entry may read what their gates/lint-table-ownership.allow lists, never write).
 lint-table-ownership:
     ./scripts/lint-table-ownership.sh
 
@@ -1162,7 +1170,7 @@ lint-ledger-reads *ARGS:
     ./scripts/lint-ledger-reads.sh {{ARGS}}
 
 # Profiles are the source of truth; an env read outside the sanctioned boot
-# readers (scripts/env-var-allowlist.txt) is an undocumented kill switch.
+# readers (each package's gates/lint-env-vars.allow) is an undocumented kill switch.
 lint-env-vars *ARGS:
     ./scripts/lint-env-vars.sh {{ARGS}}
 

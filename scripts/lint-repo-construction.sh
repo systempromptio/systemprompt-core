@@ -15,7 +15,8 @@
 #      - crates/entry/cli/src/**            one-shot command bodies
 #      - **/jobs/**                         per-tick scheduler job bodies
 #
-#   2. The explicit file list below. Every entry is structurally unable to use
+#   2. The files a package lists in its `gates/lint-repo-construction.allow`
+#      (one path per line, relative to the package). Every entry is structurally unable to use
 #      an AppContext accessor and carries its reason. Adding a file requires
 #      justification in review — the default for new code is to take the
 #      repository from AppContext (`a2a_repositories()`,
@@ -34,7 +35,7 @@
 # The test workspace (crates/tests/**) is out of scope: fixtures construct
 # repositories freely.
 
-#   scripts/lint-repo-construction.sh                        # core roots + allowlist
+#   scripts/lint-repo-construction.sh                        # core roots + per-unit allowlists
 #   scripts/lint-repo-construction.sh --paths P...           # only files under P
 #   scripts/lint-repo-construction.sh [--allowlist FILE] ROOT...
 #
@@ -59,14 +60,12 @@ while [ "$#" -gt 0 ]; do
     esac
 done
 gate_require_one_scope "${#ROOTS[@]}"
+ALLOWED_FILES=()
 if [ "${#ROOTS[@]}" -eq 0 ]; then
     cd "$GATE_ROOT"
-    ALLOWLIST="${ALLOWLIST:-scripts/repo-construction-allowlist.txt}"
-fi
-
-ALLOWED_FILES=()
-if [ -n "$ALLOWLIST" ]; then
-    mapfile -t ALLOWED_FILES < <(gate_allowlist "$ALLOWLIST")
+    gate_load_allowlist ALLOWED_FILES entries lint-repo-construction "$ALLOWLIST"
+elif [ -n "$ALLOWLIST" ]; then
+    gate_load_allowlist ALLOWED_FILES entries lint-repo-construction "$ALLOWLIST"
 fi
 
 list_sources() {

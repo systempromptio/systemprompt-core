@@ -18,8 +18,10 @@
 #   OUTPUT.md defaults to target/build-report/report.md; the JSON sidecar is
 #   written next to it as <OUTPUT>.json, the timings HTML as
 #   target/build-report/cargo-timing.html.
-# Closure-only mode runs only `cargo metadata` and `cargo tree` and compiles
-# nothing; --offline passes through to every cargo call.
+# Closure-only mode runs only `cargo metadata` and compiles nothing; --offline
+# passes through to every cargo call. Both closure counts come from one
+# host-filtered resolve (scripts/lib/cargo_graph.py closure), so an --offline
+# and an online run over the same lock report the same closure.
 # SQLX_OFFLINE defaults to true (per-crate .sqlx caches).
 # Each composition's target dir is removed once measured, so a runner's disk
 # holds one composition at a time; BUILD_REPORT_KEEP_TARGET=1 keeps them.
@@ -110,6 +112,9 @@ check_lock() {
     fi
 }
 
+host="$(rustc -vV | sed -n 's/^host: //p')"
+[ -n "$host" ] || { echo 'cannot read the host target from rustc -vV' >&2; exit 2; }
+
 results="[]"
 bloat_md=""
 for row in "${rows[@]}"; do
@@ -125,10 +130,9 @@ for row in "${rows[@]}"; do
     meta="$(cd "$dir" && cargo metadata "${offline[@]}" --format-version 1)"
     check_lock "$dir" "$pkg"
     all_platforms="$(jq '[.resolve.nodes[]] | length - 1' <<<"$meta")"
-    tree="$(cd "$dir" && cargo tree "${offline[@]}" -e normal,build --prefix none \
-        | sed 's/ (\*)$//; s/ (proc-macro)//' | sort -u | grep -v "^$pkg v")"
-    packages="$(grep -c . <<<"$tree")"
-    members="$(grep -c ' (/' <<<"$tree" || true)"
+    host_meta="$(cd "$dir" && cargo metadata "${offline[@]}" --format-version 1 --filter-platform "$host")"
+    check_lock "$dir" "$pkg"
+    read -r packages members < <(python3 -B "$root/scripts/lib/cargo_graph.py" closure <<<"$host_meta")
 
     size=null
     if ! $closure_only; then

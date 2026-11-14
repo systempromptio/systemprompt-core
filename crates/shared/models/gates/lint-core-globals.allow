@@ -1,0 +1,2 @@
+# Immutable data: compiled once, never mutated.
+src/ai/execution_plan.rs:TEMPLATE_REF_REGEX — immutable data: the compiled form of a literal pattern

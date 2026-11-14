@@ -1,0 +1,7 @@
+src/env_overrides.rs  # the single CLI reader of SYSTEMPROMPT_* overrides (EnvOverrides)
+src/commands/admin/config/secret_check.rs  # deployment-host / SYSTEMPROMPT_SUBPROCESS detection and OAUTH_AT_REST_PEPPER presence for resolve_source (secrets `env` source)
+src/commands/cloud/deploy/pipeline/secrets.rs  # collect_bootstrap_env lookup closure for the operator-listed --bootstrap-env variables pushed to Vault
+src/commands/cloud/doctor/vault_checks.rs  # VaultKvProvider::from_config lookup closure — Vault credentials from the secrets `env` source
+src/commands/cloud/profile/templates.rs  # SYSTEMPROMPT_SERVICES_PATH subprocess boot variable
+src/commands/core/services/publish.rs  # --auth env:VAR — operator names the registry credential variable explicitly on the CLI
+src/commands/core/services/signing.rs  # --key env:VAR — operator names the signing-key variable explicitly on the CLI

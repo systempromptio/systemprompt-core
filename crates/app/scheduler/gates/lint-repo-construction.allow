@@ -1,0 +1,5 @@
+# scheduler-owned repos (SchedulerRepository, JobRepository,
+# LoggingRepository) have exactly one consuming crate; an AppContext
+# accessor for them is not warranted.
+src/services/job_execution/mod.rs
+src/services/scheduling/mod.rs

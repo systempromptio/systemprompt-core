@@ -130,6 +130,22 @@ class Groups(unittest.TestCase):
             self.assertEqual(has_contracts, group == gate_runner.RUST_CONTRACTS_GROUP, group)
         self.assertEqual(sorted(seen), sorted(gate_scope.gate_list()))
 
+    def test_cost_keeps_only_gates_of_that_cost(self):
+        table = gate_scope.gate_table()
+        plan = commands(gate_runner.plan(gate_runner.full_selection([]), [], ["fmt", "gates"], costs={"cheap"}))
+        gates = [c.split()[1] for c in plan["gates"]]
+        self.assertEqual(sorted(gates), sorted(g for g, row in table.items() if row["cost"] == "cheap"))
+        self.assertNotIn("lint-discarded-results", gates)
+        self.assertNotIn("lint-fail-open", gates)
+        self.assertFalse(any("rust-contracts" in c for c in plan["gates"]))
+        self.assertTrue(plan["fmt"])
+
+    def test_cost_names_are_checked(self):
+        self.assertIsNone(gate_runner.choose_costs(None))
+        self.assertEqual(gate_runner.choose_costs("cheap,db"), {"cheap", "db"})
+        with self.assertRaises(gate_runner.GateError):
+            gate_runner.choose_costs("fast")
+
     def test_machete_is_a_source_gate(self):
         self.assertIn("machete", gate_scope.gate_list())
         self.assertEqual(gate_scope.gate_table()["machete"]["group"], "release")

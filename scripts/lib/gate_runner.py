@@ -49,6 +49,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SCRIPTS = ROOT / "scripts"
 PHASES = ("fmt", "clippy", "doc", "gates", "supply", "scripts", "tests")
 GROUPS = ("sql", "errors", "bridge", "release")
+COSTS = ("cheap", "compile", "db")
 RUST_CONTRACTS_GROUP = "errors"
 UPSTREAMS = ("origin/future", "origin/next")
 DEFAULT_LOG = ROOT / "target" / "gate-log" / "runs.jsonl"
@@ -170,7 +171,13 @@ def needs_shared_db(phases):
     return any(entry["db"] for name, steps in phases if name != "tests" for entry in steps)
 
 
-def plan(selection, changed, phases=PHASES, db_url=None, group=None):
+def gate_cost(label, table):
+    """The scripts/gate-scopes.txt cost of a gates-phase step; the rust-contracts
+    unit tests compile."""
+    return table[label]["cost"] if label in table else "compile"
+
+
+def plan(selection, changed, phases=PHASES, db_url=None, group=None, costs=None):
     """`[(phase, [step])]` in run order for the chosen phases; a phase may hold no steps.
 
     Steps that need the test database run live against `db_url`. When a step
@@ -180,6 +187,10 @@ def plan(selection, changed, phases=PHASES, db_url=None, group=None):
     if group is not None and group not in GROUPS:
         raise GateError(f"unknown gate group {group} (groups: {', '.join(GROUPS)})")
     chosen = [(name, BUILDERS[name](selection, changed, group)) for name in PHASES if name in phases]
+    if costs is not None:
+        table = gate_scope.gate_table()
+        chosen = [(name, [e for e in steps if gate_cost(e["label"], table) in costs] if name == "gates" else steps)
+                  for name, steps in chosen]
     if not needs_test_db(chosen):
         return chosen
     if db_url is None:
@@ -192,6 +203,17 @@ def plan(selection, changed, phases=PHASES, db_url=None, group=None):
     if not needs_shared_db(chosen):
         return chosen
     return [("db", [step("test-db", ["bash", "scripts/test-db.sh"], {"TEST_DATABASE_URL": db_url})])] + chosen
+
+
+def choose_costs(text):
+    """The gate costs `--cost` keeps, or None (every gate) without it."""
+    if not text:
+        return None
+    chosen = [c.strip() for c in text.split(",") if c.strip()]
+    unknown = sorted(set(chosen) - set(COSTS))
+    if unknown or not chosen:
+        raise GateError(f"unknown gate cost(s): {', '.join(unknown) or text} (costs: {', '.join(COSTS)})")
+    return set(chosen)
 
 
 def choose_phases(only, skip):
@@ -358,6 +380,7 @@ def parse_args(argv):
     parser.add_argument("--only", help=f"comma-separated phases to run ({','.join(PHASES)})")
     parser.add_argument("--skip", help="comma-separated phases to leave out")
     parser.add_argument("--group", choices=GROUPS, help="with the gates phase: only the gates of this quality.yml job")
+    parser.add_argument("--cost", help=f"with the gates phase: only gates of these comma-separated costs ({','.join(COSTS)})")
     parser.add_argument("--selection", help="a precomputed `affected.py --format json` result to use as the scope")
     parser.add_argument("--dry-run", action="store_true", help="print the phases and exact commands, run nothing")
     args = parser.parse_args(argv)
@@ -371,6 +394,7 @@ def main(argv=None, environ=None):
     args = parse_args(argv)
     try:
         phases_chosen = choose_phases(args.only, args.skip)
+        costs = choose_costs(args.cost)
         base = None
         changed = []
         if args.changed:
@@ -388,9 +412,9 @@ def main(argv=None, environ=None):
             selection = dict(full_selection(selection["shard_groups"] or all_shard_groups()),
                              reasons=selection["reasons"], scope_size=selection["scope_size"])
         mode = "full" if args.full else ("unit" if args.unit else "changed")
-        draft = plan(selection, changed, phases_chosen, db_url="", group=args.group)
+        draft = plan(selection, changed, phases_chosen, db_url="", group=args.group, costs=costs)
         phases = plan(selection, changed, phases_chosen, db_url=test_db_url() if needs_test_db(draft) else None,
-                      group=args.group)
+                      group=args.group, costs=costs)
         head = git("rev-parse", "HEAD")
     except GateError as error:
         print(f"gate: {error}", file=sys.stderr)
@@ -399,6 +423,7 @@ def main(argv=None, environ=None):
     header += [f"  base {base}"] if base else []
     header += [f"  unit {' '.join(args.unit)}"] if args.unit else []
     header += [f"  group {args.group}"] if args.group else []
+    header += [f"  cost {args.cost}"] if args.cost else []
     header += [f"  full because {reason}" for reason in selection.get("reasons", []) if not args.full]
     print(render_plan(header, phases), flush=True)
     if args.dry_run:

@@ -21,7 +21,9 @@ crates/tests/.config/**
 Cargo.toml
 crates/tests/Cargo.toml
 bin/bridge/Cargo.toml
-# CI, recipes and gate scripts
+# CI, recipes and gate scripts. A package's per-unit allowlists
+# (`<package>/gates/<gate>.allow`) are not listed: crate ownership selects only
+# that package. The central allowlists under scripts/ hold global entries.
 .github/workflows/**
 scripts/**
 justfile

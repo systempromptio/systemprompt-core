@@ -1,0 +1,1 @@
+src/credentials_bootstrap/mod.rs  # deployment-host detection for cloud credentials; SYSTEMPROMPT_ALLOW_UNVALIDATED_CREDS tenant-pod boot bypass (deployment host only, audited)
