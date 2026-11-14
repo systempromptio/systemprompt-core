@@ -70,7 +70,7 @@ impl AgentHost {
         let database = host.db_pool();
         let config = Arc::new(host.config().clone());
         let system_admin = host.system_owner().clone();
-        let a2a = Arc::new(host.parts().a2a_repositories());
+        let a2a = Arc::clone(&host.parts().a2a);
 
         let registry = RegistryService::new(
             system_admin,
