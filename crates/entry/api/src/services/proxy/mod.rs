@@ -16,5 +16,6 @@ pub mod resolver;
 pub mod service;
 mod sse;
 
+pub use auth::OAuthChallenge;
 pub use errors::{ProxyError, ResponseBuildError};
 pub use service::{ProxyKind, ProxyService, ProxyTarget};
