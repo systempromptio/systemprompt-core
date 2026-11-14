@@ -81,3 +81,26 @@ fn valid_config_file_passes_validation() {
         .expect("covextok outcome present");
     assert_eq!(ok.error, None);
 }
+
+#[test]
+fn a_rejected_extension_config_file_is_reported_by_the_startup_pass() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    std::fs::create_dir_all(tmp.path().join("config")).expect("mkdir config");
+    std::fs::write(tmp.path().join("config/covextbad.yaml"), "mode: fine\n")
+        .expect("write config");
+
+    let outcomes =
+        validate_extension_configs(tmp.path(), &[]).expect("registry discovery succeeds");
+
+    let bad = outcomes
+        .iter()
+        .find(|o| o.extension_id == "covextbad")
+        .expect("covextbad outcome present");
+    assert!(
+        bad.error
+            .as_deref()
+            .is_some_and(|e| e.contains("fixture always rejects")),
+        "the extension's own config document must reach validate_config, got: {:?}",
+        bad.error
+    );
+}

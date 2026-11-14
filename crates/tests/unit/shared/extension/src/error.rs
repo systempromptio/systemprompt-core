@@ -85,15 +85,15 @@ fn loader_error_config_validation_failed_keeps_its_source() {
 }
 
 #[test]
-fn loader_error_reserved_path_collision_display() {
-    let err = LoaderError::ReservedPathCollision {
-        extension: ExtensionId::new("path-ext"),
-        path: "/api/v1/oauth".to_string(),
+fn loader_error_router_build_failed_display() {
+    let err = LoaderError::RouterBuildFailed {
+        extension: ExtensionId::new("router-ext"),
+        source: systemprompt_extension::ExtensionStateError::NotReady,
     };
     let msg = err.to_string();
-    assert!(msg.contains("path-ext"));
-    assert!(msg.contains("/api/v1/oauth"));
-    assert!(msg.contains("reserved"));
+    assert!(msg.contains("router-ext"));
+    assert!(msg.contains("routers"));
+    assert!(std::error::Error::source(&err).is_some());
 }
 
 #[test]

@@ -63,15 +63,15 @@ fn test_loader_error_config_validation_failed_display() {
 }
 
 #[test]
-fn test_loader_error_reserved_path_collision_display() {
-    let err = LoaderError::ReservedPathCollision {
+fn test_loader_error_router_build_failed_display() {
+    let err = LoaderError::RouterBuildFailed {
         extension: ExtensionId::new("bad-ext"),
-        path: "/api/v1/users".to_string(),
+        source: systemprompt_extension::ExtensionStateError::NotReady,
     };
     let msg = err.to_string();
     assert!(msg.contains("bad-ext"));
-    assert!(msg.contains("/api/v1/users"));
-    assert!(msg.contains("reserved"));
+    assert!(msg.contains("routers"));
+    assert!(std::error::Error::source(&err).is_some());
 }
 
 #[test]
@@ -155,9 +155,9 @@ fn test_loader_error_variant_matching() {
             extension: ExtensionId::new("f"),
             source: ExtensionConfigError::NotFound("port".to_string()),
         },
-        LoaderError::ReservedPathCollision {
+        LoaderError::RouterBuildFailed {
             extension: ExtensionId::new("g"),
-            path: "/api/v1/users".to_string(),
+            source: systemprompt_extension::ExtensionStateError::NotReady,
         },
         LoaderError::InvalidBasePath {
             extension: ExtensionId::new("h"),
@@ -237,7 +237,8 @@ fn test_loader_error_variant_matching() {
                 assert!(!source.type_name().is_empty());
             },
             LoaderError::InitializationStepFailed { extension, .. }
-            | LoaderError::ProvideFailed { extension, .. } => {
+            | LoaderError::ProvideFailed { extension, .. }
+            | LoaderError::RouterBuildFailed { extension, .. } => {
                 assert!(!extension.as_str().is_empty());
             },
             LoaderError::UnmetStateRequirement {
@@ -271,10 +272,6 @@ fn test_loader_error_variant_matching() {
             },
             LoaderError::ConfigValidationFailed { extension, .. } => {
                 assert!(!extension.as_str().is_empty());
-            },
-            LoaderError::ReservedPathCollision { extension, path } => {
-                assert!(!extension.as_str().is_empty());
-                assert!(!path.is_empty());
             },
             LoaderError::InvalidBasePath { extension, path } => {
                 assert!(!extension.as_str().is_empty());

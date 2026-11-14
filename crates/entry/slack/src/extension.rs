@@ -24,8 +24,11 @@ impl Extension for SlackExtension {
     }
 
     #[cfg(feature = "http")]
-    fn router(&self, ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
-        crate::http::declaration(ctx)
+    fn routers(
+        &self,
+        ctx: &dyn ExtensionContext,
+    ) -> Result<Vec<ExtensionRouter>, ExtensionStateError> {
+        crate::http::declaration(ctx).map(|declared| vec![declared])
     }
 
     #[cfg(feature = "http")]

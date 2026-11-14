@@ -29,8 +29,8 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::post;
 use systemprompt_extension::{
-    AuthzPolicy, ContextKind, ExtensionContext, ExtensionRouter, HandlerVerifier, RateBudget,
-    RateLimit, RouteGroup,
+    AuthzPolicy, ContextKind, ExtensionContext, ExtensionRouter, ExtensionStateError,
+    HandlerVerifier, RateBudget, RateLimit, RouteGroup,
 };
 use systemprompt_identifiers::{TeamsAppId, TeamsConversationId, TeamsTenantId};
 use systemprompt_manifest::services::{ServicesConfig, TeamsAppConfig};
@@ -44,24 +44,17 @@ use systemprompt_traits::{
 
 const ISSUER: &str = "https://api.botframework.com";
 
-pub fn declaration(ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
-    let state = match TeamsState::from_context(ctx) {
-        Ok(state) => state,
-        Err(err) => {
-            tracing::error!(error = %err, "teams routes not mounted: router state unavailable");
-            return None;
-        },
-    };
-    Some(
-        ExtensionRouter::new(
-            router(state),
-            ApiPaths::TEAMS_BASE,
-            AuthzPolicy::handler_verified(HandlerVerifier::TeamsBotToken),
-            ContextKind::HandlerResolved,
-        )
-        .in_group(RouteGroup::Messaging)
-        .with_rate_limit(RateLimit::new("agents", RateBudget::Agents)),
+pub fn declaration(ctx: &dyn ExtensionContext) -> Result<ExtensionRouter, ExtensionStateError> {
+    let state = TeamsState::from_context(ctx)
+        .map_err(|source| ExtensionStateError::Provider(Box::new(source)))?;
+    Ok(ExtensionRouter::new(
+        router(state),
+        ApiPaths::TEAMS_BASE,
+        AuthzPolicy::handler_verified(HandlerVerifier::TeamsBotToken),
+        ContextKind::HandlerResolved,
     )
+    .in_group(RouteGroup::Messaging)
+    .with_rate_limit(RateLimit::new("agents", RateBudget::Agents)))
 }
 
 pub fn router(state: TeamsState) -> Router {

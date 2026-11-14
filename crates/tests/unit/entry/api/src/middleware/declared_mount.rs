@@ -362,12 +362,12 @@ fn an_extension_body_limit_above_the_server_default_is_refused() {
     let at_ceiling =
         ExtensionRouter::new(Router::new(), BASE, AuthzPolicy::user(), ContextKind::User)
             .with_body_limit(DEFAULT_BODY_LIMIT_BYTES);
-    assert!(admit_extension(&at_ceiling).is_ok());
+    assert!(admit_extension("covext", &at_ceiling).is_ok());
 
     let above = ExtensionRouter::new(Router::new(), BASE, AuthzPolicy::user(), ContextKind::User)
         .with_body_limit(DEFAULT_BODY_LIMIT_BYTES + 1);
     assert!(matches!(
-        admit_extension(&above),
+        admit_extension("covext", &above),
         Err(MountError::ExtensionBodyLimitTooLarge {
             declared,
             ceiling: DEFAULT_BODY_LIMIT_BYTES,

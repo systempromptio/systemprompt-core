@@ -19,6 +19,7 @@ mod client_addr;
 mod client_ip_extractor;
 mod content_negotiation;
 mod context_flavours;
+mod core_allowance;
 mod cors_config;
 mod declared_mount;
 mod edge_bounds;

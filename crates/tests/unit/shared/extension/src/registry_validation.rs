@@ -1,12 +1,13 @@
 //! Tests for `ExtensionRegistry` validation in `registry/validation.rs`:
 //! dependency validation (`validate_dependencies`) and API base-path checks
-//! (`validate_api_paths`), plus the exported `RESERVED_PATHS` table.
+//! (`validate_api_paths`), plus the exported `RESERVED_PATHS` table the
+//! server mount refuses extension declarations under.
 
 use std::sync::Arc;
 
 use systemprompt_extension::{
     AuthzPolicy, ContextKind, Extension, ExtensionContext, ExtensionMetadata, ExtensionRegistry,
-    ExtensionRouter, LoaderError, RESERVED_PATHS,
+    ExtensionRouter, ExtensionStateError, LoaderError, RESERVED_PATHS,
 };
 
 use crate::stub_ctx::{StubCtx, registry_with};
@@ -46,15 +47,22 @@ impl Extension for RouterExt {
         }
     }
 
-    fn router(&self, _ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
-        self.base_path.map(|p| {
-            ExtensionRouter::new(
-                axum::Router::new(),
-                p,
-                AuthzPolicy::user(),
-                ContextKind::User,
-            )
-        })
+    fn routers(
+        &self,
+        _ctx: &dyn ExtensionContext,
+    ) -> Result<Vec<ExtensionRouter>, ExtensionStateError> {
+        Ok(self
+            .base_path
+            .map(|p| {
+                ExtensionRouter::new(
+                    axum::Router::new(),
+                    p,
+                    AuthzPolicy::user(),
+                    ContextKind::User,
+                )
+            })
+            .into_iter()
+            .collect())
     }
 
     fn dependencies(&self) -> Vec<&'static str> {
@@ -152,19 +160,13 @@ fn validate_api_paths_accepts_the_web_root() {
 }
 
 #[test]
-fn validate_api_paths_rejects_reserved_path_collision() {
+fn validate_api_paths_leaves_reserved_prefixes_to_the_mount() {
     let registry = registry_with(vec![Arc::new(
         RouterExt::new("colliding").with_base_path("/api/v1/oauth/extra"),
     )]);
 
-    let err = validate(&registry).expect_err("a path under a reserved prefix must fail");
-    match err {
-        LoaderError::ReservedPathCollision { extension, path } => {
-            assert_eq!(extension, "colliding");
-            assert_eq!(path, "/api/v1/oauth/extra");
-        },
-        other => panic!("expected ReservedPathCollision, got {other:?}"),
-    }
+    validate(&registry)
+        .expect("the reserved-prefix refusal belongs to the server mount's core allowance table");
 }
 
 #[test]

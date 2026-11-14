@@ -38,8 +38,8 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::post;
 use systemprompt_extension::{
-    AuthzPolicy, ContextKind, ExtensionContext, ExtensionRouter, HandlerVerifier, RateBudget,
-    RateLimit, RouteGroup,
+    AuthzPolicy, ContextKind, ExtensionContext, ExtensionRouter, ExtensionStateError,
+    HandlerVerifier, RateBudget, RateLimit, RouteGroup,
 };
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_slack::events::{EventsApiEnvelope, InteractionPayload, SlashCommand};
@@ -50,24 +50,17 @@ use verify::{resolve_app, verify_any_app, verify_app};
 
 const ISSUER: &str = "https://slack.com";
 
-pub fn declaration(ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
-    let state = match SlackState::from_context(ctx) {
-        Ok(state) => state,
-        Err(err) => {
-            tracing::error!(error = %err, "slack routes not mounted: router state unavailable");
-            return None;
-        },
-    };
-    Some(
-        ExtensionRouter::new(
-            router(state),
-            ApiPaths::SLACK_BASE,
-            AuthzPolicy::handler_verified(HandlerVerifier::SlackSignature),
-            ContextKind::HandlerResolved,
-        )
-        .in_group(RouteGroup::Messaging)
-        .with_rate_limit(RateLimit::new("agents", RateBudget::Agents)),
+pub fn declaration(ctx: &dyn ExtensionContext) -> Result<ExtensionRouter, ExtensionStateError> {
+    let state = SlackState::from_context(ctx)
+        .map_err(|source| ExtensionStateError::Provider(Box::new(source)))?;
+    Ok(ExtensionRouter::new(
+        router(state),
+        ApiPaths::SLACK_BASE,
+        AuthzPolicy::handler_verified(HandlerVerifier::SlackSignature),
+        ContextKind::HandlerResolved,
     )
+    .in_group(RouteGroup::Messaging)
+    .with_rate_limit(RateLimit::new("agents", RateBudget::Agents)))
 }
 
 pub fn router(state: SlackState) -> Router {
