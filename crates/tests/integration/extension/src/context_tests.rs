@@ -459,7 +459,7 @@ fn test_extension_default_router() {
         files: Arc::new(MemoryFiles::default()),
         instance: InstanceId::new("replica-a"),
     };
-    assert!(ext.router(&ctx).is_none());
+    assert!(ext.routers(&ctx).expect("the default declares no routers").is_empty());
 }
 
 #[test]
@@ -521,7 +521,7 @@ fn test_extension_has_methods() {
     };
 
     assert!(!ext.has_schemas());
-    assert!(ext.router(&ctx).is_none());
+    assert!(ext.routers(&ctx).expect("the default declares no routers").is_empty());
     assert!(!ext.has_config());
     assert!(!ext.has_tool_providers());
 }

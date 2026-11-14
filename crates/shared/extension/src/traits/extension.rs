@@ -31,6 +31,10 @@ use crate::state::{StateBuilder, StateRequirement};
 /// every enabled extension, and contributes typed values to the shared
 /// extension state ([`state`](crate::state)); `requires` names the types the
 /// extension cannot run without, checked before anything serves.
+///
+/// `routers` declares every route group the extension serves; an `Err`
+/// (a client or state the routers need cannot be built) refuses boot with
+/// `LoaderError::RouterBuildFailed` naming the extension.
 pub trait Extension: Send + Sync + 'static {
     fn metadata(&self) -> ExtensionMetadata;
 
@@ -38,8 +42,11 @@ pub trait Extension: Send + Sync + 'static {
         vec![]
     }
 
-    fn router(&self, _ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
-        None
+    fn routers(
+        &self,
+        _ctx: &dyn ExtensionContext,
+    ) -> Result<Vec<ExtensionRouter>, ExtensionStateError> {
+        Ok(vec![])
     }
 
     fn site_auth(&self) -> Option<SiteAuthConfig> {
@@ -50,7 +57,7 @@ pub trait Extension: Send + Sync + 'static {
         vec![]
     }
 
-    fn runner_services(&self) -> Vec<Arc<dyn RunnerService>> {
+    fn runner_services(&self, _ctx: &dyn ExtensionContext) -> Vec<Arc<dyn RunnerService>> {
         vec![]
     }
 

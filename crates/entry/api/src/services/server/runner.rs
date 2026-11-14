@@ -184,7 +184,7 @@ fn start_runner_services(ctx: &AppContext, brain: Option<Arc<dyn RunnerService>>
         started += 1;
     }
     for extension in ctx.extension_registry().extensions() {
-        for service in extension.runner_services() {
+        for service in extension.runner_services(ctx) {
             let name = service.name();
             spawn_runner_service(ctx, &shared, service);
             tracing::info!(

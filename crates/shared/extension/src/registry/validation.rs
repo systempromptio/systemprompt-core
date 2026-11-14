@@ -1,11 +1,14 @@
-//! Registry validation for extension dependencies and reserved API path
-//! collisions.
+//! Registry validation for extension dependencies and extension base paths.
 //!
 //! An extension router is either nested under `/api/` or merged at the web
 //! root `/` (the site extension that serves pages); any other base would
-//! shadow core routes without the reserved-path table seeing it. Paths are
-//! validated over the routers the enabled extensions actually declare, the
-//! same set the server mounts.
+//! shadow core routes. Paths are validated over the routers the enabled
+//! extensions actually declare, the same set the server mounts.
+//!
+//! [`RESERVED_PATHS`] names the prefixes core route groups own. The server's
+//! mount refuses an extension declaration under one of them unless its
+//! closed table of core allowances grants that exact declaration the prefix,
+//! so the refusal and its one exception live in one place.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -42,16 +45,6 @@ impl ExtensionRegistry {
 
             if base_path != WEB_ROOT_BASE_PATH && !base_path.starts_with("/api/") {
                 return Err(LoaderError::InvalidBasePath {
-                    extension: ExtensionId::new(ext.id()),
-                    path: base_path.to_owned(),
-                });
-            }
-
-            if RESERVED_PATHS
-                .iter()
-                .any(|reserved| base_path.starts_with(reserved))
-            {
-                return Err(LoaderError::ReservedPathCollision {
                     extension: ExtensionId::new(ext.id()),
                     path: base_path.to_owned(),
                 });
