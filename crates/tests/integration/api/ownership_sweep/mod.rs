@@ -22,6 +22,7 @@ mod catalog;
 mod documents;
 mod drive;
 mod engine;
+mod gateway_prefixes;
 mod inventory;
 mod issues;
 mod notifications;
