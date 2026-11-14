@@ -1,0 +1,52 @@
+[package]
+name = "systemprompt-mcp-host"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Least-privilege child hosts for systemprompt.io AI governance infrastructure: the MCP server host context, the YAML-declared toolset host and the agent host."
+readme = "README.md"
+
+[package.metadata.docs.rs]
+all-features = true
+
+[lints]
+workspace = true
+
+[features]
+default = []
+notifications = ["systemprompt-runtime/notifications"]
+brain = ["notifications", "systemprompt-runtime/brain"]
+
+[dependencies]
+async-trait = { workspace = true }
+rmcp = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+systemprompt-agent = { workspace = true }
+systemprompt-ai = { workspace = true }
+systemprompt-config = { workspace = true }
+systemprompt-database = { workspace = true }
+systemprompt-extension = { workspace = true }
+systemprompt-files = { workspace = true }
+systemprompt-governance = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+systemprompt-loader = { workspace = true }
+systemprompt-logging = { workspace = true }
+systemprompt-manifest = { workspace = true }
+systemprompt-marketplace = { workspace = true }
+systemprompt-mcp = { workspace = true }
+systemprompt-models = { workspace = true }
+systemprompt-oauth = { workspace = true }
+systemprompt-provider-contracts = { workspace = true }
+systemprompt-runtime = { workspace = true }
+systemprompt-security = { workspace = true }
+systemprompt-traits = { workspace = true }
+systemprompt-users = { workspace = true }

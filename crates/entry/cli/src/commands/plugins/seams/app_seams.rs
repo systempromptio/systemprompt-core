@@ -63,8 +63,8 @@ pub(super) fn app_seams() -> Vec<LinkedSeam> {
         ),
         LinkedSeam::new(
             "mcp_toolset_factories",
-            "systemprompt-runtime",
-            named(systemprompt_runtime::mcp_host::registered_toolset_ids()),
+            "systemprompt-mcp-host",
+            named(systemprompt_mcp_host::toolsets::registered_toolset_ids()),
         ),
     ];
     seams.extend(agent_run_seams());

@@ -21,15 +21,13 @@ use systemprompt_ai::error::AiError;
 use systemprompt_ai::repository::AiRequestRepositories;
 use systemprompt_ai::{AiService, AiServiceProviders};
 use systemprompt_config::GrantedSecrets;
-use systemprompt_marketplace::managed::ManagedRepository;
 use systemprompt_mcp::McpToolProvider;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_oauth::JwtValidationProviderImpl;
 use systemprompt_security::credential::TokenCache;
-use systemprompt_traits::{DynSessionUsageCounters, SecretLookup};
+use systemprompt_traits::SecretLookup;
 use systemprompt_users::{SessionRepository, UsersAiSessionProvider};
 
-use crate::builder::composition::{a2a_repositories, organization_skills};
 use crate::host::{HostBootError, HostContext};
 
 #[derive(Debug, thiserror::Error)]
@@ -72,17 +70,7 @@ impl AgentHost {
         let database = host.db_pool();
         let config = Arc::new(host.config().clone());
         let system_admin = host.system_owner().clone();
-
-        let managed = ManagedRepository::new(database)
-            .with_publication_policy(host.publication_policy().clone());
-        let session_usage: DynSessionUsageCounters = Arc::new(SessionRepository::new(database));
-        let a2a = a2a_repositories(
-            database,
-            config.instance_id.clone(),
-            &managed,
-            session_usage,
-        );
-        let a2a = Arc::new(organization_skills(&a2a, &managed, &system_admin));
+        let a2a = Arc::new(host.parts().a2a_repositories());
 
         let registry = RegistryService::new(
             system_admin,

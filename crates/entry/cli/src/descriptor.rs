@@ -10,6 +10,12 @@
 /// runner stamps the server identity and lets the server own its own interrupt
 /// handling.
 ///
+/// `child_host` marks a process the API spawns (`admin agents run`,
+/// `admin mcp serve`): it boots from the environment the API granted it, so
+/// the runner resolves no profile, reads no CLI session or cloud credential,
+/// discovers no log level from a profile, and installs no Ctrl-C handler; the
+/// process ends on the signal its supervisor sends.
+///
 /// Model discovery (installing the services registry through boot-time
 /// discovery) is set only for the server; every other command loads the YAML
 /// catalog as authored and must not reach for the network.
@@ -34,8 +40,13 @@ impl CommandDescriptor {
     const FLAG_DESTRUCTIVE: u16 = 0b0001_0000_0000;
     const FLAG_IRREVERSIBLE: u16 = 0b0010_0000_0000;
     const FLAG_SERVES_API: u16 = 0b0100_0000_0000;
+    const FLAG_CHILD_HOST: u16 = 0b1000_0000_0000;
 
     pub const NONE: Self = Self { flags: 0 };
+
+    pub const CHILD_HOST: Self = Self {
+        flags: Self::FLAG_CHILD_HOST,
+    };
 
     pub const PROFILE_ONLY: Self = Self {
         flags: Self::FLAG_PROFILE,
@@ -117,6 +128,14 @@ impl CommandDescriptor {
 
     pub const fn serves_api(&self) -> bool {
         self.flags & Self::FLAG_SERVES_API != 0
+    }
+
+    pub const fn child_host(&self) -> bool {
+        self.flags & Self::FLAG_CHILD_HOST != 0
+    }
+
+    pub const fn owns_signals(&self) -> bool {
+        self.serves_api() || self.child_host()
     }
 
     pub const fn with_serves_api(self) -> Self {

@@ -30,7 +30,7 @@ pub use network::NetworkService;
 pub use orchestrator::McpOrchestrator;
 pub use process::ProcessService;
 pub use registry::RegistryService;
-pub use spawn_target::SpawnTarget;
+pub use spawn_target::{SpawnProgram, SpawnTarget};
 
 pub use orchestrator::{EventBus, McpEvent, McpRestartOutcome};
 pub use tool_provider::McpToolProvider;

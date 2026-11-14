@@ -32,10 +32,11 @@ use self::attach::AttachmentHandler;
 use self::read::{ListHandler, StatusHandler};
 use self::refusal::refusal_result;
 use self::report::ReportHandler;
-use crate::documents::links::{LinkIssueError, LinkIssuer};
-use crate::host::HostContext;
+use crate::documents::links::LinkIssuer;
 
 pub use self::refusal::IssueRefusalCode;
+
+pub const TOOLSET_ID: &str = "issues";
 
 pub const INSTRUCTIONS: &str = "Issue reports. File a bug or feedback report with report_issue \
 when a tool keeps failing, returns something wrong, or refuses where it should not; report a \
@@ -51,22 +52,6 @@ const TOOL_NAMES: [&str; 4] = [
     "issues_list",
     "issue_status",
 ];
-
-/// Why [`IssuesMcpTools::from_host`] refused to build the tools.
-#[derive(Debug, thiserror::Error)]
-pub enum IssuesMcpError {
-    #[error(
-        "MCP server {server_name} serves issue report tools but issue reports are disabled: set \
-         files.issues.enabled: true in services/config/files.yaml"
-    )]
-    Disabled { server_name: McpServerId },
-    #[error("MCP server {server_name}: the API link client could not be built")]
-    Links {
-        server_name: McpServerId,
-        #[source]
-        source: LinkIssueError,
-    },
-}
 
 /// One tool call, already authenticated by the composing server.
 #[derive(Debug, Clone, Copy)]
@@ -109,29 +94,6 @@ impl IssuesMcpTools {
             links,
             server_name,
         }
-    }
-
-    pub fn from_host(host: &HostContext, server_name: McpServerId) -> Result<Self, IssuesMcpError> {
-        if !host.files_config().issues_config().is_enabled() {
-            return Err(IssuesMcpError::Disabled { server_name });
-        }
-        let uploads = host
-            .files_config()
-            .documents_config()
-            .is_enabled()
-            .then(|| Arc::clone(host.documents().uploads()));
-        let links = host
-            .link_issuer(&server_name)
-            .map_err(|source| IssuesMcpError::Links {
-                server_name: server_name.clone(),
-                source,
-            })?;
-        Ok(Self::new(
-            Arc::clone(host.documents().issues()),
-            uploads,
-            links,
-            server_name,
-        ))
     }
 
     pub(super) fn issues(&self) -> &IssueService {

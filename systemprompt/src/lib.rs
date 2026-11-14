@@ -12,7 +12,7 @@
 //! | `database` | `systemprompt-database`, `sqlx` | SQLx-backed `DbPool` and repository helpers. |
 //! | `config` | `systemprompt-config` | Profile, secrets, and credential bootstrap loaders. |
 //! | `mcp` | `rmcp` | Implement Model Context Protocol servers with `rmcp`. The `systemprompt::mcp` module (`systemprompt-mcp`) is gated on `full`, not on this flag. |
-//! | `api` | `systemprompt-api`, `systemprompt-gateway`, `systemprompt-runtime`, `systemprompt-oauth-issuance`, `axum` (implies `core` + `database`) | HTTP server, AI gateway, `AppContext`, Axum router, OAuth token issuance. `systemprompt-api` always compiles the runtime's `geolocation` (MaxMind) feature; Slack, Teams, agent runs, OTLP and the bridge consumer surface are their own flags. |
+//! | `api` | `systemprompt-api`, `systemprompt-gateway`, `systemprompt-runtime`, `systemprompt-mcp-host`, `systemprompt-oauth-issuance`, `axum` (implies `core` + `database`) | HTTP server, AI gateway, `AppContext`, the MCP and agent child hosts (`systemprompt::system::HostContext`), Axum router, OAuth token issuance. `systemprompt-api` always compiles the runtime's `geolocation` (MaxMind) feature; Slack, Teams, agent runs, OTLP and the bridge consumer surface are their own flags. |
 //! | `cloud` | `systemprompt-cloud` | Cloud API client, credentials bootstrap, OAuth. |
 //! | `logging` | `systemprompt-logging` | Tracing setup with the workspace's layer stack. |
 //! | `loader` | `systemprompt-loader` | Filesystem and module discovery. |
@@ -144,11 +144,11 @@ pub use systemprompt_security as security;
 #[cfg_attr(docsrs, doc(cfg(feature = "security")))]
 pub use systemprompt_governance as governance;
 
-/// Application runtime / `AppContext` wiring. Construct via `AppContextBuilder`
-/// from the prelude.
+/// Application runtime and its child hosts; build an `AppContext` with `AppContextBuilder`.
 #[cfg(feature = "api")]
 #[cfg_attr(docsrs, doc(cfg(feature = "api")))]
 pub mod system {
+    pub use systemprompt_mcp_host::{AgentHost, AgentHostError, HostContext};
     pub use systemprompt_runtime::*;
 }
 
