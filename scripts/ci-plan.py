@@ -10,7 +10,8 @@ execute the scoped commands of the affected plan, so `escapes` can list what
 the affected plan would have missed.
 
     ci-plan.py plan --workflow ci --event push --ref refs/heads/future \\
-                    --selection selection.json --base SHA [--output $GITHUB_OUTPUT]
+                    --selection selection.json --base SHA [--output $GITHUB_OUTPUT] \\
+                    [--summary $GITHUB_STEP_SUMMARY]
     ci-plan.py aggregate --workflow ci --event push --ref refs/heads/future
                     (reads NEEDS = toJSON(needs) and SELECTION from the environment)
     ci-plan.py escapes --workflow ci --selection selection.json --jobs jobs.json \\
@@ -306,6 +307,18 @@ def escape_summary(workflow, selection, found):
     return "\n".join(lines) + "\n"
 
 
+def kernel_lane_summary(selection):
+    """The step-summary line reporting whether a selection mixes the kernel lane
+    with capability units. Reported only; no plan decision reads it."""
+    if "mixed_kernel_and_capability" not in selection:
+        return "Kernel lane: not computed (no base, so no selection)\n"
+    mixed = "true" if selection["mixed_kernel_and_capability"] else "false"
+    kernel = ", ".join(selection.get("kernel_crates_touched", [])) or "none"
+    capabilities = ", ".join(selection.get("capability_units_touched", [])) or "none"
+    return (f"Kernel lane: mixed_kernel_and_capability: {mixed}"
+            f" (kernel crates: {kernel}; capability units: {capabilities})\n")
+
+
 def load_json(text, what):
     try:
         return json.loads(text)
@@ -327,6 +340,7 @@ def main(argv=None, environ=None):
     sub.choices["plan"].add_argument("--base", default="")
     sub.choices["plan"].add_argument("--base-reason", default="")
     sub.choices["plan"].add_argument("--output")
+    sub.choices["plan"].add_argument("--summary")
     sub.choices["escapes"].add_argument("--selection", required=True)
     sub.choices["escapes"].add_argument("--jobs", required=True)
     sub.choices["escapes"].add_argument("--summary")
@@ -357,6 +371,11 @@ def command_plan(args):
     if args.output:
         with open(args.output, "a") as handle:
             handle.write(text)
+    lane = kernel_lane_summary(selection)
+    print(lane, end="", file=sys.stderr)
+    if args.summary:
+        with open(args.summary, "a") as handle:
+            handle.write(lane)
     return 0
 
 

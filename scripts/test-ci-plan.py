@@ -144,10 +144,12 @@ class Outputs(unittest.TestCase):
         with tempfile.TemporaryDirectory() as scratch:
             selection = Path(scratch) / "selection.json"
             output = Path(scratch) / "out"
-            with redirect_stdout(io.StringIO()):
+            summary = Path(scratch) / "summary"
+            with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
                 code = ci_plan.main(["plan", "--workflow", "ci", "--event", "push", "--ref", FUTURE,
                                      "--selection", str(selection), "--base-reason", "force-push",
-                                     "--output", str(output)])
+                                     "--output", str(output), "--summary", str(summary)])
+            self.assertIn("Kernel lane: not computed", summary.read_text())
             self.assertEqual(code, 0)
             written = json.loads(selection.read_text())
             self.assertEqual(written["mode"], "full")
@@ -156,6 +158,28 @@ class Outputs(unittest.TestCase):
         self.assertEqual(lines["plan_mode"], "full")
         self.assertEqual(lines["shadow_gate_args"], "--full")
         self.assertEqual(json.loads(lines["shard_groups"]), written["shard_groups"])
+
+
+class KernelLane(unittest.TestCase):
+    def test_mixed_selection_names_both_sides(self):
+        line = ci_plan.kernel_lane_summary({"mixed_kernel_and_capability": True,
+                                            "kernel_crates_touched": ["systemprompt-api"],
+                                            "capability_units_touched": ["capability:mcp"]})
+        self.assertEqual(line, "Kernel lane: mixed_kernel_and_capability: true"
+                               " (kernel crates: systemprompt-api; capability units: capability:mcp)\n")
+
+    def test_unmixed_selection_says_none(self):
+        line = ci_plan.kernel_lane_summary({"mixed_kernel_and_capability": False,
+                                            "kernel_crates_touched": [], "capability_units_touched": []})
+        self.assertIn("false (kernel crates: none; capability units: none)", line)
+
+    def test_the_flag_decides_no_job(self):
+        base = {"mode": "affected", "shard_groups": [], "archive_sets": [], "clippy_packages": ["a"],
+                "test_packages": [], "bridge": False, "changed_crates": ["a"]}
+        for workflow in ci_plan.JOBS:
+            flipped = [ci_plan.decisions(workflow, dict(base, mixed_kernel_and_capability=flag), "affected")
+                       for flag in (False, True)]
+            self.assertEqual(flipped[0], flipped[1])
 
 
 class Aggregate(unittest.TestCase):

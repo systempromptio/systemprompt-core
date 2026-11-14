@@ -212,6 +212,13 @@ class ForceFull(unittest.TestCase):
         self.assertIn("**/Cargo.lock", rules["full"])
         self.assertIn("LICENSE", rules["none"])
 
+    def test_committed_table_leaves_per_unit_allowlists_to_their_crate(self):
+        rules = affected.parse_rules(affected.FORCE_FULL.read_text())
+        for path in ("crates/domain/ai/gates/lint-env-vars.allow", "bin/bridge/gates/lint-env-vars.allow"):
+            with self.subTest(path=path):
+                self.assertIsNone(affected.first_match(path, rules["full"]))
+                self.assertIsNone(affected.first_match(path, rules["none"]))
+
 
 class Modes(unittest.TestCase):
     def test_empty_diff_is_none(self):
@@ -273,6 +280,21 @@ class Units(unittest.TestCase):
         result = run("crates/infra/db/src/lib.rs", "crates/domain/ai/src/lib.rs")
         self.assertEqual(result["units"], ["capability:ai", "kernel"])
         self.assertTrue(result["mixed_kernel_and_capability"])
+        self.assertEqual(result["kernel_crates_touched"], ["db"])
+        self.assertEqual(result["capability_units_touched"], ["capability:ai"])
+
+    def test_touched_lists_are_reported_without_mixing(self):
+        kernel = run("crates/infra/db/src/lib.rs")
+        self.assertEqual((kernel["kernel_crates_touched"], kernel["capability_units_touched"]), (["db"], []))
+        capability = run("crates/domain/ai/src/lib.rs")
+        self.assertEqual((capability["kernel_crates_touched"], capability["capability_units_touched"]),
+                         ([], ["capability:ai"]))
+
+    def test_per_unit_allowlist_selects_only_its_crate(self):
+        result = run("crates/domain/ai/gates/lint-env-vars.allow")
+        self.assertEqual(result["mode"], "affected")
+        self.assertEqual(result["changed_crates"], ["ai"])
+        self.assertEqual(result["reasons"], [])
 
     def test_two_capabilities_are_not_mixed(self):
         self.assertFalse(run("crates/domain/ai/src/lib.rs", "crates/domain/agent/src/lib.rs")["mixed_kernel_and_capability"])

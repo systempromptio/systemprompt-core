@@ -113,7 +113,8 @@ jobs:
           BASE_REASON: ${{ steps.base.outputs.base_reason }}
         run: |
           python3 scripts/ci-plan.py plan --workflow quality --event "$EVENT" --ref "$REF" \
-              --selection selection.json --base "$BASE" --base-reason "$BASE_REASON" --output "$GITHUB_OUTPUT"
+              --selection selection.json --base "$BASE" --base-reason "$BASE_REASON" --output "$GITHUB_OUTPUT" \
+              --summary "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: selection
