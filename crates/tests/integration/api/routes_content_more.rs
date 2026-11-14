@@ -3,8 +3,6 @@
 //! variants, `list_links` query dispatch, and a seeded content search.
 
 use axum::Extension;
-use axum::body::Body;
-use axum::http::{Request, StatusCode};
 use systemprompt_api::routes::content;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};

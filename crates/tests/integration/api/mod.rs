@@ -142,6 +142,7 @@ mod server_boot;
 #[cfg(test)]
 #[path = "server_extension_mount.rs"]
 mod server_extension_mount;
+#[cfg(test)]
 #[path = "server_extension_mount_roles.rs"]
 mod server_extension_mount_roles;
 

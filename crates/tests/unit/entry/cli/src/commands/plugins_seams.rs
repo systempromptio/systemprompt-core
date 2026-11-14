@@ -311,7 +311,6 @@ fn gateway_request_guards_are_listed_by_owning_extension() {
         .map(|registration| registration.extension.to_owned())
         .collect();
     assert_eq!(guards.entries.len(), owners.len());
-<<<<<<< HEAD
     assert!(guards.entries.iter().all(|entry| owners.contains(entry)));
     assert!(
         guards
@@ -319,7 +318,4 @@ fn gateway_request_guards_are_listed_by_owning_extension() {
             .iter()
             .all(|entry| !entry.starts_with("unnamed#"))
     );
-=======
-    assert!(guards.entries.iter().all(|entry| !entry.starts_with("unnamed#")));
->>>>>>> future-e2
 }

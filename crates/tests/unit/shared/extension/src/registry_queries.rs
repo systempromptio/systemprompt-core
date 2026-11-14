@@ -174,9 +174,9 @@ fn api_routers_refuses_an_extension_whose_routers_fail_to_build() {
     let registry = registry_with(vec![Arc::new(routed), Arc::new(broken)]);
 
     let ctx = StubCtx;
-    let err = registry
-        .api_routers(&ctx, &[], &every)
-        .expect_err("a router build failure refuses the whole set");
+    let Err(err) = registry.api_routers(&ctx, &[], &every) else {
+        panic!("a router build failure refuses the whole set");
+    };
     match err {
         LoaderError::RouterBuildFailed { extension, source } => {
             assert_eq!(extension, "broken");

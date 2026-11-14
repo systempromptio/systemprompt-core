@@ -10,6 +10,7 @@ use std::collections::HashMap;
 use systemprompt_api::routes::gateway::auth::{AuthResponse, capabilities};
 use systemprompt_api::services::messaging::MessagingError;
 use systemprompt_oauth::services::BridgeAuthResult;
+use systemprompt_traits::MessagingDispatchError;
 
 #[test]
 fn a_minted_bridge_credential_becomes_the_wire_body_intact() {
@@ -62,7 +63,7 @@ fn a_dispatch_failure_renders_one_apologetic_line_per_variant() {
     ];
 
     for err in variants {
-        let rendered = err.user_message();
+        let rendered = MessagingDispatchError::failed(err).user_message();
         assert!(
             rendered.starts_with("Sorry — something went wrong handling that."),
             "every failure gets the same opaque opener: {rendered}"
@@ -77,9 +78,9 @@ fn the_reply_surface_never_names_the_failing_subsystem_to_the_user() {
         message: "vault credentials expired".to_owned(),
     };
 
-    let rendered = err.user_message();
+    assert!(err.to_string().contains("vault credentials expired"));
+
+    let rendered = MessagingDispatchError::failed(err).user_message();
     assert_eq!(rendered, "Sorry — something went wrong handling that.");
     assert!(!rendered.contains("vault credentials expired"));
-
-    assert!(err.to_string().contains("vault credentials expired"));
 }
