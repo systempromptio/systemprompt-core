@@ -11,11 +11,11 @@ use systemprompt_config::paths::AppPaths;
 use systemprompt_config::{GrantedSecrets, LoadedProfile};
 use systemprompt_database::MigrationConfig;
 use systemprompt_loader::{ConfigLoader, ServicesSourceBootstrap, ServicesState};
+use systemprompt_marketplace::managed::ManagedRepository;
 use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_models::subprocess::VERIFICATION_KEYS_ENV;
 use systemprompt_security::jwt::VerifyingTokenAuthority;
 use systemprompt_security::keys::{TokenVerificationKeys, VerificationKeyring};
-use systemprompt_marketplace::managed::ManagedRepository;
 use systemprompt_traits::{BackgroundTasks, CacheEpochs, DynSessionUsageCounters, SecretStore};
 use systemprompt_users::{SessionRepository, UserRepository};
 
@@ -51,7 +51,8 @@ impl HostKernel {
             .map_err(|e| HostBootError::Profile(Box::new(e)))?;
         let profile = loaded.profile();
         let secrets = Arc::new(
-            GrantedSecrets::from_lookup(&lookup).map_err(|e| HostBootError::Secrets(Box::new(e)))?,
+            GrantedSecrets::from_lookup(&lookup)
+                .map_err(|e| HostBootError::Secrets(Box::new(e)))?,
         );
         let verification = verification_keyring(&lookup)?;
 

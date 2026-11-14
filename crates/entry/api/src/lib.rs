@@ -13,7 +13,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod error;
-/// The helper surface route modules import from the server.
 pub mod kernel;
 pub mod repository;
 pub mod routes;

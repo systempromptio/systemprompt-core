@@ -11,9 +11,9 @@
 //! logging repository.
 //!
 //! The surface is assembled in two halves so that the server can give each its
-//! own rate-limit budget: [`gateway_mount_parts`] hands the server the three
+//! own rate-limit budget: `gateway_mount_parts` hands the server the three
 //! halves, which it declares handler-verified by the gateway credential with
-//! their rate limits and bearer windows and wraps in [`with_access_log`],
+//! their rate limits and bearer windows and wraps in `with_access_log`,
 //! while [`gateway_router`] returns the same routes unlimited for tests. The
 //! bridge credential-exchange half is budgeted apart from inference traffic
 //! because the two have opposite shapes: inference is high-volume and elastic,
