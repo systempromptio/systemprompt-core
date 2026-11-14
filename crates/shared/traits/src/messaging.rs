@@ -1,17 +1,35 @@
-//! The chat-platform conversation an inbound message belongs to.
+//! The seam a chat-platform surface dispatches an inbound message through.
+//!
+//! Slack and Teams differ only at their edges: request verification, payload
+//! shape and reply rendering. Everything between (federated identity,
+//! authorization, the deterministic conversation context, the per-user A2A
+//! token and the blocking `SendMessage` to the agent) is the agent
+//! capability's, reached through [`MessagingDispatcher`]. A platform surface
+//! normalises its wire payload into a [`MessagingInbound`], calls
+//! [`MessagingDispatcher::dispatch`] and renders the [`DispatchOutcome`] back
+//! into its own UI.
 //!
 //! Each platform names its organisation, conversation and sender with its own
-//! wire ids. The per-platform route keeps them typed in
-//! [`MessagingConversation`] so the dispatch core reads them through one place
-//! and a Slack id can never stand in for a Teams one.
+//! wire ids. [`MessagingConversation`] keeps them typed, so a Slack id never
+//! stands in for a Teams one.
+//!
+//! The sender's federated claims ride on [`MessagingInbound::sender`]: only
+//! the platform surface can read the sender's profile, so a surface that reads
+//! nothing passes [`SenderIdentity::Unlinked`] and the sender lands on a
+//! fresh, role-less user, never on an existing account.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
+
+use async_trait::async_trait;
 use systemprompt_identifiers::{
-    ContextId, SlackChannelId, SlackUserId, SlackWorkspaceId, TeamsConversationId, TeamsTenantId,
-    TeamsUserId,
+    AgentName, ContextId, SlackChannelId, SlackUserId, SlackWorkspaceId, TeamsConversationId,
+    TeamsTenantId, TeamsUserId,
 };
+
+use crate::auth::{LinkPolicy, SenderIdentity};
 
 /// Platform-scoped ids of the conversation a message arrived in. A Slack
 /// interaction without a channel carries `channel_id: None`.
@@ -67,3 +85,59 @@ impl MessagingConversation {
         ContextId::derived_from_messaging(self.platform(), org, self.channel_key())
     }
 }
+
+/// A platform-neutral inbound message ready for dispatch. The platform
+/// issuer (`https://slack.com`, the Bot Framework issuer) namespaces the
+/// sender's wire id in the federated identity resolution.
+#[derive(Debug, Clone)]
+pub struct MessagingInbound {
+    pub issuer: String,
+    pub conversation: MessagingConversation,
+    pub text: String,
+    pub agent_name: AgentName,
+    pub sender: SenderIdentity,
+    pub link: LinkPolicy,
+}
+
+#[derive(Debug, Clone)]
+pub enum DispatchOutcome {
+    Replied(String),
+    Denied(String),
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum MessagingDispatchError {
+    #[error("no messaging dispatcher is bound on this node")]
+    Unavailable,
+    #[error("messaging dispatch failed")]
+    Failed(#[source] Box<dyn std::error::Error + Send + Sync>),
+}
+
+impl MessagingDispatchError {
+    pub fn failed(source: impl std::error::Error + Send + Sync + 'static) -> Self {
+        Self::Failed(Box::new(source))
+    }
+
+    #[must_use]
+    #[expect(
+        clippy::unused_self,
+        reason = "opaque by contract: no part of the error may reach the caller"
+    )]
+    pub fn user_message(&self) -> String {
+        "Sorry — something went wrong handling that.".to_owned()
+    }
+}
+
+/// Runs one inbound chat-platform message through identity, authorization
+/// and the agent, and returns what to render back. Held as
+/// `Arc<dyn MessagingDispatcher>` in the extension state, so it uses
+/// `#[async_trait]`; native `async fn` in traits is not `dyn`-compatible.
+#[async_trait]
+pub trait MessagingDispatcher: Send + Sync {
+    async fn dispatch(
+        &self,
+        inbound: MessagingInbound,
+    ) -> Result<DispatchOutcome, MessagingDispatchError>;
+}
+
+pub type DynMessagingDispatcher = Arc<dyn MessagingDispatcher>;

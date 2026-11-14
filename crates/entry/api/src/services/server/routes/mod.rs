@@ -117,6 +117,8 @@ fn build_routes(
         router = gateway::mount_gateway(router, &mount)?;
     }
     router = feature_mount::mount_feature_routes(router, &mount)?;
+    crate::services::messaging::bind_dispatcher(ctx)
+        .map_err(|source| RouteMountError::initialization("messaging_dispatcher", source))?;
     if serves(RouteGroup::Extensions) {
         router = extension_mount::mount_extension_routes(router, &mount, &refresh_lock, events)?;
     }

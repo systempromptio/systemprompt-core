@@ -1,5 +1,6 @@
-//! `Extension` registration for the Slack integration: config prefix and
-//! schema.
+//! `Extension` registration for the Slack capability: config prefix and
+//! schema, and behind the `http` feature the inbound route declaration and
+//! the messaging dispatcher it requires.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -20,6 +21,18 @@ impl Extension for SlackExtension {
             name: "Slack",
             version: env!("CARGO_PKG_VERSION"),
         }
+    }
+
+    #[cfg(feature = "http")]
+    fn router(&self, ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
+        crate::http::declaration(ctx)
+    }
+
+    #[cfg(feature = "http")]
+    fn requires(&self) -> Vec<StateRequirement> {
+        vec![StateRequirement::of::<
+            LateBound<dyn systemprompt_traits::MessagingDispatcher>,
+        >()]
     }
 
     fn config_prefix(&self) -> Option<&str> {

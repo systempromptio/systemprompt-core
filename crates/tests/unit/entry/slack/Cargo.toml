@@ -1,0 +1,20 @@
+[package]
+name = "systemprompt-slack-entry-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit tests for systemprompt-slack-entry"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-slack-entry = { workspace = true, features = ["http"] }
+systemprompt-extension = { workspace = true }
+systemprompt-runtime = { workspace = true }
+systemprompt-test-hack = { version = "0.1", path = "../../../common/hack" }
+
+[dev-dependencies]
+tempfile = { workspace = true }

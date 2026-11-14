@@ -5,15 +5,14 @@
 //! interactions, a JSON `payload` form field). Each handler verifies the
 //! request signature over the **raw** body, normalizes the payload, resolves
 //! the agent from `services/slack/*.yaml`, acks Slack within its 3-second
-//! timeout, and spawns the blocking
-//! [`dispatch_messaging`](crate::routes::messaging::dispatch_messaging)
-//! pipeline — whose reply is rendered to Block Kit and posted back via
+//! timeout, and spawns the dispatch through the shared `MessagingDispatcher`,
+//! whose reply is rendered to Block Kit and posted back via
 //! `chat.postMessage` (events) or the captured `response_url`
 //! (commands/interactivity).
 //!
-//! Config and secrets resolve on demand (the MCP-registry pattern): the app is
-//! looked up by workspace id, and the signing secret / bot token are read from
-//! the profile secret store. No `AppContext` wiring, no registry struct, no DB.
+//! Config and secrets resolve on demand: the app is looked up by workspace id
+//! in the live services view, and the signing secret and bot token are read
+//! from the deployment's secret store by their named refs.
 //!
 //! When the app sets `authz.link.link_by_email`, the sender's profile is read
 //! with `users.info` inside the spawned task — after the ack, never on the
@@ -24,41 +23,62 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod reply;
+mod state;
 mod verify;
+
+pub use state::{SlackState, SlackStateError};
 
 use std::collections::HashMap;
 
+use axum::Router;
 use axum::body::Bytes;
 use axum::extract::State;
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::post;
-use axum::{Extension, Router};
-use systemprompt_governance::authz::EntityRef;
-use systemprompt_runtime::AppContext;
-use systemprompt_slack::events::{EventsApiEnvelope, InteractionPayload, SlashCommand};
-use systemprompt_traits::SenderIdentity;
-
-use crate::routes::messaging::{
-    MessagingConversation, MessagingInbound, MessagingState, ReplyTarget,
+use systemprompt_extension::{
+    AuthzPolicy, ContextKind, ExtensionContext, ExtensionRouter, HandlerVerifier, RateBudget,
+    RateLimit, RouteGroup,
 };
+use systemprompt_models::modules::ApiPaths;
+use systemprompt_slack::events::{EventsApiEnvelope, InteractionPayload, SlashCommand};
+use systemprompt_traits::{MessagingConversation, MessagingInbound, SenderIdentity};
 
-use reply::spawn_reply;
+use reply::{ReplyTarget, spawn_reply};
 use verify::{resolve_app, verify_any_app, verify_app};
 
 const ISSUER: &str = "https://slack.com";
 
-pub fn slack_router(state: MessagingState) -> Router<AppContext> {
+pub fn declaration(ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
+    let state = match SlackState::from_context(ctx) {
+        Ok(state) => state,
+        Err(err) => {
+            tracing::error!(error = %err, "slack routes not mounted: router state unavailable");
+            return None;
+        },
+    };
+    Some(
+        ExtensionRouter::new(
+            router(state),
+            ApiPaths::SLACK_BASE,
+            AuthzPolicy::handler_verified(HandlerVerifier::SlackSignature),
+            ContextKind::HandlerResolved,
+        )
+        .in_group(RouteGroup::Messaging)
+        .with_rate_limit(RateLimit::new("agents", RateBudget::Agents)),
+    )
+}
+
+pub fn router(state: SlackState) -> Router {
     Router::new()
         .route("/events", post(handle_events))
         .route("/commands", post(handle_commands))
         .route("/interactivity", post(handle_interactivity))
-        .layer(Extension(state))
+        .with_state(state)
 }
 
 async fn handle_events(
-    State(ctx): State<AppContext>,
-    Extension(messaging): Extension<MessagingState>,
+    State(state): State<SlackState>,
     headers: HeaderMap,
     body: Bytes,
 ) -> Response {
@@ -68,22 +88,17 @@ async fn handle_events(
 
     match envelope {
         EventsApiEnvelope::UrlVerification { challenge } => {
-            if verify_any_app(
-                &ctx.secrets().get(),
-                &ctx.services_config(),
-                &headers,
-                &body,
-            ) {
+            if verify_any_app(state.secrets(), &state.services().config(), &headers, &body) {
                 challenge.into_response()
             } else {
                 StatusCode::UNAUTHORIZED.into_response()
             }
         },
         EventsApiEnvelope::EventCallback { team_id, event } => {
-            let Some(app) = resolve_app(&ctx.services_config(), &team_id) else {
+            let Some(app) = resolve_app(&state.services().config(), &team_id) else {
                 return StatusCode::OK.into_response();
             };
-            if !verify_app(&ctx.secrets().get(), &app, &headers, &body) {
+            if !verify_app(state.secrets(), &app, &headers, &body) {
                 return StatusCode::UNAUTHORIZED.into_response();
             }
             if event.bot_id.is_some() || !matches!(event.kind.as_str(), "message" | "app_mention") {
@@ -101,26 +116,23 @@ async fn handle_events(
             let inbound = MessagingInbound {
                 issuer: ISSUER.to_owned(),
                 conversation: MessagingConversation::Slack {
-                    workspace_id: team_id.clone(),
+                    workspace_id: team_id,
                     channel_id: Some(channel),
                     user_id: user,
                 },
                 text: event.text.unwrap_or_default(),
                 agent_name: agent,
-                entity: EntityRef::SlackWorkspace(team_id),
-                reply,
                 sender: SenderIdentity::Unlinked,
                 link: app.authz.link,
             };
-            spawn_reply(ctx, messaging, inbound, &app);
+            spawn_reply(&state, inbound, reply, &app);
             StatusCode::OK.into_response()
         },
     }
 }
 
 async fn handle_commands(
-    State(ctx): State<AppContext>,
-    Extension(messaging): Extension<MessagingState>,
+    State(state): State<SlackState>,
     headers: HeaderMap,
     body: Bytes,
 ) -> Response {
@@ -128,10 +140,10 @@ async fn handle_commands(
     let Some(cmd) = slash_command_from_form(&form) else {
         return StatusCode::BAD_REQUEST.into_response();
     };
-    let Some(app) = resolve_app(&ctx.services_config(), &cmd.team_id) else {
+    let Some(app) = resolve_app(&state.services().config(), &cmd.team_id) else {
         return StatusCode::OK.into_response();
     };
-    if !verify_app(&ctx.secrets().get(), &app, &headers, &body) {
+    if !verify_app(state.secrets(), &app, &headers, &body) {
         return StatusCode::UNAUTHORIZED.into_response();
     }
     let normalized = cmd.normalize();
@@ -147,24 +159,21 @@ async fn handle_commands(
     let inbound = MessagingInbound {
         issuer: ISSUER.to_owned(),
         conversation: MessagingConversation::Slack {
-            workspace_id: normalized.workspace_id.clone(),
+            workspace_id: normalized.workspace_id,
             channel_id: Some(normalized.channel_id),
             user_id: normalized.slack_user_id,
         },
         text: normalized.text,
         agent_name: agent,
-        entity: EntityRef::SlackWorkspace(normalized.workspace_id),
-        reply,
         sender: SenderIdentity::Unlinked,
         link: app.authz.link,
     };
-    spawn_reply(ctx, messaging, inbound, &app);
+    spawn_reply(&state, inbound, reply, &app);
     StatusCode::OK.into_response()
 }
 
 async fn handle_interactivity(
-    State(ctx): State<AppContext>,
-    Extension(messaging): Extension<MessagingState>,
+    State(state): State<SlackState>,
     headers: HeaderMap,
     body: Bytes,
 ) -> Response {
@@ -176,10 +185,10 @@ async fn handle_interactivity(
         Ok(p) => p,
         Err(_) => return StatusCode::BAD_REQUEST.into_response(),
     };
-    let Some(app) = resolve_app(&ctx.services_config(), &payload.team.id) else {
+    let Some(app) = resolve_app(&state.services().config(), &payload.team.id) else {
         return StatusCode::OK.into_response();
     };
-    if !verify_app(&ctx.secrets().get(), &app, &headers, &body) {
+    if !verify_app(state.secrets(), &app, &headers, &body) {
         return StatusCode::UNAUTHORIZED.into_response();
     }
     let channel_id = payload
@@ -209,18 +218,16 @@ async fn handle_interactivity(
     let inbound = MessagingInbound {
         issuer: ISSUER.to_owned(),
         conversation: MessagingConversation::Slack {
-            workspace_id: payload.team.id.clone(),
+            workspace_id: payload.team.id,
             channel_id,
             user_id: payload.user.id,
         },
         text,
         agent_name: agent,
-        entity: EntityRef::SlackWorkspace(payload.team.id),
-        reply,
         sender: SenderIdentity::Unlinked,
         link: app.authz.link,
     };
-    spawn_reply(ctx, messaging, inbound, &app);
+    spawn_reply(&state, inbound, reply, &app);
     StatusCode::OK.into_response()
 }
 

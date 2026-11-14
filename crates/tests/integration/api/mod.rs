@@ -279,18 +279,6 @@ mod messaging_dispatch;
 mod messaging_linking;
 
 #[cfg(test)]
-#[path = "routes_slack.rs"]
-mod routes_slack;
-
-#[cfg(test)]
-#[path = "routes_slack_more.rs"]
-mod routes_slack_more;
-
-#[cfg(test)]
-#[path = "routes_teams.rs"]
-mod routes_teams;
-
-#[cfg(test)]
 #[path = "routes_oauth_consent.rs"]
 mod routes_oauth_consent;
 
@@ -440,10 +428,6 @@ mod routes_bridge_plugin_file;
 #[cfg(test)]
 #[path = "routes_bridge_manifest_catalog.rs"]
 mod routes_bridge_manifest_catalog;
-
-#[cfg(test)]
-#[path = "routes_slack_edges.rs"]
-mod routes_slack_edges;
 
 #[cfg(test)]
 #[path = "routes_proxy_mcp_executions.rs"]

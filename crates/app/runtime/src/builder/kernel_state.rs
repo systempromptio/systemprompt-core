@@ -12,6 +12,11 @@
 //! `MissingDependency`, never a fallback service. An absent `AiService` is
 //! still reserved for the kernel, so no extension can `provide` its own.
 //!
+//! The messaging dispatcher slot (`LateBound<dyn MessagingDispatcher>`) is
+//! seeded unbound: the dispatcher needs the API's agent proxy, which exists
+//! only after this state is built, so the API binds it while it builds its
+//! routes and the chat-platform surfaces read the slot at dispatch time.
+//!
 //! [`ExtensionContext::extension_state`]: systemprompt_extension::ExtensionContext::extension_state
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -23,7 +28,9 @@ use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
 use systemprompt_files::FilesConfig;
 use systemprompt_manifest::Profile;
+use systemprompt_models::LateBound;
 use systemprompt_provider_contracts::Dependencies;
+use systemprompt_traits::MessagingDispatcher;
 
 use crate::context::AppContext;
 use crate::documents::DocumentsRuntime;
@@ -57,7 +64,8 @@ pub fn kernel_state(app: &AppContext) -> Dependencies {
     .with(Arc::clone(app.oauth_repositories()))
     .with(Arc::clone(app.ai_repositories()))
     .with(Arc::clone(app.analytics_repositories()))
-    .with(app.artifact_ingest_arc());
+    .with(app.artifact_ingest_arc())
+    .with(LateBound::<dyn MessagingDispatcher>::default());
     match &app.subsystems.ai_service {
         Some(ai) => state.insert(Arc::clone(ai)),
         None => state.reserve::<Arc<systemprompt_ai::AiService>>(),

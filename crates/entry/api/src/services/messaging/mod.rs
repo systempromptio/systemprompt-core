@@ -1,96 +1,47 @@
-//! Platform-agnostic dispatch for chat-platform inbound messages.
+//! The agent capability's dispatch leg for chat-platform inbound messages.
 //!
-//! Slack and Teams differ only at their edges — request verification, payload
-//! shape, and reply rendering. Everything between (identity, authorization,
-//! deterministic conversation context, per-user A2A token minting, the blocking
-//! `SendMessage` through the proxy, and reply extraction) is identical and
-//! lives here once. A per-platform route normalizes its wire payload into a
-//! [`MessagingInbound`] and calls [`dispatch_messaging`]; the returned
-//! [`DispatchOutcome`] is rendered back into the platform's UI by the route.
+//! [`A2aMessagingDispatcher`] implements the shared
+//! [`MessagingDispatcher`] seam: federated identity, the authorization hook,
+//! the deterministic conversation context, per-user A2A token minting, the
+//! blocking `SendMessage` through the agent proxy, and reply extraction. The
+//! platform surfaces (the Slack and Teams entry crates) never name this
+//! module; they read the dispatcher from the extension state, where the
+//! kernel seeds an unbound `LateBound<dyn MessagingDispatcher>` slot and
+//! [`bind_dispatcher`] binds it while the server builds its routes. A slot
+//! that is never bound refuses every dispatch with
+//! [`MessagingDispatchError::Unavailable`].
 //!
-//! The pipeline is **synchronous, spawned**: the route acks the platform within
+//! The pipeline is synchronous and spawned: the platform route acks within
 //! its timeout, then a spawned task runs this blocking dispatch and posts the
-//! reply. There is no responder job and no dispatch-state table — a stable
-//! [`ContextId`](systemprompt_identifiers::ContextId) (derived from the
-//! conversation) ties multi-turn history together instead.
+//! reply. A stable [`ContextId`](systemprompt_identifiers::ContextId), derived
+//! from the conversation, ties multi-turn history together.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod a2a;
-pub mod conversation;
 pub mod identity;
 
+use std::sync::Arc;
+
+use async_trait::async_trait;
 use serde_json::json;
+use systemprompt_extension::{AlreadyBound, ExtensionContext, LateBound};
 use systemprompt_governance::authz::{AuthzContext, AuthzDecision, AuthzRequest, EntityRef};
-use systemprompt_identifiers::{Actor, AgentName, SessionId, TraceId};
+use systemprompt_identifiers::{Actor, SessionId, TraceId};
+use systemprompt_mcp::repository::McpProxySessionRepository;
 use systemprompt_oauth::OauthError;
+use systemprompt_provider_contracts::MissingDependency;
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::{LinkPolicy, SenderIdentity};
+use systemprompt_traits::{
+    DispatchOutcome, MessagingConversation, MessagingDispatchError, MessagingDispatcher,
+    MessagingInbound,
+};
 use systemprompt_users::UserError;
 
-use crate::kernel::ProxyError;
+use crate::services::proxy::ProxyError;
 use a2a::{authenticated_user, build_a2a_request, mint_a2a_token, run_agent};
-pub use conversation::MessagingConversation;
 use identity::resolve_or_link_user;
-
-/// Router-scoped state for the chat-platform reply path, built once when the
-/// messaging routes are mounted.
-#[derive(Debug, Clone)]
-pub struct MessagingState {
-    pub reply_client: reqwest::Client,
-    pub payload_url_client: systemprompt_client::GuardedClient,
-}
-
-impl MessagingState {
-    #[must_use]
-    pub const fn new(
-        reply_client: reqwest::Client,
-        payload_url_client: systemprompt_client::GuardedClient,
-    ) -> Self {
-        Self {
-            reply_client,
-            payload_url_client,
-        }
-    }
-
-    pub fn guarded() -> Result<Self, reqwest::Error> {
-        let reply_client = systemprompt_client::guarded_client(
-            &systemprompt_client::GuardedClientConfig::for_configured(),
-        )?;
-        let payload_url_client = systemprompt_client::GuardedClient::untrusted(
-            &systemprompt_client::GuardedClientConfig::for_untrusted(),
-        )?;
-        Ok(Self::new(reply_client, payload_url_client))
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum ReplyTarget {
-    Channel { id: String },
-    Url { url: String },
-}
-
-/// A surface-agnostic inbound message ready for dispatch. Per-platform routes
-/// build this from their normalized payload; the dispatch core never sees a
-/// Slack- or Teams-specific type.
-#[derive(Debug, Clone)]
-pub struct MessagingInbound {
-    pub issuer: String,
-    pub conversation: MessagingConversation,
-    pub text: String,
-    pub agent_name: AgentName,
-    pub entity: EntityRef,
-    pub reply: ReplyTarget,
-    pub sender: SenderIdentity,
-    pub link: LinkPolicy,
-}
-
-#[derive(Debug, Clone)]
-pub enum DispatchOutcome {
-    Replied(String),
-    Denied(String),
-}
 
 /// Failures along the dispatch pipeline. This is an internal system surface;
 /// messages are deliberately descriptive for operator debugging.
@@ -114,67 +65,114 @@ pub enum MessagingError {
     Response(#[source] serde_json::Error),
 }
 
-impl MessagingError {
-    #[must_use]
-    #[expect(
-        clippy::unused_self,
-        reason = "opaque by contract: no part of the error may reach the caller"
-    )]
-    pub fn user_message(&self) -> String {
-        "Sorry — something went wrong handling that.".to_owned()
+/// The [`MessagingDispatcher`] the API binds into the extension state.
+#[derive(Clone)]
+pub struct A2aMessagingDispatcher {
+    ctx: AppContext,
+    proxy_sessions: Arc<McpProxySessionRepository>,
+}
+
+impl std::fmt::Debug for A2aMessagingDispatcher {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("A2aMessagingDispatcher")
+            .finish_non_exhaustive()
     }
 }
 
-pub async fn dispatch_messaging(
-    ctx: &AppContext,
-    inbound: MessagingInbound,
-) -> Result<DispatchOutcome, MessagingError> {
-    let user = match resolve_or_link_user(
-        ctx,
-        &inbound.issuer,
-        inbound.conversation.sender_wire_id(),
-        &inbound.sender.claims(),
-        &inbound.link,
-    )
-    .await
-    {
-        Ok(user) => user,
-        Err(MessagingError::Identity(UserError::FederatedRefused(refusal))) => {
-            tracing::warn!(issuer = %inbound.issuer, %refusal, "messaging sender refused");
-            return Ok(DispatchOutcome::Denied(refusal.to_string()));
-        },
-        Err(err) => return Err(err),
-    };
-    let authed = authenticated_user(&user);
-
-    let context_id = inbound.conversation.context_id();
-
-    let authz = AuthzRequest {
-        entity: inbound.entity.clone(),
-        user_id: user.id.clone(),
-        actor: Some(Actor::user(user.id.clone())),
-        client_id: None,
-        access_scope: None,
-        roles: user.roles.clone(),
-        attributes: std::collections::BTreeMap::new(),
-        trace_id: TraceId::generate(),
-        session_id: None,
-        context: AuthzContext::extension(
-            format!("{}.message", inbound.conversation.platform()),
-            json!({ "channel": inbound.conversation.channel_key() }),
-        ),
-        context_id: Some(context_id.clone()),
-        task_id: None,
-        act_chain: Vec::new(),
-    };
-    if let AuthzDecision::Deny { reason, policy } = ctx.authz_hook().evaluate(authz).await {
-        return Ok(DispatchOutcome::Denied(format!("{policy}: {reason}")));
+impl A2aMessagingDispatcher {
+    #[must_use]
+    pub fn new(ctx: AppContext) -> Self {
+        let proxy_sessions = crate::repository::proxy_sessions(ctx.db_pool());
+        Self {
+            ctx,
+            proxy_sessions,
+        }
     }
 
-    let session_id = SessionId::new(uuid::Uuid::new_v4().to_string());
-    let token = mint_a2a_token(ctx, &authed, &session_id)?;
+    pub async fn run(&self, inbound: MessagingInbound) -> Result<DispatchOutcome, MessagingError> {
+        let ctx = &self.ctx;
+        let user = match resolve_or_link_user(
+            ctx,
+            &inbound.issuer,
+            inbound.conversation.sender_wire_id(),
+            &inbound.sender.claims(),
+            &inbound.link,
+        )
+        .await
+        {
+            Ok(user) => user,
+            Err(MessagingError::Identity(UserError::FederatedRefused(refusal))) => {
+                tracing::warn!(issuer = %inbound.issuer, %refusal, "messaging sender refused");
+                return Ok(DispatchOutcome::Denied(refusal.to_string()));
+            },
+            Err(err) => return Err(err),
+        };
+        let authed = authenticated_user(&user);
 
-    let request = build_a2a_request(&inbound, &authed, &session_id, &token, &context_id)?;
-    let reply = run_agent(ctx, &inbound.agent_name, request).await?;
-    Ok(DispatchOutcome::Replied(reply))
+        let context_id = inbound.conversation.context_id();
+
+        let authz = AuthzRequest {
+            entity: authz_entity(&inbound.conversation),
+            user_id: user.id.clone(),
+            actor: Some(Actor::user(user.id.clone())),
+            client_id: None,
+            access_scope: None,
+            roles: user.roles.clone(),
+            attributes: std::collections::BTreeMap::new(),
+            trace_id: TraceId::generate(),
+            session_id: None,
+            context: AuthzContext::extension(
+                format!("{}.message", inbound.conversation.platform()),
+                json!({ "channel": inbound.conversation.channel_key() }),
+            ),
+            context_id: Some(context_id.clone()),
+            task_id: None,
+            act_chain: Vec::new(),
+        };
+        if let AuthzDecision::Deny { reason, policy } = ctx.authz_hook().evaluate(authz).await {
+            return Ok(DispatchOutcome::Denied(format!("{policy}: {reason}")));
+        }
+
+        let session_id = SessionId::new(uuid::Uuid::new_v4().to_string());
+        let token = mint_a2a_token(ctx, &authed, &session_id)?;
+
+        let request = build_a2a_request(&inbound, &authed, &session_id, &token, &context_id)?;
+        let reply = run_agent(ctx, &self.proxy_sessions, &inbound.agent_name, request).await?;
+        Ok(DispatchOutcome::Replied(reply))
+    }
+}
+
+#[async_trait]
+impl MessagingDispatcher for A2aMessagingDispatcher {
+    async fn dispatch(
+        &self,
+        inbound: MessagingInbound,
+    ) -> Result<DispatchOutcome, MessagingDispatchError> {
+        Box::pin(self.run(inbound))
+            .await
+            .map_err(MessagingDispatchError::failed)
+    }
+}
+
+pub fn bind_dispatcher(ctx: &AppContext) -> Result<(), MissingDependency> {
+    let state = ctx.extension_state();
+    let slot = state.get::<LateBound<dyn MessagingDispatcher>>()?;
+    if !slot.is_bound() {
+        match slot.bind(Arc::new(A2aMessagingDispatcher::new(ctx.clone()))) {
+            Ok(()) => {},
+            Err(AlreadyBound) => {
+                tracing::debug!("messaging dispatcher bound concurrently");
+            },
+        }
+    }
+    Ok(())
+}
+
+fn authz_entity(conversation: &MessagingConversation) -> EntityRef {
+    match conversation {
+        MessagingConversation::Slack { workspace_id, .. } => {
+            EntityRef::SlackWorkspace(workspace_id.clone())
+        },
+        MessagingConversation::Teams { tenant_id, .. } => EntityRef::TeamsTenant(tenant_id.clone()),
+    }
 }

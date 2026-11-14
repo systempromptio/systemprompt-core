@@ -9,6 +9,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod health;
+pub mod messaging;
 pub mod middleware;
 pub mod proxy;
 pub mod request_base_url;

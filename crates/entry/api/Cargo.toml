@@ -101,8 +101,6 @@ systemprompt-security = { workspace = true }
 systemprompt-governance = { workspace = true }
 systemprompt-marketplace = { workspace = true }
 systemprompt-agent-runs = { workspace = true, optional = true }
-systemprompt-slack = { workspace = true, optional = true }
-systemprompt-teams = { workspace = true, optional = true }
 
 # Authentication
 bcrypt = { workspace = true }
@@ -130,8 +128,6 @@ notifications = [
 pdf = ["systemprompt-files/pdf"]
 otel = ["dep:opentelemetry-proto", "dep:prost", "systemprompt-scheduler/otel"]
 bridge = []
-slack = ["dep:systemprompt-slack"]
-teams = ["dep:systemprompt-teams"]
 
 [lints]
 workspace = true

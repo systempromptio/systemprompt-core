@@ -8,12 +8,7 @@ use axum::Router;
 use super::{RouteMountError, protocol};
 
 #[cfg_attr(
-    not(any(
-        feature = "agent-runs",
-        feature = "bridge",
-        feature = "slack",
-        feature = "teams"
-    )),
+    not(any(feature = "agent-runs", feature = "bridge")),
     expect(
         unused_mut,
         unused_variables,
@@ -33,10 +28,6 @@ pub(super) fn mount_feature_routes(
     #[cfg(feature = "bridge")]
     if serves(systemprompt_extension::RouteGroup::Managed) {
         router = super::managed::mount(router, mount)?;
-    }
-    #[cfg(any(feature = "slack", feature = "teams"))]
-    if serves(systemprompt_extension::RouteGroup::Messaging) {
-        router = protocol::mount_messaging(router, mount)?;
     }
     Ok(router)
 }

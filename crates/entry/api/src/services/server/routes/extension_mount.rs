@@ -44,19 +44,9 @@ pub(super) fn mount_extension_routes(
         return Ok(router);
     }
 
-    let config_json = serde_json::json!({
-        "paths": ctx.profile().paths,
-    });
-
     for (ext, mut declared) in api_extensions {
         let ext_id = ext.metadata().id;
         let ext_name = ext.metadata().name;
-
-        ext.validate_config(&config_json)
-            .map_err(|source| RouteMountError::ConfigValidation {
-                extension: ext_id.to_owned(),
-                source: Box::new(source),
-            })?;
 
         let base_path = declared.base_path;
         if !(mount.serves)(declared.group) || !declared.is_enabled(ctx) {

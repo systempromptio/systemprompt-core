@@ -1,5 +1,5 @@
-//! The post-ack reply pipeline: run [`dispatch_messaging`] off the request
-//! path, optionally attach the sender's confirmed workspace email, render the
+//! The post-ack reply pipeline: run the dispatch off the request path,
+//! optionally attach the sender's confirmed workspace email, render the
 //! outcome to Block Kit and post it back through the captured reply target.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -7,31 +7,34 @@
 
 use systemprompt_identifiers::SlackUserId;
 use systemprompt_manifest::services::SlackAppConfig;
-use systemprompt_runtime::AppContext;
 use systemprompt_slack::client::SlackClient;
-use systemprompt_traits::{FederatedIdentityClaims, SenderIdentity};
-
-use super::verify::bot_token;
-use crate::routes::messaging::{
-    DispatchOutcome, MessagingConversation, MessagingInbound, MessagingState, ReplyTarget,
-    dispatch_messaging,
+use systemprompt_traits::{
+    DispatchOutcome, FederatedIdentityClaims, MessagingConversation, MessagingInbound,
+    SenderIdentity,
 };
+
+use super::SlackState;
+use super::verify::bot_token;
+
+#[derive(Debug, Clone)]
+pub(super) enum ReplyTarget {
+    Channel { id: String },
+    Url { url: String },
+}
 
 // Why: Slack requires acknowledgment within three seconds.
 pub(super) fn spawn_reply(
-    ctx: AppContext,
-    messaging: MessagingState,
+    state: &SlackState,
     inbound: MessagingInbound,
+    reply: ReplyTarget,
     app: &SlackAppConfig,
 ) {
-    let bot_token = bot_token(&ctx.secrets().get(), app);
+    let bot_token = bot_token(state.secrets(), app);
     let link_by_email = app.authz.link.link_by_email;
-    let background = ctx.background_tasks().clone();
-    let MessagingState {
-        reply_client: http,
-        payload_url_client,
-    } = messaging;
+    let state = state.clone();
+    let background = state.background().clone();
     background.spawn("slack_reply", async move {
+        let http = state.reply_client().clone();
         let mut inbound = inbound;
         if link_by_email
             && let Some(token) = bot_token.clone()
@@ -39,7 +42,7 @@ pub(super) fn spawn_reply(
         {
             inbound.sender = workspace_sender(&http, &token, user_id).await;
         }
-        let (text, ephemeral) = match Box::pin(dispatch_messaging(&ctx, inbound.clone())).await {
+        let (text, ephemeral) = match Box::pin(state.dispatch(inbound)).await {
             Ok(DispatchOutcome::Replied(reply)) => (non_empty(reply), false),
             Ok(DispatchOutcome::Denied(reason)) => (format!("⛔ {reason}"), true),
             Err(err) => {
@@ -48,7 +51,7 @@ pub(super) fn spawn_reply(
             },
         };
         let blocks = systemprompt_slack::blockkit::render_blocks(&text);
-        let result = match &inbound.reply {
+        let result = match &reply {
             ReplyTarget::Channel { id } => {
                 let Some(token) = bot_token else {
                     tracing::warn!(channel = %id, "no slack bot token configured; cannot post reply");
@@ -57,7 +60,7 @@ pub(super) fn spawn_reply(
                 SlackClient::new(http, token).post_message(id, blocks).await
             },
             ReplyTarget::Url { url } => {
-                SlackClient::respond(&payload_url_client, url, blocks, ephemeral).await
+                SlackClient::respond(state.payload_url_client(), url, blocks, ephemeral).await
             },
         };
         if let Err(err) = result {

@@ -15,8 +15,6 @@
 //!
 //! # Layered components
 //!
-//! - [`extension::TeamsExtension`] — `Extension` registration entry-point
-//!   (schemas, migrations, and the `teams` config prefix).
 //! - [`TeamsAppConfig`] — the per-app YAML model (`services/teams/*.yaml`),
 //!   re-exported from `systemprompt_manifest::services`.
 //! - [`auth::ActivityTokenVerifier`] — inbound activity-token validation.
@@ -25,10 +23,11 @@
 //! - [`client::TeamsClient`] — outbound Bot Connector client (SSRF-guarded).
 //! - [`cards`] — agent text → Adaptive Card rendering.
 //!
-//! Inbound HTTP handlers live in `systemprompt-api`; this crate owns the
-//! protocol logic they delegate to. Secrets (the app password) are referenced
-//! by name and resolved from the profile secret store — never inlined in
-//! config.
+//! The `Extension` registration (the `teams` config prefix and schema) and
+//! the inbound HTTP handlers live in `systemprompt-teams-entry`; this crate
+//! owns the protocol logic they delegate to. Secrets (the app password) are
+//! referenced by name and resolved from the profile secret store — never
+//! inlined in config.
 //!
 //! # Errors
 //!
@@ -43,9 +42,7 @@ pub mod auth;
 pub mod cards;
 pub mod client;
 pub mod error;
-pub mod extension;
 pub mod token;
 
 pub use error::{TeamsError, TeamsResult};
-pub use extension::TeamsExtension;
 pub use systemprompt_manifest::services::{TeamsAppConfig, TeamsAuthzConfig};
