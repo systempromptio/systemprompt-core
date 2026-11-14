@@ -28,10 +28,8 @@ use systemprompt_models::notifications::{
 use systemprompt_notifications::service::{NotificationsService, SubscriptionView};
 use systemprompt_provider_contracts::MissingDependency;
 
+use super::ops::{self, FeedParams, MarkReadResponse, SeenResponse, StreamList, SubscriptionList};
 use super::{NotificationsHttpError, NotificationsState};
-use super::ops::{
-    self, FeedParams, MarkReadResponse, SeenResponse, StreamList, SubscriptionList,
-};
 
 #[derive(Clone)]
 struct BridgeNotificationsState {

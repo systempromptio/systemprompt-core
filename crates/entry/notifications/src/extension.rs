@@ -19,9 +19,10 @@
 //! | `notifications` | boot refused (unmet `NotificationsServiceSlot`) | | |
 //! | both | 404 | 404 | 404 |
 //!
-//! A slot that is present but unbound is a boot error. The admin group sits under the reserved `/api/v1/admin`
-//! prefix by the `NotificationsAdmin` row of the API's core allowance table,
-//! keyed on this extension's id, that exact path and its role group.
+//! A slot that is present but unbound is a boot error. The admin group sits
+//! under the reserved `/api/v1/admin` prefix by the `NotificationsAdmin` row of
+//! the API's core allowance table, keyed on this extension's id, that exact
+//! path and its role group.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

@@ -110,8 +110,8 @@ async fn an_install_reserved_prefix_refuses_boot_only_where_extensions_are_built
 }
 
 #[tokio::test]
-async fn a_router_build_failure_refuses_boot_only_where_extensions_are_built()
--> anyhow::Result<()> {
+async fn a_router_build_failure_refuses_boot_only_where_extensions_are_built() -> anyhow::Result<()>
+{
     let refused = boot(NodeRole::All, Arc::new(BrokenRouterExt)).await?;
     assert!(
         refused.as_ref().is_err_and(|e| e.contains("covbroken")),

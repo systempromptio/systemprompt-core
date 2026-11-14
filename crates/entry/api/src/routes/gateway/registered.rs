@@ -116,9 +116,7 @@ pub enum GatewayRouteError {
     MissingState(#[from] MissingDependency),
 }
 
-pub fn admit_registrations(
-    registrations: &[GatewayRouteRegistration],
-) -> Result<(), MountError> {
+pub fn admit_registrations(registrations: &[GatewayRouteRegistration]) -> Result<(), MountError> {
     for registration in registrations {
         admit_gateway_route(
             registration.extension,
@@ -164,10 +162,9 @@ pub(crate) fn build_registered(
             continue;
         }
         let prefix = ApiPaths::gateway_relative(registration.path);
-        let router = (registration.factory)(ctx, GatewayCredential::new(jwt))?
-            .layer(axum::middleware::from_fn(move |request, next| {
-                only_under(prefix, request, next)
-            }));
+        let router = (registration.factory)(ctx, GatewayCredential::new(jwt))?.layer(
+            axum::middleware::from_fn(move |request, next| only_under(prefix, request, next)),
+        );
         built.push(RegisteredGatewayRoutes {
             scope: registration.scope,
             budget: registration.budget,

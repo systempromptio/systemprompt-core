@@ -207,7 +207,11 @@ fn a_missing_requirement_outranks_a_disabled_owner() {
 #[test]
 fn a_required_seam_whose_owner_is_disabled_is_missing_and_fails() {
     let (rows, all_linked) = evaluate(
-        vec![owned_seam("secrets_sources", Some("vault_ext"), &["vault-x"])],
+        vec![owned_seam(
+            "secrets_sources",
+            Some("vault_ext"),
+            &["vault-x"],
+        )],
         &[requirement(
             "secrets_sources",
             Needed::Entry("vault-x".to_owned()),
@@ -222,16 +226,30 @@ fn a_required_seam_whose_owner_is_disabled_is_missing_and_fails() {
 #[test]
 fn a_disabled_owner_nobody_requires_is_informational() {
     let (rows, all_linked) = evaluate(
-        vec![owned_seam("gateway_routes", Some("gateway"), &["notifications:bridge"])],
+        vec![owned_seam(
+            "gateway_routes",
+            Some("gateway"),
+            &["notifications:bridge"],
+        )],
         &[requirement("authz_hooks", Needed::AnyEntry)],
         &[ExtensionId::new("gateway")],
     );
-    assert!(!all_linked, "the unregistered authz_hooks requirement fails");
-    let gateway = rows.iter().find(|row| row.seam == "gateway_routes").unwrap();
+    assert!(
+        !all_linked,
+        "the unregistered authz_hooks requirement fails"
+    );
+    let gateway = rows
+        .iter()
+        .find(|row| row.seam == "gateway_routes")
+        .unwrap();
     assert_eq!(gateway.status, SeamStatus::OwnerDisabled);
 
     let (rows, all_linked) = evaluate(
-        vec![owned_seam("gateway_routes", Some("gateway"), &["notifications:bridge"])],
+        vec![owned_seam(
+            "gateway_routes",
+            Some("gateway"),
+            &["notifications:bridge"],
+        )],
         &[],
         &[ExtensionId::new("gateway")],
     );
@@ -276,5 +294,10 @@ fn gateway_request_guards_are_listed_by_owning_extension() {
         .collect();
     assert_eq!(guards.entries.len(), owners.len());
     assert!(guards.entries.iter().all(|entry| owners.contains(entry)));
-    assert!(guards.entries.iter().all(|entry| !entry.starts_with("unnamed#")));
+    assert!(
+        guards
+            .entries
+            .iter()
+            .all(|entry| !entry.starts_with("unnamed#"))
+    );
 }

@@ -99,7 +99,11 @@ async fn assert_unmounted(disabled: &[ExtensionId]) -> anyhow::Result<()> {
             .oneshot(request(method.clone(), uri))
             .await?
             .status();
-        assert_eq!(status, StatusCode::NOT_FOUND, "{method} {uri} with {disabled:?}");
+        assert_eq!(
+            status,
+            StatusCode::NOT_FOUND,
+            "{method} {uri} with {disabled:?}"
+        );
     }
     Ok(())
 }
@@ -135,7 +139,8 @@ async fn disabling_notifications_and_its_routes_unmounts_every_group() -> anyhow
 #[tokio::test]
 async fn disabling_notifications_while_its_routes_stay_enabled_refuses_boot() -> anyhow::Result<()>
 {
-    let refused = full_router(&[ExtensionId::new("notifications"), ExtensionId::new("brain")]).await;
+    let refused =
+        full_router(&[ExtensionId::new("notifications"), ExtensionId::new("brain")]).await;
     let error = refused.expect_err("routes requiring the notification service refuse boot");
     assert!(
         format!("{error:#}").contains("NotificationsService"),

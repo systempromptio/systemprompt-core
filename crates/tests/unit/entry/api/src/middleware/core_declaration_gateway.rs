@@ -123,8 +123,14 @@ fn overlapping_registrations_are_refused() {
 #[test]
 fn path_prefixes_are_segment_bounded() {
     assert!(path_under("/bridge/notifications", "/bridge/notifications"));
-    assert!(path_under("/bridge/notifications/read", "/bridge/notifications"));
-    assert!(!path_under("/bridge/notificationsx", "/bridge/notifications"));
+    assert!(path_under(
+        "/bridge/notifications/read",
+        "/bridge/notifications"
+    ));
+    assert!(!path_under(
+        "/bridge/notificationsx",
+        "/bridge/notifications"
+    ));
     assert!(!path_under("/bridge/stream", "/bridge/notifications"));
 }
 
@@ -139,7 +145,10 @@ fn routers_are_built_only_on_roles_that_could_serve_them() {
         assert!(built_on(role, "install"), "{role:?} serves Extensions");
     }
     for role in [NodeRole::Gateway, NodeRole::Worker, NodeRole::Runner] {
-        assert!(!built_on(role, "install"), "{role:?} builds no install router");
+        assert!(
+            !built_on(role, "install"),
+            "{role:?} builds no install router"
+        );
     }
     assert!(built_on(NodeRole::Worker, "agent_runs_api"));
     assert!(!built_on(NodeRole::Gateway, "agent_runs_api"));

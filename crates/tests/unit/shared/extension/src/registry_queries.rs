@@ -136,7 +136,9 @@ fn api_routers_filters_by_router_presence() {
     let registry = registry_with(vec![Arc::new(routed), Arc::new(CapExt::new("unrouted"))]);
 
     let ctx = StubCtx;
-    let api = registry.api_routers(&ctx, &[], &every).expect("nothing disabled");
+    let api = registry
+        .api_routers(&ctx, &[], &every)
+        .expect("nothing disabled");
     assert_eq!(api.len(), 1);
     assert_eq!(api[0].0.id(), "routed");
     assert_eq!(api[0].1.base_path, "/api/v1/cap");
@@ -150,7 +152,9 @@ fn api_routers_returns_every_declaration_of_one_extension() {
     let registry = registry_with(vec![Arc::new(routed)]);
 
     let ctx = StubCtx;
-    let api = registry.api_routers(&ctx, &[], &every).expect("nothing disabled");
+    let api = registry
+        .api_routers(&ctx, &[], &every)
+        .expect("nothing disabled");
     let paths: Vec<_> = api
         .iter()
         .map(|(ext, declared)| (ext.id(), declared.base_path))
@@ -207,7 +211,9 @@ fn api_routers_builds_each_router_exactly_once() {
     let registry = registry_with(vec![Arc::new(routed)]);
 
     let ctx = StubCtx;
-    let api = registry.api_routers(&ctx, &[], &every).expect("nothing disabled");
+    let api = registry
+        .api_routers(&ctx, &[], &every)
+        .expect("nothing disabled");
 
     assert_eq!(api.len(), 1);
     assert_eq!(builds.load(Ordering::SeqCst), 1);

@@ -134,9 +134,9 @@ pub fn evaluate(
             let owner_disabled = seam
                 .extension
                 .is_some_and(|owner| disabled.iter().any(|id| id.as_str() == owner));
-            let missing = applicable.iter().any(|requirement| {
-                owner_disabled || !satisfied(&seam, &requirement.needed)
-            });
+            let missing = applicable
+                .iter()
+                .any(|requirement| owner_disabled || !satisfied(&seam, &requirement.needed));
             all_linked &= !missing;
             let status = if missing {
                 SeamStatus::Missing

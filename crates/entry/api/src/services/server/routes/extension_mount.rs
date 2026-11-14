@@ -59,8 +59,7 @@ pub(super) fn mount_extension_routes(
     let ctx = mount.ctx;
     let registry = ctx.extension_registry();
     let builds = |extension: &str| extension_built(extension, mount.serves);
-    let api_extensions =
-        registry.api_routers(ctx, &ctx.profile().extensions.disabled, &builds)?;
+    let api_extensions = registry.api_routers(ctx, &ctx.profile().extensions.disabled, &builds)?;
     ExtensionRegistry::validate_api_paths(&api_extensions)?;
 
     for (ext, declared) in &api_extensions {

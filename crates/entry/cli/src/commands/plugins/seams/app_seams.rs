@@ -1,5 +1,5 @@
-//! App-layer seams: gateway policies, adapters and the route groups capabilities
-//! register into the gateway surface, SSO and MCP toolsets.
+//! App-layer seams: gateway policies, adapters and the route groups
+//! capabilities register into the gateway surface, SSO and MCP toolsets.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
