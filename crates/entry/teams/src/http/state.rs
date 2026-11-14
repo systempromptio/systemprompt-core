@@ -21,7 +21,7 @@ use systemprompt_provider_contracts::MissingDependency;
 use systemprompt_teams::auth::ActivityTokenVerifier;
 use systemprompt_traits::{
     BackgroundTasks, DispatchOutcome, MessagingDispatchError, MessagingDispatcher,
-    MessagingInbound, SecretLookup,
+    MessagingInbound, SecretStore,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -41,7 +41,7 @@ struct VerifierKey {
 #[derive(Clone)]
 pub struct TeamsState {
     services: ServicesView,
-    secrets: Arc<dyn SecretLookup>,
+    secrets: Arc<dyn SecretStore>,
     background: BackgroundTasks,
     dispatcher: LateBound<dyn MessagingDispatcher>,
     http: reqwest::Client,
@@ -71,10 +71,9 @@ impl TeamsState {
             .build()?;
         let state = ctx.extension_state();
         let dispatcher = state.get::<LateBound<dyn MessagingDispatcher>>()?.clone();
-        let secrets = Arc::clone(state.get::<Arc<dyn SecretLookup>>()?);
         Ok(Self {
             services: ctx.services(),
-            secrets,
+            secrets: ctx.secrets(),
             background: ctx.background_tasks(),
             dispatcher,
             http,
@@ -87,7 +86,7 @@ impl TeamsState {
         &self.services
     }
 
-    pub(super) fn secrets(&self) -> &dyn SecretLookup {
+    pub(super) fn secrets(&self) -> &dyn SecretStore {
         self.secrets.as_ref()
     }
 
