@@ -65,9 +65,9 @@ pub fn admit_gateway_route(
     }
 }
 
-pub fn refuse_overlap(paths: &[&'static str]) -> Result<(), MountError> {
-    for (index, path) in paths.iter().enumerate() {
-        if let Some(other) = paths[index + 1..]
+pub fn refuse_overlap(prefixes: &[&'static str]) -> Result<(), MountError> {
+    for (index, path) in prefixes.iter().enumerate() {
+        if let Some(other) = prefixes[index + 1..]
             .iter()
             .find(|other| path_under(path, other) || path_under(other, path))
         {

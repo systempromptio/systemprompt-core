@@ -65,7 +65,7 @@ fn the_table_lists_exactly_this_waves_core_declarations() {
                 CoreDeclarer::Server,
                 ApiPaths::AGENTS_BASE,
                 RouteGroup::Agent,
-                Allowance::BodyLimit(systemprompt_models::net::AGENT_REQUEST_BODY_LIMIT_BYTES),
+                Allowance::BodyLimit,
             ),
             (
                 CoreDeclarer::Extension("agent_runs_api"),
@@ -105,6 +105,17 @@ fn the_table_lists_exactly_this_waves_core_declarations() {
             ),
         ]
     );
+}
+
+#[test]
+fn only_the_agent_proxy_row_pins_a_body_limit() {
+    assert_eq!(
+        CoreDeclaration::AgentProxy.body_limit(),
+        Some(systemprompt_models::net::AGENT_REQUEST_BODY_LIMIT_BYTES)
+    );
+    for entry in CoreDeclaration::ALL.iter().skip(1) {
+        assert_eq!(entry.body_limit(), None, "{entry:?}");
+    }
 }
 
 #[test]

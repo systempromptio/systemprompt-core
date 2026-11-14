@@ -64,7 +64,7 @@ pub enum Allowance {
     Plain,
     HandlerVerified(HandlerVerifier),
     ReservedPrefix,
-    BodyLimit(usize),
+    BodyLimit,
 }
 
 /// A core route group, named by its owner, base path and route group,
@@ -130,9 +130,7 @@ impl CoreDeclaration {
     #[must_use]
     pub const fn allowance(self) -> Allowance {
         match self {
-            Self::AgentProxy => {
-                Allowance::BodyLimit(systemprompt_models::net::AGENT_REQUEST_BODY_LIMIT_BYTES)
-            },
+            Self::AgentProxy => Allowance::BodyLimit,
             Self::Slack => Allowance::HandlerVerified(HandlerVerifier::SlackSignature),
             Self::Teams => Allowance::HandlerVerified(HandlerVerifier::TeamsBotToken),
             Self::NotificationsAdmin => Allowance::ReservedPrefix,
@@ -185,9 +183,14 @@ impl CoreDeclaration {
 
     #[must_use]
     pub const fn body_limit(self) -> Option<usize> {
-        match self.allowance() {
-            Allowance::BodyLimit(bytes) => Some(bytes),
-            _ => None,
+        match self {
+            Self::AgentProxy => Some(systemprompt_models::net::AGENT_REQUEST_BODY_LIMIT_BYTES),
+            Self::AgentRuns
+            | Self::Slack
+            | Self::Teams
+            | Self::Notifications
+            | Self::NotificationsAdmin
+            | Self::BridgeNotifications => None,
         }
     }
 
@@ -213,7 +216,7 @@ impl CoreDeclaration {
             .is_none_or(|declared| declared <= DEFAULT_BODY_LIMIT_BYTES)
             || Self::ALL.iter().any(|entry| {
                 entry.base_path() == base_path
-                    && matches!(entry.allowance(), Allowance::BodyLimit(_))
+                    && entry.allowance() == Allowance::BodyLimit
                     && entry.shape_matches(protection)
             })
     }
@@ -264,7 +267,7 @@ pub fn admit_extension(
     match protection.body_limit {
         Some(bytes)
             if bytes > DEFAULT_BODY_LIMIT_BYTES
-                && !CoreDeclaration::granted(owner, declared, Allowance::BodyLimit(bytes)) =>
+                && !CoreDeclaration::granted(owner, declared, Allowance::BodyLimit) =>
         {
             Err(MountError::ExtensionBodyLimitTooLarge {
                 base_path,
