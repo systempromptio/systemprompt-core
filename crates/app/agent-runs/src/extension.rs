@@ -64,7 +64,7 @@ impl Extension for AgentRunsExtension {
         extension_migrations!()
     }
 
-    fn runner_services(&self) -> Vec<Arc<dyn RunnerService>> {
+    fn runner_services(&self, _ctx: &dyn ExtensionContext) -> Vec<Arc<dyn RunnerService>> {
         vec![Arc::new(A2aRunnerService)]
     }
 }

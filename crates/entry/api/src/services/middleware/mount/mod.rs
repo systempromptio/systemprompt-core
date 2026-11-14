@@ -22,13 +22,16 @@
 //! window or protection layer the server has no primitive for, is refused
 //! with a typed [`MountError`] at boot.
 //!
-//! Body limits: a group-level limit above [`DEFAULT_BODY_LIMIT_BYTES`] mounts
-//! only when a [`CoreBodyExemption`] names that group's base path and that
-//! exact limit; the agent proxy is the only one. [`admit_extension`] refuses
-//! any extension limit above the ceiling and any handler-verified extension
-//! declaration. This check sees only the group-level limit a declaration
-//! carries. A few routes set their own `DefaultBodyLimit` inside their router,
-//! which this module does not see: the document content routes (the
+//! Core-only declarations: a group-level body limit above
+//! [`DEFAULT_BODY_LIMIT_BYTES`] mounts only when a [`CoreDeclaration`] names
+//! that group's base path and that exact limit; the agent proxy is the only
+//! one. [`admit_extension`] runs on every extension declaration before any
+//! is mounted, on every role, and refuses a handler-verified policy, a
+//! reserved base path or a body limit above the ceiling unless the
+//! [`CoreDeclaration`] table grants that exact declaration that allowance.
+//! The body-limit check sees only the group-level limit a declaration
+//! carries. A few routes set their own `DefaultBodyLimit` inside their
+//! router, which this module does not see: the document content routes (the
 //! configured `files.documents` limit, `routes/documents/mod.rs`), the bridge
 //! drive routes (the same limit, `routes/documents/drive.rs`), the upload
 //! part `PUT` (the configured part size plus slack, `routes/uploads/mod.rs`)
@@ -41,12 +44,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod core_declaration;
 mod error;
-mod exemption;
 mod guards;
 
 pub use error::MountError;
-pub use exemption::CoreBodyExemption;
+pub use core_declaration::{
+    Allowance, CoreDeclaration, CoreDeclarer, admit_extension, extension_served,
+};
 pub use guards::{ClientWritesGuard, ProtectionGuards, SiteAuthGuard};
 
 use std::sync::Arc;
@@ -124,7 +129,7 @@ fn check_body_limit(
     base_path: &'static str,
 ) -> Result<(), MountError> {
     match protection.body_limit {
-        Some(declared) if !CoreBodyExemption::admits(base_path, declared) => {
+        Some(declared) if !CoreDeclaration::admits_body_limit(base_path, declared) => {
             Err(MountError::UnlistedBodyExemption {
                 base_path,
                 declared,
@@ -264,24 +269,4 @@ pub fn mount(
     let base_path = declared.base_path;
     let protected = protect(declared.router, &declared.protection, layers, base_path)?;
     Ok(place(tree, base_path, protected))
-}
-
-pub const fn admit_extension(declared: &ExtensionRouter) -> Result<(), MountError> {
-    if declared.protection.policy.handler_verifier().is_some()
-        || matches!(declared.protection.context, ContextKind::HandlerResolved)
-    {
-        return Err(MountError::ExtensionHandlerVerified {
-            base_path: declared.base_path,
-        });
-    }
-    match declared.protection.body_limit {
-        Some(declared_bytes) if declared_bytes > DEFAULT_BODY_LIMIT_BYTES => {
-            Err(MountError::ExtensionBodyLimitTooLarge {
-                base_path: declared.base_path,
-                declared: declared_bytes,
-                ceiling: DEFAULT_BODY_LIMIT_BYTES,
-            })
-        },
-        _ => Ok(()),
-    }
 }

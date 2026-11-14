@@ -1,10 +1,22 @@
 //! Mounts extension-provided routers onto the server router.
 //!
-//! Each extension returns an `ExtensionRouter` declaration; it is mounted
-//! through the same declaration mount as every core route group, so its
-//! authorization policy, context middleware, rate limit, body limit,
+//! Each extension returns its `ExtensionRouter` declarations; each is
+//! mounted through the same declaration mount as every core route group, so
+//! its authorization policy, context middleware, rate limit, body limit,
 //! protection layers, frame options, role group and enable predicate are
 //! applied exactly as declared.
+//!
+//! Every declaration is admitted (`admit_extension`, against the closed core
+//! allowance table) before any is mounted, on every node role, so an
+//! inadmissible declaration refuses boot even on a role that would not serve
+//! it. A core declaration listed in the core declaration table is then
+//! mounted by the roles that serve its own route group, and every other
+//! declaration only by the roles that serve both `RouteGroup::Extensions` and
+//! its own group, so an install extension keeps its role exposure.
+//!
+//! Extension configuration is not validated here: startup validation runs
+//! each enabled extension's `validate_config` against its own
+//! `services/config/<prefix>.yaml` before the server is built.
 //!
 //! Every extension router receives the process's one governance engine as
 //! an axum extension: an extension that enforces policy (the MCP governance
@@ -27,7 +39,7 @@ use systemprompt_extension::ExtensionRegistry;
 use systemprompt_traits::{StartupEvent, StartupEventSender};
 
 use crate::routes::admin::services::{RefreshLock, ServicesRefresh};
-use crate::services::middleware::admit_extension;
+use crate::services::middleware::{admit_extension, extension_served};
 
 pub(super) fn mount_extension_routes(
     mut router: Router,
@@ -40,26 +52,16 @@ pub(super) fn mount_extension_routes(
     let api_extensions = registry.api_routers(ctx, &ctx.profile().extensions.disabled)?;
     ExtensionRegistry::validate_api_paths(&api_extensions)?;
 
-    if api_extensions.is_empty() {
-        return Ok(router);
+    for (ext, declared) in &api_extensions {
+        admit_extension(ext.metadata().id, declared)?;
     }
-
-    let config_json = serde_json::json!({
-        "paths": ctx.profile().paths,
-    });
 
     for (ext, mut declared) in api_extensions {
         let ext_id = ext.metadata().id;
         let ext_name = ext.metadata().name;
 
-        ext.validate_config(&config_json)
-            .map_err(|source| RouteMountError::ConfigValidation {
-                extension: ext_id.to_owned(),
-                source: Box::new(source),
-            })?;
-
         let base_path = declared.base_path;
-        if !(mount.serves)(declared.group) || !declared.is_enabled(ctx) {
+        if !extension_served(ext_id, &declared, mount.serves) || !declared.is_enabled(ctx) {
             tracing::info!(
                 extension = ext_id,
                 base_path,
@@ -68,7 +70,6 @@ pub(super) fn mount_extension_routes(
             );
             continue;
         }
-        admit_extension(&declared)?;
         let auth_required = declared.protection.requires_authentication();
         tracing::debug!(
             extension = ext_id,

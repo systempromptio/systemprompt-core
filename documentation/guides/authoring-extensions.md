@@ -164,18 +164,23 @@ The runner never executes, records, or checksums a tombstoned slot, and `emit_mi
 
 ## Step 5 — Mount an API router
 
-To serve HTTP routes, return an `ExtensionRouter` from `router`. The method receives an `&dyn ExtensionContext`, which exposes the profile and configuration, the database handle, file storage, secrets, background tasks, the coordination seams, lookup of other extensions and the extension state.
+To serve HTTP routes, return one `ExtensionRouter` per route group from `routers`. The method receives an `&dyn ExtensionContext`, which exposes the profile and configuration, the database handle, file storage, secrets, background tasks, the coordination seams, lookup of other extensions and the extension state.
 
 ```rust
-fn router(&self, _ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
+fn routers(
+    &self,
+    _ctx: &dyn ExtensionContext,
+) -> Result<Vec<ExtensionRouter>, ExtensionStateError> {
     let router = axum::Router::new()
         .route("/items", axum::routing::get(|| async { "ok" }));
-    Some(
+    Ok(vec![
         ExtensionRouter::new(router, "/api/v1/demo", AuthzPolicy::user(), ContextKind::User)
             .with_rate_limit(RateLimit::new("demo", RateBudget::Content)),
-    )
+    ])
 }
 ```
+
+The default returns no routers. An `Err` (a client or provided value the routers need cannot be built) fails boot with `LoaderError::RouterBuildFailed` naming the extension; a router is never left silently unmounted.
 
 An `ExtensionRouter` is a mount declaration (`crates/shared/extension/src/router.rs`). The host applies everything it carries with the same enforcement it uses for its own routes; nothing is applied that the declaration does not name, and there is no default policy.
 
@@ -187,10 +192,12 @@ An `ExtensionRouter` is a mount declaration (`crates/shared/extension/src/router
 | Body limit | `with_body_limit(bytes)` | Maximum request body the routes accept. |
 | Protection layers | `with_layer(ProtectionLayer)` | A closed set of extra host guards (`SiteAuth`, `RefuseFileManagedClientWrites`). |
 | Frame options | `with_frame_options(FrameOptions)` | Overrides the sitewide `X-Frame-Options` for these routes. |
-| Role group | `in_group(RouteGroup)` | Defaults to `RouteGroup::Extensions`; a node mounts the router only when its role serves the group. |
+| Role group | `in_group(RouteGroup)` | Defaults to `RouteGroup::Extensions`. A node mounts the router only when its role serves both `RouteGroup::Extensions` and the declared group, so an extension router is served by the `all` and `api` roles at most. |
 | Enable predicate | `enabled_when(fn(&dyn ExtensionContext) -> bool)` | The router is mounted only when the predicate holds at boot. |
 
-Use `AuthzPolicy::public()` with `ContextKind::Public` only for routes that must be reachable unauthenticated; a public handler that changes state must check ownership itself. `AuthzPolicy::user()` with `ContextKind::User` reproduces the protection the two-argument `ExtensionRouter::new` used to apply; `authenticated()` also admits agent, MCP and service tokens. A declared body limit may not exceed the server default (2 MiB), and a `Public` context paired with a policy that does not admit anonymous callers fails boot.
+Use `AuthzPolicy::public()` with `ContextKind::Public` only for routes that must be reachable unauthenticated; a public handler that changes state must check ownership itself. `AuthzPolicy::user()` with `ContextKind::User` reproduces the protection the two-argument `ExtensionRouter::new` used to apply; `authenticated()` also admits agent, MCP and service tokens. A `Public` context paired with a policy that does not admit anonymous callers fails boot.
+
+Three protections are reserved for core route groups, and an extension declaration that uses one fails boot with a typed error, on every node role: a body limit above the server default (2 MiB), a handler-verified policy (`AuthzPolicy::handler_verified`) or the `HandlerResolved` context, and a base path under a reserved prefix (`RESERVED_PATHS`, for example `/api/v1/admin`, `/api/v1/oauth` or `/.well-known`). The server keeps one closed table of core declarations, including those granted one of these, each by extension id, exact base path, route group and protection shape; a declaration that does not match an entry exactly is refused. The table guards against a route being mounted ungated or under a core prefix by declaration; it is not a boundary against code linked into the same binary.
 
 ## Step 6 — Provide shared state (optional)
 
@@ -219,9 +226,12 @@ impl Extension for MyExtension {
         vec![StateRequirement::of::<BaseService>()]
     }
 
-    fn router(&self, ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
-        let cache = ctx.extension_state().get_arc::<GrantCache>().ok()?;
-        /* build the router over `cache` */
+    fn routers(
+        &self,
+        ctx: &dyn ExtensionContext,
+    ) -> Result<Vec<ExtensionRouter>, ExtensionStateError> {
+        let cache = ctx.extension_state().get_arc::<GrantCache>()?;
+        /* build the routers over `cache` */
     }
 }
 ```

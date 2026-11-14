@@ -3,8 +3,9 @@
 //! `RequestContext` reaches the handler, while the rate limit it declares is
 //! still applied; it pairs only with the handler-resolved context, the
 //! handler-resolved context pairs only with it, an extension may declare
-//! neither, and a core body limit above the server default must be a listed
-//! exemption named for that group's base path.
+//! neither unless the core allowance table lists it, and a core body limit
+//! above the server default must be a listed allowance named for that group's
+//! base path.
 
 use std::net::SocketAddr;
 
@@ -13,7 +14,7 @@ use axum::body::Body;
 use axum::extract::{ConnectInfo, Request};
 use axum::http::StatusCode;
 use systemprompt_api::services::middleware::{
-    CoreBodyExemption, DEFAULT_BODY_LIMIT_BYTES, MountError, admit_extension, protect,
+    Allowance, CoreDeclaration, DEFAULT_BODY_LIMIT_BYTES, MountError, admit_extension, protect,
 };
 use systemprompt_extension::{
     AuthzPolicy, ContextKind, ExtensionRouter, HandlerVerifier, RateBudget, RateLimit,
@@ -157,7 +158,7 @@ fn an_extension_may_not_declare_handler_verification() {
     ];
     for declared in declarations {
         assert!(matches!(
-            admit_extension(&declared),
+            admit_extension("covext", &declared),
             Err(MountError::ExtensionHandlerVerified { base_path: BASE })
         ));
     }
@@ -179,9 +180,12 @@ async fn a_core_body_limit_above_the_default_must_be_exempted_for_its_own_group(
             if declared == DEFAULT_BODY_LIMIT_BYTES + 1
     ));
 
-    for exemption in CoreBodyExemption::ALL {
+    for exemption in CoreDeclaration::ALL {
+        let Allowance::BodyLimit(bytes) = exemption.allowance() else {
+            continue;
+        };
         let listed = RouteProtection::new(AuthzPolicy::authenticated(), ContextKind::User)
-            .with_body_limit(exemption.bytes());
+            .with_body_limit(bytes);
         assert!(
             protect(
                 ok_router(),

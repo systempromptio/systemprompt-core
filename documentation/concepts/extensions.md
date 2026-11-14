@@ -18,7 +18,7 @@ impl Extension for MyExtension {
     fn metadata(&self) -> ExtensionMetadata { /* id, name, version */ }
 
     fn schemas(&self) -> Vec<SchemaDefinition> { /* tables this extension owns */ }
-    fn router(&self, ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> { /* HTTP routes */ }
+    fn routers(&self, ctx: &dyn ExtensionContext) -> Result<Vec<ExtensionRouter>, ExtensionStateError> { /* HTTP route groups */ }
     // ...everything else defaults to empty
 }
 
@@ -28,7 +28,7 @@ submit_job!("my-extension", &MyNightlyJob);
 
 A background job is registered once, with `submit_job!`, naming the id of the extension that owns it; there is no job method on the trait. The scheduler, a manual run and the job listing all read that one owner-attributed inventory, so a job runs only while its owning extension is enabled.
 
-The capability surface includes schemas, migrations, seeds and retirements, an HTTP router, runner services, config planes, configuration schema and validation, readiness checks and metric descriptors, tool providers, a family of content/template/rendering providers, required storage paths and assets, RBAC roles, declared dependencies on other extensions, and typed shared state. AI model providers are configured through the profile and the gateway, not contributed by extensions. An extension opts into exactly what it needs by overriding the corresponding method.
+The capability surface includes schemas, migrations, seeds and retirements, HTTP route groups, runner services, config planes, configuration schema and validation, readiness checks and metric descriptors, tool providers, a family of content/template/rendering providers, required storage paths and assets, RBAC roles, declared dependencies on other extensions, and typed shared state. AI model providers are configured through the profile and the gateway, not contributed by extensions. An extension opts into exactly what it needs by overriding the corresponding method.
 
 ### Typed extension state
 
