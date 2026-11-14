@@ -36,7 +36,7 @@ use systemprompt_users::{API_KEY_PREFIX, ApiKeyLimits, ApiKeyService};
 
 use super::error::RejectionError;
 use super::session_binding::{SessionRequest, bind_api_key_session};
-use crate::services::middleware::JwtContextExtractor;
+use crate::kernel::JwtContextExtractor;
 
 /// What an API key narrows its user's principal to.
 #[derive(Debug, Clone)]

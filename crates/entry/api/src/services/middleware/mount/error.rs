@@ -41,6 +41,27 @@ pub enum MountError {
         ceiling: usize,
     },
 
+    #[error(
+        "route group at '{base_path}' pairs a handler-verified policy with a context middleware, \
+         or the handler-resolved context with a gated policy"
+    )]
+    IncoherentHandlerVerification { base_path: &'static str },
+
+    #[error(
+        "extension route group at '{base_path}' declares a handler-verified policy or the \
+         handler-resolved context, which only core route groups may declare"
+    )]
+    ExtensionHandlerVerified { base_path: &'static str },
+
+    #[error(
+        "core route group at '{base_path}' declares a {declared}-byte body limit above the \
+         2 MiB server default that no core body exemption names for that base path"
+    )]
+    UnlistedBodyExemption {
+        base_path: &'static str,
+        declared: usize,
+    },
+
     #[error("route group at '{base_path}' could not build its rate limit")]
     RateLimit {
         base_path: &'static str,

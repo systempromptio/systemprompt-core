@@ -24,7 +24,7 @@ use systemprompt_runtime::AppContext;
 
 use super::bridge_error::BridgeError;
 use super::bridge_plugin_file::resolve_entitled;
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 
 const ARCHIVE_PREFIX: &str = "archive/";
 

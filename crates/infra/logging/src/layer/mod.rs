@@ -17,7 +17,7 @@ mod visitor;
 mod writer;
 
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 use tokio::sync::mpsc;
 use tracing::{Event, Subscriber};
@@ -34,20 +34,22 @@ use crate::models::{LogEntry, LogLevel};
 use crate::repository::LoggingRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::InstanceId;
+use systemprompt_models::LateBound;
 
 const CHANNEL_CAPACITY: usize = 8192;
 
 #[derive(Debug, Clone, Default)]
-pub(crate) struct InstanceLabel(Arc<OnceLock<InstanceId>>);
+pub(crate) struct InstanceLabel(LateBound<InstanceId>);
 
 impl InstanceLabel {
     pub(crate) fn get(&self) -> Option<&InstanceId> {
-        self.0.get()
+        self.0.get().map(|id| &**id)
     }
 
     pub(crate) fn set(&self, instance_id: InstanceId) {
-        if let Err(rejected) = self.0.set(instance_id) {
-            tracing::debug!(instance_id = %rejected, "logging instance label already set; ignoring");
+        let label = instance_id.clone();
+        if self.0.bind(Arc::new(instance_id)).is_err() {
+            tracing::debug!(instance_id = %label, "logging instance label already set; ignoring");
         }
     }
 }

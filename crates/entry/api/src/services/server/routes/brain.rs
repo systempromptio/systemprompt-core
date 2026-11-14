@@ -1,20 +1,24 @@
-//! Mounts `/api/v1/brain` when the runtime composed a brain. An enabled
-//! brain without a user provider fails the mount rather than serving routes
-//! that cannot resolve their callers.
+//! Mounts `/api/v1/brain` (user policy) and `/api/v1/admin/brain` (admin
+//! policy) as two declarations behind the user context and the brain rate
+//! limit. An enabled brain without a user provider fails the mount rather
+//! than serving routes that cannot resolve their callers; with no brain the
+//! routers answer 404.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::Router;
-use systemprompt_extension::LoaderError;
+use systemprompt_extension::{AuthzPolicy, ContextKind, RateBudget, RateLimit, RouteGroup};
+use systemprompt_models::modules::ApiPaths;
 use systemprompt_traits::AppContext as AppContextTrait;
 
-use super::protocol::MountCtx;
+use super::RouteMountError;
+use super::protocol::{MountCtx, declare};
 
 pub(super) fn mount_brain_routes(
-    router: Router,
+    mut router: Router,
     mount: &MountCtx<'_>,
-) -> Result<Router, LoaderError> {
+) -> Result<Router, RouteMountError> {
     let ctx = mount.ctx;
     let brain_routes = match ctx.brain() {
         Some(brain) => {
@@ -27,11 +31,27 @@ pub(super) fn mount_brain_routes(
         },
         None => None,
     };
-    crate::routes::brain::mount_brain(
+    let brain_rate = RateLimit::new("brain", RateBudget::Brain);
+    router = mount.mount(
         router,
-        &mount.layers.limits,
-        &mount.layers.user,
-        ctx.config().rate_limits.brain_per_second,
-        brain_routes,
-    )
+        declare(
+            crate::routes::brain::router(brain_routes.clone()),
+            ApiPaths::BRAIN,
+            AuthzPolicy::user(),
+            ContextKind::User,
+            RouteGroup::ContentAndMisc,
+        )
+        .with_rate_limit(brain_rate),
+    )?;
+    Ok(mount.mount(
+        router,
+        declare(
+            crate::routes::brain::admin_router(brain_routes),
+            ApiPaths::ADMIN_BRAIN,
+            AuthzPolicy::admin(),
+            ContextKind::User,
+            RouteGroup::ContentAndMisc,
+        )
+        .with_rate_limit(brain_rate),
+    )?)
 }

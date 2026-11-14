@@ -4,7 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 use super::problem;
-use crate::services::middleware::read_body_bounded;
+use crate::kernel::read_body_bounded;
 use axum::body::Body;
 use axum::extract::Request;
 use axum::http::{StatusCode, header};

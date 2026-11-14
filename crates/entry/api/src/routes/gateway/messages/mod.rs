@@ -33,7 +33,7 @@ use systemprompt_manifest::services::catalog::ResolvedCatalog;
 use systemprompt_models::origin::RequestOrigin;
 use systemprompt_runtime::AppContext;
 
-use crate::services::middleware::JwtContextExtractor;
+use crate::kernel::JwtContextExtractor;
 use systemprompt_gateway::audit::GatewayAccessLog;
 use systemprompt_gateway::protocol::inbound::{InboundAdapter, error_type_for_status};
 

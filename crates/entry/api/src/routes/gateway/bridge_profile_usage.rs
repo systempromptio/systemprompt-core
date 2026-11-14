@@ -18,8 +18,7 @@ use chrono::Utc;
 use systemprompt_models::api::cloud::BridgeProfileUsage;
 
 use super::bridge_error::{BridgeError, authenticate_bridge};
-use crate::error::ApiHttpError;
-use crate::services::middleware::JwtContextExtractor;
+use crate::kernel::{ApiHttpError, JwtContextExtractor};
 
 pub async fn handle(
     jwt_extractor: Arc<JwtContextExtractor>,

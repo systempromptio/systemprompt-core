@@ -10,7 +10,7 @@
 use systemprompt_files::uploads::UploadError;
 use systemprompt_models::api::{ApiError, ErrorCode};
 
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 
 impl From<UploadError> for ApiHttpError {
     fn from(error: UploadError) -> Self {

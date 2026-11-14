@@ -23,7 +23,7 @@ use systemprompt_oauth_issuance::{
 use tracing::instrument;
 
 use crate::routes::oauth::OAuthHttpError;
-use crate::services::middleware::client_addr::ClientIp;
+use crate::kernel::ClientIp;
 
 #[instrument(skip(state, jwks, config, caller_ip, headers, request), fields(grant_type = %request.grant_type))]
 #[expect(

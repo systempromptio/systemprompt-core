@@ -23,11 +23,10 @@ use systemprompt_notifications::service::{NotificationsService, SubscriptionView
 use systemprompt_runtime::AppContext;
 
 use super::bridge_error::authenticate_bridge;
-use crate::error::ApiHttpError;
+use crate::kernel::{ApiHttpError, JwtContextExtractor};
 use crate::routes::notifications::ops::{
     self, FeedParams, MarkReadResponse, SeenResponse, StreamList, SubscriptionList,
 };
-use crate::services::middleware::JwtContextExtractor;
 
 #[derive(Clone)]
 struct BridgeNotificationsState {

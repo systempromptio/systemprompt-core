@@ -22,7 +22,7 @@ use systemprompt_identifiers::{ContextId, UserId};
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
 
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 use crate::routes::agent::parse_context_id;
 use handlers::{
     apply_status_update, broadcast_notification, mark_notification_broadcasted,

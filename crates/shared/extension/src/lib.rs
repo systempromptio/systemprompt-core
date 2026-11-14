@@ -98,7 +98,7 @@ pub mod state;
 mod traits;
 
 pub use asset::{AssetDefinition, AssetDefinitionBuilder, AssetPaths, AssetType};
-pub use authz::AuthzPolicy;
+pub use authz::{AuthzPolicy, HandlerVerifier};
 pub use brain::{
     AnalysisWindow, BrainAnalysis, BrainAnalysisError, BrainAnalysisRegistration,
     BrainExtractError, BrainExtractorRegistration, BrainFilterRegistration,

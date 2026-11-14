@@ -9,7 +9,7 @@ use systemprompt_content::{SearchRequest, SearchResponse, SearchService};
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
 
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 
 pub async fn query_handler(
     Extension(_req_ctx): Extension<RequestContext>,

@@ -11,7 +11,7 @@ use systemprompt_models::notifications::{MarkRead, MarkSeen};
 
 use super::ops::{self, MarkReadResponse, SeenResponse};
 use super::{NotificationsState, surface};
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 
 pub(super) async fn mark_read(
     State(state): State<NotificationsState>,

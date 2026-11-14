@@ -129,7 +129,7 @@ impl IntoResponse for ApiHttpError {
     }
 }
 
-pub(crate) fn unreadable_body(
+pub fn unreadable_body(
     status: StatusCode,
     message: &str,
     source: impl Error + Send + Sync + 'static,

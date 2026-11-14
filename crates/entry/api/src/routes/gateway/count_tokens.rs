@@ -31,7 +31,7 @@ use super::messages::auth::{AuthInputs, authenticate};
 use super::messages::error::RejectionError;
 use super::messages::extract::headers::body_read_error;
 use super::messages::{GatewayHandles, extract_credential};
-use crate::services::middleware::{JwtContextExtractor, read_body_bounded};
+use crate::kernel::{JwtContextExtractor, read_body_bounded};
 
 const CHARS_PER_TOKEN: usize = 4;
 

@@ -25,7 +25,7 @@ use systemprompt_models::auth::RequestActor;
 
 use super::dto::{SimulateBody, SimulateResponse};
 use super::{BrainHttpError, BrainRoutes};
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 
 const PROJECT_DIMENSION: &str = "project";
 const DEADLINE_EXCEEDED: &str = "deadline_exceeded";

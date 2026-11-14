@@ -19,8 +19,7 @@ use systemprompt_users::{
 };
 
 use super::bridge_error::{BridgeError, authenticate_bridge};
-use crate::error::ApiHttpError;
-use crate::services::middleware::JwtContextExtractor;
+use crate::kernel::{ApiHttpError, JwtContextExtractor};
 
 pub async fn enroll_self(
     jwt_extractor: Arc<JwtContextExtractor>,

@@ -29,7 +29,7 @@ use systemprompt_runtime::documents::actor::bearer_actor;
 use super::caller::authenticated;
 use super::drive::DriveState;
 use super::error::DocumentsResult;
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 use crate::routes::gateway::messages::extract_credential;
 
 pub(super) async fn issue(

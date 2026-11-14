@@ -24,7 +24,7 @@ use systemprompt_marketplace::{
 use systemprompt_models::api::ApiError;
 use systemprompt_runtime::AppContext;
 
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 
 pub fn router() -> Router<AppContext> {
     Router::new()

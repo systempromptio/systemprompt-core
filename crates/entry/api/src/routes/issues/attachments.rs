@@ -20,7 +20,7 @@ use systemprompt_runtime::documents::upload_links::{
 
 use super::views::{AttachmentBody, AttachmentUploadJson};
 use super::{IssuesState, caller};
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 
 pub(super) async fn declare(
     State(state): State<IssuesState>,

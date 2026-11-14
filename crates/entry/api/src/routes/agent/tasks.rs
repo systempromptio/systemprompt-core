@@ -17,7 +17,7 @@ use systemprompt_models::api::ApiError;
 use systemprompt_runtime::AppContext;
 
 use super::clamp_page_limit;
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 
 #[derive(Debug, Deserialize)]
 pub struct TaskFilterParams {

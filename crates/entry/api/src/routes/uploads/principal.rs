@@ -8,7 +8,7 @@ use axum::http::Extensions;
 use systemprompt_identifiers::{TraceId, UserId};
 use systemprompt_models::RequestContext;
 
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 
 #[derive(Debug, Clone)]
 pub(super) struct Uploader {

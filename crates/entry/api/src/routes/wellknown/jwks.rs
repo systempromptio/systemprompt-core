@@ -11,8 +11,7 @@ use axum::{Json, Router};
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_runtime::AppContext;
 
-use crate::error::ApiHttpError;
-use crate::services::middleware::{RateLimitState, RouterExt};
+use crate::kernel::{ApiHttpError, RateLimitState, RouterExt};
 use systemprompt_extension::LoaderError;
 
 const JWKS_RATE_LIMIT_PER_SECOND: u64 = 2;

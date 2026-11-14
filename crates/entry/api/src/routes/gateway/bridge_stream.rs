@@ -20,9 +20,8 @@ use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId};
 use systemprompt_models::RequestContext;
 
 use super::bridge_error::authenticate_bridge;
-use crate::error::ApiHttpError;
+use crate::kernel::{ApiHttpError, JwtContextExtractor};
 use crate::routes::stream::create_sse_stream;
-use crate::services::middleware::JwtContextExtractor;
 
 pub async fn handle(
     jwt_extractor: Arc<JwtContextExtractor>,

@@ -7,11 +7,14 @@
 //! and [`services::server::run_server`] swaps in the full router;
 //! [`HealthChecker`] reports per-module readiness. Failures surface as the
 //! [`error`] types and are mapped to HTTP responses at the route boundary.
+//! [`kernel`] is the one surface route modules import server helpers from.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod error;
+/// The helper surface route modules import from the server.
+pub mod kernel;
 pub mod repository;
 pub mod routes;
 pub mod services;

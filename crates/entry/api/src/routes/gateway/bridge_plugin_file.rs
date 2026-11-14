@@ -25,8 +25,7 @@ use systemprompt_runtime::AppContext;
 use super::bridge_error::{BridgeError, authenticate_bridge};
 use super::bridge_plugin_archive::ArchiveMemo;
 use super::{bridge_plugin_archive, bridge_resolved};
-use crate::error::ApiHttpError;
-use crate::services::middleware::JwtContextExtractor;
+use crate::kernel::{ApiHttpError, JwtContextExtractor};
 
 pub async fn handle(
     memo: ArchiveMemo,

@@ -27,7 +27,7 @@ use systemprompt_runtime::documents::upload_links::{
 use tower::ServiceExt;
 
 use super::principal::{TokenUploader, Uploader};
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 use crate::routes::documents::DocumentsState;
 
 #[derive(Clone)]

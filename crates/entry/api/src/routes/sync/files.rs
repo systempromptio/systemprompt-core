@@ -17,7 +17,7 @@ use systemprompt_runtime::AppContext;
 
 use super::archive::{collect_manifest, create_tarball, get_services_path};
 use super::types::{ApiResult, FileManifest, FilesQuery, SyncError};
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 
 async fn run_blocking<T, F>(job: F) -> Result<T, ApiHttpError>
 where

@@ -24,6 +24,7 @@ mod declared_mount;
 mod edge_bounds;
 mod edge_keyed_limiter;
 mod edge_pre_auth_limit;
+mod handler_verified_mount;
 mod header_source;
 mod jwt_params;
 mod jwt_revocation_db;

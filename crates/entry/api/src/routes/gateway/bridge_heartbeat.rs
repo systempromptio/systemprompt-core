@@ -21,8 +21,7 @@ use systemprompt_oauth::repository::UpsertBridgeSession;
 use systemprompt_runtime::AppContext;
 
 use super::bridge_error::{BridgeError, authenticate_bridge};
-use crate::error::ApiHttpError;
-use crate::services::middleware::JwtContextExtractor;
+use crate::kernel::{ApiHttpError, JwtContextExtractor};
 
 #[derive(Debug, Deserialize)]
 pub struct BridgeHeartbeatRequest {

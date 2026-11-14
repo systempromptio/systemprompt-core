@@ -11,7 +11,7 @@ use serde_json::json;
 use systemprompt_models::{ContextEvent, RequestContext};
 use systemprompt_runtime::AppContext;
 
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 use crate::routes::agent::parse_context_id;
 
 

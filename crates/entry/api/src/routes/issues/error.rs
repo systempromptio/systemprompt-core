@@ -13,7 +13,7 @@ use systemprompt_models::api::ApiError;
 
 use systemprompt_runtime::documents::download::DownloadLinkError;
 
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 
 impl From<IssuesError> for ApiHttpError {
     fn from(error: IssuesError) -> Self {

@@ -37,7 +37,7 @@ use super::caller::caller;
 use super::collab::decode;
 use super::error::DocumentsResult;
 use super::items::document_id;
-use crate::error::unreadable_body;
+use crate::kernel::unreadable_body;
 
 const BINARY: &str = "application/octet-stream";
 const RETRY_AFTER_MS: u64 = 250;

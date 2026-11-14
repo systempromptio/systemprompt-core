@@ -22,7 +22,7 @@ use tokio::sync::broadcast::error::RecvError;
 
 use super::AgentRunsState;
 use super::handlers::{EVENT_PAGE, owned_run};
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 
 pub(super) async fn events_stream(
     Extension(req_ctx): Extension<RequestContext>,

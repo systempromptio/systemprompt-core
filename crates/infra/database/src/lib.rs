@@ -64,12 +64,15 @@ pub mod extension;
 pub mod lifecycle;
 pub mod models;
 pub mod projection;
+/// The one `PostgreSQL` identifier quoter.
+pub mod quoting;
 #[macro_use]
 pub mod repository;
 pub mod resilience;
 pub mod services;
 
 pub use extension::DatabaseExtension;
+pub use quoting::quote_identifier;
 
 pub use models::{
     ColumnInfo, DatabaseInfo, DatabaseQuery, DatabaseTransaction, DbValue, FromDbValue, IndexInfo,

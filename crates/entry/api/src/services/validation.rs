@@ -4,7 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub fn is_valid_email(email: &str) -> bool {
+pub(crate) fn is_valid_email(email: &str) -> bool {
     let email = email.trim();
     let Some((local, domain)) = email.split_once('@') else {
         return false;

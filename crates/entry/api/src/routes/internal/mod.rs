@@ -32,8 +32,7 @@ use systemprompt_runtime::documents::links::{
     LinkMintError, LinkMinter, LinkRequest, mint_verified, verify_link_hop,
 };
 
-use crate::error::ApiHttpError;
-use crate::services::middleware::SubjectThrottle;
+use crate::kernel::{ApiHttpError, SubjectThrottle};
 
 #[derive(Debug)]
 struct LinksState {

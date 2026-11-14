@@ -4,7 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::services::session_cookie::{SameSite, SessionCookie};
+use crate::kernel::{SameSite, SessionCookie};
 use axum::http::header;
 use axum::response::{IntoResponse, Redirect, Response};
 

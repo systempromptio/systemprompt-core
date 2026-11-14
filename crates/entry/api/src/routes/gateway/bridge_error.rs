@@ -21,9 +21,7 @@ use systemprompt_traits::{AuthUser, BoxedSource};
 use systemprompt_users::UserError;
 
 use super::messages::extract_credential;
-use crate::error::{ApiHttpError, unreadable_body};
-use crate::services::middleware::JwtContextExtractor;
-use crate::services::middleware::jwt::JwtUserContext;
+use crate::kernel::{ApiHttpError, JwtContextExtractor, JwtUserContext, unreadable_body};
 
 #[derive(Debug, thiserror::Error)]
 pub enum BridgeError {

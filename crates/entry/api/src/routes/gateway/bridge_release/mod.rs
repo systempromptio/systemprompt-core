@@ -46,7 +46,7 @@ pub use self::github::parse_sha256sums;
 use self::github::github;
 
 use super::bridge_error::authenticate_bridge;
-use crate::services::middleware::JwtContextExtractor;
+use crate::kernel::JwtContextExtractor;
 
 pub const CACHE_TTL: Duration = Duration::from_secs(300);
 

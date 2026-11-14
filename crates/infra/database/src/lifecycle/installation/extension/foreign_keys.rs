@@ -37,6 +37,7 @@ use super::super::fk_deferral::DeferredForeignKey;
 use super::super::report::ForeignKeyDrift;
 use crate::error::RepositoryError;
 use crate::models::DatabaseTransaction;
+use crate::quoting::quote_identifier;
 use crate::services::DatabaseProvider;
 
 #[derive(Debug)]
@@ -287,8 +288,4 @@ async fn apply_one(
             Ok(FkOutcome::AddedNotValid(e))
         },
     }
-}
-
-fn quote_identifier(ident: &str) -> String {
-    format!("\"{}\"", ident.replace('"', "\"\""))
 }

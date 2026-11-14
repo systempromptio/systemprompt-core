@@ -11,7 +11,7 @@ use systemprompt_models::RequestContext;
 use systemprompt_models::notifications::RuleDecl;
 
 use super::NotificationsState;
-use crate::error::ApiHttpError;
+use crate::kernel::ApiHttpError;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub(super) struct RuleSet {

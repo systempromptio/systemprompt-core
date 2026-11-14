@@ -161,7 +161,7 @@ pub async fn enable_extensions(config: &PostgresConfig) -> Result<()> {
     for ext in REQUIRED_EXTENSIONS {
         let sql = format!(
             "CREATE EXTENSION IF NOT EXISTS {}",
-            super::ddl::quote_ident(ext)
+            systemprompt_database::quote_identifier(ext)
         );
         if let Err(error) = sqlx::query(sqlx::AssertSqlSafe(sql)).execute(&pool).await {
             if extension_installed(&pool, ext).await {
