@@ -7136,6 +7136,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-mcp-host"
+version = "0.81.1"
+dependencies = [
+ "async-trait",
+ "rmcp",
+ "systemprompt-agent",
+ "systemprompt-ai",
+ "systemprompt-config",
+ "systemprompt-database",
+ "systemprompt-extension",
+ "systemprompt-files",
+ "systemprompt-governance",
+ "systemprompt-identifiers",
+ "systemprompt-loader",
+ "systemprompt-logging",
+ "systemprompt-manifest",
+ "systemprompt-marketplace",
+ "systemprompt-mcp",
+ "systemprompt-models",
+ "systemprompt-oauth",
+ "systemprompt-provider-contracts",
+ "systemprompt-runtime",
+ "systemprompt-security",
+ "systemprompt-traits",
+ "systemprompt-users",
+ "thiserror 2.0.21",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "systemprompt-models"
 version = "0.81.1"
 dependencies = [
@@ -7556,6 +7587,7 @@ dependencies = [
  "systemprompt-files",
  "systemprompt-identifiers",
  "systemprompt-logging",
+ "systemprompt-mcp-host",
  "systemprompt-models",
  "systemprompt-runtime",
  "systemprompt-scheduler",

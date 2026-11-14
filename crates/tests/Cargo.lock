@@ -12026,6 +12026,7 @@ dependencies = [
  "systemprompt-files",
  "systemprompt-identifiers",
  "systemprompt-logging",
+ "systemprompt-mcp-host",
  "systemprompt-models",
  "systemprompt-runtime",
  "systemprompt-scheduler",

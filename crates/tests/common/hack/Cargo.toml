@@ -101,6 +101,7 @@ systemprompt-extension = { path = "../../../shared/extension", default-features 
 systemprompt-files = { path = "../../../domain/files", default-features = false, features = ["collab-loro", "office", "pdf"] }
 systemprompt-identifiers = { path = "../../../shared/identifiers", features = ["sqlx"] }
 systemprompt-logging = { path = "../../../infra/logging", features = ["cli"] }
+systemprompt-mcp-host = { path = "../../../app/mcp-host", features = ["brain"] }
 systemprompt-models = { path = "../../../shared/models", features = ["sqlx"] }
 systemprompt-runtime = { path = "../../../app/runtime", features = ["brain", "engine-loro", "geolocation"] }
 systemprompt-scheduler = { path = "../../../app/scheduler", features = ["brain", "otel"] }
