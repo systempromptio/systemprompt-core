@@ -218,7 +218,9 @@ pub(super) fn tool_list(tools: &DocumentsMcpTools) -> Vec<Tool> {
     #[cfg(feature = "notifications")]
     let tools_list = {
         let mut tools_list = tools_list;
-        tools_list.push(compact(InboxHandler { tools }.tool_definition(server)));
+        if tools.notifications().is_some() {
+            tools_list.push(compact(InboxHandler { tools }.tool_definition(server)));
+        }
         tools_list
     };
     tools_list

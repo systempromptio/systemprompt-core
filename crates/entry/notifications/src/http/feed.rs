@@ -11,7 +11,7 @@ use systemprompt_models::notifications::NotificationPage;
 
 use super::NotificationsState;
 use super::ops::{self, FeedParams, UnreadCount};
-use crate::kernel::ApiHttpError;
+use systemprompt_api::kernel::ApiHttpError;
 
 pub(super) async fn feed(
     State(state): State<NotificationsState>,

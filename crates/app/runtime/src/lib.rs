@@ -50,7 +50,7 @@ pub use builder::{AppContextBuilder, discover_vertex_models, owner_reassignments
 pub use context::{AppContext, ConfigPlane, DataPlane, Plugins, ShutdownRequest, Subsystems};
 pub use database_context::DatabaseContext;
 pub use error::{RuntimeError, RuntimeResult};
-pub use host_kernel::{HostBootError, HostKernel, HostNotifications, HostParts, PROFILE_ENV};
+pub use host_kernel::{HostBootError, HostKernel, HostParts, PROFILE_ENV};
 pub use schema_currency::{SchemaState, assert_schema_current};
 pub use startup_validation::{
     ExtensionConfigOutcome, RegisteredToolsetId, StartupValidator, collect_manifest_errors,

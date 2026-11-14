@@ -6,12 +6,16 @@
 //! into the consumer slot this extension provides. Its backlog is reported on
 //! `/health/detail` through `diagnostics()`, never `/readyz`.
 //!
+//! It requires the producer `DynNotificationSink` in the extension state,
+//! which the `notifications` extension provides: with notifications disabled
+//! in the profile, a profile that enables the brain fails at boot.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 
-use systemprompt_extension::DiagnosticProbe;
+use systemprompt_extension::{DiagnosticProbe, DynNotificationSink};
 use systemprompt_extension::prelude::*;
 
 use crate::consumer::{BacklogDiagnostic, BrainConsumerSlot};
@@ -67,6 +71,10 @@ impl Extension for BrainExtension {
         state: &mut StateBuilder<'_>,
     ) -> Result<(), ExtensionStateError> {
         state.provide(BrainConsumerSlot::default())
+    }
+
+    fn requires(&self) -> Vec<StateRequirement> {
+        vec![StateRequirement::of::<DynNotificationSink>()]
     }
 
     fn diagnostics(&self, ctx: &dyn ExtensionContext) -> Vec<Arc<dyn DiagnosticProbe>> {

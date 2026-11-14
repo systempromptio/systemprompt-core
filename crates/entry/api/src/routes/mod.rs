@@ -25,8 +25,6 @@ pub mod issues;
 pub mod managed;
 pub mod marketplace;
 pub mod mcp;
-#[cfg(feature = "notifications")]
-pub mod notifications;
 pub mod oauth;
 pub mod proxy;
 pub mod sso;

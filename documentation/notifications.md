@@ -22,6 +22,10 @@ A server built without the feature behaves as follows:
 - A comment that sets `mention_options` is refused with `unsupported_op`, because the requested attention cannot be honoured.
 - The desktop bridge shows that notifications are not enabled on the server and hides its inbox count.
 
+A server built with the feature can still switch notifications off per profile by listing `notifications` under `extensions.disabled`. The routes then answer 404, no consumer runs, and the documents MCP server does not list `documents_inbox`. The brain records notifications, so a profile that disables `notifications` and enables `brain` refuses to boot.
+
+The HTTP routes are served by the `systemprompt-notifications-entry` crate. The bridge inbox is mounted inside the gateway surface: it is authenticated with the gateway credential, rate-limited under its own `bridge_notifications` budget, and recorded in the gateway access log.
+
 ## Guarantees
 
 - **Transactional capture.** An event is appended to the durable outbox on the producer's own connection. A comment, share or publish never commits without its event, and an event never exists for a change that rolled back.

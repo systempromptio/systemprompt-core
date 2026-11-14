@@ -9,7 +9,7 @@ use systemprompt_models::RequestContext;
 use systemprompt_models::notifications::{Escalate, Notification};
 
 use super::{NotificationsState, ops, surface};
-use crate::kernel::ApiHttpError;
+use systemprompt_api::kernel::ApiHttpError;
 
 pub(super) async fn escalate(
     State(state): State<NotificationsState>,

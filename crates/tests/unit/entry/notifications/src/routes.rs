@@ -3,7 +3,6 @@ use std::sync::Arc;
 use axum::Router;
 use axum::body::{Body, to_bytes};
 use axum::http::{HeaderMap, Method, Request, StatusCode};
-use systemprompt_api::routes::notifications::{NotificationsState, router};
 use systemprompt_api::services::middleware::{
     ContextExtractor, RouterExt, UserOnlyContextMiddleware,
 };
@@ -21,6 +20,7 @@ use systemprompt_models::notifications::{
 use systemprompt_notifications::repository::{
     NotificationStreamRepository, NotificationSubscriptionRepository,
 };
+use systemprompt_notifications_entry::http::router;
 use systemprompt_provider_contracts::ChangeSource;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
@@ -28,6 +28,8 @@ use systemprompt_test_fixtures::{
 };
 use tower::ServiceExt;
 use uuid::Uuid;
+
+use crate::support::state;
 
 #[derive(Clone)]
 struct Caller(Option<RequestContext>);
@@ -62,7 +64,7 @@ async fn context() -> Arc<AppContext> {
 }
 
 fn app(ctx: &AppContext, user: Option<&UserId>) -> Router {
-    router(NotificationsState::from_context(ctx)).with_auth(
+    router(state(ctx)).with_auth(
         UserOnlyContextMiddleware::new(Caller(user.map(caller))),
         AuthzPolicy::user(),
     )
@@ -115,7 +117,8 @@ async fn declare_stream_for(
         retention_days: None,
         coalesce_window_secs: None,
     };
-    let repos = ctx.notifications().service.repositories();
+    let service = systemprompt_test_fixtures::notifications_service(&ctx);
+    let repos = service.repositories();
     NotificationStreamRepository::upsert(repos.write_pool(), &stream, "test")
         .await
         .expect("declare stream");
@@ -140,7 +143,7 @@ async fn every_route_requires_a_signed_in_user() {
 async fn an_anonymous_caller_is_refused_by_the_user_policy() {
     let ctx = context().await;
     let anon = caller(&UserId::generate()).with_user_type(UserType::Anon);
-    let app = router(NotificationsState::from_context(&ctx)).with_auth(
+    let app = router(state(&ctx)).with_auth(
         UserOnlyContextMiddleware::new(Caller(Some(anon))),
         AuthzPolicy::user(),
     );
@@ -335,7 +338,8 @@ async fn a_console_write_onto_a_declared_subscription_conflicts_declared_by_conf
         quiet_hours: None,
         digest: None,
     };
-    let repos = ctx.notifications().service.repositories();
+    let service = systemprompt_test_fixtures::notifications_service(&ctx);
+    let repos = service.repositories();
     NotificationSubscriptionRepository::upsert(
         repos.write_pool(),
         &declared,

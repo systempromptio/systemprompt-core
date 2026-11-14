@@ -21,6 +21,10 @@ mod routes_gateway_auth;
 mod server_mount_gateway_and_mcp_scope;
 
 #[cfg(test)]
+#[path = "server_mount_notifications.rs"]
+mod server_mount_notifications;
+
+#[cfg(test)]
 #[path = "routes_role_gateway.rs"]
 mod routes_role_gateway;
 

@@ -26,8 +26,6 @@ mod gateway;
 mod issues;
 #[cfg(feature = "bridge")]
 mod managed;
-#[cfg(feature = "notifications")]
-mod notifications;
 mod oauth_mount;
 mod protocol;
 pub mod role;
@@ -262,10 +260,6 @@ fn mount_content(mut router: Router, mount: &MountCtx<'_>) -> Result<Router, Rou
     router = protocol::mount_content_and_misc(router, mount)?;
     router = documents::mount_documents(router, mount)?;
     router = issues::mount_issues(router, mount)?;
-    #[cfg(feature = "notifications")]
-    {
-        router = notifications::mount_notifications(router, mount)?;
-    }
     #[cfg(feature = "brain")]
     {
         router = brain::mount_brain_routes(router, mount)?;

@@ -43,7 +43,7 @@ fn get(uri: &str) -> Request<Body> {
 fn tools(ctx: &Arc<AppContext>) -> DocumentsMcpTools {
     DocumentsMcpTools::new(DocumentsMcpConfig {
         service: document_service(ctx),
-        notifications: Arc::clone(&ctx.notifications().service),
+        notifications: Some(systemprompt_test_fixtures::notifications_service(ctx)),
         uploads: Some(Arc::clone(ctx.documents().uploads())),
         users: Arc::clone(ctx.user_repository()),
         links: Arc::new(

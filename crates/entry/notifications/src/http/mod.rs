@@ -1,12 +1,13 @@
-//! `/api/v1/notifications` and `/api/v1/admin/notifications` over HTTP.
+//! `/api/v1/notifications`, `/api/v1/admin/notifications` and the bridge
+//! inbox under `/v1/bridge/notifications` over HTTP.
 //!
 //! They serve a user's notification feed, seen, read and escalation state,
 //! streams, subscriptions and personal rules, and the admin routing
 //! simulator.
 //!
 //! Each handler resolves the caller and calls one operation of the shared
-//! [`ops`] layer, which the bridge routes under `/v1/bridge/notifications`
-//! call too, so both surfaces answer with the same shapes. The service
+//! [`ops`] layer, which the bridge routes in `bridge` call too, so both
+//! surfaces answer with the same shapes. The service
 //! authorizes and records every call against the surface it names: the
 //! dashboard for a first-party browser session, the API otherwise.
 //!
@@ -14,6 +15,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod admin;
+pub(crate) mod bridge;
 mod error;
 mod escalate;
 mod feed;
@@ -29,11 +31,11 @@ use axum::Router;
 use axum::routing::{delete, get, post};
 use systemprompt_models::RequestContext;
 use systemprompt_models::notifications::{SURFACE_API, SURFACE_DASHBOARD};
-use systemprompt_notifications::service::NotificationsService;
-use systemprompt_runtime::AppContext;
+use systemprompt_notifications::service::{NotificationsService, NotificationsServiceSlot};
+use systemprompt_provider_contracts::{Dependencies, MissingDependency};
 
 /// Router-scoped state of the notification routes: the one notification
-/// service.
+/// service, read from the host-bound slot in the extension state.
 #[derive(Clone)]
 pub struct NotificationsState {
     pub(crate) service: Arc<NotificationsService>,
@@ -46,11 +48,14 @@ impl std::fmt::Debug for NotificationsState {
 }
 
 impl NotificationsState {
-    #[must_use]
-    pub fn from_context(ctx: &AppContext) -> Self {
-        Self {
-            service: Arc::clone(&ctx.notifications().service),
-        }
+    pub fn from_extension_state(state: &Dependencies) -> Result<Self, MissingDependency> {
+        let service = state
+            .get::<NotificationsServiceSlot>()?
+            .get()
+            .ok_or_else(MissingDependency::of::<NotificationsService>)?;
+        Ok(Self {
+            service: Arc::clone(service),
+        })
     }
 }
 

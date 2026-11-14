@@ -13,11 +13,14 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use systemprompt_database::DbPool;
 use systemprompt_events::services::durable::{
     DurableEventError, DurableOutbox, ReportingFact, SseEvent,
 };
-use systemprompt_extension::notifications::{NotificationSink, NotificationSinkError};
-use systemprompt_identifiers::Actor;
+use systemprompt_extension::notifications::{
+    DynNotificationSink, NotificationSink, NotificationSinkError,
+};
+use systemprompt_identifiers::{Actor, InstanceId};
 use systemprompt_models::notifications::{
     NOTIFICATION_EVENT_VERSION, NOTIFICATIONS_CONSUMER, NotificationEvent,
 };
@@ -33,6 +36,15 @@ impl OutboxNotificationSink {
     #[must_use]
     pub const fn new(outbox: Arc<DurableOutbox>) -> Self {
         Self { outbox }
+    }
+
+    #[must_use]
+    pub fn over_write_pool(database: &DbPool, instance_id: &InstanceId) -> DynNotificationSink {
+        let outbox = DurableOutbox::new(
+            database.write_pool().as_ref().clone(),
+            systemprompt_events::process_origin(instance_id),
+        );
+        Arc::new(Self::new(Arc::new(outbox)))
     }
 }
 

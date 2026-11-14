@@ -28,12 +28,6 @@ impl AppContext {
         &self.cfg.build
     }
 
-    #[cfg(feature = "notifications")]
-    #[must_use]
-    pub fn notifications(&self) -> &crate::notifications::NotificationsHandle {
-        &self.subsystems.notifications
-    }
-
     #[cfg(feature = "brain")]
     #[must_use]
     pub fn brain(&self) -> Option<&crate::brain::BrainHandle> {

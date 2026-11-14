@@ -1,9 +1,13 @@
 //! `/v1/bridge/notifications*` — the bridge's view of the user's inbox:
 //! feed, mark seen, mark read, escalate, streams and subscriptions.
 //!
-//! Every route authenticates the gateway way, as `/v1/bridge/stream` does,
-//! and calls the same operations as `/api/v1/notifications`, recording the
-//! bridge as the surface.
+//! The group is registered into the gateway surface with
+//! `register_gateway_route!`: the gateway protects it handler-verified by its
+//! credential under the `bridge_notifications` scope and the notifications
+//! budget, inside its access log. Every handler authenticates the caller with
+//! the [`GatewayCredential`] the gateway hands the factory, as
+//! `/v1/bridge/stream` does, and calls the same operations as
+//! `/api/v1/notifications`, recording the bridge as the surface.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,39 +18,40 @@ use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::routing::{delete, get, post};
 use axum::{Json, Router};
+use systemprompt_api::kernel::{ApiHttpError, GatewayCredential};
+use systemprompt_extension::ExtensionContext;
 use systemprompt_identifiers::UserId;
 use systemprompt_models::ApiPaths;
 use systemprompt_models::notifications::{
     Escalate, MarkRead, MarkSeen, Notification, NotificationPage, SURFACE_BRIDGE, SubscriptionDecl,
 };
 use systemprompt_notifications::service::{NotificationsService, SubscriptionView};
-use systemprompt_runtime::AppContext;
+use systemprompt_provider_contracts::MissingDependency;
 
-use super::bridge_error::authenticate_bridge;
-use crate::kernel::{ApiHttpError, JwtContextExtractor};
-use crate::routes::notifications::ops::{
-    self, FeedParams, MarkReadResponse, SeenResponse, StreamList, SubscriptionList,
-};
+use super::NotificationsState;
+use super::ops::{self, FeedParams, MarkReadResponse, SeenResponse, StreamList, SubscriptionList};
 
 #[derive(Clone)]
 struct BridgeNotificationsState {
-    jwt: Arc<JwtContextExtractor>,
+    credential: GatewayCredential,
     service: Arc<NotificationsService>,
 }
 
 impl BridgeNotificationsState {
     async fn user(&self, headers: &HeaderMap) -> Result<UserId, ApiHttpError> {
-        let (_claims, user) = authenticate_bridge(&self.jwt, headers).await?;
-        Ok(user.id)
+        self.credential.user_id(headers).await
     }
 }
 
-pub(super) fn routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtractor>) -> Router {
+pub(crate) fn routes(
+    ctx: &dyn ExtensionContext,
+    credential: GatewayCredential,
+) -> Result<Router, MissingDependency> {
     let state = BridgeNotificationsState {
-        jwt: Arc::clone(jwt_extractor),
-        service: Arc::clone(&ctx.notifications().service),
+        credential,
+        service: NotificationsState::from_extension_state(&ctx.extension_state())?.service,
     };
-    Router::new()
+    Ok(Router::new()
         .route(
             ApiPaths::gateway_relative(ApiPaths::BRIDGE_NOTIFICATIONS),
             get(feed),
@@ -75,7 +80,7 @@ pub(super) fn routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtractor>)
             ApiPaths::gateway_relative(ApiPaths::BRIDGE_NOTIFICATIONS_SUBSCRIPTION_ROUTE),
             delete(unsubscribe),
         )
-        .with_state(state)
+        .with_state(state))
 }
 
 async fn feed(

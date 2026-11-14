@@ -175,14 +175,6 @@ fn start_runner_services(ctx: &AppContext, brain: Option<Arc<dyn RunnerService>>
         tracing::info!(service = "brain", "runner service started");
         started += 1;
     }
-    #[cfg(feature = "notifications")]
-    {
-        let consumer = Arc::clone(&ctx.notifications().consumer);
-        let consumer: Arc<dyn RunnerService> = consumer;
-        spawn_runner_service(ctx, &shared, consumer);
-        tracing::info!(service = "notifications", "runner service started");
-        started += 1;
-    }
     for extension in ctx.extension_registry().extensions() {
         for service in extension.runner_services(ctx) {
             let name = service.name();

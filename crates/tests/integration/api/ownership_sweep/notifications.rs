@@ -6,14 +6,14 @@ use axum::http::{Request, StatusCode};
 use axum::{Extension, Router};
 use serde_json::json;
 use systemprompt_api::routes::gateway::gateway_router;
-use systemprompt_api::routes::notifications::{NotificationsState, router};
 use systemprompt_identifiers::{NotificationStreamId, UserId};
 use systemprompt_models::auth::UserType;
 use systemprompt_models::notifications::{AudienceSubject, StreamAttention, StreamDecl};
 use systemprompt_notifications::repository::NotificationStreamRepository;
+use systemprompt_notifications_entry::http::{NotificationsState, router};
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    AuthedFixture, seed_bridge_credential, seed_user_row, unique_user_id,
+    AuthedFixture, notifications_service, seed_bridge_credential, seed_user_row, unique_user_id,
 };
 use uuid::Uuid;
 
@@ -29,8 +29,13 @@ struct Notifications {
     view: &'static str,
 }
 
+fn notifications_state(ctx: &AppContext) -> NotificationsState {
+    let state = systemprompt_extension::ExtensionContext::extension_state(ctx);
+    NotificationsState::from_extension_state(&state).expect("notification service bound")
+}
+
 fn as_user(ctx: &AppContext, user: &UserId) -> Router {
-    router(NotificationsState::from_context(ctx)).layer(Extension(
+    router(notifications_state(ctx)).layer(Extension(
         request_context(user.as_str()).with_user_type(UserType::User),
     ))
 }
@@ -104,7 +109,8 @@ async fn stream(ctx: &AppContext, owner: &UserId) -> Result<NotificationStreamId
         retention_days: None,
         coalesce_window_secs: None,
     };
-    let repos = ctx.notifications().service.repositories();
+    let service = notifications_service(ctx);
+    let repos = service.repositories();
     NotificationStreamRepository::upsert(repos.write_pool(), &decl, "test").await?;
     Ok(id)
 }
