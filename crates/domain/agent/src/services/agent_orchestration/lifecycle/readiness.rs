@@ -7,10 +7,10 @@
 //!   platform.
 //! - **The port's listening pids**, from
 //!   `systemprompt_loader::subprocess::pids_listening_on`. It shells out to
-//!   `lsof -t -iTCP:<port> -sTCP:LISTEN` on Linux and macOS and to
-//!   `netstat -ano -p TCP` on Windows. It is unavailable (`None`) when the tool
-//!   is missing or fails, as in a container image without `lsof`. It reports
-//!   no holder when the host hides other processes' sockets.
+//!   `lsof -t -iTCP:<port> -sTCP:LISTEN` on Linux and macOS and to `netstat
+//!   -ano -p TCP` on Windows. It is unavailable (`None`) when the tool is
+//!   missing or fails, as in a container image without `lsof`. It reports no
+//!   holder when the host hides other processes' sockets.
 //! - **The child.** Whether the spawned pid is still alive
 //!   (`subprocess::is_running`, every platform), and whether it carries this
 //!   agent's spawn marker (`subprocess::owns` with `ChildKind::Agent`). The
@@ -29,9 +29,9 @@
 //!   answer although the connect succeeded). The agent is ready when the
 //!   connect succeeded, the spawned child is alive, and its marker is
 //!   [`MarkerCheck::Verified`] (Linux, macOS) or [`MarkerCheck::Unavailable`]
-//!   (Windows). A healthy agent is therefore never failed for want of a
-//!   lookup. On such a host, a foreign listener that holds the port while the
-//!   child is alive cannot be told apart from the agent.
+//!   (Windows). A healthy agent is therefore never failed for want of a lookup.
+//!   On such a host, a foreign listener that holds the port while the child is
+//!   alive cannot be told apart from the agent.
 //!
 //! A child whose marker is read and does not match ([`MarkerCheck::Absent`])
 //! is never ready.

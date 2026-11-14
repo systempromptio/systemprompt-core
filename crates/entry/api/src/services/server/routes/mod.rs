@@ -132,7 +132,10 @@ pub fn report_gateway_guards(skipped: &[&str], events: Option<&StartupEventSende
         return;
     }
     events.warning_with_context(
-        format!("{} gateway guards not installed: owner disabled", skipped.len()),
+        format!(
+            "{} gateway guards not installed: owner disabled",
+            skipped.len()
+        ),
         skipped.join(", "),
     );
 }

@@ -17,8 +17,13 @@ use systemprompt_traits::DatabaseHandle;
 use crate::stub_ctx::{GUARD_OWNER, StubCtx};
 
 fn guards() -> GatewayGuards {
-    GatewayGuards::from_registrations(&StubCtx, GatewayGuards::registrations(), &[GUARD_OWNER], &[])
-        .expect("the guard's owner is linked and enabled")
+    GatewayGuards::from_registrations(
+        &StubCtx,
+        GatewayGuards::registrations(),
+        &[GUARD_OWNER],
+        &[],
+    )
+    .expect("the guard's owner is linked and enabled")
 }
 
 static ARMED: AtomicBool = AtomicBool::new(false);

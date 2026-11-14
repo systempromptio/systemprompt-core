@@ -149,9 +149,7 @@ macro_rules! register_gateway_guard {
 /// Why the gateway's guard set could not be built.
 #[derive(Debug, thiserror::Error)]
 pub enum GatewayGuardError {
-    #[error(
-        "a gateway guard names owner '{0}', which is not an extension linked into this binary"
-    )]
+    #[error("a gateway guard names owner '{0}', which is not an extension linked into this binary")]
     UnknownOwner(ExtensionId),
 }
 

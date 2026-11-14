@@ -119,5 +119,8 @@ fn every_listed_prefix_covers_a_builtin_gateway_route() {
         .into_iter()
         .filter(|prefix| !routes.iter().any(|(_, path)| path_under(path, prefix)))
         .collect();
-    assert!(dead.is_empty(), "prefixes that cover no built-in route: {dead:?}");
+    assert!(
+        dead.is_empty(),
+        "prefixes that cover no built-in route: {dead:?}"
+    );
 }

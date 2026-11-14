@@ -11,17 +11,17 @@ use systemprompt_api::routes::gateway::builtin::{builtin_gateway_prefixes, confi
 use systemprompt_api::routes::gateway::registered::{
     GatewayCredential, GatewayRouteRegistration, admit_registrations,
 };
-use systemprompt_api::services::server::routes::report_gateway_guards;
-use systemprompt_traits::{StartupEvent, startup_channel};
-use tower::ServiceExt;
 use systemprompt_api::services::middleware::{
     CoreDeclaration, CoreShapeField, MountError, extension_built, path_under,
 };
+use systemprompt_api::services::server::routes::report_gateway_guards;
 use systemprompt_api::services::server::routes::role::route_groups;
 use systemprompt_extension::prelude::MissingDependency;
 use systemprompt_extension::{ExtensionContext, RateBudget, RouteGroup};
 use systemprompt_manifest::profile::NodeRole;
 use systemprompt_models::modules::ApiPaths;
+use systemprompt_traits::{StartupEvent, startup_channel};
+use tower::ServiceExt;
 
 fn empty(
     _ctx: &dyn ExtensionContext,
@@ -180,7 +180,11 @@ fn a_registration_overlapping_a_builtin_gateway_prefix_is_refused() {
         path_under("/bridge/notifications", prefix) || path_under(prefix, "/bridge/notifications")
     }));
 
-    for shadowed in ["/bridge", "/bridge/notifications", "/bridge/notifications/read"] {
+    for shadowed in [
+        "/bridge",
+        "/bridge/notifications",
+        "/bridge/notifications/read",
+    ] {
         assert!(
             matches!(
                 admit_registrations(&[INBOX], &[shadowed]),
@@ -197,7 +201,12 @@ fn a_registration_overlapping_a_builtin_gateway_prefix_is_refused() {
 async fn status(router: &axum::Router, uri: &str) -> StatusCode {
     router
         .clone()
-        .oneshot(Request::builder().uri(uri).body(Body::empty()).expect("request"))
+        .oneshot(
+            Request::builder()
+                .uri(uri)
+                .body(Body::empty())
+                .expect("request"),
+        )
         .await
         .expect("infallible")
         .status()
@@ -215,9 +224,18 @@ async fn a_registered_router_answers_404_outside_its_own_prefix() {
         vec![ApiPaths::gateway_relative(ApiPaths::BRIDGE_NOTIFICATIONS)],
     );
 
-    assert_eq!(status(&served, "/bridge/notifications").await, StatusCode::OK);
-    assert_eq!(status(&served, "/bridge/notifications/read").await, StatusCode::OK);
-    assert_eq!(status(&served, "/bridge/elsewhere").await, StatusCode::NOT_FOUND);
+    assert_eq!(
+        status(&served, "/bridge/notifications").await,
+        StatusCode::OK
+    );
+    assert_eq!(
+        status(&served, "/bridge/notifications/read").await,
+        StatusCode::OK
+    );
+    assert_eq!(
+        status(&served, "/bridge/elsewhere").await,
+        StatusCode::NOT_FOUND
+    );
     assert_eq!(status(&served, "/models").await, StatusCode::NOT_FOUND);
 }
 

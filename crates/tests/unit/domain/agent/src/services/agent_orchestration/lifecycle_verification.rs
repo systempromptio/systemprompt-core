@@ -2,15 +2,16 @@
 // against free and occupied ports (an occupied port is held by this test
 // process, which is not an agent, so cleanup must refuse), TCP readiness
 // probing that accepts only the spawned, marked agent listening on its port
-// and refuses a port answered by a foreign process, and the failure path that marks the agent
-// errored and logs the startup diagnosis for each stored status.
+// and refuses a port answered by a foreign process, and the failure path that
+// marks the agent errored and logs the startup diagnosis for each stored
+// status.
 
 use std::sync::Arc;
 use systemprompt_identifiers::{AgentName, InstanceId};
 
 use systemprompt_agent::repository::agent_service::AgentServiceRepository;
-use systemprompt_agent::services::agent_orchestration::database::AgentDatabaseService;
 use systemprompt_agent::services::agent_orchestration::OrchestrationError;
+use systemprompt_agent::services::agent_orchestration::database::AgentDatabaseService;
 use systemprompt_agent::services::agent_orchestration::lifecycle::AgentLifecycle;
 use systemprompt_config::paths::AppPaths;
 use tokio::net::TcpListener;
@@ -101,7 +102,9 @@ async fn verify_startup_refuses_a_port_answered_by_a_foreign_process() {
         .expect_err("a listener that is not the spawned agent is not readiness");
     accept_loop.abort();
     match err {
-        OrchestrationError::PortHeldByForeignProcess { port: held, pid, .. } => {
+        OrchestrationError::PortHeldByForeignProcess {
+            port: held, pid, ..
+        } => {
             assert_eq!(held, port);
             assert_eq!(pid, std::process::id());
         },
@@ -145,10 +148,16 @@ async fn verify_startup_accepts_the_spawned_agent_listening_on_its_port() {
     let port_file = port_dir.path().join("port");
     let mut child = Command::new(std::env::current_exe().expect("test binary path"))
         .args(["--exact", LISTENING_AGENT_HELPER, "--ignored"])
-        .env(systemprompt_test_fixtures::HELPER_READY_ENV, helper.ready_path())
+        .env(
+            systemprompt_test_fixtures::HELPER_READY_ENV,
+            helper.ready_path(),
+        )
         .env(LISTEN_PORT_FILE_ENV, &port_file)
         .env(systemprompt_models::subprocess::SUBPROCESS_MARKER_ENV, "1")
-        .env(systemprompt_models::subprocess::AGENT_NAME_ENV, name.as_str())
+        .env(
+            systemprompt_models::subprocess::AGENT_NAME_ENV,
+            name.as_str(),
+        )
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()

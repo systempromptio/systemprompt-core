@@ -142,14 +142,13 @@ fn enabled_guards_are_installed_in_registration_order() {
     assert_eq!(guards.installed_owners(), vec![SECOND, GUARD_OWNER, THIRD]);
     assert!(guards.not_installed().is_empty());
 
-    let without_second =
-        GatewayGuards::from_registrations(
-            &StubCtx,
-            &registrations,
-            LINKED,
-            &[ExtensionId::new(SECOND)],
-        )
-        .expect("a disabled owner is not an error");
+    let without_second = GatewayGuards::from_registrations(
+        &StubCtx,
+        &registrations,
+        LINKED,
+        &[ExtensionId::new(SECOND)],
+    )
+    .expect("a disabled owner is not an error");
     assert_eq!(without_second.installed_owners(), vec![GUARD_OWNER, THIRD]);
     assert_eq!(without_second.not_installed(), &[SECOND]);
 }

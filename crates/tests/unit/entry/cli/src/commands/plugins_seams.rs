@@ -161,7 +161,11 @@ fn a_seam_registered_outside_the_kernel_is_listed_with_its_owner() {
         .expect("a registration from another crate is listed");
     assert_eq!(contributed.owner, "systemprompt-cli-tests");
     assert_eq!(contributed.extension, Some("test_capability"));
-    let names: Vec<&str> = contributed.entries.iter().map(|e| e.name.as_str()).collect();
+    let names: Vec<&str> = contributed
+        .entries
+        .iter()
+        .map(|e| e.name.as_str())
+        .collect();
     assert_eq!(names, vec!["first", "second"]);
     assert!(contributed.entries.iter().all(|e| e.owner.is_none()));
 }
@@ -347,13 +351,20 @@ fn a_required_entry_is_unmet_when_its_own_owner_is_disabled() {
         Needed::Entry("bridge_notifications".to_owned()),
     )];
     let (rows, all_linked) = evaluate(
-        vec![per_entry_seam(&[("bridge_notifications", "notifications-http")])],
+        vec![per_entry_seam(&[(
+            "bridge_notifications",
+            "notifications-http",
+        )])],
         &required,
         &[ExtensionId::new("notifications-http")],
     );
     assert!(!all_linked);
     assert_eq!(rows[0].status, SeamStatus::Missing);
-    assert!(rows[0].entries.contains("owner_disabled"), "{}", rows[0].entries);
+    assert!(
+        rows[0].entries.contains("owner_disabled"),
+        "{}",
+        rows[0].entries
+    );
 }
 
 #[test]
@@ -363,19 +374,29 @@ fn a_required_entry_is_met_when_its_owner_is_enabled_though_gateway_is_disabled(
         Needed::Entry("bridge_notifications".to_owned()),
     )];
     let (rows, all_linked) = evaluate(
-        vec![per_entry_seam(&[("bridge_notifications", "notifications-http")])],
+        vec![per_entry_seam(&[(
+            "bridge_notifications",
+            "notifications-http",
+        )])],
         &required,
         &[ExtensionId::new("gateway")],
     );
     assert!(all_linked);
     assert_eq!(rows[0].status, SeamStatus::Linked);
-    assert!(!rows[0].entries.contains("owner_disabled"), "{}", rows[0].entries);
+    assert!(
+        !rows[0].entries.contains("owner_disabled"),
+        "{}",
+        rows[0].entries
+    );
 }
 
 #[test]
 fn each_entry_is_marked_by_its_own_owner_and_the_seam_stays_linked_while_one_is_active() {
     let (rows, all_linked) = evaluate(
-        vec![per_entry_seam(&[("a_scope", "ext_a"), ("b_scope", "ext_b")])],
+        vec![per_entry_seam(&[
+            ("a_scope", "ext_a"),
+            ("b_scope", "ext_b"),
+        ])],
         &[requirement("gateway_routes", Needed::AnyEntry)],
         &[ExtensionId::new("ext_a")],
     );
@@ -387,7 +408,10 @@ fn each_entry_is_marked_by_its_own_owner_and_the_seam_stays_linked_while_one_is_
     );
 
     let (rows, all_linked) = evaluate(
-        vec![per_entry_seam(&[("a_scope", "ext_a"), ("b_scope", "ext_b")])],
+        vec![per_entry_seam(&[
+            ("a_scope", "ext_a"),
+            ("b_scope", "ext_b"),
+        ])],
         &[],
         &[ExtensionId::new("ext_a"), ExtensionId::new("ext_b")],
     );
