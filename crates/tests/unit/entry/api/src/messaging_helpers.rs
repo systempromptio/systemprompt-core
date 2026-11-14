@@ -1,41 +1,15 @@
-//! Unit coverage for the messaging route's pure helpers.
+//! Unit coverage for the messaging dispatcher's pure helpers.
 //!
-//! `parse_form`, `slash_command_from_form`, and `reply_text` are public in
-//! their own modules, as are the surrounding dispatch types. None of this
-//! touches the network or the database — the router-driven handlers are covered
-//! by the integration suite.
+//! `reply_text` and `permissions_for` are public in the dispatcher's A2A leg,
+//! as are the surrounding dispatch types. None of this touches the network or
+//! the database — the dispatch pipeline is covered by the integration suite.
 
-use systemprompt_api::routes::messaging::a2a::{permissions_for, reply_text};
-use systemprompt_api::routes::messaging::{DispatchOutcome, MessagingError};
-use systemprompt_api::routes::slack::{parse_form, slash_command_from_form};
+use systemprompt_api::services::messaging::MessagingError;
+use systemprompt_api::services::messaging::a2a::{permissions_for, reply_text};
 use systemprompt_identifiers::{ContextId, MessageId};
 use systemprompt_models::a2a::{Message, MessageRole, Part, SendMessageResult, Task};
 use systemprompt_models::auth::Permission;
-
-#[test]
-fn parse_form_decodes_url_encoded_pairs() {
-    let form = parse_form(b"command=%2Fask&text=hello+world&team_id=T1");
-    assert_eq!(form.get("command").map(String::as_str), Some("/ask"));
-    assert_eq!(form.get("text").map(String::as_str), Some("hello world"));
-    assert_eq!(form.get("team_id").map(String::as_str), Some("T1"));
-}
-
-#[test]
-fn slash_command_from_a_complete_form_parses() {
-    let form = parse_form(
-        b"command=%2Fask&text=hi&user_id=U1&channel_id=C1&team_id=T1&response_url=https%3A%2F%2Fhooks.slack.com%2Fr",
-    );
-    let cmd = slash_command_from_form(&form).expect("a complete form yields a slash command");
-    assert_eq!(cmd.team_id.as_str(), "T1");
-    assert_eq!(cmd.command, "/ask");
-}
-
-#[test]
-fn slash_command_missing_a_required_field_is_none() {
-    // No `response_url` — `slash_command_from_form` requires it.
-    let form = parse_form(b"command=%2Fask&text=hi&user_id=U1&channel_id=C1&team_id=T1");
-    assert!(slash_command_from_form(&form).is_none());
-}
+use systemprompt_traits::DispatchOutcome;
 
 fn agent_message(parts: Vec<Part>) -> Message {
     Message {
@@ -81,7 +55,6 @@ fn reply_text_reads_a_direct_message_result() {
     ])));
     assert_eq!(reply_text(Some(&result)), "hello");
 }
-
 
 #[test]
 fn dispatch_outcome_carries_its_payload() {

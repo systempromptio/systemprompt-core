@@ -51,7 +51,9 @@ pub mod service;
 pub mod sink;
 
 pub use channels::AguiChannel;
-pub use consumer::{BacklogSnapshot, ConsumerState, NotificationsConsumer};
+pub use consumer::{
+    BacklogSnapshot, ConsumerState, NotificationsConsumer, NotificationsConsumerSlot,
+};
 pub use defaults::{DefaultPublishPolicy, DefaultRouter};
 pub use error::{NotificationsError, NotificationsResult};
 pub use extension::NotificationsExtension;
@@ -63,7 +65,7 @@ pub use pipeline::{
 pub use plane::{NOTIFICATIONS_PLANE, NotificationsPlane};
 pub use repository::NotificationRepositories;
 pub use service::{
-    FeedQuery, MarkReadOutcome, NotificationsService, NotificationsServiceParts, PublishOutcome,
-    PublishRequest,
+    FeedQuery, MarkReadOutcome, NotificationsService, NotificationsServiceParts,
+    NotificationsServiceSlot, PublishOutcome, PublishRequest,
 };
 pub use sink::OutboxNotificationSink;

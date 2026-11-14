@@ -21,6 +21,10 @@ mod routes_gateway_auth;
 mod server_mount_gateway_and_mcp_scope;
 
 #[cfg(test)]
+#[path = "server_mount_notifications.rs"]
+mod server_mount_notifications;
+
+#[cfg(test)]
 #[path = "routes_role_gateway.rs"]
 mod routes_role_gateway;
 
@@ -191,6 +195,9 @@ mod protocol_matrix;
 mod routes_agent_runs;
 
 #[cfg(test)]
+mod routes_agent_runs_mounted;
+
+#[cfg(test)]
 mod documents;
 #[cfg(test)]
 mod documents_access_requests;
@@ -277,18 +284,6 @@ mod messaging_dispatch;
 #[cfg(test)]
 #[path = "messaging_linking.rs"]
 mod messaging_linking;
-
-#[cfg(test)]
-#[path = "routes_slack.rs"]
-mod routes_slack;
-
-#[cfg(test)]
-#[path = "routes_slack_more.rs"]
-mod routes_slack_more;
-
-#[cfg(test)]
-#[path = "routes_teams.rs"]
-mod routes_teams;
 
 #[cfg(test)]
 #[path = "routes_oauth_consent.rs"]
@@ -440,10 +435,6 @@ mod routes_bridge_plugin_file;
 #[cfg(test)]
 #[path = "routes_bridge_manifest_catalog.rs"]
 mod routes_bridge_manifest_catalog;
-
-#[cfg(test)]
-#[path = "routes_slack_edges.rs"]
-mod routes_slack_edges;
 
 #[cfg(test)]
 #[path = "routes_proxy_mcp_executions.rs"]

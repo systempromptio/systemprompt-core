@@ -1,7 +1,9 @@
 //! Route ownership sweep.
 //!
-//! The route inventory is read from the `systemprompt-api` router source:
-//! every `.route(path, method_router)` call, one key per method. Each key is
+//! The route inventory is read from the `systemprompt-api` router source and
+//! the capability entry crates the API mounts by declaration (a site there is
+//! prefixed with the crate's label, `agent-runs/`): every
+//! `.route(path, method_router)` call, one key per method. Each key is
 //! classified in [`table`] as either user-owned, with a probe, or not
 //! user-owned, with a reason. A key in neither place fails the sweep, so a new
 //! route cannot land without a decision.

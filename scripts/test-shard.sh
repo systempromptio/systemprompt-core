@@ -13,10 +13,10 @@ group_prefixes() {
     # tests ride this shard rather than adding a CI matrix entry.
     app-runtime)   echo "/tests/unit/app/runtime/ /tests/unit/app/gateway/ /tests/unit/app/gateway-golden/" ;;
     app-scheduler) echo "/tests/unit/app/scheduler/" ;;
-    app-agent-runs)  echo "/tests/unit/app/agent-runs/" ;;
+    app-agent-runs)  echo "/tests/unit/app/agent-runs/ /tests/unit/entry/agent-runs/" ;;
     app-generator) echo "/tests/unit/app/generator/" ;;
     app-oauth-issuance) echo "/tests/unit/app/oauth-issuance/" ;;
-    entry-api)     echo "/tests/unit/entry/api/" ;;
+    entry-api)     echo "/tests/unit/entry/api/ /tests/unit/entry/notifications/ /tests/unit/entry/slack/ /tests/unit/entry/teams/" ;;
     entry-cli)     echo "/tests/unit/entry/cli/" ;;
     bridge)        echo "/tests/unit/bridge/" ;;
     # `integration` was one shard of 18 packages and 1684 tests, and at ~21min
@@ -31,7 +31,7 @@ group_prefixes() {
                              /tests/integration/content/ /tests/integration/database/ \
                              /tests/integration/events/ /tests/integration/extension/ \
                              /tests/integration/facade-macros/ \
-                             /tests/integration/files/ /tests/integration/gateway/ \
+                             /tests/integration/files/ /tests/integration/gateway/ /tests/integration/messaging-entry/ \
                              /tests/integration/generator/ /tests/integration/mcp/ \
                              /tests/integration/brain/ /tests/integration/notifications/ \
                              /tests/integration/oauth/ /tests/integration/runtime/ \

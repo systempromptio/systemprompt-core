@@ -2,7 +2,7 @@
 //!
 //! [`RouteMountError`] wraps the extension loader's own errors and the
 //! declaration-mount refusals, and adds the startup components (metrics
-//! recorder, gateway, profile) whose failures carry an
+//! recorder, gateway, profile, messaging dispatcher) whose failures carry an
 //! underlying cause the loader error cannot hold.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

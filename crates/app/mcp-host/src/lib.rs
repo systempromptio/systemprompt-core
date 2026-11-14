@@ -21,7 +21,8 @@
 //! database pool, the services view, the granted secrets (only those the
 //! manifest grants), the verify-only key ring, the authz hook and subject
 //! providers, the artifact ingest, the MCP session repository, the user
-//! repository, the document store, notifications, the extension state and a
+//! repository, the document store, the extension state (the notification
+//! service among it, when the runtime assembles one) and a
 //! [`LinkIssuer`](systemprompt_runtime::documents::links::LinkIssuer) for what
 //! only the API may sign. The per-user subject of a call is not a factory
 //! input: it arrives with each call as the hop-verified `RequestContext` in
@@ -35,8 +36,7 @@
 //! | Feature         | Effect                                                     |
 //! |-----------------|------------------------------------------------------------|
 //! | (default)       | Host context, toolset host, agent host                     |
-//! | `notifications` | Builds the runtime with the notifications service          |
-//! | `brain`         | Builds the runtime with the brain (implies notifications)  |
+//! | `brain`         | Builds the runtime with the brain                          |
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

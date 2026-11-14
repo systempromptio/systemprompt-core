@@ -16,8 +16,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-#[cfg(feature = "agent-runs")]
-mod agent_runs;
 #[cfg(feature = "brain")]
 mod brain;
 mod documents;
@@ -28,8 +26,6 @@ mod gateway;
 mod issues;
 #[cfg(feature = "bridge")]
 mod managed;
-#[cfg(feature = "notifications")]
-mod notifications;
 mod oauth_mount;
 mod protocol;
 pub mod role;
@@ -118,6 +114,8 @@ fn build_routes(
         router = gateway::mount_gateway(router, &mount)?;
     }
     router = feature_mount::mount_feature_routes(router, &mount)?;
+    crate::services::messaging::bind_dispatcher(ctx)
+        .map_err(|source| RouteMountError::initialization("messaging_dispatcher", source))?;
     router = extension_mount::mount_extension_routes(router, &mount, &refresh_lock, events)?;
     router = mount_discovery(router, &mount)?;
     if serves(RouteGroup::Oauth) {
@@ -262,10 +260,6 @@ fn mount_content(mut router: Router, mount: &MountCtx<'_>) -> Result<Router, Rou
     router = protocol::mount_content_and_misc(router, mount)?;
     router = documents::mount_documents(router, mount)?;
     router = issues::mount_issues(router, mount)?;
-    #[cfg(feature = "notifications")]
-    {
-        router = notifications::mount_notifications(router, mount)?;
-    }
     #[cfg(feature = "brain")]
     {
         router = brain::mount_brain_routes(router, mount)?;

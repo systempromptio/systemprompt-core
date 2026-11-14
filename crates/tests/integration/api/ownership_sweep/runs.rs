@@ -3,7 +3,7 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use axum::{Extension, Router};
 use serde_json::json;
-use systemprompt_api::routes::agent_runs::{AgentRunsState, router};
+use systemprompt_agent_runs_entry::http::{AgentRunsState, router};
 use systemprompt_test_fixtures::seed_admin_credential;
 
 use super::engine::{Fixture, get, send, sweep};
@@ -44,7 +44,7 @@ async fn a_second_user_is_refused_every_owned_agent_run_route() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
     let owner = seed_admin_credential(&pool, "sweep-run-owner").await?;
     let stranger = seed_admin_credential(&pool, "sweep-run-stranger").await?;
-    let state = AgentRunsState::build(&ctx);
+    let state = AgentRunsState::from_extension(&*ctx)?;
     let body = json!({
         "origin_kind": ORIGIN,
         "idempotency_key": format!("sweep-{}", owner.user_id),

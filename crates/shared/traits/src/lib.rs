@@ -71,6 +71,11 @@ pub mod job_scope;
 pub mod jwt;
 pub mod log_service;
 pub mod managed_resources;
+pub mod messaging;
+pub use messaging::{
+    DispatchOutcome, DynMessagingDispatcher, MessagingConversation, MessagingDispatchError,
+    MessagingDispatcher, MessagingInbound,
+};
 pub mod ownership;
 pub mod process_liveness;
 pub mod registry;

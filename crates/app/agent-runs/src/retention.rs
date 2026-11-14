@@ -14,7 +14,6 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use chrono::Utc;
 use systemprompt_config::paths::AppPaths;
-use systemprompt_database::DbPool;
 use systemprompt_manifest::Config;
 use systemprompt_provider_contracts::{ProviderError, ProviderResult};
 use systemprompt_traits::{Job, JobContext, JobResult};
@@ -43,13 +42,12 @@ impl Job for AgentRunDirsCleanupJob {
 
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start = std::time::Instant::now();
-        let db = Arc::clone(ctx.get::<DbPool>()?);
         let paths = Arc::clone(ctx.get::<Arc<AppPaths>>()?);
         let config = Arc::clone(ctx.get::<Arc<Config>>()?);
         let days = config.retention.agent_run_dirs_days;
         let cutoff = Utc::now() - chrono::Duration::days(i64::from(days));
         let runs_root = A2aRunnerConfig::runs_root(paths.storage().data());
-        let repo = AgentRunRepository::new(&db);
+        let repo = ctx.get::<AgentRunRepository>()?;
         let expired = repo
             .list_expired_run_dirs(cutoff, BATCH)
             .await

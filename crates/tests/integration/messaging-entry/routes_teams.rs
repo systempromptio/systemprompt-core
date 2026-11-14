@@ -1,0 +1,336 @@
+//! Full-router coverage for the Microsoft Teams inbound surface.
+//!
+//! Drives the real `teams_router` via `tower::ServiceExt::oneshot`. The
+//! config-free edges (malformed body, unknown tenant, missing/bad bearer) need
+//! no backend; the signed happy-path mints an RS256 activity token, serves the
+//! Bot Connector `OpenID`/JWKS + token endpoints from a loopback wiremock
+//! declared in the app's `endpoints:` config, runs the spawned dispatch, and
+//! asserts the Adaptive Card reply reaches the Bot Connector.
+
+use std::time::Duration;
+
+use axum::body::Body;
+use axum::http::{Request, StatusCode};
+use base64::Engine;
+use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
+use rsa::pkcs1::EncodeRsaPrivateKey;
+use rsa::traits::PublicKeyParts;
+use systemprompt_security::keys::RsaSigningKey;
+use systemprompt_test_fixtures::{
+    TEST_TEAMS_APP_ID, TEST_TEAMS_TENANT_ID, TEST_TEAMS_UNRESOLVABLE_APP_ID,
+    TEST_TEAMS_UNRESOLVABLE_TENANT_ID, agent_reply_response_json, ensure_messaging_bootstrap,
+    init_services_bootstrap, messaging_config_yaml_with_teams_endpoints, seed_agent_backend,
+    test_app_context_on, test_db_pool,
+};
+use systemprompt_traits::DrainOutcome;
+use tower::ServiceExt;
+use wiremock::matchers::{method, path};
+use wiremock::{Mock, MockServer, ResponseTemplate};
+
+const ISSUER: &str = "https://api.botframework.com";
+const CONVERSATION_ID: &str = "conv-test-1";
+
+pub(crate) fn router(ctx: &std::sync::Arc<systemprompt_runtime::AppContext>) -> axum::Router {
+    systemprompt_api::services::messaging::bind_dispatcher(ctx).expect("dispatcher slot seeded");
+    systemprompt_teams_entry::http::router(
+        systemprompt_teams_entry::http::TeamsState::with_service_url_client(
+            &**ctx,
+            systemprompt_client::GuardedClient::configured(
+                &systemprompt_client::GuardedClientConfig::for_configured(),
+            )
+            .expect("loopback-permitting reply client"),
+        )
+        .expect("teams router state builds"),
+    )
+}
+
+pub(crate) fn activity_json(tenant: &str, service_url: &str) -> String {
+    serde_json::json!({
+        "type": "message",
+        "id": "act-1",
+        "serviceUrl": service_url,
+        "text": "hello",
+        "from": { "id": "29:user" },
+        "conversation": { "id": CONVERSATION_ID, "tenantId": tenant },
+    })
+    .to_string()
+}
+
+pub(crate) fn post_messages(body: &str, bearer: Option<&str>) -> Request<Body> {
+    let mut builder = Request::builder()
+        .method("POST")
+        .uri("/messages")
+        .header("content-type", "application/json");
+    if let Some(token) = bearer {
+        builder = builder.header("authorization", format!("Bearer {token}"));
+    }
+    builder
+        .body(Body::from(body.to_owned()))
+        .expect("request build")
+}
+
+#[tokio::test]
+async fn malformed_activity_body_is_bad_request() -> anyhow::Result<()> {
+    let b = ensure_messaging_bootstrap();
+    let pool = test_db_pool().await;
+    let ctx = test_app_context_on(&b, &pool);
+    let resp = router(&ctx)
+        .oneshot(post_messages("not json", None))
+        .await?;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    Ok(())
+}
+
+#[tokio::test]
+async fn unknown_tenant_is_acked() -> anyhow::Result<()> {
+    let b = ensure_messaging_bootstrap();
+    let pool = test_db_pool().await;
+    let ctx = test_app_context_on(&b, &pool);
+    let body = activity_json("tenant-unknown", "https://smba.example");
+    let resp = router(&ctx).oneshot(post_messages(&body, None)).await?;
+    assert_eq!(resp.status(), StatusCode::OK, "unknown tenant is acked");
+    Ok(())
+}
+
+#[tokio::test]
+async fn missing_bearer_is_unauthorized() -> anyhow::Result<()> {
+    let b = ensure_messaging_bootstrap();
+    let pool = test_db_pool().await;
+    let ctx = test_app_context_on(&b, &pool);
+    let body = activity_json(TEST_TEAMS_TENANT_ID, "https://smba.example");
+    let resp = router(&ctx).oneshot(post_messages(&body, None)).await?;
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+    Ok(())
+}
+
+#[tokio::test]
+async fn malformed_bearer_is_unauthorized() -> anyhow::Result<()> {
+    let b = ensure_messaging_bootstrap();
+    let pool = test_db_pool().await;
+    let ctx = test_app_context_on(&b, &pool);
+    let body = activity_json(TEST_TEAMS_TENANT_ID, "https://smba.example");
+    // `not-a-jwt` fails `decode_header` before any JWKS fetch.
+    let resp = router(&ctx)
+        .oneshot(post_messages(&body, Some("not-a-jwt")))
+        .await?;
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+    Ok(())
+}
+
+fn mint(signing: &RsaSigningKey, service_url: &str) -> String {
+    mint_for_app(signing, service_url, TEST_TEAMS_APP_ID)
+}
+
+pub(crate) fn mint_for_app(signing: &RsaSigningKey, service_url: &str, app_id: &str) -> String {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("clock")
+        .as_secs();
+    let claims = serde_json::json!({
+        "iss": ISSUER,
+        "aud": app_id,
+        "exp": now + 3600,
+        "serviceurl": service_url,
+    });
+    let mut header = Header::new(Algorithm::RS256);
+    header.kid = Some(signing.kid().to_owned());
+    let der = signing.private_key().to_pkcs1_der().expect("der");
+    let key = EncodingKey::from_rsa_der(der.as_bytes());
+    encode(&header, &claims, &key).expect("mint")
+}
+
+fn jwk(signing: &RsaSigningKey) -> serde_json::Value {
+    let pubkey = signing.public_key();
+    let n = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(pubkey.n().to_bytes_be());
+    let e = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(pubkey.e().to_bytes_be());
+    serde_json::json!({ "kty": "RSA", "use": "sig", "alg": "RS256", "kid": signing.kid(), "n": n, "e": e })
+}
+
+#[tokio::test]
+async fn signed_activity_dispatches_and_posts_the_card() -> anyhow::Result<()> {
+    // Bot Connector: serves OpenID metadata, JWKS, the outbound token, and the
+    // reply endpoint. `serviceUrl` points here. It has to exist before the
+    // bootstrap because its origin is written into the app's `endpoints:`.
+    let connector = MockServer::start().await;
+    let b = init_services_bootstrap(&messaging_config_yaml_with_teams_endpoints(Some((
+        &format!("{}/openid", connector.uri()),
+        &format!("{}/token", connector.uri()),
+    ))));
+    let pool = test_db_pool().await;
+    let ctx = test_app_context_on(&b, &pool);
+
+    // Agent backend the dispatch proxies to.
+    let agent = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(agent_reply_response_json("teams reply text")),
+        )
+        .mount(&agent)
+        .await;
+    seed_agent_backend(&ctx, &agent).await?;
+
+    let signing = systemprompt_test_fixtures::next_test_key();
+    Mock::given(method("GET"))
+        .and(path("/openid"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "jwks_uri": format!("{}/jwks", connector.uri()),
+        })))
+        .mount(&connector)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/jwks"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(serde_json::json!({ "keys": [jwk(&signing)] })),
+        )
+        .mount(&connector)
+        .await;
+    Mock::given(method("POST"))
+        .and(path("/token"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "access_token": "bot-token",
+            "expires_in": 3600,
+        })))
+        .mount(&connector)
+        .await;
+    Mock::given(method("POST"))
+        .and(path(format!(
+            "/v3/conversations/{CONVERSATION_ID}/activities"
+        )))
+        .respond_with(ResponseTemplate::new(201).set_body_json(serde_json::json!({ "id": "1" })))
+        .expect(1)
+        .mount(&connector)
+        .await;
+
+    let token = mint(&signing, &connector.uri());
+    let body = activity_json(TEST_TEAMS_TENANT_ID, &connector.uri());
+    let resp = router(&ctx)
+        .oneshot(post_messages(&body, Some(&token)))
+        .await?;
+    assert_eq!(resp.status(), StatusCode::OK, "the route acks immediately");
+
+    let posted = wait_for_activity(&ctx, &connector).await;
+    let card = String::from_utf8_lossy(&posted);
+    // The pipeline answers with a generic error card whatever went wrong, so
+    // say which side of the proxy hop failed — otherwise a failure here is
+    // only reproducible under the load that caused it.
+    let agent_calls = agent.received_requests().await.map_or(0, |r| r.len());
+    assert!(
+        card.contains("teams reply text"),
+        "Adaptive Card carries the agent reply (agent backend received \
+         {agent_calls} request(s), so the dispatch failed {} it): {card}",
+        if agent_calls == 0 { "before" } else { "after" }
+    );
+    Ok(())
+}
+
+pub(crate) async fn mount_connector_jwks(connector: &MockServer, signing: &RsaSigningKey) {
+    Mock::given(method("GET"))
+        .and(path("/openid"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "jwks_uri": format!("{}/jwks", connector.uri()),
+        })))
+        .mount(connector)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/jwks"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(serde_json::json!({ "keys": [jwk(signing)] })),
+        )
+        .mount(connector)
+        .await;
+}
+
+#[tokio::test]
+async fn an_unresolvable_app_password_is_service_unavailable_not_acked() -> anyhow::Result<()> {
+    let connector = MockServer::start().await;
+    let b = init_services_bootstrap(&messaging_config_yaml_with_teams_endpoints(Some((
+        &format!("{}/openid", connector.uri()),
+        &format!("{}/token", connector.uri()),
+    ))));
+    let pool = test_db_pool().await;
+    let ctx = test_app_context_on(&b, &pool);
+
+    let signing = systemprompt_test_fixtures::next_test_key();
+    mount_connector_jwks(&connector, &signing).await;
+    Mock::given(method("POST"))
+        .and(path(format!(
+            "/v3/conversations/{CONVERSATION_ID}/activities"
+        )))
+        .respond_with(ResponseTemplate::new(201).set_body_json(serde_json::json!({ "id": "1" })))
+        .expect(0)
+        .mount(&connector)
+        .await;
+
+    let token = mint_for_app(&signing, &connector.uri(), TEST_TEAMS_UNRESOLVABLE_APP_ID);
+    let body = activity_json(TEST_TEAMS_UNRESOLVABLE_TENANT_ID, &connector.uri());
+    let resp = router(&ctx)
+        .oneshot(post_messages(&body, Some(&token)))
+        .await?;
+    assert_eq!(
+        resp.status(),
+        StatusCode::SERVICE_UNAVAILABLE,
+        "a secret the store cannot resolve is a 503, never an ack that drops the activity"
+    );
+    let verified = connector
+        .received_requests()
+        .await
+        .is_some_and(|reqs| reqs.iter().any(|r| r.url.path() == "/jwks"));
+    assert!(
+        verified,
+        "the 503 must come from the secrets arm behind bearer verification, not before it"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn activities_through_one_router_fetch_the_signing_keys_once() -> anyhow::Result<()> {
+    let connector = MockServer::start().await;
+    let b = init_services_bootstrap(&messaging_config_yaml_with_teams_endpoints(Some((
+        &format!("{}/openid", connector.uri()),
+        &format!("{}/token", connector.uri()),
+    ))));
+    let pool = test_db_pool().await;
+    let ctx = test_app_context_on(&b, &pool);
+
+    let signing = systemprompt_test_fixtures::next_test_key();
+    mount_connector_jwks(&connector, &signing).await;
+
+    let app = router(&ctx);
+    let body = activity_json(TEST_TEAMS_UNRESOLVABLE_TENANT_ID, &connector.uri());
+    for _ in 0..2 {
+        let token = mint_for_app(&signing, &connector.uri(), TEST_TEAMS_UNRESOLVABLE_APP_ID);
+        let resp = app
+            .clone()
+            .oneshot(post_messages(&body, Some(&token)))
+            .await?;
+        assert_eq!(resp.status(), StatusCode::SERVICE_UNAVAILABLE);
+    }
+
+    let openid_fetches = connector.received_requests().await.map_or(0, |reqs| {
+        reqs.iter().filter(|r| r.url.path() == "/openid").count()
+    });
+    assert_eq!(
+        openid_fetches, 1,
+        "the verifier and its key cache must outlive a single activity"
+    );
+    Ok(())
+}
+
+// The reply comes from a background task running the full dispatch pipeline
+// (identity linking, authz, proxy round-trip); under a loaded shard that has
+// been observed to stall past 30s, so the drain bound must dwarf it.
+async fn wait_for_activity(ctx: &systemprompt_runtime::AppContext, server: &MockServer) -> Vec<u8> {
+    assert_eq!(
+        ctx.background_tasks().drain(Duration::from_secs(120)).await,
+        DrainOutcome::Drained,
+        "the reply task must finish within the drain bound"
+    );
+    let suffix = format!("/v3/conversations/{CONVERSATION_ID}/activities");
+    server
+        .received_requests()
+        .await
+        .and_then(|reqs| reqs.into_iter().find(|r| r.url.path() == suffix))
+        .expect("the drained reply task posted to the Bot Connector")
+        .body
+}

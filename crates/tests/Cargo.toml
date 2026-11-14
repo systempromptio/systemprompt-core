@@ -23,6 +23,7 @@ members = [
     "integration/facade-macros",
     "integration/files",
     "integration/brain",
+    "integration/messaging-entry",
     "integration/notifications",
     "integration/gateway",
     "integration/generator",
@@ -76,9 +77,12 @@ members = [
     "unit/app/agent-runs",
     "unit/app/scheduler",
     # Unit tests - entry layer
+    "unit/entry/agent-runs",
     "unit/entry/api",
-    "unit/entry/api/notifications",
     "unit/entry/cli",
+    "unit/entry/notifications",
+    "unit/entry/slack",
+    "unit/entry/teams",
     # Unit tests - bridge binary
     "unit/bridge/manifest",
     "unit/bridge/update",
@@ -300,14 +304,18 @@ systemprompt-marketplace = { path = "../domain/marketplace" }
 systemprompt-slack = { path = "../domain/slack" }
 systemprompt-teams = { path = "../domain/teams" }
 systemprompt-runtime = { path = "../app/runtime", features = ["geolocation", "notifications", "brain", "engine-loro"] }
-systemprompt-mcp-host = { path = "../app/mcp-host", features = ["notifications", "brain"] }
+systemprompt-mcp-host = { path = "../app/mcp-host", features = ["brain"] }
 systemprompt-scheduler = { path = "../app/scheduler" }
 systemprompt-agent-runs = { path = "../app/agent-runs" }
 systemprompt-generator = { path = "../app/generator" }
 systemprompt-oauth-issuance = { path = "../app/oauth-issuance" }
 systemprompt-gateway = { path = "../app/gateway" }
-systemprompt-api = { path = "../entry/api", features = ["brain", "collab", "notifications"] }
-systemprompt-cli = { path = "../entry/cli", features = ["agent-runs"] }
+systemprompt-api = { path = "../entry/api", features = ["brain", "collab"] }
+systemprompt-cli = { path = "../entry/cli" }
+systemprompt-slack-entry = { path = "../entry/slack" }
+systemprompt-teams-entry = { path = "../entry/teams" }
+systemprompt-agent-runs-entry = { path = "../entry/agent-runs" }
+systemprompt-notifications-entry = { path = "../entry/notifications" }
 systemprompt-bridge = { path = "../../bin/bridge" }
 
 # Testing utility

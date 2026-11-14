@@ -1,0 +1,32 @@
+[package]
+name = "systemprompt-notifications-entry-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Route tests for the systemprompt-notifications-entry routers"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-api = { workspace = true }
+systemprompt-models = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+systemprompt-notifications = { workspace = true }
+systemprompt-notifications-entry = { workspace = true, features = ["http"] }
+systemprompt-extension = { workspace = true }
+systemprompt-provider-contracts = { workspace = true }
+systemprompt-runtime = { workspace = true, features = ["notifications"] }
+systemprompt-test-fixtures = { workspace = true }
+systemprompt-test-hack = { version = "0.1", path = "../../../common/hack" }
+
+[dev-dependencies]
+async-trait = { workspace = true }
+axum = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+tokio = { workspace = true }
+tower = { workspace = true }
+uuid = { workspace = true }

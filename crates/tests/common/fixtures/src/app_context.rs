@@ -661,15 +661,17 @@ fn fixture_app_context_assembled_on(
             )),
             connector_tokens: Arc::default(),
             documents,
-            notifications,
+            notifications: Arc::clone(&notifications),
             brain: None,
         },
         &systemprompt_extension::StateHandle::default(),
     )?;
-    if let Some(slot) = systemprompt_extension::ExtensionContext::extension_state(&ctx)
-        .find::<systemprompt_notifications::consumer::NotificationsConsumerSlot>()
-    {
-        slot.bind(Arc::clone(&ctx.notifications().consumer))?;
+    let state = systemprompt_extension::ExtensionContext::extension_state(&ctx);
+    if let Some(slot) = state.find::<systemprompt_notifications::NotificationsServiceSlot>() {
+        slot.bind(Arc::clone(&notifications.service))?;
+    }
+    if let Some(slot) = state.find::<systemprompt_notifications::NotificationsConsumerSlot>() {
+        slot.bind(Arc::clone(&notifications.consumer))?;
     }
 
     Ok(Arc::new(ctx))

@@ -2,8 +2,8 @@
 //!
 //! Each submodule owns one functional area (admin, agent, analytics, content,
 //! documents,
-//! engagement, gateway, marketplace, mcp, messaging, oauth, proxy, slack,
-//! stream, sync, teams, users, wellknown) and exposes a `Router` builder. The
+//! engagement, gateway, marketplace, mcp, oauth, proxy, stream, sync, users,
+//! wellknown) and exposes a `Router` builder. The
 //! re-exports here surface the router constructors the API assembler composes
 //! into the top-level service.
 //!
@@ -12,8 +12,6 @@
 
 pub mod admin;
 pub mod agent;
-#[cfg(feature = "agent-runs")]
-pub mod agent_runs;
 pub mod analytics;
 #[cfg(feature = "brain")]
 pub mod brain;
@@ -27,19 +25,11 @@ pub mod issues;
 pub mod managed;
 pub mod marketplace;
 pub mod mcp;
-#[cfg(any(feature = "slack", feature = "teams"))]
-pub mod messaging;
-#[cfg(feature = "notifications")]
-pub mod notifications;
 pub mod oauth;
 pub mod proxy;
-#[cfg(feature = "slack")]
-pub mod slack;
 pub mod sso;
 pub mod stream;
 pub mod sync;
-#[cfg(feature = "teams")]
-pub mod teams;
 pub mod uploads;
 pub(crate) mod user_content;
 pub mod users;

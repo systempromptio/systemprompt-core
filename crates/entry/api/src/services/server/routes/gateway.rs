@@ -2,11 +2,12 @@
 //! routes. A gateway that cannot be built fails startup.
 //!
 //! The inference surface authenticates inside its handlers (its own
-//! credential extraction accepts `x-api-key`), so each of its three halves —
-//! inference traffic, the bridge credential exchange and the bridge inbox —
-//! is protected as handler-verified by the gateway credential with its own
-//! rate limit and bearer window. The halves are merged under the access log,
-//! which sits outside every limiter so a refused request is still recorded.
+//! credential extraction accepts `x-api-key`), so each of its parts —
+//! inference traffic, the bridge credential exchange and every capability
+//! group registered with `register_gateway_route!` (the bridge inbox) — is
+//! protected as handler-verified by the gateway credential with its own rate
+//! limit and bearer window. The parts are merged under the access log, which
+//! sits outside every limiter so a refused request is still recorded.
 //! The public session routes are a declaration like every other group.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -40,7 +41,7 @@ pub(super) fn mount_gateway(
     let GatewayMountParts {
         traffic,
         bridge_auth,
-        notifications,
+        registered,
     } = gateway_mount_parts(ctx, mount.engines)
         .map_err(|source| RouteMountError::initialization("gateway", source))?;
     let traffic = mount.protect(
@@ -53,16 +54,15 @@ pub(super) fn mount_gateway(
         &gateway_credential("bridge_auth", RateBudget::BridgeAuth),
         base,
     )?;
-    let notifications = mount.protect(
-        notifications,
-        &gateway_credential("bridge_notifications", RateBudget::Notifications),
-        base,
-    )?;
-    router = place(
-        router,
-        base,
-        with_access_log(ctx, traffic.merge(bridge_auth).merge(notifications)),
-    );
+    let mut surface = traffic.merge(bridge_auth);
+    for group in registered {
+        surface = surface.merge(mount.protect(
+            group.router,
+            &gateway_credential(group.scope, group.budget),
+            base,
+        )?);
+    }
+    router = place(router, base, with_access_log(ctx, surface));
     router = mount.mount(
         router,
         declare(

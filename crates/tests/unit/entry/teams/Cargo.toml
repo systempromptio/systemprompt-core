@@ -1,0 +1,19 @@
+[package]
+name = "systemprompt-teams-entry-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit tests for systemprompt-teams-entry"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-teams-entry = { workspace = true }
+systemprompt-extension = { workspace = true }
+systemprompt-test-hack = { version = "0.1", path = "../../../common/hack" }
+
+[dev-dependencies]
+serde_json = { workspace = true }

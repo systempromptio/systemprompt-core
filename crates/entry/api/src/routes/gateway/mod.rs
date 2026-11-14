@@ -10,18 +10,19 @@
 //! `log_gateway_request` is the middleware that records every request to the
 //! logging repository.
 //!
-//! The surface is assembled in two halves so that the server can give each its
-//! own rate-limit budget: `gateway_mount_parts` hands the server the three
-//! halves, which it declares handler-verified by the gateway credential with
-//! their rate limits and bearer windows and wraps in `with_access_log`,
-//! while [`gateway_router`] returns the same routes unlimited for tests. The
-//! bridge credential-exchange half is budgeted apart from inference traffic
-//! because the two have opposite shapes: inference is high-volume and elastic,
-//! sign-in is a handful of requests that must succeed. Sharing one budget let
-//! a saturated gateway refuse every credential exchange, which presents to the
-//! user as a rejected token rather than as the rate limit it is. The bridge
-//! inbox routes take the notifications budget, so inbox polling and inference
-//! never starve each other.
+//! The surface is assembled in parts so that the server can give each its own
+//! rate-limit budget: `gateway_mount_parts` hands the server the inference
+//! traffic, the bridge credential exchange and every capability group
+//! registered through [`registered`], which it declares handler-verified by
+//! the gateway credential with their rate limits and bearer windows and wraps
+//! in `with_access_log`, while [`gateway_router`] returns the same routes
+//! unlimited for tests. The bridge credential-exchange half is budgeted apart
+//! from inference traffic because the two have opposite shapes: inference is
+//! high-volume and elastic, sign-in is a handful of requests that must
+//! succeed. Sharing one budget lets a saturated gateway refuse every
+//! credential exchange, which presents to the user as a rejected token rather
+//! than as the rate limit it is. A registered group (the bridge inbox) carries
+//! its own budget, so its polling and inference never starve each other.
 //!
 //! The access log layer is outside both limiters so that a refused request
 //! still produces a record; an instance 429ing every sign-in shows it in its
@@ -38,8 +39,6 @@ pub mod bridge_device;
 pub mod bridge_error;
 pub mod bridge_heartbeat;
 pub mod bridge_manifest;
-#[cfg(feature = "notifications")]
-mod bridge_notifications;
 pub mod bridge_plugin_archive;
 pub mod bridge_plugin_file;
 pub mod bridge_profile_usage;
@@ -53,6 +52,7 @@ pub mod models;
 #[cfg(feature = "otel")]
 pub mod otel;
 pub mod provider_credentials;
+pub mod registered;
 pub mod sessions;
 
 pub mod access_log;
@@ -145,10 +145,11 @@ pub(crate) fn gateway_mount_parts(
         ))
         .merge(bridge_profile_routes(ctx, &jwt_extractor))
         .merge(bridge_session_routes(ctx, &jwt_extractor));
-    #[cfg(feature = "notifications")]
-    let notifications = bridge_notifications::routes(ctx, &jwt_extractor);
-    #[cfg(not(feature = "notifications"))]
-    let notifications = Router::new();
+    let registered = registered::build_registered(
+        ctx,
+        &ctx.profile().extensions.disabled,
+        &jwt_extractor,
+    )?;
     #[cfg(feature = "otel")]
     let traffic = traffic.merge(otel_routes(ctx, &jwt_extractor));
     Ok(GatewayMountParts {
@@ -159,7 +160,7 @@ pub(crate) fn gateway_mount_parts(
             .route("/models", get(models::list).with_state(ctx.clone()))
             .route("/", get(models::root)),
         bridge_auth: bridge_auth_routes(ctx, &jwt_extractor),
-        notifications,
+        registered,
     })
 }
 
@@ -183,20 +184,20 @@ pub fn gateway_engines(
 
 pub fn gateway_router(ctx: &AppContext) -> anyhow::Result<Router> {
     let parts = gateway_mount_parts(ctx, &Arc::new(gateway_engines(ctx)?))?;
-    Ok(with_access_log(
-        ctx,
-        parts
-            .traffic
-            .merge(parts.bridge_auth)
-            .merge(parts.notifications),
-    ))
+    let routes = parts
+        .registered
+        .into_iter()
+        .fold(parts.traffic.merge(parts.bridge_auth), |routes, group| {
+            routes.merge(group.router)
+        });
+    Ok(with_access_log(ctx, routes))
 }
 
 #[derive(Debug)]
 pub(crate) struct GatewayMountParts {
     pub(crate) traffic: Router,
     pub(crate) bridge_auth: Router,
-    pub(crate) notifications: Router,
+    pub(crate) registered: Vec<registered::RegisteredGatewayRoutes>,
 }
 
 pub(crate) fn with_access_log(ctx: &AppContext, router: Router) -> Router {

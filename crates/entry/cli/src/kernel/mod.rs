@@ -4,7 +4,10 @@
 //! crate, reaches the kernel only through this module:
 //!
 //! - **Registration** — [`CliCommandGroup`], [`crate::register_cli_command!`]
-//!   and the [`CommandRegistry`] the runner assembles the command tree from.
+//!   and the [`CommandRegistry`] the runner assembles the command tree from;
+//!   [`LinkedSeamRegistration`] and [`crate::register_linked_seam!`] for the
+//!   link-time seams `plugins seams` lists ([`registered_seams`], rendered with
+//!   [`named`], [`prioritized`] and [`unnamed`]).
 //! - **Bootstrap declaration** — [`CommandDescriptor`], [`DataImpact`],
 //!   [`DbUrlRouting`] and [`DescribeCommand`]: what a command needs before it
 //!   runs and what it does to the data behind the profile.
@@ -39,9 +42,11 @@
 
 mod command;
 mod registry;
+mod seams;
 
 pub use command::{CliCommandGroup, CliCommandLeaf, CommandFuture, RegisteredCommand};
 pub use registry::{CliCommandRegistration, CommandRegistry, RegistryError};
+pub use seams::{LinkedSeamRegistration, named, prioritized, registered_seams, unnamed};
 
 pub use crate::boot::{load_boot, load_boot_from_path, load_profile};
 pub use crate::cli_settings::{CliConfig, OutputFormat};
