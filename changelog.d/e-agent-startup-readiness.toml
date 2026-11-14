@@ -1,0 +1,19 @@
+[root]
+section = "Fixed"
+area = "Agents"
+text = "Agent startup readiness verifies who holds the port. Where the port's listeners can be identified (`lsof` on Linux and macOS, `netstat` on Windows), the agent is ready only when the spawned pid is listening, and any other listener refuses the start with `OrchestrationError::PortHeldByForeignProcess`. Where they cannot (the tool is missing or fails, or the host hides other processes' sockets), the agent is ready when the port accepts a connection, the spawned child is alive and its spawn marker matches (Linux, macOS; the marker is not readable on Windows). A child whose marker is read and does not match is never ready."
+
+[[crate]]
+name = "systemprompt-agent"
+section = "Fixed"
+text = "Startup readiness refuses a port held by a process other than the spawned agent with `OrchestrationError::PortHeldByForeignProcess`, and otherwise requires the spawned child to be alive with a matching spawn marker where the marker is readable."
+
+[[crate]]
+name = "systemprompt-agent"
+section = "Breaking"
+text = "`AgentLifecycle::verify_startup` takes the spawned pid: `verify_startup(agent_name, pid, port)`."
+
+[[crate]]
+name = "systemprompt-agent"
+section = "Added"
+text = "`services::agent_orchestration::lifecycle::readiness`: `startup_verdict`, `StartupObservation`, `StartupVerdict` and `MarkerCheck`, the readiness decision as a pure function of one probe."
