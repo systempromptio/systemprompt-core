@@ -64,7 +64,7 @@ GLOBS=(-g '*.rs' -g '!**/tests/**' -g '!**/target/**' -g '!**/build.rs')
 # The owner modules: the only places a raw spawn may appear.
 OWNERS=()
 if [ -n "$ALLOWLIST" ]; then
-    mapfile -t OWNERS < <(gate_allowlist "$ALLOWLIST")
+    gate_load_allowlist OWNERS entries lint-owned-tasks "$ALLOWLIST"
 else
     OWNERS=(
         crates/shared/traits/src/background_tasks.rs

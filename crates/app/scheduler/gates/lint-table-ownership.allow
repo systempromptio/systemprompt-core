@@ -1,0 +1,4 @@
+src/repository/otlp/tail.rs|ai_requests|OTLP export tails AI requests by watermark
+src/repository/otlp/tail.rs|tool_call_ledger|OTLP export tails the tool-call ledger by watermark
+src/repository/otlp/tail.rs|governance_decisions|OTLP export tails governance decisions by watermark
+src/repository/otlp/tail.rs|logs|OTLP export tails log rows by watermark

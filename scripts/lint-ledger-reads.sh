@@ -18,8 +18,9 @@
 # Exempt: a literal with no aggregate whose ledger read is pinned to one row
 # by `<id column> = $n`.
 #
-# `scripts/ledger-reads-baseline.txt` lists the offenders that predate the
-# gate as `<path>#<hash of the literal>`. The list may only shrink: a line
+# Each package's `gates/lint-ledger-reads.allow` lists its offenders that
+# predate the gate as `<path>#<hash of the literal>` (path relative to the
+# package). The list may only shrink: a line
 # whose literal is gone or changed fails the gate (a touched offender is
 # fixed, not re-baselined), and a new offender is never added to it.
 #
@@ -49,10 +50,10 @@ gate_pass_if_empty lint-ledger-reads "${#SCAN_DIRS[@]}"
 FULL=0
 gate_full_mode && FULL=1
 
-MODE="$MODE" FULL="$FULL" python3 - "${SCAN_DIRS[@]}" <<'PY'
+MODE="$MODE" FULL="$FULL" python3 -B - "${SCAN_DIRS[@]}" <<'PY'
 import hashlib, os, pathlib, re, sys
-
-BASELINE = pathlib.Path("scripts/ledger-reads-baseline.txt")
+sys.path.insert(0, "scripts/lib")
+import gate_scope
 LEDGER = (
     "ai_requests", "ai_request_payloads", "ai_request_messages",
     "ai_request_tool_calls", "ai_request_client_evidence", "mcp_tool_executions",
@@ -141,12 +142,11 @@ if os.environ.get("MODE") == "--list":
         print(key)
     sys.exit(0)
 
-baseline = set()
-if BASELINE.exists():
-    for raw in BASELINE.read_text().splitlines():
-        raw = raw.strip()
-        if raw and not raw.startswith("#"):
-            baseline.add(raw)
+try:
+    baseline = set(gate_scope.allowlist("lint-ledger-reads"))
+except gate_scope.AllowlistError as error:
+    print(f"lint-ledger-reads: {error}", file=sys.stderr)
+    sys.exit(2)
 
 new = sorted(k for k in found if k not in baseline)
 stale = sorted(k for k in baseline if k not in found) if os.environ.get("FULL") == "1" else []
@@ -159,7 +159,7 @@ if new:
     print("  Store the answer at write time (stamped column, counter, projection or rollup)")
     print("  and read that instead — systemprompt_database::projection (crates/infra/database/src/projection/mod.rs). The baseline only shrinks.")
 if stale:
-    print("lint-ledger-reads: scripts/ledger-reads-baseline.txt lists literals that no longer offend (or changed):")
+    print("lint-ledger-reads: gates/lint-ledger-reads.allow lists literals that no longer offend (or changed):")
     for key in stale:
         print(f"  {key}")
     print("  Delete those lines; a changed offender is fixed, never re-baselined.")

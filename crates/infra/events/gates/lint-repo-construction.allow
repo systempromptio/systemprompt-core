@@ -1,0 +1,4 @@
+# infra sits below app/runtime and cannot name AppContext; each of these is
+# the composition root for its own repository.
+src/services/bridge.rs
+src/services/routing.rs

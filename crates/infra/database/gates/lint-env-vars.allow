@@ -1,0 +1,1 @@
+src/lifecycle/migrations/budget.rs  # SYSTEMPROMPT_MIGRATION_STATEMENT_TIMEOUT_SECS — the attended-operator escape hatch from the per-migration statement timeout; it applies to one run of an already-deployed image, which a profile field cannot express, and migrations are awaited before the profile-driven server binds

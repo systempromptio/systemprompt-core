@@ -1,0 +1,4 @@
+src/commands/admin/setup/
+# Database bootstrap shared by `admin setup` and the cloud compose flow:
+# CREATE EXTENSION takes an identifier, which cannot be a bind parameter.
+src/shared/postgres_access.rs

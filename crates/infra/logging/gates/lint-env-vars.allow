@@ -1,0 +1,1 @@
+src/lib.rs  # RUST_LOG via EnvFilter::try_from_default_env — the tracing-subscriber convention every operator and every `cargo run` expects; a profile field cannot be read before the subscriber that reports profile errors exists

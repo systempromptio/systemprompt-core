@@ -4,11 +4,15 @@ set -euo pipefail
 # Match sqlx::query( and sqlx::query_{as,scalar,file,file_as,file_scalar,with,...}(
 pattern='sqlx::query[a-z_]*(::<[^>]*>)?\('
 
-# Allowlist entries live in scripts/sqlx-allowlist.txt (or the file named by
-# `--allowlist`); each is a path: a directory (trailing `/`) exempts the tree
-# under it, a file exempts that file. A stale carve-out is removed, not kept.
+# A runtime query is legitimate only where the SQL text is necessarily dynamic.
+# Allowlist entries live in each package's `gates/lint-sqlx.allow` (paths
+# relative to the package), the test-workspace trees in
+# scripts/sqlx-allowlist.txt, or in the file named by `--allowlist`; each is a
+# path: a directory (trailing `/`) exempts the tree under it, a file exempts
+# that file. A stale carve-out (path gone, or no runtime query left) fails the
+# gate in full mode and is removed, not kept.
 #
-#   scripts/check-sqlx.sh                        # core roots + allowlist
+#   scripts/check-sqlx.sh                        # core roots + allowlists
 #   scripts/check-sqlx.sh --paths P...           # only files under P; stale
 #                                                # entries are not judged
 #   scripts/check-sqlx.sh [--allowlist FILE] ROOT...
@@ -30,16 +34,16 @@ while [ "$#" -gt 0 ]; do
     esac
 done
 gate_require_one_scope "${#ROOTS[@]}"
+ROOTS_GIVEN="${#ROOTS[@]}"
 if [ "${#ROOTS[@]}" -eq 0 ]; then
     cd "$GATE_ROOT"
     mapfile -t ROOTS < <(gate_roots crates/)
     gate_pass_if_empty check-sqlx "${#ROOTS[@]}"
-    ALLOWLIST="${ALLOWLIST:-scripts/sqlx-allowlist.txt}"
 fi
 
 allowlist=()
-if [ -n "$ALLOWLIST" ]; then
-    mapfile -t allowlist < <(gate_allowlist "$ALLOWLIST")
+if [ -n "$ALLOWLIST" ] || [ "$ROOTS_GIVEN" -eq 0 ]; then
+    gate_load_allowlist allowlist entries lint-sqlx "$ALLOWLIST"
 fi
 
 runtime_hits() {
@@ -66,7 +70,7 @@ for entry in "${allowlist[@]}"; do
 done
 
 if [[ -n "${stale}" ]]; then
-    echo "❌ Stale scripts/check-sqlx.sh allowlist entries — remove them:" >&2
+    echo "❌ Stale lint-sqlx allowlist entries — remove them:" >&2
     printf '%s' "${stale}" >&2
     exit 1
 fi
@@ -82,7 +86,7 @@ if [[ -n "${hits}" ]]; then
     echo "${hits}" >&2
     echo "" >&2
     echo "Use sqlx::query!() / query_as!() / query_scalar!() (compile-time verified)." >&2
-    echo "If the call must stay dynamic, add the path to scripts/check-sqlx.sh allowlist with justification." >&2
+    echo "If the call must stay dynamic, add the path to its package's gates/lint-sqlx.allow with justification." >&2
     exit 1
 fi
 

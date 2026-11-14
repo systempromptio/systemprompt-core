@@ -1,0 +1,2 @@
+src/net/proxy.rs  # HTTP(S)_PROXY / ALL_PROXY / NO_PROXY — the operator's forward-proxy settings, the single reader shared by the guarded HTTP client and sandboxed git, mirroring what reqwest and curl honour
+src/net/mod.rs  # SYSTEMPROMPT_TRUSTED_HTTP_HOSTS — documented operator SSRF opt-in (documentation/security/outbound-egress-controls.md), forwarded to subprocesses by inherited_parent_env

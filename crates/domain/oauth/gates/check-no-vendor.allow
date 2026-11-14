@@ -1,0 +1,2 @@
+# OAuth authorization and passkey pages served by the issuer.
+templates/*.html

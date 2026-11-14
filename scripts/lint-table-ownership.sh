@@ -10,9 +10,10 @@
 # `crates/entry/**`, every table named after FROM / JOIN / INTO / UPDATE /
 # DELETE FROM must be declared by a `CREATE TABLE` or `CREATE VIEW` in that
 # crate's `schema/*.sql`; an infra crate may also read any other infra crate's
-# tables. An app or entry crate may additionally SELECT from a table when
-# `scripts/table-ownership-reads.txt` lists `path|table|reason` for that file
-# (a directory path ending in `/` covers every file beneath it); it may never
+# tables. An app or entry crate may additionally SELECT from a table when its
+# `gates/lint-table-ownership.allow` lists `path|table|reason` for that file
+# (path relative to the package; a directory path ending in `/` covers every
+# file beneath it); it may never
 # INSERT, UPDATE or DELETE a table it does not own — a retention or cleanup
 # write goes through the owning crate's repository, and there is no write
 # allowlist. CTE names, subquery aliases, set-returning functions and the
@@ -28,32 +29,33 @@ command -v python3 >/dev/null || { echo "lint-table-ownership: python3 required"
 COUNT=0
 [ "${1:-}" = "--count" ] && COUNT=1
 
-READS_FILE=scripts/table-ownership-reads.txt
-[ -f "$READS_FILE" ] || { echo "lint-table-ownership: $READS_FILE missing" >&2; exit 2; }
 
 git ls-files -co --exclude-standard 'crates/infra/*/src/**/*.rs' 'crates/infra/*/src/*.rs' \
     'crates/domain/*/src/**/*.rs' 'crates/domain/*/src/*.rs' \
     'crates/app/*/src/**/*.rs' 'crates/app/*/src/*.rs' \
     'crates/entry/*/src/**/*.rs' 'crates/entry/*/src/*.rs' \
     'crates/infra/*/schema/*.sql' 'crates/domain/*/schema/*.sql' 'crates/app/*/schema/*.sql' \
-  | sort -u | COUNT="$COUNT" READS_FILE="$READS_FILE" python3 -c '
+  | sort -u | COUNT="$COUNT" python3 -B -c '
 import os, re, sys
 from collections import defaultdict
+sys.path.insert(0, "scripts/lib")
+import gate_scope
 
 files = [line.strip() for line in sys.stdin if line.strip() and os.path.exists(line.strip())]
 count_only = os.environ.get("COUNT") == "1"
 
 allowed_reads = []
-with open(os.environ["READS_FILE"], encoding="utf-8") as handle:
-    for raw in handle:
-        line = raw.strip()
-        if not line or line.startswith("#"):
-            continue
-        parts = [part.strip() for part in line.split("|")]
-        if len(parts) != 3 or not all(parts):
-            print(f"lint-table-ownership: malformed reads entry: {line}", file=sys.stderr)
-            sys.exit(2)
-        allowed_reads.append((parts[0], parts[1].lower()))
+try:
+    reads = gate_scope.allowlist("lint-table-ownership")
+except gate_scope.AllowlistError as error:
+    print(f"lint-table-ownership: {error}", file=sys.stderr)
+    sys.exit(2)
+for line in reads:
+    parts = [part.strip() for part in line.split("|")]
+    if len(parts) != 3 or not all(parts):
+        print(f"lint-table-ownership: malformed reads entry: {line}", file=sys.stderr)
+        sys.exit(2)
+    allowed_reads.append((parts[0], parts[1].lower()))
 used_reads = set()
 
 def read_allowed(path, table):
@@ -185,12 +187,12 @@ if scanned == 0:
     print("lint-table-ownership: no sqlx query literals scanned — scope broken?", file=sys.stderr)
     sys.exit(1)
 if stale:
-    print("lint-table-ownership: table-ownership-reads.txt entries no query uses (remove them):", file=sys.stderr)
+    print("lint-table-ownership: gates/lint-table-ownership.allow entries no query uses (remove them):", file=sys.stderr)
     for entry in stale:
         print(f"  {entry}", file=sys.stderr)
     sys.exit(1)
 if total:
-    print("lint-table-ownership: a crate may only query tables its own schema/*.sql declares (infra may read infra; app/entry may read what table-ownership-reads.txt lists):", file=sys.stderr)
+    print("lint-table-ownership: a crate may only query tables its own schema/*.sql declares (infra may read infra; app/entry may read what their gates/lint-table-ownership.allow lists):", file=sys.stderr)
     for crate in sorted(offenders):
         print(f"{crate} ({len(offenders[crate])}):", file=sys.stderr)
         for line in offenders[crate]:

@@ -13,8 +13,10 @@
 #
 # Core is also headless: a host extension owns its browser UI. Every tracked
 # `.js`, `.mjs`, `.ts`, `.css`, `.html` or `.hbs` file under `crates/` must
-# match a glob in scripts/core-markup-allowlist.txt, so new markup or script
-# in a core crate is a reviewed addition to that list.
+# match a glob its package lists in `gates/check-no-vendor.allow` (relative to
+# the package; `*` also matches `/`), or one of the test-workspace globs in
+# scripts/core-markup-allowlist.txt, so new markup or script in a core crate is
+# a reviewed addition. In full mode a glob that matches no file fails.
 #
 #   scripts/check-no-vendor.sh [--paths P...]
 set -uo pipefail
@@ -43,23 +45,29 @@ if [ -n "$external" ]; then
     fail=1
 fi
 
-allowlist=scripts/core-markup-allowlist.txt
-patterns=()
-while IFS= read -r line; do
-    patterns+=("${line#"${line%%[![:space:]]*}"}")
-done < <(gate_allowlist "$allowlist")
+allowlist="$(gate_allowlist_label check-no-vendor "")"
+gate_load_allowlist patterns entries check-no-vendor
 
+declare -A used=()
 unlisted=()
 while IFS= read -r -d '' path; do
     allowed=0
     for pattern in "${patterns[@]}"; do
         if [[ $path == $pattern ]]; then
             allowed=1
-            break
+            used["$pattern"]=1
         fi
     done
     [ "$allowed" -eq 0 ] && unlisted+=("$path")
 done < <(gate_files 'crates/*.js' 'crates/*.mjs' 'crates/*.ts' 'crates/*.css' 'crates/*.html' 'crates/*.hbs' | tr '\n' '\0')
+if gate_full_mode; then
+    for pattern in "${patterns[@]}"; do
+        if [ -z "${used[$pattern]:-}" ]; then
+            echo "check-no-vendor: allowlist glob \`$pattern\` matches no tracked markup or script -- remove it" >&2
+            fail=1
+        fi
+    done
+fi
 if [ "${#unlisted[@]}" -gt 0 ]; then
     echo "check-no-vendor: browser markup or script outside $allowlist:" >&2
     printf '  %s\n' "${unlisted[@]}" >&2

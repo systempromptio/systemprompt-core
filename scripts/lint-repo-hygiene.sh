@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # The repository is code-only (CLAUDE.md § Repository Hygiene): no tracked prose
 # file outside the sanctioned set, no status/plan/report-named prose anywhere,
-# and no cargo build output. A global gate: it judges every tracked path.
+# per-unit allowlists only in `<package>/gates/<gate>.allow`, and no cargo
+# build output. A global gate: it judges every tracked path.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
@@ -23,6 +24,11 @@ if [ -n "$fragments" ]; then
     exit 1
 fi
 echo "✓ changelog.d holds only fragments"
+if ! python3 -B scripts/lib/gate_scope.py check-allowlists; then
+    echo "✗ per-unit allowlists sit in <package>/gates/<gate>.allow and central files hold only entries no package owns" >&2
+    exit 1
+fi
+echo "✓ per-unit allowlists are well placed"
 build=$(git ls-files | grep -E '(^|/)target(-[^/]+)?/' || true)
 if [ -n "$build" ]; then
     echo "✗ cargo build output tracked ($(echo "$build" | wc -l) files):" >&2

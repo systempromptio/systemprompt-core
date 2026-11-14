@@ -1,0 +1,14 @@
+src/trace/repository/|agent_tasks|read-only trace projection over the request's agent task
+src/trace/repository/|message_parts|read-only trace projection over task message parts
+src/trace/repository/|task_messages|read-only trace projection over task messages
+src/trace/repository/|task_execution_steps|read-only trace projection over execution steps
+src/trace/repository/|task_artifacts|read-only trace projection over task artifacts
+src/trace/repository/|artifact_parts|read-only trace projection over artifact parts
+src/trace/repository/|ai_requests|read-only trace projection over AI requests
+src/trace/repository/|ai_request_messages|read-only trace projection over AI request turns
+src/trace/repository/|ai_request_tool_calls|read-only trace projection over AI tool calls
+src/trace/repository/|ai_request_client_evidence|read-only trace projection over client evidence
+src/trace/repository/|mcp_tool_executions|read-only trace projection over MCP executions
+src/trace/repository/|logs|read-only trace projection over log rows
+src/trace/repository/|log_rollup_hourly|read-only trace projection over hourly log rollups
+src/trace/repository/|trace_facts|read-only trace projection over the trace fact ledger

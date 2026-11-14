@@ -1,0 +1,2 @@
+# Third-party set-once globals mirrored by a static.
+src/lib.rs:SUBSCRIBER_INITIALIZED — external constraint: tracing's process-global default dispatcher is set-once

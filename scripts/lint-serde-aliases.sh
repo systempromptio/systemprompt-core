@@ -2,14 +2,15 @@
 # One name per field: a `#[serde(alias = "…")]` keeps a retired key alive as a
 # second spelling and hides the rename from every consumer. A field has one
 # wire name (`rename`); an alias is accepted only for a vendor format we do
-# not own, listed in the allowlist as `path:field — reason`.
+# not own, listed in its package's `gates/lint-serde-aliases.allow` as
+# `path:field — reason` (path relative to the package).
 #
 # The same gate keeps the default ports in one place: a bare `8080` or `5432`
 # in a production source outside crates/shared/models/src/defaults.rs fails.
 # Compose templates render `DEFAULT_POSTGRES_PORT`; clap defaults use
 # `default_value_t = DEFAULT_*`; a comment or a test is not scanned.
 #
-#   scripts/lint-serde-aliases.sh                        # core roots + allowlist
+#   scripts/lint-serde-aliases.sh                        # core roots + per-unit allowlists
 #   scripts/lint-serde-aliases.sh [--allowlist FILE] ROOT...
 #   scripts/lint-serde-aliases.sh --paths P...           # only files under P; stale
 #                                                        # entries not judged
@@ -19,7 +20,7 @@ gate_scope_parse "$@"
 set -- "${GATE_ARGS[@]}"
 
 root="$GATE_ROOT"
-allowlist="$root/scripts/serde-aliases-allowlist.txt"
+allowlist=""
 roots=()
 while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -36,17 +37,16 @@ if [ "${#roots[@]}" -eq 0 ]; then
 fi
 
 declare -A allowed=()
-while IFS= read -r line; do
-    line="${line%%#*}"
-    line="$(printf '%s' "$line" | sed 's/[[:space:]]*$//')"
-    [ -n "$line" ] || continue
+gate_load_allowlist ALLOW_ENTRIES entries lint-serde-aliases "$allowlist"
+label="$(gate_allowlist_label lint-serde-aliases "$allowlist")"
+for line in "${ALLOW_ENTRIES[@]}"; do
     key="${line%% — *}"
     if [ "$key" = "$line" ] || [ -z "$(printf '%s' "${line#* — }" | tr -d '[:space:]')" ]; then
-        echo "lint-serde-aliases: $allowlist: '$line' has no reason (write: path:field — reason)" >&2
+        echo "lint-serde-aliases: $label: '$line' has no reason (write: path:field — reason)" >&2
         exit 1
     fi
     allowed["$key"]=1
-done < "$allowlist"
+done
 
 list_sources() {
     gate_tree_files "${roots[@]}" | grep -E '\.rs$' | grep -Ev '(^|/)(crates/tests|target|tests)/|/build\.rs$' | sort -u

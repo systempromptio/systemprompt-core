@@ -1,0 +1,1 @@
+src/execute/command.rs  # PATH, LANG, LC_ALL, TERM, TZ: the only server variables a headless host child inherits after env_clear()
