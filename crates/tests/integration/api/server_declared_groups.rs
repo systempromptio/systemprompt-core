@@ -144,7 +144,10 @@ async fn the_managed_consumer_refuses_a_caller_without_a_device_credential() -> 
         uuid::Uuid::new_v4(),
         uuid::Uuid::new_v4()
     );
-    for extra in [vec![], vec![("authorization", "Bearer not-a-device-credential")]] {
+    for extra in [
+        vec![],
+        vec![("authorization", "Bearer not-a-device-credential")],
+    ] {
         let (status, body) = send(&app, "GET", &uri, &extra, String::new()).await?;
         assert_eq!(status, StatusCode::UNAUTHORIZED, "{extra:?}: {body}");
         assert!(
@@ -171,7 +174,11 @@ async fn internal_links_refuse_a_request_without_a_hop_token() -> Result<()> {
 #[tokio::test]
 async fn the_upload_token_gate_refuses_an_invalid_token() -> Result<()> {
     let (_pool, app) = all_role().await?;
-    let uri = format!("{}/{}/content", ApiPaths::UPLOADS, DocumentUploadId::generate());
+    let uri = format!(
+        "{}/{}/content",
+        ApiPaths::UPLOADS,
+        DocumentUploadId::generate()
+    );
     let (status, body) = send(
         &app,
         "GET",

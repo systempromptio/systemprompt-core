@@ -200,7 +200,10 @@ async fn a_core_body_limit_above_the_default_must_be_exempted_for_its_own_group(
                     &layers(unlimited(), UserType::User).await,
                     BASE,
                 ),
-                Err(MountError::UnlistedBodyExemption { base_path: BASE, .. })
+                Err(MountError::UnlistedBodyExemption {
+                    base_path: BASE,
+                    ..
+                })
             ),
             "{exemption:?}'s limit must not mount under another group"
         );

@@ -47,7 +47,11 @@ pub(super) fn mount_documents(
     let group = RouteGroup::ContentAndMisc;
 
     let documents = with_download_tokens(
-        mount.protect(documents_router(state.clone()), &user_gate, ApiPaths::DOCUMENTS)?,
+        mount.protect(
+            documents_router(state.clone()),
+            &user_gate,
+            ApiPaths::DOCUMENTS,
+        )?,
         state.clone(),
     );
     router = mount.mount(

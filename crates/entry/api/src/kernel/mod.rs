@@ -14,10 +14,10 @@
 //! - the client address: [`resolve_client_ip`], the one resolver, and its
 //!   [`ClientIp`] extractor;
 //! - bounded body reads: [`read_body_bounded`], [`BodyReadError`];
-//! - content negotiation: [`AcceptedFormat`], [`AcceptedMediaType`], set by
-//!   the server-wide negotiation middleware;
-//! - the session cookie ([`SessionCookie`], [`SameSite`]) and the request
-//!   base URL ([`RequestBaseUrl`], [`resolve_request_base_url`]);
+//! - content negotiation: [`AcceptedFormat`], [`AcceptedMediaType`], set by the
+//!   server-wide negotiation middleware;
+//! - the session cookie ([`SessionCookie`], [`SameSite`]) and the request base
+//!   URL ([`RequestBaseUrl`], [`resolve_request_base_url`]);
 //! - the shared proxy service: [`ProxyService`], [`ProxyTarget`],
 //!   [`ProxyKind`], [`ProxyError`].
 //!

@@ -10,10 +10,9 @@
 //!   composition stages, so the authz hook, subject providers and extension
 //!   state a host enforces are the API's by construction.
 //! - [`toolsets`] serves a YAML-declared MCP server: the deployment's
-//!   `toolsets:` built from the factories registered with
-//!   [`submit_toolset!`], behind the hop-verifying MCP router. A server that
-//!   names no `binary:` is this product binary re-run as
-//!   `admin mcp serve --server <id>`.
+//!   `toolsets:` built from the factories registered with [`submit_toolset!`],
+//!   behind the hop-verifying MCP router. A server that names no `binary:` is
+//!   this product binary re-run as `admin mcp serve --server <id>`.
 //! - [`AgentHost`] composes an agent's collaborators on a [`HostContext`].
 //!
 //! # What a toolset factory can reach

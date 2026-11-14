@@ -1,0 +1,19 @@
+[root]
+section = "Breaking"
+area = "Extensions"
+text = "`ContextKind` gains `HandlerResolved` and `AuthzPolicy` gains `handler_verified(HandlerVerifier)`, for core route groups that authenticate in their handlers or token gates; the pairing mounts no context middleware or gate and keeps the declared body limit, rate limit and layers. `ContextKind` stays exhaustive so a host match cannot fall through to a wildcard. Boot refuses any other pairing (`MountError::IncoherentHandlerVerification`), an extension declaring either (`MountError::ExtensionHandlerVerified`), and a core group-level body limit above 2 MiB that no `CoreBodyExemption` names for that base path (`MountError::UnlistedBodyExemption`). Migrate exhaustive matches on `ContextKind` and `MountError` by adding the new arms."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`ContextKind::HandlerResolved` is a new variant of an exhaustive enum. Migrate by adding the arm."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`routes::brain::mount_brain` and `routes::gateway::gateway_mount_router` are removed; brain, messaging, the managed consumer, gateway inference, documents, uploads, folders and internal links mount through route declarations. `services::validation` (with `is_valid_email`) and `services::middleware::client_addr::client_ip_from_request` are no longer public. `MountError` gains `IncoherentHandlerVerification`, `ExtensionHandlerVerified` and `UnlistedBodyExemption`."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Added"
+text = "`systemprompt_api::kernel` is the helper surface route modules import from; `JwtContextExtractor::from_app_context` builds the extractor; `CoreBodyExemption` names the core groups allowed a body limit above 2 MiB; `error::unreadable_body` is public."

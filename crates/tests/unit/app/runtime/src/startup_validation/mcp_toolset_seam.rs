@@ -91,7 +91,11 @@ fn a_hosted_server_naming_an_unregistered_toolset_fails() {
 
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].field, "mcp_servers.hosted.toolsets");
-    assert!(errors[0].message.contains("'ghost'"), "{}", errors[0].message);
+    assert!(
+        errors[0].message.contains("'ghost'"),
+        "{}",
+        errors[0].message
+    );
 }
 
 #[test]

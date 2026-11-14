@@ -16,8 +16,8 @@ mod proxy;
 mod visitor;
 mod writer;
 
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use tokio::sync::mpsc;
 use tracing::{Event, Subscriber};

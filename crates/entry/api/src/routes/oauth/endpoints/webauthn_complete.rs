@@ -16,9 +16,9 @@ use axum::http::HeaderMap;
 use axum::response::{IntoResponse, Redirect, Response};
 use serde::{Deserialize, Serialize};
 
+use crate::kernel::RequestBaseUrl;
 use crate::routes::oauth::extractors::OAuthRepo;
 use crate::routes::oauth::{OAuthHttpError, internal};
-use crate::kernel::RequestBaseUrl;
 use systemprompt_identifiers::{ClientId, UserId};
 use systemprompt_models::oauth::OAuthServerConfig;
 use systemprompt_oauth::OAuthState;

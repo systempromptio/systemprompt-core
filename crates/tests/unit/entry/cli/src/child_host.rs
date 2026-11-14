@@ -9,9 +9,18 @@ use systemprompt_cli::kernel::CommandRegistry;
 
 fn assert_child_host(desc: CommandDescriptor) {
     assert!(desc.child_host());
-    assert!(desc.owns_signals(), "a child host installs no Ctrl-C handler");
-    assert!(!desc.serves_api(), "a child host is not stamped as the API server");
-    assert!(!desc.profile(), "a child host resolves no CLI profile or session");
+    assert!(
+        desc.owns_signals(),
+        "a child host installs no Ctrl-C handler"
+    );
+    assert!(
+        !desc.serves_api(),
+        "a child host is not stamped as the API server"
+    );
+    assert!(
+        !desc.profile(),
+        "a child host resolves no CLI profile or session"
+    );
     assert!(!desc.secrets() && !desc.paths() && !desc.database());
     assert_eq!(desc.routing_class(), RoutingClass::LocalOnly);
     assert_eq!(desc.data_impact(), DataImpact::Preserving);

@@ -5,7 +5,8 @@
 //! it boots a [`HostContext`] from the environment the API granted it (never
 //! the CLI's profile, session or credentials) and serves the server's
 //! toolsets on its `port:` until its supervisor stops it. The group registers
-//! with the kernel through [`register_cli_command!`](crate::register_cli_command).
+//! with the kernel through
+//! [`register_cli_command!`](crate::register_cli_command).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -41,7 +42,9 @@ pub struct ServeArgs {
 impl DescribeCommand for McpHostCommands {
     fn descriptor(&self) -> CommandDescriptor {
         match self {
-            Self::Serve(_) => CommandDescriptor::CHILD_HOST.with_data_impact(DataImpact::Preserving),
+            Self::Serve(_) => {
+                CommandDescriptor::CHILD_HOST.with_data_impact(DataImpact::Preserving)
+            },
         }
     }
 }

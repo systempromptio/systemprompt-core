@@ -17,8 +17,8 @@ use systemprompt_oauth::services::validation::id_jag::ID_JAG_GRANT_PROFILE;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::McpRegistryProvider;
 
-use crate::routes::proxy::mcp::get_mcp_server_scopes;
 use crate::kernel::RequestBaseUrl;
+use crate::routes::proxy::mcp::get_mcp_server_scopes;
 
 #[derive(Debug, Serialize)]
 pub struct WellKnownResponse {

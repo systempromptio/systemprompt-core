@@ -8,8 +8,8 @@
 //! has already been authenticated and authorised.
 //!
 //! Factories that build a toolset from the application context live with that
-//! context, in `systemprompt-mcp-host` (`submit_toolset!`), because this crate sits
-//! below it.
+//! context, in `systemprompt-mcp-host` (`submit_toolset!`), because this crate
+//! sits below it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

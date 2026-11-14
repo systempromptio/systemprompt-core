@@ -15,9 +15,9 @@ use super::validation::{
     validate_oauth_parameters,
 };
 use super::{AuthorizeQuery, AuthorizeRequest};
+use crate::kernel::RequestBaseUrl;
 use crate::routes::oauth::extractors::OAuthRepo;
 use crate::routes::oauth::{OAuthHttpError, internal};
-use crate::kernel::RequestBaseUrl;
 use axum::extract::{Extension, Form, Query, State};
 use axum::response::{Html, IntoResponse, Response};
 use std::sync::Arc;

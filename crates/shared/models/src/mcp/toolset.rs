@@ -1,9 +1,10 @@
 //! Declared toolsets and per-tool access for one MCP server.
 //!
 //! A [`ToolsetRef`] names a toolset compiled into the binary (registered
-//! through `systemprompt-mcp-host`'s `submit_toolset!`) that a deployment hosts. A
-//! [`ToolAccess`] narrows who may see and call a tool: it is satisfied when the
-//! caller holds any listed scope, any listed role, or any listed group.
+//! through `systemprompt-mcp-host`'s `submit_toolset!`) that a deployment
+//! hosts. A [`ToolAccess`] narrows who may see and call a tool: it is satisfied
+//! when the caller holds any listed scope, any listed role, or any listed
+//! group.
 //!
 //! Access resolves most specific first: a tool's own `access`, then the
 //! `access` of the toolset that serves it, then the server's `oauth.scopes`

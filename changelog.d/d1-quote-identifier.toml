@@ -1,0 +1,9 @@
+[[crate]]
+name = "systemprompt-database"
+section = "Added"
+text = "`quote_identifier` quotes any PostgreSQL identifier without validating it."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`shared::ddl::quote_ident` is removed; use `systemprompt_database::quote_identifier`."

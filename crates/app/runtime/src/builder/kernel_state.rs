@@ -55,9 +55,9 @@ pub fn kernel_state(app: &AppContext) -> Dependencies {
         app.documents(),
     )
     .with(Arc::clone(app.oauth_repositories()))
-        .with(Arc::clone(app.ai_repositories()))
-        .with(Arc::clone(app.analytics_repositories()))
-        .with(app.artifact_ingest_arc());
+    .with(Arc::clone(app.ai_repositories()))
+    .with(Arc::clone(app.analytics_repositories()))
+    .with(app.artifact_ingest_arc());
     match &app.subsystems.ai_service {
         Some(ai) => state.insert(Arc::clone(ai)),
         None => state.reserve::<Arc<systemprompt_ai::AiService>>(),

@@ -28,9 +28,9 @@
 use std::collections::BTreeSet;
 
 use crate::DatabaseTransaction;
-use crate::quoting::quote_identifier;
 use crate::error::DatabaseResult;
 use crate::models::{JsonRow, ToDbValue};
+use crate::quoting::quote_identifier;
 use crate::services::DatabaseProvider;
 use pg_query::Context;
 use systemprompt_extension::{Migration, TriggerPolicy, cost};

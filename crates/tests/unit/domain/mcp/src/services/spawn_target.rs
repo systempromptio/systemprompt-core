@@ -94,7 +94,10 @@ fn the_binary_command_line_carries_no_arguments() {
 
     let (program, args) = spawn_command_line(&paths(bin.path()), &config).expect("command line");
 
-    assert_eq!(program.file_name().and_then(|n| n.to_str()), Some("withargs-bin"));
+    assert_eq!(
+        program.file_name().and_then(|n| n.to_str()),
+        Some("withargs-bin")
+    );
     assert!(args.is_empty());
 }
 

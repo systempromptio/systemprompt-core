@@ -219,7 +219,10 @@ pub fn spawn_command_line(
         SpawnProgram::Hosted => {
             let self_path = BuildPaths::resolve_self().map_err(|e| {
                 crate::error::McpDomainError::operation(
-                    format!("Failed to resolve the running binary to host {}", config.name),
+                    format!(
+                        "Failed to resolve the running binary to host {}",
+                        config.name
+                    ),
                     e,
                 )
             })?;

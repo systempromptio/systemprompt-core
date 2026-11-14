@@ -144,7 +144,8 @@ pub use systemprompt_security as security;
 #[cfg_attr(docsrs, doc(cfg(feature = "security")))]
 pub use systemprompt_governance as governance;
 
-/// Application runtime and its child hosts; build an `AppContext` with `AppContextBuilder`.
+/// Application runtime and its child hosts; build an `AppContext` with
+/// `AppContextBuilder`.
 #[cfg(feature = "api")]
 #[cfg_attr(docsrs, doc(cfg(feature = "api")))]
 pub mod system {
