@@ -1,59 +1,61 @@
-//! The closed core declaration table behind `admit_extension` and
-//! `extension_served`: an install extension declaring handler verification, a
-//! reserved base path or a body limit above the server default is refused, a
-//! listed core declaration is admitted only under its own extension id, at
-//! its own base path, in its own route group and with exactly its listed
-//! protection, and only a listed core declaration is served by its own
-//! group's roles alone.
+//! The closed core declaration table behind `admit_extension`: an install
+//! extension declaring handler verification, a reserved base path or a body
+//! limit above the server default is refused, a listed core declaration is
+//! admitted only under its own extension id, at its own base path, in its own
+//! route group and with exactly its listed protection shape, and a
+//! declaration naming a row with any other shape is refused.
 
 use axum::Router;
 use systemprompt_api::services::middleware::{
-    Allowance, CoreDeclaration, CoreDeclarer, DEFAULT_BODY_LIMIT_BYTES, MountError,
-    admit_extension, extension_served,
+    Allowance, CoreDeclaration, CoreDeclarer, CoreShapeField, DEFAULT_BODY_LIMIT_BYTES,
+    MountError, admit_extension,
 };
-use systemprompt_api::services::server::routes::role::route_groups;
 use systemprompt_extension::{
     AuthzPolicy, ContextKind, ExtensionRouter, HandlerVerifier, RESERVED_PATHS, RouteGroup,
 };
-use systemprompt_manifest::profile::NodeRole;
 use systemprompt_models::modules::ApiPaths;
 
-fn slack(base_path: &'static str) -> ExtensionRouter {
-    ExtensionRouter::new(
+pub(super) fn row(entry: CoreDeclaration) -> ExtensionRouter {
+    let declared = ExtensionRouter::new(
         Router::new(),
-        base_path,
-        AuthzPolicy::handler_verified(HandlerVerifier::SlackSignature),
-        ContextKind::HandlerResolved,
+        entry.base_path(),
+        entry.policy(),
+        entry.context(),
     )
-    .in_group(RouteGroup::Messaging)
+    .in_group(entry.group())
+    .with_rate_limit(entry.rate_limit());
+    match entry.body_limit() {
+        Some(bytes) => declared.with_body_limit(bytes),
+        None => declared,
+    }
 }
 
-fn notifications_admin(base_path: &'static str, policy: AuthzPolicy) -> ExtensionRouter {
-    ExtensionRouter::new(Router::new(), base_path, policy, ContextKind::User)
-        .in_group(RouteGroup::ContentAndMisc)
+fn extension_id(entry: CoreDeclaration) -> &'static str {
+    match entry.declarer() {
+        CoreDeclarer::Extension(id) => id,
+        CoreDeclarer::Server => panic!("{entry:?} is declared by the server"),
+    }
+}
+
+fn extension_rows() -> impl Iterator<Item = CoreDeclaration> {
+    CoreDeclaration::ALL
+        .iter()
+        .copied()
+        .filter(|entry| matches!(entry.declarer(), CoreDeclarer::Extension(_)))
 }
 
 #[test]
 fn the_table_lists_exactly_this_waves_core_declarations() {
-    let groups: Vec<_> = CoreDeclaration::ALL
-        .iter()
-        .map(|entry| entry.group())
-        .collect();
-    assert_eq!(
-        groups,
-        vec![
-            RouteGroup::Agent,
-            RouteGroup::Agent,
-            RouteGroup::Messaging,
-            RouteGroup::Messaging,
-            RouteGroup::ContentAndMisc,
-            RouteGroup::ContentAndMisc,
-        ]
-    );
-
     let rows: Vec<_> = CoreDeclaration::ALL
         .iter()
-        .map(|entry| (entry.declarer(), entry.base_path(), entry.allowance()))
+        .map(|entry| {
+            (
+                entry.declarer(),
+                entry.base_path(),
+                entry.group(),
+                entry.allowance(),
+            )
+        })
         .collect();
     assert_eq!(
         rows,
@@ -61,31 +63,37 @@ fn the_table_lists_exactly_this_waves_core_declarations() {
             (
                 CoreDeclarer::Server,
                 ApiPaths::AGENTS_BASE,
+                RouteGroup::Agent,
                 Allowance::BodyLimit(systemprompt_models::net::AGENT_REQUEST_BODY_LIMIT_BYTES),
             ),
             (
                 CoreDeclarer::Extension("agent_runs_api"),
                 ApiPaths::AGENT_RUNS,
+                RouteGroup::Agent,
                 Allowance::Plain,
             ),
             (
                 CoreDeclarer::Extension("slack"),
                 ApiPaths::SLACK_BASE,
+                RouteGroup::Messaging,
                 Allowance::HandlerVerified(HandlerVerifier::SlackSignature),
             ),
             (
                 CoreDeclarer::Extension("teams"),
                 ApiPaths::TEAMS_BASE,
+                RouteGroup::Messaging,
                 Allowance::HandlerVerified(HandlerVerifier::TeamsBotToken),
             ),
             (
                 CoreDeclarer::Extension("notifications-http"),
                 ApiPaths::NOTIFICATIONS,
+                RouteGroup::ContentAndMisc,
                 Allowance::Plain,
             ),
             (
                 CoreDeclarer::Extension("notifications-http"),
                 ApiPaths::ADMIN_NOTIFICATIONS,
+                RouteGroup::ContentAndMisc,
                 Allowance::ReservedPrefix,
             ),
         ]
@@ -93,9 +101,19 @@ fn the_table_lists_exactly_this_waves_core_declarations() {
 }
 
 #[test]
+fn every_listed_extension_declaration_is_admitted_in_its_own_shape() {
+    for entry in extension_rows() {
+        assert!(
+            admit_extension(extension_id(entry), &row(entry)).is_ok(),
+            "{entry:?} must be admitted"
+        );
+    }
+}
+
+#[test]
 fn an_install_extension_declaring_handler_verification_is_refused() {
     assert!(matches!(
-        admit_extension("install", &slack(ApiPaths::SLACK_BASE)),
+        admit_extension("install", &row(CoreDeclaration::Slack)),
         Err(MountError::ExtensionHandlerVerified { .. })
     ));
 }
@@ -103,7 +121,8 @@ fn an_install_extension_declaring_handler_verification_is_refused() {
 #[test]
 fn an_install_extension_under_a_reserved_prefix_is_refused() {
     for prefix in RESERVED_PATHS {
-        let declared = notifications_admin(prefix, AuthzPolicy::admin());
+        let declared =
+            ExtensionRouter::new(Router::new(), prefix, AuthzPolicy::admin(), ContextKind::User);
         assert!(
             matches!(
                 admit_extension("install", &declared),
@@ -115,128 +134,101 @@ fn an_install_extension_under_a_reserved_prefix_is_refused() {
             "{prefix} must be refused to an install extension"
         );
     }
-    let nested = notifications_admin(ApiPaths::ADMIN_NOTIFICATIONS, AuthzPolicy::admin());
     assert!(matches!(
-        admit_extension("install", &nested),
+        admit_extension("install", &row(CoreDeclaration::NotificationsAdmin)),
         Err(MountError::ExtensionReservedPath { .. })
     ));
 }
 
 #[test]
 fn an_install_extension_with_an_oversized_body_is_refused() {
-    let declared = ExtensionRouter::new(
-        Router::new(),
-        ApiPaths::AGENTS_BASE,
-        AuthzPolicy::authenticated(),
-        ContextKind::User,
-    )
-    .with_body_limit(systemprompt_models::net::AGENT_REQUEST_BODY_LIMIT_BYTES);
-    assert!(matches!(
-        admit_extension("install", &declared),
-        Err(MountError::ExtensionReservedPath { .. })
-    ));
-
     let elsewhere = ExtensionRouter::new(
         Router::new(),
         "/api/v1/install",
         AuthzPolicy::user(),
         ContextKind::User,
     )
-    .with_body_limit(DEFAULT_BODY_LIMIT_BYTES + 1);
+    .with_body_limit(systemprompt_models::net::AGENT_REQUEST_BODY_LIMIT_BYTES);
     assert!(matches!(
         admit_extension("install", &elsewhere),
         Err(MountError::ExtensionBodyLimitTooLarge { .. })
     ));
-}
-
-#[test]
-fn the_server_body_limit_row_grants_no_extension() {
-    let declared = ExtensionRouter::new(
-        Router::new(),
-        "/api/v1/install",
-        AuthzPolicy::user(),
-        ContextKind::User,
-    )
-    .with_body_limit(systemprompt_models::net::AGENT_REQUEST_BODY_LIMIT_BYTES);
     assert!(matches!(
-        admit_extension("install", &declared),
-        Err(MountError::ExtensionBodyLimitTooLarge { .. })
+        admit_extension("install", &row(CoreDeclaration::AgentProxy)),
+        Err(MountError::ExtensionReservedPath { .. })
     ));
 }
 
 #[test]
-fn listed_messaging_declarations_are_admitted_at_their_own_path() {
-    assert!(admit_extension("slack", &slack(ApiPaths::SLACK_BASE)).is_ok());
-
-    let teams = ExtensionRouter::new(
+fn a_listed_id_at_another_path_or_group_gets_no_allowance() {
+    let other_path = ExtensionRouter::new(
         Router::new(),
-        ApiPaths::TEAMS_BASE,
-        AuthzPolicy::handler_verified(HandlerVerifier::TeamsBotToken),
+        "/api/v1/slack-other",
+        CoreDeclaration::Slack.policy(),
         ContextKind::HandlerResolved,
     )
-    .in_group(RouteGroup::Messaging);
-    assert!(admit_extension("teams", &teams).is_ok());
-}
-
-#[test]
-fn a_listed_id_at_another_path_or_shape_is_refused() {
+    .in_group(RouteGroup::Messaging)
+    .with_rate_limit(CoreDeclaration::Slack.rate_limit());
     assert!(matches!(
-        admit_extension("slack", &slack("/api/v1/slack-other")),
-        Err(MountError::ExtensionHandlerVerified { .. })
-    ));
-    assert!(matches!(
-        admit_extension("slack", &slack(ApiPaths::TEAMS_BASE)),
-        Err(MountError::ExtensionHandlerVerified { .. })
-    ));
-    assert!(matches!(
-        admit_extension("teams", &slack(ApiPaths::TEAMS_BASE)),
+        admit_extension("slack", &other_path),
         Err(MountError::ExtensionHandlerVerified { .. })
     ));
 
-    let wrong_group = slack(ApiPaths::SLACK_BASE).in_group(RouteGroup::Extensions);
+    let other_group = row(CoreDeclaration::Slack).in_group(RouteGroup::Extensions);
     assert!(matches!(
-        admit_extension("slack", &wrong_group),
+        admit_extension("slack", &other_group),
         Err(MountError::ExtensionHandlerVerified { .. })
+    ));
+
+    let admin_elsewhere = row(CoreDeclaration::NotificationsAdmin).in_group(RouteGroup::Extensions);
+    assert!(matches!(
+        admit_extension("notifications-http", &admin_elsewhere),
+        Err(MountError::ExtensionReservedPath { .. })
     ));
 }
 
 #[test]
-fn the_notifications_admin_row_admits_only_the_admin_declaration() {
-    let listed = notifications_admin(ApiPaths::ADMIN_NOTIFICATIONS, AuthzPolicy::admin());
-    assert!(admit_extension("notifications-http", &listed).is_ok());
+fn a_listed_row_declared_with_another_policy_is_refused() {
+    let wrong_verifier = ExtensionRouter::new(
+        Router::new(),
+        ApiPaths::TEAMS_BASE,
+        CoreDeclaration::Slack.policy(),
+        ContextKind::HandlerResolved,
+    )
+    .in_group(RouteGroup::Messaging)
+    .with_rate_limit(CoreDeclaration::Teams.rate_limit());
+    assert!(matches!(
+        admit_extension("teams", &wrong_verifier),
+        Err(MountError::CoreDeclarationMismatch {
+            field: CoreShapeField::Policy,
+            ..
+        })
+    ));
 
     for policy in [
         AuthzPolicy::user(),
         AuthzPolicy::authenticated(),
         AuthzPolicy::public(),
     ] {
-        let widened = notifications_admin(ApiPaths::ADMIN_NOTIFICATIONS, policy);
+        let widened = ExtensionRouter::new(
+            Router::new(),
+            ApiPaths::ADMIN_NOTIFICATIONS,
+            policy,
+            ContextKind::User,
+        )
+        .in_group(RouteGroup::ContentAndMisc)
+        .with_rate_limit(CoreDeclaration::NotificationsAdmin.rate_limit());
         assert!(
             matches!(
                 admit_extension("notifications-http", &widened),
-                Err(MountError::ExtensionReservedPath { .. })
+                Err(MountError::CoreDeclarationMismatch {
+                    field: CoreShapeField::Policy,
+                    ..
+                })
             ),
             "{policy:?} at the reserved prefix must be refused"
         );
     }
-
-    let other_path = notifications_admin("/api/v1/admin/other", AuthzPolicy::admin());
-    assert!(matches!(
-        admit_extension("notifications-http", &other_path),
-        Err(MountError::ExtensionReservedPath { .. })
-    ));
-
-    let other_group = notifications_admin(ApiPaths::ADMIN_NOTIFICATIONS, AuthzPolicy::admin())
-        .in_group(RouteGroup::Extensions);
-    assert!(matches!(
-        admit_extension("notifications-http", &other_group),
-        Err(MountError::ExtensionReservedPath { .. })
-    ));
-
-    assert!(matches!(
-        admit_extension("slack", &listed),
-        Err(MountError::ExtensionReservedPath { .. })
-    ));
 }
 
 #[test]
@@ -249,79 +241,4 @@ fn an_unprivileged_install_declaration_is_admitted() {
     )
     .with_body_limit(DEFAULT_BODY_LIMIT_BYTES);
     assert!(admit_extension("install", &declared).is_ok());
-}
-
-fn served_on(role: NodeRole, extension: &'static str, declared: &ExtensionRouter) -> bool {
-    let groups = route_groups(role);
-    extension_served(extension, declared, &|group| groups.contains(&group))
-}
-
-fn agent_group(base_path: &'static str) -> ExtensionRouter {
-    ExtensionRouter::new(
-        Router::new(),
-        base_path,
-        AuthzPolicy::user(),
-        ContextKind::User,
-    )
-    .in_group(RouteGroup::Agent)
-}
-
-const ROLES: [NodeRole; 5] = [
-    NodeRole::All,
-    NodeRole::Gateway,
-    NodeRole::Api,
-    NodeRole::Worker,
-    NodeRole::Runner,
-];
-
-#[test]
-fn an_unlisted_agent_group_declaration_keeps_its_base_role_exposure() {
-    let declared = agent_group("/api/v1/install");
-    for role in ROLES {
-        let groups = route_groups(role);
-        let base = groups.contains(&RouteGroup::Extensions) && groups.contains(&RouteGroup::Agent);
-        assert_eq!(
-            served_on(role, "install", &declared),
-            base,
-            "{role:?} must serve an install extension's agent-group router exactly as before"
-        );
-    }
-    assert!(!served_on(NodeRole::Worker, "install", &declared));
-}
-
-#[test]
-fn the_listed_agent_runs_declaration_is_served_on_workers() {
-    let declared = agent_group(ApiPaths::AGENT_RUNS);
-    assert!(served_on(NodeRole::Worker, "agent_runs_api", &declared));
-    assert!(served_on(NodeRole::All, "agent_runs_api", &declared));
-    assert!(served_on(NodeRole::Api, "agent_runs_api", &declared));
-    assert!(!served_on(NodeRole::Gateway, "agent_runs_api", &declared));
-    assert!(!served_on(NodeRole::Runner, "agent_runs_api", &declared));
-}
-
-#[test]
-fn a_listed_id_at_another_path_or_group_gets_no_core_exposure() {
-    let other_path = agent_group("/api/v1/agent-runs-extra");
-    assert!(!served_on(NodeRole::Worker, "agent_runs_api", &other_path));
-
-    let other_group = agent_group(ApiPaths::AGENT_RUNS).in_group(RouteGroup::McpAndStream);
-    assert!(!served_on(NodeRole::Worker, "agent_runs_api", &other_group));
-
-    let other_id = agent_group(ApiPaths::AGENT_RUNS);
-    assert!(!served_on(NodeRole::Worker, "install", &other_id));
-}
-
-#[test]
-fn an_install_extensions_default_group_is_served_by_all_and_api_only() {
-    let declared = ExtensionRouter::new(
-        Router::new(),
-        "/api/v1/install",
-        AuthzPolicy::user(),
-        ContextKind::User,
-    );
-    let serving: Vec<_> = ROLES
-        .into_iter()
-        .filter(|role| served_on(*role, "install", &declared))
-        .collect();
-    assert_eq!(serving, vec![NodeRole::All, NodeRole::Api]);
 }

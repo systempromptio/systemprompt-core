@@ -45,12 +45,14 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod core_declaration;
+mod core_shape;
 mod error;
 mod guards;
 
 pub use core_declaration::{
     Allowance, CoreDeclaration, CoreDeclarer, admit_extension, extension_served,
 };
+pub use core_shape::CoreShapeField;
 pub use error::MountError;
 pub use guards::{ClientWritesGuard, ProtectionGuards, SiteAuthGuard};
 
@@ -129,7 +131,7 @@ fn check_body_limit(
     base_path: &'static str,
 ) -> Result<(), MountError> {
     match protection.body_limit {
-        Some(declared) if !CoreDeclaration::admits_body_limit(base_path, declared) => {
+        Some(declared) if !CoreDeclaration::admits_body_limit(base_path, protection) => {
             Err(MountError::UnlistedBodyExemption {
                 base_path,
                 declared,

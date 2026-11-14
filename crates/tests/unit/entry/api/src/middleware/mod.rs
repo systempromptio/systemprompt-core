@@ -20,6 +20,8 @@ mod client_ip_extractor;
 mod content_negotiation;
 mod context_flavours;
 mod core_declaration;
+mod core_declaration_roles;
+mod core_declaration_shape;
 mod cors_config;
 mod declared_mount;
 mod edge_bounds;

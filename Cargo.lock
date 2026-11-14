@@ -7535,6 +7535,7 @@ name = "systemprompt-slack-entry"
 version = "0.81.1"
 dependencies = [
  "axum",
+ "chrono",
  "inventory",
  "reqwest",
  "schemars 1.2.3",

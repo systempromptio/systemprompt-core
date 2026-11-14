@@ -60,8 +60,7 @@ pub fn base_kernel_state(
 }
 
 fn platform_secrets(app: &AppContext) -> Arc<dyn SecretLookup> {
-    let secrets = Arc::clone(app.secrets());
-    secrets
+    Arc::<systemprompt_config::SecretsService>::clone(app.secrets())
 }
 
 pub fn kernel_state(app: &AppContext) -> Dependencies {

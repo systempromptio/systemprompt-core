@@ -10,9 +10,8 @@
 //! context), a base path under one of the reserved prefixes
 //! ([`RESERVED_PATHS`]), or a group-level body limit above
 //! [`DEFAULT_BODY_LIMIT_BYTES`]. [`admit_extension`] admits one only when a
-//! row grants that exact declaration that allowance, matching the verifier
-//! and handler-resolved context, the admin policy and user context for a
-//! reserved prefix, or the exact byte count for a body limit. A declaration
+//! row with that allowance names the declaration and matches its whole
+//! protection shape. A declaration
 //! not in the table meets the same typed [`MountError`] as before.
 //!
 //! Role exposure: [`extension_served`] mounts a listed core declaration on
@@ -20,6 +19,14 @@
 //! declaration is mounted only where the role serves both
 //! `RouteGroup::Extensions` and its own group, so an install extension is
 //! served on exactly the roles it always was, whatever group it declares.
+//!
+//! Every row pins the whole protection shape its declaration is admitted
+//! with: policy, context kind, rate-limit scope, budget and bearer window,
+//! body limit, protection layers and frame options. A declaration that names
+//! a row (extension id, base path and route group) with any other shape is
+//! refused at boot with `MountError::CoreDeclarationMismatch` naming the
+//! field that differs, so a core declaration that changes its protection
+//! fails until the table changes with it.
 //!
 //! An extension declaration is matched by its registered extension id, its
 //! base path and its route group. The table is a guard-rail against an
@@ -35,7 +42,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_extension::{
-    AuthzPolicy, ContextKind, ExtensionRouter, HandlerVerifier, RESERVED_PATHS, RouteGroup,
+    AuthzPolicy, ContextKind, ExtensionRouter, HandlerVerifier, RESERVED_PATHS, RateBudget,
+    RateLimit, RouteGroup, RouteProtection,
 };
 use systemprompt_models::modules::ApiPaths;
 
@@ -128,6 +136,47 @@ impl CoreDeclaration {
         }
     }
 
+    #[must_use]
+    pub const fn policy(self) -> AuthzPolicy {
+        match self {
+            Self::AgentProxy => AuthzPolicy::authenticated(),
+            Self::AgentRuns | Self::Notifications => AuthzPolicy::user(),
+            Self::Slack => AuthzPolicy::handler_verified(HandlerVerifier::SlackSignature),
+            Self::Teams => AuthzPolicy::handler_verified(HandlerVerifier::TeamsBotToken),
+            Self::NotificationsAdmin => AuthzPolicy::admin(),
+        }
+    }
+
+    #[must_use]
+    pub const fn context(self) -> ContextKind {
+        match self {
+            Self::AgentProxy => ContextKind::A2a,
+            Self::AgentRuns | Self::Notifications | Self::NotificationsAdmin => ContextKind::User,
+            Self::Slack | Self::Teams => ContextKind::HandlerResolved,
+        }
+    }
+
+    #[must_use]
+    pub const fn rate_limit(self) -> RateLimit {
+        match self {
+            Self::AgentProxy | Self::Slack | Self::Teams => {
+                RateLimit::new("agents", RateBudget::Agents)
+            },
+            Self::AgentRuns => RateLimit::new("agent_runs", RateBudget::Tasks),
+            Self::Notifications | Self::NotificationsAdmin => {
+                RateLimit::new("notifications", RateBudget::Notifications)
+            },
+        }
+    }
+
+    #[must_use]
+    pub const fn body_limit(self) -> Option<usize> {
+        match self.allowance() {
+            Allowance::BodyLimit(bytes) => Some(bytes),
+            _ => None,
+        }
+    }
+
     fn names(self, declarer: CoreDeclarer, declared: &ExtensionRouter) -> bool {
         self.declarer() == declarer
             && self.base_path() == declared.base_path
@@ -137,45 +186,27 @@ impl CoreDeclaration {
     fn grants(self, declarer: CoreDeclarer, declared: &ExtensionRouter, wanted: Allowance) -> bool {
         self.names(declarer, declared)
             && self.allowance() == wanted
-            && shape_matches(wanted, declared)
+            && self.shape_matches(&declared.protection)
     }
 
     fn granted(declarer: CoreDeclarer, declared: &ExtensionRouter, wanted: Allowance) -> bool {
-        Self::ALL
-            .iter()
-            .any(|entry| entry.grants(declarer, declared, wanted))
+        Self::ALL.iter().any(|entry| entry.grants(declarer, declared, wanted))
     }
 
-    pub(super) fn admits_body_limit(base_path: &str, declared: usize) -> bool {
-        declared <= DEFAULT_BODY_LIMIT_BYTES
+    pub(super) fn admits_body_limit(base_path: &str, protection: &RouteProtection) -> bool {
+        protection
+            .body_limit
+            .is_none_or(|declared| declared <= DEFAULT_BODY_LIMIT_BYTES)
             || Self::ALL.iter().any(|entry| {
                 entry.base_path() == base_path
-                    && entry.allowance() == Allowance::BodyLimit(declared)
+                    && matches!(entry.allowance(), Allowance::BodyLimit(_))
+                    && entry.shape_matches(protection)
             })
     }
 }
 
-fn shape_matches(wanted: Allowance, declared: &ExtensionRouter) -> bool {
-    let protection = &declared.protection;
-    match wanted {
-        Allowance::HandlerVerified(verifier) => {
-            protection.policy.handler_verifier() == Some(verifier)
-                && protection.context == ContextKind::HandlerResolved
-        },
-        Allowance::ReservedPrefix => {
-            protection.policy.handler_verifier().is_none()
-                && protection.policy.allowed() == AuthzPolicy::admin().allowed()
-                && protection.context == ContextKind::User
-        },
-        Allowance::BodyLimit(bytes) => protection.body_limit == Some(bytes),
-        Allowance::Plain => true,
-    }
-}
-
 fn reserved(base_path: &str) -> bool {
-    RESERVED_PATHS
-        .iter()
-        .any(|prefix| base_path.starts_with(prefix))
+    RESERVED_PATHS.iter().any(|prefix| base_path.starts_with(prefix))
 }
 
 pub fn admit_extension(
@@ -185,6 +216,18 @@ pub fn admit_extension(
     let declarer = CoreDeclarer::Extension(extension);
     let base_path = declared.base_path;
     let protection = &declared.protection;
+
+    let drift = CoreDeclaration::ALL
+        .iter()
+        .filter(|entry| entry.names(declarer, declared))
+        .find_map(|entry| entry.mismatch(protection));
+    if let Some(field) = drift {
+        return Err(MountError::CoreDeclarationMismatch {
+            extension,
+            base_path,
+            field,
+        });
+    }
 
     if let Some(verifier) = protection.policy.handler_verifier() {
         if !CoreDeclaration::granted(declarer, declared, Allowance::HandlerVerified(verifier)) {
@@ -225,6 +268,6 @@ pub fn extension_served(
     let declarer = CoreDeclarer::Extension(extension);
     let core = CoreDeclaration::ALL
         .iter()
-        .any(|entry| entry.names(declarer, declared));
+        .any(|entry| entry.names(declarer, declared) && entry.shape_matches(&declared.protection));
     serves(declared.group) && (core || serves(RouteGroup::Extensions))
 }
