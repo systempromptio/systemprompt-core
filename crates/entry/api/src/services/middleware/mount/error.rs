@@ -83,6 +83,14 @@ pub enum MountError {
         path: &'static str,
     },
 
+    #[error(
+        "gateway route group at '{path}' overlaps the built-in gateway routes under '{builtin}'"
+    )]
+    GatewayRouteShadowsBuiltin {
+        path: &'static str,
+        builtin: &'static str,
+    },
+
     #[error("gateway route group at '{path}' overlaps the gateway route group at '{other}'")]
     GatewayRouteOverlap {
         path: &'static str,

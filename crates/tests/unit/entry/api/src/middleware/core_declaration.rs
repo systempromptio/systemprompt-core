@@ -182,7 +182,7 @@ fn an_install_extension_with_an_oversized_body_is_refused() {
 }
 
 #[test]
-fn a_listed_id_at_another_path_or_group_gets_no_allowance() {
+fn a_listed_id_at_another_path_or_group_is_refused_as_drift() {
     let other_path = ExtensionRouter::new(
         Router::new(),
         "/api/v1/slack-other",
@@ -193,19 +193,29 @@ fn a_listed_id_at_another_path_or_group_gets_no_allowance() {
     .with_rate_limit(CoreDeclaration::Slack.rate_limit());
     assert!(matches!(
         admit_extension("slack", &other_path),
-        Err(MountError::ExtensionHandlerVerified { .. })
+        Err(MountError::CoreDeclarationMismatch {
+            extension: "slack",
+            field: CoreShapeField::BasePath,
+            ..
+        })
     ));
 
     let other_group = row(CoreDeclaration::Slack).in_group(RouteGroup::Extensions);
     assert!(matches!(
         admit_extension("slack", &other_group),
-        Err(MountError::ExtensionHandlerVerified { .. })
+        Err(MountError::CoreDeclarationMismatch {
+            field: CoreShapeField::Group,
+            ..
+        })
     ));
 
     let admin_elsewhere = row(CoreDeclaration::NotificationsAdmin).in_group(RouteGroup::Extensions);
     assert!(matches!(
         admit_extension("notifications-http", &admin_elsewhere),
-        Err(MountError::ExtensionReservedPath { .. })
+        Err(MountError::CoreDeclarationMismatch {
+            field: CoreShapeField::Group,
+            ..
+        })
     ));
 }
 

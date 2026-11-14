@@ -16,7 +16,8 @@
 //! linked registration is a core declaration: it is admitted only when the
 //! closed core declaration table lists its extension id and exact path with
 //! that scope and budget (`admit_gateway_route`), registrations may not
-//! overlap one another (`refuse_overlap`), and anything else refuses boot
+//! overlap one another (`refuse_overlap`) or a built-in gateway prefix
+//! (`builtin::builtin_gateway_prefixes`), and anything else refuses boot
 //! with a typed `MountError`, whether or not its extension is enabled. The
 //! built router answers only request paths under its own path. A
 //! registration whose extension is disabled in the profile is not built and
@@ -29,16 +30,14 @@
 use std::sync::Arc;
 
 use axum::Router;
-use axum::extract::Request;
-use axum::http::{HeaderMap, StatusCode};
-use axum::middleware::Next;
-use axum::response::{IntoResponse, Response};
+use axum::http::HeaderMap;
 use systemprompt_extension::{ExtensionContext, RateBudget};
 use systemprompt_identifiers::{ExtensionId, UserId};
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_provider_contracts::MissingDependency;
 
 use super::bridge_error::authenticate_bridge;
+use super::builtin::{builtin_gateway_prefixes, confined};
 use crate::kernel::{ApiHttpError, JwtContextExtractor};
 use crate::services::middleware::{MountError, admit_gateway_route, path_under, refuse_overlap};
 
@@ -116,7 +115,10 @@ pub enum GatewayRouteError {
     MissingState(#[from] MissingDependency),
 }
 
-pub fn admit_registrations(linked: &[GatewayRouteRegistration]) -> Result<(), MountError> {
+pub fn admit_registrations(
+    linked: &[GatewayRouteRegistration],
+    builtin: &[&'static str],
+) -> Result<(), MountError> {
     for registration in linked {
         admit_gateway_route(
             registration.extension,
@@ -124,17 +126,19 @@ pub fn admit_registrations(linked: &[GatewayRouteRegistration]) -> Result<(), Mo
             registration.scope,
             registration.budget,
         )?;
+        let relative = ApiPaths::gateway_relative(registration.path);
+        if let Some(shadowed) = builtin
+            .iter()
+            .find(|prefix| path_under(relative, prefix) || path_under(prefix, relative))
+        {
+            return Err(MountError::GatewayRouteShadowsBuiltin {
+                path: registration.path,
+                builtin: *shadowed,
+            });
+        }
     }
     let prefixes: Vec<&'static str> = linked.iter().map(|r| r.path).collect();
     refuse_overlap(&prefixes)
-}
-
-async fn only_under(prefix: &'static str, request: Request, next: Next) -> Response {
-    if path_under(request.uri().path(), prefix) {
-        next.run(request).await
-    } else {
-        StatusCode::NOT_FOUND.into_response()
-    }
 }
 
 pub(crate) fn build_registered(
@@ -147,7 +151,7 @@ pub(crate) fn build_registered(
             .into_iter()
             .copied()
             .collect();
-    admit_registrations(&linked)?;
+    admit_registrations(&linked, &builtin_gateway_prefixes())?;
     let mut built = Vec::new();
     for registration in linked {
         let enabled = ctx.has_extension(registration.extension)
@@ -161,9 +165,9 @@ pub(crate) fn build_registered(
             );
             continue;
         }
-        let prefix = ApiPaths::gateway_relative(registration.path);
-        let router = (registration.factory)(ctx, GatewayCredential::new(jwt))?.layer(
-            axum::middleware::from_fn(move |request, next| only_under(prefix, request, next)),
+        let router = confined(
+            (registration.factory)(ctx, GatewayCredential::new(jwt))?,
+            vec![ApiPaths::gateway_relative(registration.path)],
         );
         built.push(RegisteredGatewayRoutes {
             scope: registration.scope,

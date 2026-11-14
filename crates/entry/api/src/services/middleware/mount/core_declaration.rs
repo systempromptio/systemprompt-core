@@ -22,11 +22,14 @@
 //!
 //! Every row pins the whole protection shape its declaration is admitted
 //! with: policy, context kind, rate-limit scope, budget and bearer window,
-//! body limit, protection layers and frame options. A declaration that names
-//! a row (extension id, base path and route group) with any other shape is
-//! refused at boot with `MountError::CoreDeclarationMismatch` naming the
-//! field that differs, so a core declaration that changes its protection
-//! fails until the table changes with it.
+//! body limit, protection layers and frame options. Drift is judged per
+//! owner: an extension id that owns any router row may declare only routers
+//! that equal one of its rows in base path, route group and shape. Any other
+//! declaration from that id is refused at boot with
+//! `MountError::CoreDeclarationMismatch` naming the field that differs (the
+//! base path or group when no row of that id matches both), so a core
+//! declaration that moves or changes its protection fails until the table
+//! changes with it. Install ids own no row and are unaffected.
 //!
 //! An extension declaration is matched by its registered extension id, its
 //! base path and its route group. The table is a guard-rail against an
@@ -236,11 +239,7 @@ pub fn admit_extension(
     let base_path = declared.base_path;
     let protection = &declared.protection;
 
-    let drift = CoreDeclaration::ALL
-        .iter()
-        .filter(|entry| entry.names(owner, declared.base_path, declared.group))
-        .find_map(|entry| entry.mismatch(protection));
-    if let Some(field) = drift {
+    if let Some(field) = CoreDeclaration::owner_drift(owner, declared) {
         return Err(MountError::CoreDeclarationMismatch {
             extension,
             base_path,

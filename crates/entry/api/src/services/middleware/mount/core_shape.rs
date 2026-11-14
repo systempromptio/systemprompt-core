@@ -1,17 +1,19 @@
 //! The protection shape a core declaration row pins, and the one field a
-//! declaration that names the row differs in.
+//! declaration from that row's owner differs in.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_extension::prelude::FrameOptions;
-use systemprompt_extension::{ProtectionLayer, RouteProtection};
+use systemprompt_extension::{ExtensionRouter, ProtectionLayer, RouteGroup, RouteProtection};
 
-use super::core_declaration::CoreDeclaration;
+use super::core_declaration::{CoreDeclaration, CoreDeclarer};
 
 /// A field of the protection shape a [`CoreDeclaration`] row pins.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CoreShapeField {
+    BasePath,
+    Group,
     Policy,
     Context,
     RateLimit,
@@ -44,6 +46,27 @@ impl CoreDeclaration {
             Some(CoreShapeField::FrameOptions)
         } else {
             None
+        }
+    }
+
+    pub(super) fn owner_drift(
+        owner: CoreDeclarer,
+        declared: &ExtensionRouter,
+    ) -> Option<CoreShapeField> {
+        let owned = || {
+            Self::ALL.iter().filter(move |entry| {
+                entry.declarer() == owner && entry.group() != RouteGroup::Gateway
+            })
+        };
+        if owned().next().is_none() {
+            return None;
+        }
+        match owned().find(|entry| entry.names(owner, declared.base_path, declared.group)) {
+            Some(row) => row.mismatch(&declared.protection),
+            None if owned().any(|entry| entry.base_path() == declared.base_path) => {
+                Some(CoreShapeField::Group)
+            },
+            None => Some(CoreShapeField::BasePath),
         }
     }
 

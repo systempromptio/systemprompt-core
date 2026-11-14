@@ -46,6 +46,7 @@ pub mod bridge_release;
 pub mod bridge_resolved;
 pub mod bridge_stream;
 pub mod bridge_whoami;
+pub mod builtin;
 pub mod count_tokens;
 pub mod messages;
 pub mod models;
@@ -149,14 +150,18 @@ pub(crate) fn gateway_mount_parts(
         registered::build_registered(ctx, &ctx.profile().extensions.disabled, &jwt_extractor)?;
     #[cfg(feature = "otel")]
     let traffic = traffic.merge(otel_routes(ctx, &jwt_extractor));
+    let traffic = traffic
+        .merge(drive_routes(ctx, &jwt_extractor))
+        .merge(provider_credentials::routes(ctx, &jwt_extractor))
+        .merge(bridge_release::routes(ctx, &jwt_extractor)?)
+        .route("/models", get(models::list).with_state(ctx.clone()))
+        .route("/", get(models::root));
     Ok(GatewayMountParts {
-        traffic: traffic
-            .merge(drive_routes(ctx, &jwt_extractor))
-            .merge(provider_credentials::routes(ctx, &jwt_extractor))
-            .merge(bridge_release::routes(ctx, &jwt_extractor)?)
-            .route("/models", get(models::list).with_state(ctx.clone()))
-            .route("/", get(models::root)),
-        bridge_auth: bridge_auth_routes(ctx, &jwt_extractor),
+        traffic: builtin::confined(traffic, builtin::builtin_gateway_prefixes()),
+        bridge_auth: builtin::confined(
+            bridge_auth_routes(ctx, &jwt_extractor),
+            builtin::builtin_gateway_prefixes(),
+        ),
         registered,
     })
 }

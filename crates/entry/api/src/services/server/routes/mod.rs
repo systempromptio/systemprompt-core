@@ -45,7 +45,7 @@ pub(super) use error::RouteMountError;
 use protocol::{MountCtx, declare};
 use systemprompt_gateway::GatewayEngines;
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::{DynIpBanStore, StartupEventSender};
+use systemprompt_traits::{DynIpBanStore, StartupEventExt as _, StartupEventSender};
 
 use crate::services::middleware::{
     A2AContextMiddleware, BodyBudget, JwtContextExtractor, McpContextMiddleware, MountLayers,
@@ -112,6 +112,7 @@ fn build_routes(
     }
     if serves(RouteGroup::Gateway) {
         router = gateway::mount_gateway(router, &mount)?;
+        report_gateway_guards(engines.guards.not_installed(), events);
     }
     router = feature_mount::mount_feature_routes(router, &mount)?;
     crate::services::messaging::bind_dispatcher(ctx)
@@ -124,6 +125,16 @@ fn build_routes(
 
     router = router.layer(axum::Extension(refresh_lock));
     finish_router(router, &mount, events)
+}
+
+pub fn report_gateway_guards(skipped: &[&str], events: Option<&StartupEventSender>) {
+    if skipped.is_empty() {
+        return;
+    }
+    events.warning_with_context(
+        format!("{} gateway guards not installed: owner disabled", skipped.len()),
+        skipped.join(", "),
+    );
 }
 
 fn mount_layers(ctx: &AppContext, role: NodeRole) -> Result<MountLayers, LoaderError> {
