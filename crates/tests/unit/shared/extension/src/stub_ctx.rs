@@ -1,5 +1,7 @@
 //! The stub `ExtensionContext` shared by the registry tests: every handle is
-//! inert, and `extension_state` is an empty map.
+//! inert, `extension_state` is an empty map, and the one linked extension it
+//! knows is [`GUARD_OWNER`], the owner of the gateway guard these tests
+//! register.
 
 use std::sync::Arc;
 
@@ -7,6 +9,20 @@ use systemprompt_extension::{Extension, ExtensionContext, ExtensionRegistry};
 use systemprompt_traits::{ConfigProvider, DatabaseHandle};
 
 pub(crate) struct StubCtx;
+
+pub(crate) const GUARD_OWNER: &str = "stub-guard-owner";
+
+struct GuardOwner;
+
+impl Extension for GuardOwner {
+    fn metadata(&self) -> systemprompt_extension::ExtensionMetadata {
+        systemprompt_extension::ExtensionMetadata {
+            id: GUARD_OWNER,
+            name: "Stub Guard Owner",
+            version: "0.0.1",
+        }
+    }
+}
 
 #[derive(Debug)]
 struct StubConfig;
@@ -171,8 +187,8 @@ impl ExtensionContext for StubCtx {
     fn token_authority(&self) -> Arc<dyn systemprompt_models::auth::TokenAuthority> {
         systemprompt_test_fixtures::test_token_authority(&self.app_config().jwt_issuer)
     }
-    fn get_extension(&self, _id: &str) -> Option<Arc<dyn Extension>> {
-        None
+    fn get_extension(&self, id: &str) -> Option<Arc<dyn Extension>> {
+        (id == GUARD_OWNER).then(|| Arc::new(GuardOwner) as Arc<dyn Extension>)
     }
     fn extension_state(&self) -> systemprompt_provider_contracts::Dependencies {
         systemprompt_provider_contracts::Dependencies::new()

@@ -52,7 +52,7 @@ impl GatewayRequestGuard for ProbeGuard {
     }
 }
 
-systemprompt::extension::register_gateway_guard!(ProbeGuard);
+systemprompt::extension::register_gateway_guard!("gateway", ProbeGuard);
 
 const FILTER_PRIORITY: i32 = 7_301;
 

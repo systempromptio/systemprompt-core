@@ -49,11 +49,11 @@ pub fn admit_gateway_route(
     scope: &'static str,
     budget: RateBudget,
 ) -> Result<(), MountError> {
-    let declarer = CoreDeclarer::Extension(extension);
+    let owner = CoreDeclarer::Extension(extension);
     let protection = gateway_protection(scope, budget);
     let row = CoreDeclaration::ALL
         .iter()
-        .find(|entry| entry.names(declarer, path, RouteGroup::Gateway))
+        .find(|entry| entry.names(owner, path, RouteGroup::Gateway))
         .ok_or(MountError::UnlistedGatewayRoute { extension, path })?;
     match row.mismatch(&protection) {
         Some(field) => Err(MountError::CoreDeclarationMismatch {
