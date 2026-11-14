@@ -14,7 +14,7 @@ use axum::body::Body;
 use axum::extract::{ConnectInfo, Request};
 use axum::http::StatusCode;
 use systemprompt_api::services::middleware::{
-    Allowance, CoreAllowance, DEFAULT_BODY_LIMIT_BYTES, MountError, admit_extension, protect,
+    Allowance, CoreDeclaration, DEFAULT_BODY_LIMIT_BYTES, MountError, admit_extension, protect,
 };
 use systemprompt_extension::{
     AuthzPolicy, ContextKind, ExtensionRouter, HandlerVerifier, RateBudget, RateLimit,
@@ -180,7 +180,7 @@ async fn a_core_body_limit_above_the_default_must_be_exempted_for_its_own_group(
             if declared == DEFAULT_BODY_LIMIT_BYTES + 1
     ));
 
-    for exemption in CoreAllowance::ALL {
+    for exemption in CoreDeclaration::ALL {
         let Allowance::BodyLimit(bytes) = exemption.allowance() else {
             continue;
         };

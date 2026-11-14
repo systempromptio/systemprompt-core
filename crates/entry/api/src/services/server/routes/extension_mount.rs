@@ -9,10 +9,10 @@
 //! Every declaration is admitted (`admit_extension`, against the closed core
 //! allowance table) before any is mounted, on every node role, so an
 //! inadmissible declaration refuses boot even on a role that would not serve
-//! it. Each admitted declaration is then mounted or skipped by the role table
-//! for its own route group: an `Extensions`-group router is served by the
-//! roles that serve `Extensions`, and a core capability's `Agent`-group
-//! router by the roles that serve `Agent`.
+//! it. A core declaration listed in the core declaration table is then
+//! mounted by the roles that serve its own route group, and every other
+//! declaration only by the roles that serve both `RouteGroup::Extensions` and
+//! its own group, so an install extension keeps its role exposure.
 //!
 //! Extension configuration is not validated here: startup validation runs
 //! each enabled extension's `validate_config` against its own
@@ -39,7 +39,7 @@ use systemprompt_extension::ExtensionRegistry;
 use systemprompt_traits::{StartupEvent, StartupEventSender};
 
 use crate::routes::admin::services::{RefreshLock, ServicesRefresh};
-use crate::services::middleware::admit_extension;
+use crate::services::middleware::{admit_extension, extension_served};
 
 pub(super) fn mount_extension_routes(
     mut router: Router,
@@ -61,7 +61,7 @@ pub(super) fn mount_extension_routes(
         let ext_name = ext.metadata().name;
 
         let base_path = declared.base_path;
-        if !(mount.serves)(declared.group) || !declared.is_enabled(ctx) {
+        if !extension_served(ext_id, &declared, mount.serves) || !declared.is_enabled(ctx) {
             tracing::info!(
                 extension = ext_id,
                 base_path,
