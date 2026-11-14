@@ -28,3 +28,7 @@ mod routes_slack_payload_edges;
 #[cfg(test)]
 #[path = "routes_teams.rs"]
 mod routes_teams;
+
+#[cfg(test)]
+#[path = "secret_refs.rs"]
+mod secret_refs;

@@ -1,8 +1,8 @@
 //! Router state for the Slack surface, built once from the extension
-//! context: the live services view, the secret store, the background-task
-//! owner, the messaging dispatcher slot, the reply client for Slack's
-//! configured Web API, and the untrusted-guarded client for the
-//! payload-supplied `response_url`.
+//! context: the live services view, the platform secret lookup (built-in and
+//! custom names), the background-task owner, the messaging dispatcher slot, the
+//! reply client for Slack's configured Web API, and the untrusted-guarded
+//! client for the payload-supplied `response_url`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,7 +15,7 @@ use systemprompt_manifest::services::ServicesView;
 use systemprompt_provider_contracts::MissingDependency;
 use systemprompt_traits::{
     BackgroundTasks, DispatchOutcome, MessagingDispatchError, MessagingDispatcher,
-    MessagingInbound, SecretStore,
+    MessagingInbound, SecretLookup,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -29,7 +29,7 @@ pub enum SlackStateError {
 #[derive(Clone)]
 pub struct SlackState {
     services: ServicesView,
-    secrets: Arc<dyn SecretStore>,
+    secrets: Arc<dyn SecretLookup>,
     background: BackgroundTasks,
     dispatcher: LateBound<dyn MessagingDispatcher>,
     reply_client: reqwest::Client,
@@ -54,13 +54,12 @@ impl SlackState {
         reply_client: reqwest::Client,
         payload_url_client: GuardedClient,
     ) -> Result<Self, SlackStateError> {
-        let dispatcher = ctx
-            .extension_state()
-            .get::<LateBound<dyn MessagingDispatcher>>()?
-            .clone();
+        let state = ctx.extension_state();
+        let dispatcher = state.get::<LateBound<dyn MessagingDispatcher>>()?.clone();
+        let secrets = Arc::clone(state.get::<Arc<dyn SecretLookup>>()?);
         Ok(Self {
             services: ctx.services(),
-            secrets: ctx.secrets(),
+            secrets,
             background: ctx.background_tasks(),
             dispatcher,
             reply_client,
@@ -72,7 +71,7 @@ impl SlackState {
         &self.services
     }
 
-    pub(super) fn secrets(&self) -> &dyn SecretStore {
+    pub(super) fn secrets(&self) -> &dyn SecretLookup {
         self.secrets.as_ref()
     }
 

@@ -30,9 +30,10 @@ impl Extension for SlackExtension {
 
     #[cfg(feature = "http")]
     fn requires(&self) -> Vec<StateRequirement> {
-        vec![StateRequirement::of::<
-            LateBound<dyn systemprompt_traits::MessagingDispatcher>,
-        >()]
+        vec![
+            StateRequirement::of::<LateBound<dyn systemprompt_traits::MessagingDispatcher>>(),
+            StateRequirement::of::<std::sync::Arc<dyn systemprompt_traits::SecretLookup>>(),
+        ]
     }
 
     fn config_prefix(&self) -> Option<&str> {

@@ -43,7 +43,7 @@ fn now_ts() -> String {
         .to_string()
 }
 
-fn signed_post(path: &str, body: &str, secret: &str) -> Request<Body> {
+pub(crate) fn signed_post(path: &str, body: &str, secret: &str) -> Request<Body> {
     let ts = now_ts();
     let signature = sign(secret.as_bytes(), &ts, body.as_bytes()).expect("sign");
     Request::builder()
@@ -56,7 +56,7 @@ fn signed_post(path: &str, body: &str, secret: &str) -> Request<Body> {
         .expect("request build")
 }
 
-fn router(ctx: &std::sync::Arc<systemprompt_runtime::AppContext>) -> axum::Router {
+pub(crate) fn router(ctx: &std::sync::Arc<systemprompt_runtime::AppContext>) -> axum::Router {
     systemprompt_api::services::messaging::bind_dispatcher(ctx).expect("dispatcher slot seeded");
     systemprompt_slack_entry::http::router(
         systemprompt_slack_entry::http::SlackState::with_clients(

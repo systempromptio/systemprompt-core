@@ -9,10 +9,10 @@
 //! conversation via the Bot Connector.
 //!
 //! Config and secrets resolve on demand: the app is looked up by tenant id in
-//! the live services view, and the app password is read from the deployment's
-//! secret store by its named ref. The router state ([`TeamsState`]) holds the
-//! one outbound HTTP client and a verifier per app, so JWKS fetches are cached
-//! rather than repeated on every activity.
+//! the live services view, and the app password is read by its named ref
+//! through the platform secret lookup (built-in and custom names). The router
+//! state ([`TeamsState`]) holds the one outbound HTTP client and a verifier per
+//! app, so JWKS fetches are cached rather than repeated on every activity.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -38,7 +38,7 @@ use systemprompt_models::modules::ApiPaths;
 use systemprompt_teams::activities::Activity;
 use systemprompt_teams::client::TeamsClient;
 use systemprompt_traits::{
-    DispatchOutcome, LinkPolicy, MessagingConversation, MessagingInbound, SecretStore,
+    DispatchOutcome, LinkPolicy, MessagingConversation, MessagingInbound, SecretLookup,
     SenderIdentity,
 };
 
@@ -196,9 +196,9 @@ fn resolve_app(services: &ServicesConfig, tenant_id: &TeamsTenantId) -> Option<T
         .cloned()
 }
 
-fn app_password(secrets: &dyn SecretStore, app: &TeamsAppConfig) -> Option<String> {
+fn app_password(secrets: &dyn SecretLookup, app: &TeamsAppConfig) -> Option<String> {
     secrets
-        .secret(app.app_password_ref.as_str())
+        .lookup(app.app_password_ref.as_str())
         .map(|secret| secret.expose().to_owned())
 }
 

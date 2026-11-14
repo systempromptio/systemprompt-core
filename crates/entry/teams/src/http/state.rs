@@ -1,10 +1,10 @@
 //! Router state for the Teams surface, built once from the extension
-//! context: the live services view, the secret store, the background-task
-//! owner, the messaging dispatcher slot, one outbound HTTP client with
-//! connect and request timeouts for operator-configured endpoints, the
-//! untrusted-guarded client replies to the payload-supplied `serviceUrl`
-//! travel on, and one [`ActivityTokenVerifier`] per configured app so each
-//! verifier's JWKS cache survives across activities.
+//! context: the live services view, the platform secret lookup (built-in and
+//! custom names), the background-task owner, the messaging dispatcher slot, one
+//! outbound HTTP client with connect and request timeouts for
+//! operator-configured endpoints, the untrusted-guarded client replies to the
+//! payload-supplied `serviceUrl` travel on, and one [`ActivityTokenVerifier`]
+//! per configured app so each verifier's JWKS cache survives across activities.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -21,7 +21,7 @@ use systemprompt_provider_contracts::MissingDependency;
 use systemprompt_teams::auth::ActivityTokenVerifier;
 use systemprompt_traits::{
     BackgroundTasks, DispatchOutcome, MessagingDispatchError, MessagingDispatcher,
-    MessagingInbound, SecretStore,
+    MessagingInbound, SecretLookup,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -41,7 +41,7 @@ struct VerifierKey {
 #[derive(Clone)]
 pub struct TeamsState {
     services: ServicesView,
-    secrets: Arc<dyn SecretStore>,
+    secrets: Arc<dyn SecretLookup>,
     background: BackgroundTasks,
     dispatcher: LateBound<dyn MessagingDispatcher>,
     http: reqwest::Client,
@@ -69,13 +69,12 @@ impl TeamsState {
             .connect_timeout(HTTP_CONNECT_TIMEOUT)
             .timeout(HTTP_DEFAULT_TIMEOUT)
             .build()?;
-        let dispatcher = ctx
-            .extension_state()
-            .get::<LateBound<dyn MessagingDispatcher>>()?
-            .clone();
+        let state = ctx.extension_state();
+        let dispatcher = state.get::<LateBound<dyn MessagingDispatcher>>()?.clone();
+        let secrets = Arc::clone(state.get::<Arc<dyn SecretLookup>>()?);
         Ok(Self {
             services: ctx.services(),
-            secrets: ctx.secrets(),
+            secrets,
             background: ctx.background_tasks(),
             dispatcher,
             http,
@@ -88,7 +87,7 @@ impl TeamsState {
         &self.services
     }
 
-    pub(super) fn secrets(&self) -> &dyn SecretStore {
+    pub(super) fn secrets(&self) -> &dyn SecretLookup {
         self.secrets.as_ref()
     }
 

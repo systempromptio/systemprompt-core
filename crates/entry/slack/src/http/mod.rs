@@ -12,7 +12,8 @@
 //!
 //! Config and secrets resolve on demand: the app is looked up by workspace id
 //! in the live services view, and the signing secret and bot token are read
-//! from the deployment's secret store by their named refs.
+//! by their named refs through the platform secret lookup (built-in and
+//! custom names).
 //!
 //! When the app sets `authz.link.link_by_email`, the sender's profile is read
 //! with `users.info` inside the spawned task — after the ack, never on the
