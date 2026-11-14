@@ -1,7 +1,11 @@
 //! `admin agents run` command hosting one agent process.
 //!
 //! A spawned agent boots an [`AgentHost`] from the environment the API spawned
-//! it with: it never loads the profile's secrets source.
+//! it with: it never loads the profile's secrets source. When the binary links
+//! an extension that provides a [`DynAgentRunLauncher`] (the agent-runs
+//! capability), the A2A server queues task-backed runs through it; without
+//! one, it processes every task itself, as for an agent that declares no run
+//! template.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,12 +17,12 @@ use std::sync::Arc;
 use systemprompt_agent::AgentState;
 use systemprompt_agent::services::a2a_server::run_standalone;
 use systemprompt_agent::services::a2a_server::streaming::webhook_client::HttpWebhookBroadcaster;
-#[cfg(feature = "agent-runs")]
-use systemprompt_agent_runs::AgentRunsExtension;
 use systemprompt_ai::AiService;
+use systemprompt_extension::ExtensionContext;
 use systemprompt_identifiers::AgentName;
 use systemprompt_mcp_host::AgentHost;
 use systemprompt_models::ai::DynAiProvider;
+use systemprompt_traits::DynAgentRunLauncher;
 
 #[derive(Debug, Clone, Args)]
 pub struct RunArgs {
@@ -44,8 +48,10 @@ pub(super) async fn execute(args: RunArgs) -> Result<()> {
         Arc::new(HttpWebhookBroadcaster::from_config(host.config())?),
         host.services_state().view(),
     );
-    #[cfg(feature = "agent-runs")]
-    let agent_state = agent_state.with_agent_run_launcher(AgentRunsExtension::launcher(&db_pool));
+    let agent_state = match host.extension_state().find::<DynAgentRunLauncher>() {
+        Some(launcher) => agent_state.with_agent_run_launcher(Arc::clone(launcher)),
+        None => agent_state,
+    };
     let agent_state = Arc::new(agent_state);
 
     let ai_service = Arc::clone(agent.ai_service());

@@ -15,8 +15,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-#[cfg(feature = "agent-runs")]
-mod agent_runs;
 #[cfg(feature = "brain")]
 mod brain;
 mod documents;

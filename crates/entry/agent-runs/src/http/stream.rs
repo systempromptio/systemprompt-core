@@ -17,12 +17,12 @@ use futures_util::Stream;
 use std::convert::Infallible;
 use systemprompt_agent_runs::RunStatus;
 use systemprompt_agent_runs::notify::BACKSTOP;
+use systemprompt_api::kernel::ApiHttpError;
 use systemprompt_models::RequestContext;
 use tokio::sync::broadcast::error::RecvError;
 
 use super::AgentRunsState;
 use super::handlers::{EVENT_PAGE, owned_run};
-use crate::kernel::ApiHttpError;
 
 pub(super) async fn events_stream(
     Extension(req_ctx): Extension<RequestContext>,

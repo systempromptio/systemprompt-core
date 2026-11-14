@@ -8,9 +8,14 @@
 //! layout's, and a request naming server paths (`add_dirs`, `plugin_dirs`)
 //! or a stdio MCP server is refused.
 //!
+//! [`AgentRunsApiExtension`] declares the group; the API server mounts it
+//! with the user gate and the `agent_runs` rate limit without naming this
+//! crate.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod extension;
 mod handlers;
 mod stream;
 
@@ -19,12 +24,15 @@ use std::sync::Arc;
 use axum::Router;
 use axum::routing::{get, post};
 use systemprompt_agent_runs::notify::RunEventNotifier;
-use systemprompt_agent_runs::repository::AgentRunRepositories;
 use systemprompt_agent_runs::{A2aRunnerConfig, AgentRunRepository};
-use systemprompt_runtime::AppContext;
+use systemprompt_config::paths::AppPaths;
+use systemprompt_database::DbPool;
+use systemprompt_extension::prelude::{ExtensionContext, MissingDependency};
+
+pub use extension::AgentRunsApiExtension;
 
 /// Router-scoped state: the run repository, the run layout root and the one
-/// event notifier, built once when the routes are mounted.
+/// event notifier, built once when the routes are declared.
 #[derive(Clone)]
 pub struct AgentRunsState {
     pub(crate) runs: AgentRunRepository,
@@ -46,22 +54,24 @@ impl AgentRunsState {
         &self.runs
     }
 
-    #[must_use]
-    pub fn build(ctx: &AppContext) -> Self {
-        let config = ctx.config();
-        Self {
-            runs: AgentRunRepositories::new(ctx.db_pool(), ctx.oauth_repositories().oauth.clone())
-                .runs,
+    pub fn from_extension(ctx: &dyn ExtensionContext) -> Result<Self, MissingDependency> {
+        let state = ctx.extension_state();
+        let runs = state.get::<AgentRunRepository>()?.clone();
+        let db = state.get::<DbPool>()?;
+        let paths = state.get::<Arc<AppPaths>>()?;
+        let config = ctx.app_config();
+        Ok(Self {
+            runs,
             notifier: RunEventNotifier::spawn(
-                ctx.background_tasks(),
-                ctx.db_pool().write_pool().as_ref().clone(),
+                &ctx.background_tasks(),
+                db.write_pool().as_ref().clone(),
             ),
             layouts: Arc::new(A2aRunnerConfig::new(
                 &config.api_internal_url,
                 &config.jwt_issuer,
-                ctx.app_paths().storage().data(),
+                paths.storage().data(),
             )),
-        }
+        })
     }
 }
 

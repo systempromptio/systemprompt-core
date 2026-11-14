@@ -11,15 +11,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
-
 use async_trait::async_trait;
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AgentRunId, TaskId};
 use systemprompt_models::a2a::TaskState;
-use systemprompt_traits::{
-    AgentRunLaunch, AgentRunLaunchError, AgentRunLauncher, AgentRunUpdates, DynAgentRunLauncher,
-};
+use systemprompt_traits::{AgentRunLaunch, AgentRunLaunchError, AgentRunLauncher, AgentRunUpdates};
 
 use crate::a2a::{TaskUpdate, final_status, task_events};
 use crate::outcome::RunStatus;
@@ -42,11 +37,6 @@ impl RepositoryRunLauncher {
     #[must_use]
     pub const fn new(repo: AgentRunRepository) -> Self {
         Self { repo }
-    }
-
-    #[must_use]
-    pub fn shared(db: &DbPool) -> DynAgentRunLauncher {
-        Arc::new(Self::new(AgentRunRepository::new(db)))
     }
 }
 

@@ -27,12 +27,11 @@ engine-loro = ["collab", "systemprompt-runtime/engine-loro"]
 office = ["systemprompt-files/office"]
 pdf = ["systemprompt-files/pdf", "systemprompt-api/pdf"]
 brain = ["notifications", "systemprompt-runtime/brain", "systemprompt-mcp-host/brain", "systemprompt-api/brain"]
-agent-runs = ["dep:systemprompt-agent-runs", "systemprompt-api/agent-runs"]
 otel = ["systemprompt-api/otel", "systemprompt-scheduler/otel"]
 bridge = ["systemprompt-api/bridge"]
 slack = ["systemprompt-api/slack"]
 teams = ["systemprompt-api/teams"]
-full = ["notifications", "brain", "engine-loro", "office", "pdf", "agent-runs", "otel", "bridge"]
+full = ["notifications", "brain", "engine-loro", "office", "pdf", "otel", "bridge"]
 
 [lints]
 workspace = true
@@ -56,7 +55,6 @@ thiserror = { workspace = true }
 systemprompt-runtime = { workspace = true, features = ["geolocation"] }
 systemprompt-mcp-host = { workspace = true }
 systemprompt-agent = { workspace = true }
-systemprompt-agent-runs = { workspace = true, optional = true }
 systemprompt-mcp = { workspace = true }
 systemprompt-api = { workspace = true }
 systemprompt-logging = { workspace = true }

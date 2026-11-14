@@ -232,7 +232,7 @@ Extensions, jobs, authz hooks, secrets sources, gateway scanners and adapters, S
 
 | Column | Meaning |
 |--------|---------|
-| `seam` | Seam name, e.g. `authz_hooks`, `gateway_safety_scanners`, `agent_run_origins` (present only when the binary is built with the `agent-runs` feature). |
+| `seam` | Seam name, e.g. `authz_hooks`, `gateway_safety_scanners`, `mcp_toolset_factories`. |
 | `owner` | Crate that collects the registrations. |
 | `count`, `entries` | Registered entries by stable name, id or tag; `priority=N` for priority-only seams; `unnamed#N` for factory-only seams. |
 | `requires` | Profile setting that depends on this seam, if any. |

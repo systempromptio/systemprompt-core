@@ -10,7 +10,7 @@ homepage.workspace = true
 documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "The agent-run HTTP routes and CLI commands of systemprompt.io: the durable run queue, its streams and the run command."
+description = "The agent-run HTTP routes of systemprompt.io: queue, read, cancel and stream a caller's durable headless runs."
 readme = "README.md"
 include = ["src/**/*", "Cargo.toml", "README.md", "CHANGELOG.md"]
 
@@ -23,7 +23,43 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = []
-http = []
-cli = []
+http = [
+    "dep:inventory",
+    "dep:systemprompt-agent-runs",
+    "dep:systemprompt-extension",
+    "dep:axum",
+    "dep:async-stream",
+    "dep:chrono",
+    "dep:futures-util",
+    "dep:serde",
+    "dep:serde_json",
+    "dep:tokio",
+    "dep:tracing",
+    "dep:systemprompt-api",
+    "dep:systemprompt-config",
+    "dep:systemprompt-database",
+    "dep:systemprompt-identifiers",
+    "dep:systemprompt-models",
+]
 
 [dependencies]
+inventory = { workspace = true, optional = true }
+systemprompt-agent-runs = { workspace = true, optional = true }
+systemprompt-extension = { workspace = true, optional = true }
+axum = { workspace = true, optional = true }
+async-stream = { workspace = true, optional = true }
+chrono = { workspace = true, optional = true }
+futures-util = { workspace = true, optional = true }
+serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true, features = ["time", "macros", "sync"] }
+tracing = { workspace = true, optional = true }
+systemprompt-api = { workspace = true, optional = true }
+systemprompt-config = { workspace = true, optional = true }
+systemprompt-database = { workspace = true, optional = true }
+systemprompt-identifiers = { workspace = true, optional = true }
+systemprompt-models = { workspace = true, optional = true }
+
+[package.metadata.cargo-machete]
+# inventory: compile-time registration via register_extension! (::inventory::submit!)
+ignored = ["inventory"]

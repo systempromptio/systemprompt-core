@@ -1,5 +1,4 @@
-//! App-layer seams: gateway policies and adapters, SSO, MCP toolsets and
-//! agent-run origins.
+//! App-layer seams: gateway policies and adapters, SSO and MCP toolsets.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -9,7 +8,7 @@ use super::catalog::{LinkedSeam, named, unnamed};
 pub(super) fn app_seams() -> Vec<LinkedSeam> {
     use systemprompt_gateway as gateway;
     use systemprompt_oauth_issuance::sso;
-    let mut seams = vec![
+    vec![
         LinkedSeam::new(
             "gateway_safety_scanners",
             "systemprompt-gateway",
@@ -66,21 +65,6 @@ pub(super) fn app_seams() -> Vec<LinkedSeam> {
             "systemprompt-mcp-host",
             named(systemprompt_mcp_host::toolsets::registered_toolset_ids()),
         ),
-    ];
-    seams.extend(agent_run_seams());
-    seams
+    ]
 }
 
-#[cfg(feature = "agent-runs")]
-fn agent_run_seams() -> Vec<LinkedSeam> {
-    vec![LinkedSeam::new(
-        "agent_run_origins",
-        "systemprompt-agent-runs",
-        named(systemprompt_agent_runs::origin::registered()),
-    )]
-}
-
-#[cfg(not(feature = "agent-runs"))]
-const fn agent_run_seams() -> Vec<LinkedSeam> {
-    Vec::new()
-}
