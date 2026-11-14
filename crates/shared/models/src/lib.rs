@@ -74,6 +74,7 @@ pub mod auth;
 pub mod authz;
 pub mod brain;
 pub mod bridge;
+pub mod build;
 pub mod content;
 pub mod content_config;
 pub mod defaults;
@@ -128,6 +129,7 @@ pub use artifacts::{
     Alignment, ArtifactType, AxisType, ChartType, CliArtifact, ColumnType, TableArtifact,
 };
 pub use auth::{AuthRequestError, BaseRoles};
+pub use build::BuildIdentity;
 pub use content::IngestionReport;
 pub use content_config::{
     Category, ContentConfigError, ContentConfigErrors, ContentConfigRaw, ContentRouting,

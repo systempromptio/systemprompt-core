@@ -21,6 +21,7 @@ mod health_stats;
 
 mod config_fingerprint;
 pub mod health_detail;
+mod identity;
 pub mod lifecycle;
 pub mod metrics;
 pub mod ops_metrics;

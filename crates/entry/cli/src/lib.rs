@@ -3,8 +3,10 @@
 //! Implements the `systemprompt` binary: the command tree ([`admin`],
 //! [`analytics`], [`build`], [`cloud`], [`core`], [`infrastructure`],
 //! [`plugins`], [`web`]), output formatting, interactive prompts, and session
-//! handling. [`run`] is the process entry point; [`CliConfig`] and the
-//! settings enums control verbosity, color, and output format.
+//! handling. [`run`] is the process entry point; [`run_with`] is the same for
+//! an embedding binary that names its own build, which the health and probe
+//! bodies report. [`CliConfig`] and the settings enums control verbosity,
+//! color, and output format.
 //!
 //! [`kernel`] is the surface command groups build on, and the seam through
 //! which a group defined in another crate registers itself with
@@ -33,7 +35,7 @@ pub use commands::{admin, analytics, build, cloud, core, infrastructure, plugins
 pub use context::CommandContext;
 pub use env_overrides::{EnvOverrides, SessionEnv};
 pub use interactive::{DialoguerPrompter, Prompter, ScriptedPrompter};
-pub use runner::{args, run};
+pub use runner::{args, run, run_with};
 
 #[doc(hidden)]
 pub use inventory as __inventory;

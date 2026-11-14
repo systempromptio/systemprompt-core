@@ -138,6 +138,7 @@ pub async fn handle_health_detail(
         "status": overall_status,
         "timestamp": chrono::Utc::now().to_rfc3339(),
         "version": env!("CARGO_PKG_VERSION"),
+        "build": ctx.build_identity(),
         "checks": {
             "database": { "status": db_status, "latency_ms": db_latency_ms },
             "agents": { "status": agent_status, "count": agent_count },

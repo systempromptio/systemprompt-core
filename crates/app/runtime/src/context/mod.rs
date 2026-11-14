@@ -23,7 +23,7 @@ use systemprompt_manifest::Config;
 use systemprompt_marketplace::inventory::PublishGuard;
 use systemprompt_marketplace::{MarketplaceCache, MarketplaceFilter};
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_models::{ContentConfigRaw, ContentRouting, RouteClassifier};
+use systemprompt_models::{ContentConfigRaw, ContentRouting};
 use systemprompt_provider_contracts::Dependencies;
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::FileStorage;
@@ -162,9 +162,6 @@ impl AppContext {
         ))
     }
 
-    pub const fn route_classifier(&self) -> &Arc<RouteClassifier> {
-        &self.cfg.route_classifier
-    }
 
     pub fn app_paths(&self) -> &AppPaths {
         &self.cfg.app_paths

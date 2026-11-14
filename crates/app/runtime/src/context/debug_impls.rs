@@ -61,6 +61,7 @@ impl std::fmt::Debug for ConfigPlane {
             .field("files_config", &self.files_config)
             .field("content_config", &self.content_config.is_some())
             .field("route_classifier", &"RouteClassifier")
+            .field("build", &self.build)
             .finish()
     }
 }

@@ -76,6 +76,7 @@ pub struct AppContextBuilder {
     shutdown: Option<ShutdownRequest>,
     background_tasks: Option<BackgroundTasks>,
     event_router: Option<EventRouter>,
+    build: systemprompt_models::BuildIdentity,
 }
 
 impl AppContextBuilder {
@@ -92,6 +93,7 @@ impl AppContextBuilder {
             shutdown: None,
             background_tasks: None,
             event_router: None,
+            build: systemprompt_models::BuildIdentity::core(),
         }
     }
 
@@ -239,6 +241,7 @@ impl AppContextBuilder {
                 files_config,
                 content_config: content.content_config,
                 route_classifier: content.route_classifier,
+                build: self.build,
             },
             plugins,
             subsystems,

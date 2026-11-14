@@ -67,6 +67,7 @@ pub struct ConfigPlane {
     pub files_config: Arc<FilesConfig>,
     pub content_config: Option<Arc<ContentConfigRaw>>,
     pub route_classifier: Arc<RouteClassifier>,
+    pub build: systemprompt_models::BuildIdentity,
 }
 
 #[derive(Clone)]

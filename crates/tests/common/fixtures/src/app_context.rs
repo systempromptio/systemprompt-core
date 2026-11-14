@@ -204,6 +204,33 @@ pub fn fixture_app_context_with_extensions(
             services: None,
             documents: enabled_documents(),
             disabled_extensions: disabled_extensions.to_vec(),
+            build: systemprompt_models::BuildIdentity::core(),
+        },
+    )
+}
+
+// Build a fixture context that reports the given binary identity, as an
+// embedding binary's `run_with` does.
+pub fn fixture_app_context_with_build(
+    pool: &DbPool,
+    database_url: &str,
+    build: systemprompt_models::BuildIdentity,
+) -> Result<Arc<AppContext>> {
+    let hook = Arc::new(AllowAllHook::new(Arc::new(NullAuditSink)));
+    let user_repository = Arc::new(systemprompt_users::UserRepository::new(pool));
+    fixture_app_context_assembled(
+        pool,
+        fixture_config(database_url),
+        tmp_paths(),
+        FixtureSeams {
+            marketplace_filter: Arc::new(AllowAllFilter),
+            authz_hook: hook,
+            user_repository,
+            extension_registry: Arc::new(ExtensionRegistry::new()),
+            services: None,
+            documents: enabled_documents(),
+            disabled_extensions: Vec::new(),
+            build,
         },
     )
 }
@@ -228,6 +255,7 @@ pub fn fixture_app_context_documents_disabled(
             services: None,
             documents: DocumentsConfig::default(),
             disabled_extensions: Vec::new(),
+            build: systemprompt_models::BuildIdentity::core(),
         },
     )
 }
@@ -254,6 +282,7 @@ pub fn fixture_app_context_documents_configured(
             services: None,
             documents,
             disabled_extensions: Vec::new(),
+            build: systemprompt_models::BuildIdentity::core(),
         },
     )
 }
@@ -284,6 +313,7 @@ pub fn fixture_app_context_with_services(
                 DocumentsConfig::default()
             },
             disabled_extensions: Vec::new(),
+            build: systemprompt_models::BuildIdentity::core(),
         },
     )
 }
@@ -312,6 +342,7 @@ struct FixtureSeams {
     services: Option<systemprompt_loader::ServicesState>,
     documents: DocumentsConfig,
     disabled_extensions: Vec<ExtensionId>,
+    build: systemprompt_models::BuildIdentity,
 }
 
 // Build a fixture context whose user repository is supplied by the test —
@@ -337,6 +368,7 @@ pub fn fixture_app_context_with_user_repository(
             services: None,
             documents: enabled_documents(),
             disabled_extensions: Vec::new(),
+            build: systemprompt_models::BuildIdentity::core(),
         },
     )
 }
@@ -378,6 +410,7 @@ fn fixture_app_context_full(
             services: None,
             documents: enabled_documents(),
             disabled_extensions: Vec::new(),
+            build: systemprompt_models::BuildIdentity::core(),
         },
     )
 }
@@ -431,6 +464,7 @@ pub fn fixture_app_context_on_bootstrap(
             services: None,
             documents: enabled_documents(),
             disabled_extensions: Vec::new(),
+            build: systemprompt_models::BuildIdentity::core(),
         },
     )
 }
@@ -462,6 +496,7 @@ pub fn fixture_app_context_on_bootstrap_with_paths(
             services: Some(services),
             documents: enabled_documents(),
             disabled_extensions: Vec::new(),
+            build: systemprompt_models::BuildIdentity::core(),
         },
     )
 }
@@ -481,6 +516,7 @@ fn fixture_app_context_assembled_on(
         services,
         documents,
         disabled_extensions,
+        build,
     } = seams;
     let services = services.unwrap_or_else(|| bootstrap.services.clone());
     let governance = systemprompt_traits::ConfigWatch::new(
@@ -586,6 +622,7 @@ fn fixture_app_context_assembled_on(
             app_paths,
             content_config: None,
             route_classifier: Arc::new(RouteClassifier::new(None)),
+            build,
         },
         Plugins {
             extension_registry,

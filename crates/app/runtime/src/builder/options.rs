@@ -70,6 +70,12 @@ impl AppContextBuilder {
     }
 
     #[must_use]
+    pub fn with_build_identity(mut self, build: systemprompt_models::BuildIdentity) -> Self {
+        self.build = build;
+        self
+    }
+
+    #[must_use]
     pub fn with_shutdown(mut self, shutdown: ShutdownRequest) -> Self {
         self.shutdown = Some(shutdown);
         self

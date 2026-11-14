@@ -42,11 +42,10 @@ use crate::services::middleware::LoadShed;
 pub(crate) async fn handle_livez(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
 ) -> impl axum::response::IntoResponse {
-    Json(json!({
-        "status": "alive",
-        "instance": ctx.config().instance_id,
-        "version": env!("CARGO_PKG_VERSION")
-    }))
+    let mut body = serde_json::Map::new();
+    body.insert("status".to_owned(), json!("alive"));
+    body.extend(super::identity::node_identity(&ctx));
+    Json(serde_json::Value::Object(body))
 }
 
 pub(crate) async fn handle_readyz(
@@ -59,12 +58,11 @@ pub(crate) async fn handle_readyz(
     use axum::http::StatusCode;
     use systemprompt_database::DatabaseProvider;
 
-    let instance = ctx.config().instance_id.clone();
+    let identity = super::identity::node_identity(&ctx);
     let fingerprint = super::config_fingerprint::current(ctx.boot());
     let respond = |status: StatusCode, mut body: serde_json::Value, config: serde_json::Value| {
         if let Some(fields) = body.as_object_mut() {
-            fields.insert("instance".to_owned(), json!(instance));
-            fields.insert("version".to_owned(), json!(env!("CARGO_PKG_VERSION")));
+            fields.extend(identity.clone());
             fields.insert("config".to_owned(), config);
         }
         (status, Json(body))

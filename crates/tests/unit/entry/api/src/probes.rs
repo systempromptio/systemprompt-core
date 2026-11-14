@@ -13,7 +13,7 @@ use axum::http::{Request, StatusCode};
 use std::sync::Arc;
 
 use axum::Extension;
-use systemprompt_api::services::server::{ReadinessState, discovery_router};
+use systemprompt_api::services::server::{ReadinessState, SchedulerHealth, discovery_router};
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
 use tower::ServiceExt;
@@ -32,6 +32,7 @@ async fn probe(
     let response = discovery_router(ctx)
         .expect("discovery router builds")
         .layer(Extension(Arc::clone(readiness)))
+        .layer(Extension(Arc::new(SchedulerHealth::new())))
         .oneshot(
             Request::builder()
                 .uri(path)
@@ -135,4 +136,41 @@ async fn livez_keeps_answering_alive_while_the_node_drains() {
          requests"
     );
     assert_eq!(body["status"], "alive");
+}
+
+#[tokio::test]
+async fn probes_and_health_report_the_build_the_embedding_binary_named() {
+    let url = test_database_url();
+    let pool = test_db_pool().await;
+    let build =
+        systemprompt_models::BuildIdentity::new("acme-platform", "3.4.5").with_revision("0123abcd");
+    let ctx = (*systemprompt_test_fixtures::app_context::fixture_app_context_with_build(
+        &pool, &url, build,
+    )
+    .expect("fixture context"))
+    .clone();
+    let readiness = Arc::new(ReadinessState::new());
+
+    for path in ["/livez", "/readyz", "/api/v1/health"] {
+        let (_, body) = probe(&ctx, &readiness, path).await;
+        assert_eq!(body["build"]["name"], "acme-platform", "{path}: {body}");
+        assert_eq!(body["build"]["version"], "3.4.5", "{path}: {body}");
+        assert_eq!(body["build"]["revision"], "0123abcd", "{path}: {body}");
+        assert!(
+            body["version"].as_str().is_some_and(|v| !v.is_empty()),
+            "{path}: core's version stays alongside the build: {body}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn a_binary_that_names_no_build_reports_core_and_no_revision() {
+    let ctx = ctx().await;
+    let readiness = Arc::new(ReadinessState::new());
+
+    let (_, body) = probe(&ctx, &readiness, "/livez").await;
+
+    assert_eq!(body["build"]["name"], "systemprompt", "{body}");
+    assert_eq!(body["build"]["version"], body["version"], "{body}");
+    assert!(body["build"].get("revision").is_none(), "{body}");
 }
