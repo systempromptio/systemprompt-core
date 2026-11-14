@@ -55,14 +55,13 @@ pub fn admit_gateway_route(
         .iter()
         .find(|entry| entry.names(owner, path, RouteGroup::Gateway))
         .ok_or(MountError::UnlistedGatewayRoute { extension, path })?;
-    match row.mismatch(&protection) {
-        Some(field) => Err(MountError::CoreDeclarationMismatch {
+    row.mismatch(&protection).map_or(Ok(()), |field| {
+        Err(MountError::CoreDeclarationMismatch {
             extension,
             base_path: path,
             field,
-        }),
-        None => Ok(()),
-    }
+        })
+    })
 }
 
 pub fn refuse_overlap(prefixes: &[&'static str]) -> Result<(), MountError> {
@@ -71,10 +70,7 @@ pub fn refuse_overlap(prefixes: &[&'static str]) -> Result<(), MountError> {
             .iter()
             .find(|other| path_under(path, other) || path_under(other, path))
         {
-            return Err(MountError::GatewayRouteOverlap {
-                path: *path,
-                other: *other,
-            });
+            return Err(MountError::GatewayRouteOverlap { path, other });
         }
     }
     Ok(())
