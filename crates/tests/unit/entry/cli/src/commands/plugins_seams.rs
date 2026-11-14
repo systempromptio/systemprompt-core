@@ -282,6 +282,22 @@ fn the_gateway_route_seam_is_registered() {
     assert_eq!(routes.extension, Some("gateway"));
 }
 
+#[derive(Default)]
+struct AdmitAllGuard;
+
+#[async_trait::async_trait]
+impl systemprompt_extension::GatewayRequestGuard for AdmitAllGuard {
+    async fn check(
+        &self,
+        _db: &dyn systemprompt_traits::DatabaseHandle,
+        _request: &systemprompt_extension::GatewayGuardRequest<'_>,
+    ) -> Result<(), systemprompt_extension::GatewayDenyReason> {
+        Ok(())
+    }
+}
+
+systemprompt_extension::register_gateway_guard!("gateway", AdmitAllGuard);
+
 #[test]
 fn gateway_request_guards_are_listed_by_owning_extension() {
     let seams = linked_seams();
@@ -289,10 +305,13 @@ fn gateway_request_guards_are_listed_by_owning_extension() {
         .iter()
         .find(|s| s.name == "gateway_request_guards")
         .expect("gateway guards are a listed seam");
+    assert!(!guards.entries.is_empty());
+    assert!(guards.entries.iter().any(|entry| entry == "gateway"));
     let owners: Vec<String> = systemprompt_extension::GatewayGuards::registrations()
         .map(|registration| registration.extension.to_owned())
         .collect();
     assert_eq!(guards.entries.len(), owners.len());
+<<<<<<< HEAD
     assert!(guards.entries.iter().all(|entry| owners.contains(entry)));
     assert!(
         guards
@@ -300,4 +319,7 @@ fn gateway_request_guards_are_listed_by_owning_extension() {
             .iter()
             .all(|entry| !entry.starts_with("unnamed#"))
     );
+=======
+    assert!(guards.entries.iter().all(|entry| !entry.starts_with("unnamed#")));
+>>>>>>> future-e2
 }

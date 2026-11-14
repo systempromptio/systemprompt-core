@@ -84,7 +84,7 @@ pub fn extension_built(extension: &str, serves: &dyn Fn(RouteGroup) -> bool) -> 
     serves(RouteGroup::Extensions)
         || CoreDeclaration::ALL.iter().any(|entry| {
             entry.group() != RouteGroup::Gateway
-                && entry.declarer() == CoreDeclarer::Extension(extension)
+                && matches!(entry.declarer(), CoreDeclarer::Extension(id) if id == extension)
                 && serves(entry.group())
         })
 }
