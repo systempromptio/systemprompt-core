@@ -12,12 +12,15 @@ pub enum SeamStatus {
     Linked,
     Empty,
     Missing,
+    #[serde(rename = "owner_disabled")]
+    OwnerDisabled,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SeamRow {
     pub seam: String,
     pub owner: String,
+    pub extension: String,
     pub count: usize,
     pub entries: String,
     pub requires: String,

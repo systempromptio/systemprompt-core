@@ -3,10 +3,11 @@
 //! on the tasks budget, and the `Agent` route group, so every node role that
 //! serves the agent protocol serves it.
 //!
-//! The run repository the routes read is the one the `agent_runs` extension
-//! `provide`s. A profile that disables either `agent_runs` or
-//! `agent_runs_api` therefore mounts no agent-runs route, and the path
-//! answers 404.
+//! The extension requires the run repository the `agent_runs` extension
+//! `provide`s: a profile that disables `agent_runs` while `agent_runs_api`
+//! stays enabled is refused at boot with `LoaderError::UnmetStateRequirement`.
+//! A profile that disables `agent_runs_api` (alone or with `agent_runs`)
+//! mounts no agent-runs route, and the path answers 404.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -31,11 +32,11 @@ impl Extension for AgentRunsApiExtension {
         }
     }
 
+    fn requires(&self) -> Vec<StateRequirement> {
+        vec![StateRequirement::of::<AgentRunRepository>()]
+    }
+
     fn router(&self, ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
-        if ctx.extension_state().find::<AgentRunRepository>().is_none() {
-            tracing::info!("agent_runs is disabled; agent-runs routes not declared");
-            return None;
-        }
         let state = match AgentRunsState::from_extension(ctx) {
             Ok(state) => state,
             Err(error) => {

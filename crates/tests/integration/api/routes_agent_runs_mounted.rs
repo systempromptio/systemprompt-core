@@ -1,8 +1,9 @@
 //! `/api/v1/agent-runs` on the real router, mounted from the `agent_runs_api`
 //! extension declaration: the user gate refuses a caller with no session on
 //! every node role that serves the agent protocol, a signed-in caller reaches
-//! the handlers, and a profile that disables `agent_runs_api` or `agent_runs`
-//! mounts nothing.
+//! the handlers, a profile that disables `agent_runs_api` mounts nothing, and
+//! one that disables `agent_runs` while the routes stay enabled is refused at
+//! boot.
 
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -86,21 +87,34 @@ async fn a_signed_in_caller_passes_the_gate_to_the_handler() -> Result<()> {
 }
 
 #[tokio::test]
-async fn a_profile_that_disables_either_extension_mounts_no_agent_run_route() -> Result<()> {
-    for disabled in ["agent_runs_api", "agent_runs"] {
-        let (pool, app) = node(NodeRole::All, &[ExtensionId::new(disabled)]).await?;
-        let user = seed_bridge_credential(&pool, &format!("agent-runs-off-{disabled}")).await?;
+async fn a_profile_that_disables_agent_runs_api_mounts_no_agent_run_route() -> Result<()> {
+    for disabled in [vec!["agent_runs_api"], vec!["agent_runs_api", "agent_runs"]] {
+        let ids: Vec<ExtensionId> = disabled.iter().map(|id| ExtensionId::new(*id)).collect();
+        let (pool, app) = node(NodeRole::All, &ids).await?;
+        let user = seed_bridge_credential(&pool, "agent-runs-off").await?;
         assert_eq!(
             status(&app, &run_uri(), None).await?,
             StatusCode::NOT_FOUND,
-            "{disabled}"
+            "{disabled:?}"
         );
         assert_eq!(
             status(&app, &run_uri(), Some(&user.jwt)).await?,
             StatusCode::NOT_FOUND,
-            "{disabled}"
+            "{disabled:?}"
         );
     }
+    Ok(())
+}
+
+#[tokio::test]
+async fn disabling_agent_runs_while_its_routes_stay_enabled_is_refused_at_boot() -> Result<()> {
+    let refused = node(NodeRole::All, &[ExtensionId::new("agent_runs")]).await;
+    let message = match refused {
+        Ok(_) => anyhow::bail!("boot accepted agent_runs_api without the run repository"),
+        Err(error) => format!("{error:#}"),
+    };
+    assert!(message.contains("Extension 'agent_runs_api' requires state"), "{message}");
+    assert!(message.contains("AgentRunRepository"), "{message}");
     Ok(())
 }
 

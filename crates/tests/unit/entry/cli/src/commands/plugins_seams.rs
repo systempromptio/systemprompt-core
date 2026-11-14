@@ -3,15 +3,29 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
+use systemprompt_cli::kernel::{LinkedSeamRegistration, named, registered_seams};
 use systemprompt_cli::plugins::seams::{
     LinkedSeam, Needed, Requirement, SeamsArgs, evaluate, execute, linked_seams,
 };
 use systemprompt_cli::plugins::types::SeamStatus;
+use systemprompt_identifiers::ExtensionId;
+
+systemprompt_cli::register_linked_seam!(LinkedSeamRegistration {
+    name: "test_contributed_seam",
+    owner: "systemprompt-cli-tests",
+    extension: Some("test_capability"),
+    entries: || named(["second", "first"]),
+});
 
 fn seam(name: &'static str, entries: &[&str]) -> LinkedSeam {
+    owned_seam(name, None, entries)
+}
+
+fn owned_seam(name: &'static str, extension: Option<&'static str>, entries: &[&str]) -> LinkedSeam {
     LinkedSeam {
         name,
         owner: "test-owner",
+        extension,
         entries: entries.iter().map(|e| (*e).to_owned()).collect(),
     }
 }
@@ -69,7 +83,7 @@ fn the_compiled_binary_links_core_registrations() {
 
 #[test]
 fn a_seam_without_requirements_is_linked_or_empty() {
-    let (rows, all_linked) = evaluate(vec![seam("a", &["x"]), seam("b", &[])], &[]);
+    let (rows, all_linked) = evaluate(vec![seam("a", &["x"]), seam("b", &[])], &[], &[]);
     assert!(all_linked);
     assert_eq!(rows[0].status, SeamStatus::Linked);
     assert_eq!(rows[0].count, 1);
@@ -83,6 +97,7 @@ fn a_required_seam_with_no_entries_is_missing() {
     let (rows, all_linked) = evaluate(
         vec![seam("authz_hooks", &[])],
         &[requirement("authz_hooks", Needed::AnyEntry)],
+        &[],
     );
     assert!(!all_linked);
     assert_eq!(rows[0].status, SeamStatus::Missing);
@@ -96,11 +111,15 @@ fn a_required_entry_must_be_present_by_name() {
         Needed::Entry("vault-x".to_owned()),
     )];
 
-    let (rows, all_linked) = evaluate(vec![seam("secrets_sources", &["other"])], &reqs);
+    let (rows, all_linked) = evaluate(vec![seam("secrets_sources", &["other"])], &reqs, &[]);
     assert!(!all_linked);
     assert_eq!(rows[0].status, SeamStatus::Missing);
 
-    let (rows, all_linked) = evaluate(vec![seam("secrets_sources", &["other", "vault-x"])], &reqs);
+    let (rows, all_linked) = evaluate(
+        vec![seam("secrets_sources", &["other", "vault-x"])],
+        &reqs,
+        &[],
+    );
     assert!(all_linked);
     assert_eq!(rows[0].status, SeamStatus::Linked);
 }
@@ -131,4 +150,56 @@ fn the_seam_filter_narrows_rows() {
             .iter()
             .all(|row| row["seam"].as_str().unwrap().starts_with("brain_"))
     );
+}
+
+#[test]
+fn a_seam_registered_outside_the_kernel_is_listed_with_its_owner() {
+    let seams = linked_seams();
+    let contributed = seams
+        .iter()
+        .find(|s| s.name == "test_contributed_seam")
+        .expect("a registration from another crate is listed");
+    assert_eq!(contributed.owner, "systemprompt-cli-tests");
+    assert_eq!(contributed.extension, Some("test_capability"));
+    assert_eq!(contributed.entries, vec!["first", "second"]);
+}
+
+#[test]
+fn registrations_are_listed_in_name_order() {
+    let names: Vec<&str> = registered_seams().iter().map(|s| s.name).collect();
+    let mut sorted = names.clone();
+    sorted.sort_unstable();
+    assert_eq!(names, sorted);
+}
+
+#[test]
+fn a_seam_whose_owner_the_profile_disables_is_marked_owner_disabled() {
+    let disabled = [ExtensionId::new("brain")];
+    let (rows, all_linked) = evaluate(
+        vec![
+            owned_seam("brain_filters", Some("brain"), &["priority=1"]),
+            owned_seam("gateway_route_selectors", Some("gateway"), &["x"]),
+            seam("jobs", &["y"]),
+        ],
+        &[],
+        &disabled,
+    );
+    assert!(all_linked);
+    assert_eq!(rows[0].status, SeamStatus::OwnerDisabled);
+    assert_eq!(rows[0].extension, "brain");
+    assert_eq!(rows[1].status, SeamStatus::Linked);
+    assert_eq!(rows[1].extension, "gateway");
+    assert_eq!(rows[2].status, SeamStatus::Linked);
+    assert_eq!(rows[2].extension, "kernel");
+}
+
+#[test]
+fn a_missing_requirement_outranks_a_disabled_owner() {
+    let (rows, all_linked) = evaluate(
+        vec![owned_seam("authz_hooks", Some("authz"), &[])],
+        &[requirement("authz_hooks", Needed::AnyEntry)],
+        &[ExtensionId::new("authz")],
+    );
+    assert!(!all_linked);
+    assert_eq!(rows[0].status, SeamStatus::Missing);
 }

@@ -2,3 +2,6 @@
 
 #[cfg(test)]
 mod declaration;
+
+#[cfg(test)]
+mod seam;

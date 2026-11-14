@@ -28,7 +28,7 @@ Cargo enables the transitive dependencies of each selected feature.
 | `storage` | `dep:systemprompt-storage` |
 | `client` | `dep:systemprompt-client` |
 | `security` | `dep:systemprompt-security`, `dep:systemprompt-governance` |
-| `cli` | `dep:systemprompt-cli` |
+| `cli` | `dep:systemprompt-cli`, `systemprompt-agent-runs-entry?/cli` |
 | `runtime` | `cli`, `dep:systemprompt-extension` |
 | `analytics` | `dep:systemprompt-analytics` |
 | `files-office` | `dep:systemprompt-files`, `systemprompt-files/office` |

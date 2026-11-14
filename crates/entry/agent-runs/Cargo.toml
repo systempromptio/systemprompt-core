@@ -10,7 +10,7 @@ homepage.workspace = true
 documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "The agent-run HTTP routes of systemprompt.io: queue, read, cancel and stream a caller's durable headless runs."
+description = "The agent-run HTTP routes and CLI seam of systemprompt.io: queue, read, cancel and stream a caller's durable headless runs."
 readme = "README.md"
 include = ["src/**/*", "Cargo.toml", "README.md", "CHANGELOG.md"]
 
@@ -41,6 +41,11 @@ http = [
     "dep:systemprompt-identifiers",
     "dep:systemprompt-models",
 ]
+cli = [
+    "dep:inventory",
+    "dep:systemprompt-agent-runs",
+    "dep:systemprompt-cli",
+]
 
 [dependencies]
 inventory = { workspace = true, optional = true }
@@ -55,11 +60,12 @@ serde_json = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true, features = ["time", "macros", "sync"] }
 tracing = { workspace = true, optional = true }
 systemprompt-api = { workspace = true, optional = true }
+systemprompt-cli = { workspace = true, optional = true }
 systemprompt-config = { workspace = true, optional = true }
 systemprompt-database = { workspace = true, optional = true }
 systemprompt-identifiers = { workspace = true, optional = true }
 systemprompt-models = { workspace = true, optional = true }
 
 [package.metadata.cargo-machete]
-# inventory: compile-time registration via register_extension! (::inventory::submit!)
+# inventory: compile-time registration via register_extension!/register_linked_seam! (::inventory::submit!)
 ignored = ["inventory"]

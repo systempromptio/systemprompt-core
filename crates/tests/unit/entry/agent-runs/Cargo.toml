@@ -12,10 +12,17 @@ workspace = true
 
 [dependencies]
 systemprompt-agent-runs = { workspace = true }
-systemprompt-agent-runs-entry = { workspace = true, features = ["http"] }
+systemprompt-agent-runs-entry = { workspace = true, features = ["cli", "http"] }
+systemprompt-cli = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+inventory = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 tokio = { workspace = true }
 systemprompt-test-hack = { version = "0.1", path = "../../../common/hack" }
+
+[package.metadata.cargo-machete]
+# register_run_origin! and register_linked_seam! expand to ::inventory::submit! in this crate.
+ignored = ["inventory"]

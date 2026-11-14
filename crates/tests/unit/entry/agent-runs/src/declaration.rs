@@ -6,18 +6,22 @@
 
 use systemprompt_agent_runs::AgentRunRepository;
 use systemprompt_agent_runs_entry::http::AgentRunsApiExtension;
-use systemprompt_extension::{ContextKind, Extension, RateBudget, RateLimit, RouteGroup};
+use systemprompt_extension::{
+    ContextKind, Extension, RateBudget, RateLimit, RouteGroup, StateRequirement,
+};
 use systemprompt_models::auth::UserType;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_test_fixtures::offline_extension_context;
 use systemprompt_traits::DynAgentRunLauncher;
 
 #[test]
-fn the_extension_is_registered_as_agent_runs_api() {
+fn the_extension_requires_the_run_repository_agent_runs_provides() {
     let extension = AgentRunsApiExtension;
     assert_eq!(extension.metadata().id, "agent_runs_api");
-    assert!(extension.dependencies().is_empty());
-    assert!(extension.requires().is_empty());
+    assert_eq!(
+        extension.requires(),
+        vec![StateRequirement::of::<AgentRunRepository>()]
+    );
 }
 
 #[tokio::test]
