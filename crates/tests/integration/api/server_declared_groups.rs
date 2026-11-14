@@ -96,8 +96,8 @@ async fn the_document_groups_refuse_a_caller_without_a_session_at_the_user_gate(
     let (_pool, app) = all_role().await?;
     for (method, uri) in [
         ("GET", ApiPaths::DOCUMENTS.to_owned()),
-        ("GET", format!("{}/", ApiPaths::DOCUMENT_FOLDERS)),
-        ("POST", format!("{}/", ApiPaths::UPLOADS)),
+        ("GET", ApiPaths::DOCUMENT_FOLDERS.to_owned()),
+        ("POST", ApiPaths::UPLOADS.to_owned()),
         ("GET", format!("{}/facts", ApiPaths::BRAIN)),
     ] {
         assert_eq!(
