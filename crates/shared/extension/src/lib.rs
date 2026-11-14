@@ -124,8 +124,8 @@ pub use error::{
 };
 pub use frame_options::{FrameOptionsOverride, stamp_frame_options};
 pub use gateway_guard::{
-    GatewayDenyKind, GatewayDenyReason, GatewayGuardRequest, GatewayGuards, GatewayRequestGuard,
-    GatewayRequestGuardRegistration,
+    GatewayDenyKind, GatewayDenyReason, GatewayGuardError, GatewayGuardRequest, GatewayGuards,
+    GatewayRequestGuard, GatewayRequestGuardRegistration,
 };
 pub use health::{
     BoxedReadinessSource, DiagnosticDetail, DiagnosticFailure, DiagnosticProbe, MetricDescriptor,

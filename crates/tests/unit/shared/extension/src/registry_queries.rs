@@ -12,7 +12,7 @@ use systemprompt_extension::{
 };
 use systemprompt_identifiers::ExtensionId;
 
-use crate::stub_ctx::{StubCtx, registry_with};
+use crate::stub_ctx::{StubCtx, every, registry_with};
 
 struct CapExt {
     id: &'static str,
@@ -136,7 +136,7 @@ fn api_routers_filters_by_router_presence() {
     let registry = registry_with(vec![Arc::new(routed), Arc::new(CapExt::new("unrouted"))]);
 
     let ctx = StubCtx;
-    let api = registry.api_routers(&ctx, &[]).expect("nothing disabled");
+    let api = registry.api_routers(&ctx, &[], &every).expect("nothing disabled");
     assert_eq!(api.len(), 1);
     assert_eq!(api[0].0.id(), "routed");
     assert_eq!(api[0].1.base_path, "/api/v1/cap");
@@ -150,7 +150,7 @@ fn api_routers_returns_every_declaration_of_one_extension() {
     let registry = registry_with(vec![Arc::new(routed)]);
 
     let ctx = StubCtx;
-    let api = registry.api_routers(&ctx, &[]).expect("nothing disabled");
+    let api = registry.api_routers(&ctx, &[], &every).expect("nothing disabled");
     let paths: Vec<_> = api
         .iter()
         .map(|(ext, declared)| (ext.id(), declared.base_path))
@@ -171,7 +171,7 @@ fn api_routers_refuses_an_extension_whose_routers_fail_to_build() {
 
     let ctx = StubCtx;
     let err = registry
-        .api_routers(&ctx, &[])
+        .api_routers(&ctx, &[], &every)
         .expect_err("a router build failure refuses the whole set");
     match err {
         LoaderError::RouterBuildFailed { extension, source } => {
@@ -183,6 +183,23 @@ fn api_routers_refuses_an_extension_whose_routers_fail_to_build() {
 }
 
 #[test]
+fn api_routers_does_not_build_an_extension_the_role_cannot_serve() {
+    let mut broken = CapExt::new("broken");
+    broken.router_fails = true;
+    let builds = Arc::clone(&broken.router_builds);
+    let mut routed = CapExt::new("routed");
+    routed.has_router = true;
+    let registry = registry_with(vec![Arc::new(routed), Arc::new(broken)]);
+
+    let ctx = StubCtx;
+    let api = registry
+        .api_routers(&ctx, &[], &|id| id != "broken")
+        .expect("an extension this role cannot serve is never built");
+    assert_eq!(api.len(), 1);
+    assert_eq!(builds.load(Ordering::SeqCst), 0);
+}
+
+#[test]
 fn api_routers_builds_each_router_exactly_once() {
     let mut routed = CapExt::new("routed");
     routed.has_router = true;
@@ -190,7 +207,7 @@ fn api_routers_builds_each_router_exactly_once() {
     let registry = registry_with(vec![Arc::new(routed)]);
 
     let ctx = StubCtx;
-    let api = registry.api_routers(&ctx, &[]).expect("nothing disabled");
+    let api = registry.api_routers(&ctx, &[], &every).expect("nothing disabled");
 
     assert_eq!(api.len(), 1);
     assert_eq!(builds.load(Ordering::SeqCst), 1);
@@ -319,7 +336,7 @@ fn api_routers_skip_a_disabled_extension() {
     let registry = registry_with(vec![Arc::new(kept), Arc::new(dropped)]);
 
     let api = registry
-        .api_routers(&StubCtx, &[ExtensionId::new("dropped")])
+        .api_routers(&StubCtx, &[ExtensionId::new("dropped")], &every)
         .expect("the disabled set is valid");
 
     assert_eq!(api.len(), 1);

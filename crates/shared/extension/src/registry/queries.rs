@@ -132,9 +132,13 @@ impl ExtensionRegistry {
         &self,
         ctx: &dyn ExtensionContext,
         disabled_ids: &[ExtensionId],
+        builds: &dyn Fn(&str) -> bool,
     ) -> Result<Vec<ApiRouter>, LoaderError> {
         let mut routers = Vec::new();
         for ext in self.enabled_extensions(disabled_ids)? {
+            if !builds(ext.id()) {
+                continue;
+            }
             let declared = ext
                 .routers(ctx)
                 .map_err(|source| LoaderError::RouterBuildFailed {

@@ -10,7 +10,7 @@ use systemprompt_extension::{
     ExtensionRouter, ExtensionStateError, LoaderError, RESERVED_PATHS,
 };
 
-use crate::stub_ctx::{StubCtx, registry_with};
+use crate::stub_ctx::{StubCtx, every, registry_with};
 
 struct RouterExt {
     id: &'static str,
@@ -103,7 +103,7 @@ fn merge_refuses_a_missing_dependency() {
 
 fn validate(registry: &ExtensionRegistry) -> Result<(), LoaderError> {
     let routers = registry
-        .api_routers(&StubCtx, &[])
+        .api_routers(&StubCtx, &[], &every)
         .expect("nothing disabled");
     ExtensionRegistry::validate_api_paths(&routers)
 }
@@ -117,6 +117,7 @@ fn validate_api_paths_skips_a_disabled_extension() {
         .api_routers(
             &StubCtx,
             &[systemprompt_identifiers::ExtensionId::new("bad")],
+            &every,
         )
         .expect("bad has no dependants");
     ExtensionRegistry::validate_api_paths(&routers)

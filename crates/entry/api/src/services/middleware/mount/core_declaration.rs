@@ -1,7 +1,7 @@
 //! The closed table of core route declarations.
 //!
 //! [`CoreDeclaration`] lists every core route group that is treated
-//! differently from an install extension's, each by its declarer, exact base
+//! differently from an install extension's, each by its owner, exact base
 //! path, route group and the one [`Allowance`] it holds (`Plain` for none).
 //! It decides two things.
 //!
@@ -67,7 +67,7 @@ pub enum Allowance {
     BodyLimit(usize),
 }
 
-/// A core route group, named by its declarer, base path and route group,
+/// A core route group, named by its owner, base path and route group,
 /// with the allowance it holds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CoreDeclaration {
@@ -77,6 +77,7 @@ pub enum CoreDeclaration {
     Teams,
     Notifications,
     NotificationsAdmin,
+    BridgeNotifications,
 }
 
 impl CoreDeclaration {
@@ -87,6 +88,7 @@ impl CoreDeclaration {
         Self::Teams,
         Self::Notifications,
         Self::NotificationsAdmin,
+        Self::BridgeNotifications,
     ];
 
     #[must_use]
@@ -96,7 +98,7 @@ impl CoreDeclaration {
             Self::Slack => CoreDeclarer::Extension("slack"),
             Self::AgentRuns => CoreDeclarer::Extension("agent_runs_api"),
             Self::Teams => CoreDeclarer::Extension("teams"),
-            Self::Notifications | Self::NotificationsAdmin => {
+            Self::Notifications | Self::NotificationsAdmin | Self::BridgeNotifications => {
                 CoreDeclarer::Extension("notifications-http")
             },
         }
@@ -111,6 +113,7 @@ impl CoreDeclaration {
             Self::Teams => ApiPaths::TEAMS_BASE,
             Self::Notifications => ApiPaths::NOTIFICATIONS,
             Self::NotificationsAdmin => ApiPaths::ADMIN_NOTIFICATIONS,
+            Self::BridgeNotifications => ApiPaths::BRIDGE_NOTIFICATIONS,
         }
     }
 
@@ -120,6 +123,7 @@ impl CoreDeclaration {
             Self::AgentProxy | Self::AgentRuns => RouteGroup::Agent,
             Self::Slack | Self::Teams => RouteGroup::Messaging,
             Self::Notifications | Self::NotificationsAdmin => RouteGroup::ContentAndMisc,
+            Self::BridgeNotifications => RouteGroup::Gateway,
         }
     }
 
@@ -132,6 +136,9 @@ impl CoreDeclaration {
             Self::Slack => Allowance::HandlerVerified(HandlerVerifier::SlackSignature),
             Self::Teams => Allowance::HandlerVerified(HandlerVerifier::TeamsBotToken),
             Self::NotificationsAdmin => Allowance::ReservedPrefix,
+            Self::BridgeNotifications => {
+                Allowance::HandlerVerified(HandlerVerifier::GatewayCredential)
+            },
             Self::AgentRuns | Self::Notifications => Allowance::Plain,
         }
     }
@@ -144,6 +151,9 @@ impl CoreDeclaration {
             Self::Slack => AuthzPolicy::handler_verified(HandlerVerifier::SlackSignature),
             Self::Teams => AuthzPolicy::handler_verified(HandlerVerifier::TeamsBotToken),
             Self::NotificationsAdmin => AuthzPolicy::admin(),
+            Self::BridgeNotifications => {
+                AuthzPolicy::handler_verified(HandlerVerifier::GatewayCredential)
+            },
         }
     }
 
@@ -152,7 +162,7 @@ impl CoreDeclaration {
         match self {
             Self::AgentProxy => ContextKind::A2a,
             Self::AgentRuns | Self::Notifications | Self::NotificationsAdmin => ContextKind::User,
-            Self::Slack | Self::Teams => ContextKind::HandlerResolved,
+            Self::Slack | Self::Teams | Self::BridgeNotifications => ContextKind::HandlerResolved,
         }
     }
 
@@ -166,6 +176,10 @@ impl CoreDeclaration {
             Self::Notifications | Self::NotificationsAdmin => {
                 RateLimit::new("notifications", RateBudget::Notifications)
             },
+            Self::BridgeNotifications => {
+                RateLimit::new("bridge_notifications", RateBudget::Notifications)
+                    .with_bearer_window()
+            },
         }
     }
 
@@ -177,22 +191,20 @@ impl CoreDeclaration {
         }
     }
 
-    fn names(self, declarer: CoreDeclarer, declared: &ExtensionRouter) -> bool {
-        self.declarer() == declarer
-            && self.base_path() == declared.base_path
-            && self.group() == declared.group
+    pub(super) fn names(self, owner: CoreDeclarer, base_path: &str, group: RouteGroup) -> bool {
+        self.declarer() == owner && self.base_path() == base_path && self.group() == group
     }
 
-    fn grants(self, declarer: CoreDeclarer, declared: &ExtensionRouter, wanted: Allowance) -> bool {
-        self.names(declarer, declared)
+    fn grants(self, owner: CoreDeclarer, declared: &ExtensionRouter, wanted: Allowance) -> bool {
+        self.names(owner, declared.base_path, declared.group)
             && self.allowance() == wanted
             && self.shape_matches(&declared.protection)
     }
 
-    fn granted(declarer: CoreDeclarer, declared: &ExtensionRouter, wanted: Allowance) -> bool {
+    fn granted(owner: CoreDeclarer, declared: &ExtensionRouter, wanted: Allowance) -> bool {
         Self::ALL
             .iter()
-            .any(|entry| entry.grants(declarer, declared, wanted))
+            .any(|entry| entry.grants(owner, declared, wanted))
     }
 
     pub(super) fn admits_body_limit(base_path: &str, protection: &RouteProtection) -> bool {
@@ -217,13 +229,13 @@ pub fn admit_extension(
     extension: &'static str,
     declared: &ExtensionRouter,
 ) -> Result<(), MountError> {
-    let declarer = CoreDeclarer::Extension(extension);
+    let owner = CoreDeclarer::Extension(extension);
     let base_path = declared.base_path;
     let protection = &declared.protection;
 
     let drift = CoreDeclaration::ALL
         .iter()
-        .filter(|entry| entry.names(declarer, declared))
+        .filter(|entry| entry.names(owner, declared.base_path, declared.group))
         .find_map(|entry| entry.mismatch(protection));
     if let Some(field) = drift {
         return Err(MountError::CoreDeclarationMismatch {
@@ -234,14 +246,14 @@ pub fn admit_extension(
     }
 
     if let Some(verifier) = protection.policy.handler_verifier() {
-        if !CoreDeclaration::granted(declarer, declared, Allowance::HandlerVerified(verifier)) {
+        if !CoreDeclaration::granted(owner, declared, Allowance::HandlerVerified(verifier)) {
             return Err(MountError::ExtensionHandlerVerified { base_path });
         }
     } else if protection.context == ContextKind::HandlerResolved {
         return Err(MountError::ExtensionHandlerVerified { base_path });
     }
 
-    let reserved_granted = CoreDeclaration::granted(declarer, declared, Allowance::ReservedPrefix);
+    let reserved_granted = CoreDeclaration::granted(owner, declared, Allowance::ReservedPrefix);
     if reserved(base_path) && !reserved_granted {
         return Err(MountError::ExtensionReservedPath {
             extension,
@@ -252,7 +264,7 @@ pub fn admit_extension(
     match protection.body_limit {
         Some(bytes)
             if bytes > DEFAULT_BODY_LIMIT_BYTES
-                && !CoreDeclaration::granted(declarer, declared, Allowance::BodyLimit(bytes)) =>
+                && !CoreDeclaration::granted(owner, declared, Allowance::BodyLimit(bytes)) =>
         {
             Err(MountError::ExtensionBodyLimitTooLarge {
                 base_path,
@@ -269,9 +281,10 @@ pub fn extension_served(
     declared: &ExtensionRouter,
     serves: &dyn Fn(RouteGroup) -> bool,
 ) -> bool {
-    let declarer = CoreDeclarer::Extension(extension);
-    let core = CoreDeclaration::ALL
-        .iter()
-        .any(|entry| entry.names(declarer, declared) && entry.shape_matches(&declared.protection));
+    let owner = CoreDeclarer::Extension(extension);
+    let core = CoreDeclaration::ALL.iter().any(|entry| {
+        entry.names(owner, declared.base_path, declared.group)
+            && entry.shape_matches(&declared.protection)
+    });
     serves(declared.group) && (core || serves(RouteGroup::Extensions))
 }

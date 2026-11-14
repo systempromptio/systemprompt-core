@@ -263,3 +263,18 @@ fn the_gateway_route_seam_is_registered() {
     assert_eq!(routes.owner, "systemprompt-api");
     assert_eq!(routes.extension, Some("gateway"));
 }
+
+#[test]
+fn gateway_request_guards_are_listed_by_owning_extension() {
+    let seams = linked_seams();
+    let guards = seams
+        .iter()
+        .find(|s| s.name == "gateway_request_guards")
+        .expect("gateway guards are a listed seam");
+    let owners: Vec<String> = systemprompt_extension::GatewayGuards::registrations()
+        .map(|registration| registration.extension.to_owned())
+        .collect();
+    assert_eq!(guards.entries.len(), owners.len());
+    assert!(guards.entries.iter().all(|entry| owners.contains(entry)));
+    assert!(guards.entries.iter().all(|entry| !entry.starts_with("unnamed#")));
+}

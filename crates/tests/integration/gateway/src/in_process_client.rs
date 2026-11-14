@@ -51,7 +51,7 @@ impl GatewayRequestGuard for DenyServiceGuard {
     }
 }
 
-register_gateway_guard!(DenyServiceGuard);
+register_gateway_guard!("gateway", DenyServiceGuard);
 
 struct Fixture {
     database: DisposableDb,

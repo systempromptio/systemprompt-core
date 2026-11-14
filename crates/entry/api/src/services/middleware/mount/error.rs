@@ -75,6 +75,21 @@ pub enum MountError {
     },
 
     #[error(
+        "extension '{extension}' registers a gateway route group at '{path}' that no core \
+         declaration lists"
+    )]
+    UnlistedGatewayRoute {
+        extension: &'static str,
+        path: &'static str,
+    },
+
+    #[error("gateway route group at '{path}' overlaps the gateway route group at '{other}'")]
+    GatewayRouteOverlap {
+        path: &'static str,
+        other: &'static str,
+    },
+
+    #[error(
         "route group at '{base_path}' declares a {declared}-byte body limit above the 2 MiB \
          server default that no core allowance names for that base path"
     )]
