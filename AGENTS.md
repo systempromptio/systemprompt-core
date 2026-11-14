@@ -155,6 +155,26 @@ If you are an agent working in this repository:
 Your commit should compile and its own tests should pass, but the full
 workspace gate cycle runs in the cloud on every push — do not run it locally.
 
+## Local Loop
+
+- `scripts/gate.sh` is the one gate entry point, locally and in CI. Scope:
+  `--unit CRATE...`, `--changed [--base SHA]` or `--full`; phases `fmt`,
+  `clippy`, `doc`, `gates`, `supply`, `scripts`, `tests` via `--only`/`--skip`;
+  `--cost cheap|compile|db` and `--group` narrow the source gates; `--dry-run`
+  prints the commands. The Claude Code Stop hook runs
+  `scripts/gate.sh --changed --only fmt,gates --cost cheap` before a session
+  finishes.
+- `just regen` regenerates every committed derivative (test database, `.sqlx`
+  caches, hakari, lockfiles) and proves it with an offline build.
+- `eval "$(just test-db-editor [NAME])"` gives a session its own migrated
+  `systemprompt_test_<NAME>` database and exports `TEST_DATABASE_URL`,
+  `DATABASE_URL` and `SYSTEMPROMPT_BIN`; the password is read at run time,
+  never written to a file.
+- Changelog entries are `changelog.d/<id>.toml` fragments; `CHANGELOG.md` is
+  written only by the release.
+- Gate allowlists are per unit: `<package>/gates/<gate>.allow`, paths relative
+  to the package. A stale entry fails its gate in full mode.
+
 ## Licensing
 
 **BSL-1.1** (Business Source License 1.1)
