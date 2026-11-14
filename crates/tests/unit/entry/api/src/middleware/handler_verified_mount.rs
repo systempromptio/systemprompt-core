@@ -184,7 +184,8 @@ async fn a_core_body_limit_above_the_default_must_be_exempted_for_its_own_group(
         let Allowance::BodyLimit(bytes) = exemption.allowance() else {
             continue;
         };
-        let listed = RouteProtection::new(AuthzPolicy::authenticated(), ContextKind::User)
+        let listed = RouteProtection::new(exemption.policy(), exemption.context())
+            .with_rate_limit(exemption.rate_limit())
             .with_body_limit(bytes);
         assert!(
             protect(

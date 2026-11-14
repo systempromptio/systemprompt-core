@@ -63,6 +63,16 @@ pub enum MountError {
     },
 
     #[error(
+        "extension '{extension}' declares the core route group at '{base_path}' with a protection \
+         shape (policy, context, rate limit or body limit) other than the one the core \
+         declaration table lists for it"
+    )]
+    CoreDeclarationMismatch {
+        extension: &'static str,
+        base_path: &'static str,
+    },
+
+    #[error(
         "route group at '{base_path}' declares a {declared}-byte body limit above the 2 MiB \
          server default that no core allowance names for that base path"
     )]

@@ -129,7 +129,7 @@ fn check_body_limit(
     base_path: &'static str,
 ) -> Result<(), MountError> {
     match protection.body_limit {
-        Some(declared) if !CoreDeclaration::admits_body_limit(base_path, declared) => {
+        Some(declared) if !CoreDeclaration::admits_body_limit(base_path, protection) => {
             Err(MountError::UnlistedBodyExemption {
                 base_path,
                 declared,
