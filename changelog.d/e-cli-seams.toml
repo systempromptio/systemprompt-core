@@ -1,0 +1,14 @@
+[root]
+section = "Changed"
+area = "CLI"
+text = "`plugins seams` lists every seam from a registration that names its owning extension (`register_linked_seam!`), so a capability's entry crate contributes its own seams: `agent_run_origins` is listed when the binary links `systemprompt-agent-runs-entry` with its `cli` feature, `gateway_routes` lists the groups registered with `register_gateway_route!` and `gateway_request_guards` lists each guard by its owning extension. Seams are ordered by name and gain an `extension` column (`kernel` for a seam the kernel owns). A seam whose owning extension the profile disables is reported `owner_disabled` and does not fail the command; a required seam is `missing`, and the command exits non-zero, when it lacks the entry, when its owner is disabled, or when no linked crate registers it (owner `unregistered`)."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Added"
+text = "`kernel::LinkedSeamRegistration`, `register_linked_seam!`, `kernel::registered_seams` and the renderers `kernel::{named, prioritized, unnamed}`: each seam `plugins seams` lists is a registration carrying its owning extension id. `plugins seams` lists `gateway_routes` and names gateway guards by owner."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`plugins::seams::evaluate` takes the profile's disabled-extension set; `LinkedSeam` and `SeamRow` gain `extension`; `SeamStatus` gains `OwnerDisabled` (`owner_disabled`); `LinkedSeam::new` is replaced by `LinkedSeam::enumerate(&LinkedSeamRegistration)`. A required seam is `missing` when its owning extension is disabled or no linked crate registers it."

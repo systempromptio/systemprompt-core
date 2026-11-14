@@ -1,0 +1,9 @@
+[root]
+section = "Breaking"
+area = "Facade"
+text = "The facade's `slack`, `teams`, `agent-runs` and `notifications` features each link the capability's domain crate and its entry crate (`systemprompt-slack-entry`, `systemprompt-teams-entry`, `systemprompt-agent-runs-entry`, `systemprompt-notifications-entry`); `api` turns on each linked entry crate's `http` routes and `cli` the agent-runs seam registration. The features no longer enable features of `systemprompt-api`, `systemprompt-cli` or `systemprompt-mcp-host`. `systemprompt::slack` and `systemprompt::teams` re-export both crates; `systemprompt::agent_runs::entry` and `systemprompt::notifications::entry` name the entry crates."
+
+[[crate]]
+name = "systemprompt"
+section = "Breaking"
+text = "`slack`, `teams`, `agent-runs` and `notifications` link the capability's entry crate instead of forwarding to `systemprompt-api`, `systemprompt-cli` or `systemprompt-mcp-host` features; `api` enables the entry crates' `http` feature and `cli` enables `systemprompt-agent-runs-entry/cli`. `systemprompt::slack` and `systemprompt::teams` also re-export `systemprompt-slack-entry` and `systemprompt-teams-entry` (`SlackExtension`, `TeamsExtension`, `http`); `systemprompt::agent_runs::entry` and `systemprompt::notifications::entry` are added."
