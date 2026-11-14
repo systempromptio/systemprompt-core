@@ -23,7 +23,7 @@ use super::protocol::{MountCtx, declare};
 use crate::routes::gateway::{GatewayMountParts, gateway_mount_parts, with_access_log};
 use crate::services::middleware::place;
 
-fn gateway_credential(scope: &'static str, budget: RateBudget) -> RouteProtection {
+const fn gateway_credential(scope: &'static str, budget: RateBudget) -> RouteProtection {
     RouteProtection::new(
         AuthzPolicy::handler_verified(HandlerVerifier::GatewayCredential),
         ContextKind::HandlerResolved,

@@ -42,9 +42,11 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod error;
+mod exemption;
 mod guards;
 
 pub use error::MountError;
+pub use exemption::CoreBodyExemption;
 pub use guards::{ClientWritesGuard, ProtectionGuards, SiteAuthGuard};
 
 use std::sync::Arc;
@@ -63,38 +65,6 @@ use crate::services::middleware::jwt::JwtContextExtractor;
 use crate::services::middleware::rate_limit::{RateLimitState, RouterExt};
 
 pub const DEFAULT_BODY_LIMIT_BYTES: usize = 2 * 1024 * 1024;
-
-/// A core route group, named by its base path, whose group-level body limit
-/// is above [`DEFAULT_BODY_LIMIT_BYTES`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CoreBodyExemption {
-    AgentProxy,
-}
-
-impl CoreBodyExemption {
-    pub const ALL: &'static [Self] = &[Self::AgentProxy];
-
-    #[must_use]
-    pub const fn base_path(self) -> &'static str {
-        match self {
-            Self::AgentProxy => systemprompt_models::modules::ApiPaths::AGENTS_BASE,
-        }
-    }
-
-    #[must_use]
-    pub const fn bytes(self) -> usize {
-        match self {
-            Self::AgentProxy => systemprompt_models::net::AGENT_REQUEST_BODY_LIMIT_BYTES,
-        }
-    }
-
-    fn admits(base_path: &str, declared: usize) -> bool {
-        declared <= DEFAULT_BODY_LIMIT_BYTES
-            || Self::ALL.iter().any(|exemption| {
-                exemption.base_path() == base_path && exemption.bytes() == declared
-            })
-    }
-}
 
 /// The server's enforcement primitives a [`RouteProtection`] is applied with.
 #[derive(Clone)]
@@ -124,6 +94,18 @@ pub fn protect(
     layers: &MountLayers,
     base_path: &'static str,
 ) -> Result<Router, MountError> {
+    check_coherence(protection, base_path)?;
+    check_body_limit(protection, base_path)?;
+    let router = inner_layers(router, protection, layers, base_path)?;
+    let router = rate_limited(router, protection, layers, base_path)?;
+    let router = authenticated(router, protection, layers);
+    outer_layers(router, protection, layers, base_path)
+}
+
+fn check_coherence(
+    protection: &RouteProtection,
+    base_path: &'static str,
+) -> Result<(), MountError> {
     let handler_verified = protection.policy.handler_verifier().is_some();
     if handler_verified != (protection.context == ContextKind::HandlerResolved) {
         return Err(MountError::IncoherentHandlerVerification { base_path });
@@ -134,21 +116,33 @@ pub fn protect(
     if protection.context == ContextKind::Public && protection.requires_authentication() {
         return Err(MountError::IncoherentContext { base_path });
     }
-    if let Some(declared) = protection.body_limit
-        && !CoreBodyExemption::admits(base_path, declared)
-    {
-        return Err(MountError::UnlistedBodyExemption {
-            base_path,
-            declared,
-        });
+    Ok(())
+}
+
+fn check_body_limit(
+    protection: &RouteProtection,
+    base_path: &'static str,
+) -> Result<(), MountError> {
+    match protection.body_limit {
+        Some(declared) if !CoreBodyExemption::admits(base_path, declared) => {
+            Err(MountError::UnlistedBodyExemption {
+                base_path,
+                declared,
+            })
+        },
+        _ => Ok(()),
     }
+}
 
-    let mut router = router;
-
+fn inner_layers(
+    mut router: Router,
+    protection: &RouteProtection,
+    layers: &MountLayers,
+    base_path: &'static str,
+) -> Result<Router, MountError> {
     if let Some(bytes) = protection.body_limit {
         router = router.layer(DefaultBodyLimit::max(bytes));
     }
-
     if protection
         .layers
         .contains(&ProtectionLayer::RefuseFileManagedClientWrites)
@@ -165,33 +159,52 @@ pub fn protect(
             guard.clone().refuse(request, next)
         }));
     }
+    Ok(router)
+}
 
-    if let Some(rate_limit) = protection.rate_limit {
-        let per_second = rate_limit.budget.per_second(layers.limits.config());
-        router = router
-            .with_rate_limit(&layers.limits, per_second, rate_limit.scope)
-            .map_err(|source| MountError::RateLimit {
-                base_path,
-                source: Box::new(source),
-            })?;
-        if rate_limit.bearer_window {
-            let jwt = layers
-                .bearer
-                .as_ref()
-                .ok_or(MountError::BearerWindowUnavailable { base_path })?;
-            router = router.with_bearer_window(&layers.limits, jwt, per_second, rate_limit.scope);
-        }
+fn rate_limited(
+    mut router: Router,
+    protection: &RouteProtection,
+    layers: &MountLayers,
+    base_path: &'static str,
+) -> Result<Router, MountError> {
+    let Some(rate_limit) = protection.rate_limit else {
+        return Ok(router);
+    };
+    let per_second = rate_limit.budget.per_second(layers.limits.config());
+    router = router
+        .with_rate_limit(&layers.limits, per_second, rate_limit.scope)
+        .map_err(|source| MountError::RateLimit {
+            base_path,
+            source: Box::new(source),
+        })?;
+    if rate_limit.bearer_window {
+        let jwt = layers
+            .bearer
+            .as_ref()
+            .ok_or(MountError::BearerWindowUnavailable { base_path })?;
+        router = router.with_bearer_window(&layers.limits, jwt, per_second, rate_limit.scope);
     }
+    Ok(router)
+}
 
+fn authenticated(router: Router, protection: &RouteProtection, layers: &MountLayers) -> Router {
     let policy = protection.policy;
-    router = match protection.context {
+    match protection.context {
         ContextKind::Public => router.with_auth(layers.public, policy),
         ContextKind::User => router.with_auth(layers.user.clone(), policy),
         ContextKind::A2a => router.with_auth(layers.a2a.clone(), policy),
         ContextKind::Mcp => router.with_auth(layers.mcp.clone(), policy),
         ContextKind::HandlerResolved => router,
-    };
+    }
+}
 
+fn outer_layers(
+    mut router: Router,
+    protection: &RouteProtection,
+    layers: &MountLayers,
+    base_path: &'static str,
+) -> Result<Router, MountError> {
     if protection.layers.contains(&ProtectionLayer::SiteAuth) {
         let guard = layers
             .guards
