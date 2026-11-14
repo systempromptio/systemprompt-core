@@ -10,14 +10,13 @@ use systemprompt_models::RequestContext;
 use systemprompt_models::notifications::SubscriptionDecl;
 use systemprompt_notifications::service::SubscriptionView;
 
-use super::NotificationsState;
 use super::ops::{self, SubscriptionList};
-use systemprompt_api::kernel::ApiHttpError;
+use super::{NotificationsHttpError, NotificationsState};
 
 pub(super) async fn list(
     State(state): State<NotificationsState>,
     Extension(req_ctx): Extension<RequestContext>,
-) -> Result<Json<SubscriptionList>, ApiHttpError> {
+) -> Result<Json<SubscriptionList>, NotificationsHttpError> {
     Ok(Json(
         ops::subscriptions(&state.service, req_ctx.user_id()).await?,
     ))
@@ -27,7 +26,7 @@ pub(super) async fn create(
     State(state): State<NotificationsState>,
     Extension(req_ctx): Extension<RequestContext>,
     Json(body): Json<SubscriptionDecl>,
-) -> Result<(StatusCode, Json<SubscriptionView>), ApiHttpError> {
+) -> Result<(StatusCode, Json<SubscriptionView>), NotificationsHttpError> {
     let view = ops::subscribe(&state.service, req_ctx.user_id(), body).await?;
     Ok((StatusCode::CREATED, Json(view)))
 }
@@ -36,7 +35,7 @@ pub(super) async fn remove(
     State(state): State<NotificationsState>,
     Extension(req_ctx): Extension<RequestContext>,
     Path(id): Path<String>,
-) -> Result<StatusCode, ApiHttpError> {
+) -> Result<StatusCode, NotificationsHttpError> {
     ops::unsubscribe(&state.service, req_ctx.user_id(), &id).await?;
     Ok(StatusCode::NO_CONTENT)
 }

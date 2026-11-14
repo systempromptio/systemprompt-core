@@ -8,15 +8,14 @@ use axum::{Extension, Json};
 use systemprompt_models::RequestContext;
 use systemprompt_models::notifications::{Escalate, Notification};
 
-use super::{NotificationsState, ops, surface};
-use systemprompt_api::kernel::ApiHttpError;
+use super::{NotificationsHttpError, NotificationsState, ops, surface};
 
 pub(super) async fn escalate(
     State(state): State<NotificationsState>,
     Extension(req_ctx): Extension<RequestContext>,
     Path(id): Path<String>,
     Json(body): Json<Escalate>,
-) -> Result<Json<Notification>, ApiHttpError> {
+) -> Result<Json<Notification>, NotificationsHttpError> {
     let escalated = ops::escalate(
         &state.service,
         req_ctx.user_id(),

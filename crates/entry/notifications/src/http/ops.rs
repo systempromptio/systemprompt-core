@@ -15,7 +15,7 @@ use systemprompt_models::notifications::{
 };
 use systemprompt_notifications::service::{FeedQuery, NotificationsService, SubscriptionView};
 
-use systemprompt_api::kernel::ApiHttpError;
+use super::NotificationsHttpError;
 
 const DEFAULT_LIMIT: u32 = 50;
 
@@ -60,7 +60,7 @@ pub struct SubscriptionList {
     pub subscriptions: Vec<SubscriptionView>,
 }
 
-fn feed_query(params: &FeedParams) -> Result<FeedQuery, ApiHttpError> {
+fn feed_query(params: &FeedParams) -> Result<FeedQuery, NotificationsHttpError> {
     let since = params
         .since
         .as_deref()
@@ -78,14 +78,14 @@ pub async fn feed(
     service: &NotificationsService,
     user: &UserId,
     params: FeedParams,
-) -> Result<NotificationPage, ApiHttpError> {
+) -> Result<NotificationPage, NotificationsHttpError> {
     Ok(service.feed(user, feed_query(&params)?).await?)
 }
 
 pub async fn unread(
     service: &NotificationsService,
     user: &UserId,
-) -> Result<UnreadCount, ApiHttpError> {
+) -> Result<UnreadCount, NotificationsHttpError> {
     let (unread, unread_capped) = service.unread_state(user).await?;
     Ok(UnreadCount {
         unread,
@@ -97,7 +97,7 @@ pub async fn seen(
     service: &NotificationsService,
     user: &UserId,
     request: MarkSeen,
-) -> Result<SeenResponse, ApiHttpError> {
+) -> Result<SeenResponse, NotificationsHttpError> {
     Ok(SeenResponse {
         seen: service.seen(user, &request.ids).await?,
     })
@@ -108,7 +108,7 @@ pub async fn mark_read(
     user: &UserId,
     request: MarkRead,
     surface: &str,
-) -> Result<MarkReadResponse, ApiHttpError> {
+) -> Result<MarkReadResponse, NotificationsHttpError> {
     let outcome = service.mark_read(user, request, surface).await?;
     Ok(MarkReadResponse {
         ids: outcome.ids,
@@ -122,7 +122,7 @@ pub async fn escalate(
     id: &str,
     request: Escalate,
     surface: &str,
-) -> Result<Notification, ApiHttpError> {
+) -> Result<Notification, NotificationsHttpError> {
     let id = NotificationId::try_new(id)?;
     Ok(service.escalate(user, &id, request, surface).await?)
 }
@@ -130,7 +130,7 @@ pub async fn escalate(
 pub async fn streams(
     service: &NotificationsService,
     user: &UserId,
-) -> Result<StreamList, ApiHttpError> {
+) -> Result<StreamList, NotificationsHttpError> {
     Ok(StreamList {
         streams: service.streams(user).await?,
     })
@@ -139,7 +139,7 @@ pub async fn streams(
 pub async fn subscriptions(
     service: &NotificationsService,
     user: &UserId,
-) -> Result<SubscriptionList, ApiHttpError> {
+) -> Result<SubscriptionList, NotificationsHttpError> {
     Ok(SubscriptionList {
         subscriptions: service.subscriptions(user).await?,
     })
@@ -149,7 +149,7 @@ pub async fn subscribe(
     service: &NotificationsService,
     user: &UserId,
     decl: SubscriptionDecl,
-) -> Result<SubscriptionView, ApiHttpError> {
+) -> Result<SubscriptionView, NotificationsHttpError> {
     Ok(service.subscribe(user, decl).await?)
 }
 
@@ -157,7 +157,7 @@ pub async fn unsubscribe(
     service: &NotificationsService,
     user: &UserId,
     id: &str,
-) -> Result<(), ApiHttpError> {
+) -> Result<(), NotificationsHttpError> {
     let id = NotificationSubscriptionId::try_new(id)?;
     Ok(service.unsubscribe(user, &id).await?)
 }

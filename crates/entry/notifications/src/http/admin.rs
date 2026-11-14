@@ -8,12 +8,11 @@ use axum::Json;
 use axum::extract::State;
 use systemprompt_models::notifications::{SimulateRequest, SimulateResponse};
 
-use super::NotificationsState;
-use systemprompt_api::kernel::ApiHttpError;
+use super::{NotificationsHttpError, NotificationsState};
 
 pub(super) async fn simulate(
     State(state): State<NotificationsState>,
     Json(body): Json<SimulateRequest>,
-) -> Result<Json<SimulateResponse>, ApiHttpError> {
+) -> Result<Json<SimulateResponse>, NotificationsHttpError> {
     Ok(Json(state.service.simulate(body).await?))
 }

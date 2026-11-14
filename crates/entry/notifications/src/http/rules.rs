@@ -10,8 +10,7 @@ use serde::{Deserialize, Serialize};
 use systemprompt_models::RequestContext;
 use systemprompt_models::notifications::RuleDecl;
 
-use super::NotificationsState;
-use systemprompt_api::kernel::ApiHttpError;
+use super::{NotificationsHttpError, NotificationsState};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub(super) struct RuleSet {
@@ -21,7 +20,7 @@ pub(super) struct RuleSet {
 pub(super) async fn list(
     State(state): State<NotificationsState>,
     Extension(req_ctx): Extension<RequestContext>,
-) -> Result<Json<RuleSet>, ApiHttpError> {
+) -> Result<Json<RuleSet>, NotificationsHttpError> {
     let rules = state.service.own_rules(req_ctx.user_id()).await?;
     Ok(Json(RuleSet { rules }))
 }
@@ -30,7 +29,7 @@ pub(super) async fn replace(
     State(state): State<NotificationsState>,
     Extension(req_ctx): Extension<RequestContext>,
     Json(body): Json<RuleSet>,
-) -> Result<StatusCode, ApiHttpError> {
+) -> Result<StatusCode, NotificationsHttpError> {
     state
         .service
         .set_own_rules(req_ctx.user_id(), body.rules)
