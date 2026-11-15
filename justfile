@@ -688,14 +688,13 @@ loadtest-distributed NODES *ARGS:
 # sync with the report and HTML filters and .github/workflows/coverage.yml:
 #
 #   commands/infrastructure/services/serve.rs      — blocking API server boot
-#   commands/cloud/deploy/pipeline/orchestrator.rs — drives a live Fly deploy
-#   commands/cloud/deploy/pipeline/artifacts.rs    — shells out to docker build
-#   commands/cloud/tenant/create/cloud.rs          — provisions real cloud tenants
+#   entry/cloud/src/cli/deploy/pipeline/orchestrator.rs — drives a live Fly deploy
+#   entry/cloud/src/cli/deploy/pipeline/artifacts.rs    — shells out to docker build
 #   commands/admin/setup/docker.rs                 — spawns docker daemon setup
 #   commands/admin/setup/docker_database.rs        — spawns a postgres container
-#   commands/cloud/backup/client.rs                — streams a live backup socket
+#   entry/cloud/src/cli/backup/client.rs                — streams a live backup socket
 #   commands/admin/setup/docker_compose.rs         — renders and runs compose
-#   commands/cloud/tenant/docker/container.rs      — drives live docker containers
+#   entry/cloud/src/cli/tenant/docker/container.rs      — drives live docker containers
 #   agent/services/agent_orchestration/orchestrator/daemon.rs — supervises agents
 #   bin/bridge/src/update/install/linux.rs         — replaces the running binary
 coverage:
@@ -866,7 +865,7 @@ coverage:
     [ -x "$BRIDGE_BIN" ] && BINS="$BINS $BRIDGE_BIN"
     OBJ_ARGS=""
     for b in $BINS; do OBJ_ARGS="$OBJ_ARGS --object $b"; done
-    IGNORE_REGEX="(\.cargo|rustc|crates/tests|/debug/build/[^/]+/out/|$HOME/\.cargo|crates/domain/(agent/src/services/(a2a_server/standalone|agent_orchestration/orchestrator/daemon)|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database|_compose)?|cloud/tenant/docker/container|cloud/backup/(client|mod)|plugins/run|admin/agents/run)\.rs|bin/bridge/src/update/install/linux\.rs)"
+    IGNORE_REGEX="(\.cargo|rustc|crates/tests|/debug/build/[^/]+/out/|$HOME/\.cargo|crates/domain/(agent/src/services/(a2a_server/standalone|agent_orchestration/orchestrator/daemon)|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|admin/setup/docker(_database|_compose)?|plugins/run|admin/agents/run)\.rs|crates/entry/cloud/src/cli/(deploy/pipeline/(orchestrator|artifacts)|tenant/docker/container|backup/(client|mod))\.rs|bin/bridge/src/update/install/linux\.rs)"
 
     echo "==> Coverage report"
     "$LLVM_COV" report \
@@ -926,7 +925,7 @@ coverage-html:
     "$LLVM_COV" show \
         --instr-profile="$ROOT/coverage-report/tests.profdata" \
         $OBJ_ARGS \
-        --ignore-filename-regex="(\.cargo|rustc|crates/tests|/debug/build/[^/]+/out/|$HOME/\.cargo|crates/domain/(agent/src/services/(a2a_server/standalone|agent_orchestration/orchestrator/daemon)|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database|_compose)?|cloud/tenant/docker/container|cloud/backup/(client|mod)|plugins/run|admin/agents/run)\.rs|bin/bridge/src/update/install/linux\.rs)" \
+        --ignore-filename-regex="(\.cargo|rustc|crates/tests|/debug/build/[^/]+/out/|$HOME/\.cargo|crates/domain/(agent/src/services/(a2a_server/standalone|agent_orchestration/orchestrator/daemon)|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|admin/setup/docker(_database|_compose)?|plugins/run|admin/agents/run)\.rs|crates/entry/cloud/src/cli/(deploy/pipeline/(orchestrator|artifacts)|tenant/docker/container|backup/(client|mod))\.rs|bin/bridge/src/update/install/linux\.rs)" \
         --format=html \
         --output-dir="$ROOT/coverage-report/html"
     echo "Coverage report: coverage-report/html/index.html"

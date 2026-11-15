@@ -76,7 +76,7 @@ env:
   # stay in the denominator. Listed file-by-file so testable siblings
   # (a2a_server/server.rs, backup/extract.rs, policy/audit.rs) still count.
   # Mirrors the justfile `coverage` recipe — keep both in sync.
-  COVERAGE_IGNORE_REGEX: '(\.cargo|rustc|crates/tests|/debug/build/[^/]+/out/|/home/runner/\.cargo|crates/domain/(agent/src/services/(a2a_server/standalone|agent_orchestration/orchestrator/daemon)|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database|_compose)?|cloud/tenant/docker/container|cloud/backup/(client|mod)|plugins/run|admin/agents/run)\.rs|bin/bridge/src/update/install/linux\.rs)'
+  COVERAGE_IGNORE_REGEX: '(\.cargo|rustc|crates/tests|/debug/build/[^/]+/out/|/home/runner/\.cargo|crates/domain/(agent/src/services/(a2a_server/standalone|agent_orchestration/orchestrator/daemon)|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|admin/setup/docker(_database|_compose)?|plugins/run|admin/agents/run)\.rs|crates/entry/cloud/src/cli/(deploy/pipeline/(orchestrator|artifacts)|tenant/docker/container|backup/(client|mod))\.rs|bin/bridge/src/update/install/linux\.rs)'
 
 jobs:
   # The instrumented test workspace, compiled once and packed as a nextest
