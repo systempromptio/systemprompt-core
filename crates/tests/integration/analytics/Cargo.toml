@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "Integration tests for systemprompt-analytics crate (require DATABASE_URL)"
+description = "Integration tests for systemprompt-analytics and the systemprompt-analytics-entry route handlers (require DATABASE_URL)"
 publish = false
 
 [lints]
@@ -13,6 +13,9 @@ workspace = true
 [dependencies]
 reqwest = { workspace = true }
 systemprompt-analytics = { workspace = true }
+systemprompt-analytics-entry = { workspace = true, features = ["http"] }
+systemprompt-extension = { workspace = true }
+systemprompt-runtime = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-users = { workspace = true }
 systemprompt-logging = { workspace = true }
@@ -30,6 +33,9 @@ sqlx = { workspace = true }
 uuid = { workspace = true }
 serde_json = { workspace = true }
 http = { workspace = true }
+axum = { workspace = true }
+http-body-util = "0.1"
+tower = { workspace = true }
 
 [package.metadata.cargo-machete]
 ignored = ["reqwest"]

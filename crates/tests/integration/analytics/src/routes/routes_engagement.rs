@@ -1,55 +1,38 @@
-//! Engagement router — single + batch engagement endpoints.
+//! Engagement router: single and batch engagement endpoints at their full
+//! `/track/engagement` paths.
 
 use axum::Extension;
-use systemprompt_api::routes::engagement_router;
+use axum::http::StatusCode;
 use tower::ServiceExt;
 
-use super::common::{json_post, request_context, setup_ctx};
+use super::common::{body_to_string, engagement_router, json_post, request_context, setup_ctx};
 
 #[tokio::test]
-async fn record_engagement_runs_handler() -> anyhow::Result<()> {
+async fn an_empty_batch_records_nothing() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
     let app = engagement_router(&ctx).layer(Extension(request_context("user_engagement")));
-    let body = serde_json::json!({
-        "event_type": "scroll",
-        "session_id": "00000000-0000-0000-0000-000000000000",
-        "url": "https://example.com/",
-    });
-    let resp = app.oneshot(json_post("/", body)).await?;
-    assert!(resp.status().as_u16() >= 200);
+    let body = serde_json::json!({ "events": [] });
+    let (status, body) =
+        body_to_string(app.oneshot(json_post("/track/engagement/batch", body)).await?).await?;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let parsed: serde_json::Value = serde_json::from_str(&body)?;
+    assert_eq!(parsed["recorded"], 0, "{body}");
     Ok(())
 }
 
 #[tokio::test]
-async fn record_engagement_rejects_bad_payload() -> anyhow::Result<()> {
-    let (_pool, ctx) = setup_ctx().await?;
-    let app = engagement_router(&ctx).layer(Extension(request_context("user_engagement")));
-    let resp = app
-        .oneshot(json_post("/", serde_json::json!({"nope": true})))
-        .await?;
-    let status = resp.status().as_u16();
-    assert!((200..600).contains(&status), "{status}");
-    Ok(())
-}
-
-#[tokio::test]
-async fn record_engagement_batch_runs_handler() -> anyhow::Result<()> {
+async fn the_group_answers_only_at_its_full_paths() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
     let app = engagement_router(&ctx).layer(Extension(request_context("user_engagement")));
     let body = serde_json::json!({ "events": [] });
     let resp = app.oneshot(json_post("/batch", body)).await?;
-    assert!(resp.status().as_u16() >= 200);
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
     Ok(())
 }
 
-// The tests above post a payload the input struct does not accept (`url`
-// instead of `page_url`) and assert `status >= 200`, which cannot fail — so the
-// handler body has never run. These drive it with a real session and a real
-// payload, and check the side effect rather than the status alone.
 mod recorded {
     use anyhow::Result;
     use axum::Extension;
-    use systemprompt_api::routes::engagement_router;
     use systemprompt_database::DbPool;
     use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
     use systemprompt_models::RequestContext;
@@ -57,7 +40,7 @@ mod recorded {
     use tower::ServiceExt;
     use uuid::Uuid;
 
-    use crate::common::{body_to_string, json_post, setup_ctx};
+    use crate::routes::common::{body_to_string, engagement_router, json_post, setup_ctx};
 
     struct Seeded {
         req_ctx: RequestContext,
@@ -107,7 +90,7 @@ mod recorded {
         let app = engagement_router(&ctx).layer(Extension(seeded.req_ctx));
 
         let (status, body) =
-            body_to_string(app.oneshot(json_post("/", event("scroll"))).await?).await?;
+            body_to_string(app.oneshot(json_post("/track/engagement", event("scroll"))).await?).await?;
 
         assert_eq!(status.as_u16(), 201, "{body}");
         Ok(())
@@ -124,7 +107,7 @@ mod recorded {
         let app = engagement_router(&ctx).layer(Extension(seeded.req_ctx));
 
         let (status, body) =
-            body_to_string(app.oneshot(json_post("/", event("pricing_click"))).await?).await?;
+            body_to_string(app.oneshot(json_post("/track/engagement", event("pricing_click"))).await?).await?;
         assert_eq!(status.as_u16(), 201, "{body}");
 
         assert!(
@@ -141,7 +124,7 @@ mod recorded {
         let app = engagement_router(&ctx).layer(Extension(seeded.req_ctx));
 
         let (status, _body) =
-            body_to_string(app.oneshot(json_post("/", event("scroll"))).await?).await?;
+            body_to_string(app.oneshot(json_post("/track/engagement", event("scroll"))).await?).await?;
         assert_eq!(status.as_u16(), 201);
 
         assert!(
@@ -165,7 +148,7 @@ mod recorded {
             let app = engagement_router(&ctx).layer(Extension(seeded.req_ctx));
 
             let (status, body) =
-                body_to_string(app.oneshot(json_post("/", event(event_type))).await?).await?;
+                body_to_string(app.oneshot(json_post("/track/engagement", event(event_type))).await?).await?;
             assert_eq!(status.as_u16(), 201, "{event_type}: {body}");
             assert!(
                 converted(&db, &seeded.session).await?,

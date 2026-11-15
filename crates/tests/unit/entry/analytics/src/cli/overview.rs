@@ -4,7 +4,7 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use chrono::{TimeZone, Utc};
-use systemprompt_cli::analytics::overview::{
+use systemprompt_analytics_entry::cli::overview::{
     AgentMetrics, ConversationMetrics, CostMetrics, OverviewOutput, RequestMetrics, SessionMetrics,
     ToolMetrics, calculate_change, export_overview_csv, format_period,
 };

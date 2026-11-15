@@ -9,33 +9,15 @@
 use std::sync::Arc;
 
 use axum::Extension;
-use systemprompt_api::routes::analytics;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_models::{ContentRouting, RequestContext};
 use systemprompt_test_fixtures::{seed_user_row, seed_user_session};
 use tower::ServiceExt;
 
-use super::common::{json_post, setup_ctx};
-
-struct SlugRouter {
-    page_url: String,
-    slug: String,
-}
-
-impl ContentRouting for SlugRouter {
-    fn is_html_page(&self, _path: &str) -> bool {
-        true
-    }
-
-    fn determine_source(&self, _path: &str) -> String {
-        "test".to_owned()
-    }
-
-    fn resolve_slug(&self, path: &str) -> Option<String> {
-        (path == self.page_url).then(|| self.slug.clone())
-    }
-}
+use super::common::{
+    SlugRouter, analytics_router_with_routing, json_post, seed_content, setup_ctx,
+};
 
 async fn seed_session_ctx(db: &DbPool) -> anyhow::Result<RequestContext> {
     let user = UserId::new(format!("an-succ-{}", uuid::Uuid::new_v4()));
@@ -51,33 +33,6 @@ async fn seed_session_ctx(db: &DbPool) -> anyhow::Result<RequestContext> {
     ))
 }
 
-async fn seed_content(db: &DbPool) -> anyhow::Result<(String, String)> {
-    let uniq = uuid::Uuid::new_v4().to_string();
-    let slug = format!("post-{uniq}");
-    let source = format!("src-{uniq}");
-    let id = format!("mc-{uniq}");
-    let p = db.pool();
-    sqlx::query(
-        "INSERT INTO markdown_content \
-         (id, slug, title, description, body, author, published_at, keywords, source_id, \
-         version_hash) \
-         VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, $8, $9)",
-    )
-    .bind(&id)
-    .bind(&slug)
-    .bind("Title")
-    .bind("Desc")
-    .bind("# body")
-    .bind("Author")
-    .bind("k1, k2")
-    .bind(&source)
-    .bind(format!("hash-{uniq}"))
-    .execute(p.as_ref())
-    .await?;
-    let page_url = format!("https://example.com/{slug}");
-    Ok((slug, page_url))
-}
-
 #[tokio::test]
 async fn record_event_created_with_seeded_session() -> anyhow::Result<()> {
     let (db, ctx) = setup_ctx().await?;
@@ -87,7 +42,7 @@ async fn record_event_created_with_seeded_session() -> anyhow::Result<()> {
         page_url: page_url.clone(),
         slug,
     });
-    let app = analytics::router_with_routing(&ctx, Some(routing)).layer(Extension(req_ctx));
+    let app = analytics_router_with_routing(&ctx, Some(routing)).layer(Extension(req_ctx));
 
     let body = serde_json::json!({ "event_type": "page_view", "page_url": page_url });
     let resp = app.oneshot(json_post("/events", body)).await?;
@@ -104,7 +59,7 @@ async fn page_exit_fanout_created_with_seeded_session() -> anyhow::Result<()> {
         page_url: page_url.clone(),
         slug,
     });
-    let app = analytics::router_with_routing(&ctx, Some(routing)).layer(Extension(req_ctx));
+    let app = analytics_router_with_routing(&ctx, Some(routing)).layer(Extension(req_ctx));
 
     let body = serde_json::json!({
         "event_type": "page_exit",
@@ -139,7 +94,7 @@ async fn page_exit_fanout_created_with_seeded_session() -> anyhow::Result<()> {
 async fn page_exit_with_zero_time_on_page_skips_fanout() -> anyhow::Result<()> {
     let (db, ctx) = setup_ctx().await?;
     let req_ctx = seed_session_ctx(&db).await?;
-    let app = analytics::router_with_routing(&ctx, None).layer(Extension(req_ctx));
+    let app = analytics_router_with_routing(&ctx, None).layer(Extension(req_ctx));
 
     let body = serde_json::json!({
         "event_type": "page_exit",
@@ -155,7 +110,7 @@ async fn page_exit_with_zero_time_on_page_skips_fanout() -> anyhow::Result<()> {
 async fn page_exit_without_data_skips_fanout() -> anyhow::Result<()> {
     let (db, ctx) = setup_ctx().await?;
     let req_ctx = seed_session_ctx(&db).await?;
-    let app = analytics::router_with_routing(&ctx, None).layer(Extension(req_ctx));
+    let app = analytics_router_with_routing(&ctx, None).layer(Extension(req_ctx));
 
     let body = serde_json::json!({
         "event_type": "page_exit",
@@ -175,7 +130,7 @@ async fn batch_created_with_seeded_session_and_fanout() -> anyhow::Result<()> {
         page_url: page_url.clone(),
         slug,
     });
-    let app = analytics::router_with_routing(&ctx, Some(routing)).layer(Extension(req_ctx));
+    let app = analytics_router_with_routing(&ctx, Some(routing)).layer(Extension(req_ctx));
 
     let body = serde_json::json!({
         "events": [

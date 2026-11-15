@@ -8,7 +8,7 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use clap::Parser;
-use systemprompt_cli::analytics::{self, AnalyticsCommands};
+use systemprompt_analytics_entry::cli::{self as analytics, AnalyticsCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::SessionId;

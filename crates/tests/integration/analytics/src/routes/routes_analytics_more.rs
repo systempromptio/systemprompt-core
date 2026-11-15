@@ -9,58 +9,13 @@
 use std::sync::Arc;
 
 use axum::Extension;
-use systemprompt_api::routes::{analytics, engagement};
-use systemprompt_database::DbPool;
 use systemprompt_models::ContentRouting;
 use tower::ServiceExt;
 
-use super::common::{json_post, request_context, setup_ctx};
-
-struct SlugRouter {
-    page_url: String,
-    slug: String,
-}
-
-impl ContentRouting for SlugRouter {
-    fn is_html_page(&self, _path: &str) -> bool {
-        true
-    }
-
-    fn determine_source(&self, _path: &str) -> String {
-        "test".to_owned()
-    }
-
-    fn resolve_slug(&self, path: &str) -> Option<String> {
-        (path == self.page_url).then(|| self.slug.clone())
-    }
-}
-
-async fn seed_content(db: &DbPool) -> anyhow::Result<(String, String)> {
-    let uniq = uuid::Uuid::new_v4().to_string();
-    let slug = format!("post-{uniq}");
-    let source = format!("src-{uniq}");
-    let id = format!("mc-{uniq}");
-    let p = db.pool();
-    sqlx::query(
-        "INSERT INTO markdown_content \
-         (id, slug, title, description, body, author, published_at, keywords, source_id, \
-         version_hash) \
-         VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, $8, $9)",
-    )
-    .bind(&id)
-    .bind(&slug)
-    .bind("Title")
-    .bind("Desc")
-    .bind("# body")
-    .bind("Author")
-    .bind("k1, k2")
-    .bind(&source)
-    .bind(format!("hash-{uniq}"))
-    .execute(p.as_ref())
-    .await?;
-    let page_url = format!("https://example.com/{slug}");
-    Ok((slug, page_url))
-}
+use super::common::{
+    SlugRouter, analytics_router_with_routing, engagement_router_with_routing, json_post,
+    request_context, seed_content, setup_ctx,
+};
 
 #[tokio::test]
 async fn record_event_resolves_content_via_routing() -> anyhow::Result<()> {
@@ -70,7 +25,7 @@ async fn record_event_resolves_content_via_routing() -> anyhow::Result<()> {
         page_url: page_url.clone(),
         slug,
     });
-    let app = analytics::router_with_routing(&ctx, Some(routing))
+    let app = analytics_router_with_routing(&ctx, Some(routing))
         .layer(Extension(request_context("user_an_more")));
 
     let body = serde_json::json!({ "event_type": "page_view", "page_url": page_url });
@@ -87,7 +42,7 @@ async fn record_event_resolves_content_via_routing() -> anyhow::Result<()> {
 async fn record_event_with_explicit_slug_skips_routing() -> anyhow::Result<()> {
     let (db, ctx) = setup_ctx().await?;
     let (slug, _page_url) = seed_content(&db).await?;
-    let app = analytics::router_with_routing(&ctx, None)
+    let app = analytics_router_with_routing(&ctx, None)
         .layer(Extension(request_context("user_an_more")));
 
     let body = serde_json::json!({
@@ -112,7 +67,7 @@ async fn page_exit_fanout_resolves_content_via_routing() -> anyhow::Result<()> {
         page_url: page_url.clone(),
         slug,
     });
-    let app = analytics::router_with_routing(&ctx, Some(routing))
+    let app = analytics_router_with_routing(&ctx, Some(routing))
         .layer(Extension(request_context("user_an_more")));
 
     let body = serde_json::json!({
@@ -145,7 +100,7 @@ async fn batch_resolves_content_via_routing() -> anyhow::Result<()> {
         page_url: page_url.clone(),
         slug,
     });
-    let app = analytics::router_with_routing(&ctx, Some(routing))
+    let app = analytics_router_with_routing(&ctx, Some(routing))
         .layer(Extension(request_context("user_an_more")));
 
     let body = serde_json::json!({
@@ -175,7 +130,7 @@ async fn engagement_resolves_content_and_marks_conversion() -> anyhow::Result<()
         page_url: page_url.clone(),
         slug,
     });
-    let app = engagement::router_with_routing(&ctx, Some(routing))
+    let app = engagement_router_with_routing(&ctx, Some(routing))
         .layer(Extension(request_context("user_en_more")));
 
     let body = serde_json::json!({
@@ -185,7 +140,7 @@ async fn engagement_resolves_content_and_marks_conversion() -> anyhow::Result<()
         "max_scroll_depth": 70,
         "click_count": 2,
     });
-    let resp = app.oneshot(json_post("/", body)).await?;
+    let resp = app.oneshot(json_post("/track/engagement", body)).await?;
     assert!(
         resp.status().is_success() || resp.status().is_server_error(),
         "{}",
@@ -202,7 +157,7 @@ async fn engagement_batch_resolves_and_marks_conversion() -> anyhow::Result<()> 
         page_url: page_url.clone(),
         slug,
     });
-    let app = engagement::router_with_routing(&ctx, Some(routing))
+    let app = engagement_router_with_routing(&ctx, Some(routing))
         .layer(Extension(request_context("user_en_more")));
 
     let body = serde_json::json!({
@@ -223,7 +178,7 @@ async fn engagement_batch_resolves_and_marks_conversion() -> anyhow::Result<()> 
             }
         ]
     });
-    let resp = app.oneshot(json_post("/batch", body)).await?;
+    let resp = app.oneshot(json_post("/track/engagement/batch", body)).await?;
     assert!(resp.status().as_u16() >= 200, "{}", resp.status());
     Ok(())
 }

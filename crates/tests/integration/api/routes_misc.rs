@@ -1,7 +1,6 @@
-//! Exercise additional API routes: sync, engagement, analytics, proxy,
-//! contexts, artifacts, oauth discovery and webauthn endpoints — to pull
-//! down coverage on `routes/**` modules that the per-feature suites do
-//! not touch.
+//! Exercise additional API routes: sync, proxy, contexts, artifacts, oauth
+//! discovery and webauthn endpoints — to pull down coverage on `routes/**`
+//! modules that the per-feature suites do not touch.
 
 use axum::Extension;
 use systemprompt_api::routes;
@@ -32,67 +31,6 @@ async fn sync_router_download_runs() -> anyhow::Result<()> {
         .with_state((*ctx).clone())
         .layer(Extension(request_context("u")));
     let resp = app.oneshot(empty_get("/files?dry_run=true")).await?;
-    assert!(resp.status().as_u16() >= 200);
-    Ok(())
-}
-
-#[tokio::test]
-async fn engagement_router_batch_runs() -> anyhow::Result<()> {
-    let ctx = ctx().await?;
-    let app = routes::engagement_router(&ctx).layer(Extension(request_context("u")));
-    let resp = app
-        .oneshot(json_post("/batch", serde_json::json!({ "events": [] })))
-        .await?;
-    assert!(resp.status().as_u16() >= 200);
-    Ok(())
-}
-
-#[tokio::test]
-async fn engagement_router_single_runs() -> anyhow::Result<()> {
-    let ctx = ctx().await?;
-    let app = routes::engagement_router(&ctx).layer(Extension(request_context("u")));
-    let resp = app
-        .oneshot(json_post(
-            "/",
-            serde_json::json!({
-                "session_id": "sess_test",
-                "event_type": "view",
-                "url": "/x"
-            }),
-        ))
-        .await?;
-    assert!(resp.status().as_u16() >= 200);
-    Ok(())
-}
-
-#[tokio::test]
-async fn analytics_router_record_event() -> anyhow::Result<()> {
-    let ctx = ctx().await?;
-    let app = routes::analytics_router(&ctx).layer(Extension(request_context("u")));
-    let resp = app
-        .oneshot(json_post(
-            "/events",
-            serde_json::json!({
-                "session_id": "sess_test",
-                "event_type": "view",
-                "url": "/y"
-            }),
-        ))
-        .await?;
-    assert!(resp.status().as_u16() >= 200);
-    Ok(())
-}
-
-#[tokio::test]
-async fn analytics_router_batch() -> anyhow::Result<()> {
-    let ctx = ctx().await?;
-    let app = routes::analytics_router(&ctx).layer(Extension(request_context("u")));
-    let resp = app
-        .oneshot(json_post(
-            "/events/batch",
-            serde_json::json!({ "events": [] }),
-        ))
-        .await?;
     assert!(resp.status().as_u16() >= 200);
     Ok(())
 }

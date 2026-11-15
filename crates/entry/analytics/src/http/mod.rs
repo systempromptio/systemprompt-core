@@ -85,17 +85,26 @@ impl std::fmt::Debug for AnalyticsHttpState {
 }
 
 impl AnalyticsHttpState {
+    pub const fn new(
+        repositories: Arc<AnalyticsRepositories>,
+        broadcaster: Arc<AnalyticsBroadcaster>,
+        content: ContentResolver,
+    ) -> Self {
+        Self {
+            repositories,
+            broadcaster,
+            content,
+        }
+    }
+
     pub fn from_extension_state(state: &Dependencies) -> Result<Self, MissingDependency> {
         let routing = state
             .find::<Arc<ContentConfigRaw>>()
             .map(|config| Arc::clone(config) as Arc<dyn ContentRouting>);
-        Ok(Self {
-            repositories: Arc::clone(state.get::<Arc<AnalyticsRepositories>>()?),
-            broadcaster: Arc::clone(state.get::<Arc<AnalyticsBroadcaster>>()?),
-            content: ContentResolver::new(
-                Arc::clone(state.get::<DynContentCatalogStats>()?),
-                routing,
-            ),
-        })
+        Ok(Self::new(
+            Arc::clone(state.get::<Arc<AnalyticsRepositories>>()?),
+            Arc::clone(state.get::<Arc<AnalyticsBroadcaster>>()?),
+            ContentResolver::new(Arc::clone(state.get::<DynContentCatalogStats>()?), routing),
+        ))
     }
 }

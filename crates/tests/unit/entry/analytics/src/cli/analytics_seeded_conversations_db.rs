@@ -9,7 +9,7 @@
 use clap::Parser;
 use systemprompt_agent::models::context::ContextKind;
 use systemprompt_agent::repository::ContextRepository;
-use systemprompt_cli::analytics::{self, AnalyticsCommands};
+use systemprompt_analytics_entry::cli::{self as analytics, AnalyticsCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::SessionId;

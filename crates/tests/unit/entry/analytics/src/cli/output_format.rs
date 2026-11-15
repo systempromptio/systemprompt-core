@@ -3,7 +3,7 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::analytics::shared::{
+use systemprompt_analytics_entry::cli::shared::{
     BreakdownData, MetricCard, format_change, format_cost, format_number, format_percent,
     format_tokens,
 };

@@ -4,7 +4,7 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use chrono::{DateTime, Datelike, Duration, TimeZone, Timelike, Utc};
-use systemprompt_cli::analytics::shared::{
+use systemprompt_analytics_entry::cli::shared::{
     parse_duration, parse_since, parse_time_range, parse_until, truncate_to_period,
 };
 

@@ -8,7 +8,7 @@ use std::path::Path;
 
 use crate::boot_ctx::bootstrap_ctx;
 use serde::Serialize;
-use systemprompt_cli::analytics::shared::export::{
+use systemprompt_analytics_entry::cli::shared::export::{
     CsvBuilder, ensure_export_dir, export_single_to_csv, export_to_csv, resolve_export_path,
 };
 

@@ -58,7 +58,6 @@ mod agents_logs_disk_selection;
 mod agents_mcp_logs_db;
 mod agents_registry_projection;
 mod agents_validate_checks;
-mod analytics;
 mod bridge_signing_key_fingerprint;
 mod build_mcp;
 mod build_mcp_in_root;

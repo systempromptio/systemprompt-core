@@ -1,53 +1,61 @@
-//! Analytics router — events, batches, and SSE stream.
+//! Analytics router: event ingestion, batches and the SSE stream.
 
 use axum::Extension;
-use systemprompt_api::routes::analytics_router;
+use axum::http::{StatusCode, header};
 use tower::ServiceExt;
 
-use super::common::{empty_get, json_post, request_context, setup_ctx};
+use super::common::{
+    analytics_router, body_to_string, empty_get, json_post, request_context, setup_ctx,
+};
 
 #[tokio::test]
-async fn record_event_runs_handler() -> anyhow::Result<()> {
+async fn an_event_without_a_page_url_is_refused_before_the_handler() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
     let app = analytics_router(&ctx).layer(Extension(request_context("user_analytics")));
     let body = serde_json::json!({
         "event_type": "page_view",
         "url": "https://example.com/",
-        "session_id": "00000000-0000-0000-0000-000000000000",
     });
     let resp = app.oneshot(json_post("/events", body)).await?;
-    assert!(resp.status().as_u16() >= 200);
+    assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
     Ok(())
 }
 
 #[tokio::test]
-async fn record_event_rejects_bad_payload() -> anyhow::Result<()> {
+async fn an_unrecognised_payload_is_refused() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
     let app = analytics_router(&ctx).layer(Extension(request_context("user_analytics")));
     let resp = app
         .oneshot(json_post("/events", serde_json::json!({"junk": true})))
         .await?;
-    // missing required fields -> 4xx (deserialize failure)
-    assert!(resp.status().is_client_error() || resp.status().is_server_error());
+    assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
     Ok(())
 }
 
 #[tokio::test]
-async fn record_events_batch_accepts_empty_array() -> anyhow::Result<()> {
+async fn an_empty_batch_records_nothing() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
     let app = analytics_router(&ctx).layer(Extension(request_context("user_analytics")));
     let body = serde_json::json!({ "events": [] });
-    let resp = app.oneshot(json_post("/events/batch", body)).await?;
-    assert!(resp.status().as_u16() >= 200);
+    let (status, body) = body_to_string(app.oneshot(json_post("/events/batch", body)).await?).await?;
+    assert_eq!(status, StatusCode::CREATED, "{body}");
+    let parsed: serde_json::Value = serde_json::from_str(&body)?;
+    assert_eq!(parsed["recorded"], 0, "{body}");
     Ok(())
 }
 
 #[tokio::test]
-async fn analytics_stream_route_executes() -> anyhow::Result<()> {
+async fn the_stream_answers_with_server_sent_events() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
     let app = analytics_router(&ctx).layer(Extension(request_context("user_analytics")));
     let resp = app.oneshot(empty_get("/stream")).await?;
-    assert!(resp.status().as_u16() >= 200);
+    assert_eq!(resp.status(), StatusCode::OK);
+    let content_type = resp
+        .headers()
+        .get(header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default();
+    assert!(content_type.starts_with("text/event-stream"), "{content_type}");
     Ok(())
 }
 

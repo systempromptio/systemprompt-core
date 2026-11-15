@@ -3,7 +3,7 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_cli::core::content::{
-    delete, edit, link, list, popular, search, show, status, verify,
+    delete, edit, link, list, search, show, status, verify,
 };
 use systemprompt_cli::interactive::ScriptedPrompter;
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides};
@@ -434,38 +434,6 @@ async fn status_reports_prerender_health() {
     )
     .await
     .unwrap();
-}
-
-#[tokio::test]
-async fn popular_parses_duration_and_lists() {
-    let pool = test_db_pool().await;
-    let source = unique("src");
-    seed_content(&pool, &source, &slug()).await;
-
-    popular::execute_with_pool(
-        popular::PopularArgs {
-            source: source.clone(),
-            since: "7d".to_owned(),
-            limit: 5,
-        },
-        &pool,
-        &cfg(),
-    )
-    .await
-    .unwrap();
-
-    let err = popular::execute_with_pool(
-        popular::PopularArgs {
-            source,
-            since: "not-a-duration".to_owned(),
-            limit: 5,
-        },
-        &pool,
-        &cfg(),
-    )
-    .await
-    .unwrap_err();
-    assert!(!err.to_string().is_empty());
 }
 
 #[tokio::test]
