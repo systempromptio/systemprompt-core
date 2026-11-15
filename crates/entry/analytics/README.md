@@ -22,4 +22,4 @@ The live stream subscribes to the analytics event broadcaster, which the API han
 
 ## Commands (`cli`)
 
-The top-level `analytics` group (`overview`, `conversations`, `agents`, `tools`, `requests`, `sessions`, `content`, `traffic`, `costs`) and `core content popular`, both registered with the CLI kernel. Every command is read-only and accepts `--database-url`; `analytics` writes `--export` files locally.
+The top-level `analytics` group (`overview`, `conversations`, `agents`, `tools`, `requests`, `sessions`, `content`, `traffic`, `costs`), registered with the CLI kernel. With the `content-commands` feature as well, `core content popular`, a leaf under the `core content` group of `systemprompt-content-entry`; enable it only in a build that also registers that group (the `systemprompt` facade does so when both `analytics` and `content` are on). Every command is read-only and accepts `--database-url`; `analytics` writes `--export` files locally.

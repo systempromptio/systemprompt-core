@@ -9,8 +9,11 @@
 //!
 //! The `cli` feature carries the capability's commands ([`cli`]): the
 //! top-level `analytics` group (overview, conversations, agents, tools,
-//! requests, sessions, content, traffic, costs) and the `core content popular`
-//! leaf, both registered with the CLI kernel.
+//! requests, sessions, content, traffic, costs), registered with the CLI
+//! kernel. With `content-commands` as well, it also registers the
+//! `core content popular` leaf under the `core content` group of
+//! `systemprompt-content-entry`; a build without that group must leave the
+//! feature off, or the kernel refuses the leaf's unknown parent.
 //!
 //! The analytics repositories, the `GeoIP` reader and the request-analytics
 //! middleware are composed by the kernel, not here: the session store they

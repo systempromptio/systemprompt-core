@@ -82,7 +82,7 @@ analytics = ["dep:systemprompt-analytics", "dep:systemprompt-analytics-entry"]
 # The content capability: the domain crate with its routes and commands from
 # `systemprompt-content-entry` (served when `api` / `cli` are also enabled).
 # `full` implies it.
-content = ["dep:systemprompt-content", "dep:systemprompt-content-entry"]
+content = ["dep:systemprompt-content", "dep:systemprompt-content-entry", "systemprompt-analytics-entry?/content-commands"]
 
 # Slack integration: the domain crate and the `/api/v1/slack` inbound routes
 # (Events API, slash commands, interactivity). Opt-in: excluded from `default`

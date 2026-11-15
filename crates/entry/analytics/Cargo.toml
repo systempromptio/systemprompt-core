@@ -57,6 +57,11 @@ cli = [
     "dep:serde_json",
     "dep:tokio",
 ]
+# The `core content popular` leaf, registered under the `core content` group
+# of `systemprompt-content-entry`. Compiled only together with `cli`; the
+# facade turns it on when both the analytics and content capabilities are
+# composed.
+content-commands = []
 
 [dependencies]
 systemprompt-analytics = { workspace = true, optional = true }
