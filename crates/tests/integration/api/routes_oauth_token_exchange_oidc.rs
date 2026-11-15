@@ -80,7 +80,7 @@ async fn token_app() -> anyhow::Result<Router> {
     let (_pool, ctx) = setup_ctx_customised(configure).await?;
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
-        ctx.analytics_provider().expect("analytics"),
+        ctx.analytics_provider(),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
         systemprompt_test_fixtures::test_oauth_signing(),

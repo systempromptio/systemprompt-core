@@ -35,7 +35,6 @@ async fn the_provider_view_shares_the_concrete_config_and_database() {
     assert_eq!(config.api_port(), ctx.config().port);
     assert!(view.database_handle().is_connected());
     assert!(view.session_provider().is_some());
-    assert!(view.analytics_provider().is_some());
     assert_eq!(
         view.user_provider().is_some(),
         HasUserService::user_service(ctx.as_ref()).is_some()

@@ -101,9 +101,7 @@ async fn bound_session(
 }
 
 async fn mint(ctx: &AppContext, request: SessionRequest<'_>) -> Result<SessionId, RejectionError> {
-    let analytics = ctx
-        .analytics_provider()
-        .ok_or_else(|| binding_error("analytics provider unavailable"))?;
+    let analytics = ctx.analytics_provider();
     let users = ctx
         .user_provider()
         .ok_or_else(|| binding_error("user provider unavailable"))?;

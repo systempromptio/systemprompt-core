@@ -51,12 +51,7 @@ pub async fn create_session(
     .await?
     .ok_or_else(|| ApiHttpError::unauthorized("Invalid or revoked API key"))?;
 
-    let analytics = ctx.analytics_provider().ok_or_else(|| {
-        ApiHttpError::internal(
-            "Analytics provider unavailable",
-            "provider is not registered",
-        )
-    })?;
+    let analytics = ctx.analytics_provider();
     let user_provider = ctx.user_provider().ok_or_else(|| {
         ApiHttpError::internal("User provider unavailable", "provider is not registered")
     })?;

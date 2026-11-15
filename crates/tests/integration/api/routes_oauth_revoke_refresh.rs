@@ -68,7 +68,7 @@ async fn fixture() -> anyhow::Result<Fixture> {
 fn app(ctx: &AppContext, caller: &UserId) -> Router {
     let state = OAuthState::new(
         repo(ctx).clone(),
-        ctx.analytics_provider().expect("analytics"),
+        ctx.analytics_provider(),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
         systemprompt_test_fixtures::test_oauth_signing(),

@@ -37,7 +37,7 @@ use super::{RouteMountError, require_provider};
 use crate::services::middleware::place;
 
 fn create_oauth_state(ctx: &AppContext) -> Result<OAuthState, LoaderError> {
-    let analytics = require_provider("oauth", ctx.analytics_provider())?;
+    let analytics = ctx.analytics_provider();
     let users = require_provider("oauth", ctx.user_provider())?;
     let sessions = require_provider("oauth", ctx.session_provider())?;
     let mcp_registry = ctx

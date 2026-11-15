@@ -47,7 +47,7 @@ async fn token_app() -> anyhow::Result<Router> {
         setup_ctx_customised(|c| c.allowed_resource_audiences = vec!["hook".to_owned()]).await?;
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
-        ctx.analytics_provider().expect("analytics"),
+        ctx.analytics_provider(),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
         systemprompt_test_fixtures::test_oauth_signing(),

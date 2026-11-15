@@ -49,7 +49,7 @@ fn oauth_state(ctx: &systemprompt_runtime::AppContext) -> anyhow::Result<OAuthSt
     .map_err(|e| anyhow::anyhow!("webauthn service: {e}"))?;
     Ok(OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
-        ctx.analytics_provider().expect("analytics"),
+        ctx.analytics_provider(),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
         systemprompt_test_fixtures::test_oauth_signing(),
