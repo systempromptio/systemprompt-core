@@ -16,12 +16,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
-
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_provider_contracts::Job;
 
-use crate::contribute::{ContributionSink, StandingTag};
+use crate::contribute::{ContributedJob, ContributionSink, StandingTag};
 
 /// One admitted member's contributions, minus the routes and commands the
 /// handoff carries separately.
@@ -43,7 +40,7 @@ impl BuiltState {
         self.members.iter()
     }
 
-    pub fn jobs(&self) -> impl Iterator<Item = (&ExtensionId, &Arc<dyn Job>)> {
+    pub fn jobs(&self) -> impl Iterator<Item = (&ExtensionId, &ContributedJob)> {
         self.members
             .iter()
             .flat_map(|member| member.sink.jobs().iter().map(move |job| (&member.owner, job)))

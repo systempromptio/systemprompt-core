@@ -59,12 +59,14 @@ pub use config_watch::{CONFIG_WATCH_POLL, ConfigVersionSource, ConfigWatch, Watc
 pub use stream_drain::{StreamDrain, StreamDrainWatch};
 pub mod analytics_events;
 pub mod auth;
+pub mod authz;
 pub mod content;
 pub use content::{
     ContentCatalogStats, ContentPopularity, DynContentCatalogStats, DynContentPopularity,
 };
 pub use traffic_class_counts::{DynTrafficClassCounts, TrafficClassCounts, TrafficClassTotals};
 pub mod context;
+pub mod events;
 pub mod context_provider;
 pub mod coordination;
 pub mod extension_error;
@@ -83,9 +85,11 @@ pub mod process_liveness;
 pub mod registry;
 pub mod repository;
 pub mod retention_purge;
+pub mod run_origin;
 pub mod runner_service;
 pub mod secret;
 pub use process_liveness::ProcessLiveness;
+pub use run_origin::RunOrigin;
 pub use runner_service::RunnerService;
 pub use secret::{
     ExtensionSecret, ReloadOutcome, SECRET_SEED_BYTES, SecretLookup, SecretStore, SecretStoreError,

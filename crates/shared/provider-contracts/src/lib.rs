@@ -56,6 +56,7 @@ mod error;
 mod extender;
 mod frame_options;
 mod frontmatter;
+pub mod governance;
 mod job;
 mod job_batch;
 mod job_budget;

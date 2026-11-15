@@ -6947,6 +6947,7 @@ dependencies = [
  "axum",
  "chrono",
  "clap",
+ "futures",
  "http",
  "inventory",
  "schemars 1.2.3",
@@ -7485,6 +7486,7 @@ dependencies = [
  "serde_json",
  "serde_yaml_ng",
  "sha2 0.11.1",
+ "sqlx",
  "systemprompt-identifiers",
  "thiserror 2.0.21",
 ]

@@ -27,6 +27,8 @@ mod negotiation;
 mod principal;
 #[cfg(feature = "router")]
 mod set;
+#[cfg(feature = "router")]
+mod sse;
 mod shape;
 
 #[cfg(feature = "router")]
@@ -41,6 +43,8 @@ pub use negotiation::{
 pub use principal::GatewayPrincipal;
 #[cfg(feature = "router")]
 pub use set::{GatewayRouteDecl, RouteSet, RouteSetBuilder};
+#[cfg(feature = "router")]
+pub use sse::{HEARTBEAT_INTERVAL, HEARTBEAT_JSON, sse_response, standard_keep_alive};
 pub use shape::{
     Allowance, ApiBase, BasePath, BaseRef, BodyLimit, GatewayPath, OperationSpec, RouteDef,
     RouteLimits, RoutePath, RouteShape, RouteSpec, TypedSpec, WebBase,

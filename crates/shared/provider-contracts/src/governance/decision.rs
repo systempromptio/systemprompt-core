@@ -12,9 +12,9 @@ use thiserror::Error;
 
 use super::entity_ref::EntityRef;
 use super::kinds::{EntityKind, RuleType};
-use crate::policy::types::{AccessScope, RateLimitWindow, SecretLocation};
+use super::policy::{AccessScope, RateLimitWindow, SecretLocation};
 
-/// Why an [`super::request::AuthzRequest`] was allowed. Carries enough
+/// Why an governance authz request was allowed. Carries enough
 /// structure for the audit row to attribute the decision without re-deriving
 /// it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -173,14 +173,15 @@ impl Decision {
     }
 }
 
-/// Discriminant-only view of [`Decision`] / [`super::request::AuthzDecision`],
+/// Discriminant-only view of [`Decision`] and the governance authz decision,
 /// bound to the `governance_decisions.decision` column.
 ///
 /// Typing the column at the Rust boundary couples it to the SQL CHECK
 /// allow-list; adding a `Decision` variant without extending the constraint
 /// fails the build.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
-#[sqlx(type_name = "TEXT", rename_all = "lowercase")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
+#[cfg_attr(feature = "sqlx", sqlx(type_name = "TEXT", rename_all = "lowercase"))]
 #[serde(rename_all = "lowercase")]
 pub enum DecisionTag {
     Allow,
@@ -204,14 +205,5 @@ impl DecisionTag {
 impl fmt::Display for DecisionTag {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.as_str())
-    }
-}
-
-impl From<&super::request::AuthzDecision> for DecisionTag {
-    fn from(d: &super::request::AuthzDecision) -> Self {
-        match d {
-            super::request::AuthzDecision::Allow => Self::Allow,
-            super::request::AuthzDecision::Deny { .. } => Self::Deny,
-        }
     }
 }

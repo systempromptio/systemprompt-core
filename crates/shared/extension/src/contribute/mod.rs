@@ -16,6 +16,7 @@
 
 mod config;
 mod error;
+pub mod handles;
 mod resolved;
 mod sink;
 mod slot;
@@ -26,7 +27,9 @@ use std::sync::Arc;
 
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::{ConfigPlane, Job};
-use systemprompt_traits::{JobRunScope, RunnerService};
+use systemprompt_provider_contracts::governance::GovernancePolicy;
+use systemprompt_traits::authz::SubjectAttributeProvider;
+use systemprompt_traits::{JobRunScope, RunOrigin, RunnerService};
 
 pub use config::{ConfigDecl, ExtensionConfig};
 pub use error::{ContributionError, FactoryError, ProvideError, SlotError};
@@ -34,8 +37,9 @@ pub use resolved::{
     Factory, FromState, HandleId, Handed, KernelAccess, KernelHandle, ProvideFn, Resolved,
 };
 pub use sink::{
-    AssetFn, ContributionSink, DiagnosticFactory, GatewayGuardFactory, MemberDependency,
-    ProvideEntry, ProvidedValue, ReadinessFactory, RunnerServiceFactory,
+    AssetFn, ContributedJob, ContributionSink, DiagnosticFactory, GatewayGuardFactory,
+    MemberDependency, PolicyFactory, ProvideEntry, ProvidedValue, ReadinessFactory,
+    RunnerServiceFactory, SubjectProviderFactory,
 };
 pub use slot::{
     Slot, SlotBuildInput, SlotBuilt, SlotEntry, SlotOrder, SlotRecord, StandingTag, build_slot,
@@ -47,6 +51,7 @@ use crate::asset::{AssetDefinition, AssetPaths};
 use crate::gateway_guard::GatewayRequestGuard;
 use crate::health::{DiagnosticProbe, MetricDescriptor, ReadinessCheck};
 use crate::metadata::{ExtensionRole, SchemaDefinition};
+use crate::projection::{ProjectionDrain, ProjectionEntry};
 use crate::migration::Migration;
 use crate::protection::SiteAuthConfig;
 use crate::purge::{OrphanSweep, UserPurgeTable};
@@ -157,7 +162,7 @@ impl<'a> Contributions<'a> {
     }
 
     pub fn job<J: Job + 'static>(&mut self, j: J) -> &mut Self {
-        self.sink.jobs.push(Arc::new(j));
+        self.sink.jobs.push(ContributedJob::new(j));
         self
     }
 
@@ -168,6 +173,16 @@ impl<'a> Contributions<'a> {
 
     pub fn retention(&mut self, r: RetentionDecl) -> &mut Self {
         self.sink.retention.push(r);
+        self
+    }
+
+    pub fn projection<J: Job>(&mut self, d: ProjectionDrain) -> &mut Self {
+        self.sink.projections.push(ProjectionEntry::of::<J>(d));
+        self
+    }
+
+    pub fn run_origin(&mut self, o: RunOrigin) -> &mut Self {
+        self.sink.run_origins.push(o);
         self
     }
 
@@ -193,6 +208,19 @@ impl<'a> Contributions<'a> {
 
     pub fn gateway_guard<F: Factory<Arc<dyn GatewayRequestGuard>>>(&mut self, f: F) -> &mut Self {
         self.sink.gateway_guards.push(Box::new(f));
+        self
+    }
+
+    pub fn subject_attributes<F>(&mut self, f: F) -> &mut Self
+    where
+        F: Factory<Arc<dyn SubjectAttributeProvider>>,
+    {
+        self.sink.subject_providers.push(Box::new(f));
+        self
+    }
+
+    pub fn policy<F: Factory<Arc<dyn GovernancePolicy>>>(&mut self, f: F) -> &mut Self {
+        self.sink.policies.push(Box::new(f));
         self
     }
 

@@ -43,8 +43,8 @@
 //! - [`cli`] — [`cli::KernelGrant`]; with the `cli` feature, command
 //!   declarations and the [`cli::CommandHost`] surface.
 //! - [`protection`], [`authz`] — the protection a mounted group carries.
-//! - [`metadata`], [`migration`], [`seed`], [`purge`], [`retention`] — the
-//!   data a member declares.
+//! - [`metadata`], [`migration`], [`seed`], [`purge`], [`retention`],
+//!   [`projection`] — the data a member declares.
 //! - [`build`] — build-script helper that generates the migration list from
 //!   `schema/migrations/*.sql`, read with [`extension_migrations!`].
 //! - [`brain`], [`notifications`] — the seam traits those capabilities' slots
@@ -91,6 +91,7 @@ pub mod health;
 pub mod metadata;
 pub mod migration;
 pub mod notifications;
+pub mod projection;
 pub mod protection;
 pub mod purge;
 pub mod reserved;
@@ -136,6 +137,7 @@ pub use health::{
 };
 pub use metadata::{ExtensionMetadata, ExtensionRole, SchemaDefinition};
 pub use migration::Migration;
+pub use projection::ProjectionDrain;
 pub use notifications::{
     ChannelError, Membership, NotificationAudienceError, NotificationAudienceResolver,
     NotificationChannel, NotificationRouter, NotificationRouterError, NotificationSinkError,

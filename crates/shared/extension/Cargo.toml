@@ -18,7 +18,7 @@ workspace = true
 
 [features]
 sqlx = ["dep:sqlx"]
-router = ["dep:axum"]
+router = ["dep:axum", "dep:futures"]
 cli = ["dep:clap"]
 slack = []
 teams = []
@@ -35,6 +35,7 @@ tracing = { workspace = true }
 xxhash-rust = { workspace = true }
 axum = { workspace = true, optional = true }
 clap = { workspace = true, optional = true }
+futures = { workspace = true, optional = true }
 http = { workspace = true }
 schemars = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }

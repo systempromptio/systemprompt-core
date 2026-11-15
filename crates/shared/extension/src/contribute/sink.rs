@@ -15,7 +15,9 @@ use std::sync::Arc;
 
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::{ConfigPlane, Dependencies, DuplicateDependency, Job};
-use systemprompt_traits::{JobRunScope, RunnerService};
+use systemprompt_provider_contracts::governance::GovernancePolicy;
+use systemprompt_traits::authz::SubjectAttributeProvider;
+use systemprompt_traits::{JobRunScope, RunOrigin, RunnerService};
 
 use super::config::ConfigDecl;
 use super::error::{ContributionError, ProvideError};
@@ -25,6 +27,7 @@ use crate::asset::{AssetDefinition, AssetPaths};
 use crate::gateway_guard::GatewayRequestGuard;
 use crate::health::{DiagnosticProbe, MetricDescriptor, ReadinessCheck};
 use crate::metadata::{ExtensionRole, SchemaDefinition};
+use crate::projection::ProjectionEntry;
 use crate::migration::Migration;
 use crate::protection::SiteAuthConfig;
 use crate::purge::{OrphanSweep, UserPurgeTable};
@@ -37,6 +40,8 @@ pub type RunnerServiceFactory = Box<dyn Factory<Arc<dyn RunnerService>>>;
 pub type ReadinessFactory = Box<dyn Factory<Arc<dyn ReadinessCheck>>>;
 pub type DiagnosticFactory = Box<dyn Factory<Arc<dyn DiagnosticProbe>>>;
 pub type GatewayGuardFactory = Box<dyn Factory<Arc<dyn GatewayRequestGuard>>>;
+pub type SubjectProviderFactory = Box<dyn Factory<Arc<dyn SubjectAttributeProvider>>>;
+pub type PolicyFactory = Box<dyn Factory<Arc<dyn GovernancePolicy>>>;
 
 type ErasedValue = Arc<dyn Any + Send + Sync>;
 type ComputeFn = Box<dyn Fn(&Resolved<'_>) -> Result<ErasedValue, ProvideError> + Send + Sync>;
@@ -155,6 +160,38 @@ impl MemberDependency {
     }
 }
 
+/// A contributed job and its type, which projection drains bind to.
+#[derive(Clone)]
+pub struct ContributedJob {
+    type_id: TypeId,
+    job: Arc<dyn Job>,
+}
+
+impl ContributedJob {
+    pub(crate) fn new<J: Job + 'static>(job: J) -> Self {
+        Self {
+            type_id: TypeId::of::<J>(),
+            job: Arc::new(job),
+        }
+    }
+
+    #[must_use]
+    pub const fn type_id(&self) -> TypeId {
+        self.type_id
+    }
+
+    #[must_use]
+    pub const fn job(&self) -> &Arc<dyn Job> {
+        &self.job
+    }
+}
+
+impl std::fmt::Debug for ContributedJob {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("ContributedJob").field(&self.job.name()).finish()
+    }
+}
+
 /// Everything one member contributed, in declaration order.
 #[derive(Default)]
 pub struct ContributionSink {
@@ -173,14 +210,18 @@ pub struct ContributionSink {
     pub(crate) provides: Vec<ProvideEntry>,
     pub(crate) requires: Vec<StateRequirement>,
     pub(crate) depends_on: Vec<MemberDependency>,
-    pub(crate) jobs: Vec<Arc<dyn Job>>,
+    pub(crate) jobs: Vec<ContributedJob>,
     pub(crate) job_run_scopes: Vec<Arc<dyn JobRunScope>>,
     pub(crate) retention: Vec<RetentionDecl>,
+    pub(crate) projections: Vec<ProjectionEntry>,
+    pub(crate) run_origins: Vec<RunOrigin>,
     pub(crate) runner_services: Vec<RunnerServiceFactory>,
     pub(crate) readiness: Vec<ReadinessFactory>,
     pub(crate) diagnostics: Vec<DiagnosticFactory>,
     pub(crate) metrics: Vec<MetricDescriptor>,
     pub(crate) gateway_guards: Vec<GatewayGuardFactory>,
+    pub(crate) subject_providers: Vec<SubjectProviderFactory>,
+    pub(crate) policies: Vec<PolicyFactory>,
     pub(crate) slots: Vec<SlotRecord>,
     #[cfg(feature = "router")]
     pub(crate) routes: Vec<crate::router::RouteSet>,
@@ -268,7 +309,7 @@ impl ContributionSink {
     }
 
     #[must_use]
-    pub fn jobs(&self) -> &[Arc<dyn Job>] {
+    pub fn jobs(&self) -> &[ContributedJob] {
         &self.jobs
     }
 
@@ -280,6 +321,26 @@ impl ContributionSink {
     #[must_use]
     pub fn retention(&self) -> &[RetentionDecl] {
         &self.retention
+    }
+
+    #[must_use]
+    pub fn projections(&self) -> &[ProjectionEntry] {
+        &self.projections
+    }
+
+    #[must_use]
+    pub fn run_origins(&self) -> &[RunOrigin] {
+        &self.run_origins
+    }
+
+    #[must_use]
+    pub fn subject_providers(&self) -> &[SubjectProviderFactory] {
+        &self.subject_providers
+    }
+
+    #[must_use]
+    pub fn policies(&self) -> &[PolicyFactory] {
+        &self.policies
     }
 
     #[must_use]
@@ -361,7 +422,7 @@ impl std::fmt::Debug for ContributionSink {
         f.debug_struct("ContributionSink")
             .field("schemas", &self.schemas.len())
             .field("provides", &self.provides)
-            .field("jobs", &self.jobs.len())
+            .field("jobs", &self.jobs)
             .field("slots", &self.slots)
             .field("errors", &self.errors)
             .finish_non_exhaustive()

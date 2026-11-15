@@ -72,7 +72,7 @@ rmcp = { workspace = true }
 
 [features]
 default = []
-sqlx = ["dep:sqlx"]
+sqlx = ["dep:sqlx", "systemprompt-traits/sqlx"]
 
 [package.metadata.docs.rs]
 all-features = true

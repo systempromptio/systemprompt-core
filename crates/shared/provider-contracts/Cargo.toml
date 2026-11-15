@@ -16,6 +16,9 @@ readme = "README.md"
 [lints]
 workspace = true
 
+[features]
+sqlx = ["dep:sqlx"]
+
 [dependencies]
 async-trait = { workspace = true }
 chrono = { workspace = true }
@@ -28,6 +31,7 @@ hex = { workspace = true }
 thiserror = { workspace = true }
 inventory = { workspace = true }
 systemprompt-identifiers = { workspace = true }
+sqlx = { workspace = true, optional = true }
 
 [package.metadata.docs.rs]
 all-features = true
