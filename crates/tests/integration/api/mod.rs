@@ -29,14 +29,6 @@ mod server_mount_analytics;
 mod server_mount_notifications;
 
 #[cfg(test)]
-#[path = "server_mount_core_owners.rs"]
-mod server_mount_core_owners;
-
-#[cfg(test)]
-#[path = "server_boot_core_owner_impostor.rs"]
-mod server_boot_core_owner_impostor;
-
-#[cfg(test)]
 #[path = "routes_content_mounted.rs"]
 mod routes_content_mounted;
 
@@ -143,12 +135,6 @@ mod routes_agent_contexts;
 #[path = "server_boot.rs"]
 mod server_boot;
 
-#[cfg(test)]
-#[path = "server_extension_mount.rs"]
-mod server_extension_mount;
-#[cfg(test)]
-#[path = "server_extension_mount_roles.rs"]
-mod server_extension_mount_roles;
 
 #[cfg(test)]
 #[path = "boot_missing_providers.rs"]

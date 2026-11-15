@@ -15,6 +15,8 @@
 #[cfg(test)]
 mod capability_error;
 #[cfg(test)]
+mod composition;
+#[cfg(test)]
 mod error_conversions;
 #[cfg(test)]
 mod messaging_helpers;

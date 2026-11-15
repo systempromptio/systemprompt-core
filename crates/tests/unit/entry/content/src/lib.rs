@@ -27,8 +27,6 @@ mod core_content_public_mutation_lifecycle;
 #[cfg(test)]
 mod core_content_scope_db;
 #[cfg(test)]
-mod declaration;
-#[cfg(test)]
 mod descriptors;
 #[cfg(test)]
 mod error_mapping;

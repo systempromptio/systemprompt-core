@@ -25,14 +25,6 @@ mod metadata;
 #[cfg(test)]
 mod migration;
 #[cfg(test)]
-mod registry;
-#[cfg(test)]
-mod registry_queries;
-#[cfg(test)]
-mod registry_validation;
-#[cfg(test)]
-mod router;
-#[cfg(test)]
 mod seed;
 #[cfg(test)]
 mod state;

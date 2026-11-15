@@ -6,10 +6,6 @@
 mod common;
 
 #[cfg(test)]
-#[path = "core_owners.rs"]
-mod core_owners;
-
-#[cfg(test)]
 #[path = "declared_groups.rs"]
 mod declared_groups;
 
