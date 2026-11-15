@@ -23,7 +23,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use systemprompt_database::DbPool;
 use systemprompt_manifest::profile::NotificationsProfile;
-use systemprompt_provider_contracts::{JobScope, ProviderError, submit_job};
+use systemprompt_provider_contracts::{JobScope, ProviderError};
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult, RepositoryError};
 
 use crate::repository::NotificationRepositories;
@@ -132,5 +132,3 @@ impl Job for NotificationRetentionJob {
             .with_duration(u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX)))
     }
 }
-
-submit_job!("notifications", &NotificationRetentionJob);

@@ -26,8 +26,9 @@
 //! [`NotificationPipeline::sweep`], which holds a transaction-scoped
 //! advisory lock, so one replica sweeps at a time.
 //!
-//! The runtime builder constructs and starts it, because it owns the seams
-//! the pipeline is assembled from.
+//! The composition root constructs it over the built pipeline seams and
+//! binds it into the [`NotificationsConsumerSlot`]; the member's
+//! [`BoundConsumerRunner`] runs it from there.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -36,11 +37,13 @@ mod diagnostics;
 mod drain;
 mod handle;
 mod hold;
+mod runner;
 mod wake;
 
 pub use diagnostics::{BacklogDiagnostic, NotificationsConsumerSlot};
 pub use drain::MAX_ROUND_TRANSIENTS;
 pub use handle::MAX_FACT_ATTEMPTS;
+pub use runner::BoundConsumerRunner;
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU8, Ordering};
