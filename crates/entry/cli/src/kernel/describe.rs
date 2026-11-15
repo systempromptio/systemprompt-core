@@ -18,19 +18,17 @@ use clap::ArgMatches;
 
 use super::CommandRegistry;
 use crate::args::{self, Cli};
-use crate::descriptor::{CommandDescriptor, DescribeCommand};
+use systemprompt_extension::cli::{CommandDescriptor, DescribeCommand};
 
-fn parse(command: &[String]) -> Result<(CommandRegistry, ArgMatches)> {
+fn parse(registry: &CommandRegistry, command: &[String]) -> Result<ArgMatches> {
     let argv = std::iter::once("systemprompt".to_owned()).chain(command.iter().cloned());
-    let registry = CommandRegistry::collected()?;
-    let matches = args::command(&registry)?
+    args::command(registry)?
         .try_get_matches_from(argv)
-        .with_context(|| format!("'{}' is not a systemprompt command", command.join(" ")))?;
-    Ok((registry, matches))
+        .with_context(|| format!("'{}' is not a systemprompt command", command.join(" ")))
 }
 
-pub fn command_line_path(command: &[String]) -> Result<Vec<String>> {
-    let (_, matches) = parse(command)?;
+pub fn command_line_path(registry: &CommandRegistry, command: &[String]) -> Result<Vec<String>> {
+    let matches = parse(registry, command)?;
     let mut path = Vec::new();
     let mut current = &matches;
     while let Some((name, sub)) = current.subcommand() {
@@ -40,10 +38,13 @@ pub fn command_line_path(command: &[String]) -> Result<Vec<String>> {
     Ok(path)
 }
 
-pub fn describe_command_line(command: &[String]) -> Result<CommandDescriptor> {
-    let (registry, matches) = parse(command)?;
-    if let Some(registered) = registry.resolve(&matches)? {
-        return Ok(registered.descriptor());
+pub fn describe_command_line(
+    registry: &CommandRegistry,
+    command: &[String],
+) -> Result<CommandDescriptor> {
+    let matches = parse(registry, command)?;
+    if let Some(resolved) = registry.resolve(&matches)? {
+        return Ok(resolved.parsed.descriptor());
     }
     let parsed = Cli::from_arg_matches(&matches)?
         .command

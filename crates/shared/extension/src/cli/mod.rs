@@ -9,6 +9,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod child;
 #[cfg(feature = "cli")]
 mod command;
 #[cfg(feature = "cli")]
@@ -23,12 +24,13 @@ mod settings;
 
 #[cfg(feature = "cli")]
 pub use command::{
-    BoxFuture, ChildSupervisor, CliCommandGroup, CliCommandLeaf, CommandDecl, CommandError,
+    BoxFuture, CliCommandGroup, CliCommandLeaf, CommandDecl, CommandError,
     CommandFuture, CommandHost, CommandKind, CommandParent, ParsedCommand,
     REGISTERED_DISPLAY_ORDER, parents,
 };
 #[cfg(feature = "cli")]
 pub use descriptor::{CommandDescriptor, DataImpact, DbUrlRouting, DescribeCommand, RoutingClass};
+pub use child::ChildSupervisor;
 pub use grant::KernelGrant;
 #[cfg(feature = "cli")]
 pub use output::{

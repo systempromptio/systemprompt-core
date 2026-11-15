@@ -6,8 +6,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::process::Termination;
+use std::process::ExitCode;
 
-fn main() -> impl Termination {
-    systemprompt::cli::run_process()
+fn main() -> Result<ExitCode, systemprompt::RunError> {
+    systemprompt::reference().run()
 }

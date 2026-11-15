@@ -26,6 +26,7 @@ use systemprompt_manifest::Profile;
 use systemprompt_traits::DatabaseHandle;
 
 use super::KernelGrant;
+use super::child::ChildSupervisor;
 use super::descriptor::{CommandDescriptor, DbUrlRouting, DescribeCommand};
 use super::output::CommandOutput;
 use super::prompt::Prompter;
@@ -129,13 +130,6 @@ pub trait CommandHost: Send + Sync {
     fn db(&self) -> BoxFuture<'_, Result<Arc<dyn DatabaseHandle>, CommandError>>;
     fn resolved(&self) -> BoxFuture<'_, Result<Resolved<'_>, CommandError>>;
     fn children(&self) -> &dyn ChildSupervisor;
-}
-
-/// The foreground child registry a command spawns supervised children
-/// through; implemented by the loader's foreground-children registry.
-pub trait ChildSupervisor: Send + Sync {
-    fn handle(&self) -> Arc<dyn ChildSupervisor>;
-    fn output(&self, cmd: std::process::Command) -> std::io::Result<std::process::Output>;
 }
 
 /// The kind of clap node a declaration contributes.

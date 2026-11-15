@@ -68,7 +68,7 @@ systemprompt-config = { workspace = true }
 systemprompt-loader = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-traits = { workspace = true }
-systemprompt-extension = { workspace = true }
+systemprompt-extension = { workspace = true, features = ["cli"] }
 systemprompt-cloud = { workspace = true }
 systemprompt-client = { workspace = true }
 

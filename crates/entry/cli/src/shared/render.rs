@@ -18,8 +18,7 @@ use systemprompt_models::artifacts::{
 
 use systemprompt_models::text::truncate_with_ellipsis;
 
-use super::CommandOutput;
-use crate::cli_settings::{CliConfig, OutputFormat};
+use systemprompt_extension::cli::{CliConfig, CommandOutput, OutputFormat};
 
 pub fn render_result(result: &CommandOutput, config: &CliConfig) {
     match config.output_format() {

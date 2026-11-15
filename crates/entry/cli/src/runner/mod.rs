@@ -31,32 +31,64 @@ use systemprompt_logging::OutputState;
 use systemprompt_models::BuildIdentity;
 use systemprompt_runtime::DatabaseContext;
 
-use crate::cli_settings::{CliConfig, OutputFormat};
 use crate::context::CommandContext;
-use crate::descriptor::{CommandDescriptor, DbUrlRouting};
+use systemprompt_extension::cli::{CliConfig, CommandDescriptor, DbUrlRouting, OutputFormat};
+use systemprompt_extension::{Admitted, DeclaredCommands};
+use systemprompt_identifiers::ExtensionId;
+use systemprompt_manifest::Profile;
+use systemprompt_traits::BoxedSource;
 use crate::env_overrides::EnvOverrides;
-use crate::kernel::{CommandRegistry, ResolveError};
+use crate::kernel::{CommandOwner, CommandRegistry, RegistryError, ResolveError, kernel_commands};
 use dispatch::{Invocation, Selected, dispatch_command};
 
-pub async fn run() -> Result<()> {
-    Box::pin(run_with(BuildIdentity::core())).await
+/// The admission the facade hands the CLI: run once, against the loaded
+/// profile.
+pub type AdmitFn = Box<dyn FnOnce(&Profile) -> Result<Admitted, BoxedSource> + Send>;
+
+#[derive(Debug, thiserror::Error)]
+pub enum CliRunError {
+    #[error("composition admission failed")]
+    Admit(#[source] BoxedSource),
+    #[error("command {path:?} belongs to disabled extension {owner}")]
+    CommandDisabled {
+        path: Vec<&'static str>,
+        owner: ExtensionId,
+    },
+    #[error("command registry")]
+    Registry(#[from] RegistryError),
+    #[error("command failed")]
+    Command(#[source] BoxedSource),
 }
 
-pub fn run_process() -> Result<ExitCode> {
-    run_process_with(BuildIdentity::core())
-}
-
-pub fn run_process_with(build: BuildIdentity) -> Result<ExitCode> {
+/// The whole of a composed binary's main function: builds the runtime, the
+/// command registry from `declared`, runs the selected command and maps an
+/// interrupted run to its exit status.
+pub fn run_composed<A>(
+    build: BuildIdentity,
+    declared: DeclaredCommands,
+    admit: A,
+) -> Result<ExitCode, CliRunError>
+where
+    A: FnOnce(&Profile) -> Result<Admitted, BoxedSource> + Send + 'static,
+{
+    let registry = CommandRegistry::build(&declared, &kernel_commands())?;
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
-        .build()?;
-    interrupt::exit_code(runtime.block_on(Box::pin(run_with(build))))
+        .build()
+        .map_err(|source| CliRunError::Command(Box::new(source)))?;
+    let outcome = runtime.block_on(Box::pin(run_with(build, registry, Box::new(admit))));
+    match interrupt::exit_code(outcome) {
+        Ok(code) => Ok(code),
+        Err(error) => match error.downcast::<CliRunError>() {
+            Ok(typed) => Err(typed),
+            Err(other) => Err(CliRunError::Command(other.into_boxed_dyn_error())),
+        },
+    }
 }
 
-pub async fn run_with(build: BuildIdentity) -> Result<()> {
+async fn run_with(build: BuildIdentity, registry: CommandRegistry, admit: AdmitFn) -> Result<()> {
     tls::install_crypto_provider();
     let output = OutputState::new();
-    let registry = CommandRegistry::collected()?;
     let root = args::command(&registry)?;
     let matches = root.clone().get_matches();
     let invocation = match Invocation::parse(&registry, root, &matches) {
@@ -77,6 +109,7 @@ pub async fn run_with(build: BuildIdentity) -> Result<()> {
         shield: shield.clone(),
         children: children.clone(),
         build,
+        admit,
     };
     let outcome = if invocation.descriptor().owns_signals() {
         Box::pin(run_inner(&output, invocation, confirm, guards, env)).await
@@ -163,14 +196,46 @@ async fn run_inner(
         confirmation::gate(&desc, &confirm, &cli_config)?;
     }
 
-    let ctx = guards
-        .apply(CommandContext::new(cli_config, env))
+    let RunGuards {
+        shield,
+        children,
+        build,
+        admit,
+    } = guards;
+    let admitted = admit_for(&invocation, profile.as_deref(), admit)?;
+    let ctx = CommandContext::new(cli_config, env)
+        .with_interrupt_shield(shield)
+        .with_foreground_children(children)
+        .with_build_identity(build)
+        .with_admitted(admitted)
         .with_cloud_credentials(credentials)
         .with_database_url_override(database_url_override)
         .with_services(services)
         .with_profile(profile)
         .with_boot(boot);
     Box::pin(dispatch_command(invocation.into_selected(), &ctx)).await
+}
+
+fn admit_for(
+    invocation: &Invocation,
+    profile: Option<&systemprompt_config::LoadedProfile>,
+    admit: AdmitFn,
+) -> Result<Option<std::sync::Arc<Admitted>>> {
+    let Some(profile) = profile.map(systemprompt_config::LoadedProfile::profile) else {
+        return Ok(None);
+    };
+    if let Some(resolved) = invocation.resolved()
+        && let CommandOwner::Member(owner) = &resolved.owner
+        && profile.extensions.is_disabled(owner)
+    {
+        return Err(CliRunError::CommandDisabled {
+            path: resolved.path.clone(),
+            owner: owner.clone(),
+        }
+        .into());
+    }
+    let admitted = admit(profile).map_err(CliRunError::Admit)?;
+    Ok(Some(std::sync::Arc::new(admitted)))
 }
 
 fn configure_output(
@@ -232,10 +297,12 @@ struct RunGuards {
     shield: interrupt::InterruptShield,
     children: ForegroundChildren,
     build: BuildIdentity,
+    admit: AdmitFn,
 }
 
 impl RunGuards {
     fn apply(self, ctx: CommandContext) -> CommandContext {
+        drop(self.admit);
         ctx.with_interrupt_shield(self.shield)
             .with_foreground_children(self.children)
             .with_build_identity(self.build)

@@ -15,12 +15,13 @@ use clap::{ArgMatches, Command, FromArgMatches};
 use super::args;
 use crate::commands::{admin, core, infrastructure, plugins, web};
 use crate::context::CommandContext;
-use crate::descriptor::{CommandDescriptor, DbUrlRouting, DescribeCommand};
-use crate::kernel::{CommandRegistry, RegisteredCommand, ResolveError};
+use systemprompt_extension::cli::{CommandDescriptor, DbUrlRouting, DescribeCommand, ParsedCommand};
+
+use crate::kernel::{CommandRegistry, ResolveError, ResolvedCommand};
 
 pub(super) struct Invocation {
     pub(super) cli: args::Cli,
-    registered: Option<RegisteredCommand>,
+    registered: Option<ResolvedCommand>,
     root: Command,
 }
 
@@ -46,7 +47,7 @@ impl Invocation {
 
     pub(super) fn descriptor(&self) -> CommandDescriptor {
         match (&self.registered, &self.cli.command) {
-            (Some(registered), _) => registered.descriptor(),
+            (Some(registered), _) => registered.parsed.descriptor(),
             (None, Some(command)) => command.descriptor(),
             (None, None) => CommandDescriptor::FULL,
         }
@@ -58,15 +59,19 @@ impl Invocation {
 
     pub(super) const fn db_url_routing(&self) -> Option<DbUrlRouting> {
         match (&self.registered, &self.cli.command) {
-            (Some(registered), _) => Some(registered.db_url_routing()),
+            (Some(registered), _) => Some(registered.parsed.db_url_routing()),
             (None, Some(command)) => Some(command.db_url_routing()),
             (None, None) => None,
         }
     }
 
+    pub(super) const fn resolved(&self) -> Option<&ResolvedCommand> {
+        self.registered.as_ref()
+    }
+
     pub(super) fn into_selected(self) -> Selected {
         match (self.registered, self.cli.command) {
-            (Some(registered), _) => Selected::Registered(registered),
+            (Some(registered), _) => Selected::Registered(registered.parsed),
             (None, Some(command)) => Selected::Kernel(Box::new(command)),
             (None, None) => Selected::Bare(Box::new(self.root)),
         }
@@ -75,7 +80,7 @@ impl Invocation {
 
 pub(super) enum Selected {
     Kernel(Box<args::Commands>),
-    Registered(RegisteredCommand),
+    Registered(ParsedCommand),
     Bare(Box<Command>),
 }
 
@@ -106,7 +111,10 @@ pub(super) async fn dispatch_command(selected: Selected, ctx: &CommandContext) -
                 Box::pin(plugins::execute(cmd, ctx)).await?;
             },
         },
-        Selected::Registered(registered) => registered.run(ctx).await?,
+        Selected::Registered(registered) => {
+            let output = registered.run(ctx).await?;
+            crate::shared::render_result(&output, &ctx.cli);
+        },
         Selected::Bare(root) => {
             (*root).get_matches_from(["systemprompt", "--help"]);
         },

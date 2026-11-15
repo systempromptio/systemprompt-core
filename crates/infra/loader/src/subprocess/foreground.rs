@@ -174,3 +174,13 @@ impl Drop for ForegroundChild {
         self.registry.forget(self.pid);
     }
 }
+
+impl systemprompt_extension::cli::ChildSupervisor for ForegroundChildren {
+    fn handle(&self) -> std::sync::Arc<dyn systemprompt_extension::cli::ChildSupervisor> {
+        std::sync::Arc::new(self.clone())
+    }
+
+    fn output(&self, cmd: Command) -> io::Result<Output> {
+        Self::output(self, cmd)
+    }
+}

@@ -9,7 +9,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub mod command_result;
 pub mod confirm;
 pub mod ddl;
 pub mod disk_logs;
@@ -18,16 +17,14 @@ pub mod identity;
 pub mod parsers;
 pub mod postgres_access;
 pub mod profile;
+pub mod render;
 pub mod project;
 pub mod provider_catalog;
 pub mod text;
 pub mod time_format;
 pub mod yaml_document;
 
-pub use command_result::{
-    ChartType, CommandOutput, KeyValueItem, KeyValueOutput, SuccessOutput, TableOutput, TextOutput,
-    render_result,
-};
+pub use render::render_result;
 pub use confirm::ConfirmArgs;
 pub use identity::{IdentityBundle, generate_identity};
 pub use parsers::{
