@@ -21,9 +21,12 @@ use crate::context::CommandContext;
 use crate::interactive::require_confirmation;
 use crate::shared::CommandOutput;
 
-#[derive(Debug, Args)]
+#[derive(Debug, Clone, Copy, Args)]
 pub struct PruneArgs {
-    #[arg(long, help = "List the rows that would be deleted without deleting them")]
+    #[arg(
+        long,
+        help = "List the rows that would be deleted without deleting them"
+    )]
     pub dry_run: bool,
 
     #[arg(short = 'y', long, help = "Skip the confirmation prompt")]
@@ -74,7 +77,10 @@ fn pruned_job(row: ScheduledJob) -> PrunedJob {
 
 fn table(jobs: &[PrunedJob], deleted: u64, dry_run: bool) -> CommandOutput {
     let title = if dry_run {
-        format!("Unregistered Jobs (dry run, {} would be deleted)", jobs.len())
+        format!(
+            "Unregistered Jobs (dry run, {} would be deleted)",
+            jobs.len()
+        )
     } else {
         format!("Pruned Jobs ({deleted} deleted)")
     };

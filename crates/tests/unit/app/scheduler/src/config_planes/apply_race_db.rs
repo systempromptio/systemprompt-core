@@ -75,7 +75,7 @@ impl Race {
     }
 
     async fn console_edit(&self, entity: &str, value: &str) {
-        sqlx::query("UPDATE plane_e2e_rows SET value = $3 WHERE plane = $1 AND entity = $2")
+        sqlx::query("UPDATE plane_e2e.rows SET value = $3 WHERE plane = $1 AND entity = $2")
             .bind(self.name)
             .bind(entity)
             .bind(value)

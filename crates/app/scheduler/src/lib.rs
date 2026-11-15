@@ -12,9 +12,8 @@
 //! - A [`JobExecutionService`] that runs jobs on demand outside the cron loop
 //!   and records each run.
 //! - A [`JobPruneService`] that retires `scheduled_jobs` rows no job linked
-//!   into this binary names, on an operator's request. A node's
-//!   boot never deletes a row; it schedules the jobs it registers and ignores
-//!   the rest.
+//!   into this binary names, on an operator's request. A node's boot never
+//!   deletes a row; it schedules the jobs it registers and ignores the rest.
 //! - Process- and database-level service reconciliation primitives
 //!   ([`ServiceReconciler`], [`ServiceStateVerifier`], and the marker-verified
 //!   stops in [`services::orchestration::supervision`]), plus pure
@@ -75,11 +74,10 @@ pub use repository::{
 pub use services::{
     ApiListenerStop, DbServiceRecord, DesiredStatus, EnabledExtensions, JobBatchReport,
     JobExecutionService, JobPruneService, JobRunReport, JobSelection, OrphanCleanupReport,
-    OrphanDisposition,
-    OrphanOutcome, ReconciliationResult, RestartPlan, RestartScope, RestartTarget, SchedulerHandle,
-    SchedulerService, SchedulerStartup, ServiceAction, ServiceConfig, ServiceManagementService,
-    ServiceReconciler, ServiceSnapshot, ServiceStateVerifier, ServiceType, StartupPlan,
-    StartupRequest, VerifiedService, VerifiedServiceState, child_kind, parse_job_parameters,
-    port_holders, stop_api_listeners, stop_owned_port_holders, unknown_job_names,
-    unlisted_job_names, wait_for_port_free,
+    OrphanDisposition, OrphanOutcome, ReconciliationResult, RestartPlan, RestartScope,
+    RestartTarget, SchedulerHandle, SchedulerService, SchedulerStartup, ServiceAction,
+    ServiceConfig, ServiceManagementService, ServiceReconciler, ServiceSnapshot,
+    ServiceStateVerifier, ServiceType, StartupPlan, StartupRequest, VerifiedService,
+    VerifiedServiceState, child_kind, parse_job_parameters, port_holders, stop_api_listeners,
+    stop_owned_port_holders, unknown_job_names, unlisted_job_names, wait_for_port_free,
 };

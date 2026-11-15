@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM scheduled_jobs WHERE job_name = ANY($1) AND NOT (job_name = ANY($2))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "402125047f5002b1260c7b5108a030d974d1a7f37e30135f912bf9298be3bd2b"
+}

@@ -217,7 +217,10 @@ mod two_nodes_db {
             .await
             .expect("find")
             .expect("row kept");
-        assert!(b.last_run.is_none(), "the unregistered row is never claimed");
+        assert!(
+            b.last_run.is_none(),
+            "the unregistered row is never claimed"
+        );
         assert!(b.last_instance_id.is_none());
     }
 
@@ -334,8 +337,8 @@ mod prune_db {
         repo.upsert_job(&owned, FAR_SCHEDULE, true)
             .await
             .expect("seed row");
-        let registry = systemprompt_extension::ExtensionRegistry::discover()
-            .expect("discover extensions");
+        let registry =
+            systemprompt_extension::ExtensionRegistry::discover().expect("discover extensions");
         let pruning_profile = EnabledExtensions::resolve(
             &registry,
             &[ExtensionId::new(crate::test_extension::TEST_JOBS_OWNER)],

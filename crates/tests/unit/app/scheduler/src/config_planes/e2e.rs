@@ -229,7 +229,7 @@ async fn console_edits_survive_boot_passes_and_later_applies() {
     let first = apply.apply(&options).await.expect("first apply");
     assert_eq!(first.applied(), 2);
 
-    sqlx::query("UPDATE plane_e2e_rows SET value = 'console' WHERE plane = $1 AND entity = 'a'")
+    sqlx::query("UPDATE plane_e2e.rows SET value = 'console' WHERE plane = $1 AND entity = 'a'")
         .bind(name)
         .execute(&*h.pool.write_pool())
         .await
@@ -439,7 +439,7 @@ async fn switching_a_conflicted_plane_to_file_authority_resolves_its_conflicts_t
         .apply(&options(&planes, "seed"))
         .await
         .expect("first apply");
-    sqlx::query("UPDATE plane_e2e_rows SET value = 'console' WHERE plane = $1 AND entity = 'a'")
+    sqlx::query("UPDATE plane_e2e.rows SET value = 'console' WHERE plane = $1 AND entity = 'a'")
         .bind(name)
         .execute(&*db.pool.write_pool())
         .await

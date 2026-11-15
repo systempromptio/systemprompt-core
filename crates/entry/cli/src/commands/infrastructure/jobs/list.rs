@@ -33,7 +33,9 @@ pub(super) async fn execute(ctx: &CommandContext) -> Result<CommandOutput> {
         .filter(|registration| seen_names.insert(registration.job.name()))
         .map(|registration| job_info(registration, &enabled, &configured))
         .collect();
-    let rows = JobRepository::new(&ctx.db_pool().await?).list_jobs().await?;
+    let rows = JobRepository::new(&ctx.db_pool().await?)
+        .list_jobs()
+        .await?;
     jobs.extend(
         rows.into_iter()
             .filter(|row| !seen_names.contains(row.job_name.as_str()))

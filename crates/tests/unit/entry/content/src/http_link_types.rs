@@ -40,7 +40,10 @@ fn generate_link_request_reads_every_optional_field() {
     .unwrap();
     assert_eq!(request.campaign_id, Some(CampaignId::new("summer-2024")));
     assert_eq!(request.campaign_name.as_deref(), Some("Summer Sale"));
-    assert_eq!(request.source_content_id, Some(ContentId::new("content-123")));
+    assert_eq!(
+        request.source_content_id,
+        Some(ContentId::new("content-123"))
+    );
     assert_eq!(request.source_page.as_deref(), Some("/blog/article"));
     assert_eq!(request.utm_source.as_deref(), Some("google"));
     assert_eq!(request.utm_medium.as_deref(), Some("cpc"));

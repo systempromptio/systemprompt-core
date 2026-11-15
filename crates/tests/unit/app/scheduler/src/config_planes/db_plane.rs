@@ -50,24 +50,28 @@ impl DbPlane {
 pub async fn ensure_table(pool: &DbPool) {
     let pg = pool.write_pool();
     let mut tx = pg.begin().await.expect("begin");
-    sqlx::query("SELECT pg_advisory_xact_lock(hashtext('plane_e2e_rows'))")
+    sqlx::query("SELECT pg_advisory_xact_lock(hashtext('plane_e2e.rows'))")
         .execute(&mut *tx)
         .await
         .expect("ddl lock");
+    sqlx::query("CREATE SCHEMA IF NOT EXISTS plane_e2e")
+        .execute(&mut *tx)
+        .await
+        .expect("create plane_e2e schema");
     sqlx::query(
-        "CREATE TABLE IF NOT EXISTS plane_e2e_rows (plane TEXT NOT NULL, entity TEXT NOT NULL, \
+        "CREATE TABLE IF NOT EXISTS plane_e2e.rows (plane TEXT NOT NULL, entity TEXT NOT NULL, \
          value TEXT NOT NULL, PRIMARY KEY (plane, entity))",
     )
     .execute(&mut *tx)
     .await
-    .expect("create plane_e2e_rows");
+    .expect("create plane_e2e.rows");
     tx.commit().await.expect("commit");
 }
 
 pub async fn seed_rows(pool: &DbPool, plane: &str, rows: &[(&str, &str)]) {
     let pg = pool.write_pool();
     for (entity, value) in rows {
-        sqlx::query("INSERT INTO plane_e2e_rows (plane, entity, value) VALUES ($1, $2, $3)")
+        sqlx::query("INSERT INTO plane_e2e.rows (plane, entity, value) VALUES ($1, $2, $3)")
             .bind(plane)
             .bind(entity)
             .bind(value)
@@ -80,7 +84,7 @@ pub async fn seed_rows(pool: &DbPool, plane: &str, rows: &[(&str, &str)]) {
 pub async fn stored_rows(pool: &DbPool, plane: &str) -> PlaneSnapshot {
     let pg = pool.pool();
     sqlx::query_as::<_, (String, String)>(
-        "SELECT entity, value FROM plane_e2e_rows WHERE plane = $1",
+        "SELECT entity, value FROM plane_e2e.rows WHERE plane = $1",
     )
     .bind(plane)
     .fetch_all(&*pg)
@@ -138,7 +142,7 @@ impl ConfigPlane for DbPlane {
     ) -> ConfigPlaneResult<PlaneSnapshot> {
         let tx = tx.get::<PlaneTransaction>()?;
         let rows = sqlx::query_as::<_, (String, String)>(
-            "SELECT entity, value FROM plane_e2e_rows WHERE plane = $1",
+            "SELECT entity, value FROM plane_e2e.rows WHERE plane = $1",
         )
         .bind(self.name)
         .fetch_all(&mut **tx)
@@ -172,7 +176,7 @@ impl ConfigPlane for DbPlane {
                 None => outcome.inserted += 1,
             }
             sqlx::query(
-                "INSERT INTO plane_e2e_rows (plane, entity, value) VALUES ($1, $2, $3) ON \
+                "INSERT INTO plane_e2e.rows (plane, entity, value) VALUES ($1, $2, $3) ON \
                  CONFLICT (plane, entity) DO UPDATE SET value = EXCLUDED.value",
             )
             .bind(self.name)
@@ -185,7 +189,7 @@ impl ConfigPlane for DbPlane {
         if request.mode != ApplyMode::InsertOnly {
             for entity in current.keys() {
                 if request.scope.admits(entity) && !request.declared.entries.contains_key(entity) {
-                    sqlx::query("DELETE FROM plane_e2e_rows WHERE plane = $1 AND entity = $2")
+                    sqlx::query("DELETE FROM plane_e2e.rows WHERE plane = $1 AND entity = $2")
                         .bind(self.name)
                         .bind(entity)
                         .execute(&mut **tx)
@@ -230,7 +234,7 @@ impl ConfigPlane for DbPlane {
                         value.as_str()
                     };
                     sqlx::query(
-                        "INSERT INTO plane_e2e_rows (plane, entity, value) VALUES ($1, $2, $3) \
+                        "INSERT INTO plane_e2e.rows (plane, entity, value) VALUES ($1, $2, $3) \
                          ON CONFLICT (plane, entity) DO UPDATE SET value = EXCLUDED.value",
                     )
                     .bind(self.name)
@@ -242,7 +246,7 @@ impl ConfigPlane for DbPlane {
                     outcome.updated += 1;
                 },
                 None => {
-                    sqlx::query("DELETE FROM plane_e2e_rows WHERE plane = $1 AND entity = $2")
+                    sqlx::query("DELETE FROM plane_e2e.rows WHERE plane = $1 AND entity = $2")
                         .bind(self.name)
                         .bind(entity)
                         .execute(&mut **tx)
