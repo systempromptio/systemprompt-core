@@ -126,32 +126,51 @@ pub struct Cli {
 pub enum Commands {
     #[command(
         subcommand,
+        display_order = 10,
         about = "Core operations: skills, content, files, contexts"
     )]
     Core(core::CoreCommands),
 
     #[command(
         subcommand,
+        display_order = 20,
         about = "Infrastructure management (services, db, jobs, logs, system)"
     )]
     Infra(infrastructure::InfraCommands),
 
     #[command(
         subcommand,
+        display_order = 30,
         about = "Administration (users, agents, config, setup, session)"
     )]
     Admin(admin::AdminCommands),
 
-    #[command(subcommand, about = "Cloud deployment, backup, and setup")]
+    #[command(
+        subcommand,
+        display_order = 40,
+        about = "Cloud deployment, backup, and setup"
+    )]
     Cloud(cloud::CloudCommands),
 
-    #[command(subcommand, about = "Analytics and metrics reporting")]
+    #[command(
+        subcommand,
+        display_order = 50,
+        about = "Analytics and metrics reporting"
+    )]
     Analytics(analytics::AnalyticsCommands),
 
-    #[command(subcommand, about = "Web service configuration management")]
+    #[command(
+        subcommand,
+        display_order = 60,
+        about = "Web service configuration management"
+    )]
     Web(web::WebCommands),
 
-    #[command(subcommand, about = "Plugins, extensions, and MCP server management")]
+    #[command(
+        subcommand,
+        display_order = 70,
+        about = "Plugins, extensions, and MCP server management"
+    )]
     Plugins(plugins::PluginsCommands),
 }
 

@@ -14,8 +14,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::{Cli, Commands};
+use super::Cli;
 use crate::cli_settings::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
+use crate::descriptor::CommandDescriptor;
 use crate::env_overrides::EnvOverrides;
 
 pub fn build_cli_config(cli: &Cli, env: &EnvOverrides) -> CliConfig {
@@ -118,13 +119,13 @@ fn is_local_only_flag(arg: &str) -> bool {
     })
 }
 
-pub fn has_local_export_flag(command: Option<&Commands>) -> bool {
+pub fn has_local_export_flag(desc: &CommandDescriptor) -> bool {
     let args: Vec<String> = std::env::args().collect();
-    has_local_export_flag_in(command, &args)
+    has_local_export_flag_in(desc, &args)
 }
 
-pub fn has_local_export_flag_in(command: Option<&Commands>, args: &[String]) -> bool {
-    if !matches!(command, Some(Commands::Analytics(_))) {
+pub fn has_local_export_flag_in(desc: &CommandDescriptor, args: &[String]) -> bool {
+    if !desc.local_export() {
         return false;
     }
     args.iter()

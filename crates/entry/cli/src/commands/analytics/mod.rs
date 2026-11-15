@@ -63,6 +63,7 @@ impl DescribeCommand for AnalyticsCommands {
         CommandDescriptor::FULL
             .with_skip_validation()
             .with_read_only()
+            .with_local_export()
     }
 }
 

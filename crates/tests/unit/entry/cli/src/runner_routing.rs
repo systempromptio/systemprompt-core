@@ -10,7 +10,7 @@
 
 use clap::Parser;
 use systemprompt_cli::args::Cli;
-use systemprompt_cli::descriptor::{DataImpact, RoutingClass};
+use systemprompt_cli::descriptor::{CommandDescriptor, DataImpact, DescribeCommand, RoutingClass};
 use systemprompt_cli::runner::profile_routing::{
     BootstrapOutcome, confirm_remote_job_run, is_cloud_bypass_command,
 };
@@ -29,6 +29,13 @@ use systemprompt_manifest::Profile;
 fn cli(args: &[&str]) -> Cli {
     Cli::try_parse_from(std::iter::once("systemprompt").chain(args.iter().copied()))
         .unwrap_or_else(|e| panic!("parse {args:?}: {e}"))
+}
+
+fn descriptor(args: &[&str]) -> CommandDescriptor {
+    cli(args)
+        .command
+        .unwrap_or_else(|| panic!("{args:?} names a kernel command"))
+        .descriptor()
 }
 
 fn fixture_profile() -> Profile {
@@ -52,16 +59,15 @@ fn message(err: &anyhow::Error) -> String {
 
 #[test]
 fn cloud_and_session_commands_bypass_cloud_routing_and_others_do_not() {
-    assert!(is_cloud_bypass_command(
-        cli(&["cloud", "doctor"]).command.as_ref()
-    ));
-    assert!(is_cloud_bypass_command(
-        cli(&["admin", "session", "list"]).command.as_ref()
-    ));
-    assert!(!is_cloud_bypass_command(
-        cli(&["infra", "services", "status"]).command.as_ref()
-    ));
-    assert!(!is_cloud_bypass_command(None));
+    assert!(is_cloud_bypass_command(&descriptor(&["cloud", "doctor"])));
+    assert!(is_cloud_bypass_command(&descriptor(&["cloud", "status"])));
+    assert!(is_cloud_bypass_command(&descriptor(&[
+        "admin", "session", "list"
+    ])));
+    assert!(!is_cloud_bypass_command(&descriptor(&[
+        "infra", "services", "status"
+    ])));
+    assert!(!is_cloud_bypass_command(&CommandDescriptor::NONE));
 }
 
 #[test]

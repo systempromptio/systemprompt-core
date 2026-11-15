@@ -24,7 +24,7 @@ use super::{args, bootstrap};
 use systemprompt_loader::ServicesState;
 
 use crate::cli_settings::CliConfig;
-use crate::commands::{admin, infrastructure};
+use crate::commands::infrastructure;
 use crate::descriptor::{CommandDescriptor, RoutingClass};
 use crate::env_overrides::EnvOverrides;
 use crate::interactive;
@@ -80,7 +80,7 @@ pub(super) async fn bootstrap_profile(
     env: &EnvOverrides,
     confirm: &ConfirmationRequest,
 ) -> Result<Bootstrapped> {
-    let has_export = args::has_local_export_flag(cli.command.as_ref());
+    let has_export = args::has_local_export_flag(desc);
     let ctx = bootstrap::resolve_and_display_profile(cli_config, env, has_export)?;
 
     require_explicit_cloud_profile(ctx.loaded.profile(), ctx.source, desc)?;
@@ -91,7 +91,7 @@ pub(super) async fn bootstrap_profile(
         return Ok(Bootstrapped::new(BootstrapOutcome::RemoteExecuted, None));
     }
 
-    let needs_cloud = is_cloud_bypass_command(cli.command.as_ref());
+    let needs_cloud = is_cloud_bypass_command(desc);
     initialize_post_routing(&ctx, desc, needs_cloud).await
 }
 
@@ -117,7 +117,7 @@ async fn enforce_routing_policy(
     if ctx.is_cloud
         && !ctx.env.is_deployment_host
         && !ctx.external_db_access
-        && !is_cloud_bypass_command(cli.command.as_ref())
+        && !is_cloud_bypass_command(desc)
     {
         bail!(
             "Cloud profile '{}' selected but this command doesn't support remote execution.\nUse \
@@ -154,11 +154,8 @@ pub fn require_explicit_cloud_profile(
     )
 }
 
-pub const fn is_cloud_bypass_command(command: Option<&args::Commands>) -> bool {
-    matches!(
-        command,
-        Some(args::Commands::Cloud(_) | args::Commands::Admin(admin::AdminCommands::Session(_)))
-    )
+pub const fn is_cloud_bypass_command(desc: &CommandDescriptor) -> bool {
+    desc.cloud_operator()
 }
 
 async fn initialize_post_routing(
