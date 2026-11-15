@@ -10,17 +10,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::fmt;
-use std::str::FromStr;
-
-use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{CallId, PolicyId, SessionId, UserId};
-
-use super::governed::{GovernedInput, GovernedTarget};
-use super::rate_window::RateCounts;
-use super::secrets::{SecretFinding, SecretScanner};
-use crate::authz::error::AuthzError;
-use crate::authz::types::Decision;
+use systemprompt_identifiers::{CallId, SessionId, UserId};
+use systemprompt_provider_contracts::governance::{
+    AccessScope, AgentScope, GovernedInput, GovernedTarget, PolicyContext, RateCounts,
+};
 
 /// One governed call before its rate windows are charged.
 ///

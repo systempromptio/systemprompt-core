@@ -4,8 +4,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::{Evaluation, GovernanceEngine};
-use crate::policy::rate_window::{RateCharge, RateCounts};
-use crate::policy::types::{PolicyContext, PolicyRequest};
+use crate::policy::rate_window::RateCharge;
+use crate::policy::{PolicyContext, PolicyRequest, RateCounts};
 
 /// A [`PolicyRequest`] whose rate windows the engine has charged; the only
 /// production source of a [`PolicyContext`] with real rate counts.

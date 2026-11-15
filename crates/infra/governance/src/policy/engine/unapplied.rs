@@ -15,10 +15,12 @@ use super::{GovernanceEngine, GovernanceEngineError};
 use crate::policy::config::GovernanceConfig;
 use crate::policy::plane::GOVERNANCE_PLANE;
 use crate::policy::rate_window::RateWindowRepository;
+use crate::policy::registry::PolicyCatalog;
 
 impl GovernanceEngine {
     pub(super) fn unapplied(
         mode: UnappliedPlaneMode,
+        catalog: &PolicyCatalog,
         rate_windows: Option<RateWindowRepository>,
     ) -> Result<Self, GovernanceEngineError> {
         if mode.denies() {
@@ -34,7 +36,7 @@ impl GovernanceEngine {
         }
         let mut empty = GovernanceConfig::defaults();
         empty.policies.clear();
-        let mut engine = Self::from_config(&empty, rate_windows)?;
+        let mut engine = Self::from_config(&empty, catalog, rate_windows)?;
         engine.unapplied = Some(mode);
         Ok(engine)
     }

@@ -37,7 +37,6 @@ base64 = { workspace = true }
 serde = { workspace = true }
 
 # Authz module
-inventory = { workspace = true }
 regex = { workspace = true }
 reqwest = { workspace = true }
 serde_json = { workspace = true }
@@ -55,6 +54,7 @@ systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
 systemprompt-traits = { workspace = true }
+systemprompt-provider-contracts = { workspace = true, features = ["sqlx"] }
 
 [package.metadata.docs.rs]
 all-features = true

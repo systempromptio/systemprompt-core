@@ -12,9 +12,8 @@ use systemprompt_identifiers::{
     TaskId, TraceId, UserId,
 };
 
-use super::decision::DenyReason;
-use super::entity_ref::EntityRef;
-use crate::policy::types::AccessScope;
+use super::{DecisionTag, DenyReason, EntityRef};
+use systemprompt_provider_contracts::governance::AccessScope;
 
 /// Open enforcement-site context attached to an [`AuthzRequest`].
 ///
@@ -234,4 +233,13 @@ impl AuthzRequest {
 pub enum AuthzDecision {
     Allow,
     Deny { reason: DenyReason, policy: String },
+}
+
+impl From<&AuthzDecision> for DecisionTag {
+    fn from(d: &AuthzDecision) -> Self {
+        match d {
+            AuthzDecision::Allow => Self::Allow,
+            AuthzDecision::Deny { .. } => Self::Deny,
+        }
+    }
 }

@@ -8,7 +8,7 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{DepartmentId, RoleId, UserId};
 
-use super::kinds::RuleType;
+use super::RuleType;
 
 const DEPARTMENT_RULE_TYPE: RuleType = RuleType::extension_static("department");
 

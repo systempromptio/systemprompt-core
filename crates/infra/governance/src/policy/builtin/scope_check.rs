@@ -21,15 +21,16 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::borrow::Cow;
+use std::sync::Arc;
 
 use serde::Deserialize;
 use serde_yaml::Value as YamlValue;
 use systemprompt_identifiers::PolicyId;
 
-use super::super::registry::{PolicyConfigurationError, PolicyRegistration};
-use super::super::types::{AccessScope, GovernancePolicy, PolicyContext};
+use super::super::registry::{BuiltPolicy, BuiltinPolicy, PolicyConfigurationError};
 use super::role_gate::RoleRule;
 use crate::authz::types::{Decision, DenyReason, MatchedBy};
+use crate::policy::{AccessScope, GovernancePolicy, PolicyContext};
 
 pub(crate) const ID: &str = "scope_check";
 const DEFAULT_ADMIN_ONLY_PREFIXES: &[&str] = &["mcp__systemprompt__"];
@@ -146,9 +147,11 @@ impl GovernancePolicy for ScopeCheck {
     }
 }
 
-inventory::submit! {
-    PolicyRegistration {
-        id: ID,
-        factory: |v| Ok(Box::new(ScopeCheck::from_yaml(v)?)),
-    }
+pub(super) const POLICY: BuiltinPolicy = BuiltinPolicy {
+    id: ID,
+    factory: build,
+};
+
+fn build(v: &YamlValue) -> Result<BuiltPolicy, PolicyConfigurationError> {
+    Ok(BuiltPolicy::new(Arc::new(ScopeCheck::from_yaml(v)?)))
 }

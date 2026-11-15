@@ -35,16 +35,11 @@ mod subjects;
 mod upsert;
 
 use std::sync::Arc;
-use systemprompt_traits::SecretStore;
 
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
-use systemprompt_manifest::services::ServicesView;
-use systemprompt_models::authz::SubjectSourceHandle;
 
-use super::audit::NullAuditSink;
-use super::registry::AuthzHookContext;
-use super::subject_directory::{RoleDirectory, SharedRoleDirectory, discover_role_directory};
+use super::subject_directory::{RoleDirectory, SharedRoleDirectory};
 
 pub use catalog::RegisteredEntities;
 pub use scope::IngestScope;
@@ -97,30 +92,13 @@ pub struct AccessControlIngestionService {
 }
 
 impl AccessControlIngestionService {
-    pub fn new(
-        db: &DbPool,
-        services: ServicesView,
-        subjects: SubjectSourceHandle,
-        secrets: Arc<dyn SecretStore>,
-    ) -> Self {
-        let write_pool = db.write_pool();
-        Self::from_pool(write_pool, services, subjects, secrets)
+    #[must_use]
+    pub fn new(db: &DbPool, role_directory: Option<SharedRoleDirectory>) -> Self {
+        Self::from_pool(db.write_pool(), role_directory)
     }
 
-    pub fn from_pool(
-        pool: Arc<PgPool>,
-        services: ServicesView,
-        subjects: SubjectSourceHandle,
-        secrets: Arc<dyn SecretStore>,
-    ) -> Self {
-        let role_directory = discover_role_directory(&AuthzHookContext {
-            pool: Arc::clone(&pool),
-            sink: Arc::new(NullAuditSink),
-            services,
-            subjects,
-            secrets,
-            state: systemprompt_extension::StateHandle::default(),
-        });
+    #[must_use]
+    pub fn from_pool(pool: Arc<PgPool>, role_directory: Option<SharedRoleDirectory>) -> Self {
         Self {
             write_pool: pool,
             role_directory,

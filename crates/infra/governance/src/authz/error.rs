@@ -13,14 +13,11 @@ domain_error! {
         #[error("invalid rule_type: {0}")]
         InvalidRuleType(String),
 
-        #[error("invalid access value: {0}")]
-        InvalidAccess(String),
+        #[error("governance value: {0}")]
+        Parse(#[from] systemprompt_provider_contracts::governance::GovernanceParseError),
 
-        #[error("unknown entity_type: {0}")]
-        UnknownEntityKind(String),
-
-        #[error("unknown access scope: {0}")]
-        UnknownAccessScope(String),
+        #[error("subject attribute lookup: {0}")]
+        Subject(#[from] systemprompt_traits::authz::SubjectAttributeError),
 
         #[error(
             "refusing to reconcile the gateway_route catalog against an empty route set — this \
@@ -58,7 +55,7 @@ domain_error! {
             marketplace: String,
             rule_type: String,
             #[source]
-            source: Box<systemprompt_models::authz::RuleTypeError>,
+            source: Box<systemprompt_provider_contracts::governance::RuleTypeError>,
         },
 
         #[error("access-control rules: {0}")]
