@@ -157,3 +157,25 @@ fn a_finished_foreground_child_is_no_longer_recorded() {
     assert!(status.success());
     assert!(children.tracked().is_empty());
 }
+
+#[test]
+fn an_interrupted_run_exits_with_status_130() {
+    let code = systemprompt_cli::runner::interrupt::exit_code(Err(Interrupted.into()))
+        .expect("an interrupted run maps to an exit code");
+    assert_eq!(
+        format!("{code:?}"),
+        format!("{:?}", std::process::ExitCode::from(130))
+    );
+}
+
+#[test]
+fn a_completed_run_exits_successfully_and_a_failed_one_keeps_its_error() {
+    let code = systemprompt_cli::runner::interrupt::exit_code(Ok(())).expect("success");
+    assert_eq!(
+        format!("{code:?}"),
+        format!("{:?}", std::process::ExitCode::SUCCESS)
+    );
+    let failure = systemprompt_cli::runner::interrupt::exit_code(Err(anyhow::anyhow!("boom")))
+        .expect_err("a failed run keeps its error");
+    assert_eq!(failure.to_string(), "boom");
+}

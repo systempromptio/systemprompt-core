@@ -26,9 +26,10 @@ Clone the repository and build the workspace. The first build downloads and comp
 git clone https://github.com/systempromptio/systemprompt-core.git
 cd systemprompt-core
 just build
+just cli
 ```
 
-`just build` runs `cargo build --workspace`. The compiled binary is at `./target/debug/systemprompt`.
+`just build` runs `cargo build --workspace`; `just cli` builds the `systemprompt` binary (`cargo build -p systemprompt --bin systemprompt --features full`). The compiled binary is at `./target/debug/systemprompt`.
 
 ## 2. Generate a profile, database, and secrets
 
