@@ -3,7 +3,8 @@
 //! The handler subscribes through its handed `AnalyticsSubscription` and
 //! passes the [`SubscribedStream`] here; frames arrive pre-rendered, the
 //! response sends the standard heartbeat, and dropping the response drops the
-//! subscription, which unregisters it from the broadcaster.
+//! subscription, which unregisters it from the broadcaster. A subscription the
+//! broadcaster refuses at the per-user cap answers [`subscription_refused`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,7 +15,10 @@ use std::time::Duration;
 use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::response::{IntoResponse, Response};
 use systemprompt_models::RequestContext;
+use systemprompt_models::api::ApiError;
 use systemprompt_traits::events::{SseFrame, SubscribedStream};
+
+use super::ApiHttpError;
 
 pub const HEARTBEAT_JSON: &str = r#"{"type":"heartbeat"}"#;
 pub const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(15);
@@ -35,6 +39,19 @@ pub fn sse_response(req: &RequestContext, sub: SubscribedStream, label: &'static
     Sse::new(frames)
         .keep_alive(standard_keep_alive())
         .into_response()
+}
+
+#[must_use]
+pub fn subscription_refused(req: &RequestContext, label: &'static str) -> Response {
+    tracing::warn!(
+        user_id = %req.user_id(),
+        stream = label,
+        "SSE stream rejected: per-user connection cap reached"
+    );
+    ApiHttpError::from(ApiError::rate_limited(
+        "Per-user stream connection limit reached",
+    ))
+    .into_response()
 }
 
 fn to_event(frame: SseFrame) -> Event {

@@ -48,7 +48,9 @@ pub use shape::{
     RouteLimits, RoutePath, RouteShape, RouteSpec, TypedSpec, WebBase,
 };
 #[cfg(feature = "router")]
-pub use sse::{HEARTBEAT_INTERVAL, HEARTBEAT_JSON, sse_response, standard_keep_alive};
+pub use sse::{
+    HEARTBEAT_INTERVAL, HEARTBEAT_JSON, sse_response, standard_keep_alive, subscription_refused,
+};
 
 #[cfg(feature = "router")]
 #[doc(hidden)]
