@@ -3,7 +3,8 @@
 //! a forged command handoff, the built-in gateway prefixes, the governance
 //! subject-dimension check and slots, the analytics-http and content-http
 //! members as the reference composition admits them, and the brain and
-//! notifications capability slots and routes.
+//! notifications capability slots and routes, and the files and marketplace
+//! slots.
 
 #[cfg(test)]
 mod analytics_http;
@@ -21,6 +22,8 @@ mod content_http;
 mod core_ids;
 #[cfg(test)]
 mod disable_probe;
+#[cfg(test)]
+mod files_marketplace_slots;
 #[cfg(test)]
 mod forged_commands;
 #[cfg(test)]

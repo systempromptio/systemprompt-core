@@ -148,9 +148,9 @@ fn xlsx_targets_resolve_against_the_workbook_as_read() {
 
 #[test]
 fn every_codec_names_its_insert_kinds() {
-    use systemprompt_files::documents::codecs::CodecRegistry;
+    use systemprompt_files::documents::codecs::{CodecRegistry, core_codecs};
     use systemprompt_provider_contracts::documents::DocumentFormat;
-    let codecs = CodecRegistry::discover();
+    let codecs = CodecRegistry::from_codecs(core_codecs());
     let kinds = |format| {
         codecs
             .for_format(format)

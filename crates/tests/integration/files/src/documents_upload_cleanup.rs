@@ -23,6 +23,8 @@ use systemprompt_traits::{
 };
 use tempfile::TempDir;
 
+use crate::documents_service_fixture::core_blob_holders;
+
 struct Faulty {
     inner: LocalFileStorage,
     stall_after_store: AtomicBool,
@@ -86,7 +88,7 @@ async fn rig() -> Rig {
     let uploads = Arc::new(DocumentUploadRepository::new(&db));
     let blobs = Arc::new(BlobStore::new(
         Arc::clone(&dyn_storage),
-        Arc::new(DocumentBlobRepository::new(&db)),
+        Arc::new(DocumentBlobRepository::new(&db, core_blob_holders())),
     ));
     let config = DocumentsConfig::default();
     let tasks = BackgroundTasks::new();

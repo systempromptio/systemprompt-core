@@ -51,7 +51,6 @@ mod managed_resolution;
 #[cfg(test)]
 mod manifest;
 #[cfg(test)]
-mod registry;
 #[cfg(test)]
 mod resolved_cache;
 #[cfg(test)]

@@ -25,7 +25,7 @@ fn missing_internal_mcp_manifest_stops_validation_with_mcp_error() {
         .clone();
 
     let mut validator = StartupValidator::new(fixture.boot.clone()).expect("startup validator");
-    let report = validator.validate(&config);
+    let report = validator.validate(&config, crate::ext_fixtures::fixture_admitted().built());
 
     let mcp_domain = report
         .domains
@@ -77,7 +77,7 @@ fn skill_missing_content_file_errors_in_verbose_mode() {
     .expect("remove skill content file");
 
     let mut validator = StartupValidator::new(fixture.boot.clone()).expect("startup validator");
-    let report = validator.validate(&config);
+    let report = validator.validate(&config, crate::ext_fixtures::fixture_admitted().built());
 
     let skills = report
         .domains
@@ -115,7 +115,7 @@ fn quiet_mode_validate_reports_the_same_extension_failures() {
     config.web_metadata_path.clone_from(&bad);
 
     let mut validator = StartupValidator::new(fixture.boot.clone()).expect("startup validator");
-    let report = validator.validate(&config);
+    let report = validator.validate(&config, crate::ext_fixtures::fixture_admitted().built());
 
     assert!(
         report
