@@ -250,10 +250,30 @@ core artifacts	group	-	kernel
 core artifacts list	leaf	-	kernel
 core artifacts show	leaf	-	kernel
 core content	group	-	content-http
+core content analytics	group	-	content-http
+core content analytics campaign	leaf	-	content-http
+core content analytics clicks	leaf	-	content-http
+core content analytics journey	leaf	-	content-http
+core content delete	leaf	-	content-http
+core content delete-source	leaf	-	content-http
+core content edit	leaf	-	content-http
+core content files	group	-	content-http
+core content files featured	leaf	-	content-http
+core content files link	leaf	-	content-http
+core content files list	leaf	-	content-http
+core content files unlink	leaf	-	content-http
+core content link	group	-	content-http
+core content link delete	leaf	-	content-http
+core content link generate	leaf	-	content-http
+core content link list	leaf	-	content-http
+core content link performance	leaf	-	content-http
+core content link show	leaf	-	content-http
+core content list	leaf	-	content-http
 core content popular	leaf	-	analytics-http
-core content stats	leaf	-	content-http
-core content top	leaf	-	content-http
-core content trends	leaf	-	content-http
+core content search	leaf	-	content-http
+core content show	leaf	-	content-http
+core content status	leaf	-	content-http
+core content verify	leaf	-	content-http
 core contexts	group	-	kernel
 core contexts create	leaf	-	kernel
 core contexts delete	leaf	-	kernel
