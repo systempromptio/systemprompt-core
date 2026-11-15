@@ -65,8 +65,8 @@ env:
   # binaries metadata recorded at build time resolves unchanged on the shard
   # and merge runners once the archive is unpacked there.
   CARGO_TARGET_DIR: /mnt/coverage-target
-  # Process-entry files with no in-process seam: twelve CLI ones (serve, deploy
-  # orchestrator/artifacts, tenant create cloud, setup
+  # Process-entry files with no in-process seam: eleven CLI ones (serve, deploy
+  # orchestrator/artifacts, setup
   # docker/docker_database/docker_compose, tenant docker container, backup
   # client/mod, plugins run, agents run), three domain supervisors (a2a_server
   # standalone, mcp orchestrator daemon, agent orchestration daemon) and one
