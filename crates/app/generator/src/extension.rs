@@ -2,7 +2,8 @@
 //!
 //! The member has no schema, migration or provided state; prerendering
 //! builds its template registry each run from the content hooks the
-//! `content::contract::ContentSlot` builds. It contributes the
+//! `content::contract::ContentSlot` builds, which the member requires, so a
+//! profile that disables `content` refuses `generator`. It contributes the
 //! `content_prerender` and `page_prerender` jobs, so a profile that disables
 //! `generator` admits neither, and `infra jobs list` names the owner. The
 //! content prerender orders its popular lists by the content popularity the
@@ -11,6 +12,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
+
+use systemprompt_content::ContentHooks;
 use systemprompt_extension::prelude::*;
 
 use crate::jobs::{ContentPrerenderJob, PagePrerenderJob};
@@ -31,7 +35,9 @@ impl Extension for GeneratorExtension {
     }
 
     fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
-        c.job(ContentPrerenderJob).job(PagePrerenderJob);
+        c.requires::<Arc<ContentHooks>>()
+            .job(ContentPrerenderJob)
+            .job(PagePrerenderJob);
         Ok(())
     }
 }

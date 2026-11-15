@@ -4,12 +4,17 @@
 //! owner, the kernel handles a conferral can hand a route set, and the
 //! extension state. [`Kernel::resolve`] seeds that state with the admitted
 //! members' projection drains ([`AdmittedProjections`]), then builds it from
-//! the [`Admitted`] handoff in three passes: every admitted member's provide
-//! fns in composition order, each reading what was provided before it; every
-//! member's declared requirements, checked against the finished state; and
-//! every slot, built from its admitted entries (core first where the slot
-//! asks for it) and inserted as `Arc<S::Built>`. Only admitted members'
-//! entries are present, so nothing a disabled member contributed runs.
+//! the [`Admitted`] handoff: every admitted member's provide fns in
+//! composition order, each reading what was provided before it; every slot,
+//! built from its admitted entries (core first where the slot asks for it)
+//! and inserted as `Arc<S::Built>`; the governance surfaces every member reads
+//! by type — the [`SubjectProviderSet`], the [`PolicyCatalog`] and the
+//! [`GatewayGuards`] — each inserted as an `Arc`, a reserved or doubly
+//! declared subject dimension refusing the resolution; and last every
+//! member's declared requirements, checked against the finished state, so a
+//! member may require a slot's built value or a governance surface. Only
+//! admitted members' entries are present, so nothing a disabled member
+//! contributed runs.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -19,9 +24,13 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use systemprompt_extension::contribute::{SlotBuildInput, build_slot};
+use systemprompt_extension::prelude::RuleType;
 use systemprompt_extension::{
-    Admitted, AdmittedProjections, HandleId, KernelHandle, ProvideError, Resolved, SlotError,
+    Admitted, AdmittedProjections, BuiltState, FactoryError, GatewayGuards, HandleId, KernelHandle,
+    ProvideError, Resolved, SlotError,
 };
+use systemprompt_governance::authz::{SubjectProviderError, SubjectProviderSet};
+use systemprompt_governance::policy::{PolicyCatalog, PolicyCatalogError};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::{Dependencies, DuplicateDependency};
 use systemprompt_traits::{BackgroundTasks, DatabaseHandle};
@@ -44,6 +53,53 @@ pub enum KernelError {
     },
     #[error("slot build failed")]
     Slot(#[from] SlotError),
+    #[error("{owner} declares reserved subject dimension {dimension}")]
+    ReservedDimension {
+        owner: ExtensionId,
+        dimension: RuleType,
+    },
+    #[error("subject dimension {dimension} declared by {second}, already owned by {first}")]
+    DimensionConflict {
+        dimension: RuleType,
+        first: ExtensionId,
+        second: ExtensionId,
+    },
+    #[error("subject provider factory of {owner} failed")]
+    SubjectProvider {
+        owner: ExtensionId,
+        #[source]
+        source: FactoryError,
+    },
+    #[error("policy catalog build failed")]
+    Policies(#[from] PolicyCatalogError),
+    #[error("gateway guard factory of {owner} failed")]
+    GatewayGuard {
+        owner: ExtensionId,
+        #[source]
+        source: FactoryError,
+    },
+}
+
+impl From<SubjectProviderError> for KernelError {
+    fn from(error: SubjectProviderError) -> Self {
+        match error {
+            SubjectProviderError::Factory { owner, source } => {
+                Self::SubjectProvider { owner, source }
+            },
+            SubjectProviderError::ReservedDimension { owner, dimension } => {
+                Self::ReservedDimension { owner, dimension }
+            },
+            SubjectProviderError::DimensionConflict {
+                dimension,
+                first,
+                second,
+            } => Self::DimensionConflict {
+                dimension,
+                first,
+                second,
+            },
+        }
+    }
 }
 
 pub struct Kernel {
@@ -86,8 +142,9 @@ impl Kernel {
     pub fn resolve(&mut self, admitted: &Admitted) -> Result<(), KernelError> {
         self.state.insert(AdmittedProjections::of(admitted.built()));
         self.provide_all(admitted)?;
-        self.check_requirements(admitted)?;
-        self.build_slots(admitted)
+        self.build_slots(admitted)?;
+        self.build_governance(admitted.built())?;
+        self.check_requirements(admitted)
     }
 
     #[must_use]
@@ -160,4 +217,31 @@ impl Kernel {
         }
         Ok(())
     }
+
+    fn build_governance(&mut self, built: &BuiltState) -> Result<(), KernelError> {
+        let r = Resolved::__new(&*self, &self.state);
+        let subjects = SubjectProviderSet::from_admitted(built, &r)?;
+        let policies = PolicyCatalog::from_admitted(built, &r)?;
+        let guards = gateway_guards(built, &r)?;
+        self.state.insert(Arc::new(subjects));
+        self.state.insert(Arc::new(policies));
+        self.state.insert(Arc::new(guards));
+        Ok(())
+    }
+}
+
+fn gateway_guards(built: &BuiltState, r: &Resolved<'_>) -> Result<GatewayGuards, KernelError> {
+    let mut installed = Vec::new();
+    for member in built.members() {
+        for factory in member.sink.gateway_guards() {
+            let guard = factory
+                .build(r)
+                .map_err(|source| KernelError::GatewayGuard {
+                    owner: member.owner.clone(),
+                    source,
+                })?;
+            installed.push((member.owner.clone(), guard));
+        }
+    }
+    Ok(GatewayGuards::new(installed))
 }
