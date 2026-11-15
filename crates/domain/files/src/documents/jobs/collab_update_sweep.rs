@@ -63,5 +63,3 @@ impl Job for DocumentCollabUpdateSweepJob {
         act_as(DocumentActor::system(self.name()), Self::run(ctx)).await
     }
 }
-
-systemprompt_provider_contracts::submit_job!("files", &DocumentCollabUpdateSweepJob);

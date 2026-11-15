@@ -67,8 +67,6 @@ pub use comments::{NativeComment, with_comments};
 pub use read_drawing::{MAX_PART_BYTES, held_image, saved_upload_hashes};
 pub use rich::{import_rich, materialise_rich, materialise_rich_with};
 
-use std::sync::Arc;
-
 use systemprompt_identifiers::DocumentNodeId;
 use systemprompt_provider_contracts::documents::{
     CodecError, DocumentCodec, DocumentFormat, EditOp, NodeFragment, NodeTarget, Projection,
@@ -76,7 +74,6 @@ use systemprompt_provider_contracts::documents::{
 };
 
 use crate::documents::codecs::fragments::leaf_hashes;
-use systemprompt_provider_contracts::register_document_codec;
 
 pub use blank::blank_docx;
 
@@ -156,9 +153,3 @@ impl DocumentCodec for DocxCodec {
         fragment::insert(bytes, base, after, fragment)
     }
 }
-
-fn docx_codec() -> Arc<dyn DocumentCodec> {
-    Arc::new(DocxCodec)
-}
-
-register_document_codec!(docx_codec);

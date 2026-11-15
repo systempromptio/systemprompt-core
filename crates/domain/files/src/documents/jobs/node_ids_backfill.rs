@@ -134,5 +134,3 @@ impl Job for DocumentNodeIdsBackfillJob {
         act_as(DocumentActor::system(self.name()), self.run(ctx)).await
     }
 }
-
-systemprompt_provider_contracts::submit_job!("files", &DocumentNodeIdsBackfillJob);

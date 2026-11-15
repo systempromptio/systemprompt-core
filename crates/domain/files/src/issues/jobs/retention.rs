@@ -70,5 +70,3 @@ impl Job for IssueRetentionJob {
             .with_duration(duration_ms))
     }
 }
-
-systemprompt_provider_contracts::submit_job!("files", &IssueRetentionJob);

@@ -20,7 +20,7 @@ use super::super::service::{UploadService, UploadServiceParts};
 use crate::FilesConfig;
 use crate::documents::agents::{DocumentActor, act_as};
 use crate::documents::blob_store::BlobStore;
-use crate::documents::repository::DocumentBlobRepository;
+use crate::documents::repository::{BlobHolders, DocumentBlobRepository};
 
 const BATCH: i64 = 500;
 
@@ -38,7 +38,10 @@ impl DocumentUploadExpiryJob {
         let storage = ctx.get::<Arc<dyn ExtensionContext>>()?.file_storage();
         let blobs = Arc::new(BlobStore::new(
             Arc::clone(&storage),
-            Arc::new(DocumentBlobRepository::new(db_pool)),
+            Arc::new(DocumentBlobRepository::new(
+                db_pool,
+                Arc::clone(ctx.get::<Arc<BlobHolders>>()?),
+            )),
         ));
         let service = UploadService::new(UploadServiceParts {
             storage,
@@ -97,5 +100,3 @@ impl Job for DocumentUploadExpiryJob {
         act_as(DocumentActor::system(self.name()), Self::run(ctx)).await
     }
 }
-
-systemprompt_provider_contracts::submit_job!("files", &DocumentUploadExpiryJob);

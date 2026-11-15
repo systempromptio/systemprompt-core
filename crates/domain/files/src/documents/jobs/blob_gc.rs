@@ -14,7 +14,7 @@ use systemprompt_traits::{Job, JobContext, JobResult, JobScope, ProviderError, P
 use crate::FilesConfig;
 use crate::documents::agents::{DocumentActor, act_as};
 use crate::documents::blob_store::BlobStore;
-use crate::documents::repository::DocumentBlobRepository;
+use crate::documents::repository::{BlobHolders, DocumentBlobRepository};
 
 const BATCH: u32 = 500;
 
@@ -31,7 +31,13 @@ impl DocumentBlobGcJob {
         }
         let grace_hours = documents.blob_gc_grace_hours;
         let storage = ctx.get::<Arc<dyn ExtensionContext>>()?.file_storage();
-        let store = BlobStore::new(storage, Arc::new(DocumentBlobRepository::new(db_pool)));
+        let store = BlobStore::new(
+            storage,
+            Arc::new(DocumentBlobRepository::new(
+                db_pool,
+                Arc::clone(ctx.get::<Arc<BlobHolders>>()?),
+            )),
+        );
 
         let report = store
             .delete_unreferenced(grace_hours, BATCH)
@@ -79,5 +85,3 @@ impl Job for DocumentBlobGcJob {
         act_as(DocumentActor::system(self.name()), Self::run(ctx)).await
     }
 }
-
-systemprompt_provider_contracts::submit_job!("files", &DocumentBlobGcJob);

@@ -14,7 +14,7 @@
 mod blob_holder;
 mod rows;
 
-pub(crate) use blob_holder::ISSUE_USER_PURGES;
+pub(crate) use blob_holder::{ISSUE_USER_PURGES, held_among as issue_attachments_held_among};
 
 use std::sync::Arc;
 

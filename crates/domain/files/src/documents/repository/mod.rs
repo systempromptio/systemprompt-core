@@ -76,7 +76,7 @@ use systemprompt_database::DbPool;
 pub use access_requests::DocumentAccessRequestRepository;
 pub use agent_batch::FolderChain;
 pub use agent_caps::{AgentFacts, AgentReadRecord, CapOverride};
-pub use blob_holders::{BlobHolder, HeldAmong};
+pub use blob_holders::{BlobHolder, BlobHolders, HeldAmong};
 pub use blobs::{DocumentBlobRepository, HashLock};
 pub use collab_owners::OwnerClaim;
 pub use collab_peers::{CollabAppend, LoggedAuthor, UpdateAuthor};
@@ -131,12 +131,12 @@ pub struct DocumentRepositories {
 }
 
 impl DocumentRepositories {
-    pub fn new(db: &DbPool) -> Self {
+    pub fn new(db: &DbPool, holders: Arc<BlobHolders>) -> Self {
         Self {
             folders: Arc::new(DocumentFolderRepository::new(db)),
             documents: Arc::new(DocumentRepository::new(db)),
             revisions: Arc::new(DocumentRevisionRepository::new(db)),
-            blobs: Arc::new(DocumentBlobRepository::new(db)),
+            blobs: Arc::new(DocumentBlobRepository::new(db, holders)),
             media: Arc::new(DocumentMediaRepository::new(db)),
             uploads: Arc::new(crate::uploads::DocumentUploadRepository::new(db)),
             grants: Arc::new(DocumentGrantRepository::new(db)),

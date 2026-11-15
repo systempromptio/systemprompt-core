@@ -32,8 +32,6 @@ mod rebase;
 mod umya_import;
 mod workbook;
 
-use std::sync::Arc;
-
 use systemprompt_provider_contracts::documents::{
     CodecError, DocumentCodec, DocumentFormat, EditOp, Projection, ProjectionNode, TemplateParams,
 };
@@ -90,9 +88,3 @@ impl DocumentCodec for XlsxCodec {
         blank::instantiate(template, params)
     }
 }
-
-fn xlsx_codec() -> Arc<dyn DocumentCodec> {
-    Arc::new(XlsxCodec)
-}
-
-systemprompt_provider_contracts::register_document_codec!(xlsx_codec);

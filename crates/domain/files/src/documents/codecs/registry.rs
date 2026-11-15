@@ -6,25 +6,19 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use systemprompt_provider_contracts::documents::{
-    DocumentCodec, DocumentFormat, registered_codecs,
-};
+use systemprompt_provider_contracts::documents::{DocumentCodec, DocumentFormat};
 
 /// The codec chosen for each document format.
 ///
-/// Built once at a composition root and shared; the highest-priority codec
-/// for a format wins, and among equal priorities the one listed first.
+/// Built once by [`DocumentsSlot`](crate::contract::DocumentsSlot) and shared;
+/// the highest-priority codec for a format wins, and among equal priorities the
+/// one listed first.
 #[derive(Debug, Clone, Default)]
 pub struct CodecRegistry {
     by_format: BTreeMap<DocumentFormat, Arc<dyn DocumentCodec>>,
 }
 
 impl CodecRegistry {
-    #[must_use]
-    pub fn discover() -> Self {
-        Self::from_codecs(registered_codecs())
-    }
-
     #[must_use]
     pub fn from_codecs(codecs: impl IntoIterator<Item = Arc<dyn DocumentCodec>>) -> Self {
         let mut ordered: Vec<Arc<dyn DocumentCodec>> = codecs.into_iter().collect();

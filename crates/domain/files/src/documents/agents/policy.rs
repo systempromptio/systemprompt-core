@@ -1,15 +1,12 @@
 //! [`AgentAccessPolicy`]: the seam an extension decides agent caps through.
 //!
 //! Core holds the mechanics; the policy is the extension's. An extension
-//! registers one with
-//! [`register_agent_access_policy!`](crate::register_agent_access_policy);
-//! with none registered, [`DefaultAgentAccessPolicy`] answers `edit` on every
-//! document and allows no [`AgentCapability`], which is today's behaviour
-//! plus the hard rules. When several are registered the one whose name sorts
-//! first wins and the rest are logged as ignored, so the choice does not
-//! depend on link order.
+//! contributes one to [`AgentAccessSlot`](crate::contract::AgentAccessSlot);
+//! with none contributed, [`DefaultAgentAccessPolicy`] answers `edit` on every
+//! document and allows no [`AgentCapability`], plus the hard rules. The slot
+//! is single-valued: two contributed policies refuse the build.
 //!
-//! A registration builds its policy from the database pool, so a policy can
+//! A policy is built by a factory over the resolved state, so a policy can
 //! read its own tables. `cap` and `allows` are async and infallible: a policy
 //! that cannot decide fails closed itself (`AgentCap::None`, `false`) and
 //! logs why.
@@ -17,10 +14,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
-
 use async_trait::async_trait;
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AgentName, DocumentFolderId, DocumentId, UserId};
 use systemprompt_models::documents::DocumentFormat;
 
@@ -49,7 +43,7 @@ pub struct DocumentContext {
 
 /// The seam an extension sets agent caps through. `#[async_trait]` keeps it
 /// dyn-compatible: the access service holds it as `Arc<dyn AgentAccessPolicy>`
-/// built from its inventory registration.
+/// built by [`AgentAccessSlot`](crate::contract::AgentAccessSlot).
 ///
 /// `cap` is required, so no policy grants a cap by omission; it is the most an
 /// agent may do on a target (an owner override only lowers it); `allows` grants
@@ -115,44 +109,4 @@ impl AgentAccessPolicy for DefaultAgentAccessPolicy {
     async fn cap(&self, _doc: &DocumentContext, _agent: &AgentActor) -> AgentCap {
         AgentCap::Edit
     }
-}
-
-/// One registered policy, submitted through
-/// [`register_agent_access_policy!`](crate::register_agent_access_policy).
-#[derive(Debug, Clone, Copy)]
-pub struct AgentAccessPolicyRegistration {
-    pub name: &'static str,
-    pub build: fn(&DbPool) -> Arc<dyn AgentAccessPolicy>,
-}
-
-inventory::collect!(AgentAccessPolicyRegistration);
-
-#[macro_export]
-macro_rules! register_agent_access_policy {
-    ($name:expr, $build:expr $(,)?) => {
-        $crate::__inventory::submit! {
-            $crate::documents::agents::AgentAccessPolicyRegistration {
-                name: $name,
-                build: $build,
-            }
-        }
-    };
-}
-
-#[must_use]
-pub fn registered_policy(db: &DbPool) -> Arc<dyn AgentAccessPolicy> {
-    let mut registered: Vec<&AgentAccessPolicyRegistration> =
-        inventory::iter::<AgentAccessPolicyRegistration>().collect();
-    registered.sort_by_key(|registration| registration.name);
-    let Some((chosen, ignored)) = registered.split_first() else {
-        return Arc::new(DefaultAgentAccessPolicy);
-    };
-    for other in ignored {
-        tracing::warn!(
-            chosen = chosen.name,
-            ignored = other.name,
-            "More than one agent access policy is registered; only the first by name applies"
-        );
-    }
-    (chosen.build)(db)
 }

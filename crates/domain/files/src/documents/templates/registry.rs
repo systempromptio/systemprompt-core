@@ -10,7 +10,7 @@ use std::sync::Arc;
 use systemprompt_identifiers::DocumentTemplateId;
 use systemprompt_provider_contracts::documents::{
     CodecError, DocumentFormat, DocumentTemplate, DocumentTemplateProvider, TemplateParams,
-    TemplateSource, registered_template_providers,
+    TemplateSource,
 };
 
 use super::catalog::{CatalogTemplate, TemplateCatalogError};
@@ -55,7 +55,7 @@ struct Entry {
 
 /// Every known document template, one per id.
 ///
-/// Built once at a composition root from the inventory providers and the
+/// Built once at a composition root from the contributed providers and the
 /// services catalog; the highest priority wins per id and, on equal
 /// priority, the source merged first. `instantiate` reads `ServicesPath`
 /// files synchronously with `std::fs` at document-create time; async callers
@@ -67,8 +67,11 @@ pub struct TemplateRegistry {
 
 impl TemplateRegistry {
     #[must_use]
-    pub fn discover(catalog: Vec<CatalogTemplate>) -> Self {
-        let mut registry = Self::from_sources(registered_template_providers(), catalog);
+    pub fn with_core_blanks(
+        providers: impl IntoIterator<Item = Arc<dyn DocumentTemplateProvider>>,
+        catalog: Vec<CatalogTemplate>,
+    ) -> Self {
+        let mut registry = Self::from_sources(providers, catalog);
         for blank in office_blanks() {
             registry = registry.with_generated(blank, CORE_TEMPLATE_PRIORITY);
         }

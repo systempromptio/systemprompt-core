@@ -9,4 +9,5 @@
 mod document_actor_scope;
 mod file_ingestion;
 
+pub(crate) use document_actor_scope::DocumentActorScope;
 pub use file_ingestion::FileIngestionJob;

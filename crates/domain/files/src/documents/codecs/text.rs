@@ -9,14 +9,12 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeMap;
-use std::sync::Arc;
 
 use systemprompt_identifiers::DocumentNodeId;
 use systemprompt_provider_contracts::documents::{
     CodecError, DocumentCodec, DocumentFormat, EditOp, NodeKind, Projection, ProjectionNode,
     TemplateParams, content_hash, hash8,
 };
-use systemprompt_provider_contracts::register_document_codec;
 
 use super::anchors::{decode_utf8, ensure_base};
 use super::lines::{BODY_ID, LineDoc};
@@ -26,12 +24,6 @@ use super::placeholders::substitute;
 pub struct TextCodec;
 
 const FORMATS: &[DocumentFormat] = &[DocumentFormat::Text];
-
-fn factory() -> Arc<dyn DocumentCodec> {
-    Arc::new(TextCodec)
-}
-
-register_document_codec!(factory);
 
 pub(crate) fn line_body(text: &str, kind: NodeKind) -> ProjectionNode {
     ProjectionNode {

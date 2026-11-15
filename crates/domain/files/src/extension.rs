@@ -1,18 +1,36 @@
-//! Extension registration for the files domain.
+//! [`FilesExtension`]: contributes the `files`, `content_files` and document
+//! store schemas, the `report_document_revisions` and
+//! `report_document_sharing` views, the migrations, the files jobs and the
+//! document-actor job run scope, and the user-purge rows of the document store
+//! and issue report tables.
 //!
-//! Registers the `files`, `content_files` and document store schemas, and the
-//! `report_document_revisions` and `report_document_sharing` views, with the
-//! platform extension framework, with the user-purge rows of the document
-//! store and issue report tables.
+//! It opens the three files slots ([`BlobHolderSlot`], [`AgentAccessSlot`],
+//! [`DocumentsSlot`]) and fills them with the issue attachment holder, the
+//! core codecs and the core template provider; it contributes no agent
+//! access policy, so the default applies unless one other member does.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_extension::prelude::*;
+use std::sync::Arc;
 
+use systemprompt_extension::prelude::*;
+use systemprompt_provider_contracts::documents::{DocumentCodec, DocumentTemplateProvider};
+
+use crate::contract::{AgentAccessSlot, BlobHolderSlot, DocumentsSlot};
 use crate::document_schemas::DOCUMENT_SCHEMAS;
+use crate::documents::codecs::core_codecs;
+use crate::documents::jobs::{
+    DocumentAgentReadRetentionJob, DocumentBlobGcJob, DocumentCollabUpdateSweepJob,
+    DocumentMediaBackfillJob, DocumentNodeIdsBackfillJob, DocumentPresenceSweepJob,
+    DocumentTrashPurgeJob,
+};
 use crate::documents::repository::DOCUMENT_USER_PURGES;
-use crate::issues::repository::ISSUE_USER_PURGES;
+use crate::documents::templates::CoreTemplateProvider;
+use crate::issues::IssueRetentionJob;
+use crate::issues::repository::{ISSUE_USER_PURGES, issue_attachments_held_among};
+use crate::jobs::{DocumentActorScope, FileIngestionJob};
+use crate::uploads::DocumentUploadExpiryJob;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct FilesExtension;
@@ -56,6 +74,35 @@ impl Extension for FilesExtension {
         for purge in DOCUMENT_USER_PURGES.iter().chain(ISSUE_USER_PURGES) {
             c.user_purge(*purge);
         }
+        c.job(FileIngestionJob)
+            .job(IssueRetentionJob)
+            .job(DocumentUploadExpiryJob)
+            .job(DocumentAgentReadRetentionJob)
+            .job(DocumentBlobGcJob)
+            .job(DocumentCollabUpdateSweepJob)
+            .job(DocumentMediaBackfillJob)
+            .job(DocumentNodeIdsBackfillJob)
+            .job(DocumentPresenceSweepJob)
+            .job(DocumentTrashPurgeJob)
+            .job_run_scope(Arc::new(DocumentActorScope));
+        #[cfg(feature = "collab")]
+        c.job(crate::documents::jobs::DocumentCollabReaperJob);
+        c.slot::<BlobHolderSlot>()
+            .holder("issue_report_attachments", issue_attachments_held_among);
+        c.slot::<AgentAccessSlot>();
+        let documents = c.slot::<DocumentsSlot>();
+        for codec in core_codecs() {
+            documents.codec(
+                move |_: &Resolved<'_>| -> Result<Arc<dyn DocumentCodec>, FactoryError> {
+                    Ok(Arc::clone(&codec))
+                },
+            );
+        }
+        documents.template_provider(
+            |_: &Resolved<'_>| -> Result<Arc<dyn DocumentTemplateProvider>, FactoryError> {
+                Ok(Arc::new(CoreTemplateProvider))
+            },
+        );
         Ok(())
     }
 }

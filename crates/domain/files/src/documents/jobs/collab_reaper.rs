@@ -73,5 +73,3 @@ impl Job for DocumentCollabReaperJob {
         Box::pin(act_as(DocumentActor::system(self.name()), Self::run(ctx))).await
     }
 }
-
-systemprompt_provider_contracts::submit_job!("files", &DocumentCollabReaperJob);

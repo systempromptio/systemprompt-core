@@ -260,5 +260,3 @@ async fn build_file_record(
         deleted_at: None,
     }
 }
-
-systemprompt_provider_contracts::submit_job!("files", &FileIngestionJob);
