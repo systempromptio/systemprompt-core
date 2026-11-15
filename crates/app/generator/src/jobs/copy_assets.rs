@@ -1,27 +1,26 @@
-//! Implementation of the `copy_extension_assets` job: evaluates every admitted
-//! member's asset declarations against the application paths and copies the
-//! assets into the build output directory.
+//! Implementation of the `copy_extension_assets` step: [`declared_assets`]
+//! evaluates every admitted member's asset declarations against the
+//! application paths, and [`execute_copy_extension_assets`] copies them into
+//! the build output directory. A missing required asset fails the step; a
+//! missing optional one is counted and logged.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
 use systemprompt_config::paths::AppPaths;
-use systemprompt_extension::{AssetDefinition, BuiltState};
+use systemprompt_extension::{AssetDefinition, AssetPaths, BuiltState};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_traits::JobResult;
 
 use crate::error::{GeneratorResult as Result, PublishError};
 
-pub async fn execute_copy_extension_assets(
-    paths: &AppPaths,
+#[must_use]
+pub fn declared_assets(
     built: &BuiltState,
-) -> Result<JobResult> {
-    let start_time = std::time::Instant::now();
-
-    tracing::info!("Copy extension assets job started");
-
-    let assets: Vec<(&ExtensionId, AssetDefinition)> = built
+    paths: &dyn AssetPaths,
+) -> Vec<(ExtensionId, AssetDefinition)> {
+    built
         .members()
         .flat_map(|member| {
             member
@@ -29,9 +28,18 @@ pub async fn execute_copy_extension_assets(
                 .assets()
                 .iter()
                 .flat_map(|declare| declare(paths))
-                .map(move |asset| (&member.owner, asset))
+                .map(move |asset| (member.owner.clone(), asset))
         })
-        .collect();
+        .collect()
+}
+
+pub async fn execute_copy_extension_assets(
+    paths: &AppPaths,
+    assets: &[(ExtensionId, AssetDefinition)],
+) -> Result<JobResult> {
+    let start_time = std::time::Instant::now();
+
+    tracing::info!("Copy extension assets job started");
 
     if assets.is_empty() {
         let duration_ms = start_time.elapsed().as_millis() as u64;
@@ -47,7 +55,7 @@ pub async fn execute_copy_extension_assets(
     let mut failed = 0u64;
 
     for (ext_id, asset) in assets {
-        match copy_asset(dist_dir, ext_id, &asset).await {
+        match copy_asset(dist_dir, ext_id, asset).await {
             Ok(()) => copied += 1,
             Err(e) => {
                 if asset.is_required() {
