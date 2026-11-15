@@ -83,7 +83,7 @@ Content source configuration validation and caching. `ContentConfigValidated` va
 
 ### jobs/
 
-Background jobs for content processing. `execute_content_ingestion` scans configured directories and syncs markdown content to the database, registered via `ContentExtension`.
+Background jobs for content processing. `execute_content_ingestion` scans configured directories and syncs markdown content to the database with the frontmatter processors of the built `ContentHooks`.
 
 ### models/
 
@@ -120,7 +120,7 @@ Business logic layer. Services coordinate repositories and implement domain oper
 ## Traits Implemented
 
 - `ContentProvider` (systemprompt-traits) - `DefaultContentProvider`
-- `Extension` (systemprompt-extension) - `ContentExtension` (registers schema + ingestion job)
+- `Extension` (systemprompt-extension) - `ContentExtension` (schemas, migrations, provided repositories and the default hooks in `ContentSlot`)
 - `ContentRouting` (systemprompt-models) - `ContentConfigValidated`, `ContentReady`
 
 ## License
