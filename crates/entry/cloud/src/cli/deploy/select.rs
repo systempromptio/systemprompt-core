@@ -1,0 +1,128 @@
+//! Deployable-profile discovery and interactive selection for deploys.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+
+use anyhow::{Context, Result, bail};
+use systemprompt_cloud::{CloudPath, ProfilePath, ProjectContext, TenantStore, get_cloud_paths};
+use systemprompt_identifiers::ProfileName;
+use systemprompt_logging::CliService;
+
+use super::target_profile::DeployProfile;
+
+use systemprompt_cli::kernel::CliConfig;
+use systemprompt_cli::kernel::Prompter;
+use systemprompt_cli::kernel::profile::{DiscoveredProfile, discover_profiles};
+
+#[derive(Debug)]
+struct DeployableProfile {
+    pub name: String,
+    pub profile: DeployProfile,
+    pub tenant_name: Option<String>,
+    pub hostname: Option<String>,
+}
+
+fn discover_deployable_profiles(tenant_store: &TenantStore) -> Result<Vec<DeployableProfile>> {
+    let profiles = discover_profiles()?;
+
+    let deployable = profiles
+        .into_iter()
+        .filter_map(|p| to_deployable_profile(p, tenant_store))
+        .collect();
+
+    Ok(deployable)
+}
+
+fn to_deployable_profile(
+    discovered: DiscoveredProfile,
+    tenant_store: &TenantStore,
+) -> Option<DeployableProfile> {
+    let profile = DeployProfile::from_managed(discovered.profile)
+        .map_err(|e| {
+            tracing::warn!(profile = %discovered.name, error = %e, "Skipping undeployable profile");
+        })
+        .ok()?;
+    if profile.target != systemprompt_manifest::ProfileType::Cloud {
+        return None;
+    }
+
+    let tenant_id = profile.cloud.as_ref()?.tenant_id.clone()?;
+    let tenant = tenant_store.find_tenant(&tenant_id);
+
+    Some(DeployableProfile {
+        name: discovered.name,
+        profile,
+        tenant_name: tenant.map(|t| t.name.clone()),
+        hostname: tenant.and_then(|t| t.hostname.clone()),
+    })
+}
+
+fn select_profile_interactive(
+    prompter: &dyn Prompter,
+    profiles: &[DeployableProfile],
+) -> Result<usize> {
+    let options: Vec<String> = profiles
+        .iter()
+        .map(|p| {
+            let target = p.hostname.as_deref().unwrap_or("unknown");
+            let tenant = p.tenant_name.as_deref().unwrap_or("unknown");
+            format!("{} → {} ({})", p.name, tenant, target)
+        })
+        .collect();
+
+    prompter
+        .select("Select profile to deploy", &options)
+        .context("Failed to select profile")
+}
+
+pub fn resolve_profile(
+    prompter: &dyn Prompter,
+    profile_name: Option<&ProfileName>,
+    config: &CliConfig,
+) -> Result<DeployProfile> {
+    if let Some(name) = profile_name {
+        return resolve_profile_by_name(name);
+    }
+
+    if !config.is_interactive() {
+        bail!("--profile is required in non-interactive mode for deploy");
+    }
+
+    resolve_profile_interactive(prompter)
+}
+
+fn resolve_profile_by_name(name: &ProfileName) -> Result<DeployProfile> {
+    let ctx = ProjectContext::discover();
+    let profile_path = ctx.profile_path(name.as_str(), ProfilePath::Config);
+
+    if !profile_path.exists() {
+        bail!("Profile '{}' not found at {}", name, profile_path.display());
+    }
+
+    DeployProfile::load(&profile_path)
+}
+
+fn resolve_profile_interactive(prompter: &dyn Prompter) -> Result<DeployProfile> {
+    let cloud_paths = get_cloud_paths();
+    let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
+    let tenant_store = TenantStore::load_from_path(&tenants_path).unwrap_or_else(|e| {
+        CliService::warning(&format!("Failed to load tenant store: {}", e));
+        TenantStore::default()
+    });
+
+    let profiles = discover_deployable_profiles(&tenant_store)?;
+
+    if profiles.is_empty() {
+        bail!(
+            "No deployable profiles found.\nCreate a cloud profile with: systemprompt cloud \
+             profile create <name>"
+        );
+    }
+
+    CliService::section("Select Profile");
+    let selection = select_profile_interactive(prompter, &profiles)?;
+    let selected = &profiles[selection];
+
+    Ok(selected.profile.clone())
+}

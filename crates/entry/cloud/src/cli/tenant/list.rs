@@ -1,0 +1,172 @@
+//! `cloud tenant list` command.
+//!
+//! Reconciles the local tenant store with the cloud account, then renders the
+//! merged set as a [`TenantListOutput`] table, with an interactive drill-down
+//! into per-tenant details when running interactively.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use anyhow::Result;
+use systemprompt_cloud::{CloudApiClient, CloudPath, StoredTenant, TenantStore, get_cloud_paths};
+use systemprompt_logging::CliService;
+
+use super::select::get_credentials;
+use systemprompt_cli::kernel::CliConfig;
+use crate::cli::types::{TenantListOutput, TenantSummary};
+use systemprompt_cli::kernel::Prompter;
+use systemprompt_cli::kernel::CommandOutput;
+
+pub async fn list_tenants(prompter: &dyn Prompter, config: &CliConfig) -> Result<CommandOutput> {
+    let cloud_paths = get_cloud_paths();
+    let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
+
+    let store = sync_and_load_tenants(&tenants_path).await;
+
+    let summaries: Vec<TenantSummary> = store
+        .tenants
+        .iter()
+        .map(|t| TenantSummary {
+            id: t.id.clone(),
+            name: t.name.clone(),
+            provider: t.provider,
+            has_database: t.has_database_url(),
+        })
+        .collect();
+
+    let output = TenantListOutput {
+        total: summaries.len(),
+        tenants: summaries,
+    };
+
+    if store.tenants.is_empty() {
+        if !config.is_json_output() {
+            CliService::section("Tenants");
+            CliService::info("No tenants configured.");
+            CliService::info("Run 'systemprompt cloud tenant create' to create one.");
+        }
+        return Ok(CommandOutput::table_of(
+            vec!["id", "name", "provider", "has_database"],
+            &output.tenants,
+        )
+        .with_title("Tenants"));
+    }
+
+    if !config.is_json_output() {
+        if config.is_interactive() {
+            run_tenant_picker(prompter, &store)?;
+        } else {
+            render_tenant_lines(&store);
+        }
+    }
+
+    Ok(CommandOutput::table_of(
+        vec!["id", "name", "provider", "has_database"],
+        &output.tenants,
+    )
+    .with_title("Tenants"))
+}
+
+fn tenant_label(tenant: &StoredTenant) -> String {
+    let type_str = tenant.provider.as_str();
+    let db_status = if tenant.has_database_url() {
+        "✓ db"
+    } else {
+        "✗ db"
+    };
+    format!("{} ({}) [{}]", tenant.name, type_str, db_status)
+}
+
+fn run_tenant_picker(prompter: &dyn Prompter, store: &TenantStore) -> Result<()> {
+    let options: Vec<String> = store
+        .tenants
+        .iter()
+        .map(tenant_label)
+        .chain(std::iter::once("Back".to_owned()))
+        .collect();
+
+    loop {
+        CliService::section("Tenants");
+        CliService::info(
+            "Manage subscriptions: https://customer-portal.paddle.com/cpl_01j80s3z6crr7zj96htce0kr0f",
+        );
+        CliService::info("");
+
+        let selection = prompter.select("Select tenant", &options)?;
+
+        if selection == store.tenants.len() {
+            break;
+        }
+
+        display_tenant_details(&store.tenants[selection]);
+    }
+
+    Ok(())
+}
+
+fn render_tenant_lines(store: &TenantStore) {
+    CliService::section("Tenants");
+    CliService::info(
+        "Manage subscriptions: https://customer-portal.paddle.com/cpl_01j80s3z6crr7zj96htce0kr0f",
+    );
+    CliService::info("");
+    for tenant in &store.tenants {
+        CliService::info(&tenant_label(tenant));
+    }
+}
+
+fn display_tenant_details(tenant: &StoredTenant) {
+    CliService::section(&format!("Tenant: {}", tenant.name));
+    CliService::key_value("ID", tenant.id.as_str());
+    CliService::key_value("Provider", tenant.provider.as_str());
+
+    if let Some(ref app_id) = tenant.app_id {
+        CliService::key_value("App ID", app_id.as_str());
+    }
+
+    if let Some(ref hostname) = tenant.hostname {
+        CliService::key_value("Hostname", hostname);
+    }
+
+    if let Some(ref region) = tenant.region {
+        CliService::key_value("Region", region);
+    }
+
+    CliService::key_value(
+        "Database",
+        if tenant.has_database_url() {
+            "configured"
+        } else {
+            "not configured"
+        },
+    );
+}
+
+async fn sync_and_load_tenants(tenants_path: &std::path::Path) -> TenantStore {
+    let mut local_store =
+        TenantStore::load_from_path(tenants_path).unwrap_or_else(|_| TenantStore::default());
+
+    let Ok(creds) = get_credentials() else {
+        return local_store;
+    };
+
+    let Ok(client) = CloudApiClient::new(&creds.api_url, creds.api_token.as_str()) else {
+        return local_store;
+    };
+
+    let cloud_tenant_infos = match client.get_user().await {
+        Ok(response) => response.tenants,
+        Err(e) => {
+            CliService::warning(&format!("Failed to sync cloud tenants: {}", e));
+            return local_store;
+        },
+    };
+
+    local_store.merge_control_plane(&cloud_tenant_infos);
+
+    if let Err(e) = local_store.save_to_path(tenants_path) {
+        CliService::warning(&format!("Failed to save synced tenants: {}", e));
+    }
+
+    local_store
+}

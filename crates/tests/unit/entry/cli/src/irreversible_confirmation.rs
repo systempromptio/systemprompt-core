@@ -8,9 +8,9 @@
 
 use clap::{CommandFactory, FromArgMatches};
 use systemprompt_cli::args::{Cli, Commands, reconstruct_args_from};
-use systemprompt_cli::cloud::fleet::ensure_read_only;
 use systemprompt_cli::descriptor::{CommandDescriptor, DataImpact, DescribeCommand};
 use systemprompt_cli::interactive::ScriptedPrompter;
+use systemprompt_cli::kernel::describe_command_line;
 use systemprompt_cli::runner::confirmation::{ConfirmationRequest, confirm_irreversible};
 use systemprompt_cli::{CliConfig, VerbosityLevel};
 
@@ -168,16 +168,16 @@ fn a_routed_command_is_forwarded_as_typed_and_runs_on_the_tenant_unprompted() {
 }
 
 #[test]
-fn every_irreversible_command_counts_as_destructive_and_is_kept_out_of_fleet_run() {
+fn every_irreversible_command_line_is_classified_as_destroying_data() {
     assert!(!DataImpact::Preserving.destroys_data());
     assert!(DataImpact::Destructive.destroys_data());
     assert!(DataImpact::Irreversible.destroys_data());
     for args in IRREVERSIBLE {
         let argv: Vec<String> = args.iter().map(|a| (*a).to_owned()).collect();
-        let err = ensure_read_only(&argv).expect_err("fleet run forwards read-only commands only");
+        let desc = describe_command_line(&argv).unwrap_or_else(|e| panic!("{args:?}: {e:#}"));
         assert!(
-            format!("{err:#}").contains("not a read-only"),
-            "{args:?}: {err:#}"
+            desc.data_impact().destroys_data(),
+            "{args:?}: a forwarded-command guard reads this classification"
         );
     }
 }

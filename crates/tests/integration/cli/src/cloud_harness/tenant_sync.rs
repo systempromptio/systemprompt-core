@@ -3,8 +3,8 @@
 //! store, and an upstream failure leaves the local store intact.
 
 use serde_json::json;
-use systemprompt_cli::cloud::tenant::TenantCommands;
-use systemprompt_cli::cloud::{self, CloudCommands};
+use systemprompt_cloud_entry::cli::tenant::TenantCommands;
+use systemprompt_cloud_entry::cli::{self as cloud, CloudCommands};
 use systemprompt_cloud::{CloudPath, TenantStore, get_cloud_paths};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, ResponseTemplate};

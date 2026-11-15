@@ -3,8 +3,8 @@
 //! customer, plan, and empty-tenant branches of the login renderer.
 
 use serde_json::json;
-use systemprompt_cli::cloud::auth::{AuthCommands, complete_login};
-use systemprompt_cli::cloud::{self, CloudCommands, Environment};
+use systemprompt_cloud_entry::cli::auth::{AuthCommands, complete_login};
+use systemprompt_cloud_entry::cli::{self as cloud, CloudCommands, Environment};
 use systemprompt_cloud::{CloudPath, TenantStore, get_cloud_paths};
 use systemprompt_identifiers::TenantId;
 use wiremock::matchers::{method, path};

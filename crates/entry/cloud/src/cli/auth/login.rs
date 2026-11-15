@@ -1,0 +1,186 @@
+//! Interactive OAuth login against systemprompt.io Cloud.
+//!
+//! Runs the provider-selection prompt and browser OAuth flow, then persists
+//! the returned credentials and tenant list to the local cloud config paths.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use anyhow::{Context, Result, anyhow};
+use systemprompt_cloud::{
+    CloudApiClient, CloudCredentials, CloudPath, CloudTenantInfo, OAuthTemplates, TenantStore,
+    UserMeResponse, get_cloud_paths, run_oauth_flow,
+};
+use systemprompt_logging::CliService;
+
+use systemprompt_cli::kernel::CliConfig;
+use crate::cli::templates::{AUTH_ERROR_HTML, AUTH_SUCCESS_HTML};
+use crate::cli::types::{
+    LoginCustomerInfo, LoginOutput, LoginTenantInfo, LoginUserInfo, TenantPlanInfo,
+};
+use crate::cli::{Environment, OAuthProvider};
+use systemprompt_cli::kernel::Prompter;
+use systemprompt_cli::kernel::CommandOutput;
+
+pub(super) async fn execute(
+    environment: Environment,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<CommandOutput> {
+    if !config.is_interactive() {
+        return Err(anyhow!("OAuth login requires interactive mode."));
+    }
+
+    let api_url = environment.api_url();
+
+    CliService::section("systemprompt.io Cloud Login");
+    CliService::info(&format!("Environment: {:?}", environment));
+
+    let cloud_paths = get_cloud_paths();
+
+    if cloud_paths.exists(CloudPath::Credentials) {
+        let creds_path = cloud_paths.resolve(CloudPath::Credentials);
+        let existing = CloudCredentials::load_from_path(&creds_path)?;
+        CliService::warning(&format!("Already logged in as: {}", existing.user_email));
+        CliService::info("Re-authenticating...");
+    }
+
+    let providers = [OAuthProvider::Github, OAuthProvider::Google];
+    let provider_names: Vec<&str> = providers.iter().map(OAuthProvider::display_name).collect();
+
+    let provider_options: Vec<String> = provider_names.iter().map(|s| (*s).to_owned()).collect();
+    let selection = prompter.select("Select authentication provider", &provider_options)?;
+
+    let provider = providers[selection];
+
+    let templates = OAuthTemplates {
+        success_html: AUTH_SUCCESS_HTML,
+        error_html: AUTH_ERROR_HTML,
+    };
+    let token = run_oauth_flow(api_url, provider, templates).await?;
+
+    complete_login(api_url, token).await
+}
+
+pub async fn complete_login(api_url: &str, token: String) -> Result<CommandOutput> {
+    let cloud_paths = get_cloud_paths();
+
+    let spinner = CliService::spinner("Verifying token...");
+    let client = CloudApiClient::new(api_url, &token)?;
+    let response = client.get_user().await?;
+    spinner.finish_and_clear();
+
+    let creds = CloudCredentials::new(
+        systemprompt_identifiers::CloudAuthToken::new(token),
+        api_url.to_owned(),
+        systemprompt_identifiers::Email::try_new(response.user.email.clone())
+            .context("Cloud account email is not a valid address")?,
+    );
+
+    let save_path = cloud_paths.resolve(CloudPath::Credentials);
+    creds.save_to_path(&save_path)?;
+    CliService::key_value("Credentials saved to", &save_path.display().to_string());
+
+    let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
+    let mut tenant_store = TenantStore::load_from_path(&tenants_path).unwrap_or_default();
+    tenant_store.merge_control_plane(&response.tenants);
+    tenant_store.save_to_path(&tenants_path)?;
+    CliService::key_value("Tenants synced to", &tenants_path.display().to_string());
+
+    CliService::success("Logged in successfully");
+
+    print_login_result(&response);
+
+    let output = build_login_output(&response, &save_path, &tenants_path);
+
+    Ok(CommandOutput::card_value("Cloud Login", &output).with_skip_render())
+}
+
+pub fn build_login_output(
+    response: &UserMeResponse,
+    credentials_path: &std::path::Path,
+    tenants_path: &std::path::Path,
+) -> LoginOutput {
+    let user = LoginUserInfo {
+        id: response.user.id.clone(),
+        email: response.user.email.clone(),
+        name: response.user.name.clone(),
+    };
+
+    let customer = response
+        .customer
+        .as_ref()
+        .map(|c| LoginCustomerInfo { id: c.id.clone() });
+
+    let tenants: Vec<LoginTenantInfo> = response
+        .tenants
+        .iter()
+        .map(|t| LoginTenantInfo {
+            id: t.id.clone(),
+            name: t.name.clone(),
+            subscription_status: t.subscription_status.map(|s| format!("{s:?}")),
+            plan: t.plan.as_ref().map(|p| TenantPlanInfo {
+                name: p.name.clone(),
+                memory_mb: p.memory_mb,
+                volume_gb: p.volume_gb,
+            }),
+            region: t.region.clone(),
+            hostname: t.hostname.clone(),
+        })
+        .collect();
+
+    LoginOutput {
+        user,
+        customer,
+        tenants,
+        credentials_path: credentials_path.display().to_string(),
+        tenants_path: tenants_path.display().to_string(),
+    }
+}
+
+fn print_login_result(response: &UserMeResponse) {
+    CliService::section("User");
+    CliService::key_value("Email", &response.user.email);
+    if let Some(name) = &response.user.name {
+        CliService::key_value("Name", name);
+    }
+    CliService::key_value("ID", response.user.id.as_str());
+
+    if let Some(customer) = &response.customer {
+        CliService::section("Customer");
+        CliService::key_value("ID", &customer.id);
+    }
+
+    print_tenants(&response.tenants);
+}
+
+fn print_tenants(tenants: &[CloudTenantInfo]) {
+    if tenants.is_empty() {
+        CliService::info("No cloud tenants found.");
+        CliService::info("Run 'systemprompt cloud tenant create' to create a local tenant.");
+        return;
+    }
+
+    CliService::section("Available Tenants");
+    for tenant in tenants {
+        let status_str = tenant
+            .subscription_status
+            .map_or_else(|| "Unknown".to_owned(), |s| format!("{s:?}"));
+        CliService::key_value(&tenant.name, &status_str);
+        if let Some(plan) = &tenant.plan {
+            CliService::info(&format!(
+                "  Plan: {} ({}MB RAM, {}GB storage)",
+                plan.name, plan.memory_mb, plan.volume_gb
+            ));
+        }
+        if let Some(region) = &tenant.region {
+            CliService::info(&format!("  Region: {region}"));
+        }
+        if let Some(hostname) = &tenant.hostname {
+            CliService::info(&format!("  URL: https://{hostname}"));
+        }
+    }
+    CliService::info("");
+    CliService::info("Run 'systemprompt cloud tenant create' to add a local tenant,");
+    CliService::info("then 'systemprompt cloud profile create <name>' to create a profile.");
+}

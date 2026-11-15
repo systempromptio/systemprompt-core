@@ -1,8 +1,8 @@
 //! Harness tests for the interactive tenant flows: edit, the create menu,
 //! and external-database tenant creation end to end.
 
-use systemprompt_cli::cloud::tenant::TenantCommands;
-use systemprompt_cli::cloud::{self, CloudCommands};
+use systemprompt_cloud_entry::cli::tenant::TenantCommands;
+use systemprompt_cloud_entry::cli::{self as cloud, CloudCommands};
 use systemprompt_cloud::TenantStore;
 use systemprompt_identifiers::TenantId;
 
@@ -160,8 +160,8 @@ use std::process::{ExitStatus, Output};
 use std::sync::Mutex;
 
 use systemprompt_cli::ScriptedPrompter;
-use systemprompt_cli::cloud::tenant::docker::{TenantContainer, container};
-use systemprompt_cli::cloud::tenant::{
+use systemprompt_cloud_entry::cli::tenant::docker::{TenantContainer, container};
+use systemprompt_cloud_entry::cli::tenant::{
     TenantDeleteArgs, TenantRotateArgs, choose_tenant_operation,
 };
 use systemprompt_cloud::{CommandRunner, CommandSpec, DockerCli};

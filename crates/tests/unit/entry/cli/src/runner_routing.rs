@@ -58,9 +58,7 @@ fn message(err: &anyhow::Error) -> String {
 }
 
 #[test]
-fn cloud_and_session_commands_bypass_cloud_routing_and_others_do_not() {
-    assert!(is_cloud_bypass_command(&descriptor(&["cloud", "doctor"])));
-    assert!(is_cloud_bypass_command(&descriptor(&["cloud", "status"])));
+fn session_commands_bypass_cloud_routing_and_others_do_not() {
     assert!(is_cloud_bypass_command(&descriptor(&[
         "admin", "session", "list"
     ])));

@@ -6,7 +6,7 @@ use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 
 use serde_json::Value;
-use systemprompt_cli::cloud::{self, CloudCommands};
+use systemprompt_cloud_entry::cli::{self as cloud, CloudCommands};
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, ResponseTemplate};
 

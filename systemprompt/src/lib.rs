@@ -267,6 +267,7 @@ pub mod brain {
 #[cfg_attr(docsrs, doc(cfg(feature = "cloud")))]
 pub mod cloud {
     pub use systemprompt_cloud::*;
+    pub use systemprompt_cloud_entry as entry;
 }
 
 #[cfg(feature = "core")]

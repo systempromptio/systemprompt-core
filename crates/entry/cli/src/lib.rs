@@ -2,15 +2,15 @@
 //!
 //! The library behind the `systemprompt` binary (built by the `systemprompt`
 //! facade crate, which links the capability crates that register commands):
-//! the command tree ([`admin`], [`analytics`], [`build`], [`cloud`], [`core`],
-//! [`infrastructure`], [`plugins`], [`web`]), output formatting, interactive
-//! prompts, and session handling. [`run`] is the async entry point;
-//! [`run_with`] is the same for an embedding binary that names its own build,
-//! which the health and probe bodies report. [`run_process`] and
-//! [`run_process_with`] are the whole of a binary's `main`: they build the
-//! runtime, run the command and map an interrupted run to exit status 130.
-//! [`CliConfig`] and the settings enums control verbosity, color, and output
-//! format.
+//! the command tree ([`admin`], [`analytics`], [`build`], [`core`],
+//! [`infrastructure`], [`plugins`], [`web`], plus every group a linked crate
+//! registers), output formatting, interactive prompts, and session handling.
+//! [`run`] is the async entry point; [`run_with`] is the same for an embedding
+//! binary that names its own build, which the health and probe bodies report.
+//! [`run_process`] and [`run_process_with`] are the whole of a binary's
+//! `main`: they build the runtime, run the command and map an interrupted run
+//! to exit status 130. [`CliConfig`] and the settings enums control verbosity,
+//! color, and output format.
 //!
 //! [`kernel`] is the surface command groups build on, and the seam through
 //! which a group defined in another crate registers itself with
@@ -35,7 +35,7 @@ pub mod session;
 pub mod shared;
 
 pub use cli_settings::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
-pub use commands::{admin, analytics, build, cloud, core, infrastructure, plugins, web};
+pub use commands::{admin, analytics, build, core, infrastructure, plugins, web};
 pub use context::CommandContext;
 pub use env_overrides::{EnvOverrides, SessionEnv};
 pub use interactive::{DialoguerPrompter, Prompter, ScriptedPrompter};
