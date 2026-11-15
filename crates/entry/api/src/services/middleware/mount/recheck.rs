@@ -22,7 +22,7 @@ use systemprompt_extension::reserved::{
     BUILTIN_GATEWAY_PREFIXES, CoreId, PRIVILEGED_SHAPES, PrivilegedShape,
 };
 use systemprompt_extension::router::{
-    Allowance, ApiBase, BasePath, BaseRef, BodyLimit, RouteDef, WebBase,
+    Allowance, ApiBase, BasePath, BaseRef, BodyLimit, RouteDef, RouteSet, WebBase,
 };
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_models::modules::ApiPaths;
@@ -45,7 +45,7 @@ fn recheck_route_set(
     holders: &mut HashMap<ExtensionId, CoreId>,
 ) -> Result<(), MountError> {
     let set = &admitted.set;
-    let base = set.base();
+    let base = path_base(set)?;
     let reserved = base.reserved_prefix();
     let mut needed: Vec<Allowance> = Vec::new();
     if reserved.is_some() {
@@ -157,8 +157,11 @@ fn recheck_gateway_route(
     route: &AdmittedGatewayRoute,
     holders: &mut HashMap<ExtensionId, CoreId>,
 ) -> Result<(), MountError> {
-    let base = BaseRef::Gateway(route.decl.path);
-    let relative = ApiPaths::gateway_relative(route.decl.path.path());
+    let Some(path) = route.decl.path() else {
+        return Err(MountError::RouteSetKind(route.decl.router.base()));
+    };
+    let base = BaseRef::Gateway(path);
+    let relative = ApiPaths::gateway_relative(path.path());
     if let Some(builtin) = BUILTIN_GATEWAY_PREFIXES
         .iter()
         .copied()
@@ -197,6 +200,13 @@ fn shadows(relative: &str, prefix: &str) -> bool {
             .is_some_and(|rest| rest.starts_with('/'))
 }
 
+pub fn path_base(set: &RouteSet) -> Result<BasePath, MountError> {
+    match set.base() {
+        BaseRef::Path(base) => Ok(base),
+        base @ BaseRef::Gateway(_) => Err(MountError::RouteSetKind(base)),
+    }
+}
+
 pub fn full_path(base: BasePath, path: &str) -> String {
     match (base.path(), path) {
         ("/", path) => path.to_owned(),
@@ -211,7 +221,7 @@ fn refuse_route_conflicts(routes: &[AdmittedRouteSet]) -> Result<(), MountError>
         for def in admitted.set.defs() {
             let key = (
                 def.method.clone(),
-                full_path(admitted.set.base(), def.path.as_str()),
+                full_path(path_base(&admitted.set)?, def.path.as_str()),
             );
             if !seen.insert(key.clone()) {
                 return Err(MountError::RouteConflict {

@@ -6,8 +6,8 @@ use systemprompt::analytics::entry::extension::AnalyticsHttpExtension;
 use systemprompt::{CompositionError, reference};
 use systemprompt_extension::cli::{CommandDecl, KernelGrant};
 use systemprompt_extension::router::{
-    Allowance, ApiBase, BasePath, BodyLimit, GatewayPath, GatewayRouteDecl, RouteSet, RouteSpec,
-    WebBase,
+    Allowance, ApiBase, BasePath, BaseRef, BodyLimit, GatewayPath, GatewayRouteDecl, RouteSet,
+    RouteSpec, WebBase,
 };
 use systemprompt_extension::{
     AuthzPolicy, ContextKind, ContributionError, HandlerVerifier, RouteGroup,
@@ -41,7 +41,8 @@ fn install_plain_route_at_extension_base_is_admitted() {
         admitted
             .routes()
             .iter()
-            .any(|set| set.owner.as_str() == "probe-install" && set.set.base() == EXT_BASE)
+            .any(|set| set.owner.as_str() == "probe-install"
+                && set.set.base() == BaseRef::Path(EXT_BASE))
     );
 }
 
@@ -224,11 +225,13 @@ fn install_unreserved_cli_group_is_declared() {
 fn install_gateway_route_is_unlisted() {
     let error = build_with(Probe::new("probe-install", |c| {
         c.gateway_route(GatewayRouteDecl {
-            path: GatewayPath::BridgeNotifications,
             limits: PLAIN_LIMITS,
-            router: RouteSet::at::<ProbeState>(EXT_BASE, RouteGroup::Gateway)
-                .route(http::Method::GET, "/x", ok, PLAIN)
-                .build(),
+            router: RouteSet::gateway::<ProbeState>(
+                GatewayPath::BridgeNotifications,
+                RouteGroup::Gateway,
+            )
+            .route(http::Method::GET, "/x", ok, PLAIN)
+            .build(),
         });
     }))
     .expect_err("an install holds no gateway path");
@@ -307,7 +310,8 @@ fn install_at_web_root_is_admitted_and_cannot_take_core_redirect() {
         admitted
             .routes()
             .iter()
-            .any(|set| set.owner.as_str() == "probe-install" && set.set.base().is_web_root())
+            .any(|set| set.owner.as_str() == "probe-install"
+                && matches!(set.set.base(), BaseRef::Path(base) if base.is_web_root()))
     );
 
     let error = build_with(Probe::new("probe-install", |c| {

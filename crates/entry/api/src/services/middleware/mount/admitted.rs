@@ -19,7 +19,7 @@ use systemprompt_extension::router::{BasePath, BodyLimit, RouteSpec};
 use systemprompt_extension::{Admitted, RouteGroup, RouteProtection};
 use systemprompt_runtime::Kernel;
 
-use super::recheck::recheck;
+use super::recheck::{path_base, recheck};
 use super::{MountError, MountLayers, place, protect};
 
 pub fn protection_of(spec: &RouteSpec) -> RouteProtection {
@@ -44,17 +44,17 @@ pub fn mount_admitted(
     recheck(admitted)?;
     let mut by_base: Vec<(BasePath, Router)> = Vec::new();
     for set in admitted.routes() {
+        let base = path_base(&set.set)?;
         if !serves(set.set.group()) {
             tracing::info!(
                 owner = %set.owner,
-                base_path = set.set.base().path(),
+                base_path = base.path(),
                 group = ?set.set.group(),
                 reason = "role_does_not_serve_group",
                 "Route set not mounted"
             );
             continue;
         }
-        let base = set.set.base();
         let routers = set.set.materialize(&kernel.route_scoped(&set.handles))?;
         let mut group = Router::new();
         for (def, router) in set.set.defs().iter().zip(routers) {

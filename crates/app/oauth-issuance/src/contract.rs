@@ -23,7 +23,7 @@
 use std::sync::Arc;
 
 use systemprompt_extension::{
-    Factory, FactoryError, Resolved, Slot, SlotEntry, SlotError, SlotOrder,
+    Factory, Resolved, Slot, SlotEntry, SlotError, SlotOrder, build_factories,
 };
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_traits::sso::{AuthEventSink, SsoProvider};
@@ -37,17 +37,6 @@ const SSO_ROLES_SLOT: &str = "role_resolver";
 type ProviderFactory = Box<dyn Factory<Option<Arc<dyn SsoProvider>>>>;
 type SinkFactory = Box<dyn Factory<Arc<dyn AuthEventSink>>>;
 type ResolverFactory = Box<dyn Factory<Arc<dyn RoleResolver>>>;
-
-fn entry_error(slot: &'static str, owner: &ExtensionId, source: FactoryError) -> SlotError {
-    match source {
-        FactoryError::Missing(missing) => SlotError::Missing(missing),
-        FactoryError::Failed(source) => SlotError::Entry {
-            slot,
-            owner: owner.clone(),
-            source,
-        },
-    }
-}
 
 /// SSO providers, sign-in audit sinks and role resolvers.
 #[derive(Debug, Clone, Copy)]
@@ -151,7 +140,7 @@ impl Slot for SsoSlot {
             for factory in entry.builder.providers {
                 let Some(provider) = factory
                     .build(r)
-                    .map_err(|e| entry_error(SSO_PROVIDER_SLOT, &owner, e))?
+                    .map_err(|e| e.into_slot_error(SSO_PROVIDER_SLOT, &owner))?
                 else {
                     continue;
                 };
@@ -163,13 +152,12 @@ impl Slot for SsoSlot {
                 }
                 built.providers.push(provider);
             }
-            for factory in entry.builder.sinks {
-                built.sinks.push(
-                    factory
-                        .build(r)
-                        .map_err(|e| entry_error(SSO_SINK_SLOT, &owner, e))?,
-                );
-            }
+            built.sinks.extend(build_factories(
+                SSO_SINK_SLOT,
+                &owner,
+                &entry.builder.sinks,
+                r,
+            )?);
             for factory in entry.builder.resolvers {
                 if let Some((used, _)) = &resolver {
                     tracing::warn!(
@@ -181,7 +169,7 @@ impl Slot for SsoSlot {
                 }
                 let built_resolver = factory
                     .build(r)
-                    .map_err(|e| entry_error(SSO_ROLES_SLOT, &owner, e))?;
+                    .map_err(|e| e.into_slot_error(SSO_ROLES_SLOT, &owner))?;
                 resolver = Some((owner.clone(), built_resolver));
             }
         }

@@ -20,9 +20,8 @@
 use std::sync::Arc;
 
 use systemprompt_extension::{
-    Factory, FactoryError, Resolved, Slot, SlotEntry, SlotError, SlotOrder,
+    Factory, Resolved, Slot, SlotEntry, SlotError, SlotOrder, build_factories,
 };
-use systemprompt_identifiers::ExtensionId;
 
 use crate::authz::{CompositeAuthzHook, SharedAuthzHook, SharedRoleDirectory};
 
@@ -31,17 +30,6 @@ const ROLE_DIRECTORY_SLOT: &str = "role_directory";
 
 type HookFactory = Box<dyn Factory<SharedAuthzHook>>;
 type DirectoryFactory = Box<dyn Factory<SharedRoleDirectory>>;
-
-fn entry_error(slot: &'static str, owner: &ExtensionId, source: FactoryError) -> SlotError {
-    match source {
-        FactoryError::Missing(missing) => SlotError::Missing(missing),
-        FactoryError::Failed(source) => SlotError::Entry {
-            slot,
-            owner: owner.clone(),
-            source,
-        },
-    }
-}
 
 /// The in-process authz decision hooks members contribute.
 #[derive(Debug, Clone, Copy)]
@@ -91,13 +79,12 @@ impl Slot for AuthzHookSlot {
     ) -> Result<Self::Built, SlotError> {
         let mut hooks = Vec::new();
         for entry in entries {
-            for factory in entry.builder.hooks {
-                hooks.push(
-                    factory
-                        .build(r)
-                        .map_err(|e| entry_error(AUTHZ_HOOK_SLOT, &entry.owner, e))?,
-                );
-            }
+            hooks.extend(build_factories(
+                AUTHZ_HOOK_SLOT,
+                &entry.owner,
+                &entry.builder.hooks,
+                r,
+            )?);
         }
         let mut hooks = hooks.into_iter();
         let hook = hooks.next().map(|first| {
@@ -172,7 +159,7 @@ impl Slot for RoleDirectorySlot {
                 directory = Some(
                     factory
                         .build(r)
-                        .map_err(|e| entry_error(ROLE_DIRECTORY_SLOT, &entry.owner, e))?,
+                        .map_err(|e| e.into_slot_error(ROLE_DIRECTORY_SLOT, &entry.owner))?,
                 );
             }
         }

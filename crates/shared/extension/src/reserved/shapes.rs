@@ -41,7 +41,7 @@ const CONTENT_USER: RouteShape = shape(AuthzPolicy::user(), ContextKind::User, C
 const ANALYTICS_ADMIN: RouteShape = shape(AuthzPolicy::admin(), ContextKind::User, CONTENT_LIMITS);
 
 pub const CONTENT_GENERATE_ROUTES: &[(Method, &str)] = &[(Method::POST, "/links/generate")];
-pub const CONTENT_REDIRECT_ROUTES: &[(Method, &str)] = &[(Method::GET, "/r")];
+pub const CONTENT_REDIRECT_ROUTES: &[(Method, &str)] = &[(Method::GET, "/r/{short_code}")];
 
 const ALWAYS: [PrivilegedShape; 11] = [
     PrivilegedShape {

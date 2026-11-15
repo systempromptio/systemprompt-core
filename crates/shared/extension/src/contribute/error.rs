@@ -20,6 +20,8 @@ pub enum ContributionError {
     InvalidPath(&'static str),
     #[error("invalid extension base {0}")]
     InvalidBase(&'static str),
+    #[error("route set at {0:?} declared through the wrong builder")]
+    RouteSetKind(crate::router::BaseRef),
     #[error("unsupported method {0}")]
     UnsupportedMethod(http::Method),
     #[error("schema {0} declared twice")]
@@ -42,6 +44,20 @@ pub enum FactoryError {
     Missing(#[from] MissingDependency),
     #[error("factory failed")]
     Failed(#[source] BoxedSource),
+}
+
+impl FactoryError {
+    #[must_use]
+    pub fn into_slot_error(self, slot: &'static str, owner: &ExtensionId) -> SlotError {
+        match self {
+            Self::Missing(missing) => SlotError::Missing(missing),
+            Self::Failed(source) => SlotError::Entry {
+                slot,
+                owner: owner.clone(),
+                source,
+            },
+        }
+    }
 }
 
 #[derive(Debug, thiserror::Error)]

@@ -3,15 +3,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_extension::prelude::RuleType;
 use systemprompt_extension::{ContributionError, ExtensionConfigError, SlotError};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_identifiers::error::IdValidationError;
-use systemprompt_traits::authz::SubjectDimension;
 
 #[cfg(feature = "cli")]
 use systemprompt_extension::cli::KernelGrant;
 #[cfg(feature = "api")]
-use systemprompt_extension::router::{Allowance, BasePath};
+use systemprompt_extension::router::{Allowance, BasePath, BaseRef};
 
 #[derive(Debug, thiserror::Error)]
 pub enum CompositionError {
@@ -57,7 +57,7 @@ pub enum CompositionError {
     },
     #[cfg(feature = "api")]
     #[error("{owner}'s routes at {base:?} do not match the conferred shape")]
-    ConferralShapeMismatch { owner: ExtensionId, base: BasePath },
+    ConferralShapeMismatch { owner: ExtensionId, base: BaseRef },
     #[cfg(feature = "api")]
     #[error("{owner} uses {allowance:?} at {base:?} without a conferral")]
     NotConferred {
@@ -109,16 +109,16 @@ pub enum CompositionError {
     CommandConflict { path: Vec<&'static str> },
     #[error("route {method} {path} declared twice")]
     RouteConflict { method: http::Method, path: String },
-    #[error("subject dimension {dimension:?} declared by {second}, already owned by {first}")]
+    #[error("subject dimension {dimension} declared by {second}, already owned by {first}")]
     DimensionConflict {
-        dimension: SubjectDimension,
+        dimension: RuleType,
         first: ExtensionId,
         second: ExtensionId,
     },
-    #[error("{owner} declares reserved subject dimension {dimension:?}")]
+    #[error("{owner} declares reserved subject dimension {dimension}")]
     ReservedDimension {
         owner: ExtensionId,
-        dimension: SubjectDimension,
+        dimension: RuleType,
     },
     #[error("secrets source kind {0} registered twice")]
     DuplicateSecretsKind(&'static str),
@@ -138,6 +138,31 @@ pub enum CompositionError {
         #[source]
         source: ExtensionConfigError,
     },
+    #[cfg(feature = "api")]
+    #[error("kernel resolution failed")]
+    Kernel(#[source] systemprompt_runtime::KernelError),
+}
+
+#[cfg(feature = "api")]
+impl From<systemprompt_runtime::KernelError> for CompositionError {
+    fn from(error: systemprompt_runtime::KernelError) -> Self {
+        use systemprompt_runtime::KernelError;
+        match error {
+            KernelError::ReservedDimension { owner, dimension } => {
+                Self::ReservedDimension { owner, dimension }
+            },
+            KernelError::DimensionConflict {
+                dimension,
+                first,
+                second,
+            } => Self::DimensionConflict {
+                dimension,
+                first,
+                second,
+            },
+            other => Self::Kernel(other),
+        }
+    }
 }
 
 #[cfg(feature = "cli")]

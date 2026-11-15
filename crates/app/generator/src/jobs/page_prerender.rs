@@ -43,7 +43,7 @@ impl Job for PagePrerenderJob {
         let db_pool = Arc::clone(ctx.get::<DbPool>()?);
         let paths = ctx.get::<Arc<AppPaths>>()?.as_ref();
         let config = ctx.get::<Arc<Config>>()?.as_ref();
-        let hooks = ctx.find::<Arc<ContentHooks>>().cloned().unwrap_or_default();
+        let hooks = Arc::clone(ctx.get::<Arc<ContentHooks>>()?);
 
         tracing::info!("Job started");
         let content_repo = ContentRepository::new(&db_pool);

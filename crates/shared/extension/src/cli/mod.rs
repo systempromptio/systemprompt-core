@@ -41,11 +41,13 @@ pub use descriptor::{CommandDescriptor, DataImpact, DbUrlRouting, DescribeComman
 pub use grant::KernelGrant;
 #[cfg(feature = "cli")]
 pub use output::{
-    ChartType, CommandOutput, KeyValueItem, KeyValueOutput, SuccessOutput, TableOutput, TextOutput,
+    ChartType, CommandOutput, FileSummary, KeyValueItem, KeyValueOutput, SuccessOutput,
+    TableOutput, TextOutput,
 };
 #[cfg(feature = "cli")]
 pub use prompt::{
-    ConfirmationRefused, Prompter, require_confirmation, require_confirmation_default_yes,
+    ConfirmationRefused, FlagRequired, Prompter, require_confirmation,
+    require_confirmation_default_yes, resolve_required,
 };
 #[cfg(feature = "cli")]
 pub use settings::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};

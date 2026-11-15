@@ -5,29 +5,15 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::any::TypeId;
-use std::collections::{HashMap, HashSet};
 
 use systemprompt_extension::admitted::{AdmittedMember, AdmittedParts, DeclaredCommandParts};
-use systemprompt_extension::contribute::{ContributionSink, Contributions};
-use systemprompt_extension::reserved::{CoreId, PRIVILEGED_SHAPES, PrivilegedShape};
-use systemprompt_extension::{
-    Admitted, ContributionError, DeclaredCommands, Extension, ExtensionConfigError, SlotError,
-    StandingTag,
-};
+use systemprompt_extension::contribute::ContributionSink;
+use systemprompt_extension::{Admitted, DeclaredCommands};
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_manifest::Profile;
-use systemprompt_traits::authz::SubjectDimension;
 
 #[cfg(feature = "cli")]
 use systemprompt_extension::admitted::AdmittedCommand;
-#[cfg(feature = "api")]
-use systemprompt_extension::admitted::{AdmittedGatewayRoute, AdmittedRouteSet};
-#[cfg(feature = "cli")]
-use systemprompt_extension::cli::KernelGrant;
-#[cfg(feature = "api")]
-use systemprompt_extension::router::{Allowance, BasePath, BaseRef, RouteSet};
-
 
 use super::admit::{check_providers, disabled_members};
 #[cfg(feature = "api")]
@@ -103,8 +89,6 @@ impl Declared {
                     gateway_routes.push(admit_gateway_route(&member, decl)?);
                 }
             }
-            #[cfg(feature = "cli")]
-            drop(member.sink.take_commands());
             members.push(AdmittedMember {
                 owner: member.id,
                 metadata: member.metadata,

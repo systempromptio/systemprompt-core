@@ -95,7 +95,6 @@ bytes = { workspace = true }
 # default is lean (see root Cargo.toml); these are additive on rmcp's defaults.
 rmcp = { workspace = true, features = ["client", "transport-streamable-http-server", "transport-streamable-http-server-session", "transport-streamable-http-client"] }
 dialoguer = { workspace = true }
-dirs = { workspace = true }
 base64 = { workspace = true }
 ed25519-dalek = { workspace = true }
 sha2 = { workspace = true }

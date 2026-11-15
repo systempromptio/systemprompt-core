@@ -68,6 +68,9 @@ pub enum MountError {
         expected: CoreId,
     },
 
+    #[error("route set at {0:?} is not a path route set")]
+    RouteSetKind(BaseRef),
+
     #[error("route under reserved prefix {0}")]
     ReservedPrefix(&'static str),
 

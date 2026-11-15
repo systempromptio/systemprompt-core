@@ -223,7 +223,7 @@ fn notifications_http_holds_its_two_route_sets() {
     assert_eq!(sets.len(), 2, "{sets:?}");
     let at = |base: BasePath| {
         sets.iter()
-            .find(|set| set.set.base() == base)
+            .find(|set| set.set.base() == BaseRef::Path(base))
             .unwrap_or_else(|| panic!("notifications-http holds a set at {base:?}"))
     };
     let user = at(BasePath::Api(ApiBase::Notifications));
@@ -245,7 +245,7 @@ fn bridge_notifications_gateway_route_carries_the_bearer_window() {
         .collect();
     assert_eq!(routes.len(), 1, "one gateway route for the bridge inbox");
     let route = routes[0];
-    assert_eq!(route.decl.path, GatewayPath::BridgeNotifications);
+    assert_eq!(route.decl.path(), Some(GatewayPath::BridgeNotifications));
     assert!(
         route.decl.limits.rate.bearer_window,
         "the admitted limits carry the bearer window"

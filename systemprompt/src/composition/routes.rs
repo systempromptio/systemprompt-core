@@ -7,6 +7,7 @@
 
 use std::collections::HashSet;
 
+use systemprompt_extension::ContributionError;
 use systemprompt_extension::admitted::{AdmittedGatewayRoute, AdmittedRouteSet};
 use systemprompt_extension::router::{Allowance, BasePath, BaseRef, RouteSet};
 
@@ -18,18 +19,16 @@ pub(super) fn admit_route_set(
     set: RouteSet,
 ) -> Result<AdmittedRouteSet, CompositionError> {
     let base = set.base();
+    let BaseRef::Path(path) = base else {
+        return Err(wrong_kind(member, base));
+    };
     let conferrals: Vec<&'static Conferral> = member
         .standing
         .terms()
-        .map(|terms| {
-            terms
-                .conferrals()
-                .filter(|c| c.base == BaseRef::Path(base))
-                .collect()
-        })
+        .map(|terms| terms.conferrals().filter(|c| c.base == base).collect())
         .unwrap_or_default();
     if conferrals.is_empty() {
-        admit_unconferred(member, &set)?;
+        admit_unconferred(member, path, &set)?;
         return Ok(AdmittedRouteSet {
             owner: member.id.clone(),
             standing: member.standing.tag(),
@@ -93,14 +92,21 @@ pub(super) fn admit_route_set(
     })
 }
 
-pub(super) fn admit_unconferred(
+fn wrong_kind(member: &DeclaredMember, base: BaseRef) -> CompositionError {
+    CompositionError::Contribution {
+        owner: member.id.clone(),
+        source: ContributionError::RouteSetKind(base),
+    }
+}
+
+fn admit_unconferred(
     member: &DeclaredMember,
+    base: BasePath,
     set: &RouteSet,
 ) -> Result<(), CompositionError> {
     use systemprompt_extension::router::{ApiBase, BodyLimit, WebBase};
     use systemprompt_extension::{ContextKind, HandlerVerifier};
 
-    let base = set.base();
     let refuse = |allowance: Allowance| CompositionError::NotConferred {
         owner: member.id.clone(),
         base,
@@ -137,16 +143,20 @@ pub(super) fn admit_gateway_route(
     member: &DeclaredMember,
     decl: systemprompt_extension::router::GatewayRouteDecl,
 ) -> Result<AdmittedGatewayRoute, CompositionError> {
+    let Some(path) = decl.path() else {
+        return Err(wrong_kind(member, decl.router.base()));
+    };
+    let base = BaseRef::Gateway(path);
     let Some(conferral) = member.standing.terms().and_then(|terms| {
-        terms.conferrals().find(|c| {
-            c.base == BaseRef::Gateway(decl.path) && c.allowance == Allowance::GatewayRoute
-        })
+        terms
+            .conferrals()
+            .find(|c| c.base == base && c.allowance == Allowance::GatewayRoute)
     }) else {
         return Err(CompositionError::UnlistedGatewayRoute {
             owner: member.id.clone(),
         });
     };
-    let relative = systemprompt_models::modules::ApiPaths::gateway_relative(decl.path.path());
+    let relative = systemprompt_models::modules::ApiPaths::gateway_relative(path.path());
     if let Some(builtin) = systemprompt_extension::reserved::BUILTIN_GATEWAY_PREFIXES
         .iter()
         .copied()
@@ -167,7 +177,7 @@ pub(super) fn admit_gateway_route(
     if !shape_ok {
         return Err(CompositionError::ConferralShapeMismatch {
             owner: member.id.clone(),
-            base: decl.router.base(),
+            base,
         });
     }
     Ok(AdmittedGatewayRoute {
@@ -195,13 +205,20 @@ pub(super) fn full_path(base: BasePath, path: &str) -> String {
     }
 }
 
+fn full_ref_path(base: BaseRef, path: &str) -> String {
+    match base {
+        BaseRef::Path(base) => full_path(base, path),
+        BaseRef::Gateway(gateway) => format!("{}{path}", gateway.path()),
+    }
+}
+
 pub(super) fn check_route_conflicts(routes: &[AdmittedRouteSet]) -> Result<(), CompositionError> {
     let mut seen: HashSet<(http::Method, String)> = HashSet::new();
     for admitted in routes {
         for def in admitted.set.defs() {
             let key = (
                 def.method.clone(),
-                full_path(admitted.set.base(), def.path.as_str()),
+                full_ref_path(admitted.set.base(), def.path.as_str()),
             );
             if !seen.insert(key.clone()) {
                 return Err(CompositionError::RouteConflict {
@@ -220,7 +237,7 @@ pub(super) fn check_gateway_overlaps(
     for (index, first) in routes.iter().enumerate() {
         if let Some(second) = routes[index + 1..]
             .iter()
-            .find(|other| other.decl.path == first.decl.path)
+            .find(|other| other.decl.router.base() == first.decl.router.base())
         {
             return Err(CompositionError::GatewayRouteOverlap {
                 first: first.owner.clone(),

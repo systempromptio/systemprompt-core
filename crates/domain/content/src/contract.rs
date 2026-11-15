@@ -19,7 +19,7 @@
 use std::sync::Arc;
 
 use systemprompt_extension::{
-    Factory, FactoryError, Resolved, Slot, SlotEntry, SlotError, SlotOrder,
+    Factory, Resolved, Slot, SlotEntry, SlotError, SlotOrder, build_factories,
 };
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::{
@@ -148,81 +148,52 @@ impl ContentSlotBuilder {
         r: &Resolved<'_>,
         hooks: &mut ContentHooks,
     ) -> Result<(), SlotError> {
-        run(
+        hooks
+            .template_providers
+            .extend(build_factories(SLOT, owner, &self.template_providers, r)?);
+        hooks.component_renderers.extend(build_factories(
+            SLOT,
             owner,
+            &self.component_renderers,
             r,
-            self.template_providers,
-            &mut hooks.template_providers,
-        )?;
-        run(
+        )?);
+        hooks.template_data_extenders.extend(build_factories(
+            SLOT,
             owner,
+            &self.template_data_extenders,
             r,
-            self.component_renderers,
-            &mut hooks.component_renderers,
-        )?;
-        run(
+        )?);
+        hooks.page_data_providers.extend(build_factories(
+            SLOT,
             owner,
+            &self.page_data_providers,
             r,
-            self.template_data_extenders,
-            &mut hooks.template_data_extenders,
-        )?;
-        run(
+        )?);
+        hooks
+            .page_prerenderers
+            .extend(build_factories(SLOT, owner, &self.page_prerenderers, r)?);
+        hooks.frontmatter_processors.extend(build_factories(
+            SLOT,
             owner,
+            &self.frontmatter_processors,
             r,
-            self.page_data_providers,
-            &mut hooks.page_data_providers,
-        )?;
-        run(
+        )?);
+        hooks.content_data_providers.extend(build_factories(
+            SLOT,
             owner,
+            &self.content_data_providers,
             r,
-            self.page_prerenderers,
-            &mut hooks.page_prerenderers,
-        )?;
-        run(
-            owner,
-            r,
-            self.frontmatter_processors,
-            &mut hooks.frontmatter_processors,
-        )?;
-        run(
-            owner,
-            r,
-            self.content_data_providers,
-            &mut hooks.content_data_providers,
-        )?;
-        run(
-            owner,
-            r,
-            self.rss_feed_providers,
-            &mut hooks.rss_feed_providers,
-        )?;
-        run(
-            owner,
-            r,
-            self.sitemap_providers,
-            &mut hooks.sitemap_providers,
-        )
+        )?);
+        hooks
+            .rss_feed_providers
+            .extend(build_factories(SLOT, owner, &self.rss_feed_providers, r)?);
+        hooks
+            .sitemap_providers
+            .extend(build_factories(SLOT, owner, &self.sitemap_providers, r)?);
+        Ok(())
     }
 }
 
-fn run<T: ?Sized + 'static>(
-    owner: &ExtensionId,
-    r: &Resolved<'_>,
-    factories: Factories<T>,
-    out: &mut Vec<Arc<T>>,
-) -> Result<(), SlotError> {
-    for factory in factories {
-        out.push(factory.build(r).map_err(|error| match error {
-            FactoryError::Missing(missing) => SlotError::Missing(missing),
-            FactoryError::Failed(source) => SlotError::Entry {
-                slot: SLOT,
-                owner: owner.clone(),
-                source,
-            },
-        })?);
-    }
-    Ok(())
-}
 
 /// The built content hooks of every admitted member, in composition order.
 #[derive(Default, Clone)]

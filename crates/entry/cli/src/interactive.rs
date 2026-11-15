@@ -3,9 +3,10 @@
 //! `Prompter` (in `systemprompt_extension::cli`) is the single seam over
 //! operator interaction: production code uses [`DialoguerPrompter`] (terminal
 //! prompts via `dialoguer`), tests use [`ScriptedPrompter`] with queued
-//! answers. The flag-bridging helpers ([`resolve_required`], …) keep their
-//! behaviour: interactive mode prompts, non-interactive mode falls back to a
-//! default or fails with a "flag required" error.
+//! answers. The flag-bridging helpers (`resolve_required` from
+//! `systemprompt_extension::cli`, …) keep their behaviour: interactive mode
+//! prompts, non-interactive mode falls back to a default or fails with a "flag
+//! required" error.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,6 +17,7 @@ use std::sync::Mutex;
 use anyhow::{Result, anyhow};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Confirm, Input, Password, Select};
+pub use systemprompt_extension::cli::resolve_required;
 use systemprompt_extension::cli::{CliConfig, CommandError, Prompter};
 
 
@@ -164,25 +166,6 @@ impl Prompter for ScriptedPrompter {
 
     fn password(&self, prompt: &str) -> Result<String, CommandError> {
         self.password_answer(prompt).map_err(CommandError::new)
-    }
-}
-
-pub fn resolve_required<T, F>(
-    value: Option<T>,
-    flag_name: &str,
-    config: &CliConfig,
-    prompt_fn: F,
-) -> Result<T>
-where
-    F: FnOnce() -> Result<T>,
-{
-    match value {
-        Some(v) => Ok(v),
-        None if config.is_interactive() => prompt_fn(),
-        None => Err(anyhow!(
-            "--{} is required in non-interactive mode",
-            flag_name
-        )),
     }
 }
 

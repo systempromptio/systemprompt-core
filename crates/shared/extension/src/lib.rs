@@ -119,7 +119,7 @@ pub use context::{DynExtensionContext, ExtensionContext};
 pub use contribute::{
     ContributionError, Contributions, ExtensionConfig, Factory, FactoryError, FromState, Handed,
     HandleId, KernelHandle, ProvideError, ProvideFn, Resolved, Slot, SlotEntry, SlotError,
-    SlotOrder, StandingTag, handles,
+    SlotOrder, StandingTag, build_factories, handles,
 };
 pub use cost::{CostDirective, CostDirectiveError, TriggerPolicy};
 pub use error::{
@@ -185,6 +185,7 @@ pub mod prelude {
     };
     pub use systemprompt_models::LateBound;
 
+    pub use systemprompt_provider_contracts::governance::RuleType;
     pub use systemprompt_provider_contracts::{
         ApplyMode, ApplyOutcome, ApplyRequest, ChangeActor, ChangeRequest, ChangeSource,
         ComponentContext, ComponentRenderer, ConfigPlane, ConfigPlaneError, ConfigPlaneResult,

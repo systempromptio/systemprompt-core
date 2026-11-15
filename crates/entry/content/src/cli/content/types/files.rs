@@ -8,6 +8,7 @@
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use systemprompt_extension::cli::FileSummary;
 use systemprompt_identifiers::{ContentId, FileId};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -38,17 +39,6 @@ pub struct ContentUnlinkOutput {
     pub file_id: FileId,
     pub content_id: ContentId,
     pub message: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct FileSummary {
-    pub id: FileId,
-    pub path: String,
-    pub public_url: String,
-    pub mime_type: String,
-    pub size_bytes: Option<i64>,
-    pub ai_content: bool,
-    pub created_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
