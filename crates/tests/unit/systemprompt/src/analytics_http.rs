@@ -3,13 +3,15 @@
 //! behind the admin shape, handed the analytics broadcaster; the engagement
 //! routes at `/track/engagement` behind the public shape, handed nothing; the
 //! `analytics` group with its two grants and the `core content popular` leaf.
+//! Without the content group's member the leaf is refused (`ParentMissing`).
 //! A route set at the engagement base cannot resolve the broadcaster, while
 //! the analytics set can (T10).
 
 use std::sync::Arc;
 
 use clap::Command;
-use systemprompt::reference;
+use systemprompt::content::entry::extension::ContentHttpExtension;
+use systemprompt::{CompositionError, reference};
 use systemprompt_cli::kernel::{CommandRegistry, describe_command_line, kernel_commands};
 use systemprompt_extension::admitted::AdmittedRouteSet;
 use systemprompt_extension::cli::{
@@ -198,6 +200,24 @@ fn analytics_http_declares_its_group_with_its_grants_and_the_popular_leaf() {
         .expect("the popular leaf is declared");
     assert!(leaf.decl.grants().is_empty());
     assert_eq!(owned.len(), 2, "{owned:?}");
+}
+
+#[test]
+fn popular_leaf_without_the_content_group_is_refused() {
+    let error = reference()
+        .without::<ContentHttpExtension>()
+        .declare()
+        .expect_err("the popular leaf needs the member-owned content group");
+    assert!(
+        matches!(
+            error,
+            CompositionError::ParentMissing {
+                leaf: "popular",
+                parent: ["core", "content"],
+            }
+        ),
+        "{error:?}"
+    );
 }
 
 #[test]

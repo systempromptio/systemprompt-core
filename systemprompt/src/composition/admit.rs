@@ -184,7 +184,6 @@ const COMMAND_PARENTS: &[&[&str]] = &[
     &["admin"],
     &["web"],
     &["plugins"],
-    &["core", "content"],
 ];
 
 #[cfg(feature = "cli")]
