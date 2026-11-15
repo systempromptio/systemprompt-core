@@ -21,7 +21,7 @@ use systemprompt_models::brain::{BrainFact, FactSource};
 use systemprompt_models::notifications::{
     Attention, NotificationEvent, NotificationKind, NotificationKindError, SubjectRef,
 };
-use systemprompt_provider_contracts::{JobScope, submit_job};
+use systemprompt_provider_contracts::JobScope;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 
 use crate::error::{BrainError, BrainResult};
@@ -145,5 +145,3 @@ impl Job for BrainReviewJob {
         Ok(result.with_stats(marked, failed).with_duration(duration))
     }
 }
-
-submit_job!("brain", &BrainReviewJob);

@@ -22,7 +22,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use systemprompt_database::DbPool;
 use systemprompt_manifest::profile::{BrainLifecycleProfile, BrainProfile};
-use systemprompt_provider_contracts::{JobScope, submit_job};
+use systemprompt_provider_contracts::JobScope;
 use systemprompt_traits::{
     Job, JobContext, JobResult, ProviderError, ProviderResult, RepositoryError,
 };
@@ -145,5 +145,3 @@ impl Job for BrainRetentionJob {
             .with_duration(u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX)))
     }
 }
-
-submit_job!("brain", &BrainRetentionJob);

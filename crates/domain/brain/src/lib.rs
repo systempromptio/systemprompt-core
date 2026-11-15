@@ -35,6 +35,7 @@
 
 pub mod analyses;
 pub mod consumer;
+pub mod contract;
 pub mod defaults;
 pub mod error;
 pub mod extension;
@@ -53,6 +54,7 @@ pub mod service;
 pub mod sink;
 pub mod version;
 
+pub use contract::{BrainSeams, BrainSlot, BrainSlotBuilder};
 pub use error::{BrainError, BrainResult};
 pub use extension::BrainExtension;
 pub use models::{

@@ -16,7 +16,6 @@ use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::ContextExtractionError;
 use systemprompt_models::notifications::{AudienceSubject, StreamAttention, StreamDecl};
 use systemprompt_notifications::repository::NotificationStreamRepository;
-use systemprompt_notifications_entry::http::router;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, seed_user_row, test_app_context, test_db_pool,
@@ -24,7 +23,7 @@ use systemprompt_test_fixtures::{
 use tower::ServiceExt;
 use uuid::Uuid;
 
-use crate::support::state;
+use crate::support::user_router;
 
 #[derive(Clone)]
 struct Caller(RequestContext);
@@ -87,7 +86,7 @@ fn app(ctx: &AppContext, user: &UserId) -> Router {
         Actor::user(user.clone()),
     )
     .with_user_type(UserType::User);
-    router(state(ctx)).with_auth(
+    user_router(ctx).with_auth(
         UserOnlyContextMiddleware::new(Caller(caller)),
         AuthzPolicy::user(),
     )

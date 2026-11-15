@@ -5,15 +5,13 @@
 //! `/api/v1/notifications`, the admin routing simulator under
 //! `/api/v1/admin/notifications`, and the bridge inbox under
 //! `/v1/bridge/notifications*`. [`extension::NotificationsHttpExtension`]
-//! declares the first two through `Extension::routers` and registers the
-//! inbox into the gateway surface, so the API server mounts all three without
-//! naming this crate. The `cli` feature is reserved for the capability's
-//! commands.
+//! contributes the first two as route sets and the inbox as its gateway
+//! route, so the API server mounts all three without naming this crate. The
+//! `cli` feature is reserved for the capability's commands.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-#[cfg(feature = "http")]
 pub mod extension;
 #[cfg(feature = "http")]
 pub mod http;

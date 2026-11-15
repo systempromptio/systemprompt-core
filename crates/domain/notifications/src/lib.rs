@@ -38,6 +38,7 @@
 
 pub mod channels;
 pub mod consumer;
+pub mod contract;
 pub mod defaults;
 pub mod error;
 pub mod extension;
@@ -52,8 +53,10 @@ pub mod sink;
 
 pub use channels::AguiChannel;
 pub use consumer::{
-    BacklogSnapshot, ConsumerState, NotificationsConsumer, NotificationsConsumerSlot,
+    BacklogSnapshot, BoundConsumerRunner, ConsumerState, NotificationsConsumer,
+    NotificationsConsumerSlot,
 };
+pub use contract::{NotificationSeams, NotificationsSlot, NotificationsSlotBuilder};
 pub use defaults::{DefaultPublishPolicy, DefaultRouter};
 pub use error::{NotificationsError, NotificationsResult};
 pub use extension::NotificationsExtension;

@@ -1,14 +1,19 @@
-//! [`BrainExtension`]: registers the brain tables and migrations, joins the
-//! user purge, and depends on the `users` extension.
+//! [`BrainExtension`]: contributes the brain tables, views and migrations,
+//! the `brain` config plane, the brain jobs and the user-purge rows of its
+//! tables.
 //!
 //! It declares no runner service: the brain consumer needs the pipeline
-//! seams the runtime builder assembles, so the builder starts it and binds it
-//! into the consumer slot this extension provides. Its backlog is reported on
-//! `/health/detail` through `diagnostics()`, never `/readyz`.
+//! seams the composition root assembles over the built
+//! [`BrainSeams`](crate::contract::BrainSeams), so the root starts it and
+//! binds it into the [`BrainConsumerSlot`] this member provides. Its backlog
+//! is reported on `/health/detail`, never `/readyz`.
 //!
-//! It requires the producer `DynNotificationSink` in the extension state,
-//! which the `notifications` extension provides: with notifications disabled
-//! in the profile, a profile that enables the brain fails at boot.
+//! It opens the [`BrainSlot`] itself, so the built seams are present whenever
+//! this member is admitted and absent when the profile disables it.
+//!
+//! It requires the producer `DynNotificationSink`, which the `notifications`
+//! member provides: a profile that disables notifications and keeps the
+//! brain is refused when the composition resolves.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -19,6 +24,10 @@ use systemprompt_extension::prelude::*;
 use systemprompt_extension::{DiagnosticProbe, DynNotificationSink};
 
 use crate::consumer::{BacklogDiagnostic, BrainConsumerSlot};
+use crate::contract::BrainSlot;
+use crate::jobs::{
+    BrainAnalysisJob, BrainConsolidateJob, BrainRetentionJob, BrainReviewJob, BrainUsageJob,
+};
 use crate::plane::BrainPlane;
 use crate::schema::{BRAIN_SCHEMAS, BRAIN_VIEWS};
 
@@ -34,69 +43,54 @@ impl Extension for BrainExtension {
         }
     }
 
-    fn schemas(&self) -> Vec<SchemaDefinition> {
-        BRAIN_SCHEMAS
-            .iter()
-            .map(|(table, sql, columns)| {
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        for (table, sql, columns) in BRAIN_SCHEMAS {
+            c.schema(
                 SchemaDefinition::new(*table, *sql)
-                    .with_required_columns(columns.iter().map(|c| (*c).into()).collect())
-            })
-            .chain(
-                BRAIN_VIEWS
-                    .iter()
-                    .map(|sql| SchemaDefinition::sql_only(*sql)),
+                    .with_required_columns(columns.iter().map(|c| (*c).into()).collect()),
+            );
+        }
+        for sql in BRAIN_VIEWS {
+            c.schema(SchemaDefinition::sql_only(*sql));
+        }
+        c.cross_table("users")
+            .migrations(extension_migrations!())
+            .config_plane(Arc::new(BrainPlane))
+            .requires::<DynNotificationSink>()
+            .provide(
+                |_: &Resolved<'_>| -> Result<BrainConsumerSlot, ProvideError> {
+                    Ok(BrainConsumerSlot::default())
+                },
             )
-            .collect()
-    }
-
-    fn dependencies(&self) -> Vec<&'static str> {
-        vec!["users"]
-    }
-
-    fn cross_extension_tables(&self) -> Vec<&'static str> {
-        vec!["users"]
-    }
-
-    fn migrations(&self) -> Vec<Migration> {
-        extension_migrations!()
-    }
-
-    fn config_planes(&self) -> Vec<Arc<dyn ConfigPlane>> {
-        vec![Arc::new(BrainPlane)]
-    }
-
-    fn provide(
-        &self,
-        _ctx: &dyn ExtensionContext,
-        state: &mut StateBuilder<'_>,
-    ) -> Result<(), ExtensionStateError> {
-        state.provide(BrainConsumerSlot::default())
-    }
-
-    fn requires(&self) -> Vec<StateRequirement> {
-        vec![StateRequirement::of::<DynNotificationSink>()]
-    }
-
-    fn diagnostics(&self, ctx: &dyn ExtensionContext) -> Vec<Arc<dyn DiagnosticProbe>> {
-        ctx.extension_state()
-            .find::<BrainConsumerSlot>()
-            .map(|slot| BacklogDiagnostic::new(slot.clone()).into_probe())
-            .into_iter()
-            .collect()
+            .diagnostic(
+                |r: &Resolved<'_>| -> Result<Arc<dyn DiagnosticProbe>, FactoryError> {
+                    let slot = r.get::<BrainConsumerSlot>()?;
+                    Ok(BacklogDiagnostic::new(slot).into_probe())
+                },
+            )
+            .job(BrainUsageJob)
+            .job(BrainReviewJob)
+            .job(BrainRetentionJob)
+            .job(BrainAnalysisJob)
+            .job(BrainConsolidateJob)
+            .user_purge(UserPurgeTable {
+                table: "brain_facts",
+                column: "owner_user_id",
+                predicate: Some(
+                    "source_kind = 'session' OR source_kind = 'entered_by' OR source_kind = 'run'",
+                ),
+            })
+            .user_purge(UserPurgeTable {
+                table: "brain_recalls",
+                column: "principal_user_id",
+                predicate: None,
+            })
+            .user_purge(UserPurgeTable {
+                table: "brain_interests",
+                column: "owner_user_id",
+                predicate: None,
+            });
+        c.slot::<BrainSlot>();
+        Ok(())
     }
 }
-
-register_extension!(BrainExtension);
-
-user_purge_tables!(
-    "systemprompt-brain",
-    [
-        (
-            "brain_facts",
-            "owner_user_id",
-            "source_kind = 'session' OR source_kind = 'entered_by' OR source_kind = 'run'"
-        ),
-        ("brain_recalls", "principal_user_id"),
-        ("brain_interests", "owner_user_id"),
-    ]
-);

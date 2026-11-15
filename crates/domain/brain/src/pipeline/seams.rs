@@ -1,16 +1,14 @@
-//! [`PipelineSeams`]: the extension-contributed capture seams, each list
-//! in ascending registration priority.
+//! [`PipelineSeams`]: the contributed capture seams, each list in
+//! composition order, taken from the built
+//! [`BrainSeams`](crate::contract::BrainSeams).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 
-use systemprompt_extension::ExtensionContext;
 use systemprompt_extension::brain::{
     EventFilter, FactExtractor, FactValidator, ImportanceModel, SourceContent,
-    discover_brain_extractors, discover_brain_filters, discover_brain_importance_models,
-    discover_brain_source_contents, discover_brain_validators,
 };
 
 /// The filters, extractors, validators, importance models and source
@@ -33,33 +31,5 @@ impl std::fmt::Debug for PipelineSeams {
             .field("importance", &self.importance.len())
             .field("sources", &self.sources.len())
             .finish()
-    }
-}
-
-impl PipelineSeams {
-    #[must_use]
-    pub fn discover(ctx: &dyn ExtensionContext) -> Self {
-        Self {
-            filters: discover_brain_filters()
-                .iter()
-                .map(|r| (r.factory)(ctx))
-                .collect(),
-            extractors: discover_brain_extractors()
-                .iter()
-                .map(|r| (r.factory)(ctx))
-                .collect(),
-            validators: discover_brain_validators()
-                .iter()
-                .map(|r| (r.factory)(ctx))
-                .collect(),
-            importance: discover_brain_importance_models()
-                .iter()
-                .map(|r| (r.factory)(ctx))
-                .collect(),
-            sources: discover_brain_source_contents()
-                .iter()
-                .map(|r| (r.factory)(ctx))
-                .collect(),
-        }
     }
 }

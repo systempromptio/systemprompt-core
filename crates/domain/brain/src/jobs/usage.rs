@@ -23,7 +23,7 @@ use async_trait::async_trait;
 use chrono::{Duration, Utc};
 use systemprompt_database::DbPool;
 use systemprompt_manifest::profile::BrainProfile;
-use systemprompt_provider_contracts::{JobScope, submit_job};
+use systemprompt_provider_contracts::JobScope;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderError, ProviderResult};
 
 use crate::pipeline::metrics;
@@ -145,5 +145,3 @@ impl Job for BrainUsageJob {
             .with_duration(u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX)))
     }
 }
-
-submit_job!("brain", &BrainUsageJob);

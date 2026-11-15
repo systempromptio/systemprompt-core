@@ -9,12 +9,14 @@ use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_identifiers::{NotificationStreamId, UserId};
 use systemprompt_models::auth::UserType;
 use systemprompt_models::notifications::{AudienceSubject, StreamAttention, StreamDecl};
+use systemprompt_notifications::NotificationsServiceSlot;
 use systemprompt_notifications::repository::NotificationStreamRepository;
-use systemprompt_notifications_entry::http::{NotificationsState, router};
-use systemprompt_runtime::AppContext;
+use systemprompt_notifications_entry::http::user_routes;
+use systemprompt_runtime::{AppContext, Kernel};
 use systemprompt_test_fixtures::{
     AuthedFixture, notifications_service, seed_bridge_credential, seed_user_row, unique_user_id,
 };
+use systemprompt_traits::{BackgroundTasks, DatabaseHandle, Dependencies};
 use uuid::Uuid;
 
 use super::engine::{Fixture, get, send, sweep, with_bearer};
@@ -29,13 +31,26 @@ struct Notifications {
     view: &'static str,
 }
 
-fn notifications_state(ctx: &AppContext) -> NotificationsState {
-    let state = systemprompt_extension::ExtensionContext::extension_state(ctx);
-    NotificationsState::from_extension_state(&state).expect("notification service bound")
+fn notifications_router(ctx: &AppContext) -> Router {
+    let slot = systemprompt_extension::ExtensionContext::extension_state(ctx)
+        .get::<NotificationsServiceSlot>()
+        .expect("notification service handle provided")
+        .clone();
+    let database: Arc<dyn DatabaseHandle> = Arc::clone(ctx.db_pool());
+    let kernel = Kernel::new(
+        database,
+        BackgroundTasks::new(),
+        Dependencies::default().with(slot),
+    );
+    user_routes()
+        .materialize(&kernel.resolved())
+        .expect("notification service bound")
+        .into_iter()
+        .fold(Router::new(), Router::merge)
 }
 
 fn as_user(ctx: &AppContext, user: &UserId) -> Router {
-    router(notifications_state(ctx)).layer(Extension(
+    notifications_router(ctx).layer(Extension(
         request_context(user.as_str()).with_user_type(UserType::User),
     ))
 }
