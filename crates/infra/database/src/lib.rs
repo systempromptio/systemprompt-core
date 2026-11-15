@@ -142,8 +142,6 @@ impl DatabaseHandle for Database {
 #[error("the database handle is not a systemprompt database pool")]
 pub struct ForeignDatabaseHandle;
 
-/// Recovers the typed pool from the shared handle a `CommandHost::db()` or
-/// `Resolved::db()` returns.
 pub fn pool_from_handle(handle: Arc<dyn DatabaseHandle>) -> Result<DbPool, ForeignDatabaseHandle> {
     handle.into_any().downcast::<Database>().map_err(|_| ForeignDatabaseHandle)
 }

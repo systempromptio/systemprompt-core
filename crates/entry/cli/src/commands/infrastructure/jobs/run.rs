@@ -34,7 +34,7 @@ use crate::shared::{CommandOutput, render_result};
 #[derive(Debug, Args)]
 pub struct RunArgs {
     #[arg(
-        value_parser = crate::shared::parse_job_name,
+        value_parser = systemprompt_extension::cli::parsers::parse_job_name,
         help = "Job name(s) to run",
         num_args = 1..
     )]

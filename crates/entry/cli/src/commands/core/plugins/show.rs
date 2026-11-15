@@ -15,7 +15,7 @@ use systemprompt_identifiers::PluginId;
 
 #[derive(Debug, Clone, Args)]
 pub struct ShowArgs {
-    #[arg(help = "Plugin ID (directory name)", value_parser = crate::shared::parse_plugin_id)]
+    #[arg(help = "Plugin ID (directory name)", value_parser = systemprompt_extension::cli::parsers::parse_plugin_id)]
     pub id: PluginId,
 }
 

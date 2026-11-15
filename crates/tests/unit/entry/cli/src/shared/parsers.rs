@@ -7,7 +7,7 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::shared::{parse_email, parse_profile_name};
+use systemprompt_extension::cli::parsers::{parse_email, parse_profile_name};
 use systemprompt_identifiers::error::IdValidationError;
 
 #[test]

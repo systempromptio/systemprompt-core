@@ -23,6 +23,8 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dependencies]
 # Core
 thiserror = { workspace = true }
+rand = { workspace = true }
+serde_yaml = { workspace = true }
 
 # HTTP
 reqwest = { workspace = true }
@@ -62,6 +64,8 @@ systemprompt-manifest = { workspace = true }
 systemprompt-loader = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-logging = { workspace = true, features = ["cli"] }
+systemprompt-security = { workspace = true }
+systemprompt-wire = { workspace = true }
 
 [dev-dependencies]
 tempfile.workspace = true

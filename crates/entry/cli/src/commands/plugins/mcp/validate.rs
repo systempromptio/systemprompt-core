@@ -21,14 +21,14 @@ use systemprompt_models::Deployment;
 
 #[derive(Debug, Args)]
 pub struct ValidateArgs {
-    #[arg(help = "MCP server name", value_parser = crate::shared::parse_service_name)]
+    #[arg(help = "MCP server name", value_parser = systemprompt_extension::cli::parsers::parse_service_name)]
     pub server: Option<ServiceName>,
 
     #[arg(
         long = "service",
         conflicts_with = "server",
         help = "Alias for the positional MCP server name",
-        value_parser = crate::shared::parse_service_name
+        value_parser = systemprompt_extension::cli::parsers::parse_service_name
     )]
     pub service: Option<ServiceName>,
 

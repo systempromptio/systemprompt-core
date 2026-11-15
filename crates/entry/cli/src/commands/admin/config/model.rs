@@ -25,14 +25,14 @@ pub enum ModelCommands {
     Add(ModelAddArgs),
     #[command(about = "Remove a model and its deployments")]
     Remove {
-        #[arg(long, value_parser = crate::shared::parse_model_id)]
+        #[arg(long, value_parser = systemprompt_extension::cli::parsers::parse_model_id)]
         id: ModelId,
     },
 }
 
 #[derive(Debug, Clone, Args)]
 pub struct ModelAddArgs {
-    #[arg(long, value_parser = crate::shared::parse_model_id)]
+    #[arg(long, value_parser = systemprompt_extension::cli::parsers::parse_model_id)]
     pub id: ModelId,
     #[arg(
         long = "deployment",

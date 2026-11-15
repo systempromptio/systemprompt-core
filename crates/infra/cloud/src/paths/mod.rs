@@ -12,6 +12,7 @@ mod cloud;
 mod context;
 mod discovery;
 mod project;
+mod project_root;
 
 use std::path::{Path, PathBuf};
 
@@ -19,6 +20,7 @@ pub use cloud::{CloudPath, CloudPaths, get_cloud_paths};
 pub use context::UnifiedContext;
 pub use discovery::DiscoveredProject;
 pub use project::{ProfilePath, ProjectContext, ProjectPath};
+pub use project_root::{ProjectError, ProjectRoot};
 pub use systemprompt_manifest::profile::{expand_home, resolve_with_home};
 
 #[must_use]

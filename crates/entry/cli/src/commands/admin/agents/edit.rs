@@ -24,7 +24,7 @@ use systemprompt_logging::CliService;
 pub struct EditArgs {
     #[arg(
         help = "Agent name (required in non-interactive mode)",
-        value_parser = crate::shared::parse_agent_name
+        value_parser = systemprompt_extension::cli::parsers::parse_agent_name
     )]
     pub name: Option<AgentName>,
 

@@ -39,7 +39,7 @@ pub enum StartTarget {
     Agent { agent: String },
     #[command(about = "Start a single MCP server by name")]
     Mcp {
-        #[arg(value_parser = crate::shared::parse_mcp_server_id)]
+        #[arg(value_parser = systemprompt_extension::cli::parsers::parse_mcp_server_id)]
         server_name: McpServerId,
     },
 }
@@ -54,7 +54,7 @@ pub enum StopTarget {
     },
     #[command(about = "Stop a single MCP server by name")]
     Mcp {
-        #[arg(value_parser = crate::shared::parse_mcp_server_id)]
+        #[arg(value_parser = systemprompt_extension::cli::parsers::parse_mcp_server_id)]
         server_name: McpServerId,
         #[arg(long, help = "Force stop (SIGKILL)")]
         force: bool,
@@ -207,7 +207,7 @@ pub enum RestartTarget {
     Agent { agent: String },
     #[command(about = "Restart a single MCP server by name")]
     Mcp {
-        #[arg(value_parser = crate::shared::parse_mcp_server_id)]
+        #[arg(value_parser = systemprompt_extension::cli::parsers::parse_mcp_server_id)]
         server_name: McpServerId,
         #[arg(long, help = "Rebuild the binary before restarting")]
         build: bool,

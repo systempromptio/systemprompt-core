@@ -23,7 +23,7 @@ use systemprompt_logging::CliService;
 
 use super::{SetupArgs, postgres, secrets};
 use crate::shared::postgres_access::PostgresConfig;
-use crate::shared::provider_catalog::VertexSeed;
+use systemprompt_cloud::provider_catalog::VertexSeed;
 
 #[doc(hidden)]
 pub fn get_environment_name(

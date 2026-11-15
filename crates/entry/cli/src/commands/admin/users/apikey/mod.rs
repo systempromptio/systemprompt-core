@@ -48,7 +48,7 @@ pub struct RevokeArgs {
     #[arg(long)]
     pub user: UserId,
 
-    #[arg(long, value_parser = crate::shared::parse_api_key_id)]
+    #[arg(long, value_parser = systemprompt_extension::cli::parsers::parse_api_key_id)]
     pub id: ApiKeyId,
 }
 

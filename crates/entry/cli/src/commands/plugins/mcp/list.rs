@@ -12,7 +12,7 @@ use std::path::PathBuf;
 use super::types::{McpListOutput, McpServerSummary};
 use crate::context::CommandContext;
 use crate::shared::CommandOutput;
-use crate::shared::project::ProjectRoot;
+use systemprompt_cloud::paths::ProjectRoot;
 use systemprompt_models::mcp::{Deployment, McpServerType};
 
 #[derive(Debug, Clone, Copy, Args)]

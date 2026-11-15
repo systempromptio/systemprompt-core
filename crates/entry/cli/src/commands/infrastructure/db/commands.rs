@@ -69,7 +69,7 @@ pub enum DbCommands {
     },
     #[command(about = "Revert the most recently applied migrations for an extension")]
     MigrateDown {
-        #[arg(help = "Extension ID", value_parser = crate::shared::parse_extension_id)]
+        #[arg(help = "Extension ID", value_parser = systemprompt_extension::cli::parsers::parse_extension_id)]
         extension: ExtensionId,
         #[arg(help = "Number of migrations to revert")]
         count: u32,
@@ -88,7 +88,7 @@ pub enum DbCommands {
     MigratePlan {
         #[arg(
             help = "Filter by extension ID (default: all extensions)",
-            value_parser = crate::shared::parse_extension_id
+            value_parser = systemprompt_extension::cli::parsers::parse_extension_id
         )]
         extension: Option<ExtensionId>,
         #[command(flatten)]
@@ -101,7 +101,7 @@ pub enum DbCommands {
     MigrateStatus {
         #[arg(
             help = "Filter by extension ID (default: all extensions)",
-            value_parser = crate::shared::parse_extension_id
+            value_parser = systemprompt_extension::cli::parsers::parse_extension_id
         )]
         extension: Option<ExtensionId>,
         #[arg(long, help = "Emit JSON instead of a text table")]
@@ -115,7 +115,7 @@ pub enum DbCommands {
     MigrateRepair {
         #[arg(
             help = "Limit repair to a single extension (default: all extensions)",
-            value_parser = crate::shared::parse_extension_id
+            value_parser = systemprompt_extension::cli::parsers::parse_extension_id
         )]
         extension: Option<ExtensionId>,
         #[arg(
@@ -144,7 +144,7 @@ pub enum DbCommands {
         #[arg(
             long,
             help = "Extension ID owning the migration",
-            value_parser = crate::shared::parse_extension_id
+            value_parser = systemprompt_extension::cli::parsers::parse_extension_id
         )]
         extension: ExtensionId,
         #[arg(long, help = "Migration version to mark as applied")]
@@ -181,7 +181,7 @@ pub enum MigrationsCommands {
     Status,
     #[command(about = "Show migration history for an extension")]
     History {
-        #[arg(help = "Extension ID", value_parser = crate::shared::parse_extension_id)]
+        #[arg(help = "Extension ID", value_parser = systemprompt_extension::cli::parsers::parse_extension_id)]
         extension: ExtensionId,
     },
 }

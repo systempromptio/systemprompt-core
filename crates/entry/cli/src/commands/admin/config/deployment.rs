@@ -25,7 +25,7 @@ pub enum DeploymentCommands {
 
 #[derive(Debug, Clone, Args)]
 pub struct DeploymentSetArgs {
-    #[arg(long, value_parser = crate::shared::parse_model_id)]
+    #[arg(long, value_parser = systemprompt_extension::cli::parsers::parse_model_id)]
     pub model: ModelId,
     #[arg(
         long = "endpoint",

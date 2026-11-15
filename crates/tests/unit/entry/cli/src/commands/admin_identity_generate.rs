@@ -11,7 +11,7 @@ use std::sync::Mutex;
 use base64::Engine;
 use clap::Parser;
 use systemprompt_cli::admin::identity::{IdentityCommands, execute};
-use systemprompt_cli::shared::generate_identity;
+use systemprompt_cloud::identity::generate_identity;
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_config::{decode_master_key, decode_seed};
 use systemprompt_logging::OutputState;

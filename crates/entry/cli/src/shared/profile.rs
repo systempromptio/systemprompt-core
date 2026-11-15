@@ -13,8 +13,6 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use rand::distr::Alphanumeric;
-use rand::{RngExt, rng};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_cloud::{ProfilePath, ProjectContext};
@@ -250,14 +248,6 @@ fn build_discovered_profile(entry: &std::fs::DirEntry) -> Option<DiscoveredProfi
         path: profile_yaml,
         profile,
     })
-}
-
-pub fn generate_oauth_at_rest_pepper() -> String {
-    let mut rng = rng();
-    (0..64)
-        .map(|_| rng.sample(Alphanumeric))
-        .map(char::from)
-        .collect()
 }
 
 pub fn save_profile_yaml(profile: &Profile, path: &Path, header: Option<&str>) -> Result<()> {

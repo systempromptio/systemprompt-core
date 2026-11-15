@@ -46,6 +46,7 @@ pub mod private_file;
 pub(crate) mod services;
 pub(crate) mod skill_validator;
 pub mod state_dir;
+pub mod yaml_document;
 
 pub use bootstrap::{
     BOOT_REQUIRED_SECRET_KEYS, ChildSecretsError, DynSecretsProvider, ENCRYPTION_MASTER_KEY_BYTES,

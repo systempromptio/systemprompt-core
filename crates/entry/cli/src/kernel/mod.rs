@@ -45,7 +45,6 @@ pub use crate::session::{self, CliSessionContext, get_or_create_session};
 pub use crate::shared::render::render_result;
 pub use crate::shared::profile::ProfileInfo;
 pub use crate::shared::{
-    ConfirmArgs, IdentityBundle, database_scoped_command_error, ddl, disk_logs, docker_compose,
-    generate_identity, parsers, postgres_access, profile, project, provider_catalog,
-    resolve_profile_path, text, time_format, yaml_document,
+    ConfirmArgs, database_scoped_command_error, ddl, disk_logs, docker_compose, postgres_access,
+    profile, resolve_profile_path, text,
 };

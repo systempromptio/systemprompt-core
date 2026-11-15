@@ -40,7 +40,7 @@ pub enum GatewayCommands {
 pub enum DefaultModelCommands {
     #[command(about = "Set gateway.default_model (a catalog model id, no `[1m]`)")]
     Set {
-        #[arg(long, value_parser = crate::shared::parse_model_id)]
+        #[arg(long, value_parser = systemprompt_extension::cli::parsers::parse_model_id)]
         model: ModelId,
     },
 

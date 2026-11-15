@@ -15,7 +15,7 @@ use crate::shared::CommandOutput;
 pub struct ConfigArgs {
     #[arg(
         help = "Extension ID (optional - lists all if not specified)",
-        value_parser = crate::shared::parse_extension_id
+        value_parser = systemprompt_extension::cli::parsers::parse_extension_id
     )]
     pub id: Option<systemprompt_identifiers::ExtensionId>,
 }

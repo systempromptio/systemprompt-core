@@ -30,7 +30,7 @@ pub struct CreateArgs {
     #[arg(long = "source-id", help = "Source ID")]
     pub source: Option<String>,
 
-    #[arg(long, help = "Category ID", value_parser = crate::shared::parse_category_id)]
+    #[arg(long, help = "Category ID", value_parser = systemprompt_extension::cli::parsers::parse_category_id)]
     pub category_id: Option<CategoryId>,
 
     #[arg(long, help = "Description")]

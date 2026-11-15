@@ -21,7 +21,7 @@ use systemprompt_identifiers::PluginId;
 pub struct ValidateArgs {
     #[arg(
         help = "Plugin ID to validate (validates all if omitted)",
-        value_parser = crate::shared::parse_plugin_id
+        value_parser = systemprompt_extension::cli::parsers::parse_plugin_id
     )]
     pub id: Option<PluginId>,
 }

@@ -23,13 +23,12 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use anyhow::{Context, Result};
 use systemprompt_config::write_private_atomic;
 use systemprompt_identifiers::{CredentialId, EndpointId, ModelId, ProviderId, SecretName};
 use systemprompt_manifest::services::GatewayConfigSpec;
 use systemprompt_manifest::services::catalog::{
-    CatalogContext, CatalogDocument, CredentialEntry, DefaultCatalog, EndpointConfig,
-    ProviderConfig,
+    CatalogContext, CatalogDocument, CatalogDocumentError, CatalogError, CredentialEntry,
+    DefaultCatalog, EndpointConfig, ProviderConfig,
 };
 use systemprompt_wire::WireProtocol;
 
@@ -54,9 +53,25 @@ pub struct SeedRequest<'a> {
     pub gateway_enabled: bool,
 }
 
-pub fn seed_document(request: SeedRequest<'_>) -> Result<CatalogDocument> {
+#[derive(Debug, thiserror::Error)]
+pub enum ProviderCatalogError {
+    #[error("embedded default catalog is unreadable")]
+    Embedded(#[source] CatalogDocumentError),
+    #[error("the seeded catalog does not resolve")]
+    Unresolved(#[source] CatalogError),
+    #[error("Failed to serialize gateway.yaml")]
+    Serialize(#[source] serde_yaml::Error),
+    #[error("Failed to write {}", path.display())]
+    Write {
+        path: std::path::PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+}
+
+pub fn seed_document(request: SeedRequest<'_>) -> Result<CatalogDocument, ProviderCatalogError> {
     let mut document =
-        DefaultCatalog::document().context("embedded default catalog is unreadable")?;
+        DefaultCatalog::document().map_err(ProviderCatalogError::Embedded)?;
     let kept = |provider: &str| request.present.contains(&provider);
     document
         .providers
@@ -94,7 +109,7 @@ pub fn seed_document(request: SeedRequest<'_>) -> Result<CatalogDocument> {
     });
     document
         .resolve(&CatalogContext::default())
-        .context("the seeded catalog does not resolve")?;
+        .map_err(ProviderCatalogError::Unresolved)?;
     Ok(document)
 }
 
@@ -111,7 +126,7 @@ pub fn first_model_on(document: &CatalogDocument, provider: &str) -> Option<Mode
         .map(|(model, _)| model.clone())
 }
 
-pub fn add_vertex(document: &mut CatalogDocument, seed: VertexSeed<'_>) -> Result<()> {
+pub fn add_vertex(document: &mut CatalogDocument, seed: VertexSeed<'_>) -> Result<(), ProviderCatalogError> {
     let credential = match seed {
         VertexSeed::WorkloadIdentity { project } => {
             CredentialEntry::workload_identity(project.to_owned())
@@ -142,18 +157,21 @@ pub fn add_vertex(document: &mut CatalogDocument, seed: VertexSeed<'_>) -> Resul
         .insert(ProviderId::new(VERTEX), provider);
     document
         .resolve(&CatalogContext::default())
-        .context("the seeded Vertex AI catalog does not resolve")?;
+        .map_err(ProviderCatalogError::Unresolved)?;
     Ok(())
 }
 
-pub fn write_gateway(dir: &Path, gateway: Option<&GatewayConfigSpec>) -> Result<()> {
+pub fn write_gateway(
+    dir: &Path,
+    gateway: Option<&GatewayConfigSpec>,
+) -> Result<(), ProviderCatalogError> {
     let path = dir.join("gateway.yaml");
     let Some(gateway) = gateway else {
         return Ok(());
     };
     let section: BTreeMap<&str, &GatewayConfigSpec> =
         std::iter::once(("gateway", gateway)).collect();
-    let yaml = serde_yaml::to_string(&section).context("Failed to serialize gateway.yaml")?;
+    let yaml = serde_yaml::to_string(&section).map_err(ProviderCatalogError::Serialize)?;
     write_private_atomic(&path, yaml.as_bytes())
-        .with_context(|| format!("Failed to write {}", path.display()))
+        .map_err(|source| ProviderCatalogError::Write { path, source })
 }

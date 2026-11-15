@@ -76,7 +76,7 @@ impl RunLauncher {
 
 #[derive(Debug, Clone, Args)]
 pub struct RunArgs {
-    #[arg(long, help = "Agent name to run", value_parser = crate::shared::parse_agent_name)]
+    #[arg(long, help = "Agent name to run", value_parser = systemprompt_extension::cli::parsers::parse_agent_name)]
     pub agent_name: AgentName,
 
     #[arg(long, help = "Port to listen on")]

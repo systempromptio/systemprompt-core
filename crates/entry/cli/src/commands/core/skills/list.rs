@@ -24,7 +24,7 @@ use systemprompt_marketplace::managed::ResourceKind;
 pub struct ListArgs {
     #[arg(
         help = "Skill ID to show details (optional)",
-        value_parser = crate::shared::parse_skill_id
+        value_parser = systemprompt_extension::cli::parsers::parse_skill_id
     )]
     pub name: Option<SkillId>,
 

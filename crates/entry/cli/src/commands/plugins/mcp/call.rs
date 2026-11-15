@@ -30,13 +30,13 @@ use crate::shared::{CommandOutput, render_result};
 pub struct CallArgs {
     #[arg(
         help = "MCP server name (required in non-interactive mode)",
-        value_parser = crate::shared::parse_mcp_server_id
+        value_parser = systemprompt_extension::cli::parsers::parse_mcp_server_id
     )]
     pub server: Option<McpServerId>,
 
     #[arg(
         help = "Tool name to execute (required in non-interactive mode)",
-        value_parser = crate::shared::parse_mcp_tool_name
+        value_parser = systemprompt_extension::cli::parsers::parse_mcp_tool_name
     )]
     pub tool: Option<McpToolName>,
 

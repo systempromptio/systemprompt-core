@@ -34,7 +34,7 @@ pub struct ServeArgs {
     #[arg(
         long,
         help = "MCP server id, as declared under mcp_servers",
-        value_parser = crate::shared::parse_mcp_server_id
+        value_parser = systemprompt_extension::cli::parsers::parse_mcp_server_id
     )]
     pub server: McpServerId,
 }
