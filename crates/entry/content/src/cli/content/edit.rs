@@ -7,11 +7,13 @@ use super::edit_apply::{
     ContentEditState, apply_body_flags, apply_set_value_flags, apply_visibility_flags,
 };
 use super::types::UpdateOutput;
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_content::{CategoryIdUpdate, ContentRepository};
 use systemprompt_database::{DbPool, pool_from_handle};
-use systemprompt_extension::cli::{CliConfig, CommandHost, CommandOutput, Prompter};
+use systemprompt_extension::cli::{
+    CliConfig, CommandHost, CommandOutput, Prompter, resolve_required,
+};
 use systemprompt_identifiers::{ContentId, LocaleCode, SourceId};
 use systemprompt_logging::CliService;
 
@@ -57,11 +59,9 @@ pub async fn execute_with_pool(
     } else {
         Vec::new()
     };
-    let identifier = match args.identifier.clone() {
-        Some(identifier) => identifier,
-        None if config.is_interactive() => prompt_content_selection(prompter, &candidates)?,
-        None => bail!("--identifier is required in non-interactive mode"),
-    };
+    let identifier = resolve_required(args.identifier.clone(), "identifier", config, || {
+        prompt_content_selection(prompter, &candidates)
+    })?;
 
     let content = if identifier.starts_with("content_")
         || identifier.contains('-') && identifier.len() > 30

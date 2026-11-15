@@ -8,8 +8,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::FileId;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct TextOutput {
@@ -91,4 +93,15 @@ impl<T> Default for TableOutput<T> {
     fn default() -> Self {
         Self { rows: Vec::new() }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct FileSummary {
+    pub id: FileId,
+    pub path: String,
+    pub public_url: String,
+    pub mime_type: String,
+    pub size_bytes: Option<i64>,
+    pub ai_content: bool,
+    pub created_at: DateTime<Utc>,
 }

@@ -4,7 +4,8 @@
 //! scripted one; a command reaches its [`Prompter`] through its
 //! `CommandHost`. [`require_confirmation`] never prints: in a non-interactive
 //! run it refuses unless confirmation was skipped, and a declined prompt is a
-//! typed refusal.
+//! typed refusal. [`resolve_required`] takes a flag's value, prompts for it in
+//! an interactive run, and otherwise refuses with [`FlagRequired`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -27,6 +28,29 @@ pub enum ConfirmationRefused {
     NonInteractive,
     #[error("Operation cancelled")]
     Declined,
+}
+
+#[derive(Debug, Clone, Copy, thiserror::Error)]
+#[error("--{flag} is required in non-interactive mode")]
+pub struct FlagRequired {
+    pub flag: &'static str,
+}
+
+pub fn resolve_required<T, E, F>(
+    value: Option<T>,
+    flag: &'static str,
+    config: &CliConfig,
+    prompt: F,
+) -> Result<T, E>
+where
+    F: FnOnce() -> Result<T, E>,
+    E: From<FlagRequired>,
+{
+    match value {
+        Some(value) => Ok(value),
+        None if config.is_interactive() => prompt(),
+        None => Err(FlagRequired { flag }.into()),
+    }
 }
 
 pub fn require_confirmation(

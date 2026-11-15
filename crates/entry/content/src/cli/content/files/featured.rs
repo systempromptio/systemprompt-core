@@ -6,11 +6,11 @@
 use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_database::{DbPool, pool_from_handle};
-use systemprompt_extension::cli::{CliConfig, CommandHost, CommandOutput};
+use systemprompt_extension::cli::{CliConfig, CommandHost, CommandOutput, FileSummary};
 use systemprompt_files::FileRepository;
 use systemprompt_identifiers::{ContentId, FileId};
 
-use crate::cli::content::types::{FeaturedImageOutput, FileSummary};
+use crate::cli::content::types::FeaturedImageOutput;
 
 #[derive(Debug, Clone, Args)]
 pub struct FeaturedArgs {

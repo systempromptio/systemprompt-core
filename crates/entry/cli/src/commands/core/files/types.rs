@@ -9,6 +9,7 @@
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+pub use systemprompt_extension::cli::FileSummary;
 use systemprompt_identifiers::{ContextId, FileId, SessionId, TraceId, UserId};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -17,17 +18,6 @@ pub struct FileListOutput {
     pub total: i64,
     pub limit: i64,
     pub offset: i64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct FileSummary {
-    pub id: FileId,
-    pub path: String,
-    pub public_url: String,
-    pub mime_type: String,
-    pub size_bytes: Option<i64>,
-    pub ai_content: bool,
-    pub created_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
