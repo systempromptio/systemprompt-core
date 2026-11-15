@@ -22,6 +22,7 @@ mod context_flavours;
 mod core_declaration;
 mod core_declaration_claims;
 mod core_declaration_gateway;
+mod core_declaration_handles;
 mod core_declaration_roles;
 mod core_declaration_rows;
 mod core_declaration_shape;

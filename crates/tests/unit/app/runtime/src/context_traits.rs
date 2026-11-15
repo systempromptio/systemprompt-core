@@ -155,3 +155,21 @@ async fn the_kernel_state_carries_the_oauth_repositories() {
         .expect("the oauth repositories are a kernel state entry");
     assert!(std::sync::Arc::ptr_eq(repos, ctx.oauth_repositories()));
 }
+
+#[tokio::test]
+async fn the_kernel_state_never_carries_the_analytics_broadcaster() {
+    let (ctx, _url) = context().await;
+    let state = systemprompt_runtime::kernel_state(&ctx);
+    assert!(
+        state
+            .find::<Arc<systemprompt_events::AnalyticsBroadcaster>>()
+            .is_none(),
+        "the analytics broadcaster is handed to its core route row, never seeded"
+    );
+    let view: &dyn ExtensionContext = ctx.as_ref();
+    assert!(
+        view.extension_state()
+            .find::<Arc<systemprompt_events::AnalyticsBroadcaster>>()
+            .is_none()
+    );
+}

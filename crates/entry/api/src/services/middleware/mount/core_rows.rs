@@ -12,6 +12,9 @@
 //! answers 404 there; and the short-link redirect, merged at the web root as
 //! the server mounted it and pinned to `GET /r/…`.
 //!
+//! Only the `Analytics` row is handed a kernel handle: the analytics event
+//! broadcaster its live stream subscribes to.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -22,6 +25,7 @@ use systemprompt_extension::{
 use systemprompt_models::modules::ApiPaths;
 
 use super::core_declaration::{Allowance, CoreDeclaration, CoreDeclarer};
+use super::core_handles::KernelHandle;
 use super::core_pins::{PinnedMethod, RoutePin};
 
 const CONTENT_RATE: RateLimit = RateLimit::new("content", RateBudget::Content);
@@ -181,6 +185,26 @@ impl CoreDeclaration {
             | Self::Analytics
             | Self::Engagement
             | Self::ContentPublic => &[],
+        }
+    }
+}
+
+impl CoreDeclaration {
+    #[must_use]
+    pub const fn kernel_handles(self) -> &'static [KernelHandle] {
+        match self {
+            Self::Analytics => &[KernelHandle::AnalyticsBroadcaster],
+            Self::AgentProxy
+            | Self::AgentRuns
+            | Self::Slack
+            | Self::Teams
+            | Self::Notifications
+            | Self::NotificationsAdmin
+            | Self::BridgeNotifications
+            | Self::Engagement
+            | Self::ContentPublic
+            | Self::ContentAuthenticated
+            | Self::ContentRedirect => &[],
         }
     }
 }

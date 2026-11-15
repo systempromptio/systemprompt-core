@@ -4,6 +4,9 @@
 //! - `/api/v1/analytics` (events and the live stream) refuses a caller without
 //!   credentials and a user token at the admin gate, and records an admin's
 //!   event;
+//! - the live stream answers an admin with an event stream, so the analytics
+//!   broadcaster the API hands to the `Analytics` row reaches its handler
+//!   (without it the handler answers 503);
 //! - `/track/engagement` is public and rate-limited per client address under
 //!   the `content` budget, and nested at its prefix: it answers exactly the
 //!   paths a router nested the way the server mounted it at the base answers
@@ -174,6 +177,33 @@ async fn the_analytics_group_records_an_admins_event() -> anyhow::Result<()> {
         .await?
         .status();
     assert_eq!(status, StatusCode::CREATED);
+    Ok(())
+}
+
+#[tokio::test]
+async fn the_analytics_stream_receives_the_kernel_broadcaster() -> anyhow::Result<()> {
+    let app = full_router(RateLimitsConfig::disabled(), &[]).await?;
+    let admin = seed_admin_credential(&test_db_pool().await, "analytics-stream-admin").await?;
+    let mut req = request(
+        Method::GET,
+        STREAM,
+        String::new(),
+        Some(&admin.jwt),
+        "127.0.0.1:40004",
+    );
+    req.headers_mut()
+        .insert(header::ACCEPT, "text/event-stream".parse()?);
+    let resp = app.oneshot(req).await?;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let content_type = resp
+        .headers()
+        .get(header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default();
+    assert!(
+        content_type.starts_with("text/event-stream"),
+        "the stream must reach its handler with the broadcaster, got {content_type}"
+    );
     Ok(())
 }
 

@@ -41,6 +41,12 @@
 //! from `ExtensionContext::extension_state()` when it is built, and an absent
 //! one is a typed `MissingDependency`.
 //!
+//! A kernel handle that must not enter the shared extension state (the
+//! analytics event broadcaster) is layered, after admission, onto exactly the
+//! router whose declaration matches the core row the table hands it to
+//! (`hand_kernel_handles`); every other router, install or core, never sees
+//! it in its request extensions.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -50,7 +56,9 @@ use axum::{Extension, Router};
 use systemprompt_traits::{StartupEvent, StartupEventSender};
 
 use crate::routes::admin::services::{RefreshLock, ServicesRefresh};
-use crate::services::middleware::{admit_extensions, extension_built, extension_served};
+use crate::services::middleware::{
+    admit_extensions, extension_built, extension_served, hand_kernel_handles,
+};
 
 pub(super) fn mount_extension_routes(
     mut router: Router,
@@ -93,6 +101,7 @@ pub(super) fn mount_extension_routes(
             .router
             .layer(Extension(ctx.governance_watch().clone()))
             .layer(Extension(ServicesRefresh::new(ctx, refresh_lock.clone())));
+        let declared = hand_kernel_handles(ext_id, declared, ctx.event_broadcasters());
 
         router = mount.mount(router, declared)?;
 
