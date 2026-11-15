@@ -17,3 +17,13 @@ text = "`RegistryError::ReservedPath { path, group, owner }`."
 name = "systemprompt-api"
 section = "Added"
 text = "`admit_core_owner`, `admit_core_owners`, `CoreDeclaration::owner_type` and `MountError::CoreOwnerImpostor { extension, type_name, owner }`; the server runs the owner check over every registered extension before it builds any route."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`routes::gateway::gateway_engines` returns `GatewayBootError` (`CoreOwner` or `Engines`) in place of `GatewayEnginesError`: it runs the core owner check before any gateway guard factory, as do `routes::gateway::gateway_router` and `configure_routes_for_role`."
+
+[[crate]]
+name = "systemprompt-analytics-entry"
+section = "Added"
+text = "The `content-commands` feature compiles and registers the `core content popular` leaf; the facade enables it when both `analytics` and `content` are composed."
