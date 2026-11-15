@@ -1,13 +1,19 @@
-//! The one place a declared router gets its protection and its mount point.
+//! The one place a route group gets its protection and its mount point.
 //!
-//! Every route group — core or extension — is described by a
-//! [`RouteProtection`] (inside an [`ExtensionRouter`] declaration), and
-//! [`protect`] applies it with the server's own primitives, innermost first:
-//! the body limit, the inner protection layers, the rate limit and bearer
-//! window (`RouterExt::with_rate_limit` / `with_bearer_window`), the context
-//! middleware and authorization gate (`RouterExt::with_auth`), the outer
-//! protection layers, and the frame-options stamp. [`mount`] adds the role
-//! group and enable predicate and nests the result under its base path, or
+//! Two kinds of group are mounted here. The server's own groups are
+//! [`KernelRoutes`] declarations, mounted with [`mount`]. The composition's
+//! groups arrive as an admission handoff and are mounted with
+//! [`mount_admitted`], after the kernel has re-checked every privileged entry
+//! in it ([`recheck`](recheck::recheck)) against the constants in
+//! `systemprompt_extension::reserved`: owner core id, privileged shapes,
+//! reserved prefixes, built-in gateway prefixes and route conflicts.
+//!
+//! [`protect`] applies a [`RouteProtection`] with the server's own
+//! primitives, innermost first: the body limit, the inner protection layers,
+//! the rate limit and bearer window (`RouterExt::with_rate_limit` /
+//! `with_bearer_window`), the context middleware and authorization gate
+//! (`RouterExt::with_auth`), the outer protection layers, and the
+//! frame-options stamp. [`place`] nests the result under its base path, or
 //! merges it at the web root. Only the web root is merged: every other base
 //! path, `/track/engagement` included, is nested, so its routes are relative
 //! to it and cannot answer outside it.
@@ -17,26 +23,15 @@
 //! layers, rate limit, bearer window, outer layers and frame stamp, and gets
 //! no context middleware or gate, because its named verifier admits callers.
 //!
-//! A declaration whose policy admits no caller type and names no verifier,
+//! A protection whose policy admits no caller type and names no verifier,
 //! that pairs the public context with a policy excluding anonymous callers,
 //! that mixes a handler-verified policy with a context middleware (or the
 //! handler-resolved context with a gated policy), or that names a bearer
 //! window or protection layer the server has no primitive for, is refused
-//! with a typed [`MountError`] at boot.
+//! with a typed [`MountError`] at boot. A body limit above
+//! [`DEFAULT_BODY_LIMIT_BYTES`] mounts only at the base and with the limit of
+//! the kernel's body-limit privileged shape (the agent proxy).
 //!
-//! Core-only declarations: a group-level body limit above
-//! [`DEFAULT_BODY_LIMIT_BYTES`] mounts only when a [`CoreDeclaration`] names
-//! that group's base path and that exact limit; the agent proxy is the only
-//! one. [`admit_extensions`] runs on every extension declaration before any
-//! is mounted, on every role that builds them: it refuses a handler-verified
-//! policy, a reserved base path, a base path outside `/api/` other than the
-//! web root, or a body limit above the ceiling unless the
-//! [`CoreDeclaration`] table grants that exact declaration that allowance;
-//! it requires each core row to be claimed by exactly one declaration of its
-//! owner; and it confines a claimed router to its row's route pins
-//! ([`pinned`], [`excluding`]). A kernel handle no extension reads from the
-//! shared state is layered onto exactly the routers whose declaration matches
-//! the row that is handed it ([`hand_kernel_handles`]).
 //! The body-limit check sees only the group-level limit a declaration
 //! carries. A few routes set their own `DefaultBodyLimit` inside their
 //! router, which this module does not see: the document content routes (the
@@ -46,43 +41,31 @@
 //! and the managed consumer (1 MiB, `routes/managed/consumer/mod.rs`). They
 //! are reviewed at those sites.
 //!
-//! A declaration skipped by its role group or enable predicate is logged at
-//! `info`.
+//! A group skipped by its role or enable predicate is logged at `info`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod core_claims;
-mod core_declaration;
-mod core_gateway;
-mod core_handles;
-mod core_pins;
-mod core_rows;
-mod core_shape;
+mod admitted;
 mod error;
 mod guards;
+mod kernel_routes;
+mod recheck;
 
-pub use core_claims::admit_extensions;
-pub use core_declaration::{
-    Allowance, CoreDeclaration, CoreDeclarer, admit_core_owner, admit_core_owners, admit_extension,
-    extension_served,
-};
-pub use core_gateway::{
-    admit_gateway_route, extension_built, gateway_protection, path_under, refuse_overlap,
-};
-pub use core_handles::{KernelHandle, hand_kernel_handles, kernel_handles_for};
-pub use core_pins::{PinnedMethod, RoutePin, confined, excluding, pinned};
-pub use core_shape::CoreShapeField;
+pub use admitted::{MountedGatewayRoute, gateway_routes, mount_admitted, protection_of};
 pub use error::MountError;
+pub use kernel_routes::{EnablePredicate, KernelRoutes};
 pub use guards::{ClientWritesGuard, ProtectionGuards, SiteAuthGuard};
 
 use std::sync::Arc;
 
 use axum::Router;
 use axum::extract::DefaultBodyLimit;
-use systemprompt_extension::registry::WEB_ROOT_BASE_PATH;
+use systemprompt_extension::reserved::{PRIVILEGED_SHAPES, WEB_ROOT_BASE_PATH};
+use systemprompt_extension::router::{Allowance, BaseRef, BodyLimit};
 use systemprompt_extension::{
-    ContextKind, ExtensionContext, ExtensionRouter, ProtectionLayer, RouteGroup, RouteProtection,
+    AuthzPolicy, ContextKind, ExtensionContext, HandlerVerifier, ProtectionLayer, RateBudget,
+    RateLimit, RouteGroup, RouteProtection,
 };
 
 use crate::services::middleware::context::{
@@ -151,7 +134,7 @@ fn check_body_limit(
     base_path: &'static str,
 ) -> Result<(), MountError> {
     match protection.body_limit {
-        Some(declared) if !CoreDeclaration::admits_body_limit(base_path, protection) => {
+        Some(declared) if !admits_body_limit(base_path, declared) => {
             Err(MountError::UnlistedBodyExemption {
                 base_path,
                 declared,
@@ -159,6 +142,30 @@ fn check_body_limit(
         },
         _ => Ok(()),
     }
+}
+
+fn admits_body_limit(base_path: &str, declared: usize) -> bool {
+    PRIVILEGED_SHAPES.iter().any(|entry| {
+        entry.allowance == Allowance::BodyLimit
+            && entry.shape.limits.body == BodyLimit::Agent
+            && matches!(entry.base, BaseRef::Path(base) if base.path() == base_path)
+            && declared == systemprompt_models::net::AGENT_REQUEST_BODY_LIMIT_BYTES
+    })
+}
+
+#[must_use]
+pub const fn gateway_protection(scope: &'static str, budget: RateBudget) -> RouteProtection {
+    RouteProtection::new(
+        AuthzPolicy::handler_verified(HandlerVerifier::GatewayCredential),
+        ContextKind::HandlerResolved,
+    )
+    .with_rate_limit(RateLimit::new(scope, budget).with_bearer_window())
+}
+
+#[must_use]
+pub fn path_under(path: &str, prefix: &str) -> bool {
+    path.strip_prefix(prefix)
+        .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'))
 }
 
 fn inner_layers(
@@ -265,7 +272,7 @@ pub fn place(tree: Router, base_path: &'static str, router: Router) -> Router {
 
 pub fn mount(
     tree: Router,
-    declared: ExtensionRouter,
+    declared: KernelRoutes,
     layers: &MountLayers,
     ctx: &dyn ExtensionContext,
     serves: &dyn Fn(RouteGroup) -> bool,

@@ -5,7 +5,10 @@
 
 use systemprompt_extension::{LoaderError, ProtectionLayer};
 
-use super::{CoreDeclaration, CoreShapeField};
+use systemprompt_extension::reserved::CoreId;
+use systemprompt_extension::router::{Allowance, BaseRef};
+use systemprompt_identifiers::ExtensionId;
+use systemprompt_provider_contracts::MissingDependency;
 
 #[derive(Debug, thiserror::Error)]
 pub enum MountError {
@@ -34,113 +37,10 @@ pub enum MountError {
     IncoherentContext { base_path: &'static str },
 
     #[error(
-        "extension route group at '{base_path}' declares a {declared}-byte body limit above the \
-         {ceiling}-byte server default"
-    )]
-    ExtensionBodyLimitTooLarge {
-        base_path: &'static str,
-        declared: usize,
-        ceiling: usize,
-    },
-
-    #[error(
         "route group at '{base_path}' pairs a handler-verified policy with a context middleware, \
          or the handler-resolved context with a gated policy"
     )]
     IncoherentHandlerVerification { base_path: &'static str },
-
-    #[error(
-        "extension route group at '{base_path}' declares a handler-verified policy or the \
-         handler-resolved context, which only core route groups may declare"
-    )]
-    ExtensionHandlerVerified { base_path: &'static str },
-
-    #[error(
-        "extension '{extension}' declares a route group at the reserved base path '{base_path}', \
-         which only a core route group listed in the core allowance table may declare"
-    )]
-    ExtensionReservedPath {
-        extension: &'static str,
-        base_path: &'static str,
-    },
-
-    #[error(
-        "extension '{extension}' declares the core route group at '{base_path}' with a protection \
-         shape whose {field:?} differs from the one the core declaration table lists for it"
-    )]
-    CoreDeclarationMismatch {
-        extension: &'static str,
-        base_path: &'static str,
-        field: CoreShapeField,
-    },
-
-    #[error(
-        "extension '{extension}' declares a route group at '{base_path}', which is neither the \
-         web root nor under /api/; only a core route group listed with that path may declare it"
-    )]
-    ExtensionWebPath {
-        extension: &'static str,
-        base_path: &'static str,
-    },
-
-    #[error(
-        "extension '{extension}' is implemented by `{type_name}`, but its id names core route \
-         rows owned by `{owner}`"
-    )]
-    CoreOwnerImpostor {
-        extension: &'static str,
-        type_name: &'static str,
-        owner: &'static str,
-    },
-
-    #[error(
-        "extension '{extension}' declares no router for its core declaration row {row:?}, or \
-         declares it with another base path, group or shape"
-    )]
-    CoreDeclarationUnclaimed {
-        extension: &'static str,
-        row: CoreDeclaration,
-    },
-
-    #[error("extension '{extension}' declares two routers for its core declaration row {row:?}")]
-    CoreDeclarationClaimedTwice {
-        extension: &'static str,
-        row: CoreDeclaration,
-    },
-
-    #[error(
-        "extension '{extension}' declares a route group at '{base_path}' that matches both core \
-         declaration rows {first:?} and {second:?}"
-    )]
-    CoreDeclarationAmbiguous {
-        extension: &'static str,
-        base_path: &'static str,
-        first: CoreDeclaration,
-        second: CoreDeclaration,
-    },
-
-    #[error(
-        "extension '{extension}' registers a gateway route group at '{path}' that no core \
-         declaration lists"
-    )]
-    UnlistedGatewayRoute {
-        extension: &'static str,
-        path: &'static str,
-    },
-
-    #[error(
-        "gateway route group at '{path}' overlaps the built-in gateway routes under '{builtin}'"
-    )]
-    GatewayRouteShadowsBuiltin {
-        path: &'static str,
-        builtin: &'static str,
-    },
-
-    #[error("gateway route group at '{path}' overlaps the gateway route group at '{other}'")]
-    GatewayRouteOverlap {
-        path: &'static str,
-        other: &'static str,
-    },
 
     #[error(
         "route group at '{base_path}' declares a {declared}-byte body limit above the 2 MiB \
@@ -157,4 +57,26 @@ pub enum MountError {
         #[source]
         source: Box<LoaderError>,
     },
+
+    #[error("privileged shape at {base:?} not listed in PRIVILEGED_SHAPES")]
+    UnlistedPrivilege { base: BaseRef, allowance: Allowance },
+
+    #[error("privilege at {base:?} held by {owner}, listed for {expected:?}")]
+    PrivilegeOwnerMismatch {
+        base: BaseRef,
+        owner: ExtensionId,
+        expected: CoreId,
+    },
+
+    #[error("route under reserved prefix {0}")]
+    ReservedPrefix(&'static str),
+
+    #[error("gateway route shadows built-in {0}")]
+    GatewayShadowsBuiltin(&'static str),
+
+    #[error("route {method} {path} declared twice")]
+    RouteConflict { method: http::Method, path: String },
+
+    #[error("dependency resolution failed")]
+    Resolve(#[from] MissingDependency),
 }

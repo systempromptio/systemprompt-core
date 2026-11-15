@@ -32,6 +32,8 @@ use super::scheduler_health::SchedulerHealth;
 
 pub async fn run_server(
     ctx: AppContext,
+    admitted: &systemprompt_extension::Admitted,
+    kernel: &systemprompt_runtime::Kernel,
     events: Option<StartupEventSender>,
     early: super::startup::EarlyServer,
 ) -> Result<()> {
@@ -59,7 +61,12 @@ pub async fn run_server(
         tx.phase_started(Phase::ApiServer);
     }
     let router =
-        crate::services::server::setup_api_server(&ctx, events.as_ref(), early.readiness())?
+        crate::services::server::setup_api_server(
+            &ctx,
+            super::routes::Composed { admitted, kernel },
+            events.as_ref(),
+            early.readiness(),
+        )?
             .layer(axum::Extension(Arc::clone(early.scheduler_health())));
     super::boot_steps::start_accounting_recovery(&ctx).await?;
     let addr = ctx.server_address();
