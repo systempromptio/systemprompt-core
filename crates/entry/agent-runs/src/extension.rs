@@ -33,11 +33,13 @@ impl Extension for AgentRunsApiExtension {
         }
     }
 
+    #[cfg_attr(
+        not(feature = "http"),
+        expect(unused_variables, reason = "the route set is the member's only contribution")
+    )]
     fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
         #[cfg(feature = "http")]
         crate::http::contribute(c);
-        #[cfg(not(feature = "http"))]
-        let _ = c;
         Ok(())
     }
 }
