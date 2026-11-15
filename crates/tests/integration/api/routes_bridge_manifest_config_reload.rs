@@ -8,9 +8,7 @@ use http::StatusCode;
 use std::sync::Arc;
 use std::time::Duration;
 use systemprompt_api::routes::gateway::gateway_router;
-use systemprompt_loader::ConfigLoader;
-use systemprompt_manifest::profile::PathsConfig;
-use systemprompt_test_fixtures::{seed_admin_credential, test_db_pool};
+use systemprompt_test_fixtures::{seed_admin_credential, test_app_context_on, test_db_pool};
 use systemprompt_traits::{CacheDomain, ConfigVersionSource, RepositoryError, WatchSignals};
 use tower::ServiceExt;
 
@@ -60,22 +58,7 @@ async fn a_services_file_corrupted_after_boot_is_refused_and_the_route_keeps_ser
         "agents: {}\nmcp_servers: {}\n",
     );
     let pool = test_db_pool().await;
-    let paths = PathsConfig {
-        system: b.system_path.to_string_lossy().into_owned(),
-        services: b.services_path.to_string_lossy().into_owned(),
-        bin: b.bin_path.to_string_lossy().into_owned(),
-        web_path: None,
-        storage: Some(b.storage_path.to_string_lossy().into_owned()),
-        geoip_database: None,
-        shipped_files: None,
-        data: None,
-    };
-    let ctx = systemprompt_test_fixtures::fixture_app_context_with(
-        &pool,
-        &b.database_url,
-        paths,
-        Arc::new(systemprompt_marketplace::AllowAllFilter),
-    )?;
+    let ctx = test_app_context_on(&b, &pool);
     let app = gateway_router(&ctx).expect("gateway router builds");
     let cred = seed_admin_credential(&pool, "manifest-badcfg@example.invalid").await?;
 
@@ -85,7 +68,7 @@ async fn a_services_file_corrupted_after_boot_is_refused_and_the_route_keeps_ser
     let root = b.services_path.join("config/config.yaml");
     std::fs::write(&root, "mcp_servers: [this is not a map\n")?;
     assert!(
-        ConfigLoader::load_from_path(&root).is_err(),
+        b.boot.load_services_config().is_err(),
         "the corrupted tree must not load"
     );
     ctx.services_watch().spawn(
@@ -97,10 +80,10 @@ async fn a_services_file_corrupted_after_boot_is_refused_and_the_route_keeps_ser
             poll: Duration::from_secs(3600),
         },
         {
-            let root = root.clone();
+            let boot = b.boot.clone();
             move || {
-                let root = root.clone();
-                async move { ConfigLoader::load_from_path(&root) }
+                let boot = boot.clone();
+                async move { boot.load_services_config() }
             }
         },
     );

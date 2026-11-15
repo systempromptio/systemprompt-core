@@ -3,7 +3,8 @@
 //! import/enable/disable/reset) plus the per-section config views.
 //!
 //! Rate-limit mutations operate on the fixture's tempdir profile, so no
-//! shared state is touched. Tests accept success or failure exit codes.
+//! shared state is touched. Every command must be handled: exit 0 or 1, no
+//! panic and no clap usage error.
 
 use systemprompt_cli_integration_tests::full_bootstrap::{full_fixture, run, run_with_formats};
 

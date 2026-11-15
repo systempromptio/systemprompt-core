@@ -122,11 +122,39 @@ pub fn announce(flags: &[&str], args: &[&str]) {
     eprintln!("$ systemprompt {}", line.join(" "));
 }
 
+pub fn assert_handled(mut cmd: Command) {
+    let output = cmd.output().expect("spawn systemprompt");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let code = output.status.code();
+    assert!(
+        matches!(code, Some(0 | 1)),
+        "a handled command exits 0 or 1, got {:?}: {stderr}",
+        output.status
+    );
+    for marker in ["panicked at", "unrecognized subcommand", "unexpected argument"] {
+        assert!(!stderr.contains(marker), "stderr contains `{marker}`: {stderr}");
+    }
+}
+
+pub fn assert_usage_error(mut cmd: Command, needle: &str) {
+    let output = cmd.output().expect("spawn systemprompt");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(output.status.code(), Some(2), "a clap usage error exits 2: {stderr}");
+    assert!(stderr.contains(needle), "stderr lacks `{needle}`: {stderr}");
+}
+
 pub fn run(args: &[&str]) {
     announce(&[], args);
     let mut cmd = cli_command();
     cmd.args(args);
-    let _ = cmd.assert();
+    assert_handled(cmd);
+}
+
+pub fn usage_error(args: &[&str], needle: &str) {
+    announce(&[], args);
+    let mut cmd = cli_command();
+    cmd.args(args);
+    assert_usage_error(cmd, needle);
 }
 
 pub fn run_with_formats(args: &[&str]) {
@@ -136,7 +164,7 @@ pub fn run_with_formats(args: &[&str]) {
         let mut cmd = cli_command();
         cmd.arg(format);
         cmd.args(args);
-        let _ = cmd.assert();
+        assert_handled(cmd);
     }
 }
 

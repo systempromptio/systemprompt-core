@@ -16,6 +16,14 @@ pub fn spawn_sleep(seconds: u64) -> Child {
         .expect("`sleep` must be on PATH in the test environment")
 }
 
+pub fn sigkill(pid: u32) {
+    let status = Command::new("kill")
+        .args(["-9", &pid.to_string()])
+        .status()
+        .expect("`kill` must be on PATH");
+    assert!(status.success(), "kill -9 {pid} failed: {status}");
+}
+
 pub fn spawn_with_orphan_child(seconds: u64) -> (u32, u32) {
     let mut parent = Command::new("sh")
         .arg("-c")

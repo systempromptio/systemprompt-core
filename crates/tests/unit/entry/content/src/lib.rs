@@ -35,6 +35,8 @@ mod error_mapping;
 #[cfg(test)]
 mod http_blog_failures;
 #[cfg(test)]
+mod http_link_types;
+#[cfg(test)]
 mod http_redirect;
 #[cfg(test)]
 mod routes_content_blog;

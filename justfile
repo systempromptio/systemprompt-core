@@ -146,6 +146,10 @@ lint-comments *ARGS:
 lint-test-seams *ARGS:
     ./scripts/lint-test-seams.sh {{ARGS}}
 
+# Reject test-crate source files that no crate root reaches, which never compile
+lint-orphan-tests *ARGS:
+    python3 ./scripts/lint-orphan-tests.py {{ARGS}}
+
 # Reject tests that return early on a missing prerequisite without saying so
 lint-silent-skips *ARGS:
     ./scripts/lint-silent-skips.sh {{ARGS}}

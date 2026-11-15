@@ -1,17 +1,12 @@
 //! A port-blind grandchild reparented to PID 1 carries no MCP marker, so the
 //! process layer reports it as not ours and never signals it.
 
-use std::process::Command;
 use std::time::{Duration, Instant};
 use systemprompt_identifiers::ServiceName;
 use systemprompt_loader::subprocess::StopOutcome;
 use systemprompt_mcp::services::process::ProcessService;
 
-use crate::common::spawn_with_orphan_child;
-
-fn sigkill(pid: u32) {
-    let _ = Command::new("kill").args(["-9", &pid.to_string()]).status();
-}
+use crate::common::{sigkill, spawn_with_orphan_child};
 
 async fn exits_within(pid: u32, budget: Duration) -> bool {
     let deadline = Instant::now() + budget;

@@ -10,13 +10,12 @@
 //! for one profile build and `admin bootstrap` run per process. Every command
 //! line is printed before it runs so a failure or timeout names the invocation.
 //!
-//! Tests accept either success or failure exit codes — the point is to drive
-//! handler bodies so they show up in the coverage report, not to assert
-//! business outcomes against a freshly-migrated test database.
+//! A command whose business outcome depends on the freshly-migrated database
+//! must still be handled: exit 0 or 1, no panic and no clap usage error.
 
 use predicates::str::contains;
 use systemprompt_cli_integration_tests::full_bootstrap::{
-    announce, cli_command, fixture_mcp_server, run, run_with_formats,
+    announce, assert_handled, cli_command, fixture_mcp_server, run, run_with_formats, usage_error,
 };
 
 fn stdout_has(args: &[&str], needle: &str) {
@@ -39,7 +38,7 @@ fn drive_formats(args: &[&str]) {
         let mut cmd = cli_command();
         cmd.arg(fmt);
         cmd.args(args);
-        let _ = cmd.assert();
+        assert_handled(cmd);
     }
 }
 
@@ -312,7 +311,11 @@ fn core_plugins() {
         &["core", "plugins", "validate", "no-such-plugin"],
         "Failed to validate plugins",
     );
-    run(&["core", "plugins", "generate", "--help"]);
+    announce(&[], &["core", "plugins", "generate", "--help"]);
+    cli_command()
+        .args(["core", "plugins", "generate", "--help"])
+        .assert()
+        .success();
 }
 
 #[test]
@@ -392,7 +395,7 @@ fn global_flag_combinations() {
 
 #[test]
 fn negative_paths_after_bootstrap() {
-    run(&["admin", "no-such-cmd"]);
+    usage_error(&["admin", "no-such-cmd"], "unrecognized subcommand");
     fails_with(
         &["cloud", "tenant", "show", "no-such-tenant"],
         "Tenant not found",

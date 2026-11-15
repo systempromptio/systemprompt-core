@@ -1,17 +1,12 @@
 //! An external SIGKILL flags a held child dead without the caller reaping it,
 //! and a stop of an already-dead recorded PID is a clean, typed no-op.
 
-use std::process::Command;
 use std::time::{Duration, Instant};
 use systemprompt_identifiers::ServiceName;
 use systemprompt_loader::subprocess::StopOutcome;
 use systemprompt_mcp::services::process::ProcessService;
 
-use crate::common::spawn_sleep;
-
-fn sigkill(pid: u32) {
-    let _ = Command::new("kill").args(["-9", &pid.to_string()]).status();
-}
+use crate::common::{sigkill, spawn_sleep};
 
 async fn exits_within_five_seconds(pid: u32) -> bool {
     let deadline = Instant::now() + Duration::from_secs(5);
