@@ -103,12 +103,15 @@ CREATE INDEX IF NOT EXISTS idx_user_sessions_visitor_traffic
     ON user_sessions(started_at)
     WHERE session_source = 'web' AND is_bot = false;
 
--- Views are dropped before recreation: CREATE OR REPLACE VIEW cannot rename or
--- reorder output columns, so an analytics column rename on an existing install
--- would otherwise fail. Views are stateless — dropping loses nothing.
-DROP VIEW IF EXISTS v_clean_traffic CASCADE;
-DROP VIEW IF EXISTS v_engaged_traffic CASCADE;
-DROP VIEW IF EXISTS v_bot_sessions CASCADE;
+-- The session views are replaced in place, never dropped: other extensions
+-- build views on them (the analytics `report_*` views), and a drop here would
+-- take those with it until their own extension's phase re-created them, so a
+-- concurrent reader would find them missing. CREATE OR REPLACE keeps every
+-- dependant and can append a column, which is all a column added to
+-- `user_sessions` needs. A change that drops, renames or reorders a column
+-- ships a migration that drops the affected views and their dependants first;
+-- the dependent phases, which run after migrations, lay the new definitions
+-- down.
 
 -- Canonical human-traffic predicate. Every consumer (Rust repositories,
 -- downstream extensions) calls is_human_traffic() or reads
