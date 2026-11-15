@@ -3,10 +3,12 @@
 //! The in-process `RunningJobs` guard only prevents a single
 //! process from running a job twice. When the scheduler runs as multiple
 //! replicas against one database, every replica's cron fires the same job
-//! on the same tick. [`JobLockRepository::try_acquire`] gives exactly one
-//! replica the right to run a given job: the others observe a held lock and
-//! skip. [`JobLockRepository::acquire_within`] is the waiting form a manual
-//! run takes, polling the same lock until its deadline.
+//! on the same tick. [`JobLockRepository::try_acquire`] excludes the other
+//! replicas while one runs the job: they observe a held lock and skip. The
+//! lock ends with the run, so it does not by itself make a tick run once; see
+//! `services::scheduling::claim` for the de-duplication window after it.
+//! [`JobLockRepository::acquire_within`] is the waiting form a manual run
+//! takes, polling the same lock until its deadline.
 //!
 //! Advisory locks are *session-scoped* — the connection that called
 //! `pg_advisory_lock` is the only one that can release it. [`JobLockGuard`]

@@ -73,7 +73,7 @@ mod scheduler_repository {
     }
 
     #[tokio::test]
-    async fn upsert_conflict_updates_schedule_and_enabled() {
+    async fn upsert_conflict_updates_schedule_and_keeps_enabled() {
         let pool = test_db_pool().await;
         let repo = SchedulerRepository::new(&pool);
         let name = unique_job("sched_conflict");
@@ -81,7 +81,11 @@ mod scheduler_repository {
         repo.upsert_job(&name, "0 0 1 * * *", true)
             .await
             .expect("first upsert");
-        repo.upsert_job(&name, "0 */5 * * * *", false)
+        JobRepository::new(&pool)
+            .set_enabled(&name, false)
+            .await
+            .expect("operator disables");
+        repo.upsert_job(&name, "0 */5 * * * *", true)
             .await
             .expect("second upsert (conflict update)");
 
@@ -91,7 +95,10 @@ mod scheduler_repository {
             .expect("find")
             .expect("row exists");
         assert_eq!(job.schedule, "0 */5 * * * *");
-        assert!(!job.enabled, "conflict update should flip enabled to false");
+        assert!(
+            !job.enabled,
+            "a re-registration must keep the operator's enabled = false"
+        );
     }
 
     #[tokio::test]
@@ -339,11 +346,45 @@ mod job_repository {
     }
 }
 
-mod forget_retired_jobs {
+mod delete_unregistered_jobs {
     use super::*;
 
     #[tokio::test]
-    async fn an_empty_inventory_forgets_nothing() {
+    async fn deletes_exactly_the_named_unregistered_rows() {
+        let pool = test_db_pool().await;
+        let repo = SchedulerRepository::new(&pool);
+        let jobs = JobRepository::new(&pool);
+        let retired = unique_job("sched_retired");
+        let registered = unique_job("sched_registered");
+        let unnamed = unique_job("sched_unnamed");
+        for name in [&retired, &registered, &unnamed] {
+            repo.upsert_job(name, "0 0 * * * *", true)
+                .await
+                .expect("upsert");
+        }
+
+        let removed = jobs
+            .delete_unregistered_jobs(
+                &[retired.clone(), registered.clone()],
+                std::slice::from_ref(&registered),
+            )
+            .await
+            .expect("delete unregistered");
+
+        assert_eq!(removed, 1, "only the named, unregistered row is deleted");
+        assert!(repo.find_job(&retired).await.expect("find").is_none());
+        assert!(
+            repo.find_job(&registered).await.expect("find").is_some(),
+            "a registered row is kept even when it is named"
+        );
+        assert!(
+            repo.find_job(&unnamed).await.expect("find").is_some(),
+            "a row that was not named is kept"
+        );
+    }
+
+    #[tokio::test]
+    async fn an_empty_registration_set_deletes_nothing() {
         let pool = test_db_pool().await;
         let repo = SchedulerRepository::new(&pool);
         let name = unique_job("sched_empty_inventory");
@@ -351,8 +392,8 @@ mod forget_retired_jobs {
             .await
             .expect("upsert");
 
-        let removed = repo
-            .delete_jobs_not_in(&[])
+        let removed = JobRepository::new(&pool)
+            .delete_unregistered_jobs(std::slice::from_ref(&name), &[])
             .await
             .expect("delete with an empty inventory");
 
@@ -360,28 +401,6 @@ mod forget_retired_jobs {
             removed, 0,
             "an empty inventory is not a list of retired jobs"
         );
-        assert!(
-            repo.find_job(&name).await.expect("find").is_some(),
-            "the job row survives"
-        );
-    }
-
-    #[tokio::test]
-    async fn a_job_another_version_still_runs_is_kept() {
-        let pool = test_db_pool().await;
-        let repo = SchedulerRepository::new(&pool);
-        let other_version = unique_job("sched_other_version");
-        repo.upsert_job(&other_version, "0 0 * * * *", true)
-            .await
-            .expect("upsert");
-
-        repo.delete_jobs_not_in(&[unique_job("sched_this_build")])
-            .await
-            .expect("delete retired jobs");
-
-        assert!(
-            repo.find_job(&other_version).await.expect("find").is_some(),
-            "a row touched inside the grace window belongs to a live version"
-        );
+        assert!(repo.find_job(&name).await.expect("find").is_some());
     }
 }

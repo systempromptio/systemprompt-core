@@ -105,10 +105,11 @@ systemprompt infra db query "SELECT * FROM users LIMIT 10"
 |---------|---------|
 | `infra jobs list` | List available jobs. |
 | `infra jobs show <JOB>` | Show details about a job. |
-| `infra jobs run <JOB>` | Run a scheduled job manually. |
+| `infra jobs run <JOB>` | Run a scheduled job manually. A manual run is an explicit operator act and runs the job whatever its enabled flag. |
 | `infra jobs history` | View job execution history. |
 | `infra jobs enable <JOB>` | Enable a job. |
-| `infra jobs disable <JOB>` | Disable a job. |
+| `infra jobs disable <JOB>` | Stop a job's scheduled runs; the setting survives restarts. |
+| `infra jobs prune [--dry-run] [--yes]` | List the `scheduled_jobs` rows no job linked into this binary names and delete them after confirmation. A job whose extension the profile disables is kept. Run it from a binary that links every capability the cluster runs. |
 
 ```bash
 systemprompt infra jobs list

@@ -1,0 +1,34 @@
+[root]
+section = "Fixed"
+area = "Scheduler"
+text = "a scheduler start no longer deletes `scheduled_jobs` rows its build does not register. Nodes of different releases or extension sets sharing one database keep each other's rows, operator `enabled` flags and run history; a node schedules only the jobs it registers and never claims or runs another. Rows are retired explicitly with `infra jobs prune`."
+
+[[crate]]
+name = "systemprompt-scheduler"
+section = "Breaking"
+text = "`SchedulerRepository::delete_jobs_not_in` and `JobRepository::delete_jobs_not_in` are removed; `JobRepository::delete_unregistered_jobs` deletes only the named rows that are not registered, and `JobRepository::list_jobs` returns every row. Migrate by retiring rows through `JobPruneService`."
+
+[[crate]]
+name = "systemprompt-scheduler"
+section = "Added"
+text = "`JobPruneService` lists the `scheduled_jobs` rows no job linked into this binary names (a job whose extension the profile disables is kept) and deletes exactly the rows it is given; an empty registration set lists and deletes nothing."
+
+[[crate]]
+name = "systemprompt-scheduler"
+section = "Changed"
+text = "`upsert_job` refreshes the schedule on conflict and keeps the stored `enabled` flag, and a cron tick skips a job whose row has `enabled = false` (or whose row cannot be read), so `infra jobs disable` stops scheduled runs and survives restarts."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Added"
+text = "`infra jobs prune [--dry-run] [--yes]` deletes, after confirmation, the `scheduled_jobs` rows no job linked into this binary names; a job whose extension the profile disables is kept. It refuses an implicitly selected cloud profile and is run from a binary that links every capability the cluster runs."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Changed"
+text = "`infra jobs disable` stops a job's scheduled runs and the setting survives restarts. A manual `infra jobs run` is an explicit operator act and runs a job whatever its `enabled` flag."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Changed"
+text = "`infra jobs list` and `infra jobs show` report `scheduled_jobs` rows this binary does not register, with `registered = false`; `infra jobs list` now reads the database."

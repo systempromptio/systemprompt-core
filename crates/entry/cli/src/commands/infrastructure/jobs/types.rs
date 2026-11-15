@@ -17,6 +17,7 @@ pub struct JobInfo {
     pub schedule: String,
     pub enabled: bool,
     pub scheduled: bool,
+    pub registered: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -55,6 +56,7 @@ pub struct JobShowOutput {
     pub last_status: Option<String>,
     pub last_error: Option<String>,
     pub run_count: i32,
+    pub registered: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -84,4 +86,13 @@ pub struct BatchJobRunOutput {
     pub total: usize,
     pub succeeded: usize,
     pub failed: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct PrunedJob {
+    pub job_name: JobName,
+    pub schedule: String,
+    pub enabled: bool,
+    pub last_run: Option<DateTime<Utc>>,
+    pub run_count: i32,
 }

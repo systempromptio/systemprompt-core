@@ -111,7 +111,7 @@ impl InfraCommands {
                 | DbCommands::Migrate { .. }
                 | DbCommands::MigrateRepair { .. },
             )
-            | Self::Jobs(JobsCommands::Run(_))
+            | Self::Jobs(JobsCommands::Run(_) | JobsCommands::Prune(_))
             | Self::Logs(LogsCommands::Cleanup(_) | LogsCommands::Delete(_)) => {
                 DataImpact::Destructive
             },
