@@ -1,7 +1,8 @@
 //! Tests for the analytics commands: dispatch over seeded data, table and
 //! JSON output, CSV export, the human-readable formatters, the
-//! `--since`/`--until` parsers, `core content popular`, and the kernel
-//! registration of both.
+//! `--since`/`--until` parsers and `core content popular`. Their
+//! composition (declared commands, grants, help slot, descriptors) is
+//! asserted by the facade tests in `unit/systemprompt/src/analytics_http.rs`.
 
 mod analytics_commands_db;
 mod analytics_seeded_conversations_db;
@@ -17,7 +18,6 @@ mod export_arms;
 mod export_csv;
 mod output_format;
 mod overview;
-mod registration;
 mod time_parse;
 mod time_parse_arms;
 mod traffic_pages_navigation_db;

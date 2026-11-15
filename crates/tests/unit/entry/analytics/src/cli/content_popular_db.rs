@@ -7,6 +7,7 @@
 use systemprompt_analytics_entry::cli::content_popular::{PopularArgs, execute_with_pool};
 use systemprompt_cli::CliConfig;
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::SourceId;
 use systemprompt_test_fixtures::test_db_pool;
 
 fn cfg() -> CliConfig {
@@ -46,7 +47,7 @@ async fn popular_lists_the_sources_content_from_the_report_views() {
 
     let out = execute_with_pool(
         PopularArgs {
-            source: source.clone(),
+            source: SourceId::new(source.clone()),
             since: "1w".to_owned(),
             limit: 5,
         },

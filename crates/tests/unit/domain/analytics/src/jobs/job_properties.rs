@@ -195,26 +195,6 @@ mod all_jobs_inventory {
             assert!(!job.description().is_empty(), "job '{}'", job.name());
         }
     }
-
-    #[test]
-    fn every_analytics_job_is_registered_in_inventory() {
-        let registered: HashSet<&'static str> = systemprompt_traits::registered_jobs()
-            .filter(|registration| registration.owner == "analytics")
-            .map(|registration| registration.job.name())
-            .collect();
-        for name in [
-            "backfill_session_geo",
-            "behavioral_analysis",
-            "ghost_session_cleanup",
-            "malicious_ip_blacklist",
-            "no_js_cleanup",
-        ] {
-            assert!(
-                registered.contains(name),
-                "job '{name}' not found in inventory"
-            );
-        }
-    }
 }
 
 mod backfill_session_geo_tests {
