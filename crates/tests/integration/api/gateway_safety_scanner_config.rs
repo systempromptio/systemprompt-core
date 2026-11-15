@@ -1,7 +1,9 @@
-//! The safety-scanner seam: an extension scanner registered through
-//! `register_safety_scanner!` receives its policy's
+//! The safety-scanner seam: a scanner contributed to the safety scanner slot
+//! receives its policy's
 //! `scanner_settings.<name>.config` mapping uninterpreted by core, and its
 //! `fail_mode` decides whether a failed scan blocks the request.
+
+use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_gateway::protocol::CanonicalContent;
@@ -9,7 +11,7 @@ use systemprompt_gateway::protocol::canonical::{CanonicalRequest, CanonicalRespo
 use systemprompt_gateway::service::{DispatchError, GatewayError, GatewayService};
 use systemprompt_gateway::{
     CATEGORY_SCANNER_FAILURE, Finding, GatewayRepositories, PHASE_REQUEST, SafetyScanner,
-    ScanError, ScannerSettings, Severity, register_safety_scanner,
+    SafetyConfig, ScanError, ScannerFactory, ScannerSettings, Severity,
 };
 use systemprompt_identifiers::AiRequestId;
 use systemprompt_models::providers::ClientFamily;
@@ -21,8 +23,8 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use super::common::setup_ctx;
 use super::gateway_pipeline::{
-    MODEL, PROVIDER, canonical_request, gateway_config, gw_repos, inputs, install_provider_api_key,
-    provider_registry,
+    MODEL, PROVIDER, canonical_request, engines_with_scanners, gateway_config, gw_repos, inputs,
+    install_provider_api_key, provider_registry,
 };
 
 const READER: &str = "test_config_reader";
@@ -88,13 +90,6 @@ impl SafetyScanner for ConfigReadingScanner {
     }
 }
 
-register_safety_scanner!(
-    |_: &dyn systemprompt_extension::ExtensionContext, settings: &ScannerSettings| {
-        ConfigReadingScanner::from_settings(settings)
-    },
-    name = READER
-);
-
 struct UnreachableScanner;
 
 #[async_trait::async_trait]
@@ -118,10 +113,22 @@ impl SafetyScanner for UnreachableScanner {
     }
 }
 
-register_safety_scanner!(
-    |_: &dyn systemprompt_extension::ExtensionContext, _: &ScannerSettings| UnreachableScanner,
-    name = UNREACHABLE
-);
+fn contributed_engines() -> Arc<systemprompt_gateway::GatewayEngines> {
+    engines_with_scanners(vec![
+        (
+            READER,
+            Arc::new(|_: &SafetyConfig, settings: &ScannerSettings| {
+                Arc::new(ConfigReadingScanner::from_settings(settings)) as Arc<dyn SafetyScanner>
+            }) as Arc<dyn ScannerFactory>,
+        ),
+        (
+            UNREACHABLE,
+            Arc::new(|_: &SafetyConfig, _: &ScannerSettings| {
+                Arc::new(UnreachableScanner) as Arc<dyn SafetyScanner>
+            }),
+        ),
+    ])
+}
 
 async fn install_policy(pool: &DbPool, safety: serde_json::Value) -> anyhow::Result<()> {
     sqlx::query(
@@ -189,7 +196,8 @@ async fn an_extension_scanner_reads_its_own_config_from_the_policy() -> anyhow::
         WireProtocol::Anthropic,
         ClientFamily::Claude,
     );
-    let di = inputs(&cred, request_with("please look at zebra-needle"), false);
+    let mut di = inputs(&cred, request_with("please look at zebra-needle"), false);
+    di.engines = contributed_engines();
     let id = di.ctx.ai_request_id.clone();
     let repos = gw_repos(&pool);
     let outcome =
@@ -243,7 +251,8 @@ async fn an_open_scanner_failure_is_recorded_and_the_request_proceeds() -> anyho
         WireProtocol::Anthropic,
         ClientFamily::Claude,
     );
-    let di = inputs(&cred, request_with("an ordinary question"), false);
+    let mut di = inputs(&cred, request_with("an ordinary question"), false);
+    di.engines = contributed_engines();
     let id = di.ctx.ai_request_id.clone();
     let repos = gw_repos(&pool);
     let outcome =

@@ -35,7 +35,7 @@ use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use super::common::setup_ctx;
-use systemprompt_governance::policy::types::AccessScope;
+use systemprompt_governance::policy::AccessScope;
 use systemprompt_governance::policy::{GovernanceConfig, GovernanceEngine};
 use systemprompt_models::origin::{
     ClientAttestation, ClientEvidence, ClientKind, InboundWireProtocol, RequestOrigin,
@@ -279,12 +279,52 @@ pub(super) fn shared_engines() -> Arc<systemprompt_gateway::GatewayEngines> {
         Arc::new(
             systemprompt_gateway::GatewayEngines::new(
                 Default::default(),
-                &systemprompt_test_fixtures::offline_extension_context(),
+                &systemprompt_extension::BuiltState::default(),
+                &systemprompt_test_fixtures::offline_kernel(Default::default()).resolved(),
                 systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
             )
             .expect("gateway engines build"),
         )
     }))
+}
+
+pub(super) fn engines_with_scanners(
+    scanners: Vec<(&'static str, Arc<dyn systemprompt_gateway::ScannerFactory>)>,
+) -> Arc<systemprompt_gateway::GatewayEngines> {
+    use systemprompt_extension::{FactoryError, Resolved, Slot, SlotEntry, StandingTag};
+    use systemprompt_gateway::contract::{SafetyScannerBuilder, SafetyScannerSlot};
+
+    let mut builder = SafetyScannerBuilder::default();
+    for (name, factory) in scanners {
+        builder.scanner(
+            name,
+            move |_: &Resolved<'_>| -> Result<Arc<dyn systemprompt_gateway::ScannerFactory>, FactoryError> {
+                Ok(Arc::clone(&factory))
+            },
+        );
+    }
+    let empty = systemprompt_test_fixtures::offline_kernel(Default::default());
+    let registry = SafetyScannerSlot::build(
+        vec![SlotEntry {
+            owner: systemprompt_identifiers::ExtensionId::new("test"),
+            standing: StandingTag::Install,
+            builder,
+        }],
+        &empty.resolved(),
+    )
+    .expect("contributed scanners build");
+    let kernel = systemprompt_test_fixtures::offline_kernel(
+        systemprompt_extension::prelude::Dependencies::new().with(Arc::new(registry)),
+    );
+    Arc::new(
+        systemprompt_gateway::GatewayEngines::new(
+            Default::default(),
+            &systemprompt_extension::BuiltState::default(),
+            &kernel.resolved(),
+            systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+        )
+        .expect("gateway engines build"),
+    )
 }
 
 pub(super) fn inputs_with(
@@ -328,6 +368,7 @@ fn governance_inputs(
     dispatch.governance = Arc::new(
         GovernanceEngine::from_config(
             &GovernanceConfig::parse(yaml).expect("valid governance fixture"),
+            &systemprompt_governance::policy::PolicyCatalog::builtin(),
             Some(systemprompt_test_fixtures::offline_rate_windows()),
         )
         .expect("governance fixture builds"),

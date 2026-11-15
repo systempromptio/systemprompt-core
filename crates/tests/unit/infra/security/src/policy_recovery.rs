@@ -1,6 +1,6 @@
 use systemprompt_governance::authz::types::Decision;
 use systemprompt_governance::policy::secrets::{REDACTION_MARKER, SecretScanner, redact_spans};
-use systemprompt_governance::policy::types::AccessScope;
+use systemprompt_governance::policy::AccessScope;
 use systemprompt_governance::policy::{
     AgentScope, ChainEntryResult, GovernanceConfig, GovernanceEngine, GovernedInput,
     GovernedTarget, PolicyContext,
@@ -61,7 +61,7 @@ fn prefix_only_patterns_remove_the_entire_secret_bearing_value() {
 fn recovery_is_explicit_reverified_and_never_applied_to_tools() {
     let config = GovernanceConfig::parse(POLICY).unwrap();
     let engine =
-        GovernanceEngine::from_config(&config, Some(crate::offline_rate_windows())).unwrap();
+        GovernanceEngine::from_config(&config, &systemprompt_governance::policy::PolicyCatalog::builtin(), Some(crate::offline_rate_windows())).unwrap();
     let input = GovernedInput::prompt_text(KEY.to_owned());
     let session = SessionId::generate();
     let user = UserId::new("recovery-user");
@@ -129,15 +129,19 @@ impl systemprompt_governance::policy::GovernancePolicy for CountEvaluations {
         }
     }
 }
-systemprompt_governance::register_governance_policy!("recovery_count_evaluations", |_| Ok(
-    Box::new(CountEvaluations)
-));
+fn catalog_with(
+    policy: std::sync::Arc<dyn systemprompt_governance::policy::GovernancePolicy>,
+) -> systemprompt_governance::policy::PolicyCatalog {
+    systemprompt_governance::policy::PolicyCatalog::builtin()
+        .with_contributed(systemprompt_identifiers::ExtensionId::new("test"), policy)
+        .expect("test policy joins the catalog")
+}
 
 #[test]
 fn recovery_never_reexecutes_earlier_policies_and_honors_later_denials() {
     let config = GovernanceConfig::parse("governance:\n  policies:\n    - id: recovery_count_evaluations\n    - id: secret_scan\n      patterns:\n        - id: recovery-key\n          name: Recovery Key\n          regex: 'XRECOVERY-[0-9]+'\n    - id: rate_limit\n      requests_per_window: 0\n").unwrap();
     let engine =
-        GovernanceEngine::from_config(&config, Some(crate::offline_rate_windows())).unwrap();
+        GovernanceEngine::from_config(&config, &catalog_with(std::sync::Arc::new(CountEvaluations)), Some(crate::offline_rate_windows())).unwrap();
     let input = GovernedInput::prompt_text(KEY.to_owned());
     let session = SessionId::generate();
     let user = UserId::new("recovery-counter-user");
@@ -193,9 +197,6 @@ impl systemprompt_governance::policy::GovernancePolicy for LeaksWithoutFindings 
         }
     }
 }
-systemprompt_governance::register_governance_policy!("recovery_leak_without_findings", |_| Ok(
-    Box::new(LeaksWithoutFindings)
-));
 
 #[test]
 fn a_policy_without_located_findings_never_offers_recovery() {
@@ -204,7 +205,7 @@ fn a_policy_without_located_findings_never_offers_recovery() {
     )
     .unwrap();
     let engine =
-        GovernanceEngine::from_config(&config, Some(crate::offline_rate_windows())).unwrap();
+        GovernanceEngine::from_config(&config, &catalog_with(std::sync::Arc::new(LeaksWithoutFindings)), Some(crate::offline_rate_windows())).unwrap();
     let input = GovernedInput::prompt_text(KEY.to_owned());
     let session = SessionId::generate();
     let user = UserId::new("recovery-opaque-user");

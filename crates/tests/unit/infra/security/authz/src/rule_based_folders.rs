@@ -18,11 +18,7 @@ fn hook(pool: Arc<PgPool>) -> RuleBasedHook {
         AuthzWiring {
             sources: ChainSources::default(),
             epochs: systemprompt_traits::CacheEpochs::new(),
-            services: systemprompt_test_fixtures::fixture_services_view(),
-            subjects: Default::default(),
             providers: Default::default(),
-            secrets: systemprompt_test_fixtures::fixture_secret_store(),
-            state: Default::default(),
         },
     )
 }

@@ -4,7 +4,7 @@ use serde_json;
 use systemprompt_governance::authz::{
     AuthzDecision, Decision, DecisionTag, DenyReason, EntityRef, MatchedBy,
 };
-use systemprompt_governance::policy::types::{AccessScope, RateLimitWindow, SecretLocation};
+use systemprompt_governance::policy::{AccessScope, RateLimitWindow, SecretLocation};
 use systemprompt_identifiers::{AgentId, McpToolName, RouteId, SecretPatternId, UserId};
 
 #[test]

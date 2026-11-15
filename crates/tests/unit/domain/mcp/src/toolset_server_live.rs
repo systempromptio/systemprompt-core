@@ -7,10 +7,11 @@ use rmcp::model::{
 };
 use rmcp::{ErrorData as McpError, ServerHandler};
 use systemprompt_governance::authz::{
-    AllowAllHook, AuthzError, DenyAllHook, SharedAuthzHook, SubjectAttributeProvider,
-    SubjectDimension, SubjectProviderSet,
+    AllowAllHook, DenyAllHook, SharedAuthzHook, SubjectAttributeError, SubjectAttributeProvider,
+    SubjectDimension, SubjectProviderEntry, SubjectProviderSet,
 };
-use systemprompt_identifiers::{McpServerId, UserId};
+use systemprompt_extension::StandingTag;
+use systemprompt_identifiers::{ExtensionId, McpServerId, UserId};
 use systemprompt_mcp::host::{
     McpAccessEvent, McpAccessRecorder, ToolsetAuthz, ToolsetHostError, ToolsetServer,
     ToolsetServerParts,
@@ -121,10 +122,10 @@ impl SubjectAttributeProvider for Groups {
         }
     }
 
-    async fn values_for(&self, _user_id: &UserId) -> Result<Vec<String>, AuthzError> {
+    async fn values_for(&self, _user_id: &UserId) -> Result<Vec<String>, SubjectAttributeError> {
         self.0
             .clone()
-            .map_err(|()| AuthzError::InvalidAccess("directory down".to_owned()))
+            .map_err(|()| SubjectAttributeError::Lookup("directory down".into()))
     }
 }
 
@@ -170,7 +171,12 @@ async fn parts(
         server_id.clone(),
     );
     let subjects = groups.map_or_else(SubjectProviderSet::default, |values| {
-        SubjectProviderSet::from_providers(vec![Arc::new(Groups(values))])
+        SubjectProviderSet::new(vec![SubjectProviderEntry {
+            owner: ExtensionId::new("test"),
+            standing: StandingTag::Install,
+            provider: Arc::new(Groups(values)),
+        }])
+        .expect("one install dimension builds a set")
     });
     let recorded = Arc::new(Captured::default());
     let parts = ToolsetServerParts {

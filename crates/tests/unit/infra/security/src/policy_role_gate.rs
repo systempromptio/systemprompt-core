@@ -3,8 +3,8 @@
 
 use serde_json::json;
 use systemprompt_governance::authz::types::{Decision, DenyReason};
-use systemprompt_governance::policy::governed::{GovernedInput, GovernedTarget, McpToolInput};
-use systemprompt_governance::policy::types::{AccessScope, AgentScope, PolicyContext};
+use systemprompt_governance::policy::{GovernedInput, GovernedTarget, McpToolInput};
+use systemprompt_governance::policy::{AccessScope, AgentScope, PolicyContext};
 use systemprompt_governance::policy::{GovernanceConfig, GovernanceEngine};
 use systemprompt_identifiers::{CallId, McpToolName, SessionId, UserId};
 
@@ -29,6 +29,7 @@ governance:
 fn decide(name: &str, scope: AccessScope, roles: &[String]) -> Decision {
     let engine = GovernanceEngine::from_config(
         &GovernanceConfig::parse(YAML).unwrap(),
+        &systemprompt_governance::policy::PolicyCatalog::builtin(),
         Some(crate::offline_rate_windows()),
     )
     .unwrap();

@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use systemprompt_governance::authz::{
-    AuthzHookContext, NullAuditSink, SubjectProviderSet, discover_role_directory,
+    AuthzError, RoleDirectory, SharedRoleDirectory, SubjectAttributeError, SubjectProviderSet,
 };
 use systemprompt_identifiers::{ResourceRevisionId, UserId};
 use systemprompt_manifest::services::{
@@ -20,7 +20,7 @@ use systemprompt_marketplace::managed::{
     PublicationGate, PublicationGateError, PublicationPolicy, PublicationRequest, ResourceKind,
 };
 use systemprompt_test_fixtures::{seed_user_row_with_roles, test_db_pool};
-use systemprompt_users as _;
+use systemprompt_users::UserRepository;
 use uuid::Uuid;
 
 use crate::managed_resolution::{Fixture, fixture, publish, skill_files};
@@ -56,16 +56,28 @@ fn gated(
         ))
 }
 
+#[derive(Debug)]
+struct UsersTableRoles(UserRepository);
+
+#[async_trait]
+impl RoleDirectory for UsersTableRoles {
+    async fn unknown_roles(&self, _candidates: &[String]) -> Result<Vec<String>, AuthzError> {
+        Ok(Vec::new())
+    }
+
+    async fn roles_of(&self, user: &UserId) -> Result<Vec<String>, AuthzError> {
+        let found = self
+            .0
+            .find_by_id(user)
+            .await
+            .map_err(|e| AuthzError::Subject(SubjectAttributeError::Lookup(Box::new(e))))?;
+        Ok(found.map(|u| u.roles).unwrap_or_default())
+    }
+}
+
 async fn ringed(f: &Fixture, rings: &[(&str, &str)]) -> ManagedRepository {
     let db = test_db_pool().await;
-    let roles = discover_role_directory(&AuthzHookContext {
-        pool: db.pool(),
-        sink: Arc::new(NullAuditSink),
-        services: systemprompt_test_fixtures::fixture_services_view(),
-        subjects: Default::default(),
-        secrets: systemprompt_test_fixtures::fixture_secret_store(),
-        state: Default::default(),
-    });
+    let roles: SharedRoleDirectory = Arc::new(UsersTableRoles(UserRepository::new(&db)));
     f.repository
         .clone()
         .with_publication_policy(PublicationPolicy::new(
@@ -81,7 +93,7 @@ async fn ringed(f: &Fixture, rings: &[(&str, &str)]) -> ManagedRepository {
             },
             Vec::new(),
             SubjectProviderSet::default(),
-            roles,
+            Some(roles),
         ))
 }
 

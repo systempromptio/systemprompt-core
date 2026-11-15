@@ -13,7 +13,7 @@ use systemprompt_gateway::audit::journal::{
     GatewayJournal, flush_on_shutdown, pending, recover, spawn_recovery,
 };
 use systemprompt_gateway::{GatewayAudit, GatewayRepositories, GatewayRequestContext};
-use systemprompt_governance::policy::types::AccessScope;
+use systemprompt_governance::policy::AccessScope;
 use systemprompt_identifiers::{AiRequestId, ContextId, UserId};
 use systemprompt_models::origin::{
     ClientAttestation, ClientEvidence, ClientKind, InboundWireProtocol, RequestOrigin,

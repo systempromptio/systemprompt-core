@@ -1,7 +1,8 @@
 //! Composition tests for the facade: reference order, install refusals,
 //! provider standing, disabled members, kernel handles, the CLI re-check of
-//! a forged command handoff, the built-in gateway prefixes, and the
-//! analytics-http member as the reference composition admits it.
+//! a forged command handoff, the built-in gateway prefixes, the governance
+//! subject-dimension check and slots, and the analytics-http member as the
+//! reference composition admits it.
 
 #[cfg(test)]
 mod analytics_http;
@@ -19,6 +20,10 @@ mod disable_probe;
 mod forged_commands;
 #[cfg(test)]
 mod gateway_prefixes;
+#[cfg(test)]
+mod governance_dimensions;
+#[cfg(test)]
+mod governance_slots;
 #[cfg(test)]
 mod handed;
 #[cfg(test)]

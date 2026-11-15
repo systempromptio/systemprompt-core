@@ -1,5 +1,5 @@
 use serde_json::json;
-use systemprompt_governance::policy::governed::{
+use systemprompt_governance::policy::{
     GovernedInput, GovernedTarget, McpToolInput, PROMPT_TARGET_NAME,
 };
 use systemprompt_identifiers::McpToolName;

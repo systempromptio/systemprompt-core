@@ -1,7 +1,7 @@
 //! The secret scanner must not read a provider-signed reasoning blob as a
 //! credential, and must still read a real credential parked in that field.
 
-use systemprompt_governance::policy::governed::GovernedInput;
+use systemprompt_governance::policy::GovernedInput;
 use systemprompt_governance::policy::secrets::SecretScanner;
 
 const BLOB: &str = "PHL+ERIbxzlQOeiiRybQwgV7GvYmIclsJe1zsFIyuuM";

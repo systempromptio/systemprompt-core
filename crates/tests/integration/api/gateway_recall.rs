@@ -98,7 +98,8 @@ pub(super) fn profile(client: &str, enabled: bool) -> BrainRecallProfile {
 pub(super) fn engines(recall: Option<Arc<FakeMemoryRecall>>) -> Arc<GatewayEngines> {
     let engines = GatewayEngines::new(
         Default::default(),
-        &systemprompt_test_fixtures::offline_extension_context(),
+        &systemprompt_extension::BuiltState::default(),
+        &systemprompt_test_fixtures::offline_kernel(Default::default()).resolved(),
         systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
     )
     .expect("gateway engines build");

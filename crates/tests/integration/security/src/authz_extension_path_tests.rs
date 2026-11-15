@@ -114,11 +114,7 @@ async fn extension_hook_evaluated_and_audited() {
         systemprompt_governance::authz::AuthzWiring {
             sources: ChainSources::default(),
             epochs: systemprompt_traits::CacheEpochs::new(),
-            services: systemprompt_test_fixtures::fixture_services_view(),
-            subjects: Default::default(),
             providers: Default::default(),
-            secrets: systemprompt_test_fixtures::fixture_secret_store(),
-            state: Default::default(),
         },
     )
     .expect("bootstrap ok");

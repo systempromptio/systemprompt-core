@@ -1,5 +1,5 @@
-//! The SSO driver end to end against fake providers registered through the
-//! public inventory macros: `start` stores and binds an attempt, `finish`
+//! The SSO driver end to end against fake providers contributed to the SSO
+//! slot: `start` stores and binds an attempt, `finish`
 //! correlates it, enforces replay and the identity policy, resolves or
 //! provisions the local user, mints the session and audits every outcome.
 
@@ -9,12 +9,16 @@ mod flow;
 mod identity;
 mod linking;
 mod providers;
+mod sso_slot;
 mod stores;
 
 use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_oauth::services::SessionCreationService;
+use systemprompt_extension::{Slot, SlotEntry, SlotError, StandingTag};
+use systemprompt_identifiers::ExtensionId;
+use systemprompt_oauth_issuance::contract::{SsoBuilder, SsoProviders, SsoSlot};
 use systemprompt_oauth_issuance::sso::{FinishOutcome, SsoCallback, SsoDriver};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_config, test_db_pool};
 use systemprompt_traits::SessionAnalytics;
@@ -46,18 +50,28 @@ fn driver_on(
         ),
         Arc::clone(&config),
     );
-    SsoDriver::discover(
-        &systemprompt_oauth_issuance::sso::SsoHookContext {
-            db: Arc::clone(db),
-            config,
-            services: systemprompt_test_fixtures::fixture_services_view(),
-            services_root: systemprompt_test_fixtures::test_boot_active_services_root(),
-            secrets: systemprompt_test_fixtures::fixture_secret_store(),
-        },
+    let mut sso = SsoBuilder::default();
+    providers::contribute(&mut sso);
+    events::contribute(&mut sso);
+    SsoDriver::new(
+        &build_sso(sso).expect("fake providers build"),
+        db,
+        config,
         systemprompt_test_fixtures::oauth_fixture_repository(db),
         Arc::new(service),
     )
-    .expect("fake providers discover")
+}
+
+fn build_sso(sso: SsoBuilder) -> Result<SsoProviders, SlotError> {
+    let kernel = systemprompt_test_fixtures::offline_kernel(Default::default());
+    SsoSlot::build(
+        vec![SlotEntry {
+            owner: ExtensionId::new("test"),
+            standing: StandingTag::Install,
+            builder: sso,
+        }],
+        &kernel.resolved(),
+    )
 }
 
 fn harness_on(db: &DbPool, api_external_url: &str) -> Harness {

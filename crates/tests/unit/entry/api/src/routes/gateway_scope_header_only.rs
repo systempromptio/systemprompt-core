@@ -10,7 +10,7 @@ use systemprompt_api::routes::gateway::messages::extract::scope::{
     ScopeHeaders, ScopeResolution, resolve_scope_attribution,
 };
 use systemprompt_governance::authz::{
-    AuthzError, RuleType, SubjectAttributeProvider, SubjectDimension, SubjectProviderSet,
+    RuleType, SubjectAttributeProvider, SubjectDimension, SubjectProviderSet,
 };
 use systemprompt_identifiers::UserId;
 use systemprompt_models::attribution::{AttributionSource, RequestAttribution};
@@ -33,7 +33,7 @@ impl SubjectAttributeProvider for HeaderOnlyProvider {
         }
     }
 
-    async fn values_for(&self, _user_id: &UserId) -> Result<Vec<String>, AuthzError> {
+    async fn values_for(&self, _user_id: &UserId) -> Result<Vec<String>, systemprompt_governance::authz::SubjectAttributeError> {
         Ok(vec!["run-open".to_owned()])
     }
 
@@ -46,7 +46,12 @@ async fn resolve(
     header: Option<&str>,
 ) -> Result<RequestAttribution, systemprompt_api::routes::gateway::messages::error::RejectionError>
 {
-    let providers = SubjectProviderSet::from_providers(vec![Arc::new(HeaderOnlyProvider)]);
+    let providers = SubjectProviderSet::new(vec![systemprompt_governance::authz::SubjectProviderEntry {
+        owner: systemprompt_identifiers::ExtensionId::new("test"),
+        standing: systemprompt_extension::StandingTag::Install,
+        provider: Arc::new(HeaderOnlyProvider),
+    }])
+    .expect("subject provider set builds");
     let mut map = HeaderMap::new();
     if let Some(value) = header {
         map.insert(

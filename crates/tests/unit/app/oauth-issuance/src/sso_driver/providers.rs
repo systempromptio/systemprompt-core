@@ -3,8 +3,9 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use systemprompt_identifiers::{SsoAssertionId, UserId};
-use systemprompt_oauth_issuance::sso::{RoleResolver, SsoHookContext, SsoProviderError};
-use systemprompt_oauth_issuance::{register_role_resolver, register_sso_provider};
+use systemprompt_extension::{FactoryError, Resolved};
+use systemprompt_oauth_issuance::contract::SsoBuilder;
+use systemprompt_oauth_issuance::sso::RoleResolver;
 use systemprompt_traits::sso::{
     CookieSameSite, ExternalIdentity, SsoError, SsoIdentityPolicy, SsoMetadataDoc, SsoPaths,
     SsoProtocol, SsoProvider, SsoRedirect, SsoReturn, SsoStart, SsoStateContext, SsoStateSeed,
@@ -25,7 +26,7 @@ pub use super::events::{Recorded, events_for_sub, refusals_with_reason};
 pub const METADATA_BODY: &str = "<EntityDescriptor/>";
 
 #[derive(Debug)]
-struct FakeProvider {
+pub(super) struct FakeProvider {
     id: &'static str,
     issuer: &'static str,
     callback: &'static str,
@@ -60,7 +61,7 @@ const fn fake(
     }
 }
 
-fn provider(id: &'static str) -> FakeProvider {
+pub(super) fn provider(id: &'static str) -> FakeProvider {
     match id {
         OPEN => fake(id, OPEN_ISSUER, OPEN_CALLBACK, open_policy()),
         UNLINKED => fake(
@@ -201,33 +202,21 @@ impl SsoProvider for FakeProvider {
     }
 }
 
-type ProviderResult = Result<Option<Arc<dyn SsoProvider>>, SsoProviderError>;
+type ProviderResult = Result<Option<Arc<dyn SsoProvider>>, FactoryError>;
 
-fn open_factory(_ctx: &SsoHookContext) -> ProviderResult {
-    Ok(Some(Arc::new(provider(OPEN))))
+pub(super) fn contribute(sso: &mut SsoBuilder) {
+    for id in [OPEN, CLOSED, BLANK, UNLINKED] {
+        sso.provider(move |_: &Resolved<'_>| -> ProviderResult {
+            Ok(Some(Arc::new(provider(id))))
+        });
+    }
+    sso.provider(|_: &Resolved<'_>| -> ProviderResult { Ok(None) });
+    sso.role_resolver(
+        |_: &Resolved<'_>| -> Result<Arc<dyn RoleResolver>, FactoryError> {
+            Ok(Arc::new(AppendingResolver))
+        },
+    );
 }
-
-fn closed_factory(_ctx: &SsoHookContext) -> ProviderResult {
-    Ok(Some(Arc::new(provider(CLOSED))))
-}
-
-fn unlinked_factory(_ctx: &SsoHookContext) -> ProviderResult {
-    Ok(Some(Arc::new(provider(UNLINKED))))
-}
-
-fn blank_factory(_ctx: &SsoHookContext) -> ProviderResult {
-    Ok(Some(Arc::new(provider(BLANK))))
-}
-
-fn disabled_factory(_ctx: &SsoHookContext) -> ProviderResult {
-    Ok(None)
-}
-
-register_sso_provider!(open_factory);
-register_sso_provider!(closed_factory);
-register_sso_provider!(blank_factory);
-register_sso_provider!(unlinked_factory);
-register_sso_provider!(disabled_factory);
 
 #[derive(Debug)]
 struct AppendingResolver;
@@ -244,10 +233,3 @@ impl RoleResolver for AppendingResolver {
         Ok(roles)
     }
 }
-
-fn resolver_factory(_ctx: &SsoHookContext) -> Arc<dyn RoleResolver> {
-    Arc::new(AppendingResolver)
-}
-
-register_role_resolver!(resolver_factory);
-register_role_resolver!(resolver_factory);
