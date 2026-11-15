@@ -377,9 +377,8 @@ impl DescribeCommand for ParentProbeCommands {
 
 impl CliCommandGroup for ParentProbeCommands {
     const PARENT: &'static [&'static str] = &[];
-    const NAME: &'static str = "analytics";
-    const ABOUT: &'static str = "Registered parent group on a granted path";
-    const GRANTS: &'static [KernelGrant] = &[KernelGrant::LocalExport];
+    const NAME: &'static str = "parentprobe";
+    const ABOUT: &'static str = "Registered parent group";
 
     fn db_url_routing(&self) -> DbUrlRouting {
         DbUrlRouting::Direct
@@ -403,7 +402,7 @@ impl DescribeCommand for ChildProbeArgs {
 }
 
 impl CliCommandLeaf for ChildProbeArgs {
-    const PARENT: &'static [&'static str] = &["analytics"];
+    const PARENT: &'static [&'static str] = &["parentprobe"];
     const NAME: &'static str = "child";
     const ABOUT: &'static str = "Leaf registered under a registered group";
 
@@ -422,7 +421,7 @@ impl DescribeCommand for CollidingChildArgs {
 }
 
 impl CliCommandLeaf for CollidingChildArgs {
-    const PARENT: &'static [&'static str] = &["analytics"];
+    const PARENT: &'static [&'static str] = &["parentprobe"];
     const NAME: &'static str = "ping";
     const ABOUT: &'static str = "Collides with the parent's own ping";
 
@@ -442,9 +441,9 @@ fn parent_and_child() -> CommandRegistry {
 async fn a_leaf_under_a_registered_group_resolves_to_its_own_registration() {
     let registry = parent_and_child();
     let child = registry
-        .resolve(&matches(&registry, &["analytics", "child", "--limit", "3"]))
+        .resolve(&matches(&registry, &["parentprobe", "child", "--limit", "3"]))
         .expect("resolve")
-        .expect("analytics child is registered");
+        .expect("parentprobe child is registered");
     let desc = child.descriptor();
     assert!(desc.profile() && !desc.database());
     assert_eq!(desc.data_impact(), DataImpact::Preserving);
@@ -466,13 +465,13 @@ async fn a_leaf_under_a_registered_group_resolves_to_its_own_registration() {
 fn the_parent_groups_own_subcommands_keep_the_parent_descriptor() {
     let registry = parent_and_child();
     let list = registry
-        .resolve(&matches(&registry, &["analytics", "list"]))
+        .resolve(&matches(&registry, &["parentprobe", "list"]))
         .expect("resolve")
-        .expect("analytics list is registered");
+        .expect("parentprobe list is registered");
     let desc = list.descriptor();
     assert!(desc.database());
     assert_eq!(desc.data_impact(), DataImpact::Destructive);
-    assert!(desc.local_export(), "the declared, listed grant is applied");
+    assert!(!desc.local_export());
     assert_eq!(list.db_url_routing(), DbUrlRouting::Direct);
 }
 
@@ -481,8 +480,8 @@ fn the_leaf_is_listed_after_the_parent_groups_own_subcommands() {
     let registry = parent_and_child();
     let mut root = registry.assemble(Cli::command()).expect("assemble");
     let help = root
-        .find_subcommand_mut("analytics")
-        .expect("analytics is attached")
+        .find_subcommand_mut("parentprobe")
+        .expect("parentprobe is attached")
         .render_help()
         .to_string();
     let position = |name: &str| {
@@ -505,7 +504,7 @@ fn a_leaf_named_like_a_subcommand_of_its_registered_group_is_refused() {
         matches!(
             err,
             RegistryError::ShadowsGroup { ref path, parent, .. }
-                if path == "analytics ping" && parent.ends_with("ParentProbeCommands")
+                if path == "parentprobe ping" && parent.ends_with("ParentProbeCommands")
         ),
         "{err:?}"
     );
@@ -636,4 +635,130 @@ fn a_descriptor_holding_an_undeclared_grant_is_refused_at_resolution() {
         ),
         "{err:?}"
     );
+}
+
+macro_rules! foreign_group {
+    ($ty:ident, $name:literal, $grants:expr) => {
+        #[derive(Debug, Subcommand)]
+        enum $ty {
+            #[command(about = "Foreign command at a reserved path")]
+            Ping,
+        }
+
+        impl DescribeCommand for $ty {
+            fn descriptor(&self) -> CommandDescriptor {
+                CommandDescriptor::NONE
+            }
+        }
+
+        impl CliCommandGroup for $ty {
+            const PARENT: &'static [&'static str] = &[];
+            const NAME: &'static str = $name;
+            const ABOUT: &'static str = "Foreign command at a reserved path";
+            const GRANTS: &'static [KernelGrant] = $grants;
+
+            fn run(self, _ctx: &CommandContext) -> impl Future<Output = anyhow::Result<()>> + Send {
+                std::future::ready(Ok(()))
+            }
+        }
+    };
+}
+
+foreign_group!(
+    ForeignCloudOperatorCommands,
+    "cloud",
+    &[KernelGrant::CloudOperator]
+);
+foreign_group!(ForeignCloudCommands, "cloud", &[]);
+foreign_group!(
+    ForeignAnalyticsExportCommands,
+    "analytics",
+    &[KernelGrant::LocalExport, KernelGrant::SkipValidation]
+);
+foreign_group!(ForeignAnalyticsCommands, "analytics", &[]);
+
+#[derive(Debug, clap::Args)]
+struct ForeignMcpHostArgs;
+
+impl DescribeCommand for ForeignMcpHostArgs {
+    fn descriptor(&self) -> CommandDescriptor {
+        CommandDescriptor::NONE
+    }
+}
+
+impl CliCommandLeaf for ForeignMcpHostArgs {
+    const PARENT: &'static [&'static str] = &["admin"];
+    const NAME: &'static str = "mcp";
+    const ABOUT: &'static str = "Foreign leaf at `admin mcp` declaring child-host";
+    const GRANTS: &'static [KernelGrant] = &[KernelGrant::ChildHost];
+
+    fn run(self, _ctx: &CommandContext) -> impl Future<Output = anyhow::Result<()>> + Send {
+        std::future::ready(Ok(()))
+    }
+}
+
+fn refused_reserved(entry: CliCommandRegistration) -> (String, &'static str, &'static str) {
+    match CommandRegistry::from_registrations(vec![entry]).unwrap_err() {
+        RegistryError::ReservedPath { path, group, owner } => (path, group, owner),
+        other => panic!("expected ReservedPath, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_foreign_type_at_cloud_declaring_cloud_operator_is_refused_at_startup() {
+    let (path, group, owner) =
+        refused_reserved(CliCommandRegistration::of::<ForeignCloudOperatorCommands>());
+    assert_eq!(path, "cloud");
+    assert!(group.ends_with("ForeignCloudOperatorCommands"), "{group}");
+    assert_eq!(owner, "systemprompt_cloud_entry::cli::CloudCommands");
+}
+
+#[test]
+fn a_foreign_type_at_cloud_declaring_nothing_is_refused_at_startup() {
+    let (path, group, owner) =
+        refused_reserved(CliCommandRegistration::of::<ForeignCloudCommands>());
+    assert_eq!(path, "cloud");
+    assert!(group.ends_with("ForeignCloudCommands"), "{group}");
+    assert_eq!(owner, "systemprompt_cloud_entry::cli::CloudCommands");
+}
+
+#[test]
+fn a_foreign_type_at_analytics_declaring_its_grants_is_refused_at_startup() {
+    let (path, _, owner) =
+        refused_reserved(CliCommandRegistration::of::<ForeignAnalyticsExportCommands>());
+    assert_eq!(path, "analytics");
+    assert_eq!(owner, "systemprompt_analytics_entry::cli::AnalyticsCommands");
+}
+
+#[test]
+fn a_foreign_type_at_analytics_declaring_nothing_is_refused_at_startup() {
+    let (path, _, owner) =
+        refused_reserved(CliCommandRegistration::of::<ForeignAnalyticsCommands>());
+    assert_eq!(path, "analytics");
+    assert_eq!(owner, "systemprompt_analytics_entry::cli::AnalyticsCommands");
+}
+
+#[test]
+fn a_foreign_type_at_admin_mcp_declaring_child_host_is_refused_at_startup() {
+    let (path, _, owner) = refused_reserved(CliCommandRegistration::leaf::<ForeignMcpHostArgs>());
+    assert_eq!(path, "admin mcp");
+    assert_eq!(
+        owner,
+        "systemprompt_cli::commands::admin::mcp::McpHostCommands"
+    );
+}
+
+#[test]
+fn the_collected_registrations_hold_every_reserved_path_with_its_owner() {
+    let registry = CommandRegistry::collected().expect("the linked registrations pass");
+    let mcp = registry
+        .registrations()
+        .iter()
+        .find(|entry| entry.path() == "admin mcp")
+        .expect("admin mcp is registered by the kernel crate");
+    assert_eq!(
+        mcp.group(),
+        "systemprompt_cli::commands::admin::mcp::McpHostCommands"
+    );
+    assert_eq!(mcp.grants(), &[KernelGrant::ChildHost]);
 }
