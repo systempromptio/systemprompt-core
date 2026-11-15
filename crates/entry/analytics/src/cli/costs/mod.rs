@@ -18,7 +18,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::cli::shared::with_resolved_export;
-use systemprompt_cli::kernel::{CommandContext, render_result};
+use systemprompt_database::pool_from_handle;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
 /// `analytics costs` with no subcommand runs the summary.
 ///
@@ -95,29 +96,26 @@ pub struct CostBreakdownOutput {
     pub total_cost_microdollars: i64,
 }
 
-pub async fn execute(args: CostsArgs, ctx: &CommandContext) -> Result<()> {
-    let db_ctx = ctx.database().await?;
+pub async fn execute(args: CostsArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let pool = pool_from_handle(host.db().await?)?;
     match args.cmd.unwrap_or(CostsCommands::Summary(args.summary)) {
         CostsCommands::Summary(args) => {
             let result =
-                summary::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                summary::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
                     .await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            Ok(result)
         },
         CostsCommands::Trends(args) => {
             let result =
-                trends::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                trends::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
                     .await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            Ok(result)
         },
         CostsCommands::Breakdown(args) => {
             let result =
-                breakdown::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                breakdown::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
                     .await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            Ok(result)
         },
     }
 }

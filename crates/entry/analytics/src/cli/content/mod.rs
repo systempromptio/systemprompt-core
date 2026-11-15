@@ -17,7 +17,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::cli::shared::with_resolved_export;
-use systemprompt_cli::kernel::{CommandContext, render_result};
+use systemprompt_database::pool_from_handle;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
 #[derive(Debug, Subcommand)]
 pub enum ContentCommands {
@@ -74,28 +75,25 @@ pub struct ContentTrendsOutput {
     pub points: Vec<ContentTrendPoint>,
 }
 
-pub async fn execute(command: ContentCommands, ctx: &CommandContext) -> Result<()> {
-    let db_ctx = ctx.database().await?;
+pub async fn execute(command: ContentCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let pool = pool_from_handle(host.db().await?)?;
     match command {
         ContentCommands::Stats(args) => {
             let result =
-                stats::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                stats::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
                     .await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            Ok(result)
         },
         ContentCommands::Top(args) => {
             let result =
-                top::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+                top::execute_with_pool(with_resolved_export!(args, host), &pool, host.output()).await?;
+            Ok(result)
         },
         ContentCommands::Trends(args) => {
             let result =
-                trends::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                trends::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
                     .await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            Ok(result)
         },
     }
 }

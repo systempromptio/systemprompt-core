@@ -8,11 +8,11 @@ use clap::{Args, ValueEnum};
 use std::path::PathBuf;
 use systemprompt_analytics::{ToolAnalyticsRepository, ToolListParams};
 use systemprompt_logging::CliService;
-use systemprompt_runtime::DatabaseContext;
+use systemprompt_database::DbPool;
 
 use super::{ToolListOutput, ToolListRow};
 use crate::cli::shared::{export_to_csv, parse_time_range};
-use systemprompt_cli::kernel::{CliConfig, CommandOutput};
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 #[derive(Debug, Clone, Copy, Default, ValueEnum)]
 pub enum ToolSortBy {
@@ -70,10 +70,10 @@ pub struct ListArgs {
 
 pub(super) async fn execute_with_pool(
     args: ListArgs,
-    db_ctx: &DatabaseContext,
+    pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let repo = ToolAnalyticsRepository::new(db_ctx.db_pool());
+    let repo = ToolAnalyticsRepository::new(pool);
     execute_internal(args, &repo).await
 }
 

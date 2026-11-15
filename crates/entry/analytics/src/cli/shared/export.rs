@@ -9,11 +9,10 @@ use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use systemprompt_config::paths::AppPaths;
+use systemprompt_config::paths::StoragePaths;
+use systemprompt_extension::cli::CommandHost;
 
-use systemprompt_cli::kernel::CommandContext;
-
-pub fn resolve_export_path(user_path: &Path, ctx: &CommandContext) -> Result<PathBuf> {
+pub fn resolve_export_path(user_path: &Path, host: &dyn CommandHost) -> Result<PathBuf> {
     if user_path.is_absolute()
         || user_path
             .parent()
@@ -22,32 +21,27 @@ pub fn resolve_export_path(user_path: &Path, ctx: &CommandContext) -> Result<Pat
         return Ok(user_path.to_path_buf());
     }
 
-    let boot = ctx.boot().context("Profile not initialized")?;
-    let profile = boot.profile();
-    let paths = AppPaths::from_profile(
-        &profile.paths,
-        profile.path_resolution(),
-        boot.services_root().map(|r| r.path.as_path()),
-    )
-    .map_err(|e| anyhow::anyhow!("Failed to build paths: {}", e))?;
-    let exports_dir = paths.storage().exports().to_path_buf();
+    let profile = host.profile().context("Profile not initialized")?;
+    let storage =
+        StoragePaths::from_profile(&profile.paths).context("Failed to resolve storage paths")?;
 
-    Ok(exports_dir.join(user_path))
+    Ok(storage.exports().join(user_path))
 }
 
 pub fn resolve_export_option(
     export: Option<PathBuf>,
-    ctx: &CommandContext,
+    host: &dyn CommandHost,
 ) -> Result<Option<PathBuf>> {
     export
-        .map(|path| resolve_export_path(&path, ctx))
+        .map(|path| resolve_export_path(&path, host))
         .transpose()
 }
 
 macro_rules! with_resolved_export {
-    ($args:ident, $ctx:expr) => {{
+    ($args:ident, $host:expr) => {{
         let mut resolved = $args;
-        resolved.export = $crate::cli::shared::resolve_export_option(resolved.export.take(), $ctx)?;
+        resolved.export =
+            $crate::cli::shared::resolve_export_option(resolved.export.take(), $host)?;
         resolved
     }};
 }

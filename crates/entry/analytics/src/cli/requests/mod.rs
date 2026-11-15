@@ -19,7 +19,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::cli::shared::with_resolved_export;
-use systemprompt_cli::kernel::{CommandContext, render_result};
+use systemprompt_database::pool_from_handle;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
 /// `analytics requests` with no subcommand runs the stats aggregate.
 ///
@@ -103,36 +104,32 @@ pub struct ModelsOutput {
     pub total_requests: i64,
 }
 
-pub async fn execute(args: RequestsArgs, ctx: &CommandContext) -> Result<()> {
-    let db_ctx = ctx.database().await?;
+pub async fn execute(args: RequestsArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let pool = pool_from_handle(host.db().await?)?;
     match args.cmd.unwrap_or(RequestsCommands::Stats(args.stats)) {
         RequestsCommands::Stats(args) => {
             let result =
-                stats::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                stats::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
                     .await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            Ok(result)
         },
         RequestsCommands::List(args) => {
             let result =
-                list::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                list::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
                     .await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            Ok(result)
         },
         RequestsCommands::Trends(args) => {
             let result =
-                trends::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                trends::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
                     .await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            Ok(result)
         },
         RequestsCommands::Models(args) => {
             let result =
-                models::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                models::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
                     .await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            Ok(result)
         },
     }
 }

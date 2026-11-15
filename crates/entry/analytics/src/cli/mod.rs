@@ -4,15 +4,15 @@
 //! in the `analytics` `--help` slot. It routes to the per-domain subcommand
 //! trees (overview, conversations, agents, tools, requests, sessions,
 //! content, traffic, costs); each variant dispatches to its module's
-//! `execute` against the invocation's [`CommandContext`]. Every analytics
-//! command is read-only, preserves the profile's data, runs against
-//! `--database-url` directly and writes a `--export` file locally. The
-//! [`shared`] module holds the time-range and output formatting helpers used
-//! across all domains.
+//! `execute` against the invocation's [`CommandHost`] and returns the
+//! [`CommandOutput`] the kernel renders. Every analytics command is
+//! read-only, preserves the profile's data, runs against `--database-url`
+//! directly and writes a `--export` file locally. The [`shared`] module holds
+//! the time-range and output formatting helpers used across all domains.
 //!
 //! With the `content-commands` feature, `content_popular::PopularArgs` is
-//! registered as the `popular` leaf under the `core content` group that
-//! `systemprompt-content-entry` registers.
+//! contributed as the `popular` leaf under the `core content` group that
+//! `systemprompt-content-entry` contributes.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -32,12 +32,13 @@ pub mod traffic;
 
 use anyhow::Result;
 use clap::Subcommand;
-use systemprompt_cli::kernel::{
-    CliCommandGroup, CommandContext, CommandDescriptor, DataImpact, DbUrlRouting, DescribeCommand,
-    KernelGrant, render_result,
+use systemprompt_database::pool_from_handle;
+use systemprompt_extension::cli::{
+    CliCommandGroup, CommandDescriptor, CommandError, CommandHost, CommandOutput, DataImpact,
+    DbUrlRouting, DescribeCommand,
 };
 
-use crate::cli::shared::with_resolved_export;
+use crate::cli::shared::{command_error, with_resolved_export};
 
 #[derive(Debug, Subcommand)]
 pub enum AnalyticsCommands {
@@ -78,42 +79,33 @@ impl DescribeCommand for AnalyticsCommands {
 }
 
 impl CliCommandGroup for AnalyticsCommands {
-    const PARENT: &'static [&'static str] = &[];
     const NAME: &'static str = "analytics";
     const ABOUT: &'static str = "Analytics and metrics reporting";
     const DISPLAY_ORDER: usize = 50;
-    const GRANTS: &'static [KernelGrant] = &[KernelGrant::LocalExport, KernelGrant::SkipValidation];
 
     fn db_url_routing(&self) -> DbUrlRouting {
         DbUrlRouting::Direct
     }
 
-    fn run(self, ctx: &CommandContext) -> impl Future<Output = Result<()>> + Send {
-        execute(self, ctx)
+    async fn run(self, host: &dyn CommandHost) -> Result<CommandOutput, CommandError> {
+        execute(self, host).await.map_err(command_error)
     }
 }
 
-systemprompt_cli::register_cli_command!(AnalyticsCommands);
-
-pub async fn execute(command: AnalyticsCommands, ctx: &CommandContext) -> Result<()> {
+pub async fn execute(command: AnalyticsCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     match command {
         AnalyticsCommands::Overview(args) => {
-            let result = overview::execute_with_pool(
-                with_resolved_export!(args, ctx),
-                &ctx.database().await?,
-                &ctx.cli,
-            )
-            .await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            let pool = pool_from_handle(host.db().await?)?;
+            overview::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
+                .await
         },
-        AnalyticsCommands::Conversations(cmd) => conversations::execute(cmd, ctx).await,
-        AnalyticsCommands::Agents(cmd) => agents::execute(cmd, ctx).await,
-        AnalyticsCommands::Tools(cmd) => tools::execute(cmd, ctx).await,
-        AnalyticsCommands::Requests(cmd) => requests::execute(cmd, ctx).await,
-        AnalyticsCommands::Sessions(cmd) => sessions::execute(cmd, ctx).await,
-        AnalyticsCommands::Content(cmd) => content::execute(cmd, ctx).await,
-        AnalyticsCommands::Traffic(cmd) => traffic::execute(cmd, ctx).await,
-        AnalyticsCommands::Costs(cmd) => costs::execute(cmd, ctx).await,
+        AnalyticsCommands::Conversations(cmd) => conversations::execute(cmd, host).await,
+        AnalyticsCommands::Agents(cmd) => agents::execute(cmd, host).await,
+        AnalyticsCommands::Tools(cmd) => tools::execute(cmd, host).await,
+        AnalyticsCommands::Requests(cmd) => requests::execute(cmd, host).await,
+        AnalyticsCommands::Sessions(cmd) => sessions::execute(cmd, host).await,
+        AnalyticsCommands::Content(cmd) => content::execute(cmd, host).await,
+        AnalyticsCommands::Traffic(cmd) => traffic::execute(cmd, host).await,
+        AnalyticsCommands::Costs(cmd) => costs::execute(cmd, host).await,
     }
 }

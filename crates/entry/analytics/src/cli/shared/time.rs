@@ -128,6 +128,6 @@ pub fn truncate_to_period(dt: DateTime<Utc>, period: &str) -> DateTime<Utc> {
     }
 }
 
-pub use systemprompt_cli::kernel::time_format::{
+pub use systemprompt_extension::cli::time_format::{
     format_duration_ms, format_period_label, format_timestamp,
 };

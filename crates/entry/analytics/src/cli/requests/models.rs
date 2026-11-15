@@ -8,11 +8,11 @@ use clap::Args;
 use std::path::PathBuf;
 use systemprompt_analytics::RequestAnalyticsRepository;
 use systemprompt_logging::CliService;
-use systemprompt_runtime::DatabaseContext;
+use systemprompt_database::DbPool;
 
 use super::{ModelUsageRow, ModelsOutput};
 use crate::cli::shared::{export_to_csv, parse_time_range};
-use systemprompt_cli::kernel::{CliConfig, CommandOutput};
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 #[derive(Debug, Args)]
 pub struct ModelsArgs {
@@ -41,10 +41,10 @@ pub struct ModelsArgs {
 
 pub(super) async fn execute_with_pool(
     args: ModelsArgs,
-    db_ctx: &DatabaseContext,
+    pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let repo = RequestAnalyticsRepository::new(db_ctx.db_pool());
+    let repo = RequestAnalyticsRepository::new(pool);
     execute_internal(args, &repo).await
 }
 

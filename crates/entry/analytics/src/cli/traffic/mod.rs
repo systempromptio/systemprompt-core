@@ -20,7 +20,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::cli::shared::with_resolved_export;
-use systemprompt_cli::kernel::{CommandContext, render_result};
+use systemprompt_database::pool_from_handle;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
 #[derive(Debug, Subcommand)]
 pub enum TrafficCommands {
@@ -133,49 +134,43 @@ pub struct BotsOutput {
     pub bot_breakdown: Vec<BotRow>,
 }
 
-pub async fn execute(command: TrafficCommands, ctx: &CommandContext) -> Result<()> {
-    let db_ctx = ctx.database().await?;
+pub async fn execute(command: TrafficCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let pool = pool_from_handle(host.db().await?)?;
     match command {
         TrafficCommands::Sources(args) => {
             let result =
-                sources::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                sources::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
                     .await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            Ok(result)
         },
         TrafficCommands::Pages(args) => {
             let result =
-                pages::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                pages::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
                     .await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            Ok(result)
         },
         TrafficCommands::Navigation(args) => {
             let result =
-                navigation::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                navigation::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
                     .await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            Ok(result)
         },
         TrafficCommands::Geo(args) => {
             let result =
-                geo::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+                geo::execute_with_pool(with_resolved_export!(args, host), &pool, host.output()).await?;
+            Ok(result)
         },
         TrafficCommands::Devices(args) => {
             let result =
-                devices::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                devices::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
                     .await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            Ok(result)
         },
         TrafficCommands::Bots(args) => {
             let result =
-                bots::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                bots::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
                     .await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            Ok(result)
         },
     }
 }
