@@ -4,8 +4,8 @@
 //! owner, the kernel handles a conferral can hand a route set, and the
 //! extension state. [`Kernel::resolve`] seeds that state with the admitted
 //! members' projection drains ([`AdmittedProjections`]), then builds it from
-//! the [`Admitted`] handoff in three passes: every admitted member's provide fns
-//! in composition order, each reading what was provided before it; every
+//! the [`Admitted`] handoff in three passes: every admitted member's provide
+//! fns in composition order, each reading what was provided before it; every
 //! member's declared requirements, checked against the finished state; and
 //! every slot, built from its admitted entries (core first where the slot
 //! asks for it) and inserted as `Arc<S::Built>`. Only admitted members'

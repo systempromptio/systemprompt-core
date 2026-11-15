@@ -65,8 +65,7 @@ impl Prompter for DialoguerPrompter {
     }
 
     fn input(&self, prompt: &str) -> Result<String, CommandError> {
-        self.input_answer(prompt)
-            .map_err(CommandError::new)
+        self.input_answer(prompt).map_err(CommandError::new)
     }
 
     fn input_with_default(&self, prompt: &str, default: &str) -> Result<String, CommandError> {
@@ -75,13 +74,11 @@ impl Prompter for DialoguerPrompter {
     }
 
     fn select(&self, prompt: &str, items: &[String]) -> Result<usize, CommandError> {
-        self.select_answer(prompt, items)
-            .map_err(CommandError::new)
+        self.select_answer(prompt, items).map_err(CommandError::new)
     }
 
     fn password(&self, prompt: &str) -> Result<String, CommandError> {
-        self.password_answer(prompt)
-            .map_err(CommandError::new)
+        self.password_answer(prompt).map_err(CommandError::new)
     }
 }
 
@@ -153,8 +150,7 @@ impl Prompter for ScriptedPrompter {
     }
 
     fn input(&self, prompt: &str) -> Result<String, CommandError> {
-        self.input_answer(prompt)
-            .map_err(CommandError::new)
+        self.input_answer(prompt).map_err(CommandError::new)
     }
 
     fn input_with_default(&self, prompt: &str, default: &str) -> Result<String, CommandError> {
@@ -163,13 +159,11 @@ impl Prompter for ScriptedPrompter {
     }
 
     fn select(&self, prompt: &str, items: &[String]) -> Result<usize, CommandError> {
-        self.select_answer(prompt, items)
-            .map_err(CommandError::new)
+        self.select_answer(prompt, items).map_err(CommandError::new)
     }
 
     fn password(&self, prompt: &str) -> Result<String, CommandError> {
-        self.password_answer(prompt)
-            .map_err(CommandError::new)
+        self.password_answer(prompt).map_err(CommandError::new)
     }
 }
 
