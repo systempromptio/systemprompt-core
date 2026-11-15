@@ -7,7 +7,7 @@
 
 use std::collections::HashMap;
 use systemprompt_config::paths::AppPaths;
-use systemprompt_content::execute_content_ingestion;
+use systemprompt_content::{ContentHooks, execute_content_ingestion};
 use systemprompt_content::repository::ContentRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{CategoryId, LocaleCode, SourceId};
@@ -103,9 +103,14 @@ async fn ingests_enabled_source_into_content_store() {
         ..Default::default()
     };
 
-    let result = execute_content_ingestion(&pool, &config, &app_paths(), &[])
-        .await
-        .expect("job");
+    let result = execute_content_ingestion(
+        &pool,
+        &config,
+        &app_paths(),
+        &ContentHooks::default(),
+    )
+    .await
+    .expect("job");
 
     assert!(result.success, "job should report success: {result:?}");
 
@@ -150,9 +155,14 @@ async fn relative_source_path_resolves_and_per_file_errors_are_logged() {
     };
 
     let paths = app_paths_rooted(root.path().to_str().expect("utf8 root"));
-    let result = execute_content_ingestion(&pool, &config, &paths, &[])
-        .await
-        .expect("job");
+    let result = execute_content_ingestion(
+        &pool,
+        &config,
+        &paths,
+        &ContentHooks::default(),
+    )
+    .await
+    .expect("job");
 
     // One file ingested, one per-file error aggregated; the job still succeeds.
     assert!(
@@ -198,9 +208,14 @@ async fn skill_sources_are_filtered_out() {
         ..Default::default()
     };
 
-    let result = execute_content_ingestion(&pool, &config, &app_paths(), &[])
-        .await
-        .expect("job");
+    let result = execute_content_ingestion(
+        &pool,
+        &config,
+        &app_paths(),
+        &ContentHooks::default(),
+    )
+    .await
+    .expect("job");
 
     // "skill" sources are excluded, leaving no enabled sources to process.
     assert!(result.success);
@@ -232,9 +247,14 @@ async fn disabled_source_yields_empty_result() {
         ..Default::default()
     };
 
-    let result = execute_content_ingestion(&pool, &config, &app_paths(), &[])
-        .await
-        .expect("job");
+    let result = execute_content_ingestion(
+        &pool,
+        &config,
+        &app_paths(),
+        &ContentHooks::default(),
+    )
+    .await
+    .expect("job");
     assert!(result.success);
     assert_eq!(
         result.message.as_deref(),
@@ -259,9 +279,14 @@ async fn missing_path_counts_as_error_but_job_succeeds() {
         ..Default::default()
     };
 
-    let result = execute_content_ingestion(&pool, &config, &app_paths(), &[])
-        .await
-        .expect("job");
+    let result = execute_content_ingestion(
+        &pool,
+        &config,
+        &app_paths(),
+        &ContentHooks::default(),
+    )
+    .await
+    .expect("job");
 
     // The job aggregates the missing path as one error but still completes.
     assert!(result.success);
@@ -276,9 +301,14 @@ async fn empty_config_short_circuits() {
     let pool: DbPool = test_db_pool().await;
 
     let config = ContentConfigRaw::default();
-    let result = execute_content_ingestion(&pool, &config, &app_paths(), &[])
-        .await
-        .expect("job");
+    let result = execute_content_ingestion(
+        &pool,
+        &config,
+        &app_paths(),
+        &ContentHooks::default(),
+    )
+    .await
+    .expect("job");
     assert!(result.success);
     assert_eq!(
         result.message.as_deref(),
