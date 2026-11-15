@@ -213,9 +213,9 @@ fn positional_arguments_survive_in_order() {
 }
 
 // Why: the export flag only means anything for a command that declares a
-// local export (the registered `fprobe report`). Treating it as local for any other command would
-// route a subprocess call back to the local profile and silently run it
-// against the wrong database.
+// local export (the registered `fprobe report`). Treating it as local for any
+// other command would route a subprocess call back to the local profile and
+// silently run it against the wrong database.
 #[test]
 fn the_export_flag_is_only_local_for_a_command_declaring_local_export() {
     let exporter = local_export_descriptor();

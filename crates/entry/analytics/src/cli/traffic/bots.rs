@@ -12,11 +12,8 @@ use systemprompt_runtime::DatabaseContext;
 use systemprompt_users::SessionTrafficRollupRepository;
 
 use super::{BotRow, BotsOutput};
-use systemprompt_cli::kernel::CliConfig;
-use crate::cli::shared::{
-    export_single_to_csv, format_date_range, parse_time_range,
-};
-use systemprompt_cli::kernel::CommandOutput;
+use crate::cli::shared::{export_single_to_csv, format_date_range, parse_time_range};
+use systemprompt_cli::kernel::{CliConfig, CommandOutput};
 
 #[derive(Debug, Args)]
 pub struct BotsArgs {

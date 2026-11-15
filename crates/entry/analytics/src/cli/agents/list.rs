@@ -11,9 +11,8 @@ use systemprompt_logging::CliService;
 use systemprompt_runtime::DatabaseContext;
 
 use super::{AgentListOutput, AgentListRow};
-use systemprompt_cli::kernel::CliConfig;
 use crate::cli::shared::{export_to_csv, parse_time_range};
-use systemprompt_cli::kernel::CommandOutput;
+use systemprompt_cli::kernel::{CliConfig, CommandOutput};
 
 #[derive(Debug, Clone, Copy, Default, ValueEnum)]
 pub enum AgentSortBy {

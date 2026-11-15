@@ -471,4 +471,3 @@ async fn prerender_pages_renders_homepage_when_template_exists() {
 fn content_repo(pool: &systemprompt_database::DbPool) -> systemprompt_content::ContentRepository {
     systemprompt_content::ContentRepository::new(pool)
 }
-

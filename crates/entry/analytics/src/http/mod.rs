@@ -6,11 +6,11 @@
 //! [`AnalyticsHttpState`]: the analytics repositories (session store
 //! included) and the analytics broadcaster the API kernel seeds, the loaded
 //! content configuration when one is configured, and the content catalog the
-//! `content` extension provides. An event that names no content id gets one from
-//! [`ContentResolver`]: the slug it carries, or the slug the loaded content
-//! configuration resolves its page URL to, looked up in that catalog. A failed
-//! lookup is logged and leaves the event without a content id; it never fails
-//! the request.
+//! `content` extension provides. An event that names no content id gets one
+//! from [`ContentResolver`]: the slug it carries, or the slug the loaded
+//! content configuration resolves its page URL to, looked up in that catalog. A
+//! failed lookup is logged and leaves the event without a content id; it never
+//! fails the request.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

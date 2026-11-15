@@ -383,4 +383,3 @@ async fn prerender_purge_refuses_slug_that_escapes_the_source_dir() {
 fn content_repo(pool: &systemprompt_database::DbPool) -> systemprompt_content::ContentRepository {
     systemprompt_content::ContentRepository::new(pool)
 }
-

@@ -19,7 +19,10 @@ pub use handlers::{BatchResponse, EngagementBatchInput};
 
 pub fn router(state: AnalyticsHttpState) -> Router {
     Router::new()
-        .route(ApiPaths::TRACK_ENGAGEMENT, post(handlers::record_engagement))
+        .route(
+            ApiPaths::TRACK_ENGAGEMENT,
+            post(handlers::record_engagement),
+        )
         .route(
             &format!("{}/batch", ApiPaths::TRACK_ENGAGEMENT),
             post(handlers::record_engagement_batch),

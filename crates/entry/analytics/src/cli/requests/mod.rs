@@ -19,8 +19,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::cli::shared::with_resolved_export;
-use systemprompt_cli::kernel::CommandContext;
-use systemprompt_cli::kernel::render_result;
+use systemprompt_cli::kernel::{CommandContext, render_result};
 
 /// `analytics requests` with no subcommand runs the stats aggregate.
 ///

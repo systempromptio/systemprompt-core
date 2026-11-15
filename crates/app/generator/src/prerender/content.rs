@@ -7,10 +7,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use futures::stream::{self, StreamExt};
-use systemprompt_traits::DynContentPopularity;
 use systemprompt_content::models::Content;
 use systemprompt_identifiers::LocaleCode;
 use systemprompt_models::{ContentSourceConfigRaw, SitemapConfig};
+use systemprompt_traits::DynContentPopularity;
 
 use crate::error::{GeneratorResult as Result, PublishError};
 use crate::prerender::context::PrerenderContext;

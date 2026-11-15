@@ -14,10 +14,10 @@ use systemprompt_content::ContentRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::LocaleCode;
 use systemprompt_manifest::Config;
-use systemprompt_traits::DynContentPopularity;
 use systemprompt_template_provider::{
     ComponentContext, DynPagePrerenderer, PageContext, PagePrepareContext,
 };
+use systemprompt_traits::DynContentPopularity;
 use tokio::fs;
 
 use crate::error::{GeneratorResult as Result, PublishError};

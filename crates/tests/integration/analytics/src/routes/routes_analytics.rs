@@ -37,7 +37,8 @@ async fn an_empty_batch_records_nothing() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
     let app = analytics_router(&ctx).layer(Extension(request_context("user_analytics")));
     let body = serde_json::json!({ "events": [] });
-    let (status, body) = body_to_string(app.oneshot(json_post("/events/batch", body)).await?).await?;
+    let (status, body) =
+        body_to_string(app.oneshot(json_post("/events/batch", body)).await?).await?;
     assert_eq!(status, StatusCode::CREATED, "{body}");
     let parsed: serde_json::Value = serde_json::from_str(&body)?;
     assert_eq!(parsed["recorded"], 0, "{body}");
@@ -55,7 +56,10 @@ async fn the_stream_answers_with_server_sent_events() -> anyhow::Result<()> {
         .get(header::CONTENT_TYPE)
         .and_then(|value| value.to_str().ok())
         .unwrap_or_default();
-    assert!(content_type.starts_with("text/event-stream"), "{content_type}");
+    assert!(
+        content_type.starts_with("text/event-stream"),
+        "{content_type}"
+    );
     Ok(())
 }
 

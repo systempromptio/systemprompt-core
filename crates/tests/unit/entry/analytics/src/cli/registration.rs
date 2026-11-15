@@ -36,7 +36,10 @@ fn both_commands_are_collected_from_their_registrations() {
         .map(|entry| entry.path().to_owned())
         .collect();
     assert!(paths.iter().any(|p| p == "analytics"), "{paths:?}");
-    assert!(paths.iter().any(|p| p == "core content popular"), "{paths:?}");
+    assert!(
+        paths.iter().any(|p| p == "core content popular"),
+        "{paths:?}"
+    );
 }
 
 #[test]
@@ -51,7 +54,11 @@ fn every_analytics_command_is_a_read_only_local_export_that_preserves_data() {
         assert!(descriptor.local_export(), "{args:?}");
         assert!(descriptor.database(), "{args:?}");
         assert!(descriptor.skip_validation(), "{args:?}");
-        assert_eq!(descriptor.routing_class(), RoutingClass::ReadOnly, "{args:?}");
+        assert_eq!(
+            descriptor.routing_class(),
+            RoutingClass::ReadOnly,
+            "{args:?}"
+        );
         assert_eq!(descriptor.data_impact(), DataImpact::Preserving, "{args:?}");
         assert!(!descriptor.cloud_operator(), "{args:?}");
         assert_eq!(resolved_routing(args), DbUrlRouting::Direct, "{args:?}");

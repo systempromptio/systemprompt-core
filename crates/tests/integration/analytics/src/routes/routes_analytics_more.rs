@@ -42,8 +42,8 @@ async fn record_event_resolves_content_via_routing() -> anyhow::Result<()> {
 async fn record_event_with_explicit_slug_skips_routing() -> anyhow::Result<()> {
     let (db, ctx) = setup_ctx().await?;
     let (slug, _page_url) = seed_content(&db).await?;
-    let app = analytics_router_with_routing(&ctx, None)
-        .layer(Extension(request_context("user_an_more")));
+    let app =
+        analytics_router_with_routing(&ctx, None).layer(Extension(request_context("user_an_more")));
 
     let body = serde_json::json!({
         "event_type": "page_view",
@@ -178,7 +178,9 @@ async fn engagement_batch_resolves_and_marks_conversion() -> anyhow::Result<()> 
             }
         ]
     });
-    let resp = app.oneshot(json_post("/track/engagement/batch", body)).await?;
+    let resp = app
+        .oneshot(json_post("/track/engagement/batch", body))
+        .await?;
     assert!(resp.status().as_u16() >= 200, "{}", resp.status());
     Ok(())
 }

@@ -20,8 +20,7 @@ use systemprompt_logging::CliService;
 use systemprompt_runtime::DatabaseContext;
 
 use super::shared::{CsvBuilder, parse_time_range};
-use systemprompt_cli::kernel::CliConfig;
-use systemprompt_cli::kernel::CommandOutput;
+use systemprompt_cli::kernel::{CliConfig, CommandOutput};
 
 #[derive(Debug, Args)]
 pub struct OverviewArgs {

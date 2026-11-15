@@ -12,11 +12,10 @@ use systemprompt_logging::CliService;
 use systemprompt_runtime::DatabaseContext;
 
 use super::{ToolTrendPoint, ToolTrendsOutput};
-use systemprompt_cli::kernel::CliConfig;
 use crate::cli::shared::{
     export_to_csv, format_date_range, format_period_label, parse_time_range, truncate_to_period,
 };
-use systemprompt_cli::kernel::{ChartType, CommandOutput};
+use systemprompt_cli::kernel::{ChartType, CliConfig, CommandOutput};
 use systemprompt_models::artifacts::{ChartArtifact, ChartDataset};
 
 #[derive(Debug, Args)]

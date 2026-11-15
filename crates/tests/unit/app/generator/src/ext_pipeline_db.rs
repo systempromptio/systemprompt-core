@@ -390,4 +390,3 @@ async fn validate_build_skips_unparseable_sitemap_urls() {
 fn content_repo(pool: &systemprompt_database::DbPool) -> systemprompt_content::ContentRepository {
     systemprompt_content::ContentRepository::new(pool)
 }
-

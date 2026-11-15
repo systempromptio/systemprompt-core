@@ -116,7 +116,10 @@ fn anonymous(method: Method, uri: &str) -> Request<Body> {
 #[test]
 fn the_routes_extension_carries_the_declared_id() {
     assert_eq!(AnalyticsHttpExtension.id(), ANALYTICS_HTTP_EXTENSION);
-    assert_eq!(AnalyticsHttpExtension.dependencies(), vec!["analytics", "content"]);
+    assert_eq!(
+        AnalyticsHttpExtension.dependencies(),
+        vec!["analytics", "content"]
+    );
 }
 
 #[tokio::test]
@@ -267,7 +270,11 @@ async fn disabling_the_routes_extension_unmounts_both_groups_and_keeps_the_analy
     }
 
     let state = ctx.extension_state();
-    assert!(state.find::<std::sync::Arc<AnalyticsRepositories>>().is_some());
+    assert!(
+        state
+            .find::<std::sync::Arc<AnalyticsRepositories>>()
+            .is_some()
+    );
     assert!(
         state.find::<DynSessionBehaviourScorer>().is_some(),
         "request recording keeps its behaviour scorer"

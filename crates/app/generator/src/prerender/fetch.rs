@@ -7,11 +7,11 @@
 use std::sync::Arc;
 
 use futures::stream::{self, StreamExt};
-use systemprompt_traits::DynContentPopularity;
 use systemprompt_content::ContentRepository;
 use systemprompt_content::models::Content;
 use systemprompt_identifiers::{LocaleCode, SourceId};
 use systemprompt_provider_contracts::{ContentDataContext, ContentDataProvider, Dependencies};
+use systemprompt_traits::DynContentPopularity;
 
 use crate::error::{GeneratorResult, PublishError};
 use crate::prerender::context::PrerenderContext;

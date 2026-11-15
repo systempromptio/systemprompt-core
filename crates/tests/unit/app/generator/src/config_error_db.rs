@@ -384,4 +384,3 @@ async fn prerender_content_with_closed_pool_is_fetch_error() {
 fn content_repo(pool: &systemprompt_database::DbPool) -> systemprompt_content::ContentRepository {
     systemprompt_content::ContentRepository::new(pool)
 }
-

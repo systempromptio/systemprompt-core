@@ -18,8 +18,8 @@ pub use agent::{
     GatewaySessionListRow, TimestampRow,
 };
 pub use content::{
-    BotTotalsRow, BotTypeRow, ContentStatsRow, ContentTrendRow, DeviceRow, GeoRow, PopularContentRow,
-    TopContentRow, TrafficNavigationRow, TrafficPageRow, TrafficSourceRow,
+    BotTotalsRow, BotTypeRow, ContentStatsRow, ContentTrendRow, DeviceRow, GeoRow,
+    PopularContentRow, TopContentRow, TrafficNavigationRow, TrafficPageRow, TrafficSourceRow,
 };
 pub use overview::{OverviewAgentRow, OverviewCostRow, OverviewRequestRow, OverviewToolRow};
 pub use request::{

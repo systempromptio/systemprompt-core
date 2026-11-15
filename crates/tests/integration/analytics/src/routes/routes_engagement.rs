@@ -12,8 +12,11 @@ async fn an_empty_batch_records_nothing() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
     let app = engagement_router(&ctx).layer(Extension(request_context("user_engagement")));
     let body = serde_json::json!({ "events": [] });
-    let (status, body) =
-        body_to_string(app.oneshot(json_post("/track/engagement/batch", body)).await?).await?;
+    let (status, body) = body_to_string(
+        app.oneshot(json_post("/track/engagement/batch", body))
+            .await?,
+    )
+    .await?;
     assert_eq!(status, StatusCode::OK, "{body}");
     let parsed: serde_json::Value = serde_json::from_str(&body)?;
     assert_eq!(parsed["recorded"], 0, "{body}");
@@ -89,8 +92,11 @@ mod recorded {
         let seeded = seeded(&db).await?;
         let app = engagement_router(&ctx).layer(Extension(seeded.req_ctx));
 
-        let (status, body) =
-            body_to_string(app.oneshot(json_post("/track/engagement", event("scroll"))).await?).await?;
+        let (status, body) = body_to_string(
+            app.oneshot(json_post("/track/engagement", event("scroll")))
+                .await?,
+        )
+        .await?;
 
         assert_eq!(status.as_u16(), 201, "{body}");
         Ok(())
@@ -106,8 +112,11 @@ mod recorded {
         );
         let app = engagement_router(&ctx).layer(Extension(seeded.req_ctx));
 
-        let (status, body) =
-            body_to_string(app.oneshot(json_post("/track/engagement", event("pricing_click"))).await?).await?;
+        let (status, body) = body_to_string(
+            app.oneshot(json_post("/track/engagement", event("pricing_click")))
+                .await?,
+        )
+        .await?;
         assert_eq!(status.as_u16(), 201, "{body}");
 
         assert!(
@@ -123,8 +132,11 @@ mod recorded {
         let seeded = seeded(&db).await?;
         let app = engagement_router(&ctx).layer(Extension(seeded.req_ctx));
 
-        let (status, _body) =
-            body_to_string(app.oneshot(json_post("/track/engagement", event("scroll"))).await?).await?;
+        let (status, _body) = body_to_string(
+            app.oneshot(json_post("/track/engagement", event("scroll")))
+                .await?,
+        )
+        .await?;
         assert_eq!(status.as_u16(), 201);
 
         assert!(
@@ -147,8 +159,11 @@ mod recorded {
             let seeded = seeded(&db).await?;
             let app = engagement_router(&ctx).layer(Extension(seeded.req_ctx));
 
-            let (status, body) =
-                body_to_string(app.oneshot(json_post("/track/engagement", event(event_type))).await?).await?;
+            let (status, body) = body_to_string(
+                app.oneshot(json_post("/track/engagement", event(event_type)))
+                    .await?,
+            )
+            .await?;
             assert_eq!(status.as_u16(), 201, "{event_type}: {body}");
             assert!(
                 converted(&db, &seeded.session).await?,

@@ -386,4 +386,3 @@ async fn rss_provider_fetch_items_for_blog_source_runs_repo() {
 fn content_repo(pool: &systemprompt_database::DbPool) -> systemprompt_content::ContentRepository {
     systemprompt_content::ContentRepository::new(pool)
 }
-

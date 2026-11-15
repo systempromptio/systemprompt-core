@@ -31,8 +31,8 @@ pub mod traffic;
 use anyhow::Result;
 use clap::Subcommand;
 use systemprompt_cli::kernel::{
-    CliCommandGroup, CommandContext, CommandDescriptor, DataImpact, DbUrlRouting,
-    DescribeCommand, render_result,
+    CliCommandGroup, CommandContext, CommandDescriptor, DataImpact, DbUrlRouting, DescribeCommand,
+    render_result,
 };
 
 use crate::cli::shared::with_resolved_export;

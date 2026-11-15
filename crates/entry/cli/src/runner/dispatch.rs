@@ -84,9 +84,7 @@ pub(super) async fn dispatch_command(selected: Selected, ctx: &CommandContext) -
         let accepted = match &selected {
             Selected::Kernel(command) => matches!(
                 **command,
-                args::Commands::Core(_)
-                    | args::Commands::Infra(_)
-                    | args::Commands::Admin(_)
+                args::Commands::Core(_) | args::Commands::Infra(_) | args::Commands::Admin(_)
             ),
             Selected::Registered(registered) => registered.db_url_routing() == DbUrlRouting::Direct,
             Selected::Bare(_) => {

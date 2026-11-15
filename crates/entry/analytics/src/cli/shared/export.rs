@@ -47,10 +47,7 @@ pub fn resolve_export_option(
 macro_rules! with_resolved_export {
     ($args:ident, $ctx:expr) => {{
         let mut resolved = $args;
-        resolved.export = $crate::cli::shared::resolve_export_option(
-            resolved.export.take(),
-            $ctx,
-        )?;
+        resolved.export = $crate::cli::shared::resolve_export_option(resolved.export.take(), $ctx)?;
         resolved
     }};
 }
