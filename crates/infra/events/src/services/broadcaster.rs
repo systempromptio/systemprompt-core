@@ -18,8 +18,11 @@ use std::marker::PhantomData;
 use std::sync::{Arc, PoisonError, RwLock};
 use std::time::Duration;
 use systemprompt_identifiers::{ConnectionId, UserId};
+use systemprompt_traits::events::SseFrame;
+use tokio::sync::mpsc::Sender;
 use tokio::sync::mpsc::error::TrySendError;
 
+use crate::sse::frame_event;
 use crate::{Broadcaster, EventSender, ToSse};
 
 pub const HEARTBEAT_JSON: &str = r#"{"type":"heartbeat"}"#;
@@ -32,7 +35,31 @@ pub fn standard_keep_alive() -> KeepAlive {
         .event(Event::default().event("heartbeat").data(HEARTBEAT_JSON))
 }
 
-type Registry = HashMap<UserId, HashMap<ConnectionId, EventSender>>;
+type Registry = HashMap<UserId, HashMap<ConnectionId, Subscriber>>;
+
+#[derive(Clone)]
+pub(super) enum Subscriber {
+    Event(EventSender),
+    Frame(Sender<SseFrame>),
+}
+
+impl Subscriber {
+    fn try_send(&self, frame: &SseFrame) -> Result<(), TrySendError<()>> {
+        match self {
+            Self::Event(sender) => sender
+                .try_send(Ok(frame_event(frame.clone())))
+                .map_err(discard),
+            Self::Frame(sender) => sender.try_send(frame.clone()).map_err(discard),
+        }
+    }
+}
+
+fn discard<T>(error: TrySendError<T>) -> TrySendError<()> {
+    match error {
+        TrySendError::Full(_) => TrySendError::Full(()),
+        TrySendError::Closed(_) => TrySendError::Closed(()),
+    }
+}
 
 pub struct GenericBroadcaster<E: ToSse + Clone + Send + Sync> {
     connections: Arc<RwLock<Registry>>,
@@ -68,6 +95,13 @@ impl<E: ToSse + Clone + Send + Sync> GenericBroadcaster<E> {
             connections.len(),
             connections.values().map(HashMap::len).sum(),
         )
+    }
+
+    pub(super) fn shared(&self) -> Self {
+        Self {
+            connections: Arc::clone(&self.connections),
+            _phantom: PhantomData,
+        }
     }
 
     fn read(&self) -> std::sync::RwLockReadGuard<'_, Registry> {
@@ -108,7 +142,7 @@ impl<E: ToSse + Clone + Send + Sync + 'static> Broadcaster for GenericBroadcaste
         connection_id: &ConnectionId,
         sender: EventSender,
     ) -> impl Future<Output = bool> + Send {
-        std::future::ready(self.register_now(user_id, connection_id, sender))
+        std::future::ready(self.register_now(user_id, connection_id, Subscriber::Event(sender)))
     }
 
     fn unregister(
@@ -138,11 +172,11 @@ impl<E: ToSse + Clone + Send + Sync + 'static> Broadcaster for GenericBroadcaste
 }
 
 impl<E: ToSse + Clone + Send + Sync + 'static> GenericBroadcaster<E> {
-    fn register_now(
+    pub(super) fn register_now(
         &self,
         user_id: &UserId,
         connection_id: &ConnectionId,
-        sender: EventSender,
+        sender: Subscriber,
     ) -> bool {
         let mut connections = self.write();
         let user_connections = connections.entry(user_id.clone()).or_default();
@@ -163,7 +197,7 @@ impl<E: ToSse + Clone + Send + Sync + 'static> GenericBroadcaster<E> {
     }
 
     fn broadcast_now(&self, user_id: &UserId, event: &E) -> usize {
-        let sse_event: Event = match event.to_sse() {
+        let frame: SseFrame = match event.to_frame() {
             Ok(e) => e,
             Err(e) => {
                 tracing::error!(error = %e, event_type = ?std::any::type_name_of_val(&event), "Failed to serialize SSE event");
@@ -171,7 +205,7 @@ impl<E: ToSse + Clone + Send + Sync + 'static> GenericBroadcaster<E> {
             },
         };
 
-        let senders: Vec<(ConnectionId, EventSender)> = {
+        let senders: Vec<(ConnectionId, Subscriber)> = {
             let connections = self.read();
             match connections.get(user_id) {
                 Some(user_connections) => user_connections
@@ -187,7 +221,7 @@ impl<E: ToSse + Clone + Send + Sync + 'static> GenericBroadcaster<E> {
         // one. Its sender is dropped so the stream ends and the client
         // reconnects, instead of silently receiving heartbeats only.
         for (conn_id, sender) in senders {
-            match sender.try_send(Ok(sse_event.clone())) {
+            match sender.try_send(&frame) {
                 Ok(()) => successful += 1,
                 Err(TrySendError::Closed(_)) => self.remove_connection(user_id, &conn_id),
                 Err(TrySendError::Full(_)) => {

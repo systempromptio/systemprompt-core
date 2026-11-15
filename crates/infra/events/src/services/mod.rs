@@ -15,6 +15,7 @@ mod origin;
 mod outbox_channel;
 mod repository;
 mod routing;
+mod subscription;
 mod topics;
 
 pub use bridge::PostgresEventBridge;
@@ -33,4 +34,5 @@ pub use routing::{
     BroadcasterConnections, EventBroadcasters, EventRouter, NOTIFICATION_FACTS_CHANNEL,
     OUTBOX_CHANNEL, OutboxChannel,
 };
+pub use subscription::AnalyticsSubscriptions;
 pub use topics::{RELAY_LOST_EVENT, TOPIC_BUFFER, TopicBroadcaster, TopicEvent, relay_lost_event};
