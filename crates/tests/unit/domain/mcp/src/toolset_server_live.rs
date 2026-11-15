@@ -1,5 +1,7 @@
 use std::sync::{Arc, Mutex};
 
+use std::sync::Arc;
+use systemprompt_mcp::services::ui_renderer::UiRendererRegistry;
 use async_trait::async_trait;
 use rmcp::model::{
     CallToolResult, ListResourcesResult, ReadResourceRequestParams, ReadResourceResult, Resource,
@@ -168,6 +170,7 @@ async fn parts(
         Arc::new(ToolUsageRepository::new(&db)),
         Arc::new(systemprompt_ai::repository::AiRequestRepository::new(&db)),
         Arc::new(ArtifactIngest::from_db(&db, None)),
+        Arc::new(UiRendererRegistry::with_builtins()),
         server_id.clone(),
     );
     let subjects = groups.map_or_else(SubjectProviderSet::default, |values| {

@@ -1,21 +1,19 @@
 use anyhow::Result;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use axum::{Extension, Router};
+use axum::Router;
 use serde_json::json;
-use systemprompt_agent_runs_entry::http::{AgentRunsState, router};
 use systemprompt_test_fixtures::seed_admin_credential;
 
 use super::engine::{Fixture, get, send, sweep};
 use super::table::Family;
-use crate::common::{json_post, request_context, setup_ctx};
+use crate::common::{json_post, setup_ctx};
+use crate::routes_agent_runs::{Runs as RunRoutes, agent_runs};
 
 const ORIGIN: &str = "sp_test_ownership_sweep";
 
-systemprompt_agent_runs::register_run_origin!(ORIGIN);
-
 struct Runs {
-    state: AgentRunsState,
+    state: RunRoutes,
     owner: String,
     stranger: String,
     id: String,
@@ -23,11 +21,11 @@ struct Runs {
 
 impl Fixture for Runs {
     fn owner(&self) -> Router {
-        router(self.state.clone()).layer(Extension(request_context(&self.owner)))
+        self.state.as_user(&self.owner)
     }
 
     fn stranger(&self) -> Router {
-        router(self.state.clone()).layer(Extension(request_context(&self.stranger)))
+        self.state.as_user(&self.stranger)
     }
 
     fn resource(&self) -> &str {
@@ -44,7 +42,7 @@ async fn a_second_user_is_refused_every_owned_agent_run_route() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
     let owner = seed_admin_credential(&pool, "sweep-run-owner").await?;
     let stranger = seed_admin_credential(&pool, "sweep-run-stranger").await?;
-    let state = AgentRunsState::from_extension(&*ctx)?;
+    let state = agent_runs(&pool, &ctx, &[ORIGIN])?;
     let body = json!({
         "origin_kind": ORIGIN,
         "idempotency_key": format!("sweep-{}", owner.user_id),
@@ -58,7 +56,7 @@ async fn a_second_user_is_refused_every_owned_agent_run_route() -> Result<()> {
         }
     });
     let created = send(
-        router(state.clone()).layer(Extension(request_context(owner.user_id.as_str()))),
+        state.as_user(owner.user_id.as_str()),
         json_post("/", body),
     )
     .await?;

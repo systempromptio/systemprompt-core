@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use systemprompt_mcp::services::ui_renderer::UiRendererRegistry;
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolRequestParams, CallToolResult};
 use serde_json::{Map, Value, json};
@@ -20,6 +21,7 @@ pub(crate) async fn executor(server: &str) -> McpToolExecutor {
         Arc::new(ToolUsageRepository::new(&db)),
         Arc::new(AiRequestRepository::new(&db)),
         Arc::new(ArtifactIngest::from_db(&db, None)),
+        Arc::new(UiRendererRegistry::with_builtins()),
         McpServerId::new(server),
     )
 }

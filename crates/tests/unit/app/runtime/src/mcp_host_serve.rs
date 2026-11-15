@@ -3,7 +3,7 @@ use std::sync::{Arc, OnceLock};
 use systemprompt_identifiers::McpServerId;
 use systemprompt_mcp_host::HostContext;
 use systemprompt_mcp_host::toolsets::{
-    DOCUMENTS_TOOLSET, ISSUES_TOOLSET, McpHostError, build_server, registered_toolset_ids, serve,
+    ISSUES_TOOLSET, McpHostError, build_server, serve,
     serve_on,
 };
 use systemprompt_test_fixtures::{TestBootstrap, host_child_env, init_services_bootstrap};
@@ -86,13 +86,6 @@ async fn ctx() -> Arc<HostContext> {
             .await
             .expect("host context from the child environment"),
     )
-}
-
-#[test]
-fn core_registers_the_issues_and_documents_toolsets() {
-    let ids = registered_toolset_ids();
-    assert!(ids.contains(&ISSUES_TOOLSET), "{ids:?}");
-    assert!(ids.contains(&DOCUMENTS_TOOLSET), "{ids:?}");
 }
 
 #[tokio::test]

@@ -1,11 +1,8 @@
-// Registering an `ArtifactTheme` for this test binary. Registration is
-// compile-time via `inventory`, so a theme declared here is the theme for every
-// artifact this binary renders — which is the only way to reach
-// `active_theme`'s Some path and the theme-injection branches in the HTML shell
-// builder.
+// A theme set on the renderer registry (what `UiSlot::build` does with the
+// one contributed theme) is applied to every artifact the registry renders,
+// and an unthemed registry leaves the shell untouched (the negative control).
 
-use systemprompt_mcp::services::ui_renderer::templates::TableRenderer;
-use systemprompt_mcp::services::ui_renderer::{ArtifactTheme, UiRenderer, active_theme};
+use systemprompt_mcp::services::ui_renderer::{ArtifactTheme, UiRendererRegistry};
 use systemprompt_models::{A2aArtifact as Artifact, ArtifactMetadata, Part};
 
 const HARNESS_TOKENS: &str = "--mcpui-accent: #ff00aa;";
@@ -14,8 +11,6 @@ const HARNESS_EXTRA_CSS: &str = ".harness-marker { display: none; }";
 fn harness_theme() -> ArtifactTheme {
     ArtifactTheme::new(HARNESS_TOKENS).with_extra_css(HARNESS_EXTRA_CSS)
 }
-
-systemprompt_mcp::register_artifact_theme!(harness_theme, name = "mcp_tests_harness");
 
 fn table_artifact() -> Artifact {
     let metadata = ArtifactMetadata::new(
@@ -53,18 +48,12 @@ fn artifact_theme_carries_its_tokens_and_optional_extra_css() {
 }
 
 #[test]
-fn active_theme_resolves_the_theme_registered_by_this_binary() {
-    let theme = active_theme().expect("this binary registers a theme");
-    assert_eq!(theme.tokens, HARNESS_TOKENS);
-    assert_eq!(theme.extra_css, HARNESS_EXTRA_CSS);
-}
+fn a_themed_registry_applies_its_theme_to_every_rendered_artifact() {
+    let mut registry = UiRendererRegistry::with_builtins();
+    registry.set_theme(harness_theme());
+    assert_eq!(registry.theme().map(|t| t.tokens), Some(HARNESS_TOKENS));
 
-#[tokio::test]
-async fn a_registered_theme_is_injected_into_every_rendered_artifact() {
-    let html = TableRenderer::new()
-        .render(&table_artifact())
-        .expect("render")
-        .html;
+    let html = registry.render(&table_artifact()).expect("render").html;
 
     assert!(
         html.contains(HARNESS_TOKENS),
@@ -77,12 +66,30 @@ async fn a_registered_theme_is_injected_into_every_rendered_artifact() {
 
     let tokens_at = html.find(HARNESS_TOKENS).expect("tokens present");
     let extra_at = html.find(HARNESS_EXTRA_CSS).expect("extra css present");
+    let renderer_css_at = html.find(".table").unwrap_or(extra_at);
     assert!(
         tokens_at < extra_at,
         "tokens land in :root first so extra CSS can override them"
     );
     assert!(
+        tokens_at < renderer_css_at,
+        "the theme's tokens precede the renderer's stylesheet"
+    );
+    assert!(
         html[..tokens_at].contains(":root"),
         "the theme tokens are wrapped in a :root block"
     );
+    assert!(
+        extra_at < html.find("</head>").expect("head closes"),
+        "the extra CSS stays in the document head"
+    );
+}
+
+#[test]
+fn an_unthemed_registry_declares_no_theme() {
+    let registry = UiRendererRegistry::with_builtins();
+    assert!(registry.theme().is_none());
+    let html = registry.render(&table_artifact()).expect("render").html;
+    assert!(!html.contains(HARNESS_TOKENS));
+    assert!(!html.contains(HARNESS_EXTRA_CSS));
 }

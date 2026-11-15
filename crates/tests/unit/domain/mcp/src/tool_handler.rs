@@ -3,6 +3,7 @@
 // parse, response build) via a real in-test handler. DB-backed parts run
 // behind the fixture skip-guard; the schema/trait parts are pure.
 
+use systemprompt_mcp::services::ui_renderer::UiRendererRegistry;
 use std::sync::Arc;
 use systemprompt_identifiers::McpServerId;
 
@@ -145,6 +146,7 @@ async fn execute_success_records_and_returns_result() {
         tool_repo,
         intents(&db),
         art_repo,
+        Arc::new(UiRendererRegistry::with_builtins()),
         McpServerId::new("srv-echo"),
     );
 
@@ -169,6 +171,7 @@ async fn execute_handler_error_propagates() {
         tool_repo,
         intents(&db),
         art_repo,
+        Arc::new(UiRendererRegistry::with_builtins()),
         McpServerId::new("srv-fail"),
     );
 
@@ -196,6 +199,7 @@ async fn execute_input_parse_error_returns_invalid_params() {
         tool_repo,
         intents(&db),
         art_repo,
+        Arc::new(UiRendererRegistry::with_builtins()),
         McpServerId::new("srv-bad"),
     );
 

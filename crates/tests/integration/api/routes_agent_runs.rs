@@ -1,19 +1,66 @@
 //! `/api/v1/agent-runs`: origin registration, idempotent enqueue, server-owned
 //! paths and per-user scoping, driven through the router.
 
+use std::sync::Arc;
+
 use anyhow::Result;
 use axum::{Extension, Router};
 use http::StatusCode;
 use serde_json::{Value, json};
-use systemprompt_agent_runs_entry::http::{AgentRunsState, router};
-use systemprompt_test_fixtures::seed_admin_credential;
+use systemprompt_agent_runs::AgentRunRepository;
+use systemprompt_agent_runs::origin::AdmittedRunOrigins;
+use systemprompt_agent_runs_entry::http::routes;
+use systemprompt_database::DbPool;
+use systemprompt_runtime::{AppContext, Kernel};
+use systemprompt_test_fixtures::{fixture_kernel, seed_admin_credential};
+use systemprompt_traits::Dependencies;
 use tower::ServiceExt;
 
 use super::common::{body_to_string, empty_get, json_post, request_context, setup_ctx};
 
 const ORIGIN: &str = "sp_test_api_origin";
+const ORIGINS: &[&str] = &[ORIGIN, STREAM_ORIGIN, OUTPUTS_ORIGIN, CLAIM_ORIGIN];
 
-systemprompt_agent_runs::register_run_origin!(ORIGIN);
+#[derive(Clone)]
+pub(crate) struct Runs {
+    router: Router,
+    runs: AgentRunRepository,
+    _kernel: Arc<Kernel>,
+}
+
+impl Runs {
+    pub(crate) const fn runs(&self) -> &AgentRunRepository {
+        &self.runs
+    }
+
+    pub(crate) fn as_user(&self, user: &str) -> Router {
+        self.router.clone().layer(Extension(request_context(user)))
+    }
+}
+
+pub(crate) fn agent_runs(
+    pool: &DbPool,
+    ctx: &AppContext,
+    origins: &[&'static str],
+) -> Result<Runs> {
+    let runs = AgentRunRepository::new(pool);
+    let seed = Dependencies::default()
+        .with(Arc::clone(pool))
+        .with(Arc::clone(ctx.app_paths_arc()))
+        .with(systemprompt_extension::ExtensionContext::app_config(ctx))
+        .with(runs.clone())
+        .with(AdmittedRunOrigins::new(origins.iter().copied()));
+    let kernel = Arc::new(fixture_kernel(pool, seed));
+    let router = routes()
+        .materialize(&kernel.resolved())?
+        .into_iter()
+        .fold(Router::new(), Router::merge);
+    Ok(Runs {
+        router,
+        runs,
+        _kernel: kernel,
+    })
+}
 
 fn request(prompt: &str) -> Value {
     json!({
@@ -26,8 +73,8 @@ fn request(prompt: &str) -> Value {
     })
 }
 
-fn app(state: AgentRunsState, user: &str) -> Router {
-    router(state).layer(Extension(request_context(user)))
+fn app(state: Runs, user: &str) -> Router {
+    state.as_user(user)
 }
 
 async fn send(app: Router, req: http::Request<axum::body::Body>) -> Result<(StatusCode, Value)> {
@@ -41,7 +88,7 @@ async fn enqueue_is_idempotent_and_scoped_to_the_caller() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
     let owner = seed_admin_credential(&pool, "agent-runs-owner").await?;
     let other = seed_admin_credential(&pool, "agent-runs-other").await?;
-    let state = AgentRunsState::from_extension(&*ctx)?;
+    let state = agent_runs(&pool, &ctx, ORIGINS)?;
     let user = owner.user_id.as_str();
     let key = format!("key-{}", owner.user_id);
 
@@ -99,7 +146,7 @@ async fn enqueue_is_idempotent_and_scoped_to_the_caller() -> Result<()> {
 async fn enqueue_refuses_unregistered_origins_and_server_paths() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
     let owner = seed_admin_credential(&pool, "agent-runs-refuse").await?;
-    let state = AgentRunsState::from_extension(&*ctx)?;
+    let state = agent_runs(&pool, &ctx, ORIGINS)?;
     let user = owner.user_id.as_str();
 
     let unregistered =
@@ -128,7 +175,7 @@ async fn the_event_stream_replays_from_last_event_id_and_ends_on_a_terminal_run(
     };
     let (pool, ctx) = setup_ctx().await?;
     let owner = seed_admin_credential(&pool, "agent-runs-stream").await?;
-    let state = AgentRunsState::from_extension(&*ctx)?;
+    let state = agent_runs(&pool, &ctx, ORIGINS)?;
     let user = owner.user_id.as_str();
     let body = json!({ "origin_kind": STREAM_ORIGIN, "idempotency_key": format!("stream-{user}"), "request": request("s") });
     let (_, created) = send(app(state.clone(), user), json_post("/", body)).await?;
@@ -197,18 +244,12 @@ async fn the_event_stream_replays_from_last_event_id_and_ends_on_a_terminal_run(
 
 const STREAM_ORIGIN: &str = "sp_test_api_stream_origin";
 
-systemprompt_agent_runs::register_run_origin!(STREAM_ORIGIN);
-
 const OUTPUTS_ORIGIN: &str = "sp_test_api_outputs_origin";
-
-systemprompt_agent_runs::register_run_origin!(OUTPUTS_ORIGIN);
 
 const CLAIM_ORIGIN: &str = "sp_test_api_claim_origin";
 
-systemprompt_agent_runs::register_run_origin!(CLAIM_ORIGIN);
-
 async fn claim(
-    state: &AgentRunsState,
+    state: &Runs,
     origin: &str,
     id: &systemprompt_identifiers::AgentRunId,
 ) -> Result<systemprompt_agent_runs::repository::Lease> {
@@ -228,7 +269,7 @@ async fn claim(
 async fn outputs_are_listed_and_read_from_the_run_directory_only() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
     let owner = seed_admin_credential(&pool, "agent-runs-outputs").await?;
-    let state = AgentRunsState::from_extension(&*ctx)?;
+    let state = agent_runs(&pool, &ctx, ORIGINS)?;
     let user = owner.user_id.as_str();
     let body = json!({
         "origin_kind": OUTPUTS_ORIGIN,
@@ -309,7 +350,7 @@ async fn outputs_are_listed_and_read_from_the_run_directory_only() -> Result<()>
 async fn cancelling_a_claimed_run_records_the_request() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
     let owner = seed_admin_credential(&pool, "agent-runs-cancel-claimed").await?;
-    let state = AgentRunsState::from_extension(&*ctx)?;
+    let state = agent_runs(&pool, &ctx, ORIGINS)?;
     let user = owner.user_id.as_str();
     let origin = CLAIM_ORIGIN;
     let body = json!({
