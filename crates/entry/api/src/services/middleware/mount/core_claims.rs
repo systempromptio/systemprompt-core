@@ -1,5 +1,7 @@
 //! Claims: [`admit_extensions`] judges every extension declaration
-//! together, after each has passed `admit_extension`.
+//! together, after each has passed `admit_extension`. Its caller has already
+//! run `admit_core_owners` over every registered extension, so the ids it
+//! judges by are bound to their owning types.
 //!
 //! Each core row of an owner that declares any router is claimed by exactly
 //! one of that owner's declarations, and each declaration claims at most one

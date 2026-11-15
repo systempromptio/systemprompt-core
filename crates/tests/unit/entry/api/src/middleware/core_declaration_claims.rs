@@ -4,7 +4,10 @@
 //! router and a duplicated one all refuse boot; and a claimed router is
 //! bounded to its row's route pins, so a signed-in route served from the
 //! public router, or any route a pinned router adds outside its pins,
-//! answers 404.
+//! answers 404. The pins are also checked on the tree the production mount
+//! builds (both content routers nested at `/api/v1/content`, the redirect
+//! merged at the web root), so a pin layer that saw the unstripped path
+//! would fail it.
 
 use std::sync::Arc;
 
@@ -13,9 +16,10 @@ use axum::body::Body;
 use axum::http::{Method, Request, StatusCode};
 use axum::routing::{get, post};
 use systemprompt_api::services::middleware::{
-    CoreDeclaration, MountError, PinnedMethod, RoutePin, admit_extensions,
+    CoreDeclaration, MountError, PinnedMethod, RoutePin, admit_extensions, place,
 };
-use systemprompt_extension::registry::ApiRouter;
+use systemprompt_models::modules::ApiPaths;
+use systemprompt_extension::registry::{ApiRouter, WEB_ROOT_BASE_PATH};
 use systemprompt_extension::{Extension, ExtensionMetadata, ExtensionRouter};
 use tower::ServiceExt;
 
@@ -240,6 +244,82 @@ async fn each_content_router_answers_only_its_own_rows_routes() {
     assert_eq!(status(redirect, Method::GET, "/r/abc").await, StatusCode::OK);
     assert_eq!(
         status(redirect, Method::GET, "/oauth/escape").await,
+        StatusCode::NOT_FOUND
+    );
+}
+
+async fn answer(router: &Router, method: Method, uri: &str) -> (StatusCode, String) {
+    let response = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(method)
+                .uri(uri)
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("infallible");
+    let status = response.status();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("body");
+    (status, String::from_utf8_lossy(&body).into_owned())
+}
+
+#[tokio::test]
+async fn the_pins_hold_on_the_tree_the_production_mount_builds() {
+    let routers = admitted_routers(
+        Router::new()
+            .route("/links", get(|| async { "public links" }))
+            .route("/links/journey", get(|| async { "public journey" }))
+            .route("/links/{link_id}", get(|| async { "public link" })),
+        Router::new()
+            .route("/links/generate", post(|| async { "signed-in generate" }))
+            .route("/links/other", post(|| async { "signed-in outside the pins" })),
+        Router::new()
+            .route("/r/{code}", get(|| async { "redirect" }))
+            .route("/oauth/escape", get(|| async { "redirect outside the pins" })),
+    );
+    let [public, signed_in, redirect] = <[Router; 3]>::try_from(routers).expect("three routers");
+    let tree = place(Router::new(), ApiPaths::CONTENT_BASE, public);
+    let tree = place(tree, ApiPaths::CONTENT_BASE, signed_in);
+    let tree = place(tree, WEB_ROOT_BASE_PATH, redirect);
+
+    assert_eq!(
+        answer(&tree, Method::POST, "/api/v1/content/links/generate").await,
+        (StatusCode::OK, "signed-in generate".to_owned()),
+        "the signed-in pin matches the path relative to the nest"
+    );
+    assert_eq!(
+        answer(&tree, Method::GET, "/api/v1/content/links").await,
+        (StatusCode::OK, "public links".to_owned())
+    );
+    assert_eq!(
+        answer(&tree, Method::GET, "/api/v1/content/links/journey").await,
+        (StatusCode::OK, "public journey".to_owned())
+    );
+    assert_eq!(
+        answer(&tree, Method::GET, "/api/v1/content/links/abc").await,
+        (StatusCode::OK, "public link".to_owned())
+    );
+    let (status, body) = answer(&tree, Method::GET, "/api/v1/content/links/generate").await;
+    assert_ne!(status, StatusCode::OK, "{body}");
+    assert_ne!(body, "public link");
+    assert_eq!(
+        answer(&tree, Method::POST, "/api/v1/content/links/other").await.0,
+        StatusCode::NOT_FOUND
+    );
+    assert_eq!(
+        answer(&tree, Method::GET, "/r/x").await,
+        (StatusCode::OK, "redirect".to_owned())
+    );
+    assert_eq!(
+        answer(&tree, Method::GET, "/oauth/escape").await.0,
+        StatusCode::NOT_FOUND
+    );
+    assert_eq!(
+        answer(&tree, Method::GET, "/api/v1/content/r/x").await.0,
         StatusCode::NOT_FOUND
     );
 }

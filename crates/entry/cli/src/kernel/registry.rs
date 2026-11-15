@@ -40,8 +40,12 @@
 //! A [`KernelGrant`] relaxes a requirement the runner imposes, so the kernel
 //! holds the closed list of registration paths allowed each one:
 //! `cloud` → cloud-operator, `analytics` → local-export and skip-validation,
-//! `admin mcp` → child-host. A registration declaring a grant the list does
-//! not give its path is refused ([`RegistryError::GrantNotListed`]), and a
+//! `admin mcp` → child-host. Each listed path is reserved for one owning
+//! type (its `std::any::type_name`); a registration there by any other type
+//! is refused whether or not it declares a grant
+//! ([`RegistryError::ReservedPath`]). A registration declaring a grant the
+//! list does not give its path and type is refused
+//! ([`RegistryError::GrantNotListed`]), and a
 //! parsed descriptor holding a grant its registration did not declare is
 //! refused at resolution ([`RegistryError::UndeclaredGrant`]).
 //!
@@ -54,7 +58,7 @@ use super::command::{
     CliCommandGroup, CliCommandLeaf, RegisteredCommand, group_command, leaf_command, resolve_group,
     resolve_leaf,
 };
-use super::grants::{KernelGrant, listed_for};
+use super::grants::{KernelGrant, listed_for, reserved_at};
 use super::registry_error::{RegistryError, ResolveError};
 
 /// One `inventory` submission: a type-erased [`CliCommandGroup`].
@@ -127,7 +131,6 @@ impl CliCommandRegistration {
         path.split_last()
             .is_some_and(|(name, parent)| *name == self.name && parent == self.parent)
     }
-
 }
 
 #[macro_export]
@@ -180,11 +183,22 @@ impl CommandRegistry {
                 second,
             });
         }
+        if let Some((entry, owner)) = entries.iter().find_map(|entry| {
+            reserved_at(entry.parent, entry.name)
+                .filter(|reserved| reserved.owner() != entry.group())
+                .map(|reserved| (entry, reserved.owner()))
+        }) {
+            return Err(RegistryError::ReservedPath {
+                path: entry.path(),
+                group: entry.group(),
+                owner,
+            });
+        }
         if let Some((entry, grant)) = entries.iter().find_map(|entry| {
             entry
                 .grants
                 .iter()
-                .find(|grant| !listed_for(entry.parent, entry.name, **grant))
+                .find(|grant| !listed_for(entry.parent, entry.name, entry.group(), **grant))
                 .map(|grant| (entry, *grant))
         }) {
             return Err(RegistryError::GrantNotListed {

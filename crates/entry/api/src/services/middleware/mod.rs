@@ -51,7 +51,8 @@ pub use load_shed::LoadShed;
 pub use mount::{
     Allowance, ClientWritesGuard, CoreDeclaration, CoreDeclarer, CoreShapeField,
     DEFAULT_BODY_LIMIT_BYTES, KernelHandle, MountError, MountLayers, PinnedMethod,
-    ProtectionGuards, RoutePin, SiteAuthGuard, admit_extension, admit_extensions,
+    ProtectionGuards, RoutePin, SiteAuthGuard, admit_core_owner, admit_core_owners,
+    admit_extension, admit_extensions,
     admit_gateway_route, confined, excluding, extension_built, extension_served,
     gateway_protection, hand_kernel_handles, kernel_handles_for, mount, path_under, pinned, place,
     protect, refuse_overlap,

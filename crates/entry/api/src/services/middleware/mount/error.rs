@@ -84,6 +84,16 @@ pub enum MountError {
     },
 
     #[error(
+        "extension '{extension}' is implemented by `{type_name}`, but its id names core route \
+         rows owned by `{owner}`"
+    )]
+    CoreOwnerImpostor {
+        extension: &'static str,
+        type_name: &'static str,
+        owner: &'static str,
+    },
+
+    #[error(
         "extension '{extension}' declares no router for its core declaration row {row:?}, or \
          declares it with another base path, group or shape"
     )]

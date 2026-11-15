@@ -27,6 +27,14 @@ pub enum RegistryError {
         parent: &'static str,
     },
     #[error(
+        "CLI command `{path}` is reserved for `{owner}` and cannot be registered by `{group}`"
+    )]
+    ReservedPath {
+        path: String,
+        group: &'static str,
+        owner: &'static str,
+    },
+    #[error(
         "CLI command `{path}` registered by `{group}` declares `{grant}`, which the kernel does \
          not grant to that path"
     )]

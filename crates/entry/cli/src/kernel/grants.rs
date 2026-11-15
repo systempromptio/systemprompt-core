@@ -1,8 +1,15 @@
 //! The descriptor capabilities that relax a runner requirement, and the
-//! closed list of registration paths allowed each one.
+//! closed list of registration paths allowed each one, each bound to the
+//! one Rust type that may register there.
 //!
-//! `cloud` → cloud-operator; `analytics` → local-export and skip-validation;
-//! `admin mcp` → child-host. No registration path holds serves-api or any
+//! `cloud` (`systemprompt_cloud_entry::cli::CloudCommands`) → cloud-operator;
+//! `analytics` (`systemprompt_analytics_entry::cli::AnalyticsCommands`) →
+//! local-export and skip-validation; `admin mcp`
+//! (`systemprompt_cli::commands::admin::mcp::McpHostCommands`) → child-host.
+//! A listed path is reserved for its owner: another type registering there is
+//! refused, with or without grants. The owner is the fully-qualified Rust
+//! type path of the registered group or leaf (`std::any::type_name`), which
+//! only the crate that defines the type produces. No registration path holds serves-api or any
 //! other grant. The kernel's own commands set their flags directly:
 //! `admin session` (cloud-operator), `admin agents run` (child-host),
 //! `infra services serve` (serves-api), and the `infra` and `admin session
@@ -64,18 +71,50 @@ impl std::fmt::Display for KernelGrant {
     }
 }
 
-const KERNEL_GRANTS: &[(&[&str], KernelGrant)] = &[
-    (&["admin", "mcp"], KernelGrant::ChildHost),
-    (&["analytics"], KernelGrant::LocalExport),
-    (&["analytics"], KernelGrant::SkipValidation),
-    (&["cloud"], KernelGrant::CloudOperator),
+#[derive(Debug, Clone, Copy)]
+pub(super) struct ReservedPath {
+    path: &'static [&'static str],
+    owner: &'static str,
+    grants: &'static [KernelGrant],
+}
+
+impl ReservedPath {
+    pub(super) const fn owner(&self) -> &'static str {
+        self.owner
+    }
+
+    fn is_at(&self, parent: &[&str], name: &str) -> bool {
+        self.path
+            .split_last()
+            .is_some_and(|(last, head)| *last == name && head == parent)
+    }
+}
+
+const RESERVED_PATHS: &[ReservedPath] = &[
+    ReservedPath {
+        path: &["admin", "mcp"],
+        owner: "systemprompt_cli::commands::admin::mcp::McpHostCommands",
+        grants: &[KernelGrant::ChildHost],
+    },
+    ReservedPath {
+        path: &["analytics"],
+        owner: "systemprompt_analytics_entry::cli::AnalyticsCommands",
+        grants: &[KernelGrant::LocalExport, KernelGrant::SkipValidation],
+    },
+    ReservedPath {
+        path: &["cloud"],
+        owner: "systemprompt_cloud_entry::cli::CloudCommands",
+        grants: &[KernelGrant::CloudOperator],
+    },
 ];
 
-pub(super) fn listed_for(parent: &[&str], name: &str, grant: KernelGrant) -> bool {
-    KERNEL_GRANTS.iter().any(|(path, listed)| {
-        *listed == grant
-            && path
-                .split_last()
-                .is_some_and(|(last, head)| *last == name && head == parent)
-    })
+pub(super) fn reserved_at(parent: &[&str], name: &str) -> Option<&'static ReservedPath> {
+    RESERVED_PATHS
+        .iter()
+        .find(|reserved| reserved.is_at(parent, name))
+}
+
+pub(super) fn listed_for(parent: &[&str], name: &str, owner: &str, grant: KernelGrant) -> bool {
+    reserved_at(parent, name)
+        .is_some_and(|reserved| reserved.owner == owner && reserved.grants.contains(&grant))
 }
