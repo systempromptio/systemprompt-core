@@ -10,14 +10,16 @@
 //! [`shared`] module holds the time-range and output formatting helpers used
 //! across all domains.
 //!
-//! [`content_popular::PopularArgs`] is registered as the `popular` leaf under
-//! the kernel's `core content` group.
+//! With the `content-commands` feature, `content_popular::PopularArgs` is
+//! registered as the `popular` leaf under the `core content` group that
+//! `systemprompt-content-entry` registers.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod agents;
 pub mod content;
+#[cfg(feature = "content-commands")]
 pub mod content_popular;
 pub mod conversations;
 pub mod costs;

@@ -25,10 +25,10 @@
 //! declaration only by the roles that serve both `RouteGroup::Extensions` and
 //! its own group, so an install extension keeps its role exposure.
 //!
-//! Before any router is built, on every role, each registered extension
-//! whose id names a core declaration row must be the Rust type that row
-//! names (`admit_core_owners`); an extension that takes a core id without
-//! being its owning type refuses boot, so neither a core row's treatment nor
+//! Every path into this mount is downstream of the core owner check
+//! (`admit_core_owners`): each registered extension whose id names a core
+//! declaration row must be the Rust type that row names, or boot is refused
+//! before any extension factory runs, so neither a core row's treatment nor
 //! its kernel handle can be reached by id alone.
 //!
 //! Extension configuration is not validated here: startup validation runs
@@ -63,7 +63,7 @@ use systemprompt_traits::{StartupEvent, StartupEventSender};
 
 use crate::routes::admin::services::{RefreshLock, ServicesRefresh};
 use crate::services::middleware::{
-    admit_core_owners, admit_extensions, extension_built, extension_served, hand_kernel_handles,
+    admit_extensions, extension_built, extension_served, hand_kernel_handles,
 };
 
 pub(super) fn mount_extension_routes(
@@ -74,7 +74,6 @@ pub(super) fn mount_extension_routes(
 ) -> Result<Router, RouteMountError> {
     let ctx = mount.ctx;
     let registry = ctx.extension_registry();
-    admit_core_owners(registry.extensions().iter().map(|ext| &**ext))?;
     let builds = |extension: &str| extension_built(extension, mount.serves);
     let mut api_extensions =
         registry.api_routers(ctx, &ctx.profile().extensions.disabled, &builds)?;

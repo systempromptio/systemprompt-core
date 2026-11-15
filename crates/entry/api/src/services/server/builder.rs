@@ -3,7 +3,11 @@
 //! [`setup_api_server`] composes the route tree and applies the global layers
 //! (panic fence, body limit, analytics, context, session, CORS, trailing-slash,
 //! trace and served-by headers, content negotiation, security headers) in the
-//! order they must run. Binding and serving live in [`super::startup`], which
+//! order they must run. Before any extension factory runs (the gateway guard
+//! factories build with the engines, the routers after them), it refuses an
+//! extension that takes a core row it does not own; that is the one owner
+//! check on the boot path, and every router and gateway engine below it is
+//! built downstream of it. Binding and serving live in [`super::startup`], which
 //! binds the listener before this router exists and swaps it in once bootstrap
 //! completes.
 //!
@@ -25,7 +29,7 @@ use crate::services::middleware::{
     AnalyticsMiddleware, CorsMiddleware, DEFAULT_BODY_LIMIT_BYTES, LoadShed,
     PublicContextMiddleware, RateLimitState, SessionMiddleware, inject_security_headers,
     inject_served_by, inject_trace_header, panic_fence, remove_trailing_slash,
-    with_pre_auth_ip_limit,
+    admit_core_owners, with_pre_auth_ip_limit,
 };
 
 pub use super::discovery::{
@@ -53,7 +57,8 @@ pub fn setup_api_server(
         tx.warning("Rate limiting disabled - development mode only");
     }
 
-    let engines = Arc::new(crate::routes::gateway::gateway_engines(ctx)?);
+    admit_core_owners(ctx.extension_registry().extensions().iter().map(|ext| &**ext))?;
+    let engines = Arc::new(crate::routes::gateway::build_gateway_engines(ctx)?);
     register_artifact_scanner(ctx, &engines);
     let router =
         configure_routes(ctx, events, &engines)?.layer(axum::Extension(Arc::clone(readiness)));

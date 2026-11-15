@@ -12,7 +12,7 @@ workspace = true
 
 [dependencies]
 systemprompt-analytics = { workspace = true }
-systemprompt-analytics-entry = { workspace = true, features = ["cli"] }
+systemprompt-analytics-entry = { workspace = true, features = ["cli", "content-commands"] }
 systemprompt-cli = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-identifiers = { workspace = true }
