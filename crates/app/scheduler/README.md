@@ -77,7 +77,19 @@ submit_job!("my-extension", &MyCustomJob);
 ```
 
 The scheduler discovers all registered jobs at startup and schedules those
-whose owning extension the profile leaves enabled. Every job run executes
+whose owning extension the profile leaves enabled. Start never deletes a
+`scheduled_jobs` row: nodes of different releases or compositions that share a
+database keep each other's rows, `enabled` flags and run history, and a node
+never claims or runs a job it does not register. A tick skips a job whose row an
+operator disabled (`infra jobs disable`). Rows no build registers any longer are
+removed by `infra jobs prune`, run from a binary and profile that compose every
+capability the cluster runs.
+
+A `cluster` job takes a Postgres advisory lock for its run, and a replica that
+reaches the same tick within 900 ms of the recorded run skips it. The lock is
+released when the run ends, so delivery is at-least-once: a replica whose tick
+arrives after that window runs the job again, and a tick that falls while no
+scheduling node is up is not caught up. Jobs must be idempotent. Every job run executes
 inside the job-run scopes linked crates register (`register_job_run_scope!`;
 the files crate's sets the system document actor).
 

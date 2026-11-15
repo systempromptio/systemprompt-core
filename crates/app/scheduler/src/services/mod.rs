@@ -4,6 +4,7 @@
 //! planes and [`config_reconcile`] the report-only drift pass. Five more
 //! concerns live here: [`scheduling`] owns the cron scheduler and job
 //! dispatch, `job_execution` runs jobs on demand outside the cron loop,
+//! `job_prune` retires `scheduled_jobs` rows on an operator's request,
 //! [`orchestration`] holds the service-lifecycle reconciler and process/port
 //! primitives, `service_management` wraps service-record start/stop
 //! bookkeeping, and `plans` computes pure start/restart plans for composition
@@ -17,6 +18,7 @@ pub mod config_reconcile;
 mod enabled;
 mod job_execution;
 pub mod job_metrics;
+mod job_prune;
 pub mod orchestration;
 mod plans;
 pub mod scheduling;
@@ -34,6 +36,7 @@ pub use enabled::EnabledExtensions;
 pub use job_execution::{
     JobBatchReport, JobExecutionService, JobRunReport, JobSelection, parse_job_parameters,
 };
+pub use job_prune::JobPruneService;
 pub use orchestration::{
     ApiListenerStop, DbServiceRecord, DesiredStatus, ReconciliationResult, ServiceAction,
     ServiceConfig, ServiceReconciler, ServiceStateVerifier, ServiceType, VerifiedService,

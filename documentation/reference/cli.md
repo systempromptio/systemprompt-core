@@ -109,6 +109,7 @@ systemprompt infra db query "SELECT * FROM users LIMIT 10"
 | `infra jobs history` | View job execution history. |
 | `infra jobs enable <JOB>` | Enable a job. |
 | `infra jobs disable <JOB>` | Disable a job. |
+| `infra jobs prune [--dry-run] [--yes]` | List the `scheduled_jobs` rows no enabled extension in this binary registers and delete them after confirmation. Run it from a binary and profile that compose every capability the cluster runs. |
 
 ```bash
 systemprompt infra jobs list

@@ -42,7 +42,10 @@ async fn upsert_job_inserts_then_updates_in_place() {
         .expect("second upsert");
     let updated = repo.find_job(&name).await.expect("find").expect("row");
     assert_eq!(updated.schedule, "*/5 * * * *");
-    assert!(!updated.enabled);
+    assert!(
+        updated.enabled,
+        "a conflicting upsert refreshes the schedule and keeps the stored enabled flag"
+    );
 
     cleanup_job(&pool, &name).await;
 }

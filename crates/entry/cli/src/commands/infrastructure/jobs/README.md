@@ -27,6 +27,7 @@ alias sp="./target/debug/systemprompt --non-interactive"
 | `infra jobs history` | View job execution history | `Table` |
 | `infra jobs enable <name>` | Enable a job | `Text` |
 | `infra jobs disable <name>` | Disable a job | `Text` |
+| `infra jobs prune [--dry-run] [--yes]` | Delete `scheduled_jobs` rows no enabled extension in this binary registers; run from a binary/profile that composes every capability the cluster runs | `Table` |
 
 ---
 

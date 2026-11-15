@@ -1,5 +1,11 @@
 //! `scheduled_jobs` table access — read replica + write pool wrapper.
 //!
+//! A node's registration only inserts a row or refreshes its schedule: the
+//! `enabled` flag an operator sets survives every boot, and no boot path
+//! deletes a row. Rows are removed only by
+//! [`JobRepository::delete_unregistered_jobs`], which `infra jobs prune`
+//! calls after the operator confirms.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -10,8 +16,6 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{InstanceId, JobName, ScheduledJobId};
-
-const RETIRED_JOB_GRACE_DAYS: i32 = 7;
 
 macro_rules! scheduled_job {
     ($row:expr) => {{
@@ -61,7 +65,6 @@ impl JobRepository {
             VALUES ($1, $2, $3, $4, $5, $6)
             ON CONFLICT(job_name) DO UPDATE SET
                 schedule = EXCLUDED.schedule,
-                enabled = EXCLUDED.enabled,
                 updated_at = EXCLUDED.updated_at
             "#,
             id.as_str(),
@@ -77,16 +80,20 @@ impl JobRepository {
         Ok(())
     }
 
-    pub async fn delete_jobs_not_in(&self, known: &[JobName]) -> SchedulerResult<u64> {
-        if known.is_empty() {
+    pub async fn delete_unregistered_jobs(
+        &self,
+        names: &[JobName],
+        registered: &[JobName],
+    ) -> SchedulerResult<u64> {
+        if names.is_empty() || registered.is_empty() {
             return Ok(0);
         }
-        let known: Vec<String> = known.iter().map(String::from).collect();
+        let names: Vec<String> = names.iter().map(String::from).collect();
+        let registered: Vec<String> = registered.iter().map(String::from).collect();
         let result = sqlx::query!(
-            "DELETE FROM scheduled_jobs WHERE NOT (job_name = ANY($1)) AND updated_at < NOW() - \
-             make_interval(days => $2)",
-            known.as_slice(),
-            RETIRED_JOB_GRACE_DAYS
+            "DELETE FROM scheduled_jobs WHERE job_name = ANY($1) AND NOT (job_name = ANY($2))",
+            names.as_slice(),
+            registered.as_slice()
         )
         .execute(&*self.write_pool)
         .await?;
@@ -106,6 +113,20 @@ impl JobRepository {
         .fetch_optional(&*self.pool)
         .await?;
         Ok(row.map(|row| scheduled_job!(row)))
+    }
+
+    pub async fn list_jobs(&self) -> SchedulerResult<Vec<ScheduledJob>> {
+        let rows = sqlx::query!(
+            r#"
+            SELECT id, job_name, schedule, enabled, last_run, next_run, last_status, last_error,
+                   last_instance_id, run_count, created_at, updated_at
+            FROM scheduled_jobs
+            ORDER BY job_name
+            "#
+        )
+        .fetch_all(&*self.pool)
+        .await?;
+        Ok(rows.into_iter().map(|row| scheduled_job!(row)).collect())
     }
 
     pub async fn list_enabled_jobs(&self) -> SchedulerResult<Vec<ScheduledJob>> {

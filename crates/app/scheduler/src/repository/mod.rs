@@ -88,10 +88,6 @@ impl SchedulerRepository {
         self.jobs.upsert_job(job_name, schedule, enabled).await
     }
 
-    pub async fn delete_jobs_not_in(&self, known: &[JobName]) -> SchedulerResult<u64> {
-        self.jobs.delete_jobs_not_in(known).await
-    }
-
     pub async fn find_job(&self, job_name: &JobName) -> SchedulerResult<Option<ScheduledJob>> {
         self.jobs.find_job(job_name).await
     }

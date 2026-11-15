@@ -2,6 +2,10 @@
 //! within a panic-isolating wrapper and records the run on its
 //! `scheduled_jobs` row.
 //!
+//! A tick first reads the job's row: a row an operator set to
+//! `enabled = false` (`infra jobs disable`) skips the tick, and so does a row
+//! that cannot be read. A job with no row yet runs.
+//!
 //! A tick writes nothing until the job returns. A run is then recorded with
 //! one UPDATE — `last_run`, `last_status`, `last_error`, `last_message`,
 //! `last_instance_id` and `run_count` together — only when it failed or did
@@ -74,6 +78,11 @@ pub(super) async fn execute_job(dispatch: JobDispatch) {
         guard.insert(job_name.clone());
     }
 
+    if !enabled_by_operator(&job_name, &repository).await {
+        running_jobs.lock().await.remove(&job_name);
+        return;
+    }
+
     let claim = match claim_policy {
         ClaimPolicy::None => Claim::Free,
         ClaimPolicy::Cluster => acquire_cluster_claim(&job_name, &repository).await,
@@ -112,6 +121,20 @@ pub(super) async fn execute_job(dispatch: JobDispatch) {
     {
         let mut guard = running_jobs.lock().await;
         guard.remove(&job_name);
+    }
+}
+
+async fn enabled_by_operator(job_name: &JobName, repository: &SchedulerRepository) -> bool {
+    match repository.find_job(job_name).await {
+        Ok(Some(row)) if !row.enabled => {
+            debug!(job_name = %job_name, "job disabled on its scheduled_jobs row, skipping this tick");
+            false
+        },
+        Ok(_) => true,
+        Err(e) => {
+            error!(job_name = %job_name, error = %e, "Failed to read job row; skipping this tick");
+            false
+        },
     }
 }
 

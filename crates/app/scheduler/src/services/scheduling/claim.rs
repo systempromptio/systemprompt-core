@@ -2,7 +2,11 @@
 //!
 //! [`ClaimPolicy::None`] is the single-process case (no distributed lock
 //! configured). [`ClaimPolicy::Cluster`] takes the cross-replica advisory
-//! lock so exactly one replica runs the job. [`ClaimPolicy::Node`] runs on
+//! lock for the run and then skips a tick whose job row records a run less
+//! than 900 ms ago. The lock is released when the job ends, so a replica whose
+//! tick arrives later than that window (clock skew plus tick jitter) runs the
+//! job again: delivery is at-least-once per tick, and an idle run writes no
+//! `last_run` for the window to compare against. [`ClaimPolicy::Node`] runs on
 //! every replica and only de-duplicates against this replica's own last run
 //! (`scheduled_jobs.last_instance_id`), so other replicas never starve it.
 //!
