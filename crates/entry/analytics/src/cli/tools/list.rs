@@ -7,8 +7,8 @@ use anyhow::Result;
 use clap::{Args, ValueEnum};
 use std::path::PathBuf;
 use systemprompt_analytics::{ToolAnalyticsRepository, ToolListParams};
-use systemprompt_logging::CliService;
 use systemprompt_database::DbPool;
+use systemprompt_logging::CliService;
 
 use super::{ToolListOutput, ToolListRow};
 use crate::cli::shared::{export_to_csv, parse_time_range};

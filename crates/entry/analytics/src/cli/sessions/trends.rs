@@ -8,8 +8,8 @@ use clap::Args;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use systemprompt_analytics::CliSessionAnalyticsRepository;
-use systemprompt_logging::CliService;
 use systemprompt_database::DbPool;
+use systemprompt_logging::CliService;
 
 use super::{SessionTrendPoint, SessionTrendsOutput};
 use crate::cli::shared::{

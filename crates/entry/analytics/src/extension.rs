@@ -80,7 +80,12 @@ mod routes {
                     RouteGroup::ContentAndMisc,
                 )
                 .route(Method::POST, "/events", analytics::record_event, ADMIN)
-                .route(Method::POST, "/events/batch", analytics::record_events_batch, ADMIN)
+                .route(
+                    Method::POST,
+                    "/events/batch",
+                    analytics::record_events_batch,
+                    ADMIN,
+                )
                 .route(Method::GET, "/stream", analytics::analytics_stream, ADMIN)
                 .build(),
             )
@@ -90,7 +95,12 @@ mod routes {
                     RouteGroup::ContentAndMisc,
                 )
                 .route(Method::POST, "/", engagement::record_engagement, PUBLIC)
-                .route(Method::POST, "/batch", engagement::record_engagement_batch, PUBLIC)
+                .route(
+                    Method::POST,
+                    "/batch",
+                    engagement::record_engagement_batch,
+                    PUBLIC,
+                )
                 .build(),
             );
     }

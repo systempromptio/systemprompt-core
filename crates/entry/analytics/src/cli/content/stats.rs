@@ -7,8 +7,8 @@ use anyhow::Result;
 use clap::Args;
 use std::path::PathBuf;
 use systemprompt_analytics::ContentAnalyticsRepository;
-use systemprompt_logging::CliService;
 use systemprompt_database::DbPool;
+use systemprompt_logging::CliService;
 
 use super::ContentStatsOutput;
 use crate::cli::shared::{export_single_to_csv, format_date_range, parse_time_range};

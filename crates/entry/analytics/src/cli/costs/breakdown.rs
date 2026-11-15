@@ -8,8 +8,8 @@ use clap::{Args, ValueEnum};
 use std::path::PathBuf;
 use systemprompt_analytics::CostAnalyticsRepository;
 use systemprompt_analytics::models::reporting::{CostBreakdownRow, CostUserBreakdownRow};
-use systemprompt_logging::CliService;
 use systemprompt_database::DbPool;
+use systemprompt_logging::CliService;
 
 use super::{CostBreakdownItem, CostBreakdownOutput};
 use crate::cli::shared::{export_to_csv, parse_time_range};

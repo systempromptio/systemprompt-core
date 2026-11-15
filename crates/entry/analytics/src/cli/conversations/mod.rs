@@ -78,7 +78,10 @@ pub struct ConversationListOutput {
     pub total: i64,
 }
 
-pub async fn execute(command: ConversationsCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(
+    command: ConversationsCommands,
+    host: &dyn CommandHost,
+) -> Result<CommandOutput> {
     let pool = pool_from_handle(host.db().await?)?;
     match command {
         ConversationsCommands::Stats(args) => {

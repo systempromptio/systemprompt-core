@@ -7,8 +7,8 @@ use anyhow::Result;
 use clap::Args;
 use std::path::PathBuf;
 use systemprompt_analytics::ConversationAnalyticsRepository;
-use systemprompt_logging::CliService;
 use systemprompt_database::DbPool;
+use systemprompt_logging::CliService;
 
 use super::ConversationStatsOutput;
 use crate::cli::shared::{export_single_to_csv, parse_time_range};

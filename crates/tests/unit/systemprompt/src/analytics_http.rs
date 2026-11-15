@@ -11,12 +11,12 @@ use std::sync::Arc;
 use clap::Command;
 use systemprompt::reference;
 use systemprompt_cli::kernel::{CommandRegistry, describe_command_line, kernel_commands};
+use systemprompt_extension::admitted::AdmittedRouteSet;
 use systemprompt_extension::cli::{
     CommandDescriptor, DataImpact, DbUrlRouting, KernelGrant, RoutingClass,
 };
 use systemprompt_extension::contribute::handles::AnalyticsBroadcaster;
 use systemprompt_extension::router::{ApiBase, BasePath, RouteSet, WebBase};
-use systemprompt_extension::admitted::AdmittedRouteSet;
 use systemprompt_extension::{Admitted, Handed, HandleId, RouteGroup};
 use systemprompt_identifiers::{ConnectionId, UserId};
 use systemprompt_runtime::Kernel;
@@ -158,7 +158,9 @@ fn analytics_http_requires_the_content_catalog() {
 }
 
 fn registry() -> CommandRegistry {
-    let declared = reference().declare().expect("the reference composition declares");
+    let declared = reference()
+        .declare()
+        .expect("the reference composition declares");
     CommandRegistry::build(&declared.commands(), &kernel_commands())
         .expect("the registry accepts the reference commands")
 }
@@ -173,7 +175,9 @@ fn describe(args: &[&str]) -> CommandDescriptor {
 
 #[test]
 fn analytics_http_declares_its_group_with_its_grants_and_the_popular_leaf() {
-    let declared = reference().declare().expect("the reference composition declares");
+    let declared = reference()
+        .declare()
+        .expect("the reference composition declares");
     let commands = declared.commands();
     let owned: Vec<_> = commands
         .commands()
@@ -208,7 +212,11 @@ fn every_analytics_command_is_a_read_only_local_export_that_preserves_data() {
         assert!(descriptor.local_export(), "{args:?}");
         assert!(descriptor.database(), "{args:?}");
         assert!(descriptor.skip_validation(), "{args:?}");
-        assert_eq!(descriptor.routing_class(), RoutingClass::ReadOnly, "{args:?}");
+        assert_eq!(
+            descriptor.routing_class(),
+            RoutingClass::ReadOnly,
+            "{args:?}"
+        );
         assert_eq!(descriptor.data_impact(), DataImpact::Preserving, "{args:?}");
         assert!(!descriptor.cloud_operator(), "{args:?}");
     }
@@ -230,7 +238,10 @@ fn resolved_routing(args: &[&str]) -> DbUrlRouting {
 
 #[test]
 fn analytics_and_popular_route_database_urls_directly() {
-    assert_eq!(resolved_routing(&["analytics", "overview"]), DbUrlRouting::Direct);
+    assert_eq!(
+        resolved_routing(&["analytics", "overview"]),
+        DbUrlRouting::Direct
+    );
     assert_eq!(
         resolved_routing(&["core", "content", "popular", "blog", "--since", "7d"]),
         DbUrlRouting::Direct

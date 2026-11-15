@@ -112,9 +112,12 @@ pub async fn execute(args: CostsArgs, host: &dyn CommandHost) -> Result<CommandO
             Ok(result)
         },
         CostsCommands::Breakdown(args) => {
-            let result =
-                breakdown::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
-                    .await?;
+            let result = breakdown::execute_with_pool(
+                with_resolved_export!(args, host),
+                &pool,
+                host.output(),
+            )
+            .await?;
             Ok(result)
         },
     }

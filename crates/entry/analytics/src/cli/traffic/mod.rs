@@ -150,14 +150,18 @@ pub async fn execute(command: TrafficCommands, host: &dyn CommandHost) -> Result
             Ok(result)
         },
         TrafficCommands::Navigation(args) => {
-            let result =
-                navigation::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
-                    .await?;
+            let result = navigation::execute_with_pool(
+                with_resolved_export!(args, host),
+                &pool,
+                host.output(),
+            )
+            .await?;
             Ok(result)
         },
         TrafficCommands::Geo(args) => {
             let result =
-                geo::execute_with_pool(with_resolved_export!(args, host), &pool, host.output()).await?;
+                geo::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
+                    .await?;
             Ok(result)
         },
         TrafficCommands::Devices(args) => {

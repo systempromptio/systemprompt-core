@@ -8,8 +8,8 @@ use clap::Args;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use systemprompt_analytics::AgentAnalyticsRepository;
-use systemprompt_logging::CliService;
 use systemprompt_database::DbPool;
+use systemprompt_logging::CliService;
 
 use super::{AgentTrendPoint, AgentTrendsOutput};
 use crate::cli::shared::{

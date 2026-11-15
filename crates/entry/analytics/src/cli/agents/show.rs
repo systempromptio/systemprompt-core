@@ -11,10 +11,10 @@ use systemprompt_analytics::AgentAnalyticsRepository;
 use systemprompt_analytics::models::reporting::{
     AgentErrorRow, AgentHourlyRow, AgentStatusBreakdownRow, AgentSummaryRow,
 };
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::AgentName;
 use systemprompt_logging::CliService;
 use systemprompt_models::artifacts::NoticeLine;
-use systemprompt_database::DbPool;
 
 use super::{
     AgentShowOutput, AgentStatsOutput, ErrorBreakdownItem, HourlyDistributionItem,

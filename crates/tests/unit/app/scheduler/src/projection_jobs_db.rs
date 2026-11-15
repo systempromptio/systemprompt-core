@@ -3,9 +3,8 @@ use std::sync::Arc;
 use systemprompt_analytics::jobs::LinkFactsRollupJob;
 use systemprompt_identifiers::{Actor, UserId};
 use systemprompt_scheduler::jobs::{
-    BackfillRollupsJob, InventoryRefreshJob,
-    InventoryRefreshMemo, LogSummaryRollupJob, SessionBotTypeRollupJob, TraceFactsRollupJob,
-    VertexDiscoveryJob,
+    BackfillRollupsJob, InventoryRefreshJob, InventoryRefreshMemo, LogSummaryRollupJob,
+    SessionBotTypeRollupJob, TraceFactsRollupJob, VertexDiscoveryJob,
 };
 use systemprompt_test_fixtures::{
     seed_user_row, test_app_context, test_database_url, test_db_pool,

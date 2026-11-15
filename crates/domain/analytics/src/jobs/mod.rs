@@ -3,11 +3,12 @@
 //! The session-classification jobs (ghost and no-JS bot marking, the on-demand
 //! geo backfill), the two detectors that feed the IP ban list (behavioural
 //! analysis, the malicious-IP blacklist) and the link-click projection
-//! drainer are contributed by [`AnalyticsExtension`](crate::AnalyticsExtension).
-//! The detectors write bans through the `DynIpBanStore` their job context
-//! carries and fail when it is absent. The scheduler's kernel jobs reach this
-//! crate's tables through the retention purges contributed with the jobs and
-//! the usage rollups registered here.
+//! drainer are contributed by
+//! [`AnalyticsExtension`](crate::AnalyticsExtension). The detectors write bans
+//! through the `DynIpBanStore` their job context carries and fail when it is
+//! absent. The scheduler's kernel jobs reach this crate's tables through the
+//! retention purges contributed with the jobs and the usage rollups registered
+//! here.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

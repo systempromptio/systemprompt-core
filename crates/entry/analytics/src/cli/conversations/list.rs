@@ -10,9 +10,9 @@ use systemprompt_analytics::ConversationAnalyticsRepository;
 use systemprompt_analytics::models::reporting::{
     ConversationListRow as AgentRow, GatewaySessionListRow,
 };
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_logging::CliService;
-use systemprompt_database::DbPool;
 
 use super::{ConversationListOutput, ConversationListRow};
 use crate::cli::shared::{export_to_csv, parse_time_range};

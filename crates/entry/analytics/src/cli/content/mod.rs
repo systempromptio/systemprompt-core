@@ -86,7 +86,8 @@ pub async fn execute(command: ContentCommands, host: &dyn CommandHost) -> Result
         },
         ContentCommands::Top(args) => {
             let result =
-                top::execute_with_pool(with_resolved_export!(args, host), &pool, host.output()).await?;
+                top::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
+                    .await?;
             Ok(result)
         },
         ContentCommands::Trends(args) => {

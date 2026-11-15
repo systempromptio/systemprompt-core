@@ -10,8 +10,8 @@ use std::future::Future;
 use std::path::PathBuf;
 use systemprompt_analytics::CostAnalyticsRepository;
 use systemprompt_analytics::models::reporting::CostSummaryRow;
-use systemprompt_logging::CliService;
 use systemprompt_database::DbPool;
+use systemprompt_logging::CliService;
 
 use super::CostSummaryOutput;
 use crate::cli::shared::{export_single_to_csv, parse_time_range};

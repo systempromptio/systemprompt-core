@@ -16,8 +16,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use systemprompt_analytics::OverviewAnalyticsRepository;
-use systemprompt_logging::CliService;
 use systemprompt_database::DbPool;
+use systemprompt_logging::CliService;
 
 use super::shared::{CsvBuilder, parse_time_range};
 use systemprompt_extension::cli::{CliConfig, CommandOutput};

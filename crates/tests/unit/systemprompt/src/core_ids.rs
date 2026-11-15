@@ -40,7 +40,11 @@ fn the_list_holds_every_variant_once() {
 #[test]
 fn core_id_values_are_pairwise_distinct() {
     let ids: HashSet<&str> = ALL.iter().map(|id| id.id()).collect();
-    assert_eq!(ids.len(), ALL.len(), "two CoreId variants share an id: {ids:?}");
+    assert_eq!(
+        ids.len(),
+        ALL.len(),
+        "two CoreId variants share an id: {ids:?}"
+    );
 }
 
 #[test]

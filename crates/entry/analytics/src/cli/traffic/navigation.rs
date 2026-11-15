@@ -7,8 +7,8 @@ use anyhow::Result;
 use clap::Args;
 use std::path::PathBuf;
 use systemprompt_analytics::{NavigationQuery, TrafficAnalyticsRepository};
-use systemprompt_logging::CliService;
 use systemprompt_database::DbPool;
+use systemprompt_logging::CliService;
 use systemprompt_users::SessionTrafficRollupRepository;
 
 use super::{NavigationOutput, NavigationRow};
