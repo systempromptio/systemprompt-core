@@ -6,7 +6,7 @@
 //! their tables.
 //!
 //! On every host it provides the content audience ranking
-//! ([`DynContentPopularity`](systemprompt_traits::DynContentPopularity)) the
+//! ([`DynContentPopularity`]) the
 //! content prerender orders its popular lists by.
 //!
 //! On a host that seeds the analytics repositories (the API), it provides the
