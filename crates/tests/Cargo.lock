@@ -9653,7 +9653,6 @@ dependencies = [
  "clap",
  "console",
  "dialoguer",
- "dirs",
  "ed25519-dalek 3.0.0",
  "futures-util",
  "hex",
@@ -10375,7 +10374,6 @@ name = "systemprompt-extension-tests"
 version = "0.0.11"
 dependencies = [
  "async-trait",
- "axum",
  "bytes",
  "chrono",
  "futures",
