@@ -4,15 +4,14 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::types::{SearchOutput, SearchResultRow};
-use crate::cli_settings::CliConfig;
-use crate::shared::CommandOutput;
 use anyhow::Result;
 use clap::Args;
+use systemprompt_cli::kernel::{CliConfig, CommandOutput};
 use systemprompt_content::{ContentRepositories, SearchFilters, SearchRequest, SearchService};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::CategoryId;
 
-use crate::context::CommandContext;
+use systemprompt_cli::kernel::CommandContext;
 
 #[derive(Debug, Args)]
 pub struct SearchArgs {

@@ -10,10 +10,9 @@ pub mod campaign;
 pub mod clicks;
 pub mod journey;
 
-use crate::context::CommandContext;
-use crate::shared::render_result;
 use anyhow::{Context, Result};
 use clap::Subcommand;
+use systemprompt_cli::kernel::{CommandContext, render_result};
 
 #[derive(Debug, Subcommand)]
 pub enum AnalyticsCommands {

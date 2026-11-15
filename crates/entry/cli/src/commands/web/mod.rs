@@ -1,7 +1,9 @@
 //! The `web` command group: configuration management for the static-site layer.
 //!
-//! Routes [`WebCommands`] to the content-type, template, asset, sitemap, and
-//! validation subcommands, each operating on the on-disk web content config.
+//! Routes [`WebCommands`] to the content-type, template, asset and validation
+//! subcommands, each operating on the on-disk web content config. Capabilities
+//! register further subgroups under `web` (such as `web sitemap`) through
+//! `register_cli_command!`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -9,7 +11,6 @@
 pub mod assets;
 pub mod content_types;
 pub mod paths;
-pub mod sitemap;
 pub mod templates;
 pub mod types;
 pub mod validate;
@@ -32,9 +33,6 @@ pub enum WebCommands {
     #[command(subcommand, about = "List and inspect assets")]
     Assets(assets::AssetsCommands),
 
-    #[command(subcommand, about = "Sitemap operations")]
-    Sitemap(sitemap::SitemapCommands),
-
     #[command(about = "Validate web configuration")]
     Validate(validate::ValidateArgs),
 }
@@ -53,7 +51,6 @@ pub fn execute(command: WebCommands, ctx: &CommandContext) -> Result<()> {
         },
         WebCommands::Templates(cmd) => templates::execute(cmd, ctx.prompter(), config, ctx.boot()?),
         WebCommands::Assets(cmd) => assets::execute(cmd, config, ctx.boot()?),
-        WebCommands::Sitemap(cmd) => sitemap::execute(cmd, config, ctx.profile()?),
         WebCommands::Validate(args) => {
             let output = validate::execute(&args, config, ctx.boot()?)?;
             let valid = output.valid;

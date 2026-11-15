@@ -9,7 +9,7 @@ use axum::Extension;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use systemprompt_api::routes::content::{
+use systemprompt_content_entry::http::{
     get_content_handler, get_content_markdown_handler, list_content_by_source_handler,
 };
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
@@ -18,6 +18,8 @@ use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
     closed_db_pool, ensure_test_bootstrap, test_app_context, test_db_pool,
 };
+
+use crate::common::content_state;
 
 async fn dead_context() -> std::sync::Arc<AppContext> {
     let boot = ensure_test_bootstrap();
@@ -39,7 +41,7 @@ fn req_ctx() -> RequestContext {
 async fn listing_a_source_reports_a_repository_failure_as_a_server_error() {
     let ctx = dead_context().await;
 
-    let response = list_content_by_source_handler(State((*ctx).clone()), Path("blog".to_owned()))
+    let response = list_content_by_source_handler(State(content_state(&ctx)), Path("blog".to_owned()))
         .await
         .into_response();
 
@@ -55,7 +57,7 @@ async fn fetching_one_document_reports_a_repository_failure_as_a_server_error() 
     let ctx = dead_context().await;
 
     let response = get_content_handler(
-        State((*ctx).clone()),
+        State(content_state(&ctx)),
         Extension(req_ctx()),
         None,
         Path(("blog".to_owned(), "anything".to_owned())),
@@ -71,7 +73,7 @@ async fn fetching_markdown_reports_a_repository_failure_as_a_server_error() {
     let ctx = dead_context().await;
 
     let response = get_content_markdown_handler(
-        State((*ctx).clone()),
+        State(content_state(&ctx)),
         Extension(req_ctx()),
         Path(("blog".to_owned(), "anything.md".to_owned())),
     )
@@ -89,7 +91,7 @@ async fn a_slug_that_does_not_exist_is_a_not_found_rather_than_an_empty_document
 
     let slug = format!("no-such-slug-{}", uuid::Uuid::new_v4().simple());
     let json = get_content_handler(
-        State((*ctx).clone()),
+        State(content_state(&ctx)),
         Extension(req_ctx()),
         None,
         Path(("blog".to_owned(), slug.clone())),
@@ -99,7 +101,7 @@ async fn a_slug_that_does_not_exist_is_a_not_found_rather_than_an_empty_document
     assert_eq!(json.status(), StatusCode::NOT_FOUND);
 
     let markdown = get_content_markdown_handler(
-        State((*ctx).clone()),
+        State(content_state(&ctx)),
         Extension(req_ctx()),
         Path(("blog".to_owned(), format!("{slug}.md"))),
     )

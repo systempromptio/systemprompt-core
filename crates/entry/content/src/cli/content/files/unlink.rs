@@ -9,11 +9,8 @@ use systemprompt_database::DbPool;
 use systemprompt_files::FileRepository;
 use systemprompt_identifiers::{ContentId, FileId};
 
-use crate::CliConfig;
-use crate::commands::core::files::types::ContentUnlinkOutput;
-use crate::context::CommandContext;
-use crate::interactive::Prompter;
-use crate::shared::CommandOutput;
+use crate::cli::content::types::ContentUnlinkOutput;
+use systemprompt_cli::kernel::{CliConfig, CommandContext, CommandOutput, Prompter};
 
 #[derive(Debug, Clone, Args)]
 pub struct UnlinkArgs {

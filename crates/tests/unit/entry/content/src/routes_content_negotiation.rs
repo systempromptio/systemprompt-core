@@ -5,8 +5,8 @@
 use anyhow::Result;
 use axum::{Extension, Router};
 use http_body_util::BodyExt;
-use systemprompt_api::routes::content;
-use systemprompt_api::services::middleware::{AcceptedFormat, AcceptedMediaType};
+use systemprompt_api::kernel::{AcceptedFormat, AcceptedMediaType};
+use systemprompt_content_entry::http as content;
 use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
@@ -14,7 +14,7 @@ use systemprompt_test_fixtures::{
 };
 use tower::ServiceExt;
 
-use super::common::{empty_get, request_context};
+use crate::common::{content_state, empty_get, request_context};
 
 async fn negotiating_ctx() -> Result<(DbPool, std::sync::Arc<AppContext>)> {
     let b = ensure_test_bootstrap();
@@ -52,7 +52,7 @@ async fn seed_content(db: &DbPool) -> Result<(String, String)> {
 }
 
 fn public(ctx: &AppContext) -> Router {
-    content::public_router(ctx)
+    content::public_router(content_state(ctx))
         .layer(Extension(AcceptedFormat(AcceptedMediaType::Json)))
         .layer(Extension(request_context("neg_reader")))
 }

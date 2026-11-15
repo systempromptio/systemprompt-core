@@ -3,17 +3,16 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::commands::core::content::types::LinkPerformanceOutput;
-use crate::context::CommandContext;
-use crate::shared::CommandOutput;
+use crate::cli::content::types::LinkPerformanceOutput;
 use anyhow::{Result, anyhow};
 use clap::Args;
+use systemprompt_cli::kernel::{CommandContext, CommandOutput};
 use systemprompt_content::LinkAnalyticsService;
 use systemprompt_identifiers::LinkId;
 
 #[derive(Debug, Args)]
 pub struct PerformanceArgs {
-    #[arg(help = "Link ID", value_parser = crate::shared::parse_link_id)]
+    #[arg(help = "Link ID", value_parser = systemprompt_cli::kernel::parsers::parse_link_id)]
     pub link_id: LinkId,
 }
 

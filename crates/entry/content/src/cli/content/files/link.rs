@@ -9,10 +9,8 @@ use systemprompt_database::DbPool;
 use systemprompt_files::{FileRepository, FileRole};
 use systemprompt_identifiers::{ContentId, FileId};
 
-use crate::CliConfig;
-use crate::commands::core::files::types::ContentLinkOutput;
-use crate::context::CommandContext;
-use crate::shared::CommandOutput;
+use crate::cli::content::types::ContentLinkOutput;
+use systemprompt_cli::kernel::{CliConfig, CommandContext, CommandOutput};
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum FileRoleArg {

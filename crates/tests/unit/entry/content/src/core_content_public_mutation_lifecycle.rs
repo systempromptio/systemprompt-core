@@ -3,11 +3,11 @@
 use std::sync::Arc;
 
 use clap::Parser;
-use systemprompt_cli::core::content::verify::{self, VerifyArgs};
-use systemprompt_cli::core::{self, CoreCommands};
 use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat};
 use systemprompt_content::ContentRepository;
 use systemprompt_content::models::CreateContentParams;
+use systemprompt_content_entry::cli::content::verify::{self, VerifyArgs};
+use systemprompt_content_entry::cli::content::{self, ContentCommands};
 use systemprompt_identifiers::SourceId;
 use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_test_fixtures::{
@@ -17,13 +17,21 @@ use systemprompt_test_fixtures::{
 #[derive(Debug, Parser)]
 struct Harness {
     #[command(subcommand)]
-    command: CoreCommands,
+    command: Core,
 }
 
-fn parse(args: &[&str]) -> CoreCommands {
-    Harness::try_parse_from(std::iter::once("core").chain(args.iter().copied()))
-        .expect("parse core command")
-        .command
+#[derive(Debug, clap::Subcommand)]
+enum Core {
+    #[command(subcommand)]
+    Content(ContentCommands),
+}
+
+fn parse(args: &[&str]) -> ContentCommands {
+    let Core::Content(command) =
+        Harness::try_parse_from(std::iter::once("core").chain(args.iter().copied()))
+            .expect("parse core command")
+            .command;
+    command
 }
 
 #[tokio::test]
@@ -78,7 +86,7 @@ async fn public_edit_verify_and_delete_mutate_only_the_selected_content() {
         Arc::new(systemprompt_marketplace::AllowAllFilter),
     )
     .expect("full app context");
-    let context = crate::boot_ctx::with_app_boot(
+    let context = crate::common::with_app_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
@@ -86,7 +94,7 @@ async fn public_edit_verify_and_delete_mutate_only_the_selected_content() {
         app,
     );
 
-    core::execute(
+    content::execute(
         parse(&[
             "content",
             "edit",
@@ -144,7 +152,7 @@ async fn public_edit_verify_and_delete_mutate_only_the_selected_content() {
     assert_eq!(field("url"), "/owned-source/owned-target");
     assert_eq!(field("prerendered"), true);
     assert_eq!(field("prerender_path"), rendered.display().to_string());
-    core::execute(
+    content::execute(
         parse(&[
             "content",
             "verify",
@@ -157,7 +165,7 @@ async fn public_edit_verify_and_delete_mutate_only_the_selected_content() {
     .await
     .expect("public verify command");
 
-    core::execute(
+    content::execute(
         parse(&["content", "delete", target.id.as_str(), "--yes"]),
         &context,
     )

@@ -3,11 +3,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::commands::core::content::types::{LinkListOutput, LinkSummary};
-use crate::context::CommandContext;
-use crate::shared::CommandOutput;
+use crate::cli::content::types::{LinkListOutput, LinkSummary};
 use anyhow::{Result, anyhow};
 use clap::Args;
+use systemprompt_cli::kernel::{CommandContext, CommandOutput};
 use systemprompt_content::LinkAnalyticsService;
 use systemprompt_identifiers::{CampaignId, ContentId};
 

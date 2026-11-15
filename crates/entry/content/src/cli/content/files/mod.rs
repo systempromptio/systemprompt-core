@@ -15,9 +15,7 @@ pub mod unlink;
 use anyhow::{Context, Result};
 use clap::Subcommand;
 
-use crate::context::CommandContext;
-use crate::interactive::Prompter;
-use crate::shared::render_result;
+use systemprompt_cli::kernel::{CommandContext, Prompter, render_result};
 
 #[derive(Debug, Subcommand)]
 pub enum ContentFilesCommands {

@@ -7,12 +7,12 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use clap::Parser;
-use systemprompt_cli::core::content::link::list::{ListArgs, execute};
-use systemprompt_cli::core::content::{self, ContentCommands};
-use systemprompt_cli::shared::CommandOutput;
+use systemprompt_cli::kernel::CommandOutput;
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_content::ContentRepository;
 use systemprompt_content::models::CreateContentParams;
+use systemprompt_content_entry::cli::content::link::list::{ListArgs, execute};
+use systemprompt_content_entry::cli::content::{self, ContentCommands};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::SourceId;
 use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
@@ -33,7 +33,7 @@ fn parse(args: &[&str]) -> ContentCommands {
 
 fn ctx(pool: &DbPool) -> CommandContext {
     let url = test_database_url();
-    crate::boot_ctx::with_app_boot(
+    crate::common::with_app_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),

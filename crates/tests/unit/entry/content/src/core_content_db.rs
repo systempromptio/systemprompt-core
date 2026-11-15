@@ -2,27 +2,27 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::core::content::{
-    delete, edit, link, list, popular, search, show, status, verify,
-};
 use systemprompt_cli::interactive::ScriptedPrompter;
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides};
 use systemprompt_content::models::CreateContentParams;
 use systemprompt_content::{Content, ContentRepository};
+use systemprompt_content_entry::cli::content::{
+    delete, edit, link, list, popular, search, show, status, verify,
+};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::SourceId;
 use systemprompt_runtime::DatabaseContext;
 use systemprompt_test_fixtures::{test_database_url, test_db_pool};
 
 
-fn card_title(out: &systemprompt_cli::shared::CommandOutput) -> String {
+fn card_title(out: &systemprompt_cli::kernel::CommandOutput) -> String {
     serde_json::to_value(out.artifact())
         .ok()
         .and_then(|v| v.get("title").and_then(|t| t.as_str()).map(str::to_owned))
         .unwrap_or_default()
 }
 
-fn card_section(out: &systemprompt_cli::shared::CommandOutput, heading: &str) -> serde_json::Value {
+fn card_section(out: &systemprompt_cli::kernel::CommandOutput, heading: &str) -> serde_json::Value {
     let artifact = serde_json::to_value(out.artifact()).expect("serialize card artifact");
     artifact["sections"]
         .as_array()

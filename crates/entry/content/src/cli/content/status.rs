@@ -4,16 +4,15 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::types::{ContentStatusRow, StatusOutput};
-use crate::cli_settings::CliConfig;
-use crate::shared::CommandOutput;
 use anyhow::Result;
 use clap::Args;
 use std::path::PathBuf;
+use systemprompt_cli::kernel::{CliConfig, CommandOutput};
 use systemprompt_content::ContentRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{LocaleCode, SourceId};
 
-use crate::context::CommandContext;
+use systemprompt_cli::kernel::CommandContext;
 
 #[derive(Debug, Args)]
 pub struct StatusArgs {

@@ -3,19 +3,17 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::cli_settings::CliConfig;
-use crate::commands::core::content::types::{ClickRow, ClicksOutput};
-use crate::context::CommandContext;
-use crate::shared::CommandOutput;
+use crate::cli::content::types::{ClickRow, ClicksOutput};
 use anyhow::Result;
 use clap::Args;
+use systemprompt_cli::kernel::{CliConfig, CommandContext, CommandOutput};
 use systemprompt_content::{ContentRepositories, LinkAnalyticsService};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::LinkId;
 
 #[derive(Debug, Args)]
 pub struct ClicksArgs {
-    #[arg(help = "Link ID", value_parser = crate::shared::parse_link_id)]
+    #[arg(help = "Link ID", value_parser = systemprompt_cli::kernel::parsers::parse_link_id)]
     pub link_id: LinkId,
 
     #[arg(long, default_value = "20")]

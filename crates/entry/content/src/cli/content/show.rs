@@ -4,15 +4,14 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::types::ContentDetailOutput;
-use crate::cli_settings::CliConfig;
-use crate::shared::CommandOutput;
 use anyhow::{Result, anyhow};
 use clap::Args;
+use systemprompt_cli::kernel::{CliConfig, CommandOutput};
 use systemprompt_content::{Content, ContentRepository};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContentId, LocaleCode, SourceId};
 
-use crate::context::CommandContext;
+use systemprompt_cli::kernel::CommandContext;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {

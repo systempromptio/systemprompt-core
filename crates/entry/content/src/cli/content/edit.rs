@@ -7,12 +7,11 @@ use super::edit_apply::{
     ContentEditState, apply_body_flags, apply_set_value_flags, apply_visibility_flags,
 };
 use super::types::UpdateOutput;
-use crate::cli_settings::CliConfig;
-use crate::context::CommandContext;
-use crate::interactive::{Prompter, resolve_required};
-use crate::shared::CommandOutput;
 use anyhow::{Result, anyhow};
 use clap::Args;
+use systemprompt_cli::kernel::{
+    CliConfig, CommandContext, CommandOutput, Prompter, resolve_required,
+};
 use systemprompt_content::{CategoryIdUpdate, ContentRepository};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContentId, LocaleCode, SourceId};

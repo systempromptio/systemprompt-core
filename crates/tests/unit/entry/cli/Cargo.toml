@@ -46,7 +46,6 @@ systemprompt-test-hack = { version = "0.1", path = "../../../common/hack" }
 systemprompt-agent = { workspace = true }
 systemprompt-ai = { workspace = true }
 systemprompt-loader = { workspace = true }
-systemprompt-content = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-files = { workspace = true }
 systemprompt-runtime = { workspace = true }

@@ -3,12 +3,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::cli_settings::CliConfig;
-use crate::commands::core::content::types::{JourneyNode, JourneyOutput};
-use crate::context::CommandContext;
-use crate::shared::CommandOutput;
+use crate::cli::content::types::{JourneyNode, JourneyOutput};
 use anyhow::Result;
 use clap::Args;
+use systemprompt_cli::kernel::{CliConfig, CommandContext, CommandOutput};
 use systemprompt_content::{ContentRepositories, LinkAnalyticsService};
 use systemprompt_database::DbPool;
 

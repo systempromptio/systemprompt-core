@@ -9,10 +9,8 @@ use systemprompt_database::DbPool;
 use systemprompt_files::FileRepository;
 use systemprompt_identifiers::{ContentId, FileId};
 
-use crate::CliConfig;
-use crate::commands::core::files::types::{FeaturedImageOutput, FileSummary};
-use crate::context::CommandContext;
-use crate::shared::CommandOutput;
+use crate::cli::content::types::FeaturedImageOutput;
+use systemprompt_cli::kernel::{CliConfig, CommandContext, CommandOutput, FileSummary};
 
 #[derive(Debug, Clone, Args)]
 pub struct FeaturedArgs {

@@ -9,12 +9,10 @@ use systemprompt_database::DbPool;
 use systemprompt_files::FileRepository;
 use systemprompt_identifiers::{ContentId, FileId};
 
-use crate::CliConfig;
-use crate::commands::core::files::types::{
+use crate::cli::content::types::{
     ContentFileRow, ContentFilesOutput, FileContentLinkRow, FileContentLinksOutput,
 };
-use crate::context::CommandContext;
-use crate::shared::CommandOutput;
+use systemprompt_cli::kernel::{CliConfig, CommandContext, CommandOutput};
 
 #[derive(Debug, Clone, Args)]
 pub struct ListArgs {

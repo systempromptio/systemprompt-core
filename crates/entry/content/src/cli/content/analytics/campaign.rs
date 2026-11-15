@@ -3,19 +3,17 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::cli_settings::CliConfig;
-use crate::commands::core::content::types::CampaignAnalyticsOutput;
-use crate::context::CommandContext;
-use crate::shared::CommandOutput;
+use crate::cli::content::types::CampaignAnalyticsOutput;
 use anyhow::{Result, anyhow};
 use clap::Args;
+use systemprompt_cli::kernel::{CliConfig, CommandContext, CommandOutput};
 use systemprompt_content::{ContentRepositories, LinkAnalyticsService};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::CampaignId;
 
 #[derive(Debug, Args)]
 pub struct CampaignArgs {
-    #[arg(help = "Campaign ID", value_parser = crate::shared::parse_campaign_id)]
+    #[arg(help = "Campaign ID", value_parser = systemprompt_cli::kernel::parsers::parse_campaign_id)]
     pub campaign_id: CampaignId,
 }
 

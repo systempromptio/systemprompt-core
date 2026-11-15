@@ -2,15 +2,15 @@
 //!
 //! The individual command bodies have their own tests against
 //! `execute_with_pool`; the dispatcher, its render arms, and the
-//! database-scope guard are only entered through `core::execute`.
+//! database-scope guard are only entered through `content::execute`.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use clap::Parser;
-use systemprompt_cli::core::{self, CoreCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_content::models::CreateContentParams;
 use systemprompt_content::{Content, ContentRepository};
+use systemprompt_content_entry::cli::content::{self, ContentCommands};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::SourceId;
 use systemprompt_runtime::DatabaseContext;
@@ -19,13 +19,21 @@ use systemprompt_test_fixtures::{test_database_url, test_db_pool};
 #[derive(Debug, Parser)]
 struct Harness {
     #[command(subcommand)]
-    cmd: CoreCommands,
+    cmd: Core,
 }
 
-fn parse(args: &[&str]) -> CoreCommands {
-    Harness::try_parse_from(std::iter::once("core").chain(args.iter().copied()))
-        .unwrap()
-        .cmd
+#[derive(Debug, clap::Subcommand)]
+enum Core {
+    #[command(subcommand)]
+    Content(ContentCommands),
+}
+
+fn parse(args: &[&str]) -> ContentCommands {
+    let Core::Content(command) =
+        Harness::try_parse_from(std::iter::once("core").chain(args.iter().copied()))
+            .unwrap()
+            .cmd;
+    command
 }
 
 
@@ -63,10 +71,10 @@ async fn list_and_show_arms_render_seeded_content() {
     let (content, source) = seed(&pool).await;
     let ctx = ctx(&pool);
 
-    core::execute(parse(&["content", "list", "--source", &source]), &ctx)
+    content::execute(parse(&["content", "list", "--source", &source]), &ctx)
         .await
         .unwrap();
-    core::execute(parse(&["content", "show", content.id.as_str()]), &ctx)
+    content::execute(parse(&["content", "show", content.id.as_str()]), &ctx)
         .await
         .unwrap();
 }
@@ -76,25 +84,22 @@ async fn show_arm_reports_an_unknown_identifier() {
     let pool = test_db_pool().await;
     let ctx = ctx(&pool);
 
-    let err = core::execute(parse(&["content", "show", "cov_absent_content"]), &ctx)
+    let err = content::execute(parse(&["content", "show", "cov_absent_content"]), &ctx)
         .await
         .unwrap_err();
     assert!(format!("{err:#}").contains("Failed to show content"));
 }
 
 #[tokio::test]
-async fn search_status_and_popular_arms_run_against_a_seeded_source() {
+async fn search_and_status_arms_run_against_a_seeded_source() {
     let pool = test_db_pool().await;
     let (_content, source) = seed(&pool).await;
     let ctx = ctx(&pool);
 
-    core::execute(parse(&["content", "search", "alpha"]), &ctx)
+    content::execute(parse(&["content", "search", "alpha"]), &ctx)
         .await
         .unwrap();
-    core::execute(parse(&["content", "status", "--source", &source]), &ctx)
-        .await
-        .unwrap();
-    core::execute(parse(&["content", "popular", &source]), &ctx)
+    content::execute(parse(&["content", "status", "--source", &source]), &ctx)
         .await
         .unwrap();
 }
@@ -111,25 +116,10 @@ async fn profile_only_content_commands_are_refused_under_a_database_scope() {
         vec!["content", "delete-source", &source, "--yes"],
         vec!["content", "verify", content.id.as_str()],
     ] {
-        let err = core::execute(parse(&args), &ctx).await.unwrap_err();
+        let err = content::execute(parse(&args), &ctx).await.unwrap_err();
         assert!(
             format!("{err:#}").contains("requires full profile context"),
             "{args:?}: {err:#}"
         );
-    }
-}
-
-#[tokio::test]
-async fn non_content_groups_are_refused_under_a_database_scope() {
-    let pool = test_db_pool().await;
-    let ctx = ctx(&pool);
-
-    for args in [
-        vec!["skills", "list"],
-        vec!["hooks", "list"],
-        vec!["contexts", "list"],
-    ] {
-        let err = core::execute(parse(&args), &ctx).await.unwrap_err();
-        assert!(!format!("{err:#}").is_empty(), "{args:?}");
     }
 }

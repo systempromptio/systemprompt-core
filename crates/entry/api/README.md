@@ -47,7 +47,6 @@ src/
 | `admin` | CLI gateway and key-management endpoints. |
 | `agent` | A2A protocol — artifacts, contexts, tasks, registry, webhook broadcasts, notifications. |
 | `analytics` | Event ingestion, batch processing, and SSE streaming. |
-| `content` | Blog, content queries, and link redirect tracking. |
 | `engagement` | Engagement metrics fan-out from analytics events. |
 | `gateway` | HTTP surface of the AI gateway: bridge auth/data/heartbeat/manifest/profile-usage/whoami, message dispatch into `systemprompt-gateway`, OTLP ingest. |
 | `marketplace` | Marketplace catalog and asset endpoints. |

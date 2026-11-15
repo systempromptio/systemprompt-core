@@ -3,19 +3,17 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::commands::core::content::types::LinkDeleteOutput;
-use crate::context::CommandContext;
-use crate::interactive::require_confirmation;
-use crate::shared::CommandOutput;
+use crate::cli::content::types::LinkDeleteOutput;
 use anyhow::{Result, anyhow};
 use clap::Args;
+use systemprompt_cli::kernel::{CommandContext, CommandOutput, require_confirmation};
 use systemprompt_content::services::LinkGenerationService;
 use systemprompt_identifiers::LinkId;
 use systemprompt_logging::CliService;
 
 #[derive(Debug, Args)]
 pub struct DeleteArgs {
-    #[arg(help = "Link ID", value_parser = crate::shared::parse_link_id)]
+    #[arg(help = "Link ID", value_parser = systemprompt_cli::kernel::parsers::parse_link_id)]
     pub link_id: LinkId,
 
     #[arg(short = 'y', long, help = "Skip confirmation")]

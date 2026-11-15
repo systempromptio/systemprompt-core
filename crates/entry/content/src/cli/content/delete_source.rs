@@ -4,11 +4,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::types::DeleteSourceOutput;
-use crate::context::CommandContext;
-use crate::interactive::require_confirmation;
-use crate::shared::CommandOutput;
 use anyhow::Result;
 use clap::Args;
+use systemprompt_cli::kernel::{CommandContext, CommandOutput, require_confirmation};
 use systemprompt_content::ContentRepository;
 use systemprompt_identifiers::SourceId;
 use systemprompt_logging::CliService;

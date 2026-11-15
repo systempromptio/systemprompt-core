@@ -4,11 +4,11 @@
 
 use std::io::Write;
 
-use systemprompt_cli::core::content::edit::EditArgs;
-use systemprompt_cli::core::content::edit_apply::{
+use systemprompt_content::CategoryIdUpdate;
+use systemprompt_content_entry::cli::content::edit::EditArgs;
+use systemprompt_content_entry::cli::content::edit_apply::{
     ContentEditState, apply_body_flags, apply_visibility_flags,
 };
-use systemprompt_content::CategoryIdUpdate;
 
 fn blank_state() -> ContentEditState {
     ContentEditState {

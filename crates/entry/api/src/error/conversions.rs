@@ -10,7 +10,6 @@
 
 use systemprompt_agent::AgentError;
 use systemprompt_config::{ProfileBootstrapError, SecretsBootstrapError};
-use systemprompt_content::ContentError;
 use systemprompt_governance::authz::{AuthzError, ScopeBindingError};
 use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_loader::{BundleError, ConfigLoadError};
@@ -91,22 +90,6 @@ impl From<AgentError> for ApiHttpError {
             AgentError::NotFound(msg) => ApiError::not_found(msg),
             AgentError::Repository(inner) => ApiError::from(inner),
             other => ApiError::internal("Agent operation failed", other),
-        };
-        Self(Box::new(api))
-    }
-}
-
-impl From<ContentError> for ApiHttpError {
-    fn from(err: ContentError) -> Self {
-        let api = match err {
-            ContentError::Repository(inner) => ApiError::from(inner),
-            e @ (ContentError::ContentNotFound(_) | ContentError::LinkNotFound(_)) => {
-                ApiError::not_found(e.to_string())
-            },
-            e @ (ContentError::InvalidRequest(_) | ContentError::Validation(_)) => {
-                ApiError::bad_request(e.to_string())
-            },
-            other => ApiError::internal("Content operation failed", other),
         };
         Self(Box::new(api))
     }

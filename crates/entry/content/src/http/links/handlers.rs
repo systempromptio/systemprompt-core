@@ -7,25 +7,24 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::types::{AnalyticsQuery, GenerateLinkRequest, GenerateLinkResponse, ListLinksQuery};
 use axum::extract::{Path, Query, State};
 use axum::response::{IntoResponse, Redirect};
 use axum::{Extension, Json};
-use std::sync::Arc;
-use systemprompt_content::repository::ContentRepositories;
+use systemprompt_api::kernel::ApiHttpError;
 use systemprompt_content::{LinkAnalyticsService, LinkGenerationService};
 use systemprompt_identifiers::{CampaignId, LinkId};
-use systemprompt_models::{ApiError, RequestContext};
-use systemprompt_runtime::AppContext;
+use systemprompt_models::RequestContext;
 use tracing::error;
 
-use crate::kernel::ApiHttpError;
+use super::types::{AnalyticsQuery, GenerateLinkRequest, GenerateLinkResponse, ListLinksQuery};
+use crate::http::{ContentHttpError, ContentHttpState};
 
 pub async fn redirect_handler(
-    State(repositories): State<Arc<ContentRepositories>>,
+    State(state): State<ContentHttpState>,
     Extension(req_ctx): Extension<RequestContext>,
     Path(short_code): Path<String>,
 ) -> impl IntoResponse {
+    let repositories = &state.repositories;
     let link_gen_service = LinkGenerationService::new(repositories.link.clone());
     let analytics_service = LinkAnalyticsService::new(
         repositories.link.clone(),
@@ -37,7 +36,7 @@ pub async fn redirect_handler(
         Ok(None) => {
             return ApiHttpError::not_found("Link not found").into_response();
         },
-        Err(e) => return ApiHttpError::from(e).into_response(),
+        Err(e) => return ContentHttpError::from(e).into_response(),
     };
 
     let track_params = systemprompt_content::TrackClickParams::new(
@@ -59,7 +58,7 @@ pub async fn redirect_handler(
 }
 
 pub async fn generate_link_handler(
-    State(ctx): State<AppContext>,
+    State(state): State<ContentHttpState>,
     Extension(_req_ctx): Extension<RequestContext>,
     Json(payload): Json<GenerateLinkRequest>,
 ) -> impl IntoResponse {
@@ -90,7 +89,7 @@ pub async fn generate_link_handler(
         None
     };
 
-    let link_gen_service = LinkGenerationService::new(ctx.content_repositories().link.clone());
+    let link_gen_service = LinkGenerationService::new(state.repositories.link.clone());
 
     match link_gen_service
         .generate_link(systemprompt_content::GenerateLinkParams {
@@ -108,8 +107,8 @@ pub async fn generate_link_handler(
         .await
     {
         Ok(link) => {
-            let base_url = ctx.config().api_external_url.clone();
-            let redirect_url = LinkGenerationService::build_trackable_url(&link, &base_url);
+            let redirect_url =
+                LinkGenerationService::build_trackable_url(&link, &state.api_external_url);
             let full_url = link.get_full_url();
 
             Json(GenerateLinkResponse {
@@ -120,16 +119,16 @@ pub async fn generate_link_handler(
             })
             .into_response()
         },
-        Err(e) => ApiHttpError::from(e).into_response(),
+        Err(e) => ContentHttpError::from(e).into_response(),
     }
 }
 
 pub async fn get_link_performance_handler(
-    State(ctx): State<AppContext>,
+    State(state): State<ContentHttpState>,
     Extension(_req_ctx): Extension<RequestContext>,
     Path(link_id): Path<String>,
 ) -> impl IntoResponse {
-    let repositories = ctx.content_repositories();
+    let repositories = &state.repositories;
     let analytics_service = LinkAnalyticsService::new(
         repositories.link.clone(),
         repositories.link_analytics.clone(),
@@ -137,21 +136,21 @@ pub async fn get_link_performance_handler(
 
     let link_id = match LinkId::try_new(link_id) {
         Ok(id) => id,
-        Err(e) => return ApiHttpError::from(ApiError::from(e)).into_response(),
+        Err(e) => return ContentHttpError::from(e).into_response(),
     };
     match analytics_service.find_link_performance(&link_id).await {
         Ok(Some(performance)) => Json(performance).into_response(),
         Ok(None) => ApiHttpError::not_found("Link not found").into_response(),
-        Err(e) => ApiHttpError::from(e).into_response(),
+        Err(e) => ContentHttpError::from(e).into_response(),
     }
 }
 
 pub async fn get_campaign_performance_handler(
-    State(ctx): State<AppContext>,
+    State(state): State<ContentHttpState>,
     Extension(_req_ctx): Extension<RequestContext>,
     Path(campaign_id): Path<String>,
 ) -> impl IntoResponse {
-    let repositories = ctx.content_repositories();
+    let repositories = &state.repositories;
     let analytics_service = LinkAnalyticsService::new(
         repositories.link.clone(),
         repositories.link_analytics.clone(),
@@ -159,7 +158,7 @@ pub async fn get_campaign_performance_handler(
 
     let campaign_id = match CampaignId::try_new(campaign_id) {
         Ok(id) => id,
-        Err(e) => return ApiHttpError::from(ApiError::from(e)).into_response(),
+        Err(e) => return ContentHttpError::from(e).into_response(),
     };
     match analytics_service
         .find_campaign_performance(&campaign_id)
@@ -167,16 +166,16 @@ pub async fn get_campaign_performance_handler(
     {
         Ok(Some(performance)) => Json(performance).into_response(),
         Ok(None) => ApiHttpError::not_found("Campaign not found").into_response(),
-        Err(e) => ApiHttpError::from(e).into_response(),
+        Err(e) => ContentHttpError::from(e).into_response(),
     }
 }
 
 pub async fn get_content_journey_handler(
-    State(ctx): State<AppContext>,
+    State(state): State<ContentHttpState>,
     Extension(_req_ctx): Extension<RequestContext>,
     Query(query): Query<AnalyticsQuery>,
 ) -> impl IntoResponse {
-    let repositories = ctx.content_repositories();
+    let repositories = &state.repositories;
     let analytics_service = LinkAnalyticsService::new(
         repositories.link.clone(),
         repositories.link_analytics.clone(),
@@ -187,16 +186,16 @@ pub async fn get_content_journey_handler(
         .await
     {
         Ok(journey) => Json(journey).into_response(),
-        Err(e) => ApiHttpError::from(e).into_response(),
+        Err(e) => ContentHttpError::from(e).into_response(),
     }
 }
 
 pub async fn list_links_handler(
-    State(ctx): State<AppContext>,
+    State(state): State<ContentHttpState>,
     Extension(_req_ctx): Extension<RequestContext>,
     Query(query): Query<ListLinksQuery>,
 ) -> impl IntoResponse {
-    let repositories = ctx.content_repositories();
+    let repositories = &state.repositories;
     let analytics_service = LinkAnalyticsService::new(
         repositories.link.clone(),
         repositories.link_analytics.clone(),
@@ -205,7 +204,7 @@ pub async fn list_links_handler(
     if let Some(campaign_id) = query.campaign_id {
         match analytics_service.get_links_by_campaign(&campaign_id).await {
             Ok(links) => Json(links).into_response(),
-            Err(e) => ApiHttpError::from(e).into_response(),
+            Err(e) => ContentHttpError::from(e).into_response(),
         }
     } else if let Some(source_content_id) = query.source_content_id {
         match analytics_service
@@ -213,7 +212,7 @@ pub async fn list_links_handler(
             .await
         {
             Ok(links) => Json(links).into_response(),
-            Err(e) => ApiHttpError::from(e).into_response(),
+            Err(e) => ContentHttpError::from(e).into_response(),
         }
     } else {
         ApiHttpError::bad_request("Must provide either campaign_id or source_content_id")
@@ -222,12 +221,12 @@ pub async fn list_links_handler(
 }
 
 pub async fn get_link_clicks_handler(
-    State(ctx): State<AppContext>,
+    State(state): State<ContentHttpState>,
     Extension(_req_ctx): Extension<RequestContext>,
     Path(link_id): Path<String>,
     Query(query): Query<AnalyticsQuery>,
 ) -> impl IntoResponse {
-    let repositories = ctx.content_repositories();
+    let repositories = &state.repositories;
     let analytics_service = LinkAnalyticsService::new(
         repositories.link.clone(),
         repositories.link_analytics.clone(),
@@ -235,13 +234,13 @@ pub async fn get_link_clicks_handler(
 
     let link_id = match LinkId::try_new(link_id) {
         Ok(id) => id,
-        Err(e) => return ApiHttpError::from(ApiError::from(e)).into_response(),
+        Err(e) => return ContentHttpError::from(e).into_response(),
     };
     match analytics_service
         .get_link_clicks(&link_id, query.limit, query.offset)
         .await
     {
         Ok(clicks) => Json(clicks).into_response(),
-        Err(e) => ApiHttpError::from(e).into_response(),
+        Err(e) => ContentHttpError::from(e).into_response(),
     }
 }

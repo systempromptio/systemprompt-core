@@ -9,14 +9,13 @@ use clap::Args;
 use std::fs;
 use std::path::PathBuf;
 
-use crate::CliConfig;
-use crate::shared::CommandOutput;
+use systemprompt_cli::kernel::{CliConfig, CommandOutput};
 use systemprompt_generator::{SitemapUrl, build_sitemap_xml};
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 use systemprompt_models::content_config::ContentConfigRaw;
 
-use super::super::types::SitemapGenerateOutput;
+use super::types::SitemapGenerateOutput;
 
 #[derive(Debug, Args)]
 pub struct GenerateArgs {

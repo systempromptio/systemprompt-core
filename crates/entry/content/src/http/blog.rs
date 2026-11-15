@@ -12,21 +12,21 @@ use axum::http::StatusCode;
 use axum::http::header::{CONTENT_TYPE, LINK};
 use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
+use systemprompt_api::kernel::{AcceptedFormat, AcceptedMediaType, ApiHttpError};
 use systemprompt_content::Content;
 use systemprompt_identifiers::{LocaleCode, SourceId};
 use systemprompt_models::RequestContext;
-use systemprompt_models::api::{ApiError, MarkdownFrontmatter, MarkdownResponse};
-use systemprompt_runtime::AppContext;
+use systemprompt_models::api::{MarkdownFrontmatter, MarkdownResponse};
 use systemprompt_traits::RepositoryError;
 
-use crate::kernel::{AcceptedFormat, AcceptedMediaType, ApiHttpError};
+use super::{ContentHttpError, ContentHttpState};
 
 pub async fn list_content_by_source_handler(
-    State(ctx): State<AppContext>,
+    State(state): State<ContentHttpState>,
     Path(source_id): Path<String>,
-) -> Result<Json<Vec<Content>>, ApiHttpError> {
-    let source_id = SourceId::try_new(source_id).map_err(ApiError::from)?;
-    let content_service = &ctx.content_repositories().content;
+) -> Result<Json<Vec<Content>>, ContentHttpError> {
+    let source_id = SourceId::try_new(source_id)?;
+    let content_service = &state.repositories.content;
 
     let content = content_service
         .list_by_source(&source_id, &LocaleCode::english())
@@ -36,13 +36,13 @@ pub async fn list_content_by_source_handler(
 }
 
 pub async fn get_content_handler(
-    State(ctx): State<AppContext>,
+    State(state): State<ContentHttpState>,
     Extension(_req_ctx): Extension<RequestContext>,
     accepted_format: Option<Extension<AcceptedFormat>>,
     Path((source_id, slug)): Path<(String, String)>,
-) -> Result<Response, ApiHttpError> {
-    let source_id = SourceId::try_new(source_id).map_err(ApiError::from)?;
-    let content_service = &ctx.content_repositories().content;
+) -> Result<Response, ContentHttpError> {
+    let source_id = SourceId::try_new(source_id)?;
+    let content_service = &state.repositories.content;
 
     let content = content_service
         .find_by_source_and_slug(&source_id, &slug, &LocaleCode::english())
@@ -56,14 +56,10 @@ pub async fn get_content_handler(
         return Ok(markdown_response(&content_to_markdown_response(&content)));
     }
 
-    let config = ctx.config();
-    if !config.content_negotiation.enabled {
+    if !state.content_negotiation.enabled {
         return Ok(Json(content).into_response());
     }
-    let suffix = config
-        .content_negotiation
-        .markdown_suffix
-        .trim_start_matches('.');
+    let suffix = state.markdown_suffix();
     let link_value = format!(
         "</api/v1/content/{}/{}/{}>; rel=\"alternate\"; type=\"text/markdown\"",
         source_id, slug, suffix
@@ -76,12 +72,12 @@ pub async fn get_content_handler(
 }
 
 pub async fn get_content_markdown_handler(
-    State(ctx): State<AppContext>,
+    State(state): State<ContentHttpState>,
     Extension(_req_ctx): Extension<RequestContext>,
     Path((source_id, slug)): Path<(String, String)>,
-) -> Result<Response, ApiHttpError> {
-    let source_id = SourceId::try_new(source_id).map_err(ApiError::from)?;
-    let content_service = &ctx.content_repositories().content;
+) -> Result<Response, ContentHttpError> {
+    let source_id = SourceId::try_new(source_id)?;
+    let content_service = &state.repositories.content;
 
     let slug = slug.trim_end_matches(".md");
 

@@ -4,11 +4,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::types::{ContentListOutput, ContentSummary};
-use crate::cli_settings::CliConfig;
-use crate::context::CommandContext;
-use crate::shared::CommandOutput;
 use anyhow::Result;
 use clap::Args;
+use systemprompt_cli::kernel::{CliConfig, CommandContext, CommandOutput};
 use systemprompt_content::ContentRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{LocaleCode, SourceId};

@@ -7,18 +7,17 @@ use axum::extract::State;
 use axum::{Extension, Json};
 use systemprompt_content::{SearchRequest, SearchResponse, SearchService};
 use systemprompt_models::RequestContext;
-use systemprompt_runtime::AppContext;
 
-use crate::kernel::ApiHttpError;
+use super::{ContentHttpError, ContentHttpState};
 
 pub async fn query_handler(
     Extension(_req_ctx): Extension<RequestContext>,
-    State(ctx): State<AppContext>,
+    State(state): State<ContentHttpState>,
     Json(request): Json<SearchRequest>,
-) -> Result<Json<SearchResponse>, ApiHttpError> {
+) -> Result<Json<SearchResponse>, ContentHttpError> {
     tracing::info!(query = %request.query, "Searching");
 
-    let repositories = ctx.content_repositories();
+    let repositories = &state.repositories;
     let search_service =
         SearchService::new(repositories.search.clone(), repositories.content.clone());
 

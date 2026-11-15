@@ -2,8 +2,12 @@
 //!
 //! Dispatches the [`ContentCommands`] subcommands — list/show/search,
 //! edit/delete, ingest verification and status, plus the `link`, `analytics`,
-//! and `files` sub-groups. On a `--database-url` invocation only the read-only
-//! commands are served; the mutating commands require a full profile context.
+//! and `files` sub-groups. The group registers under the kernel's `core` group
+//! through `register_cli_command!`. It needs the full profile context, accepts
+//! a direct `--database-url`, and on such an invocation serves only the
+//! read-only commands; the mutating commands require a full profile context.
+//! Deleting content, a source's content or a link is destructive; every other
+//! command preserves the data behind the profile.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,17 +20,18 @@ pub mod edit_apply;
 pub mod files;
 pub mod link;
 pub mod list;
-pub mod popular;
 pub mod search;
 pub mod show;
 pub mod status;
 pub mod types;
 pub mod verify;
 
-use crate::context::CommandContext;
-use crate::shared::render_result;
 use anyhow::{Context, Result, bail};
 use clap::Subcommand;
+use systemprompt_cli::kernel::{
+    CliCommandGroup, CommandContext, CommandDescriptor, DataImpact, DbUrlRouting, DescribeCommand,
+    render_result,
+};
 
 #[derive(Debug, Subcommand)]
 pub enum ContentCommands {
@@ -47,9 +52,6 @@ pub enum ContentCommands {
 
     #[command(name = "delete-source", about = "Delete all content from a source")]
     DeleteSource(delete_source::DeleteSourceArgs),
-
-    #[command(about = "Get popular content")]
-    Popular(popular::PopularArgs),
 
     #[command(about = "Verify content is published and accessible")]
     Verify(verify::VerifyArgs),
@@ -124,12 +126,6 @@ pub async fn execute(command: ContentCommands, ctx: &CommandContext) -> Result<(
                 .context("Failed to delete source content")?;
             render_result(&result, &ctx.cli);
         },
-        ContentCommands::Popular(args) => {
-            let result = popular::execute(args, ctx)
-                .await
-                .context("Failed to get popular content")?;
-            render_result(&result, &ctx.cli);
-        },
         ContentCommands::Verify(args) => {
             let result = verify::execute(args, ctx)
                 .await
@@ -154,3 +150,49 @@ pub async fn execute(command: ContentCommands, ctx: &CommandContext) -> Result<(
     }
     Ok(())
 }
+
+impl ContentCommands {
+    pub const fn data_impact(&self) -> DataImpact {
+        match self {
+            Self::Delete(_) | Self::DeleteSource(_) | Self::Link(link::LinkCommands::Delete(_)) => {
+                DataImpact::Destructive
+            },
+            Self::List(_)
+            | Self::Show(_)
+            | Self::Search(_)
+            | Self::Edit(_)
+            | Self::Verify(_)
+            | Self::Status(_)
+            | Self::Link(
+                link::LinkCommands::Generate(_)
+                | link::LinkCommands::Show(_)
+                | link::LinkCommands::List(_)
+                | link::LinkCommands::Performance(_),
+            )
+            | Self::Analytics(_)
+            | Self::Files(_) => DataImpact::Preserving,
+        }
+    }
+}
+
+impl DescribeCommand for ContentCommands {
+    fn descriptor(&self) -> CommandDescriptor {
+        CommandDescriptor::FULL.with_data_impact(self.data_impact())
+    }
+}
+
+impl CliCommandGroup for ContentCommands {
+    const PARENT: &'static [&'static str] = &["core"];
+    const NAME: &'static str = "content";
+    const ABOUT: &'static str = "Content management and analytics";
+
+    fn db_url_routing(&self) -> DbUrlRouting {
+        DbUrlRouting::Direct
+    }
+
+    fn run(self, ctx: &CommandContext) -> impl Future<Output = Result<()>> + Send {
+        execute(self, ctx)
+    }
+}
+
+systemprompt_cli::register_cli_command!(ContentCommands);

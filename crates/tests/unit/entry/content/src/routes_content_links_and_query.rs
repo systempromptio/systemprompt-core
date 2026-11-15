@@ -13,21 +13,23 @@
 
 use anyhow::Result;
 use axum::{Extension, Router};
-use systemprompt_api::routes::content;
+use systemprompt_content_entry::http as content;
 use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{DisposableDb, test_app_context};
 use tower::ServiceExt;
 use uuid::Uuid;
 
-use super::common::{body_to_string, empty_get, json_post, request_context, setup_ctx};
+use crate::common::{
+    body_to_string, content_state, empty_get, json_post, request_context, setup_ctx,
+};
 
 fn public(ctx: &AppContext) -> Router {
-    content::public_router(ctx).layer(Extension(request_context("content_user")))
+    content::public_router(content_state(ctx)).layer(Extension(request_context("content_user")))
 }
 
 fn authenticated(ctx: &AppContext) -> Router {
-    content::authenticated_router(ctx).layer(Extension(request_context("content_user")))
+    content::authenticated_router(content_state(ctx)).layer(Extension(request_context("content_user")))
 }
 
 async fn seed_searchable(db: &DbPool, term: &str) -> Result<()> {
@@ -435,7 +437,7 @@ async fn link_analytics_reads_report_database_outage_and_recover_without_false_e
         .as_str()
         .expect("short code")
         .to_owned();
-    let redirect = content::redirect_router(ctx.content_repositories())
+    let redirect = content::redirect_router(content_state(&ctx))
         .layer(Extension(click_context))
         .oneshot(empty_get(&format!("/r/{short}")))
         .await?;

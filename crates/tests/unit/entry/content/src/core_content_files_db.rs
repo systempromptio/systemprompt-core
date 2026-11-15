@@ -6,11 +6,11 @@
 
 use serde_json::Value;
 use systemprompt_cli::CliConfig;
-use systemprompt_cli::core::content::files::{featured, link, list, unlink};
 use systemprompt_cli::interactive::ScriptedPrompter;
-use systemprompt_cli::shared::CommandOutput;
+use systemprompt_cli::kernel::CommandOutput;
 use systemprompt_content::ContentRepository;
 use systemprompt_content::models::CreateContentParams;
+use systemprompt_content_entry::cli::content::files::{featured, link, list, unlink};
 use systemprompt_database::DbPool;
 use systemprompt_files::{FileRepository, FileRole};
 use systemprompt_identifiers::{ContentId, FileId, SourceId};
@@ -381,7 +381,7 @@ async fn featured_set_unlinked_file_errors() {
 // variant wired to the wrong arm would still return `Ok(())`.
 mod dispatch {
     use super::{cfg, link, linked_roles, seed_content, seed_file, test_db_pool};
-    use systemprompt_cli::core::content::files::{
+    use systemprompt_content_entry::cli::content::files::{
         ContentFilesCommands, execute, featured, list, unlink,
     };
     use systemprompt_cli::interactive::ScriptedPrompter;
@@ -392,7 +392,7 @@ mod dispatch {
 
     fn ctx(pool: &DbPool) -> CommandContext {
         let url = test_database_url();
-        crate::boot_ctx::with_app_boot(
+        crate::common::with_app_boot(
             cfg().with_output_format(OutputFormat::Json),
             EnvOverrides::default(),
             test_app_context(pool, &url),

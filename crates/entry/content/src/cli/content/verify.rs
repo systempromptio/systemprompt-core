@@ -4,11 +4,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::types::VerifyOutput;
-use crate::context::CommandContext;
-use crate::shared::CommandOutput;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use std::path::PathBuf;
+use systemprompt_cli::kernel::{CommandContext, CommandOutput};
 use systemprompt_content::ContentRepository;
 use systemprompt_identifiers::{ContentId, LocaleCode, SourceId};
 

@@ -6,7 +6,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use systemprompt_cli::web::sitemap::generate::{GenerateArgs, execute_with_profile};
+use systemprompt_content_entry::cli::sitemap::generate::{GenerateArgs, execute_with_profile};
 use systemprompt_manifest::services::SystemAdminConfig;
 use systemprompt_manifest::{
     ContentNegotiationConfig, ExtensionsConfig, PathsConfig, Profile, ProfileDatabaseConfig,

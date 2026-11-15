@@ -3,11 +3,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::commands::core::content::types::{GenerateLinkOutput, UtmParamsOutput};
-use crate::context::CommandContext;
-use crate::shared::CommandOutput;
+use crate::cli::content::types::{GenerateLinkOutput, UtmParamsOutput};
 use anyhow::{Result, anyhow};
 use clap::{Args, ValueEnum};
+use systemprompt_cli::kernel::{CommandContext, CommandOutput};
 use systemprompt_content::models::{LinkType as DomainLinkType, UtmParams};
 use systemprompt_content::services::link::generation::{GenerateLinkParams, LinkGenerationService};
 use systemprompt_identifiers::{CampaignId, ContentId};
