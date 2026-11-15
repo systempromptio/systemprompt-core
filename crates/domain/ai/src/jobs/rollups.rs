@@ -7,30 +7,23 @@
 
 use std::time::Duration;
 
-use systemprompt_database::projection::ProjectionDrain;
-use systemprompt_database::submit_projection_drain;
+use systemprompt_extension::projection::kernel::BackfillRollups;
+use systemprompt_extension::{Contributions, ProjectionDrain};
 
 const BATCH: i32 = 24;
 const BUDGET: Duration = Duration::from_secs(15);
 
-submit_projection_drain!(
-    "ai",
-    "backfill_rollups",
-    ProjectionDrain {
+pub(super) fn contribute(c: &mut Contributions<'_>) {
+    c.projection::<BackfillRollups>(ProjectionDrain {
         projection: "ai_usage_rollup_hourly",
         projector: "refresh_ai_usage_rollup_hourly",
         batch: BATCH,
         budget: BUDGET,
-    }
-);
-
-submit_projection_drain!(
-    "ai",
-    "backfill_rollups",
-    ProjectionDrain {
+    })
+    .projection::<BackfillRollups>(ProjectionDrain {
         projection: "ai_context_rollup_hourly",
         projector: "refresh_ai_context_rollup_hourly",
         batch: BATCH,
         budget: BUDGET,
-    }
-);
+    });
+}

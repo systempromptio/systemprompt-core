@@ -1,5 +1,6 @@
-//! `Extension` registration for the AI domain: schemas, migrations,
-//! dependencies and provided state.
+//! [`AiExtension`]: contributes the AI tables and migrations, the request
+//! attribution lookup it provides, and the AI jobs, retention purges and
+//! rollup drains.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -24,32 +25,21 @@ impl Extension for AiExtension {
         }
     }
 
-    fn schemas(&self) -> Vec<SchemaDefinition> {
-        let mut schemas = request_schemas();
-        schemas.extend(gateway_schemas());
-        schemas
-    }
-
-    fn migrations(&self) -> Vec<Migration> {
-        extension_migrations!()
-    }
-
-    fn dependencies(&self) -> Vec<&'static str> {
-        vec!["users", "mcp"]
-    }
-
-    fn provide(
-        &self,
-        _ctx: &dyn ExtensionContext,
-        state: &mut StateBuilder<'_>,
-    ) -> Result<(), ExtensionStateError> {
-        let db = Arc::clone(state.state().get::<DbPool>()?);
-        let attributions: DynRequestAttributionLookup = Arc::new(AiRequestRepository::new(&db));
-        state.provide(attributions)
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        for schema in request_schemas().into_iter().chain(gateway_schemas()) {
+            c.schema(schema);
+        }
+        c.migrations(extension_migrations!())
+            .provide(
+                |r: &Resolved<'_>| -> Result<DynRequestAttributionLookup, ProvideError> {
+                    let db = r.get::<DbPool>()?;
+                    Ok(Arc::new(AiRequestRepository::new(&db)))
+                },
+            );
+        crate::jobs::contribute(c);
+        Ok(())
     }
 }
-
-register_extension!(AiExtension);
 
 fn request_schemas() -> Vec<SchemaDefinition> {
     vec![

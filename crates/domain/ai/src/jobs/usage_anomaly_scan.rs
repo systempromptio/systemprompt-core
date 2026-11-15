@@ -148,5 +148,3 @@ impl Job for UsageAnomalyScanJob {
             .with_duration(start.elapsed().as_millis() as u64))
     }
 }
-
-systemprompt_traits::submit_job!("ai", &UsageAnomalyScanJob);
