@@ -78,6 +78,7 @@ members = [
     "unit/app/scheduler",
     # Unit tests - entry layer
     "unit/entry/agent-runs",
+    "unit/entry/analytics",
     "unit/entry/cloud",
     "unit/entry/content",
     "unit/entry/api",
@@ -317,6 +318,7 @@ systemprompt-cli = { path = "../entry/cli" }
 systemprompt-slack-entry = { path = "../entry/slack" }
 systemprompt-teams-entry = { path = "../entry/teams" }
 systemprompt-agent-runs-entry = { path = "../entry/agent-runs" }
+systemprompt-analytics-entry = { path = "../entry/analytics" }
 systemprompt-cloud-entry = { path = "../entry/cloud" }
 systemprompt-content-entry = { path = "../entry/content" }
 systemprompt-notifications-entry = { path = "../entry/notifications" }

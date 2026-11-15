@@ -1,4 +1,5 @@
-//! Integration tests for the `systemprompt-analytics` crate.
+//! Integration tests for the `systemprompt-analytics` crate and the route
+//! handlers of `systemprompt-analytics-entry`.
 //!
 //! `DATABASE_URL` must point at a Postgres instance with the full
 //! systemprompt-core schema applied (run `systemprompt-test-migrate` first).
@@ -10,7 +11,16 @@ mod costs;
 mod repositories;
 
 #[cfg(test)]
+mod popularity;
+
+#[cfg(test)]
+mod report_views_reinstall;
+
+#[cfg(test)]
 mod repositories_extended;
+
+#[cfg(test)]
+mod routes;
 
 #[cfg(test)]
 mod session_pipeline;

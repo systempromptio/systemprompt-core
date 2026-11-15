@@ -12,7 +12,6 @@ workspace = true
 
 [dependencies]
 systemprompt-agent-runs = { workspace = true }
-systemprompt-analytics = { workspace = true }
 systemprompt-cli = { workspace = true }
 systemprompt-cloud = { workspace = true }
 systemprompt-extension = { workspace = true }

@@ -145,7 +145,6 @@ fn help_lists_the_group_in_its_declared_slot() {
             .unwrap_or_else(|| panic!("`{name}` is listed in --help:\n{help}"))
     };
     assert!(position("admin") < position("fprobe"));
-    assert!(position("fprobe") < position("analytics"));
-    assert!(position("analytics") < position("web"));
+    assert!(position("fprobe") < position("web"));
     assert!(position("plugins") < position("build"));
 }

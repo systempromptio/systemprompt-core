@@ -7,7 +7,7 @@
 use std::sync::Arc;
 
 use futures::stream::{self, StreamExt};
-use systemprompt_analytics::ContentAnalyticsRepository;
+use systemprompt_traits::DynContentPopularity;
 use systemprompt_content::ContentRepository;
 use systemprompt_content::models::Content;
 use systemprompt_identifiers::{LocaleCode, SourceId};
@@ -128,19 +128,42 @@ pub(super) async fn contents_to_json(
         .await
 }
 
-pub(super) async fn fetch_popular_ids(
-    content_analytics: &ContentAnalyticsRepository,
+/// The popularity ordering a source renders with: ranked by the provided
+/// audience ranking, or unranked when no ranking applies.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PopularContent {
+    Ranked(Vec<String>),
+    NoRankingProvider,
+    UnnamedSource,
+}
+
+impl PopularContent {
+    pub fn ids(&self) -> &[String] {
+        match self {
+            Self::Ranked(ids) => ids,
+            Self::NoRankingProvider | Self::UnnamedSource => &[],
+        }
+    }
+}
+
+pub async fn fetch_popular_ids(
+    popularity: Option<&DynContentPopularity>,
     source_name: &str,
     source_id: &SourceId,
-) -> GeneratorResult<Vec<String>> {
+) -> GeneratorResult<PopularContent> {
     if source_name.is_empty() {
-        return Ok(Vec::new());
+        return Ok(PopularContent::UnnamedSource);
     }
+    let Some(popularity) = popularity else {
+        return Ok(PopularContent::NoRankingProvider);
+    };
 
-    let ids = content_analytics
+    let ids = popularity
         .popular_content_ids(source_id, 30, 20)
         .await
-        .map_err(|e| PublishError::analytics("Failed to get popular content IDs", e))?;
+        .map_err(|e| PublishError::popularity("Failed to get popular content IDs", e))?;
 
-    Ok(ids.into_iter().map(|id| id.to_string()).collect())
+    Ok(PopularContent::Ranked(
+        ids.into_iter().map(|id| id.to_string()).collect(),
+    ))
 }

@@ -120,10 +120,10 @@ pub enum PublishError {
     },
 
     #[error("{context}: {source}")]
-    Analytics {
+    Popularity {
         context: String,
         #[source]
-        source: systemprompt_analytics::AnalyticsError,
+        source: systemprompt_traits::RepositoryError,
     },
 
     #[error("Template registry error: {0}")]
@@ -233,11 +233,11 @@ impl PublishError {
         }
     }
 
-    pub fn analytics(
+    pub fn popularity(
         context: impl Into<String>,
-        source: systemprompt_analytics::AnalyticsError,
+        source: systemprompt_traits::RepositoryError,
     ) -> Self {
-        Self::Analytics {
+        Self::Popularity {
             context: context.into(),
             source,
         }

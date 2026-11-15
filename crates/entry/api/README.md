@@ -114,8 +114,7 @@ The API server is configured through `systemprompt-runtime::Config` and the acti
 - `systemprompt-oauth` — authentication and session management
 - `systemprompt-agent` — agent registry, A2A protocol, orchestration
 - `systemprompt-mcp` — MCP server registry and proxy
-- `systemprompt-content` — content repository and serving
-- `systemprompt-analytics` — session and event tracking
+- `systemprompt-analytics` — the bot-pattern match the request-analytics middleware uses
 - `systemprompt-scheduler` — background job execution
 - `systemprompt-marketplace` — marketplace catalog
 - `systemprompt-gateway` — AI gateway services: protocol translation, policies, quotas, safety, audit

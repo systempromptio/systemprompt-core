@@ -236,7 +236,6 @@ fn every_destructive_command_demands_an_explicit_cloud_profile() {
         vec!["infra", "jobs", "list"],
         vec!["infra", "logs", "view"],
         vec!["admin", "users", "list"],
-        vec!["analytics", "overview"],
     ] {
         assert!(
             !descriptor(&args).is_destructive(),

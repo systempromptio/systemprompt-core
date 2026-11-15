@@ -213,17 +213,17 @@ fn positional_arguments_survive_in_order() {
 }
 
 // Why: the export flag only means anything for a command that declares a
-// local export (`analytics`). Treating it as local for any other command would
+// local export (the registered `fprobe report`). Treating it as local for any other command would
 // route a subprocess call back to the local profile and silently run it
 // against the wrong database.
 #[test]
 fn the_export_flag_is_only_local_for_a_command_declaring_local_export() {
-    let analytics = descriptor_of(&cli(&["analytics", "overview"]));
+    let exporter = local_export_descriptor();
     let other = descriptor_of(&cli(&["core", "skills", "list"]));
-    let args = owned(&["systemprompt", "analytics", "overview", "--export"]);
+    let args = owned(&["systemprompt", "fprobe", "report", "--export"]);
 
-    assert!(analytics.local_export());
-    assert!(has_local_export_flag_in(&analytics, &args));
+    assert!(exporter.local_export());
+    assert!(has_local_export_flag_in(&exporter, &args));
     assert!(
         !has_local_export_flag_in(&other, &args),
         "a command without a local export must not be treated as a local export"
@@ -236,22 +236,27 @@ fn the_export_flag_is_only_local_for_a_command_declaring_local_export() {
 
 #[test]
 fn the_export_flag_is_recognised_with_and_without_a_value() {
-    let analytics = descriptor_of(&cli(&["analytics", "overview"]));
+    let exporter = local_export_descriptor();
 
     assert!(has_local_export_flag_in(
-        &analytics,
+        &exporter,
         &owned(&["systemprompt", "--export"])
     ));
     assert!(has_local_export_flag_in(
-        &analytics,
+        &exporter,
         &owned(&["systemprompt", "--export=/tmp/out.csv"])
     ));
     assert!(
-        !has_local_export_flag_in(&analytics, &owned(&["systemprompt", "--exported"])),
+        !has_local_export_flag_in(&exporter, &owned(&["systemprompt", "--exported"])),
         "a longer flag that merely starts the same way is not --export"
     );
 }
 
 fn descriptor_of(cli: &Cli) -> CommandDescriptor {
     cli.command.as_ref().expect("a kernel command").descriptor()
+}
+
+fn local_export_descriptor() -> CommandDescriptor {
+    systemprompt_cli::kernel::describe_command_line(&owned(&["fprobe", "report"]))
+        .expect("the registered fprobe report parses")
 }

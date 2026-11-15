@@ -238,7 +238,6 @@ async fn prerender_renders_item_html_with_toc_for_both_locales() {
     prerender_content(
         db.clone(),
         content_repo(&db),
-        content_analytics(&db),
         systemprompt_generator::PrerenderEnv {
             config: ensure_test_bootstrap().boot_config(),
             paths: &boot.app_paths,
@@ -298,7 +297,6 @@ async fn prerender_renders_parent_list_route_with_index_content() {
     prerender_content(
         db.clone(),
         content_repo(&db),
-        content_analytics(&db),
         systemprompt_generator::PrerenderEnv {
             config: ensure_test_bootstrap().boot_config(),
             paths: &boot.app_paths,
@@ -345,7 +343,6 @@ async fn prerender_list_route_without_index_content_sets_flag_false() {
     prerender_content(
         db.clone(),
         content_repo(&db),
-        content_analytics(&db),
         systemprompt_generator::PrerenderEnv {
             config: ensure_test_bootstrap().boot_config(),
             paths: &boot.app_paths,
@@ -381,7 +378,6 @@ async fn prerender_errors_with_template_not_found_for_item() {
     let err = prerender_content(
         db.clone(),
         content_repo(&db),
-        content_analytics(&db),
         systemprompt_generator::PrerenderEnv {
             config: ensure_test_bootstrap().boot_config(),
             paths: &boot.app_paths,
@@ -416,7 +412,6 @@ async fn prerender_errors_with_template_not_found_for_list_route() {
     let err = prerender_content(
         db.clone(),
         content_repo(&db),
-        content_analytics(&db),
         systemprompt_generator::PrerenderEnv {
             config: ensure_test_bootstrap().boot_config(),
             paths: &boot.app_paths,
@@ -477,8 +472,3 @@ fn content_repo(pool: &systemprompt_database::DbPool) -> systemprompt_content::C
     systemprompt_content::ContentRepository::new(pool)
 }
 
-fn content_analytics(
-    pool: &systemprompt_database::DbPool,
-) -> systemprompt_analytics::ContentAnalyticsRepository {
-    systemprompt_analytics::ContentAnalyticsRepository::new(pool)
-}

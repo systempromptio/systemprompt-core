@@ -216,6 +216,7 @@ pub mod content;
 #[cfg_attr(docsrs, doc(cfg(feature = "analytics")))]
 pub mod analytics {
     pub use systemprompt_analytics::*;
+    pub use systemprompt_analytics_entry as entry;
 }
 
 #[cfg(feature = "full")]

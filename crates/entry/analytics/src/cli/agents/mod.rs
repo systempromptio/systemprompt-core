@@ -1,0 +1,147 @@
+//! Agent performance analytics: stats, listing, trends, and per-agent deep
+//! dives.
+//!
+//! Defines the [`AgentsCommands`] subcommand tree and the typed output rows
+//! ([`AgentStatsOutput`], [`AgentListOutput`], [`AgentTrendsOutput`],
+//! [`AgentShowOutput`]) rendered by the `analytics agents` commands.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+mod list;
+mod show;
+mod stats;
+mod trends;
+
+use anyhow::Result;
+use clap::Subcommand;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::AgentName;
+
+use crate::cli::shared::with_resolved_export;
+use systemprompt_cli::kernel::CommandContext;
+use systemprompt_cli::kernel::render_result;
+
+#[derive(Debug, Subcommand)]
+pub enum AgentsCommands {
+    #[command(about = "Aggregate agent statistics")]
+    Stats(stats::StatsArgs),
+
+    #[command(about = "List agents with metrics")]
+    List(list::ListArgs),
+
+    #[command(about = "Agent usage trends over time")]
+    Trends(trends::TrendsArgs),
+
+    #[command(about = "Deep dive into specific agent")]
+    Show(show::ShowArgs),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct AgentStatsOutput {
+    pub period: String,
+    pub total_agents: i64,
+    pub total_tasks: i64,
+    pub completed_tasks: i64,
+    pub failed_tasks: i64,
+    pub success_rate: f64,
+    pub avg_execution_time_ms: i64,
+    pub total_ai_requests: i64,
+    pub total_cost_microdollars: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct AgentListRow {
+    pub agent_name: AgentName,
+    pub task_count: i64,
+    pub success_rate: f64,
+    pub avg_execution_time_ms: i64,
+    pub total_cost_microdollars: i64,
+    pub last_active: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct AgentListOutput {
+    pub agents: Vec<AgentListRow>,
+    pub total: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct AgentTrendPoint {
+    pub timestamp: String,
+    pub task_count: i64,
+    pub success_rate: f64,
+    pub avg_execution_time_ms: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct AgentTrendsOutput {
+    pub agent: Option<String>,
+    pub period: String,
+    pub group_by: String,
+    pub points: Vec<AgentTrendPoint>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct AgentShowOutput {
+    pub agent_name: AgentName,
+    pub period: String,
+    pub summary: AgentStatsOutput,
+    pub status_breakdown: Vec<StatusBreakdownItem>,
+    pub top_errors: Vec<ErrorBreakdownItem>,
+    pub hourly_distribution: Vec<HourlyDistributionItem>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct StatusBreakdownItem {
+    pub status: String,
+    pub count: i64,
+    pub percentage: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ErrorBreakdownItem {
+    pub error_type: String,
+    pub count: i64,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
+pub struct HourlyDistributionItem {
+    pub hour: i32,
+    pub count: i64,
+}
+
+pub async fn execute(command: AgentsCommands, ctx: &CommandContext) -> Result<()> {
+    let db_ctx = ctx.database().await?;
+    match command {
+        AgentsCommands::Stats(args) => {
+            let result =
+                stats::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                    .await?;
+            render_result(&result, &ctx.cli);
+            Ok(())
+        },
+        AgentsCommands::List(args) => {
+            let result =
+                list::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                    .await?;
+            render_result(&result, &ctx.cli);
+            Ok(())
+        },
+        AgentsCommands::Trends(args) => {
+            let result =
+                trends::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                    .await?;
+            render_result(&result, &ctx.cli);
+            Ok(())
+        },
+        AgentsCommands::Show(args) => {
+            let result =
+                show::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                    .await?;
+            render_result(&result, &ctx.cli);
+            Ok(())
+        },
+    }
+}

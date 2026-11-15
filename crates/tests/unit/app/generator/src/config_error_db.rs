@@ -181,7 +181,6 @@ async fn prerender_content_malformed_content_config_is_parse_error() {
     let err = prerender_content(
         db.clone(),
         content_repo(&db),
-        content_analytics(&db),
         systemprompt_generator::PrerenderEnv {
             config: ensure_test_bootstrap().boot_config(),
             paths: &boot.app_paths,
@@ -208,7 +207,6 @@ async fn prerender_content_missing_content_config_is_read_error() {
     let err = prerender_content(
         db.clone(),
         content_repo(&db),
-        content_analytics(&db),
         systemprompt_generator::PrerenderEnv {
             config: ensure_test_bootstrap().boot_config(),
             paths: &boot.app_paths,
@@ -235,7 +233,6 @@ async fn prerender_content_malformed_web_config_is_web_config_error() {
     let err = prerender_content(
         db.clone(),
         content_repo(&db),
-        content_analytics(&db),
         systemprompt_generator::PrerenderEnv {
             config: ensure_test_bootstrap().boot_config(),
             paths: &boot.app_paths,
@@ -327,7 +324,6 @@ async fn prerender_content_missing_templates_dir_is_config_error() {
     let err = prerender_content(
         db.clone(),
         content_repo(&db),
-        content_analytics(&db),
         systemprompt_generator::PrerenderEnv {
             config: ensure_test_bootstrap().boot_config(),
             paths: &boot.app_paths,
@@ -370,7 +366,6 @@ async fn prerender_content_with_closed_pool_is_fetch_error() {
     let err = prerender_content(
         closed.clone(),
         content_repo(&closed),
-        content_analytics(&closed),
         systemprompt_generator::PrerenderEnv {
             config: ensure_test_bootstrap().boot_config(),
             paths: &boot.app_paths,
@@ -390,8 +385,3 @@ fn content_repo(pool: &systemprompt_database::DbPool) -> systemprompt_content::C
     systemprompt_content::ContentRepository::new(pool)
 }
 
-fn content_analytics(
-    pool: &systemprompt_database::DbPool,
-) -> systemprompt_analytics::ContentAnalyticsRepository {
-    systemprompt_analytics::ContentAnalyticsRepository::new(pool)
-}

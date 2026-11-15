@@ -50,6 +50,7 @@ systemprompt-mcp = { workspace = true }
 systemprompt-users = { workspace = true }
 systemprompt-notifications = { workspace = true }
 systemprompt-notifications-entry = { workspace = true, features = ["http"] }
+systemprompt-analytics-entry = { workspace = true, features = ["http"] }
 systemprompt-agent-runs = { workspace = true }
 systemprompt-agent-runs-entry = { workspace = true, features = ["http"] }
 tracing = { workspace = true }

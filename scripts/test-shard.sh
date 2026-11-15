@@ -17,7 +17,7 @@ group_prefixes() {
     app-generator) echo "/tests/unit/app/generator/ /tests/unit/entry/content/" ;;
     app-oauth-issuance) echo "/tests/unit/app/oauth-issuance/" ;;
     entry-api)     echo "/tests/unit/entry/api/ /tests/unit/entry/notifications/ /tests/unit/entry/slack/ /tests/unit/entry/teams/" ;;
-    entry-cli)     echo "/tests/unit/entry/cli/ /tests/unit/entry/cloud/" ;;
+    entry-cli)     echo "/tests/unit/entry/cli/ /tests/unit/entry/cloud/ /tests/unit/entry/analytics/" ;;
     bridge)        echo "/tests/unit/bridge/" ;;
     # `integration` was one shard of 18 packages and 1684 tests, and at ~21min
     # it was CI's entire critical path while no other shard passed 5min. Split

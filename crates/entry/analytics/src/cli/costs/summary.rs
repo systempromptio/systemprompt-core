@@ -1,0 +1,159 @@
+//! `analytics costs summary` command.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use anyhow::Result;
+use chrono::{DateTime, Duration, Utc};
+use clap::Args;
+use std::future::Future;
+use std::path::PathBuf;
+use systemprompt_analytics::CostAnalyticsRepository;
+use systemprompt_analytics::models::reporting::CostSummaryRow;
+use systemprompt_logging::CliService;
+use systemprompt_runtime::DatabaseContext;
+
+use super::CostSummaryOutput;
+use systemprompt_cli::kernel::CliConfig;
+use crate::cli::shared::{export_single_to_csv, parse_time_range};
+use systemprompt_cli::kernel::CommandOutput;
+
+#[derive(Debug, Args)]
+pub struct SummaryArgs {
+    #[arg(
+        long,
+        alias = "from",
+        help = "Time range (e.g., '1h', '24h', '7d'). Defaults to 24h, widening to 7d then 30d \
+                while that window holds no requests."
+    )]
+    pub since: Option<String>,
+
+    #[arg(long, alias = "to", help = "End time for range")]
+    pub until: Option<String>,
+
+    #[arg(long, help = "Export results to CSV file")]
+    pub export: Option<PathBuf>,
+}
+
+pub(super) async fn execute_with_pool(
+    args: SummaryArgs,
+    db_ctx: &DatabaseContext,
+    _config: &CliConfig,
+) -> Result<CommandOutput> {
+    let repo = CostAnalyticsRepository::new(db_ctx.db_pool());
+    execute_internal(args, &repo).await
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ResolvedWindow {
+    pub start: DateTime<Utc>,
+    pub end: DateTime<Utc>,
+    pub summary: CostSummaryRow,
+    pub widened_to: Option<&'static str>,
+}
+
+const WIDEN_LADDER: [(&str, i64); 2] = [("7d", 7), ("30d", 30)];
+
+pub async fn resolve_window<F, Fut>(
+    since: Option<&String>,
+    until: Option<&String>,
+    fetch: F,
+) -> Result<ResolvedWindow>
+where
+    F: Fn(DateTime<Utc>, DateTime<Utc>) -> Fut,
+    Fut: Future<Output = Result<CostSummaryRow>>,
+{
+    let (start, end) = parse_time_range(since, until)?;
+    let summary = fetch(start, end).await?;
+
+    let explicit = since.is_some() || until.is_some();
+    if explicit || summary.requests > 0 {
+        return Ok(ResolvedWindow {
+            start,
+            end,
+            summary,
+            widened_to: None,
+        });
+    }
+
+    for (label, days) in WIDEN_LADDER {
+        let widened_start = end - Duration::days(days);
+        let widened = fetch(widened_start, end).await?;
+        if widened.requests > 0 {
+            return Ok(ResolvedWindow {
+                start: widened_start,
+                end,
+                summary: widened,
+                widened_to: Some(label),
+            });
+        }
+    }
+
+    Ok(ResolvedWindow {
+        start,
+        end,
+        summary,
+        widened_to: None,
+    })
+}
+
+async fn execute_internal(
+    args: SummaryArgs,
+    repo: &CostAnalyticsRepository,
+) -> Result<CommandOutput> {
+    let ResolvedWindow {
+        start,
+        end,
+        summary: current,
+        widened_to,
+    } = resolve_window(
+        args.since.as_ref(),
+        args.until.as_ref(),
+        |start, end| async move { repo.get_summary(start, end).await.map_err(Into::into) },
+    )
+    .await?;
+
+    let period_duration = end - start;
+    let prev_start = start - period_duration;
+
+    let previous = repo.get_previous_cost(prev_start, start).await?;
+
+    let total_cost = current.cost.unwrap_or(0);
+    let prev_cost = previous.cost.unwrap_or(0);
+    let change_percent = if prev_cost > 0 {
+        Some(((total_cost - prev_cost) as f64 / prev_cost as f64) * 100.0)
+    } else {
+        None
+    };
+
+    let avg_cost = if current.requests > 0 {
+        total_cost as f64 / current.requests as f64
+    } else {
+        0.0
+    };
+
+    let output = CostSummaryOutput {
+        period: format!(
+            "{} to {}",
+            start.format("%Y-%m-%d %H:%M"),
+            end.format("%Y-%m-%d %H:%M")
+        ),
+        total_cost_microdollars: total_cost,
+        total_requests: current.requests,
+        total_tokens: current.tokens.unwrap_or(0),
+        reasoning_tokens: current.reasoning_tokens.unwrap_or(0),
+        cache_read_tokens: current.cache_read_tokens.unwrap_or(0),
+        cache_creation_tokens: current.cache_creation_tokens.unwrap_or(0),
+        avg_cost_per_request_microdollars: avg_cost,
+        change_percent,
+        auto_widened_to: widened_to.map(str::to_owned),
+    };
+
+    if let Some(ref path) = args.export {
+        export_single_to_csv(&output, path)?;
+        CliService::success(&format!("Exported to {}", path.display()));
+        return Ok(CommandOutput::card_value("Cost Summary", &output).with_skip_render());
+    }
+
+    Ok(CommandOutput::card_value("Cost Summary", &output))
+}

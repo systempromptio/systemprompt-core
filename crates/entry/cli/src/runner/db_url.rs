@@ -34,8 +34,7 @@ impl Commands {
                     | infrastructure::jobs::JobsCommands::History(_),
                 ),
             )
-            | Self::Admin(admin::AdminCommands::Users(_))
-            | Self::Analytics(_) => DbUrlRouting::Direct,
+            | Self::Admin(admin::AdminCommands::Users(_)) => DbUrlRouting::Direct,
 
             Self::Admin(admin::AdminCommands::Config(admin::config::ConfigCommands::Migrate(
                 args,

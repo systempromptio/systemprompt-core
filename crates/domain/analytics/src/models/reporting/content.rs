@@ -6,7 +6,19 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
-use systemprompt_identifiers::{ContentId, SourceId};
+use systemprompt_identifiers::{CategoryId, ContentId, SourceId};
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct PopularContentRow {
+    pub id: ContentId,
+    pub slug: String,
+    pub title: String,
+    pub kind: String,
+    pub source_id: SourceId,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category_id: Option<CategoryId>,
+    pub published_at: DateTime<Utc>,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct TopContentRow {

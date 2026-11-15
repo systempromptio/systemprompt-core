@@ -173,7 +173,9 @@ systemprompt cloud auth login
 
 ## analytics — metrics reporting
 
-`crates/entry/cli/src/commands/analytics/`
+`crates/entry/analytics/src/cli/` (`systemprompt-analytics-entry`, feature `cli`)
+
+A registered group, listed in `--help` between `cloud` and `web`. Every subcommand is read-only, needs the profile's database, accepts `--database-url`, and writes an `--export` file on the local machine even when the profile routes to a cloud tenant. The same crate registers `core content popular`.
 
 | Subcommand | Purpose |
 |------------|---------|

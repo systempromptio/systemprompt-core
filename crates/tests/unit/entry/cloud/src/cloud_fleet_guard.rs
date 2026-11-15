@@ -14,11 +14,6 @@ fn a_read_only_log_query_is_forwarded() {
 }
 
 #[test]
-fn analytics_is_forwarded() {
-    ensure_read_only(&args(&["analytics", "overview"])).expect("analytics is read-only");
-}
-
-#[test]
 fn a_destructive_command_is_refused() {
     let err = ensure_read_only(&args(&["infra", "db", "migrate"])).unwrap_err();
     assert!(

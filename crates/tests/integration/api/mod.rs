@@ -21,6 +21,10 @@ mod routes_gateway_auth;
 mod server_mount_gateway_and_mcp_scope;
 
 #[cfg(test)]
+#[path = "server_mount_analytics.rs"]
+mod server_mount_analytics;
+
+#[cfg(test)]
 #[path = "server_mount_notifications.rs"]
 mod server_mount_notifications;
 
@@ -103,14 +107,6 @@ mod routes_oauth_discovery;
 #[cfg(test)]
 #[path = "routes_stream.rs"]
 mod routes_stream;
-
-#[cfg(test)]
-#[path = "routes_analytics.rs"]
-mod routes_analytics;
-
-#[cfg(test)]
-#[path = "routes_engagement.rs"]
-mod routes_engagement;
 
 #[cfg(test)]
 #[path = "routes_sync.rs"]
@@ -556,14 +552,6 @@ mod proxy_more;
 mod api_error_units;
 
 #[cfg(test)]
-#[cfg(test)]
-#[path = "routes_analytics_more.rs"]
-mod routes_analytics_more;
-
-#[cfg(test)]
-#[path = "routes_analytics_events_success.rs"]
-mod routes_analytics_events_success;
-
 #[cfg(test)]
 #[path = "routes_admin_cli_subprocess.rs"]
 mod routes_admin_cli_subprocess;

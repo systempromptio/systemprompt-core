@@ -1,0 +1,93 @@
+//! `analytics traffic bots` command.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use anyhow::Result;
+use clap::Args;
+use std::path::PathBuf;
+use systemprompt_analytics::TrafficAnalyticsRepository;
+use systemprompt_logging::CliService;
+use systemprompt_runtime::DatabaseContext;
+use systemprompt_users::SessionTrafficRollupRepository;
+
+use super::{BotRow, BotsOutput};
+use systemprompt_cli::kernel::CliConfig;
+use crate::cli::shared::{
+    export_single_to_csv, format_date_range, parse_time_range,
+};
+use systemprompt_cli::kernel::CommandOutput;
+
+#[derive(Debug, Args)]
+pub struct BotsArgs {
+    #[arg(long, alias = "from", default_value = "24h", help = "Time range")]
+    pub since: Option<String>,
+
+    #[arg(long, alias = "to", help = "End time")]
+    pub until: Option<String>,
+
+    #[arg(long, help = "Export to CSV")]
+    pub export: Option<PathBuf>,
+}
+
+pub(super) async fn execute_with_pool(
+    args: BotsArgs,
+    db_ctx: &DatabaseContext,
+    _config: &CliConfig,
+) -> Result<CommandOutput> {
+    let repo = TrafficAnalyticsRepository::new(
+        db_ctx.db_pool(),
+        std::sync::Arc::new(SessionTrafficRollupRepository::new(db_ctx.db_pool())),
+    );
+    execute_internal(args, &repo).await
+}
+
+async fn execute_internal(
+    args: BotsArgs,
+    repo: &TrafficAnalyticsRepository,
+) -> Result<CommandOutput> {
+    let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
+
+    let totals = repo.get_bot_totals(start, end).await?;
+    let bot_types = repo.get_bot_breakdown(start, end).await?;
+
+    let total = totals.human + totals.ghost + totals.bot;
+    let bot_percentage = if total > 0 {
+        (totals.bot as f64 / total as f64) * 100.0
+    } else {
+        0.0
+    };
+
+    let bot_breakdown: Vec<BotRow> = bot_types
+        .into_iter()
+        .map(|row| {
+            let percentage = if totals.bot > 0 {
+                (row.count as f64 / totals.bot as f64) * 100.0
+            } else {
+                0.0
+            };
+            BotRow {
+                bot_type: row.bot_type.unwrap_or_else(|| "Unknown".to_owned()),
+                session_count: row.count,
+                percentage,
+            }
+        })
+        .collect();
+
+    let output = BotsOutput {
+        period: format_date_range(start, end),
+        human_sessions: totals.human,
+        ghost_sessions: totals.ghost,
+        bot_sessions: totals.bot,
+        bot_percentage,
+        bot_breakdown,
+    };
+
+    if let Some(ref path) = args.export {
+        export_single_to_csv(&output, path)?;
+        CliService::success(&format!("Exported to {}", path.display()));
+        return Ok(CommandOutput::card_value("Bot Traffic Analysis", &output).with_skip_render());
+    }
+
+    Ok(CommandOutput::card_value("Bot Traffic Analysis", &output))
+}

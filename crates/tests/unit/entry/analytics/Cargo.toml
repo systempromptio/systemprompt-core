@@ -1,0 +1,32 @@
+[package]
+name = "systemprompt-analytics-entry-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Command tests for the systemprompt-analytics-entry analytics group and core content popular"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-analytics = { workspace = true }
+systemprompt-analytics-entry = { workspace = true, features = ["cli"] }
+systemprompt-cli = { workspace = true }
+systemprompt-database = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+systemprompt-runtime = { workspace = true }
+systemprompt-test-fixtures = { workspace = true }
+systemprompt-test-hack = { version = "0.1", path = "../../../common/hack" }
+
+[dev-dependencies]
+chrono = { workspace = true }
+clap = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+systemprompt-agent = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true }
+uuid = { workspace = true }

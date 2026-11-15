@@ -1,0 +1,103 @@
+//! `analytics traffic devices` command.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use anyhow::Result;
+use clap::Args;
+use std::path::PathBuf;
+use systemprompt_analytics::TrafficAnalyticsRepository;
+use systemprompt_logging::CliService;
+use systemprompt_runtime::DatabaseContext;
+use systemprompt_users::SessionTrafficRollupRepository;
+
+use super::{DeviceRow, DevicesOutput};
+use systemprompt_cli::kernel::CliConfig;
+use crate::cli::shared::{export_to_csv, format_date_range, parse_time_range};
+use systemprompt_cli::kernel::CommandOutput;
+
+#[derive(Debug, Args)]
+pub struct DevicesArgs {
+    #[arg(long, alias = "from", default_value = "24h", help = "Time range")]
+    pub since: Option<String>,
+
+    #[arg(long, alias = "to", help = "End time")]
+    pub until: Option<String>,
+
+    #[arg(long, short = 'n', default_value = "20", help = "Maximum devices")]
+    pub limit: i64,
+
+    #[arg(long, help = "Export to CSV")]
+    pub export: Option<PathBuf>,
+
+    #[arg(
+        long,
+        help = "Include all sessions (ghost sessions, suspected bots that evaded detection)"
+    )]
+    pub include_all: bool,
+}
+
+pub(super) async fn execute_with_pool(
+    args: DevicesArgs,
+    db_ctx: &DatabaseContext,
+    _config: &CliConfig,
+) -> Result<CommandOutput> {
+    let repo = TrafficAnalyticsRepository::new(
+        db_ctx.db_pool(),
+        std::sync::Arc::new(SessionTrafficRollupRepository::new(db_ctx.db_pool())),
+    );
+    execute_internal(args, &repo).await
+}
+
+async fn execute_internal(
+    args: DevicesArgs,
+    repo: &TrafficAnalyticsRepository,
+) -> Result<CommandOutput> {
+    let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
+    let engaged_only = !args.include_all;
+
+    let rows = repo
+        .get_device_breakdown(start, end, args.limit, engaged_only)
+        .await?;
+
+    let total: i64 = rows.iter().map(|r| r.count).sum();
+
+    let devices: Vec<DeviceRow> = rows
+        .into_iter()
+        .map(|row| {
+            let percentage = if total > 0 {
+                (row.count as f64 / total as f64) * 100.0
+            } else {
+                0.0
+            };
+            DeviceRow {
+                device_type: row.device.unwrap_or_else(|| "unknown".to_owned()),
+                browser: row.browser.unwrap_or_else(|| "unknown".to_owned()),
+                session_count: row.count,
+                percentage,
+            }
+        })
+        .collect();
+
+    let output = DevicesOutput {
+        period: format_date_range(start, end),
+        devices,
+        total_sessions: total,
+    };
+
+    if let Some(ref path) = args.export {
+        export_to_csv(&output.devices, path)?;
+        CliService::success(&format!("Exported to {}", path.display()));
+        return Ok(CommandOutput::table_of(
+            vec!["device_type", "browser", "session_count"],
+            &output.devices,
+        )
+        .with_skip_render());
+    }
+
+    Ok(CommandOutput::table_of(
+        vec!["device_type", "browser", "session_count"],
+        &output.devices,
+    )
+    .with_title("Device Breakdown"))
+}

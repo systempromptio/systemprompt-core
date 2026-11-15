@@ -9,12 +9,12 @@
 use std::collections::HashSet;
 use std::path::PathBuf;
 
-use systemprompt_analytics::ContentAnalyticsRepository;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_content::ContentRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::LocaleCode;
 use systemprompt_manifest::Config;
+use systemprompt_traits::DynContentPopularity;
 use systemprompt_template_provider::{
     ComponentContext, DynPagePrerenderer, PageContext, PagePrepareContext,
 };
@@ -46,11 +46,15 @@ impl std::fmt::Debug for PrerenderEnv<'_> {
 pub async fn prerender_content(
     db_pool: DbPool,
     content_repo: ContentRepository,
-    content_analytics: ContentAnalyticsRepository,
     env: PrerenderEnv<'_>,
 ) -> Result<()> {
+    let popularity = env
+        .extensions
+        .extension_state()
+        .find::<DynContentPopularity>()
+        .cloned();
     let ctx = load_prerender_context(db_pool, content_repo, env).await?;
-    let total_rendered = process_all_sources(&ctx, &content_analytics).await?;
+    let total_rendered = process_all_sources(&ctx, popularity.as_ref()).await?;
     tracing::debug!(items_rendered = total_rendered, "Prerendering completed");
     Ok(())
 }
