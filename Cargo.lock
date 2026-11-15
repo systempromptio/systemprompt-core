@@ -6309,6 +6309,7 @@ dependencies = [
  "systemprompt-agent-runs-entry",
  "systemprompt-ai",
  "systemprompt-analytics",
+ "systemprompt-analytics-entry",
  "systemprompt-api",
  "systemprompt-brain",
  "systemprompt-cli",
@@ -6515,6 +6516,32 @@ dependencies = [
 [[package]]
 name = "systemprompt-analytics-entry"
 version = "0.81.1"
+dependencies = [
+ "anyhow",
+ "axum",
+ "chrono",
+ "clap",
+ "inventory",
+ "schemars 1.2.3",
+ "serde",
+ "serde_json",
+ "systemprompt-analytics",
+ "systemprompt-api",
+ "systemprompt-cli",
+ "systemprompt-config",
+ "systemprompt-database",
+ "systemprompt-events",
+ "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-logging",
+ "systemprompt-models",
+ "systemprompt-provider-contracts",
+ "systemprompt-runtime",
+ "systemprompt-traits",
+ "systemprompt-users",
+ "tokio",
+ "tracing",
+]
 
 [[package]]
 name = "systemprompt-api"
@@ -6551,7 +6578,6 @@ dependencies = [
  "systemprompt-analytics",
  "systemprompt-brain",
  "systemprompt-config",
- "systemprompt-content",
  "systemprompt-database",
  "systemprompt-events",
  "systemprompt-extension",
@@ -6651,7 +6677,6 @@ dependencies = [
  "sse-stream",
  "systemprompt-agent",
  "systemprompt-ai",
- "systemprompt-analytics",
  "systemprompt-api",
  "systemprompt-client",
  "systemprompt-cloud",
@@ -7047,7 +7072,6 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml_ng",
- "systemprompt-analytics",
  "systemprompt-config",
  "systemprompt-content",
  "systemprompt-database",

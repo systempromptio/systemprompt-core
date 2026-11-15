@@ -4,7 +4,6 @@
 
 use systemprompt_analytics::extension::AnalyticsExtension;
 use systemprompt_extension::Extension;
-use systemprompt_traits::Job;
 
 #[test]
 fn the_analytics_extension_is_required() {

@@ -6837,6 +6837,7 @@ dependencies = [
  "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-models",
+ "thiserror 2.0.21",
  "tokio",
  "tracing",
 ]
@@ -6901,6 +6902,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-analytics-entry"
+version = "0.81.1"
+dependencies = [
+ "anyhow",
+ "axum",
+ "chrono",
+ "clap",
+ "inventory",
+ "schemars 1.2.3",
+ "serde",
+ "serde_json",
+ "systemprompt-analytics",
+ "systemprompt-api",
+ "systemprompt-cli",
+ "systemprompt-config",
+ "systemprompt-database",
+ "systemprompt-events",
+ "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-logging",
+ "systemprompt-models",
+ "systemprompt-provider-contracts",
+ "systemprompt-runtime",
+ "systemprompt-traits",
+ "systemprompt-users",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "systemprompt-api"
 version = "0.81.1"
 dependencies = [
@@ -6932,7 +6963,6 @@ dependencies = [
  "systemprompt-ai",
  "systemprompt-analytics",
  "systemprompt-config",
- "systemprompt-content",
  "systemprompt-database",
  "systemprompt-events",
  "systemprompt-extension",
@@ -7056,17 +7086,14 @@ dependencies = [
  "sse-stream",
  "systemprompt-agent",
  "systemprompt-ai",
- "systemprompt-analytics",
  "systemprompt-api",
  "systemprompt-client",
  "systemprompt-cloud",
  "systemprompt-config",
- "systemprompt-content",
  "systemprompt-database",
  "systemprompt-extension",
  "systemprompt-files",
  "systemprompt-gateway",
- "systemprompt-generator",
  "systemprompt-governance",
  "systemprompt-identifiers",
  "systemprompt-loader",
@@ -7199,6 +7226,37 @@ dependencies = [
  "tokio",
  "tracing",
  "walkdir",
+]
+
+[[package]]
+name = "systemprompt-content-entry"
+version = "0.81.1"
+dependencies = [
+ "anyhow",
+ "axum",
+ "chrono",
+ "clap",
+ "inventory",
+ "reqwest",
+ "schemars 1.2.3",
+ "serde",
+ "serde_yaml_ng",
+ "systemprompt-api",
+ "systemprompt-cli",
+ "systemprompt-content",
+ "systemprompt-database",
+ "systemprompt-extension",
+ "systemprompt-files",
+ "systemprompt-generator",
+ "systemprompt-identifiers",
+ "systemprompt-logging",
+ "systemprompt-manifest",
+ "systemprompt-models",
+ "systemprompt-provider-contracts",
+ "systemprompt-traits",
+ "thiserror 2.0.21",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]
@@ -7381,7 +7439,6 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml_ng",
- "systemprompt-analytics",
  "systemprompt-config",
  "systemprompt-content",
  "systemprompt-database",
@@ -8140,6 +8197,8 @@ dependencies = [
  "sync_wrapper",
  "systemprompt-agent-runs-entry",
  "systemprompt-analytics",
+ "systemprompt-analytics-entry",
+ "systemprompt-content-entry",
  "systemprompt-extension",
  "systemprompt-files",
  "systemprompt-identifiers",

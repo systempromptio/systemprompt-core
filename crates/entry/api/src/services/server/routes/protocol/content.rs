@@ -23,8 +23,6 @@ pub(crate) fn mount_content_and_misc(
     mount_accounts(router, mount)
 }
 
-const CONTENT_RATE: RateLimit = RateLimit::new("content", RateBudget::Content);
-
 fn mount_platform(mut router: Router, mount: &MountCtx<'_>) -> Result<Router, MountError> {
     let ctx = mount.ctx;
     let group = RouteGroup::ContentAndMisc;

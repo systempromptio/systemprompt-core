@@ -100,7 +100,7 @@ impl AnalyticsHttpState {
     pub fn from_extension_state(state: &Dependencies) -> Result<Self, MissingDependency> {
         let routing = state
             .find::<Arc<ContentConfigRaw>>()
-            .map(|config| Arc::clone(config) as Arc<dyn ContentRouting>);
+            .map(|config| -> Arc<dyn ContentRouting> { Arc::<ContentConfigRaw>::clone(config) });
         Ok(Self::new(
             Arc::clone(state.get::<Arc<AnalyticsRepositories>>()?),
             Arc::clone(state.get::<Arc<AnalyticsBroadcaster>>()?),
