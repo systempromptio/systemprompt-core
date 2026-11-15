@@ -1,5 +1,5 @@
-//! Prerender context wiring extensions and providers into the template
-//! registry.
+//! Prerender context: the template registry assembled from the core and
+//! embedded template providers plus the built content hooks.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -8,9 +8,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use systemprompt_config::paths::AppPaths;
-use systemprompt_content::ContentRepository;
+use systemprompt_content::{ContentHooks, ContentRepository};
 use systemprompt_database::DbPool;
-use systemprompt_extension::{ExtensionContext, ExtensionRegistry};
 use systemprompt_manifest::{Config, WebConfig};
 use systemprompt_models::ContentConfigRaw;
 use systemprompt_provider_contracts::{ContentDataProvider, Dependencies};
@@ -67,11 +66,11 @@ pub(super) async fn load_prerender_context(
     content_repo: ContentRepository,
     env: PrerenderEnv<'_>,
 ) -> GeneratorResult<PrerenderContext> {
-    let assets = Arc::new(load_prerender_assets(env.config, env.paths, env.extensions).await?);
+    let assets = Arc::new(load_prerender_assets(env.config, env.paths, env.hooks).await?);
 
     let dependencies = env
-        .extensions
-        .extension_state()
+        .state
+        .clone()
         .with(db_pool)
         .with(assets.config.clone());
     Ok(PrerenderContext {
@@ -84,7 +83,7 @@ pub(super) async fn load_prerender_context(
 async fn load_prerender_assets(
     config: &Config,
     paths: &AppPaths,
-    ext_ctx: &dyn ExtensionContext,
+    hooks: &ContentHooks,
 ) -> GeneratorResult<PrerenderAssets> {
     let config_path = paths.system().content_config();
 
@@ -114,10 +113,8 @@ async fn load_prerender_assets(
     }
 
     let registry_builder = base_registry_builder(&extension_template_path).await?;
-    let (registry_builder, mut content_data_providers) =
-        register_extensions(registry_builder, ext_ctx)?;
-
-    content_data_providers.sort_by_key(|p| p.priority());
+    let registry_builder = register_hooks(registry_builder, hooks);
+    let content_data_providers = hooks.content_data_providers().to_vec();
 
     let template_registry = registry_builder.build_and_init().await?;
 
@@ -151,61 +148,22 @@ async fn base_registry_builder(
         .with_loader(loader))
 }
 
-fn register_extensions(
+fn register_hooks(
     mut registry_builder: TemplateRegistryBuilder,
-    ext_ctx: &dyn ExtensionContext,
-) -> GeneratorResult<(TemplateRegistryBuilder, Vec<Arc<dyn ContentDataProvider>>)> {
-    let extensions = ExtensionRegistry::discover()?
-        .enabled_extensions(&ext_ctx.profile().extensions.disabled)?;
-
-    let mut content_data_providers: Vec<Arc<dyn ContentDataProvider>> = Vec::new();
-    let mut contributing = 0usize;
-
-    for ext in &extensions {
-        let providers = ext.page_data_providers(ext_ctx);
-        let prerenderers = ext.page_prerenderers(ext_ctx);
-        let content_providers = ext.content_data_providers(ext_ctx);
-        let components = ext.component_renderers(ext_ctx);
-        let extenders = ext.template_data_extenders(ext_ctx);
-
-        if !providers.is_empty()
-            || !prerenderers.is_empty()
-            || !content_providers.is_empty()
-            || !components.is_empty()
-            || !extenders.is_empty()
-        {
-            contributing += 1;
-            tracing::debug!(
-                extension_id = %ext.metadata().id,
-                page_provider_count = providers.len(),
-                page_prerenderer_count = prerenderers.len(),
-                content_data_provider_count = content_providers.len(),
-                component_count = components.len(),
-                extender_count = extenders.len(),
-                "Extension providers discovered"
-            );
-        }
-
-        for component in components {
-            registry_builder = registry_builder.with_component(component);
-        }
-        for extender in extenders {
-            registry_builder = registry_builder.with_extender(extender);
-        }
-        for provider in providers {
-            registry_builder = registry_builder.with_page_provider(provider);
-        }
-        for prerenderer in prerenderers {
-            registry_builder = registry_builder.with_page_prerenderer(prerenderer);
-        }
-        content_data_providers.extend(content_providers);
+    hooks: &ContentHooks,
+) -> TemplateRegistryBuilder {
+    for component in hooks.component_renderers() {
+        registry_builder = registry_builder.with_component(Arc::clone(component));
     }
-
-    tracing::debug!(
-        extension_count = extensions.len(),
-        contributing_extensions = contributing,
-        "Discovered extensions for prerender context"
-    );
-
-    Ok((registry_builder, content_data_providers))
+    for extender in hooks.template_data_extenders() {
+        registry_builder = registry_builder.with_extender(Arc::clone(extender));
+    }
+    for provider in hooks.page_data_providers() {
+        registry_builder = registry_builder.with_page_provider(Arc::clone(provider));
+    }
+    for prerenderer in hooks.page_prerenderers() {
+        registry_builder = registry_builder.with_page_prerenderer(Arc::clone(prerenderer));
+    }
+    tracing::debug!(hooks = ?hooks, "Registered content hooks for the prerender context");
+    registry_builder
 }

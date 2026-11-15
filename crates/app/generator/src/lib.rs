@@ -16,9 +16,8 @@
 //!   for every file written into `dist/`.
 //! - [`PublishError`] / [`GeneratorResult`] — the typed error and `Result`
 //!   alias returned by every public function in this crate.
-//! - [`ContentPrerenderJob`], [`PagePrerenderJob`] — scheduled jobs registered
-//!   with the systemprompt scheduler via the `inventory` crate, owned by
-//!   [`GeneratorExtension`] (id `generator`).
+//! - [`ContentPrerenderJob`], [`PagePrerenderJob`] — scheduled jobs
+//!   contributed by [`GeneratorExtension`] (id `generator`).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
