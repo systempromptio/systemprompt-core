@@ -43,12 +43,19 @@ async fn spawn_owned_listener(port: u16, service_name: &str) -> Option<u32> {
         }
         tokio::time::sleep(Duration::from_millis(25)).await;
     }
-    kill(pid);
+    let killed = kill(pid);
+    assert!(
+        killed || !subprocess::is_running(pid).await,
+        "listener {pid} never bound port {port} and could not be killed"
+    );
     None
 }
 
-fn kill(pid: u32) {
-    let _ = Command::new("kill").arg("-9").arg(pid.to_string()).status();
+fn kill(pid: u32) -> bool {
+    Command::new("kill")
+        .args(["-9", &pid.to_string()])
+        .status()
+        .is_ok_and(|status| status.success())
 }
 
 fn free_port() -> u16 {
@@ -73,19 +80,20 @@ async fn a_port_held_by_one_of_our_own_servers_is_reclaimed_and_the_process_dies
 
     let outcome = cleanup_port_processes(port, &ServiceName::new(service)).await;
 
-    if outcome.is_err() {
-        kill(pid);
+    if let Err(error) = &outcome {
+        let killed = kill(pid);
+        panic!(
+            "a port held by our own service must be reclaimed: {error:?} (fixture kill succeeded: {killed})"
+        );
     }
-    outcome.expect("a port held by our own service must be reclaimed");
 
     let gone = !subprocess::is_running(pid).await;
     if !gone {
-        kill(pid);
+        let killed = kill(pid);
+        panic!(
+            "the process holding the port must actually be gone, not merely signalled (fixture kill succeeded: {killed})"
+        );
     }
-    assert!(
-        gone,
-        "the process holding the port must actually be gone, not merely signalled"
-    );
 }
 
 // Why: cleanup runs on every start, and the overwhelmingly common case is a
