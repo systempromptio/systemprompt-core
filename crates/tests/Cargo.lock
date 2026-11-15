@@ -8694,6 +8694,7 @@ dependencies = [
  "systemprompt-analytics",
  "systemprompt-analytics-entry",
  "systemprompt-cli",
+ "systemprompt-content-entry",
  "systemprompt-database",
  "systemprompt-identifiers",
  "systemprompt-runtime",

@@ -31,7 +31,6 @@ fn state(ctx: &AppContext, routing: Option<Arc<dyn ContentRouting>>) -> Analytic
         .expect("the content extension provides the catalog");
     AnalyticsHttpState::new(
         Arc::clone(ctx.analytics_repositories()),
-        Arc::clone(&ctx.event_broadcasters().analytics),
         ContentResolver::new(Arc::clone(catalog), routing),
     )
 }
@@ -45,6 +44,7 @@ pub fn analytics_router_with_routing(
     routing: Option<Arc<dyn ContentRouting>>,
 ) -> Router {
     analytics::router(state(ctx, routing))
+        .layer(axum::Extension(Arc::clone(&ctx.event_broadcasters().analytics)))
 }
 
 pub fn engagement_router(ctx: &AppContext) -> Router {
