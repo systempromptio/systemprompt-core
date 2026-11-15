@@ -9,7 +9,9 @@ use futures_util::future::BoxFuture;
 use sqlx::PgConnection;
 use systemprompt_extension::UserPurgeTable;
 
-pub(crate) fn held_among<'c>(
+use crate::documents::repository::BlobHolder;
+
+fn held_among<'c>(
     conn: &'c mut PgConnection,
     hashes: &'c [String],
 ) -> BoxFuture<'c, Result<Vec<String>, sqlx::Error>> {
@@ -24,6 +26,11 @@ pub(crate) fn held_among<'c>(
         .await
     })
 }
+
+pub const ISSUE_ATTACHMENTS_HOLDER: BlobHolder = BlobHolder {
+    name: "issue_report_attachments",
+    held_among,
+};
 
 pub(crate) const ISSUE_USER_PURGES: &[UserPurgeTable] = &[UserPurgeTable {
     table: "issue_reports",

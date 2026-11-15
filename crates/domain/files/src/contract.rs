@@ -33,7 +33,7 @@ use systemprompt_provider_contracts::documents::{DocumentCodec, DocumentTemplate
 
 use crate::documents::agents::{AgentAccessPolicy, DefaultAgentAccessPolicy};
 use crate::documents::codecs::CodecRegistry;
-use crate::documents::repository::{BlobHolder, BlobHolders, HeldAmong};
+use crate::documents::repository::{BlobHolder, BlobHolders};
 
 const BLOB_HOLDER_SLOT: &str = "files.blob_holder";
 const AGENT_ACCESS_SLOT: &str = "files.agent_access";
@@ -52,8 +52,8 @@ pub struct BlobHolderSlotBuilder {
 }
 
 impl BlobHolderSlotBuilder {
-    pub fn holder(&mut self, name: &'static str, held_among: HeldAmong) -> &mut Self {
-        self.holders.push(BlobHolder { name, held_among });
+    pub fn holder(&mut self, holder: BlobHolder) -> &mut Self {
+        self.holders.push(holder);
         self
     }
 }

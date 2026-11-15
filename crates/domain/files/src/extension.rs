@@ -28,7 +28,7 @@ use crate::documents::jobs::{
 use crate::documents::repository::DOCUMENT_USER_PURGES;
 use crate::documents::templates::CoreTemplateProvider;
 use crate::issues::IssueRetentionJob;
-use crate::issues::repository::{ISSUE_USER_PURGES, issue_attachments_held_among};
+use crate::issues::repository::{ISSUE_ATTACHMENTS_HOLDER, ISSUE_USER_PURGES};
 use crate::jobs::{DocumentActorScope, FileIngestionJob};
 use crate::uploads::DocumentUploadExpiryJob;
 
@@ -87,8 +87,7 @@ impl Extension for FilesExtension {
             .job_run_scope(Arc::new(DocumentActorScope));
         #[cfg(feature = "collab")]
         c.job(crate::documents::jobs::DocumentCollabReaperJob);
-        c.slot::<BlobHolderSlot>()
-            .holder("issue_report_attachments", issue_attachments_held_among);
+        c.slot::<BlobHolderSlot>().holder(ISSUE_ATTACHMENTS_HOLDER);
         c.slot::<AgentAccessSlot>();
         let documents = c.slot::<DocumentsSlot>();
         for codec in core_codecs() {

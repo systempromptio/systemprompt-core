@@ -41,6 +41,10 @@ impl BlobHolders {
         Self { holders }
     }
 
+    pub fn names(&self) -> impl Iterator<Item = &'static str> + '_ {
+        self.holders.iter().map(|holder| holder.name)
+    }
+
     pub(super) async fn held_among(
         &self,
         conn: &mut PgConnection,
