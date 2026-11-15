@@ -4,13 +4,13 @@
 //! ([`GovernedTarget`]), carrying tool arguments or prompt text
 //! ([`GovernedInput`]). This module owns the whole enforcement runtime:
 //!
-//! - [`types`] — the [`GovernancePolicy`] trait and [`PolicyContext`].
+//! - [`types`] — [`PolicyRequest`], an uncharged call; the policy contract
+//!   ([`GovernancePolicy`], [`PolicyContext`]) lives in provider-contracts.
 //! - [`config`] — the `governance.policies` YAML declaration
 //!   ([`GovernanceConfig`]).
-//! - [`registry`] — inventory registration
-//!   ([`crate::register_governance_policy!`]); the [`builtin`] policies (secret
-//!   scan, scope check, blocklist, rate limit, require approval) self-register
-//!   here.
+//! - [`registry`] — the [`PolicyCatalog`]: the [`builtin`] policies (secret
+//!   scan, scope check, blocklist, rate limit, require approval) plus every
+//!   admitted member's contributed policy.
 //! - [`engine`] — [`GovernanceEngine`], the traced first-halt-wins evaluator.
 //! - [`rate_window`] — the Postgres counters charged before evaluation.
 //! - [`audit`] — [`DecisionAudit`], the typed blob persisted through
@@ -31,7 +31,6 @@ pub mod audit;
 pub mod builtin;
 pub mod config;
 pub mod engine;
-pub mod governed;
 pub mod plane;
 pub mod rate_window;
 pub mod registry;
@@ -49,16 +48,18 @@ pub use audit::{
 pub use builtin::{ApprovalSettings, SECRET_SCAN_ID};
 pub use config::{GovernanceConfig, GovernanceConfigError, PolicyConfig};
 pub use engine::{ChargedCall, Evaluation, GovernanceEngine, GovernanceEngineError};
-pub use governed::{
-    GovernedInput, GovernedString, GovernedTarget, McpToolInput, PROMPT_TARGET_NAME, PromptPart,
-    UNKNOWN_TARGET_NAME,
-};
 pub use plane::{GOVERNANCE_FILE, GOVERNANCE_PLANE, GovernancePlane};
-pub use rate_window::{RateCharge, RateCounts, RateWindowRepository};
-pub use registry::{PolicyConfigurationError, PolicyFactory, PolicyRegistration};
+pub use rate_window::{RateCharge, RateWindowRepository};
+pub use registry::{
+    BuiltPolicy, BuiltinPolicy, PolicyCatalog, PolicyCatalogError, PolicyConfigurationError,
+    PolicyFactory,
+};
 pub use secrets::{
     EntropyConfig, SecretPattern, SecretPatternError, SecretScanner, SignatureExemptions,
 };
-pub use types::{
-    AgentScope, GovernancePolicy, PolicyContext, PolicyRequest, RateLimitWindow, SecretLocation,
+pub use systemprompt_provider_contracts::governance::{
+    AccessScope, AgentScope, GovernancePolicy, GovernedInput, GovernedScalar, GovernedString,
+    GovernedTarget, McpToolInput, PROMPT_TARGET_NAME, PolicyContext, PromptPart, RateCounts,
+    RateLimitWindow, SecretFinding, SecretLocation, SecretSource, UNKNOWN_TARGET_NAME,
 };
+pub use types::PolicyRequest;

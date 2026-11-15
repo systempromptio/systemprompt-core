@@ -9,9 +9,10 @@
 //!   (secret scan, scope check, blocklist, rate limit + extension-registered
 //!   policies) with per-entry audit tracing into `governance_decisions`.
 //!
-//! The `authz` extension registered here owns the access-control and
-//! governance tables (`access_control_*`, `governance_*`,
-//! `approval_requests`) and their migrations.
+//! The `authz` member defined here owns the access-control and governance
+//! tables (`access_control_*`, `governance_*`, `approval_requests`), their
+//! migrations, the two config planes and the built-in `traffic` subject
+//! dimension. Its capability slots are in [`contract`].
 //!
 //! # Feature flags
 //!
@@ -20,10 +21,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-#[doc(hidden)]
-pub use ::inventory as __inventory;
-
 pub mod authz;
+pub mod contract;
 pub mod decision_retention;
 pub mod policy;
 

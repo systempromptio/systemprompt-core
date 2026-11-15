@@ -10,17 +10,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
-
 use async_trait::async_trait;
 use systemprompt_identifiers::UserId;
 use systemprompt_models::attribution::TrafficClass;
+pub use systemprompt_traits::authz::TRAFFIC_PRECEDENCE;
 
-use super::AuthzError;
-use super::subject::{SubjectAttributeProvider, SubjectDimension};
+use super::subject::{SubjectAttributeError, SubjectAttributeProvider, SubjectDimension};
 use super::types::RuleType;
-
-pub const TRAFFIC_PRECEDENCE: u16 = 400;
 
 const KEY_BOUND: &[&str] = &[TrafficClass::Evaluation.as_str()];
 
@@ -38,7 +34,7 @@ impl SubjectAttributeProvider for TrafficProvider {
         }
     }
 
-    async fn values_for(&self, _user_id: &UserId) -> Result<Vec<String>, AuthzError> {
+    async fn values_for(&self, _user_id: &UserId) -> Result<Vec<String>, SubjectAttributeError> {
         Ok(vec![TrafficClass::Production.as_str().to_owned()])
     }
 
@@ -46,5 +42,3 @@ impl SubjectAttributeProvider for TrafficProvider {
         KEY_BOUND
     }
 }
-
-crate::register_subject_attribute_provider!(|_ctx| Arc::new(TrafficProvider));

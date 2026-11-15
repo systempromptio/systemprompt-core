@@ -5,16 +5,18 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::borrow::Cow;
+use std::sync::Arc;
 
 use serde_yaml::Value as YamlValue;
 use systemprompt_identifiers::PolicyId;
 
-use super::super::governed::GovernedInput;
-use super::super::registry::{PolicyConfigurationError, PolicyRegistration};
-use super::super::secrets::{MAX_RECOVERY_FINDINGS, SecretFinding, SecretScanner};
-use super::super::types::{GovernancePolicy, PolicyContext, SecretLocation};
+use super::super::registry::{BuiltPolicy, BuiltinPolicy, PolicyConfigurationError};
+use super::super::secrets::{MAX_RECOVERY_FINDINGS, SecretScanner};
 use super::SECRET_SCAN_ID as ID;
 use crate::authz::types::{Decision, DenyReason, MatchedBy};
+use crate::policy::{
+    GovernancePolicy, GovernedInput, PolicyContext, SecretFinding, SecretLocation,
+};
 
 #[derive(Debug)]
 struct SecretScan {
@@ -45,9 +47,6 @@ impl GovernancePolicy for SecretScan {
         findings.truncate(MAX_RECOVERY_FINDINGS + 1);
         Some(findings)
     }
-    fn secret_scanner(&self) -> Option<&SecretScanner> {
-        Some(&self.scanner)
-    }
     fn evaluate(&self, ctx: &PolicyContext<'_>) -> Decision {
         let kind = ctx.input.location_kind();
         let hit = self.scanner.detect(ctx.input);
@@ -77,12 +76,13 @@ impl GovernancePolicy for SecretScan {
     }
 }
 
-inventory::submit! {
-    PolicyRegistration {
-        id: ID,
-        factory: |v| {
-            let policy: Box<dyn GovernancePolicy> = Box::new(SecretScan::from_yaml(v)?);
-            Ok(policy)
-        },
-    }
+pub(super) const POLICY: BuiltinPolicy = BuiltinPolicy {
+    id: ID,
+    factory: build,
+};
+
+fn build(v: &YamlValue) -> Result<BuiltPolicy, PolicyConfigurationError> {
+    let policy = SecretScan::from_yaml(v)?;
+    let scanner = policy.scanner.clone();
+    Ok(BuiltPolicy::new(Arc::new(policy)).with_scanner(scanner))
 }

@@ -51,6 +51,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::borrow::Cow;
+use std::sync::Arc;
 
 use serde_yaml::Value as YamlValue;
 use systemprompt_identifiers::PolicyId;
@@ -61,9 +62,9 @@ mod rules;
 use rules::{Rule, Verdict};
 
 use super::super::config::GovernanceConfig;
-use super::super::registry::{PolicyConfigurationError, PolicyRegistration};
-use super::super::types::{AccessScope, GovernancePolicy, PolicyContext};
+use super::super::registry::{BuiltPolicy, BuiltinPolicy, PolicyConfigurationError};
 use crate::authz::types::{Decision, MatchedBy, PendingReason};
+use crate::policy::{AccessScope, GovernancePolicy, PolicyContext};
 
 pub(crate) const ID: &str = "require_approval";
 
@@ -195,9 +196,11 @@ impl GovernancePolicy for RequireApproval {
     }
 }
 
-inventory::submit! {
-    PolicyRegistration {
-        id: ID,
-        factory: |v| Ok(Box::new(RequireApproval::from_yaml(v)?)),
-    }
+pub(super) const POLICY: BuiltinPolicy = BuiltinPolicy {
+    id: ID,
+    factory: build,
+};
+
+fn build(v: &YamlValue) -> Result<BuiltPolicy, PolicyConfigurationError> {
+    Ok(BuiltPolicy::new(Arc::new(RequireApproval::from_yaml(v)?)))
 }

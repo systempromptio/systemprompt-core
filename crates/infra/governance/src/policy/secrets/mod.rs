@@ -17,15 +17,13 @@ mod signatures;
 use regex::Captures;
 use systemprompt_identifiers::SecretPatternId;
 
-use super::governed::{GovernedInput, GovernedString};
 pub use entropy::{DEFAULT_MIN_LEN, DEFAULT_THRESHOLD, EntropyConfig, find_high_entropy_token};
 use fingerprint::FingerprintKey;
 use patterns::{CompiledSecretPattern, HIGH_ENTROPY_PATTERN_NAME, compile_patterns, field_matches};
 pub use patterns::{SecretPattern, SecretPatternError};
-pub use recovery::{
-    MAX_RECOVERY_FINDINGS, REDACTION_MARKER, SecretFinding, SecretSource, redact_spans,
-};
+pub use recovery::{MAX_RECOVERY_FINDINGS, REDACTION_MARKER, redact_spans};
 pub use signatures::SignatureExemptions;
+use systemprompt_provider_contracts::governance::{GovernedInput, GovernedString, SecretFinding};
 
 #[derive(Debug, Clone)]
 pub struct SecretScanner {

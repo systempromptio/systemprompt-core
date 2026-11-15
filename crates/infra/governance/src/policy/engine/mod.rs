@@ -1,7 +1,7 @@
 //! Traced first-deny-wins evaluation of the configured policy chain.
 //!
 //! [`GovernanceEngine`] owns the instantiated chain: policies resolved from
-//! the inventory registry against a [`GovernanceConfig`], in declaration
+//! the [`PolicyCatalog`] against a [`GovernanceConfig`], in declaration
 //! order. [`GovernanceEngine::evaluate`] records a per-entry
 //! [`ChainEntryOutcome`] — including disabled and skipped-after-deny entries —
 //! so the audit row preserves the full evaluation order, not just the first
@@ -39,7 +39,8 @@ mod unapplied;
 
 pub use charge::ChargedCall;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
+use std::sync::Arc;
 
 use sqlx::PgPool;
 
@@ -49,13 +50,12 @@ use thiserror::Error;
 use super::audit::ChainEntryOutcome;
 use super::builtin::SECRET_SCAN_ID;
 use super::config::{GovernanceConfig, GovernanceConfigError, PolicyConfig};
-use super::governed::GovernedInput;
 use super::plane::{config_from_entities, list_governance_config};
 use super::rate_window::RateWindowRepository;
-use super::registry::{PolicyConfigurationError, PolicyFactory, PolicyRegistration};
-use super::secrets::{SecretFinding, SecretScanner};
-use super::types::{GovernancePolicy, PolicyContext};
+use super::registry::{BuiltPolicy, PolicyCatalog, PolicyConfigurationError};
+use super::secrets::SecretScanner;
 use crate::authz::types::Decision;
+use crate::policy::{GovernancePolicy, GovernedInput, PolicyContext, SecretFinding};
 use systemprompt_manifest::EnforcementMode;
 use systemprompt_manifest::profile::UnappliedPlaneMode;
 use unapplied::plane_applied;
@@ -93,7 +93,8 @@ pub enum GovernanceEngineError {
 
 struct ChainEntry {
     config: PolicyConfig,
-    instance: Box<dyn GovernancePolicy>,
+    instance: Arc<dyn GovernancePolicy>,
+    scanner: Option<SecretScanner>,
 }
 
 pub struct GovernanceEngine {
@@ -124,6 +125,7 @@ impl std::fmt::Debug for GovernanceEngine {
 impl GovernanceEngine {
     pub async fn load(
         pool: &PgPool,
+        catalog: &PolicyCatalog,
         rate_windows: Option<RateWindowRepository>,
         unapplied: UnappliedPlaneMode,
     ) -> Result<Self, GovernanceEngineError> {
@@ -133,16 +135,16 @@ impl GovernanceEngine {
         if let Some(config) =
             config_from_entities(&rows).map_err(GovernanceEngineError::ConfigRejected)?
         {
-            return Self::from_config(&config, rate_windows);
+            return Self::from_config(&config, catalog, rate_windows);
         }
         if plane_applied(pool).await {
             tracing::warn!(
                 "the applied governance plane declares no chain; running the vendor-neutral \
                  warn-only chain"
             );
-            return Self::from_config(&GovernanceConfig::defaults(), rate_windows);
+            return Self::from_config(&GovernanceConfig::defaults(), catalog, rate_windows);
         }
-        Self::unapplied(unapplied, rate_windows)
+        Self::unapplied(unapplied, catalog, rate_windows)
     }
 
     #[must_use]
@@ -157,6 +159,7 @@ impl GovernanceEngine {
 
     pub fn from_config(
         config: &GovernanceConfig,
+        catalog: &PolicyCatalog,
         rate_windows: Option<RateWindowRepository>,
     ) -> Result<Self, GovernanceEngineError> {
         if !config.enabled {
@@ -165,47 +168,41 @@ impl GovernanceEngine {
                  check will run on any request"
             );
         }
-        let factories: HashMap<&'static str, PolicyFactory> =
-            inventory::iter::<PolicyRegistration>()
-                .map(|r| (r.id, r.factory))
-                .collect();
-
         let mut entries = Vec::with_capacity(config.policies.len());
         for cfg in &config.policies {
-            let factory = factories
-                .get(cfg.id.as_str())
-                .ok_or_else(|| GovernanceEngineError::UnknownPolicyId { id: cfg.id.clone() })?;
-            let instance = factory(&cfg.params).map_err(|source| {
-                GovernanceEngineError::InvalidPolicyConfiguration {
-                    id: cfg.id.clone(),
-                    source,
-                }
-            })?;
+            let built = instantiate(catalog, cfg)?;
             if config.enabled {
-                reject_toothless_enforcement(cfg, instance.as_ref())?;
-                reject_uncounted_rate_window(cfg, instance.as_ref(), rate_windows.as_ref())?;
+                reject_toothless_enforcement(cfg, &built)?;
+                reject_uncounted_rate_window(cfg, built.instance.as_ref(), rate_windows.as_ref())?;
             }
             entries.push(ChainEntry {
                 config: cfg.clone(),
-                instance,
+                instance: built.instance,
+                scanner: built.scanner,
             });
         }
 
         let mentioned: HashSet<&str> = config.policies.iter().map(|p| p.id.as_str()).collect();
-        for r in inventory::iter::<PolicyRegistration>().filter(|r| !mentioned.contains(r.id)) {
-            let config = PolicyConfig {
-                id: PolicyId::new(r.id),
+        let unmentioned: Vec<PolicyId> = catalog
+            .builtins()
+            .iter()
+            .map(|b| PolicyId::new(b.id))
+            .chain(catalog.contributed_instances().map(|p| p.id()))
+            .filter(|id| !mentioned.contains(id.as_str()))
+            .collect();
+        for id in unmentioned {
+            let cfg = PolicyConfig {
+                id,
                 enabled: false,
                 mode: EnforcementMode::Enforce,
                 params: serde_yaml::Value::Null,
             };
-            let instance = (r.factory)(&config.params).map_err(|source| {
-                GovernanceEngineError::InvalidPolicyConfiguration {
-                    id: config.id.clone(),
-                    source,
-                }
-            })?;
-            entries.push(ChainEntry { config, instance });
+            let built = instantiate(catalog, &cfg)?;
+            entries.push(ChainEntry {
+                config: cfg,
+                instance: built.instance,
+                scanner: built.scanner,
+            });
         }
 
         Ok(Self {
@@ -232,7 +229,7 @@ impl GovernanceEngine {
         self.entries
             .iter()
             .find(|entry| entry.config.id == SECRET_SCAN_ID)
-            .and_then(|entry| entry.instance.secret_scanner())
+            .and_then(|entry| entry.scanner.as_ref())
     }
 
     pub fn policies(&self) -> impl Iterator<Item = (&PolicyConfig, &dyn GovernancePolicy)> {
@@ -260,13 +257,14 @@ impl GovernanceEngine {
 // disabled engine enforces nothing, so it is not silently non-enforcing.
 fn reject_toothless_enforcement(
     cfg: &PolicyConfig,
-    instance: &dyn GovernancePolicy,
+    built: &BuiltPolicy,
 ) -> Result<(), GovernanceEngineError> {
     if cfg.id != SECRET_SCAN_ID || !cfg.enabled || cfg.mode.is_warn() {
         return Ok(());
     }
-    let toothless = instance
-        .secret_scanner()
+    let toothless = built
+        .scanner
+        .as_ref()
         .is_none_or(|scanner| scanner.pattern_count() == 0);
     if toothless {
         return Err(GovernanceEngineError::InvalidPolicyConfiguration {
@@ -286,4 +284,24 @@ fn reject_uncounted_rate_window(
         return Ok(());
     }
     Err(GovernanceEngineError::RateWindowsUnavailable { id: cfg.id.clone() })
+}
+
+fn instantiate(
+    catalog: &PolicyCatalog,
+    cfg: &PolicyConfig,
+) -> Result<BuiltPolicy, GovernanceEngineError> {
+    let invalid = |source| GovernanceEngineError::InvalidPolicyConfiguration {
+        id: cfg.id.clone(),
+        source,
+    };
+    if let Some(factory) = catalog.builtin_factory(cfg.id.as_str()) {
+        return factory(&cfg.params).map_err(invalid);
+    }
+    let instance = catalog
+        .contributed(cfg.id.as_str())
+        .ok_or_else(|| GovernanceEngineError::UnknownPolicyId { id: cfg.id.clone() })?;
+    if !cfg.params.is_null() {
+        return Err(invalid(PolicyConfigurationError::ContributedPolicyParams));
+    }
+    Ok(BuiltPolicy::new(Arc::clone(instance)))
 }

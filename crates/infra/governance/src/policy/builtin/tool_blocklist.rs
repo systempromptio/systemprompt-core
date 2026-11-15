@@ -17,15 +17,16 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::borrow::Cow;
+use std::sync::Arc;
 
 use serde::Deserialize;
 use serde_yaml::Value as YamlValue;
 use systemprompt_identifiers::PolicyId;
 
-use super::super::registry::{PolicyConfigurationError, PolicyRegistration};
-use super::super::types::{AccessScope, GovernancePolicy, PolicyContext};
+use super::super::registry::{BuiltPolicy, BuiltinPolicy, PolicyConfigurationError};
 use super::role_gate::RoleRule;
 use crate::authz::types::{Decision, DenyReason, MatchedBy};
+use crate::policy::{AccessScope, GovernancePolicy, PolicyContext};
 
 pub(crate) const ID: &str = "tool_blocklist";
 const DEFAULT_PATTERNS: &[&str] = &["delete", "drop", "destroy"];
@@ -110,9 +111,11 @@ impl GovernancePolicy for ToolBlocklist {
     }
 }
 
-inventory::submit! {
-    PolicyRegistration {
-        id: ID,
-        factory: |v| Ok(Box::new(ToolBlocklist::from_yaml(v)?)),
-    }
+pub(super) const POLICY: BuiltinPolicy = BuiltinPolicy {
+    id: ID,
+    factory: build,
+};
+
+fn build(v: &YamlValue) -> Result<BuiltPolicy, PolicyConfigurationError> {
+    Ok(BuiltPolicy::new(Arc::new(ToolBlocklist::from_yaml(v)?)))
 }

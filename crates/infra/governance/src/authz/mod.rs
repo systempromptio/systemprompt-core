@@ -74,23 +74,22 @@ pub use parent_chain::{
 };
 pub use plane::{ACCESS_CONTROL_PLANE, AccessControlPlane, render_current_rules};
 pub use reconcile::{ReconcileReport, reconcile_composed_bundles, reconcile_services_authz};
-pub use registry::{AuthzHookContext, AuthzHookRegistration, AuthzWiring, discover_authz_hook};
+pub use registry::AuthzWiring;
 pub use repository::{AccessControlRepository, ChainFingerprint, UpsertRuleParams};
 pub use rule_based::RuleBasedHook;
 pub use runtime::build_authz_hook;
 pub use scope_binding::ScopeBindingError;
 pub use subject::{
-    NO_SUBJECT_ATTRIBUTES, ROLE_PRECEDENCE, SharedSubjectAttributeProvider,
-    SubjectAttributeProvider, SubjectAttributeSource, SubjectAttributes, SubjectDimension,
-    SubjectProviderRegistration, SubjectProviderSet, SubjectSourceError, USER_PRECEDENCE,
-    default_attribution_value, dimensions_of, discover_subject_providers,
-    gather_subject_attributes,
+    NO_SUBJECT_ATTRIBUTES, RESERVED_SUBJECT_DIMENSIONS, ROLE_PRECEDENCE,
+    SharedSubjectAttributeProvider, SubjectAttributeError, SubjectAttributeProvider,
+    SubjectAttributeSource, SubjectAttributes, SubjectDimension, SubjectProviderEntry,
+    SubjectProviderError, SubjectProviderSet, SubjectSourceError, USER_PRECEDENCE,
+    default_attribution_value, dimensions_of, gather_subject_attributes,
 };
-pub use subject_directory::{
-    RoleDirectory, RoleDirectoryRegistration, SharedRoleDirectory, discover_role_directory,
-};
+pub use subject_directory::{RoleDirectory, SharedRoleDirectory};
 pub use traffic::{TRAFFIC_PRECEDENCE, TrafficProvider};
 pub use types::{
     Access, AccessRule, AuthzContext, AuthzDecision, AuthzRequest, Decision, DecisionTag,
-    DenyReason, EntityKind, EntityRef, EntityRow, MatchedBy, PendingReason, RuleType, SubjectRef,
+    DenyReason, EntityKind, EntityRef, EntityRow, MatchedBy, PendingReason, RuleType,
+    RuleTypeError, SubjectRef,
 };

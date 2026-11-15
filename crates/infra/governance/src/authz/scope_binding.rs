@@ -13,7 +13,7 @@ use systemprompt_identifiers::{ScopeDimension, UserId};
 use systemprompt_models::attribution::ScopeBinding;
 use thiserror::Error;
 
-use super::{AuthzError, SubjectProviderSet};
+use super::{SubjectAttributeError, SubjectProviderSet};
 
 /// Why a requested scope binding was refused.
 #[derive(Debug, Error)]
@@ -28,7 +28,7 @@ pub enum ScopeBindingError {
     },
 
     #[error("subject attribute lookup failed: {0}")]
-    Lookup(#[from] AuthzError),
+    Lookup(#[from] SubjectAttributeError),
 }
 
 impl SubjectProviderSet {

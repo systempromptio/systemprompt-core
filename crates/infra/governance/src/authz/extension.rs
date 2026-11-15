@@ -1,5 +1,5 @@
-//! `Extension` registration for the authz subsystem: schema, migrations and
-//! the `access_control` and `governance` config planes.
+//! The `authz` member: schema, migrations, the `access_control` and
+//! `governance` config planes, and core's `traffic` subject provider.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -9,6 +9,8 @@ use std::sync::Arc;
 use systemprompt_extension::prelude::*;
 
 use super::plane::AccessControlPlane;
+use super::subject::SharedSubjectAttributeProvider;
+use super::traffic::TrafficProvider;
 use crate::policy::GovernancePlane;
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -23,30 +25,23 @@ impl Extension for AuthzExtension {
         }
     }
 
-    fn is_required(&self) -> bool {
-        true
-    }
-
-    fn schemas(&self) -> Vec<SchemaDefinition> {
-        let mut schemas = access_control_schemas();
-        schemas.extend(governance_schemas());
-        schemas
-    }
-
-    fn dependencies(&self) -> Vec<&'static str> {
-        vec!["users"]
-    }
-
-    fn migrations(&self) -> Vec<Migration> {
-        extension_migrations!()
-    }
-
-    fn config_planes(&self) -> Vec<Arc<dyn ConfigPlane>> {
-        vec![Arc::new(AccessControlPlane), Arc::new(GovernancePlane)]
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        for schema in access_control_schemas()
+            .into_iter()
+            .chain(governance_schemas())
+        {
+            c.schema(schema);
+        }
+        c.migrations(extension_migrations!())
+            .config_plane(Arc::new(AccessControlPlane))
+            .config_plane(Arc::new(GovernancePlane))
+            .subject_attributes(|_: &Resolved<'_>| {
+                let provider: SharedSubjectAttributeProvider = Arc::new(TrafficProvider);
+                Ok(provider)
+            });
+        Ok(())
     }
 }
-
-register_extension!(AuthzExtension);
 
 fn access_control_schemas() -> Vec<SchemaDefinition> {
     vec![
