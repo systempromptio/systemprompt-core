@@ -13,9 +13,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-/// The extension that declares the notification route groups.
 #[cfg(feature = "http")]
 pub mod extension;
-/// The notification HTTP handlers and their router-scoped state.
 #[cfg(feature = "http")]
 pub mod http;

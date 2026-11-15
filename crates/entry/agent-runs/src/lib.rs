@@ -17,10 +17,8 @@
 //! See <https://systemprompt.io> for licensing details.
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-/// The `/api/v1/agent-runs` routes and the extension that declares them.
 #[cfg(feature = "http")]
 pub mod http;
 
-/// The agent-runs seam registered with the CLI's `plugins seams` listing.
 #[cfg(feature = "cli")]
 pub mod cli;

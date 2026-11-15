@@ -9,7 +9,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod operations;
-/// The pure readiness decision for a spawned agent and its per-host guarantees.
 pub mod readiness;
 mod verification;
 
