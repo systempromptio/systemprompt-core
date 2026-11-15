@@ -1,0 +1,24 @@
+[root]
+section = "Breaking"
+area = "Facade"
+text = "The `systemprompt` binary is built from the facade with the `full` composition (`cargo build -p systemprompt --bin systemprompt --features full`, `cargo install systemprompt --features full`); `systemprompt-cli` is a library with no binary and no `full` feature. The facade's `cloud` feature links `systemprompt-cloud-entry`, `analytics` links `systemprompt-analytics-entry`, and the new `content` feature links `systemprompt-content` and `systemprompt-content-entry`; `api` turns on each linked entry crate's `http` routes and `cli` its commands, and `full` implies all three. A binary built without a capability's feature has neither its routes nor its commands. Migrate an install binary by enabling `cloud`, `analytics` and `content` (or `full`) alongside `api`/`cli`, and by building `main` on `systemprompt::cli::run_process_with`."
+
+[[crate]]
+name = "systemprompt"
+section = "Added"
+text = "The `systemprompt` binary (`required-features = [\"full\"]`), linking every capability in `full` so their extensions, CLI commands, seams and gateway routes are registered. The `content` feature (in `full`) gates `systemprompt::content`. `systemprompt::cloud::entry` and `systemprompt::analytics::entry` name the entry crates, and `systemprompt::cli` re-exports `run_process` and `run_process_with`."
+
+[[crate]]
+name = "systemprompt"
+section = "Breaking"
+text = "`cloud` links `systemprompt-cloud-entry` and `analytics` links `systemprompt-analytics-entry`; `systemprompt::content` is gated on `content` instead of `full`. With `cli` and without `cloud` or `analytics`, the binary has no `cloud` or `analytics` commands; with `api` and without `analytics` or `content`, the server mounts none of their routes."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "The crate no longer builds the `systemprompt` binary and has no `full` feature. Migrate to the facade's binary (`cargo install systemprompt --features full`) or call `run_process_with` from an install's own `main`."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Added"
+text = "`run_process` and `run_process_with` build the runtime, run the CLI and map an interrupted run to exit status 130; `runner::interrupt::exit_code` performs that mapping for a binary that drives `run_with` itself, and `run_with` is re-exported at the crate root."

@@ -16,7 +16,7 @@ text = "`ExtensionRegistry::api_routers` takes a predicate over extension ids (`
 [[crate]]
 name = "systemprompt-extension"
 section = "Removed"
-text = "`LoaderError::ReservedPathCollision`; `ExtensionRegistry::validate_api_paths` no longer checks `RESERVED_PATHS`, and the server mount refuses an extension declaration under a reserved prefix with `MountError::ExtensionReservedPath` unless a core declaration grants it."
+text = "`ExtensionRegistry::validate_api_paths`, `LoaderError::ReservedPathCollision` and `LoaderError::InvalidBasePath`. The server mount enforces the base-path rule against its core declaration table: it refuses an extension declaration under a reserved prefix with `MountError::ExtensionReservedPath` and one outside `/api/` other than the web root with `MountError::ExtensionWebPath`, unless a core declaration grants it."
 
 [[crate]]
 name = "systemprompt-api"

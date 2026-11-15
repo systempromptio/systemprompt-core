@@ -1,0 +1,9 @@
+[root]
+section = "Fixed"
+area = "Schema"
+text = "A full schema install replaces the session views `v_clean_traffic`, `v_engaged_traffic` and `v_bot_sessions` in place instead of dropping them with `CASCADE`, so the analytics `report_*` views built on them stay readable throughout the install."
+
+[[crate]]
+name = "systemprompt-users"
+section = "Fixed"
+text = "The users schema replaces `v_clean_traffic`, `v_engaged_traffic` and `v_bot_sessions` with `CREATE OR REPLACE VIEW` instead of dropping them, so dependent views are never dropped by a schema install."
