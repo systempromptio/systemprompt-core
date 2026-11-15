@@ -1,66 +1,29 @@
-//! The content-and-misc route group: content and redirects, the platform
-//! routes (sync, marketplace), and the account routes (users, admin).
+//! The content-and-misc route group the server mounts itself: the platform
+//! routes (sync, marketplace) and the account routes (users, admin). The
+//! content routes and the short-link redirect are declared by the
+//! `content-http` extension; the analytics and engagement routes by the
+//! `analytics-http` extension.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::Router;
-use systemprompt_extension::{
-    AuthzPolicy, ContextKind, RateBudget, RateLimit, RouteGroup, RouteProtection,
-};
+use systemprompt_extension::{AuthzPolicy, ContextKind, RateBudget, RateLimit, RouteGroup};
 use systemprompt_models::auth::UserType;
 use systemprompt_models::modules::ApiPaths;
 
 use super::{MountCtx, declare};
-use crate::services::middleware::{MountError, place};
+use crate::services::middleware::MountError;
 
 pub(crate) fn mount_content_and_misc(
     router: Router,
     mount: &MountCtx<'_>,
 ) -> Result<Router, MountError> {
-    let router = mount_content(router, mount)?;
     let router = mount_platform(router, mount)?;
     mount_accounts(router, mount)
 }
 
 const CONTENT_RATE: RateLimit = RateLimit::new("content", RateBudget::Content);
-
-fn mount_content(mut router: Router, mount: &MountCtx<'_>) -> Result<Router, MountError> {
-    let ctx = mount.ctx;
-    let group = RouteGroup::ContentAndMisc;
-    let content_rate = CONTENT_RATE;
-
-    let public_content = mount.protect(
-        crate::routes::content::public_router(ctx),
-        &RouteProtection::new(AuthzPolicy::public(), ContextKind::Public)
-            .with_rate_limit(content_rate),
-        ApiPaths::CONTENT_BASE,
-    )?;
-    let authenticated_content = mount.protect(
-        crate::routes::content::authenticated_router(ctx),
-        &RouteProtection::new(AuthzPolicy::user(), ContextKind::User).with_rate_limit(content_rate),
-        ApiPaths::CONTENT_BASE,
-    )?;
-    router = place(
-        router,
-        ApiPaths::CONTENT_BASE,
-        public_content.merge(authenticated_content),
-    );
-
-    router = mount.mount(
-        router,
-        declare(
-            crate::routes::content::redirect_router(ctx.content_repositories()),
-            systemprompt_extension::registry::WEB_ROOT_BASE_PATH,
-            AuthzPolicy::public(),
-            ContextKind::Public,
-            group,
-        )
-        .with_rate_limit(content_rate),
-    )?;
-
-    Ok(router)
-}
 
 fn mount_platform(mut router: Router, mount: &MountCtx<'_>) -> Result<Router, MountError> {
     let ctx = mount.ctx;

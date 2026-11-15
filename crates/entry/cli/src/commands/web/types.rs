@@ -1,7 +1,7 @@
 //! Serializable output types for the `web` command group.
 //!
 //! These structs and enums are the rendered payloads (JSON/YAML/table) for the
-//! content-type, template, asset, and sitemap subcommands, plus the shared
+//! content-type, template and asset subcommands, plus the shared
 //! validation output re-exported here.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -170,21 +170,6 @@ pub struct AssetDetailOutput {
     pub size_bytes: u64,
     pub modified: String,
     pub referenced_in: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct SitemapRoute {
-    pub url: String,
-    pub priority: f32,
-    pub changefreq: String,
-    pub source: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct SitemapGenerateOutput {
-    pub output_path: String,
-    pub routes_count: usize,
-    pub message: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

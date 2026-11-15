@@ -1,0 +1,172 @@
+//! `cloud profile` subcommands for managing deployment profiles.
+//!
+//! Dispatches [`ProfileCommands`] to create, list, show, edit, and delete
+//! profiles, and drives the interactive operation picker when no subcommand is
+//! given.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+pub mod api_keys;
+mod args;
+mod create;
+mod create_setup;
+pub mod create_tenant;
+pub(super) mod delete;
+mod edit;
+pub mod edit_document;
+mod edit_secrets;
+pub mod edit_settings;
+mod list;
+pub mod profile_steps;
+mod show;
+pub mod show_display;
+pub mod show_types;
+pub mod templates;
+pub mod tenant_credentials;
+
+pub use api_keys::{ApiKeys, collect_api_keys};
+pub use args::{CreateArgs, DeleteArgs, EditArgs, ProfileCommands, ShowFilter, TenantTypeArg};
+pub use create::{CreatedProfile, create_profile_for_tenant};
+pub use create_setup::handle_local_tenant_setup;
+pub use show_types::redact_database_url;
+
+use anyhow::Result;
+use systemprompt_cli::kernel::{CommandContext, Prompter, render_result};
+use systemprompt_cloud::{ProfilePath, ProjectContext};
+use systemprompt_logging::CliService;
+
+pub async fn execute(cmd: Option<ProfileCommands>, ctx: &CommandContext) -> Result<()> {
+    if let Some(cmd) = cmd {
+        execute_command(cmd, ctx).await.map(drop)
+    } else {
+        if !ctx.cli.is_interactive() {
+            return Err(anyhow::anyhow!(
+                "Profile subcommand required in non-interactive mode"
+            ));
+        }
+        while let Some(cmd) = select_operation(ctx.prompter())? {
+            if execute_command(cmd, ctx).await? {
+                break;
+            }
+        }
+        Ok(())
+    }
+}
+
+async fn execute_command(cmd: ProfileCommands, ctx: &CommandContext) -> Result<bool> {
+    match cmd {
+        ProfileCommands::Create(args) => create::execute(
+            &args.normalized(),
+            ctx.prompter(),
+            &ctx.cli,
+            ctx.foreground_children(),
+        )
+        .await
+        .map(|()| true),
+        ProfileCommands::List => {
+            let result = list::execute(ctx).await?;
+            render_result(&result, &ctx.cli);
+            Ok(false)
+        },
+        ProfileCommands::Show {
+            name,
+            filter,
+            json,
+            yaml,
+        } => show::execute(name.as_deref(), filter, json, yaml, ctx)
+            .await
+            .map(|()| false),
+        ProfileCommands::Delete(args) => {
+            let result = delete::execute(&args, ctx.prompter(), &ctx.cli)?;
+            render_result(&result, &ctx.cli);
+            Ok(false)
+        },
+        ProfileCommands::Edit(args) => edit::execute(&args, ctx).map(|()| false),
+    }
+}
+
+fn select_operation(prompter: &dyn Prompter) -> Result<Option<ProfileCommands>> {
+    let ctx = ProjectContext::discover();
+    let profiles_dir = ctx.profiles_dir();
+    let has_profiles = profiles_dir.exists()
+        && std::fs::read_dir(&profiles_dir).is_ok_and(|entries| {
+            entries
+                .filter_map(Result::ok)
+                .any(|e| e.path().is_dir() && ProfilePath::Config.resolve(&e.path()).exists())
+        });
+
+    let edit_label = if has_profiles {
+        "Edit".to_owned()
+    } else {
+        "Edit (unavailable - no profiles)".to_owned()
+    };
+    let delete_label = if has_profiles {
+        "Delete".to_owned()
+    } else {
+        "Delete (unavailable - no profiles)".to_owned()
+    };
+
+    let operations = vec![
+        "List".to_owned(),
+        edit_label,
+        delete_label,
+        "Done".to_owned(),
+    ];
+
+    let selection = prompter.select("Profile operation", &operations)?;
+
+    let cmd = match selection {
+        0 => Some(ProfileCommands::List),
+        1 | 2 if !has_profiles => {
+            CliService::warning("No profiles found");
+            CliService::info(
+                "Run 'systemprompt cloud tenant create' to create a tenant \
+                 with a profile.",
+            );
+            return Ok(Some(ProfileCommands::List));
+        },
+        1 => Some(ProfileCommands::Edit(EditArgs {
+            name: None,
+            set_anthropic_key: None,
+            set_openai_key: None,
+            set_gemini_key: None,
+            set_github_token: None,
+            set_database_url: None,
+            set_external_url: None,
+            set_host: None,
+            set_port: None,
+        })),
+        2 => select_profile(prompter, "Select profile to delete")?
+            .map(|name| ProfileCommands::Delete(DeleteArgs { name, yes: false })),
+        3 => None,
+        other => return Err(anyhow::anyhow!("unexpected menu selection: {other}")),
+    };
+
+    Ok(cmd)
+}
+
+fn select_profile(prompter: &dyn Prompter, prompt: &str) -> Result<Option<String>> {
+    let ctx = ProjectContext::discover();
+    let profiles_dir = ctx.profiles_dir();
+
+    if !profiles_dir.exists() {
+        CliService::warning("No profiles directory found.");
+        return Ok(None);
+    }
+
+    let profiles: Vec<String> = std::fs::read_dir(&profiles_dir)?
+        .filter_map(Result::ok)
+        .filter(|e| e.path().is_dir() && ProfilePath::Config.resolve(&e.path()).exists())
+        .filter_map(|e| e.file_name().to_str().map(String::from))
+        .collect();
+
+    if profiles.is_empty() {
+        CliService::warning("No profiles found.");
+        return Ok(None);
+    }
+
+    let selection = prompter.select(prompt, &profiles)?;
+
+    Ok(Some(profiles[selection].clone()))
+}

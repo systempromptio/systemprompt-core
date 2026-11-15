@@ -1,0 +1,52 @@
+//! `core content delete-source` command removing a source's content.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use super::types::DeleteSourceOutput;
+use anyhow::Result;
+use clap::Args;
+use systemprompt_cli::kernel::{CommandContext, CommandOutput, require_confirmation};
+use systemprompt_content::ContentRepository;
+use systemprompt_identifiers::SourceId;
+use systemprompt_logging::CliService;
+
+#[derive(Debug, Args)]
+pub struct DeleteSourceArgs {
+    #[arg(value_name = "SOURCE_ID", help = "Source ID")]
+    pub source: String,
+
+    #[arg(short = 'y', long, help = "Skip confirmation")]
+    pub yes: bool,
+}
+
+pub async fn execute(args: DeleteSourceArgs, cmd: &CommandContext) -> Result<CommandOutput> {
+    let prompter = cmd.prompter();
+    let config = &cmd.cli;
+    if config.is_interactive() && !args.yes {
+        CliService::warning(&format!(
+            "This will permanently delete ALL content from source: {}",
+            args.source
+        ));
+    }
+
+    require_confirmation(
+        prompter,
+        "Are you sure you want to continue?",
+        args.yes,
+        config,
+    )?;
+
+    let ctx = cmd.app_context().await?;
+    let repo = ContentRepository::new(ctx.db_pool());
+
+    let source = SourceId::new(args.source.clone());
+    let deleted_count = repo.delete_by_source(&source).await?;
+
+    let output = DeleteSourceOutput {
+        deleted_count,
+        source_id: source,
+    };
+
+    Ok(CommandOutput::card_value("Source Content Deleted", &output))
+}

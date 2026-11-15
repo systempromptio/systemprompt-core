@@ -1,0 +1,46 @@
+//! `core content analytics campaign` command.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use crate::cli::content::types::CampaignAnalyticsOutput;
+use anyhow::{Result, anyhow};
+use clap::Args;
+use systemprompt_cli::kernel::{CliConfig, CommandContext, CommandOutput};
+use systemprompt_content::{ContentRepositories, LinkAnalyticsService};
+use systemprompt_database::DbPool;
+use systemprompt_identifiers::CampaignId;
+
+#[derive(Debug, Args)]
+pub struct CampaignArgs {
+    #[arg(help = "Campaign ID", value_parser = systemprompt_cli::kernel::parsers::parse_campaign_id)]
+    pub campaign_id: CampaignId,
+}
+
+pub async fn execute(args: CampaignArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    execute_with_pool(args, &ctx.db_pool().await?, &ctx.cli).await
+}
+
+pub async fn execute_with_pool(
+    args: CampaignArgs,
+    pool: &DbPool,
+    _config: &CliConfig,
+) -> Result<CommandOutput> {
+    let repositories = ContentRepositories::new(pool);
+    let service = LinkAnalyticsService::new(repositories.link, repositories.link_analytics);
+
+    let performance = service
+        .find_campaign_performance(&args.campaign_id)
+        .await?
+        .ok_or_else(|| anyhow!("Campaign not found: {}", args.campaign_id))?;
+
+    let output = CampaignAnalyticsOutput {
+        campaign_id: performance.campaign_id,
+        total_clicks: performance.total_clicks,
+        link_count: performance.link_count,
+        unique_visitors: performance.unique_visitors.unwrap_or(0),
+        conversion_count: performance.conversion_count.unwrap_or(0),
+    };
+
+    Ok(CommandOutput::card_value("Campaign Analytics", &output))
+}

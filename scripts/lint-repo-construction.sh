@@ -12,7 +12,7 @@
 #        (this includes crates/entry/api/src/repository/**, the entry-layer
 #        composition modules for router state)
 #      - crates/app/runtime/src/builder/**  the AppContext composition root
-#      - crates/entry/cli/src/**            one-shot command bodies
+#      - crates/entry/cli/src/**, crates/entry/*/src/cli/**   one-shot command bodies
 #      - **/jobs/**                         per-tick scheduler job bodies
 #
 #   2. The files a package lists in its `gates/lint-repo-construction.allow`
@@ -91,6 +91,7 @@ while IFS= read -r file; do
     */src/repository/*) continue ;;
     */runtime/src/builder/*) continue ;;
     */cli/src/*) continue ;;
+    */entry/*/src/cli/*) continue ;;
     */jobs/*) continue ;;
   esac
   if ! grep -q "$pattern" "$file"; then

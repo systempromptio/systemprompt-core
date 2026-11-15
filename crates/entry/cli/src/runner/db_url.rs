@@ -24,7 +24,7 @@ impl Commands {
                 | admin::AdminCommands::Config(admin::config::ConfigCommands::Apply(_)),
             ) => DbUrlRouting::ProfileDriven,
 
-            Self::Core(core::CoreCommands::Content(_) | core::CoreCommands::Files(_))
+            Self::Core(core::CoreCommands::Files(_))
             | Self::Infra(
                 infrastructure::InfraCommands::Db(_)
                 | infrastructure::InfraCommands::Logs(_)

@@ -88,8 +88,12 @@ Artefact variants: `Table`, `List`, `Card`, `Text`, `CopyPasteText`, `Chart`, `F
 systemprompt-cli = "0.81"
 ```
 
+This crate is a library. The `systemprompt` binary is built by the
+[`systemprompt`](https://crates.io/crates/systemprompt) facade crate, which
+links every capability's commands:
+
 ```bash
-cargo install systemprompt-cli
+cargo install systemprompt --features full
 ```
 
 ## Dual-Mode Operation

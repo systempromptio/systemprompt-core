@@ -1,4 +1,4 @@
-//! Tests for `web assets list`, `web sitemap show`, and the web validators.
+//! Tests for `web assets list` and the web validators.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
@@ -7,7 +7,6 @@ use std::path::{Path, PathBuf};
 
 use systemprompt_cli::web::assets::list::{AssetTypeFilter, ListArgs, execute_in_dir};
 use systemprompt_cli::web::paths::WebPaths;
-use systemprompt_cli::web::sitemap::show::{ShowArgs, execute_with_config_path};
 use systemprompt_cli::web::validate::asset_validation::validate_assets;
 use systemprompt_cli::web::validate::sitemap_validation::validate_sitemap;
 use systemprompt_cli::web::validate::template_validation::validate_templates;
@@ -177,32 +176,6 @@ fn assets_list_reports_empty_and_typed_entries() {
             .iter()
             .all(|i| i["path"].as_str().unwrap().ends_with(".css"))
     );
-}
-
-#[test]
-fn sitemap_show_lists_enabled_routes() {
-    let dir = tempfile::tempdir().unwrap();
-    let config_path = dir.path().join("config.yaml");
-    fs::write(&config_path, CONTENT_CONFIG).unwrap();
-
-    let out = execute_with_config_path(
-        ShowArgs { preview: true },
-        &cfg(),
-        config_path.to_str().unwrap(),
-    )
-    .unwrap();
-    let json = serde_json::to_value(out.artifact()).unwrap();
-    let items = json["items"].as_array().unwrap();
-    assert_eq!(items.len(), 2);
-    assert_eq!(items[0]["url"], "/docs");
-
-    let err = execute_with_config_path(
-        ShowArgs { preview: false },
-        &cfg(),
-        "/nonexistent/content-config.yaml",
-    )
-    .unwrap_err();
-    assert!(err.to_string().contains("Failed to read content config"));
 }
 
 #[test]

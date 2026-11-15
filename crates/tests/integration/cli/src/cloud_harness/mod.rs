@@ -17,12 +17,12 @@ use systemprompt_identifiers::CloudAppId;
 use chrono::Utc;
 use serde_json::json;
 use std::sync::Arc;
-use systemprompt_cli::cloud::auth::AuthCommands;
-use systemprompt_cli::cloud::tenant::{TenantCommands, TenantDeleteArgs, TenantRotateArgs};
-use systemprompt_cli::cloud::{self, CloudCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_cloud::tenants::{NewCloudTenantParams, StoredTenant, TenantStore};
 use systemprompt_cloud::{CloudCredentials, CloudPath, CredentialsBootstrap, get_cloud_paths};
+use systemprompt_cloud_entry::cli::auth::AuthCommands;
+use systemprompt_cloud_entry::cli::tenant::{TenantCommands, TenantDeleteArgs, TenantRotateArgs};
+use systemprompt_cloud_entry::cli::{self as cloud, CloudCommands};
 use systemprompt_config::LoadedProfile;
 use systemprompt_identifiers::TenantId;
 use tempfile::TempDir;
@@ -588,7 +588,7 @@ async fn auth_logout_removes_credentials_file() {
 
     cloud::execute(
         CloudCommands::Auth(AuthCommands::Logout(
-            systemprompt_cli::cloud::auth::LogoutArgs { yes: true },
+            systemprompt_cloud_entry::cli::auth::LogoutArgs { yes: true },
         )),
         &json_ctx(),
     )
@@ -606,7 +606,7 @@ async fn login_post_token_persists_credentials_and_tenants() {
     std::fs::remove_file(&creds_path).expect("remove seeded credentials");
     std::fs::remove_file(&tenants_path).expect("remove seeded tenants");
 
-    let output = systemprompt_cli::cloud::auth::complete_login(
+    let output = systemprompt_cloud_entry::cli::auth::complete_login(
         &env.server().uri(),
         FAR_FUTURE_JWT.to_owned(),
     )
@@ -630,7 +630,7 @@ async fn login_post_token_fails_on_rejected_token() {
         .mount(env.server())
         .await;
 
-    let err = systemprompt_cli::cloud::auth::complete_login(
+    let err = systemprompt_cloud_entry::cli::auth::complete_login(
         &env.server().uri(),
         FAR_FUTURE_JWT.to_owned(),
     )

@@ -1,0 +1,96 @@
+#![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
+
+use std::process::Command;
+
+use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat};
+use systemprompt_cloud_entry::cli::profile::{self, ProfileCommands, ShowFilter};
+use systemprompt_test_fixtures::{bounded_output, ensure_test_bootstrap};
+
+const HELPER: &str = "commands::cloud_profile_optional_config_recovery::optional_config_helper";
+
+fn show() -> ProfileCommands {
+    ProfileCommands::Show {
+        name: None,
+        filter: ShowFilter::All,
+        json: true,
+        yaml: false,
+    }
+}
+
+#[tokio::test]
+#[ignore = "re-executed by profile_show_omits_broken_optional_configs_and_recovers_after_repair"]
+async fn optional_config_helper() {
+    let boot = ensure_test_bootstrap();
+    let skills_dir = boot.services_path.join("skills");
+    let content_dir = boot.services_path.join("content");
+    std::fs::create_dir_all(&skills_dir).unwrap();
+    std::fs::create_dir_all(&content_dir).unwrap();
+    let skills = skills_dir.join("skills.yaml");
+    let content = content_dir.join("config.yaml");
+    std::fs::write(&skills, "skills: [broken: yaml").unwrap();
+    std::fs::write(&content, "categories: [broken: yaml").unwrap();
+
+    let context = crate::boot_ctx::new_with_boot(
+        CliConfig::new()
+            .with_interactive(false)
+            .with_output_format(OutputFormat::Json),
+        EnvOverrides {
+            profile: Some(boot.profile_path.to_string_lossy().into_owned()),
+            ..EnvOverrides::default()
+        },
+    );
+    println!("BEGIN_BROKEN_OPTIONAL");
+    profile::execute(Some(show()), &context)
+        .await
+        .expect("show profile while optional configs are malformed");
+    println!("END_BROKEN_OPTIONAL");
+
+    std::fs::write(&skills, "enabled: true\nskills: {}\n").unwrap();
+    std::fs::write(&content, "categories: {}\ncontent_sources: {}\n").unwrap();
+    println!("BEGIN_REPAIRED_OPTIONAL");
+    profile::execute(Some(show()), &context)
+        .await
+        .expect("show profile after optional configs are repaired");
+    println!("END_REPAIRED_OPTIONAL");
+}
+
+fn marked_json(stdout: &str, start: &str, end: &str) -> serde_json::Value {
+    let json = stdout
+        .split_once(start)
+        .and_then(|(_, tail)| tail.split_once(end))
+        .map(|(value, _)| value.trim())
+        .unwrap_or_else(|| panic!("missing {start}/{end} in {stdout}"));
+    serde_json::from_str(json).unwrap_or_else(|error| panic!("invalid JSON: {error}: {json}"))
+}
+
+fn has_section(artifact: &serde_json::Value, name: &str) -> bool {
+    artifact["sections"]
+        .as_array()
+        .expect("profile card sections")
+        .iter()
+        .any(|section| section["heading"] == name)
+}
+
+#[test]
+fn profile_show_omits_broken_optional_configs_and_recovers_after_repair() {
+    let mut command = Command::new(std::env::current_exe().expect("unit-test binary"));
+    command.args(["--exact", HELPER, "--ignored", "--nocapture"]);
+    let output = bounded_output(command, "cloud profile optional config recovery");
+    assert!(
+        output.status.success(),
+        "profile helper failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8(output.stdout).expect("UTF-8 profile output");
+    let broken = marked_json(&stdout, "BEGIN_BROKEN_OPTIONAL", "END_BROKEN_OPTIONAL");
+    let repaired = marked_json(&stdout, "BEGIN_REPAIRED_OPTIONAL", "END_REPAIRED_OPTIONAL");
+    assert_eq!(broken["title"], "Profile Configuration");
+    assert!(!has_section(&broken, "environment"));
+    assert!(has_section(&broken, "settings"));
+    assert!(!has_section(&broken, "skills"));
+    assert!(!has_section(&broken, "content"));
+    assert!(has_section(&repaired, "environment"));
+    assert!(has_section(&repaired, "skills"));
+    assert!(has_section(&repaired, "content"));
+}

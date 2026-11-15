@@ -8,7 +8,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 
-use systemprompt_cli::cloud::{self, CloudCommands};
+use systemprompt_cloud_entry::cli::{self as cloud, CloudCommands};
 
 use super::json_ctx;
 

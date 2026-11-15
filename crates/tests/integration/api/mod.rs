@@ -29,6 +29,10 @@ mod server_mount_analytics;
 mod server_mount_notifications;
 
 #[cfg(test)]
+#[path = "routes_content_mounted.rs"]
+mod routes_content_mounted;
+
+#[cfg(test)]
 #[path = "routes_role_gateway.rs"]
 mod routes_role_gateway;
 
@@ -76,9 +80,6 @@ mod routes_agent_tasks;
 mod routes_admin_keys;
 
 #[cfg(test)]
-#[path = "routes_content_links.rs"]
-mod routes_content_links;
-
 #[cfg(test)]
 #[path = "routes_users_sessions.rs"]
 mod routes_users_sessions;
@@ -417,13 +418,7 @@ mod gateway_stream_abort;
 mod gateway_stream_usage;
 
 #[cfg(test)]
-#[path = "routes_content_blog.rs"]
-mod routes_content_blog;
-
 #[cfg(test)]
-#[path = "routes_content_negotiation.rs"]
-mod routes_content_negotiation;
-
 #[cfg(test)]
 #[path = "routes_bridge_plugin_archive.rs"]
 mod routes_bridge_plugin_archive;
@@ -557,9 +552,6 @@ mod proxy_more;
 mod api_error_units;
 
 #[cfg(test)]
-#[path = "routes_content_more.rs"]
-mod routes_content_more;
-
 #[cfg(test)]
 #[path = "routes_admin_cli_subprocess.rs"]
 mod routes_admin_cli_subprocess;
@@ -569,9 +561,6 @@ mod routes_admin_cli_subprocess;
 mod routes_admin_keys_seeded;
 
 #[cfg(test)]
-#[path = "routes_content_links_and_query.rs"]
-mod routes_content_links_and_query;
-
 #[cfg(test)]
 #[path = "routes_mcp_registry_populated.rs"]
 mod routes_mcp_registry_populated;

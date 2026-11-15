@@ -17,7 +17,8 @@
 //! - [`PublishError`] / [`GeneratorResult`] — the typed error and `Result`
 //!   alias returned by every public function in this crate.
 //! - [`ContentPrerenderJob`], [`PagePrerenderJob`] — scheduled jobs registered
-//!   with the systemprompt scheduler via the `inventory` crate.
+//!   with the systemprompt scheduler via the `inventory` crate, owned by
+//!   [`GeneratorExtension`] (id `generator`).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -27,6 +28,7 @@ pub mod atomic;
 pub(crate) mod build;
 pub(crate) mod content;
 pub(crate) mod error;
+pub mod extension;
 pub(crate) mod jobs;
 pub(crate) mod prerender;
 pub(crate) mod rss;
@@ -38,6 +40,7 @@ pub use atomic::{copy_atomic, write_atomic};
 pub use build::{BuildError, BuildMode, BuildOrchestrator};
 pub use content::{extract_frontmatter, render_markdown};
 pub use error::{GeneratorResult, PublishError};
+pub use extension::{GENERATOR_EXTENSION, GeneratorExtension};
 pub use prerender::{
     PagePrerenderResult, PrerenderEnv, TocResult, generate_toc, merge_json_data, prerender_content,
     prerender_pages,

@@ -81,8 +81,8 @@ pub fn systemprompt_bin() -> PathBuf {
         }
     }
     panic!(
-        "systemprompt binary not found; prebuild it with `cargo build -p systemprompt-cli --bin \
-         systemprompt` from the repo root, or point SYSTEMPROMPT_BIN at an existing binary"
+        "systemprompt binary not found; prebuild it with `cargo build -p systemprompt --bin \
+         systemprompt --features full` from the repo root, or point SYSTEMPROMPT_BIN at an existing binary"
     );
 }
 

@@ -1,0 +1,179 @@
+//! `cloud tenant delete` command.
+//!
+//! Removes a tenant from the store, cancelling its cloud subscription via the
+//! API for systemprompt.io tenants, tearing down its own Docker `PostgreSQL`
+//! project for local tenants, and only forgetting the record of a
+//! self-managed (Kubernetes, GKE) tenant.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use anyhow::{Result, anyhow, bail};
+use systemprompt_cloud::{
+    CloudApiClient, CloudPath, DockerCli, StoredTenant, TenantStore, get_cloud_paths,
+};
+use systemprompt_identifiers::TenantId;
+use systemprompt_loader::subprocess::ForegroundChildren;
+use systemprompt_logging::CliService;
+
+use super::docker::{compose_path_for_project, remove_project};
+use super::select::{get_credentials, select_tenant};
+use crate::cli::tenant::TenantDeleteArgs;
+use systemprompt_cli::kernel::{CliConfig, CommandOutput, Prompter, SuccessOutput};
+
+pub async fn delete_tenant(
+    args: TenantDeleteArgs,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+    children: &ForegroundChildren,
+) -> Result<CommandOutput> {
+    let cloud_paths = get_cloud_paths();
+    let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
+    let mut store = TenantStore::load_from_path(&tenants_path).unwrap_or_else(|e| {
+        if !config.is_json_output() {
+            CliService::warning(&format!("Failed to load tenant store: {}", e));
+        }
+        TenantStore::default()
+    });
+
+    let tenant_id = resolve_delete_target(args.id, prompter, &store, config)?;
+
+    let tenant = store
+        .tenants
+        .iter()
+        .find(|t| t.id == tenant_id)
+        .ok_or_else(|| anyhow!("Tenant not found: {}", tenant_id.as_str()))?
+        .clone();
+
+    let is_cloud = tenant.is_systemprompt_managed();
+
+    if !args.yes && !confirm_delete(&tenant, is_cloud, prompter, config)? {
+        let output = SuccessOutput::new("Cancelled");
+        if !config.is_json_output() {
+            CliService::info("Cancelled");
+        }
+        return Ok(CommandOutput::text_titled("Delete Tenant", output.message));
+    }
+
+    if is_cloud {
+        delete_cloud_tenant(&tenant_id, config).await?;
+    } else if tenant.uses_managed_container() {
+        cleanup_managed_container_tenant(&tenant, prompter, config, children)?;
+    }
+
+    store.tenants.retain(|t| t.id != tenant_id);
+    store.save_to_path(&tenants_path)?;
+
+    let output = SuccessOutput::new(format!("Deleted tenant: {}", tenant_id.as_str()));
+
+    if !config.is_json_output() {
+        CliService::success(&format!("Deleted tenant: {}", tenant_id.as_str()));
+    }
+
+    Ok(CommandOutput::text_titled("Delete Tenant", output.message))
+}
+
+fn resolve_delete_target(
+    id: Option<TenantId>,
+    prompter: &dyn Prompter,
+    store: &TenantStore,
+    config: &CliConfig,
+) -> Result<TenantId> {
+    if let Some(id) = id {
+        return Ok(id);
+    }
+    if !config.is_interactive() {
+        return Err(anyhow::anyhow!(
+            "--id is required in non-interactive mode for tenant delete"
+        ));
+    }
+    if store.tenants.is_empty() {
+        bail!("No tenants configured.");
+    }
+    Ok(select_tenant(prompter, &store.tenants)?.id.clone())
+}
+
+fn confirm_delete(
+    tenant: &StoredTenant,
+    is_cloud: bool,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<bool> {
+    if !config.is_interactive() {
+        return Err(anyhow::anyhow!(
+            "--yes is required in non-interactive mode for tenant delete"
+        ));
+    }
+
+    let prompt = if is_cloud {
+        format!(
+            "Delete cloud tenant '{}'? This will cancel your subscription and delete all data.",
+            tenant.name
+        )
+    } else if tenant.provider.is_hosted() {
+        format!(
+            "Remove the record of {} tenant '{}'? The deployment itself is not touched.",
+            tenant.provider, tenant.name
+        )
+    } else {
+        format!("Delete tenant '{}'?", tenant.name)
+    };
+
+    prompter.confirm(&prompt, false)
+}
+
+async fn delete_cloud_tenant(tenant_id: &TenantId, config: &CliConfig) -> Result<()> {
+    let creds = get_credentials()?;
+    let client = CloudApiClient::new(&creds.api_url, creds.api_token.as_str())?;
+
+    if config.is_json_output() {
+        client.delete_tenant(tenant_id).await?;
+    } else {
+        let spinner = CliService::spinner("Deleting cloud tenant...");
+        client.delete_tenant(tenant_id).await?;
+        spinner.finish_and_clear();
+    }
+
+    Ok(())
+}
+
+fn cleanup_managed_container_tenant(
+    tenant: &StoredTenant,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+    children: &ForegroundChildren,
+) -> Result<()> {
+    let Some(ref project) = tenant.docker_project else {
+        return Ok(());
+    };
+
+    let should_remove = if config.is_interactive() {
+        prompter.confirm(
+            &format!("Remove the PostgreSQL container and data for '{project}'?"),
+            true,
+        )?
+    } else {
+        true
+    };
+
+    if !should_remove {
+        CliService::info(&format!(
+            "Container kept. Remove manually with 'docker compose -p {} -f {} down -v'",
+            project,
+            compose_path_for_project(project).display()
+        ));
+        return Ok(());
+    }
+
+    let docker = DockerCli::new(children.clone());
+    let spinner = CliService::spinner(&format!("Removing container '{project}'..."));
+    let removed = remove_project(&docker, project);
+    spinner.finish_and_clear();
+
+    match removed {
+        Ok(()) => CliService::success(&format!("Container '{project}' removed")),
+        Err(e) => CliService::warning(&format!("Failed to remove container '{project}': {e}")),
+    }
+
+    Ok(())
+}

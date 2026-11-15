@@ -32,7 +32,7 @@
 //! | `bridge` | the device-credential consumer routes | The surface the bridge reports installation evidence through. In `full`. |
 //! | `files-office` | the `systemprompt::files` module with `systemprompt-files/office` | The `.docx` document codec. In `full`. |
 //! | `files-pdf` | the `systemprompt::files` module with `systemprompt-files/pdf`, forwarded to the API and CLI | PDF export of documents and its embedded fonts. In `full`. Without it a PDF export is refused with `unsupported_op`. |
-//! | `full` | `api`, `mcp`, `cloud`, `cli`, `config`, `logging`, `loader`, `events`, `storage`, `client`, `security`, `analytics`, and the domain crates (`agent`, `ai`, `mcp`, `oauth`, `users`, `content`, `marketplace`, `scheduler`, `generator`, `files`, `agent-runs`, `notifications`, `brain`), `files-office`, `files-pdf`, `otel` and `bridge` | Building a product binary. The `slack` and `teams` modules stay opt-in. |
+//! | `full` | `api`, `mcp`, `cloud`, `cli`, `config`, `logging`, `loader`, `events`, `storage`, `client`, `security`, `analytics`, and the domain crates (`agent`, `ai`, `mcp`, `oauth`, `users`, `content`, `marketplace`, `scheduler`, `generator`, `files`, `agent-runs`, `notifications`, `brain`), `files-office`, `files-pdf`, `otel` and `bridge` | Building a product binary, and the composition of this crate's own `systemprompt` binary. The `slack` and `teams` modules stay opt-in. |
 //!
 //! ```toml
 //! systemprompt = { version = "0.81.1", features = ["full"] }
@@ -170,7 +170,10 @@ pub mod gateway {
 #[cfg(feature = "cli")]
 #[cfg_attr(docsrs, doc(cfg(feature = "cli")))]
 pub mod cli {
-    pub use systemprompt_cli::{CliConfig, ColorMode, OutputFormat, VerbosityLevel, run, run_with};
+    pub use systemprompt_cli::{
+        CliConfig, ColorMode, OutputFormat, VerbosityLevel, run, run_process, run_process_with,
+        run_with,
+    };
 }
 
 #[cfg(any(feature = "runtime", feature = "full"))]
@@ -264,6 +267,7 @@ pub mod brain {
 #[cfg_attr(docsrs, doc(cfg(feature = "cloud")))]
 pub mod cloud {
     pub use systemprompt_cloud::*;
+    pub use systemprompt_cloud_entry as entry;
 }
 
 #[cfg(feature = "core")]

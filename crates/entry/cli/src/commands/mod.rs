@@ -1,7 +1,10 @@
 //! Top-level CLI command groups.
 //!
-//! Each submodule owns one command domain — [`admin`], [`cloud`], [`core`], [`infrastructure`], [`plugins`], [`web`], and the
-//! build tooling in [`build`] — and exposes its own clap subcommand tree.
+//! Each submodule owns one command domain — [`admin`], [`core`],
+//! [`infrastructure`], [`plugins`], [`web`], and the build tooling in
+//! [`build`] — and exposes its own clap subcommand tree. Groups owned by a
+//! capability's entry crate (such as `cloud` and `analytics`) register
+//! themselves through the kernel instead.
 //! The [`shared`] module holds helpers used across those groups.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -9,7 +12,6 @@
 
 pub mod admin;
 pub mod build;
-pub mod cloud;
 pub mod core;
 pub mod infrastructure;
 pub mod plugins;

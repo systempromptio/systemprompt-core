@@ -11,7 +11,7 @@
 
 use clap::{ArgMatches, Command, CommandFactory, FromArgMatches, Parser, Subcommand};
 
-use crate::commands::{admin, cloud, core, infrastructure, plugins, web};
+use crate::commands::{admin, core, infrastructure, plugins, web};
 use crate::descriptor::{CommandDescriptor, DescribeCommand};
 use crate::kernel::{CommandRegistry, RegistryError};
 
@@ -147,13 +147,6 @@ pub enum Commands {
 
     #[command(
         subcommand,
-        display_order = 40,
-        about = "Cloud deployment, backup, and setup"
-    )]
-    Cloud(cloud::CloudCommands),
-
-    #[command(
-        subcommand,
         display_order = 60,
         about = "Web service configuration management"
     )]
@@ -173,7 +166,6 @@ impl DescribeCommand for Commands {
             Self::Core(cmd) => cmd.descriptor(),
             Self::Infra(cmd) => cmd.descriptor(),
             Self::Admin(cmd) => cmd.descriptor(),
-            Self::Cloud(cmd) => cmd.descriptor(),
             Self::Web(cmd) => cmd.descriptor(),
             Self::Plugins(cmd) => cmd.descriptor(),
         };

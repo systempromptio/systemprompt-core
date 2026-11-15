@@ -1,15 +1,15 @@
 //! `core` command group: the platform's primary domain commands.
 //!
-//! Dispatches the [`CoreCommands`] subgroups — artifacts, content, files,
-//! contexts, skills, plugins, marketplace, and hooks. On a `--database-url`
-//! invocation only the content and files subgroups are served; the rest require
-//! a full profile context.
+//! Dispatches the [`CoreCommands`] subgroups — artifacts, files, contexts,
+//! skills, plugins, marketplace, hooks and services bundles. On a
+//! `--database-url` invocation only the files subgroup is served; the rest
+//! require a full profile context. Capabilities register further subgroups
+//! under `core` (such as `core content`) through `register_cli_command!`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod artifacts;
-pub mod content;
 pub mod contexts;
 pub mod files;
 pub mod hooks;
@@ -28,9 +28,6 @@ use crate::descriptor::{CommandDescriptor, DataImpact, DescribeCommand};
 pub enum CoreCommands {
     #[command(subcommand, about = "Artifact inspection and debugging")]
     Artifacts(artifacts::ArtifactsCommands),
-
-    #[command(subcommand, about = "Content management and analytics")]
-    Content(content::ContentCommands),
 
     #[command(subcommand, about = "File management and uploads")]
     Files(files::FilesCommands),
@@ -58,14 +55,12 @@ pub enum CoreCommands {
 }
 
 pub async fn execute(cmd: CoreCommands, ctx: &CommandContext) -> Result<()> {
-    if ctx.is_database_scoped() && !matches!(cmd, CoreCommands::Content(_) | CoreCommands::Files(_))
-    {
+    if ctx.is_database_scoped() && !matches!(cmd, CoreCommands::Files(_)) {
         return Err(crate::shared::database_scoped_command_error(ctx));
     }
 
     match cmd {
         CoreCommands::Artifacts(cmd) => Box::pin(artifacts::execute(cmd, ctx)).await,
-        CoreCommands::Content(cmd) => content::execute(cmd, ctx).await,
         CoreCommands::Files(cmd) => files::execute(cmd, ctx).await,
         CoreCommands::Contexts(cmd) => Box::pin(contexts::execute(cmd, ctx)).await,
         CoreCommands::Skills(cmd) => skills::execute(cmd, ctx).await,
@@ -111,37 +106,13 @@ impl DescribeCommand for CoreCommands {
 
 impl CoreCommands {
     pub const fn data_impact(&self) -> DataImpact {
-        use content::ContentCommands;
-        use content::link::LinkCommands;
-
         match self {
-            Self::Content(
-                ContentCommands::Delete(_)
-                | ContentCommands::DeleteSource(_)
-                | ContentCommands::Link(LinkCommands::Delete(_)),
-            )
-            | Self::Files(files::FilesCommands::Delete(_))
+            Self::Files(files::FilesCommands::Delete(_))
             | Self::Contexts(contexts::ContextsCommands::Delete(_))
             | Self::Services(
                 services::ServicesCommands::Refresh(_) | services::ServicesCommands::Publish(_),
             ) => DataImpact::Destructive,
-            Self::Content(
-                ContentCommands::List(_)
-                | ContentCommands::Show(_)
-                | ContentCommands::Search(_)
-                | ContentCommands::Edit(_)
-                | ContentCommands::Verify(_)
-                | ContentCommands::Status(_)
-                | ContentCommands::Link(
-                    LinkCommands::Generate(_)
-                    | LinkCommands::Show(_)
-                    | LinkCommands::List(_)
-                    | LinkCommands::Performance(_),
-                )
-                | ContentCommands::Analytics(_)
-                | ContentCommands::Files(_),
-            )
-            | Self::Files(
+            Self::Files(
                 files::FilesCommands::List(_)
                 | files::FilesCommands::Show(_)
                 | files::FilesCommands::Upload(_)

@@ -175,7 +175,7 @@ jobs:
       # dependencies, so the test archive job does not wait on them.
       - name: Build the binaries the test shards spawn
         run: |
-          cargo build -p systemprompt-cli --bin systemprompt --locked
+          cargo build -p systemprompt --bin systemprompt --features full --locked
           cargo build --manifest-path bin/bridge/Cargo.toml --bin systemprompt-bridge --locked
           bridge_target=$(cargo metadata --manifest-path bin/bridge/Cargo.toml --no-deps --format-version 1 | jq -r .target_directory)
           mkdir -p test-bins

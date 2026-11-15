@@ -13,7 +13,6 @@ use systemprompt_api::kernel::{ApiHttpError, IntoApiError, capability_error_resp
 use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_models::api::ApiError;
 
-/// An agent-run handler's failure, answered through the API error model.
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum AgentRunsHttpError {
     #[error(transparent)]

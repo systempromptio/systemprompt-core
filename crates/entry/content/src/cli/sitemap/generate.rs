@@ -1,0 +1,172 @@
+//! `web sitemap generate` command collecting URLs into sitemap.xml.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use anyhow::{Context, Result};
+use chrono::Utc;
+use clap::Args;
+use std::fs;
+use std::path::PathBuf;
+
+use systemprompt_cli::kernel::{CliConfig, CommandOutput};
+use systemprompt_generator::{SitemapUrl, build_sitemap_xml};
+use systemprompt_logging::CliService;
+use systemprompt_manifest::Profile;
+use systemprompt_models::content_config::ContentConfigRaw;
+
+use super::types::SitemapGenerateOutput;
+
+#[derive(Debug, Args)]
+pub struct GenerateArgs {
+    #[arg(long, help = "Output path (default: {web_path}/dist/sitemap.xml)")]
+    pub output: Option<PathBuf>,
+
+    #[arg(long, help = "Base URL for sitemap (e.g., https://example.com)")]
+    pub base_url: Option<String>,
+
+    #[arg(long, help = "Include dynamic content from database")]
+    pub include_dynamic: bool,
+}
+
+pub(super) fn execute(
+    args: &GenerateArgs,
+    _config: &CliConfig,
+    profile: &Profile,
+) -> Result<CommandOutput> {
+    execute_with_profile(args, profile)
+}
+
+pub fn execute_with_profile(args: &GenerateArgs, profile: &Profile) -> Result<CommandOutput> {
+    let content_config = load_content_config(profile)?;
+    let base_url = resolve_base_url(args, profile);
+    let output_path = resolve_output_path(args, profile)?;
+
+    CliService::info("Generating sitemap...");
+
+    let urls = collect_urls(&content_config, &base_url, args.include_dynamic);
+    let xml = build_sitemap_xml(&urls);
+
+    fs::write(&output_path, &xml)
+        .with_context(|| format!("Failed to write sitemap to {}", output_path.display()))?;
+
+    let message = format!(
+        "Sitemap generated with {} URLs at {}",
+        urls.len(),
+        output_path.display()
+    );
+    CliService::success(&message);
+
+    let output = SitemapGenerateOutput {
+        output_path: output_path.to_string_lossy().to_string(),
+        routes_count: urls.len(),
+        message,
+    };
+
+    Ok(CommandOutput::card_value("Sitemap Generated", &output))
+}
+
+fn load_content_config(profile: &Profile) -> Result<ContentConfigRaw> {
+    let content_config_path = profile.paths.content_config();
+
+    let content = fs::read_to_string(&content_config_path)
+        .with_context(|| format!("Failed to read content config at {}", content_config_path))?;
+
+    serde_yaml::from_str(&content)
+        .with_context(|| format!("Failed to parse content config at {}", content_config_path))
+}
+
+fn resolve_base_url(args: &GenerateArgs, profile: &Profile) -> String {
+    args.base_url.clone().unwrap_or_else(|| {
+        let metadata_path = profile.paths.web_metadata();
+        fs::read_to_string(&metadata_path)
+            .ok()
+            .and_then(|content| extract_base_url(&content))
+            .unwrap_or_else(|| "https://example.com".to_owned())
+    })
+}
+
+fn resolve_output_path(args: &GenerateArgs, profile: &Profile) -> Result<PathBuf> {
+    let web_path = profile.paths.web_path_resolved();
+    let output_path = args
+        .output
+        .clone()
+        .unwrap_or_else(|| PathBuf::from(&web_path).join("dist").join("sitemap.xml"));
+
+    if let Some(parent) = output_path.parent() {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("Failed to create directory: {}", parent.display()))?;
+    }
+
+    Ok(output_path)
+}
+
+fn collect_urls(
+    content_config: &ContentConfigRaw,
+    base_url: &str,
+    include_dynamic: bool,
+) -> Vec<SitemapUrl> {
+    let mut urls: Vec<SitemapUrl> = Vec::new();
+    let today = Utc::now().format("%Y-%m-%d").to_string();
+
+    for (name, source) in &content_config.content_sources {
+        if !source.enabled {
+            continue;
+        }
+
+        let Some(sitemap) = &source.sitemap else {
+            continue;
+        };
+        if !sitemap.enabled {
+            continue;
+        }
+
+        if let Some(parent) = &sitemap.parent_route
+            && parent.enabled
+        {
+            urls.push(SitemapUrl {
+                loc: format!("{}{}", base_url, parent.url),
+                lastmod: today.clone(),
+                changefreq: parent.changefreq.clone(),
+                priority: parent.priority,
+                alternates: Vec::new(),
+            });
+        }
+
+        if !include_dynamic && sitemap.url_pattern.contains("{slug}") {
+            CliService::warning(&format!(
+                "Skipping dynamic route '{}' for source '{}'. Use --include-dynamic to fetch \
+                 from database.",
+                sitemap.url_pattern, name
+            ));
+        } else if !sitemap.url_pattern.contains("{slug}") {
+            urls.push(SitemapUrl {
+                loc: format!("{}{}", base_url, sitemap.url_pattern),
+                lastmod: today.clone(),
+                changefreq: sitemap.changefreq.clone(),
+                priority: sitemap.priority,
+                alternates: Vec::new(),
+            });
+        }
+    }
+
+    urls.sort_by(|a, b| {
+        b.priority
+            .partial_cmp(&a.priority)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    urls
+}
+
+fn extract_base_url(metadata_content: &str) -> Option<String> {
+    for line in metadata_content.lines() {
+        let line = line.trim();
+        if line.starts_with("baseUrl:") {
+            let url = line.trim_start_matches("baseUrl:").trim();
+            let url = url.trim_matches('"').trim_matches('\'');
+            return Some(url.to_owned());
+        }
+    }
+    None
+}

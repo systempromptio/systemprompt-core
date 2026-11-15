@@ -36,11 +36,11 @@ build-offline:
 
 # Build CLI only
 cli:
-    cargo build --bin systemprompt
+    cargo build -p systemprompt --bin systemprompt --features full
 
 # Build CLI offline (uses cached .sqlx metadata, no database required)
 cli-offline:
-    SQLX_OFFLINE=true cargo build --bin systemprompt
+    SQLX_OFFLINE=true cargo build -p systemprompt --bin systemprompt --features full
 
 # Build the Bridge helper + sync agent (credential helper, plugin/MCP sync)
 build-bridge TARGET="":
@@ -731,14 +731,14 @@ coverage:
     # 32-way parallelism even on 23GB RAM.
     # Build the `systemprompt` binary from the main workspace under the same
     # instrumentation flags so subprocess tests can invoke it and contribute
-    # coverage. The crates/tests workspace doesn't include entry/cli, so its
-    # `--bins` flag would not otherwise produce the binary.
+    # coverage. The binary belongs to the `systemprompt` facade crate, which
+    # the crates/tests workspace does not build as a binary.
     echo "==> Building instrumented systemprompt binary from main workspace"
     (cd "$ROOT" && CARGO_BUILD_RUSTC_WRAPPER="" RUSTC_WRAPPER="" \
         CARGO_TARGET_DIR="$TDIR" \
         LLVM_PROFILE_FILE="$PROFDIR/%m%c.profraw" \
         RUSTFLAGS="-C instrument-coverage -C llvm-args=--runtime-counter-relocation" \
-        cargo build -p systemprompt-cli --bin systemprompt --jobs "$CARGO_BUILD_JOBS")
+        cargo build -p systemprompt --bin systemprompt --features full --jobs "$CARGO_BUILD_JOBS")
     export SYSTEMPROMPT_BIN="$TDIR/debug/systemprompt"
 
     # bin/bridge is its own workspace, so neither build above produces it. The

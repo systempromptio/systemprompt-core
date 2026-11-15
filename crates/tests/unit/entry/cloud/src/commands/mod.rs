@@ -1,0 +1,35 @@
+//! Tests touching the `cloud` command group of `systemprompt-cloud-entry`.
+
+mod admin_config_vault_secret_check_lifecycle;
+mod cloud_auth_logout_lifecycle;
+mod cloud_command_gating;
+mod cloud_deploy_target;
+mod cloud_dispatcher_fs;
+mod cloud_doctor;
+mod cloud_doctor_consistency;
+mod cloud_doctor_distributed;
+mod cloud_doctor_distributed_probes;
+mod cloud_doctor_profile_checks;
+mod cloud_doctor_restore_checks;
+mod cloud_edit_prompts;
+mod cloud_init_scaffolding;
+mod cloud_local_tenant_failed_start_cleanup;
+mod cloud_login_output;
+mod cloud_profile_ai_config_lifecycle;
+mod cloud_profile_create_setup_db;
+mod cloud_profile_local_setup_db;
+mod cloud_profile_menu_fs;
+mod cloud_profile_optional_config_recovery;
+mod cloud_profile_pure_helpers;
+mod cloud_profile_secrets_fs;
+mod cloud_profile_show_display;
+mod cloud_profile_show_exec_fs;
+mod cloud_profile_show_types;
+mod cloud_profile_steps;
+mod cloud_profile_target_only_vars;
+mod cloud_profile_templates;
+mod cloud_profile_templates_writes_fs;
+mod cloud_prompts;
+mod cloud_tenant_create_guards;
+mod cloud_tenant_docker_health;
+mod cloud_tenant_sanitize;

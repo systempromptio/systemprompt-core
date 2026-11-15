@@ -2,7 +2,7 @@
 //! branch.
 
 use systemprompt_cli::ScriptedPrompter;
-use systemprompt_cli::cloud::profile::handle_local_tenant_setup;
+use systemprompt_cloud_entry::cli::profile::handle_local_tenant_setup;
 use systemprompt_loader::subprocess::ForegroundChildren;
 
 use super::enter;

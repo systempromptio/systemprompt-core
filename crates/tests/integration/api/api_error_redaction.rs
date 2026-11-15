@@ -6,7 +6,6 @@ use axum::body::to_bytes;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use systemprompt_api::error::ApiHttpError;
-use systemprompt_content::ContentError;
 use systemprompt_models::execution::ContextExtractionError;
 use systemprompt_traits::RepositoryError;
 
@@ -58,30 +57,6 @@ async fn a_rejected_token_is_a_401_without_the_verifier_text() -> anyhow::Result
     assert_eq!(status, StatusCode::UNAUTHORIZED);
     assert!(
         !body.contains("leaked-detail"),
-        "body leaked the cause: {body}"
-    );
-    Ok(())
-}
-
-#[tokio::test]
-async fn content_errors_classify_by_variant() -> anyhow::Result<()> {
-    let (missing, _) = status_and_body(ContentError::LinkNotFound("abc".to_owned()).into()).await?;
-    assert_eq!(missing, StatusCode::NOT_FOUND);
-
-    let (invalid, _) =
-        status_and_body(ContentError::InvalidRequest("bad".to_owned()).into()).await?;
-    assert_eq!(invalid, StatusCode::BAD_REQUEST);
-
-    let (repo_missing, _) = status_and_body(
-        ContentError::Repository(RepositoryError::not_found("content", "x")).into(),
-    )
-    .await?;
-    assert_eq!(repo_missing, StatusCode::NOT_FOUND);
-
-    let (failed, body) = status_and_body(ContentError::DatabaseNotPostgres.into()).await?;
-    assert_eq!(failed, StatusCode::INTERNAL_SERVER_ERROR);
-    assert!(
-        !body.contains("PostgreSQL"),
         "body leaked the cause: {body}"
     );
     Ok(())

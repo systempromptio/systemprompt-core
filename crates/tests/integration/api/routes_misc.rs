@@ -147,15 +147,6 @@ async fn webhook_router_smoke() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
-async fn content_redirect_router_short_code_404() -> anyhow::Result<()> {
-    let (_pool, ctx) = setup_ctx().await?;
-    let app = routes::content::redirect_router(ctx.content_repositories());
-    let resp = app.oneshot(empty_get("/r/abcdef")).await?;
-    assert!(resp.status().as_u16() >= 200);
-    Ok(())
-}
-
-#[tokio::test]
 async fn admin_cli_router_smoke() -> anyhow::Result<()> {
     let ctx = ctx().await?;
     let app = routes::admin::router()

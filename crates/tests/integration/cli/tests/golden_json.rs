@@ -12,28 +12,7 @@
 
 use assert_cmd::Command;
 use serde_json::Value;
-
-fn systemprompt_bin() -> std::path::PathBuf {
-    if let Ok(path) = std::env::var("SYSTEMPROMPT_BIN") {
-        let p = std::path::PathBuf::from(path);
-        if p.exists() {
-            return p;
-        }
-    }
-    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    for ancestor in manifest_dir.ancestors() {
-        for sub in [
-            "target/debug/systemprompt",
-            "crates/tests/target/debug/systemprompt",
-        ] {
-            let candidate = ancestor.join(sub);
-            if candidate.exists() {
-                return candidate;
-            }
-        }
-    }
-    panic!("systemprompt binary not found; set SYSTEMPROMPT_BIN or run via `just coverage`");
-}
+use systemprompt_cli_integration_tests::full_bootstrap::systemprompt_bin;
 
 fn golden_json(args: &[&str]) -> Value {
     let url = systemprompt_test_fixtures::test_database_url();

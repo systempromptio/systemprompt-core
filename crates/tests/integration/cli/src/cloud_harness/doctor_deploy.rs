@@ -3,10 +3,10 @@
 
 use std::collections::HashMap;
 
-use systemprompt_cli::cloud::doctor::{
+use systemprompt_cloud_entry::cli::doctor::{
     check_profile_valid, check_provider_secrets, check_required_secrets, check_signing_key,
 };
-use systemprompt_cli::cloud::{self, CloudCommands};
+use systemprompt_cloud_entry::cli::{self as cloud, CloudCommands};
 use systemprompt_identifiers::TenantId;
 use systemprompt_loader::ProfileLoader;
 
@@ -304,8 +304,8 @@ async fn doctor_refuses_a_profile_that_states_the_derived_hook_url() {
 
 #[tokio::test]
 async fn deploy_target_requires_a_synced_tenant_cache_then_resolves_the_owned_tenant() {
-    use systemprompt_cli::cloud::deploy::resolve_deploy_target;
     use systemprompt_cloud::{CloudPath, get_cloud_paths};
+    use systemprompt_cloud_entry::cli::deploy::resolve_deploy_target;
 
     let env = enter().await;
     let profile_dir = write_cloud_profile(&env, "target-cache-recovery");
@@ -335,7 +335,7 @@ async fn deploy_target_requires_a_synced_tenant_cache_then_resolves_the_owned_te
 
 #[tokio::test]
 async fn deploy_target_rejects_a_stale_profile_tenant_then_accepts_the_repaired_identity() {
-    use systemprompt_cli::cloud::deploy::resolve_deploy_target;
+    use systemprompt_cloud_entry::cli::deploy::resolve_deploy_target;
 
     let env = enter().await;
     seed_tenants(env.root());
@@ -429,7 +429,7 @@ async fn deploy_skip_push_builds_owned_image_syncs_secrets_and_requests_deploy()
         "owned binary",
     )
     .expect("write owned release artifact");
-    systemprompt_cli::cloud::profile::templates::save_dockerfile(
+    systemprompt_cloud_entry::cli::profile::templates::save_dockerfile(
         &profile_dir.join("docker/Dockerfile"),
         &pname(name),
         env.root(),
@@ -723,7 +723,7 @@ fn prepare_failure_deploy(env: &Env, name: &str) -> std::path::PathBuf {
         "owned binary",
     )
     .expect("write owned release artifact");
-    systemprompt_cli::cloud::profile::templates::save_dockerfile(
+    systemprompt_cloud_entry::cli::profile::templates::save_dockerfile(
         &profile_dir.join("docker/Dockerfile"),
         &pname(name),
         env.root(),

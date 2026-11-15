@@ -1,12 +1,16 @@
 //! Tests for the scheduled prerender jobs: metadata accessors and the
 //! `execute` guard arms for a missing `DbPool` / `AppPaths` in the
-//! `JobContext`, plus a full success run against an empty source config.
+//! `JobContext`, plus a full success run against an empty source config, and
+//! the generator extension's ownership of both registrations.
 
 use std::fs;
 use std::sync::{Arc, Mutex};
 
-use systemprompt_generator::{ContentPrerenderJob, PagePrerenderJob};
-use systemprompt_provider_contracts::{Dependencies, Job, JobContext, JobScope, ProviderError};
+use systemprompt_extension::Extension;
+use systemprompt_generator::{ContentPrerenderJob, GeneratorExtension, PagePrerenderJob};
+use systemprompt_provider_contracts::{
+    Dependencies, Job, JobContext, JobRegistration, JobScope, ProviderError,
+};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_actor, test_db_pool};
 
 static SERIALIZE: Mutex<()> = Mutex::new(());
@@ -21,6 +25,20 @@ fn content_prerender_job_metadata() {
     assert_eq!(job.name(), "content_prerender");
     assert!(!job.description().is_empty());
     assert_eq!(job.schedule(), "0 0 4 * * *");
+}
+
+#[test]
+fn the_generator_extension_owns_both_prerender_jobs() {
+    let extension = GeneratorExtension;
+    assert_eq!(extension.metadata().id, "generator");
+    assert_eq!(extension.dependencies(), vec!["content"]);
+    let mut owned: Vec<&str> = inventory::iter::<JobRegistration>
+        .into_iter()
+        .filter(|registration| registration.owner == "generator")
+        .map(|registration| registration.job.name())
+        .collect();
+    owned.sort_unstable();
+    assert_eq!(owned, vec!["content_prerender", "page_prerender"]);
 }
 
 #[test]
