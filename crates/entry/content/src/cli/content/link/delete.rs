@@ -6,22 +6,24 @@
 use crate::cli::content::types::LinkDeleteOutput;
 use anyhow::{Result, anyhow};
 use clap::Args;
-use systemprompt_cli::kernel::{CommandContext, CommandOutput, require_confirmation};
+use std::sync::Arc;
+use systemprompt_content::ContentRepositories;
 use systemprompt_content::services::LinkGenerationService;
+use systemprompt_extension::cli::{CommandHost, CommandOutput, require_confirmation};
 use systemprompt_identifiers::LinkId;
 use systemprompt_logging::CliService;
 
 #[derive(Debug, Args)]
 pub struct DeleteArgs {
-    #[arg(help = "Link ID", value_parser = systemprompt_cli::kernel::parsers::parse_link_id)]
+    #[arg(help = "Link ID", value_parser = systemprompt_extension::cli::parsers::parse_link_id)]
     pub link_id: LinkId,
 
     #[arg(short = 'y', long, help = "Skip confirmation")]
     pub yes: bool,
 }
 
-pub async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    if ctx.cli.is_interactive() && !args.yes {
+pub async fn execute(args: DeleteArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    if host.output().is_interactive() && !args.yes {
         CliService::warning(&format!(
             "This will permanently delete link: {}",
             args.link_id
@@ -29,14 +31,14 @@ pub async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<CommandOu
     }
 
     require_confirmation(
-        ctx.prompter(),
+        host.prompter(),
         "Are you sure you want to continue?",
         args.yes,
-        &ctx.cli,
+        host.output(),
     )?;
 
     let service =
-        LinkGenerationService::new(ctx.app_context().await?.content_repositories().link.clone());
+        LinkGenerationService::new(host.resolved().await?.get::<Arc<ContentRepositories>>()?.link.clone());
 
     service
         .find_link_by_id(&args.link_id)

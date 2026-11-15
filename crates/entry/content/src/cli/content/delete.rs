@@ -6,8 +6,9 @@
 use super::types::DeleteOutput;
 use anyhow::{Result, anyhow};
 use clap::Args;
-use systemprompt_cli::kernel::{CommandContext, CommandOutput, require_confirmation};
 use systemprompt_content::ContentRepository;
+use systemprompt_database::pool_from_handle;
+use systemprompt_extension::cli::{CommandHost, CommandOutput, require_confirmation};
 use systemprompt_identifiers::{ContentId, LocaleCode, SourceId};
 use systemprompt_logging::CliService;
 
@@ -26,8 +27,8 @@ pub struct DeleteArgs {
     pub dry_run: bool,
 }
 
-pub async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let pool = ctx.db_pool().await?;
+pub async fn execute(args: DeleteArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let pool = pool_from_handle(host.db().await?)?;
     let repo = ContentRepository::new(&pool);
 
     let content = if args.identifier.starts_with("content_")
@@ -69,7 +70,7 @@ pub async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<CommandOu
         ));
     }
 
-    if ctx.cli.is_interactive() && !args.yes {
+    if host.output().is_interactive() && !args.yes {
         CliService::warning(&format!(
             "This will permanently delete content: {}",
             args.identifier
@@ -77,10 +78,10 @@ pub async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<CommandOu
     }
 
     require_confirmation(
-        ctx.prompter(),
+        host.prompter(),
         "Are you sure you want to continue?",
         args.yes,
-        &ctx.cli,
+        host.output(),
     )?;
 
     repo.delete(&content.id).await?;

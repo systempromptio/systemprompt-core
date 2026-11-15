@@ -5,14 +5,14 @@
 
 use anyhow::{Result, anyhow};
 use clap::Args;
-use systemprompt_database::DbPool;
+use systemprompt_database::{DbPool, pool_from_handle};
+use systemprompt_extension::cli::{CliConfig, CommandHost, CommandOutput};
 use systemprompt_files::FileRepository;
 use systemprompt_identifiers::{ContentId, FileId};
 
 use crate::cli::content::types::{
     ContentFileRow, ContentFilesOutput, FileContentLinkRow, FileContentLinksOutput,
 };
-use systemprompt_cli::kernel::{CliConfig, CommandContext, CommandOutput};
 
 #[derive(Debug, Clone, Args)]
 pub struct ListArgs {
@@ -23,9 +23,9 @@ pub struct ListArgs {
     pub file: Option<String>,
 }
 
-pub(super) async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let app = ctx.app_context().await?;
-    execute_with_pool(args, app.db_pool(), &ctx.cli).await
+pub(super) async fn execute(args: ListArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let pool = pool_from_handle(host.db().await?)?;
+    execute_with_pool(args, &pool, host.output()).await
 }
 
 pub async fn execute_with_pool(

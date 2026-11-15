@@ -6,12 +6,13 @@
 use super::types::ContentDetailOutput;
 use anyhow::{Result, anyhow};
 use clap::Args;
-use systemprompt_cli::kernel::{CliConfig, CommandOutput};
 use systemprompt_content::{Content, ContentRepository};
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 use systemprompt_identifiers::{ContentId, LocaleCode, SourceId};
 
-use systemprompt_cli::kernel::CommandContext;
+use systemprompt_database::pool_from_handle;
+use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
@@ -25,8 +26,8 @@ pub struct ShowArgs {
     pub source: Option<String>,
 }
 
-pub async fn execute(args: ShowArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    execute_with_pool(args, &ctx.db_pool().await?, &ctx.cli).await
+pub async fn execute(args: ShowArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    execute_with_pool(args, &pool_from_handle(host.db().await?)?, host.output()).await
 }
 
 pub async fn execute_with_pool(

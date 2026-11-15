@@ -6,8 +6,9 @@
 use crate::cli::content::types::{LinkListOutput, LinkSummary};
 use anyhow::{Result, anyhow};
 use clap::Args;
-use systemprompt_cli::kernel::{CommandContext, CommandOutput};
-use systemprompt_content::LinkAnalyticsService;
+use std::sync::Arc;
+use systemprompt_content::{ContentRepositories, LinkAnalyticsService};
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 use systemprompt_identifiers::{CampaignId, ContentId};
 
 #[derive(Debug, Args)]
@@ -19,12 +20,12 @@ pub struct ListArgs {
     pub content: Option<String>,
 }
 
-pub async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+pub async fn execute(args: ListArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
     if args.campaign.is_none() && args.content.is_none() {
         return Err(anyhow!("Either --campaign or --content must be specified"));
     }
 
-    let repositories = ctx.app_context().await?.content_repositories();
+    let repositories = host.resolved().await?.get::<Arc<ContentRepositories>>()?;
     let service = LinkAnalyticsService::new(
         repositories.link.clone(),
         repositories.link_analytics.clone(),

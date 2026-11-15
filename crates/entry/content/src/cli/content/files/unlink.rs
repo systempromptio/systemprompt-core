@@ -5,12 +5,12 @@
 
 use anyhow::{Result, anyhow};
 use clap::Args;
-use systemprompt_database::DbPool;
+use systemprompt_database::{DbPool, pool_from_handle};
+use systemprompt_extension::cli::{CliConfig, CommandHost, CommandOutput, Prompter};
 use systemprompt_files::FileRepository;
 use systemprompt_identifiers::{ContentId, FileId};
 
 use crate::cli::content::types::ContentUnlinkOutput;
-use systemprompt_cli::kernel::{CliConfig, CommandContext, CommandOutput, Prompter};
 
 #[derive(Debug, Clone, Args)]
 pub struct UnlinkArgs {
@@ -34,10 +34,10 @@ pub struct UnlinkArgs {
 pub(super) async fn execute(
     args: UnlinkArgs,
     prompter: &dyn Prompter,
-    ctx: &CommandContext,
+    host: &dyn CommandHost,
 ) -> Result<CommandOutput> {
-    let app = ctx.app_context().await?;
-    execute_with_pool(args, prompter, app.db_pool(), &ctx.cli).await
+    let pool = pool_from_handle(host.db().await?)?;
+    execute_with_pool(args, prompter, &pool, host.output()).await
 }
 
 pub async fn execute_with_pool(

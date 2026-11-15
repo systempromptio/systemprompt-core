@@ -5,13 +5,14 @@
 //! failure is the fixed 5xx body with its cause logged. A failure the API
 //! already models (an invalid identifier, a repository error, a refusal built
 //! by a handler) passes through as its `ApiHttpError`. The response is built
-//! by the API kernel's `capability_error_response!`, so status, key, body and
+//! by the shared `capability_error_response!`, so status, key, body and
 //! the 5xx policy are the API's own.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_api::kernel::{ApiHttpError, IntoApiError, capability_error_response};
+use systemprompt_extension::capability_error_response;
+use systemprompt_extension::router::{ApiHttpError, IntoApiError};
 use systemprompt_content::ContentError;
 use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_models::api::ApiError;
@@ -40,13 +41,13 @@ impl From<ApiError> for ContentHttpError {
 
 impl From<IdValidationError> for ContentHttpError {
     fn from(error: IdValidationError) -> Self {
-        Self::Http(ApiHttpError::from(error))
+        Self::Http(ApiHttpError::from(ApiError::from(error)))
     }
 }
 
 impl From<RepositoryError> for ContentHttpError {
     fn from(error: RepositoryError) -> Self {
-        Self::Http(ApiHttpError::from(error))
+        Self::Http(ApiHttpError::from(ApiError::from(error)))
     }
 }
 

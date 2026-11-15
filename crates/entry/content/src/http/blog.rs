@@ -2,7 +2,9 @@
 //!
 //! Serves content by source and slug as JSON or Markdown, honouring the
 //! configured content-negotiation suffix and advertising the Markdown
-//! alternate via a `Link` header when negotiation is enabled.
+//! alternate via a `Link` header when negotiation is enabled. The Markdown
+//! route answers 404 unless negotiation is enabled and the trailing segment
+//! equals the configured suffix.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,7 +14,7 @@ use axum::http::StatusCode;
 use axum::http::header::{CONTENT_TYPE, LINK};
 use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
-use systemprompt_api::kernel::{AcceptedFormat, AcceptedMediaType, ApiHttpError};
+use systemprompt_extension::router::{AcceptedFormat, AcceptedMediaType, ApiHttpError};
 use systemprompt_content::Content;
 use systemprompt_identifiers::{LocaleCode, SourceId};
 use systemprompt_models::RequestContext;
@@ -74,8 +76,11 @@ pub async fn get_content_handler(
 pub async fn get_content_markdown_handler(
     State(state): State<ContentHttpState>,
     Extension(_req_ctx): Extension<RequestContext>,
-    Path((source_id, slug)): Path<(String, String)>,
+    Path((source_id, slug, suffix)): Path<(String, String, String)>,
 ) -> Result<Response, ContentHttpError> {
+    if !state.content_negotiation.enabled || suffix != state.markdown_suffix() {
+        return Err(content_not_found().into());
+    }
     let source_id = SourceId::try_new(source_id)?;
     let content_service = &state.repositories.content;
 

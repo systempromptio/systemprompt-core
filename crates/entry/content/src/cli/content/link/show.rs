@@ -6,8 +6,10 @@
 use crate::cli::content::types::LinkDetailOutput;
 use anyhow::{Result, anyhow};
 use clap::Args;
-use systemprompt_cli::kernel::{CommandContext, CommandOutput};
+use std::sync::Arc;
+use systemprompt_content::ContentRepositories;
 use systemprompt_content::services::LinkGenerationService;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
 const DEFAULT_BASE_URL: &str = "https://systemprompt.io";
 
@@ -17,9 +19,9 @@ pub struct ShowArgs {
     pub short_code: String,
 }
 
-pub async fn execute(args: ShowArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+pub async fn execute(args: ShowArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
     let service =
-        LinkGenerationService::new(ctx.app_context().await?.content_repositories().link.clone());
+        LinkGenerationService::new(host.resolved().await?.get::<Arc<ContentRepositories>>()?.link.clone());
 
     let link = service
         .find_link_by_short_code(&args.short_code)

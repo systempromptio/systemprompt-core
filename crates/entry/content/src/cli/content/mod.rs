@@ -2,8 +2,8 @@
 //!
 //! Dispatches the [`ContentCommands`] subcommands — list/show/search,
 //! edit/delete, ingest verification and status, plus the `link`, `analytics`,
-//! and `files` sub-groups. The group registers under the kernel's `core` group
-//! through `register_cli_command!`. It needs the full profile context, accepts
+//! and `files` sub-groups. `content-http` contributes the group under the
+//! kernel's `core` group. It needs the full profile context, accepts
 //! a direct `--database-url`, and on such an invocation serves only the
 //! read-only commands; the mutating commands require a full profile context.
 //! Deleting content, a source's content or a link is destructive; every other
@@ -28,9 +28,9 @@ pub mod verify;
 
 use anyhow::{Context, Result, bail};
 use clap::Subcommand;
-use systemprompt_cli::kernel::{
-    CliCommandGroup, CommandContext, CommandDescriptor, DataImpact, DbUrlRouting, DescribeCommand,
-    render_result,
+use systemprompt_extension::cli::{
+    CliCommandGroup, CommandDescriptor, CommandError, CommandHost, CommandOutput, DataImpact,
+    DbUrlRouting, DescribeCommand,
 };
 
 #[derive(Debug, Subcommand)]
@@ -69,8 +69,8 @@ pub enum ContentCommands {
     Files(files::ContentFilesCommands),
 }
 
-fn ensure_full_profile(command: &ContentCommands, ctx: &CommandContext) -> Result<()> {
-    if ctx.is_database_scoped()
+fn ensure_full_profile(command: &ContentCommands, host: &dyn CommandHost) -> Result<()> {
+    if host.is_database_scoped()
         && matches!(
             command,
             ContentCommands::Edit(_)
@@ -86,69 +86,54 @@ fn ensure_full_profile(command: &ContentCommands, ctx: &CommandContext) -> Resul
     Ok(())
 }
 
-pub async fn execute(command: ContentCommands, ctx: &CommandContext) -> Result<()> {
-    ensure_full_profile(&command, ctx)?;
+pub async fn execute(command: ContentCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+    ensure_full_profile(&command, host)?;
 
     match command {
         ContentCommands::List(args) => {
-            let result = list::execute(args, ctx)
+            list::execute(args, host)
                 .await
-                .context("Failed to list content")?;
-            render_result(&result, &ctx.cli);
+                .context("Failed to list content")
         },
         ContentCommands::Show(args) => {
-            let result = show::execute(args, ctx)
+            show::execute(args, host)
                 .await
-                .context("Failed to show content")?;
-            render_result(&result, &ctx.cli);
+                .context("Failed to show content")
         },
         ContentCommands::Search(args) => {
-            let result = search::execute(args, ctx)
+            search::execute(args, host)
                 .await
-                .context("Failed to search content")?;
-            render_result(&result, &ctx.cli);
+                .context("Failed to search content")
         },
         ContentCommands::Edit(args) => {
-            let result = edit::execute(args, ctx)
+            edit::execute(args, host)
                 .await
-                .context("Failed to edit content")?;
-            render_result(&result, &ctx.cli);
+                .context("Failed to edit content")
         },
         ContentCommands::Delete(args) => {
-            let result = delete::execute(args, ctx)
+            delete::execute(args, host)
                 .await
-                .context("Failed to delete content")?;
-            render_result(&result, &ctx.cli);
+                .context("Failed to delete content")
         },
         ContentCommands::DeleteSource(args) => {
-            let result = delete_source::execute(args, ctx)
+            delete_source::execute(args, host)
                 .await
-                .context("Failed to delete source content")?;
-            render_result(&result, &ctx.cli);
+                .context("Failed to delete source content")
         },
         ContentCommands::Verify(args) => {
-            let result = verify::execute(args, ctx)
+            verify::execute(args, host)
                 .await
-                .context("Failed to verify content")?;
-            render_result(&result, &ctx.cli);
+                .context("Failed to verify content")
         },
         ContentCommands::Status(args) => {
-            let result = status::execute(args, ctx)
+            status::execute(args, host)
                 .await
-                .context("Failed to get content status")?;
-            render_result(&result, &ctx.cli);
+                .context("Failed to get content status")
         },
-        ContentCommands::Link(cmd) => {
-            link::execute(cmd, ctx).await?;
-        },
-        ContentCommands::Analytics(cmd) => {
-            analytics::execute(cmd, ctx).await?;
-        },
-        ContentCommands::Files(cmd) => {
-            files::execute(cmd, ctx.prompter(), ctx).await?;
-        },
+        ContentCommands::Link(cmd) => link::execute(cmd, host).await,
+        ContentCommands::Analytics(cmd) => analytics::execute(cmd, host).await,
+        ContentCommands::Files(cmd) => files::execute(cmd, host).await,
     }
-    Ok(())
 }
 
 impl ContentCommands {
@@ -182,7 +167,6 @@ impl DescribeCommand for ContentCommands {
 }
 
 impl CliCommandGroup for ContentCommands {
-    const PARENT: &'static [&'static str] = &["core"];
     const NAME: &'static str = "content";
     const ABOUT: &'static str = "Content management and analytics";
 
@@ -190,9 +174,7 @@ impl CliCommandGroup for ContentCommands {
         DbUrlRouting::Direct
     }
 
-    fn run(self, ctx: &CommandContext) -> impl Future<Output = Result<()>> + Send {
-        execute(self, ctx)
+    async fn run(self, host: &dyn CommandHost) -> Result<CommandOutput, CommandError> {
+        execute(self, host).await.map_err(CommandError::new)
     }
 }
-
-systemprompt_cli::register_cli_command!(ContentCommands);

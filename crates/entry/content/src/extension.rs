@@ -1,7 +1,8 @@
-//! [`ContentHttpExtension`]: declares the three content route groups.
+//! [`ContentHttpExtension`] (`content-http`): the content route sets and the
+//! content commands.
 //!
-//! All three sit in the content-and-misc role group under the `content`
-//! rate-limit scope and budget:
+//! With `http` it contributes three route sets, all in the content-and-misc
+//! role group under the `content` rate-limit scope and budget:
 //!
 //! - `/api/v1/content` public reads behind the public gate with a public
 //!   request context;
@@ -10,42 +11,29 @@
 //! - the short-link redirect `/r/{short_code}` at the web root behind the
 //!   public gate with a public request context.
 //!
-//! Each declaration matches its row of the API's closed core table
-//! (`ContentPublic`, `ContentAuthenticated`, `ContentRedirect`), keyed on this
-//! extension's id, `content-http`, and claims it alone: the table refuses
-//! boot when a row is unclaimed or claimed twice, so the signed-in router
-//! cannot be declared with the public shape. The public and signed-in routes
-//! interleave under `/links`, so the two routers share their base path and the
-//! table pins routes instead: the signed-in router answers only
-//! `POST /links/generate`, the public router answers 404 there, and the
-//! redirect router answers only `GET /r/…`. The handlers read the content
-//! repositories the `content` extension provides; this extension `requires`
-//! them:
+//! Each set's shape equals the reference composition's conferral for
+//! `content-http` at its base. The public and signed-in sets share their
+//! base, so the conferral pins routes instead: the signed-in set holds only
+//! `POST /links/generate`, and the redirect set only `GET /r/{short_code}`.
+//! The handlers read the content repositories the `content` member provides,
+//! which this member `requires`.
 //!
-//! | profile disables | public | authenticated | redirect |
-//! |---|---|---|---|
-//! | `content-http` | 404 | 404 | 404 |
-//! | `content` | boot refused (unmet `Arc<ContentRepositories>`) | | |
-//! | both | 404 | 404 | 404 |
+//! With `cli` it contributes the `core content` group, which the `popular`
+//! leaf of `analytics-http` attaches under, and the `web sitemap` group.
+//!
+//! | profile disables | public | authenticated | redirect | CLI |
+//! |---|---|---|---|---|
+//! | `content-http` | 404 | 404 | 404 | refused at dispatch |
+//! | `content` | boot refused (unmet `Arc<ContentRepositories>`) | | | |
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
-
-use systemprompt_content::repository::ContentRepositories;
-use systemprompt_extension::RouteGroup;
 use systemprompt_extension::prelude::*;
-use systemprompt_extension::registry::WEB_ROOT_BASE_PATH;
-use systemprompt_models::modules::ApiPaths;
-
-use crate::http::{ContentHttpState, authenticated_router, public_router, redirect_router};
 
 pub const CONTENT_HTTP_EXTENSION: &str = "content-http";
 
-const RATE_LIMIT: RateLimit = RateLimit::new("content", RateBudget::Content);
-
-/// The extension that declares the content route groups.
+/// The member that contributes the content route sets and commands.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ContentHttpExtension;
 
@@ -58,47 +46,42 @@ impl Extension for ContentHttpExtension {
         }
     }
 
-    fn dependencies(&self) -> Vec<&'static str> {
-        vec!["content"]
-    }
-
-    fn requires(&self) -> Vec<StateRequirement> {
-        vec![StateRequirement::of::<Arc<ContentRepositories>>()]
-    }
-
-    fn routers(
-        &self,
-        ctx: &dyn ExtensionContext,
-    ) -> Result<Vec<ExtensionRouter>, ExtensionStateError> {
-        let state =
-            ContentHttpState::from_extension_state(&ctx.extension_state(), &ctx.app_config())?;
-        Ok(vec![
-            ExtensionRouter::new(
-                public_router(state.clone()),
-                ApiPaths::CONTENT_BASE,
-                AuthzPolicy::public(),
-                ContextKind::Public,
-            )
-            .in_group(RouteGroup::ContentAndMisc)
-            .with_rate_limit(RATE_LIMIT),
-            ExtensionRouter::new(
-                authenticated_router(state.clone()),
-                ApiPaths::CONTENT_BASE,
-                AuthzPolicy::user(),
-                ContextKind::User,
-            )
-            .in_group(RouteGroup::ContentAndMisc)
-            .with_rate_limit(RATE_LIMIT),
-            ExtensionRouter::new(
-                redirect_router(state),
-                WEB_ROOT_BASE_PATH,
-                AuthzPolicy::public(),
-                ContextKind::Public,
-            )
-            .in_group(RouteGroup::ContentAndMisc)
-            .with_rate_limit(RATE_LIMIT),
-        ])
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        #[cfg(feature = "http")]
+        routes::contribute(c);
+        #[cfg(feature = "cli")]
+        commands::contribute(c);
+        Ok(())
     }
 }
 
-register_extension!(ContentHttpExtension);
+#[cfg(feature = "http")]
+mod routes {
+    use std::sync::Arc;
+
+    use systemprompt_content::repository::ContentRepositories;
+    use systemprompt_extension::prelude::*;
+
+    use crate::http::{authenticated_routes, public_routes, redirect_routes};
+
+    pub(super) fn contribute(c: &mut Contributions<'_>) {
+        c.requires::<Arc<ContentRepositories>>()
+            .routes(public_routes())
+            .routes(authenticated_routes())
+            .routes(redirect_routes());
+    }
+}
+
+#[cfg(feature = "cli")]
+mod commands {
+    use systemprompt_extension::cli::{CommandDecl, parents};
+    use systemprompt_extension::prelude::*;
+
+    use crate::cli::content::ContentCommands;
+    use crate::cli::sitemap::SitemapCommands;
+
+    pub(super) fn contribute(c: &mut Contributions<'_>) {
+        c.command(CommandDecl::group_under::<parents::Core, ContentCommands>())
+            .command(CommandDecl::group_under::<parents::Web, SitemapCommands>());
+    }
+}

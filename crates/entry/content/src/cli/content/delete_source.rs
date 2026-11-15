@@ -6,8 +6,9 @@
 use super::types::DeleteSourceOutput;
 use anyhow::Result;
 use clap::Args;
-use systemprompt_cli::kernel::{CommandContext, CommandOutput, require_confirmation};
 use systemprompt_content::ContentRepository;
+use systemprompt_database::pool_from_handle;
+use systemprompt_extension::cli::{CommandHost, CommandOutput, require_confirmation};
 use systemprompt_identifiers::SourceId;
 use systemprompt_logging::CliService;
 
@@ -20,9 +21,9 @@ pub struct DeleteSourceArgs {
     pub yes: bool,
 }
 
-pub async fn execute(args: DeleteSourceArgs, cmd: &CommandContext) -> Result<CommandOutput> {
-    let prompter = cmd.prompter();
-    let config = &cmd.cli;
+pub async fn execute(args: DeleteSourceArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let prompter = host.prompter();
+    let config = host.output();
     if config.is_interactive() && !args.yes {
         CliService::warning(&format!(
             "This will permanently delete ALL content from source: {}",
@@ -37,8 +38,8 @@ pub async fn execute(args: DeleteSourceArgs, cmd: &CommandContext) -> Result<Com
         config,
     )?;
 
-    let ctx = cmd.app_context().await?;
-    let repo = ContentRepository::new(ctx.db_pool());
+    let pool = pool_from_handle(host.db().await?)?;
+    let repo = ContentRepository::new(&pool);
 
     let source = SourceId::new(args.source.clone());
     let deleted_count = repo.delete_by_source(&source).await?;

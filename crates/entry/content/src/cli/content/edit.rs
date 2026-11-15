@@ -7,13 +7,11 @@ use super::edit_apply::{
     ContentEditState, apply_body_flags, apply_set_value_flags, apply_visibility_flags,
 };
 use super::types::UpdateOutput;
-use anyhow::{Result, anyhow};
+use anyhow::{Result, anyhow, bail};
 use clap::Args;
-use systemprompt_cli::kernel::{
-    CliConfig, CommandContext, CommandOutput, Prompter, resolve_required,
-};
 use systemprompt_content::{CategoryIdUpdate, ContentRepository};
-use systemprompt_database::DbPool;
+use systemprompt_database::{DbPool, pool_from_handle};
+use systemprompt_extension::cli::{CliConfig, CommandHost, CommandOutput, Prompter};
 use systemprompt_identifiers::{ContentId, LocaleCode, SourceId};
 use systemprompt_logging::CliService;
 
@@ -41,9 +39,9 @@ pub struct EditArgs {
     pub body_file: Option<String>,
 }
 
-pub(super) async fn execute(args: EditArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let app = ctx.app_context().await?;
-    execute_with_pool(args, ctx.prompter(), app.db_pool(), &ctx.cli).await
+pub(super) async fn execute(args: EditArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let pool = pool_from_handle(host.db().await?)?;
+    execute_with_pool(args, host.prompter(), &pool, host.output()).await
 }
 
 pub async fn execute_with_pool(
@@ -59,9 +57,11 @@ pub async fn execute_with_pool(
     } else {
         Vec::new()
     };
-    let identifier = resolve_required(args.identifier.clone(), "identifier", config, || {
-        prompt_content_selection(prompter, &candidates)
-    })?;
+    let identifier = match args.identifier.clone() {
+        Some(identifier) => identifier,
+        None if config.is_interactive() => prompt_content_selection(prompter, &candidates)?,
+        None => bail!("--identifier is required in non-interactive mode"),
+    };
 
     let content = if identifier.starts_with("content_")
         || identifier.contains('-') && identifier.len() > 30

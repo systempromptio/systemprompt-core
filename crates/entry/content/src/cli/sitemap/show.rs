@@ -7,7 +7,7 @@ use anyhow::{Context, Result};
 use clap::Args;
 use std::fs;
 
-use systemprompt_cli::kernel::{CliConfig, CommandOutput};
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 use systemprompt_models::content_config::ContentConfigRaw;

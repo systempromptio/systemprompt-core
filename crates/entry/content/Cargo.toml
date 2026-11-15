@@ -24,24 +24,21 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 default = []
 http = [
-    "dep:systemprompt-api",
+    "systemprompt-extension/router",
     "dep:systemprompt-content",
-    "dep:systemprompt-extension",
-    "dep:systemprompt-generator",
     "dep:systemprompt-identifiers",
     "dep:systemprompt-manifest",
     "dep:systemprompt-models",
-    "dep:systemprompt-provider-contracts",
     "dep:systemprompt-traits",
     "dep:axum",
     "dep:chrono",
-    "dep:inventory",
     "dep:serde",
     "dep:thiserror",
     "dep:tracing",
 ]
 cli = [
-    "dep:systemprompt-cli",
+    "systemprompt-extension/cli",
+    "systemprompt-logging/cli",
     "dep:systemprompt-content",
     "dep:systemprompt-database",
     "dep:systemprompt-files",
@@ -53,7 +50,6 @@ cli = [
     "dep:anyhow",
     "dep:chrono",
     "dep:clap",
-    "dep:inventory",
     "dep:reqwest",
     "dep:schemars",
     "dep:serde",
@@ -63,31 +59,23 @@ cli = [
 
 [dependencies]
 reqwest = { workspace = true, optional = true }
-systemprompt-api = { workspace = true, optional = true }
-systemprompt-cli = { workspace = true, optional = true }
 systemprompt-content = { workspace = true, optional = true }
 systemprompt-database = { workspace = true, optional = true }
-systemprompt-extension = { workspace = true, optional = true }
+systemprompt-extension = { workspace = true }
 systemprompt-files = { workspace = true, optional = true }
 systemprompt-generator = { workspace = true, optional = true }
 systemprompt-identifiers = { workspace = true, optional = true }
 systemprompt-logging = { workspace = true, optional = true }
 systemprompt-manifest = { workspace = true, optional = true }
 systemprompt-models = { workspace = true, optional = true }
-systemprompt-provider-contracts = { workspace = true, optional = true }
 systemprompt-traits = { workspace = true, optional = true }
 anyhow = { workspace = true, optional = true }
 axum = { workspace = true, optional = true }
 chrono = { workspace = true, optional = true }
 clap = { workspace = true, optional = true }
-inventory = { workspace = true, optional = true }
 schemars = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 serde_yaml = { workspace = true, optional = true }
 thiserror = { workspace = true, optional = true }
 tracing = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true }
-
-[package.metadata.cargo-machete]
-# inventory: compile-time registration via register_extension!/register_cli_command! (::inventory::submit!)
-ignored = ["inventory"]

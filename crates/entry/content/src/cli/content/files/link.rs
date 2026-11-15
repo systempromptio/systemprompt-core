@@ -5,12 +5,12 @@
 
 use anyhow::{Result, anyhow};
 use clap::{Args, ValueEnum};
-use systemprompt_database::DbPool;
+use systemprompt_database::{DbPool, pool_from_handle};
+use systemprompt_extension::cli::{CliConfig, CommandHost, CommandOutput};
 use systemprompt_files::{FileRepository, FileRole};
 use systemprompt_identifiers::{ContentId, FileId};
 
 use crate::cli::content::types::ContentLinkOutput;
-use systemprompt_cli::kernel::{CliConfig, CommandContext, CommandOutput};
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum FileRoleArg {
@@ -48,9 +48,9 @@ pub struct LinkArgs {
     pub order: i32,
 }
 
-pub(super) async fn execute(args: LinkArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let app = ctx.app_context().await?;
-    execute_with_pool(args, app.db_pool(), &ctx.cli).await
+pub(super) async fn execute(args: LinkArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let pool = pool_from_handle(host.db().await?)?;
+    execute_with_pool(args, &pool, host.output()).await
 }
 
 pub async fn execute_with_pool(

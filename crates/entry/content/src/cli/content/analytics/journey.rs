@@ -6,9 +6,9 @@
 use crate::cli::content::types::{JourneyNode, JourneyOutput};
 use anyhow::Result;
 use clap::Args;
-use systemprompt_cli::kernel::{CliConfig, CommandContext, CommandOutput};
 use systemprompt_content::{ContentRepositories, LinkAnalyticsService};
-use systemprompt_database::DbPool;
+use systemprompt_database::{DbPool, pool_from_handle};
+use systemprompt_extension::cli::{CliConfig, CommandHost, CommandOutput};
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct JourneyArgs {
@@ -19,8 +19,8 @@ pub struct JourneyArgs {
     pub offset: i64,
 }
 
-pub async fn execute(args: JourneyArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    execute_with_pool(args, &ctx.db_pool().await?, &ctx.cli).await
+pub async fn execute(args: JourneyArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    execute_with_pool(args, &pool_from_handle(host.db().await?)?, host.output()).await
 }
 
 pub async fn execute_with_pool(
