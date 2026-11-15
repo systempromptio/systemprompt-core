@@ -157,6 +157,7 @@ scripts/*
 !scripts/sqlx-prepare.sh
 !scripts/check-http-errors.sh
 !scripts/lint-layers.sh
+!scripts/test-lint-layers.py
 !scripts/check-release-tag.sh
 !scripts/check-crate-changelogs.sh
 !scripts/regen.sh
