@@ -10043,6 +10043,7 @@ dependencies = [
  "chrono",
  "clap",
  "inventory",
+ "reqwest",
  "schemars 1.2.3",
  "serde",
  "serde_yaml_ng",
@@ -10095,6 +10096,7 @@ dependencies = [
  "tokio",
  "tower",
  "uuid",
+ "wiremock",
 ]
 
 [[package]]

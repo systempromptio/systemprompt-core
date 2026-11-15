@@ -185,6 +185,7 @@ impl HostKernel {
         expect(
             unused_variables,
             clippy::unused_self,
+            clippy::unnecessary_wraps,
             reason = "the notification service is assembled only when the runtime links it"
         )
     )]

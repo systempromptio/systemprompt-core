@@ -54,6 +54,7 @@ cli = [
     "dep:chrono",
     "dep:clap",
     "dep:inventory",
+    "dep:reqwest",
     "dep:schemars",
     "dep:serde",
     "dep:serde_yaml",
@@ -61,6 +62,7 @@ cli = [
 ]
 
 [dependencies]
+reqwest = { workspace = true, optional = true }
 systemprompt-api = { workspace = true, optional = true }
 systemprompt-cli = { workspace = true, optional = true }
 systemprompt-content = { workspace = true, optional = true }

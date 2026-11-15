@@ -6317,6 +6317,7 @@ dependencies = [
  "systemprompt-cloud-entry",
  "systemprompt-config",
  "systemprompt-content",
+ "systemprompt-content-entry",
  "systemprompt-database",
  "systemprompt-events",
  "systemprompt-extension",
@@ -6655,12 +6656,10 @@ dependencies = [
  "systemprompt-client",
  "systemprompt-cloud",
  "systemprompt-config",
- "systemprompt-content",
  "systemprompt-database",
  "systemprompt-extension",
  "systemprompt-files",
  "systemprompt-gateway",
- "systemprompt-generator",
  "systemprompt-governance",
  "systemprompt-identifiers",
  "systemprompt-loader",
@@ -6839,6 +6838,33 @@ dependencies = [
 [[package]]
 name = "systemprompt-content-entry"
 version = "0.81.1"
+dependencies = [
+ "anyhow",
+ "axum",
+ "chrono",
+ "clap",
+ "inventory",
+ "reqwest",
+ "schemars 1.2.3",
+ "serde",
+ "serde_yaml_ng",
+ "systemprompt-api",
+ "systemprompt-cli",
+ "systemprompt-content",
+ "systemprompt-database",
+ "systemprompt-extension",
+ "systemprompt-files",
+ "systemprompt-generator",
+ "systemprompt-identifiers",
+ "systemprompt-logging",
+ "systemprompt-manifest",
+ "systemprompt-models",
+ "systemprompt-provider-contracts",
+ "systemprompt-traits",
+ "thiserror 2.0.21",
+ "tracing",
+ "uuid",
+]
 
 [[package]]
 name = "systemprompt-database"
