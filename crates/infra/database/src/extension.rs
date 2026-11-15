@@ -1,9 +1,8 @@
 //! Extension registration for the database crate's own schema.
 //!
-//! Every systemprompt extension that owns DDL registers itself through the
-//! `inventory` framework. The database crate registers its own bookkeeping
-//! tables (`extension_migrations`) and shared SQL helper functions so that
-//! they install before any downstream extension runs.
+//! The database crate contributes its own bookkeeping tables
+//! (`extension_migrations`) and shared SQL helper functions, first in the
+//! composition, so that they install before any downstream member runs.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

@@ -53,7 +53,7 @@ use crate::gateway_guard::GatewayRequestGuard;
 use crate::health::{DiagnosticProbe, MetricDescriptor, ReadinessCheck};
 use crate::metadata::{ExtensionRole, SchemaDefinition};
 use crate::migration::Migration;
-use crate::projection::{ProjectionDrain, ProjectionEntry};
+use crate::projection::{DrainTarget, ProjectionDrain, ProjectionEntry};
 use crate::protection::SiteAuthConfig;
 use crate::purge::{OrphanSweep, UserPurgeTable};
 use crate::retention::RetentionDecl;
@@ -177,7 +177,7 @@ impl<'a> Contributions<'a> {
         self
     }
 
-    pub fn projection<J: Job>(&mut self, d: ProjectionDrain) -> &mut Self {
+    pub fn projection<J: DrainTarget>(&mut self, d: ProjectionDrain) -> &mut Self {
         self.sink.projections.push(ProjectionEntry::of::<J>(d));
         self
     }

@@ -146,7 +146,7 @@ pub use notifications::{
 };
 #[cfg(feature = "sqlx")]
 pub use notifications::{DynNotificationSink, NotificationSink};
-pub use projection::ProjectionDrain;
+pub use projection::{AdmittedProjections, DrainTarget, ProjectionDrain};
 pub use protection::{
     ContextKind, ProtectionLayer, RateBudget, RateLimit, RouteGroup, RouteProtection,
     SiteAuthConfig,

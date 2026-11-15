@@ -83,6 +83,7 @@ impl Extension for AnalyticsExtension {
             .job(LinkFactsRollupJob)
             .retention(RetentionDecl::Purge(Arc::new(EngagementEventsPurge)))
             .retention(RetentionDecl::Purge(Arc::new(FingerprintReputationPurge)));
+        crate::jobs::rollups::contribute(c);
         Ok(())
     }
 }

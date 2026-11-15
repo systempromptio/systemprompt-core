@@ -6897,7 +6897,6 @@ dependencies = [
  "base64 0.23.1",
  "chrono",
  "futures-util",
- "inventory",
  "pg_query",
  "rand 0.10.3",
  "rust_decimal",
