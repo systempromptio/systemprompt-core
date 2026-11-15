@@ -52,6 +52,11 @@ impl StateRequirement {
     }
 
     #[must_use]
+    pub const fn type_id(&self) -> TypeId {
+        self.type_id
+    }
+
+    #[must_use]
     pub fn is_met_by(&self, state: &Dependencies) -> bool {
         state.contains_type(self.type_id)
     }

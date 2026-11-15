@@ -49,6 +49,7 @@ api = [
     "dep:systemprompt-mcp-host",
     "dep:systemprompt-oauth-issuance",
     "dep:axum",
+    "systemprompt-extension?/router",
     "systemprompt-slack-entry?/http",
     "systemprompt-teams-entry?/http",
     "systemprompt-agent-runs-entry?/http",
@@ -69,7 +70,7 @@ client = ["dep:systemprompt-client"]
 security = ["dep:systemprompt-security", "dep:systemprompt-governance"]
 
 # CLI entry point for product binaries (standalone, use 'full' for everything)
-cli = ["dep:systemprompt-cli", "systemprompt-agent-runs-entry?/cli", "systemprompt-cloud-entry?/cli", "systemprompt-content-entry?/cli", "systemprompt-analytics-entry?/cli"]
+cli = ["dep:systemprompt-cli", "systemprompt-extension?/cli", "systemprompt-agent-runs-entry?/cli", "systemprompt-cloud-entry?/cli", "systemprompt-content-entry?/cli", "systemprompt-analytics-entry?/cli"]
 
 # Runtime builder for embedding systemprompt as a library
 runtime = ["cli", "dep:systemprompt-extension"]
@@ -87,11 +88,11 @@ content = ["dep:systemprompt-content", "dep:systemprompt-content-entry", "system
 # Slack integration: the domain crate and the `/api/v1/slack` inbound routes
 # (Events API, slash commands, interactivity). Opt-in: excluded from `default`
 # and `full`.
-slack = ["dep:systemprompt-slack", "dep:systemprompt-slack-entry"]
+slack = ["dep:systemprompt-slack", "dep:systemprompt-slack-entry", "systemprompt-extension?/slack"]
 
 # Microsoft Teams integration: the domain crate and the `/api/v1/teams`
 # Bot Framework activity routes. Opt-in: excluded from `default` and `full`.
-teams = ["dep:systemprompt-teams", "dep:systemprompt-teams-entry"]
+teams = ["dep:systemprompt-teams", "dep:systemprompt-teams-entry", "systemprompt-extension?/teams"]
 
 # Headless coding-agent executor (Claude Code, Codex CLI runs with a leased
 # claim queue): the domain crate, the `/api/v1/agent-runs` routes and the agent
@@ -229,6 +230,7 @@ rmcp = { workspace = true, optional = true }
 
 # Used by the `runtime` module's typed error
 thiserror = { workspace = true }
+http = { workspace = true }
 
 [dev-dependencies]
 inventory = { workspace = true }
