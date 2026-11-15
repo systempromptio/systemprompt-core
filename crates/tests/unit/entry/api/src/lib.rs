@@ -13,6 +13,8 @@
 //! - HealthChecker builder pattern
 
 #[cfg(test)]
+mod capability_error;
+#[cfg(test)]
 mod error_conversions;
 #[cfg(test)]
 mod messaging_helpers;

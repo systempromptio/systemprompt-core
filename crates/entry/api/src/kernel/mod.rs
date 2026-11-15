@@ -4,7 +4,9 @@
 //! crate later — reach the server only through this module; it re-exports
 //! and defines nothing. It carries:
 //!
-//! - the HTTP error model: [`ApiHttpError`] and [`unreadable_body`];
+//! - the HTTP error model: [`ApiHttpError`] and [`unreadable_body`], and the
+//!   one way an entry crate answers its own error type: [`IntoApiError`],
+//!   [`capability_response`] and [`capability_error_response!`];
 //! - request identity: [`JwtContextExtractor`] (composed by
 //!   `JwtContextExtractor::from_app_context`), the [`JwtUserContext`] it
 //!   yields, and session attestation ([`attest_session`],
@@ -31,7 +33,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub use crate::error::{ApiHttpError, unreadable_body};
+pub use crate::capability_error_response;
+pub use crate::error::{ApiHttpError, IntoApiError, capability_response, unreadable_body};
 pub use crate::register_gateway_route;
 pub use crate::routes::gateway::registered::{
     GatewayCredential, GatewayRouteFactory, GatewayRouteRegistration,
@@ -45,5 +48,7 @@ pub use crate::services::middleware::{
 pub use crate::services::proxy::{ProxyError, ProxyKind, ProxyService, ProxyTarget};
 pub use crate::services::request_base_url::{RequestBaseUrl, resolve as resolve_request_base_url};
 pub use crate::services::session_cookie::{SameSite, SessionCookie};
+#[doc(hidden)]
+pub use axum::response::{IntoResponse as __IntoResponse, Response as __Response};
 #[doc(hidden)]
 pub use systemprompt_extension::__inventory;

@@ -17,11 +17,11 @@ use futures_util::Stream;
 use std::convert::Infallible;
 use systemprompt_agent_runs::RunStatus;
 use systemprompt_agent_runs::notify::BACKSTOP;
-use systemprompt_api::kernel::ApiHttpError;
 use systemprompt_models::RequestContext;
 use tokio::sync::broadcast::error::RecvError;
 
 use super::AgentRunsState;
+use super::error::AgentRunsHttpError;
 use super::handlers::{EVENT_PAGE, owned_run};
 
 pub(super) async fn events_stream(
@@ -29,7 +29,7 @@ pub(super) async fn events_stream(
     State(state): State<AgentRunsState>,
     Path(id): Path<String>,
     headers: HeaderMap,
-) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, ApiHttpError> {
+) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, AgentRunsHttpError> {
     let row = owned_run(&state, &req_ctx, &id).await?;
     let after = headers
         .get("last-event-id")

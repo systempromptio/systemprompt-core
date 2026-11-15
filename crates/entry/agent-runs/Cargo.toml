@@ -40,6 +40,7 @@ http = [
     "dep:systemprompt-database",
     "dep:systemprompt-identifiers",
     "dep:systemprompt-models",
+    "dep:thiserror",
 ]
 cli = [
     "dep:inventory",
@@ -65,6 +66,7 @@ systemprompt-config = { workspace = true, optional = true }
 systemprompt-database = { workspace = true, optional = true }
 systemprompt-identifiers = { workspace = true, optional = true }
 systemprompt-models = { workspace = true, optional = true }
+thiserror = { workspace = true, optional = true }
 
 [package.metadata.cargo-machete]
 # inventory: compile-time registration via register_extension!/register_linked_seam! (::inventory::submit!)
