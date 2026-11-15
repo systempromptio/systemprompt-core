@@ -1,7 +1,8 @@
 //! Composition tests for the facade: reference order, install refusals,
 //! provider standing, disabled members, kernel handles, the CLI re-check of
 //! a forged command handoff, the built-in gateway prefixes, and the
-//! analytics-http member as the reference composition admits it.
+//! analytics-http and content-http members as the reference composition
+//! admits them.
 
 #[cfg(test)]
 mod analytics_http;
@@ -11,6 +12,8 @@ mod cli_probe;
 mod command_disabled;
 #[cfg(test)]
 mod composition_order;
+#[cfg(test)]
+mod content_http;
 #[cfg(test)]
 mod core_ids;
 #[cfg(test)]
