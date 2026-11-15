@@ -37,9 +37,11 @@ use systemprompt_models::modules::ApiPaths;
 use systemprompt_provider_contracts::MissingDependency;
 
 use super::bridge_error::authenticate_bridge;
-use super::builtin::{builtin_gateway_prefixes, confined};
+use super::builtin::builtin_gateway_prefixes;
 use crate::kernel::{ApiHttpError, JwtContextExtractor};
-use crate::services::middleware::{MountError, admit_gateway_route, path_under, refuse_overlap};
+use crate::services::middleware::{
+    MountError, admit_gateway_route, confined, path_under, refuse_overlap,
+};
 
 /// The gateway's caller verification, handed to a registered route group.
 #[derive(Clone)]

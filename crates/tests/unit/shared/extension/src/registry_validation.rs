@@ -1,35 +1,28 @@
 //! Tests for `ExtensionRegistry` validation in `registry/validation.rs`:
-//! dependency validation (`validate_dependencies`) and API base-path checks
-//! (`validate_api_paths`), plus the exported `RESERVED_PATHS` table the
-//! server mount refuses extension declarations under.
+//! dependency validation (`validate_dependencies`), plus the exported
+//! `RESERVED_PATHS` table the server mount refuses extension declarations
+//! under. The base-path rule (the web root or under `/api/`) is the server
+//! mount's, tested with its core declaration table.
 
 use std::sync::Arc;
 
 use systemprompt_extension::{
-    AuthzPolicy, ContextKind, Extension, ExtensionContext, ExtensionMetadata, ExtensionRegistry,
-    ExtensionRouter, ExtensionStateError, LoaderError, RESERVED_PATHS,
+    Extension, ExtensionMetadata, ExtensionRegistry, LoaderError, RESERVED_PATHS,
 };
 
-use crate::stub_ctx::{StubCtx, every, registry_with};
+use crate::stub_ctx::registry_with;
 
-struct RouterExt {
+struct DepExt {
     id: &'static str,
-    base_path: Option<&'static str>,
     deps: Vec<&'static str>,
 }
 
-impl RouterExt {
+impl DepExt {
     fn new(id: &'static str) -> Self {
         Self {
             id,
-            base_path: None,
             deps: Vec::new(),
         }
-    }
-
-    fn with_base_path(mut self, path: &'static str) -> Self {
-        self.base_path = Some(path);
-        self
     }
 
     fn with_deps(mut self, deps: Vec<&'static str>) -> Self {
@@ -38,31 +31,13 @@ impl RouterExt {
     }
 }
 
-impl Extension for RouterExt {
+impl Extension for DepExt {
     fn metadata(&self) -> ExtensionMetadata {
         ExtensionMetadata {
             id: self.id,
-            name: "Router Ext",
+            name: "Dependency Ext",
             version: "1.0.0",
         }
-    }
-
-    fn routers(
-        &self,
-        _ctx: &dyn ExtensionContext,
-    ) -> Result<Vec<ExtensionRouter>, ExtensionStateError> {
-        Ok(self
-            .base_path
-            .map(|p| {
-                ExtensionRouter::new(
-                    axum::Router::new(),
-                    p,
-                    AuthzPolicy::user(),
-                    ContextKind::User,
-                )
-            })
-            .into_iter()
-            .collect())
     }
 
     fn dependencies(&self) -> Vec<&'static str> {
@@ -73,8 +48,8 @@ impl Extension for RouterExt {
 #[test]
 fn validate_dependencies_ok_when_satisfied() {
     let registry = registry_with(vec![
-        Arc::new(RouterExt::new("base")),
-        Arc::new(RouterExt::new("child").with_deps(vec!["base"])),
+        Arc::new(DepExt::new("base")),
+        Arc::new(DepExt::new("child").with_deps(vec!["base"])),
     ]);
     registry
         .validate_dependencies()
@@ -86,7 +61,7 @@ fn merge_refuses_a_missing_dependency() {
     let mut registry = ExtensionRegistry::new();
     let err = registry
         .merge(vec![Arc::new(
-            RouterExt::new("needy").with_deps(vec!["absent"]),
+            DepExt::new("needy").with_deps(vec!["absent"]),
         )])
         .expect_err("missing dependency must fail at insert time");
     match err {
@@ -99,75 +74,6 @@ fn merge_refuses_a_missing_dependency() {
         },
         other => panic!("expected MissingDependency, got {other:?}"),
     }
-}
-
-fn validate(registry: &ExtensionRegistry) -> Result<(), LoaderError> {
-    let routers = registry
-        .api_routers(&StubCtx, &[], &every)
-        .expect("nothing disabled");
-    ExtensionRegistry::validate_api_paths(&routers)
-}
-
-#[test]
-fn validate_api_paths_skips_a_disabled_extension() {
-    let registry = registry_with(vec![Arc::new(
-        RouterExt::new("bad").with_base_path("/widgets"),
-    )]);
-    let routers = registry
-        .api_routers(
-            &StubCtx,
-            &[systemprompt_identifiers::ExtensionId::new("bad")],
-            &every,
-        )
-        .expect("bad has no dependants");
-    ExtensionRegistry::validate_api_paths(&routers)
-        .expect("a disabled extension's router is neither built nor validated");
-}
-
-#[test]
-fn validate_api_paths_accepts_valid_unreserved_path() {
-    let registry = registry_with(vec![Arc::new(
-        RouterExt::new("ok").with_base_path("/api/v1/widgets"),
-    )]);
-    validate(&registry).expect("a non-reserved /api/ path is valid");
-}
-
-#[test]
-fn validate_api_paths_ignores_extensions_without_a_router() {
-    let registry = registry_with(vec![Arc::new(RouterExt::new("no-router"))]);
-    validate(&registry).expect("extensions without a router impose no path constraint");
-}
-
-#[test]
-fn validate_api_paths_rejects_non_api_prefix() {
-    let registry = registry_with(vec![Arc::new(
-        RouterExt::new("bad").with_base_path("/widgets"),
-    )]);
-
-    let err = validate(&registry).expect_err("base path outside /api/ must fail");
-    match err {
-        LoaderError::InvalidBasePath { extension, path } => {
-            assert_eq!(extension, "bad");
-            assert_eq!(path, "/widgets");
-        },
-        other => panic!("expected InvalidBasePath, got {other:?}"),
-    }
-}
-
-#[test]
-fn validate_api_paths_accepts_the_web_root() {
-    let registry = registry_with(vec![Arc::new(RouterExt::new("site").with_base_path("/"))]);
-    validate(&registry).expect("the web root is the one sanctioned base outside /api/");
-}
-
-#[test]
-fn validate_api_paths_leaves_reserved_prefixes_to_the_mount() {
-    let registry = registry_with(vec![Arc::new(
-        RouterExt::new("colliding").with_base_path("/api/v1/oauth/extra"),
-    )]);
-
-    validate(&registry)
-        .expect("the reserved-prefix refusal belongs to the server mount's core allowance table");
 }
 
 #[test]

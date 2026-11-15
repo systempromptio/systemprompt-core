@@ -50,9 +50,10 @@ pub use jwt::{JtiRevocationChecker, JwtContextExtractor, JwtUserContext};
 pub use load_shed::LoadShed;
 pub use mount::{
     Allowance, ClientWritesGuard, CoreDeclaration, CoreDeclarer, CoreShapeField,
-    DEFAULT_BODY_LIMIT_BYTES, MountError, MountLayers, ProtectionGuards, SiteAuthGuard,
-    admit_extension, admit_gateway_route, extension_built, extension_served, gateway_protection,
-    mount, path_under, place, protect, refuse_overlap,
+    DEFAULT_BODY_LIMIT_BYTES, MountError, MountLayers, PinnedMethod, ProtectionGuards, RoutePin,
+    SiteAuthGuard, admit_extension, admit_extensions, admit_gateway_route, confined, excluding,
+    extension_built, extension_served, gateway_protection, mount, path_under, pinned, place,
+    protect, refuse_overlap,
 };
 pub use negotiation::{
     AcceptedFormat, AcceptedMediaType, content_negotiation_middleware, parse_accept_header,

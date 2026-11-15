@@ -8,7 +8,9 @@
 //! middleware and authorization gate (`RouterExt::with_auth`), the outer
 //! protection layers, and the frame-options stamp. [`mount`] adds the role
 //! group and enable predicate and nests the result under its base path, or
-//! merges it at the web root.
+//! merges it at the web root. Only the web root is merged: every other base
+//! path, `/track/engagement` included, is nested, so its routes are relative
+//! to it and cannot answer outside it.
 //!
 //! A handler-verified policy (`AuthzPolicy::handler_verified`) pairs only
 //! with `ContextKind::HandlerResolved`: the group keeps its body limit, inner
@@ -25,10 +27,14 @@
 //! Core-only declarations: a group-level body limit above
 //! [`DEFAULT_BODY_LIMIT_BYTES`] mounts only when a [`CoreDeclaration`] names
 //! that group's base path and that exact limit; the agent proxy is the only
-//! one. [`admit_extension`] runs on every extension declaration before any
-//! is mounted, on every role, and refuses a handler-verified policy, a
-//! reserved base path or a body limit above the ceiling unless the
-//! [`CoreDeclaration`] table grants that exact declaration that allowance.
+//! one. [`admit_extensions`] runs on every extension declaration before any
+//! is mounted, on every role that builds them: it refuses a handler-verified
+//! policy, a reserved base path, a base path outside `/api/` other than the
+//! web root, or a body limit above the ceiling unless the
+//! [`CoreDeclaration`] table grants that exact declaration that allowance;
+//! it requires each core row to be claimed by exactly one declaration of its
+//! owner; and it confines a claimed router to its row's route pins
+//! ([`pinned`], [`excluding`]).
 //! The body-limit check sees only the group-level limit a declaration
 //! carries. A few routes set their own `DefaultBodyLimit` inside their
 //! router, which this module does not see: the document content routes (the
@@ -44,19 +50,23 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod core_claims;
 mod core_declaration;
 mod core_gateway;
+mod core_pins;
 mod core_rows;
 mod core_shape;
 mod error;
 mod guards;
 
+pub use core_claims::admit_extensions;
 pub use core_declaration::{
     Allowance, CoreDeclaration, CoreDeclarer, admit_extension, extension_served,
 };
 pub use core_gateway::{
     admit_gateway_route, extension_built, gateway_protection, path_under, refuse_overlap,
 };
+pub use core_pins::{PinnedMethod, RoutePin, confined, excluding, pinned};
 pub use core_shape::CoreShapeField;
 pub use error::MountError;
 pub use guards::{ClientWritesGuard, ProtectionGuards, SiteAuthGuard};

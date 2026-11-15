@@ -11,6 +11,7 @@ use systemprompt_analytics_entry::http::{
 use systemprompt_database::DbPool;
 use systemprompt_extension::ExtensionContext;
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
+use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::{ContentRouting, RequestContext};
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context, test_db_pool};
@@ -54,7 +55,10 @@ pub fn engagement_router_with_routing(
     ctx: &AppContext,
     routing: Option<Arc<dyn ContentRouting>>,
 ) -> Router {
-    engagement::router(state(ctx, routing))
+    Router::new().nest(
+        ApiPaths::TRACK_ENGAGEMENT,
+        engagement::router(state(ctx, routing)),
+    )
 }
 
 pub struct SlugRouter {

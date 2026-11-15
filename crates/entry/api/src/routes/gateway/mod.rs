@@ -72,6 +72,7 @@ use self::routers::{
     bridge_auth_routes, bridge_profile_routes, bridge_session_routes, inference_routes,
 };
 use crate::kernel::JwtContextExtractor;
+use crate::services::middleware::confined;
 
 pub(crate) use self::access_log::GatewayLogIdentity;
 
@@ -157,8 +158,8 @@ pub(crate) fn gateway_mount_parts(
         .route("/models", get(models::list).with_state(ctx.clone()))
         .route("/", get(models::root));
     Ok(GatewayMountParts {
-        traffic: builtin::confined(traffic, builtin::builtin_gateway_prefixes()),
-        bridge_auth: builtin::confined(
+        traffic: confined(traffic, builtin::builtin_gateway_prefixes()),
+        bridge_auth: confined(
             bridge_auth_routes(ctx, &jwt_extractor),
             builtin::builtin_gateway_prefixes(),
         ),

@@ -5,10 +5,11 @@
 //! admin gate with a user context; `/track/engagement` is public. Both are in
 //! the content-and-misc role group under the `content` rate-limit scope and
 //! budget, with the default body limit and no extra layers. The engagement
-//! group is declared at the web root, because an extension base path is `/`
-//! or under `/api/`, and its routes carry the full `/track/engagement` path.
+//! group is declared and nested at `/track/engagement`, a base path outside
+//! `/api/` that only its core declaration row's `WebPath` allowance admits.
 //! Each declaration equals its row in the API's core declaration table
-//! (`Analytics`, `Engagement`), keyed on this extension's id, `analytics-http`.
+//! (`Analytics`, `Engagement`), keyed on this extension's id, `analytics-http`,
+//! and the table requires exactly these two declarations from it.
 //!
 //! The routes read the analytics repositories and the analytics broadcaster
 //! the API kernel seeds, the loaded content configuration when there is one,
@@ -30,7 +31,6 @@
 
 use systemprompt_extension::RouteGroup;
 use systemprompt_extension::prelude::*;
-use systemprompt_extension::registry::WEB_ROOT_BASE_PATH;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_traits::DynContentCatalogStats;
 
@@ -76,7 +76,7 @@ impl Extension for AnalyticsHttpExtension {
             .with_rate_limit(RATE_LIMIT),
             ExtensionRouter::new(
                 engagement::router(state),
-                WEB_ROOT_BASE_PATH,
+                ApiPaths::TRACK_ENGAGEMENT,
                 AuthzPolicy::public(),
                 ContextKind::Public,
             )

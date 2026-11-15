@@ -14,9 +14,12 @@
 //! base-path and reserved-prefix checks and admission never ran on the
 //! gateway, worker or runner roles; they still do not, except that a worker
 //! builds and admits the agent-runs extension it serves. On a role that
-//! builds them, every declaration is admitted (`admit_extension`, against the
-//! closed core declaration table) before any is mounted, so an inadmissible
-//! declaration refuses boot even when this role would not serve it. A core
+//! builds them, every declaration is admitted together (`admit_extensions`,
+//! against the closed core declaration table: base path, reserved prefix,
+//! handler verification, body limit, one declaration per core row, and the
+//! route pins that confine a core row's router) before any is mounted, so an
+//! inadmissible declaration refuses boot even when this role would not serve
+//! it. A core
 //! declaration listed in the core declaration table is then
 //! mounted by the roles that serve its own route group, and every other
 //! declaration only by the roles that serve both `RouteGroup::Extensions` and
@@ -44,11 +47,10 @@
 use super::RouteMountError;
 use super::protocol::MountCtx;
 use axum::{Extension, Router};
-use systemprompt_extension::ExtensionRegistry;
 use systemprompt_traits::{StartupEvent, StartupEventSender};
 
 use crate::routes::admin::services::{RefreshLock, ServicesRefresh};
-use crate::services::middleware::{admit_extension, extension_built, extension_served};
+use crate::services::middleware::{admit_extensions, extension_built, extension_served};
 
 pub(super) fn mount_extension_routes(
     mut router: Router,
@@ -59,12 +61,9 @@ pub(super) fn mount_extension_routes(
     let ctx = mount.ctx;
     let registry = ctx.extension_registry();
     let builds = |extension: &str| extension_built(extension, mount.serves);
-    let api_extensions = registry.api_routers(ctx, &ctx.profile().extensions.disabled, &builds)?;
-    ExtensionRegistry::validate_api_paths(&api_extensions)?;
-
-    for (ext, declared) in &api_extensions {
-        admit_extension(ext.metadata().id, declared)?;
-    }
+    let mut api_extensions =
+        registry.api_routers(ctx, &ctx.profile().extensions.disabled, &builds)?;
+    admit_extensions(&mut api_extensions)?;
 
     for (ext, mut declared) in api_extensions {
         let ext_id = ext.metadata().id;

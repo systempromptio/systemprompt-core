@@ -7,12 +7,12 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use axum::routing::get;
-use systemprompt_api::routes::gateway::builtin::{builtin_gateway_prefixes, confined};
+use systemprompt_api::routes::gateway::builtin::builtin_gateway_prefixes;
 use systemprompt_api::routes::gateway::registered::{
     GatewayCredential, GatewayRouteRegistration, admit_registrations,
 };
 use systemprompt_api::services::middleware::{
-    CoreDeclaration, CoreShapeField, MountError, extension_built, path_under,
+    CoreDeclaration, CoreShapeField, MountError, confined, extension_built, path_under,
 };
 use systemprompt_api::services::server::routes::report_gateway_guards;
 use systemprompt_api::services::server::routes::role::route_groups;

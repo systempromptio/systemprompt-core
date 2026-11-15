@@ -4,12 +4,16 @@
 //! each in the content-and-misc role group under the `content` scope and
 //! budget with no body limit, layers or frame options. The content
 //! repositories they read come from the `content` extension's `provide`.
+//! The real declarations pass the API's claim check, and declaring the
+//! signed-in router with the public shape, dropping one or duplicating one
+//! refuses boot.
 
 use std::sync::Arc;
 
+use systemprompt_api::services::middleware::{CoreDeclaration, MountError, admit_extensions};
 use systemprompt_content::repository::ContentRepositories;
 use systemprompt_content_entry::extension::ContentHttpExtension;
-use systemprompt_extension::registry::WEB_ROOT_BASE_PATH;
+use systemprompt_extension::registry::{ApiRouter, WEB_ROOT_BASE_PATH};
 use systemprompt_extension::{
     AuthzPolicy, ContextKind, Extension, ExtensionRouter, RateBudget, RateLimit, RouteGroup,
     StateRequirement,
@@ -76,5 +80,70 @@ async fn the_three_groups_are_declared_with_their_core_table_shapes() {
         WEB_ROOT_BASE_PATH,
         AuthzPolicy::public(),
         ContextKind::Public,
+    );
+}
+
+fn admitted(declarations: Vec<ExtensionRouter>) -> Result<(), MountError> {
+    let extension: Arc<dyn Extension> = Arc::new(ContentHttpExtension);
+    let mut declared: Vec<ApiRouter> = declarations
+        .into_iter()
+        .map(|router| (Arc::clone(&extension), router))
+        .collect();
+    admit_extensions(&mut declared)
+}
+
+#[tokio::test]
+async fn the_real_declarations_each_claim_their_core_row_once() {
+    let ctx = offline_extension_context();
+    let declarations = ContentHttpExtension.routers(&*ctx).expect("declared");
+    admitted(declarations).expect("each content row is claimed exactly once");
+}
+
+#[tokio::test]
+async fn the_signed_in_router_declared_with_the_public_shape_refuses_boot() {
+    let ctx = offline_extension_context();
+    let mut declarations = ContentHttpExtension.routers(&*ctx).expect("declared");
+    declarations[1].protection = declarations[0].protection.clone();
+    let err = admitted(declarations).unwrap_err();
+    assert!(
+        matches!(
+            err,
+            MountError::CoreDeclarationClaimedTwice {
+                extension: "content-http",
+                row: CoreDeclaration::ContentPublic,
+            }
+        ),
+        "{err:?}"
+    );
+}
+
+#[tokio::test]
+async fn a_missing_or_duplicated_declaration_refuses_boot() {
+    let ctx = offline_extension_context();
+    let mut missing = ContentHttpExtension.routers(&*ctx).expect("declared");
+    missing.remove(1);
+    assert!(
+        matches!(
+            admitted(missing),
+            Err(MountError::CoreDeclarationUnclaimed {
+                row: CoreDeclaration::ContentAuthenticated,
+                ..
+            })
+        ),
+        "a missing signed-in router refuses boot"
+    );
+
+    let mut duplicated = ContentHttpExtension.routers(&*ctx).expect("declared");
+    let again = ContentHttpExtension.routers(&*ctx).expect("declared").remove(2);
+    duplicated.push(again);
+    assert!(
+        matches!(
+            admitted(duplicated),
+            Err(MountError::CoreDeclarationClaimedTwice {
+                row: CoreDeclaration::ContentRedirect,
+                ..
+            })
+        ),
+        "a duplicated redirect router refuses boot"
     );
 }

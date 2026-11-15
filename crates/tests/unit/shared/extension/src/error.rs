@@ -97,18 +97,6 @@ fn loader_error_router_build_failed_display() {
 }
 
 #[test]
-fn loader_error_invalid_base_path_display() {
-    let err = LoaderError::InvalidBasePath {
-        extension: ExtensionId::new("bad-path-ext"),
-        path: "/not-api/v1".to_string(),
-    };
-    let msg = err.to_string();
-    assert!(msg.contains("bad-path-ext"));
-    assert!(msg.contains("/not-api/v1"));
-    assert!(msg.contains("must be / or start with /api/"));
-}
-
-#[test]
 fn loader_error_circular_dependency_display() {
     let err = LoaderError::DependencyCycle {
         chain: "a -> b -> a".to_string(),

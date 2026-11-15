@@ -8,11 +8,18 @@
 //! Admission: a declaration is refused at boot when it declares something
 //! only core may declare: a handler-verified policy (or the handler-resolved
 //! context), a base path under one of the reserved prefixes
-//! ([`RESERVED_PATHS`]), or a group-level body limit above
+//! ([`RESERVED_PATHS`]), a base path that is neither the web root `/` nor
+//! under `/api/`, or a group-level body limit above
 //! [`DEFAULT_BODY_LIMIT_BYTES`]. [`admit_extension`] admits one only when a
-//! row with that allowance names the declaration and matches its whole
-//! protection shape. A declaration
-//! not in the table meets the same typed [`MountError`] as before.
+//! row with that allowance (`HandlerVerified`, `ReservedPrefix`, `WebPath`,
+//! `BodyLimit`) names the declaration and matches its whole protection shape.
+//! A declaration not in the table meets the same typed [`MountError`] as
+//! before.
+//!
+//! Claims: `admit_extensions` (`core_claims`) judges every declaration
+//! together: each row of an owner that declares any router is claimed by
+//! exactly one of its declarations, and a claimed router is bounded to its
+//! row's route pins ([`CoreDeclaration::route_pins`]).
 //!
 //! Role exposure: [`extension_served`] mounts a listed core declaration on
 //! every role that serves its own route group. Every other extension
@@ -30,7 +37,8 @@
 //! body limit, protection layers and frame options. Drift is judged per
 //! owner: an extension id that owns any router row may declare only routers
 //! that equal one of its rows in base path, route group and shape (one owner
-//! may list several shapes at one base path and group, one row each). Any other
+//! may list several shapes at one base path and group, one row each, and
+//! each claimed exactly once). Any other
 //! declaration from that id is refused at boot with
 //! `MountError::CoreDeclarationMismatch` naming the field that differs (the
 //! base path or group when no row of that id matches both), so a core
@@ -50,6 +58,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_extension::registry::WEB_ROOT_BASE_PATH;
 use systemprompt_extension::{
     ContextKind, ExtensionRouter, HandlerVerifier, RESERVED_PATHS, RouteGroup, RouteProtection,
 };
@@ -71,6 +80,7 @@ pub enum Allowance {
     Plain,
     HandlerVerified(HandlerVerifier),
     ReservedPrefix,
+    WebPath,
     BodyLimit,
 }
 
@@ -142,6 +152,10 @@ fn reserved(base_path: &str) -> bool {
         .any(|prefix| base_path.starts_with(prefix))
 }
 
+fn web_path(base_path: &str) -> bool {
+    base_path != WEB_ROOT_BASE_PATH && !base_path.starts_with("/api/")
+}
+
 pub fn admit_extension(
     extension: &'static str,
     declared: &ExtensionRouter,
@@ -169,6 +183,13 @@ pub fn admit_extension(
     let reserved_granted = CoreDeclaration::granted(owner, declared, Allowance::ReservedPrefix);
     if reserved(base_path) && !reserved_granted {
         return Err(MountError::ExtensionReservedPath {
+            extension,
+            base_path,
+        });
+    }
+
+    if web_path(base_path) && !CoreDeclaration::granted(owner, declared, Allowance::WebPath) {
+        return Err(MountError::ExtensionWebPath {
             extension,
             base_path,
         });

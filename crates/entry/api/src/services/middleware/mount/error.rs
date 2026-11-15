@@ -5,7 +5,7 @@
 
 use systemprompt_extension::{LoaderError, ProtectionLayer};
 
-use super::CoreShapeField;
+use super::{CoreDeclaration, CoreShapeField};
 
 #[derive(Debug, thiserror::Error)]
 pub enum MountError {
@@ -72,6 +72,41 @@ pub enum MountError {
         extension: &'static str,
         base_path: &'static str,
         field: CoreShapeField,
+    },
+
+    #[error(
+        "extension '{extension}' declares a route group at '{base_path}', which is neither the \
+         web root nor under /api/; only a core route group listed with that path may declare it"
+    )]
+    ExtensionWebPath {
+        extension: &'static str,
+        base_path: &'static str,
+    },
+
+    #[error(
+        "extension '{extension}' declares no router for its core declaration row {row:?}, or \
+         declares it with another base path, group or shape"
+    )]
+    CoreDeclarationUnclaimed {
+        extension: &'static str,
+        row: CoreDeclaration,
+    },
+
+    #[error("extension '{extension}' declares two routers for its core declaration row {row:?}")]
+    CoreDeclarationClaimedTwice {
+        extension: &'static str,
+        row: CoreDeclaration,
+    },
+
+    #[error(
+        "extension '{extension}' declares a route group at '{base_path}' that matches both core \
+         declaration rows {first:?} and {second:?}"
+    )]
+    CoreDeclarationAmbiguous {
+        extension: &'static str,
+        base_path: &'static str,
+        first: CoreDeclaration,
+        second: CoreDeclaration,
     },
 
     #[error(
