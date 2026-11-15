@@ -406,7 +406,12 @@ These areas are mounted by `mount_content_and_misc` (`protocol.rs:149`).
 | `/api/v1/documents`, `/api/v1/document-folders`, `/v1/bridge/drive` | User; device | The document store, listed under [Documents](#documents) above. |
 | `/api/v1/sync` | Restricted (Service) | Cloud sync of files. |
 | `/api/v1/marketplace` | Public | Marketplace catalog. |
-| `/api/v1/analytics` | Admin | Analytics events and streams. |
-| `/track/engagement` | Public | Engagement tracking ingest. |
 | `/api/v1/admin` | Admin | Admin operations (logs, users, CLI relay, keys). |
 | `/auth/link-passkey` | Public | Passkey-linking page. |
+
+The analytics routes are declared by the `analytics-http` extension (`systemprompt-analytics-entry`, feature `http`) and mounted in the same content-and-misc role group, under the `content` rate-limit budget. A profile that disables `analytics-http` serves neither (404); request recording and the analytics jobs keep running, because they belong to the `analytics` extension, which cannot be disabled.
+
+| Base path | Auth | Purpose |
+|-----------|------|---------|
+| `/api/v1/analytics` | Admin | Analytics events (`POST /events`, `POST /events/batch`) and the live event stream (`GET /stream`). |
+| `/track/engagement` | Public | Engagement tracking ingest (`POST /track/engagement`, `POST /track/engagement/batch`). |

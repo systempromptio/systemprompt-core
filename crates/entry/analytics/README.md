@@ -7,3 +7,19 @@
 The analytics HTTP routes and CLI reports of systemprompt.io: event ingestion, live streams, and the traffic, session, cost and content reports.
 
 **Layer**: Entry. The `http` feature carries the routes, declared through `systemprompt-extension` and mounted by the API server; the `cli` feature carries the commands, registered with the CLI. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
+
+## Routes (`http`)
+
+Declared by the `analytics-http` extension and mounted by the API server in the content-and-misc role group under the `content` rate-limit budget:
+
+| Path | Gate | Purpose |
+|------|------|---------|
+| `POST /api/v1/analytics/events`, `POST /api/v1/analytics/events/batch` | admin | Record client analytics events; a `page_exit` event with time on page is also recorded as engagement. |
+| `GET /api/v1/analytics/stream` | admin | Live analytics event stream (server-sent events). |
+| `POST /track/engagement`, `POST /track/engagement/batch` | public | Record engagement events and mark the session converted on a conversion event. |
+
+A profile that disables `analytics-http` serves none of them (404). The `analytics` extension, which owns request recording and the protective jobs, is required and cannot be disabled.
+
+## Commands (`cli`)
+
+The top-level `analytics` group (`overview`, `conversations`, `agents`, `tools`, `requests`, `sessions`, `content`, `traffic`, `costs`) and `core content popular`, both registered with the CLI kernel. Every command is read-only and accepts `--database-url`; `analytics` writes `--export` files locally.
