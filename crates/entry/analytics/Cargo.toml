@@ -1,0 +1,29 @@
+[package]
+name = "systemprompt-analytics-entry"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "The analytics HTTP routes and CLI reports of systemprompt.io: event ingestion, live streams, and the traffic, session, cost and content reports."
+readme = "README.md"
+include = ["src/**/*", "Cargo.toml", "README.md", "CHANGELOG.md"]
+
+[lints]
+workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+default = []
+http = []
+cli = []
+
+[dependencies]

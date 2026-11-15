@@ -6510,6 +6510,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-analytics-entry"
+version = "0.81.1"
+
+[[package]]
 name = "systemprompt-api"
 version = "0.81.1"
 dependencies = [
@@ -6732,6 +6736,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-cloud-entry"
+version = "0.81.1"
+
+[[package]]
 name = "systemprompt-config"
 version = "0.81.1"
 dependencies = [
@@ -6790,6 +6798,10 @@ dependencies = [
  "tracing",
  "walkdir",
 ]
+
+[[package]]
+name = "systemprompt-content-entry"
+version = "0.81.1"
 
 [[package]]
 name = "systemprompt-database"

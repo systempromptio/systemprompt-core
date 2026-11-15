@@ -1,0 +1,14 @@
+[[crate]]
+name = "systemprompt-cloud-entry"
+section = "Added"
+text = "New crate: the entry surface of the cloud capability."
+
+[[crate]]
+name = "systemprompt-analytics-entry"
+section = "Added"
+text = "New crate: the entry surface of the analytics capability."
+
+[[crate]]
+name = "systemprompt-content-entry"
+section = "Added"
+text = "New crate: the entry surface of the content capability."

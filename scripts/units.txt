@@ -31,9 +31,12 @@ systemprompt-cli                   kernel
 systemprompt                       kernel
 # Capabilities
 systemprompt-cloud                 capability:cloud
+systemprompt-cloud-entry           capability:cloud
 systemprompt-files                 capability:files
 systemprompt-analytics             capability:analytics
+systemprompt-analytics-entry       capability:analytics
 systemprompt-content               capability:content
+systemprompt-content-entry         capability:content
 systemprompt-templates             capability:content
 systemprompt-generator             capability:content
 systemprompt-mcp                   capability:mcp
