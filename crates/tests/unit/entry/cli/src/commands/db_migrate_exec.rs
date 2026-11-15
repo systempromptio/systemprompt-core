@@ -120,6 +120,9 @@ async fn profile_migrate_runs_against_the_profile_database() {
 async fn verbose_profile_migrate_reports_its_target_and_stays_a_no_op() {
     ensure_test_bootstrap();
     let db = DisposableDb::with_schema("cli_profile_migrate_verbose").await;
+    systemprompt_test_fixtures::seed_fixture_system_admin(&db.test_pool().await)
+        .await
+        .expect("seed the profile's system admin");
     let ctx = profile_driven(
         &db,
         text_config().with_verbosity(systemprompt_cli::VerbosityLevel::Verbose),

@@ -213,7 +213,7 @@ fn positional_arguments_survive_in_order() {
 }
 
 // Why: the export flag only means anything for a command that declares a
-// local export (the registered `fprobe report`). Treating it as local for any
+// local export. Treating it as local for any
 // other command would route a subprocess call back to the local profile and
 // silently run it against the wrong database.
 #[test]
@@ -257,6 +257,5 @@ fn descriptor_of(cli: &Cli) -> CommandDescriptor {
 }
 
 fn local_export_descriptor() -> CommandDescriptor {
-    systemprompt_cli::kernel::describe_command_line(&owned(&["fprobe", "report"]))
-        .expect("the registered fprobe report parses")
+    CommandDescriptor::FULL.with_local_export()
 }

@@ -102,7 +102,6 @@ async fn an_unparseable_content_config_is_reported_by_every_web_reader() {
     for argv in [
         vec!["content-types", "list"],
         vec!["content-types", "show", "blog"],
-        vec!["sitemap", "show"],
     ] {
         let err = systemprompt_cli::web::execute(web(&argv), &ctx()).unwrap_err();
         let rendered = format!("{err:#}");

@@ -159,7 +159,6 @@ async fn web_commands_render_through_the_terminal_renderer() {
         vec!["templates", "show", "base"],
         vec!["assets", "list"],
         vec!["assets", "show", "logo.svg"],
-        vec!["sitemap", "show"],
     ] {
         let cmd = WebHarness::try_parse_from(std::iter::once("web").chain(args.iter().copied()))
             .unwrap()

@@ -11,16 +11,6 @@ use systemprompt_cloud_entry::cli::tenant::create::{create_external_tenant, crea
 use systemprompt_loader::subprocess::ForegroundChildren;
 
 #[tokio::test]
-async fn an_empty_tenant_name_is_refused_by_the_external_flow() {
-    let prompter = ScriptedPrompter::new([""]);
-
-    let err = create_external_tenant(&prompter, &ForegroundChildren::default())
-        .await
-        .unwrap_err();
-    assert!(err.to_string().contains("Tenant name cannot be empty"));
-}
-
-#[tokio::test]
 async fn an_empty_database_url_is_refused_by_the_external_flow() {
     let prompter = ScriptedPrompter::new(["covtenant", ""]);
 
@@ -42,16 +32,6 @@ async fn an_unreachable_database_is_refused_before_a_profile_is_written() {
         err.to_string().contains("Could not connect to database"),
         "{err}"
     );
-}
-
-#[tokio::test]
-async fn an_empty_tenant_name_is_refused_by_the_docker_flow() {
-    let prompter = ScriptedPrompter::new([""]);
-
-    let err = create_local_tenant(&prompter, &ForegroundChildren::default())
-        .await
-        .unwrap_err();
-    assert!(err.to_string().contains("Tenant name cannot be empty"));
 }
 
 #[tokio::test]

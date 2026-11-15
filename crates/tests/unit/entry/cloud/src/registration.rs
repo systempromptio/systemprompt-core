@@ -44,7 +44,7 @@ fn cloud_is_collected_from_its_registration() {
 }
 
 #[test]
-fn help_lists_cloud_between_admin_and_analytics() {
+fn help_lists_cloud_between_admin_and_web() {
     let (_, root) = root();
     let help = root.clone().render_help().to_string();
     let position = |name: &str| {
@@ -53,7 +53,7 @@ fn help_lists_cloud_between_admin_and_analytics() {
     };
     assert!(position("infra") < position("admin"));
     assert!(position("admin") < position("cloud"));
-    assert!(position("cloud") < position("analytics"));
+    assert!(position("cloud") < position("web"));
     let cloud = root.find_subcommand("cloud").expect("cloud");
     assert_eq!(
         cloud.get_about().map(ToString::to_string).as_deref(),

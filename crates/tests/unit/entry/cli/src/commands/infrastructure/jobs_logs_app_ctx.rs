@@ -21,7 +21,7 @@ use systemprompt_test_fixtures::{
     DisposableDb, ensure_test_bootstrap, test_app_context, test_database_url, test_db_pool,
 };
 
-const KNOWN_JOB: &str = "content_prerender";
+const KNOWN_JOB: &str = "log_summary_rollup";
 
 #[derive(Debug, Parser)]
 struct JobsHarness {

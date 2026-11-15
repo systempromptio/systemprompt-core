@@ -207,7 +207,13 @@ pub async fn seed_admin_credential(pool: &DbPool, email_base: &str) -> Result<Au
     let user_id = UserId::generate();
     let session_id = SessionId::generate();
     let email = unique_email(email_base, &user_id);
-    seed_user_row(pool, &user_id, &email).await?;
+    seed_user_row_with_roles(
+        pool,
+        &user_id,
+        &email,
+        &["admin".to_owned(), "user".to_owned()],
+    )
+    .await?;
     seed_user_session(pool, &user_id, &session_id).await?;
     let jwt = mint_jwt_internal(
         &user_id,

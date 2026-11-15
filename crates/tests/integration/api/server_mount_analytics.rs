@@ -166,7 +166,7 @@ async fn the_analytics_group_refuses_a_user_token_at_the_admin_gate() -> anyhow:
 async fn the_analytics_group_records_an_admins_event() -> anyhow::Result<()> {
     let app = full_router(RateLimitsConfig::disabled(), &[]).await?;
     let admin = seed_admin_credential(&test_db_pool().await, "analytics-admin").await?;
-    let status = app
+    let resp = app
         .oneshot(request(
             Method::POST,
             EVENTS,
@@ -174,9 +174,15 @@ async fn the_analytics_group_records_an_admins_event() -> anyhow::Result<()> {
             Some(&admin.jwt),
             "127.0.0.1:40002",
         ))
-        .await?
-        .status();
-    assert_eq!(status, StatusCode::CREATED);
+        .await?;
+    let status = resp.status();
+    let body = axum::body::to_bytes(resp.into_body(), 64 * 1024).await?;
+    assert_eq!(
+        status,
+        StatusCode::CREATED,
+        "{}",
+        String::from_utf8_lossy(&body)
+    );
     Ok(())
 }
 

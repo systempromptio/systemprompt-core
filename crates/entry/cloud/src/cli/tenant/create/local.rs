@@ -35,10 +35,6 @@ pub async fn create_local_tenant(
 
     let name = prompter.input_with_default("Tenant name", "local")?;
 
-    if name.is_empty() {
-        bail!("Tenant name cannot be empty");
-    }
-
     let project = format!("{}_{}", sanitize_database_name(&name), nanoid());
 
     let port: u16 = prompter
@@ -85,10 +81,6 @@ pub async fn create_external_tenant(
     CliService::section("Create Local Tenant (External PostgreSQL)");
 
     let name = prompter.input_with_default("Tenant name", "local")?;
-
-    if name.is_empty() {
-        bail!("Tenant name cannot be empty");
-    }
 
     let database_url = prompter.input("PostgreSQL connection URL")?;
 
