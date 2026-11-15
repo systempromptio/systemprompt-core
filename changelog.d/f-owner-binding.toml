@@ -1,0 +1,19 @@
+[root]
+section = "Added"
+area = "Kernel contract"
+text = "A CLI command path the kernel grants a runner capability to (`cloud`, `analytics`, `admin mcp`) is reserved for the Rust type that owns it: a registration there by any other type is refused at startup, with or without grants. A core route row is bound to the Rust type of its owning extension as well as its id: an extension that takes a core row's id without being that type refuses boot before any route is built."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`<dyn Extension>::type_name()` returns the implementing type's fully-qualified path, supplied by a blanket implementation an extension cannot override."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Added"
+text = "`RegistryError::ReservedPath { path, group, owner }`."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Added"
+text = "`admit_core_owner`, `admit_core_owners`, `CoreDeclaration::owner_type` and `MountError::CoreOwnerImpostor { extension, type_name, owner }`; the server runs the owner check over every registered extension before it builds any route."

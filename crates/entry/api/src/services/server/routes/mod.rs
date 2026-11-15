@@ -76,6 +76,9 @@ fn build_routes(
     events: Option<&StartupEventSender>,
     engines: &Arc<GatewayEngines>,
 ) -> Result<Router, RouteMountError> {
+    crate::services::middleware::admit_core_owners(
+        ctx.extension_registry().extensions().iter().map(|ext| &**ext),
+    )?;
     let groups = role::route_groups(role);
     let serves = |group: RouteGroup| groups.contains(&group);
     let mut router = Router::new();
