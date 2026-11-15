@@ -23,6 +23,7 @@ lint-migrations
 lint-comments
 lint-inline-tests
 lint-test-seams
+lint-orphan-tests
 lint-test-value
 lint-shared-test-ids
 lint-raw-ids

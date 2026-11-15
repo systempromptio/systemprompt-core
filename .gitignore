@@ -175,6 +175,8 @@ scripts/*
 !scripts/lint-bridge-file-size.sh
 !scripts/lint-bridge-no-window.sh
 !scripts/lint-test-seams.sh
+!scripts/lint-orphan-tests.py
+!scripts/test-lint-orphan-tests.py
 # ...and the 0.51.0-friction gates: env readers, native test-crate deps, the
 # per-crate sqlx cache audit, and the native bridge test build shared with
 # quality.yml's bridge-native job.

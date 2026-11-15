@@ -43,6 +43,7 @@ lint-migrations             unit    cheap    bridge  0.1s; migrations added sinc
 lint-comments               unit    cheap    sql     1.2s
 lint-inline-tests           unit    cheap    sql     0.1s
 lint-test-seams             unit    cheap    sql     15.5s full; scope it
+lint-orphan-tests           unit    cheap    sql     3.5s; module trees of crates/tests and bin/bridge, reachability global, orphans reported in scope
 lint-test-value             unit    cheap    sql     0.2s; crates/tests
 lint-shared-test-ids        unit    cheap    errors  5.5s; crates/tests
 lint-raw-ids                unit    cheap    sql     1.7s; name set derived from crates/shared/identifiers whatever the scope; stale boundary entries in full mode only
