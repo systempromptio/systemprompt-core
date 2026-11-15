@@ -9,6 +9,8 @@ mod command_disabled;
 #[cfg(test)]
 mod composition_order;
 #[cfg(test)]
+mod core_ids;
+#[cfg(test)]
 mod disable_probe;
 #[cfg(test)]
 mod forged_commands;
