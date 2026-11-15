@@ -125,7 +125,9 @@ async fn an_impostor_with_a_core_rows_exact_shape_is_refused_before_any_factory_
     assert!(
         matches!(
             err.downcast_ref::<GatewayBootError>(),
-            Some(GatewayBootError::CoreOwner(MountError::CoreOwnerImpostor { .. }))
+            Some(GatewayBootError::CoreOwner(
+                MountError::CoreOwnerImpostor { .. }
+            ))
         ),
         "{err:?}"
     );

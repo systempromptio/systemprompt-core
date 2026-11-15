@@ -55,7 +55,11 @@ fn rows_of_one_owner_id_name_one_owner_type() {
     for row in CoreDeclaration::ALL {
         for sibling in CoreDeclaration::ALL {
             if row.declarer() == sibling.declarer() {
-                assert_eq!(row.owner_type(), sibling.owner_type(), "{row:?} {sibling:?}");
+                assert_eq!(
+                    row.owner_type(),
+                    sibling.owner_type(),
+                    "{row:?} {sibling:?}"
+                );
             }
         }
     }
@@ -92,7 +96,13 @@ fn a_foreign_extension_taking_any_core_row_id_is_refused_at_boot() {
 
 #[test]
 fn an_install_extension_owning_no_row_is_admitted() {
-    for id in ["install", "analytics", "content", "notifications", "covmount"] {
+    for id in [
+        "install",
+        "analytics",
+        "content",
+        "notifications",
+        "covmount",
+    ] {
         admit_core_owner(&Impostor(id)).unwrap_or_else(|err| panic!("{id}: {err}"));
     }
 }
@@ -106,7 +116,10 @@ fn one_impostor_among_the_registered_extensions_refuses_boot() {
     assert!(
         matches!(
             err,
-            MountError::CoreOwnerImpostor { extension: "content-http", .. }
+            MountError::CoreOwnerImpostor {
+                extension: "content-http",
+                ..
+            }
         ),
         "{err:?}"
     );

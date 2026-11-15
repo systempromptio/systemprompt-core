@@ -137,7 +137,10 @@ async fn a_missing_or_duplicated_declaration_refuses_boot() {
     );
 
     let mut duplicated = ContentHttpExtension.routers(&*ctx).expect("declared");
-    let again = ContentHttpExtension.routers(&*ctx).expect("declared").remove(2);
+    let again = ContentHttpExtension
+        .routers(&*ctx)
+        .expect("declared")
+        .remove(2);
     duplicated.push(again);
     assert!(
         matches!(

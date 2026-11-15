@@ -134,7 +134,10 @@ fn the_content_groups_own_subcommands_keep_the_groups_descriptor() {
     let list = describe_command_line(&argv(&["core", "content", "list"])).expect("parses");
     assert!(list.database());
     assert_eq!(list.data_impact(), DataImpact::Preserving);
-    assert_eq!(resolved_routing(&["core", "content", "list"]), DbUrlRouting::Direct);
+    assert_eq!(
+        resolved_routing(&["core", "content", "list"]),
+        DbUrlRouting::Direct
+    );
 
     let delete =
         describe_command_line(&argv(&["core", "content", "delete", "c1"])).expect("parses");

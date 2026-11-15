@@ -9,9 +9,9 @@
 //! A listed path is reserved for its owner: another type registering there is
 //! refused, with or without grants. The owner is the fully-qualified Rust
 //! type path of the registered group or leaf (`std::any::type_name`), which
-//! only the crate that defines the type produces. No registration path holds serves-api or any
-//! other grant. The kernel's own commands set their flags directly:
-//! `admin session` (cloud-operator), `admin agents run` (child-host),
+//! only the crate that defines the type produces. No registration path holds
+//! serves-api or any other grant. The kernel's own commands set their flags
+//! directly: `admin session` (cloud-operator), `admin agents run` (child-host),
 //! `infra services serve` (serves-api), and the `infra` and `admin session
 //! login` commands that skip validation.
 //!

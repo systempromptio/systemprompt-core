@@ -12,11 +12,11 @@
 //!   [`named`], [`owned`], [`prioritized`] and [`unnamed`]).
 //! - **Bootstrap declaration** — [`CommandDescriptor`], [`KernelGrant`],
 //!   [`DataImpact`], [`DbUrlRouting`], [`RoutingClass`] and
-//!   [`DescribeCommand`]: what a command
-//!   needs before it runs (profile, secrets, paths, database, cloud credentials
-//!   for a cloud-operator command, a local `--export`) and what it does to the
-//!   data behind the profile; [`describe_command_line`] classifies a forwarded
-//!   argv the same way and [`command_line_path`] names the path it selects.
+//!   [`DescribeCommand`]: what a command needs before it runs (profile,
+//!   secrets, paths, database, cloud credentials for a cloud-operator command,
+//!   a local `--export`) and what it does to the data behind the profile;
+//!   [`describe_command_line`] classifies a forwarded argv the same way and
+//!   [`command_line_path`] names the path it selects.
 //! - **Execution context** — [`CommandContext`] (profile, paths, database,
 //!   session, foreground children) and the output settings in [`CliConfig`] and
 //!   [`OutputFormat`].

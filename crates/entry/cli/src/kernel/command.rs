@@ -20,8 +20,8 @@ use std::pin::Pin;
 
 use clap::{ArgMatches, Args, Command, Subcommand};
 
-use crate::context::CommandContext;
 use super::grants::KernelGrant;
+use crate::context::CommandContext;
 use crate::descriptor::{CommandDescriptor, DbUrlRouting, DescribeCommand};
 
 pub type CommandFuture<'a> = Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + 'a>>;
@@ -102,9 +102,9 @@ impl RegisteredCommand {
     }
 
     pub(super) fn granted(mut self, grants: &[KernelGrant]) -> Self {
-        self.descriptor = grants
-            .iter()
-            .fold(self.descriptor, |descriptor, grant| descriptor.with_grant(*grant));
+        self.descriptor = grants.iter().fold(self.descriptor, |descriptor, grant| {
+            descriptor.with_grant(*grant)
+        });
         self
     }
 

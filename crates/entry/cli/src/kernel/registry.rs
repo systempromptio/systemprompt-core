@@ -26,14 +26,14 @@
 //! - A kernel command owns its path; a registration on it is refused
 //!   ([`RegistryError::ShadowsKernel`]).
 //! - Two registrations of one path are refused ([`RegistryError::Duplicate`]).
-//! - A registration may attach under a registered group (`core content
-//!   popular` under `core content`). It is listed in the group's `--help`
-//!   after the group's own subcommands, parses its own arguments, and
-//!   resolves to its own descriptor: [`CommandRegistry::resolve`] picks the
-//!   deepest registration on the parsed path, so neither the parent's
-//!   descriptor nor its grants apply to it, and the child's never apply to the
-//!   parent's own subcommands. A name that collides with one of the group's
-//!   own subcommands is refused ([`RegistryError::ShadowsGroup`]).
+//! - A registration may attach under a registered group (`core content popular`
+//!   under `core content`). It is listed in the group's `--help` after the
+//!   group's own subcommands, parses its own arguments, and resolves to its own
+//!   descriptor: [`CommandRegistry::resolve`] picks the deepest registration on
+//!   the parsed path, so neither the parent's descriptor nor its grants apply
+//!   to it, and the child's never apply to the parent's own subcommands. A name
+//!   that collides with one of the group's own subcommands is refused
+//!   ([`RegistryError::ShadowsGroup`]).
 //! - A registration under a parent that does not exist is refused
 //!   ([`RegistryError::UnknownParent`]).
 //!
@@ -285,6 +285,12 @@ fn attach(
             group: entry.group(),
         });
     };
-    *existing = attach(std::mem::take(existing), tail, child, entry, registered_parent)?;
+    *existing = attach(
+        std::mem::take(existing),
+        tail,
+        child,
+        entry,
+        registered_parent,
+    )?;
     Ok(parent)
 }

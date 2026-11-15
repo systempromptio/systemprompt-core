@@ -78,7 +78,10 @@ fn irreversible_commands_are_kept_out_of_fleet_run() {
 
 #[test]
 fn session_commands_are_refused_as_local_commands_not_as_cloud_commands() {
-    for command in [&["admin", "session", "list"][..], &["admin", "session", "show"]] {
+    for command in [
+        &["admin", "session", "list"][..],
+        &["admin", "session", "show"],
+    ] {
         let err = ensure_read_only(&args(command)).unwrap_err();
         let message = err.to_string();
         assert!(

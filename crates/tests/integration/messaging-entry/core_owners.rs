@@ -27,7 +27,10 @@ fn the_discovered_messaging_extensions_pass_the_owner_check() {
     let registry = ExtensionRegistry::discover().expect("discover");
     for id in ["slack", "teams"] {
         assert!(
-            registry.extensions().iter().any(|ext| ext.metadata().id == id),
+            registry
+                .extensions()
+                .iter()
+                .any(|ext| ext.metadata().id == id),
             "the owner check must see the real {id} extension"
         );
     }

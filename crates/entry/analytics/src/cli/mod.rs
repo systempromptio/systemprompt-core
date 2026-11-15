@@ -82,8 +82,7 @@ impl CliCommandGroup for AnalyticsCommands {
     const NAME: &'static str = "analytics";
     const ABOUT: &'static str = "Analytics and metrics reporting";
     const DISPLAY_ORDER: usize = 50;
-    const GRANTS: &'static [KernelGrant] =
-        &[KernelGrant::LocalExport, KernelGrant::SkipValidation];
+    const GRANTS: &'static [KernelGrant] = &[KernelGrant::LocalExport, KernelGrant::SkipValidation];
 
     fn db_url_routing(&self) -> DbUrlRouting {
         DbUrlRouting::Direct

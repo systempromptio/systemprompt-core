@@ -64,8 +64,8 @@ mod guards;
 
 pub use core_claims::admit_extensions;
 pub use core_declaration::{
-    Allowance, CoreDeclaration, CoreDeclarer, admit_core_owner, admit_core_owners,
-    admit_extension, extension_served,
+    Allowance, CoreDeclaration, CoreDeclarer, admit_core_owner, admit_core_owners, admit_extension,
+    extension_served,
 };
 pub use core_gateway::{
     admit_gateway_route, extension_built, gateway_protection, path_under, refuse_overlap,

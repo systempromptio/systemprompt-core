@@ -404,7 +404,10 @@ async fn reference_nest_status(uri: &str) -> anyhow::Result<StatusCode> {
             .route("/", axum::routing::post(|| async { StatusCode::OK }))
             .route("/batch", axum::routing::post(|| async { StatusCode::OK })),
     );
-    Ok(reference.oneshot(anonymous(Method::POST, uri)).await?.status())
+    Ok(reference
+        .oneshot(anonymous(Method::POST, uri))
+        .await?
+        .status())
 }
 
 #[tokio::test]

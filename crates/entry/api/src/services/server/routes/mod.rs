@@ -72,7 +72,10 @@ pub fn configure_routes_for_role(
     engines: &Arc<GatewayEngines>,
 ) -> anyhow::Result<Router> {
     crate::services::middleware::admit_core_owners(
-        ctx.extension_registry().extensions().iter().map(|ext| &**ext),
+        ctx.extension_registry()
+            .extensions()
+            .iter()
+            .map(|ext| &**ext),
     )?;
     Ok(build_routes(ctx, role, events, engines)?)
 }

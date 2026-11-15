@@ -85,10 +85,7 @@ impl std::fmt::Debug for AnalyticsHttpState {
 }
 
 impl AnalyticsHttpState {
-    pub const fn new(
-        repositories: Arc<AnalyticsRepositories>,
-        content: ContentResolver,
-    ) -> Self {
+    pub const fn new(repositories: Arc<AnalyticsRepositories>, content: ContentResolver) -> Self {
         Self {
             repositories,
             content,

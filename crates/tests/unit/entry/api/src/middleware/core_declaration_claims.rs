@@ -18,9 +18,9 @@ use axum::routing::{get, post};
 use systemprompt_api::services::middleware::{
     CoreDeclaration, MountError, PinnedMethod, RoutePin, admit_extensions, place,
 };
-use systemprompt_models::modules::ApiPaths;
 use systemprompt_extension::registry::{ApiRouter, WEB_ROOT_BASE_PATH};
 use systemprompt_extension::{Extension, ExtensionMetadata, ExtensionRouter};
+use systemprompt_models::modules::ApiPaths;
 use tower::ServiceExt;
 
 use super::core_declaration::row;
@@ -195,7 +195,9 @@ fn admitted_routers(public: Router, signed_in: Router, redirect: Router) -> Vec<
         shaped_as(CoreDeclaration::ContentRedirect, redirect),
     ];
     admit_extensions(&mut all).expect("admitted");
-    all.into_iter().map(|(_, declared)| declared.router).collect()
+    all.into_iter()
+        .map(|(_, declared)| declared.router)
+        .collect()
 }
 
 #[tokio::test]
@@ -241,7 +243,10 @@ async fn each_content_router_answers_only_its_own_rows_routes() {
         StatusCode::NOT_FOUND
     );
 
-    assert_eq!(status(redirect, Method::GET, "/r/abc").await, StatusCode::OK);
+    assert_eq!(
+        status(redirect, Method::GET, "/r/abc").await,
+        StatusCode::OK
+    );
     assert_eq!(
         status(redirect, Method::GET, "/oauth/escape").await,
         StatusCode::NOT_FOUND
@@ -276,10 +281,16 @@ async fn the_pins_hold_on_the_tree_the_production_mount_builds() {
             .route("/links/{link_id}", get(|| async { "public link" })),
         Router::new()
             .route("/links/generate", post(|| async { "signed-in generate" }))
-            .route("/links/other", post(|| async { "signed-in outside the pins" })),
+            .route(
+                "/links/other",
+                post(|| async { "signed-in outside the pins" }),
+            ),
         Router::new()
             .route("/r/{code}", get(|| async { "redirect" }))
-            .route("/oauth/escape", get(|| async { "redirect outside the pins" })),
+            .route(
+                "/oauth/escape",
+                get(|| async { "redirect outside the pins" }),
+            ),
     );
     let [public, signed_in, redirect] = <[Router; 3]>::try_from(routers).expect("three routers");
     let tree = place(Router::new(), ApiPaths::CONTENT_BASE, public);
@@ -307,7 +318,9 @@ async fn the_pins_hold_on_the_tree_the_production_mount_builds() {
     assert_ne!(status, StatusCode::OK, "{body}");
     assert_ne!(body, "public link");
     assert_eq!(
-        answer(&tree, Method::POST, "/api/v1/content/links/other").await.0,
+        answer(&tree, Method::POST, "/api/v1/content/links/other")
+            .await
+            .0,
         StatusCode::NOT_FOUND
     );
     assert_eq!(

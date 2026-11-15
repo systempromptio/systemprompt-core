@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT\n                mc.id as \"id!: ContentId\",\n                mc.slug as \"slug!\",\n                mc.title as \"title!\",\n                mc.kind as \"kind!\",\n                mc.source_id as \"source_id!: SourceId\",\n                mc.category_id as \"category_id?: CategoryId\",\n                mc.published_at as \"published_at!\"\n            FROM report_markdown_content mc\n            LEFT JOIN report_analytics_events ae ON\n                ae.event_type = 'page_view'\n                AND ae.event_category = 'content'\n                AND ae.endpoint = 'GET /' || mc.source_id || '/' || mc.slug\n                AND ae.timestamp >= CURRENT_TIMESTAMP - ($2 || ' days')::INTERVAL\n            LEFT JOIN report_users u ON ae.user_id = u.id\n            WHERE mc.source_id = $1\n            GROUP BY mc.id, mc.slug, mc.title, mc.kind, mc.source_id, mc.category_id,\n                mc.published_at\n            ORDER BY COUNT(DISTINCT CASE\n                WHEN u.id IS NOT NULL AND u.is_bot = FALSE AND u.is_scanner = FALSE\n                THEN ae.user_id\n            END) DESC, mc.published_at DESC\n            LIMIT $3\n            ",
+  "query": "\n            SELECT\n                mc.id as \"id!: ContentId\",\n                mc.slug as \"slug!\",\n                mc.title as \"title!\",\n                mc.kind as \"kind!\",\n                mc.source_id as \"source_id!: SourceId\",\n                mc.category_id as \"category_id?: CategoryId\",\n                mc.published_at as \"published_at!\"\n            FROM report_markdown_content mc\n            WHERE mc.id = ANY($1)\n            ",
   "describe": {
     "columns": [
       {
@@ -83,9 +83,7 @@
     ],
     "parameters": {
       "Left": [
-        "Text",
-        "Text",
-        "Int8"
+        "TextArray"
       ]
     },
     "nullable": [
@@ -98,5 +96,5 @@
       true
     ]
   },
-  "hash": "8bbf381b0f4883e253815990730e4dd4286e0c11e5cc613cd61aab248202ffde"
+  "hash": "ff2d51ec0e63ef2a27f1296cf665ad4a1ab74e8a30db2fd60bbe6a0cfe7b3664"
 }

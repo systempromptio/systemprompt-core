@@ -31,3 +31,7 @@ tempfile = { workspace = true }
 tokio = { workspace = true }
 wiremock = { workspace = true }
 systemprompt-test-hack = { version = "0.1", path = "../../../common/hack" }
+
+[package.metadata.cargo-machete]
+# systemprompt-runtime: used by the helper modules this crate includes by path from the cli test crate (src/lib.rs)
+ignored = ["systemprompt-runtime"]

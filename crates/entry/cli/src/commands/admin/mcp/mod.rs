@@ -42,9 +42,7 @@ pub struct ServeArgs {
 impl DescribeCommand for McpHostCommands {
     fn descriptor(&self) -> CommandDescriptor {
         match self {
-            Self::Serve(_) => {
-                CommandDescriptor::NONE.with_data_impact(DataImpact::Preserving)
-            },
+            Self::Serve(_) => CommandDescriptor::NONE.with_data_impact(DataImpact::Preserving),
         }
     }
 }

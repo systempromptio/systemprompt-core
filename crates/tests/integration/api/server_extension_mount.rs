@@ -12,11 +12,11 @@ use axum::extract::{ConnectInfo, Extension as RequestExtension};
 use axum::http::Request;
 use axum::routing::get;
 use systemprompt_api::services::server::setup_api_server;
+use systemprompt_events::AnalyticsBroadcaster;
 use systemprompt_extension::{
     AuthzPolicy, ContextKind, Extension, ExtensionContext, ExtensionMetadata, ExtensionRegistry,
     ExtensionRouter, ExtensionStateError, RateBudget, RateLimit,
 };
-use systemprompt_events::AnalyticsBroadcaster;
 use systemprompt_manifest::profile::FrameOptions;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_app_context_with_extensions, fixture_config,

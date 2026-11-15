@@ -441,7 +441,10 @@ fn parent_and_child() -> CommandRegistry {
 async fn a_leaf_under_a_registered_group_resolves_to_its_own_registration() {
     let registry = parent_and_child();
     let child = registry
-        .resolve(&matches(&registry, &["parentprobe", "child", "--limit", "3"]))
+        .resolve(&matches(
+            &registry,
+            &["parentprobe", "child", "--limit", "3"],
+        ))
         .expect("resolve")
         .expect("parentprobe child is registered");
     let desc = child.descriptor();
@@ -614,7 +617,10 @@ fn a_grant_the_kernel_does_not_list_for_the_path_is_refused_at_startup() {
     );
     assert_eq!(
         refused_grant(CliCommandRegistration::leaf::<ChildHostLeafArgs>()),
-        ("infra services childhost".to_owned(), KernelGrant::ChildHost)
+        (
+            "infra services childhost".to_owned(),
+            KernelGrant::ChildHost
+        )
     );
 }
 
@@ -727,7 +733,10 @@ fn a_foreign_type_at_analytics_declaring_its_grants_is_refused_at_startup() {
     let (path, _, owner) =
         refused_reserved(CliCommandRegistration::of::<ForeignAnalyticsExportCommands>());
     assert_eq!(path, "analytics");
-    assert_eq!(owner, "systemprompt_analytics_entry::cli::AnalyticsCommands");
+    assert_eq!(
+        owner,
+        "systemprompt_analytics_entry::cli::AnalyticsCommands"
+    );
 }
 
 #[test]
@@ -735,7 +744,10 @@ fn a_foreign_type_at_analytics_declaring_nothing_is_refused_at_startup() {
     let (path, _, owner) =
         refused_reserved(CliCommandRegistration::of::<ForeignAnalyticsCommands>());
     assert_eq!(path, "analytics");
-    assert_eq!(owner, "systemprompt_analytics_entry::cli::AnalyticsCommands");
+    assert_eq!(
+        owner,
+        "systemprompt_analytics_entry::cli::AnalyticsCommands"
+    );
 }
 
 #[test]

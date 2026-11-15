@@ -5,7 +5,8 @@
 //! discovers pass `admit_core_owners` together, and a foreign type taking a
 //! linked owner's id is still refused (the registry refuses the duplicate id
 //! first in a real boot; the owner check refuses it on its own). The
-//! unlinked case is covered by `unit/entry/api/src/middleware/core_declaration_owners.rs`.
+//! unlinked case is covered by
+//! `unit/entry/api/src/middleware/core_declaration_owners.rs`.
 
 use systemprompt_agent_runs_entry::http::AgentRunsApiExtension;
 use systemprompt_analytics_entry::extension::AnalyticsHttpExtension;

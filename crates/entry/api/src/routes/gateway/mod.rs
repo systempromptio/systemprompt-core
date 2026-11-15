@@ -185,7 +185,12 @@ pub enum GatewayBootError {
 }
 
 pub fn gateway_engines(ctx: &AppContext) -> Result<GatewayEngines, GatewayBootError> {
-    admit_core_owners(ctx.extension_registry().extensions().iter().map(|ext| &**ext))?;
+    admit_core_owners(
+        ctx.extension_registry()
+            .extensions()
+            .iter()
+            .map(|ext| &**ext),
+    )?;
     Ok(build_gateway_engines(ctx)?)
 }
 

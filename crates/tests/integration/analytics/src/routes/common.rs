@@ -43,8 +43,9 @@ pub fn analytics_router_with_routing(
     ctx: &AppContext,
     routing: Option<Arc<dyn ContentRouting>>,
 ) -> Router {
-    analytics::router(state(ctx, routing))
-        .layer(axum::Extension(Arc::clone(&ctx.event_broadcasters().analytics)))
+    analytics::router(state(ctx, routing)).layer(axum::Extension(Arc::clone(
+        &ctx.event_broadcasters().analytics,
+    )))
 }
 
 pub fn engagement_router(ctx: &AppContext) -> Router {
