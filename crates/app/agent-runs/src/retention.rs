@@ -90,5 +90,3 @@ impl Job for AgentRunDirsCleanupJob {
             .with_duration(start.elapsed().as_millis() as u64))
     }
 }
-
-systemprompt_provider_contracts::submit_job!("agent_runs", &AgentRunDirsCleanupJob);
