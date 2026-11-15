@@ -2,23 +2,20 @@
 //! no context middleware and no gate, so a request carrying no
 //! `RequestContext` reaches the handler, while the rate limit it declares is
 //! still applied; it pairs only with the handler-resolved context, the
-//! handler-resolved context pairs only with it, an extension may declare
-//! neither unless the core allowance table lists it, and a core body limit
-//! above the server default must be a listed allowance named for that group's
-//! base path.
+//! handler-resolved context pairs only with it, and a body limit above the
+//! server default mounts only at the base of a privileged shape that lists
+//! the agent body limit.
 
 use std::net::SocketAddr;
 
-use axum::Router;
 use axum::body::Body;
 use axum::extract::{ConnectInfo, Request};
 use axum::http::StatusCode;
-use systemprompt_api::services::middleware::{
-    Allowance, CoreDeclaration, DEFAULT_BODY_LIMIT_BYTES, MountError, admit_extension, protect,
-};
+use systemprompt_api::services::middleware::{DEFAULT_BODY_LIMIT_BYTES, MountError, protect};
+use systemprompt_extension::reserved::PRIVILEGED_SHAPES;
+use systemprompt_extension::router::{Allowance, BaseRef};
 use systemprompt_extension::{
-    AuthzPolicy, ContextKind, ExtensionRouter, HandlerVerifier, RateBudget, RateLimit,
-    RouteProtection,
+    AuthzPolicy, ContextKind, HandlerVerifier, RateBudget, RateLimit, RouteProtection,
 };
 use systemprompt_manifest::profile::RateLimitsConfig;
 use systemprompt_models::auth::UserType;
@@ -140,30 +137,6 @@ async fn handler_verification_and_the_handler_resolved_context_pair_only_with_ea
     }
 }
 
-#[test]
-fn an_extension_may_not_declare_handler_verification() {
-    let declarations = [
-        ExtensionRouter::new(
-            Router::new(),
-            BASE,
-            AuthzPolicy::handler_verified(HandlerVerifier::SlackSignature),
-            ContextKind::HandlerResolved,
-        ),
-        ExtensionRouter::new(
-            Router::new(),
-            BASE,
-            AuthzPolicy::public(),
-            ContextKind::HandlerResolved,
-        ),
-    ];
-    for declared in declarations {
-        assert!(matches!(
-            admit_extension("covext", &declared),
-            Err(MountError::ExtensionHandlerVerified { base_path: BASE })
-        ));
-    }
-}
-
 #[tokio::test]
 async fn a_core_body_limit_above_the_default_must_be_exempted_for_its_own_group() {
     let unlisted = RouteProtection::new(AuthzPolicy::authenticated(), ContextKind::User)
@@ -180,20 +153,19 @@ async fn a_core_body_limit_above_the_default_must_be_exempted_for_its_own_group(
             if declared == DEFAULT_BODY_LIMIT_BYTES + 1
     ));
 
-    for exemption in CoreDeclaration::ALL {
-        let (Allowance::BodyLimit, Some(bytes)) = (exemption.allowance(), exemption.body_limit())
-        else {
+    for exemption in PRIVILEGED_SHAPES {
+        let (Allowance::BodyLimit, BaseRef::Path(base)) = (exemption.allowance, exemption.base) else {
             continue;
         };
-        let listed = RouteProtection::new(exemption.policy(), exemption.context())
-            .with_rate_limit(exemption.rate_limit())
-            .with_body_limit(bytes);
+        let listed = RouteProtection::new(exemption.shape.policy, exemption.shape.context)
+            .with_rate_limit(exemption.shape.limits.rate)
+            .with_body_limit(systemprompt_models::net::AGENT_REQUEST_BODY_LIMIT_BYTES);
         assert!(
             protect(
                 ok_router(),
                 &listed,
                 &layers(unlimited(), UserType::User).await,
-                exemption.base_path(),
+                base.path(),
             )
             .is_ok(),
             "{exemption:?} must mount at its own base path"
@@ -211,7 +183,7 @@ async fn a_core_body_limit_above_the_default_must_be_exempted_for_its_own_group(
                     ..
                 })
             ),
-            "{exemption:?}'s limit must not mount under another group"
+            "{exemption:?}'s limit must not mount under another base path"
         );
     }
 }
