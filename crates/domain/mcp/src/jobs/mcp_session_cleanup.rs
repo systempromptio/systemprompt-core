@@ -15,7 +15,7 @@ use crate::repository::{McpProxySessionRepository, McpSessionRepository};
 const DEFAULT_RETENTION_DAYS: i32 = 7;
 
 #[derive(Debug, Clone, Copy)]
-struct McpSessionCleanupJob;
+pub struct McpSessionCleanupJob;
 
 #[async_trait]
 impl Job for McpSessionCleanupJob {
@@ -73,5 +73,3 @@ impl Job for McpSessionCleanupJob {
             .with_duration(duration_ms))
     }
 }
-
-systemprompt_provider_contracts::submit_job!("mcp", &McpSessionCleanupJob);

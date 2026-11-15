@@ -11,4 +11,10 @@ mod mcp_session_cleanup;
 mod retention;
 mod tool_row_facts_rollup;
 
+pub use mcp_session_cleanup::McpSessionCleanupJob;
 pub use tool_row_facts_rollup::ToolRowFactsRollupJob;
+
+pub(crate) fn contribute(c: &mut systemprompt_extension::Contributions<'_>) {
+    c.job(McpSessionCleanupJob).job(ToolRowFactsRollupJob);
+    retention::contribute(c);
+}
