@@ -31,9 +31,11 @@ pub mod documents;
 mod error;
 pub mod host_kernel;
 pub mod issues;
+mod kernel;
 pub mod managed;
 #[cfg(feature = "notifications")]
 pub mod notifications;
+mod resolved_impl;
 pub mod schema_currency;
 pub mod services_reconcile;
 mod startup_validation;
@@ -50,6 +52,7 @@ pub use builder::{AppContextBuilder, discover_vertex_models, owner_reassignments
 pub use context::{AppContext, ConfigPlane, DataPlane, Plugins, ShutdownRequest, Subsystems};
 pub use database_context::DatabaseContext;
 pub use error::{RuntimeError, RuntimeResult};
+pub use kernel::{Kernel, KernelError};
 pub use host_kernel::{HostBootError, HostKernel, HostParts, PROFILE_ENV};
 pub use schema_currency::{SchemaState, assert_schema_current};
 pub use startup_validation::{
