@@ -31,16 +31,16 @@ const ISSUER: &str = "https://api.botframework.com";
 const CONVERSATION_ID: &str = "conv-test-1";
 
 pub(crate) fn router(ctx: &std::sync::Arc<systemprompt_runtime::AppContext>) -> axum::Router {
-    systemprompt_api::services::messaging::bind_dispatcher(ctx).expect("dispatcher slot seeded");
-    systemprompt_teams_entry::http::router(
-        systemprompt_teams_entry::http::TeamsState::with_service_url_client(
-            &**ctx,
+    super::common::mount_set(
+        ctx,
+        &systemprompt_teams_entry::http::routes(),
+        systemprompt_teams_entry::http::TeamsClients::with_service_url_client(
             systemprompt_client::GuardedClient::configured(
                 &systemprompt_client::GuardedClientConfig::for_configured(),
             )
             .expect("loopback-permitting reply client"),
         )
-        .expect("teams router state builds"),
+        .expect("teams clients build"),
     )
 }
 

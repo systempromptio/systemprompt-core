@@ -1,5 +1,5 @@
-//! Router state for the Teams surface, built once from the extension
-//! context: the live services view, the platform secret lookup (built-in and
+//! Router state for the Teams surface, resolved from the kernel state: the
+//! live services view, the platform secret lookup (built-in and
 //! custom names), the background-task owner, the messaging dispatcher slot, one
 //! outbound HTTP client with connect and request timeouts for
 //! operator-configured endpoints, the untrusted-guarded client replies to the
@@ -13,7 +13,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex, PoisonError};
 
 use systemprompt_client::{GuardedClient, GuardedClientConfig};
-use systemprompt_extension::{ExtensionContext, LateBound};
+use systemprompt_extension::{FromState, LateBound, Resolved};
 use systemprompt_identifiers::TeamsAppId;
 use systemprompt_manifest::services::{ServicesView, TeamsAppConfig};
 use systemprompt_models::net::{HTTP_CONNECT_TIMEOUT, HTTP_DEFAULT_TIMEOUT};
@@ -24,18 +24,47 @@ use systemprompt_traits::{
     MessagingInbound, SecretStore,
 };
 
-#[derive(Debug, thiserror::Error)]
-pub enum TeamsStateError {
-    #[error("could not build the teams HTTP clients")]
-    Client(#[from] reqwest::Error),
-    #[error("the messaging dispatcher slot is missing from the extension state")]
-    Dispatcher(#[from] MissingDependency),
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct VerifierKey {
     app_id: TeamsAppId,
     openid_config_url: String,
+}
+
+type Verifiers = Arc<Mutex<HashMap<VerifierKey, Arc<ActivityTokenVerifier>>>>;
+
+/// The Teams member's outbound HTTP clients and per-app token verifiers,
+/// built once by its provide fn and shared by every resolution.
+#[derive(Clone)]
+pub struct TeamsClients {
+    http: reqwest::Client,
+    service_url: GuardedClient,
+    verifiers: Verifiers,
+}
+
+impl std::fmt::Debug for TeamsClients {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TeamsClients").finish_non_exhaustive()
+    }
+}
+
+impl TeamsClients {
+    pub fn build() -> Result<Self, reqwest::Error> {
+        Self::with_service_url_client(GuardedClient::untrusted(
+            &GuardedClientConfig::for_untrusted(),
+        )?)
+    }
+
+    pub fn with_service_url_client(service_url: GuardedClient) -> Result<Self, reqwest::Error> {
+        let http = reqwest::Client::builder()
+            .connect_timeout(HTTP_CONNECT_TIMEOUT)
+            .timeout(HTTP_DEFAULT_TIMEOUT)
+            .build()?;
+        Ok(Self {
+            http,
+            service_url,
+            verifiers: Arc::new(Mutex::new(HashMap::new())),
+        })
+    }
 }
 
 #[derive(Clone)]
@@ -46,7 +75,7 @@ pub struct TeamsState {
     dispatcher: LateBound<dyn MessagingDispatcher>,
     http: reqwest::Client,
     service_url_client: GuardedClient,
-    verifiers: Arc<Mutex<HashMap<VerifierKey, Arc<ActivityTokenVerifier>>>>,
+    verifiers: Verifiers,
 }
 
 impl std::fmt::Debug for TeamsState {
@@ -55,33 +84,22 @@ impl std::fmt::Debug for TeamsState {
     }
 }
 
-impl TeamsState {
-    pub fn from_context(ctx: &dyn ExtensionContext) -> Result<Self, TeamsStateError> {
-        let service_url_client = GuardedClient::untrusted(&GuardedClientConfig::for_untrusted())?;
-        Self::with_service_url_client(ctx, service_url_client)
-    }
-
-    pub fn with_service_url_client(
-        ctx: &dyn ExtensionContext,
-        service_url_client: GuardedClient,
-    ) -> Result<Self, TeamsStateError> {
-        let http = reqwest::Client::builder()
-            .connect_timeout(HTTP_CONNECT_TIMEOUT)
-            .timeout(HTTP_DEFAULT_TIMEOUT)
-            .build()?;
-        let state = ctx.extension_state();
-        let dispatcher = state.get::<LateBound<dyn MessagingDispatcher>>()?.clone();
+impl FromState for TeamsState {
+    fn from_state(r: &Resolved<'_>) -> Result<Self, MissingDependency> {
+        let clients = r.get::<TeamsClients>()?;
         Ok(Self {
-            services: ctx.services(),
-            secrets: ctx.secrets(),
-            background: ctx.background_tasks(),
-            dispatcher,
-            http,
-            service_url_client,
-            verifiers: Arc::new(Mutex::new(HashMap::new())),
+            services: r.get()?,
+            secrets: r.get()?,
+            background: r.tasks().clone(),
+            dispatcher: r.get()?,
+            http: clients.http,
+            service_url_client: clients.service_url,
+            verifiers: clients.verifiers,
         })
     }
+}
 
+impl TeamsState {
     pub(super) const fn services(&self) -> &ServicesView {
         &self.services
     }

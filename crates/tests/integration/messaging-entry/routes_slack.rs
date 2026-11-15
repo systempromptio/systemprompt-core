@@ -57,18 +57,7 @@ pub(crate) fn signed_post(path: &str, body: &str, secret: &str) -> Request<Body>
 }
 
 pub(crate) fn router(ctx: &std::sync::Arc<systemprompt_runtime::AppContext>) -> axum::Router {
-    systemprompt_api::services::messaging::bind_dispatcher(ctx).expect("dispatcher slot seeded");
-    systemprompt_slack_entry::http::router(
-        systemprompt_slack_entry::http::SlackState::with_clients(
-            &**ctx,
-            reqwest::Client::new(),
-            systemprompt_client::GuardedClient::configured(
-                &systemprompt_client::GuardedClientConfig::for_configured(),
-            )
-            .expect("loopback-permitting reply client"),
-        )
-        .expect("slack router state builds"),
-    )
+    super::common::slack_test_router(ctx)
 }
 
 #[tokio::test]
@@ -188,9 +177,10 @@ async fn signed_slash_command_with_a_loopback_response_url_sends_nothing() -> an
         urlencode(&response_url)
     );
     let req = signed_post("/commands", &body, TEST_SLACK_SIGNING_SECRET);
-    systemprompt_api::services::messaging::bind_dispatcher(&ctx)?;
-    let production = systemprompt_slack_entry::http::router(
-        systemprompt_slack_entry::http::SlackState::from_context(&*ctx)?,
+    let production = super::common::mount_set(
+        &ctx,
+        &systemprompt_slack_entry::http::routes(),
+        systemprompt_slack_entry::http::SlackClients::build()?,
     );
     let resp = production.oneshot(req).await?;
     assert_eq!(resp.status(), StatusCode::OK, "the route acks immediately");
