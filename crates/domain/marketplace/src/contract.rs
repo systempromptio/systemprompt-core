@@ -145,7 +145,6 @@ impl Slot for MarketplaceSlot {
     }
 }
 
-/// Every contributed filter applied in turn; the first error refuses.
 #[derive(Debug)]
 struct AllFilters {
     filters: Vec<Arc<dyn MarketplaceFilter>>,
