@@ -10,13 +10,12 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use systemprompt_database::DbPool;
-use systemprompt_traits::{
-    JobContext, ProviderError, ProviderResult, RetentionPurge, register_retention_purge,
-};
+use systemprompt_traits::{JobContext, ProviderError, ProviderResult, RetentionPurge};
 
 use crate::repository::AnalyticsRetention;
 
-struct EngagementEventsPurge;
+#[derive(Debug, Clone, Copy)]
+pub struct EngagementEventsPurge;
 
 #[async_trait]
 impl RetentionPurge for EngagementEventsPurge {
@@ -38,7 +37,8 @@ impl RetentionPurge for EngagementEventsPurge {
     }
 }
 
-struct FingerprintReputationPurge;
+#[derive(Debug, Clone, Copy)]
+pub struct FingerprintReputationPurge;
 
 #[async_trait]
 impl RetentionPurge for FingerprintReputationPurge {
@@ -59,6 +59,3 @@ impl RetentionPurge for FingerprintReputationPurge {
             .map_err(|e| ProviderError::Internal(Box::new(e)))
     }
 }
-
-register_retention_purge!("analytics", &EngagementEventsPurge);
-register_retention_purge!("analytics", &FingerprintReputationPurge);

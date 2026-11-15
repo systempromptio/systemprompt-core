@@ -10,9 +10,9 @@
 use std::time::Duration;
 
 use async_trait::async_trait;
+use systemprompt_database::projection::drain_projection;
+use systemprompt_extension::ProjectionDrain;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
-
-use systemprompt_database::projection::{ProjectionDrain, drain_projection};
 
 const FACTS: ProjectionDrain = ProjectionDrain {
     projection: "analytics_event_link_facts",
@@ -28,10 +28,10 @@ const ROLLUP: ProjectionDrain = ProjectionDrain {
 };
 
 #[derive(Debug, Clone, Copy)]
-pub struct AnalyticsEventLinkFactsRollupJob;
+pub struct LinkFactsRollupJob;
 
 #[async_trait]
-impl Job for AnalyticsEventLinkFactsRollupJob {
+impl Job for LinkFactsRollupJob {
     fn name(&self) -> &'static str {
         "analytics_event_link_facts_rollup"
     }
@@ -60,5 +60,3 @@ impl Job for AnalyticsEventLinkFactsRollupJob {
             .with_duration(facts.duration_ms.saturating_add(rollup.duration_ms)))
     }
 }
-
-systemprompt_provider_contracts::submit_job!("scheduler", &AnalyticsEventLinkFactsRollupJob);

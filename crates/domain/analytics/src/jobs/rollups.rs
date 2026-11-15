@@ -7,8 +7,8 @@
 
 use std::time::Duration;
 
-use systemprompt_database::projection::ProjectionDrain;
 use systemprompt_database::submit_projection_drain;
+use systemprompt_extension::ProjectionDrain;
 
 const BATCH: i32 = 24;
 const BUDGET: Duration = Duration::from_secs(15);

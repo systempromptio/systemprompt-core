@@ -6496,7 +6496,6 @@ dependencies = [
  "async-trait",
  "chrono",
  "http",
- "inventory",
  "maxminddb",
  "serde",
  "serde_json",

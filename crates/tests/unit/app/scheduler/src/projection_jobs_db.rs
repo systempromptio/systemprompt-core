@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
+use systemprompt_analytics::jobs::LinkFactsRollupJob;
 use systemprompt_identifiers::{Actor, UserId};
 use systemprompt_scheduler::jobs::{
-    AnalyticsEventLinkFactsRollupJob, BackfillRollupsJob, InventoryRefreshJob,
+    BackfillRollupsJob, InventoryRefreshJob,
     InventoryRefreshMemo, LogSummaryRollupJob, SessionBotTypeRollupJob, TraceFactsRollupJob,
     VertexDiscoveryJob,
 };
@@ -49,7 +50,7 @@ async fn trace_facts_rollup_drains() {
 
 #[tokio::test]
 async fn analytics_event_link_facts_rollup_drains_both_projections() {
-    assert_drains(&AnalyticsEventLinkFactsRollupJob).await;
+    assert_drains(&LinkFactsRollupJob).await;
 }
 
 #[tokio::test]

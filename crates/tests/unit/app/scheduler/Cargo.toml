@@ -12,6 +12,7 @@ workspace = true
 
 [dependencies]
 systemprompt-scheduler = { workspace = true, features = ["otel"] }
+systemprompt-analytics = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-governance = { workspace = true }
 systemprompt-gateway = { workspace = true }
