@@ -1,7 +1,8 @@
 //! The rows of the closed core declaration table, and the analytics and
 //! content rows: each is admitted only in its own shape under its own id,
-//! one owner may list two shapes at one base path, and a row whose owner is
-//! not linked changes nothing for any other declarer.
+//! one owner may list two shapes at one base path, engagement is admitted at
+//! `/track/engagement` and nowhere else, and a row whose owner is not linked
+//! changes nothing for any other declarer.
 
 use axum::Router;
 use systemprompt_api::services::middleware::{
@@ -87,9 +88,9 @@ fn the_table_lists_exactly_this_waves_core_declarations() {
             ),
             (
                 ext("analytics-http"),
-                WEB_ROOT_BASE_PATH,
+                ApiPaths::TRACK_ENGAGEMENT,
                 misc,
-                Allowance::Plain,
+                Allowance::WebPath,
             ),
             (
                 ext("content-http"),
@@ -205,7 +206,7 @@ fn a_capability_owner_declaring_an_unlisted_router_is_refused() {
 
     let unlimited = ExtensionRouter::new(
         Router::new(),
-        WEB_ROOT_BASE_PATH,
+        ApiPaths::TRACK_ENGAGEMENT,
         AuthzPolicy::public(),
         ContextKind::Public,
     )
@@ -217,6 +218,25 @@ fn a_capability_owner_declaring_an_unlisted_router_is_refused() {
             ..
         })
     ));
+
+    let at_root = ExtensionRouter::new(
+        Router::new(),
+        WEB_ROOT_BASE_PATH,
+        AuthzPolicy::public(),
+        ContextKind::Public,
+    )
+    .in_group(RouteGroup::ContentAndMisc)
+    .with_rate_limit(CoreDeclaration::Engagement.rate_limit());
+    assert!(
+        matches!(
+            admit_extension("analytics-http", &at_root),
+            Err(MountError::CoreDeclarationMismatch {
+                field: CoreShapeField::BasePath,
+                ..
+            })
+        ),
+        "engagement is no longer admitted at the web root"
+    );
 }
 
 #[test]

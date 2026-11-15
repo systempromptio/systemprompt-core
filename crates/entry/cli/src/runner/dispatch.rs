@@ -16,7 +16,7 @@ use super::args;
 use crate::commands::{admin, core, infrastructure, plugins, web};
 use crate::context::CommandContext;
 use crate::descriptor::{CommandDescriptor, DbUrlRouting, DescribeCommand};
-use crate::kernel::{CommandRegistry, RegisteredCommand};
+use crate::kernel::{CommandRegistry, RegisteredCommand, ResolveError};
 
 pub(super) struct Invocation {
     pub(super) cli: args::Cli,
@@ -29,7 +29,7 @@ impl Invocation {
         registry: &CommandRegistry,
         root: Command,
         matches: &ArgMatches,
-    ) -> Result<Self, clap::Error> {
+    ) -> Result<Self, ResolveError> {
         if let Some(registered) = registry.resolve(matches)? {
             return Ok(Self {
                 cli: args::Cli::from_globals(matches)?,

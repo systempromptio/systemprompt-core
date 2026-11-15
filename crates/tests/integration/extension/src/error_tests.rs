@@ -75,18 +75,6 @@ fn test_loader_error_router_build_failed_display() {
 }
 
 #[test]
-fn test_loader_error_invalid_base_path_display() {
-    let err = LoaderError::InvalidBasePath {
-        extension: ExtensionId::new("my-ext"),
-        path: "/invalid/path".to_string(),
-    };
-    let msg = err.to_string();
-    assert!(msg.contains("my-ext"));
-    assert!(msg.contains("/invalid/path"));
-    assert!(msg.contains("must be / or start with /api/"));
-}
-
-#[test]
 fn test_loader_error_circular_dependency_display() {
     let err = LoaderError::DependencyCycle {
         chain: "a -> b -> c -> a".to_string(),
@@ -158,10 +146,6 @@ fn test_loader_error_variant_matching() {
         LoaderError::RouterBuildFailed {
             extension: ExtensionId::new("g"),
             source: systemprompt_extension::ExtensionStateError::NotReady,
-        },
-        LoaderError::InvalidBasePath {
-            extension: ExtensionId::new("h"),
-            path: "/bad".to_string(),
         },
         LoaderError::DependencyCycle {
             chain: "x -> y -> x".to_string(),
@@ -272,10 +256,6 @@ fn test_loader_error_variant_matching() {
             },
             LoaderError::ConfigValidationFailed { extension, .. } => {
                 assert!(!extension.as_str().is_empty());
-            },
-            LoaderError::InvalidBasePath { extension, path } => {
-                assert!(!extension.as_str().is_empty());
-                assert!(!path.is_empty());
             },
             LoaderError::DependencyCycle { chain } => {
                 assert!(!chain.is_empty());

@@ -77,7 +77,20 @@ fn irreversible_commands_are_kept_out_of_fleet_run() {
 }
 
 #[test]
-fn session_commands_are_refused_as_local_operator_commands() {
-    let err = ensure_read_only(&args(&["admin", "session", "list"])).unwrap_err();
+fn session_commands_are_refused_as_local_commands_not_as_cloud_commands() {
+    for command in [&["admin", "session", "list"][..], &["admin", "session", "show"]] {
+        let err = ensure_read_only(&args(command)).unwrap_err();
+        let message = err.to_string();
+        assert!(
+            message.contains("not a read-only command"),
+            "{command:?}: {err:#}"
+        );
+        assert!(!message.contains("cloud commands"), "{command:?}: {err:#}");
+    }
+}
+
+#[test]
+fn cloud_commands_behind_global_flags_are_refused_as_cloud_commands() {
+    let err = ensure_read_only(&args(&["--json", "cloud", "status"])).unwrap_err();
     assert!(err.to_string().contains("run on this machine"), "{err:#}");
 }

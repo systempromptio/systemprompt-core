@@ -5,14 +5,16 @@
 //!   credentials and a user token at the admin gate, and records an admin's
 //!   event;
 //! - `/track/engagement` is public and rate-limited per client address under
-//!   the `content` budget;
+//!   the `content` budget, and nested at its prefix: it answers exactly the
+//!   paths a router nested the way the server mounted it at the base answers
+//!   (trailing slashes included), and nothing outside the prefix;
 //! - the profile's disabled list decides mounting:
 //!
 //! | disables | analytics | engagement | analytics jobs and recording |
 //! |---|---|---|---|
 //! | `analytics-http` | 404 | 404 | unaffected |
 //! | `content` | boot refused | | |
-//! | `analytics` | boot refused (required extension) | | |
+//! | `analytics` (with or without `analytics-http`) | boot refused (required extension) | | |
 
 use std::net::SocketAddr;
 
@@ -336,5 +338,70 @@ async fn disabling_analytics_refuses_boot_as_a_required_extension() -> anyhow::R
         rendered.contains("Extension 'analytics' is required and cannot be disabled"),
         "{rendered}"
     );
+    Ok(())
+}
+
+#[tokio::test]
+async fn disabling_only_analytics_refuses_boot_as_a_required_extension() -> anyhow::Result<()> {
+    let refused = full_router(
+        RateLimitsConfig::disabled(),
+        &[ExtensionId::new("analytics")],
+    )
+    .await;
+    let error = refused.expect_err("analytics-http enabled without analytics refuses boot");
+    let rendered = format!("{error:#}");
+    assert!(
+        rendered.contains("Extension 'analytics' is required and cannot be disabled"),
+        "{rendered}"
+    );
+    Ok(())
+}
+
+fn reached_handler(status: StatusCode) -> bool {
+    ![StatusCode::NOT_FOUND, StatusCode::METHOD_NOT_ALLOWED].contains(&status)
+}
+
+async fn reference_nest_status(uri: &str) -> anyhow::Result<StatusCode> {
+    let reference = Router::new().nest(
+        ENGAGEMENT,
+        Router::new()
+            .route("/", axum::routing::post(|| async { StatusCode::OK }))
+            .route("/batch", axum::routing::post(|| async { StatusCode::OK })),
+    );
+    Ok(reference.oneshot(anonymous(Method::POST, uri)).await?.status())
+}
+
+#[tokio::test]
+async fn engagement_answers_exactly_where_the_base_nesting_answered() -> anyhow::Result<()> {
+    let app = full_router(RateLimitsConfig::disabled(), &[]).await?;
+    for (index, uri) in [
+        ENGAGEMENT,
+        ENGAGEMENT_BATCH,
+        "/track/engagement/",
+        "/track/engagement/batch/",
+        "/track/engagement/elsewhere",
+        "/track/elsewhere",
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let reference = reference_nest_status(uri).await?;
+        let served = app
+            .clone()
+            .oneshot(request(
+                Method::POST,
+                uri,
+                engagement_event(),
+                None,
+                &format!("127.0.0.1:{}", 40100 + index),
+            ))
+            .await?
+            .status();
+        assert_eq!(
+            reached_handler(served),
+            reference == StatusCode::OK,
+            "{uri}: mounted {served}, base nesting {reference}"
+        );
+    }
     Ok(())
 }

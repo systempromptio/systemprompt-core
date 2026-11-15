@@ -12,8 +12,15 @@
 //!
 //! Each declaration matches its row of the API's closed core table
 //! (`ContentPublic`, `ContentAuthenticated`, `ContentRedirect`), keyed on this
-//! extension's id, `content-http`. The handlers read the content repositories
-//! the `content` extension provides; this extension `requires` them:
+//! extension's id, `content-http`, and claims it alone: the table refuses
+//! boot when a row is unclaimed or claimed twice, so the signed-in router
+//! cannot be declared with the public shape. The public and signed-in routes
+//! interleave under `/links`, so the two routers share their base path and the
+//! table pins routes instead: the signed-in router answers only
+//! `POST /links/generate`, the public router answers 404 there, and the
+//! redirect router answers only `GET /r/…`. The handlers read the content
+//! repositories the `content` extension provides; this extension `requires`
+//! them:
 //!
 //! | profile disables | public | authenticated | redirect |
 //! |---|---|---|---|

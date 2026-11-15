@@ -1,12 +1,16 @@
 //! The values of each [`CoreDeclaration`] row: owner, base path, route group,
-//! allowance and the protection shape it pins.
+//! allowance, the protection shape it pins and the routes it pins.
 //!
 //! The analytics and content rows name the routes the `analytics-http` and
 //! `content-http` extensions declare: the analytics ingestion and stream
-//! routes, the public and authenticated content routes (two shapes at one base
-//! path), and two routers merged at the web root: engagement tracking (its
-//! routes carry the full `/track/engagement` paths, since an extension base
-//! path is `/` or under `/api/`) and the short-link redirect.
+//! routes; engagement tracking, nested at `/track/engagement` under the
+//! `WebPath` allowance exactly as the server mounted it; the public and
+//! signed-in content routes, two shapes at `/api/v1/content` whose routes
+//! interleave under `/links` (`/links`, `/links/journey` and
+//! `/links/{link_id}/…` are public, `/links/generate` is signed-in), so the
+//! signed-in row pins `POST /links/generate` and the public row's router
+//! answers 404 there; and the short-link redirect, merged at the web root as
+//! the server mounted it and pinned to `GET /r/…`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,6 +22,7 @@ use systemprompt_extension::{
 use systemprompt_models::modules::ApiPaths;
 
 use super::core_declaration::{Allowance, CoreDeclaration, CoreDeclarer};
+use super::core_pins::{PinnedMethod, RoutePin};
 
 const CONTENT_RATE: RateLimit = RateLimit::new("content", RateBudget::Content);
 
@@ -51,7 +56,8 @@ impl CoreDeclaration {
             Self::BridgeNotifications => ApiPaths::BRIDGE_NOTIFICATIONS,
             Self::Analytics => ApiPaths::ANALYTICS_BASE,
             Self::ContentPublic | Self::ContentAuthenticated => ApiPaths::CONTENT_BASE,
-            Self::Engagement | Self::ContentRedirect => WEB_ROOT_BASE_PATH,
+            Self::Engagement => ApiPaths::TRACK_ENGAGEMENT,
+            Self::ContentRedirect => WEB_ROOT_BASE_PATH,
         }
     }
 
@@ -84,9 +90,8 @@ impl CoreDeclaration {
             Self::BridgeNotifications => {
                 Allowance::HandlerVerified(HandlerVerifier::GatewayCredential)
             },
-            Self::AgentRuns | Self::Notifications | Self::Engagement | Self::ContentRedirect => {
-                Allowance::Plain
-            },
+            Self::Engagement => Allowance::WebPath,
+            Self::AgentRuns | Self::Notifications | Self::ContentRedirect => Allowance::Plain,
         }
     }
 
@@ -158,6 +163,24 @@ impl CoreDeclaration {
             | Self::ContentPublic
             | Self::ContentAuthenticated
             | Self::ContentRedirect => None,
+        }
+    }
+
+    #[must_use]
+    pub const fn route_pins(self) -> &'static [RoutePin] {
+        match self {
+            Self::ContentAuthenticated => &[RoutePin::new(PinnedMethod::Post, "/links/generate")],
+            Self::ContentRedirect => &[RoutePin::new(PinnedMethod::Get, "/r")],
+            Self::AgentProxy
+            | Self::AgentRuns
+            | Self::Slack
+            | Self::Teams
+            | Self::Notifications
+            | Self::NotificationsAdmin
+            | Self::BridgeNotifications
+            | Self::Analytics
+            | Self::Engagement
+            | Self::ContentPublic => &[],
         }
     }
 }

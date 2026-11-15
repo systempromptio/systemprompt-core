@@ -1,8 +1,10 @@
 //! The protection shape a core declaration row pins, and the one field a
 //! declaration from that row's owner differs in. An owner may list several
 //! rows at one base path and group (one per shape); a declaration matching
-//! any of them is admitted, and one matching none is reported against the
-//! first.
+//! none of them is reported against the first. Matching one is necessary,
+//! not sufficient: `admit_extensions` also requires each row to be claimed by
+//! exactly one declaration, so a router cannot drift onto a sibling row's
+//! shape while the sibling's own declaration still claims it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

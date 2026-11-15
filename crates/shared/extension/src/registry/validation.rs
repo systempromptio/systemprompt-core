@@ -1,21 +1,19 @@
-//! Registry validation for extension dependencies and extension base paths.
+//! Registry validation for extension dependencies, and the base-path
+//! constants the server's mount judges extension routers by.
 //!
 //! An extension router is either nested under `/api/` or merged at the web
-//! root `/` (the site extension that serves pages); any other base would
-//! shadow core routes. Paths are validated over the routers the enabled
-//! extensions actually declare, the same set the server mounts.
-//!
-//! [`RESERVED_PATHS`] names the prefixes core route groups own. The server's
-//! mount refuses an extension declaration under one of them unless its
-//! closed table of core allowances grants that exact declaration the prefix,
-//! so the refusal and its one exception live in one place.
+//! root ([`WEB_ROOT_BASE_PATH`], the site extension that serves pages); any
+//! other base would shadow core routes. [`RESERVED_PATHS`] names the prefixes
+//! core route groups own. The server's mount refuses an extension declaration
+//! with any other base path, or under one of these prefixes, unless its
+//! closed table of core declarations grants that exact declaration the path,
+//! so each refusal and its exceptions live in one place.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::{ApiRouter, ExtensionRegistry, dependency_order};
+use super::{ExtensionRegistry, dependency_order};
 use crate::error::LoaderError;
-use systemprompt_identifiers::ExtensionId;
 
 pub const WEB_ROOT_BASE_PATH: &str = "/";
 
@@ -37,19 +35,5 @@ pub const RESERVED_PATHS: &[&str] = &[
 impl ExtensionRegistry {
     pub fn validate_dependencies(&self) -> Result<(), LoaderError> {
         dependency_order(&self.extensions).map(|_| ())
-    }
-
-    pub fn validate_api_paths(routers: &[ApiRouter]) -> Result<(), LoaderError> {
-        for (ext, declared) in routers {
-            let base_path = declared.base_path;
-
-            if base_path != WEB_ROOT_BASE_PATH && !base_path.starts_with("/api/") {
-                return Err(LoaderError::InvalidBasePath {
-                    extension: ExtensionId::new(ext.id()),
-                    path: base_path.to_owned(),
-                });
-            }
-        }
-        Ok(())
     }
 }

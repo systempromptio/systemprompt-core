@@ -1,7 +1,9 @@
 //! `core content popular`: a source's content ranked by distinct human
 //! viewers over a parsed duration window.
 //!
-//! Registered as a leaf under the kernel's `core content` group. It reads the
+//! Registered as a leaf under the `core content` group the content entry
+//! crate registers; the kernel resolves it to this leaf, with this leaf's
+//! descriptor, and lists it after the group's own subcommands. It reads the
 //! ranking and the content rows from the analytics report views, so it names
 //! no content-capability type.
 //!

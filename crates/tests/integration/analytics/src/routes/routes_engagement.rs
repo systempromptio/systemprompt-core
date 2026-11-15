@@ -1,5 +1,5 @@
-//! Engagement router: single and batch engagement endpoints at their full
-//! `/track/engagement` paths.
+//! Engagement router: single and batch engagement endpoints, nested at
+//! `/track/engagement` exactly as the server mounts the declaration.
 
 use axum::Extension;
 use axum::http::StatusCode;

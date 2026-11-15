@@ -111,14 +111,6 @@ pub enum LoaderError {
         source: ExtensionStateError,
     },
 
-    #[error(
-        "Extension '{extension}' has invalid base path '{path}': must be / or start with /api/"
-    )]
-    InvalidBasePath {
-        extension: ExtensionId,
-        path: String,
-    },
-
     #[error("Dependency cycle detected while ordering extensions: {chain}")]
     DependencyCycle { chain: String },
 

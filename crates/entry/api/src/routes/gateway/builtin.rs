@@ -3,7 +3,8 @@
 //!
 //! [`builtin_gateway_prefixes`] is the one list both the surface and the
 //! registration check read: `gateway_mount_parts`
-//! confines the built-in inference and bridge routers to it (a request path
+//! confines the built-in inference and bridge routers to it (with the mount's
+//! `confined` layer) (a request path
 //! outside every prefix answers 404, so a built-in route added without its
 //! prefix fails its own route tests rather than escaping the check), and
 //! `admit_registrations` refuses a registered route group whose path overlaps
@@ -13,16 +14,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
-
-use axum::Router;
-use axum::extract::Request;
-use axum::http::StatusCode;
-use axum::middleware::Next;
-use axum::response::IntoResponse;
 use systemprompt_models::modules::ApiPaths;
-
-use crate::services::middleware::path_under;
 
 #[must_use]
 pub fn builtin_gateway_prefixes() -> Vec<&'static str> {
@@ -65,21 +57,4 @@ pub fn builtin_gateway_prefixes() -> Vec<&'static str> {
         .map(ApiPaths::gateway_relative),
     );
     prefixes
-}
-
-pub fn confined(router: Router, prefixes: Vec<&'static str>) -> Router {
-    let prefixes: Arc<[&'static str]> = prefixes.into();
-    router.layer(axum::middleware::from_fn(
-        move |request: Request, next: Next| {
-            let prefixes = Arc::clone(&prefixes);
-            async move {
-                let path = request.uri().path();
-                if prefixes.iter().any(|prefix| path_under(path, prefix)) {
-                    next.run(request).await
-                } else {
-                    StatusCode::NOT_FOUND.into_response()
-                }
-            }
-        },
-    ))
 }

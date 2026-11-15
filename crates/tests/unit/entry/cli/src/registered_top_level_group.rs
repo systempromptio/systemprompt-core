@@ -1,7 +1,8 @@
 //! A whole top-level command group contributed from outside `systemprompt-cli`
 //! through the public kernel surface only: nested subcommands, its own
-//! descriptor (cloud-operator, local export, read-only routing), its `--help`
-//! slot, and dispatch with the kernel context. The group below names nothing
+//! descriptor per subcommand (bootstrap and read-only routing; it declares
+//! no kernel grant, so its descriptor holds none), its `--help` slot, and
+//! dispatch with the kernel context. The group below names nothing
 //! from `systemprompt_cli` but `systemprompt_cli::kernel` and the
 //! `register_cli_command!` macro.
 
@@ -42,11 +43,10 @@ struct ReportArgs {
 impl DescribeCommand for FleetProbeCommands {
     fn descriptor(&self) -> CommandDescriptor {
         match self {
-            Self::Tenant(_) => CommandDescriptor::PROFILE_ONLY.with_cloud_operator(),
+            Self::Tenant(_) => CommandDescriptor::PROFILE_ONLY,
             Self::Report(_) => CommandDescriptor::FULL
                 .with_read_only()
-                .with_remote_eligible()
-                .with_local_export(),
+                .with_remote_eligible(),
         }
     }
 }
@@ -95,14 +95,14 @@ fn the_group_is_collected_from_its_registration() {
 fn a_nested_subcommand_carries_the_groups_descriptor() {
     let tenant = describe_command_line(&argv(&["fprobe", "tenant", "show", "--id", "t1"]))
         .expect("fprobe tenant show parses");
-    assert!(tenant.cloud_operator());
     assert!(tenant.profile() && !tenant.secrets() && !tenant.database());
-    assert!(!tenant.local_export());
+    assert_eq!(tenant.routing_class(), RoutingClass::LocalOnly);
+    assert!(!tenant.cloud_operator() && !tenant.local_export());
 
     let report = describe_command_line(&argv(&["fprobe", "report"])).expect("parses");
-    assert!(report.local_export());
-    assert!(!report.cloud_operator());
+    assert!(report.database());
     assert_eq!(report.routing_class(), RoutingClass::ReadOnly);
+    assert!(!report.cloud_operator() && !report.local_export());
 }
 
 #[test]
