@@ -18,7 +18,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub mod boot;
 pub mod commands;
 pub mod context;
 pub mod env_overrides;
@@ -26,7 +25,6 @@ pub mod environment;
 mod host;
 pub mod interactive;
 pub mod kernel;
-pub mod paths;
 pub mod presentation;
 pub mod runner;
 pub mod session;

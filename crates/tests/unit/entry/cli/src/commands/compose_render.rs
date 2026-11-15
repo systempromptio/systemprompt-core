@@ -2,8 +2,8 @@
 //! a tenant container: the host port is the only knob, and the container
 //! port is always the default PostgreSQL port.
 
-use systemprompt_cli::shared::docker_compose::{
-    ComposeCredentials, PostgresCompose, postgres_compose,
+use systemprompt_cloud::docker_compose::{
+    ComposeCredentials, PostgresCompose, PostgresCredentials, postgres_compose,
 };
 use systemprompt_models::defaults::DEFAULT_POSTGRES_PORT;
 
@@ -33,11 +33,11 @@ fn the_local_setup_shape_interpolates_credentials_and_names_the_container() {
 fn the_tenant_shape_uses_literal_credentials_and_a_restart_policy() {
     let rendered = postgres_compose(&PostgresCompose {
         host_port: 6543,
-        credentials: ComposeCredentials::Literal {
+        credentials: ComposeCredentials::Literal(PostgresCredentials {
             user: "tenant",
             password: "s3cret",
             database: "tenant_db",
-        },
+        }),
         container_name: None,
         init_scripts: false,
         restart: Some("unless-stopped"),
@@ -70,11 +70,11 @@ fn the_rendered_file_is_valid_yaml_in_both_shapes() {
         },
         PostgresCompose {
             host_port: 15432,
-            credentials: ComposeCredentials::Literal {
+            credentials: ComposeCredentials::Literal(PostgresCredentials {
                 user: "u",
                 password: "p",
                 database: "d",
-            },
+            }),
             container_name: None,
             init_scripts: false,
             restart: Some("always"),

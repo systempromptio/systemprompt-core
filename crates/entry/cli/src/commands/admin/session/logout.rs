@@ -12,7 +12,7 @@ use systemprompt_manifest::profile::{CloudConfig, ManagedProfile};
 use super::types::LogoutOutput;
 use crate::CliConfig;
 use crate::interactive::Prompter;
-use crate::paths::ResolvedPaths;
+use systemprompt_cloud::paths::ResolvedPaths;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]

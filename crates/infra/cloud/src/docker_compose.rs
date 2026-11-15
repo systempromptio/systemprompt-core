@@ -3,28 +3,53 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Context, Result};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
-use systemprompt_loader::subprocess::ForegroundChildren;
+use systemprompt_extension::cli::ChildSupervisor;
 use systemprompt_logging::CliService;
 use systemprompt_models::defaults::DEFAULT_POSTGRES_PORT;
 
-use super::postgres_access::PostgresConfig;
+/// The database credentials a compose file or container command carries.
+#[derive(Debug, Clone, Copy)]
+pub struct PostgresCredentials<'a> {
+    pub user: &'a str,
+    pub password: &'a str,
+    pub database: &'a str,
+}
 
-pub fn is_docker_available(children: &ForegroundChildren) -> bool {
+#[derive(Debug, thiserror::Error)]
+pub enum DockerComposeError {
+    #[error("Failed to create {}", path.display())]
+    CreateDir {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("Failed to write {}", path.display())]
+    Write {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("Failed to run docker compose")]
+    Run(#[source] std::io::Error),
+    #[error("Failed to start PostgreSQL: {stderr}")]
+    Start { stderr: String },
+}
+
+pub fn is_docker_available(children: &dyn ChildSupervisor) -> bool {
     let mut cmd = Command::new("docker");
     cmd.arg("--version");
     children.output(cmd).is_ok()
 }
 
-pub fn is_compose_available(children: &ForegroundChildren) -> bool {
+pub fn is_compose_available(children: &dyn ChildSupervisor) -> bool {
     let mut cmd = Command::new("docker");
     cmd.args(["compose", "version"]);
     children.output(cmd).is_ok_and(|o| o.status.success())
 }
 
-pub fn is_container_running(children: &ForegroundChildren, container_name: &str) -> bool {
+pub fn is_container_running(children: &dyn ChildSupervisor, container_name: &str) -> bool {
     let mut cmd = Command::new("docker");
     cmd.args([
         "ps",
@@ -57,11 +82,7 @@ pub struct PostgresCompose<'a> {
 #[derive(Debug, Clone, Copy)]
 pub enum ComposeCredentials<'a> {
     FromEnvironment,
-    Literal {
-        user: &'a str,
-        password: &'a str,
-        database: &'a str,
-    },
+    Literal(PostgresCredentials<'a>),
 }
 
 #[must_use]
@@ -72,11 +93,11 @@ pub fn postgres_compose(opts: &PostgresCompose<'_>) -> String {
             "${POSTGRES_PASSWORD}".to_owned(),
             "${POSTGRES_DB:-systemprompt}".to_owned(),
         ),
-        ComposeCredentials::Literal {
-            user,
-            password,
-            database,
-        } => (user.to_owned(), password.to_owned(), database.to_owned()),
+        ComposeCredentials::Literal(credentials) => (
+            credentials.user.to_owned(),
+            credentials.password.to_owned(),
+            credentials.database.to_owned(),
+        ),
     };
     let data_volume = opts
         .container_name
@@ -104,7 +125,7 @@ pub fn postgres_compose(opts: &PostgresCompose<'_>) -> String {
     }
     let ready = match opts.credentials {
         ComposeCredentials::FromEnvironment => format!("pg_isready -U {user}"),
-        ComposeCredentials::Literal { .. } => format!("pg_isready -U {user} -d {database}"),
+        ComposeCredentials::Literal(_) => format!("pg_isready -U {user} -d {database}"),
     };
     out.push_str(&format!(
         "    healthcheck:\n      test: [\"CMD-SHELL\", \"{ready}\"]\n      interval: 5s\n      timeout: \
@@ -125,17 +146,25 @@ pub fn create_compose_files_if_missing(
     compose_dir: &Path,
     container_name: &str,
     port: u16,
-) -> Result<()> {
+) -> Result<(), DockerComposeError> {
     const INIT_SCRIPT: &str = r#"CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 "#;
 
     let compose_file = compose_dir.join("docker-compose.yaml");
 
-    std::fs::create_dir_all(compose_dir).context("Failed to create infrastructure/docker")?;
+    std::fs::create_dir_all(compose_dir).map_err(|source| DockerComposeError::CreateDir {
+        path: compose_dir.to_path_buf(),
+        source,
+    })?;
 
     let init_scripts_dir = compose_dir.join("init-scripts");
-    std::fs::create_dir_all(&init_scripts_dir).context("Failed to create init-scripts")?;
+    std::fs::create_dir_all(&init_scripts_dir).map_err(|source| {
+        DockerComposeError::CreateDir {
+            path: init_scripts_dir.clone(),
+            source,
+        }
+    })?;
 
     let compose_content = postgres_compose(&PostgresCompose {
         host_port: port,
@@ -146,11 +175,16 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
         header: None,
     });
 
-    std::fs::write(&compose_file, compose_content)
-        .context("Failed to write docker-compose.yaml")?;
+    std::fs::write(&compose_file, compose_content).map_err(|source| DockerComposeError::Write {
+        path: compose_file.clone(),
+        source,
+    })?;
 
-    std::fs::write(init_scripts_dir.join("01-extensions.sql"), INIT_SCRIPT)
-        .context("Failed to write init script")?;
+    let init_script = init_scripts_dir.join("01-extensions.sql");
+    std::fs::write(&init_script, INIT_SCRIPT).map_err(|source| DockerComposeError::Write {
+        path: init_script,
+        source,
+    })?;
 
     CliService::success(&format!("Created {}", compose_file.display()));
 
@@ -158,27 +192,26 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 }
 
 pub fn start_compose(
-    children: &ForegroundChildren,
-    config: &PostgresConfig,
+    children: &dyn ChildSupervisor,
+    credentials: PostgresCredentials<'_>,
     compose_dir: &Path,
     container_name: &str,
-) -> Result<()> {
+) -> Result<(), DockerComposeError> {
     CliService::info("Starting PostgreSQL...");
 
     let mut cmd = Command::new("docker");
     cmd.args(["compose", "up", "-d"])
         .current_dir(compose_dir)
-        .env("POSTGRES_USER", &config.user)
-        .env("POSTGRES_PASSWORD", &config.password)
-        .env("POSTGRES_DB", &config.database)
+        .env("POSTGRES_USER", credentials.user)
+        .env("POSTGRES_PASSWORD", credentials.password)
+        .env("POSTGRES_DB", credentials.database)
         .env("CONTAINER_NAME", container_name);
-    let result = children
-        .output(cmd)
-        .context("Failed to run docker compose")?;
+    let result = children.output(cmd).map_err(DockerComposeError::Run)?;
 
     if !result.status.success() {
-        let stderr = String::from_utf8_lossy(&result.stderr);
-        anyhow::bail!("Failed to start PostgreSQL: {}", stderr);
+        return Err(DockerComposeError::Start {
+            stderr: String::from_utf8_lossy(&result.stderr).into_owned(),
+        });
     }
 
     CliService::success("PostgreSQL container started");
@@ -186,8 +219,8 @@ pub fn start_compose(
 }
 
 pub fn wait_for_postgres_ready(
-    children: &ForegroundChildren,
-    config: &PostgresConfig,
+    children: &dyn ChildSupervisor,
+    credentials: PostgresCredentials<'_>,
     container_name: &str,
 ) {
     CliService::info("Waiting for PostgreSQL to be ready...");
@@ -201,9 +234,9 @@ pub fn wait_for_postgres_ready(
             container_name,
             "pg_isready",
             "-U",
-            &config.user,
+            credentials.user,
             "-d",
-            &config.database,
+            credentials.database,
         ]);
         let health = children.output(cmd);
 

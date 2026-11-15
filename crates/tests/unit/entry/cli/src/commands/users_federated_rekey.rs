@@ -11,7 +11,7 @@ use systemprompt_cli::admin::users::federated_rekey::{
 use systemprompt_cli::args::{Cli, Commands};
 use systemprompt_cli::descriptor::{CommandDescriptor, DataImpact, DescribeCommand};
 use systemprompt_cli::runner::profile_routing::require_explicit_cloud_profile;
-use systemprompt_cli::shared::ProfileSource;
+use systemprompt_cloud::profile::ProfileSource;
 use systemprompt_identifiers::TenantId;
 use systemprompt_manifest::Profile;
 use systemprompt_manifest::profile::{CloudConfig, ProfileType, TrustedIssuer};

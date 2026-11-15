@@ -1,12 +1,11 @@
-//! Resolved filesystem paths the CLI operates against.
+//! Resolved filesystem paths the CLI and its capability commands operate against.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::{Path, PathBuf};
 
-use systemprompt_cloud::ProjectContext;
-use systemprompt_cloud::paths::{CloudPath, get_cloud_paths};
+use super::{CloudPath, ProjectContext, get_cloud_paths};
 
 #[derive(Debug)]
 pub struct ResolvedPaths {

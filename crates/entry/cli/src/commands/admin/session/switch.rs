@@ -9,7 +9,7 @@ use systemprompt_identifiers::ProfileName;
 use systemprompt_manifest::profile::{CloudConfig, ManagedProfile};
 
 use super::types::SwitchOutput;
-use crate::paths::ResolvedPaths;
+use systemprompt_cloud::paths::ResolvedPaths;
 use crate::shared::CommandOutput;
 
 pub(super) fn execute(profile_name: &ProfileName) -> Result<CommandOutput> {

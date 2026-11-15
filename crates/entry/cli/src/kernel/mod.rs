@@ -30,21 +30,17 @@ pub use seams::{
     LinkedSeamRegistration, SeamEntry, named, owned, prioritized, registered_seams, unnamed,
 };
 
-pub use crate::boot::{load_boot, load_boot_from_path, load_profile};
 pub use crate::commands::core::files::types::FileSummary;
 pub use crate::commands::shared::mcp_tools::McpToolEntry;
 pub use crate::commands::shared::{ValidationIssue, ValidationOutput, mcp_tools};
 pub use crate::context::CommandContext;
 pub use crate::define_pool_command;
 pub use crate::interactive::{DialoguerPrompter, resolve_required};
-pub use crate::paths::ResolvedPaths;
 pub use crate::presentation::{StartupRenderer, tables};
 pub use crate::runner::interrupt::INTERRUPTED_EXIT_CODE;
 pub use crate::runner::{interrupt, routing};
 pub use crate::session::{self, CliSessionContext, get_or_create_session};
 pub use crate::shared::render::render_result;
-pub use crate::shared::profile::ProfileInfo;
 pub use crate::shared::{
-    ConfirmArgs, database_scoped_command_error, ddl, disk_logs, docker_compose, postgres_access,
-    profile, resolve_profile_path, text,
+    ConfirmArgs, database_scoped_command_error, ddl, disk_logs, postgres_access, text,
 };

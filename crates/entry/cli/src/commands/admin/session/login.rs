@@ -12,7 +12,7 @@ use clap::Args;
 use serde::{Deserialize, Serialize};
 
 use crate::context::CommandContext;
-use crate::paths::ResolvedPaths;
+use systemprompt_cloud::paths::ResolvedPaths;
 use crate::shared::CommandOutput;
 use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_cloud::SessionKey;

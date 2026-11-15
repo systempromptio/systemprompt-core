@@ -1,10 +1,9 @@
-//! Profile discovery and resolution shared across CLI commands.
+//! Profile discovery and resolution for the CLI and its capability commands.
 //!
 //! Resolves a profile to its on-disk path and loaded [`Profile`] from a CLI
 //! override, an environment variable, a stored session, or directory
 //! discovery, reporting failures via [`ProfileResolutionError`]. Also provides
-//! profile-authoring helpers ([`save_profile_yaml`], display-name and pepper
-//! generation) used by the profile-creation flows, and the [`ProfileInfo`]
+//! the profile-authoring helper [`save_profile_yaml`] used by the profile-creation flows, and the [`ProfileInfo`]
 //! row the session and cloud status commands render.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -12,14 +11,16 @@
 
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_cloud::{ProfilePath, ProjectContext};
 use systemprompt_identifiers::TenantId;
-use systemprompt_loader::ProfileLoader;
-use systemprompt_manifest::Profile;
+use systemprompt_loader::{ProfileLoadError, ProfileLoader};
 use systemprompt_manifest::profile::ManagedProfile;
+use systemprompt_manifest::Profile;
+use systemprompt_manifest::profile::ProfileError;
+
+use crate::error::CloudError;
+use crate::paths::{ProfilePath, ProjectContext, ResolvedPaths};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ProfileResolutionError {
@@ -34,8 +35,19 @@ pub enum ProfileResolutionError {
     )]
     ProfileNotFound(String),
 
-    #[error("Profile discovery failed: {0}")]
-    DiscoveryFailed(#[from] anyhow::Error),
+    #[error("Failed to read profiles directory: {}", path.display())]
+    ReadProfilesDir {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+
+    #[error("Failed to load profile {}", path.display())]
+    Load {
+        path: PathBuf,
+        #[source]
+        source: ProfileLoadError,
+    },
 
     #[error(
         "Multiple profiles found: {profiles:?}\n\nUse --profile <name> or 'systemprompt admin \
@@ -44,7 +56,7 @@ pub enum ProfileResolutionError {
     MultipleProfilesFound { profiles: Vec<String> },
 
     #[error(transparent)]
-    SessionStoreCorrupt(#[from] systemprompt_cloud::CloudError),
+    SessionStoreCorrupt(#[from] CloudError),
 }
 
 /// How the profile for this invocation was chosen.
@@ -167,8 +179,12 @@ pub fn resolve_profile_with_data(
     profile_input: &str,
 ) -> Result<(PathBuf, Profile), ProfileResolutionError> {
     let path = resolve_profile_input(profile_input)?;
-    let profile = ProfileLoader::load_from_path(&path)
-        .map_err(|e| ProfileResolutionError::DiscoveryFailed(anyhow::Error::from(e)))?;
+    let profile = ProfileLoader::load_from_path(&path).map_err(|source| {
+        ProfileResolutionError::Load {
+            path: path.clone(),
+            source,
+        }
+    })?;
     Ok((path, profile))
 }
 
@@ -188,8 +204,8 @@ fn resolve_profile_by_name(name: &str) -> Result<Option<PathBuf>, ProfileResolut
     }
 
     {
-        let paths = crate::paths::ResolvedPaths::discover().sessions_dir();
-        let store = systemprompt_cloud::SessionStore::load_or_create(&paths)?;
+        let paths = ResolvedPaths::discover().sessions_dir();
+        let store = crate::SessionStore::load_or_create(&paths)?;
         if let Some(session) = store.find_by_profile_name(name)
             && let Some(ref profile_path) = session.profile_path
             && profile_path.exists()
@@ -208,7 +224,7 @@ pub struct DiscoveredProfile {
     pub profile: ManagedProfile,
 }
 
-pub fn discover_profiles() -> Result<Vec<DiscoveredProfile>> {
+pub fn discover_profiles() -> Result<Vec<DiscoveredProfile>, ProfileResolutionError> {
     let ctx = ProjectContext::discover();
     let profiles_dir = ctx.profiles_dir();
 
@@ -216,15 +232,15 @@ pub fn discover_profiles() -> Result<Vec<DiscoveredProfile>> {
         return Ok(Vec::new());
     }
 
-    let entries = std::fs::read_dir(&profiles_dir).with_context(|| {
-        format!(
-            "Failed to read profiles directory: {}",
-            profiles_dir.display()
-        )
+    let entries = std::fs::read_dir(&profiles_dir).map_err(|source| {
+        ProfileResolutionError::ReadProfilesDir {
+            path: profiles_dir.clone(),
+            source,
+        }
     })?;
 
     let profiles = entries
-        .filter_map(std::result::Result::ok)
+        .filter_map(Result::ok)
         .filter(|e| e.path().is_dir())
         .filter_map(|e| build_discovered_profile(&e))
         .collect();
@@ -250,10 +266,12 @@ fn build_discovered_profile(entry: &std::fs::DirEntry) -> Option<DiscoveredProfi
     })
 }
 
-pub fn save_profile_yaml(profile: &Profile, path: &Path, header: Option<&str>) -> Result<()> {
-    profile
-        .create_overlay(path, header)
-        .with_context(|| format!("Failed to write {}", path.display()))
+pub fn save_profile_yaml(
+    profile: &Profile,
+    path: &Path,
+    header: Option<&str>,
+) -> Result<(), ProfileError> {
+    profile.create_overlay(path, header)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

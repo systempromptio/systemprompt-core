@@ -14,7 +14,7 @@ use systemprompt_logging::CliService;
 use super::types::ContextSwitchedOutput;
 use crate::CliConfig;
 use crate::context::CommandContext;
-use crate::paths::ResolvedPaths;
+use systemprompt_cloud::paths::ResolvedPaths;
 use crate::session::{CliSessionContext, get_or_create_session};
 use crate::shared::CommandOutput;
 use std::path::Path;

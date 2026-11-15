@@ -8,7 +8,7 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::shared::ProfileResolutionError;
+use systemprompt_cloud::profile::ProfileResolutionError;
 
 #[test]
 fn test_profile_resolution_error_no_profiles_found_display() {
@@ -29,12 +29,14 @@ fn test_profile_resolution_error_multiple_profiles_display() {
 
 
 #[test]
-fn test_profile_resolution_error_discovery_failed() {
-    let inner_error = anyhow::anyhow!("Test error");
-    let error = ProfileResolutionError::DiscoveryFailed(inner_error);
-    let msg = error.to_string();
-    assert!(msg.contains("Profile discovery failed"));
-    assert!(msg.contains("Test error"));
+fn test_profile_resolution_error_read_profiles_dir_keeps_its_source() {
+    let error = ProfileResolutionError::ReadProfilesDir {
+        path: std::path::PathBuf::from("/nowhere/profiles"),
+        source: std::io::Error::other("Test error"),
+    };
+    assert!(error.to_string().contains("/nowhere/profiles"));
+    let source = std::error::Error::source(&error).expect("source kept");
+    assert!(source.to_string().contains("Test error"));
 }
 
 

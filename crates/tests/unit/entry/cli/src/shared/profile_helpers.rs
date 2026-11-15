@@ -7,9 +7,9 @@
 
 use std::path::Path;
 
-use systemprompt_cli::shared::profile::{discover_profiles, save_profile_yaml};
+use systemprompt_cloud::profile::{discover_profiles, save_profile_yaml};
 use systemprompt_cloud::identity::generate_oauth_at_rest_pepper;
-use systemprompt_cli::shared::{
+use systemprompt_cloud::profile::{
     ProfileResolutionError, is_path_input, resolve_profile_from_path, resolve_profile_path,
     resolve_profile_with_data,
 };
@@ -108,7 +108,7 @@ fn resolving_with_data_rejects_an_unparseable_profile() {
     let err = resolve_profile_with_data(file.to_str().unwrap()).unwrap_err();
     assert!(matches!(
         err,
-        ProfileResolutionError::DiscoveryFailed(_) | ProfileResolutionError::ProfileNotFound(_)
+        ProfileResolutionError::Load { .. } | ProfileResolutionError::ProfileNotFound(_)
     ));
 }
 

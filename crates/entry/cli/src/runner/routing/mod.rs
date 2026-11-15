@@ -24,7 +24,7 @@ use systemprompt_identifiers::{ContextId, SessionToken};
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 
-use crate::paths::ResolvedPaths;
+use systemprompt_cloud::paths::ResolvedPaths;
 
 #[doc(hidden)]
 #[derive(Debug)]

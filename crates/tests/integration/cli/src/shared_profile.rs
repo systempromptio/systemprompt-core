@@ -1,4 +1,4 @@
-use systemprompt_cli::shared::profile::{
+use systemprompt_cloud::profile::{
     DiscoveredProfile, ProfileResolutionError, ProfileSource, discover_profiles,
     is_path_input, resolve_profile_from_path, resolve_profile_path,
 };

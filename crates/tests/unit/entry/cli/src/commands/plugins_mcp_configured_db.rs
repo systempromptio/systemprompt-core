@@ -17,7 +17,7 @@
 use std::sync::{Arc, OnceLock};
 
 use clap::Parser;
-use systemprompt_cli::paths::ResolvedPaths;
+use systemprompt_cloud::paths::ResolvedPaths;
 use systemprompt_cli::plugins::mcp::{self, McpCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity, SessionKey, SessionStore};

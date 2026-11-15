@@ -8,7 +8,7 @@
 
 use clap::Parser;
 use systemprompt_cli::admin::config::{ConfigCommands, execute};
-use systemprompt_cli::shared::{ProfileResolutionError, resolve_profile_from_path};
+use systemprompt_cloud::profile::{ProfileResolutionError, resolve_profile_from_path};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides};
 
 #[derive(Debug, Parser)]

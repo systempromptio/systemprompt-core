@@ -20,7 +20,7 @@ use systemprompt_models::auth::UserType;
 
 use super::ProfileContext;
 use crate::env_overrides::EnvOverrides;
-use crate::paths::ResolvedPaths;
+use systemprompt_cloud::paths::ResolvedPaths;
 use crate::session::context::CliSessionContext;
 
 pub fn try_session_from_env(profile: &Profile, env: &EnvOverrides) -> Option<CliSessionContext> {

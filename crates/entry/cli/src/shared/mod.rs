@@ -1,8 +1,7 @@
 //! Cross-command CLI utilities shared across command modules.
 //!
-//! Aggregates the [`CommandOutput`] artifact model and its output types,
-//! profile resolution ([`resolve_profile_path`],
-//! [`resolve_profile_with_data`]), argument parsers, and text helpers. Also
+//! Aggregates the command-result rendering sink, confirmation arguments,
+//! setup database access and text helpers. Also
 //! defines the `define_pool_command!` macro used by the log commands to
 //! generate pooled execution entry points.
 //!
@@ -12,18 +11,12 @@
 pub mod confirm;
 pub mod ddl;
 pub mod disk_logs;
-pub mod docker_compose;
 pub mod postgres_access;
-pub mod profile;
 pub mod render;
 pub mod text;
 
 pub use render::render_result;
 pub use confirm::ConfirmArgs;
-pub use profile::{
-    ProfileResolutionError, ProfileSource, ResolvedProfile, is_path_input,
-    resolve_profile_from_path, resolve_profile_path, resolve_profile_with_data,
-};
 pub use text::truncate_with_ellipsis;
 
 #[must_use]

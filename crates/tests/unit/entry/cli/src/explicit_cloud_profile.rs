@@ -13,7 +13,7 @@ use systemprompt_cli::args::{Cli, Commands};
 use systemprompt_cli::descriptor::{CommandDescriptor, DescribeCommand};
 use systemprompt_cli::runner::profile_routing::require_explicit_cloud_profile;
 use systemprompt_cli::session::resolution::record_new_session;
-use systemprompt_cli::shared::{ProfileSource, resolve_profile_path};
+use systemprompt_cloud::profile::{ProfileSource, resolve_profile_path};
 use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity, SessionKey, SessionStore};
 use systemprompt_identifiers::{
     ContextId, Email, ProfileName, SessionId, SessionToken, TenantId, UserId,

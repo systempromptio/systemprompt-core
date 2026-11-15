@@ -28,7 +28,7 @@ use crate::commands::infrastructure;
 use crate::descriptor::{CommandDescriptor, RoutingClass};
 use crate::env_overrides::EnvOverrides;
 use crate::interactive;
-use crate::shared::ProfileSource;
+use systemprompt_cloud::profile::ProfileSource;
 
 /// What the runner does once the profile is bootstrapped.
 ///

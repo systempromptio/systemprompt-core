@@ -120,7 +120,7 @@ pub(super) fn save(profile: &Profile, profile_path: &Path) -> Result<()> {
         profile.display_name
     );
 
-    crate::shared::profile::save_profile_yaml(profile, profile_path, Some(&header))?;
+    systemprompt_cloud::profile::save_profile_yaml(profile, profile_path, Some(&header))?;
 
     CliService::success(&format!("Saved profile to {}", profile_path.display()));
 

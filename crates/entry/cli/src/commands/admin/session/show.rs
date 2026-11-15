@@ -8,7 +8,7 @@ use systemprompt_identifiers::{ProfileName, TenantId};
 
 use super::types::{RoutingInfo, SessionInfo, SessionShowOutput};
 use crate::CliConfig;
-use crate::paths::ResolvedPaths;
+use systemprompt_cloud::paths::ResolvedPaths;
 use crate::shared::CommandOutput;
 
 pub(super) fn execute(_config: &CliConfig) -> CommandOutput {
