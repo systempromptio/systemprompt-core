@@ -1,11 +1,11 @@
 //! Composition of the [`NotificationsHandle`] from the context's handles.
 //!
 //! The outbox sink exists before the document store, which emits through it.
-//! Extension seam factories take the built context, so the builder assembles
-//! the handle twice from one [`NotificationsCore`]: first with core seams
-//! alone, to complete the context the factories are handed, then with the
-//! discovered extension seams ahead of the core defaults, replacing the
-//! first before the context is returned.
+//! The contributed seams are the built [`NotificationSeams`] of the
+//! `notifications` capability's slot; the builder assembles the handle from
+//! one [`NotificationsCore`] with those seams ahead of the core defaults (the
+//! default router, the user-role audience resolver, the document and issue
+//! visibilities, the AG-UI channel and the default publish policy).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -17,15 +17,9 @@ use std::time::Duration;
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
 use systemprompt_events::EventRouter;
-use systemprompt_extension::{
-    DynNotificationSink, ExtensionContext, NotificationAudienceResolver, NotificationChannel,
-    NotificationRouter, PublishPolicy, ResourceVisibility, discover_notification_audiences,
-    discover_notification_channels, discover_notification_publish_policies,
-    discover_notification_routers, discover_resource_visibilities,
-};
+use systemprompt_extension::DynNotificationSink;
 use systemprompt_identifiers::InstanceId;
 use systemprompt_manifest::profile::NotificationsProfile;
-use systemprompt_notifications::NotificationRepositories;
 use systemprompt_notifications::channels::AguiChannel;
 use systemprompt_notifications::consumer::NotificationsConsumer;
 use systemprompt_notifications::defaults::{DefaultPublishPolicy, DefaultRouter};
@@ -34,6 +28,7 @@ use systemprompt_notifications::service::{
     EscalationDelivery, NotificationsService, NotificationsServiceParts,
 };
 use systemprompt_notifications::sink::OutboxNotificationSink;
+use systemprompt_notifications::{NotificationRepositories, NotificationSeams};
 use systemprompt_users::UserRepository;
 
 use crate::documents::DocumentsRuntime;
@@ -46,43 +41,7 @@ pub fn notification_sink(database: &DbPool, instance_id: &InstanceId) -> DynNoti
 }
 
 pub fn core_notifications(inputs: &NotificationsInputs<'_>) -> Arc<NotificationsHandle> {
-    NotificationsCore::new(inputs).assemble(ExtensionSeams::default())
-}
-
-#[derive(Default)]
-pub(crate) struct ExtensionSeams {
-    pub(crate) routers: Vec<Arc<dyn NotificationRouter>>,
-    pub(crate) audiences: Vec<Arc<dyn NotificationAudienceResolver>>,
-    pub(crate) visibilities: Vec<Arc<dyn ResourceVisibility>>,
-    pub(crate) channels: Vec<Arc<dyn NotificationChannel>>,
-    pub(crate) publish_policies: Vec<Arc<dyn PublishPolicy>>,
-}
-
-impl ExtensionSeams {
-    pub(crate) fn discover(ctx: &dyn ExtensionContext) -> Self {
-        Self {
-            routers: discover_notification_routers()
-                .into_iter()
-                .map(|registration| (registration.factory)(ctx))
-                .collect(),
-            audiences: discover_notification_audiences()
-                .into_iter()
-                .map(|registration| (registration.factory)(ctx))
-                .collect(),
-            visibilities: discover_resource_visibilities()
-                .into_iter()
-                .map(|registration| (registration.factory)(ctx))
-                .collect(),
-            channels: discover_notification_channels()
-                .into_iter()
-                .map(|registration| (registration.factory)(ctx))
-                .collect(),
-            publish_policies: discover_notification_publish_policies()
-                .into_iter()
-                .map(|registration| (registration.factory)(ctx))
-                .collect(),
-        }
-    }
+    NotificationsCore::new(inputs).assemble(&NotificationSeams::default())
 }
 
 pub(crate) struct NotificationsCore {
@@ -132,14 +91,14 @@ impl NotificationsCore {
         }
     }
 
-    pub(crate) fn assemble(&self, seams: ExtensionSeams) -> Arc<NotificationsHandle> {
-        let ExtensionSeams {
+    pub(crate) fn assemble(&self, seams: &NotificationSeams) -> Arc<NotificationsHandle> {
+        let NotificationSeams {
             mut routers,
-            mut audiences,
-            mut visibilities,
             mut channels,
+            mut audiences,
             mut publish_policies,
-        } = seams;
+            mut visibilities,
+        } = seams.clone();
         routers.push(Arc::new(DefaultRouter));
         audiences.push(Arc::new(UserRoleAudienceResolver::new(Arc::clone(
             &self.users,

@@ -3,11 +3,11 @@
 //! The brain sink exists before the document store, which emits through
 //! it, so [`BrainCore`] is built first and only when the profile enables
 //! the brain; a disabled brain composes nothing and the store keeps the
-//! unavailable sink. Recall's extension seams take the built context, so,
-//! as for notifications, the builder assembles the handle twice from one
-//! core: with the core audience resolver alone, then with the discovered
-//! audience resolvers, retrievers, rerankers and injection policies ahead
-//! of it.
+//! unavailable sink. The contributed recall seams are the built
+//! [`BrainSeams`] of the brain capability's slot, and the contributed
+//! audience resolvers those of the notifications capability's slot; the
+//! builder assembles the handle from one core with them ahead of the core
+//! audience resolver.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -22,18 +22,14 @@ use systemprompt_brain::recall::{
     BrainRecallService, BrainRecallStore, DeclaredSource, PlaneDeclaredSource,
 };
 use systemprompt_brain::service::BrainService;
-use systemprompt_brain::{BrainRepositories, OutboxBrainSink};
+use systemprompt_brain::{BrainRepositories, BrainSeams, OutboxBrainSink};
 use systemprompt_database::DbPool;
 use systemprompt_events::services::durable::{DurableOutbox, OutboxConsumer};
-use systemprompt_extension::ExtensionContext;
 use systemprompt_extension::brain::{
     DynBrainSink, FactRecallSource, FactRetriever, ImportanceModel, InjectionPolicy, OutcomeSignal,
-    Reranker, SourceAccess, discover_brain_importance_models, discover_brain_injection_policies,
-    discover_brain_outcome_signals, discover_brain_rerankers, discover_brain_retrievers,
+    Reranker, SourceAccess,
 };
-use systemprompt_extension::notifications::{
-    DynNotificationSink, NotificationAudienceResolver, discover_notification_audiences,
-};
+use systemprompt_extension::notifications::{DynNotificationSink, NotificationAudienceResolver};
 use systemprompt_identifiers::InstanceId;
 use systemprompt_manifest::profile::BrainProfile;
 use systemprompt_users::UserRepository;
@@ -60,7 +56,7 @@ impl fmt::Debug for BrainInputs<'_> {
     }
 }
 
-/// The extension seams recall composes ahead of the core audience resolver.
+/// The contributed seams recall composes ahead of the core audience resolver.
 #[derive(Default)]
 pub struct RecallSeams {
     pub audiences: Vec<Arc<dyn NotificationAudienceResolver>>,
@@ -88,37 +84,19 @@ impl fmt::Debug for RecallSeams {
 
 impl RecallSeams {
     #[must_use]
-    pub fn discover(ctx: &dyn ExtensionContext) -> Self {
+    pub fn from_built(
+        brain: &BrainSeams,
+        audiences: Vec<Arc<dyn NotificationAudienceResolver>>,
+        consumer: BrainConsumerSlot,
+    ) -> Self {
         Self {
-            audiences: discover_notification_audiences()
-                .into_iter()
-                .map(|registration| (registration.factory)(ctx))
-                .collect(),
-            retrievers: discover_brain_retrievers()
-                .iter()
-                .map(|registration| (registration.factory)(ctx))
-                .collect(),
-            rerankers: discover_brain_rerankers()
-                .iter()
-                .map(|registration| (registration.factory)(ctx))
-                .collect(),
-            injection: discover_brain_injection_policies()
-                .iter()
-                .map(|registration| (registration.factory)(ctx))
-                .collect(),
-            importance: discover_brain_importance_models()
-                .iter()
-                .map(|registration| (registration.factory)(ctx))
-                .collect(),
-            outcome_signals: discover_brain_outcome_signals()
-                .iter()
-                .map(|registration| (registration.factory)(ctx))
-                .collect(),
-            consumer: ctx
-                .extension_state()
-                .find::<BrainConsumerSlot>()
-                .cloned()
-                .unwrap_or_default(),
+            audiences,
+            retrievers: brain.retrievers.clone(),
+            rerankers: brain.rerankers.clone(),
+            injection: brain.injection.clone(),
+            importance: brain.importance.clone(),
+            outcome_signals: brain.outcome_signals.clone(),
+            consumer,
         }
     }
 }
