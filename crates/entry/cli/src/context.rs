@@ -199,48 +199,17 @@ impl CommandContext {
         db: DatabaseContext,
         database_url: String,
     ) -> Self {
-        Self {
-            cli,
-            env,
-            prompter: Box::new(DialoguerPrompter),
-            runtime: OnceCell::new(),
-            db: Some(db),
-            database_url: Some(database_url),
-            database_url_override: None,
-            cloud_credentials: None,
-            services: None,
-            profile: None,
-            boot: None,
-            interrupt_shield: InterruptShield::default(),
-            foreground_children: ForegroundChildren::default(),
-            build: BuildIdentity::core(),
-            admitted: None,
-            kernel: None,
-            secrets_sources: SecretsSources::default(),
-        }
+        let mut ctx = Self::new(cli, env);
+        ctx.db = Some(db);
+        ctx.database_url = Some(database_url);
+        ctx
     }
 
     #[must_use]
     pub fn with_app_context(cli: CliConfig, env: EnvOverrides, app: Arc<AppContext>) -> Self {
-        Self {
-            cli,
-            env,
-            prompter: Box::new(DialoguerPrompter),
-            runtime: OnceCell::new_with(Some(app)),
-            db: None,
-            database_url: None,
-            database_url_override: None,
-            cloud_credentials: None,
-            services: None,
-            profile: None,
-            boot: None,
-            interrupt_shield: InterruptShield::default(),
-            foreground_children: ForegroundChildren::default(),
-            build: BuildIdentity::core(),
-            admitted: None,
-            kernel: None,
-            secrets_sources: SecretsSources::default(),
-        }
+        let mut ctx = Self::new(cli, env);
+        ctx.runtime = OnceCell::new_with(Some(app));
+        ctx
     }
 
     #[must_use]
