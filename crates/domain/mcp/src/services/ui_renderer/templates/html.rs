@@ -9,7 +9,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::services::ui_renderer::active_theme;
 use systemprompt_models::mcp::ui_method_js_constants;
 
 #[derive(Debug)]
@@ -46,19 +45,11 @@ impl HtmlBuilder {
     }
 
     pub fn build(self) -> String {
-        let theme = active_theme();
-
-        let mut sheets = vec![design_tokens().to_owned()];
-        if let Some(theme) = theme {
-            sheets.push(format!(":root {{\n{}\n}}", theme.tokens));
-        }
-        sheets.extend(self.styles);
-        if let Some(theme) = theme
-            && !theme.extra_css.is_empty()
-        {
-            sheets.push(theme.extra_css.to_owned());
-        }
-        let styles = format!("<style>\n{}\n</style>", sheets.join("\n"));
+        let styles = format!(
+            "<style>\n{}\n</style>{THEME_TOKENS_ANCHOR}\n<style>\n{}\n</style>",
+            design_tokens(),
+            self.styles.join("\n")
+        );
 
         let scripts = {
             let mut all = vec![ui_method_js_constants()];
@@ -88,6 +79,9 @@ impl HtmlBuilder {
         )
     }
 }
+
+pub(crate) const THEME_TOKENS_ANCHOR: &str = "<!--mcpui-theme-->";
+pub(crate) const THEME_CSS_ANCHOR: &str = "</head>";
 
 pub fn html_escape(s: &str) -> String {
     s.replace('&', "&amp;")
