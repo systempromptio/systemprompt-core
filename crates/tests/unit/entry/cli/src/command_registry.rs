@@ -4,7 +4,8 @@ use clap::{CommandFactory, Subcommand};
 use systemprompt_cli::args::{self, Cli};
 use systemprompt_cli::kernel::{
     CliCommandGroup, CliCommandLeaf, CliCommandRegistration, CommandContext, CommandDescriptor,
-    CommandRegistry, DataImpact, DbUrlRouting, DescribeCommand, RegistryError,
+    CommandRegistry, DataImpact, DbUrlRouting, DescribeCommand, KernelGrant, RegistryError,
+    ResolveError,
 };
 use systemprompt_cli::{CliConfig, EnvOverrides};
 
@@ -324,7 +325,7 @@ struct LeafProbeArgs {
 
 impl DescribeCommand for LeafProbeArgs {
     fn descriptor(&self) -> CommandDescriptor {
-        CommandDescriptor::PROFILE_SECRETS_AND_PATHS.with_serves_api()
+        CommandDescriptor::PROFILE_SECRETS_AND_PATHS
     }
 }
 
@@ -348,7 +349,9 @@ async fn a_single_command_registers_under_a_nested_kernel_group() {
         ))
         .expect("resolve")
         .expect("infra services lprobe is registered");
-    assert!(registered.descriptor().serves_api());
+    let desc = registered.descriptor();
+    assert!(desc.profile() && desc.secrets() && desc.paths() && !desc.database());
+    assert!(!desc.serves_api());
 
     let ctx = CommandContext::new(
         CliConfig::new().with_interactive(false),
@@ -356,4 +359,281 @@ async fn a_single_command_registers_under_a_nested_kernel_group() {
     );
     let err = registered.run(&ctx).await.expect_err("leaf reports it ran");
     assert_eq!(err.to_string(), "leaf ran on Some(9)");
+}
+
+#[derive(Debug, Subcommand)]
+enum ParentProbeCommands {
+    #[command(about = "Parent's own ping")]
+    Ping,
+    #[command(about = "Parent's own list")]
+    List,
+}
+
+impl DescribeCommand for ParentProbeCommands {
+    fn descriptor(&self) -> CommandDescriptor {
+        CommandDescriptor::FULL.with_data_impact(DataImpact::Destructive)
+    }
+}
+
+impl CliCommandGroup for ParentProbeCommands {
+    const PARENT: &'static [&'static str] = &[];
+    const NAME: &'static str = "analytics";
+    const ABOUT: &'static str = "Registered parent group on a granted path";
+    const GRANTS: &'static [KernelGrant] = &[KernelGrant::LocalExport];
+
+    fn db_url_routing(&self) -> DbUrlRouting {
+        DbUrlRouting::Direct
+    }
+
+    fn run(self, _ctx: &CommandContext) -> impl Future<Output = anyhow::Result<()>> + Send {
+        std::future::ready(Err(anyhow::anyhow!("parent ran: {self:?}")))
+    }
+}
+
+#[derive(Debug, clap::Args)]
+struct ChildProbeArgs {
+    #[arg(long)]
+    limit: Option<u32>,
+}
+
+impl DescribeCommand for ChildProbeArgs {
+    fn descriptor(&self) -> CommandDescriptor {
+        CommandDescriptor::PROFILE_ONLY
+    }
+}
+
+impl CliCommandLeaf for ChildProbeArgs {
+    const PARENT: &'static [&'static str] = &["analytics"];
+    const NAME: &'static str = "child";
+    const ABOUT: &'static str = "Leaf registered under a registered group";
+
+    fn run(self, _ctx: &CommandContext) -> impl Future<Output = anyhow::Result<()>> + Send {
+        std::future::ready(Err(anyhow::anyhow!("child ran on {:?}", self.limit)))
+    }
+}
+
+#[derive(Debug, clap::Args)]
+struct CollidingChildArgs;
+
+impl DescribeCommand for CollidingChildArgs {
+    fn descriptor(&self) -> CommandDescriptor {
+        CommandDescriptor::NONE
+    }
+}
+
+impl CliCommandLeaf for CollidingChildArgs {
+    const PARENT: &'static [&'static str] = &["analytics"];
+    const NAME: &'static str = "ping";
+    const ABOUT: &'static str = "Collides with the parent's own ping";
+
+    fn run(self, _ctx: &CommandContext) -> impl Future<Output = anyhow::Result<()>> + Send {
+        std::future::ready(Ok(()))
+    }
+}
+
+fn parent_and_child() -> CommandRegistry {
+    registry(vec![
+        CliCommandRegistration::leaf::<ChildProbeArgs>(),
+        CliCommandRegistration::of::<ParentProbeCommands>(),
+    ])
+}
+
+#[tokio::test]
+async fn a_leaf_under_a_registered_group_resolves_to_its_own_registration() {
+    let registry = parent_and_child();
+    let child = registry
+        .resolve(&matches(&registry, &["analytics", "child", "--limit", "3"]))
+        .expect("resolve")
+        .expect("analytics child is registered");
+    let desc = child.descriptor();
+    assert!(desc.profile() && !desc.database());
+    assert_eq!(desc.data_impact(), DataImpact::Preserving);
+    assert!(
+        !desc.local_export(),
+        "the parent's grant does not reach the leaf"
+    );
+    assert_eq!(child.db_url_routing(), DbUrlRouting::Unsupported);
+
+    let ctx = CommandContext::new(
+        CliConfig::new().with_interactive(false),
+        EnvOverrides::default(),
+    );
+    let err = child.run(&ctx).await.expect_err("child reports it ran");
+    assert_eq!(err.to_string(), "child ran on Some(3)");
+}
+
+#[test]
+fn the_parent_groups_own_subcommands_keep_the_parent_descriptor() {
+    let registry = parent_and_child();
+    let list = registry
+        .resolve(&matches(&registry, &["analytics", "list"]))
+        .expect("resolve")
+        .expect("analytics list is registered");
+    let desc = list.descriptor();
+    assert!(desc.database());
+    assert_eq!(desc.data_impact(), DataImpact::Destructive);
+    assert!(desc.local_export(), "the declared, listed grant is applied");
+    assert_eq!(list.db_url_routing(), DbUrlRouting::Direct);
+}
+
+#[test]
+fn the_leaf_is_listed_after_the_parent_groups_own_subcommands() {
+    let registry = parent_and_child();
+    let mut root = registry.assemble(Cli::command()).expect("assemble");
+    let help = root
+        .find_subcommand_mut("analytics")
+        .expect("analytics is attached")
+        .render_help()
+        .to_string();
+    let position = |name: &str| {
+        help.find(&format!("\n  {name} "))
+            .unwrap_or_else(|| panic!("`{name}` is listed in --help:\n{help}"))
+    };
+    assert!(position("ping") < position("list"));
+    assert!(position("list") < position("child"));
+}
+
+#[test]
+fn a_leaf_named_like_a_subcommand_of_its_registered_group_is_refused() {
+    let err = registry(vec![
+        CliCommandRegistration::of::<ParentProbeCommands>(),
+        CliCommandRegistration::leaf::<CollidingChildArgs>(),
+    ])
+    .assemble(Cli::command())
+    .unwrap_err();
+    assert!(
+        matches!(
+            err,
+            RegistryError::ShadowsGroup { ref path, parent, .. }
+                if path == "analytics ping" && parent.ends_with("ParentProbeCommands")
+        ),
+        "{err:?}"
+    );
+}
+
+#[derive(Debug, Subcommand)]
+enum SelfGrantingCommands {
+    #[command(about = "Claims the cloud-operator grant")]
+    Ping,
+}
+
+impl DescribeCommand for SelfGrantingCommands {
+    fn descriptor(&self) -> CommandDescriptor {
+        CommandDescriptor::NONE.with_cloud_operator()
+    }
+}
+
+impl CliCommandGroup for SelfGrantingCommands {
+    const PARENT: &'static [&'static str] = &[];
+    const NAME: &'static str = "selfgrant";
+    const ABOUT: &'static str = "Sets a grant in its descriptor without declaring it";
+
+    fn run(self, _ctx: &CommandContext) -> impl Future<Output = anyhow::Result<()>> + Send {
+        std::future::ready(Ok(()))
+    }
+}
+
+#[derive(Debug, Subcommand)]
+enum UnlistedGrantCommands {
+    #[command(about = "Declares a grant its path is not listed for")]
+    Ping,
+}
+
+impl DescribeCommand for UnlistedGrantCommands {
+    fn descriptor(&self) -> CommandDescriptor {
+        CommandDescriptor::NONE
+    }
+}
+
+impl CliCommandGroup for UnlistedGrantCommands {
+    const PARENT: &'static [&'static str] = &[];
+    const NAME: &'static str = "unlisted";
+    const ABOUT: &'static str = "Declares cloud-operator outside `cloud`";
+    const GRANTS: &'static [KernelGrant] = &[KernelGrant::CloudOperator];
+
+    fn run(self, _ctx: &CommandContext) -> impl Future<Output = anyhow::Result<()>> + Send {
+        std::future::ready(Ok(()))
+    }
+}
+
+#[derive(Debug, clap::Args)]
+struct CloudLeafArgs;
+
+impl DescribeCommand for CloudLeafArgs {
+    fn descriptor(&self) -> CommandDescriptor {
+        CommandDescriptor::NONE
+    }
+}
+
+impl CliCommandLeaf for CloudLeafArgs {
+    const PARENT: &'static [&'static str] = &["cloud"];
+    const NAME: &'static str = "extra";
+    const ABOUT: &'static str = "A leaf under `cloud` declaring the cloud-operator grant";
+    const GRANTS: &'static [KernelGrant] = &[KernelGrant::CloudOperator];
+
+    fn run(self, _ctx: &CommandContext) -> impl Future<Output = anyhow::Result<()>> + Send {
+        std::future::ready(Ok(()))
+    }
+}
+
+#[derive(Debug, clap::Args)]
+struct ChildHostLeafArgs;
+
+impl DescribeCommand for ChildHostLeafArgs {
+    fn descriptor(&self) -> CommandDescriptor {
+        CommandDescriptor::NONE
+    }
+}
+
+impl CliCommandLeaf for ChildHostLeafArgs {
+    const PARENT: &'static [&'static str] = &["infra", "services"];
+    const NAME: &'static str = "childhost";
+    const ABOUT: &'static str = "Declares child-host outside `admin mcp`";
+    const GRANTS: &'static [KernelGrant] = &[KernelGrant::ChildHost];
+
+    fn run(self, _ctx: &CommandContext) -> impl Future<Output = anyhow::Result<()>> + Send {
+        std::future::ready(Ok(()))
+    }
+}
+
+fn refused_grant(entry: CliCommandRegistration) -> (String, KernelGrant) {
+    match CommandRegistry::from_registrations(vec![entry]).unwrap_err() {
+        RegistryError::GrantNotListed { path, grant, .. } => (path, grant),
+        other => panic!("expected GrantNotListed, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_grant_the_kernel_does_not_list_for_the_path_is_refused_at_startup() {
+    assert_eq!(
+        refused_grant(CliCommandRegistration::of::<UnlistedGrantCommands>()),
+        ("unlisted".to_owned(), KernelGrant::CloudOperator)
+    );
+    assert_eq!(
+        refused_grant(CliCommandRegistration::leaf::<CloudLeafArgs>()),
+        ("cloud extra".to_owned(), KernelGrant::CloudOperator)
+    );
+    assert_eq!(
+        refused_grant(CliCommandRegistration::leaf::<ChildHostLeafArgs>()),
+        ("infra services childhost".to_owned(), KernelGrant::ChildHost)
+    );
+}
+
+#[test]
+fn a_descriptor_holding_an_undeclared_grant_is_refused_at_resolution() {
+    let registry = registry(vec![CliCommandRegistration::of::<SelfGrantingCommands>()]);
+    let err = registry
+        .resolve(&matches(&registry, &["selfgrant", "ping"]))
+        .unwrap_err();
+    assert!(
+        matches!(
+            err,
+            ResolveError::Registry(RegistryError::UndeclaredGrant {
+                ref path,
+                grant: KernelGrant::CloudOperator,
+                ..
+            }) if path == "selfgrant"
+        ),
+        "{err:?}"
+    );
 }

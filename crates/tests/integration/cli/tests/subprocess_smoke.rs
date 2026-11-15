@@ -11,6 +11,7 @@
 //! instrumented even without a live profile or database.
 
 use assert_cmd::Command;
+use predicates::prelude::PredicateBooleanExt;
 use predicates::str::contains;
 use systemprompt_cli_integration_tests::full_bootstrap::{isolated_fixture, systemprompt_bin};
 
@@ -378,7 +379,26 @@ fn core_artifacts_help() {
 }
 #[test]
 fn core_content_help() {
-    assert_help_ok(&["core", "content"]);
+    sp().args(["core", "content", "--help"])
+        .assert()
+        .success()
+        .stdout(contains("list"))
+        .stdout(contains("popular"));
+}
+#[test]
+fn core_content_popular_help_parses_its_own_arguments() {
+    sp().args(["core", "content", "popular", "--help"])
+        .assert()
+        .success()
+        .stdout(contains("--since"))
+        .stdout(contains("--limit"));
+}
+#[test]
+fn core_content_popular_resolves_past_its_registered_parent_group() {
+    sp().args(["core", "content", "popular", "blog"])
+        .assert()
+        .failure()
+        .stderr(contains("unrecognized subcommand").not());
 }
 #[test]
 fn core_contexts_help() {

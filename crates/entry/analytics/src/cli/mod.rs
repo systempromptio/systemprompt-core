@@ -32,7 +32,7 @@ use anyhow::Result;
 use clap::Subcommand;
 use systemprompt_cli::kernel::{
     CliCommandGroup, CommandContext, CommandDescriptor, DataImpact, DbUrlRouting, DescribeCommand,
-    render_result,
+    KernelGrant, render_result,
 };
 
 use crate::cli::shared::with_resolved_export;
@@ -70,9 +70,7 @@ pub enum AnalyticsCommands {
 impl DescribeCommand for AnalyticsCommands {
     fn descriptor(&self) -> CommandDescriptor {
         CommandDescriptor::FULL
-            .with_skip_validation()
             .with_read_only()
-            .with_local_export()
             .with_data_impact(DataImpact::Preserving)
     }
 }
@@ -82,6 +80,8 @@ impl CliCommandGroup for AnalyticsCommands {
     const NAME: &'static str = "analytics";
     const ABOUT: &'static str = "Analytics and metrics reporting";
     const DISPLAY_ORDER: usize = 50;
+    const GRANTS: &'static [KernelGrant] =
+        &[KernelGrant::LocalExport, KernelGrant::SkipValidation];
 
     fn db_url_routing(&self) -> DbUrlRouting {
         DbUrlRouting::Direct

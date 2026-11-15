@@ -21,7 +21,7 @@ use std::pin::Pin;
 use clap::{ArgMatches, Args, Command, Subcommand};
 
 use crate::context::CommandContext;
-use crate::descriptor::{CommandDescriptor, DbUrlRouting, DescribeCommand};
+use crate::descriptor::{CommandDescriptor, DbUrlRouting, DescribeCommand, KernelGrant};
 
 pub type CommandFuture<'a> = Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + 'a>>;
 
@@ -34,13 +34,16 @@ type RunFn = for<'a> fn(&'a ArgMatches, &'a CommandContext) -> CommandFuture<'a>
 /// `PARENT` is the path of the kernel group the group attaches under (empty
 /// for a top-level domain), `NAME` its subcommand name and `ABOUT` its
 /// one-line help, `DISPLAY_ORDER` its `--help` slot (see the module docs).
-/// [`DescribeCommand::descriptor`] returns the complete
-/// descriptor for the parsed command, data impact included.
+/// [`DescribeCommand::descriptor`] returns the descriptor for the parsed
+/// command, data impact included; `GRANTS` names the [`KernelGrant`]s the
+/// group needs, which the kernel adds to every descriptor it resolves for the
+/// group once its closed table lists the group's path for each.
 pub trait CliCommandGroup: Subcommand + DescribeCommand + Send + Sized + 'static {
     const PARENT: &'static [&'static str];
     const NAME: &'static str;
     const ABOUT: &'static str;
     const DISPLAY_ORDER: usize = REGISTERED_DISPLAY_ORDER;
+    const GRANTS: &'static [KernelGrant] = &[];
 
     fn db_url_routing(&self) -> DbUrlRouting {
         DbUrlRouting::Unsupported
@@ -54,12 +57,14 @@ pub trait CliCommandGroup: Subcommand + DescribeCommand + Send + Sized + 'static
 ///
 /// It attaches under `PARENT` exactly as a [`CliCommandGroup`] does, so a
 /// leaf such as `infra services serve` can be contributed by the crate that
-/// owns what it runs.
+/// owns what it runs. `GRANTS` works as for a group and belongs to the leaf
+/// alone: a leaf never inherits its parent group's descriptor or grants.
 pub trait CliCommandLeaf: Args + DescribeCommand + Send + Sized + 'static {
     const PARENT: &'static [&'static str];
     const NAME: &'static str;
     const ABOUT: &'static str;
     const DISPLAY_ORDER: usize = REGISTERED_DISPLAY_ORDER;
+    const GRANTS: &'static [KernelGrant] = &[];
 
     fn db_url_routing(&self) -> DbUrlRouting {
         DbUrlRouting::Unsupported
@@ -93,6 +98,13 @@ impl RegisteredCommand {
 
     pub const fn db_url_routing(&self) -> DbUrlRouting {
         self.db_url_routing
+    }
+
+    pub(super) fn granted(mut self, grants: &[KernelGrant]) -> Self {
+        self.descriptor = grants
+            .iter()
+            .fold(self.descriptor, |descriptor, grant| descriptor.with_grant(*grant));
+        self
     }
 
     pub fn run<'a>(&'a self, ctx: &'a CommandContext) -> CommandFuture<'a> {

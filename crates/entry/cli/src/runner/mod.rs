@@ -35,7 +35,7 @@ use crate::cli_settings::{CliConfig, OutputFormat};
 use crate::context::CommandContext;
 use crate::descriptor::{CommandDescriptor, DbUrlRouting};
 use crate::env_overrides::EnvOverrides;
-use crate::kernel::CommandRegistry;
+use crate::kernel::{CommandRegistry, ResolveError};
 use dispatch::{Invocation, Selected, dispatch_command};
 
 pub async fn run() -> Result<()> {
@@ -59,7 +59,11 @@ pub async fn run_with(build: BuildIdentity) -> Result<()> {
     let registry = CommandRegistry::collected()?;
     let root = args::command(&registry)?;
     let matches = root.clone().get_matches();
-    let invocation = Invocation::parse(&registry, root, &matches).map_err(|e| e.exit())?;
+    let invocation = match Invocation::parse(&registry, root, &matches) {
+        Ok(invocation) => invocation,
+        Err(ResolveError::Parse(error)) => error.exit(),
+        Err(error @ ResolveError::Registry(_)) => return Err(error.into()),
+    };
     let confirm = confirmation::ConfirmationRequest::from_matches(
         &matches,
         &args::reconstruct_args(),

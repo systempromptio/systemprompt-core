@@ -4,6 +4,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelGrant;
+
 /// Bootstrap flags for one command.
 ///
 /// `serves_api` marks a command that runs the API server in this process: the
@@ -28,6 +30,11 @@
 /// when the flag is present the runner keeps it on this machine instead of
 /// forwarding it to a tenant.
 ///
+/// `child_host`, `serves_api`, `cloud_operator`, `local_export` and
+/// `skip_validation` relax a requirement the runner would otherwise impose,
+/// so each is a [`KernelGrant`]: a registered command holds one only when it
+/// declares it and the kernel lists its path for it.
+///
 /// `is_destructive` is never set by hand: it is projected from the command's
 /// exhaustive [`DataImpact`] classification, so a command cannot be added
 /// without deciding whether it destroys data.
@@ -42,15 +49,15 @@ impl CommandDescriptor {
     const FLAG_PATHS: u16 = 0b0000_0000_0100;
     const FLAG_DATABASE: u16 = 0b0000_0000_1000;
     const FLAG_REMOTE_ELIGIBLE: u16 = 0b0000_0001_0000;
-    const FLAG_SKIP_VALIDATION: u16 = 0b0000_0010_0000;
+    pub(crate) const FLAG_SKIP_VALIDATION: u16 = 0b0000_0010_0000;
     const FLAG_READ_ONLY: u16 = 0b0000_0100_0000;
     const FLAG_MODEL_DISCOVERY: u16 = 0b0000_1000_0000;
     const FLAG_DESTRUCTIVE: u16 = 0b0001_0000_0000;
     const FLAG_IRREVERSIBLE: u16 = 0b0010_0000_0000;
-    const FLAG_SERVES_API: u16 = 0b0100_0000_0000;
-    const FLAG_CHILD_HOST: u16 = 0b1000_0000_0000;
-    const FLAG_CLOUD_OPERATOR: u16 = 0b0001_0000_0000_0000;
-    const FLAG_LOCAL_EXPORT: u16 = 0b0010_0000_0000_0000;
+    pub(crate) const FLAG_SERVES_API: u16 = 0b0100_0000_0000;
+    pub(crate) const FLAG_CHILD_HOST: u16 = 0b1000_0000_0000;
+    pub(crate) const FLAG_CLOUD_OPERATOR: u16 = 0b0001_0000_0000_0000;
+    pub(crate) const FLAG_LOCAL_EXPORT: u16 = 0b0010_0000_0000_0000;
 
     pub const NONE: Self = Self { flags: 0 };
 
@@ -105,7 +112,7 @@ impl CommandDescriptor {
     }
 
     pub const fn skip_validation(&self) -> bool {
-        self.flags & Self::FLAG_SKIP_VALIDATION != 0
+        self.holds(KernelGrant::SkipValidation)
     }
 
     pub const fn discovers_models(&self) -> bool {
@@ -125,9 +132,7 @@ impl CommandDescriptor {
     }
 
     pub const fn with_skip_validation(self) -> Self {
-        Self {
-            flags: self.flags | Self::FLAG_SKIP_VALIDATION,
-        }
+        self.with_grant(KernelGrant::SkipValidation)
     }
 
     pub const fn with_model_discovery(self) -> Self {
@@ -137,11 +142,11 @@ impl CommandDescriptor {
     }
 
     pub const fn serves_api(&self) -> bool {
-        self.flags & Self::FLAG_SERVES_API != 0
+        self.holds(KernelGrant::ServesApi)
     }
 
     pub const fn child_host(&self) -> bool {
-        self.flags & Self::FLAG_CHILD_HOST != 0
+        self.holds(KernelGrant::ChildHost)
     }
 
     pub const fn owns_signals(&self) -> bool {
@@ -149,28 +154,32 @@ impl CommandDescriptor {
     }
 
     pub const fn with_serves_api(self) -> Self {
-        Self {
-            flags: self.flags | Self::FLAG_SERVES_API,
-        }
+        self.with_grant(KernelGrant::ServesApi)
     }
 
     pub const fn cloud_operator(&self) -> bool {
-        self.flags & Self::FLAG_CLOUD_OPERATOR != 0
+        self.holds(KernelGrant::CloudOperator)
     }
 
     pub const fn with_cloud_operator(self) -> Self {
-        Self {
-            flags: self.flags | Self::FLAG_CLOUD_OPERATOR,
-        }
+        self.with_grant(KernelGrant::CloudOperator)
     }
 
     pub const fn local_export(&self) -> bool {
-        self.flags & Self::FLAG_LOCAL_EXPORT != 0
+        self.holds(KernelGrant::LocalExport)
     }
 
     pub const fn with_local_export(self) -> Self {
+        self.with_grant(KernelGrant::LocalExport)
+    }
+
+    pub const fn holds(&self, grant: KernelGrant) -> bool {
+        self.flags & grant.flag() != 0
+    }
+
+    pub const fn with_grant(self, grant: KernelGrant) -> Self {
         Self {
-            flags: self.flags | Self::FLAG_LOCAL_EXPORT,
+            flags: self.flags | grant.flag(),
         }
     }
 

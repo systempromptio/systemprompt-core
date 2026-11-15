@@ -20,7 +20,7 @@ use systemprompt_mcp_host::HostContext;
 use systemprompt_mcp_host::toolsets::serve;
 
 use crate::kernel::{
-    CliCommandGroup, CommandContext, CommandDescriptor, DataImpact, DescribeCommand,
+    CliCommandGroup, CommandContext, CommandDescriptor, DataImpact, DescribeCommand, KernelGrant,
 };
 
 #[derive(Debug, Clone, Subcommand)]
@@ -43,7 +43,7 @@ impl DescribeCommand for McpHostCommands {
     fn descriptor(&self) -> CommandDescriptor {
         match self {
             Self::Serve(_) => {
-                CommandDescriptor::CHILD_HOST.with_data_impact(DataImpact::Preserving)
+                CommandDescriptor::NONE.with_data_impact(DataImpact::Preserving)
             },
         }
     }
@@ -53,6 +53,7 @@ impl CliCommandGroup for McpHostCommands {
     const PARENT: &'static [&'static str] = &["admin"];
     const NAME: &'static str = "mcp";
     const ABOUT: &'static str = "Host MCP servers in this binary";
+    const GRANTS: &'static [KernelGrant] = &[KernelGrant::ChildHost];
 
     fn run(self, _ctx: &CommandContext) -> impl Future<Output = Result<()>> + Send {
         match self {

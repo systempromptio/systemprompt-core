@@ -29,7 +29,7 @@ pub use systemprompt_cloud::{Environment, OAuthProvider};
 use anyhow::Result;
 use clap::Subcommand;
 use systemprompt_cli::kernel::{
-    CliCommandGroup, CommandContext, CommandDescriptor, DataImpact, DescribeCommand,
+    CliCommandGroup, CommandContext, CommandDescriptor, DataImpact, DescribeCommand, KernelGrant,
 };
 use systemprompt_cli::register_cli_command;
 use systemprompt_identifiers::ProfileName;
@@ -140,13 +140,12 @@ pub enum CloudCommands {
 
 impl DescribeCommand for CloudCommands {
     fn descriptor(&self) -> CommandDescriptor {
-        let descriptor = match self {
+        match self {
             Self::Deploy { .. } => CommandDescriptor::NONE.with_data_impact(DataImpact::Preserving),
             Self::Backup { .. } | Self::Status => CommandDescriptor::PROFILE_ONLY,
             Self::Sync(_) => CommandDescriptor::FULL.with_read_only(),
             _ => CommandDescriptor::NONE,
-        };
-        descriptor.with_cloud_operator()
+        }
     }
 }
 
@@ -155,6 +154,7 @@ impl CliCommandGroup for CloudCommands {
     const NAME: &'static str = "cloud";
     const ABOUT: &'static str = "Cloud deployment, backup, and setup";
     const DISPLAY_ORDER: usize = 40;
+    const GRANTS: &'static [KernelGrant] = &[KernelGrant::CloudOperator];
 
     fn run(self, ctx: &CommandContext) -> impl Future<Output = Result<()>> + Send {
         execute(self, ctx)

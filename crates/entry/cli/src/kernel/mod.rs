@@ -10,12 +10,13 @@
 //!   [`crate::register_linked_seam!`] for the link-time seams `plugins seams`
 //!   lists ([`registered_seams`], whose [`SeamEntry`] values are rendered with
 //!   [`named`], [`owned`], [`prioritized`] and [`unnamed`]).
-//! - **Bootstrap declaration** — [`CommandDescriptor`], [`DataImpact`],
-//!   [`DbUrlRouting`], [`RoutingClass`] and [`DescribeCommand`]: what a command
+//! - **Bootstrap declaration** — [`CommandDescriptor`], [`KernelGrant`],
+//!   [`DataImpact`], [`DbUrlRouting`], [`RoutingClass`] and
+//!   [`DescribeCommand`]: what a command
 //!   needs before it runs (profile, secrets, paths, database, cloud credentials
 //!   for a cloud-operator command, a local `--export`) and what it does to the
 //!   data behind the profile; [`describe_command_line`] classifies a forwarded
-//!   argv the same way.
+//!   argv the same way and [`command_line_path`] names the path it selects.
 //! - **Execution context** — [`CommandContext`] (profile, paths, database,
 //!   session, foreground children) and the output settings in [`CliConfig`] and
 //!   [`OutputFormat`].
@@ -48,14 +49,18 @@
 
 mod command;
 mod describe;
+mod grants;
 mod registry;
+mod registry_error;
 mod seams;
 
 pub use command::{
     CliCommandGroup, CliCommandLeaf, CommandFuture, REGISTERED_DISPLAY_ORDER, RegisteredCommand,
 };
-pub use describe::describe_command_line;
-pub use registry::{CliCommandRegistration, CommandRegistry, RegistryError};
+pub use describe::{command_line_path, describe_command_line};
+pub use grants::KernelGrant;
+pub use registry::{CliCommandRegistration, CommandRegistry};
+pub use registry_error::{RegistryError, ResolveError};
 pub use seams::{
     LinkedSeamRegistration, SeamEntry, named, owned, prioritized, registered_seams, unnamed,
 };
