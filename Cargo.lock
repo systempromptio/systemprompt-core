@@ -6647,7 +6647,6 @@ dependencies = [
  "clap",
  "console",
  "dialoguer",
- "dirs",
  "ed25519-dalek 3.0.0",
  "futures",
  "futures-util",

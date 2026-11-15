@@ -89,8 +89,6 @@ impl Declared {
                     gateway_routes.push(admit_gateway_route(&member, decl)?);
                 }
             }
-            #[cfg(feature = "cli")]
-            drop(member.sink.take_commands());
             members.push(AdmittedMember {
                 owner: member.id,
                 metadata: member.metadata,

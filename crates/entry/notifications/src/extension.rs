@@ -43,11 +43,16 @@ impl Extension for NotificationsHttpExtension {
         }
     }
 
+    #[cfg_attr(
+        not(feature = "http"),
+        expect(
+            unused_variables,
+            reason = "the member contributes only routes, which the http feature compiles"
+        )
+    )]
     fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
         #[cfg(feature = "http")]
         routes::contribute(c);
-        #[cfg(not(feature = "http"))]
-        let _ = c;
         Ok(())
     }
 }

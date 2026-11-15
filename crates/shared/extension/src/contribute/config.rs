@@ -67,6 +67,7 @@ fn schema_of<C: schemars::JsonSchema>() -> schemars::Schema {
     schemars::schema_for!(C)
 }
 
+// JSON: the member's profile section, deserialised here into the member's own config type.
 fn validate_as<C: ExtensionConfig>(
     section: &serde_json::Value,
 ) -> Result<(), ExtensionConfigError> {
