@@ -35,11 +35,9 @@ use systemprompt_cloud::{CloudPath, TenantStore, get_cloud_paths};
 use systemprompt_identifiers::TenantId;
 use systemprompt_logging::CliService;
 
-use systemprompt_cli::kernel::CommandContext;
-use systemprompt_cli::kernel::Prompter;
-use systemprompt_cli::kernel::parsers::parse_tenant_id;
-use systemprompt_cli::kernel::render_result;
 use create_flow::tenant_create;
+use systemprompt_cli::kernel::parsers::parse_tenant_id;
+use systemprompt_cli::kernel::{CommandContext, Prompter, render_result};
 
 #[derive(Debug, Subcommand)]
 pub enum TenantCommands {

@@ -5,8 +5,8 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use systemprompt_cli::admin::config::secret_check;
-use systemprompt_cloud_entry::cli::doctor::{CheckStatus, vault_checks};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides};
+use systemprompt_cloud_entry::cli::doctor::{CheckStatus, vault_checks};
 use systemprompt_config::LoadedProfile;
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, Request, Respond, ResponseTemplate};

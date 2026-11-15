@@ -17,8 +17,8 @@ use systemprompt_models::CliPaths;
 pub mod scaffolding;
 pub mod templates;
 
-use systemprompt_cli::kernel::CliConfig;
 use scaffolding::generate_services_boilerplate;
+use systemprompt_cli::kernel::CliConfig;
 
 const GITIGNORE_CONTENT: &str = "# Ignore sensitive files
 credentials.json

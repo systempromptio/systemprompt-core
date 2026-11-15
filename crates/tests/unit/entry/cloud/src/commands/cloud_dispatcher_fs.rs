@@ -7,8 +7,8 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use clap::Parser;
-use systemprompt_cloud_entry::cli::{self, CloudCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cloud_entry::cli::{self, CloudCommands};
 
 #[derive(Debug, Parser)]
 struct Harness {

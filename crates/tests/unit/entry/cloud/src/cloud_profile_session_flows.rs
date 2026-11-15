@@ -69,9 +69,12 @@ fn profile_context(project: &Project, answers: &[&str]) -> CommandContext {
 async fn coverage_profile_menu_edits_an_existing_profile_and_returns_to_the_menu() {
     let project = Project::new("unused", false);
     let before = systemprompt_loader::ProfileLoader::load_from_path(&project.profile).unwrap();
-    systemprompt_cloud_entry::cli::profile::execute(None, &profile_context(&project, &["1", "4", "3"]))
-        .await
-        .unwrap();
+    systemprompt_cloud_entry::cli::profile::execute(
+        None,
+        &profile_context(&project, &["1", "4", "3"]),
+    )
+    .await
+    .unwrap();
     let after = systemprompt_loader::ProfileLoader::load_from_path(&project.profile).unwrap();
     assert_eq!(after.server.host, before.server.host);
     assert_eq!(after.server.port, before.server.port);
@@ -152,9 +155,9 @@ async fn coverage_profile_edit_persists_server_security_and_runtime_choices() {
 #[test]
 fn deploy_without_profile_refuses_a_session_selected_cloud_profile() {
     use systemprompt_cli::ScriptedPrompter;
-    use systemprompt_cloud_entry::cli::deploy::select::resolve_profile;
     use systemprompt_cli::paths::ResolvedPaths;
     use systemprompt_cloud::SessionStore;
+    use systemprompt_cloud_entry::cli::deploy::select::resolve_profile;
 
     let project = Project::new("unused", true);
     let yaml = std::fs::read_to_string(&project.profile)

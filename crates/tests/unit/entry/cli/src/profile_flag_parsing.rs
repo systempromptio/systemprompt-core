@@ -28,8 +28,14 @@ fn session_logout_profile_flag_parses_alongside_the_global_flag() {
 
 #[test]
 fn the_global_profile_flag_still_accepts_a_path() {
-    let cli = parse(&["--profile", "/tmp/profiles/prod", "admin", "session", "show"])
-        .expect("the global flag resolves names and paths");
+    let cli = parse(&[
+        "--profile",
+        "/tmp/profiles/prod",
+        "admin",
+        "session",
+        "show",
+    ])
+    .expect("the global flag resolves names and paths");
     assert_eq!(
         cli.profile_opts.profile.as_deref(),
         Some("/tmp/profiles/prod")

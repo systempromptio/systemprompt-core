@@ -20,8 +20,7 @@ use clap::{Args, Subcommand};
 use systemprompt_scheduler::repository::ConfigReconcileRepository;
 use systemprompt_scheduler::services::{ConfigApplyService, ConfigReconcileService, PlanePatch};
 
-use systemprompt_cli::kernel::CommandContext;
-use systemprompt_cli::kernel::{CommandOutput, render_result};
+use systemprompt_cli::kernel::{CommandContext, CommandOutput, render_result};
 
 #[derive(Debug, Subcommand)]
 pub enum SyncCommands {

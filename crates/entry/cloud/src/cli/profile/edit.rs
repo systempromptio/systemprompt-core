@@ -15,8 +15,7 @@ use serde_yaml::Value;
 use super::edit_document::ProfileEdit;
 use super::edit_secrets::edit_api_keys;
 use super::edit_settings::{edit_runtime_settings, edit_security_settings, edit_server_settings};
-use systemprompt_cli::kernel::CommandContext;
-use systemprompt_cli::kernel::resolve_profile_path;
+use systemprompt_cli::kernel::{CommandContext, resolve_profile_path};
 
 pub(super) fn execute(args: &EditArgs, ctx: &CommandContext) -> Result<()> {
     let profile_path =

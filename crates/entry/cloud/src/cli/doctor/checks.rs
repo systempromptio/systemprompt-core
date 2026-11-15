@@ -54,10 +54,7 @@ pub fn check_extension_configs(profile: &Profile) -> CheckResult {
     }
 }
 
-pub(in crate::cli) fn resolve_signing_key_path(
-    profile: &Profile,
-    profile_dir: &Path,
-) -> PathBuf {
+pub(in crate::cli) fn resolve_signing_key_path(profile: &Profile, profile_dir: &Path) -> PathBuf {
     let configured = &profile.security.signing_key_path;
     if configured.is_absolute() {
         configured.clone()

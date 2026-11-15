@@ -13,11 +13,8 @@ use systemprompt_cloud::{ProfilePath, ProjectContext};
 use systemprompt_logging::CliService;
 
 use super::{ShowFilter, show};
-use systemprompt_cli::kernel::CliConfig;
 use crate::cli::types::{ProfileListOutput, ProfileSummary};
-use systemprompt_cli::kernel::CommandContext;
-use systemprompt_cli::kernel::Prompter;
-use systemprompt_cli::kernel::CommandOutput;
+use systemprompt_cli::kernel::{CliConfig, CommandContext, CommandOutput, Prompter};
 
 pub(super) async fn execute(ctx: &CommandContext) -> Result<CommandOutput> {
     let config = &ctx.cli;

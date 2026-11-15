@@ -7,9 +7,9 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cloud_entry::cli::profile;
 use systemprompt_cli::interactive::ScriptedPrompter;
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides};
+use systemprompt_cloud_entry::cli::profile;
 
 const LIST: &str = "0";
 const EDIT: &str = "1";

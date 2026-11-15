@@ -153,9 +153,12 @@ fn cloud_refuses_a_direct_database_url() {
 
 fn cloud_profile(args: &[&str]) -> Result<(Cli, Option<String>), clap::Error> {
     let (_, root) = root();
-    let matches = root.try_get_matches_from(std::iter::once("systemprompt").chain(args.iter().copied()))?;
+    let matches =
+        root.try_get_matches_from(std::iter::once("systemprompt").chain(args.iter().copied()))?;
     let cli = Cli::from_globals(&matches)?;
-    let cloud = matches.subcommand_matches("cloud").expect("a cloud command");
+    let cloud = matches
+        .subcommand_matches("cloud")
+        .expect("a cloud command");
     let profile = match CloudCommands::from_arg_matches(cloud)? {
         CloudCommands::Doctor { profile, .. }
         | CloudCommands::Deploy { profile, .. }
@@ -203,7 +206,13 @@ fn cloud_profile_flags_refuse_a_path() {
 fn the_global_profile_flag_accepts_a_path_before_cloud() {
     let (_, root) = root();
     let matches = root
-        .try_get_matches_from(["systemprompt", "--profile", "/tmp/profiles/prod", "cloud", "status"])
+        .try_get_matches_from([
+            "systemprompt",
+            "--profile",
+            "/tmp/profiles/prod",
+            "cloud",
+            "status",
+        ])
         .expect("the global flag resolves names and paths");
     let cli = Cli::from_globals(&matches).expect("globals");
     assert_eq!(

@@ -8325,6 +8325,7 @@ dependencies = [
  "systemprompt-cli",
  "systemprompt-client",
  "systemprompt-cloud",
+ "systemprompt-cloud-entry",
  "systemprompt-config",
  "systemprompt-content",
  "systemprompt-database",
@@ -9669,6 +9670,7 @@ dependencies = [
  "sqlx",
  "systemprompt-cli",
  "systemprompt-cloud",
+ "systemprompt-cloud-entry",
  "systemprompt-config",
  "systemprompt-identifiers",
  "systemprompt-loader",
@@ -9806,6 +9808,71 @@ dependencies = [
  "urlencoding",
  "uuid",
  "validator",
+]
+
+[[package]]
+name = "systemprompt-cloud-entry"
+version = "0.81.1"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "clap",
+ "hex",
+ "indicatif",
+ "reqwest",
+ "schemars 1.2.3",
+ "serde",
+ "serde_json",
+ "serde_yaml_ng",
+ "sha2 0.11.1",
+ "sqlx",
+ "systemprompt-cli",
+ "systemprompt-client",
+ "systemprompt-cloud",
+ "systemprompt-config",
+ "systemprompt-database",
+ "systemprompt-extension",
+ "systemprompt-gateway",
+ "systemprompt-governance",
+ "systemprompt-identifiers",
+ "systemprompt-loader",
+ "systemprompt-logging",
+ "systemprompt-manifest",
+ "systemprompt-marketplace",
+ "systemprompt-models",
+ "systemprompt-runtime",
+ "systemprompt-scheduler",
+ "systemprompt-traits",
+ "tokio",
+ "tracing",
+ "url",
+ "uuid",
+]
+
+[[package]]
+name = "systemprompt-cloud-entry-tests"
+version = "0.0.11"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "clap",
+ "serde_json",
+ "serde_yaml_ng",
+ "systemprompt-cli",
+ "systemprompt-cloud",
+ "systemprompt-cloud-entry",
+ "systemprompt-config",
+ "systemprompt-identifiers",
+ "systemprompt-loader",
+ "systemprompt-manifest",
+ "systemprompt-marketplace",
+ "systemprompt-models",
+ "systemprompt-runtime",
+ "systemprompt-test-fixtures",
+ "systemprompt-test-hack",
+ "tempfile",
+ "tokio",
+ "wiremock",
 ]
 
 [[package]]

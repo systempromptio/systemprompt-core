@@ -21,9 +21,9 @@ use systemprompt_models::ContentConfigRaw;
 use super::ShowFilter;
 use super::show_display::print_formatted_config;
 use super::show_types::{FullConfig, SettingsOutput, build_env_config};
-use systemprompt_cli::kernel::CliConfig;
-use systemprompt_cli::kernel::CommandContext;
-use systemprompt_cli::kernel::{CommandOutput, render_result, resolve_profile_path};
+use systemprompt_cli::kernel::{
+    CliConfig, CommandContext, CommandOutput, render_result, resolve_profile_path,
+};
 
 pub(super) async fn execute(
     name: Option<&str>,

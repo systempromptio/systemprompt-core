@@ -43,9 +43,8 @@ use systemprompt_manifest::profile::CloudConfig;
 use pipeline::{DeployOptions, DeployOrchestrator, DeployRequest};
 
 use super::tenant::get_credentials;
-use systemprompt_cli::kernel::CliConfig;
-use systemprompt_cli::kernel::Prompter;
 use systemprompt_cli::kernel::project::ProjectRoot;
+use systemprompt_cli::kernel::{CliConfig, Prompter};
 
 const GITOPS_READINESS_WAIT: ReadinessWait = ReadinessWait {
     timeout: Duration::from_mins(15),

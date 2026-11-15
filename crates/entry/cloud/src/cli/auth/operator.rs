@@ -16,9 +16,8 @@ use systemprompt_identifiers::ClientId;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::{OperatorAuthConfig, Profile, default_operator_scopes};
 
-use systemprompt_cli::kernel::CliConfig;
 use crate::cli::templates::{AUTH_ERROR_HTML, AUTH_SUCCESS_HTML};
-use systemprompt_cli::kernel::CommandOutput;
+use systemprompt_cli::kernel::{CliConfig, CommandOutput};
 
 #[derive(Debug, Clone, Serialize)]
 struct OperatorLoginOutput {

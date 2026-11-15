@@ -1,9 +1,9 @@
 //! Tenant mutations preserve the local cache until the cloud accepts them.
 
 use serde_json::json;
+use systemprompt_cloud::{CloudPath, TenantStore, get_cloud_paths};
 use systemprompt_cloud_entry::cli::tenant::{TenantCommands, TenantDeleteArgs, TenantRotateArgs};
 use systemprompt_cloud_entry::cli::{self as cloud, CloudCommands};
-use systemprompt_cloud::{CloudPath, TenantStore, get_cloud_paths};
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, ResponseTemplate};
 

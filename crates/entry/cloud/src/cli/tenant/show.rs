@@ -9,10 +9,8 @@ use systemprompt_identifiers::{CloudAppId, TenantId};
 use systemprompt_logging::CliService;
 
 use super::select::select_tenant;
-use systemprompt_cli::kernel::CliConfig;
 use crate::cli::types::TenantDetailOutput;
-use systemprompt_cli::kernel::Prompter;
-use systemprompt_cli::kernel::CommandOutput;
+use systemprompt_cli::kernel::{CliConfig, CommandOutput, Prompter};
 
 pub fn show_tenant(
     prompter: &dyn Prompter,

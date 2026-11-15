@@ -10,8 +10,8 @@ use std::os::unix::process::ExitStatusExt;
 use std::process::{ExitStatus, Output};
 use std::sync::Mutex;
 
-use systemprompt_cloud_entry::cli::tenant::docker::{TenantContainer, container};
 use systemprompt_cloud::{CommandRunner, CommandSpec, DockerCli};
+use systemprompt_cloud_entry::cli::tenant::docker::{TenantContainer, container};
 
 #[derive(Debug, Clone)]
 enum Resp {

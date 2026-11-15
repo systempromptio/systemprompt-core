@@ -3,8 +3,10 @@
 
 use std::collections::HashMap;
 
-use systemprompt_cloud_entry::cli::doctor::{CheckStatus, check_proxy_topology, check_required_secrets};
 use systemprompt_cloud::profile_authoring::CloudProfileBuilder;
+use systemprompt_cloud_entry::cli::doctor::{
+    CheckStatus, check_proxy_topology, check_required_secrets,
+};
 use systemprompt_manifest::ProfileType;
 
 fn map(pairs: &[(&str, &str)]) -> HashMap<String, String> {

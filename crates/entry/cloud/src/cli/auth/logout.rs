@@ -11,10 +11,8 @@ use systemprompt_cloud::{CloudPath, clear_cloud_state, get_cloud_paths};
 use systemprompt_logging::CliService;
 
 use super::LogoutArgs;
-use systemprompt_cli::kernel::CliConfig;
 use crate::cli::types::LogoutOutput;
-use systemprompt_cli::kernel::Prompter;
-use systemprompt_cli::kernel::CommandOutput;
+use systemprompt_cli::kernel::{CliConfig, CommandOutput, Prompter};
 
 pub(super) fn execute(
     args: LogoutArgs,

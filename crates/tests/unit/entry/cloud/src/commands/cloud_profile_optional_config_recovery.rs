@@ -2,8 +2,8 @@
 
 use std::process::Command;
 
-use systemprompt_cloud_entry::cli::profile::{self, ProfileCommands, ShowFilter};
 use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat};
+use systemprompt_cloud_entry::cli::profile::{self, ProfileCommands, ShowFilter};
 use systemprompt_test_fixtures::{bounded_output, ensure_test_bootstrap};
 
 const HELPER: &str = "commands::cloud_profile_optional_config_recovery::optional_config_helper";

@@ -13,11 +13,10 @@ mod whoami;
 
 pub use login::{build_login_output, complete_login};
 
-use systemprompt_cli::kernel::CommandContext;
-use systemprompt_cli::kernel::parsers::parse_client_id;
-use systemprompt_cli::kernel::render_result;
 use anyhow::Result;
 use clap::{Args, Subcommand};
+use systemprompt_cli::kernel::parsers::parse_client_id;
+use systemprompt_cli::kernel::{CommandContext, render_result};
 
 use super::Environment;
 use systemprompt_identifiers::ClientId;

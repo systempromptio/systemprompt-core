@@ -265,7 +265,10 @@ fn execute_dockerfile(ctx: &CommandContext) -> Result<()> {
 
     if config.is_json_output() {
         systemprompt_cli::kernel::render_result(
-            &systemprompt_cli::kernel::CommandOutput::copy_paste_titled("Dockerfile", output.content),
+            &systemprompt_cli::kernel::CommandOutput::copy_paste_titled(
+                "Dockerfile",
+                output.content,
+            ),
             config,
         );
     } else {

@@ -13,14 +13,12 @@ use systemprompt_cloud::{
 };
 use systemprompt_logging::CliService;
 
-use systemprompt_cli::kernel::CliConfig;
 use crate::cli::templates::{AUTH_ERROR_HTML, AUTH_SUCCESS_HTML};
 use crate::cli::types::{
     LoginCustomerInfo, LoginOutput, LoginTenantInfo, LoginUserInfo, TenantPlanInfo,
 };
 use crate::cli::{Environment, OAuthProvider};
-use systemprompt_cli::kernel::Prompter;
-use systemprompt_cli::kernel::CommandOutput;
+use systemprompt_cli::kernel::{CliConfig, CommandOutput, Prompter};
 
 pub(super) async fn execute(
     environment: Environment,

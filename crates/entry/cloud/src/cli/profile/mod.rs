@@ -31,10 +31,8 @@ pub use create::{CreatedProfile, create_profile_for_tenant};
 pub use create_setup::handle_local_tenant_setup;
 pub use show_types::redact_database_url;
 
-use systemprompt_cli::kernel::CommandContext;
-use systemprompt_cli::kernel::Prompter;
-use systemprompt_cli::kernel::render_result;
 use anyhow::Result;
+use systemprompt_cli::kernel::{CommandContext, Prompter, render_result};
 use systemprompt_cloud::{ProfilePath, ProjectContext};
 use systemprompt_logging::CliService;
 

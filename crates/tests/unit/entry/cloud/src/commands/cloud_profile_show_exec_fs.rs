@@ -6,8 +6,8 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cloud_entry::cli::profile::{self, ProfileCommands, ShowFilter};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cloud_entry::cli::profile::{self, ProfileCommands, ShowFilter};
 
 fn ctx() -> CommandContext {
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();

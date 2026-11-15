@@ -3,12 +3,12 @@
 use std::path::PathBuf;
 
 use systemprompt_cli::admin::session::list::discover_profiles;
+use systemprompt_cli::interactive::ScriptedPrompter;
 use systemprompt_cloud_entry::cli::deploy::DeployProfile;
 use systemprompt_cloud_entry::cli::deploy::pipeline::DeploySecretsSource;
 use systemprompt_cloud_entry::cli::doctor::{CheckStatus, run_managed};
 use systemprompt_cloud_entry::cli::profile::edit_document::ProfileEdit;
 use systemprompt_cloud_entry::cli::profile::edit_settings::edit_server_settings;
-use systemprompt_cli::interactive::ScriptedPrompter;
 use systemprompt_config::LoadedProfile;
 use systemprompt_manifest::ProfileType;
 use systemprompt_manifest::profile::ManagedProfile;

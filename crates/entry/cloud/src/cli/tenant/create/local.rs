@@ -17,9 +17,7 @@ use systemprompt_models::defaults::DEFAULT_POSTGRES_PORT;
 
 use crate::cli::init::ensure_project_scaffolding;
 use crate::cli::profile::templates::validate_connection;
-use crate::cli::profile::{
-    collect_api_keys, create_profile_for_tenant, handle_local_tenant_setup,
-};
+use crate::cli::profile::{collect_api_keys, create_profile_for_tenant, handle_local_tenant_setup};
 use systemprompt_cli::kernel::Prompter;
 
 use super::super::docker::{
