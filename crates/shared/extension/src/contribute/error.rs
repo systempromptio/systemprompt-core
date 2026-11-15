@@ -20,6 +20,8 @@ pub enum ContributionError {
     InvalidPath(&'static str),
     #[error("invalid extension base {0}")]
     InvalidBase(&'static str),
+    #[error("route set at {0:?} declared through the wrong builder")]
+    RouteSetKind(crate::router::BaseRef),
     #[error("unsupported method {0}")]
     UnsupportedMethod(http::Method),
     #[error("schema {0} declared twice")]

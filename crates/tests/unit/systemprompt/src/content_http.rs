@@ -16,7 +16,7 @@ use systemprompt::reference;
 use systemprompt_cli::kernel::{CommandRegistry, describe_command_line, kernel_commands};
 use systemprompt_extension::admitted::AdmittedRouteSet;
 use systemprompt_extension::cli::{CommandDescriptor, DataImpact};
-use systemprompt_extension::router::{ApiBase, BasePath, WebBase};
+use systemprompt_extension::router::{ApiBase, BasePath, BaseRef, WebBase};
 use systemprompt_extension::{Admitted, AuthzPolicy, ContextKind, RouteGroup};
 
 use crate::probe::build;
@@ -63,7 +63,7 @@ fn content_http_holds_the_three_conferred_route_sets() {
 
     let at_content: Vec<&&AdmittedRouteSet> = sets
         .iter()
-        .filter(|set| set.set.base() == BasePath::Api(ApiBase::Content))
+        .filter(|set| set.set.base() == BaseRef::Path(BasePath::Api(ApiBase::Content)))
         .collect();
     assert_eq!(at_content.len(), 2, "{at_content:?}");
 
@@ -110,7 +110,7 @@ fn content_http_holds_the_three_conferred_route_sets() {
 
     let redirect = sets
         .iter()
-        .find(|set| set.set.base() == BasePath::Web(WebBase::Root))
+        .find(|set| set.set.base() == BaseRef::Path(BasePath::Web(WebBase::Root)))
         .expect("the redirect set at the web root");
     assert_eq!(routes(redirect), [("GET".to_owned(), "/r/{short_code}")]);
     assert_eq!(

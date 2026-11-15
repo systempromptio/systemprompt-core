@@ -1,13 +1,14 @@
 //! A member's routes at one base, built from typed handlers.
 //!
 //! [`RouteSet::at`] names the base, the route group and the state type `S`
-//! every handler extracts; [`RouteSetBuilder::route`] adds one method and path
-//! with its [`RouteSpec`]. The set stores the handlers type-erased; the API
-//! mount resolves `S` through its hand-written [`FromState`] impl only after
-//! admission, and builds one router per declared route so it can apply each
-//! route's own spec. A malformed path, an unsupported method or an invalid
-//! extension base is recorded on the set and refused when the composition
-//! reads the member's contributions.
+//! every handler extracts; [`RouteSet::gateway`] names a closed gateway path
+//! in place of the base, for a [`GatewayRouteDecl`]; [`RouteSetBuilder::route`]
+//! adds one method and path with its [`RouteSpec`]. The set stores the handlers
+//! type-erased; the API mount resolves `S` through its hand-written
+//! [`FromState`] impl only after admission, and builds one router per declared
+//! route so it can apply each route's own spec. A malformed path, an
+//! unsupported method or an invalid extension base is recorded on the set and
+//! refused when the composition reads the member's contributions.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -19,7 +20,9 @@ use axum::handler::Handler;
 use axum::routing::{MethodFilter, MethodRouter};
 use systemprompt_provider_contracts::MissingDependency;
 
-use super::shape::{BasePath, GatewayPath, RouteDef, RouteLimits, RoutePath, RouteSpec, TypedSpec};
+use super::shape::{
+    BasePath, BaseRef, GatewayPath, RouteDef, RouteLimits, RoutePath, RouteSpec, TypedSpec,
+};
 use crate::contribute::{ContributionError, FromState, Resolved};
 use crate::protection::RouteGroup;
 
@@ -27,7 +30,7 @@ type Materialize =
     Arc<dyn Fn(&Resolved<'_>) -> Result<Vec<Router>, MissingDependency> + Send + Sync>;
 
 pub struct RouteSet {
-    base: BasePath,
+    base: BaseRef,
     group: RouteGroup,
     defs: Vec<RouteDef>,
     materialize: Materialize,
@@ -37,10 +40,22 @@ pub struct RouteSet {
 impl RouteSet {
     pub fn at<S: FromState + Clone>(base: BasePath, group: RouteGroup) -> RouteSetBuilder<S> {
         RouteSetBuilder {
-            base,
+            base: BaseRef::Path(base),
             group,
             routes: Vec::new(),
             error: base.validate().err(),
+        }
+    }
+
+    pub fn gateway<S: FromState + Clone>(
+        path: GatewayPath,
+        group: RouteGroup,
+    ) -> RouteSetBuilder<S> {
+        RouteSetBuilder {
+            base: BaseRef::Gateway(path),
+            group,
+            routes: Vec::new(),
+            error: None,
         }
     }
 
@@ -50,7 +65,7 @@ impl RouteSet {
     }
 
     #[must_use]
-    pub const fn base(&self) -> BasePath {
+    pub const fn base(&self) -> BaseRef {
         self.base
     }
 
@@ -80,7 +95,7 @@ impl std::fmt::Debug for RouteSet {
 }
 
 pub struct RouteSetBuilder<S> {
-    base: BasePath,
+    base: BaseRef,
     group: RouteGroup,
     routes: Vec<(RouteDef, MethodRouter<S>)>,
     error: Option<ContributionError>,
@@ -179,10 +194,20 @@ impl<S> std::fmt::Debug for RouteSetBuilder<S> {
     }
 }
 
-/// A gateway route claim: its closed gateway path, limits and routes.
+/// A gateway route claim: its limits and the routes built by
+/// [`RouteSet::gateway`], whose gateway path is the claim's path.
 #[derive(Debug)]
 pub struct GatewayRouteDecl {
-    pub path: GatewayPath,
     pub limits: RouteLimits,
     pub router: RouteSet,
+}
+
+impl GatewayRouteDecl {
+    #[must_use]
+    pub const fn path(&self) -> Option<GatewayPath> {
+        match self.router.base {
+            BaseRef::Gateway(path) => Some(path),
+            BaseRef::Path(_) => None,
+        }
+    }
 }

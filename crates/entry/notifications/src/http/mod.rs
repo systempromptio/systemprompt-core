@@ -37,7 +37,7 @@ use std::sync::Arc;
 use axum::http::Method;
 use systemprompt_extension::prelude::*;
 use systemprompt_extension::router::{
-    ApiBase, BasePath, BodyLimit, RouteLimits, RouteSet, RouteSpec,
+    ApiBase, BasePath, BodyLimit, GatewayPath, RouteLimits, RouteSet, RouteSpec,
 };
 use systemprompt_extension::{HandlerVerifier, RouteGroup};
 use systemprompt_models::RequestContext;
@@ -138,7 +138,7 @@ pub fn admin_routes() -> RouteSet {
 #[must_use]
 pub fn bridge_routes() -> RouteSet {
     let at = ApiPaths::gateway_relative;
-    RouteSet::at::<NotificationsState>(BasePath::Api(ApiBase::Notifications), RouteGroup::Gateway)
+    RouteSet::gateway::<NotificationsState>(GatewayPath::BridgeNotifications, RouteGroup::Gateway)
         .route(
             Method::GET,
             at(ApiPaths::BRIDGE_NOTIFICATIONS),

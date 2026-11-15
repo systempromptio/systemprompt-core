@@ -55,7 +55,7 @@ impl Extension for NotificationsHttpExtension {
 #[cfg(feature = "http")]
 mod routes {
     use systemprompt_extension::prelude::*;
-    use systemprompt_extension::router::{GatewayPath, GatewayRouteDecl};
+    use systemprompt_extension::router::GatewayRouteDecl;
     use systemprompt_notifications::NotificationsServiceSlot;
 
     use crate::http::{BRIDGE_LIMITS, admin_routes, bridge_routes, user_routes};
@@ -65,7 +65,6 @@ mod routes {
             .routes(user_routes())
             .routes(admin_routes())
             .gateway_route(GatewayRouteDecl {
-                path: GatewayPath::BridgeNotifications,
                 limits: BRIDGE_LIMITS,
                 router: bridge_routes(),
             });

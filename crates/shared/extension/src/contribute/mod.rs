@@ -256,6 +256,9 @@ impl<'a> Contributions<'a> {
         if let Some(error) = r.take_error() {
             self.sink.errors.push(error);
         }
+        if let base @ crate::router::BaseRef::Gateway(_) = r.base() {
+            self.sink.errors.push(ContributionError::RouteSetKind(base));
+        }
         self.sink.routes.push(r);
         self
     }
@@ -265,6 +268,9 @@ impl<'a> Contributions<'a> {
         let mut r = r;
         if let Some(error) = r.router.take_error() {
             self.sink.errors.push(error);
+        }
+        if let base @ crate::router::BaseRef::Path(_) = r.router.base() {
+            self.sink.errors.push(ContributionError::RouteSetKind(base));
         }
         self.sink.gateway_routes.push(r);
         self

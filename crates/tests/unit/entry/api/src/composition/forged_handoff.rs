@@ -5,7 +5,7 @@
 
 use systemprompt_api::services::middleware::{MountError, recheck};
 
-use super::forge::{PLAIN_LIMITS, analytics_set, entry, forged, routed, set, spec_of};
+use super::forge::{PLAIN_LIMITS, analytics_set, entry, forged, gateway_set, routed, set, spec_of};
 use systemprompt_extension::admitted::AdmittedGatewayRoute;
 use systemprompt_extension::reserved::{CoreId, PRIVILEGED_SHAPES};
 use systemprompt_extension::router::{
@@ -340,10 +340,9 @@ fn bridge_route(limits: RouteLimits) -> AdmittedGatewayRoute {
     AdmittedGatewayRoute {
         owner: ExtensionId::new("notifications-http"),
         decl: GatewayRouteDecl {
-            path: GatewayPath::BridgeNotifications,
             limits,
-            router: set(
-                BasePath::Api(ApiBase::Extension("/api/bridge-probe")),
+            router: gateway_set(
+                GatewayPath::BridgeNotifications,
                 shape.group,
                 &[(http::Method::GET, "/", spec)],
             ),
@@ -392,5 +391,28 @@ fn bridge_gateway_route_under_a_non_core_id_is_an_owner_mismatch() {
             expected: CoreId::NotificationsHttp,
             ..
         })
+    ));
+}
+
+#[test]
+fn a_gateway_route_built_at_a_path_base_is_refused() {
+    let shape = entry(
+        CoreId::NotificationsHttp,
+        BaseRef::Gateway(GatewayPath::BridgeNotifications),
+        Allowance::GatewayRoute,
+    );
+    let limits = shape.shape.limits;
+    let spec = RouteSpec::new(shape.shape.policy, shape.shape.context, limits);
+    let base = BasePath::Api(ApiBase::Extension("/api/bridge-probe"));
+    let route = AdmittedGatewayRoute {
+        owner: ExtensionId::new("notifications-http"),
+        decl: GatewayRouteDecl {
+            limits,
+            router: set(base, shape.group, &[(http::Method::GET, "/", spec)]),
+        },
+    };
+    assert!(matches!(
+        recheck(&forged(vec![], vec![route])),
+        Err(MountError::RouteSetKind(BaseRef::Path(at))) if at == base
     ));
 }

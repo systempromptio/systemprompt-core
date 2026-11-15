@@ -4,7 +4,7 @@
 use systemprompt_extension::admitted::{AdmittedGatewayRoute, AdmittedParts, AdmittedRouteSet};
 use systemprompt_extension::reserved::{CoreId, PRIVILEGED_SHAPES, PrivilegedShape};
 use systemprompt_extension::router::{
-    Allowance, ApiBase, BasePath, BaseRef, BodyLimit, RouteLimits, RouteSet, RouteSpec,
+    Allowance, ApiBase, BasePath, BaseRef, BodyLimit, GatewayPath, RouteLimits, RouteSet, RouteSpec,
 };
 use systemprompt_extension::{
     Admitted, FromState, HandleId, MissingDependency, RateBudget, RateLimit, Resolved, RouteGroup,
@@ -54,6 +54,20 @@ pub(super) fn set(
         .iter()
         .fold(
             RouteSet::at::<ProbeState>(base, group),
+            |builder, (method, path, spec)| builder.route(method.clone(), path, ok, *spec),
+        )
+        .build()
+}
+
+pub(super) fn gateway_set(
+    path: GatewayPath,
+    group: RouteGroup,
+    routes: &[(http::Method, &'static str, RouteSpec)],
+) -> RouteSet {
+    routes
+        .iter()
+        .fold(
+            RouteSet::gateway::<ProbeState>(path, group),
             |builder, (method, path, spec)| builder.route(method.clone(), path, ok, *spec),
         )
         .build()

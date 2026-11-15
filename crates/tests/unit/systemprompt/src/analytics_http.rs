@@ -18,7 +18,7 @@ use systemprompt_extension::cli::{
     CommandDescriptor, DataImpact, DbUrlRouting, KernelGrant, RoutingClass,
 };
 use systemprompt_extension::handles::AnalyticsBroadcaster;
-use systemprompt_extension::router::{ApiBase, BasePath, RouteSet, WebBase};
+use systemprompt_extension::router::{ApiBase, BasePath, BaseRef, RouteSet, WebBase};
 use systemprompt_extension::{Admitted, Handed, HandleId, RouteGroup};
 use systemprompt_identifiers::{ConnectionId, UserId};
 use systemprompt_runtime::Kernel;
@@ -44,7 +44,7 @@ fn analytics_sets(admitted: &Admitted) -> Vec<&AdmittedRouteSet> {
 fn set_at<'a>(sets: &[&'a AdmittedRouteSet], base: BasePath) -> &'a AdmittedRouteSet {
     sets.iter()
         .copied()
-        .find(|set| set.set.base() == base)
+        .find(|set| set.set.base() == BaseRef::Path(base))
         .unwrap_or_else(|| panic!("analytics-http holds a set at {base:?}"))
 }
 
@@ -123,16 +123,18 @@ fn a_second_analytics_http_set_requesting_the_broadcaster_cannot_resolve_it() {
     let admitted = admitted();
     let sets = analytics_sets(&admitted);
     let kernel = handing_kernel();
-    let engagement = set_at(&sets, BasePath::Web(WebBase::TrackEngagement));
+    let engagement_base = BasePath::Web(WebBase::TrackEngagement);
+    let engagement = set_at(&sets, engagement_base);
     assert!(
-        broadcaster_set(engagement.set.base())
+        broadcaster_set(engagement_base)
             .materialize(&kernel.route_scoped(&engagement.handles))
             .is_err(),
         "the engagement base confers no handle"
     );
-    let analytics = set_at(&sets, BasePath::Api(ApiBase::Analytics));
+    let analytics_base = BasePath::Api(ApiBase::Analytics);
+    let analytics = set_at(&sets, analytics_base);
     assert!(
-        broadcaster_set(analytics.set.base())
+        broadcaster_set(analytics_base)
             .materialize(&kernel.route_scoped(&analytics.handles))
             .is_ok(),
         "negative control: the analytics base hands the broadcaster"

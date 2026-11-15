@@ -11,7 +11,7 @@ use systemprompt_traits::authz::SubjectDimension;
 #[cfg(feature = "cli")]
 use systemprompt_extension::cli::KernelGrant;
 #[cfg(feature = "api")]
-use systemprompt_extension::router::{Allowance, BasePath};
+use systemprompt_extension::router::{Allowance, BasePath, BaseRef};
 
 #[derive(Debug, thiserror::Error)]
 pub enum CompositionError {
@@ -57,7 +57,7 @@ pub enum CompositionError {
     },
     #[cfg(feature = "api")]
     #[error("{owner}'s routes at {base:?} do not match the conferred shape")]
-    ConferralShapeMismatch { owner: ExtensionId, base: BasePath },
+    ConferralShapeMismatch { owner: ExtensionId, base: BaseRef },
     #[cfg(feature = "api")]
     #[error("{owner} uses {allowance:?} at {base:?} without a conferral")]
     NotConferred {
