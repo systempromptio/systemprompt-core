@@ -15,6 +15,7 @@ mod mcp_validator;
 
 use systemprompt_config::SkillConfigValidator;
 use systemprompt_config::paths::AppPaths;
+use systemprompt_extension::BuiltState;
 use systemprompt_loader::BootContext;
 use systemprompt_logging::services::cli::{
     BrandColors, render_phase_success, render_phase_warning,
@@ -70,7 +71,7 @@ impl StartupValidator {
         Ok(Self { boot, registry })
     }
 
-    pub fn validate(&mut self, config: &Config) -> StartupValidationReport {
+    pub fn validate(&mut self, config: &Config, built: &BuiltState) -> StartupValidationReport {
         let mut report = StartupValidationReport::new();
         let verbose = OutputState::current().is_startup_mode();
 
@@ -96,7 +97,7 @@ impl StartupValidator {
             return report;
         }
 
-        validate_extensions(&self.boot, config, &mut report, verbose);
+        validate_extensions(built, &self.boot, config, &mut report, verbose);
 
         if verbose {
             CliService::output("");

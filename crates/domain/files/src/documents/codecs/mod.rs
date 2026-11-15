@@ -78,23 +78,26 @@ use systemprompt_provider_contracts::documents::DocumentCodec;
 
 #[must_use]
 pub fn core_codecs() -> Vec<Arc<dyn DocumentCodec>> {
-    let mut codecs: Vec<Arc<dyn DocumentCodec>> = vec![
+    let plain: [Arc<dyn DocumentCodec>; 4] = [
         Arc::new(FileCodec),
         Arc::new(TextCodec),
         Arc::new(MarkdownCodec),
         Arc::new(HtmlCodec),
     ];
+    let codecs = plain.into_iter();
     #[cfg(feature = "office")]
-    {
-        let office: [Arc<dyn DocumentCodec>; 6] = [
-            Arc::new(docx::DocxCodec),
-            Arc::new(xlsx::XlsxCodec),
-            Arc::new(pptx::PptxCodec),
-            Arc::new(odf::OdtCodec),
-            Arc::new(odf::OdsCodec),
-            Arc::new(odf::OdpCodec),
-        ];
-        codecs.extend(office);
-    }
-    codecs
+    let codecs = codecs.chain(office_codecs());
+    codecs.collect()
+}
+
+#[cfg(feature = "office")]
+fn office_codecs() -> [Arc<dyn DocumentCodec>; 6] {
+    [
+        Arc::new(docx::DocxCodec),
+        Arc::new(xlsx::XlsxCodec),
+        Arc::new(pptx::PptxCodec),
+        Arc::new(odf::OdtCodec),
+        Arc::new(odf::OdsCodec),
+        Arc::new(odf::OdpCodec),
+    ]
 }
