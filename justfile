@@ -167,6 +167,10 @@ lint-layers:
 lint-kernel-deps:
     python3 ./scripts/lint-kernel-deps.py
 
+# Reject hidden handoff constructors called outside their owners, and facade re-exports of handoff fns
+lint-hidden-constructors:
+    python3 ./scripts/lint-hidden-constructors.py
+
 # Core ships no third-party frontend code (vendor dirs, package.json, .wasm,
 # external script URLs); see the script header.
 check-no-vendor *ARGS:

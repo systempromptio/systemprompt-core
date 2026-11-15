@@ -124,3 +124,24 @@ def located(text):
     newlines = [i for i, c in enumerate(text) if c == "\n"]
     return [(k, v, bisect.bisect_right(newlines, s) + 1) for (k, v), s in zip(tokens, starts)]
 
+
+
+def rust_files(root, subdirs, exclude=()):
+    """Every `*.rs` under `root/<subdir>` for each subdir, skipping `target*`
+    directories and any path under an `exclude` prefix (root-relative)."""
+    from pathlib import Path
+
+    root = Path(root)
+    found = []
+    for sub in subdirs:
+        base = root / sub
+        if not base.exists():
+            continue
+        for path in sorted(base.rglob("*.rs")):
+            rel = path.relative_to(root).as_posix()
+            if any(part.startswith("target") for part in path.relative_to(root).parts[:-1]):
+                continue
+            if any(rel == e or rel.startswith(e.rstrip("/") + "/") for e in exclude):
+                continue
+            found.append((rel, path))
+    return found
