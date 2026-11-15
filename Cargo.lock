@@ -7218,7 +7218,6 @@ dependencies = [
  "chrono",
  "globset",
  "hex",
- "inventory",
  "libc",
  "schemars 1.2.3",
  "serde",
