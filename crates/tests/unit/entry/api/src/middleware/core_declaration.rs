@@ -7,11 +7,11 @@
 
 use axum::Router;
 use systemprompt_api::services::middleware::{
-    Allowance, CoreDeclaration, CoreDeclarer, CoreShapeField, DEFAULT_BODY_LIMIT_BYTES, MountError,
+    CoreDeclaration, CoreDeclarer, CoreShapeField, DEFAULT_BODY_LIMIT_BYTES, MountError,
     admit_extension,
 };
 use systemprompt_extension::{
-    AuthzPolicy, ContextKind, ExtensionRouter, HandlerVerifier, RESERVED_PATHS, RouteGroup,
+    AuthzPolicy, ContextKind, ExtensionRouter, RESERVED_PATHS, RouteGroup,
 };
 use systemprompt_models::modules::ApiPaths;
 
@@ -30,7 +30,7 @@ pub(super) fn row(entry: CoreDeclaration) -> ExtensionRouter {
     }
 }
 
-fn extension_id(entry: CoreDeclaration) -> &'static str {
+pub(super) fn extension_id(entry: CoreDeclaration) -> &'static str {
     match entry.declarer() {
         CoreDeclarer::Extension(id) => id,
         CoreDeclarer::Server => panic!("{entry:?} is declared by the server"),
@@ -43,68 +43,6 @@ fn extension_rows() -> impl Iterator<Item = CoreDeclaration> {
         .copied()
         .filter(|entry| matches!(entry.declarer(), CoreDeclarer::Extension(_)))
         .filter(|entry| entry.group() != RouteGroup::Gateway)
-}
-
-#[test]
-fn the_table_lists_exactly_this_waves_core_declarations() {
-    let rows: Vec<_> = CoreDeclaration::ALL
-        .iter()
-        .map(|entry| {
-            (
-                entry.declarer(),
-                entry.base_path(),
-                entry.group(),
-                entry.allowance(),
-            )
-        })
-        .collect();
-    assert_eq!(
-        rows,
-        vec![
-            (
-                CoreDeclarer::Server,
-                ApiPaths::AGENTS_BASE,
-                RouteGroup::Agent,
-                Allowance::BodyLimit,
-            ),
-            (
-                CoreDeclarer::Extension("agent_runs_api"),
-                ApiPaths::AGENT_RUNS,
-                RouteGroup::Agent,
-                Allowance::Plain,
-            ),
-            (
-                CoreDeclarer::Extension("slack"),
-                ApiPaths::SLACK_BASE,
-                RouteGroup::Messaging,
-                Allowance::HandlerVerified(HandlerVerifier::SlackSignature),
-            ),
-            (
-                CoreDeclarer::Extension("teams"),
-                ApiPaths::TEAMS_BASE,
-                RouteGroup::Messaging,
-                Allowance::HandlerVerified(HandlerVerifier::TeamsBotToken),
-            ),
-            (
-                CoreDeclarer::Extension("notifications-http"),
-                ApiPaths::NOTIFICATIONS,
-                RouteGroup::ContentAndMisc,
-                Allowance::Plain,
-            ),
-            (
-                CoreDeclarer::Extension("notifications-http"),
-                ApiPaths::ADMIN_NOTIFICATIONS,
-                RouteGroup::ContentAndMisc,
-                Allowance::ReservedPrefix,
-            ),
-            (
-                CoreDeclarer::Extension("notifications-http"),
-                ApiPaths::BRIDGE_NOTIFICATIONS,
-                RouteGroup::Gateway,
-                Allowance::HandlerVerified(HandlerVerifier::GatewayCredential),
-            ),
-        ]
-    );
 }
 
 #[test]

@@ -1,11 +1,11 @@
-//! Authoritative content counts and existence lookups behind
-//! [`ContentCatalogStats`].
+//! Authoritative content counts, existence lookups and slug-to-id resolution
+//! behind [`ContentCatalogStats`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
-use systemprompt_identifiers::{LocaleCode, SourceId};
+use systemprompt_identifiers::{ContentId, LocaleCode, SourceId};
 use systemprompt_traits::{ContentCatalogStats, RepositoryError};
 
 use super::ContentRepository;
@@ -34,6 +34,17 @@ impl ContentCatalogStats for ContentRepository {
         self.find_by_source_and_slug(source_id, slug, locale)
             .await
             .map(|content| content.is_some())
+            .map_err(RepositoryError::database)
+    }
+
+    async fn content_id_by_slug(
+        &self,
+        slug: &str,
+        locale: &LocaleCode,
+    ) -> Result<Option<ContentId>, RepositoryError> {
+        self.find_by_slug(slug, locale)
+            .await
+            .map(|content| content.map(|content| content.id))
             .map_err(RepositoryError::database)
     }
 }

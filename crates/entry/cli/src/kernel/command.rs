@@ -6,6 +6,13 @@
 //! [`RegisteredCommand`]: its descriptor, its `--database-url` routing and a
 //! `Send` future that runs it with the kernel [`CommandContext`].
 //!
+//! `DISPLAY_ORDER` places a top-level group in `--help`. The kernel's own
+//! groups hold the slots `10` (`core`), `20` (`infra`), `30` (`admin`), `60`
+//! (`web`) and `70` (`plugins`); `40` and `50` are the `cloud` and `analytics`
+//! slots. A registration that declares no slot gets
+//! [`REGISTERED_DISPLAY_ORDER`], after every kernel group, and a group nested
+//! under a kernel group is listed after that group's own subcommands.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -18,18 +25,22 @@ use crate::descriptor::{CommandDescriptor, DbUrlRouting, DescribeCommand};
 
 pub type CommandFuture<'a> = Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + 'a>>;
 
+pub const REGISTERED_DISPLAY_ORDER: usize = 1000;
+
 type RunFn = for<'a> fn(&'a ArgMatches, &'a CommandContext) -> CommandFuture<'a>;
 
 /// A command group contributed to the CLI from outside the kernel's own tree.
 ///
 /// `PARENT` is the path of the kernel group the group attaches under (empty
 /// for a top-level domain), `NAME` its subcommand name and `ABOUT` its
-/// one-line help. [`DescribeCommand::descriptor`] returns the complete
+/// one-line help, `DISPLAY_ORDER` its `--help` slot (see the module docs).
+/// [`DescribeCommand::descriptor`] returns the complete
 /// descriptor for the parsed command, data impact included.
 pub trait CliCommandGroup: Subcommand + DescribeCommand + Send + Sized + 'static {
     const PARENT: &'static [&'static str];
     const NAME: &'static str;
     const ABOUT: &'static str;
+    const DISPLAY_ORDER: usize = REGISTERED_DISPLAY_ORDER;
 
     fn db_url_routing(&self) -> DbUrlRouting {
         DbUrlRouting::Unsupported
@@ -48,6 +59,7 @@ pub trait CliCommandLeaf: Args + DescribeCommand + Send + Sized + 'static {
     const PARENT: &'static [&'static str];
     const NAME: &'static str;
     const ABOUT: &'static str;
+    const DISPLAY_ORDER: usize = REGISTERED_DISPLAY_ORDER;
 
     fn db_url_routing(&self) -> DbUrlRouting {
         DbUrlRouting::Unsupported
@@ -92,6 +104,7 @@ pub(super) fn group_command<T: CliCommandGroup>() -> Command {
     T::augment_subcommands(
         Command::new(T::NAME)
             .about(T::ABOUT)
+            .display_order(T::DISPLAY_ORDER)
             .subcommand_required(true)
             .arg_required_else_help(true),
     )
@@ -120,7 +133,11 @@ fn run_group<'a, T: CliCommandGroup>(
 }
 
 pub(super) fn leaf_command<T: CliCommandLeaf>() -> Command {
-    T::augment_args(Command::new(T::NAME).about(T::ABOUT))
+    T::augment_args(
+        Command::new(T::NAME)
+            .about(T::ABOUT)
+            .display_order(T::DISPLAY_ORDER),
+    )
 }
 
 pub(super) fn resolve_leaf<T: CliCommandLeaf>(

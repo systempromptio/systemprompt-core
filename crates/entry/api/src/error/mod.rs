@@ -20,6 +20,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod capability;
 mod conversions;
 
 use std::error::Error;
@@ -29,6 +30,8 @@ use axum::http::{StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use systemprompt_models::api::ApiError;
 use systemprompt_traits::BoxedSource;
+
+pub use capability::{IntoApiError, capability_response};
 
 #[derive(Debug)]
 pub struct ApiHttpError(Box<ApiError>);

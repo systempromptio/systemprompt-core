@@ -12,6 +12,7 @@ use clap::Parser;
 use systemprompt_cli::args::{
     Cli, build_cli_config, has_local_export_flag_in, reconstruct_args_from,
 };
+use systemprompt_cli::descriptor::{CommandDescriptor, DescribeCommand};
 use systemprompt_cli::{ColorMode, EnvOverrides, OutputFormat, VerbosityLevel};
 
 fn cli(args: &[&str]) -> Cli {
@@ -211,43 +212,49 @@ fn positional_arguments_survive_in_order() {
     );
 }
 
-// Why: the export flag only means anything for `analytics`. Treating it as
-// local for any other command would route a subprocess call back to the local
-// profile and silently run it against the wrong database.
+// Why: the export flag only means anything for a command that declares a
+// local export (`analytics`). Treating it as local for any other command would
+// route a subprocess call back to the local profile and silently run it
+// against the wrong database.
 #[test]
-fn the_export_flag_is_only_local_for_analytics() {
-    let analytics = cli(&["analytics", "overview"]);
-    let other = cli(&["core", "skills", "list"]);
+fn the_export_flag_is_only_local_for_a_command_declaring_local_export() {
+    let analytics = descriptor_of(&cli(&["analytics", "overview"]));
+    let other = descriptor_of(&cli(&["core", "skills", "list"]));
     let args = owned(&["systemprompt", "analytics", "overview", "--export"]);
 
-    assert!(has_local_export_flag_in(analytics.command.as_ref(), &args));
+    assert!(analytics.local_export());
+    assert!(has_local_export_flag_in(&analytics, &args));
     assert!(
-        !has_local_export_flag_in(other.command.as_ref(), &args),
-        "a non-analytics command must not be treated as a local export"
+        !has_local_export_flag_in(&other, &args),
+        "a command without a local export must not be treated as a local export"
     );
     assert!(
-        !has_local_export_flag_in(None, &args),
+        !has_local_export_flag_in(&CommandDescriptor::NONE, &args),
         "no command at all is not an export"
     );
 }
 
 #[test]
 fn the_export_flag_is_recognised_with_and_without_a_value() {
-    let analytics = cli(&["analytics", "overview"]);
+    let analytics = descriptor_of(&cli(&["analytics", "overview"]));
 
     assert!(has_local_export_flag_in(
-        analytics.command.as_ref(),
+        &analytics,
         &owned(&["systemprompt", "--export"])
     ));
     assert!(has_local_export_flag_in(
-        analytics.command.as_ref(),
+        &analytics,
         &owned(&["systemprompt", "--export=/tmp/out.csv"])
     ));
     assert!(
-        !has_local_export_flag_in(
-            analytics.command.as_ref(),
-            &owned(&["systemprompt", "--exported"])
-        ),
+        !has_local_export_flag_in(&analytics, &owned(&["systemprompt", "--exported"])),
         "a longer flag that merely starts the same way is not --export"
     );
+}
+
+fn descriptor_of(cli: &Cli) -> CommandDescriptor {
+    cli.command
+        .as_ref()
+        .expect("a kernel command")
+        .descriptor()
 }

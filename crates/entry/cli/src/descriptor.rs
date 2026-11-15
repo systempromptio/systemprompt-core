@@ -20,6 +20,14 @@
 /// discovery) is set only for the server; every other command loads the YAML
 /// catalog as authored and must not reach for the network.
 ///
+/// `cloud_operator` marks a command that manages the cloud account itself
+/// (`cloud`, `admin session`): the runner loads the cloud credentials for it
+/// and lets it run against a cloud profile that has no remote route.
+///
+/// `local_export` marks a command whose `--export` flag writes a local file:
+/// when the flag is present the runner keeps it on this machine instead of
+/// forwarding it to a tenant.
+///
 /// `is_destructive` is never set by hand: it is projected from the command's
 /// exhaustive [`DataImpact`] classification, so a command cannot be added
 /// without deciding whether it destroys data.
@@ -41,6 +49,8 @@ impl CommandDescriptor {
     const FLAG_IRREVERSIBLE: u16 = 0b0010_0000_0000;
     const FLAG_SERVES_API: u16 = 0b0100_0000_0000;
     const FLAG_CHILD_HOST: u16 = 0b1000_0000_0000;
+    const FLAG_CLOUD_OPERATOR: u16 = 0b0001_0000_0000_0000;
+    const FLAG_LOCAL_EXPORT: u16 = 0b0010_0000_0000_0000;
 
     pub const NONE: Self = Self { flags: 0 };
 
@@ -141,6 +151,26 @@ impl CommandDescriptor {
     pub const fn with_serves_api(self) -> Self {
         Self {
             flags: self.flags | Self::FLAG_SERVES_API,
+        }
+    }
+
+    pub const fn cloud_operator(&self) -> bool {
+        self.flags & Self::FLAG_CLOUD_OPERATOR != 0
+    }
+
+    pub const fn with_cloud_operator(self) -> Self {
+        Self {
+            flags: self.flags | Self::FLAG_CLOUD_OPERATOR,
+        }
+    }
+
+    pub const fn local_export(&self) -> bool {
+        self.flags & Self::FLAG_LOCAL_EXPORT != 0
+    }
+
+    pub const fn with_local_export(self) -> Self {
+        Self {
+            flags: self.flags | Self::FLAG_LOCAL_EXPORT,
         }
     }
 

@@ -17,7 +17,7 @@ async fn public_app() -> anyhow::Result<Router> {
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
-        ctx.analytics_provider().expect("analytics"),
+        ctx.analytics_provider(),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
         systemprompt_test_fixtures::test_oauth_signing(),
@@ -33,7 +33,7 @@ async fn authenticated_app() -> anyhow::Result<Router> {
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
-        ctx.analytics_provider().expect("analytics"),
+        ctx.analytics_provider(),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
         systemprompt_test_fixtures::test_oauth_signing(),
@@ -208,7 +208,7 @@ async fn register_client_applies_rfc7591_defaults_when_grant_and_response_types_
 
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
-        ctx.analytics_provider().expect("analytics"),
+        ctx.analytics_provider(),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
         systemprompt_test_fixtures::test_oauth_signing(),
@@ -276,7 +276,7 @@ async fn register_client_echoes_native_application_type() -> anyhow::Result<()> 
 
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
-        ctx.analytics_provider().expect("analytics"),
+        ctx.analytics_provider(),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
         systemprompt_test_fixtures::test_oauth_signing(),
@@ -365,7 +365,7 @@ async fn dcr_app() -> anyhow::Result<Router> {
     req_ctx.auth.actor.user_id = user_id;
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
-        ctx.analytics_provider().expect("analytics"),
+        ctx.analytics_provider(),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
         systemprompt_test_fixtures::test_oauth_signing(),

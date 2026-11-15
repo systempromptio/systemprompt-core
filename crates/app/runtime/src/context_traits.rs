@@ -45,10 +45,8 @@ impl AppContextTrait for AppContext {
         Some(provider)
     }
 
-    fn analytics_provider(&self) -> Option<Arc<dyn AnalyticsProvider>> {
-        let concrete = Arc::clone(&self.data.analytics_service);
-        let provider: Arc<dyn AnalyticsProvider> = concrete;
-        Some(provider)
+    fn analytics_provider(&self) -> Arc<dyn AnalyticsProvider> {
+        self.data.analytics_service.clone()
     }
 
     fn fingerprint_provider(&self) -> Option<Arc<dyn FingerprintProvider>> {

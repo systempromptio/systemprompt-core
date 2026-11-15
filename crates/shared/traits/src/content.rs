@@ -13,10 +13,14 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{CategoryId, ContentId, LocaleCode, SourceId};
 
-/// Authoritative content counts and existence lookups.
+/// Authoritative content counts and existence lookups, and the content id a
+/// slug names.
 ///
-/// Used by behavioral classification and by static-content serving; `dyn`
-/// dispatched, hence `#[async_trait]`. The content extension provides it in
+/// Used by behavioral classification, static-content serving and the
+/// analytics and engagement ingestion routes (which attach a content id to an
+/// event without depending on the content crate; this lookup is event
+/// enrichment and tolerates replication lag). It is `dyn` dispatched, hence
+/// `#[async_trait]`. The content extension provides it in
 /// the extension state as [`DynContentCatalogStats`].
 #[async_trait]
 pub trait ContentCatalogStats: Send + Sync + std::fmt::Debug {
@@ -28,6 +32,12 @@ pub trait ContentCatalogStats: Send + Sync + std::fmt::Debug {
         slug: &str,
         locale: &LocaleCode,
     ) -> Result<bool, crate::RepositoryError>;
+
+    async fn content_id_by_slug(
+        &self,
+        slug: &str,
+        locale: &LocaleCode,
+    ) -> Result<Option<ContentId>, crate::RepositoryError>;
 }
 
 pub type DynContentCatalogStats = std::sync::Arc<dyn ContentCatalogStats>;

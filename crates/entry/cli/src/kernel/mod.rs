@@ -3,15 +3,19 @@
 //! A command group, whether it lives in this crate or in a capability's entry
 //! crate, reaches the kernel only through this module:
 //!
-//! - **Registration** — [`CliCommandGroup`], [`crate::register_cli_command!`]
-//!   and the [`CommandRegistry`] the runner assembles the command tree from;
+//! - **Registration** — [`CliCommandGroup`] and [`CliCommandLeaf`] (with a
+//!   `--help` slot, [`REGISTERED_DISPLAY_ORDER`] by default),
+//!   [`crate::register_cli_command!`] and the [`CommandRegistry`] the runner assembles the command tree from;
 //!   [`LinkedSeamRegistration`] and [`crate::register_linked_seam!`] for the
 //!   link-time seams `plugins seams` lists ([`registered_seams`], whose
 //!   [`SeamEntry`] values are rendered with [`named`], [`owned`],
 //!   [`prioritized`] and [`unnamed`]).
 //! - **Bootstrap declaration** — [`CommandDescriptor`], [`DataImpact`],
-//!   [`DbUrlRouting`] and [`DescribeCommand`]: what a command needs before it
-//!   runs and what it does to the data behind the profile.
+//!   [`DbUrlRouting`], [`RoutingClass`] and [`DescribeCommand`]: what a
+//!   command needs before it runs (profile, secrets, paths, database, cloud
+//!   credentials for a cloud-operator command, a local `--export`) and what it
+//!   does to the data behind the profile; [`describe_command_line`]
+//!   classifies a forwarded argv the same way.
 //! - **Execution context** — [`CommandContext`] (profile, paths, database,
 //!   session, foreground children) and the output settings in [`CliConfig`] and
 //!   [`OutputFormat`].
@@ -31,7 +35,8 @@
 //! - **Helpers several groups share** — [`provider_catalog`] (the seeded model
 //!   catalog and `gateway.yaml`), [`docker_compose`], [`postgres_access`] and
 //!   [`ddl`] (the local database), [`yaml_document`] (lossless YAML edits),
-//!   [`ProfileInfo`] and [`McpToolEntry`]. A command group names these here and
+//!   [`ProfileInfo`], [`McpToolEntry`] and [`FileSummary`] (a file row the
+//!   `core files` and content commands both render). A command group names these here and
 //!   never reaches into another group's modules.
 //!
 //! Errors are `anyhow::Result<()>` from `run`; the runner maps them to the
@@ -42,10 +47,14 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod command;
+mod describe;
 mod registry;
 mod seams;
 
-pub use command::{CliCommandGroup, CliCommandLeaf, CommandFuture, RegisteredCommand};
+pub use command::{
+    CliCommandGroup, CliCommandLeaf, CommandFuture, REGISTERED_DISPLAY_ORDER, RegisteredCommand,
+};
+pub use describe::describe_command_line;
 pub use registry::{CliCommandRegistration, CommandRegistry, RegistryError};
 pub use seams::{
     LinkedSeamRegistration, SeamEntry, named, owned, prioritized, registered_seams, unnamed,
@@ -53,11 +62,14 @@ pub use seams::{
 
 pub use crate::boot::{load_boot, load_boot_from_path, load_profile};
 pub use crate::cli_settings::{CliConfig, OutputFormat};
+pub use crate::commands::core::files::types::FileSummary;
 pub use crate::commands::shared::mcp_tools::McpToolEntry;
 pub use crate::commands::shared::{ValidationIssue, ValidationOutput, mcp_tools};
 pub use crate::context::CommandContext;
 pub use crate::define_pool_command;
-pub use crate::descriptor::{CommandDescriptor, DataImpact, DbUrlRouting, DescribeCommand};
+pub use crate::descriptor::{
+    CommandDescriptor, DataImpact, DbUrlRouting, DescribeCommand, RoutingClass,
+};
 pub use crate::interactive::{
     DialoguerPrompter, Prompter, require_confirmation, require_confirmation_default_yes,
     resolve_required,

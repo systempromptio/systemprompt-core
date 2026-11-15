@@ -46,6 +46,7 @@
 
 mod core_declaration;
 mod core_gateway;
+mod core_rows;
 mod core_shape;
 mod error;
 mod guards;

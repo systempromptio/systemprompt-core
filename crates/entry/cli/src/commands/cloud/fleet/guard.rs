@@ -3,20 +3,18 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Context, Result, anyhow, bail};
-use clap::FromArgMatches;
+use anyhow::{Result, bail};
 
-use crate::args::{self, Cli, Commands};
-use crate::descriptor::{CommandDescriptor, DescribeCommand, RoutingClass};
-use crate::kernel::CommandRegistry;
+use crate::kernel::{RoutingClass, describe_command_line};
 
 pub fn ensure_read_only(command: &[String]) -> Result<()> {
-    let argv = std::iter::once("systemprompt".to_owned()).chain(command.iter().cloned());
-    let registry = CommandRegistry::collected()?;
-    let matches = args::command(&registry)?
-        .try_get_matches_from(argv)
-        .with_context(|| format!("'{}' is not a systemprompt command", command.join(" ")))?;
-    let descriptor = forwarded_descriptor(&registry, &matches)?;
+    let descriptor = describe_command_line(command)?;
+    if descriptor.cloud_operator() {
+        bail!(
+            "cloud commands run on this machine, not on tenants; fleet run forwards tenant \
+             commands"
+        );
+    }
     if descriptor.data_impact().destroys_data()
         || descriptor.routing_class() != RoutingClass::ReadOnly
     {
@@ -26,23 +24,4 @@ pub fn ensure_read_only(command: &[String]) -> Result<()> {
         );
     }
     Ok(())
-}
-
-fn forwarded_descriptor(
-    registry: &CommandRegistry,
-    matches: &clap::ArgMatches,
-) -> Result<CommandDescriptor> {
-    if let Some(registered) = registry.resolve(matches)? {
-        return Ok(registered.descriptor());
-    }
-    let parsed = Cli::from_arg_matches(matches)?
-        .command
-        .ok_or_else(|| anyhow!("cloud fleet run needs a command after --"))?;
-    if matches!(parsed, Commands::Cloud(_)) {
-        bail!(
-            "cloud commands run on this machine, not on tenants; fleet run forwards tenant \
-             commands"
-        );
-    }
-    Ok(parsed.descriptor())
 }

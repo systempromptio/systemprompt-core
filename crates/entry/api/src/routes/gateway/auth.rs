@@ -25,7 +25,7 @@ use systemprompt_oauth::services::{
     provision_bridge_oauth_client, refuse_service_account,
 };
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::{AnalyticsProvider, AppContext as _, UserProvider};
+use systemprompt_traits::{AppContext as _, UserProvider};
 use systemprompt_users::{ApiKeyService, IssueApiKeyParams};
 
 use super::bridge_error::BridgeError;
@@ -88,7 +88,7 @@ pub async fn pat(ctx: AppContext, request: Request) -> Result<Json<AuthResponse>
         .await?
         .ok_or_else(|| ApiHttpError::unauthorized("Invalid PAT"))?;
 
-    let analytics = require_analytics(&ctx)?;
+    let analytics = ctx.analytics_provider();
     let caller_ip = client_ip_from_request(&request, ctx.config());
     let users = require_user_provider(&ctx)?;
     let result = issue_bridge_access(
@@ -137,7 +137,7 @@ pub async fn session(
         return Err(ApiHttpError::bad_request("missing exchange code"));
     }
 
-    let analytics = require_analytics(&ctx)?;
+    let analytics = ctx.analytics_provider();
     let users = require_user_provider(&ctx)?;
     let result = exchange_bridge_session_code(
         &ctx.oauth_repositories().oauth,
@@ -262,15 +262,6 @@ fn extract_bearer(hdrs: &HeaderMap) -> Option<String> {
     let auth = hdrs.get(headers::AUTHORIZATION)?.to_str().ok()?;
     auth.strip_prefix(BEARER_PREFIX)
         .map(|s| s.trim().to_owned())
-}
-
-fn require_analytics(ctx: &AppContext) -> Result<Arc<dyn AnalyticsProvider>, ApiHttpError> {
-    ctx.analytics_provider().ok_or_else(|| {
-        ApiHttpError::internal(
-            "analytics provider unavailable",
-            "provider is not registered",
-        )
-    })
 }
 
 fn require_user_provider(ctx: &AppContext) -> Result<Arc<dyn UserProvider>, ApiHttpError> {

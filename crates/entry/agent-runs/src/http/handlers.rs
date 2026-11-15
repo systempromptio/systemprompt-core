@@ -12,15 +12,13 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_agent_runs::execute::outputs;
 use systemprompt_agent_runs::repository::{AgentRunRow, Enqueued, NewAgentRun};
-use systemprompt_agent_runs::{
-    AgentRunsError, McpServerSpec, RunEvent, RunLayout, RunRequest, origin,
-};
+use systemprompt_agent_runs::{McpServerSpec, RunEvent, RunLayout, RunRequest, origin};
 use systemprompt_api::kernel::ApiHttpError;
 use systemprompt_identifiers::{AgentRunId, HostSessionId, SessionId};
 use systemprompt_models::RequestContext;
-use systemprompt_models::api::ApiError;
 
 use super::AgentRunsState;
+use super::error::AgentRunsHttpError;
 
 pub(super) const EVENT_PAGE: i64 = 500;
 
@@ -103,21 +101,15 @@ struct OutputList {
     files: Vec<outputs::OutputFile>,
 }
 
-pub(super) fn internal(error: AgentRunsError) -> ApiHttpError {
-    ApiHttpError::from(ApiError::internal("Agent run storage failed", error))
-}
-
 pub(super) async fn owned_run(
     state: &AgentRunsState,
     req_ctx: &RequestContext,
     id: &str,
-) -> Result<AgentRunRow, ApiHttpError> {
-    let id = AgentRunId::try_new(id).map_err(ApiError::from)?;
-    match state.runs.find_run(&id).await.map_err(internal)? {
+) -> Result<AgentRunRow, AgentRunsHttpError> {
+    let id = AgentRunId::try_new(id)?;
+    match state.runs.find_run(&id).await? {
         Some(row) if &row.user_id == req_ctx.user_id() => Ok(row),
-        _ => Err(ApiHttpError::not_found(format!(
-            "agent run '{id}' not found"
-        ))),
+        _ => Err(ApiHttpError::not_found(format!("agent run '{id}' not found")).into()),
     }
 }
 
@@ -157,10 +149,10 @@ pub(super) async fn enqueue(
     Extension(req_ctx): Extension<RequestContext>,
     State(state): State<AgentRunsState>,
     Json(mut body): Json<EnqueueBody>,
-) -> Result<Response, ApiHttpError> {
+) -> Result<Response, AgentRunsHttpError> {
     let id = AgentRunId::generate();
     if let Some(reason) = refusal(&mut body, &state.layouts.layout(&id)) {
-        return Err(ApiHttpError::bad_request(reason));
+        return Err(ApiHttpError::bad_request(reason).into());
     }
     let key = body.idempotency_key.trim().to_owned();
     let enqueued = state
@@ -179,14 +171,15 @@ pub(super) async fn enqueue(
             &key,
         )
         .await
-        .map_err(internal)?;
+        ?;
     let (id, existing) = match enqueued {
         Enqueued::Created(id) => (id, false),
         Enqueued::Existing(id) => (id, true),
         Enqueued::Conflict(_) => {
             return Err(ApiHttpError::conflict(
                 "idempotency_key is already bound to a different request",
-            ));
+            )
+            .into());
         },
     };
     let location = format!(
@@ -210,7 +203,7 @@ pub(super) async fn get_run(
     Extension(req_ctx): Extension<RequestContext>,
     State(state): State<AgentRunsState>,
     Path(id): Path<String>,
-) -> Result<impl IntoResponse, ApiHttpError> {
+) -> Result<impl IntoResponse, AgentRunsHttpError> {
     let row = owned_run(&state, &req_ctx, &id).await?;
     Ok(Json(RunView::from(row)))
 }
@@ -219,14 +212,14 @@ pub(super) async fn cancel(
     Extension(req_ctx): Extension<RequestContext>,
     State(state): State<AgentRunsState>,
     Path(id): Path<String>,
-) -> Result<impl IntoResponse, ApiHttpError> {
+) -> Result<impl IntoResponse, AgentRunsHttpError> {
     let row = owned_run(&state, &req_ctx, &id).await?;
-    if !state.runs.cancel_queued(&row.id).await.map_err(internal)? {
+    if !state.runs.cancel_queued(&row.id).await? {
         state
             .runs
             .update_cancel_requested(&row.id)
             .await
-            .map_err(internal)?;
+            ?;
     }
     Ok(StatusCode::ACCEPTED)
 }
@@ -236,13 +229,13 @@ pub(super) async fn list_events(
     State(state): State<AgentRunsState>,
     Path(id): Path<String>,
     Query(query): Query<EventsQuery>,
-) -> Result<impl IntoResponse, ApiHttpError> {
+) -> Result<impl IntoResponse, AgentRunsHttpError> {
     let row = owned_run(&state, &req_ctx, &id).await?;
     let events = state
         .runs
         .list_events_after(&row.id, query.after.unwrap_or(-1), EVENT_PAGE)
         .await
-        .map_err(internal)?;
+        ?;
     Ok(Json(EventsPage { events }))
 }
 
@@ -254,10 +247,10 @@ pub(super) async fn list_outputs(
     Extension(req_ctx): Extension<RequestContext>,
     State(state): State<AgentRunsState>,
     Path(id): Path<String>,
-) -> Result<impl IntoResponse, ApiHttpError> {
+) -> Result<impl IntoResponse, AgentRunsHttpError> {
     let row = owned_run(&state, &req_ctx, &id).await?;
     let files = match run_layout(&row) {
-        Some(layout) => outputs::list(&layout).await.map_err(internal)?,
+        Some(layout) => outputs::list(&layout).await?,
         None => Vec::new(),
     };
     Ok(Json(OutputList { files }))
@@ -267,13 +260,13 @@ pub(super) async fn read_output(
     Extension(req_ctx): Extension<RequestContext>,
     State(state): State<AgentRunsState>,
     Path((id, path)): Path<(String, String)>,
-) -> Result<Response, ApiHttpError> {
+) -> Result<Response, AgentRunsHttpError> {
     let row = owned_run(&state, &req_ctx, &id).await?;
     let missing = || ApiHttpError::not_found(format!("output '{path}' not found"));
     let layout = run_layout(&row).ok_or_else(missing)?;
     let bytes = outputs::read(&layout, &path)
         .await
-        .map_err(internal)?
+        ?
         .ok_or_else(missing)?;
     Ok((
         [(header::CONTENT_TYPE, "application/octet-stream")],

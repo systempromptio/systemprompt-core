@@ -20,11 +20,17 @@
 //! `RouteGroup::Extensions` and its own group, so an install extension is
 //! served on exactly the roles it always was, whatever group it declares.
 //!
+//! The rows' values (owner, base path, group, allowance and shape) live in
+//! `core_rows`. A row whose owner is not linked, or whose routes the server
+//! still mounts itself, is inert: rows are consulted only for extension
+//! declarations, by the declaring extension's id.
+//!
 //! Every row pins the whole protection shape its declaration is admitted
 //! with: policy, context kind, rate-limit scope, budget and bearer window,
 //! body limit, protection layers and frame options. Drift is judged per
 //! owner: an extension id that owns any router row may declare only routers
-//! that equal one of its rows in base path, route group and shape. Any other
+//! that equal one of its rows in base path, route group and shape (one owner
+//! may list several shapes at one base path and group, one row each). Any other
 //! declaration from that id is refused at boot with
 //! `MountError::CoreDeclarationMismatch` naming the field that differs (the
 //! base path or group when no row of that id matches both), so a core
@@ -45,10 +51,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_extension::{
-    AuthzPolicy, ContextKind, ExtensionRouter, HandlerVerifier, RESERVED_PATHS, RateBudget,
-    RateLimit, RouteGroup, RouteProtection,
+    ContextKind, ExtensionRouter, HandlerVerifier, RESERVED_PATHS, RouteGroup, RouteProtection,
 };
-use systemprompt_models::modules::ApiPaths;
 
 use super::{DEFAULT_BODY_LIMIT_BYTES, MountError};
 
@@ -81,6 +85,11 @@ pub enum CoreDeclaration {
     Notifications,
     NotificationsAdmin,
     BridgeNotifications,
+    Analytics,
+    Engagement,
+    ContentPublic,
+    ContentAuthenticated,
+    ContentRedirect,
 }
 
 impl CoreDeclaration {
@@ -92,110 +101,12 @@ impl CoreDeclaration {
         Self::Notifications,
         Self::NotificationsAdmin,
         Self::BridgeNotifications,
+        Self::Analytics,
+        Self::Engagement,
+        Self::ContentPublic,
+        Self::ContentAuthenticated,
+        Self::ContentRedirect,
     ];
-
-    #[must_use]
-    pub const fn declarer(self) -> CoreDeclarer {
-        match self {
-            Self::AgentProxy => CoreDeclarer::Server,
-            Self::Slack => CoreDeclarer::Extension("slack"),
-            Self::AgentRuns => CoreDeclarer::Extension("agent_runs_api"),
-            Self::Teams => CoreDeclarer::Extension("teams"),
-            Self::Notifications | Self::NotificationsAdmin | Self::BridgeNotifications => {
-                CoreDeclarer::Extension("notifications-http")
-            },
-        }
-    }
-
-    #[must_use]
-    pub const fn base_path(self) -> &'static str {
-        match self {
-            Self::AgentProxy => ApiPaths::AGENTS_BASE,
-            Self::Slack => ApiPaths::SLACK_BASE,
-            Self::AgentRuns => ApiPaths::AGENT_RUNS,
-            Self::Teams => ApiPaths::TEAMS_BASE,
-            Self::Notifications => ApiPaths::NOTIFICATIONS,
-            Self::NotificationsAdmin => ApiPaths::ADMIN_NOTIFICATIONS,
-            Self::BridgeNotifications => ApiPaths::BRIDGE_NOTIFICATIONS,
-        }
-    }
-
-    #[must_use]
-    pub const fn group(self) -> RouteGroup {
-        match self {
-            Self::AgentProxy | Self::AgentRuns => RouteGroup::Agent,
-            Self::Slack | Self::Teams => RouteGroup::Messaging,
-            Self::Notifications | Self::NotificationsAdmin => RouteGroup::ContentAndMisc,
-            Self::BridgeNotifications => RouteGroup::Gateway,
-        }
-    }
-
-    #[must_use]
-    pub const fn allowance(self) -> Allowance {
-        match self {
-            Self::AgentProxy => Allowance::BodyLimit,
-            Self::Slack => Allowance::HandlerVerified(HandlerVerifier::SlackSignature),
-            Self::Teams => Allowance::HandlerVerified(HandlerVerifier::TeamsBotToken),
-            Self::NotificationsAdmin => Allowance::ReservedPrefix,
-            Self::BridgeNotifications => {
-                Allowance::HandlerVerified(HandlerVerifier::GatewayCredential)
-            },
-            Self::AgentRuns | Self::Notifications => Allowance::Plain,
-        }
-    }
-
-    #[must_use]
-    pub const fn policy(self) -> AuthzPolicy {
-        match self {
-            Self::AgentProxy => AuthzPolicy::authenticated(),
-            Self::AgentRuns | Self::Notifications => AuthzPolicy::user(),
-            Self::Slack => AuthzPolicy::handler_verified(HandlerVerifier::SlackSignature),
-            Self::Teams => AuthzPolicy::handler_verified(HandlerVerifier::TeamsBotToken),
-            Self::NotificationsAdmin => AuthzPolicy::admin(),
-            Self::BridgeNotifications => {
-                AuthzPolicy::handler_verified(HandlerVerifier::GatewayCredential)
-            },
-        }
-    }
-
-    #[must_use]
-    pub const fn context(self) -> ContextKind {
-        match self {
-            Self::AgentProxy => ContextKind::A2a,
-            Self::AgentRuns | Self::Notifications | Self::NotificationsAdmin => ContextKind::User,
-            Self::Slack | Self::Teams | Self::BridgeNotifications => ContextKind::HandlerResolved,
-        }
-    }
-
-    #[must_use]
-    pub const fn rate_limit(self) -> RateLimit {
-        match self {
-            Self::AgentProxy | Self::Slack | Self::Teams => {
-                RateLimit::new("agents", RateBudget::Agents)
-            },
-            Self::AgentRuns => RateLimit::new("agent_runs", RateBudget::Tasks),
-            Self::Notifications | Self::NotificationsAdmin => {
-                RateLimit::new("notifications", RateBudget::Notifications)
-            },
-            Self::BridgeNotifications => {
-                RateLimit::new("bridge_notifications", RateBudget::Notifications)
-                    .with_bearer_window()
-            },
-        }
-    }
-
-    #[must_use]
-    pub const fn body_limit(self) -> Option<usize> {
-        match self {
-            Self::AgentProxy => Some(systemprompt_models::net::AGENT_REQUEST_BODY_LIMIT_BYTES),
-            Self::AgentRuns
-            | Self::Slack
-            | Self::Teams
-            | Self::Notifications
-            | Self::NotificationsAdmin
-            | Self::BridgeNotifications => None,
-        }
-    }
 
     pub(super) fn names(self, owner: CoreDeclarer, base_path: &str, group: RouteGroup) -> bool {
         self.declarer() == owner && self.base_path() == base_path && self.group() == group

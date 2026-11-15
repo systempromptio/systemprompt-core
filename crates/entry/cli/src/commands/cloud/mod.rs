@@ -134,12 +134,13 @@ pub enum CloudCommands {
 
 impl DescribeCommand for CloudCommands {
     fn descriptor(&self) -> CommandDescriptor {
-        match self {
+        let descriptor = match self {
             Self::Deploy { .. } => CommandDescriptor::NONE.with_data_impact(DataImpact::Preserving),
             Self::Backup { .. } | Self::Status => CommandDescriptor::PROFILE_ONLY,
             Self::Sync(_) => CommandDescriptor::FULL.with_read_only(),
             _ => CommandDescriptor::NONE,
-        }
+        };
+        descriptor.with_cloud_operator()
     }
 }
 

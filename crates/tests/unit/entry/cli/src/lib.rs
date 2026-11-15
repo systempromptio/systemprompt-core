@@ -42,6 +42,8 @@ mod cloud_tenant_local_guards;
 #[cfg(test)]
 mod command_registry;
 #[cfg(test)]
+mod registered_top_level_group;
+#[cfg(test)]
 mod commands;
 #[cfg(test)]
 mod config_migrate_descriptor;

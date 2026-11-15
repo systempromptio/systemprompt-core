@@ -9,14 +9,14 @@
 //! 5xx body with its cause logged. An invalid feed cursor is 400
 //! `invalid_cursor`. A failure the API already models (a refused bridge
 //! credential, an invalid identifier) passes through as its `ApiHttpError`.
-//! The response is always built by `ApiHttpError`, so status, key and body are
+//! The response is built by the API kernel's
+//! `capability_error_response!`, so status, key, body and the 5xx policy are
 //! the API's own.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use axum::response::{IntoResponse, Response};
-use systemprompt_api::kernel::ApiHttpError;
+use systemprompt_api::kernel::{ApiHttpError, IntoApiError, capability_error_response};
 use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::notifications::KeysetCursorError;
@@ -46,20 +46,19 @@ impl From<IdValidationError> for NotificationsHttpError {
     }
 }
 
-impl IntoResponse for NotificationsHttpError {
-    fn into_response(self) -> Response {
-        let http = match self {
-            Self::Service(error) => ApiHttpError::from(service(error)),
-            Self::Cursor(error) => ApiHttpError::from(
-                ApiError::bad_request("invalid since cursor")
-                    .with_error_key("invalid_cursor")
-                    .with_source(error),
-            ),
-            Self::Http(error) => error,
-        };
-        http.into_response()
+impl IntoApiError for NotificationsHttpError {
+    fn into_api_error(self) -> ApiError {
+        match self {
+            Self::Service(error) => service(error),
+            Self::Cursor(error) => ApiError::bad_request("invalid since cursor")
+                .with_error_key("invalid_cursor")
+                .with_source(error),
+            Self::Http(error) => error.into_api_error(),
+        }
     }
 }
+
+capability_error_response!(NotificationsHttpError);
 
 fn service(error: NotificationsError) -> ApiError {
     match error {

@@ -83,9 +83,7 @@ pub(crate) type SessionProviders = (
 
 pub(crate) fn session_providers(ctx: &AppContext) -> Result<SessionProviders, LoaderError> {
     let consumer = || ExtensionId::new("session");
-    let analytics = ctx
-        .analytics_provider()
-        .ok_or_else(|| LoaderError::missing_provider::<Arc<dyn AnalyticsProvider>>(consumer()))?;
+    let analytics = ctx.analytics_provider();
     let sessions = ctx
         .session_provider()
         .ok_or_else(|| LoaderError::missing_provider::<Arc<dyn SessionProvider>>(consumer()))?;
