@@ -1,28 +1,45 @@
-//! Implementation of the `copy_extension_assets` job: walks the extension
-//! enabled extensions for required asset declarations and copies them into
-//! the build output directory.
+//! Implementation of the `copy_extension_assets` step: [`declared_assets`]
+//! evaluates every admitted member's asset declarations against the
+//! application paths, and [`execute_copy_extension_assets`] copies them into
+//! the build output directory. A missing required asset fails the step; a
+//! missing optional one is counted and logged.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
 use systemprompt_config::paths::AppPaths;
-use systemprompt_extension::{AssetDefinition, ExtensionRegistry};
+use systemprompt_extension::{AssetDefinition, AssetPaths, BuiltState};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_traits::JobResult;
 
 use crate::error::{GeneratorResult as Result, PublishError};
 
+#[must_use]
+pub fn declared_assets(
+    built: &BuiltState,
+    paths: &dyn AssetPaths,
+) -> Vec<(ExtensionId, AssetDefinition)> {
+    built
+        .members()
+        .flat_map(|member| {
+            member
+                .sink
+                .assets()
+                .iter()
+                .flat_map(|declare| declare(paths))
+                .map(move |asset| (member.owner.clone(), asset))
+        })
+        .collect()
+}
+
 pub async fn execute_copy_extension_assets(
     paths: &AppPaths,
-    disabled: &[ExtensionId],
+    assets: &[(ExtensionId, AssetDefinition)],
 ) -> Result<JobResult> {
     let start_time = std::time::Instant::now();
 
     tracing::info!("Copy extension assets job started");
-
-    let registry = ExtensionRegistry::discover()?;
-    let assets = registry.all_required_assets(paths, disabled)?;
 
     if assets.is_empty() {
         let duration_ms = start_time.elapsed().as_millis() as u64;
@@ -38,8 +55,7 @@ pub async fn execute_copy_extension_assets(
     let mut failed = 0u64;
 
     for (ext_id, asset) in assets {
-        let ext_id = ExtensionId::new(ext_id);
-        match copy_asset(dist_dir, &ext_id, &asset).await {
+        match copy_asset(dist_dir, ext_id, asset).await {
             Ok(()) => copied += 1,
             Err(e) => {
                 if asset.is_required() {

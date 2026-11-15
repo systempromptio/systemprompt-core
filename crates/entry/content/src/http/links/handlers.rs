@@ -10,8 +10,8 @@
 use axum::extract::{Path, Query, State};
 use axum::response::{IntoResponse, Redirect};
 use axum::{Extension, Json};
-use systemprompt_api::kernel::ApiHttpError;
 use systemprompt_content::{LinkAnalyticsService, LinkGenerationService};
+use systemprompt_extension::router::ApiHttpError;
 use systemprompt_identifiers::{CampaignId, LinkId};
 use systemprompt_models::RequestContext;
 use tracing::error;

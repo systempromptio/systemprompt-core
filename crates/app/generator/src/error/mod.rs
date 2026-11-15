@@ -128,9 +128,6 @@ pub enum PublishError {
 
     #[error("Template registry error: {0}")]
     Template(#[from] systemprompt_templates::TemplateError),
-
-    #[error("Extension discovery failed: {0}")]
-    ExtensionDiscovery(#[from] systemprompt_extension::LoaderError),
 }
 
 pub type GeneratorResult<T> = Result<T, PublishError>;

@@ -26,6 +26,9 @@ mod jobs;
 mod config;
 
 #[cfg(test)]
+mod contract;
+
+#[cfg(test)]
 mod lib_smoke;
 
 #[cfg(test)]

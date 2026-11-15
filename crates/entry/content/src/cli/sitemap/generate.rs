@@ -9,7 +9,7 @@ use clap::Args;
 use std::fs;
 use std::path::PathBuf;
 
-use systemprompt_cli::kernel::{CliConfig, CommandOutput};
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 use systemprompt_generator::{SitemapUrl, build_sitemap_xml};
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;

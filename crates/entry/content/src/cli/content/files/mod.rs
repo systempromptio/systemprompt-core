@@ -15,7 +15,7 @@ pub mod unlink;
 use anyhow::{Context, Result};
 use clap::Subcommand;
 
-use systemprompt_cli::kernel::{CommandContext, Prompter, render_result};
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
 #[derive(Debug, Subcommand)]
 pub enum ContentFilesCommands {
@@ -32,40 +32,19 @@ pub enum ContentFilesCommands {
     Featured(featured::FeaturedArgs),
 }
 
-pub async fn execute(
-    cmd: ContentFilesCommands,
-    prompter: &dyn Prompter,
-    ctx: &CommandContext,
-) -> Result<()> {
-    let config = &ctx.cli;
+pub async fn execute(cmd: ContentFilesCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     match cmd {
-        ContentFilesCommands::Link(args) => {
-            let result = link::execute(args, ctx)
-                .await
-                .context("Failed to link file to content")?;
-            render_result(&result, config);
-            Ok(())
-        },
-        ContentFilesCommands::Unlink(args) => {
-            let result = unlink::execute(args, prompter, ctx)
-                .await
-                .context("Failed to unlink file from content")?;
-            render_result(&result, config);
-            Ok(())
-        },
-        ContentFilesCommands::List(args) => {
-            let result = list::execute(args, ctx)
-                .await
-                .context("Failed to list content files")?;
-            render_result(&result, config);
-            Ok(())
-        },
-        ContentFilesCommands::Featured(args) => {
-            let result = featured::execute(args, ctx)
-                .await
-                .context("Failed to get/set featured image")?;
-            render_result(&result, config);
-            Ok(())
-        },
+        ContentFilesCommands::Link(args) => link::execute(args, host)
+            .await
+            .context("Failed to link file to content"),
+        ContentFilesCommands::Unlink(args) => unlink::execute(args, host.prompter(), host)
+            .await
+            .context("Failed to unlink file from content"),
+        ContentFilesCommands::List(args) => list::execute(args, host)
+            .await
+            .context("Failed to list content files"),
+        ContentFilesCommands::Featured(args) => featured::execute(args, host)
+            .await
+            .context("Failed to get/set featured image"),
     }
 }

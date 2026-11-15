@@ -7,8 +7,9 @@ use super::types::VerifyOutput;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use std::path::PathBuf;
-use systemprompt_cli::kernel::{CommandContext, CommandOutput};
 use systemprompt_content::ContentRepository;
+use systemprompt_database::pool_from_handle;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 use systemprompt_identifiers::{ContentId, LocaleCode, SourceId};
 
 #[derive(Debug, Args)]
@@ -29,8 +30,8 @@ pub struct VerifyArgs {
     pub url_pattern: Option<String>,
 }
 
-pub async fn execute(args: VerifyArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let pool = ctx.db_pool().await?;
+pub async fn execute(args: VerifyArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let pool = pool_from_handle(host.db().await?)?;
     let repo = ContentRepository::new(&pool);
 
     let content = if uuid::Uuid::parse_str(&args.identifier).is_ok() {

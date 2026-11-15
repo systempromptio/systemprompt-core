@@ -10,10 +10,11 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 
 use systemprompt_config::paths::AppPaths;
-use systemprompt_content::ContentRepository;
+use systemprompt_content::{ContentHooks, ContentRepository};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::LocaleCode;
 use systemprompt_manifest::Config;
+use systemprompt_provider_contracts::Dependencies;
 use systemprompt_template_provider::{
     ComponentContext, DynPagePrerenderer, PageContext, PagePrepareContext,
 };
@@ -22,7 +23,6 @@ use tokio::fs;
 
 use crate::error::{GeneratorResult as Result, PublishError};
 use crate::prerender::components::render_components;
-use systemprompt_extension::ExtensionContext;
 
 use crate::prerender::content::process_all_sources;
 use crate::prerender::context::{PrerenderContext, load_prerender_context};
@@ -32,13 +32,15 @@ use crate::prerender::json_merge::merge_json_data;
 pub struct PrerenderEnv<'a> {
     pub config: &'a Config,
     pub paths: &'a AppPaths,
-    pub extensions: &'a dyn ExtensionContext,
+    pub hooks: &'a ContentHooks,
+    pub state: &'a Dependencies,
 }
 
 impl std::fmt::Debug for PrerenderEnv<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("PrerenderEnv")
             .field("paths", &self.paths)
+            .field("hooks", &self.hooks)
             .finish_non_exhaustive()
     }
 }
@@ -48,11 +50,7 @@ pub async fn prerender_content(
     content_repo: ContentRepository,
     env: PrerenderEnv<'_>,
 ) -> Result<()> {
-    let popularity = env
-        .extensions
-        .extension_state()
-        .find::<DynContentPopularity>()
-        .cloned();
+    let popularity = env.state.find::<DynContentPopularity>().cloned();
     let ctx = load_prerender_context(db_pool, content_repo, env).await?;
     let total_rendered = process_all_sources(&ctx, popularity.as_ref()).await?;
     tracing::debug!(items_rendered = total_rendered, "Prerendering completed");

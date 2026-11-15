@@ -19,7 +19,7 @@ use systemprompt_test_fixtures::{
     closed_db_pool, ensure_test_bootstrap, test_app_context, test_db_pool,
 };
 
-use crate::common::content_state;
+use crate::common::{content_state, negotiating_state};
 
 async fn dead_context() -> std::sync::Arc<AppContext> {
     let boot = ensure_test_bootstrap();
@@ -74,9 +74,9 @@ async fn fetching_markdown_reports_a_repository_failure_as_a_server_error() {
     let ctx = dead_context().await;
 
     let response = get_content_markdown_handler(
-        State(content_state(&ctx)),
+        State(negotiating_state(&ctx)),
         Extension(req_ctx()),
-        Path(("blog".to_owned(), "anything.md".to_owned())),
+        Path(("blog".to_owned(), "anything".to_owned(), "md".to_owned())),
     )
     .await
     .into_response();
@@ -102,9 +102,9 @@ async fn a_slug_that_does_not_exist_is_a_not_found_rather_than_an_empty_document
     assert_eq!(json.status(), StatusCode::NOT_FOUND);
 
     let markdown = get_content_markdown_handler(
-        State(content_state(&ctx)),
+        State(negotiating_state(&ctx)),
         Extension(req_ctx()),
-        Path(("blog".to_owned(), format!("{slug}.md"))),
+        Path(("blog".to_owned(), slug.clone(), "md".to_owned())),
     )
     .await
     .into_response();

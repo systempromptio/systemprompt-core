@@ -17,7 +17,7 @@ pub use content::{
 };
 pub use files::{
     ContentFileRow, ContentFilesOutput, ContentLinkOutput, ContentUnlinkOutput,
-    FeaturedImageOutput, FileContentLinkRow, FileContentLinksOutput,
+    FeaturedImageOutput, FileContentLinkRow, FileContentLinksOutput, FileSummary,
 };
 pub use links::{
     CampaignAnalyticsOutput, ClickRow, ClicksOutput, GenerateLinkOutput, JourneyNode,

@@ -15,7 +15,7 @@ pub mod show;
 
 use anyhow::{Context, Result};
 use clap::Subcommand;
-use systemprompt_cli::kernel::{CommandContext, render_result};
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
 #[derive(Debug, Subcommand)]
 pub enum LinkCommands {
@@ -35,38 +35,22 @@ pub enum LinkCommands {
     Delete(delete::DeleteArgs),
 }
 
-pub async fn execute(command: LinkCommands, ctx: &CommandContext) -> Result<()> {
+pub async fn execute(command: LinkCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     match command {
-        LinkCommands::Generate(args) => {
-            let result = generate::execute(args, ctx)
-                .await
-                .context("Failed to generate link")?;
-            render_result(&result, &ctx.cli);
-        },
-        LinkCommands::Show(args) => {
-            let result = show::execute(args, ctx)
-                .await
-                .context("Failed to show link")?;
-            render_result(&result, &ctx.cli);
-        },
-        LinkCommands::List(args) => {
-            let result = list::execute(args, ctx)
-                .await
-                .context("Failed to list links")?;
-            render_result(&result, &ctx.cli);
-        },
-        LinkCommands::Performance(args) => {
-            let result = performance::execute(args, ctx)
-                .await
-                .context("Failed to get link performance")?;
-            render_result(&result, &ctx.cli);
-        },
-        LinkCommands::Delete(args) => {
-            let result = delete::execute(args, ctx)
-                .await
-                .context("Failed to delete link")?;
-            render_result(&result, &ctx.cli);
-        },
+        LinkCommands::Generate(args) => generate::execute(args, host)
+            .await
+            .context("Failed to generate link"),
+        LinkCommands::Show(args) => show::execute(args, host)
+            .await
+            .context("Failed to show link"),
+        LinkCommands::List(args) => list::execute(args, host)
+            .await
+            .context("Failed to list links"),
+        LinkCommands::Performance(args) => performance::execute(args, host)
+            .await
+            .context("Failed to get link performance"),
+        LinkCommands::Delete(args) => delete::execute(args, host)
+            .await
+            .context("Failed to delete link"),
     }
-    Ok(())
 }

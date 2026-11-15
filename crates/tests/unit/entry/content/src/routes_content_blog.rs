@@ -8,13 +8,15 @@ use anyhow::Result;
 use axum::extract::{Path, State};
 use axum::response::IntoResponse;
 use axum::{Extension, Router};
-use systemprompt_api::kernel::{AcceptedFormat, AcceptedMediaType};
 use systemprompt_content_entry::http as content;
 use systemprompt_database::DbPool;
+use systemprompt_extension::router::{AcceptedFormat, AcceptedMediaType};
 use systemprompt_runtime::AppContext;
 use tower::ServiceExt;
 
-use crate::common::{content_state, empty_get, request_context, setup_ctx};
+use crate::common::{
+    content_app, content_state, empty_get, negotiating_state, request_context, setup_ctx,
+};
 
 struct Seeded {
     source: String,
@@ -48,7 +50,7 @@ async fn seed_content(db: &DbPool) -> Result<Seeded> {
 }
 
 fn public(ctx: &AppContext) -> Router {
-    content::public_router(content_state(ctx))
+    content_app(content::public_routes(), ctx)
         .layer(Extension(AcceptedFormat(AcceptedMediaType::Json)))
         .layer(Extension(request_context("content_reader")))
 }
@@ -81,7 +83,7 @@ async fn get_content_unknown_slug_is_not_found() -> Result<()> {
 async fn get_content_honours_markdown_accept_extension() -> Result<()> {
     let (db, ctx) = setup_ctx().await?;
     let seeded = seed_content(&db).await?;
-    let app = content::public_router(content_state(&ctx))
+    let app = content_app(content::public_routes(), &ctx)
         .layer(Extension(AcceptedFormat(AcceptedMediaType::Markdown)))
         .layer(Extension(request_context("content_reader")));
     let resp = app
@@ -115,9 +117,9 @@ async fn markdown_handler_renders_found_document() -> Result<()> {
     let (db, ctx) = setup_ctx().await?;
     let seeded = seed_content(&db).await?;
     let resp = content::get_content_markdown_handler(
-        State(content_state(&ctx)),
+        State(negotiating_state(&ctx)),
         Extension(request_context("content_reader")),
-        Path((seeded.source, format!("{}.md", seeded.slug))),
+        Path((seeded.source, seeded.slug, "md".to_owned())),
     )
     .await
     .into_response();
@@ -129,9 +131,9 @@ async fn markdown_handler_renders_found_document() -> Result<()> {
 async fn markdown_handler_missing_document_is_not_found() -> Result<()> {
     let (_db, ctx) = setup_ctx().await?;
     let resp = content::get_content_markdown_handler(
-        State(content_state(&ctx)),
+        State(negotiating_state(&ctx)),
         Extension(request_context("content_reader")),
-        Path(("ghost-src".to_owned(), "ghost.md".to_owned())),
+        Path(("ghost-src".to_owned(), "ghost".to_owned(), "md".to_owned())),
     )
     .await
     .into_response();
@@ -156,7 +158,7 @@ async fn json_content_advertises_its_markdown_alternate_when_negotiation_is_on()
     let seeded = seed_content(&db).await?;
     let ctx = negotiating_ctx(&db)?;
 
-    let resp = content::public_router(content_state(&ctx))
+    let resp = content_app(content::public_routes(), &ctx)
         .layer(Extension(AcceptedFormat(AcceptedMediaType::Json)))
         .layer(Extension(request_context("content_reader")))
         .oneshot(empty_get(&format!("/{}/{}", seeded.source, seeded.slug)))
@@ -203,9 +205,9 @@ async fn the_markdown_rendering_carries_the_seeded_frontmatter_and_tags() -> Res
     let (db, ctx) = setup_ctx().await?;
     let seeded = seed_content(&db).await?;
     let resp = content::get_content_markdown_handler(
-        State(content_state(&ctx)),
+        State(negotiating_state(&ctx)),
         Extension(request_context("content_reader")),
-        Path((seeded.source, format!("{}.md", seeded.slug))),
+        Path((seeded.source, seeded.slug, "md".to_owned())),
     )
     .await
     .into_response();

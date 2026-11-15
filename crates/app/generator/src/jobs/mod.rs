@@ -1,6 +1,5 @@
-//! Scheduled jobs registered with the systemprompt scheduler via the
-//! `inventory` crate: content prerender, page prerender, and copy-extension
-//! -assets.
+//! The generator's jobs: the content and page prerender jobs the generator
+//! member contributes, and the copy-extension-assets step.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,5 +9,5 @@ mod copy_assets;
 mod page_prerender;
 
 pub use content_prerender::ContentPrerenderJob;
-pub use copy_assets::{copy_asset, execute_copy_extension_assets};
+pub use copy_assets::{copy_asset, declared_assets, execute_copy_extension_assets};
 pub use page_prerender::PagePrerenderJob;

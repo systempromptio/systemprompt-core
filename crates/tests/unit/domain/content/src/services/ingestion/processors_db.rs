@@ -1,24 +1,27 @@
 //! Drives [`call_frontmatter_processors`] through the public ingest pipeline.
 //!
 //! The frontmatter-processor loop runs the processors the service is
-//! constructed with, collected from the enabled extensions. This test binary
-//! registers one through `inventory`, the way a real extension does, carrying
-//! two processors: one whose `applies_to_sources` excludes the ingest source
+//! constructed with, read from the built content hooks. This test fills a
+//! `ContentSlot` builder the way a member's `contribute` does, with two
+//! processors: one whose `applies_to_sources` excludes the ingest source
 //! (exercising the skip arm) and one that fails (exercising the error-logging
-//! arm). Creating a fresh content row then invokes the loop end to end.
+//! arm), builds the slot, and creates a fresh content row to invoke the loop
+//! end to end.
 
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use systemprompt_content::models::IngestionSource;
 use systemprompt_content::repository::ContentRepository;
-use systemprompt_content::{IngestionOptions, IngestionService};
-use systemprompt_extension::{Extension, ExtensionMetadata, ExtensionRegistry};
-use systemprompt_identifiers::{CategoryId, SourceId};
+use systemprompt_content::{ContentSlot, ContentSlotBuilder, IngestionOptions, IngestionService};
+use systemprompt_extension::{Resolved, Slot, SlotEntry, StandingTag};
+use systemprompt_identifiers::{CategoryId, ExtensionId, SourceId};
 use systemprompt_provider_contracts::{
-    FrontmatterContext, FrontmatterProcessor, ProviderError, ProviderResult,
+    Dependencies, FrontmatterContext, FrontmatterProcessor, ProviderError, ProviderResult,
 };
+use systemprompt_runtime::Kernel;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
+use systemprompt_traits::{BackgroundTasks, DatabaseHandle};
 use uuid::Uuid;
 
 struct SkippedProcessor;
@@ -52,24 +55,28 @@ impl FrontmatterProcessor for FailingProcessor {
     }
 }
 
-#[derive(Default)]
-struct ProcessorExtension;
-
-impl Extension for ProcessorExtension {
-    fn metadata(&self) -> ExtensionMetadata {
-        ExtensionMetadata {
-            id: "test-frontmatter-ext",
-            name: "Test Frontmatter Extension",
-            version: "0.0.0",
-        }
-    }
-
-    fn frontmatter_processors(&self) -> Vec<Arc<dyn FrontmatterProcessor>> {
-        vec![Arc::new(SkippedProcessor), Arc::new(FailingProcessor)]
-    }
+fn processors(pool: &systemprompt_database::DbPool) -> Vec<Arc<dyn FrontmatterProcessor>> {
+    let mut builder = ContentSlotBuilder::default();
+    builder
+        .frontmatter_processor(|_: &Resolved<'_>| {
+            Ok(Arc::new(SkippedProcessor) as Arc<dyn FrontmatterProcessor>)
+        })
+        .frontmatter_processor(|_: &Resolved<'_>| {
+            Ok(Arc::new(FailingProcessor) as Arc<dyn FrontmatterProcessor>)
+        });
+    let handle: Arc<dyn DatabaseHandle> = Arc::clone(pool);
+    let kernel = Kernel::new(handle, BackgroundTasks::new(), Dependencies::default());
+    let hooks = ContentSlot::build(
+        vec![SlotEntry {
+            owner: ExtensionId::new("test-frontmatter"),
+            standing: StandingTag::Install,
+            builder,
+        }],
+        &kernel.resolved(),
+    )
+    .expect("the content slot builds");
+    hooks.frontmatter_processors().to_vec()
 }
-
-systemprompt_extension::register_extension!(ProcessorExtension);
 
 #[tokio::test]
 async fn ingest_runs_injected_frontmatter_processors() {
@@ -87,11 +94,7 @@ async fn ingest_runs_injected_frontmatter_processors() {
     let category = CategoryId::new("docs");
     let source = IngestionSource::new(&source_id, "docs", &category);
 
-    let processors = ExtensionRegistry::discover()
-        .expect("discover")
-        .frontmatter_processors(&[])
-        .expect("enabled processors");
-    let service = IngestionService::new(&pool, ContentRepository::new(&pool), processors);
+    let service = IngestionService::new(&pool, ContentRepository::new(&pool), processors(&pool));
     let report = service
         .ingest_directory(
             dir.path(),

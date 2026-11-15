@@ -1,17 +1,19 @@
-//! The content HTTP surface: three route groups the API server mounts from
-//! [`crate::extension::ContentHttpExtension`].
+//! The content HTTP surface: three route sets
+//! [`crate::extension::ContentHttpExtension`] contributes.
 //!
-//! - [`public_router`] — published content by source and slug (JSON, or
+//! - [`public_routes`] — published content by source and slug (JSON, or
 //!   Markdown through content negotiation), search, and link analytics, under
 //!   `/api/v1/content` with no authentication.
-//! - [`authenticated_router`] — trackable-link generation under
+//! - [`authenticated_routes`] — trackable-link generation under
 //!   `/api/v1/content` for a signed-in user.
-//! - [`redirect_router`] — the short-link redirect `/r/{short_code}` at the web
+//! - [`redirect_routes`] — the short-link redirect `/r/{short_code}` at the web
 //!   root, which records a click for every session that is not a bot session.
 //!
-//! Every handler reads [`ContentHttpState`]: the content repositories the
-//! `content` extension provides, and the API's external URL and
-//! content-negotiation settings from the application configuration.
+//! All three are in the content-and-misc role group under the `content`
+//! rate-limit scope and budget with the default body limit. Every handler
+//! reads [`ContentHttpState`]: the content repositories the `content` member
+//! provides, and the API's external URL and content-negotiation settings from
+//! the application configuration.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -25,12 +27,17 @@ pub use error::ContentHttpError;
 
 use std::sync::Arc;
 
-use axum::Router;
-use axum::routing::{get, post};
+use axum::http::Method;
 use systemprompt_content::repository::ContentRepositories;
+use systemprompt_extension::router::{
+    ApiBase, BasePath, BodyLimit, RouteLimits, RouteSet, RouteSpec, WebBase,
+};
+use systemprompt_extension::{
+    AuthzPolicy, ContextKind, FromState, MissingDependency, RateBudget, RateLimit, Resolved,
+    RouteGroup,
+};
 use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::ContentNegotiationConfig;
-use systemprompt_provider_contracts::{Dependencies, MissingDependency};
 
 pub use blog::{get_content_handler, get_content_markdown_handler, list_content_by_source_handler};
 pub use links::{
@@ -38,6 +45,13 @@ pub use links::{
     get_link_clicks_handler, get_link_performance_handler, list_links_handler, redirect_handler,
 };
 pub use query::query_handler;
+
+const LIMITS: RouteLimits = RouteLimits {
+    rate: RateLimit::new("content", RateBudget::Content),
+    body: BodyLimit::Default,
+};
+const PUBLIC: RouteSpec = RouteSpec::new(AuthzPolicy::public(), ContextKind::Public, LIMITS);
+const USER: RouteSpec = RouteSpec::new(AuthzPolicy::user(), ContextKind::User, LIMITS);
 
 /// Router-scoped state of the content routes.
 #[derive(Clone)]
@@ -65,14 +79,6 @@ impl ContentHttpState {
         }
     }
 
-    pub fn from_extension_state(
-        state: &Dependencies,
-        config: &Config,
-    ) -> Result<Self, MissingDependency> {
-        let repositories = Arc::clone(state.get::<Arc<ContentRepositories>>()?);
-        Ok(Self::new(repositories, config))
-    }
-
     fn markdown_suffix(&self) -> &str {
         self.content_negotiation
             .markdown_suffix
@@ -80,42 +86,70 @@ impl ContentHttpState {
     }
 }
 
-pub fn public_router(state: ContentHttpState) -> Router {
-    let mut router = Router::new()
-        .route("/query", post(query_handler))
-        .route("/{source_id}", get(list_content_by_source_handler))
-        .route("/{source_id}/{slug}", get(get_content_handler))
-        .route("/links", get(list_links_handler))
-        .route(
-            "/links/{link_id}/performance",
-            get(get_link_performance_handler),
-        )
-        .route("/links/{link_id}/clicks", get(get_link_clicks_handler))
-        .route(
-            "/links/campaigns/{campaign_id}/performance",
-            get(get_campaign_performance_handler),
-        )
-        .route("/links/journey", get(get_content_journey_handler));
-
-    if state.content_negotiation.enabled {
-        let suffix = state.markdown_suffix();
-        router = router.route(
-            &format!("/{{source_id}}/{{slug}}/{}", suffix),
-            get(get_content_markdown_handler),
-        );
+impl FromState for ContentHttpState {
+    fn from_state(r: &Resolved<'_>) -> Result<Self, MissingDependency> {
+        let config = r.get::<Arc<Config>>()?;
+        Ok(Self::new(r.get()?, &config))
     }
-
-    router.with_state(state)
 }
 
-pub fn authenticated_router(state: ContentHttpState) -> Router {
-    Router::new()
-        .route("/links/generate", post(generate_link_handler))
-        .with_state(state)
+pub fn public_routes() -> RouteSet {
+    RouteSet::at::<ContentHttpState>(BasePath::Api(ApiBase::Content), RouteGroup::ContentAndMisc)
+        .route(Method::POST, "/query", query_handler, PUBLIC)
+        .route(
+            Method::GET,
+            "/{source_id}",
+            list_content_by_source_handler,
+            PUBLIC,
+        )
+        .route(
+            Method::GET,
+            "/{source_id}/{slug}",
+            get_content_handler,
+            PUBLIC,
+        )
+        .route(
+            Method::GET,
+            "/{source_id}/{slug}/{suffix}",
+            get_content_markdown_handler,
+            PUBLIC,
+        )
+        .route(Method::GET, "/links", list_links_handler, PUBLIC)
+        .route(
+            Method::GET,
+            "/links/{link_id}/performance",
+            get_link_performance_handler,
+            PUBLIC,
+        )
+        .route(
+            Method::GET,
+            "/links/{link_id}/clicks",
+            get_link_clicks_handler,
+            PUBLIC,
+        )
+        .route(
+            Method::GET,
+            "/links/campaigns/{campaign_id}/performance",
+            get_campaign_performance_handler,
+            PUBLIC,
+        )
+        .route(
+            Method::GET,
+            "/links/journey",
+            get_content_journey_handler,
+            PUBLIC,
+        )
+        .build()
 }
 
-pub fn redirect_router(state: ContentHttpState) -> Router {
-    Router::new()
-        .route("/r/{short_code}", get(redirect_handler))
-        .with_state(state)
+pub fn authenticated_routes() -> RouteSet {
+    RouteSet::at::<ContentHttpState>(BasePath::Api(ApiBase::Content), RouteGroup::ContentAndMisc)
+        .route(Method::POST, "/links/generate", generate_link_handler, USER)
+        .build()
+}
+
+pub fn redirect_routes() -> RouteSet {
+    RouteSet::at::<ContentHttpState>(BasePath::Web(WebBase::Root), RouteGroup::ContentAndMisc)
+        .route(Method::GET, "/r/{short_code}", redirect_handler, PUBLIC)
+        .build()
 }

@@ -21,15 +21,15 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 use crate::common::{
-    body_to_string, content_state, empty_get, json_post, request_context, setup_ctx,
+    body_to_string, content_app, empty_get, json_post, request_context, setup_ctx,
 };
 
 fn public(ctx: &AppContext) -> Router {
-    content::public_router(content_state(ctx)).layer(Extension(request_context("content_user")))
+    content_app(content::public_routes(), ctx).layer(Extension(request_context("content_user")))
 }
 
 fn authenticated(ctx: &AppContext) -> Router {
-    content::authenticated_router(content_state(ctx))
+    content_app(content::authenticated_routes(), ctx)
         .layer(Extension(request_context("content_user")))
 }
 
@@ -438,7 +438,7 @@ async fn link_analytics_reads_report_database_outage_and_recover_without_false_e
         .as_str()
         .expect("short code")
         .to_owned();
-    let redirect = content::redirect_router(content_state(&ctx))
+    let redirect = content_app(content::redirect_routes(), &ctx)
         .layer(Extension(click_context))
         .oneshot(empty_get(&format!("/r/{short}")))
         .await?;

@@ -66,6 +66,8 @@ num-iter = { version = "0.1", default-features = false, features = ["i128", "std
 num-traits = { version = "0.2", features = ["i128", "libm"] }
 once_cell = { version = "1" }
 percent-encoding = { version = "2" }
+phf = { version = "0.14", features = ["macros"] }
+phf_shared = { version = "0.14" }
 pkcs8 = { version = "0.11", default-features = false, features = ["encryption", "pem", "std"] }
 prost = { version = "0.13", features = ["prost-derive"] }
 rand-274715c4dabd11b0 = { package = "rand", version = "0.9", default-features = false, features = ["small_rng", "thread_rng"] }
@@ -172,6 +174,7 @@ nom = { version = "7" }
 num-traits = { version = "0.2", features = ["i128", "libm"] }
 once_cell = { version = "1" }
 percent-encoding = { version = "2" }
+phf_shared = { version = "0.14" }
 prost = { version = "0.13", features = ["prost-derive"] }
 rand-93f6ce9d446188ac = { package = "rand", version = "0.10" }
 regex-automata = { version = "0.4", default-features = false, features = ["dfa", "hybrid", "meta", "nfa", "perf", "std", "unicode"] }

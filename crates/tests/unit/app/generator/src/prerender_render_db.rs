@@ -241,7 +241,8 @@ async fn prerender_renders_item_html_with_toc_for_both_locales() {
         systemprompt_generator::PrerenderEnv {
             config: ensure_test_bootstrap().boot_config(),
             paths: &boot.app_paths,
-            extensions: systemprompt_test_fixtures::fixture_extension_context(&db).as_ref(),
+            hooks: &crate::ext_fixtures::fixture_hooks(&db),
+            state: &systemprompt_provider_contracts::Dependencies::default(),
         },
     )
     .await
@@ -300,7 +301,8 @@ async fn prerender_renders_parent_list_route_with_index_content() {
         systemprompt_generator::PrerenderEnv {
             config: ensure_test_bootstrap().boot_config(),
             paths: &boot.app_paths,
-            extensions: systemprompt_test_fixtures::fixture_extension_context(&db).as_ref(),
+            hooks: &crate::ext_fixtures::fixture_hooks(&db),
+            state: &systemprompt_provider_contracts::Dependencies::default(),
         },
     )
     .await
@@ -346,7 +348,8 @@ async fn prerender_list_route_without_index_content_sets_flag_false() {
         systemprompt_generator::PrerenderEnv {
             config: ensure_test_bootstrap().boot_config(),
             paths: &boot.app_paths,
-            extensions: systemprompt_test_fixtures::fixture_extension_context(&db).as_ref(),
+            hooks: &crate::ext_fixtures::fixture_hooks(&db),
+            state: &systemprompt_provider_contracts::Dependencies::default(),
         },
     )
     .await
@@ -381,7 +384,8 @@ async fn prerender_errors_with_template_not_found_for_item() {
         systemprompt_generator::PrerenderEnv {
             config: ensure_test_bootstrap().boot_config(),
             paths: &boot.app_paths,
-            extensions: systemprompt_test_fixtures::fixture_extension_context(&db).as_ref(),
+            hooks: &crate::ext_fixtures::fixture_hooks(&db),
+            state: &systemprompt_provider_contracts::Dependencies::default(),
         },
     )
     .await
@@ -415,7 +419,8 @@ async fn prerender_errors_with_template_not_found_for_list_route() {
         systemprompt_generator::PrerenderEnv {
             config: ensure_test_bootstrap().boot_config(),
             paths: &boot.app_paths,
-            extensions: systemprompt_test_fixtures::fixture_extension_context(&db).as_ref(),
+            hooks: &crate::ext_fixtures::fixture_hooks(&db),
+            state: &systemprompt_provider_contracts::Dependencies::default(),
         },
     )
     .await
@@ -449,7 +454,8 @@ async fn prerender_pages_renders_homepage_when_template_exists() {
         systemprompt_generator::PrerenderEnv {
             config: ensure_test_bootstrap().boot_config(),
             paths: &boot.app_paths,
-            extensions: systemprompt_test_fixtures::fixture_extension_context(&db).as_ref(),
+            hooks: &crate::ext_fixtures::fixture_hooks(&db),
+            state: &systemprompt_provider_contracts::Dependencies::default(),
         },
     )
     .await

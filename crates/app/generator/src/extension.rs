@@ -1,21 +1,23 @@
-//! [`GeneratorExtension`]: the generator's registration with the extension
-//! loader.
+//! [`GeneratorExtension`]: the generator member of the composition.
 //!
-//! The extension has no schema, migration or provided state; prerendering
-//! builds its templates from the extension providers each run. It owns the
+//! The member has no schema, migration or provided state; prerendering
+//! builds its template registry each run from the content hooks the
+//! `content::contract::ContentSlot` builds. It contributes the
 //! `content_prerender` and `page_prerender` jobs, so a profile that disables
-//! `generator` leaves both registered but inactive, and `infra jobs list`
-//! names the owner. It depends on `content`, whose repositories and
-//! prerender providers the jobs read.
+//! `generator` admits neither, and `infra jobs list` names the owner. The
+//! content prerender orders its popular lists by the content popularity the
+//! analytics member provides, when the host holds one.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_extension::prelude::*;
 
+use crate::jobs::{ContentPrerenderJob, PagePrerenderJob};
+
 pub const GENERATOR_EXTENSION: &str = "generator";
 
-/// The generator's extension: owner of the prerender jobs.
+/// The generator's member: owner of the prerender jobs.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct GeneratorExtension;
 
@@ -28,9 +30,8 @@ impl Extension for GeneratorExtension {
         }
     }
 
-    fn dependencies(&self) -> Vec<&'static str> {
-        vec!["content"]
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        c.job(ContentPrerenderJob).job(PagePrerenderJob);
+        Ok(())
     }
 }
-
-register_extension!(GeneratorExtension);

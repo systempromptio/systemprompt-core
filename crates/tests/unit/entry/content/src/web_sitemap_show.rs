@@ -4,8 +4,8 @@
 
 use std::fs;
 
-use systemprompt_cli::{CliConfig, OutputFormat};
 use systemprompt_content_entry::cli::sitemap::show::{ShowArgs, execute_with_config_path};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 
 fn cfg() -> CliConfig {
     CliConfig::new()

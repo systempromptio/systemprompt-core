@@ -3,7 +3,7 @@
 //! [`execute_content_ingestion`] walks every enabled content source, resolves
 //! each source path against [`systemprompt_config::paths::AppPaths`], and
 //! drives the [`IngestionService`] over it with the frontmatter processors of
-//! the extensions the profile leaves enabled, aggregating processed-file and
+//! the built [`ContentHooks`], aggregating processed-file and
 //! error counts into a [`systemprompt_traits::JobResult`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -12,11 +12,10 @@
 use std::path::{Path, PathBuf};
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
-use systemprompt_extension::ExtensionRegistry;
-use systemprompt_identifiers::ExtensionId;
 use systemprompt_models::{ContentConfigRaw, ContentSourceConfigRaw};
 use systemprompt_traits::JobResult;
 
+use crate::contract::ContentHooks;
 use crate::error::{ContentError, ContentResult};
 use crate::repository::ContentRepository;
 use crate::services::IngestionService;
@@ -31,12 +30,12 @@ pub async fn execute_content_ingestion(
     db_pool: &DbPool,
     content_config: &ContentConfigRaw,
     paths: &AppPaths,
-    disabled: &[ExtensionId],
+    hooks: &ContentHooks,
 ) -> ContentResult<JobResult> {
     let start_time = std::time::Instant::now();
     log_job_started();
 
-    let processors = ExtensionRegistry::discover()?.frontmatter_processors(disabled)?;
+    let processors = hooks.frontmatter_processors().to_vec();
     let ingestion_service =
         IngestionService::new(db_pool, ContentRepository::new(db_pool), processors);
     let sources = get_enabled_sources(content_config);

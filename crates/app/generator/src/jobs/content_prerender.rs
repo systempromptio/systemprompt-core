@@ -7,9 +7,8 @@ use async_trait::async_trait;
 use std::sync::Arc;
 
 use systemprompt_config::paths::AppPaths;
-use systemprompt_content::ContentRepository;
+use systemprompt_content::{ContentHooks, ContentRepository};
 use systemprompt_database::DbPool;
-use systemprompt_extension::ExtensionContext;
 use systemprompt_manifest::Config;
 use systemprompt_provider_contracts::{
     Job, JobContext, JobResult, JobScope, ProviderError, ProviderResult,
@@ -43,7 +42,7 @@ impl Job for ContentPrerenderJob {
         let db_pool = Arc::clone(ctx.get::<DbPool>()?);
         let paths = ctx.get::<Arc<AppPaths>>()?.as_ref();
         let config = ctx.get::<Arc<Config>>()?.as_ref();
-        let ext_ctx = ctx.get::<Arc<dyn ExtensionContext>>()?;
+        let hooks = ctx.find::<Arc<ContentHooks>>().cloned().unwrap_or_default();
 
         tracing::info!("Job started");
         let content_repo = ContentRepository::new(&db_pool);
@@ -53,7 +52,8 @@ impl Job for ContentPrerenderJob {
             PrerenderEnv {
                 config,
                 paths,
-                extensions: ext_ctx.as_ref(),
+                hooks: &hooks,
+                state: ctx.dependencies(),
             },
         )
         .await
@@ -67,5 +67,3 @@ impl Job for ContentPrerenderJob {
         Ok(JobResult::success().with_duration(duration_ms))
     }
 }
-
-systemprompt_provider_contracts::submit_job!("generator", &ContentPrerenderJob);
