@@ -3,20 +3,21 @@
 //! Most activity tables key on `user_id` without a foreign key — the column
 //! also carries sentinel principals such as `system`, and a session id means
 //! three different things across the schema — so the database cannot cascade
-//! a user delete. This registry is the substitute: every crate that owns a
-//! user-keyed table declares it once, and `UserRepository::delete` runs the
-//! whole set inside one transaction, in registration order, before
-//! the `users` row goes. An extension declares its own tables with
-//! `user_purge_tables!`; nothing else needs to know the list exists:
+//! a user delete. These declarations are the substitute: every member that
+//! owns a user-keyed table declares it in `contribute`, and
+//! `UserRepository::delete` runs every admitted member's set inside one
+//! transaction, in composition order, before the `users` row goes:
 //!
 //! ```ignore
-//! user_purge_tables!("my-extension", [
-//!     ("plugin_usage_events", "user_id"),
-//!     ("session_ratings", "user_id", "channel <> 'reporting'"),
-//! ]);
+//! c.user_purge(UserPurgeTable { table: "plugin_usage_events", column: "user_id", predicate: None })
+//!     .user_purge(UserPurgeTable {
+//!         table: "session_ratings",
+//!         column: "user_id",
+//!         predicate: Some("channel <> 'reporting'"),
+//!     });
 //! ```
 //!
-//! The optional third element is a fixed SQL predicate conjoined with the user
+//! The optional predicate is a fixed SQL predicate conjoined with the user
 //! match, for a table whose rows for that user are not all the user's to
 //! purge.
 //!
@@ -27,13 +28,13 @@
 //! rows only this user's references keep alive:
 //!
 //! ```ignore
-//! orphan_sweeps!("my-extension", [{
+//! c.orphan_sweep(OrphanSweep {
 //!     table: "artifact_payloads",
 //!     key: "sha256",
 //!     referenced_by: "mcp_artifacts",
 //!     via: "payload_sha256",
 //!     user_column: "user_id",
-//! }]);
+//! });
 //! ```
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -45,13 +46,6 @@ pub struct UserPurgeTable {
     pub table: &'static str,
     pub column: &'static str,
     pub predicate: Option<&'static str>,
-    pub owner: &'static str,
-}
-
-inventory::collect!(UserPurgeTable);
-
-pub fn registered_user_purge_tables() -> impl Iterator<Item = &'static UserPurgeTable> {
-    inventory::iter::<UserPurgeTable>.into_iter()
 }
 
 /// One table whose rows exist only while `referenced_by.via` points at
@@ -63,13 +57,6 @@ pub struct OrphanSweep {
     pub referenced_by: &'static str,
     pub via: &'static str,
     pub user_column: &'static str,
-    pub owner: &'static str,
-}
-
-inventory::collect!(OrphanSweep);
-
-pub fn registered_orphan_sweeps() -> impl Iterator<Item = &'static OrphanSweep> {
-    inventory::iter::<OrphanSweep>.into_iter()
 }
 
 #[doc(hidden)]

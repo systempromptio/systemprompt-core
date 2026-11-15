@@ -2,7 +2,7 @@
 //!
 //! [`CommandOutput`] wraps the typed [`CliArtifact`] a command produces.
 //! Machine output (`--output json`/`yaml`) serializes the artifact verbatim —
-//! the same tagged union the MCP server deserializes. [`render_result`] renders
+//! the same tagged union the MCP server deserializes. The CLI kernel renders
 //! the artifact for an interactive terminal, dispatching per variant. The
 //! reusable payload shapes [`TextOutput`], [`SuccessOutput`],
 //! [`KeyValueOutput`], and [`TableOutput`] remain available as command-side
@@ -11,11 +11,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod output_types;
-mod render;
+mod types;
 
-pub use output_types::{KeyValueItem, KeyValueOutput, SuccessOutput, TableOutput, TextOutput};
-pub use render::render_result;
+pub use types::{KeyValueItem, KeyValueOutput, SuccessOutput, TableOutput, TextOutput};
 pub use systemprompt_models::artifacts::ChartType;
 
 use serde::Serialize;

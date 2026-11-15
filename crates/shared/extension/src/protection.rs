@@ -1,16 +1,14 @@
-//! Route-mount declarations and site-auth configuration value types.
+//! Route protection and site-auth configuration value types.
 //!
-//! An [`ExtensionRouter`] is the one declaration the host server mounts a
-//! router from: the router, where it mounts, and its [`RouteProtection`] —
-//! the authorization policy, the context middleware kind, the rate limit
-//! and bearer window, the body limit, the closed set of extra protection
-//! layers, and the frame-options override — plus the [`RouteGroup`] that
-//! decides which node roles serve it and an optional enable predicate.
+//! A [`RouteProtection`] is everything the host applies around a mounted
+//! group: the authorization policy, the context middleware kind, the rate
+//! limit and bearer window, the body limit, the closed set of extra
+//! protection layers and the frame-options override. The [`RouteGroup`]
+//! decides which node roles serve a group.
 //!
-//! There is no default policy: a declaration cannot be built without an
-//! [`AuthzPolicy`] and a [`ContextKind`]. The host applies everything the
-//! declaration carries through its own enforcement primitives; this module
-//! is data only.
+//! There is no default policy: a protection cannot be built without an
+//! [`AuthzPolicy`] and a [`ContextKind`]. The host applies everything it
+//! carries through its own enforcement primitives; this module is data only.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -20,7 +18,6 @@ use systemprompt_models::auth::UserType;
 use systemprompt_provider_contracts::FrameOptions;
 
 use crate::authz::AuthzPolicy;
-use crate::context::ExtensionContext;
 
 /// The request-context middleware a route group is mounted behind.
 ///
@@ -191,94 +188,10 @@ impl RouteProtection {
     }
 }
 
-pub type EnablePredicate = fn(&dyn ExtensionContext) -> bool;
-
-const fn always_enabled(_: &dyn ExtensionContext) -> bool {
-    true
-}
-
 #[derive(Debug, Clone, Copy)]
 pub struct SiteAuthConfig {
     pub login_path: &'static str,
     pub protected_prefixes: &'static [&'static str],
     pub public_prefixes: &'static [&'static str],
     pub required_scope: &'static str,
-}
-
-/// A router and the declaration the host mounts it from.
-#[derive(Debug, Clone)]
-pub struct ExtensionRouter {
-    pub router: axum::Router,
-    pub base_path: &'static str,
-    pub protection: RouteProtection,
-    pub group: RouteGroup,
-    pub enabled: EnablePredicate,
-}
-
-impl ExtensionRouter {
-    #[must_use]
-    pub const fn new(
-        router: axum::Router,
-        base_path: &'static str,
-        policy: AuthzPolicy,
-        context: ContextKind,
-    ) -> Self {
-        Self::protected(router, base_path, RouteProtection::new(policy, context))
-    }
-
-    #[must_use]
-    pub const fn protected(
-        router: axum::Router,
-        base_path: &'static str,
-        protection: RouteProtection,
-    ) -> Self {
-        Self {
-            router,
-            base_path,
-            protection,
-            group: RouteGroup::Extensions,
-            enabled: always_enabled,
-        }
-    }
-
-    #[must_use]
-    pub const fn with_rate_limit(mut self, rate_limit: RateLimit) -> Self {
-        self.protection.rate_limit = Some(rate_limit);
-        self
-    }
-
-    #[must_use]
-    pub const fn with_body_limit(mut self, bytes: usize) -> Self {
-        self.protection.body_limit = Some(bytes);
-        self
-    }
-
-    #[must_use]
-    pub fn with_layer(mut self, layer: ProtectionLayer) -> Self {
-        self.protection = self.protection.with_layer(layer);
-        self
-    }
-
-    #[must_use]
-    pub const fn with_frame_options(mut self, frame_options: FrameOptions) -> Self {
-        self.protection.frame_options = Some(frame_options);
-        self
-    }
-
-    #[must_use]
-    pub const fn in_group(mut self, group: RouteGroup) -> Self {
-        self.group = group;
-        self
-    }
-
-    #[must_use]
-    pub const fn enabled_when(mut self, predicate: EnablePredicate) -> Self {
-        self.enabled = predicate;
-        self
-    }
-
-    #[must_use]
-    pub fn is_enabled(&self, ctx: &dyn ExtensionContext) -> bool {
-        (self.enabled)(ctx)
-    }
 }

@@ -2,18 +2,17 @@
 //! interactivity.
 //!
 //! [`CliConfig`] holds the resolved presentation options for a CLI invocation:
-//! defaults, overridden by the [`crate::env_overrides::EnvOverrides`] snapshot
-//! ([`CliConfig::resolve`]), overridden by command-line flags. The
-//! [`OutputFormat`], [`VerbosityLevel`], and [`ColorMode`] enums express the
-//! individual axes. The resolved config travels explicitly on
-//! [`crate::context::CommandContext`]; there is no process-global instance.
+//! defaults, overridden by the CLI's environment snapshot, overridden by
+//! command-line flags. The [`OutputFormat`], [`VerbosityLevel`], and
+//! [`ColorMode`] enums express the individual axes. A command reads the
+//! resolved config from its `CommandHost`; there is no process-global
+//! instance.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::io::IsTerminal;
 
-use crate::env_overrides::EnvOverrides;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OutputFormat {
@@ -77,13 +76,6 @@ impl CliConfig {
         Self::default()
     }
 
-    #[must_use]
-    pub fn resolve(env: &EnvOverrides) -> Self {
-        let mut config = Self::default();
-        config.apply_env(env);
-        config
-    }
-
     pub const fn with_output_format(mut self, format: OutputFormat) -> Self {
         self.output_format = format;
         self
@@ -112,35 +104,6 @@ impl CliConfig {
     pub fn with_profile_override(mut self, profile: Option<String>) -> Self {
         self.profile_override = profile;
         self
-    }
-
-    fn apply_env(&mut self, env: &EnvOverrides) {
-        if let Some(format) = &env.output_format {
-            self.output_format = match format.to_lowercase().as_str() {
-                "json" => OutputFormat::Json,
-                "yaml" => OutputFormat::Yaml,
-                "table" => OutputFormat::Table,
-                _ => self.output_format,
-            };
-        }
-
-        if let Some(level) = &env.log_level {
-            self.verbosity = match level.to_lowercase().as_str() {
-                "quiet" => VerbosityLevel::Quiet,
-                "normal" => VerbosityLevel::Normal,
-                "verbose" => VerbosityLevel::Verbose,
-                "debug" => VerbosityLevel::Debug,
-                _ => self.verbosity,
-            };
-        }
-
-        if env.no_color {
-            self.color_mode = ColorMode::Never;
-        }
-
-        if env.non_interactive {
-            self.interactive = false;
-        }
     }
 
     pub fn should_use_color(&self) -> bool {

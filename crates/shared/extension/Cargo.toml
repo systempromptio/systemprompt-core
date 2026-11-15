@@ -10,7 +10,7 @@ homepage.workspace = true
 documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Compile-time extension framework for systemprompt.io AI governance infrastructure. Built on the inventory crate — registers schemas, API routes, jobs, and providers in the MCP governance pipeline."
+description = "Composition contract for systemprompt.io AI governance infrastructure: members declare schemas, routes, commands, jobs and providers, admitted by the composition and re-checked by the kernel."
 readme = "README.md"
 
 [lints]
@@ -18,6 +18,10 @@ workspace = true
 
 [features]
 sqlx = ["dep:sqlx"]
+router = ["dep:axum"]
+cli = ["dep:clap"]
+slack = []
+teams = []
 
 [dependencies]
 thiserror = { workspace = true }
@@ -29,7 +33,10 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
 xxhash-rust = { workspace = true }
-axum = { workspace = true }
+axum = { workspace = true, optional = true }
+clap = { workspace = true, optional = true }
+http = { workspace = true }
+schemars = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-identifiers = { workspace = true }

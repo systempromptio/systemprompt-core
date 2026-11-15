@@ -5,7 +5,7 @@
 //! before the target's cutoff go. A hold answers, per target, a watermark `W`
 //! meaning "every row before `W` is released; rows at or after `W` are not".
 //! The job clamps the target's cutoff to the earliest watermark of every
-//! registered hold, so a row at or after any hold's watermark survives the run
+//! contributed hold, so a row at or after any hold's watermark survives the run
 //! and is pruned on a later run once the hold advances. A hold that cannot
 //! answer withholds the whole target for that run: the target is skipped,
 //! never pruned past an unknown watermark.
@@ -33,7 +33,7 @@
 //!     }
 //! }
 //!
-//! register_retention_hold!(WarehouseHold, priority = 100);
+//! // in `contribute`: c.retention(RetentionDecl::Hold(Arc::new(WarehouseHold)));
 //! ```
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -46,8 +46,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 
-use crate::context::ExtensionContext;
-use crate::seam::seam_registration;
+use systemprompt_traits::{RetentionPurge, RetentionSweep};
 
 /// The operational tables the retention job prunes, each by one timestamp
 /// column compared with `<` against the target's cutoff.
@@ -124,7 +123,7 @@ pub enum RetentionHoldError {
 }
 
 /// A claim on rows an extension has not yet released. `#[async_trait]`
-/// keeps the trait `dyn`-compatible for the registry.
+/// keeps the trait `dyn`-compatible: holds are contributed as `Arc<dyn RetentionHold>`.
 #[async_trait]
 pub trait RetentionHold: Send + Sync {
     fn name(&self) -> &'static str;
@@ -135,11 +134,24 @@ pub trait RetentionHold: Send + Sync {
     ) -> Result<Option<DateTime<Utc>>, RetentionHoldError>;
 }
 
-seam_registration!(
-    RetentionHoldRegistration,
-    RetentionHold,
-    discover_retention_holds
-);
+/// One retention contribution: an owned table's age-based purge, a sweep run
+/// once per retention run, or a hold on rows the member has not released.
+#[derive(Clone)]
+pub enum RetentionDecl {
+    Purge(Arc<dyn RetentionPurge>),
+    Sweep(Arc<dyn RetentionSweep>),
+    Hold(Arc<dyn RetentionHold>),
+}
+
+impl fmt::Debug for RetentionDecl {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Purge(purge) => f.debug_tuple("Purge").field(&purge.table()).finish(),
+            Self::Sweep(sweep) => f.debug_tuple("Sweep").field(&sweep.name()).finish(),
+            Self::Hold(hold) => f.debug_tuple("Hold").field(&hold.name()).finish(),
+        }
+    }
+}
 
 #[macro_export]
 macro_rules! register_retention_hold {
@@ -192,16 +204,6 @@ impl RetentionHolds {
     #[must_use]
     pub const fn new(holds: Vec<Arc<dyn RetentionHold>>) -> Self {
         Self { holds }
-    }
-
-    #[must_use]
-    pub fn discover(ctx: &dyn ExtensionContext) -> Self {
-        Self::new(
-            discover_retention_holds()
-                .into_iter()
-                .map(|registration| (registration.factory)(ctx))
-                .collect(),
-        )
     }
 
     #[must_use]

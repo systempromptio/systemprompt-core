@@ -83,12 +83,6 @@ pub trait ExtensionContext: Send + Sync {
 
     fn secrets(&self) -> Arc<dyn SecretStore>;
 
-    fn get_extension(&self, id: &str) -> Option<Arc<dyn crate::Extension>>;
-
-    fn has_extension(&self, id: &str) -> bool {
-        self.get_extension(id).is_some()
-    }
-
     fn services(&self) -> ServicesView;
 
     fn subject_attributes(&self) -> Arc<dyn SubjectAttributeSource>;

@@ -21,7 +21,7 @@
 use axum::response::{IntoResponse, Response};
 use systemprompt_models::api::ApiError;
 
-use super::ApiHttpError;
+use super::http_error::ApiHttpError;
 
 /// A capability error's mapping onto the API error envelope.
 ///
@@ -50,9 +50,9 @@ pub fn capability_response(error: impl IntoApiError) -> Response {
 #[macro_export]
 macro_rules! capability_error_response {
     ($error:ty) => {
-        impl $crate::kernel::__IntoResponse for $error {
-            fn into_response(self) -> $crate::kernel::__Response {
-                $crate::kernel::capability_response(self)
+        impl $crate::router::__IntoResponse for $error {
+            fn into_response(self) -> $crate::router::__Response {
+                $crate::router::capability_response(self)
             }
         }
     };

@@ -4,7 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelGrant;
+use super::KernelGrant;
 
 /// Bootstrap flags for one command.
 ///
@@ -49,15 +49,15 @@ impl CommandDescriptor {
     const FLAG_PATHS: u16 = 0b0000_0000_0100;
     const FLAG_DATABASE: u16 = 0b0000_0000_1000;
     const FLAG_REMOTE_ELIGIBLE: u16 = 0b0000_0001_0000;
-    pub(crate) const FLAG_SKIP_VALIDATION: u16 = 0b0000_0010_0000;
+    const FLAG_SKIP_VALIDATION: u16 = 0b0000_0010_0000;
     const FLAG_READ_ONLY: u16 = 0b0000_0100_0000;
     const FLAG_MODEL_DISCOVERY: u16 = 0b0000_1000_0000;
     const FLAG_DESTRUCTIVE: u16 = 0b0001_0000_0000;
     const FLAG_IRREVERSIBLE: u16 = 0b0010_0000_0000;
-    pub(crate) const FLAG_SERVES_API: u16 = 0b0100_0000_0000;
-    pub(crate) const FLAG_CHILD_HOST: u16 = 0b1000_0000_0000;
-    pub(crate) const FLAG_CLOUD_OPERATOR: u16 = 0b0001_0000_0000_0000;
-    pub(crate) const FLAG_LOCAL_EXPORT: u16 = 0b0010_0000_0000_0000;
+    const FLAG_SERVES_API: u16 = 0b0100_0000_0000;
+    const FLAG_CHILD_HOST: u16 = 0b1000_0000_0000;
+    const FLAG_CLOUD_OPERATOR: u16 = 0b0001_0000_0000_0000;
+    const FLAG_LOCAL_EXPORT: u16 = 0b0010_0000_0000_0000;
 
     pub const NONE: Self = Self { flags: 0 };
 
@@ -173,13 +173,23 @@ impl CommandDescriptor {
         self.with_grant(KernelGrant::LocalExport)
     }
 
+    const fn grant_flag(grant: KernelGrant) -> u16 {
+        match grant {
+            KernelGrant::ChildHost => Self::FLAG_CHILD_HOST,
+            KernelGrant::ServesApi => Self::FLAG_SERVES_API,
+            KernelGrant::CloudOperator => Self::FLAG_CLOUD_OPERATOR,
+            KernelGrant::LocalExport => Self::FLAG_LOCAL_EXPORT,
+            KernelGrant::SkipValidation => Self::FLAG_SKIP_VALIDATION,
+        }
+    }
+
     pub const fn holds(&self, grant: KernelGrant) -> bool {
-        self.flags & grant.flag() != 0
+        self.flags & Self::grant_flag(grant) != 0
     }
 
     pub const fn with_grant(self, grant: KernelGrant) -> Self {
         Self {
-            flags: self.flags | grant.flag(),
+            flags: self.flags | Self::grant_flag(grant),
         }
     }
 
@@ -225,7 +235,7 @@ impl CommandDescriptor {
 /// `Irreversible` is `Destructive` plus an operator confirmation: the runner
 /// prompts before the command runs, and with no terminal the command refuses
 /// unless `--yes` was passed. Such a command flattens
-/// [`ConfirmArgs`](crate::shared::ConfirmArgs) so that `--yes` parses.
+/// the CLI's `ConfirmArgs` so that `--yes` parses.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DataImpact {
     Preserving,

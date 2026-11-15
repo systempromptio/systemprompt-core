@@ -1,17 +1,10 @@
-//! Entry-local HTTP error type for non-OAuth API routes.
+//! The HTTP error a route handler returns.
 //!
-//! Handlers return `Result<_, ApiHttpError>` and propagate domain, repository,
-//! and service errors with `?`. The variant-to-HTTP-status mapping lives once,
-//! in the `conversions` submodule's `From` impls, so `domain/*` never
-//! references the HTTP envelope and the boundary decides the status code from
-//! the error variant rather than at each call site.
-//!
-//! The wire shape is the shared [`ApiError`] JSON envelope; [`ApiHttpError`] is
-//! a thin entry-local newtype whose only reason to exist is the orphan rule —
-//! `impl From<DomainError> for ApiError` is forbidden in this crate (both types
-//! are foreign), so a local target type is required to obtain bare `?`.
-//! `into_response` logs exactly once by status class, with the internal cause
-//! chain as a structured field, and writes the redacting wire shape.
+//! The wire shape is the shared [`ApiError`] JSON envelope; [`ApiHttpError`]
+//! is the newtype every handler returns so a response is always built by one
+//! `IntoResponse`. `into_response` logs exactly once by status class, with the
+//! internal cause chain as a structured field, and writes the redacting wire
+//! shape.
 //!
 //! A 5xx never carries the underlying error's text: [`ApiError`] serialises the
 //! fixed public message of its code for every 5xx and logs the attached
@@ -20,9 +13,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod capability;
-mod conversions;
-
 use std::error::Error;
 
 use axum::Json;
@@ -30,8 +20,6 @@ use axum::http::{StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use systemprompt_models::api::ApiError;
 use systemprompt_traits::BoxedSource;
-
-pub use capability::{IntoApiError, capability_response};
 
 #[derive(Debug)]
 pub struct ApiHttpError(Box<ApiError>);
