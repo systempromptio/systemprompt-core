@@ -26,7 +26,7 @@ use std::fmt;
 use std::sync::Arc;
 
 use systemprompt_extension::{
-    Factory, FactoryError, Resolved, Slot, SlotEntry, SlotError, SlotOrder,
+    Factory, Resolved, Slot, SlotEntry, SlotError, SlotOrder, build_factories,
 };
 use systemprompt_identifiers::ExtensionId;
 
@@ -85,7 +85,7 @@ impl Slot for UiSlot {
         let mut contributed: HashMap<String, ExtensionId> = HashMap::new();
         for entry in entries {
             themes.extend(entry.builder.themes);
-            for renderer in run_all(UI_SLOT, &entry.builder.renderers, &entry.owner, r)? {
+            for renderer in build_factories(UI_SLOT, &entry.owner, &entry.builder.renderers, r)? {
                 let artifact_type = renderer.artifact_type().to_string();
                 if contributed
                     .insert(artifact_type.clone(), entry.owner.clone())
@@ -180,37 +180,10 @@ impl Slot for AccessRecorderSlot {
                 recorders.push(
                     factory
                         .build(r)
-                        .map_err(|error| slot_error(RECORDER_SLOT, &entry.owner, error))?,
+                        .map_err(|error| error.into_slot_error(RECORDER_SLOT, &entry.owner))?,
                 );
             }
         }
         Ok(AccessRecorders(recorders))
-    }
-}
-
-fn run_all<T: ?Sized + 'static>(
-    slot: &'static str,
-    factories: &Factories<T>,
-    owner: &ExtensionId,
-    r: &Resolved<'_>,
-) -> Result<Vec<Arc<T>>, SlotError> {
-    factories
-        .iter()
-        .map(|factory| {
-            factory
-                .build(r)
-                .map_err(|error| slot_error(slot, owner, error))
-        })
-        .collect()
-}
-
-fn slot_error(slot: &'static str, owner: &ExtensionId, error: FactoryError) -> SlotError {
-    match error {
-        FactoryError::Missing(missing) => SlotError::Missing(missing),
-        FactoryError::Failed(source) => SlotError::Entry {
-            slot,
-            owner: owner.clone(),
-            source,
-        },
     }
 }

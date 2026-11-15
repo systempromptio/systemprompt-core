@@ -24,11 +24,11 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use systemprompt_extension::{
-    Factory, FactoryError, Resolved, Slot, SlotEntry, SlotError, SlotOrder,
+    Factory, Resolved, Slot, SlotEntry, SlotError, SlotOrder,
 };
 use systemprompt_governance::authz::SharedRoleDirectory;
 use systemprompt_governance::contract::RoleDirectories;
-use systemprompt_identifiers::{ExtensionId, UserId};
+use systemprompt_identifiers::UserId;
 
 use crate::candidate::MarketplaceCandidate;
 use crate::error::MarketplaceFilterError;
@@ -125,10 +125,18 @@ impl Slot for MarketplaceSlot {
         let mut gates = Vec::new();
         for entry in entries {
             for factory in &entry.builder.filters {
-                filters.push(run(factory.as_ref(), &entry.owner, r)?);
+                filters.push(
+                    factory
+                        .build(r)
+                        .map_err(|e| e.into_slot_error(SLOT, &entry.owner))?,
+                );
             }
             for factory in &entry.builder.gates {
-                gates.push(run(factory.as_ref(), &entry.owner, r)?);
+                gates.push(
+                    factory
+                        .build(r)
+                        .map_err(|e| e.into_slot_error(SLOT, &entry.owner))?,
+                );
             }
         }
         let filter: Arc<dyn MarketplaceFilter> = match filters.len() {
@@ -163,19 +171,4 @@ impl MarketplaceFilter for AllFilters {
         }
         Ok(candidate)
     }
-}
-
-fn run<T: ?Sized + 'static>(
-    factory: &dyn Factory<Arc<T>>,
-    owner: &ExtensionId,
-    r: &Resolved<'_>,
-) -> Result<Arc<T>, SlotError> {
-    factory.build(r).map_err(|error| match error {
-        FactoryError::Missing(missing) => SlotError::Missing(missing),
-        FactoryError::Failed(source) => SlotError::Entry {
-            slot: SLOT,
-            owner: owner.clone(),
-            source,
-        },
-    })
 }
