@@ -19,22 +19,21 @@
 
 mod state;
 
-pub use state::{TeamsState, TeamsStateError};
+pub use state::{TeamsClients, TeamsState};
 
-use axum::Router;
 use axum::body::Bytes;
 use axum::extract::State;
 use axum::http::header::AUTHORIZATION;
-use axum::http::{HeaderMap, StatusCode};
+use axum::http::{HeaderMap, Method, StatusCode};
 use axum::response::{IntoResponse, Response};
-use axum::routing::post;
+use systemprompt_extension::router::{
+    ApiBase, BasePath, BodyLimit, RouteLimits, RouteSet, RouteSpec,
+};
 use systemprompt_extension::{
-    AuthzPolicy, ContextKind, ExtensionContext, ExtensionRouter, ExtensionStateError,
-    HandlerVerifier, RateBudget, RateLimit, RouteGroup,
+    AuthzPolicy, ContextKind, HandlerVerifier, RateBudget, RateLimit, RouteGroup,
 };
 use systemprompt_identifiers::{TeamsAppId, TeamsConversationId, TeamsTenantId};
 use systemprompt_manifest::services::{ServicesConfig, TeamsAppConfig};
-use systemprompt_models::modules::ApiPaths;
 use systemprompt_teams::activities::Activity;
 use systemprompt_teams::client::TeamsClient;
 use systemprompt_traits::{
@@ -44,23 +43,20 @@ use systemprompt_traits::{
 
 const ISSUER: &str = "https://api.botframework.com";
 
-pub fn declaration(ctx: &dyn ExtensionContext) -> Result<ExtensionRouter, ExtensionStateError> {
-    let state = TeamsState::from_context(ctx)
-        .map_err(|source| ExtensionStateError::Provider(Box::new(source)))?;
-    Ok(ExtensionRouter::new(
-        router(state),
-        ApiPaths::TEAMS_BASE,
-        AuthzPolicy::handler_verified(HandlerVerifier::TeamsBotToken),
-        ContextKind::HandlerResolved,
-    )
-    .in_group(RouteGroup::Messaging)
-    .with_rate_limit(RateLimit::new("agents", RateBudget::Agents)))
-}
+const SIGNED: RouteSpec = RouteSpec::new(
+    AuthzPolicy::handler_verified(HandlerVerifier::TeamsBotToken),
+    ContextKind::HandlerResolved,
+    RouteLimits {
+        rate: RateLimit::new("agents", RateBudget::Agents),
+        body: BodyLimit::Default,
+    },
+);
 
-pub fn router(state: TeamsState) -> Router {
-    Router::new()
-        .route("/messages", post(handle_messages))
-        .with_state(state)
+#[must_use]
+pub fn routes() -> RouteSet {
+    RouteSet::at::<TeamsState>(BasePath::Api(ApiBase::Teams), RouteGroup::Messaging)
+        .route(Method::POST, "/messages", handle_messages, SIGNED)
+        .build()
 }
 
 async fn handle_messages(

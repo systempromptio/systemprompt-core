@@ -7621,9 +7621,9 @@ version = "0.81.1"
 dependencies = [
  "axum",
  "chrono",
- "inventory",
  "reqwest",
  "schemars 1.2.3",
+ "serde",
  "serde_json",
  "systemprompt-client",
  "systemprompt-extension",
@@ -7685,9 +7685,9 @@ version = "0.81.1"
 dependencies = [
  "axum",
  "chrono",
- "inventory",
  "reqwest",
  "schemars 1.2.3",
+ "serde",
  "serde_json",
  "systemprompt-client",
  "systemprompt-extension",

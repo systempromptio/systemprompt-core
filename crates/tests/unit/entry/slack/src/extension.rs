@@ -1,15 +1,26 @@
 //! Tests for the Slack extension registration surface.
 
 use serde_json::json;
-use systemprompt_extension::{Extension, ExtensionConfigError};
+use systemprompt_extension::{Extension, ExtensionConfig, ExtensionConfigError};
 use systemprompt_models::errors::ServicesValidationError;
 use systemprompt_slack_entry::SlackExtension;
+use systemprompt_slack_entry::extension::SlackAppsConfig;
+
+fn validate(section: &serde_json::Value) -> Result<(), ExtensionConfigError> {
+    serde_json::from_value::<SlackAppsConfig>(section.clone())
+        .map_err(|source| ExtensionConfigError::ParseError {
+            source: Box::new(source),
+        })?
+        .validate()
+}
+
+fn schema() -> serde_json::Value {
+    serde_json::to_value(schemars::schema_for!(SlackAppsConfig)).expect("schema renders")
+}
 
 #[test]
 fn config_schema_describes_a_map_of_slack_app_configs() {
-    let schema = SlackExtension
-        .config_schema()
-        .expect("slack advertises a config schema");
+    let schema = schema();
 
     let rendered = schema.to_string();
     assert!(
@@ -26,7 +37,7 @@ fn config_schema_describes_a_map_of_slack_app_configs() {
 fn metadata_and_prefix_identify_the_slack_extension() {
     let meta = SlackExtension.metadata();
     assert_eq!(meta.id, "slack");
-    assert_eq!(SlackExtension.config_prefix(), Some("slack"));
+    assert_eq!(<SlackAppsConfig as ExtensionConfig>::PREFIX, "slack");
 }
 
 fn app(signing_secret_ref: &str, bot_token_ref: &str) -> serde_json::Value {
@@ -52,15 +63,13 @@ fn refused_field(err: &ExtensionConfigError) -> Option<&'static str> {
 
 #[test]
 fn validate_config_accepts_custom_secret_refs() {
-    SlackExtension
-        .validate_config(&app("slack_signing_secret", "slack_bot_token"))
+    validate(&app("slack_signing_secret", "slack_bot_token"))
         .expect("custom secret names pass validation");
 }
 
 #[test]
 fn validate_config_refuses_a_signing_secret_ref_naming_a_built_in_secret() {
-    let err = SlackExtension
-        .validate_config(&app("oauth_at_rest_pepper", "slack_bot_token"))
+    let err = validate(&app("oauth_at_rest_pepper", "slack_bot_token"))
         .expect_err("a built-in secret name is refused at config validation");
     assert_eq!(
         refused_field(&err),
@@ -71,8 +80,7 @@ fn validate_config_refuses_a_signing_secret_ref_naming_a_built_in_secret() {
 
 #[test]
 fn validate_config_refuses_a_bot_token_ref_naming_a_built_in_secret() {
-    let err = SlackExtension
-        .validate_config(&app("slack_signing_secret", "DATABASE_URL"))
+    let err = validate(&app("slack_signing_secret", "DATABASE_URL"))
         .expect_err("a built-in secret alias is refused at config validation");
     assert_eq!(refused_field(&err), Some("bot_token_ref"), "got {err:?}");
 }
