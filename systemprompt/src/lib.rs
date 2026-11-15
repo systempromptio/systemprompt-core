@@ -22,7 +22,8 @@
 //! | `security` | `systemprompt-security`, `systemprompt-governance` | JWT, scope/RBAC, secret scanning, rate limit. |
 //! | `cli` | `systemprompt-cli` (which depends on `systemprompt-api`, so it compiles the `api` crate graph) | The `systemprompt` CLI as a library entry point. |
 //! | `runtime` | `cli` + `systemprompt-extension` | `RuntimeBuilder` for embedding the CLI in a custom binary. The `systemprompt::runtime` module also compiles under `full`, where it re-exports the document store runtime as `systemprompt::runtime::documents` (the document MCP tools are `systemprompt::runtime::documents::mcp`). |
-//! | `analytics` | `systemprompt-analytics` | Request, conversation, agent, tool, and cost metrics without the rest of `full`. |
+//! | `analytics` | `systemprompt-analytics`, and the `/api/v1/analytics` and engagement routes and the `analytics` command group from `systemprompt-analytics-entry` | Request, conversation, agent, tool, and cost metrics without the rest of `full`. The routes need `api`, the commands `cli`. In `full`. |
+//! | `content` | the `systemprompt::content` module, and the `/api/v1/content` and link-redirect routes and the `core content` commands from `systemprompt-content-entry` | Content ingestion, links and campaigns without the rest of `full`. The routes need `api`, the commands `cli`. In `full`. |
 //! | `slack` | the `systemprompt::slack` module and the `/api/v1/slack` routes from `systemprompt-slack-entry` | Slack Events API, slash commands, interactivity. Not part of `full`. |
 //! | `teams` | the `systemprompt::teams` module and the `/api/v1/teams` routes from `systemprompt-teams-entry` | Microsoft Teams Bot Framework activities. Not part of `full`. |
 //! | `agent-runs` | `systemprompt-agent-runs`, the `/api/v1/agent-runs` routes and the run launcher wired into hosted agents | Durable, leased, governed coding-agent runs (Claude Code, Codex CLI) with a common event contract. In `full`. |
@@ -208,8 +209,8 @@ pub mod oauth;
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod users;
 
-#[cfg(feature = "full")]
-#[cfg_attr(docsrs, doc(cfg(feature = "full")))]
+#[cfg(feature = "content")]
+#[cfg_attr(docsrs, doc(cfg(feature = "content")))]
 pub mod content;
 
 #[cfg(feature = "analytics")]
@@ -229,7 +230,19 @@ pub mod marketplace {
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod scheduler;
 
+#[cfg(any(
+    feature = "slack",
+    feature = "teams",
+    feature = "agent-runs",
+    feature = "notifications"
+))]
 mod capabilities;
+#[cfg(any(
+    feature = "slack",
+    feature = "teams",
+    feature = "agent-runs",
+    feature = "notifications"
+))]
 pub use capabilities::*;
 
 #[cfg(feature = "full")]
