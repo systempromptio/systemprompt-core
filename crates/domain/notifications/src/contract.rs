@@ -24,10 +24,9 @@ use std::fmt;
 use std::sync::Arc;
 
 use systemprompt_extension::{
-    Factory, FactoryError, NotificationAudienceResolver, NotificationChannel, NotificationRouter,
-    PublishPolicy, Resolved, ResourceVisibility, Slot, SlotEntry, SlotError, SlotOrder,
+    Factory, NotificationAudienceResolver, NotificationChannel, NotificationRouter, PublishPolicy,
+    Resolved, ResourceVisibility, Slot, SlotEntry, SlotError, SlotOrder, build_factories,
 };
-use systemprompt_identifiers::ExtensionId;
 
 const SLOT: &str = "notifications";
 
@@ -128,38 +127,25 @@ impl Slot for NotificationsSlot {
         for entry in entries {
             let owner = &entry.owner;
             let builder = entry.builder;
-            seams.routers.extend(run_all(&builder.routers, owner, r)?);
-            seams.channels.extend(run_all(&builder.channels, owner, r)?);
+            seams
+                .routers
+                .extend(build_factories(SLOT, owner, &builder.routers, r)?);
+            seams
+                .channels
+                .extend(build_factories(SLOT, owner, &builder.channels, r)?);
             seams
                 .audiences
-                .extend(run_all(&builder.audiences, owner, r)?);
-            seams
-                .publish_policies
-                .extend(run_all(&builder.publish_policies, owner, r)?);
+                .extend(build_factories(SLOT, owner, &builder.audiences, r)?);
+            seams.publish_policies.extend(build_factories(
+                SLOT,
+                owner,
+                &builder.publish_policies,
+                r,
+            )?);
             seams
                 .visibilities
-                .extend(run_all(&builder.visibilities, owner, r)?);
+                .extend(build_factories(SLOT, owner, &builder.visibilities, r)?);
         }
         Ok(seams)
     }
-}
-
-fn run_all<T: ?Sized + 'static>(
-    factories: &Factories<T>,
-    owner: &ExtensionId,
-    r: &Resolved<'_>,
-) -> Result<Vec<Arc<T>>, SlotError> {
-    factories
-        .iter()
-        .map(|factory| {
-            factory.build(r).map_err(|error| match error {
-                FactoryError::Missing(missing) => SlotError::Missing(missing),
-                FactoryError::Failed(source) => SlotError::Entry {
-                    slot: SLOT,
-                    owner: owner.clone(),
-                    source,
-                },
-            })
-        })
-        .collect()
 }

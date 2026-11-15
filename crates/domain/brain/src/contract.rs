@@ -27,11 +27,10 @@ use std::sync::Arc;
 
 use systemprompt_extension::brain::{FactConsolidator, Reranker};
 use systemprompt_extension::{
-    BrainAnalysis, EventFilter, FactExtractor, FactRetriever, FactValidator, Factory, FactoryError,
+    BrainAnalysis, EventFilter, FactExtractor, FactRetriever, FactValidator, Factory,
     ImportanceModel, InjectionPolicy, OutcomeSignal, Resolved, Slot, SlotEntry, SlotError,
-    SlotOrder, SourceContent,
+    SlotOrder, SourceContent, build_factories,
 };
-use systemprompt_identifiers::ExtensionId;
 
 use crate::pipeline::PipelineSeams;
 
@@ -194,42 +193,40 @@ impl Slot for BrainSlot {
         for entry in entries {
             let owner = &entry.owner;
             let b = entry.builder;
-            seams.filters.extend(run_all(&b.filters, owner, r)?);
-            seams.extractors.extend(run_all(&b.extractors, owner, r)?);
-            seams.validators.extend(run_all(&b.validators, owner, r)?);
-            seams.importance.extend(run_all(&b.importance, owner, r)?);
-            seams.sources.extend(run_all(&b.sources, owner, r)?);
-            seams.retrievers.extend(run_all(&b.retrievers, owner, r)?);
-            seams.rerankers.extend(run_all(&b.rerankers, owner, r)?);
-            seams.injection.extend(run_all(&b.injection, owner, r)?);
+            seams
+                .filters
+                .extend(build_factories(SLOT, owner, &b.filters, r)?);
+            seams
+                .extractors
+                .extend(build_factories(SLOT, owner, &b.extractors, r)?);
+            seams
+                .validators
+                .extend(build_factories(SLOT, owner, &b.validators, r)?);
+            seams
+                .importance
+                .extend(build_factories(SLOT, owner, &b.importance, r)?);
+            seams
+                .sources
+                .extend(build_factories(SLOT, owner, &b.sources, r)?);
+            seams
+                .retrievers
+                .extend(build_factories(SLOT, owner, &b.retrievers, r)?);
+            seams
+                .rerankers
+                .extend(build_factories(SLOT, owner, &b.rerankers, r)?);
+            seams
+                .injection
+                .extend(build_factories(SLOT, owner, &b.injection, r)?);
             seams
                 .outcome_signals
-                .extend(run_all(&b.outcome_signals, owner, r)?);
-            seams.analyses.extend(run_all(&b.analyses, owner, r)?);
+                .extend(build_factories(SLOT, owner, &b.outcome_signals, r)?);
+            seams
+                .analyses
+                .extend(build_factories(SLOT, owner, &b.analyses, r)?);
             seams
                 .consolidators
-                .extend(run_all(&b.consolidators, owner, r)?);
+                .extend(build_factories(SLOT, owner, &b.consolidators, r)?);
         }
         Ok(seams)
     }
-}
-
-fn run_all<T: ?Sized + 'static>(
-    factories: &Factories<T>,
-    owner: &ExtensionId,
-    r: &Resolved<'_>,
-) -> Result<Vec<Arc<T>>, SlotError> {
-    factories
-        .iter()
-        .map(|factory| {
-            factory.build(r).map_err(|error| match error {
-                FactoryError::Missing(missing) => SlotError::Missing(missing),
-                FactoryError::Failed(source) => SlotError::Entry {
-                    slot: SLOT,
-                    owner: owner.clone(),
-                    source,
-                },
-            })
-        })
-        .collect()
 }

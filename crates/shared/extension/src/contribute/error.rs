@@ -46,6 +46,20 @@ pub enum FactoryError {
     Failed(#[source] BoxedSource),
 }
 
+impl FactoryError {
+    #[must_use]
+    pub fn into_slot_error(self, slot: &'static str, owner: &ExtensionId) -> SlotError {
+        match self {
+            Self::Missing(missing) => SlotError::Missing(missing),
+            Self::Failed(source) => SlotError::Entry {
+                slot,
+                owner: owner.clone(),
+                source,
+            },
+        }
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum SlotError {
     #[error("outbound tag {tag} shadows a built-in adapter")]

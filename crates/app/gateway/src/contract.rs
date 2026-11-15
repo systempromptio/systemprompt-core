@@ -23,7 +23,7 @@
 use std::sync::Arc;
 
 use systemprompt_extension::{
-    Factory, FactoryError, Resolved, Slot, SlotEntry, SlotError, SlotOrder,
+    Factory, Resolved, Slot, SlotEntry, SlotError, SlotOrder, build_factories,
 };
 use systemprompt_identifiers::ExtensionId;
 
@@ -38,17 +38,6 @@ const SAFETY_SCANNER_SLOT: &str = "safety_scanner";
 const OVERRIDE_SLOT: &str = "system_prompt_override";
 const OUTBOUND_SLOT: &str = "outbound_adapter";
 
-fn entry_error(slot: &'static str, owner: &ExtensionId, source: FactoryError) -> SlotError {
-    match source {
-        FactoryError::Missing(missing) => SlotError::Missing(missing),
-        FactoryError::Failed(source) => SlotError::Entry {
-            slot,
-            owner: owner.clone(),
-            source,
-        },
-    }
-}
-
 fn build_all<T>(
     slot: &'static str,
     entries: Vec<(ExtensionId, Vec<Box<dyn Factory<T>>>)>,
@@ -56,9 +45,7 @@ fn build_all<T>(
 ) -> Result<Vec<T>, SlotError> {
     let mut built = Vec::new();
     for (owner, factories) in entries {
-        for factory in factories {
-            built.push(factory.build(r).map_err(|e| entry_error(slot, &owner, e))?);
-        }
+        built.extend(build_factories(slot, &owner, &factories, r)?);
     }
     Ok(built)
 }
@@ -207,7 +194,7 @@ impl Slot for SafetyScannerSlot {
                 }
                 let scanner = factory
                     .build(r)
-                    .map_err(|e| entry_error(SAFETY_SCANNER_SLOT, &entry.owner, e))?;
+                    .map_err(|e| e.into_slot_error(SAFETY_SCANNER_SLOT, &entry.owner))?;
                 registry.insert(name, scanner);
             }
         }
@@ -276,7 +263,7 @@ impl Slot for OutboundSlot {
                 }
                 let adapter = factory
                     .build(r)
-                    .map_err(|e| entry_error(OUTBOUND_SLOT, &entry.owner, e))?;
+                    .map_err(|e| e.into_slot_error(OUTBOUND_SLOT, &entry.owner))?;
                 registry.insert(tag, adapter);
             }
         }

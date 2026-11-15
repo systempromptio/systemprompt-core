@@ -43,6 +43,7 @@ pub use entries::{ContributedJob, MemberDependency, ProvideEntry, ProvidedValue}
 pub use error::{ContributionError, FactoryError, ProvideError, SlotError};
 pub use resolved::{
     Factory, FromState, Handed, HandleId, KernelAccess, KernelHandle, ProvideFn, Resolved,
+    build_factories,
 };
 pub use sink::{
     AssetFn, ContributionSink, DiagnosticFactory, GatewayGuardFactory, PolicyFactory,

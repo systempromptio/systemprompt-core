@@ -21,10 +21,11 @@
 use std::any::Any;
 use std::sync::Arc;
 
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::{Dependencies, MissingDependency};
 use systemprompt_traits::{BackgroundTasks, DatabaseHandle};
 
-use super::error::{FactoryError, ProvideError};
+use super::error::{FactoryError, ProvideError, SlotError};
 
 /// What the kernel exposes to a resolution; implemented once, in the runtime.
 #[doc(hidden)]
@@ -131,6 +132,22 @@ where
     fn build(&self, r: &Resolved<'_>) -> Result<T, FactoryError> {
         self(r)
     }
+}
+
+pub fn build_factories<T: 'static>(
+    slot: &'static str,
+    owner: &ExtensionId,
+    factories: &[Box<dyn Factory<T>>],
+    r: &Resolved<'_>,
+) -> Result<Vec<T>, SlotError> {
+    factories
+        .iter()
+        .map(|factory| {
+            factory
+                .build(r)
+                .map_err(|error| error.into_slot_error(slot, owner))
+        })
+        .collect()
 }
 
 /// A kernel-built value handed to exactly the routes it is conferred on.
