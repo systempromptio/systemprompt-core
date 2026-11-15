@@ -1,9 +1,7 @@
 //! Renders the deployment Dockerfile from discovered extensions and config.
 //!
-//! One image boots any of the profiles it copies, so it creates the storage
-//! directories of every linked extension: the disabled set passed to the
-//! registry is empty by design, and a profile that disables an extension
-//! leaves its directory unused.
+//! One image boots any of the profiles it copies; it creates the core storage
+//! directories.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,7 +9,6 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use systemprompt_extension::ExtensionRegistry;
 use systemprompt_identifiers::ProfileName;
 use systemprompt_loader::{ConfigLoader, ExtensionLoader};
 use systemprompt_manifest::ServicesConfig;
@@ -68,7 +65,6 @@ impl<'a> DockerfileBuilder<'a> {
     pub fn build(&self) -> String {
         let mcp_section = self.mcp_copy_section();
         let env_section = self.env_section();
-        let extension_dirs = Self::extension_storage_dirs();
         let extension_assets_section = self.extension_asset_copy_section();
         let base_image = self.image.base_image();
         let extra_packages = self.extra_packages();
@@ -91,7 +87,7 @@ RUN apt-get update && apt-get install -y \
 RUN useradd -m -u 1000 app
 WORKDIR {app}
 
-RUN mkdir -p {bin} {logs} {storage}/{files} {storage}/{exports} {storage}/{data} {storage}/{scratch} {storage}/{images} {storage}/{generated} {storage}/{logos} {storage}/{audio} {storage}/{video} {storage}/{documents} {storage}/{uploads} {web} {services_cache}{extension_dirs}
+RUN mkdir -p {bin} {logs} {storage}/{files} {storage}/{exports} {storage}/{data} {storage}/{scratch} {storage}/{images} {storage}/{generated} {storage}/{logos} {storage}/{audio} {storage}/{video} {storage}/{documents} {storage}/{uploads} {web} {services_cache}
 
 # Copy pre-built binaries
 COPY target/release/systemprompt {bin}/
@@ -142,7 +138,6 @@ CMD ["{bin}/systemprompt", "{cmd_infra}", "{cmd_services}", "{cmd_serve}", "--fo
             uploads = storage::UPLOADS,
             base_image = base_image,
             extra_packages = extra_packages,
-            extension_dirs = extension_dirs,
             mcp_section = mcp_section,
             env_section = env_section,
             extension_assets_section = extension_assets_section,
@@ -163,30 +158,6 @@ CMD ["{bin}/systemprompt", "{cmd_infra}", "{cmd_services}", "{cmd_serve}", "--fo
                 out.push_str(" \\\n");
                 out
             })
-    }
-
-    fn extension_storage_dirs() -> String {
-        let paths = match ExtensionRegistry::discover()
-            .and_then(|registry| registry.all_required_storage_paths(&[]))
-        {
-            Ok(paths) => paths,
-            Err(e) => {
-                tracing::error!(error = %e, "Extension discovery failed; no storage dirs");
-                Vec::new()
-            },
-        };
-        if paths.is_empty() {
-            return String::new();
-        }
-
-        let mut result = String::new();
-        for path in paths {
-            result.push(' ');
-            result.push_str(container::STORAGE);
-            result.push('/');
-            result.push_str(path);
-        }
-        result
     }
 
     fn extension_asset_copy_section(&self) -> String {

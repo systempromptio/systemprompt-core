@@ -9,12 +9,13 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::services::DatabaseProvider;
-use systemprompt_extension::{Extension, LoaderError, Seed};
+use systemprompt_extension::{LoaderError, Seed};
+use crate::lifecycle::schema_member::SchemaMember;
 use systemprompt_identifiers::ExtensionId;
 use tracing::{debug, info};
 
 pub(super) async fn apply_seeds(
-    extension: &dyn Extension,
+    extension: &dyn SchemaMember,
     db: &dyn DatabaseProvider,
 ) -> Result<(), LoaderError> {
     let seeds = extension.seeds();

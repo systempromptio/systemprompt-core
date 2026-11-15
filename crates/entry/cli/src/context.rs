@@ -17,17 +17,17 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result, bail};
 use systemprompt_cloud::CloudCredentials;
-use systemprompt_config::{LoadedProfile, SecretsService};
+use systemprompt_config::{LoadedProfile, SecretsService, SecretsSources};
 use systemprompt_database::DbPool;
 use systemprompt_loader::{BootContext, ServicesState};
 use systemprompt_manifest::{Config, Profile};
 use systemprompt_models::BuildIdentity;
-use systemprompt_runtime::{AppContext, AppContextBuilder, DatabaseContext};
+use systemprompt_extension::{Admitted, cli::CliConfig, cli::Prompter};
+use systemprompt_runtime::{AppContext, AppContextBuilder, DatabaseContext, Kernel};
 use tokio::sync::OnceCell;
 
-use crate::cli_settings::CliConfig;
 use crate::env_overrides::EnvOverrides;
-use crate::interactive::{DialoguerPrompter, Prompter};
+use crate::interactive::DialoguerPrompter;
 use crate::runner::interrupt::InterruptShield;
 use systemprompt_loader::subprocess::ForegroundChildren;
 
@@ -44,8 +44,11 @@ pub struct CommandContext {
     profile: Option<Arc<LoadedProfile>>,
     boot: Option<BootContext>,
     interrupt_shield: InterruptShield,
-    foreground_children: ForegroundChildren,
+    pub(crate) foreground_children: ForegroundChildren,
     build: BuildIdentity,
+    pub(crate) admitted: Option<Arc<Admitted>>,
+    pub(crate) kernel: Option<Arc<Kernel>>,
+    secrets_sources: SecretsSources,
 }
 
 impl CommandContext {
@@ -66,7 +69,21 @@ impl CommandContext {
             interrupt_shield: InterruptShield::default(),
             foreground_children: ForegroundChildren::default(),
             build: BuildIdentity::core(),
+            admitted: None,
+            kernel: None,
+            secrets_sources: SecretsSources::default(),
         }
+    }
+
+    #[must_use]
+    pub fn with_secrets_sources(mut self, sources: SecretsSources) -> Self {
+        self.secrets_sources = sources;
+        self
+    }
+
+    #[must_use]
+    pub const fn secrets_sources(&self) -> &SecretsSources {
+        &self.secrets_sources
     }
 
     #[must_use]
@@ -196,6 +213,9 @@ impl CommandContext {
             interrupt_shield: InterruptShield::default(),
             foreground_children: ForegroundChildren::default(),
             build: BuildIdentity::core(),
+            admitted: None,
+            kernel: None,
+            secrets_sources: SecretsSources::default(),
         }
     }
 
@@ -216,6 +236,9 @@ impl CommandContext {
             interrupt_shield: InterruptShield::default(),
             foreground_children: ForegroundChildren::default(),
             build: BuildIdentity::core(),
+            admitted: None,
+            kernel: None,
+            secrets_sources: SecretsSources::default(),
         }
     }
 

@@ -30,7 +30,7 @@ pub struct IssuePluginTokenArgs {
     #[arg(
         long,
         default_value = "cowork-bundle",
-        value_parser = crate::shared::parse_plugin_id,
+        value_parser = systemprompt_extension::cli::parsers::parse_plugin_id,
         help = "Plugin identifier to embed in the token's `plugin_id` claim."
     )]
     pub plugin_id: PluginId,

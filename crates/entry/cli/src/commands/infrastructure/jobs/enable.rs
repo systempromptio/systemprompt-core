@@ -14,7 +14,7 @@ use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct EnableArgs {
-    #[arg(value_parser = crate::shared::parse_job_name, help = "Job name to enable")]
+    #[arg(value_parser = systemprompt_extension::cli::parsers::parse_job_name, help = "Job name to enable")]
     pub job_name: JobName,
 }
 

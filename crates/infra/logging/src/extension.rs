@@ -18,11 +18,16 @@ impl Extension for LoggingExtension {
         }
     }
 
-    fn is_required(&self) -> bool {
-        true
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        for schema in schemas() {
+            c.schema(schema);
+        }
+        c.migrations(extension_migrations!());
+        Ok(())
     }
+}
 
-    fn schemas(&self) -> Vec<SchemaDefinition> {
+fn schemas() -> Vec<SchemaDefinition> {
         vec![
             SchemaDefinition::new("logs", include_str!("../schema/log.sql")).with_required_columns(
                 vec![
@@ -66,13 +71,3 @@ impl Extension for LoggingExtension {
         ]
     }
 
-    fn migrations(&self) -> Vec<Migration> {
-        extension_migrations!()
-    }
-
-    fn dependencies(&self) -> Vec<&'static str> {
-        vec!["database", "users"]
-    }
-}
-
-register_extension!(LoggingExtension);

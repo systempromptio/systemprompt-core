@@ -11,9 +11,12 @@
 
 #[cfg(feature = "core")]
 pub use systemprompt_extension::{
-    AuthzPolicy, ContextKind, Extension, ExtensionContext, ExtensionMetadata, ExtensionRegistry,
-    ExtensionRouter, SchemaDefinition, register_extension,
+    AuthzPolicy, ContextKind, ContributionError, Contributions, Extension, ExtensionContext,
+    ExtensionMetadata, FromState, Resolved, SchemaDefinition,
 };
+
+#[cfg(feature = "full")]
+pub use crate::composition::{Composition, reference};
 
 #[cfg(feature = "core")]
 pub use systemprompt_extension::error::{ExtensionConfigError, LoaderError};

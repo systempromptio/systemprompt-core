@@ -7,7 +7,7 @@ use systemprompt_cli::CliConfig;
 use systemprompt_cli::admin::setup::SetupArgs;
 use systemprompt_cli::admin::setup::postgres::{setup_interactive, setup_non_interactive};
 use systemprompt_cli::interactive::ScriptedPrompter;
-use systemprompt_cli::shared::docker_compose::create_compose_files_if_missing;
+use systemprompt_cloud::docker_compose::create_compose_files_if_missing;
 use systemprompt_cli::shared::postgres_access::{
     PostgresConfig, detect_postgresql, enable_extensions, generate_password, test_connection,
 };
@@ -478,7 +478,7 @@ fn docker_non_interactive_reuses_reachable_database_without_compose() {
 
 #[test]
 fn docker_non_interactive_refuses_occupied_port() {
-    use systemprompt_cli::shared::docker_compose::{is_compose_available, is_docker_available};
+    use systemprompt_cloud::docker_compose::{is_compose_available, is_docker_available};
     if !is_docker_available(&ForegroundChildren::default())
         || !is_compose_available(&ForegroundChildren::default())
     {
@@ -525,7 +525,7 @@ fn compose_files_are_rendered() {
 
 #[test]
 fn docker_probes_do_not_panic() {
-    use systemprompt_cli::shared::docker_compose::{
+    use systemprompt_cloud::docker_compose::{
         is_compose_available, is_container_running, is_docker_available,
     };
     let _ = is_docker_available(&ForegroundChildren::default());

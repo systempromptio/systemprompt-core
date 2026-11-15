@@ -4,7 +4,7 @@
 
 use std::path::PathBuf;
 
-use systemprompt_cli::paths::ResolvedPaths;
+use systemprompt_cloud::paths::ResolvedPaths;
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_test_fixtures::ensure_test_bootstrap;
 

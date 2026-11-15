@@ -22,7 +22,16 @@ impl Extension for DatabaseExtension {
         }
     }
 
-    fn schemas(&self) -> Vec<SchemaDefinition> {
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        for schema in schemas() {
+            c.schema(schema);
+        }
+        c.migrations(extension_migrations!());
+        Ok(())
+    }
+}
+
+fn schemas() -> Vec<SchemaDefinition> {
         let mut schemas = install_ledger_schemas();
         schemas.extend([
             SchemaDefinition::new("services", include_str!("../schema/services.sql"))
@@ -86,20 +95,6 @@ impl Extension for DatabaseExtension {
         schemas
     }
 
-    fn migrations(&self) -> Vec<Migration> {
-        extension_migrations!()
-    }
-
-    fn dependencies(&self) -> Vec<&'static str> {
-        vec![]
-    }
-
-    fn priority(&self) -> u32 {
-        0
-    }
-}
-
-register_extension!(DatabaseExtension);
 
 fn install_ledger_schemas() -> Vec<SchemaDefinition> {
     vec![

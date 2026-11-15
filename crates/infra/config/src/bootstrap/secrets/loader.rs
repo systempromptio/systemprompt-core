@@ -9,14 +9,17 @@ use systemprompt_manifest::secrets::{OAUTH_AT_REST_PEPPER_MIN_LENGTH, Secrets};
 use super::SecretsBootstrapError;
 use super::logging::log_secrets_failure;
 use super::provider::DynSecretsProvider;
-use super::registry::{build_external_provider, process_env_lookup};
+use super::registry::{SecretsSources, build_external_provider, process_env_lookup};
 use super::resolve::{ResolvedSource, resolve_source};
 use super::vault::VaultKvProvider;
 use crate::bootstrap::profile::LoadedProfile;
 use crate::bootstrap::secrets::sources::{env, file};
 use crate::error::{ConfigError, ConfigResult};
 
-pub(super) async fn load_from_profile_config(profile: &LoadedProfile) -> ConfigResult<Secrets> {
+pub(super) async fn load_from_profile_config(
+    profile: &LoadedProfile,
+    sources: &SecretsSources,
+) -> ConfigResult<Secrets> {
     let is_deployment_host = profile.is_deployment_host(|name| std::env::var(name).ok());
     let has_valid_pepper_in_env = std::env::var("OAUTH_AT_REST_PEPPER")
         .is_ok_and(|pepper| pepper.len() >= OAUTH_AT_REST_PEPPER_MIN_LENGTH);
@@ -48,7 +51,7 @@ pub(super) async fn load_from_profile_config(profile: &LoadedProfile) -> ConfigR
         },
         ResolvedSource::Vault(cfg) => load_from_vault(cfg).await,
         ResolvedSource::External(cfg) => {
-            let provider = match build_external_provider(cfg, process_env_lookup()) {
+            let provider = match build_external_provider(cfg, process_env_lookup(), sources) {
                 Ok(provider) => provider,
                 Err(e) => return Err(fail_closed(e)),
             };

@@ -1,0 +1,404 @@
+path	kind	grants	owner
+admin	group	-	kernel
+admin access-control	group	-	kernel
+admin access-control export-yaml	leaf	-	kernel
+admin access-control lint	leaf	-	kernel
+admin agents	group	-	kernel
+admin agents create	leaf	-	kernel
+admin agents delete	leaf	-	kernel
+admin agents edit	leaf	-	kernel
+admin agents list	leaf	-	kernel
+admin agents logs	leaf	-	kernel
+admin agents message	leaf	-	kernel
+admin agents registry	leaf	-	kernel
+admin agents run	leaf	ChildHost	kernel
+admin agents show	leaf	-	kernel
+admin agents status	leaf	-	kernel
+admin agents task	leaf	-	kernel
+admin agents tools	leaf	-	kernel
+admin agents validate	leaf	-	kernel
+admin bootstrap	leaf	-	kernel
+admin bridge	group	-	kernel
+admin bridge enroll-cert	leaf	-	kernel
+admin bridge issue-code	leaf	-	kernel
+admin bridge list	leaf	-	kernel
+admin bridge rotate-signing-key	leaf	-	kernel
+admin bridge signing-key-fingerprint	leaf	-	kernel
+admin config	group	-	kernel
+admin config apply	leaf	-	kernel
+admin config catalog	group	-	kernel
+admin config catalog discovery	leaf	-	kernel
+admin config credential	group	-	kernel
+admin config credential add	leaf	-	kernel
+admin config credential list	leaf	-	kernel
+admin config credential remove	leaf	-	kernel
+admin config deployment	group	-	kernel
+admin config deployment list	leaf	-	kernel
+admin config deployment set	leaf	-	kernel
+admin config endpoint	group	-	kernel
+admin config endpoint add	leaf	-	kernel
+admin config endpoint remove	leaf	-	kernel
+admin config gateway	group	-	kernel
+admin config gateway default-model	group	-	kernel
+admin config gateway default-model clear	leaf	-	kernel
+admin config gateway default-model set	leaf	-	kernel
+admin config gateway disable	leaf	-	kernel
+admin config gateway enable	leaf	-	kernel
+admin config gateway route	group	-	kernel
+admin config gateway route add	leaf	-	kernel
+admin config gateway route list	leaf	-	kernel
+admin config gateway route remove	leaf	-	kernel
+admin config governance	group	-	kernel
+admin config governance set	leaf	-	kernel
+admin config governance show	leaf	-	kernel
+admin config list	leaf	-	kernel
+admin config migrate	leaf	-	kernel
+admin config model	group	-	kernel
+admin config model add	leaf	-	kernel
+admin config model list	leaf	-	kernel
+admin config model remove	leaf	-	kernel
+admin config paths	group	-	kernel
+admin config paths show	leaf	-	kernel
+admin config paths validate	leaf	-	kernel
+admin config planes	group	-	kernel
+admin config planes apply	leaf	-	kernel
+admin config planes diff	leaf	-	kernel
+admin config planes export	leaf	-	kernel
+admin config planes list	leaf	-	kernel
+admin config provider	group	-	kernel
+admin config provider add	leaf	-	kernel
+admin config provider disable	leaf	-	kernel
+admin config provider enable	leaf	-	kernel
+admin config provider list	leaf	-	kernel
+admin config provider remove	leaf	-	kernel
+admin config rate-limits	group	-	kernel
+admin config rate-limits diff	leaf	-	kernel
+admin config rate-limits disable	leaf	-	kernel
+admin config rate-limits enable	leaf	-	kernel
+admin config rate-limits export	leaf	-	kernel
+admin config rate-limits import	leaf	-	kernel
+admin config rate-limits preset	group	-	kernel
+admin config rate-limits preset apply	leaf	-	kernel
+admin config rate-limits preset list	leaf	-	kernel
+admin config rate-limits preset show	leaf	-	kernel
+admin config rate-limits reset	leaf	-	kernel
+admin config rate-limits set	leaf	-	kernel
+admin config rate-limits show	leaf	-	kernel
+admin config rate-limits validate	leaf	-	kernel
+admin config runtime	group	-	kernel
+admin config runtime set	leaf	-	kernel
+admin config runtime show	leaf	-	kernel
+admin config secret	group	-	kernel
+admin config secret check	leaf	-	kernel
+admin config secret migrate-git-credentials	leaf	-	kernel
+admin config secret set	leaf	-	kernel
+admin config security	group	-	kernel
+admin config security set	leaf	-	kernel
+admin config security show	leaf	-	kernel
+admin config security trusted-issuer	group	-	kernel
+admin config security trusted-issuer add	leaf	-	kernel
+admin config security trusted-issuer remove	leaf	-	kernel
+admin config server	group	-	kernel
+admin config server cors	group	-	kernel
+admin config server cors add	leaf	-	kernel
+admin config server cors list	leaf	-	kernel
+admin config server cors remove	leaf	-	kernel
+admin config server set	leaf	-	kernel
+admin config server show	leaf	-	kernel
+admin config services	group	-	kernel
+admin config services set	leaf	-	kernel
+admin config services show	leaf	-	kernel
+admin config show	leaf	-	kernel
+admin config validate	leaf	-	kernel
+admin identity	group	-	kernel
+admin identity generate	leaf	-	kernel
+admin issues	group	-	kernel
+admin issues list	leaf	-	kernel
+admin issues show	leaf	-	kernel
+admin issues triage	leaf	-	kernel
+admin keys	group	-	kernel
+admin keys generate	leaf	-	kernel
+admin keys issue-plugin-token	leaf	-	kernel
+admin keys promote	leaf	-	kernel
+admin keys rotate	leaf	-	kernel
+admin keys stage	leaf	-	kernel
+admin licence	group	-	kernel
+admin licence status	leaf	-	kernel
+admin mcp	group	ChildHost	kernel
+admin mcp serve	leaf	ChildHost	kernel
+admin session	group	-	kernel
+admin session list	leaf	CloudOperator	kernel
+admin session login	leaf	CloudOperator,SkipValidation	kernel
+admin session logout	leaf	CloudOperator	kernel
+admin session show	leaf	CloudOperator	kernel
+admin session switch	leaf	CloudOperator	kernel
+admin setup	leaf	-	kernel
+admin users	group	-	kernel
+admin users api-key	group	-	kernel
+admin users api-key issue	leaf	-	kernel
+admin users api-key list	leaf	-	kernel
+admin users api-key revoke	leaf	-	kernel
+admin users ban	group	-	kernel
+admin users ban add	leaf	-	kernel
+admin users ban check	leaf	-	kernel
+admin users ban cleanup	leaf	-	kernel
+admin users ban list	leaf	-	kernel
+admin users ban remove	leaf	-	kernel
+admin users bulk	group	-	kernel
+admin users bulk delete	leaf	-	kernel
+admin users bulk update	leaf	-	kernel
+admin users count	leaf	-	kernel
+admin users create	leaf	-	kernel
+admin users delete	leaf	-	kernel
+admin users export	leaf	-	kernel
+admin users federated-rekey	leaf	-	kernel
+admin users legal-hold	leaf	-	kernel
+admin users list	leaf	-	kernel
+admin users merge	leaf	-	kernel
+admin users restore	leaf	-	kernel
+admin users role	group	-	kernel
+admin users role assign	leaf	-	kernel
+admin users role demote	leaf	-	kernel
+admin users role promote	leaf	-	kernel
+admin users search	leaf	-	kernel
+admin users service-account	group	-	kernel
+admin users service-account create	leaf	-	kernel
+admin users session	group	-	kernel
+admin users session cleanup	leaf	-	kernel
+admin users session end	leaf	-	kernel
+admin users session list	leaf	-	kernel
+admin users show	leaf	-	kernel
+admin users stats	leaf	-	kernel
+admin users update	leaf	-	kernel
+admin users webauthn	group	-	kernel
+admin users webauthn generate-setup-token	leaf	-	kernel
+analytics	group	LocalExport,SkipValidation	analytics-http
+analytics agents	group	LocalExport,SkipValidation	analytics-http
+analytics agents list	leaf	LocalExport,SkipValidation	analytics-http
+analytics agents show	leaf	LocalExport,SkipValidation	analytics-http
+analytics agents stats	leaf	LocalExport,SkipValidation	analytics-http
+analytics agents trends	leaf	LocalExport,SkipValidation	analytics-http
+analytics content	group	LocalExport,SkipValidation	analytics-http
+analytics content stats	leaf	LocalExport,SkipValidation	analytics-http
+analytics content top	leaf	LocalExport,SkipValidation	analytics-http
+analytics content trends	leaf	LocalExport,SkipValidation	analytics-http
+analytics conversations	group	LocalExport,SkipValidation	analytics-http
+analytics conversations list	leaf	LocalExport,SkipValidation	analytics-http
+analytics conversations stats	leaf	LocalExport,SkipValidation	analytics-http
+analytics conversations trends	leaf	LocalExport,SkipValidation	analytics-http
+analytics costs	group	LocalExport,SkipValidation	analytics-http
+analytics costs breakdown	leaf	LocalExport,SkipValidation	analytics-http
+analytics costs summary	leaf	LocalExport,SkipValidation	analytics-http
+analytics costs trends	leaf	LocalExport,SkipValidation	analytics-http
+analytics overview	leaf	LocalExport,SkipValidation	analytics-http
+analytics requests	group	LocalExport,SkipValidation	analytics-http
+analytics requests list	leaf	LocalExport,SkipValidation	analytics-http
+analytics requests models	leaf	LocalExport,SkipValidation	analytics-http
+analytics requests stats	leaf	LocalExport,SkipValidation	analytics-http
+analytics requests trends	leaf	LocalExport,SkipValidation	analytics-http
+analytics sessions	group	LocalExport,SkipValidation	analytics-http
+analytics sessions live	leaf	LocalExport,SkipValidation	analytics-http
+analytics sessions stats	leaf	LocalExport,SkipValidation	analytics-http
+analytics sessions trends	leaf	LocalExport,SkipValidation	analytics-http
+analytics tools	group	LocalExport,SkipValidation	analytics-http
+analytics tools list	leaf	LocalExport,SkipValidation	analytics-http
+analytics tools show	leaf	LocalExport,SkipValidation	analytics-http
+analytics tools stats	leaf	LocalExport,SkipValidation	analytics-http
+analytics tools trends	leaf	LocalExport,SkipValidation	analytics-http
+analytics traffic	group	LocalExport,SkipValidation	analytics-http
+analytics traffic bots	leaf	LocalExport,SkipValidation	analytics-http
+analytics traffic devices	leaf	LocalExport,SkipValidation	analytics-http
+analytics traffic geo	leaf	LocalExport,SkipValidation	analytics-http
+analytics traffic navigation	leaf	LocalExport,SkipValidation	analytics-http
+analytics traffic pages	leaf	LocalExport,SkipValidation	analytics-http
+analytics traffic sources	leaf	LocalExport,SkipValidation	analytics-http
+build	group	-	kernel
+build core	leaf	-	kernel
+build mcp	leaf	-	kernel
+cloud	group	CloudOperator	systemprompt-cloud-entry
+cloud auth	group	CloudOperator	systemprompt-cloud-entry
+cloud auth login	leaf	CloudOperator	systemprompt-cloud-entry
+cloud auth logout	leaf	CloudOperator	systemprompt-cloud-entry
+cloud auth whoami	leaf	CloudOperator	systemprompt-cloud-entry
+cloud backup	leaf	CloudOperator	systemprompt-cloud-entry
+cloud deploy	leaf	CloudOperator	systemprompt-cloud-entry
+cloud dockerfile	leaf	CloudOperator	systemprompt-cloud-entry
+cloud doctor	leaf	CloudOperator	systemprompt-cloud-entry
+cloud fleet	group	CloudOperator	systemprompt-cloud-entry
+cloud fleet run	leaf	CloudOperator	systemprompt-cloud-entry
+cloud fleet versions	leaf	CloudOperator	systemprompt-cloud-entry
+cloud init	leaf	CloudOperator	systemprompt-cloud-entry
+cloud profile	group	CloudOperator	systemprompt-cloud-entry
+cloud profile create	leaf	CloudOperator	systemprompt-cloud-entry
+cloud profile delete	leaf	CloudOperator	systemprompt-cloud-entry
+cloud profile edit	leaf	CloudOperator	systemprompt-cloud-entry
+cloud profile list	leaf	CloudOperator	systemprompt-cloud-entry
+cloud profile show	leaf	CloudOperator	systemprompt-cloud-entry
+cloud status	leaf	CloudOperator	systemprompt-cloud-entry
+cloud sync	group	CloudOperator	systemprompt-cloud-entry
+cloud sync export	leaf	CloudOperator	systemprompt-cloud-entry
+cloud tenant	group	CloudOperator	systemprompt-cloud-entry
+cloud tenant add	leaf	CloudOperator	systemprompt-cloud-entry
+cloud tenant create	leaf	CloudOperator	systemprompt-cloud-entry
+cloud tenant delete	leaf	CloudOperator	systemprompt-cloud-entry
+cloud tenant edit	leaf	CloudOperator	systemprompt-cloud-entry
+cloud tenant list	leaf	CloudOperator	systemprompt-cloud-entry
+cloud tenant rotate-credentials	leaf	CloudOperator	systemprompt-cloud-entry
+cloud tenant show	leaf	CloudOperator	systemprompt-cloud-entry
+core	group	-	kernel
+core artifacts	group	-	kernel
+core artifacts list	leaf	-	kernel
+core artifacts show	leaf	-	kernel
+core content	group	-	content-http
+core content popular	leaf	-	analytics-http
+core content stats	leaf	-	content-http
+core content top	leaf	-	content-http
+core content trends	leaf	-	content-http
+core contexts	group	-	kernel
+core contexts create	leaf	-	kernel
+core contexts delete	leaf	-	kernel
+core contexts edit	leaf	-	kernel
+core contexts list	leaf	-	kernel
+core contexts new	leaf	-	kernel
+core contexts show	leaf	-	kernel
+core contexts use	leaf	-	kernel
+core files	group	-	kernel
+core files ai	group	-	kernel
+core files ai count	leaf	-	kernel
+core files ai list	leaf	-	kernel
+core files ai show	leaf	-	kernel
+core files config	leaf	-	kernel
+core files delete	leaf	-	kernel
+core files list	leaf	-	kernel
+core files search	leaf	-	kernel
+core files show	leaf	-	kernel
+core files stats	leaf	-	kernel
+core files upload	leaf	-	kernel
+core files validate	leaf	-	kernel
+core hooks	group	-	kernel
+core hooks list	leaf	-	kernel
+core hooks validate	leaf	-	kernel
+core marketplace	group	-	kernel
+core marketplace explain	leaf	-	kernel
+core marketplace import	leaf	-	kernel
+core plugins	group	-	kernel
+core plugins generate	leaf	-	kernel
+core plugins list	leaf	-	kernel
+core plugins show	leaf	-	kernel
+core plugins validate	leaf	-	kernel
+core services	group	-	kernel
+core services bundle	leaf	-	kernel
+core services inspect	leaf	-	kernel
+core services keygen	leaf	-	kernel
+core services publish	leaf	-	kernel
+core services refresh	leaf	-	kernel
+core services validate	leaf	-	kernel
+core skills	group	-	kernel
+core skills list	leaf	-	kernel
+core skills show	leaf	-	kernel
+infra	group	-	kernel
+infra db	group	-	kernel
+infra db assign-admin	leaf	-	kernel
+infra db count	leaf	-	kernel
+infra db describe	leaf	-	kernel
+infra db doctor	leaf	-	kernel
+infra db execute	leaf	-	kernel
+infra db indexes	leaf	-	kernel
+infra db info	leaf	-	kernel
+infra db migrate	leaf	-	kernel
+infra db migrate-down	leaf	-	kernel
+infra db migrate-mark-applied	leaf	-	kernel
+infra db migrate-plan	leaf	-	kernel
+infra db migrate-repair	leaf	-	kernel
+infra db migrate-status	leaf	-	kernel
+infra db migrations	group	-	kernel
+infra db migrations history	leaf	-	kernel
+infra db migrations status	leaf	-	kernel
+infra db query	leaf	-	kernel
+infra db size	leaf	-	kernel
+infra db status	leaf	-	kernel
+infra db tables	leaf	-	kernel
+infra jobs	group	-	kernel
+infra jobs disable	leaf	-	kernel
+infra jobs enable	leaf	-	kernel
+infra jobs history	leaf	-	kernel
+infra jobs list	leaf	SkipValidation	kernel
+infra jobs prune	leaf	-	kernel
+infra jobs run	leaf	SkipValidation	kernel
+infra jobs show	leaf	-	kernel
+infra logs	group	-	kernel
+infra logs audit	leaf	-	kernel
+infra logs cleanup	leaf	-	kernel
+infra logs delete	leaf	-	kernel
+infra logs export	leaf	-	kernel
+infra logs governance	group	-	kernel
+infra logs governance report	leaf	-	kernel
+infra logs request	group	-	kernel
+infra logs request list	leaf	-	kernel
+infra logs request show	leaf	-	kernel
+infra logs request stats	leaf	-	kernel
+infra logs search	leaf	-	kernel
+infra logs show	leaf	-	kernel
+infra logs stream	leaf	-	kernel
+infra logs summary	leaf	-	kernel
+infra logs tools	group	-	kernel
+infra logs tools list	leaf	-	kernel
+infra logs trace	group	-	kernel
+infra logs trace list	leaf	-	kernel
+infra logs trace show	leaf	-	kernel
+infra logs view	leaf	-	kernel
+infra services	group	-	kernel
+infra services cleanup	leaf	-	kernel
+infra services restart	group	ServesApi?	kernel
+infra services restart agent	leaf	-	kernel
+infra services restart api	leaf	-	kernel
+infra services restart mcp	leaf	-	kernel
+infra services serve	leaf	ServesApi	kernel
+infra services start	group	ServesApi?	kernel
+infra services start agent	leaf	-	kernel
+infra services start mcp	leaf	-	kernel
+infra services status	leaf	-	kernel
+infra services stop	group	-	kernel
+infra services stop agent	leaf	-	kernel
+infra services stop mcp	leaf	-	kernel
+plugins	group	-	kernel
+plugins capabilities	group	-	kernel
+plugins capabilities jobs	leaf	-	kernel
+plugins capabilities roles	leaf	-	kernel
+plugins capabilities schemas	leaf	-	kernel
+plugins capabilities templates	leaf	-	kernel
+plugins capabilities tools	leaf	-	kernel
+plugins config	leaf	-	kernel
+plugins list	leaf	-	kernel
+plugins mcp	group	-	kernel
+plugins mcp call	leaf	-	kernel
+plugins mcp list	leaf	-	kernel
+plugins mcp list-packages	leaf	-	kernel
+plugins mcp logs	leaf	-	kernel
+plugins mcp status	leaf	-	kernel
+plugins mcp tools	leaf	-	kernel
+plugins mcp validate	leaf	-	kernel
+plugins run	leaf	-	kernel
+plugins seams	leaf	-	kernel
+plugins show	leaf	-	kernel
+plugins validate	leaf	-	kernel
+web	group	-	kernel
+web assets	group	-	kernel
+web assets list	leaf	-	kernel
+web assets show	leaf	-	kernel
+web content-types	group	-	kernel
+web content-types create	leaf	-	kernel
+web content-types delete	leaf	-	kernel
+web content-types edit	leaf	-	kernel
+web content-types list	leaf	-	kernel
+web content-types show	leaf	-	kernel
+web sitemap	group	-	content-http
+web sitemap generate	leaf	-	content-http
+web sitemap show	leaf	-	content-http
+web templates	group	-	kernel
+web templates create	leaf	-	kernel
+web templates delete	leaf	-	kernel
+web templates edit	leaf	-	kernel
+web templates list	leaf	-	kernel
+web templates show	leaf	-	kernel
+web validate	leaf	-	kernel

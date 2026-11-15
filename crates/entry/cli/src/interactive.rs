@@ -1,9 +1,9 @@
 //! Interactive prompting helpers shared across commands.
 //!
-//! [`Prompter`] is the single seam over operator interaction: production code
+//! `Prompter` (in `systemprompt_extension::cli`) is the single seam over operator interaction: production code
 //! uses [`DialoguerPrompter`] (terminal prompts via `dialoguer`), tests use
 //! [`ScriptedPrompter`] with queued answers. The flag-bridging helpers
-//! ([`require_confirmation`], [`resolve_required`], …) keep their behaviour:
+//! ([`resolve_required`], …) keep their behaviour:
 //! interactive mode prompts, non-interactive mode falls back to a default or
 //! fails with a "flag required" error.
 //!
@@ -13,44 +13,37 @@
 use std::collections::VecDeque;
 use std::sync::Mutex;
 
-use crate::CliConfig;
 use anyhow::{Result, anyhow};
+use systemprompt_extension::cli::{CliConfig, CommandError, Prompter};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Confirm, Input, Password, Select};
 
-pub trait Prompter: Send + Sync {
-    fn confirm(&self, message: &str, default: bool) -> Result<bool>;
-    fn input(&self, prompt: &str) -> Result<String>;
-    fn input_with_default(&self, prompt: &str, default: &str) -> Result<String>;
-    fn select(&self, prompt: &str, items: &[String]) -> Result<usize>;
-    fn password(&self, prompt: &str) -> Result<String>;
-}
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct DialoguerPrompter;
 
-impl Prompter for DialoguerPrompter {
-    fn confirm(&self, message: &str, default: bool) -> Result<bool> {
+impl DialoguerPrompter {
+    fn confirm_answer(&self, message: &str, default: bool) -> Result<bool> {
         Ok(Confirm::with_theme(&ColorfulTheme::default())
             .with_prompt(message)
             .default(default)
             .interact()?)
     }
 
-    fn input(&self, prompt: &str) -> Result<String> {
+    fn input_answer(&self, prompt: &str) -> Result<String> {
         Ok(Input::<String>::with_theme(&ColorfulTheme::default())
             .with_prompt(prompt)
             .interact_text()?)
     }
 
-    fn input_with_default(&self, prompt: &str, default: &str) -> Result<String> {
+    fn input_with_default_answer(&self, prompt: &str, default: &str) -> Result<String> {
         Ok(Input::<String>::with_theme(&ColorfulTheme::default())
             .with_prompt(prompt)
             .default(default.to_owned())
             .interact_text()?)
     }
 
-    fn select(&self, prompt: &str, items: &[String]) -> Result<usize> {
+    fn select_answer(&self, prompt: &str, items: &[String]) -> Result<usize> {
         Ok(Select::with_theme(&ColorfulTheme::default())
             .with_prompt(prompt)
             .items(items)
@@ -58,10 +51,32 @@ impl Prompter for DialoguerPrompter {
             .interact()?)
     }
 
-    fn password(&self, prompt: &str) -> Result<String> {
+    fn password_answer(&self, prompt: &str) -> Result<String> {
         Ok(Password::with_theme(&ColorfulTheme::default())
             .with_prompt(prompt)
             .interact()?)
+    }
+}
+
+impl Prompter for DialoguerPrompter {
+    fn confirm(&self, message: &str, default: bool) -> Result<bool, CommandError> {
+        self.confirm_answer(message, default).map_err(|error| CommandError::from(error.into_boxed_dyn_error()))
+    }
+
+    fn input(&self, prompt: &str) -> Result<String, CommandError> {
+        self.input_answer(prompt).map_err(|error| CommandError::from(error.into_boxed_dyn_error()))
+    }
+
+    fn input_with_default(&self, prompt: &str, default: &str) -> Result<String, CommandError> {
+        self.input_with_default_answer(prompt, default).map_err(|error| CommandError::from(error.into_boxed_dyn_error()))
+    }
+
+    fn select(&self, prompt: &str, items: &[String]) -> Result<usize, CommandError> {
+        self.select_answer(prompt, items).map_err(|error| CommandError::from(error.into_boxed_dyn_error()))
+    }
+
+    fn password(&self, prompt: &str) -> Result<String, CommandError> {
+        self.password_answer(prompt).map_err(|error| CommandError::from(error.into_boxed_dyn_error()))
     }
 }
 
@@ -87,8 +102,8 @@ impl ScriptedPrompter {
     }
 }
 
-impl Prompter for ScriptedPrompter {
-    fn confirm(&self, message: &str, _default: bool) -> Result<bool> {
+impl ScriptedPrompter {
+    fn confirm_answer(&self, message: &str, _default: bool) -> Result<bool> {
         let answer = self.next_answer(message)?;
         Ok(matches!(
             answer.to_lowercase().as_str(),
@@ -96,18 +111,18 @@ impl Prompter for ScriptedPrompter {
         ))
     }
 
-    fn input(&self, prompt: &str) -> Result<String> {
+    fn input_answer(&self, prompt: &str) -> Result<String> {
         self.next_answer(prompt)
     }
 
-    fn input_with_default(&self, prompt: &str, default: &str) -> Result<String> {
+    fn input_with_default_answer(&self, prompt: &str, default: &str) -> Result<String> {
         match self.next_answer(prompt) {
             Ok(answer) if answer.is_empty() => Ok(default.to_owned()),
             other => other,
         }
     }
 
-    fn select(&self, prompt: &str, items: &[String]) -> Result<usize> {
+    fn select_answer(&self, prompt: &str, items: &[String]) -> Result<usize> {
         let answer = self.next_answer(prompt)?;
         let idx: usize = answer
             .parse()
@@ -121,48 +136,30 @@ impl Prompter for ScriptedPrompter {
         Ok(idx)
     }
 
-    fn password(&self, prompt: &str) -> Result<String> {
+    fn password_answer(&self, prompt: &str) -> Result<String> {
         self.next_answer(prompt)
     }
 }
 
-pub fn require_confirmation(
-    prompter: &dyn Prompter,
-    message: &str,
-    skip_confirmation: bool,
-    config: &CliConfig,
-) -> Result<()> {
-    require_confirmation_with(prompter, message, skip_confirmation, false, config)
-}
-
-pub fn require_confirmation_default_yes(
-    prompter: &dyn Prompter,
-    message: &str,
-    skip_confirmation: bool,
-    config: &CliConfig,
-) -> Result<()> {
-    require_confirmation_with(prompter, message, skip_confirmation, true, config)
-}
-
-fn require_confirmation_with(
-    prompter: &dyn Prompter,
-    message: &str,
-    skip_confirmation: bool,
-    default: bool,
-    config: &CliConfig,
-) -> Result<()> {
-    if skip_confirmation {
-        return Ok(());
+impl Prompter for ScriptedPrompter {
+    fn confirm(&self, message: &str, default: bool) -> Result<bool, CommandError> {
+        self.confirm_answer(message, default).map_err(|error| CommandError::from(error.into_boxed_dyn_error()))
     }
 
-    if !config.is_interactive() {
-        return Err(anyhow!("--yes is required in non-interactive mode"));
+    fn input(&self, prompt: &str) -> Result<String, CommandError> {
+        self.input_answer(prompt).map_err(|error| CommandError::from(error.into_boxed_dyn_error()))
     }
 
-    if prompter.confirm(message, default)? {
-        Ok(())
-    } else {
-        Err(anyhow!("Operation cancelled"))
+    fn input_with_default(&self, prompt: &str, default: &str) -> Result<String, CommandError> {
+        self.input_with_default_answer(prompt, default).map_err(|error| CommandError::from(error.into_boxed_dyn_error()))
+    }
+
+    fn select(&self, prompt: &str, items: &[String]) -> Result<usize, CommandError> {
+        self.select_answer(prompt, items).map_err(|error| CommandError::from(error.into_boxed_dyn_error()))
+    }
+
+    fn password(&self, prompt: &str) -> Result<String, CommandError> {
+        self.password_answer(prompt).map_err(|error| CommandError::from(error.into_boxed_dyn_error()))
     }
 }
 

@@ -51,7 +51,6 @@ fn every_seam_is_listed_once_including_empty_ones() {
         "extensions",
         "jobs",
         "authz_hooks",
-        "secrets_sources",
         "gateway_safety_scanners",
         "gateway_outbound_adapters",
         "sso_providers",
@@ -126,11 +125,20 @@ fn a_required_entry_must_be_present_by_name() {
 
 #[test]
 fn execute_without_a_profile_renders_a_table_and_passes() {
-    let (out, all_linked) = execute(&SeamsArgs { seam: None }, None);
+    let (out, all_linked) = execute(
+        &SeamsArgs { seam: None },
+        None,
+        &systemprompt_config::SecretsSources::default(),
+    );
     assert!(all_linked);
     let artifact = serde_json::to_value(out.artifact()).unwrap();
     let items = artifact["items"].as_array().expect("table rows");
-    assert_eq!(items.len(), linked_seams().len());
+    assert_eq!(items.len(), linked_seams().len() + 1);
+    assert!(
+        items
+            .iter()
+            .any(|row| row["seam"] == "secrets_sources" && row["status"] == "empty")
+    );
     assert!(items[0].get("status").is_some());
 }
 
@@ -141,6 +149,7 @@ fn the_seam_filter_narrows_rows() {
             seam: Some("brain_".to_owned()),
         },
         None,
+        &systemprompt_config::SecretsSources::default(),
     );
     let artifact = serde_json::to_value(out.artifact()).unwrap();
     let items = artifact["items"].as_array().unwrap();

@@ -1,66 +1,9 @@
-//! Compile-time registrations, discovery functions and registration macros
-//! for the extension-contributed brain seams.
+//! The `register_*!` macros for the brain seams. No registry collects
+//! their submissions; the seams are contributed through the owning
+//! capability's slot.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
-
-use super::consolidate::FactConsolidator;
-use super::rerank::Reranker;
-use super::retrieval::{BrainAnalysis, FactRetriever, InjectionPolicy, OutcomeSignal};
-use super::traits::{EventFilter, FactExtractor, FactValidator, ImportanceModel, SourceContent};
-use crate::seam::seam_registration;
-
-seam_registration!(BrainFilterRegistration, EventFilter, discover_brain_filters);
-seam_registration!(
-    BrainExtractorRegistration,
-    FactExtractor,
-    discover_brain_extractors
-);
-seam_registration!(
-    BrainValidatorRegistration,
-    FactValidator,
-    discover_brain_validators
-);
-seam_registration!(
-    BrainImportanceRegistration,
-    ImportanceModel,
-    discover_brain_importance_models
-);
-seam_registration!(
-    BrainSourceContentRegistration,
-    SourceContent,
-    discover_brain_source_contents
-);
-seam_registration!(
-    BrainRetrieverRegistration,
-    FactRetriever,
-    discover_brain_retrievers
-);
-seam_registration!(
-    BrainRerankerRegistration,
-    Reranker,
-    discover_brain_rerankers
-);
-seam_registration!(
-    BrainInjectionPolicyRegistration,
-    InjectionPolicy,
-    discover_brain_injection_policies
-);
-seam_registration!(
-    BrainOutcomeSignalRegistration,
-    OutcomeSignal,
-    discover_brain_outcome_signals
-);
-seam_registration!(
-    BrainAnalysisRegistration,
-    BrainAnalysis,
-    discover_brain_analyses
-);
-seam_registration!(
-    BrainConsolidatorRegistration,
-    FactConsolidator,
-    discover_brain_consolidators
-);
 
 #[macro_export]
 macro_rules! register_brain_filter {

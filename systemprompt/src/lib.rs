@@ -48,6 +48,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+#[cfg(feature = "full")]
+pub mod composition;
+#[cfg(feature = "full")]
+pub use composition::{Composition, CompositionError, Declared, RunError, SecretsKind, reference};
 #[cfg(feature = "core")]
 #[cfg_attr(docsrs, doc(cfg(feature = "core")))]
 pub mod traits {
@@ -171,10 +175,8 @@ pub mod gateway {
 #[cfg(feature = "cli")]
 #[cfg_attr(docsrs, doc(cfg(feature = "cli")))]
 pub mod cli {
-    pub use systemprompt_cli::{
-        CliConfig, ColorMode, OutputFormat, VerbosityLevel, run, run_process, run_process_with,
-        run_with,
-    };
+    pub use systemprompt_cli::CliRunError;
+    pub use systemprompt_extension::cli::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
 }
 
 #[cfg(any(feature = "runtime", feature = "full"))]

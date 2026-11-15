@@ -9,6 +9,7 @@
 
 [workspace]
 members = [
+    "unit/systemprompt",
     # Integration tests
     "integration/agent",
     "integration/analytics",

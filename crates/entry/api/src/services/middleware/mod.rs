@@ -20,7 +20,6 @@ pub mod ip_ban;
 pub mod jwt;
 pub mod load_shed;
 pub mod mount;
-pub mod negotiation;
 pub mod panic_fence;
 pub mod rate_limit;
 pub mod security_headers;
@@ -49,15 +48,9 @@ pub use ip_ban::ip_ban_middleware;
 pub use jwt::{JtiRevocationChecker, JwtContextExtractor, JwtUserContext};
 pub use load_shed::LoadShed;
 pub use mount::{
-    Allowance, ClientWritesGuard, CoreDeclaration, CoreDeclarer, CoreShapeField,
-    DEFAULT_BODY_LIMIT_BYTES, KernelHandle, MountError, MountLayers, PinnedMethod,
-    ProtectionGuards, RoutePin, SiteAuthGuard, admit_core_owner, admit_core_owners,
-    admit_extension, admit_extensions, admit_gateway_route, confined, excluding, extension_built,
-    extension_served, gateway_protection, hand_kernel_handles, kernel_handles_for, mount,
-    path_under, pinned, place, protect, refuse_overlap,
-};
-pub use negotiation::{
-    AcceptedFormat, AcceptedMediaType, content_negotiation_middleware, parse_accept_header,
+    ClientWritesGuard, DEFAULT_BODY_LIMIT_BYTES, EnablePredicate, KernelRoutes, MountError,
+    MountLayers, MountedGatewayRoute, ProtectionGuards, SiteAuthGuard, gateway_protection,
+    gateway_routes, mount, mount_admitted, path_under, place, protect, protection_of, recheck,
 };
 pub use panic_fence::panic_fence;
 pub use rate_limit::{

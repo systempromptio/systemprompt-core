@@ -313,7 +313,7 @@ fn logout_confirmation_preserves_sessions_and_reports_cancellation() {
 #[tokio::test]
 async fn malformed_active_profile_fails_without_replacing_the_bound_session() {
     use chrono::Duration;
-    use systemprompt_cli::paths::ResolvedPaths;
+    use systemprompt_cloud::paths::ResolvedPaths;
     use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity, SessionStore};
     use systemprompt_identifiers::{ContextId, ProfileName, SessionId, SessionToken};
     use systemprompt_models::auth::UserType;

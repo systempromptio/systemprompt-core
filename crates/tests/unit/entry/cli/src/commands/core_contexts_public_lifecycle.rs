@@ -8,7 +8,7 @@ use clap::Parser;
 use systemprompt_agent::models::context::ContextKind;
 use systemprompt_agent::repository::ContextRepository;
 use systemprompt_cli::core::{self, CoreCommands};
-use systemprompt_cli::paths::ResolvedPaths;
+use systemprompt_cloud::paths::ResolvedPaths;
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity, SessionKey, SessionStore};
 use systemprompt_identifiers::{Email, ProfileName, SessionId, SessionToken, UserId};

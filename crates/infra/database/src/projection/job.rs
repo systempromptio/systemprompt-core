@@ -15,21 +15,13 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
-use std::time::Duration;
 
 use systemprompt_traits::{JobContext, JobResult, ProviderError, ProviderResult};
 use tracing::info;
 
-use crate::DbPool;
+use systemprompt_extension::ProjectionDrain;
 
-/// One projection a drainer job works off, with its batch and time budget.
-#[derive(Debug, Clone, Copy)]
-pub struct ProjectionDrain {
-    pub projection: &'static str,
-    pub projector: &'static str,
-    pub batch: i32,
-    pub budget: Duration,
-}
+use crate::DbPool;
 
 /// A [`ProjectionDrain`] the extension `owner` contributes to the job named
 /// `job`.

@@ -27,7 +27,7 @@ use super::readiness::ReadinessState;
 use super::routes::configure_routes;
 use crate::services::middleware::{
     AnalyticsMiddleware, CorsMiddleware, DEFAULT_BODY_LIMIT_BYTES, LoadShed,
-    PublicContextMiddleware, RateLimitState, SessionMiddleware, admit_core_owners,
+    PublicContextMiddleware, RateLimitState, SessionMiddleware,
     inject_security_headers, inject_served_by, inject_trace_header, panic_fence,
     remove_trailing_slash, with_pre_auth_ip_limit,
 };
@@ -40,6 +40,7 @@ pub use super::health::handle_health;
 
 pub fn setup_api_server(
     ctx: &AppContext,
+    composed: super::routes::Composed<'_>,
     events: Option<&StartupEventSender>,
     readiness: &Arc<ReadinessState>,
 ) -> Result<Router> {
@@ -57,16 +58,10 @@ pub fn setup_api_server(
         tx.warning("Rate limiting disabled - development mode only");
     }
 
-    admit_core_owners(
-        ctx.extension_registry()
-            .extensions()
-            .iter()
-            .map(|ext| &**ext),
-    )?;
     let engines = Arc::new(crate::routes::gateway::build_gateway_engines(ctx)?);
     register_artifact_scanner(ctx, &engines);
     let router =
-        configure_routes(ctx, events, &engines)?.layer(axum::Extension(Arc::clone(readiness)));
+        configure_routes(ctx, composed, events, &engines)?.layer(axum::Extension(Arc::clone(readiness)));
     apply_global_middleware(router, ctx)
 }
 
@@ -144,7 +139,7 @@ fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {
 
     if ctx.config().content_negotiation.enabled {
         router = router.layer(axum::middleware::from_fn(
-            crate::services::middleware::content_negotiation_middleware,
+            systemprompt_extension::router::content_negotiation_middleware,
         ));
     }
 

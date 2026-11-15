@@ -21,7 +21,8 @@ use std::sync::Arc;
 
 use pg_query::NodeEnum;
 use pg_query::protobuf::ObjectType;
-use systemprompt_extension::{Extension, LoaderError, SchemaFault};
+use systemprompt_extension::{LoaderError, SchemaFault};
+use crate::lifecycle::schema_member::SchemaMember;
 use systemprompt_identifiers::ExtensionId;
 use tracing::info;
 
@@ -93,7 +94,7 @@ fn check_statement(extension: &ExtensionId, statement: &str) -> Result<(), Loade
     Ok(())
 }
 
-fn prepare(extensions: &[Arc<dyn Extension>]) -> Result<Vec<Retirement>, LoaderError> {
+fn prepare(extensions: &[Arc<dyn SchemaMember>]) -> Result<Vec<Retirement>, LoaderError> {
     let mut out = Vec::new();
     for ext in extensions {
         let extension = ExtensionId::new(ext.id());
@@ -116,13 +117,13 @@ fn prepare(extensions: &[Arc<dyn Extension>]) -> Result<Vec<Retirement>, LoaderE
     Ok(out)
 }
 
-pub(super) fn check_retirements(extensions: &[Arc<dyn Extension>]) -> Result<(), LoaderError> {
+pub(super) fn check_retirements(extensions: &[Arc<dyn SchemaMember>]) -> Result<(), LoaderError> {
     prepare(extensions).map(|_| ())
 }
 
 pub(super) async fn apply_retirements(
     db: &dyn DatabaseProvider,
-    extensions: &[Arc<dyn Extension>],
+    extensions: &[Arc<dyn SchemaMember>],
 ) -> Result<(), LoaderError> {
     for retirement in prepare(extensions)? {
         execute_phase(

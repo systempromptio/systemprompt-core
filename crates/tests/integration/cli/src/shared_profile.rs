@@ -1,7 +1,8 @@
-use systemprompt_cli::shared::profile::{
+use systemprompt_cloud::profile::{
     DiscoveredProfile, ProfileResolutionError, ProfileSource, discover_profiles,
-    generate_oauth_at_rest_pepper, is_path_input, resolve_profile_from_path, resolve_profile_path,
+    is_path_input, resolve_profile_from_path, resolve_profile_path,
 };
+use systemprompt_cloud::identity::generate_oauth_at_rest_pepper;
 use tempfile::tempdir;
 
 use crate::env_lock;

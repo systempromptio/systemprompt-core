@@ -28,7 +28,8 @@ use super::exec::{TrackingWrite, check_cross_extension_alters, execute_statement
 use super::{ChecksumDrift, ExtensionMigrationStatus, MigrationService};
 use crate::lifecycle::installation::BootstrapLockGuard;
 use crate::services::SqlExecutor;
-use systemprompt_extension::{Extension, LoaderError, Migration, MigrationFault};
+use systemprompt_extension::{LoaderError, Migration, MigrationFault};
+use crate::lifecycle::schema_member::SchemaMember;
 use systemprompt_identifiers::{ExtensionId, ToDbValue};
 
 const UPDATE_CHECKSUM_SQL: &str =
@@ -44,7 +45,7 @@ pub struct RepairResult {
 impl MigrationService<'_> {
     pub async fn repair_drift(
         &self,
-        extension: &dyn Extension,
+        extension: &dyn SchemaMember,
     ) -> Result<RepairResult, LoaderError> {
         if !self.has_repairable_drift(extension).await? {
             return Ok(RepairResult::default());
@@ -57,7 +58,7 @@ impl MigrationService<'_> {
 
     pub async fn reconcile_drift(
         &self,
-        extension: &dyn Extension,
+        extension: &dyn SchemaMember,
     ) -> Result<RepairResult, LoaderError> {
         if !self.has_repairable_drift(extension).await? {
             return Ok(RepairResult::default());
@@ -70,7 +71,7 @@ impl MigrationService<'_> {
 
     async fn repair_drift_locked(
         &self,
-        extension: &dyn Extension,
+        extension: &dyn SchemaMember,
     ) -> Result<RepairResult, LoaderError> {
         let status = self.status(extension).await?;
         Self::refuse_slot_collisions(&status)?;
@@ -88,7 +89,7 @@ impl MigrationService<'_> {
 
     async fn reconcile_drift_locked(
         &self,
-        extension: &dyn Extension,
+        extension: &dyn SchemaMember,
     ) -> Result<RepairResult, LoaderError> {
         let status = self.status(extension).await?;
         Self::refuse_slot_collisions(&status)?;
@@ -102,7 +103,7 @@ impl MigrationService<'_> {
         })
     }
 
-    async fn has_repairable_drift(&self, extension: &dyn Extension) -> Result<bool, LoaderError> {
+    async fn has_repairable_drift(&self, extension: &dyn SchemaMember) -> Result<bool, LoaderError> {
         let status = self.status(extension).await?;
         Self::refuse_slot_collisions(&status)?;
         Ok(!status.drift.is_empty())
@@ -140,7 +141,7 @@ impl MigrationService<'_> {
 
     async fn reapply_drifted(
         &self,
-        extension: &dyn Extension,
+        extension: &dyn SchemaMember,
         drift: &[ChecksumDrift],
     ) -> Result<(), LoaderError> {
         let ext_id = &ExtensionId::new(extension.metadata().id);
@@ -163,7 +164,7 @@ impl MigrationService<'_> {
 
     async fn reapply_one(
         &self,
-        extension: &dyn Extension,
+        extension: &dyn SchemaMember,
         migration: &Migration,
         drift: &ChecksumDrift,
     ) -> Result<(), LoaderError> {

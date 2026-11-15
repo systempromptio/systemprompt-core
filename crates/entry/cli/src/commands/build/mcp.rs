@@ -16,7 +16,7 @@ use systemprompt_models::BuildType;
 use super::types::{BuildExtensionRow, BuildOutput};
 use crate::CliConfig;
 use crate::shared::command_result::CommandOutput;
-use crate::shared::project::ProjectRoot;
+use systemprompt_cloud::paths::ProjectRoot;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct McpArgs {

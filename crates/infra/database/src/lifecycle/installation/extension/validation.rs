@@ -3,7 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_extension::{Extension, LoaderError, SchemaFault};
+use systemprompt_extension::{LoaderError, SchemaFault};
+use crate::lifecycle::schema_member::SchemaMember;
 use systemprompt_identifiers::ExtensionId;
 
 use super::super::prepare::{ColumnsToValidate, PreparedSchema};
@@ -11,7 +12,7 @@ use crate::services::DatabaseProvider;
 
 pub(super) fn validate_table_ownership(
     prepared: &[PreparedSchema],
-    schema_extensions: &[std::sync::Arc<dyn Extension>],
+    schema_extensions: &[std::sync::Arc<dyn SchemaMember>],
 ) -> Result<(), LoaderError> {
     let mut owners: std::collections::HashMap<&str, &ExtensionId> =
         std::collections::HashMap::new();

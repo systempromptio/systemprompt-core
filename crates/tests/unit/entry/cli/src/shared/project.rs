@@ -19,7 +19,7 @@
 )]
 
 use std::path::{Path, PathBuf};
-use systemprompt_cli::shared::project::{ProjectError, ProjectRoot};
+use systemprompt_cloud::paths::{ProjectError, ProjectRoot};
 use tempfile::TempDir;
 
 #[test]

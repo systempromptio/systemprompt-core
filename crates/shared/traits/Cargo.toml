@@ -22,7 +22,7 @@ workspace = true
 
 [features]
 default = []
-sqlx = ["dep:sqlx"]
+sqlx = ["dep:sqlx", "systemprompt-provider-contracts/sqlx"]
 
 [dependencies]
 systemprompt-provider-contracts = { workspace = true }

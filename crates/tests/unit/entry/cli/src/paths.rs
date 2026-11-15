@@ -7,7 +7,7 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::paths::ResolvedPaths;
+use systemprompt_cloud::paths::ResolvedPaths;
 
 #[test]
 fn discover_returns_struct_with_callable_accessors() {

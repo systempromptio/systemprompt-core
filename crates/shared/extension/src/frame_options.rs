@@ -11,20 +11,18 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use axum::extract::Request;
-use axum::middleware::Next;
-use axum::response::Response;
 use systemprompt_provider_contracts::FrameOptions;
 
 /// Response-extension marker read by the host's security-headers middleware.
 #[derive(Debug, Clone, Copy)]
 pub struct FrameOptionsOverride(pub FrameOptions);
 
+#[cfg(feature = "router")]
 pub async fn stamp_frame_options(
     frame_options: FrameOptions,
-    request: Request,
-    next: Next,
-) -> Response {
+    request: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
     let mut response = next.run(request).await;
     response
         .extensions_mut()

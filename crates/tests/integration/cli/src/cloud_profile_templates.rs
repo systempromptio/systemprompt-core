@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use systemprompt_cli::shared::profile::generate_oauth_at_rest_pepper;
+use systemprompt_cloud::identity::generate_oauth_at_rest_pepper;
 use systemprompt_cloud_entry::cli::profile::templates::{
     get_services_path, save_dockerignore, save_entrypoint, update_ai_config_default_provider,
     validate_connection,

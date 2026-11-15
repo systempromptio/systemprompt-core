@@ -28,7 +28,7 @@ use crate::commands::infrastructure;
 use crate::descriptor::{CommandDescriptor, RoutingClass};
 use crate::env_overrides::EnvOverrides;
 use crate::interactive;
-use crate::shared::ProfileSource;
+use systemprompt_cloud::profile::ProfileSource;
 
 /// What the runner does once the profile is bootstrapped.
 ///
@@ -79,6 +79,7 @@ pub(super) async fn bootstrap_profile(
     cli_config: &CliConfig,
     env: &EnvOverrides,
     confirm: &ConfirmationRequest,
+    secrets: &systemprompt_config::SecretsSources,
 ) -> Result<Bootstrapped> {
     let has_export = args::has_local_export_flag(desc);
     let ctx = bootstrap::resolve_and_display_profile(cli_config, env, has_export)?;
@@ -92,7 +93,7 @@ pub(super) async fn bootstrap_profile(
     }
 
     let needs_cloud = is_cloud_bypass_command(desc);
-    initialize_post_routing(&ctx, desc, needs_cloud).await
+    initialize_post_routing(&ctx, desc, needs_cloud, secrets).await
 }
 
 async fn enforce_routing_policy(
@@ -162,6 +163,7 @@ async fn initialize_post_routing(
     ctx: &bootstrap::ProfileContext,
     desc: &CommandDescriptor,
     needs_cloud: bool,
+    secrets: &systemprompt_config::SecretsSources,
 ) -> Result<Bootstrapped> {
     let credentials = if needs_cloud || (ctx.is_cloud && ctx.external_db_access) {
         bootstrap::init_credentials_gracefully(needs_cloud).await?
@@ -170,7 +172,7 @@ async fn initialize_post_routing(
     };
 
     let boot = if desc.secrets() {
-        Some(bootstrap::init_secrets(&ctx.loaded).await?)
+        Some(bootstrap::init_secrets(&ctx.loaded, secrets).await?)
     } else {
         None
     };

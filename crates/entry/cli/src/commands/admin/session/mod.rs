@@ -30,7 +30,7 @@ pub enum SessionCommands {
 
     #[command(about = "Switch to a different profile")]
     Switch {
-        #[arg(value_parser = crate::shared::parse_profile_name)]
+        #[arg(value_parser = systemprompt_extension::cli::parsers::parse_profile_name)]
         profile_name: ProfileName,
     },
 

@@ -19,6 +19,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock, PoisonError};
 use std::time::Duration;
 
+use systemprompt_extension::cli::ChildSupervisor;
+
 use systemprompt_identifiers::ServiceName;
 
 use super::{ChildKind, Spawner, StopOutcome, SupervisionError, mark_child, stop_owned};
@@ -172,5 +174,15 @@ impl Drop for ForegroundChild {
             }
         }
         self.registry.forget(self.pid);
+    }
+}
+
+impl ChildSupervisor for ForegroundChildren {
+    fn handle(&self) -> Arc<dyn ChildSupervisor> {
+        Arc::new(self.clone())
+    }
+
+    fn output(&self, cmd: Command) -> io::Result<Output> {
+        Self::output(self, cmd)
     }
 }

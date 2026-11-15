@@ -7,7 +7,7 @@
 
 use clap::Parser;
 use clap::error::ErrorKind;
-use systemprompt_cli::shared::{
+use systemprompt_extension::cli::parsers::{
     parse_agent_name, parse_ai_request_id, parse_campaign_id, parse_category_id, parse_job_name,
     parse_link_click_id, parse_link_id, parse_mcp_server_id, parse_mcp_tool_name, parse_plugin_id,
     parse_service_name, parse_tenant_id, parse_trace_id,

@@ -55,6 +55,10 @@ impl DatabaseHandle for StubDb {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
+
+    fn into_any(self: std::sync::Arc<Self>) -> std::sync::Arc<dyn std::any::Any + Send + Sync> {
+        self
+    }
 }
 
 #[derive(Debug)]

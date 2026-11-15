@@ -1,4 +1,4 @@
-use systemprompt_cli::paths::ResolvedPaths;
+use systemprompt_cloud::paths::ResolvedPaths;
 use systemprompt_cli::session::{clear_all_sessions, clear_session, load_session_store};
 use tempfile::{TempDir, tempdir};
 

@@ -34,7 +34,7 @@ use super::validate_jobs::scheduler_catalog_error;
 pub use super::validate_jobs::{unknown_jobs_message, unlisted_jobs_message};
 use crate::context::CommandContext;
 use crate::shared::CommandOutput;
-use crate::shared::yaml_document::read_yaml_file;
+use systemprompt_config::yaml_document::read_yaml_file;
 use systemprompt_config::LoadedProfile;
 use systemprompt_manifest::profile::Profile;
 

@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use clap::Parser;
 use systemprompt_cli::admin::agents::{self, AgentsCommands};
-use systemprompt_cli::paths::ResolvedPaths;
+use systemprompt_cloud::paths::ResolvedPaths;
 use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat};
 use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity, SessionKey, SessionStore};
 use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceStatus};

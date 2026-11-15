@@ -15,7 +15,7 @@ use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct HistoryArgs {
-    #[arg(long, value_parser = crate::shared::parse_job_name, help = "Filter by job name")]
+    #[arg(long, value_parser = systemprompt_extension::cli::parsers::parse_job_name, help = "Filter by job name")]
     pub job: Option<JobName>,
 
     #[arg(

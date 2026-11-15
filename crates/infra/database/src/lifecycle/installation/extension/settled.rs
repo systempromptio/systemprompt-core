@@ -23,7 +23,8 @@
 
 use std::hash::Hasher;
 
-use systemprompt_extension::{Extension, LoaderError};
+use systemprompt_extension::LoaderError;
+use crate::lifecycle::schema_member::SchemaMember;
 use systemprompt_identifiers::ExtensionId;
 use tracing::info;
 use xxhash_rust::xxh64::Xxh64;
@@ -100,7 +101,7 @@ fn stamp(fingerprint: &str, catalog: &str) -> String {
 }
 
 pub(super) fn fingerprint(
-    extensions: &[std::sync::Arc<dyn Extension>],
+    extensions: &[std::sync::Arc<dyn SchemaMember>],
     disabled: &[ExtensionId],
 ) -> String {
     let mut hasher = Xxh64::new(0);

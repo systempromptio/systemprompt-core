@@ -16,7 +16,7 @@ async fn loaded() -> (fixture::Fixture, Arc<SecretsService>) {
         Some(&with_custom(&fixture::secrets_json(Some(fixture::SEED)))),
     );
     let profile = LoadedProfile::from_path(&fx.profile_path).expect("profile");
-    let service = SecretsService::load(profile).await.expect("secrets");
+    let service = SecretsService::load(profile, systemprompt_config::SecretsSources::default()).await.expect("secrets");
     (fx, service)
 }
 
@@ -102,7 +102,11 @@ async fn missing_seed_and_key_are_refused_by_the_trait() {
     let profile = LoadedProfile::from_path(&fx.profile_path).expect("profile");
     let secrets: Secrets =
         serde_json::from_str(&fixture::secrets_json_with_master_key(None, None)).expect("secrets");
-    let service = SecretsService::from_secrets(profile, secrets);
+    let service = SecretsService::from_secrets(
+        profile,
+        systemprompt_config::SecretsSources::default(),
+        secrets,
+    );
     let store = store(&service);
     let seed = store.manifest_signing_secret_seed().expect_err("no seed");
     assert!(seed.to_string().contains("manifest signing seed"));

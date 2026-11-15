@@ -12,6 +12,7 @@
 
 pub mod args;
 mod bootstrap;
+mod composed;
 pub mod confirmation;
 mod db_url;
 mod dispatch;
@@ -28,35 +29,26 @@ use anyhow::{Context, Result, bail};
 use systemprompt_cloud::CloudCredentials;
 use systemprompt_loader::subprocess::{self, ApiServerStamp, ForegroundChildren};
 use systemprompt_logging::OutputState;
+use systemprompt_config::SecretsSources;
 use systemprompt_models::BuildIdentity;
 use systemprompt_runtime::DatabaseContext;
 
-use crate::cli_settings::{CliConfig, OutputFormat};
 use crate::context::CommandContext;
-use crate::descriptor::{CommandDescriptor, DbUrlRouting};
+use systemprompt_extension::cli::{CliConfig, CommandDescriptor, DbUrlRouting, OutputFormat};
+pub use composed::{AdmitFn, CliRunError, refuse_disabled, run_composed};
+use composed::admit_for;
 use crate::env_overrides::EnvOverrides;
 use crate::kernel::{CommandRegistry, ResolveError};
 use dispatch::{Invocation, Selected, dispatch_command};
 
-pub async fn run() -> Result<()> {
-    Box::pin(run_with(BuildIdentity::core())).await
-}
-
-pub fn run_process() -> Result<ExitCode> {
-    run_process_with(BuildIdentity::core())
-}
-
-pub fn run_process_with(build: BuildIdentity) -> Result<ExitCode> {
-    let runtime = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()?;
-    interrupt::exit_code(runtime.block_on(Box::pin(run_with(build))))
-}
-
-pub async fn run_with(build: BuildIdentity) -> Result<()> {
+pub(super) async fn run_with(
+    build: BuildIdentity,
+    registry: CommandRegistry,
+    secrets: SecretsSources,
+    admit: AdmitFn,
+) -> Result<()> {
     tls::install_crypto_provider();
     let output = OutputState::new();
-    let registry = CommandRegistry::collected()?;
     let root = args::command(&registry)?;
     let matches = root.clone().get_matches();
     let invocation = match Invocation::parse(&registry, root, &matches) {
@@ -77,6 +69,8 @@ pub async fn run_with(build: BuildIdentity) -> Result<()> {
         shield: shield.clone(),
         children: children.clone(),
         build,
+        secrets,
+        admit,
     };
     let outcome = if invocation.descriptor().owns_signals() {
         Box::pin(run_inner(&output, invocation, confirm, guards, env)).await
@@ -134,8 +128,15 @@ async fn run_inner(
     let mut boot = None;
     if desc.profile() {
         let booted =
-            profile_routing::bootstrap_profile(&invocation.cli, &desc, &cli_config, &env, &confirm)
-                .await?;
+            profile_routing::bootstrap_profile(
+                &invocation.cli,
+                &desc,
+                &cli_config,
+                &env,
+                &confirm,
+                &guards.secrets,
+            )
+            .await?;
         let loaded = booted.credentials;
         services = booted.services;
         profile = booted.profile;
@@ -163,8 +164,20 @@ async fn run_inner(
         confirmation::gate(&desc, &confirm, &cli_config)?;
     }
 
-    let ctx = guards
-        .apply(CommandContext::new(cli_config, env))
+    let RunGuards {
+        shield,
+        children,
+        build,
+        secrets,
+        admit,
+    } = guards;
+    let admitted = admit_for(&invocation, profile.as_deref(), admit)?;
+    let ctx = CommandContext::new(cli_config, env)
+        .with_interrupt_shield(shield)
+        .with_foreground_children(children)
+        .with_build_identity(build)
+        .with_secrets_sources(secrets)
+        .with_admitted(admitted)
         .with_cloud_credentials(credentials)
         .with_database_url_override(database_url_override)
         .with_services(services)
@@ -232,13 +245,17 @@ struct RunGuards {
     shield: interrupt::InterruptShield,
     children: ForegroundChildren,
     build: BuildIdentity,
+    secrets: SecretsSources,
+    admit: AdmitFn,
 }
 
 impl RunGuards {
     fn apply(self, ctx: CommandContext) -> CommandContext {
+        drop(self.admit);
         ctx.with_interrupt_shield(self.shield)
             .with_foreground_children(self.children)
             .with_build_identity(self.build)
+            .with_secrets_sources(self.secrets)
     }
 }
 

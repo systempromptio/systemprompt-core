@@ -31,58 +31,17 @@
 use std::fmt::Debug;
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use systemprompt_identifiers::UserId;
 
 use super::registry::AuthzHookContext;
 use super::types::RuleType;
-pub use systemprompt_models::authz::{
-    SubjectAttributeSource, SubjectAttributes, SubjectDimension, SubjectSourceError,
-};
+pub use systemprompt_models::authz::{SubjectAttributeSource, SubjectAttributes, SubjectSourceError};
+use systemprompt_traits::authz::{SubjectAttributeProvider, SubjectDimension};
 
 pub const USER_PRECEDENCE: u16 = 0;
 pub const ROLE_PRECEDENCE: u16 = 200;
 
 pub static NO_SUBJECT_ATTRIBUTES: SubjectAttributes = SubjectAttributes::EMPTY;
-
-/// Looks up the values a user holds for one extension-owned dimension.
-///
-/// `default_attribution` says whether a request with no header and no key
-/// binding for this dimension is attributed to the first value the user holds.
-/// `false` makes the dimension header-only: such a request carries no
-/// attribution for it, while a header or key binding is still verified against
-/// `values_for`.
-///
-/// `key_bound_values` are values no user holds: an API key bound to one
-/// carries it, and a header may name it only when the authenticating key is
-/// bound to that same value. Key issuance accepts them without a membership
-/// check, so binding one is the issuer's authority, never the caller's.
-///
-/// `known_values` lists every value the dimension can take when the
-/// provider can enumerate them (sharing validates and searches against it);
-/// the default `None` means the values cannot be listed.
-///
-/// `#[async_trait]` because providers are held as
-/// [`SharedSubjectAttributeProvider`], an `Arc<dyn …>`, so the trait must stay
-/// `dyn`-compatible.
-#[async_trait]
-pub trait SubjectAttributeProvider: Send + Sync + Debug {
-    fn dimension(&self) -> SubjectDimension;
-
-    async fn values_for(&self, user_id: &UserId) -> Result<Vec<String>, super::AuthzError>;
-
-    fn default_attribution(&self) -> bool {
-        true
-    }
-
-    fn key_bound_values(&self) -> &'static [&'static str] {
-        &[]
-    }
-
-    async fn known_values(&self) -> Result<Option<Vec<String>>, super::AuthzError> {
-        Ok(None)
-    }
-}
 
 /// Shared handle to a registered provider.
 pub type SharedSubjectAttributeProvider = Arc<dyn SubjectAttributeProvider>;

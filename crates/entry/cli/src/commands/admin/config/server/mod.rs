@@ -118,7 +118,7 @@ pub(super) fn execute_set(args: &SetArgs, ctx: &CommandContext) -> Result<()> {
     save_profile(&profile, profile_path)?;
 
     if args.external_url.is_some() {
-        crate::session::clear_session(&crate::paths::ResolvedPaths::discover(), ctx.profile()?)?;
+        crate::session::clear_session(&systemprompt_cloud::paths::ResolvedPaths::discover(), ctx.profile()?)?;
         CliService::info(
             "Cleared the stored CLI session: its token was minted under the previous issuer.",
         );

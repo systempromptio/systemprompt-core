@@ -12,14 +12,14 @@ use systemprompt_manifest::profile::{CloudConfig, ManagedProfile};
 use super::types::LogoutOutput;
 use crate::CliConfig;
 use crate::interactive::Prompter;
-use crate::paths::ResolvedPaths;
+use systemprompt_cloud::paths::ResolvedPaths;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct LogoutArgs {
     #[arg(
         long,
-        value_parser = crate::shared::parse_profile_name_arg,
+        value_parser = systemprompt_extension::cli::parsers::parse_profile_name_arg,
         help = "Profile name to log out (defaults to active session)"
     )]
     pub profile: Option<String>,

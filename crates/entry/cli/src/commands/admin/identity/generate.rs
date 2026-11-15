@@ -8,7 +8,7 @@ use clap::Args;
 use systemprompt_logging::CliService;
 
 use crate::context::CommandContext;
-use crate::shared::generate_identity;
+use systemprompt_cloud::identity::generate_identity;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct GenerateArgs {
