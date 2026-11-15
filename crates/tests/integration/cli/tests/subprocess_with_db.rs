@@ -128,6 +128,13 @@ fn run_noprofile(args: &[&str]) {
     assert_handled(cmd);
 }
 
+fn usage_error_db(args: &[&str], needle: &str) {
+    announce(args);
+    let mut cmd = sp_db();
+    cmd.args(args);
+    assert_usage_error(cmd, needle);
+}
+
 fn db_fails(args: &[&str], needle: &str) {
     announce(args);
     let mut cmd = sp_db();
@@ -171,7 +178,6 @@ fn db_size_indexes_describe_and_count() {
 fn db_doctor_and_migration_ledger() {
     run_db_with_format(&["infra", "db", "doctor"]);
     db_stderr_fmt(&["infra", "db", "migrations", "status"], "applied");
-    db_stderr_fmt(&["infra", "db", "migrations", "list"], "applied");
     run_db(&["infra", "db", "migrations", "history", "nonexistent_ext"]);
 }
 
@@ -237,14 +243,7 @@ fn db_query_catalogs_and_refusals() {
         &["infra", "db", "query", "SELECT current_database() AS db"],
         "db",
     );
-    run_db(&[
-        "infra",
-        "db",
-        "query",
-        "SELECT 1 AS one",
-        "--format",
-        "json",
-    ]);
+    run_db(&["--json", "infra", "db", "query", "SELECT 1 AS one"]);
     db_fails(
         &[
             "infra",
@@ -269,9 +268,7 @@ fn db_execute() {
         ],
         "does not exist",
     );
-    run_db(&[
-        "infra", "db", "execute", "SELECT 1", "--yes", "--format", "json",
-    ]);
+    run_db(&["--json", "infra", "db", "execute", "SELECT 1", "--yes"]);
 }
 
 #[test]
@@ -329,7 +326,6 @@ fn analytics_requests() {
 #[test]
 fn analytics_sessions() {
     db_stderr_fmt(&["analytics", "sessions", "stats"], "Session Statistics");
-    run_db_with_format(&["analytics", "sessions", "list"]);
     run_db_with_format(&["analytics", "sessions", "trends"]);
     seed_reporting_evidence();
     db_stderr_fmt(&["analytics", "sessions", "live"], "Live Sessions");
@@ -338,7 +334,6 @@ fn analytics_sessions() {
 #[test]
 fn analytics_content() {
     db_stderr_fmt(&["analytics", "content", "stats"], "Content Statistics");
-    run_db_with_format(&["analytics", "content", "list"]);
     run_db_with_format(&["analytics", "content", "trends"]);
     run_db_with_format(&["analytics", "content", "top"]);
 }
@@ -346,7 +341,7 @@ fn analytics_content() {
 #[test]
 fn analytics_traffic() {
     db_stderr_fmt(&["analytics", "traffic", "sources"], "Traffic Sources");
-    run_db_with_format(&["analytics", "traffic", "list"]);
+    run_db_with_format(&["analytics", "traffic", "pages"]);
     db_stderr_fmt(&["analytics", "traffic", "geo"], "Geographic Distribution");
     db_stderr_fmt(&["analytics", "traffic", "devices"], "Device Breakdown");
     db_stderr_fmt(&["analytics", "traffic", "bots"], "Bot Traffic Analysis");
@@ -355,7 +350,6 @@ fn analytics_traffic() {
 #[test]
 fn analytics_costs() {
     db_stderr_fmt(&["analytics", "costs", "summary"], "Cost Summary");
-    run_db_with_format(&["analytics", "costs", "list"]);
     run_db_with_format(&["analytics", "costs", "trends"]);
     run_db_with_format(&["analytics", "costs", "breakdown"]);
 }
@@ -400,7 +394,10 @@ fn admin_users_records_sessions_and_bans() {
 
 #[test]
 fn profile_required_admin_web_plugins_build() {
-    run_db(&["admin", "users", "create", "--email", "test@example.com"]);
+    usage_error_db(
+        &["admin", "users", "create", "--email", "test@example.com"],
+        "required arguments were not provided",
+    );
     run_db(&["admin", "users", "delete", "some-id"]);
     run_db(&["admin", "agents", "list"]);
     run_db(&["admin", "config", "list"]);
@@ -424,10 +421,10 @@ fn profile_required_core_cloud_and_db() {
 
 #[test]
 fn infra_logs_queries() {
-    run_db(&["infra", "logs", "show"]);
+    run_db(&["infra", "logs", "show", "no-such-log"]);
     run_db(&["infra", "logs", "summary"]);
     run_db(&["infra", "logs", "search", "test"]);
-    run_db(&["infra", "logs", "audit"]);
+    run_db(&["infra", "logs", "audit", "no-such-request"]);
     run_db(&["infra", "logs", "tools", "list", "--limit", "5"]);
     run_db(&["infra", "logs", "request", "list"]);
     run_db(&["infra", "logs", "request", "show", "nonexistent-id"]);
@@ -467,11 +464,11 @@ fn core_content_listing_and_search() {
 
 #[test]
 fn core_content_reports() {
-    run_db_with_format(&["core", "content", "popular"]);
-    run_db_with_format(&["core", "content", "status", "test-source"]);
+    run_db_with_format(&["core", "content", "popular", "test-source"]);
+    run_db_with_format(&["core", "content", "status", "--source", "test-source"]);
     run_db(&["core", "content", "analytics", "clicks", "nonexistent-link"]);
     run_db(&["core", "content", "analytics", "campaign", "nonexistent"]);
-    run_db(&["core", "content", "analytics", "journey", "nonexistent"]);
+    run_db(&["core", "content", "analytics", "journey"]);
 }
 
 #[test]

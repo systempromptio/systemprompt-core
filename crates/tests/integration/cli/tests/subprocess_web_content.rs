@@ -93,8 +93,8 @@ fn content_query_trees() {
     run(&["core", "content", "list", "--limit", "5"]);
     run(&["core", "content", "search", "coverage"]);
     run(&["core", "content", "show", "no-such-content-id"]);
-    run(&["core", "content", "popular"]);
-    run(&["core", "content", "status", "covcli"]);
+    run(&["core", "content", "popular", "covcli"]);
+    run(&["core", "content", "status", "--source", "covcli"]);
     run(&[
         "core",
         "content",
@@ -107,13 +107,14 @@ fn content_query_trees() {
 #[test]
 fn contexts_lifecycle() {
     run_with_formats(&["core", "contexts", "list"]);
-    run(&["core", "contexts", "create", "covcli_context"]);
+    run(&["core", "contexts", "create", "--name", "covcli_context"]);
     run(&["core", "contexts", "show", "covcli_context"]);
     run(&[
         "core",
         "contexts",
         "edit",
         "covcli_context",
+        "--name",
         "covcli_context_renamed",
     ]);
     run(&[

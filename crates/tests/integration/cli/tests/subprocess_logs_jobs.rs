@@ -549,13 +549,13 @@ fn logs_audit_missing_id() {
 
 #[test]
 fn analytics_flag_variants() {
-    run(&["analytics", "overview", "--days", "7"]);
+    run(&["analytics", "overview", "--since", "7d"]);
     run(&["analytics", "conversations", "list", "--limit", "3"]);
-    run(&["analytics", "agents", "list", "--days", "7"]);
-    run(&["analytics", "tools", "list", "--days", "7"]);
+    run(&["analytics", "agents", "list", "--since", "7d"]);
+    run(&["analytics", "tools", "list", "--since", "7d"]);
     run(&["analytics", "requests", "list", "--limit", "3"]);
-    run(&["analytics", "sessions", "stats", "--days", "7"]);
+    run(&["analytics", "sessions", "stats", "--since", "7d"]);
     run(&["analytics", "content", "top", "--limit", "3"]);
-    run(&["analytics", "traffic", "sources", "--days", "7"]);
-    run(&["analytics", "costs", "breakdown", "--days", "7"]);
+    run(&["analytics", "traffic", "sources", "--since", "7d"]);
+    run(&["analytics", "costs", "breakdown", "--since", "7d"]);
 }

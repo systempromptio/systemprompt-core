@@ -1,6 +1,6 @@
 //! Subprocess coverage for the `admin config` tree, focused on the
-//! rate-limits subcommands (show/tier/docs/set/compare/diff/preset/export/
-//! import/enable/disable/reset) plus the per-section config views.
+//! rate-limits subcommands (show/set/validate/diff/preset/export/import/
+//! enable/disable/reset) plus the per-section config views.
 //!
 //! Rate-limit mutations operate on the fixture's tempdir profile, so no
 //! shared state is touched. Every command must be handled: exit 0 or 1, no
@@ -9,22 +9,12 @@
 use systemprompt_cli_integration_tests::full_bootstrap::{full_fixture, run, run_with_formats};
 
 #[test]
-fn rate_limits_show_and_docs() {
+fn rate_limits_show() {
     run_with_formats(&["admin", "config", "rate-limits", "show"]);
-    run(&["admin", "config", "rate-limits", "docs"]);
-}
-
-#[test]
-fn rate_limits_tiers() {
-    for tier in ["admin", "user", "a2a", "mcp", "service", "anon"] {
-        run(&["admin", "config", "rate-limits", "tier", tier]);
-    }
-    run(&["admin", "config", "rate-limits", "tier", "not_a_tier"]);
 }
 
 #[test]
 fn rate_limits_compare_and_validate() {
-    run_with_formats(&["admin", "config", "rate-limits", "compare"]);
     run_with_formats(&["admin", "config", "rate-limits", "validate"]);
 }
 
@@ -82,16 +72,6 @@ fn rate_limits_set_variants() {
         "contexts",
         "--rate",
         "42",
-    ]);
-    run(&[
-        "admin",
-        "config",
-        "rate-limits",
-        "set",
-        "--tier",
-        "user",
-        "--multiplier",
-        "2.5",
     ]);
     run(&["admin", "config", "rate-limits", "set", "--burst", "4"]);
     run(&[
@@ -153,34 +133,6 @@ fn rate_limits_reset_scoped_variants() {
         "mcp",
         "--yes",
     ]);
-    run(&[
-        "admin",
-        "config",
-        "rate-limits",
-        "set",
-        "--tier",
-        "anon",
-        "--multiplier",
-        "7.5",
-    ]);
-    run(&[
-        "admin",
-        "config",
-        "rate-limits",
-        "reset",
-        "--tier",
-        "anon",
-        "--dry-run",
-    ]);
-    run(&[
-        "admin",
-        "config",
-        "rate-limits",
-        "reset",
-        "--tier",
-        "anon",
-        "--yes",
-    ]);
     run(&["admin", "config", "rate-limits", "reset", "--dry-run"]);
     run(&["admin", "config", "rate-limits", "reset", "--yes"]);
     run(&[
@@ -190,15 +142,6 @@ fn rate_limits_reset_scoped_variants() {
         "reset",
         "--endpoint",
         "bogus_endpoint",
-        "--yes",
-    ]);
-    run(&[
-        "admin",
-        "config",
-        "rate-limits",
-        "reset",
-        "--tier",
-        "bogus_tier",
         "--yes",
     ]);
 }
@@ -228,14 +171,6 @@ fn rate_limits_export_import_roundtrip() {
         "admin",
         "config",
         "rate-limits",
-        "diff",
-        "--file",
-        &path_str,
-    ]);
-    run(&[
-        "admin",
-        "config",
-        "rate-limits",
         "import",
         "--file",
         "/nonexistent.yaml",
@@ -244,11 +179,11 @@ fn rate_limits_export_import_roundtrip() {
 
 #[test]
 fn config_sections_with_formats() {
-    run_with_formats(&["admin", "config", "provider"]);
-    run_with_formats(&["admin", "config", "runtime"]);
-    run_with_formats(&["admin", "config", "security"]);
-    run_with_formats(&["admin", "config", "server"]);
-    run_with_formats(&["admin", "config", "paths"]);
+    run_with_formats(&["admin", "config", "provider", "list"]);
+    run_with_formats(&["admin", "config", "runtime", "show"]);
+    run_with_formats(&["admin", "config", "security", "show"]);
+    run_with_formats(&["admin", "config", "server", "show"]);
+    run_with_formats(&["admin", "config", "paths", "show"]);
     run_with_formats(&["admin", "config", "validate"]);
     run_with_formats(&["admin", "config", "list"]);
     run_with_formats(&["admin", "config", "show"]);

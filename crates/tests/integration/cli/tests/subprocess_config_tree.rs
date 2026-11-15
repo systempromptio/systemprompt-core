@@ -15,7 +15,7 @@ fn run_ok(args: &[&str]) {
 fn run_err(args: &[&str]) {
     let mut cmd = cli_command();
     cmd.args(args);
-    cmd.assert().failure();
+    cmd.assert().code(1);
 }
 
 #[test]
@@ -397,8 +397,6 @@ fn governance_show_and_set() {
         "set",
         "--mode",
         "webhook",
-        "--url",
-        "http://127.0.0.1:9/hook",
         "--timeout-ms",
         "250",
     ]);

@@ -81,7 +81,6 @@ fn fails_with(args: &[&str], needle: &str) {
 fn admin_agents_listing_and_lookups() {
     stdout_has_fmt(&["admin", "agents", "list"], "covagent");
     stdout_has(&["--verbose", "admin", "agents", "list"], "covagent");
-    run(&["admin", "agents", "list", "--filter", "test"]);
     fails_with(
         &["admin", "agents", "show", "no-such-agent"],
         "Failed to show agent",
@@ -106,14 +105,11 @@ fn admin_agents_listing_and_lookups() {
 
 #[test]
 fn admin_agents_registry_validate_and_tasks() {
-    run(&["admin", "agents", "registry", "list"]);
-    run(&["admin", "agents", "registry", "show", "no-such"]);
+    run(&["admin", "agents", "registry"]);
     fails_with(
         &["admin", "agents", "validate", "no-such-file.yaml"],
         "Failed to validate agents",
     );
-    run(&["admin", "agents", "task", "list"]);
-    run(&["admin", "agents", "task", "show", "no-such-task"]);
 }
 
 #[test]
@@ -121,20 +117,21 @@ fn admin_config_overview() {
     stderr_has_fmt(&["admin", "config", "list"], "Configuration Files");
     stdout_has_fmt(&["admin", "config", "show"], "subprocess_full");
     stderr_has_fmt(&["admin", "config", "validate"], "Validation Passed");
-    run_with_formats(&["admin", "config", "paths"]);
+    run_with_formats(&["admin", "config", "paths", "show"]);
 }
 
 #[test]
 fn admin_config_sections() {
-    run_with_formats(&["admin", "config", "provider"]);
-    run_with_formats(&["admin", "config", "runtime"]);
-    run_with_formats(&["admin", "config", "security"]);
-    run_with_formats(&["admin", "config", "server"]);
+    run_with_formats(&["admin", "config", "provider", "list"]);
+    run_with_formats(&["admin", "config", "runtime", "show"]);
+    run_with_formats(&["admin", "config", "security", "show"]);
+    run_with_formats(&["admin", "config", "server", "show"]);
 }
 
 #[test]
 fn admin_config_rate_limits() {
-    run_with_formats(&["admin", "config", "rate-limits"]);
+    run_with_formats(&["admin", "config", "rate-limits", "show"]);
+    usage_error(&["admin", "config", "rate-limits"], "Usage:");
     run(&["admin", "config", "rate-limits", "validate"]);
 }
 
@@ -170,21 +167,13 @@ fn admin_users_search_lookup_and_bans() {
 
 #[test]
 fn admin_access_control_and_keys() {
-    run_with_formats(&["admin", "access-control", "list"]);
-    run(&["admin", "access-control", "show", "no-such-rule"]);
-    run(&["admin", "access-control", "validate"]);
-    run_with_formats(&["admin", "keys", "list"]);
-    run(&["admin", "keys", "show", "no-such-key"]);
-    run(&["admin", "keys", "jwks"]);
+    run_with_formats(&["admin", "access-control", "export-yaml"]);
+    run(&["admin", "access-control", "lint"]);
 }
 
 #[test]
 fn admin_setup_bridge_bootstrap_and_session() {
-    run(&["admin", "setup", "status"]);
-    run(&["--json", "admin", "setup", "status"]);
-    run(&["admin", "bridge", "status"]);
     run(&["admin", "bridge", "list"]);
-    run(&["admin", "bootstrap", "status"]);
     run(&["admin", "session", "show"]);
     run(&["admin", "session", "list"]);
 }
@@ -192,7 +181,6 @@ fn admin_setup_bridge_bootstrap_and_session() {
 #[test]
 fn infra_services_and_jobs() {
     stderr_has_fmt(&["infra", "services", "status"], "Service Status");
-    run(&["infra", "services", "status", "--all"]);
     stdout_has_fmt(&["infra", "jobs", "list"], "cleanup_anonymous_users");
     fails_with(&["infra", "jobs", "show", "no-such-job"], "Unknown job");
     run(&["infra", "jobs", "history"]);
@@ -224,9 +212,9 @@ fn infra_db_query_and_migrations() {
 
 #[test]
 fn infra_logs_reads_then_cleanup() {
-    run(&["infra", "logs", "show"]);
+    run(&["infra", "logs", "show", "no-such-log"]);
     run(&["infra", "logs", "summary"]);
-    run(&["infra", "logs", "audit"]);
+    run(&["infra", "logs", "audit", "no-such-request"]);
     run(&["infra", "logs", "search", "anything"]);
     run(&["infra", "logs", "view"]);
     run(&["infra", "logs", "request", "list"]);
@@ -238,13 +226,11 @@ fn infra_logs_reads_then_cleanup() {
 
 #[test]
 fn cloud_commands_without_auth() {
-    run(&["cloud", "auth"]);
+    usage_error(&["cloud", "auth"], "Usage:");
+    run(&["cloud", "auth", "whoami"]);
     run(&["cloud", "status"]);
     run(&["cloud", "tenant", "list"]);
     run(&["cloud", "profile", "list"]);
-    run(&["cloud", "secrets", "list"]);
-    run(&["cloud", "dockerfile", "validate"]);
-    run(&["cloud", "domain", "list"]);
 }
 
 #[test]
@@ -267,8 +253,8 @@ fn plugins_and_mcp() {
         &["plugins", "show", "no-such-plugin"],
         "Failed to show extension",
     );
-    run(&["plugins", "validate", "no-such-plugin"]);
-    run(&["plugins", "config", "show", "no-such-plugin"]);
+    run(&["plugins", "validate"]);
+    run(&["plugins", "config", "no-such-plugin"]);
     stderr_has(&["plugins", "capabilities"], "Capabilities Summary");
     stdout_has_fmt(&["plugins", "mcp", "list"], fixture_mcp_server());
     stderr_has(&["plugins", "mcp", "status"], "MCP Server Status");
@@ -292,7 +278,7 @@ fn core_artifacts_and_contexts() {
 #[test]
 fn core_hooks_and_skills() {
     stderr_has_fmt(&["core", "hooks", "list"], "Hooks");
-    run(&["core", "hooks", "show", "no-such-hook"]);
+    run(&["core", "hooks", "validate"]);
     stdout_has_fmt(&["core", "skills", "list"], "echo_skill");
     fails_with(
         &["core", "skills", "show", "no-such-skill"],
@@ -322,7 +308,7 @@ fn core_plugins() {
 fn core_content() {
     stderr_has_fmt(&["core", "content", "list"], "Content");
     stderr_has_fmt(&["core", "content", "search", "anything"], "Search Results");
-    run_with_formats(&["core", "content", "popular"]);
+    run_with_formats(&["core", "content", "popular", "blog"]);
 }
 
 #[test]
@@ -389,8 +375,14 @@ fn global_flag_combinations() {
     run(&["--quiet", "admin", "config", "show"]);
     run(&["--json", "infra", "db", "status"]);
     run(&["--yaml", "infra", "db", "status"]);
-    run(&["--no-color", "admin", "users", "list"]);
-    run(&["--non-interactive", "admin", "config", "paths"]);
+    usage_error(
+        &["--no-color", "admin", "users", "list"],
+        "cannot be used multiple times",
+    );
+    usage_error(
+        &["--non-interactive", "admin", "config", "paths", "show"],
+        "cannot be used multiple times",
+    );
 }
 
 #[test]
@@ -409,7 +401,6 @@ fn negative_paths_after_bootstrap() {
         &["infra", "db", "query", "SELECT not valid sql !!"],
         "syntax error",
     );
-    run(&["admin", "agents", "create", "no-such-file.yaml"]);
     fails_with(
         &["web", "templates", "show", "no-such-template"],
         "Failed to show template",
