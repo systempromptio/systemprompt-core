@@ -20,10 +20,16 @@ pub struct AdmittedRunOrigins {
 impl AdmittedRunOrigins {
     #[must_use]
     pub fn of(built: &BuiltState) -> Self {
-        let mut names: Vec<&'static str> = built
-            .members()
-            .flat_map(|member| member.sink.run_origins().iter().map(|origin| origin.name))
-            .collect();
+        Self::new(
+            built
+                .members()
+                .flat_map(|member| member.sink.run_origins().iter().map(|origin| origin.name)),
+        )
+    }
+
+    #[must_use]
+    pub fn new(names: impl IntoIterator<Item = &'static str>) -> Self {
+        let mut names: Vec<&'static str> = names.into_iter().collect();
         names.sort_unstable();
         names.dedup();
         Self { names }
