@@ -2,7 +2,7 @@ use rmcp::model::ReadResourceRequestParams;
 use systemprompt_identifiers::{ArtifactId, ContextId, McpServerId, UserId};
 use systemprompt_mcp::read_artifact_resource;
 use systemprompt_mcp::repository::{CreateMcpArtifact, McpArtifactRepository};
-use systemprompt_mcp::services::ui_renderer::registry::create_default_registry;
+use systemprompt_mcp::services::ui_renderer::UiRendererRegistry;
 use systemprompt_test_fixtures::test_db_pool;
 
 async fn repo() -> (systemprompt_database::DbPool, McpArtifactRepository) {
@@ -50,7 +50,7 @@ async fn read_artifact_rejects_non_artifact_uri() {
         &request,
         &McpServerId::new("srv"),
         &repo,
-        &create_default_registry(),
+        &UiRendererRegistry::with_builtins(),
         &owner(),
     )
     .await
@@ -66,7 +66,7 @@ async fn read_artifact_rejects_server_mismatch() {
         &request,
         &McpServerId::new("srv"),
         &repo,
-        &create_default_registry(),
+        &UiRendererRegistry::with_builtins(),
         &owner(),
     )
     .await
@@ -84,7 +84,7 @@ async fn read_artifact_unknown_id_is_invalid_params() {
         &request,
         &McpServerId::new("srv"),
         &repo,
-        &create_default_registry(),
+        &UiRendererRegistry::with_builtins(),
         &owner(),
     )
     .await
@@ -105,7 +105,7 @@ async fn read_artifact_without_payload_key_is_internal_error() {
         &request,
         &McpServerId::new("srv"),
         &repo,
-        &create_default_registry(),
+        &UiRendererRegistry::with_builtins(),
         &owner(),
     )
     .await
@@ -143,7 +143,7 @@ async fn read_artifact_renders_stored_payload_with_ui_meta() {
         &request,
         &McpServerId::new("srv"),
         &repo,
-        &create_default_registry(),
+        &UiRendererRegistry::with_builtins(),
         &owner(),
     )
     .await
@@ -175,7 +175,7 @@ async fn read_artifact_without_context_id_is_refused_instead_of_rendering_under_
         &request,
         &McpServerId::new("srv"),
         &repo,
-        &create_default_registry(),
+        &UiRendererRegistry::with_builtins(),
         &owner(),
     )
     .await
@@ -207,7 +207,7 @@ async fn read_artifact_by_a_non_owner_is_indistinguishable_from_an_unknown_id() 
         .await
         .expect("save");
     let missing = fresh_id();
-    let registry = create_default_registry();
+    let registry = UiRendererRegistry::with_builtins();
     let server = McpServerId::new("srv");
 
     let foreign = read_artifact_resource(
@@ -250,7 +250,7 @@ async fn read_artifact_by_its_owner_renders_the_resource() {
         &ReadResourceRequestParams::new(format!("ui://srv/artifact/{id}")),
         &McpServerId::new("srv"),
         &repo,
-        &create_default_registry(),
+        &UiRendererRegistry::with_builtins(),
         &owner(),
     )
     .await

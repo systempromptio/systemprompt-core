@@ -1,116 +1,116 @@
+//! What `AiExtension` contributes: its tables and triggers, the AI jobs, the
+//! retention purges and orphan sweep, the two rollup drains bound to the
+//! kernel's `backfill_rollups` job, and the request-attribution lookup it
+//! provides. Ordering against `users` and `mcp` is the reference
+//! composition's, asserted by the facade's `composition_order` test.
+
+use std::any::TypeId;
+
 use systemprompt_ai::AiExtension;
-use systemprompt_extension::Extension;
+use systemprompt_extension::contribute::ContributionSink;
+use systemprompt_extension::projection::kernel::BackfillRollups;
+use systemprompt_extension::{Contributions, Extension, RetentionDecl};
+use systemprompt_identifiers::ExtensionId;
+use systemprompt_models::attribution::DynRequestAttributionLookup;
 
-mod ai_extension_tests {
-    use super::*;
-
-    #[test]
-    fn metadata_has_correct_id() {
-        let ext = AiExtension;
-        let metadata = Extension::metadata(&ext);
-        assert_eq!(metadata.id, "ai");
-    }
-
-    #[test]
-    fn metadata_has_correct_name() {
-        let ext = AiExtension;
-        let metadata = Extension::metadata(&ext);
-        assert_eq!(metadata.name, "AI");
-    }
-
-    #[test]
-    fn metadata_has_version() {
-        let ext = AiExtension;
-        let metadata = Extension::metadata(&ext);
-        assert!(!metadata.version.is_empty());
-    }
-
-    #[test]
-    fn schemas_returns_expected_tables() {
-        let ext = AiExtension;
-        let schemas = Extension::schemas(&ext);
-        let names: Vec<&str> = schemas.iter().filter_map(|s| s.table.as_deref()).collect();
-        assert_eq!(
-            names,
-            vec![
-                "ai_requests",
-                "ai_request_attributions",
-                "ai_request_client_evidence",
-                "ai_request_messages",
-                "ai_request_tool_calls",
-                "ai_tool_catalogs",
-                "ai_request_payloads",
-                "ai_safety_findings",
-                "ai_quota_buckets",
-                "ai_gateway_policies",
-                "ai_gateway_thought_signatures",
-                "ai_usage_rollup_hourly",
-                "ai_context_rollup_hourly",
-                "user_provider_credentials",
-                "ai_catalog_legacy_map",
-            ]
-        );
-    }
-
-    #[test]
-    fn schemas_includes_ai_requests() {
-        let ext = AiExtension;
-        let schemas = Extension::schemas(&ext);
-        assert!(
-            schemas
-                .iter()
-                .any(|s| s.table.as_deref() == Some("ai_requests"))
-        );
-    }
-
-    #[test]
-    fn schemas_includes_ai_request_messages() {
-        let ext = AiExtension;
-        let schemas = Extension::schemas(&ext);
-        assert!(
-            schemas
-                .iter()
-                .any(|s| s.table.as_deref() == Some("ai_request_messages"))
-        );
-    }
-
-    #[test]
-    fn schemas_includes_ai_request_tool_calls() {
-        let ext = AiExtension;
-        let schemas = Extension::schemas(&ext);
-        assert!(
-            schemas
-                .iter()
-                .any(|s| s.table.as_deref() == Some("ai_request_tool_calls"))
-        );
-    }
-
-    #[test]
-    fn dependencies_includes_users() {
-        let ext = AiExtension;
-        let deps = Extension::dependencies(&ext);
-        assert!(deps.contains(&"users"));
-    }
-
-    #[test]
-    fn dependencies_has_two_items() {
-        let ext = AiExtension;
-        let deps = Extension::dependencies(&ext);
-        assert_eq!(deps.len(), 2);
-    }
-
-
-    #[test]
-    fn default_creates_extension() {
-        let ext = AiExtension::default();
-        assert_eq!(Extension::metadata(&ext).id, "ai");
-    }
+fn contributed() -> ContributionSink {
+    let mut sink = ContributionSink::default();
+    let mut c = Contributions::__new(ExtensionId::new("ai"), &mut sink);
+    AiExtension
+        .contribute(&mut c)
+        .expect("the ai member contributes");
+    sink
 }
 
 #[test]
-fn no_reporting_capture_or_privacy_sql_is_registered() {
+fn metadata_names_the_ai_member() {
+    let meta = AiExtension.metadata();
+    assert_eq!(meta.id, "ai");
+    assert_eq!(meta.name, "AI");
+    assert!(!meta.version.is_empty());
+}
+
+#[test]
+fn the_ai_member_declares_its_tables_in_order() {
+    let sink = contributed();
+    let names: Vec<&str> = sink
+        .schemas()
+        .iter()
+        .filter_map(|s| s.table.as_deref())
+        .collect();
+    assert_eq!(
+        names,
+        vec![
+            "ai_requests",
+            "ai_request_attributions",
+            "ai_request_client_evidence",
+            "ai_request_messages",
+            "ai_request_tool_calls",
+            "ai_tool_catalogs",
+            "ai_request_payloads",
+            "ai_safety_findings",
+            "ai_quota_buckets",
+            "ai_gateway_policies",
+            "ai_gateway_thought_signatures",
+            "ai_usage_rollup_hourly",
+            "ai_context_rollup_hourly",
+            "user_provider_credentials",
+            "ai_catalog_legacy_map",
+        ]
+    );
+}
+
+#[test]
+fn the_ai_member_contributes_its_jobs() {
+    let sink = contributed();
+    let mut names: Vec<&str> = sink.jobs().iter().map(|job| job.job().name()).collect();
+    names.sort_unstable();
+    assert_eq!(names.len(), 3, "{names:?}");
+}
+
+#[test]
+fn the_ai_member_contributes_three_purges_and_one_sweep() {
+    let sink = contributed();
+    let purges = sink
+        .retention()
+        .iter()
+        .filter(|decl| matches!(decl, RetentionDecl::Purge(_)))
+        .count();
+    let sweeps = sink
+        .retention()
+        .iter()
+        .filter(|decl| matches!(decl, RetentionDecl::Sweep(_)))
+        .count();
+    assert_eq!((purges, sweeps), (3, 1));
+}
+
+#[test]
+fn the_ai_rollups_are_bound_to_the_kernel_backfill_drainer() {
+    let sink = contributed();
+    let projections: Vec<&str> = sink
+        .projections()
+        .iter()
+        .filter(|entry| entry.is_for::<BackfillRollups>())
+        .map(|entry| entry.drain().projection)
+        .collect();
+    assert_eq!(
+        projections,
+        ["ai_usage_rollup_hourly", "ai_context_rollup_hourly"]
+    );
+    assert_eq!(sink.projections().len(), 2);
+}
+
+#[test]
+fn the_ai_member_provides_the_request_attribution_lookup() {
+    let sink = contributed();
+    let provided: Vec<TypeId> = sink.provides().iter().map(|p| p.type_id()).collect();
+    assert_eq!(provided, [TypeId::of::<DynRequestAttributionLookup>()]);
+}
+
+#[test]
+fn no_reporting_capture_or_privacy_sql_is_contributed() {
     assert!(
-        AiExtension
+        contributed()
             .schemas()
             .iter()
             .all(|schema| !schema.sql.contains("reporting")),
@@ -120,8 +120,9 @@ fn no_reporting_capture_or_privacy_sql_is_registered() {
 
 #[test]
 fn message_count_is_maintained_by_a_statement_trigger() {
-    let schemas = AiExtension.schemas();
-    let counter: Vec<_> = schemas
+    let sink = contributed();
+    let counter = sink
+        .schemas()
         .iter()
         .filter(|schema| {
             schema.table.is_none()
@@ -129,6 +130,6 @@ fn message_count_is_maintained_by_a_statement_trigger() {
                     .sql
                     .contains("EXECUTE FUNCTION sp_ai_request_message_count")
         })
-        .collect();
-    assert_eq!(counter.len(), 1, "message_count trigger registered once");
+        .count();
+    assert_eq!(counter, 1, "message_count trigger contributed once");
 }

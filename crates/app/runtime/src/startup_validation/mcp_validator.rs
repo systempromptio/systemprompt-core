@@ -1,12 +1,11 @@
 //! MCP deployment manifest validation folded into the startup report.
 //!
 //! An internal server is spawned one of two ways, decided by its manifest:
-//! with `binary:` it runs that extension binary, which links and checks its
-//! own toolsets; with no `binary:` and a `toolsets:` list it is hosted by this
-//! binary (`admin mcp serve`), so every listed toolset id must be registered
-//! in this binary through [`RegisteredToolsetId`]. A binary that links no
-//! toolsets has an empty inventory, so every hosted toolset in it is reported:
-//! an empty inventory is never read as "nothing to check".
+//! with `binary:` it runs that extension binary, whose manifest must resolve;
+//! with no `binary:` and a `toolsets:` list it is hosted by this binary
+//! (`admin mcp serve`). Its toolset ids are checked where the toolsets are
+//! built, by the toolset host's `ToolsetSlot`, which refuses the composition
+//! on an id no admitted member contributes.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -17,26 +16,6 @@ use systemprompt_manifest::validators::validation_report::ValidationIssue;
 use systemprompt_manifest::validators::{StartupValidationReport, ValidationReport};
 use systemprompt_manifest::{Config, ServicesConfig};
 use systemprompt_models::mcp::McpServerType;
-use systemprompt_models::mcp::deployment::Deployment;
-
-/// One toolset id linked into this binary, submitted alongside its factory.
-#[derive(Debug, Clone, Copy)]
-pub struct RegisteredToolsetId {
-    pub id: &'static str,
-}
-
-systemprompt_mcp::__inventory::collect!(RegisteredToolsetId);
-
-#[must_use]
-pub fn registered_toolset_ids() -> Vec<&'static str> {
-    let mut ids: Vec<&'static str> = systemprompt_mcp::__inventory::iter::<RegisteredToolsetId>
-        .into_iter()
-        .map(|registered| registered.id)
-        .collect();
-    ids.sort_unstable();
-    ids.dedup();
-    ids
-}
 
 pub(super) fn validate_mcp_manifests(
     config: &Config,
@@ -49,60 +28,16 @@ pub(super) fn validate_mcp_manifests(
         &config.bin_path,
     );
 
-    let known = registered_toolset_ids();
-    let mcp_errors = collect_manifest_errors(services_config, config.is_cloud, &known, |binary| {
+    let mcp_errors = collect_manifest_errors(services_config, config.is_cloud, |binary| {
         registry.get_path(binary).map(|_| ())
     });
 
     merge_mcp_errors(report, mcp_errors);
 }
 
-pub fn collect_toolset_errors(
-    services_config: &ServicesConfig,
-    known: &[&str],
-) -> Vec<ValidationIssue> {
-    let mut names: Vec<&String> = services_config.mcp_servers.keys().collect();
-    names.sort();
-    names
-        .into_iter()
-        .filter(|name| services_config.mcp_servers[*name].enabled)
-        .flat_map(|name| hosted_toolset_errors(name, &services_config.mcp_servers[name], known))
-        .collect()
-}
-
-fn hosted_toolset_errors(
-    name: &str,
-    deployment: &Deployment,
-    known: &[&str],
-) -> Vec<ValidationIssue> {
-    let registered = if known.is_empty() {
-        "none (this binary links no toolsets)".to_owned()
-    } else {
-        known.join(", ")
-    };
-    deployment
-        .enabled_toolsets()
-        .filter(|toolset| !known.contains(&toolset.id.as_str()))
-        .map(|toolset| {
-            ValidationIssue::new(
-                format!("mcp_servers.{name}.toolsets"),
-                format!(
-                    "Toolset '{}' is not registered by any crate linked into this binary",
-                    toolset.id
-                ),
-            )
-            .with_suggestion(format!(
-                "Registered toolsets: {registered}. Link the crate that registers it with \
-                 submit_toolset!, or fix the id"
-            ))
-        })
-        .collect()
-}
-
 pub fn collect_manifest_errors<F, E>(
     services_config: &ServicesConfig,
     is_cloud: bool,
-    known_toolsets: &[&str],
     resolve: F,
 ) -> Vec<ValidationIssue>
 where
@@ -148,8 +83,6 @@ where
                         name
                     )),
                 );
-            } else {
-                mcp_errors.extend(hosted_toolset_errors(name, deployment, known_toolsets));
             }
             continue;
         };

@@ -1,73 +1,76 @@
-//! Unit tests for the AgentExtension trait implementation.
-//!
-//! Targets:
-//! - crates/domain/agent/src/extension.rs
+//! What `AgentExtension` contributes: its nine tables, the cross-member
+//! tables it references, its migrations and its two jobs.
 
 use systemprompt_agent::AgentExtension;
-use systemprompt_extension::prelude::Extension;
+use systemprompt_extension::contribute::ContributionSink;
+use systemprompt_extension::{Contributions, Extension};
+use systemprompt_identifiers::ExtensionId;
+
+fn contributed() -> ContributionSink {
+    let mut sink = ContributionSink::default();
+    let mut c = Contributions::__new(ExtensionId::new("agent"), &mut sink);
+    AgentExtension
+        .contribute(&mut c)
+        .expect("the agent member contributes");
+    sink
+}
 
 #[test]
-fn metadata_basics() {
-    let ext = AgentExtension;
-    let meta = ext.metadata();
+fn metadata_names_the_agent_member() {
+    let meta = AgentExtension.metadata();
     assert_eq!(meta.id, "agent");
     assert_eq!(meta.name, "Agent");
     assert!(!meta.version.is_empty());
 }
 
 #[test]
-fn schemas_contain_all_tables() {
-    let schemas = AgentExtension.schemas();
-    let table_names: Vec<String> = schemas.iter().filter_map(|s| s.table.clone()).collect();
-    assert_eq!(table_names.len(), 9);
+fn the_agent_member_declares_its_tables() {
+    let sink = contributed();
+    let tables: Vec<&str> = sink
+        .schemas()
+        .iter()
+        .filter_map(|s| s.table.as_deref())
+        .collect();
+    assert_eq!(tables.len(), 9, "{tables:?}");
+    for table in [
+        "user_contexts",
+        "agent_tasks",
+        "task_messages",
+        "message_parts",
+        "task_artifacts",
+        "artifact_parts",
+        "context_agents",
+        "context_notifications",
+        "task_execution_steps",
+    ] {
+        assert!(tables.contains(&table), "{table} in {tables:?}");
+    }
+    assert!(!tables.contains(&"services"));
+}
 
-    assert!(table_names.iter().any(|n| n == "user_contexts"));
-    assert!(table_names.iter().any(|n| n == "agent_tasks"));
-    assert!(table_names.iter().any(|n| n == "task_messages"));
-    assert!(table_names.iter().any(|n| n == "message_parts"));
-    assert!(table_names.iter().any(|n| n == "task_artifacts"));
-    assert!(table_names.iter().any(|n| n == "artifact_parts"));
-    assert!(table_names.iter().any(|n| n == "context_agents"));
-    assert!(table_names.iter().any(|n| n == "context_notifications"));
-    assert!(table_names.iter().any(|n| n == "task_execution_steps"));
-    assert!(!table_names.iter().any(|n| n == "services"));
+#[test]
+fn the_agent_member_references_ai_requests_and_services() {
+    assert_eq!(contributed().cross_tables(), ["ai_requests", "services"]);
+}
+
+#[test]
+fn the_agent_member_contributes_its_jobs() {
+    let sink = contributed();
+    let mut names: Vec<&str> = sink.jobs().iter().map(|job| job.job().name()).collect();
+    names.sort_unstable();
+    assert_eq!(names.len(), 2, "{names:?}");
+    assert!(names.contains(&"user_context_counters_rollup"), "{names:?}");
+}
+
+#[test]
+fn the_agent_member_contributes_migrations() {
+    assert!(!contributed().migrations().is_empty());
+}
+
+#[test]
+fn no_reporting_capture_or_privacy_sql_is_contributed() {
     assert!(
-        AgentExtension
-            .cross_extension_tables()
-            .contains(&"services")
-    );
-}
-
-#[test]
-fn dependencies_declared() {
-    let deps = AgentExtension.dependencies();
-    assert!(deps.contains(&"users"));
-    assert!(deps.contains(&"oauth"));
-    assert!(deps.contains(&"mcp"));
-    assert!(deps.contains(&"ai"));
-}
-
-#[test]
-fn cross_extension_tables_includes_ai_requests() {
-    let xtables = AgentExtension.cross_extension_tables();
-    assert!(xtables.contains(&"ai_requests"));
-}
-
-#[test]
-fn migrations_smoke() {
-    let _migrations = AgentExtension.migrations();
-}
-
-#[test]
-fn default_construction() {
-    let ext = AgentExtension::default();
-    assert_eq!(ext.metadata().id, "agent");
-}
-
-#[test]
-fn no_reporting_capture_or_privacy_sql_is_registered() {
-    assert!(
-        AgentExtension
+        contributed()
             .schemas()
             .iter()
             .all(|schema| !schema.sql.contains("reporting")),

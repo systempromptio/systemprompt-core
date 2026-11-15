@@ -77,6 +77,11 @@ impl std::fmt::Debug for HostContext {
 
 impl HostContext {
     #[must_use]
+    pub const fn state(&self) -> &Dependencies {
+        &self.extension_state
+    }
+
+    #[must_use]
     pub const fn parts(&self) -> &HostParts {
         &self.parts
     }

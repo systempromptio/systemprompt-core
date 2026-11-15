@@ -77,5 +77,3 @@ impl Job for CleanupEmptyContextsJob {
             .with_duration(duration_ms))
     }
 }
-
-systemprompt_traits::submit_job!("agent", &CleanupEmptyContextsJob);

@@ -8,7 +8,7 @@ use systemprompt_identifiers::{
     Actor, AgentName, ContextId, McpExecutionId, McpServerId, McpToolName, SessionId, TraceId,
     UserId,
 };
-use systemprompt_mcp::services::ui_renderer::registry::create_default_registry;
+use systemprompt_mcp::services::ui_renderer::UiRendererRegistry;
 use systemprompt_mcp::{
     ArtifactIngest, ClientProfile, McpOutputSchema, McpResponseBuilder, McpToolHandler,
     ResponseServices, ToolIdentity,
@@ -101,7 +101,7 @@ async fn build(client: &ClientProfile, artifact: CliArtifact) -> CallToolResult 
         "summary line",
         ResponseServices {
             ingest: &repo,
-            renderers: &create_default_registry(),
+            renderers: &UiRendererRegistry::with_builtins(),
         },
         &artifact_type,
         title,
