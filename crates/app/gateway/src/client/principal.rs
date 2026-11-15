@@ -16,7 +16,7 @@
 use std::sync::Arc;
 
 use chrono::{DateTime, Duration, Utc};
-use systemprompt_governance::policy::types::AccessScope;
+use systemprompt_governance::policy::AccessScope;
 use systemprompt_identifiers::{
     ClientId, ScopeDimension, ServiceName, SessionId, SessionSource, UserId,
 };

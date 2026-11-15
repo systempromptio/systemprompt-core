@@ -23,7 +23,7 @@ use axum::http::{HeaderMap, StatusCode};
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use systemprompt_governance::authz::{SubjectAttributes, SubjectProviderSet};
-use systemprompt_governance::policy::types::AccessScope;
+use systemprompt_governance::policy::AccessScope;
 use systemprompt_identifiers::{
     Actor, ApiKeyId, ClientId, ClientSessionId, JwtToken, SessionId, TraceId, UserId,
 };

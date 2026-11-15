@@ -238,7 +238,7 @@ async fn bind_hop<'a>(
     let policy = HopPolicy::of(&hop);
     let adapter = engines
         .upstream_registry
-        .adapter_for(hop.wire, policy)
+        .adapter_for(hop.wire)
         .map(Arc::clone)
         .ok_or_else(|| {
             DispatchError::pre_audit(GatewayError::NoAdapter {

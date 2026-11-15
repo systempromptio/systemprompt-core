@@ -2,8 +2,8 @@
 //! PKCE (S256), `state` and `nonce`, validated against the issuer's discovery
 //! document and JWKS.
 //!
-//! It is configured by `services/web/config/oidc.yaml` and registered with
-//! the SSO driver like any other provider, so an install without that file,
+//! It is configured by `services/web/config/oidc.yaml` and contributed to
+//! the SSO slot by the `identity` member, so an install without that file,
 //! or with `enabled: false`, offers no new sign-in. One OIDC client at one
 //! issuer per install: a central Keycloak serves many installs by giving each
 //! its own client in a shared realm. Correlation, replay, the identity
@@ -129,7 +129,9 @@ pub fn build(ctx: &SsoHookContext) -> Result<Option<OidcProvider>, OidcConfigErr
     OidcProvider::new(cfg, Arc::clone(&ctx.secrets), &ctx.config.api_external_url).map(Some)
 }
 
-fn factory(ctx: &SsoHookContext) -> Result<Option<Arc<dyn SsoProvider>>, SsoProviderError> {
+pub(crate) fn factory(
+    ctx: &SsoHookContext,
+) -> Result<Option<Arc<dyn SsoProvider>>, SsoProviderError> {
     let Some(provider) = build(ctx).map_err(|source| SsoProviderError::config(ID, source))? else {
         return Ok(None);
     };
@@ -139,8 +141,6 @@ fn factory(ctx: &SsoHookContext) -> Result<Option<Arc<dyn SsoProvider>>, SsoProv
     );
     Ok(Some(Arc::new(provider)))
 }
-
-crate::register_sso_provider!(factory);
 
 fn random_token() -> String {
     format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple())

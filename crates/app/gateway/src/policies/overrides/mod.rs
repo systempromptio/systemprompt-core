@@ -8,11 +8,9 @@
 //!
 //! Two sources feed the [`engine::OverridePolicy`]: declarative
 //! [`SystemPromptRule`](systemprompt_manifest::services::SystemPromptRule)
-//! rules from the profile (evaluated first), then extension overrides
-//! contributed through the
-//! [`register_system_prompt_override!`](crate::register_system_prompt_override)
-//! macro and collected via `inventory` — the same pattern used for
-//! [`SafetyScanner`](super::safety::SafetyScanner)s.
+//! rules from the profile (evaluated first), then the overrides members
+//! contribute to [`OverrideSlot`](crate::contract::OverrideSlot) — the same
+//! pattern used for [`SafetyScanner`](super::safety::SafetyScanner)s.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -156,24 +154,4 @@ pub enum OverrideError {
 pub trait SystemPromptOverride: Send + Sync {
     fn name(&self) -> &'static str;
     async fn evaluate(&self, ctx: &OverrideContext) -> Result<OverrideAction, OverrideError>;
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct SystemPromptOverrideRegistration {
-    pub name: &'static str,
-    pub factory: fn() -> Arc<dyn SystemPromptOverride>,
-}
-
-inventory::collect!(SystemPromptOverrideRegistration);
-
-#[macro_export]
-macro_rules! register_system_prompt_override {
-    ($factory:expr, name = $name:expr $(,)?) => {
-        $crate::__inventory::submit! {
-            $crate::SystemPromptOverrideRegistration {
-                name: $name,
-                factory: || ::std::sync::Arc::new($factory()),
-            }
-        }
-    };
 }

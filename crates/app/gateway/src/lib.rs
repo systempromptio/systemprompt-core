@@ -9,7 +9,8 @@
 //! `gateway_policies` config plane, resolution, and the safety-scanner,
 //! route-selector and
 //! system-prompt-override extension contracts), [`quota`] enforcement, usage
-//! [`captures`], [`pricing`], the upstream and safety-scanner [`registry`],
+//! [`captures`], [`pricing`], the upstream and safety-scanner [`registry`]
+//! with the [`contract`] slots members contribute to,
 //! remote [`image_fetch`], the streaming [`stream_tap`], and the [`audit`]
 //! trail with its encrypted settlement journal.
 //!
@@ -23,13 +24,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-#[doc(hidden)]
-pub use ::inventory as __inventory;
-
 pub mod artifact_scanner;
 pub mod audit;
 pub mod captures;
 pub mod client;
+pub mod contract;
 pub mod error;
 pub mod extension;
 pub mod image_fetch;
@@ -62,14 +61,13 @@ pub use policies::{
     OverrideAction, OverrideContext, OverrideContextBuilder, OverrideError, OverridePolicy,
     OverrideResolution, OverrideSource, PHASE_REQUEST, PHASE_REQUEST_HISTORY, PHASE_RESPONSE,
     PartReplacement, PolicyResolver, PolicyUnavailable, QuotaWindow, RouteSelector,
-    RouteSelectorChain, RouteSelectorError, RouteSelectorRegistration, SafetyConfig,
-    SafetyHistoryMode, SafetyScanner, SafetyScannerRegistration, ScanError, ScannerFactory,
-    ScannerFailMode, ScannerSettings, Severity, SystemPromptOverride,
-    SystemPromptOverrideRegistration, WindowSpan,
+    RouteSelectorChain, RouteSelectorError, SafetyConfig, SafetyHistoryMode, SafetyScanner,
+    ScanError, ScannerFactory, ScannerFailMode, ScannerSettings, Severity, SystemPromptOverride,
+    WindowSpan,
 };
 pub use protocol::{
     CanonicalEvent, CanonicalRequest, CanonicalResponse, InboundAdapter, OutboundAdapter,
-    OutboundAdapterRegistration, OutboundCtx, OutboundOutcome,
+    OutboundCtx, OutboundOutcome,
 };
 pub use registry::{
     GatewayEngines, GatewayEnginesError, GatewayUpstreamRegistry, SafetyScannerRegistry,
@@ -77,5 +75,3 @@ pub use registry::{
 pub use repository::{GatewayHandles, GatewayRepositories};
 pub use routing::{RouteResolution, RouteSource, resolve_route};
 pub use service::{DispatchInputs, GatewayService, REQUEST_ID_HEADER};
-#[doc(hidden)]
-pub use systemprompt_extension::ExtensionContext as __ExtensionContext;

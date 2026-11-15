@@ -1,6 +1,7 @@
 //! [`SsoDriver`]: the one place every browser-redirect SSO provider is run.
 //!
-//! Built once at a composition root from the inventory registries, it owns
+//! Built once at a composition root from the built [`SsoSlot`] value
+//! ([`SsoProviders`]), it owns
 //! the state store, the replay guard and the audit sinks, so a provider only
 //! speaks its protocol. The flow itself lives beside it: [`super::start`]
 //! and [`super::finish`].
@@ -10,6 +11,7 @@
 
 use std::sync::Arc;
 
+use systemprompt_database::DbPool;
 use systemprompt_manifest::Config;
 use systemprompt_oauth::repository::{OAuthRepository, PostgresReplayGuard};
 use systemprompt_oauth::services::SessionCreationService;
@@ -22,8 +24,8 @@ use systemprompt_users::PostgresAuthEventSink;
 use crate::repository::SsoRepositories;
 
 use super::cookie::CookieSpec;
-use super::registry::{SsoHookContext, SsoProviderError, discover_providers, discover_sinks};
-use super::roles::{RoleResolver, discover_role_resolver};
+use super::roles::RoleResolver;
+use crate::contract::SsoProviders;
 
 /// Where `start` sends the browser, and the binder cookie to set first.
 #[derive(Debug, Clone)]
@@ -73,29 +75,29 @@ impl std::fmt::Debug for SsoDriver {
 }
 
 impl SsoDriver {
-    pub fn discover(
-        ctx: &SsoHookContext,
+    pub fn new(
+        sso: &SsoProviders,
+        db: &DbPool,
+        config: Arc<Config>,
         oauth: OAuthRepository,
         session_service: Arc<SessionCreationService>,
-    ) -> Result<Self, SsoProviderError> {
-        let db = &ctx.db;
-        let config = Arc::clone(&ctx.config);
+    ) -> Self {
         let SsoRepositories {
             oauth: repo,
             login_events,
         } = SsoRepositories::new(db, oauth);
         let mut sinks: Vec<Arc<dyn AuthEventSink>> =
             vec![Arc::new(PostgresAuthEventSink::new(login_events))];
-        sinks.extend(discover_sinks(ctx));
-        let providers = discover_providers(ctx)?;
-        let roles = discover_role_resolver(ctx);
+        sinks.extend(sso.sinks().iter().map(Arc::clone));
+        let providers = sso.providers().to_vec();
+        let roles = sso.roles();
         if !providers.is_empty() {
             tracing::info!(
                 providers = ?providers.iter().map(|p| p.id()).collect::<Vec<_>>(),
                 "SSO providers registered"
             );
         }
-        Ok(Self {
+        Self {
             inner: Arc::new(DriverInner {
                 providers,
                 replay: Arc::new(PostgresReplayGuard::new(repo.clone())),
@@ -105,7 +107,7 @@ impl SsoDriver {
                 session_service,
                 config,
             }),
-        })
+        }
     }
 
     #[must_use]

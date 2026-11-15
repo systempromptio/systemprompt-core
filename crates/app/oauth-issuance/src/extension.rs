@@ -1,6 +1,7 @@
-//! `Extension` registration for identity issuance: the `identity` config
-//! plane. This crate owns no tables; the plane writes users through the users
-//! domain's repository and static OAuth clients through the OAuth domain's.
+//! The `identity` member: the `identity` config plane and core's generic OIDC
+//! SSO provider. This crate owns no tables; the plane writes users through the
+//! users domain's repository and static OAuth clients through the OAuth
+//! domain's.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -9,7 +10,10 @@ use std::sync::Arc;
 
 use systemprompt_extension::prelude::*;
 
+use crate::contract::SsoSlot;
 use crate::identity::IdentityPlane;
+use crate::sso::SsoHookContext;
+use crate::sso::oidc;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct IdentityExtension;
@@ -23,13 +27,12 @@ impl Extension for IdentityExtension {
         }
     }
 
-    fn dependencies(&self) -> Vec<&'static str> {
-        vec!["users", "oauth"]
-    }
-
-    fn config_planes(&self) -> Vec<Arc<dyn ConfigPlane>> {
-        vec![Arc::new(IdentityPlane)]
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        c.config_plane(Arc::new(IdentityPlane));
+        c.slot::<SsoSlot>().provider(|r: &Resolved<'_>| {
+            oidc::factory(&SsoHookContext::from_resolved(r)?)
+                .map_err(|e| FactoryError::Failed(Box::new(e)))
+        });
+        Ok(())
     }
 }
-
-register_extension!(IdentityExtension);

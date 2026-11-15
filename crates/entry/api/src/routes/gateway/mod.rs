@@ -12,23 +12,23 @@
 //!
 //! The surface is assembled in parts so that the server can give each its own
 //! rate-limit budget: `gateway_mount_parts` hands the server the inference
-//! traffic, the bridge credential exchange and every capability group
-//! registered through [`registered`], which it declares handler-verified by
-//! the gateway credential with their rate limits and bearer windows and wraps
-//! in `with_access_log`, while [`gateway_router`] returns the same routes
+//! traffic, the bridge credential exchange and every admitted capability
+//! gateway route ([`registered`]), which it protects handler-verified by the
+//! gateway credential with their rate limits and bearer windows and wraps in
+//! `with_access_log`, while [`gateway_router`] returns the same routes
 //! unlimited for tests. The bridge credential-exchange half is budgeted apart
 //! from inference traffic because the two have opposite shapes: inference is
 //! high-volume and elastic, sign-in is a handful of requests that must
 //! succeed. Sharing one budget lets a saturated gateway refuse every
 //! credential exchange, which presents to the user as a rejected token rather
-//! than as the rate limit it is. A registered group (the bridge inbox) carries
-//! its own budget, so its polling and inference never starve each other.
+//! than as the rate limit it is. An admitted capability route (the bridge
+//! inbox) carries its own budget, so its polling and inference never starve
+//! each other.
 //!
-//! [`gateway_engines`] and [`gateway_router`] run the core owner check over
-//! every registered extension before any gateway guard factory runs, so an
-//! extension that takes a core row it does not own is refused before its
-//! code is called. The server's own boot path runs that check once, ahead of
-//! the crate-internal engine build.
+//! [`gateway_engines`] builds the engines from the admitted composition: the
+//! adapter, scanner, override and route-selector sets are the gateway's built
+//! slots and the guards come from every admitted member's guard factory, so
+//! nothing a disabled member contributed runs.
 //!
 //! The access log layer is outside both limiters so that a refused request
 //! still produces a record; an instance 429ing every sign-in shows it in its
@@ -68,8 +68,9 @@ mod routers;
 use axum::routing::get;
 use axum::{Extension, Router};
 use std::sync::Arc;
+use systemprompt_extension::Admitted;
 use systemprompt_gateway::GatewayEngines;
-use systemprompt_runtime::AppContext;
+use systemprompt_runtime::{AppContext, Kernel};
 
 use self::access_log::log_gateway_request;
 #[cfg(feature = "otel")]
@@ -77,8 +78,8 @@ use self::routers::otel_routes;
 use self::routers::{
     bridge_auth_routes, bridge_profile_routes, bridge_session_routes, inference_routes,
 };
+use self::builtin::confined;
 use crate::kernel::JwtContextExtractor;
-use crate::services::middleware::{MountError, admit_core_owners, confined};
 
 pub(crate) use self::access_log::GatewayLogIdentity;
 
@@ -140,6 +141,8 @@ fn drive_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtractor>) -> R
 pub(crate) fn gateway_mount_parts(
     ctx: &AppContext,
     engines: &Arc<GatewayEngines>,
+    admitted: &Admitted,
+    kernel: &Kernel,
 ) -> anyhow::Result<GatewayMountParts> {
     let jwt_extractor = Arc::new(JwtContextExtractor::from_app_context(ctx)?);
     let gateway_repos = Arc::new(gateway_repositories(ctx)?);
@@ -153,8 +156,7 @@ pub(crate) fn gateway_mount_parts(
         ))
         .merge(bridge_profile_routes(ctx, &jwt_extractor))
         .merge(bridge_session_routes(ctx, &jwt_extractor));
-    let registered =
-        registered::build_registered(ctx, &ctx.profile().extensions.disabled, &jwt_extractor)?;
+    let registered = registered::admitted_gateway_routes(admitted, kernel, &jwt_extractor)?;
     #[cfg(feature = "otel")]
     let traffic = traffic.merge(otel_routes(ctx, &jwt_extractor));
     let traffic = traffic
@@ -164,46 +166,23 @@ pub(crate) fn gateway_mount_parts(
         .route("/models", get(models::list).with_state(ctx.clone()))
         .route("/", get(models::root));
     Ok(GatewayMountParts {
-        traffic: confined(traffic, builtin::builtin_gateway_prefixes()),
-        bridge_auth: confined(
-            bridge_auth_routes(ctx, &jwt_extractor),
-            builtin::builtin_gateway_prefixes(),
-        ),
+        traffic: confined(traffic),
+        bridge_auth: confined(bridge_auth_routes(ctx, &jwt_extractor)),
         registered,
     })
 }
 
-/// Failure to build the gateway engines through [`gateway_engines`]: an
-/// extension takes a core row it does not own, or the engines themselves
-/// could not be assembled.
-#[derive(Debug, thiserror::Error)]
-pub enum GatewayBootError {
-    #[error(transparent)]
-    CoreOwner(#[from] MountError),
-    #[error(transparent)]
-    Engines(#[from] systemprompt_gateway::GatewayEnginesError),
-}
-
-pub fn gateway_engines(ctx: &AppContext) -> Result<GatewayEngines, GatewayBootError> {
-    admit_core_owners(
-        ctx.extension_registry()
-            .extensions()
-            .iter()
-            .map(|ext| &**ext),
-    )?;
-    Ok(build_gateway_engines(ctx)?)
-}
-
-pub(crate) fn build_gateway_engines(
+pub fn gateway_engines(
     ctx: &AppContext,
+    admitted: &Admitted,
+    kernel: &Kernel,
 ) -> Result<GatewayEngines, systemprompt_gateway::GatewayEnginesError> {
-    let extensions: Arc<dyn systemprompt_extension::ExtensionContext> = Arc::new(ctx.clone());
     let engines = GatewayEngines::new(
         Arc::clone(ctx.connector_tokens()),
-        &extensions,
+        admitted.built(),
+        &kernel.resolved(),
         Arc::clone(ctx.secrets()),
     )?;
-    engines.refuse_shadowed_caller_wires(&ctx.services_state().view().catalog)?;
     #[cfg(feature = "brain")]
     let engines = match ctx.brain_recall() {
         Some(recall) => engines.with_memory_recall(recall),
@@ -212,8 +191,13 @@ pub(crate) fn build_gateway_engines(
     Ok(engines)
 }
 
-pub fn gateway_router(ctx: &AppContext) -> anyhow::Result<Router> {
-    let parts = gateway_mount_parts(ctx, &Arc::new(gateway_engines(ctx)?))?;
+pub fn gateway_router(
+    ctx: &AppContext,
+    admitted: &Admitted,
+    kernel: &Kernel,
+) -> anyhow::Result<Router> {
+    let engines = Arc::new(gateway_engines(ctx, admitted, kernel)?);
+    let parts = gateway_mount_parts(ctx, &engines, admitted, kernel)?;
     let routes = parts
         .registered
         .into_iter()

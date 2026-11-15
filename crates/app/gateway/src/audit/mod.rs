@@ -43,7 +43,7 @@ use systemprompt_ai::models::CatalogHop;
 use systemprompt_ai::repository::{
     AiQuotaBucketRepository, AiRequestPayloadRepository, AiRequestRepository,
 };
-use systemprompt_governance::policy::types::AccessScope;
+use systemprompt_governance::policy::AccessScope;
 use systemprompt_identifiers::{
     AiRequestId, ClientId, ClientSessionId, ContextId, GatewayConversationId, SessionId, TraceId,
     UserId,
