@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use systemprompt_brain::BrainSeams;
 use systemprompt_brain::jobs::BrainAnalysisJob;
 use systemprompt_database::DbPool;
 use systemprompt_extension::brain::{AnalysisWindow, BrainAnalysis, BrainAnalysisError};
-use systemprompt_extension::{ExtensionContext, register_brain_analysis};
 use systemprompt_identifiers::{Actor, UserId};
 use systemprompt_manifest::profile::BrainProfile;
 use systemprompt_models::brain::{ProposalDraft, ProposalKind};
-use systemprompt_test_fixtures::{DisposableDb, test_app_context};
+use systemprompt_test_fixtures::DisposableDb;
 use systemprompt_traits::{Dependencies, Job, JobContext, JobResult, RepositoryError};
 
 struct DraftingAnalysis;
@@ -49,14 +49,12 @@ impl BrainAnalysis for FailingAnalysis {
     }
 }
 
-register_brain_analysis!(
-    factory = |_| Arc::new(DraftingAnalysis) as Arc<dyn BrainAnalysis>,
-    priority = 0
-);
-register_brain_analysis!(
-    factory = |_| Arc::new(FailingAnalysis) as Arc<dyn BrainAnalysis>,
-    priority = 1
-);
+fn contributed() -> Arc<BrainSeams> {
+    Arc::new(BrainSeams {
+        analyses: vec![Arc::new(DraftingAnalysis), Arc::new(FailingAnalysis)],
+        ..BrainSeams::default()
+    })
+}
 
 fn profile(enabled: bool) -> Arc<BrainProfile> {
     Arc::new(BrainProfile {
@@ -130,16 +128,15 @@ async fn core_analyses_over_an_empty_history_store_nothing_and_succeed() {
 }
 
 #[tokio::test]
-async fn extension_analyses_store_one_fresh_proposal_and_count_failures() {
+async fn contributed_analyses_store_one_fresh_proposal_and_count_failures() {
     let db = DisposableDb::with_schema("brain_analysis_ext").await;
     let pool = db.test_pool().await;
-    let app = test_app_context(&pool, db.url());
-    let extensions: Arc<dyn ExtensionContext> = app;
+    let seams = contributed();
     let deps = || {
         Dependencies::new()
             .with(profile(true))
             .with(Arc::clone(&pool))
-            .with(Arc::clone(&extensions))
+            .with(Arc::clone(&seams))
     };
 
     let first = execute(deps()).await;

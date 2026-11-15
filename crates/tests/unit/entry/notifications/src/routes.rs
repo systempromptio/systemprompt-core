@@ -20,7 +20,6 @@ use systemprompt_models::notifications::{
 use systemprompt_notifications::repository::{
     NotificationStreamRepository, NotificationSubscriptionRepository,
 };
-use systemprompt_notifications_entry::http::router;
 use systemprompt_provider_contracts::ChangeSource;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
@@ -29,7 +28,7 @@ use systemprompt_test_fixtures::{
 use tower::ServiceExt;
 use uuid::Uuid;
 
-use crate::support::state;
+use crate::support::user_router;
 
 #[derive(Clone)]
 struct Caller(Option<RequestContext>);
@@ -64,7 +63,7 @@ async fn context() -> Arc<AppContext> {
 }
 
 fn app(ctx: &AppContext, user: Option<&UserId>) -> Router {
-    router(state(ctx)).with_auth(
+    user_router(ctx).with_auth(
         UserOnlyContextMiddleware::new(Caller(user.map(caller))),
         AuthzPolicy::user(),
     )
@@ -143,7 +142,7 @@ async fn every_route_requires_a_signed_in_user() {
 async fn an_anonymous_caller_is_refused_by_the_user_policy() {
     let ctx = context().await;
     let anon = caller(&UserId::generate()).with_user_type(UserType::Anon);
-    let app = router(state(&ctx)).with_auth(
+    let app = user_router(&ctx).with_auth(
         UserOnlyContextMiddleware::new(Caller(Some(anon))),
         AuthzPolicy::user(),
     );
