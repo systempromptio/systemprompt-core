@@ -36,12 +36,6 @@ pub enum RegistryError {
         claimant: CommandOwner,
         owner: CoreId,
     },
-    #[error("`{claimant}` holds reserved CLI path `{path}` listed for `{expected:?}` beside another core id")]
-    PrivilegeOwnerMismatch {
-        path: String,
-        claimant: CommandOwner,
-        expected: CoreId,
-    },
     #[error(
         "CLI command `{path}` contributed by `{claimant}` requests `{grant}`, which the kernel \
          does not grant to that path"

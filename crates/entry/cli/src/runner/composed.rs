@@ -16,7 +16,9 @@ use systemprompt_traits::BoxedSource;
 
 use super::dispatch::Invocation;
 use super::{interrupt, run_with};
-use crate::kernel::{CommandOwner, CommandRegistry, RegistryError, kernel_commands};
+use crate::kernel::{
+    CommandOwner, CommandRegistry, RegistryError, ResolvedCommand, kernel_commands,
+};
 
 /// The admission the facade hands the CLI: run once, against the loaded
 /// profile.
@@ -61,6 +63,18 @@ where
     }
 }
 
+pub fn refuse_disabled(resolved: &ResolvedCommand, profile: &Profile) -> Result<(), CliRunError> {
+    match &resolved.owner {
+        CommandOwner::Member(owner) if profile.extensions.is_disabled(owner) => {
+            Err(CliRunError::CommandDisabled {
+                path: resolved.path.clone(),
+                owner: owner.clone(),
+            })
+        },
+        _ => Ok(()),
+    }
+}
+
 pub(super) fn admit_for(
     invocation: &Invocation,
     profile: Option<&systemprompt_config::LoadedProfile>,
@@ -69,15 +83,8 @@ pub(super) fn admit_for(
     let Some(profile) = profile.map(systemprompt_config::LoadedProfile::profile) else {
         return Ok(None);
     };
-    if let Some(resolved) = invocation.resolved()
-        && let CommandOwner::Member(owner) = &resolved.owner
-        && profile.extensions.is_disabled(owner)
-    {
-        return Err(CliRunError::CommandDisabled {
-            path: resolved.path.clone(),
-            owner: owner.clone(),
-        }
-        .into());
+    if let Some(resolved) = invocation.resolved() {
+        refuse_disabled(resolved, profile)?;
     }
     let admitted = admit(profile).map_err(CliRunError::Admit)?;
     Ok(Some(Arc::new(admitted)))

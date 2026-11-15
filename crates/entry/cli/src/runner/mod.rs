@@ -35,7 +35,7 @@ use systemprompt_runtime::DatabaseContext;
 
 use crate::context::CommandContext;
 use systemprompt_extension::cli::{CliConfig, CommandDescriptor, DbUrlRouting, OutputFormat};
-pub use composed::{AdmitFn, CliRunError, run_composed};
+pub use composed::{AdmitFn, CliRunError, refuse_disabled, run_composed};
 use composed::admit_for;
 use crate::env_overrides::EnvOverrides;
 use crate::kernel::{CommandRegistry, ResolveError};

@@ -15,8 +15,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::HashMap;
-
 use clap::{ArgMatches, Command};
 use systemprompt_extension::DeclaredCommands;
 use systemprompt_extension::cli::{CommandDecl, KernelGrant, ParsedCommand};
@@ -191,7 +189,6 @@ fn refuse_duplicates(entries: &[RegistryEntry]) -> Result<(), RegistryError> {
 }
 
 fn recheck_reserved(entries: &[RegistryEntry]) -> Result<(), RegistryError> {
-    let mut holders: HashMap<CommandOwner, CoreId> = HashMap::new();
     for entry in entries {
         let path = entry.decl.path();
         let reserved = RESERVED_CLI_PATHS
@@ -203,15 +200,6 @@ fn recheck_reserved(entries: &[RegistryEntry]) -> Result<(), RegistryError> {
                     path: entry.path_text(),
                     claimant: entry.owner.clone(),
                     owner: reserved.owner,
-                });
-            }
-            if let Some(previous) = holders.insert(entry.owner.clone(), reserved.owner)
-                && previous != reserved.owner
-            {
-                return Err(RegistryError::PrivilegeOwnerMismatch {
-                    path: entry.path_text(),
-                    claimant: entry.owner.clone(),
-                    expected: reserved.owner,
                 });
             }
         }

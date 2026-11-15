@@ -54,6 +54,7 @@ mod recheck;
 
 pub use admitted::{MountedGatewayRoute, gateway_routes, mount_admitted, protection_of};
 pub use error::MountError;
+pub use recheck::recheck;
 pub use kernel_routes::{EnablePredicate, KernelRoutes, gateway_protection, path_under};
 pub use guards::{ClientWritesGuard, ProtectionGuards, SiteAuthGuard};
 
