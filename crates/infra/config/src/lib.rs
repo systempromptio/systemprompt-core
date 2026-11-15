@@ -58,12 +58,11 @@ pub use bootstrap::{
     build_external_provider, build_loaded_secrets_message, decode_master_key,
     decode_previous_signing_keys, decode_seed, diff_secrets, generate_master_key, generate_seed,
     load_secrets_from_path, persist_seed, persist_signing_key_state, process_env_lookup,
-    refresh_interval_for, registered_external_kinds, resolve_source,
+    refresh_interval_for, SecretsSources, resolve_source,
 };
 pub use systemprompt_manifest::profile::ExternalSecretsConfig;
 
 #[doc(hidden)]
-pub use ::inventory as __inventory;
 pub use config_loader::{
     ConfigCredentials, build_from_profile, resolve_instance_id, validate_database_config,
 };

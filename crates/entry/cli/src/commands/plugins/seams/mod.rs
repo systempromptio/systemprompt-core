@@ -50,7 +50,8 @@ use systemprompt_manifest::profile::{AuthzMode, SecretsSource};
 pub use catalog::{LinkedSeam, linked_seams};
 
 use super::types::{SeamRow, SeamStatus};
-use crate::kernel::SeamEntry;
+use crate::kernel::{SeamEntry, named};
+use systemprompt_config::SecretsSources;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
@@ -189,10 +190,21 @@ pub fn evaluate(
 }
 
 #[must_use]
-pub fn execute(args: &SeamsArgs, profile: Option<&Profile>) -> (CommandOutput, bool) {
+pub fn execute(
+    args: &SeamsArgs,
+    profile: Option<&Profile>,
+    secrets: &SecretsSources,
+) -> (CommandOutput, bool) {
     let requirements = profile.map(profile_requirements).unwrap_or_default();
     let disabled = profile.map_or(&[][..], |profile| profile.extensions.disabled.as_slice());
-    let (rows, all_linked) = evaluate(linked_seams(), &requirements, disabled);
+    let mut seams = linked_seams();
+    seams.push(LinkedSeam {
+        name: "secrets_sources",
+        owner: "systemprompt-config",
+        extension: None,
+        entries: named(secrets.kinds()),
+    });
+    let (rows, all_linked) = evaluate(seams, &requirements, disabled);
     let rows: Vec<SeamRow> = rows
         .into_iter()
         .filter(|row| {

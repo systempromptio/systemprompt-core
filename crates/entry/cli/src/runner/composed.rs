@@ -7,6 +7,7 @@ use std::process::ExitCode;
 use std::sync::Arc;
 
 use anyhow::Result;
+use systemprompt_config::SecretsSources;
 use systemprompt_extension::{Admitted, DeclaredCommands};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::Profile;
@@ -39,6 +40,7 @@ pub enum CliRunError {
 pub fn run_composed<A>(
     build: BuildIdentity,
     declared: DeclaredCommands,
+    secrets: SecretsSources,
     admit: A,
 ) -> Result<ExitCode, CliRunError>
 where
@@ -49,7 +51,7 @@ where
         .enable_all()
         .build()
         .map_err(|source| CliRunError::Command(Box::new(source)))?;
-    let outcome = runtime.block_on(Box::pin(run_with(build, registry, Box::new(admit))));
+    let outcome = runtime.block_on(Box::pin(run_with(build, registry, secrets, Box::new(admit))));
     match interrupt::exit_code(outcome) {
         Ok(code) => Ok(code),
         Err(error) => match error.downcast::<CliRunError>() {

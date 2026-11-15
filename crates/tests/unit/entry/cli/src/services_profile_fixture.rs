@@ -185,6 +185,7 @@ pub fn boot_for(tree: &ProfileTree) -> systemprompt_loader::BootContext {
         .expect("fixture profile loads");
     let secrets = systemprompt_config::SecretsService::from_secrets(
         std::sync::Arc::clone(&loaded),
+        systemprompt_config::SecretsSources::default(),
         (*systemprompt_test_fixtures::ensure_test_secrets_bootstrap().get()).clone(),
     );
     systemprompt_loader::BootContext::new(loaded, secrets)

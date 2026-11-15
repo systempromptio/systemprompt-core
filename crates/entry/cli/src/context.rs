@@ -17,7 +17,7 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result, bail};
 use systemprompt_cloud::CloudCredentials;
-use systemprompt_config::{LoadedProfile, SecretsService};
+use systemprompt_config::{LoadedProfile, SecretsService, SecretsSources};
 use systemprompt_database::DbPool;
 use systemprompt_loader::{BootContext, ServicesState};
 use systemprompt_manifest::{Config, Profile};
@@ -48,6 +48,7 @@ pub struct CommandContext {
     build: BuildIdentity,
     pub(crate) admitted: Option<Arc<Admitted>>,
     pub(crate) kernel: Option<Arc<Kernel>>,
+    secrets_sources: SecretsSources,
 }
 
 impl CommandContext {
@@ -70,7 +71,19 @@ impl CommandContext {
             build: BuildIdentity::core(),
             admitted: None,
             kernel: None,
+            secrets_sources: SecretsSources::default(),
         }
+    }
+
+    #[must_use]
+    pub fn with_secrets_sources(mut self, sources: SecretsSources) -> Self {
+        self.secrets_sources = sources;
+        self
+    }
+
+    #[must_use]
+    pub const fn secrets_sources(&self) -> &SecretsSources {
+        &self.secrets_sources
     }
 
     #[must_use]
@@ -202,6 +215,7 @@ impl CommandContext {
             build: BuildIdentity::core(),
             admitted: None,
             kernel: None,
+            secrets_sources: SecretsSources::default(),
         }
     }
 
@@ -224,6 +238,7 @@ impl CommandContext {
             build: BuildIdentity::core(),
             admitted: None,
             kernel: None,
+            secrets_sources: SecretsSources::default(),
         }
     }
 

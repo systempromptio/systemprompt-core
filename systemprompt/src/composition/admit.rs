@@ -49,7 +49,7 @@ pub(super) fn apply_removals(members: Vec<Member>, removed: &[TypeId]) -> Result
 #[cfg(feature = "config")]
 pub(super) fn check_secrets(
     secrets: Vec<SecretsSourceDecl>,
-) -> Result<Vec<(SecretsKind, systemprompt_config::SecretsSourceFactory)>, CompositionError> {
+) -> Result<systemprompt_config::SecretsSources, CompositionError> {
     let mut seen: Vec<&'static str> = Vec::new();
     let mut out = Vec::with_capacity(secrets.len());
     for decl in secrets {
@@ -67,9 +67,12 @@ pub(super) fn check_secrets(
             return Err(CompositionError::DuplicateSecretsKind(name));
         }
         seen.push(name);
-        out.push((decl.kind, decl.factory));
+        out.push(systemprompt_config::SecretsSourceRegistration {
+            kind: name,
+            factory: decl.factory,
+        });
     }
-    Ok(out)
+    Ok(systemprompt_config::SecretsSources::new(out))
 }
 
 pub(super) fn check_member_dependencies(members: &[DeclaredMember]) -> Result<(), CompositionError> {

@@ -278,9 +278,11 @@ impl Composition {
     pub fn run(self) -> Result<std::process::ExitCode, RunError> {
         let declared = self.declare()?;
         let commands = declared.commands();
+        let secrets = declared.secrets_sources();
         systemprompt_cli::run_composed(
             systemprompt_models::BuildIdentity::core(),
             commands,
+            secrets,
             move |profile| {
                 declared
                     .admit(profile)

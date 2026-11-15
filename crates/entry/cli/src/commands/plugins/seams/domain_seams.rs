@@ -11,13 +11,6 @@ use systemprompt_mcp::services::ui_renderer;
 use crate::kernel::{LinkedSeamRegistration, named, prioritized, unnamed};
 
 crate::register_linked_seam!(LinkedSeamRegistration {
-    name: "secrets_sources",
-    owner: "systemprompt-config",
-    extension: None,
-    entries: || named(systemprompt_config::registered_external_kinds()),
-});
-
-crate::register_linked_seam!(LinkedSeamRegistration {
     name: "authz_hooks",
     owner: "systemprompt-governance",
     extension: Some("authz"),

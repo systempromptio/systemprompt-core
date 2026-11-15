@@ -169,8 +169,11 @@ pub(super) async fn init_credentials_gracefully(
     }
 }
 
-pub(super) async fn init_secrets(profile: &Arc<LoadedProfile>) -> Result<BootContext> {
-    crate::boot::load_boot(profile).await
+pub(super) async fn init_secrets(
+    profile: &Arc<LoadedProfile>,
+    secrets: &systemprompt_config::SecretsSources,
+) -> Result<BootContext> {
+    crate::boot::load_boot(profile, secrets.clone()).await
 }
 
 pub(super) async fn init_paths(

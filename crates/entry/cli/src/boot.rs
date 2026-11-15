@@ -11,7 +11,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use systemprompt_config::{LoadedProfile, SecretsService};
+use systemprompt_config::{LoadedProfile, SecretsService, SecretsSources};
 use systemprompt_loader::BootContext;
 
 pub fn load_profile(path: &Path) -> Result<Arc<LoadedProfile>> {
@@ -19,13 +19,16 @@ pub fn load_profile(path: &Path) -> Result<Arc<LoadedProfile>> {
         .with_context(|| format!("Profile initialization failed from: {}", path.display()))
 }
 
-pub async fn load_boot(profile: &Arc<LoadedProfile>) -> Result<BootContext> {
-    let secrets = SecretsService::load(Arc::clone(profile))
+pub async fn load_boot(
+    profile: &Arc<LoadedProfile>,
+    sources: SecretsSources,
+) -> Result<BootContext> {
+    let secrets = SecretsService::load(Arc::clone(profile), sources)
         .await
         .context("Secrets initialization failed")?;
     Ok(BootContext::new(Arc::clone(profile), secrets))
 }
 
-pub async fn load_boot_from_path(path: &Path) -> Result<BootContext> {
-    load_boot(&load_profile(path)?).await
+pub async fn load_boot_from_path(path: &Path, sources: SecretsSources) -> Result<BootContext> {
+    load_boot(&load_profile(path)?, sources).await
 }

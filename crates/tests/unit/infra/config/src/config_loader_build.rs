@@ -26,7 +26,7 @@ impl Booted {
 
 async fn boot(fx: &fixture::Fixture) -> Booted {
     let profile = LoadedProfile::from_path(&fx.profile_path).unwrap();
-    let secrets = SecretsService::load(profile.clone()).await.unwrap();
+    let secrets = SecretsService::load(profile.clone(), systemprompt_config::SecretsSources::default()).await.unwrap();
     Booted { profile, secrets }
 }
 

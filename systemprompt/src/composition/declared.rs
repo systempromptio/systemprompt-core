@@ -33,7 +33,7 @@ use systemprompt_extension::cli::KernelGrant;
 use super::admit::{check_providers, disabled_members};
 #[cfg(feature = "api")]
 use super::routes::{admit_gateway_route, admit_route_set, check_gateway_overlaps, check_route_conflicts};
-use super::{CompositionError, SecretsKind, Standing};
+use super::{CompositionError, Standing};
 
 pub(super) struct DeclaredMember {
     pub(super) metadata: systemprompt_extension::ExtensionMetadata,
@@ -49,7 +49,7 @@ pub struct Declared {
     #[cfg(feature = "cli")]
     pub(super) commands: Vec<AdmittedCommand>,
     #[cfg(feature = "config")]
-    pub(super) secrets: Vec<(SecretsKind, systemprompt_config::SecretsSourceFactory)>,
+    pub(super) secrets: systemprompt_config::SecretsSources,
 }
 
 impl std::fmt::Debug for Declared {
@@ -66,8 +66,8 @@ impl std::fmt::Debug for Declared {
 impl Declared {
     #[cfg(feature = "config")]
     #[must_use]
-    pub fn secrets_sources(&self) -> &[(SecretsKind, systemprompt_config::SecretsSourceFactory)] {
-        &self.secrets
+    pub fn secrets_sources(&self) -> systemprompt_config::SecretsSources {
+        self.secrets.clone()
     }
 
     #[must_use]

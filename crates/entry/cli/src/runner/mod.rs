@@ -29,6 +29,7 @@ use anyhow::{Context, Result, bail};
 use systemprompt_cloud::CloudCredentials;
 use systemprompt_loader::subprocess::{self, ApiServerStamp, ForegroundChildren};
 use systemprompt_logging::OutputState;
+use systemprompt_config::SecretsSources;
 use systemprompt_models::BuildIdentity;
 use systemprompt_runtime::DatabaseContext;
 
@@ -42,7 +43,10 @@ use dispatch::{Invocation, Selected, dispatch_command};
 
 pub(super) async fn run_with(
     build: BuildIdentity,
-   , registry: CommandRegistry, admit: AdmitFn) -> Result<()> {
+    registry: CommandRegistry,
+    secrets: SecretsSources,
+    admit: AdmitFn,
+) -> Result<()> {
     tls::install_crypto_provider();
     let output = OutputState::new();
     let root = args::command(&registry)?;
@@ -65,6 +69,7 @@ pub(super) async fn run_with(
         shield: shield.clone(),
         children: children.clone(),
         build,
+        secrets,
         admit,
     };
     let outcome = if invocation.descriptor().owns_signals() {
@@ -123,8 +128,15 @@ async fn run_inner(
     let mut boot = None;
     if desc.profile() {
         let booted =
-            profile_routing::bootstrap_profile(&invocation.cli, &desc, &cli_config, &env, &confirm)
-                .await?;
+            profile_routing::bootstrap_profile(
+                &invocation.cli,
+                &desc,
+                &cli_config,
+                &env,
+                &confirm,
+                &guards.secrets,
+            )
+            .await?;
         let loaded = booted.credentials;
         services = booted.services;
         profile = booted.profile;
@@ -156,6 +168,7 @@ async fn run_inner(
         shield,
         children,
         build,
+        secrets,
         admit,
     } = guards;
     let admitted = admit_for(&invocation, profile.as_deref(), admit)?;
@@ -163,6 +176,7 @@ async fn run_inner(
         .with_interrupt_shield(shield)
         .with_foreground_children(children)
         .with_build_identity(build)
+        .with_secrets_sources(secrets)
         .with_admitted(admitted)
         .with_cloud_credentials(credentials)
         .with_database_url_override(database_url_override)
@@ -231,6 +245,7 @@ struct RunGuards {
     shield: interrupt::InterruptShield,
     children: ForegroundChildren,
     build: BuildIdentity,
+    secrets: SecretsSources,
     admit: AdmitFn,
 }
 
@@ -240,6 +255,7 @@ impl RunGuards {
         ctx.with_interrupt_shield(self.shield)
             .with_foreground_children(self.children)
             .with_build_identity(self.build)
+            .with_secrets_sources(self.secrets)
     }
 }
 

@@ -18,7 +18,7 @@ async fn init_loads_secrets_from_file_with_seed() {
     );
     let profile = init_profile(&fx);
 
-    let service = SecretsService::load(profile).await.unwrap();
+    let service = SecretsService::load(profile, systemprompt_config::SecretsSources::default()).await.unwrap();
     let secrets = service.get();
 
     assert_eq!(secrets.oauth_at_rest_pepper, fixture::PEPPER);
@@ -38,7 +38,7 @@ async fn init_errors_when_profile_has_no_secrets_section() {
     let fx = fixture::write_tree("", None);
     let profile = init_profile(&fx);
 
-    let err = SecretsService::load(profile).await.unwrap_err();
+    let err = SecretsService::load(profile, systemprompt_config::SecretsSources::default()).await.unwrap_err();
 
     assert!(matches!(
         err,
@@ -51,7 +51,7 @@ async fn init_errors_when_secrets_file_missing_strict() {
     let fx = fixture::write_tree(fixture::FILE_SECRETS, None);
     let profile = init_profile(&fx);
 
-    let err = SecretsService::load(profile).await.unwrap_err();
+    let err = SecretsService::load(profile, systemprompt_config::SecretsSources::default()).await.unwrap_err();
 
     match err {
         ConfigError::Secrets(SecretsBootstrapError::FileNotFound { path }) => {
@@ -67,7 +67,7 @@ async fn init_errors_when_secrets_file_missing_warn_mode() {
     let fx = fixture::write_tree(section, None);
     let profile = init_profile(&fx);
 
-    let err = SecretsService::load(profile).await.unwrap_err();
+    let err = SecretsService::load(profile, systemprompt_config::SecretsSources::default()).await.unwrap_err();
 
     assert!(matches!(
         err,
@@ -81,7 +81,7 @@ async fn init_errors_when_secrets_file_missing_skip_mode() {
     let fx = fixture::write_tree(section, None);
     let profile = init_profile(&fx);
 
-    let err = SecretsService::load(profile).await.unwrap_err();
+    let err = SecretsService::load(profile, systemprompt_config::SecretsSources::default()).await.unwrap_err();
 
     assert!(matches!(
         err,
@@ -94,7 +94,7 @@ async fn init_errors_on_invalid_secrets_json() {
     let fx = fixture::write_tree(fixture::FILE_SECRETS, Some("not json"));
     let profile = init_profile(&fx);
 
-    let err = SecretsService::load(profile).await.unwrap_err();
+    let err = SecretsService::load(profile, systemprompt_config::SecretsSources::default()).await.unwrap_err();
 
     match err {
         ConfigError::Secrets(SecretsBootstrapError::InvalidSecretsFile(source)) => {
@@ -117,7 +117,7 @@ async fn init_errors_on_short_pepper() {
     let fx = fixture::write_tree(fixture::FILE_SECRETS, Some(&body));
     let profile = init_profile(&fx);
 
-    let err = SecretsService::load(profile).await.unwrap_err();
+    let err = SecretsService::load(profile, systemprompt_config::SecretsSources::default()).await.unwrap_err();
 
     match err {
         ConfigError::Secrets(SecretsBootstrapError::InvalidSecretsFile(source)) => {
@@ -136,7 +136,7 @@ async fn init_errors_on_invalid_manifest_seed() {
     );
     let profile = init_profile(&fx);
 
-    let err = SecretsService::load(profile).await.unwrap_err();
+    let err = SecretsService::load(profile, systemprompt_config::SecretsSources::default()).await.unwrap_err();
 
     match err {
         ConfigError::Secrets(SecretsBootstrapError::ManifestSeedInvalid(source)) => {
@@ -152,7 +152,7 @@ async fn init_errors_when_seed_missing() {
     let fx = fixture::write_tree(fixture::FILE_SECRETS, Some(&fixture::secrets_json(None)));
     let profile = init_profile(&fx);
 
-    let err = SecretsService::load(profile).await.unwrap_err();
+    let err = SecretsService::load(profile, systemprompt_config::SecretsSources::default()).await.unwrap_err();
 
     assert!(matches!(
         err,
@@ -176,7 +176,7 @@ async fn init_errors_when_signing_key_pem_missing_on_deployment_host() {
     fixture::set_env("SYSTEMPROMPT_DEPLOYMENT_HOST", "node-a");
     fixture::remove_env("OAUTH_AT_REST_PEPPER");
 
-    let err = SecretsService::load(profile).await.unwrap_err();
+    let err = SecretsService::load(profile, systemprompt_config::SecretsSources::default()).await.unwrap_err();
     fixture::remove_env("SYSTEMPROMPT_DEPLOYMENT_HOST");
 
     assert!(matches!(
@@ -193,7 +193,7 @@ async fn init_accepts_missing_signing_key_pem_on_local_profile() {
     );
     let profile = init_profile(&fx);
 
-    let service = SecretsService::load(profile).await.unwrap();
+    let service = SecretsService::load(profile, systemprompt_config::SecretsSources::default()).await.unwrap();
     let secrets = service.get();
 
     assert!(secrets.signing_key_pem.is_none());
@@ -214,7 +214,7 @@ async fn signing_key_pem_round_trips_and_rejects_bad_encodings() {
     );
     let fx = fixture::write_tree(fixture::FILE_SECRETS, Some(&body));
     let profile = init_profile(&fx);
-    let service = SecretsService::load(profile.clone()).await.unwrap();
+    let service = SecretsService::load(profile.clone(), systemprompt_config::SecretsSources::default()).await.unwrap();
 
     assert_eq!(service.signing_key_pem().unwrap().as_deref(), Some(pem));
 }
@@ -232,7 +232,7 @@ async fn signing_key_pem_invalid_base64_errors() {
     );
     let fx = fixture::write_tree(fixture::FILE_SECRETS, Some(&body));
     let profile = init_profile(&fx);
-    let service = SecretsService::load(profile.clone()).await.unwrap();
+    let service = SecretsService::load(profile.clone(), systemprompt_config::SecretsSources::default()).await.unwrap();
 
     let err = service.signing_key_pem().unwrap_err();
     assert!(matches!(
@@ -255,7 +255,7 @@ async fn signing_key_pem_invalid_utf8_errors() {
     );
     let fx = fixture::write_tree(fixture::FILE_SECRETS, Some(&body));
     let profile = init_profile(&fx);
-    let service = SecretsService::load(profile.clone()).await.unwrap();
+    let service = SecretsService::load(profile.clone(), systemprompt_config::SecretsSources::default()).await.unwrap();
 
     let err = service.signing_key_pem().unwrap_err();
     match err {
@@ -274,7 +274,7 @@ async fn signing_key_pem_absent_returns_none() {
         Some(&fixture::secrets_json(Some(fixture::SEED))),
     );
     let profile = init_profile(&fx);
-    let service = SecretsService::load(profile.clone()).await.unwrap();
+    let service = SecretsService::load(profile.clone(), systemprompt_config::SecretsSources::default()).await.unwrap();
 
     assert_eq!(service.signing_key_pem().unwrap(), None);
 }
@@ -291,7 +291,7 @@ async fn rotating_twice_yields_a_different_seed_each_time() {
         Some(&fixture::secrets_json(Some(fixture::SEED))),
     );
     let profile = init_profile(&fx);
-    SecretsService::load(profile.clone()).await.unwrap();
+    SecretsService::load(profile.clone(), systemprompt_config::SecretsSources::default()).await.unwrap();
 
     let first = SecretsService::rotate_manifest_signing_seed(&profile).unwrap();
     let second = SecretsService::rotate_manifest_signing_seed(&profile).unwrap();
@@ -317,7 +317,7 @@ async fn rotate_manifest_signing_seed_persists_new_seed() {
         Some(&fixture::secrets_json(Some(fixture::SEED))),
     );
     let profile = init_profile(&fx);
-    SecretsService::load(profile.clone()).await.unwrap();
+    SecretsService::load(profile.clone(), systemprompt_config::SecretsSources::default()).await.unwrap();
 
     let rotated = SecretsService::rotate_manifest_signing_seed(&profile).unwrap();
 
@@ -343,7 +343,7 @@ async fn init_errors_when_encryption_master_key_missing() {
     );
     let profile = init_profile(&fx);
 
-    let err = SecretsService::load(profile).await.unwrap_err();
+    let err = SecretsService::load(profile, systemprompt_config::SecretsSources::default()).await.unwrap_err();
 
     assert!(matches!(
         err,
@@ -363,7 +363,7 @@ async fn init_errors_when_encryption_master_key_not_hex() {
     );
     let profile = init_profile(&fx);
 
-    let err = SecretsService::load(profile).await.unwrap_err();
+    let err = SecretsService::load(profile, systemprompt_config::SecretsSources::default()).await.unwrap_err();
 
     match err {
         ConfigError::Secrets(SecretsBootstrapError::EncryptionMasterKeyInvalid(source)) => {
@@ -385,7 +385,7 @@ async fn init_errors_when_encryption_master_key_wrong_length() {
     );
     let profile = init_profile(&fx);
 
-    let err = SecretsService::load(profile).await.unwrap_err();
+    let err = SecretsService::load(profile, systemprompt_config::SecretsSources::default()).await.unwrap_err();
 
     match err {
         ConfigError::Secrets(SecretsBootstrapError::EncryptionMasterKeyInvalid(source)) => {

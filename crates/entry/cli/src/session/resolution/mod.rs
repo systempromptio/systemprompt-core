@@ -63,7 +63,7 @@ async fn boot_for_profile(profile_path: &Path, ctx: &CommandContext) -> Result<B
     {
         return Ok(boot.clone());
     }
-    crate::boot::load_boot_from_path(profile_path).await
+    crate::boot::load_boot_from_path(profile_path, ctx.secrets_sources().clone()).await
 }
 
 async fn get_session_for_loaded_profile(
