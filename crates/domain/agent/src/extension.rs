@@ -1,10 +1,11 @@
-//! `Extension` registration for the agent domain: schemas, migrations,
-//! dependencies.
+//! [`AgentExtension`]: contributes the agent tables, migrations and jobs.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_extension::prelude::*;
+
+use crate::jobs::{CleanupEmptyContextsJob, UserContextCountersRollupJob};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AgentExtension;
@@ -18,28 +19,27 @@ impl Extension for AgentExtension {
         }
     }
 
-    fn schemas(&self) -> Vec<SchemaDefinition> {
-        let mut schemas = conversation_schemas();
-        schemas.extend(artifact_schemas());
-        schemas.extend(context_schemas());
-        schemas.extend(task_tracking_schemas());
-        schemas.extend([
-            SchemaDefinition::sql_only(include_str!("../schema/user_context_counters.sql")),
-            SchemaDefinition::sql_only(include_str!("../schema/trace_facts_agent.sql")),
-        ]);
-        schemas
-    }
-
-    fn dependencies(&self) -> Vec<&'static str> {
-        vec!["users", "oauth", "mcp", "ai"]
-    }
-
-    fn migrations(&self) -> Vec<Migration> {
-        extension_migrations!()
-    }
-
-    fn cross_extension_tables(&self) -> Vec<&'static str> {
-        vec!["ai_requests", "services"]
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        for schema in conversation_schemas()
+            .into_iter()
+            .chain(artifact_schemas())
+            .chain(context_schemas())
+            .chain(task_tracking_schemas())
+        {
+            c.schema(schema);
+        }
+        c.schema(SchemaDefinition::sql_only(include_str!(
+            "../schema/user_context_counters.sql"
+        )))
+        .schema(SchemaDefinition::sql_only(include_str!(
+            "../schema/trace_facts_agent.sql"
+        )))
+        .migrations(extension_migrations!())
+        .cross_table("ai_requests")
+        .cross_table("services")
+        .job(CleanupEmptyContextsJob)
+        .job(UserContextCountersRollupJob);
+        Ok(())
     }
 }
 
@@ -117,5 +117,3 @@ fn artifact_schemas() -> Vec<SchemaDefinition> {
         .with_required_columns(vec!["id".into(), "artifact_id".into(), "part_kind".into()]),
     ]
 }
-
-register_extension!(AgentExtension);
