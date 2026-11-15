@@ -23,9 +23,9 @@ mod credentials_resolve;
 #[cfg(test)]
 mod engines_injected;
 #[cfg(test)]
-mod gateway_slots;
-#[cfg(test)]
 mod failover;
+#[cfg(test)]
+mod gateway_slots;
 #[cfg(test)]
 mod google_credentials;
 #[cfg(test)]

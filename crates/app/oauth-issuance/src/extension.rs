@@ -12,8 +12,7 @@ use systemprompt_extension::prelude::*;
 
 use crate::contract::SsoSlot;
 use crate::identity::IdentityPlane;
-use crate::sso::SsoHookContext;
-use crate::sso::oidc;
+use crate::sso::{SsoHookContext, oidc};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct IdentityExtension;

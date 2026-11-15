@@ -58,9 +58,14 @@ async fn config_apply_writes_governance_and_gateway_policies_once() {
     let second = service.apply(&options).await.expect("second apply");
     assert_eq!(second.applied(), 0, "{second:?}");
 
-    let engine = GovernanceEngine::load(pool.pool().as_ref(), &systemprompt_governance::policy::PolicyCatalog::builtin(), None, Default::default())
-        .await
-        .expect("engine");
+    let engine = GovernanceEngine::load(
+        pool.pool().as_ref(),
+        &systemprompt_governance::policy::PolicyCatalog::builtin(),
+        None,
+        Default::default(),
+    )
+    .await
+    .expect("engine");
     let (cfg, _) = engine.policies().next().expect("first policy");
     assert_eq!(cfg.id.as_str(), "scope_check");
     assert!(!cfg.mode.is_warn());

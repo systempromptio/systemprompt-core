@@ -2,9 +2,9 @@ use std::str::FromStr;
 
 use serde_json::json;
 use systemprompt_governance::authz::types::{Decision, MatchedBy};
-use systemprompt_governance::policy::McpToolInput;
 use systemprompt_governance::policy::{
-    AccessScope, AgentScope, GovernancePolicy, PolicyContext, RateLimitWindow, SecretLocation,
+    AccessScope, AgentScope, GovernancePolicy, McpToolInput, PolicyContext, RateLimitWindow,
+    SecretLocation,
 };
 use systemprompt_identifiers::{PolicyId, UserId};
 

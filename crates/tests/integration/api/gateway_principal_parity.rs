@@ -13,9 +13,8 @@ use systemprompt_api::routes::gateway::messages::extract::authz::{
 };
 use systemprompt_governance::authz::types::{Access, EntityKind, RuleType};
 use systemprompt_governance::authz::{
-    AccessControlRepository, ChainSources, NullAuditSink, RuleBasedHook,
-    SharedAuthzHook, SubjectAttributeProvider, SubjectDimension, SubjectProviderSet,
-    UpsertRuleParams,
+    AccessControlRepository, ChainSources, NullAuditSink, RuleBasedHook, SharedAuthzHook,
+    SubjectAttributeProvider, SubjectDimension, SubjectProviderSet, UpsertRuleParams,
 };
 use systemprompt_governance::policy::AccessScope;
 use systemprompt_identifiers::{ContextId, ProviderId, RouteId, UserId};
@@ -41,7 +40,10 @@ impl SubjectAttributeProvider for GroupProvider {
         }
     }
 
-    async fn values_for(&self, _user_id: &UserId) -> Result<Vec<String>, systemprompt_governance::authz::SubjectAttributeError> {
+    async fn values_for(
+        &self,
+        _user_id: &UserId,
+    ) -> Result<Vec<String>, systemprompt_governance::authz::SubjectAttributeError> {
         Ok(vec!["platform".to_owned(), "infra".to_owned()])
     }
 }
@@ -156,12 +158,13 @@ async fn jwt_and_pat_for_one_user_get_the_same_decision_on_every_role_gated_rout
     ));
 
     let extractor = super::gateway_api_key_session_binding::jwt_extractor(&ctx);
-    let providers = SubjectProviderSet::new(vec![systemprompt_governance::authz::SubjectProviderEntry {
-        owner: systemprompt_identifiers::ExtensionId::new("test"),
-        standing: systemprompt_extension::StandingTag::Install,
-        provider: Arc::new(GroupProvider),
-    }])
-    .expect("subject provider set builds");
+    let providers =
+        SubjectProviderSet::new(vec![systemprompt_governance::authz::SubjectProviderEntry {
+            owner: systemprompt_identifiers::ExtensionId::new("test"),
+            standing: systemprompt_extension::StandingTag::Install,
+            provider: Arc::new(GroupProvider),
+        }])
+        .expect("subject provider set builds");
     let jwt = sign_in(&ctx, &extractor, cred.jwt.as_str(), None, &providers)
         .await
         .expect("jwt authenticates");

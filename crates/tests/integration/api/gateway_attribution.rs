@@ -48,7 +48,10 @@ impl SubjectAttributeProvider for ProjectProvider {
         }
     }
 
-    async fn values_for(&self, user_id: &UserId) -> Result<Vec<String>, systemprompt_governance::authz::SubjectAttributeError> {
+    async fn values_for(
+        &self,
+        user_id: &UserId,
+    ) -> Result<Vec<String>, systemprompt_governance::authz::SubjectAttributeError> {
         if user_id.as_str().starts_with(SCOPED_USER_PREFIX) {
             return Ok(vec!["p-primary".to_owned(), "p-other".to_owned()]);
         }

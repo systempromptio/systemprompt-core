@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use systemprompt_identifiers::{SsoAssertionId, UserId};
 use systemprompt_extension::{FactoryError, Resolved};
+use systemprompt_identifiers::{SsoAssertionId, UserId};
 use systemprompt_oauth_issuance::contract::SsoBuilder;
 use systemprompt_oauth_issuance::sso::RoleResolver;
 use systemprompt_traits::sso::{

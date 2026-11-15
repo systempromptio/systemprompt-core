@@ -3,9 +3,10 @@
 
 use serde_json::json;
 use systemprompt_governance::authz::types::{Decision, DenyReason};
-use systemprompt_governance::policy::{GovernedInput, GovernedTarget, McpToolInput};
-use systemprompt_governance::policy::{AccessScope, AgentScope, PolicyContext};
-use systemprompt_governance::policy::{GovernanceConfig, GovernanceEngine};
+use systemprompt_governance::policy::{
+    AccessScope, AgentScope, GovernanceConfig, GovernanceEngine, GovernedInput, GovernedTarget,
+    McpToolInput, PolicyContext,
+};
 use systemprompt_identifiers::{CallId, McpToolName, SessionId, UserId};
 
 const YAML: &str = r#"

@@ -25,8 +25,8 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
-use systemprompt_extension::reserved::BUILTIN_GATEWAY_PREFIXES;
 use systemprompt_api::services::middleware::path_under;
+use systemprompt_extension::reserved::BUILTIN_GATEWAY_PREFIXES;
 use systemprompt_models::modules::ApiPaths;
 
 use super::inventory::{Source, each_call, enclosing_fn, fn_body, sources, split_first_arg};

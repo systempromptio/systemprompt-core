@@ -1,7 +1,8 @@
 use async_trait::async_trait;
 use systemprompt_governance::authz::subject::{
-    ROLE_PRECEDENCE, SharedSubjectAttributeProvider, SubjectAttributeError, SubjectAttributeProvider, SubjectAttributes,
-    SubjectDimension, dimensions_of, gather_subject_attributes,
+    ROLE_PRECEDENCE, SharedSubjectAttributeProvider, SubjectAttributeError,
+    SubjectAttributeProvider, SubjectAttributes, SubjectDimension, dimensions_of,
+    gather_subject_attributes,
 };
 use systemprompt_governance::authz::types::RuleType;
 use systemprompt_identifiers::UserId;
@@ -197,14 +198,14 @@ async fn a_provider_that_cannot_answer_fails_the_gather_rather_than_yielding_not
         .await
         .expect_err("a provider that cannot reach its data must not read as no attributes");
 
-    let chain: Vec<String> = std::iter::successors(
-        Some(&error as &dyn std::error::Error),
-        |e| e.source(),
-    )
-    .map(ToString::to_string)
-    .collect();
+    let chain: Vec<String> =
+        std::iter::successors(Some(&error as &dyn std::error::Error), |e| e.source())
+            .map(ToString::to_string)
+            .collect();
     assert!(
-        chain.iter().any(|m| m.contains("department lookup unavailable")),
+        chain
+            .iter()
+            .any(|m| m.contains("department lookup unavailable")),
         "{chain:?}"
     );
 }

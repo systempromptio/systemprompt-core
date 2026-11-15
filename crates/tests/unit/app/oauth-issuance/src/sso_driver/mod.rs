@@ -15,9 +15,9 @@ mod stores;
 use std::sync::Arc;
 
 use systemprompt_database::DbPool;
-use systemprompt_oauth::services::SessionCreationService;
 use systemprompt_extension::{Slot, SlotEntry, SlotError, StandingTag};
 use systemprompt_identifiers::ExtensionId;
+use systemprompt_oauth::services::SessionCreationService;
 use systemprompt_oauth_issuance::contract::{SsoBuilder, SsoProviders, SsoSlot};
 use systemprompt_oauth_issuance::sso::{FinishOutcome, SsoCallback, SsoDriver};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_config, test_db_pool};

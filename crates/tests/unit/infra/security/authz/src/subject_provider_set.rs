@@ -30,9 +30,9 @@ impl SubjectAttributeProvider for Fixed {
     }
 
     async fn values_for(&self, _user_id: &UserId) -> Result<Vec<String>, SubjectAttributeError> {
-        self.values
-            .clone()
-            .ok_or_else(|| SubjectAttributeError::Lookup(format!("{} lookup down", self.slug).into()))
+        self.values.clone().ok_or_else(|| {
+            SubjectAttributeError::Lookup(format!("{} lookup down", self.slug).into())
+        })
     }
 
     async fn known_values(&self) -> Result<Option<Vec<String>>, SubjectAttributeError> {
@@ -118,7 +118,10 @@ async fn gather_collects_every_provider() {
 async fn gather_propagates_provider_error() {
     let set = set_of(vec![broken("department")]);
     let err = set.gather(&user()).await.expect_err("provider failure");
-    assert!(matches!(err, AuthzError::Subject(SubjectAttributeError::Lookup(_))));
+    assert!(matches!(
+        err,
+        AuthzError::Subject(SubjectAttributeError::Lookup(_))
+    ));
 }
 
 #[tokio::test]
@@ -165,8 +168,7 @@ async fn values_for_wraps_provider_failure() {
 
 #[tokio::test]
 async fn resolve_all_returns_each_dimension() {
-    let set =
-        set_of(vec![ok("department", &["eng"]), ok("site", &["lon"])]);
+    let set = set_of(vec![ok("department", &["eng"]), ok("site", &["lon"])]);
     let attrs = set.resolve_all(&user()).await.expect("resolve");
     assert_eq!(attrs.values(&dim("department").rule_type), ["eng"]);
     assert_eq!(attrs.values(&dim("site").rule_type), ["lon"]);

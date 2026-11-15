@@ -797,7 +797,9 @@ pub fn fixture_kernel(
     systemprompt_runtime::Kernel::new(database, systemprompt_traits::BackgroundTasks::new(), seed)
 }
 
-pub fn offline_kernel(seed: systemprompt_extension::prelude::Dependencies) -> systemprompt_runtime::Kernel {
+pub fn offline_kernel(
+    seed: systemprompt_extension::prelude::Dependencies,
+) -> systemprompt_runtime::Kernel {
     let pool: DbPool = Arc::new(systemprompt_database::Database::from_pools(
         crate::db::lazy_pg_pool(),
         None,

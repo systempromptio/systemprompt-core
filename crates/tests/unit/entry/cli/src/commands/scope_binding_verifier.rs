@@ -4,11 +4,11 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use std::sync::Arc;
-use systemprompt_governance::authz::{
-    RuleType, ScopeBindingError, SubjectAttributeError, SubjectAttributeProvider,
-    SubjectDimension, SubjectProviderEntry, SubjectProviderSet,
-};
 use systemprompt_extension::StandingTag;
+use systemprompt_governance::authz::{
+    RuleType, ScopeBindingError, SubjectAttributeError, SubjectAttributeProvider, SubjectDimension,
+    SubjectProviderEntry, SubjectProviderSet,
+};
 use systemprompt_identifiers::{ExtensionId, ScopeDimension, UserId};
 use systemprompt_models::attribution::ScopeBinding;
 

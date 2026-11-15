@@ -113,8 +113,16 @@ fn a_conflict_names_the_core_owner_first_whatever_the_order() {
 #[test]
 fn distinct_dimensions_build_core_first() {
     let set = SubjectProviderSet::new(vec![
-        entry("install", StandingTag::Install, RuleType::extension_static("site")),
-        entry("core", StandingTag::Core, RuleType::extension_static("traffic")),
+        entry(
+            "install",
+            StandingTag::Install,
+            RuleType::extension_static("site"),
+        ),
+        entry(
+            "core",
+            StandingTag::Core,
+            RuleType::extension_static("traffic"),
+        ),
     ])
     .expect("distinct dimensions build");
     let order: Vec<String> = set

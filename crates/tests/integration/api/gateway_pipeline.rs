@@ -35,8 +35,7 @@ use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use super::common::setup_ctx;
-use systemprompt_governance::policy::AccessScope;
-use systemprompt_governance::policy::{GovernanceConfig, GovernanceEngine};
+use systemprompt_governance::policy::{AccessScope, GovernanceConfig, GovernanceEngine};
 use systemprompt_models::origin::{
     ClientAttestation, ClientEvidence, ClientKind, InboundWireProtocol, RequestOrigin,
 };

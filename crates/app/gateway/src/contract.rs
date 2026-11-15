@@ -166,7 +166,11 @@ impl std::fmt::Debug for SafetyScannerBuilder {
         f.debug_struct("SafetyScannerBuilder")
             .field(
                 "scanners",
-                &self.scanners.iter().map(|(name, _)| *name).collect::<Vec<_>>(),
+                &self
+                    .scanners
+                    .iter()
+                    .map(|(name, _)| *name)
+                    .collect::<Vec<_>>(),
             )
             .finish()
     }
@@ -225,7 +229,11 @@ impl std::fmt::Debug for OutboundBuilder {
         f.debug_struct("OutboundBuilder")
             .field(
                 "adapters",
-                &self.adapters.iter().map(|(tag, _)| *tag).collect::<Vec<_>>(),
+                &self
+                    .adapters
+                    .iter()
+                    .map(|(tag, _)| *tag)
+                    .collect::<Vec<_>>(),
             )
             .finish()
     }

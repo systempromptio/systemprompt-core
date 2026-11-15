@@ -28,8 +28,8 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use super::common::setup_ctx;
 use super::gateway_pipeline::{
-    MODEL, PROVIDER, engines_with_scanners, gateway_config, gw_repos, inputs_with, install_provider_api_key,
-    provider_registry,
+    MODEL, PROVIDER, engines_with_scanners, gateway_config, gw_repos, inputs_with,
+    install_provider_api_key, provider_registry,
 };
 
 const DLP: &str = "test_sent_bytes_dlp";

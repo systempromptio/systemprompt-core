@@ -1,9 +1,8 @@
 use systemprompt_governance::authz::types::{
     Decision, DenyReason, EntityRef, MatchedBy, PendingReason,
 };
-use systemprompt_governance::policy::AccessScope;
 use systemprompt_governance::policy::{
-    AuditOrigin, AuditTarget, ChainEntryOutcome, ChainEntryResult, DecisionAudit,
+    AccessScope, AuditOrigin, AuditTarget, ChainEntryOutcome, ChainEntryResult, DecisionAudit,
     PrincipalSnapshot, record_decision,
 };
 use systemprompt_identifiers::{CallId, McpToolName, PolicyId, SessionId, SkillId, UserId};

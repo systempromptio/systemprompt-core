@@ -6,12 +6,12 @@
 use std::sync::Arc;
 use systemprompt_identifiers::ModelId;
 
+use systemprompt_extension::{FactoryError, Resolved, Slot, SlotEntry, SlotError, StandingTag};
+use systemprompt_gateway::contract::{SafetyScannerBuilder, SafetyScannerSlot};
 use systemprompt_gateway::protocol::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalReasoning, CanonicalRequest, CanonicalResponse,
     CanonicalSampling, CanonicalTooling, CanonicalUsage, Role,
 };
-use systemprompt_extension::{FactoryError, Resolved, Slot, SlotEntry, SlotError, StandingTag};
-use systemprompt_gateway::contract::{SafetyScannerBuilder, SafetyScannerSlot};
 use systemprompt_gateway::registry::SafetyScannerRegistry;
 use systemprompt_gateway::{
     CATEGORY_SCANNER_FAILURE, Finding, HeuristicScanner, NullScanner, PHASE_REQUEST, SafetyConfig,
@@ -163,8 +163,7 @@ impl SafetyScanner for StubBrokenScanner {
 
 #[tokio::test]
 async fn a_failing_extension_scanner_reports_failure_instead_of_an_empty_clean_list() {
-    let scanner =
-        stub_registry()
+    let scanner = stub_registry()
         .create("stub_broken", &SafetyConfig::default())
         .expect("the contributed scanner is in the built registry");
     let request_outcome = scanner.scan_request(&req_with("anything")).await;
@@ -211,8 +210,7 @@ fn severity_as_str() {
 
 #[tokio::test]
 async fn registry_creates_the_builtin_heuristic_per_policy() {
-    let scanner =
-        SafetyScannerRegistry::builtin()
+    let scanner = SafetyScannerRegistry::builtin()
         .create("heuristic", &SafetyConfig::default())
         .expect("heuristic is built in");
     assert_eq!(scanner.name(), "heuristic");
@@ -222,15 +220,14 @@ async fn registry_creates_the_builtin_heuristic_per_policy() {
 async fn registry_returns_none_for_unknown_scanner() {
     assert!(
         SafetyScannerRegistry::builtin()
-        .create("does_not_exist", &SafetyConfig::default())
-        .is_none()
+            .create("does_not_exist", &SafetyConfig::default())
+            .is_none()
     );
 }
 
 #[tokio::test]
 async fn registry_resolves_registered_extension_scanner() {
-    let registry =
-        stub_registry();
+    let registry = stub_registry();
     let scanner = registry
         .create("stub_secrets", &SafetyConfig::default())
         .expect("the contributed scanner is in the built registry");
@@ -453,8 +450,7 @@ mod dedup {
 
 #[tokio::test]
 async fn registry_resolves_the_null_scanner_by_name() {
-    let scanner =
-        SafetyScannerRegistry::builtin()
+    let scanner = SafetyScannerRegistry::builtin()
         .create("null", &SafetyConfig::default())
         .expect("null is built in");
     assert_eq!(scanner.name(), "null");

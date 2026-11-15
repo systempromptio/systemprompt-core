@@ -8,8 +8,8 @@ use systemprompt_gateway::protocol::CanonicalContent;
 use systemprompt_gateway::protocol::canonical::{CanonicalRequest, CanonicalResponse};
 use systemprompt_gateway::service::{DispatchError, GatewayError, GatewayService};
 use systemprompt_gateway::{
-    CATEGORY_SCANNER_FAILURE, Finding, GatewayRepositories, SafetyConfig, SafetyScanner,
-    ScanError, ScannerFactory, ScannerSettings,
+    CATEGORY_SCANNER_FAILURE, Finding, GatewayRepositories, SafetyConfig, SafetyScanner, ScanError,
+    ScannerFactory, ScannerSettings,
 };
 use systemprompt_identifiers::AiRequestId;
 use systemprompt_models::providers::ClientFamily;

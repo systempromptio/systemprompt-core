@@ -73,12 +73,12 @@ use systemprompt_gateway::GatewayEngines;
 use systemprompt_runtime::{AppContext, Kernel};
 
 use self::access_log::log_gateway_request;
+use self::builtin::confined;
 #[cfg(feature = "otel")]
 use self::routers::otel_routes;
 use self::routers::{
     bridge_auth_routes, bridge_profile_routes, bridge_session_routes, inference_routes,
 };
-use self::builtin::confined;
 use crate::kernel::JwtContextExtractor;
 
 pub(crate) use self::access_log::GatewayLogIdentity;

@@ -1,15 +1,11 @@
 use serde_json::json;
-use systemprompt_governance::authz::types::{Decision, DenyReason, MatchedBy};
-use systemprompt_governance::policy::{GovernedInput, GovernedTarget, McpToolInput};
-use systemprompt_governance::policy::{
-    AccessScope, AgentScope, GovernancePolicy, PolicyContext,
-};
 use std::sync::Arc;
+use systemprompt_governance::authz::types::{Decision, DenyReason, MatchedBy};
 use systemprompt_governance::policy::{
-    ChainEntryResult, GovernanceConfig, GovernanceEngine, PolicyCatalog,
+    AccessScope, AgentScope, ChainEntryResult, GovernanceConfig, GovernanceEngine,
+    GovernancePolicy, GovernedInput, GovernedTarget, McpToolInput, PolicyCatalog, PolicyContext,
 };
-use systemprompt_identifiers::ExtensionId;
-use systemprompt_identifiers::{CallId, McpToolName, PolicyId, SessionId, UserId};
+use systemprompt_identifiers::{CallId, ExtensionId, McpToolName, PolicyId, SessionId, UserId};
 
 #[derive(Debug)]
 struct StaticAllow;
@@ -172,7 +168,8 @@ fn unknown_config_id_rejects_engine_construction() {
     )
     .unwrap();
     let error =
-        GovernanceEngine::from_config(&config, &catalog(), Some(crate::offline_rate_windows())).unwrap_err();
+        GovernanceEngine::from_config(&config, &catalog(), Some(crate::offline_rate_windows()))
+            .unwrap_err();
     assert!(matches!(
         error,
         systemprompt_governance::policy::GovernanceEngineError::UnknownPolicyId { id }

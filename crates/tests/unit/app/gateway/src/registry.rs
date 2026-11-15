@@ -43,8 +43,7 @@ fn every_enumerated_tag_resolves_to_an_adapter() {
 
 #[tokio::test]
 async fn the_safety_registry_carries_both_builtins() {
-    let registry =
-        SafetyScannerRegistry::builtin();
+    let registry = SafetyScannerRegistry::builtin();
     let safety = SafetyConfig::default();
 
     assert!(
@@ -63,15 +62,14 @@ async fn an_unknown_scanner_name_resolves_to_nothing() {
     // rather than silently falling back to a permissive one.
     assert!(
         SafetyScannerRegistry::builtin()
-        .create("no-such-scanner", &SafetyConfig::default())
-        .is_none()
+            .create("no-such-scanner", &SafetyConfig::default())
+            .is_none()
     );
 }
 
 #[tokio::test]
 async fn every_named_safety_scanner_resolves() {
-    let registry =
-        SafetyScannerRegistry::builtin();
+    let registry = SafetyScannerRegistry::builtin();
 
     let safety = SafetyConfig::default();
     let names = registry.names();
@@ -94,10 +92,7 @@ async fn registry_debug_lists_what_each_registry_dispatches() {
     assert!(upstreams.contains("GatewayUpstreamRegistry"), "{upstreams}");
     assert!(upstreams.contains("anthropic"), "{upstreams}");
 
-    let scanners = format!(
-        "{:?}",
-        SafetyScannerRegistry::builtin()
-    );
+    let scanners = format!("{:?}", SafetyScannerRegistry::builtin());
     assert!(scanners.contains("heuristic"), "{scanners}");
     assert!(scanners.contains("null"), "{scanners}");
 }

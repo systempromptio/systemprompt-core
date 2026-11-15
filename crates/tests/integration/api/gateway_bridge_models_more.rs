@@ -198,8 +198,7 @@ fn upstream_registry_serves_builtin_wire_adapters() {
 
 #[tokio::test]
 async fn safety_scanner_registry_carries_the_builtins() {
-    let registry =
-        SafetyScannerRegistry::builtin();
+    let registry = SafetyScannerRegistry::builtin();
     let safety = SafetyConfig::default();
     assert!(registry.create("null", &safety).is_some());
     assert!(registry.create("heuristic", &safety).is_some());

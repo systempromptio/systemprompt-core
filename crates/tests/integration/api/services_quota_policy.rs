@@ -4,14 +4,14 @@
 //! settings. Lives in the integration crate so we can pull the test-fixtures
 //! DB pool.
 
+use std::sync::Arc;
+use systemprompt_extension::StandingTag;
 use systemprompt_gateway::policies::{PolicyResolver, QuotaWindow, merge_policy_rows};
 use systemprompt_gateway::quota::{
     AccountingOutcome, QuotaDecision, QuotaDimension, QuotaEstimate, QuotaReservation,
     QuotaSubjects, QuotaUsage, ReserveOutcome, ReserveParams, ReservedWindow, precheck_and_reserve,
     release, settle,
 };
-use std::sync::Arc;
-use systemprompt_extension::StandingTag;
 use systemprompt_governance::authz::{
     SharedSubjectAttributeProvider, SubjectAttributeError, SubjectProviderEntry, SubjectProviderSet,
 };
@@ -40,10 +40,7 @@ impl systemprompt_governance::authz::SubjectAttributeProvider for ErroringSubjec
         }
     }
 
-    async fn values_for(
-        &self,
-        user_id: &UserId,
-    ) -> Result<Vec<String>, SubjectAttributeError> {
+    async fn values_for(&self, user_id: &UserId) -> Result<Vec<String>, SubjectAttributeError> {
         if user_id.as_str().starts_with(ERROR_USER_PREFIX) {
             return Err(SubjectAttributeError::Lookup(
                 "subject lookup unavailable".into(),
@@ -66,10 +63,7 @@ impl systemprompt_governance::authz::SubjectAttributeProvider for EmptySubjectPr
         }
     }
 
-    async fn values_for(
-        &self,
-        _user_id: &UserId,
-    ) -> Result<Vec<String>, SubjectAttributeError> {
+    async fn values_for(&self, _user_id: &UserId) -> Result<Vec<String>, SubjectAttributeError> {
         Ok(Vec::new())
     }
 }
@@ -94,8 +88,10 @@ fn window(window_seconds: i32) -> QuotaWindow {
 }
 
 fn providers() -> SubjectProviderSet {
-    let install: [SharedSubjectAttributeProvider; 2] =
-        [Arc::new(ErroringSubjectProvider), Arc::new(EmptySubjectProvider)];
+    let install: [SharedSubjectAttributeProvider; 2] = [
+        Arc::new(ErroringSubjectProvider),
+        Arc::new(EmptySubjectProvider),
+    ];
     SubjectProviderSet::new(
         install
             .into_iter()

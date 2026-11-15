@@ -7,10 +7,9 @@
 
 use serde_json::json;
 use systemprompt_governance::authz::types::{Decision, DenyReason};
-use systemprompt_governance::policy::{GovernedInput, GovernedTarget, McpToolInput};
-use systemprompt_governance::policy::{AccessScope, AgentScope};
 use systemprompt_governance::policy::{
-    GovernanceConfig, GovernanceEngine, GovernanceEngineError, PolicyRequest, RateWindowRepository,
+    AccessScope, AgentScope, GovernanceConfig, GovernanceEngine, GovernanceEngineError,
+    GovernedInput, GovernedTarget, McpToolInput, PolicyRequest, RateWindowRepository,
 };
 use systemprompt_identifiers::{CallId, McpToolName, SessionId, UserId};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
@@ -19,7 +18,12 @@ const LIMIT_3: &str = "governance:\n  policies:\n    - id: rate_limit\n      req
 const LIMIT_3_WARN: &str = "governance:\n  policies:\n    - id: rate_limit\n      mode: warn\n      requests_per_window: 3\n      window_secs: 3600\n";
 
 fn engine_with(yaml: &str, rate_windows: Option<RateWindowRepository>) -> GovernanceEngine {
-    GovernanceEngine::from_config(&GovernanceConfig::parse(yaml).unwrap(), &systemprompt_governance::policy::PolicyCatalog::builtin(), rate_windows).unwrap()
+    GovernanceEngine::from_config(
+        &GovernanceConfig::parse(yaml).unwrap(),
+        &systemprompt_governance::policy::PolicyCatalog::builtin(),
+        rate_windows,
+    )
+    .unwrap()
 }
 
 async fn replica(yaml: &str) -> GovernanceEngine {
@@ -143,8 +147,12 @@ async fn caller_noise(engine: &GovernanceEngine, caller: &Caller) {
 #[test]
 fn an_engine_without_a_counter_store_is_a_construction_error() {
     for yaml in [LIMIT_3, LIMIT_3_WARN] {
-        let error = GovernanceEngine::from_config(&GovernanceConfig::parse(yaml).unwrap(), &systemprompt_governance::policy::PolicyCatalog::builtin(), None)
-            .unwrap_err();
+        let error = GovernanceEngine::from_config(
+            &GovernanceConfig::parse(yaml).unwrap(),
+            &systemprompt_governance::policy::PolicyCatalog::builtin(),
+            None,
+        )
+        .unwrap_err();
         assert!(
             matches!(&error, GovernanceEngineError::RateWindowsUnavailable { id } if id == "rate_limit"),
             "{error}"
@@ -155,8 +163,12 @@ fn an_engine_without_a_counter_store_is_a_construction_error() {
 #[test]
 fn a_chain_without_rate_windows_builds_without_a_counter_store() {
     let yaml = "governance:\n  policies:\n    - id: rate_limit\n      enabled: false\n    - id: tool_blocklist\n";
-    GovernanceEngine::from_config(&GovernanceConfig::parse(yaml).unwrap(), &systemprompt_governance::policy::PolicyCatalog::builtin(), None)
-        .expect("a disabled rate window needs no counter store");
+    GovernanceEngine::from_config(
+        &GovernanceConfig::parse(yaml).unwrap(),
+        &systemprompt_governance::policy::PolicyCatalog::builtin(),
+        None,
+    )
+    .expect("a disabled rate window needs no counter store");
 }
 
 #[tokio::test]

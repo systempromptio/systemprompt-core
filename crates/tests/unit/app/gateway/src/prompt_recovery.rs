@@ -9,9 +9,9 @@ use systemprompt_gateway::service::stages::recovery::{
 };
 use systemprompt_governance::authz::types::Decision;
 use systemprompt_governance::policy::secrets::REDACTION_MARKER;
-use systemprompt_governance::policy::AccessScope;
 use systemprompt_governance::policy::{
-    AgentScope, GovernanceConfig, GovernanceEngine, GovernedInput, GovernedTarget, PolicyContext,
+    AccessScope, AgentScope, GovernanceConfig, GovernanceEngine, GovernedInput, GovernedTarget,
+    PolicyContext,
 };
 use systemprompt_identifiers::{CallId, ModelId, SessionId, UserId};
 

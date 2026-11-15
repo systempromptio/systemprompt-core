@@ -103,9 +103,7 @@ async fn engine_collects_the_registered_selector() {
 #[tokio::test]
 async fn selector_passes_through_unmatched_requests() {
     let matched = route("claude-*", "anthropic");
-    let refined = chain()
-        .refine(&matched, &req("claude-opus-4-8"))
-        .await;
+    let refined = chain().refine(&matched, &req("claude-opus-4-8")).await;
     assert!(
         refined.is_none(),
         "a selector that returns None re-routes nothing"
@@ -166,9 +164,7 @@ async fn a_failing_selector_does_not_abort_the_chain_or_the_matched_route() {
     // The erroring selector runs in the same chain as the rerouter; a chain
     // that aborted on the first error would take the gateway down whenever an
     // extension's selector backend was unavailable.
-    let unmatched = chain()
-        .refine(&matched, &req("claude-opus-4-8"))
-        .await;
+    let unmatched = chain().refine(&matched, &req("claude-opus-4-8")).await;
     assert!(
         unmatched.is_none(),
         "an erroring selector must leave the matched route in place, not re-route"

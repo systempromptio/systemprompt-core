@@ -22,6 +22,6 @@ pub use canonical::{
 };
 pub use inbound::{InboundAdapter, InboundParseError, anthropic_messages, openai_responses};
 pub use outbound::{
-    OutboundAdapter, OutboundCtx, OutboundOutcome,
-    anthropic as outbound_anthropic, openai_chat, openai_responses as outbound_openai_responses,
+    OutboundAdapter, OutboundCtx, OutboundOutcome, anthropic as outbound_anthropic, openai_chat,
+    openai_responses as outbound_openai_responses,
 };

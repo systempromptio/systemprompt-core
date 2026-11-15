@@ -1,13 +1,12 @@
 use std::sync::Arc;
 
-use systemprompt_oauth::services::SessionCreationService;
-use systemprompt_oauth_issuance::sso::oidc::CONFIG_FILE;
 use systemprompt_extension::{FactoryError, Resolved, SlotError};
+use systemprompt_oauth::services::SessionCreationService;
 use systemprompt_oauth_issuance::contract::SsoBuilder;
-use systemprompt_oauth_issuance::sso::oidc;
-use systemprompt_oauth_issuance::sso::{SsoDriver, SsoHookContext, SsoProviderError};
-use systemprompt_traits::sso::SsoProvider;
+use systemprompt_oauth_issuance::sso::oidc::CONFIG_FILE;
+use systemprompt_oauth_issuance::sso::{SsoDriver, SsoHookContext, SsoProviderError, oidc};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_config, test_db_pool};
+use systemprompt_traits::sso::SsoProvider;
 
 use super::stores::{CountingSessions, MemoryUsers};
 
@@ -39,8 +38,9 @@ async fn discover_with_oidc(oidc_yaml: &str) -> Result<SsoDriver, SsoProviderErr
     let mut sso = SsoBuilder::default();
     sso.provider(
         move |_: &Resolved<'_>| -> Result<Option<Arc<dyn SsoProvider>>, FactoryError> {
-            let built = oidc::build(&hook)
-                .map_err(|source| FactoryError::Failed(Box::new(SsoProviderError::config("oidc", source))))?;
+            let built = oidc::build(&hook).map_err(|source| {
+                FactoryError::Failed(Box::new(SsoProviderError::config("oidc", source)))
+            })?;
             Ok(built.map(|provider| Arc::new(provider) as Arc<dyn SsoProvider>))
         },
     );

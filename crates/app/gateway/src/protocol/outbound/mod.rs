@@ -4,11 +4,12 @@
 //! provider and yields an [`OutboundOutcome`] — a buffered response or a stream
 //! of canonical events. The upstream registry resolves one by provider tag;
 //! members contribute adapters for other tags to
-//! [`OutboundSlot`](crate::contract::OutboundSlot). Implementations cover Anthropic,
-//! Gemini, `OpenAI` Chat Completions, and `OpenAI` Responses. Where a request
-//! goes and how it authenticates is the resolved [`UpstreamCall`] — the same
-//! seam the in-process AI service sends through — so an adapter renders its
-//! wire and never decides a URL, an auth header or a hosting variant itself.
+//! [`OutboundSlot`](crate::contract::OutboundSlot). Implementations cover
+//! Anthropic, Gemini, `OpenAI` Chat Completions, and `OpenAI` Responses. Where
+//! a request goes and how it authenticates is the resolved [`UpstreamCall`] —
+//! the same seam the in-process AI service sends through — so an adapter
+//! renders its wire and never decides a URL, an auth header or a hosting
+//! variant itself.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -249,5 +250,3 @@ pub trait OutboundAdapter: Send + Sync {
         body: &PreparedBody,
     ) -> Result<OutboundOutcome, OutboundError>;
 }
-
-

@@ -1,15 +1,20 @@
 use serde_json::json;
 use systemprompt_governance::authz::types::{Decision, DenyReason};
-use systemprompt_governance::policy::{GovernedInput, GovernedTarget, McpToolInput};
 use systemprompt_governance::policy::secrets::{SecretHit, SecretScanner};
-use systemprompt_governance::policy::{AccessScope, AgentScope, PolicyContext};
-use systemprompt_governance::policy::{GovernanceConfig, GovernanceEngine};
+use systemprompt_governance::policy::{
+    AccessScope, AgentScope, GovernanceConfig, GovernanceEngine, GovernedInput, GovernedTarget,
+    McpToolInput, PolicyContext,
+};
 use systemprompt_identifiers::{CallId, McpToolName, SessionId, UserId};
 
 fn engine(yaml: &str) -> GovernanceEngine {
     let config = GovernanceConfig::parse(yaml).expect("valid test governance YAML");
-    GovernanceEngine::from_config(&config, &systemprompt_governance::policy::PolicyCatalog::builtin(), Some(crate::offline_rate_windows()))
-        .expect("registered test governance policies")
+    GovernanceEngine::from_config(
+        &config,
+        &systemprompt_governance::policy::PolicyCatalog::builtin(),
+        Some(crate::offline_rate_windows()),
+    )
+    .expect("registered test governance policies")
 }
 
 fn scanner(yaml: &str) -> SecretScanner {
@@ -193,8 +198,12 @@ fn invalid_pattern_definitions_fail_engine_startup() {
         );
         if let Ok(config) = GovernanceConfig::parse(&yaml) {
             assert!(
-                GovernanceEngine::from_config(&config, &systemprompt_governance::policy::PolicyCatalog::builtin(), Some(crate::offline_rate_windows()))
-                    .is_err(),
+                GovernanceEngine::from_config(
+                    &config,
+                    &systemprompt_governance::policy::PolicyCatalog::builtin(),
+                    Some(crate::offline_rate_windows())
+                )
+                .is_err(),
                 "{yaml}"
             );
         }
@@ -568,9 +577,8 @@ fn rate_limit_fails_closed_without_a_charged_count() {
 mod require_approval {
     use super::{Call, args, engine, tool};
     use systemprompt_governance::authz::types::Decision;
-    use systemprompt_governance::policy::AccessScope;
     use systemprompt_governance::policy::{
-        ApprovalSettings, ChainEntryResult, GovernanceConfig, GovernanceEngine,
+        AccessScope, ApprovalSettings, ChainEntryResult, GovernanceConfig, GovernanceEngine,
         GovernanceEngineError,
     };
 
