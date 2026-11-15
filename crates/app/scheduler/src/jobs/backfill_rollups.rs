@@ -1,15 +1,16 @@
 //! Every-minute job draining the hourly usage rollups' backlogs.
 //!
 //! The backlog is the hours an upgrade queued before the rollup tables
-//! existed. The rollups are declared
-//! by their owners against [`JOB_NAME`] with
-//! `systemprompt_database::submit_projection_drain!` (the AI crate's
-//! `ai_usage_rollup_hourly` and `ai_context_rollup_hourly`, the analytics
-//! crate's `tool_usage_rollup_hourly` and `agent_task_rollup_hourly`); a
-//! rollup whose owner is not linked is not drained. Each key is one UTC hour,
-//! rebuilt whole from the ledger by the rollup's `refresh_*` function. New rows
-//! are rolled up by the statement triggers, so once the backlog is empty a tick
-//! costs one depth read per rollup.
+//! existed. Each rollup's owner binds its drain to the kernel marker
+//! [`BackfillRollups`] with `Contributions::projection::<BackfillRollups>`
+//! (the AI crate's `ai_usage_rollup_hourly` and `ai_context_rollup_hourly`,
+//! the analytics crate's `tool_usage_rollup_hourly` and
+//! `agent_task_rollup_hourly`); the job drains the entries the kernel admitted
+//! for that marker, so a rollup whose owner is not composed or is disabled is
+//! not drained. Each key is one UTC hour, rebuilt whole from the ledger by the
+//! rollup's `refresh_*` function. New rows are rolled up by the statement
+//! triggers, so once the backlog is empty a tick costs one depth read per
+//! rollup.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,11 +19,10 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use systemprompt_database::{DbPool, projection};
+use systemprompt_extension::AdmittedProjections;
+use systemprompt_extension::projection::kernel::BackfillRollups;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::info;
-
-use crate::services::EnabledExtensions;
-use crate::services::scheduling::job_app_context;
 
 pub const JOB_NAME: &str = "backfill_rollups";
 
@@ -50,15 +50,11 @@ impl Job for BackfillRollupsJob {
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let db_pool = std::sync::Arc::clone(ctx.get::<DbPool>()?);
         let pool = db_pool.write_pool();
+        let projections = ctx.get::<AdmittedProjections>()?;
         let mut keys = 0u64;
         let mut requeued = 0u64;
         let mut elapsed = Duration::ZERO;
-        let enabled = EnabledExtensions::of(job_app_context(ctx)?)?;
-        for contribution in projection::registered_drains(JOB_NAME) {
-            if !enabled.contains(contribution.owner) {
-                continue;
-            }
-            let drain = &contribution.drain;
+        for (_, drain) in projections.drains_for::<BackfillRollups>() {
             let rollup = drain.projection;
             let report = projection::drain_with_sql(
                 &pool,

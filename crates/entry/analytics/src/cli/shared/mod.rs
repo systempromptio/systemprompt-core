@@ -13,12 +13,6 @@ pub mod output;
 pub mod time;
 
 pub(crate) use export::with_resolved_export;
-
-use systemprompt_extension::cli::CommandError;
-
-pub(crate) fn command_error(error: anyhow::Error) -> CommandError {
-    CommandError::from(Box::<dyn std::error::Error + Send + Sync>::from(error))
-}
 pub use export::{
     CsvBuilder, ensure_export_dir, export_single_to_csv, export_to_csv, resolve_export_option,
     resolve_export_path,

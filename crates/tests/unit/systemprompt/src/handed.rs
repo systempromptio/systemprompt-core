@@ -6,7 +6,7 @@
 use std::sync::Arc;
 
 use systemprompt_extension::contribute::build_slot;
-use systemprompt_extension::contribute::handles::AnalyticsBroadcaster;
+use systemprompt_extension::handles::AnalyticsBroadcaster;
 use systemprompt_extension::health::ReadinessCheck;
 use systemprompt_extension::router::RouteSet;
 use systemprompt_extension::{

@@ -61,27 +61,27 @@ impl DialoguerPrompter {
 impl Prompter for DialoguerPrompter {
     fn confirm(&self, message: &str, default: bool) -> Result<bool, CommandError> {
         self.confirm_answer(message, default)
-            .map_err(|error| CommandError::from(error.into_boxed_dyn_error()))
+            .map_err(CommandError::new)
     }
 
     fn input(&self, prompt: &str) -> Result<String, CommandError> {
         self.input_answer(prompt)
-            .map_err(|error| CommandError::from(error.into_boxed_dyn_error()))
+            .map_err(CommandError::new)
     }
 
     fn input_with_default(&self, prompt: &str, default: &str) -> Result<String, CommandError> {
         self.input_with_default_answer(prompt, default)
-            .map_err(|error| CommandError::from(error.into_boxed_dyn_error()))
+            .map_err(CommandError::new)
     }
 
     fn select(&self, prompt: &str, items: &[String]) -> Result<usize, CommandError> {
         self.select_answer(prompt, items)
-            .map_err(|error| CommandError::from(error.into_boxed_dyn_error()))
+            .map_err(CommandError::new)
     }
 
     fn password(&self, prompt: &str) -> Result<String, CommandError> {
         self.password_answer(prompt)
-            .map_err(|error| CommandError::from(error.into_boxed_dyn_error()))
+            .map_err(CommandError::new)
     }
 }
 
@@ -149,27 +149,27 @@ impl ScriptedPrompter {
 impl Prompter for ScriptedPrompter {
     fn confirm(&self, message: &str, default: bool) -> Result<bool, CommandError> {
         self.confirm_answer(message, default)
-            .map_err(|error| CommandError::from(error.into_boxed_dyn_error()))
+            .map_err(CommandError::new)
     }
 
     fn input(&self, prompt: &str) -> Result<String, CommandError> {
         self.input_answer(prompt)
-            .map_err(|error| CommandError::from(error.into_boxed_dyn_error()))
+            .map_err(CommandError::new)
     }
 
     fn input_with_default(&self, prompt: &str, default: &str) -> Result<String, CommandError> {
         self.input_with_default_answer(prompt, default)
-            .map_err(|error| CommandError::from(error.into_boxed_dyn_error()))
+            .map_err(CommandError::new)
     }
 
     fn select(&self, prompt: &str, items: &[String]) -> Result<usize, CommandError> {
         self.select_answer(prompt, items)
-            .map_err(|error| CommandError::from(error.into_boxed_dyn_error()))
+            .map_err(CommandError::new)
     }
 
     fn password(&self, prompt: &str) -> Result<String, CommandError> {
         self.password_answer(prompt)
-            .map_err(|error| CommandError::from(error.into_boxed_dyn_error()))
+            .map_err(CommandError::new)
     }
 }
 

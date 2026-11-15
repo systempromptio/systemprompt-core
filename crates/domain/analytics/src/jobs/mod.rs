@@ -7,8 +7,8 @@
 //! [`AnalyticsExtension`](crate::AnalyticsExtension). The detectors write bans
 //! through the `DynIpBanStore` their job context carries and fail when it is
 //! absent. The scheduler's kernel jobs reach this crate's tables through the
-//! retention purges contributed with the jobs and the usage rollups registered
-//! here.
+//! retention purges contributed with the jobs and the usage-rollup drains
+//! bound to the kernel's `BackfillRollups` marker.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -20,7 +20,7 @@ mod link_facts_rollup;
 mod malicious_ip_blacklist;
 mod no_js_cleanup;
 mod retention;
-mod rollups;
+pub(crate) mod rollups;
 
 pub use backfill_session_geo::BackfillSessionGeoJob;
 pub use behavioral_analysis::BehavioralAnalysisJob;

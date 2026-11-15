@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use systemprompt_extension::cli::{
-    BoxFuture, ChildSupervisor, CliConfig, CommandError, CommandHost, Prompter,
+    BoxFuture, ChildSupervisor, CliConfig, CommandError, CommandHost, CommandOutput, Prompter,
 };
 use systemprompt_extension::{Admitted, Resolved};
 use systemprompt_manifest::Profile;
@@ -36,10 +36,6 @@ impl CommandContext {
     }
 }
 
-fn command_error(error: anyhow::Error) -> CommandError {
-    CommandError::from(error.into_boxed_dyn_error())
-}
-
 impl CommandHost for CommandContext {
     fn output(&self) -> &CliConfig {
         &self.cli
@@ -54,12 +50,12 @@ impl CommandHost for CommandContext {
     }
 
     fn profile(&self) -> Result<&Profile, CommandError> {
-        CommandContext::profile(self).map_err(command_error)
+        CommandContext::profile(self).map_err(CommandError::new)
     }
 
     fn db(&self) -> BoxFuture<'_, Result<Arc<dyn DatabaseHandle>, CommandError>> {
         Box::pin(async move {
-            let pool = self.db_pool().await.map_err(command_error)?;
+            let pool = self.db_pool().await.map_err(CommandError::new)?;
             let handle: Arc<dyn DatabaseHandle> = pool;
             Ok(handle)
         })
@@ -71,7 +67,7 @@ impl CommandHost for CommandContext {
                 .as_ref()
                 .map(|kernel| kernel.resolved())
                 .ok_or_else(|| {
-                    command_error(anyhow::anyhow!(
+                    CommandError::new(anyhow::anyhow!(
                         "This command requires the runtime kernel; it runs only with a profile"
                     ))
                 })
@@ -80,5 +76,9 @@ impl CommandHost for CommandContext {
 
     fn children(&self) -> &dyn ChildSupervisor {
         &self.foreground_children
+    }
+
+    fn render(&self, output: &CommandOutput) {
+        crate::shared::render_result(output, &self.cli);
     }
 }

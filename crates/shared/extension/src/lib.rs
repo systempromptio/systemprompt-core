@@ -121,6 +121,7 @@ pub use contribute::{
     HandleId, KernelHandle, ProvideError, ProvideFn, Resolved, Slot, SlotEntry, SlotError,
     SlotOrder, StandingTag,
 };
+pub use contribute::handles;
 pub use cost::{CostDirective, CostDirectiveError, TriggerPolicy};
 pub use error::{
     ExtensionConfigError, ExtensionStateError, LoaderError, MigrationFault, SchemaFault,
@@ -145,7 +146,7 @@ pub use notifications::{
 };
 #[cfg(feature = "sqlx")]
 pub use notifications::{DynNotificationSink, NotificationSink};
-pub use projection::ProjectionDrain;
+pub use projection::{AdmittedProjections, DrainTarget, ProjectionDrain};
 pub use protection::{
     ContextKind, ProtectionLayer, RateBudget, RateLimit, RouteGroup, RouteProtection,
     SiteAuthConfig,

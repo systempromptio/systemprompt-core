@@ -2,8 +2,9 @@
 //!
 //! A [`Kernel`] holds the database handle, the process's background-task
 //! owner, the kernel handles a conferral can hand a route set, and the
-//! extension state. [`Kernel::resolve`] builds that state from an
-//! [`Admitted`] handoff in three passes: every admitted member's provide fns
+//! extension state. [`Kernel::resolve`] seeds that state with the admitted
+//! members' projection drains ([`AdmittedProjections`]), then builds it from
+//! the [`Admitted`] handoff in three passes: every admitted member's provide fns
 //! in composition order, each reading what was provided before it; every
 //! member's declared requirements, checked against the finished state; and
 //! every slot, built from its admitted entries (core first where the slot
@@ -18,7 +19,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use systemprompt_extension::contribute::{SlotBuildInput, build_slot};
-use systemprompt_extension::{Admitted, HandleId, KernelHandle, ProvideError, Resolved, SlotError};
+use systemprompt_extension::{
+    Admitted, AdmittedProjections, HandleId, KernelHandle, ProvideError, Resolved, SlotError,
+};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::{Dependencies, DuplicateDependency};
 use systemprompt_traits::{BackgroundTasks, DatabaseHandle};
@@ -81,6 +84,7 @@ impl Kernel {
     }
 
     pub fn resolve(&mut self, admitted: &Admitted) -> Result<(), KernelError> {
+        self.state.insert(AdmittedProjections::of(admitted.built()));
         self.provide_all(admitted)?;
         self.check_requirements(admitted)?;
         self.build_slots(admitted)

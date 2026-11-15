@@ -24,7 +24,7 @@ pub mod engagement;
 use std::sync::Arc;
 
 use systemprompt_analytics::repository::AnalyticsRepositories;
-use systemprompt_extension::contribute::handles::AnalyticsBroadcaster;
+use systemprompt_extension::handles::AnalyticsBroadcaster;
 use systemprompt_extension::{FromState, Handed, MissingDependency, Resolved};
 use systemprompt_identifiers::{ContentId, LocaleCode};
 use systemprompt_models::{ContentConfigRaw, ContentRouting};

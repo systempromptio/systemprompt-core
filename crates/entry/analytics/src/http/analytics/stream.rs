@@ -9,11 +9,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::extract::{Extension, State};
-use axum::response::{IntoResponse, Response};
-use systemprompt_extension::router::{ApiHttpError, sse_response};
+use axum::response::Response;
+use systemprompt_extension::router::{sse_response, subscription_refused};
 use systemprompt_identifiers::ConnectionId;
 use systemprompt_models::RequestContext;
-use systemprompt_models::api::ApiError;
 
 use crate::http::AnalyticsHttpState;
 
@@ -29,12 +28,6 @@ pub(crate) async fn analytics_stream(
         .await
     {
         Some(subscription) => sse_response(&req_ctx, subscription, "Analytics"),
-        None => {
-            tracing::warn!(user_id = %req_ctx.user_id(), stream = "Analytics", "SSE stream rejected: per-user connection cap reached");
-            ApiHttpError::from(ApiError::rate_limited(
-                "Per-user stream connection limit reached",
-            ))
-            .into_response()
-        },
+        None => subscription_refused(&req_ctx, "Analytics"),
     }
 }
