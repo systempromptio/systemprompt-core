@@ -15,6 +15,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod config;
+mod entries;
 mod error;
 pub mod handles;
 mod resolved;
@@ -36,10 +37,10 @@ pub use error::{ContributionError, FactoryError, ProvideError, SlotError};
 pub use resolved::{
     Factory, FromState, HandleId, Handed, KernelAccess, KernelHandle, ProvideFn, Resolved,
 };
+pub use entries::{ContributedJob, MemberDependency, ProvideEntry, ProvidedValue};
 pub use sink::{
-    AssetFn, ContributedJob, ContributionSink, DiagnosticFactory, GatewayGuardFactory,
-    MemberDependency, PolicyFactory, ProvideEntry, ProvidedValue, ReadinessFactory,
-    RunnerServiceFactory, SubjectProviderFactory,
+    AssetFn, ContributionSink, DiagnosticFactory, GatewayGuardFactory, PolicyFactory,
+    ReadinessFactory, RunnerServiceFactory, SubjectProviderFactory,
 };
 pub use slot::{
     Slot, SlotBuildInput, SlotBuilt, SlotEntry, SlotOrder, SlotRecord, StandingTag, build_slot,

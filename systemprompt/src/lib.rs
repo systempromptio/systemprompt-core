@@ -49,11 +49,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 #[cfg(feature = "full")]
-#[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod composition;
 #[cfg(feature = "full")]
 pub use composition::{Composition, CompositionError, Declared, RunError, SecretsKind, reference};
-
 #[cfg(feature = "core")]
 #[cfg_attr(docsrs, doc(cfg(feature = "core")))]
 pub mod traits {

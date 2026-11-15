@@ -15,7 +15,6 @@ use tokio::sync::mpsc::Receiver;
 
 /// Subscribes a connection to the analytics event stream.
 pub trait AnalyticsSubscription: Send + Sync {
-    /// `None` means the per-user subscription cap is reached.
     fn subscribe<'a>(
         &'a self,
         user_id: &'a UserId,

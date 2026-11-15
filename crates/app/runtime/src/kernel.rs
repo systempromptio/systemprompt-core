@@ -59,8 +59,6 @@ impl std::fmt::Debug for Kernel {
 }
 
 impl Kernel {
-    /// A kernel over the host's seeded state: the handles the kernel itself
-    /// provides (pool, paths, configuration, repositories).
     #[must_use]
     pub fn new(database: Arc<dyn DatabaseHandle>, tasks: BackgroundTasks, seed: Dependencies) -> Self {
         Self {
@@ -88,8 +86,6 @@ impl Kernel {
         Resolved::__new(self, &self.state)
     }
 
-    /// The resolution a route set at a base conferring `conferred` handles
-    /// reads its state from; only the API mount calls it.
     #[must_use]
     pub fn route_scoped<'a>(&'a self, conferred: &'a [HandleId]) -> Resolved<'a> {
         Resolved::__route_scoped(self, &self.state, conferred)

@@ -11,8 +11,8 @@
 
 use axum::Router;
 use systemprompt_extension::{
-    AuthzPolicy, ContextKind, ExtensionContext, ProtectionLayer, RateLimit, RouteGroup,
-    RouteProtection,
+    AuthzPolicy, ContextKind, ExtensionContext, HandlerVerifier, ProtectionLayer, RateBudget,
+    RateLimit, RouteGroup, RouteProtection,
 };
 use systemprompt_provider_contracts::FrameOptions;
 
@@ -98,4 +98,19 @@ impl KernelRoutes {
     pub fn is_enabled(&self, ctx: &dyn ExtensionContext) -> bool {
         (self.enabled)(ctx)
     }
+}
+
+#[must_use]
+pub const fn gateway_protection(scope: &'static str, budget: RateBudget) -> RouteProtection {
+    RouteProtection::new(
+        AuthzPolicy::handler_verified(HandlerVerifier::GatewayCredential),
+        ContextKind::HandlerResolved,
+    )
+    .with_rate_limit(RateLimit::new(scope, budget).with_bearer_window())
+}
+
+#[must_use]
+pub fn path_under(path: &str, prefix: &str) -> bool {
+    path.strip_prefix(prefix)
+        .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'))
 }

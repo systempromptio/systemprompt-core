@@ -22,12 +22,8 @@ use systemprompt_database::DbPool;
 use systemprompt_loader::{BootContext, ServicesState};
 use systemprompt_manifest::{Config, Profile};
 use systemprompt_models::BuildIdentity;
-use systemprompt_extension::cli::{
-    BoxFuture, ChildSupervisor, CliConfig, CommandError, CommandHost, Prompter,
-};
-use systemprompt_extension::{Admitted, Resolved};
+use systemprompt_extension::{Admitted, cli::CliConfig, cli::Prompter};
 use systemprompt_runtime::{AppContext, AppContextBuilder, DatabaseContext, Kernel};
-use systemprompt_traits::DatabaseHandle;
 use tokio::sync::OnceCell;
 
 use crate::env_overrides::EnvOverrides;
@@ -48,10 +44,10 @@ pub struct CommandContext {
     profile: Option<Arc<LoadedProfile>>,
     boot: Option<BootContext>,
     interrupt_shield: InterruptShield,
-    foreground_children: ForegroundChildren,
+    pub(crate) foreground_children: ForegroundChildren,
     build: BuildIdentity,
-    admitted: Option<Arc<Admitted>>,
-    kernel: Option<Arc<Kernel>>,
+    pub(crate) admitted: Option<Arc<Admitted>>,
+    pub(crate) kernel: Option<Arc<Kernel>>,
 }
 
 impl CommandContext {
@@ -75,28 +71,6 @@ impl CommandContext {
             admitted: None,
             kernel: None,
         }
-    }
-
-    /// The composition admitted against this command's profile; absent for a
-    /// command that runs without a profile.
-    #[must_use]
-    pub fn with_admitted(mut self, admitted: Option<Arc<Admitted>>) -> Self {
-        self.admitted = admitted;
-        self
-    }
-
-    /// The kernel the admitted composition resolves against, once the
-    /// runtime has built it.
-    #[must_use]
-    pub fn with_kernel(mut self, kernel: Arc<Kernel>) -> Self {
-        self.kernel = Some(kernel);
-        self
-    }
-
-    pub fn admitted(&self) -> Result<&Arc<Admitted>> {
-        self.admitted
-            .as_ref()
-            .context("This command requires the composition admitted against a profile")
     }
 
     #[must_use]
@@ -322,52 +296,5 @@ impl std::fmt::Debug for CommandContext {
             .field("env", &self.env)
             .field("database_scoped", &self.db.is_some())
             .finish_non_exhaustive()
-    }
-}
-
-fn command_error(error: anyhow::Error) -> CommandError {
-    CommandError::from(error.into_boxed_dyn_error())
-}
-
-impl CommandHost for CommandContext {
-    fn output(&self) -> &CliConfig {
-        &self.cli
-    }
-
-    fn prompter(&self) -> &dyn Prompter {
-        Self::prompter(self)
-    }
-
-    fn is_database_scoped(&self) -> bool {
-        Self::is_database_scoped(self)
-    }
-
-    fn profile(&self) -> Result<&Profile, CommandError> {
-        Self::profile(self).map_err(command_error)
-    }
-
-    fn db(&self) -> BoxFuture<'_, Result<Arc<dyn DatabaseHandle>, CommandError>> {
-        Box::pin(async move {
-            let pool = self.db_pool().await.map_err(command_error)?;
-            let handle: Arc<dyn DatabaseHandle> = pool;
-            Ok(handle)
-        })
-    }
-
-    fn resolved(&self) -> BoxFuture<'_, Result<Resolved<'_>, CommandError>> {
-        Box::pin(async move {
-            self.kernel
-                .as_ref()
-                .map(|kernel| kernel.resolved())
-                .ok_or_else(|| {
-                    command_error(anyhow::anyhow!(
-                        "This command requires the runtime kernel; it runs only with a profile"
-                    ))
-                })
-        })
-    }
-
-    fn children(&self) -> &dyn ChildSupervisor {
-        &self.foreground_children
     }
 }

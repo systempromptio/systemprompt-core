@@ -13,6 +13,8 @@ mod child;
 #[cfg(feature = "cli")]
 mod command;
 #[cfg(feature = "cli")]
+mod decl;
+#[cfg(feature = "cli")]
 mod descriptor;
 mod grant;
 #[cfg(feature = "cli")]
@@ -24,10 +26,11 @@ mod settings;
 
 #[cfg(feature = "cli")]
 pub use command::{
-    BoxFuture, CliCommandGroup, CliCommandLeaf, CommandDecl, CommandError,
-    CommandFuture, CommandHost, CommandKind, CommandParent, ParsedCommand,
-    REGISTERED_DISPLAY_ORDER, parents,
+    BoxFuture, CliCommandGroup, CliCommandLeaf, CommandError, CommandFuture, CommandHost,
+    CommandParent, REGISTERED_DISPLAY_ORDER, parents,
 };
+#[cfg(feature = "cli")]
+pub use decl::{CommandDecl, CommandKind, ParsedCommand};
 #[cfg(feature = "cli")]
 pub use descriptor::{CommandDescriptor, DataImpact, DbUrlRouting, DescribeCommand, RoutingClass};
 pub use child::ChildSupervisor;

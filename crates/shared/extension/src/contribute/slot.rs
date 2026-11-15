@@ -99,7 +99,6 @@ impl SlotRecord {
         self.order
     }
 
-    /// Takes this record's builder for building; a second take is `None`.
     pub fn take_entry(&self, owner: ExtensionId, standing: StandingTag) -> Option<SlotBuildInput> {
         let builder = self
             .builder
@@ -167,10 +166,6 @@ impl std::fmt::Debug for SlotBuildInput {
     }
 }
 
-/// Builds one slot from every admitted entry for it, ordering core entries
-/// first when the slot asks for it, and inserts the built value into `state`.
-///
-/// Every input must name the same slot; inputs of another slot are ignored.
 #[doc(hidden)]
 pub fn build_slot(
     mut inputs: Vec<SlotBuildInput>,

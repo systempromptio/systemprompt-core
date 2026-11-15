@@ -12,6 +12,7 @@
 
 pub mod args;
 mod bootstrap;
+mod composed;
 pub mod confirmation;
 mod db_url;
 mod dispatch;
@@ -33,60 +34,15 @@ use systemprompt_runtime::DatabaseContext;
 
 use crate::context::CommandContext;
 use systemprompt_extension::cli::{CliConfig, CommandDescriptor, DbUrlRouting, OutputFormat};
-use systemprompt_extension::{Admitted, DeclaredCommands};
-use systemprompt_identifiers::ExtensionId;
-use systemprompt_manifest::Profile;
-use systemprompt_traits::BoxedSource;
+pub use composed::{AdmitFn, CliRunError, run_composed};
+use composed::admit_for;
 use crate::env_overrides::EnvOverrides;
-use crate::kernel::{CommandOwner, CommandRegistry, RegistryError, ResolveError, kernel_commands};
+use crate::kernel::{CommandRegistry, ResolveError};
 use dispatch::{Invocation, Selected, dispatch_command};
 
-/// The admission the facade hands the CLI: run once, against the loaded
-/// profile.
-pub type AdmitFn = Box<dyn FnOnce(&Profile) -> Result<Admitted, BoxedSource> + Send>;
-
-#[derive(Debug, thiserror::Error)]
-pub enum CliRunError {
-    #[error("composition admission failed")]
-    Admit(#[source] BoxedSource),
-    #[error("command {path:?} belongs to disabled extension {owner}")]
-    CommandDisabled {
-        path: Vec<&'static str>,
-        owner: ExtensionId,
-    },
-    #[error("command registry")]
-    Registry(#[from] RegistryError),
-    #[error("command failed")]
-    Command(#[source] BoxedSource),
-}
-
-/// The whole of a composed binary's main function: builds the runtime, the
-/// command registry from `declared`, runs the selected command and maps an
-/// interrupted run to its exit status.
-pub fn run_composed<A>(
+pub(super) async fn run_with(
     build: BuildIdentity,
-    declared: DeclaredCommands,
-    admit: A,
-) -> Result<ExitCode, CliRunError>
-where
-    A: FnOnce(&Profile) -> Result<Admitted, BoxedSource> + Send + 'static,
-{
-    let registry = CommandRegistry::build(&declared, &kernel_commands())?;
-    let runtime = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .map_err(|source| CliRunError::Command(Box::new(source)))?;
-    let outcome = runtime.block_on(Box::pin(run_with(build, registry, Box::new(admit))));
-    match interrupt::exit_code(outcome) {
-        Ok(code) => Ok(code),
-        Err(error) => match error.downcast::<CliRunError>() {
-            Ok(typed) => Err(typed),
-            Err(other) => Err(CliRunError::Command(other.into_boxed_dyn_error())),
-        },
-    }
-}
-
-async fn run_with(build: BuildIdentity, registry: CommandRegistry, admit: AdmitFn) -> Result<()> {
+   , registry: CommandRegistry, admit: AdmitFn) -> Result<()> {
     tls::install_crypto_provider();
     let output = OutputState::new();
     let root = args::command(&registry)?;
@@ -214,28 +170,6 @@ async fn run_inner(
         .with_profile(profile)
         .with_boot(boot);
     Box::pin(dispatch_command(invocation.into_selected(), &ctx)).await
-}
-
-fn admit_for(
-    invocation: &Invocation,
-    profile: Option<&systemprompt_config::LoadedProfile>,
-    admit: AdmitFn,
-) -> Result<Option<std::sync::Arc<Admitted>>> {
-    let Some(profile) = profile.map(systemprompt_config::LoadedProfile::profile) else {
-        return Ok(None);
-    };
-    if let Some(resolved) = invocation.resolved()
-        && let CommandOwner::Member(owner) = &resolved.owner
-        && profile.extensions.is_disabled(owner)
-    {
-        return Err(CliRunError::CommandDisabled {
-            path: resolved.path.clone(),
-            owner: owner.clone(),
-        }
-        .into());
-    }
-    let admitted = admit(profile).map_err(CliRunError::Admit)?;
-    Ok(Some(std::sync::Arc::new(admitted)))
 }
 
 fn configure_output(

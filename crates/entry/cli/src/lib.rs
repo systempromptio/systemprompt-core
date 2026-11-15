@@ -23,6 +23,7 @@ pub mod commands;
 pub mod context;
 pub mod env_overrides;
 pub mod environment;
+mod host;
 pub mod interactive;
 pub mod kernel;
 pub mod paths;

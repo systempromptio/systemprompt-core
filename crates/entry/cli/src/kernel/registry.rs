@@ -78,8 +78,6 @@ impl RegistryEntry {
     }
 }
 
-/// The kernel's own contributed built-ins: the `build` group and the
-/// child-host `admin mcp` group.
 #[must_use]
 pub fn kernel_commands() -> Vec<CommandDecl> {
     use systemprompt_extension::cli::parents;

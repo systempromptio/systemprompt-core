@@ -35,7 +35,6 @@ pub const USER_PRECEDENCE: u16 = 0;
 pub const ROLE_PRECEDENCE: u16 = 200;
 pub const TRAFFIC_PRECEDENCE: u16 = 400;
 
-/// The dimensions core owns: `user`, `role`, and every core provider's.
 pub const RESERVED_SUBJECT_DIMENSIONS: &[SubjectDimension] = &[
     SubjectDimension {
         rule_type: RuleType::USER,

@@ -54,7 +54,7 @@ mod recheck;
 
 pub use admitted::{MountedGatewayRoute, gateway_routes, mount_admitted, protection_of};
 pub use error::MountError;
-pub use kernel_routes::{EnablePredicate, KernelRoutes};
+pub use kernel_routes::{EnablePredicate, KernelRoutes, gateway_protection, path_under};
 pub use guards::{ClientWritesGuard, ProtectionGuards, SiteAuthGuard};
 
 use std::sync::Arc;
@@ -64,8 +64,7 @@ use axum::extract::DefaultBodyLimit;
 use systemprompt_extension::reserved::{PRIVILEGED_SHAPES, WEB_ROOT_BASE_PATH};
 use systemprompt_extension::router::{Allowance, BaseRef, BodyLimit};
 use systemprompt_extension::{
-    AuthzPolicy, ContextKind, ExtensionContext, HandlerVerifier, ProtectionLayer, RateBudget,
-    RateLimit, RouteGroup, RouteProtection,
+    ContextKind, ExtensionContext, ProtectionLayer, RouteGroup, RouteProtection,
 };
 
 use crate::services::middleware::context::{
@@ -151,21 +150,6 @@ fn admits_body_limit(base_path: &str, declared: usize) -> bool {
             && matches!(entry.base, BaseRef::Path(base) if base.path() == base_path)
             && declared == systemprompt_models::net::AGENT_REQUEST_BODY_LIMIT_BYTES
     })
-}
-
-#[must_use]
-pub const fn gateway_protection(scope: &'static str, budget: RateBudget) -> RouteProtection {
-    RouteProtection::new(
-        AuthzPolicy::handler_verified(HandlerVerifier::GatewayCredential),
-        ContextKind::HandlerResolved,
-    )
-    .with_rate_limit(RateLimit::new(scope, budget).with_bearer_window())
-}
-
-#[must_use]
-pub fn path_under(path: &str, prefix: &str) -> bool {
-    path.strip_prefix(prefix)
-        .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'))
 }
 
 fn inner_layers(

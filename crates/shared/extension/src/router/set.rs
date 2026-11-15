@@ -59,8 +59,6 @@ impl RouteSet {
         self.group
     }
 
-    /// Resolves the set's state and builds one router per declared route, in
-    /// [`RouteSet::defs`] order.
     pub fn materialize(&self, r: &Resolved<'_>) -> Result<Vec<Router>, MissingDependency> {
         (self.materialize)(r)
     }
