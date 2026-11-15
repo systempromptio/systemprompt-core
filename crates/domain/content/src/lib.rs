@@ -13,8 +13,11 @@
 //! - **Default providers** — [`DefaultBrandingProvider`],
 //!   [`DefaultHomepagePrerenderer`], and [`DefaultListBrandingProvider`] for
 //!   site-generation scaffolding.
+//! - **Content hooks** — [`ContentSlot`], the contribution point every member
+//!   fills with template, page, component, frontmatter, content-data, RSS and
+//!   sitemap providers; built into [`ContentHooks`].
 //! - **Job entrypoint** — [`execute_content_ingestion`] runs a single ingestion
-//!   pass against the active profile.
+//!   pass with the built frontmatter processors.
 //!
 //! ## Feature flags
 //!
@@ -40,6 +43,7 @@
 
 pub(crate) mod branding_provider;
 pub(crate) mod config;
+pub mod contract;
 pub mod error;
 pub(crate) mod extension;
 pub(crate) mod homepage_prerenderer;
@@ -52,6 +56,7 @@ pub mod repository;
 pub mod services;
 
 pub use branding_provider::{DefaultBrandingProvider, default_branding_provider};
+pub use contract::{ContentHooks, ContentSlot, ContentSlotBuilder};
 pub use extension::ContentExtension;
 pub use homepage_prerenderer::{DefaultHomepagePrerenderer, default_homepage_prerenderer};
 pub use list_branding_provider::{DefaultListBrandingProvider, default_list_branding_provider};
