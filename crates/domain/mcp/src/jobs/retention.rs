@@ -9,9 +9,8 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use systemprompt_database::DbPool;
-use systemprompt_traits::{
-    JobContext, ProviderError, ProviderResult, RetentionPurge, register_retention_purge,
-};
+use systemprompt_extension::{Contributions, RetentionDecl};
+use systemprompt_traits::{JobContext, ProviderError, ProviderResult, RetentionPurge};
 
 use crate::repository::ToolUsageRepository;
 
@@ -37,4 +36,6 @@ impl RetentionPurge for ToolExecutionsPurge {
     }
 }
 
-register_retention_purge!("mcp", &ToolExecutionsPurge);
+pub(super) fn contribute(c: &mut Contributions<'_>) {
+    c.retention(RetentionDecl::Purge(Arc::new(ToolExecutionsPurge)));
+}
