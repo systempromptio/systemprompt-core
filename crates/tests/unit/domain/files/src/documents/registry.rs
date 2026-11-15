@@ -1,10 +1,9 @@
 use std::sync::Arc;
 
-use systemprompt_files::documents::codecs::CodecRegistry;
+use systemprompt_files::documents::codecs::{CodecRegistry, core_codecs};
 use systemprompt_provider_contracts::documents::{
-    CodecError, DocumentCodec, DocumentFormat, EditOp, Projection, TemplateParams, codec_for,
+    CodecError, DocumentCodec, DocumentFormat, EditOp, Projection, TemplateParams,
 };
-use systemprompt_provider_contracts::register_document_codec;
 
 #[derive(Debug)]
 struct FixedCodec(u32);
@@ -60,12 +59,9 @@ fn high() -> Arc<dyn DocumentCodec> {
     Arc::new(FixedCodec(20_000))
 }
 
-register_document_codec!(low);
-register_document_codec!(high);
-
 #[test]
 fn higher_priority_codec_wins() {
-    let registry = CodecRegistry::discover();
+    let registry = CodecRegistry::from_codecs(core_codecs().into_iter().chain([low(), high()]));
     let chosen = registry.for_format(DocumentFormat::Odp).expect("odp codec");
     assert_eq!(chosen.priority(), 20_000);
 }
@@ -91,7 +87,7 @@ fn equal_priority_keeps_first_listed() {
 
 #[test]
 fn core_codecs_cover_text_formats() {
-    let registry = CodecRegistry::discover();
+    let registry = CodecRegistry::from_codecs(core_codecs());
     for format in [
         DocumentFormat::Html,
         DocumentFormat::Markdown,
@@ -99,6 +95,8 @@ fn core_codecs_cover_text_formats() {
     ] {
         assert!(registry.formats().contains(&format));
     }
-    let html = codec_for(DocumentFormat::Html).expect("html codec");
+    let html = registry
+        .for_format(DocumentFormat::Html)
+        .expect("html codec");
     assert!(format!("{html:?}").contains("HtmlCodec"));
 }

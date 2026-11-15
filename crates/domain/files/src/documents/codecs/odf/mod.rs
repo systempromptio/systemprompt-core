@@ -56,12 +56,9 @@ mod sheet_edit;
 mod sheet_view;
 mod text;
 
-use std::sync::Arc;
-
 use systemprompt_provider_contracts::documents::{
-    CodecError, DocumentCodec, DocumentFormat, Projection, ProjectionNode, content_hash,
+    CodecError, DocumentFormat, Projection, ProjectionNode, content_hash,
 };
-use systemprompt_provider_contracts::register_document_codec;
 
 pub use blank::{blank_odp, blank_ods, blank_odt};
 pub use rich::{import_rich as import_odt_rich, materialise_rich as materialise_odt_rich};
@@ -117,19 +114,3 @@ fn projection(format: DocumentFormat, bytes: &[u8], root: Vec<ProjectionNode>) -
         content_sha256: content_hash(bytes),
     }
 }
-
-fn odt_codec() -> Arc<dyn DocumentCodec> {
-    Arc::new(OdtCodec)
-}
-
-fn ods_codec() -> Arc<dyn DocumentCodec> {
-    Arc::new(OdsCodec)
-}
-
-fn odp_codec() -> Arc<dyn DocumentCodec> {
-    Arc::new(OdpCodec)
-}
-
-register_document_codec!(odt_codec);
-register_document_codec!(ods_codec);
-register_document_codec!(odp_codec);

@@ -23,6 +23,8 @@ use systemprompt_traits::{
 use tempfile::TempDir;
 use uuid::Uuid;
 
+use crate::documents_service_fixture::core_blob_holders;
+
 struct Harness {
     _root: TempDir,
     storage: Arc<dyn FileStorage>,
@@ -39,7 +41,7 @@ async fn harness() -> Harness {
     Harness {
         _root: root,
         storage,
-        repos: DocumentRepositories::new(&pool),
+        repos: DocumentRepositories::new(&pool, core_blob_holders()),
         pool,
     }
 }

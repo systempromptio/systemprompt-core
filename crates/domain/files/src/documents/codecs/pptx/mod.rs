@@ -58,15 +58,12 @@ mod template;
 #[cfg(feature = "collab-loro")]
 mod zorder;
 
-use std::sync::Arc;
-
 use quick_xml::escape::escape;
 use systemprompt_identifiers::DocumentNodeId;
 use systemprompt_provider_contracts::documents::{
     CodecError, DocumentCodec, DocumentFormat, EditOp, NodeFragment, NodeTarget, Projection,
     TemplateParams, content_hash, fragment_insert_op,
 };
-use systemprompt_provider_contracts::register_document_codec;
 
 pub use blank::blank_pptx;
 #[cfg(feature = "collab-loro")]
@@ -231,9 +228,3 @@ fn preview(slides: &[Slide]) -> String {
     }
     out
 }
-
-fn pptx_codec() -> Arc<dyn DocumentCodec> {
-    Arc::new(PptxCodec)
-}
-
-register_document_codec!(pptx_codec);

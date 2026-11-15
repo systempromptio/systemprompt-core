@@ -15,6 +15,8 @@ use systemprompt_test_fixtures::test_db_pool;
 use systemprompt_traits::{BackgroundTasks, FileByteStream, FileStorage};
 use tempfile::TempDir;
 
+use crate::documents_service_fixture::core_blob_holders;
+
 pub(crate) struct UploadRig {
     pub(crate) service: UploadService,
     _dir: TempDir,
@@ -26,7 +28,7 @@ pub(crate) async fn rig_with(limits: UploadLimits) -> UploadRig {
     let storage: Arc<dyn FileStorage> = Arc::new(LocalFileStorage::new(dir.path().to_path_buf()));
     let blobs = Arc::new(BlobStore::new(
         Arc::clone(&storage),
-        Arc::new(DocumentBlobRepository::new(&db)),
+        Arc::new(DocumentBlobRepository::new(&db, core_blob_holders())),
     ));
     let service = UploadService::new(UploadServiceParts {
         storage,

@@ -17,9 +17,11 @@ systemprompt-marketplace = "0.81"
 ```
 
 ```rust,ignore
-use systemprompt_marketplace::register_marketplace_filter;
+use systemprompt_marketplace::contract::MarketplaceSlot;
 
-register_marketplace_filter!(MyAclFilter::new, priority = 100);
+c.slot::<MarketplaceSlot>().filter(|r: &Resolved<'_>| {
+    Ok(Arc::new(MyAclFilter::new(r.get::<DbPool>()?)) as Arc<dyn MarketplaceFilter>)
+});
 ```
 
 ## Public Surface
@@ -34,14 +36,13 @@ register_marketplace_filter!(MyAclFilter::new, priority = 100);
 | `view::render_marketplace_json` / `render_marketplace_list` | JSON projections for the HTTP catalogue endpoints. |
 | `MarketplaceFilter` | Async trait implemented by ACL backends, applied before signing. |
 | `MarketplaceCandidate` | Mutable bundle of `plugins`, `skills`, `agents`, `hooks`, `managed_mcp_servers`, and `artifacts` vectors plus optional `marketplace_id` and `access`, handed to the filter. |
-| `AllowAllFilter` | Passthrough default returned when no extension registers a filter. |
+| `AllowAllFilter` | Passthrough default built when no member contributes a filter. |
 | `MarketplaceError` / `MarketplaceFilterError` | Crate-wide error (lookup, catalogue load, signing) and the narrower filter error folded into it. |
-| `MarketplaceFilterRegistration` / `discover_filters` | `inventory`-collected registration record with priority ordering, and its lookup (highest priority first). |
-| `register_marketplace_filter!` | Compile-time registration macro for a filter factory. |
+| `contract::MarketplaceSlot` | Contribution point for filters (`.filter`) and publication gates (`.publication_gate`); built core first, all-must-pass, into `MarketplaceSeams`. |
 
 ## Wiring
 
-`AppContext` holds an `Arc<dyn MarketplaceFilter>`. At startup the runtime calls `discover_filters()`, picks the highest-priority registration, and falls back to `AllowAllFilter` when no registration is present or the factory returns an error. The factory receives a `&DbPool`.
+`AppContext` holds an `Arc<dyn MarketplaceFilter>`: the built `MarketplaceSeams::filter()`, which applies every contributed filter in turn (core members first) and is `AllowAllFilter` when none is contributed. A filter factory that fails refuses the composition; factories read what they need from the resolved state.
 
 ## Dependencies
 

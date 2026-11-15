@@ -34,6 +34,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub(crate) mod config;
+pub mod contract;
 mod document_schemas;
 pub mod documents;
 pub mod error;
@@ -45,8 +46,6 @@ pub(crate) mod repository;
 pub(crate) mod services;
 pub mod uploads;
 
-#[doc(hidden)]
-pub use ::inventory as __inventory;
 pub use error::{FilesError, FilesResult};
 pub use extension::FilesExtension;
 

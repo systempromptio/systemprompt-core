@@ -1,8 +1,8 @@
 // Publication gates run before the publication transaction: a required gate
-// with none registered refuses, a refusal refuses, and an admission is
-// recorded on the review. Cohort rings resolve a consumer through the first
-// matching ring with a cohort selection, and the catalogue stamp moves with
-// cohort generations.
+// with none contributed refuses, every gate must admit whatever the order, a
+// refusal refuses, and an admission is recorded on the review. Cohort rings
+// resolve a consumer through the first matching ring with a cohort selection,
+// and the catalogue stamp moves with cohort generations.
 
 use std::sync::Arc;
 
@@ -26,6 +26,19 @@ use uuid::Uuid;
 use crate::managed_resolution::{Fixture, fixture, publish, skill_files};
 
 struct FixedGate(GateVerdict);
+
+struct NamedGate(&'static str, GateVerdict);
+
+#[async_trait]
+impl PublicationGate for NamedGate {
+    fn id(&self) -> &'static str {
+        self.0
+    }
+
+    async fn admit(&self, _ctx: &GateContext<'_>) -> Result<GateVerdict, PublicationGateError> {
+        Ok(self.1.clone())
+    }
+}
 
 #[async_trait]
 impl PublicationGate for FixedGate {
@@ -175,7 +188,7 @@ async fn resolved_revision(
 }
 
 #[tokio::test]
-async fn a_required_gate_with_none_registered_refuses_an_improvement() {
+async fn a_required_gate_with_none_contributed_refuses_an_improvement() {
     let f = fixture().await;
     publish(&f).await;
     let candidate = next_revision(&f, "# improved\n").await;
@@ -578,4 +591,63 @@ async fn a_failing_gate_refuses_as_an_internal_error() {
         .await
         .expect("head");
     assert_eq!(head, 1);
+}
+
+async fn publish_through(
+    gates: Vec<Arc<dyn PublicationGate>>,
+) -> Result<PublicationDecision, ManagedError> {
+    let f = fixture().await;
+    publish(&f).await;
+    let candidate = next_revision(&f, "# improved\n").await;
+    gated(&f, PublicationGateConfig::default(), gates)
+        .review_and_publish(
+            &f.owner,
+            &f.owner,
+            &improvement(
+                &f,
+                Some(&candidate),
+                PublicationAction::PublishImprovement,
+                1,
+                None,
+            ),
+        )
+        .await
+}
+
+fn admitting(id: &'static str) -> Arc<dyn PublicationGate> {
+    Arc::new(NamedGate(
+        id,
+        GateVerdict::Admit {
+            evidence_digest: AssetDigest::of(id.as_bytes()),
+        },
+    ))
+}
+
+fn refusing(id: &'static str) -> Arc<dyn PublicationGate> {
+    Arc::new(NamedGate(
+        id,
+        GateVerdict::Refuse {
+            reason: "core gate refuses".to_owned(),
+        },
+    ))
+}
+
+#[tokio::test]
+async fn an_admitting_install_gate_cannot_outvote_a_refusing_core_gate_in_either_order() {
+    for gates in [
+        vec![admitting("install"), refusing("core")],
+        vec![refusing("core"), admitting("install")],
+    ] {
+        let refused = publish_through(gates).await;
+        assert!(
+            matches!(&refused, Err(ManagedError::Conflict(reason)) if reason.contains("core")),
+            "{refused:?}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn two_admitting_gates_admit_as_the_negative_control() {
+    let admitted = publish_through(vec![admitting("core"), admitting("install")]).await;
+    assert!(admitted.is_ok(), "{admitted:?}");
 }

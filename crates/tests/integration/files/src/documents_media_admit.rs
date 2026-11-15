@@ -13,13 +13,15 @@ use systemprompt_traits::{BackgroundTasks, FileStorage};
 use crate::documents_service_fixture::{GroupSource, Harness, allow, harness};
 use crate::uploads_rig::{hash_of, owner, request, trace};
 
+use crate::documents_service_fixture::core_blob_holders;
+
 pub(crate) async fn uploads_beside(h: &Harness) -> UploadService {
     let db = test_db_pool().await;
     let storage: Arc<dyn FileStorage> =
         Arc::new(LocalFileStorage::new(h.storage.path().to_path_buf()));
     let blobs = Arc::new(BlobStore::new(
         Arc::clone(&storage),
-        Arc::new(DocumentBlobRepository::new(&db)),
+        Arc::new(DocumentBlobRepository::new(&db, core_blob_holders())),
     ));
     UploadService::new(UploadServiceParts {
         storage,

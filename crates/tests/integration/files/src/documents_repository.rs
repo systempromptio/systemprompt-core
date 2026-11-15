@@ -20,8 +20,10 @@ use systemprompt_test_fixtures::test_db_pool;
 use systemprompt_traits::StoredFileId;
 use uuid::Uuid;
 
+use crate::documents_service_fixture::core_blob_holders;
+
 async fn repos() -> DocumentRepositories {
-    DocumentRepositories::new(&test_db_pool().await)
+    DocumentRepositories::new(&test_db_pool().await, core_blob_holders())
 }
 
 fn unique(prefix: &str) -> String {

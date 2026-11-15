@@ -11,7 +11,7 @@
 //! - FileValidator (MIME type validation, categorization, extension mapping)
 //! - FileCategory (storage subdirs, display names)
 //! - FileUploadRequest (builder pattern)
-//! - FilesExtension (metadata, schemas, dependencies)
+//! - FilesExtension (metadata, schemas, purge rows, jobs, slots)
 //! - Error types (FileValidationError, FileUploadError)
 
 #[cfg(test)]

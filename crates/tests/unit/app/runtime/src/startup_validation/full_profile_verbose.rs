@@ -3,8 +3,8 @@
 //! domain-validation, MCP-manifest, and extension-validation phases that the
 //! no-profile short-circuit tests never enter.
 //!
-//! The inventory fixture extensions (`ext_fixtures`) make the extension arms
-//! deterministic in this binary: `covextbad` always rejects its config and
+//! The fixture members (`ext_fixtures::fixture_admitted`) make the extension
+//! arms deterministic in this binary: `covextbad` always rejects its config and
 //! `covassets_missing` always misses its required asset, so the final report
 //! carries exactly those extension errors when everything else is healthy.
 
@@ -35,7 +35,7 @@ fn verbose_validate_reports_only_fixture_extension_failures() {
     .expect("write covextok config");
 
     let mut validator = StartupValidator::new(fixture.boot.clone()).expect("startup validator");
-    let report = validator.validate(&config);
+    let report = validator.validate(&config, crate::ext_fixtures::fixture_admitted().built());
 
     assert!(
         report.profile_path.is_some(),
@@ -105,7 +105,7 @@ fn malformed_extension_config_reports_load_failure() {
     .expect("write malformed covextok config");
 
     let mut validator = StartupValidator::new(fixture.boot.clone()).expect("startup validator");
-    let report = validator.validate(&config);
+    let report = validator.validate(&config, crate::ext_fixtures::fixture_admitted().built());
 
     let ok_ext = report
         .extensions
@@ -142,7 +142,7 @@ fn malformed_ancillary_configs_degrade_to_warnings_not_errors() {
     config.web_metadata_path.clone_from(&bad);
 
     let mut validator = StartupValidator::new(fixture.boot.clone()).expect("startup validator");
-    let report = validator.validate(&config);
+    let report = validator.validate(&config, crate::ext_fixtures::fixture_admitted().built());
 
     for domain in ["content", "web"] {
         let d = report
@@ -172,7 +172,7 @@ fn restrictive_rate_limits_surface_as_domain_warnings() {
         .clone();
 
     let mut validator = StartupValidator::new(fixture.boot.clone()).expect("startup validator");
-    let report = validator.validate(&config);
+    let report = validator.validate(&config, crate::ext_fixtures::fixture_admitted().built());
 
     let rate = report
         .domains
