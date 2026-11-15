@@ -8,12 +8,12 @@ use chrono::{Duration, Utc};
 use clap::Args;
 use std::path::PathBuf;
 use systemprompt_analytics::CliSessionAnalyticsRepository;
+use systemprompt_database::DbPool;
+use systemprompt_extension::cli::{CliConfig, CommandOutput, OutputFormat};
 use systemprompt_logging::CliService;
-use systemprompt_runtime::DatabaseContext;
 
 use super::{ActiveSessionRow, LiveSessionsOutput};
 use crate::cli::shared::export_to_csv;
-use systemprompt_cli::kernel::{CliConfig, CommandOutput, render_result};
 
 const LIVE_SESSION_COLUMNS: [&str; 5] = [
     "session_id",
@@ -45,10 +45,10 @@ pub struct LiveArgs {
 
 pub(super) async fn execute_with_pool(
     args: LiveArgs,
-    db_ctx: &DatabaseContext,
+    pool: &DbPool,
     config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let repo = CliSessionAnalyticsRepository::new(db_ctx.db_pool());
+    let repo = CliSessionAnalyticsRepository::new(pool);
     execute_internal(args, &repo, config).await
 }
 
@@ -131,11 +131,26 @@ async fn fetch_live_sessions(
 }
 
 fn render_output(output: &LiveSessionsOutput, config: &CliConfig) {
-    let result = CommandOutput::table_of(LIVE_SESSION_COLUMNS.to_vec(), &output.sessions)
-        .with_title("Live Sessions");
-    render_result(&result, config);
-
-    if !config.is_json_output() && output.sessions.is_empty() {
-        CliService::warning("No active sessions");
+    match config.output_format() {
+        OutputFormat::Json => CliService::json(output),
+        OutputFormat::Yaml => CliService::yaml(output),
+        OutputFormat::Table => {
+            CliService::section("Live Sessions");
+            let rows: Vec<Vec<String>> = output.sessions.iter().map(session_cells).collect();
+            CliService::table(&LIVE_SESSION_COLUMNS, &rows);
+            if output.sessions.is_empty() {
+                CliService::warning("No active sessions");
+            }
+        },
     }
+}
+
+fn session_cells(row: &ActiveSessionRow) -> Vec<String> {
+    vec![
+        row.session.clone(),
+        row.user_type.clone(),
+        row.started_at.clone(),
+        row.duration_seconds.to_string(),
+        row.request_count.to_string(),
+    ]
 }

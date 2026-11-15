@@ -17,10 +17,10 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use systemprompt_analytics::OverviewAnalyticsRepository;
 use systemprompt_logging::CliService;
-use systemprompt_runtime::DatabaseContext;
+use systemprompt_database::DbPool;
 
 use super::shared::{CsvBuilder, parse_time_range};
-use systemprompt_cli::kernel::{CliConfig, CommandOutput};
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 #[derive(Debug, Args)]
 pub struct OverviewArgs {
@@ -92,10 +92,10 @@ pub struct CostMetrics {
 
 pub async fn execute_with_pool(
     args: OverviewArgs,
-    db_ctx: &DatabaseContext,
+    pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let repo = OverviewAnalyticsRepository::new(db_ctx.db_pool());
+    let repo = OverviewAnalyticsRepository::new(pool);
     execute_internal(args, &repo).await
 }
 

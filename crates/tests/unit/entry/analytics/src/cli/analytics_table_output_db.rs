@@ -1,9 +1,8 @@
 //! Table-output runs of the analytics dispatcher.
 //!
-//! The analytics suite standardises on `OutputFormat::Json`, which returns from
-//! `render_result` before the terminal renderer. Running the same commands in
-//! the default table mode is the only route into the analytics summary
-//! printers, and seeded rows keep them off their empty-result arms.
+//! The analytics suite standardises on `OutputFormat::Json`. Running the same
+//! commands in the default table mode drives the commands' table-mode arms,
+//! and seeded rows keep them off their empty-result arms.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 

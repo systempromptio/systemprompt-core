@@ -78,7 +78,8 @@ pub trait Broadcaster: Send + Sync {
 
 pub use extension::EventsExtension;
 pub use services::{
-    A2ABroadcaster, AgUiBroadcaster, AnalyticsBroadcaster, BroadcasterConnections,
+    A2ABroadcaster, AgUiBroadcaster, AnalyticsBroadcaster, AnalyticsSubscriptions,
+    BroadcasterConnections,
     CACHE_INVALIDATION_CHANNEL, CACHE_INVALIDATIONS_RECEIVED_TOTAL, ConnectionGuard,
     ContextBroadcaster, EventBridgeHandle, EventBroadcasters, EventRouter, EventsOwnerReassignment,
     GenericBroadcaster, HEARTBEAT_INTERVAL, HEARTBEAT_JSON, NOTIFICATION_FACTS_CHANNEL,

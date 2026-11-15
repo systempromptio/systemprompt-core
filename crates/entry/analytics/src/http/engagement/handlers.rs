@@ -9,13 +9,13 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use serde::{Deserialize, Serialize};
 use systemprompt_analytics::CreateEngagementEventInput;
-use systemprompt_api::kernel::ApiHttpError;
+use systemprompt_extension::router::ApiHttpError;
 use systemprompt_identifiers::SessionId;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_traits::SessionStore;
 
-use crate::http::AnalyticsHttpState;
+use crate::http::EngagementState;
 
 const CONVERSION_EVENT_TYPES: &[&str] = &[
     "github_click",
@@ -48,8 +48,8 @@ async fn mark_converted_if_applicable(
     }
 }
 
-pub(super) async fn record_engagement(
-    State(state): State<AnalyticsHttpState>,
+pub(crate) async fn record_engagement(
+    State(state): State<EngagementState>,
     Extension(req_ctx): Extension<RequestContext>,
     Json(input): Json<CreateEngagementEventInput>,
 ) -> Result<StatusCode, ApiHttpError> {
@@ -80,8 +80,8 @@ pub(super) async fn record_engagement(
     Ok(StatusCode::CREATED)
 }
 
-pub(super) async fn record_engagement_batch(
-    State(state): State<AnalyticsHttpState>,
+pub(crate) async fn record_engagement_batch(
+    State(state): State<EngagementState>,
     Extension(req_ctx): Extension<RequestContext>,
     Json(input): Json<EngagementBatchInput>,
 ) -> impl IntoResponse {

@@ -1,30 +1,40 @@
 //! Live analytics SSE stream endpoint.
 //!
-//! The analytics event broadcaster is not in the extension state: the API
-//! layers it onto this group's router alone, because the `Analytics` row of
-//! its closed core declaration table is handed it. A request that arrives
-//! without it is answered `503 Service Unavailable`; the handler never builds
-//! a broadcaster of its own.
+//! The handler subscribes through the analytics broadcaster the kernel hands
+//! this route set; a route set without that conferral is refused at boot, so
+//! the handle is always present. A subscription refused at the per-user
+//! connection cap answers `429 Too Many Requests`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
-
-use axum::extract::Extension;
-use axum::response::IntoResponse;
-use systemprompt_api::kernel::{ApiHttpError, create_sse_stream};
-use systemprompt_events::AnalyticsBroadcaster;
+use axum::extract::{Extension, State};
+use axum::response::{IntoResponse, Response};
+use systemprompt_extension::router::{ApiHttpError, sse_response};
+use systemprompt_identifiers::ConnectionId;
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
 
-pub(super) async fn analytics_stream(
+use crate::http::AnalyticsHttpState;
+
+pub(crate) async fn analytics_stream(
+    State(state): State<AnalyticsHttpState>,
     Extension(req_ctx): Extension<RequestContext>,
-    broadcaster: Option<Extension<Arc<AnalyticsBroadcaster>>>,
-) -> Result<impl IntoResponse, ApiHttpError> {
-    let Some(Extension(broadcaster)) = broadcaster else {
-        tracing::error!("Analytics stream served without the kernel's analytics broadcaster");
-        return Err(ApiError::service_unavailable("Analytics stream unavailable").into());
-    };
-    Ok(create_sse_stream(req_ctx, broadcaster, "Analytics").await)
+) -> Response {
+    let connection_id = ConnectionId::generate();
+    match state
+        .broadcaster
+        .0
+        .subscribe(req_ctx.user_id(), &connection_id)
+        .await
+    {
+        Some(subscription) => sse_response(&req_ctx, subscription, "Analytics"),
+        None => {
+            tracing::warn!(user_id = %req_ctx.user_id(), stream = "Analytics", "SSE stream rejected: per-user connection cap reached");
+            ApiHttpError::from(ApiError::rate_limited(
+                "Per-user stream connection limit reached",
+            ))
+            .into_response()
+        },
+    }
 }

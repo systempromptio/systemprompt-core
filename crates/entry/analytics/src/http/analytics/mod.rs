@@ -7,15 +7,5 @@
 mod events;
 mod stream;
 
-use axum::Router;
-use axum::routing::{get, post};
-
-use super::AnalyticsHttpState;
-
-pub fn router(state: AnalyticsHttpState) -> Router {
-    Router::new()
-        .route("/events", post(events::record_event))
-        .route("/events/batch", post(events::record_events_batch))
-        .route("/stream", get(stream::analytics_stream))
-        .with_state(state)
-}
+pub(crate) use events::{record_event, record_events_batch};
+pub(crate) use stream::analytics_stream;

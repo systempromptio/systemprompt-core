@@ -7,13 +7,18 @@ use systemprompt_events::{Broadcaster, GenericBroadcaster, ToSse};
 use systemprompt_identifiers::ConnectionId;
 use systemprompt_models::SystemEvent;
 use systemprompt_test_fixtures::unique_user_id;
+use systemprompt_traits::events::SseFrame;
 
 #[derive(Clone)]
 struct UnserializableEvent;
 
 impl ToSse for UnserializableEvent {
-    fn to_sse(&self) -> Result<Event, serde_json::Error> {
-        serde_json::from_str::<serde_json::Value>("not json").map(|_| Event::default())
+    fn to_frame(&self) -> Result<SseFrame, serde_json::Error> {
+        serde_json::from_str::<serde_json::Value>("not json").map(|_| SseFrame {
+            event: None,
+            id: None,
+            data: String::new(),
+        })
     }
 }
 
@@ -70,8 +75,12 @@ async fn broadcast_to_dropped_receiver_evicts_user_entry() {
 struct NamedEvent(&'static str);
 
 impl ToSse for NamedEvent {
-    fn to_sse(&self) -> Result<Event, serde_json::Error> {
-        Ok(Event::default().event("coverage-test").data(self.0))
+    fn to_frame(&self) -> Result<SseFrame, serde_json::Error> {
+        Ok(SseFrame {
+            event: Some("coverage-test".to_owned()),
+            id: None,
+            data: self.0.to_owned(),
+        })
     }
 }
 

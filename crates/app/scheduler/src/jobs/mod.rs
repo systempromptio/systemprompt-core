@@ -15,7 +15,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod analytics_event_link_facts_rollup;
 pub mod backfill_rollups;
 mod cleanup_inactive_sessions;
 mod config_reconcile;
@@ -30,7 +29,6 @@ mod session_bot_type_rollup;
 mod trace_facts_rollup;
 pub mod vertex_discovery;
 
-pub use analytics_event_link_facts_rollup::AnalyticsEventLinkFactsRollupJob;
 pub use backfill_rollups::BackfillRollupsJob;
 pub use cleanup_inactive_sessions::CleanupInactiveSessionsJob;
 pub use config_reconcile::ConfigReconcileJob;
