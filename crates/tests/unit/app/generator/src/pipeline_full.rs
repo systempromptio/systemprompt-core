@@ -224,7 +224,6 @@ async fn prerender_content_with_empty_templates_dir_runs_engine() {
     let _ = prerender_content(
         db.clone(),
         content_repo(&db),
-        content_analytics(&db),
         systemprompt_generator::PrerenderEnv {
             config: ensure_test_bootstrap().boot_config(),
             paths: &paths,
@@ -388,8 +387,3 @@ fn content_repo(pool: &systemprompt_database::DbPool) -> systemprompt_content::C
     systemprompt_content::ContentRepository::new(pool)
 }
 
-fn content_analytics(
-    pool: &systemprompt_database::DbPool,
-) -> systemprompt_analytics::ContentAnalyticsRepository {
-    systemprompt_analytics::ContentAnalyticsRepository::new(pool)
-}

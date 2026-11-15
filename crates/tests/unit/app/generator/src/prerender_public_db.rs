@@ -241,7 +241,6 @@ async fn prerender_excludes_non_public_rows() {
     let _ = prerender_content(
         db.clone(),
         content_repo(&db),
-        content_analytics(&db),
         systemprompt_generator::PrerenderEnv {
             config: ensure_test_bootstrap().boot_config(),
             paths: &boot.app_paths,
@@ -310,7 +309,6 @@ async fn prerender_removes_now_private_slug() {
     let _ = prerender_content(
         db.clone(),
         content_repo(&db),
-        content_analytics(&db),
         systemprompt_generator::PrerenderEnv {
             config: ensure_test_bootstrap().boot_config(),
             paths: &boot.app_paths,
@@ -364,7 +362,6 @@ async fn prerender_purge_refuses_slug_that_escapes_the_source_dir() {
     let _ = prerender_content(
         db.clone(),
         content_repo(&db),
-        content_analytics(&db),
         systemprompt_generator::PrerenderEnv {
             config: ensure_test_bootstrap().boot_config(),
             paths: &boot.app_paths,
@@ -387,8 +384,3 @@ fn content_repo(pool: &systemprompt_database::DbPool) -> systemprompt_content::C
     systemprompt_content::ContentRepository::new(pool)
 }
 
-fn content_analytics(
-    pool: &systemprompt_database::DbPool,
-) -> systemprompt_analytics::ContentAnalyticsRepository {
-    systemprompt_analytics::ContentAnalyticsRepository::new(pool)
-}

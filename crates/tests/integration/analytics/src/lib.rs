@@ -11,6 +11,9 @@ mod costs;
 mod repositories;
 
 #[cfg(test)]
+mod popularity;
+
+#[cfg(test)]
 mod report_views_reinstall;
 
 #[cfg(test)]

@@ -1,4 +1,5 @@
-//! Content provider traits for blog posts, docs, and other published items.
+//! Content provider traits for blog posts, docs, and other published items,
+//! and the audience ranking ([`ContentPopularity`]) the prerender orders by.
 //!
 //! [`ContentProvider`] carries an associated error type, so it is only ever
 //! dispatched statically and uses native `async fn`.
@@ -41,6 +42,26 @@ pub trait ContentCatalogStats: Send + Sync + std::fmt::Debug {
 }
 
 pub type DynContentCatalogStats = std::sync::Arc<dyn ContentCatalogStats>;
+
+/// A content source's items ranked by audience: the ids of the items with the
+/// most distinct human viewers over a trailing window of days, most viewed
+/// first.
+///
+/// The content prerender orders its "popular" lists with it. The analytics
+/// extension provides it in the extension state as
+/// [`DynContentPopularity`]; a host without it renders without popularity
+/// ordering. It is `dyn` dispatched, hence `#[async_trait]`.
+#[async_trait]
+pub trait ContentPopularity: Send + Sync + std::fmt::Debug {
+    async fn popular_content_ids(
+        &self,
+        source_id: &SourceId,
+        days: i32,
+        limit: i64,
+    ) -> Result<Vec<ContentId>, crate::RepositoryError>;
+}
+
+pub type DynContentPopularity = std::sync::Arc<dyn ContentPopularity>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContentSummary {

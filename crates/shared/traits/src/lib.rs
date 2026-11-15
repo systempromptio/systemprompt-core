@@ -60,7 +60,9 @@ pub use stream_drain::{StreamDrain, StreamDrainWatch};
 pub mod analytics_events;
 pub mod auth;
 pub mod content;
-pub use content::{ContentCatalogStats, DynContentCatalogStats};
+pub use content::{
+    ContentCatalogStats, ContentPopularity, DynContentCatalogStats, DynContentPopularity,
+};
 pub use traffic_class_counts::{DynTrafficClassCounts, TrafficClassCounts, TrafficClassTotals};
 pub mod context;
 pub mod context_provider;

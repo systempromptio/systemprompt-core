@@ -169,7 +169,6 @@ async fn prerender_runs_fixture_components_extenders_and_enrichment() {
     prerender_content(
         db.clone(),
         content_repo(&db),
-        content_analytics(&db),
         systemprompt_generator::PrerenderEnv {
             config: ensure_test_bootstrap().boot_config(),
             paths: &boot.app_paths,
@@ -268,7 +267,6 @@ async fn prerender_empty_source_retries_then_renders_nothing() {
     prerender_content(
         db.clone(),
         content_repo(&db),
-        content_analytics(&db),
         systemprompt_generator::PrerenderEnv {
             config: ensure_test_bootstrap().boot_config(),
             paths: &boot.app_paths,
@@ -393,8 +391,3 @@ fn content_repo(pool: &systemprompt_database::DbPool) -> systemprompt_content::C
     systemprompt_content::ContentRepository::new(pool)
 }
 
-fn content_analytics(
-    pool: &systemprompt_database::DbPool,
-) -> systemprompt_analytics::ContentAnalyticsRepository {
-    systemprompt_analytics::ContentAnalyticsRepository::new(pool)
-}

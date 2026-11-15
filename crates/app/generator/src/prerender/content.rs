@@ -7,7 +7,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use futures::stream::{self, StreamExt};
-use systemprompt_analytics::ContentAnalyticsRepository;
+use systemprompt_traits::DynContentPopularity;
 use systemprompt_content::models::Content;
 use systemprompt_identifiers::LocaleCode;
 use systemprompt_models::{ContentSourceConfigRaw, SitemapConfig};
@@ -38,7 +38,7 @@ struct SourceTarget<'a> {
 
 pub(super) async fn process_all_sources(
     ctx: &PrerenderContext,
-    content_analytics: &ContentAnalyticsRepository,
+    popularity: Option<&DynContentPopularity>,
 ) -> Result<u32> {
     const SOURCE_CONCURRENCY: usize = 2;
 
@@ -67,7 +67,7 @@ pub(super) async fn process_all_sources(
 
     let futures: Vec<_> = work
         .iter()
-        .map(|target| process_source(ctx, content_analytics, target))
+        .map(|target| process_source(ctx, popularity, target))
         .collect();
 
     let results: Vec<Result<u32>> = stream::iter(futures)
@@ -103,7 +103,7 @@ fn get_enabled_sitemap<'a>(
 
 async fn process_source(
     ctx: &PrerenderContext,
-    content_analytics: &ContentAnalyticsRepository,
+    popularity: Option<&DynContentPopularity>,
     target: &SourceTarget<'_>,
 ) -> Result<u32> {
     let source_name = target.name;
@@ -136,7 +136,7 @@ async fn process_source(
         &ctx.dependencies,
     )
     .await;
-    let popular_ids = fetch_popular_ids(content_analytics, source_name, &source.source_id)
+    let popular_ids = fetch_popular_ids(popularity, source_name, &source.source_id)
         .await
         .map_err(|e| PublishError::fetch_failed(source_name, e))?;
 

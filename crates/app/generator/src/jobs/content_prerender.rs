@@ -6,7 +6,6 @@
 use async_trait::async_trait;
 use std::sync::Arc;
 
-use systemprompt_analytics::ContentAnalyticsRepository;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_content::ContentRepository;
 use systemprompt_database::DbPool;
@@ -48,11 +47,9 @@ impl Job for ContentPrerenderJob {
 
         tracing::info!("Job started");
         let content_repo = ContentRepository::new(&db_pool);
-        let content_analytics = ContentAnalyticsRepository::new(&db_pool);
         prerender_content(
             db_pool,
             content_repo,
-            content_analytics,
             PrerenderEnv {
                 config,
                 paths,

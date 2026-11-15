@@ -7,7 +7,7 @@
 use std::sync::Arc;
 
 use futures::stream::{self, StreamExt};
-use systemprompt_analytics::ContentAnalyticsRepository;
+use systemprompt_traits::DynContentPopularity;
 use systemprompt_content::ContentRepository;
 use systemprompt_content::models::Content;
 use systemprompt_identifiers::{LocaleCode, SourceId};
@@ -129,18 +129,18 @@ pub(super) async fn contents_to_json(
 }
 
 pub(super) async fn fetch_popular_ids(
-    content_analytics: &ContentAnalyticsRepository,
+    popularity: Option<&DynContentPopularity>,
     source_name: &str,
     source_id: &SourceId,
 ) -> GeneratorResult<Vec<String>> {
-    if source_name.is_empty() {
+    let Some(popularity) = popularity.filter(|_| !source_name.is_empty()) else {
         return Ok(Vec::new());
-    }
+    };
 
-    let ids = content_analytics
+    let ids = popularity
         .popular_content_ids(source_id, 30, 20)
         .await
-        .map_err(|e| PublishError::analytics("Failed to get popular content IDs", e))?;
+        .map_err(|e| PublishError::popularity("Failed to get popular content IDs", e))?;
 
     Ok(ids.into_iter().map(|id| id.to_string()).collect())
 }

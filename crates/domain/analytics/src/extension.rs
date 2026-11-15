@@ -5,6 +5,10 @@
 //! `agent` (and through it `ai` and `mcp`) because the rollup triggers sit on
 //! their tables.
 //!
+//! On every host it provides the content audience ranking
+//! ([`DynContentPopularity`](systemprompt_traits::DynContentPopularity)) the
+//! content prerender orders its popular lists by.
+//!
 //! On a host that seeds the analytics repositories (the API), it provides the
 //! [`DynSessionBehaviourScorer`](systemprompt_traits::DynSessionBehaviourScorer)
 //! the request-analytics middleware hands each tracked request's session to.
@@ -22,11 +26,12 @@
 
 use std::sync::Arc;
 
+use systemprompt_database::DbPool;
 use systemprompt_extension::prelude::*;
-use systemprompt_traits::{DynIpBanStore, DynSessionStore};
+use systemprompt_traits::{DynContentPopularity, DynIpBanStore, DynSessionStore};
 
 use crate::SessionBehaviourService;
-use crate::repository::AnalyticsRepositories;
+use crate::repository::{AnalyticsRepositories, ContentAnalyticsRepository};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AnalyticsExtension;
@@ -91,6 +96,9 @@ impl Extension for AnalyticsExtension {
         _ctx: &dyn ExtensionContext,
         state: &mut StateBuilder<'_>,
     ) -> Result<(), ExtensionStateError> {
+        let db = Arc::clone(state.state().get::<DbPool>()?);
+        let popularity: DynContentPopularity = Arc::new(ContentAnalyticsRepository::new(&db));
+        state.provide(popularity)?;
         let Some(repositories) = state.state().find::<Arc<AnalyticsRepositories>>() else {
             return Ok(());
         };

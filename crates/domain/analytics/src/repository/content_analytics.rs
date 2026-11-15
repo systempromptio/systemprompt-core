@@ -10,6 +10,7 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 
 use systemprompt_identifiers::{CategoryId, ContentId, SourceId};
+use systemprompt_traits::{ContentPopularity, RepositoryError};
 
 use crate::models::reporting::{
     ContentStatsRow, ContentTrendRow, PopularContentRow, TopContentRow,
@@ -69,26 +70,12 @@ impl ContentAnalyticsRepository {
         .map_err(Into::into)
     }
 
-    pub async fn popular_content_ids(
-        &self,
-        source_id: &SourceId,
-        days: i32,
-        limit: i64,
-    ) -> Result<Vec<ContentId>> {
-        Ok(self
-            .popular_content(source_id, days, limit)
-            .await?
-            .into_iter()
-            .map(|row| row.id)
-            .collect())
-    }
-
     pub async fn popular_content(
         &self,
         source_id: &SourceId,
         days: i32,
         limit: i64,
-    ) -> Result<Vec<PopularContentRow>> {
+    ) -> std::result::Result<Vec<PopularContentRow>, RepositoryError> {
         // Why: `users` carries only `is_bot` and `is_scanner`; this is a
         // user-level filter, not the session predicate `is_human_traffic`
         // states over the crawler and behavioural flags.
@@ -125,7 +112,7 @@ impl ContentAnalyticsRepository {
         )
         .fetch_all(&*self.pool)
         .await
-        .map_err(Into::into)
+        .map_err(RepositoryError::from)
     }
 
     pub async fn get_stats(
@@ -191,5 +178,22 @@ impl ContentAnalyticsRepository {
         .fetch_all(&*self.pool)
         .await
         .map_err(Into::into)
+    }
+}
+
+#[async_trait::async_trait]
+impl ContentPopularity for ContentAnalyticsRepository {
+    async fn popular_content_ids(
+        &self,
+        source_id: &SourceId,
+        days: i32,
+        limit: i64,
+    ) -> std::result::Result<Vec<ContentId>, RepositoryError> {
+        Ok(self
+            .popular_content(source_id, days, limit)
+            .await?
+            .into_iter()
+            .map(|row| row.id)
+            .collect())
     }
 }

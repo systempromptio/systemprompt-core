@@ -430,7 +430,7 @@ async fn content_analytics_repository_smoke() -> Result<()> {
         .get_content_for_trends(fx.window_start, fx.window_end)
         .await?;
     let popular = repo
-        .popular_content_ids(&SourceId::new(format!("src-{}", Uuid::new_v4())), 30, 5)
+        .popular_content(&SourceId::new(format!("src-{}", Uuid::new_v4())), 30, 5)
         .await?;
     assert!(popular.is_empty());
 
