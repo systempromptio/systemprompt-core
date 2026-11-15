@@ -1,5 +1,8 @@
 //! The protection shape a core declaration row pins, and the one field a
-//! declaration from that row's owner differs in.
+//! declaration from that row's owner differs in. An owner may list several
+//! rows at one base path and group (one per shape); a declaration matching
+//! any of them is admitted, and one matching none is reported against the
+//! first.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -59,7 +62,13 @@ impl CoreDeclaration {
             })
         };
         rows().next()?;
-        match rows().find(|entry| entry.names(owner, declared.base_path, declared.group)) {
+        let named = || {
+            rows().filter(|entry| entry.names(owner, declared.base_path, declared.group))
+        };
+        if named().any(|row| row.shape_matches(&declared.protection)) {
+            return None;
+        }
+        match named().next() {
             Some(row) => row.mismatch(&declared.protection),
             None if rows().any(|entry| entry.base_path() == declared.base_path) => {
                 Some(CoreShapeField::Group)
