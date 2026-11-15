@@ -214,6 +214,7 @@ scripts/*
 !scripts/lib/
 !scripts/lib/gate-scope.sh
 !scripts/lib/gate_scope.py
+!scripts/lib/rust_tokens.py
 !scripts/lib/rust-contracts.sh
 !scripts/lib/units.py
 !scripts/lib/gh_api.py

@@ -36,113 +36,11 @@ import sys
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 import gate_scope  # noqa: E402
+from rust_tokens import matching, matching_back, tokenize  # noqa: E402
 
 DEFAULT_ROOTS = ("crates/tests", "bin/bridge")
 TARGET_TABLES = {"lib": "lib", "bin": "bin", "test": "test", "bench": "bench", "example": "example"}
 AUTO_KEYS = {"autobins": "bin", "autotests": "test", "autobenches": "bench", "autoexamples": "example"}
-
-
-def tokenize(text):
-    """Identifier, punctuation and string tokens of Rust source.
-
-    Comments (nested block comments included), char literals and lifetimes are
-    dropped. A string token is `("str", value)`; the value is the raw text
-    between the quotes, enough for a `#[path]` argument.
-    """
-    tokens = []
-    i, n = 0, len(text)
-    while i < n:
-        c = text[i]
-        if c.isspace():
-            i += 1
-        elif text.startswith("//", i):
-            j = text.find("\n", i)
-            i = n if j < 0 else j + 1
-        elif text.startswith("/*", i):
-            depth, i = 1, i + 2
-            while i < n and depth:
-                if text.startswith("/*", i):
-                    depth, i = depth + 1, i + 2
-                elif text.startswith("*/", i):
-                    depth, i = depth - 1, i + 2
-                else:
-                    i += 1
-        elif c in "rb" and raw_string_at(text, i):
-            j = i + (2 if text.startswith("br", i) else 1)
-            hashes = 0
-            while text[j] == "#":
-                hashes, j = hashes + 1, j + 1
-            close = '"' + "#" * hashes
-            end = text.find(close, j + 1)
-            end = n if end < 0 else end
-            tokens.append(("str", text[j + 1:end]))
-            i = end + len(close)
-        elif c == '"' or (c in "bc" and text.startswith('"', i + 1)):
-            j = i + 1 if c == '"' else i + 2
-            start = j
-            while j < n and text[j] != '"':
-                j += 2 if text[j] == "\\" else 1
-            tokens.append(("str", text[start:j]))
-            i = j + 1
-        elif c == "'":
-            if text.startswith("\\", i + 1):
-                j = text.find("'", i + 3)
-                i = n if j < 0 else j + 1
-            elif i + 2 < n and text[i + 2] == "'":
-                i += 3
-            else:
-                i += 1
-        elif c.isalnum() or c == "_":
-            j = i
-            while j < n and (text[j].isalnum() or text[j] == "_"):
-                j += 1
-            word = text[i:j]
-            if word == "r" and text.startswith("#", j) and j + 1 < n and (text[j + 1].isalpha() or text[j + 1] == "_"):
-                k = j + 1
-                while k < n and (text[k].isalnum() or text[k] == "_"):
-                    k += 1
-                word, j = "r#" + text[j + 1:k], k
-            tokens.append(("id", word))
-            i = j
-        else:
-            tokens.append(("p", c))
-            i += 1
-    return tokens
-
-
-def raw_string_at(text, i):
-    j = i + (2 if text.startswith("br", i) else 1)
-    if text.startswith("b", i) and not text.startswith("br", i):
-        return False
-    if i > 0 and (text[i - 1].isalnum() or text[i - 1] == "_"):
-        return False
-    while j < len(text) and text[j] == "#":
-        j += 1
-    return j < len(text) and text[j] == '"'
-
-
-def matching(tokens, i, open_, close):
-    depth = 0
-    for j in range(i, len(tokens)):
-        if tokens[j] == ("p", open_):
-            depth += 1
-        elif tokens[j] == ("p", close):
-            depth -= 1
-            if depth == 0:
-                return j
-    return len(tokens) - 1
-
-
-def matching_back(tokens, i, open_, close):
-    depth = 0
-    for j in range(i, -1, -1):
-        if tokens[j] == ("p", close):
-            depth += 1
-        elif tokens[j] == ("p", open_):
-            depth -= 1
-            if depth == 0:
-                return j
-    return 0
 
 
 def path_attribute(tokens, mod_at):
