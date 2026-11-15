@@ -9,6 +9,10 @@
 //! `services::middleware::mount`: its `AuthzPolicy`, context middleware, rate
 //! limit, body limit and protection layers come from the declaration.
 //!
+//! `configure_routes` is the boot path's assembly and runs downstream of the
+//! core owner check `setup_api_server` makes before the gateway engines are
+//! built; the public `configure_routes_for_role` makes that check itself.
+//!
 //! The static router is merged after the IP-ban layer is applied, so public
 //! pages and assets are served without a ban-list lookup; only the API routes
 //! are gated. Metrics stay outermost and still measure static responses.
@@ -67,6 +71,9 @@ pub fn configure_routes_for_role(
     events: Option<&StartupEventSender>,
     engines: &Arc<GatewayEngines>,
 ) -> anyhow::Result<Router> {
+    crate::services::middleware::admit_core_owners(
+        ctx.extension_registry().extensions().iter().map(|ext| &**ext),
+    )?;
     Ok(build_routes(ctx, role, events, engines)?)
 }
 
@@ -76,9 +83,6 @@ fn build_routes(
     events: Option<&StartupEventSender>,
     engines: &Arc<GatewayEngines>,
 ) -> Result<Router, RouteMountError> {
-    crate::services::middleware::admit_core_owners(
-        ctx.extension_registry().extensions().iter().map(|ext| &**ext),
-    )?;
     let groups = role::route_groups(role);
     let serves = |group: RouteGroup| groups.contains(&group);
     let mut router = Router::new();

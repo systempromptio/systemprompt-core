@@ -33,6 +33,10 @@ mod server_mount_notifications;
 mod server_mount_core_owners;
 
 #[cfg(test)]
+#[path = "server_boot_core_owner_impostor.rs"]
+mod server_boot_core_owner_impostor;
+
+#[cfg(test)]
 #[path = "routes_content_mounted.rs"]
 mod routes_content_mounted;
 

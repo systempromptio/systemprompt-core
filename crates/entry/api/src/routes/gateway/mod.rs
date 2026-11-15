@@ -24,6 +24,12 @@
 //! than as the rate limit it is. A registered group (the bridge inbox) carries
 //! its own budget, so its polling and inference never starve each other.
 //!
+//! [`gateway_engines`] and [`gateway_router`] run the core owner check over
+//! every registered extension before any gateway guard factory runs, so an
+//! extension that takes a core row it does not own is refused before its
+//! code is called. The server's own boot path runs that check once, ahead of
+//! the crate-internal engine build.
+//!
 //! The access log layer is outside both limiters so that a refused request
 //! still produces a record; an instance 429ing every sign-in shows it in its
 //! logs.
@@ -72,7 +78,7 @@ use self::routers::{
     bridge_auth_routes, bridge_profile_routes, bridge_session_routes, inference_routes,
 };
 use crate::kernel::JwtContextExtractor;
-use crate::services::middleware::confined;
+use crate::services::middleware::{MountError, admit_core_owners, confined};
 
 pub(crate) use self::access_log::GatewayLogIdentity;
 
@@ -167,7 +173,23 @@ pub(crate) fn gateway_mount_parts(
     })
 }
 
-pub fn gateway_engines(
+/// Failure to build the gateway engines through [`gateway_engines`]: an
+/// extension takes a core row it does not own, or the engines themselves
+/// could not be assembled.
+#[derive(Debug, thiserror::Error)]
+pub enum GatewayBootError {
+    #[error(transparent)]
+    CoreOwner(#[from] MountError),
+    #[error(transparent)]
+    Engines(#[from] systemprompt_gateway::GatewayEnginesError),
+}
+
+pub fn gateway_engines(ctx: &AppContext) -> Result<GatewayEngines, GatewayBootError> {
+    admit_core_owners(ctx.extension_registry().extensions().iter().map(|ext| &**ext))?;
+    Ok(build_gateway_engines(ctx)?)
+}
+
+pub(crate) fn build_gateway_engines(
     ctx: &AppContext,
 ) -> Result<GatewayEngines, systemprompt_gateway::GatewayEnginesError> {
     let extensions: Arc<dyn systemprompt_extension::ExtensionContext> = Arc::new(ctx.clone());
