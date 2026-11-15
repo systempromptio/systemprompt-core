@@ -10,6 +10,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_extension::AdmittedPurge;
 use systemprompt_identifiers::UserId;
 
 use super::UserService;
@@ -49,7 +50,7 @@ impl UserService {
         self.repository.find_archive_state(id).await
     }
 
-    pub async fn purge(&self, id: &UserId) -> Result<Vec<PurgeCount>> {
+    pub async fn purge(&self, id: &UserId, plan: &AdmittedPurge) -> Result<Vec<PurgeCount>> {
         let state = self
             .repository
             .find_archive_state(id)
@@ -61,13 +62,14 @@ impl UserService {
         if state.legal_hold {
             return Err(UserError::LegalHold(id.clone()));
         }
-        self.repository.delete(id).await
+        self.repository.delete(id, plan).await
     }
 
     pub async fn purge_expired_archives(
         &self,
         window_days: u32,
         limit: i64,
+        plan: &AdmittedPurge,
     ) -> Result<Vec<UserId>> {
         let ids = self
             .repository
@@ -75,7 +77,7 @@ impl UserService {
             .await?;
         let mut purged = Vec::with_capacity(ids.len());
         for id in ids {
-            self.purge(&id).await?;
+            self.purge(&id, plan).await?;
             purged.push(id);
         }
         Ok(purged)

@@ -54,6 +54,7 @@ pub use repository::{
     IssuerRekeyPlan, MERGE_EXCLUDED_SECURITY_TABLES, MergeResult, NewServiceAccount,
     NewSsoLoginEvent, PurgeCount, SessionRepository, SessionTrafficRollupRepository, SsoLoginEvent,
     SsoLoginEventRepository, UserRateLimitBucketRepository, UserRepository, UsersRoleDirectory,
+    UsersRoleSubjectProvider,
 };
 pub use services::{
     API_KEY_PREFIX, ApiKeyLifetime, ApiKeyService, DEVICE_FINGERPRINT_FOREIGN_USER, DemoteResult,
