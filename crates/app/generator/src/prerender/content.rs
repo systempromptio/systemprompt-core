@@ -136,7 +136,7 @@ async fn process_source(
         &ctx.dependencies,
     )
     .await;
-    let popular_ids = fetch_popular_ids(popularity, source_name, &source.source_id)
+    let popular = fetch_popular_ids(popularity, source_name, &source.source_id)
         .await
         .map_err(|e| PublishError::fetch_failed(source_name, e))?;
 
@@ -147,7 +147,7 @@ async fn process_source(
         locale,
         locale_prefix: &locale_prefix,
         items: &items,
-        popular_ids: &popular_ids,
+        popular_ids: popular.ids(),
     };
 
     let rendered = render_all_items(&job).await?;

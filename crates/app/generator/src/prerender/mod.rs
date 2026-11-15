@@ -26,5 +26,6 @@ mod render;
 mod toc;
 
 pub use engine::{PagePrerenderResult, PrerenderEnv, prerender_content, prerender_pages};
+pub use fetch::{PopularContent, fetch_popular_ids};
 pub use json_merge::merge_json_data;
 pub use toc::{TocResult, generate_toc};

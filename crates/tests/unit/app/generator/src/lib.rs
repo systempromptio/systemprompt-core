@@ -53,6 +53,9 @@ mod pipeline_full;
 #[cfg(test)]
 mod pipeline_smoke;
 #[cfg(test)]
+mod popularity_tests;
+
+#[cfg(test)]
 mod prerender_public_db;
 #[cfg(test)]
 mod prerender_render_db;
