@@ -75,10 +75,7 @@ fn content_http_holds_the_three_conferred_route_sets() {
                 .all(|shape| *shape == (AuthzPolicy::user(), ContextKind::User))
         })
         .expect("a signed-in set at /api/v1/content");
-    assert_eq!(
-        routes(signed_in),
-        [("POST".to_owned(), "/links/generate")]
-    );
+    assert_eq!(routes(signed_in), [("POST".to_owned(), "/links/generate")]);
 
     let public = at_content
         .iter()
@@ -185,7 +182,11 @@ fn deleting_content_sources_or_links_is_destructive() {
     ] {
         let descriptor = describe(args);
         assert!(descriptor.is_destructive(), "{args:?}");
-        assert_eq!(descriptor.data_impact(), DataImpact::Destructive, "{args:?}");
+        assert_eq!(
+            descriptor.data_impact(),
+            DataImpact::Destructive,
+            "{args:?}"
+        );
     }
 }
 

@@ -1,13 +1,8 @@
 //! Composition tests for the facade: reference order, install refusals,
 //! provider standing, disabled members, kernel handles, the CLI re-check of
 //! a forged command handoff, the built-in gateway prefixes, and the
-<<<<<<< HEAD
-//! analytics-http member as the reference composition admits it, and the
-//! brain and notifications capability slots and routes.
-=======
 //! analytics-http and content-http members as the reference composition
-//! admits them.
->>>>>>> future-k-a
+//! admits them, and the brain and notifications capability slots and routes.
 
 #[cfg(test)]
 mod analytics_http;
