@@ -6,11 +6,14 @@
 //! repositories they read come from the `content` extension's `provide`.
 //! The real declarations pass the API's claim check, and declaring the
 //! signed-in router with the public shape, dropping one or duplicating one
-//! refuses boot.
+//! refuses boot. The real extension is the type its core rows name, so it
+//! passes the owner check (this binary links the owning crate).
 
 use std::sync::Arc;
 
-use systemprompt_api::services::middleware::{CoreDeclaration, MountError, admit_extensions};
+use systemprompt_api::services::middleware::{
+    CoreDeclaration, MountError, admit_core_owner, admit_extensions,
+};
 use systemprompt_content::repository::ContentRepositories;
 use systemprompt_content_entry::extension::ContentHttpExtension;
 use systemprompt_extension::registry::{ApiRouter, WEB_ROOT_BASE_PATH};
@@ -146,4 +149,17 @@ async fn a_missing_or_duplicated_declaration_refuses_boot() {
         ),
         "a duplicated redirect router refuses boot"
     );
+}
+
+#[test]
+fn the_content_extension_is_the_type_its_core_rows_name() {
+    let ext: &dyn Extension = &ContentHttpExtension;
+    for row in [
+        CoreDeclaration::ContentPublic,
+        CoreDeclaration::ContentAuthenticated,
+        CoreDeclaration::ContentRedirect,
+    ] {
+        assert_eq!(row.owner_type(), Some(ext.type_name()), "{row:?}");
+    }
+    admit_core_owner(ext).expect("the real content extension owns its rows");
 }

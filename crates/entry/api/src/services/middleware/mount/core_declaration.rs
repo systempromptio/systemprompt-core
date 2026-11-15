@@ -45,6 +45,19 @@
 //! declaration that moves or changes its protection fails until the table
 //! changes with it. Install ids own no row and are unaffected.
 //!
+//! Owner identity: every extension row names its owner by extension id and
+//! by the Rust type that implements that extension
+//! ([`CoreDeclaration::owner_type`]). [`admit_core_owner`] refuses boot with
+//! `MountError::CoreOwnerImpostor` when an extension's id names any row but
+//! its type (`type_name` on `dyn Extension`, supplied by a blanket
+//! implementation no extension can override) is not the row's owner type.
+//! The server runs it over every registered extension, on every role,
+//! before any extension router is built or admitted; once it has passed, an
+//! id that names a row is held only by that row's type, so every
+//! id-keyed decision below (admission, claims, role exposure, the `WebPath`
+//! allowance, gateway rows and kernel handles) is bound to the owning type,
+//! whether or not the owning crate is linked.
+//!
 //! An extension declaration is matched by its registered extension id, its
 //! base path and its route group. The table is a guard-rail against an
 //! install extension mounting an ungated or reserved route, or widening its
@@ -60,7 +73,8 @@
 
 use systemprompt_extension::registry::WEB_ROOT_BASE_PATH;
 use systemprompt_extension::{
-    ContextKind, ExtensionRouter, HandlerVerifier, RESERVED_PATHS, RouteGroup, RouteProtection,
+    ContextKind, Extension, ExtensionRouter, HandlerVerifier, RESERVED_PATHS, RouteGroup,
+    RouteProtection,
 };
 
 use super::{DEFAULT_BODY_LIMIT_BYTES, MountError};
@@ -154,6 +168,28 @@ fn reserved(base_path: &str) -> bool {
 
 fn web_path(base_path: &str) -> bool {
     base_path != WEB_ROOT_BASE_PATH && !base_path.starts_with("/api/")
+}
+
+pub fn admit_core_owner(ext: &dyn Extension) -> Result<(), MountError> {
+    let extension = ext.metadata().id;
+    let type_name = ext.type_name();
+    CoreDeclaration::ALL
+        .iter()
+        .filter(|row| row.declarer() == CoreDeclarer::Extension(extension))
+        .find_map(|row| row.owner_type().filter(|owner| *owner != type_name))
+        .map_or(Ok(()), |owner| {
+            Err(MountError::CoreOwnerImpostor {
+                extension,
+                type_name,
+                owner,
+            })
+        })
+}
+
+pub fn admit_core_owners<'a>(
+    extensions: impl IntoIterator<Item = &'a dyn Extension>,
+) -> Result<(), MountError> {
+    extensions.into_iter().try_for_each(admit_core_owner)
 }
 
 pub fn admit_extension(

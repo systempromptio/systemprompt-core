@@ -29,6 +29,10 @@ mod server_mount_analytics;
 mod server_mount_notifications;
 
 #[cfg(test)]
+#[path = "server_mount_core_owners.rs"]
+mod server_mount_core_owners;
+
+#[cfg(test)]
 #[path = "routes_content_mounted.rs"]
 mod routes_content_mounted;
 

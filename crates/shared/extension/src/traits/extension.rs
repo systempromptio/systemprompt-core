@@ -35,7 +35,13 @@ use crate::state::{StateBuilder, StateRequirement};
 /// `routers` declares every route group the extension serves; an `Err`
 /// (a client or state the routers need cannot be built) refuses boot with
 /// `LoaderError::RouterBuildFailed` naming the extension.
-pub trait Extension: Send + Sync + 'static {
+///
+/// Every extension carries its Rust type identity
+/// (`type_name` on `dyn Extension`): the
+/// fully-qualified path of the implementing type, supplied by a blanket
+/// implementation no extension can override, so the kernel can bind a core
+/// row to the type that owns it rather than to a self-declared id.
+pub trait Extension: identity::ExtensionType + Send + Sync + 'static {
     fn metadata(&self) -> ExtensionMetadata;
 
     fn schemas(&self) -> Vec<SchemaDefinition> {
@@ -227,5 +233,24 @@ pub trait Extension: Send + Sync + 'static {
 
     fn required_assets(&self, _paths: &dyn AssetPaths) -> Vec<AssetDefinition> {
         vec![]
+    }
+}
+
+mod identity {
+    pub trait ExtensionType {
+        fn extension_type_name(&self) -> &'static str;
+    }
+
+    impl<T: 'static> ExtensionType for T {
+        fn extension_type_name(&self) -> &'static str {
+            std::any::type_name::<T>()
+        }
+    }
+}
+
+impl dyn Extension {
+    #[must_use]
+    pub fn type_name(&self) -> &'static str {
+        identity::ExtensionType::extension_type_name(self)
     }
 }

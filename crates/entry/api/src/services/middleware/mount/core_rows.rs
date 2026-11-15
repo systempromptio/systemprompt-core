@@ -12,6 +12,11 @@
 //! answers 404 there; and the short-link redirect, merged at the web root as
 //! the server mounted it and pinned to `GET /r/…`.
 //!
+//! Each extension row names its owner twice: by extension id
+//! ([`CoreDeclaration::declarer`]) and by the fully-qualified Rust type that
+//! implements that extension ([`CoreDeclaration::owner_type`]), which only
+//! the owning crate can produce (`type_name` on `dyn Extension`).
+//!
 //! Only the `Analytics` row is handed a kernel handle: the analytics event
 //! broadcaster its live stream subscribes to.
 //!
@@ -44,6 +49,27 @@ impl CoreDeclaration {
             Self::Analytics | Self::Engagement => CoreDeclarer::Extension("analytics-http"),
             Self::ContentPublic | Self::ContentAuthenticated | Self::ContentRedirect => {
                 CoreDeclarer::Extension("content-http")
+            },
+        }
+    }
+
+    #[must_use]
+    pub const fn owner_type(self) -> Option<&'static str> {
+        match self {
+            Self::AgentProxy => None,
+            Self::Slack => Some("systemprompt_slack_entry::extension::SlackExtension"),
+            Self::AgentRuns => {
+                Some("systemprompt_agent_runs_entry::http::extension::AgentRunsApiExtension")
+            },
+            Self::Teams => Some("systemprompt_teams_entry::extension::TeamsExtension"),
+            Self::Notifications | Self::NotificationsAdmin | Self::BridgeNotifications => {
+                Some("systemprompt_notifications_entry::extension::NotificationsHttpExtension")
+            },
+            Self::Analytics | Self::Engagement => {
+                Some("systemprompt_analytics_entry::extension::AnalyticsHttpExtension")
+            },
+            Self::ContentPublic | Self::ContentAuthenticated | Self::ContentRedirect => {
+                Some("systemprompt_content_entry::extension::ContentHttpExtension")
             },
         }
     }
