@@ -38,7 +38,7 @@ use systemprompt_extension::cli::{
     DbUrlRouting, DescribeCommand,
 };
 
-use crate::cli::shared::{command_error, with_resolved_export};
+use crate::cli::shared::with_resolved_export;
 
 #[derive(Debug, Subcommand)]
 pub enum AnalyticsCommands {
@@ -88,7 +88,7 @@ impl CliCommandGroup for AnalyticsCommands {
     }
 
     async fn run(self, host: &dyn CommandHost) -> Result<CommandOutput, CommandError> {
-        execute(self, host).await.map_err(command_error)
+        execute(self, host).await.map_err(CommandError::new)
     }
 }
 

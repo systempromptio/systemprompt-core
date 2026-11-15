@@ -21,7 +21,6 @@ use systemprompt_extension::cli::{
 use systemprompt_identifiers::SourceId;
 use systemprompt_identifiers::error::IdValidationError;
 
-use crate::cli::shared::command_error;
 
 fn parse_source_id(s: &str) -> Result<SourceId, IdValidationError> {
     SourceId::try_new(s)
@@ -78,7 +77,7 @@ impl CliCommandLeaf for PopularArgs {
         execute(self, host)
             .await
             .context("Failed to get popular content")
-            .map_err(command_error)
+            .map_err(CommandError::new)
     }
 }
 

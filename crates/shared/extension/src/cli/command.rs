@@ -42,8 +42,8 @@ pub const REGISTERED_DISPLAY_ORDER: usize = 1000;
 pub struct CommandError(#[from] Box<dyn std::error::Error + Send + Sync>);
 
 impl CommandError {
-    pub fn new(error: impl std::error::Error + Send + Sync + 'static) -> Self {
-        Self(Box::new(error))
+    pub fn new(error: impl Into<Box<dyn std::error::Error + Send + Sync>>) -> Self {
+        Self(error.into())
     }
 }
 
