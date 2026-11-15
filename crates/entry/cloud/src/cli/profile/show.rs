@@ -21,9 +21,9 @@ use systemprompt_models::ContentConfigRaw;
 use super::ShowFilter;
 use super::show_display::print_formatted_config;
 use super::show_types::{FullConfig, SettingsOutput, build_env_config};
-use crate::cli_settings::CliConfig;
-use crate::context::CommandContext;
-use crate::shared::{CommandOutput, render_result, resolve_profile_path};
+use systemprompt_cli::kernel::CliConfig;
+use systemprompt_cli::kernel::CommandContext;
+use systemprompt_cli::kernel::{CommandOutput, render_result, resolve_profile_path};
 
 pub(super) async fn execute(
     name: Option<&str>,
@@ -46,7 +46,7 @@ pub(super) async fn execute(
             }
             None
         },
-        Ok(_) => match crate::boot::load_profile(&profile_path) {
+        Ok(_) => match systemprompt_cli::kernel::load_profile(&profile_path) {
             Ok(loaded) => Some(loaded),
             Err(e) => {
                 CliService::warning(&format!("Config unavailable: {e}"));
@@ -92,7 +92,7 @@ pub(super) async fn execute(
 }
 
 async fn initialize_config(loaded: &Arc<LoadedProfile>) -> Result<Arc<Config>> {
-    let boot = crate::boot::load_boot(loaded).await?;
+    let boot = systemprompt_cli::kernel::load_boot(loaded).await?;
     Ok(Arc::clone(boot.try_init_config(None)?))
 }
 

@@ -17,7 +17,7 @@ use systemprompt_models::CliPaths;
 pub mod scaffolding;
 pub mod templates;
 
-use crate::cli_settings::CliConfig;
+use systemprompt_cli::kernel::CliConfig;
 use scaffolding::generate_services_boilerplate;
 
 const GITIGNORE_CONTENT: &str = "# Ignore sensitive files

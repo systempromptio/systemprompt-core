@@ -16,7 +16,7 @@ use std::time::Duration;
 use systemprompt_cloud::{DockerCli, ProjectContext};
 use systemprompt_config::write_private_atomic;
 
-use crate::shared::docker_compose::{ComposeCredentials, PostgresCompose, postgres_compose};
+use systemprompt_cli::kernel::docker_compose::{ComposeCredentials, PostgresCompose, postgres_compose};
 
 const LOCAL_DB_USER: &str = "systemprompt";
 const LOCAL_DB_NAME: &str = "systemprompt";
@@ -202,7 +202,7 @@ fn generate_postgres_compose(password: &str, port: u16) -> String {
     })
 }
 
-pub(in crate::commands::cloud) fn generate_admin_password() -> String {
+pub(in crate::cli) fn generate_admin_password() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -211,7 +211,7 @@ pub(in crate::commands::cloud) fn generate_admin_password() -> String {
     random_part.chars().take(32).collect()
 }
 
-pub(in crate::commands::cloud) fn nanoid() -> String {
+pub(in crate::cli) fn nanoid() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -220,6 +220,6 @@ pub(in crate::commands::cloud) fn nanoid() -> String {
 }
 
 #[must_use]
-pub(in crate::commands::cloud) fn new_local_tenant_id() -> systemprompt_identifiers::TenantId {
+pub(in crate::cli) fn new_local_tenant_id() -> systemprompt_identifiers::TenantId {
     systemprompt_identifiers::TenantId::new(format!("local_{}", uuid::Uuid::new_v4()))
 }

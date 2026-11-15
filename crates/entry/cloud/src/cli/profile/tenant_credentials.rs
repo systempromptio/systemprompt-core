@@ -12,7 +12,7 @@ use systemprompt_identifiers::TenantId;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 
-use crate::commands::cloud::tenant::get_credentials;
+use crate::cli::tenant::get_credentials;
 
 struct RefreshedCredentials {
     pub external_database_url: String,

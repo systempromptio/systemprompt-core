@@ -10,9 +10,9 @@ use systemprompt_cloud::{
 };
 use systemprompt_logging::CliService;
 
-use crate::cli_settings::CliConfig;
-use crate::cloud::types::WhoamiOutput;
-use crate::shared::CommandOutput;
+use systemprompt_cli::kernel::CliConfig;
+use crate::cli::types::WhoamiOutput;
+use systemprompt_cli::kernel::CommandOutput;
 
 pub(super) async fn execute(config: &CliConfig) -> Result<CommandOutput> {
     let cloud_paths = get_cloud_paths();

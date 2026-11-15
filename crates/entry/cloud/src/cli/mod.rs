@@ -2,7 +2,11 @@
 //!
 //! Routes [`CloudCommands`] to the auth, init, tenant, profile, deploy,
 //! backup, status, fleet, dockerfile and sync subcommands, and declares each
-//! command's profile/secret requirements via [`DescribeCommand`].
+//! command's profile/secret requirements via [`DescribeCommand`]. Every
+//! descriptor is a cloud-operator descriptor: the runner loads the operator's
+//! cloud credentials for it and lets it run on a cloud profile that arrived
+//! implicitly. The group registers itself as the top-level `cloud` command
+//! through `register_cli_command!`, in the `--help` slot after `admin`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -22,10 +26,12 @@ pub mod types;
 
 pub use systemprompt_cloud::{Environment, OAuthProvider};
 
-use crate::context::CommandContext;
-use crate::descriptor::{CommandDescriptor, DataImpact, DescribeCommand};
 use anyhow::Result;
 use clap::Subcommand;
+use systemprompt_cli::kernel::{
+    CliCommandGroup, CommandContext, CommandDescriptor, DataImpact, DescribeCommand,
+};
+use systemprompt_cli::register_cli_command;
 use systemprompt_identifiers::ProfileName;
 
 #[derive(Debug, Subcommand)]
@@ -59,7 +65,7 @@ pub enum CloudCommands {
         #[arg(
             long,
             short = 'p',
-            value_parser = crate::shared::parse_profile_name_arg,
+            value_parser = systemprompt_cli::kernel::parsers::parse_profile_name_arg,
             help = "Profile name to deploy"
         )]
         profile: Option<String>,
@@ -79,7 +85,7 @@ pub enum CloudCommands {
         #[arg(
             long,
             short = 'p',
-            value_parser = crate::shared::parse_profile_name_arg,
+            value_parser = systemprompt_cli::kernel::parsers::parse_profile_name_arg,
             help = "Profile name to back up"
         )]
         profile: Option<String>,
@@ -100,7 +106,7 @@ pub enum CloudCommands {
         #[arg(
             long,
             short = 'p',
-            value_parser = crate::shared::parse_profile_name_arg,
+            value_parser = systemprompt_cli::kernel::parsers::parse_profile_name_arg,
             help = "Profile name to check"
         )]
         profile: Option<String>,
@@ -143,6 +149,19 @@ impl DescribeCommand for CloudCommands {
         descriptor.with_cloud_operator()
     }
 }
+
+impl CliCommandGroup for CloudCommands {
+    const PARENT: &'static [&'static str] = &[];
+    const NAME: &'static str = "cloud";
+    const ABOUT: &'static str = "Cloud deployment, backup, and setup";
+    const DISPLAY_ORDER: usize = 40;
+
+    fn run(self, ctx: &CommandContext) -> impl Future<Output = Result<()>> + Send {
+        execute(self, ctx)
+    }
+}
+
+register_cli_command!(CloudCommands);
 
 fn profile_name(profile: Option<String>) -> Result<Option<ProfileName>> {
     Ok(profile.map(ProfileName::try_new).transpose()?)
@@ -204,7 +223,7 @@ pub async fn execute(cmd: CloudCommands, ctx: &CommandContext) -> Result<()> {
         CloudCommands::Status => {
             let result =
                 status::execute(&ctx.cli, ctx.profile().ok(), ctx.cloud_credentials()).await?;
-            crate::shared::render_result(&result, &ctx.cli);
+            systemprompt_cli::kernel::render_result(&result, &ctx.cli);
             Ok(())
         },
         CloudCommands::Fleet(cmd) => fleet::execute(cmd, ctx).await,
@@ -214,7 +233,7 @@ pub async fn execute(cmd: CloudCommands, ctx: &CommandContext) -> Result<()> {
 }
 
 fn execute_dockerfile(ctx: &CommandContext) -> Result<()> {
-    use crate::shared::project::ProjectRoot;
+    use systemprompt_cli::kernel::project::ProjectRoot;
     use systemprompt_cloud::deploy::DockerfileBuilder;
     use types::DockerfileOutput;
 
@@ -245,8 +264,8 @@ fn execute_dockerfile(ctx: &CommandContext) -> Result<()> {
     };
 
     if config.is_json_output() {
-        crate::shared::render_result(
-            &crate::shared::CommandOutput::copy_paste_titled("Dockerfile", output.content),
+        systemprompt_cli::kernel::render_result(
+            &systemprompt_cli::kernel::CommandOutput::copy_paste_titled("Dockerfile", output.content),
             config,
         );
     } else {

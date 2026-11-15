@@ -11,9 +11,9 @@ use systemprompt_logging::CliService;
 
 use super::target_profile::DeployProfile;
 
-use crate::cli_settings::CliConfig;
-use crate::interactive::Prompter;
-use crate::shared::profile::{DiscoveredProfile, discover_profiles};
+use systemprompt_cli::kernel::CliConfig;
+use systemprompt_cli::kernel::Prompter;
+use systemprompt_cli::kernel::profile::{DiscoveredProfile, discover_profiles};
 
 #[derive(Debug)]
 struct DeployableProfile {

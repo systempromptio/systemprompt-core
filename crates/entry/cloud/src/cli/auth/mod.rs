@@ -13,8 +13,9 @@ mod whoami;
 
 pub use login::{build_login_output, complete_login};
 
-use crate::context::CommandContext;
-use crate::shared::{parse_client_id, render_result};
+use systemprompt_cli::kernel::CommandContext;
+use systemprompt_cli::kernel::parsers::parse_client_id;
+use systemprompt_cli::kernel::render_result;
 use anyhow::Result;
 use clap::{Args, Subcommand};
 

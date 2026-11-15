@@ -10,7 +10,7 @@ use systemprompt_identifiers::TenantId;
 use systemprompt_models::net::{HTTP_CONNECT_TIMEOUT, HTTP_DEFAULT_TIMEOUT};
 
 use super::hosted_tenants;
-use crate::shared::CommandOutput;
+use systemprompt_cli::kernel::CommandOutput;
 
 #[derive(Debug, Serialize)]
 struct TenantVersionRow {

@@ -22,7 +22,7 @@ mod show;
 pub use add::{TenantAddArgs, add_tenant};
 pub use create::{create_external_tenant, create_local_tenant};
 pub use delete::delete_tenant;
-pub(in crate::commands::cloud) use docker::container::wait_for_postgres_healthy;
+pub(in crate::cli) use docker::container::wait_for_postgres_healthy;
 pub use edit::edit_tenant;
 pub use list::list_tenants;
 pub use rotate::rotate_credentials;
@@ -35,9 +35,10 @@ use systemprompt_cloud::{CloudPath, TenantStore, get_cloud_paths};
 use systemprompt_identifiers::TenantId;
 use systemprompt_logging::CliService;
 
-use crate::context::CommandContext;
-use crate::interactive::Prompter;
-use crate::shared::{parse_tenant_id, render_result};
+use systemprompt_cli::kernel::CommandContext;
+use systemprompt_cli::kernel::Prompter;
+use systemprompt_cli::kernel::parsers::parse_tenant_id;
+use systemprompt_cli::kernel::render_result;
 use create_flow::tenant_create;
 
 #[derive(Debug, Subcommand)]

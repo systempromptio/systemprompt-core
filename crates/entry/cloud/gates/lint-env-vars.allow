@@ -1,0 +1,3 @@
+src/cli/deploy/pipeline/secrets.rs  # collect_bootstrap_env lookup closure for the operator-listed --bootstrap-env variables pushed to Vault
+src/cli/doctor/vault_checks.rs  # VaultKvProvider::from_config lookup closure — Vault credentials from the secrets `env` source
+src/cli/profile/templates.rs  # SYSTEMPROMPT_SERVICES_PATH subprocess boot variable

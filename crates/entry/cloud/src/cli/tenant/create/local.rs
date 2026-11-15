@@ -15,12 +15,12 @@ use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_logging::CliService;
 use systemprompt_models::defaults::DEFAULT_POSTGRES_PORT;
 
-use crate::cloud::init::ensure_project_scaffolding;
-use crate::cloud::profile::templates::validate_connection;
-use crate::cloud::profile::{
+use crate::cli::init::ensure_project_scaffolding;
+use crate::cli::profile::templates::validate_connection;
+use crate::cli::profile::{
     collect_api_keys, create_profile_for_tenant, handle_local_tenant_setup,
 };
-use crate::interactive::Prompter;
+use systemprompt_cli::kernel::Prompter;
 
 use super::super::docker::{
     TenantContainer, generate_admin_password, is_project_running, nanoid, new_local_tenant_id,

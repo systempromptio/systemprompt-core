@@ -13,10 +13,10 @@ use systemprompt_identifiers::TenantId;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 
-use crate::cli_settings::CliConfig;
-use crate::cloud::types::{CloudStatusOutput, CredentialsInfo, TenantStatusInfo};
-use crate::shared::CommandOutput;
-use crate::shared::profile::ProfileInfo;
+use systemprompt_cli::kernel::CliConfig;
+use crate::cli::types::{CloudStatusOutput, CredentialsInfo, TenantStatusInfo};
+use systemprompt_cli::kernel::CommandOutput;
+use systemprompt_cli::kernel::profile::ProfileInfo;
 
 pub(super) async fn execute(
     config: &CliConfig,

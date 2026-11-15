@@ -10,7 +10,7 @@ use systemprompt_config::write_private_atomic;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 
-use crate::interactive::Prompter;
+use systemprompt_cli::kernel::Prompter;
 
 pub(super) fn edit_api_keys(prompter: &dyn Prompter, profile_dir: &Path) -> Result<()> {
     CliService::section("API Keys (secrets.json)");

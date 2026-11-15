@@ -14,8 +14,8 @@ use systemprompt_identifiers::{ContextId, SessionToken, TenantId};
 use systemprompt_logging::CliService;
 
 use super::{FleetRunArgs, ensure_read_only, hosted_tenants};
-use crate::cli_settings::CliConfig;
-use crate::runner::routing::operator_tenant_token;
+use systemprompt_cli::kernel::CliConfig;
+use systemprompt_cli::kernel::routing::operator_tenant_token;
 
 #[derive(Debug, Default)]
 struct CaptureSink {

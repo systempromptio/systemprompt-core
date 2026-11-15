@@ -13,7 +13,7 @@ use anyhow::{Result, bail};
 use clap::{ArgMatches, Command, FromArgMatches};
 
 use super::args;
-use crate::commands::{admin, analytics, cloud, core, infrastructure, plugins, web};
+use crate::commands::{admin, analytics, core, infrastructure, plugins, web};
 use crate::context::CommandContext;
 use crate::descriptor::{CommandDescriptor, DbUrlRouting, DescribeCommand};
 use crate::kernel::{CommandRegistry, RegisteredCommand};
@@ -104,7 +104,6 @@ pub(super) async fn dispatch_command(selected: Selected, ctx: &CommandContext) -
             args::Commands::Core(cmd) => Box::pin(core::execute(cmd, ctx)).await?,
             args::Commands::Infra(cmd) => infrastructure::execute(cmd, ctx).await?,
             args::Commands::Admin(cmd) => Box::pin(admin::execute(cmd, ctx)).await?,
-            args::Commands::Cloud(cmd) => cloud::execute(cmd, ctx).await?,
             args::Commands::Analytics(cmd) => analytics::execute(cmd, ctx).await?,
             args::Commands::Web(cmd) => web::execute(cmd, ctx)?,
             args::Commands::Plugins(cmd) => {

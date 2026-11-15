@@ -10,8 +10,8 @@ use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_logging::CliService;
 
 use super::templates::{run_migrations_cmd, validate_connection};
-use crate::cloud::tenant::wait_for_postgres_healthy;
-use crate::interactive::Prompter;
+use crate::cli::tenant::wait_for_postgres_healthy;
+use systemprompt_cli::kernel::Prompter;
 
 pub async fn handle_local_tenant_setup(
     prompter: &dyn Prompter,

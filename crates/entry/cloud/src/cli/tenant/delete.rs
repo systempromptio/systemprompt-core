@@ -18,10 +18,10 @@ use systemprompt_logging::CliService;
 
 use super::docker::{compose_path_for_project, remove_project};
 use super::select::{get_credentials, select_tenant};
-use crate::cli_settings::CliConfig;
-use crate::cloud::tenant::TenantDeleteArgs;
-use crate::interactive::Prompter;
-use crate::shared::{CommandOutput, SuccessOutput};
+use systemprompt_cli::kernel::CliConfig;
+use crate::cli::tenant::TenantDeleteArgs;
+use systemprompt_cli::kernel::Prompter;
+use systemprompt_cli::kernel::{CommandOutput, SuccessOutput};
 
 pub async fn delete_tenant(
     args: TenantDeleteArgs,

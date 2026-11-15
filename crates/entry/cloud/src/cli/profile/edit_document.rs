@@ -19,7 +19,7 @@ use serde_yaml::{Mapping, Value};
 use systemprompt_manifest::profile::ManagedProfile;
 use systemprompt_manifest::profile::overlay::write_overlay_document;
 
-use crate::shared::yaml_document::read_yaml_file;
+use systemprompt_cli::kernel::yaml_document::read_yaml_file;
 
 /// The authored YAML of one profile and the fields an edit changed.
 #[derive(Debug)]

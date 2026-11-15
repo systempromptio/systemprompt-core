@@ -20,8 +20,8 @@ pub mod progress;
 pub mod select;
 pub mod target_profile;
 
-pub(in crate::commands::cloud) use progress::CliDeployProgress;
-pub(in crate::commands::cloud) use select::resolve_profile;
+pub(in crate::cli) use progress::CliDeployProgress;
+pub(in crate::cli) use select::resolve_profile;
 pub use target_profile::DeployProfile;
 
 use std::path::Path;
@@ -43,9 +43,9 @@ use systemprompt_manifest::profile::CloudConfig;
 use pipeline::{DeployOptions, DeployOrchestrator, DeployRequest};
 
 use super::tenant::get_credentials;
-use crate::cli_settings::CliConfig;
-use crate::interactive::Prompter;
-use crate::shared::project::ProjectRoot;
+use systemprompt_cli::kernel::CliConfig;
+use systemprompt_cli::kernel::Prompter;
+use systemprompt_cli::kernel::project::ProjectRoot;
 
 const GITOPS_READINESS_WAIT: ReadinessWait = ReadinessWait {
     timeout: Duration::from_mins(15),

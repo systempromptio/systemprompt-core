@@ -17,7 +17,7 @@ use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 use systemprompt_models::CliPaths;
 
-use crate::commands::cloud::init::templates::{ai_config, catalog_files};
+use crate::cli::init::templates::{ai_config, catalog_files};
 
 use systemprompt_cloud::deploy::DockerfileBuilder;
 
@@ -52,7 +52,7 @@ pub fn save_profile(profile: &Profile, profile_path: &Path) -> Result<()> {
         profile.display_name
     );
 
-    crate::shared::profile::save_profile_yaml(profile, profile_path, Some(&header))
+    systemprompt_cli::kernel::profile::save_profile_yaml(profile, profile_path, Some(&header))
 }
 
 pub fn save_dockerfile(path: &Path, profile_name: &ProfileName, project_root: &Path) -> Result<()> {
@@ -173,7 +173,7 @@ pub fn save_secrets(
             .with_context(|| format!("Failed to create directory {}", parent.display()))?;
     }
 
-    let identity = crate::shared::generate_identity()?;
+    let identity = systemprompt_cli::kernel::generate_identity()?;
     let mut secrets = json!({
         "oauth_at_rest_pepper": identity.oauth_at_rest_pepper,
         "encryption_master_key": identity.encryption_master_key,
@@ -280,7 +280,7 @@ pub fn update_ai_config_default_provider(provider: &str) -> Result<()> {
 
     let mut document = systemprompt_config::read_catalog(&ai_dir)
         .with_context(|| format!("Failed to read {}", ai_dir.display()))?;
-    let Some(model) = crate::shared::provider_catalog::first_model_on(&document, provider) else {
+    let Some(model) = systemprompt_cli::kernel::provider_catalog::first_model_on(&document, provider) else {
         CliService::warning(&format!(
             "The catalog deploys no model on '{provider}'; gateway.default_model is unchanged"
         ));
@@ -290,7 +290,7 @@ pub fn update_ai_config_default_provider(provider: &str) -> Result<()> {
         .gateway
         .get_or_insert_with(systemprompt_manifest::services::GatewayConfigSpec::default);
     gateway.default_model = Some(model.clone());
-    crate::shared::provider_catalog::write_gateway(&ai_dir, Some(gateway))?;
+    systemprompt_cli::kernel::provider_catalog::write_gateway(&ai_dir, Some(gateway))?;
     CliService::success(&format!(
         "Set gateway.default_model to '{model}' (served by '{provider}')"
     ));

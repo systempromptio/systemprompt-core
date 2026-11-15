@@ -54,7 +54,7 @@ pub fn check_extension_configs(profile: &Profile) -> CheckResult {
     }
 }
 
-pub(in crate::commands::cloud) fn resolve_signing_key_path(
+pub(in crate::cli) fn resolve_signing_key_path(
     profile: &Profile,
     profile_dir: &Path,
 ) -> PathBuf {

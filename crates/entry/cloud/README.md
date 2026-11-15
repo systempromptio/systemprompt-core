@@ -6,4 +6,4 @@
 
 The cloud CLI commands of systemprompt.io: tenant sign-in, profiles, deploy, secrets and fleet operations against the hosted control plane.
 
-**Layer**: Entry. The `http` feature carries the routes, declared through `systemprompt-extension` and mounted by the API server; the `cli` feature carries the commands, registered with the CLI. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
+**Layer**: Entry. The `cli` feature carries the `cloud` command group, registered with the CLI kernel through `register_cli_command!`: a binary that links this crate with `cli` has `systemprompt cloud …`, one that does not has no `cloud` command. The cloud capability has no HTTP routes, so the `http` feature is empty. The cloud API client, credentials and tenant store live in `systemprompt-cloud`. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.

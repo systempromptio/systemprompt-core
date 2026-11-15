@@ -8,7 +8,7 @@ use systemprompt_cloud::{StoredTenant, TenantStore};
 
 use super::TenantTypeArg;
 
-use crate::interactive::Prompter;
+use systemprompt_cli::kernel::Prompter;
 
 pub fn select_tenant_type(prompter: &dyn Prompter, store: &TenantStore) -> Result<TenantTypeArg> {
     let local_count = store

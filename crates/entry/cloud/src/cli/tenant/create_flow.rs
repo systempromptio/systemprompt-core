@@ -12,8 +12,8 @@ use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_logging::CliService;
 
 use super::{create_external_tenant, create_local_tenant};
-use crate::cli_settings::CliConfig;
-use crate::interactive::Prompter;
+use systemprompt_cli::kernel::CliConfig;
+use systemprompt_cli::kernel::Prompter;
 
 pub(super) async fn tenant_create(
     prompter: &dyn Prompter,

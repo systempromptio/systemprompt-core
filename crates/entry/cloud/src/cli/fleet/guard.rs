@@ -5,7 +5,7 @@
 
 use anyhow::{Result, bail};
 
-use crate::kernel::{RoutingClass, describe_command_line};
+use systemprompt_cli::kernel::{RoutingClass, describe_command_line};
 
 pub fn ensure_read_only(command: &[String]) -> Result<()> {
     let descriptor = describe_command_line(command)?;

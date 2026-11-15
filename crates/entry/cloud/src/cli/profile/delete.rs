@@ -8,9 +8,9 @@ use systemprompt_cloud::{ProfilePath, ProjectContext};
 use systemprompt_logging::CliService;
 
 use super::DeleteArgs;
-use crate::cli_settings::CliConfig;
-use crate::interactive::Prompter;
-use crate::shared::{CommandOutput, SuccessOutput};
+use systemprompt_cli::kernel::CliConfig;
+use systemprompt_cli::kernel::Prompter;
+use systemprompt_cli::kernel::{CommandOutput, SuccessOutput};
 
 pub(super) fn execute(
     args: &DeleteArgs,

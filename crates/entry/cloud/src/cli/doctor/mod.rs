@@ -43,8 +43,8 @@ use systemprompt_manifest::Profile;
 use systemprompt_manifest::profile::SecretsSource;
 
 use super::deploy::resolve_profile;
-use crate::cli_settings::CliConfig;
-use crate::interactive::Prompter;
+use systemprompt_cli::kernel::CliConfig;
+use systemprompt_cli::kernel::Prompter;
 use systemprompt_cloud::secrets_env::load_secrets_json;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -87,7 +87,7 @@ impl DoctorReport {
             .count()
     }
 
-    pub(in crate::commands::cloud) fn render_summary(&self, passed: &str) {
+    pub(in crate::cli) fn render_summary(&self, passed: &str) {
         match self.not_evaluated() {
             0 => CliService::success(passed),
             skipped => CliService::warning(&format!(
@@ -99,7 +99,7 @@ impl DoctorReport {
         }
     }
 
-    pub(in crate::commands::cloud) fn render(&self) {
+    pub(in crate::cli) fn render(&self) {
         CliService::section("Deploy preflight");
         for check in &self.checks {
             let line = format!("{}: {}", check.name, check.detail);
@@ -204,7 +204,7 @@ fn providers_check(profile: &Profile, secrets: &HashMap<String, String>) -> Chec
     }
 }
 
-pub(in crate::commands::cloud) async fn run(
+pub(in crate::cli) async fn run(
     profile: &Profile,
     profile_dir: &Path,
     distributed: bool,
@@ -228,7 +228,7 @@ pub(in crate::commands::cloud) async fn run(
     DoctorReport { checks }
 }
 
-pub(in crate::commands::cloud) async fn execute(
+pub(in crate::cli) async fn execute(
     profile_name: Option<ProfileName>,
     distributed: bool,
     prompter: &dyn Prompter,

@@ -149,7 +149,7 @@ systemprompt admin agents status my-agent
 
 ## cloud — deployment, backup, tenants
 
-`crates/entry/cli/src/commands/cloud/`
+`crates/entry/cloud/src/cli/` (`systemprompt-cloud-entry`, `cli` feature). The group registers with the CLI kernel; a binary built without that crate has no `cloud` command.
 
 | Subcommand | Notable flags / commands | Purpose |
 |------------|--------------------------|---------|

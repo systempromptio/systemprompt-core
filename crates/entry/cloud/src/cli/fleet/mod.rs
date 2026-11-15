@@ -4,7 +4,7 @@
 //! tenant over the remote CLI gateway and prefixes every output line with the
 //! tenant's name; under `--json` the per-tenant outputs are aggregated into
 //! one document. The command is parsed and classified with the same
-//! [`CommandDescriptor`](crate::descriptor::CommandDescriptor) the router
+//! [`CommandDescriptor`](systemprompt_cli::kernel::CommandDescriptor) the router
 //! uses, and anything that is not read-only is refused before any tenant is
 //! contacted. `fleet versions` reads each tenant's `/readyz` for its core
 //! version and readiness.
@@ -26,8 +26,8 @@ use anyhow::{Context, Result};
 use clap::{Args, Subcommand};
 use systemprompt_cloud::{CloudPath, StoredTenant, TenantStore, get_cloud_paths};
 
-use crate::context::CommandContext;
-use crate::shared::render_result;
+use systemprompt_cli::kernel::CommandContext;
+use systemprompt_cli::kernel::render_result;
 
 #[derive(Debug, Subcommand)]
 pub enum FleetCommands {
