@@ -158,6 +158,8 @@ scripts/*
 !scripts/check-http-errors.sh
 !scripts/lint-layers.sh
 !scripts/test-lint-layers.py
+!scripts/lint-kernel-deps.py
+!scripts/test-lint-kernel-deps.py
 !scripts/check-release-tag.sh
 !scripts/check-crate-changelogs.sh
 !scripts/regen.sh

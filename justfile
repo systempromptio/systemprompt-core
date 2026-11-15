@@ -163,6 +163,10 @@ lint-inline-tests *ARGS:
 lint-layers:
     ./scripts/lint-layers.sh
 
+# Reject a kernel crate depending on a domain or entry crate, and an entry crate on cli/api
+lint-kernel-deps:
+    python3 ./scripts/lint-kernel-deps.py
+
 # Core ships no third-party frontend code (vendor dirs, package.json, .wasm,
 # external script URLs); see the script header.
 check-no-vendor *ARGS:
