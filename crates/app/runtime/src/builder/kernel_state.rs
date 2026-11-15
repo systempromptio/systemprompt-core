@@ -25,8 +25,6 @@
 //!   included, which the kernel composes because the session store and the
 //!   `AnalyticsProvider` sit on the authentication path the kernel builds
 //!   before any extension provides;
-//! - `Arc<AnalyticsBroadcaster>`: the analytics event broadcaster only, never
-//!   the other user event streams;
 //! - `Arc<ContentConfigRaw>`: the loaded content configuration (its
 //!   `ContentRouting` resolves a page URL to a slug);
 //! - `GeoIpReader`: the configured `GeoIP` database.
@@ -35,6 +33,11 @@
 //! is not configured its type is reserved, so a reader's `find` is `None`
 //! (`get` is a typed `MissingDependency`) and no extension can `provide` a
 //! substitute.
+//!
+//! No event broadcaster is seeded: a broadcaster's holder can subscribe to,
+//! publish on and enumerate every user's stream, so the API hands the
+//! analytics broadcaster to the one core route declaration that streams it,
+//! never to the shared state.
 //!
 //! [`ExtensionContext::extension_state`]: systemprompt_extension::ExtensionContext::extension_state
 //!
@@ -84,7 +87,6 @@ pub fn kernel_state(app: &AppContext) -> Dependencies {
     .with(Arc::clone(app.oauth_repositories()))
     .with(Arc::clone(app.ai_repositories()))
     .with(Arc::clone(app.analytics_repositories()))
-    .with(Arc::clone(&app.event_broadcasters().analytics))
     .with(app.artifact_ingest_arc())
     .with(LateBound::<dyn MessagingDispatcher>::default());
     match &app.subsystems.ai_service {

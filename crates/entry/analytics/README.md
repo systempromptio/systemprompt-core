@@ -18,7 +18,7 @@ Declared by the `analytics-http` extension and mounted by the API server in the 
 | `GET /api/v1/analytics/stream` | admin | Live analytics event stream (server-sent events). |
 | `POST /track/engagement`, `POST /track/engagement/batch` | public | Record engagement events and mark the session converted on a conversion event. |
 
-A profile that disables `analytics-http` serves none of them (404). The `analytics` extension, which owns request recording and the protective jobs, is required and cannot be disabled.
+The live stream subscribes to the analytics event broadcaster, which the API hands to the `/api/v1/analytics` router alone; no other extension can read it from the shared extension state. A profile that disables `analytics-http` serves none of them (404). The `analytics` extension, which owns request recording and the protective jobs, is required and cannot be disabled.
 
 ## Commands (`cli`)
 

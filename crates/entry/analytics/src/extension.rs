@@ -11,10 +11,12 @@
 //! (`Analytics`, `Engagement`), keyed on this extension's id, `analytics-http`,
 //! and the table requires exactly these two declarations from it.
 //!
-//! The routes read the analytics repositories and the analytics broadcaster
-//! the API kernel seeds, the loaded content configuration when there is one,
-//! and the content catalog the `content` extension provides, which this
-//! extension `requires`:
+//! The routes read the analytics repositories the API kernel seeds, the
+//! loaded content configuration when there is one, and the content catalog
+//! the `content` extension provides, which this extension `requires`. The
+//! live stream's analytics broadcaster is not in the extension state: the API
+//! layers it onto the analytics router alone because the `Analytics` row is
+//! handed it, and the stream answers 503 without it:
 //!
 //! | profile disables | analytics | engagement |
 //! |---|---|---|

@@ -4,10 +4,11 @@
 
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU8, Ordering};
 
 use axum::Router;
 use axum::body::Body;
-use axum::extract::ConnectInfo;
+use axum::extract::{ConnectInfo, Extension as RequestExtension};
 use axum::http::Request;
 use axum::routing::get;
 use systemprompt_api::services::server::setup_api_server;
@@ -15,6 +16,7 @@ use systemprompt_extension::{
     AuthzPolicy, ContextKind, Extension, ExtensionContext, ExtensionMetadata, ExtensionRegistry,
     ExtensionRouter, ExtensionStateError, RateBudget, RateLimit,
 };
+use systemprompt_events::AnalyticsBroadcaster;
 use systemprompt_manifest::profile::FrameOptions;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_app_context_with_extensions, fixture_config,
@@ -171,6 +173,60 @@ impl Extension for SiteAuthExt {
             public_prefixes: &["/covpublic"],
             required_scope: "admin",
         })
+    }
+}
+
+const STATE_UNPROBED: u8 = 0;
+const STATE_ABSENT: u8 = 1;
+const STATE_PRESENT: u8 = 2;
+
+struct BroadcasterProbeExt {
+    find: Arc<AtomicU8>,
+    get: Arc<AtomicU8>,
+}
+
+const fn seen(present: bool) -> u8 {
+    if present { STATE_PRESENT } else { STATE_ABSENT }
+}
+
+async fn request_broadcaster(
+    broadcaster: Option<RequestExtension<Arc<AnalyticsBroadcaster>>>,
+) -> &'static str {
+    if broadcaster.is_some() {
+        "present"
+    } else {
+        "absent"
+    }
+}
+
+impl Extension for BroadcasterProbeExt {
+    fn metadata(&self) -> ExtensionMetadata {
+        ExtensionMetadata {
+            id: "covbroadcaster",
+            name: "Coverage Broadcaster Probe Extension",
+            version: "0.0.1",
+        }
+    }
+
+    fn routers(
+        &self,
+        ctx: &dyn ExtensionContext,
+    ) -> Result<Vec<ExtensionRouter>, ExtensionStateError> {
+        let state = ctx.extension_state();
+        self.find.store(
+            seen(state.find::<Arc<AnalyticsBroadcaster>>().is_some()),
+            Ordering::SeqCst,
+        );
+        self.get.store(
+            seen(state.get::<Arc<AnalyticsBroadcaster>>().is_ok()),
+            Ordering::SeqCst,
+        );
+        one(ExtensionRouter::new(
+            Router::new().route("/probe", get(request_broadcaster)),
+            "/api/covbroadcaster",
+            AuthzPolicy::public(),
+            ContextKind::Public,
+        ))
     }
 }
 
@@ -339,6 +395,40 @@ async fn a_declaration_whose_enable_predicate_fails_is_not_mounted() -> anyhow::
         &body[..],
         b"disabled",
         "a disabled declaration must not serve its handler"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn an_install_extension_cannot_obtain_the_analytics_broadcaster() -> anyhow::Result<()> {
+    let find = Arc::new(AtomicU8::new(STATE_UNPROBED));
+    let get = Arc::new(AtomicU8::new(STATE_UNPROBED));
+    let app = app_with_extensions(vec![Arc::new(BroadcasterProbeExt {
+        find: Arc::clone(&find),
+        get: Arc::clone(&get),
+    })])
+    .await?;
+
+    assert_eq!(
+        find.load(Ordering::SeqCst),
+        STATE_ABSENT,
+        "extension_state().find must not yield the analytics broadcaster"
+    );
+    assert_eq!(
+        get.load(Ordering::SeqCst),
+        STATE_ABSENT,
+        "extension_state().get must not yield the analytics broadcaster"
+    );
+
+    let probed = app.oneshot(get_req("/api/covbroadcaster/probe")).await?;
+    assert_eq!(probed.status().as_u16(), 200, "{}", probed.status());
+    let body = http_body_util::BodyExt::collect(probed.into_body())
+        .await?
+        .to_bytes();
+    assert_eq!(
+        &body[..],
+        b"absent",
+        "the probe's own router must not carry the analytics broadcaster"
     );
     Ok(())
 }

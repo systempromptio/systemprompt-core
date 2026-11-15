@@ -34,7 +34,9 @@
 //! [`CoreDeclaration`] table grants that exact declaration that allowance;
 //! it requires each core row to be claimed by exactly one declaration of its
 //! owner; and it confines a claimed router to its row's route pins
-//! ([`pinned`], [`excluding`]).
+//! ([`pinned`], [`excluding`]). A kernel handle no extension reads from the
+//! shared state is layered onto exactly the routers whose declaration matches
+//! the row that is handed it ([`hand_kernel_handles`]).
 //! The body-limit check sees only the group-level limit a declaration
 //! carries. A few routes set their own `DefaultBodyLimit` inside their
 //! router, which this module does not see: the document content routes (the
@@ -53,6 +55,7 @@
 mod core_claims;
 mod core_declaration;
 mod core_gateway;
+mod core_handles;
 mod core_pins;
 mod core_rows;
 mod core_shape;
@@ -66,6 +69,7 @@ pub use core_declaration::{
 pub use core_gateway::{
     admit_gateway_route, extension_built, gateway_protection, path_under, refuse_overlap,
 };
+pub use core_handles::{KernelHandle, hand_kernel_handles, kernel_handles_for};
 pub use core_pins::{PinnedMethod, RoutePin, confined, excluding, pinned};
 pub use core_shape::CoreShapeField;
 pub use error::MountError;

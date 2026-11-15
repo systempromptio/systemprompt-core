@@ -4,9 +4,11 @@
 //!
 //! Both read their handles from the extension state through
 //! [`AnalyticsHttpState`]: the analytics repositories (session store
-//! included) and the analytics broadcaster the API kernel seeds, the loaded
-//! content configuration when one is configured, and the content catalog the
-//! `content` extension provides. An event that names no content id gets one
+//! included) the API kernel seeds, the loaded content configuration when one
+//! is configured, and the content catalog the `content` extension provides.
+//! The live stream's analytics broadcaster is not in the extension state: the
+//! API hands it to the `/api/v1/analytics` router alone, as a request
+//! extension. An event that names no content id gets one
 //! from [`ContentResolver`]: the slug it carries, or the slug the loaded
 //! content configuration resolves its page URL to, looked up in that catalog. A
 //! failed lookup is logged and leaves the event without a content id; it never
@@ -21,7 +23,6 @@ pub mod engagement;
 use std::sync::Arc;
 
 use systemprompt_analytics::repository::AnalyticsRepositories;
-use systemprompt_events::AnalyticsBroadcaster;
 use systemprompt_identifiers::{ContentId, LocaleCode};
 use systemprompt_models::{ContentConfigRaw, ContentRouting};
 use systemprompt_provider_contracts::{Dependencies, MissingDependency};
@@ -72,7 +73,6 @@ impl ContentResolver {
 #[derive(Clone)]
 pub struct AnalyticsHttpState {
     pub(crate) repositories: Arc<AnalyticsRepositories>,
-    pub(crate) broadcaster: Arc<AnalyticsBroadcaster>,
     pub(crate) content: ContentResolver,
 }
 
@@ -87,12 +87,10 @@ impl std::fmt::Debug for AnalyticsHttpState {
 impl AnalyticsHttpState {
     pub const fn new(
         repositories: Arc<AnalyticsRepositories>,
-        broadcaster: Arc<AnalyticsBroadcaster>,
         content: ContentResolver,
     ) -> Self {
         Self {
             repositories,
-            broadcaster,
             content,
         }
     }
@@ -103,7 +101,6 @@ impl AnalyticsHttpState {
             .map(|config| -> Arc<dyn ContentRouting> { Arc::<ContentConfigRaw>::clone(config) });
         Ok(Self::new(
             Arc::clone(state.get::<Arc<AnalyticsRepositories>>()?),
-            Arc::clone(state.get::<Arc<AnalyticsBroadcaster>>()?),
             ContentResolver::new(Arc::clone(state.get::<DynContentCatalogStats>()?), routing),
         ))
     }
