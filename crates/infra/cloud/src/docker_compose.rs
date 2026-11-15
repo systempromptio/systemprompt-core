@@ -159,11 +159,9 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
     })?;
 
     let init_scripts_dir = compose_dir.join("init-scripts");
-    std::fs::create_dir_all(&init_scripts_dir).map_err(|source| {
-        DockerComposeError::CreateDir {
-            path: init_scripts_dir.clone(),
-            source,
-        }
+    std::fs::create_dir_all(&init_scripts_dir).map_err(|source| DockerComposeError::CreateDir {
+        path: init_scripts_dir.clone(),
+        source,
     })?;
 
     let compose_content = postgres_compose(&PostgresCompose {

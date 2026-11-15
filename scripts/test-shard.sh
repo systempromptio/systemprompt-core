@@ -16,7 +16,7 @@ group_prefixes() {
     app-agent-runs)  echo "/tests/unit/app/agent-runs/ /tests/unit/entry/agent-runs/" ;;
     app-generator) echo "/tests/unit/app/generator/ /tests/unit/entry/content/" ;;
     app-oauth-issuance) echo "/tests/unit/app/oauth-issuance/" ;;
-    entry-api)     echo "/tests/unit/entry/api/ /tests/unit/entry/notifications/ /tests/unit/entry/slack/ /tests/unit/entry/teams/" ;;
+    entry-api)     echo "/tests/unit/systemprompt/ /tests/unit/entry/api/ /tests/unit/entry/notifications/ /tests/unit/entry/slack/ /tests/unit/entry/teams/" ;;
     entry-cli)     echo "/tests/unit/entry/cli/ /tests/unit/entry/cloud/ /tests/unit/entry/analytics/" ;;
     bridge)        echo "/tests/unit/bridge/" ;;
     # `integration` was one shard of 18 packages and 1684 tests, and at ~21min

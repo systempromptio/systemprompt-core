@@ -27,9 +27,9 @@
 use super::exec::{TrackingWrite, check_cross_extension_alters, execute_statements_transactional};
 use super::{ChecksumDrift, ExtensionMigrationStatus, MigrationService};
 use crate::lifecycle::installation::BootstrapLockGuard;
+use crate::lifecycle::schema_member::SchemaMember;
 use crate::services::SqlExecutor;
 use systemprompt_extension::{LoaderError, Migration, MigrationFault};
-use crate::lifecycle::schema_member::SchemaMember;
 use systemprompt_identifiers::{ExtensionId, ToDbValue};
 
 const UPDATE_CHECKSUM_SQL: &str =
@@ -103,7 +103,10 @@ impl MigrationService<'_> {
         })
     }
 
-    async fn has_repairable_drift(&self, extension: &dyn SchemaMember) -> Result<bool, LoaderError> {
+    async fn has_repairable_drift(
+        &self,
+        extension: &dyn SchemaMember,
+    ) -> Result<bool, LoaderError> {
         let status = self.status(extension).await?;
         Self::refuse_slot_collisions(&status)?;
         Ok(!status.drift.is_empty())

@@ -5,8 +5,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_extension::{LoaderError, Migration};
 use crate::lifecycle::schema_member::SchemaMember;
+use systemprompt_extension::{LoaderError, Migration};
 use systemprompt_identifiers::{ExtensionId, ToDbValue};
 use systemprompt_traits::BoxedSource;
 use tracing::info;

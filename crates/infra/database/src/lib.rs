@@ -86,7 +86,6 @@ pub use services::{
 };
 
 pub use error::DatabaseResult;
-pub use lifecycle::{SchemaMember, SchemaUnit, schema_members};
 pub use lifecycle::{
     AppliedMigration, BOOTSTRAP_ADVISORY_LOCK_KEY, BackfillStatement, BaselineStamp,
     BootstrapLockGuard, BootstrapLockTimeout, ChecksumDrift, DeferredForeignKey,
@@ -94,13 +93,14 @@ pub use lifecycle::{
     HOT_TABLES, MarkAppliedOutcome, MigrationConfig, MigrationCost, MigrationResult,
     MigrationService, MigrationStatus, OrphanMigrationLedger, OrphanedMigration,
     PROJECTION_BACKLOG, PendingMigration, RETRYABLE_SQLSTATES, RepairResult, ReplicaStatus,
-    SchemaAhead, SchemaCurrency, SchemaInstallReport, SchemaResidue, SlotCollision,
-    SplitCreateTable, TombstonedSlot, UndeclaredTable, audit_migration_cost, audit_one,
-    audit_schema_residue, backfill_statements, check_migration_references, check_trigger_routines,
-    install_extension_schemas_full, is_retirement, is_retryable_lock_conflict,
-    is_retryable_sqlstate, projection_tables, replica_status, schema_catalog_digest,
-    schema_currency, split_create_table_foreign_keys, validate_column_exists,
-    validate_database_connection, validate_table_exists, validate_write_pool_is_primary,
+    SchemaAhead, SchemaCurrency, SchemaInstallReport, SchemaMember, SchemaResidue, SchemaUnit,
+    SlotCollision, SplitCreateTable, TombstonedSlot, UndeclaredTable, audit_migration_cost,
+    audit_one, audit_schema_residue, backfill_statements, check_migration_references,
+    check_trigger_routines, install_extension_schemas_full, is_retirement,
+    is_retryable_lock_conflict, is_retryable_sqlstate, projection_tables, replica_status,
+    schema_catalog_digest, schema_currency, schema_members, split_create_table_foreign_keys,
+    validate_column_exists, validate_database_connection, validate_table_exists,
+    validate_write_pool_is_primary,
 };
 pub use repository::{
     CLAIM_DEAD_PEER_SECS, CoordinationRepositories, CreateServiceInput, EXTENSION_LOCK_CLASS,
@@ -143,5 +143,8 @@ impl DatabaseHandle for Database {
 pub struct ForeignDatabaseHandle;
 
 pub fn pool_from_handle(handle: Arc<dyn DatabaseHandle>) -> Result<DbPool, ForeignDatabaseHandle> {
-    handle.into_any().downcast::<Database>().map_err(|_| ForeignDatabaseHandle)
+    handle
+        .into_any()
+        .downcast::<Database>()
+        .map_err(|_| ForeignDatabaseHandle)
 }

@@ -155,8 +155,8 @@ async fn coverage_profile_edit_persists_server_security_and_runtime_choices() {
 #[test]
 fn deploy_without_profile_refuses_a_session_selected_cloud_profile() {
     use systemprompt_cli::ScriptedPrompter;
-    use systemprompt_cloud::paths::ResolvedPaths;
     use systemprompt_cloud::SessionStore;
+    use systemprompt_cloud::paths::ResolvedPaths;
     use systemprompt_cloud_entry::cli::deploy::select::resolve_profile;
 
     let project = Project::new("unused", true);

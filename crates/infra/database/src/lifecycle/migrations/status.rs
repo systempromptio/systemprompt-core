@@ -4,9 +4,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::MigrationService;
+use crate::lifecycle::schema_member::SchemaMember;
 use std::collections::HashSet;
 use systemprompt_extension::{LoaderError, Migration};
-use crate::lifecycle::schema_member::SchemaMember;
 use systemprompt_identifiers::ExtensionId;
 
 /// A recorded migration.

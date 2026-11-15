@@ -23,7 +23,8 @@ use super::recheck::recheck;
 use super::{MountError, MountLayers, place, protect};
 
 pub fn protection_of(spec: &RouteSpec) -> RouteProtection {
-    let protection = RouteProtection::new(spec.policy, spec.context).with_rate_limit(spec.limits.rate);
+    let protection =
+        RouteProtection::new(spec.policy, spec.context).with_rate_limit(spec.limits.rate);
     match spec.limits.body {
         BodyLimit::Default => protection,
         BodyLimit::Agent => {
@@ -57,7 +58,12 @@ pub fn mount_admitted(
         let routers = set.set.materialize(&kernel.route_scoped(&set.handles))?;
         let mut group = Router::new();
         for (def, router) in set.set.defs().iter().zip(routers) {
-            group = group.merge(protect(router, &protection_of(&def.spec), layers, base.path())?);
+            group = group.merge(protect(
+                router,
+                &protection_of(&def.spec),
+                layers,
+                base.path(),
+            )?);
         }
         match by_base.iter_mut().find(|(at, _)| *at == base) {
             Some((_, existing)) => *existing = std::mem::take(existing).merge(group),
@@ -78,7 +84,10 @@ pub struct MountedGatewayRoute {
     pub protection: RouteProtection,
 }
 
-pub fn gateway_routes(admitted: &Admitted, kernel: &Kernel) -> Result<Vec<MountedGatewayRoute>, MountError> {
+pub fn gateway_routes(
+    admitted: &Admitted,
+    kernel: &Kernel,
+) -> Result<Vec<MountedGatewayRoute>, MountError> {
     recheck(admitted)?;
     let mut mounted = Vec::new();
     for route in admitted.gateway_routes() {

@@ -38,9 +38,9 @@
 
 use std::sync::Arc;
 
+use crate::lifecycle::schema_member::SchemaMember;
 use pg_query::NodeEnum;
 use pg_query::protobuf::AlterTableType;
-use crate::lifecycle::schema_member::SchemaMember;
 use systemprompt_extension::cost::{self, CostDirective};
 use systemprompt_identifiers::ExtensionId;
 
@@ -98,7 +98,10 @@ impl MigrationCost {
 }
 
 #[must_use]
-pub fn audit_migration_cost(extensions: &[Arc<dyn SchemaMember>], hot: &[&str]) -> Vec<MigrationCost> {
+pub fn audit_migration_cost(
+    extensions: &[Arc<dyn SchemaMember>],
+    hot: &[&str],
+) -> Vec<MigrationCost> {
     let mut out = Vec::new();
     for ext in extensions {
         let extension = ExtensionId::new(ext.id());

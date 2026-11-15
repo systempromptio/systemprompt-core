@@ -16,7 +16,9 @@ async fn loaded() -> (fixture::Fixture, Arc<SecretsService>) {
         Some(&with_custom(&fixture::secrets_json(Some(fixture::SEED)))),
     );
     let profile = LoadedProfile::from_path(&fx.profile_path).expect("profile");
-    let service = SecretsService::load(profile, systemprompt_config::SecretsSources::default()).await.expect("secrets");
+    let service = SecretsService::load(profile, systemprompt_config::SecretsSources::default())
+        .await
+        .expect("secrets");
     (fx, service)
 }
 

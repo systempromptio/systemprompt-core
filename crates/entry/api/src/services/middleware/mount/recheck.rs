@@ -16,12 +16,14 @@
 
 use std::collections::{HashMap, HashSet};
 
+use systemprompt_extension::Admitted;
 use systemprompt_extension::admitted::{AdmittedGatewayRoute, AdmittedRouteSet};
-use systemprompt_extension::reserved::{BUILTIN_GATEWAY_PREFIXES, CoreId, PRIVILEGED_SHAPES, PrivilegedShape};
+use systemprompt_extension::reserved::{
+    BUILTIN_GATEWAY_PREFIXES, CoreId, PRIVILEGED_SHAPES, PrivilegedShape,
+};
 use systemprompt_extension::router::{
     Allowance, ApiBase, BasePath, BaseRef, BodyLimit, RouteDef, WebBase,
 };
-use systemprompt_extension::Admitted;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_models::modules::ApiPaths;
 
@@ -107,7 +109,9 @@ fn matching_entry(
 ) -> Option<&'static PrivilegedShape> {
     let at_base: Vec<&'static PrivilegedShape> = PRIVILEGED_SHAPES
         .iter()
-        .filter(|entry| entry.base == base && !matches!(entry.allowance, Allowance::KernelHandle(_)))
+        .filter(|entry| {
+            entry.base == base && !matches!(entry.allowance, Allowance::KernelHandle(_))
+        })
         .collect();
     let listed = |entry: &PrivilegedShape| {
         entry.routes.is_some_and(|routes| {
@@ -205,7 +209,10 @@ fn refuse_route_conflicts(routes: &[AdmittedRouteSet]) -> Result<(), MountError>
     let mut seen: HashSet<(http::Method, String)> = HashSet::new();
     for admitted in routes {
         for def in admitted.set.defs() {
-            let key = (def.method.clone(), full_path(admitted.set.base(), def.path.as_str()));
+            let key = (
+                def.method.clone(),
+                full_path(admitted.set.base(), def.path.as_str()),
+            );
             if !seen.insert(key.clone()) {
                 return Err(MountError::RouteConflict {
                     method: key.0,

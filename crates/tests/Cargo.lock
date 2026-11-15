@@ -8313,6 +8313,7 @@ name = "systemprompt"
 version = "0.81.1"
 dependencies = [
  "axum",
+ "http",
  "rmcp",
  "sqlx",
  "systemprompt-agent",
@@ -8948,6 +8949,7 @@ dependencies = [
  "systemprompt-models",
  "systemprompt-oauth",
  "systemprompt-oauth-issuance",
+ "systemprompt-provider-contracts",
  "systemprompt-runtime",
  "systemprompt-security",
  "systemprompt-test-fixtures",
@@ -9849,9 +9851,12 @@ dependencies = [
  "dirs",
  "ipnet",
  "open",
+ "rand 0.10.3",
  "reqwest",
+ "schemars 1.2.3",
  "serde",
  "serde_json",
+ "serde_yaml_ng",
  "sha2 0.11.1",
  "systemprompt-config",
  "systemprompt-extension",
@@ -9860,6 +9865,8 @@ dependencies = [
  "systemprompt-logging",
  "systemprompt-manifest",
  "systemprompt-models",
+ "systemprompt-security",
+ "systemprompt-wire",
  "thiserror 2.0.21",
  "tokio",
  "tracing",
@@ -9999,7 +10006,6 @@ dependencies = [
  "base64 0.23.1",
  "chrono",
  "hex",
- "inventory",
  "nix",
  "rand 0.10.3",
  "reqwest",
@@ -10361,7 +10367,11 @@ dependencies = [
  "async-trait",
  "axum",
  "chrono",
+ "clap",
+ "futures",
+ "http",
  "inventory",
+ "schemars 1.2.3",
  "serde",
  "serde_json",
  "sqlx",
@@ -10428,6 +10438,25 @@ dependencies = [
  "async-trait",
  "systemprompt",
  "systemprompt-test-hack",
+]
+
+[[package]]
+name = "systemprompt-facade-tests"
+version = "0.0.11"
+dependencies = [
+ "clap",
+ "futures",
+ "http",
+ "systemprompt",
+ "systemprompt-cli",
+ "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-manifest",
+ "systemprompt-provider-contracts",
+ "systemprompt-runtime",
+ "systemprompt-test-fixtures",
+ "systemprompt-test-hack",
+ "systemprompt-traits",
 ]
 
 [[package]]
@@ -10838,6 +10867,7 @@ dependencies = [
  "serde_yaml_ng",
  "sha2 0.11.1",
  "systemprompt-config",
+ "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-manifest",
  "systemprompt-models",
@@ -11595,6 +11625,7 @@ dependencies = [
  "serde_json",
  "serde_yaml_ng",
  "sha2 0.11.1",
+ "sqlx",
  "systemprompt-identifiers",
  "thiserror 2.0.21",
 ]
@@ -12371,6 +12402,7 @@ dependencies = [
  "systemprompt-logging",
  "systemprompt-mcp-host",
  "systemprompt-models",
+ "systemprompt-provider-contracts",
  "systemprompt-runtime",
  "systemprompt-scheduler",
  "systemprompt-teams-entry",

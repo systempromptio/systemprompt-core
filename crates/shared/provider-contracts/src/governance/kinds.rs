@@ -173,9 +173,10 @@ pub struct RuleTypeError(pub String);
 /// Core mints exactly two: [`RuleType::USER`] and [`RuleType::ROLE`]. Every
 /// other dimension (department, cost centre, clearance, ...) is an extension
 /// concern, minted with [`RuleType::extension`] and taught to the resolver via
-/// a subject dimension its subject-attribute provider declares. Core never interprets an
-/// extension slug. [`RuleType::extension_static`] mints a literal slug in a
-/// `const`, so a malformed one fails the build instead of a runtime check.
+/// a subject dimension its subject-attribute provider declares. Core never
+/// interprets an extension slug. [`RuleType::extension_static`] mints a literal
+/// slug in a `const`, so a malformed one fails the build instead of a runtime
+/// check.
 ///
 /// This mirrors the authz context: the column is an open vocabulary
 /// validated at the Rust boundary rather than by a SQL `CHECK`, so an
@@ -289,4 +290,3 @@ impl<'r> sqlx::Decode<'r, sqlx::Postgres> for RuleType {
         Ok(Self::from(raw))
     }
 }
-

@@ -11,8 +11,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::MigrationService;
-use systemprompt_extension::{LoaderError, MigrationFault};
 use crate::lifecycle::schema_member::SchemaMember;
+use systemprompt_extension::{LoaderError, MigrationFault};
 use systemprompt_identifiers::ExtensionId;
 
 #[derive(Debug, Clone)]

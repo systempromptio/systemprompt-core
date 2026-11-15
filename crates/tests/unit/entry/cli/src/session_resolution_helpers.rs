@@ -5,11 +5,11 @@
 use std::path::{Path, PathBuf};
 
 use systemprompt_cli::EnvOverrides;
-use systemprompt_cloud::paths::ResolvedPaths;
 use systemprompt_cli::session::resolution::context_resolver::{
     extract_profile_name, resolve_profile_path_from_session, resolve_profile_path_without_session,
     try_session_from_env,
 };
+use systemprompt_cloud::paths::ResolvedPaths;
 use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity, SessionKey, SessionStore};
 use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken, UserId};
 use systemprompt_manifest::services::SystemAdminConfig;

@@ -19,8 +19,8 @@ use systemprompt_api::services::middleware::{
     RateLimitState, UserOnlyContextMiddleware, protect,
 };
 use systemprompt_extension::{
-    AuthzPolicy, ContextKind, FrameOptionsOverride, ProtectionLayer, RateBudget,
-    RateLimit, RouteProtection,
+    AuthzPolicy, ContextKind, FrameOptionsOverride, ProtectionLayer, RateBudget, RateLimit,
+    RouteProtection,
 };
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_manifest::profile::{FrameOptions, RateLimitsConfig};

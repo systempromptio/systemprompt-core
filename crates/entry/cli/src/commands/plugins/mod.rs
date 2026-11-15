@@ -110,7 +110,8 @@ pub async fn execute(cmd: PluginsCommands, ctx: &CommandContext) -> Result<()> {
             Ok(())
         },
         PluginsCommands::Seams(args) => {
-            let (output, all_linked) = seams::execute(&args, ctx.profile().ok(), ctx.secrets_sources());
+            let (output, all_linked) =
+                seams::execute(&args, ctx.profile().ok(), ctx.secrets_sources());
             render_result(&output, &ctx.cli);
             if !all_linked {
                 bail!("The profile names registrations this binary does not link");

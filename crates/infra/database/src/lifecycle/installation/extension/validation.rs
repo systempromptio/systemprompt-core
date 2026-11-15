@@ -3,8 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_extension::{LoaderError, SchemaFault};
 use crate::lifecycle::schema_member::SchemaMember;
+use systemprompt_extension::{LoaderError, SchemaFault};
 use systemprompt_identifiers::ExtensionId;
 
 use super::super::prepare::{ColumnsToValidate, PreparedSchema};

@@ -19,10 +19,10 @@
 
 use std::sync::Arc;
 
+use crate::lifecycle::schema_member::SchemaMember;
 use pg_query::NodeEnum;
 use pg_query::protobuf::ObjectType;
 use systemprompt_extension::{LoaderError, SchemaFault};
-use crate::lifecycle::schema_member::SchemaMember;
 use systemprompt_identifiers::ExtensionId;
 use tracing::info;
 

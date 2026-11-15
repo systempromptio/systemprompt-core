@@ -23,8 +23,8 @@
 //! consulted.
 //!
 //! `secrets.source: external` hands the fetch to the provider the composition
-//! declared for the profile's `external.kind` (see [`SecretsSources`]). It sits at
-//! the same precedence as Vault and is equally fail-closed. The store is
+//! declared for the profile's `external.kind` (see [`SecretsSources`]). It sits
+//! at the same precedence as Vault and is equally fail-closed. The store is
 //! reloadable: see [`SecretsService::reload`].
 //!
 //! A Vault token is never written into profile YAML — `${VAULT_TOKEN}`
@@ -70,8 +70,8 @@ pub use io::load_secrets_from_path;
 pub use logging::build_loaded_secrets_message;
 pub use provider::{DynSecretsProvider, SecretsDocument, SecretsFetch, SecretsProvider};
 pub use registry::{
-    EnvLookup, SecretsSourceFactory, SecretsSourceRegistration, SharedSecretsProvider,
-    build_external_provider, process_env_lookup, SecretsSources,
+    EnvLookup, SecretsSourceFactory, SecretsSourceRegistration, SecretsSources,
+    SharedSecretsProvider, build_external_provider, process_env_lookup,
 };
 pub use reload::{
     PINNED_SECRET_KEYS, ReloadOutcome, SecretsStatus, diff_secrets, refresh_interval_for,

@@ -60,14 +60,13 @@ pub async fn run_server(
     if let Some(ref tx) = events {
         tx.phase_started(Phase::ApiServer);
     }
-    let router =
-        crate::services::server::setup_api_server(
-            &ctx,
-            super::routes::Composed { admitted, kernel },
-            events.as_ref(),
-            early.readiness(),
-        )?
-            .layer(axum::Extension(Arc::clone(early.scheduler_health())));
+    let router = crate::services::server::setup_api_server(
+        &ctx,
+        super::routes::Composed { admitted, kernel },
+        events.as_ref(),
+        early.readiness(),
+    )?
+    .layer(axum::Extension(Arc::clone(early.scheduler_health())));
     super::boot_steps::start_accounting_recovery(&ctx).await?;
     let addr = ctx.server_address();
 

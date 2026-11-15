@@ -20,8 +20,8 @@ use systemprompt_models::auth::UserType;
 
 use super::ProfileContext;
 use crate::env_overrides::EnvOverrides;
-use systemprompt_cloud::paths::ResolvedPaths;
 use crate::session::context::CliSessionContext;
+use systemprompt_cloud::paths::ResolvedPaths;
 
 pub fn try_session_from_env(profile: &Profile, env: &EnvOverrides) -> Option<CliSessionContext> {
     if !env.is_remote_cli {

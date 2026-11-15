@@ -21,10 +21,10 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
+use crate::lifecycle::schema_member::SchemaMember;
 use pg_query::protobuf::{AlterTableType, ObjectType};
 use pg_query::{Context, NodeEnum};
 use systemprompt_extension::LoaderError;
-use crate::lifecycle::schema_member::SchemaMember;
 use systemprompt_identifiers::ExtensionId;
 use tracing::warn;
 

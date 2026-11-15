@@ -6,10 +6,10 @@
 use std::sync::Arc;
 
 use anyhow::Context;
-use systemprompt_extension::{Admitted, Resolved};
 use systemprompt_extension::cli::{
     BoxFuture, ChildSupervisor, CliConfig, CommandError, CommandHost, Prompter,
 };
+use systemprompt_extension::{Admitted, Resolved};
 use systemprompt_manifest::Profile;
 use systemprompt_runtime::Kernel;
 use systemprompt_traits::DatabaseHandle;

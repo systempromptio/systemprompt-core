@@ -26,7 +26,15 @@ fn handler_verified_at_an_unlisted_base_is_refused() {
         PLAIN_LIMITS,
     );
     let admitted = forged(
-        vec![routed("probe-forger", set(base, RouteGroup::Messaging, &[(http::Method::POST, "/events", spec)]), vec![])],
+        vec![routed(
+            "probe-forger",
+            set(
+                base,
+                RouteGroup::Messaging,
+                &[(http::Method::POST, "/events", spec)],
+            ),
+            vec![],
+        )],
         vec![],
     );
     assert!(matches!(
@@ -41,7 +49,11 @@ fn handler_verified_at_an_unlisted_base_is_refused() {
 #[test]
 fn listed_privilege_under_a_non_core_id_is_an_owner_mismatch() {
     let admitted = forged(
-        vec![routed("probe-forger", analytics_set(), vec![HandleId::AnalyticsBroadcaster])],
+        vec![routed(
+            "probe-forger",
+            analytics_set(),
+            vec![HandleId::AnalyticsBroadcaster],
+        )],
         vec![],
     );
     assert!(matches!(
@@ -55,7 +67,11 @@ fn listed_privilege_under_a_non_core_id_is_an_owner_mismatch() {
 
 #[test]
 fn one_id_holding_two_core_ids_is_an_owner_mismatch() {
-    let content = entry(CoreId::ContentHttp, BaseRef::Path(BasePath::Api(ApiBase::Content)), Allowance::ReservedPrefix);
+    let content = entry(
+        CoreId::ContentHttp,
+        BaseRef::Path(BasePath::Api(ApiBase::Content)),
+        Allowance::ReservedPrefix,
+    );
     let content_set = set(
         BasePath::Api(ApiBase::Content),
         content.group,
@@ -80,7 +96,11 @@ fn one_id_holding_two_core_ids_is_an_owner_mismatch() {
 #[test]
 fn listed_privilege_under_its_core_id_passes_the_recheck() {
     let admitted = forged(
-        vec![routed("analytics-http", analytics_set(), vec![HandleId::AnalyticsBroadcaster])],
+        vec![routed(
+            "analytics-http",
+            analytics_set(),
+            vec![HandleId::AnalyticsBroadcaster],
+        )],
         vec![],
     );
     assert!(recheck(&admitted).is_ok(), "negative control");
@@ -98,7 +118,15 @@ fn slack_shape_is_listed_only_in_a_slack_build() {
         },
     );
     let admitted = forged(
-        vec![routed("slack", set(base, RouteGroup::Messaging, &[(http::Method::POST, "/events", spec)]), vec![])],
+        vec![routed(
+            "slack",
+            set(
+                base,
+                RouteGroup::Messaging,
+                &[(http::Method::POST, "/events", spec)],
+            ),
+            vec![],
+        )],
         vec![],
     );
     let listed = PRIVILEGED_SHAPES.iter().any(|e| e.owner == CoreId::Slack);
@@ -118,12 +146,24 @@ fn slack_shape_is_listed_only_in_a_slack_build() {
 
 fn drifted(shape: RouteSpec) -> Vec<(&'static str, RouteSpec)> {
     let mut out = Vec::new();
-    let policy = if shape.policy == AuthzPolicy::public() { AuthzPolicy::admin() } else { AuthzPolicy::public() };
+    let policy = if shape.policy == AuthzPolicy::public() {
+        AuthzPolicy::admin()
+    } else {
+        AuthzPolicy::public()
+    };
     out.push(("policy", RouteSpec { policy, ..shape }));
-    let context = if shape.context == ContextKind::A2a { ContextKind::Mcp } else { ContextKind::A2a };
+    let context = if shape.context == ContextKind::A2a {
+        ContextKind::Mcp
+    } else {
+        ContextKind::A2a
+    };
     out.push(("context", RouteSpec { context, ..shape }));
     let mut limits = shape.limits;
-    limits.rate.budget = if limits.rate.budget == RateBudget::McpRegistry { RateBudget::Artifacts } else { RateBudget::McpRegistry };
+    limits.rate.budget = if limits.rate.budget == RateBudget::McpRegistry {
+        RateBudget::Artifacts
+    } else {
+        RateBudget::McpRegistry
+    };
     out.push(("rate budget", RouteSpec { limits, ..shape }));
     let mut limits = shape.limits;
     limits.rate.scope = "drifted";
@@ -132,7 +172,11 @@ fn drifted(shape: RouteSpec) -> Vec<(&'static str, RouteSpec)> {
     limits.rate.bearer_window = !limits.rate.bearer_window;
     out.push(("bearer window", RouteSpec { limits, ..shape }));
     let mut limits = shape.limits;
-    limits.body = if limits.body == BodyLimit::Agent { BodyLimit::Default } else { BodyLimit::Agent };
+    limits.body = if limits.body == BodyLimit::Agent {
+        BodyLimit::Default
+    } else {
+        BodyLimit::Agent
+    };
     out.push(("body limit", RouteSpec { limits, ..shape }));
     out
 }
@@ -151,24 +195,51 @@ fn every_listed_shape_refuses_drift_in_any_field_or_group() {
             .and_then(|routes| routes.first().cloned())
             .unwrap_or((http::Method::GET, "/probe"));
         let exact = forged(
-            vec![routed(listed.owner.id(), set(base, listed.group, &[(method.clone(), path, spec_of(listed))]), vec![])],
+            vec![routed(
+                listed.owner.id(),
+                set(
+                    base,
+                    listed.group,
+                    &[(method.clone(), path, spec_of(listed))],
+                ),
+                vec![],
+            )],
             vec![],
         );
-        assert!(recheck(&exact).is_ok(), "negative control: {:?} at {base:?} in its listed shape", listed.owner);
+        assert!(
+            recheck(&exact).is_ok(),
+            "negative control: {:?} at {base:?} in its listed shape",
+            listed.owner
+        );
         for (field, spec) in drifted(spec_of(listed)) {
             let admitted = forged(
-                vec![routed(listed.owner.id(), set(base, listed.group, &[(method.clone(), path, spec)]), vec![])],
+                vec![routed(
+                    listed.owner.id(),
+                    set(base, listed.group, &[(method.clone(), path, spec)]),
+                    vec![],
+                )],
                 vec![],
             );
             assert!(
-                matches!(recheck(&admitted), Err(MountError::UnlistedPrivilege { .. })),
+                matches!(
+                    recheck(&admitted),
+                    Err(MountError::UnlistedPrivilege { .. })
+                ),
                 "{:?} at {base:?} with drifted {field} must be refused",
                 listed.owner
             );
         }
-        let group = if listed.group == RouteGroup::Discovery { RouteGroup::Oauth } else { RouteGroup::Discovery };
+        let group = if listed.group == RouteGroup::Discovery {
+            RouteGroup::Oauth
+        } else {
+            RouteGroup::Discovery
+        };
         let moved = forged(
-            vec![routed(listed.owner.id(), set(base, group, &[(method.clone(), path, spec_of(listed))]), vec![])],
+            vec![routed(
+                listed.owner.id(),
+                set(base, group, &[(method.clone(), path, spec_of(listed))]),
+                vec![],
+            )],
             vec![],
         );
         assert!(
@@ -194,26 +265,44 @@ fn only_the_kernel_agent_proxy_lists_the_agent_body_limit() {
 #[test]
 fn content_generate_with_the_public_shape_or_a_changed_group_is_refused() {
     let content = BasePath::Api(ApiBase::Content);
-    let public = entry(CoreId::ContentHttp, BaseRef::Path(content), Allowance::ReservedPrefix);
+    let public = entry(
+        CoreId::ContentHttp,
+        BaseRef::Path(content),
+        Allowance::ReservedPrefix,
+    );
     let admitted = forged(
         vec![routed(
             "content-http",
-            set(content, public.group, &[(http::Method::POST, "/links/generate", spec_of(public))]),
+            set(
+                content,
+                public.group,
+                &[(http::Method::POST, "/links/generate", spec_of(public))],
+            ),
             vec![],
         )],
         vec![],
     );
-    assert!(matches!(recheck(&admitted), Err(MountError::UnlistedPrivilege { .. })));
+    assert!(matches!(
+        recheck(&admitted),
+        Err(MountError::UnlistedPrivilege { .. })
+    ));
 
     let admitted = forged(
         vec![routed(
             "content-http",
-            set(content, RouteGroup::Messaging, &[(http::Method::GET, "/probe", spec_of(public))]),
+            set(
+                content,
+                RouteGroup::Messaging,
+                &[(http::Method::GET, "/probe", spec_of(public))],
+            ),
             vec![],
         )],
         vec![],
     );
-    assert!(matches!(recheck(&admitted), Err(MountError::UnlistedPrivilege { .. })));
+    assert!(matches!(
+        recheck(&admitted),
+        Err(MountError::UnlistedPrivilege { .. })
+    ));
 }
 
 #[test]
@@ -222,12 +311,23 @@ fn reserved_extension_base_is_refused_at_mount() {
     let admitted = forged(
         vec![routed(
             "probe-forger",
-            set(base, RouteGroup::Extensions, &[(http::Method::GET, "/x", RouteSpec::new(AuthzPolicy::user(), ContextKind::User, PLAIN_LIMITS))]),
+            set(
+                base,
+                RouteGroup::Extensions,
+                &[(
+                    http::Method::GET,
+                    "/x",
+                    RouteSpec::new(AuthzPolicy::user(), ContextKind::User, PLAIN_LIMITS),
+                )],
+            ),
             vec![],
         )],
         vec![],
     );
-    assert!(matches!(recheck(&admitted), Err(MountError::ReservedPrefix(_))));
+    assert!(matches!(
+        recheck(&admitted),
+        Err(MountError::ReservedPrefix(_))
+    ));
 }
 
 fn bridge_route(limits: RouteLimits) -> AdmittedGatewayRoute {
@@ -258,7 +358,10 @@ fn bridge_gateway_route_needs_the_bearer_window() {
         BaseRef::Gateway(GatewayPath::BridgeNotifications),
         Allowance::GatewayRoute,
     );
-    assert!(shape.shape.limits.rate.bearer_window, "the listed shape carries the bearer window");
+    assert!(
+        shape.shape.limits.rate.bearer_window,
+        "the listed shape carries the bearer window"
+    );
     let mut without = shape.shape.limits;
     without.rate = RateLimit::new(without.rate.scope, without.rate.budget);
     assert!(matches!(

@@ -75,9 +75,12 @@ async fn a_rotated_secrets_file_is_picked_up_by_a_reload() {
     };
     let fx = fixture::write_tree(FILE_REFRESH_SECRETS, Some(&body("key-one")));
     let profile = LoadedProfile::from_path(&fx.profile_path).expect("profile");
-    let service = SecretsService::load(profile.clone(), systemprompt_config::SecretsSources::default())
-        .await
-        .expect("secrets");
+    let service = SecretsService::load(
+        profile.clone(),
+        systemprompt_config::SecretsSources::default(),
+    )
+    .await
+    .expect("secrets");
     assert_eq!(service.refresh_interval(), Some(Duration::from_secs(60)));
     let before = service.generation();
     let fingerprint_before =
@@ -109,9 +112,12 @@ async fn the_fingerprint_names_keys_but_never_exposes_values() {
         Some(&fixture::secrets_json(Some(fixture::SEED))),
     );
     let profile = LoadedProfile::from_path(&fx.profile_path).expect("profile");
-    let service = SecretsService::load(profile.clone(), systemprompt_config::SecretsSources::default())
-        .await
-        .expect("secrets");
+    let service = SecretsService::load(
+        profile.clone(),
+        systemprompt_config::SecretsSources::default(),
+    )
+    .await
+    .expect("secrets");
 
     let fingerprint = ConfigFingerprint::current(profile.profile(), &service, Some("f".repeat(64)))
         .expect("fingerprint");

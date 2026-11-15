@@ -8,9 +8,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::lifecycle::schema_member::SchemaMember;
 use crate::services::DatabaseProvider;
 use systemprompt_extension::{LoaderError, Seed};
-use crate::lifecycle::schema_member::SchemaMember;
 use systemprompt_identifiers::ExtensionId;
 use tracing::{debug, info};
 

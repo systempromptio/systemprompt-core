@@ -12,8 +12,7 @@ use crate::authz::{AuthzPolicy, HandlerVerifier};
 use crate::contribute::HandleId;
 use crate::protection::{ContextKind, RateBudget, RateLimit, RouteGroup};
 use crate::router::{
-    Allowance, ApiBase, BasePath, BaseRef, BodyLimit, GatewayPath, RouteLimits, RouteShape,
-    WebBase,
+    Allowance, ApiBase, BasePath, BaseRef, BodyLimit, GatewayPath, RouteLimits, RouteShape, WebBase,
 };
 
 const fn limits(rate: RateLimit) -> RouteLimits {
@@ -36,7 +35,8 @@ const NOTIFICATIONS_LIMITS: RouteLimits =
     limits(RateLimit::new("notifications", RateBudget::Notifications));
 const AGENTS_RATE: RateLimit = RateLimit::new("agents", RateBudget::Agents);
 
-const CONTENT_PUBLIC: RouteShape = shape(AuthzPolicy::public(), ContextKind::Public, CONTENT_LIMITS);
+const CONTENT_PUBLIC: RouteShape =
+    shape(AuthzPolicy::public(), ContextKind::Public, CONTENT_LIMITS);
 const CONTENT_USER: RouteShape = shape(AuthzPolicy::user(), ContextKind::User, CONTENT_LIMITS);
 const ANALYTICS_ADMIN: RouteShape = shape(AuthzPolicy::admin(), ContextKind::User, CONTENT_LIMITS);
 
@@ -105,7 +105,11 @@ const ALWAYS: [PrivilegedShape; 11] = [
         base: BaseRef::Path(BasePath::Api(ApiBase::AdminNotifications)),
         group: RouteGroup::ContentAndMisc,
         allowance: Allowance::ReservedPrefix,
-        shape: shape(AuthzPolicy::admin(), ContextKind::User, NOTIFICATIONS_LIMITS),
+        shape: shape(
+            AuthzPolicy::admin(),
+            ContextKind::User,
+            NOTIFICATIONS_LIMITS,
+        ),
         routes: None,
     },
     PrivilegedShape {

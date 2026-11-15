@@ -66,9 +66,9 @@ pub use content::{
 };
 pub use traffic_class_counts::{DynTrafficClassCounts, TrafficClassCounts, TrafficClassTotals};
 pub mod context;
-pub mod events;
 pub mod context_provider;
 pub mod coordination;
+pub mod events;
 pub mod extension_error;
 pub mod ip_bans;
 pub mod job_scope;

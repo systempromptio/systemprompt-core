@@ -39,26 +39,26 @@ use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_manifest::Profile;
 use systemprompt_traits::authz::SubjectDimension;
 
-#[cfg(feature = "api")]
-use systemprompt_extension::admitted::{AdmittedGatewayRoute, AdmittedRouteSet};
-#[cfg(feature = "api")]
-use systemprompt_extension::router::{Allowance, BasePath, BaseRef, RouteSet};
 #[cfg(feature = "cli")]
 use systemprompt_extension::admitted::AdmittedCommand;
+#[cfg(feature = "api")]
+use systemprompt_extension::admitted::{AdmittedGatewayRoute, AdmittedRouteSet};
 #[cfg(feature = "cli")]
 use systemprompt_extension::cli::KernelGrant;
+#[cfg(feature = "api")]
+use systemprompt_extension::router::{Allowance, BasePath, BaseRef, RouteSet};
 
 
-use admit::{apply_removals, check_member_dependencies};
-#[cfg(feature = "config")]
-use admit::check_secrets;
 #[cfg(feature = "cli")]
 use admit::admit_commands;
+#[cfg(feature = "config")]
+use admit::check_secrets;
+use admit::{apply_removals, check_member_dependencies};
 pub use error::{CompositionError, RunError};
 
 mod admit;
-mod error;
 mod declared;
+mod error;
 mod reference;
 mod routes;
 
@@ -103,7 +103,9 @@ impl CoreTerms {
     }
 
     #[cfg(feature = "cli")]
-    pub(super) fn cli(self) -> impl Iterator<Item = &'static systemprompt_extension::reserved::ReservedCliPath> {
+    pub(super) fn cli(
+        self,
+    ) -> impl Iterator<Item = &'static systemprompt_extension::reserved::ReservedCliPath> {
         systemprompt_extension::reserved::RESERVED_CLI_PATHS
             .iter()
             .filter(move |reserved| Some(reserved.owner) == self.core)
@@ -234,8 +236,11 @@ impl Composition {
         let mut ids = HashSet::new();
         for member in members {
             let meta = member.ext.metadata();
-            let id = ExtensionId::try_new(meta.id)
-                .map_err(|source| CompositionError::InvalidId { id: meta.id, source })?;
+            let id =
+                ExtensionId::try_new(meta.id).map_err(|source| CompositionError::InvalidId {
+                    id: meta.id,
+                    source,
+                })?;
             if !ids.insert(id.clone()) {
                 return Err(CompositionError::DuplicateId(id));
             }
@@ -292,5 +297,3 @@ impl Composition {
         .map_err(RunError::Cli)
     }
 }
-
-

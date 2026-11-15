@@ -8,10 +8,10 @@ use systemprompt_identifiers::ExtensionId;
 use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_traits::authz::SubjectDimension;
 
-#[cfg(feature = "api")]
-use systemprompt_extension::router::{Allowance, BasePath};
 #[cfg(feature = "cli")]
 use systemprompt_extension::cli::KernelGrant;
+#[cfg(feature = "api")]
+use systemprompt_extension::router::{Allowance, BasePath};
 
 #[derive(Debug, thiserror::Error)]
 pub enum CompositionError {
@@ -28,7 +28,10 @@ pub enum CompositionError {
     #[error("required extension {0} cannot be disabled or removed")]
     RequiredDisabled(ExtensionId),
     #[error("{owner} requires {ty}, which no enabled member provides")]
-    Missing { owner: ExtensionId, ty: &'static str },
+    Missing {
+        owner: ExtensionId,
+        ty: &'static str,
+    },
     #[error("{owner} requires {ty}; its core provider {provider} is disabled")]
     DisabledDependency {
         owner: ExtensionId,
@@ -48,7 +51,10 @@ pub enum CompositionError {
         second: ExtensionId,
     },
     #[error("{owner} depends on {target} across capabilities")]
-    CrossCapabilityDependency { owner: ExtensionId, target: ExtensionId },
+    CrossCapabilityDependency {
+        owner: ExtensionId,
+        target: ExtensionId,
+    },
     #[cfg(feature = "api")]
     #[error("{owner}'s routes at {base:?} do not match the conferred shape")]
     ConferralShapeMismatch { owner: ExtensionId, base: BasePath },
@@ -85,7 +91,10 @@ pub enum CompositionError {
     },
     #[cfg(feature = "cli")]
     #[error("{owner} requests {grant:?} without conferral")]
-    GrantNotConferred { owner: ExtensionId, grant: KernelGrant },
+    GrantNotConferred {
+        owner: ExtensionId,
+        grant: KernelGrant,
+    },
     #[error("reserved CLI path {path:?} taken by {owner}")]
     ReservedCliPath {
         owner: ExtensionId,

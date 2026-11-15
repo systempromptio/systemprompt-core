@@ -42,9 +42,13 @@ impl BuiltState {
     }
 
     pub fn jobs(&self) -> impl Iterator<Item = (&ExtensionId, &ContributedJob)> {
-        self.members
-            .iter()
-            .flat_map(|member| member.sink.jobs().iter().map(move |job| (&member.owner, job)))
+        self.members.iter().flat_map(|member| {
+            member
+                .sink
+                .jobs()
+                .iter()
+                .map(move |job| (&member.owner, job))
+        })
     }
 
     #[must_use]

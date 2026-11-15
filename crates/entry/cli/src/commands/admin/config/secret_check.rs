@@ -73,7 +73,8 @@ pub async fn run(ctx: &CommandContext) -> Result<SecretCheckReport> {
 
     let required =
         SecretsService::required_secret_keys(SecretsService::signing_key_pem_required(profile));
-    let (source, detail, keys) = describe(&resolved, profile_dir, &required, ctx.secrets_sources()).await?;
+    let (source, detail, keys) =
+        describe(&resolved, profile_dir, &required, ctx.secrets_sources()).await?;
     let status = ctx.boot().ok().map(|boot| boot.secrets().status());
     Ok(SecretCheckReport {
         missing_required: missing_required(&keys, &required),
@@ -104,8 +105,8 @@ async fn describe(
             Ok(("vault".to_owned(), detail, document.key_names()))
         },
         ResolvedSource::External(cfg) => {
-            let provider =
-                build_external_provider(cfg, process_env_lookup(), sources).with_context(|| {
+            let provider = build_external_provider(cfg, process_env_lookup(), sources)
+                .with_context(|| {
                     format!("External secrets source '{}' could not be built", cfg.kind)
                 })?;
             let detail = provider.describe();

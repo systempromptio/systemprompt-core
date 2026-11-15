@@ -3,9 +3,9 @@
 //!
 //! Producers emit through the injected `NotificationSink` inside their own
 //! transaction. Extensions contribute the other five seams through the
-//! notifications capability's slot, as factories over `Resolved`. Every trait is held as `Arc<dyn _>`, so
-//! each uses `#[async_trait]`; native `async fn` in traits is not
-//! `dyn`-compatible.
+//! notifications capability's slot, as factories over `Resolved`. Every trait
+//! is held as `Arc<dyn _>`, so each uses `#[async_trait]`; native `async fn` in
+//! traits is not `dyn`-compatible.
 //!
 //! Audience resolvers also answer [`NotificationAudienceResolver::is_member`]
 //! with a [`Membership`] so a subscription can be checked against its

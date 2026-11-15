@@ -10,11 +10,10 @@
 //!
 //! Re-check, run on every admitted route set, gateway route and command that
 //! uses a privilege:
-//! 1. a [`PRIVILEGED_SHAPES`] / [`RESERVED_CLI_PATHS`] entry matches it
-//!    exactly (base, group, allowance, shape, routes);
+//! 1. a [`PRIVILEGED_SHAPES`] / [`RESERVED_CLI_PATHS`] entry matches it exactly
+//!    (base, group, allowance, shape, routes);
 //! 2. its owner's extension id equals that entry's [`CoreId::id`];
-//! 3. no extension id holds privileged entries under two different
-//!    [`CoreId`]s.
+//! 3. no extension id holds privileged entries under two different [`CoreId`]s.
 //!
 //! The Slack and Teams shapes exist only in a build with the `slack` or
 //! `teams` feature.
@@ -148,4 +147,3 @@ pub struct PrivilegedShape {
     pub shape: RouteShape,
     pub routes: Option<&'static [(Method, &'static str)]>,
 }
-

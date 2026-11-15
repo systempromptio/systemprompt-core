@@ -8,8 +8,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_extension::{LoaderError, SchemaFault};
 use crate::lifecycle::schema_member::SchemaMember;
+use systemprompt_extension::{LoaderError, SchemaFault};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_traits::BoxedSource;
 use tracing::warn;
@@ -35,7 +35,9 @@ pub(super) struct ColumnsToValidate {
     pub(super) columns: Vec<String>,
 }
 
-pub(super) fn prepare_extension_schema(ext: &dyn SchemaMember) -> Result<PreparedSchema, LoaderError> {
+pub(super) fn prepare_extension_schema(
+    ext: &dyn SchemaMember,
+) -> Result<PreparedSchema, LoaderError> {
     let schemas = ext.schemas();
     let extension_id = ExtensionId::new(ext.metadata().id);
 

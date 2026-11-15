@@ -32,26 +32,25 @@ impl Extension for EventsExtension {
 }
 
 fn schemas() -> Vec<SchemaDefinition> {
-        vec![
-            SchemaDefinition::new("event_outbox", include_str!("../schema/event_outbox.sql"))
-                .with_required_columns(vec![
-                    "id".into(),
-                    "channel".into(),
-                    "user_id".into(),
-                    "payload".into(),
-                    "actor_kind".into(),
-                    "actor_id".into(),
-                    "created_at".into(),
-                    "consumer".into(),
-                    "fact".into(),
-                    "processed_at".into(),
-                    "deliver_to_origin".into(),
-                ]),
-            SchemaDefinition::new(
-                "event_outbox_backlog",
-                include_str!("../schema/event_outbox_backlog.sql"),
-            )
-            .with_required_columns(vec!["consumer".into(), "delta".into()]),
-        ]
-    }
-
+    vec![
+        SchemaDefinition::new("event_outbox", include_str!("../schema/event_outbox.sql"))
+            .with_required_columns(vec![
+                "id".into(),
+                "channel".into(),
+                "user_id".into(),
+                "payload".into(),
+                "actor_kind".into(),
+                "actor_id".into(),
+                "created_at".into(),
+                "consumer".into(),
+                "fact".into(),
+                "processed_at".into(),
+                "deliver_to_origin".into(),
+            ]),
+        SchemaDefinition::new(
+            "event_outbox_backlog",
+            include_str!("../schema/event_outbox_backlog.sql"),
+        )
+        .with_required_columns(vec!["consumer".into(), "delta".into()]),
+    ]
+}

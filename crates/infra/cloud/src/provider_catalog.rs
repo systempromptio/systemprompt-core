@@ -70,8 +70,7 @@ pub enum ProviderCatalogError {
 }
 
 pub fn seed_document(request: SeedRequest<'_>) -> Result<CatalogDocument, ProviderCatalogError> {
-    let mut document =
-        DefaultCatalog::document().map_err(ProviderCatalogError::Embedded)?;
+    let mut document = DefaultCatalog::document().map_err(ProviderCatalogError::Embedded)?;
     let kept = |provider: &str| request.present.contains(&provider);
     document
         .providers
@@ -126,7 +125,10 @@ pub fn first_model_on(document: &CatalogDocument, provider: &str) -> Option<Mode
         .map(|(model, _)| model.clone())
 }
 
-pub fn add_vertex(document: &mut CatalogDocument, seed: VertexSeed<'_>) -> Result<(), ProviderCatalogError> {
+pub fn add_vertex(
+    document: &mut CatalogDocument,
+    seed: VertexSeed<'_>,
+) -> Result<(), ProviderCatalogError> {
     let credential = match seed {
         VertexSeed::WorkloadIdentity { project } => {
             CredentialEntry::workload_identity(project.to_owned())

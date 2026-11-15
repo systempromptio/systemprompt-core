@@ -1,5 +1,6 @@
 //! Schema installation for compile-time-registered
-//! [`SchemaMember`](crate::lifecycle::schema_member::SchemaMember) snapshots of the admitted composition.
+//! [`SchemaMember`](crate::lifecycle::schema_member::SchemaMember) snapshots of
+//! the admitted composition.
 //!
 //! Installation runs globally in six phases — retirements, structural DDL, then
 //! the declarative routines, then migrations, then dependent DDL, then the
@@ -39,8 +40,8 @@ mod settled;
 mod trigger_reuse;
 mod validation;
 
-use systemprompt_extension::LoaderError;
 use crate::lifecycle::schema_member::SchemaMember;
+use systemprompt_extension::LoaderError;
 use systemprompt_identifiers::ExtensionId;
 use tracing::{debug, info};
 

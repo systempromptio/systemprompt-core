@@ -29,8 +29,11 @@ fn cloud() -> CommandDecl {
 
 #[test]
 fn forged_install_at_cloud_is_refused() {
-    let error = CommandRegistry::build(&forged(vec![("probe-install", cloud())]), &kernel_commands())
-        .expect_err("an install id cannot hold the cloud path");
+    let error = CommandRegistry::build(
+        &forged(vec![("probe-install", cloud())]),
+        &kernel_commands(),
+    )
+    .expect_err("an install id cannot hold the cloud path");
     assert!(matches!(
         error,
         RegistryError::ReservedPath {
@@ -43,7 +46,10 @@ fn forged_install_at_cloud_is_refused() {
 #[test]
 fn forged_core_id_at_another_core_path_is_refused() {
     let error = CommandRegistry::build(
-        &forged(vec![("cloud", cloud()), ("cloud", CommandDecl::group::<AnalyticsGroup>())]),
+        &forged(vec![
+            ("cloud", cloud()),
+            ("cloud", CommandDecl::group::<AnalyticsGroup>()),
+        ]),
         &kernel_commands(),
     )
     .expect_err("one id cannot hold two core ids' paths");
@@ -74,5 +80,10 @@ fn forged_grant_on_an_unreserved_path_is_refused() {
 fn core_id_at_its_own_path_is_accepted() {
     let registry = CommandRegistry::build(&forged(vec![("cloud", cloud())]), &kernel_commands())
         .expect("negative control: the cloud member holds the cloud path");
-    assert!(registry.entries().iter().any(|entry| entry.decl().path() == ["cloud"]));
+    assert!(
+        registry
+            .entries()
+            .iter()
+            .any(|entry| entry.decl().path() == ["cloud"])
+    );
 }

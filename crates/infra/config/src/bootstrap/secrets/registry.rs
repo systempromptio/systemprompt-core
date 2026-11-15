@@ -44,8 +44,11 @@ impl SecretsSources {
 
     #[must_use]
     pub fn kinds(&self) -> Vec<&'static str> {
-        let mut kinds: Vec<&'static str> =
-            self.0.iter().map(|registration| registration.kind).collect();
+        let mut kinds: Vec<&'static str> = self
+            .0
+            .iter()
+            .map(|registration| registration.kind)
+            .collect();
         kinds.sort_unstable();
         kinds.dedup();
         kinds

@@ -19,20 +19,21 @@ use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_manifest::Profile;
 use systemprompt_traits::authz::SubjectDimension;
 
-#[cfg(feature = "api")]
-use systemprompt_extension::admitted::{AdmittedGatewayRoute, AdmittedRouteSet};
-#[cfg(feature = "api")]
-use systemprompt_extension::router::{Allowance, BasePath, BaseRef, RouteSet};
 #[cfg(feature = "cli")]
 use systemprompt_extension::admitted::AdmittedCommand;
+#[cfg(feature = "api")]
+use systemprompt_extension::admitted::{AdmittedGatewayRoute, AdmittedRouteSet};
 #[cfg(feature = "cli")]
 use systemprompt_extension::cli::KernelGrant;
-
+#[cfg(feature = "api")]
+use systemprompt_extension::router::{Allowance, BasePath, BaseRef, RouteSet};
 
 
 use super::admit::{check_providers, disabled_members};
 #[cfg(feature = "api")]
-use super::routes::{admit_gateway_route, admit_route_set, check_gateway_overlaps, check_route_conflicts};
+use super::routes::{
+    admit_gateway_route, admit_route_set, check_gateway_overlaps, check_route_conflicts,
+};
 use super::{CompositionError, Standing};
 
 pub(super) struct DeclaredMember {

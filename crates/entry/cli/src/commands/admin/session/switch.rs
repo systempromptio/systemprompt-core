@@ -9,8 +9,8 @@ use systemprompt_identifiers::ProfileName;
 use systemprompt_manifest::profile::{CloudConfig, ManagedProfile};
 
 use super::types::SwitchOutput;
-use systemprompt_cloud::paths::ResolvedPaths;
 use crate::shared::CommandOutput;
+use systemprompt_cloud::paths::ResolvedPaths;
 
 pub(super) fn execute(profile_name: &ProfileName) -> Result<CommandOutput> {
     let paths = ResolvedPaths::discover();

@@ -15,8 +15,8 @@ pub mod postgres_access;
 pub mod render;
 pub mod text;
 
-pub use render::render_result;
 pub use confirm::ConfirmArgs;
+pub use render::render_result;
 pub use text::truncate_with_ellipsis;
 
 #[must_use]

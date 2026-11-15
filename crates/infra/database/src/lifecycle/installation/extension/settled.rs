@@ -23,8 +23,8 @@
 
 use std::hash::Hasher;
 
-use systemprompt_extension::LoaderError;
 use crate::lifecycle::schema_member::SchemaMember;
+use systemprompt_extension::LoaderError;
 use systemprompt_identifiers::ExtensionId;
 use tracing::info;
 use xxhash_rust::xxh64::Xxh64;

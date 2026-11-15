@@ -7,10 +7,10 @@ use systemprompt_cli::CliConfig;
 use systemprompt_cli::admin::setup::SetupArgs;
 use systemprompt_cli::admin::setup::postgres::{setup_interactive, setup_non_interactive};
 use systemprompt_cli::interactive::ScriptedPrompter;
-use systemprompt_cloud::docker_compose::create_compose_files_if_missing;
 use systemprompt_cli::shared::postgres_access::{
     PostgresConfig, detect_postgresql, enable_extensions, generate_password, test_connection,
 };
+use systemprompt_cloud::docker_compose::create_compose_files_if_missing;
 use systemprompt_loader::subprocess::ForegroundChildren;
 
 pub(super) fn scripted(answers: &[&str]) -> ScriptedPrompter {

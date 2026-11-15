@@ -27,9 +27,9 @@ use super::readiness::ReadinessState;
 use super::routes::configure_routes;
 use crate::services::middleware::{
     AnalyticsMiddleware, CorsMiddleware, DEFAULT_BODY_LIMIT_BYTES, LoadShed,
-    PublicContextMiddleware, RateLimitState, SessionMiddleware,
-    inject_security_headers, inject_served_by, inject_trace_header, panic_fence,
-    remove_trailing_slash, with_pre_auth_ip_limit,
+    PublicContextMiddleware, RateLimitState, SessionMiddleware, inject_security_headers,
+    inject_served_by, inject_trace_header, panic_fence, remove_trailing_slash,
+    with_pre_auth_ip_limit,
 };
 
 pub use super::discovery::{
@@ -60,8 +60,8 @@ pub fn setup_api_server(
 
     let engines = Arc::new(crate::routes::gateway::build_gateway_engines(ctx)?);
     register_artifact_scanner(ctx, &engines);
-    let router =
-        configure_routes(ctx, composed, events, &engines)?.layer(axum::Extension(Arc::clone(readiness)));
+    let router = configure_routes(ctx, composed, events, &engines)?
+        .layer(axum::Extension(Arc::clone(readiness)));
     apply_global_middleware(router, ctx)
 }
 

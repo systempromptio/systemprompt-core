@@ -27,17 +27,17 @@ use std::any::TypeId;
 use std::sync::Arc;
 
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_provider_contracts::{ConfigPlane, Job};
 use systemprompt_provider_contracts::governance::GovernancePolicy;
+use systemprompt_provider_contracts::{ConfigPlane, Job};
 use systemprompt_traits::authz::SubjectAttributeProvider;
 use systemprompt_traits::{JobRunScope, RunOrigin, RunnerService};
 
 pub use config::{ConfigDecl, ExtensionConfig};
+pub use entries::{ContributedJob, MemberDependency, ProvideEntry, ProvidedValue};
 pub use error::{ContributionError, FactoryError, ProvideError, SlotError};
 pub use resolved::{
-    Factory, FromState, HandleId, Handed, KernelAccess, KernelHandle, ProvideFn, Resolved,
+    Factory, FromState, Handed, HandleId, KernelAccess, KernelHandle, ProvideFn, Resolved,
 };
-pub use entries::{ContributedJob, MemberDependency, ProvideEntry, ProvidedValue};
 pub use sink::{
     AssetFn, ContributionSink, DiagnosticFactory, GatewayGuardFactory, PolicyFactory,
     ReadinessFactory, RunnerServiceFactory, SubjectProviderFactory,
@@ -52,8 +52,8 @@ use crate::asset::{AssetDefinition, AssetPaths};
 use crate::gateway_guard::GatewayRequestGuard;
 use crate::health::{DiagnosticProbe, MetricDescriptor, ReadinessCheck};
 use crate::metadata::{ExtensionRole, SchemaDefinition};
-use crate::projection::{ProjectionDrain, ProjectionEntry};
 use crate::migration::Migration;
+use crate::projection::{ProjectionDrain, ProjectionEntry};
 use crate::protection::SiteAuthConfig;
 use crate::purge::{OrphanSweep, UserPurgeTable};
 use crate::retention::RetentionDecl;

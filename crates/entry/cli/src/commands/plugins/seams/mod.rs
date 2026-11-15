@@ -51,8 +51,8 @@ pub use catalog::{LinkedSeam, linked_seams};
 
 use super::types::{SeamRow, SeamStatus};
 use crate::kernel::{SeamEntry, named};
-use systemprompt_config::SecretsSources;
 use crate::shared::CommandOutput;
+use systemprompt_config::SecretsSources;
 
 #[derive(Debug, Clone, Args)]
 pub struct SeamsArgs {

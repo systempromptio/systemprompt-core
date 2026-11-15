@@ -95,7 +95,8 @@ fn external(kind: &str) -> ExternalSecretsConfig {
 #[tokio::test]
 async fn a_registered_kind_is_built_with_its_config_and_env() {
     let env: EnvLookup = Box::new(|name| (name == "STUB_TOKEN").then(|| "tok".to_owned()));
-    let provider = build_external_provider(&external("registry-test-stub"), env, &sources()).expect("built");
+    let provider =
+        build_external_provider(&external("registry-test-stub"), env, &sources()).expect("built");
     assert_eq!(provider.describe(), "stub (eu)");
     let document = provider.fetch_boxed().await.expect("fetched");
     assert_eq!(
@@ -107,7 +108,8 @@ async fn a_registered_kind_is_built_with_its_config_and_env() {
 
 #[test]
 fn an_unknown_kind_lists_every_registered_kind() {
-    let Err(err) = build_external_provider(&external("nope"), Box::new(|_| None), &sources()) else {
+    let Err(err) = build_external_provider(&external("nope"), Box::new(|_| None), &sources())
+    else {
         panic!("unknown kind built");
     };
     match err {
@@ -126,8 +128,7 @@ fn a_factory_error_is_returned_unchanged() {
         &external("registry-test-failing"),
         Box::new(|_| None),
         &sources(),
-    )
-    else {
+    ) else {
         panic!("failing factory built");
     };
     assert!(

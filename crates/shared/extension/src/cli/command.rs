@@ -130,4 +130,3 @@ pub trait CommandHost: Send + Sync {
     fn resolved(&self) -> BoxFuture<'_, Result<Resolved<'_>, CommandError>>;
     fn children(&self) -> &dyn ChildSupervisor;
 }
-

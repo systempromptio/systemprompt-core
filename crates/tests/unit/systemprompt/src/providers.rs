@@ -1,8 +1,7 @@
 //! A core member's requirement is met only by core members: an install
 //! cannot substitute for a disabled core provider (T6).
 
-use systemprompt::CompositionError;
-use systemprompt::reference;
+use systemprompt::{CompositionError, reference};
 use systemprompt_extension::{ProvideError, Resolved};
 use systemprompt_traits::content::DynContentCatalogStats;
 

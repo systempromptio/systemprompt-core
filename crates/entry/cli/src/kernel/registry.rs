@@ -70,9 +70,8 @@ impl RegistryEntry {
     }
 
     fn is_at(&self, path: &[&str]) -> bool {
-        path.split_last().is_some_and(|(name, parent)| {
-            *name == self.decl.name() && parent == self.decl.parent()
-        })
+        path.split_last()
+            .is_some_and(|(name, parent)| *name == self.decl.name() && parent == self.decl.parent())
     }
 }
 
@@ -102,7 +101,10 @@ pub struct CommandRegistry {
 }
 
 impl CommandRegistry {
-    pub fn build(declared: &DeclaredCommands, kernel: &[CommandDecl]) -> Result<Self, RegistryError> {
+    pub fn build(
+        declared: &DeclaredCommands,
+        kernel: &[CommandDecl],
+    ) -> Result<Self, RegistryError> {
         let mut entries: Vec<RegistryEntry> = kernel
             .iter()
             .map(|decl| RegistryEntry {
@@ -129,15 +131,18 @@ impl CommandRegistry {
                 .entries
                 .iter()
                 .find(|other| other.is_at(entry.decl.parent()));
-            root = attach(root, entry.decl.parent(), entry.decl.command(), entry, parent)?;
+            root = attach(
+                root,
+                entry.decl.parent(),
+                entry.decl.command(),
+                entry,
+                parent,
+            )?;
         }
         Ok(root)
     }
 
-    pub fn resolve(
-        &self,
-        matches: &ArgMatches,
-    ) -> Result<Option<ResolvedCommand>, ResolveError> {
+    pub fn resolve(&self, matches: &ArgMatches) -> Result<Option<ResolvedCommand>, ResolveError> {
         let mut path: Vec<&str> = Vec::new();
         let mut current = matches;
         let mut deepest = None;

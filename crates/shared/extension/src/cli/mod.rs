@@ -28,6 +28,7 @@ mod settings;
 #[cfg(feature = "cli")]
 pub mod time_format;
 
+pub use child::ChildSupervisor;
 #[cfg(feature = "cli")]
 pub use command::{
     BoxFuture, CliCommandGroup, CliCommandLeaf, CommandError, CommandFuture, CommandHost,
@@ -37,12 +38,10 @@ pub use command::{
 pub use decl::{CommandDecl, CommandKind, ParsedCommand};
 #[cfg(feature = "cli")]
 pub use descriptor::{CommandDescriptor, DataImpact, DbUrlRouting, DescribeCommand, RoutingClass};
-pub use child::ChildSupervisor;
 pub use grant::KernelGrant;
 #[cfg(feature = "cli")]
 pub use output::{
-    ChartType, CommandOutput, KeyValueItem, KeyValueOutput, SuccessOutput, TableOutput,
-    TextOutput,
+    ChartType, CommandOutput, KeyValueItem, KeyValueOutput, SuccessOutput, TableOutput, TextOutput,
 };
 #[cfg(feature = "cli")]
 pub use prompt::{

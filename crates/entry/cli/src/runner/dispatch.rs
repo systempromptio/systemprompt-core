@@ -15,7 +15,9 @@ use clap::{ArgMatches, Command, FromArgMatches};
 use super::args;
 use crate::commands::{admin, core, infrastructure, plugins, web};
 use crate::context::CommandContext;
-use systemprompt_extension::cli::{CommandDescriptor, DbUrlRouting, DescribeCommand, ParsedCommand};
+use systemprompt_extension::cli::{
+    CommandDescriptor, DbUrlRouting, DescribeCommand, ParsedCommand,
+};
 
 use crate::kernel::{CommandRegistry, ResolveError, ResolvedCommand};
 

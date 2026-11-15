@@ -55,5 +55,8 @@ fn reference_order_respects_every_dependency_edge() {
 
 #[test]
 fn database_is_first() {
-    assert_eq!(systemprompt::reference().member_ids().first(), Some(&"database"));
+    assert_eq!(
+        systemprompt::reference().member_ids().first(),
+        Some(&"database")
+    );
 }

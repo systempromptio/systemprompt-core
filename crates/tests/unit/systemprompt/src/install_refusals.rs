@@ -63,7 +63,11 @@ fn install_handler_verified_policy_is_not_conferred() {
 
 #[test]
 fn install_handler_resolved_context_is_not_conferred() {
-    let spec = RouteSpec::new(AuthzPolicy::user(), ContextKind::HandlerResolved, PLAIN_LIMITS);
+    let spec = RouteSpec::new(
+        AuthzPolicy::user(),
+        ContextKind::HandlerResolved,
+        PLAIN_LIMITS,
+    );
     assert!(matches!(
         refused_with(spec),
         CompositionError::NotConferred {
@@ -104,12 +108,19 @@ fn install_track_engagement_is_not_conferred() {
 
 #[test]
 fn install_closed_core_base_is_refused() {
-    for base in [ApiBase::Content, ApiBase::Analytics, ApiBase::AdminNotifications] {
+    for base in [
+        ApiBase::Content,
+        ApiBase::Analytics,
+        ApiBase::AdminNotifications,
+    ] {
         let error = build_with(Probe::new("probe-install", move |c| {
             c.routes(plain_set(BasePath::Api(base), "/x"));
         }))
         .expect_err("a reserved core base is refused");
-        assert!(matches!(error, CompositionError::ReservedPrefix { .. }), "{base:?}: {error:?}");
+        assert!(
+            matches!(error, CompositionError::ReservedPrefix { .. }),
+            "{base:?}: {error:?}"
+        );
     }
     for base in [ApiBase::Notifications, ApiBase::AgentRuns] {
         let error = build_with(Probe::new("probe-install", move |c| {
@@ -158,7 +169,10 @@ fn impostor_without_analytics_http_gains_none_of_its_privileges() {
         impostor(|c| {
             c.command(CommandDecl::group::<AnalyticsGroup>());
         }),
-        CompositionError::ReservedCliPath { path: ["analytics"], .. }
+        CompositionError::ReservedCliPath {
+            path: ["analytics"],
+            ..
+        }
     ));
 }
 
@@ -168,7 +182,13 @@ fn install_cloud_cli_and_grant_are_refused() {
         c.command(CommandDecl::group::<CloudGroup>().requesting(&[KernelGrant::CloudOperator]));
     }))
     .expect_err("the cloud CLI path is reserved");
-    assert!(matches!(error, CompositionError::ReservedCliPath { path: ["cloud"], .. }));
+    assert!(matches!(
+        error,
+        CompositionError::ReservedCliPath {
+            path: ["cloud"],
+            ..
+        }
+    ));
 
     let error = build_with(Probe::new("probe-install", |c| {
         c.command(CommandDecl::group::<ProbeGroup>().requesting(&[KernelGrant::CloudOperator]));
@@ -212,7 +232,10 @@ fn install_gateway_route_is_unlisted() {
         });
     }))
     .expect_err("an install holds no gateway path");
-    assert!(matches!(error, CompositionError::UnlistedGatewayRoute { .. }));
+    assert!(matches!(
+        error,
+        CompositionError::UnlistedGatewayRoute { .. }
+    ));
 }
 
 #[test]
@@ -242,12 +265,21 @@ fn install_depending_on_a_core_member_crosses_capabilities() {
         }))
         .declare()
         .expect_err("an install may not depend on a core member");
-    assert!(matches!(error, CompositionError::CrossCapabilityDependency { .. }));
+    assert!(matches!(
+        error,
+        CompositionError::CrossCapabilityDependency { .. }
+    ));
 }
 
 #[test]
 fn invalid_extension_bases_are_refused_at_contribute() {
-    for path in ["/ext/x", "/api/a/../b", "/api//x", "/api/x/", "/api/v1/contentx"] {
+    for path in [
+        "/ext/x",
+        "/api/a/../b",
+        "/api//x",
+        "/api/x/",
+        "/api/v1/contentx",
+    ] {
         let error = build_with(Probe::new("probe-install", move |c| {
             c.routes(plain_set(BasePath::Api(ApiBase::Extension(path)), "/y"));
         }))

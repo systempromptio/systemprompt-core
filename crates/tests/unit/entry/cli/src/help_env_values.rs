@@ -45,7 +45,8 @@ fn walk(cmd: &Command, path: &str, leaking: &mut Vec<String>) {
 #[test]
 fn no_sensitive_env_bound_arg_renders_its_value_in_help() {
     let mut leaking = Vec::new();
-    let registry = CommandRegistry::build(&DeclaredCommands::default(), &kernel_commands()).expect("the kernel groups build");
+    let registry = CommandRegistry::build(&DeclaredCommands::default(), &kernel_commands())
+        .expect("the kernel groups build");
     let root = args::command(&registry).expect("assemble the command tree");
     walk(&root, "systemprompt", &mut leaking);
     assert!(

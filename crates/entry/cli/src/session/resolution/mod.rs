@@ -30,12 +30,12 @@ use systemprompt_manifest::Profile;
 use super::context::CliSessionContext;
 use crate::cli_settings::{OutputFormat, VerbosityLevel};
 use crate::context::CommandContext;
-use systemprompt_cloud::paths::ResolvedPaths;
-use systemprompt_cloud::profile::ProfileSource;
 use context_resolver::{
     create_new_session, extract_profile_name, resolve_profile_path_from_session,
     resolve_profile_path_without_session, try_session_from_env, try_validate_context,
 };
+use systemprompt_cloud::paths::ResolvedPaths;
+use systemprompt_cloud::profile::ProfileSource;
 
 #[derive(Debug)]
 pub struct ProfileContext<'a> {
@@ -47,8 +47,9 @@ async fn get_session_for_profile(
     profile_input: &str,
     ctx: &CommandContext,
 ) -> Result<CliSessionContext> {
-    let (profile_path, profile) = systemprompt_cloud::profile::resolve_profile_with_data(profile_input)
-        .map_err(|e| anyhow::anyhow!("{}", e))?;
+    let (profile_path, profile) =
+        systemprompt_cloud::profile::resolve_profile_with_data(profile_input)
+            .map_err(|e| anyhow::anyhow!("{}", e))?;
 
     let boot = boot_for_profile(&profile_path, ctx)
         .await
@@ -63,7 +64,8 @@ async fn boot_for_profile(profile_path: &Path, ctx: &CommandContext) -> Result<B
     {
         return Ok(boot.clone());
     }
-    systemprompt_loader::load_boot::load_boot_from_path(profile_path, ctx.secrets_sources().clone()).await
+    systemprompt_loader::load_boot::load_boot_from_path(profile_path, ctx.secrets_sources().clone())
+        .await
 }
 
 async fn get_session_for_loaded_profile(

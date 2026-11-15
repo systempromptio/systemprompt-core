@@ -55,8 +55,8 @@
 //!
 //! # Feature flags
 //!
-//! - `router` — axum route sets, the capability HTTP error, content
-//!   negotiation and server-sent events.
+//! - `router` — axum route sets, the capability HTTP error, content negotiation
+//!   and server-sent events.
 //! - `cli` — clap command declarations and the command host.
 //! - `slack`, `teams` — the Slack and Teams privileged shapes.
 //! - `sqlx` — the brain and notification sinks.
@@ -117,9 +117,9 @@ pub use brain::{
 pub use brain::{BrainSink, DynBrainSink};
 pub use context::{DynExtensionContext, ExtensionContext};
 pub use contribute::{
-    ContributionError, Contributions, ExtensionConfig, Factory, FactoryError, FromState,
-    HandleId, Handed, KernelHandle, ProvideError, ProvideFn, Resolved, Slot, SlotEntry,
-    SlotError, SlotOrder, StandingTag,
+    ContributionError, Contributions, ExtensionConfig, Factory, FactoryError, FromState, Handed,
+    HandleId, KernelHandle, ProvideError, ProvideFn, Resolved, Slot, SlotEntry, SlotError,
+    SlotOrder, StandingTag,
 };
 pub use cost::{CostDirective, CostDirectiveError, TriggerPolicy};
 pub use error::{
@@ -137,7 +137,6 @@ pub use health::{
 };
 pub use metadata::{ExtensionMetadata, ExtensionRole, SchemaDefinition};
 pub use migration::Migration;
-pub use projection::ProjectionDrain;
 pub use notifications::{
     ChannelError, Membership, NotificationAudienceError, NotificationAudienceResolver,
     NotificationChannel, NotificationRouter, NotificationRouterError, NotificationSinkError,
@@ -146,6 +145,7 @@ pub use notifications::{
 };
 #[cfg(feature = "sqlx")]
 pub use notifications::{DynNotificationSink, NotificationSink};
+pub use projection::ProjectionDrain;
 pub use protection::{
     ContextKind, ProtectionLayer, RateBudget, RateLimit, RouteGroup, RouteProtection,
     SiteAuthConfig,
@@ -175,14 +175,14 @@ pub mod prelude {
     };
     pub use crate::retention::{RetentionDecl, RetentionHold, RetentionHoldError, RetentionTarget};
     pub use crate::seed::Seed;
+    #[cfg(feature = "router")]
+    pub use crate::stamp_frame_options;
     pub use crate::state::{StateHandle, StateRequirement};
     pub use crate::{
         AuthzPolicy, ContextKind, Extension, ExtensionMetadata, ExtensionRole, Migration,
         MissingDependency, OrphanSweep, RateBudget, RateLimit, RouteProtection, SchemaDefinition,
         SiteAuthConfig, UserPurgeTable, extension_migrations,
     };
-    #[cfg(feature = "router")]
-    pub use crate::stamp_frame_options;
     pub use systemprompt_models::LateBound;
 
     pub use systemprompt_provider_contracts::{

@@ -14,7 +14,6 @@ mod migrations;
 mod validation;
 
 pub mod schema_member;
-pub use schema_member::{SchemaMember, SchemaUnit, schema_members};
 pub use installation::{
     BOOTSTRAP_ADVISORY_LOCK_KEY, BackfillStatement, BootstrapLockGuard, BootstrapLockTimeout,
     DeferredForeignKey, ExpensiveStatement, FkDeferralError, ForeignKeyDrift, HOT_TABLES,
@@ -31,6 +30,7 @@ pub use migrations::{
     OrphanedMigration, PendingMigration, RepairResult, SlotCollision, TombstonedSlot,
     is_retirement,
 };
+pub use schema_member::{SchemaMember, SchemaUnit, schema_members};
 pub use validation::{
     ReplicaStatus, replica_status, validate_column_exists, validate_database_connection,
     validate_table_exists, validate_write_pool_is_primary,

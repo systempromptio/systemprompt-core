@@ -14,10 +14,10 @@ use systemprompt_logging::CliService;
 use super::types::ContextSwitchedOutput;
 use crate::CliConfig;
 use crate::context::CommandContext;
-use systemprompt_cloud::paths::ResolvedPaths;
 use crate::session::{CliSessionContext, get_or_create_session};
 use crate::shared::CommandOutput;
 use std::path::Path;
+use systemprompt_cloud::paths::ResolvedPaths;
 use systemprompt_database::DbPool;
 
 #[derive(Debug, Args)]

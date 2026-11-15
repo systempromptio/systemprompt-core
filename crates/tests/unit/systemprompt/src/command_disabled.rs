@@ -47,7 +47,10 @@ fn a_disabled_owners_command_is_refused_at_dispatch() {
 #[test]
 fn an_enabled_owners_command_passes_dispatch() {
     let resolved = resolved_probe_command();
-    assert!(refuse_disabled(&resolved, &profile(&[])).is_ok(), "negative control");
+    assert!(
+        refuse_disabled(&resolved, &profile(&[])).is_ok(),
+        "negative control"
+    );
 }
 
 #[test]

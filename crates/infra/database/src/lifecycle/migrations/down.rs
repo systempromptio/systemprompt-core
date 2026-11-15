@@ -5,9 +5,9 @@
 
 use super::exec::{TrackingWrite, execute_statements_transactional};
 use super::{MigrationResult, MigrationService};
+use crate::lifecycle::schema_member::SchemaMember;
 use crate::services::SqlExecutor;
 use systemprompt_extension::{LoaderError, Migration, MigrationFault};
-use crate::lifecycle::schema_member::SchemaMember;
 use systemprompt_identifiers::{ExtensionId, ToDbValue};
 use tracing::info;
 

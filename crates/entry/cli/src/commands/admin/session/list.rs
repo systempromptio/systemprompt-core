@@ -9,8 +9,8 @@ use systemprompt_manifest::profile::{CloudConfig, ManagedProfile};
 
 use super::types::ProfileListOutput;
 use crate::CliConfig;
-use systemprompt_cloud::paths::ResolvedPaths;
 use crate::shared::CommandOutput;
+use systemprompt_cloud::paths::ResolvedPaths;
 use systemprompt_cloud::profile::ProfileInfo;
 
 pub(super) fn execute(_config: &CliConfig) -> CommandOutput {

@@ -18,9 +18,15 @@ pub enum RegistryError {
         second: CommandOwner,
     },
     #[error("CLI command `{path}` contributed by `{claimant}` shadows a kernel command")]
-    ShadowsKernel { path: String, claimant: CommandOwner },
+    ShadowsKernel {
+        path: String,
+        claimant: CommandOwner,
+    },
     #[error("CLI command `{path}` contributed by `{claimant}` names a parent that does not exist")]
-    UnknownParent { path: String, claimant: CommandOwner },
+    UnknownParent {
+        path: String,
+        claimant: CommandOwner,
+    },
     #[error(
         "CLI command `{path}` contributed by `{claimant}` shadows a subcommand of the group \
          contributed by `{parent}`"
@@ -30,7 +36,9 @@ pub enum RegistryError {
         claimant: CommandOwner,
         parent: CommandOwner,
     },
-    #[error("CLI command `{path}` is reserved for `{owner:?}` and cannot be claimed by `{claimant}`")]
+    #[error(
+        "CLI command `{path}` is reserved for `{owner:?}` and cannot be claimed by `{claimant}`"
+    )]
     ReservedPath {
         path: String,
         claimant: CommandOwner,

@@ -53,7 +53,12 @@ where
         .enable_all()
         .build()
         .map_err(|source| CliRunError::Command(Box::new(source)))?;
-    let outcome = runtime.block_on(Box::pin(run_with(build, registry, secrets, Box::new(admit))));
+    let outcome = runtime.block_on(Box::pin(run_with(
+        build,
+        registry,
+        secrets,
+        Box::new(admit),
+    )));
     match interrupt::exit_code(outcome) {
         Ok(code) => Ok(code),
         Err(error) => match error.downcast::<CliRunError>() {
@@ -89,4 +94,3 @@ pub(super) fn admit_for(
     let admitted = admit(profile).map_err(CliRunError::Admit)?;
     Ok(Some(Arc::new(admitted)))
 }
-

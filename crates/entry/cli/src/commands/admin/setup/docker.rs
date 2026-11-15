@@ -12,12 +12,12 @@ use systemprompt_logging::CliService;
 use super::SetupArgs;
 use super::docker_database::create_database_in_docker;
 use crate::interactive::Prompter;
+use crate::shared::postgres_access::{
+    PostgresConfig, detect_postgresql, enable_extensions, test_connection,
+};
 use systemprompt_cloud::docker_compose::{
     create_compose_files_if_missing, is_compose_available, is_container_running,
     is_docker_available, start_compose, wait_for_postgres_ready,
-};
-use crate::shared::postgres_access::{
-    PostgresConfig, detect_postgresql, enable_extensions, test_connection,
 };
 
 pub async fn setup_docker_postgres_non_interactive(

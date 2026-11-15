@@ -29,10 +29,10 @@ pub use status::{
     OrphanedMigration, PendingMigration, SlotCollision, TombstonedSlot,
 };
 
+use crate::lifecycle::schema_member::SchemaMember;
 use crate::services::{DatabaseProvider, SqlExecutor};
 use std::collections::HashSet;
 use systemprompt_extension::{LoaderError, Migration, MigrationFault};
-use crate::lifecycle::schema_member::SchemaMember;
 use systemprompt_identifiers::ExtensionId;
 use tracing::{debug, info, warn};
 

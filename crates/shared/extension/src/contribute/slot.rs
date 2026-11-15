@@ -31,8 +31,10 @@ pub trait Slot: 'static {
     type Builder: Default + Send + 'static;
     type Built: Send + Sync + 'static;
     const ORDER: SlotOrder;
-    fn build(entries: Vec<SlotEntry<Self::Builder>>, r: &Resolved<'_>)
-    -> Result<Self::Built, SlotError>;
+    fn build(
+        entries: Vec<SlotEntry<Self::Builder>>,
+        r: &Resolved<'_>,
+    ) -> Result<Self::Built, SlotError>;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

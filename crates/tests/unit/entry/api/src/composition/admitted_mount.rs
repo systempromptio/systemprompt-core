@@ -32,7 +32,10 @@ struct NoContext;
 
 #[async_trait::async_trait]
 impl ContextExtractor for NoContext {
-    async fn extract_from_headers(&self, _headers: &HeaderMap) -> Result<RequestContext, ContextExtractionError> {
+    async fn extract_from_headers(
+        &self,
+        _headers: &HeaderMap,
+    ) -> Result<RequestContext, ContextExtractionError> {
         Err(ContextExtractionError::MissingAuthHeader)
     }
 }
@@ -69,9 +72,27 @@ async fn layers() -> MountLayers {
 }
 
 async fn mount(owner: &str, serves: &dyn Fn(RouteGroup) -> bool) -> Result<Router, MountError> {
-    let admitted = forged(vec![routed(owner, analytics_set(), vec![HandleId::AnalyticsBroadcaster])], vec![]);
-    let kernel = Kernel::new(Arc::new(StubDb), BackgroundTasks::new(), Dependencies::default());
-    mount_admitted(Router::new(), &admitted, &kernel, &layers().await, serves, &|router| router)
+    let admitted = forged(
+        vec![routed(
+            owner,
+            analytics_set(),
+            vec![HandleId::AnalyticsBroadcaster],
+        )],
+        vec![],
+    );
+    let kernel = Kernel::new(
+        Arc::new(StubDb),
+        BackgroundTasks::new(),
+        Dependencies::default(),
+    );
+    mount_admitted(
+        Router::new(),
+        &admitted,
+        &kernel,
+        &layers().await,
+        serves,
+        &|router| router,
+    )
 }
 
 async fn status(router: Router) -> StatusCode {
@@ -97,10 +118,22 @@ async fn mount_refuses_a_forged_owner_before_mounting() {
 
 #[tokio::test]
 async fn a_set_is_mounted_only_on_a_role_serving_its_group() {
-    let served = mount("analytics-http", &|_| true).await.expect("the listed set mounts");
-    assert_ne!(status(served).await, StatusCode::NOT_FOUND, "the served set answers");
-    let skipped = mount("analytics-http", &|group| group != RouteGroup::ContentAndMisc)
+    let served = mount("analytics-http", &|_| true)
         .await
-        .expect("a skipped set is not an error");
-    assert_eq!(status(skipped).await, StatusCode::NOT_FOUND, "a role not serving the group mounts nothing");
+        .expect("the listed set mounts");
+    assert_ne!(
+        status(served).await,
+        StatusCode::NOT_FOUND,
+        "the served set answers"
+    );
+    let skipped = mount("analytics-http", &|group| {
+        group != RouteGroup::ContentAndMisc
+    })
+    .await
+    .expect("a skipped set is not an error");
+    assert_eq!(
+        status(skipped).await,
+        StatusCode::NOT_FOUND,
+        "a role not serving the group mounts nothing"
+    );
 }

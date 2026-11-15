@@ -19,10 +19,11 @@ use anyhow::{Context, Result, bail};
 use systemprompt_cloud::CloudCredentials;
 use systemprompt_config::{LoadedProfile, SecretsService, SecretsSources};
 use systemprompt_database::DbPool;
+use systemprompt_extension::Admitted;
+use systemprompt_extension::cli::{CliConfig, Prompter};
 use systemprompt_loader::{BootContext, ServicesState};
 use systemprompt_manifest::{Config, Profile};
 use systemprompt_models::BuildIdentity;
-use systemprompt_extension::{Admitted, cli::CliConfig, cli::Prompter};
 use systemprompt_runtime::{AppContext, AppContextBuilder, DatabaseContext, Kernel};
 use tokio::sync::OnceCell;
 

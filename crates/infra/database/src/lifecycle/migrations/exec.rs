@@ -5,11 +5,11 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::DatabaseTransaction;
+use crate::lifecycle::schema_member::SchemaMember;
 use crate::services::DatabaseProvider;
 use std::collections::HashSet;
 use std::time::Instant;
 use systemprompt_extension::{LoaderError, Migration};
-use crate::lifecycle::schema_member::SchemaMember;
 use systemprompt_identifiers::{ExtensionId, ToDbValue};
 use tracing::{info, warn};
 

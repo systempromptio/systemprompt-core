@@ -49,11 +49,11 @@ pub(super) fn mount_extension_routes(
             if !(mount.serves)(set.set.group()) {
                 continue;
             }
-            let auth_required = set
-                .set
-                .defs()
-                .iter()
-                .any(|def| !def.spec.policy.permits(systemprompt_models::auth::UserType::Anon));
+            let auth_required = set.set.defs().iter().any(|def| {
+                !def.spec
+                    .policy
+                    .permits(systemprompt_models::auth::UserType::Anon)
+            });
             if tx
                 .unbounded_send(StartupEvent::ExtensionRouteMounted {
                     name: set.owner.as_str().to_owned(),

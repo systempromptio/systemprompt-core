@@ -48,7 +48,10 @@ pub(super) fn resolve_and_display_profile(
 ) -> Result<ProfileContext> {
     let resolved = resolve_profile(cli_config.profile_override.as_deref(), env)?;
     let loaded = LoadedProfile::from_path(&resolved.path).with_context(|| {
-        format!("Profile initialization failed from: {}", resolved.path.display())
+        format!(
+            "Profile initialization failed from: {}",
+            resolved.path.display()
+        )
     })?;
     let profile = loaded.profile();
 

@@ -12,8 +12,8 @@ use systemprompt_manifest::profile::{CloudConfig, ManagedProfile};
 use super::types::LogoutOutput;
 use crate::CliConfig;
 use crate::interactive::Prompter;
-use systemprompt_cloud::paths::ResolvedPaths;
 use crate::shared::CommandOutput;
+use systemprompt_cloud::paths::ResolvedPaths;
 
 #[derive(Debug, Args)]
 pub struct LogoutArgs {

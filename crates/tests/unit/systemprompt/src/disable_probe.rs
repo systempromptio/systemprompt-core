@@ -41,7 +41,10 @@ impl Slot for CountingSlot {
     type Built = usize;
     const ORDER: SlotOrder = SlotOrder::Composition;
 
-    fn build(entries: Vec<SlotEntry<CountingBuilder>>, _r: &Resolved<'_>) -> Result<usize, SlotError> {
+    fn build(
+        entries: Vec<SlotEntry<CountingBuilder>>,
+        _r: &Resolved<'_>,
+    ) -> Result<usize, SlotError> {
         for entry in &entries {
             if let Some(hits) = &entry.builder.hits {
                 hits.slot.hit();
@@ -73,10 +76,12 @@ fn member<V: Clone + Send + Sync + 'static>(
             Ok(value.clone())
         });
         let factory = Arc::clone(&hits);
-        c.readiness(move |_: &Resolved<'_>| -> Result<Arc<dyn ReadinessCheck>, FactoryError> {
-            factory.factory.hit();
-            Err(FactoryError::Missing(MissingDependency::of::<()>()))
-        });
+        c.readiness(
+            move |_: &Resolved<'_>| -> Result<Arc<dyn ReadinessCheck>, FactoryError> {
+                factory.factory.hit();
+                Err(FactoryError::Missing(MissingDependency::of::<()>()))
+            },
+        );
         c.slot::<CountingSlot>().hits = Some(Arc::clone(&hits));
         c.routes(plain_set(base, "/probe"));
         if with_command {
@@ -112,7 +117,13 @@ fn disabled_member_contributes_nothing_and_runs_nothing() {
     let off = Arc::new(Hits::default());
     let declared = reference()
         .with(member("probe-on", OnValue, &on, EXT_BASE, false))
-        .with(member("probe-off", OffValue, &off, BasePath::Web(WebBase::Root), true))
+        .with(member(
+            "probe-off",
+            OffValue,
+            &off,
+            BasePath::Web(WebBase::Root),
+            true,
+        ))
         .declare()
         .expect("both probes declare");
 
@@ -125,19 +136,57 @@ fn disabled_member_contributes_nothing_and_runs_nothing() {
         "commands are declared before the profile; the CLI refuses a disabled owner at dispatch"
     );
 
-    let admitted = declared.admit(&profile(&["probe-off"])).expect("admission succeeds");
-    assert_eq!(on.total() + off.total(), 0, "declaration and admission only store");
+    let admitted = declared
+        .admit(&profile(&["probe-off"]))
+        .expect("admission succeeds");
+    assert_eq!(
+        on.total() + off.total(),
+        0,
+        "declaration and admission only store"
+    );
 
-    assert!(!admitted.built().members().any(|m| m.owner.as_str() == "probe-off"));
-    assert!(!admitted.routes().iter().any(|set| set.owner.as_str() == "probe-off"));
-    assert!(admitted.built().members().any(|m| m.owner.as_str() == "probe-on"));
-    assert!(admitted.routes().iter().any(|set| set.owner.as_str() == "probe-on"));
+    assert!(
+        !admitted
+            .built()
+            .members()
+            .any(|m| m.owner.as_str() == "probe-off")
+    );
+    assert!(
+        !admitted
+            .routes()
+            .iter()
+            .any(|set| set.owner.as_str() == "probe-off")
+    );
+    assert!(
+        admitted
+            .built()
+            .members()
+            .any(|m| m.owner.as_str() == "probe-on")
+    );
+    assert!(
+        admitted
+            .routes()
+            .iter()
+            .any(|set| set.owner.as_str() == "probe-on")
+    );
 
     run_admitted_probes(&admitted);
 
-    assert_eq!(off.provide.get(), 0, "a disabled member's provide fn never runs");
-    assert_eq!(off.factory.get(), 0, "a disabled member's factory never runs");
-    assert_eq!(off.slot.get(), 0, "a disabled member's slot entry is never built");
+    assert_eq!(
+        off.provide.get(),
+        0,
+        "a disabled member's provide fn never runs"
+    );
+    assert_eq!(
+        off.factory.get(),
+        0,
+        "a disabled member's factory never runs"
+    );
+    assert_eq!(
+        off.slot.get(),
+        0,
+        "a disabled member's slot entry is never built"
+    );
     assert_eq!(on.provide.get(), 1, "the enabled member's provide fn runs");
     assert_eq!(on.factory.get(), 1, "the enabled member's factory runs");
     assert_eq!(on.slot.get(), 1, "the enabled member's slot entry is built");
@@ -149,7 +198,13 @@ fn enabled_profile_admits_both_probes() {
     let off = Arc::new(Hits::default());
     let admitted = reference()
         .with(member("probe-on", OnValue, &on, EXT_BASE, false))
-        .with(member("probe-off", OffValue, &off, BasePath::Web(WebBase::Root), true))
+        .with(member(
+            "probe-off",
+            OffValue,
+            &off,
+            BasePath::Web(WebBase::Root),
+            true,
+        ))
         .build(&profile(&[]))
         .expect("admission succeeds");
     run_admitted_probes(&admitted);

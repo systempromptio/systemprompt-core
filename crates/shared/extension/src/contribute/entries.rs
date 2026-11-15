@@ -158,7 +158,8 @@ impl ContributedJob {
 
 impl std::fmt::Debug for ContributedJob {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("ContributedJob").field(&self.job.name()).finish()
+        f.debug_tuple("ContributedJob")
+            .field(&self.job.name())
+            .finish()
     }
 }
-

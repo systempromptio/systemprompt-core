@@ -13,7 +13,10 @@ use systemprompt_extension::router::{Allowance, BasePath, BaseRef, RouteSet};
 use super::error::CompositionError;
 use super::{Conferral, DeclaredMember};
 
-pub(super) fn admit_route_set(member: &DeclaredMember, set: RouteSet) -> Result<AdmittedRouteSet, CompositionError> {
+pub(super) fn admit_route_set(
+    member: &DeclaredMember,
+    set: RouteSet,
+) -> Result<AdmittedRouteSet, CompositionError> {
     let base = set.base();
     let conferrals: Vec<&'static Conferral> = member
         .standing
@@ -41,8 +44,11 @@ pub(super) fn admit_route_set(member: &DeclaredMember, set: RouteSet) -> Result<
         .collect();
     for def in set.defs() {
         let pinned = counting.iter().any(|c| {
-            c.routes
-                .is_some_and(|routes| routes.iter().any(|(m, p)| *m == def.method && *p == def.path.as_str()))
+            c.routes.is_some_and(|routes| {
+                routes
+                    .iter()
+                    .any(|(m, p)| *m == def.method && *p == def.path.as_str())
+            })
         });
         let matches = counting
             .iter()
@@ -87,7 +93,10 @@ pub(super) fn admit_route_set(member: &DeclaredMember, set: RouteSet) -> Result<
     })
 }
 
-pub(super) fn admit_unconferred(member: &DeclaredMember, set: &RouteSet) -> Result<(), CompositionError> {
+pub(super) fn admit_unconferred(
+    member: &DeclaredMember,
+    set: &RouteSet,
+) -> Result<(), CompositionError> {
     use systemprompt_extension::router::{ApiBase, BodyLimit, WebBase};
     use systemprompt_extension::{ContextKind, HandlerVerifier};
 
@@ -113,7 +122,9 @@ pub(super) fn admit_unconferred(member: &DeclaredMember, set: &RouteSet) -> Resu
             return Err(refuse(Allowance::HandlerVerified(verifier)));
         }
         if def.spec.context == ContextKind::HandlerResolved {
-            return Err(refuse(Allowance::HandlerVerified(HandlerVerifier::GatewayCredential)));
+            return Err(refuse(Allowance::HandlerVerified(
+                HandlerVerifier::GatewayCredential,
+            )));
         }
         if def.spec.limits.body == BodyLimit::Agent {
             return Err(refuse(Allowance::BodyLimit));
@@ -127,9 +138,9 @@ pub(super) fn admit_gateway_route(
     decl: systemprompt_extension::router::GatewayRouteDecl,
 ) -> Result<AdmittedGatewayRoute, CompositionError> {
     let Some(conferral) = member.standing.terms().and_then(|terms| {
-        terms
-            .conferrals()
-            .find(|c| c.base == BaseRef::Gateway(decl.path) && c.allowance == Allowance::GatewayRoute)
+        terms.conferrals().find(|c| {
+            c.base == BaseRef::Gateway(decl.path) && c.allowance == Allowance::GatewayRoute
+        })
     }) else {
         return Err(CompositionError::UnlistedGatewayRoute {
             owner: member.id.clone(),
@@ -188,7 +199,10 @@ pub(super) fn check_route_conflicts(routes: &[AdmittedRouteSet]) -> Result<(), C
     let mut seen: HashSet<(http::Method, String)> = HashSet::new();
     for admitted in routes {
         for def in admitted.set.defs() {
-            let key = (def.method.clone(), full_path(admitted.set.base(), def.path.as_str()));
+            let key = (
+                def.method.clone(),
+                full_path(admitted.set.base(), def.path.as_str()),
+            );
             if !seen.insert(key.clone()) {
                 return Err(CompositionError::RouteConflict {
                     method: key.0,
@@ -200,7 +214,9 @@ pub(super) fn check_route_conflicts(routes: &[AdmittedRouteSet]) -> Result<(), C
     Ok(())
 }
 
-pub(super) fn check_gateway_overlaps(routes: &[AdmittedGatewayRoute]) -> Result<(), CompositionError> {
+pub(super) fn check_gateway_overlaps(
+    routes: &[AdmittedGatewayRoute],
+) -> Result<(), CompositionError> {
     for (index, first) in routes.iter().enumerate() {
         if let Some(second) = routes[index + 1..]
             .iter()
@@ -214,4 +230,3 @@ pub(super) fn check_gateway_overlaps(routes: &[AdmittedGatewayRoute]) -> Result<
     }
     Ok(())
 }
-

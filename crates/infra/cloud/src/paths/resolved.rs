@@ -1,4 +1,5 @@
-//! Resolved filesystem paths the CLI and its capability commands operate against.
+//! Resolved filesystem paths the CLI and its capability commands operate
+//! against.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

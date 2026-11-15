@@ -6,7 +6,9 @@
 use clap::{ArgMatches, Command};
 
 use super::KernelGrant;
-use super::command::{CliCommandGroup, CliCommandLeaf, CommandError, CommandFuture, CommandHost, CommandParent};
+use super::command::{
+    CliCommandGroup, CliCommandLeaf, CommandError, CommandFuture, CommandHost, CommandParent,
+};
 use super::descriptor::{CommandDescriptor, DbUrlRouting};
 
 /// The kind of clap node a declaration contributes.
@@ -184,8 +186,7 @@ fn run_group<'a, T: CliCommandGroup>(
     host: &'a dyn CommandHost,
 ) -> CommandFuture<'a> {
     Box::pin(async move {
-        let parsed = T::from_arg_matches(matches)
-            .map_err(CommandError::new)?;
+        let parsed = T::from_arg_matches(matches).map_err(CommandError::new)?;
         parsed.run(host).await
     })
 }
@@ -213,8 +214,7 @@ fn run_leaf<'a, T: CliCommandLeaf>(
     host: &'a dyn CommandHost,
 ) -> CommandFuture<'a> {
     Box::pin(async move {
-        let parsed = T::from_arg_matches(matches)
-            .map_err(CommandError::new)?;
+        let parsed = T::from_arg_matches(matches).map_err(CommandError::new)?;
         parsed.run(host).await
     })
 }

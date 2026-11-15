@@ -3,8 +3,9 @@
 //! Resolves a profile to its on-disk path and loaded [`Profile`] from a CLI
 //! override, an environment variable, a stored session, or directory
 //! discovery, reporting failures via [`ProfileResolutionError`]. Also provides
-//! the profile-authoring helper [`save_profile_yaml`] used by the profile-creation flows, and the [`ProfileInfo`]
-//! row the session and cloud status commands render.
+//! the profile-authoring helper [`save_profile_yaml`] used by the
+//! profile-creation flows, and the [`ProfileInfo`] row the session and cloud
+//! status commands render.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,9 +16,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::TenantId;
 use systemprompt_loader::{ProfileLoadError, ProfileLoader};
-use systemprompt_manifest::profile::ManagedProfile;
 use systemprompt_manifest::Profile;
-use systemprompt_manifest::profile::ProfileError;
+use systemprompt_manifest::profile::{ManagedProfile, ProfileError};
 
 use crate::error::CloudError;
 use crate::paths::{ProfilePath, ProjectContext, ResolvedPaths};
@@ -179,12 +179,11 @@ pub fn resolve_profile_with_data(
     profile_input: &str,
 ) -> Result<(PathBuf, Profile), ProfileResolutionError> {
     let path = resolve_profile_input(profile_input)?;
-    let profile = ProfileLoader::load_from_path(&path).map_err(|source| {
-        ProfileResolutionError::Load {
+    let profile =
+        ProfileLoader::load_from_path(&path).map_err(|source| ProfileResolutionError::Load {
             path: path.clone(),
             source,
-        }
-    })?;
+        })?;
     Ok((path, profile))
 }
 

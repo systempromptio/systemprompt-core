@@ -25,10 +25,10 @@
 
 use super::MigrationService;
 use super::exec::execute_statements_transactional;
+use crate::lifecycle::schema_member::SchemaMember;
 use crate::services::SqlExecutor;
 use pg_query::NodeEnum;
 use systemprompt_extension::{LoaderError, Migration};
-use crate::lifecycle::schema_member::SchemaMember;
 use systemprompt_identifiers::ExtensionId;
 use tracing::{debug, warn};
 

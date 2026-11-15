@@ -18,9 +18,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use systemprompt_extension::contribute::{SlotBuildInput, build_slot};
-use systemprompt_extension::{
-    Admitted, HandleId, KernelHandle, ProvideError, Resolved, SlotError,
-};
+use systemprompt_extension::{Admitted, HandleId, KernelHandle, ProvideError, Resolved, SlotError};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::{Dependencies, DuplicateDependency};
 use systemprompt_traits::{BackgroundTasks, DatabaseHandle};
@@ -37,7 +35,10 @@ pub enum KernelError {
     #[error("state value provided twice")]
     Duplicate(#[from] DuplicateDependency),
     #[error("{owner} requires {ty}, which no enabled member or the kernel provides")]
-    Missing { owner: ExtensionId, ty: &'static str },
+    Missing {
+        owner: ExtensionId,
+        ty: &'static str,
+    },
     #[error("slot build failed")]
     Slot(#[from] SlotError),
 }
@@ -60,7 +61,11 @@ impl std::fmt::Debug for Kernel {
 
 impl Kernel {
     #[must_use]
-    pub fn new(database: Arc<dyn DatabaseHandle>, tasks: BackgroundTasks, seed: Dependencies) -> Self {
+    pub fn new(
+        database: Arc<dyn DatabaseHandle>,
+        tasks: BackgroundTasks,
+        seed: Dependencies,
+    ) -> Self {
         Self {
             database,
             tasks,

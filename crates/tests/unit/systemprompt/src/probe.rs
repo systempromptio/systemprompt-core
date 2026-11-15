@@ -26,7 +26,10 @@ pub(crate) struct Probe {
 }
 
 impl Probe {
-    pub(crate) fn new(id: &'static str, f: impl Fn(&mut Contributions<'_>) + Send + Sync + 'static) -> Self {
+    pub(crate) fn new(
+        id: &'static str,
+        f: impl Fn(&mut Contributions<'_>) + Send + Sync + 'static,
+    ) -> Self {
         Self {
             id,
             contribute: Arc::new(f),
@@ -67,11 +70,16 @@ pub(crate) const PLAIN_LIMITS: RouteLimits = RouteLimits {
     body: BodyLimit::Default,
 };
 
-pub(crate) const PLAIN: RouteSpec = RouteSpec::new(AuthzPolicy::user(), ContextKind::User, PLAIN_LIMITS);
+pub(crate) const PLAIN: RouteSpec =
+    RouteSpec::new(AuthzPolicy::user(), ContextKind::User, PLAIN_LIMITS);
 
 pub(crate) const EXT_BASE: BasePath = BasePath::Api(ApiBase::Extension("/api/probe"));
 
-pub(crate) fn shape(owner: CoreId, base: BaseRef, allowance: Allowance) -> &'static PrivilegedShape {
+pub(crate) fn shape(
+    owner: CoreId,
+    base: BaseRef,
+    allowance: Allowance,
+) -> &'static PrivilegedShape {
     PRIVILEGED_SHAPES
         .iter()
         .find(|entry| entry.owner == owner && entry.base == base && entry.allowance == allowance)
@@ -120,7 +128,11 @@ impl DatabaseHandle for StubDb {
 }
 
 pub(crate) fn kernel() -> Kernel {
-    Kernel::new(Arc::new(StubDb), BackgroundTasks::new(), Dependencies::default())
+    Kernel::new(
+        Arc::new(StubDb),
+        BackgroundTasks::new(),
+        Dependencies::default(),
+    )
 }
 
 #[derive(Debug, Default)]

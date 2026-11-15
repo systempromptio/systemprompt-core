@@ -10,7 +10,7 @@ use systemprompt_extension::contribute::handles::AnalyticsBroadcaster;
 use systemprompt_extension::health::ReadinessCheck;
 use systemprompt_extension::router::RouteSet;
 use systemprompt_extension::{
-    FactoryError, FromState, HandleId, Handed, MissingDependency, ProvideError, Resolved,
+    FactoryError, FromState, Handed, HandleId, MissingDependency, ProvideError, Resolved,
     RouteGroup, Slot, SlotEntry, SlotError, SlotOrder,
 };
 use systemprompt_identifiers::{ConnectionId, UserId};
@@ -79,19 +79,23 @@ fn handle_is_unreachable_outside_a_conferred_route_set() {
     let shared = Arc::clone(&refusals);
     let admitted = build_with(Probe::new("probe-handle", move |c| {
         let provide = Arc::clone(&shared);
-        c.provide::<HandleProbeValue, _>(move |r: &Resolved<'_>| -> Result<HandleProbeValue, ProvideError> {
-            if refused(r) {
-                provide.provide.hit();
-            }
-            Ok(HandleProbeValue)
-        });
+        c.provide::<HandleProbeValue, _>(
+            move |r: &Resolved<'_>| -> Result<HandleProbeValue, ProvideError> {
+                if refused(r) {
+                    provide.provide.hit();
+                }
+                Ok(HandleProbeValue)
+            },
+        );
         let factory = Arc::clone(&shared);
-        c.readiness(move |r: &Resolved<'_>| -> Result<Arc<dyn ReadinessCheck>, FactoryError> {
-            if refused(r) {
-                factory.factory.hit();
-            }
-            Err(FactoryError::Missing(MissingDependency::of::<()>()))
-        });
+        c.readiness(
+            move |r: &Resolved<'_>| -> Result<Arc<dyn ReadinessCheck>, FactoryError> {
+                if refused(r) {
+                    factory.factory.hit();
+                }
+                Err(FactoryError::Missing(MissingDependency::of::<()>()))
+            },
+        );
         c.slot::<HandleProbeSlot>().refusals = Some(Arc::clone(&shared));
         c.routes(
             RouteSet::at::<Handed<AnalyticsBroadcaster>>(EXT_BASE, RouteGroup::Extensions)
@@ -103,7 +107,10 @@ fn handle_is_unreachable_outside_a_conferred_route_set() {
 
     let kernel = handing_kernel();
     let resolved = kernel.resolved();
-    assert!(refused(&resolved), "the command host resolves through Kernel::resolved");
+    assert!(
+        refused(&resolved),
+        "the command host resolves through Kernel::resolved"
+    );
 
     let member = admitted
         .built()
@@ -123,7 +130,11 @@ fn handle_is_unreachable_outside_a_conferred_route_set() {
         .filter_map(|record| record.take_entry(member.owner.clone(), member.standing))
         .collect();
     assert!(build_slot(inputs, &resolved).is_ok());
-    assert_eq!(refusals.provide.get(), 1, "a provide fn never sees a handle");
+    assert_eq!(
+        refusals.provide.get(),
+        1,
+        "a provide fn never sees a handle"
+    );
     assert_eq!(refusals.factory.get(), 1, "a factory never sees a handle");
     assert_eq!(refusals.slot.get(), 1, "a slot build never sees a handle");
 
@@ -134,7 +145,9 @@ fn handle_is_unreachable_outside_a_conferred_route_set() {
         .expect("the probe's route set is admitted");
     assert!(set.handles.is_empty(), "an install base confers no handle");
     assert!(
-        set.set.materialize(&kernel.route_scoped(&set.handles)).is_err(),
+        set.set
+            .materialize(&kernel.route_scoped(&set.handles))
+            .is_err(),
         "a route set at an unconferred base cannot resolve the handle"
     );
     assert!(

@@ -53,11 +53,11 @@ mod plane_validate_offline;
 #[cfg(test)]
 mod presentation_startup_renderer;
 #[cfg(test)]
-mod registry_build;
-#[cfg(test)]
 mod presentation_tables;
 #[cfg(test)]
 mod profile_flag_parsing;
+#[cfg(test)]
+mod registry_build;
 #[cfg(test)]
 mod runner_args;
 #[cfg(test)]

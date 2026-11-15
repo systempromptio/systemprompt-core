@@ -154,7 +154,8 @@ async fn a_core_body_limit_above_the_default_must_be_exempted_for_its_own_group(
     ));
 
     for exemption in PRIVILEGED_SHAPES {
-        let (Allowance::BodyLimit, BaseRef::Path(base)) = (exemption.allowance, exemption.base) else {
+        let (Allowance::BodyLimit, BaseRef::Path(base)) = (exemption.allowance, exemption.base)
+        else {
             continue;
         };
         let listed = RouteProtection::new(exemption.shape.policy, exemption.shape.context)

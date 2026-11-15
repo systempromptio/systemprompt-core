@@ -33,19 +33,18 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub use crate::error::{ApiHttpError, unreadable_body};
+pub use crate::register_gateway_route;
 pub use crate::routes::gateway::registered::{
     GatewayCredential, GatewayRouteFactory, GatewayRouteRegistration,
 };
 pub use crate::routes::stream::create_sse_stream;
 pub use crate::services::middleware::client_addr::{ClientIp, resolve_client_ip};
 pub use crate::services::middleware::{
-    BodyReadError, JwtContextExtractor, JwtUserContext,
-    RateLimitState, RouterExt, SessionAttestationError, SubjectThrottle, attest_session,
-    read_body_bounded,
+    BodyReadError, JwtContextExtractor, JwtUserContext, RateLimitState, RouterExt,
+    SessionAttestationError, SubjectThrottle, attest_session, read_body_bounded,
 };
 pub use crate::services::proxy::{ProxyError, ProxyKind, ProxyService, ProxyTarget};
 pub use crate::services::request_base_url::{RequestBaseUrl, resolve as resolve_request_base_url};
 pub use crate::services::session_cookie::{SameSite, SessionCookie};
-pub use crate::register_gateway_route;
 #[doc(hidden)]
 pub use systemprompt_extension::__inventory;

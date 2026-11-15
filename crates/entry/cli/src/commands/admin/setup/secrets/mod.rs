@@ -21,9 +21,9 @@ use systemprompt_logging::CliService;
 use super::SetupArgs;
 use crate::CliConfig;
 use crate::interactive::Prompter;
-use systemprompt_cloud::identity::generate_identity;
 use data::resolve_primary;
 use prompts::{resolve_interactive_primary, select_provider_keys};
+use systemprompt_cloud::identity::generate_identity;
 
 pub use data::SecretsData;
 

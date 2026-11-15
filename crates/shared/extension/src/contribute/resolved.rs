@@ -109,7 +109,10 @@ pub trait FromState: Sized + Send + Sync + 'static {
 
 /// A deferred provider of one state value, run at admission in composition
 /// order.
-pub trait ProvideFn<T>: Fn(&Resolved<'_>) -> Result<T, ProvideError> + Send + Sync + 'static {}
+pub trait ProvideFn<T>:
+    Fn(&Resolved<'_>) -> Result<T, ProvideError> + Send + Sync + 'static
+{
+}
 
 impl<T, F> ProvideFn<T> for F where
     F: Fn(&Resolved<'_>) -> Result<T, ProvideError> + Send + Sync + 'static

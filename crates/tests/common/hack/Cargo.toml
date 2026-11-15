@@ -100,12 +100,13 @@ systemprompt-agent-runs-entry = { path = "../../../entry/agent-runs", features =
 systemprompt-analytics = { path = "../../../domain/analytics", features = ["geolocation"] }
 systemprompt-analytics-entry = { path = "../../../entry/analytics", features = ["cli", "content-commands", "http"] }
 systemprompt-content-entry = { path = "../../../entry/content", features = ["cli", "http"] }
-systemprompt-extension = { path = "../../../shared/extension", default-features = false, features = ["sqlx"] }
+systemprompt-extension = { path = "../../../shared/extension", default-features = false, features = ["cli", "router", "sqlx"] }
 systemprompt-files = { path = "../../../domain/files", default-features = false, features = ["collab-loro", "office", "pdf"] }
 systemprompt-identifiers = { path = "../../../shared/identifiers", features = ["sqlx"] }
 systemprompt-logging = { path = "../../../infra/logging", features = ["cli"] }
 systemprompt-mcp-host = { path = "../../../app/mcp-host", features = ["brain"] }
 systemprompt-models = { path = "../../../shared/models", features = ["sqlx"] }
+systemprompt-provider-contracts = { path = "../../../shared/provider-contracts", default-features = false, features = ["sqlx"] }
 systemprompt-runtime = { path = "../../../app/runtime", features = ["brain", "engine-loro", "geolocation"] }
 systemprompt-scheduler = { path = "../../../app/scheduler", features = ["brain", "otel"] }
 systemprompt-teams-entry = { path = "../../../entry/teams", features = ["http"] }
@@ -197,9 +198,10 @@ subtle = { version = "2", features = ["const-generics"] }
 syn-7b89eefb6aaa9bf3 = { package = "syn", version = "3", features = ["extra-traits", "fold", "full", "visit", "visit-mut"] }
 syn-f595c2ba2a3f28df = { package = "syn", version = "2", features = ["extra-traits", "full", "visit", "visit-mut"] }
 sync_wrapper = { version = "1", default-features = false, features = ["futures"] }
-systemprompt-extension = { path = "../../../shared/extension", default-features = false, features = ["sqlx"] }
+systemprompt-extension = { path = "../../../shared/extension", default-features = false, features = ["cli", "router", "sqlx"] }
 systemprompt-identifiers = { path = "../../../shared/identifiers", features = ["sqlx"] }
 systemprompt-models = { path = "../../../shared/models", features = ["sqlx"] }
+systemprompt-provider-contracts = { path = "../../../shared/provider-contracts", default-features = false, features = ["sqlx"] }
 systemprompt-traits = { path = "../../../shared/traits", features = ["sqlx"] }
 thiserror = { version = "2" }
 time = { version = "0.3", features = ["formatting", "local-offset", "macros", "parsing"] }

@@ -67,7 +67,9 @@ fn schema_of<C: schemars::JsonSchema>() -> schemars::Schema {
     schemars::schema_for!(C)
 }
 
-fn validate_as<C: ExtensionConfig>(section: &serde_json::Value) -> Result<(), ExtensionConfigError> {
+fn validate_as<C: ExtensionConfig>(
+    section: &serde_json::Value,
+) -> Result<(), ExtensionConfigError> {
     let config = C::deserialize(section).map_err(|source| ExtensionConfigError::ParseError {
         source: Box::new(source),
     })?;

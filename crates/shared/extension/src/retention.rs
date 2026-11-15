@@ -123,7 +123,8 @@ pub enum RetentionHoldError {
 }
 
 /// A claim on rows an extension has not yet released. `#[async_trait]`
-/// keeps the trait `dyn`-compatible: holds are contributed as `Arc<dyn RetentionHold>`.
+/// keeps the trait `dyn`-compatible: holds are contributed as `Arc<dyn
+/// RetentionHold>`.
 #[async_trait]
 pub trait RetentionHold: Send + Sync {
     fn name(&self) -> &'static str;

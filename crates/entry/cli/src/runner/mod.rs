@@ -27,19 +27,19 @@ use std::process::ExitCode;
 
 use anyhow::{Context, Result, bail};
 use systemprompt_cloud::CloudCredentials;
+use systemprompt_config::SecretsSources;
 use systemprompt_loader::subprocess::{self, ApiServerStamp, ForegroundChildren};
 use systemprompt_logging::OutputState;
-use systemprompt_config::SecretsSources;
 use systemprompt_models::BuildIdentity;
 use systemprompt_runtime::DatabaseContext;
 
 use crate::context::CommandContext;
-use systemprompt_extension::cli::{CliConfig, CommandDescriptor, DbUrlRouting, OutputFormat};
-pub use composed::{AdmitFn, CliRunError, refuse_disabled, run_composed};
-use composed::admit_for;
 use crate::env_overrides::EnvOverrides;
 use crate::kernel::{CommandRegistry, ResolveError};
+use composed::admit_for;
+pub use composed::{AdmitFn, CliRunError, refuse_disabled, run_composed};
 use dispatch::{Invocation, Selected, dispatch_command};
+use systemprompt_extension::cli::{CliConfig, CommandDescriptor, DbUrlRouting, OutputFormat};
 
 pub(super) async fn run_with(
     build: BuildIdentity,
@@ -127,16 +127,15 @@ async fn run_inner(
     let mut profile = None;
     let mut boot = None;
     if desc.profile() {
-        let booted =
-            profile_routing::bootstrap_profile(
-                &invocation.cli,
-                &desc,
-                &cli_config,
-                &env,
-                &confirm,
-                &guards.secrets,
-            )
-            .await?;
+        let booted = profile_routing::bootstrap_profile(
+            &invocation.cli,
+            &desc,
+            &cli_config,
+            &env,
+            &confirm,
+            &guards.secrets,
+        )
+        .await?;
         let loaded = booted.credentials;
         services = booted.services;
         profile = booted.profile;
