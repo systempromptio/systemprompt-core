@@ -1,8 +1,8 @@
 //! Subprocess tests that invoke the `systemprompt` binary via `assert_cmd`.
 //!
 //! These exist so that the cli's instrumented binary actually executes under
-//! `just coverage` and contributes line counts. Each `Command::cargo_bin`
-//! invocation inherits `LLVM_PROFILE_FILE` from the parent test process; the
+//! `just coverage` and contributes line counts. Each spawned `systemprompt`
+//! process inherits `LLVM_PROFILE_FILE` from the parent test process; the
 //! child writes its own profraw which the merge step folds into the report.
 //!
 //! The bulk of these tests walk the help tree -- every leaf subcommand is
@@ -12,28 +12,7 @@
 
 use assert_cmd::Command;
 use predicates::str::contains;
-
-fn systemprompt_bin() -> std::path::PathBuf {
-    if let Ok(path) = std::env::var("SYSTEMPROMPT_BIN") {
-        let p = std::path::PathBuf::from(path);
-        if p.exists() {
-            return p;
-        }
-    }
-    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    for ancestor in manifest_dir.ancestors() {
-        for sub in [
-            "target/debug/systemprompt",
-            "crates/tests/target/debug/systemprompt",
-        ] {
-            let candidate = ancestor.join(sub);
-            if candidate.exists() {
-                return candidate;
-            }
-        }
-    }
-    panic!("systemprompt binary not found; set SYSTEMPROMPT_BIN or run via `just coverage`");
-}
+use systemprompt_cli_integration_tests::full_bootstrap::{isolated_fixture, systemprompt_bin};
 
 fn sp() -> Command {
     let mut c = Command::new(systemprompt_bin());
@@ -76,6 +55,19 @@ fn help_flag_lists_top_level_commands() {
         .stdout(contains("web"))
         .stdout(contains("plugins"))
         .stdout(contains("build"));
+}
+
+#[test]
+fn plugins_seams_lists_a_seam_registered_from_an_entry_crate() {
+    let fixture = isolated_fixture(59998);
+    sp().env_remove("SYSTEMPROMPT_PROFILE")
+        .args(["--non-interactive", "--no-color", "--profile"])
+        .arg(&fixture.profile_path)
+        .args(["plugins", "seams", "--seam", "agent_run_origins"])
+        .assert()
+        .success()
+        .stdout(contains("agent_run_origins"))
+        .stdout(contains("systemprompt-agent-runs"));
 }
 
 #[test]

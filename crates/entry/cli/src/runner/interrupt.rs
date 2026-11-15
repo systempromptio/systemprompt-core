@@ -20,6 +20,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::future::Future;
+use std::process::ExitCode;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
@@ -30,6 +31,13 @@ use systemprompt_traits::OwnedTask;
 use tokio::sync::oneshot;
 
 pub const INTERRUPTED_EXIT_CODE: u8 = 130;
+
+pub fn exit_code(outcome: anyhow::Result<()>) -> anyhow::Result<ExitCode> {
+    match outcome {
+        Err(e) if e.is::<Interrupted>() => Ok(ExitCode::from(INTERRUPTED_EXIT_CODE)),
+        outcome => outcome.map(|()| ExitCode::SUCCESS),
+    }
+}
 
 const GRACE: Duration = Duration::from_secs(3);
 const CHILD_GRACE: Duration = Duration::from_secs(2);

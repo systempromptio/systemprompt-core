@@ -7,7 +7,7 @@
 //! `core content`, and `core files` handler trees without needing a profile
 //! tempdir or wiremock cloud server.
 //!
-//! Each `Command::cargo_bin` invocation inherits `LLVM_PROFILE_FILE` from the
+//! Each spawned `systemprompt` process inherits `LLVM_PROFILE_FILE` from the
 //! parent test process (set by `just coverage`); the child writes its own
 //! profraw which the merge step folds into the report.
 //!
@@ -21,32 +21,11 @@
 
 use assert_cmd::Command;
 use predicates::str::contains;
+use systemprompt_cli_integration_tests::full_bootstrap::systemprompt_bin;
 use systemprompt_identifiers::SessionId;
 use systemprompt_test_fixtures::{
     seed_user_row, seed_user_session, test_database_url, test_db_pool, unique_user_id,
 };
-
-fn systemprompt_bin() -> std::path::PathBuf {
-    if let Ok(path) = std::env::var("SYSTEMPROMPT_BIN") {
-        let p = std::path::PathBuf::from(path);
-        if p.exists() {
-            return p;
-        }
-    }
-    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    for ancestor in manifest_dir.ancestors() {
-        for sub in [
-            "target/debug/systemprompt",
-            "crates/tests/target/debug/systemprompt",
-        ] {
-            let candidate = ancestor.join(sub);
-            if candidate.exists() {
-                return candidate;
-            }
-        }
-    }
-    panic!("systemprompt binary not found; set SYSTEMPROMPT_BIN or run via `just coverage`");
-}
 
 fn sp_db() -> Command {
     let url = test_database_url();

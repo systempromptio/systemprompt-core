@@ -10,7 +10,7 @@ homepage.workspace = true
 documentation.workspace = true
 keywords.workspace = true
 categories = ["command-line-utilities", "api-bindings", "authentication"]
-description = "Unified CLI for systemprompt.io AI governance: agent orchestration, MCP governance, analytics, profiles, cloud deploy, and self-hosted operations."
+description = "Library behind the unified CLI for systemprompt.io AI governance: agent orchestration, MCP governance, analytics, profiles, cloud deploy, and self-hosted operations."
 readme = "README.md"
 include = ["src/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 
@@ -18,9 +18,8 @@ include = ["src/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 all-features = true
 
 [features]
-# The bare binary is the core runtime alone; each feature mirrors the facade's
-# optional domain of the same name so a `--features full` build matches what a
-# facade `full` consumer ships.
+# Each feature mirrors the facade's optional domain of the same name; the
+# `systemprompt` binary is built by the facade, which forwards them.
 notifications = ["systemprompt-runtime/notifications"]
 collab = ["systemprompt-files/collab", "systemprompt-runtime/collab", "systemprompt-api/collab"]
 engine-loro = ["collab", "systemprompt-runtime/engine-loro"]
@@ -29,7 +28,6 @@ pdf = ["systemprompt-files/pdf", "systemprompt-api/pdf"]
 brain = ["systemprompt-runtime/brain", "systemprompt-mcp-host/brain", "systemprompt-api/brain"]
 otel = ["systemprompt-api/otel", "systemprompt-scheduler/otel"]
 bridge = ["systemprompt-api/bridge"]
-full = ["notifications", "brain", "engine-loro", "office", "pdf", "otel", "bridge"]
 
 [lints]
 workspace = true
@@ -37,10 +35,6 @@ workspace = true
 [lib]
 name = "systemprompt_cli"
 path = "src/lib.rs"
-
-[[bin]]
-name = "systemprompt"
-path = "src/main.rs"
 
 [dependencies]
 # Core runtime

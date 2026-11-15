@@ -22,6 +22,8 @@ pub mod routing_decision;
 mod structured_output;
 mod tls;
 
+use std::process::ExitCode;
+
 use anyhow::{Context, Result, bail};
 use systemprompt_cloud::CloudCredentials;
 use systemprompt_loader::subprocess::{self, ApiServerStamp, ForegroundChildren};
@@ -38,6 +40,17 @@ use dispatch::{Invocation, Selected, dispatch_command};
 
 pub async fn run() -> Result<()> {
     Box::pin(run_with(BuildIdentity::core())).await
+}
+
+pub fn run_process() -> Result<ExitCode> {
+    run_process_with(BuildIdentity::core())
+}
+
+pub fn run_process_with(build: BuildIdentity) -> Result<ExitCode> {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()?;
+    interrupt::exit_code(runtime.block_on(Box::pin(run_with(build))))
 }
 
 pub async fn run_with(build: BuildIdentity) -> Result<()> {

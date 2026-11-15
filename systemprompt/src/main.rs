@@ -1,0 +1,13 @@
+//! The `systemprompt` binary: the CLI with every capability in `full`.
+//!
+//! The capability crates are linked through this crate's library, which
+//! re-exports each of them, so their link-time registrations are present.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use std::process::Termination;
+
+fn main() -> impl Termination {
+    systemprompt::cli::run_process()
+}

@@ -149,7 +149,7 @@ case "$group" in
   entry-cli|integration-api|integration-cli|integration-rest*)
     if [ -z "${SYSTEMPROMPT_BIN:-}" ]; then
       echo "==> Prebuilding systemprompt binary for subprocess tests"
-      cargo build -p systemprompt-cli --bin systemprompt
+      cargo build -p systemprompt --bin systemprompt --features full
       root_target_dir=$(cargo metadata --no-deps --format-version 1 | jq -r .target_directory)
       export SYSTEMPROMPT_BIN="$root_target_dir/debug/systemprompt"
     fi
