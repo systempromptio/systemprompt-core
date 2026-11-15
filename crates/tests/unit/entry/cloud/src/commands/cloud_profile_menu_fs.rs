@@ -7,7 +7,7 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::cloud::profile;
+use systemprompt_cloud_entry::cli::profile;
 use systemprompt_cli::interactive::ScriptedPrompter;
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides};
 

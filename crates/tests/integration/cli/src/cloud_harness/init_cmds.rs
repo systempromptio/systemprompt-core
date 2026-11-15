@@ -3,7 +3,7 @@
 //! `GIT_ALLOW_PROTOCOL=none` forces the optional systemprompt-admin clone to
 //! fail fast so the tests never touch the network.
 
-use systemprompt_cli::cloud::{self, CloudCommands};
+use systemprompt_cloud_entry::cli::{self as cloud, CloudCommands};
 
 use super::{enter, json_ctx};
 

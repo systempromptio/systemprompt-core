@@ -4,7 +4,7 @@
 
 use std::collections::HashMap;
 
-use systemprompt_cli::cloud::profile::show_types::{
+use systemprompt_cloud_entry::cli::profile::show_types::{
     FullConfig, SettingsOutput, build_env_config, redact_database_url,
 };
 use systemprompt_manifest::AiConfig;

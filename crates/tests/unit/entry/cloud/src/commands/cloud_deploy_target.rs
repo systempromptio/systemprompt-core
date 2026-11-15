@@ -4,7 +4,7 @@
 
 use std::path::PathBuf;
 
-use systemprompt_cli::cloud::deploy::resolve_deploy_target;
+use systemprompt_cloud_entry::cli::deploy::resolve_deploy_target;
 use systemprompt_manifest::profile::CloudConfig;
 use systemprompt_manifest::services::SystemAdminConfig;
 use systemprompt_manifest::{

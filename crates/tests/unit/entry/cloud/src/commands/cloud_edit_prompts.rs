@@ -5,8 +5,8 @@
 
 use std::path::PathBuf;
 
-use systemprompt_cli::cloud::profile::edit_document::ProfileEdit;
-use systemprompt_cli::cloud::profile::edit_settings::{
+use systemprompt_cloud_entry::cli::profile::edit_document::ProfileEdit;
+use systemprompt_cloud_entry::cli::profile::edit_settings::{
     edit_runtime_settings, edit_security_settings, edit_server_settings,
 };
 use systemprompt_cli::interactive::ScriptedPrompter;

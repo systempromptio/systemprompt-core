@@ -6,7 +6,7 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::cloud::init::templates;
+use systemprompt_cloud_entry::cli::init::templates;
 
 #[test]
 fn root_config_declares_port_ranges_and_flags() {

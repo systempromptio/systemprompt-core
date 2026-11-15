@@ -6,7 +6,7 @@
 
 use std::process::Command;
 
-use systemprompt_cli::cloud::profile::templates::update_ai_config_default_provider;
+use systemprompt_cloud_entry::cli::profile::templates::update_ai_config_default_provider;
 
 const HELPER: &str = "commands::cloud_profile_ai_config_lifecycle::ai_config_lifecycle_helper";
 

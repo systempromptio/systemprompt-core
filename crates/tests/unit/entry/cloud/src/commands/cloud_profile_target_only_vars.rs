@@ -3,11 +3,11 @@
 use std::path::PathBuf;
 
 use systemprompt_cli::admin::session::list::discover_profiles;
-use systemprompt_cli::cloud::deploy::DeployProfile;
-use systemprompt_cli::cloud::deploy::pipeline::DeploySecretsSource;
-use systemprompt_cli::cloud::doctor::{CheckStatus, run_managed};
-use systemprompt_cli::cloud::profile::edit_document::ProfileEdit;
-use systemprompt_cli::cloud::profile::edit_settings::edit_server_settings;
+use systemprompt_cloud_entry::cli::deploy::DeployProfile;
+use systemprompt_cloud_entry::cli::deploy::pipeline::DeploySecretsSource;
+use systemprompt_cloud_entry::cli::doctor::{CheckStatus, run_managed};
+use systemprompt_cloud_entry::cli::profile::edit_document::ProfileEdit;
+use systemprompt_cloud_entry::cli::profile::edit_settings::edit_server_settings;
 use systemprompt_cli::interactive::ScriptedPrompter;
 use systemprompt_config::LoadedProfile;
 use systemprompt_manifest::ProfileType;
@@ -274,7 +274,7 @@ fn booting_a_cloud_profile_with_a_target_only_variable_unset_fails_naming_it() {
 #[derive(Debug, clap::Parser)]
 struct CloudHarness {
     #[command(subcommand)]
-    cmd: systemprompt_cli::cloud::CloudCommands,
+    cmd: systemprompt_cloud_entry::cli::CloudCommands,
 }
 
 async fn deploy_check(fixture: &CloudProfile) -> anyhow::Result<()> {
@@ -295,7 +295,7 @@ async fn deploy_check(fixture: &CloudProfile) -> anyhow::Result<()> {
         systemprompt_cli::CliConfig::new().with_interactive(false),
         systemprompt_cli::EnvOverrides::default(),
     );
-    let outcome = systemprompt_cli::cloud::execute(cmd, &ctx).await;
+    let outcome = systemprompt_cloud_entry::cli::execute(cmd, &ctx).await;
     std::env::set_current_dir(previous).unwrap();
     outcome
 }

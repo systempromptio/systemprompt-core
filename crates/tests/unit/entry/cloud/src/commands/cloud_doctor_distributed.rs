@@ -6,8 +6,8 @@
 
 use std::collections::HashMap;
 
-use systemprompt_cli::cloud::doctor::CheckStatus;
-use systemprompt_cli::cloud::doctor::distributed::{
+use systemprompt_cloud_entry::cli::doctor::CheckStatus;
+use systemprompt_cloud_entry::cli::doctor::distributed::{
     check_identity_fingerprints, check_instance_id, check_session_url, check_trusted_proxies,
     looks_like_transaction_pooler,
 };

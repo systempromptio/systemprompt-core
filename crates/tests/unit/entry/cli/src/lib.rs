@@ -25,20 +25,6 @@ mod child_host;
 #[cfg(test)]
 mod cli_settings;
 #[cfg(test)]
-mod cloud_deploy_progress;
-#[cfg(test)]
-mod cloud_fleet_guard;
-#[cfg(test)]
-mod cloud_init_templates;
-#[cfg(test)]
-mod cloud_profile_api_keys;
-#[cfg(test)]
-mod cloud_profile_show_types;
-#[cfg(test)]
-mod cloud_tenant_docker;
-#[cfg(test)]
-mod cloud_tenant_local_guards;
-#[cfg(test)]
 #[cfg(test)]
 mod command_registry;
 #[cfg(test)]
@@ -46,13 +32,7 @@ mod commands;
 #[cfg(test)]
 mod config_migrate_descriptor;
 #[cfg(test)]
-mod deploy_vault_secrets;
-#[cfg(test)]
 mod descriptor;
-#[cfg(test)]
-mod doctor_git_credentials;
-#[cfg(test)]
-mod doctor_vault_checks;
 #[cfg(test)]
 mod env_overrides;
 #[cfg(test)]
@@ -126,6 +106,8 @@ mod session_creation_admin_db;
 #[cfg(test)]
 mod session_lifecycle_flows;
 #[cfg(test)]
+mod session_project_fixture;
+#[cfg(test)]
 mod session_resolution_context_db;
 #[cfg(test)]
 mod session_resolution_helpers;
@@ -142,5 +124,7 @@ mod config_apply_database_url;
 mod config_migrate_database_url;
 #[cfg(all(test, unix))]
 mod coverage_process_flows;
+#[cfg(all(test, unix))]
+mod process_sandbox;
 #[cfg(test)]
 mod services_reconcile_retry;

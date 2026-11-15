@@ -1,9 +1,9 @@
-//! Tests for `commands::cloud::doctor::checks` — the dependency-free
+//! Tests for `cli::doctor::checks` — the dependency-free
 //! pre-deploy checks over the local secrets map.
 
 use std::collections::HashMap;
 
-use systemprompt_cli::cloud::doctor::{CheckStatus, check_proxy_topology, check_required_secrets};
+use systemprompt_cloud_entry::cli::doctor::{CheckStatus, check_proxy_topology, check_required_secrets};
 use systemprompt_cloud::profile_authoring::CloudProfileBuilder;
 use systemprompt_manifest::ProfileType;
 

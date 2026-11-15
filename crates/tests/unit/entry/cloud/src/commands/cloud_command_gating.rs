@@ -9,7 +9,7 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use clap::Parser;
-use systemprompt_cli::cloud::CloudCommands;
+use systemprompt_cloud_entry::cli::CloudCommands;
 use systemprompt_cli::descriptor::{DataImpact, DescribeCommand, RoutingClass};
 
 #[derive(Debug, Parser)]

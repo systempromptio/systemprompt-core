@@ -10,7 +10,7 @@ use std::os::unix::process::ExitStatusExt;
 use std::process::{ExitStatus, Output};
 use std::sync::Mutex;
 
-use systemprompt_cli::cloud::tenant::docker::{TenantContainer, container};
+use systemprompt_cloud_entry::cli::tenant::docker::{TenantContainer, container};
 use systemprompt_cloud::{CommandRunner, CommandSpec, DockerCli};
 
 #[derive(Debug, Clone)]

@@ -2,7 +2,7 @@
 //! the forwarded command with the router's own descriptor before any tenant
 //! is contacted.
 
-use systemprompt_cli::cloud::fleet::ensure_read_only;
+use systemprompt_cloud_entry::cli::fleet::ensure_read_only;
 
 fn args(command: &[&str]) -> Vec<String> {
     command.iter().map(|arg| (*arg).to_owned()).collect()
@@ -63,4 +63,26 @@ fn an_unknown_command_is_refused() {
 #[test]
 fn an_empty_command_is_refused() {
     assert!(ensure_read_only(&[]).is_err());
+}
+
+#[test]
+fn irreversible_commands_are_kept_out_of_fleet_run() {
+    for command in [
+        &["infra", "db", "migrate-down", "users", "1"][..],
+        &["infra", "db", "assign-admin", "u"],
+        &["admin", "keys", "rotate", "--revoke"],
+        &["admin", "users", "role", "promote", "u"],
+    ] {
+        let err = ensure_read_only(&args(command)).unwrap_err();
+        assert!(
+            err.to_string().contains("not a read-only command"),
+            "{command:?}: {err:#}"
+        );
+    }
+}
+
+#[test]
+fn session_commands_are_refused_as_local_operator_commands() {
+    let err = ensure_read_only(&args(&["admin", "session", "list"])).unwrap_err();
+    assert!(err.to_string().contains("run on this machine"), "{err:#}");
 }

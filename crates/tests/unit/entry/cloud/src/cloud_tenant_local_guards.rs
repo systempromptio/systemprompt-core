@@ -6,8 +6,8 @@
 //! looking for.
 
 use systemprompt_cli::ScriptedPrompter;
-use systemprompt_cli::cloud::profile::templates::validate_connection;
-use systemprompt_cli::cloud::tenant::{create_external_tenant, create_local_tenant};
+use systemprompt_cloud_entry::cli::profile::templates::validate_connection;
+use systemprompt_cloud_entry::cli::tenant::{create_external_tenant, create_local_tenant};
 use systemprompt_loader::subprocess::ForegroundChildren;
 
 #[tokio::test]

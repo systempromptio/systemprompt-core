@@ -5,7 +5,7 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::cloud::profile::ApiKeys;
+use systemprompt_cloud_entry::cli::profile::ApiKeys;
 
 #[test]
 fn from_options_rejects_all_none() {

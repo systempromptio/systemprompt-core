@@ -5,7 +5,7 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::cloud::doctor::{CheckStatus, profile_checks};
+use systemprompt_cloud_entry::cli::doctor::{CheckStatus, profile_checks};
 use systemprompt_cloud::profile_authoring::CloudProfileBuilder;
 use systemprompt_identifiers::{InstanceId, TenantId};
 use systemprompt_manifest::Profile;

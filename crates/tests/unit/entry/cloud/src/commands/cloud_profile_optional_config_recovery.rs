@@ -2,7 +2,7 @@
 
 use std::process::Command;
 
-use systemprompt_cli::cloud::profile::{self, ProfileCommands, ShowFilter};
+use systemprompt_cloud_entry::cli::profile::{self, ProfileCommands, ShowFilter};
 use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat};
 use systemprompt_test_fixtures::{bounded_output, ensure_test_bootstrap};
 

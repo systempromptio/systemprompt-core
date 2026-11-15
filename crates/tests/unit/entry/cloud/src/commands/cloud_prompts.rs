@@ -3,9 +3,9 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::cloud::profile::create_tenant::{select_tenant, select_tenant_type};
-use systemprompt_cli::cloud::profile::{TenantTypeArg, collect_api_keys};
-use systemprompt_cli::cloud::tenant::{
+use systemprompt_cloud_entry::cli::profile::create_tenant::{select_tenant, select_tenant_type};
+use systemprompt_cloud_entry::cli::profile::{TenantTypeArg, collect_api_keys};
+use systemprompt_cloud_entry::cli::tenant::{
     TenantCommands, choose_tenant_operation, select_tenant as select_tenant_menu,
 };
 use systemprompt_cli::interactive::ScriptedPrompter;
@@ -161,7 +161,7 @@ fn select_profile_tenant_picks_clone() {
 // they forget `--tenant` on a local profile.
 #[test]
 fn an_explicit_tenant_flag_is_taken_as_given() {
-    let id = systemprompt_cli::cloud::tenant::resolve_tenant_id(Some(tid("tenant_abc")), None)
+    let id = systemprompt_cloud_entry::cli::tenant::resolve_tenant_id(Some(tid("tenant_abc")), None)
         .expect("an explicit id needs no profile at all");
 
     assert_eq!(id.as_str(), "tenant_abc");
@@ -171,7 +171,7 @@ fn an_explicit_tenant_flag_is_taken_as_given() {
 fn a_profile_with_no_tenant_refuses_and_names_the_flag_that_supplies_one() {
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
 
-    let err = systemprompt_cli::cloud::tenant::resolve_tenant_id(None, Some(boot.boot.profile()))
+    let err = systemprompt_cloud_entry::cli::tenant::resolve_tenant_id(None, Some(boot.boot.profile()))
         .expect_err("a local profile configures no tenant");
 
     assert!(

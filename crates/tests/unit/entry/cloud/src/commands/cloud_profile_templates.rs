@@ -1,9 +1,9 @@
-//! Tests for `commands::cloud::profile::templates` — the small filesystem
+//! Tests for `cli::profile::templates` — the small filesystem
 //! helpers that have no profile/db dependency.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::cloud::profile::templates::{
+use systemprompt_cloud_entry::cli::profile::templates::{
     existing_geoip_database, get_services_path, save_dockerignore, save_entrypoint,
 };
 use tempfile::TempDir;

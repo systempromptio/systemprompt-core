@@ -6,7 +6,7 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::cloud::profile::{self, ProfileCommands, ShowFilter};
+use systemprompt_cloud_entry::cli::profile::{self, ProfileCommands, ShowFilter};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 
 fn ctx() -> CommandContext {

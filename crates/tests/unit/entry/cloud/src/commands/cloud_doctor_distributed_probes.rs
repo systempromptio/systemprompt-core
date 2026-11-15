@@ -6,8 +6,8 @@
 
 use std::collections::HashMap;
 
-use systemprompt_cli::cloud::doctor::CheckStatus;
-use systemprompt_cli::cloud::doctor::distributed::{
+use systemprompt_cloud_entry::cli::doctor::CheckStatus;
+use systemprompt_cloud_entry::cli::doctor::distributed::{
     check_readyz, check_replica_lag, check_write_primary, run,
 };
 use systemprompt_manifest::Profile;

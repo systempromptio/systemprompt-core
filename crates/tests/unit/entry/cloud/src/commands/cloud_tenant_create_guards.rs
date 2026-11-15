@@ -7,7 +7,7 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_cli::ScriptedPrompter;
-use systemprompt_cli::cloud::tenant::create::{create_external_tenant, create_local_tenant};
+use systemprompt_cloud_entry::cli::tenant::create::{create_external_tenant, create_local_tenant};
 use systemprompt_loader::subprocess::ForegroundChildren;
 
 #[tokio::test]

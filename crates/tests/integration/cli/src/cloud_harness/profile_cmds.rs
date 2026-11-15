@@ -6,11 +6,11 @@ use systemprompt_identifiers::{CloudAppId, TenantId};
 
 use serde_json::json;
 use systemprompt_cli::ScriptedPrompter;
-use systemprompt_cli::cloud::profile::{
+use systemprompt_cloud_entry::cli::profile::{
     CreateArgs, DeleteArgs, EditArgs, ProfileCommands, ShowFilter, TenantTypeArg,
     create_profile_for_tenant,
 };
-use systemprompt_cli::cloud::{self, CloudCommands};
+use systemprompt_cloud_entry::cli::{self as cloud, CloudCommands};
 use systemprompt_cloud::tenants::{NewCloudTenantParams, StoredTenant, TenantStore};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -531,7 +531,7 @@ async fn create_profile_for_tenant_handles_name_collision_and_issuer() {
 
     let prompter = ScriptedPrompter::new(["collide-renamed"]);
     let api_keys =
-        systemprompt_cli::cloud::profile::ApiKeys::from_options(Some("g".to_owned()), None, None)
+        systemprompt_cloud_entry::cli::profile::ApiKeys::from_options(Some("g".to_owned()), None, None)
             .expect("api keys");
 
     let created = create_profile_for_tenant(
@@ -559,7 +559,7 @@ async fn create_profile_for_tenant_handles_name_collision_and_issuer() {
 #[tokio::test]
 async fn redact_database_url_variants() {
     let _env = Path::new(".");
-    use systemprompt_cli::cloud::profile::redact_database_url;
+    use systemprompt_cloud_entry::cli::profile::redact_database_url;
     assert_eq!(
         redact_database_url("postgres://user:pass@host:5432/db"),
         "postgres://[REDACTED]@host:5432/db"

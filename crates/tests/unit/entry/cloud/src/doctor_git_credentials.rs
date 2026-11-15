@@ -5,8 +5,8 @@
 
 use std::collections::HashMap;
 
-use systemprompt_cli::cloud::doctor::CheckStatus;
-use systemprompt_cli::cloud::doctor::git_credential_checks::classify_git_credentials;
+use systemprompt_cloud_entry::cli::doctor::CheckStatus;
+use systemprompt_cloud_entry::cli::doctor::git_credential_checks::classify_git_credentials;
 use systemprompt_identifiers::ManagedSourceId;
 use systemprompt_marketplace::managed::GitCredentialSource;
 

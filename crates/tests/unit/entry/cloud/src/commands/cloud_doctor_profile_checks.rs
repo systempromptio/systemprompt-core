@@ -9,7 +9,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use systemprompt_cli::cloud::doctor::{
+use systemprompt_cloud_entry::cli::doctor::{
     CheckStatus, check_extension_configs, check_profile_valid, check_provider_secrets,
     check_signing_key,
 };

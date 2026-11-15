@@ -8,8 +8,8 @@
 
 use std::path::Path;
 
-use systemprompt_cli::cloud::deploy::pipeline::{DeployEvent, DeployProgress};
-use systemprompt_cli::cloud::deploy::progress::{CliDeployProgress, spinner_message};
+use systemprompt_cloud_entry::cli::deploy::pipeline::{DeployEvent, DeployProgress};
+use systemprompt_cloud_entry::cli::deploy::progress::{CliDeployProgress, spinner_message};
 
 #[test]
 fn spinner_message_maps_long_running_starts() {
@@ -104,7 +104,7 @@ fn event_renders_every_variant_without_panic() {
 
 #[test]
 fn readiness_without_a_confirmed_release_says_so() {
-    use systemprompt_cli::cloud::deploy::progress::tenant_ready_text;
+    use systemprompt_cloud_entry::cli::deploy::progress::tenant_ready_text;
     assert_eq!(tenant_ready_text(true), "Tenant is ready");
     assert!(tenant_ready_text(false).contains("version not confirmed"));
 }

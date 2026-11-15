@@ -4,7 +4,7 @@
 
 use std::path::Path;
 
-use systemprompt_cli::cloud::auth::build_login_output;
+use systemprompt_cloud_entry::cli::auth::build_login_output;
 use systemprompt_models::api::cloud::UserMeResponse;
 
 fn response(json: serde_json::Value) -> UserMeResponse {

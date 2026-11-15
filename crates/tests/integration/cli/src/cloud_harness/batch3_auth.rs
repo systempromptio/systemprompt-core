@@ -3,8 +3,8 @@
 
 use chrono::Utc;
 use serde_json::json;
-use systemprompt_cli::cloud::auth::{AuthCommands, LogoutArgs};
-use systemprompt_cli::cloud::{self, CloudCommands};
+use systemprompt_cloud_entry::cli::auth::{AuthCommands, LogoutArgs};
+use systemprompt_cloud_entry::cli::{self as cloud, CloudCommands};
 use systemprompt_cloud::{CloudPath, get_cloud_paths};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, ResponseTemplate};

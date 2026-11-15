@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use chrono::Duration;
-use systemprompt_cli::cloud::auth::{self, AuthCommands, LogoutArgs};
+use systemprompt_cloud_entry::cli::auth::{self, AuthCommands, LogoutArgs};
 use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat, ScriptedPrompter};
 use systemprompt_cloud::{
     CliSession, CloudPath, SessionBinding, SessionIdentity, SessionKey, SessionStore,

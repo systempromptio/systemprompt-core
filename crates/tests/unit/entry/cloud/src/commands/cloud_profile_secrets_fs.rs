@@ -10,8 +10,8 @@
 
 use std::path::Path;
 
-use systemprompt_cli::cloud::profile::api_keys::ApiKeys;
-use systemprompt_cli::cloud::profile::templates::{DatabaseUrls, save_secrets};
+use systemprompt_cloud_entry::cli::profile::api_keys::ApiKeys;
+use systemprompt_cloud_entry::cli::profile::templates::{DatabaseUrls, save_secrets};
 use systemprompt_config::decode_master_key;
 
 fn keys() -> ApiKeys {
@@ -184,7 +184,7 @@ fn a_missing_parent_directory_is_created_rather_than_failing() {
 // on disk, and `.dockerignore` is what keeps it out of the image built beside
 // it. Either alone is insufficient.
 mod build_context {
-    use systemprompt_cli::cloud::profile::templates::{save_dockerignore, save_entrypoint};
+    use systemprompt_cloud_entry::cli::profile::templates::{save_dockerignore, save_entrypoint};
 
     fn dockerignore() -> String {
         let dir = tempfile::tempdir().expect("tempdir");
@@ -282,7 +282,7 @@ mod build_context {
 // operator never configured in the form the new profile expects.
 mod geoip_carry_forward {
     use std::path::Path;
-    use systemprompt_cli::cloud::profile::templates::existing_geoip_database;
+    use systemprompt_cloud_entry::cli::profile::templates::existing_geoip_database;
     use systemprompt_test_fixtures::ensure_test_bootstrap;
 
     fn profile_with(dir: &Path, mutate: impl FnOnce(&mut serde_yaml::Value)) -> std::path::PathBuf {

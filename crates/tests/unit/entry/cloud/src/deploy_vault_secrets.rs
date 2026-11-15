@@ -9,7 +9,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 
-use systemprompt_cli::cloud::deploy::pipeline::{
+use systemprompt_cloud_entry::cli::deploy::pipeline::{
     DeploySecretsSource, bootstrap_env_names, collect_bootstrap_env,
 };
 use systemprompt_manifest::profile::{

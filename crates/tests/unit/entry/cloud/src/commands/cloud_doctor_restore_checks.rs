@@ -1,7 +1,7 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::cloud::doctor::CheckStatus;
-use systemprompt_cli::cloud::doctor::restore_checks::{
+use systemprompt_cloud_entry::cli::doctor::CheckStatus;
+use systemprompt_cloud_entry::cli::doctor::restore_checks::{
     FORWARD_ONLY_HINT, check_storage_backup, schema_ahead_result,
 };
 use systemprompt_manifest::Profile;

@@ -7,7 +7,7 @@
 use std::path::Path;
 use systemprompt_loader::subprocess::ForegroundChildren;
 
-use systemprompt_cli::cloud::init::scaffolding::generate_services_boilerplate;
+use systemprompt_cloud_entry::cli::init::scaffolding::generate_services_boilerplate;
 
 fn generate(root: &Path) {
     std::fs::create_dir_all(root.join("services/mcp/systemprompt-admin")).unwrap();

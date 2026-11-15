@@ -12,7 +12,7 @@ use std::os::unix::process::ExitStatusExt;
 use std::process::{ExitStatus, Output};
 use std::sync::Mutex;
 
-use systemprompt_cli::cloud::tenant::docker::container::wait_for_postgres_healthy;
+use systemprompt_cloud_entry::cli::tenant::docker::container::wait_for_postgres_healthy;
 use systemprompt_cloud::{CommandRunner, CommandSpec, DockerCli};
 
 struct ScriptedHealth {

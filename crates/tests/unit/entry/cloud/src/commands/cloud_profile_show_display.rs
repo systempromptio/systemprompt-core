@@ -4,12 +4,12 @@
 
 use std::collections::HashMap;
 
-use systemprompt_cli::cloud::profile::show_display::{
+use systemprompt_cloud_entry::cli::profile::show_display::{
     DisplayLine, render_agents_section, render_ai_section, render_content_section,
     render_environment_section, render_formatted_config, render_mcp_section,
     render_settings_section, render_skills_section,
 };
-use systemprompt_cli::cloud::profile::show_types::{
+use systemprompt_cloud_entry::cli::profile::show_types::{
     CoreEnvVars, DatabaseEnvVars, EnvironmentConfig, FullConfig, JwtEnvVars, PathsEnvVars,
     RateLimitEnvVars, SettingsOutput, SystempromptEnvVars,
 };
@@ -291,7 +291,7 @@ fn formatted_config_renders_every_section_when_all_are_present() {
 
 #[test]
 fn the_web_section_renders_the_configured_branding() {
-    use systemprompt_cli::cloud::profile::show_display::render_web_section;
+    use systemprompt_cloud_entry::cli::profile::show_display::render_web_section;
 
     let web = systemprompt_test_fixtures::web_config();
     let lines = render_web_section(&web);

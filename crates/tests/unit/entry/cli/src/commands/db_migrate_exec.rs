@@ -37,6 +37,11 @@ async fn standalone(db: &DisposableDb, config: CliConfig) -> CommandContext {
     )
 }
 
+fn profile_driven(db: &DisposableDb, config: CliConfig) -> CommandContext {
+    crate::boot_ctx::new_with_boot(config, EnvOverrides::default())
+        .with_database_url_override(Some(db.url().to_owned()))
+}
+
 #[tokio::test]
 async fn migrate_installs_an_empty_database_and_leaves_nothing_pending() {
     ensure_test_bootstrap();
@@ -101,19 +106,23 @@ async fn migrate_down_for_an_unknown_extension_fails() {
 #[tokio::test]
 async fn profile_migrate_runs_against_the_profile_database() {
     ensure_test_bootstrap();
-    let ctx = crate::boot_ctx::new_with_boot(text_config(), EnvOverrides::default());
+    let db = DisposableDb::with_schema("cli_profile_migrate").await;
+    let ctx = profile_driven(&db, text_config());
 
     execute(command(&["migrate"]), &ctx)
         .await
         .expect("the profile database is already installed, so migrate is a no-op");
+
+    db.drop_now().await;
 }
 
 #[tokio::test]
 async fn verbose_profile_migrate_reports_its_target_and_stays_a_no_op() {
     ensure_test_bootstrap();
-    let ctx = crate::boot_ctx::new_with_boot(
+    let db = DisposableDb::with_schema("cli_profile_migrate_verbose").await;
+    let ctx = profile_driven(
+        &db,
         text_config().with_verbosity(systemprompt_cli::VerbosityLevel::Verbose),
-        EnvOverrides::default(),
     );
 
     execute(command(&["migrate"]), &ctx)
@@ -122,4 +131,6 @@ async fn verbose_profile_migrate_reports_its_target_and_stays_a_no_op() {
     execute(command(&["migrate-plan", "--require-rolling-safe"]), &ctx)
         .await
         .expect("the installed profile database has nothing pending");
+
+    db.drop_now().await;
 }

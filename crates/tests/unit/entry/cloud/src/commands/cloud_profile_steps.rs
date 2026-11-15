@@ -3,11 +3,11 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::cloud::profile::profile_steps::{
+use systemprompt_cloud_entry::cli::profile::profile_steps::{
     resolve_tenant_from_args, write_profile_secrets,
 };
-use systemprompt_cli::cloud::profile::tenant_credentials::ensure_unmasked_credentials;
-use systemprompt_cli::cloud::profile::{ApiKeys, CreateArgs, TenantTypeArg};
+use systemprompt_cloud_entry::cli::profile::tenant_credentials::ensure_unmasked_credentials;
+use systemprompt_cloud_entry::cli::profile::{ApiKeys, CreateArgs, TenantTypeArg};
 use systemprompt_cloud::{StoredTenant, TenantStore};
 use systemprompt_identifiers::TenantId;
 use systemprompt_manifest::HostingProvider;

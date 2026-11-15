@@ -6,7 +6,7 @@ async fn failed_local_database_start_removes_its_owned_compose_project() {
     use std::os::unix::fs::PermissionsExt;
 
     use systemprompt_cli::ScriptedPrompter;
-    use systemprompt_cli::cloud::tenant::create::{create_local_tenant, sanitize_database_name};
+    use systemprompt_cloud_entry::cli::tenant::create::{create_local_tenant, sanitize_database_name};
 
     let root = systemprompt_test_fixtures::canonical_tempdir();
     let bin = root.path().join("bin");

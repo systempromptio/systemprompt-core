@@ -5,7 +5,7 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::cloud::profile::redact_database_url;
+use systemprompt_cloud_entry::cli::profile::redact_database_url;
 
 #[test]
 fn redacts_credentials_between_protocol_and_host() {

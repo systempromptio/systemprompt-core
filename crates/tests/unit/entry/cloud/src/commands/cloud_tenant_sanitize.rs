@@ -10,7 +10,7 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::cloud::tenant::create::sanitize_database_name;
+use systemprompt_cloud_entry::cli::tenant::create::sanitize_database_name;
 
 fn is_safe(name: &str) -> bool {
     !name.is_empty()

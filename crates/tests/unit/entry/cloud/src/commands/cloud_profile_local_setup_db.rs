@@ -9,7 +9,7 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_cli::ScriptedPrompter;
-use systemprompt_cli::cloud::profile::handle_local_tenant_setup;
+use systemprompt_cloud_entry::cli::profile::handle_local_tenant_setup;
 use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_test_fixtures::test_database_url;
 
