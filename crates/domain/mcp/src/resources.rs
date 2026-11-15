@@ -15,7 +15,7 @@ use crate::services::ui_renderer::{
     CspPolicy, MCP_APP_MIME_TYPE, RenderTarget, UiMetadata, UiRendererRegistry,
     artifact_ui_resource, parse_artifact_resource_uri,
 };
-use systemprompt_identifiers::{ArtifactId, McpServerId};
+use systemprompt_identifiers::{ArtifactId, McpServerId, UserId};
 use systemprompt_models::mcp::McpResourceUiMeta;
 
 const STATIC_TEMPLATE_TTL_MS: u64 = 3_600_000;
@@ -92,6 +92,7 @@ pub async fn read_artifact_resource(
     server_name: &McpServerId,
     repo: &McpArtifactRepository,
     renderers: &UiRendererRegistry,
+    caller: &UserId,
 ) -> Result<ReadResourceResult, McpError> {
     let uri = &request.uri;
     let (uri_server, artifact_id) = parse_artifact_resource_uri(uri).ok_or_else(|| {
@@ -110,7 +111,7 @@ pub async fn read_artifact_resource(
         McpError::invalid_params(format!("Not an artifact resource URI: {uri}"), None)
     })?;
     let record = repo
-        .find_by_id(&artifact_id)
+        .find_owned(&artifact_id, caller)
         .await
         .map_err(|error| {
             tracing::error!(%error, artifact_id = %artifact_id, "Failed to load artifact");

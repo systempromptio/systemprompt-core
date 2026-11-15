@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT\n                id as \"id!\",\n                artifact_id as \"artifact_id!: ArtifactId\",\n                mcp_execution_id as \"mcp_execution_id!: McpExecutionId\",\n                context_id as \"context_id: ContextId\",\n                user_id as \"user_id: UserId\",\n                session_id as \"session_id: SessionId\",\n                trace_id as \"trace_id: TraceId\",\n                ai_tool_call_id as \"ai_tool_call_id: AiToolCallId\",\n                server_name as \"server_name!\",\n                tool_name,\n                artifact_type as \"artifact_type!\",\n                title,\n                source as \"source!\",\n                last_seen_source,\n                data as \"data!\",\n                metadata,\n                payload_sha256,\n                payload_bytes,\n                is_structured as \"is_structured!\",\n                has_ui_resource as \"has_ui_resource!\",\n                is_error as \"is_error!\",\n                secret_redactions as \"secret_redactions!\",\n                created_at as \"created_at!\",\n                expires_at\n            FROM mcp_artifacts\n            WHERE (expires_at IS NULL OR expires_at > NOW())\n              AND artifact_id = $1\n            ",
+  "query": "\n            SELECT\n                id as \"id!\",\n                artifact_id as \"artifact_id!: ArtifactId\",\n                mcp_execution_id as \"mcp_execution_id!: McpExecutionId\",\n                context_id as \"context_id: ContextId\",\n                user_id as \"user_id: UserId\",\n                session_id as \"session_id: SessionId\",\n                trace_id as \"trace_id: TraceId\",\n                ai_tool_call_id as \"ai_tool_call_id: AiToolCallId\",\n                server_name as \"server_name!\",\n                tool_name,\n                artifact_type as \"artifact_type!\",\n                title,\n                source as \"source!\",\n                last_seen_source,\n                data as \"data!\",\n                metadata,\n                payload_sha256,\n                payload_bytes,\n                is_structured as \"is_structured!\",\n                has_ui_resource as \"has_ui_resource!\",\n                is_error as \"is_error!\",\n                secret_redactions as \"secret_redactions!\",\n                created_at as \"created_at!\",\n                expires_at\n            FROM mcp_artifacts\n            WHERE (expires_at IS NULL OR expires_at > NOW())\n              AND artifact_id = $1\n              AND user_id = $2\n            ",
   "describe": {
     "columns": [
       {
@@ -270,6 +270,7 @@
     ],
     "parameters": {
       "Left": [
+        "Text",
         "Text"
       ]
     },
@@ -300,5 +301,5 @@
       true
     ]
   },
-  "hash": "f7c220e79ccbd914cfab4fb7055730bbb24ae5d02e0a382c9d04dee3e8b0d095"
+  "hash": "6df526eca45e0c272a908dfc79b80408e69d0155e0f65ff3d4adde274972e506"
 }

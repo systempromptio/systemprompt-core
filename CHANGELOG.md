@@ -5,6 +5,7 @@
 ### Breaking
 
 - **Breaking:** **Runtime:** `ConfigPlane` gains the `build` field. Migrate by setting it, usually to `BuildIdentity::core()`.
+- **Breaking:** **MCP:** `read_artifact_resource` takes the caller's `UserId`, and `McpArtifactRepository::find_by_id` is replaced by `find_owned(artifact_id, owner)`. Migrate by passing the authenticated caller.
 - **Breaking:** **API:** `RouteGroup` gains `InternalLinks`, and `systemprompt_runtime::documents::links::LinkRefusal` gains `Unavailable`. Migrate by adding the match arms.
 
 ### Added
@@ -17,6 +18,7 @@
 
 ### Fixed
 
+- **MCP:** an MCP artifact resource (`ui://<server>/artifact/<id>`) is read only by the user it was stored for; any other caller receives the same answer as for an unknown artifact, and an artifact stored without an owner is read by no one.
 - **API:** a `worker` node serves `POST /api/v1/internal/links` (route group `InternalLinks`, also on `api` and `all`), so `issue_attachment`, `documents_upload` and link-based `documents_export` work on a role-split install, where a managed MCP server asks its own node for a signed link; the worker mounts none of the documents surface, and the links it signs point at `api_external_url`. `LinkRefusal` gains `Unavailable` (any status but 401, 403, 409 and 500), and the tools report an unreachable link endpoint or the status it returned (`LinkIssueError::tool_message`) instead of "the upload links could not be signed".
 - **API:** a `worker` that stops gracefully withdraws its presence before it stops and releases its processes (`ServiceRepository::delete_presence`), so a surviving worker claims them on its next tick instead of after the 45 s presence staleness, and a worker preferred for a key whose lease is still held retries the claim every 2 s (`CLAIM_RETRY_EVERY`). A worker that dies without stopping still leaves after `LEASE_TTL`.
 - **Database:** a schema phase that deadlocks with live writers (`40P01`) or hits a serialization failure (`40001`) is rolled back and retried like a lock timeout (`55P03`); retryability is read from the SQLSTATE (`is_retryable_lock_conflict`, `RETRYABLE_SQLSTATES`), falling back to the message only when no code is present, and the backoff is jittered.

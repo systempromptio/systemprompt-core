@@ -101,7 +101,7 @@ async fn another_users_tool_call_id_does_not_join_their_execution() {
     assert_ne!(foreign.artifact_id, owned.artifact_id);
     let stranger_artifact = ingest
         .artifacts()
-        .find_by_id(&foreign.artifact_id)
+        .find_owned(&foreign.artifact_id, &UserId::new(STRANGER))
         .await
         .unwrap()
         .expect("stranger artifact stored");
@@ -111,7 +111,7 @@ async fn another_users_tool_call_id_does_not_join_their_execution() {
     );
     let owner_artifact = ingest
         .artifacts()
-        .find_by_id(&owned.artifact_id)
+        .find_owned(&owned.artifact_id, &UserId::new(OWNER))
         .await
         .unwrap()
         .expect("owner artifact stored");
