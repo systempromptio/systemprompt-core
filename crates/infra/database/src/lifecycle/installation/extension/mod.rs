@@ -1,5 +1,5 @@
 //! Schema installation for compile-time-registered
-//! [`systemprompt_extension::Extension`] instances.
+//! [`SchemaMember`](crate::lifecycle::schema_member::SchemaMember) snapshots of the admitted composition.
 //!
 //! Installation runs globally in six phases — retirements, structural DDL, then
 //! the declarative routines, then migrations, then dependent DDL, then the
@@ -39,7 +39,8 @@ mod settled;
 mod trigger_reuse;
 mod validation;
 
-use systemprompt_extension::{Extension, ExtensionRegistry, LoaderError};
+use systemprompt_extension::LoaderError;
+use crate::lifecycle::schema_member::SchemaMember;
 use systemprompt_identifiers::ExtensionId;
 use tracing::{debug, info};
 
@@ -60,16 +61,16 @@ use super::undeclared::audit_schema_residue;
 use crate::lifecycle::migrations::{MigrationConfig, MigrationService};
 use crate::services::DatabaseProvider;
 
-type ExtensionSet = [std::sync::Arc<dyn Extension>];
+type ExtensionSet = [std::sync::Arc<dyn SchemaMember>];
 type FreshSet = std::collections::HashSet<ExtensionId>;
 
 pub async fn install_extension_schemas_full(
-    registry: &ExtensionRegistry,
+    members: &ExtensionSet,
     db: &dyn DatabaseProvider,
     disabled_extensions: &[ExtensionId],
     migration_config: MigrationConfig,
 ) -> Result<SchemaInstallReport, LoaderError> {
-    let schema_extensions = registry.enabled_schema_extensions(disabled_extensions)?;
+    let schema_extensions = members.to_vec();
 
     if schema_extensions.is_empty() {
         info!("No extension schemas to install");
@@ -83,7 +84,7 @@ pub async fn install_extension_schemas_full(
 
     let guard = BootstrapLockGuard::acquire(db).await?;
 
-    let result = match current::schema_currency(db, registry, disabled_extensions).await {
+    let result = match current::schema_currency(db, members).await {
         Ok(currency) => {
             let (held_back, active): (Vec<_>, Vec<_>) =
                 schema_extensions.iter().cloned().partition(|ext| {

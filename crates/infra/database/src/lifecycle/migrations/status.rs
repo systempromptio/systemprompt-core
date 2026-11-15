@@ -5,7 +5,8 @@
 
 use super::MigrationService;
 use std::collections::HashSet;
-use systemprompt_extension::{Extension, LoaderError, Migration};
+use systemprompt_extension::{LoaderError, Migration};
+use crate::lifecycle::schema_member::SchemaMember;
 use systemprompt_identifiers::ExtensionId;
 
 /// A recorded migration.
@@ -103,7 +104,7 @@ pub struct MigrationStatus {
 impl MigrationService<'_> {
     pub async fn plan_pending(
         &self,
-        extension: &dyn Extension,
+        extension: &dyn SchemaMember,
     ) -> Result<Vec<PendingMigration>, LoaderError> {
         let ext_id = &ExtensionId::new(extension.metadata().id);
         let defined = extension.migrations();
@@ -137,7 +138,7 @@ impl MigrationService<'_> {
 
     pub async fn status(
         &self,
-        extension: &dyn Extension,
+        extension: &dyn SchemaMember,
     ) -> Result<ExtensionMigrationStatus, LoaderError> {
         let ext_id = &ExtensionId::new(extension.metadata().id);
         let defined = extension.migrations();
@@ -188,7 +189,7 @@ impl MigrationService<'_> {
 
     pub async fn get_migration_status(
         &self,
-        extension: &dyn Extension,
+        extension: &dyn SchemaMember,
     ) -> Result<MigrationStatus, LoaderError> {
         self.ensure_migrations_table_exists().await?;
 

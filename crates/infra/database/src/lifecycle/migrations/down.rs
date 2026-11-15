@@ -6,14 +6,15 @@
 use super::exec::{TrackingWrite, execute_statements_transactional};
 use super::{MigrationResult, MigrationService};
 use crate::services::SqlExecutor;
-use systemprompt_extension::{Extension, LoaderError, Migration, MigrationFault};
+use systemprompt_extension::{LoaderError, Migration, MigrationFault};
+use crate::lifecycle::schema_member::SchemaMember;
 use systemprompt_identifiers::{ExtensionId, ToDbValue};
 use tracing::info;
 
 impl MigrationService<'_> {
     pub async fn run_down_migrations(
         &self,
-        extension: &dyn Extension,
+        extension: &dyn SchemaMember,
         count: u32,
     ) -> Result<MigrationResult, LoaderError> {
         if count == 0 {

@@ -1,5 +1,5 @@
 //! Schema installation from compile-time-registered
-//! [`systemprompt_extension::Extension`] instances.
+//! [`SchemaMember`](crate::lifecycle::schema_member::SchemaMember) snapshots of the admitted composition.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

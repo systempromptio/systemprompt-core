@@ -4,7 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_extension::Extension;
+use crate::lifecycle::schema_member::SchemaMember;
 use systemprompt_identifiers::ExtensionId;
 use tracing::warn;
 
@@ -20,7 +20,7 @@ use crate::services::DatabaseProvider;
 pub(super) async fn warn_unmeasured_migrations(
     db: &dyn DatabaseProvider,
     migration_service: &MigrationService<'_>,
-    extensions: &[std::sync::Arc<dyn Extension>],
+    extensions: &[std::sync::Arc<dyn SchemaMember>],
 ) {
     let mut pending = Vec::new();
     for ext in extensions {

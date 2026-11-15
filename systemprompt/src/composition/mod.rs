@@ -243,6 +243,7 @@ impl Composition {
                 return Err(CompositionError::Contribution { owner: id, source });
             }
             declared.push(DeclaredMember {
+                metadata: meta,
                 id,
                 standing: member.standing,
                 type_id: member.type_id,

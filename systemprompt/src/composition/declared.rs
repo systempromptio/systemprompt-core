@@ -36,6 +36,7 @@ use super::routes::{admit_gateway_route, admit_route_set, check_gateway_overlaps
 use super::{CompositionError, SecretsKind, Standing};
 
 pub(super) struct DeclaredMember {
+    pub(super) metadata: systemprompt_extension::ExtensionMetadata,
     pub(super) id: ExtensionId,
     pub(super) standing: Standing,
     pub(super) type_id: TypeId,
@@ -105,6 +106,7 @@ impl Declared {
             drop(member.sink.take_commands());
             members.push(AdmittedMember {
                 owner: member.id,
+                metadata: member.metadata,
                 standing: member.standing.tag(),
                 sink: member.sink,
             });

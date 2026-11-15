@@ -22,7 +22,16 @@ impl Extension for EventsExtension {
         }
     }
 
-    fn schemas(&self) -> Vec<SchemaDefinition> {
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        for schema in schemas() {
+            c.schema(schema);
+        }
+        c.migrations(extension_migrations!());
+        Ok(())
+    }
+}
+
+fn schemas() -> Vec<SchemaDefinition> {
         vec![
             SchemaDefinition::new("event_outbox", include_str!("../schema/event_outbox.sql"))
                 .with_required_columns(vec![
@@ -46,9 +55,3 @@ impl Extension for EventsExtension {
         ]
     }
 
-    fn migrations(&self) -> Vec<Migration> {
-        extension_migrations!()
-    }
-}
-
-register_extension!(EventsExtension);

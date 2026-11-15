@@ -5,7 +5,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_extension::{Extension, LoaderError, Migration};
+use systemprompt_extension::{LoaderError, Migration};
+use crate::lifecycle::schema_member::SchemaMember;
 use systemprompt_identifiers::{ExtensionId, ToDbValue};
 use systemprompt_traits::BoxedSource;
 use tracing::info;
@@ -18,7 +19,7 @@ use crate::services::SqlExecutor;
 impl MigrationService<'_> {
     pub(super) async fn execute_migration(
         &self,
-        extension: &dyn Extension,
+        extension: &dyn SchemaMember,
         migration: &Migration,
     ) -> Result<(), LoaderError> {
         let ext_id = &ExtensionId::new(extension.metadata().id);

@@ -86,6 +86,7 @@ pub use services::{
 };
 
 pub use error::DatabaseResult;
+pub use lifecycle::{SchemaMember, SchemaUnit, schema_members};
 pub use lifecycle::{
     AppliedMigration, BOOTSTRAP_ADVISORY_LOCK_KEY, BackfillStatement, BaselineStamp,
     BootstrapLockGuard, BootstrapLockTimeout, ChecksumDrift, DeferredForeignKey,
@@ -117,6 +118,8 @@ pub use admin::{
     QueryExecutor, QueryExecutorError, SafeIdentifier,
 };
 
+use std::sync::Arc;
+
 use systemprompt_traits::DatabaseHandle;
 
 impl DatabaseHandle for Database {
@@ -127,4 +130,20 @@ impl DatabaseHandle for Database {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
+
+    fn into_any(self: Arc<Self>) -> Arc<dyn std::any::Any + Send + Sync> {
+        self
+    }
+}
+
+/// The handle a command host or resolution hands out is not this crate's
+/// database.
+#[derive(Debug, Clone, Copy, thiserror::Error)]
+#[error("the database handle is not a systemprompt database pool")]
+pub struct ForeignDatabaseHandle;
+
+/// Recovers the typed pool from the shared handle a `CommandHost::db()` or
+/// `Resolved::db()` returns.
+pub fn pool_from_handle(handle: Arc<dyn DatabaseHandle>) -> Result<DbPool, ForeignDatabaseHandle> {
+    handle.into_any().downcast::<Database>().map_err(|_| ForeignDatabaseHandle)
 }

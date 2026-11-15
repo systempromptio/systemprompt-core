@@ -25,6 +25,7 @@ use crate::contribute::{ContributedJob, ContributionSink, StandingTag};
 #[derive(Debug)]
 pub struct AdmittedMember {
     pub owner: ExtensionId,
+    pub metadata: crate::metadata::ExtensionMetadata,
     pub standing: StandingTag,
     pub sink: ContributionSink,
 }

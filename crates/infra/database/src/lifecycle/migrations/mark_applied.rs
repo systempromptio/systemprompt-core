@@ -11,7 +11,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::MigrationService;
-use systemprompt_extension::{Extension, LoaderError, MigrationFault};
+use systemprompt_extension::{LoaderError, MigrationFault};
+use crate::lifecycle::schema_member::SchemaMember;
 use systemprompt_identifiers::ExtensionId;
 
 #[derive(Debug, Clone)]
@@ -25,7 +26,7 @@ pub struct MarkAppliedOutcome {
 impl MigrationService<'_> {
     pub async fn mark_applied(
         &self,
-        extension: &dyn Extension,
+        extension: &dyn SchemaMember,
         version: u32,
     ) -> Result<MarkAppliedOutcome, LoaderError> {
         let ext_id = &ExtensionId::new(extension.metadata().id);
