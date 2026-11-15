@@ -130,7 +130,9 @@ impl Slot for NotificationsSlot {
             let builder = entry.builder;
             seams.routers.extend(run_all(&builder.routers, owner, r)?);
             seams.channels.extend(run_all(&builder.channels, owner, r)?);
-            seams.audiences.extend(run_all(&builder.audiences, owner, r)?);
+            seams
+                .audiences
+                .extend(run_all(&builder.audiences, owner, r)?);
             seams
                 .publish_policies
                 .extend(run_all(&builder.publish_policies, owner, r)?);

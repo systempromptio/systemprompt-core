@@ -57,8 +57,9 @@ use self::membership::Members;
 use crate::repository::{FailureStage, NotificationRepositories};
 
 /// The seams and repositories a pipeline runs over, assembled at the
-/// composition root from the built [`NotificationSeams`](crate::contract::NotificationSeams)
-/// and the core defaults.
+/// composition root from the built
+/// [`NotificationSeams`](crate::contract::NotificationSeams) and the core
+/// defaults.
 #[derive(Clone)]
 pub struct PipelineParts {
     pub routers: Vec<Arc<dyn NotificationRouter>>,

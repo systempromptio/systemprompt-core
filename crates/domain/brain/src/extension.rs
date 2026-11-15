@@ -57,9 +57,11 @@ impl Extension for BrainExtension {
             .migrations(extension_migrations!())
             .config_plane(Arc::new(BrainPlane))
             .requires::<DynNotificationSink>()
-            .provide(|_: &Resolved<'_>| -> Result<BrainConsumerSlot, ProvideError> {
-                Ok(BrainConsumerSlot::default())
-            })
+            .provide(
+                |_: &Resolved<'_>| -> Result<BrainConsumerSlot, ProvideError> {
+                    Ok(BrainConsumerSlot::default())
+                },
+            )
             .diagnostic(
                 |r: &Resolved<'_>| -> Result<Arc<dyn DiagnosticProbe>, FactoryError> {
                     let slot = r.get::<BrainConsumerSlot>()?;

@@ -57,17 +57,23 @@ impl Extension for NotificationsExtension {
         c.cross_table("users")
             .migrations(extension_migrations!())
             .config_plane(Arc::new(NotificationsPlane))
-            .provide(|r: &Resolved<'_>| -> Result<DynNotificationSink, ProvideError> {
-                let db = r.get::<DbPool>()?;
-                let instance = r.get::<InstanceId>()?;
-                Ok(OutboxNotificationSink::over_write_pool(&db, &instance))
-            })
-            .provide(|_: &Resolved<'_>| -> Result<NotificationsServiceSlot, ProvideError> {
-                Ok(NotificationsServiceSlot::default())
-            })
-            .provide(|_: &Resolved<'_>| -> Result<NotificationsConsumerSlot, ProvideError> {
-                Ok(NotificationsConsumerSlot::default())
-            })
+            .provide(
+                |r: &Resolved<'_>| -> Result<DynNotificationSink, ProvideError> {
+                    let db = r.get::<DbPool>()?;
+                    let instance = r.get::<InstanceId>()?;
+                    Ok(OutboxNotificationSink::over_write_pool(&db, &instance))
+                },
+            )
+            .provide(
+                |_: &Resolved<'_>| -> Result<NotificationsServiceSlot, ProvideError> {
+                    Ok(NotificationsServiceSlot::default())
+                },
+            )
+            .provide(
+                |_: &Resolved<'_>| -> Result<NotificationsConsumerSlot, ProvideError> {
+                    Ok(NotificationsConsumerSlot::default())
+                },
+            )
             .runner_service(
                 |r: &Resolved<'_>| -> Result<Arc<dyn RunnerService>, FactoryError> {
                     let slot = r.get::<NotificationsConsumerSlot>()?;

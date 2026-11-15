@@ -6,9 +6,9 @@
 //! The job does nothing, and says so once per process, unless all of these
 //! hold: `brain.consolidation.enabled` is `true`, at least one consolidator
 //! is contributed through the `BrainSlot`, the job context carries a brain
-//! model client and the brain sink. Core contributes no consolidator and makes no model call
-//! here; the consolidator decides whether to call the model it is handed,
-//! under the day's remaining token budget.
+//! model client and the brain sink. Core contributes no consolidator and makes
+//! no model call here; the consolidator decides whether to call the model it is
+//! handed, under the day's remaining token budget.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -20,9 +20,7 @@ use std::time::Instant;
 use async_trait::async_trait;
 use chrono::Utc;
 use systemprompt_database::DbPool;
-use systemprompt_extension::brain::{
-    BrainModelClient, DynBrainSink, FactConsolidator,
-};
+use systemprompt_extension::brain::{BrainModelClient, DynBrainSink, FactConsolidator};
 use systemprompt_manifest::profile::BrainProfile;
 use systemprompt_provider_contracts::JobScope;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderError, ProviderResult};

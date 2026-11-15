@@ -27,9 +27,9 @@ use std::sync::Arc;
 
 use systemprompt_extension::brain::{FactConsolidator, Reranker};
 use systemprompt_extension::{
-    BrainAnalysis, EventFilter, FactExtractor, FactRetriever, FactValidator, Factory,
-    FactoryError, ImportanceModel, InjectionPolicy, OutcomeSignal, Resolved, Slot,
-    SlotEntry, SlotError, SlotOrder, SourceContent,
+    BrainAnalysis, EventFilter, FactExtractor, FactRetriever, FactValidator, Factory, FactoryError,
+    ImportanceModel, InjectionPolicy, OutcomeSignal, Resolved, Slot, SlotEntry, SlotError,
+    SlotOrder, SourceContent,
 };
 use systemprompt_identifiers::ExtensionId;
 
