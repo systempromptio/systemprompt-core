@@ -1,7 +1,7 @@
 //! `scheduled_jobs` rows across nodes: a scheduler start never deletes a row,
 //! keeps the operator's `enabled` flag, and never claims or runs a job it does
 //! not register; a row disabled by the operator does not tick; and
-//! [`JobPruneService`] lists the rows no enabled extension registers and
+//! [`JobPruneService`] lists the rows no linked job names and
 //! deletes exactly the rows it is handed. These tests write `scheduled_jobs`
 //! and join the serialized `scheduler-jobs-db` nextest group.
 
@@ -11,7 +11,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::JobName;
+use systemprompt_identifiers::{ExtensionId, JobName};
 use systemprompt_manifest::services::UnlistedJobs;
 use systemprompt_scheduler::{
     EnabledExtensions, JobConfig, JobPruneService, JobRepository, SchedulerConfig,
@@ -266,9 +266,7 @@ mod prune_db {
     }
 
     async fn service(pool: &DbPool) -> JobPruneService {
-        let app_ctx = test_app_context(pool, &test_database_url());
-        let enabled = EnabledExtensions::of(&app_ctx).expect("enabled extensions");
-        JobPruneService::new(JobRepository::new(pool), &enabled)
+        JobPruneService::new(JobRepository::new(pool))
     }
 
     #[tokio::test]
@@ -326,5 +324,39 @@ mod prune_db {
             repo.find_job(&registered).await.expect("find").is_some(),
             "a registered row survives even when named"
         );
+    }
+
+    #[tokio::test]
+    async fn a_job_whose_extension_this_profile_disables_is_kept() {
+        let pool = test_db_pool().await;
+        let repo = SchedulerRepository::new(&pool);
+        let owned = JobName::new(NODE_B_JOB);
+        repo.upsert_job(&owned, FAR_SCHEDULE, true)
+            .await
+            .expect("seed row");
+        let registry = systemprompt_extension::ExtensionRegistry::discover()
+            .expect("discover extensions");
+        let pruning_profile = EnabledExtensions::resolve(
+            &registry,
+            &[ExtensionId::new(crate::test_extension::TEST_JOBS_OWNER)],
+        )
+        .expect("resolve with the test extension disabled");
+        assert!(
+            !pruning_profile.contains(crate::test_extension::TEST_JOBS_OWNER),
+            "the pruning profile disables the job's extension"
+        );
+
+        let prune = service(&pool).await;
+        let listed = prune.unregistered().await.expect("list");
+        assert!(
+            listed.iter().all(|row| row.job_name != owned),
+            "a linked job whose extension is disabled here is never listed"
+        );
+        let deleted = prune
+            .delete(std::slice::from_ref(&owned))
+            .await
+            .expect("prune");
+        assert_eq!(deleted, 0, "a linked job's row is never deleted");
+        assert!(repo.find_job(&owned).await.expect("find").is_some());
     }
 }

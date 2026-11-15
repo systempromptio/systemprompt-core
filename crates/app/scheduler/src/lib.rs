@@ -11,8 +11,8 @@
 //!   jobs that iterate them.
 //! - A [`JobExecutionService`] that runs jobs on demand outside the cron loop
 //!   and records each run.
-//! - A [`JobPruneService`] that retires `scheduled_jobs` rows no enabled
-//!   extension in this binary registers, on an operator's request. A node's
+//! - A [`JobPruneService`] that retires `scheduled_jobs` rows no job linked
+//!   into this binary names, on an operator's request. A node's
 //!   boot never deletes a row; it schedules the jobs it registers and ignores
 //!   the rest.
 //! - Process- and database-level service reconciliation primitives
@@ -72,10 +72,10 @@ pub use repository::{
     JobRepository, LicenceCheckinRepository, LicenceCheckinState, LockKeyCollision,
     SchedulerRepository, find_lock_key_collision,
 };
-pub use services::JobPruneService;
 pub use services::{
     ApiListenerStop, DbServiceRecord, DesiredStatus, EnabledExtensions, JobBatchReport,
-    JobExecutionService, JobRunReport, JobSelection, OrphanCleanupReport, OrphanDisposition,
+    JobExecutionService, JobPruneService, JobRunReport, JobSelection, OrphanCleanupReport,
+    OrphanDisposition,
     OrphanOutcome, ReconciliationResult, RestartPlan, RestartScope, RestartTarget, SchedulerHandle,
     SchedulerService, SchedulerStartup, ServiceAction, ServiceConfig, ServiceManagementService,
     ServiceReconciler, ServiceSnapshot, ServiceStateVerifier, ServiceType, StartupPlan,

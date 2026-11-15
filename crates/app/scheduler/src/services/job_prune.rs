@@ -2,11 +2,12 @@
 //!
 //! A node's boot never deletes a row, so a job that no build registers any
 //! longer keeps its row until an operator removes it. [`JobPruneService`]
-//! computes those rows against the jobs the enabled extensions of *this*
-//! binary register and deletes exactly the rows it listed. It is therefore
-//! correct only from a binary and profile that compose every capability the
-//! cluster runs; a row another node's composition still registers would
-//! otherwise be listed.
+//! computes those rows against every job linked into *this* binary, whether
+//! or not this profile enables the owning extension, and deletes exactly the
+//! rows it listed. A job whose extension is disabled here but enabled on
+//! another node is therefore never listed. It is correct only from a binary
+//! that links every capability the cluster runs; a row only another binary
+//! links would otherwise be listed.
 //!
 //! An empty registration set lists and deletes nothing: an inventory that
 //! failed to load is never read as "every job is retired".
@@ -17,14 +18,14 @@
 use std::collections::HashSet;
 
 use systemprompt_identifiers::JobName;
+use systemprompt_traits::registered_jobs;
 
 use crate::error::SchedulerResult;
 use crate::models::ScheduledJob;
 use crate::repository::JobRepository;
-use crate::services::EnabledExtensions;
 
-/// Lists and deletes the `scheduled_jobs` rows no enabled extension in this
-/// binary registers.
+/// Lists and deletes the `scheduled_jobs` rows no job linked into this binary
+/// names.
 #[derive(Debug, Clone)]
 pub struct JobPruneService {
     repository: JobRepository,
@@ -33,8 +34,10 @@ pub struct JobPruneService {
 
 impl JobPruneService {
     #[must_use]
-    pub fn new(repository: JobRepository, enabled: &EnabledExtensions) -> Self {
-        let registered = enabled.jobs().map(|job| JobName::new(job.name())).collect();
+    pub fn new(repository: JobRepository) -> Self {
+        let registered = registered_jobs()
+            .map(|registration| JobName::new(registration.job.name()))
+            .collect();
         Self {
             repository,
             registered,

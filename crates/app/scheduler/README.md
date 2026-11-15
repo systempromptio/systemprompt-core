@@ -82,8 +82,10 @@ whose owning extension the profile leaves enabled. Start never deletes a
 database keep each other's rows, `enabled` flags and run history, and a node
 never claims or runs a job it does not register. A tick skips a job whose row an
 operator disabled (`infra jobs disable`). Rows no build registers any longer are
-removed by `infra jobs prune`, run from a binary and profile that compose every
-capability the cluster runs.
+removed by `infra jobs prune`, which keeps every job linked into the binary
+(including jobs whose extension the profile disables) and is run from a binary
+that links every capability the cluster runs. A manual `infra jobs run` runs a
+job whatever its `enabled` flag.
 
 A `cluster` job takes a Postgres advisory lock for its run, and a replica that
 reaches the same tick within 900 ms of the recorded run skips it. The lock is

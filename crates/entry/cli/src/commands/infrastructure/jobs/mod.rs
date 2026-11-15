@@ -34,7 +34,12 @@ pub enum JobsCommands {
     #[command(about = "Show detailed information about a job")]
     Show(show::ShowArgs),
 
-    #[command(about = "Run a scheduled job manually")]
+    #[command(
+        about = "Run a scheduled job manually",
+        long_about = "Runs the named jobs now. A manual run is an explicit operator act and runs \
+                      a job whatever its enabled flag; `infra jobs disable` governs scheduled \
+                      runs only."
+    )]
     Run(run::RunArgs),
 
     #[command(about = "View job execution history")]
@@ -43,17 +48,17 @@ pub enum JobsCommands {
     #[command(about = "Enable a job")]
     Enable(enable::EnableArgs),
 
-    #[command(about = "Disable a job")]
+    #[command(about = "Disable a job's scheduled runs (a manual run still runs it)")]
     Disable(disable::DisableArgs),
 
     #[command(
-        about = "Delete scheduled_jobs rows no enabled extension in this binary registers",
-        long_about = "Lists the scheduled_jobs rows that no extension enabled in this binary and \
-                      profile registers, and deletes them after confirmation (--dry-run only \
-                      lists). A node's boot never deletes a row, so this is how a retired job's \
-                      row is removed. Run it from a binary and profile that compose every \
-                      capability the cluster runs: a row registered only by another node's \
-                      composition would otherwise be deleted."
+        about = "Delete scheduled_jobs rows no job linked into this binary names",
+        long_about = "Lists the scheduled_jobs rows that no job linked into this binary names, \
+                      and deletes them after confirmation (--dry-run only lists). A job whose \
+                      extension this profile disables is still linked and is never listed. A \
+                      node's boot never deletes a row, so this is how a retired job's row is \
+                      removed. Run it from a binary that links every capability the cluster \
+                      runs: a row only another binary links would otherwise be deleted."
     )]
     Prune(prune::PruneArgs),
 }

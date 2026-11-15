@@ -6,8 +6,9 @@
 //! on the same tick. [`JobLockRepository::try_acquire`] excludes the other
 //! replicas while one runs the job: they observe a held lock and skip. The
 //! lock ends with the run, so it does not by itself make a tick run once; see
-//! `services::scheduling::claim` for the de-duplication window after it. [`JobLockRepository::acquire_within`] is the waiting form a manual
-//! run takes, polling the same lock until its deadline.
+//! `services::scheduling::claim` for the de-duplication window after it.
+//! [`JobLockRepository::acquire_within`] is the waiting form a manual run
+//! takes, polling the same lock until its deadline.
 //!
 //! Advisory locks are *session-scoped* — the connection that called
 //! `pg_advisory_lock` is the only one that can release it. [`JobLockGuard`]

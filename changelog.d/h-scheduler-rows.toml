@@ -11,7 +11,7 @@ text = "`SchedulerRepository::delete_jobs_not_in` and `JobRepository::delete_job
 [[crate]]
 name = "systemprompt-scheduler"
 section = "Added"
-text = "`JobPruneService` lists the `scheduled_jobs` rows no enabled extension in this binary registers and deletes exactly the rows it is given; an empty registration set lists and deletes nothing."
+text = "`JobPruneService` lists the `scheduled_jobs` rows no job linked into this binary names (a job whose extension the profile disables is kept) and deletes exactly the rows it is given; an empty registration set lists and deletes nothing."
 
 [[crate]]
 name = "systemprompt-scheduler"
@@ -21,4 +21,14 @@ text = "`upsert_job` refreshes the schedule on conflict and keeps the stored `en
 [[crate]]
 name = "systemprompt-cli"
 section = "Added"
-text = "`infra jobs prune [--dry-run] [--yes]` deletes the `scheduled_jobs` rows no enabled extension in this binary registers after confirmation, and refuses an implicitly selected cloud profile. Run it from a binary and profile that compose every capability the cluster runs. `infra jobs list` and `infra jobs show` report rows this node does not register with `registered = false`."
+text = "`infra jobs prune [--dry-run] [--yes]` deletes, after confirmation, the `scheduled_jobs` rows no job linked into this binary names; a job whose extension the profile disables is kept. It refuses an implicitly selected cloud profile and is run from a binary that links every capability the cluster runs."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Changed"
+text = "`infra jobs disable` stops a job's scheduled runs and the setting survives restarts. A manual `infra jobs run` is an explicit operator act and runs a job whatever its `enabled` flag."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Changed"
+text = "`infra jobs list` and `infra jobs show` report `scheduled_jobs` rows this binary does not register, with `registered = false`; `infra jobs list` now reads the database."

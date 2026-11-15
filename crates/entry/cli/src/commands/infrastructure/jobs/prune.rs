@@ -2,10 +2,11 @@
 //!
 //! A node's boot never deletes a `scheduled_jobs` row, so a job no build
 //! registers any longer keeps its row until this command removes it. The
-//! command lists the rows no enabled extension in this binary registers and,
+//! command lists the rows no job linked into this binary names and,
 //! unless `--dry-run` is given, deletes exactly those rows after the operator
-//! confirms. It judges against this binary and profile alone, so it is run
-//! from one that composes every capability the cluster runs.
+//! confirms. A job whose extension this profile disables is still linked and
+//! is kept. It judges against this binary alone, so it is run from one that
+//! links every capability the cluster runs.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,7 +14,7 @@
 use anyhow::{Context, Result};
 use clap::Args;
 use systemprompt_identifiers::JobName;
-use systemprompt_scheduler::{EnabledExtensions, JobPruneService, JobRepository, ScheduledJob};
+use systemprompt_scheduler::{JobPruneService, JobRepository, ScheduledJob};
 
 use super::types::PrunedJob;
 use crate::context::CommandContext;
@@ -31,8 +32,7 @@ pub struct PruneArgs {
 
 pub(super) async fn execute(args: PruneArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let app = ctx.app_context().await?;
-    let enabled = EnabledExtensions::of(app)?;
-    let service = JobPruneService::new(JobRepository::new(app.db_pool()), &enabled);
+    let service = JobPruneService::new(JobRepository::new(app.db_pool()));
     let rows = service
         .unregistered()
         .await
@@ -47,7 +47,7 @@ pub(super) async fn execute(args: PruneArgs, ctx: &CommandContext) -> Result<Com
     require_confirmation(
         ctx.prompter(),
         &format!(
-            "Delete {} scheduled_jobs row(s) no enabled extension in this binary registers? \
+            "Delete {} scheduled_jobs row(s) no job linked into this binary names? \
              This cannot be undone.",
             names.len()
         ),
