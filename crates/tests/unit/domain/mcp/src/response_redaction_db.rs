@@ -124,9 +124,10 @@ async fn the_ingest_outcome_carries_the_redacted_body_so_no_read_back_is_needed(
     assert!(text.contains(REDACTION_MARKER));
     assert_eq!(outcome.stored_body, redacted);
 
+    let owner = ctx().user_id().clone();
     let stored = ingest
         .artifacts()
-        .find_by_id(&outcome.artifact_id)
+        .find_owned(&outcome.artifact_id, &owner)
         .await
         .unwrap()
         .expect("artifact stored");

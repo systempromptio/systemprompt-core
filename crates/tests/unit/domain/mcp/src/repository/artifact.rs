@@ -17,6 +17,13 @@ use systemprompt_models::RequestContext;
 use systemprompt_models::mcp::ExecutionSource;
 use systemprompt_test_fixtures::test_db_pool;
 
+const OWNER: &str = "11111111-1111-4111-8111-111111111abc";
+const STRANGER: &str = "22222222-2222-4222-8222-222222222abc";
+
+fn owner() -> UserId {
+    UserId::new(OWNER)
+}
+
 fn unique(prefix: &str) -> String {
     format!("{prefix}-{}", uuid::Uuid::new_v4().simple())
 }
@@ -70,7 +77,7 @@ async fn full_artifact(
     );
     create.context_id =
         Some(ContextId::try_new("00000000-0000-4000-8000-000000000abc").expect("valid ContextId"));
-    create.user_id = Some(UserId::new("11111111-1111-4111-8111-111111111abc"));
+    create.user_id = Some(owner());
     create.title = Some("Report".to_owned());
     create.metadata = Some(serde_json::json!({"k": "v"}));
     create.shape = ArtifactShape {
@@ -87,11 +94,11 @@ async fn repository_new_succeeds() {
 }
 
 #[tokio::test]
-async fn find_by_id_random_returns_none() {
+async fn find_owned_random_returns_none() {
     let db = test_db_pool().await;
     let repo = McpArtifactRepository::new(&db);
     let id = ArtifactId::new(unique("art"));
-    assert!(repo.find_by_id(&id).await.unwrap().is_none());
+    assert!(repo.find_owned(&id, &owner()).await.unwrap().is_none());
 }
 
 #[tokio::test]
@@ -128,7 +135,7 @@ async fn cleanup_expired_reaps_a_past_due_artifact() {
         reaped >= 1,
         "cleanup_expired deletes at least the seeded past-due artifact"
     );
-    assert!(repo.find_by_id(&id).await.unwrap().is_none());
+    assert!(repo.find_owned(&id, &owner()).await.unwrap().is_none());
 }
 
 #[tokio::test]
@@ -141,7 +148,7 @@ async fn save_then_find_round_trips_all_fields() {
     repo.save(&create).await.unwrap();
 
     let found = repo
-        .find_by_id(&id)
+        .find_owned(&id, &owner())
         .await
         .unwrap()
         .expect("saved artifact is found");
@@ -172,7 +179,11 @@ async fn save_on_conflict_updates_mutable_fields() {
     updated.metadata = Some(serde_json::json!({"k": "v2"}));
     repo.save(&updated).await.unwrap();
 
-    let found = repo.find_by_id(&id).await.unwrap().expect("still present");
+    let found = repo
+        .find_owned(&id, &owner())
+        .await
+        .unwrap()
+        .expect("still present");
     assert_eq!(found.title.as_deref(), Some("Revised"));
     assert_eq!(found.data, serde_json::json!({"body": "world"}));
     assert_eq!(found.metadata, Some(serde_json::json!({"k": "v2"})));
@@ -240,7 +251,11 @@ async fn enrich_correlation_fills_only_missing_keys() {
     .await
     .unwrap();
 
-    let found = repo.find_by_id(&id).await.unwrap().expect("present");
+    let found = repo
+        .find_owned(&id, &owner())
+        .await
+        .unwrap()
+        .expect("present");
     assert_eq!(
         found.session_id.as_ref().map(SessionId::as_str),
         Some("original-session")
@@ -288,11 +303,11 @@ async fn delete_returns_true_for_existing_artifact() {
         .unwrap();
 
     assert!(repo.delete(&id).await.unwrap());
-    assert!(repo.find_by_id(&id).await.unwrap().is_none());
+    assert!(repo.find_owned(&id, &owner()).await.unwrap().is_none());
 }
 
 #[tokio::test]
-async fn find_by_id_hides_expired_artifact() {
+async fn find_owned_hides_expired_artifact() {
     use chrono::Duration;
 
     let db = test_db_pool().await;
@@ -302,5 +317,54 @@ async fn find_by_id_hides_expired_artifact() {
     create.expires_at = Some(Utc::now() - Duration::hours(1));
     repo.save(&create).await.unwrap();
 
-    assert!(repo.find_by_id(&id).await.unwrap().is_none());
+    assert!(repo.find_owned(&id, &owner()).await.unwrap().is_none());
+}
+
+#[tokio::test]
+async fn find_owned_returns_an_artifact_only_to_its_owner() {
+    let db = test_db_pool().await;
+    let repo = McpArtifactRepository::new(&db);
+    let id = ArtifactId::new(unique("art"));
+    repo.save(&full_artifact(&db, &id, &unique("srv")).await)
+        .await
+        .unwrap();
+
+    assert!(
+        repo.find_owned(&id, &UserId::new(STRANGER))
+            .await
+            .unwrap()
+            .is_none(),
+        "another user does not see an unexpired artifact"
+    );
+    let found = repo
+        .find_owned(&id, &owner())
+        .await
+        .unwrap()
+        .expect("the owner sees the artifact");
+    assert_eq!(found.artifact_id, id);
+}
+
+#[tokio::test]
+async fn find_owned_returns_an_ownerless_artifact_to_no_user() {
+    let db = test_db_pool().await;
+    let repo = McpArtifactRepository::new(&db);
+    let id = ArtifactId::new(unique("art"));
+    let mut create = full_artifact(&db, &id, &unique("srv")).await;
+    create.user_id = None;
+    repo.save(&create).await.unwrap();
+
+    assert!(repo.find_owned(&id, &owner()).await.unwrap().is_none());
+    assert!(
+        repo.find_owned(&id, &UserId::new(STRANGER))
+            .await
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        repo.find_by_execution_id(&create.mcp_execution_id)
+            .await
+            .unwrap()
+            .is_some(),
+        "the ownerless row exists"
+    );
 }

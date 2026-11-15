@@ -1,0 +1,9 @@
+[root]
+section = "Fixed"
+area = "MCP"
+text = "an MCP artifact resource (`ui://<server>/artifact/<id>`) is read only by the user it was stored for; any other caller receives the same answer as for an unknown artifact, and an artifact stored without an owner is read by no one."
+
+[[crate]]
+name = "systemprompt-mcp"
+section = "Breaking"
+text = "`read_artifact_resource` takes the caller's `UserId`, and `McpArtifactRepository::find_by_id` is replaced by `find_owned(artifact_id, owner)`. Migrate by passing the authenticated caller."

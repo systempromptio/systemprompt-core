@@ -12,9 +12,10 @@ use systemprompt_identifiers::{
 };
 
 impl McpArtifactRepository {
-    pub async fn find_by_id(
+    pub async fn find_owned(
         &self,
         artifact_id: &ArtifactId,
+        owner: &UserId,
     ) -> McpDomainResult<Option<McpArtifactRecord>> {
         Ok(sqlx::query_as!(
             McpArtifactRow,
@@ -47,8 +48,10 @@ impl McpArtifactRepository {
             FROM mcp_artifacts
             WHERE (expires_at IS NULL OR expires_at > NOW())
               AND artifact_id = $1
+              AND user_id = $2
             "#,
-            artifact_id.as_str()
+            artifact_id.as_str(),
+            owner.as_str()
         )
         .fetch_optional(&*self.pool)
         .await?
