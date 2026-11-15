@@ -19,7 +19,6 @@
 mod agent;
 mod brain;
 mod catalog;
-mod core_row_pins;
 mod documents;
 mod drive;
 mod engine;

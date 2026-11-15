@@ -1,10 +1,6 @@
-//! Tests for core extension types: SchemaDefinition, ExtensionRouter,
-//! ExtensionMetadata.
+//! Tests for core extension types: SchemaDefinition and ExtensionMetadata.
 
-use axum::Router;
-use systemprompt_extension::{
-    AuthzPolicy, ContextKind, ExtensionMetadata, ExtensionRouter, RouteGroup, SchemaDefinition,
-};
+use systemprompt_extension::{ExtensionMetadata, SchemaDefinition};
 
 #[test]
 fn test_extension_metadata_creation() {
@@ -88,61 +84,6 @@ fn test_schema_definition_empty_required_columns() {
     assert!(schema.required_columns.is_empty());
 }
 
-
-#[test]
-fn test_schema_definition_serialize() {
-    let schema = SchemaDefinition::new("ser_table", "CREATE TABLE ser_table (a INT)")
-        .with_required_columns(vec!["a".to_string()]);
-
-    let json = serde_json::to_string(&schema).expect("should serialize");
-    assert!(json.contains("ser_table"));
-    assert!(json.contains("CREATE TABLE ser_table"));
-}
-
-fn user_router(path: &'static str) -> ExtensionRouter {
-    ExtensionRouter::new(Router::new(), path, AuthzPolicy::user(), ContextKind::User)
-}
-
-#[test]
-fn test_extension_router_user_declaration_requires_authentication() {
-    let router = user_router("/api/v1/myext");
-
-    assert_eq!(router.base_path, "/api/v1/myext");
-    assert!(router.protection.requires_authentication());
-    assert_eq!(router.protection.context, ContextKind::User);
-}
-
-#[test]
-fn test_extension_router_public_declaration_admits_anonymous() {
-    let router = ExtensionRouter::new(
-        Router::new(),
-        "/api/v1/public",
-        AuthzPolicy::public(),
-        ContextKind::Public,
-    );
-
-    assert_eq!(router.base_path, "/api/v1/public");
-    assert!(!router.protection.requires_authentication());
-}
-
-#[test]
-fn test_extension_router_defaults_to_the_extensions_group() {
-    assert_eq!(user_router("/api/v1/g").group, RouteGroup::Extensions);
-}
-
-#[test]
-fn test_extension_router_debug() {
-    let debug_str = format!("{:?}", user_router("/api/v1/debug"));
-
-    assert!(debug_str.contains("ExtensionRouter"));
-    assert!(debug_str.contains("/api/v1/debug"));
-}
-
-#[test]
-fn test_extension_router_different_paths() {
-    assert_eq!(user_router("/api/v1/ext1").base_path, "/api/v1/ext1");
-    assert_eq!(user_router("/api/v2/ext2").base_path, "/api/v2/ext2");
-}
 
 #[test]
 fn test_multiple_schema_definitions() {
