@@ -4,7 +4,8 @@
 //! without a foreign key, because the column also holds sentinel principals
 //! and the identifiers a session column means differ table to table. Each
 //! owning crate therefore declares its tables in the
-//! [`systemprompt_extension::purge`] registry and the delete runs them here,
+//! `contribute` (`Contributions::user_purge`) and the delete runs the admitted
+//! set ([`AdmittedPurge`]) here,
 //! inside the same transaction that deletes the `users` row. Content
 //! the user's rows referenced but did not own — an artifact body shared by
 //! digest — is declared as an orphan sweep: the keys the user's rows reference
@@ -19,54 +20,51 @@
 
 use sqlx::{AssertSqlSafe, Postgres, Transaction};
 use systemprompt_database::admin::SafeIdentifier;
-use systemprompt_extension::purge::{
-    OrphanSweep, UserPurgeTable, registered_orphan_sweeps, registered_user_purge_tables,
-};
-use systemprompt_extension::{orphan_sweeps, user_purge_tables};
-use systemprompt_identifiers::UserId;
+use systemprompt_extension::{AdmittedPurge, OrphanSweep, UserPurgeTable};
+use systemprompt_identifiers::{ExtensionId, UserId};
 
 use crate::error::{Result, UserError};
 use crate::repository::UserRepository;
 
-// Why: core's own user-keyed tables without a foreign key to `users`, one
-// entry per owning crate's table. `ai_requests` cascades to its children;
-// `user_sessions` is deleted by the caller first because `ai_requests` and
-// `user_contexts` point at it with SET NULL and must go before the session.
-user_purge_tables!(
-    "systemprompt-core",
-    [
-        ("ai_requests", "user_id"),
-        ("mcp_artifacts", "user_id"),
-        ("mcp_tool_executions", "user_id"),
-        ("mcp_sessions", "user_id"),
-        ("mcp_external_sessions", "user_id"),
-        ("governance_decisions", "user_id"),
-        ("agent_tasks", "user_id"),
-        ("task_messages", "user_id"),
-        ("files", "user_id"),
-        ("event_outbox", "user_id"),
-        ("logs", "user_id"),
-        ("user_rate_limit_buckets", "user_id"),
-        ("oauth_jti_revocations", "user_id"),
-        ("sso_login_events", "user_id"),
-    ]
-);
+pub(crate) const USERS_OWNER: &str = "users";
 
-orphan_sweeps!(
-    "systemprompt-core",
-    [{
-        table: "artifact_payloads",
-        key: "sha256",
-        referenced_by: "mcp_artifacts",
-        via: "payload_sha256",
-        user_column: "user_id",
-    }]
-);
+pub(crate) const CORE_PURGE_TABLES: &[UserPurgeTable] = &[
+    purge_table("ai_requests"),
+    purge_table("mcp_artifacts"),
+    purge_table("mcp_tool_executions"),
+    purge_table("mcp_sessions"),
+    purge_table("mcp_external_sessions"),
+    purge_table("governance_decisions"),
+    purge_table("agent_tasks"),
+    purge_table("task_messages"),
+    purge_table("files"),
+    purge_table("event_outbox"),
+    purge_table("logs"),
+    purge_table("user_rate_limit_buckets"),
+    purge_table("oauth_jti_revocations"),
+    purge_table("sso_login_events"),
+];
+
+pub(crate) const CORE_ORPHAN_SWEEPS: &[OrphanSweep] = &[OrphanSweep {
+    table: "artifact_payloads",
+    key: "sha256",
+    referenced_by: "mcp_artifacts",
+    via: "payload_sha256",
+    user_column: "user_id",
+}];
+
+const fn purge_table(table: &'static str) -> UserPurgeTable {
+    UserPurgeTable {
+        table,
+        column: "user_id",
+        predicate: None,
+    }
+}
 
 /// How many rows one purge table holds for a user.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct PurgeCount {
-    pub owner: &'static str,
+    pub owner: ExtensionId,
     pub table: &'static str,
     pub rows: i64,
 }
@@ -142,36 +140,37 @@ impl UserRepository {
     pub(super) async fn purge_user_rows(
         tx: &mut Transaction<'_, Postgres>,
         id: &UserId,
+        plan: &AdmittedPurge,
     ) -> Result<Vec<PurgeCount>> {
         let mut sweeps = Vec::new();
-        for sweep in registered_orphan_sweeps() {
+        for (owner, sweep) in plan.sweeps() {
             let sql = sweep_sql(sweep)?;
             let keys: Vec<String> = sqlx::query_scalar(AssertSqlSafe(sql.candidates))
                 .bind(id.as_str())
                 .fetch_all(&mut **tx)
                 .await?;
-            sweeps.push((sweep, sql.delete, keys));
+            sweeps.push((owner, sweep, sql.delete, keys));
         }
         let mut removed = Vec::new();
-        for entry in registered_user_purge_tables() {
+        for (owner, entry) in plan.tables() {
             let sql = format!("DELETE {}", purge_where(entry)?);
             let result = sqlx::query(AssertSqlSafe(sql))
                 .bind(id.as_str())
                 .execute(&mut **tx)
                 .await?;
             removed.push(PurgeCount {
-                owner: entry.owner,
+                owner: owner.clone(),
                 table: entry.table,
                 rows: i64::try_from(result.rows_affected()).unwrap_or(i64::MAX),
             });
         }
-        for (sweep, delete, keys) in sweeps {
+        for (owner, sweep, delete, keys) in sweeps {
             let result = sqlx::query(AssertSqlSafe(delete))
                 .bind(keys)
                 .execute(&mut **tx)
                 .await?;
             removed.push(PurgeCount {
-                owner: sweep.owner,
+                owner: owner.clone(),
                 table: sweep.table,
                 rows: i64::try_from(result.rows_affected()).unwrap_or(i64::MAX),
             });
@@ -179,7 +178,11 @@ impl UserRepository {
         Ok(removed)
     }
 
-    pub async fn purge_preview(&self, id: &UserId) -> Result<Vec<PurgeCount>> {
+    pub async fn purge_preview(
+        &self,
+        id: &UserId,
+        plan: &AdmittedPurge,
+    ) -> Result<Vec<PurgeCount>> {
         let mut counts = Vec::new();
         let sessions: i64 = sqlx::query_scalar!(
             r#"SELECT COUNT(*) AS "count!" FROM user_sessions WHERE user_id = $1"#,
@@ -188,29 +191,29 @@ impl UserRepository {
         .fetch_one(&*self.pool)
         .await?;
         counts.push(PurgeCount {
-            owner: "systemprompt-core",
+            owner: ExtensionId::new(USERS_OWNER),
             table: "user_sessions",
             rows: sessions,
         });
-        for entry in registered_user_purge_tables() {
+        for (owner, entry) in plan.tables() {
             let sql = format!("SELECT COUNT(*) {}", purge_where(entry)?);
             let rows: i64 = sqlx::query_scalar(AssertSqlSafe(sql))
                 .bind(id.as_str())
                 .fetch_one(&*self.pool)
                 .await?;
             counts.push(PurgeCount {
-                owner: entry.owner,
+                owner: owner.clone(),
                 table: entry.table,
                 rows,
             });
         }
-        for sweep in registered_orphan_sweeps() {
+        for (owner, sweep) in plan.sweeps() {
             let rows: i64 = sqlx::query_scalar(AssertSqlSafe(sweep_sql(sweep)?.preview))
                 .bind(id.as_str())
                 .fetch_one(&*self.pool)
                 .await?;
             counts.push(PurgeCount {
-                owner: sweep.owner,
+                owner: owner.clone(),
                 table: sweep.table,
                 rows,
             });

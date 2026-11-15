@@ -25,6 +25,7 @@ mod provider;
 
 use std::fmt;
 use std::sync::Arc;
+use systemprompt_extension::AdmittedPurge;
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_traits::DynOwnerReassignment;
 
@@ -247,12 +248,16 @@ impl UserService {
         self.repository.assign_roles(id, roles).await
     }
 
-    pub async fn delete(&self, id: &UserId) -> Result<Vec<PurgeCount>> {
-        self.repository.delete(id).await
+    pub async fn delete(&self, id: &UserId, plan: &AdmittedPurge) -> Result<Vec<PurgeCount>> {
+        self.repository.delete(id, plan).await
     }
 
-    pub async fn purge_preview(&self, id: &UserId) -> Result<Vec<PurgeCount>> {
-        self.repository.purge_preview(id).await
+    pub async fn purge_preview(
+        &self,
+        id: &UserId,
+        plan: &AdmittedPurge,
+    ) -> Result<Vec<PurgeCount>> {
+        self.repository.purge_preview(id, plan).await
     }
 
     pub async fn cleanup_old_anonymous(&self, days: i32) -> Result<u64> {

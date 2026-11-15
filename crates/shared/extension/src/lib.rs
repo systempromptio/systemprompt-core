@@ -68,6 +68,7 @@
 pub use ::inventory as __inventory;
 
 pub mod admitted;
+pub mod admitted_purge;
 mod asset;
 pub mod authz;
 pub mod brain;
@@ -102,6 +103,7 @@ pub mod state;
 mod traits;
 
 pub use admitted::{Admitted, BuiltState, DeclaredCommands};
+pub use admitted_purge::AdmittedPurge;
 pub use asset::{AssetDefinition, AssetDefinitionBuilder, AssetPaths, AssetType};
 pub use authz::{AuthzPolicy, HandlerVerifier};
 pub use brain::{

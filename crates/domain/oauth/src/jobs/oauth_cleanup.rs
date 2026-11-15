@@ -59,4 +59,3 @@ impl Job for OauthCleanupJob {
     }
 }
 
-systemprompt_provider_contracts::submit_job!("oauth", &OauthCleanupJob);
