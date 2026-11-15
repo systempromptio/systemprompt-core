@@ -9,7 +9,7 @@ use clap::Args;
 use std::path::PathBuf;
 use systemprompt_analytics::CliSessionAnalyticsRepository;
 use systemprompt_database::DbPool;
-use systemprompt_extension::cli::{CliConfig, CommandOutput, OutputFormat};
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 use systemprompt_logging::CliService;
 
 use super::{ActiveSessionRow, LiveSessionsOutput};
@@ -46,16 +46,16 @@ pub struct LiveArgs {
 pub(super) async fn execute_with_pool(
     args: LiveArgs,
     pool: &DbPool,
-    config: &CliConfig,
+    host: &dyn CommandHost,
 ) -> Result<CommandOutput> {
     let repo = CliSessionAnalyticsRepository::new(pool);
-    execute_internal(args, &repo, config).await
+    execute_internal(args, &repo, host).await
 }
 
 async fn execute_internal(
     args: LiveArgs,
     repo: &CliSessionAnalyticsRepository,
-    config: &CliConfig,
+    host: &dyn CommandHost,
 ) -> Result<CommandOutput> {
     if let Some(ref path) = args.export {
         let output = fetch_live_sessions(repo, args.limit).await?;
@@ -67,7 +67,7 @@ async fn execute_internal(
         );
     }
 
-    if args.no_refresh || !config.is_interactive() {
+    if args.no_refresh || !host.output().is_interactive() {
         let output = fetch_live_sessions(repo, args.limit).await?;
         if output.sessions.is_empty() {
             CliService::warning("No active sessions");
@@ -87,7 +87,13 @@ async fn execute_internal(
         CliService::clear_screen();
 
         let output = fetch_live_sessions(repo, args.limit).await?;
-        render_output(&output, config);
+        host.render(
+            &CommandOutput::table_of(LIVE_SESSION_COLUMNS.to_vec(), &output.sessions)
+                .with_title("Live Sessions"),
+        );
+        if output.sessions.is_empty() {
+            CliService::warning("No active sessions");
+        }
 
         CliService::info(&format!(
             "\nRefreshing every {}s. Press Ctrl+C to exit.",
@@ -128,29 +134,4 @@ async fn fetch_live_sessions(
         sessions,
         timestamp: Utc::now().format("%Y-%m-%d %H:%M:%S").to_string(),
     })
-}
-
-fn render_output(output: &LiveSessionsOutput, config: &CliConfig) {
-    match config.output_format() {
-        OutputFormat::Json => CliService::json(output),
-        OutputFormat::Yaml => CliService::yaml(output),
-        OutputFormat::Table => {
-            CliService::section("Live Sessions");
-            let rows: Vec<Vec<String>> = output.sessions.iter().map(session_cells).collect();
-            CliService::table(&LIVE_SESSION_COLUMNS, &rows);
-            if output.sessions.is_empty() {
-                CliService::warning("No active sessions");
-            }
-        },
-    }
-}
-
-fn session_cells(row: &ActiveSessionRow) -> Vec<String> {
-    vec![
-        row.session.clone(),
-        row.user_type.clone(),
-        row.started_at.clone(),
-        row.duration_seconds.to_string(),
-        row.request_count.to_string(),
-    ]
 }

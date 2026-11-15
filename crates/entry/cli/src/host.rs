@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use systemprompt_extension::cli::{
-    BoxFuture, ChildSupervisor, CliConfig, CommandError, CommandHost, Prompter,
+    BoxFuture, ChildSupervisor, CliConfig, CommandError, CommandHost, CommandOutput, Prompter,
 };
 use systemprompt_extension::{Admitted, Resolved};
 use systemprompt_manifest::Profile;
@@ -76,5 +76,9 @@ impl CommandHost for CommandContext {
 
     fn children(&self) -> &dyn ChildSupervisor {
         &self.foreground_children
+    }
+
+    fn render(&self, output: &CommandOutput) {
+        crate::shared::render_result(output, &self.cli);
     }
 }

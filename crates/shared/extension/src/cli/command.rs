@@ -121,6 +121,11 @@ pub trait CliCommandLeaf: Args + DescribeCommand + Send + Sized + 'static {
 }
 
 /// What a command may ask of the CLI kernel.
+///
+/// [`CommandHost::render`] renders an intermediate output through the
+/// kernel's sink (a command that redraws until interrupted); the output a
+/// command returns is rendered once at exit. A command never writes its own
+/// renderer.
 pub trait CommandHost: Send + Sync {
     fn output(&self) -> &CliConfig;
     fn prompter(&self) -> &dyn Prompter;
@@ -129,4 +134,5 @@ pub trait CommandHost: Send + Sync {
     fn db(&self) -> BoxFuture<'_, Result<Arc<dyn DatabaseHandle>, CommandError>>;
     fn resolved(&self) -> BoxFuture<'_, Result<Resolved<'_>, CommandError>>;
     fn children(&self) -> &dyn ChildSupervisor;
+    fn render(&self, output: &CommandOutput);
 }
