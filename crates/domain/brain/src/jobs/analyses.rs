@@ -1,5 +1,6 @@
 //! [`BrainAnalysisJob`]: once a day, every core analysis and then every
-//! extension analysis reads the last day of history, and each draft that
+//! analysis contributed through the [`BrainSlot`](crate::contract::BrainSlot)
+//! reads the last day of history, and each draft that
 //! no open proposal already carries is stored as an open proposal.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -11,16 +12,16 @@ use std::time::Instant;
 use async_trait::async_trait;
 use chrono::{Duration, Utc};
 use systemprompt_database::DbPool;
-use systemprompt_extension::ExtensionContext;
-use systemprompt_extension::brain::{AnalysisWindow, BrainAnalysis, discover_brain_analyses};
+use systemprompt_extension::brain::{AnalysisWindow, BrainAnalysis};
 use systemprompt_manifest::profile::BrainProfile;
-use systemprompt_provider_contracts::{JobScope, submit_job};
+use systemprompt_provider_contracts::JobScope;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderError, ProviderResult};
 
 use crate::analyses::{
     AnalysisRepository, BloatAnalysis, BloatThresholds, CoverageAnalysis, CoverageThresholds,
     RelevanceAnalysis, RelevanceThresholds, fresh_drafts,
 };
+use crate::contract::BrainSeams;
 use crate::repository::{BrainRepositories, ProposalRepository};
 
 const OPEN_SCAN: i64 = 1000;
@@ -42,12 +43,8 @@ fn analyses(repos: &BrainRepositories, ctx: &JobContext) -> Vec<Arc<dyn BrainAna
         )),
         Arc::new(CoverageAnalysis::new(store, CoverageThresholds::default())),
     ];
-    if let Ok(extensions) = ctx.get::<Arc<dyn ExtensionContext>>() {
-        all.extend(
-            discover_brain_analyses()
-                .iter()
-                .map(|r| (r.factory)(extensions.as_ref())),
-        );
+    if let Ok(seams) = ctx.get::<Arc<BrainSeams>>() {
+        all.extend(seams.analyses.iter().cloned());
     }
     all
 }
@@ -124,5 +121,3 @@ impl Job for BrainAnalysisJob {
         Ok(result.with_stats(stored, failed).with_duration(duration))
     }
 }
-
-submit_job!("brain", &BrainAnalysisJob);

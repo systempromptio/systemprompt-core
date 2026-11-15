@@ -1,12 +1,12 @@
 //! [`BrainConsolidateJob`]: scaffolding, inactive unless an extension opts
 //! in. Once a day it offers each declared kind's facts, grouped by subject,
-//! to the first registered [`FactConsolidator`] that handles the kind, and
+//! to the first contributed [`FactConsolidator`] that handles the kind, and
 //! enters every candidate it answers as a `proposed` fact.
 //!
 //! The job does nothing, and says so once per process, unless all of these
 //! hold: `brain.consolidation.enabled` is `true`, at least one consolidator
-//! is registered, the job context carries a brain model client and the
-//! brain sink. Core registers no consolidator and makes no model call
+//! is contributed through the `BrainSlot`, the job context carries a brain
+//! model client and the brain sink. Core contributes no consolidator and makes no model call
 //! here; the consolidator decides whether to call the model it is handed,
 //! under the day's remaining token budget.
 //!
@@ -20,19 +20,19 @@ use std::time::Instant;
 use async_trait::async_trait;
 use chrono::Utc;
 use systemprompt_database::DbPool;
-use systemprompt_extension::ExtensionContext;
 use systemprompt_extension::brain::{
-    BrainModelClient, DynBrainSink, FactConsolidator, discover_brain_consolidators,
+    BrainModelClient, DynBrainSink, FactConsolidator,
 };
 use systemprompt_manifest::profile::BrainProfile;
-use systemprompt_provider_contracts::{JobScope, submit_job};
+use systemprompt_provider_contracts::JobScope;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderError, ProviderResult};
 
 use super::consolidate_run::{ConsolidationRun, RunTotals};
+use crate::contract::BrainSeams;
 use crate::pipeline::metrics;
 use crate::repository::{BrainRepositories, ExtractionRepository};
 
-/// Enters consolidated facts proposed by registered consolidators.
+/// Enters consolidated facts proposed by contributed consolidators.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct BrainConsolidateJob;
 
@@ -49,7 +49,7 @@ impl fmt::Display for ConsolidationInactive {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
             Self::Disabled => "disabled",
-            Self::NoConsolidator => "no consolidator registered",
+            Self::NoConsolidator => "no consolidator contributed",
             Self::NoModelClient => "no brain model client",
             Self::NoSink => "no brain sink",
         })
@@ -82,13 +82,8 @@ impl fmt::Debug for ConsolidationParts {
 impl ConsolidationParts {
     fn from_context(ctx: &JobContext) -> Self {
         let consolidators = ctx
-            .get::<Arc<dyn ExtensionContext>>()
-            .map(|extensions| {
-                discover_brain_consolidators()
-                    .iter()
-                    .map(|r| (r.factory)(extensions.as_ref()))
-                    .collect()
-            })
+            .get::<Arc<BrainSeams>>()
+            .map(|seams| seams.consolidators.clone())
             .unwrap_or_default();
         Self {
             consolidators,
@@ -188,7 +183,7 @@ impl Job for BrainConsolidateJob {
     }
 
     fn description(&self) -> &'static str {
-        "Offers each kind's facts to registered consolidators and enters their answers as proposed facts; inactive until an extension opts in"
+        "Offers each kind's facts to contributed consolidators and enters their answers as proposed facts; inactive until an extension opts in"
     }
 
     fn schedule(&self) -> &'static str {
@@ -203,5 +198,3 @@ impl Job for BrainConsolidateJob {
         Self::run_with(ctx, ConsolidationParts::from_context(ctx)).await
     }
 }
-
-submit_job!("brain", &BrainConsolidateJob);
