@@ -7,7 +7,7 @@
 
 use futures_util::future::BoxFuture;
 use sqlx::PgConnection;
-use systemprompt_extension::user_purge_tables;
+use systemprompt_extension::UserPurgeTable;
 
 fn held_among<'c>(
     conn: &'c mut PgConnection,
@@ -27,7 +27,8 @@ fn held_among<'c>(
 
 crate::register_blob_holder!("issue_report_attachments", held_among);
 
-user_purge_tables!(
-    "systemprompt-files",
-    [("issue_reports", "reporter_user_id")]
-);
+pub(crate) const ISSUE_USER_PURGES: &[UserPurgeTable] = &[UserPurgeTable {
+    table: "issue_reports",
+    column: "reporter_user_id",
+    predicate: None,
+}];

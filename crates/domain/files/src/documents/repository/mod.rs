@@ -66,6 +66,8 @@ mod text_index;
 mod trash;
 mod write_acks;
 
+pub(crate) use purge::DOCUMENT_USER_PURGES;
+
 use std::sync::Arc;
 
 use sqlx::PgPool;
