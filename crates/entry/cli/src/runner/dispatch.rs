@@ -100,7 +100,7 @@ pub(super) async fn dispatch_command(selected: Selected, ctx: &CommandContext) -
         Selected::Kernel(command) => match *command {
             args::Commands::Core(cmd) => Box::pin(core::execute(cmd, ctx)).await?,
             args::Commands::Infra(cmd) => infrastructure::execute(cmd, ctx).await?,
-            args::Commands::Admin(cmd) => Box::pin(admin::execute(cmd, ctx)).await?,
+            args::Commands::Admin(cmd) => Box::pin(admin::execute(*cmd, ctx)).await?,
             args::Commands::Web(cmd) => web::execute(cmd, ctx)?,
             args::Commands::Plugins(cmd) => {
                 Box::pin(plugins::execute(cmd, ctx)).await?;

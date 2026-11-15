@@ -248,17 +248,17 @@ fn attach(
 ) -> Result<Command, RegistryError> {
     let Some((head, tail)) = rest.split_first() else {
         if parent.find_subcommand(child.get_name()).is_some() {
-            return Err(match registered_parent {
-                Some(owner) => RegistryError::ShadowsGroup {
+            return Err(registered_parent.map_or_else(
+                || RegistryError::ShadowsKernel {
+                    path: entry.path(),
+                    group: entry.group(),
+                },
+                |owner| RegistryError::ShadowsGroup {
                     path: entry.path(),
                     group: entry.group(),
                     parent: owner.group(),
                 },
-                None => RegistryError::ShadowsKernel {
-                    path: entry.path(),
-                    group: entry.group(),
-                },
-            });
+            ));
         }
         return Ok(parent.subcommand(child));
     };

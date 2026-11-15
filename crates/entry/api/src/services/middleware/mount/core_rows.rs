@@ -169,8 +169,8 @@ impl CoreDeclaration {
     #[must_use]
     pub const fn route_pins(self) -> &'static [RoutePin] {
         match self {
-            Self::ContentAuthenticated => &[RoutePin::new(PinnedMethod::Post, "/links/generate")],
-            Self::ContentRedirect => &[RoutePin::new(PinnedMethod::Get, "/r")],
+            Self::ContentAuthenticated => CONTENT_AUTHENTICATED_PINS,
+            Self::ContentRedirect => CONTENT_REDIRECT_PINS,
             Self::AgentProxy
             | Self::AgentRuns
             | Self::Slack
@@ -184,3 +184,8 @@ impl CoreDeclaration {
         }
     }
 }
+
+const CONTENT_AUTHENTICATED_PINS: &[RoutePin] =
+    &[RoutePin::new(PinnedMethod::Post, "/links/generate")];
+
+const CONTENT_REDIRECT_PINS: &[RoutePin] = &[RoutePin::new(PinnedMethod::Get, "/r")];

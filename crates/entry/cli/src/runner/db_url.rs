@@ -14,15 +14,31 @@ use super::args::Commands;
 use crate::commands::{admin, core, infrastructure};
 use crate::descriptor::DbUrlRouting;
 
+impl admin::AdminCommands {
+    const fn db_url_routing(&self) -> DbUrlRouting {
+        match self {
+            Self::Setup(_)
+            | Self::Bootstrap(_)
+            | Self::Session(_)
+            | Self::Config(admin::config::ConfigCommands::Apply(_)) => DbUrlRouting::ProfileDriven,
+
+            Self::Users(_) => DbUrlRouting::Direct,
+
+            Self::Config(admin::config::ConfigCommands::Migrate(args))
+                if args.services.is_some() =>
+            {
+                DbUrlRouting::Direct
+            },
+
+            _ => DbUrlRouting::Unsupported,
+        }
+    }
+}
+
 impl Commands {
     pub(super) const fn db_url_routing(&self) -> DbUrlRouting {
         match self {
-            Self::Admin(
-                admin::AdminCommands::Setup(_)
-                | admin::AdminCommands::Bootstrap(_)
-                | admin::AdminCommands::Session(_)
-                | admin::AdminCommands::Config(admin::config::ConfigCommands::Apply(_)),
-            ) => DbUrlRouting::ProfileDriven,
+            Self::Admin(cmd) => cmd.db_url_routing(),
 
             Self::Core(core::CoreCommands::Files(_))
             | Self::Infra(
@@ -33,12 +49,7 @@ impl Commands {
                     | infrastructure::jobs::JobsCommands::Show(_)
                     | infrastructure::jobs::JobsCommands::History(_),
                 ),
-            )
-            | Self::Admin(admin::AdminCommands::Users(_)) => DbUrlRouting::Direct,
-
-            Self::Admin(admin::AdminCommands::Config(admin::config::ConfigCommands::Migrate(
-                args,
-            ))) if args.services.is_some() => DbUrlRouting::Direct,
+            ) => DbUrlRouting::Direct,
 
             _ => DbUrlRouting::Unsupported,
         }

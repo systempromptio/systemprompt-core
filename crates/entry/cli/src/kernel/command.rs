@@ -21,7 +21,8 @@ use std::pin::Pin;
 use clap::{ArgMatches, Args, Command, Subcommand};
 
 use crate::context::CommandContext;
-use crate::descriptor::{CommandDescriptor, DbUrlRouting, DescribeCommand, KernelGrant};
+use super::grants::KernelGrant;
+use crate::descriptor::{CommandDescriptor, DbUrlRouting, DescribeCommand};
 
 pub type CommandFuture<'a> = Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + 'a>>;
 

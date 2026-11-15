@@ -17,9 +17,10 @@ fn parse(args: &[&str]) -> Result<Cli, clap::Error> {
 fn session_logout_profile_flag_parses_alongside_the_global_flag() {
     let cli = parse(&["admin", "session", "logout", "--profile", "staging", "-y"])
         .expect("logout --profile parses");
-    let Some(Commands::Admin(AdminCommands::Session(SessionCommands::Logout(args)))) =
-        cli.command.as_ref()
-    else {
+    let Some(Commands::Admin(admin)) = cli.command.as_ref() else {
+        panic!("expected an admin command");
+    };
+    let AdminCommands::Session(SessionCommands::Logout(args)) = admin.as_ref() else {
         panic!("expected admin session logout");
     };
     assert_eq!(args.profile.as_deref(), Some("staging"));

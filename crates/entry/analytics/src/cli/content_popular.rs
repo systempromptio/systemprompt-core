@@ -68,14 +68,12 @@ impl CliCommandLeaf for PopularArgs {
         DbUrlRouting::Direct
     }
 
-    fn run(self, ctx: &CommandContext) -> impl Future<Output = Result<()>> + Send {
-        async move {
-            let result = execute(self, ctx)
-                .await
-                .context("Failed to get popular content")?;
-            render_result(&result, &ctx.cli);
-            Ok(())
-        }
+    async fn run(self, ctx: &CommandContext) -> Result<()> {
+        let result = execute(self, ctx)
+            .await
+            .context("Failed to get popular content")?;
+        render_result(&result, &ctx.cli);
+        Ok(())
     }
 }
 

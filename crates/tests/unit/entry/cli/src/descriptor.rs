@@ -248,9 +248,9 @@ fn the_server_commands_and_the_catalog_view_install_the_registry_through_model_d
     assert!(!stop.discovers_models());
     assert!(!CommandDescriptor::FULL.discovers_models());
 
-    let catalog = Commands::Admin(AdminCommands::Config(ConfigCommands::Catalog(
+    let catalog = Commands::Admin(Box::new(AdminCommands::Config(ConfigCommands::Catalog(
         CatalogCommands::Discovery,
-    )))
+    ))))
     .descriptor();
     assert!(catalog.discovers_models());
     assert!(catalog.secrets() && catalog.paths() && !catalog.database());

@@ -143,7 +143,7 @@ pub enum Commands {
         display_order = 30,
         about = "Administration (users, agents, config, setup, session)"
     )]
-    Admin(admin::AdminCommands),
+    Admin(Box<admin::AdminCommands>),
 
     #[command(
         subcommand,
