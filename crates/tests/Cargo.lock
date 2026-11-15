@@ -8729,7 +8729,6 @@ dependencies = [
  "systemprompt-ai",
  "systemprompt-analytics",
  "systemprompt-brain",
- "systemprompt-client",
  "systemprompt-config",
  "systemprompt-content",
  "systemprompt-database",
@@ -8788,7 +8787,6 @@ dependencies = [
  "metrics",
  "metrics-util",
  "reqwest",
- "rsa 0.9.10",
  "serde_json",
  "sha2 0.11.1",
  "sqlx",
@@ -8800,7 +8798,6 @@ dependencies = [
  "systemprompt-api",
  "systemprompt-brain",
  "systemprompt-catalog-fixtures",
- "systemprompt-client",
  "systemprompt-content",
  "systemprompt-database",
  "systemprompt-events",
@@ -8819,7 +8816,6 @@ dependencies = [
  "systemprompt-oauth-issuance",
  "systemprompt-runtime",
  "systemprompt-security",
- "systemprompt-slack",
  "systemprompt-storage",
  "systemprompt-test-fixtures",
  "systemprompt-test-hack",
@@ -11147,7 +11143,6 @@ dependencies = [
  "systemprompt-provider-contracts",
  "systemprompt-traits",
  "thiserror 2.0.21",
- "tracing",
 ]
 
 [[package]]

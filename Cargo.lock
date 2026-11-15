@@ -6543,7 +6543,6 @@ dependencies = [
  "systemprompt-ai",
  "systemprompt-analytics",
  "systemprompt-brain",
- "systemprompt-client",
  "systemprompt-config",
  "systemprompt-content",
  "systemprompt-database",
@@ -7296,7 +7295,6 @@ dependencies = [
  "systemprompt-provider-contracts",
  "systemprompt-traits",
  "thiserror 2.0.21",
- "tracing",
 ]
 
 [[package]]
