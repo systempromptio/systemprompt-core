@@ -12,7 +12,7 @@ pub mod export;
 pub mod output;
 pub mod time;
 
-pub use crate::shared::time_format::format_date_range;
+pub use systemprompt_cli::kernel::time_format::format_date_range;
 pub(crate) use export::with_resolved_export;
 pub use export::{
     CsvBuilder, ensure_export_dir, export_single_to_csv, export_to_csv, resolve_export_option,

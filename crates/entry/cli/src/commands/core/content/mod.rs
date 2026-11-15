@@ -16,7 +16,6 @@ pub mod edit_apply;
 pub mod files;
 pub mod link;
 pub mod list;
-pub mod popular;
 pub mod search;
 pub mod show;
 pub mod status;
@@ -47,9 +46,6 @@ pub enum ContentCommands {
 
     #[command(name = "delete-source", about = "Delete all content from a source")]
     DeleteSource(delete_source::DeleteSourceArgs),
-
-    #[command(about = "Get popular content")]
-    Popular(popular::PopularArgs),
 
     #[command(about = "Verify content is published and accessible")]
     Verify(verify::VerifyArgs),
@@ -122,12 +118,6 @@ pub async fn execute(command: ContentCommands, ctx: &CommandContext) -> Result<(
             let result = delete_source::execute(args, ctx)
                 .await
                 .context("Failed to delete source content")?;
-            render_result(&result, &ctx.cli);
-        },
-        ContentCommands::Popular(args) => {
-            let result = popular::execute(args, ctx)
-                .await
-                .context("Failed to get popular content")?;
             render_result(&result, &ctx.cli);
         },
         ContentCommands::Verify(args) => {

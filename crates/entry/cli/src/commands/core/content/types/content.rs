@@ -92,13 +92,6 @@ pub struct DeleteSourceOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct PopularOutput {
-    pub items: Vec<ContentSummary>,
-    pub source_id: SourceId,
-    pub days: i64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct VerifyOutput {
     pub content_id: ContentId,
     pub slug: String,

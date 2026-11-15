@@ -11,9 +11,9 @@ use systemprompt_logging::CliService;
 use systemprompt_runtime::DatabaseContext;
 
 use super::AgentStatsOutput;
-use crate::CliConfig;
-use crate::commands::analytics::shared::{export_single_to_csv, parse_time_range};
-use crate::shared::CommandOutput;
+use systemprompt_cli::kernel::CliConfig;
+use crate::cli::shared::{export_single_to_csv, parse_time_range};
+use systemprompt_cli::kernel::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct StatsArgs {

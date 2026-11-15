@@ -20,9 +20,10 @@ use super::{
     AgentShowOutput, AgentStatsOutput, ErrorBreakdownItem, HourlyDistributionItem,
     StatusBreakdownItem,
 };
-use crate::CliConfig;
-use crate::commands::analytics::shared::{export_single_to_csv, parse_time_range};
-use crate::shared::{CommandOutput, parse_agent_name};
+use systemprompt_cli::kernel::CliConfig;
+use crate::cli::shared::{export_single_to_csv, parse_time_range};
+use systemprompt_cli::kernel::CommandOutput;
+use systemprompt_cli::kernel::parsers::parse_agent_name;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {

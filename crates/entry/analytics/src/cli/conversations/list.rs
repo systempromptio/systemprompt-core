@@ -15,9 +15,9 @@ use systemprompt_logging::CliService;
 use systemprompt_runtime::DatabaseContext;
 
 use super::{ConversationListOutput, ConversationListRow};
-use crate::CliConfig;
-use crate::commands::analytics::shared::{export_to_csv, parse_time_range};
-use crate::shared::CommandOutput;
+use systemprompt_cli::kernel::CliConfig;
+use crate::cli::shared::{export_to_csv, parse_time_range};
+use systemprompt_cli::kernel::CommandOutput;
 
 /// Where a conversation was held. Agent contexts carry A2A tasks; gateway
 /// sessions are `/v1/messages` clients (Claude Code, Cowork, SDKs) and are

@@ -12,8 +12,7 @@ mod pipeline;
 
 pub use content::{
     ContentDetailOutput, ContentListOutput, ContentStatusRow, ContentSummary, DeleteOutput,
-    DeleteSourceOutput, PopularOutput, SearchOutput, SearchResultRow, StatusOutput, UpdateOutput,
-    VerifyOutput,
+    DeleteSourceOutput, SearchOutput, SearchResultRow, StatusOutput, UpdateOutput, VerifyOutput,
 };
 pub use links::{
     CampaignAnalyticsOutput, ClickRow, ClicksOutput, GenerateLinkOutput, JourneyNode,

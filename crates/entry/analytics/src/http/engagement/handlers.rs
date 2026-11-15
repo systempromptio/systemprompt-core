@@ -8,16 +8,14 @@ use axum::extract::{Extension, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-
-use crate::kernel::ApiHttpError;
-use systemprompt_analytics::{CreateEngagementEventInput, EngagementRepository};
-use systemprompt_content::ContentRepository;
-use systemprompt_identifiers::{ContentId, LocaleCode, SessionId};
-use systemprompt_models::ContentRouting;
+use systemprompt_analytics::CreateEngagementEventInput;
+use systemprompt_api::kernel::ApiHttpError;
+use systemprompt_identifiers::SessionId;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::execution::context::RequestContext;
-use systemprompt_traits::{DynSessionStore, SessionStore};
+use systemprompt_traits::SessionStore;
+
+use crate::http::AnalyticsHttpState;
 
 const CONVERSION_EVENT_TYPES: &[&str] = &[
     "github_click",
@@ -37,14 +35,6 @@ pub struct BatchResponse {
     pub recorded: usize,
 }
 
-#[derive(Clone)]
-pub struct EngagementState {
-    pub repo: Arc<EngagementRepository>,
-    pub sessions: DynSessionStore,
-    pub content_repo: Arc<ContentRepository>,
-    pub content_routing: Option<Arc<dyn ContentRouting>>,
-}
-
 async fn mark_converted_if_applicable(
     sessions: &dyn SessionStore,
     session_id: &SessionId,
@@ -58,47 +48,16 @@ async fn mark_converted_if_applicable(
     }
 }
 
-impl std::fmt::Debug for EngagementState {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("EngagementState")
-            .field("content_routing", &self.content_routing.is_some())
-            .finish_non_exhaustive()
-    }
-}
-
-async fn resolve_content_id(
-    content_repo: &ContentRepository,
-    content_routing: Option<&dyn ContentRouting>,
-    page_url: &str,
-) -> Option<ContentId> {
-    let slug = content_routing.and_then(|r| r.resolve_slug(page_url))?;
-
-    content_repo
-        .find_by_slug(&slug, &LocaleCode::english())
-        .await
-        .map_err(|e| {
-            tracing::warn!(error = %e, slug = %slug, "Failed to lookup content by slug");
-            e
-        })
-        .ok()
-        .flatten()
-        .map(|c| c.id)
-}
-
 pub(super) async fn record_engagement(
-    State(state): State<EngagementState>,
+    State(state): State<AnalyticsHttpState>,
     Extension(req_ctx): Extension<RequestContext>,
     Json(input): Json<CreateEngagementEventInput>,
 ) -> Result<StatusCode, ApiHttpError> {
-    let content_id = resolve_content_id(
-        &state.content_repo,
-        state.content_routing.as_deref(),
-        &input.page_url,
-    )
-    .await;
+    let content_id = state.content.resolve(&input.page_url, None).await;
 
     state
-        .repo
+        .repositories
+        .engagement
         .create_engagement(
             req_ctx.session_id(),
             req_ctx.user_id(),
@@ -111,13 +70,18 @@ pub(super) async fn record_engagement(
             ApiError::internal("Failed to record engagement", e)
         })?;
 
-    mark_converted_if_applicable(&*state.sessions, req_ctx.session_id(), &input.event_type).await;
+    mark_converted_if_applicable(
+        &*state.repositories.session_store,
+        req_ctx.session_id(),
+        &input.event_type,
+    )
+    .await;
 
     Ok(StatusCode::CREATED)
 }
 
 pub(super) async fn record_engagement_batch(
-    State(state): State<EngagementState>,
+    State(state): State<AnalyticsHttpState>,
     Extension(req_ctx): Extension<RequestContext>,
     Json(input): Json<EngagementBatchInput>,
 ) -> impl IntoResponse {
@@ -126,21 +90,22 @@ pub(super) async fn record_engagement_batch(
 
     let mut success_count = 0;
     for event in input.events {
-        let content_id = resolve_content_id(
-            &state.content_repo,
-            state.content_routing.as_deref(),
-            &event.page_url,
-        )
-        .await;
+        let content_id = state.content.resolve(&event.page_url, None).await;
 
         match state
-            .repo
+            .repositories
+            .engagement
             .create_engagement(session_id, user_id, content_id.as_ref(), &event)
             .await
         {
             Ok(_) => {
                 success_count += 1;
-                mark_converted_if_applicable(&*state.sessions, session_id, &event.event_type).await;
+                mark_converted_if_applicable(
+                    &*state.repositories.session_store,
+                    session_id,
+                    &event.event_type,
+                )
+                .await;
             },
             Err(e) => {
                 tracing::warn!(error = %e, page_url = %event.page_url, "Failed to record batch engagement event");

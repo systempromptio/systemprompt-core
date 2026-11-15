@@ -12,9 +12,9 @@ use systemprompt_runtime::DatabaseContext;
 use systemprompt_users::SessionTrafficRollupRepository;
 
 use super::{NavigationOutput, NavigationRow};
-use crate::CliConfig;
-use crate::commands::analytics::shared::{export_to_csv, format_date_range, parse_time_range};
-use crate::shared::CommandOutput;
+use systemprompt_cli::kernel::CliConfig;
+use crate::cli::shared::{export_to_csv, format_date_range, parse_time_range};
+use systemprompt_cli::kernel::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct NavigationArgs {

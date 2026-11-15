@@ -9,9 +9,11 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 
-use systemprompt_identifiers::{ContentId, SourceId};
+use systemprompt_identifiers::{CategoryId, ContentId, SourceId};
 
-use crate::models::reporting::{ContentStatsRow, ContentTrendRow, TopContentRow};
+use crate::models::reporting::{
+    ContentStatsRow, ContentTrendRow, PopularContentRow, TopContentRow,
+};
 
 #[derive(Debug)]
 pub struct ContentAnalyticsRepository {
@@ -73,12 +75,34 @@ impl ContentAnalyticsRepository {
         days: i32,
         limit: i64,
     ) -> Result<Vec<ContentId>> {
+        Ok(self
+            .popular_content(source_id, days, limit)
+            .await?
+            .into_iter()
+            .map(|row| row.id)
+            .collect())
+    }
+
+    pub async fn popular_content(
+        &self,
+        source_id: &SourceId,
+        days: i32,
+        limit: i64,
+    ) -> Result<Vec<PopularContentRow>> {
         // Why: `users` carries only `is_bot` and `is_scanner`; this is a
         // user-level filter, not the session predicate `is_human_traffic`
         // states over the crawler and behavioural flags.
-        let rows: Vec<String> = sqlx::query_scalar!(
+        sqlx::query_as!(
+            PopularContentRow,
             r#"
-            SELECT mc.id as "id!"
+            SELECT
+                mc.id as "id!: ContentId",
+                mc.slug as "slug!",
+                mc.title as "title!",
+                mc.kind as "kind!",
+                mc.source_id as "source_id!: SourceId",
+                mc.category_id as "category_id?: CategoryId",
+                mc.published_at as "published_at!"
             FROM report_markdown_content mc
             LEFT JOIN report_analytics_events ae ON
                 ae.event_type = 'page_view'
@@ -87,7 +111,8 @@ impl ContentAnalyticsRepository {
                 AND ae.timestamp >= CURRENT_TIMESTAMP - ($2 || ' days')::INTERVAL
             LEFT JOIN report_users u ON ae.user_id = u.id
             WHERE mc.source_id = $1
-            GROUP BY mc.id, mc.published_at
+            GROUP BY mc.id, mc.slug, mc.title, mc.kind, mc.source_id, mc.category_id,
+                mc.published_at
             ORDER BY COUNT(DISTINCT CASE
                 WHEN u.id IS NOT NULL AND u.is_bot = FALSE AND u.is_scanner = FALSE
                 THEN ae.user_id
@@ -99,9 +124,8 @@ impl ContentAnalyticsRepository {
             limit
         )
         .fetch_all(&*self.pool)
-        .await?;
-
-        Ok(rows.into_iter().map(ContentId::new).collect())
+        .await
+        .map_err(Into::into)
     }
 
     pub async fn get_stats(

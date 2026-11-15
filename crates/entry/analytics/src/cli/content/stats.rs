@@ -11,11 +11,11 @@ use systemprompt_logging::CliService;
 use systemprompt_runtime::DatabaseContext;
 
 use super::ContentStatsOutput;
-use crate::CliConfig;
-use crate::commands::analytics::shared::{
+use systemprompt_cli::kernel::CliConfig;
+use crate::cli::shared::{
     export_single_to_csv, format_date_range, parse_time_range,
 };
-use crate::shared::CommandOutput;
+use systemprompt_cli::kernel::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct StatsArgs {

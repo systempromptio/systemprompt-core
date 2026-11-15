@@ -1,44 +1,28 @@
-//! Engagement-event ingestion routes.
+//! `/track/engagement`: single and batch engagement records, with conversion
+//! marking on the caller's session.
 //!
-//! Builds the router for single and batch engagement records, wiring the
-//! engagement, session, and content repositories into the shared handler state.
+//! The group is declared at the web root, so its routes carry the full
+//! `/track/engagement` path.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use axum::Router;
-use axum::routing::post;
-use std::sync::Arc;
-use systemprompt_models::ContentRouting;
-use systemprompt_runtime::AppContext;
-
 mod handlers;
 
-pub use handlers::{BatchResponse, EngagementBatchInput, EngagementState};
+use axum::Router;
+use axum::routing::post;
+use systemprompt_models::modules::ApiPaths;
 
-pub fn router(ctx: &AppContext) -> Router {
-    router_with_routing(ctx, ctx.content_routing())
-}
+use super::AnalyticsHttpState;
 
-pub fn router_with_routing(
-    ctx: &AppContext,
-    content_routing: Option<Arc<dyn ContentRouting>>,
-) -> Router {
-    routes().with_state(state(ctx, content_routing))
-}
+pub use handlers::{BatchResponse, EngagementBatchInput};
 
-fn state(ctx: &AppContext, content_routing: Option<Arc<dyn ContentRouting>>) -> EngagementState {
-    let analytics = ctx.analytics_repositories();
-    EngagementState {
-        repo: Arc::new(analytics.engagement.clone()),
-        sessions: Arc::clone(&analytics.session_store),
-        content_repo: Arc::new(ctx.content_repositories().content.clone()),
-        content_routing,
-    }
-}
-
-fn routes() -> Router<EngagementState> {
+pub fn router(state: AnalyticsHttpState) -> Router {
     Router::new()
-        .route("/", post(handlers::record_engagement))
-        .route("/batch", post(handlers::record_engagement_batch))
+        .route(ApiPaths::TRACK_ENGAGEMENT, post(handlers::record_engagement))
+        .route(
+            &format!("{}/batch", ApiPaths::TRACK_ENGAGEMENT),
+            post(handlers::record_engagement_batch),
+        )
+        .with_state(state)
 }

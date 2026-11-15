@@ -12,9 +12,9 @@ use systemprompt_logging::CliService;
 use systemprompt_runtime::DatabaseContext;
 
 use super::{ActiveSessionRow, LiveSessionsOutput};
-use crate::CliConfig;
-use crate::commands::analytics::shared::export_to_csv;
-use crate::shared::{CommandOutput, render_result};
+use systemprompt_cli::kernel::CliConfig;
+use crate::cli::shared::export_to_csv;
+use systemprompt_cli::kernel::{CommandOutput, render_result};
 
 const LIVE_SESSION_COLUMNS: [&str; 5] = [
     "session_id",

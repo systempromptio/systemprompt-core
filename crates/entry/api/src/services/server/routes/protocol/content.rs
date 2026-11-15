@@ -1,6 +1,5 @@
 //! The content-and-misc route group: content and redirects, the platform
-//! routes (sync, marketplace, analytics, engagement), and the account routes
-//! (users, admin).
+//! routes (sync, marketplace), and the account routes (users, admin).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -66,7 +65,6 @@ fn mount_content(mut router: Router, mount: &MountCtx<'_>) -> Result<Router, Mou
 fn mount_platform(mut router: Router, mount: &MountCtx<'_>) -> Result<Router, MountError> {
     let ctx = mount.ctx;
     let group = RouteGroup::ContentAndMisc;
-    let content_rate = CONTENT_RATE;
 
     router = mount.mount(
         router,
@@ -88,30 +86,6 @@ fn mount_platform(mut router: Router, mount: &MountCtx<'_>) -> Result<Router, Mo
             ContextKind::Public,
             group,
         ),
-    )?;
-
-    router = mount.mount(
-        router,
-        declare(
-            crate::routes::analytics::router(ctx),
-            ApiPaths::ANALYTICS_BASE,
-            AuthzPolicy::admin(),
-            ContextKind::User,
-            group,
-        )
-        .with_rate_limit(content_rate),
-    )?;
-
-    router = mount.mount(
-        router,
-        declare(
-            crate::routes::engagement::router(ctx),
-            ApiPaths::TRACK_ENGAGEMENT,
-            AuthzPolicy::public(),
-            ContextKind::Public,
-            group,
-        )
-        .with_rate_limit(content_rate),
     )?;
 
     Ok(router)

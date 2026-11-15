@@ -1,8 +1,8 @@
 //! systemprompt.io command-line application.
 //!
 //! Implements the `systemprompt` binary: the command tree ([`admin`],
-//! [`analytics`], [`build`], [`cloud`], [`core`], [`infrastructure`],
-//! [`plugins`], [`web`]), output formatting, interactive prompts, and session
+//! [`build`], [`cloud`], [`core`], [`infrastructure`], [`plugins`],
+//! [`web`]), output formatting, interactive prompts, and session
 //! handling. [`run`] is the process entry point; [`run_with`] is the same for
 //! an embedding binary that names its own build, which the health and probe
 //! bodies report. [`CliConfig`] and the settings enums control verbosity,
@@ -31,7 +31,7 @@ pub mod session;
 pub mod shared;
 
 pub use cli_settings::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
-pub use commands::{admin, analytics, build, cloud, core, infrastructure, plugins, web};
+pub use commands::{admin, build, cloud, core, infrastructure, plugins, web};
 pub use context::CommandContext;
 pub use env_overrides::{EnvOverrides, SessionEnv};
 pub use interactive::{DialoguerPrompter, Prompter, ScriptedPrompter};

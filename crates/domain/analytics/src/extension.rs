@@ -11,6 +11,12 @@
 //! A host without them gets no scorer, and its requests record no
 //! behavioural verdict.
 //!
+//! The extension is required: it owns the protective jobs (the malicious-IP
+//! blacklist and the behavioural bot analysis that feeds throttling and
+//! bans), so a profile that disables it refuses boot with
+//! `LoaderError::RequiredExtensionDisabled` rather than booting with those
+//! controls off.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -74,6 +80,10 @@ impl Extension for AnalyticsExtension {
 
     fn requires(&self) -> Vec<StateRequirement> {
         vec![StateRequirement::of::<DynIpBanStore>()]
+    }
+
+    fn is_required(&self) -> bool {
+        true
     }
 
     fn provide(

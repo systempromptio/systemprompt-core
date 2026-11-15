@@ -18,9 +18,9 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::UserId;
 
-use crate::commands::analytics::shared::with_resolved_export;
-use crate::context::CommandContext;
-use crate::shared::render_result;
+use crate::cli::shared::with_resolved_export;
+use systemprompt_cli::kernel::CommandContext;
+use systemprompt_cli::kernel::render_result;
 
 #[derive(Debug, Subcommand)]
 pub enum ConversationsCommands {

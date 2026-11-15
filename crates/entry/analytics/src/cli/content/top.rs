@@ -11,9 +11,9 @@ use systemprompt_logging::CliService;
 use systemprompt_runtime::DatabaseContext;
 
 use super::{TopContentOutput, TopContentRow};
-use crate::CliConfig;
-use crate::commands::analytics::shared::{export_to_csv, format_date_range, parse_time_range};
-use crate::shared::CommandOutput;
+use systemprompt_cli::kernel::CliConfig;
+use crate::cli::shared::{export_to_csv, format_date_range, parse_time_range};
+use systemprompt_cli::kernel::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct TopArgs {

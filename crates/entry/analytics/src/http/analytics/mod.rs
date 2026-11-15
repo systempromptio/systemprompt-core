@@ -1,7 +1,5 @@
-//! Analytics HTTP surface.
-//!
-//! Builds the router for event ingestion (single and batch) and the live
-//! analytics SSE stream, wiring the shared [`AnalyticsState`] repositories.
+//! `/api/v1/analytics`: event ingestion (single and batch) and the live
+//! analytics stream.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,37 +9,13 @@ mod stream;
 
 use axum::Router;
 use axum::routing::{get, post};
-use std::sync::Arc;
-use systemprompt_models::ContentRouting;
-use systemprompt_runtime::AppContext;
 
-pub use events::AnalyticsState;
+use super::AnalyticsHttpState;
 
-pub fn router(ctx: &AppContext) -> Router {
-    router_with_routing(ctx, ctx.content_routing())
-}
-
-pub fn router_with_routing(
-    ctx: &AppContext,
-    content_routing: Option<Arc<dyn ContentRouting>>,
-) -> Router {
-    routes().with_state(state(ctx, content_routing))
-}
-
-fn state(ctx: &AppContext, content_routing: Option<Arc<dyn ContentRouting>>) -> AnalyticsState {
-    let analytics = ctx.analytics_repositories();
-    AnalyticsState {
-        events: Arc::new(analytics.events.clone()),
-        content: Arc::new(ctx.content_repositories().content.clone()),
-        engagement: Arc::new(analytics.engagement.clone()),
-        content_routing,
-        broadcasters: Arc::clone(ctx.event_broadcasters()),
-    }
-}
-
-fn routes() -> Router<AnalyticsState> {
+pub fn router(state: AnalyticsHttpState) -> Router {
     Router::new()
         .route("/events", post(events::record_event))
         .route("/events/batch", post(events::record_events_batch))
         .route("/stream", get(stream::analytics_stream))
+        .with_state(state)
 }

@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 
 use systemprompt_config::paths::AppPaths;
 
-use crate::context::CommandContext;
+use systemprompt_cli::kernel::CommandContext;
 
 pub fn resolve_export_path(user_path: &Path, ctx: &CommandContext) -> Result<PathBuf> {
     if user_path.is_absolute()
@@ -47,7 +47,7 @@ pub fn resolve_export_option(
 macro_rules! with_resolved_export {
     ($args:ident, $ctx:expr) => {{
         let mut resolved = $args;
-        resolved.export = $crate::commands::analytics::shared::resolve_export_option(
+        resolved.export = $crate::cli::shared::resolve_export_option(
             resolved.export.take(),
             $ctx,
         )?;

@@ -130,7 +130,6 @@ impl CoreCommands {
                 | ContentCommands::Show(_)
                 | ContentCommands::Search(_)
                 | ContentCommands::Edit(_)
-                | ContentCommands::Popular(_)
                 | ContentCommands::Verify(_)
                 | ContentCommands::Status(_)
                 | ContentCommands::Link(

@@ -2,7 +2,7 @@
 //!
 //! Records single and batched client analytics events, resolving the owning
 //! content id via slug/URL routing and fanning `page_exit` events out into the
-//! engagement store. Shared handler state lives in [`AnalyticsState`].
+//! engagement store.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,79 +11,30 @@ use axum::Json;
 use axum::extract::{Extension, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use std::sync::Arc;
-
-use crate::kernel::ApiHttpError;
 use systemprompt_analytics::{
-    AnalyticsEventBatchResponse, AnalyticsEventType, AnalyticsEventsRepository,
-    CreateAnalyticsEventBatchInput, CreateAnalyticsEventInput, CreateEngagementEventInput,
-    EngagementOptionalMetrics, EngagementRepository,
+    AnalyticsEventBatchResponse, AnalyticsEventType, CreateAnalyticsEventBatchInput,
+    CreateAnalyticsEventInput, CreateEngagementEventInput, EngagementOptionalMetrics,
 };
-use systemprompt_content::ContentRepository;
-use systemprompt_identifiers::{ContentId, LocaleCode};
-use systemprompt_models::ContentRouting;
+use systemprompt_api::kernel::ApiHttpError;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::execution::context::RequestContext;
 
-#[derive(Clone)]
-pub struct AnalyticsState {
-    pub events: Arc<AnalyticsEventsRepository>,
-    pub content: Arc<ContentRepository>,
-    pub engagement: Arc<EngagementRepository>,
-    pub content_routing: Option<Arc<dyn ContentRouting>>,
-    pub broadcasters: Arc<systemprompt_events::EventBroadcasters>,
-}
-
-impl std::fmt::Debug for AnalyticsState {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("AnalyticsState")
-            .field("content_routing", &self.content_routing.is_some())
-            .finish_non_exhaustive()
-    }
-}
-
-async fn resolve_content_id(
-    content_repo: &ContentRepository,
-    content_routing: Option<&dyn ContentRouting>,
-    page_url: &str,
-    slug: Option<&str>,
-) -> Option<ContentId> {
-    let resolved_slug;
-    let slug_to_use = if let Some(s) = slug {
-        s
-    } else {
-        resolved_slug = content_routing.and_then(|r| r.resolve_slug(page_url))?;
-        &resolved_slug
-    };
-
-    content_repo
-        .find_by_slug(slug_to_use, &LocaleCode::english())
-        .await
-        .map_err(|e| {
-            tracing::warn!(error = %e, slug = %slug_to_use, "Failed to lookup content by slug");
-            e
-        })
-        .ok()
-        .flatten()
-        .map(|c| c.id)
-}
+use crate::http::AnalyticsHttpState;
 
 pub(super) async fn record_event(
-    State(state): State<AnalyticsState>,
+    State(state): State<AnalyticsHttpState>,
     Extension(req_ctx): Extension<RequestContext>,
     Json(mut input): Json<CreateAnalyticsEventInput>,
 ) -> Result<impl IntoResponse, ApiHttpError> {
     if input.content_id.is_none() {
-        input.content_id = resolve_content_id(
-            &state.content,
-            state.content_routing.as_deref(),
-            &input.page_url,
-            input.slug.as_deref(),
-        )
-        .await;
+        input.content_id = state
+            .content
+            .resolve(&input.page_url, input.slug.as_deref())
+            .await;
     }
 
     let created = state
+        .repositories
         .events
         .create_event(req_ctx.session_id(), req_ctx.user_id(), &input)
         .await
@@ -100,23 +51,21 @@ pub(super) async fn record_event(
 }
 
 pub(super) async fn record_events_batch(
-    State(state): State<AnalyticsState>,
+    State(state): State<AnalyticsHttpState>,
     Extension(req_ctx): Extension<RequestContext>,
     Json(mut input): Json<CreateAnalyticsEventBatchInput>,
 ) -> Result<impl IntoResponse, ApiHttpError> {
     for event in &mut input.events {
         if event.content_id.is_none() {
-            event.content_id = resolve_content_id(
-                &state.content,
-                state.content_routing.as_deref(),
-                &event.page_url,
-                event.slug.as_deref(),
-            )
-            .await;
+            event.content_id = state
+                .content
+                .resolve(&event.page_url, event.slug.as_deref())
+                .await;
         }
     }
 
     let created = state
+        .repositories
         .events
         .create_events_batch(req_ctx.session_id(), req_ctx.user_id(), &input.events)
         .await
@@ -141,7 +90,7 @@ pub(super) async fn record_events_batch(
 }
 
 async fn fan_out_engagement(
-    state: &AnalyticsState,
+    state: &AnalyticsHttpState,
     req_ctx: &RequestContext,
     input: &CreateAnalyticsEventInput,
 ) {
@@ -193,15 +142,13 @@ async fn fan_out_engagement(
         },
     };
 
-    let content_id = resolve_content_id(
-        &state.content,
-        state.content_routing.as_deref(),
-        &input.page_url,
-        input.slug.as_deref(),
-    )
-    .await;
+    let content_id = state
+        .content
+        .resolve(&input.page_url, input.slug.as_deref())
+        .await;
 
     if let Err(e) = state
+        .repositories
         .engagement
         .create_engagement(
             req_ctx.session_id(),

@@ -1,16 +1,24 @@
-//! Top-level `analytics` command group spanning all metric domains.
+//! The `analytics` command group and the `core content popular` command.
 //!
-//! [`AnalyticsCommands`] routes to the per-domain subcommand trees (overview,
-//! conversations, agents, tools, requests, sessions, content, traffic, costs).
-//! Each variant dispatches to its module's `execute` against the invocation's
-//! [`CommandContext`]. The [`shared`] module holds the time-range and output
-//! formatting helpers used across all domains.
+//! [`AnalyticsCommands`] is a top-level group registered with the CLI kernel
+//! in the `analytics` `--help` slot. It routes to the per-domain subcommand
+//! trees (overview, conversations, agents, tools, requests, sessions,
+//! content, traffic, costs); each variant dispatches to its module's
+//! `execute` against the invocation's [`CommandContext`]. Every analytics
+//! command is read-only, preserves the profile's data, runs against
+//! `--database-url` directly and writes a `--export` file locally. The
+//! [`shared`] module holds the time-range and output formatting helpers used
+//! across all domains.
+//!
+//! [`content_popular::PopularArgs`] is registered as the `popular` leaf under
+//! the kernel's `core content` group.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod agents;
 pub mod content;
+pub mod content_popular;
 pub mod conversations;
 pub mod costs;
 pub mod overview;
@@ -22,11 +30,12 @@ pub mod traffic;
 
 use anyhow::Result;
 use clap::Subcommand;
+use systemprompt_cli::kernel::{CliCommandGroup, DataImpact, DbUrlRouting};
 
-use crate::commands::analytics::shared::with_resolved_export;
-use crate::context::CommandContext;
-use crate::descriptor::{CommandDescriptor, DescribeCommand};
-use crate::shared::render_result;
+use crate::cli::shared::with_resolved_export;
+use systemprompt_cli::kernel::CommandContext;
+use systemprompt_cli::kernel::{CommandDescriptor, DescribeCommand};
+use systemprompt_cli::kernel::render_result;
 
 #[derive(Debug, Subcommand)]
 pub enum AnalyticsCommands {
@@ -64,8 +73,26 @@ impl DescribeCommand for AnalyticsCommands {
             .with_skip_validation()
             .with_read_only()
             .with_local_export()
+            .with_data_impact(DataImpact::Preserving)
     }
 }
+
+impl CliCommandGroup for AnalyticsCommands {
+    const PARENT: &'static [&'static str] = &[];
+    const NAME: &'static str = "analytics";
+    const ABOUT: &'static str = "Analytics and metrics reporting";
+    const DISPLAY_ORDER: usize = 50;
+
+    fn db_url_routing(&self) -> DbUrlRouting {
+        DbUrlRouting::Direct
+    }
+
+    fn run(self, ctx: &CommandContext) -> impl Future<Output = Result<()>> + Send {
+        execute(self, ctx)
+    }
+}
+
+systemprompt_cli::register_cli_command!(AnalyticsCommands);
 
 pub async fn execute(command: AnalyticsCommands, ctx: &CommandContext) -> Result<()> {
     match command {

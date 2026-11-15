@@ -11,7 +11,7 @@
 
 use clap::{ArgMatches, Command, CommandFactory, FromArgMatches, Parser, Subcommand};
 
-use crate::commands::{admin, analytics, cloud, core, infrastructure, plugins, web};
+use crate::commands::{admin, cloud, core, infrastructure, plugins, web};
 use crate::descriptor::{CommandDescriptor, DescribeCommand};
 use crate::kernel::{CommandRegistry, RegistryError};
 
@@ -154,13 +154,6 @@ pub enum Commands {
 
     #[command(
         subcommand,
-        display_order = 50,
-        about = "Analytics and metrics reporting"
-    )]
-    Analytics(analytics::AnalyticsCommands),
-
-    #[command(
-        subcommand,
         display_order = 60,
         about = "Web service configuration management"
     )]
@@ -181,7 +174,6 @@ impl DescribeCommand for Commands {
             Self::Infra(cmd) => cmd.descriptor(),
             Self::Admin(cmd) => cmd.descriptor(),
             Self::Cloud(cmd) => cmd.descriptor(),
-            Self::Analytics(cmd) => cmd.descriptor(),
             Self::Web(cmd) => cmd.descriptor(),
             Self::Plugins(cmd) => cmd.descriptor(),
         };
