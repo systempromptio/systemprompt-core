@@ -234,5 +234,9 @@ fn another_id_at_a_capability_row_gets_neither_the_prefix_nor_core_exposure() {
     assert!(admit_extension("install", &at_root).is_ok());
     let without_extensions = |group: RouteGroup| group == RouteGroup::ContentAndMisc;
     assert!(!extension_served("install", &at_root, &without_extensions));
-    assert!(extension_served("content-http", &at_root, &without_extensions));
+    assert!(extension_served(
+        "content-http",
+        &at_root,
+        &without_extensions
+    ));
 }

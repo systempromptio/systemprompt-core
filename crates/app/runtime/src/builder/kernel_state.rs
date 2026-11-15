@@ -43,10 +43,10 @@
 
 use std::sync::Arc;
 
+use systemprompt_analytics::GeoIpReader;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
 use systemprompt_files::FilesConfig;
-use systemprompt_analytics::GeoIpReader;
 use systemprompt_manifest::Profile;
 use systemprompt_models::{ContentConfigRaw, LateBound};
 use systemprompt_provider_contracts::Dependencies;

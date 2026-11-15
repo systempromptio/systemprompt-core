@@ -62,9 +62,8 @@ impl CoreDeclaration {
             })
         };
         rows().next()?;
-        let named = || {
-            rows().filter(|entry| entry.names(owner, declared.base_path, declared.group))
-        };
+        let named =
+            || rows().filter(|entry| entry.names(owner, declared.base_path, declared.group));
         if named().any(|row| row.shape_matches(&declared.protection)) {
             return None;
         }

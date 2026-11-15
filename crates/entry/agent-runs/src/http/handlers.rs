@@ -170,8 +170,7 @@ pub(super) async fn enqueue(
             },
             &key,
         )
-        .await
-        ?;
+        .await?;
     let (id, existing) = match enqueued {
         Enqueued::Created(id) => (id, false),
         Enqueued::Existing(id) => (id, true),
@@ -215,11 +214,7 @@ pub(super) async fn cancel(
 ) -> Result<impl IntoResponse, AgentRunsHttpError> {
     let row = owned_run(&state, &req_ctx, &id).await?;
     if !state.runs.cancel_queued(&row.id).await? {
-        state
-            .runs
-            .update_cancel_requested(&row.id)
-            .await
-            ?;
+        state.runs.update_cancel_requested(&row.id).await?;
     }
     Ok(StatusCode::ACCEPTED)
 }
@@ -234,8 +229,7 @@ pub(super) async fn list_events(
     let events = state
         .runs
         .list_events_after(&row.id, query.after.unwrap_or(-1), EVENT_PAGE)
-        .await
-        ?;
+        .await?;
     Ok(Json(EventsPage { events }))
 }
 
@@ -264,10 +258,7 @@ pub(super) async fn read_output(
     let row = owned_run(&state, &req_ctx, &id).await?;
     let missing = || ApiHttpError::not_found(format!("output '{path}' not found"));
     let layout = run_layout(&row).ok_or_else(missing)?;
-    let bytes = outputs::read(&layout, &path)
-        .await
-        ?
-        .ok_or_else(missing)?;
+    let bytes = outputs::read(&layout, &path).await?.ok_or_else(missing)?;
     Ok((
         [(header::CONTENT_TYPE, "application/octet-stream")],
         Body::from(bytes),

@@ -253,8 +253,5 @@ fn the_export_flag_is_recognised_with_and_without_a_value() {
 }
 
 fn descriptor_of(cli: &Cli) -> CommandDescriptor {
-    cli.command
-        .as_ref()
-        .expect("a kernel command")
-        .descriptor()
+    cli.command.as_ref().expect("a kernel command").descriptor()
 }

@@ -81,7 +81,10 @@ async fn an_api_http_error_passes_through_unchanged_via_question_mark() {
         let bytes = axum::body::to_bytes(response.into_body(), 64 * 1024)
             .await
             .expect("body");
-        (status, serde_json::from_slice::<Value>(&bytes).expect("json"))
+        (
+            status,
+            serde_json::from_slice::<Value>(&bytes).expect("json"),
+        )
     };
     assert_eq!(status, StatusCode::FORBIDDEN);
     assert_eq!(status, direct_status);

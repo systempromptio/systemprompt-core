@@ -86,8 +86,7 @@ fn the_group_is_collected_from_its_registration() {
         registry
             .registrations()
             .iter()
-            .any(|entry| entry.path() == "fprobe"
-                && entry.group().ends_with("FleetProbeCommands")),
+            .any(|entry| entry.path() == "fprobe" && entry.group().ends_with("FleetProbeCommands")),
         "{registry:?}"
     );
 }
@@ -127,7 +126,10 @@ async fn dispatch_runs_the_nested_command_with_the_kernel_context() {
         systemprompt_cli::CliConfig::new().with_interactive(false),
         systemprompt_cli::EnvOverrides::default(),
     );
-    let err = registered.run(&ctx).await.expect_err("probe reports it ran");
+    let err = registered
+        .run(&ctx)
+        .await
+        .expect_err("probe reports it ran");
     assert_eq!(err.to_string(), "fprobe ran: tenant show t1");
 }
 

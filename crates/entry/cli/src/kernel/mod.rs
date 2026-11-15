@@ -5,17 +5,17 @@
 //!
 //! - **Registration** — [`CliCommandGroup`] and [`CliCommandLeaf`] (with a
 //!   `--help` slot, [`REGISTERED_DISPLAY_ORDER`] by default),
-//!   [`crate::register_cli_command!`] and the [`CommandRegistry`] the runner assembles the command tree from;
-//!   [`LinkedSeamRegistration`] and [`crate::register_linked_seam!`] for the
-//!   link-time seams `plugins seams` lists ([`registered_seams`], whose
-//!   [`SeamEntry`] values are rendered with [`named`], [`owned`],
-//!   [`prioritized`] and [`unnamed`]).
+//!   [`crate::register_cli_command!`] and the [`CommandRegistry`] the runner
+//!   assembles the command tree from; [`LinkedSeamRegistration`] and
+//!   [`crate::register_linked_seam!`] for the link-time seams `plugins seams`
+//!   lists ([`registered_seams`], whose [`SeamEntry`] values are rendered with
+//!   [`named`], [`owned`], [`prioritized`] and [`unnamed`]).
 //! - **Bootstrap declaration** — [`CommandDescriptor`], [`DataImpact`],
-//!   [`DbUrlRouting`], [`RoutingClass`] and [`DescribeCommand`]: what a
-//!   command needs before it runs (profile, secrets, paths, database, cloud
-//!   credentials for a cloud-operator command, a local `--export`) and what it
-//!   does to the data behind the profile; [`describe_command_line`]
-//!   classifies a forwarded argv the same way.
+//!   [`DbUrlRouting`], [`RoutingClass`] and [`DescribeCommand`]: what a command
+//!   needs before it runs (profile, secrets, paths, database, cloud credentials
+//!   for a cloud-operator command, a local `--export`) and what it does to the
+//!   data behind the profile; [`describe_command_line`] classifies a forwarded
+//!   argv the same way.
 //! - **Execution context** — [`CommandContext`] (profile, paths, database,
 //!   session, foreground children) and the output settings in [`CliConfig`] and
 //!   [`OutputFormat`].
@@ -36,8 +36,8 @@
 //!   catalog and `gateway.yaml`), [`docker_compose`], [`postgres_access`] and
 //!   [`ddl`] (the local database), [`yaml_document`] (lossless YAML edits),
 //!   [`ProfileInfo`], [`McpToolEntry`] and [`FileSummary`] (a file row the
-//!   `core files` and content commands both render). A command group names these here and
-//!   never reaches into another group's modules.
+//!   `core files` and content commands both render). A command group names
+//!   these here and never reaches into another group's modules.
 //!
 //! Errors are `anyhow::Result<()>` from `run`; the runner maps them to the
 //! process exit code, and an interrupted command exits with

@@ -42,8 +42,6 @@ mod cloud_tenant_local_guards;
 #[cfg(test)]
 mod command_registry;
 #[cfg(test)]
-mod registered_top_level_group;
-#[cfg(test)]
 mod commands;
 #[cfg(test)]
 mod config_migrate_descriptor;
@@ -81,6 +79,8 @@ mod presentation_startup_renderer;
 mod presentation_tables;
 #[cfg(test)]
 mod profile_flag_parsing;
+#[cfg(test)]
+mod registered_top_level_group;
 #[cfg(test)]
 mod runner_args;
 #[cfg(test)]

@@ -6,8 +6,8 @@
 //! errors as `#[from]` variants plus an `Http(ApiHttpError)` variant, with
 //! its `From<ApiHttpError>`, for failures the API already models —
 //! implements [`IntoApiError`] for it (the status, `error_key` and message of
-//! each variant), and invokes `capability_error_response!(LocalError)` once. Handlers return
-//! `Result<_, LocalError>` and keep bare `?`.
+//! each variant), and invokes `capability_error_response!(LocalError)` once.
+//! Handlers return `Result<_, LocalError>` and keep bare `?`.
 //!
 //! The response is always built by [`ApiHttpError`]'s `IntoResponse`, so the
 //! 5xx policy has one home: a 5xx body is the fixed public message of its

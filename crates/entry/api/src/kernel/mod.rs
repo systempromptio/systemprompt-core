@@ -35,9 +35,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub use crate::capability_error_response;
 pub use crate::error::{ApiHttpError, IntoApiError, capability_response, unreadable_body};
-pub use crate::register_gateway_route;
 pub use crate::routes::gateway::registered::{
     GatewayCredential, GatewayRouteFactory, GatewayRouteRegistration,
 };
@@ -51,6 +49,7 @@ pub use crate::services::middleware::{
 pub use crate::services::proxy::{ProxyError, ProxyKind, ProxyService, ProxyTarget};
 pub use crate::services::request_base_url::{RequestBaseUrl, resolve as resolve_request_base_url};
 pub use crate::services::session_cookie::{SameSite, SessionCookie};
+pub use crate::{capability_error_response, register_gateway_route};
 #[doc(hidden)]
 pub use axum::response::{IntoResponse as __IntoResponse, Response as __Response};
 #[doc(hidden)]
