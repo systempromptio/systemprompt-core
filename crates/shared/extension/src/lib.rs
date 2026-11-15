@@ -119,9 +119,8 @@ pub use context::{DynExtensionContext, ExtensionContext};
 pub use contribute::{
     ContributionError, Contributions, ExtensionConfig, Factory, FactoryError, FromState, Handed,
     HandleId, KernelHandle, ProvideError, ProvideFn, Resolved, Slot, SlotEntry, SlotError,
-    SlotOrder, StandingTag,
+    SlotOrder, StandingTag, handles,
 };
-pub use contribute::handles;
 pub use cost::{CostDirective, CostDirectiveError, TriggerPolicy};
 pub use error::{
     ExtensionConfigError, ExtensionStateError, LoaderError, MigrationFault, SchemaFault,

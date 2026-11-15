@@ -97,7 +97,8 @@ pub async fn execute(command: SessionsCommands, host: &dyn CommandHost) -> Resul
             if host.is_database_scoped() {
                 args.no_refresh = true;
             }
-            let result = live::execute_with_pool(with_resolved_export!(args, host), &pool, host).await?;
+            let result =
+                live::execute_with_pool(with_resolved_export!(args, host), &pool, host).await?;
             Ok(result)
         },
     }

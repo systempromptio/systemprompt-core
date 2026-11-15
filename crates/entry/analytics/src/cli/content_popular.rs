@@ -14,11 +14,11 @@ use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use systemprompt_analytics::ContentAnalyticsRepository;
 use systemprompt_database::{DbPool, pool_from_handle};
+use systemprompt_extension::cli::parsers::parse_source_id;
 use systemprompt_extension::cli::{
     CliCommandLeaf, CliConfig, CommandDescriptor, CommandError, CommandHost, CommandOutput,
     DataImpact, DbUrlRouting, DescribeCommand,
 };
-use systemprompt_extension::cli::parsers::parse_source_id;
 use systemprompt_identifiers::SourceId;
 
 fn parse_duration(s: &str) -> Result<i64> {
