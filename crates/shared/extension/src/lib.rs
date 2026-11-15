@@ -185,6 +185,7 @@ pub mod prelude {
     };
     pub use systemprompt_models::LateBound;
 
+    pub use systemprompt_provider_contracts::governance::RuleType;
     pub use systemprompt_provider_contracts::{
         ApplyMode, ApplyOutcome, ApplyRequest, ChangeActor, ChangeRequest, ChangeSource,
         ComponentContext, ComponentRenderer, ConfigPlane, ConfigPlaneError, ConfigPlaneResult,

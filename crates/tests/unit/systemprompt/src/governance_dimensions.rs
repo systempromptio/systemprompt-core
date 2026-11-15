@@ -1,20 +1,23 @@
 //! T8: subject dimensions are owned once. An install declaring a reserved
 //! core dimension is refused with `ReservedDimension`, two members declaring
 //! one dimension with `DimensionConflict`, and the set is ordered core first,
-//! so the core owner is always the `first` a conflict names.
+//! so the core owner is always the `first` a conflict names. The kernel builds
+//! the set at resolve, so the composition-level refusals are
+//! `CompositionError` variants.
 
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use systemprompt::reference;
-use systemprompt_extension::{Resolved, StandingTag};
+use systemprompt::{CompositionError, reference};
+use systemprompt_extension::{Admitted, Resolved, StandingTag};
 use systemprompt_governance::authz::{
     RuleType, SharedSubjectAttributeProvider, SubjectAttributeError, SubjectAttributeProvider,
     SubjectDimension, SubjectProviderEntry, SubjectProviderError, SubjectProviderSet,
 };
 use systemprompt_identifiers::{ExtensionId, UserId};
+use systemprompt_runtime::Kernel;
 
-use crate::probe::{Probe, build_with, kernel};
+use crate::probe::{Probe, build, build_with, kernel};
 
 #[derive(Debug)]
 struct Dimension(RuleType);
@@ -133,26 +136,54 @@ fn distinct_dimensions_build_core_first() {
     assert_eq!(order, ["traffic", "site"]);
 }
 
-#[test]
-fn an_install_member_declaring_traffic_is_refused_from_the_admitted_composition() {
-    let admitted = build_with(Probe::new("probe-traffic", |c| {
-        c.subject_attributes(|_: &Resolved<'_>| {
-            Ok(provider(RuleType::extension_static("traffic")))
+fn resolve(admitted: &Admitted) -> Result<Kernel, CompositionError> {
+    let mut kernel = kernel();
+    kernel.resolve(admitted).map_err(CompositionError::from)?;
+    Ok(kernel)
+}
+
+fn dimension_probe(id: &'static str, rule_type: &'static str) -> Probe {
+    Probe::new(id, move |c| {
+        c.subject_attributes(move |_: &Resolved<'_>| {
+            Ok(provider(RuleType::extension_static(rule_type)))
         });
-    }))
-    .expect("the composition admits the probe");
-    let err = SubjectProviderSet::from_admitted(admitted.built(), &kernel().resolved())
-        .expect_err("the install's reserved dimension is refused");
+    })
+}
+
+#[test]
+fn an_install_member_declaring_traffic_is_refused_when_the_kernel_resolves() {
+    let admitted = build_with(dimension_probe("probe-traffic", "traffic"))
+        .expect("the composition admits the probe");
+    let err = resolve(&admitted).expect_err("the install's reserved dimension is refused");
     assert!(
-        matches!(&err, SubjectProviderError::ReservedDimension { owner, .. } if owner.as_str() == "probe-traffic"),
+        matches!(&err, CompositionError::ReservedDimension { owner, .. } if owner.as_str() == "probe-traffic"),
         "unexpected error: {err:?}"
     );
 }
 
 #[test]
-fn the_reference_composition_builds_core_traffic_alone_as_the_negative_control() {
-    let admitted = crate::probe::build(reference()).expect("the reference composition admits");
-    let set = SubjectProviderSet::from_admitted(admitted.built(), &kernel().resolved())
-        .expect("core's providers build");
+fn two_install_members_declaring_one_dimension_conflict_when_the_kernel_resolves() {
+    let admitted = build(
+        reference()
+            .with(dimension_probe("probe-first", "department"))
+            .with(dimension_probe("probe-second", "department")),
+    )
+    .expect("the composition admits both probes");
+    let err = resolve(&admitted).expect_err("a duplicate dimension is refused");
+    assert!(
+        matches!(&err, CompositionError::DimensionConflict { first, second, .. }
+            if first.as_str() == "probe-first" && second.as_str() == "probe-second"),
+        "unexpected error: {err:?}"
+    );
+}
+
+#[test]
+fn the_reference_composition_resolves_core_traffic_alone_as_the_negative_control() {
+    let admitted = build(reference()).expect("the reference composition admits");
+    let kernel = resolve(&admitted).expect("core's providers build");
+    let set = kernel
+        .state()
+        .get::<Arc<SubjectProviderSet>>()
+        .expect("the kernel inserts the subject provider set");
     assert!(set.find("traffic").is_some());
 }
