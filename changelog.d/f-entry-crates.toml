@@ -1,14 +1,34 @@
+[root]
+section = "Breaking"
+area = "Entry crates"
+text = "The cloud, analytics and content capabilities register their own routes and commands from three new entry crates. `systemprompt-cloud-entry` (feature `cli`) registers the `cloud` command group; `systemprompt-analytics-entry` declares `/api/v1/analytics` and `/track/engagement` through the `analytics-http` extension (feature `http`) and registers the `analytics` command group and `core content popular` (feature `cli`); `systemprompt-content-entry` declares `/api/v1/content`, `/api/v1/content/links/generate` and `/r/{short_code}` through the `content-http` extension (feature `http`) and registers `core content` and `web sitemap` (feature `cli`). Paths, flags, descriptors, exit codes, policies, context kinds, rate limits and role groups are unchanged. A profile that disables `analytics-http` or `content-http` mounts none of that extension's routes (404); one that disables `content` while `analytics-http` or `content-http` stays enabled is refused at boot. `systemprompt-api` and `systemprompt-cli` no longer contain these routes or commands. Migrate by importing from `systemprompt_cloud_entry::cli`, `systemprompt_analytics_entry::{http, cli}` and `systemprompt_content_entry::{http, cli}` and enabling the facade's `cloud`, `analytics` and `content` features."
+
 [[crate]]
 name = "systemprompt-cloud-entry"
 section = "Added"
-text = "New crate: the entry surface of the cloud capability."
+text = "New crate: behind the `cli` feature, `cli::CloudCommands` (`auth`, `init`, `tenant`, `profile`, `deploy`, `backup`, `doctor`, `status`, `fleet`, `dockerfile`, `sync`) registered as the top-level `cloud` command at `--help` position 40, with every subcommand module under `cli::`. Every `cloud` command holds the `CloudOperator` grant."
 
 [[crate]]
 name = "systemprompt-analytics-entry"
 section = "Added"
-text = "New crate: the entry surface of the analytics capability."
+text = "New crate: behind the `http` feature, `extension::AnalyticsHttpExtension` (registered as `analytics-http`, depending on `analytics` and `content`, requiring the `DynContentCatalogStats` the `content` extension provides), `http::AnalyticsHttpState` and the routers for event ingestion and the live stream under `/api/v1/analytics` (admin) and engagement ingestion under `/track/engagement` (public), both under the `content` rate limit; behind the `cli` feature, `cli::AnalyticsCommands` (the `analytics` group, `--help` position 50, holding the `LocalExport` and `SkipValidation` grants) and the `core content popular` leaf. The live stream reads the analytics broadcaster from its request extensions and answers 503 when it is absent."
 
 [[crate]]
 name = "systemprompt-content-entry"
 section = "Added"
-text = "New crate: the entry surface of the content capability."
+text = "New crate: behind the `http` feature, `extension::ContentHttpExtension` (registered as `content-http`, depending on `content`, requiring the `Arc<ContentRepositories>` the `content` extension provides), `http::ContentHttpState`, `http::ContentHttpError` and `http::{public_router, authenticated_router, redirect_router}`; behind the `cli` feature, `cli::content::ContentCommands` (`core content`) and `cli::sitemap::SitemapCommands` (`web sitemap`)."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`routes::analytics`, `routes::engagement`, `routes::content`, `routes::AnalyticsState`, `routes::analytics_router`, `routes::engagement_router`, `routes::content_public_router`, `routes::content_authenticated_router`, `routes::redirect_router` and `From<ContentError> for ApiHttpError` are removed. Migrate to `systemprompt_analytics_entry` (`http::AnalyticsHttpState`, the `analytics-http` extension) and `systemprompt_content_entry::http` (`public_router`, `authenticated_router`, `redirect_router` over `ContentHttpState`, `ContentHttpError`); the routes are mounted from the extension registry."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Changed"
+text = "No longer depends on `systemprompt-content`."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`commands::cloud`, `commands::analytics` and the `systemprompt_cli::{cloud, analytics}` re-exports are removed, and `args::Commands` has no `Cloud` or `Analytics` variant; `commands::core::content` (with `core::content::popular` and `core::content::types::PopularOutput`), `CoreCommands::Content`, `commands::web::sitemap`, `WebCommands::Sitemap`, the content-only output types in `commands::core::files::types` and `SitemapRoute`/`SitemapGenerateOutput` in `commands::web::types` are removed. Migrate to `systemprompt_cloud_entry::cli`, `systemprompt_analytics_entry::cli` and `systemprompt_content_entry::cli::{content, sitemap}`; the command paths are unchanged in a binary that links those crates."

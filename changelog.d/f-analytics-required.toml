@@ -1,0 +1,39 @@
+[root]
+section = "Changed"
+area = "Analytics"
+text = "The `analytics` extension is required: it owns the malicious-IP blacklist and behavioural bot-analysis jobs, so a profile that disables it is refused at boot with `LoaderError::RequiredExtensionDisabled`. It provides the content popularity ranking (`systemprompt_traits::ContentPopularity`) to the extension state, and the prerender reads it from there."
+
+[[crate]]
+name = "systemprompt-analytics"
+section = "Changed"
+text = "`AnalyticsExtension` is required (`is_required` returns `true`) and provides a `DynContentPopularity` backed by `ContentAnalyticsRepository`."
+
+[[crate]]
+name = "systemprompt-analytics"
+section = "Added"
+text = "`ContentAnalyticsRepository::popular_content` returns a source's content rows ranked by distinct human viewers (`PopularContentRow`); `ContentAnalyticsRepository` implements `ContentPopularity`."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Added"
+text = "`ContentPopularity` (`popular_content_ids`) and `DynContentPopularity`."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Breaking"
+text = "`ContentCatalogStats` gains `content_id_by_slug`, the content id a slug names in a locale; `AppContext::analytics_provider` returns `Arc<dyn AnalyticsProvider>` instead of an `Option`. Migrate by implementing `content_id_by_slug` and dropping the `Option` handling."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`AppContext::analytics_provider` returns `Arc<dyn AnalyticsProvider>`; the provider is always present."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Changed"
+text = "The extension state carries the GeoIP reader and the loaded content configuration; when either is not configured its type is reserved, so no extension can provide a substitute."
+
+[[crate]]
+name = "systemprompt-content"
+section = "Added"
+text = "`ContentRepository` implements `ContentCatalogStats::content_id_by_slug`; `ContentExtension` provides `Arc<ContentRepositories>` to the extension state."

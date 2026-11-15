@@ -1,0 +1,14 @@
+[root]
+section = "Changed"
+area = "Generator"
+text = "The `content_prerender` and `page_prerender` jobs are owned by the `generator` extension, which depends on `content`; a profile that disables `generator` leaves both registered but inactive, and `infra jobs list` names the owner. The prerender ranks popular content through the `ContentPopularity` provider in the extension state and renders without a popularity ordering when none is provided."
+
+[[crate]]
+name = "systemprompt-generator"
+section = "Added"
+text = "`GeneratorExtension` (`GENERATOR_EXTENSION`, id `generator`) owns the `content_prerender` and `page_prerender` job registrations; `PopularContent` (`Ranked`, `NoRankingProvider`, `UnnamedSource`) and the public `fetch_popular_ids`, which reads an optional `DynContentPopularity`."
+
+[[crate]]
+name = "systemprompt-generator"
+section = "Breaking"
+text = "`PublishError::Analytics` and `PublishError::analytics` are replaced by `PublishError::Popularity` and `PublishError::popularity`, carrying a `RepositoryError`."
