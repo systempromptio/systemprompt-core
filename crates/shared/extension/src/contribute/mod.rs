@@ -11,6 +11,12 @@
 //! No method returns or accepts another member's entries; the owner of every
 //! entry is the member whose sink holds it.
 //!
+//! A value a member provides with [`Contributions::provide`] is provided on
+//! every host that admits the member: there is no conditional provide. A
+//! provide fn reads its dependencies with `r.get`, and a missing dependency
+//! fails the boot; a consumer that may run without a value reads it with
+//! `r.optional`.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -60,6 +66,8 @@ use crate::retention::RetentionDecl;
 use crate::seed::Seed;
 use crate::state::StateRequirement;
 
+/// A member's sink for its declarations; every value it provides is provided
+/// on every host that admits the member.
 pub struct Contributions<'a> {
     owner: ExtensionId,
     view: KernelView<'a>,
