@@ -60,8 +60,6 @@ mod gateway_otel_authed;
 mod gateway_otel_handle;
 mod mcp_registry_handler;
 
-mod content_blog;
-mod content_links_redirect;
 mod wellknown_agent_cards;
 mod wellknown_agent_cards_configured;
 

@@ -1,0 +1,102 @@
+//! `core content verify` command checking published output.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use super::types::VerifyOutput;
+use anyhow::{Result, anyhow};
+use clap::Args;
+use std::path::PathBuf;
+use systemprompt_cli::kernel::{CommandContext, CommandOutput};
+use systemprompt_content::ContentRepository;
+use systemprompt_identifiers::{ContentId, LocaleCode, SourceId};
+
+#[derive(Debug, Args)]
+pub struct VerifyArgs {
+    #[arg(help = "Content slug or ID")]
+    pub identifier: String,
+
+    #[arg(long, help = "Source ID (required when using slug)")]
+    pub source: Option<String>,
+
+    #[arg(long, help = "Web dist directory to check for prerendered HTML")]
+    pub web_dist: Option<PathBuf>,
+
+    #[arg(long, help = "Base URL to check HTTP status")]
+    pub base_url: Option<String>,
+
+    #[arg(long, help = "URL pattern (e.g., /{source}/{slug})")]
+    pub url_pattern: Option<String>,
+}
+
+pub async fn execute(args: VerifyArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let pool = ctx.db_pool().await?;
+    let repo = ContentRepository::new(&pool);
+
+    let content = if uuid::Uuid::parse_str(&args.identifier).is_ok() {
+        let id = ContentId::new(args.identifier.clone());
+        repo.find_by_id(&id)
+            .await?
+            .ok_or_else(|| anyhow!("Content not found: {}", args.identifier))?
+    } else {
+        let source_id = args
+            .source
+            .as_ref()
+            .ok_or_else(|| anyhow!("--source required when using slug"))?;
+        let source = SourceId::new(source_id.clone());
+        repo.find_by_source_and_slug(&source, &args.identifier, &LocaleCode::english())
+            .await?
+            .ok_or_else(|| {
+                anyhow!(
+                    "Content not found: {} in source {}",
+                    args.identifier,
+                    source_id
+                )
+            })?
+    };
+
+    let url_pattern = args
+        .url_pattern
+        .unwrap_or_else(|| format!("/{}/{{}}", content.source_id.as_str()));
+    let expected_url = url_pattern.replace("{slug}", &content.slug);
+    let expected_url = expected_url.replace("{}", &content.slug);
+
+    let (prerendered, prerender_path) = args.web_dist.as_ref().map_or((None, None), |dist_dir| {
+        let html_path = dist_dir.join(format!(
+            "{}/index.html",
+            expected_url.trim_start_matches('/')
+        ));
+        let exists = html_path.exists();
+        (Some(exists), Some(html_path.to_string_lossy().to_string()))
+    });
+
+    let http_status = match &args.base_url {
+        Some(base_url) => {
+            let full_url = format!("{}{}", base_url.trim_end_matches('/'), expected_url);
+            reqwest::Client::new()
+                .head(&full_url)
+                .timeout(std::time::Duration::from_secs(5))
+                .send()
+                .await
+                .ok()
+                .map(|response| response.status().as_u16())
+        },
+        None => None,
+    };
+
+    let output = VerifyOutput {
+        content_id: content.id.clone(),
+        slug: content.slug,
+        source_id: content.source_id.clone(),
+        in_database: true,
+        is_public: content.public,
+        url: expected_url,
+        prerendered,
+        prerender_path,
+        http_status,
+        template: Some(content.kind),
+        last_updated: content.updated_at,
+    };
+
+    Ok(CommandOutput::card_value("Content Verification", &output))
+}

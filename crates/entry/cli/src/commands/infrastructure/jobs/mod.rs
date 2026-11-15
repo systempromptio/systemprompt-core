@@ -24,8 +24,6 @@ use clap::Subcommand;
 use crate::context::CommandContext;
 use crate::shared::render_result;
 
-use systemprompt_generator as _;
-
 #[derive(Debug, Subcommand)]
 pub enum JobsCommands {
     #[command(about = "List available jobs")]

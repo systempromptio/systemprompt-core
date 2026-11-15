@@ -3,7 +3,6 @@ use std::path::PathBuf;
 use axum::response::IntoResponse;
 use http::StatusCode;
 use systemprompt_api::error::ApiHttpError;
-use systemprompt_content::ContentError;
 use systemprompt_identifiers::{MarketplaceId, UserId};
 use systemprompt_loader::BundleError;
 use systemprompt_marketplace::MarketplaceError;
@@ -44,33 +43,6 @@ fn repository_error_classifies_by_variant() {
         reason: "empty".to_string(),
     };
     assert_eq!(code_of(invalid).code, ErrorCode::BadRequest);
-}
-
-#[test]
-fn content_error_maps_not_found_bad_request_and_internal() {
-    assert_eq!(
-        code_of(ContentError::ContentNotFound("a".into())).code,
-        ErrorCode::NotFound
-    );
-    assert_eq!(
-        code_of(ContentError::LinkNotFound("a".into())).code,
-        ErrorCode::NotFound
-    );
-    assert_eq!(
-        code_of(ContentError::InvalidRequest("a".into())).code,
-        ErrorCode::BadRequest
-    );
-    assert_eq!(
-        code_of(ContentError::Validation("a".into())).code,
-        ErrorCode::BadRequest
-    );
-    assert_eq!(
-        code_of(ContentError::Repository(repo_not_found())).code,
-        ErrorCode::NotFound
-    );
-    let internal = code_of(ContentError::Parse("secret detail".into()));
-    assert_eq!(internal.code, ErrorCode::InternalError);
-    assert!(!internal.message.contains("secret detail"));
 }
 
 #[test]
@@ -394,7 +366,7 @@ fn bundle_error_maps_every_class() {
 fn api_http_error_responds_with_mapped_status() {
     let response = ApiHttpError::from(UserError::NotFound(UserId::new("u"))).into_response();
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
-    let response = ApiHttpError::from(ContentError::Parse("p".into())).into_response();
+    let response = ApiHttpError::from(UserError::MergeUnavailable).into_response();
     assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
 }
 

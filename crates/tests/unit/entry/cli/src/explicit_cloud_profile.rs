@@ -203,9 +203,6 @@ fn every_destructive_command_demands_an_explicit_cloud_profile() {
         vec!["admin", "users", "ban", "cleanup"],
         vec!["admin", "agents", "delete", "a", "--yes"],
         vec!["admin", "bootstrap"],
-        vec!["core", "content", "delete", "c", "--yes"],
-        vec!["core", "content", "delete-source", "s", "--yes"],
-        vec!["core", "content", "link", "delete", "l", "--yes"],
         vec!["core", "files", "delete", "f", "--yes"],
         vec!["core", "contexts", "delete", "c", "--yes"],
         vec!["core", "services", "refresh"],
@@ -239,7 +236,6 @@ fn every_destructive_command_demands_an_explicit_cloud_profile() {
         vec!["infra", "jobs", "list"],
         vec!["infra", "logs", "view"],
         vec!["admin", "users", "list"],
-        vec!["core", "content", "list"],
         vec!["analytics", "overview"],
     ] {
         assert!(

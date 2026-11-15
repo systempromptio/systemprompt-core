@@ -77,4 +77,4 @@ impl Job for PagePrerenderJob {
     }
 }
 
-systemprompt_provider_contracts::submit_job!("content", &PagePrerenderJob);
+systemprompt_provider_contracts::submit_job!("generator", &PagePrerenderJob);

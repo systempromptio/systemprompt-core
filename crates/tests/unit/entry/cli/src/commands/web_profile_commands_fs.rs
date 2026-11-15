@@ -158,16 +158,3 @@ fn templates_show_rejects_an_unknown_template() {
     let err = run(&["templates", "show", "ghost"]).unwrap_err();
     assert!(format!("{err:#}").contains("ghost"));
 }
-
-#[test]
-fn sitemap_show_reads_the_profile_content_config() {
-    std::fs::write(
-        content_config_path(),
-        "content_sources:\n  blog:\n    path: content/blog\n    source_id: blog\n    category_id: \
-         blog\n    enabled: true\n    sitemap:\n      enabled: true\n      url_pattern: \
-         /blog/{slug}\n      priority: 0.7\n      changefreq: weekly\n",
-    )
-    .unwrap();
-
-    run(&["sitemap", "show"]).unwrap();
-}

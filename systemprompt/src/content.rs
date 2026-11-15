@@ -4,3 +4,4 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub use systemprompt_content::*;
+pub use systemprompt_content_entry as entry;

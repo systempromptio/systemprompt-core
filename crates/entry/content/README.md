@@ -4,6 +4,23 @@
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt-content-entry?style=flat-square)](https://docs.rs/systemprompt-content-entry)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
-The content HTTP routes and CLI commands of systemprompt.io: published content, links and engagement, with the templates and generator commands that render it.
+The content HTTP routes and CLI commands of systemprompt.io: published content, search, trackable links and the short-link redirect, the `core content` commands and sitemap generation.
 
 **Layer**: Entry. The `http` feature carries the routes, declared through `systemprompt-extension` and mounted by the API server; the `cli` feature carries the commands, registered with the CLI. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
+
+## Features
+
+| Feature | Carries |
+|---------|---------|
+| `http` | `ContentHttpExtension` (id `content-http`, depends on `content`): the public `/api/v1/content` routes, link generation at `/api/v1/content/links/generate` for a signed-in user, and the `/r/{short_code}` redirect at the web root, all in the content-and-misc role group under the `content` rate limit. The routes read the content repositories the `content` extension provides. |
+| `cli` | `core content` (registered under `core`, accepts `--database-url` for its read-only commands) and `web sitemap` (registered under `web`). |
+
+Either feature links `systemprompt-generator`, whose `generator` extension owns the `content_prerender` and `page_prerender` jobs.
+
+## Disabling
+
+| Profile disables | Routes | Boot |
+|------------------|--------|------|
+| `content-http` | not mounted; the paths answer 404 | boots |
+| `content` | — | refused: `content-http`, `generator` and `files` depend on it |
+| `generator` | unchanged | boots; both prerender jobs are listed as inactive |

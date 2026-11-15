@@ -1,6 +1,8 @@
 //! `Extension` registration for the content domain: schemas, dependencies,
-//! prerender providers and the provided content catalog
-//! (`DynContentCatalogStats`), which static-content serving reads.
+//! prerender providers and the provided state: the content catalog
+//! (`DynContentCatalogStats`), which static-content serving and analytics
+//! read, and the content repositories (`Arc<ContentRepositories>`), which the
+//! `content-http` routes read.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,7 +17,7 @@ use crate::branding_provider::default_branding_provider;
 use crate::homepage_prerenderer::DefaultHomepagePrerenderer;
 use crate::list_branding_provider::default_list_branding_provider;
 use crate::list_items_renderer::default_list_items_renderer;
-use crate::repository::ContentRepository;
+use crate::repository::{ContentRepositories, ContentRepository};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ContentExtension;
@@ -72,7 +74,8 @@ impl Extension for ContentExtension {
     ) -> Result<(), ExtensionStateError> {
         let db = Arc::clone(state.state().get::<DbPool>()?);
         let catalog: DynContentCatalogStats = Arc::new(ContentRepository::new(&db));
-        state.provide(catalog)
+        state.provide(catalog)?;
+        state.provide(Arc::new(ContentRepositories::new(&db)))
     }
 
     fn migrations(&self) -> Vec<Migration> {

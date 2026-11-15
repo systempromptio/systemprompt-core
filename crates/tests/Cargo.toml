@@ -79,6 +79,7 @@ members = [
     # Unit tests - entry layer
     "unit/entry/agent-runs",
     "unit/entry/cloud",
+    "unit/entry/content",
     "unit/entry/api",
     "unit/entry/cli",
     "unit/entry/notifications",
@@ -317,6 +318,7 @@ systemprompt-slack-entry = { path = "../entry/slack" }
 systemprompt-teams-entry = { path = "../entry/teams" }
 systemprompt-agent-runs-entry = { path = "../entry/agent-runs" }
 systemprompt-cloud-entry = { path = "../entry/cloud" }
+systemprompt-content-entry = { path = "../entry/content" }
 systemprompt-notifications-entry = { path = "../entry/notifications" }
 systemprompt-bridge = { path = "../../bin/bridge" }
 

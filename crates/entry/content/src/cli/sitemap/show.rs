@@ -1,0 +1,107 @@
+//! `web sitemap show` command with XML preview.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use anyhow::{Context, Result};
+use clap::Args;
+use std::fs;
+
+use systemprompt_cli::kernel::{CliConfig, CommandOutput};
+use systemprompt_logging::CliService;
+use systemprompt_manifest::Profile;
+use systemprompt_models::content_config::ContentConfigRaw;
+
+use super::types::SitemapRoute;
+
+#[derive(Debug, Clone, Copy, Args)]
+pub struct ShowArgs {
+    #[arg(long, help = "Show XML preview")]
+    pub preview: bool,
+}
+
+pub(super) fn execute(
+    args: ShowArgs,
+    config: &CliConfig,
+    profile: &Profile,
+) -> Result<CommandOutput> {
+    execute_with_config_path(args, config, profile.paths.content_config().as_str())
+}
+
+pub fn execute_with_config_path(
+    args: ShowArgs,
+    _config: &CliConfig,
+    content_config_path: &str,
+) -> Result<CommandOutput> {
+    let content = fs::read_to_string(content_config_path)
+        .with_context(|| format!("Failed to read content config at {}", content_config_path))?;
+
+    let config: ContentConfigRaw = serde_yaml::from_str(&content)
+        .with_context(|| format!("Failed to parse content config at {}", content_config_path))?;
+
+    let mut routes: Vec<SitemapRoute> = Vec::new();
+
+    for (name, source) in &config.content_sources {
+        if !source.enabled {
+            continue;
+        }
+
+        if let Some(sitemap) = &source.sitemap {
+            if !sitemap.enabled {
+                continue;
+            }
+
+            if let Some(parent) = &sitemap.parent_route
+                && parent.enabled
+            {
+                routes.push(SitemapRoute {
+                    url: parent.url.clone(),
+                    priority: parent.priority,
+                    changefreq: parent.changefreq.clone(),
+                    source: format!("{} (parent)", name),
+                });
+            }
+
+            routes.push(SitemapRoute {
+                url: sitemap.url_pattern.clone(),
+                priority: sitemap.priority,
+                changefreq: sitemap.changefreq.clone(),
+                source: name.clone(),
+            });
+        }
+    }
+
+    routes.sort_by(|a, b| {
+        b.priority
+            .partial_cmp(&a.priority)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    if args.preview {
+        let xml = generate_xml_preview(&routes);
+        CliService::output(&xml);
+    }
+
+    Ok(
+        CommandOutput::table_of(vec!["url", "priority", "changefreq", "source"], &routes)
+            .with_title("Sitemap Configuration"),
+    )
+}
+
+fn generate_xml_preview(routes: &[SitemapRoute]) -> String {
+    let mut xml = String::from(concat!(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n",
+        "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n"
+    ));
+
+    for route in routes {
+        xml.push_str(&format!(
+            "  <url>\n    <loc>{}</loc>\n    <priority>{:.1}</priority>\n    \
+             <changefreq>{}</changefreq>\n  </url>\n",
+            route.url, route.priority, route.changefreq
+        ));
+    }
+
+    xml.push_str("</urlset>\n");
+    xml
+}

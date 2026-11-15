@@ -14,7 +14,7 @@ group_prefixes() {
     app-runtime)   echo "/tests/unit/app/runtime/ /tests/unit/app/gateway/ /tests/unit/app/gateway-golden/" ;;
     app-scheduler) echo "/tests/unit/app/scheduler/" ;;
     app-agent-runs)  echo "/tests/unit/app/agent-runs/ /tests/unit/entry/agent-runs/" ;;
-    app-generator) echo "/tests/unit/app/generator/" ;;
+    app-generator) echo "/tests/unit/app/generator/ /tests/unit/entry/content/" ;;
     app-oauth-issuance) echo "/tests/unit/app/oauth-issuance/" ;;
     entry-api)     echo "/tests/unit/entry/api/ /tests/unit/entry/notifications/ /tests/unit/entry/slack/ /tests/unit/entry/teams/" ;;
     entry-cli)     echo "/tests/unit/entry/cli/ /tests/unit/entry/cloud/" ;;

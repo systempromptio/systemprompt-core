@@ -42,7 +42,8 @@ The content publishing pipeline runs in four stages:
 | `BuildError` | Typed errors emitted by the build orchestrator |
 | `PublishError` / `GeneratorResult` | Public error and result alias for every entry point |
 | `PagePrerenderResult` | Outcome of a single page-prerenderer invocation |
-| `ContentPrerenderJob` / `PagePrerenderJob` | Scheduler jobs for content and page prerendering |
+| `ContentPrerenderJob` / `PagePrerenderJob` | Scheduler jobs for content and page prerendering, owned by the `generator` extension |
+| `GeneratorExtension` | The `generator` extension (depends on `content`); disabling it leaves both prerender jobs registered but inactive |
 | `SitemapUrl` / `DefaultSitemapProvider` | Sitemap entries and default provider |
 | `RssChannel` / `RssItem` / `GeneratedFeed` / `DefaultRssFeedProvider` | RSS feed types and default provider |
 

@@ -44,6 +44,7 @@ systemprompt-files = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-agent = { workspace = true }
 systemprompt-content = { workspace = true }
+systemprompt-content-entry = { workspace = true, features = ["http"] }
 systemprompt-marketplace = { workspace = true }
 systemprompt-mcp = { workspace = true }
 systemprompt-users = { workspace = true }

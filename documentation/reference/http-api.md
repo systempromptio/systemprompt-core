@@ -398,11 +398,13 @@ A refused document request answers the common error envelope with `error_key` se
 
 ## Other mounted areas
 
-These areas are mounted by `mount_content_and_misc` (`protocol.rs:149`).
+These areas are mounted by `mount_content_and_misc` (`protocol.rs:149`), except the content routes, which the `content-http` extension (`systemprompt-content-entry`) declares in the same role group. A profile that disables `content-http` mounts none of them, and those paths answer 404.
 
 | Base path | Auth | Purpose |
 |-----------|------|---------|
-| `/api/v1/content` | Public + User | Content query and link resolution. |
+| `/api/v1/content` | Public | Published content by source and slug (JSON, or Markdown through content negotiation), search (`POST /query`), and link listings and analytics under `/links`. |
+| `/api/v1/content/links/generate` | User | Trackable-link generation. |
+| `/r/{short_code}` | Public | Short-link redirect; a click is recorded for every session that is not a detected bot. |
 | `/api/v1/documents`, `/api/v1/document-folders`, `/v1/bridge/drive` | User; device | The document store, listed under [Documents](#documents) above. |
 | `/api/v1/sync` | Restricted (Service) | Cloud sync of files. |
 | `/api/v1/marketplace` | Public | Marketplace catalog. |

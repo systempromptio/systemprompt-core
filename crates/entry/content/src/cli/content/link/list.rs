@@ -1,0 +1,67 @@
+//! `core content link list` command.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use crate::cli::content::types::{LinkListOutput, LinkSummary};
+use anyhow::{Result, anyhow};
+use clap::Args;
+use systemprompt_cli::kernel::{CommandContext, CommandOutput};
+use systemprompt_content::LinkAnalyticsService;
+use systemprompt_identifiers::{CampaignId, ContentId};
+
+#[derive(Debug, Args)]
+pub struct ListArgs {
+    #[arg(long, help = "Filter by campaign ID")]
+    pub campaign: Option<String>,
+
+    #[arg(long, help = "Filter by source content ID")]
+    pub content: Option<String>,
+}
+
+pub async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    if args.campaign.is_none() && args.content.is_none() {
+        return Err(anyhow!("Either --campaign or --content must be specified"));
+    }
+
+    let repositories = ctx.app_context().await?.content_repositories();
+    let service = LinkAnalyticsService::new(
+        repositories.link.clone(),
+        repositories.link_analytics.clone(),
+    );
+
+    let links = if let Some(campaign) = &args.campaign {
+        let campaign_id = CampaignId::new(campaign.clone());
+        service.get_links_by_campaign(&campaign_id).await?
+    } else if let Some(content) = &args.content {
+        let content_id = ContentId::new(content.clone());
+        service.get_links_by_source_content(&content_id).await?
+    } else {
+        vec![]
+    };
+
+    let total = links.len();
+    let summaries: Vec<LinkSummary> = links
+        .into_iter()
+        .map(|link| LinkSummary {
+            id: link.id,
+            short_code: link.short_code,
+            target_url: link.target_url,
+            link_type: link.link_type,
+            campaign_name: link.campaign_name,
+            click_count: link.click_count.unwrap_or(0),
+            created_at: link.created_at,
+        })
+        .collect();
+
+    let output = LinkListOutput {
+        links: summaries,
+        total,
+    };
+
+    Ok(CommandOutput::table_of(
+        vec!["id", "short_code", "target_url", "click_count"],
+        &output.links,
+    )
+    .with_title("Links"))
+}

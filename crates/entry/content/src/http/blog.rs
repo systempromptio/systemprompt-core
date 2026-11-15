@@ -1,0 +1,126 @@
+//! Content delivery routes for source-scoped documents.
+//!
+//! Serves content by source and slug as JSON or Markdown, honouring the
+//! configured content-negotiation suffix and advertising the Markdown
+//! alternate via a `Link` header when negotiation is enabled.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use axum::extract::{Path, State};
+use axum::http::StatusCode;
+use axum::http::header::{CONTENT_TYPE, LINK};
+use axum::response::{IntoResponse, Response};
+use axum::{Extension, Json};
+use systemprompt_api::kernel::{AcceptedFormat, AcceptedMediaType, ApiHttpError};
+use systemprompt_content::Content;
+use systemprompt_identifiers::{LocaleCode, SourceId};
+use systemprompt_models::RequestContext;
+use systemprompt_models::api::{MarkdownFrontmatter, MarkdownResponse};
+use systemprompt_traits::RepositoryError;
+
+use super::{ContentHttpError, ContentHttpState};
+
+pub async fn list_content_by_source_handler(
+    State(state): State<ContentHttpState>,
+    Path(source_id): Path<String>,
+) -> Result<Json<Vec<Content>>, ContentHttpError> {
+    let source_id = SourceId::try_new(source_id)?;
+    let content_service = &state.repositories.content;
+
+    let content = content_service
+        .list_by_source(&source_id, &LocaleCode::english())
+        .await
+        .map_err(RepositoryError::from)?;
+    Ok(Json(content))
+}
+
+pub async fn get_content_handler(
+    State(state): State<ContentHttpState>,
+    Extension(_req_ctx): Extension<RequestContext>,
+    accepted_format: Option<Extension<AcceptedFormat>>,
+    Path((source_id, slug)): Path<(String, String)>,
+) -> Result<Response, ContentHttpError> {
+    let source_id = SourceId::try_new(source_id)?;
+    let content_service = &state.repositories.content;
+
+    let content = content_service
+        .find_by_source_and_slug(&source_id, &slug, &LocaleCode::english())
+        .await
+        .map_err(RepositoryError::from)?
+        .ok_or_else(content_not_found)?;
+
+    let wants_markdown =
+        accepted_format.is_some_and(|f| f.0.media_type() == AcceptedMediaType::Markdown);
+    if wants_markdown {
+        return Ok(markdown_response(&content_to_markdown_response(&content)));
+    }
+
+    if !state.content_negotiation.enabled {
+        return Ok(Json(content).into_response());
+    }
+    let suffix = state.markdown_suffix();
+    let link_value = format!(
+        "</api/v1/content/{}/{}/{}>; rel=\"alternate\"; type=\"text/markdown\"",
+        source_id, slug, suffix
+    );
+    let mut response = Json(&content).into_response();
+    if let Ok(header_value) = link_value.parse() {
+        response.headers_mut().insert(LINK, header_value);
+    }
+    Ok(response)
+}
+
+pub async fn get_content_markdown_handler(
+    State(state): State<ContentHttpState>,
+    Extension(_req_ctx): Extension<RequestContext>,
+    Path((source_id, slug)): Path<(String, String)>,
+) -> Result<Response, ContentHttpError> {
+    let source_id = SourceId::try_new(source_id)?;
+    let content_service = &state.repositories.content;
+
+    let slug = slug.trim_end_matches(".md");
+
+    let content = content_service
+        .find_by_source_and_slug(&source_id, slug, &LocaleCode::english())
+        .await
+        .map_err(RepositoryError::from)?
+        .ok_or_else(content_not_found)?;
+    Ok(markdown_response(&content_to_markdown_response(&content)))
+}
+
+fn content_not_found() -> ApiHttpError {
+    ApiHttpError::not_found("Content not found")
+}
+
+fn markdown_response(markdown: &MarkdownResponse) -> Response {
+    match markdown.to_markdown() {
+        Ok(body) => (
+            StatusCode::OK,
+            [(CONTENT_TYPE, "text/markdown; charset=utf-8")],
+            body,
+        )
+            .into_response(),
+        Err(e) => {
+            tracing::error!(error = %e, "MarkdownResponse frontmatter serialization failed");
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+        },
+    }
+}
+
+fn content_to_markdown_response(content: &Content) -> MarkdownResponse {
+    let tags: Vec<String> = content
+        .keywords
+        .split(',')
+        .map(|s| s.trim().to_owned())
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    let frontmatter = MarkdownFrontmatter::new(&content.title, &content.slug)
+        .with_description(&content.description)
+        .with_author(&content.author)
+        .with_published_at(content.published_at.format("%Y-%m-%d").to_string())
+        .with_tags(tags);
+
+    MarkdownResponse::new(frontmatter, &content.body)
+}
