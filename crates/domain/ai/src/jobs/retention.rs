@@ -13,7 +13,9 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use systemprompt_database::DbPool;
 use systemprompt_extension::{Contributions, RetentionDecl};
-use systemprompt_traits::{JobContext, ProviderError, ProviderResult, RetentionPurge, RetentionSweep};
+use systemprompt_traits::{
+    JobContext, ProviderError, ProviderResult, RetentionPurge, RetentionSweep,
+};
 use tracing::{info, warn};
 
 use crate::repository::ai_requests::ORPHAN_AGE;

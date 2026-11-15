@@ -8570,7 +8570,6 @@ dependencies = [
  "base64 0.23.1",
  "chrono",
  "futures",
- "inventory",
  "jsonschema",
  "metrics",
  "regex",
