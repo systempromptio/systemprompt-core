@@ -44,7 +44,10 @@ fn the_route_set_is_user_gated_and_rate_limited_at_agent_runs() {
     assert_eq!(set.defs().len(), 7);
     for def in set.defs() {
         assert_eq!(def.spec.context, ContextKind::User);
-        assert_eq!(def.spec.policy.allowed(), &[UserType::User, UserType::Admin]);
+        assert_eq!(
+            def.spec.policy.allowed(),
+            &[UserType::User, UserType::Admin]
+        );
         assert!(def.spec.policy.handler_verifier().is_none());
         assert_eq!(
             def.spec.limits.rate,

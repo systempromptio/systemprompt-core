@@ -3,9 +3,9 @@
 // parse, response build) via a real in-test handler. DB-backed parts run
 // behind the fixture skip-guard; the schema/trait parts are pure.
 
-use systemprompt_mcp::services::ui_renderer::UiRendererRegistry;
 use std::sync::Arc;
 use systemprompt_identifiers::McpServerId;
+use systemprompt_mcp::services::ui_renderer::UiRendererRegistry;
 
 use rmcp::ErrorData as McpError;
 use rmcp::model::CallToolRequestParams;

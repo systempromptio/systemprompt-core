@@ -4,11 +4,11 @@
 //! implementation. We exercise construction + the inherent value-type
 //! surface to give the file at least one passing branch.
 
-use systemprompt_mcp::services::ui_renderer::UiRendererRegistry;
 use std::sync::Arc;
 use systemprompt_ai::repository::AiRequestRepository;
 use systemprompt_identifiers::McpServerId;
 use systemprompt_mcp::repository::ToolUsageRepository;
+use systemprompt_mcp::services::ui_renderer::UiRendererRegistry;
 use systemprompt_mcp::{ArtifactIngest, McpToolExecutor};
 use systemprompt_test_fixtures::test_db_pool;
 use systemprompt_traits::DynToolCallIntentClaims;

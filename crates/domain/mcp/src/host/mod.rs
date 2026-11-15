@@ -17,9 +17,7 @@ mod recorder;
 mod server;
 
 pub use catalog::{HostedCatalog, HostedTool, ToolsetHostError, resolve_tool_access};
-pub use recorder::{
-    McpAccessEvent, McpAccessOutcome, McpAccessRecorder, SharedMcpAccessRecorder,
-};
+pub use recorder::{McpAccessEvent, McpAccessOutcome, McpAccessRecorder, SharedMcpAccessRecorder};
 pub use server::{ToolsetAuthz, ToolsetServer, ToolsetServerParts};
 
 pub async fn serve_router(

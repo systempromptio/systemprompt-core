@@ -21,15 +21,17 @@ mod stream;
 
 use std::sync::Arc;
 
+use axum::http::Method;
 use systemprompt_agent_runs::notify::RunEventNotifier;
 use systemprompt_agent_runs::origin::AdmittedRunOrigins;
 use systemprompt_agent_runs::{A2aRunnerConfig, AgentRunRepository};
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
-use axum::http::Method;
 use systemprompt_extension::RouteGroup;
 use systemprompt_extension::prelude::*;
-use systemprompt_extension::router::{ApiBase, BasePath, BodyLimit, RouteLimits, RouteSet, RouteSpec};
+use systemprompt_extension::router::{
+    ApiBase, BasePath, BodyLimit, RouteLimits, RouteSet, RouteSpec,
+};
 use systemprompt_manifest::Config;
 
 
@@ -91,9 +93,19 @@ pub fn routes() -> RouteSet {
         .route(Method::GET, "/{id}", handlers::get_run, USER)
         .route(Method::POST, "/{id}/cancel", handlers::cancel, USER)
         .route(Method::GET, "/{id}/events", handlers::list_events, USER)
-        .route(Method::GET, "/{id}/events/stream", stream::events_stream, USER)
+        .route(
+            Method::GET,
+            "/{id}/events/stream",
+            stream::events_stream,
+            USER,
+        )
         .route(Method::GET, "/{id}/outputs", handlers::list_outputs, USER)
-        .route(Method::GET, "/{id}/outputs/{*path}", handlers::read_output, USER)
+        .route(
+            Method::GET,
+            "/{id}/outputs/{*path}",
+            handlers::read_output,
+            USER,
+        )
         .build()
 }
 

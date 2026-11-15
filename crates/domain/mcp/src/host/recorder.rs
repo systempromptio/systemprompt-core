@@ -6,8 +6,8 @@
 //! `c.slot::<AccessRecorderSlot>().recorder(..)`
 //! ([`AccessRecorderSlot`](crate::contract::AccessRecorderSlot)); the kernel
 //! builds every contributed recorder once and the host reports each outcome
-//! to all of them. A recorder is best-effort by contract: it returns nothing, so
-//! an audit write that fails can never fail the call it describes.
+//! to all of them. A recorder is best-effort by contract: it returns nothing,
+//! so an audit write that fails can never fail the call it describes.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

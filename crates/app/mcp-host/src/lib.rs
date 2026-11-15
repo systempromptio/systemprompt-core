@@ -11,9 +11,9 @@
 //!   state a host enforces are the API's by construction.
 //! - [`toolsets`] serves a YAML-declared MCP server: the deployment's
 //!   `toolsets:` built from the toolsets contributed through
-//!   [`ToolsetSlot`](contract::ToolsetSlot),
-//!   behind the hop-verifying MCP router. A server that names no `binary:` is
-//!   this product binary re-run as `admin mcp serve --server <id>`.
+//!   [`ToolsetSlot`](contract::ToolsetSlot), behind the hop-verifying MCP
+//!   router. A server that names no `binary:` is this product binary re-run as
+//!   `admin mcp serve --server <id>`.
 //! - [`AgentHost`] composes an agent's collaborators on a [`HostContext`].
 //!
 //! # What a toolset factory can reach

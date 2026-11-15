@@ -3,10 +3,10 @@
 //! runner service.
 //!
 //! It is the crate's composition root: it provides the
-//! [`AgentRunRepository`] and the [`DynAgentRunLauncher`] over it. The `admin agents run` child host hands that
-//! launcher to its A2A server, the agent-runs routes and the run-directory
-//! retention job read the repository, and the one runner service,
-//! [`A2aRunnerService`], claims the runs the A2A server queues.
+//! [`AgentRunRepository`] and the [`DynAgentRunLauncher`] over it. The `admin
+//! agents run` child host hands that launcher to its A2A server, the agent-runs
+//! routes and the run-directory retention job read the repository, and the one
+//! runner service, [`A2aRunnerService`], claims the runs the A2A server queues.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

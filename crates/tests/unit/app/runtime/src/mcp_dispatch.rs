@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
-use systemprompt_mcp::services::ui_renderer::UiRendererRegistry;
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolRequestParams, CallToolResult};
 use serde_json::{Map, Value, json};
 use systemprompt_ai::repository::AiRequestRepository;
 use systemprompt_identifiers::McpServerId;
 use systemprompt_mcp::repository::ToolUsageRepository;
+use systemprompt_mcp::services::ui_renderer::UiRendererRegistry;
 use systemprompt_mcp::{ArtifactIngest, ClientProfile, McpToolExecutor};
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_runtime::documents::mcp::{DocumentsMcpTools, DocumentsToolCall, TOOL_NAMES};

@@ -1,13 +1,12 @@
 use std::sync::{Arc, Mutex};
 
-use std::sync::Arc;
-use systemprompt_mcp::services::ui_renderer::UiRendererRegistry;
 use async_trait::async_trait;
 use rmcp::model::{
     CallToolResult, ListResourcesResult, ReadResourceRequestParams, ReadResourceResult, Resource,
     ResourceContents, Tool,
 };
 use rmcp::{ErrorData as McpError, ServerHandler};
+use std::sync::Arc;
 use systemprompt_extension::StandingTag;
 use systemprompt_governance::authz::{
     AllowAllHook, DenyAllHook, SharedAuthzHook, SubjectAttributeError, SubjectAttributeProvider,
@@ -19,6 +18,7 @@ use systemprompt_mcp::host::{
     ToolsetServerParts,
 };
 use systemprompt_mcp::repository::ToolUsageRepository;
+use systemprompt_mcp::services::ui_renderer::UiRendererRegistry;
 use systemprompt_mcp::{ArtifactIngest, McpToolExecutor, McpToolset, ToolsetCall};
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_models::authz::RuleType;

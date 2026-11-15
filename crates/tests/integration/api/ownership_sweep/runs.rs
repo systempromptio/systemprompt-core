@@ -1,7 +1,7 @@
 use anyhow::Result;
+use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use axum::Router;
 use serde_json::json;
 use systemprompt_test_fixtures::seed_admin_credential;
 
@@ -55,11 +55,7 @@ async fn a_second_user_is_refused_every_owned_agent_run_route() -> Result<()> {
             "traffic": "evaluation"
         }
     });
-    let created = send(
-        state.as_user(owner.user_id.as_str()),
-        json_post("/", body),
-    )
-    .await?;
+    let created = send(state.as_user(owner.user_id.as_str()), json_post("/", body)).await?;
     assert_eq!(created.status, StatusCode::ACCEPTED, "{}", created.body);
     let created: serde_json::Value = serde_json::from_str(&created.body)?;
     let id = created["id"].as_str().expect("run id").to_owned();

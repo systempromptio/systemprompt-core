@@ -20,11 +20,11 @@ use systemprompt_mcp::contract::AccessRecorders;
 use systemprompt_mcp::host::{
     ToolsetAuthz, ToolsetHostError, ToolsetServer, ToolsetServerParts, serve_router,
 };
-use systemprompt_mcp::services::ui_renderer::UiRendererRegistry;
-use systemprompt_provider_contracts::MissingDependency;
 use systemprompt_mcp::middleware::HopVerifier;
 use systemprompt_mcp::repository::ToolUsageRepository;
+use systemprompt_mcp::services::ui_renderer::UiRendererRegistry;
 use systemprompt_mcp::{McpHttpConfig, McpToolExecutor, McpToolset, create_router};
+use systemprompt_provider_contracts::MissingDependency;
 use tokio::net::TcpListener;
 
 use super::factory::ToolsetBuildError;

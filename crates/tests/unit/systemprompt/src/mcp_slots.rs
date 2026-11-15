@@ -183,7 +183,10 @@ fn mcp_opens_the_ui_and_access_recorder_slots() {
     let recorders: Arc<AccessRecorders> = built::<AccessRecorderSlot>(&admitted)
         .expect("the recorder slot builds")
         .expect("the mcp member's slot is built");
-    assert!(recorders.to_vec().is_empty(), "core contributes no recorder");
+    assert!(
+        recorders.to_vec().is_empty(),
+        "core contributes no recorder"
+    );
 }
 
 #[test]
@@ -202,15 +205,20 @@ fn a_second_theme_is_refused() {
     .expect("both probes admit");
     let error = built::<UiSlot>(&admitted).expect_err("two themes refuse");
     assert!(
-        matches!(error, SlotError::MultipleEntries { slot: "mcp_ui", count: 2 }),
+        matches!(
+            error,
+            SlotError::MultipleEntries {
+                slot: "mcp_ui",
+                count: 2
+            }
+        ),
         "{error:?}"
     );
 }
 
 #[test]
 fn one_contributed_theme_is_applied() {
-    let admitted =
-        build(reference().with(theme_probe("probe-theme"))).expect("the probe admits");
+    let admitted = build(reference().with(theme_probe("probe-theme"))).expect("the probe admits");
     let ui = built::<UiSlot>(&admitted)
         .expect("one theme builds")
         .expect("the ui slot is built");
@@ -250,12 +258,15 @@ fn a_disabled_members_renderer_is_never_built() {
     assert!(!ui.supports(PROBE_TYPE));
     assert_eq!(off.get(), 0, "a disabled member's factory never runs");
 
-    let enabled = build(reference().with(renderer_probe("probe-render-on", &on)))
-        .expect("the probe admits");
+    let enabled =
+        build(reference().with(renderer_probe("probe-render-on", &on))).expect("the probe admits");
     let ui = built::<UiSlot>(&enabled)
         .expect("the ui slot builds")
         .expect("the ui slot is built");
-    assert!(ui.supports(PROBE_TYPE), "negative control: the enabled renderer is built");
+    assert!(
+        ui.supports(PROBE_TYPE),
+        "negative control: the enabled renderer is built"
+    );
     assert_eq!(on.get(), 1);
 }
 
@@ -336,7 +347,13 @@ fn a_disabled_members_toolset_is_not_hosted() {
     )
     .expect_err("a disabled member's toolset is not contributed");
     assert!(
-        matches!(error, SlotError::Entry { slot: "mcp_toolsets", .. }),
+        matches!(
+            error,
+            SlotError::Entry {
+                slot: "mcp_toolsets",
+                ..
+            }
+        ),
         "{error:?}"
     );
 }
@@ -372,4 +389,3 @@ fn admitted_run_origins_are_those_of_enabled_members() {
     assert!(origins.contains("probe_on"));
     assert!(!origins.contains("probe_off"));
 }
-

@@ -7,8 +7,8 @@
 //! [`serve`]. [`serve`] builds the listed toolsets from the built
 //! [`Toolsets`](crate::contract::Toolsets), filters `tools/list` per caller,
 //! gates each call on the tool's resolved access and audits every outcome
-//! through the contributed access recorders. A separate extension binary that hosts toolsets
-//! calls [`serve`] the same way.
+//! through the contributed access recorders. A separate extension binary that
+//! hosts toolsets calls [`serve`] the same way.
 //! Core contributes the `issues` and `documents` toolsets; an extension adds
 //! its own through the [`ToolsetSlot`](crate::contract::ToolsetSlot).
 //!

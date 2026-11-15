@@ -43,7 +43,10 @@ impl ArtifactTheme {
     }
 
     pub(crate) fn apply(&self, html: &str) -> String {
-        let tokens = format!("{THEME_TOKENS_ANCHOR}\n<style>\n:root {{\n{}\n}}\n</style>", self.tokens);
+        let tokens = format!(
+            "{THEME_TOKENS_ANCHOR}\n<style>\n:root {{\n{}\n}}\n</style>",
+            self.tokens
+        );
         let themed = html.replacen(THEME_TOKENS_ANCHOR, &tokens, 1);
         if self.extra_css.is_empty() {
             return themed;

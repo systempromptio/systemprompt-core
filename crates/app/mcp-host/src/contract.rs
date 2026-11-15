@@ -23,7 +23,9 @@
 use std::collections::BTreeMap;
 use std::fmt;
 
-use systemprompt_extension::{MissingDependency, Resolved, Slot, SlotEntry, SlotError, SlotOrder, StandingTag};
+use systemprompt_extension::{
+    MissingDependency, Resolved, Slot, SlotEntry, SlotError, SlotOrder, StandingTag,
+};
 use systemprompt_identifiers::{ExtensionId, McpServerId};
 use systemprompt_manifest::ServicesConfig;
 use systemprompt_manifest::services::ServicesView;

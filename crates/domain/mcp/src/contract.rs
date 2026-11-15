@@ -159,7 +159,9 @@ impl AccessRecorders {
 
 impl fmt::Debug for AccessRecorders {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("AccessRecorders").field(&self.0.len()).finish()
+        f.debug_tuple("AccessRecorders")
+            .field(&self.0.len())
+            .finish()
     }
 }
 
@@ -194,7 +196,11 @@ fn run_all<T: ?Sized + 'static>(
 ) -> Result<Vec<Arc<T>>, SlotError> {
     factories
         .iter()
-        .map(|factory| factory.build(r).map_err(|error| slot_error(slot, owner, error)))
+        .map(|factory| {
+            factory
+                .build(r)
+                .map_err(|error| slot_error(slot, owner, error))
+        })
         .collect()
 }
 
