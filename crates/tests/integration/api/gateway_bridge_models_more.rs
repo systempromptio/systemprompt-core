@@ -30,7 +30,7 @@ use systemprompt_test_fixtures::seed_admin_credential;
 use tower::ServiceExt;
 
 use super::common::setup_ctx;
-use systemprompt_governance::policy::types::AccessScope;
+use systemprompt_governance::policy::AccessScope;
 use systemprompt_models::origin::{
     ClientAttestation, ClientEvidence, ClientKind, InboundWireProtocol, RequestOrigin,
 };
@@ -189,7 +189,7 @@ fn flatten_message_content_empty_is_empty_string() {
 
 #[test]
 fn upstream_registry_serves_builtin_wire_adapters() {
-    let registry = GatewayUpstreamRegistry::new();
+    let registry = GatewayUpstreamRegistry::builtin();
     assert!(registry.get("anthropic").is_some());
     assert!(registry.get("openai-chat").is_some());
     assert!(registry.get("nonexistent-wire").is_none());
@@ -199,9 +199,7 @@ fn upstream_registry_serves_builtin_wire_adapters() {
 #[tokio::test]
 async fn safety_scanner_registry_carries_the_builtins() {
     let registry =
-        SafetyScannerRegistry::discover(&systemprompt_test_fixtures::fixture_extension_context(
-            &systemprompt_test_fixtures::test_db_pool().await,
-        ));
+        SafetyScannerRegistry::builtin();
     let safety = SafetyConfig::default();
     assert!(registry.create("null", &safety).is_some());
     assert!(registry.create("heuristic", &safety).is_some());

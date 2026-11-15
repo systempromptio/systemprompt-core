@@ -2,9 +2,9 @@
 //!
 //! The [`OutboundAdapter`] trait sends a [`CanonicalRequest`] to an upstream
 //! provider and yields an [`OutboundOutcome`] — a buffered response or a stream
-//! of canonical events. Adapters register themselves via
-//! [`OutboundAdapterRegistration`] (collected by `inventory`) so the upstream
-//! registry can resolve one by provider tag. Implementations cover Anthropic,
+//! of canonical events. The upstream registry resolves one by provider tag;
+//! members contribute adapters for other tags to
+//! [`OutboundSlot`](crate::contract::OutboundSlot). Implementations cover Anthropic,
 //! Gemini, `OpenAI` Chat Completions, and `OpenAI` Responses. Where a request
 //! goes and how it authenticates is the resolved [`UpstreamCall`] — the same
 //! seam the in-process AI service sends through — so an adapter renders its
@@ -250,10 +250,4 @@ pub trait OutboundAdapter: Send + Sync {
     ) -> Result<OutboundOutcome, OutboundError>;
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct OutboundAdapterRegistration {
-    pub tag: &'static str,
-    pub factory: fn() -> Arc<dyn OutboundAdapter>,
-}
 
-inventory::collect!(OutboundAdapterRegistration);

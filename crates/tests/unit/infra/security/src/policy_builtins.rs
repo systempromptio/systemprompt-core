@@ -1,14 +1,14 @@
 use serde_json::json;
 use systemprompt_governance::authz::types::{Decision, DenyReason};
-use systemprompt_governance::policy::governed::{GovernedInput, GovernedTarget, McpToolInput};
+use systemprompt_governance::policy::{GovernedInput, GovernedTarget, McpToolInput};
 use systemprompt_governance::policy::secrets::{SecretHit, SecretScanner};
-use systemprompt_governance::policy::types::{AccessScope, AgentScope, PolicyContext};
+use systemprompt_governance::policy::{AccessScope, AgentScope, PolicyContext};
 use systemprompt_governance::policy::{GovernanceConfig, GovernanceEngine};
 use systemprompt_identifiers::{CallId, McpToolName, SessionId, UserId};
 
 fn engine(yaml: &str) -> GovernanceEngine {
     let config = GovernanceConfig::parse(yaml).expect("valid test governance YAML");
-    GovernanceEngine::from_config(&config, Some(crate::offline_rate_windows()))
+    GovernanceEngine::from_config(&config, &systemprompt_governance::policy::PolicyCatalog::builtin(), Some(crate::offline_rate_windows()))
         .expect("registered test governance policies")
 }
 
@@ -193,7 +193,7 @@ fn invalid_pattern_definitions_fail_engine_startup() {
         );
         if let Ok(config) = GovernanceConfig::parse(&yaml) {
             assert!(
-                GovernanceEngine::from_config(&config, Some(crate::offline_rate_windows()))
+                GovernanceEngine::from_config(&config, &systemprompt_governance::policy::PolicyCatalog::builtin(), Some(crate::offline_rate_windows()))
                     .is_err(),
                 "{yaml}"
             );
@@ -568,7 +568,7 @@ fn rate_limit_fails_closed_without_a_charged_count() {
 mod require_approval {
     use super::{Call, args, engine, tool};
     use systemprompt_governance::authz::types::Decision;
-    use systemprompt_governance::policy::types::AccessScope;
+    use systemprompt_governance::policy::AccessScope;
     use systemprompt_governance::policy::{
         ApprovalSettings, ChainEntryResult, GovernanceConfig, GovernanceEngine,
         GovernanceEngineError,
@@ -1062,6 +1062,7 @@ governance:
 ";
         let err = GovernanceEngine::from_config(
             &GovernanceConfig::parse(BROKEN).unwrap(),
+            &systemprompt_governance::policy::PolicyCatalog::builtin(),
             Some(crate::offline_rate_windows()),
         )
         .expect_err("a malformed patterns entry rejects the policy configuration");
@@ -1087,6 +1088,7 @@ governance:
 ";
         let err = GovernanceEngine::from_config(
             &GovernanceConfig::parse(BROKEN).unwrap(),
+            &systemprompt_governance::policy::PolicyCatalog::builtin(),
             Some(crate::offline_rate_windows()),
         )
         .expect_err("an operand the operator cannot use rejects the configuration");
@@ -1105,6 +1107,7 @@ governance:
 ";
         let err = GovernanceEngine::from_config(
             &GovernanceConfig::parse(BROKEN).unwrap(),
+            &systemprompt_governance::policy::PolicyCatalog::builtin(),
             Some(crate::offline_rate_windows()),
         )
         .expect_err("an unknown scope rejects the configuration");
@@ -1274,6 +1277,7 @@ governance:
 ";
         let err = GovernanceEngine::from_config(
             &GovernanceConfig::parse(TOOTHLESS).unwrap(),
+            &systemprompt_governance::policy::PolicyCatalog::builtin(),
             Some(crate::offline_rate_windows()),
         )
         .expect_err("enforce mode with nothing to detect is silent non-enforcement");
@@ -1295,6 +1299,7 @@ governance:
 ";
         let engine = GovernanceEngine::from_config(
             &GovernanceConfig::parse(DISABLED).unwrap(),
+            &systemprompt_governance::policy::PolicyCatalog::builtin(),
             Some(crate::offline_rate_windows()),
         )
         .expect("a disabled engine enforces nothing, so nothing is silently unenforced");
@@ -1305,6 +1310,7 @@ governance:
     fn a_warn_mode_secret_scan_with_no_patterns_still_builds() {
         GovernanceEngine::from_config(
             &GovernanceConfig::defaults(),
+            &systemprompt_governance::policy::PolicyCatalog::builtin(),
             Some(crate::offline_rate_windows()),
         )
         .expect("the documented warn-only defaults carry an empty catalog");
@@ -1325,6 +1331,7 @@ governance:
 ";
         GovernanceEngine::from_config(
             &GovernanceConfig::parse(ARMED).unwrap(),
+            &systemprompt_governance::policy::PolicyCatalog::builtin(),
             Some(crate::offline_rate_windows()),
         )
         .expect("an armed enforce scanner is fine");

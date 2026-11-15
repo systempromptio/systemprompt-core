@@ -7,7 +7,7 @@ use systemprompt_gateway::quota::{
     QuotaEstimate, QuotaReservation, QuotaSubjects, QuotaUsage, ReserveOutcome, ReserveParams,
     precheck_and_reserve, settle,
 };
-use systemprompt_governance::authz::{AuthzHookContext, NullAuditSink, SubjectProviderSet};
+use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_identifiers::{ScopeDimension, UserId};
 use systemprompt_manifest::profile::QuotaConfig;
 use systemprompt_manifest::services::QuotaFaultMode;
@@ -52,14 +52,7 @@ async fn reserve(
     precheck_and_reserve(
         &systemprompt_ai::repository::AiQuotaBucketRepository::new(db),
         ReserveParams {
-            providers: &SubjectProviderSet::discover(&AuthzHookContext {
-                pool: db.pool(),
-                sink: std::sync::Arc::new(NullAuditSink),
-                services: systemprompt_test_fixtures::fixture_services_view(),
-                subjects: Default::default(),
-                secrets: systemprompt_test_fixtures::fixture_secret_store(),
-                state: Default::default(),
-            }),
+            providers: &SubjectProviderSet::default(),
             subjects: QuotaSubjects {
                 user_id: &user,
                 api_key_id: None,

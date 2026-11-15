@@ -1,41 +1,45 @@
-//! Registries of gateway upstream adapters and safety scanners, and the
+//! The gateway's upstream adapters and safety scanners, and the
 //! [`GatewayEngines`] set that owns one of each engine for a gateway.
+//!
+//! The adapter and scanner sets, the override engine and the route selector
+//! chain are the built values of the gateway's slots
+//! ([`crate::contract`]); [`GatewayEngines::new`] reads each from the
+//! resolved state and falls back to the slot's default when no admitted
+//! member contributed to it. The gateway guards are built here from every
+//! admitted member's `Contributions::gateway_guard` factory, in composition
+//! order.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use super::protocol::outbound::anthropic::AnthropicOutbound;
 use super::protocol::outbound::gemini::GeminiOutbound;
 use super::protocol::outbound::openai_chat::OpenAiChatOutbound;
 use super::protocol::outbound::openai_responses::OpenAiResponsesOutbound;
-use super::protocol::outbound::{
-    OutboundAdapter, OutboundAdapterRegistration, UpstreamBounds, UpstreamHttp,
-};
+use super::protocol::outbound::{OutboundAdapter, UpstreamBounds, UpstreamHttp};
 use crate::policies::{
     HeuristicScanner, NullScanner, OverridePolicy, RouteSelectorChain, SafetyConfig, SafetyScanner,
-    SafetyScannerRegistration, ScannerFactory, ScannerSettings,
+    ScannerFactory, ScannerSettings,
 };
-use crate::service::HopPolicy;
 use crate::service::failover::{DeploymentLoad, ProviderBreakers};
 use systemprompt_client::GuardedClientConfig;
 use systemprompt_config::SecretsService;
 use systemprompt_extension::brain::MemoryRecall;
-use systemprompt_extension::{ExtensionContext, GatewayGuards};
-use systemprompt_manifest::services::catalog::ResolvedCatalog;
+use systemprompt_extension::{BuiltState, FactoryError, GatewayGuards, Resolved};
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_security::credential::TokenCache;
 use systemprompt_wire::WireProtocol;
 
 pub struct GatewayUpstreamRegistry {
     entries: HashMap<String, Arc<dyn OutboundAdapter>>,
-    extension_tags: BTreeSet<String>,
 }
 
 impl Default for GatewayUpstreamRegistry {
     fn default() -> Self {
-        Self::build()
+        Self::builtin()
     }
 }
 
@@ -49,40 +53,8 @@ impl std::fmt::Debug for GatewayUpstreamRegistry {
 
 impl GatewayUpstreamRegistry {
     #[must_use]
-    pub fn new() -> Self {
-        Self::build()
-    }
-
-    pub fn get(&self, tag: &str) -> Option<&Arc<dyn OutboundAdapter>> {
-        self.entries.get(tag)
-    }
-
-    // Why: an extension adapter is code this crate cannot hold to the
-    // as-presented contract, so a hop served that way gets a built-in adapter
-    // or none.
-    pub fn adapter_for(
-        &self,
-        wire: WireProtocol,
-        policy: HopPolicy,
-    ) -> Option<&Arc<dyn OutboundAdapter>> {
-        if policy.returns_response_whole() && self.is_extension(wire.as_tag()) {
-            return None;
-        }
-        self.entries.get(wire.as_tag())
-    }
-
-    #[must_use]
-    pub fn is_extension(&self, tag: &str) -> bool {
-        self.extension_tags.contains(tag)
-    }
-
-    pub fn tags(&self) -> Vec<&str> {
-        self.entries.keys().map(String::as_str).collect()
-    }
-
-    pub(super) fn build() -> Self {
+    pub fn builtin() -> Self {
         let mut entries: HashMap<String, Arc<dyn OutboundAdapter>> = HashMap::new();
-
         entries.insert(
             WireProtocol::Anthropic.as_tag().to_owned(),
             Arc::new(AnthropicOutbound),
@@ -99,24 +71,28 @@ impl GatewayUpstreamRegistry {
             WireProtocol::Gemini.as_tag().to_owned(),
             Arc::new(GeminiOutbound),
         );
+        Self { entries }
+    }
 
-        let mut extension_tags = BTreeSet::new();
-        for registration in inventory::iter::<OutboundAdapterRegistration> {
-            let tag = registration.tag.to_owned();
-            extension_tags.insert(tag.clone());
-            if entries.contains_key(&tag) {
-                tracing::warn!(
-                    tag = %registration.tag,
-                    "Extension-registered gateway upstream shadows a built-in"
-                );
-            }
-            entries.insert(tag, (registration.factory)());
-        }
+    #[must_use]
+    pub fn is_builtin(tag: &str) -> bool {
+        WireProtocol::from_tag(tag).is_some()
+    }
 
-        Self {
-            entries,
-            extension_tags,
-        }
+    pub fn get(&self, tag: &str) -> Option<&Arc<dyn OutboundAdapter>> {
+        self.entries.get(tag)
+    }
+
+    pub fn adapter_for(&self, wire: WireProtocol) -> Option<&Arc<dyn OutboundAdapter>> {
+        self.entries.get(wire.as_tag())
+    }
+
+    pub fn tags(&self) -> Vec<&str> {
+        self.entries.keys().map(String::as_str).collect()
+    }
+
+    pub(crate) fn insert(&mut self, tag: &str, adapter: Arc<dyn OutboundAdapter>) {
+        self.entries.insert(tag.to_owned(), adapter);
     }
 }
 
@@ -124,7 +100,11 @@ pub struct SafetyScannerRegistry {
     entries: HashMap<String, Arc<dyn ScannerFactory>>,
 }
 
-const BUILTIN_SCANNER_NAMES: &[&str] = &["null", "heuristic"];
+impl Default for SafetyScannerRegistry {
+    fn default() -> Self {
+        Self::builtin()
+    }
+}
 
 impl std::fmt::Debug for SafetyScannerRegistry {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -136,24 +116,7 @@ impl std::fmt::Debug for SafetyScannerRegistry {
 
 impl SafetyScannerRegistry {
     #[must_use]
-    pub fn discover(extensions: &Arc<dyn ExtensionContext>) -> Self {
-        Self::build(extensions)
-    }
-
-    pub fn create(&self, name: &str, safety: &SafetyConfig) -> Option<Arc<dyn SafetyScanner>> {
-        let settings = safety.settings_for(name);
-        self.entries
-            .get(name)
-            .map(|factory| factory.create(safety, &settings))
-    }
-
-    pub fn names(&self) -> Vec<&str> {
-        let mut names: Vec<&str> = self.entries.keys().map(String::as_str).collect();
-        names.sort_unstable();
-        names
-    }
-
-    fn build(extensions: &Arc<dyn ExtensionContext>) -> Self {
+    pub fn builtin() -> Self {
         fn null_factory(_: &SafetyConfig, _: &ScannerSettings) -> Arc<dyn SafetyScanner> {
             Arc::new(NullScanner)
         }
@@ -164,27 +127,29 @@ impl SafetyScannerRegistry {
         let mut entries: HashMap<String, Arc<dyn ScannerFactory>> = HashMap::new();
         entries.insert("null".to_owned(), Arc::new(null_factory));
         entries.insert("heuristic".to_owned(), Arc::new(heuristic_factory));
-
-        for registration in inventory::iter::<SafetyScannerRegistration> {
-            let name = registration.name.to_owned();
-            if BUILTIN_SCANNER_NAMES.contains(&name.as_str()) {
-                tracing::error!(
-                    name = %registration.name,
-                    "Extension-registered safety scanner uses a built-in name; registration \
-                     rejected"
-                );
-                continue;
-            }
-            let factory = registration.factory;
-            let extensions = Arc::clone(extensions);
-            let settings_driven: Arc<dyn ScannerFactory> =
-                Arc::new(move |_: &SafetyConfig, settings: &ScannerSettings| {
-                    factory(extensions.as_ref(), settings)
-                });
-            entries.insert(name, settings_driven);
-        }
-
         Self { entries }
+    }
+
+    pub fn create(&self, name: &str, safety: &SafetyConfig) -> Option<Arc<dyn SafetyScanner>> {
+        let settings = safety.settings_for(name);
+        self.entries
+            .get(name)
+            .map(|factory| factory.create(safety, &settings))
+    }
+
+    #[must_use]
+    pub fn contains(&self, name: &str) -> bool {
+        self.entries.contains_key(name)
+    }
+
+    pub fn names(&self) -> Vec<&str> {
+        let mut names: Vec<&str> = self.entries.keys().map(String::as_str).collect();
+        names.sort_unstable();
+        names
+    }
+
+    pub(crate) fn insert(&mut self, name: &str, factory: Arc<dyn ScannerFactory>) {
+        self.entries.insert(name.to_owned(), factory);
     }
 }
 
@@ -226,20 +191,19 @@ impl std::fmt::Debug for GatewayEngines {
 pub enum GatewayEnginesError {
     #[error("gateway upstream HTTP client could not be built")]
     HttpClient(#[source] reqwest::Error),
-    #[error(
-        "an extension registers the outbound adapter for wire '{wire}', which caller credential \
-         '{credential}' is served on; a request sent with the credential its client presents \
-         goes through the built-in adapter only"
-    )]
-    CallerWireShadowed { wire: String, credential: String },
-    #[error("gateway guards could not be built")]
-    Guards(#[from] systemprompt_extension::GatewayGuardError),
+    #[error("gateway guard factory of {owner} failed")]
+    Guard {
+        owner: ExtensionId,
+        #[source]
+        source: FactoryError,
+    },
 }
 
 impl GatewayEngines {
     pub fn new(
         provider_tokens: Arc<TokenCache>,
-        extensions: &Arc<dyn ExtensionContext>,
+        built: &BuiltState,
+        r: &Resolved<'_>,
         secrets: Arc<SecretsService>,
     ) -> Result<Self, GatewayEnginesError> {
         let client = systemprompt_client::guarded_client(
@@ -248,35 +212,18 @@ impl GatewayEngines {
         .map_err(GatewayEnginesError::HttpClient)?;
         let http = UpstreamHttp::new(client, UpstreamBounds::PRODUCTION);
         Ok(Self {
-            upstream_registry: Arc::default(),
-            scanner_registry: Arc::new(SafetyScannerRegistry::discover(extensions)),
-            override_engine: Arc::default(),
-            route_selector: Arc::default(),
+            upstream_registry: r.optional().unwrap_or_default(),
+            scanner_registry: r.optional().unwrap_or_default(),
+            override_engine: r.optional().unwrap_or_default(),
+            route_selector: r.optional().unwrap_or_default(),
             breakers: ProviderBreakers::new(),
             load: DeploymentLoad::default(),
             http,
             provider_tokens,
-            guards: GatewayGuards::discover(extensions.as_ref())?,
+            guards: admitted_guards(built, r)?,
             secrets,
             memory_recall: None,
         })
-    }
-
-    pub fn refuse_shadowed_caller_wires(
-        &self,
-        catalog: &ResolvedCatalog,
-    ) -> Result<(), GatewayEnginesError> {
-        for credential in catalog.credentials().filter(|c| c.is_caller()) {
-            for endpoint in catalog.endpoints_for_credential(credential.id.as_str()) {
-                if self.upstream_registry.is_extension(endpoint.wire.as_tag()) {
-                    return Err(GatewayEnginesError::CallerWireShadowed {
-                        wire: endpoint.wire.as_tag().to_owned(),
-                        credential: credential.id.as_str().to_owned(),
-                    });
-                }
-            }
-        }
-        Ok(())
     }
 
     #[must_use]
@@ -284,4 +231,23 @@ impl GatewayEngines {
         self.memory_recall = Some(recall);
         self
     }
+}
+
+fn admitted_guards(
+    built: &BuiltState,
+    r: &Resolved<'_>,
+) -> Result<GatewayGuards, GatewayEnginesError> {
+    let mut installed = Vec::new();
+    for member in built.members() {
+        for factory in member.sink.gateway_guards() {
+            let guard = factory
+                .build(r)
+                .map_err(|source| GatewayEnginesError::Guard {
+                    owner: member.owner.clone(),
+                    source,
+                })?;
+            installed.push((member.owner.clone(), guard));
+        }
+    }
+    Ok(GatewayGuards::new(installed))
 }

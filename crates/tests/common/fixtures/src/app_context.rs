@@ -522,6 +522,7 @@ fn fixture_app_context_assembled_on(
     let governance = systemprompt_traits::ConfigWatch::new(
         systemprompt_governance::policy::GovernanceEngine::from_config(
             &systemprompt_governance::policy::GovernanceConfig::defaults(),
+            &systemprompt_governance::policy::PolicyCatalog::builtin(),
             Some(systemprompt_governance::policy::RateWindowRepository::new(
                 pool.write_pool().as_ref().clone(),
             )),
@@ -747,6 +748,7 @@ pub fn default_governance_engine() -> Arc<systemprompt_governance::policy::Gover
     Arc::new(
         systemprompt_governance::policy::GovernanceEngine::from_config(
             &systemprompt_governance::policy::GovernanceConfig::defaults(),
+            &systemprompt_governance::policy::PolicyCatalog::builtin(),
             Some(offline_rate_windows()),
         )
         .expect("the default governance chain always builds"),
@@ -758,6 +760,7 @@ pub fn default_governance_watch(
     systemprompt_traits::ConfigWatch::new(
         systemprompt_governance::policy::GovernanceEngine::from_config(
             &systemprompt_governance::policy::GovernanceConfig::defaults(),
+            &systemprompt_governance::policy::PolicyCatalog::builtin(),
             Some(offline_rate_windows()),
         )
         .expect("the default governance chain always builds"),
@@ -765,18 +768,9 @@ pub fn default_governance_watch(
 }
 
 pub fn fixture_subject_providers(
-    db: &systemprompt_database::DbPool,
+    _db: &systemprompt_database::DbPool,
 ) -> systemprompt_governance::authz::SubjectProviderSet {
-    systemprompt_governance::authz::SubjectProviderSet::discover(
-        &systemprompt_governance::authz::AuthzHookContext {
-            pool: db.pool(),
-            sink: std::sync::Arc::new(systemprompt_governance::authz::NullAuditSink),
-            services: fixture_services_view(),
-            subjects: Default::default(),
-            secrets: fixture_secret_store(),
-            state: Default::default(),
-        },
-    )
+    systemprompt_governance::authz::SubjectProviderSet::default()
 }
 
 pub fn fixture_extension_context(
@@ -793,6 +787,22 @@ pub fn offline_extension_context() -> Arc<dyn systemprompt_extension::ExtensionC
         None,
     ));
     fixture_extension_context(&pool)
+}
+
+pub fn fixture_kernel(
+    pool: &DbPool,
+    seed: systemprompt_extension::prelude::Dependencies,
+) -> systemprompt_runtime::Kernel {
+    let database: Arc<dyn systemprompt_traits::DatabaseHandle> = Arc::clone(pool) as _;
+    systemprompt_runtime::Kernel::new(database, systemprompt_traits::BackgroundTasks::new(), seed)
+}
+
+pub fn offline_kernel(seed: systemprompt_extension::prelude::Dependencies) -> systemprompt_runtime::Kernel {
+    let pool: DbPool = Arc::new(systemprompt_database::Database::from_pools(
+        crate::db::lazy_pg_pool(),
+        None,
+    ));
+    fixture_kernel(&pool, seed)
 }
 
 pub fn fixture_secret_store() -> Arc<dyn systemprompt_traits::SecretStore> {

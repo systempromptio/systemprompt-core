@@ -1,7 +1,7 @@
 use systemprompt_governance::authz::types::{
     Decision, DenyReason, EntityRef, MatchedBy, PendingReason,
 };
-use systemprompt_governance::policy::types::AccessScope;
+use systemprompt_governance::policy::AccessScope;
 use systemprompt_governance::policy::{
     AuditOrigin, AuditTarget, ChainEntryOutcome, ChainEntryResult, DecisionAudit,
     PrincipalSnapshot, record_decision,

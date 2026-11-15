@@ -14,12 +14,14 @@ workspace = true
 systemprompt = { workspace = true, features = ["full"] }
 systemprompt-cli = { workspace = true }
 systemprompt-extension = { workspace = true, features = ["router", "cli"] }
+systemprompt-governance = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-manifest = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-runtime = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 systemprompt-traits = { workspace = true }
+async-trait = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 futures = { workspace = true }
 http = { workspace = true }

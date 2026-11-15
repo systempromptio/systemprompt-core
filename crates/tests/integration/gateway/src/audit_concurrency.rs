@@ -4,7 +4,7 @@ use systemprompt_gateway::{GatewayAudit, GatewayRepositories, GatewayRequestCont
 use systemprompt_identifiers::{AiRequestId, ContextId, GatewayConversationId};
 
 use crate::support::{minimal_request, seed_user, setup_db};
-use systemprompt_governance::policy::types::AccessScope;
+use systemprompt_governance::policy::AccessScope;
 use systemprompt_models::origin::{
     ClientAttestation, ClientEvidence, ClientKind, InboundWireProtocol, RequestOrigin,
 };

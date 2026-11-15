@@ -10,7 +10,7 @@ use systemprompt_database::DbPool;
 use systemprompt_gateway::quota::{AccountingOutcome, QuotaReservation, ReservedWindow};
 use systemprompt_gateway::service::finalize::record_accounting_outcome;
 use systemprompt_gateway::{GatewayAudit, GatewayRequestContext};
-use systemprompt_governance::policy::types::AccessScope;
+use systemprompt_governance::policy::AccessScope;
 use systemprompt_identifiers::{AiRequestId, ContextId, QuotaSubjectKind, UserId};
 use systemprompt_manifest::services::QuotaFaultMode;
 

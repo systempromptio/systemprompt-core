@@ -1,5 +1,5 @@
-//! An authz hook factory reaches extension state through
-//! `AuthzHookContext::state`: the factory runs before the state exists and
+//! An authz hook factory reaches extension state through a `StateHandle`:
+//! the factory runs before the state exists and
 //! captures the handle, the host binds it once, and the hook then reads the
 //! very instance the extension provided. Before binding the hook fails
 //! closed.
@@ -10,8 +10,8 @@ use async_trait::async_trait;
 use systemprompt_extension::StateHandle;
 use systemprompt_extension::prelude::Dependencies;
 use systemprompt_governance::authz::{
-    AuthzContext, AuthzDecision, AuthzDecisionHook, AuthzHookContext, AuthzRequest, DenyReason,
-    EntityRef, NullAuditSink, SharedAuthzHook,
+    AuthzContext, AuthzDecision, AuthzDecisionHook, AuthzRequest, DenyReason, EntityRef,
+    SharedAuthzHook,
 };
 use systemprompt_identifiers::{ExtensionId, RouteId, TraceId};
 
@@ -45,23 +45,10 @@ impl AuthzDecisionHook for CacheHook {
     }
 }
 
-fn cache_hook_factory(ctx: &AuthzHookContext) -> SharedAuthzHook {
+fn cache_hook_factory(state: &StateHandle) -> SharedAuthzHook {
     Arc::new(CacheHook {
-        state: ctx.state.clone(),
+        state: state.clone(),
     })
-}
-
-fn context(state: StateHandle) -> AuthzHookContext {
-    let pool = sqlx::PgPool::connect_lazy("postgres://unused:unused@127.0.0.1:1/unused")
-        .expect("lazy pool construction is infallible for a well-formed URL");
-    AuthzHookContext {
-        pool: Arc::new(pool),
-        sink: Arc::new(NullAuditSink),
-        services: systemprompt_test_fixtures::fixture_services_view(),
-        subjects: Default::default(),
-        secrets: systemprompt_test_fixtures::fixture_secret_store(),
-        state,
-    }
 }
 
 fn request() -> AuthzRequest {
@@ -85,7 +72,7 @@ fn request() -> AuthzRequest {
 #[tokio::test]
 async fn the_hook_reads_the_instance_the_extension_provided_once_bound() {
     let handle = StateHandle::default();
-    let hook = cache_hook_factory(&context(handle.clone()));
+    let hook = cache_hook_factory(&handle);
 
     assert!(
         matches!(hook.evaluate(request()).await, AuthzDecision::Deny { .. }),

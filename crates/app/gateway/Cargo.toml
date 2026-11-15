@@ -35,7 +35,6 @@ chrono = { workspace = true }
 futures-util = { workspace = true }
 hex = { workspace = true }
 http = { workspace = true }
-inventory = { workspace = true }
 metrics = { workspace = true }
 rand = { workspace = true }
 reqwest = { workspace = true }

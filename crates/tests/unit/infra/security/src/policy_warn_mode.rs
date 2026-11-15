@@ -1,13 +1,15 @@
 use serde_json::json;
 use systemprompt_governance::authz::types::{Decision, DecisionTag, DenyReason, MatchedBy};
-use systemprompt_governance::policy::governed::{GovernedInput, GovernedTarget, McpToolInput};
-use systemprompt_governance::policy::types::{
+use systemprompt_governance::policy::{GovernedInput, GovernedTarget, McpToolInput};
+use systemprompt_governance::policy::{
     AccessScope, AgentScope, GovernancePolicy, PolicyContext,
 };
 use systemprompt_governance::policy::{
     ChainEntryResult, GovernanceConfig, GovernanceConfigError, GovernanceEngine,
 };
-use systemprompt_governance::register_governance_policy;
+use std::sync::Arc;
+use systemprompt_governance::policy::PolicyCatalog;
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_identifiers::{CallId, McpToolName, PolicyId, SessionId, UserId};
 use systemprompt_manifest::EnforcementMode;
 
@@ -57,8 +59,49 @@ impl GovernancePolicy for WarnModeAllow {
     }
 }
 
-register_governance_policy!("t_warnable", |_| Ok(Box::new(WarnModeDeny)));
-register_governance_policy!("t_warnable_allow", |_| Ok(Box::new(WarnModeAllow)));
+#[derive(Debug)]
+struct EnforcingDeny;
+
+impl GovernancePolicy for EnforcingDeny {
+    fn id(&self) -> PolicyId {
+        PolicyId::new("t_deny")
+    }
+    fn name(&self) -> &'static str {
+        "test deny"
+    }
+    fn description(&self) -> &'static str {
+        "always denies"
+    }
+    fn evaluate(&self, _ctx: &PolicyContext<'_>) -> Decision {
+        Decision::Deny {
+            reason: DenyReason::PolicyViolation {
+                policy: "t_deny".to_owned(),
+                detail: std::borrow::Cow::Borrowed("blocked"),
+            },
+        }
+    }
+}
+
+fn catalog() -> PolicyCatalog {
+    PolicyCatalog::builtin()
+        .with_contributed(
+            ExtensionId::new("test"),
+            Arc::new(WarnModeDeny) as Arc<dyn GovernancePolicy>,
+        )
+        .and_then(|c| {
+            c.with_contributed(
+                ExtensionId::new("test"),
+                Arc::new(WarnModeAllow) as Arc<dyn GovernancePolicy>,
+            )
+        })
+        .and_then(|c| {
+            c.with_contributed(
+                ExtensionId::new("test"),
+                Arc::new(EnforcingDeny) as Arc<dyn GovernancePolicy>,
+            )
+        })
+        .expect("test policies join the catalog")
+}
 
 fn ctx<'a>(
     session: &'a SessionId,
@@ -86,6 +129,7 @@ fn ctx<'a>(
 fn evaluate(yaml: &str) -> systemprompt_governance::policy::Evaluation {
     let engine = GovernanceEngine::from_config(
         &GovernanceConfig::parse(yaml).unwrap(),
+        &catalog(),
         Some(crate::offline_rate_windows()),
     )
     .unwrap();

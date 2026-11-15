@@ -29,7 +29,12 @@ use super::gateway_pipeline::gw_repos;
 const HEADER: &str = "x-systemprompt-scope-traffic";
 
 fn traffic_only() -> SubjectProviderSet {
-    SubjectProviderSet::from_providers(vec![Arc::new(TrafficProvider)])
+    SubjectProviderSet::new(vec![systemprompt_governance::authz::SubjectProviderEntry {
+        owner: systemprompt_identifiers::ExtensionId::new("test"),
+        standing: systemprompt_extension::StandingTag::Core,
+        provider: Arc::new(TrafficProvider),
+    }])
+    .expect("subject provider set builds")
 }
 
 fn partial() -> RejectionPartial {

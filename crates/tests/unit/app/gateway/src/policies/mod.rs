@@ -1,7 +1,7 @@
 mod config;
 mod loader;
 mod overrides;
-mod route_selector;
+pub(crate) mod route_selector;
 mod safety;
 mod spec;
 mod unapplied;

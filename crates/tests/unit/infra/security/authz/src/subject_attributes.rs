@@ -1,7 +1,6 @@
 use async_trait::async_trait;
-use systemprompt_governance::authz::AuthzError;
 use systemprompt_governance::authz::subject::{
-    ROLE_PRECEDENCE, SharedSubjectAttributeProvider, SubjectAttributeProvider, SubjectAttributes,
+    ROLE_PRECEDENCE, SharedSubjectAttributeProvider, SubjectAttributeError, SubjectAttributeProvider, SubjectAttributes,
     SubjectDimension, dimensions_of, gather_subject_attributes,
 };
 use systemprompt_governance::authz::types::RuleType;
@@ -19,7 +18,7 @@ impl SubjectAttributeProvider for StaticProvider {
         self.dimension.clone()
     }
 
-    async fn values_for(&self, _user_id: &UserId) -> Result<Vec<String>, AuthzError> {
+    async fn values_for(&self, _user_id: &UserId) -> Result<Vec<String>, SubjectAttributeError> {
         Ok(self.values.clone())
     }
 }
@@ -35,9 +34,9 @@ impl SubjectAttributeProvider for FailingProvider {
         self.dimension.clone()
     }
 
-    async fn values_for(&self, _user_id: &UserId) -> Result<Vec<String>, AuthzError> {
-        Err(AuthzError::Validation(
-            "department lookup unavailable".to_owned(),
+    async fn values_for(&self, _user_id: &UserId) -> Result<Vec<String>, SubjectAttributeError> {
+        Err(SubjectAttributeError::Lookup(
+            "department lookup unavailable".into(),
         ))
     }
 }
@@ -198,9 +197,15 @@ async fn a_provider_that_cannot_answer_fails_the_gather_rather_than_yielding_not
         .await
         .expect_err("a provider that cannot reach its data must not read as no attributes");
 
+    let chain: Vec<String> = std::iter::successors(
+        Some(&error as &dyn std::error::Error),
+        |e| e.source(),
+    )
+    .map(ToString::to_string)
+    .collect();
     assert!(
-        error.to_string().contains("department lookup unavailable"),
-        "{error}"
+        chain.iter().any(|m| m.contains("department lookup unavailable")),
+        "{chain:?}"
     );
 }
 

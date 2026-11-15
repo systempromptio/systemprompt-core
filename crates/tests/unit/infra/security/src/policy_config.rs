@@ -20,6 +20,7 @@ fn defaults_have_no_vendor_catalog() {
     let cfg = GovernanceConfig::defaults();
     let engine = systemprompt_governance::policy::GovernanceEngine::from_config(
         &cfg,
+        &systemprompt_governance::policy::PolicyCatalog::builtin(),
         Some(crate::offline_rate_windows()),
     )
     .unwrap();
@@ -150,6 +151,7 @@ fn parse_rejects_a_broken_declaration_instead_of_downgrading_enforcement() {
 fn engine_built_from_the_defaults_runs_every_builtin_in_warn() {
     let engine = systemprompt_governance::policy::GovernanceEngine::from_config(
         &GovernanceConfig::defaults(),
+        &systemprompt_governance::policy::PolicyCatalog::builtin(),
         Some(crate::offline_rate_windows()),
     )
     .expect("the defaults build");

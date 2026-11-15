@@ -11,9 +11,8 @@ use systemprompt_test_fixtures::ensure_test_secrets_bootstrap;
 async fn a_new_engine_set_carries_the_builtins_of_every_engine() {
     let engines = GatewayEngines::new(
         Default::default(),
-        &systemprompt_test_fixtures::fixture_extension_context(
-            &systemprompt_test_fixtures::test_db_pool().await,
-        ),
+        &systemprompt_extension::BuiltState::default(),
+        &systemprompt_test_fixtures::offline_kernel(Default::default()).resolved(),
         ensure_test_secrets_bootstrap(),
     )
     .expect("gateway engines build");
@@ -33,12 +32,12 @@ async fn a_new_engine_set_carries_the_builtins_of_every_engine() {
             .is_some()
     );
     assert!(
-        engines.override_engine.has_extensions(),
-        "the inventory-registered override is collected"
+        !engines.override_engine.has_extensions(),
+        "with no contributed override the engine set carries the empty default"
     );
     assert!(
-        engines.route_selector.has_selectors(),
-        "the inventory-registered selector is collected"
+        !engines.route_selector.has_selectors(),
+        "with no contributed selector the engine set carries the empty default"
     );
 }
 
@@ -47,9 +46,8 @@ async fn engines_are_values_not_a_process_singleton() {
     let first = Arc::new(
         GatewayEngines::new(
             Default::default(),
-            &systemprompt_test_fixtures::fixture_extension_context(
-                &systemprompt_test_fixtures::test_db_pool().await,
-            ),
+            &systemprompt_extension::BuiltState::default(),
+            &systemprompt_test_fixtures::offline_kernel(Default::default()).resolved(),
             ensure_test_secrets_bootstrap(),
         )
         .expect("gateway engines build"),
@@ -57,9 +55,8 @@ async fn engines_are_values_not_a_process_singleton() {
     let second = Arc::new(
         GatewayEngines::new(
             Default::default(),
-            &systemprompt_test_fixtures::fixture_extension_context(
-                &systemprompt_test_fixtures::test_db_pool().await,
-            ),
+            &systemprompt_extension::BuiltState::default(),
+            &systemprompt_test_fixtures::offline_kernel(Default::default()).resolved(),
             ensure_test_secrets_bootstrap(),
         )
         .expect("gateway engines build"),
@@ -77,17 +74,15 @@ async fn engines_are_values_not_a_process_singleton() {
 async fn failover_state_is_owned_per_engine_set() {
     let first = GatewayEngines::new(
         Default::default(),
-        &systemprompt_test_fixtures::fixture_extension_context(
-            &systemprompt_test_fixtures::test_db_pool().await,
-        ),
+        &systemprompt_extension::BuiltState::default(),
+        &systemprompt_test_fixtures::offline_kernel(Default::default()).resolved(),
         ensure_test_secrets_bootstrap(),
     )
     .expect("gateway engines build");
     let second = GatewayEngines::new(
         Default::default(),
-        &systemprompt_test_fixtures::fixture_extension_context(
-            &systemprompt_test_fixtures::test_db_pool().await,
-        ),
+        &systemprompt_extension::BuiltState::default(),
+        &systemprompt_test_fixtures::offline_kernel(Default::default()).resolved(),
         ensure_test_secrets_bootstrap(),
     )
     .expect("gateway engines build");
@@ -108,17 +103,15 @@ async fn failover_state_is_owned_per_engine_set() {
 async fn a_breaker_opened_on_one_engine_set_leaves_the_other_closed() {
     let first = GatewayEngines::new(
         Default::default(),
-        &systemprompt_test_fixtures::fixture_extension_context(
-            &systemprompt_test_fixtures::test_db_pool().await,
-        ),
+        &systemprompt_extension::BuiltState::default(),
+        &systemprompt_test_fixtures::offline_kernel(Default::default()).resolved(),
         ensure_test_secrets_bootstrap(),
     )
     .expect("gateway engines build");
     let second = GatewayEngines::new(
         Default::default(),
-        &systemprompt_test_fixtures::fixture_extension_context(
-            &systemprompt_test_fixtures::test_db_pool().await,
-        ),
+        &systemprompt_extension::BuiltState::default(),
+        &systemprompt_test_fixtures::offline_kernel(Default::default()).resolved(),
         ensure_test_secrets_bootstrap(),
     )
     .expect("gateway engines build");

@@ -16,8 +16,8 @@ use systemprompt_gateway::protocol::inbound::openai_chat::OpenAiChatInbound;
 use systemprompt_gateway::protocol::inbound::openai_responses::OpenAiResponsesInbound;
 use systemprompt_gateway::service::{DispatchError, GatewayError, GatewayService};
 use systemprompt_gateway::{
-    Finding, PHASE_REQUEST, SafetyScanner, ScanError, ScannerSettings, Severity,
-    register_safety_scanner,
+    Finding, PHASE_REQUEST, SafetyConfig, SafetyScanner, ScanError, ScannerFactory,
+    ScannerSettings, Severity,
 };
 use systemprompt_models::providers::ClientFamily;
 use systemprompt_test_fixtures::seed_admin_credential;
@@ -28,7 +28,7 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use super::common::setup_ctx;
 use super::gateway_pipeline::{
-    MODEL, PROVIDER, gateway_config, gw_repos, inputs_with, install_provider_api_key,
+    MODEL, PROVIDER, engines_with_scanners, gateway_config, gw_repos, inputs_with, install_provider_api_key,
     provider_registry,
 };
 
@@ -71,10 +71,14 @@ impl SafetyScanner for NeedleScanner {
     }
 }
 
-register_safety_scanner!(
-    |_: &dyn systemprompt_extension::ExtensionContext, _: &ScannerSettings| NeedleScanner,
-    name = DLP
-);
+fn contributed_engines() -> Arc<systemprompt_gateway::GatewayEngines> {
+    engines_with_scanners(vec![(
+        DLP,
+        Arc::new(|_: &SafetyConfig, _: &ScannerSettings| {
+            Arc::new(NeedleScanner) as Arc<dyn SafetyScanner>
+        }) as Arc<dyn ScannerFactory>,
+    )])
+}
 
 async fn install_blocking_policy(pool: &DbPool) -> anyhow::Result<()> {
     sqlx::query(
@@ -138,7 +142,8 @@ async fn dispatch(case: Case, label: &str) -> anyhow::Result<Outcome> {
     let registry = provider_registry(&upstream.uri(), PROVIDER, case.upstream_wire, case.family);
     let raw = Bytes::from(serde_json::to_vec(&case.body)?);
     let request = case.inbound.parse_request(&raw)?;
-    let di = inputs_with(&cred, request, false, case.inbound, raw);
+    let mut di = inputs_with(&cred, request, false, case.inbound, raw);
+    di.engines = contributed_engines();
     let repos = gw_repos(&pool);
     let result = GatewayService::dispatch(&gateway_config(PROVIDER), &registry, &pool, &repos, di)
         .await

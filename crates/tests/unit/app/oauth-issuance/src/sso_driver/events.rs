@@ -1,8 +1,8 @@
 use std::sync::{Arc, Mutex, OnceLock};
 
 use async_trait::async_trait;
-use systemprompt_oauth_issuance::register_auth_event_sink;
-use systemprompt_oauth_issuance::sso::SsoHookContext;
+use systemprompt_extension::{FactoryError, Resolved};
+use systemprompt_oauth_issuance::contract::SsoBuilder;
 use systemprompt_traits::sso::{AuthEventSink, SsoLoginRefused, SsoLoginSuccess};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -74,8 +74,10 @@ impl AuthEventSink for RecordingSink {
     }
 }
 
-fn sink_factory(_ctx: &SsoHookContext) -> Arc<dyn AuthEventSink> {
-    Arc::new(RecordingSink)
+pub(super) fn contribute(sso: &mut SsoBuilder) {
+    sso.event_sink(
+        |_: &Resolved<'_>| -> Result<Arc<dyn AuthEventSink>, FactoryError> {
+            Ok(Arc::new(RecordingSink))
+        },
+    );
 }
-
-register_auth_event_sink!(sink_factory);

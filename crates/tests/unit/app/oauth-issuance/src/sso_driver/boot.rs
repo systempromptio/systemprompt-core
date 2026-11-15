@@ -2,7 +2,11 @@ use std::sync::Arc;
 
 use systemprompt_oauth::services::SessionCreationService;
 use systemprompt_oauth_issuance::sso::oidc::CONFIG_FILE;
+use systemprompt_extension::{FactoryError, Resolved, SlotError};
+use systemprompt_oauth_issuance::contract::SsoBuilder;
+use systemprompt_oauth_issuance::sso::oidc;
 use systemprompt_oauth_issuance::sso::{SsoDriver, SsoHookContext, SsoProviderError};
+use systemprompt_traits::sso::SsoProvider;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_config, test_db_pool};
 
 use super::stores::{CountingSessions, MemoryUsers};
@@ -25,17 +29,37 @@ async fn discover_with_oidc(oidc_yaml: &str) -> Result<SsoDriver, SsoProviderErr
         ),
         Arc::clone(&config),
     );
-    SsoDriver::discover(
-        &SsoHookContext {
-            db: Arc::clone(&db),
-            config,
-            services: systemprompt_test_fixtures::fixture_services_view(),
-            services_root,
-            secrets: systemprompt_test_fixtures::fixture_secret_store(),
+    let hook = SsoHookContext {
+        db: Arc::clone(&db),
+        config: Arc::clone(&config),
+        services: systemprompt_test_fixtures::fixture_services_view(),
+        services_root,
+        secrets: systemprompt_test_fixtures::fixture_secret_store(),
+    };
+    let mut sso = SsoBuilder::default();
+    sso.provider(
+        move |_: &Resolved<'_>| -> Result<Option<Arc<dyn SsoProvider>>, FactoryError> {
+            let built = oidc::build(&hook)
+                .map_err(|source| FactoryError::Failed(Box::new(SsoProviderError::config("oidc", source))))?;
+            Ok(built.map(|provider| Arc::new(provider) as Arc<dyn SsoProvider>))
         },
+    );
+    let built = match super::build_sso(sso) {
+        Ok(built) => built,
+        Err(SlotError::Entry { source, .. }) => {
+            return Err(*source
+                .downcast::<SsoProviderError>()
+                .expect("the slot carries the provider's own error"));
+        },
+        Err(other) => panic!("unexpected slot error: {other:?}"),
+    };
+    Ok(SsoDriver::new(
+        &built,
+        &db,
+        config,
         systemprompt_test_fixtures::oauth_fixture_repository(&db),
         Arc::new(service),
-    )
+    ))
 }
 
 #[tokio::test]

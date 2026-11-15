@@ -1,13 +1,15 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use systemprompt_extension::StandingTag;
 use systemprompt_governance::authz::subject::{
-    SharedSubjectAttributeProvider, SubjectAttributeProvider, SubjectAttributeSource,
-    SubjectDimension, SubjectProviderSet, SubjectSourceError,
+    SharedSubjectAttributeProvider, SubjectAttributeError, SubjectAttributeProvider,
+    SubjectAttributeSource, SubjectDimension, SubjectProviderEntry, SubjectProviderSet,
+    SubjectSourceError,
 };
 use systemprompt_governance::authz::types::RuleType;
 use systemprompt_governance::authz::{AuthzError, default_attribution_value};
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{ExtensionId, UserId};
 
 #[derive(Debug)]
 struct Fixed {
@@ -27,15 +29,15 @@ impl SubjectAttributeProvider for Fixed {
         }
     }
 
-    async fn values_for(&self, _user_id: &UserId) -> Result<Vec<String>, AuthzError> {
+    async fn values_for(&self, _user_id: &UserId) -> Result<Vec<String>, SubjectAttributeError> {
         self.values
             .clone()
-            .ok_or_else(|| AuthzError::Validation(format!("{} lookup down", self.slug)))
+            .ok_or_else(|| SubjectAttributeError::Lookup(format!("{} lookup down", self.slug).into()))
     }
 
-    async fn known_values(&self) -> Result<Option<Vec<String>>, AuthzError> {
+    async fn known_values(&self) -> Result<Option<Vec<String>>, SubjectAttributeError> {
         if self.known_fails {
-            return Err(AuthzError::Validation("catalogue down".to_owned()));
+            return Err(SubjectAttributeError::Lookup("catalogue down".into()));
         }
         Ok(self.known.clone())
     }
@@ -59,6 +61,20 @@ fn broken(slug: &'static str) -> SharedSubjectAttributeProvider {
     })
 }
 
+fn set_of(providers: Vec<SharedSubjectAttributeProvider>) -> SubjectProviderSet {
+    SubjectProviderSet::new(
+        providers
+            .into_iter()
+            .map(|provider| SubjectProviderEntry {
+                owner: ExtensionId::new("test"),
+                standing: StandingTag::Install,
+                provider,
+            })
+            .collect(),
+    )
+    .expect("distinct install dimensions build a set")
+}
+
 fn dim(slug: &'static str) -> SubjectDimension {
     SubjectDimension {
         rule_type: RuleType::extension(slug).expect("valid slug"),
@@ -73,7 +89,7 @@ fn user() -> UserId {
 
 #[test]
 fn find_and_registered_dimensions_reflect_providers() {
-    let set = SubjectProviderSet::from_providers(vec![ok("department", &["eng"]), ok("site", &[])]);
+    let set = set_of(vec![ok("department", &["eng"]), ok("site", &[])]);
     let department = RuleType::extension("department").expect("valid slug");
     assert!(set.find(department.as_str()).is_some());
     assert!(set.find("ext:absent").is_none());
@@ -93,21 +109,21 @@ fn empty_set_has_no_dimensions() {
 
 #[tokio::test]
 async fn gather_collects_every_provider() {
-    let set = SubjectProviderSet::from_providers(vec![ok("department", &["eng", "ops"])]);
+    let set = set_of(vec![ok("department", &["eng", "ops"])]);
     let attrs = set.gather(&user()).await.expect("gather");
     assert_eq!(attrs.values(&dim("department").rule_type), ["eng", "ops"]);
 }
 
 #[tokio::test]
 async fn gather_propagates_provider_error() {
-    let set = SubjectProviderSet::from_providers(vec![broken("department")]);
+    let set = set_of(vec![broken("department")]);
     let err = set.gather(&user()).await.expect_err("provider failure");
-    assert!(matches!(err, AuthzError::Validation(_)));
+    assert!(matches!(err, AuthzError::Subject(SubjectAttributeError::Lookup(_))));
 }
 
 #[tokio::test]
 async fn values_for_known_dimension_returns_values() {
-    let set = SubjectProviderSet::from_providers(vec![ok("department", &["eng"])]);
+    let set = set_of(vec![ok("department", &["eng"])]);
     let values = set
         .values_for(&user(), &dim("department"))
         .await
@@ -117,7 +133,7 @@ async fn values_for_known_dimension_returns_values() {
 
 #[tokio::test]
 async fn values_for_unknown_dimension_is_refused() {
-    let set = SubjectProviderSet::from_providers(vec![ok("department", &["eng"])]);
+    let set = set_of(vec![ok("department", &["eng"])]);
     let err = set
         .values_for(&user(), &dim("site"))
         .await
@@ -132,7 +148,7 @@ async fn values_for_unknown_dimension_is_refused() {
 
 #[tokio::test]
 async fn values_for_wraps_provider_failure() {
-    let set = SubjectProviderSet::from_providers(vec![broken("department")]);
+    let set = set_of(vec![broken("department")]);
     let err = set
         .values_for(&user(), &dim("department"))
         .await
@@ -140,7 +156,8 @@ async fn values_for_wraps_provider_failure() {
     match err {
         SubjectSourceError::Provider { dimension, source } => {
             assert_eq!(dimension, dim("department").rule_type.as_str());
-            assert!(source.to_string().contains("lookup down"));
+            let cause = std::error::Error::source(source.as_ref()).map(ToString::to_string);
+            assert_eq!(cause.as_deref(), Some("department lookup down"));
         },
         other => panic!("unexpected {other:?}"),
     }
@@ -149,7 +166,7 @@ async fn values_for_wraps_provider_failure() {
 #[tokio::test]
 async fn resolve_all_returns_each_dimension() {
     let set =
-        SubjectProviderSet::from_providers(vec![ok("department", &["eng"]), ok("site", &["lon"])]);
+        set_of(vec![ok("department", &["eng"]), ok("site", &["lon"])]);
     let attrs = set.resolve_all(&user()).await.expect("resolve");
     assert_eq!(attrs.values(&dim("department").rule_type), ["eng"]);
     assert_eq!(attrs.values(&dim("site").rule_type), ["lon"]);
@@ -157,7 +174,7 @@ async fn resolve_all_returns_each_dimension() {
 
 #[tokio::test]
 async fn resolve_all_fails_closed_on_any_provider_error() {
-    let set = SubjectProviderSet::from_providers(vec![ok("department", &["eng"]), broken("site")]);
+    let set = set_of(vec![ok("department", &["eng"]), broken("site")]);
     let err = set.resolve_all(&user()).await.expect_err("fails");
     assert!(
         matches!(err, SubjectSourceError::Provider { ref dimension, .. } if dimension == dim("site").rule_type.as_str())
@@ -166,7 +183,7 @@ async fn resolve_all_fails_closed_on_any_provider_error() {
 
 #[tokio::test]
 async fn known_values_delegates_and_refuses_unknown() {
-    let set = SubjectProviderSet::from_providers(vec![ok("department", &[]), broken("site")]);
+    let set = set_of(vec![ok("department", &[]), broken("site")]);
     let known = set
         .known_values(&dim("department"))
         .await
@@ -192,7 +209,7 @@ impl SubjectAttributeProvider for HeaderOnly {
         dim("tenant")
     }
 
-    async fn values_for(&self, _user_id: &UserId) -> Result<Vec<String>, AuthzError> {
+    async fn values_for(&self, _user_id: &UserId) -> Result<Vec<String>, SubjectAttributeError> {
         Ok(vec!["acme".to_owned()])
     }
 
@@ -204,7 +221,7 @@ impl SubjectAttributeProvider for HeaderOnly {
 #[tokio::test]
 async fn default_value_is_the_first_held_value_unless_header_only() {
     let header_only: SharedSubjectAttributeProvider = Arc::new(HeaderOnly);
-    let set = SubjectProviderSet::from_providers(vec![
+    let set = set_of(vec![
         ok("department", &["ops", "eng"]),
         ok("site", &[]),
         Arc::clone(&header_only),

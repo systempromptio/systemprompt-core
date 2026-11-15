@@ -3,7 +3,7 @@
 
 use systemprompt_gateway::audit::GatewayRequestContext;
 use systemprompt_gateway::service::stages::recall_principal;
-use systemprompt_governance::policy::types::AccessScope;
+use systemprompt_governance::policy::AccessScope;
 use systemprompt_identifiers::{AiRequestId, ContextId, ScopeDimension, UserId};
 use systemprompt_models::attribution::{AttributionEntry, AttributionSource, RequestAttribution};
 use systemprompt_models::auth::RequestActor;

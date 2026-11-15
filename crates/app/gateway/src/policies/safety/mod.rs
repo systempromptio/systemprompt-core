@@ -6,11 +6,11 @@
 //! built-in [`HeuristicScanner`] applies pattern-based checks, [`NullScanner`]
 //! is the no-op used when scanning is disabled.
 //!
-//! Extensions contribute additional scanners the same way they contribute
-//! gateway upstreams or marketplace filters — by submitting a
-//! [`SafetyScannerRegistration`] through the
-//! [`register_safety_scanner!`](crate::register_safety_scanner) macro, which
-//! the consuming layer collects via `inventory::iter`.
+//! Members contribute additional scanners by name to
+//! [`SafetyScannerSlot`](crate::contract::SafetyScannerSlot); a contributed
+//! [`ScannerFactory`] receives the policy's `scanner_settings.<name>` entry
+//! (defaults when absent), whose `config` mapping is the scanner's own,
+//! uninterpreted by core.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -157,40 +157,6 @@ where
     fn create(&self, safety: &SafetyConfig, settings: &ScannerSettings) -> Arc<dyn SafetyScanner> {
         self(safety, settings)
     }
-}
-
-/// Compile-time registration of a [`SafetyScanner`] implementation.
-///
-/// The gateway's scanner registry seeds its built-ins, then folds in every
-/// `inventory`-collected registration. A registration whose `name` collides
-/// with a built-in is rejected at registry build time. The factory receives the
-/// running deployment's extension context and the policy's
-/// `scanner_settings.<name>` entry (defaults when absent), whose `config`
-/// mapping is the scanner's own, uninterpreted by core.
-#[derive(Debug, Clone, Copy)]
-pub struct SafetyScannerRegistration {
-    pub name: &'static str,
-    pub factory: fn(
-        &dyn systemprompt_extension::ExtensionContext,
-        &ScannerSettings,
-    ) -> Arc<dyn SafetyScanner>,
-}
-
-inventory::collect!(SafetyScannerRegistration);
-
-#[macro_export]
-macro_rules! register_safety_scanner {
-    ($factory:expr, name = $name:expr $(,)?) => {
-        $crate::__inventory::submit! {
-            $crate::SafetyScannerRegistration {
-                name: $name,
-                factory: |ctx: &dyn $crate::__ExtensionContext,
-                          settings: &$crate::ScannerSettings| {
-                    ::std::sync::Arc::new(($factory)(ctx, settings))
-                },
-            }
-        }
-    };
 }
 
 pub use heuristic::{HeuristicScanner, effective_phrases};

@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 use serde_json::json;
 use systemprompt_api::routes::gateway::messages::auth::{AuthedPrincipal, KeyScopes, Principal};
 use systemprompt_governance::authz::SubjectAttributes;
-use systemprompt_governance::policy::types::AccessScope;
+use systemprompt_governance::policy::AccessScope;
 use systemprompt_identifiers::{Actor, ClientId, SessionId, TraceId, UserId};
 
 fn principal(roles: &[&str], scopes: Option<KeyScopes>) -> Principal {

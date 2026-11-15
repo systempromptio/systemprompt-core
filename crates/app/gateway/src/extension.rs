@@ -1,6 +1,6 @@
-//! `Extension` registration for the gateway: the `gateway_policies` config
-//! plane. The gateway owns no tables; the plane writes `ai_gateway_policies`
-//! through the AI domain's repository.
+//! The `gateway` member: the `gateway_policies` config plane. The gateway owns
+//! no tables; the plane writes `ai_gateway_policies` through the AI domain's
+//! repository. Its slots are in [`crate::contract`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -23,13 +23,8 @@ impl Extension for GatewayExtension {
         }
     }
 
-    fn dependencies(&self) -> Vec<&'static str> {
-        vec!["ai"]
-    }
-
-    fn config_planes(&self) -> Vec<Arc<dyn ConfigPlane>> {
-        vec![Arc::new(GatewayPoliciesPlane)]
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        c.config_plane(Arc::new(GatewayPoliciesPlane));
+        Ok(())
     }
 }
-
-register_extension!(GatewayExtension);

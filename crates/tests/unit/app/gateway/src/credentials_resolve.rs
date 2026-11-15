@@ -51,7 +51,8 @@ async fn rig() -> Rig {
         .expect("seed user");
     let engines = GatewayEngines::new(
         Default::default(),
-        &systemprompt_test_fixtures::fixture_extension_context(&pool),
+        &systemprompt_extension::BuiltState::default(),
+        &systemprompt_test_fixtures::offline_kernel(Default::default()).resolved(),
         secrets,
     )
     .expect("engines");
