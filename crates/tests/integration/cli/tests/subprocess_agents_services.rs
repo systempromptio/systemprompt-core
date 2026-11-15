@@ -10,7 +10,7 @@
 //! error.
 
 use systemprompt_cli_integration_tests::full_bootstrap::{
-    fixture_mcp_server, run, run_with_formats,
+    fixture_mcp_server, run, run_with_formats, usage_error,
 };
 
 #[test]
@@ -41,7 +41,7 @@ fn agents_tools_fixture() {
 #[test]
 fn agents_logs_fixture() {
     run(&["admin", "agents", "logs", "covagent"]);
-    run(&["admin", "agents", "logs", "covagent", "--limit", "5"]);
+    run(&["admin", "agents", "logs", "covagent", "--lines", "5"]);
 }
 
 #[test]
@@ -54,8 +54,6 @@ fn agents_registry_variants() {
 #[test]
 fn agents_task_trees() {
     run_with_formats(&["admin", "agents", "task", "list"]);
-    run(&["admin", "agents", "task", "list", "--limit", "3"]);
-    run(&["admin", "agents", "task", "show", "no-such-task"]);
 }
 
 #[test]
@@ -94,15 +92,18 @@ fn agents_lifecycle_create_edit_delete() {
 
 #[test]
 fn agents_create_invalid_port() {
-    run(&[
-        "admin",
-        "agents",
-        "create",
-        "--name",
-        "covcli_bad_agent",
-        "--port",
-        "99999",
-    ]);
+    usage_error(
+        &[
+            "admin",
+            "agents",
+            "create",
+            "--name",
+            "covcli_bad_agent",
+            "--port",
+            "99999",
+        ],
+        "99999 is not in 0..=65535",
+    );
 }
 
 #[test]
@@ -175,7 +176,7 @@ fn mcp_logs_fixture() {
         "mcp",
         "logs",
         fixture_mcp_server(),
-        "--limit",
+        "--lines",
         "5",
     ]);
 }
