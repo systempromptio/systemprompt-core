@@ -171,6 +171,18 @@ lint-kernel-deps:
 lint-hidden-constructors:
     python3 ./scripts/lint-hidden-constructors.py
 
+# Reject the inventory crate anywhere in the root workspace (bin/bridge excluded)
+lint-no-inventory:
+    python3 ./scripts/lint-no-inventory.py
+
+# Reject type names and string owner literals in the api mount and cli kernel
+lint-kernel-identity:
+    python3 ./scripts/lint-kernel-identity.py
+
+# Reject a Contributions method that hands out stored entries
+lint-contributions-surface:
+    python3 ./scripts/lint-contributions-surface.py
+
 # Core ships no third-party frontend code (vendor dirs, package.json, .wasm,
 # external script URLs); see the script header.
 check-no-vendor *ARGS:

@@ -162,6 +162,13 @@ scripts/*
 !scripts/test-lint-kernel-deps.py
 !scripts/lint-hidden-constructors.py
 !scripts/test-lint-hidden-constructors.py
+!scripts/lint-no-inventory.py
+!scripts/test-lint-no-inventory.py
+!scripts/lint-kernel-identity.py
+!scripts/test-lint-kernel-identity.py
+!scripts/lint-contributions-surface.py
+!scripts/test-lint-contributions-surface.py
+!scripts/lib/fixture_tree.py
 !scripts/check-release-tag.sh
 !scripts/check-crate-changelogs.sh
 !scripts/regen.sh
