@@ -202,6 +202,14 @@ impl Composition {
     }
 
     #[must_use]
+    pub fn member_ids(&self) -> Vec<&'static str> {
+        self.members
+            .iter()
+            .map(|member| member.ext.metadata().id)
+            .collect()
+    }
+
+    #[must_use]
     pub fn without<E: Extension>(mut self) -> Self {
         self.removed.push(TypeId::of::<E>());
         self

@@ -1,0 +1,15 @@
+[package]
+name = "systemprompt-facade-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Composition tests for the systemprompt facade: reference order and admission"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt = { workspace = true, features = ["full"] }
+systemprompt-test-hack = { version = "0.1", path = "../../common/hack" }

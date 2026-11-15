@@ -1,5 +1,5 @@
-//! The reference composition: every core member of this build, in
-//! dependency order, with the terms the conferral table grants it.
+//! The reference composition: every core member of this build, in a
+//! topological order of the members' declared dependency edges, with the terms the conferral table grants it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,18 +11,18 @@ use super::{Composition, CoreTerms, Member};
 #[must_use]
 pub fn reference() -> Composition {
     let mut members: Vec<Member> = Vec::new();
-    #[cfg(feature = "logging")]
-    members.push(Member::core::<systemprompt_logging::LoggingExtension>(CoreTerms::REQUIRED));
     #[cfg(feature = "database")]
     members.push(Member::core::<systemprompt_database::DatabaseExtension>(CoreTerms::OPTIONAL));
     #[cfg(feature = "events")]
     members.push(Member::core::<systemprompt_events::EventsExtension>(CoreTerms::OPTIONAL));
+    #[cfg(feature = "full")]
+    members.push(Member::core::<systemprompt_users::UsersExtension>(CoreTerms::REQUIRED));
+    #[cfg(feature = "logging")]
+    members.push(Member::core::<systemprompt_logging::LoggingExtension>(CoreTerms::REQUIRED));
     #[cfg(feature = "security")]
     members.push(Member::core::<systemprompt_governance::authz::AuthzExtension>(
         CoreTerms::REQUIRED,
     ));
-    #[cfg(feature = "full")]
-    members.push(Member::core::<systemprompt_users::UsersExtension>(CoreTerms::REQUIRED));
     #[cfg(feature = "full")]
     members.push(Member::core::<systemprompt_oauth::OauthExtension>(CoreTerms::OPTIONAL));
     #[cfg(feature = "api")]
@@ -30,19 +30,19 @@ pub fn reference() -> Composition {
         CoreTerms::OPTIONAL,
     ));
     #[cfg(feature = "full")]
-    members.push(Member::core::<systemprompt_files::FilesExtension>(CoreTerms::OPTIONAL));
+    members.push(Member::core::<systemprompt_mcp::McpExtension>(CoreTerms::OPTIONAL));
     #[cfg(feature = "full")]
     members.push(Member::core::<systemprompt_ai::AiExtension>(CoreTerms::OPTIONAL));
     #[cfg(feature = "full")]
-    members.push(Member::core::<systemprompt_mcp::McpExtension>(CoreTerms::OPTIONAL));
-    #[cfg(feature = "full")]
     members.push(Member::core::<systemprompt_agent::AgentExtension>(CoreTerms::OPTIONAL));
-    #[cfg(feature = "content")]
-    members.push(Member::core::<systemprompt_content::ContentExtension>(CoreTerms::OPTIONAL));
     #[cfg(feature = "analytics")]
     members.push(Member::core::<systemprompt_analytics::AnalyticsExtension>(
         CoreTerms::REQUIRED,
     ));
+    #[cfg(feature = "content")]
+    members.push(Member::core::<systemprompt_content::ContentExtension>(CoreTerms::OPTIONAL));
+    #[cfg(feature = "full")]
+    members.push(Member::core::<systemprompt_files::FilesExtension>(CoreTerms::OPTIONAL));
     #[cfg(feature = "brain")]
     members.push(Member::core::<systemprompt_brain::BrainExtension>(CoreTerms::OPTIONAL));
     #[cfg(feature = "notifications")]
