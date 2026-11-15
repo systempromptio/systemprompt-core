@@ -121,6 +121,7 @@ pub use contribute::{
     HandleId, KernelHandle, ProvideError, ProvideFn, Resolved, Slot, SlotEntry, SlotError,
     SlotOrder, StandingTag,
 };
+pub use contribute::handles;
 pub use cost::{CostDirective, CostDirectiveError, TriggerPolicy};
 pub use error::{
     ExtensionConfigError, ExtensionStateError, LoaderError, MigrationFault, SchemaFault,

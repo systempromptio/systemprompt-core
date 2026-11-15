@@ -15,7 +15,7 @@ use systemprompt_extension::admitted::AdmittedRouteSet;
 use systemprompt_extension::cli::{
     CommandDescriptor, DataImpact, DbUrlRouting, KernelGrant, RoutingClass,
 };
-use systemprompt_extension::contribute::handles::AnalyticsBroadcaster;
+use systemprompt_extension::handles::AnalyticsBroadcaster;
 use systemprompt_extension::router::{ApiBase, BasePath, RouteSet, WebBase};
 use systemprompt_extension::{Admitted, Handed, HandleId, RouteGroup};
 use systemprompt_identifiers::{ConnectionId, UserId};
