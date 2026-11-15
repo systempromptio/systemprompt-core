@@ -92,6 +92,7 @@ fn content_query_trees() {
     run(&["core", "content", "list", "--limit", "5"]);
     run(&["core", "content", "search", "coverage"]);
     run(&["core", "content", "show", "no-such-content-id"]);
+    run(&["core", "content", "popular"]);
     run(&["core", "content", "status", "covcli"]);
     run(&[
         "core",

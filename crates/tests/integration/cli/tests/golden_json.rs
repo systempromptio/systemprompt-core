@@ -83,6 +83,17 @@ fn admin_users_list_emits_table() {
 }
 
 #[test]
+fn analytics_overview_emits_presentation_card() {
+    let v = golden_json(&["analytics", "overview"]);
+    assert_artifact_type(&v, "presentation_card");
+    assert_eq!(
+        v.get("title").and_then(Value::as_str),
+        Some("Analytics Overview"),
+        "overview card title is part of the contract: {v}"
+    );
+}
+
+#[test]
 fn core_content_list_emits_table() {
     let v = golden_json(&["core", "content", "list", "--limit", "5"]);
     assert_artifact_type(&v, "table");
