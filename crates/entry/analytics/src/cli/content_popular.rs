@@ -18,13 +18,8 @@ use systemprompt_extension::cli::{
     CliCommandLeaf, CliConfig, CommandDescriptor, CommandError, CommandHost, CommandOutput,
     DataImpact, DbUrlRouting, DescribeCommand,
 };
+use systemprompt_extension::cli::parsers::parse_source_id;
 use systemprompt_identifiers::SourceId;
-use systemprompt_identifiers::error::IdValidationError;
-
-
-fn parse_source_id(s: &str) -> Result<SourceId, IdValidationError> {
-    SourceId::try_new(s)
-}
 
 fn parse_duration(s: &str) -> Result<i64> {
     let s = s.trim().to_lowercase();

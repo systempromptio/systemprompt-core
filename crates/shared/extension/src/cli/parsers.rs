@@ -11,7 +11,7 @@ use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_identifiers::{
     AgentName, AiRequestId, ApiKeyId, CampaignId, CategoryId, ClientId, Email, ExtensionId,
     JobName, LinkClickId, LinkId, McpServerId, McpToolName, ModelId, PluginId, ProfileName,
-    ProviderId, SecretName, ServiceName, SkillId, TenantId, TraceId,
+    ProviderId, SecretName, ServiceName, SkillId, SourceId, TenantId, TraceId,
 };
 
 macro_rules! id_parsers {
@@ -47,6 +47,7 @@ id_parsers! {
     parse_model_id => ModelId,
     parse_secret_name => SecretName,
     parse_skill_id => SkillId,
+    parse_source_id => SourceId,
 }
 
 // Why: clap stores a subcommand `--profile` and the global `--profile` in one
