@@ -46,7 +46,7 @@ impl AppContextTrait for AppContext {
     }
 
     fn analytics_provider(&self) -> Arc<dyn AnalyticsProvider> {
-        self.data.analytics_service.clone()
+        Arc::<AnalyticsService>::clone(&self.data.analytics_service)
     }
 
     fn fingerprint_provider(&self) -> Option<Arc<dyn FingerprintProvider>> {

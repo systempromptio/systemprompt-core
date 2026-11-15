@@ -92,7 +92,7 @@ async fn the_capability_traits_expose_the_shared_services() {
     let (ctx, _url) = context().await;
 
     let analytics = HasAnalytics::analytics(ctx.as_ref());
-    let provider = AppContextTrait::analytics_provider(ctx.as_ref()).expect("analytics");
+    let provider = AppContextTrait::analytics_provider(ctx.as_ref());
     assert!(std::ptr::addr_eq(
         Arc::as_ptr(analytics),
         Arc::as_ptr(&provider)

@@ -30,7 +30,6 @@ async fn app_context_trait_config_handle_db_handle() -> Result<()> {
 #[tokio::test]
 async fn app_context_trait_optional_providers_present() -> Result<()> {
     let ctx = build_ctx().await;
-    assert!(AppContextTrait::analytics_provider(ctx.as_ref()).is_some());
     assert!(AppContextTrait::fingerprint_provider(ctx.as_ref()).is_some());
     assert!(AppContextTrait::user_provider(ctx.as_ref()).is_some());
     Ok(())

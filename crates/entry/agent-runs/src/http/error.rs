@@ -15,7 +15,7 @@ use systemprompt_models::api::ApiError;
 
 /// An agent-run handler's failure, answered through the API error model.
 #[derive(Debug, thiserror::Error)]
-pub enum AgentRunsHttpError {
+pub(crate) enum AgentRunsHttpError {
     #[error(transparent)]
     Storage(#[from] AgentRunsError),
     #[error("request refused by the API error model")]

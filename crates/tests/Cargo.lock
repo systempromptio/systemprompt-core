@@ -8472,6 +8472,7 @@ dependencies = [
  "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-models",
+ "thiserror 2.0.21",
  "tokio",
  "tracing",
 ]
