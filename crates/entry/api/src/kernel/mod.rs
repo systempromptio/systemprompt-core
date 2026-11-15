@@ -20,6 +20,8 @@
 //!   server-wide negotiation middleware;
 //! - the session cookie ([`SessionCookie`], [`SameSite`]) and the request base
 //!   URL ([`RequestBaseUrl`], [`resolve_request_base_url`]);
+//! - server-sent events: [`create_sse_stream`] registers a connection with a
+//!   user's broadcaster and streams its events;
 //! - the shared proxy service: [`ProxyService`], [`ProxyTarget`],
 //!   [`ProxyKind`], [`ProxyError`];
 //! - gateway route registration: [`register_gateway_route!`], each
@@ -39,6 +41,7 @@ pub use crate::register_gateway_route;
 pub use crate::routes::gateway::registered::{
     GatewayCredential, GatewayRouteFactory, GatewayRouteRegistration,
 };
+pub use crate::routes::stream::create_sse_stream;
 pub use crate::services::middleware::client_addr::{ClientIp, resolve_client_ip};
 pub use crate::services::middleware::{
     AcceptedFormat, AcceptedMediaType, BodyReadError, JwtContextExtractor, JwtUserContext,
