@@ -5,13 +5,12 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use serde_json::Value;
-use systemprompt_cli::CliConfig;
 use systemprompt_cli::interactive::ScriptedPrompter;
-use systemprompt_cli::kernel::CommandOutput;
 use systemprompt_content::ContentRepository;
 use systemprompt_content::models::CreateContentParams;
 use systemprompt_content_entry::cli::content::files::{featured, link, list, unlink};
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 use systemprompt_files::{FileRepository, FileRole};
 use systemprompt_identifiers::{ContentId, FileId, SourceId};
 use systemprompt_test_fixtures::test_db_pool;
@@ -378,15 +377,15 @@ async fn featured_set_unlinked_file_errors() {
 // subcommand directly through its pool seam, so nothing exercised the routing
 // that decides which subcommand a parsed variant reaches. These drive
 // `ContentFilesCommands` and assert the effect in the database, because a
-// variant wired to the wrong arm would still return `Ok(())`.
+// variant wired to the wrong arm would still return `Ok`.
 mod dispatch {
     use super::{cfg, link, linked_roles, seed_content, seed_file, test_db_pool};
-    use systemprompt_cli::interactive::ScriptedPrompter;
-    use systemprompt_cli::{CommandContext, EnvOverrides, OutputFormat};
+    use systemprompt_cli::{CommandContext, EnvOverrides};
     use systemprompt_content_entry::cli::content::files::{
         ContentFilesCommands, execute, featured, list, unlink,
     };
     use systemprompt_database::DbPool;
+    use systemprompt_extension::cli::OutputFormat;
     use systemprompt_files::FileRole;
     use systemprompt_test_fixtures::{test_app_context, test_database_url};
 
@@ -400,7 +399,7 @@ mod dispatch {
     }
 
     async fn dispatch(pool: &DbPool, cmd: ContentFilesCommands) -> anyhow::Result<()> {
-        execute(cmd, &ScriptedPrompter::default(), &ctx(pool)).await
+        execute(cmd, &ctx(pool)).await.map(drop)
     }
 
     #[tokio::test]

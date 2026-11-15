@@ -7,13 +7,13 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use clap::Parser;
-use systemprompt_cli::kernel::CommandOutput;
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_content::ContentRepository;
 use systemprompt_content::models::CreateContentParams;
-use systemprompt_content_entry::cli::content::link::list::{ListArgs, execute};
 use systemprompt_content_entry::cli::content::{self, ContentCommands};
+use systemprompt_content_entry::cli::content::link::list::{ListArgs, execute};
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::{CliConfig, CommandOutput, OutputFormat};
 use systemprompt_identifiers::SourceId;
 use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
 use uuid::Uuid;

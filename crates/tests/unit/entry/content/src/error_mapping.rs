@@ -6,9 +6,9 @@
 use axum::body::to_bytes;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use systemprompt_api::kernel::{ApiHttpError, IntoApiError};
 use systemprompt_content::ContentError;
 use systemprompt_content_entry::http::ContentHttpError;
+use systemprompt_extension::router::{ApiHttpError, IntoApiError};
 use systemprompt_models::api::ErrorCode;
 use systemprompt_traits::RepositoryError;
 

@@ -3,11 +3,12 @@
 use std::sync::Arc;
 
 use clap::Parser;
-use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat};
+use systemprompt_cli::EnvOverrides;
 use systemprompt_content::ContentRepository;
 use systemprompt_content::models::CreateContentParams;
-use systemprompt_content_entry::cli::content::verify::{self, VerifyArgs};
 use systemprompt_content_entry::cli::content::{self, ContentCommands};
+use systemprompt_content_entry::cli::content::verify::{self, VerifyArgs};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::SourceId;
 use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_test_fixtures::{

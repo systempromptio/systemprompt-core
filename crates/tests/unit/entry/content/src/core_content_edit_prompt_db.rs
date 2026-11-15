@@ -5,12 +5,12 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::CliConfig;
 use systemprompt_cli::interactive::ScriptedPrompter;
-use systemprompt_content::models::CreateContentParams;
 use systemprompt_content::{Content, ContentRepository};
+use systemprompt_content::models::CreateContentParams;
 use systemprompt_content_entry::cli::content::edit;
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::CliConfig;
 use systemprompt_identifiers::SourceId;
 use systemprompt_test_fixtures::test_db_pool;
 
