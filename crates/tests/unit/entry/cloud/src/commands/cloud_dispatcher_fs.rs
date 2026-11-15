@@ -8,7 +8,7 @@
 
 use clap::Parser;
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
-use systemprompt_cloud_entry::cli::{self, CloudCommands};
+use systemprompt_cloud_entry::cli::{self as cloud, CloudCommands};
 
 #[derive(Debug, Parser)]
 struct Harness {
