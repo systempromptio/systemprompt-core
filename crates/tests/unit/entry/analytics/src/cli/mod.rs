@@ -17,6 +17,7 @@ mod export_arms;
 mod export_csv;
 mod output_format;
 mod overview;
+mod overview_contract_db;
 mod registration;
 mod time_parse;
 mod time_parse_arms;

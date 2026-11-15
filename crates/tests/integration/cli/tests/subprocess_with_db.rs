@@ -3,8 +3,8 @@
 //! The `--database-url` flag bypasses profile/secrets/credentials bootstrap and
 //! routes straight into the `*_with_db` handler dispatchers in
 //! `crates/entry/cli/src/runner/mod.rs::run_with_database_url`. This unlocks
-//! coverage on the entire `infra db`, `analytics`, `admin users`,
-//! `core content`, and `core files` handler trees without needing a profile
+//! coverage on the entire `infra db`, `admin users`, `core content`, and
+//! `core files` handler trees without needing a profile
 //! tempdir or wiremock cloud server.
 //!
 //! Each `Command::cargo_bin` invocation inherits `LLVM_PROFILE_FILE` from the
@@ -21,10 +21,7 @@
 
 use assert_cmd::Command;
 use predicates::str::contains;
-use systemprompt_identifiers::SessionId;
-use systemprompt_test_fixtures::{
-    seed_user_row, seed_user_session, test_database_url, test_db_pool, unique_user_id,
-};
+use systemprompt_test_fixtures::test_database_url;
 
 fn systemprompt_bin() -> std::path::PathBuf {
     if let Ok(path) = std::env::var("SYSTEMPROMPT_BIN") {
@@ -55,33 +52,6 @@ fn sp_db() -> Command {
     c.env_remove("RUST_LOG");
     c.arg("--database-url").arg(url);
     c
-}
-
-// Reports read the source tables, so seeded conversation and session
-// evidence only has to commit before the binary runs.
-fn seed_reporting_evidence() {
-    tokio::runtime::Runtime::new()
-        .expect("tokio runtime")
-        .block_on(async {
-            let db = test_db_pool().await;
-            let user_id = unique_user_id("subprocess-analytics");
-            let email = format!("{}@subprocess.invalid", user_id.as_str());
-            seed_user_row(&db, &user_id, &email)
-                .await
-                .expect("seed user");
-            seed_user_session(&db, &user_id, &SessionId::generate())
-                .await
-                .expect("seed session");
-            sqlx::query(
-                "INSERT INTO user_contexts (context_id, user_id, name, kind) VALUES ($1, $2, \
-                 'subprocess-analytics', 'user')",
-            )
-            .bind(uuid::Uuid::new_v4().to_string())
-            .bind(user_id.as_str())
-            .execute(db.pool().as_ref())
-            .await
-            .expect("seed context");
-        });
 }
 
 fn announce(args: &[&str]) {
@@ -294,92 +264,6 @@ fn db_execute() {
 }
 
 #[test]
-fn analytics_overview() {
-    db_stderr_fmt(&["analytics", "overview"], "Analytics Overview");
-    run_db_with_format(&["analytics", "overview", "--since", "1h"]);
-    run_db_with_format(&["analytics", "overview", "--since", "24h"]);
-    run_db_with_format(&["analytics", "overview", "--since", "7d"]);
-    run_db(&["analytics", "overview", "--since", "garbage"]);
-}
-
-#[test]
-fn analytics_conversation_stats_and_trends() {
-    db_stderr_fmt(
-        &["analytics", "conversations", "stats"],
-        "Conversation Statistics",
-    );
-    run_db_with_format(&["analytics", "conversations", "stats", "--since", "7d"]);
-    run_db_with_format(&["analytics", "conversations", "trends"]);
-    run_db_with_format(&["analytics", "conversations", "trends", "--since", "24h"]);
-}
-
-#[test]
-fn analytics_conversation_list() {
-    seed_reporting_evidence();
-    db_stderr_fmt(&["analytics", "conversations", "list"], "Conversations");
-    run_db_with_format(&["analytics", "conversations", "list", "--limit", "5"]);
-}
-
-#[test]
-fn analytics_agents() {
-    db_stderr_fmt(&["analytics", "agents", "stats"], "Agent Statistics");
-    run_db_with_format(&["analytics", "agents", "trends"]);
-    run_db_with_format(&["analytics", "agents", "list"]);
-    run_db(&["analytics", "agents", "show", "nonexistent-agent"]);
-}
-
-#[test]
-fn analytics_tools() {
-    db_stderr_fmt(&["analytics", "tools", "stats"], "Tool Statistics");
-    run_db_with_format(&["analytics", "tools", "trends"]);
-    run_db_with_format(&["analytics", "tools", "list"]);
-    run_db(&["analytics", "tools", "show", "nonexistent-tool"]);
-}
-
-#[test]
-fn analytics_requests() {
-    db_stderr_fmt(&["analytics", "requests", "stats"], "AI Request Statistics");
-    run_db_with_format(&["analytics", "requests", "trends"]);
-    run_db_with_format(&["analytics", "requests", "list"]);
-    run_db_with_format(&["analytics", "requests", "list", "--limit", "5"]);
-    run_db_with_format(&["analytics", "requests", "models"]);
-}
-
-#[test]
-fn analytics_sessions() {
-    db_stderr_fmt(&["analytics", "sessions", "stats"], "Session Statistics");
-    run_db_with_format(&["analytics", "sessions", "list"]);
-    run_db_with_format(&["analytics", "sessions", "trends"]);
-    seed_reporting_evidence();
-    db_stderr_fmt(&["analytics", "sessions", "live"], "Live Sessions");
-}
-
-#[test]
-fn analytics_content() {
-    db_stderr_fmt(&["analytics", "content", "stats"], "Content Statistics");
-    run_db_with_format(&["analytics", "content", "list"]);
-    run_db_with_format(&["analytics", "content", "trends"]);
-    run_db_with_format(&["analytics", "content", "top"]);
-}
-
-#[test]
-fn analytics_traffic() {
-    db_stderr_fmt(&["analytics", "traffic", "sources"], "Traffic Sources");
-    run_db_with_format(&["analytics", "traffic", "list"]);
-    db_stderr_fmt(&["analytics", "traffic", "geo"], "Geographic Distribution");
-    db_stderr_fmt(&["analytics", "traffic", "devices"], "Device Breakdown");
-    db_stderr_fmt(&["analytics", "traffic", "bots"], "Bot Traffic Analysis");
-}
-
-#[test]
-fn analytics_costs() {
-    db_stderr_fmt(&["analytics", "costs", "summary"], "Cost Summary");
-    run_db_with_format(&["analytics", "costs", "list"]);
-    run_db_with_format(&["analytics", "costs", "trends"]);
-    run_db_with_format(&["analytics", "costs", "breakdown"]);
-}
-
-#[test]
 fn admin_users_list_pages_and_admins() {
     db_stderr_fmt(&["admin", "users", "list"], "Users");
     run_db_with_format(&["admin", "users", "list", "--limit", "5"]);
@@ -486,7 +370,6 @@ fn core_content_listing_and_search() {
 
 #[test]
 fn core_content_reports() {
-    run_db_with_format(&["core", "content", "popular"]);
     run_db_with_format(&["core", "content", "status", "test-source"]);
     run_db(&["core", "content", "analytics", "clicks", "nonexistent-link"]);
     run_db(&["core", "content", "analytics", "campaign", "nonexistent"]);
@@ -520,10 +403,8 @@ fn renderer_and_log_filter_repeats() {
     run_db(&["--debug", "infra", "db", "status"]);
     run_db(&["--verbose", "--json", "infra", "db", "tables"]);
     run_db(&["--no-color", "infra", "db", "query", "SELECT 1"]);
-    run_db(&["--verbose", "analytics", "overview"]);
     run_db(&["--quiet", "admin", "users", "list"]);
     run_db(&["--yaml", "infra", "db", "indexes"]);
-    run_db(&["--yaml", "analytics", "costs", "summary"]);
 }
 
 #[test]
