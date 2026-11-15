@@ -84,7 +84,6 @@ systemprompt-oauth-issuance = { workspace = true }
 systemprompt-logging = { workspace = true }
 systemprompt-agent = { workspace = true }
 systemprompt-mcp = { workspace = true }
-systemprompt-content = { workspace = true }
 systemprompt-files = { workspace = true }
 systemprompt-brain = { workspace = true, optional = true }
 systemprompt-provider-contracts = { workspace = true }
