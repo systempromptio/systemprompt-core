@@ -7384,14 +7384,11 @@ name = "systemprompt-notifications-entry"
 version = "0.81.1"
 dependencies = [
  "axum",
- "inventory",
  "serde",
- "systemprompt-api",
  "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-models",
  "systemprompt-notifications",
- "systemprompt-provider-contracts",
  "systemprompt-traits",
  "thiserror 2.0.21",
 ]

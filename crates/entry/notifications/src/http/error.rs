@@ -7,16 +7,16 @@
 //! visibility provider handles 422, and an invalid declaration, kind or
 //! argument 400, each with its `error_key`. Every other failure is the fixed
 //! 5xx body with its cause logged. An invalid feed cursor is 400
-//! `invalid_cursor`. A failure the API already models (a refused bridge
-//! credential, an invalid identifier) passes through as its `ApiHttpError`.
-//! The response is built by the API kernel's
+//! `invalid_cursor`, and an invalid identifier answers as the API error
+//! model maps it. The response is built by the shared
 //! `capability_error_response!`, so status, key, body and the 5xx policy are
 //! the API's own.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_api::kernel::{ApiHttpError, IntoApiError, capability_error_response};
+use systemprompt_extension::capability_error_response;
+use systemprompt_extension::router::IntoApiError;
 use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::notifications::KeysetCursorError;
@@ -30,20 +30,8 @@ pub enum NotificationsHttpError {
     Service(#[from] NotificationsError),
     #[error(transparent)]
     Cursor(#[from] KeysetCursorError),
-    #[error("request refused by the API error model")]
-    Http(ApiHttpError),
-}
-
-impl From<ApiHttpError> for NotificationsHttpError {
-    fn from(error: ApiHttpError) -> Self {
-        Self::Http(error)
-    }
-}
-
-impl From<IdValidationError> for NotificationsHttpError {
-    fn from(error: IdValidationError) -> Self {
-        Self::Http(ApiHttpError::from(error))
-    }
+    #[error(transparent)]
+    InvalidId(#[from] IdValidationError),
 }
 
 impl IntoApiError for NotificationsHttpError {
@@ -53,7 +41,7 @@ impl IntoApiError for NotificationsHttpError {
             Self::Cursor(error) => ApiError::bad_request("invalid since cursor")
                 .with_error_key("invalid_cursor")
                 .with_source(error),
-            Self::Http(error) => error.into_api_error(),
+            Self::InvalidId(error) => ApiError::from(error),
         }
     }
 }
