@@ -5,6 +5,8 @@
 #[cfg(test)]
 mod cli_probe;
 #[cfg(test)]
+mod command_disabled;
+#[cfg(test)]
 mod composition_order;
 #[cfg(test)]
 mod disable_probe;

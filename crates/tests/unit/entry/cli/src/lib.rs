@@ -25,9 +25,6 @@ mod child_host;
 #[cfg(test)]
 mod cli_settings;
 #[cfg(test)]
-#[cfg(test)]
-mod command_registry;
-#[cfg(test)]
 mod commands;
 #[cfg(test)]
 mod config_migrate_descriptor;
@@ -56,11 +53,11 @@ mod plane_validate_offline;
 #[cfg(test)]
 mod presentation_startup_renderer;
 #[cfg(test)]
+mod registry_build;
+#[cfg(test)]
 mod presentation_tables;
 #[cfg(test)]
 mod profile_flag_parsing;
-#[cfg(test)]
-mod registered_top_level_group;
 #[cfg(test)]
 mod runner_args;
 #[cfg(test)]
