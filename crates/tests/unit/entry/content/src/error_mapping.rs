@@ -62,7 +62,8 @@ async fn a_content_failure_is_a_500_without_its_cause() -> anyhow::Result<()> {
         !body.contains("PostgreSQL"),
         "body leaked the cause: {body}"
     );
-    let (status, body) = status_and_body(ContentError::Parse("secret detail".into()).into()).await?;
+    let (status, body) =
+        status_and_body(ContentError::Parse("secret detail".into()).into()).await?;
     assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
     assert!(
         !body.contains("secret detail"),
@@ -73,8 +74,7 @@ async fn a_content_failure_is_a_500_without_its_cause() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn a_refusal_built_by_a_handler_passes_through_unchanged() -> anyhow::Result<()> {
-    let (status, _) =
-        status_and_body(ApiHttpError::not_found("Content not found").into()).await?;
+    let (status, _) = status_and_body(ApiHttpError::not_found("Content not found").into()).await?;
     assert_eq!(status, StatusCode::NOT_FOUND);
     let (status, _) = status_and_body(
         RepositoryError::Conflict {

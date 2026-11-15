@@ -5,8 +5,8 @@
 //!
 //! - `/api/v1/content` public reads behind the public gate with a public
 //!   request context;
-//! - `/api/v1/content` link generation (`POST /links/generate`) behind the
-//!   user gate with a user request context;
+//! - `/api/v1/content` link generation (`POST /links/generate`) behind the user
+//!   gate with a user request context;
 //! - the short-link redirect `/r/{short_code}` at the web root behind the
 //!   public gate with a public request context.
 //!

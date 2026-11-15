@@ -381,11 +381,11 @@ async fn featured_set_unlinked_file_errors() {
 // variant wired to the wrong arm would still return `Ok(())`.
 mod dispatch {
     use super::{cfg, link, linked_roles, seed_content, seed_file, test_db_pool};
+    use systemprompt_cli::interactive::ScriptedPrompter;
+    use systemprompt_cli::{CommandContext, EnvOverrides, OutputFormat};
     use systemprompt_content_entry::cli::content::files::{
         ContentFilesCommands, execute, featured, list, unlink,
     };
-    use systemprompt_cli::interactive::ScriptedPrompter;
-    use systemprompt_cli::{CommandContext, EnvOverrides, OutputFormat};
     use systemprompt_database::DbPool;
     use systemprompt_files::FileRole;
     use systemprompt_test_fixtures::{test_app_context, test_database_url};

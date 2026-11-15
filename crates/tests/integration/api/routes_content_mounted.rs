@@ -148,8 +148,10 @@ async fn seed_link(pool: &DbPool) -> Result<(LinkId, String)> {
 }
 
 async fn clicks(pool: &DbPool, link: &LinkId) -> Result<usize> {
-    let service =
-        LinkAnalyticsService::new(LinkRepository::new(pool), LinkAnalyticsRepository::new(pool));
+    let service = LinkAnalyticsService::new(
+        LinkRepository::new(pool),
+        LinkAnalyticsRepository::new(pool),
+    );
     Ok(service.get_link_clicks(link, None, None).await?.len())
 }
 
@@ -197,23 +199,27 @@ async fn the_redirect_records_a_click_for_a_visitor_and_none_for_a_bot() -> Resu
         Call::get(&uri).user_agent(CRAWLER).status(&app).await?,
         StatusCode::TEMPORARY_REDIRECT
     );
-    assert_eq!(clicks(&pool, &link).await?, 0, "a bot visit records no click");
+    assert_eq!(
+        clicks(&pool, &link).await?,
+        0,
+        "a bot visit records no click"
+    );
 
     assert_eq!(
         Call::get(&uri).status(&app).await?,
         StatusCode::TEMPORARY_REDIRECT
     );
-    assert_eq!(clicks(&pool, &link).await?, 1, "a visitor records one click");
+    assert_eq!(
+        clicks(&pool, &link).await?,
+        1,
+        "a visitor records one click"
+    );
     Ok(())
 }
 
 #[tokio::test]
 async fn disabling_content_http_unmounts_every_group() -> Result<()> {
-    let (pool, app) = node(
-        NodeRole::All,
-        &[ExtensionId::new(CONTENT_HTTP_EXTENSION)],
-    )
-    .await?;
+    let (pool, app) = node(NodeRole::All, &[ExtensionId::new(CONTENT_HTTP_EXTENSION)]).await?;
     let user = seed_bridge_credential(&pool, "content-off").await?;
     let (_link, code) = seed_link(&pool).await?;
     let redirect = format!("/r/{code}");

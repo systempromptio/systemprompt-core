@@ -76,7 +76,6 @@ mod routes_agent_tasks;
 mod routes_admin_keys;
 
 #[cfg(test)]
-
 #[cfg(test)]
 #[path = "routes_users_sessions.rs"]
 mod routes_users_sessions;
@@ -423,9 +422,7 @@ mod gateway_stream_abort;
 mod gateway_stream_usage;
 
 #[cfg(test)]
-
 #[cfg(test)]
-
 #[cfg(test)]
 #[path = "routes_bridge_plugin_archive.rs"]
 mod routes_bridge_plugin_archive;
@@ -559,7 +556,6 @@ mod proxy_more;
 mod api_error_units;
 
 #[cfg(test)]
-
 #[cfg(test)]
 #[path = "routes_analytics_more.rs"]
 mod routes_analytics_more;
@@ -577,7 +573,6 @@ mod routes_admin_cli_subprocess;
 mod routes_admin_keys_seeded;
 
 #[cfg(test)]
-
 #[cfg(test)]
 #[path = "routes_mcp_registry_populated.rs"]
 mod routes_mcp_registry_populated;

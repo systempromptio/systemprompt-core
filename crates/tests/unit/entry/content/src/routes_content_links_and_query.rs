@@ -29,7 +29,8 @@ fn public(ctx: &AppContext) -> Router {
 }
 
 fn authenticated(ctx: &AppContext) -> Router {
-    content::authenticated_router(content_state(ctx)).layer(Extension(request_context("content_user")))
+    content::authenticated_router(content_state(ctx))
+        .layer(Extension(request_context("content_user")))
 }
 
 async fn seed_searchable(db: &DbPool, term: &str) -> Result<()> {

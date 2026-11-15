@@ -73,7 +73,8 @@ async fn redirect_unknown_short_code_is_not_found() -> anyhow::Result<()> {
 #[tokio::test]
 async fn generate_link_invalid_type_is_bad_request() -> anyhow::Result<()> {
     let (_db, ctx) = setup_ctx().await?;
-    let app = content::authenticated_router(content_state(&ctx)).layer(Extension(request_context("user_gen")));
+    let app = content::authenticated_router(content_state(&ctx))
+        .layer(Extension(request_context("user_gen")));
     let body = serde_json::json!({ "target_url": "https://example.com", "link_type": "bogus" });
     let resp = app.oneshot(json_post("/links/generate", body)).await?;
     assert_eq!(resp.status().as_u16(), 400, "{}", resp.status());
@@ -84,7 +85,8 @@ async fn generate_link_invalid_type_is_bad_request() -> anyhow::Result<()> {
 async fn generate_link_utm_and_both_types_run_handler() -> anyhow::Result<()> {
     let (_db, ctx) = setup_ctx().await?;
     for link_type in ["redirect", "utm", "both"] {
-        let app = content::authenticated_router(content_state(&ctx)).layer(Extension(request_context("user_gen")));
+        let app = content::authenticated_router(content_state(&ctx))
+            .layer(Extension(request_context("user_gen")));
         let body = serde_json::json!({
             "target_url": "https://example.com/page",
             "link_type": link_type,
@@ -105,11 +107,13 @@ async fn generate_link_utm_and_both_types_run_handler() -> anyhow::Result<()> {
 #[tokio::test]
 async fn list_links_by_campaign_and_source_content() -> anyhow::Result<()> {
     let (_db, ctx) = setup_ctx().await?;
-    let app = content::public_router(content_state(&ctx)).layer(Extension(request_context("user_ll")));
+    let app =
+        content::public_router(content_state(&ctx)).layer(Extension(request_context("user_ll")));
     let resp = app.oneshot(empty_get("/links?campaign_id=camp_x")).await?;
     assert!(resp.status().as_u16() >= 200, "{}", resp.status());
 
-    let app = content::public_router(content_state(&ctx)).layer(Extension(request_context("user_ll")));
+    let app =
+        content::public_router(content_state(&ctx)).layer(Extension(request_context("user_ll")));
     let resp = app
         .oneshot(empty_get("/links?source_content_id=content_y"))
         .await?;
@@ -141,7 +145,8 @@ async fn query_over_seeded_content_returns_results() -> anyhow::Result<()> {
     .execute(p.as_ref())
     .await?;
 
-    let app = content::public_router(content_state(&ctx)).layer(Extension(request_context("user_query")));
+    let app =
+        content::public_router(content_state(&ctx)).layer(Extension(request_context("user_query")));
     let body = serde_json::json!({ "query": "Searchable", "limit": 10 });
     let resp = app.oneshot(json_post("/query", body)).await?;
     assert!(resp.status().as_u16() >= 200, "{}", resp.status());

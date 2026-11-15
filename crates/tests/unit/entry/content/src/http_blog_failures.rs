@@ -41,9 +41,10 @@ fn req_ctx() -> RequestContext {
 async fn listing_a_source_reports_a_repository_failure_as_a_server_error() {
     let ctx = dead_context().await;
 
-    let response = list_content_by_source_handler(State(content_state(&ctx)), Path("blog".to_owned()))
-        .await
-        .into_response();
+    let response =
+        list_content_by_source_handler(State(content_state(&ctx)), Path("blog".to_owned()))
+            .await
+            .into_response();
 
     assert_eq!(
         response.status(),
