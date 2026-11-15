@@ -14,14 +14,14 @@
 //! Each test drives one command family, printing every command line before it
 //! runs so a failure or timeout names the invocation.
 //!
-//! Tests are intentionally permissive — they accept both success and failure
-//! exit codes. The point is to drive code coverage into handler bodies,
-//! argument parsing, repository wiring, query building, and result rendering
-//! — not to assert business outcomes.
+//! A command whose business outcome depends on the freshly-migrated database
+//! must still be handled: exit 0 or 1, no panic and no clap usage error.
 
 use assert_cmd::Command;
 use predicates::str::contains;
-use systemprompt_cli_integration_tests::full_bootstrap::systemprompt_bin;
+use systemprompt_cli_integration_tests::full_bootstrap::{
+    assert_handled, assert_usage_error, systemprompt_bin,
+};
 use systemprompt_identifiers::SessionId;
 use systemprompt_test_fixtures::{
     seed_user_row, seed_user_session, test_database_url, test_db_pool, unique_user_id,
@@ -71,7 +71,7 @@ fn run_db(args: &[&str]) {
     announce(args);
     let mut cmd = sp_db();
     cmd.args(args);
-    let _ = cmd.assert();
+    assert_handled(cmd);
 }
 
 fn run_db_with_format(args: &[&str]) {
@@ -86,7 +86,7 @@ fn drive_formats(args: &[&str]) {
         full.extend_from_slice(args);
         announce(&full);
         cmd.args(&full);
-        let _ = cmd.assert();
+        assert_handled(cmd);
     }
 }
 
@@ -123,7 +123,9 @@ fn sp_noprofile() -> Command {
 
 fn run_noprofile(args: &[&str]) {
     eprintln!("$ systemprompt {}", args.join(" "));
-    let _ = sp_noprofile().args(args).assert();
+    let mut cmd = sp_noprofile();
+    cmd.args(args);
+    assert_handled(cmd);
 }
 
 fn db_fails(args: &[&str], needle: &str) {
@@ -512,7 +514,10 @@ fn session_and_cloud_auth_without_profile() {
     run_noprofile(&["--yaml", "admin", "session", "show"]);
     run_noprofile(&["admin", "session", "list"]);
     run_noprofile(&["--json", "admin", "session", "list"]);
-    run_noprofile(&["cloud", "auth"]);
+    eprintln!("$ systemprompt cloud auth");
+    let mut cmd = sp_noprofile();
+    cmd.args(["cloud", "auth"]);
+    assert_usage_error(cmd, "Usage");
 }
 
 #[test]

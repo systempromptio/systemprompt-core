@@ -6,8 +6,8 @@
 //! loader entries. Lifecycle mutations (create/edit/delete) run inside a
 //! single test with a dedicated agent name so ordering is self-contained.
 //!
-//! Tests accept success or failure exit codes; the goal is driving handler
-//! bodies under the instrumented binary.
+//! Every command must be handled: exit 0 or 1, no panic and no clap usage
+//! error.
 
 use systemprompt_cli_integration_tests::full_bootstrap::{
     fixture_mcp_server, run, run_with_formats,

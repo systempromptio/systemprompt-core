@@ -3,7 +3,8 @@
 //!
 //! Content-type mutations use a dedicated `covcli_ct` name and run the whole
 //! create/show/edit/delete cycle inside one test so ordering is
-//! self-contained. Tests accept success or failure exit codes.
+//! self-contained. Every command must be handled: exit 0 or 1, no panic and
+//! no clap usage error.
 
 use systemprompt_cli_integration_tests::full_bootstrap::{run, run_with_formats};
 
