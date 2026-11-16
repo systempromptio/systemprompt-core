@@ -14,8 +14,8 @@ use systemprompt_identifiers::UserId;
 use systemprompt_manifest::Config;
 use systemprompt_users::{User, UserRepository, UserRole, UserService, UserStatus};
 
-use crate::context::CommandContext;
 use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Args)]
 pub struct BootstrapArgs {
@@ -39,13 +39,13 @@ pub struct BootstrapOutput {
     pub message: String,
 }
 
-pub async fn execute(args: BootstrapArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let config = ctx.config()?;
-    let name = resolve_admin_name(config, args.name.as_deref())?;
+pub async fn execute(args: BootstrapArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let config = crate::commands::admin::state::config(host).await?;
+    let name = resolve_admin_name(&config, args.name.as_deref())?;
 
-    let email = resolve_admin_email(config, args.email.as_deref())?;
+    let email = resolve_admin_email(&config, args.email.as_deref())?;
 
-    let user_service = connect_user_service(config).await?;
+    let user_service = connect_user_service(&config).await?;
 
     let (user, created) = if let Some(existing) = user_service.find_by_name(&name).await? {
         (existing, false)
