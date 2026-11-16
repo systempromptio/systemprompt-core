@@ -29,6 +29,7 @@ impl Extension for CloudCliExtension {
                 .requesting(&[
                     systemprompt_extension::cli::KernelGrant::CloudOperator,
                     systemprompt_extension::cli::KernelGrant::BootProfile,
+                    systemprompt_extension::cli::KernelGrant::ConfigReconcile,
                 ]),
         );
         Ok(())

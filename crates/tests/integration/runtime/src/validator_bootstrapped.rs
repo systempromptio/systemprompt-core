@@ -93,7 +93,8 @@ fn validate_runs_full_pipeline_when_bootstrapped_verbose() {
 fn validate_extension_configs_reports_each_admitted_config_section() {
     let env = ensure_test_bootstrap();
 
-    let outcomes = validate_extension_configs(admitted(true).built(), &env.services_path);
+    let outcomes = validate_extension_configs(
+        &systemprompt_extension::AdmittedConfigs::of(admitted(true).built()), &env.services_path);
 
     let probe = outcomes
         .iter()
@@ -107,7 +108,8 @@ fn validate_extension_configs_reports_each_admitted_config_section() {
 fn validate_extension_configs_reports_nothing_for_an_unadmitted_member() {
     let env = ensure_test_bootstrap();
 
-    let outcomes = validate_extension_configs(admitted(false).built(), &env.services_path);
+    let outcomes = validate_extension_configs(
+        &systemprompt_extension::AdmittedConfigs::of(admitted(false).built()), &env.services_path);
 
     assert!(
         outcomes

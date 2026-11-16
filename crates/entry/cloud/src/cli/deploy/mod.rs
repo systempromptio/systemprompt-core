@@ -24,6 +24,7 @@ pub(in crate::cli) use progress::CliDeployProgress;
 pub(in crate::cli) use select::resolve_profile;
 pub use target_profile::DeployProfile;
 
+use super::admitted_views::AdmittedViews;
 use std::path::Path;
 use std::time::Duration;
 
@@ -62,6 +63,7 @@ async fn preflight(
     args: &DeployArgs,
     prompter: &dyn Prompter,
     config: &CliConfig,
+    views: &AdmittedViews,
 ) -> Result<Option<DeployProfile>> {
     CliService::section("systemprompt.io Cloud Deploy");
 
@@ -74,7 +76,7 @@ async fn preflight(
         );
     }
 
-    let report = super::doctor::run_managed(&profile.managed, profile.profile_dir(), false).await;
+    let report = super::doctor::run_managed(&profile.managed, profile.profile_dir(), false, views).await;
     report.render();
     if report.has_blocking() {
         bail!("Deploy preflight failed — fix the items above before deploying.");
@@ -94,8 +96,9 @@ pub(super) async fn execute(
     prompter: &dyn Prompter,
     config: &CliConfig,
     children: &dyn ChildSupervisor,
+    views: &AdmittedViews,
 ) -> Result<()> {
-    let Some(profile) = preflight(&args, prompter, config).await? else {
+    let Some(profile) = preflight(&args, prompter, config, views).await? else {
         return Ok(());
     };
 
@@ -128,6 +131,7 @@ pub(super) async fn execute(
                 signing_key_path,
                 licence_secret_required,
                 options,
+                assets: views.assets.clone(),
             };
             orchestrator.deploy(&provider, &request, &progress).await?;
         },
@@ -145,6 +149,7 @@ pub(super) async fn execute(
                 signing_key_path,
                 licence_secret_required,
                 options,
+                assets: views.assets.clone(),
             };
             orchestrator.deploy(&provider, &request, &progress).await?;
         },

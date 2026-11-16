@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Result, bail};
 use systemprompt_cloud::ProjectContext;
-use systemprompt_extension::{AssetPaths, ExtensionRegistry};
+use systemprompt_extension::{AdmittedAssets, AssetPaths};
 use systemprompt_identifiers::ProfileName;
 use systemprompt_manifest::paths::constants::build;
 
@@ -38,7 +38,11 @@ pub struct DeployArtifacts {
 }
 
 impl DeployArtifacts {
-    pub fn resolve(project_root: &Path, profile_name: &ProfileName) -> Result<Self> {
+    pub fn resolve(
+        project_root: &Path,
+        profile_name: &ProfileName,
+        assets: &AdmittedAssets,
+    ) -> Result<Self> {
         let binary = project_root
             .join(build::CARGO_TARGET)
             .join("release")
@@ -52,11 +56,11 @@ impl DeployArtifacts {
             dockerfile,
             project_root: project_root.to_path_buf(),
         };
-        artifacts.validate()?;
+        artifacts.validate(assets)?;
         Ok(artifacts)
     }
 
-    fn validate(&self) -> Result<()> {
+    fn validate(&self, assets: &AdmittedAssets) -> Result<()> {
         if !self.binary.exists() {
             bail!(
                 "Release binary not found: {}\n\nRun: cargo build --release --bin systemprompt",
@@ -64,7 +68,7 @@ impl DeployArtifacts {
             );
         }
 
-        self.validate_extension_assets()?;
+        self.validate_extension_assets(assets)?;
         self.validate_storage_directory()?;
         self.validate_templates_directory()?;
 
@@ -78,37 +82,33 @@ impl DeployArtifacts {
         Ok(())
     }
 
-    fn validate_extension_assets(&self) -> Result<()> {
+    fn validate_extension_assets(&self, assets: &AdmittedAssets) -> Result<()> {
         let paths = ProjectAssetPaths {
             storage_files: self.project_root.join("storage/files"),
             web_dist: self.project_root.join("web/dist"),
         };
-        let registry = ExtensionRegistry::discover()?;
         let mut missing = Vec::new();
         let mut outside_context = Vec::new();
 
-        for ext in registry.asset_extensions(&[])? {
-            let ext_id = ext.id();
-            for asset in ext.required_assets(&paths) {
-                if !asset.is_required() {
-                    continue;
-                }
+        for (ext_id, asset) in assets.required(&paths) {
+            if !asset.is_required() {
+                continue;
+            }
 
-                let source = asset.source();
+            let source = asset.source();
 
-                if !source.exists() {
-                    missing.push(format!("[ext:{}] {}", ext_id, source.display()));
-                    continue;
-                }
+            if !source.exists() {
+                missing.push(format!("[ext:{}] {}", ext_id, source.display()));
+                continue;
+            }
 
-                if !source.starts_with(&self.project_root) {
-                    outside_context.push(format!(
-                        "[ext:{}] {} (not under {})",
-                        ext_id,
-                        source.display(),
-                        self.project_root.display()
-                    ));
-                }
+            if !source.starts_with(&self.project_root) {
+                outside_context.push(format!(
+                    "[ext:{}] {} (not under {})",
+                    ext_id,
+                    source.display(),
+                    self.project_root.display()
+                ));
             }
         }
 
