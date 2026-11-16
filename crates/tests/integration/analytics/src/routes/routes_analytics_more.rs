@@ -1,31 +1,20 @@
-//! Analytics + engagement content-routing resolution branches.
-//!
-//! Drives the entry points that mount the analytics and engagement routers
-//! over a stub `ContentRouting`, so the slug-resolution success path (routing
-//! maps a page URL to a seeded `markdown_content` slug, then `find_by_slug`
-//! returns the row) and the conversion-marking path both execute — branches the
-//! production router cannot reach without a live content config.
-
-use std::sync::Arc;
+//! Analytics + engagement content-routing resolution branches, driven
+//! through the analytics member's composed route sets: the routing is the
+//! context's content configuration, so a page URL that no content source
+//! claims resolves no slug and an explicit slug skips routing.
 
 use axum::Extension;
-use systemprompt_models::ContentRouting;
 use tower::ServiceExt;
 
 use super::common::{
-    SlugRouter, analytics_router_with_routing, engagement_router_with_routing, json_post,
-    request_context, seed_content, setup_ctx,
+    analytics_router, engagement_router, json_post, request_context, seed_content, setup_ctx,
 };
 
 #[tokio::test]
 async fn record_event_resolves_content_via_routing() -> anyhow::Result<()> {
     let (db, ctx) = setup_ctx().await?;
-    let (slug, page_url) = seed_content(&db).await?;
-    let routing: Arc<dyn ContentRouting> = Arc::new(SlugRouter {
-        page_url: page_url.clone(),
-        slug,
-    });
-    let app = analytics_router_with_routing(&ctx, Some(routing))
+    let (_slug, page_url) = seed_content(&db).await?;
+    let app = analytics_router(&ctx)
         .layer(Extension(request_context("user_an_more")));
 
     let body = serde_json::json!({ "event_type": "page_view", "page_url": page_url });
@@ -43,7 +32,7 @@ async fn record_event_with_explicit_slug_skips_routing() -> anyhow::Result<()> {
     let (db, ctx) = setup_ctx().await?;
     let (slug, _page_url) = seed_content(&db).await?;
     let app =
-        analytics_router_with_routing(&ctx, None).layer(Extension(request_context("user_an_more")));
+        analytics_router(&ctx).layer(Extension(request_context("user_an_more")));
 
     let body = serde_json::json!({
         "event_type": "page_view",
@@ -62,12 +51,8 @@ async fn record_event_with_explicit_slug_skips_routing() -> anyhow::Result<()> {
 #[tokio::test]
 async fn page_exit_fanout_resolves_content_via_routing() -> anyhow::Result<()> {
     let (db, ctx) = setup_ctx().await?;
-    let (slug, page_url) = seed_content(&db).await?;
-    let routing: Arc<dyn ContentRouting> = Arc::new(SlugRouter {
-        page_url: page_url.clone(),
-        slug,
-    });
-    let app = analytics_router_with_routing(&ctx, Some(routing))
+    let (_slug, page_url) = seed_content(&db).await?;
+    let app = analytics_router(&ctx)
         .layer(Extension(request_context("user_an_more")));
 
     let body = serde_json::json!({
@@ -95,12 +80,8 @@ async fn page_exit_fanout_resolves_content_via_routing() -> anyhow::Result<()> {
 #[tokio::test]
 async fn batch_resolves_content_via_routing() -> anyhow::Result<()> {
     let (db, ctx) = setup_ctx().await?;
-    let (slug, page_url) = seed_content(&db).await?;
-    let routing: Arc<dyn ContentRouting> = Arc::new(SlugRouter {
-        page_url: page_url.clone(),
-        slug,
-    });
-    let app = analytics_router_with_routing(&ctx, Some(routing))
+    let (_slug, page_url) = seed_content(&db).await?;
+    let app = analytics_router(&ctx)
         .layer(Extension(request_context("user_an_more")));
 
     let body = serde_json::json!({
@@ -125,12 +106,8 @@ async fn batch_resolves_content_via_routing() -> anyhow::Result<()> {
 #[tokio::test]
 async fn engagement_resolves_content_and_marks_conversion() -> anyhow::Result<()> {
     let (db, ctx) = setup_ctx().await?;
-    let (slug, page_url) = seed_content(&db).await?;
-    let routing: Arc<dyn ContentRouting> = Arc::new(SlugRouter {
-        page_url: page_url.clone(),
-        slug,
-    });
-    let app = engagement_router_with_routing(&ctx, Some(routing))
+    let (_slug, page_url) = seed_content(&db).await?;
+    let app = engagement_router(&ctx)
         .layer(Extension(request_context("user_en_more")));
 
     let body = serde_json::json!({
@@ -152,12 +129,8 @@ async fn engagement_resolves_content_and_marks_conversion() -> anyhow::Result<()
 #[tokio::test]
 async fn engagement_batch_resolves_and_marks_conversion() -> anyhow::Result<()> {
     let (db, ctx) = setup_ctx().await?;
-    let (slug, page_url) = seed_content(&db).await?;
-    let routing: Arc<dyn ContentRouting> = Arc::new(SlugRouter {
-        page_url: page_url.clone(),
-        slug,
-    });
-    let app = engagement_router_with_routing(&ctx, Some(routing))
+    let (_slug, page_url) = seed_content(&db).await?;
+    let app = engagement_router(&ctx)
         .layer(Extension(request_context("user_en_more")));
 
     let body = serde_json::json!({
