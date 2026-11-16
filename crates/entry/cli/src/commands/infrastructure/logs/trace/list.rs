@@ -3,6 +3,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::commands::shared::rendered;
+use systemprompt_extension::cli::CommandHost;
+use systemprompt_database::pool_from_handle;
 use anyhow::Result;
 use clap::Args;
 use std::sync::Arc;
@@ -15,7 +18,7 @@ use systemprompt_runtime::{TraceListFilter, TraceQueryService, TraceRepository};
 use super::{TraceListOutput, TraceListRow};
 use crate::CliConfig;
 use crate::commands::infrastructure::logs::duration::parse_since;
-use crate::shared::{CommandOutput, render_result};
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct ListArgs {
@@ -61,7 +64,13 @@ pub struct ListArgs {
     pub all: bool,
 }
 
-crate::define_pool_command!(ListArgs => (), with_config);
+pub(in crate::commands::infrastructure::logs) async fn execute(
+    args: ListArgs,
+    host: &dyn CommandHost,
+) -> Result<CommandOutput> {
+    let pool = pool_from_handle(host.db().await?)?.pool();
+    execute_with_pool_inner(args, &pool, host).await
+}
 
 fn build_filter(args: &ListArgs, since_timestamp: Option<DateTime<Utc>>) -> TraceListFilter {
     let sql_limit = if args.decision.is_some() {
@@ -91,8 +100,8 @@ fn build_filter(args: &ListArgs, since_timestamp: Option<DateTime<Utc>>) -> Trac
 async fn execute_with_pool_inner(
     args: ListArgs,
     pool: &Arc<sqlx::PgPool>,
-    config: &CliConfig,
-) -> Result<()> {
+    host: &dyn CommandHost,
+) -> Result<CommandOutput> {
     let since_timestamp = parse_since(args.since.as_ref())?;
     let filter = build_filter(&args, since_timestamp);
 
@@ -138,7 +147,7 @@ async fn execute_with_pool_inner(
 
     if output.traces.is_empty() {
         CliService::warning("No traces found");
-        return Ok(());
+        return Ok(rendered());
     }
 
     let result = CommandOutput::table_of(
@@ -155,7 +164,5 @@ async fn execute_with_pool_inner(
     )
     .with_title("Recent Traces");
 
-    render_result(&result, config);
-
-    Ok(())
+    Ok(result)
 }

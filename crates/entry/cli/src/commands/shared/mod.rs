@@ -3,8 +3,9 @@
 //! Exposes the [`ValidationIssue`] / [`ValidationOutput`] result shapes
 //! used by the various `validate` subcommands, [`rendered`] (the output a
 //! command returns when it has already rendered through `CommandHost::render`)
-//! and [`app_context`], the runtime context read from the kernel's resolved
-//! state.
+//! [`app_context`], the runtime context read from the kernel's resolved
+//! state, and [`services_config`], the services configuration under the
+//! host's services root.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,6 +19,8 @@ pub use validation::{ValidationIssue, ValidationOutput};
 use std::sync::Arc;
 
 use systemprompt_extension::cli::{CommandError, CommandHost, CommandOutput};
+use systemprompt_loader::ConfigLoader;
+use systemprompt_manifest::ServicesConfig;
 use systemprompt_runtime::AppContext;
 
 #[must_use]
@@ -30,4 +33,10 @@ pub async fn app_context(host: &dyn CommandHost) -> Result<Arc<AppContext>, Comm
         .await?
         .get::<Arc<AppContext>>()
         .map_err(CommandError::new)
+}
+
+pub fn services_config(host: &dyn CommandHost) -> anyhow::Result<ServicesConfig> {
+    let profile = host.profile()?;
+    let root = host.services_root()?;
+    Ok(ConfigLoader::for_profile(profile, &root.path).load()?)
 }

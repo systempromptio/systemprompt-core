@@ -13,18 +13,18 @@ use systemprompt_logging::CliService;
 use systemprompt_runtime::DatabaseContext;
 
 use crate::cli_settings::CliConfig;
-use crate::context::CommandContext;
-use crate::shared::{CommandOutput, render_result};
+use systemprompt_extension::cli::CommandHost;
+use crate::shared::CommandOutput;
 
 use super::types::DbMigrateDownOutput;
 
 pub(super) async fn execute_migrate_down(
-    ctx: &CommandContext,
+    host: &dyn CommandHost,
     extension: &ExtensionId,
     count: u32,
 ) -> Result<()> {
-    let config = &ctx.cli;
-    let sys_config = ctx.config()?;
+    let config = host.output();
+    let sys_config = host.config()?;
 
     let database = Arc::new(
         Database::connect(
@@ -97,7 +97,7 @@ async fn run_down(
 
     if config.is_json_output() {
         let result = CommandOutput::card_value("Database Admin", &output);
-        render_result(&result, config);
+        host.render(&result);
     } else {
         CliService::success(&output.message);
     }

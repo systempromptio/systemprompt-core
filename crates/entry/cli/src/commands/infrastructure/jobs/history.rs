@@ -10,7 +10,8 @@ use systemprompt_identifiers::JobName;
 use systemprompt_scheduler::JobRepository;
 
 use super::types::{JobHistoryEntry, JobHistoryOutput};
-use crate::context::CommandContext;
+use systemprompt_extension::cli::CommandHost;
+use crate::commands::shared::app_context;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
@@ -30,8 +31,9 @@ pub struct HistoryArgs {
     pub status: Option<String>,
 }
 
-pub(super) async fn execute(args: HistoryArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let app = ctx.app_context().await?;
+pub(super) async fn execute(args: HistoryArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let app = app_context(host)
+        .await?;
     execute_with_pool(args, app.db_pool()).await
 }
 

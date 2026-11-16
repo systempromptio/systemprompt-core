@@ -1,9 +1,9 @@
 //! `infra jobs show` command for one job's metadata, owner and schedule.
 //!
-//! `owner_enabled = false` marks a job whose owning extension the profile
-//! disables; the scheduler neither schedules nor runs it. A job this binary
-//! does not link but that has a `scheduled_jobs` row is shown from that row
-//! with `registered = false`: this node never claims or runs it.
+//! A job the admitted composition does not hold (a job of a member this
+//! profile disables, another node's composition, or a retired job) but that
+//! has a `scheduled_jobs` row is shown from that row with
+//! `registered = false`: this node never claims or runs it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,11 +11,13 @@
 use anyhow::Result;
 use clap::Args;
 use systemprompt_identifiers::JobName;
-use systemprompt_scheduler::{EnabledExtensions, JobRepository, ScheduledJob};
+use systemprompt_database::pool_from_handle;
+use systemprompt_scheduler::{JobRepository, ScheduledJob};
 
+use super::admitted_schedule;
 use super::cron_text::parse_cron_human;
 use super::types::JobShowOutput;
-use crate::context::CommandContext;
+use systemprompt_extension::cli::CommandHost;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
@@ -27,21 +29,17 @@ pub struct ShowArgs {
     pub job_name: JobName,
 }
 
-pub(super) async fn execute(args: ShowArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let registration =
-        systemprompt_traits::registered_jobs().find(|r| r.job.name() == args.job_name);
-    let app = ctx.app_context().await?;
-    let repo = JobRepository::new(app.db_pool());
+pub(super) async fn execute(args: ShowArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let schedule = admitted_schedule(host).await?;
+    let registration = schedule.job(args.job_name.as_str());
+    let repo = JobRepository::new(&pool_from_handle(host.db().await?)?);
     let db_job: Option<ScheduledJob> = repo.find_job(&args.job_name).await?;
 
     let output = match (registration, db_job) {
-        (Some(registration), db_job) => {
-            let job = registration.job;
-            let owner_enabled = EnabledExtensions::of(app)?.contains(registration.owner);
+        (Some((owner, job)), db_job) => {
             JobShowOutput {
                 name: job.name().to_owned(),
-                owner: registration.owner.to_owned(),
-                owner_enabled,
+                owner: owner.to_string(),
                 description: job.description().to_owned(),
                 schedule: job.schedule().to_owned(),
                 schedule_human: parse_cron_human(job.schedule()),
@@ -57,8 +55,7 @@ pub(super) async fn execute(args: ShowArgs, ctx: &CommandContext) -> Result<Comm
         (None, Some(row)) => JobShowOutput {
             name: row.job_name.to_string(),
             owner: String::new(),
-            owner_enabled: false,
-            description: "not registered on this node".to_owned(),
+            description: "not registered by any admitted extension".to_owned(),
             schedule_human: parse_cron_human(&row.schedule),
             schedule: row.schedule,
             enabled: row.enabled,

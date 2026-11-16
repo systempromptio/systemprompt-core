@@ -21,7 +21,7 @@ use systemprompt_identifiers::ExtensionId;
 use systemprompt_logging::CliService;
 
 use crate::cli_settings::CliConfig;
-use crate::shared::{CommandOutput, render_result};
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Serialize)]
 struct DoctorReport {
@@ -144,7 +144,7 @@ fn render(
                 .collect(),
         };
         let result = CommandOutput::card_value("Database Doctor", &report);
-        render_result(&result, config);
+        host.render(&result);
         return;
     }
 

@@ -15,8 +15,9 @@ pub mod services;
 use anyhow::Result;
 use clap::Subcommand;
 
-use crate::context::CommandContext;
-use crate::descriptor::{CommandDescriptor, DataImpact, DescribeCommand};
+use systemprompt_extension::cli::{
+    CommandDescriptor, CommandHost, CommandOutput, DataImpact, DescribeCommand,
+};
 
 #[derive(Debug, Subcommand)]
 pub enum InfraCommands {
@@ -36,8 +37,8 @@ pub enum InfraCommands {
     Logs(logs::LogsCommands),
 }
 
-pub async fn execute(cmd: InfraCommands, ctx: &CommandContext) -> Result<()> {
-    if ctx.is_database_scoped()
+pub async fn execute(cmd: InfraCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+    if host.is_database_scoped()
         && !matches!(
             cmd,
             InfraCommands::Db(_)
@@ -49,14 +50,14 @@ pub async fn execute(cmd: InfraCommands, ctx: &CommandContext) -> Result<()> {
                 )
         )
     {
-        return Err(crate::shared::database_scoped_command_error(ctx));
+        return Err(crate::shared::database_scoped_command_error(host));
     }
 
     match cmd {
-        InfraCommands::Services(cmd) => services::execute(cmd, ctx).await,
-        InfraCommands::Db(cmd) => db::execute(cmd, ctx).await,
-        InfraCommands::Jobs(cmd) => jobs::execute(cmd, ctx).await,
-        InfraCommands::Logs(cmd) => logs::execute(cmd, ctx).await,
+        InfraCommands::Services(cmd) => services::execute(cmd, host).await,
+        InfraCommands::Db(cmd) => db::execute(cmd, host).await,
+        InfraCommands::Jobs(cmd) => jobs::execute(cmd, host).await,
+        InfraCommands::Logs(cmd) => logs::execute(cmd, host).await,
     }
 }
 

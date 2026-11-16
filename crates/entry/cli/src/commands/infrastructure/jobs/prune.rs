@@ -1,12 +1,13 @@
 //! `infra jobs prune` command retiring `scheduled_jobs` rows.
 //!
-//! A node's boot never deletes a `scheduled_jobs` row, so a job no build
-//! registers any longer keeps its row until this command removes it. The
-//! command lists the rows no job linked into this binary names and,
+//! A node's boot never deletes a `scheduled_jobs` row, so a job no
+//! composition admits any longer keeps its row until this command removes it.
+//! The command lists the rows no job of the admitted composition names and,
 //! unless `--dry-run` is given, deletes exactly those rows after the operator
-//! confirms. A job whose extension this profile disables is still linked and
-//! is kept. It judges against this binary alone, so it is run from one that
-//! links every capability the cluster runs.
+//! confirms. The rows of a member this profile disables are included, because
+//! a disabled member is not admitted. It judges against this composition
+//! alone, so it is run with a binary and profile that admit every capability
+//! the cluster runs.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,8 +17,10 @@ use clap::Args;
 use systemprompt_identifiers::JobName;
 use systemprompt_scheduler::{JobPruneService, JobRepository, ScheduledJob};
 
+use super::admitted_schedule;
 use super::types::PrunedJob;
-use crate::context::CommandContext;
+use systemprompt_database::pool_from_handle;
+use systemprompt_extension::cli::CommandHost;
 use crate::interactive::require_confirmation;
 use crate::shared::CommandOutput;
 
@@ -33,9 +36,12 @@ pub struct PruneArgs {
     pub yes: bool,
 }
 
-pub(super) async fn execute(args: PruneArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let app = ctx.app_context().await?;
-    let service = JobPruneService::new(JobRepository::new(app.db_pool()));
+pub(super) async fn execute(args: PruneArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let schedule = admitted_schedule(host).await?;
+    let service = JobPruneService::new(
+        JobRepository::new(&pool_from_handle(host.db().await?)?),
+        &schedule,
+    );
     let rows = service
         .unregistered()
         .await
@@ -48,14 +54,14 @@ pub(super) async fn execute(args: PruneArgs, ctx: &CommandContext) -> Result<Com
     }
 
     require_confirmation(
-        ctx.prompter(),
+        host.prompter(),
         &format!(
-            "Delete {} scheduled_jobs row(s) no job linked into this binary names? \
-             This cannot be undone.",
+            "Delete {} scheduled_jobs row(s) no admitted job names? A disabled \
+             extension's rows are included. This cannot be undone.",
             names.len()
         ),
         args.yes,
-        &ctx.cli,
+        host.output(),
     )?;
 
     let deleted = service

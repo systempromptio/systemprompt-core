@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::commands::shared::rendered;
 use anyhow::{Result, anyhow};
 use chrono::{DateTime, Utc};
 use clap::Args;
@@ -12,7 +13,8 @@ use systemprompt_logging::{CliService, LogFilter, LogLevel, LoggingMaintenanceSe
 use tokio::time;
 
 use super::shared::print_level_line;
-use crate::context::CommandContext;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_database::pool_from_handle;
 
 #[derive(Debug, Args)]
 pub struct StreamArgs {
@@ -40,12 +42,12 @@ pub struct StreamArgs {
     pub max_iterations: u64,
 }
 
-pub(super) async fn execute(args: StreamArgs, ctx: &CommandContext) -> Result<()> {
-    if ctx.cli.is_json_output() {
+pub(super) async fn execute(args: StreamArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    if host.output().is_json_output() {
         return Err(anyhow!("JSON output is not supported in streaming mode"));
     }
 
-    let service = LoggingMaintenanceService::new(&ctx.db_pool().await?);
+    let service = LoggingMaintenanceService::new(&pool_from_handle(host.db().await?)?);
 
     let mut last_timestamp: Option<DateTime<Utc>> = None;
 
@@ -72,7 +74,7 @@ pub(super) async fn execute(args: StreamArgs, ctx: &CommandContext) -> Result<()
 
         iterations += 1;
         if args.max_iterations != 0 && iterations >= args.max_iterations {
-            return Ok(());
+            return Ok(rendered());
         }
 
         time::sleep(Duration::from_millis(args.interval)).await;

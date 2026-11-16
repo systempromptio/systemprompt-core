@@ -16,7 +16,7 @@ use systemprompt_logging::CliService;
 use systemprompt_runtime::DatabaseContext;
 
 use crate::cli_settings::CliConfig;
-use crate::shared::{CommandOutput, render_result};
+use crate::shared::CommandOutput;
 
 use super::MigrationsCommands;
 use super::types::{
@@ -105,7 +105,7 @@ async fn execute_migrations_status(
             &output.extensions,
         )
         .with_title("Migration Status");
-        render_result(&result, config);
+        host.render(&result);
     } else {
         if total_pending == 0 {
             CliService::success("All migrations are up to date");
@@ -167,7 +167,7 @@ async fn execute_migrations_history(
         let result =
             CommandOutput::table_of(vec!["version", "name", "checksum"], &output.migrations)
                 .with_title("Migration History");
-        render_result(&result, config);
+        host.render(&result);
     } else {
         CliService::info(&format!("Migration history for '{}':", extension_id));
         CliService::info(&format!("  Version: {}", ext.version()));

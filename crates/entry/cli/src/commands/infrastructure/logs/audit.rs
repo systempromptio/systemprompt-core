@@ -3,6 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_extension::cli::CommandHost;
+use systemprompt_database::pool_from_handle;
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -15,7 +17,7 @@ use systemprompt_runtime::{AuditPage, TraceQueryService, TraceRepository};
 
 use super::types::MessageRow;
 use crate::CliConfig;
-use crate::shared::{CommandOutput, render_result};
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct AuditArgs {
@@ -122,20 +124,25 @@ pub struct AuditToolCall {
     pub sequence: i32,
 }
 
-crate::define_pool_command!(AuditArgs => (), with_config);
+pub(in crate::commands::infrastructure::logs) async fn execute(
+    args: AuditArgs,
+    host: &dyn CommandHost,
+) -> Result<CommandOutput> {
+    let pool = pool_from_handle(host.db().await?)?.pool();
+    execute_with_pool_inner(args, &pool, host).await
+}
 
 async fn execute_with_pool_inner(
     args: AuditArgs,
     pool: &Arc<sqlx::PgPool>,
-    config: &CliConfig,
-) -> Result<()> {
+    host: &dyn CommandHost,
+) -> Result<CommandOutput> {
     let service = TraceQueryService::new(TraceRepository::new(Arc::clone(pool)));
 
     let row = service.find_ai_request_for_audit(&args.id).await?;
 
     let Some(row) = row else {
-        render_result(&not_found_output(&args.id), config);
-        return Ok(());
+        return Ok(not_found_output(&args.id));
     };
 
     let request_id = row.id;
@@ -198,9 +205,7 @@ async fn execute_with_pool_inner(
             .collect(),
     };
 
-    render_result(&build_audit(&output), config);
-
-    Ok(())
+    Ok(build_audit(&output))
 }
 
 #[must_use]

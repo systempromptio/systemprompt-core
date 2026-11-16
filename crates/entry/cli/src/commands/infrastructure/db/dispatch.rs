@@ -13,11 +13,11 @@ use systemprompt_runtime::DatabaseContext;
 use super::admin;
 use super::commands::DbCommands;
 use crate::cli_settings::CliConfig;
-use crate::context::CommandContext;
+use systemprompt_extension::cli::CommandHost;
 
 pub(super) async fn dispatch_profile_migration(
     cmd: DbCommands,
-    ctx: &CommandContext,
+    host: &dyn CommandHost,
 ) -> Result<Option<DbCommands>> {
     match cmd {
         DbCommands::Migrate {
@@ -25,7 +25,7 @@ pub(super) async fn dispatch_profile_migration(
             repair_drift,
             full,
         } => admin::execute_migrate(
-            ctx,
+            host,
             admin::MigrateOptions {
                 allow_checksum_drift,
                 repair_drift,
@@ -36,7 +36,7 @@ pub(super) async fn dispatch_profile_migration(
         .map(|()| None),
         DbCommands::MigrateDown {
             extension, count, ..
-        } => admin::execute_migrate_down(ctx, &extension, count)
+        } => admin::execute_migrate_down(host, &extension, count)
             .await
             .map(|()| None),
         DbCommands::MigrateRepair {
@@ -45,7 +45,7 @@ pub(super) async fn dispatch_profile_migration(
             reconcile_only,
             json,
         } => admin::execute_migrate_repair(
-            ctx,
+            host,
             admin::RepairArgs {
                 extension: extension.as_ref(),
                 apply,
@@ -61,7 +61,7 @@ pub(super) async fn dispatch_profile_migration(
             json,
             ..
         } => admin::execute_migrate_mark_applied(
-            ctx,
+            host,
             admin::MarkAppliedArgs {
                 extension: &extension,
                 version,

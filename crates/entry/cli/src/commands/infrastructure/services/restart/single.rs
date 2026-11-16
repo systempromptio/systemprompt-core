@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::cli_settings::CliConfig;
-use crate::context::CommandContext;
+use systemprompt_extension::cli::CommandHost;
 use crate::interactive::Prompter;
 use crate::shared::CommandOutput;
 use anyhow::Result;
@@ -18,15 +18,15 @@ use systemprompt_scheduler::{ServiceManagementService, port_holders};
 use super::super::lifecycle;
 use super::super::types::RestartOutput;
 
-pub async fn execute_api(prompter: &dyn Prompter, ctx: &CommandContext) -> Result<CommandOutput> {
-    let config = &ctx.cli;
+pub async fn execute_api(prompter: &dyn Prompter, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let config = host.output();
     let quiet = config.is_json_output();
 
     if !quiet {
         CliService::section("Restarting API Server");
     }
 
-    let port = super::super::get_api_port(ctx.profile()?);
+    let port = super::super::get_api_port(host.profile()?);
     let Some(pid) = port_holders(port).await?.first().copied() else {
         if !quiet {
             CliService::warning("API server is not running");
@@ -39,7 +39,7 @@ pub async fn execute_api(prompter: &dyn Prompter, ctx: &CommandContext) -> Resul
                 kill_port_process: false,
                 skip_migrate: false,
             },
-            ctx,
+            host,
         )
         .await?;
         let output = RestartOutput {
@@ -81,7 +81,7 @@ pub async fn execute_api(prompter: &dyn Prompter, ctx: &CommandContext) -> Resul
             kill_port_process: false,
             skip_migrate: false,
         },
-        ctx,
+        host,
     )
     .await?;
 
@@ -112,7 +112,7 @@ pub async fn execute_agent(
         CliService::section(&format!("Restarting Agent: {}", agent));
     }
 
-    let orchestrator = lifecycle::agent_orchestrator(ctx).await?;
+    let orchestrator = lifecycle::agent_orchestrator(host).await?;
     let name = lifecycle::resolve_agent_name(ctx.services_state(), agent)?;
     let service_id = orchestrator.restart_agent(&name, None).await?;
 
@@ -152,7 +152,7 @@ pub async fn execute_mcp(
         CliService::section(&format!("{} MCP Server: {}", action, server_name));
     }
 
-    let manager = lifecycle::mcp_orchestrator(ctx)?;
+    let manager = lifecycle::mcp_orchestrator(host)?;
 
     if build {
         let restarted = manager

@@ -14,8 +14,8 @@ use systemprompt_logging::CliService;
 use systemprompt_runtime::DatabaseContext;
 
 use crate::cli_settings::CliConfig;
-use crate::context::CommandContext;
-use crate::shared::{CommandOutput, render_result};
+use systemprompt_extension::cli::CommandHost;
+use crate::shared::CommandOutput;
 
 use super::admin_migrate::select_extensions;
 use super::types::MigrateMarkAppliedOutput;
@@ -28,11 +28,11 @@ pub(super) struct MarkAppliedArgs<'a> {
 }
 
 pub(super) async fn execute_migrate_mark_applied(
-    ctx: &CommandContext,
+    host: &dyn CommandHost,
     args: MarkAppliedArgs<'_>,
 ) -> Result<()> {
-    let config = &ctx.cli;
-    let sys_config = ctx.config()?;
+    let config = host.output();
+    let sys_config = host.config()?;
     let database = Arc::new(
         Database::connect(
             &sys_config.database_url,
@@ -114,7 +114,7 @@ async fn run_mark_applied(
 
     if json || config.is_json_output() {
         let result = CommandOutput::card_value("Migration Mark Applied", &output);
-        render_result(&result, config);
+        host.render(&result);
     } else {
         CliService::success(&message);
     }
