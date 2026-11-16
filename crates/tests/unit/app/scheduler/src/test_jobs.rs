@@ -24,6 +24,7 @@ pub const CANCELLABLE_CLUSTER_JOB: &str = "sp_test_cancellable_cluster_job";
 pub const WORKING_JOB: &str = "sp_test_working_job";
 pub const IDLE_JOB: &str = "sp_test_idle_job";
 pub const BUDGETED_JOB: &str = "sp_test_budgeted_job";
+pub const KERNEL_STATE_JOB: &str = "sp_test_kernel_state_job";
 
 pub static BUDGETED_JOB_SETTINGS: std::sync::Mutex<Vec<(String, String, String)>> =
     std::sync::Mutex::new(Vec::new());
@@ -300,7 +301,8 @@ pub(crate) fn contribute(c: &mut Contributions<'_>) {
         .job(CancellableClusterJob)
         .job(WorkingJob)
         .job(IdleJob)
-        .job(BudgetedJob);
+        .job(BudgetedJob)
+        .job(KernelStateJob);
 }
 
 struct BudgetedJob;
@@ -345,5 +347,34 @@ impl Job for BudgetedJob {
         tx.rollback().await.expect("rollback");
         BUDGETED_JOB_SETTINGS.lock().expect("lock").push(row);
         Ok(JobResult::success().with_stats(1, 0))
+    }
+}
+
+pub struct KernelStateJob;
+
+#[async_trait]
+impl Job for KernelStateJob {
+    fn name(&self) -> &'static str {
+        KERNEL_STATE_JOB
+    }
+
+    fn schedule(&self) -> &'static str {
+        ""
+    }
+
+    fn enabled(&self) -> bool {
+        false
+    }
+
+    async fn execute(
+        &self,
+        ctx: &JobContext,
+    ) -> systemprompt_provider_contracts::ProviderResult<JobResult> {
+        let schedule = ctx.get::<systemprompt_extension::AdmittedSchedule>()?;
+        ctx.get::<systemprompt_extension::AdmittedProjections>()?;
+        if !schedule.contains_job(KERNEL_STATE_JOB) {
+            return Ok(JobResult::failure("the schedule in the job context is not the admitted one"));
+        }
+        Ok(JobResult::success())
     }
 }

@@ -316,3 +316,37 @@ mod dead_pool_recording {
         );
     }
 }
+
+mod kernel_state_context {
+    use super::*;
+    use crate::test_jobs::{KERNEL_STATE_JOB, KernelStateJob};
+    use systemprompt_traits::{Dependencies, Job, JobContext};
+
+    #[tokio::test]
+    async fn a_dispatched_job_reads_the_admitted_schedule_and_projections_from_its_context() {
+        let (app_ctx, schedule) =
+            crate::test_extension::scheduled_app(&test_database_url()).await;
+        let mut config = systemprompt_manifest::SchedulerConfig::with_system_admin();
+        config.distributed_lock = false;
+        let service = JobExecutionService::new(app_ctx, config, Arc::clone(&schedule));
+
+        let report = service
+            .run_job(&JobName::new(KERNEL_STATE_JOB), &HashMap::new())
+            .await;
+
+        assert!(report.success, "{:?}", report.message);
+    }
+
+    #[tokio::test]
+    async fn a_context_without_the_kernel_state_lacks_the_schedule() {
+        let ctx = JobContext::new(
+            systemprompt_test_fixtures::fixture_actor(),
+            Dependencies::new(),
+        );
+        let err = KernelStateJob
+            .execute(&ctx)
+            .await
+            .expect_err("no kernel state, no schedule");
+        assert!(err.to_string().contains("AdmittedSchedule"), "{err}");
+    }
+}
