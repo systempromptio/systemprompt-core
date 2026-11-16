@@ -30,7 +30,7 @@ impl From<ApiHttpError> for AgentRunsHttpError {
 
 impl From<IdValidationError> for AgentRunsHttpError {
     fn from(error: IdValidationError) -> Self {
-        Self::Http(ApiHttpError::from(error))
+        Self::Http(ApiHttpError::from(ApiError::from(error)))
     }
 }
 
