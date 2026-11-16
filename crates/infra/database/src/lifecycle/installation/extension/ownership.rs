@@ -10,6 +10,14 @@
 //! same records to tell a table owned by a member outside this composition
 //! from an undeclared one.
 //!
+//! Each record carries its owner's standing. An install member that claims a
+//! table recorded under core standing is refused even when its id matches
+//! ([`LoaderError::CoreRecordClaimedByInstall`]), so an install that takes
+//! the id of a core member absent from this build adopts nothing. Records
+//! are keyed by id: an install that renames its own id is refused against
+//! every table recorded to the old id ([`LoaderError::DuplicateTableOwner`]
+//! names that recorded owner) until an operator re-assigns the records.
+//!
 //! A record is released only by its owner: an install in which the owner is
 //! admitted, no longer declares the table, and the table is gone (its own
 //! migration chain dropped it). A database installed before the records
@@ -21,7 +29,7 @@
 
 use std::collections::BTreeMap;
 
-use systemprompt_extension::LoaderError;
+use systemprompt_extension::{LoaderError, StandingTag};
 use systemprompt_identifiers::ExtensionId;
 
 use super::super::prepare::PreparedSchema;
@@ -30,10 +38,10 @@ use crate::services::DatabaseProvider;
 
 const OWNERS_PRESENT_SQL: &str = "SELECT to_regclass('schema_table_owners') IS NOT NULL AS present";
 
-const OWNERS_SQL: &str = "SELECT table_name, extension_id FROM schema_table_owners";
+const OWNERS_SQL: &str = "SELECT table_name, extension_id, standing FROM schema_table_owners";
 
-const RECORD_SQL: &str = "INSERT INTO schema_table_owners (table_name, extension_id) \
-     SELECT t.name, $2 FROM unnest($1::text[]) AS t(name) \
+const RECORD_SQL: &str = "INSERT INTO schema_table_owners (table_name, extension_id, standing) \
+     SELECT t.name, $2, $3 FROM unnest($1::text[]) AS t(name) \
      WHERE to_regclass(t.name) IS NOT NULL \
      ON CONFLICT (table_name) DO NOTHING";
 
@@ -42,17 +50,27 @@ const RELEASE_SQL: &str = "DELETE FROM schema_table_owners \
      AND to_regclass(table_name) IS NULL";
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub(crate) struct TableOwners(BTreeMap<String, ExtensionId>);
+pub(crate) struct TableOwners(BTreeMap<String, RecordedOwner>);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RecordedOwner {
+    pub(crate) id: ExtensionId,
+    pub(crate) standing: StandingTag,
+}
 
 impl TableOwners {
     #[must_use]
     pub(crate) fn owner_of(&self, table: &str) -> Option<&ExtensionId> {
-        self.0.get(&qualify(table))
+        self.0.get(&qualify(table)).map(|owner| &owner.id)
     }
 
     #[must_use]
     pub(crate) fn is_owner(&self, extension: &ExtensionId) -> bool {
-        self.0.values().any(|owner| owner == extension)
+        self.0.values().any(|owner| owner.id == *extension)
+    }
+
+    fn record_of(&self, table: &str) -> Option<&RecordedOwner> {
+        self.0.get(&qualify(table))
     }
 }
 
@@ -71,7 +89,14 @@ pub(crate) async fn recorded_table_owners(
             .filter_map(|row| {
                 let table = row.get("table_name")?.as_str()?;
                 let owner = row.get("extension_id")?.as_str()?;
-                Some((qualify(table), ExtensionId::new(owner)))
+                let standing = StandingTag::parse(row.get("standing")?.as_str()?)?;
+                Some((
+                    qualify(table),
+                    RecordedOwner {
+                        id: ExtensionId::new(owner),
+                        standing,
+                    },
+                ))
             })
             .collect(),
     ))
@@ -83,13 +108,21 @@ pub(super) fn check_recorded_owners(
 ) -> Result<(), LoaderError> {
     for p in prepared {
         for table in &p.owned_tables {
-            if let Some(recorded) = owners.owner_of(table)
-                && *recorded != p.extension_id
-            {
+            let Some(recorded) = owners.record_of(table) else {
+                continue;
+            };
+            if recorded.id != p.extension_id {
                 return Err(LoaderError::DuplicateTableOwner {
                     table: table.clone(),
-                    extension_a: recorded.clone(),
+                    extension_a: recorded.id.clone(),
                     extension_b: p.extension_id.clone(),
+                });
+            }
+            if recorded.standing == StandingTag::Core && p.standing == StandingTag::Install {
+                return Err(LoaderError::CoreRecordClaimedByInstall {
+                    kind: "table",
+                    name: table.clone(),
+                    owner: p.extension_id.clone(),
                 });
             }
         }
@@ -107,7 +140,10 @@ pub(super) async fn record_owners(
             db.execute(&RELEASE_SQL, &[&p.extension_id.as_str(), &declared])
                 .await
                 .map_err(|e| step_failed("Failed to release dropped table ownership", e))?;
-            db.execute(&RECORD_SQL, &[&declared, &p.extension_id.as_str()])
+            db.execute(
+                &RECORD_SQL,
+                &[&declared, &p.extension_id.as_str(), &p.standing.as_str()],
+            )
                 .await
                 .map_err(|e| step_failed("Failed to record table ownership", e))?;
         }

@@ -17,10 +17,14 @@
 //! and inserted as `Arc<S::Built>`, after the shared audience-resolver set
 //! ([`AudienceResolvers`]) every audience-reading slot consults; the governance surfaces every member reads
 //! by type — the [`SubjectProviderSet`], the [`PolicyCatalog`] and the
-//! [`GatewayGuards`] — each inserted as an `Arc`, a reserved or doubly
+//! [`GatewayGuards`](systemprompt_extension::GatewayGuards) — each inserted as an `Arc`, a reserved or doubly
 //! declared subject dimension refusing the resolution; and last every
 //! member's declared requirements, checked against the finished state, so a
-//! member may require a slot's built value or a governance surface. Only
+//! member may require a slot's built value or a governance surface. The
+//! values the kernel inserts after the provide fns run — the audience
+//! resolvers and the three governance surfaces — are reserved before any
+//! member's code runs: a member that provides one, or opens a slot that
+//! builds one, is refused with [`KernelError::ReservedType`]. Only
 //! admitted members' entries are present, so nothing a disabled member
 //! contributed runs.
 //!
@@ -40,14 +44,18 @@ use systemprompt_extension::contribute::{SlotBuildInput, build_slot};
 use systemprompt_extension::prelude::RuleType;
 use systemprompt_extension::{
     Admitted, AdmittedAssets, AdmittedConfigs, AdmittedMigrations, AdmittedProjections,
-    AdmittedPurge, AdmittedSchedule, AudienceResolvers, BuiltState, FactoryError, GatewayGuards,
-    HandleId, KernelHandle, ProvideError, Resolved, SlotError,
+    AdmittedPurge, AdmittedSchedule, AudienceResolvers, BuiltState, FactoryError, HandleId,
+    KernelHandle, ProvideError, Resolved, SlotError,
 };
 use systemprompt_governance::authz::{SubjectProviderError, SubjectProviderSet};
 use systemprompt_governance::policy::{PolicyCatalog, PolicyCatalogError};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::{Dependencies, DuplicateDependency};
 use systemprompt_traits::{BackgroundTasks, DatabaseHandle};
+
+use self::reserved::{gateway_guards, refuse_kernel_types};
+
+mod reserved;
 
 #[derive(Debug, thiserror::Error)]
 pub enum KernelError {
@@ -62,6 +70,11 @@ pub enum KernelError {
     Duplicate(#[from] DuplicateDependency),
     #[error("{owner} requires {ty}, which no enabled member or the kernel provides")]
     Missing {
+        owner: ExtensionId,
+        ty: &'static str,
+    },
+    #[error("{owner} provides {ty}, which only the kernel inserts")]
+    ReservedType {
         owner: ExtensionId,
         ty: &'static str,
     },
@@ -168,6 +181,7 @@ impl Kernel {
         self.state.insert(AdmittedMigrations::of(admitted.built()));
         self.state.insert(AdmittedConfigs::of(admitted.built()));
         self.state.insert(AdmittedAssets::of(admitted.built()));
+        refuse_kernel_types(admitted.built())?;
         self.provide_all(admitted)?;
         let audiences = AudienceResolvers::from_admitted(admitted.built(), &self.resolved())?;
         self.state.insert(Arc::new(audiences));
@@ -274,20 +288,4 @@ impl DatabaseHandle for DetachedDatabase {
     fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
         self
     }
-}
-
-fn gateway_guards(built: &BuiltState, r: &Resolved<'_>) -> Result<GatewayGuards, KernelError> {
-    let mut installed = Vec::new();
-    for member in built.members() {
-        for factory in member.sink.gateway_guards() {
-            let guard = factory
-                .build(r)
-                .map_err(|source| KernelError::GatewayGuard {
-                    owner: member.owner.clone(),
-                    source,
-                })?;
-            installed.push((member.owner.clone(), guard));
-        }
-    }
-    Ok(GatewayGuards::new(installed))
 }

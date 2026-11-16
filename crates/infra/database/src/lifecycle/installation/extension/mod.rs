@@ -52,7 +52,7 @@ use self::foreign_keys::apply_foreign_keys;
 use self::lock::BootstrapLockGuard;
 use self::ownership::{check_recorded_owners, record_owners, recorded_table_owners};
 use self::phase::execute_phase;
-use self::purge_records::{admit_purges, record_purges};
+use self::purge_records::{admit_purges, check_recorded_purges, record_purges};
 use self::retire::{apply_retirements, check_retirements};
 use self::routine_prepass::apply_routine_prepass;
 use self::trigger_reuse::TriggerReuse;
@@ -209,6 +209,7 @@ async fn prepare_and_check(
     }
     validate_table_ownership(&prepared, schema_extensions)?;
     check_recorded_owners(&recorded_table_owners(db).await?, &prepared)?;
+    check_recorded_purges(db, schema_extensions).await?;
     check_migration_references(schema_extensions)?;
     check_retirements(schema_extensions)?;
     warn_unmeasured_migrations(db, migration_service, schema_extensions).await;

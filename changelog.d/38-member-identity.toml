@@ -1,0 +1,44 @@
+[root]
+section = "Fixed"
+area = "Security"
+text = "A member's own purge tables are the tables its schema SQL creates, not its self-declared `SchemaDefinition.table` label, so a schema labelled with a core table's name cannot purge that table; schema SQL that does not parse refuses admission. An install member may not take a core member's id (`CompositionError::ReservedId`), whether or not that member is linked or enabled. `schema_table_owners` and `schema_purge_records` record each owner's standing, and an install claiming a table or purge record recorded under core standing is refused before any DDL (`LoaderError::CoreRecordClaimedByInstall`). A reserved CLI path is held only by its core owner's type as well as its id. A member that provides, or builds through a slot, one of the values the kernel inserts (the audience resolvers, subject provider set, policy catalog and gateway guards) is refused at resolve (`KernelError::ReservedType`); a core-first slot with no core contribution is not built, and the gateway refuses boot when its slots are absent (`GatewayEnginesError::OwnerSlot`). The retention job counts archived-user purges that left a member's rows behind and does not succeed while any did. Records are keyed by member id: an install that renames its id is refused against tables recorded to the old id (`LoaderError::DuplicateTableOwner` names that owner) until the records are re-assigned."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`created_table_names` moves here from the database schema linter (re-exported there); `PurgeAdmissionError::UnparseableSchema` is added. `OrphanSweep` is generic over its name type (`OrphanSweep<S = &'static str>`) and `PurgeDeclaration::Sweep` holds an `OrphanSweep<String>`; the recorded JSON is unchanged. `AdmittedCommand` gains `owner_type`; `StandingTag::{as_str, parse}` and `LoaderError::CoreRecordClaimedByInstall` are added. A `SlotOrder::CoreFirst` slot with no core-standing entry builds nothing."
+
+[[crate]]
+name = "systemprompt-database"
+section = "Breaking"
+text = "`schema_table_owners` and `schema_purge_records` carry a `standing` column (`core` or `install`); an install member claiming a row recorded under core standing is refused before any DDL."
+
+[[crate]]
+name = "systemprompt"
+section = "Breaking"
+text = "`CORE_MEMBER_IDS` lists every core member id; `Composition::declare` refuses an install member with one of them (`CompositionError::ReservedId`) and a core member whose id it lacks (`CompositionError::UnlistedCoreId`)."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`kernel::core_owner_type` names the type that holds each core id's reserved CLI paths; the registry refuses a reserved path to a member of another type. `plugins list` refuses an unreadable working directory, and `--capability` is a typed value."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`KernelError::ReservedType`: `Kernel::resolve` refuses a member that provides or slot-builds a kernel-inserted type, before any provide fn runs."
+
+[[crate]]
+name = "systemprompt-gateway"
+section = "Breaking"
+text = "`GatewayEngines::new` reads the outbound, safety scanner, override and route selector slots without a default and refuses with `GatewayEnginesError::OwnerSlot` when one is absent."
+
+[[crate]]
+name = "systemprompt-users"
+section = "Changed"
+text = "The orphan-sweep SQL reads the recorded `PurgeDeclaration::Sweep(OrphanSweep)`."
+
+[[crate]]
+name = "systemprompt-scheduler"
+section = "Fixed"
+text = "The retention job's archived-user pass reports `incomplete_purges`, adds them to the failed items and fails the run while any purge was incomplete."

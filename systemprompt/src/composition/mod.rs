@@ -50,7 +50,7 @@ mod routes;
 pub use declared::Declared;
 use declared::DeclaredMember;
 
-pub use reference::reference;
+pub use reference::{CORE_MEMBER_IDS, reference};
 
 pub(super) type Conferral = PrivilegedShape;
 
@@ -131,6 +131,7 @@ pub(super) struct Member {
     pub(super) ext: Box<dyn Extension>,
     pub(super) standing: Standing,
     pub(super) type_id: TypeId,
+    pub(super) type_name: &'static str,
 }
 
 impl Member {
@@ -139,6 +140,7 @@ impl Member {
             ext: Box::new(E::default()),
             standing: Standing::Core(terms),
             type_id: TypeId::of::<E>(),
+            type_name: std::any::type_name::<E>(),
         }
     }
 }
@@ -184,6 +186,7 @@ impl Composition {
             ext: Box::new(e),
             standing: Standing::Install,
             type_id: TypeId::of::<E>(),
+            type_name: std::any::type_name::<E>(),
         });
         self
     }
@@ -226,6 +229,11 @@ impl Composition {
                     id: meta.id,
                     source,
                 })?;
+            match (member.standing, reference::is_core_member_id(meta.id)) {
+                (Standing::Install, true) => return Err(CompositionError::ReservedId(id)),
+                (Standing::Core(_), false) => return Err(CompositionError::UnlistedCoreId(id)),
+                _ => {},
+            }
             if !ids.insert(id.clone()) {
                 return Err(CompositionError::DuplicateId(id));
             }
@@ -245,6 +253,7 @@ impl Composition {
                 id,
                 standing: member.standing,
                 type_id: member.type_id,
+                type_name: member.type_name,
                 sink,
             });
         }

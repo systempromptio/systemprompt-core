@@ -27,3 +27,4 @@ mod seed;
 mod migration_slots;
 #[cfg(test)]
 mod purge_admission;
+mod purge_label;

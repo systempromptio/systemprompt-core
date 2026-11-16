@@ -9,7 +9,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::lifecycle::schema_member::SchemaMember;
-use systemprompt_extension::{LoaderError, SchemaFault};
+use systemprompt_extension::{LoaderError, SchemaFault, StandingTag};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_traits::BoxedSource;
 use tracing::warn;
@@ -21,6 +21,7 @@ use crate::services::schema_linter::{created_table_names, lint_declarative_schem
 
 pub(super) struct PreparedSchema {
     pub(super) extension_id: ExtensionId,
+    pub(super) standing: StandingTag,
     pub(super) structural: Vec<String>,
     pub(super) routines: Vec<String>,
     pub(super) dependent: Vec<String>,
@@ -81,6 +82,7 @@ pub(super) fn prepare_extension_schema(
 
     Ok(PreparedSchema {
         extension_id,
+        standing: ext.standing(),
         structural,
         routines,
         dependent,

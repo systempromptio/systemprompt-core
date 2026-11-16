@@ -4,8 +4,11 @@
 //! The adapter and scanner sets, the override engine and the route selector
 //! chain are the built values of the gateway's slots
 //! ([`crate::contract`]); [`GatewayEngines::new`] reads each from the
-//! resolved state and falls back to the slot's default when no admitted
-//! member contributed to it. The gateway guards are the kernel-built
+//! resolved state. Each slot is `CoreFirst` and opened by the gateway member,
+//! so it is absent exactly when the gateway member is not admitted; building
+//! the engines then refuses boot with [`GatewayEnginesError::OwnerSlot`]
+//! naming the slot — a half-disabled gateway never serves on defaults or on
+//! install entries alone. The gateway guards are the kernel-built
 //! [`GatewayGuards`] read from the same state.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -191,6 +194,20 @@ pub enum GatewayEnginesError {
     HttpClient(#[source] reqwest::Error),
     #[error("gateway guards are missing from the resolved state")]
     Guards(#[source] MissingDependency),
+    #[error("the gateway's {slot} slot is absent: its core owner is not admitted")]
+    OwnerSlot {
+        slot: &'static str,
+        #[source]
+        source: MissingDependency,
+    },
+}
+
+fn owner_slot<T: Send + Sync + 'static>(
+    r: &Resolved<'_>,
+    slot: &'static str,
+) -> Result<Arc<T>, GatewayEnginesError> {
+    r.get::<Arc<T>>()
+        .map_err(|source| GatewayEnginesError::OwnerSlot { slot, source })
 }
 
 impl GatewayEngines {
@@ -205,10 +222,10 @@ impl GatewayEngines {
         .map_err(GatewayEnginesError::HttpClient)?;
         let http = UpstreamHttp::new(client, UpstreamBounds::PRODUCTION);
         Ok(Self {
-            upstream_registry: r.optional().unwrap_or_default(),
-            scanner_registry: r.optional().unwrap_or_default(),
-            override_engine: r.optional().unwrap_or_default(),
-            route_selector: r.optional().unwrap_or_default(),
+            upstream_registry: owner_slot(r, "outbound")?,
+            scanner_registry: owner_slot(r, "safety scanner")?,
+            override_engine: owner_slot(r, "override")?,
+            route_selector: owner_slot(r, "route selector")?,
             breakers: ProviderBreakers::new(),
             load: DeploymentLoad::default(),
             http,

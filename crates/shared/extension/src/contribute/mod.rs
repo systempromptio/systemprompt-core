@@ -28,6 +28,7 @@ pub mod handles;
 mod resolved;
 mod sink;
 mod slot;
+mod standing;
 mod view;
 
 use std::any::TypeId;
@@ -52,8 +53,9 @@ pub use sink::{
     ReadinessFactory, RunnerServiceFactory, SubjectProviderFactory,
 };
 pub use slot::{
-    Slot, SlotBuildInput, SlotBuilt, SlotEntry, SlotOrder, SlotRecord, StandingTag, build_slot,
+    Slot, SlotBuildInput, SlotBuilt, SlotEntry, SlotOrder, SlotRecord, build_slot,
 };
+pub use standing::StandingTag;
 pub use view::KernelView;
 
 use crate::Extension;
