@@ -170,3 +170,17 @@ async fn the_kernel_state_never_carries_the_analytics_broadcaster() {
             .is_none()
     );
 }
+
+#[tokio::test]
+async fn the_api_build_leaves_the_documents_handles_bound() {
+    let (ctx, _url) = context().await;
+    let slot = ctx
+        .kernel()
+        .state()
+        .get::<systemprompt_files::documents::DocumentsHandlesSlot>()
+        .expect("the API seeds the documents handles slot");
+    assert!(
+        slot.get().is_some(),
+        "the API binds the documents handles once its store is built"
+    );
+}

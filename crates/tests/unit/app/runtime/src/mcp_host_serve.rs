@@ -1,5 +1,6 @@
 use std::sync::{Arc, OnceLock};
 
+use systemprompt_files::documents::DocumentsHandlesSlot;
 use systemprompt_identifiers::McpServerId;
 use systemprompt_mcp_host::HostContext;
 use systemprompt_mcp_host::toolsets::{
@@ -213,4 +214,19 @@ async fn the_host_listener_is_not_reachable_on_a_non_loopback_address() {
         "{external}:{} must not reach the host",
         addr.port()
     );
+}
+
+#[tokio::test]
+async fn a_host_build_leaves_the_documents_handles_bound() {
+    let ctx = ctx().await;
+    let slot = ctx
+        .state()
+        .get::<DocumentsHandlesSlot>()
+        .expect("the host seeds the documents handles slot");
+    assert!(
+        slot.get().is_some(),
+        "the host binds the documents handles once its store is built"
+    );
+    let (unbound, _binder) = DocumentsHandlesSlot::unbound();
+    assert!(unbound.get().is_none(), "a slot no host bound holds nothing");
 }
