@@ -16,15 +16,15 @@ fn make_ctx(pool: &DbPool) -> JobContext {
     JobContext::new(fixture_actor(), Dependencies::new().with(Arc::clone(pool)))
 }
 
-// database_cleanup reads its per-table windows from `profile.retention`, so it
-// needs a real AppContext rather than the unit placeholder `make_ctx` supplies.
 async fn make_ctx_with_app(pool: &DbPool) -> JobContext {
-    let url = test_database_url();
-    let app = test_app_context(pool, &url);
-    JobContext::new(
-        fixture_actor(),
-        Dependencies::new().with(Arc::clone(pool)).with(app),
-    )
+    let app = test_app_context(&test_database_url()).await;
+    let dependencies = app
+        .kernel()
+        .state()
+        .clone()
+        .with(Arc::clone(pool))
+        .with(app);
+    JobContext::new(fixture_actor(), dependencies)
 }
 
 #[tokio::test]

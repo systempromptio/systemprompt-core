@@ -19,6 +19,7 @@ systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-manifest = { workspace = true }
+systemprompt-runtime = { workspace = true }
 systemprompt-scheduler = { workspace = true }
 systemprompt-traits = { workspace = true }
 anyhow = { workspace = true }

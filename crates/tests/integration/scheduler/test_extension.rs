@@ -1,14 +1,24 @@
-//! The extension that owns this crate's test jobs, registered through the
-//! normal `register_extension!` path so the jobs are attributed to a linked
-//! extension that is not a production one. Assertions about production jobs
-//! exclude [`TEST_JOBS_OWNER`].
+//! The member that contributes this crate's probe jobs. It is admitted beside
+//! the core members, so the probe jobs reach the scheduler through the same
+//! `AdmittedSchedule` production jobs do.
 
-use systemprompt_extension::prelude::*;
+use std::sync::Arc;
 
-pub const TEST_JOBS_OWNER: &str = "scheduler_test_jobs";
+use systemprompt_extension::{
+    Admitted, AdmittedSchedule, ContributionError, Contributions, Extension, ExtensionMetadata,
+};
+use systemprompt_runtime::AppContext;
+use systemprompt_test_fixtures::{
+    core_members, fixture_admitted_of, fixture_app_context_with_extensions, fixture_config,
+    test_database_url,
+};
+
+use crate::distributed_lock::{LockedProbeJob, UnlockedProbeJob};
+
+pub(crate) const TEST_JOBS_OWNER: &str = "scheduler_test_jobs";
 
 #[derive(Debug, Default, Clone, Copy)]
-pub struct SchedulerTestJobsExtension;
+pub(crate) struct SchedulerTestJobsExtension;
 
 impl Extension for SchedulerTestJobsExtension {
     fn metadata(&self) -> ExtensionMetadata {
@@ -18,6 +28,24 @@ impl Extension for SchedulerTestJobsExtension {
             version: "0.0.1",
         }
     }
+
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        c.job(LockedProbeJob).job(UnlockedProbeJob);
+        Ok(())
+    }
 }
 
-register_extension!(SchedulerTestJobsExtension);
+pub(crate) fn admitted_with_test_jobs() -> Arc<Admitted> {
+    let mut members = core_members();
+    members.push(Box::new(SchedulerTestJobsExtension));
+    fixture_admitted_of(members)
+}
+
+pub(crate) async fn app_with_test_jobs() -> (Arc<AppContext>, Arc<AdmittedSchedule>) {
+    let admitted = admitted_with_test_jobs();
+    let schedule = Arc::new(AdmittedSchedule::of(admitted.built()));
+    let app = fixture_app_context_with_extensions(fixture_config(&test_database_url()), admitted)
+        .await
+        .expect("the app context over the core members and the probe jobs builds");
+    (app, schedule)
+}
