@@ -9,6 +9,7 @@
 use std::sync::Arc;
 
 use systemprompt_database::DbPool;
+use systemprompt_extension::AdmittedPurge;
 use systemprompt_traits::{ProviderError, ProviderResult};
 use systemprompt_users::{UserRepository, UserService};
 use tracing::info;
@@ -17,6 +18,7 @@ const ARCHIVE_PURGE_BATCH: i64 = 500;
 
 pub(super) async fn purge_archived_users(
     db_pool: &DbPool,
+    plan: &AdmittedPurge,
     window_days: u32,
     enforce: bool,
 ) -> ProviderResult<u64> {
@@ -35,7 +37,7 @@ pub(super) async fn purge_archived_users(
         return Ok(0);
     }
     let purged = users
-        .purge_expired_archives(window_days, ARCHIVE_PURGE_BATCH)
+        .purge_expired_archives(window_days, ARCHIVE_PURGE_BATCH, plan)
         .await
         .map_err(internal)?;
     Ok(u64::try_from(purged.len()).unwrap_or(u64::MAX))
