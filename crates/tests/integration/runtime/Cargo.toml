@@ -27,6 +27,8 @@ systemprompt-test-hack = { version = "0.1", path = "../../common/hack" }
 tokio = { workspace = true }
 serde_yaml = { workspace = true }
 serde_json = { workspace = true }
+serde = { workspace = true }
+schemars = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }

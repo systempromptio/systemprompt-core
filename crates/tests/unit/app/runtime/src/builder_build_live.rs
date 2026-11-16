@@ -74,11 +74,6 @@ async fn build_assembles_full_context_with_pool_and_write_url() {
     );
     assert!(ctx.geoip_reader().is_none());
     assert_eq!(ctx.extension_registry().ids().len(), 0);
-    assert!(
-        format!("{:?}", ctx.marketplace_filter()).contains("CovMarketplaceFilter"),
-        "the highest-priority factory fails, so the next registered factory must win; got {:?}",
-        ctx.marketplace_filter()
-    );
 
     remove_admin(&pool, &admin).await;
 }
@@ -322,4 +317,71 @@ async fn build_seeds_the_kernel_entries_and_keeps_provided_state() {
     assert!(std::sync::Arc::ptr_eq(pool_entry, ctx.db_pool()));
 
     remove_admin(&pool, &admin).await;
+}
+
+#[derive(Debug)]
+struct ProbeMarketplaceFilter;
+
+#[async_trait::async_trait]
+impl systemprompt_marketplace::MarketplaceFilter for ProbeMarketplaceFilter {
+    async fn filter(
+        &self,
+        _user_id: &systemprompt_identifiers::UserId,
+        candidate: systemprompt_marketplace::MarketplaceCandidate,
+    ) -> Result<
+        systemprompt_marketplace::MarketplaceCandidate,
+        systemprompt_marketplace::MarketplaceFilterError,
+    > {
+        Ok(candidate)
+    }
+}
+
+fn marketplace_filter_of(contribute_filter: bool) -> String {
+    use std::sync::Arc;
+    use systemprompt_extension::{FactoryError, Resolved};
+    use systemprompt_marketplace::MarketplaceFilter;
+    use systemprompt_marketplace::contract::{MarketplaceSeams, MarketplaceSlot};
+    use systemprompt_test_fixtures::{ComposedParts, Probe};
+
+    let admitted = systemprompt_test_fixtures::probe_admitted(ComposedParts {
+        probes: vec![Probe::new("marketplace-probe", move |c| {
+            c.slot::<systemprompt_governance::contract::RoleDirectorySlot>();
+            let slot = c.slot::<MarketplaceSlot>();
+            if contribute_filter {
+                slot.filter(
+                    |_: &Resolved<'_>| -> Result<Arc<dyn MarketplaceFilter>, FactoryError> {
+                        Ok(Arc::new(ProbeMarketplaceFilter))
+                    },
+                );
+            }
+        })],
+        ..ComposedParts::default()
+    });
+    let kernel = systemprompt_test_fixtures::offline_resolved_kernel(
+        &admitted,
+        systemprompt_extension::prelude::Dependencies::new(),
+    );
+    let seams: Arc<MarketplaceSeams> = kernel
+        .resolved()
+        .get()
+        .expect("an opened marketplace slot is built");
+    format!("{:?}", seams.filter())
+}
+
+#[test]
+fn a_contributed_marketplace_filter_is_the_built_filter() {
+    let filter = marketplace_filter_of(true);
+    assert!(
+        filter.contains("ProbeMarketplaceFilter"),
+        "the admitted probe's filter must be built: {filter}"
+    );
+}
+
+#[test]
+fn with_no_contributed_filter_the_built_filter_allows_all() {
+    let filter = marketplace_filter_of(false);
+    assert!(
+        filter.contains("AllowAllFilter") && !filter.contains("ProbeMarketplaceFilter"),
+        "no contributed filter must build the default: {filter}"
+    );
 }
