@@ -57,8 +57,8 @@ fn the_sso_slot_is_core_first() {
     assert_eq!(SsoSlot::ORDER, SlotOrder::CoreFirst);
 }
 
-#[test]
-fn two_providers_with_one_id_are_refused() {
+#[tokio::test]
+async fn two_providers_with_one_id_are_refused() {
     let kernel = systemprompt_test_fixtures::offline_kernel(Default::default());
     let mut first = SsoBuilder::default();
     open_provider(&mut first);
@@ -78,8 +78,8 @@ fn two_providers_with_one_id_are_refused() {
     );
 }
 
-#[test]
-fn one_provider_builds_as_the_negative_control() {
+#[tokio::test]
+async fn one_provider_builds_as_the_negative_control() {
     let kernel = systemprompt_test_fixtures::offline_kernel(Default::default());
     let mut builder = SsoBuilder::default();
     open_provider(&mut builder);
