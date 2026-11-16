@@ -1,5 +1,6 @@
 //! Tests for extension error types.
 
+use systemprompt_extension::admitted_purge::PurgeAdmissionError;
 use systemprompt_extension::error::{ExtensionConfigError, LoaderError, SchemaFault};
 use systemprompt_identifiers::ExtensionId;
 
@@ -195,6 +196,10 @@ fn test_loader_error_variant_matching() {
             extension: ExtensionId::new("u"),
             type_name: "Absent",
         },
+        LoaderError::PurgeAdmission(PurgeAdmissionError::EmptyPredicate {
+            member: ExtensionId::new("q"),
+            table: "notes".to_string(),
+        }),
     ];
 
     for err in errors {
@@ -259,6 +264,9 @@ fn test_loader_error_variant_matching() {
             },
             LoaderError::DependencyCycle { chain } => {
                 assert!(!chain.is_empty());
+            },
+            LoaderError::PurgeAdmission(source) => {
+                assert!(source.to_string().contains("notes"));
             },
             LoaderError::CrossExtensionAlterUndeclared { extension, table } => {
                 assert!(!extension.as_str().is_empty());
