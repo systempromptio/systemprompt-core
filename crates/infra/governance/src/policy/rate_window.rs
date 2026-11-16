@@ -4,7 +4,7 @@
 //! and sync, so counting happens before the chain runs: the enforcement point
 //! calls [`GovernanceEngine::charge`][super::GovernanceEngine::charge],
 //! which charges every enabled rate window in Postgres and hands the
-//! resulting [`RateCounts`] to the policy through
+//! resulting [`RateCounts`](systemprompt_provider_contracts::governance::RateCounts) to the policy through
 //! [`PolicyContext::rate_counts`][super::PolicyContext::rate_counts]. Every
 //! replica charges the same row, so a budget holds per deployment.
 //!
@@ -18,7 +18,7 @@
 //! it was first charged at. [`RateWindowRepository::refund`] takes a call's
 //! charge back out of the window it landed in, for a request a later stage
 //! refused before it ran. A window whose charge fails is absent from
-//! [`RateCounts`], and the policy treats an absent count as a violation —
+//! [`RateCounts`](systemprompt_provider_contracts::governance::RateCounts), and the policy treats an absent count as a violation —
 //! fail-closed under `enforce`, a warning under `warn`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

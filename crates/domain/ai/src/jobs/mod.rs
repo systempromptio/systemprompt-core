@@ -1,7 +1,7 @@
 //! Scheduled jobs and retention contributions of the AI domain.
 //!
 //! [`AiExtension`](crate::AiExtension) contributes the jobs, and through
-//! [`contribute`] the retention purges and orphan sweep `database_cleanup`
+//! `contribute` the retention purges and orphan sweep `database_cleanup`
 //! dispatches to and the hourly usage rollups `backfill_rollups` drains.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

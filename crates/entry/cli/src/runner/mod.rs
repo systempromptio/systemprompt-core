@@ -1,7 +1,7 @@
 //! CLI runtime entry point and bootstrap helpers.
 //!
 //! Owns argument parsing (`args`), profile/secrets bootstrap (`bootstrap`),
-//! and cloud routing ([`routing`], [`profile_routing`]). [`run`] is the
+//! and cloud routing ([`routing`], [`profile_routing`]). [`run_composed`] is the
 //! process entry point: it assembles the command tree from the kernel groups
 //! and the [`CommandRegistry`], parses, resolves the selected command's
 //! [`CommandDescriptor`], bootstraps what that descriptor asks for, and

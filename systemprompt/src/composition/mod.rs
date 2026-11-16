@@ -1,8 +1,8 @@
 //! The composition: which members a binary is built from, the standing each
 //! holds, and the admission of their contributions against a profile.
 //!
-//! [`reference`] is the reference composition: every core member in
-//! dependency order, each with the [`CoreTerms`] the conferral table in the
+//! [`reference()`] is the reference composition: every core member in
+//! dependency order, each with the `CoreTerms` the conferral table in the
 //! kernel's [`reserved`](systemprompt_extension::reserved) constants grants
 //! it. An install adds members with [`Composition::with`], always as
 //! installs, and removes an optional core member with

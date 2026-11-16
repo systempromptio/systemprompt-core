@@ -19,8 +19,7 @@
 //! router, the document and issue visibilities their owning members provide,
 //! the AG-UI channel and the default publish policy), so a contributed seam
 //! is consulted first, and
-//! binds the service and outbox consumer assembled over the finished seams
-//! (see [`crate::assembly`]). A factory that fails, or reads a value nothing
+//! binds the service and outbox consumer assembled over the finished seams. A factory that fails, or reads a value nothing
 //! provides, refuses the build: a seam is never silently left out.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
