@@ -64,7 +64,7 @@ fn processors(pool: &systemprompt_database::DbPool) -> Vec<Arc<dyn FrontmatterPr
         .frontmatter_processor(|_: &Resolved<'_>| {
             Ok(Arc::new(FailingProcessor) as Arc<dyn FrontmatterProcessor>)
         });
-    let handle: Arc<dyn DatabaseHandle> = Arc::clone(pool);
+    let handle: Arc<dyn DatabaseHandle> = Arc::<systemprompt_database::Database>::clone(pool);
     let kernel = Kernel::new(handle, BackgroundTasks::new(), Dependencies::default());
     let hooks = ContentSlot::build(
         vec![SlotEntry::install(

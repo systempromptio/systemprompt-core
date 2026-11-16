@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 use super::engine::{Fixture, get, send, sweep, with_bearer};
 use super::table::Family;
-use crate::common::setup_ctx;
+use crate::common::setup_drive_ctx;
 use crate::documents::{app, commit_meta, drive_commit};
 
 struct Drive {
@@ -59,8 +59,8 @@ impl Fixture for Drive {
 
 #[tokio::test]
 async fn a_second_device_user_is_refused_every_owned_drive_route() -> Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
-    let gateway = gateway_router(&ctx)?;
+    let (pool, ctx) = setup_drive_ctx().await?;
+    let gateway = gateway_router(&ctx, ctx.admitted(), ctx.kernel())?;
     let documents = DocumentsState::build(&ctx)?;
     let owner = seed_drive_credential(&pool, "sweep-drive-owner").await?;
     let stranger = seed_drive_credential(&pool, "sweep-drive-stranger").await?;

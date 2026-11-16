@@ -11,7 +11,7 @@ use axum::extract::Request;
 use axum::http::{StatusCode, header};
 use axum::routing::get;
 use axum::{Extension, Router};
-use systemprompt_api::services::middleware::{
+use systemprompt_extension::router::{
     AcceptedFormat, AcceptedMediaType, content_negotiation_middleware,
 };
 use tower::ServiceExt;

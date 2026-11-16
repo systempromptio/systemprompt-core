@@ -15,7 +15,7 @@ use systemprompt_runtime::AppContext;
 use tower::ServiceExt;
 
 use crate::common::{
-    content_app, content_state, empty_get, negotiating_state, request_context, setup_ctx,
+    content_app, empty_get, negotiating_state, request_context, setup_ctx,
 };
 
 struct Seeded {
@@ -144,19 +144,19 @@ async fn markdown_handler_missing_document_is_not_found() -> Result<()> {
 // The fixture profile disables content negotiation, so the `Link:
 // rel=alternate` branch of `get_content_handler` only runs against a context
 // whose config turns it on.
-fn negotiating_ctx(db: &DbPool) -> anyhow::Result<std::sync::Arc<AppContext>> {
+async fn negotiating_ctx() -> anyhow::Result<std::sync::Arc<AppContext>> {
     let b = systemprompt_test_fixtures::ensure_test_bootstrap();
     let mut config = systemprompt_test_fixtures::fixture_config(&b.database_url);
     config.content_negotiation.enabled = true;
     config.content_negotiation.markdown_suffix = ".md".to_owned();
-    systemprompt_test_fixtures::fixture_app_context_with_config(db, config)
+    systemprompt_test_fixtures::fixture_app_context_with_config(config).await
 }
 
 #[tokio::test]
 async fn json_content_advertises_its_markdown_alternate_when_negotiation_is_on() -> Result<()> {
     let (db, _ctx) = setup_ctx().await?;
     let seeded = seed_content(&db).await?;
-    let ctx = negotiating_ctx(&db)?;
+    let ctx = negotiating_ctx().await?;
 
     let resp = content_app(content::public_routes(), &ctx)
         .layer(Extension(AcceptedFormat(AcceptedMediaType::Json)))

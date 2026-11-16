@@ -64,8 +64,8 @@ gateway:
         upstream.uri()
     ));
     let pool = test_db_pool().await;
-    let ctx = test_app_context_on(&boot, &pool);
-    let app = gateway_router(&ctx).expect("gateway router builds");
+    let ctx = test_app_context_on(&boot).await;
+    let app = gateway_router(&ctx, ctx.admitted(), ctx.kernel()).expect("gateway router builds");
     let cred = seed_admin_credential(
         &pool,
         &format!("google-{}@example.invalid", uuid::Uuid::new_v4()),

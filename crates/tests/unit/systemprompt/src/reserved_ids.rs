@@ -1,4 +1,5 @@
-use systemprompt::{CORE_MEMBER_IDS, Composition, CompositionError, reference};
+use systemprompt::composition::CORE_MEMBER_IDS;
+use systemprompt::{Composition, CompositionError, reference};
 use systemprompt_extension::reserved::CoreId;
 
 use crate::probe::{Probe, build, build_with};

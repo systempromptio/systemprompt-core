@@ -20,7 +20,7 @@ use systemprompt_test_fixtures::{
     TEST_TEAMS_APP_ID, TEST_TEAMS_TENANT_ID, TEST_TEAMS_UNRESOLVABLE_APP_ID,
     TEST_TEAMS_UNRESOLVABLE_TENANT_ID, agent_reply_response_json, ensure_messaging_bootstrap,
     init_services_bootstrap, messaging_config_yaml_with_teams_endpoints, seed_agent_backend,
-    test_app_context_on, test_db_pool,
+    test_app_context_on,
 };
 use systemprompt_traits::DrainOutcome;
 use tower::ServiceExt;
@@ -72,8 +72,7 @@ pub(crate) fn post_messages(body: &str, bearer: Option<&str>) -> Request<Body> {
 #[tokio::test]
 async fn malformed_activity_body_is_bad_request() -> anyhow::Result<()> {
     let b = ensure_messaging_bootstrap();
-    let pool = test_db_pool().await;
-    let ctx = test_app_context_on(&b, &pool);
+    let ctx = test_app_context_on(&b).await;
     let resp = router(&ctx)
         .oneshot(post_messages("not json", None))
         .await?;
@@ -84,8 +83,7 @@ async fn malformed_activity_body_is_bad_request() -> anyhow::Result<()> {
 #[tokio::test]
 async fn unknown_tenant_is_acked() -> anyhow::Result<()> {
     let b = ensure_messaging_bootstrap();
-    let pool = test_db_pool().await;
-    let ctx = test_app_context_on(&b, &pool);
+    let ctx = test_app_context_on(&b).await;
     let body = activity_json("tenant-unknown", "https://smba.example");
     let resp = router(&ctx).oneshot(post_messages(&body, None)).await?;
     assert_eq!(resp.status(), StatusCode::OK, "unknown tenant is acked");
@@ -95,8 +93,7 @@ async fn unknown_tenant_is_acked() -> anyhow::Result<()> {
 #[tokio::test]
 async fn missing_bearer_is_unauthorized() -> anyhow::Result<()> {
     let b = ensure_messaging_bootstrap();
-    let pool = test_db_pool().await;
-    let ctx = test_app_context_on(&b, &pool);
+    let ctx = test_app_context_on(&b).await;
     let body = activity_json(TEST_TEAMS_TENANT_ID, "https://smba.example");
     let resp = router(&ctx).oneshot(post_messages(&body, None)).await?;
     assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
@@ -106,8 +103,7 @@ async fn missing_bearer_is_unauthorized() -> anyhow::Result<()> {
 #[tokio::test]
 async fn malformed_bearer_is_unauthorized() -> anyhow::Result<()> {
     let b = ensure_messaging_bootstrap();
-    let pool = test_db_pool().await;
-    let ctx = test_app_context_on(&b, &pool);
+    let ctx = test_app_context_on(&b).await;
     let body = activity_json(TEST_TEAMS_TENANT_ID, "https://smba.example");
     // `not-a-jwt` fails `decode_header` before any JWKS fetch.
     let resp = router(&ctx)
@@ -156,8 +152,7 @@ async fn signed_activity_dispatches_and_posts_the_card() -> anyhow::Result<()> {
         &format!("{}/openid", connector.uri()),
         &format!("{}/token", connector.uri()),
     ))));
-    let pool = test_db_pool().await;
-    let ctx = test_app_context_on(&b, &pool);
+    let ctx = test_app_context_on(&b).await;
 
     // Agent backend the dispatch proxies to.
     let agent = MockServer::start().await;
@@ -248,8 +243,7 @@ async fn an_unresolvable_app_password_is_service_unavailable_not_acked() -> anyh
         &format!("{}/openid", connector.uri()),
         &format!("{}/token", connector.uri()),
     ))));
-    let pool = test_db_pool().await;
-    let ctx = test_app_context_on(&b, &pool);
+    let ctx = test_app_context_on(&b).await;
 
     let signing = systemprompt_test_fixtures::next_test_key();
     mount_connector_jwks(&connector, &signing).await;
@@ -290,8 +284,7 @@ async fn activities_through_one_router_fetch_the_signing_keys_once() -> anyhow::
         &format!("{}/openid", connector.uri()),
         &format!("{}/token", connector.uri()),
     ))));
-    let pool = test_db_pool().await;
-    let ctx = test_app_context_on(&b, &pool);
+    let ctx = test_app_context_on(&b).await;
 
     let signing = systemprompt_test_fixtures::next_test_key();
     mount_connector_jwks(&connector, &signing).await;

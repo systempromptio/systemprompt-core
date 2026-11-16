@@ -234,7 +234,7 @@ async fn an_unknown_campaign_has_no_performance() -> Result<()> {
 async fn search_database_failure_is_a_json_500_and_recovers_after_schema_repair() -> Result<()> {
     let owned = DisposableDb::with_schema("content_query_failure").await;
     let db = owned.test_pool().await;
-    let ctx = test_app_context(&db, owned.url());
+    let ctx = test_app_context(owned.url()).await;
     let raw = db.pool();
     sqlx::query("ALTER TABLE markdown_content RENAME TO markdown_content_unavailable")
         .execute(raw.as_ref())
@@ -378,7 +378,7 @@ async fn link_analytics_reads_report_database_outage_and_recover_without_false_e
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let owned = DisposableDb::with_schema("link_read_outage").await;
     let db = owned.test_pool().await;
-    let ctx = test_app_context(&db, owned.url());
+    let ctx = test_app_context(owned.url()).await;
     let click_user = systemprompt_identifiers::UserId::new("content_user");
     let click_session = systemprompt_identifiers::SessionId::generate();
     systemprompt_test_fixtures::seed_user_row(&db, &click_user, "content-user@outage.invalid")
@@ -453,7 +453,7 @@ async fn link_analytics_reads_report_database_outage_and_recover_without_false_e
     drop(db);
 
     let recovered = owned.test_pool().await;
-    let recovered_ctx = test_app_context(&recovered, owned.url());
+    let recovered_ctx = test_app_context(owned.url()).await;
     assert_link_reads_live(&recovered_ctx, &link, &campaign, &source).await?;
     let row: i64 = sqlx::query_scalar("SELECT count(*) FROM campaign_links WHERE id=$1")
         .bind(&link)

@@ -73,7 +73,7 @@ fn gw_repos(db: &systemprompt_database::DbPool) -> systemprompt_gateway::Gateway
 
 async fn router_and_pool() -> Result<(Router, DbPool)> {
     let (pool, ctx) = setup_ctx().await?;
-    let router = gateway_router(&ctx).expect("gateway router builds");
+    let router = gateway_router(&ctx, ctx.admitted(), ctx.kernel()).expect("gateway router builds");
     Ok((router, pool))
 }
 

@@ -15,13 +15,12 @@ use std::sync::Arc;
 use axum::Extension;
 use systemprompt_api::services::server::{ReadinessState, SchedulerHealth, discovery_router};
 use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
+use systemprompt_test_fixtures::{test_app_context, test_database_url};
 use tower::ServiceExt;
 
 async fn ctx() -> AppContext {
     let url = test_database_url();
-    let pool = test_db_pool().await;
-    (*test_app_context(&pool, &url)).clone()
+    (*test_app_context(&url).await).clone()
 }
 
 async fn probe(
@@ -141,12 +140,10 @@ async fn livez_keeps_answering_alive_while_the_node_drains() {
 #[tokio::test]
 async fn probes_and_health_report_the_build_the_embedding_binary_named() {
     let url = test_database_url();
-    let pool = test_db_pool().await;
     let build =
         systemprompt_models::BuildIdentity::new("acme-platform", "3.4.5").with_revision("0123abcd");
-    let ctx = (*systemprompt_test_fixtures::app_context::fixture_app_context_with_build(
-        &pool, &url, build,
-    )
+    let ctx = (*systemprompt_test_fixtures::app_context::fixture_app_context_with_build(&url, build,
+    ).await
     .expect("fixture context"))
     .clone();
     let readiness = Arc::new(ReadinessState::new());

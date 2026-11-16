@@ -1,6 +1,5 @@
 //! Public content mutation commands preserve unrelated content.
 
-use std::sync::Arc;
 
 use clap::Parser;
 use systemprompt_cli::EnvOverrides;
@@ -10,10 +9,8 @@ use systemprompt_content_entry::cli::content::verify::{self, VerifyArgs};
 use systemprompt_content_entry::cli::content::{self, ContentCommands};
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::SourceId;
-use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, fixture_app_context_on_bootstrap_with_paths,
-};
+    DisposableDb, ensure_test_bootstrap, };
 
 #[derive(Debug, Parser)]
 struct Harness {
@@ -69,23 +66,12 @@ async fn public_edit_verify_and_delete_mutate_only_the_selected_content() {
         .await
         .expect("seed sibling content");
     let sibling_before = serde_json::to_value(&sibling).expect("serialize sibling");
-    let paths = PathsConfig {
-        root: None,
-        system: boot.system_path.display().to_string(),
-        services: boot.services_path.display().to_string(),
-        bin: boot.bin_path.display().to_string(),
-        web_path: Some(boot.system_path.join("web").display().to_string()),
-        storage: Some(boot.storage_path.display().to_string()),
-        geoip_database: None,
-        shipped_files: None,
-        data: None,
-    };
-    let app = fixture_app_context_on_bootstrap_with_paths(
+    let app = systemprompt_test_fixtures::fixture_app_context_on_bootstrap(
         boot,
-        &pool,
-        paths,
-        Arc::new(systemprompt_marketplace::AllowAllFilter),
+        systemprompt_test_fixtures::fixture_config(database.url()),
+        systemprompt_test_fixtures::fixture_admitted(),
     )
+    .await
     .expect("full app context");
     let context = crate::common::with_app_boot(
         CliConfig::new()

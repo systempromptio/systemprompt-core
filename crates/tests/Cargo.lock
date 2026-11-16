@@ -8678,6 +8678,7 @@ dependencies = [
  "systemprompt-analytics-entry",
  "systemprompt-cli",
  "systemprompt-database",
+ "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-runtime",
  "systemprompt-test-fixtures",
@@ -8836,6 +8837,7 @@ dependencies = [
  "serde_json",
  "sha2 0.11.1",
  "sqlx",
+ "systemprompt",
  "systemprompt-agent",
  "systemprompt-agent-runs",
  "systemprompt-agent-runs-entry",
@@ -10124,7 +10126,6 @@ dependencies = [
  "systemprompt-files",
  "systemprompt-identifiers",
  "systemprompt-manifest",
- "systemprompt-marketplace",
  "systemprompt-models",
  "systemprompt-provider-contracts",
  "systemprompt-runtime",
@@ -10402,7 +10403,6 @@ dependencies = [
 name = "systemprompt-facade-macros-tests"
 version = "0.0.11"
 dependencies = [
- "async-trait",
  "systemprompt",
  "systemprompt-test-hack",
 ]
@@ -11182,7 +11182,6 @@ dependencies = [
  "systemprompt-database",
  "systemprompt-extension",
  "systemprompt-governance",
- "systemprompt-identifiers",
  "systemprompt-manifest",
  "systemprompt-models",
  "systemprompt-runtime",

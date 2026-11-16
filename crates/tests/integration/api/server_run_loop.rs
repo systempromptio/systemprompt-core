@@ -10,16 +10,15 @@ use systemprompt_traits::{Phase, StartupEvent};
 use tokio::time::sleep;
 
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_app_context_with_config, fixture_config, test_db_pool,
+    ensure_test_bootstrap, fixture_app_context_with_config, fixture_config,
 };
 
 #[tokio::test]
 async fn run_server_reconciles_activates_and_drains_on_sigterm() -> anyhow::Result<()> {
     let b = ensure_test_bootstrap();
-    let pool = test_db_pool().await;
     let mut config = fixture_config(&b.database_url);
     config.cors_allowed_origins = vec!["http://127.0.0.1".to_owned()];
-    let ctx = fixture_app_context_with_config(&pool, config)?;
+    let ctx = fixture_app_context_with_config(config).await?;
 
     let early = bind_and_serve(
         "127.0.0.1:0",
@@ -190,7 +189,7 @@ mod agent_failure {
 
     use systemprompt_api::services::server::{bind_and_serve, run_server};
     use systemprompt_test_fixtures::{
-        TestBootstrap, fixture_config, init_isolated_bootstrap, test_db_pool,
+        TestBootstrap, fixture_config, init_isolated_bootstrap,
     };
 
     const AGENT: &str = "unstartable_fixture_agent";
@@ -228,15 +227,10 @@ settings:
     #[tokio::test]
     async fn run_server_fails_when_a_required_agent_cannot_start() -> anyhow::Result<()> {
         let b = boot();
-        let pool = test_db_pool().await;
         let mut config = fixture_config(&b.database_url);
         config.cors_allowed_origins = vec!["http://127.0.0.1".to_owned()];
-        let ctx = systemprompt_test_fixtures::fixture_app_context_on_bootstrap(
-            b,
-            &pool,
-            config,
-            std::sync::Arc::new(systemprompt_marketplace::AllowAllFilter),
-        )?;
+        let ctx = systemprompt_test_fixtures::fixture_app_context_on_bootstrap(b, config, systemprompt_test_fixtures::fixture_admitted())
+        .await?;
 
         let early = bind_and_serve(
             "127.0.0.1:0",
@@ -274,8 +268,7 @@ settings:
     async fn the_agent_failure_is_reported_through_the_startup_event_channel() -> anyhow::Result<()>
     {
         let b = boot();
-        let pool = test_db_pool().await;
-        let ctx = systemprompt_test_fixtures::test_app_context_on(b, &pool);
+        let ctx = systemprompt_test_fixtures::test_app_context_on(b).await;
 
         let (tx, mut rx) = futures::channel::mpsc::unbounded();
         let early = bind_and_serve(
@@ -336,7 +329,7 @@ mod mcp_failure {
     use std::time::Duration;
 
     use systemprompt_api::services::server::{bind_and_serve, run_server};
-    use systemprompt_test_fixtures::{TestBootstrap, init_isolated_bootstrap, test_db_pool};
+    use systemprompt_test_fixtures::{TestBootstrap, init_isolated_bootstrap};
 
     const MCP_NAME: &str = "fixture_unstartable_mcp";
 
@@ -372,8 +365,7 @@ settings:
     #[tokio::test]
     async fn run_server_fails_when_a_required_mcp_server_cannot_start() -> anyhow::Result<()> {
         let b = boot();
-        let pool = test_db_pool().await;
-        let ctx = systemprompt_test_fixtures::test_app_context_on(b, &pool);
+        let ctx = systemprompt_test_fixtures::test_app_context_on(b).await;
 
         let early = bind_and_serve(
             "127.0.0.1:0",
@@ -405,8 +397,7 @@ settings:
     #[tokio::test]
     async fn the_mcp_failure_is_announced_as_fatal_on_the_startup_channel() -> anyhow::Result<()> {
         let b = boot();
-        let pool = test_db_pool().await;
-        let ctx = systemprompt_test_fixtures::test_app_context_on(b, &pool);
+        let ctx = systemprompt_test_fixtures::test_app_context_on(b).await;
 
         let (tx, mut rx) = futures::channel::mpsc::unbounded();
         let early = bind_and_serve(

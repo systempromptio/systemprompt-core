@@ -1,7 +1,7 @@
 use systemprompt_api::services::server::lifecycle::agents::reconcile_agents;
 use systemprompt_identifiers::AgentName;
 use systemprompt_test_fixtures::{
-    fixture_app_context_on_bootstrap, fixture_config, init_services_bootstrap, test_db_pool,
+    fixture_app_context_on_bootstrap, fixture_config, init_services_bootstrap,
 };
 
 fn agent_yaml(name: &str, port: u16, display: &str, enabled: bool) -> String {
@@ -55,13 +55,8 @@ async fn coverage_required_agent_failure_is_retried_and_blocks_api_startup() {
     let port = listener.local_addr().unwrap().port();
     let name = format!("reconcile_{}", uuid::Uuid::new_v4().simple());
     let boot = init_services_bootstrap(&agent_yaml(&name, port, "Required", true));
-    let pool = test_db_pool().await;
-    let ctx = fixture_app_context_on_bootstrap(
-        &boot,
-        &pool,
-        fixture_config(&boot.database_url),
-        std::sync::Arc::new(systemprompt_marketplace::AllowAllFilter),
-    )
+    let ctx = fixture_app_context_on_bootstrap(&boot, fixture_config(&boot.database_url), systemprompt_test_fixtures::fixture_admitted())
+        .await
     .unwrap();
     let err = reconcile_agents(&ctx, None).await.unwrap_err();
     let message = err.to_string();
@@ -79,13 +74,8 @@ async fn coverage_disabled_agent_does_not_block_api_startup_on_an_occupied_port(
     let port = listener.local_addr().unwrap().port();
     let name = format!("disabled_{}", uuid::Uuid::new_v4().simple());
     let boot = init_services_bootstrap(&agent_yaml(&name, port, "Disabled", false));
-    let pool = test_db_pool().await;
-    let ctx = fixture_app_context_on_bootstrap(
-        &boot,
-        &pool,
-        fixture_config(&boot.database_url),
-        std::sync::Arc::new(systemprompt_marketplace::AllowAllFilter),
-    )
+    let ctx = fixture_app_context_on_bootstrap(&boot, fixture_config(&boot.database_url), systemprompt_test_fixtures::fixture_admitted())
+        .await
     .unwrap();
     assert_eq!(reconcile_agents(&ctx, None).await.unwrap(), 0);
     assert!(std::net::TcpStream::connect(("127.0.0.1", port)).is_ok());
@@ -170,13 +160,8 @@ async fn reconciliation_terminates_an_owned_running_agent_before_retrying_failed
         .port();
     let name = format!("reconcile_running_{}", uuid::Uuid::new_v4().simple());
     let boot = init_services_bootstrap(&agent_yaml(&name, port, "Running cleanup", true));
-    let pool = test_db_pool().await;
-    let ctx = fixture_app_context_on_bootstrap(
-        &boot,
-        &pool,
-        fixture_config(&boot.database_url),
-        std::sync::Arc::new(systemprompt_marketplace::AllowAllFilter),
-    )
+    let ctx = fixture_app_context_on_bootstrap(&boot, fixture_config(&boot.database_url), systemprompt_test_fixtures::fixture_admitted())
+        .await
     .unwrap();
     let owned = OwnedMarkedAgent::spawn(&name);
 

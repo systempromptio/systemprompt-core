@@ -12,7 +12,7 @@ use tower::ServiceExt;
 async fn readyz_withdraws_readiness_when_its_owned_database_disappears() -> Result<()> {
     let owned = DisposableDb::with_schema("readyz_db_loss").await;
     let db = owned.test_pool().await;
-    let ctx = test_app_context(&db, owned.url());
+    let ctx = test_app_context(owned.url()).await;
     let readiness = std::sync::Arc::new(ReadinessState::new());
     readiness.signal_ready();
     let app = discovery_router(&ctx)?.layer(axum::Extension(std::sync::Arc::clone(&readiness)));

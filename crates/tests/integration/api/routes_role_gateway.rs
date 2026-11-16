@@ -14,7 +14,7 @@ use systemprompt_manifest::profile::{NodeRole, RateLimitsConfig};
 use systemprompt_extension::prelude::Dependencies;
 use systemprompt_test_fixtures::{
     ComposedParts, ensure_test_bootstrap, fixture_app_context_with_config, fixture_config,
-    offline_resolved_kernel, probe_admitted, test_db_pool,
+    offline_resolved_kernel, probe_admitted,
 };
 use tower::ServiceExt;
 
@@ -22,12 +22,11 @@ const NO_ROUTE: &str = "No route matches";
 
 async fn router_for(role: NodeRole) -> anyhow::Result<Router> {
     let bootstrap = ensure_test_bootstrap();
-    let pool = test_db_pool().await;
     let mut config = fixture_config(&bootstrap.database_url);
     config.rate_limits = RateLimitsConfig::disabled();
     config.trusted_proxies = Vec::new();
     config.role = role;
-    let ctx = fixture_app_context_with_config(&pool, config)?;
+    let ctx = fixture_app_context_with_config(config).await?;
     let admitted = probe_admitted(ComposedParts::default());
     let kernel = offline_resolved_kernel(&admitted, Dependencies::new());
     setup_api_server(
@@ -99,11 +98,10 @@ async fn api_node_refuses_the_gateway_and_serves_api_surfaces() -> anyhow::Resul
 async fn configure_routes_for_role_mounts_the_gateway_regardless_of_the_configured_role()
 -> anyhow::Result<()> {
     let bootstrap = ensure_test_bootstrap();
-    let pool = test_db_pool().await;
     let mut config = fixture_config(&bootstrap.database_url);
     config.rate_limits = RateLimitsConfig::disabled();
     config.role = NodeRole::Api;
-    let ctx = fixture_app_context_with_config(&pool, config)?;
+    let ctx = fixture_app_context_with_config(config).await?;
     let admitted = probe_admitted(ComposedParts::default());
     let kernel = offline_resolved_kernel(&admitted, Dependencies::new());
 

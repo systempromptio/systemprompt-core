@@ -1,4 +1,5 @@
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides};
+use systemprompt_cli::{CommandContext, EnvOverrides};
+use systemprompt_extension::cli::CliConfig;
 use systemprompt_test_fixtures::ensure_test_bootstrap;
 
 pub fn bootstrap_ctx() -> CommandContext {

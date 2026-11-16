@@ -15,42 +15,25 @@ use systemprompt_files::{
     FileDeleteService, FileUploadRequest, FileUploadService, StoredObjectOutcome,
 };
 use systemprompt_identifiers::{ContextId, FileId};
-use systemprompt_manifest::profile::PathsConfig;
-use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_models::RouteClassifier;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_app_context_with, test_db_pool};
-use tempfile::TempDir;
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context};
 
 struct Layers {
-    _tmp: TempDir,
     shipped: std::path::PathBuf,
     state: StaticContentState,
 }
 
 async fn layers() -> anyhow::Result<Layers> {
-    let b = ensure_test_bootstrap();
-    let pool = test_db_pool().await;
-    let tmp = TempDir::new()?;
-    let web = tmp.path().join("web");
-    let storage = tmp.path().join("storage");
-    let shipped = tmp.path().join("shipped");
-    std::fs::create_dir_all(web.join("dist"))?;
-    std::fs::create_dir_all(&storage)?;
+    let ctx = test_app_context(&ensure_test_bootstrap().database_url).await;
+    let paths = ctx.app_paths();
+    std::fs::create_dir_all(paths.web().dist())?;
+    let shipped = paths
+        .storage()
+        .shipped_files()
+        .expect("the test bootstrap profile names a shipped_files layer")
+        .to_path_buf();
     std::fs::create_dir_all(&shipped)?;
-    let paths = PathsConfig {
-        root: None,
-        system: tmp.path().to_string_lossy().into_owned(),
-        services: "/tmp".to_owned(),
-        bin: "/tmp".to_owned(),
-        web_path: Some(web.to_string_lossy().into_owned()),
-        storage: Some(storage.to_string_lossy().into_owned()),
-        geoip_database: None,
-        shipped_files: Some(shipped.to_string_lossy().into_owned()),
-        data: None,
-    };
-    let ctx = fixture_app_context_with(&pool, &b.database_url, paths, Arc::new(AllowAllFilter))?;
     Ok(Layers {
-        _tmp: tmp,
         shipped,
         state: StaticContentState {
             ctx,

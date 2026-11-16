@@ -116,11 +116,11 @@ async fn harness() -> &'static Harness {
         .await
 }
 
-async fn app_on(pool: &DbPool) -> (Router, Arc<AppContext>, &'static MockServer) {
+async fn app_on() -> (Router, Arc<AppContext>, &'static MockServer) {
     let h = harness().await;
-    let ctx = test_app_context_on(&h.boot, pool);
+    let ctx = test_app_context_on(&h.boot).await;
     (
-        gateway_router(&ctx).expect("gateway router builds"),
+        gateway_router(&ctx, ctx.admitted(), ctx.kernel()).expect("gateway router builds"),
         ctx,
         &h.upstream,
     )
@@ -214,7 +214,7 @@ async fn audit_row(pool: &DbPool, cred: &AuthedFixture) -> AuditRow {
 #[tokio::test]
 async fn a_request_reaches_the_upstream_as_sent_and_its_answer_returns_whole() -> Result<()> {
     let pool = test_db_pool().await;
-    let (app, ctx, upstream) = app_on(&pool).await;
+    let (app, ctx, upstream) = app_on().await;
     let cred = member(&pool).await?;
     let marker = "marker-whole";
     Mock::given(method("POST"))
@@ -322,7 +322,7 @@ async fn a_request_reaches_the_upstream_as_sent_and_its_answer_returns_whole() -
 #[tokio::test]
 async fn a_stream_returns_byte_for_byte_and_is_metered_from_its_copy() -> Result<()> {
     let pool = test_db_pool().await;
-    let (app, ctx, upstream) = app_on(&pool).await;
+    let (app, ctx, upstream) = app_on().await;
     let cred = member(&pool).await?;
     let marker = "marker-stream";
     Mock::given(method("POST"))
@@ -362,7 +362,7 @@ async fn a_stream_returns_byte_for_byte_and_is_metered_from_its_copy() -> Result
 #[tokio::test]
 async fn a_rate_limit_is_the_upstreams_own_answer_and_is_not_retried() -> Result<()> {
     let pool = test_db_pool().await;
-    let (app, _ctx, upstream) = app_on(&pool).await;
+    let (app, _ctx, upstream) = app_on().await;
     let cred = member(&pool).await?;
     let marker = "marker-limited";
     let refusal = r#"{"type":"error","error":{"type":"rate_limit_error","message":"This request would exceed your account's rate limit."}}"#;
@@ -401,7 +401,7 @@ async fn a_rate_limit_is_the_upstreams_own_answer_and_is_not_retried() -> Result
 #[tokio::test]
 async fn another_request_format_is_refused_before_the_upstream_is_called() -> Result<()> {
     let pool = test_db_pool().await;
-    let (app, _ctx, upstream) = app_on(&pool).await;
+    let (app, _ctx, upstream) = app_on().await;
     let cred = member(&pool).await?;
     let marker = "marker-responses";
     let body = format!(r#"{{"model":"{MODEL}","input":"{marker} hi"}}"#);
@@ -421,7 +421,7 @@ async fn another_request_format_is_refused_before_the_upstream_is_called() -> Re
 #[tokio::test]
 async fn a_request_without_the_dedicated_header_is_unauthenticated_upstream() -> Result<()> {
     let pool = test_db_pool().await;
-    let (app, _ctx, upstream) = app_on(&pool).await;
+    let (app, _ctx, upstream) = app_on().await;
     let cred = member(&pool).await?;
     let marker = "marker-no-own-credential";
     let request = Request::builder()
@@ -448,7 +448,7 @@ async fn a_request_without_the_dedicated_header_is_unauthenticated_upstream() ->
 async fn content_a_policy_would_redact_is_denied_rather_than_rewritten() -> Result<()> {
     let database = DisposableDb::with_schema("gw_caller_redact").await;
     let pool = database.test_pool().await;
-    let (app, _ctx, upstream) = app_on(&pool).await;
+    let (app, _ctx, upstream) = app_on().await;
     let cred = member(&pool).await?;
     sqlx::query(
         "INSERT INTO ai_gateway_policies (id, name, spec, enabled, priority) VALUES ($1, $2, $3, \
@@ -500,7 +500,7 @@ async fn content_a_policy_would_redact_is_denied_rather_than_rewritten() -> Resu
 #[tokio::test]
 async fn one_members_rate_limit_does_not_open_the_circuit_for_the_next() -> Result<()> {
     let pool = test_db_pool().await;
-    let (app, _ctx, upstream) = app_on(&pool).await;
+    let (app, _ctx, upstream) = app_on().await;
     let ann = member(&pool).await?;
     let ben = member(&pool).await?;
     let run = Uuid::new_v4().simple().to_string();

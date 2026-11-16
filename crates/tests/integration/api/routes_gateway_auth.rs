@@ -421,11 +421,12 @@ async fn coverage_manifest_database_failure_fails_closed() -> Result<()> {
     )
     .await?;
     let extractor = jwt_extractor(&auth_ctx)?;
-    let closed = systemprompt_test_fixtures::closed_db_pool().await;
     let offline_ctx = systemprompt_test_fixtures::test_app_context(
-        &closed,
-        "postgres://closed:closed@localhost/closed",
-    );
+        &systemprompt_test_fixtures::ensure_test_bootstrap().database_url,
+    )
+    .await;
+    offline_ctx.db_pool().pool().close().await;
+    offline_ctx.db_pool().write_pool().close().await;
     let mut headers = HeaderMap::new();
     headers.insert(
         http::header::AUTHORIZATION,

@@ -15,20 +15,23 @@ use axum::extract::ConnectInfo;
 use axum::http::Request;
 use systemprompt_api::services::server::setup_api_server;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_app_context_with_config, fixture_config, test_db_pool,
+    ensure_test_bootstrap, fixture_app_context_with_config, fixture_config,
 };
 use tower::ServiceExt;
 
 async fn boot_server() -> anyhow::Result<axum::Router> {
     let bootstrap = ensure_test_bootstrap();
-    let pool = test_db_pool().await;
 
     let mut config = fixture_config(&bootstrap.database_url);
     config.cors_allowed_origins = vec!["http://127.0.0.1".to_owned()];
 
-    let ctx = fixture_app_context_with_config(&pool, config)?;
+    let ctx = fixture_app_context_with_config(config).await?;
     let router = setup_api_server(
         &ctx,
+        systemprompt_api::services::server::routes::Composed {
+            admitted: ctx.admitted(),
+            kernel: ctx.kernel(),
+        },
         None,
         &std::sync::Arc::new(systemprompt_api::services::server::ReadinessState::new()),
     )

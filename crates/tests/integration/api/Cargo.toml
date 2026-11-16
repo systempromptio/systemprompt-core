@@ -16,6 +16,7 @@ workspace = true
 [dependencies]
 systemprompt-catalog-fixtures = { workspace = true }
 async-trait = { workspace = true }
+systemprompt = { workspace = true, features = ["full"] }
 systemprompt-test-fixtures = { workspace = true }
 systemprompt-api = { workspace = true, features = ["brain", "bridge", "collab", "otel"] }
 systemprompt-brain = { workspace = true }

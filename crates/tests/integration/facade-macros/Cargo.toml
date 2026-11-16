@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "Registration macros expand in a crate that reaches core only through the facade"
+description = "Exported macros expand in a crate that reaches core only through the facade"
 publish = false
 
 [lints]
@@ -12,5 +12,4 @@ workspace = true
 
 [dependencies]
 systemprompt = { workspace = true }
-async-trait = { workspace = true }
 systemprompt-test-hack = { version = "0.1", path = "../../common/hack" }

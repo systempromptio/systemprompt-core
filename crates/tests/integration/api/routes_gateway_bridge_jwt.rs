@@ -16,7 +16,7 @@ use super::common::setup_ctx;
 
 async fn router_and_pool() -> anyhow::Result<(Router, DbPool)> {
     let (pool, ctx) = setup_ctx().await?;
-    Ok((gateway_router(&ctx).expect("gateway router builds"), pool))
+    Ok((gateway_router(&ctx, ctx.admitted(), ctx.kernel()).expect("gateway router builds"), pool))
 }
 
 fn authed_get(uri: &str, token: &str) -> Request<Body> {

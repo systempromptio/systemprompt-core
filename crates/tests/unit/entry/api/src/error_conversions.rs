@@ -390,6 +390,7 @@ fn agent_error_maps_not_found_repository_and_internal() {
 #[test]
 fn scope_binding_error_maps_dimension_membership_and_lookup() {
     use systemprompt_governance::authz::{AuthzError, ScopeBindingError};
+    use systemprompt_traits::authz::SubjectAttributeError;
     use systemprompt_identifiers::ScopeDimension;
     let dimension = || ScopeDimension::try_new("team").expect("valid dimension");
     assert_eq!(
@@ -405,8 +406,8 @@ fn scope_binding_error_maps_dimension_membership_and_lookup() {
         ErrorCode::Forbidden
     );
     assert_eq!(
-        code_of(ScopeBindingError::Lookup(AuthzError::InvalidRuleType(
-            "x".into()
+        code_of(ScopeBindingError::Lookup(SubjectAttributeError::Lookup(
+            Box::new(AuthzError::InvalidRuleType("x".into()))
         )))
         .code,
         ErrorCode::InternalError

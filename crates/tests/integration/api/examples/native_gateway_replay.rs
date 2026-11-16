@@ -201,7 +201,7 @@ async fn replay() -> Result<()> {
     );
     let bootstrap = ensure_test_bootstrap();
     let db = test_db_pool().await;
-    let _context = test_app_context(&db, &bootstrap.database_url);
+    let _context = test_app_context(&bootstrap.database_url).await;
     let background = BackgroundTasks::new();
     let journal = systemprompt_gateway::audit::journal::GatewayJournal::open(
         bootstrap.app_paths.storage().data(),

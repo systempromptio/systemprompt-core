@@ -98,9 +98,9 @@ async fn harness() -> &'static Harness {
 async fn app() -> Result<(Router, DbPool, Arc<AppContext>)> {
     let h = harness().await;
     let pool = test_db_pool().await;
-    let ctx = test_app_context_on(&h.boot, &pool);
+    let ctx = test_app_context_on(&h.boot).await;
     Ok((
-        gateway_router(&ctx).expect("gateway router builds"),
+        gateway_router(&ctx, ctx.admitted(), ctx.kernel()).expect("gateway router builds"),
         pool,
         ctx,
     ))

@@ -15,12 +15,11 @@
 use axum::extract::State;
 use axum::response::IntoResponse;
 use systemprompt_api::routes::mcp::registry::handle_mcp_registry;
-use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
+use systemprompt_test_fixtures::{test_app_context, test_database_url};
 
 async fn ctx() -> systemprompt_runtime::AppContext {
     let url = test_database_url();
-    let pool = test_db_pool().await;
-    (*test_app_context(&pool, &url)).clone()
+    (*test_app_context(&url).await).clone()
 }
 
 struct Reply {

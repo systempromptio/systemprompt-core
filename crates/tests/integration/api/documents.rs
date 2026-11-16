@@ -31,7 +31,7 @@ use systemprompt_test_fixtures::{
 use tower::ServiceExt;
 use uuid::Uuid;
 
-use super::common::{browser_page, request_context, setup_ctx};
+use super::common::{browser_page, request_context, setup_ctx, setup_drive_ctx};
 
 pub(super) const BOUNDARY: &str = "sp-documents-test-boundary";
 
@@ -486,8 +486,8 @@ async fn change_for(
 
 #[tokio::test]
 async fn a_drive_commit_of_a_new_file_appears_in_the_change_feed() -> Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
-    let gateway = gateway_router(&ctx)?;
+    let (pool, ctx) = setup_drive_ctx().await?;
+    let gateway = gateway_router(&ctx, ctx.admitted(), ctx.kernel())?;
     let device = seed_drive_credential(&pool, "drive-feed").await?;
     let plain_bridge = seed_bridge_credential(&pool, "drive-feed-plain").await?;
 
@@ -580,8 +580,8 @@ async fn a_drive_commit_of_a_new_file_appears_in_the_change_feed() -> Result<()>
 
 #[tokio::test]
 async fn a_stale_drive_commit_is_409_with_the_head_content_hash() -> Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
-    let gateway = gateway_router(&ctx)?;
+    let (pool, ctx) = setup_drive_ctx().await?;
+    let gateway = gateway_router(&ctx, ctx.admitted(), ctx.kernel())?;
     let device = seed_drive_credential(&pool, "drive-conflict").await?;
     let manifest = send(
         gateway.clone(),
@@ -814,8 +814,14 @@ async fn the_mounted_content_route_takes_a_download_link_and_refuses_no_credenti
     let mut config = fixture_config(&bootstrap.database_url);
     config.rate_limits = RateLimitsConfig::disabled();
     config.trusted_proxies = Vec::new();
-    let ctx = fixture_app_context_with_config(&pool, config)?;
-    let server = setup_api_server(&ctx, None, &Arc::new(ReadinessState::new()))
+    let ctx = fixture_app_context_with_config(config).await?;
+    let server = setup_api_server(
+        &ctx,
+        systemprompt_api::services::server::routes::Composed {
+            admitted: ctx.admitted(),
+            kernel: ctx.kernel(),
+        },
+        None, &Arc::new(ReadinessState::new()))
         .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
     let state = DocumentsState::build(&ctx)?;
     let owner = seed_bridge_credential(&pool, "docs-mounted").await?;
@@ -867,8 +873,14 @@ async fn the_mounted_preview_frames_same_origin_and_keeps_its_sandbox_policy() -
     let mut config = fixture_config(&bootstrap.database_url);
     config.rate_limits = RateLimitsConfig::disabled();
     config.trusted_proxies = Vec::new();
-    let ctx = fixture_app_context_with_config(&pool, config)?;
-    let server = setup_api_server(&ctx, None, &Arc::new(ReadinessState::new()))
+    let ctx = fixture_app_context_with_config(config).await?;
+    let server = setup_api_server(
+        &ctx,
+        systemprompt_api::services::server::routes::Composed {
+            admitted: ctx.admitted(),
+            kernel: ctx.kernel(),
+        },
+        None, &Arc::new(ReadinessState::new()))
         .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
     let state = DocumentsState::build(&ctx)?;
     let owner = seed_bridge_credential(&pool, "docs-preview").await?;
@@ -953,17 +965,27 @@ async fn a_disabled_store_mounts_no_document_or_drive_route() -> Result<()> {
     use axum::extract::ConnectInfo;
     use systemprompt_api::services::server::{ReadinessState, setup_api_server};
     use systemprompt_manifest::profile::RateLimitsConfig;
+    use systemprompt_files::DocumentsConfig;
     use systemprompt_test_fixtures::{
-        ensure_test_bootstrap, fixture_app_context_documents_disabled, fixture_config, test_db_pool,
+        fixture_admitted, fixture_app_context_on_bootstrap, fixture_config, init_documents_bootstrap,
     };
 
-    let bootstrap = ensure_test_bootstrap();
-    let pool = test_db_pool().await;
+    let bootstrap = init_documents_bootstrap(DocumentsConfig {
+        enabled: false,
+        ..DocumentsConfig::default()
+    });
     let mut config = fixture_config(&bootstrap.database_url);
     config.rate_limits = RateLimitsConfig::disabled();
     config.trusted_proxies = Vec::new();
-    let ctx = fixture_app_context_documents_disabled(&pool, config)?;
-    let server = setup_api_server(&ctx, None, &Arc::new(ReadinessState::new()))
+    let ctx = fixture_app_context_on_bootstrap(&bootstrap, config, fixture_admitted()).await?;
+    let pool = ctx.db_pool().clone();
+    let server = setup_api_server(
+        &ctx,
+        systemprompt_api::services::server::routes::Composed {
+            admitted: ctx.admitted(),
+            kernel: ctx.kernel(),
+        },
+        None, &Arc::new(ReadinessState::new()))
         .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
     let device = seed_bridge_credential(&pool, "docs-disabled").await?;
 
@@ -981,7 +1003,7 @@ async fn a_disabled_store_mounts_no_document_or_drive_route() -> Result<()> {
     }
 
     let manifest = send(
-        gateway_router(&ctx)?,
+        gateway_router(&ctx, ctx.admitted(), ctx.kernel())?,
         bridge(&device, Method::GET, "/bridge/drive/manifest")
             .body(Body::empty())
             .expect("request"),
@@ -993,8 +1015,8 @@ async fn a_disabled_store_mounts_no_document_or_drive_route() -> Result<()> {
 
 #[tokio::test]
 async fn only_the_private_device_token_trades_for_a_drive_sync_token() -> Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
-    let gateway = gateway_router(&ctx)?;
+    let (pool, ctx) = setup_drive_ctx().await?;
+    let gateway = gateway_router(&ctx, ctx.admitted(), ctx.kernel())?;
     let trade = |fixture: &AuthedFixture| {
         bridge(fixture, Method::POST, "/bridge/drive/token")
             .body(Body::empty())

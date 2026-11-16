@@ -10,29 +10,29 @@ use serde_json::{Value, json};
 use systemprompt_api::routes::documents::{DocumentsState, router};
 use systemprompt_files::DocumentsConfig;
 use systemprompt_test_fixtures::{
-    AuthedFixture, ensure_test_bootstrap, fixture_app_context_documents_configured, fixture_config,
-    seed_bridge_credential, test_db_pool,
+    AuthedFixture, TestBootstrap, fixture_admitted, fixture_app_context_on_bootstrap,
+    fixture_config, init_documents_bootstrap, seed_bridge_credential,
 };
 use tower::ServiceExt;
 use uuid::Uuid;
 
 use super::common::{browser_page, request_context};
 
+static BOOT: std::sync::OnceLock<TestBootstrap> = std::sync::OnceLock::new();
+
 async fn requests_enabled() -> Result<(systemprompt_database::DbPool, DocumentsState)> {
-    let b = ensure_test_bootstrap();
-    let pool = test_db_pool().await;
-    let documents = DocumentsConfig {
-        enabled: true,
-        access_requests: true,
-        ..DocumentsConfig::default()
-    };
-    let ctx = fixture_app_context_documents_configured(
-        &pool,
-        fixture_config(&b.database_url),
-        documents,
-    )?;
+    let b = BOOT.get_or_init(|| {
+        init_documents_bootstrap(DocumentsConfig {
+            enabled: true,
+            access_requests: true,
+            ..DocumentsConfig::default()
+        })
+    });
+    let ctx =
+        fixture_app_context_on_bootstrap(b, fixture_config(&b.database_url), fixture_admitted())
+            .await?;
     let state = DocumentsState::build(&ctx)?;
-    Ok((pool, state))
+    Ok((ctx.db_pool().clone(), state))
 }
 
 async fn call(

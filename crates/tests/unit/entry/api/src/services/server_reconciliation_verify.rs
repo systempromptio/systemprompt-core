@@ -17,7 +17,7 @@ use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::mcp::deployment::OAuthRequirement;
 use systemprompt_models::mcp::{McpServerConfig, McpServerType};
 use systemprompt_test_fixtures::{
-    closed_db_pool, ensure_test_bootstrap, test_app_context, test_db_pool, unique_name,
+    ensure_test_bootstrap, test_app_context, test_db_pool, unique_name,
 };
 
 fn orchestrator(
@@ -105,7 +105,7 @@ async fn drop_row(pool: &DbPool, name: &str) {
 async fn a_required_server_with_a_running_row_passes_verification() {
     let pool = live_pool().await;
     let boot = ensure_test_bootstrap();
-    let ctx = test_app_context(&pool, &boot.database_url);
+    let ctx = test_app_context(&boot.database_url).await;
     let name = unique_name("verified");
     seed(&pool, &ctx.config().instance_id, &name, "running").await;
 
@@ -121,9 +121,8 @@ async fn a_required_server_with_a_running_row_passes_verification() {
 
 #[tokio::test]
 async fn a_required_server_with_no_row_at_all_fails_startup_and_is_named() {
-    let pool = live_pool().await;
     let boot = ensure_test_bootstrap();
-    let ctx = test_app_context(&pool, &boot.database_url);
+    let ctx = test_app_context(&boot.database_url).await;
     let name = unique_name("unregistered");
 
     let error = verify_database_registration(&[required(&name)], &ctx, None)
@@ -142,7 +141,7 @@ async fn a_required_server_with_no_row_at_all_fails_startup_and_is_named() {
 async fn a_required_server_registered_in_a_non_running_status_fails_and_reports_that_status() {
     let pool = live_pool().await;
     let boot = ensure_test_bootstrap();
-    let ctx = test_app_context(&pool, &boot.database_url);
+    let ctx = test_app_context(&boot.database_url).await;
     let name = unique_name("halfup");
     seed(&pool, &ctx.config().instance_id, &name, "starting").await;
 
@@ -164,7 +163,7 @@ async fn a_required_server_registered_in_a_non_running_status_fails_and_reports_
 async fn every_failing_server_is_reported_not_just_the_first() {
     let pool = live_pool().await;
     let boot = ensure_test_bootstrap();
-    let ctx = test_app_context(&pool, &boot.database_url);
+    let ctx = test_app_context(&boot.database_url).await;
     let missing = unique_name("missing");
     let stopped = unique_name("stopped");
     seed(&pool, &ctx.config().instance_id, &stopped, "stopped").await;
@@ -186,8 +185,9 @@ async fn every_failing_server_is_reported_not_just_the_first() {
 #[tokio::test]
 async fn an_unreachable_database_fails_verification_rather_than_passing_it() {
     let boot = ensure_test_bootstrap();
-    let pool = closed_db_pool().await;
-    let ctx = test_app_context(&pool, &boot.database_url);
+    let ctx = test_app_context(&boot.database_url).await;
+    ctx.db_pool().pool().close().await;
+    ctx.db_pool().write_pool().close().await;
     let name = unique_name("unreachable");
 
     let error = verify_database_registration(&[required(&name)], &ctx, None)
@@ -208,9 +208,8 @@ async fn an_unreachable_database_fails_verification_rather_than_passing_it() {
 // message is also the build instruction the operator follows.
 #[tokio::test]
 async fn a_required_server_that_never_started_is_named_in_the_refusal() {
-    let pool = live_pool().await;
     let boot = ensure_test_bootstrap();
-    let ctx = test_app_context(&pool, &boot.database_url);
+    let ctx = test_app_context(&boot.database_url).await;
     let name = unique_name("neverstarted");
 
     let error = handle_missing_servers(&[required(&name)], &orchestrator(&ctx), None)
@@ -231,9 +230,8 @@ async fn a_required_server_that_never_started_is_named_in_the_refusal() {
 
 #[tokio::test]
 async fn several_servers_that_never_started_are_all_named() {
-    let pool = live_pool().await;
     let boot = ensure_test_bootstrap();
-    let ctx = test_app_context(&pool, &boot.database_url);
+    let ctx = test_app_context(&boot.database_url).await;
     let first = unique_name("absent_one");
     let second = unique_name("absent_two");
 
@@ -261,7 +259,7 @@ async fn several_servers_that_never_started_are_all_named() {
 async fn a_row_that_turns_running_during_the_retry_window_passes_verification() {
     let pool = live_pool().await;
     let boot = ensure_test_bootstrap();
-    let ctx = test_app_context(&pool, &boot.database_url);
+    let ctx = test_app_context(&boot.database_url).await;
     let name = unique_name("late");
     seed(&pool, &ctx.config().instance_id, &name, "starting").await;
 
@@ -290,7 +288,7 @@ async fn a_row_that_turns_running_during_the_retry_window_passes_verification() 
 async fn a_row_that_never_turns_running_fails_after_every_attempt() {
     let pool = live_pool().await;
     let boot = ensure_test_bootstrap();
-    let ctx = test_app_context(&pool, &boot.database_url);
+    let ctx = test_app_context(&boot.database_url).await;
     let name = unique_name("stuck");
     seed(&pool, &ctx.config().instance_id, &name, "stopped").await;
 

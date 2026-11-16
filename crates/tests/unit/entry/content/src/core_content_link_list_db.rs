@@ -31,14 +31,14 @@ fn parse(args: &[&str]) -> ContentCommands {
 }
 
 
-fn ctx(pool: &DbPool) -> CommandContext {
+async fn ctx() -> CommandContext {
     let url = test_database_url();
     crate::common::with_app_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
-        test_app_context(pool, &url),
+        test_app_context(&url).await,
     )
 }
 
@@ -120,14 +120,13 @@ async fn list(
 // back the whole table rather than the caller's own links.
 #[tokio::test]
 async fn listing_without_a_filter_is_refused_rather_than_listing_everything() {
-    let pool = test_db_pool().await;
 
     let err = execute(
         ListArgs {
             campaign: None,
             content: None,
         },
-        &ctx(&pool),
+        &ctx().await,
     )
     .await
     .expect_err("an unscoped listing must not be served");
@@ -140,8 +139,7 @@ async fn listing_without_a_filter_is_refused_rather_than_listing_everything() {
 
 #[tokio::test]
 async fn a_campaign_filter_returns_only_that_campaigns_links() {
-    let pool = test_db_pool().await;
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     let mine = format!("camp-{}", Uuid::new_v4().simple());
     let theirs = format!("camp-{}", Uuid::new_v4().simple());
 
@@ -162,7 +160,7 @@ async fn a_campaign_filter_returns_only_that_campaigns_links() {
 #[tokio::test]
 async fn a_content_filter_returns_only_links_from_that_source() {
     let pool = test_db_pool().await;
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     let mine = seed_content(&pool).await;
     let theirs = seed_content(&pool).await;
 
@@ -181,7 +179,7 @@ async fn a_content_filter_returns_only_links_from_that_source() {
 #[tokio::test]
 async fn campaign_wins_when_both_filters_are_supplied() {
     let pool = test_db_pool().await;
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     let campaign = format!("camp-{}", Uuid::new_v4().simple());
     let content_id = seed_content(&pool).await;
 
@@ -200,8 +198,7 @@ async fn campaign_wins_when_both_filters_are_supplied() {
 
 #[tokio::test]
 async fn a_campaign_with_no_links_lists_nothing_rather_than_failing() {
-    let pool = test_db_pool().await;
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     let empty = format!("camp-{}", Uuid::new_v4().simple());
 
     assert!(targets(&list(&ctx, Some(&empty), None).await).is_empty());
@@ -212,8 +209,7 @@ async fn a_campaign_with_no_links_lists_nothing_rather_than_failing() {
 // missing one in a performance report.
 #[tokio::test]
 async fn a_link_that_was_never_clicked_reports_zero_clicks() {
-    let pool = test_db_pool().await;
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     let campaign = format!("camp-{}", Uuid::new_v4().simple());
     seed_link(&ctx, Some(&campaign), None).await;
 

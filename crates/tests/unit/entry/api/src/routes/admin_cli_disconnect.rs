@@ -15,7 +15,7 @@ use systemprompt_api::routes::admin::cli::{CliBinaryPath, router_with_binary};
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_loader::subprocess;
 use systemprompt_models::RequestContext;
-use systemprompt_test_fixtures::{closed_db_pool, ensure_test_bootstrap, test_app_context};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context};
 use tower::ServiceExt;
 
 const EXIT_POLL: Duration = Duration::from_millis(25);
@@ -65,8 +65,9 @@ async fn dropping_the_stream_kills_the_running_command() {
         .expect("make script executable");
 
     let boot = ensure_test_bootstrap();
-    let pool = closed_db_pool().await;
-    let ctx = test_app_context(&pool, &boot.database_url);
+    let ctx = test_app_context(&boot.database_url).await;
+    ctx.db_pool().pool().close().await;
+    ctx.db_pool().write_pool().close().await;
     let app = router_with_binary(CliBinaryPath::new(script.to_string_lossy()))
         .with_state((*ctx).clone())
         .layer(Extension(req_ctx()));

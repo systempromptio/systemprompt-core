@@ -6,18 +6,14 @@
 //! Here the owning user and session are seeded first, so `create_event` and
 //! `create_events_batch` succeed and drive the engagement fan-out.
 
-use std::sync::Arc;
-
 use axum::Extension;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
-use systemprompt_models::{ContentRouting, RequestContext};
+use systemprompt_models::RequestContext;
 use systemprompt_test_fixtures::{seed_user_row, seed_user_session};
 use tower::ServiceExt;
 
-use super::common::{
-    SlugRouter, analytics_router_with_routing, json_post, seed_content, setup_ctx,
-};
+use super::common::{analytics_router, json_post, seed_content, setup_ctx};
 
 async fn seed_session_ctx(db: &DbPool) -> anyhow::Result<RequestContext> {
     let user = UserId::new(format!("an-succ-{}", uuid::Uuid::new_v4()));
@@ -37,12 +33,8 @@ async fn seed_session_ctx(db: &DbPool) -> anyhow::Result<RequestContext> {
 async fn record_event_created_with_seeded_session() -> anyhow::Result<()> {
     let (db, ctx) = setup_ctx().await?;
     let req_ctx = seed_session_ctx(&db).await?;
-    let (slug, page_url) = seed_content(&db).await?;
-    let routing: Arc<dyn ContentRouting> = Arc::new(SlugRouter {
-        page_url: page_url.clone(),
-        slug,
-    });
-    let app = analytics_router_with_routing(&ctx, Some(routing)).layer(Extension(req_ctx));
+    let (_slug, page_url) = seed_content(&db).await?;
+    let app = analytics_router(&ctx).layer(Extension(req_ctx));
 
     let body = serde_json::json!({ "event_type": "page_view", "page_url": page_url });
     let resp = app.oneshot(json_post("/events", body)).await?;
@@ -54,12 +46,8 @@ async fn record_event_created_with_seeded_session() -> anyhow::Result<()> {
 async fn page_exit_fanout_created_with_seeded_session() -> anyhow::Result<()> {
     let (db, ctx) = setup_ctx().await?;
     let req_ctx = seed_session_ctx(&db).await?;
-    let (slug, page_url) = seed_content(&db).await?;
-    let routing: Arc<dyn ContentRouting> = Arc::new(SlugRouter {
-        page_url: page_url.clone(),
-        slug,
-    });
-    let app = analytics_router_with_routing(&ctx, Some(routing)).layer(Extension(req_ctx));
+    let (_slug, page_url) = seed_content(&db).await?;
+    let app = analytics_router(&ctx).layer(Extension(req_ctx));
 
     let body = serde_json::json!({
         "event_type": "page_exit",
@@ -94,7 +82,7 @@ async fn page_exit_fanout_created_with_seeded_session() -> anyhow::Result<()> {
 async fn page_exit_with_zero_time_on_page_skips_fanout() -> anyhow::Result<()> {
     let (db, ctx) = setup_ctx().await?;
     let req_ctx = seed_session_ctx(&db).await?;
-    let app = analytics_router_with_routing(&ctx, None).layer(Extension(req_ctx));
+    let app = analytics_router(&ctx).layer(Extension(req_ctx));
 
     let body = serde_json::json!({
         "event_type": "page_exit",
@@ -110,7 +98,7 @@ async fn page_exit_with_zero_time_on_page_skips_fanout() -> anyhow::Result<()> {
 async fn page_exit_without_data_skips_fanout() -> anyhow::Result<()> {
     let (db, ctx) = setup_ctx().await?;
     let req_ctx = seed_session_ctx(&db).await?;
-    let app = analytics_router_with_routing(&ctx, None).layer(Extension(req_ctx));
+    let app = analytics_router(&ctx).layer(Extension(req_ctx));
 
     let body = serde_json::json!({
         "event_type": "page_exit",
@@ -125,12 +113,8 @@ async fn page_exit_without_data_skips_fanout() -> anyhow::Result<()> {
 async fn batch_created_with_seeded_session_and_fanout() -> anyhow::Result<()> {
     let (db, ctx) = setup_ctx().await?;
     let req_ctx = seed_session_ctx(&db).await?;
-    let (slug, page_url) = seed_content(&db).await?;
-    let routing: Arc<dyn ContentRouting> = Arc::new(SlugRouter {
-        page_url: page_url.clone(),
-        slug,
-    });
-    let app = analytics_router_with_routing(&ctx, Some(routing)).layer(Extension(req_ctx));
+    let (_slug, page_url) = seed_content(&db).await?;
+    let app = analytics_router(&ctx).layer(Extension(req_ctx));
 
     let body = serde_json::json!({
         "events": [

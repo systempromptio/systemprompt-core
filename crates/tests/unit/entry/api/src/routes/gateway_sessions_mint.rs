@@ -32,7 +32,7 @@ async fn harness() -> Harness {
     let user_id = UserId::new(Uuid::new_v4().to_string());
     let email = format!("mint-{}@sessions.invalid", Uuid::new_v4().simple());
     seed_user_row(&pool, &user_id, &email).await.expect("user");
-    let ctx = test_app_context(&pool, &url);
+    let ctx = test_app_context(&url).await;
     Harness {
         ctx: (*ctx).clone(),
         pool,

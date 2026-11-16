@@ -1,34 +1,27 @@
-//! Registration macros expanded in a crate whose only core dependency is the
+//! Exported macros expanded in a crate whose only core dependency is the
 //! `systemprompt` facade: a macro that names a core crate by an absolute path
 //! instead of `$crate` fails to compile here.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt::extension::{GatewayDenyReason, GatewayGuardRequest, GatewayRequestGuard};
-use systemprompt::traits::DatabaseHandle;
+#[cfg(test)]
+mod expansion {
+    use systemprompt::extension::router::{IntoApiError, __IntoResponse};
+    use systemprompt::models::ApiError;
 
-#[derive(Default)]
-struct ProbeGuard;
+    struct ProbeError;
 
-#[async_trait::async_trait]
-impl GatewayRequestGuard for ProbeGuard {
-    async fn check(
-        &self,
-        _db: &dyn DatabaseHandle,
-        _request: &GatewayGuardRequest<'_>,
-    ) -> Result<(), GatewayDenyReason> {
-        Ok(())
+    impl IntoApiError for ProbeError {
+        fn into_api_error(self) -> ApiError {
+            ApiError::not_found("probe resource")
+        }
     }
-}
 
-systemprompt::extension::register_gateway_guard!("gateway", ProbeGuard);
+    systemprompt::extension::capability_error_response!(ProbeError);
 
-#[test]
-fn the_guard_registered_through_the_facade_is_collected() {
-    let registered = systemprompt::extension::__inventory::iter::<
-        systemprompt::extension::GatewayRequestGuardRegistration,
-    >
-        .into_iter()
-        .count();
-    assert!(registered >= 1);
+    #[test]
+    fn the_capability_error_response_expanded_through_the_facade_answers_with_the_api_error() {
+        let response = __IntoResponse::into_response(ProbeError);
+        assert_eq!(response.status().as_u16(), 404);
+    }
 }

@@ -26,7 +26,7 @@ use systemprompt_traits::{BackgroundTasks, DatabaseHandle};
 pub async fn setup_ctx() -> Result<(DbPool, Arc<AppContext>)> {
     let b = ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let ctx = test_app_context(&pool, &b.database_url);
+    let ctx = test_app_context(&b.database_url).await;
     Ok((pool, ctx))
 }
 
@@ -51,7 +51,7 @@ pub fn content_kernel(
     repositories: Arc<ContentRepositories>,
     config: &Config,
 ) -> Kernel {
-    let handle: Arc<dyn DatabaseHandle> = Arc::clone(pool);
+    let handle: Arc<dyn DatabaseHandle> = Arc::<systemprompt_database::Database>::clone(pool);
     Kernel::new(
         handle,
         BackgroundTasks::new(),

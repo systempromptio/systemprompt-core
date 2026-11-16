@@ -23,7 +23,7 @@ async fn negotiating_ctx() -> Result<(DbPool, std::sync::Arc<AppContext>)> {
     let mut config = fixture_config(&b.database_url);
     config.content_negotiation.enabled = true;
     config.content_negotiation.markdown_suffix = ".md".to_owned();
-    let ctx = fixture_app_context_with_config(&pool, config)?;
+    let ctx = fixture_app_context_with_config(config).await?;
     Ok((pool, ctx))
 }
 
@@ -107,7 +107,7 @@ async fn suffix_route_serves_markdown_when_negotiation_enabled() -> Result<()> {
 async fn suffix_route_answers_not_found_when_negotiation_disabled() -> Result<()> {
     let b = ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let ctx = fixture_app_context_with_config(&pool, fixture_config(&b.database_url))?;
+    let ctx = fixture_app_context_with_config(fixture_config(&b.database_url)).await?;
     let (source, slug) = seed_content(&pool).await?;
     let resp = public(&ctx)
         .oneshot(empty_get(&format!("/{source}/{slug}/md")))

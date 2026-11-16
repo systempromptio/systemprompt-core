@@ -20,7 +20,7 @@ use super::common::setup_ctx;
 
 async fn router_and_pool() -> anyhow::Result<(Router, DbPool)> {
     let (pool, ctx) = setup_ctx().await?;
-    let router = gateway_router(&ctx).expect("gateway router builds");
+    let router = gateway_router(&ctx, ctx.admitted(), ctx.kernel()).expect("gateway router builds");
     Ok((router, pool))
 }
 
@@ -167,8 +167,8 @@ async fn heartbeat_storage_failure_is_reported_and_a_retry_records_the_session()
             .await;
     let pool = database.test_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
-    let ctx = systemprompt_test_fixtures::test_app_context(&pool, database.url());
-    let app = gateway_router(&ctx).expect("gateway router builds");
+    let ctx = systemprompt_test_fixtures::test_app_context(database.url()).await;
+    let app = gateway_router(&ctx, ctx.admitted(), ctx.kernel()).expect("gateway router builds");
     let credential = seed_bridge_credential(&pool, "heartbeat-retry@example.invalid").await?;
     let payload = serde_json::json!({
         "session_id": credential.session_id.as_str(),
