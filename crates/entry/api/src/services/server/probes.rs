@@ -30,11 +30,13 @@ use std::sync::Arc;
 use axum::Json;
 use serde_json::json;
 use systemprompt_database::PLANE_NOT_APPLIED_HINT;
-use systemprompt_extension::registry::ExtensionReadinessCheck;
-use systemprompt_extension::{LoaderError, ReadinessFailure};
+use systemprompt_extension::contribute::ContributionSink;
+use systemprompt_extension::{ReadinessCheck, ReadinessFailure, SlotError};
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_runtime::{AppContext, ConfigPlaneSet};
 use systemprompt_scheduler::repository::ConfigReconcileRepository;
 
+use super::contributed::admitted_factories;
 use super::health::{HEALTH_CHECK_QUERY, HEALTH_PROBE_TIMEOUT};
 use super::readiness::ReadinessState;
 use crate::services::middleware::LoadShed;
@@ -215,7 +217,7 @@ pub(super) fn unapplied_governance(ctx: &AppContext) -> Option<serde_json::Value
 /// The enabled extensions' readiness checks, run by `/readyz` and
 /// `/health/detail`.
 pub struct ExtensionReadiness {
-    checks: Vec<ExtensionReadinessCheck>,
+    checks: Vec<(ExtensionId, Arc<dyn ReadinessCheck>)>,
 }
 
 impl std::fmt::Debug for ExtensionReadiness {
@@ -225,11 +227,9 @@ impl std::fmt::Debug for ExtensionReadiness {
 }
 
 impl ExtensionReadiness {
-    pub(crate) fn from_context(ctx: &AppContext) -> Result<Self, LoaderError> {
+    pub(crate) fn from_context(ctx: &AppContext) -> Result<Self, SlotError> {
         Ok(Self {
-            checks: ctx
-                .extension_registry()
-                .all_readiness_checks(ctx, &ctx.profile().extensions.disabled)?,
+            checks: admitted_factories(ctx, "readiness", ContributionSink::readiness)?,
         })
     }
 
@@ -237,10 +237,9 @@ impl ExtensionReadiness {
     pub(crate) async fn run(&self) -> (bool, serde_json::Value) {
         let outcomes =
             futures_util::future::join_all(self.checks.iter().map(|(extension, check)| {
-                let extension = *extension;
                 async move {
                     let outcome = tokio::time::timeout(HEALTH_PROBE_TIMEOUT, check.check()).await;
-                    check_entry(extension, check.name(), outcome)
+                    check_entry(extension.as_str(), check.name(), outcome)
                 }
             }))
             .await;
@@ -262,7 +261,7 @@ fn registered_planes(ctx: &AppContext) -> Option<ConfigPlaneSet> {
 
 pub(crate) fn readiness_layer(
     ctx: &AppContext,
-) -> Result<axum::Extension<Arc<ExtensionReadiness>>, LoaderError> {
+) -> Result<axum::Extension<Arc<ExtensionReadiness>>, SlotError> {
     Ok(axum::Extension(Arc::new(ExtensionReadiness::from_context(
         ctx,
     )?)))
@@ -270,7 +269,7 @@ pub(crate) fn readiness_layer(
 
 // JSON: one entry of the outgoing `/readyz` extensions array.
 fn check_entry(
-    extension: &'static str,
+    extension: &str,
     check: &'static str,
     outcome: Result<Result<(), ReadinessFailure>, tokio::time::error::Elapsed>,
 ) -> (bool, serde_json::Value) {

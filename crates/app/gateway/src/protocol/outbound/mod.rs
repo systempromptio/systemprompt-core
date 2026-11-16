@@ -24,7 +24,6 @@ pub mod relay;
 pub mod retry;
 pub mod trace_context;
 
-use std::sync::Arc;
 use systemprompt_identifiers::ProviderRequestId;
 
 use async_trait::async_trait;

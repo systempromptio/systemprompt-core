@@ -76,6 +76,6 @@ pub(super) fn build_static_router(
         static_router,
         &protection,
         layers,
-        systemprompt_extension::registry::WEB_ROOT_BASE_PATH,
+        systemprompt_extension::reserved::WEB_ROOT_BASE_PATH,
     )
 }

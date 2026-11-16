@@ -220,7 +220,7 @@ fn recheck_gateway_route(
     check_owner(base, &route.owner, entry.owner, holders)
 }
 
-pub fn path_base(set: &RouteSet) -> Result<BasePath, MountError> {
+pub(super) fn path_base(set: &RouteSet) -> Result<BasePath, MountError> {
     match set.base() {
         BaseRef::Path(base) => Ok(base),
         base @ BaseRef::Gateway(_) => Err(MountError::RouteSetKind(base)),

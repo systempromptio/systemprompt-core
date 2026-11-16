@@ -8,10 +8,8 @@ use super::super::audit::{ToolCallFrame, classify_tool_call};
 use super::super::backend::ProxyError;
 use std::borrow::Cow;
 use systemprompt_governance::authz::{Decision, DenyReason};
-use systemprompt_governance::policy::governed::McpToolInput;
-use systemprompt_governance::policy::types::AccessScope;
 use systemprompt_governance::policy::{
-    AgentScope, AuditOrigin, AuditTarget, DecisionAudit, Evaluation, GovernedInput, GovernedTarget,
+    AccessScope, AgentScope, McpToolInput, AuditOrigin, AuditTarget, DecisionAudit, Evaluation, GovernedInput, GovernedTarget,
     PolicyRequest, PrincipalSnapshot, record_decision,
 };
 use systemprompt_identifiers::{CallId, McpToolName, ServiceName};

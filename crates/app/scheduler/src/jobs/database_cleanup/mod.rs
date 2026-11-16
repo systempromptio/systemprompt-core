@@ -37,7 +37,7 @@ use std::time::Instant;
 
 use async_trait::async_trait;
 use systemprompt_database::DbPool;
-use systemprompt_extension::AdmittedSchedule;
+use systemprompt_extension::{AdmittedPurge, AdmittedSchedule};
 pub use systemprompt_extension::RetentionTarget;
 use systemprompt_manifest::profile::RetentionConfig;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
@@ -111,8 +111,13 @@ impl Job for DatabaseCleanupJob {
             passes.push(pass);
         }
 
-        let archived =
-            purge_archived_users(&db_pool, retention.archived_users_days, ctx.enforce()).await?;
+        let archived = purge_archived_users(
+            &db_pool,
+            ctx.get::<AdmittedPurge>()?,
+            retention.archived_users_days,
+            ctx.enforce(),
+        )
+        .await?;
         total += archived;
 
         let duration_ms = u64::try_from(start_time.elapsed().as_millis()).unwrap_or(u64::MAX);

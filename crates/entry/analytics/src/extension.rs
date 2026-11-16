@@ -109,7 +109,7 @@ mod routes {
 
 #[cfg(feature = "cli")]
 mod commands {
-    use systemprompt_extension::cli::{CommandDecl, KernelGrant, parents};
+    use systemprompt_extension::cli::{CommandDecl, KernelGrant};
     use systemprompt_extension::prelude::*;
 
     use crate::cli::AnalyticsCommands;
@@ -121,7 +121,7 @@ mod commands {
         );
         #[cfg(feature = "content-commands")]
         c.command(CommandDecl::leaf_under::<
-            parents::ContentGroup,
+            systemprompt_extension::cli::parents::ContentGroup,
             crate::cli::content_popular::PopularArgs,
         >());
     }

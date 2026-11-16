@@ -11,7 +11,7 @@
 use axum::routing::get;
 use axum::{Json, Router};
 use serde_json::json;
-use systemprompt_extension::LoaderError;
+use systemprompt_extension::SlotError;
 use systemprompt_models::api::SingleResponse;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_runtime::AppContext;
@@ -163,7 +163,7 @@ pub async fn handle_mcp_discovery(
     Json(SingleResponse::new(data))
 }
 
-pub fn discovery_router(ctx: &AppContext) -> Result<Router, LoaderError> {
+pub fn discovery_router(ctx: &AppContext) -> Result<Router, SlotError> {
     Ok(Router::new()
         .route(ApiPaths::DISCOVERY, get(handle_root_discovery))
         .route(ApiPaths::HEALTH, get(handle_health))
@@ -178,7 +178,7 @@ pub fn discovery_router(ctx: &AppContext) -> Result<Router, LoaderError> {
         .with_state(ctx.clone()))
 }
 
-pub fn probes_router(ctx: &AppContext) -> Result<Router, LoaderError> {
+pub fn probes_router(ctx: &AppContext) -> Result<Router, SlotError> {
     Ok(Router::new()
         .route(ApiPaths::HEALTH, get(handle_health))
         .route("/health", get(handle_health))
@@ -196,7 +196,7 @@ fn config_state_layer(
     axum::Extension(crate::repository::config_plane_state(ctx.db_pool()))
 }
 
-pub fn authenticated_discovery_router(ctx: &AppContext) -> Result<Router, LoaderError> {
+pub fn authenticated_discovery_router(ctx: &AppContext) -> Result<Router, SlotError> {
     Ok(Router::new()
         .route("/api/v1/health/detail", get(handle_health_detail))
         .layer(readiness_layer(ctx)?)

@@ -17,8 +17,6 @@
 
 mod engine;
 
-use std::sync::Arc;
-
 use async_trait::async_trait;
 use systemprompt_identifiers::{ModelId, ProviderId};
 

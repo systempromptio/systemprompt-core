@@ -8,7 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_extension::LoaderError;
+use systemprompt_extension::{LoaderError, SlotError};
 use systemprompt_traits::BoxedSource;
 
 use crate::services::middleware::MountError;
@@ -20,6 +20,9 @@ pub(crate) enum RouteMountError {
 
     #[error(transparent)]
     Mount(Box<MountError>),
+
+    #[error(transparent)]
+    Slot(Box<SlotError>),
 
     #[error(transparent)]
     Initialization(Box<InitializationError>),
@@ -36,6 +39,12 @@ pub(crate) struct InitializationError {
 impl From<LoaderError> for RouteMountError {
     fn from(source: LoaderError) -> Self {
         Self::Loader(Box::new(source))
+    }
+}
+
+impl From<SlotError> for RouteMountError {
+    fn from(source: SlotError) -> Self {
+        Self::Slot(Box::new(source))
     }
 }
 

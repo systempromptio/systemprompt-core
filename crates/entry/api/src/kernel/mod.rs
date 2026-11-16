@@ -19,10 +19,7 @@
 //! - server-sent events: [`create_sse_stream`] registers a connection with a
 //!   user's broadcaster and streams its events;
 //! - the shared proxy service: [`ProxyService`], [`ProxyTarget`],
-//!   [`ProxyKind`], [`ProxyError`];
-//! - gateway route registration: [`register_gateway_route!`], each
-//!   [`GatewayRouteRegistration`] built with its [`GatewayRouteFactory`] and
-//!   handed the [`GatewayCredential`] the gateway authenticates with.
+//!   [`ProxyKind`], [`ProxyError`].
 //!
 //! The composition contract a member declares against (`RouteSet`,
 //! `RouteSpec`, `ApiHttpError`, `capability_error_response!`,
@@ -33,10 +30,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub use crate::error::{ApiHttpError, unreadable_body};
-pub use crate::register_gateway_route;
-pub use crate::routes::gateway::registered::{
-    GatewayCredential, GatewayRouteFactory, GatewayRouteRegistration,
-};
 pub use crate::routes::stream::create_sse_stream;
 pub use crate::services::middleware::client_addr::{ClientIp, resolve_client_ip};
 pub use crate::services::middleware::{
@@ -46,5 +39,3 @@ pub use crate::services::middleware::{
 pub use crate::services::proxy::{ProxyError, ProxyKind, ProxyService, ProxyTarget};
 pub use crate::services::request_base_url::{RequestBaseUrl, resolve as resolve_request_base_url};
 pub use crate::services::session_cookie::{SameSite, SessionCookie};
-#[doc(hidden)]
-pub use systemprompt_extension::__inventory;

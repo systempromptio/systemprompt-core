@@ -50,7 +50,7 @@ pub use protocol::Composed;
 use protocol::{MountCtx, declare};
 use systemprompt_gateway::GatewayEngines;
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::{DynIpBanStore, StartupEventExt as _, StartupEventSender};
+use systemprompt_traits::{DynIpBanStore, StartupEventSender};
 
 use crate::services::middleware::{
     A2AContextMiddleware, BodyBudget, JwtContextExtractor, McpContextMiddleware, MountLayers,
@@ -138,7 +138,7 @@ fn build_routes(
     finish_router(router, &mount, events)
 }
 
-fn mount_layers(ctx: &AppContext, role: NodeRole) -> Result<MountLayers, LoaderError> {
+fn mount_layers(ctx: &AppContext, role: NodeRole) -> Result<MountLayers, RouteMountError> {
     let jwt_extractor = JwtContextExtractor::from_app_context(ctx)?;
     let limits = if role.shares_process_ownership() {
         RateLimitState::from_context(ctx).unmetered()

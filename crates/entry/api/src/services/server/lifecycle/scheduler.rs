@@ -5,6 +5,7 @@
 
 use anyhow::{Result, bail};
 use std::sync::Arc;
+use systemprompt_extension::AdmittedSchedule;
 use systemprompt_extension::prelude::ChangeActor;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::SchedulerConfig;
@@ -30,7 +31,13 @@ pub(in crate::services::server) async fn initialize_scheduler(
         .clone()
         .unwrap_or_else(SchedulerConfig::with_system_admin);
 
-    let scheduler = SchedulerService::new(config, Arc::clone(ctx.db_pool()), Arc::new(ctx.clone()));
+    let schedule = Arc::new(ctx.kernel().resolved().get::<AdmittedSchedule>()?);
+    let scheduler = SchedulerService::new(
+        config,
+        Arc::clone(ctx.db_pool()),
+        Arc::new(ctx.clone()),
+        schedule,
+    );
 
     let available_jobs = scheduler.run_bootstrap_jobs(events).await?;
     let startup = scheduler.start().await?;
