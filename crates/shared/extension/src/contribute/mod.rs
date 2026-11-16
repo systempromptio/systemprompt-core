@@ -39,7 +39,7 @@ use systemprompt_provider_contracts::{ConfigPlane, Job};
 use systemprompt_traits::authz::SubjectAttributeProvider;
 use systemprompt_traits::{JobRunScope, RunOrigin, RunnerService};
 
-pub use audience::AudienceResolvers;
+pub use audience::{AudienceEntry, AudienceResolvers};
 pub use config::{ConfigDecl, ExtensionConfig};
 pub use entries::{ContributedJob, MemberDependency, ProvideEntry, ProvidedValue};
 pub use error::{ContributionError, FactoryError, ProvideError, SlotError};

@@ -127,7 +127,7 @@ pub use brain::{
 pub use brain::{BrainSink, DynBrainSink};
 pub use context::{DynExtensionContext, ExtensionContext};
 pub use contribute::{
-    AudienceResolvers, ContributionError, Contributions, ExtensionConfig, Factory, FactoryError, FromState, Handed,
+    AudienceEntry, AudienceResolvers, ContributionError, Contributions, ExtensionConfig, Factory, FactoryError, FromState, Handed,
     HandleId, KernelHandle, ProvideError, ProvideFn, Resolved, Slot, SlotEntry, SlotError,
     SlotOrder, StandingTag, build_factories, handles,
 };
