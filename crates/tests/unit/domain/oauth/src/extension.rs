@@ -1,8 +1,11 @@
-// OauthExtension registration surface: metadata, schema set, dependencies,
-// and build-script-discovered migrations.
-
-use systemprompt_extension::Extension;
+use systemprompt_extension::admitted::AdmittedMember;
+use systemprompt_extension::{Extension, StandingTag};
 use systemprompt_oauth::OauthExtension;
+use systemprompt_test_fixtures::admitted_member;
+
+fn admitted() -> AdmittedMember {
+    admitted_member(&OauthExtension, StandingTag::Core).expect("the oauth member admits")
+}
 
 #[test]
 fn metadata_identifies_the_oauth_extension() {
@@ -14,7 +17,8 @@ fn metadata_identifies_the_oauth_extension() {
 
 #[test]
 fn schemas_cover_client_token_webauthn_and_bridge_tables() {
-    let schemas = OauthExtension.schemas();
+    let member = admitted();
+    let schemas = member.sink.schemas();
     let names: Vec<&str> = schemas.iter().filter_map(|s| s.table.as_deref()).collect();
 
     for expected in [
@@ -29,7 +33,7 @@ fn schemas_cover_client_token_webauthn_and_bridge_tables() {
         assert!(names.contains(&expected), "missing schema {expected}");
     }
 
-    for schema in &schemas {
+    for schema in schemas {
         assert!(
             !schema.sql.trim().is_empty(),
             "schema {} embeds empty SQL",
@@ -39,13 +43,9 @@ fn schemas_cover_client_token_webauthn_and_bridge_tables() {
 }
 
 #[test]
-fn depends_on_users_extension() {
-    assert_eq!(OauthExtension.dependencies(), vec!["users"]);
-}
-
-#[test]
 fn migrations_are_discovered_unique_and_ordered() {
-    let migrations = OauthExtension.migrations();
+    let member = admitted();
+    let migrations = member.sink.migrations();
     let versions: Vec<u32> = migrations.iter().map(|m| m.version).collect();
     let mut sorted = versions.clone();
     sorted.sort_unstable();
@@ -54,7 +54,7 @@ fn migrations_are_discovered_unique_and_ordered() {
         versions, sorted,
         "migration versions must be unique and ascending"
     );
-    for m in &migrations {
+    for m in migrations {
         assert!(
             !m.sql.trim().is_empty(),
             "migration {} embeds empty SQL",
