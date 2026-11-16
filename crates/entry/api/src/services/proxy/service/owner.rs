@@ -8,12 +8,23 @@
 //! it as if it had arrived directly. No live owner is a 503 on an `api` node,
 //! never a guess. A found owner is remembered for [`OWNER_CACHE_TTL`] so a
 //! burst of requests costs one registry read; a miss is never remembered, so
-//! a name nothing runs cannot fill the cache. A forwarded request carries
-//! [`FORWARDED_TO_OWNER`] holding a short-lived marker signed with the
-//! deployment key for that one service, and a worker receiving a marker it
-//! verifies serves the request locally rather than forwarding again, so two
-//! workers whose cached owners disagree during a handover cannot bounce a
-//! request between them. A marker a client supplies does not verify and is
+//! a name nothing runs cannot fill the cache.
+//!
+//! A process has no owner for a moment while it moves between workers: the
+//! old one has stopped it and released its lease, and the new one is still
+//! starting it. An `api` node holds a request for a supervised process
+//! through that moment, re-reading the registry every
+//! [`OWNER_HANDOVER_POLL`] for at most [`OWNER_HANDOVER_WAIT`], and forwards
+//! it once the new owner appears. Requests for one service share the deadline
+//! and the reads ([`HandoverWaits`]); once the deadline has passed with no
+//! owner, later requests are answered 503 at once until an owner is found
+//! again, so a process that cannot start costs one wait, not one per request.
+//! A name the configuration does not supervise is never waited for. A forwarded
+//! request carries [`FORWARDED_TO_OWNER`] holding a short-lived marker signed
+//! with the deployment key for that one service, and a worker receiving a
+//! marker it verifies serves the request locally rather than forwarding again,
+//! so two workers whose cached owners disagree during a handover cannot bounce
+//! a request between them. A marker a client supplies does not verify and is
 //! ignored.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -34,6 +45,7 @@ use systemprompt_security::jwt::{mint_owner_hop, verify_owner_hop};
 
 use super::ProxyService;
 use crate::services::proxy::backend::{ProxyError, ResponseHandler};
+use crate::services::server::lifecycle::desired_processes;
 use systemprompt_models::net::AGENT_REQUEST_BODY_LIMIT_BYTES;
 
 pub fn owner_url(advertise_url: &str, path_and_query: &str) -> String {
@@ -49,6 +61,8 @@ pub const FORWARDED_TO_OWNER: HeaderName =
     HeaderName::from_static(systemprompt_identifiers::headers::OWNER_HOP);
 
 pub const OWNER_CACHE_TTL: Duration = Duration::from_secs(2);
+pub const OWNER_HANDOVER_WAIT: Duration = Duration::from_secs(10);
+pub const OWNER_HANDOVER_POLL: Duration = Duration::from_millis(200);
 
 /// Recently found process owners, by service name.
 #[derive(Debug, Default)]
@@ -73,7 +87,90 @@ impl OwnerCache {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+struct HandoverWait {
+    deadline: Instant,
+    probed: Instant,
+}
+
+/// Hand-overs being waited out, by service name.
+#[derive(Debug, Default)]
+pub struct HandoverWaits {
+    entries: Mutex<HashMap<ServiceName, HandoverWait>>,
+}
+
+impl HandoverWaits {
+    pub fn deadline(&self, name: &ServiceName, now: Instant) -> Instant {
+        let Ok(mut entries) = self.entries.lock() else {
+            return now;
+        };
+        entries
+            .entry(name.clone())
+            .or_insert(HandoverWait {
+                deadline: now + OWNER_HANDOVER_WAIT,
+                probed: now,
+            })
+            .deadline
+    }
+
+    pub fn probe_due(&self, name: &ServiceName, now: Instant) -> bool {
+        let Ok(mut entries) = self.entries.lock() else {
+            return true;
+        };
+        match entries.get_mut(name) {
+            Some(wait) if now.duration_since(wait.probed) < OWNER_HANDOVER_POLL => false,
+            Some(wait) => {
+                wait.probed = now;
+                true
+            },
+            None => true,
+        }
+    }
+
+    pub fn clear(&self, name: &ServiceName) {
+        if let Ok(mut entries) = self.entries.lock() {
+            entries.remove(name);
+        }
+    }
+}
+
+fn supervised(service_name: &ServiceName, ctx: &AppContext) -> bool {
+    match desired_processes(ctx) {
+        Ok(wanted) => wanted.iter().any(|key| key.name() == service_name),
+        Err(error) => {
+            tracing::warn!(service = %service_name, error = %error, "supervised processes could not be listed; not waiting for an owner");
+            false
+        },
+    }
+}
+
 impl ProxyService {
+    async fn await_handover(
+        &self,
+        service_name: &ServiceName,
+        ctx: &AppContext,
+    ) -> Result<Option<ProcessOwner>, ProxyError> {
+        if !supervised(service_name, ctx) {
+            return Ok(None);
+        }
+        let deadline = self.handovers.deadline(service_name, Instant::now());
+        loop {
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            if remaining.is_zero() {
+                return Ok(None);
+            }
+            tokio::time::sleep(remaining.min(OWNER_HANDOVER_POLL)).await;
+            if let Some(owner) = self.owners.get(service_name) {
+                return Ok(Some(owner));
+            }
+            if self.handovers.probe_due(service_name, Instant::now())
+                && let Some(owner) = self.process_owner(service_name, ctx).await?
+            {
+                return Ok(Some(owner));
+            }
+        }
+    }
+
     pub(super) async fn process_owner(
         &self,
         service_name: &ServiceName,
@@ -92,6 +189,7 @@ impl ProxyService {
             })?;
         if let Some(found) = &owner {
             self.owners.put(service_name, found);
+            self.handovers.clear(service_name);
         }
         Ok(owner)
     }
@@ -102,12 +200,15 @@ impl ProxyService {
         request: Request<Body>,
         ctx: &AppContext,
     ) -> Result<Response<Body>, ProxyError> {
-        let owner = self
-            .process_owner(service_name, ctx)
-            .await?
-            .ok_or_else(|| ProxyError::NoLiveOwner {
-                service: service_name.to_string(),
-            })?;
+        let owner = match self.process_owner(service_name, ctx).await? {
+            Some(owner) => owner,
+            None => self
+                .await_handover(service_name, ctx)
+                .await?
+                .ok_or_else(|| ProxyError::NoLiveOwner {
+                    service: service_name.to_string(),
+                })?,
+        };
         self.forward_to(&owner, service_name, request, ctx).await
     }
 

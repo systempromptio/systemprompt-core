@@ -62,7 +62,7 @@ the projections owners declare with `submit_projection_drain!`.
 
 ```toml
 [dependencies]
-systemprompt-scheduler = "0.81"
+systemprompt-scheduler = "0.82"
 ```
 
 ### Job Discovery

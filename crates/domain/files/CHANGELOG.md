@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.82.0] - 2026-11-16
+
+### Breaking
+
+- `DocumentsConfig` gains the `rendered_html` field (`RenderedHtmlConfig`). Migrate by setting it, usually to `RenderedHtmlConfig::default()`.
+
+### Added
+
+- `files.documents.renderedHtml.scripts` and `files.documents.renderedHtml.remoteAssets` decide what the rendered view of an HTML document may do inside its sandbox; both are off by default.
+
 ## [0.81.0] - 2026-11-12
 
 ### Breaking

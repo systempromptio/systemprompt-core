@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.82.0] - 2026-11-16
+
+### Added
+
+- `ServiceRepository::delete_presence` and `announce_process_released`, the `PROCESS_OWNERSHIP_CHANNEL` Postgres channel and `ProcessOwnershipWake`.
+
+### Changed
+
+- A full schema install leaves a declarative trigger in place when its statements and live definition are unchanged (`schema_trigger_digests`, migration `009`); `MigrationConfig::force_full_install` re-creates every trigger.
+
+### Fixed
+
+- A schema phase that deadlocks (`40P01`) or hits a serialization failure (`40001`) is rolled back and retried, judged by SQLSTATE (`is_retryable_lock_conflict`, `RETRYABLE_SQLSTATES`), with jittered backoff.
+
 ## [0.81.0] - 2026-11-12
 
 ### Breaking

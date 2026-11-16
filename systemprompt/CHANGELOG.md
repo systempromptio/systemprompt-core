@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.82.0] - 2026-11-16
+
+### Added
+
+- `systemprompt::cli::run_with` re-exports `systemprompt_cli::run_with`.
+
 ## [0.76.0] - 2026-10-29
 
 ### Added
