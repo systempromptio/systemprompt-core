@@ -114,7 +114,7 @@ pub async fn execute(
             break;
         }
     }
-    Ok(super::rendered())
+    Ok(CommandOutput::rendered())
 }
 
 async fn execute_command(
@@ -125,7 +125,7 @@ async fn execute_command(
     match cmd {
         TenantCommands::Create => {
             tenant_create(prompter, cli, host.children()).await?;
-            Ok((super::rendered(), true))
+            Ok((CommandOutput::rendered(), true))
         },
         TenantCommands::Add(args) => Ok((add_tenant(args, cli)?, false)),
         TenantCommands::List => Ok((list_tenants(prompter, cli).await?, false)),

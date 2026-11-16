@@ -123,7 +123,7 @@ pub async fn execute(command: AgentsCommands, host: &dyn CommandHost) -> Result<
             Box::pin(run::execute(args))
                 .await
                 .context("Failed to run agent")?;
-            super::state::rendered()
+            CommandOutput::rendered()
         },
     };
     Ok(result)

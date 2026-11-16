@@ -82,6 +82,11 @@ impl CommandOutput {
     }
 
     #[must_use]
+    pub fn rendered() -> Self {
+        Self::text(String::new()).with_skip_render()
+    }
+
+    #[must_use]
     pub fn text(content: impl Into<String>) -> Self {
         Self::new(CliArtifact::text(TextArtifact::new(content)))
     }

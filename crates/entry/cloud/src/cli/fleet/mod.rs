@@ -55,7 +55,7 @@ pub async fn execute(cmd: FleetCommands, host: &dyn CommandHost) -> Result<Comma
     match cmd {
         FleetCommands::Run(args) => {
             run::execute(args, host).await?;
-            Ok(super::rendered())
+            Ok(CommandOutput::rendered())
         },
         FleetCommands::Versions => versions::execute().await,
     }

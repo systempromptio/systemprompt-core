@@ -55,7 +55,7 @@ impl CliCommandGroup for McpHostCommands {
         match self {
             Self::Serve(args) => execute_serve(args).await.map_err(CommandError::new)?,
         }
-        Ok(super::state::rendered())
+        Ok(CommandOutput::rendered())
     }
 }
 
