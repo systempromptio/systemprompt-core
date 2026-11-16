@@ -96,7 +96,7 @@ impl CommandContext {
         seed
     }
 
-    async fn command_kernel(&self) -> anyhow::Result<&Arc<Kernel>> {
+    pub(crate) async fn command_kernel(&self) -> anyhow::Result<&Arc<Kernel>> {
         self.kernel
             .get_or_try_init(|| async {
                 let app = self.app_context().await?;

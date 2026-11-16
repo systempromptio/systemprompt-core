@@ -20,7 +20,9 @@ use crate::host::{boot_profile_config, boot_profile_refused};
 /// The host a member's registered command runs against: the command context
 /// with the grants the registry conferred on that command. It serves
 /// [`CommandHost::boot_config`] only when the command holds
-/// [`KernelGrant::BootProfile`].
+/// [`KernelGrant::BootProfile`]. Its [`CommandHost::resolved`] is the one
+/// member-command resolver: it reads the command kernel's state but refuses
+/// every sealed seed as missing.
 pub struct MemberHost<'a> {
     ctx: &'a CommandContext,
     descriptor: CommandDescriptor,
@@ -59,7 +61,10 @@ impl CommandHost for MemberHost<'_> {
     }
 
     fn resolved(&self) -> BoxFuture<'_, Result<Resolved<'_>, CommandError>> {
-        CommandHost::resolved(self.ctx)
+        Box::pin(async move {
+            let kernel = self.ctx.command_kernel().await.map_err(CommandError::new)?;
+            Ok(Resolved::__member_command(&**kernel, kernel.state()))
+        })
     }
 
     fn children(&self) -> &dyn ChildSupervisor {

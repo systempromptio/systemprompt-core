@@ -4,6 +4,11 @@
 use std::sync::Arc;
 
 use systemprompt_cli::kernel::{KernelHost, MemberHost};
+use systemprompt_cli::{CliConfig, CommandContext, OutputFormat};
+use systemprompt_identifiers::{InstanceId, UserId};
+use systemprompt_manifest::services::SystemAdmin;
+use systemprompt_runtime::Kernel;
+use systemprompt_traits::{BackgroundTasks, Dependencies};
 use systemprompt_cli::EnvOverrides;
 use systemprompt_config::SecretsSources;
 use systemprompt_extension::cli::{CommandDescriptor, CommandHost, KernelGrant};
@@ -77,4 +82,41 @@ async fn a_granted_member_command_reaches_the_profile_boot() {
     if let Err(err) = member.boot_config(&tree.profile_path).await {
         assert!(!err.to_string().contains("boot-profile"), "{err}");
     }
+}
+
+fn sealed_host() -> CommandContext {
+    let seed = Dependencies::new()
+        .with_sealed(SystemAdmin::new(UserId::new("admin-1"), "admin".to_owned()))
+        .with(InstanceId::new("instance-1"));
+    CommandContext::new(
+        CliConfig::new()
+            .with_interactive(false)
+            .with_output_format(OutputFormat::Json),
+        EnvOverrides::default(),
+    )
+    .with_kernel(Arc::new(Kernel::detached(BackgroundTasks::new(), seed)))
+}
+
+#[tokio::test]
+async fn a_member_command_is_refused_a_sealed_seed_as_missing() {
+    let ctx = sealed_host();
+    let member = MemberHost::new(&ctx, CommandDescriptor::NONE);
+    let resolved = member.resolved().await.expect("the kernel resolves");
+
+    let missing = resolved.get::<SystemAdmin>().expect_err("sealed");
+    assert_eq!(
+        missing,
+        systemprompt_extension::MissingDependency::of::<SystemAdmin>()
+    );
+    assert!(resolved.optional::<SystemAdmin>().is_none());
+    assert!(resolved.get::<InstanceId>().is_ok(), "an open seed is served");
+}
+
+#[tokio::test]
+async fn a_kernel_command_reads_a_sealed_seed() {
+    let ctx = sealed_host();
+    let host: &dyn KernelHost = &ctx;
+    let resolved = host.resolved().await.expect("the kernel resolves");
+
+    assert!(resolved.get::<SystemAdmin>().is_ok());
 }

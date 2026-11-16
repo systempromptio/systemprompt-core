@@ -7,6 +7,13 @@
 //! runtime's single [`KernelAccess`] implementation and, for a route set, by
 //! the API mount.
 //!
+//! A seed the host inserted sealed (secrets, the runtime `Config`, boot-only
+//! data) is served to a provide fn, a factory, a slot build, a kernel command
+//! and a route set; the resolver a member's command runs against
+//! ([`Resolved::__member_command`]) refuses it with the same
+//! `MissingDependency` an absent type gets. A value a member provided from a
+//! sealed seed is the member's own and stays readable.
+//!
 //! A kernel handle is not reachable through a public method. It is read only
 //! through [`Handed<K>`]'s [`FromState`] impl, which consults the resolution's
 //! private conferred-handle list. The list is empty for every resolution but
@@ -39,6 +46,7 @@ pub struct Resolved<'a> {
     access: &'a dyn KernelAccess,
     state: &'a Dependencies,
     conferred: &'a [HandleId],
+    withhold_sealed: bool,
 }
 
 impl<'a> Resolved<'a> {
@@ -48,6 +56,17 @@ impl<'a> Resolved<'a> {
             access,
             state,
             conferred: &[],
+            withhold_sealed: false,
+        }
+    }
+
+    #[doc(hidden)]
+    pub const fn __member_command(access: &'a dyn KernelAccess, state: &'a Dependencies) -> Self {
+        Self {
+            access,
+            state,
+            conferred: &[],
+            withhold_sealed: true,
         }
     }
 
@@ -61,16 +80,20 @@ impl<'a> Resolved<'a> {
             access,
             state,
             conferred,
+            withhold_sealed: false,
         }
     }
 }
 
 impl Resolved<'_> {
     pub fn get<T: Clone + Send + Sync + 'static>(&self) -> Result<T, MissingDependency> {
-        self.state.get::<T>().cloned()
+        self.optional::<T>().ok_or_else(MissingDependency::of::<T>)
     }
 
     pub fn optional<T: Clone + Send + Sync + 'static>(&self) -> Option<T> {
+        if self.withhold_sealed && self.state.is_sealed::<T>() {
+            return None;
+        }
         self.state.find::<T>().cloned()
     }
 
@@ -98,6 +121,7 @@ impl std::fmt::Debug for Resolved<'_> {
         f.debug_struct("Resolved")
             .field("state", self.state)
             .field("conferred", &self.conferred)
+            .field("withhold_sealed", &self.withhold_sealed)
             .finish_non_exhaustive()
     }
 }
