@@ -25,7 +25,6 @@ pub(crate) struct PluginInputs {
     pub(crate) subjects: SubjectSourceHandle,
 }
 
-/// The kernel-built values the authorization stage assembles from.
 pub(crate) struct AuthzBuilt<'a> {
     pub(crate) providers: &'a SubjectProviderSet,
     pub(crate) hooks: &'a AuthzHooks,
