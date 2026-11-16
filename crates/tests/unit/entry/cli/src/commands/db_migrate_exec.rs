@@ -30,7 +30,7 @@ fn json_config() -> CliConfig {
 }
 
 async fn standalone(db: &DisposableDb, config: CliConfig) -> CommandContext {
-    CommandContext::with_database(
+    crate::boot_ctx::with_database(
         config,
         EnvOverrides::default(),
         DatabaseContext::from_pool(db.test_pool().await),

@@ -39,7 +39,7 @@ async fn ctx(url: &str, verbose: bool) -> CommandContext {
         cli = cli.with_verbosity(VerbosityLevel::Verbose);
     }
     let db_ctx = DatabaseContext::from_url(url).await.unwrap();
-    CommandContext::with_database(cli, EnvOverrides::default(), db_ctx, url.to_owned())
+    crate::boot_ctx::with_database(cli, EnvOverrides::default(), db_ctx, url.to_owned())
 }
 
 async fn exec(url: &str, sql: &str, extension: &str, version: i32) -> u64 {

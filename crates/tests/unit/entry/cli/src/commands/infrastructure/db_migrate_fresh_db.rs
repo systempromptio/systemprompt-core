@@ -53,7 +53,7 @@ impl Disposable {
             cli = cli.with_output_format(OutputFormat::Json);
         }
         let db_ctx = DatabaseContext::from_url(&self.url).await.unwrap();
-        CommandContext::with_database(cli, EnvOverrides::default(), db_ctx, self.url.clone())
+        crate::boot_ctx::with_database(cli, EnvOverrides::default(), db_ctx, self.url.clone())
     }
 
     async fn drop(self) {

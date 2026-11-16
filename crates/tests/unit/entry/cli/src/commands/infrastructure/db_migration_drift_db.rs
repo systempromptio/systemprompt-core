@@ -94,7 +94,7 @@ impl Disposable {
             cli = cli.with_output_format(OutputFormat::Json);
         }
         let db_ctx = DatabaseContext::from_url(&self.url).await.unwrap();
-        CommandContext::with_database(cli, EnvOverrides::default(), db_ctx, self.url.clone())
+        crate::boot_ctx::with_database(cli, EnvOverrides::default(), db_ctx, self.url.clone())
     }
 
     async fn verbose_ctx(&self) -> CommandContext {
@@ -102,7 +102,7 @@ impl Disposable {
             .with_interactive(false)
             .with_verbosity(VerbosityLevel::Verbose);
         let db_ctx = DatabaseContext::from_url(&self.url).await.unwrap();
-        CommandContext::with_database(cli, EnvOverrides::default(), db_ctx, self.url.clone())
+        crate::boot_ctx::with_database(cli, EnvOverrides::default(), db_ctx, self.url.clone())
     }
 
     async fn drop(self) {

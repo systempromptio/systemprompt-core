@@ -98,7 +98,7 @@ async fn a_failed_reconcile_is_retried_by_the_next_refresh() {
         https: None,
         oci: None,
     }];
-    let command = CommandContext::with_database(
+    let command = crate::boot_ctx::with_database(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),

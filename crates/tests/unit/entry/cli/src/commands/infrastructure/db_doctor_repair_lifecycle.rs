@@ -24,7 +24,7 @@ fn doctor() -> DbCommands {
 }
 
 fn context(pool: systemprompt_database::DbPool, url: &str, output: OutputFormat) -> CommandContext {
-    CommandContext::with_database(
+    crate::boot_ctx::with_database(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(output),

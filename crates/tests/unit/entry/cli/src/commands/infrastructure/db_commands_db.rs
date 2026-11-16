@@ -26,7 +26,7 @@ fn try_parse(args: &[&str]) -> Result<Harness, clap::Error> {
 
 
 fn ctx(pool: &DbPool) -> CommandContext {
-    CommandContext::with_database(
+    crate::boot_ctx::with_database(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),

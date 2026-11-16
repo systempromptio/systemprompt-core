@@ -107,11 +107,7 @@ fn table_config() -> CliConfig {
 }
 
 fn table_ctx() -> CommandContext {
-    CommandContext::new(table_config(), EnvOverrides::default()).with_boot(Some(
-        systemprompt_test_fixtures::ensure_test_bootstrap()
-            .boot
-            .clone(),
-    ))
+    crate::boot_ctx::new_with_boot(table_config(), EnvOverrides::default())
 }
 
 fn prompter() -> ScriptedPrompter {

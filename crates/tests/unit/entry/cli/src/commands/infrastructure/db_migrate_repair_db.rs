@@ -25,7 +25,7 @@ fn parse(args: &[&str]) -> DbCommands {
 
 
 fn ctx(pool: &DbPool, format: OutputFormat) -> CommandContext {
-    CommandContext::with_database(
+    crate::boot_ctx::with_database(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(format),

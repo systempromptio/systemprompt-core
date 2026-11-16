@@ -57,7 +57,7 @@ async fn dirty_status_helper() {
     .await
     .unwrap();
 
-    let context = CommandContext::with_database(
+    let context = crate::boot_ctx::with_database(
         CliConfig::new().with_interactive(false),
         EnvOverrides::default(),
         DatabaseContext::from_pool(pool.clone()),

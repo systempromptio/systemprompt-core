@@ -30,7 +30,7 @@ fn ctx(pool: &DbPool, json: bool) -> CommandContext {
     if json {
         cli = cli.with_output_format(OutputFormat::Json);
     }
-    CommandContext::with_database(
+    crate::boot_ctx::with_database(
         cli,
         EnvOverrides::default(),
         DatabaseContext::from_pool(pool.clone()),
