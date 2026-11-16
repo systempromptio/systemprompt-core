@@ -14,7 +14,7 @@ use super::edit_apply::{
 use super::shared::AgentArgs;
 use super::types::AgentEditOutput;
 use crate::context::CommandContext;
-use crate::interactive::resolve_required;
+use systemprompt_extension::cli::resolve_required;
 use crate::shared::CommandOutput;
 use systemprompt_identifiers::AgentName;
 use systemprompt_loader::ConfigWriter;

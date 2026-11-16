@@ -9,7 +9,7 @@
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-pub use systemprompt_extension::cli::FileSummary;
+use systemprompt_extension::cli::FileSummary;
 use systemprompt_identifiers::{ContextId, FileId, SessionId, TraceId, UserId};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

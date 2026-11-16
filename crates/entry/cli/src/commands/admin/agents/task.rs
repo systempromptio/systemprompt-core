@@ -12,7 +12,7 @@ use systemprompt_models::a2a::{Task, methods};
 
 use super::client::{A2aCall, ensure_agent_exists, send_a2a_request};
 use crate::context::CommandContext;
-use crate::interactive::resolve_required;
+use systemprompt_extension::cli::resolve_required;
 use crate::session::get_or_create_session;
 use crate::shared::CommandOutput;
 

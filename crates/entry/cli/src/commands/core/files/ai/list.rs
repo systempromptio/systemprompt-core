@@ -10,7 +10,8 @@ use systemprompt_files::FileRepository;
 use systemprompt_identifiers::UserId;
 
 use crate::CliConfig;
-use crate::commands::core::files::types::{AiFilesListOutput, FileSummary};
+use crate::commands::core::files::types::AiFilesListOutput;
+use systemprompt_extension::cli::FileSummary;
 use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 

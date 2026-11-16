@@ -9,7 +9,8 @@ use systemprompt_database::DbPool;
 use systemprompt_files::FileRepository;
 use systemprompt_identifiers::UserId;
 
-use super::types::{FileListOutput, FileSummary};
+use super::types::FileListOutput;
+use systemprompt_extension::cli::FileSummary;
 use crate::CliConfig;
 use crate::context::CommandContext;
 use crate::shared::CommandOutput;

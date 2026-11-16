@@ -9,7 +9,8 @@ use std::fs;
 use std::path::Path;
 
 use crate::CliConfig;
-use crate::interactive::{Prompter, require_confirmation, resolve_required};
+use crate::interactive::{Prompter, require_confirmation};
+use systemprompt_extension::cli::resolve_required;
 use crate::shared::CommandOutput;
 use systemprompt_logging::CliService;
 

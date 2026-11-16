@@ -8,7 +8,8 @@ use clap::Args;
 use systemprompt_database::DbPool;
 use systemprompt_files::FileRepository;
 
-use super::types::{FileSearchOutput, FileSummary};
+use super::types::FileSearchOutput;
+use systemprompt_extension::cli::FileSummary;
 use crate::CliConfig;
 use crate::context::CommandContext;
 use crate::shared::CommandOutput;

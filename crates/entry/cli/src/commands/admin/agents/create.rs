@@ -11,7 +11,8 @@ use super::shared::AgentArgs;
 use super::types::AgentCreateOutput;
 use crate::CliConfig;
 use crate::context::CommandContext;
-use crate::interactive::{Prompter, resolve_required};
+use crate::interactive::Prompter;
+use systemprompt_extension::cli::resolve_required;
 use crate::shared::CommandOutput;
 use systemprompt_agent::services::config_authoring::{
     AgentCapabilityFlags, AgentCardLinks, AgentConfigAuthoringService, AgentCreateRequest,

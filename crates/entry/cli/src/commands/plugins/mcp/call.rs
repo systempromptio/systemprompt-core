@@ -17,7 +17,8 @@ use super::call_client::{
 };
 use super::types::{McpCallOutput, McpToolContent};
 use crate::context::CommandContext;
-use crate::interactive::{Prompter, resolve_required};
+use crate::interactive::Prompter;
+use systemprompt_extension::cli::resolve_required;
 use crate::session::{CliSessionContext, get_or_create_session};
 use crate::shared::{CommandOutput, render_result};
 

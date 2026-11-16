@@ -8,7 +8,8 @@ use clap::Args;
 use std::fs;
 
 use crate::CliConfig;
-use crate::interactive::{Prompter, require_confirmation, resolve_required};
+use crate::interactive::{Prompter, require_confirmation};
+use systemprompt_extension::cli::resolve_required;
 use crate::shared::CommandOutput;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;

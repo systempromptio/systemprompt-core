@@ -10,7 +10,8 @@ use std::io::{self, Read};
 use std::path::Path;
 
 use crate::CliConfig;
-use crate::interactive::{Prompter, resolve_required};
+use crate::interactive::Prompter;
+use systemprompt_extension::cli::resolve_required;
 use crate::shared::CommandOutput;
 use systemprompt_logging::CliService;
 

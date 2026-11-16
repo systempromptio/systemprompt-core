@@ -17,9 +17,7 @@ use std::sync::Mutex;
 use anyhow::{Result, anyhow};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Confirm, Input, Password, Select};
-pub use systemprompt_extension::cli::resolve_required;
 use systemprompt_extension::cli::{CliConfig, CommandError, Prompter};
-
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct DialoguerPrompter;

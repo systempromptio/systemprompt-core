@@ -8,7 +8,7 @@ use clap::Args;
 
 use super::types::AgentDetailOutput;
 use crate::context::CommandContext;
-use crate::interactive::resolve_required;
+use systemprompt_extension::cli::resolve_required;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
