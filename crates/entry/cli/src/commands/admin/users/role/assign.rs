@@ -10,7 +10,8 @@ use std::sync::Arc;
 use systemprompt_users::{UserAdminService, UserRepository, UserRole, UserService};
 
 use crate::commands::admin::users::types::RoleAssignOutput;
-use crate::shared::{CommandOutput, ConfirmArgs};
+use crate::shared::ConfirmArgs;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct AssignArgs {

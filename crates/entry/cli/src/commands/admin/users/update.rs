@@ -9,7 +9,7 @@ use clap::Args;
 use std::sync::Arc;
 use systemprompt_users::{UserAdminService, UserRepository, UserService, UserStatus};
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use super::list::StatusFilter;
 use super::types::UserUpdatedOutput;
 

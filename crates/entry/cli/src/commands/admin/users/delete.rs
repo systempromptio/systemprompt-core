@@ -10,6 +10,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_extension::AdmittedPurge;
+use systemprompt_identifiers::ExtensionId;
 use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use clap::Args;
@@ -18,7 +20,7 @@ use systemprompt_users::{
     ArchiveParams, PurgeCount, UserAdminService, UserRepository, UserService,
 };
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use super::types::UserDeletedOutput;
 
 #[derive(Debug, Args)]
@@ -68,7 +70,8 @@ pub(super) async fn execute(args: DeleteArgs, host: &dyn KernelHost) -> Result<C
     };
 
     if args.dry_run {
-        let counts = user_service.purge_preview(&user.id).await?;
+        let plan = host.resolved().await?.get::<AdmittedPurge>()?;
+        let counts = user_service.purge_preview(&user.id, &plan).await?;
         let rows: Vec<PurgeRow> = counts.iter().map(PurgeRow::from).collect();
         return Ok(
             CommandOutput::table_of(vec!["owner", "table", "rows"], &rows).with_title(format!(
@@ -93,7 +96,8 @@ pub(super) async fn execute(args: DeleteArgs, host: &dyn KernelHost) -> Result<C
     }
 
     if args.purge {
-        let removed = user_service.purge(&user.id).await?;
+        let plan = host.resolved().await?.get::<AdmittedPurge>()?;
+        let removed = user_service.purge(&user.id, &plan).await?;
         let rows_removed: i64 = removed.iter().map(|c| c.rows).sum();
         let output = UserDeletedOutput {
             id: user.id.clone(),
@@ -138,7 +142,7 @@ pub(super) async fn execute(args: DeleteArgs, host: &dyn KernelHost) -> Result<C
 
 #[derive(Debug, serde::Serialize)]
 struct PurgeRow {
-    owner: &'static str,
+    owner: ExtensionId,
     table: &'static str,
     rows: i64,
 }
@@ -146,7 +150,7 @@ struct PurgeRow {
 impl From<&PurgeCount> for PurgeRow {
     fn from(count: &PurgeCount) -> Self {
         Self {
-            owner: count.owner,
+            owner: count.owner.clone(),
             table: count.table,
             rows: count.rows,
         }

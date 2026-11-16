@@ -17,7 +17,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use super::types::{MessageRow, ToolCallRow};
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use serde_json::Value as JsonValue;
 use systemprompt_identifiers::{AiRequestId, UserId};
 use systemprompt_models::artifacts::{Column, ColumnType, NoticeLine, TableArtifact};

@@ -29,7 +29,6 @@ pub enum AiCommands {
 }
 
 pub async fn execute(cmd: AiCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let config = host.output();
     match cmd {
         AiCommands::List(args) => {
             list::execute(args, host)

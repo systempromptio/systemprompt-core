@@ -10,11 +10,11 @@ use systemprompt_database::DbPool;
 use systemprompt_files::FileRepository;
 use systemprompt_identifiers::UserId;
 
-use crate::CliConfig;
+use systemprompt_extension::cli::CliConfig;
 use crate::commands::core::files::types::AiFilesListOutput;
 use systemprompt_extension::cli::FileSummary;
 use crate::commands::shared::app_context;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
 pub struct ListArgs {

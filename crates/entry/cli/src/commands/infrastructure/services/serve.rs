@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::kernel::KernelHost;
-use crate::interactive::Prompter;
+use systemprompt_extension::cli::Prompter;
 use anyhow::{Context, Result};
 use std::sync::Arc;
 use systemprompt_logging::CliService;

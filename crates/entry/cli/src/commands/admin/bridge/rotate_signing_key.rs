@@ -11,7 +11,8 @@ use ed25519_dalek::{SigningKey, VerifyingKey};
 use systemprompt_config::SecretsService;
 use systemprompt_logging::CliService;
 
-use crate::shared::{CommandOutput, ConfirmArgs};
+use crate::shared::ConfirmArgs;
+use systemprompt_extension::cli::CommandOutput;
 use super::types::SigningKeyRotatedOutput;
 
 #[derive(Debug, Clone, Copy, Args)]

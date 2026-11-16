@@ -16,9 +16,8 @@ use systemprompt_logging::CliService;
 use systemprompt_runtime::{TraceListFilter, TraceQueryService, TraceRepository};
 
 use super::{TraceListOutput, TraceListRow};
-use crate::CliConfig;
 use crate::commands::infrastructure::logs::duration::parse_since;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct ListArgs {
@@ -69,7 +68,7 @@ pub(in crate::commands::infrastructure::logs) async fn execute(
     host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let pool = pool_from_handle(host.db().await?)?.pool();
-    execute_with_pool_inner(args, &pool, host).await
+    execute_with_pool_inner(args, &pool).await
 }
 
 fn build_filter(args: &ListArgs, since_timestamp: Option<DateTime<Utc>>) -> TraceListFilter {
@@ -100,7 +99,6 @@ fn build_filter(args: &ListArgs, since_timestamp: Option<DateTime<Utc>>) -> Trac
 async fn execute_with_pool_inner(
     args: ListArgs,
     pool: &Arc<sqlx::PgPool>,
-    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let since_timestamp = parse_since(args.since.as_ref())?;
     let filter = build_filter(&args, since_timestamp);

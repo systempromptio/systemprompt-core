@@ -21,7 +21,7 @@ use systemprompt_identifiers::ExtensionId;
 use systemprompt_extension::cli::CommandError;
 use systemprompt_models::artifacts::NoticeLine;
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Serialize)]
 struct DoctorReport {

@@ -13,9 +13,8 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use systemprompt_runtime::{TraceQueryService, TraceRepository};
 
-use crate::CliConfig;
 use crate::commands::infrastructure::logs::duration::parse_since;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct StatsArgs {
@@ -67,13 +66,12 @@ pub(in crate::commands::infrastructure::logs) async fn execute(
     host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let pool = pool_from_handle(host.db().await?)?.pool();
-    execute_with_pool_inner(args, &pool, host).await
+    execute_with_pool_inner(args, &pool).await
 }
 
 async fn execute_with_pool_inner(
     args: StatsArgs,
     pool: &Arc<sqlx::PgPool>,
-    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let since_timestamp = parse_since(args.since.as_ref())?;
 

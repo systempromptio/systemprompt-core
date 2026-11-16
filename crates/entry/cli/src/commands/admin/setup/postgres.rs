@@ -14,8 +14,8 @@ use systemprompt_logging::CliService;
 
 use super::SetupArgs;
 use super::provision::provision_role_and_db;
-use crate::CliConfig;
-use crate::interactive::Prompter;
+use systemprompt_extension::cli::CliConfig;
+use systemprompt_extension::cli::Prompter;
 use crate::shared::postgres_access::{
     PostgresConfig, connect, detect_postgresql, enable_extensions, generate_password,
     test_connection,

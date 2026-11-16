@@ -17,7 +17,7 @@ use systemprompt_logging::CliService;
 use systemprompt_users::{User, UserRepository, UserRole, UserService};
 
 use super::login::{LoginArgs, LoginOutput};
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 pub(super) async fn try_use_existing_session(
     sessions_dir: &Path,

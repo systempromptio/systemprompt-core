@@ -5,8 +5,8 @@
 
 use crate::kernel::KernelHost;
 use crate::commands::shared::app_context;
-use crate::interactive::require_confirmation;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::require_confirmation;
+use systemprompt_extension::cli::CommandOutput;
 use anyhow::Result;
 use systemprompt_loader::subprocess;
 use systemprompt_logging::CliService;

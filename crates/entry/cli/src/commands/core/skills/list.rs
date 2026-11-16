@@ -16,7 +16,8 @@ use systemprompt_manifest::SKILL_CONFIG_FILENAME;
 
 
 use crate::commands::shared::app_context;
-use crate::shared::{CommandOutput, truncate_with_ellipsis};
+use crate::shared::truncate_with_ellipsis;
+use systemprompt_extension::cli::CommandOutput;
 
 use super::types::{SkillDetail, SkillListOutput, SkillSummary, parse_skill_from_config};
 use systemprompt_marketplace::ManagedSkillResolution;

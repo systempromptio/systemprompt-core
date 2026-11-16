@@ -16,7 +16,7 @@ use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_manifest::services::bundle::SignedBundleManifest;
 use systemprompt_security::manifest_signing::{canonical_manifest_bytes, verify_with_pubkey};
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use systemprompt_identifiers::ContentHash;
 
 #[derive(Debug, Clone, Args)]

@@ -27,6 +27,8 @@ use systemprompt_ai::AiService;
 use systemprompt_extension::ExtensionContext;
 use systemprompt_identifiers::AgentName;
 use systemprompt_mcp_host::AgentHost;
+
+use crate::kernel::KernelHost;
 use systemprompt_models::ai::DynAiProvider;
 use systemprompt_traits::{Dependencies, DynAgentRunLauncher};
 
@@ -83,8 +85,8 @@ pub struct RunArgs {
     pub port: u16,
 }
 
-pub(super) async fn execute(args: RunArgs) -> Result<()> {
-    let agent = AgentHost::from_process_env()
+pub(super) async fn execute(args: RunArgs, host: &dyn KernelHost) -> Result<()> {
+    let agent = AgentHost::from_process_env(host.take_admit()?)
         .await
         .context("Failed to boot the agent host")?;
     let host = agent.host();

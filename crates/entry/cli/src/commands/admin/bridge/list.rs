@@ -14,7 +14,7 @@ use systemprompt_manifest::services::BridgeReleasesSpec;
 use systemprompt_models::bridge::instance::{BridgeVersionWindow, WindowStatus};
 use systemprompt_oauth::repository::{BridgeSessionRepository, BridgeSessionRow};
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 const DEFAULT_WITHIN_SECS: u64 = 120;
 

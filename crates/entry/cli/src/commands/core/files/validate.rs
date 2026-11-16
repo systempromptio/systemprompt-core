@@ -12,7 +12,7 @@ use systemprompt_files::FileValidator;
 
 use super::types::FileValidationOutput;
 use super::upload::detect_mime_type;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
 pub struct ValidateArgs {

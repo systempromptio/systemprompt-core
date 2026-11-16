@@ -15,7 +15,7 @@ pub mod template_validation;
 use anyhow::Result;
 use clap::{Args, ValueEnum};
 
-use crate::CliConfig;
+use systemprompt_extension::cli::CliConfig;
 
 use super::paths::WebPaths;
 use super::types::ValidationOutput;

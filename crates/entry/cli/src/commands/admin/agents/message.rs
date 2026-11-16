@@ -13,7 +13,7 @@ use systemprompt_logging::CliService;
 use systemprompt_models::a2a::{Message, MessageRole, Part, methods};
 
 use crate::session::get_or_create_session;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use super::client::ensure_agent_exists;
 use super::message_request::{NonStreamingRequest, execute_non_streaming};
 use super::message_streaming::execute_streaming;

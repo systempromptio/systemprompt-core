@@ -11,7 +11,7 @@ use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_oauth::services::issue_bridge_exchange_code;
 use systemprompt_users::{UserRepository, UserService};
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use super::types::ExchangeCodeIssuedOutput;
 
 #[derive(Debug, Args)]

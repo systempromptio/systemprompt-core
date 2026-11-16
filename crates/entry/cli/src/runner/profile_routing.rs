@@ -23,9 +23,9 @@ use super::routing_decision::{RoutingDecision, decide_routing};
 use super::{args, bootstrap};
 use systemprompt_loader::ServicesState;
 
-use crate::cli_settings::CliConfig;
+use systemprompt_extension::cli::CliConfig;
 use crate::commands::infrastructure;
-use crate::descriptor::{CommandDescriptor, RoutingClass};
+use systemprompt_extension::cli::{CommandDescriptor, RoutingClass};
 use crate::env_overrides::EnvOverrides;
 use crate::interactive;
 use systemprompt_cloud::profile::ProfileSource;
@@ -270,10 +270,10 @@ pub fn confirm_remote_job_run(
         profile.name
     );
 
-    interactive::require_confirmation(
+    Ok(systemprompt_extension::cli::require_confirmation(
         &interactive::DialoguerPrompter,
         &message,
         run_args.yes,
         cli_config,
-    )
+    )?)
 }

@@ -20,7 +20,7 @@ use clap::{Args, Subcommand};
 use systemprompt_config::write_private_atomic;
 use systemprompt_manifest::profile::SecretsSource;
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use super::profile_io::{load_profile, profile_dir, profile_path};
 use super::types::ConfigMutationOutput;
 

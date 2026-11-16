@@ -12,7 +12,7 @@
 use clap::{ArgMatches, Command, CommandFactory, FromArgMatches, Parser, Subcommand};
 
 use crate::commands::{admin, core, infrastructure, plugins, web};
-use crate::descriptor::{CommandDescriptor, DescribeCommand};
+use systemprompt_extension::cli::{CommandDescriptor, DescribeCommand};
 use crate::kernel::{CommandRegistry, RegistryError};
 
 #[derive(Debug, Clone, Copy, clap::Args)]

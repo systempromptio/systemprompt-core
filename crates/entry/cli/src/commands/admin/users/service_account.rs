@@ -14,7 +14,7 @@ use serde::Serialize;
 use systemprompt_identifiers::UserId;
 use systemprompt_users::{NewServiceAccount, UserRepository};
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum ServiceAccountCommands {

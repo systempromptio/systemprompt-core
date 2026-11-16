@@ -14,7 +14,7 @@ use systemprompt_identifiers::{IssueReportId, UserId};
 use systemprompt_models::issues::IssueStatus;
 
 use crate::session::get_or_create_session;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct TriageArgs {

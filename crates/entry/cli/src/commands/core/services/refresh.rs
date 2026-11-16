@@ -16,7 +16,7 @@ use systemprompt_runtime::services_reconcile::pending_composed_hash;
 
 use super::reconcile::{ReconcileRow, reconcile_after_swap};
 use crate::commands::shared::rendered;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 pub const EXIT_CHANGED: i32 = 3;
 

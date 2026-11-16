@@ -77,11 +77,8 @@ impl RegistryEntry {
 
 #[must_use]
 pub fn kernel_commands() -> Vec<CommandDecl> {
-    use systemprompt_extension::cli::parents;
     vec![
         CommandDecl::group::<crate::commands::build::BuildCommands>(),
-        CommandDecl::group_under::<parents::Admin, crate::commands::admin::mcp::McpHostCommands>()
-            .requesting(&[KernelGrant::ChildHost]),
     ]
 }
 

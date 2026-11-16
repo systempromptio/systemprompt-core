@@ -7,11 +7,10 @@ use anyhow::Result;
 use crate::kernel::KernelHost;
 
 use super::{RestartTarget, ServicesCommands, StartTarget, StopTarget, restart, start, stop};
-use systemprompt_extension::cli::{CommandOutput};
+use systemprompt_extension::cli::CommandOutput;
 use crate::commands::shared::{app_context, rendered};
 
 pub async fn execute(command: ServicesCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let config = host.output();
     match command {
         ServicesCommands::Start {
             target,

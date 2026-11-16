@@ -27,7 +27,7 @@ use systemprompt_runtime::{
     StartupValidator, display_validation_report, display_validation_warnings,
 };
 
-use crate::cli_settings::{CliConfig, OutputFormat, VerbosityLevel};
+use systemprompt_extension::cli::{CliConfig, OutputFormat, VerbosityLevel};
 use crate::env_overrides::EnvOverrides;
 use systemprompt_cloud::paths::ResolvedPaths;
 use systemprompt_cloud::profile::{ProfileSource, ResolvedProfile, resolve_profile_path};

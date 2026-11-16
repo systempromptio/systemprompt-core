@@ -47,7 +47,7 @@ use std::path::PathBuf;
 use anyhow::{Result, bail};
 use clap::Args;
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use super::types::ConfigMutationOutput;
 
 pub use plan::{MigrationPlan, legacy_files, plan};

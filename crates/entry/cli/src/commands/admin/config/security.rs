@@ -15,7 +15,7 @@ use clap::{Args, Subcommand};
 use systemprompt_config::{SecurityChange, SecurityConfigService, SecurityUpdate};
 use systemprompt_manifest::profile::TrustedIssuer;
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use super::profile_io::{load_profile, profile_path, save_profile};
 use super::types::{SecurityConfigOutput, SecuritySetOutput};
 

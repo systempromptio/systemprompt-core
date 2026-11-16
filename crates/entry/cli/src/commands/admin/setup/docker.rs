@@ -11,7 +11,7 @@ use systemprompt_logging::CliService;
 
 use super::SetupArgs;
 use super::docker_database::create_database_in_docker;
-use crate::interactive::Prompter;
+use systemprompt_extension::cli::Prompter;
 use crate::shared::postgres_access::{
     PostgresConfig, detect_postgresql, enable_extensions, test_connection,
 };

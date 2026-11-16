@@ -13,7 +13,7 @@ use super::resolve::resolve_context;
 use super::types::ContextDeletedOutput;
 use systemprompt_database::pool_from_handle;
 use crate::session::get_or_create_session;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct DeleteArgs {
@@ -34,8 +34,8 @@ pub async fn execute_with_pool(
     args: DeleteArgs,
     session: &systemprompt_cloud::CliSession,
     pool: &systemprompt_database::DbPool,
-    config: &crate::cli_settings::CliConfig,
-    prompter: &dyn crate::interactive::Prompter,
+    config: &systemprompt_extension::cli::CliConfig,
+    prompter: &dyn systemprompt_extension::cli::Prompter,
 ) -> Result<CommandOutput> {
     let repo = ContextRepository::new(pool);
 

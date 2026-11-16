@@ -9,7 +9,7 @@ use clap::Args;
 use systemprompt_users::BannedIpRepository;
 
 use crate::commands::admin::users::types::BanRemoveOutput;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct RemoveArgs {

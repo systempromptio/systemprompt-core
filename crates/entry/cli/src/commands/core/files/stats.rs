@@ -10,9 +10,9 @@ use systemprompt_database::DbPool;
 use systemprompt_files::{FileRepository, FileStats};
 
 use super::types::{CategoryStat, FileCategoryStats, FileStatsOutput};
-use crate::CliConfig;
+use systemprompt_extension::cli::CliConfig;
 use systemprompt_database::pool_from_handle;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct StatsArgs;

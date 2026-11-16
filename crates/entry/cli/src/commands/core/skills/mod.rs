@@ -15,7 +15,7 @@ use anyhow::{Context, Result};
 use crate::kernel::KernelHost;
 use clap::Subcommand;
 
-use systemprompt_extension::cli::{CommandOutput};
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum SkillsCommands {

@@ -8,16 +8,15 @@ use clap::Args;
 use std::fs;
 use std::path::Path;
 
-use crate::CliConfig;
-use crate::interactive::{Prompter, require_confirmation};
+use systemprompt_extension::cli::CliConfig;
+use systemprompt_extension::cli::{Prompter, require_confirmation};
 use systemprompt_extension::cli::resolve_required;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use systemprompt_logging::CliService;
 
 use super::super::paths::WebPaths;
 use super::super::types::{TemplateDeleteOutput, TemplatesConfig};
 use super::selection::prompt_template_selection;
-use std::path::Path;
 
 #[derive(Debug, Args)]
 pub struct DeleteArgs {

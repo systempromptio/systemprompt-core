@@ -19,7 +19,7 @@ use systemprompt_models::artifacts::ListItem;
 use systemprompt_models::providers::ClientFamily;
 use systemprompt_wire::WireProtocol;
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use super::services_io::{CatalogLocation, commit_catalog};
 use super::types::ConfigMutationOutput;
 
@@ -39,7 +39,7 @@ pub async fn apply(
     )?;
     let services = commit_catalog(&location, &after, loaded.profile())?;
     let outcome = super::reconcile::reconcile_authz(
-        &crate::commands::admin::state::config(host).await?,
+        crate::commands::admin::state::config(host).await?.as_ref(),
         &services,
         &location.dir.display().to_string(),
     )

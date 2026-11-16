@@ -12,7 +12,7 @@ use systemprompt_oauth::services::webauthn::generate_setup_token;
 use systemprompt_traits::AppContext as _;
 
 use crate::commands::admin::users::types::WebauthnSetupTokenOutput;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, ClapArgs)]
 pub struct Args {

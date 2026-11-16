@@ -17,7 +17,7 @@ use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
 
 pub(super) use super::profile_io::{load_profile, profile_path, save_profile};
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use super::types::{ServerConfigOutput, ServerSetOutput};
 
 #[derive(Debug, Subcommand)]

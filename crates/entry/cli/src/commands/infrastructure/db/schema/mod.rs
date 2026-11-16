@@ -12,7 +12,7 @@ use systemprompt_database::{DatabaseAdminService, SafeIdentifier};
 use systemprompt_models::artifacts::NoticeLine;
 use systemprompt_traits::RepositoryError;
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 use super::text_format::format_bytes;
 use super::types::{

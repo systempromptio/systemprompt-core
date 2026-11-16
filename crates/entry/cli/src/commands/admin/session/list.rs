@@ -8,8 +8,8 @@ use systemprompt_identifiers::ProfileName;
 use systemprompt_manifest::profile::{CloudConfig, ManagedProfile};
 
 use super::types::ProfileListOutput;
-use crate::CliConfig;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CliConfig;
+use systemprompt_extension::cli::CommandOutput;
 use systemprompt_cloud::paths::ResolvedPaths;
 use systemprompt_cloud::profile::ProfileInfo;
 

@@ -28,7 +28,7 @@ use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Subcommand;
 
-use crate::descriptor::{CommandDescriptor, DataImpact, DescribeCommand};
+use systemprompt_extension::cli::{CommandDescriptor, DataImpact, DescribeCommand};
 use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
@@ -86,6 +86,9 @@ pub enum AdminCommands {
 
     #[command(subcommand, about = "Report-only licence check-in status")]
     Licence(licence::LicenceCommands),
+
+    #[command(subcommand, about = "Host MCP servers in this binary")]
+    Mcp(mcp::McpHostCommands),
 }
 
 pub async fn execute(cmd: AdminCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
@@ -113,6 +116,7 @@ pub async fn execute(cmd: AdminCommands, host: &dyn KernelHost) -> Result<Comman
         AdminCommands::Identity(cmd) => identity::execute(cmd, host),
         AdminCommands::Issues(cmd) => Box::pin(issues::execute(cmd, host)).await,
         AdminCommands::Licence(cmd) => licence::execute(cmd, host).await,
+        AdminCommands::Mcp(cmd) => mcp::execute(cmd, host).await,
     }
 }
 
@@ -121,7 +125,9 @@ impl DescribeCommand for AdminCommands {
         match self {
             Self::Session(cmd) => cmd.descriptor(),
             Self::Config(cmd) => cmd.descriptor(),
-            Self::Agents(agents::AgentsCommands::Run(_)) => CommandDescriptor::CHILD_HOST,
+            Self::Agents(agents::AgentsCommands::Run(_)) | Self::Mcp(_) => {
+                CommandDescriptor::CHILD_HOST
+            },
             Self::Bridge(bridge::BridgeCommands::SigningKeyFingerprint(_)) => {
                 CommandDescriptor::PROFILE_AND_SECRETS
             },
@@ -166,7 +172,8 @@ impl AdminCommands {
             | Self::Setup(_)
             | Self::Session(_)
             | Self::Identity(_)
-            | Self::Licence(_) => DataImpact::Preserving,
+            | Self::Licence(_)
+            | Self::Mcp(_) => DataImpact::Preserving,
         }
     }
 }

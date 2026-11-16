@@ -10,7 +10,7 @@ use std::fs;
 use std::path::Path;
 use systemprompt_manifest::profile::RateLimitsConfig;
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use super::DiffArgs;
 
 use super::super::types::{DiffEntry, DiffOutput};

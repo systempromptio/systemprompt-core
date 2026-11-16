@@ -14,7 +14,7 @@ use systemprompt_runtime::{
 
 use super::{RequestListRow, build_request_list};
 use crate::commands::infrastructure::logs::duration::{parse_since, parse_until};
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct ListArgs {

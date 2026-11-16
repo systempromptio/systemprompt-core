@@ -22,7 +22,7 @@ mod wizard_dry_run;
 #[doc(hidden)]
 pub mod wizard_prompts;
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use anyhow::Result;
 use clap::Args;
 use systemprompt_manifest::none_if_blank;

@@ -13,7 +13,7 @@ use serde::Serialize;
 use systemprompt_identifiers::IssueReportId;
 use systemprompt_models::issues::IssueReport;
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {

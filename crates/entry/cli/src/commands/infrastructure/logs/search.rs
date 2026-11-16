@@ -19,8 +19,8 @@ use systemprompt_runtime::{LogSearchItem, ToolExecutionItem, TraceQueryService, 
 use super::duration::parse_since;
 use super::shared::display_log_row;
 use super::{LogEntryRow, LogFilters};
-use crate::CliConfig;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CliConfig;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct SearchArgs {

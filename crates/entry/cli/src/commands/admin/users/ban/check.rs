@@ -9,9 +9,9 @@ use clap::Args;
 use systemprompt_database::DbPool;
 use systemprompt_users::BannedIpRepository;
 
-use crate::CliConfig;
+use systemprompt_extension::cli::CliConfig;
 use crate::commands::admin::users::types::{BanCheckOutput, BanSummary};
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct CheckArgs {

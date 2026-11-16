@@ -8,8 +8,8 @@ use chrono::{DateTime, Utc};
 use clap::{Args, ValueEnum};
 use walkdir::WalkDir;
 
-use crate::CliConfig;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CliConfig;
+use systemprompt_extension::cli::CommandOutput;
 
 use super::super::paths::WebPaths;
 use super::super::types::{AssetSummary, AssetType};
@@ -44,7 +44,7 @@ pub(super) fn execute(
 pub fn execute_in_dir(
     args: ListArgs,
     _config: &CliConfig,
-    assets_dir: &std::path::Path,
+    assets_dir: &Path,
 ) -> Result<CommandOutput> {
     if !assets_dir.exists() {
         let empty: Vec<AssetSummary> = vec![];

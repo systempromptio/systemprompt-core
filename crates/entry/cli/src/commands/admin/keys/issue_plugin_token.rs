@@ -17,7 +17,7 @@ use systemprompt_oauth::services::plugin_token::{PluginTokenService, PluginToken
 use systemprompt_security::DeploymentTokenAuthority;
 use systemprompt_users::{UserRepository, UserService};
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct IssuePluginTokenArgs {

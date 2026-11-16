@@ -15,10 +15,10 @@ use systemprompt_logging::CliService;
 use systemprompt_models::a2a::PartContent;
 
 use super::types::{ArtifactPartOutput, ArtifactSummary};
-use crate::cli_settings::CliConfig;
+use systemprompt_extension::cli::CliConfig;
 use systemprompt_database::pool_from_handle;
 use crate::session::get_or_create_session;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {

@@ -10,8 +10,8 @@ use std::fs;
 use std::path::Path;
 use systemprompt_manifest::profile::RateLimitsConfig;
 
-use crate::interactive::{Prompter, require_confirmation};
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::{Prompter, require_confirmation};
+use systemprompt_extension::cli::CommandOutput;
 use super::profile_edit::{load_profile_for_edit, save_profile};
 use super::super::profile_io::profile_path;
 use super::{ExportArgs, ImportArgs};

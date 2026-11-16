@@ -11,7 +11,7 @@ use systemprompt_files::issues::IssueListQuery;
 use systemprompt_identifiers::{IssueReportId, UserId};
 use systemprompt_models::issues::{IssueKind, IssueReport, IssueSeverity, IssueStatus};
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct ListArgs {

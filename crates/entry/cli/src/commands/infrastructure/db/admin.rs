@@ -10,7 +10,7 @@ use systemprompt_models::artifacts::NoticeLine;
 use systemprompt_runtime::AppContext;
 use systemprompt_users::{PromoteResult, UserAdminService, UserService};
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 use super::text_format::format_bytes;
 use super::types::{DbAssignAdminOutput, DbStatusOutput};

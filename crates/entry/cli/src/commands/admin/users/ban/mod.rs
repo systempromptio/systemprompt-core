@@ -16,7 +16,7 @@ mod remove;
 use crate::kernel::KernelHost;
 use anyhow::{Result, bail};
 use clap::Subcommand;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum BanCommands {

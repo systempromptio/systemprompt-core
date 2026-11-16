@@ -13,10 +13,10 @@ use systemprompt_identifiers::FileId;
 use systemprompt_traits::FileStorage;
 
 use super::types::FileDeleteOutput;
-use crate::CliConfig;
+use systemprompt_extension::cli::CliConfig;
 use crate::commands::shared::app_context;
-use crate::interactive::Prompter;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::Prompter;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
 pub struct DeleteArgs {

@@ -8,7 +8,7 @@ use crate::kernel::KernelHost;
 use clap::Args;
 use std::path::Path;
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use systemprompt_identifiers::HookId;
 use systemprompt_manifest::{DiskHookConfig, HOOK_CONFIG_FILENAME};
 

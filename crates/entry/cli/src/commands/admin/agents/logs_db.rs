@@ -9,8 +9,8 @@ use systemprompt_database::DbPool;
 use systemprompt_logging::LoggingRepository;
 use systemprompt_manifest::ServicesConfig;
 
-use crate::CliConfig;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CliConfig;
+use systemprompt_extension::cli::CommandOutput;
 use super::logs::LogsArgs;
 use super::types::AgentLogsOutput;
 

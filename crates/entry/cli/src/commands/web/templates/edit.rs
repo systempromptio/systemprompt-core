@@ -9,16 +9,15 @@ use std::fs;
 use std::io::{self, Read};
 use std::path::Path;
 
-use crate::CliConfig;
-use crate::interactive::Prompter;
+use systemprompt_extension::cli::CliConfig;
+use systemprompt_extension::cli::Prompter;
 use systemprompt_extension::cli::resolve_required;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use systemprompt_logging::CliService;
 
 use super::super::paths::WebPaths;
 use super::super::types::{TemplateEditOutput, TemplateEntry, TemplatesConfig};
 use super::selection::prompt_template_selection;
-use std::path::Path;
 
 #[derive(Debug, Args)]
 pub struct EditArgs {
