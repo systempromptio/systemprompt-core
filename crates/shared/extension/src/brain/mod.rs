@@ -25,7 +25,6 @@
 mod consolidate;
 mod errors;
 mod recall;
-mod registry;
 mod render;
 mod rerank;
 mod retrieval;

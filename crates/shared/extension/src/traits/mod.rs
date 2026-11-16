@@ -4,6 +4,5 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod extension;
-mod register;
 
 pub use extension::Extension;

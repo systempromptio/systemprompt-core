@@ -64,9 +64,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-#[doc(hidden)]
-pub use ::inventory as __inventory;
-
 pub mod admitted;
 pub mod admitted_assets;
 pub mod admitted_configs;

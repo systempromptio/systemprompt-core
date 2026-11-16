@@ -95,27 +95,6 @@ pub trait GatewayRequestGuard: Send + Sync {
     ) -> Result<(), GatewayDenyReason>;
 }
 
-#[macro_export]
-macro_rules! register_gateway_guard {
-    ($extension:expr, factory = $factory:expr) => {
-        $crate::__inventory::submit! {
-            $crate::GatewayRequestGuardRegistration {
-                extension: $extension,
-                factory: $factory,
-            }
-        }
-    };
-    ($extension:expr, $guard_type:ty) => {
-        $crate::__inventory::submit! {
-            $crate::GatewayRequestGuardRegistration {
-                extension: $extension,
-                factory: |_| ::std::sync::Arc::new(<$guard_type>::default())
-                    as ::std::sync::Arc<dyn $crate::GatewayRequestGuard>,
-            }
-        }
-    };
-}
-
 /// The guards one gateway owns, built once by the runtime from every admitted
 /// member's guard factories.
 #[derive(Clone, Default)]

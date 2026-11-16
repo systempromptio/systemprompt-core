@@ -37,5 +37,3 @@ pub use env_overrides::{EnvOverrides, SessionEnv};
 pub use interactive::{DialoguerPrompter, ScriptedPrompter};
 pub use runner::{AdmitFn, CliRunError, args, run_composed};
 
-#[doc(hidden)]
-pub use inventory as __inventory;

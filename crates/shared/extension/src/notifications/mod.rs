@@ -21,7 +21,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod errors;
-mod registry;
 mod traits;
 
 pub use errors::{

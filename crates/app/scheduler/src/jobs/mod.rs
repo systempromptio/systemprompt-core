@@ -17,7 +17,7 @@
 pub mod backfill_rollups;
 mod cleanup_inactive_sessions;
 mod config_reconcile;
-mod database_cleanup;
+pub(crate) mod database_cleanup;
 mod inventory;
 pub mod licence_checkin;
 mod log_summary_rollup;

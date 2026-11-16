@@ -1,7 +1,7 @@
 //! The retention purges of the kernel's own tables — `logs` and
 //! `analytics_events` (logging), `event_outbox` (events) and
-//! `governance_decisions` (governance) — registered through the same
-//! [`RetentionPurge`] registry every capability declares its tables in.
+//! `governance_decisions` (governance) — contributed by the scheduler member
+//! the same way every capability contributes its tables' purges.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,11 +12,11 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use systemprompt_database::DbPool;
 use systemprompt_events::services::durable::DurableOutbox;
+use systemprompt_extension::{Contributions, RetentionDecl};
 use systemprompt_governance::GovernanceDecisionRetention;
 use systemprompt_logging::{AnalyticsRepository, LoggingRepository};
 use systemprompt_traits::{
-    JobContext, ProviderError, ProviderResult, RetentionPurge, register_retention_purge,
-};
+JobContext, ProviderError, ProviderResult, RetentionPurge};
 
 use crate::services::scheduling::job_app_context;
 
@@ -113,7 +113,9 @@ impl RetentionPurge for GovernanceDecisionsPurge {
     }
 }
 
-register_retention_purge!("scheduler", &LogsPurge);
-register_retention_purge!("scheduler", &AnalyticsEventsPurge);
-register_retention_purge!("scheduler", &EventOutboxPurge);
-register_retention_purge!("scheduler", &GovernanceDecisionsPurge);
+pub(crate) fn contribute(c: &mut Contributions<'_>) {
+    c.retention(RetentionDecl::Purge(Arc::new(LogsPurge)))
+        .retention(RetentionDecl::Purge(Arc::new(AnalyticsEventsPurge)))
+        .retention(RetentionDecl::Purge(Arc::new(EventOutboxPurge)))
+        .retention(RetentionDecl::Purge(Arc::new(GovernanceDecisionsPurge)));
+}
