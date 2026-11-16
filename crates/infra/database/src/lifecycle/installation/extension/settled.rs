@@ -104,9 +104,7 @@ fn stamp(fingerprint: &str, catalog: &str) -> String {
     format!("{fingerprint}:{catalog}")
 }
 
-pub(super) fn fingerprint(
-    extensions: &[std::sync::Arc<dyn SchemaMember>],
-) -> String {
+pub(super) fn fingerprint(extensions: &[std::sync::Arc<dyn SchemaMember>]) -> String {
     let mut hasher = Xxh64::new(0);
     let mut field = |bytes: &[u8]| {
         hasher.write(bytes);

@@ -23,6 +23,8 @@ use systemprompt_extension::LoaderError;
 use systemprompt_identifiers::ExtensionId;
 
 use super::extension::ownership::recorded_table_owners;
+use super::prepare::{PreparedSchema, prepare_extension_schema};
+use crate::lifecycle::schema_member::SchemaMember;
 use crate::services::DatabaseProvider;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -167,6 +169,23 @@ async fn live_tables(db: &dyn DatabaseProvider) -> Result<Vec<(String, String, i
             (!LEDGER_TABLES.contains(&table.as_str())).then_some((schema, table, live_rows))
         })
         .collect())
+}
+
+// Why: an ahead extension is held back from the install but still owns its
+// tables and ledger; leaving it out of the audit would report them as residue.
+pub(super) async fn residue_including(
+    db: &dyn DatabaseProvider,
+    prepared: &[PreparedSchema],
+    held_back: &[std::sync::Arc<dyn SchemaMember>],
+) -> Result<SchemaResidue, LoaderError> {
+    let mut held: Vec<PreparedSchema> = Vec::with_capacity(held_back.len());
+    for ext in held_back {
+        held.push(prepare_extension_schema(ext.as_ref())?);
+    }
+    let all = || prepared.iter().chain(&held);
+    let owned: Vec<String> = all().flat_map(|p| p.owned_tables.clone()).collect();
+    let ids: Vec<ExtensionId> = all().map(|p| p.extension_id.clone()).collect();
+    audit_schema_residue(db, &owned, &ids).await
 }
 
 async fn migration_ledgers(

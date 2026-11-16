@@ -60,7 +60,7 @@ use super::prepare::{PreparedSchema, prepare_extension_schema};
 use super::report::SchemaInstallReport;
 use super::routine_refs::check_trigger_routines;
 use super::seeds::apply_seeds;
-use super::undeclared::audit_schema_residue;
+use super::undeclared::residue_including;
 use crate::lifecycle::migrations::{MigrationConfig, MigrationService};
 use crate::services::DatabaseProvider;
 
@@ -284,21 +284,4 @@ async fn apply_dependent(
         report.foreign_key_drift.extend(drift);
     }
     Ok(report)
-}
-
-// Why: an ahead extension is held back from the install but still owns its
-// tables and ledger; leaving it out of the audit would report them as residue.
-async fn residue_including(
-    db: &dyn DatabaseProvider,
-    prepared: &[PreparedSchema],
-    held_back: &ExtensionSet,
-) -> Result<super::undeclared::SchemaResidue, LoaderError> {
-    let mut held: Vec<PreparedSchema> = Vec::with_capacity(held_back.len());
-    for ext in held_back {
-        held.push(prepare_extension_schema(ext.as_ref())?);
-    }
-    let all = || prepared.iter().chain(&held);
-    let owned: Vec<String> = all().flat_map(|p| p.owned_tables.clone()).collect();
-    let ids: Vec<ExtensionId> = all().map(|p| p.extension_id.clone()).collect();
-    audit_schema_residue(db, &owned, &ids).await
 }
