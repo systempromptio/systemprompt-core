@@ -119,7 +119,7 @@ fn confirm_delete(
         format!("Delete tenant '{}'?", tenant.name)
     };
 
-    prompter.confirm(&prompt, false)
+    Ok(prompter.confirm(&prompt, false)?)
 }
 
 async fn delete_cloud_tenant(tenant_id: &TenantId, config: &CliConfig) -> Result<()> {

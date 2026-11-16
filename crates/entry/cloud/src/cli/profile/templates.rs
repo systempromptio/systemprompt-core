@@ -52,7 +52,7 @@ pub fn save_profile(profile: &Profile, profile_path: &Path) -> Result<()> {
         profile.display_name
     );
 
-    systemprompt_cloud::profile::save_profile_yaml(profile, profile_path, Some(&header))
+    Ok(systemprompt_cloud::profile::save_profile_yaml(profile, profile_path, Some(&header))?)
 }
 
 pub fn save_dockerfile(path: &Path, profile_name: &ProfileName, project_root: &Path) -> Result<()> {

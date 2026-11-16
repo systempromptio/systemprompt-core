@@ -17,6 +17,7 @@ use systemprompt_cloud::{DockerCli, ProjectContext};
 use systemprompt_config::write_private_atomic;
 
 use systemprompt_cloud::docker_compose::{
+    PostgresCredentials,
     ComposeCredentials, PostgresCompose, postgres_compose,
 };
 
@@ -189,11 +190,11 @@ pub async fn wait_for_postgres_healthy(
 fn generate_postgres_compose(password: &str, port: u16) -> String {
     postgres_compose(&PostgresCompose {
         host_port: port,
-        credentials: ComposeCredentials::Literal {
+        credentials: ComposeCredentials::Literal(PostgresCredentials {
             user: LOCAL_DB_USER,
             password,
             database: LOCAL_DB_NAME,
-        },
+        }),
         container_name: None,
         init_scripts: false,
         restart: Some("unless-stopped"),
