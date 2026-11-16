@@ -36,6 +36,8 @@ pub mod pdf;
 pub mod poll;
 pub mod schema_template;
 pub mod secrets;
+#[cfg(test)]
+mod self_check;
 pub mod service_row;
 pub mod slots;
 pub mod subprocess;

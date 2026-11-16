@@ -54,9 +54,16 @@ const FIXTURE_POOL_IDLE_TIMEOUT: Duration = Duration::from_secs(5);
 
 // A pool handle that never opens a socket: the connection is lazy and no
 // query ever runs through it. Fake `DatabaseProvider`s that script every call
-// use it to satisfy `get_postgres_pool` while staying DB-free.
+// use it to satisfy `get_postgres_pool` while staying DB-free. With no idle
+// timeout and no max lifetime the pool spawns no reaper task, so it is built
+// without a Tokio runtime and a sync `#[test]` may hold it; an acquire through
+// it fails within 50 ms.
 pub fn lazy_pg_pool() -> Arc<sqlx::PgPool> {
-    let pool = sqlx::PgPool::connect_lazy("postgres://fake:fake@127.0.0.1:1/fake")
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .acquire_timeout(Duration::from_millis(50))
+        .idle_timeout(None)
+        .max_lifetime(None)
+        .connect_lazy("postgres://offline:offline@127.0.0.1:1/offline")
         .expect("lazy pool construction is infallible for a well-formed URL");
     Arc::new(pool)
 }

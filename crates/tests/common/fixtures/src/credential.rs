@@ -66,6 +66,9 @@ pub async fn seed_user_row_with_roles(
     Ok(())
 }
 
+pub const FIXTURE_SYSTEM_ADMIN_USERNAME: &str = "testadmin";
+pub const FIXTURE_SYSTEM_ADMIN_EMAIL: &str = "testadmin@localhost.localdomain";
+
 pub async fn seed_fixture_system_admin(pool: &DbPool) -> Result<()> {
     let p = pool.pool();
     let id = Uuid::new_v4().to_string();
