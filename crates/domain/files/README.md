@@ -54,8 +54,9 @@ files:
 |--------|---------|
 | `config` | Profile-driven configuration loading, validation, and persistence modes |
 | `error` | `FilesError` and `FilesResult` shared across the crate |
-| `extension` | `FilesExtension` registering schemas and jobs via the extension framework |
-| `jobs` | Background file ingestion with inventory registration |
+| `extension` | `FilesExtension`, contributing the schemas, migrations, jobs, document-actor job-run scope and user-purge declarations, and opening the files slots |
+| `contract` | `BlobHolderSlot` (`holder`), `AgentAccessSlot` (`policy`, single-valued) and `DocumentsSlot` (`codec`, `template_provider`) |
+| `jobs` | Background file ingestion, contributed by `FilesExtension` |
 | `models` | Data structures: `File`, `ContentFile`, `FileRole`, metadata variants |
 | `repository` | Database access layer using compile-time verified `sqlx` macros |
 | `services` | Upload, validation, and AI-persistence service wrappers |
@@ -79,7 +80,7 @@ files:
 | `FileUploadConfig` / `AllowedFileTypes` / `FilePersistenceMode` | Upload policy configuration |
 | `InsertFileRequest` / `FileRepository` / `FileStats` | Repository surface |
 | `FilesAiPersistenceProvider` | Provider implementation for AI-generated image persistence |
-| `FilesExtension` | Extension entry point registered via `inventory` |
+| `FilesExtension` | The files member's `Extension` implementation |
 | `FileIngestionJob` | Scheduled job that reconciles storage with database rows |
 | `FilesError` / `FilesResult` | Crate-level error type and result alias |
 
@@ -107,7 +108,7 @@ files:
 | `systemprompt-models` | `AppPaths`, `ProfileBootstrap`, shared models |
 | `systemprompt-cloud` | Storage path constants and cloud integration |
 | `systemprompt-config` | Profile and YAML configuration loading |
-| `systemprompt-extension` | Extension trait and registration macros |
+| `systemprompt-extension` | `Extension` trait, `Contributions` and slots |
 | `systemprompt-provider-contracts` | Provider trait contracts implemented by this crate |
 | `systemprompt-logging` | Structured `tracing` integration |
 

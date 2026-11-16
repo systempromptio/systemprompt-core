@@ -54,7 +54,7 @@ schema/
     └── NNN_<name>.sql     # ordered, discovered by build.rs
 ```
 
-The crate's `build.rs` calls `systemprompt_extension::build::emit_migrations()`, and the migrations are returned through the `extension_migrations!()` macro. SQL string constants and hand-written `Migration::new(...)` lists are not used.
+The crate's `build.rs` calls `systemprompt_extension::build::emit_migrations()`, and `AgentExtension::contribute` declares the migrations with `c.migrations(extension_migrations!())`. SQL string constants and hand-written `Migration::new(...)` lists are not used.
 
 ## References
 

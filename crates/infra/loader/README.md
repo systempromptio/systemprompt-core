@@ -21,7 +21,6 @@ The loader isolates file I/O from the shared model types. It sits one level abov
 | `config_writer` | `ConfigWriter` creates, edits, and deletes agent configuration files. |
 | `extension_loader` | `ExtensionLoader` discovers on-disk extensions by scanning for `manifest.yaml`, returning an `ExtensionValidationResult`. |
 | `extension_binary_index` | `ExtensionBinaryIndex` maps binary names to extension metadata and resolves binary paths. |
-| `module_loader` | `ModuleLoader` wraps the `inventory`-driven registry: `discover_extensions` returns every compiled-in `Extension`, `collect_extension_schemas` flattens their `SchemaDefinition`s. |
 | `profile_loader` | `ProfileLoader` reads, validates, and writes profile YAML. |
 | `error` | `ConfigLoadError`, `ConfigWriteError`, `ExtensionLoadError`, `ProfileLoadError` and their result aliases. |
 
@@ -41,7 +40,7 @@ systemprompt-loader = "0.82"
 ```rust
 use systemprompt_loader::{
     BootContext, ConfigLoader, ProfileLoader,
-    ExtensionLoader, ExtensionBinaryIndex, ModuleLoader,
+    ExtensionLoader, ExtensionBinaryIndex,
 };
 
 let config = boot.load_services_config()?;
@@ -49,9 +48,6 @@ let config = boot.load_services_config()?;
 let loader = ConfigLoader::for_profile(boot.profile(), &services_root);
 
 let profile = ProfileLoader::load_and_validate(services_path, "development")?;
-
-let extensions = ModuleLoader::discover_extensions()?;
-let schemas = ModuleLoader::collect_extension_schemas()?;
 
 let discovered = ExtensionLoader::discover(project_root);
 ```
@@ -62,7 +58,7 @@ let discovered = ExtensionLoader::discover(project_root);
 - `serde` / `serde_yaml` — serialisation
 - `tracing` — structured logging
 - `systemprompt-config` — profile and config primitives
-- `systemprompt-extension` — extension trait registry
+- `systemprompt-extension` — extension types
 - `systemprompt-models` — shared model types
 
 ## License

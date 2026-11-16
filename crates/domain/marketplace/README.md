@@ -53,7 +53,6 @@ c.slot::<MarketplaceSlot>().filter(|r: &Resolved<'_>| {
 | `systemprompt-database` | `DbPool` passed to filter factories. |
 | `systemprompt-security` | Ed25519 signing of the canonical manifest view. |
 | `async-trait` | Async methods on the `dyn`-compatible `MarketplaceFilter`. |
-| `inventory` | Compile-time filter registration. |
 
 ## License
 
