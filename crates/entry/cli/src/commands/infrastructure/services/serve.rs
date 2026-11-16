@@ -3,8 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::ServerBoot;
-use systemprompt_extension::cli::CommandHost;
+use crate::kernel::KernelHost;
 use crate::interactive::Prompter;
 use anyhow::{Context, Result};
 use std::sync::Arc;
@@ -26,7 +25,7 @@ pub struct ServeOptions {
 pub async fn execute_with_events(
     prompter: &dyn Prompter,
     options: ServeOptions,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
     events: Option<&StartupEventSender>,
 ) -> Result<String> {
     let profile = host.profile()?;
@@ -47,10 +46,7 @@ pub async fn execute_with_events(
     let early = bind_early(profile, foreground, events, shutdown.clone()).await?;
 
     let app = Arc::new(
-        host.resolved()
-            .await?
-            .get::<ServerBoot>()?
-            .app_context_builder()
+        host.server_builder()?
             .with_startup_warnings(true)
             .with_shutdown(shutdown)
             .with_migrations(run_migrations)
@@ -128,7 +124,7 @@ pub const fn effective_run_migrations(skip_flag: bool, migrate_on_boot: bool) ->
 pub async fn execute(
     prompter: &dyn Prompter,
     flags: ServeFlags,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<()> {
     let migrate_on_boot = host.profile()?.database.migrate_on_boot;
     execute_with_events(

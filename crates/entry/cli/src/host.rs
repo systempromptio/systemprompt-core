@@ -16,7 +16,7 @@ use systemprompt_traits::{AppContext as _, BackgroundTasks, Dependencies};
 use systemprompt_loader::load_boot::load_boot_from_path;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_manifest::{Config, Profile, Secrets};
-use systemprompt_runtime::Kernel;
+use systemprompt_runtime::{AppContextBuilder, Kernel};
 use systemprompt_traits::DatabaseHandle;
 
 use crate::context::CommandContext;
@@ -27,7 +27,9 @@ use crate::kernel::{CommandRegistry, classify_command_line};
 /// The kernel's groups (`core`, `infra`, `web`, `plugins`) read boot-only
 /// data a member's command never reaches: the active services root, the
 /// admitted composition, the loaded secrets, the profile's configuration and
-/// the sanctioned environment a child process is started with. Each value is
+/// the sanctioned environment a child process is started with, and
+/// `infra services serve` the server's context builder over the same boot and
+/// admitted composition. Each value is
 /// read from the boot context the command kernel's state is seeded from, so
 /// there is one source. Only the kernel host implements it; it is not part of
 /// the extension contract.
@@ -37,6 +39,7 @@ pub trait KernelHost: CommandHost {
     fn secrets(&self) -> Result<Arc<Secrets>, CommandError>;
     fn config(&self) -> Result<Arc<Config>, CommandError>;
     fn child_env(&self) -> Result<Vec<(&'static str, String)>, CommandError>;
+    fn server_builder(&self) -> Result<AppContextBuilder, CommandError>;
 }
 
 impl CommandContext {
@@ -230,5 +233,9 @@ impl KernelHost for CommandContext {
             ("SYSTEMPROMPT_PROFILE", profile),
             ("OAUTH_AT_REST_PEPPER", pepper),
         ])
+    }
+
+    fn server_builder(&self) -> Result<AppContextBuilder, CommandError> {
+        self.app_context_builder().map_err(CommandError::new)
     }
 }

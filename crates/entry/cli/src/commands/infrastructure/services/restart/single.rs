@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::cli_settings::CliConfig;
-use systemprompt_extension::cli::CommandHost;
+use crate::kernel::KernelHost;
 use crate::interactive::Prompter;
 use crate::shared::CommandOutput;
 use anyhow::Result;
@@ -18,7 +18,7 @@ use systemprompt_scheduler::{ServiceManagementService, port_holders};
 use super::super::lifecycle;
 use super::super::types::RestartOutput;
 
-pub async fn execute_api(prompter: &dyn Prompter, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute_api(prompter: &dyn Prompter, host: &dyn KernelHost) -> Result<CommandOutput> {
     let config = host.output();
     let quiet = config.is_json_output();
 
