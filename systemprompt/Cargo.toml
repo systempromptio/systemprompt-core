@@ -230,7 +230,6 @@ rmcp = { workspace = true, optional = true }
 
 # Used by the `runtime` module's typed error
 thiserror = { workspace = true }
-http = { workspace = true }
 
 [dev-dependencies]
 inventory = { workspace = true }

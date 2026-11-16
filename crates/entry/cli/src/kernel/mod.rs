@@ -7,7 +7,9 @@
 //! [`CommandRegistry`] from the composition's declared commands and its own
 //! built-ins, re-checking every reserved path and grant;
 //! [`describe_command_line`] classifies a forwarded argv against that
-//! registry and [`command_line_path`] names the path it selects. Output is
+//! registry, [`command_line_path`] names the path it selects and
+//! [`classify_command_line`] returns both with the owner, refusing a
+//! disabled owner's command. Output is
 //! rendered by [`render_result`]; the remaining items are the helpers the
 //! kernel's own groups share (profile access, session, presentation, the
 //! local database and the seeded model catalog). An interrupted command
@@ -21,7 +23,7 @@ mod registry;
 mod registry_error;
 mod seams;
 
-pub use describe::{command_line_path, describe_command_line};
+pub use describe::{classify_command_line, command_line_path, describe_command_line};
 pub use registry::{
     CommandOwner, CommandRegistry, RegistryEntry, ResolvedCommand, kernel_commands,
 };

@@ -2,8 +2,12 @@
 //!
 //! A [`Kernel`] holds the database handle, the process's background-task
 //! owner, the kernel handles a conferral can hand a route set, and the
-//! extension state. [`Kernel::resolve`] seeds that state with the admitted
-//! members' projection drains ([`AdmittedProjections`]), then builds it from
+//! extension state. [`Kernel::resolve`] seeds that state with what the
+//! admitted members declared: their projection drains
+//! ([`AdmittedProjections`]), their agent-run origins ([`AdmittedRunOrigins`])
+//! their owner-stamped purge tables and orphan sweeps in composition order
+//! ([`AdmittedPurge`]) and their jobs, retention work and job-run scopes
+//! ([`AdmittedSchedule`]). It then builds the state from
 //! the [`Admitted`] handoff: every admitted member's provide fns in
 //! composition order, each reading what was provided before it; every slot,
 //! built from its admitted entries (core first where the slot asks for it)
@@ -23,10 +27,12 @@ use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use systemprompt_agent_runs::origin::AdmittedRunOrigins;
+use systemprompt_extension::admitted_schedule::AdmittedSchedule;
 use systemprompt_extension::contribute::{SlotBuildInput, build_slot};
 use systemprompt_extension::prelude::RuleType;
 use systemprompt_extension::{
-    Admitted, AdmittedProjections, BuiltState, FactoryError, GatewayGuards, HandleId, KernelHandle,
+    Admitted, AdmittedProjections, AdmittedPurge, BuiltState, FactoryError, GatewayGuards, HandleId, KernelHandle,
     ProvideError, Resolved, SlotError,
 };
 use systemprompt_governance::authz::{SubjectProviderError, SubjectProviderSet};
@@ -141,6 +147,9 @@ impl Kernel {
 
     pub fn resolve(&mut self, admitted: &Admitted) -> Result<(), KernelError> {
         self.state.insert(AdmittedProjections::of(admitted.built()));
+        self.state.insert(AdmittedRunOrigins::of(admitted.built()));
+        self.state.insert(AdmittedPurge::of(admitted.built()));
+        self.state.insert(AdmittedSchedule::of(admitted.built()));
         self.provide_all(admitted)?;
         self.build_slots(admitted)?;
         self.build_governance(admitted.built())?;

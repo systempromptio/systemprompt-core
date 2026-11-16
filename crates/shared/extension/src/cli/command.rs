@@ -22,11 +22,12 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use clap::{Args, Subcommand};
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::Profile;
 use systemprompt_traits::DatabaseHandle;
 
 use super::child::ChildSupervisor;
-use super::descriptor::{DbUrlRouting, DescribeCommand};
+use super::descriptor::{CommandDescriptor, DbUrlRouting, DescribeCommand};
 use super::output::CommandOutput;
 use super::prompt::Prompter;
 use super::settings::CliConfig;
@@ -120,7 +121,22 @@ pub trait CliCommandLeaf: Args + DescribeCommand + Send + Sized + 'static {
     ) -> impl Future<Output = Result<CommandOutput, CommandError>> + Send;
 }
 
+/// A forwarded command line as the host classifies it: the subcommand path
+/// it selects, the descriptor the runner would bootstrap it with, and the
+/// member that owns it (`None` for a kernel command).
+#[derive(Debug, Clone)]
+pub struct DescribedCommand {
+    pub path: Vec<String>,
+    pub descriptor: CommandDescriptor,
+    pub owner: Option<ExtensionId>,
+}
+
 /// What a command may ask of the CLI kernel.
+///
+/// [`CommandHost::describe_command_line`] classifies an argv (without the
+/// binary name) against the host's command tree without running it. It fails
+/// closed: a line that selects no command, or a command whose owner the
+/// profile disables, is an error, never a description.
 ///
 /// [`CommandHost::render`] renders an intermediate output through the
 /// kernel's sink (a command that redraws until interrupted); the output a
@@ -135,4 +151,5 @@ pub trait CommandHost: Send + Sync {
     fn resolved(&self) -> BoxFuture<'_, Result<Resolved<'_>, CommandError>>;
     fn children(&self) -> &dyn ChildSupervisor;
     fn render(&self, output: &CommandOutput);
+    fn describe_command_line(&self, command: &[String]) -> Result<DescribedCommand, CommandError>;
 }

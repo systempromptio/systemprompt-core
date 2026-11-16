@@ -314,7 +314,7 @@ fn a_hosted_toolset_no_member_contributes_refuses_the_build() {
         Dependencies::default().with(services_hosting("ghost_toolset")),
     )
     .expect_err("an unregistered hosted toolset refuses");
-    let SlotError::Entry { slot, source, .. } = &error else {
+    let SlotError::Refused { slot, source } = &error else {
         panic!("{error:?}");
     };
     assert_eq!(*slot, "mcp_toolsets");
@@ -349,7 +349,7 @@ fn a_disabled_members_toolset_is_not_hosted() {
     assert!(
         matches!(
             error,
-            SlotError::Entry {
+            SlotError::Refused {
                 slot: "mcp_toolsets",
                 ..
             }

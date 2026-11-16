@@ -23,6 +23,7 @@ mod capability;
 mod http_error;
 #[cfg(feature = "router")]
 mod negotiation;
+mod overlap;
 #[cfg(feature = "router")]
 mod principal;
 #[cfg(feature = "router")]
@@ -45,8 +46,10 @@ pub use principal::GatewayPrincipal;
 pub use set::{GatewayRouteDecl, RouteSet, RouteSetBuilder};
 pub use shape::{
     Allowance, ApiBase, BasePath, BaseRef, BodyLimit, GatewayPath, OperationSpec, RouteDef,
-    RouteLimits, RoutePath, RouteShape, RouteSpec, TypedSpec, WebBase,
+    RouteLimits, RouteMethod, RoutePath, RouteShape, RouteSpec, TypedSpec, WebBase,
+    reserved_prefix_of,
 };
+pub use overlap::{RouteOverlap, first_overlap, full_path, path_covers};
 #[cfg(feature = "router")]
 pub use sse::{
     HEARTBEAT_INTERVAL, HEARTBEAT_JSON, sse_response, standard_keep_alive, subscription_refused,

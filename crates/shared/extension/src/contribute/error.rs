@@ -77,6 +77,12 @@ pub enum SlotError {
         #[source]
         source: BoxedSource,
     },
+    #[error("{slot} refused")]
+    Refused {
+        slot: &'static str,
+        #[source]
+        source: BoxedSource,
+    },
     #[error(transparent)]
     Missing(#[from] MissingDependency),
 }

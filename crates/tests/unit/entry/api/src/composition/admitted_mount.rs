@@ -1,5 +1,6 @@
 //! The enumerating mount's wiring: it re-checks the handoff before mounting
-//! anything, and it mounts a set only on a role that serves the set's group.
+//! anything, it mounts a set only on a role that serves the set's group, and
+//! it nests an install's service behind the service def's own protection.
 //! The limiter is built over the fixture database.
 
 use std::net::SocketAddr;
@@ -14,8 +15,11 @@ use systemprompt_api::services::middleware::{
     MountLayers, ProtectionGuards, PublicContextMiddleware, RateLimitState,
     UserOnlyContextMiddleware, mount_admitted,
 };
+use axum::routing::get;
+use systemprompt_extension::admitted::AdmittedRouteSet;
 use systemprompt_extension::reserved::CoreId;
-use systemprompt_extension::{HandleId, RouteGroup};
+use systemprompt_extension::router::{BasePath, RouteSet, RouteSpec, WebBase};
+use systemprompt_extension::{AuthzPolicy, ContextKind, HandleId, RouteGroup, StandingTag};
 use systemprompt_models::RequestContext;
 use systemprompt_models::execution::ContextExtractionError;
 use systemprompt_provider_contracts::Dependencies;
@@ -25,7 +29,7 @@ use systemprompt_traits::{BackgroundTasks, DatabaseHandle};
 use systemprompt_users::UserRateLimitBucketRepository;
 use tower::ServiceExt;
 
-use super::forge::{analytics_set, forged, routed};
+use super::forge::{PLAIN_LIMITS, ProbeState, analytics_set, forged, ok, routed};
 
 #[derive(Clone)]
 struct NoContext;
@@ -80,23 +84,30 @@ async fn mount(owner: &str, serves: &dyn Fn(RouteGroup) -> bool) -> Result<Route
         )],
         vec![],
     );
-    let kernel = Kernel::new(
-        Arc::new(StubDb),
-        BackgroundTasks::new(),
-        Dependencies::default(),
-    );
     mount_admitted(
         Router::new(),
         &admitted,
-        &kernel,
+        &kernel(),
         &layers().await,
         serves,
         &|router| router,
     )
 }
 
+fn kernel() -> Kernel {
+    Kernel::new(
+        Arc::new(StubDb),
+        BackgroundTasks::new(),
+        Dependencies::default(),
+    )
+}
+
 async fn status(router: Router) -> StatusCode {
-    let mut request = Request::get("/api/v1/analytics/stream")
+    status_at(router, "/api/v1/analytics/stream").await
+}
+
+async fn status_at(router: Router, uri: &str) -> StatusCode {
+    let mut request = Request::get(uri)
         .body(Body::empty())
         .expect("valid request");
     request
@@ -135,5 +146,41 @@ async fn a_set_is_mounted_only_on_a_role_serving_its_group() {
         status(skipped).await,
         StatusCode::NOT_FOUND,
         "a role not serving the group mounts nothing"
+    );
+}
+
+#[tokio::test]
+async fn an_install_service_is_nested_behind_its_def_protection() {
+    let spec = RouteSpec::new(AuthzPolicy::user(), ContextKind::User, PLAIN_LIMITS);
+    let set = RouteSet::at::<ProbeState>(BasePath::Web(WebBase::Root), RouteGroup::Extensions)
+        .service("/dash", Router::new().route("/", get(ok)), spec)
+        .build();
+    let admitted = forged(
+        vec![AdmittedRouteSet {
+            standing: StandingTag::Install,
+            ..routed("probe-install", set, vec![])
+        }],
+        vec![],
+    );
+    let router = mount_admitted(
+        Router::new(),
+        &admitted,
+        &kernel(),
+        &layers().await,
+        &|_| true,
+        &|router| router,
+    )
+    .expect("an install service mounts");
+    let nested = status_at(router.clone(), "/dash").await;
+    assert_ne!(nested, StatusCode::NOT_FOUND, "the prefix reaches the mount");
+    assert_ne!(
+        nested,
+        StatusCode::OK,
+        "an unauthenticated request is stopped by the def's user policy"
+    );
+    assert_eq!(
+        status_at(router, "/elsewhere").await,
+        StatusCode::NOT_FOUND,
+        "negative control: nothing is mounted outside the prefix"
     );
 }

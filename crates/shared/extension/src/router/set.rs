@@ -3,25 +3,32 @@
 //! [`RouteSet::at`] names the base, the route group and the state type `S`
 //! every handler extracts; [`RouteSet::gateway`] names a closed gateway path
 //! in place of the base, for a [`GatewayRouteDecl`]; [`RouteSetBuilder::route`]
-//! adds one method and path with its [`RouteSpec`]. The set stores the handlers
-//! type-erased; the API mount resolves `S` through its hand-written
-//! [`FromState`] impl only after admission, and builds one router per declared
-//! route so it can apply each route's own spec. A malformed path, an
+//! adds one method and path with its [`RouteSpec`]; [`RouteSetBuilder::service`]
+//! nests one opaque service under a prefix, recorded as a single
+//! [`RouteMethod::Any`] def. The set stores the handlers type-erased; the API
+//! mount resolves `S` through its hand-written [`FromState`] impl only after
+//! admission, and builds one router per declared route so it can apply each
+//! route's own spec. A malformed path, an
 //! unsupported method or an invalid extension base is recorded on the set and
 //! refused when the composition reads the member's contributions.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::convert::Infallible;
 use std::sync::Arc;
 
 use axum::Router;
+use axum::extract::Request;
+use axum::response::IntoResponse;
 use axum::handler::Handler;
-use axum::routing::{MethodFilter, MethodRouter};
+use axum::routing::MethodFilter;
 use systemprompt_provider_contracts::MissingDependency;
+use tower::Service;
 
 use super::shape::{
-    BasePath, BaseRef, GatewayPath, RouteDef, RouteLimits, RoutePath, RouteSpec, TypedSpec,
+    BasePath, BaseRef, GatewayPath, RouteDef, RouteLimits, RouteMethod, RoutePath, RouteSpec,
+    TypedSpec,
 };
 use crate::contribute::{ContributionError, FromState, Resolved};
 use crate::protection::RouteGroup;
@@ -97,7 +104,7 @@ impl std::fmt::Debug for RouteSet {
 pub struct RouteSetBuilder<S> {
     base: BaseRef,
     group: RouteGroup,
-    routes: Vec<(RouteDef, MethodRouter<S>)>,
+    routes: Vec<(RouteDef, Router<S>)>,
     error: Option<ContributionError>,
 }
 
@@ -144,34 +151,55 @@ impl<S: FromState + Clone> RouteSetBuilder<S> {
                 return self;
             },
         };
+        let router = Router::new().route(path.as_str(), axum::routing::on(filter, h));
         let def = RouteDef {
-            method: m,
+            method: RouteMethod::One(m),
             path,
             spec,
             openapi,
         };
-        self.routes.push((def, axum::routing::on(filter, h)));
+        self.routes.push((def, router));
+        self
+    }
+
+    pub fn service<T>(mut self, prefix: &'static str, service: T, spec: RouteSpec) -> Self
+    where
+        T: Service<Request, Error = Infallible> + Clone + Send + Sync + 'static,
+        T::Response: IntoResponse,
+        T::Future: Send + 'static,
+    {
+        if self.error.is_some() {
+            return self;
+        }
+        let path = match RoutePath::parse(prefix) {
+            Ok(path) if path.is_service_prefix() => path,
+            Ok(_) => {
+                self.error = Some(ContributionError::InvalidPath(prefix));
+                return self;
+            },
+            Err(error) => {
+                self.error = Some(error);
+                return self;
+            },
+        };
+        let def = RouteDef {
+            method: RouteMethod::Any,
+            path,
+            spec,
+            openapi: None,
+        };
+        self.routes
+            .push((def, Router::new().nest_service(prefix, service)));
         self
     }
 
     pub fn build(self) -> RouteSet {
-        let (defs, routers): (Vec<RouteDef>, Vec<(&'static str, MethodRouter<S>)>) = self
-            .routes
-            .into_iter()
-            .map(|(def, router)| {
-                let path = def.path.as_str();
-                (def, (path, router))
-            })
-            .unzip();
+        let (defs, routers): (Vec<RouteDef>, Vec<Router<S>>) = self.routes.into_iter().unzip();
         let materialize: Materialize = Arc::new(move |r: &Resolved<'_>| {
             let state = S::from_state(r)?;
             Ok(routers
                 .iter()
-                .map(|(path, router)| {
-                    Router::<S>::new()
-                        .route(path, router.clone())
-                        .with_state::<()>(state.clone())
-                })
+                .map(|router| router.clone().with_state::<()>(state.clone()))
                 .collect())
         });
         RouteSet {

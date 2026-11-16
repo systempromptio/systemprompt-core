@@ -5,11 +5,12 @@
 
 #![cfg(feature = "api")]
 
-use std::collections::HashSet;
-
-use systemprompt_extension::ContributionError;
 use systemprompt_extension::admitted::{AdmittedGatewayRoute, AdmittedRouteSet};
-use systemprompt_extension::router::{Allowance, BasePath, BaseRef, RouteSet};
+use systemprompt_extension::router::{
+    Allowance, ApiBase, BasePath, BaseRef, RouteSet, WebBase, first_overlap, full_path, path_covers,
+    reserved_prefix_of,
+};
+use systemprompt_extension::{ContributionError, StandingTag};
 
 use super::error::CompositionError;
 use super::{Conferral, DeclaredMember};
@@ -27,6 +28,7 @@ pub(super) fn admit_route_set(
         .terms()
         .map(|terms| terms.conferrals().filter(|c| c.base == base).collect())
         .unwrap_or_default();
+    admit_services(member, path, &set, conferrals.is_empty())?;
     if conferrals.is_empty() {
         admit_unconferred(member, path, &set)?;
         return Ok(AdmittedRouteSet {
@@ -92,6 +94,34 @@ pub(super) fn admit_route_set(
     })
 }
 
+fn admit_services(
+    member: &DeclaredMember,
+    base: BasePath,
+    set: &RouteSet,
+    unconferred: bool,
+) -> Result<(), CompositionError> {
+    for def in set.defs().iter().filter(|def| def.is_service()) {
+        let path = full_path(BaseRef::Path(base), def.path.as_str());
+        if let Some(prefix) = reserved_prefix_of(&path) {
+            return Err(CompositionError::ReservedPrefix {
+                owner: member.id.clone(),
+                prefix,
+            });
+        }
+        let open_base = matches!(
+            base,
+            BasePath::Api(ApiBase::Extension(_)) | BasePath::Web(WebBase::Root)
+        );
+        if member.standing.tag() != StandingTag::Install || !unconferred || !open_base {
+            return Err(CompositionError::ServiceNotAdmitted {
+                owner: member.id.clone(),
+                base,
+            });
+        }
+    }
+    Ok(())
+}
+
 fn wrong_kind(member: &DeclaredMember, base: BaseRef) -> CompositionError {
     CompositionError::Contribution {
         owner: member.id.clone(),
@@ -104,7 +134,7 @@ fn admit_unconferred(
     base: BasePath,
     set: &RouteSet,
 ) -> Result<(), CompositionError> {
-    use systemprompt_extension::router::{ApiBase, BodyLimit, WebBase};
+    use systemprompt_extension::router::BodyLimit;
     use systemprompt_extension::{ContextKind, HandlerVerifier};
 
     let refuse = |allowance: Allowance| CompositionError::NotConferred {
@@ -160,7 +190,7 @@ pub(super) fn admit_gateway_route(
     if let Some(builtin) = systemprompt_extension::reserved::BUILTIN_GATEWAY_PREFIXES
         .iter()
         .copied()
-        .find(|prefix| shadows(relative, prefix))
+        .find(|prefix| path_covers(relative, prefix))
     {
         return Err(CompositionError::GatewayRouteShadowsBuiltin {
             owner: member.id.clone(),
@@ -186,49 +216,17 @@ pub(super) fn admit_gateway_route(
     })
 }
 
-pub(super) fn shadows(relative: &str, prefix: &str) -> bool {
-    if prefix == "/" {
-        return relative == "/";
-    }
-    relative == prefix
-        || relative
-            .strip_prefix(prefix)
-            .is_some_and(|rest| rest.starts_with('/'))
-}
-
-pub(super) fn full_path(base: BasePath, path: &str) -> String {
-    let base = base.path();
-    match (base, path) {
-        ("/", path) => path.to_owned(),
-        (base, "/") => base.to_owned(),
-        (base, path) => format!("{base}{path}"),
-    }
-}
-
-fn full_ref_path(base: BaseRef, path: &str) -> String {
-    match base {
-        BaseRef::Path(base) => full_path(base, path),
-        BaseRef::Gateway(gateway) => format!("{}{path}", gateway.path()),
-    }
-}
-
 pub(super) fn check_route_conflicts(routes: &[AdmittedRouteSet]) -> Result<(), CompositionError> {
-    let mut seen: HashSet<(http::Method, String)> = HashSet::new();
-    for admitted in routes {
-        for def in admitted.set.defs() {
-            let key = (
-                def.method.clone(),
-                full_ref_path(admitted.set.base(), def.path.as_str()),
-            );
-            if !seen.insert(key.clone()) {
-                return Err(CompositionError::RouteConflict {
-                    method: key.0,
-                    path: key.1,
-                });
-            }
-        }
+    let defs = routes
+        .iter()
+        .flat_map(|admitted| admitted.set.defs().iter().map(|def| (admitted.set.base(), def)));
+    match first_overlap(defs) {
+        Some(overlap) => Err(CompositionError::RouteConflict {
+            method: overlap.method,
+            path: overlap.path,
+        }),
+        None => Ok(()),
     }
-    Ok(())
 }
 
 pub(super) fn check_gateway_overlaps(

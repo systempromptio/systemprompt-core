@@ -32,7 +32,7 @@ pub use child::ChildSupervisor;
 #[cfg(feature = "cli")]
 pub use command::{
     BoxFuture, CliCommandGroup, CliCommandLeaf, CommandError, CommandFuture, CommandHost,
-    CommandParent, REGISTERED_DISPLAY_ORDER, parents,
+    CommandParent, DescribedCommand, REGISTERED_DISPLAY_ORDER, parents,
 };
 #[cfg(feature = "cli")]
 pub use decl::{CommandDecl, CommandKind, ParsedCommand};

@@ -24,9 +24,9 @@ use std::collections::BTreeMap;
 use std::fmt;
 
 use systemprompt_extension::{
-    MissingDependency, Resolved, Slot, SlotEntry, SlotError, SlotOrder, StandingTag,
+    Resolved, Slot, SlotEntry, SlotError, SlotOrder,
 };
-use systemprompt_identifiers::{ExtensionId, McpServerId};
+use systemprompt_identifiers::McpServerId;
 use systemprompt_manifest::ServicesConfig;
 use systemprompt_manifest::services::ServicesView;
 use systemprompt_models::mcp::McpServerType;
@@ -156,7 +156,6 @@ impl Slot for ToolsetSlot {
         r: &Resolved<'_>,
     ) -> Result<Self::Built, SlotError> {
         let services = r.get::<ServicesView>()?;
-        let owner = slot_owner(&entries);
         let mut factories: BTreeMap<&'static str, ToolsetBuildFn> = BTreeMap::new();
         for entry in entries {
             for (id, build) in entry.builder.toolsets {
@@ -174,27 +173,12 @@ impl Slot for ToolsetSlot {
         if missing.is_empty() {
             return Ok(built);
         }
-        let source = Box::new(UnregisteredToolsets {
-            missing,
-            registered,
-        });
-        match owner {
-            Some(owner) => Err(SlotError::Entry {
-                slot: SLOT,
-                owner,
-                source,
+        Err(SlotError::Refused {
+            slot: SLOT,
+            source: Box::new(UnregisteredToolsets {
+                missing,
+                registered,
             }),
-            None => Err(SlotError::Missing(MissingDependency {
-                ty: "mcp_host::contract::ToolsetSlot entries",
-            })),
-        }
+        })
     }
-}
-
-fn slot_owner(entries: &[SlotEntry<ToolsetSlotBuilder>]) -> Option<ExtensionId> {
-    entries
-        .iter()
-        .find(|entry| matches!(entry.standing, StandingTag::Core))
-        .or_else(|| entries.first())
-        .map(|entry| entry.owner.clone())
 }

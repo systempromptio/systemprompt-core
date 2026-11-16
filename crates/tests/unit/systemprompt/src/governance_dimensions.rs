@@ -66,21 +66,35 @@ fn an_install_declaring_a_reserved_core_dimension_is_refused() {
 }
 
 #[test]
-fn a_core_member_may_declare_its_own_reserved_dimension_but_not_user_or_role() {
-    assert!(
-        SubjectProviderSet::new(vec![entry(
-            "authz",
-            StandingTag::Core,
-            RuleType::extension_static("traffic"),
-        )])
-        .is_ok()
-    );
-    for request_dimension in [RuleType::USER, RuleType::ROLE] {
+fn a_core_member_may_declare_role_and_its_own_reserved_dimensions_but_not_user() {
+    for core_dimension in [RuleType::ROLE, RuleType::extension_static("traffic")] {
+        assert!(
+            SubjectProviderSet::new(vec![entry("users", StandingTag::Core, core_dimension)])
+                .is_ok(),
+            "a core member's reserved dimension is admitted"
+        );
+    }
+    for standing in [StandingTag::Core, StandingTag::Install] {
         assert!(matches!(
-            SubjectProviderSet::new(vec![entry("authz", StandingTag::Core, request_dimension)]),
+            SubjectProviderSet::new(vec![entry("authz", standing, RuleType::USER)]),
             Err(SubjectProviderError::ReservedDimension { .. })
         ));
     }
+}
+
+#[test]
+fn an_install_role_provider_is_refused_where_a_core_one_is_admitted() {
+    assert!(
+        SubjectProviderSet::new(vec![entry("users", StandingTag::Core, RuleType::ROLE)]).is_ok(),
+        "negative control: the core role provider is admitted"
+    );
+    let err = SubjectProviderSet::new(vec![entry("dynapps", StandingTag::Install, RuleType::ROLE)])
+        .expect_err("an install role provider is refused");
+    assert!(
+        matches!(&err, SubjectProviderError::ReservedDimension { owner, dimension }
+            if owner.as_str() == "dynapps" && *dimension == RuleType::ROLE),
+        "unexpected error: {err:?}"
+    );
 }
 
 #[test]

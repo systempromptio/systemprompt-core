@@ -7,7 +7,8 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use systemprompt_extension::cli::{
-    BoxFuture, ChildSupervisor, CliConfig, CommandError, CommandHost, CommandOutput, Prompter,
+    BoxFuture, ChildSupervisor, CliConfig, CommandError, CommandHost, CommandOutput,
+    DescribedCommand, Prompter,
 };
 use systemprompt_extension::{Admitted, Resolved};
 use systemprompt_manifest::Profile;
@@ -15,11 +16,18 @@ use systemprompt_runtime::Kernel;
 use systemprompt_traits::DatabaseHandle;
 
 use crate::context::CommandContext;
+use crate::kernel::{CommandRegistry, classify_command_line};
 
 impl CommandContext {
     #[must_use]
     pub fn with_admitted(mut self, admitted: Option<Arc<Admitted>>) -> Self {
         self.admitted = admitted;
+        self
+    }
+
+    #[must_use]
+    pub fn with_registry(mut self, registry: Arc<CommandRegistry>) -> Self {
+        self.registry = Some(registry);
         self
     }
 
@@ -80,5 +88,15 @@ impl CommandHost for CommandContext {
 
     fn render(&self, output: &CommandOutput) {
         crate::shared::render_result(output, &self.cli);
+    }
+
+    fn describe_command_line(&self, command: &[String]) -> Result<DescribedCommand, CommandError> {
+        let registry = self.registry.as_ref().ok_or_else(|| {
+            CommandError::new(anyhow::anyhow!(
+                "Describing a command line requires the command registry"
+            ))
+        })?;
+        let profile = CommandContext::profile(self).map_err(CommandError::new)?;
+        classify_command_line(registry, profile, command).map_err(CommandError::new)
     }
 }

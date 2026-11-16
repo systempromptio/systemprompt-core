@@ -26,7 +26,7 @@ use std::fmt;
 use std::sync::Arc;
 
 use systemprompt_extension::{
-    Factory, FactoryError, Resolved, Slot, SlotEntry, SlotError, SlotOrder,
+    Factory, Resolved, Slot, SlotEntry, SlotError, SlotOrder,
 };
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::documents::{DocumentCodec, DocumentTemplateProvider};
@@ -155,7 +155,9 @@ impl Slot for AgentAccessSlot {
             });
         }
         let policy = match contributed.into_iter().next() {
-            Some((owner, factory)) => run(factory.as_ref(), AGENT_ACCESS_SLOT, &owner, r)?,
+            Some((owner, factory)) => factory
+                .build(r)
+                .map_err(|e| e.into_slot_error(AGENT_ACCESS_SLOT, &owner))?,
             None => Arc::new(DefaultAgentAccessPolicy),
         };
         Ok(AgentAccess { policy })
@@ -228,10 +230,18 @@ impl Slot for DocumentsSlot {
         let mut template_providers = Vec::new();
         for entry in entries {
             for factory in &entry.builder.codecs {
-                codecs.push(run(factory.as_ref(), DOCUMENTS_SLOT, &entry.owner, r)?);
+                codecs.push(
+                    factory
+                        .build(r)
+                        .map_err(|e| e.into_slot_error(DOCUMENTS_SLOT, &entry.owner))?,
+                );
             }
             for factory in &entry.builder.template_providers {
-                template_providers.push(run(factory.as_ref(), DOCUMENTS_SLOT, &entry.owner, r)?);
+                template_providers.push(
+                    factory
+                        .build(r)
+                        .map_err(|e| e.into_slot_error(DOCUMENTS_SLOT, &entry.owner))?,
+                );
             }
         }
         Ok(DocumentSeams {
@@ -239,20 +249,4 @@ impl Slot for DocumentsSlot {
             template_providers,
         })
     }
-}
-
-fn run<T: ?Sized + 'static>(
-    factory: &dyn Factory<Arc<T>>,
-    slot: &'static str,
-    owner: &ExtensionId,
-    r: &Resolved<'_>,
-) -> Result<Arc<T>, SlotError> {
-    factory.build(r).map_err(|error| match error {
-        FactoryError::Missing(missing) => SlotError::Missing(missing),
-        FactoryError::Failed(source) => SlotError::Entry {
-            slot,
-            owner: owner.clone(),
-            source,
-        },
-    })
 }

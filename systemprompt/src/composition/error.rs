@@ -65,6 +65,12 @@ pub enum CompositionError {
         base: BasePath,
         allowance: Allowance,
     },
+    #[cfg(feature = "api")]
+    #[error(
+        "{owner} nests a service at {base:?}; only an install may, at an unreserved extension \
+         base or the web root, without a conferral"
+    )]
+    ServiceNotAdmitted { owner: ExtensionId, base: BasePath },
     #[error("{owner} mounts under reserved prefix {prefix}")]
     ReservedPrefix {
         owner: ExtensionId,
@@ -108,7 +114,10 @@ pub enum CompositionError {
     #[error("command path {path:?} declared twice")]
     CommandConflict { path: Vec<&'static str> },
     #[error("route {method} {path} declared twice")]
-    RouteConflict { method: http::Method, path: String },
+    RouteConflict {
+        method: systemprompt_extension::router::RouteMethod,
+        path: String,
+    },
     #[error("subject dimension {dimension} declared by {second}, already owned by {first}")]
     DimensionConflict {
         dimension: RuleType,

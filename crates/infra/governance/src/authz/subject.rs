@@ -16,9 +16,9 @@
 //!    factory once — core members first, then installs in composition order —
 //!    and refuses a set in which two providers declare one dimension
 //!    ([`SubjectProviderError::DimensionConflict`]) or an install declares a
-//!    reserved core dimension ([`SubjectProviderError::ReservedDimension`]). No
-//!    provider may declare `user` or `role`, which the resolver reads off the
-//!    request itself.
+//!    reserved core dimension ([`SubjectProviderError::ReservedDimension`]),
+//!    `role` included: only a core member provides roles. No provider may
+//!    declare `user`, which the resolver reads off the request itself.
 //! 4. The enforcement path calls [`gather_subject_attributes`] once per request
 //!    and hands the resulting [`SubjectAttributes`] to
 //!    [`resolve`][super::resolver::resolve] alongside the dimension list.
@@ -120,7 +120,7 @@ pub async fn gather_subject_attributes(
 
 fn refuse_reserved(entry: &SubjectProviderEntry) -> Result<(), SubjectProviderError> {
     let dimension = entry.provider.dimension().rule_type;
-    let request_dimension = dimension == RuleType::USER || dimension == RuleType::ROLE;
+    let request_dimension = dimension == RuleType::USER;
     let reserved = RESERVED_SUBJECT_DIMENSIONS
         .iter()
         .any(|d| d.rule_type == dimension);
