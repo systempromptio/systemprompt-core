@@ -12,5 +12,7 @@ pub use systemprompt_mcp::*;
 /// toolsets into the host's `ToolsetSlot` from its `contribute`.
 pub mod host {
     pub use systemprompt_mcp::host::*;
+    pub use systemprompt_mcp_host::McpHostExtension;
+    pub use systemprompt_mcp_host::contract::ToolsetSlot;
     pub use systemprompt_mcp_host::toolsets::*;
 }
