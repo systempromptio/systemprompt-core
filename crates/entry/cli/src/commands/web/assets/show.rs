@@ -14,7 +14,8 @@ use crate::shared::CommandOutput;
 use super::super::paths::WebPaths;
 use super::super::types::AssetDetailOutput;
 use super::asset_type::determine_asset_type;
-use systemprompt_loader::BootContext;
+use std::path::Path;
+use systemprompt_manifest::Profile;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
@@ -25,10 +26,10 @@ pub struct ShowArgs {
 pub(super) fn execute(
     args: &ShowArgs,
     _config: &CliConfig,
-    boot: &BootContext,
+    services_root: &Path,
+    profile: &Profile,
 ) -> Result<CommandOutput> {
-    let web_paths = WebPaths::resolve(boot)?;
-    let profile = boot.profile();
+    let web_paths = WebPaths::resolve(services_root)?;
     let assets_dir = &web_paths.assets;
     let asset_path = assets_dir.join(&args.path);
 

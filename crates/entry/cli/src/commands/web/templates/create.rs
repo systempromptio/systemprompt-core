@@ -17,7 +17,7 @@ use systemprompt_logging::CliService;
 
 use super::super::paths::WebPaths;
 use super::super::types::{TemplateCreateOutput, TemplateEntry, TemplatesConfig};
-use systemprompt_loader::BootContext;
+use std::path::Path;
 
 #[derive(Debug, Args)]
 pub struct CreateArgs {
@@ -35,9 +35,9 @@ pub(super) fn execute(
     args: CreateArgs,
     prompter: &dyn Prompter,
     config: &CliConfig,
-    boot: &BootContext,
+    services_root: &Path,
 ) -> Result<CommandOutput> {
-    execute_in_dir(args, prompter, config, &WebPaths::resolve(boot)?.templates)
+    execute_in_dir(args, prompter, config, &WebPaths::resolve(services_root)?.templates)
 }
 
 pub fn execute_in_dir(
