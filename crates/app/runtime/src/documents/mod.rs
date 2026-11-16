@@ -18,7 +18,6 @@ pub mod actor;
 mod directory;
 /// Signed, short-lived document download links.
 pub mod download;
-mod extension_audiences;
 /// Signed links an MCP server obtains from the API.
 pub mod links;
 /// MCP tool handlers over the document service.
@@ -35,7 +34,6 @@ pub mod views;
 mod wiring;
 
 pub use directory::UserSubjectDirectory;
-pub use extension_audiences::ExtensionAudiences;
 pub use subjects::{ROLE_SUBJECT_KIND, USER_SUBJECT_KIND, active_user_display, subject_display};
 pub use unavailable_brain_sink::BrainUnavailableSink;
 pub use unavailable_sink::NotificationsUnavailableSink;

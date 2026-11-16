@@ -12,9 +12,6 @@ use systemprompt_config::paths::AppPaths;
 use systemprompt_database::Database;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::{SystemAdmin, SystemAdminConfig};
-use systemprompt_marketplace::{
-    AllowAllFilter, MarketplaceFactoryContext, MarketplaceFilter, discover_filters,
-};
 use systemprompt_models::auth::UserRole;
 use systemprompt_models::{ContentConfigRaw, ContentRouting};
 use systemprompt_users::UserService;
@@ -84,31 +81,6 @@ async fn resolve_system_admin(
         });
     }
     Ok(SystemAdmin::new(user.id, user.name))
-}
-
-pub(super) fn build_marketplace_filter(
-    ctx: &MarketplaceFactoryContext,
-) -> Arc<dyn MarketplaceFilter> {
-    for reg in discover_filters() {
-        match (reg.factory)(ctx) {
-            Ok(filter) => {
-                tracing::debug!(
-                    priority = reg.priority,
-                    "marketplace filter registered via inventory; using highest-priority impl",
-                );
-                return filter;
-            },
-            Err(err) => {
-                tracing::error!(
-                    priority = reg.priority,
-                    error = %err,
-                    "marketplace filter factory failed; trying next candidate",
-                );
-            },
-        }
-    }
-    let fallback: Arc<dyn MarketplaceFilter> = Arc::new(AllowAllFilter);
-    fallback
 }
 
 pub(super) fn content_routing_from(

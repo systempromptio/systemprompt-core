@@ -10,11 +10,12 @@
 //! view and active services root, the secret store, the system admin, the
 //! event router and the escalation delivery mode the notifications member
 //! assembles its service with (`InProcess` on the API, `Consumer` on a
-//! child host, which delivers through the serving host's consumer).
+//! child host, which delivers through the serving host's consumer). The
+//! document store is not seeded: it is built from the resolved state, and
+//! the files member's seams read it through the slot the host binds.
 //!
 //! The process's one `AiService` (present only when inference is configured)
-//! and its one `ArtifactIngest` are composed here from several domains, so the
-//! composition root seeds them; an extension router reads them from
+//! is composed from several domains, so the composition root seeds it; an extension router reads them from
 //! [`ExtensionContext::extension_state`] and an absent `AiService` is a typed
 //! `MissingDependency`, never a fallback service. An absent `AiService` is
 //! still reserved for the kernel, so no extension can `provide` its own.
@@ -55,15 +56,12 @@ use systemprompt_files::FilesConfig;
 use systemprompt_manifest::services::SystemAdmin;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_manifest::{Config, Profile};
-use systemprompt_mcp::ArtifactIngest;
 use systemprompt_models::{ContentConfigRaw, LateBound};
 #[cfg(feature = "notifications")]
 use systemprompt_notifications::service::EscalationDelivery;
 use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_provider_contracts::Dependencies;
 use systemprompt_traits::{MessagingDispatcher, SecretStore};
-
-use crate::documents::DocumentsRuntime;
 
 /// The handles every host seeds its kernel state from.
 pub struct KernelSeed<'a> {
@@ -77,7 +75,6 @@ pub struct KernelSeed<'a> {
     pub secrets: Arc<dyn SecretStore>,
     pub system_admin: &'a SystemAdmin,
     pub event_router: &'a EventRouter,
-    pub documents: &'a DocumentsRuntime,
     #[cfg(feature = "notifications")]
     pub escalation: EscalationDelivery,
 }
@@ -87,15 +84,30 @@ pub struct ApiKernelSeed<'a> {
     pub base: KernelSeed<'a>,
     pub oauth: &'a Arc<OAuthRepositories>,
     pub ai: &'a Arc<AiRepositories>,
-    pub artifact_ingest: &'a Arc<ArtifactIngest>,
     pub ai_service: Option<&'a Arc<AiService>>,
     pub geoip: Option<&'a GeoIpReader>,
     pub content_config: Option<&'a Arc<ContentConfigRaw>>,
 }
 
+impl std::fmt::Debug for KernelSeed<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("KernelSeed")
+            .field("profile", &self.profile.name)
+            .finish_non_exhaustive()
+    }
+}
+
+impl std::fmt::Debug for ApiKernelSeed<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ApiKernelSeed")
+            .field("base", &self.base)
+            .field("ai_service", &self.ai_service.is_some())
+            .finish_non_exhaustive()
+    }
+}
+
 pub fn base_kernel_state(seed: KernelSeed<'_>) -> Dependencies {
-    let documents = seed.documents;
-    let mut state = Dependencies::new()
+    let state = Dependencies::new()
         .with(Arc::clone(seed.database))
         .with(Arc::clone(seed.app_paths))
         .with(Arc::clone(seed.files_config))
@@ -107,15 +119,9 @@ pub fn base_kernel_state(seed: KernelSeed<'_>) -> Dependencies {
         .with(seed.services_root)
         .with(seed.secrets)
         .with(seed.system_admin.clone())
-        .with(Arc::new(seed.event_router.clone()))
-        .with(Arc::clone(documents.access()))
-        .with(Arc::clone(documents.repositories()))
-        .with(Arc::clone(documents.issues()));
+        .with(Arc::new(seed.event_router.clone()));
     #[cfg(feature = "notifications")]
-    state.insert(seed.escalation);
-    if seed.files_config.documents_config().is_enabled() {
-        state.insert(Arc::clone(documents.service()));
-    }
+    let state = state.with(seed.escalation);
     state
 }
 
@@ -123,7 +129,6 @@ pub fn kernel_state(seed: ApiKernelSeed<'_>) -> Dependencies {
     let mut state = base_kernel_state(seed.base)
         .with(Arc::clone(seed.oauth))
         .with(Arc::clone(seed.ai))
-        .with(Arc::clone(seed.artifact_ingest))
         .with(LateBound::<dyn MessagingDispatcher>::default());
     match seed.ai_service {
         Some(ai) => state.insert(Arc::clone(ai)),

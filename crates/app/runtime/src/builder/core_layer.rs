@@ -2,8 +2,8 @@
 //!
 //! Resolves the profile-driven foundation an
 //! [`AppContext`](crate::context::AppContext) is assembled on — config, paths,
-//! files, database pool, signing key, authz hook, and logging — plus extension
-//! discovery and schema installation. The files configuration is built here
+//! files, database pool, signing key and logging — plus schema installation
+//! over the admitted composition. The files configuration is built here
 //! from the resolved paths and owned by the context; the profile and config
 //! inits are idempotent `OnceLock` guards, so a non-CLI entry (API, tests) can
 //! build a context self-sufficiently while a CLI that already ran them sees a
@@ -24,10 +24,10 @@ use std::sync::Arc;
 
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::{
-    Database, MigrationConfig, SchemaInstallReport, install_extension_schemas_full,
+    Database, MigrationConfig, SchemaInstallReport, install_admitted_schemas,
     validate_write_pool_is_primary,
 };
-use systemprompt_extension::ExtensionRegistry;
+use systemprompt_extension::Admitted;
 use systemprompt_files::FilesConfig;
 use systemprompt_governance::authz::SharedAuthzHook;
 use systemprompt_loader::{BootContext, ServicesState};
@@ -45,14 +45,13 @@ pub(super) struct CoreLayer {
     pub(super) app_paths: Arc<AppPaths>,
     pub(super) files_config: Arc<FilesConfig>,
     pub(super) database: Arc<Database>,
-    pub(super) authz_hook: SharedAuthzHook,
+    pub(super) authz_hook_override: Option<SharedAuthzHook>,
     pub(super) signing_keys: SigningKeys,
     pub(super) file_storage: Arc<dyn FileStorage>,
     pub(super) cache_epochs: CacheEpochs,
     pub(super) log_sink: systemprompt_logging::LogSink,
-    pub(super) policy: systemprompt_marketplace::managed::PublicationPolicy,
     pub(super) services: ServicesState,
-    pub(super) market: super::authz::PluginInputs,
+    pub(super) services_root: ActiveServicesRoot,
 }
 
 async fn init_services(
@@ -166,14 +165,6 @@ pub(super) async fn init_core(
     .await?;
 
     let cache_epochs = CacheEpochs::new();
-    let (policy, authz_hook, market) = super::authz::authz_stage(
-        profile,
-        Arc::<systemprompt_config::SecretsService>::clone(boot.secrets()),
-        &database,
-        &services,
-        authz_hook_override,
-        &cache_epochs,
-    )?;
 
     systemprompt_logging::OutputState::current()
         .set_console_format(profile.observability.log_format);
@@ -190,14 +181,13 @@ pub(super) async fn init_core(
         app_paths,
         files_config,
         database,
-        authz_hook,
+        authz_hook_override,
         signing_keys,
         file_storage,
         cache_epochs,
         log_sink,
-        policy,
         services,
-        market,
+        services_root: active_root,
     })
 }
 
@@ -226,42 +216,33 @@ pub(crate) struct SchemaPolicy {
     pub verify: bool,
 }
 
-pub(super) async fn init_extensions(
+pub(super) async fn install_schemas(
     profile: &Profile,
-    extension_registry: Option<ExtensionRegistry>,
+    admitted: &Admitted,
     schema: SchemaPolicy,
     migration_config: MigrationConfig,
     database: &Arc<Database>,
-) -> RuntimeResult<(Arc<ExtensionRegistry>, SchemaInstallReport)> {
-    let registry = match extension_registry {
-        Some(registry) => registry,
-        None => ExtensionRegistry::discover()?,
-    };
-    registry.validate()?;
-
-    let report = if schema.install {
-        let report = install_extension_schemas_full(
-            &registry,
-            database.session(),
-            ExtensionRegistry::INSTALL_EVERY_LINKED_SCHEMA,
-            migration_config,
-        )
-        .await?;
+) -> RuntimeResult<SchemaInstallReport> {
+    if schema.install {
+        let report =
+            install_admitted_schemas(admitted.built(), database.session(), migration_config)
+                .await?;
         crate::schema_currency::refuse_breaking(&report.ahead, profile)?;
         crate::schema_currency::warn_ahead(&report.ahead);
         database.mark_schema_changed();
-        report
-    } else if schema.verify {
-        let ahead =
-            crate::schema_currency::assert_schema_current(&registry, database.write(), profile)
-                .await?;
-        SchemaInstallReport {
+        return Ok(report);
+    }
+    if schema.verify {
+        let ahead = crate::schema_currency::assert_schema_current(
+            admitted.built(),
+            database.write(),
+            profile,
+        )
+        .await?;
+        return Ok(SchemaInstallReport {
             ahead,
             ..SchemaInstallReport::default()
-        }
-    } else {
-        SchemaInstallReport::default()
-    };
-
-    Ok((Arc::new(registry), report))
+        });
+    }
+    Ok(SchemaInstallReport::default())
 }

@@ -9,34 +9,38 @@ use std::sync::Arc;
 
 use systemprompt_config::paths::AppPaths;
 use systemprompt_config::{GrantedSecrets, LoadedProfile};
-use systemprompt_database::MigrationConfig;
 use systemprompt_loader::{ConfigLoader, ServicesSourceBootstrap, ServicesState};
 use systemprompt_marketplace::managed::ManagedRepository;
 use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_models::subprocess::VERIFICATION_KEYS_ENV;
 use systemprompt_security::jwt::VerifyingTokenAuthority;
 use systemprompt_security::keys::{TokenVerificationKeys, VerificationKeyring};
-use systemprompt_traits::{BackgroundTasks, CacheEpochs, DynSessionUsageCounters, SecretStore};
+use systemprompt_governance::authz::SubjectProviderSet;
+use systemprompt_governance::contract::AuthzHooks;
+use systemprompt_governance::policy::PolicyCatalog;
+use systemprompt_marketplace::contract::MarketplaceSeams;
+use systemprompt_traits::{
+    BackgroundTasks, CacheEpochs, DatabaseHandle, DynSessionUsageCounters, SecretStore,
+};
 use systemprompt_users::{SessionRepository, UserRepository};
 
 use crate::builder::assembly::load_system_admin;
-use crate::builder::authz::authz_stage;
+use crate::builder::authz::{AuthzBuilt, authz_stage};
 use crate::builder::composition::{a2a_repositories, build_artifact_ingest, organization_skills};
-use crate::builder::core_layer::{SchemaPolicy, init_files_config};
+use crate::builder::core_layer::init_files_config;
 use crate::builder::database::connect_database;
 use crate::builder::documents::{DocumentsInputs, build_documents};
 use crate::builder::events::event_plane;
-use crate::builder::governance::init_governed_extensions;
-#[cfg(feature = "notifications")]
-use crate::builder::notifications::NotificationsCore;
-use crate::documents::ExtensionAudiences;
+use crate::builder::governance::load_governance;
+use crate::builder::kernel_state::KernelSeed;
 use crate::error::RuntimeError;
+use crate::kernel::Kernel;
 
-use super::{HostBootError, HostKernel, HostParts, PROFILE_ENV};
+use super::{AdmitFn, HostBootError, HostKernel, HostParts, PROFILE_ENV};
 
 impl HostKernel {
-    pub async fn from_process_env() -> Result<(HostParts, Self), HostBootError> {
-        Self::boot(|name| std::env::var(name).ok()).await
+    pub async fn from_process_env(admit: AdmitFn) -> Result<HostParts, HostBootError> {
+        Self::boot(|name| std::env::var(name).ok(), admit).await
     }
 
     #[expect(
@@ -45,11 +49,13 @@ impl HostKernel {
     )]
     pub async fn boot(
         lookup: impl Fn(&str) -> Option<String> + Send + Sync,
-    ) -> Result<(HostParts, Self), HostBootError> {
+        admit: AdmitFn,
+    ) -> Result<HostParts, HostBootError> {
         let profile_path = lookup(PROFILE_ENV).ok_or(HostBootError::ProfileMissing)?;
         let loaded = LoadedProfile::from_path(Path::new(&profile_path))
             .map_err(|e| HostBootError::Profile(Box::new(e)))?;
         let profile = loaded.profile();
+        let admitted = Arc::new(admit(profile).map_err(HostBootError::Admission)?);
         let secrets = Arc::new(
             GrantedSecrets::from_lookup(&lookup)
                 .map_err(|e| HostBootError::Secrets(Box::new(e)))?,
@@ -92,78 +98,94 @@ impl HostKernel {
         )
         .await?;
         let cache_epochs = CacheEpochs::new();
-        let store: Arc<dyn SecretStore> = Arc::<GrantedSecrets>::clone(&secrets);
-        let (publication, authz_hook, market) =
-            authz_stage(profile, store, &database, &services, None, &cache_epochs)?;
-        let (extensions, _schema, governance) = init_governed_extensions(
-            profile,
-            None,
-            SchemaPolicy::default(),
-            MigrationConfig::default(),
-            &database,
-        )
-        .await?;
         let (event_router, _bridge, listener_pool) =
             event_plane(None, &database, &config, &cache_epochs);
-        let background_tasks = BackgroundTasks::default();
-
-        #[cfg(feature = "notifications")]
-        let notification_sink = crate::notification_sink(&database, &instance_id);
-        #[cfg(not(feature = "notifications"))]
-        let notification_sink: systemprompt_extension::DynNotificationSink =
-            Arc::new(crate::documents::NotificationsUnavailableSink);
-        #[cfg(not(feature = "notifications"))]
         drop(listener_pool);
-        #[cfg(feature = "brain")]
-        let brain_core = crate::BrainCore::new(&crate::BrainInputs {
-            database: &database,
-            instance_id: &instance_id,
-            listener_pool: &listener_pool,
-            notifications: &notification_sink,
-            profile: &profile.brain,
-        });
-        #[cfg(feature = "brain")]
-        let brain_sink = crate::brain_sink(brain_core.as_ref());
-        #[cfg(not(feature = "brain"))]
-        let brain_sink: systemprompt_extension::DynBrainSink =
-            Arc::new(crate::documents::BrainUnavailableSink);
-
-        let audiences = ExtensionAudiences::default();
-        let documents = build_documents(&DocumentsInputs {
-            services_root: &services_root.path,
-            database: &database,
-            file_storage: &file_storage,
-            authz_hook: &authz_hook,
-            subjects: &market.factory.subjects,
-            event_router: &event_router,
-            files_config: &files_config,
-            background_tasks: &background_tasks,
-            extensions: &extensions,
-            disabled_extensions: &profile.extensions.disabled,
-            notifications: &notification_sink,
-            brain: &brain_sink,
-            audiences: &audiences,
-        })?;
-        #[cfg(feature = "notifications")]
-        let notifications = NotificationsCore::new(&crate::NotificationsInputs {
-            database: &database,
-            event_router: &event_router,
-            sink: &notification_sink,
-            listener_pool: &listener_pool,
-            documents: &documents,
-            profile: &profile.notifications,
-            escalation: systemprompt_notifications::service::EscalationDelivery::Consumer,
-        });
+        let background_tasks = BackgroundTasks::default();
         let user_repository = Arc::new(UserRepository::new(&database));
-        let system_owner = load_system_admin(
+        let system_admin = load_system_admin(
             &config,
             &Arc::new(systemprompt_users::UserService::new(Arc::clone(
                 &user_repository,
             ))),
         )
-        .await?
-        .id()
-        .clone();
+        .await?;
+        let system_owner = system_admin.id().clone();
+
+        let store: Arc<dyn SecretStore> = Arc::<GrantedSecrets>::clone(&secrets);
+        let seed = crate::base_kernel_state(KernelSeed {
+            database: &database,
+            app_paths: &app_paths,
+            files_config: &files_config,
+            profile,
+            config: &config,
+            services: services.view(),
+            services_root: services_root.clone(),
+            secrets: store,
+            system_admin: &system_admin,
+            event_router: &event_router,
+            #[cfg(feature = "notifications")]
+            escalation: systemprompt_notifications::service::EscalationDelivery::Consumer,
+        });
+        let handle: Arc<dyn DatabaseHandle> = database.clone();
+        let mut kernel = Kernel::new(handle, background_tasks.clone(), seed);
+        kernel.resolve(&admitted).map_err(RuntimeError::from)?;
+        let r = kernel.resolved();
+
+        let (publication, authz_hook, market) = authz_stage(
+            profile,
+            &database,
+            &services,
+            None,
+            &cache_epochs,
+            &AuthzBuilt {
+                providers: &*r.get::<Arc<SubjectProviderSet>>().map_err(RuntimeError::from)?,
+                hooks: &*r.get::<Arc<AuthzHooks>>().map_err(RuntimeError::from)?,
+                seams: &*r.get::<Arc<MarketplaceSeams>>().map_err(RuntimeError::from)?,
+            },
+        )?;
+        let governance = load_governance(
+            profile,
+            &database,
+            &*r.get::<Arc<PolicyCatalog>>().map_err(RuntimeError::from)?,
+        )
+        .await
+        .map_err(RuntimeError::from)?;
+
+        #[cfg(feature = "notifications")]
+        let notification_sink = systemprompt_notifications::OutboxNotificationSink::over_write_pool(
+            &database,
+            &instance_id,
+        );
+        #[cfg(not(feature = "notifications"))]
+        let notification_sink: systemprompt_extension::DynNotificationSink =
+            Arc::new(crate::documents::NotificationsUnavailableSink);
+        #[cfg(feature = "brain")]
+        let brain_sink: systemprompt_extension::DynBrainSink = if profile.brain.enabled {
+            systemprompt_brain::OutboxBrainSink::over_write_pool(&database, &instance_id)
+        } else {
+            Arc::new(crate::documents::BrainUnavailableSink)
+        };
+        #[cfg(not(feature = "brain"))]
+        let brain_sink: systemprompt_extension::DynBrainSink =
+            Arc::new(crate::documents::BrainUnavailableSink);
+
+        let documents = build_documents(
+            &DocumentsInputs {
+                services_root: &services_root.path,
+                database: &database,
+                file_storage: &file_storage,
+                authz_hook: &authz_hook,
+                subjects: &market.subjects,
+                event_router: &event_router,
+                files_config: &files_config,
+                background_tasks: &background_tasks,
+                admitted: &admitted,
+                notifications: &notification_sink,
+                brain: &brain_sink,
+            },
+            &r,
+        )?;
 
         let managed =
             ManagedRepository::new(&database).with_publication_policy(publication.clone());
@@ -174,17 +196,8 @@ impl HostKernel {
             &system_owner,
         ));
 
-        let kernel = Self {
-            market_state: market.state,
-            extensions: Arc::clone(&extensions),
-            disabled_extensions: profile.extensions.disabled.clone(),
-            #[cfg(feature = "notifications")]
-            audiences,
-            #[cfg(feature = "notifications")]
-            notifications,
-        };
         let parts = HostParts {
-            artifact_ingest: build_artifact_ingest(&database, &governance.get()),
+            artifact_ingest: build_artifact_ingest(&database, &governance),
             tool_call_intents: Arc::new(systemprompt_ai::repository::AiRequestRepository::new(
                 &database,
             )),
@@ -193,7 +206,7 @@ impl HostKernel {
                 verification.clone(),
                 config.jwt_issuer.clone(),
             )),
-            subjects: market.factory.subjects.clone(),
+            subjects: market.subjects.clone(),
             subject_providers: market.subject_providers,
             user_repository,
             profile: Arc::clone(&loaded),
@@ -211,11 +224,12 @@ impl HostKernel {
             background_tasks,
             log_sink,
             file_storage,
-            extensions,
+            kernel: Arc::new(kernel),
+            admitted,
             system_owner,
             a2a,
         };
-        Ok((parts, kernel))
+        Ok(parts)
     }
 }
 

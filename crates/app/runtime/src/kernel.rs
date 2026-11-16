@@ -11,7 +11,8 @@
 //! the [`Admitted`] handoff: every admitted member's provide fns in
 //! composition order, each reading what was provided before it; every slot,
 //! built from its admitted entries (core first where the slot asks for it)
-//! and inserted as `Arc<S::Built>`; the governance surfaces every member reads
+//! and inserted as `Arc<S::Built>`, after the shared audience-resolver set
+//! ([`AudienceResolvers`]) every audience-reading slot consults; the governance surfaces every member reads
 //! by type — the [`SubjectProviderSet`], the [`PolicyCatalog`] and the
 //! [`GatewayGuards`] — each inserted as an `Arc`, a reserved or doubly
 //! declared subject dimension refusing the resolution; and last every
@@ -35,7 +36,7 @@ use systemprompt_agent_runs::origin::AdmittedRunOrigins;
 use systemprompt_extension::contribute::{SlotBuildInput, build_slot};
 use systemprompt_extension::prelude::RuleType;
 use systemprompt_extension::{
-    Admitted, AdmittedProjections, AdmittedPurge, AdmittedSchedule, BuiltState, FactoryError, GatewayGuards, HandleId, KernelHandle,
+    Admitted, AdmittedProjections, AudienceResolvers, AdmittedPurge, AdmittedSchedule, BuiltState, FactoryError, GatewayGuards, HandleId, KernelHandle,
     ProvideError, Resolved, SlotError,
 };
 use systemprompt_governance::authz::{SubjectProviderError, SubjectProviderSet};
@@ -159,6 +160,8 @@ impl Kernel {
         self.state.insert(AdmittedPurge::of(admitted.built()));
         self.state.insert(AdmittedSchedule::of(admitted.built()));
         self.provide_all(admitted)?;
+        let audiences = AudienceResolvers::from_admitted(admitted.built(), &self.resolved())?;
+        self.state.insert(Arc::new(audiences));
         self.build_slots(admitted)?;
         self.build_governance(admitted.built())?;
         self.check_requirements(admitted)
