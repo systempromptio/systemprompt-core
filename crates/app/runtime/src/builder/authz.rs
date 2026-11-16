@@ -1,9 +1,7 @@
-//! The authorization stage of the core boot: the publication policy, the
-//! authz hook and the marketplace factory context share one subject source
-//! handle, bound once the providers exist. The stage also creates the
-//! extension [`StateHandle`] every authz hook and subject provider factory
-//! receives; the builder binds it to the finished extension state before
-//! anything serves.
+//! The authorization stage of the core boot: the publication policy and the
+//! authz hook are assembled from the kernel-built subject providers, authz
+//! hooks and marketplace seams, and share one subject source handle bound to
+//! those providers.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,88 +9,58 @@
 use std::sync::Arc;
 
 use systemprompt_database::Database;
-use systemprompt_extension::StateHandle;
-use systemprompt_governance::authz::{
-    AuthzHookContext, NullAuditSink, SharedAuthzHook, SubjectProviderSet,
-};
+use systemprompt_governance::authz::{AuthzWiring, SharedAuthzHook, SubjectProviderSet};
+use systemprompt_governance::contract::AuthzHooks;
 use systemprompt_loader::ServicesState;
+use systemprompt_marketplace::contract::MarketplaceSeams;
+use systemprompt_marketplace::managed::PublicationPolicy;
 use systemprompt_models::authz::SubjectSourceHandle;
-use systemprompt_traits::{CacheEpochs, SecretStore};
+use systemprompt_traits::CacheEpochs;
 
 use super::core_layer::chain_sources;
 use crate::error::RuntimeResult;
 
 pub(crate) struct PluginInputs {
-    pub(crate) factory: systemprompt_marketplace::MarketplaceFactoryContext,
     pub(crate) subject_providers: SubjectProviderSet,
-    pub(crate) state: StateHandle,
+    pub(crate) subjects: SubjectSourceHandle,
 }
 
-fn authz_wiring(
-    factory: &systemprompt_marketplace::MarketplaceFactoryContext,
-    services: &ServicesState,
-    epochs: CacheEpochs,
-    providers: &SubjectProviderSet,
-    state: &StateHandle,
-) -> systemprompt_governance::authz::AuthzWiring {
-    systemprompt_governance::authz::AuthzWiring {
-        sources: chain_sources(&services.config()),
-        epochs,
-        services: factory.services.clone(),
-        subjects: factory.subjects.clone(),
-        providers: providers.clone(),
-        secrets: Arc::clone(&factory.secrets),
-        state: state.clone(),
-    }
+/// The kernel-built values the authorization stage assembles from.
+pub(crate) struct AuthzBuilt<'a> {
+    pub(crate) providers: &'a SubjectProviderSet,
+    pub(crate) hooks: &'a AuthzHooks,
+    pub(crate) seams: &'a MarketplaceSeams,
 }
 
-#[expect(
-    clippy::too_many_arguments,
-    reason = "the API and MCP host boots share this stage; each argument is a distinct boot input"
-)]
 pub(crate) fn authz_stage(
     profile: &systemprompt_manifest::Profile,
-    secrets: Arc<dyn SecretStore>,
     database: &Arc<Database>,
     services: &ServicesState,
     hook_override: Option<SharedAuthzHook>,
     epochs: &CacheEpochs,
-) -> RuntimeResult<(
-    systemprompt_marketplace::managed::PublicationPolicy,
-    SharedAuthzHook,
-    PluginInputs,
-)> {
-    let factory = systemprompt_marketplace::MarketplaceFactoryContext {
-        db: Arc::clone(database),
-        services: services.view(),
-        subjects: SubjectSourceHandle::default(),
-        secrets,
-    };
-    let state = StateHandle::default();
-    let providers = SubjectProviderSet::discover(&AuthzHookContext {
-        pool: database.pool(),
-        sink: Arc::new(NullAuditSink),
-        services: factory.services.clone(),
-        subjects: factory.subjects.clone(),
-        secrets: Arc::clone(&factory.secrets),
-        state: state.clone(),
-    });
-    factory.subjects.bind(Arc::new(providers.clone()))?;
-    let policy = systemprompt_marketplace::managed::PublicationPolicy::discover(
-        &factory,
+    built: &AuthzBuilt<'_>,
+) -> RuntimeResult<(PublicationPolicy, SharedAuthzHook, PluginInputs)> {
+    let providers = built.providers.clone();
+    let subjects = SubjectSourceHandle::default();
+    subjects.bind(Arc::new(providers.clone()))?;
+    let policy = PublicationPolicy::from_seams(
         services.config().marketplace.clone().unwrap_or_default(),
+        built.seams,
         providers.clone(),
-    )?;
+    );
     let authz_hook = systemprompt_governance::authz::build_authz_hook(
         profile.governance.as_ref(),
         database.write_pool(),
-        hook_override,
-        authz_wiring(&factory, services, epochs.clone(), &providers, &state),
+        hook_override.or_else(|| built.hooks.hook()),
+        AuthzWiring {
+            sources: chain_sources(&services.config()),
+            epochs: epochs.clone(),
+            providers: providers.clone(),
+        },
     )?;
     let market = PluginInputs {
-        factory,
         subject_providers: providers,
-        state,
+        subjects,
     };
     Ok((policy, authz_hook, market))
 }
