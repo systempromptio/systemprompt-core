@@ -7,15 +7,15 @@ use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use std::path::Path;
 
+use crate::shared::CommandOutput;
 use super::edit_apply::{
     apply_capability_fields, apply_card_fields, apply_enabled_flags, apply_mcp_server_changes,
     apply_metadata_fields, apply_runtime_fields, apply_set_value_changes, apply_skill_changes,
 };
 use super::shared::AgentArgs;
 use super::types::AgentEditOutput;
-use crate::context::CommandContext;
+use systemprompt_extension::cli::CommandHost;
 use systemprompt_extension::cli::resolve_required;
-use crate::shared::CommandOutput;
 use systemprompt_identifiers::AgentName;
 use systemprompt_loader::ConfigWriter;
 use systemprompt_logging::CliService;
@@ -51,11 +51,11 @@ pub struct EditArgs {
     pub agent: AgentArgs,
 }
 
-pub(super) fn execute(args: &EditArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let config = &ctx.cli;
-    let prompter = ctx.prompter();
-    let services_config = ctx
-        .boot()?
+pub(super) async fn execute(args: &EditArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let config = host.output();
+    let prompter = host.prompter();
+    let services_config = crate::commands::admin::state::boot(host)
+        .await?
         .config_loader()
         .verbatim()
         .load()
@@ -91,13 +91,13 @@ pub(super) fn execute(args: &EditArgs, ctx: &CommandContext) -> Result<CommandOu
 
     CliService::info(&format!("Updating agent '{}'...", name));
 
-    let profile = ctx.profile()?;
+    let profile = host.profile()?;
     let services_dir = Path::new(&profile.paths.services);
 
     ConfigWriter::update_agent(&name, &agent, services_dir)
         .with_context(|| format!("Failed to update agent '{}'", name))?;
 
-    ctx.boot()?.load_services_config().with_context(|| {
+    crate::commands::admin::state::boot(host).await?.load_services_config().with_context(|| {
         format!(
             "Agent '{}' updated but validation failed. Please check the configuration.",
             name

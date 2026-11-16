@@ -8,9 +8,9 @@ use clap::Args;
 use reqwest::Client;
 use serde::Deserialize;
 
-use super::types::{RegistryAgentInfo, RegistryOutput};
-use crate::context::CommandContext;
 use crate::shared::{CommandOutput, truncate_with_ellipsis};
+use super::types::{RegistryAgentInfo, RegistryOutput};
+use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Args)]
 pub struct RegistryArgs {
@@ -73,8 +73,8 @@ struct SkillResponse {
     name: String,
 }
 
-pub(super) async fn execute(args: RegistryArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let profile_url = ctx
+pub(super) async fn execute(args: RegistryArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let profile_url = host
         .profile()
         .ok()
         .map(|p| p.server.api_external_url.clone());

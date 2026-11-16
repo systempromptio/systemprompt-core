@@ -3,31 +3,27 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-
 use anyhow::{Context, Result, anyhow};
 use systemprompt_database::DbPool;
 use systemprompt_logging::LoggingRepository;
 use systemprompt_manifest::ServicesConfig;
 
+use crate::CliConfig;
+use crate::shared::CommandOutput;
 use super::logs::LogsArgs;
 use super::types::AgentLogsOutput;
-use crate::CliConfig;
-use crate::context::CommandContext;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandHost;
 
 pub(super) async fn execute_db_mode(
     args: &LogsArgs,
-    ctx: &CommandContext,
+    host: &dyn CommandHost,
 ) -> Result<CommandOutput> {
-    let app = ctx
-        .app_context()
-        .await
-        .context("Failed to initialize app context")?;
-    let services = ctx
-        .boot()?
+    let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
+    let services = crate::commands::admin::state::boot(host)
+        .await?
         .load_services_config()
         .context("Failed to load services config")?;
-    execute_db_mode_with_pool(args, app.db_pool(), &services, &ctx.cli).await
+    execute_db_mode_with_pool(args, &pool, &services, host.output()).await
 }
 
 pub async fn execute_db_mode_with_pool(

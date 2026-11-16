@@ -6,10 +6,10 @@
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
 
-use super::types::AgentDetailOutput;
-use crate::context::CommandContext;
-use systemprompt_extension::cli::resolve_required;
 use crate::shared::CommandOutput;
+use super::types::AgentDetailOutput;
+use systemprompt_extension::cli::CommandHost;
+use systemprompt_extension::cli::resolve_required;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
@@ -17,11 +17,11 @@ pub struct ShowArgs {
     pub name: Option<String>,
 }
 
-pub(super) fn execute(args: ShowArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let config = &ctx.cli;
-    let prompter = ctx.prompter();
-    let services_config = ctx
-        .boot()?
+pub(super) async fn execute(args: ShowArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let config = host.output();
+    let prompter = host.prompter();
+    let services_config = crate::commands::admin::state::boot(host)
+        .await?
         .load_services_config()
         .context("Failed to load services configuration")?;
 

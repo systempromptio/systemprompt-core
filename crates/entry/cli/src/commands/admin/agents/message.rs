@@ -11,13 +11,13 @@ use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 use systemprompt_logging::CliService;
 use systemprompt_models::a2a::{Message, MessageRole, Part, methods};
 
+use crate::session::get_or_create_session;
+use crate::shared::CommandOutput;
 use super::client::ensure_agent_exists;
 use super::message_request::{NonStreamingRequest, execute_non_streaming};
 use super::message_streaming::execute_streaming;
-use crate::context::CommandContext;
+use systemprompt_extension::cli::CommandHost;
 use systemprompt_extension::cli::resolve_required;
-use crate::session::get_or_create_session;
-use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 #[command(
@@ -109,15 +109,15 @@ fn build_send_request(
     }
 }
 
-pub(super) async fn execute(args: MessageArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let config = &ctx.cli;
-    let session_ctx = get_or_create_session(ctx).await?;
+pub(super) async fn execute(args: MessageArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let config = host.output();
+    let session_ctx = get_or_create_session(host).await?;
 
     let agent = resolve_required(args.agent, "agent", config, || {
         Err(anyhow!("Agent name is required"))
     })?;
 
-    ensure_agent_exists(&agent, ctx)?;
+    ensure_agent_exists(&agent, host).await?;
 
     let message_text = resolve_required(args.message, "message", config, || {
         Err(anyhow!("Message text is required. Use -m or --message"))
