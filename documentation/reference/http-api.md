@@ -9,6 +9,7 @@ A2A is the agent-to-agent protocol; MCP is the Model Context Protocol. The gatew
 - Path constants are defined in `crates/shared/models/src/modules/api_paths.rs`. Routes are mounted in `crates/entry/api/src/services/server/discovery.rs`, `crates/entry/api/src/services/server/routes/protocol.rs`, and the routers under `crates/entry/api/src/routes/`.
 - All paths in this document are relative to the configured external base URL (`api_external_url` in the profile). Examples below use `http://127.0.0.1:8080`.
 - `{name}` denotes a path parameter.
+- Routes an installation adds are declared as route sets and admitted before the server mounts them. An install route may not reach a reserved core path (`RESERVED_PATHS`; for example the MCP proxy, the gateway `/v1` and `/api/public/gateway`, well-known, discovery, probes, `/`, `/api/v1/core`, documents, uploads, issues, brain, notifications, content `/r`, analytics `/track`); the check runs at admission and again at mount, and a violation refuses the boot. An installation has no root fallback: `/`, `/{*path}` and `/{slug}` routes are refused.
 
 ### Authentication
 
@@ -399,7 +400,7 @@ A refused document request answers the common error envelope with `error_key` se
 
 ## Other mounted areas
 
-These areas are mounted by `mount_content_and_misc` (`protocol.rs:149`), except the content routes, which the `content-http` extension (`systemprompt-content-entry`) declares in the same role group. A profile that disables `content-http` mounts none of them, and those paths answer 404.
+These areas are mounted by `mount_content_and_misc` (`crates/entry/api/src/services/server/routes/protocol/content.rs`), except the content routes, which the `content-http` extension (`systemprompt-content-entry`) declares in the same role group. A profile that disables `content-http` mounts none of them, and those paths answer 404.
 
 | Base path | Auth | Purpose |
 |-----------|------|---------|

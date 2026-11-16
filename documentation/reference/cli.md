@@ -2,7 +2,7 @@
 
 The complete command surface of the `systemprompt` CLI. The binary groups commands into eight top-level domains: `core`, `infra`, `admin`, `cloud`, `analytics`, `web`, `plugins`, and `build`.
 
-The command tree is assembled at startup from two sources: the kernel groups named in `crates/entry/cli/src/runner/args/mod.rs`, and command groups registered at link time with `register_cli_command!` (`crates/entry/cli/src/kernel/`). A registered group declares its parent (top level, or under a kernel group such as `admin`), its name and help, and the same bootstrap descriptor kernel commands carry: whether it needs a profile, secrets, paths or a database, how it routes against a cloud profile, whether it destroys data, and whether it accepts `--database-url`. Registered groups appear in `--help` after the kernel groups, ordered by path. Two registrations of one path, a registration that shadows a kernel command, or one under a parent that does not exist stops the binary at startup with an error naming the registering types. `plugins seams` lists the registered groups under `cli_commands`. `build` is a registered group.
+The command tree is assembled at startup from two sources: the kernel groups named in `crates/entry/cli/src/runner/args/mod.rs` together with the kernel's built-in contributed groups (`build`), and the command groups the composition's members contribute through `Contributions::command(CommandDecl::group::<T>())` (or `group_under`/`leaf_under` to attach under a kernel group such as `core`, `web` or `admin`). A contributed group is a `CliCommandGroup` that carries its name, help and the same bootstrap descriptor kernel commands carry: whether it needs a profile, secrets, paths or a database, how it routes against a cloud profile, whether it destroys data, and whether it accepts `--database-url`; it runs as `run(&dyn CommandHost) -> CommandOutput`. The registry (`crates/entry/cli/src/kernel/registry.rs`) admits every contribution before the profile is loaded: two contributions of one path, one that shadows a kernel command or a subcommand of another group, one under a parent that does not exist, one claiming a reserved CLI path (`RESERVED_CLI_PATHS`) without being that path's core owner type, or one requesting a kernel grant not listed for its path stops the binary with an error naming the contributors. A member command whose owner the profile disables is refused before it runs, and a member command needs a profile: it is refused on a run given only `--database-url`.
 
 ## Synopsis
 
@@ -150,7 +150,7 @@ systemprompt admin agents status my-agent
 
 ## cloud — deployment, backup, tenants
 
-`crates/entry/cloud/src/cli/` (`systemprompt-cloud-entry`, `cli` feature). The group registers with the CLI kernel; a binary built without that crate has no `cloud` command.
+`crates/entry/cloud/src/cli/` (`systemprompt-cloud-entry`, `cli` feature). The cloud member contributes the group through `Contributions::command`; a binary whose composition lacks that member has no `cloud` command.
 
 | Subcommand | Notable flags / commands | Purpose |
 |------------|--------------------------|---------|
@@ -176,7 +176,7 @@ systemprompt cloud auth login
 
 `crates/entry/analytics/src/cli/` (`systemprompt-analytics-entry`, feature `cli`)
 
-A registered group, listed in `--help` between `cloud` and `web`. Every subcommand is read-only, needs the profile's database, accepts `--database-url`, and writes an `--export` file on the local machine even when the profile routes to a cloud tenant. The same crate registers `core content popular`.
+A group contributed by the analytics HTTP member. Every subcommand is read-only, needs a profile and its database (a run given only `--database-url` is refused), and writes an `--export` file on the local machine even when the profile routes to a cloud tenant. The same member contributes `core content popular` (feature `content-commands`).
 
 | Subcommand | Purpose |
 |------------|---------|
@@ -219,34 +219,31 @@ systemprompt web validate
 | `plugins list` | List all discovered extensions. |
 | `plugins show <NAME>` | Show detailed extension information. |
 | `plugins run <NAME> [ARGS]` | Run a CLI extension command. |
-| `plugins validate` | Validate extension dependencies and configurations. Exits non-zero on errors. |
 | `plugins config <NAME>` | Show extension configuration. |
-| `plugins capabilities` | List capabilities across all extensions. |
-| `plugins seams [--seam TEXT]` | List every link-time registration seam and what this binary registers in it. Exits non-zero when the profile names a registration the binary does not link. |
+| `plugins capabilities jobs\|schemas\|roles` | List jobs, schemas or roles across the admitted members. |
+| `plugins seams [--member TEXT]` | List the admitted composition, member by member, with what each contributes. |
 | `plugins mcp` | MCP server management. |
 
 ```bash
 systemprompt plugins list
 ```
 
-### Registration seams
+### Admitted composition
 
-Extensions, jobs, authz hooks, secrets sources, gateway scanners and adapters, SSO providers, MCP toolsets, brain, notification and retention-hold seams and the other compile-time registrations exist only in a binary that links the crate that registers them. Each seam is itself a registration, contributed by the crate that links it, so a capability's seams (for example `agent_run_origins`, from the agent-runs capability) are listed only when that capability is linked. `plugins seams` prints one row per seam, ordered by name, including seams with no entries:
+A capability exists only in a binary whose composition includes the member that contributes it, and only when the profile does not disable that member. `plugins seams` prints one row per admitted member and contribution kind (provided and required state, slots, schemas, migrations, seeds, jobs, job-run scopes, retention, user purges, orphan sweeps, projections, run origins, subject providers, policies, gateway guards, runner services, readiness checks, diagnostics, metrics, roles, configuration sections and planes):
 
 | Column | Meaning |
 |--------|---------|
-| `seam` | Seam name, e.g. `authz_hooks`, `gateway_safety_scanners`, `agent_run_origins`. |
-| `owner` | Crate that collects the registrations. |
-| `extension` | Extension id that owns the seam as a whole, or `kernel` (including seams whose entries carry their own owners). |
-| `count`, `entries` | Registered entries by stable name, id or tag; `priority=N` for priority-only seams; `unnamed#N` for factory-only seams. An entry switched on by its own registering extension (gateway guards and gateway route groups) shows that owner as `name [owner]`, or `name [owner: owner_disabled]` when the profile disables it; a requirement is met only by entries whose owners are enabled. |
-| `requires` | Profile setting that depends on this seam, if any. |
-| `status` | `linked`, `empty`, `missing` (the profile requires an entry the binary does not link, requires a seam no linked crate registers, or requires a seam whose owning extension it disables), or `owner_disabled` (the profile disables the owning extension and no setting requires the seam; informational). |
+| `member` | Extension id of the admitted member. |
+| `standing` | Whether the member is a core member or an install member. |
+| `contribution` | Contribution kind. |
+| `count`, `entries` | Number of entries; for schemas, jobs, roles and configs, their table names, job names, role names or config prefixes. |
 
-Profile checks: `governance.authz.hook.mode: extension` requires at least one authz hook, and `secrets.source: external` requires a secrets source registered under `secrets.external.kind`. A binary that fails either check refuses to boot with that profile, so run the command against the deployment profile before shipping a custom binary.
+`--member` keeps only members whose id or name contains the text. A member the profile disables is not admitted and has no rows. A profile setting that needs a contribution no admitted member makes is refused when the composition is admitted, before any command runs, so run a command against the deployment profile before shipping a custom binary.
 
 ```bash
 systemprompt plugins seams
-systemprompt plugins seams --seam gateway --json
+systemprompt plugins seams --member gateway --json
 ```
 
 ## build — build extensions
