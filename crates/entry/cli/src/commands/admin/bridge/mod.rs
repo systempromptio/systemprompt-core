@@ -14,12 +14,12 @@ mod rotate_signing_key;
 pub mod signing_key_fingerprint;
 mod types;
 
-use crate::context::CommandContext;
-use crate::shared::render_result;
 use anyhow::{Result, anyhow};
 use clap::Subcommand;
+use crate::shared::CommandOutput;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::CommandHost;
 use systemprompt_identifiers::UserId;
 use systemprompt_users::{UserAdminService, UserRepository, UserService};
 
@@ -61,32 +61,27 @@ pub enum BridgeCommands {
     SigningKeyFingerprint(signing_key_fingerprint::SigningKeyFingerprintArgs),
 }
 
-pub async fn execute(cmd: BridgeCommands, ctx: &CommandContext) -> Result<()> {
+pub async fn execute(cmd: BridgeCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     match cmd {
         BridgeCommands::EnrollCert(args) => {
-            let result = enroll_cert::execute(args, ctx).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            let result = enroll_cert::execute(args, host).await?;
+            Ok(result)
         },
         BridgeCommands::IssueCode(args) => {
-            let result = issue_code::execute(args, ctx).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            let result = issue_code::execute(args, host).await?;
+            Ok(result)
         },
         BridgeCommands::List(args) => {
-            let result = list::execute(args, ctx).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            let result = list::execute(args, host).await?;
+            Ok(result)
         },
         BridgeCommands::RotateSigningKey(args) => {
-            let result = rotate_signing_key::execute(args, ctx)?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            let result = rotate_signing_key::execute(args, host).await?;
+            Ok(result)
         },
         BridgeCommands::SigningKeyFingerprint(args) => {
-            let result = signing_key_fingerprint::execute(args, ctx)?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            let result = signing_key_fingerprint::execute(args, host).await?;
+            Ok(result)
         },
     }
 }

@@ -10,9 +10,9 @@ use ed25519_dalek::{SigningKey, VerifyingKey};
 use systemprompt_config::SecretsService;
 use systemprompt_logging::CliService;
 
-use super::types::SigningKeyRotatedOutput;
-use crate::context::CommandContext;
 use crate::shared::{CommandOutput, ConfirmArgs};
+use super::types::SigningKeyRotatedOutput;
+use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct RotateSigningKeyArgs {
@@ -20,8 +20,12 @@ pub struct RotateSigningKeyArgs {
     pub confirm: ConfirmArgs,
 }
 
-pub(super) fn execute(_args: RotateSigningKeyArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let seed = SecretsService::rotate_manifest_signing_seed(ctx.loaded_profile()?)?;
+pub(super) async fn execute(
+    _args: RotateSigningKeyArgs,
+    host: &dyn CommandHost,
+) -> Result<CommandOutput> {
+    let boot = crate::commands::admin::state::boot(host).await?;
+    let seed = SecretsService::rotate_manifest_signing_seed(boot.loaded_profile())?;
     let key = SigningKey::from_bytes(&seed);
     let verifying: VerifyingKey = key.verifying_key();
     let pubkey_b64 = base64::engine::general_purpose::STANDARD.encode(verifying.to_bytes());
