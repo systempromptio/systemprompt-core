@@ -21,7 +21,7 @@ text = "`register_sso_provider!`, `register_auth_event_sink!` and `register_role
 [[crate]]
 name = "systemprompt-notifications"
 section = "Breaking"
-text = "Notification seams are contributed through `contract::NotificationsSlot` (`router`, `channel`, `audience`, `publish_policy`, `resource_visibility`, each a `Factory`) and built into `NotificationSeams`; the `register_notification_*!` and `register_resource_visibility!` registrations are not read, and `NotificationsSlotBuilder::audience` is removed. The slot appends the core defaults after the contributed seams and binds the service and outbox consumer, which runs through `BoundConsumerRunner`."
+text = "Notification seams are contributed through `contract::NotificationsSlot` (`router`, `channel`, `audience`, `publish_policy`, `resource_visibility`, each a `Factory`) and built into `NotificationSeams`; the `register_notification_*!` and `register_resource_visibility!` registrations are removed, and `NotificationsSlotBuilder::audience` is removed. The slot appends the core defaults after the contributed seams and binds the service and outbox consumer, which runs through `BoundConsumerRunner`."
 
 [[crate]]
 name = "systemprompt-brain"
