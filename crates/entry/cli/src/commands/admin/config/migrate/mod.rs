@@ -41,6 +41,7 @@ pub mod slack;
 pub mod swap;
 pub mod write;
 
+use crate::kernel::KernelHost;
 use std::path::PathBuf;
 
 use anyhow::{Result, bail};
@@ -48,7 +49,6 @@ use clap::Args;
 
 use crate::shared::CommandOutput;
 use super::types::ConfigMutationOutput;
-use systemprompt_extension::cli::CommandHost;
 
 pub use plan::{MigrationPlan, legacy_files, plan};
 
@@ -81,7 +81,7 @@ pub struct MigrateArgs {
     pub profiles: Option<PathBuf>,
 }
 
-fn services_dir(args: &MigrateArgs, host: &dyn CommandHost) -> Result<PathBuf> {
+fn services_dir(args: &MigrateArgs, host: &dyn KernelHost) -> Result<PathBuf> {
     match args.services.as_ref() {
         Some(dir) => Ok(dir.clone()),
         None => Ok(PathBuf::from(&host.profile()?.paths.services)),
@@ -138,7 +138,7 @@ fn execute_profiles(args: &MigrateArgs, dir: &std::path::Path) -> Result<Command
     Ok(steps.output("Profiles Migrated"))
 }
 
-pub async fn execute(args: &MigrateArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(args: &MigrateArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     match args.profiles.as_ref() {
         Some(dir) => execute_profiles(args, dir),
         None => execute_services(args, host).await,
@@ -181,7 +181,7 @@ fn apply_renames(steps: &mut MigrationSteps, services: &std::path::Path) -> Resu
     Ok(())
 }
 
-async fn execute_services(args: &MigrateArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+async fn execute_services(args: &MigrateArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let mut steps = MigrationSteps::default();
     let services = services_dir(args, host)?;
     let pending = plan(&services)?;

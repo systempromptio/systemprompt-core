@@ -8,6 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
 use systemprompt_config::{CredentialSpec, ProviderCatalogService};
@@ -15,7 +16,7 @@ use systemprompt_identifiers::{CredentialId, SecretName};
 use systemprompt_manifest::services::catalog::CredentialEntry;
 
 use super::catalog_edit::{apply, read_active, list_output};
-use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum CredentialCommands {
@@ -45,7 +46,7 @@ pub struct CredentialAddArgs {
     pub label: Option<String>,
 }
 
-pub async fn execute(command: &CredentialCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(command: &CredentialCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
         CredentialCommands::List => {
             let document = read_active(host).await?;

@@ -3,8 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use crate::commands::shared::rendered;
-use systemprompt_extension::cli::CommandHost;
 use systemprompt_database::pool_from_handle;
 use anyhow::Result;
 use clap::Args;
@@ -66,7 +66,7 @@ pub struct ListArgs {
 
 pub(in crate::commands::infrastructure::logs) async fn execute(
     args: ListArgs,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let pool = pool_from_handle(host.db().await?)?.pool();
     execute_with_pool_inner(args, &pool, host).await
@@ -100,7 +100,7 @@ fn build_filter(args: &ListArgs, since_timestamp: Option<DateTime<Utc>>) -> Trac
 async fn execute_with_pool_inner(
     args: ListArgs,
     pool: &Arc<sqlx::PgPool>,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let since_timestamp = parse_since(args.since.as_ref())?;
     let filter = build_filter(&args, since_timestamp);

@@ -7,6 +7,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use clap::{Args, Subcommand};
 use serde::Serialize;
@@ -14,7 +15,6 @@ use systemprompt_identifiers::UserId;
 use systemprompt_users::{NewServiceAccount, UserRepository};
 
 use crate::shared::CommandOutput;
-use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Subcommand)]
 pub enum ServiceAccountCommands {
@@ -44,14 +44,14 @@ struct ServiceAccountOutput {
 
 pub(super) async fn execute(
     cmd: ServiceAccountCommands,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     match cmd {
         ServiceAccountCommands::Create(args) => create(args, host).await,
     }
 }
 
-async fn create(args: CreateServiceAccountArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+async fn create(args: CreateServiceAccountArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     if args.name.trim().is_empty() || args.email.trim().is_empty() {
         return Err(anyhow!("Service account name and email cannot be empty"));
     }

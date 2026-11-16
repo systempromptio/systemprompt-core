@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use std::sync::Arc;
 
 use anyhow::{Context, Result, anyhow};
@@ -16,7 +17,6 @@ use crate::interactive::Prompter;
 use crate::session::get_or_create_session;
 use crate::shared::CommandOutput;
 use super::types::{AgentToolsOutput, AgentToolsSummary, UnavailableServer};
-use systemprompt_extension::cli::CommandHost;
 use systemprompt_identifiers::{McpServerId, SessionToken};
 use systemprompt_mcp::McpServerConfig;
 use systemprompt_mcp::services::McpOrchestrator;
@@ -47,7 +47,7 @@ struct CollectedTools {
     servers_queried: usize,
 }
 
-pub(super) async fn execute(args: ToolsArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: ToolsArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let config = host.output();
     let services_config = crate::commands::admin::state::boot(host)
         .await?

@@ -3,12 +3,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
 
 use crate::shared::CommandOutput;
 use super::types::AgentDetailOutput;
-use systemprompt_extension::cli::CommandHost;
 use systemprompt_extension::cli::resolve_required;
 
 #[derive(Debug, Args)]
@@ -17,7 +17,7 @@ pub struct ShowArgs {
     pub name: Option<String>,
 }
 
-pub(super) async fn execute(args: ShowArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: ShowArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let config = host.output();
     let prompter = host.prompter();
     let services_config = crate::commands::admin::state::boot(host)

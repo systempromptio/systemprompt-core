@@ -12,6 +12,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use clap::Args;
 use systemprompt_identifiers::JobName;
@@ -20,7 +21,6 @@ use systemprompt_scheduler::{JobPruneService, JobRepository, ScheduledJob};
 use super::admitted_schedule;
 use super::types::PrunedJob;
 use systemprompt_database::pool_from_handle;
-use systemprompt_extension::cli::CommandHost;
 use crate::interactive::require_confirmation;
 use crate::shared::CommandOutput;
 
@@ -36,7 +36,7 @@ pub struct PruneArgs {
     pub yes: bool,
 }
 
-pub(super) async fn execute(args: PruneArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: PruneArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let schedule = admitted_schedule(host).await?;
     let service = JobPruneService::new(
         JobRepository::new(&pool_from_handle(host.db().await?)?),

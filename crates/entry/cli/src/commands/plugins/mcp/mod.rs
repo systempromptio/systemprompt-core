@@ -17,10 +17,11 @@ pub mod types;
 pub mod validate;
 mod validate_output;
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use clap::Subcommand;
 
-use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_extension::cli::CommandOutput;
 
 
 #[derive(Debug, Subcommand)]
@@ -47,7 +48,7 @@ pub enum McpCommands {
     Call(call::CallArgs),
 }
 
-pub async fn execute(command: McpCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(command: McpCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
         McpCommands::List(args) => list::execute(args, host)
             .await

@@ -3,8 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use crate::cli_settings::CliConfig;
-use systemprompt_extension::cli::CommandHost;
 use crate::commands::shared::app_context;
 use crate::shared::CommandOutput;
 use anyhow::Result;
@@ -24,7 +24,7 @@ use super::{get_api_port, lifecycle};
 pub(super) async fn execute(
     target: ServiceTarget,
     force: bool,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let config = host.output();
     let app = app_context(host)

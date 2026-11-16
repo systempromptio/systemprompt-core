@@ -32,11 +32,11 @@ mod types;
 mod update;
 mod webauthn;
 
+use crate::kernel::KernelHost;
 use anyhow::{Result, bail};
 use clap::Subcommand;
 use crate::descriptor::DataImpact;
 use crate::shared::CommandOutput;
-use systemprompt_extension::cli::CommandHost;
 
 pub use apikey::{ApiKeyCommands, IssueArgs as ApiKeyIssueArgs};
 pub use types::{
@@ -124,7 +124,7 @@ pub enum UsersCommands {
     ServiceAccount(service_account::ServiceAccountCommands),
 }
 
-pub async fn execute(cmd: UsersCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(cmd: UsersCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     if host.is_database_scoped()
         && matches!(
             cmd,
@@ -185,7 +185,7 @@ const fn writes_identity(cmd: &UsersCommands) -> bool {
     )
 }
 
-async fn refuse_file_managed_identity(host: &dyn CommandHost) -> Result<()> {
+async fn refuse_file_managed_identity(host: &dyn KernelHost) -> Result<()> {
     let authority = host
         .profile()?
         .config_planes

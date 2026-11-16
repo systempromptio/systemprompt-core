@@ -12,6 +12,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use std::path::Path;
 
 use anyhow::{Context, Result};
@@ -25,7 +26,6 @@ use systemprompt_manifest::profile::resolve_with_home;
 use systemprompt_manifest::secrets::OAUTH_AT_REST_PEPPER_MIN_LENGTH;
 
 use crate::shared::CommandOutput;
-use systemprompt_extension::cli::CommandHost;
 
 pub const DATABASE_URL_ALIASES: &[&str] = &["database_url", "internal_database_url"];
 
@@ -43,12 +43,12 @@ pub struct SecretCheckReport {
     pub last_error: Option<String>,
 }
 
-pub async fn execute(host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(host: &dyn KernelHost) -> Result<CommandOutput> {
     let report = run(host).await?;
     Ok(CommandOutput::card_value("Secrets Source", &report))
 }
 
-pub async fn run(host: &dyn CommandHost) -> Result<SecretCheckReport> {
+pub async fn run(host: &dyn KernelHost) -> Result<SecretCheckReport> {
     let profile = host.profile()?;
     let profile_dir = host
         .profile_path()?

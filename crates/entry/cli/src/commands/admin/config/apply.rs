@@ -16,6 +16,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -30,7 +31,7 @@ use systemprompt_scheduler::services::{
 };
 
 use crate::shared::CommandOutput;
-use systemprompt_extension::cli::{CommandError, CommandHost};
+use systemprompt_extension::cli::CommandError;
 
 #[derive(Debug, Clone, Args)]
 pub struct ApplyArgs {
@@ -70,7 +71,7 @@ struct PlaneRow {
     unchanged: usize,
 }
 
-pub async fn execute(args: &ApplyArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(args: &ApplyArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     if args.reason.trim().is_empty() {
         bail!("--reason must not be empty; it is recorded in config_change_audit");
     }

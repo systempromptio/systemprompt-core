@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use chrono::Utc;
 use clap::Args;
@@ -13,7 +14,6 @@ use systemprompt_logging::CliService;
 
 use super::types::ContextSwitchedOutput;
 use crate::CliConfig;
-use systemprompt_extension::cli::CommandHost;
 use systemprompt_database::pool_from_handle;
 use crate::session::{CliSessionContext, get_or_create_session};
 use crate::shared::CommandOutput;
@@ -27,7 +27,7 @@ pub struct NewArgs {
     pub name: Option<String>,
 }
 
-pub(super) async fn execute(args: NewArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: NewArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let session_ctx = get_or_create_session(host).await?;
     let pool = pool_from_handle(host.db().await?)?;
     let sessions_dir = ResolvedPaths::discover().sessions_dir();

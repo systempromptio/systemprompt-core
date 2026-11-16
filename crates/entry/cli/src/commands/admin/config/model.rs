@@ -8,6 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::{Args, Subcommand};
 use systemprompt_config::{ModelSpec, ProviderCatalogService};
@@ -15,7 +16,7 @@ use systemprompt_identifiers::ModelId;
 use systemprompt_manifest::services::catalog::DeploymentTarget;
 
 use super::catalog_edit::{apply, parse_clients, parse_endpoints, read_active, list_output};
-use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum ModelCommands {
@@ -53,7 +54,7 @@ pub struct ModelAddArgs {
     pub clients: Option<Vec<String>>,
 }
 
-pub async fn execute(command: &ModelCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(command: &ModelCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
         ModelCommands::List => {
             let document = read_active(host).await?;

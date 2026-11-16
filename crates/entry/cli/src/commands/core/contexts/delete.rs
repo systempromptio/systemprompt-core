@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result, bail};
 use clap::Args;
 use systemprompt_agent::repository::context::ContextRepository;
@@ -10,7 +11,6 @@ use systemprompt_logging::CliService;
 
 use super::resolve::resolve_context;
 use super::types::ContextDeletedOutput;
-use systemprompt_extension::cli::CommandHost;
 use systemprompt_database::pool_from_handle;
 use crate::session::get_or_create_session;
 use crate::shared::CommandOutput;
@@ -24,7 +24,7 @@ pub struct DeleteArgs {
     pub yes: bool,
 }
 
-pub(super) async fn execute(args: DeleteArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: DeleteArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let session_ctx = get_or_create_session(host).await?;
     let pool = pool_from_handle(host.db().await?)?;
     execute_with_pool(args, &session_ctx.session, &pool, host.output(), host.prompter()).await

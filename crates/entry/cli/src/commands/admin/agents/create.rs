@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use clap::Args;
 use std::path::Path;
@@ -16,7 +17,6 @@ use systemprompt_agent::services::config_authoring::{
     AgentCapabilityFlags, AgentCardLinks, AgentConfigAuthoringService, AgentCreateRequest,
     AgentModelChoice, AgentPlacement,
 };
-use systemprompt_extension::cli::CommandHost;
 use systemprompt_extension::cli::resolve_required;
 use systemprompt_logging::CliService;
 
@@ -40,7 +40,7 @@ struct ResolvedAgentInput {
     system_prompt: String,
 }
 
-pub(super) async fn execute(args: CreateArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: CreateArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let config = host.output();
     let prompter = host.prompter();
     let mut agent_args = args.agent;
@@ -166,7 +166,7 @@ fn build_create_request(
 
 async fn write_agent_config(
     request: AgentCreateRequest,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<std::path::PathBuf> {
     let profile = host.profile()?;
     let services_dir = Path::new(&profile.paths.services);

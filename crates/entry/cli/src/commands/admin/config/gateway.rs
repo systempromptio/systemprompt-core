@@ -11,6 +11,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow, bail};
 use clap::{Args, Subcommand};
 use systemprompt_identifiers::ModelId;
@@ -19,7 +20,7 @@ use systemprompt_manifest::services::gateway::{ModelGlobs, RouteAlias, RouteDepl
 use systemprompt_manifest::services::{GatewayConfigSpec, GatewayRoute};
 
 use super::catalog_edit::{apply, parse_endpoints, read_active, list_output};
-use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum GatewayCommands {
@@ -87,7 +88,7 @@ pub struct RouteAddArgs {
     pub alias: Option<String>,
 }
 
-pub async fn execute(command: &GatewayCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(command: &GatewayCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
         GatewayCommands::Route(RouteCommands::List) => list_routes(host).await,
         GatewayCommands::Enable => edit(host, |spec| Ok(set_enabled(spec, true))).await,
@@ -116,7 +117,7 @@ pub async fn execute(command: &GatewayCommands, host: &dyn CommandHost) -> Resul
 }
 
 async fn edit(
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
     mutate: impl FnOnce(&mut GatewayConfigSpec) -> Result<String>,
 ) -> Result<CommandOutput> {
     apply(host, "Gateway Updated", |document, context| {
@@ -171,7 +172,7 @@ pub fn remove_route(spec: &mut GatewayConfigSpec, id: &str) -> Result<String> {
     Ok(format!("Route {id} removed"))
 }
 
-async fn list_routes(host: &dyn CommandHost) -> Result<CommandOutput> {
+async fn list_routes(host: &dyn KernelHost) -> Result<CommandOutput> {
     let document = read_active(host).await?;
     let rows = document
         .gateway

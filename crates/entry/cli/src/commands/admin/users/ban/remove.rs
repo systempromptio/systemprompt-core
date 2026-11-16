@@ -3,13 +3,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_users::BannedIpRepository;
 
 use crate::commands::admin::users::types::BanRemoveOutput;
 use crate::shared::CommandOutput;
-use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Args)]
 pub struct RemoveArgs {
@@ -19,7 +19,7 @@ pub struct RemoveArgs {
     pub yes: bool,
 }
 
-pub(super) async fn execute(args: RemoveArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: RemoveArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     if !args.yes {
         return Err(anyhow!(
             "This will remove the IP ban. Use --yes to confirm."

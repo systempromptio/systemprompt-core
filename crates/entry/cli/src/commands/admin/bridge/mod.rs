@@ -14,12 +14,12 @@ mod rotate_signing_key;
 pub mod signing_key_fingerprint;
 mod types;
 
+use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use clap::Subcommand;
 use crate::shared::CommandOutput;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_extension::cli::CommandHost;
 use systemprompt_identifiers::UserId;
 use systemprompt_users::{UserAdminService, UserRepository, UserService};
 
@@ -61,7 +61,7 @@ pub enum BridgeCommands {
     SigningKeyFingerprint(signing_key_fingerprint::SigningKeyFingerprintArgs),
 }
 
-pub async fn execute(cmd: BridgeCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(cmd: BridgeCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match cmd {
         BridgeCommands::EnrollCert(args) => {
             let result = enroll_cert::execute(args, host).await?;

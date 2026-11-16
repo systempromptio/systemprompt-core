@@ -3,8 +3,7 @@
 //! Exposes the [`ValidationIssue`] / [`ValidationOutput`] result shapes
 //! used by the various `validate` subcommands, [`rendered`] (the output a
 //! command returns when it has already rendered through `CommandHost::render`)
-//! [`app_context`], the runtime context read from the kernel's resolved
-//! state, and [`services_config`], the services configuration under the
+//! [`app_context`], the runtime context the kernel host builds, and [`services_config`], the services configuration under the
 //! host's services root.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -19,7 +18,7 @@ pub use validation::{ValidationIssue, ValidationOutput};
 use std::sync::Arc;
 use crate::kernel::KernelHost;
 
-use systemprompt_extension::cli::{CommandError, CommandHost, CommandOutput};
+use systemprompt_extension::cli::{CommandError, CommandOutput};
 use systemprompt_loader::ConfigLoader;
 use systemprompt_manifest::ServicesConfig;
 use systemprompt_runtime::AppContext;
@@ -29,11 +28,8 @@ pub fn rendered() -> CommandOutput {
     CommandOutput::text(String::new()).with_skip_render()
 }
 
-pub async fn app_context(host: &dyn CommandHost) -> Result<Arc<AppContext>, CommandError> {
-    host.resolved()
-        .await?
-        .get::<Arc<AppContext>>()
-        .map_err(CommandError::new)
+pub async fn app_context(host: &dyn KernelHost) -> Result<Arc<AppContext>, CommandError> {
+    host.app_context().await
 }
 
 pub fn services_config(host: &dyn KernelHost) -> anyhow::Result<ServicesConfig> {

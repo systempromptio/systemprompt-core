@@ -8,6 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use systemprompt_models::artifacts::NoticeLine;
 use clap::Subcommand;
@@ -16,7 +17,7 @@ use systemprompt_manifest::Profile;
 
 use crate::shared::CommandOutput;
 use super::types::{PathInfo, PathValidation, PathsConfigOutput, PathsValidateOutput};
-use systemprompt_extension::cli::{CommandError, CommandHost};
+use systemprompt_extension::cli::CommandError;
 
 #[derive(Debug, Clone, Copy, Subcommand)]
 pub enum PathsCommands {
@@ -27,14 +28,14 @@ pub enum PathsCommands {
     Validate,
 }
 
-pub fn execute(command: PathsCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub fn execute(command: PathsCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
         PathsCommands::Show => execute_show(host),
         PathsCommands::Validate => execute_validate(host),
     }
 }
 
-pub(super) fn execute_show(host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) fn execute_show(host: &dyn KernelHost) -> Result<CommandOutput> {
     let profile = host.profile()?;
 
     let output = PathsConfigOutput {
@@ -67,7 +68,7 @@ pub(super) fn execute_show(host: &dyn CommandHost) -> Result<CommandOutput> {
     Ok(CommandOutput::card_value("Paths Configuration", &output))
 }
 
-pub(super) fn execute_validate(host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) fn execute_validate(host: &dyn KernelHost) -> Result<CommandOutput> {
     let profile = host.profile()?;
 
     let validations = collect_path_validations(profile);

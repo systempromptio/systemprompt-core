@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, anyhow};
@@ -15,7 +16,6 @@ use systemprompt_identifiers::{ContextId, SessionId, UserId};
 use tokio::fs;
 
 use super::types::FileUploadOutput;
-use systemprompt_extension::cli::CommandHost;
 use crate::commands::shared::app_context;
 use crate::shared::CommandOutput;
 
@@ -37,7 +37,7 @@ pub struct UploadArgs {
     pub ai: bool,
 }
 
-pub async fn execute(args: UploadArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(args: UploadArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let app = app_context(host)
         .await?;
     let service = FileUploadService::new(

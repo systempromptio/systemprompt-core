@@ -46,10 +46,11 @@ pub mod validate;
 mod validate_jobs;
 pub mod validate_services;
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Subcommand;
 
-use systemprompt_extension::cli::{CommandError, CommandHost, CommandOutput};
+use systemprompt_extension::cli::{CommandError, CommandOutput};
 use systemprompt_loader::ServicesState;
 use systemprompt_models::artifacts::NoticeLine;
 use serde::Serialize;
@@ -156,7 +157,7 @@ impl DescribeCommand for ConfigCommands {
     }
 }
 
-pub async fn execute(command: ConfigCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(command: ConfigCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
         ConfigCommands::Show => show::execute(host),
         ConfigCommands::List(args) => list::execute(args, host).await,

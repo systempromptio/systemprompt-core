@@ -11,6 +11,7 @@ pub mod show;
 mod switch;
 pub mod types;
 
+use crate::kernel::KernelHost;
 use std::path::Path;
 
 use anyhow::Result;
@@ -20,7 +21,7 @@ use systemprompt_identifiers::ProfileName;
 use systemprompt_logging::CliService;
 
 use crate::descriptor::{CommandDescriptor, DescribeCommand};
-use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum SessionCommands {
@@ -55,7 +56,7 @@ impl DescribeCommand for SessionCommands {
     }
 }
 
-pub async fn execute(cmd: SessionCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(cmd: SessionCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match cmd {
         SessionCommands::Show => {
             let result = show::execute(host.output());

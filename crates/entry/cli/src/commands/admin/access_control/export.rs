@@ -5,15 +5,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use systemprompt_database::DbPool;
 use systemprompt_governance::authz::render_current_rules;
 
 use crate::shared::CommandOutput;
 use super::ExportYamlArgs;
-use systemprompt_extension::cli::CommandHost;
 
-pub(super) async fn run(_args: ExportYamlArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn run(_args: ExportYamlArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
     let yaml = render_yaml_snapshot(&pool).await?;
     Ok(CommandOutput::text_titled(

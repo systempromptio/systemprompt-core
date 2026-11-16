@@ -10,10 +10,10 @@ mod assign;
 mod demote;
 mod promote;
 
+use crate::kernel::KernelHost;
 use anyhow::{Result, bail};
 use clap::Subcommand;
 use crate::shared::CommandOutput;
-use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Subcommand)]
 pub enum RoleCommands {
@@ -40,7 +40,7 @@ pub enum RoleCommands {
     Demote(demote::DemoteArgs),
 }
 
-pub(super) async fn execute(cmd: RoleCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(cmd: RoleCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     if host.is_database_scoped() {
         bail!("Role management operations require full profile context");
     }

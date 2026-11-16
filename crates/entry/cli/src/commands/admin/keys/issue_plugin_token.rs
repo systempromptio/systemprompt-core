@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
@@ -17,7 +18,6 @@ use systemprompt_security::DeploymentTokenAuthority;
 use systemprompt_users::{UserRepository, UserService};
 
 use crate::shared::CommandOutput;
-use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Args)]
 pub struct IssuePluginTokenArgs {
@@ -57,7 +57,7 @@ pub(super) struct IssuePluginTokenOutput {
 
 pub(super) async fn execute(
     args: IssuePluginTokenArgs,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let profile = host.profile()?;
     let boot = crate::commands::admin::state::boot(host).await?;

@@ -30,8 +30,8 @@ use super::KernelGrant;
 /// when the flag is present the runner keeps it on this machine instead of
 /// forwarding it to a tenant.
 ///
-/// `child_host`, `serves_api`, `cloud_operator`, `local_export` and
-/// `skip_validation` relax a requirement the runner would otherwise impose,
+/// `child_host`, `serves_api`, `cloud_operator`, `local_export`,
+/// `skip_validation` and `boot_profile` relax a requirement the runner would otherwise impose,
 /// so each is a [`KernelGrant`]: a registered command holds one only when it
 /// declares it and the kernel lists its path for it.
 ///
@@ -58,6 +58,7 @@ impl CommandDescriptor {
     const FLAG_CHILD_HOST: u16 = 0b1000_0000_0000;
     const FLAG_CLOUD_OPERATOR: u16 = 0b0001_0000_0000_0000;
     const FLAG_LOCAL_EXPORT: u16 = 0b0010_0000_0000_0000;
+    const FLAG_BOOT_PROFILE: u16 = 0b0100_0000_0000_0000;
 
     pub const NONE: Self = Self { flags: 0 };
 
@@ -180,6 +181,7 @@ impl CommandDescriptor {
             KernelGrant::CloudOperator => Self::FLAG_CLOUD_OPERATOR,
             KernelGrant::LocalExport => Self::FLAG_LOCAL_EXPORT,
             KernelGrant::SkipValidation => Self::FLAG_SKIP_VALIDATION,
+            KernelGrant::BootProfile => Self::FLAG_BOOT_PROFILE,
         }
     }
 

@@ -6,6 +6,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use super::changes_output;
 use crate::commands::admin::config::restart_note;
 use anyhow::{Result, bail};
@@ -15,7 +16,6 @@ use systemprompt_manifest::profile::{Environment, LogLevel, OutputFormat as Prof
 use crate::shared::CommandOutput;
 use super::profile_io::{load_profile, profile_path, save_profile};
 use super::types::{RuntimeConfigOutput, RuntimeSetOutput};
-use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Subcommand)]
 pub enum RuntimeCommands {
@@ -41,14 +41,14 @@ pub struct SetArgs {
     pub no_color: Option<bool>,
 }
 
-pub fn execute(command: RuntimeCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub fn execute(command: RuntimeCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
         RuntimeCommands::Show => execute_show(host),
         RuntimeCommands::Set(args) => execute_set(args, host),
     }
 }
 
-pub(super) fn execute_show(host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) fn execute_show(host: &dyn KernelHost) -> Result<CommandOutput> {
     let profile = host.profile()?;
 
     let output = RuntimeConfigOutput {
@@ -62,7 +62,7 @@ pub(super) fn execute_show(host: &dyn CommandHost) -> Result<CommandOutput> {
     Ok(CommandOutput::card_value("Runtime Configuration", &output))
 }
 
-pub(super) fn execute_set(args: SetArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) fn execute_set(args: SetArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     if args.environment.is_none()
         && args.log_level.is_none()
         && args.output_format.is_none()

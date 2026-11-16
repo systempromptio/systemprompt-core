@@ -10,13 +10,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
 use systemprompt_config::{EndpointSpec, ProviderCatalogService, ProviderSpec};
 use systemprompt_identifiers::{CredentialId, EndpointId, ProviderId};
 
 use super::catalog_edit::{apply, parse_headers, parse_wire, read_active, list_output};
-use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum ProviderCommands {
@@ -77,7 +78,7 @@ fn first_endpoint(args: &ProviderAddArgs) -> Result<Option<EndpointSpec>> {
     }
 }
 
-pub async fn execute(command: &ProviderCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(command: &ProviderCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
         ProviderCommands::List => {
             let document = read_active(host).await?;
@@ -133,7 +134,7 @@ pub async fn execute(command: &ProviderCommands, host: &dyn CommandHost) -> Resu
     }
 }
 
-async fn set_enabled(host: &dyn CommandHost, id: &str, enabled: bool) -> Result<CommandOutput> {
+async fn set_enabled(host: &dyn KernelHost, id: &str, enabled: bool) -> Result<CommandOutput> {
     apply(host, "Provider Updated", |document, context| {
         let credential = document
             .providers

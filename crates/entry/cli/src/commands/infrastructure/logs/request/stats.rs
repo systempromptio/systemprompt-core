@@ -4,7 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_extension::cli::CommandHost;
+use crate::kernel::KernelHost;
 use systemprompt_database::pool_from_handle;
 use anyhow::Result;
 use clap::Args;
@@ -64,7 +64,7 @@ pub struct ModelStats {
 
 pub(in crate::commands::infrastructure::logs) async fn execute(
     args: StatsArgs,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let pool = pool_from_handle(host.db().await?)?.pool();
     execute_with_pool_inner(args, &pool, host).await
@@ -73,7 +73,7 @@ pub(in crate::commands::infrastructure::logs) async fn execute(
 async fn execute_with_pool_inner(
     args: StatsArgs,
     pool: &Arc<sqlx::PgPool>,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let since_timestamp = parse_since(args.since.as_ref())?;
 

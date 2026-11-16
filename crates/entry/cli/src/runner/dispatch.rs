@@ -18,9 +18,10 @@ use super::args;
 use crate::commands::{admin, core, infrastructure, plugins, web};
 use crate::context::CommandContext;
 use systemprompt_extension::cli::{
-    CommandDescriptor, CommandError, CommandHost, DbUrlRouting, DescribeCommand, ParsedCommand,
+    CommandDescriptor, CommandError, CommandHost, DbUrlRouting, DescribeCommand,
 };
 
+use crate::host::MemberHost;
 use crate::kernel::{CommandRegistry, KernelHost, ResolveError, ResolvedCommand};
 
 pub(super) struct Invocation {
@@ -75,7 +76,7 @@ impl Invocation {
 
     pub(super) fn into_selected(self) -> Selected {
         match (self.registered, self.cli.command) {
-            (Some(registered), _) => Selected::Registered(registered.parsed),
+            (Some(registered), _) => Selected::Registered(registered),
             (None, Some(command)) => Selected::Kernel(Box::new(command)),
             (None, None) => Selected::Bare(Box::new(self.root)),
         }
@@ -84,7 +85,7 @@ impl Invocation {
 
 pub(super) enum Selected {
     Kernel(Box<args::Commands>),
-    Registered(ParsedCommand),
+    Registered(ResolvedCommand),
     Bare(Box<Command>),
 }
 
@@ -95,7 +96,9 @@ pub(super) async fn dispatch_command(selected: Selected, ctx: &CommandContext) -
                 **command,
                 args::Commands::Core(_) | args::Commands::Infra(_) | args::Commands::Admin(_)
             ),
-            Selected::Registered(registered) => registered.db_url_routing() == DbUrlRouting::Direct,
+            Selected::Registered(registered) => {
+                registered.parsed.db_url_routing() == DbUrlRouting::Direct
+            },
             Selected::Bare(_) => {
                 bail!("No subcommand provided. Use --help to see available commands.")
             },
@@ -114,7 +117,14 @@ pub(super) async fn dispatch_command(selected: Selected, ctx: &CommandContext) -
             args::Commands::Web(cmd) => web::execute(cmd, host),
             args::Commands::Plugins(cmd) => Box::pin(plugins::execute(cmd, host)).await,
         },
-        Selected::Registered(registered) => registered.run(ctx).await.map_err(anyhow::Error::from),
+        Selected::Registered(registered) => {
+            let member = MemberHost::new(ctx, registered.parsed.descriptor());
+            registered
+                .parsed
+                .run(&member)
+                .await
+                .map_err(anyhow::Error::from)
+        },
         Selected::Bare(root) => {
             (*root).get_matches_from(["systemprompt", "--help"]);
             return Ok(());

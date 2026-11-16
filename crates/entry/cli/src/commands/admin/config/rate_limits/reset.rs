@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use crate::commands::admin::config::restart_note;
 use systemprompt_logging::CliService;
@@ -16,14 +17,13 @@ use super::profile_edit::{
     set_endpoint_rate,
 };
 use super::super::profile_io::profile_path;
-use systemprompt_extension::cli::CommandHost;
 
 use super::super::types::{ResetChange, ResetOutput};
 
 pub(super) fn execute_reset(
     args: &ResetArgs,
     prompter: &dyn Prompter,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let config = host.output();
     let profile_path = profile_path(host)?;

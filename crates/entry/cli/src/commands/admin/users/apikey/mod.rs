@@ -8,6 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use chrono::{DateTime, Utc};
 use clap::{Args, Subcommand};
@@ -23,7 +24,6 @@ mod issue;
 pub use issue::IssueArgs;
 
 use crate::shared::CommandOutput;
-use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Subcommand)]
 pub enum ApiKeyCommands {
@@ -98,7 +98,7 @@ struct KeyRow {
     scopes: Vec<ScopeBinding>,
 }
 
-pub(super) async fn execute(cmd: ApiKeyCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(cmd: ApiKeyCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
     let app = crate::commands::admin::state::app(host).await?;
     let lifetime = ApiKeyLifetime::from_max_days(app.config().api_key_max_lifetime_days);

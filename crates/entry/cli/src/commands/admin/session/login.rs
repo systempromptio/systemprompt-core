@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -16,7 +17,6 @@ use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_cloud::SessionKey;
 use systemprompt_cloud::paths::ResolvedPaths;
 use systemprompt_database::{Database, DbPool};
-use systemprompt_extension::cli::CommandHost;
 use systemprompt_identifiers::{ContextId, SessionId, SessionToken, UserId};
 use systemprompt_loader::BootContext;
 use systemprompt_logging::CliService;
@@ -58,7 +58,7 @@ pub struct LoginOutput {
     pub expires_in_hours: i64,
 }
 
-pub async fn execute(args: LoginArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(args: LoginArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     login_for_profile(&crate::commands::admin::state::boot(host).await?, &args).await
 }
 

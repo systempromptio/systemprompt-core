@@ -4,8 +4,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use crate::commands::shared::rendered;
-use systemprompt_extension::cli::CommandHost;
 use systemprompt_database::pool_from_handle;
 use anyhow::{Result, anyhow};
 use clap::Args;
@@ -59,7 +59,7 @@ struct TraceLogsOutput {
 
 pub(in crate::commands::infrastructure::logs) async fn execute(
     args: ShowArgs,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let pool = pool_from_handle(host.db().await?)?.pool();
     execute_with_pool_inner(args, &pool, host).await
@@ -68,7 +68,7 @@ pub(in crate::commands::infrastructure::logs) async fn execute(
 async fn execute_with_pool_inner(
     args: ShowArgs,
     pool: &Arc<sqlx::PgPool>,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let service = TraceQueryService::new(TraceRepository::new(Arc::clone(pool)));
 
@@ -114,7 +114,7 @@ fn entry_to_output(entry: &LogEntry) -> LogShowOutput {
     }
 }
 
-fn display_single_log(log: &LogEntry, host: &dyn CommandHost, json: bool) {
+fn display_single_log(log: &LogEntry, host: &dyn KernelHost, json: bool) {
     let output = entry_to_output(log);
 
     if host.output().is_json_output() || json {
@@ -163,7 +163,7 @@ fn display_single_log(log: &LogEntry, host: &dyn CommandHost, json: bool) {
     ));
 }
 
-fn display_trace_logs(logs: &[LogEntry], host: &dyn CommandHost, json: bool) {
+fn display_trace_logs(logs: &[LogEntry], host: &dyn KernelHost, json: bool) {
     let Some(first_log) = logs.first() else {
         return;
     };

@@ -12,10 +12,11 @@
 
 pub mod report;
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Subcommand;
 
-use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum GovernanceCommands {
@@ -29,7 +30,7 @@ pub enum GovernanceCommands {
     Report(report::ReportArgs),
 }
 
-pub async fn execute(command: GovernanceCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(command: GovernanceCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
         GovernanceCommands::Report(args) => report::execute(args, host).await,
     }

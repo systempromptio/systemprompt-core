@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use std::path::PathBuf;
 
 use anyhow::{Context, Result};
@@ -11,7 +12,6 @@ use clap::Args;
 use crate::shared::CommandOutput;
 use super::logs_db::execute_db_mode;
 use super::logs_disk::{execute_disk_mode, execute_follow_mode};
-use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Args)]
 pub struct LogsArgs {
@@ -36,7 +36,7 @@ pub struct LogsArgs {
     pub logs_dir: Option<String>,
 }
 
-pub(super) async fn execute(args: LogsArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: LogsArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let prompter = host.prompter();
     let config = host.output();
     let logs_path = match args.logs_dir.as_deref() {

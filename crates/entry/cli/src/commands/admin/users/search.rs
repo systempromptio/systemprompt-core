@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Args;
 use std::sync::Arc;
@@ -12,7 +13,6 @@ use systemprompt_users::{UserRepository, UserService};
 use crate::CliConfig;
 use crate::shared::CommandOutput;
 use super::types::{UserListOutput, UserSummary};
-use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Args)]
 pub struct SearchArgs {
@@ -25,7 +25,7 @@ pub struct SearchArgs {
     pub include_anonymous: bool,
 }
 
-pub(super) async fn execute(args: SearchArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: SearchArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     execute_with_pool(args, &systemprompt_database::pool_from_handle(host.db().await?)?, host.output()).await
 }
 

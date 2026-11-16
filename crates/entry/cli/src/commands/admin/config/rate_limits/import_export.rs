@@ -2,6 +2,7 @@
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+use crate::kernel::KernelHost;
 use systemprompt_logging::CliService;
 
 use anyhow::{Context, Result, bail};
@@ -14,11 +15,10 @@ use crate::shared::CommandOutput;
 use super::profile_edit::{load_profile_for_edit, save_profile};
 use super::super::profile_io::profile_path;
 use super::{ExportArgs, ImportArgs};
-use systemprompt_extension::cli::CommandHost;
 
 use super::super::types::{ExportOutput, ImportOutput};
 
-pub(super) fn execute_export(args: &ExportArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) fn execute_export(args: &ExportArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let profile = host.profile()?;
     let limits = &profile.rate_limits;
 
@@ -47,7 +47,7 @@ pub(super) fn execute_export(args: &ExportArgs, host: &dyn CommandHost) -> Resul
 pub(super) fn execute_import(
     args: &ImportArgs,
     prompter: &dyn Prompter,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let config = host.output();
     let path = Path::new(&args.file);

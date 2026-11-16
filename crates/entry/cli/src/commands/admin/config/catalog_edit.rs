@@ -10,6 +10,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use std::collections::HashMap;
 
 use anyhow::{Result, anyhow};
@@ -21,10 +22,9 @@ use systemprompt_wire::WireProtocol;
 use crate::shared::CommandOutput;
 use super::services_io::{CatalogLocation, commit_catalog};
 use super::types::ConfigMutationOutput;
-use systemprompt_extension::cli::CommandHost;
 
 pub async fn apply(
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
     title: &str,
     edit: impl FnOnce(&mut CatalogDocument, &CatalogContext) -> Result<String>,
 ) -> Result<CommandOutput> {
@@ -62,7 +62,7 @@ pub fn list_output(title: &str, rows: Vec<String>) -> CommandOutput {
     CommandOutput::list(items).with_title(title)
 }
 
-pub async fn read_active(host: &dyn CommandHost) -> Result<CatalogDocument> {
+pub async fn read_active(host: &dyn KernelHost) -> Result<CatalogDocument> {
     let boot = crate::commands::admin::state::boot(host).await?;
     CatalogLocation::active(boot.loaded_profile()).read()
 }

@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use std::sync::Arc;
@@ -13,7 +14,6 @@ use systemprompt_traits::FileStorage;
 
 use super::types::FileDeleteOutput;
 use crate::CliConfig;
-use systemprompt_extension::cli::CommandHost;
 use crate::commands::shared::app_context;
 use crate::interactive::Prompter;
 use crate::shared::CommandOutput;
@@ -37,7 +37,7 @@ pub struct DeleteArgs {
 pub(super) async fn execute(
     args: DeleteArgs,
     prompter: &dyn Prompter,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let app = app_context(host)
         .await?;

@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use schemars::JsonSchema;
@@ -12,7 +13,6 @@ use systemprompt_users::{UserRepository, UserService, UserStatus};
 
 use crate::commands::admin::users::types::BulkUpdateOutput;
 use crate::shared::CommandOutput;
-use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Args)]
 pub struct UpdateArgs {
@@ -60,7 +60,7 @@ pub(super) enum UpdateResult {
     Executed(BulkUpdateOutput),
 }
 
-pub(super) async fn execute(args: UpdateArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: UpdateArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     if !args.yes && !args.dry_run {
         return Err(anyhow!(
             "This will update multiple users. Use --yes to confirm or --dry-run to preview."

@@ -14,12 +14,12 @@ mod triage;
 
 pub use triage::{TriageArgs, execute_as as triage_as};
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Subcommand;
 
 use crate::descriptor::DataImpact;
 use crate::shared::CommandOutput;
-use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Subcommand)]
 pub enum IssuesCommands {
@@ -33,7 +33,7 @@ pub enum IssuesCommands {
     Triage(TriageArgs),
 }
 
-pub async fn execute(cmd: IssuesCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(cmd: IssuesCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match cmd {
         IssuesCommands::List(args) => list::execute(args, host).await,
         IssuesCommands::Show(args) => show::execute(args, host).await,

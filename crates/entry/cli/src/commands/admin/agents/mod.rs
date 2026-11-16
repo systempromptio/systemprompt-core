@@ -33,11 +33,12 @@ mod task;
 mod tools;
 pub mod validate;
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result, bail};
 use clap::Subcommand;
 
 use crate::descriptor::DataImpact;
-use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum AgentsCommands {
@@ -81,7 +82,7 @@ pub enum AgentsCommands {
     Run(run::RunArgs),
 }
 
-pub async fn execute(command: AgentsCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(command: AgentsCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     let result = match command {
         AgentsCommands::List(args) => list::execute(args, host).await.context("Failed to list agents")?,
         AgentsCommands::Show(args) => show::execute(args, host).await.context("Failed to show agent")?,

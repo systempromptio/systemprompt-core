@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result, bail};
 use systemprompt_models::artifacts::NoticeLine;
 use std::fs;
@@ -11,11 +12,10 @@ use systemprompt_manifest::profile::RateLimitsConfig;
 
 use crate::shared::CommandOutput;
 use super::DiffArgs;
-use systemprompt_extension::cli::CommandHost;
 
 use super::super::types::{DiffEntry, DiffOutput};
 
-pub(super) fn execute_diff(args: &DiffArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) fn execute_diff(args: &DiffArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let profile = host.profile()?;
     let current = &profile.rate_limits;
 

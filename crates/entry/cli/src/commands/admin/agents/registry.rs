@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use clap::Args;
 use reqwest::Client;
@@ -10,7 +11,6 @@ use serde::Deserialize;
 
 use crate::shared::{CommandOutput, truncate_with_ellipsis};
 use super::types::{RegistryAgentInfo, RegistryOutput};
-use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Args)]
 pub struct RegistryArgs {
@@ -73,7 +73,7 @@ struct SkillResponse {
     name: String,
 }
 
-pub(super) async fn execute(args: RegistryArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: RegistryArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let profile_url = host
         .profile()
         .ok()

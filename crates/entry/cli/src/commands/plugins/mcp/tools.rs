@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use std::sync::Arc;
 
 use anyhow::{Context, Result, anyhow};
@@ -13,7 +14,6 @@ use super::types::{McpToolsOutput, McpToolsSummary};
 use crate::commands::shared::mcp_tools::{
     McpToolEntry, direct_url, list_tools_authenticated, list_tools_unauthenticated,
 };
-use systemprompt_extension::cli::CommandHost;
 use crate::commands::shared::app_context;
 use crate::session::get_or_create_session;
 use crate::shared::CommandOutput;
@@ -37,7 +37,7 @@ pub struct ToolsArgs {
     pub timeout: u64,
 }
 
-pub(super) async fn execute(args: ToolsArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: ToolsArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let config = host.output();
     let app = app_context(host)
         .await

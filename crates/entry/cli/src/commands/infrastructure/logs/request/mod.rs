@@ -10,13 +10,13 @@ mod list;
 mod show;
 mod stats;
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Subcommand;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use super::types::{MessageRow, ToolCallRow};
-use systemprompt_extension::cli::CommandHost;
 use crate::shared::CommandOutput;
 use serde_json::Value as JsonValue;
 use systemprompt_identifiers::{AiRequestId, UserId};
@@ -194,7 +194,7 @@ impl From<systemprompt_runtime::AiRequestClientEvidence> for ClientEvidenceOutpu
     }
 }
 
-pub async fn execute(command: RequestCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(command: RequestCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
         RequestCommands::List(args) => {
             list::execute(args, host).await

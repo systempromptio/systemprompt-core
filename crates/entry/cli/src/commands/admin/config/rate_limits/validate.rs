@@ -3,16 +3,17 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use systemprompt_models::artifacts::NoticeLine;
 use systemprompt_manifest::profile::RateLimitsConfig;
 
 use crate::shared::CommandOutput;
-use systemprompt_extension::cli::{CommandError, CommandHost};
+use systemprompt_extension::cli::CommandError;
 
 use super::super::types::ValidateOutput;
 
-pub(super) fn execute_validate(host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) fn execute_validate(host: &dyn KernelHost) -> Result<CommandOutput> {
     let profile = host.profile()?;
     let limits = &profile.rate_limits;
 

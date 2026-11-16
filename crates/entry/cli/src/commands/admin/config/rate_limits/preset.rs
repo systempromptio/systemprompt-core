@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Result, bail};
 use crate::commands::admin::config::restart_note;
 use systemprompt_logging::CliService;
@@ -13,7 +14,6 @@ use crate::shared::CommandOutput;
 use super::profile_edit::{collect_endpoint_changes, load_profile_for_edit, save_profile};
 use super::super::profile_io::profile_path;
 use super::{PresetApplyArgs, PresetCommands, PresetShowArgs};
-use systemprompt_extension::cli::CommandHost;
 
 use super::super::types::{
     PresetApplyOutput, PresetInfo, PresetListOutput, PresetShowOutput, RateLimitsOutput,
@@ -23,7 +23,7 @@ use super::super::types::{
 pub(super) fn execute_preset(
     command: PresetCommands,
     prompter: &dyn Prompter,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     match command {
         PresetCommands::List => Ok(execute_preset_list()),
@@ -56,7 +56,7 @@ fn execute_preset_list() -> CommandOutput {
         .with_title("Available Presets")
 }
 
-fn execute_preset_show(args: PresetShowArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+fn execute_preset_show(args: PresetShowArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let limits = get_preset_config(&args.name)?;
     let description = get_preset_description(&args.name)?;
 
@@ -100,7 +100,7 @@ pub fn get_preset_description(name: &str) -> Result<String> {
 fn execute_preset_apply(
     args: &PresetApplyArgs,
     prompter: &dyn Prompter,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let preset_config = get_preset_config(&args.name)?;
 

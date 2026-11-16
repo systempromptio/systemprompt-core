@@ -12,6 +12,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use std::collections::BTreeSet;
 use std::path::Path;
 
@@ -26,7 +27,6 @@ use systemprompt_marketplace::managed::{GitCredentialSource, ManagedRepository};
 use systemprompt_runtime::managed::git_sources::git_credential_key;
 
 use crate::shared::CommandOutput;
-use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct MigrateGitCredentialsArgs {
@@ -151,7 +151,7 @@ pub fn migrate_file(
 
 pub(super) async fn execute(
     args: MigrateGitCredentialsArgs,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let secrets_file = super::secret::file_secrets_path(host)?;
     let pool = systemprompt_database::pool_from_handle(host.db().await?)?;

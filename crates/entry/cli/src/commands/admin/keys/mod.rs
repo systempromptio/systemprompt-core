@@ -12,10 +12,11 @@ mod generate;
 mod issue_plugin_token;
 mod rotation;
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Subcommand;
 
-use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum KeysCommands {
@@ -43,7 +44,7 @@ pub enum KeysCommands {
     IssuePluginToken(issue_plugin_token::IssuePluginTokenArgs),
 }
 
-pub async fn execute(cmd: KeysCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(cmd: KeysCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match cmd {
         KeysCommands::Generate(args) => generate::execute(&args).map(|()| CommandOutput::rendered()),
         KeysCommands::Stage(_) => {

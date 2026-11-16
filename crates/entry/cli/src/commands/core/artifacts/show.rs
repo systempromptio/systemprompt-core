@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use clap::Args;
 use systemprompt_agent::models::a2a::Artifact;
@@ -15,7 +16,6 @@ use systemprompt_models::a2a::PartContent;
 
 use super::types::{ArtifactPartOutput, ArtifactSummary};
 use crate::cli_settings::CliConfig;
-use systemprompt_extension::cli::CommandHost;
 use systemprompt_database::pool_from_handle;
 use crate::session::get_or_create_session;
 use crate::shared::CommandOutput;
@@ -32,7 +32,7 @@ pub struct ShowArgs {
     pub full: bool,
 }
 
-pub(super) async fn execute(args: ShowArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: ShowArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let session_ctx = get_or_create_session(host).await?;
     execute_with_pool(
         args,

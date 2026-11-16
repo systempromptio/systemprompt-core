@@ -15,6 +15,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Result, bail};
 use clap::Args;
 use schemars::JsonSchema;
@@ -23,7 +24,6 @@ use systemprompt_manifest::profile::TrustedIssuer;
 use systemprompt_users::{IssuerRekeyOutcome, UserRepository};
 
 use crate::shared::{CommandOutput, ConfirmArgs};
-use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Clone, Args)]
 pub struct FederatedRekeyArgs {
@@ -113,7 +113,7 @@ pub struct FederatedRekeyOutput {
 
 pub(super) async fn execute(
     args: FederatedRekeyArgs,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let profile = host.profile()?;
     let own_issuer = profile.security.issuer.clone();

@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_agent::models::a2a::jsonrpc::{JSON_RPC_VERSION_2_0, Request, RequestId};
@@ -16,7 +17,6 @@ use crate::shared::CommandOutput;
 use super::client::ensure_agent_exists;
 use super::message_request::{NonStreamingRequest, execute_non_streaming};
 use super::message_streaming::execute_streaming;
-use systemprompt_extension::cli::CommandHost;
 use systemprompt_extension::cli::resolve_required;
 
 #[derive(Debug, Args)]
@@ -109,7 +109,7 @@ fn build_send_request(
     }
 }
 
-pub(super) async fn execute(args: MessageArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: MessageArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let config = host.output();
     let session_ctx = get_or_create_session(host).await?;
 

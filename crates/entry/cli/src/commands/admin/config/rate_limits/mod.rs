@@ -18,11 +18,12 @@ mod set;
 mod show;
 mod validate;
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::{Args, Subcommand};
 
 use crate::interactive::Prompter;
-use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum RateLimitsCommands {
@@ -142,7 +143,7 @@ pub struct DiffArgs {
 pub fn execute(
     command: RateLimitsCommands,
     prompter: &dyn Prompter,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     match command {
         RateLimitsCommands::Show => show::execute_show(host),

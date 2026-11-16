@@ -4,6 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use std::path::Path;
@@ -19,7 +20,6 @@ use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
 use systemprompt_agent::services::agent_orchestration::process::SpawnEnvironment;
 use systemprompt_agent::services::config_authoring::AgentConfigAuthoringService;
 use systemprompt_agent::{AgentAuth, AgentState};
-use systemprompt_extension::cli::CommandHost;
 use systemprompt_extension::cli::resolve_required;
 use systemprompt_identifiers::AgentName;
 use systemprompt_logging::CliService;
@@ -43,7 +43,7 @@ pub struct DeleteArgs {
     pub force: bool,
 }
 
-pub(super) async fn execute(args: DeleteArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: DeleteArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let prompter = host.prompter();
     let config = host.output();
     let services_config = crate::commands::admin::state::boot(host)
@@ -163,7 +163,7 @@ pub fn delete_success_message(deleted: &[AgentName]) -> String {
     }
 }
 
-pub(super) async fn build_orchestrator(host: &dyn CommandHost) -> Result<AgentOrchestrator> {
+pub(super) async fn build_orchestrator(host: &dyn KernelHost) -> Result<AgentOrchestrator> {
     let app = crate::commands::admin::state::app(host).await?;
     let jwt_provider = Arc::new(JwtValidationProviderImpl::from_config(
         app.config(),

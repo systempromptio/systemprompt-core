@@ -182,7 +182,10 @@ pub struct DescribedCommand {
 /// [`CommandHost::env_profile`] is the `SYSTEMPROMPT_PROFILE` value the runner
 /// resolved at start-up. [`CommandHost::boot_config`] boots the profile at a
 /// path with the secrets sources the composition admitted and returns its
-/// configuration; a command never boots a profile with sources of its own.
+/// configuration; the host serves it only to a command holding
+/// [`KernelGrant::BootProfile`](super::KernelGrant::BootProfile) and refuses
+/// every other caller. A command never boots a profile with sources of its
+/// own.
 ///
 /// [`CommandHost::render`] renders an intermediate output through the
 /// kernel's sink (a command that redraws until interrupted); the output a

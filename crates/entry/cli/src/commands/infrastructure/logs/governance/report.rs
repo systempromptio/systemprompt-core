@@ -12,8 +12,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use crate::commands::shared::rendered;
-use systemprompt_extension::cli::CommandHost;
 use systemprompt_database::pool_from_handle;
 use std::collections::BTreeMap;
 use std::io::Write;
@@ -109,7 +109,7 @@ pub struct GovernanceReportOutput {
 
 pub(in crate::commands::infrastructure::logs) async fn execute(
     args: ReportArgs,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let pool = pool_from_handle(host.db().await?)?.pool();
     execute_with_pool_inner(args, &pool, host).await
@@ -200,7 +200,7 @@ async fn gather(args: &ReportArgs, pool: &Arc<sqlx::PgPool>) -> Result<Governanc
 async fn execute_with_pool_inner(
     args: ReportArgs,
     pool: &Arc<sqlx::PgPool>,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let output = gather(&args, pool).await?;
 

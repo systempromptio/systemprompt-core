@@ -15,6 +15,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use serde::Serialize;
 use systemprompt_governance::authz::{ReconcileReport, reconcile_composed_bundles};
@@ -25,7 +26,6 @@ use systemprompt_manifest::services::bundle::SignedBundleManifest;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_runtime::services_reconcile::pending_composed_hash;
 
-use systemprompt_extension::cli::CommandHost;
 use systemprompt_database::pool_from_handle;
 
 const CONFIG_RELPATH: &str = "config/config.yaml";
@@ -41,7 +41,7 @@ pub async fn reconcile_after_swap(
     profile: &Profile,
     root: &ActiveServicesRoot,
     cache: &BundleCache,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<Vec<ReconcileRow>> {
     let mut state = cache.read_state();
     let Some(composed_hash) = pending_composed_hash(root, state.last_reconciled_hash.as_deref())

@@ -3,11 +3,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use clap::Args;
 
 use super::types::McpPackagesOutput;
-use systemprompt_extension::cli::CommandHost;
 use crate::commands::shared::app_context;
 use crate::shared::CommandOutput;
 use systemprompt_models::artifacts::ListItem;
@@ -18,7 +18,7 @@ pub struct ListPackagesArgs {
     pub raw: bool,
 }
 
-pub(super) async fn execute(args: ListPackagesArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: ListPackagesArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let app = app_context(host)
         .await
         .context("Failed to bootstrap AppContext")?;

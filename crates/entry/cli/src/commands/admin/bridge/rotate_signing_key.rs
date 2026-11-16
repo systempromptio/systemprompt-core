@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use base64::Engine;
 use clap::Args;
@@ -12,7 +13,6 @@ use systemprompt_logging::CliService;
 
 use crate::shared::{CommandOutput, ConfirmArgs};
 use super::types::SigningKeyRotatedOutput;
-use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct RotateSigningKeyArgs {
@@ -22,7 +22,7 @@ pub struct RotateSigningKeyArgs {
 
 pub(super) async fn execute(
     _args: RotateSigningKeyArgs,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let boot = crate::commands::admin::state::boot(host).await?;
     let seed = SecretsService::rotate_manifest_signing_seed(boot.loaded_profile())?;

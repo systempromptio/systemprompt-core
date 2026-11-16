@@ -9,6 +9,7 @@
 
 mod cors;
 
+use crate::kernel::KernelHost;
 use super::changes_output;
 use crate::commands::admin::config::restart_note;
 use systemprompt_models::artifacts::NoticeLine;
@@ -18,7 +19,6 @@ use clap::{Args, Subcommand};
 pub(super) use super::profile_io::{load_profile, profile_path, save_profile};
 use crate::shared::CommandOutput;
 use super::types::{ServerConfigOutput, ServerSetOutput};
-use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Subcommand)]
 pub enum ServerCommands {
@@ -47,7 +47,7 @@ pub struct SetArgs {
     pub external_url: Option<String>,
 }
 
-pub fn execute(command: &ServerCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub fn execute(command: &ServerCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
         ServerCommands::Show => execute_show(host),
         ServerCommands::Set(args) => execute_set(args, host),
@@ -55,7 +55,7 @@ pub fn execute(command: &ServerCommands, host: &dyn CommandHost) -> Result<Comma
     }
 }
 
-pub(super) fn execute_show(host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) fn execute_show(host: &dyn KernelHost) -> Result<CommandOutput> {
     let profile = host.profile()?;
 
     let output = ServerConfigOutput {
@@ -81,7 +81,7 @@ fn change(field: &str, old: String, new: String) -> ServerSetOutput {
     }
 }
 
-pub(super) fn execute_set(args: &SetArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) fn execute_set(args: &SetArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     if args.host.is_none() && args.port.is_none() && args.external_url.is_none() {
         bail!("Must specify at least one option: --host, --port, --external-url");
     }

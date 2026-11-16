@@ -8,6 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use base64::Engine;
 use clap::Args;
@@ -17,7 +18,6 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::shared::CommandOutput;
-use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct SigningKeyFingerprintArgs;
@@ -41,7 +41,7 @@ pub fn key_fingerprint(pubkey_b64: &str) -> String {
 
 pub(super) async fn execute(
     _args: SigningKeyFingerprintArgs,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let boot = crate::commands::admin::state::boot(host).await?;
     let seed = boot.secrets().manifest_signing_secret_seed()?;

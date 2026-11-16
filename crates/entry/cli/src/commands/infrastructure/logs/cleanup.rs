@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use chrono::Utc;
 use clap::Args;
@@ -10,7 +11,6 @@ use systemprompt_logging::LoggingMaintenanceService;
 
 use super::LogCleanupOutput;
 use super::duration::parse_duration;
-use systemprompt_extension::cli::CommandHost;
 use systemprompt_database::pool_from_handle;
 use crate::interactive::require_confirmation;
 use crate::shared::CommandOutput;
@@ -38,7 +38,7 @@ pub struct CleanupArgs {
     pub yes: bool,
 }
 
-pub(super) async fn execute(args: CleanupArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: CleanupArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let cutoff_duration = match (&args.older_than, args.keep_last_days) {
         (Some(duration_str), None) => parse_duration(duration_str)?,
         (None, Some(days)) => chrono::Duration::days(days),

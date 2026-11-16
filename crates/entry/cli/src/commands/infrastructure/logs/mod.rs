@@ -35,6 +35,7 @@ pub use shared::{
 pub use summary::{LogsSummaryOutput, build_logs_summary};
 pub use types::{MessageRow, ToolCallRow};
 
+use crate::kernel::KernelHost;
 use anyhow::{Result, bail};
 use clap::Subcommand;
 use schemars::JsonSchema;
@@ -42,7 +43,7 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{LogId, TraceId};
 use systemprompt_logging::LogLevel;
 
-use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum LogsCommands {
@@ -175,7 +176,7 @@ pub struct LogExportOutput {
     pub file_path: Option<String>,
 }
 
-pub async fn execute(command: LogsCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(command: LogsCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     if host.is_database_scoped()
         && matches!(
             command,

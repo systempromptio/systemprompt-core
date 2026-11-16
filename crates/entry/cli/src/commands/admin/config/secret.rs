@@ -10,6 +10,7 @@
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+use crate::kernel::KernelHost;
 use systemprompt_logging::CliService;
 
 use std::path::Path;
@@ -22,7 +23,6 @@ use systemprompt_manifest::profile::SecretsSource;
 use crate::shared::CommandOutput;
 use super::profile_io::{load_profile, profile_dir, profile_path};
 use super::types::ConfigMutationOutput;
-use systemprompt_extension::cli::CommandHost;
 
 const RESERVED: &[&str] = &[
     "oauth_at_rest_pepper",
@@ -59,7 +59,7 @@ pub struct SetArgs {
     pub value: String,
 }
 
-pub async fn execute(command: &SecretCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(command: &SecretCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     let args = match command {
         SecretCommands::Set(args) => args,
         SecretCommands::Check => return super::secret_check::execute(host).await,
@@ -80,7 +80,7 @@ pub async fn execute(command: &SecretCommands, host: &dyn CommandHost) -> Result
         ))
 }
 
-pub fn file_secrets_path(host: &dyn CommandHost) -> Result<std::path::PathBuf> {
+pub fn file_secrets_path(host: &dyn KernelHost) -> Result<std::path::PathBuf> {
     let profile_path = profile_path(host)?;
     let profile = load_profile(profile_path)?;
     let secrets_config = profile

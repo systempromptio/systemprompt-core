@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Args;
 use serde::Serialize;
@@ -11,7 +12,6 @@ use systemprompt_identifiers::{IssueReportId, UserId};
 use systemprompt_models::issues::{IssueKind, IssueReport, IssueSeverity, IssueStatus};
 
 use crate::shared::CommandOutput;
-use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Args)]
 pub struct ListArgs {
@@ -62,7 +62,7 @@ impl From<IssueReport> for IssueRow {
     }
 }
 
-pub(super) async fn execute(args: ListArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: ListArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let app = crate::commands::admin::state::app(host).await?;
     let query = IssueListQuery {
         reporter: args.reporter.as_deref().map(UserId::new),

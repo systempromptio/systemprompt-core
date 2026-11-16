@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use clap::Args;
 use systemprompt_identifiers::JobName;
@@ -10,7 +11,6 @@ use systemprompt_scheduler::JobRepository;
 
 use super::admitted_schedule;
 use super::types::JobEnableOutput;
-use systemprompt_extension::cli::CommandHost;
 use crate::commands::shared::app_context;
 use crate::shared::CommandOutput;
 
@@ -20,7 +20,7 @@ pub struct EnableArgs {
     pub job_name: JobName,
 }
 
-pub(super) async fn execute(args: EnableArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: EnableArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     if !admitted_schedule(host)
         .await?
         .contains_job(args.job_name.as_str())

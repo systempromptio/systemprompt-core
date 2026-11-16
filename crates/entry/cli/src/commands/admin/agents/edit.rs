@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use std::path::Path;
@@ -14,7 +15,6 @@ use super::edit_apply::{
 };
 use super::shared::AgentArgs;
 use super::types::AgentEditOutput;
-use systemprompt_extension::cli::CommandHost;
 use systemprompt_extension::cli::resolve_required;
 use systemprompt_identifiers::AgentName;
 use systemprompt_loader::ConfigWriter;
@@ -51,7 +51,7 @@ pub struct EditArgs {
     pub agent: AgentArgs,
 }
 
-pub(super) async fn execute(args: &EditArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: &EditArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let config = host.output();
     let prompter = host.prompter();
     let services_config = crate::commands::admin::state::boot(host)

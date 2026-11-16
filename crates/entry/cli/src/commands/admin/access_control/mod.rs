@@ -10,11 +10,11 @@
 pub mod export;
 mod lint;
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::{Args, Subcommand};
 
 use crate::shared::CommandOutput;
-use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Clone, Copy, Subcommand)]
 pub enum AccessControlCommands {
@@ -37,7 +37,7 @@ pub struct ExportYamlArgs;
 #[derive(Debug, Clone, Copy, Args)]
 pub struct LintArgs;
 
-pub async fn execute(cmd: AccessControlCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(cmd: AccessControlCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match cmd {
         AccessControlCommands::ExportYaml(args) => {
             let result = export::run(args, host).await?;

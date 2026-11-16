@@ -7,6 +7,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use clap::Args;
@@ -20,7 +21,6 @@ use super::display::{push_event, push_table};
 use super::json::build_json;
 use super::summary::{SummaryContext, line, push_summary};
 use super::{AiSummaryRow, McpSummaryRow, StepSummaryRow, TraceEventRow, TraceViewOutput};
-use systemprompt_extension::cli::CommandHost;
 use systemprompt_database::pool_from_handle;
 use crate::shared::CommandOutput;
 
@@ -74,7 +74,7 @@ struct FormattedDisplayContext<'a> {
     step_summary: &'a systemprompt_runtime::ExecutionStepSummary,
 }
 
-pub(super) async fn execute(args: ShowArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: ShowArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let pool = pool_from_handle(host.db().await?)?.pool();
     execute_with_pool_inner(args, &pool, host.output().is_json_output()).await
 }

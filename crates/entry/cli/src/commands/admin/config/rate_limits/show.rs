@@ -3,15 +3,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use systemprompt_models::artifacts::NoticeLine;
 
 use crate::shared::CommandOutput;
-use systemprompt_extension::cli::CommandHost;
 
 use super::super::types::RateLimitsOutput;
 
-pub(super) fn execute_show(host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) fn execute_show(host: &dyn KernelHost) -> Result<CommandOutput> {
     let profile = host.profile()?;
     let limits = &profile.rate_limits;
 

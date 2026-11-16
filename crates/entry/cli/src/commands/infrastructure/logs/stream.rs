@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use crate::commands::shared::rendered;
 use anyhow::{Result, anyhow};
 use chrono::{DateTime, Utc};
@@ -13,7 +14,7 @@ use systemprompt_logging::{CliService, LogFilter, LogLevel, LoggingMaintenanceSe
 use tokio::time;
 
 use super::shared::print_level_line;
-use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_extension::cli::CommandOutput;
 use systemprompt_database::pool_from_handle;
 
 #[derive(Debug, Args)]
@@ -42,7 +43,7 @@ pub struct StreamArgs {
     pub max_iterations: u64,
 }
 
-pub(super) async fn execute(args: StreamArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: StreamArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     if host.output().is_json_output() {
         return Err(anyhow!("JSON output is not supported in streaming mode"));
     }

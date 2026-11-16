@@ -8,6 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
 
@@ -18,7 +19,6 @@ use systemprompt_manifest::profile::{
 use crate::shared::CommandOutput;
 use super::profile_io::{load_profile, profile_path, save_profile};
 use super::types::ConfigMutationOutput;
-use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Subcommand)]
 pub enum GovernanceCommands {
@@ -47,7 +47,7 @@ pub struct SetArgs {
     pub acknowledgement: Option<String>,
 }
 
-pub fn execute(command: &GovernanceCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub fn execute(command: &GovernanceCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
         GovernanceCommands::Show => execute_show(host),
         GovernanceCommands::Set(args) => execute_set(args, host),
@@ -64,7 +64,7 @@ fn parse_mode(raw: &str) -> Result<AuthzMode> {
     }
 }
 
-fn execute_set(args: &SetArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+fn execute_set(args: &SetArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let mode = parse_mode(&args.mode)?;
 
     if matches!(mode, AuthzMode::Unrestricted)
@@ -109,7 +109,7 @@ fn execute_set(args: &SetArgs, host: &dyn CommandHost) -> Result<CommandOutput> 
         ))
 }
 
-fn execute_show(host: &dyn CommandHost) -> Result<CommandOutput> {
+fn execute_show(host: &dyn KernelHost) -> Result<CommandOutput> {
     let profile = host.profile()?;
     let summary = profile
         .governance

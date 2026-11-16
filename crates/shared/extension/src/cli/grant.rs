@@ -9,7 +9,8 @@
 /// hands interrupt handling to the server; `CloudOperator` loads the operator
 /// cloud credentials and runs against a cloud profile with no remote route;
 /// `LocalExport` keeps an `--export` run on this machine; `SkipValidation`
-/// skips the services-config validation. A member's command requests the
+/// skips the services-config validation; `BootProfile` lets the command boot a
+/// profile at a path through [`CommandHost::boot_config`](crate::cli::CommandHost::boot_config). A member's command requests the
 /// grants it needs; the composition and the CLI registry refuse a request
 /// the reserved CLI paths do not list for that path and owner.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -19,15 +20,17 @@ pub enum KernelGrant {
     CloudOperator,
     LocalExport,
     SkipValidation,
+    BootProfile,
 }
 
 impl KernelGrant {
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 6] = [
         Self::ChildHost,
         Self::ServesApi,
         Self::CloudOperator,
         Self::LocalExport,
         Self::SkipValidation,
+        Self::BootProfile,
     ];
 }
 
@@ -39,6 +42,7 @@ impl std::fmt::Display for KernelGrant {
             Self::CloudOperator => "cloud-operator",
             Self::LocalExport => "local-export",
             Self::SkipValidation => "skip-validation",
+            Self::BootProfile => "boot-profile",
         })
     }
 }

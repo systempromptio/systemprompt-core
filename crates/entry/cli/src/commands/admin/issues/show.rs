@@ -6,6 +6,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use serde::Serialize;
@@ -13,7 +14,6 @@ use systemprompt_identifiers::IssueReportId;
 use systemprompt_models::issues::IssueReport;
 
 use crate::shared::CommandOutput;
-use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
@@ -28,7 +28,7 @@ struct IssueDetailOutput {
     follow_up: Vec<String>,
 }
 
-pub(super) async fn execute(args: ShowArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: ShowArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let app = crate::commands::admin::state::app(host).await?;
     let id = IssueReportId::try_new(args.id.as_str())
         .with_context(|| format!("invalid issue report id: {}", args.id))?;

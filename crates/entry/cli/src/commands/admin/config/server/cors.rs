@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use crate::commands::admin::config::restart_note;
 use clap::{Args, Subcommand};
@@ -12,7 +13,6 @@ use crate::shared::CommandOutput;
 use super::super::profile_io::profile_path;
 use super::super::types::{CorsListOutput, CorsModifyOutput};
 use super::{load_profile, save_profile};
-use systemprompt_extension::cli::CommandHost;
 use systemprompt_models::artifacts::ListItem;
 
 #[derive(Debug, Subcommand)]
@@ -39,7 +39,7 @@ pub struct CorsRemoveArgs {
     pub origin: String,
 }
 
-pub(super) fn execute(command: &CorsCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) fn execute(command: &CorsCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
         CorsCommands::List => execute_list(host),
         CorsCommands::Add(args) => execute_add(args, host),
@@ -47,7 +47,7 @@ pub(super) fn execute(command: &CorsCommands, host: &dyn CommandHost) -> Result<
     }
 }
 
-fn execute_list(host: &dyn CommandHost) -> Result<CommandOutput> {
+fn execute_list(host: &dyn KernelHost) -> Result<CommandOutput> {
     let profile = host.profile()?;
 
     let output = CorsListOutput {
@@ -63,7 +63,7 @@ fn execute_list(host: &dyn CommandHost) -> Result<CommandOutput> {
     Ok(CommandOutput::list(items).with_title("CORS Allowed Origins"))
 }
 
-fn execute_add(args: &CorsAddArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+fn execute_add(args: &CorsAddArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let profile_path = profile_path(host)?;
     let mut profile = load_profile(profile_path)?;
 
@@ -87,7 +87,7 @@ fn execute_add(args: &CorsAddArgs, host: &dyn CommandHost) -> Result<CommandOutp
     Ok(CommandOutput::card_value("CORS Origin Added", &output).with_note(restart_note()))
 }
 
-fn execute_remove(args: &CorsRemoveArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+fn execute_remove(args: &CorsRemoveArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let profile_path = profile_path(host)?;
     let mut profile = load_profile(profile_path)?;
 

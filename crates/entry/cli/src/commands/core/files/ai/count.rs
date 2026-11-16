@@ -3,13 +3,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Args;
 use systemprompt_files::FileRepository;
 use systemprompt_identifiers::UserId;
 
 use crate::commands::core::files::types::AiFilesCountOutput;
-use systemprompt_extension::cli::CommandHost;
 use crate::commands::shared::app_context;
 use crate::shared::CommandOutput;
 
@@ -22,7 +22,7 @@ pub struct CountArgs {
     pub user: Option<String>,
 }
 
-pub async fn execute(args: CountArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(args: CountArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let app = app_context(host)
         .await?;
     let service = FileRepository::new(app.db_pool());

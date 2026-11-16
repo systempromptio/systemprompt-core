@@ -133,7 +133,7 @@ pub const RESERVED_CLI_PATHS: &[ReservedCliPath] = &[
     ReservedCliPath {
         owner: CoreId::Cloud,
         path: &["cloud"],
-        grants: &[KernelGrant::CloudOperator],
+        grants: &[KernelGrant::CloudOperator, KernelGrant::BootProfile],
     },
 ];
 

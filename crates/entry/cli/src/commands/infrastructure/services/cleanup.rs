@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_extension::cli::CommandHost;
+use crate::kernel::KernelHost;
 use crate::commands::shared::app_context;
 use crate::interactive::require_confirmation;
 use crate::shared::CommandOutput;
@@ -20,7 +20,7 @@ use super::types::CleanupOutput;
 pub(super) async fn execute(
     yes: bool,
     dry_run: bool,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let config = host.output();
     let quiet = config.is_json_output();

@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use std::sync::Arc;
@@ -10,7 +11,6 @@ use std::time::Duration;
 
 use super::types::{McpBatchValidateOutput, McpValidateOutput, McpValidateSummary};
 pub use super::validate_output::{FailureDetail, failure_output, success_output};
-use systemprompt_extension::cli::CommandHost;
 use crate::commands::shared::app_context;
 use crate::interactive::Prompter;
 use systemprompt_extension::cli::resolve_required;
@@ -43,7 +43,7 @@ pub struct ValidateArgs {
 
 pub(super) async fn execute(
     args: ValidateArgs,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<(CommandOutput, bool)> {
     let prompter = host.prompter();
     let config = host.output();

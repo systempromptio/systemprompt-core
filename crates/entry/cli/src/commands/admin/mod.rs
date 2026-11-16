@@ -24,11 +24,12 @@ pub mod setup;
 mod state;
 pub mod users;
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Subcommand;
 
 use crate::descriptor::{CommandDescriptor, DataImpact, DescribeCommand};
-use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum AdminCommands {
@@ -87,7 +88,7 @@ pub enum AdminCommands {
     Licence(licence::LicenceCommands),
 }
 
-pub async fn execute(cmd: AdminCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(cmd: AdminCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     if host.is_database_scoped()
         && !matches!(
             cmd,

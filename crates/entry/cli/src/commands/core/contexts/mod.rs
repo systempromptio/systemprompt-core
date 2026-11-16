@@ -16,7 +16,8 @@ pub mod show;
 mod types;
 pub mod use_context;
 
-use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use crate::kernel::KernelHost;
+use systemprompt_extension::cli::CommandOutput;
 use anyhow::Result;
 use clap::Subcommand;
 
@@ -49,7 +50,7 @@ pub enum ContextsCommands {
     New(new::NewArgs),
 }
 
-pub async fn execute(cmd: ContextsCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(cmd: ContextsCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match cmd {
         ContextsCommands::List(args) => Box::pin(list::execute(args, host)).await,
         ContextsCommands::Show(args) => Box::pin(show::execute(args, host)).await,

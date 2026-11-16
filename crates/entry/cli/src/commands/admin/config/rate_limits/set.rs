@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Result, bail};
 use crate::commands::admin::config::restart_note;
 
@@ -12,11 +13,10 @@ use super::profile_edit::{
     get_endpoint_rate, load_profile_for_edit, save_profile, set_endpoint_rate,
 };
 use super::super::profile_io::profile_path;
-use systemprompt_extension::cli::CommandHost;
 
 use super::super::types::{RateLimitStatusOutput, SetRateLimitOutput};
 
-pub(super) fn execute_set(args: &SetArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) fn execute_set(args: &SetArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     if args.endpoint.is_some() && args.rate.is_none() {
         bail!("--rate is required when --endpoint is specified");
     }
@@ -57,7 +57,7 @@ pub(super) fn execute_set(args: &SetArgs, host: &dyn CommandHost) -> Result<Comm
     Ok(CommandOutput::card_value("Rate Limit Updated", &output).with_note(restart_note()))
 }
 
-pub(super) fn execute_enable(host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) fn execute_enable(host: &dyn KernelHost) -> Result<CommandOutput> {
     let profile_path = profile_path(host)?;
     let mut profile = load_profile_for_edit(profile_path)?;
 
@@ -79,7 +79,7 @@ pub(super) fn execute_enable(host: &dyn CommandHost) -> Result<CommandOutput> {
     Ok(CommandOutput::card_value("Rate Limit Status", &output).with_note(restart_note()))
 }
 
-pub(super) fn execute_disable(host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) fn execute_disable(host: &dyn KernelHost) -> Result<CommandOutput> {
     let profile_path = profile_path(host)?;
     let mut profile = load_profile_for_edit(profile_path)?;
 

@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use std::time::Duration;
 
 use anyhow::Result;
@@ -14,7 +15,6 @@ use systemprompt_models::bridge::instance::{BridgeVersionWindow, WindowStatus};
 use systemprompt_oauth::repository::{BridgeSessionRepository, BridgeSessionRow};
 
 use crate::shared::CommandOutput;
-use systemprompt_extension::cli::CommandHost;
 
 const DEFAULT_WITHIN_SECS: u64 = 120;
 
@@ -51,7 +51,7 @@ pub(super) struct BridgeSessionSummary {
     pub forwarded_total: i64,
 }
 
-pub(super) async fn execute(args: ListArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: ListArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let app = crate::commands::admin::state::app(host).await?;
     let repo = BridgeSessionRepository::new(app.db_pool());
     let within = Duration::from_secs(args.within_secs);

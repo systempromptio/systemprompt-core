@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Args;
 use systemprompt_database::DbPool;
@@ -11,7 +12,6 @@ use systemprompt_users::BannedIpRepository;
 use crate::CliConfig;
 use crate::commands::admin::users::types::{BanListOutput, BanSummary};
 use crate::shared::CommandOutput;
-use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Args)]
 pub struct ListArgs {
@@ -22,7 +22,7 @@ pub struct ListArgs {
     pub source: Option<String>,
 }
 
-pub(super) async fn execute(args: ListArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: ListArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     execute_with_pool(args, &systemprompt_database::pool_from_handle(host.db().await?)?, host.output()).await
 }
 

@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use std::sync::Arc;
 
 use crate::commands::shared::mcp_tools::direct_url;
@@ -16,7 +17,6 @@ use super::call_client::{
     ToolCallParams, convert_content, execute_tool_call, list_available_tools,
 };
 use super::types::{McpCallOutput, McpToolContent};
-use systemprompt_extension::cli::CommandHost;
 use crate::commands::shared::app_context;
 use crate::interactive::Prompter;
 use systemprompt_extension::cli::resolve_required;
@@ -49,7 +49,7 @@ pub struct CallArgs {
     pub timeout: u64,
 }
 
-pub(super) async fn execute(args: CallArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: CallArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let config = host.output();
     let prompter = host.prompter();
     let services_config = app_context(host)
@@ -115,7 +115,7 @@ pub(super) async fn execute(args: CallArgs, host: &dyn CommandHost) -> Result<Co
     Ok(card)
 }
 
-async fn resolve_running_url(server_name: &McpServerId, host: &dyn CommandHost) -> Result<String> {
+async fn resolve_running_url(server_name: &McpServerId, host: &dyn KernelHost) -> Result<String> {
     let app = app_context(host)
         .await
         .context("Failed to initialize application context")?;

@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Args;
 use systemprompt_database::DbPool;
@@ -12,7 +13,6 @@ use systemprompt_identifiers::UserId;
 use crate::CliConfig;
 use crate::commands::core::files::types::AiFilesListOutput;
 use systemprompt_extension::cli::FileSummary;
-use systemprompt_extension::cli::CommandHost;
 use crate::commands::shared::app_context;
 use crate::shared::CommandOutput;
 
@@ -28,7 +28,7 @@ pub struct ListArgs {
     pub user: Option<String>,
 }
 
-pub(super) async fn execute(args: ListArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: ListArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let app = app_context(host)
         .await?;
     execute_with_pool(args, app.db_pool(), host.output()).await

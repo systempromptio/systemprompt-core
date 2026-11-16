@@ -220,7 +220,7 @@ impl SetupArgs {
 
 pub async fn execute(
     args: SetupArgs,
-    host: &dyn systemprompt_extension::cli::CommandHost,
+    host: &dyn crate::kernel::KernelHost,
 ) -> Result<CommandOutput> {
     let mut args = args.normalized();
     if args.db_password_stdin {

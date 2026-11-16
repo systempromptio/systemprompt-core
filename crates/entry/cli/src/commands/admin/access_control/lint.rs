@@ -4,6 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use std::collections::BTreeSet;
 
 use anyhow::{Result, anyhow};
@@ -11,9 +12,8 @@ use systemprompt_governance::authz::repository::AccessControlRepository;
 use systemprompt_governance::authz::types::EntityKind;
 
 use super::LintArgs;
-use systemprompt_extension::cli::CommandHost;
 
-pub(super) async fn run(_args: LintArgs, host: &dyn CommandHost) -> Result<(String, bool)> {
+pub(super) async fn run(_args: LintArgs, host: &dyn KernelHost) -> Result<(String, bool)> {
     let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
     let repo = AccessControlRepository::new(&pool);
 

@@ -22,6 +22,7 @@ mod summary;
 
 pub use summary::{SummaryContext, push_summary};
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Subcommand;
 use schemars::JsonSchema;
@@ -29,7 +30,7 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{AgentName, AiRequestId, McpToolName, TraceId};
 
 use super::types::ToolCallRow;
-use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum TraceCommands {
@@ -180,7 +181,7 @@ pub struct AiTraceOutput {
     pub agent_response: Option<String>,
 }
 
-pub async fn execute(command: TraceCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(command: TraceCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
         TraceCommands::List(args) => list::execute(args, host).await,
         TraceCommands::Show(args) => {

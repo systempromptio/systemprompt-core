@@ -5,7 +5,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_extension::cli::CommandHost;
+use crate::kernel::KernelHost;
 use systemprompt_database::pool_from_handle;
 use anyhow::Result;
 use clap::Args;
@@ -68,7 +68,7 @@ pub struct CombinedSearchOutput {
 
 pub(in crate::commands::infrastructure::logs) async fn execute(
     args: SearchArgs,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let pool = pool_from_handle(host.db().await?)?.pool();
     execute_with_pool_inner(args, &pool, host.output()).await

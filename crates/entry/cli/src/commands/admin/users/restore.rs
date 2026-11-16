@@ -8,6 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use std::sync::Arc;
@@ -15,7 +16,6 @@ use systemprompt_users::{User, UserRepository, UserService};
 
 use crate::shared::CommandOutput;
 use super::types::UserDeletedOutput;
-use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Args)]
 pub struct RestoreArgs {
@@ -32,7 +32,7 @@ pub struct LegalHoldArgs {
     pub release: bool,
 }
 
-async fn resolve(host: &dyn CommandHost, reference: &str) -> Result<(UserService, User)> {
+async fn resolve(host: &dyn KernelHost, reference: &str) -> Result<(UserService, User)> {
     let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
     let user_service = UserService::new(Arc::new(UserRepository::new(&pool)));
     let user = user_service
@@ -42,7 +42,7 @@ async fn resolve(host: &dyn CommandHost, reference: &str) -> Result<(UserService
     Ok((user_service, user))
 }
 
-pub(super) async fn execute(args: RestoreArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: RestoreArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let window_days = crate::commands::admin::state::config(host)
         .await?
         .retention
@@ -61,7 +61,7 @@ pub(super) async fn execute(args: RestoreArgs, host: &dyn CommandHost) -> Result
 
 pub(super) async fn execute_legal_hold(
     args: LegalHoldArgs,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let (user_service, user) = resolve(host, &args.user).await?;
     user_service.set_legal_hold(&user.id, !args.release).await?;

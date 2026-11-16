@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result, anyhow};
 use systemprompt_database::DbPool;
 use systemprompt_logging::LoggingRepository;
@@ -12,11 +13,10 @@ use crate::CliConfig;
 use crate::shared::CommandOutput;
 use super::logs::LogsArgs;
 use super::types::AgentLogsOutput;
-use systemprompt_extension::cli::CommandHost;
 
 pub(super) async fn execute_db_mode(
     args: &LogsArgs,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
     let services = crate::commands::admin::state::boot(host)

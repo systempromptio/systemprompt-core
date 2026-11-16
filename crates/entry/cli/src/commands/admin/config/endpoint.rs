@@ -7,6 +7,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use clap::{Args, Subcommand};
 use systemprompt_config::{EndpointSpec, ProviderCatalogService};
@@ -14,7 +15,7 @@ use systemprompt_identifiers::{EndpointId, ProviderId};
 use systemprompt_manifest::services::catalog::EndpointRef;
 
 use super::catalog_edit::{apply, parse_wire};
-use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum EndpointCommands {
@@ -39,7 +40,7 @@ pub struct EndpointAddArgs {
     pub url: String,
 }
 
-pub async fn execute(command: &EndpointCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(command: &EndpointCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
         EndpointCommands::Add(args) => {
             let spec = EndpointSpec {

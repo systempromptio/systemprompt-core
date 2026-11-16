@@ -11,10 +11,10 @@ mod cleanup;
 mod end;
 mod list;
 
+use crate::kernel::KernelHost;
 use anyhow::{Result, bail};
 use clap::Subcommand;
 use crate::shared::CommandOutput;
-use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Subcommand)]
 pub enum SessionCommands {
@@ -28,7 +28,7 @@ pub enum SessionCommands {
     Cleanup(cleanup::CleanupArgs),
 }
 
-pub(super) async fn execute(cmd: SessionCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(cmd: SessionCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     if host.is_database_scoped()
         && matches!(cmd, SessionCommands::End(_) | SessionCommands::Cleanup(_))
     {

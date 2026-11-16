@@ -3,12 +3,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use clap::Args;
 use systemprompt_logging::CliService;
 
 use systemprompt_cloud::identity::generate_identity;
-use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct GenerateArgs {
@@ -16,7 +16,7 @@ pub struct GenerateArgs {
     pub json: bool,
 }
 
-pub(super) fn execute(args: GenerateArgs, host: &dyn CommandHost) -> Result<()> {
+pub(super) fn execute(args: GenerateArgs, host: &dyn KernelHost) -> Result<()> {
     let bundle = generate_identity()?;
     if args.json || host.output().is_json_output() {
         let fragment = serde_json::json!({

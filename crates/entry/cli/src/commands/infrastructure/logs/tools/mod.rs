@@ -8,13 +8,14 @@
 
 mod list;
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Subcommand;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{McpServerId, McpToolName, TraceId};
 
-use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum ToolsCommands {
@@ -44,7 +45,7 @@ pub struct ToolsListOutput {
     pub total: u64,
 }
 
-pub async fn execute(command: ToolsCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(command: ToolsCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
         ToolsCommands::List(args) => list::execute(args, host).await,
     }

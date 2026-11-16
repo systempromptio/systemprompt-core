@@ -10,7 +10,8 @@ pub mod list;
 pub mod show;
 pub mod types;
 
-use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use crate::kernel::KernelHost;
+use systemprompt_extension::cli::CommandOutput;
 use anyhow::Result;
 use clap::Subcommand;
 
@@ -25,7 +26,7 @@ pub enum ArtifactsCommands {
     Show(show::ShowArgs),
 }
 
-pub async fn execute(cmd: ArtifactsCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(cmd: ArtifactsCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match cmd {
         ArtifactsCommands::List(args) => Box::pin(list::execute(args, host)).await,
         ArtifactsCommands::Show(args) => Box::pin(show::execute(args, host)).await,

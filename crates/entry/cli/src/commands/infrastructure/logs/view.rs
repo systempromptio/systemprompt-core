@@ -4,6 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_logging::models::LogEntry;
@@ -13,7 +14,6 @@ use super::duration::parse_since;
 use super::shared::display_log_row;
 use super::{LogEntryRow, LogFilters, LogViewOutput};
 use crate::CliConfig;
-use systemprompt_extension::cli::CommandHost;
 use systemprompt_database::pool_from_handle;
 use crate::shared::CommandOutput;
 
@@ -41,7 +41,7 @@ pub struct ViewArgs {
     pub since: Option<String>,
 }
 
-pub(super) async fn execute(args: ViewArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: ViewArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let service = LoggingMaintenanceService::new(&pool_from_handle(host.db().await?)?);
     execute_inner(args, &service, host.output()).await
 }

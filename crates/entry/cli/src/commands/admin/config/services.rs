@@ -8,6 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Result, bail};
 use crate::commands::admin::config::restart_note;
 use clap::{Args, Subcommand};
@@ -15,7 +16,6 @@ use clap::{Args, Subcommand};
 use crate::shared::CommandOutput;
 use super::profile_io::{load_profile, profile_path, save_profile};
 use super::types::{ServicesConfigOutput, ServicesSetOutput};
-use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Clone, Copy, Subcommand)]
 pub enum ServicesCommands {
@@ -35,14 +35,14 @@ pub struct SetArgs {
     pub port_offset: Option<u16>,
 }
 
-pub fn execute(command: &ServicesCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub fn execute(command: &ServicesCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
         ServicesCommands::Show => execute_show(host),
         ServicesCommands::Set(args) => execute_set(args, host),
     }
 }
 
-pub(super) fn execute_show(host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) fn execute_show(host: &dyn KernelHost) -> Result<CommandOutput> {
     let profile = host.profile()?;
 
     let output = ServicesConfigOutput {
@@ -52,7 +52,7 @@ pub(super) fn execute_show(host: &dyn CommandHost) -> Result<CommandOutput> {
     Ok(CommandOutput::card_value("Services Configuration", &output))
 }
 
-pub(super) fn execute_set(args: &SetArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) fn execute_set(args: &SetArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let Some(port_offset) = args.port_offset else {
         bail!("Must specify at least one option: --port-offset");
     };

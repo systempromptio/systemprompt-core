@@ -3,13 +3,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use clap::Args;
 
 use crate::shared::CommandOutput;
 use super::types::{AgentStatusOutput, AgentStatusRow};
 use systemprompt_agent::services::agent_orchestration::AgentStatus;
-use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Args)]
 pub struct StatusArgs {
@@ -17,7 +17,7 @@ pub struct StatusArgs {
     pub name: Option<String>,
 }
 
-pub(super) async fn execute(args: StatusArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: StatusArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let services_config = crate::commands::admin::state::boot(host)
         .await?
         .load_services_config()

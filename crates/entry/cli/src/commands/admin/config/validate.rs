@@ -22,6 +22,7 @@
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+use crate::kernel::KernelHost;
 use systemprompt_logging::CliService;
 
 use anyhow::{Result, anyhow};
@@ -34,7 +35,6 @@ use crate::shared::CommandOutput;
 use systemprompt_config::LoadedProfile;
 use systemprompt_config::yaml_document::read_yaml_file;
 use systemprompt_extension::AdmittedSchedule;
-use systemprompt_extension::cli::CommandHost;
 use systemprompt_manifest::profile::Profile;
 
 #[derive(Debug, Clone, Args)]
@@ -55,7 +55,7 @@ pub struct ValidateArgs {
 
 pub async fn execute(
     args: &ValidateArgs,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<(CommandOutput, bool)> {
     if args.schema {
         return print_profile_schema();
@@ -73,7 +73,7 @@ pub async fn execute(
 
     all_valid &= super::plane_validate::append_full_validation(
         &crate::commands::admin::state::config(host).await?,
-        &boot.profile().extensions.disabled,
+        host.admitted()?.built(),
         args.target.as_ref(),
         &mut results,
     );

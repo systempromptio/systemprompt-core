@@ -18,6 +18,7 @@
 
 pub mod context_resolver;
 
+use crate::kernel::KernelHost;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
@@ -31,7 +32,6 @@ use super::context::CliSessionContext;
 use crate::cli_settings::{OutputFormat, VerbosityLevel};
 use crate::env_overrides::EnvOverrides;
 use systemprompt_config::SecretsSources;
-use systemprompt_extension::cli::CommandHost;
 use context_resolver::{
     create_new_session, extract_profile_name, resolve_profile_path_from_session,
     resolve_profile_path_without_session, try_session_from_env, try_validate_context,
@@ -46,20 +46,19 @@ pub struct ProfileContext<'a> {
 }
 
 struct SessionHost<'a> {
-    host: &'a dyn CommandHost,
+    host: &'a dyn KernelHost,
     env: EnvOverrides,
     active_boot: Option<std::sync::Arc<BootContext>>,
     secrets: SecretsSources,
 }
 
 impl<'a> SessionHost<'a> {
-    async fn new(host: &'a dyn CommandHost) -> Result<Self> {
-        let resolved = host.resolved().await?;
+    async fn new(host: &'a dyn KernelHost) -> Result<Self> {
         Ok(Self {
             host,
-            env: resolved.get::<EnvOverrides>()?,
-            active_boot: resolved.optional::<std::sync::Arc<BootContext>>(),
-            secrets: resolved.get::<SecretsSources>()?,
+            env: host.env_overrides().clone(),
+            active_boot: host.boot().ok(),
+            secrets: host.secrets_sources().clone(),
         })
     }
 }
@@ -215,7 +214,7 @@ async fn try_session_from_active_key(
     Ok(Some(session_ctx))
 }
 
-pub async fn get_or_create_session(host: &dyn CommandHost) -> Result<CliSessionContext> {
+pub async fn get_or_create_session(host: &dyn KernelHost) -> Result<CliSessionContext> {
     let session_ctx = resolve_session(&SessionHost::new(host).await?).await?;
 
     let config = host.output();

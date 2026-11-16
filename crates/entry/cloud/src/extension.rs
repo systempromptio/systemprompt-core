@@ -26,7 +26,10 @@ impl Extension for CloudCliExtension {
         #[cfg(feature = "cli")]
         c.command(
             systemprompt_extension::cli::CommandDecl::group::<crate::cli::CloudCommands>()
-                .requesting(&[systemprompt_extension::cli::KernelGrant::CloudOperator]),
+                .requesting(&[
+                    systemprompt_extension::cli::KernelGrant::CloudOperator,
+                    systemprompt_extension::cli::KernelGrant::BootProfile,
+                ]),
         );
         Ok(())
     }

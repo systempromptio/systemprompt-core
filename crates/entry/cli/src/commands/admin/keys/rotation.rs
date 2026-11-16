@@ -13,6 +13,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use chrono::{Duration, Utc};
 use clap::Args;
@@ -24,7 +25,6 @@ use systemprompt_security::jwt::{cut_off_by, rotation_overlap, signed_token_life
 use systemprompt_security::keys::{RotationMode, promote, stage};
 
 use crate::shared::{CommandOutput, ConfirmArgs};
-use systemprompt_extension::cli::CommandHost;
 
 pub(super) const PROCEDURE: &str = "\
 Multi-replica procedure (no replica ever meets a token signed by a key it does not know):
@@ -97,7 +97,7 @@ pub(super) struct RetiredKeyOutput {
     pub expires_at: chrono::DateTime<Utc>,
 }
 
-pub(super) async fn execute_stage(host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute_stage(host: &dyn KernelHost) -> Result<CommandOutput> {
     let state = current_state(host).await?;
     let (staged, next) = stage(&state).context("Failed to stage a signing key")?;
     persist(host, &next).await?;
@@ -110,7 +110,7 @@ pub(super) async fn execute_stage(host: &dyn CommandHost) -> Result<CommandOutpu
 
 pub(super) async fn execute_promote(
     args: PromoteArgs,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let state = current_state(host).await?;
     promote_state(args, host, &state).await
@@ -118,7 +118,7 @@ pub(super) async fn execute_promote(
 
 pub(super) async fn execute_rotate(
     args: PromoteArgs,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let state = current_state(host).await?;
     let (_, staged) = stage(&state).context("Failed to stage a signing key")?;
@@ -127,7 +127,7 @@ pub(super) async fn execute_rotate(
 
 async fn promote_state(
     args: PromoteArgs,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
     state: &SigningKeyState,
 ) -> Result<CommandOutput> {
     let mode = if args.revoke {
@@ -152,7 +152,7 @@ async fn promote_state(
     output("Signing Key Promoted", &next, args.revoke)
 }
 
-async fn current_state(host: &dyn CommandHost) -> Result<SigningKeyState> {
+async fn current_state(host: &dyn KernelHost) -> Result<SigningKeyState> {
     let boot = crate::commands::admin::state::boot(host).await?;
     let keys = crate::session::api::load_signing_keys(&boot)?;
     let secrets = boot.secrets();
@@ -170,7 +170,7 @@ async fn current_state(host: &dyn CommandHost) -> Result<SigningKeyState> {
     })
 }
 
-async fn persist(host: &dyn CommandHost, state: &SigningKeyState) -> Result<()> {
+async fn persist(host: &dyn KernelHost, state: &SigningKeyState) -> Result<()> {
     let boot = crate::commands::admin::state::boot(host).await?;
     SecretsService::persist_signing_key_state(boot.loaded_profile(), state)
         .context("Failed to write the signing keys to the secrets file")

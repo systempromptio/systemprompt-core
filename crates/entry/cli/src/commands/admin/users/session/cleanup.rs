@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use std::sync::Arc;
@@ -10,7 +11,6 @@ use systemprompt_users::{UserRepository, UserService};
 
 use crate::commands::admin::users::types::SessionCleanupOutput;
 use crate::shared::CommandOutput;
-use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct CleanupArgs {
@@ -21,7 +21,7 @@ pub struct CleanupArgs {
     pub yes: bool,
 }
 
-pub(super) async fn execute(args: CleanupArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: CleanupArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
     let user_service = UserService::new(Arc::new(UserRepository::new(&pool)));
 

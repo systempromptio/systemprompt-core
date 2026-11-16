@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Args;
 use std::sync::Arc;
@@ -12,7 +13,6 @@ use systemprompt_users::{UserRepository, UserService};
 
 use crate::shared::CommandOutput;
 use super::types::ExchangeCodeIssuedOutput;
-use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Args)]
 pub struct IssueCodeArgs {
@@ -24,7 +24,7 @@ pub struct IssueCodeArgs {
     pub user_ref: String,
 }
 
-pub(super) async fn execute(args: IssueCodeArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: IssueCodeArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
     let oauth = crate::commands::admin::state::get::<Arc<OAuthRepositories>>(host).await?;
 

@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use std::sync::Arc;
 
 use anyhow::{Context, Result, anyhow};
@@ -15,7 +16,6 @@ use systemprompt_manifest::Config;
 use systemprompt_users::{User, UserRepository, UserRole, UserService, UserStatus};
 
 use crate::shared::CommandOutput;
-use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Args)]
 pub struct BootstrapArgs {
@@ -39,7 +39,7 @@ pub struct BootstrapOutput {
     pub message: String,
 }
 
-pub async fn execute(args: BootstrapArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(args: BootstrapArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let config = crate::commands::admin::state::config(host).await?;
     let name = resolve_admin_name(&config, args.name.as_deref())?;
 

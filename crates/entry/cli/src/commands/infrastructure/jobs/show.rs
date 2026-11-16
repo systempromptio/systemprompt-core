@@ -8,6 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Args;
 use systemprompt_identifiers::JobName;
@@ -17,7 +18,6 @@ use systemprompt_scheduler::{JobRepository, ScheduledJob};
 use super::admitted_schedule;
 use super::cron_text::parse_cron_human;
 use super::types::JobShowOutput;
-use systemprompt_extension::cli::CommandHost;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
@@ -29,7 +29,7 @@ pub struct ShowArgs {
     pub job_name: JobName,
 }
 
-pub(super) async fn execute(args: ShowArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: ShowArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let schedule = admitted_schedule(host).await?;
     let registration = schedule.job(args.job_name.as_str());
     let repo = JobRepository::new(&pool_from_handle(host.db().await?)?);
