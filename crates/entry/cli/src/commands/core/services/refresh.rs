@@ -15,7 +15,6 @@ use systemprompt_manifest::{Profile, Secrets};
 use systemprompt_runtime::services_reconcile::pending_composed_hash;
 
 use super::reconcile::{ReconcileRow, reconcile_after_swap};
-use crate::commands::shared::rendered;
 use systemprompt_extension::cli::CommandOutput;
 
 pub const EXIT_CHANGED: i32 = 3;
@@ -99,7 +98,7 @@ pub async fn execute(args: &RefreshArgs, host: &dyn KernelHost) -> Result<Comman
         )]
         std::process::exit(code);
     }
-    Ok(rendered())
+    Ok(CommandOutput::rendered())
 }
 
 async fn check_sources(

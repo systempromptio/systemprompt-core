@@ -5,7 +5,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::kernel::KernelHost;
-use crate::commands::shared::rendered;
 use systemprompt_database::pool_from_handle;
 use anyhow::{Result, anyhow};
 use clap::Args;
@@ -76,20 +75,20 @@ async fn execute_with_pool_inner(
         && let Some(log) = service.find_log_by_id(&log_id).await?
     {
         display_single_log(&log, host, args.json);
-        return Ok(rendered());
+        return Ok(CommandOutput::rendered());
     }
 
     if let Ok(trace_id) = TraceId::try_new(args.id.as_str()) {
         let logs = service.find_logs_by_trace_id(&trace_id).await?;
         if !logs.is_empty() {
             display_trace_logs(&logs, host, args.json);
-            return Ok(rendered());
+            return Ok(CommandOutput::rendered());
         }
     }
 
     if let Some(log) = service.find_log_by_partial_id(&args.id).await? {
         display_single_log(&log, host, args.json);
-        return Ok(rendered());
+        return Ok(CommandOutput::rendered());
     }
 
     Err(anyhow!(

@@ -4,7 +4,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::kernel::KernelHost;
-use crate::commands::shared::rendered;
 use systemprompt_database::pool_from_handle;
 use anyhow::Result;
 use clap::Args;
@@ -104,7 +103,7 @@ async fn execute_with_pool_inner(
         render_tool_list(&output, &args);
     }
 
-    Ok(rendered())
+    Ok(CommandOutput::rendered())
 }
 
 fn render_tool_list(output: &ToolsListOutput, args: &ListArgs) {

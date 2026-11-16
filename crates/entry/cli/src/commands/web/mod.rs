@@ -19,7 +19,6 @@ use anyhow::Result;
 use crate::kernel::KernelHost;
 use clap::Subcommand;
 
-use crate::commands::shared::rendered;
 use systemprompt_extension::cli::{CommandDescriptor, CommandOutput, DescribeCommand};
 
 #[derive(Debug, Subcommand)]
@@ -69,7 +68,7 @@ pub fn execute(command: WebCommands, host: &dyn KernelHost) -> Result<CommandOut
                     "web configuration is invalid: {error_count} error(s), see report above",
                 ));
             }
-            Ok(rendered())
+            Ok(CommandOutput::rendered())
         },
     }
 }

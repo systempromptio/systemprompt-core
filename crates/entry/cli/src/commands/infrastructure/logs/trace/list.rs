@@ -4,7 +4,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::kernel::KernelHost;
-use crate::commands::shared::rendered;
 use systemprompt_database::pool_from_handle;
 use anyhow::Result;
 use clap::Args;
@@ -145,7 +144,7 @@ async fn execute_with_pool_inner(
 
     if output.traces.is_empty() {
         CliService::warning("No traces found");
-        return Ok(rendered());
+        return Ok(CommandOutput::rendered());
     }
 
     let result = CommandOutput::table_of(
