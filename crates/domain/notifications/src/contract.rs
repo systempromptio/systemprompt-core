@@ -1,8 +1,8 @@
 //! [`NotificationsSlot`]: the notification pipeline's contribution point.
 //!
-//! A member contributes a router, channel, audience resolver, publish policy
-//! or resource visibility with `c.slot::<NotificationsSlot>()` and the
-//! matching builder method; each method stores a factory and runs nothing.
+//! A member contributes a router, channel, publish policy or resource
+//! visibility with `c.slot::<NotificationsSlot>()` and the matching builder
+//! method; each method stores a factory and runs nothing.
 //! Admission drops a disabled member's builder before any factory runs, and
 //! the kernel then builds the slot once: every factory is called against the
 //! resolved state, in composition order, and the result is the
@@ -10,10 +10,15 @@
 //! `Arc<NotificationSeams>`. The `notifications` member always opens the
 //! slot, so the built seams are present exactly when that member is admitted.
 //!
-//! After the contributed seams the build appends the core defaults (the
-//! default router, the user-role audience resolver and the document and
-//! issue visibilities their owning members provide, the AG-UI channel and the
-//! default publish policy), so a contributed seam is consulted first, and
+//! The audience resolvers are not a notifications seam: the build reads the
+//! one [`AudienceResolvers`](systemprompt_extension::AudienceResolvers) set
+//! the kernel built from every admitted member's
+//! `Contributions::audience_resolver` (core user-role resolver last), the
+//! same set brain recall reads, and refuses to build without it. After the
+//! contributed seams the build appends the core defaults (the default
+//! router, the document and issue visibilities their owning members provide,
+//! the AG-UI channel and the default publish policy), so a contributed seam
+//! is consulted first, and
 //! binds the service and outbox consumer assembled over the finished seams
 //! (see [`crate::assembly`]). A factory that fails, or reads a value nothing
 //! provides, refuses the build: a seam is never silently left out.
@@ -43,7 +48,6 @@ pub struct NotificationsSlot;
 pub struct NotificationsSlotBuilder {
     routers: Factories<dyn NotificationRouter>,
     channels: Factories<dyn NotificationChannel>,
-    audiences: Factories<dyn NotificationAudienceResolver>,
     publish_policies: Factories<dyn PublishPolicy>,
     visibilities: Factories<dyn ResourceVisibility>,
 }
@@ -56,14 +60,6 @@ impl NotificationsSlotBuilder {
 
     pub fn channel<F: Factory<Arc<dyn NotificationChannel>>>(&mut self, f: F) -> &mut Self {
         self.channels.push(Box::new(f));
-        self
-    }
-
-    pub fn audience<F: Factory<Arc<dyn NotificationAudienceResolver>>>(
-        &mut self,
-        f: F,
-    ) -> &mut Self {
-        self.audiences.push(Box::new(f));
         self
     }
 
@@ -86,7 +82,6 @@ impl fmt::Debug for NotificationsSlotBuilder {
         f.debug_struct("NotificationsSlotBuilder")
             .field("routers", &self.routers.len())
             .field("channels", &self.channels.len())
-            .field("audiences", &self.audiences.len())
             .field("publish_policies", &self.publish_policies.len())
             .field("visibilities", &self.visibilities.len())
             .finish()
@@ -134,9 +129,6 @@ impl Slot for NotificationsSlot {
             seams
                 .channels
                 .extend(build_factories(SLOT, owner, &builder.channels, r)?);
-            seams
-                .audiences
-                .extend(build_factories(SLOT, owner, &builder.audiences, r)?);
             seams.publish_policies.extend(build_factories(
                 SLOT,
                 owner,

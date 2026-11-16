@@ -47,7 +47,7 @@ pub struct SetArgs {
     pub acknowledgement: Option<String>,
 }
 
-pub fn execute(command: &GovernanceCommands, host: &dyn CommandHost) -> Result<()> {
+pub fn execute(command: &GovernanceCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     match command {
         GovernanceCommands::Show => execute_show(host),
         GovernanceCommands::Set(args) => execute_set(args, host),
@@ -64,8 +64,7 @@ fn parse_mode(raw: &str) -> Result<AuthzMode> {
     }
 }
 
-fn execute_set(args: &SetArgs, host: &dyn CommandHost) -> Result<()> {
-    let config = host.output();
+fn execute_set(args: &SetArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
     let mode = parse_mode(&args.mode)?;
 
     if matches!(mode, AuthzMode::Unrestricted)
@@ -101,18 +100,16 @@ fn execute_set(args: &SetArgs, host: &dyn CommandHost) -> Result<()> {
 
     save_profile(&profile, profile_path)?;
 
-    host.render(&CommandOutput::card_value(
+    Ok(CommandOutput::card_value(
             "Governance Updated",
             &ConfigMutationOutput {
                 field: "governance.authz".to_owned(),
                 message: format!("Authz mode set to {}", args.mode.to_lowercase()),
             },
-        ));
-    Ok(())
+        ))
 }
 
-fn execute_show(host: &dyn CommandHost) -> Result<()> {
-    let config = host.output();
+fn execute_show(host: &dyn CommandHost) -> Result<CommandOutput> {
     let profile = host.profile()?;
     let summary = profile
         .governance
@@ -127,6 +124,5 @@ fn execute_show(host: &dyn CommandHost) -> Result<()> {
                 )
             },
         );
-    host.render(&CommandOutput::text_titled("Governance Configuration", summary));
-    Ok(())
+    Ok(CommandOutput::text_titled("Governance Configuration", summary))
 }

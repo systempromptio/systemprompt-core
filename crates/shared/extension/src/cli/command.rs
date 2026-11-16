@@ -139,6 +139,9 @@ pub struct DescribedCommand {
 /// closed: a line that selects no command, or a command whose owner the
 /// profile disables, is an error, never a description.
 ///
+/// [`CommandHost::profile_path`] is the file the active profile was loaded
+/// from; a command that edits the profile writes against it.
+///
 /// [`CommandHost::env_profile`] is the `SYSTEMPROMPT_PROFILE` value the runner
 /// resolved at start-up. [`CommandHost::boot_config`] boots the profile at a
 /// path with the secrets sources the composition admitted and returns its
@@ -153,6 +156,7 @@ pub trait CommandHost: Send + Sync {
     fn prompter(&self) -> &dyn Prompter;
     fn is_database_scoped(&self) -> bool;
     fn profile(&self) -> Result<&Profile, CommandError>;
+    fn profile_path(&self) -> Result<&Path, CommandError>;
     fn db(&self) -> BoxFuture<'_, Result<Arc<dyn DatabaseHandle>, CommandError>>;
     fn resolved(&self) -> BoxFuture<'_, Result<Resolved<'_>, CommandError>>;
     fn children(&self) -> &dyn ChildSupervisor;

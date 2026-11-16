@@ -88,18 +88,20 @@ fn services_dir(args: &MigrateArgs, host: &dyn CommandHost) -> Result<PathBuf> {
     }
 }
 
-fn render(host: &dyn CommandHost, title: &str, message: String) {
-    render_field(host, "catalog", title, message);
-}
+#[derive(Debug, Default)]
+struct MigrationSteps(Vec<ConfigMutationOutput>);
 
-fn render_field(host: &dyn CommandHost, field: &str, title: &str, message: String) {
-    host.render(&CommandOutput::card_value(
-            title,
-            &ConfigMutationOutput {
-                field: field.to_owned(),
-                message,
-            },
-        ));
+impl MigrationSteps {
+    fn push(&mut self, field: &str, message: String) {
+        self.0.push(ConfigMutationOutput {
+            field: field.to_owned(),
+            message,
+        });
+    }
+
+    fn output(self, title: &str) -> CommandOutput {
+        CommandOutput::table_of(vec!["field", "message"], &self.0).with_title(title)
+    }
 }
 
 fn describe(plan: &MigrationPlan, written: &[PathBuf]) -> String {
@@ -117,42 +119,28 @@ fn describe(plan: &MigrationPlan, written: &[PathBuf]) -> String {
     lines.join("\n")
 }
 
-fn execute_profiles(args: &MigrateArgs, dir: &std::path::Path, host: &dyn CommandHost) -> Result<()> {
+fn execute_profiles(args: &MigrateArgs, dir: &std::path::Path) -> Result<CommandOutput> {
+    let mut steps = MigrationSteps::default();
     if args.check {
         let pending = profiles::plan(dir)?;
         if pending.is_empty() {
-            render_field(
-                host,
-                "profiles",
-                "Profile Migration",
-                profiles::describe(&pending),
-            );
-            return Ok(());
+            steps.push("profiles", profiles::describe(&pending));
+            return Ok(steps.output("Profile Migration"));
         }
-        render_field(
-            host,
-            "profiles",
-            "Profile Migration Pending",
-            profiles::describe(&pending),
-        );
         bail!(
-            "a profile migration is pending; run `systemprompt admin config migrate --profiles {}`",
-            dir.display()
+            "a profile migration is pending; run `systemprompt admin config migrate --profiles {}`\n{}",
+            dir.display(),
+            profiles::describe(&pending)
         );
     }
     let written = profiles::apply(dir)?;
-    render_field(
-        host,
-        "profiles",
-        "Profiles Migrated",
-        profiles::describe(&written),
-    );
-    Ok(())
+    steps.push("profiles", profiles::describe(&written));
+    Ok(steps.output("Profiles Migrated"))
 }
 
-pub async fn execute(args: &MigrateArgs, host: &dyn CommandHost) -> Result<()> {
+pub async fn execute(args: &MigrateArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
     match args.profiles.as_ref() {
-        Some(dir) => execute_profiles(args, dir, host.output()),
+        Some(dir) => execute_profiles(args, dir),
         None => execute_services(args, host).await,
     }
 }
@@ -171,11 +159,10 @@ fn refuse_pending_renames(services: &std::path::Path) -> Result<()> {
     Ok(())
 }
 
-fn apply_renames(host: &dyn CommandHost, services: &std::path::Path) -> Result<()> {
+fn apply_renames(steps: &mut MigrationSteps, services: &std::path::Path) -> Result<()> {
     for path in hooks::migrate(services)? {
-        render(
-            host,
-            "Plugin Hooks Migrated",
+        steps.push(
+            "plugin_hooks",
             format!(
                 "renamed hooks.evaluation to hooks.judge in {}",
                 path.display()
@@ -183,9 +170,8 @@ fn apply_renames(host: &dyn CommandHost, services: &std::path::Path) -> Result<(
         );
     }
     for path in slack::migrate(services)? {
-        render(
-            host,
-            "Slack Link Policy Migrated",
+        steps.push(
+            "slack_link_policy",
             format!(
                 "renamed authz.link_by_workspace_email to authz.link.link_by_email in {}",
                 path.display()
@@ -195,7 +181,8 @@ fn apply_renames(host: &dyn CommandHost, services: &std::path::Path) -> Result<(
     Ok(())
 }
 
-async fn execute_services(args: &MigrateArgs, host: &dyn CommandHost) -> Result<()> {
+async fn execute_services(args: &MigrateArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let mut steps = MigrationSteps::default();
     let services = services_dir(args, host)?;
     let pending = plan(&services)?;
     if args.check {
@@ -208,16 +195,17 @@ async fn execute_services(args: &MigrateArgs, host: &dyn CommandHost) -> Result<
         }
         refuse_pending_renames(&services)?;
         let Some(plan) = pending else {
-            render(
-                host,
-                "Catalog Migration",
+            steps.push(
+                "catalog",
                 "the services tree is already in the 0.73 shape".to_owned(),
             );
-            return Ok(());
+            return Ok(steps.output("Catalog Migration"));
         };
         write::verify(&services, &plan)?;
-        render(host, "Catalog Migration Pending", describe(&plan, &[]));
-        bail!("a catalog migration is pending; run `systemprompt admin config migrate`");
+        bail!(
+            "a catalog migration is pending; run `systemprompt admin config migrate`\n{}",
+            describe(&plan, &[])
+        );
     }
     match pending {
         Some(plan) => {
@@ -226,28 +214,25 @@ async fn execute_services(args: &MigrateArgs, host: &dyn CommandHost) -> Result<
                 &plan,
                 &crate::commands::admin::state::get::<crate::runner::interrupt::InterruptShield>(host).await?,
             )?;
-            render(host, "Catalog Migrated", describe(&plan, &written));
+            steps.push("catalog", describe(&plan, &written));
         },
-        None => render(
-            host,
-            "Catalog Migration",
+        None => steps.push(
+            "catalog",
             "nothing to migrate: the services tree is already in the 0.73 shape".to_owned(),
         ),
     }
-    apply_renames(host, &services)?;
+    apply_renames(&mut steps, &services)?;
     if let Some(rules) = roles::migrate(&services)? {
-        render(
-            host,
-            "Access Control Migrated",
+        steps.push(
+            "access_control",
             format!("folded {} into {}", roles::ROLES_FILE, rules.display()),
         );
     }
     if args.data {
         let map = data::read_map(&services)?;
         let report = data::apply_with(&systemprompt_database::pool_from_handle(host.db().await?)?, &map).await?;
-        render(
-            host,
-            "Catalog Data Migrated",
+        steps.push(
+            "catalog_data",
             format!(
                 "{} legacy entries recorded, {} personal keys moved, {} audit rows backfilled, {} host filters rewritten, {} legacy route rules moved onto model entities",
                 report.legacy_entries,
@@ -258,5 +243,5 @@ async fn execute_services(args: &MigrateArgs, host: &dyn CommandHost) -> Result<
             ),
         );
     }
-    Ok(())
+    Ok(steps.output("Config Migration"))
 }

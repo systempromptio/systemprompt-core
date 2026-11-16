@@ -43,10 +43,9 @@ pub struct SecretCheckReport {
     pub last_error: Option<String>,
 }
 
-pub async fn execute(host: &dyn CommandHost) -> Result<()> {
+pub async fn execute(host: &dyn CommandHost) -> Result<CommandOutput> {
     let report = run(host).await?;
-    host.render(&CommandOutput::card_value("Secrets Source", &report));
-    Ok(())
+    Ok(CommandOutput::card_value("Secrets Source", &report))
 }
 
 pub async fn run(host: &dyn CommandHost) -> Result<SecretCheckReport> {

@@ -36,27 +36,24 @@ pub struct SetArgs {
     pub port_offset: Option<u16>,
 }
 
-pub fn execute(command: &ServicesCommands, host: &dyn CommandHost) -> Result<()> {
+pub fn execute(command: &ServicesCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     match command {
         ServicesCommands::Show => execute_show(host),
         ServicesCommands::Set(args) => execute_set(args, host),
     }
 }
 
-pub(super) fn execute_show(host: &dyn CommandHost) -> Result<()> {
-    let config = host.output();
+pub(super) fn execute_show(host: &dyn CommandHost) -> Result<CommandOutput> {
     let profile = host.profile()?;
 
     let output = ServicesConfigOutput {
         port_offset: profile.services.port_offset,
     };
 
-    host.render(&CommandOutput::card_value("Services Configuration", &output));
-
-    Ok(())
+    Ok(CommandOutput::card_value("Services Configuration", &output))
 }
 
-pub(super) fn execute_set(args: &SetArgs, host: &dyn CommandHost) -> Result<()> {
+pub(super) fn execute_set(args: &SetArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
     let config = host.output();
     let Some(port_offset) = args.port_offset else {
         bail!("Must specify at least one option: --port-offset");
@@ -77,11 +74,9 @@ pub(super) fn execute_set(args: &SetArgs, host: &dyn CommandHost) -> Result<()> 
         message: format!("Updated port_offset to {port_offset}"),
     };
 
-    host.render(&CommandOutput::card_value("Services Updated", &change));
-
     if config.output_format() == OutputFormat::Table {
         CliService::warning("Restart services for changes to take effect");
     }
 
-    Ok(())
+    Ok(CommandOutput::card_value("Services Updated", &change))
 }

@@ -16,7 +16,7 @@ use systemprompt_extension::cli::CommandHost;
 
 use super::super::types::{DiffEntry, DiffOutput};
 
-pub(super) fn execute_diff(args: &DiffArgs, host: &dyn CommandHost) -> Result<()> {
+pub(super) fn execute_diff(args: &DiffArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
     let config = host.output();
     let profile = host.profile()?;
     let current = &profile.rate_limits;
@@ -53,9 +53,6 @@ pub(super) fn execute_diff(args: &DiffArgs, host: &dyn CommandHost) -> Result<()
         differences,
     };
 
-    host.render(&CommandOutput::table_of(vec!["field", "current", "other"], &output.differences)
-            .with_title("Rate Limits Diff"));
-
     if config.output_format() == OutputFormat::Table {
         if count == 0 {
             CliService::success("No differences found");
@@ -64,7 +61,10 @@ pub(super) fn execute_diff(args: &DiffArgs, host: &dyn CommandHost) -> Result<()
         }
     }
 
-    Ok(())
+    Ok(
+        CommandOutput::table_of(vec!["field", "current", "other"], &output.differences)
+            .with_title("Rate Limits Diff"),
+    )
 }
 
 pub fn collect_differences(

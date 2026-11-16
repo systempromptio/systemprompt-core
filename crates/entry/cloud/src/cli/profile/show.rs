@@ -246,5 +246,5 @@ fn output_config(config: &FullConfig, json_output: bool, yaml_output: bool) -> C
     } else {
         print_formatted_config(config);
     }
-    crate::cli::rendered()
+    CommandOutput::rendered()
 }

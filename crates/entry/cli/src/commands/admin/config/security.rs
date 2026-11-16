@@ -7,6 +7,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use super::changes_output;
 use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
 use systemprompt_config::{SecurityChange, SecurityConfigService, SecurityUpdate};
@@ -70,7 +71,7 @@ pub struct TrustedIssuerAddArgs {
     pub audience: String,
 }
 
-pub fn execute(command: &SecurityCommands, host: &dyn CommandHost) -> Result<()> {
+pub fn execute(command: &SecurityCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     match command {
         SecurityCommands::Show => execute_show(host),
         SecurityCommands::Set(args) => execute_set(args, host),
@@ -78,7 +79,7 @@ pub fn execute(command: &SecurityCommands, host: &dyn CommandHost) -> Result<()>
     }
 }
 
-pub(super) fn execute_show(host: &dyn CommandHost) -> Result<()> {
+pub(super) fn execute_show(host: &dyn CommandHost) -> Result<CommandOutput> {
     let profile = host.profile()?;
 
     let output = SecurityConfigOutput {
@@ -93,12 +94,10 @@ pub(super) fn execute_show(host: &dyn CommandHost) -> Result<()> {
             .collect(),
     };
 
-    host.render(&CommandOutput::card_value("Security Configuration", &output));
-
-    Ok(())
+    Ok(CommandOutput::card_value("Security Configuration", &output))
 }
 
-pub(super) fn execute_set(args: &SetArgs, host: &dyn CommandHost) -> Result<()> {
+pub(super) fn execute_set(args: &SetArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
     if args.access_expiry.is_none()
         && args.refresh_expiry.is_none()
         && args.resource_audiences.is_empty()
@@ -124,11 +123,10 @@ pub(super) fn execute_set(args: &SetArgs, host: &dyn CommandHost) -> Result<()> 
 
     save_profile(&profile, profile_path)?;
 
-    render_changes(&changes, host);
-    Ok(())
+    Ok(render_changes(&changes, host))
 }
 
-fn execute_trusted_issuer(command: &TrustedIssuerCommands, host: &dyn CommandHost) -> Result<()> {
+fn execute_trusted_issuer(command: &TrustedIssuerCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     let profile_path = profile_path(host)?;
     let mut profile = load_profile(profile_path)?;
 
@@ -156,8 +154,7 @@ fn execute_trusted_issuer(command: &TrustedIssuerCommands, host: &dyn CommandHos
     };
 
     save_profile(&profile, profile_path)?;
-    render_changes(&[to_output(change)], host);
-    Ok(())
+    Ok(render_changes(&[to_output(change)], host))
 }
 
 fn to_output(change: SecurityChange) -> SecuritySetOutput {
@@ -169,11 +166,9 @@ fn to_output(change: SecurityChange) -> SecuritySetOutput {
     }
 }
 
-fn render_changes(changes: &[SecuritySetOutput], host: &dyn CommandHost) {
-    for change in changes {
-        host.render(&CommandOutput::card_value("Security Updated", change));
-    }
+fn render_changes(changes: &[SecuritySetOutput], host: &dyn CommandHost) -> CommandOutput {
     if host.output().output_format() == OutputFormat::Table {
         CliService::warning("Restart services for changes to take effect");
     }
+    changes_output("Security Updated", changes)
 }

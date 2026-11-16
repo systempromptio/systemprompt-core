@@ -12,7 +12,7 @@ use systemprompt_extension::cli::CommandHost;
 
 use super::super::types::RateLimitsOutput;
 
-pub(super) fn execute_show(host: &dyn CommandHost) -> Result<()> {
+pub(super) fn execute_show(host: &dyn CommandHost) -> Result<CommandOutput> {
     let config = host.output();
     let profile = host.profile()?;
     let limits = &profile.rate_limits;
@@ -35,11 +35,9 @@ pub(super) fn execute_show(host: &dyn CommandHost) -> Result<()> {
         burst_multiplier: limits.burst_multiplier,
     };
 
-    host.render(&CommandOutput::card_value("Rate Limits", &output));
-
     if config.output_format() == OutputFormat::Table && limits.disabled {
         CliService::warning("Rate limiting is currently DISABLED");
     }
 
-    Ok(())
+    Ok(CommandOutput::card_value("Rate Limits", &output))
 }

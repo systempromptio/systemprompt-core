@@ -51,6 +51,7 @@ use clap::Subcommand;
 
 use systemprompt_extension::cli::{CommandHost, CommandOutput};
 use systemprompt_loader::ServicesState;
+use serde::Serialize;
 
 use crate::descriptor::{CommandDescriptor, DescribeCommand};
 
@@ -155,7 +156,6 @@ impl DescribeCommand for ConfigCommands {
 }
 
 pub async fn execute(command: ConfigCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
-    let rendered = |()| super::state::rendered();
     match command {
         ConfigCommands::Show => show::execute(host),
         ConfigCommands::List(args) => list::execute(args, host).await,
@@ -168,28 +168,31 @@ pub async fn execute(command: ConfigCommands, host: &dyn CommandHost) -> Result<
             }
             Ok(result)
         },
-        ConfigCommands::RateLimits(cmd) => {
-            rate_limits::execute(cmd, host.prompter(), host).map(rendered)
-        },
-        ConfigCommands::Server(ref cmd) => server::execute(cmd, host).map(rendered),
-        ConfigCommands::Runtime(cmd) => runtime::execute(cmd, host).map(rendered),
-        ConfigCommands::Security(ref cmd) => security::execute(cmd, host).map(rendered),
-        ConfigCommands::Services(ref cmd) => services::execute(cmd, host).map(rendered),
-        ConfigCommands::Paths(cmd) => paths::execute(cmd, host).map(rendered),
-        ConfigCommands::Credential(ref cmd) => credential::execute(cmd, host).await.map(rendered),
-        ConfigCommands::Provider(ref cmd) => provider::execute(cmd, host).await.map(rendered),
-        ConfigCommands::Endpoint(ref cmd) => endpoint::execute(cmd, host).await.map(rendered),
-        ConfigCommands::Model(ref cmd) => model::execute(cmd, host).await.map(rendered),
-        ConfigCommands::Deployment(ref cmd) => deployment::execute(cmd, host).await.map(rendered),
-        ConfigCommands::Gateway(ref cmd) => gateway::execute(cmd, host).await.map(rendered),
-        ConfigCommands::Governance(ref cmd) => governance::execute(cmd, host).map(rendered),
+        ConfigCommands::RateLimits(cmd) => rate_limits::execute(cmd, host.prompter(), host),
+        ConfigCommands::Server(ref cmd) => server::execute(cmd, host),
+        ConfigCommands::Runtime(cmd) => runtime::execute(cmd, host),
+        ConfigCommands::Security(ref cmd) => security::execute(cmd, host),
+        ConfigCommands::Services(ref cmd) => services::execute(cmd, host),
+        ConfigCommands::Paths(cmd) => paths::execute(cmd, host),
+        ConfigCommands::Credential(ref cmd) => credential::execute(cmd, host).await,
+        ConfigCommands::Provider(ref cmd) => provider::execute(cmd, host).await,
+        ConfigCommands::Endpoint(ref cmd) => endpoint::execute(cmd, host).await,
+        ConfigCommands::Model(ref cmd) => model::execute(cmd, host).await,
+        ConfigCommands::Deployment(ref cmd) => deployment::execute(cmd, host).await,
+        ConfigCommands::Gateway(ref cmd) => gateway::execute(cmd, host).await,
+        ConfigCommands::Governance(ref cmd) => governance::execute(cmd, host),
         ConfigCommands::Catalog(ref cmd) => {
             let services = host.resolved().await?.optional::<ServicesState>();
-            catalog::execute(cmd, host, services.as_ref()).map(rendered)
+            catalog::execute(cmd, services.as_ref())
         },
-        ConfigCommands::Migrate(ref args) => migrate::execute(args, host).await.map(rendered),
-        ConfigCommands::Secret(ref cmd) => secret::execute(cmd, host).await.map(rendered),
+        ConfigCommands::Migrate(ref args) => migrate::execute(args, host).await,
+        ConfigCommands::Secret(ref cmd) => secret::execute(cmd, host).await,
         ConfigCommands::Planes(cmd) => planes::execute(cmd, host).await,
         ConfigCommands::Apply(ref args) => apply::execute(args, host).await,
     }
+}
+
+pub(crate) fn changes_output<T: Serialize>(title: &str, changes: &[T]) -> CommandOutput {
+    CommandOutput::table_of(vec!["field", "old_value", "new_value", "message"], changes)
+        .with_title(title)
 }

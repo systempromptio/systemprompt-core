@@ -12,11 +12,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Context;
-use systemprompt_extension::cli::CommandHost;
 use systemprompt_manifest::services::{DiscoveryReport, VertexRateCard};
 use systemprompt_models::artifacts::NoticeLine;
 
-use super::types::DiscoveryRow;
+use super::types::{DiscoveryOutput, DiscoveryRow};
 use crate::shared::CommandOutput;
 
 #[must_use]
@@ -83,33 +82,32 @@ fn discovery_notes(report: &DiscoveryReport) -> Vec<NoticeLine> {
 
 pub fn show_discovery(
     services: Option<&systemprompt_loader::ServicesState>,
-    host: &dyn CommandHost,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<CommandOutput> {
     let report = services
         .and_then(systemprompt_loader::ServicesState::discovery_report)
         .filter(|r| !r.ran_at.is_empty());
-    render_discovery(report, host)
+    discovery_output(report)
 }
 
-pub fn render_discovery(
-    report: Option<&DiscoveryReport>,
-    host: &dyn CommandHost,
-) -> anyhow::Result<()> {
+pub fn discovery(report: &DiscoveryReport) -> anyhow::Result<DiscoveryOutput> {
     let card = VertexRateCard::embedded().context("embedded Vertex rate card is unreadable")?;
+    Ok(DiscoveryOutput {
+        models: discovery_rows(report, &card),
+        notes: discovery_notes(report),
+    })
+}
+
+pub fn discovery_output(report: Option<&DiscoveryReport>) -> anyhow::Result<CommandOutput> {
     let Some(report) = report else {
-        host.render(&CommandOutput::message(vec![NoticeLine::new(
-                "info",
-                "Vertex model discovery has not run: the services configuration was not \
-                 loaded for this command.",
-            )])
-            .with_title("Vertex Model Discovery"));
-        return Ok(());
-    };
-    host.render(&CommandOutput::table_of(
-            vec!["upstream_or_id", "state", "retires_on"],
-            &discovery_rows(report, &card),
-        )
+        return Ok(CommandOutput::message(vec![NoticeLine::new(
+            "info",
+            "Vertex model discovery has not run: the services configuration was not loaded for \
+             this command.",
+        )])
         .with_title("Vertex Model Discovery"));
-    host.render(&CommandOutput::message(discovery_notes(report)));
-    Ok(())
+    };
+    Ok(CommandOutput::card_value(
+        "Vertex Model Discovery",
+        &discovery(report)?,
+    ))
 }
