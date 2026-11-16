@@ -70,10 +70,8 @@ async fn an_enabled_oidc_config_without_its_client_secret_fails_discovery() {
     .await
     .expect_err("an enabled but unusable provider must stop the boot");
 
-    match err {
-        SsoProviderError::Config { provider_id, .. } => assert_eq!(provider_id, "oidc"),
-        other => panic!("expected a config error, got {other:?}"),
-    }
+    let SsoProviderError::Config { provider_id, .. } = err;
+    assert_eq!(provider_id, "oidc");
 }
 
 #[tokio::test]
