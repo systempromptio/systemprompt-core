@@ -274,11 +274,8 @@ impl KernelHost for CommandContext {
     }
 
     fn take_admit(&self) -> Result<systemprompt_runtime::AdmitFn, CommandError> {
-        let admit = CommandContext::take_admit(self).ok_or_else(|| {
-            CommandError::new(anyhow::anyhow!(
-                "Only a child-host command admits the composition itself"
-            ))
-        })?;
+        let refused = || anyhow::anyhow!("Only a child-host command admits the composition");
+        let admit = CommandContext::take_admit(self).ok_or_else(|| CommandError::new(refused()))?;
         Ok(Box::new(move |profile: &Profile| admit(Some(profile))))
     }
 }
