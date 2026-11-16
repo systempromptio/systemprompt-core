@@ -16,11 +16,9 @@
 //! `services` entry instead of aborting before the command runs.
 //!
 //! Whenever the scheduler section is in scope, the merged services config is
-//! additionally cross-checked against the registered job catalog, so a job name
-//! no `submit_job!` registers is caught here instead of aborting scheduler
-//! startup on a deploy. That catalog is the set of jobs linked into the *CLI*
-//! binary; a downstream that links job-registering crates only into its API
-//! binary would see false positives.
+//! additionally cross-checked against the admitted job schedule, so a job name
+//! no enabled extension contributes is caught here instead of aborting
+//! scheduler startup on a deploy.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -32,10 +30,11 @@ use clap::Args;
 use super::types::{ConfigFileInfo, ConfigSection, ConfigValidateOutput};
 use super::validate_jobs::scheduler_catalog_error;
 pub use super::validate_jobs::{unknown_jobs_message, unlisted_jobs_message};
-use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 use systemprompt_config::LoadedProfile;
 use systemprompt_config::yaml_document::read_yaml_file;
+use systemprompt_extension::AdmittedSchedule;
+use systemprompt_extension::cli::CommandHost;
 use systemprompt_manifest::profile::Profile;
 
 #[derive(Debug, Clone, Args)]
@@ -54,7 +53,10 @@ pub struct ValidateArgs {
     pub schema: bool,
 }
 
-pub fn execute(args: &ValidateArgs, ctx: &CommandContext) -> Result<(CommandOutput, bool)> {
+pub async fn execute(
+    args: &ValidateArgs,
+    host: &dyn CommandHost,
+) -> Result<(CommandOutput, bool)> {
     if args.schema {
         return print_profile_schema();
     }
@@ -63,20 +65,21 @@ pub fn execute(args: &ValidateArgs, ctx: &CommandContext) -> Result<(CommandOutp
         return validate_profile_file(&path);
     }
 
+    let boot = crate::commands::admin::state::boot(host).await?;
     let (mut results, mut all_valid) = validate_files(files_for_target(
-        ctx.loaded_profile()?,
+        boot.loaded_profile(),
         args.target.as_deref(),
     )?);
 
     all_valid &= super::plane_validate::append_full_validation(
-        ctx.config()?,
-        &ctx.boot()?.profile().extensions.disabled,
+        &crate::commands::admin::state::config(host).await?,
+        &boot.profile().extensions.disabled,
         args.target.as_ref(),
         &mut results,
     );
 
     let services = if covers_services(args) {
-        let (entry, services) = super::validate_services::load(ctx.boot()?);
+        let (entry, services) = super::validate_services::load(&boot);
         all_valid &= entry.valid;
         results.push(entry);
         services
@@ -84,8 +87,9 @@ pub fn execute(args: &ValidateArgs, ctx: &CommandContext) -> Result<(CommandOutp
         None
     };
 
+    let schedule = crate::commands::admin::state::get::<AdmittedSchedule>(host).await?;
     if let Some(error) =
-        scheduler_catalog_error(ctx.boot()?, services.as_ref(), &results, args.strict)
+        scheduler_catalog_error(&boot, &schedule, services.as_ref(), &results, args.strict)
     {
         all_valid = false;
         for file in &mut results {

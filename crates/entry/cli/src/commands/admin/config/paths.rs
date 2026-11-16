@@ -14,10 +14,10 @@ use std::path::Path;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 
-use super::types::{PathInfo, PathValidation, PathsConfigOutput, PathsValidateOutput};
 use crate::cli_settings::OutputFormat;
-use crate::context::CommandContext;
-use crate::shared::{CommandOutput, render_result};
+use crate::shared::CommandOutput;
+use super::types::{PathInfo, PathValidation, PathsConfigOutput, PathsValidateOutput};
+use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Clone, Copy, Subcommand)]
 pub enum PathsCommands {
@@ -28,16 +28,16 @@ pub enum PathsCommands {
     Validate,
 }
 
-pub fn execute(command: PathsCommands, ctx: &CommandContext) -> Result<()> {
+pub fn execute(command: PathsCommands, host: &dyn CommandHost) -> Result<()> {
     match command {
-        PathsCommands::Show => execute_show(ctx),
-        PathsCommands::Validate => execute_validate(ctx),
+        PathsCommands::Show => execute_show(host),
+        PathsCommands::Validate => execute_validate(host),
     }
 }
 
-pub(super) fn execute_show(ctx: &CommandContext) -> Result<()> {
-    let config = &ctx.cli;
-    let profile = ctx.profile()?;
+pub(super) fn execute_show(host: &dyn CommandHost) -> Result<()> {
+    let config = host.output();
+    let profile = host.profile()?;
 
     let output = PathsConfigOutput {
         system: PathInfo {
@@ -66,17 +66,14 @@ pub(super) fn execute_show(ctx: &CommandContext) -> Result<()> {
         }),
     };
 
-    render_result(
-        &CommandOutput::card_value("Paths Configuration", &output),
-        config,
-    );
+    host.render(&CommandOutput::card_value("Paths Configuration", &output));
 
     Ok(())
 }
 
-pub(super) fn execute_validate(ctx: &CommandContext) -> Result<()> {
-    let config = &ctx.cli;
-    let profile = ctx.profile()?;
+pub(super) fn execute_validate(host: &dyn CommandHost) -> Result<()> {
+    let config = host.output();
+    let profile = host.profile()?;
 
     let validations = collect_path_validations(profile);
     let valid = validations.iter().filter(|v| v.required).all(|v| v.exists);
@@ -86,11 +83,8 @@ pub(super) fn execute_validate(ctx: &CommandContext) -> Result<()> {
         paths: validations,
     };
 
-    render_result(
-        &CommandOutput::table_of(vec!["name", "path", "exists", "required"], &output.paths)
-            .with_title("Paths Validation"),
-        config,
-    );
+    host.render(&CommandOutput::table_of(vec!["name", "path", "exists", "required"], &output.paths)
+            .with_title("Paths Validation"));
 
     if config.output_format() == OutputFormat::Table {
         if valid {

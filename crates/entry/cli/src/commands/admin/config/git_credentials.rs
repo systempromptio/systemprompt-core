@@ -25,8 +25,8 @@ use systemprompt_logging::CliService;
 use systemprompt_marketplace::managed::{GitCredentialSource, ManagedRepository};
 use systemprompt_runtime::managed::git_sources::git_credential_key;
 
-use crate::context::CommandContext;
 use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct MigrateGitCredentialsArgs {
@@ -151,10 +151,10 @@ pub fn migrate_file(
 
 pub(super) async fn execute(
     args: MigrateGitCredentialsArgs,
-    ctx: &CommandContext,
+    host: &dyn CommandHost,
 ) -> Result<CommandOutput> {
-    let secrets_file = super::secret::file_secrets_path(ctx)?;
-    let pool = ctx.db_pool().await?;
+    let secrets_file = super::secret::file_secrets_path(host)?;
+    let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
     let sources = ManagedRepository::new(&pool)
         .git_sources_with_credentials()
         .await?;

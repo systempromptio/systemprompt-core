@@ -13,7 +13,7 @@ use systemprompt_identifiers::ModelId;
 use systemprompt_manifest::services::catalog::DeploymentTarget;
 
 use super::catalog_edit::{apply, parse_endpoints, read_active, render_list};
-use crate::context::CommandContext;
+use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Subcommand)]
 pub enum DeploymentCommands {
@@ -34,11 +34,10 @@ pub struct DeploymentSetArgs {
     pub endpoints: Vec<String>,
 }
 
-pub async fn execute(command: &DeploymentCommands, ctx: &CommandContext) -> Result<()> {
-    let config = &ctx.cli;
+pub async fn execute(command: &DeploymentCommands, host: &dyn CommandHost) -> Result<()> {
     match command {
         DeploymentCommands::List => {
-            let document = read_active(ctx)?;
+            let document = read_active(host).await?;
             let rows = document
                 .deployments
                 .iter()
@@ -48,7 +47,7 @@ pub async fn execute(command: &DeploymentCommands, ctx: &CommandContext) -> Resu
                     format!("{model}: {}", chain.join(" > "))
                 })
                 .collect();
-            render_list(config, "Deployments", rows);
+            render_list(host, "Deployments", rows);
             Ok(())
         },
         DeploymentCommands::Set(args) => {
@@ -56,7 +55,7 @@ pub async fn execute(command: &DeploymentCommands, ctx: &CommandContext) -> Resu
                 .into_iter()
                 .map(DeploymentTarget::Endpoint)
                 .collect();
-            apply(ctx, "Deployments Updated", |document, context| {
+            apply(host, "Deployments Updated", |document, context| {
                 if document.models.get(args.model.as_str()).is_none() {
                     bail!(
                         "model '{}' is not declared; add it with `admin config model add`",

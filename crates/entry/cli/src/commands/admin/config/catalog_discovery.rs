@@ -12,12 +12,12 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Context;
+use systemprompt_extension::cli::CommandHost;
 use systemprompt_manifest::services::{DiscoveryReport, VertexRateCard};
 use systemprompt_models::artifacts::NoticeLine;
 
 use super::types::DiscoveryRow;
-use crate::CliConfig;
-use crate::shared::{CommandOutput, render_result};
+use crate::shared::CommandOutput;
 
 #[must_use]
 pub fn discovery_rows(report: &DiscoveryReport, card: &VertexRateCard) -> Vec<DiscoveryRow> {
@@ -83,39 +83,33 @@ fn discovery_notes(report: &DiscoveryReport) -> Vec<NoticeLine> {
 
 pub fn show_discovery(
     services: Option<&systemprompt_loader::ServicesState>,
-    config: &CliConfig,
+    host: &dyn CommandHost,
 ) -> anyhow::Result<()> {
     let report = services
         .and_then(systemprompt_loader::ServicesState::discovery_report)
         .filter(|r| !r.ran_at.is_empty());
-    render_discovery(report, config)
+    render_discovery(report, host)
 }
 
 pub fn render_discovery(
     report: Option<&DiscoveryReport>,
-    config: &CliConfig,
+    host: &dyn CommandHost,
 ) -> anyhow::Result<()> {
     let card = VertexRateCard::embedded().context("embedded Vertex rate card is unreadable")?;
     let Some(report) = report else {
-        render_result(
-            &CommandOutput::message(vec![NoticeLine::new(
+        host.render(&CommandOutput::message(vec![NoticeLine::new(
                 "info",
                 "Vertex model discovery has not run: the services configuration was not \
                  loaded for this command.",
             )])
-            .with_title("Vertex Model Discovery"),
-            config,
-        );
+            .with_title("Vertex Model Discovery"));
         return Ok(());
     };
-    render_result(
-        &CommandOutput::table_of(
+    host.render(&CommandOutput::table_of(
             vec!["upstream_or_id", "state", "retires_on"],
             &discovery_rows(report, &card),
         )
-        .with_title("Vertex Model Discovery"),
-        config,
-    );
-    render_result(&CommandOutput::message(discovery_notes(report)), config);
+        .with_title("Vertex Model Discovery"));
+    host.render(&CommandOutput::message(discovery_notes(report)));
     Ok(())
 }

@@ -9,16 +9,16 @@ use std::path::Path;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::profile::RateLimitsConfig;
 
-use super::DiffArgs;
 use crate::cli_settings::OutputFormat;
-use crate::context::CommandContext;
-use crate::shared::{CommandOutput, render_result};
+use crate::shared::CommandOutput;
+use super::DiffArgs;
+use systemprompt_extension::cli::CommandHost;
 
 use super::super::types::{DiffEntry, DiffOutput};
 
-pub(super) fn execute_diff(args: &DiffArgs, ctx: &CommandContext) -> Result<()> {
-    let config = &ctx.cli;
-    let profile = ctx.profile()?;
+pub(super) fn execute_diff(args: &DiffArgs, host: &dyn CommandHost) -> Result<()> {
+    let config = host.output();
+    let profile = host.profile()?;
     let current = &profile.rate_limits;
 
     let (compare_with, source) = if args.defaults {
@@ -53,11 +53,8 @@ pub(super) fn execute_diff(args: &DiffArgs, ctx: &CommandContext) -> Result<()> 
         differences,
     };
 
-    render_result(
-        &CommandOutput::table_of(vec!["field", "current", "other"], &output.differences)
-            .with_title("Rate Limits Diff"),
-        config,
-    );
+    host.render(&CommandOutput::table_of(vec!["field", "current", "other"], &output.differences)
+            .with_title("Rate Limits Diff"));
 
     if config.output_format() == OutputFormat::Table {
         if count == 0 {

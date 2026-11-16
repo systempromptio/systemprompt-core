@@ -18,18 +18,18 @@ use systemprompt_models::artifacts::ListItem;
 use systemprompt_models::providers::ClientFamily;
 use systemprompt_wire::WireProtocol;
 
+use crate::shared::CommandOutput;
 use super::services_io::{CatalogLocation, commit_catalog};
 use super::types::ConfigMutationOutput;
-use crate::CliConfig;
-use crate::context::CommandContext;
-use crate::shared::{CommandOutput, render_result};
+use systemprompt_extension::cli::CommandHost;
 
 pub async fn apply(
-    ctx: &CommandContext,
+    host: &dyn CommandHost,
     title: &str,
     edit: impl FnOnce(&mut CatalogDocument, &CatalogContext) -> Result<String>,
 ) -> Result<()> {
-    let loaded = ctx.loaded_profile()?;
+    let boot = crate::commands::admin::state::boot(host).await?;
+    let loaded = boot.loaded_profile();
     let location = CatalogLocation::active(loaded);
     let before = location.read()?;
     let mut after = before.clone();
@@ -39,34 +39,32 @@ pub async fn apply(
     )?;
     let services = commit_catalog(&location, &after, loaded.profile())?;
     let outcome = super::reconcile::reconcile_authz(
-        ctx.config()?,
+        &crate::commands::admin::state::config(host).await?,
         &services,
         &location.dir.display().to_string(),
     )
     .await;
-    render_result(
-        &CommandOutput::card_value(
-            title,
-            &ConfigMutationOutput {
-                field: "catalog".to_owned(),
-                message: super::reconcile::append_reconcile_notice(message, &outcome),
-            },
-        ),
-        &ctx.cli,
-    );
+    host.render(&CommandOutput::card_value(
+        title,
+        &ConfigMutationOutput {
+            field: "catalog".to_owned(),
+            message: super::reconcile::append_reconcile_notice(message, &outcome),
+        },
+    ));
     Ok(())
 }
 
-pub fn render_list(config: &CliConfig, title: &str, rows: Vec<String>) {
+pub fn render_list(host: &dyn CommandHost, title: &str, rows: Vec<String>) {
     let items: Vec<ListItem> = rows
         .into_iter()
         .map(|row| ListItem::new(row, String::new(), String::new()))
         .collect();
-    render_result(&CommandOutput::list(items).with_title(title), config);
+    host.render(&CommandOutput::list(items).with_title(title));
 }
 
-pub fn read_active(ctx: &CommandContext) -> Result<CatalogDocument> {
-    CatalogLocation::active(ctx.loaded_profile()?).read()
+pub async fn read_active(host: &dyn CommandHost) -> Result<CatalogDocument> {
+    let boot = crate::commands::admin::state::boot(host).await?;
+    CatalogLocation::active(boot.loaded_profile()).read()
 }
 
 pub fn parse_wire(raw: &str) -> Result<WireProtocol> {

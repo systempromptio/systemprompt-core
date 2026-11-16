@@ -6,10 +6,10 @@
 use anyhow::Result;
 use clap::Args;
 
-use super::types::{ConfigFileInfo, ConfigListOutput, ConfigSection};
-use crate::context::CommandContext;
 use crate::shared::CommandOutput;
+use super::types::{ConfigFileInfo, ConfigListOutput, ConfigSection};
 use systemprompt_config::yaml_document::read_yaml_file;
+use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ListArgs {
@@ -17,8 +17,9 @@ pub struct ListArgs {
     pub errors_only: bool,
 }
 
-pub fn execute(args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let loaded = ctx.loaded_profile()?;
+pub async fn execute(args: ListArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let boot = crate::commands::admin::state::boot(host).await?;
+    let loaded = boot.loaded_profile();
     let mut files = Vec::new();
     let mut valid_count = 0;
     let mut invalid_count = 0;

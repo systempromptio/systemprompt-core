@@ -29,8 +29,8 @@ use systemprompt_scheduler::services::{
     ApplyOptions, ConfigApplyService, ConfigReconcileService, MergeReport,
 };
 
-use crate::context::CommandContext;
-use crate::shared::{CommandOutput, render_result};
+use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Clone, Args)]
 pub struct ApplyArgs {
@@ -70,21 +70,22 @@ struct PlaneRow {
     unchanged: usize,
 }
 
-pub async fn execute(args: &ApplyArgs, ctx: &CommandContext) -> Result<()> {
+pub async fn execute(args: &ApplyArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
     if args.reason.trim().is_empty() {
         bail!("--reason must not be empty; it is recorded in config_change_audit");
     }
-    let app = ctx.app_context().await?;
-    let report = run(args, app).await?;
+    let app = crate::commands::admin::state::app(host).await?;
+    let report = run(args, &app).await?;
     let conflicts = report.conflicts();
-    render_result(&render(&report), &ctx.cli);
+    let output = render(&report);
     if conflicts > 0 && !report.dry_run {
+        host.render(&output);
         bail!(
             "{conflicts} entities changed in both the file and the database since the last \
              apply; resolve them on /admin/sync"
         );
     }
-    Ok(())
+    Ok(output)
 }
 
 pub async fn run(args: &ApplyArgs, ctx: &Arc<AppContext>) -> Result<MergeReport> {
