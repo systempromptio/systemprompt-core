@@ -23,6 +23,27 @@ where
     }
 }
 
+// Waits until the tasks in flight fall back to `baseline`, the count taken
+// before the work under test started; a context's own long-lived tasks (the
+// document collab timer) stay in flight, so a full drain never completes.
+pub async fn settle_background(
+    tasks: &systemprompt_traits::BackgroundTasks,
+    baseline: usize,
+    timeout: Duration,
+) -> systemprompt_traits::DrainOutcome {
+    let deadline = Instant::now() + timeout;
+    loop {
+        let in_flight = tasks.in_flight();
+        if in_flight <= baseline {
+            return systemprompt_traits::DrainOutcome::Drained;
+        }
+        if Instant::now() >= deadline {
+            return systemprompt_traits::DrainOutcome::TimedOut { in_flight };
+        }
+        tokio::time::sleep(POLL_INTERVAL).await;
+    }
+}
+
 pub fn block_on<F: Future>(future: F) -> F::Output {
     tokio::runtime::Builder::new_current_thread()
         .enable_all()

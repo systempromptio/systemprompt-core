@@ -106,7 +106,7 @@ workspace SQLx macros require its database configuration.
 | OAuth authorization code protection | `crates/domain/oauth/` | PKCE S256, exact redirect URI validation, expiring single-use codes and refresh-token revocation |
 | Authorization | `crates/infra/governance/src/authz/` | Route policies and resource decisions; authenticated identity alone does not grant access |
 | Database access | `crates/infra/database/`, domain repositories | PostgreSQL, parameterized queries and compile-time query checks; bootstrap DDL has separate rules |
-| Extension registration | `crates/shared/extension/` | Compile/link-time registration through `inventory`; extensions execute as trusted in-process code |
+| Extension registration | `crates/shared/extension/` | Members are composed into the binary in `main` and admitted against the kernel's reservations; extensions execute as trusted in-process code |
 | Audit persistence | `crates/infra/logging/`, `crates/domain/ai/` | Structured decisions and request records; database permissions and retention are deployment controls |
 | Transport protection | `crates/entry/api/src/services/server/startup.rs` | The API binds an HTTP TCP listener; production TLS termination and ingress restrictions are operator-managed |
 | Shutdown | `crates/entry/api/src/services/server/shutdown.rs` | Signal-driven connection draining, child cleanup and forced-exit deadlines |

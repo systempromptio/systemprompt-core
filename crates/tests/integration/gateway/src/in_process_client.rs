@@ -19,7 +19,7 @@ use systemprompt_gateway::{GatewayEngines, GatewayRepositories};
 use systemprompt_identifiers::{AiRequestId, ServiceName};
 use systemprompt_manifest::services::GatewayConfig;
 use systemprompt_test_fixtures::{
-    ComposedParts, DisposableDb, Probe, offline_resolved_kernel, probe_admitted,
+    ComposedParts, DisposableDb, Probe, gateway_probe_admitted, offline_resolved_kernel,
     seed_admin_credential,
 };
 use systemprompt_traits::{DatabaseHandle, SessionProvider};
@@ -97,7 +97,7 @@ async fn fixture(schema: &str, policy: Option<serde_json::Value>) -> anyhow::Res
     .await?;
     let upstream = MockServer::start().await;
     let repos = Arc::new(repos(&pool));
-    let admitted = probe_admitted(ComposedParts {
+    let admitted = gateway_probe_admitted(ComposedParts {
         probes: vec![Probe::new("deny_service_guard", |c| {
             c.gateway_guard(|_: &Resolved<'_>| {
                 Ok(Arc::new(DenyServiceGuard) as Arc<dyn GatewayRequestGuard>)

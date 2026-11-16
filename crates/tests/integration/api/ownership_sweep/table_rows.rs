@@ -14,14 +14,14 @@ const FOLDER: &str = "routes/documents/mod.rs::folders_router";
 const DRIVE: &str = "routes/documents/drive.rs::router";
 const UPLOAD: &str = "routes/uploads/mod.rs::routes";
 const ISSUE: &str = "routes/issues/mod.rs::router";
-const RUN: &str = "agent-runs/http/mod.rs::router";
+const RUN: &str = "agent-runs/http/mod.rs::routes";
 const CONTEXT: &str = "routes/agent/contexts/mod.rs::router";
 const WEBHOOK: &str = "routes/agent/contexts/mod.rs::webhook_router";
 const TASK: &str = "routes/agent/mod.rs::tasks_router";
 const ARTIFACT: &str = "routes/agent/mod.rs::artifacts_router";
 const EXECUTION: &str = "routes/proxy/mcp/executions.rs::executions_router";
-const NOTIFY: &str = "notifications/http/mod.rs::router";
-const BRIDGE_NOTIFY: &str = "notifications/http/bridge.rs::routes";
+const NOTIFY: &str = "notifications/http/mod.rs::user_routes";
+const BRIDGE_NOTIFY: &str = "notifications/http/mod.rs::bridge_routes";
 const BYOK: &str = "routes/gateway/provider_credentials.rs::routes";
 const BRAIN: &str = "routes/brain/mod.rs::router";
 const CLIENTS: &str = "routes/oauth/clients.rs::router";
@@ -160,14 +160,14 @@ pub(super) const OWNED: &[Row] = &[
     owned(NOTIFY, "GET", r#""/subscriptions""#, Subscriptions, Listing, Empty),
     owned(NOTIFY, "POST", r#""/subscriptions""#, Subscriptions, Create, Json("{}")),
     owned(NOTIFY, "DELETE", r#""/subscriptions/{id}""#, Subscriptions, NotFound, Empty),
-    owned_at(BRIDGE_NOTIFY, "GET", "ApiPaths::gateway_relative(ApiPaths::BRIDGE_NOTIFICATIONS)", "/bridge/notifications", (BridgeNotifications, Listing, Empty)),
-    owned_at(BRIDGE_NOTIFY, "POST", "ApiPaths::gateway_relative(ApiPaths::BRIDGE_NOTIFICATIONS_READ)", "/bridge/notifications/read", (BridgeNotifications, CallerScoped, Json(r#"{"ids":["$ID"]}"#))),
-    owned_at(BRIDGE_NOTIFY, "POST", "ApiPaths::gateway_relative(ApiPaths::BRIDGE_NOTIFICATIONS_SEEN)", "/bridge/notifications/seen", (BridgeNotifications, CallerScoped, Json(r#"{"ids":["$ID"]}"#))),
-    owned_at(BRIDGE_NOTIFY, "POST", "ApiPaths::gateway_relative(ApiPaths::BRIDGE_NOTIFICATIONS_ESCALATE_ROUTE)", "/bridge/notifications/{id}/escalate", (BridgeNotifications, NotFound, Json("{}"))),
-    owned_at(BRIDGE_NOTIFY, "GET", "ApiPaths::gateway_relative(ApiPaths::BRIDGE_NOTIFICATIONS_STREAMS)", "/bridge/notifications/streams", (BridgeNotifications, CallerScoped, Empty)),
-    owned_at(BRIDGE_NOTIFY, "GET", "ApiPaths::gateway_relative(ApiPaths::BRIDGE_NOTIFICATIONS_SUBSCRIPTIONS)", "/bridge/notifications/subscriptions", (BridgeNotifications, CallerScoped, Empty)),
-    owned_at(BRIDGE_NOTIFY, "POST", "ApiPaths::gateway_relative(ApiPaths::BRIDGE_NOTIFICATIONS_SUBSCRIPTIONS)", "/bridge/notifications/subscriptions", (BridgeNotifications, Create, Json("{}"))),
-    owned_at(BRIDGE_NOTIFY, "DELETE", "ApiPaths::gateway_relative(ApiPaths::BRIDGE_NOTIFICATIONS_SUBSCRIPTION_ROUTE)", "/bridge/notifications/subscriptions/{id}", (BridgeNotifications, NotFound, Empty)),
+    owned_at(BRIDGE_NOTIFY, "GET", "at(ApiPaths::BRIDGE_NOTIFICATIONS)", "/bridge/notifications", (BridgeNotifications, Listing, Empty)),
+    owned_at(BRIDGE_NOTIFY, "POST", "at(ApiPaths::BRIDGE_NOTIFICATIONS_READ)", "/bridge/notifications/read", (BridgeNotifications, CallerScoped, Json(r#"{"ids":["$ID"]}"#))),
+    owned_at(BRIDGE_NOTIFY, "POST", "at(ApiPaths::BRIDGE_NOTIFICATIONS_SEEN)", "/bridge/notifications/seen", (BridgeNotifications, CallerScoped, Json(r#"{"ids":["$ID"]}"#))),
+    owned_at(BRIDGE_NOTIFY, "POST", "at(ApiPaths::BRIDGE_NOTIFICATIONS_ESCALATE_ROUTE)", "/bridge/notifications/{id}/escalate", (BridgeNotifications, NotFound, Json("{}"))),
+    owned_at(BRIDGE_NOTIFY, "GET", "at(ApiPaths::BRIDGE_NOTIFICATIONS_STREAMS)", "/bridge/notifications/streams", (BridgeNotifications, CallerScoped, Empty)),
+    owned_at(BRIDGE_NOTIFY, "GET", "at(ApiPaths::BRIDGE_NOTIFICATIONS_SUBSCRIPTIONS)", "/bridge/notifications/subscriptions", (BridgeNotifications, CallerScoped, Empty)),
+    owned_at(BRIDGE_NOTIFY, "POST", "at(ApiPaths::BRIDGE_NOTIFICATIONS_SUBSCRIPTIONS)", "/bridge/notifications/subscriptions", (BridgeNotifications, Create, Json("{}"))),
+    owned_at(BRIDGE_NOTIFY, "DELETE", "at(ApiPaths::BRIDGE_NOTIFICATIONS_SUBSCRIPTION_ROUTE)", "/bridge/notifications/subscriptions/{id}", (BridgeNotifications, NotFound, Empty)),
     owned(BYOK, "GET", r#""/me/provider-credentials""#, ProviderCredentials, CallerScoped, Empty),
     owned_at(BYOK, "PUT", r#""/me/provider-credentials/{credential}""#, "/me/provider-credentials/byok", (ProviderCredentials, CallerScoped, Json(r#"{"api_key":"good-key","label":"stranger"}"#))),
     owned_at(BYOK, "DELETE", r#""/me/provider-credentials/{credential}""#, "/me/provider-credentials/byok", (ProviderCredentials, CallerScoped, Empty)),

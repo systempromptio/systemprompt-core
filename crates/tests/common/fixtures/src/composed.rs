@@ -7,11 +7,15 @@
 //! an admitted composition instead of a hand-seeded state. Gateway routes are
 //! privileged shapes a probe cannot claim; a test that needs one passes them
 //! in [`ComposedParts::gateway_routes`].
+//!
+//! [`gateway_probe_admitted`] adds the `gateway` member under core standing:
+//! its slots build the engine values `GatewayEngines::new` reads, so a test
+//! that builds the engines resolves over it ([`gateway_resolved_kernel`]).
 
 use std::sync::Arc;
 
 use systemprompt_database::DbPool;
-use systemprompt_extension::admitted::{AdmittedGatewayRoute, AdmittedParts};
+use systemprompt_extension::admitted::{AdmittedGatewayRoute, AdmittedMember, AdmittedParts};
 use systemprompt_extension::prelude::Dependencies;
 use systemprompt_extension::{
     Admitted, ContributionError, Contributions, Extension, ExtensionMetadata, StandingTag,
@@ -59,14 +63,26 @@ pub struct ComposedParts {
 }
 
 pub fn probe_admitted(parts: ComposedParts) -> Admitted {
-    let members = parts
-        .probes
-        .iter()
-        .map(|probe| {
-            systemprompt_test_migrate::admitted_member(probe, StandingTag::Install)
-                .expect("a probe contributes")
-        })
-        .collect();
+    admitted_over(Vec::new(), parts)
+}
+
+pub fn gateway_probe_admitted(parts: ComposedParts) -> Admitted {
+    admitted_over(vec![gateway_member()], parts)
+}
+
+fn gateway_member() -> AdmittedMember {
+    systemprompt_test_migrate::admitted_member(
+        &systemprompt_gateway::extension::GatewayExtension,
+        StandingTag::Core,
+    )
+    .expect("the gateway member contributes")
+}
+
+fn admitted_over(mut members: Vec<AdmittedMember>, parts: ComposedParts) -> Admitted {
+    members.extend(parts.probes.iter().map(|probe| {
+        systemprompt_test_migrate::admitted_member(probe, StandingTag::Install)
+            .expect("a probe contributes")
+    }));
     Admitted::__from_facade(AdmittedParts {
         members,
         gateway_routes: parts.gateway_routes,
@@ -90,6 +106,13 @@ pub fn offline_resolved_kernel(admitted: &Admitted, seed: Dependencies) -> Kerne
         None,
     ));
     resolved_kernel(&pool, admitted, seed).expect("the kernel resolves the probe composition")
+}
+
+pub fn gateway_resolved_kernel() -> Kernel {
+    offline_resolved_kernel(
+        &gateway_probe_admitted(ComposedParts::default()),
+        Dependencies::new(),
+    )
 }
 
 pub fn empty_resolved_kernel() -> Kernel {

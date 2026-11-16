@@ -209,110 +209,60 @@ sp infra jobs disable behavioral_analysis
 
 ## Creating a New Job
 
-Jobs are registered at compile-time using the `inventory` crate. To create a new job:
+A job is contributed by the member that owns it, from its `Extension::contribute`. The kernel builds the schedule from the admitted composition, so a job exists only in a binary whose composition admits its member, and only while the profile leaves that member enabled.
 
-### Step 1: Create the Job File
-
-Create a new file in your extension or domain crate:
-
-```
-<your-project>/extensions/blog/src/jobs/my_job.rs
-```
-
-### Step 2: Implement the Job Trait
+### Step 1: Implement the Job Trait
 
 ```rust
-use anyhow::Result;
 use async_trait::async_trait;
-use std::sync::Arc;
-use systemprompt_core_database::DbPool;
-use systemprompt_traits::{Job, JobContext, JobResult};
-use tracing::info;
+use systemprompt_database::DbPool;
+use systemprompt_provider_contracts::{Job, JobContext, JobResult, ProviderResult};
 
-/// My custom job that does something useful
 #[derive(Debug, Clone, Copy)]
 pub struct MyCustomJob;
 
 #[async_trait]
 impl Job for MyCustomJob {
-    /// Unique job identifier (used in CLI commands)
     fn name(&self) -> &'static str {
         "my_custom_job"
     }
 
-    /// Human-readable description
     fn description(&self) -> &'static str {
         "Does something useful on a schedule"
     }
 
-    /// Cron schedule (6 fields: sec min hour day month weekday)
     fn schedule(&self) -> &'static str {
-        "0 */15 * * * *"  // Every 15 minutes
+        "0 */15 * * * *"
     }
 
-    /// Whether this job is enabled by default
-    fn enabled(&self) -> bool {
-        true
-    }
-
-    /// The actual job logic
-    async fn execute(&self, ctx: &JobContext) -> Result<JobResult> {
+    async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start = std::time::Instant::now();
-
-        // Extract database pool from context
-        let db_pool = Arc::clone(ctx.get::<DbPool>()?);
-
-        info!("my_custom_job started");
-
-        // Do your work here
-        let processed = do_the_work(&db_pool).await?;
-
-        let duration_ms = start.elapsed().as_millis() as u64;
-
-        info!(
-            processed = processed,
-            duration_ms = duration_ms,
-            "my_custom_job completed"
-        );
-
-        // Return result with stats
+        let db_pool = ctx.get::<DbPool>()?;
+        let processed = do_the_work(db_pool).await?;
         Ok(JobResult::success()
-            .with_message(format!("Processed {} items", processed))
+            .with_message(format!("Processed {processed} items"))
             .with_stats(processed, 0)
-            .with_duration(duration_ms))
+            .with_duration(start.elapsed().as_millis() as u64))
     }
 }
+```
 
-async fn do_the_work(pool: &DbPool) -> Result<u64> {
-    // Your implementation here
-    Ok(42)
+### Step 2: Contribute It
+
+```rust
+impl Extension for MyExtension {
+    fn metadata(&self) -> ExtensionMetadata { /* ... */ }
+
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        c.job(MyCustomJob);
+        Ok(())
+    }
 }
-
-// CRITICAL: Register the job with inventory
-systemprompt_traits::submit_job!(&MyCustomJob);
 ```
 
-### Step 3: Export from Module
+### Step 3: Compose the Member
 
-In your `jobs/mod.rs`:
-
-```rust
-mod my_job;
-
-pub use my_job::MyCustomJob;
-```
-
-### Step 4: Include in Crate
-
-Ensure the jobs module is included in your crate's `lib.rs`:
-
-```rust
-pub mod jobs;
-```
-
-### Step 5: Link to CLI
-
-The job will automatically appear in `infra jobs list` after rebuilding, as long as the crate is linked to the CLI binary. For extensions, this happens through the generator crate dependency.
+The binary names the member in its composition (`systemprompt::reference().with(MyExtension).run()`). The job then appears in `infra jobs list`.
 
 ---
 
@@ -321,20 +271,17 @@ The job will automatically appear in `infra jobs list` after rebuilding, as long
 ```rust
 #[async_trait]
 pub trait Job: Send + Sync + 'static {
-    /// Unique identifier for the job
     fn name(&self) -> &'static str;
-
-    /// Human-readable description (optional, defaults to "")
-    fn description(&self) -> &'static str { "" }
-
-    /// Cron schedule expression (6 fields)
+    fn description(&self) -> &'static str { /* defaulted */ }
     fn schedule(&self) -> &'static str;
-
-    /// Execute the job
-    async fn execute(&self, ctx: &JobContext) -> Result<JobResult>;
-
-    /// Whether the job is enabled (optional, defaults to true)
-    fn enabled(&self) -> bool { true }
+    fn tags(&self) -> Vec<&'static str> { /* defaulted */ }
+    async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult>;
+    fn enabled(&self) -> bool { /* defaulted */ }
+    fn configured(&self, _deployment: &Dependencies) -> bool { /* defaulted */ }
+    fn schedulable(&self) -> bool { /* defaulted */ }
+    fn scope(&self) -> JobScope { /* defaulted */ }
+    fn default_schedule(&self) -> Option<&'static str> { /* defaulted */ }
+    fn db_budget(&self) -> Option<DbBudget> { /* defaulted */ }
 }
 ```
 
@@ -393,11 +340,9 @@ Location: `<your-project>/extensions/blog/src/jobs/`
 
 ```rust
 // blog_content_ingestion.rs
-use anyhow::Result;
 use async_trait::async_trait;
-use std::sync::Arc;
-use systemprompt_core_database::DbPool;
-use systemprompt_traits::{Job, JobContext, JobResult};
+use systemprompt_database::DbPool;
+use systemprompt_provider_contracts::{Job, JobContext, JobResult, ProviderResult};
 
 #[derive(Debug, Clone, Copy)]
 pub struct BlogContentIngestionJob;
@@ -416,21 +361,19 @@ impl Job for BlogContentIngestionJob {
         "0 0 * * * *"  // Every hour
     }
 
-    async fn execute(&self, ctx: &JobContext) -> Result<JobResult> {
+    async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start = std::time::Instant::now();
-        let db_pool = Arc::clone(ctx.get::<DbPool>()?);
-
-        // Ingest blog content...
-        let posts_ingested = ingest_blog_posts(&db_pool).await?;
+        let db_pool = ctx.get::<DbPool>()?;
+        let posts_ingested = ingest_blog_posts(db_pool).await?;
 
         Ok(JobResult::success()
             .with_stats(posts_ingested, 0)
             .with_duration(start.elapsed().as_millis() as u64))
     }
 }
-
-systemprompt_traits::submit_job!(&BlogContentIngestionJob);
 ```
+
+The blog member contributes it with `c.job(BlogContentIngestionJob)` in its `contribute`.
 
 ---
 

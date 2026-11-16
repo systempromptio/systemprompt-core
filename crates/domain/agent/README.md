@@ -96,7 +96,7 @@ systemprompt-agent = "0.82"
 
 ## Schemas
 
-Schemas live in `schema/` and are registered via `AgentExtension`:
+Schemas live in `schema/` and are contributed by `AgentExtension`:
 
 | File | Purpose |
 |------|---------|
@@ -113,7 +113,7 @@ Schemas live in `schema/` and are registered via `AgentExtension`:
 | `user_contexts.sql` | User conversation contexts |
 | `user_session_analytics.sql` | Session analytics view |
 
-Versioned migrations live in `schema/migrations/`, discovered at build time by the crate's `build.rs` and returned through the `extension_migrations!` macro. Schema DDL (`schema/*.sql`) is for first-install table creation; migrations carry subsequent state transitions.
+Versioned migrations live in `schema/migrations/`, discovered at build time by the crate's `build.rs` and contributed with `c.migrations(extension_migrations!())`. Schema DDL (`schema/*.sql`) is for first-install table creation; migrations carry subsequent state transitions.
 
 ## Key Components
 
@@ -187,7 +187,7 @@ pub const A2A_PROTOCOL_VERSION: &str = "0.3.0";
 | `systemprompt-models` | Shared domain types |
 | `systemprompt-traits` | `ContextProvider`, `AgentRegistryProvider`, related traits |
 | `systemprompt-identifiers` | Typed IDs (`TaskId`, `ContextId`, `UserId`, `SessionId`, …) |
-| `systemprompt-extension` | `Extension` trait + registration |
+| `systemprompt-extension` | `Extension` trait and `Contributions` |
 | `systemprompt-config` | Profile + runtime config |
 | `systemprompt-database` | SQLX pool and helpers |
 | `systemprompt-events` | Event bus + SSE plumbing |

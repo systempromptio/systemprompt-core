@@ -55,11 +55,12 @@ pub use app_context::{
     fixture_app_context_with_build, fixture_app_context_with_config,
     fixture_app_context_with_extensions, fixture_app_context_with_filter,
     fixture_app_context_with_hook, fixture_app_context_with_services, fixture_artifact_ingest,
-    fixture_config, fixture_context_builder, fixture_event_bridge, fixture_extension_context,
+    fixture_config, fixture_context_builder, fixture_core_members, fixture_event_bridge,
+    fixture_extension_context,
     fixture_fingerprint_repository, fixture_kernel, fixture_secret_store, fixture_services_state,
     fixture_services_view, fixture_subject_providers, fixture_upstream_issuer, offline_kernel,
-    offline_rate_windows, test_app_context, test_app_context_on, test_config, test_config_with,
-    FIXTURE_JWT_ISSUER, FIXTURE_UPSTREAM_ISSUER,
+    offline_rate_windows, seed_fixture_system_admin_at, test_app_context, test_app_context_on,
+    test_app_context_on_with, test_config, test_config_with, FIXTURE_JWT_ISSUER, FIXTURE_UPSTREAM_ISSUER,
 };
 pub use brain::fixture_brain;
 pub use bootstrap::{
@@ -72,8 +73,8 @@ pub use bootstrap::{
     TEST_TEAMS_UNRESOLVABLE_APP_ID, TEST_TEAMS_UNRESOLVABLE_TENANT_ID,
 };
 pub use composed::{
-    empty_resolved_kernel, offline_resolved_kernel, probe_admitted, resolved_kernel, ComposedParts,
-    Probe,
+    empty_resolved_kernel, gateway_probe_admitted, gateway_resolved_kernel, offline_resolved_kernel,
+    probe_admitted, resolved_kernel, ComposedParts, Probe,
 };
 pub use credential::{
     seed_admin_credential, seed_bridge_client_credential, seed_bridge_credential,
@@ -106,7 +107,7 @@ pub use oauth::{
 };
 pub use paths::{canonical_tempdir, repo_path, repo_root};
 pub use pdf::{parse_pdf, ParsedPdf};
-pub use poll::{block_on, eventually};
+pub use poll::{block_on, eventually, settle_background};
 pub use systemprompt_test_migrate::{
     admitted_member, core_members, install_core_schemas, schema_admitted, InstallError,
 };

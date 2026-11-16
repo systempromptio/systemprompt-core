@@ -35,6 +35,7 @@ systemprompt-security = { workspace = true }
 systemprompt-governance = { workspace = true }
 systemprompt-users = { workspace = true }
 systemprompt-files = { workspace = true }
+systemprompt-gateway = { workspace = true }
 tempfile = { workspace = true }
 async-trait = { workspace = true }
 tokio = { workspace = true, features = ["rt", "time"] }

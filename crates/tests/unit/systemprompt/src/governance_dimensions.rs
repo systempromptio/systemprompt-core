@@ -3,7 +3,8 @@
 //! one dimension with `DimensionConflict`, and the set is ordered core first,
 //! so the core owner is always the `first` a conflict names. The kernel builds
 //! the set at resolve, so the composition-level refusals are
-//! `CompositionError` variants.
+//! `CompositionError` variants. Each composition is resolved by the runtime
+//! builder over the test database, with the seed a node resolves with.
 
 use std::sync::Arc;
 
@@ -17,7 +18,12 @@ use systemprompt_governance::authz::{
 use systemprompt_identifiers::{ExtensionId, UserId};
 use systemprompt_runtime::Kernel;
 
-use crate::probe::{Probe, build, build_with, kernel};
+use systemprompt_runtime::RuntimeError;
+use systemprompt_test_fixtures::{
+    block_on, ensure_test_bootstrap, fixture_app_context_with_extensions, fixture_config,
+};
+
+use crate::probe::{Probe, build, build_with};
 
 #[derive(Debug)]
 struct Dimension(RuleType);
@@ -150,10 +156,20 @@ fn distinct_dimensions_build_core_first() {
     assert_eq!(order, ["traffic", "site"]);
 }
 
-fn resolve(admitted: &Admitted) -> Result<Kernel, CompositionError> {
-    let mut kernel = kernel();
-    kernel.resolve(admitted).map_err(CompositionError::from)?;
-    Ok(kernel)
+fn resolve(admitted: Admitted) -> Result<Arc<Kernel>, CompositionError> {
+    let bootstrap = ensure_test_bootstrap();
+    let built = block_on(fixture_app_context_with_extensions(
+        fixture_config(&bootstrap.database_url),
+        Arc::new(admitted),
+    ));
+    match built {
+        Ok(ctx) => Ok(Arc::clone(ctx.kernel())),
+        Err(error) => match error.downcast::<RuntimeError>() {
+            Ok(RuntimeError::Kernel(kernel)) => Err(CompositionError::from(kernel)),
+            Ok(other) => panic!("the context build failed outside the kernel: {other:?}"),
+            Err(other) => panic!("the context build failed outside the runtime: {other:?}"),
+        },
+    }
 }
 
 fn dimension_probe(id: &'static str, rule_type: &'static str) -> Probe {
@@ -168,7 +184,7 @@ fn dimension_probe(id: &'static str, rule_type: &'static str) -> Probe {
 fn an_install_member_declaring_traffic_is_refused_when_the_kernel_resolves() {
     let admitted = build_with(dimension_probe("probe-traffic", "traffic"))
         .expect("the composition admits the probe");
-    let err = resolve(&admitted).expect_err("the install's reserved dimension is refused");
+    let err = resolve(admitted).expect_err("the install's reserved dimension is refused");
     assert!(
         matches!(&err, CompositionError::ReservedDimension { owner, .. } if owner.as_str() == "probe-traffic"),
         "unexpected error: {err:?}"
@@ -183,7 +199,7 @@ fn two_install_members_declaring_one_dimension_conflict_when_the_kernel_resolves
             .with(dimension_probe("probe-second", "department")),
     )
     .expect("the composition admits both probes");
-    let err = resolve(&admitted).expect_err("a duplicate dimension is refused");
+    let err = resolve(admitted).expect_err("a duplicate dimension is refused");
     assert!(
         matches!(&err, CompositionError::DimensionConflict { first, second, .. }
             if first.as_str() == "probe-first" && second.as_str() == "probe-second"),
@@ -194,7 +210,7 @@ fn two_install_members_declaring_one_dimension_conflict_when_the_kernel_resolves
 #[test]
 fn the_reference_composition_resolves_core_traffic_alone_as_the_negative_control() {
     let admitted = build(reference()).expect("the reference composition admits");
-    let kernel = resolve(&admitted).expect("core's providers build");
+    let kernel = resolve(admitted).expect("core's providers build");
     let set = kernel
         .state()
         .get::<Arc<SubjectProviderSet>>()

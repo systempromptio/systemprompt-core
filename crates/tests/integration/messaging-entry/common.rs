@@ -10,10 +10,12 @@ pub async fn body_to_string(resp: Response<Body>) -> Result<(StatusCode, String)
 }
 
 pub fn messaging_admitted() -> std::sync::Arc<systemprompt_extension::Admitted> {
-    let mut members = systemprompt_test_fixtures::core_members();
-    members.push(Box::new(systemprompt_slack_entry::extension::SlackExtension));
-    members.push(Box::new(systemprompt_teams_entry::extension::TeamsExtension));
-    systemprompt_test_fixtures::fixture_admitted_of(members)
+    let profile = systemprompt_test_fixtures::ensure_messaging_bootstrap().boot.profile();
+    std::sync::Arc::new(
+        systemprompt::reference()
+            .build(profile)
+            .expect("the reference composition with Slack and Teams admits"),
+    )
 }
 
 pub fn mount_set<C: Clone + Send + Sync + 'static>(

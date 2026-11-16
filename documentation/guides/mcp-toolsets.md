@@ -2,11 +2,11 @@
 
 A toolset is a named group of MCP tools compiled into a binary. A deployment in the services tree lists the toolsets it hosts and who may use each tool; core's generic host serves them. The server binary needs no `ServerHandler` of its own, no router code and no per-call authentication: it calls `serve`.
 
-Implementation: the trait is `crates/domain/mcp/src/toolset/mod.rs`, the host is `crates/domain/mcp/src/host/`, the factory inventory and `serve` are `crates/app/runtime/src/mcp_host/`. YAML types are in `crates/shared/models/src/mcp/toolset.rs`.
+Implementation: the trait is `crates/domain/mcp/src/toolset/mod.rs`, the host is `crates/domain/mcp/src/host/`, the `ToolsetSlot` contribution point is `crates/app/mcp-host/src/contract.rs` and `serve` is `crates/app/mcp-host/src/toolsets/serve.rs`. YAML types are in `crates/shared/models/src/mcp/toolset.rs`.
 
 ## What the host does on every request
 
-1. **Authenticates** through `enforce_rbac_from_registry`: the bearer JWT (or proxy-verified identity) is checked against the server's `oauth` block, and the governance authz hook runs for the server. Each outcome goes to the registered access recorders.
+1. **Authenticates** through `enforce_rbac_from_registry`: the bearer JWT (or proxy-verified identity) is checked against the server's `oauth` block, and the governance authz hook runs for the server. Each outcome goes to the contributed access recorders.
 2. **`tools/list`** returns only the tools whose resolved access admits the caller.
 3. **`tools/call`** refuses a tool outside the caller's access with an `invalid_request` error whose `data` is `{"reason": "forbidden", "tool": "<name>"}`, records a `forbidden` outcome, and never runs it. An allowed call records `used` and runs in the owning toolset through one `McpToolExecutor`. The executor records the execution and claims the intent.
 4. **`get_info`** answers the deployment's `description` as the title, the default icons, the instructions of every hosted toolset joined in order, and the resources capability when any hosted toolset serves resources.
@@ -44,9 +44,9 @@ mcp_servers:
         tool_policy: prompt
 ```
 
-- `toolsets[].id` names a registered factory. `enabled` defaults to `true`. `access` is optional.
+- `toolsets[].id` names a toolset an admitted member contributes. `enabled` defaults to `true`. `access` is optional.
 - `tools.<name>.access` narrows one tool. `tools.<name>.tool_policy` overrides the server's `tool_policy` for that tool in the signed bridge manifest; the server's value is still published under `*`.
-- `description` and `removable` (default `true`) are now part of the deployment rather than being dropped on load.
+- `description` and `removable` (default `true`) are part of the deployment.
 
 ### Access resolution
 
@@ -56,15 +56,16 @@ The most specific declaration wins:
 2. else the `access` of the toolset that serves the tool,
 3. else the server's `oauth.scopes`, which RBAC has already enforced, so the tool is visible to every authenticated caller.
 
-An `access` block is satisfied by **any** match: a held scope that implies a listed scope (`admin` implies `user`), a listed role in the token, or a listed group. Groups are read per request from the subject-attribute provider registered for the `group` dimension. They are looked up only when a decision depends on one. With no such provider, no caller is in any group.
+An `access` block is satisfied by **any** match: a held scope that implies a listed scope (`admin` implies `user`), a listed role in the token, or a listed group. Groups are read per request from the subject-attribute provider contributed for the `group` dimension. They are looked up only when a decision depends on one. With no such provider, no caller is in any group.
 
 ### Validation
 
 | Check | Where | Result |
 |---|---|---|
 | `toolsets:` on an external server, an id listed twice, an empty id, an empty `access: {}` block | `Deployment::validate` (services load) | load error |
-| an enabled toolset id no linked crate registers | startup validation | warning (the toolset may be linked only into its own MCP binary) |
-| the same id when the host binary starts | `serve` / `build_server` | start fails: `McpHostError::UnknownToolset` |
+| an enabled internal server with neither `binary:` nor toolsets | startup validation | validation error |
+| an enabled toolset id no admitted member contributes, on an enabled internal server with no `binary:` | building `ToolsetSlot` | composition refused: `UnregisteredToolsets` |
+| a listed toolset id no admitted member contributes when the host starts | `serve` / `build_server` | start fails: `McpHostError::UnknownToolset` |
 | a `tools:` entry no hosted toolset serves; two toolsets serving one tool name | `ToolsetServer::new` | start fails: `ToolsetHostError::UnhostedTool` / `DuplicateTool` |
 
 ## Writing a toolset
@@ -72,7 +73,8 @@ An `access` block is satisfied by **any** match: a held scope that implies a lis
 ```rust
 use async_trait::async_trait;
 use systemprompt::identifiers::McpServerId;
-use systemprompt::mcp::host::{ToolsetBuildResult, submit_toolset};
+use systemprompt::extension::prelude::*;
+use systemprompt::mcp::host::{ToolsetBuildResult, ToolsetSlot};
 use systemprompt::mcp::{CallToolResult, McpError, McpToolset, ToolsetCall};
 use systemprompt::system::HostContext;
 
@@ -99,43 +101,41 @@ fn build(host: &HostContext, server: &McpServerId) -> ToolsetBuildResult {
     Ok(Some(Box::new(AdminToolset { /* from host */ })))
 }
 
-submit_toolset!("admin", build);
+// in the member's `Extension::contribute`:
+// c.slot::<ToolsetSlot>().toolset("admin", build);
 ```
 
-`ToolsetCall` carries the executor, the request, the authenticated `RequestContext`, the client profile and the verified hop token of the call. When `call` runs, the caller is already authenticated and admitted. A factory returns `Ok(None)` when the toolset is unavailable in this installation; it is skipped with a warning. An `Err` fails start.
+`ToolsetCall` carries the executor, the request, the authenticated `RequestContext`, the client profile and the verified hop token of the call. When `call` runs, the caller is already authenticated and admitted. `toolset(id, build)` takes a `fn(&HostContext, &McpServerId) -> ToolsetBuildResult`; two toolsets with one id refuse the slot build. A build function returns `Ok(None)` when the toolset is unavailable in this installation; it is skipped with a warning. An `Err` fails start.
 
 A toolset that serves resources overrides `serves_resources`, `list_resources` and `read_resource`. `read_resource` answers `None` for a URI the toolset does not own, so the host asks the next toolset.
 
-Core registers two toolsets: `issues` (wrapping `IssuesMcpTools`) and `documents` (wrapping `DocumentsMcpTools`). The libraries stay public for servers that compose them by hand.
+Core contributes two toolsets: `issues` (wrapping `IssuesMcpTools`) and `documents` (wrapping `DocumentsMcpTools`). The libraries stay public for servers that compose them by hand.
 
 ## The server binary
 
+An enabled internal server with `toolsets:` and no `binary:` is hosted by the composed binary itself: the API spawns `admin mcp serve --server <id>`, which admits the composition against the profile the API granted it and serves the server's toolsets.
+
 ```rust
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    let host = HostContext::from_process_env().await?;
-    let server_id = McpServerId::try_new(std::env::var("MCP_SERVICE_ID")?)?;
-    systemprompt::mcp::host::serve(std::sync::Arc::new(host), server_id).await?;
-    Ok(())
-}
+pub async fn serve(ctx: Arc<HostContext>, server_id: McpServerId) -> Result<(), McpHostError>
 ```
 
-`HostContext::from_process_env` boots from the environment the API spawned the server with: the profile path, the database URLs, the public verification key set and the secrets the deployment grants under `secrets:`. It holds no signing key, so a toolset that needs a signed document link asks the API for it through `host.link_issuer(&server_id)?`, passing the call's hop token; the API signs only for a server that declares the `documents` toolset (an upload link also admits `issues`). Rebuild every MCP binary against the core the API runs.
+`HostContext::from_process_env(admit)` boots from the environment the API spawned the server with: the profile path, the database URLs, the public verification key set and the secrets the deployment grants under `secrets:`; `admit` is the composition's admission (`AdmitFn`), run once against that profile. It holds no signing key, so a toolset that needs a signed document link asks the API for it through `host.link_issuer(&server_id)?`, passing the call's hop token; the API signs only for a server that declares the `documents` toolset (an upload link also admits `issues`). Rebuild every MCP binary against the core the API runs.
 
 `serve(host, server_id)` binds `127.0.0.1:<port:>` from the deployment. `serve_on(host, server_id, listener)` takes a listener the binary bound before a slow bring-up. `build_server(&host, &server_id)` returns the `ToolsetServer` for composing the router yourself.
 
-The crates that register toolsets, recorders, the authz hook and subject providers must be linked into the binary. Inventory only discovers what is linked.
+The toolsets, access recorders and UI renderers a host serves are the built `ToolsetSlot`, `AccessRecorderSlot` and `UiSlot` of its admitted members: a member that is not composed, or is disabled in the profile, contributes nothing.
 
 ## Recording access
 
-Core decides who may list and call; the installation chooses where outcomes are written. Implement `McpAccessRecorder` and register a factory:
+Core decides who may list and call; the installation chooses where outcomes are written. Implement `McpAccessRecorder` and contribute a factory to `systemprompt::mcp::contract::AccessRecorderSlot`:
 
 ```rust
+use systemprompt::extension::prelude::*;
+use systemprompt::mcp::contract::AccessRecorderSlot;
 use systemprompt::mcp::host::{McpAccessEvent, McpAccessOutcome, McpAccessRecorder, SharedMcpAccessRecorder};
-use systemprompt::mcp::register_mcp_access_recorder;
 
 #[derive(Debug)]
-struct AuditRecorder { pool: DbPool }
+struct AuditRecorder { db: std::sync::Arc<dyn systemprompt::traits::DatabaseHandle> }
 
 #[async_trait]
 impl McpAccessRecorder for AuditRecorder {
@@ -146,11 +146,10 @@ impl McpAccessRecorder for AuditRecorder {
     }
 }
 
-fn recorder(pool: &DbPool) -> SharedMcpAccessRecorder {
-    std::sync::Arc::new(AuditRecorder { pool: pool.clone() })
-}
-
-register_mcp_access_recorder!(recorder);
+// in the member's `Extension::contribute`; the factory runs once, against the resolved state:
+// c.slot::<AccessRecorderSlot>().recorder(|r: &Resolved<'_>| -> Result<SharedMcpAccessRecorder, FactoryError> {
+//     Ok(std::sync::Arc::new(AuditRecorder { db: r.db() }))
+// });
 ```
 
 Recording is best-effort: `record` returns nothing, so a failed audit write cannot fail the call. For `tools/list` and resource requests, `event.tool` is the method name (`tools/list`, `resources/list`, `resources/read`).

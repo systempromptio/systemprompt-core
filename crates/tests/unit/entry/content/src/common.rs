@@ -85,6 +85,7 @@ pub fn content_app(set: RouteSet, ctx: &AppContext) -> Router {
 
 pub fn with_app_boot(cli: CliConfig, env: EnvOverrides, app: Arc<AppContext>) -> CommandContext {
     let boot = app.boot().clone();
+    let admitted = Arc::clone(app.admitted());
     let kernel = content_kernel(
         app.db_pool(),
         Arc::clone(app.content_repositories()),
@@ -92,6 +93,7 @@ pub fn with_app_boot(cli: CliConfig, env: EnvOverrides, app: Arc<AppContext>) ->
     );
     CommandContext::with_app_context(cli, env, app)
         .with_boot(Some(boot))
+        .with_admitted(Some(admitted))
         .with_kernel(Arc::new(kernel))
 }
 

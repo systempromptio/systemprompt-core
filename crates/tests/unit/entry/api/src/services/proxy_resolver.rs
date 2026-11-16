@@ -200,10 +200,11 @@ async fn a_read_failure_on_the_restart_recheck_is_reported_as_a_database_error()
     seed_service(&pool, &ctx.config().instance_id, &name, "error").await;
 
     let closer = {
-        let pool = pool.clone();
+        let pool = std::sync::Arc::clone(ctx.db_pool());
         tokio::spawn(async move {
             tokio::time::sleep(std::time::Duration::from_millis(150)).await;
             pool.pool().close().await;
+            pool.write_pool().close().await;
         })
     };
 

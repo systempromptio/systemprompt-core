@@ -82,7 +82,7 @@ fn headers(pairs: &[(&str, &str)]) -> HeaderMap {
     map
 }
 
-fn project_only() -> SubjectProviderSet {
+pub(super) fn project_only() -> SubjectProviderSet {
     SubjectProviderSet::new(vec![systemprompt_governance::authz::SubjectProviderEntry {
         owner: systemprompt_identifiers::ExtensionId::new("test"),
         standing: systemprompt_extension::StandingTag::Install,

@@ -22,9 +22,10 @@ systemprompt-gateway = "0.82"
 |--------|----------|
 | `service` | `GatewayService`: route resolution, governance stages, outbound dispatch, failover, finalisation and pricing. |
 | `protocol` | Inbound adapters (Anthropic Messages, OpenAI Chat, OpenAI Responses) and outbound adapters (Anthropic, OpenAI Chat, OpenAI Responses, Gemini) over the canonical model from `systemprompt-wire`. |
-| `policies` | `GatewayPolicySpec`, the `policies.yaml` loader and ingestion, `PolicyResolver`, and the safety-scanner, route-selector and system-prompt-override extension contracts (`register_safety_scanner!`, `register_route_selector!`, `register_system_prompt_override!`). |
+| `policies` | `GatewayPolicySpec`, the `policies.yaml` loader and ingestion, `PolicyResolver`, and the `SafetyScanner`/`ScannerFactory`, `RouteSelector` and `SystemPromptOverride` traits members implement. |
 | `quota` | Per-subject quota windows: pre-check, reservation and post-update. |
-| `registry` | Upstream and safety-scanner registries resolved from inventory registrations. |
+| `contract` | The gateway's capability slots, each `CoreFirst`: `RouteSelectorSlot` (`selector(factory)`), `SafetyScannerSlot` (`scanner(name, factory)`), `OverrideSlot` (`prompt_override(factory)`) and `OutboundSlot` (`adapter(tag, factory)`). A scanner or adapter that shadows a built-in or another contribution is refused. |
+| `registry` | `GatewayUpstreamRegistry`, `SafetyScannerRegistry` and `GatewayEngines`, built from the slots; a gateway whose slots are absent refuses boot (`GatewayEnginesError::OwnerSlot`). |
 | `audit` | `GatewayAudit` request lifecycle, the encrypted settlement journal and the access-log terminal record. |
 | `stream_tap` | Streaming accumulation, terminal accounting and abort handling. |
 | `image_fetch` | Guarded remote image fetch for providers that need inline data. |

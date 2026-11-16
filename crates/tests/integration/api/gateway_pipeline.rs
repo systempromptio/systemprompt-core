@@ -278,7 +278,7 @@ pub(super) fn shared_engines() -> Arc<systemprompt_gateway::GatewayEngines> {
         Arc::new(
             systemprompt_gateway::GatewayEngines::new(
                 Default::default(),
-                &systemprompt_test_fixtures::empty_resolved_kernel().resolved(),
+                &systemprompt_test_fixtures::gateway_resolved_kernel().resolved(),
                 systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
             )
             .expect("gateway engines build"),
@@ -292,7 +292,7 @@ pub(super) fn engines_with_scanners(
     use systemprompt_extension::{FactoryError, Resolved};
     use systemprompt_gateway::contract::SafetyScannerSlot;
 
-    let admitted = systemprompt_test_fixtures::probe_admitted(ComposedParts {
+    let admitted = systemprompt_test_fixtures::gateway_probe_admitted(ComposedParts {
         probes: vec![Probe::new("scanners", move |c| {
             for (name, factory) in &scanners {
                 let factory = Arc::clone(factory);
@@ -1509,7 +1509,7 @@ impl systemprompt_extension::GatewayRequestGuard for CoverageGatewayGuard {
 }
 
 fn coverage_guard_kernel() -> systemprompt_runtime::Kernel {
-    let admitted = systemprompt_test_fixtures::probe_admitted(ComposedParts {
+    let admitted = systemprompt_test_fixtures::gateway_probe_admitted(ComposedParts {
         probes: vec![Probe::new("coverage-guard", |c| {
             c.gateway_guard(
                 |_: &systemprompt_extension::Resolved<'_>| -> Result<

@@ -14,7 +14,7 @@ Constructs and validates `AppContext`, including database pools, configuration, 
 This crate:
 
 - Builds and holds `AppContext`, the central runtime state container.
-- Registers module routes at compile time through `inventory` macros.
+- Resolves the admitted composition into the `Kernel` and its extension state (`HostKernel` boots a composed binary from the profile).
 - Validates system configuration and extensions before the server accepts traffic.
 - Coordinates domain services without implementing business logic.
 
@@ -25,14 +25,14 @@ This crate:
 | Module | Purpose |
 |--------|---------|
 | `context` | `AppContext` and its planes (`DataPlane`, `ConfigPlane`, `Plugins`, `Subsystems`), plus the GeoIP and content-config loaders |
-| `builder` | `AppContextBuilder` fluent construction (`with_extensions`, `with_marketplace_filter`) and plane assembly |
+| `builder` | `AppContextBuilder::new(boot, admitted)` construction (`with_marketplace_filter`, `with_authz_hook`, `with_services`, …), plane assembly and kernel state seeding (`KernelSeed`, `kernel_state`) |
+| `kernel`, `host_kernel` | `Kernel` resolution of the admitted members' provided state and slots (`KernelError`), and `HostKernel`, the host boot path |
 | `startup_validation` | `StartupValidator` across files, rate limits, web/content config, agents, MCP servers, AI providers, and extensions |
 | `database_context` | `DatabaseContext`, a database-only context for CLI tools that do not need the full runtime |
-| `span` | `create_request_span`, builds a tracing span with user, session, trace, and context IDs |
 | `validation` | Runtime prerequisite checks (`validate_system`, `validate_database_path`) |
 | `error` | `RuntimeError` / `RuntimeResult`, the typed error model for construction and validation |
 
-`AppContext` is assembled either through `AppContextBuilder` (the bootstrap path: the `BootContext`, database init, extension discovery, optional GeoIP and content config, tracing with database persistence) or directly through `AppContext::from_parts(data, cfg, plugins, subsystems)` for tests and embedders that own plane construction.
+`AppContext` is assembled either through `AppContextBuilder` (the bootstrap path: the `BootContext`, database init, the admitted composition, optional GeoIP and content config, tracing with database persistence) or directly through `AppContext::from_parts(data, cfg, plugins, subsystems)` for tests and embedders that own plane construction.
 
 ## Usage
 
@@ -49,7 +49,7 @@ systemprompt-runtime = "0.82"
 | `systemprompt-config` | Configuration loading |
 | `systemprompt-models` | Module and config definitions |
 | `systemprompt-logging` | Tracing and CLI output |
-| `systemprompt-extension` | Extension discovery and validation |
+| `systemprompt-extension` | The admitted composition and its contributions |
 | `systemprompt-analytics` | Analytics service and GeoIP |
 
 ## License

@@ -20,7 +20,7 @@ use systemprompt_test_fixtures::{
     TEST_TEAMS_APP_ID, TEST_TEAMS_TENANT_ID, TEST_TEAMS_UNRESOLVABLE_APP_ID,
     TEST_TEAMS_UNRESOLVABLE_TENANT_ID, agent_reply_response_json, ensure_messaging_bootstrap,
     init_services_bootstrap, messaging_config_yaml_with_teams_endpoints, seed_agent_backend,
-    test_app_context_on,
+    eventually, settle_background, test_app_context_on,
 };
 use systemprompt_traits::DrainOutcome;
 use tower::ServiceExt;
@@ -153,6 +153,7 @@ async fn signed_activity_dispatches_and_posts_the_card() -> anyhow::Result<()> {
         &format!("{}/token", connector.uri()),
     ))));
     let ctx = test_app_context_on(&b).await;
+    let baseline = ctx.background_tasks().in_flight();
 
     // Agent backend the dispatch proxies to.
     let agent = MockServer::start().await;
@@ -204,7 +205,7 @@ async fn signed_activity_dispatches_and_posts_the_card() -> anyhow::Result<()> {
         .await?;
     assert_eq!(resp.status(), StatusCode::OK, "the route acks immediately");
 
-    let posted = wait_for_activity(&ctx, &connector).await;
+    let posted = wait_for_activity(&ctx, baseline, &connector).await;
     let card = String::from_utf8_lossy(&posted);
     // The pipeline answers with a generic error card whatever went wrong, so
     // say which side of the proxy hop failed — otherwise a failure here is
@@ -313,13 +314,24 @@ async fn activities_through_one_router_fetch_the_signing_keys_once() -> anyhow::
 // The reply comes from a background task running the full dispatch pipeline
 // (identity linking, authz, proxy round-trip); under a loaded shard that has
 // been observed to stall past 30s, so the drain bound must dwarf it.
-async fn wait_for_activity(ctx: &systemprompt_runtime::AppContext, server: &MockServer) -> Vec<u8> {
+async fn wait_for_activity(
+    ctx: &systemprompt_runtime::AppContext,
+    baseline: usize,
+    server: &MockServer,
+) -> Vec<u8> {
+    let suffix = format!("/v3/conversations/{CONVERSATION_ID}/activities");
+    eventually("the reply task posts to the Bot Connector", Duration::from_secs(120), || async {
+        server
+            .received_requests()
+            .await
+            .is_some_and(|reqs| reqs.iter().any(|r| r.url.path() == suffix))
+    })
+    .await;
     assert_eq!(
-        ctx.background_tasks().drain(Duration::from_secs(120)).await,
+        settle_background(ctx.background_tasks(), baseline, Duration::from_secs(120)).await,
         DrainOutcome::Drained,
         "the reply task must finish within the drain bound"
     );
-    let suffix = format!("/v3/conversations/{CONVERSATION_ID}/activities");
     server
         .received_requests()
         .await

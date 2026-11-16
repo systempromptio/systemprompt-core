@@ -237,9 +237,9 @@ There is no fail-open option; `disabled: true` is the only way to run without th
 
 ### Retention holds
 
-An extension that copies these rows elsewhere (a warehouse sync, an audit export) registers a retention hold so rows it has not copied yet are not deleted. A hold implements `RetentionHold` (`crates/shared/extension/src/retention.rs`) and is registered with `register_retention_hold!(MyHold, priority = 100)`, or with `factory = |ctx| ...` when it needs the extension context. For each `RetentionTarget` (`logs`, `analytics_events`, `ai_request_messages`, `mcp_tool_executions`, `event_outbox`, `ai_request_payloads`, `governance_decisions`, `ai_quota_buckets`, `engagement_events`, `fingerprint_reputation`) the hold returns a watermark: every row before it is released, rows at or after it are not. `None` means no hold on that target.
+An extension that copies these rows elsewhere (a warehouse sync, an audit export) contributes a retention hold so rows it has not copied yet are not deleted. A hold implements `RetentionHold` (`crates/shared/extension/src/retention.rs`) and is contributed from `Extension::contribute` with `c.retention(RetentionDecl::Hold(Arc::new(MyHold)))`; only the holds of admitted members are consulted. For each `RetentionTarget` (`logs`, `analytics_events`, `ai_request_messages`, `mcp_tool_executions`, `event_outbox`, `ai_request_payloads`, `governance_decisions`, `ai_quota_buckets`, `engagement_events`, `fingerprint_reputation`) the hold returns a watermark: every row before it is released, rows at or after it are not. `None` means no hold on that target.
 
-Each target is pruned by one timestamp column compared against the cutoff (`created_at`; `timestamp` for `logs` and `analytics_events`; `window_start` for `ai_quota_buckets`; `last_seen_at` for `fingerprint_reputation`), and no target deletes child rows by a parent's age, so the hold is exact. The `database_cleanup` job clamps each target's cutoff to the earliest watermark any hold reports; a watermark later than the age cutoff changes nothing. For `ai_request_payloads` the hold keeps the raw bodies, and for `fingerprint_reputation` it also keeps a flagged fingerprint's IP address and user agent.
+Each target is pruned by one timestamp column compared against the cutoff (`created_at`; `timestamp` for `logs` and `analytics_events`; `window_start` for `ai_quota_buckets`; `last_seen_at` for `fingerprint_reputation`), and no target deletes child rows by a parent's age, so the hold is exact. The `database_cleanup` job clamps each target's cutoff to the earliest watermark any hold reports, and a hold that cannot answer skips the target for that run; a watermark later than the age cutoff changes nothing. For `ai_request_payloads` the hold keeps the raw bodies, and for `fingerprint_reputation` it also keeps a flagged fingerprint's IP address and user agent.
 
 What operators see:
 
@@ -386,7 +386,7 @@ A request over any `limits.*` value or `maxUploadBytes` is refused with `too_lar
 
 | Key | Type | Required | Default | Meaning |
 |-----|------|----------|---------|---------|
-| `disabled` | list of string | no | `[]` | Extension IDs to disable. An ID in this list is excluded from registration. |
+| `disabled` | list of string | no | `[]` | Member IDs to disable. A disabled member is not admitted: none of its routes, jobs, retention, slot contributions or provided state is built, mounted or run. An ID that names no composed member, an ID of a required core member, or a disabled member whose provided state an admitted member requires, refuses the boot. |
 
 See [`concepts/extensions.md`](../concepts/extensions.md) for the extension model.
 

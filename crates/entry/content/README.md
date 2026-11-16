@@ -13,7 +13,7 @@ The content HTTP routes and CLI commands of systemprompt.io: published content, 
 | Feature | Carries |
 |---------|---------|
 | `http` | `ContentHttpExtension` (id `content-http`, depends on `content`): the public `/api/v1/content` routes, link generation at `/api/v1/content/links/generate` for a signed-in user, and the `/r/{short_code}` redirect at the web root, all in the content-and-misc role group under the `content` rate limit. The routes read the content repositories the `content` extension provides. |
-| `cli` | `core content` (contributed under `core`, accepts `--database-url` for its read-only commands) and `web sitemap` (contributed under `web`). |
+| `cli` | `core content` (contributed under `core`; a member command, so it needs a profile and is refused on a run given only `--database-url`) and `web sitemap` (contributed under `web`). |
 
 Either feature links `systemprompt-generator`, whose `generator` extension owns the `content_prerender` and `page_prerender` jobs.
 
