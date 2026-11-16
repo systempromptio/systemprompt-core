@@ -16,8 +16,9 @@ async fn readyz_withdraws_readiness_when_its_owned_database_disappears() -> Resu
     let readiness = std::sync::Arc::new(ReadinessState::new());
     readiness.signal_ready();
     let app = discovery_router(&ctx)?.layer(axum::Extension(std::sync::Arc::clone(&readiness)));
-    let raw = db.pool();
-    raw.close().await;
+    drop(db);
+    ctx.db_pool().pool().close().await;
+    ctx.db_pool().write_pool().close().await;
 
     let response = app
         .oneshot(Request::builder().uri("/readyz").body(Body::empty())?)
@@ -36,8 +37,6 @@ async fn readyz_withdraws_readiness_when_its_owned_database_disappears() -> Resu
 
     readiness.signal_shutdown();
     drop(ctx);
-    drop(raw);
-    drop(db);
     owned.drop_now().await;
     Ok(())
 }

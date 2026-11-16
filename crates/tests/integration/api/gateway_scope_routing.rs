@@ -31,6 +31,7 @@ use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use super::common::setup_ctx;
+use super::gateway_attribution::project_only;
 use super::gateway_pipeline::{
     MODEL, canonical_request, gateway_config, gw_repos, inputs, install_provider_api_key,
 };
@@ -193,7 +194,10 @@ async fn a_mapped_scope_value_reaches_its_own_deployment_and_records_the_scope()
     install_provider_api_key();
     let (pool, _) = setup_ctx().await?;
     let cred = seed_admin_credential(&pool, "scope-route-mapped@example.invalid").await?;
-    let repos = gw_repos(&pool);
+    let repos = GatewayRepositories {
+        subject_providers: project_only(),
+        ..gw_repos(&pool)
+    };
     let topo = topology().await;
     let attribution = attribute(&repos, Some("p-other")).await;
     let mut dispatch = inputs(&cred, canonical_request(MODEL, false), false);
@@ -227,7 +231,10 @@ async fn other_and_unattributed_requests_take_the_models_chain() -> anyhow::Resu
     install_provider_api_key();
     let (pool, _) = setup_ctx().await?;
     let cred = seed_admin_credential(&pool, "scope-route-shared@example.invalid").await?;
-    let repos = gw_repos(&pool);
+    let repos = GatewayRepositories {
+        subject_providers: project_only(),
+        ..gw_repos(&pool)
+    };
     let topo = topology().await;
     let config = topo.config();
     let other = attribute(&repos, Some("p-primary")).await;
@@ -264,7 +271,10 @@ async fn a_quota_window_on_the_routing_dimension_counts_the_scoped_request() -> 
     }))
     .execute(pool.pool().as_ref())
     .await?;
-    let repos = gw_repos(&pool);
+    let repos = GatewayRepositories {
+        subject_providers: project_only(),
+        ..gw_repos(&pool)
+    };
     let topo = topology().await;
     let config = topo.config();
     let first = attribute(&repos, Some("p-other")).await;

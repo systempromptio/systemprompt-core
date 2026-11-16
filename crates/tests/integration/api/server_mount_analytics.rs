@@ -383,7 +383,7 @@ async fn disabling_analytics_refuses_boot_as_a_required_extension() -> anyhow::R
     let error = refused.expect_err("a profile that disables analytics refuses boot");
     let rendered = format!("{error:#}");
     assert!(
-        rendered.contains("Extension 'analytics' is required and cannot be disabled"),
+        rendered.contains("required extension analytics cannot be disabled or removed"),
         "{rendered}"
     );
     Ok(())
@@ -399,7 +399,7 @@ async fn disabling_only_analytics_refuses_boot_as_a_required_extension() -> anyh
     let error = refused.expect_err("analytics-http enabled without analytics refuses boot");
     let rendered = format!("{error:#}");
     assert!(
-        rendered.contains("Extension 'analytics' is required and cannot be disabled"),
+        rendered.contains("required extension analytics cannot be disabled or removed"),
         "{rendered}"
     );
     Ok(())

@@ -30,7 +30,8 @@ async fn ok_handler() -> &'static str {
 
 async fn router() -> Result<(DbPool, Router)> {
     ensure_test_bootstrap();
-    let (db, ctx) = setup_ctx().await?;
+    let (_pool, ctx) = setup_ctx().await?;
+    let db = std::sync::Arc::clone(ctx.db_pool());
     let mw = SessionMiddleware::new(&ctx)?;
     let app = Router::new()
         .route("/page", get(ok_handler))
@@ -220,7 +221,8 @@ async fn a_degraded_request_runs_as_a_fresh_anonymous_principal() -> Result<()> 
             async move { mw.handle(req, next).await }
         }));
     let app = with_config(app, &ctx);
-    db.pool().close().await;
+    drop(db);
+    ctx.db_pool().pool().close().await;
 
     let mut principals = Vec::new();
     for _ in 0..2 {

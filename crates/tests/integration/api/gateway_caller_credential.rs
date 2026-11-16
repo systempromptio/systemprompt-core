@@ -20,7 +20,7 @@ use systemprompt_identifiers::headers::{SESSION_ID, SYSTEMPROMPT_AUTHORIZATION};
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
     AuthedFixture, DisposableDb, TestBootstrap, init_services_bootstrap, seed_admin_credential,
-    test_app_context_on, test_db_pool,
+    settle_background, test_app_context_on, test_db_pool,
 };
 use systemprompt_traits::DrainOutcome;
 use tokio::sync::OnceCell;
@@ -173,9 +173,9 @@ async fn collect(response: Response<Body>) -> (http::StatusCode, http::HeaderMap
     (status, headers, body)
 }
 
-async fn drain(ctx: &AppContext) {
+async fn drain(ctx: &AppContext, baseline: usize) {
     assert_eq!(
-        ctx.background_tasks().drain(DRAIN_BOUND).await,
+        settle_background(ctx.background_tasks(), baseline, DRAIN_BOUND).await,
         DrainOutcome::Drained,
         "the post-response audit work must finish"
     );
@@ -215,6 +215,7 @@ async fn audit_row(pool: &DbPool, cred: &AuthedFixture) -> AuditRow {
 async fn a_request_reaches_the_upstream_as_sent_and_its_answer_returns_whole() -> Result<()> {
     let pool = test_db_pool().await;
     let (app, ctx, upstream) = app_on().await;
+    let baseline = ctx.background_tasks().in_flight();
     let cred = member(&pool).await?;
     let marker = "marker-whole";
     Mock::given(method("POST"))
@@ -238,7 +239,7 @@ async fn a_request_reaches_the_upstream_as_sent_and_its_answer_returns_whole() -
         .body(Body::from(body.clone()))?;
 
     let (status, headers, returned) = collect(app.oneshot(request).await?).await;
-    drain(&ctx).await;
+    drain(&ctx, baseline).await;
 
     let received = received_with(upstream, marker).await;
     assert_eq!(received.len(), 1, "sent once");
@@ -323,6 +324,7 @@ async fn a_request_reaches_the_upstream_as_sent_and_its_answer_returns_whole() -
 async fn a_stream_returns_byte_for_byte_and_is_metered_from_its_copy() -> Result<()> {
     let pool = test_db_pool().await;
     let (app, ctx, upstream) = app_on().await;
+    let baseline = ctx.background_tasks().in_flight();
     let cred = member(&pool).await?;
     let marker = "marker-stream";
     Mock::given(method("POST"))
@@ -336,7 +338,7 @@ async fn a_stream_returns_byte_for_byte_and_is_metered_from_its_copy() -> Result
         .oneshot(post(&cred, "/messages", request_body(MODEL, marker, true)))
         .await?;
     let (status, headers, returned) = collect(response).await;
-    drain(&ctx).await;
+    drain(&ctx, baseline).await;
 
     assert_eq!(status, http::StatusCode::OK);
     assert_eq!(

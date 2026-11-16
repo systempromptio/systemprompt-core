@@ -14,7 +14,7 @@ use systemprompt_manifest::profile::{NodeRole, RateLimitsConfig};
 use systemprompt_extension::prelude::Dependencies;
 use systemprompt_test_fixtures::{
     ComposedParts, ensure_test_bootstrap, fixture_app_context_with_config, fixture_config,
-    offline_resolved_kernel, probe_admitted,
+    gateway_probe_admitted, offline_resolved_kernel,
 };
 use tower::ServiceExt;
 
@@ -27,7 +27,7 @@ async fn router_for(role: NodeRole) -> anyhow::Result<Router> {
     config.trusted_proxies = Vec::new();
     config.role = role;
     let ctx = fixture_app_context_with_config(config).await?;
-    let admitted = probe_admitted(ComposedParts::default());
+    let admitted = gateway_probe_admitted(ComposedParts::default());
     let kernel = offline_resolved_kernel(&admitted, Dependencies::new());
     setup_api_server(
         &ctx,
@@ -102,7 +102,7 @@ async fn configure_routes_for_role_mounts_the_gateway_regardless_of_the_configur
     config.rate_limits = RateLimitsConfig::disabled();
     config.role = NodeRole::Api;
     let ctx = fixture_app_context_with_config(config).await?;
-    let admitted = probe_admitted(ComposedParts::default());
+    let admitted = gateway_probe_admitted(ComposedParts::default());
     let kernel = offline_resolved_kernel(&admitted, Dependencies::new());
 
     let gateway = configure_routes_for_role(

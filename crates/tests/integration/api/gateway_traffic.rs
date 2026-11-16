@@ -136,8 +136,8 @@ fn traffic_class_parses_only_its_two_values() {
 
 #[tokio::test]
 async fn the_registered_traffic_provider_is_discovered() {
-    let (pool, _ctx) = setup_ctx().await.expect("ctx");
-    assert!(gw_repos(&pool).subject_providers.find("traffic").is_some());
+    let (_pool, ctx) = setup_ctx().await.expect("ctx");
+    assert!(ctx.subject_providers().find("traffic").is_some());
 }
 
 #[tokio::test]

@@ -228,9 +228,10 @@ async fn registry_preserves_configured_cards_with_unknown_status_when_database_i
         "https://registry.example.test",
         TWO_AGENTS,
     );
-    let pool = test_db_pool().await;
     let ctx = test_app_context_on(&boot).await;
-    pool.pool().close().await;
+    ctx.db_pool().pool().close().await;
+    ctx.db_pool().write_pool().close().await;
+
     let app = registry_router(&ctx).layer(Extension(request_context("registry_db_fault")));
     let response = app.oneshot(empty_get("/")).await?;
     let (status, body) = body_to_string(response).await?;

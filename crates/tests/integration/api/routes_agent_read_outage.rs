@@ -149,7 +149,8 @@ async fn agent_read_routes_report_database_outage_and_recover_without_data_loss(
     let ctx = test_app_context(owned.url()).await;
     assert_live(&ctx, &seeded).await?;
     let raw = db.pool();
-    raw.close().await;
+    ctx.db_pool().pool().close().await;
+    ctx.db_pool().write_pool().close().await;
     assert_outage(&ctx, &seeded, owned.url()).await?;
     drop(ctx);
     drop(raw);
