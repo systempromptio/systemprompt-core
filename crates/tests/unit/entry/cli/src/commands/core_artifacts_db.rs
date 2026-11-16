@@ -9,8 +9,8 @@ use systemprompt_agent::models::context::ContextKind;
 use systemprompt_agent::repository::content::ArtifactRepository;
 use systemprompt_agent::repository::{ContextRepository, RuntimeTask};
 use systemprompt_cli::core::artifacts::{list, show};
-use systemprompt_cli::{CliConfig, OutputFormat};
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::{ArtifactId, ContextId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_test_fixtures::{seed_user_row, seed_user_session, test_db_pool, unique_user_id};
 

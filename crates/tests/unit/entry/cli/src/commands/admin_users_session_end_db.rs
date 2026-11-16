@@ -6,8 +6,8 @@ use clap::Parser;
 use std::sync::Arc;
 use systemprompt_cli::admin::users::{self, UsersCommands};
 use systemprompt_cli::session::api::{DEFAULT_CLI_SESSION_HOURS, create_local_session_row};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
-use systemprompt_database::DbPool;
+use systemprompt_cli::{CommandContext, EnvOverrides};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
 use systemprompt_users::{UserRepository, UserService};
 use uuid::Uuid;
@@ -25,14 +25,14 @@ fn parse(args: &[&str]) -> UsersCommands {
 }
 
 
-fn ctx(pool: &DbPool) -> CommandContext {
+async fn ctx() -> CommandContext {
     let url = test_database_url();
     crate::boot_ctx::with_app_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
-        test_app_context(pool, &url),
+        test_app_context(&url).await,
     )
 }
 
@@ -60,7 +60,7 @@ async fn end_specific_session_succeeds() {
     .await
     .unwrap();
 
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     users::execute(
         parse(&["session", "end", session_id.as_str(), "--yes"]),
         &ctx,
@@ -68,13 +68,14 @@ async fn end_specific_session_succeeds() {
     .await
     .unwrap();
 
-    let _ = service.delete(&user.id).await;
+    let _ = service
+        .delete(&user.id, &crate::boot_ctx::core_purge())
+        .await;
 }
 
 #[tokio::test]
 async fn end_unknown_session_reports_not_found() {
-    let pool = test_db_pool().await;
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     let missing = format!("no-sess-{}", Uuid::new_v4().simple());
     users::execute(parse(&["session", "end", &missing, "--yes"]), &ctx)
         .await
@@ -106,7 +107,7 @@ async fn end_all_sessions_for_user() {
     .await
     .unwrap();
 
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     users::execute(
         parse(&[
             "session",
@@ -121,13 +122,14 @@ async fn end_all_sessions_for_user() {
     .await
     .unwrap();
 
-    let _ = service.delete(&user.id).await;
+    let _ = service
+        .delete(&user.id, &crate::boot_ctx::core_purge())
+        .await;
 }
 
 #[tokio::test]
 async fn end_without_confirmation_errors() {
-    let pool = test_db_pool().await;
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     let err = users::execute(parse(&["session", "end", "whatever"]), &ctx)
         .await
         .unwrap_err();
@@ -136,8 +138,7 @@ async fn end_without_confirmation_errors() {
 
 #[tokio::test]
 async fn end_all_without_user_errors() {
-    let pool = test_db_pool().await;
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     let err = users::execute(parse(&["session", "end", "--all", "--yes"]), &ctx)
         .await
         .unwrap_err();
@@ -146,8 +147,7 @@ async fn end_all_without_user_errors() {
 
 #[tokio::test]
 async fn end_all_missing_user_errors() {
-    let pool = test_db_pool().await;
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     let missing = format!("no-user-{}", Uuid::new_v4().simple());
     let err = users::execute(
         parse(&["session", "end", "--user", &missing, "--all", "--yes"]),
@@ -160,8 +160,7 @@ async fn end_all_missing_user_errors() {
 
 #[tokio::test]
 async fn end_without_session_id_errors() {
-    let pool = test_db_pool().await;
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     let err = users::execute(parse(&["session", "end", "--yes"]), &ctx)
         .await
         .unwrap_err();

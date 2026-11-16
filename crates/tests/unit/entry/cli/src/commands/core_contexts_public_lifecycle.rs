@@ -2,22 +2,20 @@
 
 use std::path::PathBuf;
 use std::process::Command;
-use std::sync::Arc;
 
 use clap::Parser;
 use systemprompt_agent::models::context::ContextKind;
 use systemprompt_agent::repository::ContextRepository;
 use systemprompt_cli::core::{self, CoreCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_cloud::paths::ResolvedPaths;
 use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity, SessionKey, SessionStore};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::{Email, ProfileName, SessionId, SessionToken, UserId};
 use systemprompt_loader::ProfileLoader;
-use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_models::auth::UserType;
 use systemprompt_test_fixtures::{
-    DisposableDb, bounded_output, ensure_test_bootstrap,
-    fixture_app_context_on_bootstrap_with_paths, seed_user_row, seed_user_session,
+    DisposableDb, bounded_output, ensure_test_bootstrap, seed_user_row, seed_user_session,
 };
 
 const HELPER: &str = "commands::core_contexts_public_lifecycle::public_context_lifecycle_helper";
@@ -116,24 +114,7 @@ async fn public_context_lifecycle_helper() {
         .save(&sessions_dir)
         .expect("persist active CLI session");
 
-    let paths = PathsConfig {
-        root: None,
-        system: boot.system_path.display().to_string(),
-        services: boot.services_path.display().to_string(),
-        bin: boot.bin_path.display().to_string(),
-        web_path: Some(boot.system_path.join("web").display().to_string()),
-        storage: Some(boot.storage_path.display().to_string()),
-        geoip_database: None,
-        shipped_files: None,
-        data: None,
-    };
-    let app = fixture_app_context_on_bootstrap_with_paths(
-        boot,
-        &pool,
-        paths,
-        Arc::new(systemprompt_marketplace::AllowAllFilter),
-    )
-    .expect("full context app");
+    let app = crate::boot_ctx::app_on_database(boot, database.url()).await;
     let context = crate::boot_ctx::with_app_boot(
         CliConfig::new()
             .with_interactive(false)

@@ -184,17 +184,17 @@ fn db_doctor_and_migration_ledger() {
 #[test]
 fn db_migrate_plan_and_status() {
     db_stderr_fmt(&["infra", "db", "migrate-plan"], "migrations");
-    run_db(&["infra", "db", "migrate-plan", "--json"]);
+    run_db(&["--json", "infra", "db", "migrate-plan"]);
     run_db_with_format(&["infra", "db", "migrate-plan", "users"]);
     db_stderr_fmt(&["infra", "db", "migrate-status"], "Applied:");
-    run_db(&["infra", "db", "migrate-status", "--json"]);
+    run_db(&["--json", "infra", "db", "migrate-status"]);
     run_db_with_format(&["infra", "db", "migrate-status", "users"]);
 }
 
 #[test]
 fn db_migrate_repair_and_apply() {
     run_db(&["infra", "db", "migrate-repair"]);
-    run_db(&["infra", "db", "migrate-repair", "--json"]);
+    run_db(&["--json", "infra", "db", "migrate-repair"]);
     run_db(&["infra", "db", "migrate-repair", "users"]);
     run_db(&["infra", "db", "migrate"]);
     run_db(&["infra", "db", "migrate", "--allow-checksum-drift"]);

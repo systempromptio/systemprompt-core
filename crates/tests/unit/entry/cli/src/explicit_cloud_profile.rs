@@ -10,11 +10,11 @@
 
 use clap::Parser;
 use systemprompt_cli::args::{Cli, Commands};
-use systemprompt_cli::descriptor::{CommandDescriptor, DescribeCommand};
 use systemprompt_cli::runner::profile_routing::require_explicit_cloud_profile;
 use systemprompt_cli::session::resolution::record_new_session;
 use systemprompt_cloud::profile::{ProfileSource, resolve_profile_path};
 use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity, SessionKey, SessionStore};
+use systemprompt_extension::cli::{CommandDescriptor, DescribeCommand};
 use systemprompt_identifiers::{
     ContextId, Email, ProfileName, SessionId, SessionToken, TenantId, UserId,
 };
@@ -225,7 +225,7 @@ fn every_destructive_command_demands_an_explicit_cloud_profile() {
         );
         assert_ne!(
             desc.data_impact(),
-            systemprompt_cli::descriptor::DataImpact::Preserving,
+            systemprompt_extension::cli::DataImpact::Preserving,
             "{args:?}"
         );
     }

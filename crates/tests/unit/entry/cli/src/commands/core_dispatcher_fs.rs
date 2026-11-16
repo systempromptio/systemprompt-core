@@ -11,7 +11,8 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use systemprompt_cli::core::{self, CoreCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 
 const PLUGIN_YAML: &str = r#"plugin:
   id: covplugin
@@ -80,7 +81,7 @@ fn seed_plugin() -> PathBuf {
 }
 
 async fn run(args: &[&str]) -> anyhow::Result<()> {
-    core::execute(parse(args), &ctx()).await
+    core::execute(parse(args), &ctx()).await.map(drop)
 }
 
 #[tokio::test]

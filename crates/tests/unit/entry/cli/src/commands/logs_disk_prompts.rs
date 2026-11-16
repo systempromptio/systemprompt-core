@@ -10,7 +10,8 @@ use clap::Parser;
 use systemprompt_cli::admin::agents::{self, AgentsCommands};
 use systemprompt_cli::interactive::ScriptedPrompter;
 use systemprompt_cli::plugins::mcp::{self, McpCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 
 #[derive(Debug, Parser)]
 struct McpHarness {

@@ -11,9 +11,11 @@ use std::sync::Arc;
 use sqlx::{PgPool, Row};
 use systemprompt_database::Database;
 use systemprompt_extension::{
-    Extension, ExtensionMetadata, ExtensionRegistry, Migration, SchemaDefinition,
+    ContributionError, Contributions, Extension, ExtensionMetadata, Migration, SchemaDefinition,
 };
-use systemprompt_test_fixtures::{install_extension_schemas, test_database_url};
+use systemprompt_test_fixtures::test_database_url;
+
+use crate::composition::install;
 use uuid::Uuid;
 
 fn leak_str(s: String) -> &'static str {
@@ -72,15 +74,7 @@ struct LogsExtension {
     table: &'static str,
 }
 
-impl Extension for LogsExtension {
-    fn metadata(&self) -> ExtensionMetadata {
-        ExtensionMetadata {
-            id: self.id,
-            name: "logs-test",
-            version: "0.0.0",
-        }
-    }
-
+impl LogsExtension {
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![SchemaDefinition::new(
             self.table.to_string(),
@@ -97,11 +91,42 @@ impl Extension for LogsExtension {
     }
 }
 
+impl Extension for LogsExtension {
+    fn metadata(&self) -> ExtensionMetadata {
+        ExtensionMetadata {
+            id: self.id,
+            name: "logs-test",
+            version: "0.0.0",
+        }
+    }
+
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        for schema in self.schemas() {
+            c.schema(schema);
+        }
+        c.migrations(self.migrations());
+        Ok(())
+    }
+}
+
 struct ViewExtension {
     id: &'static str,
     schema_sql: &'static str,
     migration_sql: &'static str,
     table: &'static str,
+}
+
+impl ViewExtension {
+    fn schemas(&self) -> Vec<SchemaDefinition> {
+        vec![SchemaDefinition::new(
+            self.table.to_string(),
+            self.schema_sql.to_string(),
+        )]
+    }
+
+    fn migrations(&self) -> Vec<Migration> {
+        vec![Migration::new(1, "add_payload_column", self.migration_sql)]
+    }
 }
 
 impl Extension for ViewExtension {
@@ -113,15 +138,12 @@ impl Extension for ViewExtension {
         }
     }
 
-    fn schemas(&self) -> Vec<SchemaDefinition> {
-        vec![SchemaDefinition::new(
-            self.table.to_string(),
-            self.schema_sql.to_string(),
-        )]
-    }
-
-    fn migrations(&self) -> Vec<Migration> {
-        vec![Migration::new(1, "add_payload_column", self.migration_sql)]
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        for schema in self.schemas() {
+            c.schema(schema);
+        }
+        c.migrations(self.migrations());
+        Ok(())
     }
 }
 
@@ -211,12 +233,7 @@ async fn migration_runs_before_schema_so_legacy_logs_get_new_column() {
     };
 
     let db_arc = Arc::new(db);
-    let mut registry = ExtensionRegistry::new();
-    registry
-        .register(Arc::new(ext))
-        .expect("registry accepts extension");
-
-    install_extension_schemas(&registry, db_arc.as_ref())
+    install(vec![Box::new(ext)], db_arc.as_ref())
         .await
         .expect("install must succeed: migration adds column, then schema is a no-op");
 
@@ -286,12 +303,7 @@ async fn view_in_schema_can_reference_column_added_by_migration() {
     };
 
     let db_arc = Arc::new(db);
-    let mut registry = ExtensionRegistry::new();
-    registry
-        .register(Arc::new(ext))
-        .expect("registry accepts extension");
-
-    install_extension_schemas(&registry, db_arc.as_ref())
+    install(vec![Box::new(ext)], db_arc.as_ref())
         .await
         .expect("install must succeed: migration adds payload, then view references it");
 

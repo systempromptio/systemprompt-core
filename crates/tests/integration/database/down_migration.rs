@@ -9,9 +9,12 @@ use std::sync::Arc;
 use sqlx::{PgPool, Row};
 use systemprompt_database::{Database, MigrationService};
 use systemprompt_extension::{
-    Extension, ExtensionMetadata, LoaderError, Migration, SchemaDefinition,
+    ContributionError, Contributions, Extension, ExtensionMetadata, LoaderError, Migration,
+    SchemaDefinition,
 };
 use systemprompt_test_fixtures::test_database_url;
+
+use crate::composition::member;
 use uuid::Uuid;
 
 fn leak_str(s: String) -> &'static str {
@@ -28,15 +31,7 @@ struct ReversibleExtension {
     down_sql: &'static str,
 }
 
-impl Extension for ReversibleExtension {
-    fn metadata(&self) -> ExtensionMetadata {
-        ExtensionMetadata {
-            id: self.id,
-            name: "reversible-test",
-            version: "0.0.0",
-        }
-    }
-
+impl ReversibleExtension {
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![]
     }
@@ -51,9 +46,37 @@ impl Extension for ReversibleExtension {
     }
 }
 
+impl Extension for ReversibleExtension {
+    fn metadata(&self) -> ExtensionMetadata {
+        ExtensionMetadata {
+            id: self.id,
+            name: "reversible-test",
+            version: "0.0.0",
+        }
+    }
+
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        for schema in self.schemas() {
+            c.schema(schema);
+        }
+        c.migrations(self.migrations());
+        Ok(())
+    }
+}
+
 struct IrreversibleExtension {
     id: &'static str,
     up_sql: &'static str,
+}
+
+impl IrreversibleExtension {
+    fn schemas(&self) -> Vec<SchemaDefinition> {
+        vec![]
+    }
+
+    fn migrations(&self) -> Vec<Migration> {
+        vec![Migration::new(1, "no_down", self.up_sql)]
+    }
 }
 
 impl Extension for IrreversibleExtension {
@@ -65,12 +88,12 @@ impl Extension for IrreversibleExtension {
         }
     }
 
-    fn schemas(&self) -> Vec<SchemaDefinition> {
-        vec![]
-    }
-
-    fn migrations(&self) -> Vec<Migration> {
-        vec![Migration::new(1, "no_down", self.up_sql)]
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        for schema in self.schemas() {
+            c.schema(schema);
+        }
+        c.migrations(self.migrations());
+        Ok(())
     }
 }
 
@@ -125,18 +148,18 @@ async fn apply_revert_reapply_round_trip() {
         .await
         .expect("pre-clean bookkeeping");
 
-    let ext = ReversibleExtension {
+    let ext = member(ReversibleExtension {
         id: ext_id,
         up_sql,
         down_sql,
-    };
+    });
 
     let db_arc = Arc::new(db);
     let provider = db_arc.write();
     let service = MigrationService::new(provider);
 
     let applied = service
-        .run_pending_migrations(&ext)
+        .run_pending_migrations(ext.as_ref())
         .await
         .expect("apply succeeds");
     assert_eq!(applied.migrations_run, 1);
@@ -144,7 +167,7 @@ async fn apply_revert_reapply_round_trip() {
     assert_eq!(applied_versions(&pool, ext_id).await, vec![1]);
 
     let reverted = service
-        .run_down_migrations(&ext, 1)
+        .run_down_migrations(ext.as_ref(), 1)
         .await
         .expect("revert succeeds");
     assert_eq!(reverted.migrations_run, 1);
@@ -152,7 +175,7 @@ async fn apply_revert_reapply_round_trip() {
     assert!(applied_versions(&pool, ext_id).await.is_empty());
 
     let reapplied = service
-        .run_pending_migrations(&ext)
+        .run_pending_migrations(ext.as_ref())
         .await
         .expect("re-apply succeeds");
     assert_eq!(reapplied.migrations_run, 1);
@@ -197,19 +220,19 @@ async fn revert_rejects_irreversible_migration() {
         .await
         .expect("pre-clean bookkeeping");
 
-    let ext = IrreversibleExtension { id: ext_id, up_sql };
+    let ext = member(IrreversibleExtension { id: ext_id, up_sql });
 
     let db_arc = Arc::new(db);
     let provider = db_arc.write();
     let service = MigrationService::new(provider);
 
     service
-        .run_pending_migrations(&ext)
+        .run_pending_migrations(ext.as_ref())
         .await
         .expect("apply succeeds");
 
     let err = service
-        .run_down_migrations(&ext, 1)
+        .run_down_migrations(ext.as_ref(), 1)
         .await
         .expect_err("revert must reject irreversible migration");
     assert!(matches!(

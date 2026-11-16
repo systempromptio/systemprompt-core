@@ -8,10 +8,10 @@
 
 use std::collections::BTreeMap;
 
-use systemprompt_cli::cli_settings::{CliConfig, OutputFormat};
 use systemprompt_cli::context::CommandContext;
 use systemprompt_cli::core::services::reconcile::reconcile_after_swap;
 use systemprompt_cli::env_overrides::EnvOverrides;
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_loader::bundle::BundleCache;
 use systemprompt_manifest::services::bundle::ServicesBundleState;
 use systemprompt_manifest::services::root::{ActiveServicesRoot, ServicesProvenance};

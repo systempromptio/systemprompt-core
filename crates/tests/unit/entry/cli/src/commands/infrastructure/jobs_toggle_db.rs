@@ -5,8 +5,9 @@
 
 use clap::Parser;
 use systemprompt_cli::infrastructure::jobs::{self, JobsCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::JobName;
 use systemprompt_runtime::DatabaseContext;
 use systemprompt_scheduler::JobRepository;

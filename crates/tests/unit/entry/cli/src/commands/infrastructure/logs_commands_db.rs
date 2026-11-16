@@ -4,8 +4,9 @@
 
 use clap::Parser;
 use systemprompt_cli::infrastructure::logs::{self, LogsCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides};
+use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::CliConfig;
 use systemprompt_identifiers::{SessionId, TraceId};
 use systemprompt_logging::{LogActor, LogEntry, LogLevel, LoggingRepository};
 use systemprompt_runtime::DatabaseContext;

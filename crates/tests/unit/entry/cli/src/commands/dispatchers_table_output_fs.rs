@@ -15,7 +15,8 @@ use systemprompt_cli::admin::config::rate_limits::RateLimitsCommands;
 use systemprompt_cli::core::CoreCommands;
 use systemprompt_cli::plugins::PluginsCommands;
 use systemprompt_cli::web::WebCommands;
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, ScriptedPrompter};
+use systemprompt_cli::{CommandContext, EnvOverrides, ScriptedPrompter};
+use systemprompt_extension::cli::CliConfig;
 
 const CONTENT_CONFIG: &str = "content_sources:\n  blog:\n    path: content/blog\n    source_id: \
                               blog\n    category_id: blog\n    enabled: true\n    sitemap:\n      \

@@ -8,8 +8,9 @@ use std::process::{Child, Command};
 
 use clap::Parser;
 use systemprompt_cli::infrastructure::services::{self, ServicesCommands};
-use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat, ScriptedPrompter};
+use systemprompt_cli::{EnvOverrides, ScriptedPrompter};
 use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceStatus};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::ServiceName;
 use systemprompt_models::subprocess::{AGENT_NAME_ENV, SUBPROCESS_MARKER_ENV};
 use systemprompt_test_fixtures::{
@@ -99,7 +100,7 @@ async fn cleanup_owned_helper() {
     let pid = child.id();
     let mut child = OwnedChild(Some(child));
     let pool = database.test_pool().await;
-    let app = test_app_context(&pool, database.url());
+    let app = test_app_context(database.url()).await;
     let repo = app.service_repository().clone();
     let service = ServiceName::new(SERVICE);
     repo.create_service(CreateServiceInput {

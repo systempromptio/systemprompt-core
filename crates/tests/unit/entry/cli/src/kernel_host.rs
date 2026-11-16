@@ -5,8 +5,9 @@
 use clap::Parser;
 use systemprompt_cli::admin::config::paths::{self, PathsCommands};
 use systemprompt_cli::infrastructure::jobs::{self, JobsCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_config::LoadedProfile;
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 
 use crate::services_profile_fixture as fx;
 

@@ -7,7 +7,8 @@
 
 use clap::Parser;
 use systemprompt_cli::admin::keys::{KeysCommands, execute};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 
 #[derive(Debug, Parser)]
 struct Harness {
@@ -111,13 +112,13 @@ fn rotation_commands_are_classified_irreversible_and_generate_preserving() {
     ] {
         assert_eq!(
             admin(&args),
-            systemprompt_cli::descriptor::DataImpact::Irreversible,
+            systemprompt_extension::cli::DataImpact::Irreversible,
             "{args:?}"
         );
     }
     assert_eq!(
         admin(&["keys", "generate"]),
-        systemprompt_cli::descriptor::DataImpact::Preserving
+        systemprompt_extension::cli::DataImpact::Preserving
     );
 }
 

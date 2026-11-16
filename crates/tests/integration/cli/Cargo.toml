@@ -15,6 +15,7 @@ path = "src/lib.rs"
 
 [dependencies]
 systemprompt-cli = { workspace = true }
+systemprompt-extension = { workspace = true, features = ["cli"] }
 systemprompt-traits = { workspace = true }
 systemprompt-users = { workspace = true }
 systemprompt-cloud = { workspace = true }

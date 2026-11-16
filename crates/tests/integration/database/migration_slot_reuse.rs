@@ -11,9 +11,12 @@ use std::sync::Arc;
 use sqlx::{PgPool, Row, query};
 use systemprompt_database::{Database, MigrationConfig, MigrationService};
 use systemprompt_extension::{
-    Extension, ExtensionMetadata, ExtensionRegistry, LoaderError, Migration, SchemaDefinition,
+    ContributionError, Contributions, Extension, ExtensionMetadata, LoaderError, Migration,
+    SchemaDefinition,
 };
-use systemprompt_test_fixtures::{install_extension_schemas, test_database_url};
+use systemprompt_test_fixtures::test_database_url;
+
+use crate::composition::{install, member};
 use uuid::Uuid;
 
 fn leak_str(s: String) -> &'static str {
@@ -56,11 +59,25 @@ impl Drop for Cleanup {
     }
 }
 
+#[derive(Clone)]
 struct SlotExt {
     id: &'static str,
     table: &'static str,
     schema_sql: &'static str,
     migrations: Vec<Migration>,
+}
+
+impl SlotExt {
+    fn schemas(&self) -> Vec<SchemaDefinition> {
+        vec![SchemaDefinition::new(
+            self.table.to_string(),
+            self.schema_sql.to_string(),
+        )]
+    }
+
+    fn migrations(&self) -> Vec<Migration> {
+        self.migrations.clone()
+    }
 }
 
 impl Extension for SlotExt {
@@ -72,15 +89,12 @@ impl Extension for SlotExt {
         }
     }
 
-    fn schemas(&self) -> Vec<SchemaDefinition> {
-        vec![SchemaDefinition::new(
-            self.table.to_string(),
-            self.schema_sql.to_string(),
-        )]
-    }
-
-    fn migrations(&self) -> Vec<Migration> {
-        self.migrations.clone()
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        for schema in self.schemas() {
+            c.schema(schema);
+        }
+        c.migrations(self.migrations());
+        Ok(())
     }
 }
 
@@ -154,14 +168,14 @@ async fn fixture() -> Fixture {
 }
 
 async fn apply_original(f: &Fixture) {
-    let ext = SlotExt {
+    let ext = member(SlotExt {
         id: f.ext_id,
         table: f.table,
         schema_sql: f.schema_sql,
         migrations: vec![Migration::new(7, "original", f.create_sql)],
-    };
+    });
     MigrationService::new(f.db.write())
-        .run_pending_migrations(&ext)
+        .run_pending_migrations(ext.as_ref())
         .await
         .expect("first run applies version 7");
     assert_eq!(applied_versions(&f.pool, f.ext_id).await, vec![7]);
@@ -182,7 +196,7 @@ async fn reusing_a_spent_slot_is_refused_and_its_sql_never_runs() {
     apply_original(&f).await;
 
     let err = MigrationService::new(f.db.write())
-        .run_pending_migrations(&refilled(&f))
+        .run_pending_migrations(member(refilled(&f)).as_ref())
         .await
         .expect_err("a reused slot must be refused");
 
@@ -216,7 +230,7 @@ async fn checksum_drift_flag_tolerates_a_reused_slot_without_running_it() {
             allow_checksum_drift: true,
             force_full_install: false,
         })
-        .run_pending_migrations(&refilled(&f))
+        .run_pending_migrations(member(refilled(&f)).as_ref())
         .await
         .expect("--allow-checksum-drift tolerates the reuse");
 
@@ -231,7 +245,7 @@ async fn a_tombstoned_slot_is_inert_and_later_migrations_still_run() {
     let f = fixture().await;
     apply_original(&f).await;
 
-    let ext = SlotExt {
+    let ext = member(SlotExt {
         id: f.ext_id,
         table: f.table,
         schema_sql: f.schema_sql,
@@ -239,10 +253,10 @@ async fn a_tombstoned_slot_is_inert_and_later_migrations_still_run() {
             Migration::tombstone(7, "original"),
             Migration::new(8, "later", f.reuse_sql),
         ],
-    };
+    });
 
     let result = MigrationService::new(f.db.write())
-        .run_pending_migrations(&ext)
+        .run_pending_migrations(ext.as_ref())
         .await
         .expect("a tombstoned slot must not block the run");
 
@@ -269,10 +283,7 @@ async fn a_fresh_database_stamps_real_migrations_but_not_tombstones() {
         ],
     };
 
-    let mut registry = ExtensionRegistry::new();
-    registry.register(Arc::new(ext)).expect("register");
-
-    install_extension_schemas(&registry, f.db.as_ref())
+    install(vec![Box::new(ext)], f.db.as_ref())
         .await
         .expect("fresh install");
 

@@ -1,9 +1,9 @@
 use systemprompt_extension::{LoaderError, SchemaDefinition};
-use systemprompt_test_fixtures::install_extension_schemas_with_config;
 
 use super::installation::{
     StubExtension, drop_table, provider_and_db, registry_with, table_exists, unique_id,
 };
+use super::members::install;
 
 #[tokio::test]
 async fn a_failing_schema_statement_rolls_the_whole_phase_back() {
@@ -20,7 +20,7 @@ async fn a_failing_schema_statement_rolls_the_whole_phase_back() {
         migrations: vec![],
     };
 
-    let err = install_extension_schemas_with_config(&registry_with(ext), &provider, &[])
+    let err = install(&registry_with(ext), &provider)
         .await
         .expect_err("the column type does not exist");
     let rendered = format!("{err}");

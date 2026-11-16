@@ -4,7 +4,8 @@ use std::process::Command;
 
 use clap::Parser;
 use systemprompt_cli::infrastructure::db::{self, DbCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides};
+use systemprompt_cli::{CommandContext, EnvOverrides};
+use systemprompt_extension::cli::CliConfig;
 use systemprompt_runtime::DatabaseContext;
 use systemprompt_test_fixtures::{DisposableDb, bounded_output};
 

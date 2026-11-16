@@ -1,5 +1,6 @@
 use clap::Parser;
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides};
+use systemprompt_cli::{CommandContext, EnvOverrides};
+use systemprompt_extension::cli::CliConfig;
 
 use crate::process_sandbox::Sandbox;
 
@@ -19,6 +20,7 @@ fn build(args: &[&str]) -> anyhow::Result<()> {
             EnvOverrides::default(),
         ),
     )
+    .map(drop)
 }
 #[test]
 fn coverage_core_build_forwards_release_and_offline_to_the_project_workspace() {

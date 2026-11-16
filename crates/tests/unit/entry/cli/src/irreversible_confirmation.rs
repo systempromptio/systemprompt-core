@@ -8,11 +8,13 @@
 
 use clap::{CommandFactory, FromArgMatches};
 use systemprompt_cli::args::{Cli, Commands, reconstruct_args_from};
-use systemprompt_cli::descriptor::{CommandDescriptor, DataImpact, DescribeCommand};
 use systemprompt_cli::interactive::ScriptedPrompter;
-use systemprompt_cli::kernel::describe_command_line;
+use systemprompt_cli::kernel::{CommandRegistry, describe_command_line, kernel_commands};
 use systemprompt_cli::runner::confirmation::{ConfirmationRequest, confirm_irreversible};
-use systemprompt_cli::{CliConfig, VerbosityLevel};
+use systemprompt_extension::DeclaredCommands;
+use systemprompt_extension::cli::{
+    CliConfig, CommandDescriptor, DataImpact, DescribeCommand, VerbosityLevel,
+};
 
 const IRREVERSIBLE: &[&[&str]] = &[
     &["infra", "db", "migrate-down", "users", "1"],
@@ -174,7 +176,10 @@ fn every_irreversible_command_line_is_classified_as_destroying_data() {
     assert!(DataImpact::Irreversible.destroys_data());
     for args in IRREVERSIBLE {
         let argv: Vec<String> = args.iter().map(|a| (*a).to_owned()).collect();
-        let desc = describe_command_line(&argv).unwrap_or_else(|e| panic!("{args:?}: {e:#}"));
+        let registry = CommandRegistry::build(&DeclaredCommands::default(), &kernel_commands())
+            .expect("the kernel registry builds");
+        let desc =
+            describe_command_line(&registry, &argv).unwrap_or_else(|e| panic!("{args:?}: {e:#}"));
         assert!(
             desc.data_impact().destroys_data(),
             "{args:?}: a forwarded-command guard reads this classification"

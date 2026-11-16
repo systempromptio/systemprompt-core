@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use systemprompt_database::{DbPool, MigrationConfig, SchemaMember, SchemaUnit, install_schema_members};
+use systemprompt_database::{
+    DbPool, MigrationConfig, SchemaMember, SchemaUnit, install_schema_members,
+};
 use systemprompt_extension::{
     ExtensionMetadata, LoaderError, PurgeAdmissionError, PurgeDeclaration, SchemaDefinition,
     StandingTag,
@@ -62,7 +64,12 @@ fn purge(table: &str, column: &str) -> PurgeDeclaration {
 }
 
 fn notes(purges: Vec<PurgeDeclaration>) -> Arc<dyn SchemaMember> {
-    unit("notes", StandingTag::Install, vec![table("purge_notes")], purges)
+    unit(
+        "notes",
+        StandingTag::Install,
+        vec![table("purge_notes")],
+        purges,
+    )
 }
 
 async fn install(pool: &DbPool, members: Vec<Arc<dyn SchemaMember>>) -> Result<(), LoaderError> {
@@ -97,7 +104,9 @@ async fn an_install_records_purge_declarations_that_outlive_the_member_being_dis
         "a member with no declarations is recorded as vouched-for"
     );
 
-    install(&pool, vec![ledger()]).await.expect("installs with notes disabled");
+    install(&pool, vec![ledger()])
+        .await
+        .expect("installs with notes disabled");
     assert_eq!(
         recorded(&pool, "notes").await,
         Some(declared),
@@ -107,7 +116,11 @@ async fn an_install_records_purge_declarations_that_outlive_the_member_being_dis
     install(&pool, vec![ledger(), notes(vec![])])
         .await
         .expect("the member re-enables with no declarations");
-    assert_eq!(recorded(&pool, "notes").await, Some(vec![]), "the record is replaced whole");
+    assert_eq!(
+        recorded(&pool, "notes").await,
+        Some(vec![]),
+        "the record is replaced whole"
+    );
 
     drop(pool);
     database.drop_now().await;
@@ -155,14 +168,23 @@ async fn a_purge_column_that_is_not_an_identifier_is_refused() {
     let pool = database.test_pool().await;
     let err = install(
         &pool,
-        vec![ledger(), notes(vec![purge("purge_notes", "user_id = user_id OR true")])],
+        vec![
+            ledger(),
+            notes(vec![purge("purge_notes", "user_id = user_id OR true")]),
+        ],
     )
     .await
     .expect_err("a non-identifier column is refused");
-    assert!(matches!(err, LoaderError::SchemaInstallationStepFailed { .. }));
-    install(&pool, vec![ledger(), notes(vec![purge("purge_notes", "user_id")])])
-        .await
-        .expect("an identifier column is admitted");
+    assert!(matches!(
+        err,
+        LoaderError::SchemaInstallationStepFailed { .. }
+    ));
+    install(
+        &pool,
+        vec![ledger(), notes(vec![purge("purge_notes", "user_id")])],
+    )
+    .await
+    .expect("an identifier column is admitted");
 
     drop(pool);
     database.drop_now().await;

@@ -2,7 +2,8 @@
 
 use clap::Parser;
 use systemprompt_cli::infrastructure::db::{DbCommands, execute};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_runtime::DatabaseContext;
 use systemprompt_test_fixtures::{DisposableDb, ensure_test_bootstrap};
 
@@ -125,7 +126,7 @@ async fn verbose_profile_migrate_reports_its_target_and_stays_a_no_op() {
         .expect("seed the profile's system admin");
     let ctx = profile_driven(
         &db,
-        text_config().with_verbosity(systemprompt_cli::VerbosityLevel::Verbose),
+        text_config().with_verbosity(systemprompt_extension::cli::VerbosityLevel::Verbose),
     );
 
     execute(command(&["migrate"]), &ctx)

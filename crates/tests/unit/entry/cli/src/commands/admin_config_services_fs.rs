@@ -38,6 +38,7 @@ fn set_offset(offset: u16) -> anyhow::Result<()> {
         }),
         &cfg(),
     )
+    .map(drop)
 }
 
 #[test]

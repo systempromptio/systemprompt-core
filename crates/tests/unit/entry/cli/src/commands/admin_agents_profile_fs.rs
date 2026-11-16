@@ -11,7 +11,8 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use systemprompt_cli::admin::agents::{AgentsCommands, execute};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 
 fn agent_yaml(name: &str, port: u16, display: &str, enabled: bool) -> String {
     format!(
@@ -58,10 +59,9 @@ fn agent_yaml(name: &str, port: u16, display: &str, enabled: bool) -> String {
 
 #[tokio::test]
 async fn restarting_failed_agent_reports_failure_and_preserves_failed_state() {
-    use std::sync::Arc;
     use systemprompt_cli::infrastructure::services::restart;
     use systemprompt_loader::subprocess::{self, ChildKind};
-    use systemprompt_test_fixtures::{DisposableDb, fixture_app_context_on_bootstrap_with_paths};
+    use systemprompt_test_fixtures::DisposableDb;
 
     let root = seed_agents();
     let listener = (9000..=9999)
@@ -91,24 +91,7 @@ async fn restarting_failed_agent_reports_failure_and_preserves_failed_state() {
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
     let database = DisposableDb::with_schema("cli_restart_failed").await;
     let pool = database.test_pool().await;
-    let paths = systemprompt_manifest::PathsConfig {
-        root: None,
-        system: boot.system_path.display().to_string(),
-        services: root.display().to_string(),
-        bin: boot.bin_path.display().to_string(),
-        web_path: None,
-        storage: Some(boot.storage_path.display().to_string()),
-        geoip_database: None,
-        shipped_files: None,
-        data: None,
-    };
-    let app = fixture_app_context_on_bootstrap_with_paths(
-        boot,
-        &pool,
-        paths,
-        Arc::new(systemprompt_marketplace::AllowAllFilter),
-    )
-    .unwrap();
+    let app = crate::boot_ctx::app_on_database(boot, database.url()).await;
     let services = &app.a2a_repositories().agent_services;
     services
         .register_agent(
@@ -204,7 +187,7 @@ fn seed_agents() -> PathBuf {
 }
 
 async fn run(args: &[&str]) -> anyhow::Result<()> {
-    execute(parse(args), &ctx()).await
+    execute(parse(args), &ctx()).await.map(drop)
 }
 
 #[tokio::test]
@@ -357,10 +340,9 @@ async fn delete_removes_the_selected_agent_and_reloads_the_profile_config() {
 
 #[tokio::test]
 async fn coverage_restart_populated_registry_reports_failed_starts_and_skips_disabled_agents() {
-    use std::sync::Arc;
     use systemprompt_cli::infrastructure::services::restart;
     use systemprompt_loader::subprocess::{self, ChildKind};
-    use systemprompt_test_fixtures::{DisposableDb, fixture_app_context_on_bootstrap_with_paths};
+    use systemprompt_test_fixtures::DisposableDb;
 
     let root = seed_agents();
     let listener = (9000..=9999)
@@ -391,24 +373,7 @@ async fn coverage_restart_populated_registry_reports_failed_starts_and_skips_dis
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
     let database = DisposableDb::with_schema("cli_restart_all_agents").await;
     let pool = database.test_pool().await;
-    let paths = systemprompt_manifest::PathsConfig {
-        root: None,
-        system: boot.system_path.display().to_string(),
-        services: root.display().to_string(),
-        bin: boot.bin_path.display().to_string(),
-        web_path: None,
-        storage: Some(boot.storage_path.display().to_string()),
-        geoip_database: None,
-        shipped_files: None,
-        data: None,
-    };
-    let app = fixture_app_context_on_bootstrap_with_paths(
-        boot,
-        &pool,
-        paths,
-        Arc::new(systemprompt_marketplace::AllowAllFilter),
-    )
-    .unwrap();
+    let app = crate::boot_ctx::app_on_database(boot, database.url()).await;
     let config = CliConfig::new()
         .with_interactive(false)
         .with_output_format(OutputFormat::Json);
@@ -461,8 +426,7 @@ const DELETE_ALL_HELPER: &str =
 #[tokio::test]
 #[ignore = "re-executed by delete_all_reports_exact_targets_and_preserves_unrelated_configuration"]
 async fn delete_all_agents_public_helper() {
-    use std::sync::Arc;
-    use systemprompt_test_fixtures::{DisposableDb, fixture_app_context_on_bootstrap_with_paths};
+    use systemprompt_test_fixtures::DisposableDb;
 
     let root = seed_agents();
     let control = root.join("config/control.yaml");
@@ -470,24 +434,7 @@ async fn delete_all_agents_public_helper() {
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
     let database = DisposableDb::with_schema("cli_admin_delete_all").await;
     let pool = database.test_pool().await;
-    let paths = systemprompt_manifest::PathsConfig {
-        root: None,
-        system: boot.system_path.display().to_string(),
-        services: root.display().to_string(),
-        bin: boot.bin_path.display().to_string(),
-        web_path: None,
-        storage: Some(boot.storage_path.display().to_string()),
-        geoip_database: None,
-        shipped_files: None,
-        data: None,
-    };
-    let app = fixture_app_context_on_bootstrap_with_paths(
-        boot,
-        &pool,
-        paths,
-        Arc::new(systemprompt_marketplace::AllowAllFilter),
-    )
-    .expect("full private app context");
+    let app = crate::boot_ctx::app_on_database(boot, database.url()).await;
     let context = crate::boot_ctx::with_app_boot(
         CliConfig::new()
             .with_interactive(false)

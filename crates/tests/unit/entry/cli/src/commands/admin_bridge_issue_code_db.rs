@@ -20,8 +20,9 @@
 use chrono::{DateTime, Utc};
 use clap::Parser;
 use systemprompt_cli::admin::bridge::{self, BridgeCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::UserId;
 use systemprompt_test_fixtures::{
     seed_user_row, test_app_context, test_database_url, test_db_pool,
@@ -41,14 +42,14 @@ fn parse(args: &[&str]) -> BridgeCommands {
 }
 
 
-fn ctx(pool: &DbPool) -> CommandContext {
+async fn ctx() -> CommandContext {
     let url = test_database_url();
     crate::boot_ctx::with_app_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
-        test_app_context(pool, &url),
+        test_app_context(&url).await,
     )
 }
 
@@ -86,8 +87,10 @@ async fn codes_for(pool: &DbPool, user: &str) -> Vec<Issued> {
     .collect()
 }
 
-async fn issue(pool: &DbPool, reference: &str) -> anyhow::Result<()> {
-    bridge::execute(parse(&["issue-code", "--user-id", reference]), &ctx(pool)).await
+async fn issue(reference: &str) -> anyhow::Result<()> {
+    bridge::execute(parse(&["issue-code", "--user-id", reference]), &ctx().await)
+        .await
+        .map(drop)
 }
 
 // Why: without an expiry the code is a permanent credential — anyone who ever
@@ -97,7 +100,7 @@ async fn the_code_expires_rather_than_lasting_forever() {
     let pool = test_db_pool().await;
     let (user, _email) = seeded_user(&pool).await;
 
-    issue(&pool, &user).await.expect("issue code");
+    issue(&user).await.expect("issue code");
 
     let issued = &codes_for(&pool, &user).await[0];
     let now = Utc::now();
@@ -125,7 +128,7 @@ async fn issuing_by_email_binds_the_code_to_the_resolved_user() {
     let pool = test_db_pool().await;
     let (user, email) = seeded_user(&pool).await;
 
-    issue(&pool, &email).await.expect("issue by email");
+    issue(&email).await.expect("issue by email");
 
     assert_eq!(
         codes_for(&pool, &user).await.len(),
@@ -139,8 +142,8 @@ async fn issuing_by_id_and_by_email_reach_the_same_user() {
     let pool = test_db_pool().await;
     let (user, email) = seeded_user(&pool).await;
 
-    issue(&pool, &user).await.expect("issue by id");
-    issue(&pool, &email).await.expect("issue by email");
+    issue(&user).await.expect("issue by id");
+    issue(&email).await.expect("issue by email");
 
     assert_eq!(
         codes_for(&pool, &user).await.len(),
@@ -156,7 +159,7 @@ async fn an_unknown_reference_is_refused_and_mints_nothing() {
     let pool = test_db_pool().await;
     let absent = format!("nobody-{}", Uuid::new_v4().simple());
 
-    let err = issue(&pool, &absent)
+    let err = issue(&absent)
         .await
         .expect_err("an unknown user must not receive a device-link code");
 
@@ -169,9 +172,7 @@ async fn an_unknown_reference_is_refused_and_mints_nothing() {
 
 #[tokio::test]
 async fn an_empty_reference_is_refused() {
-    let pool = test_db_pool().await;
-
-    let err = issue(&pool, "   ")
+    let err = issue("   ")
         .await
         .expect_err("a blank reference must not resolve to anyone");
 
@@ -189,8 +190,8 @@ async fn reissuing_adds_a_second_code_rather_than_replacing_the_first() {
     let pool = test_db_pool().await;
     let (user, _email) = seeded_user(&pool).await;
 
-    issue(&pool, &user).await.expect("first issue");
-    issue(&pool, &user).await.expect("second issue");
+    issue(&user).await.expect("first issue");
+    issue(&user).await.expect("second issue");
 
     let codes = codes_for(&pool, &user).await;
     assert_eq!(codes.len(), 2);
@@ -240,12 +241,7 @@ mod enroll_cert {
         .collect()
     }
 
-    async fn enroll(
-        pool: &DbPool,
-        reference: &str,
-        fingerprint: &str,
-        label: &str,
-    ) -> anyhow::Result<()> {
+    async fn enroll(reference: &str, fingerprint: &str, label: &str) -> anyhow::Result<()> {
         bridge::execute(
             parse(&[
                 "enroll-cert",
@@ -256,9 +252,10 @@ mod enroll_cert {
                 "--label",
                 label,
             ]),
-            &ctx(pool),
+            &ctx().await,
         )
         .await
+        .map(drop)
     }
 
     // Why: the reference may be an id, an email or a name. Attaching the
@@ -270,9 +267,7 @@ mod enroll_cert {
         let (user, email) = seeded_user(&pool).await;
         let fp = fingerprint();
 
-        enroll(&pool, &email, &fp, "laptop")
-            .await
-            .expect("enrol by email");
+        enroll(&email, &fp, "laptop").await.expect("enrol by email");
 
         let certs = certs_for(&pool, &user).await;
         assert_eq!(certs.len(), 1, "the cert belongs to the resolved user id");
@@ -293,7 +288,7 @@ mod enroll_cert {
         let (user, _email) = seeded_user(&pool).await;
         let upper = fingerprint().to_uppercase();
 
-        enroll(&pool, &user, &upper, "desktop")
+        enroll(&user, &upper, "desktop")
             .await
             .expect("enrol uppercase");
 
@@ -311,7 +306,7 @@ mod enroll_cert {
         let pool = test_db_pool().await;
         let (user, _email) = seeded_user(&pool).await;
 
-        let err = enroll(&pool, &user, "abc123", "short")
+        let err = enroll(&user, "abc123", "short")
             .await
             .expect_err("a 6-character fingerprint is not a SHA-256 digest");
 
@@ -327,7 +322,7 @@ mod enroll_cert {
         let pool = test_db_pool().await;
         let absent = format!("nobody-{}", Uuid::new_v4().simple());
 
-        let err = enroll(&pool, &absent, &fingerprint(), "ghost")
+        let err = enroll(&absent, &fingerprint(), "ghost")
             .await
             .expect_err("an unknown user must not receive a device enrolment");
 

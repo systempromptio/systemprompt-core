@@ -10,11 +10,11 @@
 use clap::{Arg, Command, FromArgMatches};
 use systemprompt_cli::args::{self, Cli};
 use systemprompt_cli::kernel::{CommandRegistry, describe_command_line, kernel_commands};
+use systemprompt_cli::runner::profile_routing::is_cloud_bypass_command;
+use systemprompt_cloud_entry::cli::CloudCommands;
 use systemprompt_extension::cli::{
     CommandDescriptor, DataImpact, DbUrlRouting, KernelGrant, RoutingClass,
 };
-use systemprompt_cli::runner::profile_routing::is_cloud_bypass_command;
-use systemprompt_cloud_entry::cli::CloudCommands;
 
 const SENTINEL: &str = "sentinel-do-not-leak";
 
@@ -160,7 +160,10 @@ fn cloud_refuses_a_direct_database_url() {
         .resolve(&matches)
         .expect("resolve")
         .expect("cloud resolves to its registration");
-    assert_eq!(registered.db_url_routing(), DbUrlRouting::Unsupported);
+    assert_eq!(
+        registered.parsed.db_url_routing(),
+        DbUrlRouting::Unsupported
+    );
 }
 
 fn cloud_profile(args: &[&str]) -> Result<(Cli, Option<String>), clap::Error> {

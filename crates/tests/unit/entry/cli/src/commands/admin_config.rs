@@ -14,6 +14,7 @@ use systemprompt_cli::admin::config::validate::{
     ValidateArgs, execute, unknown_jobs_message, unlisted_jobs_message,
 };
 use systemprompt_config::yaml_document::{read_yaml_file, write_yaml_file};
+use systemprompt_extension::AdmittedSchedule;
 use systemprompt_manifest::services::SystemAdminConfig;
 use systemprompt_manifest::{
     ContentNegotiationConfig, ExtensionsConfig, PathsConfig, Profile, ProfileDatabaseConfig,
@@ -23,6 +24,11 @@ use systemprompt_manifest::{
 use systemprompt_models::artifacts::CliArtifact;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_scheduler::{JobConfig, SchedulerConfig};
+use systemprompt_test_fixtures::fixture_admitted;
+
+fn schedule() -> AdmittedSchedule {
+    AdmittedSchedule::of(fixture_admitted().built())
+}
 
 fn make_profile(services: &Path) -> Profile {
     Profile {
@@ -203,14 +209,14 @@ fn read_yaml_file_errors_on_malformed_yaml() {
     );
 }
 
-#[test]
-fn validate_schema_flag_returns_the_schema_as_its_only_artifact() {
+#[tokio::test]
+async fn validate_schema_flag_returns_the_schema_as_its_only_artifact() {
     let args = ValidateArgs {
         target: None,
         strict: false,
         schema: true,
     };
-    let (output, all_valid) = execute(&args, &cfg()).unwrap();
+    let (output, all_valid) = execute(&args, &cfg()).await.unwrap();
     assert!(all_valid);
     assert!(
         !output.should_skip_render(),
@@ -226,8 +232,8 @@ fn validate_schema_flag_returns_the_schema_as_its_only_artifact() {
     );
 }
 
-#[test]
-fn validate_accepts_a_serialized_profile_document() {
+#[tokio::test]
+async fn validate_accepts_a_serialized_profile_document() {
     let dir = tempfile::tempdir().unwrap();
     let services = dir.path().join("services");
     std::fs::create_dir_all(&services).unwrap();
@@ -245,12 +251,12 @@ fn validate_accepts_a_serialized_profile_document() {
         strict: false,
         schema: false,
     };
-    let (_output, all_valid) = execute(&args, &cfg()).unwrap();
+    let (_output, all_valid) = execute(&args, &cfg()).await.unwrap();
     assert!(all_valid);
 }
 
-#[test]
-fn validate_refuses_a_committed_absolute_temp_path() {
+#[tokio::test]
+async fn validate_refuses_a_committed_absolute_temp_path() {
     let dir = tempfile::tempdir().unwrap();
     let services = dir.path().join("services");
     std::fs::create_dir_all(&services).unwrap();
@@ -262,12 +268,12 @@ fn validate_refuses_a_committed_absolute_temp_path() {
         strict: false,
         schema: false,
     };
-    let err = execute(&args, &cfg()).unwrap_err();
+    let err = execute(&args, &cfg()).await.unwrap_err();
     assert!(err.to_string().contains("absolute temp path"), "{err}");
 }
 
-#[test]
-fn validate_rejects_a_malformed_profile_document() {
+#[tokio::test]
+async fn validate_rejects_a_malformed_profile_document() {
     let dir = tempfile::tempdir().unwrap();
     let profile_path = dir.path().join("profile.yaml");
     std::fs::write(&profile_path, "name: only-a-name\ntarget: local\n").unwrap();
@@ -277,15 +283,15 @@ fn validate_rejects_a_malformed_profile_document() {
         strict: false,
         schema: false,
     };
-    let err = execute(&args, &cfg()).unwrap_err();
+    let err = execute(&args, &cfg()).await.unwrap_err();
     assert!(
         format!("{err:#}").contains("invalid profile"),
         "got: {err:#}"
     );
 }
 
-#[test]
-fn validate_reports_missing_file_and_detects_section_from_path() {
+#[tokio::test]
+async fn validate_reports_missing_file_and_detects_section_from_path() {
     let cases = [
         ("/no/such/ai/config.yaml", "ai"),
         ("/no/such/content/config.yaml", "content"),
@@ -305,7 +311,7 @@ fn validate_reports_missing_file_and_detects_section_from_path() {
             strict: false,
             schema: false,
         };
-        let (output, all_valid) = execute(&args, &cfg()).unwrap();
+        let (output, all_valid) = execute(&args, &cfg()).await.unwrap();
         assert!(!all_valid, "missing file should fail: {target}");
         let json = serde_json::to_value(output.artifact()).unwrap();
         let files = json["items"].as_array().expect("items array in artifact");
@@ -321,7 +327,7 @@ fn validate_reports_missing_file_and_detects_section_from_path() {
 
 #[test]
 fn validate_accepts_a_scheduler_config_of_registered_jobs() {
-    assert!(unknown_jobs_message(&SchedulerConfig::with_system_admin()).is_none());
+    assert!(unknown_jobs_message(&SchedulerConfig::with_system_admin(), &schedule()).is_none());
 }
 
 #[test]
@@ -332,7 +338,8 @@ fn validate_names_every_unregistered_scheduler_job() {
         .push(JobConfig::new(JobName::new("access_control_sync")));
     config.bootstrap_jobs.push(JobName::new("content_sync"));
 
-    let message = unknown_jobs_message(&config).expect("phantom job names must fail validation");
+    let message =
+        unknown_jobs_message(&config, &schedule()).expect("phantom job names must fail validation");
     assert!(message.contains("access_control_sync"), "got: {message}");
     assert!(message.contains("content_sync"), "got: {message}");
     assert!(message.contains("infra jobs list"), "got: {message}");
@@ -341,8 +348,8 @@ fn validate_names_every_unregistered_scheduler_job() {
 #[test]
 fn strict_validation_names_registered_jobs_the_config_omits() {
     let config = SchedulerConfig::with_system_admin();
-    let message =
-        unlisted_jobs_message(&config, &boot()).expect("the built-in set omits the rollups");
+    let message = unlisted_jobs_message(&config, &boot(), &schedule())
+        .expect("the built-in set omits the rollups");
     assert!(message.contains("trace_facts_rollup"), "got: {message}");
     assert!(!message.contains("database_cleanup"), "got: {message}");
 }
@@ -350,8 +357,8 @@ fn strict_validation_names_registered_jobs_the_config_omits() {
 #[test]
 fn strict_validation_passes_once_every_job_is_named() {
     let mut config = SchedulerConfig::with_system_admin();
-    for name in systemprompt_scheduler::unlisted_job_names(&config, &boot()) {
+    for name in systemprompt_scheduler::unlisted_job_names(&config, &boot(), &schedule()) {
         config.jobs.push(JobConfig::new(name).disabled());
     }
-    assert!(unlisted_jobs_message(&config, &boot()).is_none());
+    assert!(unlisted_jobs_message(&config, &boot(), &schedule()).is_none());
 }

@@ -3,8 +3,9 @@
 use std::process::Command;
 
 use clap::Parser;
+use systemprompt_cli::EnvOverrides;
 use systemprompt_cli::admin::agents::{self, AgentsCommands};
-use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_test_fixtures::{bounded_output, init_services_bootstrap};
 
 const AGENT: &str = "covemptytools";

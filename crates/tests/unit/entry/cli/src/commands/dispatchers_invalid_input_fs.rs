@@ -12,7 +12,8 @@ use clap::Parser;
 use systemprompt_cli::admin::agents::AgentsCommands;
 use systemprompt_cli::core::CoreCommands;
 use systemprompt_cli::web::WebCommands;
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat, ScriptedPrompter};
+use systemprompt_cli::{CommandContext, EnvOverrides, ScriptedPrompter};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 
 fn services_root() -> PathBuf {
     systemprompt_test_fixtures::ensure_test_bootstrap()
@@ -193,10 +194,10 @@ fn a_scripted_prompter_that_runs_dry_surfaces_the_prompt_it_stopped_on() {
     let prompter = ScriptedPrompter::new(["only-one"]);
 
     assert_eq!(
-        systemprompt_cli::interactive::Prompter::input(&prompter, "first").unwrap(),
+        systemprompt_extension::cli::Prompter::input(&prompter, "first").unwrap(),
         "only-one"
     );
     let err =
-        systemprompt_cli::interactive::Prompter::input(&prompter, "second question").unwrap_err();
+        systemprompt_extension::cli::Prompter::input(&prompter, "second question").unwrap_err();
     assert!(err.to_string().contains("second question"), "{err}");
 }

@@ -4,15 +4,28 @@
 
 use std::sync::Arc;
 
-use systemprompt_database::check_migration_references;
+use systemprompt_database::{SchemaMember, check_migration_references};
 use systemprompt_extension::{
-    Extension, ExtensionMetadata, LoaderError, Migration, SchemaDefinition,
+    ContributionError, Contributions, Extension, ExtensionMetadata, LoaderError, Migration,
+    SchemaDefinition,
 };
+
+use crate::composition::member;
 
 struct StubExtension {
     id: &'static str,
     schema: String,
     migrations: Vec<Migration>,
+}
+
+impl StubExtension {
+    fn schemas(&self) -> Vec<SchemaDefinition> {
+        vec![SchemaDefinition::new(self.id, self.schema.clone())]
+    }
+
+    fn migrations(&self) -> Vec<Migration> {
+        self.migrations.clone()
+    }
 }
 
 impl Extension for StubExtension {
@@ -24,17 +37,17 @@ impl Extension for StubExtension {
         }
     }
 
-    fn schemas(&self) -> Vec<SchemaDefinition> {
-        vec![SchemaDefinition::new(self.id, self.schema.clone())]
-    }
-
-    fn migrations(&self) -> Vec<Migration> {
-        self.migrations.clone()
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        for schema in self.schemas() {
+            c.schema(schema);
+        }
+        c.migrations(self.migrations());
+        Ok(())
     }
 }
 
-fn ext(id: &'static str, schema: &str, migrations: Vec<Migration>) -> Arc<dyn Extension> {
-    Arc::new(StubExtension {
+fn ext(id: &'static str, schema: &str, migrations: Vec<Migration>) -> Arc<dyn SchemaMember> {
+    member(StubExtension {
         id,
         schema: schema.to_owned(),
         migrations,

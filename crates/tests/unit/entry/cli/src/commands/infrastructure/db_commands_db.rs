@@ -4,8 +4,9 @@
 
 use clap::Parser;
 use systemprompt_cli::infrastructure::db::{self, DbCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_runtime::DatabaseContext;
 use systemprompt_test_fixtures::{test_database_url, test_db_pool};
 
@@ -117,9 +118,7 @@ async fn migrations_history_requires_known_extension() {
 async fn migrate_repair_dry_run_reports_no_drift() {
     let pool = test_db_pool().await;
     let ctx = ctx(&pool);
-    db::execute(parse(&["migrate-repair", "--json"]), &ctx)
-        .await
-        .unwrap();
+    db::execute(parse(&["migrate-repair"]), &ctx).await.unwrap();
     db::execute(parse(&["migrate-repair"]), &ctx).await.unwrap();
 }
 

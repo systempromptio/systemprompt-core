@@ -8,8 +8,9 @@
 
 use clap::Parser;
 use systemprompt_cli::admin::config::{ConfigCommands, execute};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides};
+use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_cloud::profile::{ProfileResolutionError, resolve_profile_from_path};
+use systemprompt_extension::cli::CliConfig;
 
 #[derive(Debug, Parser)]
 struct Harness {
@@ -32,7 +33,7 @@ fn table_ctx() -> CommandContext {
 }
 
 async fn run(args: &[&str]) -> anyhow::Result<()> {
-    execute(parse(args), &table_ctx()).await
+    execute(parse(args), &table_ctx()).await.map(drop)
 }
 
 #[tokio::test]

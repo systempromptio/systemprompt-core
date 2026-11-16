@@ -1,22 +1,21 @@
 //! Mixed MCP availability through the public agent-tools command.
 
 use std::process::Command;
-use std::sync::Arc;
 
 use clap::Parser;
+use systemprompt_cli::EnvOverrides;
 use systemprompt_cli::admin::agents::{self, AgentsCommands};
-use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat};
 use systemprompt_cloud::paths::ResolvedPaths;
 use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity, SessionKey, SessionStore};
 use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceStatus};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::{
     ContextId, Email, ProfileName, ServiceName, SessionId, SessionToken,
 };
-use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_models::auth::UserType;
 use systemprompt_test_fixtures::{
-    DisposableDb, FIXTURE_EXTERNAL_URL, TestBootstrap, bounded_output,
-    fixture_app_context_on_bootstrap_with_paths, fixture_user_id, init_services_bootstrap,
+    DisposableDb, FIXTURE_EXTERNAL_URL, TestBootstrap, bounded_output, fixture_user_id,
+    init_services_bootstrap,
 };
 use wiremock::matchers::{body_json, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -222,24 +221,7 @@ async fn mixed_agent_tools_helper() {
     seed_session(&boot);
     let database = DisposableDb::with_schema("cli_agent_tools_mixed").await;
     let pool = database.test_pool().await;
-    let paths = PathsConfig {
-        root: None,
-        system: boot.system_path.display().to_string(),
-        services: boot.services_path.display().to_string(),
-        bin: boot.bin_path.display().to_string(),
-        web_path: Some(boot.system_path.join("web").display().to_string()),
-        storage: Some(boot.storage_path.display().to_string()),
-        geoip_database: None,
-        shipped_files: None,
-        data: None,
-    };
-    let app = fixture_app_context_on_bootstrap_with_paths(
-        &boot,
-        &pool,
-        paths,
-        Arc::new(systemprompt_marketplace::AllowAllFilter),
-    )
-    .expect("mixed-tools app context");
+    let app = crate::boot_ctx::app_on_database(&boot, database.url()).await;
     app.service_repository()
         .create_service(CreateServiceInput {
             name: &ServiceName::new(HEALTHY),

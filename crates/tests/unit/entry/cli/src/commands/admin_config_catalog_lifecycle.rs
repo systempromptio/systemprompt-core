@@ -3,7 +3,8 @@ use systemprompt_cli::admin::config::credential::{self, CredentialAddArgs, Crede
 use systemprompt_cli::admin::config::endpoint::{self, EndpointAddArgs, EndpointCommands};
 use systemprompt_cli::admin::config::model::{self, ModelAddArgs, ModelCommands};
 use systemprompt_cli::admin::config::provider::{self, ProviderAddArgs, ProviderCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::ModelId;
 
 const HELPER: &str = "commands::admin_config_catalog_lifecycle::catalog_file_lifecycle_helper";
@@ -404,9 +405,7 @@ fn catalog_file_lifecycle_is_durable_and_structured() {
         .expect("captured discovery timestamp");
     let partial = marked_json(&stdout, "DISCOVERY_PARTIAL");
     assert_eq!(partial["models"], serde_json::json!([]), "{partial}");
-    let notes = partial["notes"]
-        .as_array()
-        .expect("discovery report notes");
+    let notes = partial["notes"].as_array().expect("discovery report notes");
     assert!(
         notes.iter().any(|line| {
             line["level"] == "warning"

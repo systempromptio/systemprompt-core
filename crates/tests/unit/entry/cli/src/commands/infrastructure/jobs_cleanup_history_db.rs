@@ -5,8 +5,8 @@
 
 use serde_json::Value;
 use systemprompt_cli::infrastructure::jobs::history::{self, HistoryArgs};
-use systemprompt_cli::shared::CommandOutput;
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::CommandOutput;
 use systemprompt_identifiers::{InstanceId, JobName};
 use systemprompt_scheduler::{JobRepository, JobRunRecord, JobStatus};
 use systemprompt_test_fixtures::test_db_pool;

@@ -2,7 +2,7 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::cli_settings::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
+use systemprompt_extension::cli::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
 
 #[test]
 fn test_cli_config_with_output_format_json() {

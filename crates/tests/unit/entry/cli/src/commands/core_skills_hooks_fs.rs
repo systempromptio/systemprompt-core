@@ -34,7 +34,7 @@ fn write_skill(root: &Path, id: &str, enabled: bool, instructions: Option<&str>)
     }
 }
 
-fn artifact_json(out: systemprompt_cli::shared::CommandOutput) -> String {
+fn artifact_json(out: systemprompt_extension::cli::CommandOutput) -> String {
     serde_json::to_value(out.into_artifact())
         .unwrap()
         .to_string()
@@ -239,7 +239,10 @@ plugin:
     include: [helper]
 "#;
 
-fn plugin_show(root: &Path, id: &str) -> anyhow::Result<systemprompt_cli::shared::CommandOutput> {
+fn plugin_show(
+    root: &Path,
+    id: &str,
+) -> anyhow::Result<systemprompt_extension::cli::CommandOutput> {
     let args = systemprompt_cli::core::plugins::show::ShowArgs {
         id: systemprompt_identifiers::PluginId::try_new(id)?,
     };

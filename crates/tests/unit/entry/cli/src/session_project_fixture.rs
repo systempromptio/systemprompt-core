@@ -4,8 +4,9 @@
 
 use std::path::PathBuf;
 
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_cloud::paths::ResolvedPaths;
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_test_fixtures::ensure_test_bootstrap;
 
 pub struct Project {
@@ -44,13 +45,14 @@ impl Project {
     }
 
     pub fn context(&self, interactive: bool) -> CommandContext {
-        crate::kernel_host::kernel_host(CommandContext::new(
+        CommandContext::new(
             CliConfig::new()
                 .with_interactive(interactive)
                 .with_output_format(OutputFormat::Json)
                 .with_profile_override(Some(self.profile.display().to_string())),
             EnvOverrides::default(),
-        ))
+        )
+        .with_detached_kernel()
     }
 }
 

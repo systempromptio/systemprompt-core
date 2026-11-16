@@ -5,9 +5,10 @@ use std::process::Command;
 use std::sync::Arc;
 
 use clap::Parser;
+use systemprompt_cli::EnvOverrides;
 use systemprompt_cli::admin::users::{self, UsersCommands};
 use systemprompt_cli::session::api::create_local_session_row;
-use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_test_fixtures::{
     DisposableDb, bounded_output, ensure_test_bootstrap, test_app_context,
 };
@@ -86,7 +87,7 @@ async fn delete_preview_helper() {
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
-        test_app_context(&pool, database.url()),
+        test_app_context(database.url()).await,
     );
     println!("BEGIN_PREVIEW");
     users::execute(

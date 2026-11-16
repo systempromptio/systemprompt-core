@@ -1,14 +1,12 @@
 use std::time::Duration;
 
-use systemprompt_database::{DbPool, MigrationConfig, install_extension_schemas_full};
-use systemprompt_extension::ExtensionRegistry;
-use systemprompt_test_fixtures::DisposableDb;
+use systemprompt_database::{DbPool, MigrationConfig, install_admitted_schemas};
+use systemprompt_test_fixtures::{DisposableDb, schema_admitted};
 
 async fn install(pool: &DbPool) -> Result<(), systemprompt_extension::LoaderError> {
-    install_extension_schemas_full(
-        &ExtensionRegistry::discover().expect("registry"),
+    install_admitted_schemas(
+        schema_admitted().expect("core members").built(),
         pool.write(),
-        &[],
         MigrationConfig::default(),
     )
     .await

@@ -5,7 +5,7 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::shared::{KeyValueOutput, SuccessOutput, TextOutput};
+use systemprompt_extension::cli::{KeyValueOutput, SuccessOutput, TextOutput};
 
 #[test]
 fn a_text_output_carries_its_message() {

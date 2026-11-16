@@ -3,16 +3,25 @@
 //! `triggers=live`), and restores exactly the ones it suspended; a boot
 //! refuses a trigger whose routine writes a relation that is gone.
 
+use super::members::unit;
 use crate::services::db_helper::test_pool;
 use systemprompt_database::{
     DatabaseProvider, MigrationService, PostgresProvider, check_trigger_routines,
 };
-use systemprompt_extension::{Extension, ExtensionMetadata, LoaderError, Migration};
+use systemprompt_extension::{
+    ContributionError, Contributions, Extension, ExtensionMetadata, LoaderError, Migration,
+};
 use systemprompt_test_fixtures::error_chain;
 
 struct StubExtension {
     id: &'static str,
     migrations: Vec<Migration>,
+}
+
+impl StubExtension {
+    fn migrations(&self) -> Vec<Migration> {
+        self.migrations.clone()
+    }
 }
 
 impl Extension for StubExtension {
@@ -24,8 +33,9 @@ impl Extension for StubExtension {
         }
     }
 
-    fn migrations(&self) -> Vec<Migration> {
-        self.migrations.clone()
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        c.migrations(self.migrations());
+        Ok(())
     }
 }
 
@@ -92,7 +102,7 @@ async fn a_backfill_does_not_fire_row_triggers_and_restores_them() {
         )],
     };
     MigrationService::new(&provider)
-        .run_pending_migrations(&ext)
+        .run_pending_migrations(&unit(&ext))
         .await
         .expect("the stale trigger must not fire during the backfill");
 
@@ -120,7 +130,7 @@ async fn a_no_transaction_backfill_suspends_and_restores_too() {
         )],
     };
     MigrationService::new(&provider)
-        .run_pending_migrations(&ext)
+        .run_pending_migrations(&unit(&ext))
         .await
         .expect("the stale trigger must not fire during the backfill");
     let state = trigger_state(&provider, "trg_notx_t").await;
@@ -140,7 +150,7 @@ async fn a_migration_declaring_live_triggers_fires_them() {
         )],
     };
     let err = MigrationService::new(&provider)
-        .run_pending_migrations(&ext)
+        .run_pending_migrations(&unit(&ext))
         .await
         .expect_err("triggers=live keeps the trigger on");
     assert!(error_chain(&err).contains("stale trigger fired"), "{err}");
@@ -203,7 +213,7 @@ async fn a_migration_dropping_a_suspended_trigger_skips_its_restore() {
         )],
     };
     MigrationService::new(&provider)
-        .run_pending_migrations(&ext)
+        .run_pending_migrations(&unit(&ext))
         .await
         .expect("a trigger the migration dropped is not restored");
 
@@ -227,7 +237,7 @@ async fn a_schema_qualified_write_suspends_and_restores_its_triggers() {
         )],
     };
     MigrationService::new(&provider)
-        .run_pending_migrations(&ext)
+        .run_pending_migrations(&unit(&ext))
         .await
         .expect("the qualified write does not fire the stale trigger");
 
@@ -248,7 +258,7 @@ async fn a_failed_no_transaction_migration_still_restores_its_triggers() {
         )],
     };
     MigrationService::new(&provider)
-        .run_pending_migrations(&ext)
+        .run_pending_migrations(&unit(&ext))
         .await
         .expect_err("division by zero fails the migration");
 

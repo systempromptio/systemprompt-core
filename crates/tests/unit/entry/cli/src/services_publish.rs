@@ -12,7 +12,8 @@ use std::path::{Path, PathBuf};
 use clap::Parser;
 use systemprompt_cli::core::services::bundle::{BundleArgs, pack_bundle};
 use systemprompt_cli::core::services::publish::{PublishArgs, execute, pin_reference};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides};
+use systemprompt_cli::{CommandContext, EnvOverrides};
+use systemprompt_extension::cli::CliConfig;
 
 #[derive(Debug, Parser)]
 struct Harness {

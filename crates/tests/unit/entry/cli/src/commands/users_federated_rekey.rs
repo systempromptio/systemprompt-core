@@ -9,9 +9,9 @@ use systemprompt_cli::admin::users::federated_rekey::{
     RekeyChoice, id_jag_candidates, resolve_choice, run,
 };
 use systemprompt_cli::args::{Cli, Commands};
-use systemprompt_cli::descriptor::{CommandDescriptor, DataImpact, DescribeCommand};
 use systemprompt_cli::runner::profile_routing::require_explicit_cloud_profile;
 use systemprompt_cloud::profile::ProfileSource;
+use systemprompt_extension::cli::{CommandDescriptor, DataImpact, DescribeCommand};
 use systemprompt_identifiers::TenantId;
 use systemprompt_manifest::Profile;
 use systemprompt_manifest::profile::{CloudConfig, ProfileType, TrustedIssuer};

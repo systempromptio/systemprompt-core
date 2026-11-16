@@ -3,8 +3,9 @@
 use std::process::Command;
 
 use clap::Parser;
+use systemprompt_cli::EnvOverrides;
 use systemprompt_cli::core::{self, CoreCommands};
-use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::UserId;
 use systemprompt_test_fixtures::{
     DisposableDb, bounded_output, ensure_test_bootstrap, seed_user_row, test_app_context,
@@ -87,7 +88,7 @@ async fn files_ai_output_helper() {
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
-        test_app_context(&pool, database.url()),
+        test_app_context(database.url()).await,
     );
     println!("BEGIN_AI_LIST");
     core::execute(

@@ -780,6 +780,7 @@ async fn run_failure_deploy(name: &str) -> Result<(), String> {
     .await
     .expect("owned failure deployment completes within its bound")
     .map_err(|error| format!("{error:#}"))
+    .map(drop)
 }
 
 #[cfg(unix)]

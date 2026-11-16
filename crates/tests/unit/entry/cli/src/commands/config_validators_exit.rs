@@ -5,9 +5,9 @@ use systemprompt_cli::admin::config::paths::{self, PathsCommands};
 use systemprompt_cli::admin::config::rate_limits::{self, RateLimitsCommands};
 use systemprompt_cli::core::files::{self, FilesCommands};
 use systemprompt_cli::interactive::ScriptedPrompter;
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_config::LoadedProfile;
-use systemprompt_extension::cli::{CommandError, CommandOutput};
+use systemprompt_extension::cli::{CliConfig, CommandError, CommandOutput, OutputFormat};
 
 use crate::services_profile_fixture as fx;
 

@@ -8,8 +8,9 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_cli::interactive::ScriptedPrompter;
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides};
+use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_cloud_entry::cli::profile;
+use systemprompt_extension::cli::CliConfig;
 
 const LIST: &str = "0";
 const EDIT: &str = "1";

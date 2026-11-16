@@ -13,8 +13,9 @@ use systemprompt_identifiers::JobName;
 use clap::Parser;
 use systemprompt_cli::infrastructure::jobs::{self, JobsCommands};
 use systemprompt_cli::infrastructure::logs::{self, LogsCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::JobRepository;
 use systemprompt_test_fixtures::{
@@ -51,7 +52,7 @@ async fn app() -> (DbPool, Arc<AppContext>) {
     ensure_test_bootstrap();
     let url = test_database_url();
     let pool = test_db_pool().await;
-    let ctx = test_app_context(&pool, &url);
+    let ctx = test_app_context(&url).await;
     (pool, ctx)
 }
 
@@ -228,7 +229,7 @@ async fn logs_delete_clears_every_entry() {
             .unwrap();
         assert_eq!(before, 3);
 
-        let app = test_app_context(&pool, &url);
+        let app = test_app_context(&url).await;
         logs::execute(parse_logs(&["delete", "-y"]), &ctx(&app, true))
             .await
             .expect("delete all logs");

@@ -6,11 +6,10 @@
 use chrono::{TimeZone, Utc};
 use systemprompt_cli::core::artifacts::ArtifactSummary;
 use systemprompt_cli::core::contexts::ContextSummary;
-use systemprompt_cli::infrastructure::db::TableInfo;
 use systemprompt_cli::presentation::tables::{
-    ai_requests_table, artifact_list_table, context_list_table, db_tables_table,
-    execution_steps_table, extract_latency_from_metadata, format_metadata_value,
-    mcp_tool_calls_table, task_artifacts_table, task_info_table, trace_events_table, truncate_cell,
+    ai_requests_table, artifact_list_table, context_list_table, execution_steps_table,
+    extract_latency_from_metadata, format_metadata_value, mcp_tool_calls_table,
+    task_artifacts_table, task_info_table, trace_events_table, truncate_cell,
 };
 use systemprompt_identifiers::{
     AgentName, AiRequestId, ArtifactId, ContextId, ExecutionStepId, McpExecutionId, McpServerId,
@@ -119,20 +118,6 @@ fn context_table_shows_only_first_eight_id_chars() {
     }];
     let prefix: String = contexts[0].id.as_str().chars().take(8).collect();
     assert!(context_list_table(&contexts).contains(&prefix));
-}
-
-#[test]
-fn db_tables_table_formats_sizes() {
-    let tables = vec![TableInfo {
-        name: "users".to_owned(),
-        schema: "public".to_owned(),
-        row_count: 42,
-        size_bytes: 2048,
-    }];
-    let rendered = db_tables_table(&tables);
-    assert!(rendered.contains("users"));
-    assert!(rendered.contains("42"));
-    assert!(rendered.contains("KB"));
 }
 
 #[test]

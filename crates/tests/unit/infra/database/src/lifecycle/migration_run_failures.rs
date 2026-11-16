@@ -3,14 +3,23 @@
 //! recorded, and a `@compat: breaking` migration is written to the
 //! compatibility ledger before it runs.
 
+use super::members::unit;
 use crate::services::db_helper::test_pool;
 use systemprompt_database::{DatabaseProvider, MigrationService, PostgresProvider};
-use systemprompt_extension::{Extension, ExtensionMetadata, Migration};
+use systemprompt_extension::{
+    ContributionError, Contributions, Extension, ExtensionMetadata, Migration,
+};
 use systemprompt_identifiers::ExtensionId;
 
 struct StubExtension {
     id: &'static str,
     migrations: Vec<Migration>,
+}
+
+impl StubExtension {
+    fn migrations(&self) -> Vec<Migration> {
+        self.migrations.clone()
+    }
 }
 
 impl Extension for StubExtension {
@@ -22,8 +31,9 @@ impl Extension for StubExtension {
         }
     }
 
-    fn migrations(&self) -> Vec<Migration> {
-        self.migrations.clone()
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        c.migrations(self.migrations());
+        Ok(())
     }
 }
 
@@ -94,7 +104,7 @@ async fn a_failing_no_transaction_migration_restores_triggers_and_is_not_recorde
     };
 
     let err = MigrationService::new(&provider)
-        .run_pending_migrations(&ext)
+        .run_pending_migrations(&unit(&ext))
         .await
         .expect_err("the second statement fails");
 
@@ -135,8 +145,14 @@ async fn a_successful_no_transaction_migration_is_recorded_once() {
     };
     let svc = MigrationService::new(&provider);
 
-    let first = svc.run_pending_migrations(&ext).await.expect("apply");
-    let second = svc.run_pending_migrations(&ext).await.expect("re-run");
+    let first = svc
+        .run_pending_migrations(&unit(&ext))
+        .await
+        .expect("apply");
+    let second = svc
+        .run_pending_migrations(&unit(&ext))
+        .await
+        .expect("re-run");
 
     assert_eq!(first.migrations_run, 1);
     assert_eq!(second.migrations_run, 0);
@@ -170,7 +186,9 @@ async fn a_breaking_migration_is_written_to_the_compat_ledger() {
     let svc = MigrationService::new(&provider);
     let id = ExtensionId::new(ext_id);
 
-    svc.run_pending_migrations(&ext).await.expect("apply");
+    svc.run_pending_migrations(&unit(&ext))
+        .await
+        .expect("apply");
 
     assert_eq!(svc.breaking_versions(&id).await.expect("ledger"), vec![2]);
     assert!(

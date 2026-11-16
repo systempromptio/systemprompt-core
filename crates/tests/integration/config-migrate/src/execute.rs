@@ -7,7 +7,8 @@ use std::path::{Path, PathBuf};
 
 use systemprompt_cli::commands::admin::config::migrate::roles::ROLES_FILE;
 use systemprompt_cli::commands::admin::config::migrate::{MigrateArgs, execute};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides};
+use systemprompt_cli::{CommandContext, EnvOverrides};
+use systemprompt_extension::cli::CliConfig;
 
 use crate::support::{from_fixture, snapshot};
 
@@ -16,6 +17,7 @@ fn ctx() -> CommandContext {
         CliConfig::new().with_interactive(false),
         EnvOverrides::default(),
     )
+    .with_detached_kernel()
 }
 
 fn args(services: Option<&Path>, profiles: Option<&Path>, check: bool) -> MigrateArgs {
@@ -28,7 +30,10 @@ fn args(services: Option<&Path>, profiles: Option<&Path>, check: bool) -> Migrat
 }
 
 async fn run(args: &MigrateArgs) -> Result<(), String> {
-    execute(args, &ctx()).await.map_err(|e| format!("{e:#}"))
+    execute(args, &ctx())
+        .await
+        .map(drop)
+        .map_err(|e| format!("{e:#}"))
 }
 
 fn write(path: PathBuf, body: &str) -> PathBuf {

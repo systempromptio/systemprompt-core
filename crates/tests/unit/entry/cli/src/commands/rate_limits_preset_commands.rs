@@ -10,7 +10,8 @@ use crate::boot_ctx::bootstrap_ctx_with;
 use systemprompt_cli::admin::config::rate_limits::{
     PresetApplyArgs, PresetCommands, PresetShowArgs, RateLimitsCommands, execute,
 };
-use systemprompt_cli::{CliConfig, CommandContext, OutputFormat, ScriptedPrompter};
+use systemprompt_cli::{CommandContext, ScriptedPrompter};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 
 fn config() -> CommandContext {
     bootstrap_ctx_with(

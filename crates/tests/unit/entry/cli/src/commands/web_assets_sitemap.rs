@@ -10,7 +10,7 @@ use systemprompt_cli::web::paths::WebPaths;
 use systemprompt_cli::web::validate::asset_validation::validate_assets;
 use systemprompt_cli::web::validate::sitemap_validation::validate_sitemap;
 use systemprompt_cli::web::validate::template_validation::validate_templates;
-use systemprompt_cli::{CliConfig, OutputFormat};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_manifest::services::SystemAdminConfig;
 use systemprompt_manifest::{
     ContentNegotiationConfig, ExtensionsConfig, PathsConfig, Profile, ProfileDatabaseConfig,

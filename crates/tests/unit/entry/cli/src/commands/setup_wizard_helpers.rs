@@ -3,10 +3,10 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::CliConfig;
 use systemprompt_cli::admin::setup::SetupArgs;
 use systemprompt_cli::admin::setup::wizard::{build_cancelled, database_info, should_write};
 use systemprompt_cli::shared::postgres_access::PostgresConfig;
+use systemprompt_extension::cli::CliConfig;
 
 fn args() -> SetupArgs {
     SetupArgs {

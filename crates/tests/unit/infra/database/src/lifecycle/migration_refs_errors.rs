@@ -1,13 +1,25 @@
+use super::members::unit;
 use std::sync::Arc;
 
-use systemprompt_database::check_migration_references;
+use systemprompt_database::{SchemaMember, check_migration_references};
 use systemprompt_extension::{
-    Extension, ExtensionMetadata, LoaderError, Migration, SchemaDefinition,
+    ContributionError, Contributions, Extension, ExtensionMetadata, LoaderError, Migration,
+    SchemaDefinition,
 };
 
 struct Ext {
     schema: &'static str,
     migrations: Vec<Migration>,
+}
+
+impl Ext {
+    fn schemas(&self) -> Vec<SchemaDefinition> {
+        vec![SchemaDefinition::new("refs_t", self.schema)]
+    }
+
+    fn migrations(&self) -> Vec<Migration> {
+        self.migrations.clone()
+    }
 }
 
 impl Extension for Ext {
@@ -19,12 +31,12 @@ impl Extension for Ext {
         }
     }
 
-    fn schemas(&self) -> Vec<SchemaDefinition> {
-        vec![SchemaDefinition::new("refs_t", self.schema)]
-    }
-
-    fn migrations(&self) -> Vec<Migration> {
-        self.migrations.clone()
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        for schema in self.schemas() {
+            c.schema(schema);
+        }
+        c.migrations(self.migrations());
+        Ok(())
     }
 }
 
@@ -32,7 +44,7 @@ const SCHEMA: &str = "CREATE TABLE refs_t (id BIGINT); CREATE VIEW refs_v AS SEL
                       refs_t;";
 
 fn check(schema: &'static str, migrations: Vec<Migration>) -> Result<(), LoaderError> {
-    let extensions: Vec<Arc<dyn Extension>> = vec![Arc::new(Ext { schema, migrations })];
+    let extensions: Vec<Arc<dyn SchemaMember>> = vec![Arc::new(unit(&Ext { schema, migrations }))];
     check_migration_references(&extensions)
 }
 

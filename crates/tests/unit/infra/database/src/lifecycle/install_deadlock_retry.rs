@@ -9,9 +9,9 @@ use std::time::Duration;
 
 use systemprompt_database::DbPool;
 use systemprompt_extension::SchemaDefinition;
-use systemprompt_test_fixtures::install_extension_schemas_with_config;
 
 use super::installation::{StubExtension, drop_table, provider_and_db, registry_with, unique_id};
+use super::members::install;
 
 async fn run(db: &DbPool, sql: String) {
     sqlx::query(sqlx::AssertSqlSafe(sql))
@@ -90,9 +90,7 @@ async fn a_phase_that_deadlocks_with_a_writer_is_retried() {
     .await
     .expect("writer holds a row lock on b");
 
-    let install = tokio::spawn(async move {
-        install_extension_schemas_with_config(&registry, &provider, &[]).await
-    });
+    let install = tokio::spawn(async move { install(&registry, &provider).await });
 
     let mut blocked = false;
     for _ in 0..200 {

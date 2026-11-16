@@ -7,8 +7,9 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use clap::Parser;
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_cloud_entry::cli::{self as cloud, CloudCommands};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 
 #[derive(Debug, Parser)]
 struct Harness {
@@ -41,7 +42,7 @@ async fn the_dockerfile_arm_renders_a_build_recipe() {
     let result = cloud::execute(parse(&["dockerfile"]), &ctx()).await;
 
     match result {
-        Ok(()) => {},
+        Ok(_) => {},
         Err(e) => assert!(
             format!("{e:#}").contains("project"),
             "only a missing project root may fail this: {e:#}"

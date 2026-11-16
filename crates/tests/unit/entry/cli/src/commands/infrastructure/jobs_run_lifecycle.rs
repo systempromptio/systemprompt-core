@@ -6,8 +6,9 @@ use std::time::{Duration, Instant};
 
 use clap::Parser;
 use serde_json::Value;
+use systemprompt_cli::EnvOverrides;
 use systemprompt_cli::infrastructure::jobs::{self, JobsCommands};
-use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::JobName;
 use systemprompt_scheduler::JobRepository;
 use systemprompt_test_fixtures::{DisposableDb, ensure_test_bootstrap, test_app_context};
@@ -37,7 +38,7 @@ async fn mixed_job_run_helper() {
         std::env::var_os("JOBS_RUN_DATABASE_INFO").expect("private database info channel");
     std::fs::write(info_path, database.url()).expect("write private database info");
     let pool = database.test_pool().await;
-    let app = test_app_context(&pool, database.url());
+    let app = test_app_context(database.url()).await;
     let repository = JobRepository::new(&pool);
     for name in [SUCCESS_JOB, MISSING_JOB] {
         repository

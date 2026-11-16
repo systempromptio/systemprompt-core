@@ -5,8 +5,9 @@
 
 use clap::Parser;
 use systemprompt_cli::infrastructure::db::{self, DbCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_runtime::DatabaseContext;
 use systemprompt_test_fixtures::{test_database_url, test_db_pool};
 
@@ -74,12 +75,9 @@ async fn repair_dry_run_reports_clean_state() {
     db::execute(parse(&["migrate-repair"]), &ctx(&pool, OutputFormat::Table))
         .await
         .unwrap();
-    db::execute(
-        parse(&["migrate-repair", "--json"]),
-        &ctx(&pool, OutputFormat::Json),
-    )
-    .await
-    .unwrap();
+    db::execute(parse(&["migrate-repair"]), &ctx(&pool, OutputFormat::Json))
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -116,7 +114,7 @@ async fn repair_dry_run_reports_tampered_checksum_drift() {
     )
     .await;
     let json_run = db::execute(
-        parse(&["migrate-repair", &ext, "--json"]),
+        parse(&["migrate-repair", &ext]),
         &ctx(&pool, OutputFormat::Json),
     )
     .await;

@@ -7,7 +7,8 @@
 
 use clap::Parser;
 use systemprompt_cli::infrastructure::db::{self, DbCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, VerbosityLevel};
+use systemprompt_cli::{CommandContext, EnvOverrides};
+use systemprompt_extension::cli::{CliConfig, VerbosityLevel};
 use systemprompt_runtime::DatabaseContext;
 use systemprompt_test_fixtures::{DisposableDb, ensure_test_bootstrap};
 

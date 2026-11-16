@@ -193,7 +193,7 @@ pub fn boot_for(tree: &ProfileTree) -> systemprompt_loader::BootContext {
 
 pub fn ctx_for(boot: &systemprompt_loader::BootContext) -> systemprompt_cli::CommandContext {
     systemprompt_cli::CommandContext::new(
-        systemprompt_cli::CliConfig::new().with_interactive(false),
+        systemprompt_extension::cli::CliConfig::new().with_interactive(false),
         systemprompt_cli::EnvOverrides::default(),
     )
     .with_boot(Some(boot.clone()))
@@ -201,9 +201,9 @@ pub fn ctx_for(boot: &systemprompt_loader::BootContext) -> systemprompt_cli::Com
 
 pub fn json_ctx(boot: &systemprompt_loader::BootContext) -> systemprompt_cli::CommandContext {
     systemprompt_cli::CommandContext::new(
-        systemprompt_cli::CliConfig::new()
+        systemprompt_extension::cli::CliConfig::new()
             .with_interactive(false)
-            .with_output_format(systemprompt_cli::OutputFormat::Json),
+            .with_output_format(systemprompt_extension::cli::OutputFormat::Json),
         systemprompt_cli::EnvOverrides::default(),
     )
     .with_boot(Some(boot.clone()))

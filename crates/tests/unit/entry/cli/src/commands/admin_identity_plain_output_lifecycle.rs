@@ -4,9 +4,10 @@ use std::process::{Command, Stdio};
 
 use base64::Engine;
 use clap::Parser;
+use systemprompt_cli::EnvOverrides;
 use systemprompt_cli::admin::identity::{self, IdentityCommands};
-use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat};
 use systemprompt_config::{decode_master_key, decode_seed};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_security::keys::RsaSigningKey;
 
 const HELPER: &str = "commands::admin_identity_plain_output_lifecycle::plain_identity_helper";

@@ -2,8 +2,8 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::cli_settings::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
 use systemprompt_cli::env_overrides::EnvOverrides;
+use systemprompt_extension::cli::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
 
 fn env_of(vars: &[(&str, &str)]) -> EnvOverrides {
     EnvOverrides::from_vars(vars.iter().copied())
@@ -79,17 +79,17 @@ fn flag_overrides_env_overrides_default() {
     let default_only = env_of(&[]).cli_config();
     assert_eq!(default_only.output_format, OutputFormat::Table);
 
-    let env_only = CliConfig::resolve(&env);
+    let env_only = env.cli_config();
     assert_eq!(env_only.output_format, OutputFormat::Json);
 
-    let flag_over_env = CliConfig::resolve(&env).with_output_format(OutputFormat::Yaml);
+    let flag_over_env = env.cli_config().with_output_format(OutputFormat::Yaml);
     assert_eq!(flag_over_env.output_format, OutputFormat::Yaml);
 }
 
 #[test]
 fn flag_overrides_env_verbosity() {
     let env = env_of(&[("SYSTEMPROMPT_LOG_LEVEL", "quiet")]);
-    let cfg = CliConfig::resolve(&env).with_verbosity(VerbosityLevel::Debug);
+    let cfg = env.cli_config().with_verbosity(VerbosityLevel::Debug);
     assert_eq!(cfg.verbosity, VerbosityLevel::Debug);
 }
 
