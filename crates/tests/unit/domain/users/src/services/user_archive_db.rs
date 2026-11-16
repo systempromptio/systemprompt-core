@@ -62,7 +62,7 @@ async fn archive_hides_the_user_and_restore_brings_it_back() {
         .expect("find")
         .expect("present");
     assert_eq!(restored.status, UserStatus::Active);
-    service.delete(&user.id).await.expect("cleanup");
+    service.delete(&user.id, &crate::purge_plan::purge_plan()).await.expect("cleanup");
 }
 
 #[tokio::test]
@@ -75,7 +75,7 @@ async fn purge_refuses_an_active_user_and_a_legal_hold() {
         .expect("create");
 
     assert!(matches!(
-        service.purge(&user.id).await,
+        service.purge(&user.id, &crate::purge_plan::purge_plan()).await,
         Err(UserError::NotArchived(_))
     ));
     service
@@ -90,7 +90,7 @@ async fn purge_refuses_an_active_user_and_a_legal_hold() {
         .await
         .expect("archive");
     assert!(matches!(
-        service.purge(&user.id).await,
+        service.purge(&user.id, &crate::purge_plan::purge_plan()).await,
         Err(UserError::LegalHold(_))
     ));
 
@@ -98,7 +98,7 @@ async fn purge_refuses_an_active_user_and_a_legal_hold() {
         .set_legal_hold(&user.id, false)
         .await
         .expect("release");
-    service.purge(&user.id).await.expect("purge");
+    service.purge(&user.id, &crate::purge_plan::purge_plan()).await.expect("purge");
     assert!(service.find_by_id(&user.id).await.expect("find").is_none());
 }
 
@@ -119,7 +119,7 @@ async fn restore_is_refused_after_the_window() {
         service.restore(&user.id, 0).await,
         Err(UserError::RestoreRefused { .. })
     ));
-    service.delete(&user.id).await.expect("cleanup");
+    service.delete(&user.id, &crate::purge_plan::purge_plan()).await.expect("cleanup");
 }
 
 #[tokio::test]
@@ -133,7 +133,7 @@ async fn delete_refuses_a_user_under_legal_hold() {
     service.set_legal_hold(&user.id, true).await.expect("hold");
 
     assert!(matches!(
-        service.delete(&user.id).await,
+        service.delete(&user.id, &crate::purge_plan::purge_plan()).await,
         Err(UserError::LegalHold(_))
     ));
     assert!(service.find_by_id(&user.id).await.expect("find").is_some());
@@ -142,5 +142,5 @@ async fn delete_refuses_a_user_under_legal_hold() {
         .set_legal_hold(&user.id, false)
         .await
         .expect("release");
-    service.delete(&user.id).await.expect("cleanup");
+    service.delete(&user.id, &crate::purge_plan::purge_plan()).await.expect("cleanup");
 }

@@ -18,6 +18,9 @@
 mod error;
 
 #[cfg(test)]
+mod purge_plan;
+
+#[cfg(test)]
 mod extension;
 
 #[cfg(test)]

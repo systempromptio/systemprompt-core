@@ -38,7 +38,7 @@ async fn setup(prefix: &str) -> Ctx {
 
 async fn cleanup(ctx: &Ctx) {
     // user_device_certs.user_id is FK ON DELETE CASCADE.
-    let _ = ctx.repo.delete(&ctx.user_id).await;
+    let _ = ctx.repo.delete(&ctx.user_id, &crate::purge_plan::purge_plan()).await;
 }
 
 fn valid_fingerprint(seed: char) -> String {

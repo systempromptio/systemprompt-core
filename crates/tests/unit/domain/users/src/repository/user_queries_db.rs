@@ -89,7 +89,7 @@ async fn find_by_role_and_first_user_and_first_admin() {
             .is_some()
     );
 
-    ctx.service.delete(&user.id).await.expect("cleanup");
+    ctx.service.delete(&user.id, &crate::purge_plan::purge_plan()).await.expect("cleanup");
     ctx.fixture.finish().await;
 }
 
@@ -118,7 +118,7 @@ async fn find_authenticated_user_requires_active_status() {
             .is_none()
     );
 
-    ctx.service.delete(&user.id).await.expect("cleanup");
+    ctx.service.delete(&user.id, &crate::purge_plan::purge_plan()).await.expect("cleanup");
     ctx.fixture.finish().await;
 }
 
@@ -176,7 +176,7 @@ async fn find_with_sessions_and_activity_count_open_sessions() {
     assert!(listed.iter().any(|u| u.id == user.id));
 
     ctx.service.end_all_sessions(&user.id).await.expect("end");
-    ctx.service.delete(&user.id).await.expect("cleanup");
+    ctx.service.delete(&user.id, &crate::purge_plan::purge_plan()).await.expect("cleanup");
     ctx.fixture.finish().await;
 }
 
@@ -205,7 +205,7 @@ async fn list_search_and_count_reflect_created_users() {
     let total = ctx.service.count().await.expect("count");
     assert!(total >= 1);
 
-    ctx.service.delete(&user.id).await.expect("cleanup");
+    ctx.service.delete(&user.id, &crate::purge_plan::purge_plan()).await.expect("cleanup");
     ctx.fixture.finish().await;
 }
 
@@ -240,7 +240,7 @@ async fn list_by_filter_applies_status_role_and_age() {
         .expect("role filter");
     assert!(!wrong_role.iter().any(|u| u.id == user.id));
 
-    ctx.service.delete(&user.id).await.expect("cleanup");
+    ctx.service.delete(&user.id, &crate::purge_plan::purge_plan()).await.expect("cleanup");
     ctx.fixture.finish().await;
 }
 
@@ -294,7 +294,7 @@ async fn update_display_name_persists() {
         .await
         .expect("update");
     assert_eq!(updated.display_name.as_deref(), Some("New Display"));
-    ctx.service.delete(&user.id).await.expect("cleanup");
+    ctx.service.delete(&user.id, &crate::purge_plan::purge_plan()).await.expect("cleanup");
     ctx.fixture.finish().await;
 }
 
@@ -328,7 +328,7 @@ async fn missing_user_yields_not_found_across_mutations() {
         Err(UserError::NotFound(_))
     ));
     assert!(matches!(
-        ctx.service.delete(&ghost).await,
+        ctx.service.delete(&ghost, &crate::purge_plan::purge_plan()).await,
         Err(UserError::NotFound(_))
     ));
     assert!(matches!(
@@ -372,7 +372,7 @@ async fn merge_users_transfers_sessions_and_removes_source() {
     assert!(sessions.iter().any(|s| s.session_id == sid));
 
     ctx.service.end_all_sessions(&target.id).await.expect("end");
-    ctx.service.delete(&target.id).await.expect("cleanup");
+    ctx.service.delete(&target.id, &crate::purge_plan::purge_plan()).await.expect("cleanup");
     ctx.fixture.finish().await;
 }
 
@@ -436,7 +436,7 @@ async fn merge_users_appends_a_governance_record_instead_of_rewriting_history() 
         .execute(pg.as_ref())
         .await
         .expect("cleanup");
-    ctx.service.delete(&target.id).await.expect("cleanup");
+    ctx.service.delete(&target.id, &crate::purge_plan::purge_plan()).await.expect("cleanup");
     ctx.fixture.finish().await;
 }
 
@@ -491,7 +491,7 @@ async fn cleanup_old_anonymous_spares_users_with_open_sessions() {
     );
 
     ctx.service.end_all_sessions(&kept.id).await.expect("end");
-    ctx.service.delete(&kept.id).await.expect("cleanup kept");
+    ctx.service.delete(&kept.id, &crate::purge_plan::purge_plan()).await.expect("cleanup kept");
     ctx.fixture.finish().await;
 }
 
@@ -512,7 +512,7 @@ async fn create_anonymous_reuses_existing_fingerprint_row() {
     assert_eq!(first.id, second.id);
     assert!(first.roles.iter().any(|r| r == "anonymous"));
 
-    ctx.service.delete(&first.id).await.expect("cleanup");
+    ctx.service.delete(&first.id, &crate::purge_plan::purge_plan()).await.expect("cleanup");
     ctx.fixture.finish().await;
 }
 
@@ -535,7 +535,7 @@ async fn stats_and_breakdowns_reflect_active_user_population() {
     assert!(*breakdown.by_status.get("active").unwrap_or(&0) >= 1);
     assert!(*breakdown.by_role.get("user").unwrap_or(&0) >= 1);
 
-    ctx.service.delete(&user.id).await.expect("cleanup");
+    ctx.service.delete(&user.id, &crate::purge_plan::purge_plan()).await.expect("cleanup");
     ctx.fixture.finish().await;
 }
 
@@ -569,7 +569,7 @@ async fn create_if_absent_yields_the_row_once_and_none_to_every_later_caller() {
         .expect("the row a losing caller re-reads");
     assert_eq!(by_email.id, user.id);
 
-    ctx.service.delete(&user.id).await.expect("cleanup");
+    ctx.service.delete(&user.id, &crate::purge_plan::purge_plan()).await.expect("cleanup");
     ctx.fixture.finish().await;
 }
 
@@ -603,6 +603,6 @@ async fn concurrent_create_if_absent_on_one_identity_elects_a_single_winner() {
     }
 
     assert_eq!(inserted.len(), 1, "exactly one caller inserts the identity");
-    ctx.service.delete(&inserted[0].id).await.expect("cleanup");
+    ctx.service.delete(&inserted[0].id, &crate::purge_plan::purge_plan()).await.expect("cleanup");
     ctx.fixture.finish().await;
 }

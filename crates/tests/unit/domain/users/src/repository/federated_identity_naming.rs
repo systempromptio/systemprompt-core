@@ -25,7 +25,7 @@ async fn setup(prefix: &str) -> Ctx {
 }
 
 async fn cleanup(ctx: &Ctx, user_id: &UserId) {
-    let _ = ctx.repo.delete(user_id).await;
+    let _ = ctx.repo.delete(user_id, &crate::purge_plan::purge_plan()).await;
 }
 
 #[tokio::test]
