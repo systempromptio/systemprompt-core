@@ -110,7 +110,9 @@ pub use admitted::{Admitted, BuiltState, DeclaredCommands};
 pub use admitted_assets::AdmittedAssets;
 pub use admitted_configs::AdmittedConfigs;
 pub use admitted_migrations::AdmittedMigrations;
-pub use admitted_purge::AdmittedPurge;
+pub use admitted_purge::{
+    AdmittedPurge, OwnedPurge, PurgeAdmissionError, PurgeClaim, purge_declarations,
+};
 pub use admitted_schedule::AdmittedSchedule;
 pub use asset::{AssetDefinition, AssetDefinitionBuilder, AssetPaths, AssetType};
 pub use authz::{AuthzPolicy, HandlerVerifier};
@@ -160,7 +162,7 @@ pub use protection::{
     ContextKind, ProtectionLayer, RateBudget, RateLimit, RouteGroup, RouteProtection,
     SiteAuthConfig,
 };
-pub use purge::{OrphanSweep, UserPurgeTable};
+pub use purge::{OrphanSweep, PurgeDeclaration, PurgeFilter, PurgePredicate, UserPurgeTable};
 pub use retention::{
     EffectiveCutoff, RetentionDecl, RetentionHold, RetentionHoldError, RetentionHolds,
     RetentionTarget,
@@ -190,8 +192,8 @@ pub mod prelude {
     pub use crate::state::{StateHandle, StateRequirement};
     pub use crate::{
         AuthzPolicy, ContextKind, Extension, ExtensionMetadata, ExtensionRole, Migration,
-        MissingDependency, OrphanSweep, RateBudget, RateLimit, RouteProtection, SchemaDefinition,
-        SiteAuthConfig, UserPurgeTable, extension_migrations,
+        MissingDependency, OrphanSweep, PurgePredicate, RateBudget, RateLimit, RouteProtection,
+        SchemaDefinition, SiteAuthConfig, UserPurgeTable, extension_migrations,
     };
     pub use systemprompt_models::LateBound;
 

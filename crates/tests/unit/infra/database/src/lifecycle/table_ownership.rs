@@ -3,7 +3,9 @@ use std::sync::Arc;
 use systemprompt_database::{
     DbPool, MigrationConfig, SchemaInstallReport, SchemaMember, SchemaUnit, install_schema_members,
 };
-use systemprompt_extension::{ExtensionMetadata, LoaderError, Migration, SchemaDefinition};
+use systemprompt_extension::{
+    ExtensionMetadata, LoaderError, Migration, SchemaDefinition, StandingTag,
+};
 use systemprompt_test_fixtures::DisposableDb;
 
 const OWNERS_DDL: &str =
@@ -20,11 +22,13 @@ fn unit(
             name: id,
             version: "1.0.0",
         },
+        standing: StandingTag::Install,
         schemas,
         migrations,
         seeds: vec![],
         retirements: vec![],
         cross_tables: vec![],
+        purges: vec![],
     })
 }
 
