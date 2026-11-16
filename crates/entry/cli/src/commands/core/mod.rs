@@ -20,10 +20,11 @@ pub mod services;
 pub mod skills;
 
 use anyhow::Result;
+use crate::kernel::KernelHost;
 use clap::Subcommand;
 
 use systemprompt_extension::cli::{
-    CommandDescriptor, CommandHost, CommandOutput, DataImpact, DescribeCommand,
+    CommandDescriptor, CommandOutput, DataImpact, DescribeCommand,
 };
 
 #[derive(Debug, Subcommand)]
@@ -56,7 +57,7 @@ pub enum CoreCommands {
     Services(services::ServicesCommands),
 }
 
-pub async fn execute(cmd: CoreCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(cmd: CoreCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     if host.is_database_scoped() && !matches!(cmd, CoreCommands::Files(_)) {
         return Err(crate::shared::database_scoped_command_error(host));
     }

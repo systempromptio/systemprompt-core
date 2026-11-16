@@ -8,10 +8,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, anyhow};
+use crate::kernel::KernelHost;
 use clap::Args;
 use std::path::Path;
 
-use systemprompt_extension::cli::CommandHost;
 use crate::shared::CommandOutput;
 
 use super::types::{PluginValidateAllOutput, PluginValidateOutput};
@@ -26,7 +26,7 @@ pub struct ValidateArgs {
     pub id: Option<PluginId>,
 }
 
-pub(super) fn execute(args: ValidateArgs, host: &dyn CommandHost) -> Result<(CommandOutput, bool)> {
+pub(super) fn execute(args: ValidateArgs, host: &dyn KernelHost) -> Result<(CommandOutput, bool)> {
     let services_root = &host.services_root()?.path;
     let plugins_path = services_root.join("plugins");
     let skills_path = services_root.join("skills");

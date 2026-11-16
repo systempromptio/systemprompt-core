@@ -14,10 +14,10 @@ pub mod mcp;
 pub mod skills;
 
 use anyhow::{Context, Result, anyhow};
+use crate::kernel::KernelHost;
 use clap::Args;
 use std::path::{Path, PathBuf};
 
-use systemprompt_extension::cli::CommandHost;
 use crate::shared::CommandOutput;
 use systemprompt_identifiers::PluginId;
 use systemprompt_manifest::PluginConfigFile;
@@ -47,7 +47,7 @@ pub struct PluginGenerateContext<'a> {
     pub output_dir_override: Option<&'a str>,
 }
 
-pub(super) fn execute(args: &GenerateArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) fn execute(args: &GenerateArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let profile = host.profile()?;
     let services_path = host.services_root()?.path;
     let plugins_path = services_path.join("plugins");

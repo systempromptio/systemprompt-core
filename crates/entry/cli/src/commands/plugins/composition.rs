@@ -9,13 +9,14 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_extension::admitted::AdmittedMember;
+use crate::kernel::KernelHost;
 use systemprompt_extension::contribute::StandingTag;
 use systemprompt_extension::{Admitted, BuiltState};
-use systemprompt_extension::cli::{CommandError, CommandHost};
+use systemprompt_extension::cli::{CommandError};
 
 use super::types::{CapabilitySummary, ExtensionStanding};
 
-pub(super) fn built(host: &dyn CommandHost) -> Result<&BuiltState, CommandError> {
+pub(super) fn built(host: &dyn KernelHost) -> Result<&BuiltState, CommandError> {
     host.admitted().map(Admitted::built)
 }
 

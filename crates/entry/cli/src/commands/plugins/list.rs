@@ -5,7 +5,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use clap::Args;
-use systemprompt_extension::cli::{CommandError, CommandHost, CommandOutput};
+use crate::kernel::KernelHost;
+use systemprompt_extension::cli::{CommandError, CommandOutput};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_loader::ExtensionLoader;
 
@@ -26,7 +27,7 @@ pub struct ListArgs {
     pub r#type: String,
 }
 
-pub fn execute(args: &ListArgs, host: &dyn CommandHost) -> Result<CommandOutput, CommandError> {
+pub fn execute(args: &ListArgs, host: &dyn KernelHost) -> Result<CommandOutput, CommandError> {
     let mut extensions: Vec<ExtensionSummary> = Vec::new();
 
     if matches!(args.r#type.as_str(), "all" | "compiled") {

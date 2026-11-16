@@ -13,10 +13,11 @@ pub mod logs;
 pub mod services;
 
 use anyhow::Result;
+use crate::kernel::KernelHost;
 use clap::Subcommand;
 
 use systemprompt_extension::cli::{
-    CommandDescriptor, CommandHost, CommandOutput, DataImpact, DescribeCommand,
+    CommandDescriptor, CommandOutput, DataImpact, DescribeCommand,
 };
 
 #[derive(Debug, Subcommand)]
@@ -37,7 +38,7 @@ pub enum InfraCommands {
     Logs(logs::LogsCommands),
 }
 
-pub async fn execute(cmd: InfraCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(cmd: InfraCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     if host.is_database_scoped()
         && !matches!(
             cmd,

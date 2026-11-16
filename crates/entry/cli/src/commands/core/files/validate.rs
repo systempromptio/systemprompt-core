@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::PathBuf;
+use crate::kernel::KernelHost;
 
 use anyhow::{Result, anyhow};
 use clap::Args;
@@ -11,7 +12,6 @@ use systemprompt_files::FileValidator;
 
 use super::types::FileValidationOutput;
 use super::upload::detect_mime_type;
-use systemprompt_extension::cli::CommandHost;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
@@ -20,7 +20,7 @@ pub struct ValidateArgs {
     pub file_path: PathBuf,
 }
 
-pub(super) fn execute(args: &ValidateArgs, host: &dyn CommandHost) -> Result<(CommandOutput, bool)> {
+pub(super) fn execute(args: &ValidateArgs, host: &dyn KernelHost) -> Result<(CommandOutput, bool)> {
     let file_path = args
         .file_path
         .canonicalize()

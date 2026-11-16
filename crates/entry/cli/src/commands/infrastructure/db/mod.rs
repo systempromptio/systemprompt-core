@@ -27,12 +27,13 @@ pub mod text_format;
 mod types;
 
 use anyhow::{Context, Result, bail};
+use crate::kernel::KernelHost;
 use std::sync::Arc;
 use systemprompt_database::{DatabaseAdminService, DbPool, QueryExecutor, pool_from_handle};
 use systemprompt_runtime::DatabaseContext;
 
 use crate::cli_settings::CliConfig;
-use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_extension::cli::{CommandOutput};
 use crate::commands::shared::{app_context, rendered};
 use crate::interactive::require_confirmation;
 use dispatch::{dispatch_profile_migration, dispatch_standalone_migration};
@@ -49,12 +50,12 @@ pub use types::{
 
 pub(crate) use text_format::format_bytes;
 
-pub async fn execute(cmd: DbCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(cmd: DbCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     run(cmd, host).await?;
     Ok(rendered())
 }
 
-async fn run(cmd: DbCommands, host: &dyn CommandHost) -> Result<()> {
+async fn run(cmd: DbCommands, host: &dyn KernelHost) -> Result<()> {
     let config = host.output();
     let dispatched = if host.is_database_scoped() {
         let db_ctx = DatabaseContext::from_pool(pool_from_handle(host.db().await?)?);
@@ -130,7 +131,7 @@ async fn run(cmd: DbCommands, host: &dyn CommandHost) -> Result<()> {
 }
 
 async fn connect_services(
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<(DbPool, DatabaseAdminService, QueryExecutor)> {
     let pool = pool_from_handle(host.db().await?)
         .context("Failed to connect to database. Check your profile configuration.")?;

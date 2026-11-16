@@ -30,9 +30,10 @@ pub mod validate;
 pub mod versions;
 
 use anyhow::Result;
+use crate::kernel::KernelHost;
 use clap::Subcommand;
 
-use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_extension::cli::{CommandOutput};
 
 #[derive(Debug, Subcommand)]
 pub enum ServicesCommands {
@@ -61,7 +62,7 @@ pub enum ServicesCommands {
     Inspect(inspect::InspectArgs),
 }
 
-pub async fn execute(command: ServicesCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(command: ServicesCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
         ServicesCommands::Validate(args) => {
             let (output, ok) = validate::execute(&args)?;

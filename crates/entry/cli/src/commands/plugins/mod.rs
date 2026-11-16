@@ -23,9 +23,10 @@ pub mod show;
 pub mod mcp;
 
 use anyhow::{Context, Result};
+use crate::kernel::KernelHost;
 use clap::Subcommand;
 use systemprompt_extension::cli::{
-    CommandDescriptor, CommandHost, CommandOutput, DataImpact, DescribeCommand,
+    CommandDescriptor, CommandOutput, DataImpact, DescribeCommand,
 };
 
 use crate::commands::shared::rendered;
@@ -65,7 +66,7 @@ impl DescribeCommand for PluginsCommands {
     }
 }
 
-pub async fn execute(cmd: PluginsCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(cmd: PluginsCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match cmd {
         PluginsCommands::List(args) => Ok(list::execute(&args, host)?),
         PluginsCommands::Show(args) => show::execute(&args, host).context("Failed to show extension"),

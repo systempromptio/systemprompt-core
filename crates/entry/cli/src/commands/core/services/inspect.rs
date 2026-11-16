@@ -5,6 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::PathBuf;
+use crate::kernel::KernelHost;
 
 use anyhow::{Context, Result, bail};
 use clap::Args;
@@ -15,7 +16,6 @@ use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_manifest::services::bundle::SignedBundleManifest;
 use systemprompt_security::manifest_signing::{canonical_manifest_bytes, verify_with_pubkey};
 
-use systemprompt_extension::cli::CommandHost;
 use crate::shared::CommandOutput;
 use systemprompt_identifiers::ContentHash;
 
@@ -58,7 +58,7 @@ pub struct ActiveReport {
     pub detail: Option<String>,
 }
 
-pub fn execute(args: &InspectArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub fn execute(args: &InspectArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     if let Some(archive) = args.bundle.as_deref() {
         let signed = verify::read_manifest(archive)
             .with_context(|| format!("Failed to read {}", archive.display()))?;

@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result, anyhow};
+use crate::kernel::KernelHost;
 use std::sync::Arc;
 use systemprompt_database::{
     Database, MigrationConfig, MigrationService, SchemaInstallReport,
@@ -16,7 +17,6 @@ use systemprompt_manifest::Profile;
 use systemprompt_runtime::DatabaseContext;
 
 use crate::cli_settings::CliConfig;
-use systemprompt_extension::cli::CommandHost;
 use crate::shared::{CommandOutput, render_result};
 
 use super::types::DbMigrateOutput;
@@ -28,7 +28,7 @@ pub(super) struct MigrateOptions {
     pub(super) full: bool,
 }
 
-pub(super) async fn execute_migrate(host: &dyn CommandHost, options: MigrateOptions) -> Result<()> {
+pub(super) async fn execute_migrate(host: &dyn KernelHost, options: MigrateOptions) -> Result<()> {
     let config = host.output();
     let sys_config = host.config()?;
 

@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result, anyhow};
+use crate::kernel::KernelHost;
 use std::sync::Arc;
 use systemprompt_database::services::DatabaseProvider;
 use systemprompt_database::{Database, MigrationService};
@@ -13,13 +14,12 @@ use systemprompt_logging::CliService;
 use systemprompt_runtime::DatabaseContext;
 
 use crate::cli_settings::CliConfig;
-use systemprompt_extension::cli::CommandHost;
 use crate::shared::{CommandOutput, render_result};
 
 use super::types::DbMigrateDownOutput;
 
 pub(super) async fn execute_migrate_down(
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
     extension: &ExtensionId,
     count: u32,
 ) -> Result<()> {

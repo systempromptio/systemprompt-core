@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::PathBuf;
+use crate::kernel::KernelHost;
 
 use anyhow::{Context, Result, bail};
 use clap::Args;
@@ -12,7 +13,6 @@ use systemprompt_loader::bundle::source::push_bundle;
 use systemprompt_loader::bundle::verify;
 
 use super::signing::ENV_PREFIX;
-use systemprompt_extension::cli::CommandHost;
 use crate::shared::CommandOutput;
 
 const OCI_SCHEME: &str = "oci://";
@@ -40,7 +40,7 @@ pub struct PublishOutcome {
     pub version: String,
 }
 
-pub async fn execute(args: &PublishArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(args: &PublishArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let reference = args
         .to
         .strip_prefix(OCI_SCHEME)
@@ -70,7 +70,7 @@ pub async fn execute(args: &PublishArgs, host: &dyn CommandHost) -> Result<Comma
     Ok(CommandOutput::card_value("Bundle Published", &outcome))
 }
 
-fn resolve_credential(args: &PublishArgs, host: &dyn CommandHost) -> Result<Option<String>> {
+fn resolve_credential(args: &PublishArgs, host: &dyn KernelHost) -> Result<Option<String>> {
     if let Some(inline) = args.auth.as_deref() {
         let Some(var) = inline.strip_prefix(ENV_PREFIX) else {
             bail!("--auth must be given as env:VAR so the credential is never a shell argument");

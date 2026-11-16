@@ -5,6 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result, anyhow};
+use crate::kernel::KernelHost;
 use std::sync::Arc;
 use systemprompt_database::services::DatabaseProvider;
 use systemprompt_database::{Database, MigrationService};
@@ -14,7 +15,6 @@ use systemprompt_logging::CliService;
 use systemprompt_runtime::DatabaseContext;
 
 use crate::cli_settings::CliConfig;
-use systemprompt_extension::cli::CommandHost;
 use crate::shared::{CommandOutput, render_result};
 
 use super::admin_migrate::select_extensions;
@@ -28,7 +28,7 @@ pub(super) struct MarkAppliedArgs<'a> {
 }
 
 pub(super) async fn execute_migrate_mark_applied(
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
     args: MarkAppliedArgs<'_>,
 ) -> Result<()> {
     let config = host.output();

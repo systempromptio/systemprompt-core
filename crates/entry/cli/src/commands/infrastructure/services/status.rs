@@ -3,8 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_extension::cli::CommandHost;
 use crate::commands::shared::app_context;
+use crate::kernel::KernelHost;
 use crate::shared::CommandOutput;
 use anyhow::Result;
 use schemars::JsonSchema;
@@ -147,7 +147,7 @@ pub(super) async fn execute(
     detailed: bool,
     json: bool,
     health: bool,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let config = host.output();
     let ctx = app_context(host).await?;

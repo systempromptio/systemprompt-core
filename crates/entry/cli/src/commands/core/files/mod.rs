@@ -22,13 +22,14 @@ mod validate;
 pub mod ai;
 
 use anyhow::{Context, Result, bail};
+use crate::kernel::KernelHost;
 use clap::Subcommand;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_files::FilesConfig;
 
-use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_extension::cli::{CommandOutput};
 
-fn load_files_config(host: &dyn CommandHost) -> Result<FilesConfig> {
+fn load_files_config(host: &dyn KernelHost) -> Result<FilesConfig> {
     let profile = host.profile()?;
     let services_root = host.services_root()?;
     let paths = AppPaths::from_profile(
@@ -70,7 +71,7 @@ pub enum FilesCommands {
     Ai(ai::AiCommands),
 }
 
-pub async fn execute(cmd: FilesCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(cmd: FilesCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     if host.is_database_scoped()
         && matches!(
             cmd,

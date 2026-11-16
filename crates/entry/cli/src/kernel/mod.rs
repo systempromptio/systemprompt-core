@@ -35,6 +35,7 @@ pub use seams::{
 pub use crate::commands::shared::mcp_tools::McpToolEntry;
 pub use crate::commands::shared::{ValidationIssue, ValidationOutput, mcp_tools};
 pub use crate::context::CommandContext;
+pub use crate::host::KernelHost;
 pub use crate::define_pool_command;
 pub use crate::presentation::{StartupRenderer, tables};
 pub use crate::runner::interrupt::INTERRUPTED_EXIT_CODE;

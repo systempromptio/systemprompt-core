@@ -15,9 +15,10 @@ pub mod show;
 pub mod validate;
 
 use anyhow::{Context, Result, bail};
+use crate::kernel::KernelHost;
 use clap::Subcommand;
 
-use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_extension::cli::{CommandOutput};
 
 #[derive(Debug, Subcommand)]
 pub enum PluginsCommands {
@@ -34,7 +35,7 @@ pub enum PluginsCommands {
     Generate(generate::GenerateArgs),
 }
 
-pub fn execute(command: PluginsCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub fn execute(command: PluginsCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
         PluginsCommands::List(args) => {
             list::execute(args, host).context("Failed to list plugins")

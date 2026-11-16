@@ -16,10 +16,11 @@ pub mod types;
 pub mod validate;
 
 use anyhow::Result;
+use crate::kernel::KernelHost;
 use clap::Subcommand;
 
 use crate::commands::shared::rendered;
-use systemprompt_extension::cli::{CommandDescriptor, CommandHost, CommandOutput, DescribeCommand};
+use systemprompt_extension::cli::{CommandDescriptor, CommandOutput, DescribeCommand};
 
 #[derive(Debug, Subcommand)]
 pub enum WebCommands {
@@ -42,7 +43,7 @@ impl DescribeCommand for WebCommands {
     }
 }
 
-pub fn execute(command: WebCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub fn execute(command: WebCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     let config = host.output();
     match command {
         WebCommands::ContentTypes(cmd) => {

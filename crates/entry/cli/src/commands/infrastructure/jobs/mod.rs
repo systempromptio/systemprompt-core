@@ -21,10 +21,11 @@ mod run;
 mod show;
 
 use anyhow::Result;
+use crate::kernel::KernelHost;
 use clap::Subcommand;
 
 use systemprompt_extension::AdmittedSchedule;
-use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_extension::cli::{CommandOutput};
 
 #[derive(Debug, Subcommand)]
 pub enum JobsCommands {
@@ -64,7 +65,7 @@ pub enum JobsCommands {
     Prune(prune::PruneArgs),
 }
 
-pub async fn execute(cmd: JobsCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(cmd: JobsCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match cmd {
         JobsCommands::List => list::execute(host).await,
         JobsCommands::Show(args) => show::execute(args, host).await,
@@ -76,6 +77,6 @@ pub async fn execute(cmd: JobsCommands, host: &dyn CommandHost) -> Result<Comman
     }
 }
 
-async fn admitted_schedule(host: &dyn CommandHost) -> Result<AdmittedSchedule> {
+async fn admitted_schedule(host: &dyn KernelHost) -> Result<AdmittedSchedule> {
     Ok(host.resolved().await?.get::<AdmittedSchedule>()?)
 }
