@@ -9,7 +9,7 @@ use std::any::TypeId;
 use systemprompt_agent_runs::AgentRunRepository;
 use systemprompt_agent_runs_entry::extension::AgentRunsApiExtension;
 use systemprompt_extension::contribute::ContributionSink;
-use systemprompt_extension::router::{ApiBase, BasePath, BodyLimit};
+use systemprompt_extension::router::{ApiBase, BasePath, BaseRef, BodyLimit};
 use systemprompt_extension::{
     ContextKind, Contributions, Extension, RateBudget, RateLimit, RouteGroup,
 };
@@ -39,7 +39,7 @@ fn the_route_set_is_user_gated_and_rate_limited_at_agent_runs() {
     let sets = sink.routes();
     assert_eq!(sets.len(), 1);
     let set = &sets[0];
-    assert_eq!(set.base(), BasePath::Api(ApiBase::AgentRuns));
+    assert_eq!(set.base(), BaseRef::Path(BasePath::Api(ApiBase::AgentRuns)));
     assert_eq!(set.group(), RouteGroup::Agent);
     assert_eq!(set.defs().len(), 7);
     for def in set.defs() {
