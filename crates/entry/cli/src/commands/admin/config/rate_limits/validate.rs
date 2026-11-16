@@ -3,13 +3,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Result, bail};
+use anyhow::Result;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::profile::RateLimitsConfig;
 
 use crate::cli_settings::OutputFormat;
 use crate::shared::CommandOutput;
-use systemprompt_extension::cli::CommandHost;
+use systemprompt_extension::cli::{CommandError, CommandHost};
 
 use super::super::types::ValidateOutput;
 
@@ -42,8 +42,9 @@ pub(super) fn execute_validate(host: &dyn CommandHost) -> Result<CommandOutput> 
     }
 
     if !valid {
-        host.render(&result);
-        bail!("Rate-limit configuration has errors");
+        return Err(CommandError::new(anyhow::anyhow!("Rate-limit configuration has errors"))
+            .with_output(result)
+            .into());
     }
     Ok(result)
 }

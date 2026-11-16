@@ -8,7 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Result, bail};
+use anyhow::Result;
 use clap::Subcommand;
 use std::path::Path;
 use systemprompt_logging::CliService;
@@ -17,7 +17,7 @@ use systemprompt_manifest::Profile;
 use crate::cli_settings::OutputFormat;
 use crate::shared::CommandOutput;
 use super::types::{PathInfo, PathValidation, PathsConfigOutput, PathsValidateOutput};
-use systemprompt_extension::cli::CommandHost;
+use systemprompt_extension::cli::{CommandError, CommandHost};
 
 #[derive(Debug, Clone, Copy, Subcommand)]
 pub enum PathsCommands {
@@ -92,8 +92,9 @@ pub(super) fn execute_validate(host: &dyn CommandHost) -> Result<CommandOutput> 
     }
 
     if !valid {
-        host.render(&result);
-        bail!("Some required paths are missing");
+        return Err(CommandError::new(anyhow::anyhow!("Some required paths are missing"))
+            .with_output(result)
+            .into());
     }
     Ok(result)
 }

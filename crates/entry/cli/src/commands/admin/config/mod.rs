@@ -46,10 +46,10 @@ pub mod validate;
 mod validate_jobs;
 pub mod validate_services;
 
-use anyhow::{Result, bail};
+use anyhow::Result;
 use clap::Subcommand;
 
-use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_extension::cli::{CommandError, CommandHost, CommandOutput};
 use systemprompt_loader::ServicesState;
 use serde::Serialize;
 
@@ -163,8 +163,9 @@ pub async fn execute(command: ConfigCommands, host: &dyn CommandHost) -> Result<
             validate_services::prepare(&args, host).await?;
             let (result, valid) = validate::execute(&args, host).await?;
             if !valid {
-                host.render(&result);
-                bail!("Config validation failed");
+                return Err(CommandError::new(anyhow::anyhow!("Config validation failed"))
+                    .with_output(result)
+                    .into());
             }
             Ok(result)
         },
