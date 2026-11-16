@@ -33,6 +33,7 @@ mod cost_warning;
 pub(super) mod current;
 mod foreign_keys;
 pub(crate) mod lock;
+pub(crate) mod ownership;
 mod phase;
 mod retire;
 mod routine_prepass;
@@ -48,6 +49,7 @@ use tracing::{debug, info};
 use self::cost_warning::warn_unmeasured_migrations;
 use self::foreign_keys::apply_foreign_keys;
 use self::lock::BootstrapLockGuard;
+use self::ownership::{check_recorded_owners, record_owners, recorded_table_owners};
 use self::phase::execute_phase;
 use self::retire::{apply_retirements, check_retirements};
 use self::routine_prepass::apply_routine_prepass;
@@ -58,7 +60,7 @@ use super::prepare::{PreparedSchema, prepare_extension_schema};
 use super::report::SchemaInstallReport;
 use super::routine_refs::check_trigger_routines;
 use super::seeds::apply_seeds;
-use super::undeclared::audit_schema_residue;
+use super::undeclared::residue_including;
 use crate::lifecycle::migrations::{MigrationConfig, MigrationService};
 use crate::services::DatabaseProvider;
 
@@ -70,9 +72,14 @@ pub async fn install_admitted_schemas(
     db: &dyn DatabaseProvider,
     migration_config: MigrationConfig,
 ) -> Result<SchemaInstallReport, LoaderError> {
-    let schema_extensions = schema_members(built);
-    let members = schema_extensions.as_slice();
+    install_schema_members(&schema_members(built), db, migration_config).await
+}
 
+pub async fn install_schema_members(
+    schema_extensions: &ExtensionSet,
+    db: &dyn DatabaseProvider,
+    migration_config: MigrationConfig,
+) -> Result<SchemaInstallReport, LoaderError> {
     if schema_extensions.is_empty() {
         info!("No extension schemas to install");
         return Ok(SchemaInstallReport::default());
@@ -85,7 +92,7 @@ pub async fn install_admitted_schemas(
 
     let guard = BootstrapLockGuard::acquire(db).await?;
 
-    let result = match current::members_currency(db, members).await {
+    let result = match current::members_currency(db, schema_extensions).await {
         Ok(currency) => {
             let (held_back, active): (Vec<_>, Vec<_>) =
                 schema_extensions.iter().cloned().partition(|ext| {
@@ -181,6 +188,7 @@ async fn run_install(
         apply_seeds(ext.as_ref(), db).await?;
     }
 
+    record_owners(db, &prepared).await?;
     report.residue = residue_including(db, &prepared, held_back).await?;
 
     Ok(report)
@@ -196,6 +204,7 @@ async fn prepare_and_check(
         prepared.push(prepare_extension_schema(ext.as_ref())?);
     }
     validate_table_ownership(&prepared, schema_extensions)?;
+    check_recorded_owners(&recorded_table_owners(db).await?, &prepared)?;
     check_migration_references(schema_extensions)?;
     check_retirements(schema_extensions)?;
     warn_unmeasured_migrations(db, migration_service, schema_extensions).await;
@@ -275,21 +284,4 @@ async fn apply_dependent(
         report.foreign_key_drift.extend(drift);
     }
     Ok(report)
-}
-
-// Why: an ahead extension is held back from the install but still owns its
-// tables and ledger; leaving it out of the audit would report them as residue.
-async fn residue_including(
-    db: &dyn DatabaseProvider,
-    prepared: &[PreparedSchema],
-    held_back: &ExtensionSet,
-) -> Result<super::undeclared::SchemaResidue, LoaderError> {
-    let mut held: Vec<PreparedSchema> = Vec::with_capacity(held_back.len());
-    for ext in held_back {
-        held.push(prepare_extension_schema(ext.as_ref())?);
-    }
-    let all = || prepared.iter().chain(&held);
-    let owned: Vec<String> = all().flat_map(|p| p.owned_tables.clone()).collect();
-    let ids: Vec<ExtensionId> = all().map(|p| p.extension_id.clone()).collect();
-    audit_schema_residue(db, &owned, &ids).await
 }

@@ -9,6 +9,7 @@ use std::sync::Arc;
 
 use systemprompt_config::paths::AppPaths;
 use systemprompt_config::{GrantedSecrets, LoadedProfile};
+use systemprompt_files::documents::DocumentsHandlesSlot;
 use systemprompt_loader::{ConfigLoader, ServicesSourceBootstrap, ServicesState};
 use systemprompt_marketplace::managed::ManagedRepository;
 use systemprompt_mcp::repository::McpSessionRepository;
@@ -113,6 +114,7 @@ impl HostKernel {
         let system_owner = system_admin.id().clone();
 
         let store: Arc<dyn SecretStore> = Arc::<GrantedSecrets>::clone(&secrets);
+        let (documents_slot, documents_binder) = DocumentsHandlesSlot::unbound();
         let seed = crate::base_kernel_state(KernelSeed {
             database: &database,
             app_paths: &app_paths,
@@ -124,6 +126,7 @@ impl HostKernel {
             secrets: store,
             system_admin: &system_admin,
             event_router: &event_router,
+            documents: documents_slot,
             #[cfg(feature = "notifications")]
             escalation: systemprompt_notifications::service::EscalationDelivery::Consumer,
         });
@@ -183,6 +186,7 @@ impl HostKernel {
                 admitted: &admitted,
                 notifications: &notification_sink,
                 brain: &brain_sink,
+                binder: &documents_binder,
             },
             &r,
         )?;

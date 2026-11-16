@@ -59,6 +59,10 @@ pub(super) async fn install_unless_settled(
             .iter()
             .map(|ext| super::prepare_extension_schema(ext.as_ref()))
             .collect::<Result<Vec<_>, _>>()?;
+        super::ownership::check_recorded_owners(
+            &super::ownership::recorded_table_owners(db).await?,
+            &prepared,
+        )?;
         if is_settled(db, &prepared, &fingerprint).await? {
             info!("Schema is settled at this release; applying no DDL");
             return run_settled(db, active, held_back, &prepared).await;
@@ -89,6 +93,7 @@ async fn run_settled(
     for ext in active {
         super::apply_seeds(ext.as_ref(), db).await?;
     }
+    super::ownership::record_owners(db, prepared).await?;
     Ok(SchemaInstallReport {
         residue: super::residue_including(db, prepared, held_back).await?,
         ..SchemaInstallReport::default()
@@ -99,9 +104,7 @@ fn stamp(fingerprint: &str, catalog: &str) -> String {
     format!("{fingerprint}:{catalog}")
 }
 
-pub(super) fn fingerprint(
-    extensions: &[std::sync::Arc<dyn SchemaMember>],
-) -> String {
+pub(super) fn fingerprint(extensions: &[std::sync::Arc<dyn SchemaMember>]) -> String {
     let mut hasher = Xxh64::new(0);
     let mut field = |bytes: &[u8]| {
         hasher.write(bytes);

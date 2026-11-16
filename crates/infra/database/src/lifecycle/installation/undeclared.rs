@@ -8,7 +8,10 @@
 //! in `infra db doctor`: a live base table in a namespace the extensions
 //! declare into that no extension's `CREATE TABLE` names, and a ledger whose
 //! extension id no registered extension carries. It reads; the fix is a
-//! migration.
+//! migration. A table or ledger that the ownership records
+//! (`schema_table_owners`) give to a member outside the extension
+//! ids passed in is a member not in this composition (disabled by the
+//! profile): it is reported apart and is never residue to drop.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -19,6 +22,9 @@ use serde::Serialize;
 use systemprompt_extension::LoaderError;
 use systemprompt_identifiers::ExtensionId;
 
+use super::extension::ownership::recorded_table_owners;
+use super::prepare::{PreparedSchema, prepare_extension_schema};
+use crate::lifecycle::schema_member::SchemaMember;
 use crate::services::DatabaseProvider;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -34,10 +40,26 @@ pub struct OrphanMigrationLedger {
     pub rows: i64,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct AbsentMemberTable {
+    pub owner: ExtensionId,
+    pub schema: String,
+    pub table: String,
+    pub live_rows: i64,
+}
+
+/// What the live schema holds beyond the passed members' declarations.
+///
+/// `undeclared_tables` and `orphan_migration_ledgers` are residue a drop
+/// migration removes; `absent_member_tables` and `absent_member_ledgers`
+/// belong to a recorded member outside this composition and are kept.
+/// [`Self::is_empty`] judges the residue only.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 pub struct SchemaResidue {
     pub undeclared_tables: Vec<UndeclaredTable>,
     pub orphan_migration_ledgers: Vec<OrphanMigrationLedger>,
+    pub absent_member_tables: Vec<AbsentMemberTable>,
+    pub absent_member_ledgers: Vec<OrphanMigrationLedger>,
 }
 
 impl SchemaResidue {
@@ -57,23 +79,39 @@ pub async fn audit_schema_residue(
         .iter()
         .filter_map(|t| t.split_once('.').map(|(schema, _)| schema.to_owned()))
         .collect();
+    let registered: BTreeSet<&ExtensionId> = extension_ids.iter().collect();
+    let owners = recorded_table_owners(db).await?;
     let mut residue = SchemaResidue::default();
     for (schema, table, live_rows) in live_tables(db).await? {
         let qualified = format!("{schema}.{table}");
-        if namespaces.contains(&schema) && !declared.contains(&qualified) {
-            residue.undeclared_tables.push(UndeclaredTable {
+        if !namespaces.contains(&schema) || declared.contains(&qualified) {
+            continue;
+        }
+        match owners.owner_of(&qualified) {
+            Some(owner) if !registered.contains(owner) => {
+                residue.absent_member_tables.push(AbsentMemberTable {
+                    owner: owner.clone(),
+                    schema,
+                    table,
+                    live_rows,
+                });
+            },
+            _ => residue.undeclared_tables.push(UndeclaredTable {
                 schema,
                 table,
                 live_rows,
-            });
+            }),
         }
     }
-    let registered: BTreeSet<&ExtensionId> = extension_ids.iter().collect();
     for (extension_id, rows) in migration_ledgers(db).await? {
-        if !registered.contains(&extension_id) {
-            residue
-                .orphan_migration_ledgers
-                .push(OrphanMigrationLedger { extension_id, rows });
+        if registered.contains(&extension_id) {
+            continue;
+        }
+        let ledger = OrphanMigrationLedger { extension_id, rows };
+        if owners.is_owner(&ledger.extension_id) {
+            residue.absent_member_ledgers.push(ledger);
+        } else {
+            residue.orphan_migration_ledgers.push(ledger);
         }
     }
     Ok(residue)
@@ -89,7 +127,7 @@ fn as_count(value: &serde_json::Value) -> i64 {
         .unwrap_or(0)
 }
 
-fn qualify(table: &str) -> String {
+pub(super) fn qualify(table: &str) -> String {
     if table.contains('.') {
         table.to_owned()
     } else {
@@ -131,6 +169,23 @@ async fn live_tables(db: &dyn DatabaseProvider) -> Result<Vec<(String, String, i
             (!LEDGER_TABLES.contains(&table.as_str())).then_some((schema, table, live_rows))
         })
         .collect())
+}
+
+// Why: an ahead extension is held back from the install but still owns its
+// tables and ledger; leaving it out of the audit would report them as residue.
+pub(super) async fn residue_including(
+    db: &dyn DatabaseProvider,
+    prepared: &[PreparedSchema],
+    held_back: &[std::sync::Arc<dyn SchemaMember>],
+) -> Result<SchemaResidue, LoaderError> {
+    let mut held: Vec<PreparedSchema> = Vec::with_capacity(held_back.len());
+    for ext in held_back {
+        held.push(prepare_extension_schema(ext.as_ref())?);
+    }
+    let all = || prepared.iter().chain(&held);
+    let owned: Vec<String> = all().flat_map(|p| p.owned_tables.clone()).collect();
+    let ids: Vec<ExtensionId> = all().map(|p| p.extension_id.clone()).collect();
+    audit_schema_residue(db, &owned, &ids).await
 }
 
 async fn migration_ledgers(

@@ -9,8 +9,9 @@
 //! so every member's provide fn, slot and governance surface reads the
 //! database, config, event router and the other kernel seeds; the authz hook,
 //! publication policy, policy engine and document store are built from what
-//! it resolved. The document store binds the files member's
-//! `DocumentsHandlesSlot` once it exists, so the document seams other
+//! it resolved. The host seeds the read half of the document store cell
+//! (`DocumentsHandlesSlot`) and binds it, through the binder it kept out of
+//! the state, once the store exists, so the document seams other
 //! members' slots appended read it from then on. A failing step propagates
 //! as [`RuntimeError`](crate::error::RuntimeError); helpers live in
 //! [`assembly`].
@@ -43,6 +44,7 @@ use std::sync::Arc;
 use systemprompt_database::MigrationConfig;
 use systemprompt_events::EventRouter;
 use systemprompt_extension::Admitted;
+use systemprompt_files::documents::DocumentsHandlesSlot;
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_governance::contract::AuthzHooks;
 use systemprompt_governance::policy::PolicyCatalog;
@@ -154,6 +156,7 @@ impl AppContextBuilder {
 
         let secrets: Arc<dyn SecretStore> =
             Arc::<systemprompt_config::SecretsService>::clone(self.boot.secrets());
+        let (documents_slot, documents_binder) = DocumentsHandlesSlot::unbound();
         let seed = kernel_state(ApiKernelSeed {
             base: KernelSeed {
                 database: &database,
@@ -166,6 +169,7 @@ impl AppContextBuilder {
                 secrets,
                 system_admin: &system_admin,
                 event_router: &router,
+                documents: documents_slot,
                 #[cfg(feature = "notifications")]
                 escalation: systemprompt_notifications::service::EscalationDelivery::InProcess,
             },
@@ -231,6 +235,7 @@ impl AppContextBuilder {
                 admitted: &self.admitted,
                 notifications: &notification_sink,
                 brain: &brain_sink,
+                binder: &documents_binder,
             },
             &r,
         )?;

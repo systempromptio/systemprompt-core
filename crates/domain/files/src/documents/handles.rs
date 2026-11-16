@@ -2,9 +2,15 @@
 //!
 //! The document store is built from slot outputs of the same resolve the
 //! files member provides into, so the member cannot read the store while it
-//! provides. It provides an unbound [`DocumentsHandlesSlot`] instead, and its
-//! core seams hold the slot and read it when they are called; the host binds
-//! it once, after it has built the store from the resolved state. A call
+//! provides. The host creates the cell instead, with
+//! [`DocumentsHandlesSlot::unbound`]: it seeds the read half,
+//! [`DocumentsHandlesSlot`], into its kernel state before any member
+//! provides, and keeps the bind half, [`DocumentsHandlesBinder`], outside the
+//! state. The files member's core seams hold the read half and read it when
+//! they are called; the host binds the cell once, after it has built the store
+//! from the resolved state. No member can bind it: the binder is never in the
+//! state, a binder from another `unbound` call binds only its own cell, and a
+//! member cannot provide the slot type the kernel already holds. A call
 //! before the host binds the slot fails with [`DocumentsUnbound`], never with
 //! a default verdict.
 //!
@@ -21,10 +27,10 @@ use systemprompt_extension::{
     NotificationAudienceResolver, ResourceVisibility, Visibility, VisibilityError,
 };
 use systemprompt_identifiers::UserId;
-use systemprompt_models::LateBound;
 use systemprompt_models::auth::RequestActor;
 use systemprompt_models::brain::{DOCUMENT_SUBJECT_KIND, FactSource, SourceText};
 use systemprompt_models::notifications::SubjectRef;
+use systemprompt_models::{AlreadyBound, LateBound};
 
 use super::repository::DocumentRepositories;
 use super::{
@@ -50,8 +56,48 @@ impl std::fmt::Debug for DocumentsHandles {
     }
 }
 
-/// The bind-once cell the files member provides and the host binds.
-pub type DocumentsHandlesSlot = LateBound<DocumentsHandles>;
+/// The read half of the document store cell the host seeds; see the module
+/// docs.
+#[derive(Clone)]
+pub struct DocumentsHandlesSlot(LateBound<DocumentsHandles>);
+
+/// The bind half of the document store cell, held by the host alone.
+pub struct DocumentsHandlesBinder(LateBound<DocumentsHandles>);
+
+impl DocumentsHandlesSlot {
+    #[must_use]
+    pub fn unbound() -> (Self, DocumentsHandlesBinder) {
+        let cell = LateBound::default();
+        (Self(cell.clone()), DocumentsHandlesBinder(cell))
+    }
+
+    #[must_use]
+    pub fn get(&self) -> Option<&Arc<DocumentsHandles>> {
+        self.0.get()
+    }
+}
+
+impl DocumentsHandlesBinder {
+    pub fn bind(&self, handles: Arc<DocumentsHandles>) -> Result<(), AlreadyBound> {
+        self.0.bind(handles)
+    }
+}
+
+impl std::fmt::Debug for DocumentsHandlesSlot {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DocumentsHandlesSlot")
+            .field("bound", &self.0.is_bound())
+            .finish()
+    }
+}
+
+impl std::fmt::Debug for DocumentsHandlesBinder {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DocumentsHandlesBinder")
+            .field("bound", &self.0.is_bound())
+            .finish()
+    }
+}
 
 /// The host has not bound the document store yet.
 #[derive(Debug, Clone, Copy, thiserror::Error)]

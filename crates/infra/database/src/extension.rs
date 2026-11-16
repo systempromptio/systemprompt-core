@@ -108,6 +108,11 @@ fn install_ledger_schemas() -> Vec<SchemaDefinition> {
         )
         .with_required_columns(vec!["relation".into(), "declared".into()]),
         SchemaDefinition::new(
+            "schema_table_owners",
+            include_str!("../schema/schema_table_owners.sql"),
+        )
+        .with_required_columns(vec!["table_name".into(), "extension_id".into()]),
+        SchemaDefinition::new(
             "extension_migration_compat",
             include_str!("../schema/extension_migration_compat.sql"),
         ),
