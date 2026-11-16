@@ -9,11 +9,11 @@ use anyhow::Result;
 use systemprompt_extension::{
     ExtensionContext, HasAnalytics, HasFingerprint, HasRouteClassifier, HasUserService,
 };
-use systemprompt_test_fixtures::{fixture_admitted, test_app_context, test_database_url};
+use systemprompt_test_fixtures::{fixture_admitted, test_database_url};
 use systemprompt_traits::AppContext as AppContextTrait;
 
 async fn build_ctx() -> std::sync::Arc<systemprompt_runtime::AppContext> {
-    test_app_context(&test_database_url()).await
+    crate::admin_app(&test_database_url()).await
 }
 
 #[tokio::test]

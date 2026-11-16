@@ -25,6 +25,9 @@ async fn runtime_inventory_retains_last_good_membership_across_scan_failure_and_
     seed_user_row(&pool, &owner, &format!("{owner}@inventory.invalid"))
         .await
         .unwrap();
+    systemprompt_test_fixtures::seed_fixture_system_admin(&pool)
+        .await
+        .expect("seed the system admin");
     let ctx = test_app_context_on(&boot).await;
     skill(&boot.services_path, "# generation one\n");
 

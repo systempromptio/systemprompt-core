@@ -14,14 +14,14 @@ use systemprompt_identifiers::{InstanceId, LeaseKey};
 use systemprompt_models::RouteType;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, test_app_context, test_database_url,
+    ensure_test_bootstrap, test_database_url,
 };
 use systemprompt_traits::AppContext as AppContextTrait;
 
 async fn context() -> (Arc<AppContext>, String) {
     ensure_test_bootstrap();
     let url = test_database_url();
-    (test_app_context(&url).await, url)
+    (crate::boot::admin_app(&url).await, url)
 }
 
 #[tokio::test]
