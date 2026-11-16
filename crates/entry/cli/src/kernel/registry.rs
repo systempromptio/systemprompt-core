@@ -5,7 +5,11 @@
 //! entry that claims a [`RESERVED_CLI_PATHS`] path, or requests a
 //! [`KernelGrant`], is re-checked here whatever handed it over: the path's
 //! listed [`CoreId`] must own it, every requested grant must be listed for
-//! that path, and no owner may hold reserved paths under two core ids. A
+//! that path, and no owner may hold reserved paths under two core ids. The
+//! owner is bound to its type as well as its id: a member entry holds a
+//! reserved path only when the Rust type the composition stamped on it is
+//! the core owner's type ([`core_owner_type`]), so a handoff naming a core
+//! id under another type is refused. A
 //! command attaches under a kernel group or under another entry, and never
 //! shadows an existing subcommand.
 //!
@@ -30,12 +34,19 @@ pub enum CommandOwner {
     Member(ExtensionId),
 }
 
-impl CommandOwner {
-    fn holds(&self, core: CoreId) -> bool {
-        match self {
-            Self::Kernel => core == CoreId::Kernel,
-            Self::Member(id) => core != CoreId::Kernel && id.as_str() == core.id(),
-        }
+#[must_use]
+pub const fn core_owner_type(core: CoreId) -> Option<&'static str> {
+    match core {
+        CoreId::AnalyticsHttp => {
+            Some("systemprompt_analytics_entry::extension::AnalyticsHttpExtension")
+        },
+        CoreId::Cloud => Some("systemprompt_cloud_entry::extension::CloudCliExtension"),
+        CoreId::ContentHttp
+        | CoreId::NotificationsHttp
+        | CoreId::AgentRunsApi
+        | CoreId::Slack
+        | CoreId::Teams
+        | CoreId::Kernel => None,
     }
 }
 
@@ -51,6 +62,7 @@ impl std::fmt::Display for CommandOwner {
 #[derive(Debug, Clone)]
 pub struct RegistryEntry {
     owner: CommandOwner,
+    owner_type: Option<&'static str>,
     decl: CommandDecl,
 }
 
@@ -63,6 +75,17 @@ impl RegistryEntry {
     #[must_use]
     pub const fn decl(&self) -> &CommandDecl {
         &self.decl
+    }
+
+    fn holds(&self, core: CoreId) -> bool {
+        match &self.owner {
+            CommandOwner::Kernel => core == CoreId::Kernel,
+            CommandOwner::Member(id) => {
+                core != CoreId::Kernel
+                    && id.as_str() == core.id()
+                    && core_owner_type(core).is_some_and(|owner| self.owner_type == Some(owner))
+            },
+        }
     }
 
     fn path_text(&self) -> String {
@@ -106,11 +129,13 @@ impl CommandRegistry {
             .iter()
             .map(|decl| RegistryEntry {
                 owner: CommandOwner::Kernel,
+                owner_type: None,
                 decl: *decl,
             })
             .collect();
         entries.extend(declared.commands().iter().map(|command| RegistryEntry {
             owner: CommandOwner::Member(command.owner.clone()),
+            owner_type: Some(command.owner_type),
             decl: command.decl,
         }));
         refuse_duplicates(&entries)?;
@@ -197,7 +222,7 @@ fn recheck_reserved(entries: &[RegistryEntry]) -> Result<(), RegistryError> {
             .iter()
             .find(|reserved| reserved.path == path.as_slice());
         if let Some(reserved) = reserved {
-            if !entry.owner.holds(reserved.owner) {
+            if !entry.holds(reserved.owner) {
                 return Err(RegistryError::ReservedPath {
                     path: entry.path_text(),
                     claimant: entry.owner.clone(),
