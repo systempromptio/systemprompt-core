@@ -35,7 +35,7 @@ use crate::retention::RetentionDecl;
 use crate::seed::Seed;
 use crate::state::StateRequirement;
 
-pub type AssetFn = Box<dyn Fn(&dyn AssetPaths) -> Vec<AssetDefinition> + Send + Sync>;
+pub type AssetFn = Arc<dyn Fn(&dyn AssetPaths) -> Vec<AssetDefinition> + Send + Sync>;
 pub type RunnerServiceFactory = Box<dyn Factory<Arc<dyn RunnerService>>>;
 pub type ReadinessFactory = Box<dyn Factory<Arc<dyn ReadinessCheck>>>;
 pub type DiagnosticFactory = Box<dyn Factory<Arc<dyn DiagnosticProbe>>>;

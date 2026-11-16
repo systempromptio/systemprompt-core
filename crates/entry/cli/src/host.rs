@@ -11,7 +11,9 @@ use systemprompt_extension::cli::{
     BoxFuture, ChildSupervisor, CliConfig, CommandError, CommandHost, CommandOutput,
     DescribedCommand, KernelGrant, Prompter,
 };
-use systemprompt_extension::{Admitted, AdmittedSchedule, Resolved};
+use systemprompt_extension::{
+    Admitted, AdmittedAssets, AdmittedConfigs, AdmittedMigrations, AdmittedSchedule, Resolved,
+};
 use systemprompt_traits::{AppContext as _, BackgroundTasks, Dependencies};
 use systemprompt_config::SecretsSources;
 use systemprompt_loader::BootContext;
@@ -80,6 +82,9 @@ impl CommandContext {
         let mut seed = self.command_seed(Dependencies::new());
         if let Some(admitted) = &self.admitted {
             seed.insert(AdmittedSchedule::of(admitted.built()));
+            seed.insert(AdmittedMigrations::of(admitted.built()));
+            seed.insert(AdmittedConfigs::of(admitted.built()));
+            seed.insert(AdmittedAssets::of(admitted.built()));
         }
         let kernel = Kernel::detached(BackgroundTasks::new(), seed);
         self.with_kernel(Arc::new(kernel))

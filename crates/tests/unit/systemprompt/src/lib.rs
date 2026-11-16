@@ -7,6 +7,8 @@
 //! slots, and the MCP, MCP-host and agent-runs slots and routes.
 
 #[cfg(test)]
+mod admitted_views;
+#[cfg(test)]
 mod analytics_http;
 #[cfg(test)]
 mod capability_slots;
