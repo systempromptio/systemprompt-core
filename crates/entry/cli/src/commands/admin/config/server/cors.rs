@@ -9,7 +9,7 @@ use crate::commands::admin::config::restart_note;
 use clap::{Args, Subcommand};
 
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use super::super::profile_io::profile_path;
 use super::super::types::{CorsListOutput, CorsModifyOutput};
 use super::{load_profile, save_profile};

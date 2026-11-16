@@ -6,9 +6,10 @@
 #![cfg(feature = "api")]
 
 use systemprompt_extension::admitted::{AdmittedGatewayRoute, AdmittedRouteSet};
+use systemprompt_extension::reserved::CoreId;
 use systemprompt_extension::router::{
-    Allowance, ApiBase, BasePath, BaseRef, RouteSet, WebBase, first_overlap, full_path, path_covers,
-    reserved_prefix_of,
+    Allowance, ApiBase, BasePath, BaseRef, RouteSet, WebBase, first_overlap, path_covers,
+    refused_reservation,
 };
 use systemprompt_extension::{ContributionError, StandingTag};
 
@@ -31,6 +32,7 @@ pub(super) fn admit_route_set(
     admit_services(member, path, &set, conferrals.is_empty())?;
     if conferrals.is_empty() {
         admit_unconferred(member, path, &set)?;
+        admit_reserved(member, &set)?;
         return Ok(AdmittedRouteSet {
             owner: member.id.clone(),
             standing: member.standing.tag(),
@@ -86,6 +88,7 @@ pub(super) fn admit_route_set(
             handles.push(handle);
         }
     }
+    admit_reserved(member, &set)?;
     Ok(AdmittedRouteSet {
         owner: member.id.clone(),
         standing: member.standing.tag(),
@@ -101,13 +104,6 @@ fn admit_services(
     unconferred: bool,
 ) -> Result<(), CompositionError> {
     for def in set.defs().iter().filter(|def| def.is_service()) {
-        let path = full_path(BaseRef::Path(base), def.path.as_str());
-        if let Some(prefix) = reserved_prefix_of(&path) {
-            return Err(CompositionError::ReservedPrefix {
-                owner: member.id.clone(),
-                prefix,
-            });
-        }
         let open_base = matches!(
             base,
             BasePath::Api(ApiBase::Extension(_)) | BasePath::Web(WebBase::Root)
@@ -116,6 +112,22 @@ fn admit_services(
             return Err(CompositionError::ServiceNotAdmitted {
                 owner: member.id.clone(),
                 base,
+            });
+        }
+    }
+    Ok(())
+}
+
+fn admit_reserved(member: &DeclaredMember, set: &RouteSet) -> Result<(), CompositionError> {
+    let holder = match member.standing.tag() {
+        StandingTag::Core => CoreId::for_id(member.id.as_str()),
+        StandingTag::Install => None,
+    };
+    for def in set.defs() {
+        if let Some(reserved) = refused_reservation(set.base(), def, holder) {
+            return Err(CompositionError::ReservedPrefix {
+                owner: member.id.clone(),
+                prefix: reserved.path,
             });
         }
     }
@@ -142,6 +154,9 @@ fn admit_unconferred(
         base,
         allowance,
     };
+    if base == BasePath::Web(WebBase::TrackEngagement) {
+        return Err(refuse(Allowance::WebPath));
+    }
     if let Some(prefix) = base.reserved_prefix() {
         return Err(CompositionError::ReservedPrefix {
             owner: member.id.clone(),
@@ -149,8 +164,7 @@ fn admit_unconferred(
         });
     }
     match base {
-        BasePath::Web(WebBase::TrackEngagement) => return Err(refuse(Allowance::WebPath)),
-        BasePath::Api(ApiBase::Extension(_)) | BasePath::Web(WebBase::Root) => {},
+        BasePath::Api(ApiBase::Extension(_)) | BasePath::Web(_) => {},
         BasePath::Api(_) => return Err(refuse(Allowance::Plain)),
     }
     for def in set.defs() {

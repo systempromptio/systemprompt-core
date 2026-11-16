@@ -26,7 +26,7 @@ use systemprompt_logging::CliService;
 use systemprompt_marketplace::managed::{GitCredentialSource, ManagedRepository};
 use systemprompt_runtime::managed::git_sources::git_credential_key;
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct MigrateGitCredentialsArgs {

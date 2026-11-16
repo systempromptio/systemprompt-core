@@ -17,7 +17,7 @@ use systemprompt_logging::{CliService, LogEntry, LogLevel};
 use systemprompt_runtime::{TraceQueryService, TraceRepository};
 
 use super::shared::print_level_line;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {

@@ -19,6 +19,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod archive;
+
+pub use archive::PurgedArchive;
 mod bulk;
 mod merge;
 mod provider;
@@ -31,7 +33,7 @@ use systemprompt_traits::DynOwnerReassignment;
 
 use crate::error::Result;
 use crate::models::{User, UserActivity, UserRole, UserSession, UserStatus, UserWithSessions};
-use crate::repository::{PurgeCount, UpdateUserParams, UserRepository};
+use crate::repository::{PurgeOutcome, UpdateUserParams, UserRepository};
 
 #[derive(Clone)]
 pub struct UserService {
@@ -248,7 +250,7 @@ impl UserService {
         self.repository.assign_roles(id, roles).await
     }
 
-    pub async fn delete(&self, id: &UserId, plan: &AdmittedPurge) -> Result<Vec<PurgeCount>> {
+    pub async fn delete(&self, id: &UserId, plan: &AdmittedPurge) -> Result<PurgeOutcome> {
         self.repository.delete(id, plan).await
     }
 
@@ -256,7 +258,7 @@ impl UserService {
         &self,
         id: &UserId,
         plan: &AdmittedPurge,
-    ) -> Result<Vec<PurgeCount>> {
+    ) -> Result<PurgeOutcome> {
         self.repository.purge_preview(id, plan).await
     }
 

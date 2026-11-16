@@ -15,12 +15,12 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::Cli;
-use crate::cli_settings::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
-use crate::descriptor::CommandDescriptor;
+use systemprompt_extension::cli::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
+use systemprompt_extension::cli::CommandDescriptor;
 use crate::env_overrides::EnvOverrides;
 
 pub fn build_cli_config(cli: &Cli, env: &EnvOverrides) -> CliConfig {
-    let mut cfg = CliConfig::resolve(env);
+    let mut cfg = env.cli_config();
 
     if cli.verbosity.debug {
         cfg = cfg.with_verbosity(VerbosityLevel::Debug);

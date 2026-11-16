@@ -55,7 +55,7 @@ use systemprompt_loader::ServicesState;
 use systemprompt_models::artifacts::NoticeLine;
 use serde::Serialize;
 
-use crate::descriptor::{CommandDescriptor, DescribeCommand};
+use systemprompt_extension::cli::{CommandDescriptor, DescribeCommand};
 
 #[derive(Debug, Subcommand)]
 pub enum ConfigCommands {

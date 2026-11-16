@@ -10,7 +10,7 @@ use clap::Args;
 use std::sync::Arc;
 use systemprompt_users::{DeviceCertService, EnrollDeviceCertServiceParams, UserRepository};
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use super::types::DeviceCertEnrolledOutput;
 
 #[derive(Debug, Args)]

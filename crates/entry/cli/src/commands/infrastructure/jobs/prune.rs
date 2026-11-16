@@ -21,8 +21,8 @@ use systemprompt_scheduler::{JobPruneService, JobRepository, ScheduledJob};
 use super::admitted_schedule;
 use super::types::PrunedJob;
 use systemprompt_database::pool_from_handle;
-use crate::interactive::require_confirmation;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::require_confirmation;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct PruneArgs {

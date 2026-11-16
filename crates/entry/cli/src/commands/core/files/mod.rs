@@ -27,7 +27,7 @@ use clap::Subcommand;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_files::FilesConfig;
 
-use systemprompt_extension::cli::{CommandOutput};
+use systemprompt_extension::cli::CommandOutput;
 
 fn load_files_config(host: &dyn KernelHost) -> Result<FilesConfig> {
     let profile = host.profile()?;

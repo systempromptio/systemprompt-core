@@ -12,9 +12,9 @@ use systemprompt_identifiers::UserId;
 
 use super::types::FileListOutput;
 use systemprompt_extension::cli::FileSummary;
-use crate::CliConfig;
+use systemprompt_extension::cli::CliConfig;
 use systemprompt_database::pool_from_handle;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
 pub struct ListArgs {

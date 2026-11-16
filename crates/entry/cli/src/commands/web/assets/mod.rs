@@ -25,13 +25,18 @@ pub enum AssetsCommands {
     Show(show::ShowArgs),
 }
 
-pub fn execute(command: AssetsCommands, config: &CliConfig, services_root: &Path) -> Result<CommandOutput> {
+pub fn execute(
+    command: AssetsCommands,
+    config: &CliConfig,
+    services_root: &Path,
+    profile: &systemprompt_manifest::Profile,
+) -> Result<CommandOutput> {
     match command {
         AssetsCommands::List(args) => {
             list::execute(args, config, services_root).context("Failed to list assets")
         },
         AssetsCommands::Show(args) => {
-            show::execute(&args, config, services_root).context("Failed to show asset")
+            show::execute(&args, config, services_root, profile).context("Failed to show asset")
         },
     }
 }

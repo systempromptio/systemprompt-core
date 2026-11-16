@@ -7,7 +7,7 @@ use crate::kernel::KernelHost;
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use super::types::{AgentDetailOutput, AgentListOutput, AgentSummary};
 
 #[derive(Debug, Clone, Args)]

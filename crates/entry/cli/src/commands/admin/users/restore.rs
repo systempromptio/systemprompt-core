@@ -14,7 +14,7 @@ use clap::Args;
 use std::sync::Arc;
 use systemprompt_users::{User, UserRepository, UserService};
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use super::types::UserDeletedOutput;
 
 #[derive(Debug, Args)]

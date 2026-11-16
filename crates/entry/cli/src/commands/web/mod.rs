@@ -52,7 +52,9 @@ pub fn execute(command: WebCommands, host: &dyn KernelHost) -> Result<CommandOut
         WebCommands::Templates(cmd) => {
             templates::execute(cmd, host.prompter(), config, &host.services_root()?.path)
         },
-        WebCommands::Assets(cmd) => assets::execute(cmd, config, &host.services_root()?.path),
+        WebCommands::Assets(cmd) => {
+            assets::execute(cmd, config, &host.services_root()?.path, host.profile()?)
+        },
         WebCommands::Validate(args) => {
             let output =
                 validate::execute(&args, config, &host.services_root()?.path, host.profile()?)?;

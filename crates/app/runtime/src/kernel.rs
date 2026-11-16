@@ -67,6 +67,8 @@ pub enum KernelError {
     },
     #[error("slot build failed")]
     Slot(#[from] SlotError),
+    #[error("user purge declarations refused")]
+    Purge(#[from] systemprompt_extension::PurgeAdmissionError),
     #[error("{owner} declares reserved subject dimension {dimension}")]
     ReservedDimension {
         owner: ExtensionId,
@@ -161,7 +163,7 @@ impl Kernel {
     pub fn resolve(&mut self, admitted: &Admitted) -> Result<(), KernelError> {
         self.state.insert(AdmittedProjections::of(admitted.built()));
         self.state.insert(AdmittedRunOrigins::of(admitted.built()));
-        self.state.insert(AdmittedPurge::of(admitted.built()));
+        self.state.insert(AdmittedPurge::of(admitted.built())?);
         self.state.insert(AdmittedSchedule::of(admitted.built()));
         self.state.insert(AdmittedMigrations::of(admitted.built()));
         self.state.insert(AdmittedConfigs::of(admitted.built()));

@@ -22,7 +22,7 @@ use super::json::build_json;
 use super::summary::{SummaryContext, line, push_summary};
 use super::{AiSummaryRow, McpSummaryRow, StepSummaryRow, TraceEventRow, TraceViewOutput};
 use systemprompt_database::pool_from_handle;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
@@ -66,7 +66,6 @@ pub struct TraceSummaries<'a> {
 
 struct FormattedDisplayContext<'a> {
     events: &'a [TraceEvent],
-    trace_id: &'a TraceId,
     task_id: Option<&'a TaskId>,
     verbose: bool,
     ai_summary: &'a systemprompt_runtime::AiRequestSummary,
@@ -154,7 +153,6 @@ async fn execute_trace_view(
 
     let display_ctx = FormattedDisplayContext {
         events: &events,
-        trace_id: &trace_id,
         task_id: task_id.as_ref(),
         verbose: args.verbose,
         ai_summary: &ai_summary,

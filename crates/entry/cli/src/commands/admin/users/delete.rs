@@ -5,20 +5,25 @@
 //! revoked, and its history stays, restorable with `admin users restore`
 //! inside `retention.archived_users_days`. `--purge` is the physical delete,
 //! refused unless the user is already archived and not under legal hold;
-//! `database_cleanup` purges archives past the window on its own.
+//! `database_cleanup` purges archives past the window on its own. The dry run
+//! and the purge cover the tables of members the profile disables too, from
+//! their recorded declarations, and name what they could not cover.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_extension::AdmittedPurge;
+use systemprompt_identifiers::ExtensionId;
 use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use std::sync::Arc;
+use systemprompt_extension::AdmittedPurge;
 use systemprompt_users::{
-    ArchiveParams, PurgeCount, UserAdminService, UserRepository, UserService,
+    ArchiveParams, PurgeCount, PurgeOutcome, UserAdminService, UserRepository, UserService,
 };
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use super::types::UserDeletedOutput;
 
 #[derive(Debug, Args)]
@@ -68,14 +73,16 @@ pub(super) async fn execute(args: DeleteArgs, host: &dyn KernelHost) -> Result<C
     };
 
     if args.dry_run {
-        let counts = user_service.purge_preview(&user.id).await?;
-        let rows: Vec<PurgeRow> = counts.iter().map(PurgeRow::from).collect();
-        return Ok(
-            CommandOutput::table_of(vec!["owner", "table", "rows"], &rows).with_title(format!(
-                "Purging '{}' ({}) would remove",
-                user.name, user.id
-            )),
-        );
+        let plan = host.resolved().await?.get::<AdmittedPurge>()?;
+        let preview = user_service.purge_preview(&user.id, &plan).await?;
+        let rows: Vec<PurgeRow> = preview.counts.iter().map(PurgeRow::from).collect();
+        return Ok(CommandOutput::table_of(vec!["owner", "table", "rows", "member"], &rows)
+            .with_title(format!(
+                "Purging '{}' ({}) would remove{}",
+                user.name,
+                user.id,
+                coverage_note(&preview)
+            )));
     }
 
     if !args.yes {
@@ -93,14 +100,16 @@ pub(super) async fn execute(args: DeleteArgs, host: &dyn KernelHost) -> Result<C
     }
 
     if args.purge {
-        let removed = user_service.purge(&user.id).await?;
-        let rows_removed: i64 = removed.iter().map(|c| c.rows).sum();
+        let plan = host.resolved().await?.get::<AdmittedPurge>()?;
+        let removed = user_service.purge(&user.id, &plan).await?;
         let output = UserDeletedOutput {
             id: user.id.clone(),
             message: format!(
-                "User '{}' purged ({rows_removed} rows across {} tables)",
+                "User '{}' purged ({} rows across {} tables){}",
                 user.name,
-                removed.len()
+                removed.rows(),
+                removed.counts.len(),
+                coverage_note(&removed)
             ),
         };
         return Ok(CommandOutput::card_value("User Purged", &output));
@@ -136,19 +145,49 @@ pub(super) async fn execute(args: DeleteArgs, host: &dyn KernelHost) -> Result<C
     Ok(CommandOutput::card_value("User Archived", &output))
 }
 
+fn coverage_note(outcome: &PurgeOutcome) -> String {
+    let mut note = String::new();
+    if !outcome.skipped.is_empty() {
+        let tables: Vec<String> = outcome
+            .skipped
+            .iter()
+            .map(|s| format!("{}.{}", s.owner, s.table))
+            .collect();
+        note.push_str(&format!(
+            "; skipped recorded tables that no longer exist: {}",
+            tables.join(", ")
+        ));
+    }
+    if !outcome.unrecorded_members.is_empty() {
+        let members: Vec<String> = outcome
+            .unrecorded_members
+            .iter()
+            .map(ToString::to_string)
+            .collect();
+        note.push_str(&format!(
+            "; NOT COVERED: disabled members with no recorded purge declarations ({}) - enable \
+             them for one install to record them",
+            members.join(", ")
+        ));
+    }
+    note
+}
+
 #[derive(Debug, serde::Serialize)]
 struct PurgeRow {
-    owner: &'static str,
-    table: &'static str,
+    owner: String,
+    table: String,
     rows: i64,
+    member: &'static str,
 }
 
 impl From<&PurgeCount> for PurgeRow {
     fn from(count: &PurgeCount) -> Self {
         Self {
-            owner: count.owner,
-            table: count.table,
+            owner: count.owner.to_string(),
+            table: count.table.clone(),
             rows: count.rows,
+            member: if count.absent { "disabled (recorded)" } else { "enabled" },
         }
     }
 }

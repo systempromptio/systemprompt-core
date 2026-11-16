@@ -7,7 +7,7 @@ use anyhow::{Context, Result};
 use systemprompt_database::{DatabaseAdminService, SafeIdentifier};
 use systemprompt_models::artifacts::NoticeLine;
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 use super::text_format::format_bytes;
 use super::types::{DbIndexesOutput, DbSizeOutput, TableIndexInfo, TableSizeInfo};

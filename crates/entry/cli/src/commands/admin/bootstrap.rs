@@ -15,7 +15,7 @@ use systemprompt_identifiers::UserId;
 use systemprompt_manifest::Config;
 use systemprompt_users::{User, UserRepository, UserRole, UserService, UserStatus};
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct BootstrapArgs {

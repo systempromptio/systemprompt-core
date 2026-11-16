@@ -9,7 +9,8 @@ use clap::Args;
 use reqwest::Client;
 use serde::Deserialize;
 
-use crate::shared::{CommandOutput, truncate_with_ellipsis};
+use crate::shared::truncate_with_ellipsis;
+use systemprompt_extension::cli::CommandOutput;
 use super::types::{RegistryAgentInfo, RegistryOutput};
 
 #[derive(Debug, Args)]

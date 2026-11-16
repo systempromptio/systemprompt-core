@@ -17,7 +17,7 @@ use tokio::fs;
 
 use super::types::FileUploadOutput;
 use crate::commands::shared::app_context;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
 pub struct UploadArgs {

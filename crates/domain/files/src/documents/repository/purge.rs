@@ -8,7 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_extension::UserPurgeTable;
+use systemprompt_extension::{PurgePredicate, UserPurgeTable};
 
 pub(crate) const DOCUMENT_USER_PURGES: &[UserPurgeTable] = &[
     UserPurgeTable {
@@ -29,7 +29,10 @@ pub(crate) const DOCUMENT_USER_PURGES: &[UserPurgeTable] = &[
     UserPurgeTable {
         table: "document_grants",
         column: "subject_value",
-        predicate: Some("subject_kind = 'user'"),
+        predicate: Some(PurgePredicate {
+            column: "subject_kind",
+            any_of: &["user"],
+        }),
     },
     UserPurgeTable {
         table: "document_access_requests",

@@ -10,7 +10,7 @@ use anyhow::Result;
 use systemprompt_database::DbPool;
 use systemprompt_governance::authz::render_current_rules;
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use super::ExportYamlArgs;
 
 pub(super) async fn run(_args: ExportYamlArgs, host: &dyn KernelHost) -> Result<CommandOutput> {

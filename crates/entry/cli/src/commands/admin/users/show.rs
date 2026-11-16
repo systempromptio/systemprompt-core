@@ -11,9 +11,9 @@ use systemprompt_database::DbPool;
 use systemprompt_logging::CliService;
 use systemprompt_users::{UserAdminService, UserRepository, UserService};
 
-use crate::CliConfig;
-use crate::cli_settings::OutputFormat;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CliConfig;
+use systemprompt_extension::cli::OutputFormat;
+use systemprompt_extension::cli::CommandOutput;
 use super::types::{SessionSummary, UserActivityOutput, UserDetailOutput};
 
 #[derive(Debug, Args)]

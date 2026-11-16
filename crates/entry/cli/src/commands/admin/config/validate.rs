@@ -31,7 +31,7 @@ use clap::Args;
 use super::types::{ConfigFileInfo, ConfigSection, ConfigValidateOutput};
 use super::validate_jobs::scheduler_catalog_error;
 pub use super::validate_jobs::{unknown_jobs_message, unlisted_jobs_message};
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use systemprompt_config::LoadedProfile;
 use systemprompt_config::yaml_document::read_yaml_file;
 use systemprompt_extension::AdmittedSchedule;
@@ -72,7 +72,7 @@ pub async fn execute(
     )?);
 
     all_valid &= super::plane_validate::append_full_validation(
-        &crate::commands::admin::state::config(host).await?,
+        crate::commands::admin::state::config(host).await?.as_ref(),
         host.admitted()?.built(),
         args.target.as_ref(),
         &mut results,

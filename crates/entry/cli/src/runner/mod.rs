@@ -24,7 +24,6 @@ pub mod routing_decision;
 mod structured_output;
 mod tls;
 
-use std::process::ExitCode;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
@@ -36,7 +35,7 @@ use systemprompt_models::BuildIdentity;
 use crate::context::CommandContext;
 use crate::env_overrides::EnvOverrides;
 use crate::kernel::{CommandRegistry, ResolveError};
-use composed::admit_for;
+use composed::{Admission, admit_for};
 pub use composed::{AdmitFn, CliRunError, admit_unprofiled, refuse_disabled, run_composed};
 use direct::{DirectDatabase, direct_database_url, run_with_database_url};
 use dispatch::{Invocation, Selected, dispatch_command};
@@ -174,7 +173,10 @@ async fn run_inner(
         admit,
         registry,
     } = guards;
-    let admitted = admit_for(&invocation, profile.as_deref(), admit)?;
+    let (admitted, deferred_admit) = match admit_for(&invocation, profile.as_deref(), admit)? {
+        Admission::Admitted(admitted) => (Some(admitted), None),
+        Admission::Deferred(admit) => (None, admit),
+    };
     if desc.paths() && !desc.skip_validation()
         && let (Some(boot), Some(admitted)) = (&boot, &admitted)
     {
@@ -186,6 +188,7 @@ async fn run_inner(
         .with_build_identity(build)
         .with_secrets_sources(secrets)
         .with_admitted(admitted)
+        .with_admit(deferred_admit)
         .with_registry(registry)
         .with_cloud_credentials(credentials)
         .with_database_url_override(database_url_override)

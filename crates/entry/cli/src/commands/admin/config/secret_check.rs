@@ -25,7 +25,7 @@ use systemprompt_config::{
 use systemprompt_manifest::profile::resolve_with_home;
 use systemprompt_manifest::secrets::OAUTH_AT_REST_PEPPER_MIN_LENGTH;
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 pub const DATABASE_URL_ALIASES: &[&str] = &["database_url", "internal_database_url"];
 

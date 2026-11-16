@@ -12,7 +12,7 @@ use crate::kernel::KernelHost;
 use clap::Args;
 use std::path::Path;
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 use super::types::{PluginValidateAllOutput, PluginValidateOutput};
 use systemprompt_identifiers::PluginId;

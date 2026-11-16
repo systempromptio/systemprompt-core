@@ -10,7 +10,7 @@ use std::sync::Arc;
 use systemprompt_users::{UserRepository, UserService};
 
 use crate::commands::admin::users::types::SessionCleanupOutput;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct CleanupArgs {

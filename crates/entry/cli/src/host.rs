@@ -56,6 +56,7 @@ pub trait KernelHost: CommandHost {
         &'a self,
         profile: &'a Path,
     ) -> BoxFuture<'a, Result<Arc<Config>, CommandError>>;
+    fn take_admit(&self) -> Result<systemprompt_runtime::AdmitFn, CommandError>;
 }
 
 impl CommandContext {
@@ -270,6 +271,12 @@ impl KernelHost for CommandContext {
         profile: &'a Path,
     ) -> BoxFuture<'a, Result<Arc<Config>, CommandError>> {
         Box::pin(boot_profile_config(self, profile))
+    }
+
+    fn take_admit(&self) -> Result<systemprompt_runtime::AdmitFn, CommandError> {
+        let refused = || anyhow::anyhow!("Only a child-host command admits the composition");
+        let admit = CommandContext::take_admit(self).ok_or_else(|| CommandError::new(refused()))?;
+        Ok(Box::new(move |profile: &Profile| admit(Some(profile))))
     }
 }
 

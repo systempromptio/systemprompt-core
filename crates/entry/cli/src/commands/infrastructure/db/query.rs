@@ -6,7 +6,7 @@
 use anyhow::{Result, anyhow};
 use systemprompt_database::{DatabaseAdminService, QueryExecutor};
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 use super::text_format::{extract_relation_name, suggest_table_name};
 use super::types::DbExecuteOutput;

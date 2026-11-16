@@ -3,10 +3,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::cli_settings::CliConfig;
+use systemprompt_extension::cli::CliConfig;
 use crate::kernel::KernelHost;
-use crate::interactive::Prompter;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::Prompter;
+use systemprompt_extension::cli::CommandOutput;
 use anyhow::Result;
 use std::sync::Arc;
 use systemprompt_identifiers::{McpServerId, ServiceName};

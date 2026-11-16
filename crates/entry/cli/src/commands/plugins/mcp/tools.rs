@@ -16,7 +16,7 @@ use crate::commands::shared::mcp_tools::{
 };
 use crate::commands::shared::app_context;
 use crate::session::get_or_create_session;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use systemprompt_identifiers::{McpServerId, SessionToken};
 use systemprompt_manifest::ServicesConfig;
 use systemprompt_mcp::services::McpOrchestrator;

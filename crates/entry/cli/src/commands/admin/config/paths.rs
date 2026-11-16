@@ -15,7 +15,7 @@ use clap::Subcommand;
 use std::path::Path;
 use systemprompt_manifest::Profile;
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use super::types::{PathInfo, PathValidation, PathsConfigOutput, PathsValidateOutput};
 use systemprompt_extension::cli::CommandError;
 

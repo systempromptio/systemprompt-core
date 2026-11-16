@@ -11,8 +11,8 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
-use crate::interactive::Prompter;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::Prompter;
+use systemprompt_extension::cli::CommandOutput;
 use systemprompt_extension::cli::ChildSupervisor;
 use systemprompt_logging::CliService;
 
@@ -23,7 +23,7 @@ use super::wizard_prompts::{
     resolve_admin_email, setup_postgres, should_run_migrations,
 };
 use super::{SetupArgs, profile, secrets, services_files};
-use crate::CliConfig;
+use systemprompt_extension::cli::CliConfig;
 use crate::shared::postgres_access::PostgresConfig;
 
 pub fn should_write(path: &Path, force: bool, config: &CliConfig) -> bool {
@@ -139,13 +139,13 @@ fn confirm_setup(
     if args.dry_run || args.yes || !config.is_interactive() {
         return Ok(true);
     }
-    prompter.confirm(
+    Ok(prompter.confirm(
         &format!(
             "This will create/update configuration for '{}' environment. Continue?",
             env_name
         ),
         true,
-    )
+    )?)
 }
 
 #[derive(Clone, Copy)]

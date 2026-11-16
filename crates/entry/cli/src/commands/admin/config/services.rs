@@ -13,7 +13,7 @@ use anyhow::{Result, bail};
 use crate::commands::admin::config::restart_note;
 use clap::{Args, Subcommand};
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use super::profile_io::{load_profile, profile_path, save_profile};
 use super::types::{ServicesConfigOutput, ServicesSetOutput};
 

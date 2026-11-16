@@ -32,9 +32,9 @@ use systemprompt_database::{DatabaseAdminService, DbPool, QueryExecutor, pool_fr
 use systemprompt_runtime::DatabaseContext;
 
 use crate::commands::shared::app_context;
-use crate::interactive::require_confirmation;
+use systemprompt_extension::cli::require_confirmation;
 use crate::kernel::KernelHost;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use dispatch::{Dispatched, dispatch_profile_migration, dispatch_standalone_migration};
 
 pub use commands::{DbCommands, MigrationsCommands};
@@ -90,12 +90,12 @@ pub async fn execute(cmd: DbCommands, host: &dyn KernelHost) -> Result<CommandOu
             bail!("migration command was not consumed by the migration dispatcher")
         },
         DbCommands::Migrations { cmd } => {
-            admin::execute_migrations(&app_context(host).await?, host.admitted()?.built(), cmd)
+            admin::execute_migrations(app_context(host).await?.as_ref(), host.admitted()?.built(), cmd)
                 .await
         },
         DbCommands::MigratePlan { extension, flags } => {
             admin::execute_migrate_plan(
-                &app_context(host).await?,
+                app_context(host).await?.as_ref(),
                 host.admitted()?.built(),
                 extension.as_ref(),
                 flags,
@@ -104,7 +104,7 @@ pub async fn execute(cmd: DbCommands, host: &dyn KernelHost) -> Result<CommandOu
         },
         DbCommands::MigrateStatus { extension } => {
             admin::execute_migrate_status(
-                &app_context(host).await?,
+                app_context(host).await?.as_ref(),
                 host.admitted()?.built(),
                 extension.as_ref(),
             )
@@ -114,7 +114,7 @@ pub async fn execute(cmd: DbCommands, host: &dyn KernelHost) -> Result<CommandOu
             if host.is_database_scoped() {
                 bail!("assign-admin requires full profile context");
             }
-            admin::execute_assign_admin(&app_context(host).await?, &user).await
+            admin::execute_assign_admin(app_context(host).await?.as_ref(), &user).await
         },
         DbCommands::Status => admin::execute_status(&admin_service).await,
         DbCommands::Count { table_name } => {

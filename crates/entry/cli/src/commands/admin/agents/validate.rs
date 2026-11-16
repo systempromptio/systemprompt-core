@@ -7,7 +7,7 @@ use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use clap::Args;
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use super::types::{ValidationIssue, ValidationOutput};
 use systemprompt_manifest::secrets::Secrets;
 use systemprompt_manifest::services::catalog::{CatalogContext, ResolvedCatalog};

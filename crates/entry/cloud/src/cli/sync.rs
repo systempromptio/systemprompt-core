@@ -18,11 +18,9 @@ use std::sync::Arc;
 
 use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
-use systemprompt_scheduler::repository::ConfigReconcileRepository;
-use systemprompt_scheduler::services::{ConfigApplyService, ConfigReconcileService, PlanePatch};
+use systemprompt_scheduler::services::{ConfigApplyService, PlanePatch};
 
 use systemprompt_extension::cli::{CommandHost, CommandOutput};
-use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Subcommand)]
 pub enum SyncCommands {
@@ -54,11 +52,7 @@ pub struct ExportArgs {
 
 pub async fn execute(command: SyncCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     let SyncCommands::Export(args) = command;
-    let app = host.resolved().await?.get::<Arc<AppContext>>()?;
-    let service = ConfigApplyService::new(ConfigReconcileService::from_app_context(
-        &app,
-        ConfigReconcileRepository::new(app.db_pool()),
-    )?);
+    let service = host.resolved().await?.get::<Arc<ConfigApplyService>>()?;
     let patches = service.export_patches(&args.planes).await?;
     match &args.out {
         Some(dir) => write_patches(&patches, dir, args.force),

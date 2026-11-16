@@ -59,7 +59,7 @@ fn write_document(location: &CatalogLocation, document: &CatalogDocument) -> Res
         .with_context(|| format!("Failed to create {}", location.dir.display()))?;
     write_catalog(&location.dir, document)
         .with_context(|| format!("Failed to write {}", location.dir.display()))?;
-    write_gateway(&location.dir, document.gateway.as_ref())
+    Ok(write_gateway(&location.dir, document.gateway.as_ref())?)
 }
 
 fn snapshot(location: &CatalogLocation) -> Result<Vec<(PathBuf, Option<Vec<u8>>)>> {

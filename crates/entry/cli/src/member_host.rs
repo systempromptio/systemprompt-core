@@ -35,6 +35,14 @@ pub struct MemberHost<'a> {
     granted: OnceCell<Dependencies>,
 }
 
+impl std::fmt::Debug for MemberHost<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MemberHost")
+            .field("descriptor", &self.descriptor)
+            .finish_non_exhaustive()
+    }
+}
+
 impl<'a> MemberHost<'a> {
     #[must_use]
     pub const fn new(ctx: &'a CommandContext, descriptor: CommandDescriptor) -> Self {

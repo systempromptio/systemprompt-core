@@ -6,7 +6,7 @@
 use anyhow::{Result, anyhow};
 use clap::Args;
 
-use crate::interactive::Prompter;
+use systemprompt_extension::cli::Prompter;
 
 pub fn prompt_agent_selection(
     prompter: &dyn Prompter,

@@ -15,6 +15,8 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use systemprompt_manifest::Profile;
+
+use super::super::admitted_views::AdmittedViews;
 use systemprompt_manifest::profile::{Evaluation, Inspection, ManagedProfile, ProfileError};
 
 use super::checks::{
@@ -38,17 +40,18 @@ pub async fn run_managed(
     managed: &ManagedProfile,
     profile_dir: &Path,
     distributed: bool,
+    views: &AdmittedViews,
 ) -> DoctorReport {
     if managed.unresolved().is_empty() {
         return match managed.profile() {
-            Ok(profile) => run(&profile, profile_dir, distributed).await,
+            Ok(profile) => run(&profile, profile_dir, distributed, views).await,
             Err(error) => DoctorReport {
                 checks: vec![CheckResult::fail("profile", format!("{error}"))],
             },
         };
     }
     match managed.inspect() {
-        Ok(inspection) => run_partial(&inspection, profile_dir, distributed).await,
+        Ok(inspection) => run_partial(&inspection, profile_dir, distributed, views).await,
         Err(error) => DoctorReport {
             checks: vec![CheckResult::fail("profile", format!("{error}"))],
         },
@@ -80,11 +83,6 @@ const PROFILE_CHECKS: &[(&str, &[&str], ProfileCheck)] = &[
         restore_checks::check_storage_backup,
     ),
     (
-        "extension-config",
-        &["paths", "security.signing_key_path", "extensions"],
-        check_extension_configs,
-    ),
-    (
         "services-source",
         &["services"],
         plane_checks::check_services_source,
@@ -104,15 +102,23 @@ async fn run_partial(
     inspection: &Inspection<'_>,
     profile_dir: &Path,
     distributed: bool,
+    views: &AdmittedViews,
 ) -> DoctorReport {
     let mut checks = profile_rule_checks(inspection);
     for (name, inputs, check) in PROFILE_CHECKS {
         checks.push(outcome(name, inspection.evaluate(inputs, check)));
     }
+    checks.push(outcome(
+        "extension-config",
+        inspection.evaluate(
+            &["paths", "security.signing_key_path", "extensions"],
+            |p| check_extension_configs(p, &views.configs),
+        ),
+    ));
     match inspection.evaluate(&["secrets"], |p| p.secrets.clone()) {
         Evaluation::Evaluated(config) => {
             let secrets = resolve_secrets_from(config.as_ref(), profile_dir, &mut checks).await;
-            secrets_checks(inspection, profile_dir, &secrets, distributed, &mut checks).await;
+            secrets_checks(inspection, profile_dir, &secrets, distributed, views, &mut checks).await;
         },
         Evaluation::NotEvaluated { variables } => {
             for name in SECRETS_DEPENDENT {
@@ -128,6 +134,7 @@ async fn secrets_checks(
     profile_dir: &Path,
     secrets: &HashMap<String, String>,
     distributed: bool,
+    views: &AdmittedViews,
     checks: &mut Vec<CheckResult>,
 ) {
     checks.push(check_required_secrets(secrets));
@@ -138,7 +145,7 @@ async fn secrets_checks(
         }),
     ));
     checks.push(check_database_reachable(secrets).await);
-    checks.push(restore_checks::check_schema_not_ahead(secrets).await);
+    checks.push(restore_checks::check_schema_not_ahead(secrets, &views.migrations).await);
     checks.push(outcome(
         "providers",
         inspection.evaluate(&["paths", "services"], |p| providers_check(p, secrets)),

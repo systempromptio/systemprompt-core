@@ -11,6 +11,7 @@
 
 use std::collections::HashMap;
 
+use systemprompt_extension::cli::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
 use systemprompt_identifiers::{ContextId, SessionId, SessionToken, UserId};
 
 /// `is_deployment_host` means the process runs on the host the active profile
@@ -38,6 +39,35 @@ pub struct SessionEnv {
 }
 
 impl EnvOverrides {
+    #[must_use]
+    pub fn cli_config(&self) -> CliConfig {
+        let mut config = CliConfig::default();
+        if let Some(format) = &self.output_format {
+            config = match format.to_lowercase().as_str() {
+                "json" => config.with_output_format(OutputFormat::Json),
+                "yaml" => config.with_output_format(OutputFormat::Yaml),
+                "table" => config.with_output_format(OutputFormat::Table),
+                _ => config,
+            };
+        }
+        if let Some(level) = &self.log_level {
+            config = match level.to_lowercase().as_str() {
+                "quiet" => config.with_verbosity(VerbosityLevel::Quiet),
+                "normal" => config.with_verbosity(VerbosityLevel::Normal),
+                "verbose" => config.with_verbosity(VerbosityLevel::Verbose),
+                "debug" => config.with_verbosity(VerbosityLevel::Debug),
+                _ => config,
+            };
+        }
+        if self.no_color {
+            config = config.with_color_mode(ColorMode::Never);
+        }
+        if self.non_interactive {
+            config = config.with_interactive(false);
+        }
+        config
+    }
+
     #[must_use]
     pub fn from_process_env() -> Self {
         Self::from_lookup(|key| std::env::var(key).ok())

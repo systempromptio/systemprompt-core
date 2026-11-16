@@ -15,7 +15,7 @@ use systemprompt_manifest::services::bundle::{
 use systemprompt_security::manifest_signing::{canonical_manifest_bytes, sign_with_seed};
 
 use super::signing::{BundleSigningKey, load_signing_key};
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use systemprompt_identifiers::ContentHash;
 
 #[derive(Debug, Clone, Args)]

@@ -31,7 +31,7 @@ use systemprompt_scheduler::{
 use super::types::{BatchJobRunOutput, JobRunOutput, JobRunResult};
 use super::admitted_schedule;
 use crate::commands::shared::{app_context, services_config};
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct RunArgs {

@@ -13,7 +13,7 @@ use clap::Args;
 
 use super::types::{McpStatusEntry, McpStatusOutput, McpStatusSummary};
 use crate::commands::shared::app_context;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use systemprompt_manifest::ServicesConfig;
 use systemprompt_mcp::services::McpOrchestrator;
 use systemprompt_mcp::{HealthStatus, McpServiceStatus};

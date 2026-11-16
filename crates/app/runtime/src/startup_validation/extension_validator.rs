@@ -10,7 +10,7 @@ use std::path::Path;
 
 use systemprompt_config::paths::AppPaths;
 use systemprompt_extension::contribute::{ConfigDecl, ContributionSink};
-use systemprompt_extension::{BuiltState, ExtensionConfigError};
+use systemprompt_extension::{AdmittedConfigs, BuiltState, ExtensionConfigError};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_loader::BootContext;
 use systemprompt_logging::CliService;
@@ -149,23 +149,18 @@ fn evaluate_config(decl: &ConfigDecl, services_path: &Path) -> Result<(), ExtCon
 
 #[must_use]
 pub fn validate_extension_configs(
-    built: &BuiltState,
+    configs: &AdmittedConfigs,
     services_path: &Path,
 ) -> Vec<ExtensionConfigOutcome> {
-    built
-        .members()
-        .flat_map(|member| {
-            member
-                .sink
-                .configs()
-                .iter()
-                .map(|decl| ExtensionConfigOutcome {
-                    extension_id: member.owner.clone(),
-                    config_key: format!("{}.config", decl.prefix()),
-                    error: evaluate_config(decl, services_path)
-                        .err()
-                        .map(|e| e.to_string()),
-                })
+    configs
+        .decls()
+        .iter()
+        .map(|(owner, decl)| ExtensionConfigOutcome {
+            extension_id: owner.clone(),
+            config_key: format!("{}.config", decl.prefix()),
+            error: evaluate_config(decl, services_path)
+                .err()
+                .map(|e| e.to_string()),
         })
         .collect()
 }

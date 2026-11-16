@@ -18,7 +18,7 @@ use systemprompt_scheduler::{JobRepository, ScheduledJob};
 use super::admitted_schedule;
 use super::cron_text::parse_cron_human;
 use super::types::JobShowOutput;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {

@@ -25,29 +25,13 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::any::TypeId;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
-use systemprompt_extension::admitted::{AdmittedMember, AdmittedParts, DeclaredCommandParts};
 use systemprompt_extension::contribute::{ContributionSink, Contributions};
 use systemprompt_extension::reserved::{CoreId, PRIVILEGED_SHAPES, PrivilegedShape};
-use systemprompt_extension::{
-    Admitted, ContributionError, DeclaredCommands, Extension, ExtensionConfigError, SlotError,
-    StandingTag,
-};
+use systemprompt_extension::{Admitted, Extension, StandingTag};
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_manifest::Profile;
-use systemprompt_traits::authz::SubjectDimension;
-
-#[cfg(feature = "cli")]
-use systemprompt_extension::admitted::AdmittedCommand;
-#[cfg(feature = "api")]
-use systemprompt_extension::admitted::{AdmittedGatewayRoute, AdmittedRouteSet};
-#[cfg(feature = "cli")]
-use systemprompt_extension::cli::KernelGrant;
-#[cfg(feature = "api")]
-use systemprompt_extension::router::{Allowance, BasePath, BaseRef, RouteSet};
-
 
 #[cfg(feature = "cli")]
 use admit::admit_commands;
@@ -289,9 +273,11 @@ impl Composition {
             commands,
             secrets,
             move |profile: Option<&Profile>| {
-                profile
-                    .map_or_else(|| declared.admit_unprofiled(), |profile| declared.admit(profile))
-                    .map_err(systemprompt_traits::BoxedSource::from)
+                match profile {
+                    Some(profile) => declared.admit(profile),
+                    None => declared.admit_unprofiled(),
+                }
+                .map_err(systemprompt_traits::BoxedSource::from)
             },
         )
         .map_err(RunError::Cli)

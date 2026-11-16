@@ -22,7 +22,7 @@ use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::{Args, Subcommand};
 
-use crate::interactive::Prompter;
+use systemprompt_extension::cli::Prompter;
 use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]

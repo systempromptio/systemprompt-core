@@ -113,6 +113,11 @@ fn install_ledger_schemas() -> Vec<SchemaDefinition> {
         )
         .with_required_columns(vec!["table_name".into(), "extension_id".into()]),
         SchemaDefinition::new(
+            "schema_purge_records",
+            include_str!("../schema/schema_purge_records.sql"),
+        )
+        .with_required_columns(vec!["extension_id".into(), "declarations".into()]),
+        SchemaDefinition::new(
             "extension_migration_compat",
             include_str!("../schema/extension_migration_compat.sql"),
         ),

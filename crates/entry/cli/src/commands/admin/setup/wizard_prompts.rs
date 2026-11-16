@@ -13,8 +13,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result};
-use crate::CliConfig;
-use crate::interactive::Prompter;
+use systemprompt_extension::cli::CliConfig;
+use systemprompt_extension::cli::Prompter;
 use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
 use systemprompt_extension::cli::ChildSupervisor;
@@ -125,7 +125,7 @@ pub fn should_run_migrations(
         return Ok(false);
     }
 
-    prompter.confirm("Run database migrations now?", true)
+    Ok(prompter.confirm("Run database migrations now?", true)?)
 }
 
 #[doc(hidden)]

@@ -65,7 +65,7 @@ pub fn extract_profile_name(profile_path: &Path) -> Result<ProfileName> {
 pub(super) async fn create_new_session(
     profile_ctx: &ProfileContext<'_>,
     session_key: &SessionKey,
-    config: &crate::CliConfig,
+    config: &systemprompt_extension::cli::CliConfig,
     session_email_hint: Option<&str>,
     boot: &BootContext,
 ) -> Result<CliSession> {

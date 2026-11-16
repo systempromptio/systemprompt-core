@@ -10,8 +10,8 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_users::{UserRepository, UserRole, UserService, UserStatus};
 
-use crate::CliConfig;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CliConfig;
+use systemprompt_extension::cli::CommandOutput;
 use super::types::{UserListOutput, UserSummary};
 
 #[derive(Debug, Clone, Copy, ValueEnum)]

@@ -11,7 +11,7 @@ use systemprompt_identifiers::UserId;
 
 use crate::commands::core::files::types::AiFilesCountOutput;
 use crate::commands::shared::app_context;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
 pub struct CountArgs {

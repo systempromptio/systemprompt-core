@@ -28,4 +28,4 @@ pub use device_cert_service::{
 };
 pub use role_audience::UserRoleAudienceResolver;
 pub use sso_events::{OUTCOME_REFUSED, OUTCOME_SUCCESS, PostgresAuthEventSink};
-pub use user::UserService;
+pub use user::{PurgedArchive, UserService};

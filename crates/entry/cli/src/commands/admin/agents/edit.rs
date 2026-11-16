@@ -8,7 +8,7 @@ use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use std::path::Path;
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use super::edit_apply::{
     apply_capability_fields, apply_card_fields, apply_enabled_flags, apply_mcp_server_changes,
     apply_metadata_fields, apply_runtime_fields, apply_set_value_changes, apply_skill_changes,

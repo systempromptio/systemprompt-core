@@ -8,9 +8,9 @@ use anyhow::{Context, Result};
 use clap::Args;
 use std::path::Path;
 
-use crate::CliConfig;
-use crate::interactive::Prompter;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CliConfig;
+use systemprompt_extension::cli::Prompter;
+use systemprompt_extension::cli::CommandOutput;
 use super::shared::AgentArgs;
 use super::types::AgentCreateOutput;
 use systemprompt_agent::services::config_authoring::{

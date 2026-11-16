@@ -11,7 +11,7 @@ use systemprompt_database::DbPool;
 use systemprompt_manifest::Profile;
 use systemprompt_scheduler::LicenceCheckinRepository;
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Serialize)]
 struct LicenceStatusOutput {

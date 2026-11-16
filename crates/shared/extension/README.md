@@ -27,7 +27,7 @@ An extension declares its schemas, API routes, scheduled jobs, providers, seeds,
 | `gateway_guard` | `GatewayRequestGuard` and the `register_gateway_guard!` macro for gateway request guards. |
 | `metadata` | `ExtensionMetadata`, `ExtensionRole`, `SchemaDefinition`. |
 | `migration` | `Migration` value type for versioned extension migrations. |
-| `purge` | `UserPurgeTable` and orphan-sweep registrations (`user_purge_tables!`, `orphan_sweeps!`). |
+| `purge` | `UserPurgeTable`, `PurgePredicate` and `OrphanSweep` contributions, and their owned `PurgeDeclaration` form. |
 | `registry` | `ExtensionRegistry`, `ExtensionRegistration`, `RESERVED_PATHS`, discovery, queries, validation. |
 | `router` | `ExtensionRouter`, `ExtensionRouterConfig`, `SiteAuthConfig`. |
 | `seed` | `Seed`: idempotent post-migration data fixtures applied on every boot, outside migration tracking. |

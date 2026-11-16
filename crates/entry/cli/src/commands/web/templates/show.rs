@@ -11,15 +11,14 @@ use std::fs;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 
-use crate::CliConfig;
-use crate::interactive::Prompter;
+use systemprompt_extension::cli::CliConfig;
+use systemprompt_extension::cli::Prompter;
 use systemprompt_extension::cli::resolve_required;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 use super::super::paths::WebPaths;
 use super::super::types::{TemplateDetailOutput, TemplatesConfig};
 use super::selection::prompt_template_selection;
-use std::path::Path;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {

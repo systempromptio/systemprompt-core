@@ -21,7 +21,7 @@ use systemprompt_marketplace::{
 };
 
 use systemprompt_loader::ConfigLoader;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum MarketplaceCommands {

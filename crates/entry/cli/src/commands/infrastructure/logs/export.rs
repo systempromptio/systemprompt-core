@@ -16,7 +16,7 @@ use systemprompt_runtime::{TraceQueryService, TraceRepository};
 
 use super::duration::parse_since;
 use super::{LogEntryRow, LogExportOutput};
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Clone, Copy, Default, ValueEnum)]
 pub enum ExportFormat {

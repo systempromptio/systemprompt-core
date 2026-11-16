@@ -16,7 +16,7 @@ use systemprompt_manifest::services::{DiscoveryReport, VertexRateCard};
 use systemprompt_models::artifacts::NoticeLine;
 
 use super::types::{DiscoveryOutput, DiscoveryRow};
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[must_use]
 pub fn discovery_rows(report: &DiscoveryReport, card: &VertexRateCard) -> Vec<DiscoveryRow> {

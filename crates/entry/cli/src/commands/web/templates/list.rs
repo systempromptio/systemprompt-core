@@ -8,12 +8,11 @@ use clap::Args;
 use std::fs;
 use std::path::Path;
 
-use crate::CliConfig;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CliConfig;
+use systemprompt_extension::cli::CommandOutput;
 
 use super::super::paths::WebPaths;
 use super::super::types::{TemplateSummary, TemplatesConfig};
-use std::path::Path;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ListArgs {

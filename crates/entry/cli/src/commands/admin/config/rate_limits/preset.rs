@@ -9,8 +9,8 @@ use crate::commands::admin::config::restart_note;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::profile::RateLimitsConfig;
 
-use crate::interactive::{Prompter, require_confirmation};
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::{Prompter, require_confirmation};
+use systemprompt_extension::cli::CommandOutput;
 use super::profile_edit::{collect_endpoint_changes, load_profile_for_edit, save_profile};
 use super::super::profile_io::profile_path;
 use super::{PresetApplyArgs, PresetCommands, PresetShowArgs};
@@ -27,7 +27,7 @@ pub(super) fn execute_preset(
 ) -> Result<CommandOutput> {
     match command {
         PresetCommands::List => Ok(execute_preset_list()),
-        PresetCommands::Show(args) => execute_preset_show(args, host),
+        PresetCommands::Show(args) => execute_preset_show(args),
         PresetCommands::Apply(args) => execute_preset_apply(&args, prompter, host),
     }
 }
@@ -56,7 +56,7 @@ fn execute_preset_list() -> CommandOutput {
         .with_title("Available Presets")
 }
 
-fn execute_preset_show(args: PresetShowArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+fn execute_preset_show(args: PresetShowArgs) -> Result<CommandOutput> {
     let limits = get_preset_config(&args.name)?;
     let description = get_preset_description(&args.name)?;
 
@@ -114,7 +114,7 @@ fn execute_preset_apply(
         prompter,
         "Proceed with preset application?",
         args.yes,
-        host,
+        host.output(),
     )?;
 
     let profile_path = profile_path(host)?;
