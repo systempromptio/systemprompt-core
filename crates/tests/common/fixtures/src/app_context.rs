@@ -46,7 +46,6 @@ pub fn fixture_analytics_repositories(
             db,
             Arc::new(systemprompt_users::SessionRepository::new(db)),
             Arc::new(systemprompt_logging::AnalyticsRepository::new(db)),
-            Arc::new(systemprompt_content::repository::ContentRepository::new(db)),
         ),
     )
 }
