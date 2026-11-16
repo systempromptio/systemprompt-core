@@ -21,7 +21,7 @@ mod undeclared;
 pub use backfill::{BackfillStatement, PROJECTION_BACKLOG, backfill_statements, projection_tables};
 pub use extension::catalog_digest::catalog_digest as schema_catalog_digest;
 pub use extension::current::{SchemaCurrency, schema_currency};
-pub use extension::install_admitted_schemas;
+pub use extension::{install_admitted_schemas, install_schema_members};
 pub use fk_deferral::{
     DeferredForeignKey, FkDeferralError, SplitCreateTable, split_create_table_foreign_keys,
 };
@@ -32,6 +32,8 @@ pub use migration_cost::{
 pub use migration_refs::check_migration_references;
 pub use report::{ForeignKeyDrift, SchemaAhead, SchemaInstallReport};
 pub use routine_refs::check_trigger_routines;
-pub use undeclared::{OrphanMigrationLedger, SchemaResidue, UndeclaredTable, audit_schema_residue};
+pub use undeclared::{
+    AbsentMemberTable, OrphanMigrationLedger, SchemaResidue, UndeclaredTable, audit_schema_residue,
+};
 
 pub use extension::lock::{BOOTSTRAP_ADVISORY_LOCK_KEY, BootstrapLockGuard, BootstrapLockTimeout};

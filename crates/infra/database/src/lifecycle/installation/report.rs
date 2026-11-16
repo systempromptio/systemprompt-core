@@ -54,6 +54,15 @@ impl SchemaInstallReport {
                 "live table declared by no registered extension — add a DROP TABLE migration"
             );
         }
+        for table in &report.residue.absent_member_tables {
+            info!(
+                owner = %table.owner,
+                schema = table.schema,
+                table = table.table,
+                live_rows = table.live_rows,
+                "live table kept for a member not in this composition"
+            );
+        }
         for ledger in &report.residue.orphan_migration_ledgers {
             warn!(
                 extension = %ledger.extension_id,
