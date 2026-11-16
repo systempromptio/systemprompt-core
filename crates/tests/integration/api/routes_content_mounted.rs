@@ -26,7 +26,6 @@ use systemprompt_content::{
 };
 use systemprompt_content_entry::extension::CONTENT_HTTP_EXTENSION;
 use systemprompt_database::DbPool;
-use systemprompt_extension::ExtensionRegistry;
 use systemprompt_identifiers::{ExtensionId, JwtToken, LinkId};
 use systemprompt_manifest::profile::{NodeRole, RateLimitsConfig};
 use systemprompt_test_fixtures::{
@@ -48,13 +47,15 @@ async fn node(role: NodeRole, disabled: &[ExtensionId]) -> Result<(DbPool, Route
     config.role = role;
     config.rate_limits = RateLimitsConfig::disabled();
     config.trusted_proxies = Vec::new();
-    let ctx = fixture_app_context_with_extensions(
-        &pool,
-        config,
-        ExtensionRegistry::discover()?,
-        disabled,
-    )?;
-    let router = setup_api_server(&ctx, None, &Arc::new(ReadinessState::new()))
+    let ctx = fixture_app_context_with_extensions(config, super::common::reference_admitted(disabled)?)
+        .await?;
+    let router = setup_api_server(
+        &ctx,
+        systemprompt_api::services::server::routes::Composed {
+            admitted: ctx.admitted(),
+            kernel: ctx.kernel(),
+        },
+        None, &Arc::new(ReadinessState::new()))
         .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
     Ok((pool, router))
 }

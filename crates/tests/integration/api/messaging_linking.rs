@@ -32,7 +32,7 @@ struct Ctx {
 async fn setup() -> anyhow::Result<Ctx> {
     let b = ensure_messaging_bootstrap();
     let pool = test_db_pool().await;
-    let app = test_app_context(&pool, &b.database_url);
+    let app = test_app_context(&b.database_url).await;
     let backend = MockServer::start().await;
     mount_reply(&backend, "ok").await;
     seed_agent_backend(&app, &backend).await?;
@@ -101,7 +101,9 @@ impl Ctx {
     }
 
     async fn cleanup(&self, id: &UserId) {
-        let _ = self.app.user_repository().delete(id).await;
+        let plan = systemprompt_extension::AdmittedPurge::of(self.app.admitted().built())
+            .expect("the fixture composition admits its purge plan");
+        let _ = self.app.user_repository().delete(id, &plan).await;
     }
 }
 

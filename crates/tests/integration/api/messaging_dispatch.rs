@@ -59,8 +59,7 @@ pub(crate) async fn mount_reply(mock: &MockServer, text: &str) {
 #[tokio::test]
 async fn allow_yields_the_agents_reply_text() -> anyhow::Result<()> {
     let b = ensure_messaging_bootstrap();
-    let pool = test_db_pool().await;
-    let ctx = test_app_context(&pool, &b.database_url);
+    let ctx = test_app_context(&b.database_url).await;
 
     let backend = MockServer::start().await;
     mount_reply(&backend, "the agent replied").await;
@@ -80,12 +79,8 @@ async fn allow_yields_the_agents_reply_text() -> anyhow::Result<()> {
 #[tokio::test]
 async fn deny_hook_short_circuits_to_denied() -> anyhow::Result<()> {
     let b = ensure_messaging_bootstrap();
-    let pool = test_db_pool().await;
-    let ctx = fixture_app_context_with_hook(
-        &pool,
-        &b.database_url,
-        std::sync::Arc::new(DenyAllHook::null()),
-    )?;
+    let ctx = fixture_app_context_with_hook(&b.database_url,
+        std::sync::Arc::new(DenyAllHook::null())).await?;
 
     let user = format!("U_{}", Uuid::new_v4().simple());
     let outcome = dispatch_messaging(&ctx, inbound(&user, "hi"))
@@ -101,8 +96,7 @@ async fn deny_hook_short_circuits_to_denied() -> anyhow::Result<()> {
 #[tokio::test]
 async fn agent_json_rpc_error_surfaces_as_dispatch_error() -> anyhow::Result<()> {
     let b = ensure_messaging_bootstrap();
-    let pool = test_db_pool().await;
-    let ctx = test_app_context(&pool, &b.database_url);
+    let ctx = test_app_context(&b.database_url).await;
 
     let backend = MockServer::start().await;
     Mock::given(method("POST"))
@@ -129,7 +123,7 @@ async fn agent_json_rpc_error_surfaces_as_dispatch_error() -> anyhow::Result<()>
 async fn first_contact_creates_a_federated_user_reused_on_the_second_call() -> anyhow::Result<()> {
     let b = ensure_messaging_bootstrap();
     let pool = test_db_pool().await;
-    let ctx = test_app_context(&pool, &b.database_url);
+    let ctx = test_app_context(&b.database_url).await;
 
     let backend = MockServer::start().await;
     mount_reply(&backend, "ok").await;

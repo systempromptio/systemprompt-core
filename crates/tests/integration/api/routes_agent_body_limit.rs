@@ -81,8 +81,7 @@ settings:
 "#
     );
     let boot = init_services_bootstrap(&services);
-    let pool = test_db_pool().await;
-    let ctx = test_app_context_on(&boot, &pool);
+    let ctx = test_app_context_on(&boot).await;
     seed_running_service(&ctx, &name, "agent", port).await?;
     Ok(Agent {
         name,

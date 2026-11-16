@@ -19,6 +19,7 @@
 //! | `content` | boot refused | | |
 //! | `analytics` (with or without `analytics-http`) | boot refused (required extension) | | |
 
+use std::any::TypeId;
 use std::net::SocketAddr;
 
 use axum::Router;
@@ -28,14 +29,16 @@ use axum::http::{Request, StatusCode, header};
 use http::Method;
 use systemprompt_analytics::repository::AnalyticsRepositories;
 use systemprompt_analytics_entry::extension::{ANALYTICS_HTTP_EXTENSION, AnalyticsHttpExtension};
-use systemprompt_extension::{Extension, ExtensionContext, ExtensionRegistry};
+use systemprompt::CompositionError;
+use systemprompt_extension::contribute::ContributionSink;
+use systemprompt_extension::{Contributions, Extension, ExtensionContext};
 use systemprompt_identifiers::{ExtensionId, JwtToken};
 use systemprompt_manifest::profile::RateLimitsConfig;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_app_context_with_extensions, fixture_config,
     seed_admin_credential, seed_bridge_credential, test_db_pool,
 };
-use systemprompt_traits::{DynSessionBehaviourScorer, registered_jobs};
+use systemprompt_traits::{DynContentCatalogStats, DynSessionBehaviourScorer};
 use tower::ServiceExt;
 
 const EVENTS: &str = "/api/v1/analytics/events";
@@ -72,11 +75,11 @@ async fn context(
     disabled: &[ExtensionId],
 ) -> anyhow::Result<std::sync::Arc<systemprompt_runtime::AppContext>> {
     let bootstrap = ensure_test_bootstrap();
-    let pool = test_db_pool().await;
     let mut config = fixture_config(&bootstrap.database_url);
     config.rate_limits = rate_limits;
     config.trusted_proxies = Vec::new();
-    fixture_app_context_with_extensions(&pool, config, ExtensionRegistry::discover()?, disabled)
+    fixture_app_context_with_extensions(config, super::common::reference_admitted(disabled)?)
+        .await
 }
 
 async fn full_router(
@@ -86,6 +89,10 @@ async fn full_router(
     let ctx = context(rate_limits, disabled).await?;
     systemprompt_api::services::server::setup_api_server(
         &ctx,
+        systemprompt_api::services::server::routes::Composed {
+            admitted: ctx.admitted(),
+            kernel: ctx.kernel(),
+        },
         None,
         &std::sync::Arc::new(systemprompt_api::services::server::ReadinessState::new()),
     )
@@ -119,12 +126,16 @@ fn anonymous(method: Method, uri: &str) -> Request<Body> {
 }
 
 #[test]
-fn the_routes_extension_carries_the_declared_id() {
-    assert_eq!(AnalyticsHttpExtension.id(), ANALYTICS_HTTP_EXTENSION);
-    assert_eq!(
-        AnalyticsHttpExtension.dependencies(),
-        vec!["analytics", "content"]
-    );
+fn the_routes_extension_carries_the_declared_id_and_requires_the_content_catalog() {
+    assert_eq!(AnalyticsHttpExtension.metadata().id, ANALYTICS_HTTP_EXTENSION);
+    let mut sink = ContributionSink::default();
+    let mut contributions =
+        Contributions::__new(ExtensionId::new(ANALYTICS_HTTP_EXTENSION), &mut sink);
+    AnalyticsHttpExtension
+        .contribute(&mut contributions)
+        .expect("the analytics-http member contributes");
+    let required: Vec<TypeId> = sink.requires().iter().map(|r| r.type_id()).collect();
+    assert_eq!(required, [TypeId::of::<DynContentCatalogStats>()]);
 }
 
 #[tokio::test]
@@ -279,6 +290,10 @@ async fn disabling_the_routes_extension_unmounts_both_groups_and_keeps_the_analy
     let ctx = context(RateLimitsConfig::disabled(), &disabled).await?;
     let app = systemprompt_api::services::server::setup_api_server(
         &ctx,
+        systemprompt_api::services::server::routes::Composed {
+            admitted: ctx.admitted(),
+            kernel: ctx.kernel(),
+        },
         None,
         &std::sync::Arc::new(systemprompt_api::services::server::ReadinessState::new()),
     )
@@ -292,16 +307,21 @@ async fn disabling_the_routes_extension_unmounts_both_groups_and_keeps_the_analy
         assert_eq!(status, StatusCode::NOT_FOUND, "{method} {uri}");
     }
 
-    let enabled: Vec<String> = ctx
-        .extension_registry()
-        .enabled_extensions(&disabled)?
-        .iter()
-        .map(|ext| ext.id().to_owned())
+    let enabled: Vec<&str> = ctx
+        .admitted()
+        .built()
+        .members()
+        .map(|member| member.owner.as_str())
         .collect();
-    assert!(enabled.iter().any(|id| id == "analytics"), "{enabled:?}");
-    let analytics_jobs: Vec<&str> = registered_jobs()
-        .filter(|registration| registration.owner == "analytics")
-        .map(|registration| registration.job.name())
+    assert!(enabled.contains(&"analytics"), "{enabled:?}");
+    assert!(!enabled.contains(&ANALYTICS_HTTP_EXTENSION), "{enabled:?}");
+    let analytics_jobs: Vec<&str> = ctx
+        .admitted()
+        .built()
+        .members()
+        .filter(|member| member.owner.as_str() == "analytics")
+        .flat_map(|member| member.sink.jobs())
+        .map(|job| job.job().name())
         .collect();
     for job in ["malicious_ip_blacklist", "behavioral_analysis"] {
         assert!(analytics_jobs.contains(&job), "{job} in {analytics_jobs:?}");
@@ -320,39 +340,31 @@ async fn disabling_the_routes_extension_unmounts_both_groups_and_keeps_the_analy
     Ok(())
 }
 
-fn content_and_its_dependants_except_the_routes() -> anyhow::Result<Vec<ExtensionId>> {
-    let registry = ExtensionRegistry::discover()?;
-    let mut disabled = vec!["content".to_owned()];
+fn content_and_its_dependants_except_the_routes() -> Vec<ExtensionId> {
+    let mut disabled = vec![ExtensionId::new("content")];
     loop {
-        let added: Vec<String> = registry
-            .extensions()
-            .iter()
-            .filter(|ext| ext.id() != ANALYTICS_HTTP_EXTENSION)
-            .filter(|ext| !disabled.iter().any(|id| id == ext.id()))
-            .filter(|ext| {
-                ext.dependencies()
-                    .iter()
-                    .any(|dep| disabled.iter().any(|id| id == dep))
-            })
-            .map(|ext| ext.id().to_owned())
-            .collect();
-        if added.is_empty() {
-            break;
+        let mut profile = (*systemprompt_test_fixtures::test_boot_profile()).clone();
+        profile.extensions.disabled = disabled.clone();
+        match systemprompt::reference().build(&profile) {
+            Err(CompositionError::DisabledDependency { owner, .. })
+                if owner.as_str() != ANALYTICS_HTTP_EXTENSION =>
+            {
+                disabled.push(owner);
+            },
+            _ => return disabled,
         }
-        disabled.extend(added);
     }
-    Ok(disabled.into_iter().map(ExtensionId::new).collect())
 }
 
 #[tokio::test]
 async fn disabling_content_while_the_routes_stay_enabled_refuses_boot() -> anyhow::Result<()> {
-    let disabled = content_and_its_dependants_except_the_routes()?;
+    let disabled = content_and_its_dependants_except_the_routes();
     let refused = full_router(RateLimitsConfig::disabled(), &disabled).await;
     let error = refused.expect_err("routes depending on content refuse boot");
     let rendered = format!("{error:#}");
     assert!(
-        rendered.contains("'content' is disabled")
-            && rendered.contains(&format!("'{ANALYTICS_HTTP_EXTENSION}' depends on it")),
+        rendered.contains(&format!("{ANALYTICS_HTTP_EXTENSION} requires"))
+            && rendered.contains("its core provider content is disabled"),
         "{rendered}"
     );
     Ok(())

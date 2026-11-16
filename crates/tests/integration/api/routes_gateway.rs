@@ -13,7 +13,7 @@ use super::common::{empty_get, json_post, setup_ctx, with_config};
 async fn router() -> anyhow::Result<Router> {
     let (_pool, ctx) = setup_ctx().await?;
     Ok(with_config(
-        gateway_router(&ctx).expect("gateway router builds"),
+        gateway_router(&ctx, ctx.admitted(), ctx.kernel()).expect("gateway router builds"),
         &ctx,
     ))
 }

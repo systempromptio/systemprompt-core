@@ -73,7 +73,7 @@ async fn delete_context_returns_no_content_and_removes_owned_row() -> anyhow::Re
     ensure_test_bootstrap();
     let database = DisposableDb::with_schema("api_delete_context").await;
     let pool = database.test_pool().await;
-    let ctx = test_app_context(&pool, database.url());
+    let ctx = test_app_context(database.url()).await;
     let request = request_context("delete_context_owner");
     seed_user_row(
         &pool,

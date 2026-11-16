@@ -329,10 +329,12 @@ async fn health_detail_reports_each_enabled_extension_readiness_check() -> anyho
     let extensions = body["checks"]["extensions"]
         .as_array()
         .unwrap_or_else(|| panic!("extension readiness is an array: {body}"));
-    let expected = ctx
-        .extension_registry()
-        .all_readiness_checks(&*ctx, &ctx.profile().extensions.disabled)?
-        .len();
+    let expected: usize = ctx
+        .admitted()
+        .built()
+        .members()
+        .map(|member| member.sink.readiness().len())
+        .sum();
     assert_eq!(extensions.len(), expected, "{body}");
     let notifications = &body["checks"]["notifications"];
     assert_eq!(notifications["status"], "healthy", "{notifications}");

@@ -159,16 +159,12 @@ async fn harness_with_database(
     } else {
         systemprompt_test_fixtures::test_db_pool().await
     };
-    let ctx = systemprompt_test_fixtures::fixture_app_context_on_bootstrap(
-        &b,
-        &pool,
-        {
+    let ctx = systemprompt_test_fixtures::fixture_app_context_on_bootstrap(&b, {
             let mut config = b.boot_config().as_ref().clone();
             config.database_url = database_url.to_owned();
             config
-        },
-        Arc::new(systemprompt_marketplace::AllowAllFilter),
-    )?;
+        }, systemprompt_test_fixtures::fixture_admitted())
+        .await?;
     if let Some(governance) = governance_yaml {
         systemprompt_test_fixtures::apply_governance(&ctx, governance).await?;
     }

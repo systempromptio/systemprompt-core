@@ -16,10 +16,31 @@ use systemprompt_test_fixtures::{
     test_db_pool,
 };
 
+pub fn reference_admitted(
+    disabled: &[systemprompt_identifiers::ExtensionId],
+) -> Result<Arc<systemprompt_extension::Admitted>> {
+    let mut profile = (*systemprompt_test_fixtures::test_boot_profile()).clone();
+    profile.extensions.disabled = disabled.to_vec();
+    Ok(Arc::new(systemprompt::reference().build(&profile)?))
+}
+
 pub async fn setup_ctx() -> Result<(DbPool, Arc<AppContext>)> {
     let b = ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let ctx = test_app_context(&pool, &b.database_url);
+    let ctx = test_app_context(&b.database_url).await;
+    Ok((pool, ctx))
+}
+
+pub async fn setup_drive_ctx() -> Result<(DbPool, Arc<AppContext>)> {
+    let b = ensure_test_bootstrap();
+    let pool = test_db_pool().await;
+    let mut members = systemprompt_test_fixtures::core_members();
+    members.push(Box::new(super::documents_drive_policy::DriveSyncPolicyMember));
+    let ctx = systemprompt_test_fixtures::fixture_app_context_with_extensions(
+        fixture_config(&b.database_url),
+        systemprompt_test_fixtures::fixture_admitted_of(members),
+    )
+    .await?;
     Ok((pool, ctx))
 }
 
@@ -30,7 +51,7 @@ pub async fn setup_ctx_customised(
     let pool = test_db_pool().await;
     let mut config = fixture_config(&b.database_url);
     customize(&mut config);
-    let ctx = fixture_app_context_with_config(&pool, config)?;
+    let ctx = fixture_app_context_with_config(config).await?;
     Ok((pool, ctx))
 }
 

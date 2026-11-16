@@ -27,8 +27,7 @@ use systemprompt_api::routes::proxy::{agents, mcp};
 use systemprompt_identifiers::{Actor, AgentName, ContextId, JwtToken, SessionId, TraceId, UserId};
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_test_fixtures::{
-    TestBootstrap, init_services_bootstrap, mint_admin_jwt, test_app_context_on, test_config,
-    test_db_pool, unique_name,
+    TestBootstrap, init_services_bootstrap, mint_admin_jwt, test_app_context_on, test_config, unique_name,
 };
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -100,8 +99,7 @@ settings:
         manifest_dir.join("manifest.yaml"),
         "extension:\n  type: mcp\n  name: fixture\n  binary: fixture\n",
     )?;
-    let pool = test_db_pool().await;
-    let ctx = test_app_context_on(&boot, &pool);
+    let ctx = test_app_context_on(&boot).await;
     register_running_service(&ctx, &name, "mcp", port).await?;
     Ok(DeclaredBackend {
         name,

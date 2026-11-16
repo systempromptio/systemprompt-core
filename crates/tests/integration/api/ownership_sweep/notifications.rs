@@ -36,7 +36,7 @@ fn notifications_router(ctx: &AppContext) -> Router {
         .get::<NotificationsServiceSlot>()
         .expect("notification service handle provided")
         .clone();
-    let database: Arc<dyn DatabaseHandle> = Arc::clone(ctx.db_pool());
+    let database: Arc<dyn DatabaseHandle> = Arc::<systemprompt_database::Database>::clone(ctx.db_pool());
     let kernel = Kernel::new(
         database,
         BackgroundTasks::new(),
@@ -224,7 +224,7 @@ async fn subscribe(ctx: &AppContext, owner: &UserId) -> Result<String> {
 #[tokio::test]
 async fn a_second_bridge_user_is_refused_every_owned_bridge_notification_route() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
-    let gateway = gateway_router(&ctx)?;
+    let gateway = gateway_router(&ctx, ctx.admitted(), ctx.kernel())?;
     let owner = seed_bridge_credential(&pool, "sweep-bridge-notify-owner").await?;
     let stranger = seed_bridge_credential(&pool, "sweep-bridge-notify-stranger").await?;
     let notification = notify(&ctx, &owner.user_id).await?;

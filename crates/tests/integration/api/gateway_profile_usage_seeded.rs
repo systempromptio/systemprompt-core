@@ -33,8 +33,8 @@ struct Seeded {
 async fn app() -> Result<(Router, DbPool)> {
     let b = ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let ctx = test_app_context(&pool, &b.database_url);
-    Ok((gateway_router(&ctx).expect("gateway router builds"), pool))
+    let ctx = test_app_context(&b.database_url).await;
+    Ok((gateway_router(&ctx, ctx.admitted(), ctx.kernel()).expect("gateway router builds"), pool))
 }
 
 async fn seed_request(

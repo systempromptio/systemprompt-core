@@ -630,7 +630,7 @@ async fn an_unsatisfiable_range_is_416_and_a_trashed_document_says_so() -> Resul
 #[tokio::test]
 async fn the_drive_serves_cached_and_ranged_blobs_and_refuses_bad_commits() -> Result<()> {
     let (pool, ctx) = super::common::setup_ctx().await?;
-    let gateway = gateway_router(&ctx)?;
+    let gateway = gateway_router(&ctx, ctx.admitted(), ctx.kernel())?;
     let device = seed_drive_credential(&pool, "drive-review").await?;
     let path = format!("drive-{}.md", Uuid::new_v4().simple());
     let blob = b"# Drive blob body\n";
@@ -723,7 +723,7 @@ async fn the_drive_serves_cached_and_ranged_blobs_and_refuses_bad_commits() -> R
 #[tokio::test]
 async fn the_drive_records_presence_and_lists_open_proposals() -> Result<()> {
     let (pool, ctx, state) = fixture().await?;
-    let gateway = gateway_router(&ctx)?;
+    let gateway = gateway_router(&ctx, ctx.admitted(), ctx.kernel())?;
     let device = seed_drive_credential(&pool, "drive-proposals").await?;
     let id = id_of(&create_markdown(&state, &device).await?);
 
@@ -783,7 +783,7 @@ async fn the_drive_records_presence_and_lists_open_proposals() -> Result<()> {
 #[tokio::test]
 async fn the_drive_trash_needs_the_head_and_the_drive_move_keeps_the_document() -> Result<()> {
     let (pool, ctx) = super::common::setup_ctx().await?;
-    let gateway = gateway_router(&ctx)?;
+    let gateway = gateway_router(&ctx, ctx.admitted(), ctx.kernel())?;
     let device = seed_drive_credential(&pool, "drive-deletes").await?;
     let path = format!("drive-{}.md", Uuid::new_v4().simple());
     let blob = b"# To be removed\n";

@@ -29,10 +29,9 @@ async fn app_with_role(
     role: NodeRole,
 ) -> anyhow::Result<(axum::Router, std::sync::Arc<AppContext>)> {
     let b = ensure_test_bootstrap();
-    let pool = test_db_pool().await;
     let mut config = fixture_config(&b.database_url);
     config.role = role;
-    let ctx = fixture_app_context_with_config(&pool, config)?;
+    let ctx = fixture_app_context_with_config(config).await?;
     Ok((
         with_config(systemprompt_api::routes::proxy::mcp::router(&ctx), &ctx),
         ctx,

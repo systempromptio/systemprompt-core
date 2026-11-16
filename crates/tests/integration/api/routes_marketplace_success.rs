@@ -8,15 +8,10 @@
 //! suite's process and never leaks into other suites.
 
 use std::fs;
-use std::sync::Arc;
 
 use axum::Router;
 use systemprompt_api::routes::marketplace;
-use systemprompt_manifest::profile::PathsConfig;
-use systemprompt_marketplace::AllowAllFilter;
-use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_app_context_on_bootstrap_with_paths, test_db_pool,
-};
+use systemprompt_test_fixtures::ensure_test_bootstrap;
 use tower::ServiceExt;
 
 use super::common::{body_to_string, empty_get};
@@ -41,20 +36,8 @@ async fn router_with_marketplace() -> anyhow::Result<Router> {
     fs::create_dir_all(&dir)?;
     fs::write(dir.join("config.yaml"), MARKETPLACE_YAML)?;
 
-    let paths = PathsConfig {
-        root: None,
-        system: b.system_path.display().to_string(),
-        services: b.services_path.display().to_string(),
-        bin: b.bin_path.display().to_string(),
-        web_path: Some(b.system_path.join("web").display().to_string()),
-        storage: Some(b.storage_path.display().to_string()),
-        geoip_database: None,
-        shipped_files: None,
-        data: None,
-    };
-    let pool = test_db_pool().await;
     let ctx =
-        fixture_app_context_on_bootstrap_with_paths(b, &pool, paths, Arc::new(AllowAllFilter))?;
+        systemprompt_test_fixtures::test_app_context_on(b).await;
     Ok(marketplace::router().with_state((*ctx).clone()))
 }
 

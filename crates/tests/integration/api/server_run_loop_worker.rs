@@ -56,12 +56,8 @@ async fn worker_server() -> anyhow::Result<(
     let mut config = fixture_config(&b.database_url);
     config.cors_allowed_origins = vec!["http://127.0.0.1".to_owned()];
     config.role = NodeRole::Worker;
-    let ctx = systemprompt_test_fixtures::fixture_app_context_on_bootstrap(
-        b,
-        &pool,
-        config,
-        std::sync::Arc::new(systemprompt_marketplace::AllowAllFilter),
-    )?;
+    let ctx = systemprompt_test_fixtures::fixture_app_context_on_bootstrap(b, config, systemprompt_test_fixtures::fixture_admitted())
+        .await?;
     let early = bind_and_serve(
         "127.0.0.1:0",
         None,

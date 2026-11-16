@@ -15,7 +15,6 @@ use axum::extract::ConnectInfo;
 use axum::http::{Request, StatusCode, header};
 use systemprompt_api::services::server::{ReadinessState, setup_api_server};
 use systemprompt_database::DbPool;
-use systemprompt_extension::ExtensionRegistry;
 use systemprompt_identifiers::{AgentRunId, ExtensionId, JwtToken};
 use systemprompt_manifest::profile::{NodeRole, RateLimitsConfig};
 use systemprompt_models::modules::ApiPaths;
@@ -32,13 +31,15 @@ async fn node(role: NodeRole, disabled: &[ExtensionId]) -> Result<(DbPool, Route
     config.role = role;
     config.rate_limits = RateLimitsConfig::disabled();
     config.trusted_proxies = Vec::new();
-    let ctx = fixture_app_context_with_extensions(
-        &pool,
-        config,
-        ExtensionRegistry::discover()?,
-        disabled,
-    )?;
-    let router = setup_api_server(&ctx, None, &Arc::new(ReadinessState::new()))
+    let ctx = fixture_app_context_with_extensions(config, super::common::reference_admitted(disabled)?)
+        .await?;
+    let router = setup_api_server(
+        &ctx,
+        systemprompt_api::services::server::routes::Composed {
+            admitted: ctx.admitted(),
+            kernel: ctx.kernel(),
+        },
+        None, &Arc::new(ReadinessState::new()))
         .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
     Ok((pool, router))
 }
