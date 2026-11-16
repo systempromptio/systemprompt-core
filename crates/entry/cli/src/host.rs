@@ -11,7 +11,8 @@ use systemprompt_extension::cli::{
     BoxFuture, ChildSupervisor, CliConfig, CommandError, CommandHost, CommandOutput,
     DescribedCommand, Prompter,
 };
-use systemprompt_extension::{Admitted, Resolved};
+use systemprompt_extension::{Admitted, AdmittedSchedule, Resolved};
+use systemprompt_traits::{AppContext as _, BackgroundTasks, Dependencies};
 use systemprompt_loader::load_boot::load_boot_from_path;
 use systemprompt_manifest::{Config, Profile};
 use systemprompt_runtime::Kernel;
@@ -35,8 +36,53 @@ impl CommandContext {
 
     #[must_use]
     pub fn with_kernel(mut self, kernel: Arc<Kernel>) -> Self {
-        self.kernel = Some(kernel);
+        self.kernel = tokio::sync::OnceCell::new_with(Some(kernel));
         self
+    }
+
+    #[must_use]
+    pub fn with_detached_kernel(self) -> Self {
+        let mut seed = self.command_seed(Dependencies::new());
+        if let Some(admitted) = &self.admitted {
+            seed.insert(AdmittedSchedule::of(admitted.built()));
+        }
+        let kernel = Kernel::detached(BackgroundTasks::new(), seed);
+        self.with_kernel(Arc::new(kernel))
+    }
+
+    fn command_seed(&self, base: Dependencies) -> Dependencies {
+        let mut seed = base
+            .with(self.secrets_sources().clone())
+            .with(self.interrupt_shield().clone());
+        if let Ok(profile) = self.loaded_profile() {
+            seed.insert(Arc::clone(profile));
+        }
+        if let Ok(boot) = self.boot() {
+            seed.insert(Arc::new(boot.clone()));
+            if let Ok(config) = boot.config() {
+                seed.insert(Arc::clone(config));
+            }
+        }
+        if let Some(services) = self.services() {
+            seed.insert(services.clone());
+        }
+        seed
+    }
+
+    async fn command_kernel(&self) -> anyhow::Result<&Arc<Kernel>> {
+        self.kernel
+            .get_or_try_init(|| async {
+                let app = self.app_context().await?;
+                let state = self
+                    .command_seed(app.kernel().state().clone())
+                    .with(Arc::clone(app));
+                Ok(Arc::new(Kernel::new(
+                    app.database_handle(),
+                    app.background_tasks().clone(),
+                    state,
+                )))
+            })
+            .await
     }
 
     pub fn admitted(&self) -> anyhow::Result<&Arc<Admitted>> {
@@ -73,14 +119,8 @@ impl CommandHost for CommandContext {
 
     fn resolved(&self) -> BoxFuture<'_, Result<Resolved<'_>, CommandError>> {
         Box::pin(async move {
-            self.kernel
-                .as_ref()
-                .map(|kernel| kernel.resolved())
-                .ok_or_else(|| {
-                    CommandError::new(anyhow::anyhow!(
-                        "This command requires the runtime kernel; it runs only with a profile"
-                    ))
-                })
+            let kernel = self.command_kernel().await.map_err(CommandError::new)?;
+            Ok(kernel.resolved())
         })
     }
 

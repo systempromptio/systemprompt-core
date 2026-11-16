@@ -49,7 +49,7 @@ pub struct CommandContext {
     pub(crate) foreground_children: ForegroundChildren,
     build: BuildIdentity,
     pub(crate) admitted: Option<Arc<Admitted>>,
-    pub(crate) kernel: Option<Arc<Kernel>>,
+    pub(crate) kernel: OnceCell<Arc<Kernel>>,
     pub(crate) registry: Option<Arc<CommandRegistry>>,
     secrets_sources: SecretsSources,
 }
@@ -73,7 +73,7 @@ impl CommandContext {
             foreground_children: ForegroundChildren::default(),
             build: BuildIdentity::core(),
             admitted: None,
-            kernel: None,
+            kernel: OnceCell::new(),
             registry: None,
             secrets_sources: SecretsSources::default(),
         }
@@ -102,7 +102,7 @@ impl CommandContext {
 
     pub fn app_context_builder(&self) -> Result<AppContextBuilder> {
         let builder = self.services.clone().into_iter().fold(
-            AppContext::builder(self.boot()?.clone()),
+            AppContext::builder(self.boot()?.clone(), Arc::clone(self.admitted()?)),
             AppContextBuilder::with_services,
         );
         Ok(builder.with_build_identity(self.build.clone()))

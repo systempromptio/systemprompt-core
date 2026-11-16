@@ -175,6 +175,11 @@ async fn run_inner(
         registry,
     } = guards;
     let admitted = admit_for(&invocation, profile.as_deref(), admit)?;
+    if desc.paths() && !desc.skip_validation()
+        && let (Some(boot), Some(admitted)) = (&boot, &admitted)
+    {
+        bootstrap::run_validation(boot, admitted.built())?;
+    }
     let ctx = CommandContext::new(cli_config, env)
         .with_interrupt_shield(shield)
         .with_foreground_children(children)
@@ -187,6 +192,11 @@ async fn run_inner(
         .with_services(services)
         .with_profile(profile)
         .with_boot(boot);
+    let ctx = if desc.database() {
+        ctx
+    } else {
+        ctx.with_detached_kernel()
+    };
     Box::pin(dispatch_command(invocation.into_selected(), &ctx)).await
 }
 
