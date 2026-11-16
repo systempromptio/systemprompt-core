@@ -37,6 +37,10 @@ mod routes_content_mounted;
 mod routes_role_gateway;
 
 #[cfg(test)]
+#[path = "gateway_admitted_routes.rs"]
+mod gateway_admitted_routes;
+
+#[cfg(test)]
 #[path = "server_declared_groups.rs"]
 mod server_declared_groups;
 
