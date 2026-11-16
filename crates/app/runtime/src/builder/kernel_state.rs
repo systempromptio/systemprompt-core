@@ -11,8 +11,9 @@
 //! event router and the escalation delivery mode the notifications member
 //! assembles its service with (`InProcess` on the API, `Consumer` on a
 //! child host, which delivers through the serving host's consumer). The
-//! document store is not seeded: it is built from the resolved state, and
-//! the files member's seams read it through the slot the host binds.
+//! document store is built from the resolved state, so it is not seeded;
+//! the read half of its cell (`DocumentsHandlesSlot`) is, and the host keeps
+//! the bind half outside the state and binds it once the store is built.
 //!
 //! The process's one `AiService` (present only when inference is configured)
 //! is composed from several domains, so the composition root seeds it; an extension router reads them from
@@ -53,6 +54,7 @@ use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
 use systemprompt_events::EventRouter;
 use systemprompt_files::FilesConfig;
+use systemprompt_files::documents::DocumentsHandlesSlot;
 use systemprompt_manifest::services::SystemAdmin;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_manifest::{Config, Profile};
@@ -75,6 +77,7 @@ pub struct KernelSeed<'a> {
     pub secrets: Arc<dyn SecretStore>,
     pub system_admin: &'a SystemAdmin,
     pub event_router: &'a EventRouter,
+    pub documents: DocumentsHandlesSlot,
     #[cfg(feature = "notifications")]
     pub escalation: EscalationDelivery,
 }
@@ -119,7 +122,8 @@ pub fn base_kernel_state(seed: KernelSeed<'_>) -> Dependencies {
         .with(seed.services_root)
         .with(seed.secrets)
         .with(seed.system_admin.clone())
-        .with(Arc::new(seed.event_router.clone()));
+        .with(Arc::new(seed.event_router.clone()))
+        .with(seed.documents);
     #[cfg(feature = "notifications")]
     let state = state.with(seed.escalation);
     state

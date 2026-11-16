@@ -9,14 +9,13 @@
 //! core codecs and the core template provider; it contributes no agent
 //! access policy, so the default applies unless one other member does.
 //!
-//! It provides the unbound [`DocumentsHandlesSlot`] the host binds once it
-//! has built the document store from the resolved state, and the core
-//! defaults other domains' slots append, each a [`CoreSeam`] that reads that
-//! slot when it is called: the document and issue visibilities the
-//! notifications slot appends, and the document source access and source
-//! content the brain slot reads. A seam called before the host binds the
-//! slot fails with `DocumentsUnbound`. The issue
-//! visibility asks the user-role audience resolver the `users` member
+//! It provides the core defaults other domains' slots append, each a
+//! [`CoreSeam`] that reads the [`DocumentsHandlesSlot`] the host seeds and
+//! binds once it has built the document store from the resolved state: the
+//! document and issue visibilities the notifications slot appends, and the
+//! document source access and source content the brain slot reads. A seam
+//! called before the host binds the slot fails with `DocumentsUnbound`. The
+//! issue visibility asks the user-role audience resolver the `users` member
 //! provides for triage-role membership, so a composition without `users`
 //! refuses this member's provide.
 //!
@@ -132,10 +131,7 @@ type SourceAccessSeam = CoreSeam<dyn SourceAccess, core_seam::DocumentSourceAcce
 type SourceContentSeam = CoreSeam<dyn SourceContent, core_seam::DocumentSourceContent>;
 
 fn provide_core_seams(c: &mut Contributions<'_>) {
-    c.provide(|_: &Resolved<'_>| -> Result<DocumentsHandlesSlot, ProvideError> {
-        Ok(DocumentsHandlesSlot::default())
-    })
-    .provide(
+    c.provide(
         |r: &Resolved<'_>| -> Result<DocumentVisibilitySeam, ProvideError> {
             let seam: Arc<dyn ResourceVisibility> =
                 Arc::new(BoundDocumentVisibility(r.get::<DocumentsHandlesSlot>()?));

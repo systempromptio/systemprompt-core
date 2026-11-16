@@ -1,6 +1,6 @@
 //! Composition of the [`DocumentsRuntime`] from the context's handles and the
-//! resolved kernel state, and the binding of the files member's
-//! [`DocumentsHandlesSlot`] to it.
+//! resolved kernel state, and the binding of the host's
+//! `DocumentsHandlesSlot` to it through the binder the host kept.
 //!
 //! The blob holders, the document seams, the agent access policy and the
 //! shared audience set are slot and kernel outputs of the resolve, so the
@@ -21,7 +21,7 @@ use systemprompt_files::FilesConfig;
 use systemprompt_files::contract::{AgentAccess, DocumentSeams};
 use systemprompt_files::documents::repository::BlobHolders;
 use systemprompt_files::documents::templates::load_catalog;
-use systemprompt_files::documents::{DocumentsHandles, DocumentsHandlesSlot};
+use systemprompt_files::documents::{DocumentsHandles, DocumentsHandlesBinder};
 use systemprompt_files::issues::{IssueReportRepository, IssueService};
 use systemprompt_governance::authz::{AccessControlRepository, SharedAuthzHook};
 use systemprompt_models::authz::{SubjectAttributeSource, SubjectSourceHandle};
@@ -44,6 +44,7 @@ pub(crate) struct DocumentsInputs<'a> {
     pub(crate) admitted: &'a Admitted,
     pub(crate) notifications: &'a DynNotificationSink,
     pub(crate) brain: &'a DynBrainSink,
+    pub(crate) binder: &'a DocumentsHandlesBinder,
 }
 
 pub(crate) fn build_documents(
@@ -79,20 +80,20 @@ pub(crate) fn build_documents(
         seams: r.get::<Arc<DocumentSeams>>()?,
         agent_access: r.get::<Arc<AgentAccess>>()?,
     }));
-    bind_documents(&documents, inputs.files_config, r)?;
+    bind_documents(&documents, inputs.files_config, inputs.binder)?;
     Ok(documents)
 }
 
 fn bind_documents(
     documents: &DocumentsRuntime,
     files_config: &FilesConfig,
-    r: &Resolved<'_>,
+    binder: &DocumentsHandlesBinder,
 ) -> RuntimeResult<()> {
     let service = files_config
         .documents_config()
         .is_enabled()
         .then(|| Arc::clone(documents.service()));
-    r.get::<DocumentsHandlesSlot>()?.bind(Arc::new(DocumentsHandles {
+    binder.bind(Arc::new(DocumentsHandles {
         access: Arc::clone(documents.access()),
         repositories: Arc::clone(documents.repositories()),
         issues: Arc::clone(documents.issues()),
