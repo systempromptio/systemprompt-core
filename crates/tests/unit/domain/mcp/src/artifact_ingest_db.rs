@@ -113,7 +113,7 @@ async fn a_call_seen_from_two_vantage_points_is_one_execution_and_one_artifact()
 
     let stored = ingest
         .artifacts()
-        .find_by_id(&first.artifact_id)
+        .find_owned(&first.artifact_id, &user)
         .await
         .unwrap()
         .expect("artifact stored");
@@ -222,7 +222,7 @@ async fn a_secret_in_the_result_is_redacted_before_the_body_is_stored() {
 
     let stored = ingest
         .artifacts()
-        .find_by_id(&outcome.artifact_id)
+        .find_owned(&outcome.artifact_id, &user)
         .await
         .unwrap()
         .expect("artifact stored");
@@ -257,13 +257,14 @@ async fn an_identical_body_is_stored_once_by_digest() {
     let db = test_db_pool().await;
     let ingest = ArtifactIngest::from_db(&db, None);
     let body = unique("shared-body");
+    let user = caller();
     let mut ids = Vec::new();
     for _ in 0..2 {
         let outcome = ingest
             .ingest(request(
                 CallToolResult::success(vec![ContentBlock::text(body.clone())]),
                 &unique("sess"),
-                &caller(),
+                &user,
                 Some(&AiToolCallId::new(unique("toolu"))),
                 ExecutionSource::Gateway,
             ))
@@ -274,13 +275,13 @@ async fn an_identical_body_is_stored_once_by_digest() {
     }
     let a = ingest
         .artifacts()
-        .find_by_id(&ids[0])
+        .find_owned(&ids[0], &user)
         .await
         .unwrap()
         .unwrap();
     let b = ingest
         .artifacts()
-        .find_by_id(&ids[1])
+        .find_owned(&ids[1], &user)
         .await
         .unwrap()
         .unwrap();
@@ -298,6 +299,7 @@ async fn an_identical_body_is_stored_once_by_digest() {
 async fn typed_error_result_keeps_declared_shape_title_ui_resource_and_client_artifact_id() {
     let db = test_db_pool().await;
     let ingest = ArtifactIngest::from_db(&db, None);
+    let user = caller();
     let artifact_id = unique("artifact");
     let mut result = CallToolResult::error(vec![
         ContentBlock::text("tool reported an error"),
@@ -326,7 +328,7 @@ async fn typed_error_result_keeps_declared_shape_title_ui_resource_and_client_ar
         .ingest(request(
             result,
             &unique("sess"),
-            &caller(),
+            &user,
             None,
             ExecutionSource::Gateway,
         ))
@@ -340,7 +342,7 @@ async fn typed_error_result_keeps_declared_shape_title_ui_resource_and_client_ar
     assert_eq!(outcome.stored_body["title"], "Gateway report");
     let stored = ingest
         .artifacts()
-        .find_by_id(&outcome.artifact_id)
+        .find_owned(&outcome.artifact_id, &user)
         .await
         .unwrap()
         .expect("typed artifact stored");

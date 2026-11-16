@@ -79,6 +79,8 @@ mod host_context;
 #[cfg(test)]
 mod link_rig;
 #[cfg(test)]
+mod links_issuer_errors;
+#[cfg(test)]
 mod links_mint;
 #[cfg(test)]
 mod mcp_dispatch;

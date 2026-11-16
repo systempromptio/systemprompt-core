@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.82.0] - 2026-11-16
+
+### Breaking
+
+- `read_artifact_resource` takes the caller's `UserId`, and `McpArtifactRepository::find_by_id` is replaced by `find_owned(artifact_id, owner)`. Migrate by passing the authenticated caller.
+
+### Fixed
+
+- An artifact resource is read only by the user it was stored for; an artifact stored without an owner is read by no one.
+
 ## [0.81.0] - 2026-11-12
 
 ### Breaking

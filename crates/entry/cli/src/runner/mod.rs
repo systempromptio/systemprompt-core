@@ -16,12 +16,14 @@ pub mod profile_routing;
 pub mod routing;
 pub mod routing_decision;
 mod structured_output;
+mod tls;
 
 use anyhow::{Context, Result, bail};
 use clap::{CommandFactory, FromArgMatches, Parser};
 use systemprompt_cloud::CloudCredentials;
 use systemprompt_loader::subprocess::{self, ApiServerStamp, ForegroundChildren};
 use systemprompt_logging::OutputState;
+use systemprompt_models::BuildIdentity;
 use systemprompt_runtime::DatabaseContext;
 
 use crate::cli_settings::{CliConfig, OutputFormat};
@@ -31,7 +33,11 @@ use crate::descriptor::{CommandDescriptor, DescribeCommand};
 use crate::env_overrides::EnvOverrides;
 
 pub async fn run() -> Result<()> {
-    install_tls_crypto_provider();
+    Box::pin(run_with(BuildIdentity::core())).await
+}
+
+pub async fn run_with(build: BuildIdentity) -> Result<()> {
+    tls::install_crypto_provider();
     let output = OutputState::new();
     let matches = args::Cli::command().get_matches();
     let cli = args::Cli::from_arg_matches(&matches).map_err(|e| e.exit())?;
@@ -47,6 +53,7 @@ pub async fn run() -> Result<()> {
     let guards = RunGuards {
         shield: shield.clone(),
         children: children.clone(),
+        build,
     };
     let outcome = if cli.command.as_ref().is_some_and(args::Commands::serves_api) {
         Box::pin(run_inner(&output, cli, confirm, guards, env)).await
@@ -56,21 +63,6 @@ pub async fn run() -> Result<()> {
     };
     structured_output::finalize(&output, &outcome);
     outcome
-}
-
-// Why: reqwest 0.13 is built with `rustls-no-provider` so the tree carries ring
-// only (sqlx already uses it); rustls then needs a process-wide provider before
-// the first client is built, or reqwest panics.
-fn install_tls_crypto_provider() {
-    if rustls::crypto::CryptoProvider::get_default().is_some() {
-        return;
-    }
-    if rustls::crypto::ring::default_provider()
-        .install_default()
-        .is_err()
-    {
-        tracing::debug!("rustls crypto provider was installed concurrently");
-    }
 }
 
 async fn run_inner(
@@ -151,9 +143,8 @@ async fn run_inner(
         confirmation::gate(&desc, &confirm, &cli_config)?;
     }
 
-    let ctx = CommandContext::new(cli_config, env)
-        .with_interrupt_shield(guards.shield)
-        .with_foreground_children(guards.children)
+    let ctx = guards
+        .apply(CommandContext::new(cli_config, env))
         .with_cloud_credentials(credentials)
         .with_database_url_override(database_url_override)
         .with_services(services)
@@ -242,6 +233,15 @@ async fn dispatch_command(command: Option<args::Commands>, ctx: &CommandContext)
 struct RunGuards {
     shield: interrupt::InterruptShield,
     children: ForegroundChildren,
+    build: BuildIdentity,
+}
+
+impl RunGuards {
+    fn apply(self, ctx: CommandContext) -> CommandContext {
+        ctx.with_interrupt_shield(self.shield)
+            .with_foreground_children(self.children)
+            .with_build_identity(self.build)
+    }
 }
 
 struct DirectDatabase<'a> {
@@ -266,10 +266,14 @@ async fn run_with_database_url(
 
     systemprompt_logging::init_logging(&db_ctx.db_pool_arc(), None);
 
-    let ctx = CommandContext::with_database(cli_config, env, db_ctx, database_url.to_owned())
-        .with_cloud_credentials(credentials)
-        .with_interrupt_shield(guards.shield)
-        .with_foreground_children(guards.children);
+    let ctx = guards
+        .apply(CommandContext::with_database(
+            cli_config,
+            env,
+            db_ctx,
+            database_url.to_owned(),
+        ))
+        .with_cloud_credentials(credentials);
     Box::pin(dispatch_command(command, &ctx)).await
 }
 

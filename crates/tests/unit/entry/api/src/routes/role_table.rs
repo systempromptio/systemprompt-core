@@ -33,6 +33,7 @@ fn api_role_mounts_everything_but_the_gateway() {
         RouteGroup::Agent,
         RouteGroup::McpAndStream,
         RouteGroup::ContentAndMisc,
+        RouteGroup::InternalLinks,
         RouteGroup::Messaging,
         RouteGroup::Extensions,
         RouteGroup::Static,
@@ -44,13 +45,27 @@ fn api_role_mounts_everything_but_the_gateway() {
 }
 
 #[test]
-fn worker_role_mounts_probes_and_the_routes_api_replicas_forward_to() {
+fn worker_role_mounts_probes_the_forwarded_routes_and_its_servers_link_route() {
     let expected = set(&[
         RouteGroup::Agent,
         RouteGroup::McpAndStream,
+        RouteGroup::InternalLinks,
         RouteGroup::Probes,
     ]);
     assert_eq!(set(route_groups(NodeRole::Worker)), expected);
+    assert!(!set(route_groups(NodeRole::Worker)).contains(&RouteGroup::ContentAndMisc));
+}
+
+#[test]
+fn every_role_that_supervises_mcp_servers_serves_their_link_route() {
+    for role in NodeRole::ALL_ROLES {
+        if lifecycle_plan(role).reconcile_mcp {
+            assert!(
+                route_groups(role).contains(&RouteGroup::InternalLinks),
+                "{role} runs MCP servers that call /api/v1/internal/links on it"
+            );
+        }
+    }
 }
 
 #[test]
@@ -61,7 +76,7 @@ fn all_role_is_the_union_of_gateway_and_api() {
         .copied()
         .collect();
     assert_eq!(all, union);
-    assert_eq!(all.len(), 12);
+    assert_eq!(all.len(), 13);
 }
 
 #[test]

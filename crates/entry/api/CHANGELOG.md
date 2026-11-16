@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.82.0] - 2026-11-16
+
+### Breaking
+
+- `RouteGroup` gains `InternalLinks`. Migrate by adding the match arm.
+
+### Added
+
+- `GET /api/v1/documents/{id}/rendered` serves an HTML document's stored bytes inline under a `sandbox` CSP without `allow-same-origin`; scripts and `https:` assets load only as `files.documents.renderedHtml` allows.
+- `/livez`, `/readyz`, `/api/v1/health`, `/api/v1/health/detail` and the root discovery document report the embedding binary's build under `build`.
+
+### Fixed
+
+- A `worker` node serves `POST /api/v1/internal/links`.
+- A `worker` that stops gracefully withdraws its presence before releasing its processes, a surviving worker claims them as each lease is released, and an `api` node holds a request for a supervised service with no owner for at most 10 s instead of answering `503 no_live_owner`.
+
 ## [0.81.0] - 2026-11-12
 
 ### Breaking

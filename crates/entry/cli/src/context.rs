@@ -21,7 +21,8 @@ use systemprompt_config::{LoadedProfile, SecretsService};
 use systemprompt_database::DbPool;
 use systemprompt_loader::{BootContext, ServicesState};
 use systemprompt_manifest::{Config, Profile};
-use systemprompt_runtime::{AppContext, DatabaseContext};
+use systemprompt_models::BuildIdentity;
+use systemprompt_runtime::{AppContext, AppContextBuilder, DatabaseContext};
 use tokio::sync::OnceCell;
 
 use crate::cli_settings::CliConfig;
@@ -44,6 +45,7 @@ pub struct CommandContext {
     boot: Option<BootContext>,
     interrupt_shield: InterruptShield,
     foreground_children: ForegroundChildren,
+    build: BuildIdentity,
 }
 
 impl CommandContext {
@@ -63,7 +65,26 @@ impl CommandContext {
             boot: None,
             interrupt_shield: InterruptShield::default(),
             foreground_children: ForegroundChildren::default(),
+            build: BuildIdentity::core(),
         }
+    }
+
+    #[must_use]
+    pub fn with_build_identity(mut self, build: BuildIdentity) -> Self {
+        self.build = build;
+        self
+    }
+
+    pub const fn build_identity(&self) -> &BuildIdentity {
+        &self.build
+    }
+
+    pub fn app_context_builder(&self) -> Result<AppContextBuilder> {
+        let builder = self.services.clone().into_iter().fold(
+            AppContext::builder(self.boot()?.clone()),
+            AppContextBuilder::with_services,
+        );
+        Ok(builder.with_build_identity(self.build.clone()))
     }
 
     #[must_use]
@@ -174,6 +195,7 @@ impl CommandContext {
             boot: None,
             interrupt_shield: InterruptShield::default(),
             foreground_children: ForegroundChildren::default(),
+            build: BuildIdentity::core(),
         }
     }
 
@@ -193,6 +215,7 @@ impl CommandContext {
             boot: None,
             interrupt_shield: InterruptShield::default(),
             foreground_children: ForegroundChildren::default(),
+            build: BuildIdentity::core(),
         }
     }
 
@@ -226,16 +249,9 @@ impl CommandContext {
         if self.db.is_some() {
             bail!("This command requires full profile initialization. Remove --database-url flag.");
         }
-        let boot = self.boot()?.clone();
+        let mut builder = self.app_context_builder()?;
         self.runtime
             .get_or_try_init(|| async {
-                let mut builder = self
-                    .services
-                    .clone()
-                    .into_iter()
-                    .fold(AppContext::builder(boot), |builder, services| {
-                        builder.with_services(services)
-                    });
                 if let Some(url) = &self.database_url_override {
                     builder = builder.with_database_url(url.clone());
                 }

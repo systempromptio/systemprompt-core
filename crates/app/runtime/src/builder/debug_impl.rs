@@ -22,6 +22,7 @@ impl std::fmt::Debug for AppContextBuilder {
             .field("shutdown", &self.shutdown.is_some())
             .field("background_tasks", &self.background_tasks.is_some())
             .field("event_router", &self.event_router)
+            .field("build", &self.build)
             .field("services", &self.core.services.is_some())
             .finish()
     }

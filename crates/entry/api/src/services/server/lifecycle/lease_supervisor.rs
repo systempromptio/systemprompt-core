@@ -2,12 +2,25 @@
 //! reachable workers and the processes the configuration wants, settles each
 //! process's lease, and hands starts and stops to the process actuator.
 //!
-//! On shutdown it stops every process it holds before releasing that
-//! process's lease, so a peer that claims the lease never runs the process
-//! beside this one. The stops run in parallel within the teardown's
-//! background grace, alongside the drain's own child termination; a process
-//! not confirmed stopped by then, or with no pid recorded yet because its
-//! start is still in flight, keeps its lease, which expires after
+//! On shutdown it first withdraws this worker's presence, so peers stop
+//! preferring it at their next tick, then stops every process it holds before
+//! releasing that process's lease, so a peer that claims the lease never runs
+//! the process beside this one: until the release, a peer's claim of a key it
+//! now prefers finds the lease held and stands by. The withdrawal is repeated
+//! after the releases because the heartbeat, cancelled at the same moment, may
+//! have a presence write in flight. A worker that stands by on a key it is
+//! preferred for retries the claim every
+//! [`CLAIM_RETRY_EVERY`](super::process_ownership::CLAIM_RETRY_EVERY) instead
+//! of waiting a whole
+//! [`RENEW_EVERY`](super::process_ownership::RENEW_EVERY). The withdrawal and
+//! every release are announced to the other workers, whose loops wait on a
+//! [`ProcessOwnershipWake`] and run a claim-only tick as soon as one arrives;
+//! the retry and the full tick are the backstop for a lost announcement.
+//! Claim-only ticks never renew or hand over, so the hand-over still waits for
+//! a peer settled over a whole tick. The stops run in parallel within the
+//! teardown's background grace, alongside the drain's own child termination; a
+//! process not confirmed stopped by then, or with no pid recorded yet because
+//! its start is still in flight, keeps its lease, which expires after
 //! [`LEASE_TTL`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -18,7 +31,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use systemprompt_agent::services::registry::AgentRegistry;
-use systemprompt_database::{InstanceLeaseRepository, ServiceModule};
+use systemprompt_database::{InstanceLeaseRepository, ProcessOwnershipWake, ServiceModule};
 use systemprompt_identifiers::{InstanceId, ServiceName};
 use systemprompt_loader::subprocess::{self, ChildKind, StopOutcome};
 use systemprompt_manifest::profile::NodeRole;
@@ -26,10 +39,10 @@ use systemprompt_runtime::AppContext;
 use systemprompt_traits::LeaseRepository;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 
-use super::process_actuator::{ProcessCommand, spawn_process_actuator};
+use super::process_actuator::{ProcessCommand, release_and_announce, spawn_process_actuator};
 use super::process_ownership::{
-    FAILED_START_BACKOFF, KeyAction, LEASE_TTL, OwnershipStep, ProcessKey, RENEW_EVERY, key_action,
-    ownership_step, renewal_overdue, with_self,
+    FAILED_START_BACKOFF, KeyAction, LEASE_TTL, OwnershipStep, ProcessKey, TickKind, key_action,
+    next_tick, ownership_step, renewal_overdue, tick_kind, with_self,
 };
 
 struct LeaseLoop {
@@ -40,6 +53,7 @@ struct LeaseLoop {
     held: HashMap<ProcessKey, Instant>,
     backoff: HashMap<ProcessKey, Instant>,
     settled: Vec<InstanceId>,
+    pending: bool,
 }
 
 pub(in crate::services::server) fn start_leased_supervision(ctx: &AppContext) {
@@ -55,17 +69,25 @@ pub(in crate::services::server) fn start_leased_supervision(ctx: &AppContext) {
         actuator,
         held: HashMap::new(),
         backoff: HashMap::new(),
+        pending: false,
     };
+    let mut wake = ProcessOwnershipWake::new(ctx.db_pool());
     tasks.spawn_cancellable("process_leases", move |cancel| async move {
-        let mut tick = tokio::time::interval(RENEW_EVERY);
-        tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+        let mut last_full: Option<Instant> = None;
+        let mut wait = Duration::ZERO;
         loop {
             tokio::select! {
                 () = cancel.cancelled() => break,
-                _ = tick.tick() => {},
+                _ = wake.wait(wait) => {},
             }
             state.absorb_failures(&mut failed_rx);
-            state.tick().await;
+            let kind = tick_kind(last_full.map(|at| at.elapsed()));
+            if kind == TickKind::Full {
+                last_full = Some(Instant::now());
+            }
+            state.tick(kind).await;
+            let since_full = last_full.map_or(Duration::ZERO, |at| at.elapsed());
+            wait = next_tick(since_full, state.pending);
         }
         state.stop_and_release_all().await;
     });
@@ -82,7 +104,8 @@ impl LeaseLoop {
         self.backoff.retain(|_, until| *until > now);
     }
 
-    async fn tick(&mut self) {
+    async fn tick(&mut self, kind: TickKind) {
+        self.pending = false;
         let workers = match self
             .ctx
             .service_repository()
@@ -102,29 +125,37 @@ impl LeaseLoop {
                 return;
             },
         };
-        let unwanted: Vec<ProcessKey> = self
-            .held
-            .keys()
-            .filter(|key| !wanted.contains(key))
-            .cloned()
-            .collect();
-        for key in unwanted {
-            self.held.remove(&key);
-            self.command(ProcessCommand::Stop { key, release: true });
+        if kind == TickKind::Full {
+            let unwanted: Vec<ProcessKey> = self
+                .held
+                .keys()
+                .filter(|key| !wanted.contains(key))
+                .cloned()
+                .collect();
+            for key in unwanted {
+                self.held.remove(&key);
+                self.command(ProcessCommand::Stop { key, release: true });
+            }
         }
         for key in wanted {
-            self.settle(key, &workers).await;
+            self.settle(key, &workers, kind).await;
         }
-        self.settled = workers;
+        if kind == TickKind::Full {
+            self.settled = workers;
+        }
     }
 
-    async fn settle(&mut self, key: ProcessKey, workers: &[InstanceId]) {
+    async fn settle(&mut self, key: ProcessKey, workers: &[InstanceId], kind: TickKind) {
         let held = self.held.contains_key(&key);
         if !held && self.backoff.contains_key(&key) {
             return;
         }
         let lease = key.lease_key();
-        match key_action(&lease, &self.me, workers, &self.settled, held) {
+        let action = key_action(&lease, &self.me, workers, &self.settled, held);
+        if kind == TickKind::ClaimOnly && action != KeyAction::Claim {
+            return;
+        }
+        match action {
             KeyAction::Skip => {},
             KeyAction::HandOver => {
                 tracing::info!(service = %key.name(), "handing process over to its preferred worker");
@@ -156,7 +187,7 @@ impl LeaseLoop {
                     OwnershipStep::Renewed => {
                         self.held.insert(key, Instant::now());
                     },
-                    OwnershipStep::Standby => {},
+                    OwnershipStep::Standby => self.pending = true,
                     OwnershipStep::Lost => {
                         tracing::warn!(service = %key.name(), "process lease lost to a peer");
                         self.held.remove(&key);
@@ -176,7 +207,14 @@ impl LeaseLoop {
         }
     }
 
+    async fn withdraw_presence(&self) {
+        if let Err(error) = self.ctx.service_repository().delete_presence().await {
+            tracing::warn!(error = %error, "worker presence could not be withdrawn on shutdown; peers wait for it to go stale");
+        }
+    }
+
     async fn stop_and_release_all(&mut self) {
+        self.withdraw_presence().await;
         let timings = self.ctx.config().shutdown;
         let budget = timings
             .background_grace()
@@ -189,9 +227,7 @@ impl LeaseLoop {
             let stopped =
                 tokio::time::timeout(budget, stop_held(ctx, &key, timings.child_grace())).await;
             if stopped == Ok(true) {
-                if let Err(error) = leases.release(&key.lease_key()).await {
-                    tracing::warn!(service = %key.name(), error = %error, "process lease release failed");
-                }
+                release_and_announce(ctx, &**leases, &key).await;
             } else {
                 tracing::warn!(
                     service = %key.name(),
@@ -200,6 +236,7 @@ impl LeaseLoop {
             }
         }))
         .await;
+        self.withdraw_presence().await;
     }
 }
 
@@ -237,7 +274,7 @@ async fn stop_held(ctx: &AppContext, key: &ProcessKey, grace: Duration) -> bool 
     }
 }
 
-fn desired_processes(ctx: &AppContext) -> anyhow::Result<Vec<ProcessKey>> {
+pub(crate) fn desired_processes(ctx: &AppContext) -> anyhow::Result<Vec<ProcessKey>> {
     let mut wanted: Vec<ProcessKey> = ctx
         .mcp_registry()
         .get_managed_servers()?

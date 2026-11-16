@@ -36,6 +36,7 @@ mod phase;
 mod retire;
 mod routine_prepass;
 mod settled;
+mod trigger_reuse;
 mod validation;
 
 use systemprompt_extension::{Extension, ExtensionRegistry, LoaderError};
@@ -48,6 +49,7 @@ use self::lock::BootstrapLockGuard;
 use self::phase::execute_phase;
 use self::retire::{apply_retirements, check_retirements};
 use self::routine_prepass::apply_routine_prepass;
+use self::trigger_reuse::TriggerReuse;
 use self::validation::{validate_extension_columns, validate_table_ownership};
 use super::migration_refs::check_migration_references;
 use super::prepare::{PreparedSchema, prepare_extension_schema};
@@ -162,7 +164,12 @@ async fn run_install(
         }
     }
 
-    let mut report = apply_dependent(db, schema_extensions, &prepared, &fresh).await?;
+    let reuse = if migration_config.force_full_install {
+        TriggerReuse::Reapply
+    } else {
+        TriggerReuse::Reuse
+    };
+    let mut report = apply_dependent(db, schema_extensions, &prepared, &fresh, reuse).await?;
 
     // Why: after every phase, so the schema checked is the one the server
     // will write to; a trigger left writing a dropped table fails every
@@ -214,7 +221,14 @@ async fn apply_structural(
                 "Fresh install: stamping migrations as baseline without executing them"
             );
         }
-        execute_phase(db, &p.structural, &stamp, &p.extension_id).await?;
+        execute_phase(
+            db,
+            &p.structural,
+            &stamp,
+            &p.extension_id,
+            TriggerReuse::Reapply,
+        )
+        .await?;
     }
 
     for ext in schema_extensions {
@@ -239,9 +253,10 @@ async fn apply_dependent(
     schema_extensions: &ExtensionSet,
     prepared: &[PreparedSchema],
     fresh: &FreshSet,
+    reuse: TriggerReuse,
 ) -> Result<SchemaInstallReport, LoaderError> {
     for p in prepared {
-        execute_phase(db, &p.dependent, &[], &p.extension_id).await?;
+        execute_phase(db, &p.dependent, &[], &p.extension_id, reuse).await?;
         for cols in &p.columns_to_validate {
             validate_extension_columns(db, cols, &p.extension_id).await?;
         }

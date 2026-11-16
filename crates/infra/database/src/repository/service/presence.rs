@@ -1,15 +1,21 @@
 //! Per-replica role presence: every replica records its `server.role` with
 //! each registry heartbeat, so the live replica count per role is readable
 //! cluster-wide, including for roles that register no process, and the live
-//! members of one role are listable for spreading work across them.
+//! members of one role are listable for spreading work across them. A replica
+//! that stops gracefully withdraws its own row, so it leaves the listings at
+//! once rather than when its heartbeat goes stale, and the withdrawal and each
+//! process lease it then releases are announced on
+//! [`PROCESS_OWNERSHIP_CHANNEL`](super::PROCESS_OWNERSHIP_CHANNEL) so its
+//! peers re-evaluate without waiting for their next tick.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::InstanceId;
+use systemprompt_identifiers::{InstanceId, LeaseKey};
 use systemprompt_manifest::profile::NodeRole;
 
 use super::liveness::INSTANCE_DEAD_AFTER_SECS;
+use super::ownership_wake::PROCESS_OWNERSHIP_CHANNEL;
 use super::repo::ServiceRepository;
 use crate::error::DatabaseResult;
 
@@ -92,5 +98,33 @@ impl ServiceRepository {
         .execute(&*self.write_pool)
         .await?;
         Ok(result.rows_affected())
+    }
+
+    pub async fn delete_presence(&self) -> DatabaseResult<u64> {
+        let result = sqlx::query!(
+            "DELETE FROM instance_presence WHERE instance_id = $1",
+            self.instance_id.as_str()
+        )
+        .execute(&*self.write_pool)
+        .await?;
+        sqlx::query!(
+            "SELECT pg_notify($1, $2)",
+            PROCESS_OWNERSHIP_CHANNEL,
+            self.instance_id.as_str()
+        )
+        .execute(&*self.write_pool)
+        .await?;
+        Ok(result.rows_affected())
+    }
+
+    pub async fn announce_process_released(&self, lease: &LeaseKey) -> DatabaseResult<()> {
+        sqlx::query!(
+            "SELECT pg_notify($1, $2)",
+            PROCESS_OWNERSHIP_CHANNEL,
+            lease.as_str()
+        )
+        .execute(&*self.write_pool)
+        .await?;
+        Ok(())
     }
 }

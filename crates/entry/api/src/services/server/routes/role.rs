@@ -4,6 +4,10 @@
 //! startup phases it runs. Both are pure functions of the role so the
 //! per-role surface is testable without building an `AppContext`.
 //!
+//! `InternalLinks` (`POST /api/v1/internal/links`) is its own group because
+//! the managed MCP servers call it on their own node: a worker supervises
+//! them, so it serves the route without the rest of the documents surface.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -16,6 +20,7 @@ pub enum RouteGroup {
     Agent,
     McpAndStream,
     ContentAndMisc,
+    InternalLinks,
     Messaging,
     Extensions,
     Discovery,
@@ -32,6 +37,7 @@ const ALL_GROUPS: &[RouteGroup] = &[
     RouteGroup::Agent,
     RouteGroup::McpAndStream,
     RouteGroup::ContentAndMisc,
+    RouteGroup::InternalLinks,
     RouteGroup::Messaging,
     RouteGroup::Extensions,
     RouteGroup::Discovery,
@@ -56,6 +62,7 @@ const API_GROUPS: &[RouteGroup] = &[
     RouteGroup::Agent,
     RouteGroup::McpAndStream,
     RouteGroup::ContentAndMisc,
+    RouteGroup::InternalLinks,
     RouteGroup::Messaging,
     RouteGroup::Extensions,
     RouteGroup::Discovery,
@@ -67,6 +74,7 @@ const API_GROUPS: &[RouteGroup] = &[
 const WORKER_GROUPS: &[RouteGroup] = &[
     RouteGroup::Agent,
     RouteGroup::McpAndStream,
+    RouteGroup::InternalLinks,
     RouteGroup::Probes,
 ];
 

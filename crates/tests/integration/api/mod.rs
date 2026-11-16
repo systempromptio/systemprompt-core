@@ -199,6 +199,8 @@ mod documents_pdf;
 #[cfg(test)]
 mod documents_read_parity;
 #[cfg(test)]
+mod documents_rendered;
+#[cfg(test)]
 mod documents_review;
 #[cfg(test)]
 mod documents_sharing;
@@ -206,6 +208,8 @@ mod documents_sharing;
 mod documents_subject_levels;
 #[cfg(test)]
 mod internal_links;
+#[cfg(test)]
+mod internal_links_worker;
 #[cfg(test)]
 #[path = "routes_oauth_token.rs"]
 mod routes_oauth_token;

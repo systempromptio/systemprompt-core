@@ -8,6 +8,7 @@ mod backfill;
 mod classify;
 mod extension;
 mod fk_deferral;
+mod lock_conflict;
 mod migration_cost;
 mod migration_refs;
 mod prepare;
@@ -23,6 +24,7 @@ pub use extension::install_extension_schemas_full;
 pub use fk_deferral::{
     DeferredForeignKey, FkDeferralError, SplitCreateTable, split_create_table_foreign_keys,
 };
+pub use lock_conflict::{RETRYABLE_SQLSTATES, is_retryable_lock_conflict, is_retryable_sqlstate};
 pub use migration_cost::{
     ExpensiveStatement, HOT_TABLES, MigrationCost, audit_migration_cost, audit_one,
 };

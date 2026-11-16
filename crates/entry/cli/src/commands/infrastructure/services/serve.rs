@@ -9,7 +9,7 @@ use anyhow::{Context, Result};
 use std::sync::Arc;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
-use systemprompt_runtime::{AppContext, AppContextBuilder, ShutdownRequest, validate_system};
+use systemprompt_runtime::{ShutdownRequest, validate_system};
 use systemprompt_traits::{Phase, StartupEvent, StartupEventExt, StartupEventSender};
 
 use super::port_conflict::ensure_port_free;
@@ -45,12 +45,8 @@ pub async fn execute_with_events(
     let shutdown = ShutdownRequest::default();
     let early = bind_early(profile, foreground, events, shutdown.clone()).await?;
 
-    let builder = ctx.services().cloned().into_iter().fold(
-        AppContext::builder(ctx.boot()?.clone()),
-        AppContextBuilder::with_services,
-    );
     let app = Arc::new(
-        builder
+        ctx.app_context_builder()?
             .with_startup_warnings(true)
             .with_shutdown(shutdown)
             .with_migrations(run_migrations)

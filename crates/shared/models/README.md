@@ -13,7 +13,7 @@ The shared layer sits at the bottom of the workspace and depends on no other sys
 
 ```toml
 [dependencies]
-systemprompt-models = "0.81"
+systemprompt-models = "0.82"
 ```
 
 ## Module Map

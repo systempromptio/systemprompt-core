@@ -148,7 +148,7 @@ impl AttachmentHandler<'_> {
             .await
             .map_err(|error| {
                 tracing::error!(error = %error, cause = ?std::error::Error::source(&error), "upload links were not issued by the API");
-                McpError::internal_error("the upload links could not be signed", None)
+                McpError::internal_error(error.tool_message("upload links"), None)
             })?;
         Ok(AttachmentOutput {
             report_id: input.report_id,

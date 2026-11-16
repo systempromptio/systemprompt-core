@@ -21,6 +21,12 @@ Use dedicated probes so a database outage removes a replica from service without
 liveness-driven restart loops. See `crates/entry/api/src/services/server/probes.rs` and
 `startup.rs`.
 
+Once booted, `/livez`, `/readyz` and the health endpoints carry `version` (the core
+release) and `build`: the name, version and optional source revision of the binary that is
+serving. A downstream binary sets `build` by starting through `systemprompt::cli::run_with`;
+one that starts through `run` reports core itself. Use `build` to confirm which image a
+replica is running without asking the orchestrator.
+
 ```yaml
 livenessProbe:
   httpGet: { path: /livez, port: 8080 }

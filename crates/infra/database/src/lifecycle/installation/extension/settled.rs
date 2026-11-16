@@ -14,7 +14,9 @@
 //! and every owned table exists, so an object an older binary, an operator or
 //! a restore changed is re-applied. `MigrationConfig::force_full_install`
 //! always takes the full path. On the settled path the read-only checks
-//! (required columns, trigger routines) and the seeds still run.
+//! (required columns, trigger routines) and the seeds still run. When the
+//! full path does run, an unchanged trigger is still left in place
+//! ([`super::trigger_reuse`]); a forced full install re-creates every one.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

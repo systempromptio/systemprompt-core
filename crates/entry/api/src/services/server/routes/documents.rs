@@ -1,7 +1,8 @@
 //! Mounts `/api/v1/documents`, `/api/v1/document-folders` and
 //! `/api/v1/uploads` with their router-scoped state, the content rate limit
-//! and the user authz gate, and `/api/v1/internal/links` (authenticated by
-//! the MCP hop token it is presented, not a session), or nothing when
+//! and the user authz gate, and, separately, `/api/v1/internal/links`
+//! (authenticated by the MCP hop token it is presented, not a session; served
+//! wherever managed MCP servers run, a worker included), or nothing when
 //! `files.documents.enabled` is off.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -33,18 +34,7 @@ pub(super) fn mount_documents(
     let state = DocumentsState::build(mount.ctx)
         .map_err(|source| RouteMountError::initialization("documents", source))?;
     let per_second = mount.ctx.config().rate_limits.content_per_second;
-    let minter = LinkMinter {
-        tokens: mount.ctx.token_authority(),
-        documents: Arc::clone(&state.service),
-        uploads: Arc::clone(&state.uploads),
-        services: mount.ctx.services_state().clone(),
-        api_external_url: mount.ctx.config().api_external_url.clone(),
-    };
     Ok(router
-        .nest(
-            ApiPaths::INTERNAL_LINKS,
-            links_router(minter, mount.limits.subject_throttle(per_second)),
-        )
         .nest(
             ApiPaths::DOCUMENTS,
             with_download_tokens(
@@ -69,4 +59,23 @@ pub(super) fn mount_documents(
                 .with_rate_limit(mount.limits, per_second, "documents")?
                 .with_auth(mount.user_middleware.clone(), AuthzPolicy::user()),
         ))
+}
+
+pub(super) fn mount_internal_links(router: Router, mount: &MountCtx<'_>) -> Router {
+    if !mount.ctx.files_config().documents_config().is_enabled() {
+        return router;
+    }
+    let documents = mount.ctx.documents();
+    let minter = LinkMinter {
+        tokens: mount.ctx.token_authority(),
+        documents: Arc::clone(documents.service()),
+        uploads: Arc::clone(documents.uploads()),
+        services: mount.ctx.services_state().clone(),
+        api_external_url: mount.ctx.config().api_external_url.clone(),
+    };
+    let per_second = mount.ctx.config().rate_limits.content_per_second;
+    router.nest(
+        ApiPaths::INTERNAL_LINKS,
+        links_router(minter, mount.limits.subject_throttle(per_second)),
+    )
 }

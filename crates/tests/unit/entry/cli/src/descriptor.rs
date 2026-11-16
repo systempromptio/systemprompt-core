@@ -1,5 +1,8 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
+use systemprompt_cli::admin::AdminCommands;
+use systemprompt_cli::admin::config::ConfigCommands;
+use systemprompt_cli::admin::config::catalog::CatalogCommands;
 use systemprompt_cli::admin::session::SessionCommands;
 use systemprompt_cli::admin::session::login::LoginArgs;
 use systemprompt_cli::args::Commands;
@@ -207,9 +210,10 @@ fn test_descriptor_hierarchy_none_to_full() {
 
 // Why: the services registry is a process-wide OnceLock and the first
 // installer wins, so a CLI plain install ahead of the runtime's discovery pass
-// would boot a server with the YAML catalog only.
+// would boot a server with the YAML catalog only. The catalog view runs its
+// own pass because a server's boot report lives only in that server's memory.
 #[test]
-fn only_the_server_commands_install_the_registry_through_model_discovery() {
+fn the_server_commands_and_the_catalog_view_install_the_registry_through_model_discovery() {
     let serve = Commands::Infra(InfraCommands::Services(ServicesCommands::Serve {
         foreground: true,
         kill_port_process: false,
@@ -243,4 +247,11 @@ fn only_the_server_commands_install_the_registry_through_model_discovery() {
     .descriptor();
     assert!(!stop.discovers_models());
     assert!(!CommandDescriptor::FULL.discovers_models());
+
+    let catalog = Commands::Admin(AdminCommands::Config(ConfigCommands::Catalog(
+        CatalogCommands::Discovery,
+    )))
+    .descriptor();
+    assert!(catalog.discovers_models());
+    assert!(catalog.secrets() && catalog.paths() && !catalog.database());
 }

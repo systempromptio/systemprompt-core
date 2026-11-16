@@ -153,7 +153,10 @@ async fn mixed_binary_and_resource_blocks_persist_as_bounded_metadata() {
 
     let stored = ingest
         .artifacts()
-        .find_by_id(&outcome.artifact_id)
+        .find_owned(
+            &outcome.artifact_id,
+            &UserId::new(format!("user-{session}")),
+        )
         .await
         .unwrap()
         .unwrap();
@@ -188,7 +191,10 @@ async fn malformed_known_typed_body_retains_declared_schema_and_metadata_identit
     assert_eq!(outcome.stored_body["unexpected"]["kept"], true);
     let stored = ingest
         .artifacts()
-        .find_by_id(&outcome.artifact_id)
+        .find_owned(
+            &outcome.artifact_id,
+            &UserId::new(format!("user-{session}")),
+        )
         .await
         .unwrap()
         .unwrap();
