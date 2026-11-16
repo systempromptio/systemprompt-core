@@ -90,8 +90,8 @@ impl Ctx {
 
     async fn record(&self, owner: &ExtensionId, declarations: &[PurgeDeclaration]) {
         sqlx::query(
-            "INSERT INTO schema_purge_records (extension_id, position, declarations) \
-             VALUES ($1, 1000, $2::jsonb)",
+            "INSERT INTO schema_purge_records (extension_id, position, declarations, standing) \
+             VALUES ($1, 1000, $2::jsonb, 'install')",
         )
         .bind(owner.as_str())
         .bind(serde_json::to_string(declarations).expect("encode"))
@@ -113,7 +113,11 @@ impl Ctx {
 
     fn plan_with_probe(&self, declaration: &PurgeDeclaration) -> AdmittedPurge {
         let owner = self.probe_owner();
-        let schemas = vec![SchemaDefinition::new(self.probe_table(), String::new())];
+        let table = self.probe_table();
+        let schemas = vec![SchemaDefinition::new(
+            table.clone(),
+            format!("CREATE TABLE IF NOT EXISTS {table} (id TEXT)"),
+        )];
         let declarations = vec![declaration.clone()];
         let users = ExtensionId::new("users");
         AdmittedPurge::admit(&[
@@ -231,14 +235,14 @@ async fn a_member_with_tables_but_no_record_is_named_as_not_covered() {
     let ctx = setup().await;
     let victim = ctx.user("purge-ghost").await;
     let ghost = ExtensionId::new(format!("ghost-{}", ctx.tag));
-    sqlx::query("INSERT INTO schema_table_owners (table_name, extension_id) VALUES ($1, $2)")
+    sqlx::query("INSERT INTO schema_table_owners (table_name, extension_id, standing) VALUES ($1, $2, 'install')")
         .bind(format!("public.ghost_{}", ctx.tag))
         .bind(ghost.as_str())
         .execute(ctx.raw.as_ref())
         .await
         .expect("record an owner");
     let recorded = ExtensionId::new(format!("recorded-{}", ctx.tag));
-    sqlx::query("INSERT INTO schema_table_owners (table_name, extension_id) VALUES ($1, $2)")
+    sqlx::query("INSERT INTO schema_table_owners (table_name, extension_id, standing) VALUES ($1, $2, 'install')")
         .bind(format!("public.recorded_{}", ctx.tag))
         .bind(recorded.as_str())
         .execute(ctx.raw.as_ref())

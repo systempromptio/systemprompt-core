@@ -22,7 +22,7 @@ pub(super) fn core_plan() -> AdmittedPurge {
     let owner = ExtensionId::new("users");
     let schemas: Vec<SchemaDefinition> = CORE_TABLES
         .iter()
-        .map(|t| SchemaDefinition::new(*t, String::new()))
+        .map(|t| SchemaDefinition::new(*t, format!("CREATE TABLE IF NOT EXISTS {t} (id TEXT)")))
         .collect();
     let mut declarations: Vec<PurgeDeclaration> = CORE_TABLES[..3]
         .iter()
