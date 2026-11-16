@@ -9,7 +9,7 @@ use std::sync::OnceLock;
 
 use systemprompt_config::paths::AppPaths;
 use systemprompt_config::LoadedProfile;
-use systemprompt_files::FilesConfig;
+use systemprompt_files::{DocumentsConfig, FilesConfig, FilesConfigYaml};
 use systemprompt_loader::{BootContext, ServicesState};
 use systemprompt_manifest::profile::UNRESTRICTED_ACKNOWLEDGEMENT;
 use tempfile::TempDir;
@@ -182,6 +182,36 @@ fn write_services_tree(services_path: &std::path::Path, yaml: &str) {
     std::fs::write(&config, body).expect("write services config.yaml");
 }
 
+// Bootstrap whose `files.documents` section is the given one, as an
+// installation that switches the document store off or tunes it runs. Every
+// other bootstrap runs with the document store enabled.
+pub fn init_documents_bootstrap(documents: DocumentsConfig) -> TestBootstrap {
+    let bootstrap = init_bootstrap();
+    write_files_config(&bootstrap.services_path, &documents);
+    bootstrap
+}
+
+pub fn enabled_documents() -> DocumentsConfig {
+    DocumentsConfig {
+        enabled: true,
+        ..DocumentsConfig::default()
+    }
+}
+
+fn write_files_config(services_path: &std::path::Path, documents: &DocumentsConfig) {
+    let files = FilesConfigYaml {
+        documents: documents.clone(),
+        ..FilesConfigYaml::default()
+    };
+    let mut root = serde_yaml::Mapping::new();
+    root.insert(
+        serde_yaml::Value::String("files".to_owned()),
+        serde_yaml::to_value(files).expect("the files config serializes"),
+    );
+    let body = serde_yaml::to_string(&root).expect("the files config serializes");
+    std::fs::write(services_path.join("config/files.yaml"), body).expect("write files.yaml");
+}
+
 fn init_bootstrap() -> TestBootstrap {
     init_bootstrap_inner(None, None)
 }
@@ -270,6 +300,7 @@ fn init_bootstrap_inner_expecting(
     } else {
         write_yaml_stub(&services_path.join("config/config.yaml"));
     }
+    write_files_config(&services_path, &enabled_documents());
     write_yaml_stub(&services_path.join("content/config.yaml"));
     write_yaml_stub(&services_path.join("web/config.yaml"));
     write_yaml_stub(&services_path.join("web/metadata.yaml"));

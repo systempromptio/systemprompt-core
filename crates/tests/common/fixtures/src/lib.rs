@@ -34,7 +34,6 @@ pub mod orphans;
 pub mod paths;
 pub mod pdf;
 pub mod poll;
-pub mod schema;
 pub mod schema_template;
 pub mod secrets;
 pub mod service_row;
@@ -49,21 +48,20 @@ pub use agent::{
     NotManagedSkills, ScriptedSkills, ToolExecutionLedger,
 };
 pub use app_context::{
-    default_governance_engine, default_governance_watch, fixture_analytics_repositories,
-    fixture_app_context_documents_configured, fixture_app_context_documents_disabled,
-    fixture_app_context_on_bootstrap, fixture_app_context_on_bootstrap_with_paths,
-    fixture_app_context_with, fixture_app_context_with_config, fixture_app_context_with_extensions,
-    fixture_app_context_with_hook, fixture_app_context_with_services,
-    fixture_app_context_with_user_repository, fixture_artifact_ingest, fixture_config,
-    fixture_event_bridge, fixture_extension_context, fixture_fingerprint_repository,
-    fixture_kernel, fixture_secret_store, fixture_services_state, fixture_services_view,
-    fixture_subject_providers, fixture_upstream_issuer, offline_extension_context, offline_kernel,
+    default_governance_engine, default_governance_watch, fixture_admitted, fixture_admitted_of,
+    fixture_admitted_without, fixture_analytics_repositories, fixture_app_context_on_bootstrap,
+    fixture_app_context_with_build, fixture_app_context_with_config,
+    fixture_app_context_with_extensions, fixture_app_context_with_filter,
+    fixture_app_context_with_hook, fixture_app_context_with_services, fixture_artifact_ingest,
+    fixture_config, fixture_context_builder, fixture_event_bridge, fixture_extension_context,
+    fixture_fingerprint_repository, fixture_kernel, fixture_secret_store, fixture_services_state,
+    fixture_services_view, fixture_subject_providers, fixture_upstream_issuer, offline_kernel,
     offline_rate_windows, test_app_context, test_app_context_on, test_config, test_config_with,
     FIXTURE_JWT_ISSUER, FIXTURE_UPSTREAM_ISSUER,
 };
 pub use brain::fixture_brain;
 pub use bootstrap::{
-    ensure_messaging_bootstrap, ensure_test_bootstrap, init_isolated_bootstrap,
+    enabled_documents, ensure_messaging_bootstrap, init_documents_bootstrap, ensure_test_bootstrap, init_isolated_bootstrap,
     init_services_bootstrap, init_unloadable_services_bootstrap,
     messaging_config_yaml_with_teams_endpoints, test_boot_active_services_root, test_boot_profile,
     test_boot_services_root, test_messaging_agent, test_skills_root, TestBootstrap,
@@ -107,7 +105,9 @@ pub use oauth::{
 pub use paths::{canonical_tempdir, repo_path, repo_root};
 pub use pdf::{parse_pdf, ParsedPdf};
 pub use poll::{block_on, eventually};
-pub use schema::{install_extension_schemas, install_extension_schemas_with_config};
+pub use systemprompt_test_migrate::{
+    admitted_member, core_members, install_core_schemas, schema_admitted, InstallError,
+};
 pub use secrets::{ensure_test_secrets_bootstrap, fixture_at_rest_cipher, install_named_secret};
 pub use service_row::seed_running_service;
 pub use subprocess::{

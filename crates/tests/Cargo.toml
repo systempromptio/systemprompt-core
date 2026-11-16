@@ -330,6 +330,7 @@ trybuild = "1.0"
 systemprompt-test-mocks = { path = "common/mocks" }
 systemprompt-test-fixtures = { path = "common/fixtures" }
 systemprompt-catalog-fixtures = { path = "common/catalog-fixtures" }
+systemprompt-test-migrate = { path = "common/migrate" }
 
 # Optimise everything that is not a test crate.
 #

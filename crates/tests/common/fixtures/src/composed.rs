@@ -11,13 +11,11 @@
 use std::sync::Arc;
 
 use systemprompt_database::DbPool;
-use systemprompt_extension::admitted::{AdmittedGatewayRoute, AdmittedMember, AdmittedParts};
-use systemprompt_extension::contribute::ContributionSink;
+use systemprompt_extension::admitted::{AdmittedGatewayRoute, AdmittedParts};
 use systemprompt_extension::prelude::Dependencies;
 use systemprompt_extension::{
     Admitted, ContributionError, Contributions, Extension, ExtensionMetadata, StandingTag,
 };
-use systemprompt_identifiers::ExtensionId;
 use systemprompt_runtime::{Kernel, KernelError};
 
 type Contribute = Box<dyn Fn(&mut Contributions<'_>) + Send + Sync>;
@@ -65,17 +63,8 @@ pub fn probe_admitted(parts: ComposedParts) -> Admitted {
         .probes
         .iter()
         .map(|probe| {
-            let owner = ExtensionId::new(probe.id);
-            let mut sink = ContributionSink::default();
-            probe
-                .contribute(&mut Contributions::__new(owner.clone(), &mut sink))
-                .expect("a probe contributes");
-            AdmittedMember {
-                owner,
-                metadata: probe.metadata(),
-                standing: StandingTag::Install,
-                sink,
-            }
+            systemprompt_test_migrate::admitted_member(probe, StandingTag::Install)
+                .expect("a probe contributes")
         })
         .collect();
     Admitted::__from_facade(AdmittedParts {

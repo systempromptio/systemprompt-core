@@ -4,6 +4,9 @@ use systemprompt_database::DbPool;
 use systemprompt_events::{EventBroadcasters, EventRouter};
 use systemprompt_extension::DynNotificationSink;
 use systemprompt_files::documents::agents::DocumentActor;
+use systemprompt_files::contract::{AgentAccess, DocumentSeams};
+use systemprompt_files::documents::repository::BlobHolders;
+use systemprompt_files::documents::{DocumentsHandles, DocumentsHandlesSlot};
 use systemprompt_files::DocumentsConfig;
 use systemprompt_governance::authz::{
     AccessControlRepository, SharedAuthzHook, SubjectProviderSet,
@@ -137,7 +140,21 @@ pub fn fixture_documents_runtime_configured(
     background_tasks: BackgroundTasks,
     config: DocumentsConfig,
 ) -> Arc<DocumentsRuntime> {
-    Arc::new(DocumentsRuntime::new(DocumentsRuntimeParts {
+    let (slot, binder) = DocumentsHandlesSlot::unbound();
+    let roles: Arc<dyn NotificationAudienceResolver> = Arc::new(UserRoleAudienceResolver::new(
+        Arc::new(UserRepository::new(pool)),
+    ));
+    let seed = Dependencies::new()
+        .with(slot)
+        .with(CoreSeam::<dyn NotificationAudienceResolver, RoleAudience>::new(roles));
+    let admitted = crate::app_context::fixture_admitted_of(vec![Box::new(
+        systemprompt_files::FilesExtension::default(),
+    )]);
+    let kernel = crate::composed::resolved_kernel(pool, &admitted, seed)
+        .expect("the files member resolves over the fixture seeds");
+    let r = kernel.resolved();
+    let documents_enabled = config.is_enabled();
+    let runtime = Arc::new(DocumentsRuntime::new(DocumentsRuntimeParts {
         database: Arc::clone(pool),
         file_storage: Arc::clone(file_storage),
         access_entities: Arc::new(AccessControlRepository::new(pool)),
@@ -163,5 +180,18 @@ pub fn fixture_documents_runtime_configured(
         )),
         background_tasks,
         unscoped_actor: Some(DocumentActor::Human),
-    }))
+        blob_holders: r.get::<Arc<BlobHolders>>().expect("the files member builds its blob holders"),
+        seams: r.get::<Arc<DocumentSeams>>().expect("the files member builds its document seams"),
+        agent_access: r.get::<Arc<AgentAccess>>().expect("the files member builds its agent access"),
+    }));
+    let service = documents_enabled.then(|| Arc::clone(runtime.service()));
+    binder
+        .bind(Arc::new(DocumentsHandles {
+            access: Arc::clone(runtime.access()),
+            repositories: Arc::clone(runtime.repositories()),
+            issues: Arc::clone(runtime.issues()),
+            service,
+        }))
+        .expect("the fixture binds its own document store cell once");
+    runtime
 }

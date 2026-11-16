@@ -12254,6 +12254,7 @@ dependencies = [
  "systemprompt-security",
  "systemprompt-storage",
  "systemprompt-test-hack",
+ "systemprompt-test-migrate",
  "systemprompt-traits",
  "systemprompt-users",
  "systemprompt-wire",

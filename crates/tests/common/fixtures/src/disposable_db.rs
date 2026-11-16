@@ -8,8 +8,8 @@
 //! wrong with. A database created for the test cannot carry that history.
 //!
 //! [`DisposableDb::empty`] hands back an empty database; [`DisposableDb::
-//! with_schema`] hands back one with every registered extension's schema
-//! applied, copied from a template installed once per schema fingerprint
+//! with_schema`] hands back one with the core schema composition
+//! ([`crate::schema_admitted`]) installed, copied from a template installed once per schema fingerprint
 //! ([`crate::schema_template`]); [`DisposableDb::test_pool`] connects to it.
 //! All three panic on failure: a test that cannot get its database fails rather
 //! than skips (see [`crate::db`]). Each database is dropped by
