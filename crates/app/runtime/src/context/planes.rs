@@ -13,7 +13,6 @@ use systemprompt_config::paths::AppPaths;
 use systemprompt_content::repository::ContentRepositories;
 use systemprompt_database::{CoordinationRepositories, DbPool, ServiceRepository};
 use systemprompt_events::{EventBridgeHandle, EventRouter};
-use systemprompt_extension::ExtensionRegistry;
 use systemprompt_files::{FileRepository, FilesConfig};
 use systemprompt_governance::authz::SharedAuthzHook;
 use systemprompt_governance::policy::GovernanceEngine;
@@ -69,7 +68,6 @@ pub struct ConfigPlane {
 
 #[derive(Clone)]
 pub struct Plugins {
-    pub extension_registry: Arc<ExtensionRegistry>,
     pub mcp_registry: RegistryService,
     pub marketplace_filter: Arc<dyn MarketplaceFilter>,
     pub marketplace_cache: Arc<MarketplaceCache>,

@@ -8,7 +8,7 @@
 
 use std::sync::Arc;
 
-use systemprompt_governance::policy::{GovernanceEngine, GovernanceEngineError};
+use systemprompt_governance::policy::{GovernanceEngine, PolicyCatalog};
 use systemprompt_logging::LoggingRuntime;
 use systemprompt_manifest::services::{ServicesConfig, SystemAdmin};
 use systemprompt_traits::{BackgroundTasks, CacheEpochs, ConfigWatch};
@@ -44,11 +44,11 @@ impl AppContext {
         &self,
     ) -> systemprompt_provider_contracts::ConfigPlaneResult<crate::ConfigPlaneSet> {
         let planes = self
-            .extension_registry()
-            .all_config_planes(&self.profile().extensions.disabled)
-            .map_err(|e| {
-                systemprompt_provider_contracts::ConfigPlaneError::EnabledExtensions(Box::new(e))
-            })?;
+            .admitted
+            .built()
+            .members()
+            .flat_map(|member| member.sink.config_planes().iter().cloned())
+            .collect();
         crate::ConfigPlaneSet::new(
             planes,
             self.config().planes.authority.clone(),
@@ -81,8 +81,9 @@ impl AppContext {
         self.subsystems.services.watch()
     }
 
-    pub async fn load_governance(&self) -> Result<GovernanceEngine, GovernanceEngineError> {
-        crate::builder::load_governance(self.profile(), self.db_pool()).await
+    pub async fn load_governance(&self) -> crate::error::RuntimeResult<GovernanceEngine> {
+        let catalog = self.kernel.resolved().get::<Arc<PolicyCatalog>>()?;
+        Ok(crate::builder::load_governance(self.profile(), self.db_pool(), &catalog).await?)
     }
 
     #[must_use]

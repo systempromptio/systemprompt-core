@@ -89,6 +89,12 @@ pub enum RuntimeError {
     #[error(transparent)]
     ExtensionState(#[from] systemprompt_extension::ExtensionStateError),
 
+    #[error("the kernel could not resolve the admitted composition")]
+    Kernel(#[from] crate::kernel::KernelError),
+
+    #[error("the resolved kernel state lacks a value the runtime reads")]
+    Missing(#[from] systemprompt_provider_contracts::MissingDependency),
+
     #[error(transparent)]
     Governance(#[from] GovernanceEngineError),
 
