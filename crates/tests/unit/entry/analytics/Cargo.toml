@@ -16,6 +16,7 @@ systemprompt-analytics-entry = { workspace = true, features = ["cli", "content-c
 systemprompt-cli = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-identifiers = { workspace = true }
+systemprompt-extension = { workspace = true, features = ["cli"] }
 systemprompt-runtime = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 systemprompt-test-hack = { version = "0.1", path = "../../../common/hack" }

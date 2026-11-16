@@ -8678,6 +8678,7 @@ dependencies = [
  "systemprompt-analytics-entry",
  "systemprompt-cli",
  "systemprompt-database",
+ "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-runtime",
  "systemprompt-test-fixtures",
@@ -10399,7 +10400,6 @@ dependencies = [
 name = "systemprompt-facade-macros-tests"
 version = "0.0.11"
 dependencies = [
- "async-trait",
  "systemprompt",
  "systemprompt-test-hack",
 ]

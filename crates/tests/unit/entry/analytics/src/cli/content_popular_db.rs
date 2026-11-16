@@ -5,7 +5,7 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_analytics_entry::cli::content_popular::{PopularArgs, execute_with_pool};
-use systemprompt_cli::CliConfig;
+use systemprompt_extension::cli::CliConfig;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::SourceId;
 use systemprompt_test_fixtures::test_db_pool;
@@ -30,7 +30,7 @@ async fn seed_content(pool: &DbPool, source: &str, slug: &str, title: &str) {
     .unwrap();
 }
 
-fn rows(out: &systemprompt_cli::kernel::CommandOutput) -> Vec<serde_json::Value> {
+fn rows(out: &systemprompt_extension::cli::CommandOutput) -> Vec<serde_json::Value> {
     let artifact = serde_json::to_value(out.artifact()).expect("serialize table artifact");
     artifact["items"]
         .as_array()
@@ -70,7 +70,7 @@ async fn popular_refuses_a_malformed_window() {
     let pool = test_db_pool().await;
     let err = execute_with_pool(
         PopularArgs {
-            source: "any".to_owned(),
+            source: SourceId::new("any"),
             since: "not-a-duration".to_owned(),
             limit: 5,
         },
