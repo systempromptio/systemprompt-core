@@ -9,7 +9,7 @@ use systemprompt_analytics_entry::extension::AnalyticsHttpExtension;
 use systemprompt_database::DbPool;
 use systemprompt_extension::contribute::ContributionSink;
 use systemprompt_extension::router::{ApiBase, BasePath, BaseRef, WebBase};
-use systemprompt_extension::{Contributions, Extension};
+use systemprompt_extension::{Contributions, Extension, HandleId};
 use systemprompt_identifiers::{AgentName, ContextId, ExtensionId, SessionId, TraceId, UserId};
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::RequestContext;
@@ -23,13 +23,13 @@ pub async fn setup_ctx() -> Result<(DbPool, Arc<AppContext>)> {
     Ok((pool, ctx))
 }
 
-fn member_router(ctx: &AppContext, base: BaseRef) -> Router {
+fn member_router(ctx: &AppContext, base: BaseRef, handles: &[HandleId]) -> Router {
     let mut sink = ContributionSink::default();
     let mut contributions = Contributions::__new(ExtensionId::new("analytics_http"), &mut sink);
     AnalyticsHttpExtension
         .contribute(&mut contributions)
         .expect("the analytics_http member contributes");
-    let resolved = ctx.kernel().resolved();
+    let resolved = ctx.kernel().route_scoped(handles);
     sink.routes()
         .iter()
         .filter(|set| set.base() == base)
@@ -41,13 +41,17 @@ fn member_router(ctx: &AppContext, base: BaseRef) -> Router {
 }
 
 pub fn analytics_router(ctx: &AppContext) -> Router {
-    member_router(ctx, BaseRef::Path(BasePath::Api(ApiBase::Analytics)))
+    member_router(
+        ctx,
+        BaseRef::Path(BasePath::Api(ApiBase::Analytics)),
+        &[HandleId::AnalyticsBroadcaster],
+    )
 }
 
 pub fn engagement_router(ctx: &AppContext) -> Router {
     Router::new().nest(
         ApiPaths::TRACK_ENGAGEMENT,
-        member_router(ctx, BaseRef::Path(BasePath::Web(WebBase::TrackEngagement))),
+        member_router(ctx, BaseRef::Path(BasePath::Web(WebBase::TrackEngagement)), &[]),
     )
 }
 
