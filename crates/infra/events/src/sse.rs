@@ -13,6 +13,7 @@ use axum::response::sse::Event;
 use serde::Serialize;
 use systemprompt_models::api::CliOutputEvent;
 use systemprompt_models::{A2AEvent, AgUiEvent, AnalyticsEvent, ContextEvent, SystemEvent};
+use systemprompt_extension::router::frame_event;
 use systemprompt_traits::events::SseFrame;
 
 /// An event payload that renders itself as one server-sent event.
@@ -24,17 +25,6 @@ pub trait ToSse {
     }
 }
 
-#[must_use]
-pub fn frame_event(frame: SseFrame) -> Event {
-    let mut event = Event::default().data(frame.data);
-    if let Some(name) = frame.event {
-        event = event.event(name);
-    }
-    if let Some(id) = frame.id {
-        event = event.id(id);
-    }
-    event
-}
 
 fn serialize_to_frame<T: Serialize>(value: &T) -> Result<SseFrame, serde_json::Error> {
     Ok(SseFrame {
