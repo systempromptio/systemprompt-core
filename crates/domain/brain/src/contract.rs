@@ -11,10 +11,16 @@
 //! `Arc<BrainSeams>`. The `brain` member always opens the slot, so the built
 //! seams are present exactly when that member is admitted.
 //!
-//! The seams are the contributed ones only. The capture pipeline takes the
-//! five capture seams ([`BrainSeams::pipeline`]) and the composition root
-//! appends the core source reader; recall takes the four recall seams ahead
-//! of its own; the analysis job runs the contributed analyses after the core
+//! After the contributed seams the build appends the core defaults other
+//! members provide as [`CoreSeam`]s: the document source reader `files`
+//! provides, after the contributed source readers; the user-role audience
+//! resolver `users` provides, as recall's audience resolver; and the
+//! document source access `files` provides, as the one source access recall
+//! and the service judge a fact's source by. A default whose owner is not
+//! admitted is absent; with no source access the brain hides every sourced
+//! fact. The capture pipeline takes the five capture seams
+//! ([`BrainSeams::pipeline`]); recall takes the four recall seams ahead of
+//! its own; the analysis job runs the contributed analyses after the core
 //! ones; the consolidation job runs the contributed consolidators. A factory
 //! that fails, or reads a value nothing provides, refuses the build: a seam
 //! is never silently left out.
@@ -25,12 +31,14 @@
 use std::fmt;
 use std::sync::Arc;
 
-use systemprompt_extension::brain::{FactConsolidator, Reranker};
+use systemprompt_extension::brain::{FactConsolidator, Reranker, SourceAccess};
 use systemprompt_extension::{
     BrainAnalysis, EventFilter, FactExtractor, FactRetriever, FactValidator, Factory,
-    ImportanceModel, InjectionPolicy, OutcomeSignal, Resolved, Slot, SlotEntry, SlotError,
-    SlotOrder, SourceContent, build_factories,
+    ImportanceModel, InjectionPolicy, NotificationAudienceResolver, OutcomeSignal, Resolved, Slot,
+    SlotEntry, SlotError, SlotOrder, SourceContent, build_factories,
 };
+use systemprompt_traits::CoreSeam;
+use systemprompt_traits::core_seam::{DocumentSourceAccess, DocumentSourceContent, RoleAudience};
 
 use crate::pipeline::PipelineSeams;
 
@@ -147,6 +155,8 @@ pub struct BrainSeams {
     pub outcome_signals: Vec<Arc<dyn OutcomeSignal>>,
     pub analyses: Vec<Arc<dyn BrainAnalysis>>,
     pub consolidators: Vec<Arc<dyn FactConsolidator>>,
+    pub audiences: Vec<Arc<dyn NotificationAudienceResolver>>,
+    pub source_access: Option<Arc<dyn SourceAccess>>,
 }
 
 impl BrainSeams {
@@ -176,8 +186,22 @@ impl fmt::Debug for BrainSeams {
             .field("outcome_signals", &self.outcome_signals.len())
             .field("analyses", &self.analyses.len())
             .field("consolidators", &self.consolidators.len())
+            .field("audiences", &self.audiences.len())
+            .field("source_access", &self.source_access.is_some())
             .finish()
     }
+}
+
+fn append_core_defaults(seams: &mut BrainSeams, r: &Resolved<'_>) {
+    if let Some(content) = r.optional::<CoreSeam<dyn SourceContent, DocumentSourceContent>>() {
+        seams.sources.push(content.seam());
+    }
+    if let Some(roles) = r.optional::<CoreSeam<dyn NotificationAudienceResolver, RoleAudience>>() {
+        seams.audiences.push(roles.seam());
+    }
+    seams.source_access = r
+        .optional::<CoreSeam<dyn SourceAccess, DocumentSourceAccess>>()
+        .map(|access| access.seam());
 }
 
 impl Slot for BrainSlot {
@@ -227,6 +251,7 @@ impl Slot for BrainSlot {
                 .consolidators
                 .extend(build_factories(SLOT, owner, &b.consolidators, r)?);
         }
+        append_core_defaults(&mut seams, r);
         Ok(seams)
     }
 }

@@ -10,11 +10,12 @@
 //! `Arc<NotificationSeams>`. The `notifications` member always opens the
 //! slot, so the built seams are present exactly when that member is admitted.
 //!
-//! The seams are the contributed ones only. The composition root that
-//! assembles the pipeline appends the core defaults (the default router, the
-//! AG-UI channel, the user-role audience resolver, the document and issue
-//! visibilities and the default publish policy) after them, so a contributed
-//! seam is consulted first. A factory that fails, or reads a value nothing
+//! After the contributed seams the build appends the core defaults (the
+//! default router, the user-role audience resolver and the document and
+//! issue visibilities their owning members provide, the AG-UI channel and the
+//! default publish policy), so a contributed seam is consulted first, and
+//! binds the service and outbox consumer assembled over the finished seams
+//! (see [`crate::assembly`]). A factory that fails, or reads a value nothing
 //! provides, refuses the build: a seam is never silently left out.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -146,6 +147,8 @@ impl Slot for NotificationsSlot {
                 .visibilities
                 .extend(build_factories(SLOT, owner, &builder.visibilities, r)?);
         }
+        crate::assembly::append_core_defaults(&mut seams, r)?;
+        crate::assembly::bind_service(&seams, r)?;
         Ok(seams)
     }
 }
