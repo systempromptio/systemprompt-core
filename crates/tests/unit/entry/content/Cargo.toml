@@ -20,7 +20,6 @@ systemprompt-extension = { workspace = true, features = ["cli", "router"] }
 systemprompt-files = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-manifest = { workspace = true }
-systemprompt-marketplace = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-runtime = { workspace = true }
