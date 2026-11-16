@@ -25,7 +25,7 @@ use systemprompt_runtime::DatabaseContext;
 
 use crate::cli_settings::CliConfig;
 use systemprompt_extension::cli::CommandHost;
-use crate::shared::CommandOutput;
+use crate::shared::{CommandOutput, render_result};
 
 use super::admin_migrate::select_extensions;
 use super::types::{MigrateRepairOutput, MigrationDriftInfo};
@@ -153,7 +153,7 @@ async fn run_migrate_repair(
 
     if json || config.is_json_output() {
         let result = CommandOutput::card_value("Migration Repair", &output);
-        host.render(&result);
+        render_result(&result, config);
     } else {
         render_repair_text(&output);
     }

@@ -112,7 +112,7 @@ pub async fn execute_agent(
         CliService::section(&format!("Restarting Agent: {}", agent));
     }
 
-    let orchestrator = lifecycle::agent_orchestrator(host).await?;
+    let orchestrator = lifecycle::agent_orchestrator(ctx).await?;
     let name = lifecycle::resolve_agent_name(ctx.services_state(), agent)?;
     let service_id = orchestrator.restart_agent(&name, None).await?;
 
@@ -152,7 +152,7 @@ pub async fn execute_mcp(
         CliService::section(&format!("{} MCP Server: {}", action, server_name));
     }
 
-    let manager = lifecycle::mcp_orchestrator(host)?;
+    let manager = lifecycle::mcp_orchestrator(ctx)?;
 
     if build {
         let restarted = manager

@@ -16,7 +16,7 @@ use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use crate::cli_settings::CliConfig;
-use crate::shared::CommandOutput;
+use crate::shared::{CommandOutput, render_result};
 
 use super::admin_migrate::select_extensions;
 use super::types::{
@@ -62,7 +62,7 @@ async fn run_migrate_status(
             &output.rows,
         )
         .with_title("Migration Status");
-        host.render(&result);
+        render_result(&result, config);
     } else {
         render_status_text(&output);
     }

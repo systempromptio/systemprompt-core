@@ -18,7 +18,7 @@ use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use crate::cli_settings::CliConfig;
-use crate::shared::CommandOutput;
+use crate::shared::{CommandOutput, render_result};
 
 use super::admin_migrate::select_extensions;
 use super::commands::PlanFlags;
@@ -114,7 +114,7 @@ fn render_plan(output: &MigratePlanOutput, flags: PlanFlags, config: &CliConfig)
             &output.pending,
         )
         .with_title("Migration Plan");
-        host.render(&result);
+        render_result(&result, config);
     } else if output.pending.is_empty() {
         CliService::success("No pending migrations");
     } else {

@@ -27,8 +27,8 @@ pub(crate) struct OrchestratorHandles {
 impl OrchestratorHandles {
     pub(crate) async fn build(ctx: &Arc<AppContext>) -> Result<Self> {
         Ok(Self {
-            agents: agent_orchestrator(host).await?,
-            mcp: mcp_orchestrator(host)?,
+            agents: agent_orchestrator(ctx).await?,
+            mcp: mcp_orchestrator(ctx)?,
         })
     }
 }

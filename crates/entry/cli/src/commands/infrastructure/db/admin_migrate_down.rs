@@ -14,7 +14,7 @@ use systemprompt_runtime::DatabaseContext;
 
 use crate::cli_settings::CliConfig;
 use systemprompt_extension::cli::CommandHost;
-use crate::shared::CommandOutput;
+use crate::shared::{CommandOutput, render_result};
 
 use super::types::DbMigrateDownOutput;
 
@@ -97,7 +97,7 @@ async fn run_down(
 
     if config.is_json_output() {
         let result = CommandOutput::card_value("Database Admin", &output);
-        host.render(&result);
+        render_result(&result, config);
     } else {
         CliService::success(&output.message);
     }

@@ -199,7 +199,7 @@ pub(super) async fn execute_individual_agent(
         CliService::section(&format!("Stopping Agent: {}", agent));
     }
 
-    let orchestrator = lifecycle::agent_orchestrator(host).await?;
+    let orchestrator = lifecycle::agent_orchestrator(ctx).await?;
     let name = lifecycle::resolve_agent_name(ctx.services_state(), agent)?;
 
     if force {
@@ -233,7 +233,7 @@ pub(super) async fn execute_individual_mcp(
         CliService::section(&format!("Stopping MCP Server: {}", server_name));
     }
 
-    let manager = lifecycle::mcp_orchestrator(host)?;
+    let manager = lifecycle::mcp_orchestrator(ctx)?;
     manager
         .stop_services(Some(ServiceName::new(server_name.as_str())))
         .await?;

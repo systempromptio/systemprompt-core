@@ -23,7 +23,7 @@ use super::{AiSummaryRow, McpSummaryRow, StepSummaryRow, TraceEventRow, TraceVie
 use crate::CliConfig;
 use systemprompt_extension::cli::CommandHost;
 use systemprompt_database::pool_from_handle;
-use crate::shared::CommandOutput;
+use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
@@ -152,7 +152,7 @@ async fn execute_trace_view(
 
     if args.json {
         let json_result = build_json(&events, &trace_id, &ai_summary, &mcp_summary, &step_summary);
-        host.render(&json_result);
+        render_result(&json_result, config);
         return Ok(result.with_skip_render());
     }
 

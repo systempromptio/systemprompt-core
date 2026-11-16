@@ -177,7 +177,7 @@ pub(super) async fn execute_individual_agent(
 ) -> Result<()> {
     CliService::section(&format!("Starting Agent: {}", agent));
 
-    let orchestrator = lifecycle::agent_orchestrator(host).await?;
+    let orchestrator = lifecycle::agent_orchestrator(ctx).await?;
     let name = lifecycle::resolve_agent_name(ctx.services_state(), agent)?;
     let service_id = orchestrator.start_agent(&name, None).await?;
 
@@ -196,7 +196,7 @@ pub(super) async fn execute_individual_mcp(
 ) -> Result<()> {
     CliService::section(&format!("Starting MCP Server: {}", server_name));
 
-    let manager = lifecycle::mcp_orchestrator(host)?;
+    let manager = lifecycle::mcp_orchestrator(ctx)?;
     manager
         .start_services(Some(ServiceName::new(server_name.as_str())))
         .await?;
