@@ -36,7 +36,7 @@ pub use sso_login_events::{NewSsoLoginEvent, SsoLoginEvent, SsoLoginEventReposit
 pub use user::{
     ArchiveOutcome, ArchiveParams, ArchiveState, DeclaredUserRow, DeclaredUserWrite,
     EnsuredServiceAccount, MERGE_EXCLUDED_SECURITY_TABLES, MergeResult, NewServiceAccount,
-    PurgeCount, UpdateUserParams,
+    PurgeCount, PurgeOutcome, SkippedPurge, UpdateUserParams,
 };
 
 use sqlx::PgPool;

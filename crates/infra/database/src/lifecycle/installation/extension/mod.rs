@@ -35,6 +35,7 @@ mod foreign_keys;
 pub(crate) mod lock;
 pub(crate) mod ownership;
 mod phase;
+mod purge_records;
 mod retire;
 mod routine_prepass;
 mod settled;
@@ -51,6 +52,7 @@ use self::foreign_keys::apply_foreign_keys;
 use self::lock::BootstrapLockGuard;
 use self::ownership::{check_recorded_owners, record_owners, recorded_table_owners};
 use self::phase::execute_phase;
+use self::purge_records::{admit_purges, record_purges};
 use self::retire::{apply_retirements, check_retirements};
 use self::routine_prepass::apply_routine_prepass;
 use self::trigger_reuse::TriggerReuse;
@@ -84,6 +86,7 @@ pub async fn install_schema_members(
         info!("No extension schemas to install");
         return Ok(SchemaInstallReport::default());
     }
+    admit_purges(schema_extensions)?;
 
     info!(
         extensions = schema_extensions.len(),
@@ -189,6 +192,7 @@ async fn run_install(
     }
 
     record_owners(db, &prepared).await?;
+    record_purges(db, schema_extensions).await?;
     report.residue = residue_including(db, &prepared, held_back).await?;
 
     Ok(report)
