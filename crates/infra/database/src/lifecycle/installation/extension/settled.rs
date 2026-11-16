@@ -7,7 +7,7 @@
 //! table and their triggers lock others, so a no-op migrate can deadlock with
 //! ordinary traffic. A complete install therefore records a fingerprint of
 //! everything it applied — each extension's declarative schema, migrations,
-//! retirements and cross-extension tables, the disabled set and this crate's
+//! retirements and cross-extension tables and this crate's
 //! version — together with a read-only digest of the live catalog
 //! ([`super::catalog_digest`]). The next install under the bootstrap lock
 //! skips every DDL phase only when both are unchanged, the ledger is current
@@ -47,10 +47,9 @@ pub(super) async fn install_unless_settled(
     db: &dyn DatabaseProvider,
     InstallSets { active, held_back }: InstallSets<'_>,
     currency: &super::current::SchemaCurrency,
-    disabled_extensions: &[ExtensionId],
     migration_config: MigrationConfig,
 ) -> Result<SchemaInstallReport, LoaderError> {
-    let fingerprint = fingerprint(active, disabled_extensions);
+    let fingerprint = fingerprint(active);
     let candidate = held_back.is_empty()
         && currency.is_current()
         && !active.is_empty()
@@ -102,7 +101,6 @@ fn stamp(fingerprint: &str, catalog: &str) -> String {
 
 pub(super) fn fingerprint(
     extensions: &[std::sync::Arc<dyn SchemaMember>],
-    disabled: &[ExtensionId],
 ) -> String {
     let mut hasher = Xxh64::new(0);
     let mut field = |bytes: &[u8]| {
@@ -110,11 +108,6 @@ pub(super) fn fingerprint(
         hasher.write(FIELD_END);
     };
     field(env!("CARGO_PKG_VERSION").as_bytes());
-    let mut disabled_ids: Vec<&str> = disabled.iter().map(ExtensionId::as_str).collect();
-    disabled_ids.sort_unstable();
-    for id in disabled_ids {
-        field(id.as_bytes());
-    }
     for ext in extensions {
         field(ext.id().as_bytes());
         field(ext.version().as_bytes());

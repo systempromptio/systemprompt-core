@@ -14,7 +14,7 @@
 //! - [`PostgresProvider`] — the `PostgreSQL` implementation.
 //! - [`DatabaseResult`] — result alias over the workspace's single
 //!   [`systemprompt_traits::RepositoryError`].
-//! - [`MigrationService`], [`install_extension_schemas_full`] — lifecycle
+//! - [`MigrationService`], [`install_admitted_schemas`] — lifecycle
 //!   helpers driving extension-supplied DDL.
 //! - [`DatabaseAdminService`], [`QueryExecutor`], [`AdminSql`],
 //!   [`SafeIdentifier`] — admin/introspection layer used by the CLI.
@@ -96,7 +96,7 @@ pub use lifecycle::{
     SchemaAhead, SchemaCurrency, SchemaInstallReport, SchemaMember, SchemaResidue, SchemaUnit,
     SlotCollision, SplitCreateTable, TombstonedSlot, UndeclaredTable, audit_migration_cost,
     audit_one, audit_schema_residue, backfill_statements, check_migration_references,
-    check_trigger_routines, install_extension_schemas_full, is_retirement,
+    check_trigger_routines, install_admitted_schemas, is_retirement,
     is_retryable_lock_conflict, is_retryable_sqlstate, projection_tables, replica_status,
     schema_catalog_digest, schema_currency, schema_members, split_create_table_foreign_keys,
     validate_column_exists, validate_database_connection, validate_table_exists,

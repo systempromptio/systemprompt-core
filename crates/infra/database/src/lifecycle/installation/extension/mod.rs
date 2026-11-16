@@ -40,8 +40,8 @@ mod settled;
 mod trigger_reuse;
 mod validation;
 
-use crate::lifecycle::schema_member::SchemaMember;
-use systemprompt_extension::LoaderError;
+use crate::lifecycle::schema_member::{SchemaMember, schema_members};
+use systemprompt_extension::{BuiltState, LoaderError};
 use systemprompt_identifiers::ExtensionId;
 use tracing::{debug, info};
 
@@ -65,13 +65,13 @@ use crate::services::DatabaseProvider;
 type ExtensionSet = [std::sync::Arc<dyn SchemaMember>];
 type FreshSet = std::collections::HashSet<ExtensionId>;
 
-pub async fn install_extension_schemas_full(
-    members: &ExtensionSet,
+pub async fn install_admitted_schemas(
+    built: &BuiltState,
     db: &dyn DatabaseProvider,
-    disabled_extensions: &[ExtensionId],
     migration_config: MigrationConfig,
 ) -> Result<SchemaInstallReport, LoaderError> {
-    let schema_extensions = members.to_vec();
+    let schema_extensions = schema_members(built);
+    let members = schema_extensions.as_slice();
 
     if schema_extensions.is_empty() {
         info!("No extension schemas to install");
@@ -85,7 +85,7 @@ pub async fn install_extension_schemas_full(
 
     let guard = BootstrapLockGuard::acquire(db).await?;
 
-    let result = match current::schema_currency(db, members).await {
+    let result = match current::members_currency(db, members).await {
         Ok(currency) => {
             let (held_back, active): (Vec<_>, Vec<_>) =
                 schema_extensions.iter().cloned().partition(|ext| {
@@ -101,7 +101,6 @@ pub async fn install_extension_schemas_full(
                     held_back: &held_back,
                 },
                 &currency,
-                disabled_extensions,
                 migration_config,
             )
             .await

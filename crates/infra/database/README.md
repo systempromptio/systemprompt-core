@@ -105,7 +105,7 @@ async fn count_users(db: &DbPool) -> Result<i64, RepositoryError> {
 | Function | Source | Description |
 |----------|--------|-------------|
 | `with_transaction_retry` | `services/transaction.rs` | Transaction retried on serialization failure |
-| `install_extension_schemas_full` | `lifecycle/installation/mod.rs` | Install schemas and run pending migrations under a `MigrationConfig` |
+| `install_admitted_schemas` | `lifecycle/installation/mod.rs` | Install schemas and run pending migrations under a `MigrationConfig` |
 | `validate_database_connection` | `lifecycle/validation.rs` | Probe the live connection |
 | `validate_table_exists` | `lifecycle/validation.rs` | Assert a table is present |
 | `validate_column_exists` | `lifecycle/validation.rs` | Assert a column is present |
