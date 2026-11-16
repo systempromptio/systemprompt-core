@@ -8,7 +8,7 @@ mod generate;
 use anyhow::Result;
 use clap::Subcommand;
 
-use crate::context::CommandContext;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
 #[derive(Clone, Copy, Debug, Subcommand)]
 pub enum IdentityCommands {
@@ -19,8 +19,8 @@ pub enum IdentityCommands {
     Generate(generate::GenerateArgs),
 }
 
-pub fn execute(cmd: IdentityCommands, ctx: &CommandContext) -> Result<()> {
+pub fn execute(cmd: IdentityCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     match cmd {
-        IdentityCommands::Generate(args) => generate::execute(args, ctx),
+        IdentityCommands::Generate(args) => generate::execute(args, host).map(|()| super::state::rendered()),
     }
 }
