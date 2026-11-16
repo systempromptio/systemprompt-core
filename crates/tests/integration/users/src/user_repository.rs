@@ -400,7 +400,7 @@ async fn delete_removes_user() -> Result<()> {
     let unique_name = format!("deleteuser_{}", &uuid::Uuid::new_v4().to_string()[..8]);
     let created = repo.create(&unique_name, &unique_email, None, None).await?;
 
-    repo.delete(&created.id).await?;
+    repo.delete(&created.id, &crate::purge_plan()).await?;
 
     let found = repo.find_by_id(&created.id).await?;
     assert!(found.is_none());
@@ -416,7 +416,7 @@ async fn delete_returns_error_for_nonexistent() -> Result<()> {
     let repo = UserRepository::new(&db_pool);
 
     let fake_id = UserId::new("nonexistent-delete-id".to_string());
-    let result = repo.delete(&fake_id).await;
+    let result = repo.delete(&fake_id, &crate::purge_plan()).await;
     let err = result.expect_err("deleting nonexistent user should return an error");
     assert!(
         !err.to_string().is_empty(),
