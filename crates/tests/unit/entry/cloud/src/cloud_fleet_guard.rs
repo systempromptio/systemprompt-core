@@ -67,6 +67,10 @@ impl CommandHost for ClassifyingHost {
         Ok(&self.profile)
     }
 
+    fn profile_path(&self) -> Result<&Path, CommandError> {
+        Err(unavailable())
+    }
+
     fn db(&self) -> BoxFuture<'_, Result<Arc<dyn DatabaseHandle>, CommandError>> {
         Box::pin(async { Err(unavailable()) })
     }

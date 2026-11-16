@@ -44,13 +44,13 @@ impl Project {
     }
 
     pub fn context(&self, interactive: bool) -> CommandContext {
-        CommandContext::new(
+        crate::kernel_host::kernel_host(CommandContext::new(
             CliConfig::new()
                 .with_interactive(interactive)
                 .with_output_format(OutputFormat::Json)
                 .with_profile_override(Some(self.profile.display().to_string())),
             EnvOverrides::default(),
-        )
+        ))
     }
 }
 

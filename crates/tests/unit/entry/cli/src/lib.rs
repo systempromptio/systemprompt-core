@@ -41,6 +41,8 @@ mod help_env_values;
 #[cfg(test)]
 mod interactive;
 #[cfg(test)]
+mod kernel_host;
+#[cfg(test)]
 mod interactive_terminal;
 #[cfg(test)]
 mod irreversible_confirmation;
