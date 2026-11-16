@@ -24,7 +24,7 @@ use systemprompt_extension::brain::{
     SourceAccess, SourceAccessError, SourceContent, SourceContentError, SourceVerdict,
 };
 use systemprompt_extension::{
-    Admitted, EventFilter, FactoryError, FilterVerdict, Membership, NotificationAudienceError,
+    Admitted, AudienceResolvers, BuiltState, EventFilter, FactoryError, FilterVerdict, Membership, NotificationAudienceError,
     NotificationAudienceResolver, NotificationRouter, Resolved, ResourceVisibility, RouteGroup,
     Slot, SlotError, Visibility, VisibilityError,
 };
@@ -124,11 +124,26 @@ fn slot_owners<S: Slot>(admitted: &Admitted) -> Vec<String> {
         .collect()
 }
 
+fn with_audiences(seed: Dependencies, built: &BuiltState) -> Result<Dependencies, SlotError> {
+    let audiences = AudienceResolvers::from_admitted(built, &kernel_with(seed.clone()).resolved())?;
+    Ok(seed.with(Arc::new(audiences)))
+}
+
 fn built<S: Slot>(admitted: &Admitted) -> Result<Option<Arc<S::Built>>, SlotError>
 where
     S::Built: Clone,
 {
-    let kernel = kernel_with(slot_seed());
+    built_over::<S>(admitted, slot_seed())
+}
+
+fn built_over<S: Slot>(
+    admitted: &Admitted,
+    seed: Dependencies,
+) -> Result<Option<Arc<S::Built>>, SlotError>
+where
+    S::Built: Clone,
+{
+    let kernel = kernel_with(with_audiences(seed, admitted.built())?);
     let resolved = kernel.resolved();
     let mut inputs = Vec::new();
     for member in admitted.built().members() {
@@ -420,12 +435,14 @@ fn with_owner_seams(mut seed: Dependencies, users: bool, files: bool) -> Depende
 }
 
 fn notification_seams(users: bool, files: bool) -> NotificationSeams {
-    let kernel = kernel_with(with_owner_seams(slot_seed(), users, files));
+    let seed = with_owner_seams(slot_seed(), users, files);
+    let kernel = kernel_with(with_audiences(seed, &BuiltState::default()).expect("audiences build"));
     NotificationsSlot::build(Vec::new(), &kernel.resolved()).expect("the notifications slot builds")
 }
 
 fn brain_seams(users: bool, files: bool) -> BrainSeams {
-    let kernel = kernel_with(with_owner_seams(slot_seed(), users, files));
+    let seed = with_owner_seams(slot_seed(), users, files);
+    let kernel = kernel_with(with_audiences(seed, &BuiltState::default()).expect("audiences build"));
     BrainSlot::build(Vec::new(), &kernel.resolved()).expect("the brain slot builds")
 }
 
@@ -533,4 +550,133 @@ fn analytics_alone_provides_its_repositories() {
         .expect("a second build")
         .insert_into(&mut state, &ExtensionId::new("probe-analytics"));
     assert!(second.is_err(), "negative control: a second provider is a duplicate");
+}
+
+struct DimensionAudience(&'static str);
+
+#[async_trait::async_trait]
+impl NotificationAudienceResolver for DimensionAudience {
+    fn name(&self) -> &'static str {
+        self.0
+    }
+
+    fn handles(&self, subject: &AudienceSubject) -> bool {
+        matches!(subject, AudienceSubject::Dimension { kind, .. } if kind == "group")
+    }
+
+    async fn members(
+        &self,
+        _: &AudienceSubject,
+        _: usize,
+    ) -> Result<Vec<UserId>, NotificationAudienceError> {
+        Ok(Vec::new())
+    }
+
+    async fn is_member(
+        &self,
+        _: &AudienceSubject,
+        _: &UserId,
+    ) -> Result<Membership, NotificationAudienceError> {
+        Ok(Membership::Member)
+    }
+}
+
+fn audience_probe(id: &'static str, name: &'static str, hits: &Arc<Counter>) -> Probe {
+    let hits = Arc::clone(hits);
+    Probe::new(id, move |c| {
+        let hits = Arc::clone(&hits);
+        c.audience_resolver(
+            move |_: &Resolved<'_>| -> Result<Arc<dyn NotificationAudienceResolver>, FactoryError> {
+                hits.hit();
+                Ok(Arc::new(DimensionAudience(name)))
+            },
+        );
+    })
+}
+
+fn audience_names(resolvers: &[Arc<dyn NotificationAudienceResolver>]) -> Vec<&'static str> {
+    resolvers.iter().map(|resolver| resolver.name()).collect()
+}
+
+fn group(value: &str) -> AudienceSubject {
+    AudienceSubject::Dimension {
+        kind: "group".to_owned(),
+        value: value.to_owned(),
+    }
+}
+
+fn handler_of<'a>(
+    resolvers: &'a [Arc<dyn NotificationAudienceResolver>],
+    subject: &AudienceSubject,
+) -> Option<&'a str> {
+    resolvers
+        .iter()
+        .find(|resolver| resolver.handles(subject))
+        .map(|resolver| resolver.name())
+}
+
+#[test]
+fn one_audience_registration_serves_notifications_and_brain_recall() {
+    let hits = Arc::new(Counter::default());
+    let admitted = build(reference().with(audience_probe("probe-audience", "install-groups", &hits)))
+        .expect("the probe admits");
+    let seed = with_owner_seams(slot_seed(), true, false);
+    let notifications = built_over::<NotificationsSlot>(&admitted, seed.clone())
+        .expect("the notifications slot builds")
+        .expect("the notifications slot is built");
+    let brain = built_over::<BrainSlot>(&admitted, seed)
+        .expect("the brain slot builds")
+        .expect("the brain slot is built");
+    assert_eq!(
+        audience_names(&notifications.audiences),
+        ["install-groups", "stub-roles"],
+        "contributed resolvers come first, the core role resolver last"
+    );
+    assert_eq!(
+        audience_names(&brain.audiences),
+        ["install-groups", "stub-roles"],
+        "brain recall reads the same set in the same order"
+    );
+    assert_eq!(handler_of(&brain.audiences, &group("platform")), Some("install-groups"));
+    assert_eq!(
+        handler_of(&notifications.audiences, &group("platform")),
+        Some("install-groups")
+    );
+    assert_eq!(hits.get(), 2, "the factory runs once per build of the set");
+}
+
+#[test]
+fn a_disabled_audience_member_leaves_both_readers_withholding() {
+    let hits = Arc::new(Counter::default());
+    let admitted = reference()
+        .with(audience_probe("probe-audience", "install-groups", &hits))
+        .declare()
+        .expect("the probe declares")
+        .admit(&profile(&["probe-audience"]))
+        .expect("admission succeeds");
+    let seed = with_owner_seams(slot_seed(), false, false);
+    let notifications = built_over::<NotificationsSlot>(&admitted, seed.clone())
+        .expect("the notifications slot builds")
+        .expect("the notifications slot is built");
+    let brain = built_over::<BrainSlot>(&admitted, seed)
+        .expect("the brain slot builds")
+        .expect("the brain slot is built");
+    assert!(audience_names(&notifications.audiences).is_empty());
+    assert!(audience_names(&brain.audiences).is_empty());
+    assert_eq!(handler_of(&brain.audiences, &group("platform")), None);
+    assert_eq!(handler_of(&notifications.audiences, &group("platform")), None);
+    assert_eq!(hits.get(), 0, "a disabled member's resolver factory never runs");
+}
+
+#[test]
+fn the_slots_refuse_to_build_without_the_audience_set() {
+    let kernel = kernel_with(with_owner_seams(slot_seed(), true, true));
+    assert!(matches!(
+        NotificationsSlot::build(Vec::new(), &kernel.resolved()),
+        Err(SlotError::Missing(_))
+    ));
+    assert!(matches!(
+        BrainSlot::build(Vec::new(), &kernel.resolved()),
+        Err(SlotError::Missing(_))
+    ));
 }
