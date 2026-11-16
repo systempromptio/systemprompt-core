@@ -446,7 +446,8 @@ async fn link_analytics_reads_report_database_outage_and_recover_without_false_e
     assert_link_reads_live(&ctx, &link, &campaign, &source).await?;
 
     let raw = db.pool();
-    raw.close().await;
+    ctx.db_pool().pool().close().await;
+    ctx.db_pool().write_pool().close().await;
     assert_link_reads_outage(&ctx, &link, &campaign, &source, owned.url()).await?;
     drop(ctx);
     drop(raw);
