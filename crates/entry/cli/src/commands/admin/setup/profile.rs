@@ -12,8 +12,8 @@
 use anyhow::{Context, Result, bail};
 use std::path::Path;
 use systemprompt_cloud::ProjectContext;
+use systemprompt_extension::cli::ChildSupervisor;
 use systemprompt_identifiers::Email;
-use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::profile::{SecretsConfig, SecretsSource, SecretsValidationMode};
 use systemprompt_manifest::services::SystemAdminConfig;
@@ -135,7 +135,7 @@ pub(super) fn default_path(systemprompt_dir: &Path, env_name: &str) -> std::path
     profile_dir(systemprompt_dir, env_name).join("profile.yaml")
 }
 
-pub(super) fn run_migrations(profile_path: &Path, children: &ForegroundChildren) -> Result<()> {
+pub(super) fn run_migrations(profile_path: &Path, children: &dyn ChildSupervisor) -> Result<()> {
     CliService::info("Running database migrations...");
 
     let current_exe = std::env::current_exe().context("Failed to get executable path")?;
