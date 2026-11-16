@@ -43,6 +43,12 @@ pub fn fixture_brain(
         seed.insert(CoreSeam::<dyn SourceContent, core_seam::DocumentSourceContent>::new(content));
         seed.insert(CoreSeam::<dyn SourceAccess, core_seam::DocumentSourceAccess>::new(access));
     }
+    let audiences = systemprompt_extension::AudienceResolvers::from_admitted(
+        &systemprompt_extension::BuiltState::default(),
+        &crate::app_context::fixture_kernel(pool, seed.clone()).resolved(),
+    )
+    .expect("the fixture audience set builds");
+    seed.insert(Arc::new(audiences));
     let kernel = crate::app_context::fixture_kernel(pool, seed);
     BrainSlot::build(Vec::new(), &kernel.resolved()).expect("the brain slot builds over the fixture seeds");
     handle.get().cloned()

@@ -20,7 +20,7 @@ use systemprompt_notifications::{
     OutboxNotificationSink,
 };
 use systemprompt_runtime::documents::{
-    DocumentsRuntime, DocumentsRuntimeParts, ExtensionAudiences, UserSubjectDirectory,
+    DocumentsRuntime, DocumentsRuntimeParts, UserSubjectDirectory,
 };
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::core_seam::{self, RoleAudience};
@@ -48,7 +48,7 @@ pub fn fixture_notifications(
         Arc::clone(&roles),
     ));
     let service = NotificationsServiceSlot::default();
-    let seed = Dependencies::new()
+    let mut seed = Dependencies::new()
         .with(Arc::clone(pool))
         .with(Arc::new(event_router.clone()))
         .with(Arc::new(NotificationsProfile::default()))
@@ -63,6 +63,12 @@ pub fn fixture_notifications(
         .with(CoreSeam::<dyn ResourceVisibility, core_seam::IssueVisibility>::new(
             issue_visibility,
         ));
+    let audiences = systemprompt_extension::AudienceResolvers::from_admitted(
+        &systemprompt_extension::BuiltState::default(),
+        &crate::app_context::fixture_kernel(pool, seed.clone()).resolved(),
+    )
+    .expect("the fixture audience set builds");
+    seed.insert(Arc::new(audiences));
     let kernel = crate::app_context::fixture_kernel(pool, seed);
     NotificationsSlot::build(Vec::new(), &kernel.resolved())
         .expect("the notifications slot builds over the fixture seeds");
@@ -140,7 +146,7 @@ pub fn fixture_documents_runtime_configured(
         directory: Arc::new(UserSubjectDirectory::new(
             Arc::new(UserRepository::new(pool)),
             Vec::new(),
-            ExtensionAudiences::default(),
+            Arc::new(systemprompt_extension::AudienceResolvers::default()),
         )),
         event_router: EventRouter::local_only(Arc::new(EventBroadcasters::new())),
         notifications: fixture_notification_sink(pool),
