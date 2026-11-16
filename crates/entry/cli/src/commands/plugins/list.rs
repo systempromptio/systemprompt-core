@@ -49,7 +49,7 @@ pub fn execute(args: &ListArgs, host: &dyn KernelHost) -> Result<CommandOutput, 
     }
 
     if matches!(args.r#type.as_str(), "all" | "manifest" | "cli" | "mcp") {
-        extensions.extend(collect_manifest(args));
+        extensions.extend(collect_manifest(args)?);
     }
 
     let total = extensions.len();
@@ -72,10 +72,10 @@ fn has_capability(capabilities: &CapabilitySummary, capability: Option<&str>) ->
     }
 }
 
-fn collect_manifest(args: &ListArgs) -> Vec<ExtensionSummary> {
-    let project_root = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::new());
+fn collect_manifest(args: &ListArgs) -> Result<Vec<ExtensionSummary>, CommandError> {
+    let project_root = std::env::current_dir().map_err(CommandError::new)?;
 
-    ExtensionLoader::discover(&project_root)
+    Ok(ExtensionLoader::discover(&project_root)
         .into_iter()
         .filter(|ext| match args.r#type.as_str() {
             "cli" => ext.is_cli(),
@@ -100,5 +100,5 @@ fn collect_manifest(args: &ListArgs) -> Vec<ExtensionSummary> {
             enabled: ext.is_enabled(),
             capabilities: CapabilitySummary::default(),
         })
-        .collect()
+        .collect())
 }
