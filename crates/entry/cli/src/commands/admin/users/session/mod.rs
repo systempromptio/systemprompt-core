@@ -11,10 +11,10 @@ mod cleanup;
 mod end;
 mod list;
 
-use crate::context::CommandContext;
-use crate::shared::render_result;
 use anyhow::{Result, bail};
 use clap::Subcommand;
+use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Subcommand)]
 pub enum SessionCommands {
@@ -28,8 +28,8 @@ pub enum SessionCommands {
     Cleanup(cleanup::CleanupArgs),
 }
 
-pub(super) async fn execute(cmd: SessionCommands, ctx: &CommandContext) -> Result<()> {
-    if ctx.is_database_scoped()
+pub(super) async fn execute(cmd: SessionCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+    if host.is_database_scoped()
         && matches!(cmd, SessionCommands::End(_) | SessionCommands::Cleanup(_))
     {
         bail!("Write operations require full profile context");
@@ -37,19 +37,16 @@ pub(super) async fn execute(cmd: SessionCommands, ctx: &CommandContext) -> Resul
 
     match cmd {
         SessionCommands::List(args) => {
-            let result = list::execute(args, ctx).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            let result = list::execute(args, host).await?;
+            Ok(result)
         },
         SessionCommands::End(args) => {
-            let result = end::execute(args, ctx).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            let result = end::execute(args, host).await?;
+            Ok(result)
         },
         SessionCommands::Cleanup(args) => {
-            let result = cleanup::execute(args, ctx).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            let result = cleanup::execute(args, host).await?;
+            Ok(result)
         },
     }
 }

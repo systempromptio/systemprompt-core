@@ -22,8 +22,8 @@ mod issue;
 
 pub use issue::IssueArgs;
 
-use crate::context::CommandContext;
 use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Subcommand)]
 pub enum ApiKeyCommands {
@@ -98,17 +98,15 @@ struct KeyRow {
     scopes: Vec<ScopeBinding>,
 }
 
-pub(super) async fn execute(cmd: ApiKeyCommands, ctx: &CommandContext) -> Result<CommandOutput> {
-    let pool = ctx.db_pool().await?;
-    let lifetime =
-        ApiKeyLifetime::from_max_days(ctx.app_context().await?.config().api_key_max_lifetime_days);
+pub(super) async fn execute(cmd: ApiKeyCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
+    let app = crate::commands::admin::state::app(host).await?;
+    let lifetime = ApiKeyLifetime::from_max_days(app.config().api_key_max_lifetime_days);
     let service = ApiKeyService::new(Arc::new(UserRepository::new(&pool)), lifetime);
     match cmd {
         ApiKeyCommands::Issue(args) => {
             if !args.scopes.is_empty() {
-                ctx.app_context()
-                    .await?
-                    .subject_providers()
+                app.subject_providers()
                     .verify_scope_bindings(&args.user, &args.scopes)
                     .await?;
             }

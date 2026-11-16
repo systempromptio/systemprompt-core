@@ -11,10 +11,10 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_users::{UserRepository, UserService};
 
-use super::types::{UserCountBreakdownOutput, UserCountOutput};
 use crate::CliConfig;
-use crate::context::CommandContext;
 use crate::shared::CommandOutput;
+use super::types::{UserCountBreakdownOutput, UserCountOutput};
+use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct CountArgs {
@@ -29,8 +29,8 @@ pub(super) enum CountResult {
     Breakdown(UserCountBreakdownOutput),
 }
 
-pub(super) async fn execute(args: CountArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    execute_with_pool(args, &ctx.db_pool().await?, &ctx.cli).await
+pub(super) async fn execute(args: CountArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    execute_with_pool(args, &systemprompt_database::pool_from_handle(host.db().await?)?, host.output()).await
 }
 
 pub(super) async fn execute_with_pool(

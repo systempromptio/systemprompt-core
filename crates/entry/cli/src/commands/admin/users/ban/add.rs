@@ -8,8 +8,8 @@ use clap::Args;
 use systemprompt_users::{BanDuration, BanIpParams, BannedIpRepository};
 
 use crate::commands::admin::users::types::BanAddOutput;
-use crate::context::CommandContext;
 use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandHost;
 
 const CLI_BAN_SOURCE: &str = "cli";
 
@@ -27,8 +27,8 @@ pub struct AddArgs {
     pub permanent: bool,
 }
 
-pub(super) async fn execute(args: AddArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let pool = ctx.db_pool().await?;
+pub(super) async fn execute(args: AddArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
     let ban_repository = BannedIpRepository::new(&pool);
 
     let duration = if args.permanent {

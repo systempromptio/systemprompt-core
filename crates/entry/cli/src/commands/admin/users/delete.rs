@@ -17,9 +17,9 @@ use systemprompt_users::{
     ArchiveParams, PurgeCount, UserAdminService, UserRepository, UserService,
 };
 
-use super::types::UserDeletedOutput;
-use crate::context::CommandContext;
 use crate::shared::CommandOutput;
+use super::types::UserDeletedOutput;
+use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Args)]
 pub struct DeleteArgs {
@@ -57,8 +57,8 @@ pub struct DeleteArgs {
     pub purge: bool,
 }
 
-pub(super) async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let pool = ctx.db_pool().await?;
+pub(super) async fn execute(args: DeleteArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
     let user_service = UserService::new(Arc::new(UserRepository::new(&pool)));
     let admin_service = UserAdminService::new(user_service.clone());
 

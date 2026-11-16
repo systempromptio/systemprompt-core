@@ -11,8 +11,8 @@ use systemprompt_users::{UserAdminService, UserRepository, UserService};
 
 use crate::CliConfig;
 use crate::commands::admin::users::types::{SessionListOutput, SessionSummary};
-use crate::context::CommandContext;
 use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Args)]
 pub struct ListArgs {
@@ -26,8 +26,8 @@ pub struct ListArgs {
     pub limit: i64,
 }
 
-pub(super) async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    execute_with_pool(args, &ctx.db_pool().await?, &ctx.cli).await
+pub(super) async fn execute(args: ListArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    execute_with_pool(args, &systemprompt_database::pool_from_handle(host.db().await?)?, host.output()).await
 }
 
 pub(super) async fn execute_with_pool(
