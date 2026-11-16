@@ -180,13 +180,13 @@ pub(super) struct SweepSql {
 }
 
 pub(super) fn sweep_sql(declaration: &PurgeDeclaration) -> Result<Option<SweepSql>> {
-    let PurgeDeclaration::Sweep {
+    let PurgeDeclaration::Sweep(OrphanSweep {
         table,
         key,
         referenced_by,
         via,
         user_column,
-    } = declaration
+    }) = declaration
     else {
         return Ok(None);
     };

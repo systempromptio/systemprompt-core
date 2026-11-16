@@ -32,6 +32,8 @@ mod files_marketplace_slots;
 #[cfg(test)]
 mod forged_commands;
 #[cfg(test)]
+mod forged_command_types;
+#[cfg(test)]
 mod gateway_prefixes;
 #[cfg(test)]
 mod governance_dimensions;
@@ -46,6 +48,8 @@ mod install_reserved;
 #[cfg(test)]
 mod install_services;
 #[cfg(test)]
+mod kernel_reserved;
+#[cfg(test)]
 mod mcp_slots;
 #[cfg(test)]
 mod schema_members_drift;
@@ -53,6 +57,8 @@ mod schema_members_drift;
 mod probe;
 #[cfg(test)]
 mod providers;
+#[cfg(test)]
+mod reserved_ids;
 #[cfg(test)]
 mod reserved_paths;
 #[cfg(test)]

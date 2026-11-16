@@ -21,7 +21,9 @@
 //! Before the passes the run deletes log rows whose user is gone and runs
 //! every admitted `RetentionSweep` (the AI crate's fails orphaned pending
 //! requests); after them it purges archived users past
-//! `retention.archived_users_days` that are not under legal hold.
+//! `retention.archived_users_days` that are not under legal hold. A run in
+//! which any archived user's purge was incomplete reports the count
+//! (`incomplete_purges`) and is not a success.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -118,16 +120,23 @@ impl Job for DatabaseCleanupJob {
             ctx.enforce(),
         )
         .await?;
-        total += archived;
+        total += archived.purged;
 
         let duration_ms = u64::try_from(start_time.elapsed().as_millis()).unwrap_or(u64::MAX);
         debug!(total_deleted = total, duration_ms, "Job completed");
-        Ok(JobResult::success()
-            .with_message(format!(
-                "{} archived_users={archived}",
-                summary(orphaned, &passes)
-            ))
-            .with_stats(total, withheld(&passes))
+        let message = format!(
+            "{} archived_users={} incomplete_purges={}",
+            summary(orphaned, &passes),
+            archived.purged,
+            archived.incomplete
+        );
+        let result = if archived.incomplete == 0 {
+            JobResult::success().with_message(message)
+        } else {
+            JobResult::failure(message)
+        };
+        Ok(result
+            .with_stats(total, withheld(&passes).saturating_add(archived.incomplete))
             .with_duration(duration_ms))
     }
 }

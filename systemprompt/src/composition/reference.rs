@@ -2,12 +2,55 @@
 //! topological order of the members' declared dependency edges, with the terms
 //! the conferral table grants it.
 //!
+//! [`CORE_MEMBER_IDS`] is the one list of every core member id the kernel
+//! knows, whatever features this build links: the reference members' ids and
+//! every [`CoreId`]. [`Composition::declare`] refuses an install member that
+//! takes one of them, linked or not, enabled or not, and a core member whose
+//! id the list lacks, so the list cannot fall behind the reference.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_extension::reserved::CoreId;
 
 use super::{Composition, CoreTerms, Member};
+
+pub const CORE_MEMBER_IDS: &[&str] = &[
+    "database",
+    "events",
+    "users",
+    "logging",
+    "authz",
+    "oauth",
+    "identity",
+    "mcp",
+    "mcp_host",
+    "ai",
+    "agent",
+    "analytics",
+    "content",
+    "files",
+    "brain",
+    "notifications",
+    "managed_resources",
+    "gateway",
+    "agent_runs",
+    "generator",
+    "scheduler",
+    CoreId::ContentHttp.id(),
+    CoreId::AnalyticsHttp.id(),
+    CoreId::NotificationsHttp.id(),
+    CoreId::AgentRunsApi.id(),
+    CoreId::Cloud.id(),
+    CoreId::Slack.id(),
+    CoreId::Teams.id(),
+    CoreId::Kernel.id(),
+];
+
+#[must_use]
+pub(super) fn is_core_member_id(id: &str) -> bool {
+    CORE_MEMBER_IDS.contains(&id)
+}
 
 #[must_use]
 pub fn reference() -> Composition {

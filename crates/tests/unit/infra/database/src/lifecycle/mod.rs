@@ -1,6 +1,7 @@
 //! Unit tests for database lifecycle module
 
 mod bootstrap_lock_failures;
+mod core_standing_records;
 mod fk_deferral;
 mod install_deadlock_retry;
 mod install_phase_failure;

@@ -212,6 +212,16 @@ pub enum LoaderError {
     },
 
     #[error(
+        "Install member '{owner}' claims {kind} '{name}', recorded to the core member of that id; \
+         an install never takes over a core member's records"
+    )]
+    CoreRecordClaimedByInstall {
+        kind: &'static str,
+        name: String,
+        owner: ExtensionId,
+    },
+
+    #[error(
         "Extension '{extension}' declares cross_extension_tables() entry '{table}', which is not \
          a table created by any other loaded extension"
     )]

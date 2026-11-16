@@ -65,14 +65,41 @@ pub struct PurgePredicate {
 }
 
 /// One table whose rows exist only while `referenced_by.via` points at
-/// `table.key`; `user_column` is the user key of `referenced_by`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct OrphanSweep {
-    pub table: &'static str,
-    pub key: &'static str,
-    pub referenced_by: &'static str,
-    pub via: &'static str,
-    pub user_column: &'static str,
+/// `table.key`; `user_column` is the user key of `referenced_by`. A member
+/// declares it over `&'static str` names; the recorded form in
+/// [`PurgeDeclaration::Sweep`] is the same type over owned names.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OrphanSweep<S = &'static str> {
+    pub table: S,
+    pub key: S,
+    pub referenced_by: S,
+    pub via: S,
+    pub user_column: S,
+}
+
+impl<S: AsRef<str>> OrphanSweep<S> {
+    #[must_use]
+    pub fn names(&self) -> [&str; 5] {
+        [
+            self.table.as_ref(),
+            self.key.as_ref(),
+            self.referenced_by.as_ref(),
+            self.via.as_ref(),
+            self.user_column.as_ref(),
+        ]
+    }
+
+    #[must_use]
+    pub fn to_owned_names(&self) -> OrphanSweep<String> {
+        let [table, key, referenced_by, via, user_column] = self.names().map(str::to_owned);
+        OrphanSweep {
+            table,
+            key,
+            referenced_by,
+            via,
+            user_column,
+        }
+    }
 }
 
 /// A purge table or orphan sweep in owned form: what the installer records
@@ -85,13 +112,7 @@ pub enum PurgeDeclaration {
         column: String,
         predicate: Option<PurgeFilter>,
     },
-    Sweep {
-        table: String,
-        key: String,
-        referenced_by: String,
-        via: String,
-        user_column: String,
-    },
+    Sweep(OrphanSweep<String>),
 }
 
 /// The owned form of a [`PurgePredicate`].
@@ -105,7 +126,7 @@ impl PurgeDeclaration {
     #[must_use]
     pub fn table(&self) -> &str {
         match self {
-            Self::Table { table, .. } | Self::Sweep { table, .. } => table,
+            Self::Table { table, .. } | Self::Sweep(OrphanSweep { table, .. }) => table,
         }
     }
 
@@ -113,11 +134,7 @@ impl PurgeDeclaration {
     pub fn tables(&self) -> Vec<&str> {
         match self {
             Self::Table { table, .. } => vec![table],
-            Self::Sweep {
-                table,
-                referenced_by,
-                ..
-            } => vec![table, referenced_by],
+            Self::Sweep(sweep) => vec![&sweep.table, &sweep.referenced_by],
         }
     }
 
@@ -133,19 +150,13 @@ impl PurgeDeclaration {
                 names.extend(predicate.iter().map(|p| p.column.as_str()));
                 names
             },
-            Self::Sweep {
-                table,
-                key,
-                referenced_by,
-                via,
-                user_column,
-            } => vec![table, key, referenced_by, via, user_column],
+            Self::Sweep(sweep) => sweep.names().to_vec(),
         }
     }
 
     #[must_use]
     pub const fn is_sweep(&self) -> bool {
-        matches!(self, Self::Sweep { .. })
+        matches!(self, Self::Sweep(_))
     }
 }
 
@@ -164,12 +175,6 @@ impl From<UserPurgeTable> for PurgeDeclaration {
 
 impl From<OrphanSweep> for PurgeDeclaration {
     fn from(sweep: OrphanSweep) -> Self {
-        Self::Sweep {
-            table: sweep.table.to_owned(),
-            key: sweep.key.to_owned(),
-            referenced_by: sweep.referenced_by.to_owned(),
-            via: sweep.via.to_owned(),
-            user_column: sweep.user_column.to_owned(),
-        }
+        Self::Sweep(sweep.to_owned_names())
     }
 }
