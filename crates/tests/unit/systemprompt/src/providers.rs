@@ -1,11 +1,64 @@
 //! A core member's requirement is met only by core members: an install
-//! cannot substitute for a disabled core provider (T6).
+//! cannot substitute for a disabled core provider (T6). A requirement is
+//! also met by the value an enabled member's slot builds, and refused when
+//! the only member opening that slot is disabled.
+
+use std::sync::Arc;
 
 use systemprompt::{CompositionError, reference};
-use systemprompt_extension::{ProvideError, Resolved};
+use systemprompt_extension::{ProvideError, Resolved, Slot, SlotEntry, SlotError, SlotOrder};
 use systemprompt_traits::content::DynContentCatalogStats;
 
 use crate::probe::{Probe, profile};
+
+struct ProbeSlot;
+
+#[derive(Default)]
+struct ProbeSlotBuilder;
+
+struct ProbeSlotBuilt;
+
+impl Slot for ProbeSlot {
+    type Builder = ProbeSlotBuilder;
+    type Built = ProbeSlotBuilt;
+    const ORDER: SlotOrder = SlotOrder::Composition;
+
+    fn build(
+        _entries: Vec<SlotEntry<Self::Builder>>,
+        _r: &Resolved<'_>,
+    ) -> Result<Self::Built, SlotError> {
+        Ok(ProbeSlotBuilt)
+    }
+}
+
+fn slot_composition() -> systemprompt::Composition {
+    reference()
+        .with(Probe::new("probe-slot-owner", |c| {
+            c.slot::<ProbeSlot>();
+        }))
+        .with(Probe::new("probe-slot-reader", |c| {
+            c.requires::<Arc<ProbeSlotBuilt>>();
+        }))
+}
+
+#[test]
+fn a_requirement_met_by_a_slot_built_value_is_admitted() {
+    slot_composition()
+        .build(&profile(&[]))
+        .expect("the slot owner's built value meets the reader's requirement");
+}
+
+#[test]
+fn a_requirement_met_only_by_a_disabled_members_slot_is_refused() {
+    let error = slot_composition()
+        .build(&profile(&["probe-slot-owner"]))
+        .expect_err("the only member opening the slot is disabled");
+    assert!(matches!(
+        error,
+        CompositionError::DisabledDependency { owner, provider, .. }
+            if owner.as_str() == "probe-slot-reader" && provider.as_str() == "probe-slot-owner"
+    ));
+}
 
 fn refuse_provider() -> Result<DynContentCatalogStats, ProvideError> {
     Err(ProvideError::Failed(Box::new(std::fmt::Error)))
