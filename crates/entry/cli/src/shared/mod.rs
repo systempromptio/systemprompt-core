@@ -1,9 +1,8 @@
 //! Cross-command CLI utilities shared across command modules.
 //!
 //! Aggregates the command-result rendering sink, confirmation arguments,
-//! setup database access and text helpers. Also
-//! defines the `define_pool_command!` macro used by the log commands to
-//! generate pooled execution entry points.
+//! setup database access, text helpers and the database-scoped command
+//! error.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -40,26 +39,4 @@ pub fn database_scoped_command_error(
             )
         },
     )
-}
-
-#[macro_export]
-macro_rules! define_pool_command {
-    ($args_ty:ty => $ret_ty:ty, with_config) => {
-        pub(in $crate::commands::infrastructure::logs) async fn execute(
-            args: $args_ty,
-            ctx: &$crate::context::CommandContext,
-        ) -> ::anyhow::Result<$ret_ty> {
-            let pool = ctx.db_pool().await?.pool();
-            execute_with_pool_inner(args, &pool, &ctx.cli).await
-        }
-    };
-    ($args_ty:ty => $ret_ty:ty, no_config) => {
-        pub(in $crate::commands::infrastructure::logs) async fn execute(
-            args: $args_ty,
-            ctx: &$crate::context::CommandContext,
-        ) -> ::anyhow::Result<$ret_ty> {
-            let pool = ctx.db_pool().await?.pool();
-            execute_with_pool_inner(args, &pool).await
-        }
-    };
 }
