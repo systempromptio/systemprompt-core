@@ -21,7 +21,7 @@
 //! | `client` | `systemprompt-client` | HTTP API client used by the CLI. |
 //! | `security` | `systemprompt-security`, `systemprompt-governance` | JWT, scope/RBAC, secret scanning, rate limit. |
 //! | `cli` | `systemprompt-cli` (which depends on `systemprompt-api`, so it compiles the `api` crate graph) | The `systemprompt` CLI as a library entry point. |
-//! | `runtime` | `cli` + `systemprompt-extension` | `RuntimeBuilder` for embedding the CLI in a custom binary. The `systemprompt::runtime` module also compiles under `full`, where it re-exports the document store runtime as `systemprompt::runtime::documents` (the document MCP tools are `systemprompt::runtime::documents::mcp`). |
+//! | `runtime` | `cli` + `systemprompt-extension` | The `systemprompt::runtime` module (a custom binary runs the CLI through `Composition::run`); it also compiles under `full`, where it re-exports the document store runtime as `systemprompt::runtime::documents` (the document MCP tools are `systemprompt::runtime::documents::mcp`). |
 //! | `analytics` | `systemprompt-analytics`, and the `/api/v1/analytics` and engagement routes and the `analytics` command group from `systemprompt-analytics-entry` | Request, conversation, agent, tool, and cost metrics without the rest of `full`. The routes need `api`, the commands `cli`; `core content popular` also needs `content`. In `full`. |
 //! | `content` | the `systemprompt::content` module, and the `/api/v1/content` and link-redirect routes and the `core content` commands from `systemprompt-content-entry` (with `analytics`, also the `core content popular` leaf) | Content ingestion, links and campaigns without the rest of `full`. The routes need `api`, the commands `cli`. In `full`. |
 //! | `slack` | the `systemprompt::slack` module and the `/api/v1/slack` routes from `systemprompt-slack-entry` | Slack Events API, slash commands, interactivity. Not part of `full`. |
@@ -183,14 +183,6 @@ pub mod cli {
 #[cfg_attr(docsrs, doc(cfg(any(feature = "runtime", feature = "full"))))]
 pub mod runtime;
 
-#[cfg(feature = "runtime")]
-#[cfg_attr(docsrs, doc(cfg(feature = "runtime")))]
-pub use runtime::RuntimeBuilder;
-
-#[cfg(feature = "runtime")]
-#[cfg_attr(docsrs, doc(cfg(feature = "runtime")))]
-pub use runtime::RuntimeError;
-
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod agent;
@@ -266,12 +258,8 @@ pub mod oauth_issuance {
 #[cfg(any(feature = "files-office", feature = "files-pdf"))]
 #[cfg_attr(docsrs, doc(cfg(any(feature = "files-office", feature = "files-pdf"))))]
 pub mod files {
-    pub use systemprompt_files::{register_agent_access_policy, *};
+    pub use systemprompt_files::*;
 }
-
-#[cfg(any(feature = "files-office", feature = "files-pdf"))]
-#[cfg_attr(docsrs, doc(cfg(any(feature = "files-office", feature = "files-pdf"))))]
-pub use systemprompt_files::register_agent_access_policy;
 
 #[cfg(feature = "brain")]
 #[cfg_attr(docsrs, doc(cfg(feature = "brain")))]
