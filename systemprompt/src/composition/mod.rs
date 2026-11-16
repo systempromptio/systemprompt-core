@@ -50,7 +50,7 @@ mod routes;
 pub use declared::Declared;
 use declared::DeclaredMember;
 
-pub use reference::reference;
+pub use reference::{CORE_MEMBER_IDS, reference};
 
 pub(super) type Conferral = PrivilegedShape;
 
@@ -226,6 +226,11 @@ impl Composition {
                     id: meta.id,
                     source,
                 })?;
+            match (member.standing, reference::is_core_member_id(meta.id)) {
+                (Standing::Install, true) => return Err(CompositionError::ReservedId(id)),
+                (Standing::Core(_), false) => return Err(CompositionError::UnlistedCoreId(id)),
+                _ => {},
+            }
             if !ids.insert(id.clone()) {
                 return Err(CompositionError::DuplicateId(id));
             }

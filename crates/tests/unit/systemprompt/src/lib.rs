@@ -52,6 +52,8 @@ mod probe;
 #[cfg(test)]
 mod providers;
 #[cfg(test)]
+mod reserved_ids;
+#[cfg(test)]
 mod reserved_paths;
 #[cfg(test)]
 mod slot_standing;

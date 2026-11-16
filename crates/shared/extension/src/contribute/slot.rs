@@ -82,6 +82,25 @@ pub enum StandingTag {
     Install,
 }
 
+impl StandingTag {
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Core => "core",
+            Self::Install => "install",
+        }
+    }
+
+    #[must_use]
+    pub fn parse(value: &str) -> Option<Self> {
+        match value {
+            "core" => Some(Self::Core),
+            "install" => Some(Self::Install),
+            _ => None,
+        }
+    }
+}
+
 type ErasedBuilder = Box<dyn Any + Send>;
 type ErasedBuilt = Arc<dyn Any + Send + Sync>;
 type BuildFn = fn(Vec<SlotEntry<ErasedBuilder>>, &Resolved<'_>) -> Result<ErasedBuilt, SlotError>;

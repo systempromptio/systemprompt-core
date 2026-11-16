@@ -3,5 +3,6 @@
 CREATE TABLE IF NOT EXISTS schema_table_owners (
     table_name TEXT PRIMARY KEY,
     extension_id TEXT NOT NULL,
+    standing TEXT NOT NULL CHECK (standing IN ('core', 'install')),
     recorded_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

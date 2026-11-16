@@ -63,6 +63,7 @@ pub(super) async fn install_unless_settled(
             &super::ownership::recorded_table_owners(db).await?,
             &prepared,
         )?;
+        super::purge_records::check_recorded_purges(db, active).await?;
         if is_settled(db, &prepared, &fingerprint).await? {
             info!("Schema is settled at this release; applying no DDL");
             return run_settled(db, active, held_back, &prepared).await;

@@ -25,6 +25,10 @@ pub enum CompositionError {
     },
     #[error("duplicate extension id {0}")]
     DuplicateId(ExtensionId),
+    #[error("install member id {0} is a core member id")]
+    ReservedId(ExtensionId),
+    #[error("core member id {0} is missing from the core member id list")]
+    UnlistedCoreId(ExtensionId),
     #[error("required extension {0} cannot be disabled or removed")]
     RequiredDisabled(ExtensionId),
     #[error("{owner} requires {ty}, which no enabled member provides")]
