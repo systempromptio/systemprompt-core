@@ -5,6 +5,8 @@
 //! distributed lock is off, run unclaimed. These tests take advisory locks on
 //! shared job names and join the serialized `scheduler-jobs-db` nextest group.
 
+use std::sync::Arc;
+
 use std::collections::HashMap;
 use std::time::Duration;
 
@@ -13,7 +15,7 @@ use sqlx::pool::PoolConnection;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::JobName;
 use systemprompt_scheduler::{JobExecutionService, JobSelection, SchedulerConfig};
-use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
+use systemprompt_test_fixtures::{test_database_url, test_db_pool};
 
 use crate::test_jobs::{NODE_JOB, WORKING_JOB};
 
@@ -39,8 +41,8 @@ async fn hold_peer_lock(pool: &DbPool, job_name: &str) -> PoolConnection<Postgre
 async fn service(config: SchedulerConfig) -> (JobExecutionService, DbPool) {
     let url = test_database_url();
     let pool = test_db_pool().await;
-    let app_ctx = test_app_context(&pool, &url);
-    (JobExecutionService::new(app_ctx, config), pool)
+    let (app_ctx, schedule) = crate::test_extension::scheduled_app(&url).await;
+    (JobExecutionService::new(app_ctx, config, Arc::clone(&schedule)), pool)
 }
 
 fn locked_config() -> SchedulerConfig {

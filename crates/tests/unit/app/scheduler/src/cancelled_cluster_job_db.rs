@@ -5,7 +5,7 @@ use systemprompt_identifiers::JobName;
 
 use systemprompt_manifest::SchedulerConfig;
 use systemprompt_scheduler::{JobStatus, SchedulerRepository, SchedulerService};
-use systemprompt_test_fixtures::{DisposableDb, test_app_context};
+use systemprompt_test_fixtures::{DisposableDb};
 use tracing_subscriber::layer::SubscriberExt;
 
 use crate::test_jobs::{
@@ -44,7 +44,7 @@ async fn cancelling_a_cluster_job_releases_its_session_lock_for_a_later_dispatch
     let _subscriber = tracing::subscriber::set_default(subscriber);
     let database = DisposableDb::with_schema("scheduler_cancelled_cluster_job").await;
     let pool = database.test_pool().await;
-    let context = test_app_context(&pool, database.url());
+    let (context, schedule) = crate::test_extension::scheduled_app(database.url()).await;
     let repository = SchedulerRepository::new(&pool);
     repository
         .upsert_job(&JobName::new(CANCELLABLE_CLUSTER_JOB), "", true)
@@ -60,6 +60,7 @@ async fn cancelling_a_cluster_job_releases_its_session_lock_for_a_later_dispatch
         },
         Arc::clone(&pool),
         context,
+            Arc::clone(&schedule),
     ));
 
     CANCELLABLE_CLUSTER_JOB_RUNS.store(0, Ordering::SeqCst);

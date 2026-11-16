@@ -2,7 +2,9 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use systemprompt_database::DbPool;
-use systemprompt_extension::{Extension, ExtensionContext, ExtensionMetadata, ExtensionRegistry};
+use systemprompt_extension::{
+    ContributionError, Contributions, Extension, ExtensionContext, ExtensionMetadata,
+};
 use systemprompt_models::api::{ApiError, ErrorCode};
 use systemprompt_provider_contracts::{
     ApplyMode, ChangeActor, ChangeRequest, ConfigPlane, ConfigPlaneError, EntityScope,
@@ -15,7 +17,8 @@ use systemprompt_scheduler::services::{
     ReconcileTrigger,
 };
 use systemprompt_test_fixtures::{
-    fixture_app_context_with_extensions, fixture_config, test_database_url, test_db_pool,
+    core_members, fixture_admitted_of, fixture_app_context_with_extensions, fixture_config,
+    test_database_url, test_db_pool,
 };
 
 use super::db_plane::{ApplyLog, DbPlane, ensure_table, seed_rows, stored_rows};
@@ -35,9 +38,23 @@ impl Extension for PlanesExtension {
         }
     }
 
-    fn config_planes(&self) -> Vec<Arc<dyn ConfigPlane>> {
-        self.planes.clone()
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        for plane in &self.planes {
+            c.config_plane(Arc::clone(plane));
+        }
+        Ok(())
     }
+}
+
+async fn context_with_planes(
+    config: systemprompt_manifest::Config,
+    extension: PlanesExtension,
+) -> Arc<AppContext> {
+    let mut members = core_members();
+    members.push(Box::new(extension));
+    fixture_app_context_with_extensions(config, fixture_admitted_of(members))
+        .await
+        .expect("context")
 }
 
 struct Harness {
@@ -64,14 +81,14 @@ async fn harness_with(
     for (name, value) in authority {
         config.planes.authority.insert((*name).to_owned(), *value);
     }
-    let mut registry = ExtensionRegistry::new();
-    registry
-        .register(Arc::new(PlanesExtension {
+    let ctx = context_with_planes(
+        config,
+        PlanesExtension {
             id: unique_plane_name("planes_ext"),
             planes,
-        }))
-        .expect("register extension");
-    let ctx = fixture_app_context_with_extensions(&pool, config, registry, &[]).expect("context");
+        },
+    )
+    .await;
     let service =
         ConfigReconcileService::from_app_context(&ctx, ConfigReconcileRepository::new(&pool))
             .expect("service");
@@ -326,17 +343,16 @@ async fn an_extension_plane_depending_on_an_unregistered_plane_fails_assembly() 
     let root = tempfile::tempdir().expect("tempdir");
     let mut plane = DbPlane::new(unique_plane_name("e2e_orphan"), &new_log());
     plane.deps = &["no_such_plane"];
-    let pool = test_db_pool().await;
     let mut config = fixture_config(&test_database_url());
     config.services_path = root.path().display().to_string();
-    let mut registry = ExtensionRegistry::new();
-    registry
-        .register(Arc::new(PlanesExtension {
+    let ctx = context_with_planes(
+        config,
+        PlanesExtension {
             id: unique_plane_name("planes_ext_orphan"),
             planes: vec![Arc::new(plane)],
-        }))
-        .expect("register extension");
-    let ctx = fixture_app_context_with_extensions(&pool, config, registry, &[]).expect("context");
+        },
+    )
+    .await;
 
     let err = ExtensionContext::config_planes(&*ctx).expect_err("refused");
     assert!(matches!(

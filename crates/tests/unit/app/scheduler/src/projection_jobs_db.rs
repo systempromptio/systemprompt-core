@@ -9,17 +9,20 @@ use systemprompt_scheduler::jobs::{
 use systemprompt_test_fixtures::{
     seed_user_row, test_app_context, test_database_url, test_db_pool,
 };
-use systemprompt_traits::{Dependencies, Job, JobContext};
+use systemprompt_traits::{Job, JobContext};
 
-fn ctx(pool: &systemprompt_database::DbPool, url: &str) -> JobContext {
-    ctx_for(pool, test_app_context(pool, url))
+async fn ctx(pool: &systemprompt_database::DbPool, url: &str) -> JobContext {
+    ctx_for(pool, test_app_context(url).await)
 }
 
 fn ctx_for(
     pool: &systemprompt_database::DbPool,
     app_ctx: Arc<systemprompt_runtime::AppContext>,
 ) -> JobContext {
-    let dependencies = Dependencies::new()
+    let dependencies = app_ctx
+        .kernel()
+        .state()
+        .clone()
         .with(Arc::clone(app_ctx.app_paths_arc()))
         .with(Arc::clone(pool))
         .with(Arc::new(InventoryRefreshMemo::new()))
@@ -33,7 +36,7 @@ fn ctx_for(
 async fn assert_drains(job: &dyn Job) {
     let url = test_database_url();
     let pool = test_db_pool().await;
-    let context = ctx(&pool, &url);
+    let context = ctx(&pool, &url).await;
     let result = job
         .execute(&context)
         .await
@@ -71,7 +74,7 @@ async fn session_bot_type_rollup_drains() {
 async fn inventory_refresh_runs_twice_with_a_shared_memo() {
     let url = test_database_url();
     let pool = test_db_pool().await;
-    let app_ctx = test_app_context(&pool, &url);
+    let app_ctx = test_app_context(&url).await;
     let admin_email = format!("{}@example.test", app_ctx.system_admin().id().as_str());
     seed_user_row(&pool, app_ctx.system_admin().id(), &admin_email)
         .await
@@ -89,7 +92,7 @@ async fn inventory_refresh_runs_twice_with_a_shared_memo() {
 async fn vertex_discovery_with_no_vertex_endpoints_scans_nothing() {
     let url = test_database_url();
     let pool = test_db_pool().await;
-    let context = ctx(&pool, &url);
+    let context = ctx(&pool, &url).await;
     let result = VertexDiscoveryJob
         .execute(&context)
         .await

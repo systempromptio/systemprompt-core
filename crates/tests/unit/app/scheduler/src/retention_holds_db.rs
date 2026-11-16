@@ -5,13 +5,12 @@
 //! each enforced run prunes `logs` globally.
 
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use chrono::{Duration, Utc};
 use systemprompt_extension::{RetentionHolds, RetentionTarget};
 use systemprompt_scheduler::DatabaseCleanupJob;
-use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
-use systemprompt_traits::{Dependencies, Job, JobContext, JobResult};
+use systemprompt_test_fixtures::{test_database_url, test_db_pool};
+use systemprompt_traits::{Job, JobContext, JobResult};
 
 use crate::retention_holds::{failing, hold};
 
@@ -20,11 +19,8 @@ const STALE_DAYS: i32 = 4000;
 async fn run(pool: &systemprompt_database::DbPool, url: &str, holds: RetentionHolds) -> JobResult {
     use systemprompt_identifiers::{Actor, UserId};
 
-    let app_ctx = test_app_context(pool, url);
-    let dependencies = Dependencies::new()
-        .with(Arc::clone(app_ctx.app_paths_arc()))
-        .with(Arc::clone(pool))
-        .with(app_ctx)
+    let dependencies = crate::test_extension::job_dependencies(pool, url)
+        .await
         .with(holds);
     let mut params = HashMap::new();
     params.insert("log_retention_days".to_owned(), "1".to_owned());

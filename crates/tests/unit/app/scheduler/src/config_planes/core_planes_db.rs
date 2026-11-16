@@ -92,10 +92,11 @@ async fn the_governance_engine_is_unapplied_until_config_apply_runs() {
         Dependencies::new(),
     ));
     let raw = pool.pool();
+    let catalog = systemprompt_governance::policy::PolicyCatalog::builtin();
     let load = || {
         GovernanceEngine::load(
             raw.as_ref(),
-            &systemprompt_governance::policy::PolicyCatalog::builtin(),
+            &catalog,
             Some(systemprompt_test_fixtures::offline_rate_windows()),
             Default::default(),
         )

@@ -3,22 +3,25 @@
 //! tests fail when `DATABASE_URL` is unset.
 
 use std::collections::HashMap;
+use std::sync::Arc;
+
 use systemprompt_identifiers::JobName;
 
 use systemprompt_scheduler::{
     JobExecutionService, JobRepository, JobSelection, SchedulerError, parse_job_parameters,
 };
-use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
+use systemprompt_test_fixtures::{test_database_url, test_db_pool};
 
 macro_rules! db_service {
     () => {{
         let url = test_database_url();
         let pool = test_db_pool().await;
-        let app_ctx = test_app_context(&pool, &url);
+        let (app_ctx, schedule) = crate::test_extension::scheduled_app(&url).await;
         (
             JobExecutionService::new(
                 app_ctx,
                 systemprompt_manifest::SchedulerConfig::with_system_admin(),
+            Arc::clone(&schedule),
             ),
             pool,
         )
@@ -259,16 +262,26 @@ mod manual_run_recording_arms {
 mod dead_pool_recording {
     use super::*;
     use crate::test_jobs::FAILING_JOB;
-    use systemprompt_test_fixtures::closed_db_pool;
+    use systemprompt_test_fixtures::DisposableDb;
+
+    async fn app_over_a_dropped_database(
+        prefix: &str,
+    ) -> (
+        Arc<systemprompt_runtime::AppContext>,
+        Arc<systemprompt_extension::AdmittedSchedule>,
+    ) {
+        let database = DisposableDb::with_schema(prefix).await;
+        let app = crate::test_extension::scheduled_app(database.url()).await;
+        database.drop_now().await;
+        app
+    }
 
     #[tokio::test]
     async fn run_survives_an_unreachable_database() {
-        let url = test_database_url();
-        let closed = closed_db_pool().await;
-        let app_ctx = test_app_context(&closed, &url);
+        let (app_ctx, schedule) = app_over_a_dropped_database("sched_dead_run").await;
         let mut config = systemprompt_manifest::SchedulerConfig::with_system_admin();
         config.distributed_lock = false;
-        let service = JobExecutionService::new(app_ctx, config);
+        let service = JobExecutionService::new(app_ctx, config, Arc::clone(&schedule));
 
         // The job body and every recording query hit the closed pool; the run
         // still yields a report instead of propagating the DB failure.
@@ -281,12 +294,11 @@ mod dead_pool_recording {
 
     #[tokio::test]
     async fn an_unclaimable_lock_fails_the_run_without_running_the_job() {
-        let url = test_database_url();
-        let closed = closed_db_pool().await;
-        let app_ctx = test_app_context(&closed, &url);
+        let (app_ctx, schedule) = app_over_a_dropped_database("sched_dead_lock").await;
         let service = JobExecutionService::new(
             app_ctx,
             systemprompt_manifest::SchedulerConfig::with_system_admin(),
+            Arc::clone(&schedule),
         );
 
         let report = service

@@ -1,50 +1,50 @@
-//! The scheduler runs a contribution only while its owning extension is
-//! enabled: disabling an extension in the profile removes its jobs from the
-//! runnable set, and leaves every other extension's jobs in place.
+//! The scheduler runs a job only while its owning member is admitted:
+//! leaving a member out of the composition removes its jobs from the
+//! `AdmittedSchedule`, and leaves every other member's jobs in place.
 
-use systemprompt_extension::ExtensionRegistry;
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_scheduler::EnabledExtensions;
-use systemprompt_traits::registered_jobs;
+use systemprompt_test_fixtures::fixture_admitted_without;
 
-fn registry() -> ExtensionRegistry {
-    ExtensionRegistry::discover().expect("extension registry")
+use crate::test_extension::{core_schedule, schedule_of};
+
+#[test]
+fn with_nothing_disabled_every_core_owner_contributes_its_jobs() {
+    let schedule = core_schedule();
+    let (owner, _) = schedule.job("database_cleanup").expect("database_cleanup is admitted");
+    assert_eq!(owner.as_str(), "scheduler");
+    assert!(schedule.contains_job("mcp_session_cleanup"));
 }
 
 #[test]
-fn with_nothing_disabled_every_linked_owner_is_enabled() {
-    let enabled = EnabledExtensions::resolve(&registry(), &[]).expect("enabled set");
-    assert!(enabled.contains("scheduler"));
-    assert!(enabled.job("database_cleanup").is_some());
-}
+fn a_disabled_member_contributes_no_jobs() {
+    let mcp = ExtensionId::new("mcp");
+    let full = core_schedule();
+    let owned: Vec<&str> = full
+        .jobs()
+        .iter()
+        .filter(|(owner, _)| *owner == mcp)
+        .map(|(_, job)| job.name())
+        .collect();
+    assert!(!owned.is_empty(), "the mcp member owns a job");
 
-#[test]
-fn a_disabled_extension_contributes_no_jobs() {
-    let registry = registry();
-    let owner = registered_jobs()
-        .map(|registration| registration.owner)
-        .find(|owner| {
-            *owner != "scheduler"
-                && registry
-                    .enabled_extensions(&[ExtensionId::new(*owner)])
-                    .is_ok()
-        })
-        .expect("a linked, optional extension that owns a job");
-    let enabled =
-        EnabledExtensions::resolve(&registry, &[ExtensionId::new(owner)]).expect("enabled set");
-    assert!(!enabled.contains(owner));
-    for registration in registered_jobs().filter(|registration| registration.owner == owner) {
+    let without = schedule_of(&fixture_admitted_without(std::slice::from_ref(&mcp)));
+    for name in &owned {
         assert!(
-            enabled.job(registration.job.name()).is_none(),
-            "{} belongs to the disabled extension {owner}",
-            registration.job.name()
+            !without.contains_job(name),
+            "{name} belongs to the disabled member mcp"
         );
     }
-    assert!(enabled.job("database_cleanup").is_some());
+    assert!(without.jobs().iter().all(|(owner, _)| *owner != mcp));
+    assert!(without.contains_job("database_cleanup"));
 }
 
 #[test]
-fn a_registration_whose_owner_is_not_linked_is_not_run() {
-    let enabled = EnabledExtensions::resolve(&registry(), &[]).expect("enabled set");
-    assert!(!enabled.contains("no-such-extension"));
+fn an_owner_that_is_not_admitted_has_no_jobs() {
+    let schedule = core_schedule();
+    assert!(
+        schedule
+            .jobs()
+            .iter()
+            .all(|(owner, _)| owner.as_str() != "no-such-extension")
+    );
 }

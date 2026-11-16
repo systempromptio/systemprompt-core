@@ -1,4 +1,4 @@
-//! Every registered job's cron expression, checked against the parser that
+//! Every admitted core job's cron expression, checked against the parser that
 //! actually schedules it.
 //!
 //! `Job::new_async` parses the expression at registration. A typo there does
@@ -8,18 +8,16 @@
 //! `tokio_cron_scheduler` itself rather than against a hand-rolled regex that
 //! could accept expressions the real parser rejects.
 
+use std::sync::Arc;
+
 use systemprompt_traits::Job;
 use tokio_cron_scheduler::Job as CronJob;
 
-use crate::test_extension::TEST_JOBS_OWNER;
-
-// Every production job linked into this binary: the scheduler's own and those
-// the capability crates linked through the runtime submit. The test
-// extension's jobs exist to drive dispatch arms and are not production jobs.
-fn all_jobs() -> Vec<&'static dyn Job> {
-    systemprompt_traits::registered_jobs()
-        .filter(|registration| registration.owner != TEST_JOBS_OWNER)
-        .map(|registration| registration.job)
+fn all_jobs() -> Vec<Arc<dyn Job>> {
+    crate::test_extension::core_schedule()
+        .jobs()
+        .iter()
+        .map(|(_, job)| Arc::clone(job))
         .collect()
 }
 

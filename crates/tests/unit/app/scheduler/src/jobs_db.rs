@@ -6,21 +6,15 @@
 //! complete without errors and return a success `JobResult`. Tests fail when
 //! `DATABASE_URL` is unset.
 
-use std::sync::Arc;
 
 use systemprompt_scheduler::DatabaseCleanupJob;
-use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
-use systemprompt_traits::{Dependencies, Job, JobContext};
+use systemprompt_test_fixtures::{test_database_url, test_db_pool};
+use systemprompt_traits::{Job, JobContext};
 
-fn make_test_ctx(pool: &systemprompt_database::DbPool, url: &str) -> JobContext {
+async fn make_test_ctx(pool: &systemprompt_database::DbPool, url: &str) -> JobContext {
     use systemprompt_identifiers::{Actor, UserId};
 
-    let app_ctx = test_app_context(pool, url);
-
-    let dependencies = Dependencies::new()
-        .with(Arc::clone(app_ctx.app_paths_arc()))
-        .with(Arc::clone(pool))
-        .with(app_ctx);
+    let dependencies = crate::test_extension::job_dependencies(pool, url).await;
 
     let owner = UserId::new("job-test-admin");
     let actor = Actor::job(owner, "test".to_string());
@@ -35,7 +29,7 @@ mod database_cleanup_db {
     async fn execute_succeeds_against_empty_db() {
         let url = test_database_url();
         let pool = test_db_pool().await;
-        let ctx = make_test_ctx(&pool, &url);
+        let ctx = make_test_ctx(&pool, &url).await;
         let job = DatabaseCleanupJob;
 
         let result = job
@@ -56,7 +50,7 @@ mod database_cleanup_db {
         let job = DatabaseCleanupJob;
 
         for _ in 0..2 {
-            let ctx = make_test_ctx(&pool, &url);
+            let ctx = make_test_ctx(&pool, &url).await;
             job.execute(&ctx)
                 .await
                 .expect("repeated DatabaseCleanupJob executions must all succeed");
@@ -67,7 +61,7 @@ mod database_cleanup_db {
     async fn execute_reports_no_failures() {
         let url = test_database_url();
         let pool = test_db_pool().await;
-        let ctx = make_test_ctx(&pool, &url);
+        let ctx = make_test_ctx(&pool, &url).await;
         let job = DatabaseCleanupJob;
 
         let result = job.execute(&ctx).await.expect("execute must not error");
@@ -87,14 +81,8 @@ mod closed_pool_error_propagation {
         use systemprompt_identifiers::{Actor, UserId};
         use systemprompt_test_fixtures::closed_db_pool;
 
-        let real_pool = test_db_pool().await;
-        let app_ctx = test_app_context(&real_pool, url);
         let closed = closed_db_pool().await;
-
-        let dependencies = Dependencies::new()
-            .with(Arc::clone(app_ctx.app_paths_arc()))
-            .with(closed)
-            .with(app_ctx);
+        let dependencies = crate::test_extension::job_dependencies(&closed, url).await;
 
         let actor = Actor::job(UserId::new("job-test-admin"), "test".to_string());
         JobContext::new(actor, dependencies)

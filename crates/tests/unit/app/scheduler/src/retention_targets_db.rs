@@ -5,22 +5,17 @@
 //! personal data, are bounded the same way, except that an idle fingerprint
 //! flagged for abuse is kept with its IP address and user agent cleared.
 
-use std::sync::Arc;
 
 use systemprompt_scheduler::DatabaseCleanupJob;
-use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
-use systemprompt_traits::{Dependencies, Job, JobContext};
+use systemprompt_test_fixtures::{test_database_url, test_db_pool};
+use systemprompt_traits::{Job, JobContext};
 
 const STALE_DAYS: i32 = 4000;
 
-fn ctx(pool: &systemprompt_database::DbPool, url: &str) -> JobContext {
+async fn ctx(pool: &systemprompt_database::DbPool, url: &str) -> JobContext {
     use systemprompt_identifiers::{Actor, UserId};
 
-    let app_ctx = test_app_context(pool, url);
-    let dependencies = Dependencies::new()
-        .with(Arc::clone(app_ctx.app_paths_arc()))
-        .with(Arc::clone(pool))
-        .with(app_ctx);
+    let dependencies = crate::test_extension::job_dependencies(pool, url).await;
     JobContext::new(
         Actor::job(UserId::new("retention-targets-admin"), "test".to_owned()),
         dependencies,
@@ -193,7 +188,7 @@ async fn every_target_removes_the_stale_row_and_keeps_the_fresh_one() {
     seed_all(&pg, &seeded).await;
 
     let result = DatabaseCleanupJob
-        .execute(&ctx(&pool, &url))
+        .execute(&ctx(&pool, &url).await)
         .await
         .expect("enforced retention run");
     assert!(result.success, "{:?}", result.message);

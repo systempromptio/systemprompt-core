@@ -1,4 +1,4 @@
-//! Inventory-registered test jobs used to drive dispatch outcome arms
+//! Test jobs, contributed by the test member, used to drive dispatch outcome arms
 //! (panic capture, failure recording, in-process overlap skip) that the
 //! crate's built-in jobs never exercise.
 //!
@@ -10,6 +10,7 @@ use std::sync::OnceLock;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use async_trait::async_trait;
+use systemprompt_extension::Contributions;
 use systemprompt_traits::{Job, JobContext, JobResult, JobScope};
 
 pub const PANIC_JOB: &str = "sp_test_panic_job";
@@ -287,17 +288,20 @@ impl Job for StampPanicJob {
     }
 }
 
-systemprompt_provider_contracts::submit_job!("scheduler_test_jobs", &NodeJob);
-systemprompt_provider_contracts::submit_job!("scheduler_test_jobs", &StampFailJob);
-systemprompt_provider_contracts::submit_job!("scheduler_test_jobs", &StampPanicJob);
-systemprompt_provider_contracts::submit_job!("scheduler_test_jobs", &PanicJob);
-systemprompt_provider_contracts::submit_job!("scheduler_test_jobs", &FailingJob);
-systemprompt_provider_contracts::submit_job!("scheduler_test_jobs", &SlowJob);
-systemprompt_provider_contracts::submit_job!("scheduler_test_jobs", &EmptyScheduleJob);
-systemprompt_provider_contracts::submit_job!("scheduler_test_jobs", &CancellableClusterJob);
-systemprompt_provider_contracts::submit_job!("scheduler_test_jobs", &WorkingJob);
-systemprompt_provider_contracts::submit_job!("scheduler_test_jobs", &IdleJob);
-systemprompt_provider_contracts::submit_job!("scheduler_test_jobs", &BudgetedJob);
+
+pub(crate) fn contribute(c: &mut Contributions<'_>) {
+    c.job(NodeJob)
+        .job(StampFailJob)
+        .job(StampPanicJob)
+        .job(PanicJob)
+        .job(FailingJob)
+        .job(SlowJob)
+        .job(EmptyScheduleJob)
+        .job(CancellableClusterJob)
+        .job(WorkingJob)
+        .job(IdleJob)
+        .job(BudgetedJob);
+}
 
 struct BudgetedJob;
 

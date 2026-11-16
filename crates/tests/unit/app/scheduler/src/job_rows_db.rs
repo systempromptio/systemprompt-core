@@ -1,7 +1,7 @@
 //! `scheduled_jobs` rows across nodes: a scheduler start never deletes a row,
 //! keeps the operator's `enabled` flag, and never claims or runs a job it does
 //! not register; a row disabled by the operator does not tick; and
-//! [`JobPruneService`] lists the rows no linked job names and
+//! [`JobPruneService`] lists the rows no admitted job names and
 //! deletes exactly the rows it is handed. These tests write `scheduled_jobs`
 //! and join the serialized `scheduler-jobs-db` nextest group.
 
@@ -11,13 +11,13 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{ExtensionId, JobName};
+use systemprompt_identifiers::JobName;
 use systemprompt_manifest::services::UnlistedJobs;
 use systemprompt_scheduler::{
-    EnabledExtensions, JobConfig, JobPruneService, JobRepository, SchedulerConfig,
+    JobConfig, JobPruneService, JobRepository, SchedulerConfig,
     SchedulerRepository, SchedulerService, SchedulerStartup,
 };
-use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
+use systemprompt_test_fixtures::{test_database_url, test_db_pool};
 use systemprompt_traits::{Job, JobContext, JobResult};
 
 const NODE_A_JOB: &str = "sp_test_rows_node_a_job";
@@ -32,6 +32,7 @@ static NODE_A_TICKS: AtomicU64 = AtomicU64::new(0);
 static NODE_B_TICKS: AtomicU64 = AtomicU64::new(0);
 static DISABLED_TICKS: AtomicU64 = AtomicU64::new(0);
 
+#[derive(Clone, Copy)]
 struct RowsJob {
     name: &'static str,
     schedule: &'static str,
@@ -89,11 +90,13 @@ static DISABLED_TICKER: RowsJob = RowsJob {
     runs: Some(&DISABLED_TICKS),
 };
 
-systemprompt_provider_contracts::submit_job!("scheduler_test_jobs", &NODE_A);
-systemprompt_provider_contracts::submit_job!("scheduler_test_jobs", &NODE_B);
-systemprompt_provider_contracts::submit_job!("scheduler_test_jobs", &NODE_A_TICKER);
-systemprompt_provider_contracts::submit_job!("scheduler_test_jobs", &NODE_B_TICKER);
-systemprompt_provider_contracts::submit_job!("scheduler_test_jobs", &DISABLED_TICKER);
+pub(crate) fn contribute(c: &mut systemprompt_extension::Contributions<'_>) {
+    c.job(NODE_A)
+        .job(NODE_B)
+        .job(NODE_A_TICKER)
+        .job(NODE_B_TICKER)
+        .job(DISABLED_TICKER);
+}
 
 fn config(jobs: &[&str], schedule: &str) -> SchedulerConfig {
     SchedulerConfig {
@@ -109,8 +112,8 @@ fn config(jobs: &[&str], schedule: &str) -> SchedulerConfig {
 }
 
 async fn start(pool: &DbPool, config: SchedulerConfig) -> SchedulerStartup {
-    let app_ctx = test_app_context(pool, &test_database_url());
-    SchedulerService::new(config, Arc::clone(pool), app_ctx)
+    let (app_ctx, schedule) = crate::test_extension::scheduled_app(&test_database_url()).await;
+    SchedulerService::new(config, Arc::clone(pool), app_ctx, Arc::clone(&schedule))
         .start()
         .await
         .expect("scheduler starts")
@@ -269,7 +272,9 @@ mod prune_db {
     }
 
     async fn service(pool: &DbPool) -> JobPruneService {
-        JobPruneService::new(JobRepository::new(pool))
+        let schedule =
+            crate::test_extension::schedule_of(&crate::test_extension::admitted_with_test_jobs());
+        JobPruneService::new(JobRepository::new(pool), &schedule)
     }
 
     #[tokio::test]
@@ -330,36 +335,29 @@ mod prune_db {
     }
 
     #[tokio::test]
-    async fn a_job_whose_extension_this_profile_disables_is_kept() {
+    async fn a_job_of_a_member_this_composition_leaves_out_is_listed() {
         let pool = test_db_pool().await;
         let repo = SchedulerRepository::new(&pool);
         let owned = JobName::new(NODE_B_JOB);
         repo.upsert_job(&owned, FAR_SCHEDULE, true)
             .await
             .expect("seed row");
-        let registry =
-            systemprompt_extension::ExtensionRegistry::discover().expect("discover extensions");
-        let pruning_profile = EnabledExtensions::resolve(
-            &registry,
-            &[ExtensionId::new(crate::test_extension::TEST_JOBS_OWNER)],
-        )
-        .expect("resolve with the test extension disabled");
+
+        let admitted = service(&pool).await.unregistered().await.expect("list");
         assert!(
-            !pruning_profile.contains(crate::test_extension::TEST_JOBS_OWNER),
-            "the pruning profile disables the job's extension"
+            admitted.iter().all(|row| row.job_name != owned),
+            "a job of an admitted member is never listed"
         );
 
-        let prune = service(&pool).await;
-        let listed = prune.unregistered().await.expect("list");
-        assert!(
-            listed.iter().all(|row| row.job_name != owned),
-            "a linked job whose extension is disabled here is never listed"
+        let without = JobPruneService::new(
+            JobRepository::new(&pool),
+            &crate::test_extension::core_schedule(),
         );
-        let deleted = prune
-            .delete(std::slice::from_ref(&owned))
-            .await
-            .expect("prune");
-        assert_eq!(deleted, 0, "a linked job's row is never deleted");
-        assert!(repo.find_job(&owned).await.expect("find").is_some());
+        let listed = without.unregistered().await.expect("list");
+        assert!(
+            listed.iter().any(|row| row.job_name == owned),
+            "a job whose member is not admitted is listed"
+        );
+        reset_rows(&pool, &[NODE_B_JOB]).await;
     }
 }
