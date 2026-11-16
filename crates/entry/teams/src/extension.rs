@@ -1,18 +1,35 @@
-//! `Extension` registration for the Teams capability: config prefix and
-//! schema, and behind the `http` feature the inbound route declaration and
-//! the messaging dispatcher it requires.
+//! The Teams member: the `teams` config section, and behind the `http`
+//! feature the inbound route set, the HTTP clients it provides and the
+//! messaging dispatcher it requires.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeMap;
 
-use serde_json::Value as JsonValue;
+use serde::Deserialize;
 use systemprompt_extension::prelude::*;
 use systemprompt_manifest::services::TeamsAppConfig;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct TeamsExtension;
+
+/// The `teams` profile section: Teams apps keyed by name.
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[serde(transparent)]
+pub struct TeamsAppsConfig(pub BTreeMap<String, TeamsAppConfig>);
+
+impl ExtensionConfig for TeamsAppsConfig {
+    const PREFIX: &'static str = "teams";
+
+    fn validate(&self) -> Result<(), ExtensionConfigError> {
+        for (name, app) in &self.0 {
+            app.validate(name)
+                .map_err(|e| ExtensionConfigError::SchemaValidation(Box::new(e)))?;
+        }
+        Ok(())
+    }
+}
 
 impl Extension for TeamsExtension {
     fn metadata(&self) -> ExtensionMetadata {
@@ -23,44 +40,17 @@ impl Extension for TeamsExtension {
         }
     }
 
-    #[cfg(feature = "http")]
-    fn routers(
-        &self,
-        ctx: &dyn ExtensionContext,
-    ) -> Result<Vec<ExtensionRouter>, ExtensionStateError> {
-        crate::http::declaration(ctx).map(|declared| vec![declared])
-    }
-
-    #[cfg(feature = "http")]
-    fn requires(&self) -> Vec<StateRequirement> {
-        vec![StateRequirement::of::<
-            LateBound<dyn systemprompt_traits::MessagingDispatcher>,
-        >()]
-    }
-
-    fn config_prefix(&self) -> Option<&str> {
-        Some("teams")
-    }
-
-    // JSON: JSON Schema document for the extension's config block.
-    fn config_schema(&self) -> Option<JsonValue> {
-        serde_json::to_value(schemars::schema_for!(BTreeMap<String, TeamsAppConfig>))
-            .inspect_err(|e| tracing::warn!(error = %e, "Failed to serialize Teams config schema"))
-            .ok()
-    }
-
-    // JSON: Extension config block from the profile YAML; the extension owns it.
-    fn validate_config(&self, config: &JsonValue) -> Result<(), ExtensionConfigError> {
-        let apps: BTreeMap<String, TeamsAppConfig> = serde_json::from_value(config.clone())
-            .map_err(|e| ExtensionConfigError::ParseError {
-                source: Box::new(e),
-            })?;
-        for (name, app) in &apps {
-            app.validate(name)
-                .map_err(|e| ExtensionConfigError::SchemaValidation(Box::new(e)))?;
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        c.config::<TeamsAppsConfig>();
+        #[cfg(feature = "http")]
+        {
+            c.requires::<LateBound<dyn systemprompt_traits::MessagingDispatcher>>()
+                .provide(|_: &Resolved<'_>| {
+                    crate::http::TeamsClients::build()
+                        .map_err(|e| ProvideError::Failed(Box::new(e)))
+                })
+                .routes(crate::http::routes());
         }
         Ok(())
     }
 }
-
-register_extension!(TeamsExtension);

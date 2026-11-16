@@ -24,6 +24,8 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 default = []
 http = [
+    "systemprompt-extension/router",
+    "systemprompt-extension/teams",
     "dep:axum",
     "dep:systemprompt-teams",
     "dep:reqwest",
@@ -38,8 +40,8 @@ http = [
 cli = []
 
 [dependencies]
-inventory = { workspace = true }
 schemars = { workspace = true }
+serde = { workspace = true }
 serde_json = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-manifest = { workspace = true }
@@ -55,7 +57,3 @@ systemprompt-identifiers = { workspace = true, optional = true }
 systemprompt-models = { workspace = true, optional = true }
 systemprompt-provider-contracts = { workspace = true, optional = true }
 chrono = { workspace = true, optional = true }
-
-[package.metadata.cargo-machete]
-# inventory: compile-time registration via register_extension! (::inventory::submit!)
-ignored = ["inventory"]

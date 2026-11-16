@@ -76,4 +76,3 @@ impl Job for CleanupAnonymousUsersJob {
     }
 }
 
-systemprompt_provider_contracts::submit_job!("users", &CleanupAnonymousUsersJob);

@@ -1,8 +1,9 @@
-//! Router state for the Slack surface, built once from the extension
-//! context: the live services view, the platform secret lookup (built-in and
-//! custom names), the background-task owner, the messaging dispatcher slot, the
-//! reply client for Slack's configured Web API, and the untrusted-guarded
-//! client for the payload-supplied `response_url`.
+//! Router state for the Slack surface, resolved from the kernel state: the
+//! live services view, the platform secret lookup (built-in and custom
+//! names), the background-task owner, the messaging dispatcher slot, and the
+//! member's HTTP clients ([`SlackClients`]) — the reply client for Slack's
+//! configured Web API and the untrusted-guarded client for the
+//! payload-supplied `response_url`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,7 +11,7 @@
 use std::sync::Arc;
 
 use systemprompt_client::{GuardedClient, GuardedClientConfig, guarded_client};
-use systemprompt_extension::{ExtensionContext, LateBound};
+use systemprompt_extension::{FromState, LateBound, Resolved};
 use systemprompt_manifest::services::ServicesView;
 use systemprompt_provider_contracts::MissingDependency;
 use systemprompt_traits::{
@@ -18,12 +19,31 @@ use systemprompt_traits::{
     MessagingInbound, SecretStore,
 };
 
-#[derive(Debug, thiserror::Error)]
-pub enum SlackStateError {
-    #[error("could not build the slack HTTP clients")]
-    Client(#[from] reqwest::Error),
-    #[error("the messaging dispatcher slot is missing from the extension state")]
-    Dispatcher(#[from] MissingDependency),
+/// The Slack member's outbound HTTP clients, built once by its provide fn.
+#[derive(Clone)]
+pub struct SlackClients {
+    reply: reqwest::Client,
+    payload_url: GuardedClient,
+}
+
+impl std::fmt::Debug for SlackClients {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SlackClients").finish_non_exhaustive()
+    }
+}
+
+impl SlackClients {
+    pub fn build() -> Result<Self, reqwest::Error> {
+        Ok(Self::new(
+            guarded_client(&GuardedClientConfig::for_configured())?,
+            GuardedClient::untrusted(&GuardedClientConfig::for_untrusted())?,
+        ))
+    }
+
+    #[must_use]
+    pub const fn new(reply: reqwest::Client, payload_url: GuardedClient) -> Self {
+        Self { reply, payload_url }
+    }
 }
 
 #[derive(Clone)]
@@ -42,30 +62,21 @@ impl std::fmt::Debug for SlackState {
     }
 }
 
-impl SlackState {
-    pub fn from_context(ctx: &dyn ExtensionContext) -> Result<Self, SlackStateError> {
-        let reply_client = guarded_client(&GuardedClientConfig::for_configured())?;
-        let payload_url_client = GuardedClient::untrusted(&GuardedClientConfig::for_untrusted())?;
-        Self::with_clients(ctx, reply_client, payload_url_client)
-    }
-
-    pub fn with_clients(
-        ctx: &dyn ExtensionContext,
-        reply_client: reqwest::Client,
-        payload_url_client: GuardedClient,
-    ) -> Result<Self, SlackStateError> {
-        let state = ctx.extension_state();
-        let dispatcher = state.get::<LateBound<dyn MessagingDispatcher>>()?.clone();
+impl FromState for SlackState {
+    fn from_state(r: &Resolved<'_>) -> Result<Self, MissingDependency> {
+        let clients = r.get::<SlackClients>()?;
         Ok(Self {
-            services: ctx.services(),
-            secrets: ctx.secrets(),
-            background: ctx.background_tasks(),
-            dispatcher,
-            reply_client,
-            payload_url_client,
+            services: r.get()?,
+            secrets: r.get()?,
+            background: r.tasks().clone(),
+            dispatcher: r.get()?,
+            reply_client: clients.reply,
+            payload_url_client: clients.payload_url,
         })
     }
+}
 
+impl SlackState {
     pub(super) const fn services(&self) -> &ServicesView {
         &self.services
     }

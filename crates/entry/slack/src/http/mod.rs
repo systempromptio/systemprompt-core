@@ -26,21 +26,20 @@ mod reply;
 mod state;
 mod verify;
 
-pub use state::{SlackState, SlackStateError};
+pub use state::{SlackClients, SlackState};
 
 use std::collections::HashMap;
 
-use axum::Router;
 use axum::body::Bytes;
 use axum::extract::State;
-use axum::http::{HeaderMap, StatusCode};
+use axum::http::{HeaderMap, Method, StatusCode};
 use axum::response::{IntoResponse, Response};
-use axum::routing::post;
-use systemprompt_extension::{
-    AuthzPolicy, ContextKind, ExtensionContext, ExtensionRouter, ExtensionStateError,
-    HandlerVerifier, RateBudget, RateLimit, RouteGroup,
+use systemprompt_extension::router::{
+    ApiBase, BasePath, BodyLimit, RouteLimits, RouteSet, RouteSpec,
 };
-use systemprompt_models::modules::ApiPaths;
+use systemprompt_extension::{
+    AuthzPolicy, ContextKind, HandlerVerifier, RateBudget, RateLimit, RouteGroup,
+};
 use systemprompt_slack::events::{EventsApiEnvelope, InteractionPayload, SlashCommand};
 use systemprompt_traits::{MessagingConversation, MessagingInbound, SenderIdentity};
 
@@ -49,25 +48,22 @@ use verify::{resolve_app, verify_any_app, verify_app};
 
 const ISSUER: &str = "https://slack.com";
 
-pub fn declaration(ctx: &dyn ExtensionContext) -> Result<ExtensionRouter, ExtensionStateError> {
-    let state = SlackState::from_context(ctx)
-        .map_err(|source| ExtensionStateError::Provider(Box::new(source)))?;
-    Ok(ExtensionRouter::new(
-        router(state),
-        ApiPaths::SLACK_BASE,
-        AuthzPolicy::handler_verified(HandlerVerifier::SlackSignature),
-        ContextKind::HandlerResolved,
-    )
-    .in_group(RouteGroup::Messaging)
-    .with_rate_limit(RateLimit::new("agents", RateBudget::Agents)))
-}
+const SIGNED: RouteSpec = RouteSpec::new(
+    AuthzPolicy::handler_verified(HandlerVerifier::SlackSignature),
+    ContextKind::HandlerResolved,
+    RouteLimits {
+        rate: RateLimit::new("agents", RateBudget::Agents),
+        body: BodyLimit::Default,
+    },
+);
 
-pub fn router(state: SlackState) -> Router {
-    Router::new()
-        .route("/events", post(handle_events))
-        .route("/commands", post(handle_commands))
-        .route("/interactivity", post(handle_interactivity))
-        .with_state(state)
+#[must_use]
+pub fn routes() -> RouteSet {
+    RouteSet::at::<SlackState>(BasePath::Api(ApiBase::Slack), RouteGroup::Messaging)
+        .route(Method::POST, "/events", handle_events, SIGNED)
+        .route(Method::POST, "/commands", handle_commands, SIGNED)
+        .route(Method::POST, "/interactivity", handle_interactivity, SIGNED)
+        .build()
 }
 
 async fn handle_events(
