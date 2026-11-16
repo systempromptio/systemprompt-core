@@ -15,6 +15,14 @@
 //! the read half of its cell (`DocumentsHandlesSlot`) is, and the host keeps
 //! the bind half outside the state and binds it once the store is built.
 //!
+//! The runtime `Config`, the secret store, the system admin, the active
+//! services root and the event router are sealed: a provide fn, a factory, a
+//! slot build, a kernel command and a route set read them, and the resolver
+//! a member's command runs against refuses them as missing. `Config` and the
+//! secret store carry credentials; the system admin and the services root are
+//! boot-only identity and layout; the event router publishes to and
+//! subscribes on every user's stream. Every other seed is open.
+//!
 //! The process's one `AiService` (present only when inference is configured)
 //! is composed from several domains, so the composition root seeds it; an extension router reads them from
 //! [`ExtensionContext::extension_state`] and an absent `AiService` is a typed
@@ -117,12 +125,12 @@ pub fn base_kernel_state(seed: KernelSeed<'_>) -> Dependencies {
         .with(Arc::new(seed.profile.notifications))
         .with(Arc::new(seed.profile.brain.clone()))
         .with(seed.config.instance_id.clone())
-        .with(Arc::clone(seed.config))
+        .with_sealed(Arc::clone(seed.config))
         .with(seed.services)
-        .with(seed.services_root)
-        .with(seed.secrets)
-        .with(seed.system_admin.clone())
-        .with(Arc::new(seed.event_router.clone()))
+        .with_sealed(seed.services_root)
+        .with_sealed(seed.secrets)
+        .with_sealed(seed.system_admin.clone())
+        .with_sealed(Arc::new(seed.event_router.clone()))
         .with(seed.documents);
     #[cfg(feature = "notifications")]
     let state = state.with(seed.escalation);

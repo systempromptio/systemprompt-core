@@ -10,7 +10,9 @@
 /// cloud credentials and runs against a cloud profile with no remote route;
 /// `LocalExport` keeps an `--export` run on this machine; `SkipValidation`
 /// skips the services-config validation; `BootProfile` lets the command boot a
-/// profile at a path through [`CommandHost::boot_config`](crate::cli::CommandHost::boot_config). A member's command requests the
+/// profile at a path through [`CommandHost::boot_config`](crate::cli::CommandHost::boot_config); `ConfigReconcile` serves the
+/// command the kernel-built config apply service (database rows of every
+/// config plane, read with the loaded secrets) through its resolver. A member's command requests the
 /// grants it needs; the composition and the CLI registry refuse a request
 /// the reserved CLI paths do not list for that path and owner.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -21,16 +23,18 @@ pub enum KernelGrant {
     LocalExport,
     SkipValidation,
     BootProfile,
+    ConfigReconcile,
 }
 
 impl KernelGrant {
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 7] = [
         Self::ChildHost,
         Self::ServesApi,
         Self::CloudOperator,
         Self::LocalExport,
         Self::SkipValidation,
         Self::BootProfile,
+        Self::ConfigReconcile,
     ];
 }
 
@@ -43,6 +47,7 @@ impl std::fmt::Display for KernelGrant {
             Self::LocalExport => "local-export",
             Self::SkipValidation => "skip-validation",
             Self::BootProfile => "boot-profile",
+            Self::ConfigReconcile => "config-reconcile",
         })
     }
 }

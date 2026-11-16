@@ -135,7 +135,7 @@ impl<'a> Contributions<'a> {
     where
         F: Fn(&dyn AssetPaths) -> Vec<AssetDefinition> + Send + Sync + 'static,
     {
-        self.sink.assets.push(Box::new(f));
+        self.sink.assets.push(Arc::new(f));
         self
     }
 

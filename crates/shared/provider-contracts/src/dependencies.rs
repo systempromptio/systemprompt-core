@@ -27,6 +27,12 @@
 //! reserved type reads as missing, does not satisfy a requirement, and an
 //! extension's `provide` of it is refused as a duplicate of the host's.
 //!
+//! The host can also [`Dependencies::insert_sealed`] a seed that carries
+//! secrets or boot-only data. A sealed entry is read like any other through
+//! this map; [`Dependencies::is_sealed`] lets the one reader that must
+//! withhold it (the resolver a member's command runs against) refuse it with
+//! the same [`MissingDependency`] an absent type gets.
+//!
 //! The map is copy-on-write: a clone shares every entry, and inserting into a
 //! clone never changes the original, so the state the host owns after boot
 //! is immutable while a job or prerender context can extend its own copy.
@@ -41,7 +47,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::any::{Any, TypeId, type_name};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::sync::Arc;
 
@@ -77,6 +83,7 @@ struct Entry {
 pub struct Dependencies {
     entries: Arc<HashMap<TypeId, Entry>>,
     reserved: Arc<HashMap<TypeId, &'static str>>,
+    sealed: Arc<HashSet<TypeId>>,
 }
 
 impl Dependencies {
@@ -88,6 +95,12 @@ impl Dependencies {
     #[must_use]
     pub fn with<T: Any + Send + Sync>(mut self, value: T) -> Self {
         self.insert(value);
+        self
+    }
+
+    #[must_use]
+    pub fn with_sealed<T: Any + Send + Sync>(mut self, value: T) -> Self {
+        self.insert_sealed(value);
         self
     }
 
@@ -110,6 +123,16 @@ impl Dependencies {
                 provider: DependencyProvider::Host,
             },
         );
+    }
+
+    pub fn insert_sealed<T: Any + Send + Sync>(&mut self, value: T) {
+        self.insert(value);
+        Arc::make_mut(&mut self.sealed).insert(TypeId::of::<T>());
+    }
+
+    #[must_use]
+    pub fn is_sealed<T: Any + Send + Sync>(&self) -> bool {
+        self.sealed.contains(&TypeId::of::<T>())
     }
 
     pub fn provide<T: Any + Send + Sync>(

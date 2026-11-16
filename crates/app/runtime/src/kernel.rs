@@ -7,7 +7,10 @@
 //! ([`AdmittedProjections`]), their agent-run origins ([`AdmittedRunOrigins`])
 //! their owner-stamped purge tables and orphan sweeps in composition order
 //! ([`AdmittedPurge`]) and their jobs, retention work and job-run scopes
-//! ([`AdmittedSchedule`]). It then builds the state from
+//! ([`AdmittedSchedule`]), and the non-secret views a member's command reads
+//! in place of the composition: declared migrations ([`AdmittedMigrations`]),
+//! configuration sections ([`AdmittedConfigs`]) and asset declarations
+//! ([`AdmittedAssets`]), each open. It then builds the state from
 //! the [`Admitted`] handoff: every admitted member's provide fns in
 //! composition order, each reading what was provided before it; every slot,
 //! built from its admitted entries (core first where the slot asks for it)
@@ -36,8 +39,9 @@ use systemprompt_agent_runs::origin::AdmittedRunOrigins;
 use systemprompt_extension::contribute::{SlotBuildInput, build_slot};
 use systemprompt_extension::prelude::RuleType;
 use systemprompt_extension::{
-    Admitted, AdmittedProjections, AudienceResolvers, AdmittedPurge, AdmittedSchedule, BuiltState, FactoryError, GatewayGuards, HandleId, KernelHandle,
-    ProvideError, Resolved, SlotError,
+    Admitted, AdmittedAssets, AdmittedConfigs, AdmittedMigrations, AdmittedProjections,
+    AdmittedPurge, AdmittedSchedule, AudienceResolvers, BuiltState, FactoryError, GatewayGuards,
+    HandleId, KernelHandle, ProvideError, Resolved, SlotError,
 };
 use systemprompt_governance::authz::{SubjectProviderError, SubjectProviderSet};
 use systemprompt_governance::policy::{PolicyCatalog, PolicyCatalogError};
@@ -159,6 +163,9 @@ impl Kernel {
         self.state.insert(AdmittedRunOrigins::of(admitted.built()));
         self.state.insert(AdmittedPurge::of(admitted.built()));
         self.state.insert(AdmittedSchedule::of(admitted.built()));
+        self.state.insert(AdmittedMigrations::of(admitted.built()));
+        self.state.insert(AdmittedConfigs::of(admitted.built()));
+        self.state.insert(AdmittedAssets::of(admitted.built()));
         self.provide_all(admitted)?;
         let audiences = AudienceResolvers::from_admitted(admitted.built(), &self.resolved())?;
         self.state.insert(Arc::new(audiences));

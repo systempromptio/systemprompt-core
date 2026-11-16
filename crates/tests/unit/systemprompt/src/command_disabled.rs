@@ -1,24 +1,31 @@
 //! A command whose owner the profile disables is refused at dispatch with
 //! `CommandDisabled`, decided from the profile and the command's stamped
 //! owner, while the same command under a profile that enables it passes (T23).
+//! With no profile (a bare `--database-url` run) a member's command is
+//! refused with `ProfileRequired` and a kernel command admits every linked
+//! member.
 
 use clap::Command;
 use systemprompt::reference;
 use systemprompt_cli::CliRunError;
 use systemprompt_cli::kernel::{CommandRegistry, ResolvedCommand, kernel_commands};
-use systemprompt_cli::runner::refuse_disabled;
+use systemprompt_cli::runner::{admit_unprofiled, refuse_disabled};
 use systemprompt_extension::cli::CommandDecl;
 
 use crate::cli_probe::ProbeGroup;
 use crate::probe::{Probe, profile};
 
-fn resolved_probe_command() -> ResolvedCommand {
-    let declared = reference()
+fn declared_probe() -> systemprompt::Declared {
+    reference()
         .with(Probe::new("probe-cli", |c| {
             c.command(CommandDecl::group::<ProbeGroup>());
         }))
         .declare()
-        .expect("the probe group is declared");
+        .expect("the probe group is declared")
+}
+
+fn resolved_probe_command() -> ResolvedCommand {
+    let declared = declared_probe();
     let registry = CommandRegistry::build(&declared.commands(), &kernel_commands())
         .expect("the registry accepts the probe group");
     let matches = registry
@@ -57,4 +64,48 @@ fn an_enabled_owners_command_passes_dispatch() {
 fn disabling_another_member_leaves_the_command_alone() {
     let resolved = resolved_probe_command();
     assert!(refuse_disabled(&resolved, &profile(&["content-http"])).is_ok());
+}
+
+#[test]
+fn a_member_command_with_no_profile_requires_one() {
+    let resolved = resolved_probe_command();
+    let error = admit_unprofiled(
+        Some(&resolved),
+        Box::new(|_| panic!("a member command never admits without a profile")),
+    )
+    .expect_err("a member command needs a profile");
+    assert!(matches!(
+        error,
+        CliRunError::ProfileRequired { path } if path == ["probe-tools"]
+    ));
+}
+
+#[test]
+fn a_kernel_command_with_no_profile_admits_the_full_composition() {
+    let admitted = admit_unprofiled(
+        None,
+        Box::new(|profile| {
+            assert!(profile.is_none(), "a bare --database-url run has no profile");
+            declared_probe()
+                .admit_unprofiled()
+                .map_err(|error| Box::new(error) as systemprompt_traits::BoxedSource)
+        }),
+    )
+    .expect("a kernel command admits without a profile");
+    assert!(
+        admitted
+            .built()
+            .members()
+            .any(|member| member.owner.as_str() == "probe-cli"),
+        "no member is disabled without a profile"
+    );
+}
+
+#[test]
+fn a_profile_still_refuses_a_disabled_members_command() {
+    let resolved = resolved_probe_command();
+    assert!(matches!(
+        refuse_disabled(&resolved, &profile(&["probe-cli"])),
+        Err(CliRunError::CommandDisabled { .. })
+    ));
 }

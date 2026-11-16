@@ -68,6 +68,9 @@
 pub use ::inventory as __inventory;
 
 pub mod admitted;
+pub mod admitted_assets;
+pub mod admitted_configs;
+pub mod admitted_migrations;
 pub mod admitted_purge;
 pub mod admitted_schedule;
 mod asset;
@@ -104,6 +107,9 @@ pub mod state;
 mod traits;
 
 pub use admitted::{Admitted, BuiltState, DeclaredCommands};
+pub use admitted_assets::AdmittedAssets;
+pub use admitted_configs::AdmittedConfigs;
+pub use admitted_migrations::AdmittedMigrations;
 pub use admitted_purge::AdmittedPurge;
 pub use admitted_schedule::AdmittedSchedule;
 pub use asset::{AssetDefinition, AssetDefinitionBuilder, AssetPaths, AssetType};

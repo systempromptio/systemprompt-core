@@ -12,7 +12,11 @@ use systemprompt_extension::cli::{
     CommandOutput, DescribedCommand, KernelGrant, Prompter,
 };
 use systemprompt_manifest::{Config, Profile};
-use systemprompt_traits::DatabaseHandle;
+use systemprompt_runtime::Kernel;
+use systemprompt_scheduler::repository::ConfigReconcileRepository;
+use systemprompt_scheduler::services::{ConfigApplyService, ConfigReconcileService};
+use systemprompt_traits::{DatabaseHandle, Dependencies};
+use tokio::sync::OnceCell;
 
 use crate::context::CommandContext;
 use crate::host::{boot_profile_config, boot_profile_refused};
@@ -20,16 +24,38 @@ use crate::host::{boot_profile_config, boot_profile_refused};
 /// The host a member's registered command runs against: the command context
 /// with the grants the registry conferred on that command. It serves
 /// [`CommandHost::boot_config`] only when the command holds
-/// [`KernelGrant::BootProfile`].
+/// [`KernelGrant::BootProfile`]. Its [`CommandHost::resolved`] is the one
+/// member-command resolver: it reads the command kernel's state but refuses
+/// every sealed seed as missing. A command holding
+/// [`KernelGrant::ConfigReconcile`] also resolves the kernel-built
+/// `Arc<ConfigApplyService>`; no member resolves the application context.
 pub struct MemberHost<'a> {
     ctx: &'a CommandContext,
     descriptor: CommandDescriptor,
+    granted: OnceCell<Dependencies>,
 }
 
 impl<'a> MemberHost<'a> {
     #[must_use]
     pub const fn new(ctx: &'a CommandContext, descriptor: CommandDescriptor) -> Self {
-        Self { ctx, descriptor }
+        Self {
+            ctx,
+            descriptor,
+            granted: OnceCell::const_new(),
+        }
+    }
+
+    async fn config_reconcile_state(&self, kernel: &Kernel) -> Result<Dependencies, CommandError> {
+        let app = self.ctx.app_context().await.map_err(CommandError::new)?;
+        let reconcile = ConfigReconcileService::from_app_context(
+            app,
+            ConfigReconcileRepository::new(app.db_pool()),
+        )
+        .map_err(CommandError::new)?;
+        Ok(kernel
+            .state()
+            .clone()
+            .with(Arc::new(ConfigApplyService::new(reconcile))))
     }
 }
 
@@ -59,7 +85,17 @@ impl CommandHost for MemberHost<'_> {
     }
 
     fn resolved(&self) -> BoxFuture<'_, Result<Resolved<'_>, CommandError>> {
-        CommandHost::resolved(self.ctx)
+        Box::pin(async move {
+            let kernel = self.ctx.command_kernel().await.map_err(CommandError::new)?;
+            let state = if self.descriptor.holds(KernelGrant::ConfigReconcile) {
+                self.granted
+                    .get_or_try_init(|| self.config_reconcile_state(kernel))
+                    .await?
+            } else {
+                kernel.state()
+            };
+            Ok(Resolved::__member_command(&**kernel, state))
+        })
     }
 
     fn children(&self) -> &dyn ChildSupervisor {
