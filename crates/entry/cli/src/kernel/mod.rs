@@ -32,12 +32,10 @@ pub use seams::{
     LinkedSeamRegistration, SeamEntry, named, owned, prioritized, registered_seams, unnamed,
 };
 
-pub use crate::commands::core::files::types::FileSummary;
 pub use crate::commands::shared::mcp_tools::McpToolEntry;
 pub use crate::commands::shared::{ValidationIssue, ValidationOutput, mcp_tools};
 pub use crate::context::CommandContext;
 pub use crate::define_pool_command;
-pub use crate::interactive::{DialoguerPrompter, resolve_required};
 pub use crate::presentation::{StartupRenderer, tables};
 pub use crate::runner::interrupt::INTERRUPTED_EXIT_CODE;
 pub use crate::runner::{interrupt, routing};
