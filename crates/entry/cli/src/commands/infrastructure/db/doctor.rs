@@ -27,6 +27,8 @@ use crate::shared::CommandOutput;
 struct DoctorReport {
     undeclared_tables: Vec<String>,
     orphan_migration_ledgers: Vec<String>,
+    absent_member_tables: Vec<String>,
+    absent_member_ledgers: Vec<String>,
     missing_tables: Vec<String>,
     missing_columns: Vec<MissingColumn>,
 }
@@ -126,7 +128,28 @@ fn report_output(
         .iter()
         .map(|l| format!("{} ({} rows)", l.extension_id, l.rows))
         .collect();
+    let absent_tables: Vec<String> = residue
+        .absent_member_tables
+        .iter()
+        .map(|t| format!("{}.{} ({} rows, owner {})", t.schema, t.table, t.live_rows, t.owner))
+        .collect();
+    let absent_ledgers: Vec<String> = residue
+        .absent_member_ledgers
+        .iter()
+        .map(|l| format!("{} ({} rows)", l.extension_id, l.rows))
+        .collect();
     let mut notes = Vec::new();
+    if !absent_tables.is_empty() || !absent_ledgers.is_empty() {
+        notes.push(NoticeLine::new(
+            "info",
+            format!(
+                "{} table(s) and {} migration ledger(s) are kept for a member not in this \
+                 composition; they are not residue and must not be dropped",
+                absent_tables.len(),
+                absent_ledgers.len()
+            ),
+        ));
+    }
     if undeclared.is_empty()
         && orphan_ledgers.is_empty()
         && missing_tables.is_empty()
@@ -178,6 +201,8 @@ fn report_output(
     let report = DoctorReport {
         undeclared_tables: undeclared.to_vec(),
         orphan_migration_ledgers: orphan_ledgers,
+        absent_member_tables: absent_tables,
+        absent_member_ledgers: absent_ledgers,
         missing_tables: missing_tables.to_vec(),
         missing_columns: missing_columns
             .iter()
