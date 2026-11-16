@@ -3,11 +3,13 @@
 //!
 //! A fact sourced from a document or one of its comments is readable when
 //! the reader holds any level on the live document, the same rule
-//! [`DocumentVisibility`](crate::notifications::DocumentVisibility) applies
-//! to notifications. A person then reads it; an agent reads it only when
+//! [`DocumentVisibility`](super::DocumentVisibility) applies to
+//! notifications. A person then reads it; an agent reads it only when
 //! the document's agent cap for that agent, acting for the reader, is above
 //! `none`, else it is `AgentCapped`. Any other subject kind is hidden, and a
-//! failed lookup is an error, which recall treats as withheld.
+//! failed lookup is an error, which recall treats as withheld. The files
+//! member provides it as the `CoreSeam<dyn SourceAccess,
+//! DocumentSourceAccess>` the brain slot reads.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,10 +18,10 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use systemprompt_extension::brain::{SourceAccess, SourceAccessError, SourceVerdict};
-use systemprompt_files::documents::agents::{AgentActor, AgentCap, AgentChannel};
-use systemprompt_files::documents::models::SubjectPairs;
-use systemprompt_files::documents::repository::DocumentRepositories;
-use systemprompt_files::documents::{DocumentAccessService, DocumentsError, Granted};
+use super::agents::{AgentActor, AgentCap, AgentChannel};
+use super::models::SubjectPairs;
+use super::repository::DocumentRepositories;
+use super::{DocumentAccessService, DocumentsError, Granted};
 use systemprompt_identifiers::{DocumentId, UserId};
 use systemprompt_models::auth::{AuthenticatedUser, RequestActor};
 use systemprompt_models::brain::DOCUMENT_SUBJECT_KIND;

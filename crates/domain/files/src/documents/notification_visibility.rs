@@ -4,7 +4,9 @@
 //! excerpt only from `comment` up; a comment follows its document, and a
 //! deleted comment or trashed document is hidden. A folder is hidden: the
 //! access service decides folder levels only for the calling user, so no
-//! folder notification is shown to a reader it cannot vouch for.
+//! folder notification is shown to a reader it cannot vouch for. The files
+//! member provides it as the `CoreSeam<dyn ResourceVisibility,
+//! DocumentVisibility>` the notifications slot appends.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,8 +15,8 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use systemprompt_extension::{ResourceVisibility, Visibility, VisibilityError};
-use systemprompt_files::documents::repository::DocumentRepositories;
-use systemprompt_files::documents::{DocumentAccessService, DocumentsError};
+use super::repository::DocumentRepositories;
+use super::{DocumentAccessService, DocumentsError};
 use systemprompt_identifiers::{DocumentCommentId, DocumentId, UserId};
 use systemprompt_models::documents::AccessLevel;
 use systemprompt_models::notifications::SubjectRef;

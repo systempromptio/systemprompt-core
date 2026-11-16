@@ -30,7 +30,6 @@ systemprompt-logging = { workspace = true }
 systemprompt-ai = { workspace = true }
 systemprompt-files = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
-systemprompt-analytics = { workspace = true }
 systemprompt-agent = { workspace = true }
 systemprompt-brain = { workspace = true }
 systemprompt-content = { workspace = true }

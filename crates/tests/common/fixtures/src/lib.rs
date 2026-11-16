@@ -12,6 +12,7 @@ pub mod agent;
 pub mod agent_reads;
 pub mod app_context;
 pub mod bootstrap;
+pub mod brain;
 pub mod catalog;
 pub mod composed;
 pub mod credential;
@@ -59,6 +60,7 @@ pub use app_context::{
     offline_rate_windows, test_app_context, test_app_context_on, test_config, test_config_with,
     FIXTURE_JWT_ISSUER, FIXTURE_UPSTREAM_ISSUER,
 };
+pub use brain::fixture_brain;
 pub use bootstrap::{
     ensure_messaging_bootstrap, ensure_test_bootstrap, init_isolated_bootstrap,
     init_services_bootstrap, init_unloadable_services_bootstrap,

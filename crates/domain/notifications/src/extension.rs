@@ -7,8 +7,10 @@
 //! emitting notifications require, and two empty late-bound handles, the
 //! [`NotificationsServiceSlot`] and the [`NotificationsConsumerSlot`]. The
 //! service and the consumer are assembled over the built
-//! [`NotificationSeams`](crate::contract::NotificationSeams) by the
-//! composition root, which binds them. The consumer runs as this member's
+//! [`NotificationSeams`](crate::contract::NotificationSeams) when the kernel
+//! builds the [`NotificationsSlot`], which binds them; the build reads the
+//! kernel's `Arc<EventRouter>`, `Arc<NotificationsProfile>` and the host's
+//! `EscalationDelivery`. The consumer runs as this member's
 //! runner service once its handle is bound, and reports its backlog gauges on
 //! every sweep and its backlog on `/health/detail`, never `/readyz`.
 //!

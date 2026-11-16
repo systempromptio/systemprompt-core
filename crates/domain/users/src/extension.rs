@@ -1,6 +1,8 @@
 //! The users member: its schemas and migrations, the IP-ban store and the
 //! session store (`DynSessionStore`) the API's session, sign-in and JWT paths
-//! read, its two maintenance jobs, the role directory governance's
+//! read, the user-role audience resolver the notifications and brain slots
+//! append as a core default (`CoreSeam<dyn NotificationAudienceResolver,
+//! RoleAudience>`), its two maintenance jobs, the role directory governance's
 //! `RoleDirectorySlot` holds, the `role` subject-attribute provider, and the
 //! core user-keyed tables a user delete clears.
 //!
@@ -10,17 +12,23 @@
 use std::sync::Arc;
 
 use systemprompt_database::DbPool;
+use systemprompt_extension::NotificationAudienceResolver;
 use systemprompt_extension::prelude::*;
 use systemprompt_governance::authz::SharedRoleDirectory;
 use systemprompt_governance::contract::RoleDirectorySlot;
 use systemprompt_traits::authz::SubjectAttributeProvider;
-use systemprompt_traits::{DynIpBanStore, DynSessionStore};
+use systemprompt_traits::core_seam::RoleAudience;
+use systemprompt_traits::{CoreSeam, DynIpBanStore, DynSessionStore};
 
 use crate::jobs::{CleanupAnonymousUsersJob, UserRateLimitPruneJob};
 use crate::repository::user::{CORE_ORPHAN_SWEEPS, CORE_PURGE_TABLES};
 use crate::repository::{
-    BannedIpRepository, SessionRepository, UsersRoleDirectory, UsersRoleSubjectProvider,
+    BannedIpRepository, SessionRepository, UserRepository, UsersRoleDirectory,
+    UsersRoleSubjectProvider,
 };
+use crate::services::UserRoleAudienceResolver;
+
+type RoleAudienceSeam = CoreSeam<dyn NotificationAudienceResolver, RoleAudience>;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct UsersExtension;
@@ -54,6 +62,13 @@ impl Extension for UsersExtension {
                 let db = r.get::<DbPool>()?;
                 let sessions: DynSessionStore = Arc::new(SessionRepository::new(&db));
                 Ok(sessions)
+            })
+            .provide(|r: &Resolved<'_>| {
+                let db = r.get::<DbPool>()?;
+                let resolver: Arc<dyn NotificationAudienceResolver> = Arc::new(
+                    UserRoleAudienceResolver::new(Arc::new(UserRepository::new(&db))),
+                );
+                Ok(RoleAudienceSeam::new(resolver))
             })
             .subject_attributes(|r: &Resolved<'_>| {
                 let db = r.get::<DbPool>()?;

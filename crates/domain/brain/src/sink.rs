@@ -13,8 +13,9 @@ use async_trait::async_trait;
 use systemprompt_events::services::durable::{
     DurableEventError, DurableOutbox, ReportingFact, SseEvent,
 };
-use systemprompt_extension::brain::{BrainSink, BrainSinkError};
-use systemprompt_identifiers::{Actor, EventOutboxId};
+use systemprompt_database::DbPool;
+use systemprompt_extension::brain::{BrainSink, BrainSinkError, DynBrainSink};
+use systemprompt_identifiers::{Actor, EventOutboxId, InstanceId};
 use systemprompt_models::brain::{BRAIN_CONSUMER, BRAIN_EVENT_VERSION, BrainEvent};
 use systemprompt_traits::RepositoryError;
 
@@ -28,6 +29,15 @@ impl OutboxBrainSink {
     #[must_use]
     pub const fn new(outbox: Arc<DurableOutbox>) -> Self {
         Self { outbox }
+    }
+
+    #[must_use]
+    pub fn over_write_pool(database: &DbPool, instance_id: &InstanceId) -> DynBrainSink {
+        let outbox = DurableOutbox::new(
+            database.write_pool().as_ref().clone(),
+            systemprompt_events::process_origin(instance_id),
+        );
+        Arc::new(Self::new(Arc::new(outbox)))
     }
 }
 

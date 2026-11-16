@@ -12,11 +12,10 @@ use systemprompt_api::routes::brain::{BrainRoutes, router};
 use systemprompt_brain::{FactRepository, NewFact};
 use systemprompt_database::DbPool;
 use systemprompt_extension::DynNotificationSink;
-use systemprompt_identifiers::{BrainFactId, FactKindId, InstanceId, TopicId, UserId};
+use systemprompt_identifiers::{BrainFactId, FactKindId, TopicId, UserId};
 use systemprompt_manifest::profile::BrainProfile;
 use systemprompt_models::brain::{FactCandidate, FactScope, FactSource, FactStatus, SubjectKey};
 use systemprompt_runtime::documents::NotificationsUnavailableSink;
-use systemprompt_runtime::{BrainCore, BrainInputs, RecallSeams};
 use systemprompt_test_fixtures::{AuthedFixture, seed_bridge_credential};
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
@@ -36,16 +35,13 @@ pub(super) async fn brain_fixture() -> Result<BrainFixture> {
         ..BrainProfile::default()
     };
     let notifications: DynNotificationSink = Arc::new(NotificationsUnavailableSink);
-    let listener = pool.write_pool().as_ref().clone();
-    let core = BrainCore::new(&BrainInputs {
-        database: &pool,
-        instance_id: &InstanceId::new("wp7-brain-routes"),
-        listener_pool: &listener,
-        notifications: &notifications,
-        profile: &profile,
-    })
-    .context("an enabled profile composes a brain core")?;
-    let handle = core.assemble(ctx.documents(), RecallSeams::default());
+    let handle = systemprompt_test_fixtures::fixture_brain(
+        &pool,
+        Some(ctx.documents()),
+        notifications,
+        profile,
+    )
+    .context("an enabled profile composes a brain")?;
     let (service, recall, profile) = handle.routes();
     let users = ctx.user_provider().context("user provider")?;
     let routes = BrainRoutes::new(service, recall, profile, users);

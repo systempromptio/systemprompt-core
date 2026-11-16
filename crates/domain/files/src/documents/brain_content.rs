@@ -8,7 +8,9 @@
 //! the source text is those nodes joined by newlines, so a cited span is
 //! checkable against the node it names. A comment source reads the comment
 //! and its live replies, without nodes. A document, revision or comment that
-//! no longer exists reads as `None`.
+//! no longer exists reads as `None`. The files member provides it as the
+//! `CoreSeam<dyn SourceContent, DocumentSourceContent>` the brain slot
+//! appends after the contributed source readers.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -17,14 +19,14 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use systemprompt_extension::brain::{SourceContent, SourceContentError};
-use systemprompt_files::documents::agents::{DocumentActor, act_as};
-use systemprompt_files::documents::repository::DocumentRepositories;
-use systemprompt_files::documents::{DocumentService, DocumentsError};
+use super::agents::{DocumentActor, act_as};
+use super::repository::DocumentRepositories;
+use super::{DocumentService, DocumentsError};
 use systemprompt_identifiers::{DocumentCommentId, DocumentId, DocumentRevisionId, TraceId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::brain::{FactSource, SourceNode, SourceText};
 
-use super::BRAIN_ACTOR;
+pub const BRAIN_ACTOR: &str = "brain";
 
 /// Reads document revisions and comment threads as extraction source text.
 #[derive(Debug, Clone)]

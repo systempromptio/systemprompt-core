@@ -5,7 +5,6 @@
 
 use std::sync::Arc;
 
-use systemprompt_analytics::AnalyticsService;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_governance::authz::{AllowAllHook, NullAuditSink};
@@ -40,16 +39,10 @@ async fn plane_debug_impls_flag_optional_members() {
     let url = systemprompt_test_fixtures::test_database_url();
     let pool = systemprompt_test_fixtures::test_db_pool().await;
 
-    let analytics_service = Arc::new(AnalyticsService::new(
-        None,
-        None,
-        &systemprompt_test_fixtures::fixture_analytics_repositories(&pool).expect("repositories"),
-    ));
-    let session_store = Arc::clone(analytics_service.session_store());
-    let session_usage: systemprompt_traits::DynSessionUsageCounters = session_store;
+    let session_usage: systemprompt_traits::DynSessionUsageCounters =
+        Arc::new(systemprompt_users::SessionRepository::new(&pool));
     let data = DataPlane {
         database: Arc::clone(&pool),
-        analytics_service,
         fingerprint_repo: None,
         user_service: None,
         a2a_repositories: Arc::new(systemprompt_agent::repository::A2ARepositories::new(
@@ -86,10 +79,6 @@ async fn plane_debug_impls_flag_optional_members() {
             )
             .expect("at-rest cipher"),
         )),
-        analytics_repositories: Arc::new(
-            systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
-                .expect("analytics repositories"),
-        ),
         file_repository: Arc::new(systemprompt_files::FileRepository::new(&pool)),
         mcp_session_repository: Arc::new(systemprompt_mcp::repository::McpSessionRepository::new(
             &pool,
@@ -158,8 +147,6 @@ async fn plane_debug_impls_flag_optional_members() {
     let event_router = systemprompt_events::EventRouter::local_only(Arc::new(
         systemprompt_events::EventBroadcasters::new(),
     ));
-    let notifications =
-        systemprompt_test_fixtures::fixture_notifications(&pool, &event_router, &documents);
     let subsystems = Subsystems {
         system_admin: Arc::new(fixture_system_admin("planeadmin")),
         logging: systemprompt_test_fixtures::fixture_logging_runtime(),
@@ -186,8 +173,6 @@ async fn plane_debug_impls_flag_optional_members() {
         )),
         connector_tokens: Arc::default(),
         documents,
-        notifications,
-        brain: None,
     };
     let dbg = format!("{subsystems:?}");
     assert!(dbg.contains("Subsystems"), "got: {dbg}");

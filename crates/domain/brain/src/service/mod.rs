@@ -32,6 +32,7 @@ use systemprompt_models::notifications::NotificationEvent;
 pub use authority::BrainCaller;
 pub use disputes::{DisputeOutcome, DisputeResolution, FACT_DISPUTED, FACT_SUBJECT};
 pub use reads::FactWhy;
+pub(crate) use visibility::NoSourceAccess;
 
 use crate::error::{BrainError, BrainResult};
 use crate::models::FactChange;
@@ -157,7 +158,7 @@ impl BrainServiceBuilder {
             declared,
             source_access: self
                 .source_access
-                .unwrap_or_else(|| Arc::new(visibility::NoSourceAccess)),
+                .unwrap_or_else(|| Arc::new(NoSourceAccess)),
             audiences: self.audiences,
             replay: self.replay.map_or_else(LateBound::default, |replay| {
                 LateBound::bound(Arc::new(replay))

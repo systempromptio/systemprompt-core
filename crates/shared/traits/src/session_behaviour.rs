@@ -4,7 +4,9 @@
 //! a [`SessionBehaviourScorer`] after the response is produced. The analytics
 //! extension provides the scorer in the extension state; when no extension
 //! provides one, the request is served and no behavioural verdict is
-//! recorded.
+//! recorded. The content catalog the classifier counts site pages from is
+//! passed on each call, because the content member that provides it resolves
+//! after the scorer's owner.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,6 +17,7 @@ use async_trait::async_trait;
 use systemprompt_identifiers::SessionId;
 
 use crate::analytics::AnalyticsResult;
+use crate::content::ContentCatalogStats;
 
 #[derive(Debug, Clone)]
 pub struct DetectionSubject {
@@ -30,7 +33,11 @@ pub struct DetectionSubject {
 /// as [`DynSessionBehaviourScorer`].
 #[async_trait]
 pub trait SessionBehaviourScorer: Send + Sync {
-    async fn score(&self, subject: DetectionSubject) -> AnalyticsResult<()>;
+    async fn score(
+        &self,
+        subject: DetectionSubject,
+        content: &dyn ContentCatalogStats,
+    ) -> AnalyticsResult<()>;
 }
 
 pub type DynSessionBehaviourScorer = Arc<dyn SessionBehaviourScorer>;

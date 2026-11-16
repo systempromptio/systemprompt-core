@@ -13,6 +13,8 @@ use systemprompt_identifiers::SessionId;
 use systemprompt_test_fixtures::{closed_db_pool, ensure_test_bootstrap, test_db_pool};
 use systemprompt_traits::DetectionSubject;
 
+use crate::catalog::{PublicPages, UnreadableCatalog};
+
 async fn dead_repo() -> AnalyticsRepositories {
     let pool = closed_db_pool().await;
     systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
@@ -33,6 +35,7 @@ async fn every_lookup_failing_yields_a_neutral_input_rather_than_no_analysis() {
     let input = collect_analysis_input(
         &*repo.session_store,
         &repo.session_signals,
+        &UnreadableCatalog,
         DetectionSubject {
             session_id: session_id.clone(),
             fingerprint_hash: Some("fp-unreachable".to_owned()),
@@ -74,6 +77,7 @@ async fn a_request_carrying_no_fingerprint_skips_the_fingerprint_queries_entirel
     let input = collect_analysis_input(
         &*repo.session_store,
         &repo.session_signals,
+        &UnreadableCatalog,
         DetectionSubject {
             session_id: SessionId::generate(),
             fingerprint_hash: None,
@@ -95,6 +99,7 @@ async fn a_session_with_no_row_is_timed_from_the_request_count_it_was_given() {
     let input = collect_analysis_input(
         &*repo.session_store,
         &repo.session_signals,
+        &PublicPages(12),
         DetectionSubject {
             session_id: SessionId::generate(),
             fingerprint_hash: None,
@@ -113,4 +118,36 @@ async fn a_session_with_no_row_is_timed_from_the_request_count_it_was_given() {
         "a synthesised timeline must not run backwards"
     );
     assert!(input.landing_page.is_none() && input.entry_url.is_none());
+}
+
+#[tokio::test]
+async fn the_page_count_is_read_from_the_catalog_passed_on_the_call() {
+    let repo = live_repo().await;
+    let subject = || DetectionSubject {
+        session_id: SessionId::generate(),
+        fingerprint_hash: None,
+        user_agent: None,
+        request_count: 1,
+    };
+
+    let twelve = collect_analysis_input(
+        &*repo.session_store,
+        &repo.session_signals,
+        &PublicPages(12),
+        subject(),
+    )
+    .await;
+    let empty = collect_analysis_input(
+        &*repo.session_store,
+        &repo.session_signals,
+        &PublicPages(0),
+        subject(),
+    )
+    .await;
+
+    assert_eq!(twelve.total_site_pages, 12);
+    assert_eq!(
+        empty.total_site_pages, 0,
+        "a catalog reporting no pages changes the input: the count is not cached on the repository"
+    );
 }
