@@ -1,9 +1,16 @@
 //! The kernel's own entries in the extension state: the handles the host
 //! seeds the state with before any extension provides. [`base_kernel_state`]
-//! holds the entries every process seeds, the API and a child host alike;
-//! [`kernel_state`] adds what only the API composes. An extension reads
-//! them from the same map as every other extension's values, and cannot
-//! provide a type the kernel already holds.
+//! holds the entries every process seeds, the API and a child host alike,
+//! from the handles in a [`KernelSeed`]; [`kernel_state`] adds what only the
+//! API composes. An extension reads them from the same map as every other
+//! extension's values, and cannot provide a type the kernel already holds.
+//!
+//! Every host seeds the database handle, the paths, the files, notifications
+//! and brain profiles, the instance id, the runtime `Config`, the services
+//! view and active services root, the secret store, the system admin, the
+//! event router and the escalation delivery mode the notifications member
+//! assembles its service with (`InProcess` on the API, `Consumer` on a
+//! child host, which delivers through the serving host's consumer).
 //!
 //! The process's one `AiService` (present only when inference is configured)
 //! and its one `ArtifactIngest` are composed here from several domains, so the
@@ -18,21 +25,13 @@
 //! routes and the chat-platform surfaces read the slot at dispatch time.
 //!
 //! The API also seeds the read-side handles a capability's routes are built
-//! from, so a capability that owns no composition step reads them like any
-//! other state entry:
-//!
-//! - `Arc<AnalyticsRepositories>`: the analytics repositories, session store
-//!   included, which the kernel composes because the session store and the
-//!   `AnalyticsProvider` sit on the authentication path the kernel builds
-//!   before any extension provides;
-//! - `Arc<ContentConfigRaw>`: the loaded content configuration (its
-//!   `ContentRouting` resolves a page URL to a slug);
-//! - `GeoIpReader`: the configured `GeoIP` database.
-//!
-//! The content configuration and the `GeoIP` reader are optional: when either
-//! is not configured its type is reserved, so a reader's `find` is `None`
-//! (`get` is a typed `MissingDependency`) and no extension can `provide` a
-//! substitute.
+//! from: the loaded content configuration (`Arc<ContentConfigRaw>`, whose
+//! `ContentRouting` resolves a page URL to a slug) and the configured
+//! `GeoIP` database (`GeoIpReader`). Both are optional: when either is not
+//! configured its type is reserved, so a reader's `find` is `None` (`get` is
+//! a typed `MissingDependency`) and no extension can `provide` a substitute.
+//! The analytics repositories are not seeded: the analytics member provides
+//! them.
 //!
 //! No event broadcaster is seeded: a broadcaster's holder can subscribe to,
 //! publish on and enumerate every user's stream, so the API hands the
@@ -46,62 +45,97 @@
 
 use std::sync::Arc;
 
+use systemprompt_ai::AiService;
+use systemprompt_ai::repository::AiRepositories;
 use systemprompt_analytics::GeoIpReader;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
+use systemprompt_events::EventRouter;
 use systemprompt_files::FilesConfig;
-use systemprompt_manifest::Profile;
+use systemprompt_manifest::services::SystemAdmin;
+use systemprompt_manifest::services::root::ActiveServicesRoot;
+use systemprompt_manifest::{Config, Profile};
+use systemprompt_mcp::ArtifactIngest;
 use systemprompt_models::{ContentConfigRaw, LateBound};
+#[cfg(feature = "notifications")]
+use systemprompt_notifications::service::EscalationDelivery;
+use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_provider_contracts::Dependencies;
-use systemprompt_traits::MessagingDispatcher;
+use systemprompt_traits::{MessagingDispatcher, SecretStore};
 
-use crate::context::AppContext;
 use crate::documents::DocumentsRuntime;
 
-pub fn base_kernel_state(
-    database: &DbPool,
-    app_paths: &Arc<AppPaths>,
-    files_config: &Arc<FilesConfig>,
-    profile: &Profile,
-    documents: &DocumentsRuntime,
-) -> Dependencies {
+/// The handles every host seeds its kernel state from.
+pub struct KernelSeed<'a> {
+    pub database: &'a DbPool,
+    pub app_paths: &'a Arc<AppPaths>,
+    pub files_config: &'a Arc<FilesConfig>,
+    pub profile: &'a Profile,
+    pub config: &'a Arc<Config>,
+    pub services: systemprompt_manifest::services::ServicesView,
+    pub services_root: ActiveServicesRoot,
+    pub secrets: Arc<dyn SecretStore>,
+    pub system_admin: &'a SystemAdmin,
+    pub event_router: &'a EventRouter,
+    pub documents: &'a DocumentsRuntime,
+    #[cfg(feature = "notifications")]
+    pub escalation: EscalationDelivery,
+}
+
+/// The handles only the API seeds on top of [`KernelSeed`].
+pub struct ApiKernelSeed<'a> {
+    pub base: KernelSeed<'a>,
+    pub oauth: &'a Arc<OAuthRepositories>,
+    pub ai: &'a Arc<AiRepositories>,
+    pub artifact_ingest: &'a Arc<ArtifactIngest>,
+    pub ai_service: Option<&'a Arc<AiService>>,
+    pub geoip: Option<&'a GeoIpReader>,
+    pub content_config: Option<&'a Arc<ContentConfigRaw>>,
+}
+
+pub fn base_kernel_state(seed: KernelSeed<'_>) -> Dependencies {
+    let documents = seed.documents;
     let mut state = Dependencies::new()
-        .with(Arc::clone(database))
-        .with(Arc::clone(app_paths))
-        .with(Arc::clone(files_config))
-        .with(Arc::new(profile.notifications));
-    if files_config.documents_config().is_enabled() {
+        .with(Arc::clone(seed.database))
+        .with(Arc::clone(seed.app_paths))
+        .with(Arc::clone(seed.files_config))
+        .with(Arc::new(seed.profile.notifications))
+        .with(Arc::new(seed.profile.brain.clone()))
+        .with(seed.config.instance_id.clone())
+        .with(Arc::clone(seed.config))
+        .with(seed.services)
+        .with(seed.services_root)
+        .with(seed.secrets)
+        .with(seed.system_admin.clone())
+        .with(Arc::new(seed.event_router.clone()))
+        .with(Arc::clone(documents.access()))
+        .with(Arc::clone(documents.repositories()))
+        .with(Arc::clone(documents.issues()));
+    #[cfg(feature = "notifications")]
+    state.insert(seed.escalation);
+    if seed.files_config.documents_config().is_enabled() {
         state.insert(Arc::clone(documents.service()));
     }
     state
 }
 
-pub fn kernel_state(app: &AppContext) -> Dependencies {
-    let mut state = base_kernel_state(
-        app.db_pool(),
-        app.app_paths_arc(),
-        app.files_config(),
-        app.profile(),
-        app.documents(),
-    )
-    .with(Arc::clone(app.oauth_repositories()))
-    .with(Arc::clone(app.ai_repositories()))
-    .with(Arc::clone(app.analytics_repositories()))
-    .with(app.artifact_ingest_arc())
-    .with(LateBound::<dyn MessagingDispatcher>::default());
-    match &app.subsystems.ai_service {
+pub fn kernel_state(seed: ApiKernelSeed<'_>) -> Dependencies {
+    let mut state = base_kernel_state(seed.base)
+        .with(Arc::clone(seed.oauth))
+        .with(Arc::clone(seed.ai))
+        .with(Arc::clone(seed.artifact_ingest))
+        .with(LateBound::<dyn MessagingDispatcher>::default());
+    match seed.ai_service {
         Some(ai) => state.insert(Arc::clone(ai)),
-        None => state.reserve::<Arc<systemprompt_ai::AiService>>(),
+        None => state.reserve::<Arc<AiService>>(),
     }
-    match app.geoip_reader() {
-        Some(reader) => state.insert(Arc::clone(reader)),
+    match seed.geoip {
+        Some(reader) => state.insert(reader.clone()),
         None => state.reserve::<GeoIpReader>(),
     }
-    match &app.cfg.content_config {
+    match seed.content_config {
         Some(config) => state.insert(Arc::clone(config)),
         None => state.reserve::<Arc<ContentConfigRaw>>(),
     }
-    #[cfg(feature = "brain")]
-    state.insert(Arc::new(app.profile().brain.clone()));
     state
 }

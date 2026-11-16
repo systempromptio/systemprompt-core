@@ -13,7 +13,8 @@ use systemprompt_runtime::brain::mcp::{
     BrainMcpTools, BrainRefusalCode, DisputeHandler, ProposeHandler, RecallPreviewHandler,
     SearchHandler, WhyHandler, refusal_code,
 };
-use systemprompt_runtime::brain::{BrainHandle, DocumentSourceContent};
+use systemprompt_brain::BrainHandle;
+use systemprompt_files::documents::DocumentSourceContent;
 use systemprompt_runtime::documents::NotificationsUnavailableSink;
 use systemprompt_runtime::documents::mcp::{CommentHandler, CommentInput};
 use systemprompt_runtime::{BrainCore, BrainInputs, RecallSeams};
@@ -182,7 +183,7 @@ async fn a_recall_preview_with_no_facts_is_skipped() {
 async fn document_source_content_reads_revisions_and_comment_threads() {
     let r = rig(false).await;
     let source = DocumentSourceContent::new(
-        Arc::clone(r.runtime.service()),
+        Some(Arc::clone(r.runtime.service())),
         Arc::clone(r.runtime.repositories()),
     );
     let user = registered("brain-source").await;
@@ -257,4 +258,25 @@ async fn document_source_content_reads_revisions_and_comment_threads() {
     };
     assert!(!source.handles(&session));
     assert!(source.fetch(&session).await.expect("fetch").is_none());
+}
+
+#[tokio::test]
+async fn document_source_content_without_the_documents_store_is_unavailable() {
+    let r = rig(false).await;
+    let user = registered("brain-source-off").await;
+    let ctx = ctx_for(Some(&user));
+    let (document, revision) = create_text(&r.tools, &ctx, "alpha").await;
+    let at = FactSource::Document {
+        document_id: document,
+        revision_id: revision,
+        span: None,
+    };
+    let enabled = DocumentSourceContent::new(
+        Some(Arc::clone(r.runtime.service())),
+        Arc::clone(r.runtime.repositories()),
+    );
+    assert!(enabled.fetch(&at).await.expect("fetch").is_some());
+
+    let disabled = DocumentSourceContent::new(None, Arc::clone(r.runtime.repositories()));
+    assert!(disabled.fetch(&at).await.is_err());
 }

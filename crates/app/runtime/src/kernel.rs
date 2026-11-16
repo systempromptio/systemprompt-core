@@ -20,6 +20,10 @@
 //! admitted members' entries are present, so nothing a disabled member
 //! contributed runs.
 //!
+//! [`Kernel::detached`] holds a seeded state without a database and without
+//! resolving any member: a CLI command whose descriptor needs no database
+//! reads the profile-level seeds through it.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -28,11 +32,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use systemprompt_agent_runs::origin::AdmittedRunOrigins;
-use systemprompt_extension::admitted_schedule::AdmittedSchedule;
 use systemprompt_extension::contribute::{SlotBuildInput, build_slot};
 use systemprompt_extension::prelude::RuleType;
 use systemprompt_extension::{
-    Admitted, AdmittedProjections, AdmittedPurge, BuiltState, FactoryError, GatewayGuards, HandleId, KernelHandle,
+    Admitted, AdmittedProjections, AdmittedPurge, AdmittedSchedule, BuiltState, FactoryError, GatewayGuards, HandleId, KernelHandle,
     ProvideError, Resolved, SlotError,
 };
 use systemprompt_governance::authz::{SubjectProviderError, SubjectProviderSet};
@@ -140,6 +143,11 @@ impl Kernel {
     }
 
     #[must_use]
+    pub fn detached(tasks: BackgroundTasks, seed: Dependencies) -> Self {
+        Self::new(Arc::new(DetachedDatabase), tasks, seed)
+    }
+
+    #[must_use]
     pub fn with_handle<K: KernelHandle>(mut self, value: K::Value) -> Self {
         self.handles.insert(K::ID, Arc::new(value));
         self
@@ -236,6 +244,23 @@ impl Kernel {
         self.state.insert(Arc::new(policies));
         self.state.insert(Arc::new(guards));
         Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct DetachedDatabase;
+
+impl DatabaseHandle for DetachedDatabase {
+    fn is_connected(&self) -> bool {
+        false
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
+        self
     }
 }
 

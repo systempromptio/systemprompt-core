@@ -33,7 +33,7 @@ pub fn fixture_brain(
         .with(CoreSeam::<dyn NotificationAudienceResolver, RoleAudience>::new(roles));
     if let Some(documents) = documents {
         let content: Arc<dyn SourceContent> = Arc::new(DocumentSourceContent::new(
-            Arc::clone(documents.service()),
+            Some(Arc::clone(documents.service())),
             Arc::clone(documents.repositories()),
         ));
         let access: Arc<dyn SourceAccess> = Arc::new(DocumentSourceAccess::new(

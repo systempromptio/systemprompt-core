@@ -30,7 +30,7 @@ pub(super) async fn brain_consumer(ctx: &AppContext) -> Result<Option<Arc<dyn Ru
         return Ok(None);
     };
     let model = brain_model_client(ctx).await?;
-    let consumer: Arc<dyn RunnerService> = brain.start_consumer(ctx, model)?;
+    let consumer: Arc<dyn RunnerService> = brain.start_consumer(model)?;
     Ok(Some(consumer))
 }
 
@@ -61,7 +61,7 @@ async fn brain_model_client(ctx: &AppContext) -> Result<Arc<dyn BrainModelClient
         catalog: Arc::clone(ctx.services_state().catalog()),
         db: Arc::clone(ctx.db_pool()),
         repos: Arc::new(crate::routes::gateway::gateway_repositories(ctx)?),
-        engines: Arc::new(crate::routes::gateway::gateway_engines(ctx)?),
+        engines: Arc::new(crate::routes::gateway::gateway_engines(ctx, ctx.kernel())?),
         governance: ctx.governance(),
     };
     let mut client = GatewayClient::builder(parts, principal)

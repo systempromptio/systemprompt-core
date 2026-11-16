@@ -23,7 +23,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use systemprompt_database::DbPool;
 use systemprompt_extension::AdmittedSchedule;
 use systemprompt_identifiers::{Actor, InstanceId, JobName};
 use systemprompt_runtime::AppContext;
@@ -44,7 +43,6 @@ pub(super) struct JobDispatch {
     pub(super) job: Arc<dyn JobTrait>,
     pub(super) job_name: JobName,
     pub(super) actor: Actor,
-    pub(super) db_pool: DbPool,
     pub(super) repository: SchedulerRepository,
     pub(super) app_context: Arc<AppContext>,
     pub(super) running_jobs: RunningJobs,
@@ -60,7 +58,6 @@ pub(super) async fn execute_job(dispatch: JobDispatch) {
         job,
         job_name,
         actor,
-        db_pool,
         repository,
         app_context,
         running_jobs,
@@ -105,14 +102,7 @@ pub(super) async fn execute_job(dispatch: JobDispatch) {
     trace!(job_name = %job_name, "Starting job");
 
     let budget = job.db_budget();
-    let ctx = make_job_context(
-        actor,
-        db_pool,
-        app_context,
-        budget,
-        &inventory_memo,
-        &schedule,
-    )
+    let ctx = make_job_context(actor, app_context, budget, &inventory_memo)
         .with_enforce(enforce)
         .with_parameters(parameters);
     let started = std::time::Instant::now();

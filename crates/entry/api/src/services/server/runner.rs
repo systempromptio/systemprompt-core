@@ -12,7 +12,6 @@
 
 use anyhow::{Context, Result};
 use std::sync::Arc;
-use systemprompt_extension::ExtensionContext as _;
 use systemprompt_identifiers::Actor;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::services::SchedulerHandle;
@@ -32,8 +31,6 @@ use super::scheduler_health::SchedulerHealth;
 
 pub async fn run_server(
     ctx: AppContext,
-    admitted: &systemprompt_extension::Admitted,
-    kernel: &systemprompt_runtime::Kernel,
     events: Option<StartupEventSender>,
     early: super::startup::EarlyServer,
 ) -> Result<()> {
@@ -62,7 +59,10 @@ pub async fn run_server(
     }
     let router = crate::services::server::setup_api_server(
         &ctx,
-        super::routes::Composed { admitted, kernel },
+        super::routes::Composed {
+            admitted: ctx.admitted(),
+            kernel: ctx.kernel(),
+        },
         events.as_ref(),
         early.readiness(),
     )?
@@ -129,7 +129,7 @@ async fn start_role_phases(
         let brain = super::brain::brain_consumer(ctx).await?;
         #[cfg(not(feature = "brain"))]
         let brain = None;
-        start_runner_services(ctx, brain);
+        start_runner_services(ctx, brain)?;
     }
     Ok(scheduler_handle)
 }
@@ -173,7 +173,10 @@ async fn serve_until_shutdown(
     serve_result
 }
 
-fn start_runner_services(ctx: &AppContext, brain: Option<Arc<dyn RunnerService>>) {
+fn start_runner_services(
+    ctx: &AppContext,
+    brain: Option<Arc<dyn RunnerService>>,
+) -> Result<()> {
     let shared = Arc::new(ctx.clone());
     let mut started = 0usize;
     if let Some(consumer) = brain {
@@ -181,12 +184,16 @@ fn start_runner_services(ctx: &AppContext, brain: Option<Arc<dyn RunnerService>>
         tracing::info!(service = "brain", "runner service started");
         started += 1;
     }
-    for extension in ctx.extension_registry().extensions() {
-        for service in extension.runner_services(ctx) {
+    let resolved = ctx.kernel().resolved();
+    for member in ctx.admitted().built().members() {
+        for factory in member.sink.runner_services() {
+            let service = factory
+                .build(&resolved)
+                .with_context(|| format!("runner service of {}", member.owner))?;
             let name = service.name();
             spawn_runner_service(ctx, &shared, service);
             tracing::info!(
-                extension = extension.id(),
+                extension = %member.owner,
                 service = name,
                 "runner service started"
             );
@@ -194,6 +201,7 @@ fn start_runner_services(ctx: &AppContext, brain: Option<Arc<dyn RunnerService>>
         }
     }
     tracing::info!(started, "runner services started");
+    Ok(())
 }
 
 fn spawn_runner_service(
@@ -206,9 +214,10 @@ fn spawn_runner_service(
     let shared = Arc::clone(shared);
     super::runner_supervisor::supervise(ctx.background_tasks(), service, move || {
         let dependencies = shared
-            .extension_state()
+            .kernel()
+            .state()
+            .clone()
             .with(shared.signing_keys().clone())
-            .with(Arc::clone(shared.config_arc()))
             .with::<Arc<dyn systemprompt_extension::ExtensionContext>>(Arc::<AppContext>::clone(
                 &shared,
             ))
@@ -239,9 +248,12 @@ async fn start_metrics_listener(
     let Some(port) = ctx.config().metrics_port else {
         return Ok(None);
     };
-    let metrics = ctx
-        .extension_registry()
-        .all_metrics(&ctx.profile().extensions.disabled)?;
+    let metrics: Vec<_> = ctx
+        .admitted()
+        .built()
+        .members()
+        .flat_map(|member| member.sink.metrics().iter().cloned())
+        .collect();
     let handle = super::metrics::install_recorder(&ctx.config().instance_id, &metrics)?;
     super::pool_metrics::spawn_sampler(ctx);
     super::ops_metrics::spawn_samplers(ctx, runs_scheduler);

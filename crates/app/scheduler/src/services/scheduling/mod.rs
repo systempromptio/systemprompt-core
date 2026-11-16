@@ -137,7 +137,6 @@ fn collect_unknown_job_names(
 #[derive(Debug)]
 pub struct SchedulerService {
     config: SchedulerConfig,
-    db_pool: DbPool,
     repository: SchedulerRepository,
     user_repository: Arc<systemprompt_users::UserRepository>,
     logging_repository: systemprompt_logging::LoggingRepository,
@@ -158,7 +157,6 @@ impl SchedulerService {
         let logging_repository = systemprompt_logging::LoggingRepository::new(&db_pool);
         Self {
             config,
-            db_pool,
             repository,
             user_repository,
             logging_repository,

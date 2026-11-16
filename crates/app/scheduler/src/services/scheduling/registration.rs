@@ -156,7 +156,6 @@ impl SchedulerService {
         let parameters = job_config.parameters.clone();
         let job_name_owned = job_config.name.clone();
         let schedule_owned = schedule.to_owned();
-        let db_pool = Arc::clone(&self.db_pool);
         let repository = self.repository.clone();
         let app_context = Arc::clone(&self.app_context);
         let running_jobs = Arc::clone(running_jobs);
@@ -172,7 +171,6 @@ impl SchedulerService {
         let job = Job::new_async(schedule_owned.as_str(), move |_uuid, _lock| {
             let job_name = job_name_owned.clone();
             let actor = actor.clone();
-            let db_pool = Arc::clone(&db_pool);
             let repository = repository.clone();
             let app_context = Arc::clone(&app_context);
             let running_jobs = Arc::clone(&running_jobs);
@@ -188,7 +186,6 @@ impl SchedulerService {
                     job,
                     job_name,
                     actor,
-                    db_pool,
                     repository,
                     app_context,
                     running_jobs,

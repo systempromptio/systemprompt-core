@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
 use systemprompt_extension::{
-    Extension, ExtensionContext, HasAnalytics, HasFingerprint, HasRouteClassifier, HasUserService,
+    ExtensionContext, HasAnalytics, HasFingerprint, HasRouteClassifier, HasUserService,
 };
 use systemprompt_manifest::{Config, Profile};
 use systemprompt_models::RouteClassifier;
@@ -38,7 +38,8 @@ impl AppContextTrait for AppContext {
 
     fn session_provider(&self) -> Option<Arc<dyn systemprompt_traits::SessionProvider>> {
         let sessions = self
-            .extension_state
+            .kernel
+            .state()
             .find::<systemprompt_traits::DynSessionStore>()?;
         let store: systemprompt_traits::DynSessionStore = Arc::clone(sessions);
         let provider: Arc<dyn systemprompt_traits::SessionProvider> = store;
@@ -46,7 +47,7 @@ impl AppContextTrait for AppContext {
     }
 
     fn analytics_provider(&self) -> Arc<dyn AnalyticsProvider> {
-        Arc::<AnalyticsService>::clone(&self.data.analytics_service)
+        Arc::<AnalyticsService>::clone(&self.analytics)
     }
 
     fn fingerprint_provider(&self) -> Option<Arc<dyn FingerprintProvider>> {
@@ -143,12 +144,8 @@ impl ExtensionContext for AppContext {
         store
     }
 
-    fn get_extension(&self, id: &str) -> Option<Arc<dyn Extension>> {
-        self.plugins.extension_registry.get(id).cloned()
-    }
-
     fn extension_state(&self) -> systemprompt_provider_contracts::Dependencies {
-        self.extension_state.clone()
+        self.kernel.state().clone()
     }
 
     fn config_planes(
@@ -162,7 +159,7 @@ impl HasAnalytics for AppContext {
     type Analytics = Arc<AnalyticsService>;
 
     fn analytics(&self) -> &Self::Analytics {
-        &self.data.analytics_service
+        &self.analytics
     }
 }
 

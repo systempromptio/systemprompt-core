@@ -67,7 +67,7 @@ pub use access::{
     SubjectValidation,
 };
 pub use brain_access::DocumentSourceAccess;
-pub use brain_content::{BRAIN_ACTOR, DocumentSourceContent};
+pub use brain_content::{BRAIN_ACTOR, DocumentSourceContent, DocumentsSourceUnavailable};
 pub use error::DocumentsError;
 pub use events::DocumentEvents;
 pub use notification_visibility::DocumentVisibility;

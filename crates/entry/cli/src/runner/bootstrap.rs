@@ -1,8 +1,8 @@
 //! Profile resolution and the staged bootstrap of CLI runtime state.
 //!
 //! Resolves the active profile (CLI override, active session, or path), then
-//! initialises secrets, credentials, paths, and config in order, and runs
-//! startup validation before a command executes.
+//! initialises secrets, credentials, paths, and config in order. Startup
+//! validation runs once the composition is admitted, over its built state.
 //!
 //! The boot sequence returns one owned [`BootContext`]: only the server runs
 //! boot-time model discovery, and every other command loads the services
@@ -213,9 +213,12 @@ pub(super) async fn init_paths(
     Ok(services)
 }
 
-pub(super) fn run_validation(boot: &BootContext) -> Result<()> {
+pub(super) fn run_validation(
+    boot: &BootContext,
+    built: &systemprompt_extension::BuiltState,
+) -> Result<()> {
     let mut validator = StartupValidator::new(boot.clone())?;
-    let report = validator.validate(boot.config()?);
+    let report = validator.validate(boot.config()?, built);
 
     if report.has_errors() {
         display_validation_report(&report);

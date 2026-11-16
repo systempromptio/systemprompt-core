@@ -15,7 +15,7 @@
 
 use std::sync::Arc;
 
-use systemprompt_extension::{Extension, ExtensionContext};
+use systemprompt_extension::ExtensionContext;
 use systemprompt_identifiers::{InstanceId, UserId};
 use systemprompt_manifest::services::ServicesView;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
@@ -78,10 +78,6 @@ impl ExtensionContext for HostContext {
 
     fn secrets(&self) -> Arc<dyn SecretStore> {
         Self::secrets(self)
-    }
-
-    fn get_extension(&self, id: &str) -> Option<Arc<dyn Extension>> {
-        self.parts.extensions.get(id).cloned()
     }
 
     fn services(&self) -> ServicesView {
