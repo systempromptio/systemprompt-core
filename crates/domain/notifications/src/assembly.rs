@@ -2,10 +2,11 @@
 //! outbox consumer assembled over them.
 //!
 //! After the contributed seams, the slot build appends the core defaults:
-//! the [`DefaultRouter`], the user-role audience resolver the `users`
-//! member provides, the document and issue visibilities the `files` member
-//! provides, the [`AguiChannel`] over the kernel's event router and the
-//! [`DefaultPublishPolicy`] over every audience resolver. A default whose
+//! the [`DefaultRouter`], the document and issue visibilities the `files`
+//! member provides, the [`AguiChannel`] over the kernel's event router and the
+//! [`DefaultPublishPolicy`] over every audience resolver. The audience
+//! resolvers are the kernel-built [`AudienceResolvers`] set, shared with
+//! brain recall; without it the build is refused. A default whose
 //! owner is not admitted is absent, never replaced. The
 //! [`NotificationsService`] and [`NotificationsConsumer`] are then built
 //! from those seams and bound into the [`NotificationsServiceSlot`] and
@@ -21,11 +22,11 @@ use std::time::Duration;
 use systemprompt_database::DbPool;
 use systemprompt_events::EventRouter;
 use systemprompt_extension::{
-    DynNotificationSink, NotificationAudienceResolver, Resolved, ResourceVisibility, SlotError,
+    AudienceResolvers, DynNotificationSink, Resolved, ResourceVisibility, SlotError,
 };
 use systemprompt_manifest::profile::NotificationsProfile;
 use systemprompt_traits::CoreSeam;
-use systemprompt_traits::core_seam::{DocumentVisibility, IssueVisibility, RoleAudience};
+use systemprompt_traits::core_seam::{DocumentVisibility, IssueVisibility};
 
 use crate::channels::AguiChannel;
 use crate::consumer::{NotificationsConsumer, NotificationsConsumerSlot};
@@ -43,10 +44,8 @@ pub(crate) fn append_core_defaults(
     seams: &mut NotificationSeams,
     r: &Resolved<'_>,
 ) -> Result<(), SlotError> {
+    seams.audiences = r.get::<Arc<AudienceResolvers>>()?.to_vec();
     seams.routers.push(Arc::new(DefaultRouter));
-    if let Some(roles) = r.optional::<CoreSeam<dyn NotificationAudienceResolver, RoleAudience>>() {
-        seams.audiences.push(roles.seam());
-    }
     if let Some(documents) = r.optional::<CoreSeam<dyn ResourceVisibility, DocumentVisibility>>() {
         seams.visibilities.push(documents.seam());
     }

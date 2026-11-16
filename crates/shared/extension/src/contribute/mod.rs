@@ -46,7 +46,7 @@ pub use resolved::{
     build_factories,
 };
 pub use sink::{
-    AssetFn, ContributionSink, DiagnosticFactory, GatewayGuardFactory, PolicyFactory,
+    AssetFn, AudienceResolverFactory, ContributionSink, DiagnosticFactory, GatewayGuardFactory, PolicyFactory,
     ReadinessFactory, RunnerServiceFactory, SubjectProviderFactory,
 };
 pub use slot::{
@@ -60,6 +60,7 @@ use crate::gateway_guard::GatewayRequestGuard;
 use crate::health::{DiagnosticProbe, MetricDescriptor, ReadinessCheck};
 use crate::metadata::{ExtensionRole, SchemaDefinition};
 use crate::migration::Migration;
+use crate::notifications::NotificationAudienceResolver;
 use crate::projection::{DrainTarget, ProjectionDrain, ProjectionEntry};
 use crate::protection::SiteAuthConfig;
 use crate::purge::{OrphanSweep, UserPurgeTable};
@@ -226,6 +227,14 @@ impl<'a> Contributions<'a> {
         F: Factory<Arc<dyn SubjectAttributeProvider>>,
     {
         self.sink.subject_providers.push(Box::new(f));
+        self
+    }
+
+    pub fn audience_resolver<F>(&mut self, f: F) -> &mut Self
+    where
+        F: Factory<Arc<dyn NotificationAudienceResolver>>,
+    {
+        self.sink.audience_resolvers.push(Box::new(f));
         self
     }
 

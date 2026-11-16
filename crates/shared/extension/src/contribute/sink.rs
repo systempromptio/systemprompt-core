@@ -27,6 +27,7 @@ use crate::gateway_guard::GatewayRequestGuard;
 use crate::health::{DiagnosticProbe, MetricDescriptor, ReadinessCheck};
 use crate::metadata::{ExtensionRole, SchemaDefinition};
 use crate::migration::Migration;
+use crate::notifications::NotificationAudienceResolver;
 use crate::projection::ProjectionEntry;
 use crate::protection::SiteAuthConfig;
 use crate::purge::{OrphanSweep, UserPurgeTable};
@@ -41,6 +42,7 @@ pub type DiagnosticFactory = Box<dyn Factory<Arc<dyn DiagnosticProbe>>>;
 pub type GatewayGuardFactory = Box<dyn Factory<Arc<dyn GatewayRequestGuard>>>;
 pub type SubjectProviderFactory = Box<dyn Factory<Arc<dyn SubjectAttributeProvider>>>;
 pub type PolicyFactory = Box<dyn Factory<Arc<dyn GovernancePolicy>>>;
+pub type AudienceResolverFactory = Box<dyn Factory<Arc<dyn NotificationAudienceResolver>>>;
 
 /// Everything one member contributed, in declaration order.
 #[derive(Default)]
@@ -71,6 +73,7 @@ pub struct ContributionSink {
     pub(crate) metrics: Vec<MetricDescriptor>,
     pub(crate) gateway_guards: Vec<GatewayGuardFactory>,
     pub(crate) subject_providers: Vec<SubjectProviderFactory>,
+    pub(crate) audience_resolvers: Vec<AudienceResolverFactory>,
     pub(crate) policies: Vec<PolicyFactory>,
     pub(crate) slots: Vec<SlotRecord>,
     #[cfg(feature = "router")]
@@ -186,6 +189,10 @@ impl ContributionSink {
     #[must_use]
     pub fn subject_providers(&self) -> &[SubjectProviderFactory] {
         &self.subject_providers
+    }
+
+    pub fn audience_resolvers(&self) -> &[AudienceResolverFactory] {
+        &self.audience_resolvers
     }
 
     #[must_use]
