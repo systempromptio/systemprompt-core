@@ -8,7 +8,8 @@ use systemprompt_models::modules::ApiPaths;
 use crate::authz::{AuthzPolicy, HandlerVerifier};
 use crate::contribute::{ContributionError, HandleId};
 use crate::protection::{ContextKind, RateLimit};
-use crate::reserved::{RESERVED_API_PREFIXES, WEB_ROOT_BASE_PATH};
+use super::overlap::{reserved_below, reserved_holding};
+use crate::reserved::WEB_ROOT_BASE_PATH;
 
 /// Where a route set mounts: a closed set of `ApiPaths` constants.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -259,10 +260,7 @@ impl PartialEq<RouteMethod> for http::Method {
 
 #[must_use]
 pub fn reserved_prefix_of(path: &str) -> Option<&'static str> {
-    RESERVED_API_PREFIXES
-        .iter()
-        .copied()
-        .find(|prefix| path.starts_with(prefix))
+    reserved_holding(path).map(|entry| entry.path)
 }
 
 fn route_path_is_valid(path: &str, allow_params: bool) -> bool {
@@ -285,7 +283,7 @@ fn validate_extension_base(path: &'static str) -> Result<(), ContributionError> 
     if !path.starts_with("/api/")
         || !route_path_is_valid(path, false)
         || path.contains('.')
-        || reserved_prefix_of(path).is_some()
+        || reserved_below(path).is_some()
     {
         return Err(ContributionError::InvalidBase(path));
     }
