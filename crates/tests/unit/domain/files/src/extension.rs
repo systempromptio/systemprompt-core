@@ -102,7 +102,9 @@ fn test_files_extension_user_purge_rows() {
         .iter()
         .find(|p| p.table == "document_grants")
         .expect("document grants are purged");
-    assert_eq!(grants.predicate, Some("subject_kind = 'user'"));
+    let predicate = grants.predicate.expect("document grants carry a predicate");
+    assert_eq!(predicate.column, "subject_kind");
+    assert_eq!(predicate.any_of, &["user"]);
 }
 
 #[test]
