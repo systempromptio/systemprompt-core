@@ -290,13 +290,14 @@ fn boot_profile_refused() -> CommandError {
 /// with the grants the registry conferred on that command. It serves
 /// [`CommandHost::boot_config`] only when the command holds
 /// [`KernelGrant::BootProfile`].
-pub(crate) struct MemberHost<'a> {
+pub struct MemberHost<'a> {
     ctx: &'a CommandContext,
     descriptor: CommandDescriptor,
 }
 
 impl<'a> MemberHost<'a> {
-    pub(crate) const fn new(ctx: &'a CommandContext, descriptor: CommandDescriptor) -> Self {
+    #[must_use]
+    pub const fn new(ctx: &'a CommandContext, descriptor: CommandDescriptor) -> Self {
         Self { ctx, descriptor }
     }
 }

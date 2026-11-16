@@ -42,6 +42,8 @@ mod help_env_values;
 mod interactive;
 #[cfg(test)]
 mod kernel_host;
+
+mod kernel_state_isolation;
 #[cfg(test)]
 mod interactive_terminal;
 #[cfg(test)]

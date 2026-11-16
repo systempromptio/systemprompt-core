@@ -31,7 +31,7 @@ pub use registry_error::{RegistryError, ResolveError};
 pub use crate::commands::shared::mcp_tools::McpToolEntry;
 pub use crate::commands::shared::{ValidationIssue, ValidationOutput, mcp_tools};
 pub use crate::context::CommandContext;
-pub use crate::host::KernelHost;
+pub use crate::host::{KernelHost, MemberHost};
 pub use crate::presentation::{StartupRenderer, tables};
 pub use crate::runner::interrupt::INTERRUPTED_EXIT_CODE;
 pub use crate::runner::{interrupt, routing};
