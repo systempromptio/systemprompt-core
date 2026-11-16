@@ -12,7 +12,9 @@
 //!
 //! The type-erased record ([`SlotRecord`]) is keyed by the slot's `TypeId`
 //! and carries a monomorphised build function, so the runtime can build every
-//! slot without naming any.
+//! slot without naming any. It also names the `Arc<S::Built>` type it
+//! inserts, so admission can match a member's `requires` against the values
+//! slots build without running any member's code.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -25,6 +27,7 @@ use systemprompt_provider_contracts::Dependencies;
 
 use super::error::SlotError;
 use super::resolved::Resolved;
+use crate::state::StateRequirement;
 
 /// A contribution point owned by a capability; the kernel never names it.
 pub trait Slot: 'static {
@@ -66,6 +69,7 @@ type InsertFn = fn(&mut Dependencies, ErasedBuilt);
 #[doc(hidden)]
 pub struct SlotRecord {
     slot: TypeId,
+    built: StateRequirement,
     order: SlotOrder,
     builder: Mutex<Option<ErasedBuilder>>,
     build: BuildFn,
@@ -76,6 +80,7 @@ impl SlotRecord {
     pub(crate) fn new<S: Slot>() -> Self {
         Self {
             slot: TypeId::of::<S>(),
+            built: StateRequirement::of::<Arc<S::Built>>(),
             order: S::ORDER,
             builder: Mutex::new(Some(Box::new(S::Builder::default()))),
             build: build_erased::<S>,
@@ -99,6 +104,11 @@ impl SlotRecord {
     #[must_use]
     pub const fn order(&self) -> SlotOrder {
         self.order
+    }
+
+    #[must_use]
+    pub const fn built(&self) -> &StateRequirement {
+        &self.built
     }
 
     pub fn take_entry(&self, owner: ExtensionId, standing: StandingTag) -> Option<SlotBuildInput> {

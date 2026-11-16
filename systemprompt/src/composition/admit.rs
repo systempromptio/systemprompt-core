@@ -158,11 +158,12 @@ pub(super) fn check_providers(
                     }
                 },
                 Some((_, Standing::Core(_))) => {},
+                None if builds_slot_value(enabled, ty) => {},
                 None => {
-                    if let Some(provider) = dropped
-                        .iter()
-                        .find(|other| other.sink.provides().iter().any(|p| p.type_id() == ty))
-                    {
+                    if let Some(provider) = dropped.iter().find(|other| {
+                        other.sink.provides().iter().any(|p| p.type_id() == ty)
+                            || builds_slot_value(std::slice::from_ref(*other), ty)
+                    }) {
                         return Err(CompositionError::DisabledDependency {
                             owner: member.id.clone(),
                             ty: requirement.type_name(),
@@ -174,6 +175,16 @@ pub(super) fn check_providers(
         }
     }
     Ok(())
+}
+
+fn builds_slot_value(members: &[DeclaredMember], ty: TypeId) -> bool {
+    members.iter().any(|member| {
+        member
+            .sink
+            .slots()
+            .iter()
+            .any(|slot| slot.built().type_id() == ty)
+    })
 }
 
 #[cfg(feature = "cli")]
