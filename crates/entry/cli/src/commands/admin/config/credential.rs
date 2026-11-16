@@ -14,8 +14,8 @@ use systemprompt_config::{CredentialSpec, ProviderCatalogService};
 use systemprompt_identifiers::{CredentialId, SecretName};
 use systemprompt_manifest::services::catalog::CredentialEntry;
 
-use super::catalog_edit::{apply, read_active, render_list};
-use systemprompt_extension::cli::CommandHost;
+use super::catalog_edit::{apply, read_active, list_output};
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
 #[derive(Debug, Subcommand)]
 pub enum CredentialCommands {
@@ -45,7 +45,7 @@ pub struct CredentialAddArgs {
     pub label: Option<String>,
 }
 
-pub async fn execute(command: &CredentialCommands, host: &dyn CommandHost) -> Result<()> {
+pub async fn execute(command: &CredentialCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     match command {
         CredentialCommands::List => {
             let document = read_active(host).await?;
@@ -60,8 +60,7 @@ pub async fn execute(command: &CredentialCommands, host: &dyn CommandHost) -> Re
                     format!("{id} [{}]{secret}", entry.kind.as_str())
                 })
                 .collect();
-            render_list(host, "Credentials", rows);
-            Ok(())
+            Ok(list_output("Credentials", rows))
         },
         CredentialCommands::Add(args) => {
             let spec = credential_spec(args)?;

@@ -24,7 +24,7 @@ pub(super) fn execute_reset(
     args: &ResetArgs,
     prompter: &dyn Prompter,
     host: &dyn CommandHost,
-) -> Result<()> {
+) -> Result<CommandOutput> {
     let config = host.output();
     let profile_path = profile_path(host)?;
     let mut profile = load_profile_for_edit(profile_path)?;
@@ -64,14 +64,14 @@ pub(super) fn execute_reset(
         message,
     };
 
-    host.render(&CommandOutput::table_of(vec!["field", "old_value", "new_value"], &output.changes)
-            .with_title("Rate Limits Reset"));
-
     if !args.dry_run && config.output_format() == OutputFormat::Table {
         CliService::warning("Restart services for changes to take effect");
     }
 
-    Ok(())
+    Ok(
+        CommandOutput::table_of(vec!["field", "old_value", "new_value"], &output.changes)
+            .with_title("Rate Limits Reset"),
+    )
 }
 
 fn reset_endpoint(

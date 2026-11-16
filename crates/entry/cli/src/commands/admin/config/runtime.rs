@@ -6,6 +6,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use super::changes_output;
 use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
 use systemprompt_logging::CliService;
@@ -41,15 +42,14 @@ pub struct SetArgs {
     pub no_color: Option<bool>,
 }
 
-pub fn execute(command: RuntimeCommands, host: &dyn CommandHost) -> Result<()> {
+pub fn execute(command: RuntimeCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     match command {
         RuntimeCommands::Show => execute_show(host),
         RuntimeCommands::Set(args) => execute_set(args, host),
     }
 }
 
-pub(super) fn execute_show(host: &dyn CommandHost) -> Result<()> {
-    let config = host.output();
+pub(super) fn execute_show(host: &dyn CommandHost) -> Result<CommandOutput> {
     let profile = host.profile()?;
 
     let output = RuntimeConfigOutput {
@@ -60,12 +60,10 @@ pub(super) fn execute_show(host: &dyn CommandHost) -> Result<()> {
         non_interactive: profile.runtime.non_interactive,
     };
 
-    host.render(&CommandOutput::card_value("Runtime Configuration", &output));
-
-    Ok(())
+    Ok(CommandOutput::card_value("Runtime Configuration", &output))
 }
 
-pub(super) fn execute_set(args: SetArgs, host: &dyn CommandHost) -> Result<()> {
+pub(super) fn execute_set(args: SetArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
     let config = host.output();
     if args.environment.is_none()
         && args.log_level.is_none()
@@ -132,13 +130,9 @@ pub(super) fn execute_set(args: SetArgs, host: &dyn CommandHost) -> Result<()> {
 
     save_profile(&profile, profile_path)?;
 
-    for change in &changes {
-        host.render(&CommandOutput::card_value("Runtime Updated", change));
-    }
-
     if config.output_format() == OutputFormat::Table {
         CliService::warning("Restart services for changes to take effect");
     }
 
-    Ok(())
+    Ok(changes_output("Runtime Updated", &changes))
 }

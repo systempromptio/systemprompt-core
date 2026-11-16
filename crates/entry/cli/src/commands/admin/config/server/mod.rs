@@ -9,6 +9,7 @@
 
 mod cors;
 
+use super::changes_output;
 use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
 use systemprompt_logging::CliService;
@@ -46,7 +47,7 @@ pub struct SetArgs {
     pub external_url: Option<String>,
 }
 
-pub fn execute(command: &ServerCommands, host: &dyn CommandHost) -> Result<()> {
+pub fn execute(command: &ServerCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     match command {
         ServerCommands::Show => execute_show(host),
         ServerCommands::Set(args) => execute_set(args, host),
@@ -54,8 +55,7 @@ pub fn execute(command: &ServerCommands, host: &dyn CommandHost) -> Result<()> {
     }
 }
 
-pub(super) fn execute_show(host: &dyn CommandHost) -> Result<()> {
-    let config = host.output();
+pub(super) fn execute_show(host: &dyn CommandHost) -> Result<CommandOutput> {
     let profile = host.profile()?;
 
     let output = ServerConfigOutput {
@@ -69,9 +69,7 @@ pub(super) fn execute_show(host: &dyn CommandHost) -> Result<()> {
         cors_allowed_origins: profile.server.cors_allowed_origins.clone(),
     };
 
-    host.render(&CommandOutput::card_value("Server Configuration", &output));
-
-    Ok(())
+    Ok(CommandOutput::card_value("Server Configuration", &output))
 }
 
 fn change(field: &str, old: String, new: String) -> ServerSetOutput {
@@ -83,7 +81,7 @@ fn change(field: &str, old: String, new: String) -> ServerSetOutput {
     }
 }
 
-pub(super) fn execute_set(args: &SetArgs, host: &dyn CommandHost) -> Result<()> {
+pub(super) fn execute_set(args: &SetArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
     let config = host.output();
     if args.host.is_none() && args.port.is_none() && args.external_url.is_none() {
         bail!("Must specify at least one option: --host, --port, --external-url");
@@ -124,13 +122,9 @@ pub(super) fn execute_set(args: &SetArgs, host: &dyn CommandHost) -> Result<()> 
         );
     }
 
-    for change in &changes {
-        host.render(&CommandOutput::card_value("Server Updated", change));
-    }
-
     if config.output_format() == OutputFormat::Table {
         CliService::warning("Restart services for changes to take effect");
     }
 
-    Ok(())
+    Ok(changes_output("Server Updated", &changes))
 }

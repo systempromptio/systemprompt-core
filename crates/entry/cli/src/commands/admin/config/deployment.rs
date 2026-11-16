@@ -12,8 +12,8 @@ use systemprompt_config::{ModelSpec, ProviderCatalogService};
 use systemprompt_identifiers::ModelId;
 use systemprompt_manifest::services::catalog::DeploymentTarget;
 
-use super::catalog_edit::{apply, parse_endpoints, read_active, render_list};
-use systemprompt_extension::cli::CommandHost;
+use super::catalog_edit::{apply, parse_endpoints, read_active, list_output};
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
 #[derive(Debug, Subcommand)]
 pub enum DeploymentCommands {
@@ -34,7 +34,7 @@ pub struct DeploymentSetArgs {
     pub endpoints: Vec<String>,
 }
 
-pub async fn execute(command: &DeploymentCommands, host: &dyn CommandHost) -> Result<()> {
+pub async fn execute(command: &DeploymentCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     match command {
         DeploymentCommands::List => {
             let document = read_active(host).await?;
@@ -47,8 +47,7 @@ pub async fn execute(command: &DeploymentCommands, host: &dyn CommandHost) -> Re
                     format!("{model}: {}", chain.join(" > "))
                 })
                 .collect();
-            render_list(host, "Deployments", rows);
-            Ok(())
+            Ok(list_output("Deployments", rows))
         },
         DeploymentCommands::Set(args) => {
             let deployments: Vec<DeploymentTarget> = parse_endpoints(&args.endpoints)?

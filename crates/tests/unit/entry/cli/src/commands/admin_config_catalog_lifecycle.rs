@@ -270,8 +270,12 @@ async fn catalog_file_lifecycle_helper() {
     assert_eq!(files(&ai), after_remove);
 
     println!("BEGIN_DISCOVERY_EMPTY");
-    catalog::execute(&CatalogCommands::Discovery, &config.cli, None)
+    let empty = catalog::execute(&CatalogCommands::Discovery, None)
         .expect("missing discovery report is informative");
+    println!(
+        "{}",
+        serde_json::to_string(empty.artifact()).expect("discovery artifact serialises")
+    );
     println!("END_DISCOVERY_EMPTY");
 
     use systemprompt_scheduler::jobs::vertex_discovery::VertexDiscoveryJob;
@@ -290,11 +294,12 @@ async fn catalog_file_lifecycle_helper() {
         "{report:?}"
     );
     println!("BEGIN_DISCOVERY_PARTIAL");
-    systemprompt_cli::admin::config::catalog_discovery::render_discovery(
-        Some(&report),
-        &config.cli,
-    )
-    .expect("partial discovery report is rendered");
+    let partial = systemprompt_cli::admin::config::catalog_discovery::discovery(&report)
+        .expect("partial discovery report is built");
+    println!(
+        "{}",
+        serde_json::to_string(&partial).expect("discovery report serialises")
+    );
     println!("END_DISCOVERY_PARTIAL");
 }
 
@@ -309,19 +314,6 @@ fn marked_json(stdout: &str, name: &str) -> serde_json::Value {
     serde_json::from_str(text).unwrap_or_else(|error| panic!("{name}: {error}: {text}"))
 }
 
-fn marked_json_stream(stdout: &str, name: &str) -> Vec<serde_json::Value> {
-    let begin = format!("BEGIN_{name}");
-    let end = format!("END_{name}");
-    let text = stdout
-        .split_once(&begin)
-        .and_then(|(_, tail)| tail.split_once(&end))
-        .map(|(value, _)| value.trim())
-        .unwrap_or_else(|| panic!("missing {begin}/{end}: {stdout}"));
-    serde_json::Deserializer::from_str(text)
-        .into_iter::<serde_json::Value>()
-        .collect::<Result<Vec<_>, _>>()
-        .unwrap_or_else(|error| panic!("{name}: {error}: {text}"))
-}
 
 #[test]
 fn catalog_file_lifecycle_is_durable_and_structured() {
@@ -410,18 +402,9 @@ fn catalog_file_lifecycle_is_durable_and_structured() {
         .lines()
         .find_map(|line| line.strip_prefix("DISCOVERY_RAN_AT="))
         .expect("captured discovery timestamp");
-    let partial = marked_json_stream(&stdout, "DISCOVERY_PARTIAL");
-    assert_eq!(partial.len(), 2, "{partial:?}");
-    assert_eq!(partial[0]["artifact_type"], "table");
-    let column_names = partial[0]["columns"]
-        .as_array()
-        .expect("discovery table columns")
-        .iter()
-        .map(|column| column["name"].as_str().expect("column name"))
-        .collect::<Vec<_>>();
-    assert_eq!(column_names, ["upstream_or_id", "state", "retires_on"]);
-    assert_eq!(partial[0]["items"], serde_json::json!([]));
-    let notes = partial[1]["messages"]
+    let partial = marked_json(&stdout, "DISCOVERY_PARTIAL");
+    assert_eq!(partial["models"], serde_json::json!([]), "{partial}");
+    let notes = partial["notes"]
         .as_array()
         .expect("discovery report notes");
     assert!(

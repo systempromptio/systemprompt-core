@@ -200,3 +200,9 @@ pub struct DiscoveryRow {
     pub state: String,
     pub retires_on: String,
 }
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DiscoveryOutput {
+    pub models: Vec<DiscoveryRow>,
+    pub notes: Vec<systemprompt_models::artifacts::NoticeLine>,
+}

@@ -59,29 +59,25 @@ pub struct SetArgs {
     pub value: String,
 }
 
-pub async fn execute(command: &SecretCommands, host: &dyn CommandHost) -> Result<()> {
-    let config = host.output();
+pub async fn execute(command: &SecretCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     let args = match command {
         SecretCommands::Set(args) => args,
         SecretCommands::Check => return super::secret_check::execute(host).await,
         SecretCommands::MigrateGitCredentials(args) => {
-            let output = super::git_credentials::execute(*args, host).await?;
-            host.render(&output);
-            return Ok(());
+            return super::git_credentials::execute(*args, host).await;
         },
     };
 
     let secrets_file = file_secrets_path(host)?;
     set_secret(&secrets_file, &args.name, &args.value)?;
 
-    host.render(&CommandOutput::card_value(
+    Ok(CommandOutput::card_value(
             "Secret Updated",
             &ConfigMutationOutput {
                 field: "secrets".to_owned(),
                 message: format!("Secret '{}' set", args.name),
             },
-        ));
-    Ok(())
+        ))
 }
 
 pub fn file_secrets_path(host: &dyn CommandHost) -> Result<std::path::PathBuf> {

@@ -14,7 +14,7 @@ use systemprompt_identifiers::{EndpointId, ProviderId};
 use systemprompt_manifest::services::catalog::EndpointRef;
 
 use super::catalog_edit::{apply, parse_wire};
-use systemprompt_extension::cli::CommandHost;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
 #[derive(Debug, Subcommand)]
 pub enum EndpointCommands {
@@ -39,7 +39,7 @@ pub struct EndpointAddArgs {
     pub url: String,
 }
 
-pub async fn execute(command: &EndpointCommands, host: &dyn CommandHost) -> Result<()> {
+pub async fn execute(command: &EndpointCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     match command {
         EndpointCommands::Add(args) => {
             let spec = EndpointSpec {
