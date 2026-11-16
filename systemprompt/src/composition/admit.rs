@@ -6,10 +6,10 @@
 
 use std::any::TypeId;
 
-use systemprompt_identifiers::ExtensionId;
-
 #[cfg(feature = "cli")]
 use systemprompt_extension::admitted::AdmittedCommand;
+use systemprompt_identifiers::ExtensionId;
+
 #[cfg(feature = "config")]
 use super::SecretsSourceDecl;
 use super::error::CompositionError;
