@@ -14,14 +14,15 @@ use systemprompt_notifications::repository::NotificationStreamRepository;
 use systemprompt_notifications_entry::http::user_routes;
 use systemprompt_runtime::{AppContext, Kernel};
 use systemprompt_test_fixtures::{
-    AuthedFixture, notifications_service, seed_bridge_credential, seed_user_row, unique_user_id,
+    AuthedFixture, ensure_test_bootstrap, fixture_app_context_with_extensions, fixture_config,
+    notifications_service, seed_bridge_credential, seed_user_row, unique_user_id,
 };
 use systemprompt_traits::{BackgroundTasks, DatabaseHandle, Dependencies};
 use uuid::Uuid;
 
 use super::engine::{Fixture, get, send, sweep, with_bearer};
 use super::table::Family;
-use crate::common::{json_post, request_context, setup_ctx};
+use crate::common::{json_post, reference_admitted, request_context, setup_ctx};
 
 struct Notifications {
     ctx: Arc<AppContext>,
@@ -223,7 +224,12 @@ async fn subscribe(ctx: &AppContext, owner: &UserId) -> Result<String> {
 
 #[tokio::test]
 async fn a_second_bridge_user_is_refused_every_owned_bridge_notification_route() -> Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, _) = setup_ctx().await?;
+    let ctx = fixture_app_context_with_extensions(
+        fixture_config(&ensure_test_bootstrap().database_url),
+        reference_admitted(&[])?,
+    )
+    .await?;
     let gateway = gateway_router(&ctx, ctx.admitted(), ctx.kernel())?;
     let owner = seed_bridge_credential(&pool, "sweep-bridge-notify-owner").await?;
     let stranger = seed_bridge_credential(&pool, "sweep-bridge-notify-stranger").await?;

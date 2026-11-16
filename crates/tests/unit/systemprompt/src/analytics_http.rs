@@ -9,7 +9,6 @@
 
 use std::sync::Arc;
 
-use clap::Command;
 use systemprompt::content::entry::extension::ContentHttpExtension;
 use systemprompt::{CompositionError, reference};
 use systemprompt_cli::kernel::{CommandRegistry, describe_command_line, kernel_commands};
@@ -246,8 +245,7 @@ fn every_analytics_command_is_a_read_only_local_export_that_preserves_data() {
 
 fn resolved_routing(args: &[&str]) -> DbUrlRouting {
     let registry = registry();
-    let matches = registry
-        .assemble(Command::new("systemprompt"))
+    let matches = systemprompt_cli::args::command(&registry)
         .expect("assemble")
         .try_get_matches_from(std::iter::once("systemprompt").chain(args.iter().copied()))
         .unwrap_or_else(|e| panic!("parse {args:?}: {e}"));
@@ -285,8 +283,7 @@ fn popular_resolves_to_its_own_leaf_descriptor() {
 #[test]
 fn popular_refuses_an_invalid_source_id() {
     let registry = registry();
-    let parsed = registry
-        .assemble(Command::new("systemprompt"))
+    let parsed = systemprompt_cli::args::command(&registry)
         .expect("assemble")
         .try_get_matches_from(["systemprompt", "core", "content", "popular", ""]);
     assert!(parsed.is_err(), "an empty source id is not a SourceId");
@@ -299,8 +296,7 @@ fn the_analytics_group_without_a_subcommand_is_refused() {
 
 #[test]
 fn help_lists_analytics_in_its_slot() {
-    let help = registry()
-        .assemble(Command::new("systemprompt"))
+    let help = systemprompt_cli::args::command(&registry())
         .expect("assemble")
         .render_help()
         .to_string();

@@ -220,12 +220,10 @@ fn every_listed_shape_refuses_drift_in_any_field_or_group() {
                 )],
                 vec![],
             );
+            let outcome = recheck(&admitted);
             assert!(
-                matches!(
-                    recheck(&admitted),
-                    Err(MountError::UnlistedPrivilege { .. })
-                ),
-                "{:?} at {base:?} with drifted {field} must be refused",
+                matches!(outcome, Err(MountError::UnlistedPrivilege { .. })),
+                "{:?} at {base:?} with drifted {field} must be refused: {outcome:?}",
                 listed.owner
             );
         }
@@ -324,10 +322,11 @@ fn reserved_extension_base_is_refused_at_mount() {
         )],
         vec![],
     );
-    assert!(matches!(
-        recheck(&admitted),
-        Err(MountError::ReservedPrefix(_))
-    ));
+    let outcome = recheck(&admitted);
+    assert!(
+        matches!(outcome, Err(MountError::ReservedPrefix(_))),
+        "{outcome:?}"
+    );
 }
 
 fn bridge_route(limits: RouteLimits) -> AdmittedGatewayRoute {

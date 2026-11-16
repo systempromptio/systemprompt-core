@@ -17,7 +17,8 @@ use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
     TEST_SLACK_SIGNING_SECRET, TEST_SLACK_WORKSPACE_ID, agent_reply_response_json,
-    ensure_messaging_bootstrap, seed_agent_backend, test_app_context, test_db_pool,
+    ensure_messaging_bootstrap, eventually, seed_agent_backend, settle_background,
+    test_app_context, test_db_pool,
 };
 use systemprompt_traits::DrainOutcome;
 use tower::ServiceExt;
@@ -113,6 +114,7 @@ async fn url_verification_challenge_is_echoed() -> anyhow::Result<()> {
 async fn signed_slash_command_dispatches_and_posts_to_response_url() -> anyhow::Result<()> {
     let b = ensure_messaging_bootstrap();
     let ctx = test_app_context(&b.database_url).await;
+    let baseline = ctx.background_tasks().in_flight();
 
     let agent = MockServer::start().await;
     Mock::given(method("POST"))
@@ -139,7 +141,7 @@ async fn signed_slash_command_dispatches_and_posts_to_response_url() -> anyhow::
     let resp = router(&ctx).oneshot(req).await?;
     assert_eq!(resp.status(), StatusCode::OK, "the route acks immediately");
 
-    let posted = wait_for_request(&ctx, &response_hook).await;
+    let posted = wait_for_request(&ctx, baseline, &response_hook).await;
     let body = String::from_utf8_lossy(&posted);
     assert!(
         body.contains("dispatched reply"),
@@ -152,6 +154,7 @@ async fn signed_slash_command_dispatches_and_posts_to_response_url() -> anyhow::
 async fn signed_slash_command_with_a_loopback_response_url_sends_nothing() -> anyhow::Result<()> {
     let b = ensure_messaging_bootstrap();
     let ctx = test_app_context(&b.database_url).await;
+    let baseline = ctx.background_tasks().in_flight();
 
     let agent = MockServer::start().await;
     Mock::given(method("POST"))
@@ -184,7 +187,7 @@ async fn signed_slash_command_with_a_loopback_response_url_sends_nothing() -> an
     assert_eq!(resp.status(), StatusCode::OK, "the route acks immediately");
 
     assert_eq!(
-        ctx.background_tasks().drain(Duration::from_secs(120)).await,
+        settle_background(ctx.background_tasks(), baseline, Duration::from_secs(120)).await,
         DrainOutcome::Drained
     );
     let received = response_hook.received_requests().await.unwrap_or_default();
@@ -202,9 +205,16 @@ fn urlencode(s: &str) -> String {
 // The reply comes from a background task running the full dispatch pipeline
 // (identity linking, authz, proxy round-trip); under a loaded shard that has
 // been observed to stall past 30s, so the drain bound must dwarf it.
-async fn wait_for_request(ctx: &AppContext, server: &MockServer) -> Vec<u8> {
+async fn wait_for_request(ctx: &AppContext, baseline: usize, server: &MockServer) -> Vec<u8> {
+    eventually("the reply task posts to the response hook", Duration::from_secs(120), || async {
+        server
+            .received_requests()
+            .await
+            .is_some_and(|reqs| !reqs.is_empty())
+    })
+    .await;
     assert_eq!(
-        ctx.background_tasks().drain(Duration::from_secs(120)).await,
+        settle_background(ctx.background_tasks(), baseline, Duration::from_secs(120)).await,
         DrainOutcome::Drained,
         "the reply task must finish within the drain bound"
     );
@@ -228,6 +238,7 @@ async fn coverage_command_reply(
     } else {
         test_app_context(&b.database_url).await
     };
+    let baseline = ctx.background_tasks().in_flight();
     let agent = MockServer::start().await;
     Mock::given(method("POST"))
         .respond_with(ResponseTemplate::new(200).set_body_json(agent_response))
@@ -254,7 +265,7 @@ async fn coverage_command_reply(
         .await?;
     assert_eq!(response.status(), StatusCode::OK);
     Ok(serde_json::from_slice(
-        &wait_for_request(&ctx, &hook).await,
+        &wait_for_request(&ctx, baseline, &hook).await,
     )?)
 }
 

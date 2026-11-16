@@ -326,6 +326,8 @@ fn a_hosted_toolset_no_member_contributes_refuses_the_build() {
     assert_eq!(refused.missing.len(), 1);
     assert_eq!(refused.missing[0].toolset, "ghost_toolset");
 
+    let admitted = build(reference().with(toolset_probe("probe-toolset", "probe_toolset")))
+        .expect("the probe admits");
     let toolsets: Arc<Toolsets> = built_with::<ToolsetSlot>(
         &admitted,
         Dependencies::default().with(services_hosting("probe_toolset")),

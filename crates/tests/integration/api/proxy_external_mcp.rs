@@ -229,13 +229,17 @@ async fn mount_accessor(server: &MockServer) {
 
 async fn drained_execution_row(
     ctx: &AppContext,
+    baseline: usize,
     pool: &DbPool,
     tool: &str,
 ) -> Option<(String, String)> {
     assert_eq!(
-        ctx.background_tasks()
-            .drain(std::time::Duration::from_secs(30))
-            .await,
+        systemprompt_test_fixtures::settle_background(
+            ctx.background_tasks(),
+            baseline,
+            std::time::Duration::from_secs(30),
+        )
+        .await,
         DrainOutcome::Drained
     );
     sqlx::query_as("SELECT status, server_name FROM mcp_tool_executions WHERE tool_name = $1")
@@ -268,6 +272,7 @@ async fn external_tools_call_mints_bearer_forwards_and_audits() -> anyhow::Resul
         .await;
 
     let tool = format!("ext-tool-{}", Uuid::new_v4().simple());
+    let baseline = h.ctx.background_tasks().in_flight();
     let resp = h
         .app
         .oneshot(proxied_post(
@@ -308,7 +313,7 @@ async fn external_tools_call_mints_bearer_forwards_and_audits() -> anyhow::Resul
         "the systemprompt JWT must be replaced by the provider bearer"
     );
 
-    let (exec_status, server_name) = drained_execution_row(&h.ctx, &h.pool, &tool)
+    let (exec_status, server_name) = drained_execution_row(&h.ctx, baseline, &h.pool, &tool)
         .await
         .expect("tools/call audited under the external server");
     assert_eq!(server_name, h.ext_name);

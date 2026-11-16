@@ -24,7 +24,7 @@ use systemprompt_identifiers::headers::SESSION_ID;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
     AuthedFixture, TestBootstrap, init_services_bootstrap, seed_admin_credential,
-    test_app_context_on, test_db_pool,
+    settle_background, test_app_context_on, test_db_pool,
 };
 use systemprompt_traits::DrainOutcome;
 use tokio::sync::OnceCell;
@@ -133,9 +133,9 @@ async fn app() -> Result<(Router, DbPool, Arc<AppContext>)> {
     ))
 }
 
-async fn drain_background(ctx: &AppContext) {
+async fn drain_background(ctx: &AppContext, baseline: usize) {
     assert_eq!(
-        ctx.background_tasks().drain(DRAIN_BOUND).await,
+        settle_background(ctx.background_tasks(), baseline, DRAIN_BOUND).await,
         DrainOutcome::Drained,
         "the post-response audit work must finish"
     );
@@ -237,6 +237,7 @@ type SettledAuditRow = (
 #[tokio::test]
 async fn a_completed_request_is_recorded_with_its_usage_and_cost() -> Result<()> {
     let (app, pool, ctx) = app().await?;
+    let baseline = ctx.background_tasks().in_flight();
     let cred = credential(&pool).await?;
 
     let (status, _body) =
@@ -245,7 +246,7 @@ async fn a_completed_request_is_recorded_with_its_usage_and_cost() -> Result<()>
 
     // The completion audit is written after the response is handed back, on
     // the context's background tasks.
-    drain_background(&ctx).await;
+    drain_background(&ctx, baseline).await;
     let settled: Option<SettledAuditRow> = sqlx::query_as(
         "SELECT status, input_tokens, output_tokens, cost_microdollars, latency_ms, \
              upstream_latency_ms FROM ai_requests WHERE user_id = $1 \
@@ -277,13 +278,14 @@ async fn a_completed_request_is_recorded_with_its_usage_and_cost() -> Result<()>
 #[tokio::test]
 async fn the_tool_calls_are_persisted_against_the_request() -> Result<()> {
     let (app, pool, ctx) = app().await?;
+    let baseline = ctx.background_tasks().in_flight();
     let cred = credential(&pool).await?;
 
     let (status, _body) =
         super::common::body_to_string(app.oneshot(messages_post(&cred)).await?).await?;
     assert_eq!(status.as_u16(), 200);
 
-    drain_background(&ctx).await;
+    drain_background(&ctx, baseline).await;
     let recorded: Option<(String, i32)> = sqlx::query_as(
         "SELECT t.tool_name, t.sequence_number FROM ai_request_tool_calls t \
          JOIN ai_requests r ON r.id = t.request_id \
@@ -316,13 +318,14 @@ async fn recorded_validity(
 #[tokio::test]
 async fn a_tool_call_the_request_never_offered_is_recorded_as_unknown() -> Result<()> {
     let (app, pool, ctx) = app().await?;
+    let baseline = ctx.background_tasks().in_flight();
     let cred = credential(&pool).await?;
 
     let (status, _body) =
         super::common::body_to_string(app.oneshot(messages_post(&cred)).await?).await?;
     assert_eq!(status.as_u16(), 200);
 
-    drain_background(&ctx).await;
+    drain_background(&ctx, baseline).await;
     let recorded = recorded_validity(&pool, &cred).await?;
     assert_eq!(recorded, Some((Some("unknown_tool".to_owned()), None)));
     Ok(())
@@ -331,6 +334,7 @@ async fn a_tool_call_the_request_never_offered_is_recorded_as_unknown() -> Resul
 #[tokio::test]
 async fn tool_arguments_that_break_the_offered_schema_are_recorded_invalid() -> Result<()> {
     let (app, pool, ctx) = app().await?;
+    let baseline = ctx.background_tasks().in_flight();
     let cred = credential(&pool).await?;
     let body = json!({
         "model": MODEL,
@@ -351,7 +355,7 @@ async fn tool_arguments_that_break_the_offered_schema_are_recorded_invalid() -> 
             .await?;
     assert_eq!(status.as_u16(), 200);
 
-    drain_background(&ctx).await;
+    drain_background(&ctx, baseline).await;
     let recorded = recorded_validity(&pool, &cred).await?;
     assert_eq!(
         recorded,
@@ -511,6 +515,7 @@ mod streaming {
     #[tokio::test]
     async fn a_streamed_request_is_audited_once_the_stream_ends() -> Result<()> {
         let (app, pool, ctx) = app().await?;
+        let baseline = ctx.background_tasks().in_flight();
         let cred = credential(&pool).await?;
 
         let resp = app.oneshot(streaming_post(&cred)).await?;
@@ -518,7 +523,7 @@ mod streaming {
         // The tap finalises on stream EOF, so the body must be drained first.
         let _ = resp.into_body().collect().await?.to_bytes();
 
-        drain_background(&ctx).await;
+        drain_background(&ctx, baseline).await;
         let settled: Option<(String, bool, Option<i32>, Option<i32>)> = sqlx::query_as(
             "SELECT status, is_streaming, latency_ms, upstream_latency_ms FROM ai_requests \
              WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1",

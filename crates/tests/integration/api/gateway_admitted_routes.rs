@@ -11,7 +11,8 @@ use axum::Router;
 use axum::body::Body;
 use axum::extract::ConnectInfo;
 use axum::http::{Request, StatusCode, header};
-use systemprompt_api::services::server::routes::{Composed, configure_routes_for_role};
+use systemprompt_api::services::server::routes::Composed;
+use systemprompt_api::services::server::{ReadinessState, setup_api_server};
 use systemprompt_extension::admitted::AdmittedGatewayRoute;
 use systemprompt_extension::reserved::{CoreId, PRIVILEGED_SHAPES};
 use systemprompt_extension::router::{
@@ -25,7 +26,7 @@ use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::profile::{NodeRole, RateLimitsConfig};
 use systemprompt_runtime::{AppContext, Kernel};
 use systemprompt_test_fixtures::{
-    ComposedParts, Probe, offline_resolved_kernel, probe_admitted, seed_admin_credential,
+    ComposedParts, Probe, gateway_probe_admitted, offline_resolved_kernel, seed_admin_credential,
 };
 use tower::ServiceExt;
 
@@ -101,7 +102,7 @@ struct Composition {
 }
 
 fn composition(gateway_route: bool, probes: Vec<Probe>) -> Composition {
-    let admitted = probe_admitted(ComposedParts {
+    let admitted = gateway_probe_admitted(ComposedParts {
         probes,
         gateway_routes: if gateway_route { vec![bridge_route()] } else { Vec::new() },
     });
@@ -119,20 +120,21 @@ async fn context() -> anyhow::Result<Arc<AppContext>> {
     Ok(ctx)
 }
 
-fn router(ctx: &AppContext, composed: &Composition, role: NodeRole) -> anyhow::Result<Router> {
-    let engines = Arc::new(systemprompt_api::routes::gateway::gateway_engines(
-        ctx,
-        &composed.kernel,
-    )?);
-    configure_routes_for_role(
-        ctx,
+async fn router(composed: &Composition, role: NodeRole) -> anyhow::Result<Router> {
+    let (_pool, ctx) = setup_ctx_customised(|config| {
+        config.rate_limits = RateLimitsConfig::disabled();
+        config.trusted_proxies = Vec::new();
+        config.role = role;
+    })
+    .await?;
+    setup_api_server(
+        &ctx,
         Composed {
             admitted: &composed.admitted,
             kernel: &composed.kernel,
         },
-        role,
         None,
-        &engines,
+        &Arc::new(ReadinessState::new()),
     )
 }
 
@@ -155,11 +157,10 @@ async fn get(app: &Router, uri: &str, bearer: Option<&str>) -> anyhow::Result<(S
 
 #[tokio::test]
 async fn only_a_gateway_role_mounts_the_admitted_gateway_route() -> anyhow::Result<()> {
-    let ctx = context().await?;
     let composed = composition(true, Vec::new());
 
-    let gateway = router(&ctx, &composed, NodeRole::Gateway)?;
-    let api = router(&ctx, &composed, NodeRole::Api)?;
+    let gateway = router(&composed, NodeRole::Gateway).await?;
+    let api = router(&composed, NodeRole::Api).await?;
 
     assert_eq!(get(&gateway, WHOAMI, None).await?.0, StatusCode::UNAUTHORIZED);
     assert_eq!(get(&api, WHOAMI, None).await?.0, StatusCode::NOT_FOUND);
@@ -168,8 +169,7 @@ async fn only_a_gateway_role_mounts_the_admitted_gateway_route() -> anyhow::Resu
 
 #[tokio::test]
 async fn the_admitted_gateway_route_answers_only_inside_its_paths() -> anyhow::Result<()> {
-    let ctx = context().await?;
-    let app = router(&ctx, &composition(true, Vec::new()), NodeRole::Gateway)?;
+    let app = router(&composition(true, Vec::new()), NodeRole::Gateway).await?;
 
     assert_ne!(get(&app, WHOAMI, None).await?.0, StatusCode::NOT_FOUND);
     assert_eq!(get(&app, OUTSIDE, None).await?.0, StatusCode::NOT_FOUND);
@@ -178,8 +178,7 @@ async fn the_admitted_gateway_route_answers_only_inside_its_paths() -> anyhow::R
 
 #[tokio::test]
 async fn without_the_admitted_gateway_route_its_path_is_not_mounted() -> anyhow::Result<()> {
-    let ctx = context().await?;
-    let app = router(&ctx, &composition(false, Vec::new()), NodeRole::Gateway)?;
+    let app = router(&composition(false, Vec::new()), NodeRole::Gateway).await?;
 
     assert_eq!(get(&app, WHOAMI, None).await?.0, StatusCode::NOT_FOUND);
     Ok(())
@@ -193,7 +192,7 @@ async fn the_admitted_gateway_route_carries_the_verified_principal() -> anyhow::
         &format!("admitted-gw-{}@example.invalid", uuid::Uuid::new_v4()),
     )
     .await?;
-    let app = router(&ctx, &composition(true, Vec::new()), NodeRole::Gateway)?;
+    let app = router(&composition(true, Vec::new()), NodeRole::Gateway).await?;
 
     let (status, body) = get(&app, WHOAMI, Some(cred.jwt.as_str())).await?;
 

@@ -137,9 +137,19 @@ fn strip_line_comments(text: &str) -> String {
 
 fn scan_file(rel: &str, code: &str, sources: &[Source], keys: &mut BTreeSet<RouteKey>) {
     each_call(code, ".route(", |open, inner| {
-        let (path_arg, handler) = split_first_arg(inner);
-        let path: String = path_arg.split_whitespace().collect();
         let site = format!("{rel}::{}", enclosing_fn(&code[..open]));
+        let (first, rest) = split_first_arg(inner);
+        let first: String = first.split_whitespace().collect();
+        if let Some((_, method)) = first.split_once("Method::") {
+            let (path_arg, _) = split_first_arg(rest);
+            keys.insert(RouteKey {
+                site,
+                method: method.to_owned(),
+                path: path_arg.split_whitespace().collect(),
+            });
+            return;
+        }
+        let (path, handler) = (first, rest);
         let handler = resolve_binding(code, handler.trim());
         let mut methods = top_level_methods(&handler);
         if methods.is_empty() {

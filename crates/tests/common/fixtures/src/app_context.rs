@@ -159,13 +159,19 @@ pub fn fixture_admitted_of(members: Vec<Box<dyn Extension>>) -> Arc<Admitted> {
     ))
 }
 
+pub fn fixture_core_members() -> Vec<Box<dyn Extension>> {
+    let mut members = systemprompt_test_migrate::core_members();
+    members.push(Box::new(systemprompt_gateway::extension::GatewayExtension));
+    members
+}
+
 pub fn fixture_admitted() -> Arc<Admitted> {
-    fixture_admitted_of(systemprompt_test_migrate::core_members())
+    fixture_admitted_of(fixture_core_members())
 }
 
 pub fn fixture_admitted_without(disabled: &[ExtensionId]) -> Arc<Admitted> {
     fixture_admitted_of(
-        systemprompt_test_migrate::core_members()
+        fixture_core_members()
             .into_iter()
             .filter(|ext| !disabled.iter().any(|id| id.as_str() == ext.metadata().id))
             .collect(),
@@ -219,17 +225,22 @@ fn extension_mode_profile(bootstrap: &TestBootstrap) -> Result<Arc<LoadedProfile
     Ok(LoadedProfile::from_path(&path)?)
 }
 
-async fn seed_admin(database_url: &str) -> Result<()> {
+pub async fn seed_fixture_system_admin_at(database_url: &str) -> Result<()> {
     let pool = crate::db::connect(database_url).await?;
     crate::credential::seed_fixture_system_admin(&pool).await
 }
 
 fn bootstrap_config(bootstrap: &TestBootstrap) -> Config {
-    Config::clone(bootstrap.boot_config())
+    let paths = &bootstrap.boot.profile().paths;
+    let mut config = fixture_config(&bootstrap.database_url);
+    config.system_path = paths.system.clone();
+    config.services_path = paths.services.clone();
+    config.bin_path = paths.bin.clone();
+    config
 }
 
 async fn build(builder: AppContextBuilder, database_url: &str) -> Result<Arc<AppContext>> {
-    seed_admin(database_url).await?;
+    seed_fixture_system_admin_at(database_url).await?;
     Ok(Arc::new(builder.build().await?))
 }
 
@@ -240,9 +251,22 @@ pub async fn test_app_context(database_url: &str) -> Arc<AppContext> {
 }
 
 pub async fn test_app_context_on(bootstrap: &TestBootstrap) -> Arc<AppContext> {
-    fixture_app_context_on_bootstrap(bootstrap, bootstrap_config(bootstrap), fixture_admitted())
-        .await
-        .unwrap_or_else(|e| panic!("fixture AppContext on the supplied bootstrap: {e:#}"))
+    test_app_context_on_with(bootstrap, fixture_admitted()).await
+}
+
+// The services tree is read again at build, so files a test writes into the
+// bootstrap's services directory after the bootstrap was created are seen.
+pub async fn test_app_context_on_with(
+    bootstrap: &TestBootstrap,
+    admitted: Arc<Admitted>,
+) -> Arc<AppContext> {
+    let services = systemprompt_loader::ServicesState::load(&bootstrap.boot)
+        .unwrap_or_else(|_| bootstrap.services.clone());
+    let built = match fixture_context_builder(bootstrap, bootstrap_config(bootstrap), admitted) {
+        Ok(builder) => build(builder.with_services(services), &bootstrap.database_url).await,
+        Err(error) => Err(error),
+    };
+    built.unwrap_or_else(|e| panic!("fixture AppContext on the supplied bootstrap: {e:#}"))
 }
 
 pub async fn fixture_app_context_on_bootstrap(

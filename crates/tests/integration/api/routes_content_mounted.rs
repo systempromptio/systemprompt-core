@@ -250,7 +250,10 @@ async fn disabling_content_while_its_routes_stay_enabled_is_refused_at_boot() ->
         Ok(_) => anyhow::bail!("boot accepted content-http without the content extension"),
         Err(error) => format!("{error:#}"),
     };
-    assert!(message.contains("'content' is disabled"), "{message}");
+    assert!(
+        message.contains("its core provider content is disabled"),
+        "{message}"
+    );
     Ok(())
 }
 

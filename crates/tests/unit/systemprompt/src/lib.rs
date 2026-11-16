@@ -54,6 +54,8 @@ mod mcp_slots;
 #[cfg(test)]
 mod schema_members_drift;
 #[cfg(test)]
+mod snapshot;
+#[cfg(test)]
 mod probe;
 #[cfg(test)]
 mod providers;

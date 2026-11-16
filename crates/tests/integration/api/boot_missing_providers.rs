@@ -10,7 +10,7 @@ use systemprompt_api::services::server::setup_api_server;
 use systemprompt_database::DbPool;
 use systemprompt_extension::{Extension, Resolved};
 use systemprompt_test_fixtures::{
-    Probe, core_members, ensure_test_bootstrap, error_chain, fixture_admitted_of,
+    Probe, ensure_test_bootstrap, error_chain, fixture_admitted_of, fixture_core_members,
     fixture_app_context_with_extensions, fixture_config,
 };
 use systemprompt_traits::DynSessionStore;
@@ -30,7 +30,7 @@ async fn context_without_users(
     extra: Vec<Box<dyn Extension>>,
 ) -> anyhow::Result<Arc<systemprompt_runtime::AppContext>> {
     let bootstrap = ensure_test_bootstrap();
-    let mut members: Vec<Box<dyn Extension>> = core_members()
+    let mut members: Vec<Box<dyn Extension>> = fixture_core_members()
         .into_iter()
         .filter(|member| member.metadata().id != "users")
         .collect();

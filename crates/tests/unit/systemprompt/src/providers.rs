@@ -54,11 +54,13 @@ fn a_requirement_met_only_by_a_disabled_members_slot_is_refused() {
         .build(&profile(&["probe-slot-owner"]))
         .expect_err("the only member opening the slot is disabled");
     assert!(matches!(
-        error,
+        &error,
         CompositionError::DisabledDependency { owner, provider, .. }
             if owner.as_str() == "probe-slot-reader" && provider.as_str() == "probe-slot-owner"
     ));
 }
+
+const CONTENT_AND_ITS_EARLIER_DEPENDENTS: [&str; 3] = ["content", "generator", "content-http"];
 
 fn refuse_provider() -> Result<DynContentCatalogStats, ProvideError> {
     Err(ProvideError::Failed(Box::new(std::fmt::Error)))
@@ -70,25 +72,25 @@ fn install_cannot_substitute_for_a_disabled_core_provider() {
         .with(Probe::new("probe-stats", |c| {
             c.provide::<DynContentCatalogStats, _>(|_: &Resolved<'_>| refuse_provider());
         }))
-        .build(&profile(&["content"]))
+        .build(&profile(&CONTENT_AND_ITS_EARLIER_DEPENDENTS))
         .expect_err("analytics-http's catalog stats come from core content only");
     assert!(matches!(
-        error,
+        &error,
         CompositionError::InstallSubstitution { owner, provider, .. }
             if owner.as_str() == "analytics-http" && provider.as_str() == "probe-stats"
-    ));
+    ), "{error:?}");
 }
 
 #[test]
 fn disabled_core_provider_is_named() {
     let error = reference()
-        .build(&profile(&["content"]))
+        .build(&profile(&CONTENT_AND_ITS_EARLIER_DEPENDENTS))
         .expect_err("analytics-http requires the catalog stats content provides");
     assert!(matches!(
-        error,
+        &error,
         CompositionError::DisabledDependency { owner, provider, .. }
             if owner.as_str() == "analytics-http" && provider.as_str() == "content"
-    ));
+    ), "{error:?}");
 }
 
 #[test]
