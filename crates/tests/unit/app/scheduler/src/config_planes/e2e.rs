@@ -50,6 +50,7 @@ async fn context_with_planes(
     config: systemprompt_manifest::Config,
     extension: PlanesExtension,
 ) -> Arc<AppContext> {
+    crate::test_extension::seed_config_admin(&config).await;
     let mut members = core_members();
     members.push(Box::new(extension));
     fixture_app_context_with_extensions(config, fixture_admitted_of(members))

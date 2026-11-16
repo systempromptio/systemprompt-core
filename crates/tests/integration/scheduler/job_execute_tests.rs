@@ -8,7 +8,7 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_scheduler::{CleanupInactiveSessionsJob, DatabaseCleanupJob};
 use systemprompt_test_fixtures::{
-    fixture_actor, test_app_context, test_database_url, test_db_pool,
+    fixture_actor, test_database_url, test_db_pool,
 };
 use systemprompt_traits::{Dependencies, Job, JobContext};
 
@@ -17,7 +17,7 @@ fn make_ctx(pool: &DbPool) -> JobContext {
 }
 
 async fn make_ctx_with_app(pool: &DbPool) -> JobContext {
-    let app = test_app_context(&test_database_url()).await;
+    let app = crate::test_extension::admin_app(&test_database_url()).await;
     let dependencies = app
         .kernel()
         .state()
