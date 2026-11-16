@@ -101,18 +101,18 @@ agent-runs = ["dep:systemprompt-agent-runs", "dep:systemprompt-agent-runs-entry"
 
 # OpenTelemetry: the gateway's OTLP/HTTP ingest routes and the `otlp_export`
 # job that ships the audit trail to a collector. `full` implies it.
-otel = ["systemprompt-api?/otel", "systemprompt-cli?/otel", "systemprompt-scheduler?/otel"]
+otel = ["systemprompt-api?/otel", "systemprompt-scheduler?/otel"]
 
 # The device-credential consumer surface the bridge reports installation
 # evidence through. `full` implies it.
-bridge = ["systemprompt-api?/bridge", "systemprompt-cli?/bridge"]
+bridge = ["systemprompt-api?/bridge"]
 
 # Office document codecs (.docx) for the files domain. `full` implies it.
 files-office = ["dep:systemprompt-files", "systemprompt-files/office"]
 
 # The PDF renderer for document export and its embedded fonts. Without it a
 # PDF export is refused as an unsupported operation. `full` implies it.
-files-pdf = ["dep:systemprompt-files", "systemprompt-files/pdf", "systemprompt-api?/pdf", "systemprompt-cli?/pdf"]
+files-pdf = ["dep:systemprompt-files", "systemprompt-files/pdf"]
 
 # Live co-editing of HTML and Markdown documents (engine-agnostic) and its HTTP
 # routes. `full` implies it.

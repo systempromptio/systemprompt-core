@@ -116,7 +116,6 @@ opentelemetry-proto = { workspace = true, optional = true }
 default = []
 brain = ["dep:systemprompt-brain", "systemprompt-runtime/brain", "systemprompt-gateway/brain", "systemprompt-scheduler/brain"]
 collab = ["systemprompt-files/collab", "systemprompt-runtime/collab"]
-pdf = ["systemprompt-files/pdf"]
 otel = ["dep:opentelemetry-proto", "dep:prost", "systemprompt-scheduler/otel"]
 bridge = []
 

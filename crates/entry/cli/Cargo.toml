@@ -17,18 +17,6 @@ include = ["src/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 [package.metadata.docs.rs]
 all-features = true
 
-[features]
-# Each feature mirrors the facade's optional domain of the same name; the
-# `systemprompt` binary is built by the facade, which forwards them.
-notifications = ["systemprompt-runtime/notifications"]
-collab = ["systemprompt-files/collab", "systemprompt-runtime/collab", "systemprompt-api/collab"]
-engine-loro = ["collab", "systemprompt-runtime/engine-loro"]
-office = ["systemprompt-files/office"]
-pdf = ["systemprompt-files/pdf", "systemprompt-api/pdf"]
-brain = ["systemprompt-runtime/brain", "systemprompt-mcp-host/brain", "systemprompt-api/brain"]
-otel = ["systemprompt-api/otel", "systemprompt-scheduler/otel"]
-bridge = ["systemprompt-api/bridge"]
-
 [lints]
 workspace = true
 
