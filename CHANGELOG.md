@@ -6,10 +6,12 @@
 
 - **Breaking:** **Runtime:** `ConfigPlane` gains the `build` field. Migrate by setting it, usually to `BuildIdentity::core()`.
 - **Breaking:** **MCP:** `read_artifact_resource` takes the caller's `UserId`, and `McpArtifactRepository::find_by_id` is replaced by `find_owned(artifact_id, owner)`. Migrate by passing the authenticated caller.
+- **Breaking:** **Files:** `DocumentsConfig` gains the `rendered_html` field (`RenderedHtmlConfig`). Migrate by setting it, usually to `RenderedHtmlConfig::default()`.
 - **Breaking:** **API:** `RouteGroup` gains `InternalLinks`, and `systemprompt_runtime::documents::links::LinkRefusal` gains `Unavailable`. Migrate by adding the match arms.
 
 ### Added
 
+- **Documents:** `GET /api/v1/documents/{id}/rendered` (also `HEAD`, `?revision=`) serves an HTML document's stored bytes inline as `text/html`, so an uploaded page shows as its author designed it. The response carries a `sandbox` CSP without `allow-same-origin`, which makes the page an opaque-origin document framed or not: it holds no session, reads no cookie and reaches no route of the installation; it is `nosniff`, `no-store`, `no-referrer` and frameable only by the app. By default it runs no script and loads only what the file embeds; `files.documents.renderedHtml.scripts` lets its scripts run inside the sandbox and `files.documents.renderedHtml.remoteAssets` lets it load `https:` assets. Any other format is refused as `unsupported_op`.
 - **CLI:** `systemprompt_cli::run_with(BuildIdentity)` (also `systemprompt::cli::run_with`) lets an embedding binary name itself — product name, version and optional source revision (`systemprompt_models::BuildIdentity`); `/livez`, `/readyz`, `/api/v1/health`, `/api/v1/health/detail` and the root discovery document report it under `build` next to core's `version`, and `run` reports core itself. The runtime takes it through `AppContextBuilder::with_build_identity` and exposes it as `AppContext::build_identity`.
 
 ### Changed

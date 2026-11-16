@@ -199,6 +199,8 @@ mod documents_pdf;
 #[cfg(test)]
 mod documents_read_parity;
 #[cfg(test)]
+mod documents_rendered;
+#[cfg(test)]
 mod documents_review;
 #[cfg(test)]
 mod documents_sharing;

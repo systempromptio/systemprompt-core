@@ -9,6 +9,11 @@
 //! `nosniff` is set on the response itself; the security-headers middleware
 //! keeps a route's own value rather than the configured one.
 //!
+//! A rendered HTML document is the one body that is meant to render as its
+//! author designed it: `rendered_html_csp` keeps the opaque origin and
+//! admits inline styles and embedded images, fonts and media, and, when the
+//! profile says so, the page's scripts and `https:` assets.
+//!
 //! The response also carries a [`FrameOptionsOverride`] (same origin): the
 //! security-headers middleware replaces a route's CSP with the app's own
 //! unless that override is present, in which case it keeps the route's CSP
@@ -33,6 +38,32 @@ pub(crate) const USER_CONTENT_CSP: &str = "sandbox; default-src 'none'";
 // `application/pdf` type and `frame-ancestors 'self'`.
 pub(crate) const INLINE_PDF_CSP: &str =
     "default-src 'none'; object-src 'self'; frame-ancestors 'self'";
+
+const RENDERED_HTML_CSP: &str = "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src \
+                                 data: blob:; font-src data:; media-src data: blob:; form-action \
+                                 'none'";
+
+const RENDERED_HTML_REMOTE_CSP: &str = "sandbox; default-src 'none'; style-src 'unsafe-inline' \
+                                        https:; img-src data: blob: https:; font-src data: \
+                                        https:; media-src data: blob: https:; form-action 'none'";
+
+const RENDERED_HTML_SCRIPTS_CSP: &str = "sandbox allow-scripts; default-src 'none'; script-src \
+                                         'unsafe-inline' 'unsafe-eval'; style-src \
+                                         'unsafe-inline'; img-src data: blob:; font-src data:; \
+                                         media-src data: blob:; form-action 'none'";
+
+const RENDERED_HTML_SCRIPTS_REMOTE_CSP: &str = "sandbox allow-scripts; default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' https:; \
+     style-src 'unsafe-inline' https:; img-src data: blob: https:; font-src data: https:; \
+     media-src data: blob: https:; form-action 'none'";
+
+pub(crate) const fn rendered_html_csp(scripts: bool, remote_assets: bool) -> &'static str {
+    match (scripts, remote_assets) {
+        (false, false) => RENDERED_HTML_CSP,
+        (false, true) => RENDERED_HTML_REMOTE_CSP,
+        (true, false) => RENDERED_HTML_SCRIPTS_CSP,
+        (true, true) => RENDERED_HTML_SCRIPTS_REMOTE_CSP,
+    }
+}
 
 pub(crate) fn harden(response: &mut Response, csp: &'static str) {
     if response
