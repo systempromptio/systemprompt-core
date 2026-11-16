@@ -122,10 +122,9 @@ async fn cleanup_owned_helper() {
         app.clone(),
     );
     println!("BEGIN_DRY");
-    let output = services::execute(parse(&["cleanup", "--dry-run"]), &dry)
-        .await
+    crate::boot_ctx::rendered(&dry, services::execute(parse(&["cleanup", "--dry-run"]), &dry)
+        .await)
         .expect("dry run");
-    systemprompt_extension::cli::CommandHost::render(&dry, &output);
     println!("END_DRY");
     assert!(
         child
@@ -172,8 +171,8 @@ async fn cleanup_owned_helper() {
         ServiceStatus::Running
     );
     println!("BEGIN_CONFIRMED");
-    services::execute(parse(&["cleanup", "--yes"]), &dry)
-        .await
+    crate::boot_ctx::rendered(&dry, services::execute(parse(&["cleanup", "--yes"]), &dry)
+        .await)
         .expect("confirmed cleanup");
     println!("END_CONFIRMED");
     assert!(

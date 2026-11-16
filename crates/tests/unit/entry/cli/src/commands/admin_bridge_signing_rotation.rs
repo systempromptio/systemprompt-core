@@ -8,7 +8,6 @@ use clap::Parser;
 use systemprompt_cli::admin::bridge::{self, BridgeCommands};
 use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_cloud::profile_authoring::LocalProfileBuilder;
-use systemprompt_config::LoadedProfile;
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
 
 const HELPER: &str = "commands::admin_bridge_signing_rotation::signing_rotation_helper";
@@ -26,14 +25,20 @@ fn rotate() -> BridgeCommands {
         .command
 }
 
-fn context(profile: &std::sync::Arc<LoadedProfile>) -> CommandContext {
+async fn context(profile: &std::path::Path) -> CommandContext {
+    let boot = systemprompt_loader::load_boot::load_boot_from_path(
+        profile,
+        systemprompt_config::SecretsSources::default(),
+    )
+    .await
+    .expect("boot the owned profile");
     CommandContext::new(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
     )
-    .with_profile(Some(std::sync::Arc::clone(profile)))
+    .with_boot(Some(boot))
 }
 
 #[tokio::test]
@@ -60,19 +65,17 @@ async fn signing_rotation_helper() {
     profile.security.issuer = "https://rotation.test".to_owned();
     let profile_path = fixture.path().join("profile.yaml");
     std::fs::write(&profile_path, serde_yaml::to_string(&profile).unwrap()).unwrap();
-    let loaded = LoadedProfile::from_path(&profile_path).expect("initialize owned profile");
+    let context = context(&profile_path).await;
 
     println!("BEGIN_FIRST_ROTATION");
-    let output = bridge::execute(rotate(), &context(&loaded))
-        .await
+    crate::boot_ctx::rendered(&context, bridge::execute(rotate(), &context)
+        .await)
         .expect("first signing rotation");
-    systemprompt_extension::cli::CommandHost::render(&context(&loaded), &output);
     println!("END_FIRST_ROTATION");
     println!("BEGIN_SECOND_ROTATION");
-    let output = bridge::execute(rotate(), &context(&loaded))
-        .await
+    crate::boot_ctx::rendered(&context, bridge::execute(rotate(), &context)
+        .await)
         .expect("second signing rotation");
-    systemprompt_extension::cli::CommandHost::render(&context(&loaded), &output);
     println!("END_SECOND_ROTATION");
 
     let persisted: serde_json::Value =

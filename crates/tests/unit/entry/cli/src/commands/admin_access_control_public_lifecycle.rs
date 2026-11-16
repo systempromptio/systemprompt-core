@@ -64,14 +64,13 @@ async fn access_control_helper() {
         EnvOverrides::default(),
     );
     println!("BEGIN_EXPORT");
-    let output = access_control::execute(AccessControlCommands::ExportYaml(ExportYamlArgs), &context)
-        .await
+    crate::boot_ctx::rendered(&context, access_control::execute(AccessControlCommands::ExportYaml(ExportYamlArgs), &context)
+        .await)
         .expect("public export command");
-    systemprompt_extension::cli::CommandHost::render(&context, &output);
     println!("END_EXPORT");
     println!("BEGIN_LINT");
-    let error = access_control::execute(AccessControlCommands::Lint(LintArgs), &context)
-        .await
+    let error = crate::boot_ctx::rendered(&context, access_control::execute(AccessControlCommands::Lint(LintArgs), &context)
+        .await)
         .expect_err("lint findings require nonzero result");
     println!("END_LINT");
     println!("LINT_ERROR={}", serde_json::json!(format!("{error:#}")));

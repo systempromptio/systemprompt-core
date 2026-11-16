@@ -98,10 +98,9 @@ async fn catalog_file_lifecycle_helper() {
     let config = json_config(&boot);
 
     println!("BEGIN_PROVIDER_LIST");
-    let output = provider::execute(&ProviderCommands::List, &config)
-        .await
+    crate::boot_ctx::rendered(&config, provider::execute(&ProviderCommands::List, &config)
+        .await)
         .expect("list booted provider");
-    systemprompt_extension::cli::CommandHost::render(&config, &output);
     println!("END_PROVIDER_LIST");
 
     let original = std::fs::read_to_string(&providers_path).expect("booted providers.yaml");
@@ -157,7 +156,7 @@ async fn catalog_file_lifecycle_helper() {
     }
 
     println!("BEGIN_PROVIDER_ADD");
-    provider::execute(
+    crate::boot_ctx::rendered(&config, provider::execute(
         &provider_add(
             "fixture-openai",
             "fixture_openai_key",
@@ -165,7 +164,7 @@ async fn catalog_file_lifecycle_helper() {
         ),
         &config,
     )
-    .await
+    .await)
     .expect("add provider with its first endpoint");
     println!("END_PROVIDER_ADD");
     let stored = yaml(&providers_path);
@@ -184,10 +183,9 @@ async fn catalog_file_lifecycle_helper() {
     );
 
     println!("BEGIN_MODEL_ADD");
-    let output = model::execute(&model_add("fixture-openai/api"), &config)
-        .await
+    crate::boot_ctx::rendered(&config, model::execute(&model_add("fixture-openai/api"), &config)
+        .await)
         .expect("add model");
-    systemprompt_extension::cli::CommandHost::render(&config, &output);
     println!("END_MODEL_ADD");
     let models = yaml(&ai.join("models.yaml"));
     assert_eq!(
@@ -235,13 +233,13 @@ async fn catalog_file_lifecycle_helper() {
     assert_eq!(files(&ai), before_unknown);
 
     println!("BEGIN_MODEL_REMOVE");
-    model::execute(
+    crate::boot_ctx::rendered(&config, model::execute(
         &ModelCommands::Remove {
             id: ModelId::new("fixture-model"),
         },
         &config,
     )
-    .await
+    .await)
     .expect("remove model");
     println!("END_MODEL_REMOVE");
     assert!(
@@ -251,15 +249,14 @@ async fn catalog_file_lifecycle_helper() {
     );
 
     println!("BEGIN_PROVIDER_REMOVE");
-    let output = provider::execute(
+    crate::boot_ctx::rendered(&config, provider::execute(
         &ProviderCommands::Remove {
             id: "fixture-openai".to_owned(),
         },
         &config,
     )
-    .await
+    .await)
     .expect("remove provider");
-    systemprompt_extension::cli::CommandHost::render(&config, &output);
     println!("END_PROVIDER_REMOVE");
     let after_remove = files(&ai);
     let missing_provider = provider::execute(

@@ -64,10 +64,9 @@ async fn dirty_status_helper() {
         database.url().to_owned(),
     );
     eprintln!("BEGIN_DIRTY_STATUS");
-    let output = db::execute(parse(&["migrate-status", "logging"]), &context)
-        .await
+    crate::boot_ctx::rendered(&context, db::execute(parse(&["migrate-status", "logging"]), &context)
+        .await)
         .expect("render dirty migration diagnosis");
-    systemprompt_extension::cli::CommandHost::render(&context, &output);
     eprintln!("END_DIRTY_STATUS");
     let after: Vec<(i32, String, String)> = sqlx::query_as(
         "SELECT version, name, checksum FROM extension_migrations \

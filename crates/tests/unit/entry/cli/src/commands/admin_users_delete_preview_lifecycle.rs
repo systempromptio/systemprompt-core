@@ -90,13 +90,12 @@ async fn delete_preview_helper() {
         test_app_context(database.url()).await,
     );
     println!("BEGIN_PREVIEW");
-    let output = users::execute(
+    crate::boot_ctx::rendered(&context, users::execute(
         parse(&["delete", target.id.as_str(), "--dry-run"]),
         &context,
     )
-    .await
+    .await)
     .expect("public deletion preview");
-    systemprompt_extension::cli::CommandHost::render(&context, &output);
     println!("END_PREVIEW");
     let users_after: Vec<(String, String, String, Vec<String>)> = sqlx::query_as(
         "SELECT id, name, status, roles FROM users WHERE id IN ($1, $2) ORDER BY id",
@@ -159,7 +158,7 @@ fn deletion_preview_reports_owned_rows_and_preserves_target_and_sibling() {
     let rows = artifact["items"].as_array().expect("preview rows");
     let sessions = rows
         .iter()
-        .find(|r| r["owner"] == "systemprompt-core" && r["table"] == "user_sessions")
+        .find(|r| r["owner"] == "users" && r["table"] == "user_sessions")
         .expect("session preview row");
     assert_eq!(sessions["rows"], 1);
     let state: serde_json::Value = serde_json::from_str(

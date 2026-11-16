@@ -148,7 +148,12 @@ fn doctor_reports_and_clears_repairable_schema_drift() {
         terminal.contains("live table(s) declared by no registered extension"),
         "{terminal}"
     );
-    assert!(terminal.contains(TABLE), "{terminal}");
+    let text_report = stdout
+        .split_once("BEGIN_DRIFT_TEXT")
+        .and_then(|(_, tail)| tail.split_once("END_DRIFT_TEXT"))
+        .map(|(section, _)| section)
+        .expect("text doctor markers");
+    assert!(text_report.contains(TABLE), "{text_report}");
 
     let repaired = marked(&stdout, "REPAIRED");
     assert!(

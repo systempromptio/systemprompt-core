@@ -71,7 +71,7 @@ async fn mixed_job_run_helper() {
     let message = error.to_string();
     assert!(message.starts_with("1 of 2 job(s) failed:"), "{message}");
     assert!(
-        message.contains("owned_missing_job: Job 'owned_missing_job' not found"),
+        message.contains("owned_missing_job: Job 'owned_missing_job' is not registered by any admitted extension"),
         "{message}"
     );
 
@@ -213,7 +213,7 @@ fn mixed_manual_run_reports_rows_and_persists_each_outcome() {
     assert_eq!(rows[1]["result"]["success"], false);
     assert_eq!(
         rows[1]["result"]["message"],
-        "Job 'owned_missing_job' not found"
+        "Job 'owned_missing_job' is not registered by any admitted extension"
     );
     assert!(rows[1]["result"]["items_processed"].is_null());
     assert!(rows[1]["result"]["items_failed"].is_null());
@@ -229,7 +229,7 @@ fn mixed_manual_run_reports_rows_and_persists_each_outcome() {
             [
                 MISSING_JOB,
                 "failed",
-                "Job 'owned_missing_job' not found",
+                "Job 'owned_missing_job' is not registered by any admitted extension",
                 1
             ]
         ])
