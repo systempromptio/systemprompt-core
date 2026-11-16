@@ -6,7 +6,6 @@ use rmcp::model::{
     ResourceContents, Tool,
 };
 use rmcp::{ErrorData as McpError, ServerHandler};
-use std::sync::Arc;
 use systemprompt_extension::StandingTag;
 use systemprompt_governance::authz::{
     AllowAllHook, DenyAllHook, SharedAuthzHook, SubjectAttributeError, SubjectAttributeProvider,
@@ -21,7 +20,7 @@ use systemprompt_mcp::repository::ToolUsageRepository;
 use systemprompt_mcp::services::ui_renderer::UiRendererRegistry;
 use systemprompt_mcp::{ArtifactIngest, McpToolExecutor, McpToolset, ToolsetCall};
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
-use systemprompt_models::authz::RuleType;
+use systemprompt_provider_contracts::governance::RuleType;
 use systemprompt_test_fixtures::{FIXTURE_EXTERNAL_URL, mint_bridge_jwt, mint_mcp_hop};
 
 use crate::harness::bootstrap_with_services;
