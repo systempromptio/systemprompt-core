@@ -34,6 +34,7 @@ mod gateway_manifest_conditional;
 mod gateway_manifest_fresh_reuse;
 mod gateway_manifest_freshness;
 mod gateway_manifest_grants;
+mod gateway_manifest_policy_reads;
 mod gateway_manifest_shape;
 mod gateway_memory_header;
 mod gateway_messages_auth;
