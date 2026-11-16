@@ -5,9 +5,8 @@
 //! chain are the built values of the gateway's slots
 //! ([`crate::contract`]); [`GatewayEngines::new`] reads each from the
 //! resolved state and falls back to the slot's default when no admitted
-//! member contributed to it. The gateway guards are built here from every
-//! admitted member's `Contributions::gateway_guard` factory, in composition
-//! order.
+//! member contributed to it. The gateway guards are the kernel-built
+//! [`GatewayGuards`] read from the same state.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -28,8 +27,7 @@ use crate::service::failover::{DeploymentLoad, ProviderBreakers};
 use systemprompt_client::GuardedClientConfig;
 use systemprompt_config::SecretsService;
 use systemprompt_extension::brain::MemoryRecall;
-use systemprompt_extension::{BuiltState, FactoryError, GatewayGuards, Resolved};
-use systemprompt_identifiers::ExtensionId;
+use systemprompt_extension::{GatewayGuards, MissingDependency, Resolved};
 use systemprompt_security::credential::TokenCache;
 use systemprompt_wire::WireProtocol;
 
@@ -168,7 +166,7 @@ pub struct GatewayEngines {
     pub load: DeploymentLoad,
     pub http: UpstreamHttp,
     pub provider_tokens: Arc<TokenCache>,
-    pub guards: GatewayGuards,
+    pub guards: Arc<GatewayGuards>,
     pub secrets: Arc<SecretsService>,
     pub memory_recall: Option<Arc<dyn MemoryRecall>>,
 }
@@ -191,18 +189,13 @@ impl std::fmt::Debug for GatewayEngines {
 pub enum GatewayEnginesError {
     #[error("gateway upstream HTTP client could not be built")]
     HttpClient(#[source] reqwest::Error),
-    #[error("gateway guard factory of {owner} failed")]
-    Guard {
-        owner: ExtensionId,
-        #[source]
-        source: FactoryError,
-    },
+    #[error("gateway guards are missing from the resolved state")]
+    Guards(#[source] MissingDependency),
 }
 
 impl GatewayEngines {
     pub fn new(
         provider_tokens: Arc<TokenCache>,
-        built: &BuiltState,
         r: &Resolved<'_>,
         secrets: Arc<SecretsService>,
     ) -> Result<Self, GatewayEnginesError> {
@@ -220,7 +213,7 @@ impl GatewayEngines {
             load: DeploymentLoad::default(),
             http,
             provider_tokens,
-            guards: admitted_guards(built, r)?,
+            guards: r.get().map_err(GatewayEnginesError::Guards)?,
             secrets,
             memory_recall: None,
         })
@@ -231,23 +224,4 @@ impl GatewayEngines {
         self.memory_recall = Some(recall);
         self
     }
-}
-
-fn admitted_guards(
-    built: &BuiltState,
-    r: &Resolved<'_>,
-) -> Result<GatewayGuards, GatewayEnginesError> {
-    let mut installed = Vec::new();
-    for member in built.members() {
-        for factory in member.sink.gateway_guards() {
-            let guard = factory
-                .build(r)
-                .map_err(|source| GatewayEnginesError::Guard {
-                    owner: member.owner.clone(),
-                    source,
-                })?;
-            installed.push((member.owner.clone(), guard));
-        }
-    }
-    Ok(GatewayGuards::new(installed))
 }

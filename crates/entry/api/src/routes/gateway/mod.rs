@@ -25,10 +25,10 @@
 //! inbox) carries its own budget, so its polling and inference never starve
 //! each other.
 //!
-//! [`gateway_engines`] builds the engines from the admitted composition: the
+//! [`gateway_engines`] builds the engines from the resolved kernel: the
 //! adapter, scanner, override and route-selector sets are the gateway's built
-//! slots and the guards come from every admitted member's guard factory, so
-//! nothing a disabled member contributed runs.
+//! slots and the guards are the kernel-built set of every admitted member's
+//! guard factory, so nothing a disabled member contributed runs.
 //!
 //! The access log layer is outside both limiters so that a refused request
 //! still produces a record; an instance 429ing every sign-in shows it in its
@@ -174,12 +174,10 @@ pub(crate) fn gateway_mount_parts(
 
 pub fn gateway_engines(
     ctx: &AppContext,
-    admitted: &Admitted,
     kernel: &Kernel,
 ) -> Result<GatewayEngines, systemprompt_gateway::GatewayEnginesError> {
     let engines = GatewayEngines::new(
         Arc::clone(ctx.connector_tokens()),
-        admitted.built(),
         &kernel.resolved(),
         Arc::clone(ctx.secrets()),
     )?;
@@ -196,7 +194,7 @@ pub fn gateway_router(
     admitted: &Admitted,
     kernel: &Kernel,
 ) -> anyhow::Result<Router> {
-    let engines = Arc::new(gateway_engines(ctx, admitted, kernel)?);
+    let engines = Arc::new(gateway_engines(ctx, kernel)?);
     let parts = gateway_mount_parts(ctx, &engines, admitted, kernel)?;
     let routes = parts
         .registered

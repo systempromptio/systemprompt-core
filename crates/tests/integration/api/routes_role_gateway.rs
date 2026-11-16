@@ -104,8 +104,7 @@ async fn configure_routes_for_role_mounts_the_gateway_regardless_of_the_configur
         &std::sync::Arc::new(
             systemprompt_gateway::GatewayEngines::new(
                 Default::default(),
-                &systemprompt_extension::BuiltState::default(),
-                &systemprompt_test_fixtures::offline_kernel(Default::default()).resolved(),
+                &systemprompt_test_fixtures::empty_resolved_kernel().resolved(),
                 systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
             )
             .expect("gateway engines build"),

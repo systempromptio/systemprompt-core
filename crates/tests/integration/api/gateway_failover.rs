@@ -367,8 +367,7 @@ async fn open_primary_circuit_routes_directly_to_fallback_and_records_the_served
     install_provider_api_key();
     let engines = std::sync::Arc::new(systemprompt_gateway::GatewayEngines::new(
         Default::default(),
-        &systemprompt_extension::BuiltState::default(),
-        &systemprompt_test_fixtures::offline_kernel(Default::default()).resolved(),
+        &systemprompt_test_fixtures::empty_resolved_kernel().resolved(),
         systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
     )?);
     let (pool, _) = setup_ctx().await?;
@@ -455,8 +454,7 @@ async fn open_fallback_circuit_keeps_a_healthy_primary_on_the_primary_only_path(
     install_provider_api_key();
     let engines = std::sync::Arc::new(systemprompt_gateway::GatewayEngines::new(
         Default::default(),
-        &systemprompt_extension::BuiltState::default(),
-        &systemprompt_test_fixtures::offline_kernel(Default::default()).resolved(),
+        &systemprompt_test_fixtures::empty_resolved_kernel().resolved(),
         systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
     )?);
     let (pool, _) = setup_ctx().await?;
@@ -700,8 +698,7 @@ async fn a_tripped_primary_is_skipped_while_a_later_deployment_is_healthy() -> a
     install_provider_api_key();
     let engines = std::sync::Arc::new(systemprompt_gateway::GatewayEngines::new(
         Default::default(),
-        &systemprompt_extension::BuiltState::default(),
-        &systemprompt_test_fixtures::offline_kernel(Default::default()).resolved(),
+        &systemprompt_test_fixtures::empty_resolved_kernel().resolved(),
         systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
     )?);
     let (pool, _) = setup_ctx().await?;
