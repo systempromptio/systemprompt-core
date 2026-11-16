@@ -6291,7 +6291,9 @@ dependencies = [
 name = "systemprompt"
 version = "0.81.1"
 dependencies = [
+ "async-trait",
  "axum",
+ "clap",
  "rmcp",
  "sqlx",
  "systemprompt-agent",

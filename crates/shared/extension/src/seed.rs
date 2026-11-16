@@ -1,7 +1,7 @@
 //! Idempotent post-migration data fixtures (`Seed`s).
 //!
 //! Seeds are runtime-applied SQL fragments that an extension declares via
-//! [`crate::Extension::seeds`]. They run on every boot **after** an
+//! [`Contributions::seed`](crate::contribute::Contributions::seed). They run on every boot **after** an
 //! extension's schemas and migrations have been applied, are **not** tracked
 //! in `extension_migrations`, and must be idempotent by contract: the
 //! installation linter rejects anything that is not `INSERT … ON CONFLICT`,

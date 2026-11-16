@@ -5,7 +5,8 @@
 //! They live here (and not in `authz/types.rs`) because they describe the
 //! *governed-call* enforcement plane — secret scans, scope checks, blocklists,
 //! rate limits — which is orthogonal to the user→entity allow/deny resolver.
-//! What a governed call targets and carries lives in [`super::governed`].
+//! What a governed call targets and carries is [`GovernedTarget`] and
+//! [`GovernedInput`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
