@@ -18,10 +18,6 @@ name = "systemprompt-files"
 section = "Changed"
 text = "The document purge declarations use `PurgePredicate`, and the member declares the user purge of `files`."
 
-[[crate]]
-name = "systemprompt-database"
-section = "Changed"
-text = "Migration 012 clears the recorded purge declarations of the users, events, logging, authz, oauth, mcp, ai, agent and files members; each records its own at the next install in which it is admitted, and one not admitted is reported as unrecorded by the user purge."
 
 [[crate]]
 name = "systemprompt-scheduler"
