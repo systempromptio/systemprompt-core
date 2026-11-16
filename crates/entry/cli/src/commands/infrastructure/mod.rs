@@ -1,8 +1,9 @@
 //! `infra` command group: services, database, jobs, and logs administration.
 //!
 //! Routes [`InfraCommands`] to the per-domain subcommand modules. On a
-//! `--database-url` invocation only the db and logs subtrees are served; the
-//! rest require a full profile context.
+//! `--database-url` invocation only the db and logs subtrees and `jobs history`
+//! are served; the rest, including `jobs list`/`show` (which read the
+//! admitted schedule), require a full profile context.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -44,11 +45,7 @@ pub async fn execute(cmd: InfraCommands, host: &dyn KernelHost) -> Result<Comman
             cmd,
             InfraCommands::Db(_)
                 | InfraCommands::Logs(_)
-                | InfraCommands::Jobs(
-                    jobs::JobsCommands::List
-                        | jobs::JobsCommands::Show(_)
-                        | jobs::JobsCommands::History(_)
-                )
+                | InfraCommands::Jobs(jobs::JobsCommands::History(_))
         )
     {
         return Err(crate::shared::database_scoped_command_error(host));
