@@ -11,45 +11,12 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_database::admin::SafeIdentifier;
-use systemprompt_extension::{AdmittedPurge, OrphanSweep, PurgeDeclaration, PurgeFilter, UserPurgeTable};
+use systemprompt_extension::{AdmittedPurge, OrphanSweep, PurgeDeclaration, PurgeFilter};
 use systemprompt_identifiers::ExtensionId;
 
 use crate::error::{Result, UserError};
 
 pub(crate) const USERS_OWNER: &str = "users";
-
-pub(crate) const CORE_PURGE_TABLES: &[UserPurgeTable] = &[
-    purge_table("ai_requests"),
-    purge_table("mcp_artifacts"),
-    purge_table("mcp_tool_executions"),
-    purge_table("mcp_sessions"),
-    purge_table("mcp_external_sessions"),
-    purge_table("governance_decisions"),
-    purge_table("agent_tasks"),
-    purge_table("task_messages"),
-    purge_table("files"),
-    purge_table("event_outbox"),
-    purge_table("logs"),
-    purge_table("user_rate_limit_buckets"),
-    purge_table("oauth_jti_revocations"),
-    purge_table("sso_login_events"),
-];
-
-pub(crate) const CORE_ORPHAN_SWEEPS: &[OrphanSweep] = &[OrphanSweep {
-    table: "artifact_payloads",
-    key: "sha256",
-    referenced_by: "mcp_artifacts",
-    via: "payload_sha256",
-    user_column: "user_id",
-}];
-
-const fn purge_table(table: &'static str) -> UserPurgeTable {
-    UserPurgeTable {
-        table,
-        column: "user_id",
-        predicate: None,
-    }
-}
 
 /// How many rows one purge table holds (or held) for a user. `absent` marks
 /// a table of a member outside this composition, purged from its recorded

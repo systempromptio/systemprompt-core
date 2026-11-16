@@ -27,6 +27,11 @@ impl Extension for EventsExtension {
             c.schema(schema);
         }
         c.migrations(extension_migrations!());
+        c.user_purge(UserPurgeTable {
+            table: "event_outbox",
+            column: "user_id",
+            predicate: None,
+        });
         Ok(())
     }
 }

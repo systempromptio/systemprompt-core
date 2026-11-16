@@ -131,6 +131,33 @@ impl Extension for McpExtension {
         crate::jobs::contribute(c);
         c.slot::<UiSlot>();
         c.slot::<AccessRecorderSlot>();
+        c.user_purge(UserPurgeTable {
+            table: "mcp_artifacts",
+            column: "user_id",
+            predicate: None,
+        });
+        c.user_purge(UserPurgeTable {
+            table: "mcp_tool_executions",
+            column: "user_id",
+            predicate: None,
+        });
+        c.user_purge(UserPurgeTable {
+            table: "mcp_sessions",
+            column: "user_id",
+            predicate: None,
+        });
+        c.user_purge(UserPurgeTable {
+            table: "mcp_external_sessions",
+            column: "user_id",
+            predicate: None,
+        });
+        c.orphan_sweep(OrphanSweep {
+            table: "artifact_payloads",
+            key: "sha256",
+            referenced_by: "mcp_artifacts",
+            via: "payload_sha256",
+            user_column: "user_id",
+        });
         Ok(())
     }
 }
