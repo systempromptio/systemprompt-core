@@ -7,8 +7,9 @@
 use std::sync::{Arc, Mutex};
 
 use systemprompt_database::DbPool;
+use systemprompt_extension::prelude::Dependencies;
 use systemprompt_extension::{
-    GatewayDenyReason, GatewayGuardRequest, GatewayRequestGuard, register_gateway_guard,
+    GatewayDenyReason, GatewayGuardRequest, GatewayRequestGuard, Resolved,
 };
 use systemprompt_gateway::client::{
     GatewayClient, GatewayClientError, GatewayClientParts, ServiceIdentity, ServicePrincipal,
@@ -17,7 +18,10 @@ use systemprompt_gateway::protocol::canonical::ResponseFormat;
 use systemprompt_gateway::{GatewayEngines, GatewayRepositories};
 use systemprompt_identifiers::{AiRequestId, ServiceName};
 use systemprompt_manifest::services::GatewayConfig;
-use systemprompt_test_fixtures::{DisposableDb, seed_admin_credential};
+use systemprompt_test_fixtures::{
+    ComposedParts, DisposableDb, Probe, offline_resolved_kernel, probe_admitted,
+    seed_admin_credential,
+};
 use systemprompt_traits::{DatabaseHandle, SessionProvider};
 use systemprompt_users::{SessionRepository, UserRepository};
 use wiremock::matchers::method;
@@ -51,7 +55,6 @@ impl GatewayRequestGuard for DenyServiceGuard {
     }
 }
 
-register_gateway_guard!("gateway", DenyServiceGuard);
 
 struct Fixture {
     database: DisposableDb,
@@ -94,9 +97,18 @@ async fn fixture(schema: &str, policy: Option<serde_json::Value>) -> anyhow::Res
     .await?;
     let upstream = MockServer::start().await;
     let repos = Arc::new(repos(&pool));
+    let admitted = probe_admitted(ComposedParts {
+        probes: vec![Probe::new("deny_service_guard", |c| {
+            c.gateway_guard(|_: &Resolved<'_>| {
+                Ok(Arc::new(DenyServiceGuard) as Arc<dyn GatewayRequestGuard>)
+            });
+        })],
+        ..ComposedParts::default()
+    });
+    let kernel = offline_resolved_kernel(&admitted, Dependencies::new());
     let engines = GatewayEngines::new(
         Default::default(),
-        &systemprompt_test_fixtures::empty_resolved_kernel().resolved(),
+        &kernel.resolved(),
         systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
     )?;
     let client = GatewayClient::builder(
