@@ -12,7 +12,7 @@ use systemprompt_test_fixtures::{
 use systemprompt_traits::{Job, JobContext};
 
 async fn ctx(pool: &systemprompt_database::DbPool, url: &str) -> JobContext {
-    ctx_for(pool, crate::test_extension::admin_app(url).await)
+    ctx_for(pool, systemprompt_test_fixtures::test_app_context(url).await)
 }
 
 fn ctx_for(
@@ -74,7 +74,7 @@ async fn session_bot_type_rollup_drains() {
 async fn inventory_refresh_runs_twice_with_a_shared_memo() {
     let url = test_database_url();
     let pool = test_db_pool().await;
-    let app_ctx = crate::test_extension::admin_app(&url).await;
+    let app_ctx = systemprompt_test_fixtures::test_app_context(&url).await;
     let admin_email = format!("{}@example.test", app_ctx.system_admin().id().as_str());
     seed_user_row(&pool, app_ctx.system_admin().id(), &admin_email)
         .await

@@ -179,7 +179,7 @@ async fn plane_debug_impls_flag_optional_members() {
     assert!(dbg.contains("outbox: None"), "got: {dbg}");
     assert!(dbg.contains("geoip_reader: false"), "got: {dbg}");
 
-    let resolved = crate::boot::admin_app(&url).await;
+    let resolved = systemprompt_test_fixtures::test_app_context(&url).await;
     let ctx = AppContext::from_parts(
         data,
         cfg,

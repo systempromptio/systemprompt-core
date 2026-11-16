@@ -17,7 +17,7 @@ fn make_ctx(pool: &DbPool) -> JobContext {
 }
 
 async fn make_ctx_with_app(pool: &DbPool) -> JobContext {
-    let app = crate::test_extension::admin_app(&test_database_url()).await;
+    let app = systemprompt_test_fixtures::test_app_context(&test_database_url()).await;
     let dependencies = app
         .kernel()
         .state()
