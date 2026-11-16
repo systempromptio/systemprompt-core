@@ -1,28 +1,124 @@
 //! `cloud fleet run` forwards read-only commands only: the guard classifies
-//! the forwarded command with the router's own descriptor before any tenant
-//! is contacted.
+//! the forwarded command through the host's `describe_command_line` before
+//! any tenant is contacted, so a line that selects no command or a command
+//! whose owner the profile disables is refused before the read-only check.
 
-use systemprompt_cli::kernel::{
-    CommandRegistry, command_line_path, describe_command_line, kernel_commands,
-};
+use std::path::Path;
+use std::sync::Arc;
+
+use systemprompt::traits::DatabaseHandle;
+use systemprompt_cli::ScriptedPrompter;
+use systemprompt_cli::kernel::{CommandRegistry, classify_command_line, kernel_commands};
 use systemprompt_cloud_entry::cli::fleet::ensure_read_only;
-use systemprompt_extension::cli::DescribedCommand;
+use systemprompt_extension::Resolved;
+use systemprompt_extension::cli::{
+    BoxFuture, ChildSupervisor, CliConfig, CommandError, CommandHost, CommandOutput,
+    DescribedCommand, Prompter,
+};
+use systemprompt_identifiers::ExtensionId;
+use systemprompt_loader::subprocess::ForegroundChildren;
+use systemprompt_manifest::{Config, Profile};
+
+struct ClassifyingHost {
+    registry: CommandRegistry,
+    profile: Profile,
+    cli: CliConfig,
+    prompter: ScriptedPrompter,
+    children: ForegroundChildren,
+}
+
+impl ClassifyingHost {
+    fn new(disabled: &[&str]) -> Self {
+        let declared = systemprompt::reference()
+            .declare()
+            .expect("the reference composition declares");
+        let registry = CommandRegistry::build(&declared.commands(), &kernel_commands())
+            .expect("the registry accepts the reference commands");
+        let mut profile = (*systemprompt_test_fixtures::test_boot_profile()).clone();
+        profile.extensions.disabled = disabled.iter().map(|id| ExtensionId::new(*id)).collect();
+        Self {
+            registry,
+            profile,
+            cli: CliConfig::default(),
+            prompter: ScriptedPrompter::new(Vec::<String>::new()),
+            children: ForegroundChildren::default(),
+        }
+    }
+}
+
+fn unavailable() -> CommandError {
+    CommandError::new(anyhow::anyhow!("the classifying host runs no command"))
+}
+
+impl CommandHost for ClassifyingHost {
+    fn output(&self) -> &CliConfig {
+        &self.cli
+    }
+
+    fn prompter(&self) -> &dyn Prompter {
+        &self.prompter
+    }
+
+    fn is_database_scoped(&self) -> bool {
+        false
+    }
+
+    fn profile(&self) -> Result<&Profile, CommandError> {
+        Ok(&self.profile)
+    }
+
+    fn db(&self) -> BoxFuture<'_, Result<Arc<dyn DatabaseHandle>, CommandError>> {
+        Box::pin(async { Err(unavailable()) })
+    }
+
+    fn resolved(&self) -> BoxFuture<'_, Result<Resolved<'_>, CommandError>> {
+        Box::pin(async { Err(unavailable()) })
+    }
+
+    fn children(&self) -> &dyn ChildSupervisor {
+        &self.children
+    }
+
+    fn render(&self, _output: &CommandOutput) {}
+
+    fn describe_command_line(&self, command: &[String]) -> Result<DescribedCommand, CommandError> {
+        classify_command_line(&self.registry, &self.profile, command).map_err(CommandError::new)
+    }
+
+    fn env_profile(&self) -> Option<&str> {
+        None
+    }
+
+    fn boot_config<'a>(
+        &'a self,
+        _profile: &'a Path,
+    ) -> BoxFuture<'a, Result<Arc<Config>, CommandError>> {
+        Box::pin(async { Err(unavailable()) })
+    }
+}
 
 fn args(command: &[&str]) -> Vec<String> {
     command.iter().map(|arg| (*arg).to_owned()).collect()
 }
 
-fn guard(command: &[String]) -> anyhow::Result<()> {
-    let declared = systemprompt::reference()
-        .declare()
-        .expect("the reference composition declares");
-    let registry = CommandRegistry::build(&declared.commands(), &kernel_commands())
-        .expect("the registry accepts the reference commands");
-    let described = DescribedCommand {
-        path: command_line_path(&registry, command)?,
-        descriptor: describe_command_line(&registry, command)?,
-    };
+fn guard_with(host: &ClassifyingHost, command: &[String]) -> anyhow::Result<()> {
+    let described = host.describe_command_line(command)?;
     ensure_read_only(&described, command)
+}
+
+fn guard(command: &[String]) -> anyhow::Result<()> {
+    guard_with(&ClassifyingHost::new(&[]), command)
+}
+
+#[test]
+fn a_disabled_owners_command_is_refused() {
+    let overview = args(&["analytics", "overview"]);
+    assert!(
+        guard_with(&ClassifyingHost::new(&["analytics-http"]), &overview).is_err(),
+        "the profile disables the command's owner"
+    );
+    guard_with(&ClassifyingHost::new(&[]), &overview)
+        .expect("negative control: analytics overview is read-only while its owner is enabled");
 }
 
 #[test]
@@ -74,7 +170,7 @@ fn an_unknown_command_is_refused() {
 
 #[test]
 fn an_empty_command_is_refused() {
-    assert!(ensure_read_only(&[]).is_err());
+    assert!(guard(&[]).is_err());
 }
 
 #[test]
