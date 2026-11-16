@@ -31,11 +31,12 @@ use axum::Json;
 use serde_json::json;
 use systemprompt_database::PLANE_NOT_APPLIED_HINT;
 use systemprompt_extension::contribute::ContributionSink;
-use systemprompt_extension::{Factory, ReadinessCheck, ReadinessFailure, SlotError, build_factories};
+use systemprompt_extension::{ReadinessCheck, ReadinessFailure, SlotError};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_runtime::{AppContext, ConfigPlaneSet};
 use systemprompt_scheduler::repository::ConfigReconcileRepository;
 
+use super::contributed::admitted_factories;
 use super::health::{HEALTH_CHECK_QUERY, HEALTH_PROBE_TIMEOUT};
 use super::readiness::ReadinessState;
 use crate::services::middleware::LoadShed;
@@ -256,21 +257,6 @@ fn registered_planes(ctx: &AppContext) -> Option<ConfigPlaneSet> {
             None
         },
     }
-}
-
-pub(super) fn admitted_factories<T: 'static>(
-    ctx: &AppContext,
-    slot: &'static str,
-    factories: fn(&ContributionSink) -> &[Box<dyn Factory<T>>],
-) -> Result<Vec<(ExtensionId, T)>, SlotError> {
-    let resolved = ctx.kernel().resolved();
-    let mut built = Vec::new();
-    for member in ctx.admitted().built().members() {
-        for value in build_factories(slot, &member.owner, factories(&member.sink), &resolved)? {
-            built.push((member.owner.clone(), value));
-        }
-    }
-    Ok(built)
 }
 
 pub(crate) fn readiness_layer(
