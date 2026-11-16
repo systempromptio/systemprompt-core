@@ -20,6 +20,10 @@
 //! admitted members' entries are present, so nothing a disabled member
 //! contributed runs.
 //!
+//! [`Kernel::detached`] holds a seeded state without a database and without
+//! resolving any member: a CLI command whose descriptor needs no database
+//! reads the profile-level seeds through it.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -139,6 +143,11 @@ impl Kernel {
     }
 
     #[must_use]
+    pub fn detached(tasks: BackgroundTasks, seed: Dependencies) -> Self {
+        Self::new(Arc::new(DetachedDatabase), tasks, seed)
+    }
+
+    #[must_use]
     pub fn with_handle<K: KernelHandle>(mut self, value: K::Value) -> Self {
         self.handles.insert(K::ID, Arc::new(value));
         self
@@ -235,6 +244,26 @@ impl Kernel {
         self.state.insert(Arc::new(policies));
         self.state.insert(Arc::new(guards));
         Ok(())
+    }
+}
+
+/// The database handle of a kernel a process holds without a database: it
+/// reports itself disconnected and downcasts to no database type, so a
+/// reader that needs the pool fails with its own typed error.
+#[derive(Debug, Clone, Copy)]
+struct DetachedDatabase;
+
+impl DatabaseHandle for DetachedDatabase {
+    fn is_connected(&self) -> bool {
+        false
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
+        self
     }
 }
 
