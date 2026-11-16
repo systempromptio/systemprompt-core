@@ -17,7 +17,7 @@
 //! and inserted as `Arc<S::Built>`, after the shared audience-resolver set
 //! ([`AudienceResolvers`]) every audience-reading slot consults; the governance surfaces every member reads
 //! by type — the [`SubjectProviderSet`], the [`PolicyCatalog`] and the
-//! [`GatewayGuards`] — each inserted as an `Arc`, a reserved or doubly
+//! [`GatewayGuards`](systemprompt_extension::GatewayGuards) — each inserted as an `Arc`, a reserved or doubly
 //! declared subject dimension refusing the resolution; and last every
 //! member's declared requirements, checked against the finished state, so a
 //! member may require a slot's built value or a governance surface. The
@@ -44,14 +44,18 @@ use systemprompt_extension::contribute::{SlotBuildInput, build_slot};
 use systemprompt_extension::prelude::RuleType;
 use systemprompt_extension::{
     Admitted, AdmittedAssets, AdmittedConfigs, AdmittedMigrations, AdmittedProjections,
-    AdmittedPurge, AdmittedSchedule, AudienceResolvers, BuiltState, FactoryError, GatewayGuards,
-    HandleId, KernelHandle, ProvideError, Resolved, SlotError,
+    AdmittedPurge, AdmittedSchedule, AudienceResolvers, BuiltState, FactoryError, HandleId,
+    KernelHandle, ProvideError, Resolved, SlotError,
 };
 use systemprompt_governance::authz::{SubjectProviderError, SubjectProviderSet};
 use systemprompt_governance::policy::{PolicyCatalog, PolicyCatalogError};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::{Dependencies, DuplicateDependency};
 use systemprompt_traits::{BackgroundTasks, DatabaseHandle};
+
+use self::reserved::{gateway_guards, refuse_kernel_types};
+
+mod reserved;
 
 #[derive(Debug, thiserror::Error)]
 pub enum KernelError {
@@ -269,41 +273,6 @@ impl Kernel {
     }
 }
 
-fn kernel_inserted() -> [TypeId; 4] {
-    [
-        TypeId::of::<Arc<AudienceResolvers>>(),
-        TypeId::of::<Arc<SubjectProviderSet>>(),
-        TypeId::of::<Arc<PolicyCatalog>>(),
-        TypeId::of::<Arc<GatewayGuards>>(),
-    ]
-}
-
-fn refuse_kernel_types(built: &BuiltState) -> Result<(), KernelError> {
-    let reserved = kernel_inserted();
-    for member in built.members() {
-        let provided = member
-            .sink
-            .provides()
-            .iter()
-            .map(|entry| (entry.type_id(), entry.type_name()));
-        let slot_built = member
-            .sink
-            .slots()
-            .iter()
-            .map(|record| (record.built().type_id(), record.built().type_name()));
-        if let Some((_, ty)) = provided
-            .chain(slot_built)
-            .find(|(id, _)| reserved.contains(id))
-        {
-            return Err(KernelError::ReservedType {
-                owner: member.owner.clone(),
-                ty,
-            });
-        }
-    }
-    Ok(())
-}
-
 #[derive(Debug, Clone, Copy)]
 struct DetachedDatabase;
 
@@ -319,20 +288,4 @@ impl DatabaseHandle for DetachedDatabase {
     fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
         self
     }
-}
-
-fn gateway_guards(built: &BuiltState, r: &Resolved<'_>) -> Result<GatewayGuards, KernelError> {
-    let mut installed = Vec::new();
-    for member in built.members() {
-        for factory in member.sink.gateway_guards() {
-            let guard = factory
-                .build(r)
-                .map_err(|source| KernelError::GatewayGuard {
-                    owner: member.owner.clone(),
-                    source,
-                })?;
-            installed.push((member.owner.clone(), guard));
-        }
-    }
-    Ok(GatewayGuards::new(installed))
 }

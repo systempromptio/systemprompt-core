@@ -38,6 +38,7 @@ use systemprompt_provider_contracts::{Dependencies, DuplicateDependency};
 
 use super::error::SlotError;
 use super::resolved::Resolved;
+use super::standing::StandingTag;
 use crate::state::StateRequirement;
 
 /// A contribution point owned by a capability; the kernel never names it.
@@ -77,31 +78,6 @@ impl<B> SlotEntry<B> {
     #[must_use]
     pub const fn standing(&self) -> StandingTag {
         self.standing
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum StandingTag {
-    Core,
-    Install,
-}
-
-impl StandingTag {
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Core => "core",
-            Self::Install => "install",
-        }
-    }
-
-    #[must_use]
-    pub fn parse(value: &str) -> Option<Self> {
-        match value {
-            "core" => Some(Self::Core),
-            "install" => Some(Self::Install),
-            _ => None,
-        }
     }
 }
 
