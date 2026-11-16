@@ -247,9 +247,6 @@ impl Kernel {
     }
 }
 
-/// The database handle of a kernel a process holds without a database: it
-/// reports itself disconnected and downcasts to no database type, so a
-/// reader that needs the pool fails with its own typed error.
 #[derive(Debug, Clone, Copy)]
 struct DetachedDatabase;
 
