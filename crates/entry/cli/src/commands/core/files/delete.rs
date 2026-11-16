@@ -13,7 +13,8 @@ use systemprompt_traits::FileStorage;
 
 use super::types::FileDeleteOutput;
 use crate::CliConfig;
-use crate::context::CommandContext;
+use systemprompt_extension::cli::CommandHost;
+use crate::commands::shared::app_context;
 use crate::interactive::Prompter;
 use crate::shared::CommandOutput;
 
@@ -36,15 +37,16 @@ pub struct DeleteArgs {
 pub(super) async fn execute(
     args: DeleteArgs,
     prompter: &dyn Prompter,
-    ctx: &CommandContext,
+    host: &dyn CommandHost,
 ) -> Result<CommandOutput> {
-    let app = ctx.app_context().await?;
+    let app = app_context(host)
+        .await?;
     execute_with_pool(
         args,
         prompter,
         app.db_pool(),
         Arc::clone(app.file_storage()),
-        &ctx.cli,
+        host.output(),
     )
     .await
 }

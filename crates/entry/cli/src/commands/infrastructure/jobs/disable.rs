@@ -8,8 +8,10 @@ use clap::Args;
 use systemprompt_identifiers::JobName;
 use systemprompt_scheduler::JobRepository;
 
+use super::admitted_schedule;
 use super::types::JobEnableOutput;
-use crate::context::CommandContext;
+use systemprompt_extension::cli::CommandHost;
+use crate::commands::shared::app_context;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
@@ -18,19 +20,19 @@ pub struct DisableArgs {
     pub job_name: JobName,
 }
 
-pub(super) async fn execute(args: DisableArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let job = systemprompt_traits::registered_jobs()
-        .map(|registration| registration.job)
-        .find(|j| j.name() == args.job_name);
-
-    if job.is_none() {
+pub(super) async fn execute(args: DisableArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    if !admitted_schedule(host)
+        .await?
+        .contains_job(args.job_name.as_str())
+    {
         anyhow::bail!(
             "Unknown job: {}. Use 'jobs list' to see available jobs",
             args.job_name
         );
     }
 
-    let app = ctx.app_context().await?;
+    let app = app_context(host)
+        .await?;
     let repo = JobRepository::new(app.db_pool());
     repo.set_enabled(&args.job_name, false)
         .await

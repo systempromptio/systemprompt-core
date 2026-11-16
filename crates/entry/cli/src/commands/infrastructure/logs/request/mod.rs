@@ -16,8 +16,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use super::types::{MessageRow, ToolCallRow};
-use crate::context::CommandContext;
-use crate::shared::{CommandOutput, render_result};
+use systemprompt_extension::cli::CommandHost;
+use crate::shared::CommandOutput;
 use serde_json::Value as JsonValue;
 use systemprompt_identifiers::{AiRequestId, UserId};
 use systemprompt_models::artifacts::{Column, ColumnType, NoticeLine, TableArtifact};
@@ -194,18 +194,14 @@ impl From<systemprompt_runtime::AiRequestClientEvidence> for ClientEvidenceOutpu
     }
 }
 
-pub async fn execute(command: RequestCommands, ctx: &CommandContext) -> Result<()> {
+pub async fn execute(command: RequestCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     match command {
         RequestCommands::List(args) => {
-            let result = list::execute(args, ctx).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            list::execute(args, host).await
         },
         RequestCommands::Show(args) => {
-            let result = show::execute(args, ctx).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            show::execute(args, host).await
         },
-        RequestCommands::Stats(args) => stats::execute(args, ctx).await,
+        RequestCommands::Stats(args) => stats::execute(args, host).await,
     }
 }

@@ -42,8 +42,7 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{LogId, TraceId};
 use systemprompt_logging::LogLevel;
 
-use crate::context::CommandContext;
-use crate::shared::render_result;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
 #[derive(Debug, Subcommand)]
 pub enum LogsCommands {
@@ -176,8 +175,8 @@ pub struct LogExportOutput {
     pub file_path: Option<String>,
 }
 
-pub async fn execute(command: LogsCommands, ctx: &CommandContext) -> Result<()> {
-    if ctx.is_database_scoped()
+pub async fn execute(command: LogsCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+    if host.is_database_scoped()
         && matches!(
             command,
             LogsCommands::Stream(_) | LogsCommands::Cleanup(_) | LogsCommands::Delete(_)
@@ -188,29 +187,23 @@ pub async fn execute(command: LogsCommands, ctx: &CommandContext) -> Result<()> 
 
     match command {
         LogsCommands::View(args) => {
-            let result = view::execute(args, ctx).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            view::execute(args, host).await
         },
         LogsCommands::Search(args) => {
-            let result = search::execute(args, ctx).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            search::execute(args, host).await
         },
-        LogsCommands::Stream(args) => stream::execute(args, ctx).await,
+        LogsCommands::Stream(args) => stream::execute(args, host).await,
         LogsCommands::Export(args) => {
-            let result = export::execute(args, ctx).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            export::execute(args, host).await
         },
-        LogsCommands::Cleanup(args) => cleanup::execute(args, ctx).await,
-        LogsCommands::Delete(args) => delete::execute(args, ctx).await,
-        LogsCommands::Summary(args) => summary::execute(args, ctx).await,
-        LogsCommands::Show(args) => show::execute(args, ctx).await,
-        LogsCommands::Trace(cmd) => trace::execute(cmd, ctx).await,
-        LogsCommands::Governance(cmd) => governance::execute(cmd, ctx).await,
-        LogsCommands::Request(cmd) => request::execute(cmd, ctx).await,
-        LogsCommands::Tools(cmd) => tools::execute(cmd, ctx).await,
-        LogsCommands::Audit(args) => audit::execute(args, ctx).await,
+        LogsCommands::Cleanup(args) => cleanup::execute(args, host).await,
+        LogsCommands::Delete(args) => delete::execute(args, host).await,
+        LogsCommands::Summary(args) => summary::execute(args, host).await,
+        LogsCommands::Show(args) => show::execute(args, host).await,
+        LogsCommands::Trace(cmd) => trace::execute(cmd, host).await,
+        LogsCommands::Governance(cmd) => governance::execute(cmd, host).await,
+        LogsCommands::Request(cmd) => request::execute(cmd, host).await,
+        LogsCommands::Tools(cmd) => tools::execute(cmd, host).await,
+        LogsCommands::Audit(args) => audit::execute(args, host).await,
     }
 }

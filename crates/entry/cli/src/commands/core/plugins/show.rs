@@ -7,7 +7,7 @@ use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use std::path::Path;
 
-use crate::context::CommandContext;
+use systemprompt_extension::cli::CommandHost;
 use crate::shared::CommandOutput;
 
 use super::types::{PluginComponentRef, PluginDetailOutput};
@@ -19,8 +19,8 @@ pub struct ShowArgs {
     pub id: PluginId,
 }
 
-pub(super) fn execute(args: &ShowArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let plugins_path = ctx.boot()?.require_services_root().path.join("plugins");
+pub(super) fn execute(args: &ShowArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let plugins_path = host.services_root()?.path.join("plugins");
     execute_with_path(args, &plugins_path)
 }
 

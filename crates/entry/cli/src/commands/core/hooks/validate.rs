@@ -7,7 +7,7 @@ use anyhow::Result;
 use clap::Args;
 use std::path::Path;
 
-use crate::context::CommandContext;
+use systemprompt_extension::cli::CommandHost;
 use crate::shared::CommandOutput;
 use systemprompt_identifiers::HookId;
 use systemprompt_manifest::{DiskHookConfig, HOOK_CONFIG_FILENAME};
@@ -19,8 +19,8 @@ const PLUGIN_ROOT_VAR: &str = "${CLAUDE_PLUGIN_ROOT}";
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ValidateArgs;
 
-pub(super) fn execute(_args: ValidateArgs, ctx: &CommandContext) -> Result<(CommandOutput, bool)> {
-    let hooks_path = ctx.boot()?.require_services_root().path.join("hooks");
+pub(super) fn execute(_args: ValidateArgs, host: &dyn CommandHost) -> Result<(CommandOutput, bool)> {
+    let hooks_path = host.services_root()?.path.join("hooks");
 
     let results = validate_all_hooks(&hooks_path)?;
     let valid = results.iter().all(|entry| entry.valid);

@@ -9,13 +9,13 @@ use std::path::PathBuf;
 use anyhow::{Context, Result, bail};
 use clap::Args;
 use serde::Serialize;
-use systemprompt_loader::BootContext;
 use systemprompt_loader::bundle::{BundleCache, cache_root, verify};
 use systemprompt_manifest::Profile;
+use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_manifest::services::bundle::SignedBundleManifest;
 use systemprompt_security::manifest_signing::{canonical_manifest_bytes, verify_with_pubkey};
 
-use crate::context::CommandContext;
+use systemprompt_extension::cli::CommandHost;
 use crate::shared::CommandOutput;
 use systemprompt_identifiers::ContentHash;
 
@@ -58,11 +58,11 @@ pub struct ActiveReport {
     pub detail: Option<String>,
 }
 
-pub fn execute(args: &InspectArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+pub fn execute(args: &InspectArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
     if let Some(archive) = args.bundle.as_deref() {
         let signed = verify::read_manifest(archive)
             .with_context(|| format!("Failed to read {}", archive.display()))?;
-        let report = describe_bundle(&signed, ctx.profile().ok());
+        let report = describe_bundle(&signed, host.profile().ok());
         return Ok(CommandOutput::card_value("Services Bundle", &report));
     }
     if !args.active {
@@ -70,7 +70,7 @@ pub fn execute(args: &InspectArgs, ctx: &CommandContext) -> Result<CommandOutput
     }
     Ok(CommandOutput::card_value(
         "Active Services Root",
-        &describe_active(ctx.boot()?)?,
+        &describe_active(host.profile()?, &host.services_root()?)?,
     ))
 }
 
@@ -140,11 +140,7 @@ fn signature_status(signed: &SignedBundleManifest, profile: Option<&Profile>) ->
     }
 }
 
-fn describe_active(boot: &BootContext) -> Result<ActiveReport> {
-    let profile = boot.profile();
-    let root = boot
-        .services_root()
-        .context("The services root has not been resolved in this process")?;
+fn describe_active(profile: &Profile, root: &ActiveServicesRoot) -> Result<ActiveReport> {
     let state = BundleCache::new(cache_root(profile)).read_state();
     let sources = state
         .sources

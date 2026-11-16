@@ -16,10 +16,9 @@ pub mod show;
 use anyhow::{Context, Result};
 use clap::Subcommand;
 
-use crate::CliConfig;
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 use crate::interactive::Prompter;
-use crate::shared::render_result;
-use systemprompt_loader::BootContext;
+use std::path::Path;
 
 #[derive(Debug, Subcommand)]
 pub enum TemplatesCommands {
@@ -43,37 +42,25 @@ pub fn execute(
     command: TemplatesCommands,
     prompter: &dyn Prompter,
     config: &CliConfig,
-    boot: &BootContext,
-) -> Result<()> {
+    services_root: &Path,
+) -> Result<CommandOutput> {
     match command {
         TemplatesCommands::List(args) => {
-            let result = list::execute(args, config, boot).context("Failed to list templates")?;
-            render_result(&result, config);
-            Ok(())
+            list::execute(args, config, services_root).context("Failed to list templates")
         },
         TemplatesCommands::Show(args) => {
-            let result =
-                show::execute(args, prompter, config, boot).context("Failed to show template")?;
-            render_result(&result, config);
-            Ok(())
+            show::execute(args, prompter, config, services_root).context("Failed to show template")
         },
         TemplatesCommands::Create(args) => {
-            let result = create::execute(args, prompter, config, boot)
-                .context("Failed to create template")?;
-            render_result(&result, config);
-            Ok(())
+            create::execute(args, prompter, config, services_root)
+                .context("Failed to create template")
         },
         TemplatesCommands::Edit(args) => {
-            let result =
-                edit::execute(args, prompter, config, boot).context("Failed to edit template")?;
-            render_result(&result, config);
-            Ok(())
+            edit::execute(args, prompter, config, services_root).context("Failed to edit template")
         },
         TemplatesCommands::Delete(args) => {
-            let result = delete::execute(args, prompter, config, boot)
-                .context("Failed to delete template")?;
-            render_result(&result, config);
-            Ok(())
+            delete::execute(args, prompter, config, services_root)
+                .context("Failed to delete template")
         },
     }
 }

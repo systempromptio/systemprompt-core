@@ -3,8 +3,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_cloud::CredentialsBootstrap;
 use crate::cli_settings::CliConfig;
-use crate::context::CommandContext;
+use systemprompt_extension::cli::CommandHost;
 use crate::presentation::StartupRenderer;
 use anyhow::Result;
 use std::sync::Arc;
@@ -68,7 +69,7 @@ pub struct StartupOptions {
 pub(super) async fn execute(
     target: ServiceTarget,
     options: StartupOptions,
-    ctx: &CommandContext,
+    host: &dyn CommandHost,
 ) -> Result<()> {
     let start_time = Instant::now();
 
@@ -77,7 +78,7 @@ pub(super) async fn execute(
     let renderer = StartupRenderer::new(rx);
     let render_handle = systemprompt_traits::OwnedTask::spawn("startup_renderer", renderer.run());
 
-    let result = run_startup(&target, &options, ctx, &tx).await;
+    let result = run_startup(&target, &options, host, &tx).await;
 
     if let Err(e) = &result
         && tx
@@ -101,7 +102,7 @@ pub(super) async fn execute(
 async fn run_startup(
     target: &ServiceTarget,
     options: &StartupOptions,
-    ctx: &CommandContext,
+    host: &dyn CommandHost,
     events: &systemprompt_traits::StartupEventSender,
 ) -> Result<String> {
     let plan = StartupPlan::compute(StartupRequest {
@@ -113,7 +114,7 @@ async fn run_startup(
 
     events.phase_started(Phase::PreFlight);
 
-    if ctx.cloud_credentials().is_some() {
+    if matches!(CredentialsBootstrap::read_unvalidated(), Ok(Some(_))) {
         events.info("Cloud credentials available");
     } else {
         events.info("Running in local-only mode (no cloud sync)");
@@ -129,7 +130,7 @@ async fn run_startup(
                 repair_drift: false,
                 full: false,
             },
-            ctx,
+            host,
         )
         .await?;
         events.phase_completed(Phase::Database);
@@ -137,13 +138,13 @@ async fn run_startup(
 
     if plan.start_api {
         let api_url = super::serve::execute_with_events(
-            ctx.prompter(),
+            host.prompter(),
             super::serve::ServeOptions {
                 foreground: true,
                 kill_port_process: options.kill_port_process,
                 run_migrations: false,
             },
-            ctx,
+            host,
             Some(events),
         )
         .await?;
@@ -166,7 +167,7 @@ async fn run_startup(
         events.phase_completed(Phase::McpServers);
     }
 
-    Ok(format!("http://127.0.0.1:{}", get_api_port(ctx.profile()?)))
+    Ok(format!("http://127.0.0.1:{}", get_api_port(host.profile()?)))
 }
 
 pub(super) async fn execute_individual_agent(

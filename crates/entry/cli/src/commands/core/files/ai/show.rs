@@ -13,7 +13,8 @@ use crate::CliConfig;
 use crate::commands::core::files::types::{
     ChecksumsOutput, FileDetailOutput, FileMetadataOutput, ImageMetadataOutput,
 };
-use crate::context::CommandContext;
+use systemprompt_extension::cli::CommandHost;
+use crate::commands::shared::app_context;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
@@ -22,9 +23,10 @@ pub struct ShowArgs {
     pub file: String,
 }
 
-pub(super) async fn execute(args: ShowArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let app = ctx.app_context().await?;
-    execute_with_pool(args, app.db_pool(), &ctx.cli).await
+pub(super) async fn execute(args: ShowArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let app = app_context(host)
+        .await?;
+    execute_with_pool(args, app.db_pool(), host.output()).await
 }
 
 pub async fn execute_with_pool(

@@ -16,7 +16,7 @@ use systemprompt_manifest::Profile;
 use systemprompt_runtime::DatabaseContext;
 
 use crate::cli_settings::CliConfig;
-use crate::context::CommandContext;
+use systemprompt_extension::cli::CommandHost;
 use crate::shared::{CommandOutput, render_result};
 
 use super::types::DbMigrateOutput;
@@ -28,9 +28,9 @@ pub(super) struct MigrateOptions {
     pub(super) full: bool,
 }
 
-pub(super) async fn execute_migrate(ctx: &CommandContext, options: MigrateOptions) -> Result<()> {
-    let config = &ctx.cli;
-    let sys_config = ctx.config()?;
+pub(super) async fn execute_migrate(host: &dyn CommandHost, options: MigrateOptions) -> Result<()> {
+    let config = host.output();
+    let sys_config = host.config()?;
 
     if config.should_show_verbose() {
         CliService::info(&format!("System path: {}", sys_config.system_path));

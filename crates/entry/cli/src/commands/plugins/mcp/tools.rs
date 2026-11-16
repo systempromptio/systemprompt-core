@@ -13,7 +13,8 @@ use super::types::{McpToolsOutput, McpToolsSummary};
 use crate::commands::shared::mcp_tools::{
     McpToolEntry, direct_url, list_tools_authenticated, list_tools_unauthenticated,
 };
-use crate::context::CommandContext;
+use systemprompt_extension::cli::CommandHost;
+use crate::commands::shared::app_context;
 use crate::session::get_or_create_session;
 use crate::shared::CommandOutput;
 use systemprompt_identifiers::{McpServerId, SessionToken};
@@ -36,20 +37,15 @@ pub struct ToolsArgs {
     pub timeout: u64,
 }
 
-pub(super) async fn execute(args: ToolsArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let config = &ctx.cli;
-    let services_config = ctx
-        .boot()?
-        .load_services_config()
-        .context("Failed to load services configuration")?;
-
-    let session_ctx = get_or_create_session(ctx).await?;
-    let session_token = session_ctx.session_token();
-
-    let app = ctx
-        .app_context()
+pub(super) async fn execute(args: ToolsArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let config = host.output();
+    let app = app_context(host)
         .await
         .context("Failed to initialize application context")?;
+    let services_config = app.services_config();
+
+    let session_ctx = get_or_create_session(host).await?;
+    let session_token = session_ctx.session_token();
 
     let manager = McpOrchestrator::new(
         (**app.service_repository()).clone(),

@@ -16,12 +16,20 @@ pub enum ExtensionSource {
     Manifest,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ExtensionStanding {
+    Core,
+    Install,
+    Manifest,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ExtensionSummary {
     pub id: ExtensionId,
     pub name: String,
     pub version: String,
-    pub priority: u32,
+    pub standing: ExtensionStanding,
     pub source: ExtensionSource,
     pub enabled: bool,
     pub capabilities: CapabilitySummary,
@@ -41,27 +49,9 @@ pub struct JobInfo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct TemplateInfo {
-    pub name: String,
-    pub description: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SchemaInfo {
     pub table: Option<String>,
-    pub source: String,
     pub required_columns: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct RouteInfo {
-    pub base_path: String,
-    pub requires_auth: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ToolInfo {
-    pub name: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -77,33 +67,26 @@ pub struct ExtensionDetailOutput {
     pub id: ExtensionId,
     pub name: String,
     pub version: String,
-    pub priority: u32,
+    pub standing: ExtensionStanding,
     pub source: ExtensionSource,
-    pub dependencies: Vec<String>,
-    pub config_prefix: Option<String>,
+    pub config_prefixes: Vec<String>,
     pub jobs: Vec<JobInfo>,
-    pub templates: Vec<TemplateInfo>,
     pub schemas: Vec<SchemaInfo>,
-    pub routes: Vec<RouteInfo>,
-    pub tools: Vec<ToolInfo>,
     pub roles: Vec<RoleInfo>,
-    pub storage_paths: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ExtensionConfigOutput {
     pub extension_id: ExtensionId,
-    pub config_prefix: Option<String>,
+    pub config_prefix: String,
     // JSON: JSON Schema document for the extension's config block.
-    pub config_schema: Option<serde_json::Value>,
-    pub has_config: bool,
+    pub config_schema: serde_json::Value,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ExtensionConfigSummary {
     pub extension_id: ExtensionId,
-    pub config_prefix: Option<String>,
-    pub has_config: bool,
+    pub config_prefix: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

@@ -3,7 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::context::CommandContext;
+use systemprompt_extension::cli::CommandHost;
+use crate::commands::shared::app_context;
 use crate::shared::CommandOutput;
 use anyhow::Result;
 use schemars::JsonSchema;
@@ -146,14 +147,14 @@ pub(super) async fn execute(
     detailed: bool,
     json: bool,
     health: bool,
-    cmd_ctx: &CommandContext,
+    host: &dyn CommandHost,
 ) -> Result<CommandOutput> {
-    let config = &cmd_ctx.cli;
-    let ctx = Arc::clone(cmd_ctx.app_context().await?);
+    let config = host.output();
+    let ctx = app_context(host).await?;
 
     let Ok(configs) = super::load_service_configs(ctx.boot()) else {
         let mut validator = StartupValidator::new(ctx.boot().clone())?;
-        let report = validator.validate(ctx.config());
+        let report = validator.validate(ctx.config(), host.admitted()?.built());
         if report.has_errors() {
             display_validation_report(&report);
             return Err(anyhow::anyhow!("Startup validation failed"));

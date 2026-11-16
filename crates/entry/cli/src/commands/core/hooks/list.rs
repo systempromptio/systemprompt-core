@@ -7,7 +7,7 @@ use anyhow::Result;
 use clap::Args;
 use std::path::Path;
 
-use crate::context::CommandContext;
+use systemprompt_extension::cli::CommandHost;
 use crate::shared::CommandOutput;
 use systemprompt_identifiers::HookId;
 use systemprompt_manifest::{DiskHookConfig, HOOK_CONFIG_FILENAME};
@@ -17,8 +17,8 @@ use super::types::{HookEntry, HookListOutput};
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ListArgs;
 
-pub(super) fn execute(args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let hooks_path = ctx.boot()?.require_services_root().path.join("hooks");
+pub(super) fn execute(args: ListArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let hooks_path = host.services_root()?.path.join("hooks");
     execute_with_path(args, &hooks_path)
 }
 

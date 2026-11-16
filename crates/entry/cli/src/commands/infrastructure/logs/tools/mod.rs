@@ -14,7 +14,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{McpServerId, McpToolName, TraceId};
 
-use crate::context::CommandContext;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
 #[derive(Debug, Subcommand)]
 pub enum ToolsCommands {
@@ -44,8 +44,8 @@ pub struct ToolsListOutput {
     pub total: u64,
 }
 
-pub async fn execute(command: ToolsCommands, ctx: &CommandContext) -> Result<()> {
+pub async fn execute(command: ToolsCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     match command {
-        ToolsCommands::List(args) => list::execute(args, ctx).await,
+        ToolsCommands::List(args) => list::execute(args, host).await,
     }
 }

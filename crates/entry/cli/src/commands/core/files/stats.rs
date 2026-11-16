@@ -10,14 +10,15 @@ use systemprompt_files::{FileRepository, FileStats};
 
 use super::types::{CategoryStat, FileCategoryStats, FileStatsOutput};
 use crate::CliConfig;
-use crate::context::CommandContext;
+use systemprompt_extension::cli::CommandHost;
+use systemprompt_database::pool_from_handle;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct StatsArgs;
 
-pub(super) async fn execute(args: StatsArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    execute_with_pool(args, &ctx.db_pool().await?, &ctx.cli).await
+pub(super) async fn execute(args: StatsArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    execute_with_pool(args, &pool_from_handle(host.db().await?)?, host.output()).await
 }
 
 pub(super) async fn execute_with_pool(

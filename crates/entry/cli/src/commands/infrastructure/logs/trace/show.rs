@@ -21,7 +21,8 @@ use super::json::build_json;
 use super::summary::{SummaryContext, print_summary};
 use super::{AiSummaryRow, McpSummaryRow, StepSummaryRow, TraceEventRow, TraceViewOutput};
 use crate::CliConfig;
-use crate::context::CommandContext;
+use systemprompt_extension::cli::CommandHost;
+use systemprompt_database::pool_from_handle;
 use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Args)]
@@ -74,9 +75,9 @@ struct FormattedDisplayContext<'a> {
     step_summary: &'a systemprompt_runtime::ExecutionStepSummary,
 }
 
-pub(super) async fn execute(args: ShowArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let pool = ctx.db_pool().await?.pool();
-    execute_with_pool_inner(args, &pool, &ctx.cli).await
+pub(super) async fn execute(args: ShowArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let pool = pool_from_handle(host.db().await?)?.pool();
+    execute_with_pool_inner(args, &pool, host.output()).await
 }
 
 async fn execute_with_pool_inner(

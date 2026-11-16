@@ -1,152 +1,103 @@
-//! `plugins list` command over compiled and manifest-discovered extensions.
+//! `plugins list` command over the admitted composition and the
+//! manifest-discovered extensions.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use clap::Args;
-use systemprompt_extension::Extension;
+use systemprompt_extension::cli::{CommandError, CommandHost, CommandOutput};
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_loader::ExtensionLoader;
 
-use super::discover_registry;
-use super::types::{CapabilitySummary, ExtensionListOutput, ExtensionSource, ExtensionSummary};
-use crate::CliConfig;
-use crate::shared::CommandOutput;
+use super::composition;
+use super::types::{
+    CapabilitySummary, ExtensionListOutput, ExtensionSource, ExtensionStanding, ExtensionSummary,
+};
 
 #[derive(Debug, Clone, Args)]
 pub struct ListArgs {
     #[arg(long, help = "Filter by extension ID (substring match)")]
     pub filter: Option<String>,
 
-    #[arg(long, value_parser = ["jobs", "templates", "schemas", "routes", "tools", "roles", "storage"])]
+    #[arg(long, value_parser = ["jobs", "schemas", "roles", "configs"])]
     pub capability: Option<String>,
 
     #[arg(long, value_parser = ["compiled", "manifest", "cli", "mcp", "all"], default_value = "all", help = "Filter by extension type")]
     pub r#type: String,
 }
 
-pub fn execute(args: &ListArgs, _config: &CliConfig) -> CommandOutput {
+pub fn execute(args: &ListArgs, host: &dyn CommandHost) -> Result<CommandOutput, CommandError> {
     let mut extensions: Vec<ExtensionSummary> = Vec::new();
 
     if matches!(args.r#type.as_str(), "all" | "compiled") {
-        extensions.extend(collect_compiled(args));
+        let built = composition::built(host)?;
+        extensions.extend(
+            composition::matching(built, args.filter.as_deref())
+                .map(|member| (member, composition::capabilities(member)))
+                .filter(|(_, capabilities)| has_capability(capabilities, args.capability.as_deref()))
+                .map(|(member, capabilities)| ExtensionSummary {
+                    id: member.owner.clone(),
+                    name: member.metadata.name.to_owned(),
+                    version: member.metadata.version.to_owned(),
+                    standing: composition::standing(member),
+                    source: ExtensionSource::Compiled,
+                    enabled: true,
+                    capabilities,
+                }),
+        );
     }
 
     if matches!(args.r#type.as_str(), "all" | "manifest" | "cli" | "mcp") {
         extensions.extend(collect_manifest(args));
     }
 
-    extensions.sort_by_key(|e| e.priority);
-
     let total = extensions.len();
-
     let output = ExtensionListOutput { extensions, total };
 
-    CommandOutput::table_of(
-        vec![
-            "id",
-            "name",
-            "version",
-            "priority",
-            "source",
-            "capabilities",
-        ],
+    Ok(CommandOutput::table_of(
+        vec!["id", "name", "version", "standing", "source", "capabilities"],
         &output.extensions,
     )
-    .with_title("Extensions")
+    .with_title("Extensions"))
 }
 
-fn collect_compiled(args: &ListArgs) -> Vec<ExtensionSummary> {
-    let registry = discover_registry();
-    registry
-        .extensions()
-        .iter()
-        .filter(|ext| matches_compiled_filters(ext.as_ref(), args))
-        .map(|ext| compiled_summary(ext.as_ref()))
-        .collect()
-}
-
-fn matches_compiled_filters(ext: &dyn Extension, args: &ListArgs) -> bool {
-    if let Some(ref filter) = args.filter
-        && !ext.id().to_lowercase().contains(&filter.to_lowercase())
-        && !ext.name().to_lowercase().contains(&filter.to_lowercase())
-    {
-        return false;
-    }
-
-    if let Some(ref cap) = args.capability {
-        match cap.as_str() {
-            "jobs" => return super::owned_jobs(ext.id()).next().is_some(),
-            "templates" => return ext.has_template_providers(),
-            "schemas" => return ext.has_schemas(),
-            "routes" => return false,
-            "tools" => return ext.has_tool_providers(),
-            "roles" => return ext.has_roles(),
-            "storage" => return ext.has_storage_paths(),
-            _ => {},
-        }
-    }
-
-    true
-}
-
-fn compiled_summary(ext: &dyn Extension) -> ExtensionSummary {
-    let capabilities = CapabilitySummary {
-        jobs: super::owned_jobs(ext.id()).count(),
-        templates: ext.template_providers().len(),
-        schemas: ext.schemas().len(),
-        routes: 0,
-        tools: ext.tool_providers().len(),
-        roles: ext.roles().len(),
-        storage_paths: ext.required_storage_paths().len(),
-    };
-
-    ExtensionSummary {
-        id: systemprompt_identifiers::ExtensionId::new(ext.id()),
-        name: ext.name().to_owned(),
-        version: ext.version().to_owned(),
-        priority: ext.priority(),
-        source: ExtensionSource::Compiled,
-        enabled: true,
-        capabilities,
+fn has_capability(capabilities: &CapabilitySummary, capability: Option<&str>) -> bool {
+    match capability {
+        Some("jobs") => capabilities.jobs > 0,
+        Some("schemas") => capabilities.schemas > 0,
+        Some("roles") => capabilities.roles > 0,
+        Some("configs") => capabilities.configs > 0,
+        _ => true,
     }
 }
 
 fn collect_manifest(args: &ListArgs) -> Vec<ExtensionSummary> {
     let project_root = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::new());
-    let mut summaries = Vec::new();
 
-    for ext in ExtensionLoader::discover(&project_root) {
-        let type_matches = match args.r#type.as_str() {
+    ExtensionLoader::discover(&project_root)
+        .into_iter()
+        .filter(|ext| match args.r#type.as_str() {
             "cli" => ext.is_cli(),
             "mcp" => ext.is_mcp(),
             _ => true,
-        };
-
-        if !type_matches {
-            continue;
-        }
-
-        if let Some(ref filter) = args.filter
-            && !ext
-                .manifest
-                .extension
-                .name
-                .to_lowercase()
-                .contains(&filter.to_lowercase())
-        {
-            continue;
-        }
-
-        summaries.push(ExtensionSummary {
-            id: systemprompt_identifiers::ExtensionId::new(ext.manifest.extension.name.clone()),
+        })
+        .filter(|ext| {
+            args.filter.as_ref().is_none_or(|filter| {
+                ext.manifest
+                    .extension
+                    .name
+                    .to_lowercase()
+                    .contains(&filter.to_lowercase())
+            })
+        })
+        .map(|ext| ExtensionSummary {
+            id: ExtensionId::new(ext.manifest.extension.name.clone()),
             name: ext.manifest.extension.name.clone(),
             version: "manifest".to_owned(),
-            priority: 100,
+            standing: ExtensionStanding::Manifest,
             source: ExtensionSource::Manifest,
             enabled: ext.is_enabled(),
             capabilities: CapabilitySummary::default(),
-        });
-    }
-
-    summaries
+        })
+        .collect()
 }

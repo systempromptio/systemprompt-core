@@ -15,7 +15,8 @@ use systemprompt_identifiers::{ContextId, SessionId, UserId};
 use tokio::fs;
 
 use super::types::FileUploadOutput;
-use crate::context::CommandContext;
+use systemprompt_extension::cli::CommandHost;
+use crate::commands::shared::app_context;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
@@ -36,8 +37,9 @@ pub struct UploadArgs {
     pub ai: bool,
 }
 
-pub async fn execute(args: UploadArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let app = ctx.app_context().await?;
+pub async fn execute(args: UploadArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let app = app_context(host)
+        .await?;
     let service = FileUploadService::new(
         (**app.file_repository()).clone(),
         (**app.files_config()).clone(),

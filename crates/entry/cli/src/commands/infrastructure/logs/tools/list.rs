@@ -3,6 +3,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::commands::shared::rendered;
+use systemprompt_extension::cli::CommandHost;
+use systemprompt_database::pool_from_handle;
 use anyhow::Result;
 use clap::Args;
 use std::sync::Arc;
@@ -11,9 +14,8 @@ use systemprompt_logging::CliService;
 use systemprompt_runtime::{ToolExecutionFilter, TraceQueryService, TraceRepository};
 
 use super::{ToolExecutionRow, ToolsListOutput};
-use crate::CliConfig;
 use crate::commands::infrastructure::logs::duration::parse_since;
-use crate::shared::{CommandOutput, render_result};
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct ListArgs {
@@ -33,13 +35,19 @@ pub struct ListArgs {
     pub limit: i64,
 }
 
-crate::define_pool_command!(ListArgs => (), with_config);
+pub(in crate::commands::infrastructure::logs) async fn execute(
+    args: ListArgs,
+    host: &dyn CommandHost,
+) -> Result<CommandOutput> {
+    let pool = pool_from_handle(host.db().await?)?.pool();
+    execute_with_pool_inner(args, &pool, host).await
+}
 
 async fn execute_with_pool_inner(
     args: ListArgs,
     pool: &Arc<sqlx::PgPool>,
-    config: &CliConfig,
-) -> Result<()> {
+    host: &dyn CommandHost,
+) -> Result<CommandOutput> {
     let since_timestamp = parse_since(args.since.as_ref())?;
     let name_pattern = args.name.as_ref().map(|n| format!("%{n}%"));
     let server_pattern = args.server.as_ref().map(|s| format!("%{s}%"));
@@ -78,7 +86,7 @@ async fn execute_with_pool_inner(
         executions,
     };
 
-    if config.is_json_output() {
+    if host.output().is_json_output() {
         let result = CommandOutput::table_of(
             vec![
                 "timestamp",
@@ -91,12 +99,12 @@ async fn execute_with_pool_inner(
             &output.executions,
         )
         .with_title("MCP Tool Executions");
-        render_result(&result, config);
+        host.render(&result);
     } else {
         render_tool_list(&output, &args);
     }
 
-    Ok(())
+    Ok(rendered())
 }
 
 fn render_tool_list(output: &ToolsListOutput, args: &ListArgs) {

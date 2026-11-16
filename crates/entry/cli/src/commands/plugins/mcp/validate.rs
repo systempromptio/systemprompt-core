@@ -10,7 +10,8 @@ use std::time::Duration;
 
 use super::types::{McpBatchValidateOutput, McpValidateOutput, McpValidateSummary};
 pub use super::validate_output::{FailureDetail, failure_output, success_output};
-use crate::context::CommandContext;
+use systemprompt_extension::cli::CommandHost;
+use crate::commands::shared::app_context;
 use crate::interactive::Prompter;
 use systemprompt_extension::cli::resolve_required;
 use crate::shared::CommandOutput;
@@ -42,19 +43,15 @@ pub struct ValidateArgs {
 
 pub(super) async fn execute(
     args: ValidateArgs,
-    ctx: &CommandContext,
+    host: &dyn CommandHost,
 ) -> Result<(CommandOutput, bool)> {
-    let prompter = ctx.prompter();
-    let config = &ctx.cli;
-    let services_config = ctx
-        .boot()?
-        .load_services_config()
-        .context("Failed to load services configuration")?;
-
-    let app = ctx
-        .app_context()
+    let prompter = host.prompter();
+    let config = host.output();
+    let app = app_context(host)
         .await
         .context("Failed to initialize application context")?;
+    let services_config = app.services_config();
+
 
     let database = DatabaseService::new(
         (**app.service_repository()).clone(),

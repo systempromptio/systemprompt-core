@@ -28,8 +28,10 @@ use systemprompt_scheduler::{
 };
 
 use super::types::{BatchJobRunOutput, JobRunOutput, JobRunResult};
-use crate::context::CommandContext;
-use crate::shared::{CommandOutput, render_result};
+use systemprompt_extension::cli::CommandHost;
+use super::admitted_schedule;
+use crate::commands::shared::{app_context, services_config};
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct RunArgs {
@@ -73,8 +75,9 @@ pub struct RunArgs {
     pub lock_wait_secs: u64,
 }
 
-pub(super) async fn execute(args: RunArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let app = Arc::clone(ctx.app_context().await?);
+pub(super) async fn execute(args: RunArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let app = app_context(host).await?;
+    let schedule = Arc::new(admitted_schedule(host).await?);
 
     let parameters = parse_job_parameters(&args.params)?;
     let selection = if args.all {
@@ -85,12 +88,10 @@ pub(super) async fn execute(args: RunArgs, ctx: &CommandContext) -> Result<Comma
         JobSelection::Names(args.job_names)
     };
 
-    let scheduler_config = ctx
-        .boot()?
-        .load_services_config()?
+    let scheduler_config = services_config(host)?
         .scheduler
         .unwrap_or_else(systemprompt_manifest::SchedulerConfig::with_system_admin);
-    let service = JobExecutionService::new(app, scheduler_config)
+    let service = JobExecutionService::new(app, scheduler_config, schedule)
         .with_lock_wait(Duration::from_secs(args.lock_wait_secs));
     let batch = service.run_jobs(&selection, &parameters).await?;
 
@@ -125,7 +126,7 @@ pub(super) async fn execute(args: RunArgs, ctx: &CommandContext) -> Result<Comma
     if output.failed == 0 {
         return Ok(table);
     }
-    render_result(&table, &ctx.cli);
+    host.render(&table);
     bail!(
         "{} of {} job(s) failed:\n{}",
         output.failed,

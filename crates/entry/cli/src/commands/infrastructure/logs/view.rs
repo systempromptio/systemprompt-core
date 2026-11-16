@@ -13,7 +13,8 @@ use super::duration::parse_since;
 use super::shared::display_log_row;
 use super::{LogEntryRow, LogFilters, LogViewOutput};
 use crate::CliConfig;
-use crate::context::CommandContext;
+use systemprompt_extension::cli::CommandHost;
+use systemprompt_database::pool_from_handle;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
@@ -40,9 +41,9 @@ pub struct ViewArgs {
     pub since: Option<String>,
 }
 
-pub(super) async fn execute(args: ViewArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let service = LoggingMaintenanceService::new(&ctx.db_pool().await?);
-    execute_inner(args, &service, &ctx.cli).await
+pub(super) async fn execute(args: ViewArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let service = LoggingMaintenanceService::new(&pool_from_handle(host.db().await?)?);
+    execute_inner(args, &service, host.output()).await
 }
 
 async fn execute_inner(

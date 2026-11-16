@@ -12,6 +12,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::commands::shared::rendered;
+use systemprompt_extension::cli::CommandHost;
+use systemprompt_database::pool_from_handle;
 use std::collections::BTreeMap;
 use std::io::Write;
 use std::sync::Arc;
@@ -26,7 +29,7 @@ use systemprompt_identifiers::UserId;
 
 use crate::CliConfig;
 use crate::commands::infrastructure::logs::duration::parse_since;
-use crate::shared::{CommandOutput, render_result, truncate_with_ellipsis};
+use crate::shared::{CommandOutput, truncate_with_ellipsis};
 
 /// Which dimension of the warn rollup to collapse onto.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, JsonSchema)]
@@ -104,7 +107,13 @@ pub struct GovernanceReportOutput {
     pub safety_findings: Vec<SafetyFindingGroupRow>,
 }
 
-crate::define_pool_command!(ReportArgs => (), with_config);
+pub(in crate::commands::infrastructure::logs) async fn execute(
+    args: ReportArgs,
+    host: &dyn CommandHost,
+) -> Result<CommandOutput> {
+    let pool = pool_from_handle(host.db().await?)?.pool();
+    execute_with_pool_inner(args, &pool, host).await
+}
 
 #[derive(Default)]
 struct GroupAccumulator {
@@ -191,18 +200,17 @@ async fn gather(args: &ReportArgs, pool: &Arc<sqlx::PgPool>) -> Result<Governanc
 async fn execute_with_pool_inner(
     args: ReportArgs,
     pool: &Arc<sqlx::PgPool>,
-    config: &CliConfig,
-) -> Result<()> {
+    host: &dyn CommandHost,
+) -> Result<CommandOutput> {
     let output = gather(&args, pool).await?;
 
     if args.format == ReportFormat::Csv {
         let csv = format_csv(&output);
         std::io::stdout().write_all(csv.as_bytes())?;
-        return Ok(());
+        return Ok(rendered());
     }
 
-    render_result(
-        &CommandOutput::table_of(
+    host.render(&CommandOutput::table_of(
             vec![
                 "group",
                 "warnings",
@@ -218,12 +226,9 @@ async fn execute_with_pool_inner(
             group_label(args.group_by),
             output.total_warnings,
             args.since
-        )),
-        config,
-    );
+        )));
 
-    render_result(
-        &CommandOutput::table_of(
+    Ok(CommandOutput::table_of(
             vec![
                 "category",
                 "scanner",
@@ -238,11 +243,7 @@ async fn execute_with_pool_inner(
         .with_title(format!(
             "Gateway safety findings — {} recorded, {} blocked",
             output.total_findings, output.total_blocked_findings
-        )),
-        config,
-    );
-
-    Ok(())
+        )))
 }
 
 const fn group_label(group_by: GroupBy) -> &'static str {

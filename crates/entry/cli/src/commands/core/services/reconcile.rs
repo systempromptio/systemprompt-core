@@ -25,7 +25,8 @@ use systemprompt_manifest::services::bundle::SignedBundleManifest;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_runtime::services_reconcile::pending_composed_hash;
 
-use crate::context::CommandContext;
+use systemprompt_extension::cli::CommandHost;
+use systemprompt_database::pool_from_handle;
 
 const CONFIG_RELPATH: &str = "config/config.yaml";
 
@@ -40,7 +41,7 @@ pub async fn reconcile_after_swap(
     profile: &Profile,
     root: &ActiveServicesRoot,
     cache: &BundleCache,
-    ctx: &CommandContext,
+    host: &dyn CommandHost,
 ) -> Result<Vec<ReconcileRow>> {
     let mut state = cache.read_state();
     let Some(composed_hash) = pending_composed_hash(root, state.last_reconciled_hash.as_deref())
@@ -57,9 +58,7 @@ pub async fn reconcile_after_swap(
 
     let services = ConfigLoader::load_from_path(&root.path.join(CONFIG_RELPATH), Some(profile))
         .context("Failed to load the composed services config")?;
-    let pool = ctx
-        .db_pool()
-        .await
+    let pool = pool_from_handle(host.db().await?)
         .context("services refresh needs a database to project access rules into")?;
 
     let reports = reconcile_composed_bundles(&pool, &services, &bundles)

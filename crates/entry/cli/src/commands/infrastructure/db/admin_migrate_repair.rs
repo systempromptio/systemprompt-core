@@ -24,7 +24,7 @@ use systemprompt_logging::CliService;
 use systemprompt_runtime::DatabaseContext;
 
 use crate::cli_settings::CliConfig;
-use crate::context::CommandContext;
+use systemprompt_extension::cli::CommandHost;
 use crate::shared::{CommandOutput, render_result};
 
 use super::admin_migrate::select_extensions;
@@ -39,11 +39,11 @@ pub(super) struct RepairArgs<'a> {
 }
 
 pub(super) async fn execute_migrate_repair(
-    ctx: &CommandContext,
+    host: &dyn CommandHost,
     args: RepairArgs<'_>,
 ) -> Result<()> {
-    let config = &ctx.cli;
-    let sys_config = ctx.config()?;
+    let config = host.output();
+    let sys_config = host.config()?;
     let database = Arc::new(
         Database::connect(
             &sys_config.database_url,

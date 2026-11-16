@@ -1,8 +1,7 @@
 //! `core artifacts` command group: inspect A2A task artifacts.
 //!
 //! Dispatches the [`ArtifactsCommands`] subcommands (list, show) against the
-//! invocation's [`CommandContext`], rendering each command's `CommandOutput`
-//! to the configured output sink.
+//! command host and returns each command's `CommandOutput`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,8 +10,7 @@ pub mod list;
 pub mod show;
 pub mod types;
 
-use crate::context::CommandContext;
-use crate::shared::render_result;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 use anyhow::Result;
 use clap::Subcommand;
 
@@ -27,16 +25,9 @@ pub enum ArtifactsCommands {
     Show(show::ShowArgs),
 }
 
-pub async fn execute(cmd: ArtifactsCommands, ctx: &CommandContext) -> Result<()> {
+pub async fn execute(cmd: ArtifactsCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     match cmd {
-        ArtifactsCommands::List(args) => {
-            let result = Box::pin(list::execute(args, ctx)).await?;
-            render_result(&result, &ctx.cli);
-        },
-        ArtifactsCommands::Show(args) => {
-            let result = Box::pin(show::execute(args, ctx)).await?;
-            render_result(&result, &ctx.cli);
-        },
+        ArtifactsCommands::List(args) => Box::pin(list::execute(args, host)).await,
+        ArtifactsCommands::Show(args) => Box::pin(show::execute(args, host)).await,
     }
-    Ok(())
 }

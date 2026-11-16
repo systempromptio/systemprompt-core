@@ -16,8 +16,7 @@ pub mod show;
 mod types;
 pub mod use_context;
 
-use crate::context::CommandContext;
-use crate::shared::render_result;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 use anyhow::Result;
 use clap::Subcommand;
 
@@ -50,36 +49,14 @@ pub enum ContextsCommands {
     New(new::NewArgs),
 }
 
-pub async fn execute(cmd: ContextsCommands, ctx: &CommandContext) -> Result<()> {
+pub async fn execute(cmd: ContextsCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     match cmd {
-        ContextsCommands::List(args) => {
-            let result = Box::pin(list::execute(args, ctx)).await?;
-            render_result(&result, &ctx.cli);
-        },
-        ContextsCommands::Show(args) => {
-            let result = Box::pin(show::execute(args, ctx)).await?;
-            render_result(&result, &ctx.cli);
-        },
-        ContextsCommands::Create(args) => {
-            let result = Box::pin(create::execute(args, ctx)).await?;
-            render_result(&result, &ctx.cli);
-        },
-        ContextsCommands::Edit(args) => {
-            let result = Box::pin(edit::execute(args, ctx)).await?;
-            render_result(&result, &ctx.cli);
-        },
-        ContextsCommands::Delete(args) => {
-            let result = Box::pin(delete::execute(args, ctx)).await?;
-            render_result(&result, &ctx.cli);
-        },
-        ContextsCommands::Use(args) => {
-            let result = Box::pin(use_context::execute(args, ctx)).await?;
-            render_result(&result, &ctx.cli);
-        },
-        ContextsCommands::New(args) => {
-            let result = Box::pin(new::execute(args, ctx)).await?;
-            render_result(&result, &ctx.cli);
-        },
+        ContextsCommands::List(args) => Box::pin(list::execute(args, host)).await,
+        ContextsCommands::Show(args) => Box::pin(show::execute(args, host)).await,
+        ContextsCommands::Create(args) => Box::pin(create::execute(args, host)).await,
+        ContextsCommands::Edit(args) => Box::pin(edit::execute(args, host)).await,
+        ContextsCommands::Delete(args) => Box::pin(delete::execute(args, host)).await,
+        ContextsCommands::Use(args) => Box::pin(use_context::execute(args, host)).await,
+        ContextsCommands::New(args) => Box::pin(new::execute(args, host)).await,
     }
-    Ok(())
 }

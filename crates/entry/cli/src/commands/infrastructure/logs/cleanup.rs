@@ -10,9 +10,10 @@ use systemprompt_logging::LoggingMaintenanceService;
 
 use super::LogCleanupOutput;
 use super::duration::parse_duration;
-use crate::context::CommandContext;
+use systemprompt_extension::cli::CommandHost;
+use systemprompt_database::pool_from_handle;
 use crate::interactive::require_confirmation;
-use crate::shared::{CommandOutput, render_result};
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct CleanupArgs {
@@ -37,7 +38,7 @@ pub struct CleanupArgs {
     pub yes: bool,
 }
 
-pub(super) async fn execute(args: CleanupArgs, ctx: &CommandContext) -> Result<()> {
+pub(super) async fn execute(args: CleanupArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
     let cutoff_duration = match (&args.older_than, args.keep_last_days) {
         (Some(duration_str), None) => parse_duration(duration_str)?,
         (None, Some(days)) => chrono::Duration::days(days),
@@ -56,7 +57,7 @@ pub(super) async fn execute(args: CleanupArgs, ctx: &CommandContext) -> Result<(
     let cutoff_date = Utc::now() - cutoff_duration;
     let cutoff_str = cutoff_date.format("%Y-%m-%d %H:%M:%S UTC").to_string();
 
-    let service = LoggingMaintenanceService::new(&ctx.db_pool().await?);
+    let service = LoggingMaintenanceService::new(&pool_from_handle(host.db().await?)?);
 
     if args.dry_run {
         let count = service
@@ -72,18 +73,17 @@ pub(super) async fn execute(args: CleanupArgs, ctx: &CommandContext) -> Result<(
         };
 
         let result = CommandOutput::card_value("Cleanup Preview (Dry Run)", &output);
-        render_result(&result, &ctx.cli);
-        return Ok(());
+        return Ok(result);
     }
 
     require_confirmation(
-        ctx.prompter(),
+        host.prompter(),
         &format!(
             "Delete logs older than {}? This cannot be undone.",
             cutoff_str
         ),
         args.yes,
-        &ctx.cli,
+        host.output(),
     )?;
 
     let deleted_count = service
@@ -99,7 +99,5 @@ pub(super) async fn execute(args: CleanupArgs, ctx: &CommandContext) -> Result<(
     };
 
     let result = CommandOutput::card_value("Logs Cleaned Up", &output);
-    render_result(&result, &ctx.cli);
-
-    Ok(())
+    Ok(result)
 }

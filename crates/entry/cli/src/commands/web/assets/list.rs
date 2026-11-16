@@ -14,7 +14,7 @@ use crate::shared::CommandOutput;
 use super::super::paths::WebPaths;
 use super::super::types::{AssetSummary, AssetType};
 use super::asset_type::determine_asset_type;
-use systemprompt_loader::BootContext;
+use std::path::Path;
 
 #[derive(Debug, Clone, Copy, ValueEnum, Default)]
 pub enum AssetTypeFilter {
@@ -36,9 +36,9 @@ pub struct ListArgs {
 pub(super) fn execute(
     args: ListArgs,
     config: &CliConfig,
-    boot: &BootContext,
+    services_root: &Path,
 ) -> Result<CommandOutput> {
-    execute_in_dir(args, config, &WebPaths::resolve(boot)?.assets)
+    execute_in_dir(args, config, &WebPaths::resolve(services_root)?.assets)
 }
 
 pub fn execute_in_dir(

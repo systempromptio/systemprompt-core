@@ -4,6 +4,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::commands::shared::rendered;
+use systemprompt_extension::cli::CommandHost;
+use systemprompt_database::pool_from_handle;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use schemars::JsonSchema;
@@ -14,8 +17,7 @@ use systemprompt_logging::{CliService, LogEntry, LogLevel};
 use systemprompt_runtime::{TraceQueryService, TraceRepository};
 
 use super::shared::print_level_line;
-use crate::CliConfig;
-use crate::shared::{CommandOutput, render_result};
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
@@ -55,33 +57,39 @@ struct TraceLogsOutput {
     pub logs: Vec<LogShowOutput>,
 }
 
-crate::define_pool_command!(ShowArgs => (), with_config);
+pub(in crate::commands::infrastructure::logs) async fn execute(
+    args: ShowArgs,
+    host: &dyn CommandHost,
+) -> Result<CommandOutput> {
+    let pool = pool_from_handle(host.db().await?)?.pool();
+    execute_with_pool_inner(args, &pool, host).await
+}
 
 async fn execute_with_pool_inner(
     args: ShowArgs,
     pool: &Arc<sqlx::PgPool>,
-    config: &CliConfig,
-) -> Result<()> {
+    host: &dyn CommandHost,
+) -> Result<CommandOutput> {
     let service = TraceQueryService::new(TraceRepository::new(Arc::clone(pool)));
 
     if let Ok(log_id) = LogId::try_new(args.id.as_str())
         && let Some(log) = service.find_log_by_id(&log_id).await?
     {
-        display_single_log(&log, config, args.json);
-        return Ok(());
+        display_single_log(&log, host, args.json);
+        return Ok(rendered());
     }
 
     if let Ok(trace_id) = TraceId::try_new(args.id.as_str()) {
         let logs = service.find_logs_by_trace_id(&trace_id).await?;
         if !logs.is_empty() {
-            display_trace_logs(&logs, config, args.json);
-            return Ok(());
+            display_trace_logs(&logs, host, args.json);
+            return Ok(rendered());
         }
     }
 
     if let Some(log) = service.find_log_by_partial_id(&args.id).await? {
-        display_single_log(&log, config, args.json);
-        return Ok(());
+        display_single_log(&log, host, args.json);
+        return Ok(rendered());
     }
 
     Err(anyhow!(
@@ -106,12 +114,12 @@ fn entry_to_output(entry: &LogEntry) -> LogShowOutput {
     }
 }
 
-fn display_single_log(log: &LogEntry, config: &CliConfig, json: bool) {
+fn display_single_log(log: &LogEntry, host: &dyn CommandHost, json: bool) {
     let output = entry_to_output(log);
 
-    if config.is_json_output() || json {
+    if host.output().is_json_output() || json {
         let result = CommandOutput::card_value("Log Entry Details", &output);
-        render_result(&result, config);
+        host.render(&result);
         return;
     }
 
@@ -155,7 +163,7 @@ fn display_single_log(log: &LogEntry, config: &CliConfig, json: bool) {
     ));
 }
 
-fn display_trace_logs(logs: &[LogEntry], config: &CliConfig, json: bool) {
+fn display_trace_logs(logs: &[LogEntry], host: &dyn CommandHost, json: bool) {
     let Some(first_log) = logs.first() else {
         return;
     };
@@ -168,13 +176,13 @@ fn display_trace_logs(logs: &[LogEntry], config: &CliConfig, json: bool) {
         logs: outputs,
     };
 
-    if config.is_json_output() || json {
+    if host.output().is_json_output() || json {
         let result = CommandOutput::table_of(
             vec!["id", "trace_id", "timestamp", "level", "module", "message"],
             &output.logs,
         )
         .with_title("Logs for Trace");
-        render_result(&result, config);
+        host.render(&result);
         return;
     }
 

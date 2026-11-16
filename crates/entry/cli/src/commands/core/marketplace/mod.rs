@@ -19,8 +19,9 @@ use systemprompt_marketplace::{
     AllowAllFilter, AssembleRequest, ManifestService, ManifestTrace, MarketplaceCache,
 };
 
-use crate::context::CommandContext;
-use crate::shared::{CommandOutput, render_result};
+use systemprompt_extension::cli::CommandHost;
+use systemprompt_loader::ConfigLoader;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum MarketplaceCommands {
@@ -52,30 +53,25 @@ struct ExplainRow {
     reason: String,
 }
 
-pub async fn execute(command: MarketplaceCommands, ctx: &CommandContext) -> Result<()> {
+pub async fn execute(command: MarketplaceCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     match command {
         MarketplaceCommands::Explain(args) => {
-            let result = explain(&args, ctx)
+            explain(&args, host)
                 .await
-                .context("Failed to explain manifest")?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+                .context("Failed to explain manifest")
         },
         MarketplaceCommands::Import(args) => {
-            let result = import::execute(&args)?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            import::execute(&args)
         },
     }
 }
 
-pub async fn explain(args: &ExplainArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let boot = ctx.boot()?;
-    let profile = boot.profile();
-    let services = boot
-        .load_services_config()
+pub async fn explain(args: &ExplainArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let profile = host.profile()?;
+    let services_root = host.services_root()?.path;
+    let services = ConfigLoader::for_profile(profile, &services_root)
+        .load()
         .context("Failed to load services config")?;
-    let services_root = boot.require_services_root().path;
     let user_id = UserId::new(
         args.user
             .clone()
