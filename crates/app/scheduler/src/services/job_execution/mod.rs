@@ -174,11 +174,9 @@ impl JobExecutionService {
         merged.extend(parameters.clone());
         let job_ctx = make_job_context(
             actor,
-            Arc::clone(self.ctx.db_pool()),
             Arc::clone(&self.ctx),
             job.db_budget(),
             &self.inventory_memo,
-            &self.schedule,
         )
         .with_enforce(enforce)
         .with_parameters(merged);

@@ -80,7 +80,6 @@ impl SchedulerService {
             job,
             job_name: job_name.clone(),
             actor,
-            db_pool: Arc::clone(&self.db_pool),
             repository: self.repository.clone(),
             app_context: Arc::clone(&self.app_context),
             running_jobs: Arc::clone(ctx.running_jobs),
