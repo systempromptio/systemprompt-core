@@ -38,7 +38,7 @@ const SAFETY_SCANNER_SLOT: &str = "safety_scanner";
 const OVERRIDE_SLOT: &str = "system_prompt_override";
 const OUTBOUND_SLOT: &str = "outbound_adapter";
 
-fn build_all<T>(
+fn build_all<T: 'static>(
     slot: &'static str,
     entries: Vec<(ExtensionId, Vec<Box<dyn Factory<T>>>)>,
     r: &Resolved<'_>,
