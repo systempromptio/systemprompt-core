@@ -1,0 +1,29 @@
+[root]
+section = "Breaking"
+area = "Content"
+text = "The content hooks are `systemprompt_content::contract::ContentSlot`, whose builder takes a `Factory` per hook, built into `ContentHooks`. `execute_content_ingestion` takes `&ContentHooks`, `PrerenderEnv` carries `hooks` and `state` instead of an `ExtensionContext`, and `execute_copy_extension_assets` takes the declared assets (`declared_assets(&BuiltState, &dyn AssetPaths)`). A profile that disables `content` refuses `generator`. The Markdown alternate of a content item is `GET /api/v1/content/{source_id}/{slug}/{suffix}`, answering 404 unless content negotiation is enabled and the suffix matches. Migrate content hooks to `ContentSlot`."
+
+[[crate]]
+name = "systemprompt-content"
+section = "Breaking"
+text = "`contract::ContentSlot` and `ContentHooks` replace the content hook methods; `ContentError::Extensions` is removed."
+
+[[crate]]
+name = "systemprompt-generator"
+section = "Breaking"
+text = "`GeneratorExtension` implements `contribute`; `PrerenderEnv` carries `hooks: &ContentHooks` and `state: &Dependencies`; `PublishError::ExtensionDiscovery` is removed; the member requires the built content hooks."
+
+[[crate]]
+name = "systemprompt-content-entry"
+section = "Breaking"
+text = "No longer depends on `systemprompt-api` or `systemprompt-cli`; routes are `RouteSet`s (`public_routes`, `authenticated_routes`, `redirect_routes`) and commands take `&dyn CommandHost`. `GET /r/{short_code}` is admitted under its conferral."
+
+[[crate]]
+name = "systemprompt-notifications-entry"
+section = "Breaking"
+text = "No longer depends on `systemprompt-api`; `http::router`/`admin_router` and `NotificationsState::from_extension_state` are replaced by the `user_routes`, `admin_routes` and `bridge_routes` route sets and `NotificationsState: FromState`; bridge handlers read the caller from `GatewayPrincipal`."
+
+[[crate]]
+name = "systemprompt-agent-runs-entry"
+section = "Breaking"
+text = "`AgentRunsApiExtension` is in `extension`; `http::routes` replaces the router; the crate no longer depends on `systemprompt-api` or `systemprompt-cli`."
