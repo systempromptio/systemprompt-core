@@ -72,5 +72,10 @@ pub async fn create_test_user(db: &DbPool) -> UserId {
 
 pub async fn cleanup_test_user(db: &DbPool, user_id: &UserId) {
     let repo = UserRepository::new(db);
-    let _ = repo.delete(user_id).await;
+    let _ = repo.delete(user_id, &crate::purge_plan()).await;
+}
+
+pub(crate) fn purge_plan() -> systemprompt_extension::AdmittedPurge {
+    let admitted = systemprompt_test_fixtures::schema_admitted().expect("the core members admit");
+    systemprompt_extension::AdmittedPurge::of(admitted.built()).expect("the core purge plan admits")
 }
