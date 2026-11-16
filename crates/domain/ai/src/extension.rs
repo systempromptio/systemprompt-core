@@ -36,6 +36,11 @@ impl Extension for AiExtension {
             },
         );
         crate::jobs::contribute(c);
+        c.user_purge(UserPurgeTable {
+            table: "ai_requests",
+            column: "user_id",
+            predicate: None,
+        });
         Ok(())
     }
 }

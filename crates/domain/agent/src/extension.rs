@@ -39,6 +39,16 @@ impl Extension for AgentExtension {
         .cross_table("services")
         .job(CleanupEmptyContextsJob)
         .job(UserContextCountersRollupJob);
+        c.user_purge(UserPurgeTable {
+            table: "agent_tasks",
+            column: "user_id",
+            predicate: None,
+        });
+        c.user_purge(UserPurgeTable {
+            table: "task_messages",
+            column: "user_id",
+            predicate: None,
+        });
         Ok(())
     }
 }

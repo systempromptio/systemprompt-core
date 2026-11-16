@@ -43,6 +43,11 @@ impl Extension for AuthzExtension {
                 Ok(provider)
             });
         c.slot::<AuthzHookSlot>();
+        c.user_purge(UserPurgeTable {
+            table: "governance_decisions",
+            column: "user_id",
+            predicate: None,
+        });
         Ok(())
     }
 }

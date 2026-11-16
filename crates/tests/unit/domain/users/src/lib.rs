@@ -21,6 +21,9 @@ mod error;
 mod purge_plan;
 
 #[cfg(test)]
+mod purge_ownership;
+
+#[cfg(test)]
 mod extension;
 
 #[cfg(test)]

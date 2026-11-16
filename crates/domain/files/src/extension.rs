@@ -89,6 +89,11 @@ impl Extension for FilesExtension {
             c.schema(SchemaDefinition::sql_only(view));
         }
         c.migrations(extension_migrations!());
+        c.user_purge(UserPurgeTable {
+            table: "files",
+            column: "user_id",
+            predicate: None,
+        });
         for purge in DOCUMENT_USER_PURGES.iter().chain(ISSUE_USER_PURGES) {
             c.user_purge(*purge);
         }

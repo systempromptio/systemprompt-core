@@ -23,6 +23,11 @@ impl Extension for LoggingExtension {
             c.schema(schema);
         }
         c.migrations(extension_migrations!());
+        c.user_purge(UserPurgeTable {
+            table: "logs",
+            column: "user_id",
+            predicate: None,
+        });
         Ok(())
     }
 }

@@ -21,7 +21,7 @@ use systemprompt_identifiers::{ExtensionId, UserId};
 use tracing::warn;
 
 pub use super::purge_plan::{PurgeCount, PurgeOutcome, SkippedPurge};
-pub(crate) use super::purge_plan::{CORE_ORPHAN_SWEEPS, CORE_PURGE_TABLES, USERS_OWNER};
+pub(crate) use super::purge_plan::USERS_OWNER;
 use super::purge_plan::{PurgeStep, RecordedPurge, plan_steps, sweep_sql, table_sql};
 use crate::error::Result;
 use crate::repository::UserRepository;
