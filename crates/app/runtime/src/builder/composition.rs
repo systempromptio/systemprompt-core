@@ -105,7 +105,6 @@ pub(crate) fn organization_skills(
     a2a.clone().with_managed_skill_resolver(resolver)
 }
 
-/// The repositories the kernel seeds before it resolves.
 pub(super) struct SeededRepositories {
     pub(super) oauth: Arc<systemprompt_oauth::repository::OAuthRepositories>,
     pub(super) ai: Arc<systemprompt_ai::repository::AiRepositories>,
