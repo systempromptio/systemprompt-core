@@ -117,14 +117,13 @@ settings:
         manifest_dir.join("manifest.yaml"),
         "extension:\n  type: mcp\n  name: fixture\n  binary: fixture\n",
     )?;
-    let pool = test_db_pool().await;
     let state = boot.services.clone();
     let mut config = fixture_config(&boot.database_url);
     config.role = NodeRole::Api;
     config.system_path = boot.system_path.display().to_string();
     config.services_path = boot.services_path.display().to_string();
     config.bin_path = boot.bin_path.display().to_string();
-    let ctx = fixture_app_context_with_services(&pool, config, state, true)?;
+    let ctx = fixture_app_context_with_services(config, state).await?;
     Ok(SupervisedApi {
         app: with_config(systemprompt_api::routes::proxy::mcp::router(&ctx), &ctx),
         service: ServiceName::new(name),

@@ -12,8 +12,8 @@ use systemprompt_api::routes::documents::DocumentsState;
 use systemprompt_database::DbPool;
 use systemprompt_files::{DocumentsConfig, RenderedHtmlConfig};
 use systemprompt_test_fixtures::{
-    AuthedFixture, ensure_test_bootstrap, fixture_app_context_documents_configured, fixture_config,
-    seed_bridge_credential, test_db_pool,
+    AuthedFixture, ensure_test_bootstrap, fixture_admitted, fixture_app_context_on_bootstrap,
+    fixture_config, init_documents_bootstrap, seed_bridge_credential, test_db_pool,
 };
 use uuid::Uuid;
 
@@ -26,19 +26,14 @@ const DESIGNED: &str = "<!doctype html><html><head><style>body{background:#12345
                         </div></body></html>";
 
 async fn configured(rendered_html: RenderedHtmlConfig) -> Result<(DbPool, DocumentsState)> {
-    let bootstrap = ensure_test_bootstrap();
-    let pool = test_db_pool().await;
-    let documents = DocumentsConfig {
+    let bootstrap = init_documents_bootstrap(DocumentsConfig {
         enabled: true,
         rendered_html,
         ..DocumentsConfig::default()
-    };
-    let ctx = fixture_app_context_documents_configured(
-        &pool,
-        fixture_config(&bootstrap.database_url),
-        documents,
-    )?;
-    Ok((pool, DocumentsState::build(&ctx)?))
+    });
+    let config = fixture_config(&bootstrap.database_url);
+    let ctx = fixture_app_context_on_bootstrap(&bootstrap, config, fixture_admitted()).await?;
+    Ok((ctx.db_pool().clone(), DocumentsState::build(&ctx)?))
 }
 
 async fn designed_page(state: &DocumentsState, owner: &AuthedFixture) -> Result<String> {
@@ -190,8 +185,16 @@ async fn the_mounted_rendered_route_is_framed_by_the_app_alone_and_needs_a_sessi
     let mut config = fixture_config(&bootstrap.database_url);
     config.rate_limits = RateLimitsConfig::disabled();
     config.trusted_proxies = Vec::new();
-    let ctx = fixture_app_context_with_config(&pool, config)?;
-    let server = setup_api_server(&ctx, None, &Arc::new(ReadinessState::new()))
+    let ctx = fixture_app_context_with_config(config).await?;
+    let server = setup_api_server(
+        &ctx,
+        systemprompt_api::services::server::routes::Composed {
+            admitted: ctx.admitted(),
+            kernel: ctx.kernel(),
+        },
+        None,
+        &Arc::new(ReadinessState::new()),
+    )
         .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
     let state = DocumentsState::build(&ctx)?;
     let owner = seed_bridge_credential(&pool, "docs-rendered-mounted").await?;
