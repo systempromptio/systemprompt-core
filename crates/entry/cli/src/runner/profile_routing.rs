@@ -194,9 +194,6 @@ async fn initialize_post_routing(
             .as_ref()
             .context("Secrets required to resolve the services paths")?;
         services = Some(bootstrap::init_paths(boot, desc.discovers_models()).await?);
-        if !desc.skip_validation() {
-            bootstrap::run_validation(boot)?;
-        }
     }
 
     if !ctx.is_cloud {
