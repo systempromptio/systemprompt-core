@@ -7,6 +7,8 @@
 
 use chrono::{Duration, Utc};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
+
+use crate::catalog::{PublicPages, UnreadableCatalog};
 use uuid::Uuid;
 
 use super::session_support::{
@@ -334,33 +336,16 @@ async fn check_and_mark_behavioral_bot_threshold() {
 }
 
 #[tokio::test]
-async fn get_total_content_pages_counts_a_seeded_public_page() {
+async fn get_total_content_pages_reads_the_catalog_it_is_given() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
     let repositories =
         systemprompt_test_fixtures::fixture_analytics_repositories(&pool).expect("repo");
     let signals = &repositories.session_signals;
 
-    let id = format!("content-{}", Uuid::new_v4());
-    let p = pool.pool();
-    sqlx::query(
-        "INSERT INTO markdown_content (id, slug, title, description, body, author, \
-         published_at, keywords, source_id, version_hash, public) \
-         VALUES ($1, $1, 't', 'd', 'b', 'a', NOW(), '', 'analytics-test', 'h', true)",
-    )
-    .bind(&id)
-    .execute(p.as_ref())
-    .await
-    .expect("seed public page");
+    let seven = signals.get_total_content_pages(&PublicPages(7)).await;
+    let failed = signals.get_total_content_pages(&UnreadableCatalog).await;
 
-    let total = signals.get_total_content_pages().await;
-    sqlx::query("DELETE FROM markdown_content WHERE id = $1")
-        .bind(&id)
-        .execute(p.as_ref())
-        .await
-        .expect("cleanup");
-    assert!(
-        total.expect("total") >= 1,
-        "the seeded public page is counted"
-    );
+    assert_eq!(seven.expect("seven"), 7);
+    assert!(failed.is_err(), "an unreadable catalog is an error, not a count");
 }
