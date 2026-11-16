@@ -24,8 +24,8 @@ use std::sync::Arc;
 use systemprompt_traits::CoreSeam;
 use systemprompt_traits::core_seam::RoleAudience;
 
+use super::{Contributions, Factory, Resolved, SlotError, build_factories};
 use crate::admitted::BuiltState;
-use crate::contribute::{Resolved, SlotError, build_factories};
 use crate::notifications::NotificationAudienceResolver;
 
 const POINT: &str = "audiences";
@@ -63,6 +63,16 @@ impl AudienceResolvers {
     #[must_use]
     pub fn to_vec(&self) -> Vec<Arc<dyn NotificationAudienceResolver>> {
         self.resolvers.clone()
+    }
+}
+
+impl Contributions<'_> {
+    pub fn audience_resolver<F>(&mut self, f: F) -> &mut Self
+    where
+        F: Factory<Arc<dyn NotificationAudienceResolver>>,
+    {
+        self.sink.audience_resolvers.push(Box::new(f));
+        self
     }
 }
 
