@@ -3,7 +3,8 @@
 //! Plain session reads and writes belong to the users domain and are reached
 //! through [`systemprompt_traits::SessionStore`] directly. What lives here is
 //! only what analytics adds on top: behavioural-detector inputs drawn from the
-//! analytics event store and the content catalogue, engagement counts over the
+//! analytics event store and the content catalogue (passed per call: the
+//! content member resolves after analytics), engagement counts over the
 //! sessions a fingerprint owns, and geolocation backfill for sessions that
 //! arrived without it.
 //!
@@ -19,7 +20,7 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::SessionId;
-use systemprompt_traits::{DynAnalyticsEventStore, DynContentCatalogStats, DynSessionStore};
+use systemprompt_traits::{ContentCatalogStats, DynAnalyticsEventStore, DynSessionStore};
 
 use crate::{AnalyticsError, Result};
 
@@ -30,7 +31,6 @@ pub struct SessionSignalsRepository {
     write_pool: Arc<PgPool>,
     owner: DynSessionStore,
     events: DynAnalyticsEventStore,
-    content: DynContentCatalogStats,
 }
 
 impl std::fmt::Debug for SessionSignalsRepository {
@@ -45,13 +45,11 @@ impl SessionSignalsRepository {
         db: &DbPool,
         owner: DynSessionStore,
         events: DynAnalyticsEventStore,
-        content: DynContentCatalogStats,
     ) -> Self {
         Self {
             write_pool: db.write_pool(),
             owner,
             events,
-            content,
         }
     }
 
@@ -99,8 +97,8 @@ impl SessionSignalsRepository {
             .map_err(AnalyticsError::from)
     }
 
-    pub async fn get_total_content_pages(&self) -> Result<i64> {
-        self.content.count_public_pages().await.map_err(Into::into)
+    pub async fn get_total_content_pages(&self, content: &dyn ContentCatalogStats) -> Result<i64> {
+        content.count_public_pages().await.map_err(Into::into)
     }
 
     pub async fn count_engagement_events_by_fingerprint(
