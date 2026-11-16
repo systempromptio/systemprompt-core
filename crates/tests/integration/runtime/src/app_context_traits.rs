@@ -13,7 +13,7 @@ use systemprompt_test_fixtures::{fixture_admitted, test_database_url};
 use systemprompt_traits::AppContext as AppContextTrait;
 
 async fn build_ctx() -> std::sync::Arc<systemprompt_runtime::AppContext> {
-    crate::admin_app(&test_database_url()).await
+    systemprompt_test_fixtures::test_app_context(&test_database_url()).await
 }
 
 #[tokio::test]

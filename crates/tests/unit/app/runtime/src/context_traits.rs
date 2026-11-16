@@ -21,7 +21,7 @@ use systemprompt_traits::AppContext as AppContextTrait;
 async fn context() -> (Arc<AppContext>, String) {
     ensure_test_bootstrap();
     let url = test_database_url();
-    (crate::boot::admin_app(&url).await, url)
+    (systemprompt_test_fixtures::test_app_context(&url).await, url)
 }
 
 #[tokio::test]

@@ -186,27 +186,3 @@ mod uploads_safety_svg;
 #[cfg(test)]
 mod uploads_service_flow;
 
-#[cfg(test)]
-pub(crate) async fn seed_config_admin(config: &systemprompt_manifest::Config) {
-    let pool: systemprompt_database::DbPool =
-        std::sync::Arc::new(systemprompt_database::Database::from_pools(
-            std::sync::Arc::new(
-                sqlx::PgPool::connect(&config.database_url)
-                    .await
-                    .expect("connect to the configured database"),
-            ),
-            None,
-        ));
-    let email = config
-        .system_admin_email
-        .as_ref()
-        .expect("the fixture config names the admin email");
-    systemprompt_test_fixtures::seed_user_row_with_roles(
-        &pool,
-        &systemprompt_identifiers::UserId::new(config.system_admin_username.clone()),
-        email.as_str(),
-        &["admin".to_owned(), "user".to_owned()],
-    )
-    .await
-    .expect("seed the configured system admin");
-}

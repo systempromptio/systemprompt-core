@@ -2,8 +2,12 @@
 //!
 //! Every context is built by [`AppContextBuilder`] over an admitted
 //! composition, on a test bootstrap's profile with the given [`Config`]
-//! installed, an allow-all authorization hook and marketplace filter, and the
-//! fixture signing keys. [`fixture_admitted`] is the core schema composition
+//! installed, an allow-all marketplace filter and the fixture signing keys.
+//! The fixture profile's authorization mode is `unrestricted`, so the default
+//! builder supplies no extension hook; [`fixture_app_context_with_hook`] builds
+//! on a copy of the profile whose mode is `extension`. Every build seeds the
+//! fixture system admin ([`crate::credential::seed_fixture_system_admin`]) on
+//! the config's database first. [`fixture_admitted`] is the core schema composition
 //! (`systemprompt_test_migrate::core_members`); a test crate that links the
 //! `systemprompt` facade passes `reference()` admitted instead. Schema
 //! installation stays off: the database is migrated before the run.
@@ -17,7 +21,8 @@ use anyhow::Result;
 use systemprompt_analytics::FingerprintRepository;
 use systemprompt_database::DbPool;
 use systemprompt_extension::{Admitted, Extension, StandingTag};
-use systemprompt_governance::authz::{AllowAllHook, NullAuditSink, SharedAuthzHook};
+use systemprompt_config::LoadedProfile;
+use systemprompt_governance::authz::SharedAuthzHook;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_loader::BootContext;
 use systemprompt_manifest::profile::{
@@ -113,8 +118,11 @@ pub fn fixture_config(database_url: &str) -> Config {
         cors_allowed_origins: vec!["http://localhost:3000".to_string()],
         trusted_proxies: vec![],
         is_cloud: false,
-        system_admin_username: "admin".to_string(),
-        system_admin_email: Some(systemprompt_identifiers::Email::local_admin()),
+        system_admin_username: crate::credential::FIXTURE_SYSTEM_ADMIN_USERNAME.to_owned(),
+        system_admin_email: Some(
+            systemprompt_identifiers::Email::try_new(crate::credential::FIXTURE_SYSTEM_ADMIN_EMAIL)
+                .expect("the fixture admin email is well-formed"),
+        ),
         content_negotiation: ContentNegotiationConfig::default(),
         security_headers: SecurityHeadersConfig::default(),
         allow_registration: false,
@@ -169,27 +177,59 @@ pub fn fixture_context_builder(
     config: Config,
     admitted: Arc<Admitted>,
 ) -> Result<AppContextBuilder> {
-    let boot = BootContext::new(
+    context_builder_on_profile(
+        bootstrap,
         Arc::clone(bootstrap.boot.loaded_profile()),
-        Arc::clone(bootstrap.boot.secrets()),
-    );
+        config,
+        admitted,
+    )
+}
+
+fn context_builder_on_profile(
+    bootstrap: &TestBootstrap,
+    profile: Arc<LoadedProfile>,
+    config: Config,
+    admitted: Arc<Admitted>,
+) -> Result<AppContextBuilder> {
+    let boot = BootContext::new(profile, Arc::clone(bootstrap.boot.secrets()));
     boot.install_config(config)?;
     Ok(AppContextBuilder::new(boot, admitted)
-        .with_shared_authz_hook(allow_all_hook())
         .with_marketplace_filter(Arc::new(AllowAllFilter))
         .with_signing_keys(crate::jwt::test_signing_keys())
         .with_services(bootstrap.services.clone()))
 }
 
-fn allow_all_hook() -> SharedAuthzHook {
-    Arc::new(AllowAllHook::new(Arc::new(NullAuditSink)))
+fn extension_mode_profile(bootstrap: &TestBootstrap) -> Result<Arc<LoadedProfile>> {
+    let source = std::fs::read_to_string(&bootstrap.profile_path)?;
+    let mut doc: serde_yaml::Value = serde_yaml::from_str(&source)?;
+    let hook = doc
+        .get_mut("governance")
+        .and_then(|g| g.get_mut("authz"))
+        .and_then(|a| a.get_mut("hook"))
+        .and_then(serde_yaml::Value::as_mapping_mut)
+        .ok_or_else(|| anyhow::anyhow!("the fixture profile declares governance.authz.hook"))?;
+    hook.insert("mode".into(), "extension".into());
+    hook.remove("acknowledgement");
+    let dir = bootstrap
+        .profile_path
+        .parent()
+        .ok_or_else(|| anyhow::anyhow!("the fixture profile has a parent directory"))?;
+    let path = dir.join(format!("profile-extension-{}.yaml", uuid::Uuid::new_v4()));
+    std::fs::write(&path, serde_yaml::to_string(&doc)?)?;
+    Ok(LoadedProfile::from_path(&path)?)
+}
+
+async fn seed_admin(database_url: &str) -> Result<()> {
+    let pool = crate::db::connect(database_url).await?;
+    crate::credential::seed_fixture_system_admin(&pool).await
 }
 
 fn bootstrap_config(bootstrap: &TestBootstrap) -> Config {
     Config::clone(bootstrap.boot_config())
 }
 
-async fn build(builder: AppContextBuilder) -> Result<Arc<AppContext>> {
+async fn build(builder: AppContextBuilder, database_url: &str) -> Result<Arc<AppContext>> {
+    seed_admin(database_url).await?;
     Ok(Arc::new(builder.build().await?))
 }
 
@@ -210,7 +250,12 @@ pub async fn fixture_app_context_on_bootstrap(
     config: Config,
     admitted: Arc<Admitted>,
 ) -> Result<Arc<AppContext>> {
-    build(fixture_context_builder(bootstrap, config, admitted)?).await
+    let database_url = config.database_url.clone();
+    build(
+        fixture_context_builder(bootstrap, config, admitted)?,
+        &database_url,
+    )
+    .await
 }
 
 pub async fn fixture_app_context_with_config(config: Config) -> Result<Arc<AppContext>> {
@@ -235,6 +280,7 @@ pub async fn fixture_app_context_with_filter(
             fixture_admitted(),
         )?
         .with_marketplace_filter(marketplace_filter),
+        database_url,
     )
     .await
 }
@@ -243,13 +289,16 @@ pub async fn fixture_app_context_with_hook(
     database_url: &str,
     authz_hook: SharedAuthzHook,
 ) -> Result<Arc<AppContext>> {
+    let bootstrap = ensure_test_bootstrap();
     build(
-        fixture_context_builder(
-            ensure_test_bootstrap(),
+        context_builder_on_profile(
+            bootstrap,
+            extension_mode_profile(bootstrap)?,
             fixture_config(database_url),
             fixture_admitted(),
         )?
         .with_shared_authz_hook(authz_hook),
+        database_url,
     )
     .await
 }
@@ -265,6 +314,7 @@ pub async fn fixture_app_context_with_build(
             fixture_admitted(),
         )?
         .with_build_identity(build_identity),
+        database_url,
     )
     .await
 }
@@ -273,9 +323,11 @@ pub async fn fixture_app_context_with_services(
     config: Config,
     services: systemprompt_loader::ServicesState,
 ) -> Result<Arc<AppContext>> {
+    let database_url = config.database_url.clone();
     build(
         fixture_context_builder(ensure_test_bootstrap(), config, fixture_admitted())?
             .with_services(services),
+        &database_url,
     )
     .await
 }
@@ -301,13 +353,9 @@ pub fn fixture_artifact_ingest(db: &DbPool) -> Result<Arc<systemprompt_mcp::Arti
 // A counter store that never answers: built without a runtime, so a sync
 // test can arm a rate window; every charge through it fails closed.
 pub fn offline_rate_windows() -> systemprompt_governance::policy::RateWindowRepository {
-    let pool = sqlx::postgres::PgPoolOptions::new()
-        .acquire_timeout(std::time::Duration::from_millis(50))
-        .idle_timeout(None)
-        .max_lifetime(None)
-        .connect_lazy("postgres://offline:offline@127.0.0.1:1/offline")
-        .expect("lazy pool construction is infallible for a well-formed URL");
-    systemprompt_governance::policy::RateWindowRepository::new(pool)
+    systemprompt_governance::policy::RateWindowRepository::new(sqlx::PgPool::clone(
+        &crate::db::lazy_pg_pool(),
+    ))
 }
 
 // The vendor-neutral warn-only chain: what a deployment without a
@@ -357,6 +405,8 @@ pub fn fixture_kernel(
     systemprompt_runtime::Kernel::new(database, systemprompt_traits::BackgroundTasks::new(), seed)
 }
 
+// A kernel over a pool that never connects; it needs no Tokio runtime (see
+// [`crate::db::lazy_pg_pool`]), so a sync test may build one.
 pub fn offline_kernel(
     seed: systemprompt_extension::prelude::Dependencies,
 ) -> systemprompt_runtime::Kernel {

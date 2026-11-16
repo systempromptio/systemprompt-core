@@ -18,7 +18,7 @@ use systemprompt_traits::{AppContext as AppContextTrait, BackgroundTasks, Secret
 
 async fn context() -> Arc<AppContext> {
     ensure_test_bootstrap();
-    crate::boot::admin_app(&test_database_url()).await
+    systemprompt_test_fixtures::test_app_context(&test_database_url()).await
 }
 
 fn command_kernel(ctx: &AppContext) -> Kernel {

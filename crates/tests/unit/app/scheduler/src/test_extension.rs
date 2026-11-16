@@ -57,7 +57,6 @@ pub async fn app_over_config(
     config: Config,
     admitted: Arc<Admitted>,
 ) -> (Arc<AppContext>, Arc<AdmittedSchedule>) {
-    seed_config_admin(&config).await;
     let schedule = schedule_of(&admitted);
     let app = fixture_app_context_with_extensions(config, admitted)
         .await
@@ -77,7 +76,7 @@ pub async fn scheduled_app(database_url: &str) -> (Arc<AppContext>, Arc<Admitted
 }
 
 pub async fn job_dependencies(pool: &DbPool, database_url: &str) -> Dependencies {
-    let app = admin_app(database_url).await;
+    let app = systemprompt_test_fixtures::test_app_context(database_url).await;
     app.kernel()
         .state()
         .clone()
@@ -86,31 +85,4 @@ pub async fn job_dependencies(pool: &DbPool, database_url: &str) -> Dependencies
         .with(app)
 }
 
-pub async fn seed_config_admin(config: &systemprompt_manifest::Config) {
-    let pool: systemprompt_database::DbPool =
-        std::sync::Arc::new(systemprompt_database::Database::from_pools(
-            std::sync::Arc::new(
-                sqlx::PgPool::connect(&config.database_url)
-                    .await
-                    .expect("connect to the configured database"),
-            ),
-            None,
-        ));
-    let email = config
-        .system_admin_email
-        .as_ref()
-        .expect("the fixture config names the admin email");
-    systemprompt_test_fixtures::seed_user_row_with_roles(
-        &pool,
-        &systemprompt_identifiers::UserId::new(config.system_admin_username.clone()),
-        email.as_str(),
-        &["admin".to_owned(), "user".to_owned()],
-    )
-    .await
-    .expect("seed the configured system admin");
-}
 
-pub async fn admin_app(database_url: &str) -> std::sync::Arc<systemprompt_runtime::AppContext> {
-    seed_config_admin(&systemprompt_test_fixtures::fixture_config(database_url)).await;
-    systemprompt_test_fixtures::test_app_context(database_url).await
-}

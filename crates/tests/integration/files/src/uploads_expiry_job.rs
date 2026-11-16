@@ -72,7 +72,6 @@ async fn the_enabled_expiry_job_closes_an_upload_past_its_lifetime() {
     .execute(&*db.pool())
     .await
     .expect("backdate");
-    crate::seed_config_admin(&systemprompt_test_fixtures::fixture_config(&test_database_url())).await;
     let extensions: Arc<dyn ExtensionContext> = test_app_context(&test_database_url()).await;
     let ctx = JobContext::new(
         fixture_actor(),
