@@ -10,8 +10,8 @@ use systemprompt_files::issues::IssueListQuery;
 use systemprompt_identifiers::{IssueReportId, UserId};
 use systemprompt_models::issues::{IssueKind, IssueReport, IssueSeverity, IssueStatus};
 
-use crate::context::CommandContext;
 use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Args)]
 pub struct ListArgs {
@@ -62,8 +62,8 @@ impl From<IssueReport> for IssueRow {
     }
 }
 
-pub(super) async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let app = ctx.app_context().await?;
+pub(super) async fn execute(args: ListArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let app = crate::commands::admin::state::app(host).await?;
     let query = IssueListQuery {
         reporter: args.reporter.as_deref().map(UserId::new),
         status: args.status,
