@@ -17,6 +17,7 @@ fn ctx() -> CommandContext {
         CliConfig::new().with_interactive(false),
         EnvOverrides::default(),
     )
+    .with_detached_kernel()
 }
 
 fn args(services: Option<&Path>, profiles: Option<&Path>, check: bool) -> MigrateArgs {
