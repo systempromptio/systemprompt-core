@@ -12,10 +12,18 @@
 //! empty set, so a missing row means the member was never admitted since the
 //! records existed.
 //!
+//! Each row carries its member's standing. Before any DDL the install refuses
+//! an install member whose id matches a row recorded under core standing
+//! ([`LoaderError::CoreRecordClaimedByInstall`]), so an install that takes
+//! the id of a core member absent from this build neither replaces nor
+//! inherits that member's recorded declarations.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_extension::{AdmittedPurge, LoaderError, PurgeClaim, PurgeDeclaration, SchemaDefinition};
+use systemprompt_extension::{
+    AdmittedPurge, LoaderError, PurgeClaim, PurgeDeclaration, SchemaDefinition, StandingTag,
+};
 use systemprompt_identifiers::ExtensionId;
 
 use super::ExtensionSet;
@@ -25,10 +33,13 @@ use crate::services::DatabaseProvider;
 const PRESENT_SQL: &str =
     "SELECT to_regclass('schema_purge_records') IS NOT NULL AS present";
 
-const RECORD_SQL: &str = "INSERT INTO schema_purge_records (extension_id, position, declarations) \
-     VALUES ($1, $2, $3::jsonb) \
-     ON CONFLICT (extension_id) DO UPDATE SET position = EXCLUDED.position, \
-     declarations = EXCLUDED.declarations, recorded_at = CURRENT_TIMESTAMP";
+const RECORDED_SQL: &str = "SELECT extension_id, standing FROM schema_purge_records";
+
+const RECORD_SQL: &str = "INSERT INTO schema_purge_records \
+     (extension_id, standing, position, declarations) VALUES ($1, $2, $3, $4::jsonb) \
+     ON CONFLICT (extension_id) DO UPDATE SET standing = EXCLUDED.standing, \
+     position = EXCLUDED.position, declarations = EXCLUDED.declarations, \
+     recorded_at = CURRENT_TIMESTAMP";
 
 pub(super) fn admit_purges(members: &ExtensionSet) -> Result<(), LoaderError> {
     let ids: Vec<ExtensionId> = members.iter().map(|m| ExtensionId::new(m.id())).collect();
@@ -59,25 +70,65 @@ pub(super) fn admit_purges(members: &ExtensionSet) -> Result<(), LoaderError> {
     Ok(())
 }
 
-pub(super) async fn record_purges(
+pub(super) async fn check_recorded_purges(
     db: &dyn DatabaseProvider,
     members: &ExtensionSet,
 ) -> Result<(), LoaderError> {
-    let present = db
+    if !records_present(db).await? {
+        return Ok(());
+    }
+    let rows = db
+        .fetch_all(&RECORDED_SQL, &[])
+        .await
+        .map_err(|e| step_failed("Failed to read the user purge records", Box::new(e)))?;
+    for row in &rows {
+        let (Some(id), Some(standing)) = (
+            row.get("extension_id").and_then(serde_json::Value::as_str),
+            row.get("standing")
+                .and_then(serde_json::Value::as_str)
+                .and_then(StandingTag::parse),
+        ) else {
+            continue;
+        };
+        let claimed_by_install = members
+            .iter()
+            .any(|m| m.id() == id && m.standing() == StandingTag::Install);
+        if standing == StandingTag::Core && claimed_by_install {
+            return Err(LoaderError::CoreRecordClaimedByInstall {
+                kind: "user purge records",
+                name: id.to_owned(),
+                owner: ExtensionId::new(id),
+            });
+        }
+    }
+    Ok(())
+}
+
+async fn records_present(db: &dyn DatabaseProvider) -> Result<bool, LoaderError> {
+    Ok(db
         .fetch_one(&PRESENT_SQL, &[])
         .await
         .map_err(|e| step_failed("Failed to look up the user purge records", Box::new(e)))?
         .get("present")
         .and_then(serde_json::Value::as_bool)
-        .unwrap_or(false);
-    if !present {
+        .unwrap_or(false))
+}
+
+pub(super) async fn record_purges(
+    db: &dyn DatabaseProvider,
+    members: &ExtensionSet,
+) -> Result<(), LoaderError> {
+    if !records_present(db).await? {
         return Ok(());
     }
     for (position, member) in members.iter().enumerate() {
         let declarations = serde_json::to_string(&member.purges())
             .map_err(|e| step_failed("Failed to encode user purge declarations", Box::new(e)))?;
         let position = i32::try_from(position).unwrap_or(i32::MAX);
-        db.execute(&RECORD_SQL, &[&member.id(), &position, &declarations])
+        db.execute(
+            &RECORD_SQL,
+            &[&member.id(), &member.standing().as_str(), &position, &declarations],
+        )
             .await
             .map_err(|e| step_failed("Failed to record user purge declarations", Box::new(e)))?;
     }

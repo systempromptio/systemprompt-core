@@ -6919,6 +6919,7 @@ dependencies = [
  "clap",
  "futures",
  "http",
+ "pg_query",
  "schemars 1.2.3",
  "serde",
  "serde_json",

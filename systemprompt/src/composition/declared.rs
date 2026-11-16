@@ -28,6 +28,7 @@ pub(super) struct DeclaredMember {
     pub(super) id: ExtensionId,
     pub(super) standing: Standing,
     pub(super) type_id: TypeId,
+    pub(super) type_name: &'static str,
     pub(super) sink: ContributionSink,
 }
 
