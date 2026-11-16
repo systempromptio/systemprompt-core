@@ -12,7 +12,8 @@ use systemprompt_identifiers::UserId;
 use crate::CliConfig;
 use crate::commands::core::files::types::AiFilesListOutput;
 use systemprompt_extension::cli::FileSummary;
-use crate::context::CommandContext;
+use systemprompt_extension::cli::CommandHost;
+use crate::commands::shared::app_context;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
@@ -27,9 +28,10 @@ pub struct ListArgs {
     pub user: Option<String>,
 }
 
-pub(super) async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let app = ctx.app_context().await?;
-    execute_with_pool(args, app.db_pool(), &ctx.cli).await
+pub(super) async fn execute(args: ListArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let app = app_context(host)
+        .await?;
+    execute_with_pool(args, app.db_pool(), host.output()).await
 }
 
 pub async fn execute_with_pool(

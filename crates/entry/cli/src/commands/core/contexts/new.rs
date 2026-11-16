@@ -13,7 +13,8 @@ use systemprompt_logging::CliService;
 
 use super::types::ContextSwitchedOutput;
 use crate::CliConfig;
-use crate::context::CommandContext;
+use systemprompt_extension::cli::CommandHost;
+use systemprompt_database::pool_from_handle;
 use crate::session::{CliSessionContext, get_or_create_session};
 use crate::shared::CommandOutput;
 use std::path::Path;
@@ -26,11 +27,11 @@ pub struct NewArgs {
     pub name: Option<String>,
 }
 
-pub(super) async fn execute(args: NewArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let session_ctx = get_or_create_session(ctx).await?;
-    let pool = ctx.db_pool().await?;
+pub(super) async fn execute(args: NewArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let session_ctx = get_or_create_session(host).await?;
+    let pool = pool_from_handle(host.db().await?)?;
     let sessions_dir = ResolvedPaths::discover().sessions_dir();
-    execute_resolved(args, &ctx.cli, &session_ctx, &pool, &sessions_dir).await
+    execute_resolved(args, host.output(), &session_ctx, &pool, &sessions_dir).await
 }
 
 pub async fn execute_resolved(

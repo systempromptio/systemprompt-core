@@ -8,17 +8,18 @@ use anyhow::Result;
 use serde::Serialize;
 use std::path::Path;
 use systemprompt_identifiers::PluginId;
-use systemprompt_loader::BootContext;
+use systemprompt_loader::ConfigLoader;
+use systemprompt_manifest::Profile;
 use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_manifest::{MarketplaceConfig, PluginConfig};
 use systemprompt_models::bridge::plugin_bundle::{ManifestAuthor, PluginManifest};
 
 pub(super) fn generate_marketplace_json(
-    boot: &BootContext,
-    _plugins_path: &Path,
+    profile: &Profile,
+    services_root: &Path,
     system_path: &Path,
 ) -> Result<()> {
-    let services = match boot.load_services_config() {
+    let services = match ConfigLoader::for_profile(profile, services_root).load() {
         Ok(s) => s,
         Err(e) => {
             tracing::warn!(error = %e, "Failed to load services config; skipping marketplace generation");

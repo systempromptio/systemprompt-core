@@ -15,7 +15,8 @@ use systemprompt_models::a2a::PartContent;
 
 use super::types::{ArtifactPartOutput, ArtifactSummary};
 use crate::cli_settings::CliConfig;
-use crate::context::CommandContext;
+use systemprompt_extension::cli::CommandHost;
+use systemprompt_database::pool_from_handle;
 use crate::session::get_or_create_session;
 use crate::shared::CommandOutput;
 
@@ -31,13 +32,13 @@ pub struct ShowArgs {
     pub full: bool,
 }
 
-pub(super) async fn execute(args: ShowArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let session_ctx = get_or_create_session(ctx).await?;
+pub(super) async fn execute(args: ShowArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let session_ctx = get_or_create_session(host).await?;
     execute_with_pool(
         args,
         &session_ctx.session.user_id,
-        &ctx.db_pool().await?,
-        &ctx.cli,
+        &pool_from_handle(host.db().await?)?,
+        host.output(),
     )
     .await
 }

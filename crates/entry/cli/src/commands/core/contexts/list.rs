@@ -11,7 +11,8 @@ use systemprompt_logging::CliService;
 
 use super::types::{ContextListOutput, ContextSummary};
 use crate::cli_settings::CliConfig;
-use crate::context::CommandContext;
+use systemprompt_extension::cli::CommandHost;
+use systemprompt_database::pool_from_handle;
 use crate::presentation::tables::context_list_table;
 use crate::session::get_or_create_session;
 use crate::shared::CommandOutput;
@@ -19,10 +20,10 @@ use crate::shared::CommandOutput;
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ListArgs;
 
-pub(super) async fn execute(_args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let session_ctx = get_or_create_session(ctx).await?;
-    let pool = ctx.db_pool().await?;
-    execute_with_pool(&session_ctx.session, &pool, &ctx.cli).await
+pub(super) async fn execute(_args: ListArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let session_ctx = get_or_create_session(host).await?;
+    let pool = pool_from_handle(host.db().await?)?;
+    execute_with_pool(&session_ctx.session, &pool, host.output()).await
 }
 
 pub(super) async fn execute_with_pool(

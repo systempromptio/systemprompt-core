@@ -32,8 +32,7 @@ pub mod versions;
 use anyhow::Result;
 use clap::Subcommand;
 
-use crate::context::CommandContext;
-use crate::shared::render_result;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
 #[derive(Debug, Subcommand)]
 pub enum ServicesCommands {
@@ -62,32 +61,20 @@ pub enum ServicesCommands {
     Inspect(inspect::InspectArgs),
 }
 
-pub async fn execute(command: ServicesCommands, ctx: &CommandContext) -> Result<()> {
+pub async fn execute(command: ServicesCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     match command {
         ServicesCommands::Validate(args) => {
             let (output, ok) = validate::execute(&args)?;
-            render_result(&output, &ctx.cli);
             if !ok {
+                host.render(&output);
                 anyhow::bail!("Services validation failed");
             }
-            Ok(())
+            Ok(output)
         },
-        ServicesCommands::Bundle(args) => {
-            render_result(&bundle::execute(&args)?, &ctx.cli);
-            Ok(())
-        },
-        ServicesCommands::Keygen(args) => {
-            render_result(&keygen::execute(&args)?, &ctx.cli);
-            Ok(())
-        },
-        ServicesCommands::Publish(args) => {
-            render_result(&publish::execute(&args, ctx).await?, &ctx.cli);
-            Ok(())
-        },
-        ServicesCommands::Refresh(args) => Box::pin(refresh::execute(&args, ctx)).await,
-        ServicesCommands::Inspect(args) => {
-            render_result(&inspect::execute(&args, ctx)?, &ctx.cli);
-            Ok(())
-        },
+        ServicesCommands::Bundle(args) => bundle::execute(&args),
+        ServicesCommands::Keygen(args) => keygen::execute(&args),
+        ServicesCommands::Publish(args) => publish::execute(&args, host).await,
+        ServicesCommands::Refresh(args) => Box::pin(refresh::execute(&args, host)).await,
+        ServicesCommands::Inspect(args) => inspect::execute(&args, host),
     }
 }

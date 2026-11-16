@@ -10,7 +10,8 @@ use systemprompt_logging::CliService;
 
 use super::resolve::resolve_context;
 use super::types::ContextDeletedOutput;
-use crate::context::CommandContext;
+use systemprompt_extension::cli::CommandHost;
+use systemprompt_database::pool_from_handle;
 use crate::session::get_or_create_session;
 use crate::shared::CommandOutput;
 
@@ -23,10 +24,10 @@ pub struct DeleteArgs {
     pub yes: bool,
 }
 
-pub(super) async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let session_ctx = get_or_create_session(ctx).await?;
-    let pool = ctx.db_pool().await?;
-    execute_with_pool(args, &session_ctx.session, &pool, &ctx.cli, ctx.prompter()).await
+pub(super) async fn execute(args: DeleteArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let session_ctx = get_or_create_session(host).await?;
+    let pool = pool_from_handle(host.db().await?)?;
+    execute_with_pool(args, &session_ctx.session, &pool, host.output(), host.prompter()).await
 }
 
 pub async fn execute_with_pool(

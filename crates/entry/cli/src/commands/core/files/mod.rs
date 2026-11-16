@@ -26,16 +26,15 @@ use clap::Subcommand;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_files::FilesConfig;
 
-use crate::context::CommandContext;
-use crate::shared::render_result;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
-fn load_files_config(ctx: &CommandContext) -> Result<FilesConfig> {
-    let boot = ctx.boot()?;
-    let profile = boot.profile();
+fn load_files_config(host: &dyn CommandHost) -> Result<FilesConfig> {
+    let profile = host.profile()?;
+    let services_root = host.services_root()?;
     let paths = AppPaths::from_profile(
         &profile.paths,
         profile.path_resolution(),
-        boot.services_root().map(|root| root.path.as_path()),
+        Some(services_root.path.as_path()),
     )
     .context("Failed to build paths")?;
     Ok(FilesConfig::from_profile(profile, &paths)?)
@@ -71,8 +70,8 @@ pub enum FilesCommands {
     Ai(ai::AiCommands),
 }
 
-pub async fn execute(cmd: FilesCommands, ctx: &CommandContext) -> Result<()> {
-    if ctx.is_database_scoped()
+pub async fn execute(cmd: FilesCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+    if host.is_database_scoped()
         && matches!(
             cmd,
             FilesCommands::Upload(_)
@@ -87,61 +86,47 @@ pub async fn execute(cmd: FilesCommands, ctx: &CommandContext) -> Result<()> {
 
     match cmd {
         FilesCommands::List(args) => {
-            let result = list::execute(args, ctx)
+            list::execute(args, host)
                 .await
-                .context("Failed to list files")?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+                .context("Failed to list files")
         },
         FilesCommands::Show(args) => {
-            let result = show::execute(args, ctx)
+            show::execute(args, host)
                 .await
-                .context("Failed to show file")?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+                .context("Failed to show file")
         },
         FilesCommands::Upload(args) => {
-            let result = upload::execute(args, ctx)
+            upload::execute(args, host)
                 .await
-                .context("Failed to upload file")?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+                .context("Failed to upload file")
         },
         FilesCommands::Delete(args) => {
-            let result = delete::execute(args, ctx.prompter(), ctx)
+            delete::execute(args, host.prompter(), host)
                 .await
-                .context("Failed to delete file")?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+                .context("Failed to delete file")
         },
         FilesCommands::Validate(args) => {
             let (result, valid) =
-                validate::execute(&args, ctx).context("Failed to validate file")?;
-            render_result(&result, &ctx.cli);
+                validate::execute(&args, host).context("Failed to validate file")?;
             if !valid {
+                host.render(&result);
                 bail!("File failed validation");
             }
-            Ok(())
+            Ok(result)
         },
         FilesCommands::Config(args) => {
-            let result = config::execute(args, ctx).context("Failed to get file config")?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            config::execute(args, host).context("Failed to get file config")
         },
         FilesCommands::Search(args) => {
-            let result = search::execute(args, ctx)
+            search::execute(args, host)
                 .await
-                .context("Failed to search files")?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+                .context("Failed to search files")
         },
         FilesCommands::Stats(args) => {
-            let result = stats::execute(args, ctx)
+            stats::execute(args, host)
                 .await
-                .context("Failed to get file stats")?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+                .context("Failed to get file stats")
         },
-        FilesCommands::Ai(cmd) => ai::execute(cmd, ctx).await,
+        FilesCommands::Ai(cmd) => ai::execute(cmd, host).await,
     }
 }

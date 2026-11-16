@@ -14,8 +14,9 @@ use systemprompt_manifest::{Profile, Secrets};
 use systemprompt_runtime::services_reconcile::pending_composed_hash;
 
 use super::reconcile::{ReconcileRow, reconcile_after_swap};
-use crate::context::CommandContext;
-use crate::shared::{CommandOutput, render_result};
+use systemprompt_extension::cli::CommandHost;
+use crate::commands::shared::rendered;
+use crate::shared::CommandOutput;
 
 pub const EXIT_CHANGED: i32 = 3;
 
@@ -51,12 +52,9 @@ pub struct SourceRow {
     pub changed: bool,
 }
 
-pub async fn execute(args: &RefreshArgs, ctx: &CommandContext) -> Result<()> {
-    let profile = ctx.profile()?;
-    let secrets = ctx
-        .secrets()
-        .context("Secrets required to resolve the services bundle sources")?
-        .get();
+pub async fn execute(args: &RefreshArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let profile = host.profile()?;
+    let secrets = host.secrets().context("Secrets required to resolve the services bundle sources")?;
     let secrets = &*secrets;
     let cache = BundleCache::new(cache_root(profile));
     let before = cache.read_state();
@@ -65,7 +63,7 @@ pub async fn execute(args: &RefreshArgs, ctx: &CommandContext) -> Result<()> {
         let (rows, outcome) = check_sources(profile, secrets, &before).await?;
         (rows, outcome, Vec::new())
     } else {
-        Box::pin(swap_sources(profile, secrets, &cache, &before, ctx)).await?
+        Box::pin(swap_sources(profile, secrets, &cache, &before, host)).await?
     };
 
     let title = if args.check {
@@ -73,8 +71,7 @@ pub async fn execute(args: &RefreshArgs, ctx: &CommandContext) -> Result<()> {
     } else {
         "Services Sources"
     };
-    render_result(
-        &CommandOutput::table_of(
+    host.render(&CommandOutput::table_of(
             vec![
                 "name",
                 "previous_digest",
@@ -84,16 +81,11 @@ pub async fn execute(args: &RefreshArgs, ctx: &CommandContext) -> Result<()> {
             ],
             &rows,
         )
-        .with_title(title),
-        &ctx.cli,
-    );
+        .with_title(title));
 
     if !reconciled.is_empty() {
-        render_result(
-            &CommandOutput::table_of(vec!["bundle", "registered", "deleted"], &reconciled)
-                .with_title("Gateway Routes Reconciled"),
-            &ctx.cli,
-        );
+        host.render(&CommandOutput::table_of(vec!["bundle", "registered", "deleted"], &reconciled)
+                .with_title("Gateway Routes Reconciled"));
     }
 
     // Why: a supervisor script distinguishes "nothing to do" from "restart me"
@@ -107,7 +99,7 @@ pub async fn execute(args: &RefreshArgs, ctx: &CommandContext) -> Result<()> {
         )]
         std::process::exit(code);
     }
-    Ok(())
+    Ok(rendered())
 }
 
 async fn check_sources(
@@ -168,7 +160,7 @@ async fn swap_sources(
     secrets: &Secrets,
     cache: &BundleCache,
     before: &ServicesBundleState,
-    ctx: &CommandContext,
+    host: &dyn CommandHost,
 ) -> Result<(Vec<SourceRow>, RefreshOutcome, Vec<ReconcileRow>)> {
     let root = ServicesSourceBootstrap::resolve(
         profile,
@@ -185,7 +177,7 @@ async fn swap_sources(
     let outcome = outcome_with_pending(&rows, reconcile_pending);
 
     let reconciled = if outcome == RefreshOutcome::Changed {
-        Box::pin(reconcile_after_swap(profile, &root, cache, ctx)).await?
+        Box::pin(reconcile_after_swap(profile, &root, cache, host)).await?
     } else {
         Vec::new()
     };
