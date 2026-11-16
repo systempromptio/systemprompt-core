@@ -114,6 +114,9 @@ pub enum LoaderError {
     #[error("Dependency cycle detected while ordering extensions: {chain}")]
     DependencyCycle { chain: String },
 
+    #[error("user purge declarations refused")]
+    PurgeAdmission(#[from] crate::admitted_purge::PurgeAdmissionError),
+
     #[error("Extension '{extension}' failed to provide its state: {source}")]
     ProvideFailed {
         extension: ExtensionId,

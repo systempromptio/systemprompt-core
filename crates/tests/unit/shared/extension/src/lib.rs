@@ -34,3 +34,5 @@ mod stub_ctx;
 
 #[cfg(test)]
 mod migration_slots;
+#[cfg(test)]
+mod purge_admission;

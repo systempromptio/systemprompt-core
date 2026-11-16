@@ -85,9 +85,10 @@ impl Extension for BrainExtension {
             .user_purge(UserPurgeTable {
                 table: "brain_facts",
                 column: "owner_user_id",
-                predicate: Some(
-                    "source_kind = 'session' OR source_kind = 'entered_by' OR source_kind = 'run'",
-                ),
+                predicate: Some(PurgePredicate {
+                    column: "source_kind",
+                    any_of: &["session", "entered_by", "run"],
+                }),
             })
             .user_purge(UserPurgeTable {
                 table: "brain_recalls",
