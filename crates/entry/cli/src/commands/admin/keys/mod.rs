@@ -15,8 +15,7 @@ mod rotation;
 use anyhow::Result;
 use clap::Subcommand;
 
-use crate::context::CommandContext;
-use crate::shared::render_result;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
 #[derive(Debug, Subcommand)]
 pub enum KeysCommands {
@@ -44,28 +43,24 @@ pub enum KeysCommands {
     IssuePluginToken(issue_plugin_token::IssuePluginTokenArgs),
 }
 
-pub async fn execute(cmd: KeysCommands, ctx: &CommandContext) -> Result<()> {
+pub async fn execute(cmd: KeysCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     match cmd {
-        KeysCommands::Generate(args) => generate::execute(&args),
+        KeysCommands::Generate(args) => generate::execute(&args).map(|()| super::state::rendered()),
         KeysCommands::Stage(_) => {
-            let result = rotation::execute_stage(ctx)?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            let result = rotation::execute_stage(host).await?;
+            Ok(result)
         },
         KeysCommands::Promote(args) => {
-            let result = rotation::execute_promote(args, ctx)?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            let result = rotation::execute_promote(args, host).await?;
+            Ok(result)
         },
         KeysCommands::Rotate(args) => {
-            let result = rotation::execute_rotate(args, ctx)?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            let result = rotation::execute_rotate(args, host).await?;
+            Ok(result)
         },
         KeysCommands::IssuePluginToken(args) => {
-            let result = issue_plugin_token::execute(args, ctx).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            let result = issue_plugin_token::execute(args, host).await?;
+            Ok(result)
         },
     }
 }
