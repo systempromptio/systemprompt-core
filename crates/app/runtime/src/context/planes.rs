@@ -8,8 +8,7 @@ use std::sync::Arc;
 
 use systemprompt_agent::repository::A2ARepositories;
 use systemprompt_ai::repository::AiRepositories;
-use systemprompt_analytics::repository::AnalyticsRepositories;
-use systemprompt_analytics::{AnalyticsService, FingerprintRepository, GeoIpReader};
+use systemprompt_analytics::{FingerprintRepository, GeoIpReader};
 use systemprompt_config::paths::AppPaths;
 use systemprompt_content::repository::ContentRepositories;
 use systemprompt_database::{CoordinationRepositories, DbPool, ServiceRepository};
@@ -43,7 +42,6 @@ use super::ShutdownRequest;
 #[derive(Clone)]
 pub struct DataPlane {
     pub database: DbPool,
-    pub analytics_service: Arc<AnalyticsService>,
     pub fingerprint_repo: Option<Arc<FingerprintRepository>>,
     pub user_service: Option<Arc<UserService>>,
     pub a2a_repositories: Arc<A2ARepositories>,
@@ -53,7 +51,6 @@ pub struct DataPlane {
     pub service_repository: Arc<ServiceRepository>,
     pub coordination: Arc<CoordinationRepositories>,
     pub ai_repositories: Arc<AiRepositories>,
-    pub analytics_repositories: Arc<AnalyticsRepositories>,
     pub file_repository: Arc<FileRepository>,
     pub mcp_session_repository: Arc<McpSessionRepository>,
     pub managed_repository: Arc<ManagedRepository>,

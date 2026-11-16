@@ -11,9 +11,10 @@
 //! grants its reserved CLI path confers; with `content-commands`, the
 //! `popular` leaf attaches under `core content`.
 //!
-//! The routes read the analytics repositories the kernel seeds, the loaded
-//! content configuration when there is one, and the content catalog the
-//! `content` extension provides, which this extension `requires`:
+//! The routes read the analytics repositories the `analytics` member
+//! provides, the loaded content configuration when there is one, and the
+//! content catalog the `content` extension provides, which this extension
+//! `requires`:
 //!
 //! | profile disables | analytics | engagement | CLI |
 //! |---|---|---|---|

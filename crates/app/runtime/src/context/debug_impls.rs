@@ -15,7 +15,6 @@ impl std::fmt::Debug for AppContext {
             .field("geoip_reader", &self.subsystems.geoip_reader.is_some())
             .field("content_config", &self.cfg.content_config.is_some())
             .field("route_classifier", &"RouteClassifier")
-            .field("analytics_service", &"AnalyticsService")
             .field("fingerprint_repo", &self.data.fingerprint_repo.is_some())
             .field("user_service", &self.data.user_service.is_some())
             .field("app_paths", &"AppPaths")
@@ -34,7 +33,6 @@ impl std::fmt::Debug for DataPlane {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DataPlane")
             .field("database", &"DbPool")
-            .field("analytics_service", &"AnalyticsService")
             .field("fingerprint_repo", &self.fingerprint_repo.is_some())
             .field("user_service", &self.user_service.is_some())
             .field("a2a_repositories", &"A2ARepositories")
@@ -44,7 +42,6 @@ impl std::fmt::Debug for DataPlane {
             .field("service_repository", &"ServiceRepository")
             .field("coordination", &"CoordinationRepositories")
             .field("ai_repositories", &"AiRepositories")
-            .field("analytics_repositories", &"AnalyticsRepositories")
             .field("file_repository", &"FileRepository")
             .field("mcp_session_repository", &"McpSessionRepository")
             .field("managed_repository", &"ManagedRepository")
