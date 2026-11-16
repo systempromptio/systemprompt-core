@@ -328,7 +328,7 @@ pub fn fixture_hooks(db: &DbPool) -> ContentHooks {
             fails: true,
         }) as Arc<dyn ContentDataProvider>)
     });
-    let handle: Arc<dyn DatabaseHandle> = Arc::clone(db);
+    let handle: Arc<dyn DatabaseHandle> = Arc::<systemprompt_database::Database>::clone(db);
     let kernel = Kernel::new(handle, BackgroundTasks::new(), Dependencies::default());
     ContentSlot::build(
         vec![SlotEntry::install(
