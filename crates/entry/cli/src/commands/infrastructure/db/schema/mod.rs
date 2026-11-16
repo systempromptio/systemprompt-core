@@ -68,7 +68,7 @@ pub(super) async fn execute_tables(
         ));
     }
     Ok(result)
-}}
+}
 
 pub(super) async fn execute_describe(
     admin: &DatabaseAdminService,
@@ -118,7 +118,7 @@ pub(super) async fn execute_describe(
         &output.columns,
     )
     .with_title(format!("Table: {table_name} ({row_count} rows)")))
-}}
+}
 
 pub(super) async fn execute_info(admin: &DatabaseAdminService) -> Result<CommandOutput> {
     let info = admin
@@ -137,7 +137,7 @@ pub(super) async fn execute_info(admin: &DatabaseAdminService) -> Result<Command
     };
 
     Ok(CommandOutput::card_value("Database Info", &output))
-}}
+}
 
 pub(super) async fn execute_count(
     admin: &DatabaseAdminService,
@@ -157,7 +157,7 @@ pub(super) async fn execute_count(
     };
 
     Ok(CommandOutput::card_value("Row Count", &output))
-}}
+}
 
 // Why: Postgres reports a missing relation as SQLSTATE 42P01 (undefined_table).
 const UNDEFINED_TABLE: &str = "42P01";

@@ -64,7 +64,7 @@ pub(super) async fn execute_indexes(
                 format!("Total: {} index(es)", output.total),
             )),
     )
-}}
+}
 
 pub(super) async fn execute_size(admin: &DatabaseAdminService) -> Result<CommandOutput> {
     let info = admin
@@ -96,4 +96,4 @@ pub(super) async fn execute_size(admin: &DatabaseAdminService) -> Result<Command
     };
 
     Ok(CommandOutput::card_value("Database Size", &output))
-}}
+}

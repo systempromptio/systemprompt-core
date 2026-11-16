@@ -23,6 +23,7 @@ pub mod context;
 pub mod env_overrides;
 pub mod environment;
 mod host;
+mod member_host;
 pub mod interactive;
 pub mod kernel;
 pub mod presentation;
