@@ -36,10 +36,10 @@ use systemprompt_models::BuildIdentity;
 use crate::context::CommandContext;
 use crate::env_overrides::EnvOverrides;
 use crate::kernel::{CommandRegistry, ResolveError};
-use composed::admit_for;
+use composed::{admit_for, admit_unprofiled};
 pub use composed::{AdmitFn, CliRunError, refuse_disabled, run_composed};
 use direct::{DirectDatabase, direct_database_url, run_with_database_url};
-use dispatch::{Invocation, dispatch_command};
+use dispatch::{Invocation, Selected, dispatch_command};
 use systemprompt_extension::cli::{CliConfig, CommandDescriptor, OutputFormat};
 
 pub(super) async fn run_with(
@@ -251,13 +251,15 @@ struct RunGuards {
 }
 
 impl RunGuards {
-    fn apply(self, ctx: CommandContext) -> CommandContext {
-        drop(self.admit);
-        ctx.with_interrupt_shield(self.shield)
+    fn apply(self, ctx: CommandContext, selected: &Selected) -> Result<CommandContext> {
+        let admitted = admit_unprofiled(selected, self.admit)?;
+        Ok(ctx
+            .with_admitted(Some(admitted))
+            .with_interrupt_shield(self.shield)
             .with_foreground_children(self.children)
             .with_build_identity(self.build)
             .with_secrets_sources(self.secrets)
-            .with_registry(self.registry)
+            .with_registry(self.registry))
     }
 }
 

@@ -14,7 +14,7 @@ use systemprompt_manifest::Profile;
 use systemprompt_models::BuildIdentity;
 use systemprompt_traits::BoxedSource;
 
-use super::dispatch::Invocation;
+use super::dispatch::{Invocation, Selected};
 use super::{interrupt, run_with};
 use crate::kernel::{
     CommandOwner, CommandRegistry, RegistryError, ResolvedCommand, kernel_commands,
@@ -22,7 +22,10 @@ use crate::kernel::{
 
 /// The admission the facade hands the CLI: run once, against the loaded
 /// profile.
-pub type AdmitFn = Box<dyn FnOnce(&Profile) -> Result<Admitted, BoxedSource> + Send>;
+/// Admits the composition: against the loaded profile, or, for a
+/// database-only kernel command run with `--database-url` and no profile,
+/// over every linked member with none disabled (`None`).
+pub type AdmitFn = Box<dyn FnOnce(Option<&Profile>) -> Result<Admitted, BoxedSource> + Send>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum CliRunError {
@@ -33,6 +36,8 @@ pub enum CliRunError {
         path: Vec<&'static str>,
         owner: ExtensionId,
     },
+    #[error("command {path:?} belongs to a member and requires a profile; it cannot run with --database-url alone")]
+    ProfileRequired { path: Vec<&'static str> },
     #[error("command registry")]
     Registry(#[from] RegistryError),
     #[error("command failed")]
@@ -46,7 +51,7 @@ pub fn run_composed<A>(
     admit: A,
 ) -> Result<ExitCode, CliRunError>
 where
-    A: FnOnce(&Profile) -> Result<Admitted, BoxedSource> + Send + 'static,
+    A: FnOnce(Option<&Profile>) -> Result<Admitted, BoxedSource> + Send + 'static,
 {
     let registry = CommandRegistry::build(&declared, &kernel_commands())?;
     let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -91,6 +96,17 @@ pub(super) fn admit_for(
     if let Some(resolved) = invocation.resolved() {
         refuse_disabled(resolved, profile)?;
     }
-    let admitted = admit(profile).map_err(CliRunError::Admit)?;
+    let admitted = admit(Some(profile)).map_err(CliRunError::Admit)?;
     Ok(Some(Arc::new(admitted)))
+}
+
+pub(super) fn admit_unprofiled(selected: &Selected, admit: AdmitFn) -> Result<Arc<Admitted>> {
+    if let Selected::Registered(resolved) = selected {
+        return Err(CliRunError::ProfileRequired {
+            path: resolved.path.clone(),
+        }
+        .into());
+    }
+    let admitted = admit(None).map_err(CliRunError::Admit)?;
+    Ok(Arc::new(admitted))
 }

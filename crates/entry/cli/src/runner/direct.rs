@@ -55,12 +55,10 @@ pub(super) async fn run_with_database_url(
     systemprompt_logging::init_logging(&db_ctx.db_pool_arc(), None);
 
     let ctx = guards
-        .apply(CommandContext::with_database(
-            cli_config,
-            env,
-            db_ctx,
-            database_url.to_owned(),
-        ))
+        .apply(
+            CommandContext::with_database(cli_config, env, db_ctx, database_url.to_owned()),
+            &selected,
+        )?
         .with_cloud_credentials(credentials);
     Box::pin(dispatch_command(selected, &ctx)).await
 }

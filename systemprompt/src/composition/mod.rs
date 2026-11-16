@@ -288,9 +288,9 @@ impl Composition {
             systemprompt_models::BuildIdentity::core(),
             commands,
             secrets,
-            move |profile| {
-                declared
-                    .admit(profile)
+            move |profile: Option<&Profile>| {
+                profile
+                    .map_or_else(|| declared.admit_unprofiled(), |profile| declared.admit(profile))
                     .map_err(systemprompt_traits::BoxedSource::from)
             },
         )

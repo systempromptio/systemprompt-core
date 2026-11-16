@@ -66,7 +66,15 @@ impl Declared {
     }
 
     pub fn admit(self, profile: &Profile) -> Result<Admitted, CompositionError> {
-        let disabled = disabled_members(&self.members, profile)?;
+        self.admit_without(&profile.extensions.disabled)
+    }
+
+    pub fn admit_unprofiled(self) -> Result<Admitted, CompositionError> {
+        self.admit_without(&[])
+    }
+
+    fn admit_without(self, disabled: &[ExtensionId]) -> Result<Admitted, CompositionError> {
+        let disabled = disabled_members(&self.members, disabled)?;
         let (enabled, dropped): (Vec<DeclaredMember>, Vec<DeclaredMember>) = self
             .members
             .into_iter()

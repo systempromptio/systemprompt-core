@@ -110,9 +110,8 @@ pub(super) fn check_member_dependencies(
 
 pub(super) fn disabled_members(
     members: &[DeclaredMember],
-    profile: &Profile,
+    disabled: &[ExtensionId],
 ) -> Result<Vec<ExtensionId>, CompositionError> {
-    let disabled = &profile.extensions.disabled;
     for id in disabled {
         let Some(member) = members.iter().find(|member| &member.id == id) else {
             return Err(CompositionError::UnknownExtension(id.as_str().to_owned()));
@@ -121,7 +120,7 @@ pub(super) fn disabled_members(
             return Err(CompositionError::RequiredDisabled(member.id.clone()));
         }
     }
-    Ok(disabled.clone())
+    Ok(disabled.to_vec())
 }
 
 pub(super) fn check_providers(
