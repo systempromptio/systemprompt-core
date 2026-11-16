@@ -1,0 +1,14 @@
+[root]
+section = "Added"
+area = "Kernel contract"
+text = "The closed `systemprompt_extension::reserved::PRIVILEGED_SHAPES` table lists every route shape treated differently from an install member's (the agent proxy, agent runs, Slack, Teams, the notification user, admin and bridge-inbox groups, analytics and engagement, and the content public, authenticated and redirect routes), each owned by one `CoreId` with its base, route group, `Allowance` and full protection shape. Only the owning member may hold a privileged shape, and only exactly: a handler-verified policy, an above-default body limit, a base outside `/api/` other than the web root, or a reserved CLI path (`cloud`, `analytics`, `admin mcp`) held by any other member is refused at admission and re-checked at mount. A gateway route set (`RouteSet::gateway`) is admitted against `BUILTIN_GATEWAY_PREFIXES` and the other gateway routes (`UnlistedGatewayRoute`, `GatewayRouteOverlap`, `GatewayRouteShadowsBuiltin`) and keeps the gateway credential, bearer window and access log; a disabled member's gateway routes answer 404."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`reserved::{PRIVILEGED_SHAPES, PrivilegedShape, RESERVED_CLI_PATHS, ReservedCliPath, BUILTIN_GATEWAY_PREFIXES, CoreId}`, `router::{Allowance, BaseRef, RouteShape, GatewayRouteDecl}`, `AuthzPolicy`, `HandlerVerifier`, `RouteGroup`, `RateLimit`, `RateBudget`, `ProtectionLayer` and `ContextKind::HandlerResolved`."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Changed"
+text = "The mount applies each admitted route set's policy, context, rate limit, body limit and protection layers, and re-checks every privileged entry against `PRIVILEGED_SHAPES`; `MountError` reports `IncoherentHandlerVerification` and `UnlistedBodyExemption`."
