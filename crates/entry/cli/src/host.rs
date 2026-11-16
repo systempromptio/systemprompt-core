@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::Context;
@@ -11,7 +12,8 @@ use systemprompt_extension::cli::{
     DescribedCommand, Prompter,
 };
 use systemprompt_extension::{Admitted, Resolved};
-use systemprompt_manifest::Profile;
+use systemprompt_loader::load_boot::load_boot_from_path;
+use systemprompt_manifest::{Config, Profile};
 use systemprompt_runtime::Kernel;
 use systemprompt_traits::DatabaseHandle;
 
@@ -98,5 +100,22 @@ impl CommandHost for CommandContext {
         })?;
         let profile = CommandContext::profile(self).map_err(CommandError::new)?;
         classify_command_line(registry, profile, command).map_err(CommandError::new)
+    }
+
+    fn env_profile(&self) -> Option<&str> {
+        self.env.profile.as_deref()
+    }
+
+    fn boot_config<'a>(
+        &'a self,
+        profile: &'a Path,
+    ) -> BoxFuture<'a, Result<Arc<Config>, CommandError>> {
+        Box::pin(async move {
+            let boot = load_boot_from_path(profile, self.secrets_sources().clone())
+                .await
+                .map_err(CommandError::new)?;
+            let config = boot.try_init_config(None).map_err(CommandError::new)?;
+            Ok(Arc::clone(config))
+        })
     }
 }

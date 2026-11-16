@@ -18,12 +18,13 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::future::Future;
+use std::path::Path;
 use std::pin::Pin;
 use std::sync::Arc;
 
 use clap::{Args, Subcommand};
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_manifest::Profile;
+use systemprompt_manifest::{Config, Profile};
 use systemprompt_traits::DatabaseHandle;
 
 use super::child::ChildSupervisor;
@@ -138,6 +139,11 @@ pub struct DescribedCommand {
 /// closed: a line that selects no command, or a command whose owner the
 /// profile disables, is an error, never a description.
 ///
+/// [`CommandHost::env_profile`] is the `SYSTEMPROMPT_PROFILE` value the runner
+/// resolved at start-up. [`CommandHost::boot_config`] boots the profile at a
+/// path with the secrets sources the composition admitted and returns its
+/// configuration; a command never boots a profile with sources of its own.
+///
 /// [`CommandHost::render`] renders an intermediate output through the
 /// kernel's sink (a command that redraws until interrupted); the output a
 /// command returns is rendered once at exit. A command never writes its own
@@ -152,4 +158,6 @@ pub trait CommandHost: Send + Sync {
     fn children(&self) -> &dyn ChildSupervisor;
     fn render(&self, output: &CommandOutput);
     fn describe_command_line(&self, command: &[String]) -> Result<DescribedCommand, CommandError>;
+    fn env_profile(&self) -> Option<&str>;
+    fn boot_config<'a>(&'a self, profile: &'a Path) -> BoxFuture<'a, Result<Arc<Config>, CommandError>>;
 }
