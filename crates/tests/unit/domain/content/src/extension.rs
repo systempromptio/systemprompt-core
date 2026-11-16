@@ -38,7 +38,9 @@ async fn built_hooks() -> Arc<ContentHooks> {
         .expect("the content slot builds")
         .expect("the content member fills the content slot");
     let mut state = Dependencies::default();
-    built.insert_into(&mut state);
+    built
+        .insert_into(&mut state)
+        .expect("an empty state holds no slot value");
     Arc::clone(
         state
             .get::<Arc<ContentHooks>>()

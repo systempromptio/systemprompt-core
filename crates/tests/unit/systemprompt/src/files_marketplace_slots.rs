@@ -26,12 +26,12 @@ use systemprompt::marketplace::managed::{
 use systemprompt::reference;
 use systemprompt_extension::contribute::build_slot;
 use systemprompt_extension::{
-    Admitted, FactoryError, Resolved, Slot, SlotEntry, SlotError, SlotOrder, StandingTag,
+    Admitted, FactoryError, Resolved, Slot, SlotError, SlotOrder, StandingTag,
 };
 use systemprompt_governance::contract::RoleDirectorySlot;
-use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::Dependencies;
 use systemprompt_runtime::Kernel;
+use systemprompt_test_fixtures::slots::built_slot;
 
 use crate::probe::{Counter, Probe, build, kernel, kernel_with, profile};
 
@@ -109,7 +109,9 @@ where
     }
     let mut state = Dependencies::default();
     if let Some(value) = build_slot(inputs, &resolved)? {
-        value.insert_into(&mut state);
+        value
+            .insert_into(&mut state)
+            .expect("an empty state holds no slot value");
     }
     Ok(state.find::<Arc<S::Built>>().cloned())
 }
@@ -127,12 +129,8 @@ fn governed_kernel() -> Kernel {
     kernel_with(Dependencies::default().with(Arc::new(roles)))
 }
 
-fn entry<B>(owner: &str, standing: StandingTag, builder: B) -> SlotEntry<B> {
-    SlotEntry {
-        owner: ExtensionId::new(owner),
-        standing,
-        builder,
-    }
+fn entry<B>(owner: &str, standing: StandingTag, builder: B) -> (&str, StandingTag, B) {
+    (owner, standing, builder)
 }
 
 fn gate(id: &'static str) -> MarketplaceSlotBuilder {
@@ -266,10 +264,26 @@ fn a_disabled_managed_resources_member_leaves_no_marketplace_slot() {
 #[test]
 fn the_marketplace_slot_is_core_first_and_keeps_every_gate() {
     assert_eq!(MarketplaceSlot::ORDER, SlotOrder::CoreFirst);
-    let seams = MarketplaceSlot::build(
+    let seams = built_slot::<MarketplaceSlot>(
         vec![
             entry("core", StandingTag::Core, gate("core-gate")),
             entry("install", StandingTag::Install, gate("install-gate")),
+        ],
+        &governed_kernel().resolved(),
+    )
+    .expect("the marketplace slot builds");
+    assert_eq!(
+        seams.gates().iter().map(|g| g.id()).collect::<Vec<_>>(),
+        ["core-gate", "install-gate"]
+    );
+}
+
+#[test]
+fn an_install_entry_listed_first_still_builds_after_the_core_entry() {
+    let seams = built_slot::<MarketplaceSlot>(
+        vec![
+            entry("install", StandingTag::Install, gate("install-gate")),
+            entry("core", StandingTag::Core, gate("core-gate")),
         ],
         &governed_kernel().resolved(),
     )

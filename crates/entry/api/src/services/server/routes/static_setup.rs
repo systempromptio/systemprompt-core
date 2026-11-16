@@ -3,6 +3,9 @@
 //! The static router is a public declaration; when an extension declares a
 //! `SiteAuthConfig`, it also carries the `SiteAuth` protection layer, which
 //! redirects unauthenticated page requests to the extension's login path.
+//! With no admitted declaration the static content is served without site
+//! auth, and boot says so: a structured `warn!` and a startup warning, since
+//! a disabled member's declaration never reaches the kernel.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -71,6 +74,22 @@ pub(super) fn build_static_router(
     let mut protection = RouteProtection::new(AuthzPolicy::public(), ContextKind::Public);
     if layers.guards.site_auth.is_some() {
         protection = protection.with_layer(ProtectionLayer::SiteAuth);
+    } else {
+        tracing::warn!(
+            mount = systemprompt_extension::reserved::WEB_ROOT_BASE_PATH,
+            site_auth = false,
+            "static content is served without site auth: no admitted member declares it"
+        );
+        if let Some(tx) = events
+            && tx
+                .unbounded_send(StartupEvent::Warning {
+                    message: "Static content is served without site auth".to_owned(),
+                    context: Some("No admitted member declares site auth".to_owned()),
+                })
+                .is_err()
+        {
+            tracing::debug!("Startup event receiver dropped");
+        }
     }
     protect(
         static_router,

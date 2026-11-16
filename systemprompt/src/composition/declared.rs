@@ -15,7 +15,8 @@ use systemprompt_manifest::Profile;
 #[cfg(feature = "cli")]
 use systemprompt_extension::admitted::AdmittedCommand;
 
-use super::admit::{check_providers, disabled_members};
+use super::admit::disabled_members;
+use super::providers::check_providers;
 #[cfg(feature = "api")]
 use super::routes::{
     admit_gateway_route, admit_route_set, check_gateway_overlaps, check_route_conflicts,

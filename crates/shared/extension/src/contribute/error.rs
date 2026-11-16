@@ -83,6 +83,12 @@ pub enum SlotError {
         #[source]
         source: BoxedSource,
     },
+    #[error("{owner}: audience resolver {resolver} claims reserved subject {subject}")]
+    ReservedAudience {
+        owner: ExtensionId,
+        resolver: &'static str,
+        subject: String,
+    },
     #[error(transparent)]
     Missing(#[from] MissingDependency),
 }

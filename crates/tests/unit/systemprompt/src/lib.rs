@@ -53,3 +53,5 @@ mod probe;
 mod providers;
 #[cfg(test)]
 mod reserved_paths;
+#[cfg(test)]
+mod slot_standing;

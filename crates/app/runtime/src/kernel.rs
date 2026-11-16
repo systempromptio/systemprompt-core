@@ -241,7 +241,7 @@ impl Kernel {
             let inputs = grouped.remove(&slot).unwrap_or_default();
             let built = build_slot(inputs, &Resolved::__new(&*self, &self.state))?;
             if let Some(built) = built {
-                built.insert_into(&mut self.state);
+                built.insert_into(&mut self.state)?;
             }
         }
         Ok(())

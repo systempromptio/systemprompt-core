@@ -5,12 +5,11 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use systemprompt_extension::{
-    FactoryError, Resolved, Slot, SlotEntry, SlotError, SlotOrder, StandingTag,
-};
-use systemprompt_identifiers::{ExtensionId, UserId};
+use systemprompt_extension::{FactoryError, Resolved, Slot, SlotError, SlotOrder, StandingTag};
+use systemprompt_identifiers::UserId;
 use systemprompt_oauth_issuance::contract::{SsoBuilder, SsoSlot};
 use systemprompt_oauth_issuance::sso::RoleResolver;
+use systemprompt_test_fixtures::slots::built_slot;
 use systemprompt_traits::sso::{SsoError, SsoProvider};
 
 use super::providers::{OPEN, provider};
@@ -29,12 +28,12 @@ impl RoleResolver for Tagged {
     }
 }
 
-fn entry(owner: &str, standing: StandingTag, builder: SsoBuilder) -> SlotEntry<SsoBuilder> {
-    SlotEntry {
-        owner: ExtensionId::new(owner),
-        standing,
-        builder,
-    }
+fn entry(
+    owner: &str,
+    standing: StandingTag,
+    builder: SsoBuilder,
+) -> (&str, StandingTag, SsoBuilder) {
+    (owner, standing, builder)
 }
 
 fn open_provider(builder: &mut SsoBuilder) {
@@ -65,7 +64,7 @@ fn two_providers_with_one_id_are_refused() {
     open_provider(&mut first);
     let mut second = SsoBuilder::default();
     open_provider(&mut second);
-    let err = SsoSlot::build(
+    let err = built_slot::<SsoSlot>(
         vec![
             entry("first", StandingTag::Install, first),
             entry("second", StandingTag::Install, second),
@@ -84,7 +83,7 @@ fn one_provider_builds_as_the_negative_control() {
     let kernel = systemprompt_test_fixtures::offline_kernel(Default::default());
     let mut builder = SsoBuilder::default();
     open_provider(&mut builder);
-    let built = SsoSlot::build(
+    let built = built_slot::<SsoSlot>(
         vec![entry("acme", StandingTag::Install, builder)],
         &kernel.resolved(),
     )
@@ -99,7 +98,7 @@ async fn the_core_role_resolver_is_consulted_first() {
     resolver(&mut core, "core");
     let mut install = SsoBuilder::default();
     resolver(&mut install, "install");
-    let built = SsoSlot::build(
+    let built = built_slot::<SsoSlot>(
         vec![
             entry("core", StandingTag::Core, core),
             entry("install", StandingTag::Install, install),

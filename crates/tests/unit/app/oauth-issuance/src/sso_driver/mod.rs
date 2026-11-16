@@ -15,7 +15,7 @@ mod stores;
 use std::sync::Arc;
 
 use systemprompt_database::DbPool;
-use systemprompt_extension::{Slot, SlotEntry, SlotError, StandingTag};
+use systemprompt_extension::{Slot, SlotEntry, SlotError};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_oauth::services::SessionCreationService;
 use systemprompt_oauth_issuance::contract::{SsoBuilder, SsoProviders, SsoSlot};
@@ -65,11 +65,7 @@ fn driver_on(
 fn build_sso(sso: SsoBuilder) -> Result<SsoProviders, SlotError> {
     let kernel = systemprompt_test_fixtures::offline_kernel(Default::default());
     SsoSlot::build(
-        vec![SlotEntry {
-            owner: ExtensionId::new("test"),
-            standing: StandingTag::Install,
-            builder: sso,
-        }],
+        vec![SlotEntry::install(ExtensionId::new("test"), sso)],
         &kernel.resolved(),
     )
 }

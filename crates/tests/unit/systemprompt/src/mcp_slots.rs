@@ -139,7 +139,9 @@ fn built_with<S: Slot>(
     }
     let mut state = Dependencies::default();
     if let Some(value) = build_slot(inputs, &resolved)? {
-        value.insert_into(&mut state);
+        value
+            .insert_into(&mut state)
+            .expect("an empty state holds no slot value");
     }
     Ok(state.find::<Arc<S::Built>>().cloned())
 }
