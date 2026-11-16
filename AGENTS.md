@@ -10,22 +10,25 @@ This is a library, not a framework. You compile it into your binary and extend i
 
 ## Crate Architecture
 
-37-member Rust workspace, published to crates.io as `systemprompt` with feature flags:
+49-member Rust workspace, published to crates.io as `systemprompt` with feature flags:
 
 ```
 Shared (9)     identifiers, provider-contracts, traits, extension,
                models, wire, manifest, client, template-provider
 
-Infra (8)      database, logging, config, events, security, cloud, loader, storage
+Infra (9)      database, logging, config, events, security, governance, cloud,
+               loader, storage
 
-Domain (12)    users, oauth, files, analytics, content, mcp, ai, agent,
-               templates, marketplace, slack, teams
+Domain (14)    users, oauth, files, analytics, content, mcp, ai, agent,
+               templates, marketplace, slack, teams, notifications, brain
 
-App (5)        runtime, scheduler, generator, oauth-issuance, gateway
+App (7)        runtime, scheduler, generator, oauth-issuance, gateway,
+               mcp-host, agent-runs
 
-Entry (2)      api, cli
+Entry (9)      api, cli, and the capability entries: cloud, content, analytics,
+               notifications, agent-runs, slack, teams
 
-Facade (1)     systemprompt (re-exports with feature gates)
+Facade (1)     systemprompt (re-exports with feature gates; owns the composition)
 ```
 
 ### Installation
@@ -57,7 +60,7 @@ Enforcing denials prevent dispatch. Warn mode records findings and permits execu
 
 - **Performance:** measure governance latency with the deployed policy chain, workload and database; report percentiles with reproducible benchmark conditions
 - **Typed identifiers:** internal identifiers use dedicated types such as TraceId, ContextId, TaskId and UserId; external protocol values and partial CLI lookups have separate boundary rules
-- **Compile-time extensions:** the `inventory` crate registers extensions at compile time. No runtime shared-library loading; registered implementations may use trait objects
+- **Compile-time extensions:** a binary is a composition (`reference().with(MyExtension).run()`); each member declares its schemas, routes, jobs, commands and slot entries in `Extension::contribute`, admitted against the profile and the kernel's reserved paths before any of it runs. No runtime shared-library loading; members are trusted in-process code
 - **Audit events:** typed events cover sessions, tool calls, prompts, permission decisions, configuration and agent lifecycle; trace fields correlate the emitting operation and actor
 - **SIEM-ready:** structured JSON events for direct ingestion by Splunk, ELK, Datadog, Sumo Logic. Three integration paths: log forwarding (stdout/file), real-time SSE streaming, CLI queries
 - **MCP-native:** governance is the MCP transport layer. Per-server OAuth2. Central registry with no local configuration drift
