@@ -1,4 +1,14 @@
-//! [`BrainHandle`]: the composed brain the context hands to the API.
+//! [`BrainHandle`]: the composed brain, bound into the [`BrainHandleSlot`]
+//! this member provides when the kernel builds the [`BrainSlot`].
+//!
+//! It holds the repositories, the producer sink, the service, recall and the
+//! capture seams of the built [`BrainSeams`]. The capture consumer needs a
+//! model client the API composes from the gateway, so the API server starts
+//! it through [`BrainHandle::start_consumer`] and runs it as a supervised
+//! runner service.
+//!
+//! [`BrainSlot`]: crate::BrainSlot
+//! [`BrainSeams`]: crate::BrainSeams
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -6,18 +16,23 @@
 use std::sync::Arc;
 
 use sqlx::PgPool;
-use systemprompt_brain::BrainRepositories;
-use systemprompt_brain::consumer::{BrainConsumer, BrainConsumerSlot};
-use systemprompt_brain::pipeline::PipelineSeams;
-use systemprompt_brain::recall::BrainRecallService;
-use systemprompt_brain::replay::{ProposalReplay, ReplayService};
-use systemprompt_brain::service::BrainService;
 use systemprompt_events::services::durable::OutboxConsumer;
-use systemprompt_extension::ExtensionContext;
-use systemprompt_extension::brain::{BrainModelClient, DynBrainSink, MemoryRecall, SourceContent};
+use systemprompt_extension::brain::{BrainModelClient, DynBrainSink, MemoryRecall};
 use systemprompt_extension::notifications::DynNotificationSink;
 use systemprompt_manifest::profile::BrainProfile;
 use systemprompt_models::{AlreadyBound, LateBound};
+
+use crate::BrainRepositories;
+use crate::consumer::{BrainConsumer, BrainConsumerSlot};
+use crate::pipeline::PipelineSeams;
+use crate::recall::BrainRecallService;
+use crate::replay::{ProposalReplay, ReplayService};
+use crate::service::BrainService;
+
+/// The late-bound [`BrainHandle`] the `brain` member provides; bound when
+/// the kernel builds the brain slot with the profile's brain enabled, and
+/// unbound otherwise.
+pub type BrainHandleSlot = LateBound<BrainHandle>;
 
 /// The runtime's brain: repositories, producer sink, service, recall and,
 /// once the API server starts it, the capture consumer.
@@ -27,7 +42,7 @@ pub struct BrainHandle {
     recall: Arc<BrainRecallService>,
     sink: DynBrainSink,
     notifications: DynNotificationSink,
-    source_content: Arc<dyn SourceContent>,
+    pipeline: PipelineSeams,
     outbox: Arc<OutboxConsumer>,
     listener_pool: PgPool,
     profile: Arc<BrainProfile>,
@@ -42,7 +57,7 @@ pub struct BrainHandleParts {
     pub recall: Arc<BrainRecallService>,
     pub sink: DynBrainSink,
     pub notifications: DynNotificationSink,
-    pub source_content: Arc<dyn SourceContent>,
+    pub pipeline: PipelineSeams,
     pub outbox: Arc<OutboxConsumer>,
     pub listener_pool: PgPool,
     pub profile: Arc<BrainProfile>,
@@ -73,7 +88,7 @@ impl BrainHandle {
             recall: parts.recall,
             sink: parts.sink,
             notifications: parts.notifications,
-            source_content: parts.source_content,
+            pipeline: parts.pipeline,
             outbox: parts.outbox,
             listener_pool: parts.listener_pool,
             profile: parts.profile,
@@ -122,14 +137,6 @@ impl BrainHandle {
         )
     }
 
-    pub fn mcp_tools(&self) -> Result<super::mcp::BrainMcpTools, super::mcp::BrainMcpUnavailable> {
-        super::mcp::BrainMcpTools::from_parts(
-            Arc::clone(&self.service),
-            self.memory_recall(),
-            Arc::clone(&self.profile),
-        )
-    }
-
     #[must_use]
     pub fn consumer(&self) -> Option<&Arc<BrainConsumer>> {
         self.consumer.get()
@@ -142,15 +149,13 @@ impl BrainHandle {
 
     pub fn start_consumer(
         &self,
-        extensions: &dyn ExtensionContext,
         model: Arc<dyn BrainModelClient>,
     ) -> Result<Arc<BrainConsumer>, AlreadyBound> {
         if self.consumer.is_bound() {
             return Err(AlreadyBound);
         }
         self.consolidation_model.bind(Arc::clone(&model))?;
-        let mut seams = PipelineSeams::discover(extensions);
-        seams.sources.push(Arc::clone(&self.source_content));
+        let seams = self.pipeline.clone();
         let replay = ReplayService::new(
             Arc::clone(&self.repos),
             (*self.outbox).clone(),

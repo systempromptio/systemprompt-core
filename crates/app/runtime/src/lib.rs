@@ -33,8 +33,6 @@ pub mod host_kernel;
 pub mod issues;
 mod kernel;
 pub mod managed;
-#[cfg(feature = "notifications")]
-pub mod notifications;
 mod resolved_impl;
 pub mod schema_currency;
 pub mod services_reconcile;
@@ -43,11 +41,7 @@ pub mod storage;
 pub mod trace;
 mod validation;
 
-#[cfg(feature = "brain")]
-pub use builder::brain::{BrainCore, BrainInputs, RecallSeams, brain_sink};
 pub use builder::kernel_state::{base_kernel_state, kernel_state};
-#[cfg(feature = "notifications")]
-pub use builder::notifications::{NotificationsInputs, core_notifications, notification_sink};
 pub use builder::{AppContextBuilder, discover_vertex_models, owner_reassignments};
 pub use context::{AppContext, ConfigPlane, DataPlane, Plugins, ShutdownRequest, Subsystems};
 pub use database_context::DatabaseContext;

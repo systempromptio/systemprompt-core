@@ -1,7 +1,9 @@
 //! The core audience resolver over the user repository: a user subject is
 //! the user when active, a role the active users holding it, and everyone
 //! every active user. Dimension subjects belong to the extension that
-//! registers the dimension.
+//! registers the dimension. The users member provides it as the
+//! `CoreSeam<dyn NotificationAudienceResolver, RoleAudience>` the
+//! notifications and brain slots append after their contributed resolvers.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,7 +14,7 @@ use async_trait::async_trait;
 use systemprompt_extension::{Membership, NotificationAudienceError, NotificationAudienceResolver};
 use systemprompt_identifiers::UserId;
 use systemprompt_models::notifications::AudienceSubject;
-use systemprompt_users::{User, UserError, UserRepository};
+use crate::{User, UserError, UserRepository};
 
 const NAME: &str = "core-users-roles";
 

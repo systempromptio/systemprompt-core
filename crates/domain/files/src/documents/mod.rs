@@ -36,6 +36,8 @@ pub mod agents;
 mod blob_adopt;
 pub mod blob_store;
 mod blob_store_gc;
+mod brain_access;
+mod brain_content;
 pub mod codecs;
 #[cfg(feature = "collab")]
 pub mod collab;
@@ -49,6 +51,7 @@ pub mod live;
 pub mod model;
 pub mod models;
 pub mod nodes;
+mod notification_visibility;
 pub mod outline;
 #[cfg(feature = "pdf")]
 pub mod pdf;
@@ -63,6 +66,9 @@ pub use access::{
     MAX_SUBJECT_SEARCH, SubjectDirectory, SubjectDirectoryError, SubjectMatch, SubjectSearch,
     SubjectValidation,
 };
+pub use brain_access::DocumentSourceAccess;
+pub use brain_content::{BRAIN_ACTOR, DocumentSourceContent};
 pub use error::DocumentsError;
 pub use events::DocumentEvents;
+pub use notification_visibility::DocumentVisibility;
 pub use service::{DocumentService, DocumentServiceParts};

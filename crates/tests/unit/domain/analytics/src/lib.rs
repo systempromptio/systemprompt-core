@@ -5,6 +5,9 @@
 //! - Test: `crates/tests/unit/domain/analytics/src/error.rs`
 
 #[cfg(test)]
+mod catalog;
+
+#[cfg(test)]
 mod error;
 
 #[cfg(test)]

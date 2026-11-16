@@ -15,14 +15,12 @@ use systemprompt_security::at_rest::AtRestCipher;
 
 pub(super) fn build_data_plane(
     database: Arc<systemprompt_database::Database>,
-    analytics_service: Arc<systemprompt_analytics::AnalyticsService>,
     fingerprint_repo: Option<Arc<systemprompt_analytics::FingerprintRepository>>,
     user_service: Arc<UserService>,
     repositories: RepositoryBundles,
 ) -> DataPlane {
     DataPlane {
         database,
-        analytics_service,
         fingerprint_repo,
         user_service: Some(user_service),
         a2a_repositories: repositories.a2a,
@@ -32,7 +30,6 @@ pub(super) fn build_data_plane(
         service_repository: repositories.services,
         coordination: repositories.coordination,
         ai_repositories: repositories.ai,
-        analytics_repositories: repositories.analytics,
         file_repository: repositories.files,
         mcp_session_repository: repositories.mcp_sessions,
         managed_repository: repositories.managed,
@@ -59,7 +56,6 @@ pub(super) struct RepositoryBundles {
     services: Arc<systemprompt_database::ServiceRepository>,
     coordination: Arc<systemprompt_database::CoordinationRepositories>,
     pub(super) ai: Arc<systemprompt_ai::repository::AiRepositories>,
-    analytics: Arc<systemprompt_analytics::repository::AnalyticsRepositories>,
     files: Arc<systemprompt_files::FileRepository>,
     mcp_sessions: Arc<systemprompt_mcp::repository::McpSessionRepository>,
     managed: Arc<systemprompt_marketplace::managed::ManagedRepository>,
@@ -112,15 +108,14 @@ pub(crate) fn organization_skills(
 
 pub(super) fn build_repositories(
     database: &DbPool,
-    analytics: Arc<systemprompt_analytics::repository::AnalyticsRepositories>,
     instance_id: systemprompt_identifiers::InstanceId,
     publication: systemprompt_marketplace::managed::PublicationPolicy,
     secrets: &systemprompt_manifest::secrets::Secrets,
 ) -> RuntimeResult<RepositoryBundles> {
     let cipher = AtRestCipher::from_secrets(secrets)?;
     let pepper: Arc<str> = Arc::from(secrets.oauth_at_rest_pepper.as_str());
-    let session_store = Arc::clone(&analytics.session_store);
-    let session_usage: systemprompt_traits::DynSessionUsageCounters = session_store;
+    let session_usage: systemprompt_traits::DynSessionUsageCounters =
+        Arc::new(systemprompt_users::SessionRepository::new(database));
     let managed = Arc::new(
         systemprompt_marketplace::managed::ManagedRepository::new(database)
             .with_publication_policy(publication),
@@ -151,7 +146,6 @@ pub(super) fn build_repositories(
             instance_id,
         )),
         ai,
-        analytics,
         files: Arc::new(systemprompt_files::FileRepository::new(database)),
         mcp_sessions: Arc::new(systemprompt_mcp::repository::McpSessionRepository::new(
             database,
@@ -211,7 +205,6 @@ pub(crate) fn build_artifact_ingest(
 pub(super) async fn build_domain_layer(
     boot: &BootContext,
     database: &DbPool,
-    analytics_repositories: Arc<systemprompt_analytics::repository::AnalyticsRepositories>,
     policy: systemprompt_marketplace::managed::PublicationPolicy,
     services: &ServicesState,
 ) -> RuntimeResult<(
@@ -223,7 +216,6 @@ pub(super) async fn build_domain_layer(
     let config = boot.config()?;
     let mut repositories = build_repositories(
         database,
-        analytics_repositories,
         config.instance_id.clone(),
         policy,
         &boot.secrets().get(),

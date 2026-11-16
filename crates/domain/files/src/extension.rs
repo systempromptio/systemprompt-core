@@ -9,13 +9,25 @@
 //! core codecs and the core template provider; it contributes no agent
 //! access policy, so the default applies unless one other member does.
 //!
+//! It provides the core defaults other domains' slots append, each a
+//! [`CoreSeam`] built from the document store the kernel seeds: the
+//! document and issue visibilities the notifications slot appends, and the
+//! document source access and source content the brain slot reads. The issue
+//! visibility asks the user-role audience resolver the `users` member
+//! provides for triage-role membership, so a composition without `users`
+//! refuses this member's provide.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 
+use systemprompt_extension::brain::{SourceAccess, SourceContent};
 use systemprompt_extension::prelude::*;
+use systemprompt_extension::{NotificationAudienceResolver, ResourceVisibility};
 use systemprompt_provider_contracts::documents::{DocumentCodec, DocumentTemplateProvider};
+use systemprompt_traits::CoreSeam;
+use systemprompt_traits::core_seam::{self, RoleAudience};
 
 use crate::contract::{AgentAccessSlot, BlobHolderSlot, DocumentsSlot};
 use crate::document_schemas::DOCUMENT_SCHEMAS;
@@ -25,9 +37,13 @@ use crate::documents::jobs::{
     DocumentMediaBackfillJob, DocumentNodeIdsBackfillJob, DocumentPresenceSweepJob,
     DocumentTrashPurgeJob,
 };
-use crate::documents::repository::DOCUMENT_USER_PURGES;
+use crate::documents::repository::{DOCUMENT_USER_PURGES, DocumentRepositories};
+use crate::documents::{
+    DocumentAccessService, DocumentService, DocumentSourceAccess, DocumentSourceContent,
+    DocumentVisibility,
+};
 use crate::documents::templates::CoreTemplateProvider;
-use crate::issues::IssueRetentionJob;
+use crate::issues::{IssueRetentionJob, IssueService, IssueVisibility};
 use crate::issues::repository::{ISSUE_ATTACHMENTS_HOLDER, ISSUE_USER_PURGES};
 use crate::jobs::{DocumentActorScope, FileIngestionJob};
 use crate::uploads::DocumentUploadExpiryJob;
@@ -87,6 +103,7 @@ impl Extension for FilesExtension {
             .job_run_scope(Arc::new(DocumentActorScope));
         #[cfg(feature = "collab")]
         c.job(crate::documents::jobs::DocumentCollabReaperJob);
+        provide_core_seams(c);
         c.slot::<BlobHolderSlot>().holder(ISSUE_ATTACHMENTS_HOLDER);
         c.slot::<AgentAccessSlot>();
         let documents = c.slot::<DocumentsSlot>();
@@ -104,4 +121,47 @@ impl Extension for FilesExtension {
         );
         Ok(())
     }
+}
+
+type DocumentVisibilitySeam = CoreSeam<dyn ResourceVisibility, core_seam::DocumentVisibility>;
+type IssueVisibilitySeam = CoreSeam<dyn ResourceVisibility, core_seam::IssueVisibility>;
+type SourceAccessSeam = CoreSeam<dyn SourceAccess, core_seam::DocumentSourceAccess>;
+type SourceContentSeam = CoreSeam<dyn SourceContent, core_seam::DocumentSourceContent>;
+
+fn provide_core_seams(c: &mut Contributions<'_>) {
+    c.provide(
+        |r: &Resolved<'_>| -> Result<DocumentVisibilitySeam, ProvideError> {
+            let seam: Arc<dyn ResourceVisibility> = Arc::new(DocumentVisibility::new(
+                r.get::<Arc<DocumentAccessService>>()?,
+                r.get::<Arc<DocumentRepositories>>()?,
+            ));
+            Ok(CoreSeam::new(seam))
+        },
+    )
+    .provide(
+        |r: &Resolved<'_>| -> Result<IssueVisibilitySeam, ProvideError> {
+            let roles = r.get::<CoreSeam<dyn NotificationAudienceResolver, RoleAudience>>()?;
+            let seam: Arc<dyn ResourceVisibility> =
+                Arc::new(IssueVisibility::new(r.get::<Arc<IssueService>>()?, roles.seam()));
+            Ok(CoreSeam::new(seam))
+        },
+    )
+    .provide(
+        |r: &Resolved<'_>| -> Result<SourceAccessSeam, ProvideError> {
+            let seam: Arc<dyn SourceAccess> = Arc::new(DocumentSourceAccess::new(
+                r.get::<Arc<DocumentAccessService>>()?,
+                r.get::<Arc<DocumentRepositories>>()?,
+            ));
+            Ok(CoreSeam::new(seam))
+        },
+    )
+    .provide(
+        |r: &Resolved<'_>| -> Result<SourceContentSeam, ProvideError> {
+            let seam: Arc<dyn SourceContent> = Arc::new(DocumentSourceContent::new(
+                r.get::<Arc<DocumentService>>()?,
+                r.get::<Arc<DocumentRepositories>>()?,
+            ));
+            Ok(CoreSeam::new(seam))
+        },
+    );
 }

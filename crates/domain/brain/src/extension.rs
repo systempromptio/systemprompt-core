@@ -2,11 +2,14 @@
 //! the `brain` config plane, the brain jobs and the user-purge rows of its
 //! tables.
 //!
-//! It declares no runner service: the brain consumer needs the pipeline
-//! seams the composition root assembles over the built
-//! [`BrainSeams`](crate::contract::BrainSeams), so the root starts it and
-//! binds it into the [`BrainConsumerSlot`] this member provides. Its backlog
-//! is reported on `/health/detail`, never `/readyz`.
+//! It provides two empty late-bound handles, the [`BrainHandleSlot`] and the
+//! [`BrainConsumerSlot`]. With the profile's brain enabled the kernel's
+//! build of the [`BrainSlot`] assembles the brain over the built
+//! [`BrainSeams`](crate::contract::BrainSeams) and binds the handle; it
+//! declares no runner service, because the brain consumer needs a model
+//! client the API composes, so the API starts it from the handle and binds
+//! it into the consumer slot. Its backlog is reported on `/health/detail`,
+//! never `/readyz`.
 //!
 //! It opens the [`BrainSlot`] itself, so the built seams are present whenever
 //! this member is admitted and absent when the profile disables it.
@@ -25,6 +28,7 @@ use systemprompt_extension::{DiagnosticProbe, DynNotificationSink};
 
 use crate::consumer::{BacklogDiagnostic, BrainConsumerSlot};
 use crate::contract::BrainSlot;
+use crate::handle::BrainHandleSlot;
 use crate::jobs::{
     BrainAnalysisJob, BrainConsolidateJob, BrainRetentionJob, BrainReviewJob, BrainUsageJob,
 };
@@ -60,6 +64,11 @@ impl Extension for BrainExtension {
             .provide(
                 |_: &Resolved<'_>| -> Result<BrainConsumerSlot, ProvideError> {
                     Ok(BrainConsumerSlot::default())
+                },
+            )
+            .provide(
+                |_: &Resolved<'_>| -> Result<BrainHandleSlot, ProvideError> {
+                    Ok(BrainHandleSlot::default())
                 },
             )
             .diagnostic(

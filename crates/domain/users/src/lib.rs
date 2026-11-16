@@ -60,7 +60,7 @@ pub use services::{
     API_KEY_PREFIX, ApiKeyLifetime, ApiKeyService, DEVICE_FINGERPRINT_FOREIGN_USER, DemoteResult,
     DeviceCertService, EnrollDeviceCertServiceParams, EnsuredApiKey, IssueApiKeyParams,
     OUTCOME_REFUSED, OUTCOME_SUCCESS, PostgresAuthEventSink, PromoteResult, UpdateUserParams,
-    UserAdminService, UserService,
+    UserAdminService, UserRoleAudienceResolver, UserService,
 };
 
 pub use systemprompt_traits::auth::{RoleProvider, UserProvider};

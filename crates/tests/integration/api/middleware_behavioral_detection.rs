@@ -27,6 +27,7 @@ async fn collect_input_with_seeded_session_and_fingerprint() -> anyhow::Result<(
     let input = collect_analysis_input(
         &*repositories.session_store,
         &repositories.session_signals,
+        &systemprompt_content::ContentRepository::new(ctx.db_pool()),
         DetectionSubject {
             session_id: session.clone(),
             fingerprint_hash: Some(format!("fp-{}", uuid::Uuid::new_v4())),
@@ -50,6 +51,7 @@ async fn collect_input_unknown_session_no_fingerprint_uses_fallbacks() -> anyhow
     let input = collect_analysis_input(
         &*repositories.session_store,
         &repositories.session_signals,
+        &systemprompt_content::ContentRepository::new(ctx.db_pool()),
         DetectionSubject {
             session_id: session.clone(),
             fingerprint_hash: None,

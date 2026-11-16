@@ -12,8 +12,8 @@ use chrono::{DateTime, Utc};
 
 use systemprompt_identifiers::SessionId;
 use systemprompt_traits::{
-    AnalyticsResult, DetectionSubject, DynSessionBehaviourScorer, DynSessionStore,
-    SessionBehaviourScorer, SessionStore,
+    AnalyticsResult, ContentCatalogStats, DetectionSubject, DynSessionBehaviourScorer,
+    DynSessionStore, SessionBehaviourScorer, SessionStore,
 };
 
 use super::behavioral_detector::{BehavioralAnalysisInput, BehavioralBotDetector};
@@ -47,9 +47,13 @@ impl SessionBehaviourService {
 
 #[async_trait]
 impl SessionBehaviourScorer for SessionBehaviourService {
-    async fn score(&self, subject: DetectionSubject) -> AnalyticsResult<()> {
+    async fn score(
+        &self,
+        subject: DetectionSubject,
+        content: &dyn ContentCatalogStats,
+    ) -> AnalyticsResult<()> {
         let session_id = subject.session_id.clone();
-        let input = collect_analysis_input(&*self.sessions, &self.signals, subject).await;
+        let input = collect_analysis_input(&*self.sessions, &self.signals, content, subject).await;
         let result = BehavioralBotDetector::analyze(&input);
         if result.score == 0 {
             return Ok(());
@@ -68,6 +72,7 @@ impl SessionBehaviourScorer for SessionBehaviourService {
 pub async fn collect_analysis_input(
     sessions: &dyn SessionStore,
     signals: &SessionSignalsRepository,
+    content: &dyn ContentCatalogStats,
     subject: DetectionSubject,
 ) -> BehavioralAnalysisInput {
     let DetectionSubject {
@@ -94,10 +99,13 @@ pub async fn collect_analysis_input(
             Vec::new()
         });
 
-    let total_site_pages = signals.get_total_content_pages().await.unwrap_or_else(|e| {
-        tracing::debug!(error = %e, "Failed to get total content pages");
-        100
-    });
+    let total_site_pages = signals
+        .get_total_content_pages(content)
+        .await
+        .unwrap_or_else(|e| {
+            tracing::debug!(error = %e, "Failed to get total content pages");
+            100
+        });
 
     let has_javascript_events = signals
         .has_analytics_events(&session_id)
