@@ -15,6 +15,9 @@
 //! a `resource` is refused with `invalid_target`; it never falls back to the
 //! client's registered scopes. A request without a `resource` is unaffected.
 //!
+//! The SSO router runs the kernel-built `SsoProviders`; with no identity
+//! member admitted the set is empty and every provider id is unknown.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -24,11 +27,11 @@ use systemprompt_extension::{
     AuthzPolicy, ContextKind, ExtensionContext as _, LoaderError, ProtectionLayer, RateBudget,
     RateLimit, RouteProtection,
 };
-use systemprompt_identifiers::ExtensionId;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_oauth::services::WebAuthnService;
 use systemprompt_oauth::{OAuthSigning, OAuthState};
 use systemprompt_oauth_issuance::JwksCache;
+use systemprompt_oauth_issuance::contract::SsoProviders;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{AppContext as AppContextTrait, McpRegistryProvider};
 
@@ -81,12 +84,13 @@ pub(super) fn mount_oauth(
 ) -> Result<Router, RouteMountError> {
     let ctx = mount.ctx;
     let oauth_state = create_oauth_state(ctx)?;
-    let sso_state = crate::routes::sso::SsoRouteState::build(ctx, &oauth_state).map_err(|e| {
-        LoaderError::InitializationStepFailed {
-            extension: ExtensionId::new("sso"),
-            source: Box::new(e),
-        }
-    })?;
+    let sso_providers: Arc<SsoProviders> = mount
+        .composed
+        .kernel
+        .resolved()
+        .optional()
+        .unwrap_or_default();
+    let sso_state = crate::routes::sso::SsoRouteState::build(ctx, &oauth_state, &sso_providers);
     let sso = mount.protect(
         crate::routes::sso::router(sso_state),
         &RouteProtection::new(AuthzPolicy::public(), ContextKind::Public)
