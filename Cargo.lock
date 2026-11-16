@@ -2871,15 +2871,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "inventory"
-version = "0.3.25"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6928282826c822ad91bf1c9a1cb90a30ba1c26770749929b4656cd6be829cd7c"
-dependencies = [
- "rustversion",
-]
-
-[[package]]
 name = "ipnet"
 version = "2.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6301,7 +6292,6 @@ name = "systemprompt"
 version = "0.81.1"
 dependencies = [
  "axum",
- "inventory",
  "rmcp",
  "sqlx",
  "systemprompt-agent",
@@ -6646,7 +6636,6 @@ dependencies = [
  "futures-util",
  "hex",
  "indicatif",
- "inventory",
  "jsonwebtoken",
  "rand 0.10.3",
  "regex",
@@ -6906,7 +6895,6 @@ dependencies = [
  "async-trait",
  "axum",
  "chrono",
- "inventory",
  "metrics",
  "serde",
  "serde_json",
@@ -6931,7 +6919,6 @@ dependencies = [
  "clap",
  "futures",
  "http",
- "inventory",
  "schemars 1.2.3",
  "serde",
  "serde_json",
@@ -7157,7 +7144,6 @@ dependencies = [
  "chrono",
  "console",
  "indicatif",
- "inventory",
  "serde",
  "serde_json",
  "serde_yaml_ng",
@@ -7452,7 +7438,6 @@ dependencies = [
  "async-trait",
  "chrono",
  "hex",
- "inventory",
  "schemars 1.2.3",
  "serde",
  "serde_json",
@@ -7723,7 +7708,6 @@ dependencies = [
  "chrono",
  "futures",
  "http",
- "inventory",
  "schemars 1.2.3",
  "serde",
  "serde_json",
