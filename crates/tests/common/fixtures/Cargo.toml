@@ -17,7 +17,7 @@ systemprompt-loader = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-events = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
-systemprompt-extension = { workspace = true, features = ["sqlx"] }
+systemprompt-extension = { workspace = true, features = ["sqlx", "router"] }
 systemprompt-identifiers = { workspace = true }
 systemprompt-marketplace = { workspace = true }
 systemprompt-notifications = { workspace = true }
