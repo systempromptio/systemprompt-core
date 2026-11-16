@@ -12,19 +12,17 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_extension::AdmittedPurge;
-use systemprompt_identifiers::ExtensionId;
-use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use std::sync::Arc;
 use systemprompt_extension::AdmittedPurge;
+use systemprompt_extension::cli::CommandOutput;
 use systemprompt_users::{
     ArchiveParams, PurgeCount, PurgeOutcome, UserAdminService, UserRepository, UserService,
 };
 
-use systemprompt_extension::cli::CommandOutput;
 use super::types::UserDeletedOutput;
+use crate::kernel::KernelHost;
 
 #[derive(Debug, Args)]
 pub struct DeleteArgs {

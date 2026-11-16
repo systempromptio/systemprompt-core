@@ -140,9 +140,18 @@ impl MigrationService<'_> {
         &self,
         extension: &dyn SchemaMember,
     ) -> Result<ExtensionMigrationStatus, LoaderError> {
-        let ext_id = &ExtensionId::new(extension.metadata().id);
-        let defined = extension.migrations();
+        self.status_of(
+            &ExtensionId::new(extension.metadata().id),
+            &extension.migrations(),
+        )
+        .await
+    }
 
+    pub async fn status_of(
+        &self,
+        ext_id: &ExtensionId,
+        defined: &[Migration],
+    ) -> Result<ExtensionMigrationStatus, LoaderError> {
         self.ensure_migrations_table_exists().await?;
         let applied = self.get_applied_migrations(ext_id).await?;
 
@@ -151,7 +160,7 @@ impl MigrationService<'_> {
             applied.iter().map(|m| (m.version, m)).collect();
 
         let mut slots = SlotClassification::default();
-        for m in &defined {
+        for m in defined {
             let row = applied_rows.get(&m.version).copied();
             slots.classify(ext_id, m, row, &applied_versions);
         }
@@ -162,8 +171,8 @@ impl MigrationService<'_> {
             tombstoned,
         } = slots;
 
-        let ahead = super::ahead_versions(&applied, &defined);
-        let orphaned = super::orphaned_versions(&applied, &defined)
+        let ahead = super::ahead_versions(&applied, defined);
+        let orphaned = super::orphaned_versions(&applied, defined)
             .into_iter()
             .map(|version| OrphanedMigration {
                 extension_id: ext_id.clone(),

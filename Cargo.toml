@@ -238,7 +238,6 @@ libc = "0.2"
 
 
 # Utilities
-inventory = "0.3"
 pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
 ammonia = "4"
 scraper = { version = "0.29", default-features = false, features = ["deterministic"] }
@@ -380,9 +379,6 @@ systemprompt-content-entry = { path = "crates/entry/content", version = "0.81.1"
 incremental = false
 
 [profile.release]
-# Use thin LTO instead of full LTO to preserve inventory crate registrations.
-# Full LTO can strip the static initializers used by inventory::submit!, causing
-# ExtensionRegistry::discover() to return empty results.
 lto = "thin"
 codegen-units = 1
 panic = "abort"

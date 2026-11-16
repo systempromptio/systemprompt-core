@@ -41,9 +41,6 @@ http = [
     "dep:systemprompt-models",
     "dep:thiserror",
 ]
-# The capability contributes no command; the feature stays until the facade's
-# `cli` feature stops forwarding to it.
-cli = []
 
 [dependencies]
 systemprompt-agent-runs = { workspace = true, optional = true }

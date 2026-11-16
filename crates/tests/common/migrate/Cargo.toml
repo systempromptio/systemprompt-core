@@ -20,8 +20,7 @@ tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true }
 
-# Force every schema-bearing extension to link into this binary so
-# ExtensionRegistry::discover() picks up their inventory entries.
+# Every schema-bearing member the migrator installs.
 systemprompt-agent = { workspace = true }
 systemprompt-agent-runs = { workspace = true }
 systemprompt-ai = { workspace = true }

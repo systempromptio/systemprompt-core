@@ -1,9 +1,9 @@
 //! The one retention job: bounded, batched deletes (and body releases) over
 //! every high-volume operational table, with the windows read from
 //! `profile.retention`. Each [`RetentionTarget`] dispatches to the
-//! `RetentionPurge` its owning crate registers
-//! (`systemprompt_traits::register_retention_purge!`); a target whose owner
-//! is not linked is not pruned, and two purges for one table refuse the run.
+//! `RetentionPurge` its owning member contributes (`RetentionDecl::Purge`);
+//! a target whose owner is not admitted is not pruned, and two purges for one
+//! table refuse the run.
 //!
 //! Deletion requires `enforce`; without it the job only reports each window
 //! and deletes nothing.
@@ -13,13 +13,13 @@
 //! month plus the carry-forward, so a bucket older than `QUOTA_BUCKET_DAYS`
 //! can never be read again.
 //!
-//! An extension's retention hold (`register_retention_hold!`) clamps a
+//! A member's retention hold (`RetentionDecl::Hold`) clamps a
 //! target's cutoff to the earliest watermark it reports, and a hold that
 //! cannot answer withholds the target for the run; the pass line and the job
 //! message name the hold either way.
 //!
 //! Before the passes the run deletes log rows whose user is gone and runs
-//! every registered `RetentionSweep` (the AI crate's fails orphaned pending
+//! every admitted `RetentionSweep` (the AI crate's fails orphaned pending
 //! requests); after them it purges archived users past
 //! `retention.archived_users_days` that are not under legal hold.
 //!
@@ -28,7 +28,7 @@
 
 mod archived_users;
 mod holds;
-mod kernel_purges;
+pub(crate) mod kernel_purges;
 mod orphans;
 mod tables;
 

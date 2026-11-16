@@ -70,7 +70,7 @@ client = ["dep:systemprompt-client"]
 security = ["dep:systemprompt-security", "dep:systemprompt-governance"]
 
 # CLI entry point for product binaries (standalone, use 'full' for everything)
-cli = ["config", "dep:systemprompt-cli", "dep:systemprompt-extension", "systemprompt-extension/cli", "systemprompt-agent-runs-entry?/cli", "systemprompt-cloud-entry?/cli", "systemprompt-content-entry?/cli", "systemprompt-analytics-entry?/cli"]
+cli = ["config", "dep:systemprompt-cli", "dep:systemprompt-extension", "systemprompt-extension/cli", "systemprompt-cloud-entry?/cli", "systemprompt-content-entry?/cli", "systemprompt-analytics-entry?/cli"]
 
 # Runtime builder for embedding systemprompt as a library
 runtime = ["cli", "dep:systemprompt-extension"]
@@ -101,18 +101,18 @@ agent-runs = ["dep:systemprompt-agent-runs", "dep:systemprompt-agent-runs-entry"
 
 # OpenTelemetry: the gateway's OTLP/HTTP ingest routes and the `otlp_export`
 # job that ships the audit trail to a collector. `full` implies it.
-otel = ["systemprompt-api?/otel", "systemprompt-cli?/otel", "systemprompt-scheduler?/otel"]
+otel = ["systemprompt-api?/otel", "systemprompt-scheduler?/otel"]
 
 # The device-credential consumer surface the bridge reports installation
 # evidence through. `full` implies it.
-bridge = ["systemprompt-api?/bridge", "systemprompt-cli?/bridge"]
+bridge = ["systemprompt-api?/bridge"]
 
 # Office document codecs (.docx) for the files domain. `full` implies it.
 files-office = ["dep:systemprompt-files", "systemprompt-files/office"]
 
 # The PDF renderer for document export and its embedded fonts. Without it a
 # PDF export is refused as an unsupported operation. `full` implies it.
-files-pdf = ["dep:systemprompt-files", "systemprompt-files/pdf", "systemprompt-api?/pdf", "systemprompt-cli?/pdf"]
+files-pdf = ["dep:systemprompt-files", "systemprompt-files/pdf"]
 
 # Live co-editing of HTML and Markdown documents (engine-agnostic) and its HTTP
 # routes. `full` implies it.
@@ -232,7 +232,6 @@ rmcp = { workspace = true, optional = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
-inventory = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
@@ -242,8 +241,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 # The in-repo `systemprompt` binary. It is the reference composition: every
-# capability in `full` is linked, so each one's inventory registrations
-# (extensions, CLI commands, seams, gateway routes) are present. `doc = false`:
+# capability in `full` is a member of its composition. `doc = false`:
 # the library of the same name is the documented target.
 [[bin]]
 name = "systemprompt"

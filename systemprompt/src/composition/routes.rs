@@ -103,17 +103,18 @@ fn admit_services(
     set: &RouteSet,
     unconferred: bool,
 ) -> Result<(), CompositionError> {
-    for def in set.defs().iter().filter(|def| def.is_service()) {
-        let open_base = matches!(
+    if !set.defs().iter().any(|def| def.is_service()) {
+        return Ok(());
+    }
+    let open_base = matches!(
+        base,
+        BasePath::Api(ApiBase::Extension(_)) | BasePath::Web(WebBase::Root)
+    );
+    if member.standing.tag() != StandingTag::Install || !unconferred || !open_base {
+        return Err(CompositionError::ServiceNotAdmitted {
+            owner: member.id.clone(),
             base,
-            BasePath::Api(ApiBase::Extension(_)) | BasePath::Web(WebBase::Root)
-        );
-        if member.standing.tag() != StandingTag::Install || !unconferred || !open_base {
-            return Err(CompositionError::ServiceNotAdmitted {
-                owner: member.id.clone(),
-                base,
-            });
-        }
+        });
     }
     Ok(())
 }

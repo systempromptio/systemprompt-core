@@ -12,7 +12,7 @@ workspace = true
 
 [dependencies]
 systemprompt-agent-runs = { workspace = true }
-systemprompt-agent-runs-entry = { workspace = true, features = ["cli", "http"] }
+systemprompt-agent-runs-entry = { workspace = true, features = ["http"] }
 systemprompt-identifiers = { workspace = true }
 systemprompt-extension = { workspace = true, features = ["router", "cli"] }
 systemprompt-models = { workspace = true }

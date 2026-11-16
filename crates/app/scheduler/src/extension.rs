@@ -43,6 +43,7 @@ impl Extension for SchedulerExtension {
             .job(CleanupInactiveSessionsJob)
             .job(DatabaseCleanupJob)
             .job(VertexDiscoveryJob);
+        crate::jobs::database_cleanup::kernel_purges::contribute(c);
         #[cfg(feature = "otel")]
         c.job(crate::jobs::OtlpExportJob);
         Ok(())

@@ -23,7 +23,6 @@ systemprompt-test-hack = { version = "0.1", path = "../../common/hack" }
 
 [dev-dependencies]
 async-trait = { workspace = true }
-inventory = { workspace = true }
 tokio = { workspace = true }
 uuid = { workspace = true }
 

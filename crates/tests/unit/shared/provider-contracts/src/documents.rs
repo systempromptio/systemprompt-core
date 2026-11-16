@@ -1,13 +1,7 @@
-use std::sync::Arc;
-
 use systemprompt_identifiers::{DocumentNodeId, DocumentTemplateId};
 use systemprompt_provider_contracts::documents::{
     CodecError, DocumentCodec, DocumentFormat, DocumentTemplate, DocumentTemplateProvider, EditOp,
-    Projection, TemplateParams, TemplateSource, codec_for, content_hash, registered_codecs,
-    registered_template_providers,
-};
-use systemprompt_provider_contracts::{
-    register_document_codec, register_document_template_provider,
+    Projection, TemplateParams, TemplateSource, content_hash,
 };
 
 #[derive(Debug)]
@@ -44,39 +38,6 @@ impl DocumentCodec for EchoCodec {
 }
 
 #[derive(Debug)]
-struct PreferredCodec;
-
-impl DocumentCodec for PreferredCodec {
-    fn formats(&self) -> &'static [DocumentFormat] {
-        &[DocumentFormat::Text]
-    }
-
-    fn project(&self, bytes: &[u8]) -> Result<Projection, CodecError> {
-        EchoCodec.project(bytes)
-    }
-
-    fn apply(&self, bytes: &[u8], b: &Projection, o: &[EditOp]) -> Result<Vec<u8>, CodecError> {
-        EchoCodec.apply(bytes, b, o)
-    }
-
-    fn preview_html(&self, bytes: &[u8]) -> Result<String, CodecError> {
-        EchoCodec.preview_html(bytes)
-    }
-
-    fn plain_text(&self, _: &[u8]) -> Result<String, CodecError> {
-        Ok("preferred".into())
-    }
-
-    fn instantiate(&self, t: &[u8], p: &TemplateParams) -> Result<Vec<u8>, CodecError> {
-        EchoCodec.instantiate(t, p)
-    }
-
-    fn priority(&self) -> u32 {
-        200
-    }
-}
-
-#[derive(Debug)]
 struct MemoTemplates;
 
 impl DocumentTemplateProvider for MemoTemplates {
@@ -96,52 +57,18 @@ impl DocumentTemplateProvider for MemoTemplates {
     }
 }
 
-fn echo() -> Arc<dyn DocumentCodec> {
-    Arc::new(EchoCodec)
-}
-
-fn preferred() -> Arc<dyn DocumentCodec> {
-    Arc::new(PreferredCodec)
-}
-
-fn memo() -> Arc<dyn DocumentTemplateProvider> {
-    Arc::new(MemoTemplates)
-}
-
-register_document_codec!(echo);
-register_document_codec!(preferred);
-register_document_template_provider!(memo);
-
 #[test]
-fn registered_codecs_are_discoverable_highest_priority_first() {
-    let priorities: Vec<u32> = registered_codecs().map(|c| c.priority()).collect();
-    assert!(priorities.contains(&100));
-    assert!(priorities.contains(&200));
-    assert!(priorities.windows(2).all(|w| w[0] >= w[1]));
-}
-
-#[test]
-fn codec_for_picks_highest_priority() {
-    let codec = codec_for(DocumentFormat::Text).expect("text codec");
-    assert_eq!(codec.plain_text(b"x").expect("text"), "preferred");
-    assert!(
-        registered_codecs().any(|c| c.priority() == 100),
-        "the lower-priority codec stays registered behind the preferred one"
-    );
+fn memo_templates_publish_the_memo_template() {
+    let templates = MemoTemplates.templates();
+    assert_eq!(templates.len(), 1);
+    assert_eq!(templates[0].id.as_str(), "memo");
+    assert_eq!(templates[0].format, DocumentFormat::Markdown);
 }
 
 #[test]
 fn default_priority_is_100() {
     assert_eq!(EchoCodec.priority(), 100);
     assert_eq!(MemoTemplates.priority(), 100);
-}
-
-#[test]
-fn registered_template_providers_are_discoverable() {
-    let provider = registered_template_providers()
-        .find(|p| p.provider_id() == "test-memo")
-        .expect("registered");
-    assert_eq!(provider.templates()[0].id.as_str(), "memo");
 }
 
 #[test]
