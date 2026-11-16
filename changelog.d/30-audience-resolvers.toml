@@ -1,0 +1,19 @@
+[root]
+section = "Fixed"
+area = "Security"
+text = "Audience resolvers are one set (`Contributions::audience_resolver`, `AudienceResolvers`) read by the notification pipeline and brain recall. Core alone resolves the `User`, `Role` and `Everyone` subjects and the reserved dimensions: an install resolver claiming one is refused (`SlotError::ReservedAudience`), every install resolver sits behind a wrapper that never answers a reserved subject, and duplicate resolver names are refused. A core member may provide the `role` subject dimension; an install subject provider declaring `user`, `role` or `traffic`, or two providers declaring one dimension, are refused."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`AudienceResolvers::new` takes `AudienceEntry` values; `Contributions::audience_resolver` is added."
+
+[[crate]]
+name = "systemprompt-users"
+section = "Added"
+text = "`UserRoleAudienceResolver`, the core role audience resolver."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Added"
+text = "`CoreSeam<T, K>` and the `core_seam` kind markers: a core default seam one domain provides for another domain's slot."
