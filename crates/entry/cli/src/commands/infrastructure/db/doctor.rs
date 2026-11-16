@@ -18,10 +18,10 @@ use systemprompt_database::services::schema_linter::created_table_names;
 use systemprompt_database::{DbPool, SchemaResidue, audit_schema_residue};
 use systemprompt_extension::BuiltState;
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_logging::CliService;
+use systemprompt_extension::cli::CommandError;
+use systemprompt_models::artifacts::NoticeLine;
 
-use crate::cli_settings::CliConfig;
-use crate::shared::{CommandOutput, render_result};
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Serialize)]
 struct DoctorReport {
@@ -41,8 +41,7 @@ struct MissingColumn {
 pub(super) async fn execute_doctor(
     db_pool: &DbPool,
     built: &BuiltState,
-    config: &CliConfig,
-) -> Result<()> {
+) -> Result<CommandOutput> {
     let schema_extensions = super::admin_migrate::install_set(built);
     let write_provider = db_pool.write();
 
@@ -102,105 +101,97 @@ pub(super) async fn execute_doctor(
         }
     }
 
-    render(
-        config,
-        &undeclared,
-        &residue,
-        &missing_tables,
-        &missing_columns,
-    );
+    let output = report_output(&undeclared, &residue, &missing_tables, &missing_columns);
 
     if !residue.is_empty() {
-        anyhow::bail!(
+        return Err(CommandError::new(format!(
             "{} undeclared table(s) and {} orphan migration ledger(s): add a DROP TABLE migration",
             residue.undeclared_tables.len(),
             residue.orphan_migration_ledgers.len()
-        );
+        ))
+        .with_output(output)
+        .into());
     }
-    Ok(())
+    Ok(output)
 }
 
-fn render(
-    config: &CliConfig,
+fn report_output(
     undeclared: &[String],
     residue: &SchemaResidue,
     missing_tables: &[String],
     missing_columns: &[(ExtensionId, String, String)],
-) {
+) -> CommandOutput {
     let orphan_ledgers: Vec<String> = residue
         .orphan_migration_ledgers
         .iter()
         .map(|l| format!("{} ({} rows)", l.extension_id, l.rows))
         .collect();
-    if config.is_json_output() {
-        let report = DoctorReport {
-            undeclared_tables: undeclared.to_vec(),
-            orphan_migration_ledgers: orphan_ledgers,
-            missing_tables: missing_tables.to_vec(),
-            missing_columns: missing_columns
-                .iter()
-                .map(|(ext, table, col)| MissingColumn {
-                    extension: ext.clone(),
-                    table: table.clone(),
-                    column: col.clone(),
-                })
-                .collect(),
-        };
-        let result = CommandOutput::card_value("Database Doctor", &report);
-        render_result(&result, config);
-        return;
-    }
-
+    let mut notes = Vec::new();
     if undeclared.is_empty()
         && orphan_ledgers.is_empty()
         && missing_tables.is_empty()
         && missing_columns.is_empty()
     {
-        CliService::success("Schema in sync with extension declarations");
-        return;
+        notes.push(NoticeLine::new(
+            "success",
+            "Schema in sync with extension declarations",
+        ));
     }
-
     if !missing_tables.is_empty() {
-        CliService::warning(&format!(
-            "{} declared table(s) absent from the live database:",
-            missing_tables.len()
+        notes.push(NoticeLine::new(
+            "warning",
+            format!(
+                "{} declared table(s) absent from the live database",
+                missing_tables.len()
+            ),
         ));
-        for t in missing_tables {
-            CliService::info(&format!("  - {t}"));
-        }
     }
-
     if !missing_columns.is_empty() {
-        CliService::warning(&format!(
-            "{} required column(s) absent from live tables:",
-            missing_columns.len()
+        notes.push(NoticeLine::new(
+            "warning",
+            format!(
+                "{} required column(s) absent from live tables",
+                missing_columns.len()
+            ),
         ));
-        for (ext, table, col) in missing_columns {
-            CliService::info(&format!("  - [{ext}] {table}.{col}"));
-        }
     }
-
     if !undeclared.is_empty() {
-        CliService::warning(&format!(
-            "{} live table(s) declared by no registered extension — a deleted crate's residue; \
-             add a DROP TABLE … CASCADE migration:",
-            undeclared.len()
+        notes.push(NoticeLine::new(
+            "warning",
+            format!(
+                "{} live table(s) declared by no registered extension — a deleted crate's \
+                 residue; add a DROP TABLE … CASCADE migration",
+                undeclared.len()
+            ),
         ));
-        for t in undeclared {
-            CliService::info(&format!("  - {t}"));
-        }
     }
-
     if !orphan_ledgers.is_empty() {
-        CliService::warning(&format!(
-            "{} extension_migrations ledger(s) for extensions that no longer exist — delete \
-             the rows in the same migration:",
-            orphan_ledgers.len()
+        notes.push(NoticeLine::new(
+            "warning",
+            format!(
+                "{} extension_migrations ledger(s) for extensions that no longer exist — delete \
+                 the rows in the same migration",
+                orphan_ledgers.len()
+            ),
         ));
-        for l in &orphan_ledgers {
-            CliService::info(&format!("  - {l}"));
-        }
     }
+    let report = DoctorReport {
+        undeclared_tables: undeclared.to_vec(),
+        orphan_migration_ledgers: orphan_ledgers,
+        missing_tables: missing_tables.to_vec(),
+        missing_columns: missing_columns
+            .iter()
+            .map(|(ext, table, col)| MissingColumn {
+                extension: ext.clone(),
+                table: table.clone(),
+                column: col.clone(),
+            })
+            .collect(),
+    };
+    notes.into_iter().fold(
+        CommandOutput::card_value("Database Doctor", &report),
+        CommandOutput::with_note,
+    )
 }
 
 async fn fetch_live_tables(db: &dyn DatabaseProvider) -> Result<BTreeSet<String>> {

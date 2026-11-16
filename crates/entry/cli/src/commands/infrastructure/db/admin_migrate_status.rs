@@ -9,14 +9,13 @@
 
 use anyhow::{Context, Result};
 use systemprompt_database::services::DatabaseProvider;
-use systemprompt_database::{ExtensionMigrationStatus, MigrationService};
+use systemprompt_database::{ExtensionMigrationStatus, MigrationService, SchemaMember};
 use systemprompt_extension::BuiltState;
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_logging::CliService;
+use systemprompt_models::artifacts::NoticeLine;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
-use crate::cli_settings::CliConfig;
-use crate::shared::{CommandOutput, render_result};
+use crate::shared::CommandOutput;
 
 use super::admin_migrate::select_extensions;
 use super::types::{
@@ -27,47 +26,35 @@ pub(super) async fn execute_migrate_status(
     ctx: &AppContext,
     built: &BuiltState,
     extension: Option<&ExtensionId>,
-    json: bool,
-    config: &CliConfig,
-) -> Result<()> {
-    let db = ctx.db_pool();
-    run_migrate_status(db.as_ref(), built, extension, json, config).await
+) -> Result<CommandOutput> {
+    run_migrate_status(ctx.db_pool().as_ref(), built, extension).await
 }
 
 pub(super) async fn execute_migrate_status_standalone(
     db_ctx: &DatabaseContext,
     built: &BuiltState,
     extension: Option<&ExtensionId>,
-    json: bool,
-    config: &CliConfig,
-) -> Result<()> {
-    let db = db_ctx.db_pool();
-    run_migrate_status(db.as_ref(), built, extension, json, config).await
+) -> Result<CommandOutput> {
+    run_migrate_status(db_ctx.db_pool().as_ref(), built, extension).await
 }
 
 async fn run_migrate_status(
     db: &dyn DatabaseProvider,
     built: &BuiltState,
     extension: Option<&ExtensionId>,
-    json: bool,
-    config: &CliConfig,
-) -> Result<()> {
+) -> Result<CommandOutput> {
     let extensions = select_extensions(built, extension)?;
     let migration_service = MigrationService::new(db);
     let output = collect_status(&extensions, &migration_service).await?;
 
-    if json || config.is_json_output() {
-        let result = CommandOutput::table_of(
-            vec!["extension_id", "version", "name", "status", "applied_at"],
-            &output.rows,
-        )
-        .with_title("Migration Status");
-        render_result(&result, config);
-    } else {
-        render_status_text(&output);
-    }
-
-    Ok(())
+    let table = CommandOutput::table_of(
+        vec!["extension_id", "version", "name", "status", "applied_at"],
+        &output.rows,
+    )
+    .with_title("Migration Status");
+    Ok(status_notes(&output)
+        .into_iter()
+        .fold(table, CommandOutput::with_note))
 }
 
 fn status_label(status: &ExtensionMigrationStatus, version: u32) -> &'static str {
@@ -114,7 +101,7 @@ fn rows_for(status: &ExtensionMigrationStatus) -> Vec<MigrateStatusRow> {
 }
 
 async fn collect_status(
-    extensions: &[std::sync::Arc<dyn systemprompt_extension::Extension>],
+    extensions: &[std::sync::Arc<dyn SchemaMember>],
     migration_service: &MigrationService<'_>,
 ) -> Result<MigrateStatusOutput> {
     let mut rows: Vec<MigrateStatusRow> = Vec::new();
@@ -173,69 +160,71 @@ async fn collect_status(
     })
 }
 
-fn render_status_text(output: &MigrateStatusOutput) {
-    CliService::info(&format!(
-        "Applied: {} | Pending: {} | Drift: {} | Collisions: {} | Orphaned: {}",
-        output.total_applied,
-        output.total_pending,
-        output.total_drift,
-        output.total_collisions,
-        output.total_orphaned
-    ));
-    CliService::info("");
-    CliService::info(&format!(
-        "  {:<24} {:>7} {:<32} {:<10} {}",
-        "EXTENSION", "VERSION", "NAME", "STATUS", "APPLIED_AT"
-    ));
-    for r in &output.rows {
-        let applied_at = r.applied_at.as_deref().unwrap_or("-");
-        CliService::info(&format!(
-            "  {:<24} {:>7} {:<32} {:<10} {}",
-            r.extension_id, r.version, r.name, r.status, applied_at
-        ));
-    }
+fn status_notes(output: &MigrateStatusOutput) -> Vec<NoticeLine> {
+    let mut notes = vec![NoticeLine::new(
+        "info",
+        format!(
+            "Applied: {} | Pending: {} | Drift: {} | Collisions: {} | Orphaned: {}",
+            output.total_applied,
+            output.total_pending,
+            output.total_drift,
+            output.total_collisions,
+            output.total_orphaned
+        ),
+    )];
 
     if !output.collisions.is_empty() {
-        CliService::info("");
-        CliService::warning(&format!(
-            "{} migration slot(s) were reused — the recorded row and the file on disk are \
-             different migrations. This is not drift and must not be repaired; renumber the new \
-             file above every used slot and leave a `NNN_<name>.tombstone` behind.",
-            output.total_collisions
+        notes.push(NoticeLine::new(
+            "warning",
+            format!(
+                "{} migration slot(s) were reused — the recorded row and the file on disk are \
+                 different migrations. This is not drift and must not be repaired; renumber the \
+                 new file above every used slot and leave a `NNN_<name>.tombstone` behind.",
+                output.total_collisions
+            ),
         ));
-        for c in &output.collisions {
-            CliService::info(&format!(
-                "  {} v{:03}: recorded='{}' file='{}'",
-                c.extension_id, c.version, c.stored_name, c.current_name
-            ));
-        }
+        notes.extend(output.collisions.iter().map(|c| {
+            NoticeLine::new(
+                "info",
+                format!(
+                    "  {} v{:03}: recorded='{}' file='{}'",
+                    c.extension_id, c.version, c.stored_name, c.current_name
+                ),
+            )
+        }));
     }
 
     if output.total_orphaned > 0 {
-        CliService::info("");
-        CliService::warning(&format!(
-            "{} applied migration(s) are no longer declared by their extension. The files were \
-             deleted without leaving a tombstone, so those numbers look free but are spent. Add a \
-             `NNN_<name>.tombstone` beside the remaining migrations to record each one.",
-            output.total_orphaned
+        notes.push(NoticeLine::new(
+            "warning",
+            format!(
+                "{} applied migration(s) are no longer declared by their extension. The files \
+                 were deleted without leaving a tombstone, so those numbers look free but are \
+                 spent. Add a `NNN_<name>.tombstone` beside the remaining migrations to record \
+                 each one.",
+                output.total_orphaned
+            ),
         ));
     }
 
     if !output.drift.is_empty() {
-        CliService::info("");
-        CliService::warning(&format!(
-            "{} checksum drift(s) detected:",
-            output.total_drift
+        notes.push(NoticeLine::new(
+            "warning",
+            format!("{} checksum drift(s) detected:", output.total_drift),
         ));
-        for d in &output.drift {
-            CliService::info(&format!(
-                "  {} v{:03} {}: stored={} current={}",
-                d.extension_id,
-                d.version,
-                d.name,
-                &d.stored_checksum[..d.stored_checksum.len().min(8)],
-                &d.current_checksum[..d.current_checksum.len().min(8)]
-            ));
-        }
+        notes.extend(output.drift.iter().map(|d| {
+            NoticeLine::new(
+                "info",
+                format!(
+                    "  {} v{:03} {}: stored={} current={}",
+                    d.extension_id,
+                    d.version,
+                    d.name,
+                    &d.stored_checksum[..d.stored_checksum.len().min(8)],
+                    &d.current_checksum[..d.current_checksum.len().min(8)]
+                ),
+            )
+        }));
     }
+    notes
 }

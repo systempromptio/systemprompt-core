@@ -6,12 +6,11 @@
 use anyhow::{Context, Result, anyhow};
 use std::sync::Arc;
 use systemprompt_database::DatabaseAdminService;
-use systemprompt_logging::CliService;
+use systemprompt_models::artifacts::NoticeLine;
 use systemprompt_runtime::AppContext;
 use systemprompt_users::{PromoteResult, UserAdminService, UserService};
 
-use crate::cli_settings::CliConfig;
-use crate::shared::{CommandOutput, render_result};
+use crate::shared::CommandOutput;
 
 use super::text_format::format_bytes;
 use super::types::{DbAssignAdminOutput, DbStatusOutput};
@@ -32,63 +31,44 @@ pub(super) use super::admin_migrate_status::{
 };
 pub(super) use super::admin_migrations::{execute_migrations, execute_migrations_standalone};
 
-pub(super) async fn execute_assign_admin(
-    ctx: &AppContext,
-    user: &str,
-    config: &CliConfig,
-) -> Result<()> {
+pub(super) async fn execute_assign_admin(ctx: &AppContext, user: &str) -> Result<CommandOutput> {
     let user_service = UserService::new(Arc::clone(ctx.user_repository()));
     let user_admin = UserAdminService::new(user_service);
 
-    if !config.is_json_output() {
-        CliService::info(&format!("Looking up user: {}", user));
-    }
-
-    match user_admin.promote_to_admin(user).await? {
+    let (output, note) = match user_admin.promote_to_admin(user).await? {
         PromoteResult::Promoted(u, new_roles) => {
+            let message = format!("Admin role assigned to user '{}' ({})", u.name, u.email);
             let output = DbAssignAdminOutput {
-                user_id: u.id.clone(),
-                name: u.name.clone(),
-                email: u.email.clone(),
-                roles: new_roles.clone(),
+                user_id: u.id,
+                name: u.name,
+                email: u.email,
+                roles: new_roles,
                 already_admin: false,
-                message: format!("Admin role assigned to user '{}' ({})", u.name, u.email),
+                message: message.clone(),
             };
-
-            if config.is_json_output() {
-                let result = CommandOutput::card_value("Database Admin", &output);
-                render_result(&result, config);
-            } else {
-                CliService::success(&output.message);
-                CliService::info(&format!("   Roles: {:?}", new_roles));
-            }
+            (output, NoticeLine::new("success", message))
         },
         PromoteResult::AlreadyAdmin(u) => {
+            let message = format!("User '{}' already has admin role", u.name);
             let output = DbAssignAdminOutput {
-                user_id: u.id.clone(),
-                name: u.name.clone(),
-                email: u.email.clone(),
-                roles: u.roles.clone(),
+                user_id: u.id,
+                name: u.name,
+                email: u.email,
+                roles: u.roles,
                 already_admin: true,
-                message: format!("User '{}' already has admin role", u.name),
+                message: message.clone(),
             };
-
-            if config.is_json_output() {
-                let result = CommandOutput::card_value("Database Admin", &output);
-                render_result(&result, config);
-            } else {
-                CliService::warning(&output.message);
-            }
+            (output, NoticeLine::new("warning", message))
         },
         PromoteResult::UserNotFound => {
             return Err(anyhow!("User '{}' not found", user));
         },
-    }
+    };
 
-    Ok(())
+    Ok(CommandOutput::card_value("Database Admin", &output).with_note(note))
 }
 
-pub(super) async fn execute_status(admin: &DatabaseAdminService, config: &CliConfig) -> Result<()> {
+pub(super) async fn execute_status(admin: &DatabaseAdminService) -> Result<CommandOutput> {
     let info = admin
         .get_database_info()
         .await
@@ -101,15 +81,6 @@ pub(super) async fn execute_status(admin: &DatabaseAdminService, config: &CliCon
         size: format_bytes(info.size as i64),
     };
 
-    if config.is_json_output() {
-        let result = CommandOutput::card_value("Database Admin", &output);
-        render_result(&result, config);
-    } else {
-        CliService::success("Database connection: OK");
-        CliService::key_value("  Version", &output.version);
-        CliService::key_value("  Tables", &output.tables.to_string());
-        CliService::key_value("  Size", &output.size);
-    }
-
-    Ok(())
+    Ok(CommandOutput::card_value("Database Status", &output)
+        .with_note(NoticeLine::new("success", "Database connection: OK")))
 }

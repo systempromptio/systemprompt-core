@@ -20,7 +20,7 @@ mod list;
 pub mod show;
 mod summary;
 
-pub use summary::{SummaryContext, print_summary};
+pub use summary::{SummaryContext, push_summary};
 
 use anyhow::Result;
 use clap::Subcommand;

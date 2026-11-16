@@ -10,7 +10,7 @@
 mod entities;
 mod trace;
 
-pub use self::entities::{artifact_list_table, context_list_table, db_tables_table};
+pub use self::entities::{artifact_list_table, context_list_table};
 pub use self::trace::{
     ai_requests_table, execution_steps_table, extract_latency_from_metadata, format_metadata_value,
     mcp_tool_calls_table, task_artifacts_table, task_info_table, trace_events_table,

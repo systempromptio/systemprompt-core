@@ -8,13 +8,11 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result, anyhow};
-use systemprompt_database::{DatabaseAdminService, DatabaseCliDisplay, SafeIdentifier};
-use systemprompt_logging::CliService;
+use systemprompt_database::{DatabaseAdminService, SafeIdentifier};
+use systemprompt_models::artifacts::NoticeLine;
 use systemprompt_traits::RepositoryError;
 
-use crate::cli_settings::CliConfig;
-use crate::presentation::tables::db_tables_table;
-use crate::shared::{CommandOutput, render_result};
+use crate::shared::CommandOutput;
 
 use super::text_format::format_bytes;
 use super::types::{
@@ -25,8 +23,7 @@ pub(super) async fn execute_tables(
     admin: &DatabaseAdminService,
     filter: Option<String>,
     exact: bool,
-    config: &CliConfig,
-) -> Result<()> {
+) -> Result<CommandOutput> {
     let tables = if exact {
         admin.list_tables_counted().await
     } else {
@@ -57,35 +54,26 @@ pub(super) async fn execute_tables(
             .collect(),
     };
 
-    if config.is_json_output() {
-        let result =
-            CommandOutput::table_of(vec!["name", "row_count", "size_bytes"], &output.tables)
-                .with_title("Schema");
-        render_result(&result, config);
-    } else {
-        CliService::section("Tables");
-
-        if filtered_tables.is_empty() {
-            CliService::info("No tables found");
-        } else {
-            CliService::output(&db_tables_table(&output.tables));
-            CliService::info(&format!("Total: {} table(s)", output.total));
-            if !exact {
-                CliService::info(
-                    "Row counts are planner estimates (pg_stat_user_tables); use --exact for COUNT(*)",
-                );
-            }
-        }
+    let mut result =
+        CommandOutput::table_of(vec!["name", "row_count", "size_bytes"], &output.tables)
+            .with_title("Tables")
+            .with_note(NoticeLine::new(
+                "info",
+                format!("Total: {} table(s)", output.total),
+            ));
+    if !exact {
+        result = result.with_note(NoticeLine::new(
+            "info",
+            "Row counts are planner estimates (pg_stat_user_tables); use --exact for COUNT(*)",
+        ));
     }
-
-    Ok(())
-}
+    Ok(result)
+}}
 
 pub(super) async fn execute_describe(
     admin: &DatabaseAdminService,
     table_name: &str,
-    config: &CliConfig,
-) -> Result<()> {
+) -> Result<CommandOutput> {
     let table_id = SafeIdentifier::parse(table_name)
         .map_err(|e| anyhow!("Invalid table name '{}': {}", table_name, e))?;
 
@@ -125,36 +113,14 @@ pub(super) async fn execute_describe(
             .collect(),
     };
 
-    if config.is_json_output() {
-        let result = CommandOutput::table_of(
-            vec!["name", "data_type", "nullable", "primary_key"],
-            &output.columns,
-        )
-        .with_title("Schema");
-        render_result(&result, config);
-    } else {
-        CliService::section(&format!("Table: {} ({} rows)", table_name, row_count));
-        CliService::subsection("Columns");
-        (columns, row_count).display_with_cli();
+    Ok(CommandOutput::table_of(
+        vec!["name", "type", "nullable", "default", "primary_key"],
+        &output.columns,
+    )
+    .with_title(format!("Table: {table_name} ({row_count} rows)")))
+}}
 
-        if !indexes.is_empty() {
-            CliService::subsection("Indexes");
-            for idx in &indexes {
-                let unique_marker = if idx.unique { " (unique)" } else { "" };
-                CliService::info(&format!(
-                    "  {} [{}]{}",
-                    idx.name,
-                    idx.columns.join(", "),
-                    unique_marker
-                ));
-            }
-        }
-    }
-
-    Ok(())
-}
-
-pub(super) async fn execute_info(admin: &DatabaseAdminService, config: &CliConfig) -> Result<()> {
+pub(super) async fn execute_info(admin: &DatabaseAdminService) -> Result<CommandOutput> {
     let info = admin
         .get_database_info()
         .await
@@ -170,25 +136,13 @@ pub(super) async fn execute_info(admin: &DatabaseAdminService, config: &CliConfi
         tables: table_names,
     };
 
-    if config.is_json_output() {
-        let result = CommandOutput::card_value("Database Schema", &output);
-        render_result(&result, config);
-    } else {
-        CliService::section("Database Info");
-        CliService::key_value("Database", &output.database);
-        CliService::key_value("Version", &output.version);
-        CliService::key_value("Size", &output.size);
-        CliService::key_value("Tables", &output.table_count.to_string());
-    }
-
-    Ok(())
-}
+    Ok(CommandOutput::card_value("Database Info", &output))
+}}
 
 pub(super) async fn execute_count(
     admin: &DatabaseAdminService,
     table_name: &str,
-    config: &CliConfig,
-) -> Result<()> {
+) -> Result<CommandOutput> {
     let table_id = SafeIdentifier::parse(table_name)
         .map_err(|e| anyhow!("Invalid table name '{}': {}", table_name, e))?;
 
@@ -202,15 +156,8 @@ pub(super) async fn execute_count(
         count,
     };
 
-    if config.is_json_output() {
-        let result = CommandOutput::card_value("Row Count", &output);
-        render_result(&result, config);
-    } else {
-        CliService::info(&format!("{}: {} rows", table_name, count));
-    }
-
-    Ok(())
-}
+    Ok(CommandOutput::card_value("Row Count", &output))
+}}
 
 // Why: Postgres reports a missing relation as SQLSTATE 42P01 (undefined_table).
 const UNDEFINED_TABLE: &str = "42P01";

@@ -27,16 +27,15 @@ pub mod text_format;
 mod types;
 
 use anyhow::{Context, Result, bail};
-use crate::kernel::KernelHost;
 use std::sync::Arc;
 use systemprompt_database::{DatabaseAdminService, DbPool, QueryExecutor, pool_from_handle};
 use systemprompt_runtime::DatabaseContext;
 
-use crate::cli_settings::CliConfig;
-use systemprompt_extension::cli::{CommandOutput};
-use crate::commands::shared::{app_context, rendered};
+use crate::commands::shared::app_context;
 use crate::interactive::require_confirmation;
-use dispatch::{dispatch_profile_migration, dispatch_standalone_migration};
+use crate::kernel::KernelHost;
+use crate::shared::CommandOutput;
+use dispatch::{Dispatched, dispatch_profile_migration, dispatch_standalone_migration};
 
 pub use commands::{DbCommands, MigrationsCommands};
 pub use types::{
@@ -48,14 +47,7 @@ pub use types::{
     MigrationStatusOutput, PendingMigrationInfo, TableIndexInfo, TableInfo, TableSizeInfo,
 };
 
-pub(crate) use text_format::format_bytes;
-
 pub async fn execute(cmd: DbCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
-    run(cmd, host).await?;
-    Ok(rendered())
-}
-
-async fn run(cmd: DbCommands, host: &dyn KernelHost) -> Result<()> {
     let config = host.output();
     let dispatched = if host.is_database_scoped() {
         let db_ctx = DatabaseContext::from_pool(pool_from_handle(host.db().await?)?);
@@ -63,8 +55,9 @@ async fn run(cmd: DbCommands, host: &dyn KernelHost) -> Result<()> {
     } else {
         dispatch_profile_migration(cmd, host).await?
     };
-    let Some(cmd) = dispatched else {
-        return Ok(());
+    let cmd = match dispatched {
+        Dispatched::Done(output) => return Ok(output),
+        Dispatched::Unhandled(cmd) => cmd,
     };
 
     let (pool, admin_service, query_executor) = connect_services(host).await?;
@@ -72,7 +65,7 @@ async fn run(cmd: DbCommands, host: &dyn KernelHost) -> Result<()> {
     match cmd {
         DbCommands::Query { sql, limit, offset } => {
             let params = query::QueryParams::new(&sql, limit, offset);
-            run_query(&query_executor, &admin_service, &params, config).await
+            query::execute_query(&query_executor, &admin_service, &params).await
         },
         DbCommands::Execute { sql, yes } => {
             require_confirmation(
@@ -81,15 +74,15 @@ async fn run(cmd: DbCommands, host: &dyn KernelHost) -> Result<()> {
                 yes,
                 config,
             )?;
-            run_write(&query_executor, &sql, config).await
+            query::execute_write(&query_executor, &sql).await
         },
         DbCommands::Tables { filter, exact } => {
-            schema::execute_tables(&admin_service, filter, exact, config).await
+            schema::execute_tables(&admin_service, filter, exact).await
         },
         DbCommands::Describe { table_name } => {
-            schema::execute_describe(&admin_service, &table_name, config).await
+            schema::execute_describe(&admin_service, &table_name).await
         },
-        DbCommands::Info => schema::execute_info(&admin_service, config).await,
+        DbCommands::Info => schema::execute_info(&admin_service).await,
         DbCommands::Migrate { .. }
         | DbCommands::MigrateDown { .. }
         | DbCommands::MigrateRepair { .. }
@@ -97,7 +90,7 @@ async fn run(cmd: DbCommands, host: &dyn KernelHost) -> Result<()> {
             bail!("migration command was not consumed by the migration dispatcher")
         },
         DbCommands::Migrations { cmd } => {
-            admin::execute_migrations(&app_context(host).await?, host.admitted()?.built(), cmd, config)
+            admin::execute_migrations(&app_context(host).await?, host.admitted()?.built(), cmd)
                 .await
         },
         DbCommands::MigratePlan { extension, flags } => {
@@ -106,17 +99,14 @@ async fn run(cmd: DbCommands, host: &dyn KernelHost) -> Result<()> {
                 host.admitted()?.built(),
                 extension.as_ref(),
                 flags,
-                config,
             )
             .await
         },
-        DbCommands::MigrateStatus { extension, json } => {
+        DbCommands::MigrateStatus { extension } => {
             admin::execute_migrate_status(
                 &app_context(host).await?,
                 host.admitted()?.built(),
                 extension.as_ref(),
-                json,
-                config,
             )
             .await
         },
@@ -124,17 +114,15 @@ async fn run(cmd: DbCommands, host: &dyn KernelHost) -> Result<()> {
             if host.is_database_scoped() {
                 bail!("assign-admin requires full profile context");
             }
-            admin::execute_assign_admin(&app_context(host).await?, &user, config).await
+            admin::execute_assign_admin(&app_context(host).await?, &user).await
         },
-        DbCommands::Status => admin::execute_status(&admin_service, config).await,
+        DbCommands::Status => admin::execute_status(&admin_service).await,
         DbCommands::Count { table_name } => {
-            schema::execute_count(&admin_service, &table_name, config).await
+            schema::execute_count(&admin_service, &table_name).await
         },
-        DbCommands::Indexes { table } => {
-            introspect::execute_indexes(&admin_service, table, config).await
-        },
-        DbCommands::Size => introspect::execute_size(&admin_service, config).await,
-        DbCommands::Doctor => doctor::execute_doctor(&pool, host.admitted()?.built(), config).await,
+        DbCommands::Indexes { table } => introspect::execute_indexes(&admin_service, table).await,
+        DbCommands::Size => introspect::execute_size(&admin_service).await,
+        DbCommands::Doctor => doctor::execute_doctor(&pool, host.admitted()?.built()).await,
     }
 }
 
@@ -147,17 +135,4 @@ async fn connect_services(
     let admin_service = DatabaseAdminService::new(Arc::clone(&write_pool));
     let query_executor = QueryExecutor::new(write_pool);
     Ok((pool, admin_service, query_executor))
-}
-
-async fn run_query(
-    executor: &QueryExecutor,
-    admin_service: &DatabaseAdminService,
-    params: &query::QueryParams<'_>,
-    config: &CliConfig,
-) -> Result<()> {
-    query::execute_query(executor, admin_service, params, config).await
-}
-
-async fn run_write(executor: &QueryExecutor, sql: &str, config: &CliConfig) -> Result<()> {
-    query::execute_write(executor, sql, config).await
 }

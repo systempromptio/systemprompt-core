@@ -104,8 +104,6 @@ pub enum DbCommands {
             value_parser = systemprompt_extension::cli::parsers::parse_extension_id
         )]
         extension: Option<ExtensionId>,
-        #[arg(long, help = "Emit JSON instead of a text table")]
-        json: bool,
     },
     #[command(
         about = "Repair migration checksum drift — re-applies edited migrations in place, or with \
@@ -132,8 +130,6 @@ pub enum DbCommands {
                     edited files; nothing verifies that."
         )]
         reconcile_only: bool,
-        #[arg(long, help = "Emit JSON instead of a text table")]
-        json: bool,
     },
     #[command(
         about = "Record a migration as already applied without running its SQL (recovers partial \
@@ -149,8 +145,6 @@ pub enum DbCommands {
         extension: ExtensionId,
         #[arg(long, help = "Migration version to mark as applied")]
         version: u32,
-        #[arg(long, help = "Emit JSON instead of a text summary")]
-        json: bool,
         #[command(flatten)]
         confirm: ConfirmArgs,
     },
@@ -188,8 +182,6 @@ pub enum MigrationsCommands {
 
 #[derive(Debug, Clone, Copy, clap::Args)]
 pub struct PlanFlags {
-    #[arg(long, help = "Emit JSON instead of a text table")]
-    pub json: bool,
     #[arg(
         long,
         help = "Exit non-zero when a pending migration is marked `@compat: breaking` (the batch \

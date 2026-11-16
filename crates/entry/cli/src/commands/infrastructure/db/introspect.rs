@@ -5,10 +5,9 @@
 
 use anyhow::{Context, Result};
 use systemprompt_database::{DatabaseAdminService, SafeIdentifier};
-use systemprompt_logging::CliService;
+use systemprompt_models::artifacts::NoticeLine;
 
-use crate::cli_settings::CliConfig;
-use crate::shared::{CommandOutput, render_result};
+use crate::shared::CommandOutput;
 
 use super::text_format::format_bytes;
 use super::types::{DbIndexesOutput, DbSizeOutput, TableIndexInfo, TableSizeInfo};
@@ -16,8 +15,7 @@ use super::types::{DbIndexesOutput, DbSizeOutput, TableIndexInfo, TableSizeInfo}
 pub(super) async fn execute_indexes(
     admin: &DatabaseAdminService,
     table_filter: Option<String>,
-    config: &CliConfig,
-) -> Result<()> {
+) -> Result<CommandOutput> {
     let tables = admin.list_tables().await.context("Failed to list tables")?;
 
     let filtered_tables: Vec<_> = if let Some(ref filter) = table_filter {
@@ -54,39 +52,21 @@ pub(super) async fn execute_indexes(
     }
 
     let output = DbIndexesOutput {
-        indexes: all_indexes.clone(),
         total: all_indexes.len(),
+        indexes: all_indexes,
     };
 
-    if config.is_json_output() {
-        let result =
-            CommandOutput::table_of(vec!["table", "name", "columns", "unique"], &output.indexes)
-                .with_title("Database Schema");
-        render_result(&result, config);
-    } else {
-        CliService::section("Indexes");
+    Ok(
+        CommandOutput::table_of(vec!["table", "name", "columns", "unique"], &output.indexes)
+            .with_title("Indexes")
+            .with_note(NoticeLine::new(
+                "info",
+                format!("Total: {} index(es)", output.total),
+            )),
+    )
+}}
 
-        if all_indexes.is_empty() {
-            CliService::info("No indexes found");
-        } else {
-            for idx in &all_indexes {
-                let unique_marker = if idx.unique { " (unique)" } else { "" };
-                CliService::info(&format!(
-                    "{}.{} [{}]{}",
-                    idx.table,
-                    idx.name,
-                    idx.columns.join(", "),
-                    unique_marker
-                ));
-            }
-            CliService::info(&format!("\nTotal: {} index(es)", output.total));
-        }
-    }
-
-    Ok(())
-}
-
-pub(super) async fn execute_size(admin: &DatabaseAdminService, config: &CliConfig) -> Result<()> {
+pub(super) async fn execute_size(admin: &DatabaseAdminService) -> Result<CommandOutput> {
     let info = admin
         .get_database_info()
         .await
@@ -112,25 +92,8 @@ pub(super) async fn execute_size(admin: &DatabaseAdminService, config: &CliConfi
         database_size: format_bytes(info.size as i64),
         database_size_bytes: info.size as i64,
         table_count: tables.len(),
-        largest_tables: largest.clone(),
+        largest_tables: largest,
     };
 
-    if config.is_json_output() {
-        let result = CommandOutput::card_value("Database Size", &output);
-        render_result(&result, config);
-    } else {
-        CliService::section("Database Size");
-        CliService::key_value("Total Size", &output.database_size);
-        CliService::key_value("Table Count", &output.table_count.to_string());
-
-        CliService::subsection("Largest Tables");
-        for table in &largest {
-            CliService::info(&format!(
-                "  {} - {} ({} rows)",
-                table.name, table.size, table.rows
-            ));
-        }
-    }
-
-    Ok(())
-}
+    Ok(CommandOutput::card_value("Database Size", &output))
+}}

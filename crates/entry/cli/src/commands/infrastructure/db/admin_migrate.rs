@@ -12,12 +12,12 @@ use systemprompt_database::{
 };
 use systemprompt_extension::{BuiltState, LoaderError};
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
+use systemprompt_models::artifacts::NoticeLine;
 use systemprompt_runtime::DatabaseContext;
 
 use crate::cli_settings::CliConfig;
-use crate::shared::{CommandOutput, render_result};
+use crate::shared::CommandOutput;
 
 use super::types::DbMigrateOutput;
 
@@ -28,17 +28,21 @@ pub(super) struct MigrateOptions {
     pub(super) full: bool,
 }
 
-pub(super) async fn execute_migrate(host: &dyn KernelHost, options: MigrateOptions) -> Result<()> {
+pub(super) async fn execute_migrate(
+    host: &dyn KernelHost,
+    options: MigrateOptions,
+) -> Result<CommandOutput> {
     let config = host.output();
     let sys_config = host.config()?;
 
+    let mut notes = Vec::new();
     if config.should_show_verbose() {
-        CliService::info(&format!("System path: {}", sys_config.system_path));
-        CliService::info(&format!("Database type: {}", sys_config.database_type));
-        CliService::info(&format!(
+        notes.push(info(format!("System path: {}", sys_config.system_path)));
+        notes.push(info(format!("Database type: {}", sys_config.database_type)));
+        notes.push(info(format!(
             "Database URL: {}",
             Profile::mask_database_url(&sys_config.database_url)
-        ));
+        )));
     }
 
     let database = Arc::new(
@@ -57,7 +61,8 @@ pub(super) async fn execute_migrate(host: &dyn KernelHost, options: MigrateOptio
         .context("Failed to connect to the session database")?,
     );
 
-    run_install(host.admitted()?.built(), &database, config, options).await
+    let output = run_install(host.admitted()?.built(), &database, config, options).await?;
+    Ok(notes.into_iter().fold(output, CommandOutput::with_note))
 }
 
 pub(super) async fn execute_migrate_standalone(
@@ -65,7 +70,7 @@ pub(super) async fn execute_migrate_standalone(
     built: &BuiltState,
     config: &CliConfig,
     options: MigrateOptions,
-) -> Result<()> {
+) -> Result<CommandOutput> {
     let database = db_ctx.db_pool();
     run_install(built, database, config, options).await
 }
@@ -101,13 +106,14 @@ async fn run_install(
         repair_drift,
         full,
     }: MigrateOptions,
-) -> Result<()> {
+) -> Result<CommandOutput> {
     let write_provider = database.session();
+    let mut notes = Vec::new();
     if config.should_show_verbose() {
-        CliService::info(&format!(
+        notes.push(info(format!(
             "Installing schemas for {} extensions",
             install_set(built).len()
-        ));
+        )));
     }
 
     let migration_config = MigrationConfig {
@@ -118,7 +124,10 @@ async fn run_install(
     let report = match install_admitted_schemas(built, write_provider, migration_config).await {
         Ok(report) => report,
         Err(LoaderError::MigrationChecksumDrift { .. }) if repair_drift => {
-            CliService::warning("Migration checksum drift found; re-applying drifted migrations");
+            notes.push(NoticeLine::new(
+                "warning",
+                "Migration checksum drift found; re-applied drifted migrations",
+            ));
             let service = MigrationService::new(write_provider);
             for ext in install_set(built) {
                 service
@@ -145,14 +154,15 @@ async fn run_install(
         message: "Database migration completed successfully".to_owned(),
     };
 
-    if config.is_json_output() {
-        let result = CommandOutput::card_value("Database Admin", &output);
-        render_result(&result, config);
-    } else {
-        CliService::success(&output.message);
-    }
+    notes.push(NoticeLine::new("success", output.message.clone()));
+    Ok(notes.into_iter().fold(
+        CommandOutput::card_value("Database Admin", &output),
+        CommandOutput::with_note,
+    ))
+}
 
-    Ok(())
+fn info(text: String) -> NoticeLine {
+    NoticeLine::new("info", text)
 }
 
 // Why: the error alone says which statement failed; the hint says what kind

@@ -12,11 +12,10 @@ use anyhow::{Context, Result};
 use systemprompt_database::MigrationService;
 use systemprompt_extension::BuiltState;
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_logging::CliService;
+use systemprompt_models::artifacts::NoticeLine;
 use systemprompt_runtime::DatabaseContext;
 
-use crate::cli_settings::CliConfig;
-use crate::shared::{CommandOutput, render_result};
+use crate::shared::CommandOutput;
 
 use super::MigrationsCommands;
 use super::types::{
@@ -27,30 +26,27 @@ pub(super) async fn execute_migrations(
     ctx: &systemprompt_runtime::AppContext,
     built: &BuiltState,
     cmd: MigrationsCommands,
-    config: &CliConfig,
-) -> Result<()> {
-    run_migrations(ctx.db_pool().as_ref(), built, cmd, config).await
+) -> Result<CommandOutput> {
+    run_migrations(ctx.db_pool().as_ref(), built, cmd).await
 }
 
 pub(super) async fn execute_migrations_standalone(
     db_ctx: &DatabaseContext,
     built: &BuiltState,
     cmd: MigrationsCommands,
-    config: &CliConfig,
-) -> Result<()> {
-    run_migrations(db_ctx.db_pool().as_ref(), built, cmd, config).await
+) -> Result<CommandOutput> {
+    run_migrations(db_ctx.db_pool().as_ref(), built, cmd).await
 }
 
 async fn run_migrations(
     db: &dyn systemprompt_database::services::DatabaseProvider,
     built: &BuiltState,
     cmd: MigrationsCommands,
-    config: &CliConfig,
-) -> Result<()> {
+) -> Result<CommandOutput> {
     match cmd {
-        MigrationsCommands::Status => execute_migrations_status(db, built, config).await,
+        MigrationsCommands::Status => execute_migrations_status(db, built).await,
         MigrationsCommands::History { extension } => {
-            execute_migrations_history(db, built, &extension, config).await
+            execute_migrations_history(db, built, &extension).await
         },
     }
 }
@@ -58,8 +54,7 @@ async fn run_migrations(
 async fn execute_migrations_status(
     db: &dyn systemprompt_database::services::DatabaseProvider,
     built: &BuiltState,
-    config: &CliConfig,
-) -> Result<()> {
+) -> Result<CommandOutput> {
     let migration_service = MigrationService::new(db);
     let mut extensions = Vec::new();
     let mut total_pending = 0;
@@ -89,49 +84,29 @@ async fn execute_migrations_status(
         total_applied,
     };
 
-    if config.is_json_output() {
-        let result = CommandOutput::table_of(
-            vec![
-                "extension_id",
-                "total_defined",
-                "total_applied",
-                "pending_count",
-            ],
-            &output.extensions,
-        )
-        .with_title("Migration Status");
-        render_result(&result, config);
+    let summary = if total_pending == 0 {
+        NoticeLine::new("success", "All migrations are up to date")
     } else {
-        if total_pending == 0 {
-            CliService::success("All migrations are up to date");
-        } else {
-            CliService::warning(&format!("{} pending migration(s)", total_pending));
-        }
-        CliService::info("");
-
-        for ext in &output.extensions {
-            let status_icon = if ext.pending_count == 0 { "✓" } else { "!" };
-
-            CliService::info(&format!(
-                "  {} {}: {}/{} applied",
-                status_icon, ext.extension_id, ext.total_applied, ext.total_defined
-            ));
-
-            if !ext.pending_versions.is_empty() {
-                CliService::info(&format!("      Pending: {:?}", ext.pending_versions));
-            }
-        }
-    }
-
-    Ok(())
+        NoticeLine::new("warning", format!("{total_pending} pending migration(s)"))
+    };
+    Ok(CommandOutput::table_of(
+        vec![
+            "extension_id",
+            "total_defined",
+            "total_applied",
+            "pending_count",
+        ],
+        &output.extensions,
+    )
+    .with_title("Migration Status")
+    .with_note(summary))
 }
 
 async fn execute_migrations_history(
     db: &dyn systemprompt_database::services::DatabaseProvider,
     built: &BuiltState,
     extension_id: &ExtensionId,
-    config: &CliConfig,
-) -> Result<()> {
+) -> Result<CommandOutput> {
     let ext = super::admin_migrate::find_member(built, extension_id)?;
 
     let migration_service = MigrationService::new(db);
@@ -155,28 +130,14 @@ async fn execute_migrations_history(
         migrations,
     };
 
-    if config.is_json_output() {
-        let result =
-            CommandOutput::table_of(vec!["version", "name", "checksum"], &output.migrations)
-                .with_title("Migration History");
-        render_result(&result, config);
+    let note = if output.migrations.is_empty() {
+        NoticeLine::new("info", "No migrations applied yet")
     } else {
-        CliService::info(&format!("Migration history for '{}':", extension_id));
-        CliService::info(&format!("  Version: {}", ext.version()));
-        CliService::info("");
-
-        if output.migrations.is_empty() {
-            CliService::info("  No migrations applied yet");
-        } else {
-            for m in &output.migrations {
-                let checksum = &m.checksum[..m.checksum.len().min(8)];
-                CliService::info(&format!(
-                    "  v{:03} {} (checksum: {checksum})",
-                    m.version, m.name
-                ));
-            }
-        }
-    }
-
-    Ok(())
+        NoticeLine::new("info", format!("Extension version: {}", ext.version()))
+    };
+    Ok(
+        CommandOutput::table_of(vec!["version", "name", "checksum"], &output.migrations)
+            .with_title(format!("Migration history for '{extension_id}'"))
+            .with_note(note),
+    )
 }

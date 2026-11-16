@@ -11,11 +11,10 @@ use systemprompt_database::services::DatabaseProvider;
 use systemprompt_database::{Database, MigrationService};
 use systemprompt_extension::BuiltState;
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_logging::CliService;
+use systemprompt_models::artifacts::NoticeLine;
 use systemprompt_runtime::DatabaseContext;
 
-use crate::cli_settings::CliConfig;
-use crate::shared::{CommandOutput, render_result};
+use crate::shared::CommandOutput;
 
 use super::admin_migrate::find_member;
 use super::types::MigrateMarkAppliedOutput;
@@ -24,14 +23,12 @@ use super::types::MigrateMarkAppliedOutput;
 pub(super) struct MarkAppliedArgs<'a> {
     pub extension: &'a ExtensionId,
     pub version: u32,
-    pub json: bool,
 }
 
 pub(super) async fn execute_migrate_mark_applied(
     host: &dyn KernelHost,
     args: MarkAppliedArgs<'_>,
-) -> Result<()> {
-    let config = host.output();
+) -> Result<CommandOutput> {
     let sys_config = host.config()?;
     let database = Arc::new(
         Database::connect(
@@ -49,41 +46,23 @@ pub(super) async fn execute_migrate_mark_applied(
         .context("Failed to connect to the session database")?,
     );
 
-    run_mark_applied(
-        database.session(),
-        host.admitted()?.built(),
-        args,
-        config,
-    )
-    .await
+    run_mark_applied(database.session(), host.admitted()?.built(), args).await
 }
 
 pub(super) async fn execute_migrate_mark_applied_standalone(
     db_ctx: &DatabaseContext,
     built: &BuiltState,
-    config: &CliConfig,
     args: MarkAppliedArgs<'_>,
-) -> Result<()> {
-    run_mark_applied(
-        db_ctx.db_pool().session(),
-        built,
-        args,
-        config,
-    )
-    .await
+) -> Result<CommandOutput> {
+    run_mark_applied(db_ctx.db_pool().session(), built, args).await
 }
 
 async fn run_mark_applied(
     write_provider: &dyn DatabaseProvider,
     built: &BuiltState,
     args: MarkAppliedArgs<'_>,
-    config: &CliConfig,
-) -> Result<()> {
-    let MarkAppliedArgs {
-        extension,
-        version,
-        json,
-    } = args;
+) -> Result<CommandOutput> {
+    let MarkAppliedArgs { extension, version } = args;
 
     let ext = find_member(built, extension)?;
 
@@ -109,12 +88,6 @@ async fn run_mark_applied(
         message: message.clone(),
     };
 
-    if json || config.is_json_output() {
-        let result = CommandOutput::card_value("Migration Mark Applied", &output);
-        render_result(&result, config);
-    } else {
-        CliService::success(&message);
-    }
-
-    Ok(())
+    Ok(CommandOutput::card_value("Migration Mark Applied", &output)
+        .with_note(NoticeLine::new("success", message)))
 }

@@ -12,18 +12,17 @@ use chrono::{DateTime, Utc};
 use clap::Args;
 use std::sync::Arc;
 use systemprompt_identifiers::{TaskId, TraceId};
-use systemprompt_logging::CliService;
+use systemprompt_models::artifacts::NoticeLine;
 use systemprompt_runtime::{AiTraceService, TraceEvent, TraceQueryService, TraceRepository};
 
 use super::ai_trace_display::{execute_ai_trace, filter_log_events};
-use super::display::{print_event, print_table};
+use super::display::{push_event, push_table};
 use super::json::build_json;
-use super::summary::{SummaryContext, print_summary};
+use super::summary::{SummaryContext, line, push_summary};
 use super::{AiSummaryRow, McpSummaryRow, StepSummaryRow, TraceEventRow, TraceViewOutput};
-use crate::CliConfig;
 use systemprompt_extension::cli::CommandHost;
 use systemprompt_database::pool_from_handle;
-use crate::shared::{CommandOutput, render_result};
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
@@ -77,26 +76,26 @@ struct FormattedDisplayContext<'a> {
 
 pub(super) async fn execute(args: ShowArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
     let pool = pool_from_handle(host.db().await?)?.pool();
-    execute_with_pool_inner(args, &pool, host.output()).await
+    execute_with_pool_inner(args, &pool, host.output().is_json_output()).await
 }
 
 async fn execute_with_pool_inner(
     args: ShowArgs,
     pool: &Arc<sqlx::PgPool>,
-    config: &CliConfig,
+    machine_output: bool,
 ) -> Result<CommandOutput> {
     let ai_service = AiTraceService::new(TraceRepository::new(Arc::clone(pool)));
     if let Ok(task_id) = ai_service.resolve_task_id(&args.id).await {
         return execute_ai_trace(&ai_service, &task_id, &args).await;
     }
 
-    execute_trace_view(&args, pool, config).await
+    execute_trace_view(&args, pool, machine_output).await
 }
 
 async fn execute_trace_view(
     args: &ShowArgs,
     pool: &Arc<sqlx::PgPool>,
-    config: &CliConfig,
+    machine_output: bool,
 ) -> Result<CommandOutput> {
     let service = TraceQueryService::new(TraceRepository::new(Arc::clone(pool)));
     let trace_id = TraceId::try_new(args.id.as_str())?;
@@ -133,27 +132,24 @@ async fn execute_trace_view(
         mcp: &mcp_summary,
         step: &step_summary,
     };
-    let output = build_trace_output(
-        &trace_id,
-        &events,
-        &summaries,
-        task_id.as_ref(),
-        duration_ms,
-    );
-
-    let result = CommandOutput::card_value("Trace Details", &output);
-
-    if events.is_empty() {
-        if !args.json {
-            report_empty_trace(&trace_id, &ai_summary, &mcp_summary);
-        }
-        return Ok(result.with_skip_render());
+    if args.json {
+        return Ok(build_json(&events, &trace_id, &ai_summary, &mcp_summary, &step_summary));
+    }
+    if machine_output {
+        let output = build_trace_output(
+            &trace_id,
+            &events,
+            &summaries,
+            task_id.as_ref(),
+            duration_ms,
+        );
+        return Ok(CommandOutput::card_value("Trace Details", &output));
     }
 
-    if args.json {
-        let json_result = build_json(&events, &trace_id, &ai_summary, &mcp_summary, &step_summary);
-        render_result(&json_result, config);
-        return Ok(result.with_skip_render());
+    let mut lines = Vec::new();
+    if events.is_empty() {
+        push_empty_trace(&mut lines, &trace_id, &ai_summary, &mcp_summary);
+        return Ok(CommandOutput::message(lines));
     }
 
     let display_ctx = FormattedDisplayContext {
@@ -165,58 +161,63 @@ async fn execute_trace_view(
         mcp_summary: &mcp_summary,
         step_summary: &step_summary,
     };
-    print_formatted(&display_ctx);
-
-    Ok(result.with_skip_render())
+    push_formatted(&mut lines, &display_ctx);
+    Ok(CommandOutput::message(lines).with_title(format!("Trace Flow: {trace_id}")))
 }
 
-fn report_empty_trace(
+fn push_empty_trace(
+    out: &mut Vec<NoticeLine>,
     trace_id: &TraceId,
     ai_summary: &systemprompt_runtime::AiRequestSummary,
     mcp_summary: &systemprompt_runtime::McpExecutionSummary,
 ) {
     if ai_summary.request_count == 0 && mcp_summary.execution_count == 0 {
-        CliService::warning(&format!("No events found for trace: {}", trace_id));
-        CliService::info(
+        line(out, "warning", format!("No events found for trace: {trace_id}"));
+        line(
+            out,
+            "info",
             "Tip: The trace may take a moment to populate. Try again in a few seconds.",
         );
         return;
     }
 
-    CliService::section(&format!("Trace: {}", trace_id));
-    CliService::info("No log events found, but trace has activity:");
+    line(out, "info", format!("Trace: {trace_id}"));
+    line(out, "info", "No log events found, but trace has activity:");
     if ai_summary.request_count > 0 {
-        CliService::key_value("AI Requests", &ai_summary.request_count.to_string());
-        CliService::key_value(
-            "Total Tokens",
-            &format!(
-                "{} in / {} out",
+        line(out, "info", format!("AI Requests: {}", ai_summary.request_count));
+        line(
+            out,
+            "info",
+            format!(
+                "Total Tokens: {} in / {} out",
                 ai_summary.total_input_tokens, ai_summary.total_output_tokens
             ),
         );
         let cost_dollars = f64::from(ai_summary.total_cost_microdollars as i32) / 1_000_000.0;
-        CliService::key_value("Cost", &format!("${:.6}", cost_dollars));
+        line(out, "info", format!("Cost: ${cost_dollars:.6}"));
     }
     if mcp_summary.execution_count > 0 {
-        CliService::key_value("MCP Calls", &mcp_summary.execution_count.to_string());
+        line(out, "info", format!("MCP Calls: {}", mcp_summary.execution_count));
     }
-    CliService::info("Use --verbose to see all log entries, or --ai/--mcp for details");
+    line(
+        out,
+        "info",
+        "Use --verbose to see all log entries, or --ai/--mcp for details",
+    );
 }
 
-fn print_formatted(ctx: &FormattedDisplayContext<'_>) {
-    CliService::section(&format!("Trace Flow: {}", ctx.trace_id));
-
+fn push_formatted(out: &mut Vec<NoticeLine>, ctx: &FormattedDisplayContext<'_>) {
     let first_timestamp = ctx.events.first().map(|e| e.timestamp);
     let last_timestamp = ctx.events.last().map(|e| e.timestamp);
 
     if ctx.verbose {
         let mut prev_timestamp: Option<DateTime<Utc>> = None;
         for event in ctx.events {
-            print_event(event, ctx.verbose, prev_timestamp);
+            push_event(out, event, ctx.verbose, prev_timestamp);
             prev_timestamp = Some(event.timestamp);
         }
     } else {
-        print_table(ctx.events);
+        push_table(out, ctx.events);
     }
 
     let summary_ctx = SummaryContext {
@@ -228,7 +229,7 @@ fn print_formatted(ctx: &FormattedDisplayContext<'_>) {
         mcp_summary: ctx.mcp_summary,
         step_summary: ctx.step_summary,
     };
-    print_summary(&summary_ctx);
+    push_summary(out, &summary_ctx);
 }
 
 pub fn build_trace_output(
