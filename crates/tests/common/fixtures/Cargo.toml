@@ -21,13 +21,11 @@ systemprompt-extension = { workspace = true, features = ["sqlx", "router"] }
 systemprompt-identifiers = { workspace = true }
 systemprompt-marketplace = { workspace = true }
 systemprompt-notifications = { workspace = true }
-systemprompt-ai = { workspace = true }
 systemprompt-mcp = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-manifest = { workspace = true }
 systemprompt-wire = { workspace = true }
 systemprompt-agent = { workspace = true }
-systemprompt-content = { workspace = true }
 systemprompt-logging = { workspace = true }
 systemprompt-oauth = { workspace = true }
 systemprompt-traits = { workspace = true }
@@ -37,7 +35,6 @@ systemprompt-security = { workspace = true }
 systemprompt-governance = { workspace = true }
 systemprompt-users = { workspace = true }
 systemprompt-files = { workspace = true }
-systemprompt-storage = { workspace = true }
 tempfile = { workspace = true }
 async-trait = { workspace = true }
 tokio = { workspace = true, features = ["rt", "time"] }
