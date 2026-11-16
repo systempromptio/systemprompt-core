@@ -19,7 +19,7 @@ use systemprompt_models::brain::{
     TopicDecl,
 };
 use systemprompt_models::notifications::AudienceSubject;
-use systemprompt_runtime::notifications::UserRoleAudienceResolver;
+use systemprompt_users::UserRoleAudienceResolver;
 use systemprompt_users::UserRepository;
 
 use crate::events::{PRODUCT, entered};

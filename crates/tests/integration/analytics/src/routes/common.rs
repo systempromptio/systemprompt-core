@@ -30,7 +30,10 @@ fn state(ctx: &AppContext, routing: Option<Arc<dyn ContentRouting>>) -> Analytic
         .get::<DynContentCatalogStats>()
         .expect("the content extension provides the catalog");
     AnalyticsHttpState::new(
-        Arc::clone(ctx.analytics_repositories()),
+        Arc::new(
+            systemprompt_test_fixtures::fixture_analytics_repositories(ctx.db_pool())
+                .expect("analytics repositories"),
+        ),
         ContentResolver::new(Arc::clone(catalog), routing),
     )
 }

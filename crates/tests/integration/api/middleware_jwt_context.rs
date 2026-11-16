@@ -23,7 +23,8 @@ use super::common::setup_ctx;
 
 async fn extractor() -> Result<(systemprompt_database::DbPool, JwtContextExtractor)> {
     let (db, ctx) = setup_ctx().await?;
-    let analytics = Arc::clone(&ctx.analytics_repositories().session_store);
+    let analytics: systemprompt_traits::DynSessionStore =
+        Arc::new(systemprompt_users::SessionRepository::new(ctx.db_pool()));
     let user_provider: Arc<dyn UserProvider> =
         Arc::new(UserService::new(Arc::clone(ctx.user_repository())));
     let jti = JtiRevocationChecker::from_repository(

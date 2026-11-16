@@ -92,7 +92,8 @@ settings:
 }
 
 fn extractor(ctx: &AppContext) -> JwtContextExtractor {
-    let analytics = Arc::clone(&ctx.analytics_repositories().session_store);
+    let analytics: systemprompt_traits::DynSessionStore =
+        Arc::new(systemprompt_users::SessionRepository::new(ctx.db_pool()));
     let user_provider: Arc<dyn UserProvider> =
         Arc::new(UserService::new(Arc::clone(ctx.user_repository())));
     JwtContextExtractor::new(
