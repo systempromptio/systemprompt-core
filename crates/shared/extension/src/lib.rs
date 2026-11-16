@@ -71,7 +71,6 @@ pub mod admitted;
 pub mod admitted_purge;
 pub mod admitted_schedule;
 mod asset;
-pub mod audience;
 pub mod authz;
 pub mod brain;
 #[expect(
@@ -107,7 +106,6 @@ mod traits;
 pub use admitted::{Admitted, BuiltState, DeclaredCommands};
 pub use admitted_purge::AdmittedPurge;
 pub use admitted_schedule::AdmittedSchedule;
-pub use audience::AudienceResolvers;
 pub use asset::{AssetDefinition, AssetDefinitionBuilder, AssetPaths, AssetType};
 pub use authz::{AuthzPolicy, HandlerVerifier};
 pub use brain::{
@@ -123,7 +121,7 @@ pub use brain::{
 pub use brain::{BrainSink, DynBrainSink};
 pub use context::{DynExtensionContext, ExtensionContext};
 pub use contribute::{
-    ContributionError, Contributions, ExtensionConfig, Factory, FactoryError, FromState, Handed,
+    AudienceResolvers, ContributionError, Contributions, ExtensionConfig, Factory, FactoryError, FromState, Handed,
     HandleId, KernelHandle, ProvideError, ProvideFn, Resolved, Slot, SlotEntry, SlotError,
     SlotOrder, StandingTag, build_factories, handles,
 };
