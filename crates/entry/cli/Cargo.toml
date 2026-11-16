@@ -81,7 +81,6 @@ schemars = { workspace = true }
 chrono = { workspace = true }
 console = { workspace = true }
 tabled = { workspace = true }
-inventory = { workspace = true }
 uuid = { workspace = true }
 reqwest = { workspace = true }
 rustls = { workspace = true }

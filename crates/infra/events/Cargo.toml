@@ -40,7 +40,6 @@ chrono = { workspace = true }
 
 # systemprompt.io dependencies
 systemprompt-extension = { workspace = true }
-inventory = { workspace = true }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
 systemprompt-models = { workspace = true }
 systemprompt-traits = { workspace = true }
@@ -52,6 +51,3 @@ metrics = { workspace = true }
 [package.metadata.docs.rs]
 all-features = true
 
-[package.metadata.cargo-machete]
-# inventory: compile-time registration via register_extension!/submit_* macros (::inventory::submit!)
-ignored = ["inventory"]
