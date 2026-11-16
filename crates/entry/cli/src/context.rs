@@ -29,6 +29,7 @@ use tokio::sync::OnceCell;
 
 use crate::env_overrides::EnvOverrides;
 use crate::interactive::DialoguerPrompter;
+use crate::kernel::CommandRegistry;
 use crate::runner::interrupt::InterruptShield;
 use systemprompt_loader::subprocess::ForegroundChildren;
 
@@ -49,6 +50,7 @@ pub struct CommandContext {
     build: BuildIdentity,
     pub(crate) admitted: Option<Arc<Admitted>>,
     pub(crate) kernel: Option<Arc<Kernel>>,
+    pub(crate) registry: Option<Arc<CommandRegistry>>,
     secrets_sources: SecretsSources,
 }
 
@@ -72,6 +74,7 @@ impl CommandContext {
             build: BuildIdentity::core(),
             admitted: None,
             kernel: None,
+            registry: None,
             secrets_sources: SecretsSources::default(),
         }
     }

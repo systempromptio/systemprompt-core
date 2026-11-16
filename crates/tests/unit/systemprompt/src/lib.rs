@@ -15,6 +15,8 @@ mod cli_probe;
 #[cfg(test)]
 mod command_disabled;
 #[cfg(test)]
+mod command_line_classify;
+#[cfg(test)]
 mod composition_order;
 #[cfg(test)]
 mod content_http;

@@ -25,6 +25,7 @@ mod structured_output;
 mod tls;
 
 use std::process::ExitCode;
+use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use systemprompt_config::SecretsSources;
@@ -48,6 +49,7 @@ pub(super) async fn run_with(
     admit: AdmitFn,
 ) -> Result<()> {
     tls::install_crypto_provider();
+    let registry = Arc::new(registry);
     let output = OutputState::new();
     let root = args::command(&registry)?;
     let matches = root.clone().get_matches();
@@ -71,6 +73,7 @@ pub(super) async fn run_with(
         build,
         secrets,
         admit,
+        registry: Arc::clone(&registry),
     };
     let outcome = if invocation.descriptor().owns_signals() {
         Box::pin(run_inner(&output, invocation, confirm, guards, env)).await
@@ -169,6 +172,7 @@ async fn run_inner(
         build,
         secrets,
         admit,
+        registry,
     } = guards;
     let admitted = admit_for(&invocation, profile.as_deref(), admit)?;
     let ctx = CommandContext::new(cli_config, env)
@@ -177,6 +181,7 @@ async fn run_inner(
         .with_build_identity(build)
         .with_secrets_sources(secrets)
         .with_admitted(admitted)
+        .with_registry(registry)
         .with_cloud_credentials(credentials)
         .with_database_url_override(database_url_override)
         .with_services(services)
@@ -232,6 +237,7 @@ struct RunGuards {
     build: BuildIdentity,
     secrets: SecretsSources,
     admit: AdmitFn,
+    registry: Arc<CommandRegistry>,
 }
 
 impl RunGuards {
@@ -241,6 +247,7 @@ impl RunGuards {
             .with_foreground_children(self.children)
             .with_build_identity(self.build)
             .with_secrets_sources(self.secrets)
+            .with_registry(self.registry)
     }
 }
 
