@@ -208,6 +208,7 @@ impl SubjectDirectory for RoleDirectory {
 
 pub(crate) struct Harness {
     pub(crate) service: DocumentService,
+    pub(crate) access: Arc<DocumentAccessService>,
     pub(crate) repos: Arc<DocumentRepositories>,
     pub(crate) access_entities: Arc<AccessControlRepository>,
     pub(crate) storage: Arc<TempDir>,
@@ -345,7 +346,7 @@ pub(crate) fn harness_wired(
             [Arc::new(CoreTemplateProvider) as Arc<dyn DocumentTemplateProvider>],
             Vec::new(),
         )),
-        access,
+        access: Arc::clone(&access),
         events,
         notifications: fixture_notification_sink(&db),
         brain,
@@ -354,6 +355,7 @@ pub(crate) fn harness_wired(
     service.attach_uploads(&uploads);
     Harness {
         service,
+        access,
         repos,
         access_entities,
         storage,
