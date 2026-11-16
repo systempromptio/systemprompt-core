@@ -27,12 +27,13 @@ pub mod text_format;
 mod types;
 
 use anyhow::{Context, Result, bail};
+use crate::kernel::KernelHost;
 use std::sync::Arc;
 use systemprompt_database::{DatabaseAdminService, DbPool, QueryExecutor, pool_from_handle};
 use systemprompt_runtime::DatabaseContext;
 
 use crate::cli_settings::CliConfig;
-use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_extension::cli::{CommandOutput};
 use crate::commands::shared::{app_context, rendered};
 use crate::interactive::require_confirmation;
 use dispatch::{dispatch_profile_migration, dispatch_standalone_migration};
@@ -49,16 +50,16 @@ pub use types::{
 
 pub(crate) use text_format::format_bytes;
 
-pub async fn execute(cmd: DbCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(cmd: DbCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     run(cmd, host).await?;
     Ok(rendered())
 }
 
-async fn run(cmd: DbCommands, host: &dyn CommandHost) -> Result<()> {
+async fn run(cmd: DbCommands, host: &dyn KernelHost) -> Result<()> {
     let config = host.output();
     let dispatched = if host.is_database_scoped() {
         let db_ctx = DatabaseContext::from_pool(pool_from_handle(host.db().await?)?);
-        dispatch_standalone_migration(cmd, &db_ctx, config).await?
+        dispatch_standalone_migration(cmd, &db_ctx, host).await?
     } else {
         dispatch_profile_migration(cmd, host).await?
     };
@@ -96,15 +97,23 @@ async fn run(cmd: DbCommands, host: &dyn CommandHost) -> Result<()> {
             bail!("migration command was not consumed by the migration dispatcher")
         },
         DbCommands::Migrations { cmd } => {
-            admin::execute_migrations(&app_context(host).await?, cmd, config).await
+            admin::execute_migrations(&app_context(host).await?, host.admitted()?.built(), cmd, config)
+                .await
         },
         DbCommands::MigratePlan { extension, flags } => {
-            admin::execute_migrate_plan(&app_context(host).await?, extension.as_ref(), flags, config)
-                .await
+            admin::execute_migrate_plan(
+                &app_context(host).await?,
+                host.admitted()?.built(),
+                extension.as_ref(),
+                flags,
+                config,
+            )
+            .await
         },
         DbCommands::MigrateStatus { extension, json } => {
             admin::execute_migrate_status(
                 &app_context(host).await?,
+                host.admitted()?.built(),
                 extension.as_ref(),
                 json,
                 config,
@@ -125,12 +134,12 @@ async fn run(cmd: DbCommands, host: &dyn CommandHost) -> Result<()> {
             introspect::execute_indexes(&admin_service, table, config).await
         },
         DbCommands::Size => introspect::execute_size(&admin_service, config).await,
-        DbCommands::Doctor => doctor::execute_doctor(&pool, config).await,
+        DbCommands::Doctor => doctor::execute_doctor(&pool, host.admitted()?.built(), config).await,
     }
 }
 
 async fn connect_services(
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<(DbPool, DatabaseAdminService, QueryExecutor)> {
     let pool = pool_from_handle(host.db().await?)
         .context("Failed to connect to database. Check your profile configuration.")?;

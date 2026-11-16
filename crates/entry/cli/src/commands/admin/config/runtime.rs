@@ -7,12 +7,11 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::changes_output;
+use crate::commands::admin::config::restart_note;
 use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
-use systemprompt_logging::CliService;
 use systemprompt_manifest::profile::{Environment, LogLevel, OutputFormat as ProfileOutputFormat};
 
-use crate::cli_settings::OutputFormat;
 use crate::shared::CommandOutput;
 use super::profile_io::{load_profile, profile_path, save_profile};
 use super::types::{RuntimeConfigOutput, RuntimeSetOutput};
@@ -64,7 +63,6 @@ pub(super) fn execute_show(host: &dyn CommandHost) -> Result<CommandOutput> {
 }
 
 pub(super) fn execute_set(args: SetArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
-    let config = host.output();
     if args.environment.is_none()
         && args.log_level.is_none()
         && args.output_format.is_none()
@@ -130,9 +128,5 @@ pub(super) fn execute_set(args: SetArgs, host: &dyn CommandHost) -> Result<Comma
 
     save_profile(&profile, profile_path)?;
 
-    if config.output_format() == OutputFormat::Table {
-        CliService::warning("Restart services for changes to take effect");
-    }
-
-    Ok(changes_output("Runtime Updated", &changes))
+    Ok(changes_output("Runtime Updated", &changes).with_note(restart_note()))
 }

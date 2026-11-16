@@ -10,7 +10,7 @@
 use anyhow::{Context, Result};
 use systemprompt_database::services::DatabaseProvider;
 use systemprompt_database::{ExtensionMigrationStatus, MigrationService};
-use systemprompt_extension::ExtensionRegistry;
+use systemprompt_extension::BuiltState;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
@@ -25,34 +25,34 @@ use super::types::{
 
 pub(super) async fn execute_migrate_status(
     ctx: &AppContext,
+    built: &BuiltState,
     extension: Option<&ExtensionId>,
     json: bool,
     config: &CliConfig,
 ) -> Result<()> {
     let db = ctx.db_pool();
-    let registry = ctx.extension_registry();
-    run_migrate_status(db.as_ref(), registry, extension, json, config).await
+    run_migrate_status(db.as_ref(), built, extension, json, config).await
 }
 
 pub(super) async fn execute_migrate_status_standalone(
     db_ctx: &DatabaseContext,
+    built: &BuiltState,
     extension: Option<&ExtensionId>,
     json: bool,
     config: &CliConfig,
 ) -> Result<()> {
     let db = db_ctx.db_pool();
-    let registry = ExtensionRegistry::discover()?;
-    run_migrate_status(db.as_ref(), &registry, extension, json, config).await
+    run_migrate_status(db.as_ref(), built, extension, json, config).await
 }
 
 async fn run_migrate_status(
     db: &dyn DatabaseProvider,
-    registry: &ExtensionRegistry,
+    built: &BuiltState,
     extension: Option<&ExtensionId>,
     json: bool,
     config: &CliConfig,
 ) -> Result<()> {
-    let extensions = select_extensions(registry, extension)?;
+    let extensions = select_extensions(built, extension)?;
     let migration_service = MigrationService::new(db);
     let output = collect_status(&extensions, &migration_service).await?;
 

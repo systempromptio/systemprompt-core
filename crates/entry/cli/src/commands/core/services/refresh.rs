@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result};
+use crate::kernel::KernelHost;
 use clap::Args;
 use serde::Serialize;
 use systemprompt_loader::ServicesSourceBootstrap;
@@ -14,7 +15,6 @@ use systemprompt_manifest::{Profile, Secrets};
 use systemprompt_runtime::services_reconcile::pending_composed_hash;
 
 use super::reconcile::{ReconcileRow, reconcile_after_swap};
-use systemprompt_extension::cli::CommandHost;
 use crate::commands::shared::rendered;
 use crate::shared::CommandOutput;
 
@@ -52,7 +52,7 @@ pub struct SourceRow {
     pub changed: bool,
 }
 
-pub async fn execute(args: &RefreshArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(args: &RefreshArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let profile = host.profile()?;
     let secrets = host.secrets().context("Secrets required to resolve the services bundle sources")?;
     let secrets = &*secrets;
@@ -160,7 +160,7 @@ async fn swap_sources(
     secrets: &Secrets,
     cache: &BundleCache,
     before: &ServicesBundleState,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<(Vec<SourceRow>, RefreshOutcome, Vec<ReconcileRow>)> {
     let root = ServicesSourceBootstrap::resolve(
         profile,

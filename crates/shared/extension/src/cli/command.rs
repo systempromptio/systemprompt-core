@@ -39,13 +39,50 @@ pub type CommandFuture<'a> = BoxFuture<'a, Result<CommandOutput, CommandError>>;
 
 pub const REGISTERED_DISPLAY_ORDER: usize = 1000;
 
-#[derive(Debug, thiserror::Error)]
-#[error(transparent)]
-pub struct CommandError(#[from] Box<dyn std::error::Error + Send + Sync>);
+/// A failed command: the cause, and optionally the output it produced
+/// before failing (a validation report, say), which the CLI kernel renders
+/// once before it reports the failure and exits non-zero.
+#[derive(Debug)]
+pub struct CommandError {
+    source: Box<dyn std::error::Error + Send + Sync>,
+    output: Option<CommandOutput>,
+}
 
 impl CommandError {
     pub fn new(error: impl Into<Box<dyn std::error::Error + Send + Sync>>) -> Self {
-        Self(error.into())
+        Self {
+            source: error.into(),
+            output: None,
+        }
+    }
+
+    #[must_use]
+    pub fn with_output(mut self, output: CommandOutput) -> Self {
+        self.output = Some(output);
+        self
+    }
+
+    #[must_use]
+    pub const fn output(&self) -> Option<&CommandOutput> {
+        self.output.as_ref()
+    }
+}
+
+impl From<Box<dyn std::error::Error + Send + Sync>> for CommandError {
+    fn from(source: Box<dyn std::error::Error + Send + Sync>) -> Self {
+        Self::new(source)
+    }
+}
+
+impl std::fmt::Display for CommandError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(&self.source, f)
+    }
+}
+
+impl std::error::Error for CommandError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        self.source.source()
     }
 }
 
@@ -149,8 +186,9 @@ pub struct DescribedCommand {
 ///
 /// [`CommandHost::render`] renders an intermediate output through the
 /// kernel's sink (a command that redraws until interrupted); the output a
-/// command returns is rendered once at exit. A command never writes its own
-/// renderer.
+/// command returns is rendered once at exit, and a command that fails with
+/// output attaches it with [`CommandError::with_output`] instead of rendering
+/// it first. A command never writes its own renderer.
 pub trait CommandHost: Send + Sync {
     fn output(&self) -> &CliConfig;
     fn prompter(&self) -> &dyn Prompter;

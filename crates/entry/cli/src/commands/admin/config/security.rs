@@ -8,13 +8,12 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::changes_output;
+use crate::commands::admin::config::restart_note;
 use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
 use systemprompt_config::{SecurityChange, SecurityConfigService, SecurityUpdate};
-use systemprompt_logging::CliService;
 use systemprompt_manifest::profile::TrustedIssuer;
 
-use crate::cli_settings::OutputFormat;
 use crate::shared::CommandOutput;
 use super::profile_io::{load_profile, profile_path, save_profile};
 use super::types::{SecurityConfigOutput, SecuritySetOutput};
@@ -123,7 +122,7 @@ pub(super) fn execute_set(args: &SetArgs, host: &dyn CommandHost) -> Result<Comm
 
     save_profile(&profile, profile_path)?;
 
-    Ok(render_changes(&changes, host))
+    Ok(render_changes(&changes))
 }
 
 fn execute_trusted_issuer(command: &TrustedIssuerCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
@@ -154,7 +153,7 @@ fn execute_trusted_issuer(command: &TrustedIssuerCommands, host: &dyn CommandHos
     };
 
     save_profile(&profile, profile_path)?;
-    Ok(render_changes(&[to_output(change)], host))
+    Ok(render_changes(&[to_output(change)]))
 }
 
 fn to_output(change: SecurityChange) -> SecuritySetOutput {
@@ -166,9 +165,6 @@ fn to_output(change: SecurityChange) -> SecuritySetOutput {
     }
 }
 
-fn render_changes(changes: &[SecuritySetOutput], host: &dyn CommandHost) -> CommandOutput {
-    if host.output().output_format() == OutputFormat::Table {
-        CliService::warning("Restart services for changes to take effect");
-    }
-    changes_output("Security Updated", changes)
+fn render_changes(changes: &[SecuritySetOutput]) -> CommandOutput {
+    changes_output("Security Updated", changes).with_note(restart_note())
 }

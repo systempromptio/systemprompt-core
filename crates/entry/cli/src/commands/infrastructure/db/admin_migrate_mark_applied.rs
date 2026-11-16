@@ -4,20 +4,20 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result};
+use crate::kernel::KernelHost;
 use std::sync::Arc;
 use systemprompt_database::services::DatabaseProvider;
 use systemprompt_database::{Database, MigrationService};
-use systemprompt_extension::ExtensionRegistry;
+use systemprompt_extension::BuiltState;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_logging::CliService;
 use systemprompt_runtime::DatabaseContext;
 
 use crate::cli_settings::CliConfig;
-use systemprompt_extension::cli::CommandHost;
 use crate::shared::{CommandOutput, render_result};
 
-use super::admin_migrate::select_extensions;
+use super::admin_migrate::find_member;
 use super::types::MigrateMarkAppliedOutput;
 
 #[derive(Clone, Copy)]
@@ -28,7 +28,7 @@ pub(super) struct MarkAppliedArgs<'a> {
 }
 
 pub(super) async fn execute_migrate_mark_applied(
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
     args: MarkAppliedArgs<'_>,
 ) -> Result<()> {
     let config = host.output();
@@ -51,7 +51,7 @@ pub(super) async fn execute_migrate_mark_applied(
 
     run_mark_applied(
         database.session(),
-        &ExtensionRegistry::discover()?,
+        host.admitted()?.built(),
         args,
         config,
     )
@@ -60,12 +60,13 @@ pub(super) async fn execute_migrate_mark_applied(
 
 pub(super) async fn execute_migrate_mark_applied_standalone(
     db_ctx: &DatabaseContext,
+    built: &BuiltState,
     config: &CliConfig,
     args: MarkAppliedArgs<'_>,
 ) -> Result<()> {
     run_mark_applied(
         db_ctx.db_pool().session(),
-        &ExtensionRegistry::discover()?,
+        built,
         args,
         config,
     )
@@ -74,7 +75,7 @@ pub(super) async fn execute_migrate_mark_applied_standalone(
 
 async fn run_mark_applied(
     write_provider: &dyn DatabaseProvider,
-    registry: &ExtensionRegistry,
+    built: &BuiltState,
     args: MarkAppliedArgs<'_>,
     config: &CliConfig,
 ) -> Result<()> {
@@ -84,11 +85,7 @@ async fn run_mark_applied(
         json,
     } = args;
 
-    let extensions = select_extensions(registry, Some(extension))?;
-    let ext = extensions
-        .into_iter()
-        .next()
-        .ok_or_else(|| anyhow!("Extension '{}' not found", extension))?;
+    let ext = find_member(built, extension)?;
 
     let migration_service = MigrationService::new(write_provider);
     let outcome = migration_service

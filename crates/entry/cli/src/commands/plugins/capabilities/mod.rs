@@ -12,7 +12,8 @@ pub mod roles;
 pub mod schemas;
 
 use clap::{Args, Subcommand};
-use systemprompt_extension::cli::{CommandError, CommandHost, CommandOutput};
+use crate::kernel::KernelHost;
+use systemprompt_extension::cli::{CommandError, CommandOutput};
 
 use super::composition;
 use super::types::CapabilitiesSummaryOutput;
@@ -37,7 +38,7 @@ pub enum CapabilitiesCommands {
 
 pub(super) fn execute(
     args: CapabilitiesArgs,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput, CommandError> {
     let built = composition::built(host)?;
     Ok(match args.cmd {

@@ -4,10 +4,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
+use crate::kernel::KernelHost;
 use clap::Args;
 use std::path::Path;
 
-use systemprompt_extension::cli::CommandHost;
 use crate::shared::CommandOutput;
 use systemprompt_identifiers::HookId;
 use systemprompt_manifest::{DiskHookConfig, HOOK_CONFIG_FILENAME};
@@ -17,7 +17,7 @@ use super::types::{HookEntry, HookListOutput};
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ListArgs;
 
-pub(super) fn execute(args: ListArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) fn execute(args: ListArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let hooks_path = host.services_root()?.path.join("hooks");
     execute_with_path(args, &hooks_path)
 }

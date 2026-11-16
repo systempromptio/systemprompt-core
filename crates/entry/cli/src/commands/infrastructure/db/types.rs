@@ -142,7 +142,6 @@ pub struct MigrationStatusOutput {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExtensionMigrationStatus {
     pub extension_id: ExtensionId,
-    pub is_required: bool,
     pub total_defined: usize,
     pub total_applied: usize,
     pub pending_count: usize,

@@ -15,8 +15,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use clap::Args;
+use crate::kernel::KernelHost;
 use systemprompt_extension::admitted::AdmittedMember;
-use systemprompt_extension::cli::{CommandError, CommandHost, CommandOutput};
+use systemprompt_extension::cli::{CommandError, CommandOutput};
 
 use super::composition;
 use super::types::SeamRow;
@@ -27,7 +28,7 @@ pub struct SeamsArgs {
     pub member: Option<String>,
 }
 
-pub fn execute(args: &SeamsArgs, host: &dyn CommandHost) -> Result<CommandOutput, CommandError> {
+pub fn execute(args: &SeamsArgs, host: &dyn KernelHost) -> Result<CommandOutput, CommandError> {
     let built = composition::built(host)?;
     let rows: Vec<SeamRow> = composition::matching(built, args.member.as_deref())
         .flat_map(member_rows)

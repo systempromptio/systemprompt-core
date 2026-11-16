@@ -30,7 +30,7 @@ use systemprompt_scheduler::services::{
 };
 
 use crate::shared::CommandOutput;
-use systemprompt_extension::cli::CommandHost;
+use systemprompt_extension::cli::{CommandError, CommandHost};
 
 #[derive(Debug, Clone, Args)]
 pub struct ApplyArgs {
@@ -79,11 +79,12 @@ pub async fn execute(args: &ApplyArgs, host: &dyn CommandHost) -> Result<Command
     let conflicts = report.conflicts();
     let output = render(&report);
     if conflicts > 0 && !report.dry_run {
-        host.render(&output);
-        bail!(
+        return Err(CommandError::new(anyhow::anyhow!(
             "{conflicts} entities changed in both the file and the database since the last \
              apply; resolve them on /admin/sync"
-        );
+        ))
+        .with_output(output)
+        .into());
     }
     Ok(output)
 }

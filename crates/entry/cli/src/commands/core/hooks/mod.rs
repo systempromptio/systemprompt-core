@@ -12,9 +12,10 @@ pub mod list;
 pub mod validate;
 
 use anyhow::{Context, Result, bail};
+use crate::kernel::KernelHost;
 use clap::Subcommand;
 
-use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_extension::cli::{CommandOutput};
 
 #[derive(Debug, Clone, Copy, Subcommand)]
 pub enum HooksCommands {
@@ -25,7 +26,7 @@ pub enum HooksCommands {
     Validate(validate::ValidateArgs),
 }
 
-pub fn execute(command: HooksCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub fn execute(command: HooksCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
         HooksCommands::List(args) => {
             list::execute(args, host).context("Failed to list hooks")

@@ -8,12 +8,12 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, anyhow};
+use crate::kernel::KernelHost;
 use clap::Args;
 use std::path::Path;
 use systemprompt_identifiers::SkillId;
 use systemprompt_manifest::SKILL_CONFIG_FILENAME;
 
-use systemprompt_extension::cli::CommandHost;
 
 use crate::commands::shared::app_context;
 use crate::shared::{CommandOutput, truncate_with_ellipsis};
@@ -37,7 +37,7 @@ pub struct ListArgs {
     pub disabled: bool,
 }
 
-pub(super) async fn execute(args: ListArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: ListArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let skills_path = get_skills_path(host)?;
     if let Some(name) = args.name {
         return show_resolved_skill(&name, host).await;
@@ -125,7 +125,7 @@ fn render_list(enabled: bool, disabled: bool, skills: Vec<SkillSummary>) -> Comm
 }
 
 async fn managed_context(
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Option<(
     systemprompt_marketplace::ManagedResourceResolver,
     systemprompt_identifiers::UserId,
@@ -153,7 +153,7 @@ async fn managed_context(
 
 pub async fn show_resolved_skill(
     skill_id: &SkillId,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     if let Some((resolver, owner)) = managed_context(host).await {
         match resolver.resolve_skill(&owner, skill_id.as_str()).await? {
@@ -191,7 +191,7 @@ pub async fn show_resolved_skill(
     show_skill_detail(skill_id, &get_skills_path(host)?)
 }
 
-fn get_skills_path(host: &dyn CommandHost) -> Result<std::path::PathBuf> {
+fn get_skills_path(host: &dyn KernelHost) -> Result<std::path::PathBuf> {
     Ok(host.services_root()?.path.join("skills"))
 }
 

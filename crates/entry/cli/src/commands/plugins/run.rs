@@ -4,9 +4,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result};
+use crate::kernel::KernelHost;
 use clap::Args;
 use std::process::{Command, Stdio};
-use systemprompt_extension::cli::CommandHost;
 use systemprompt_loader::ExtensionLoader;
 
 #[derive(Debug, Args)]
@@ -18,7 +18,7 @@ pub struct RunArgs {
     pub args: Vec<String>,
 }
 
-pub(super) async fn execute(args: RunArgs, host: &dyn CommandHost) -> Result<()> {
+pub(super) async fn execute(args: RunArgs, host: &dyn KernelHost) -> Result<()> {
     let project_root = std::env::current_dir().context("Failed to get current directory")?;
 
     let extension = ExtensionLoader::find_cli_extension(&project_root, &args.extension)

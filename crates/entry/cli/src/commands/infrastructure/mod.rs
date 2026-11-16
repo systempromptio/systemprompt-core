@@ -1,8 +1,9 @@
 //! `infra` command group: services, database, jobs, and logs administration.
 //!
 //! Routes [`InfraCommands`] to the per-domain subcommand modules. On a
-//! `--database-url` invocation only the db and logs subtrees are served; the
-//! rest require a full profile context.
+//! `--database-url` invocation only the db and logs subtrees and `jobs history`
+//! are served; the rest, including `jobs list`/`show` (which read the
+//! admitted schedule), require a full profile context.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,10 +14,11 @@ pub mod logs;
 pub mod services;
 
 use anyhow::Result;
+use crate::kernel::KernelHost;
 use clap::Subcommand;
 
 use systemprompt_extension::cli::{
-    CommandDescriptor, CommandHost, CommandOutput, DataImpact, DescribeCommand,
+    CommandDescriptor, CommandOutput, DataImpact, DescribeCommand,
 };
 
 #[derive(Debug, Subcommand)]
@@ -37,17 +39,13 @@ pub enum InfraCommands {
     Logs(logs::LogsCommands),
 }
 
-pub async fn execute(cmd: InfraCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(cmd: InfraCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     if host.is_database_scoped()
         && !matches!(
             cmd,
             InfraCommands::Db(_)
                 | InfraCommands::Logs(_)
-                | InfraCommands::Jobs(
-                    jobs::JobsCommands::List
-                        | jobs::JobsCommands::Show(_)
-                        | jobs::JobsCommands::History(_)
-                )
+                | InfraCommands::Jobs(jobs::JobsCommands::History(_))
         )
     {
         return Err(crate::shared::database_scoped_command_error(host));

@@ -68,13 +68,15 @@ async fn coverage_active_profile_is_resolved_after_explicit_override_is_removed(
         .await
         .unwrap()
         .session;
-    let ctx = CommandContext::new(
-        CliConfig::new().with_interactive(false),
-        EnvOverrides::default(),
-    )
-    .with_profile(Some(
-        systemprompt_config::LoadedProfile::from_path(&project.profile).unwrap(),
-    ));
+    let ctx = crate::kernel_host::kernel_host(
+        CommandContext::new(
+            CliConfig::new().with_interactive(false),
+            EnvOverrides::default(),
+        )
+        .with_profile(Some(
+            systemprompt_config::LoadedProfile::from_path(&project.profile).unwrap(),
+        )),
+    );
     let resumed = get_or_create_session(&ctx).await.unwrap().session;
     assert_eq!(resumed.session_id, first.session_id);
     assert_eq!(resumed.user_id, user);
@@ -350,10 +352,10 @@ async fn malformed_active_profile_fails_without_replacing_the_bound_session() {
         .expect("persist malformed-profile session");
     let session_file = sessions_dir.join("index.json");
     let before = std::fs::read(&session_file).expect("stored session bytes");
-    let ctx = CommandContext::new(
+    let ctx = crate::kernel_host::kernel_host(CommandContext::new(
         CliConfig::new().with_interactive(false),
         EnvOverrides::default(),
-    );
+    ));
 
     let error = get_or_create_session(&ctx)
         .await

@@ -12,6 +12,7 @@
 pub mod import;
 
 use anyhow::{Context, Result};
+use crate::kernel::KernelHost;
 use clap::{Args, Subcommand};
 use serde::Serialize;
 use systemprompt_identifiers::UserId;
@@ -19,7 +20,6 @@ use systemprompt_marketplace::{
     AllowAllFilter, AssembleRequest, ManifestService, ManifestTrace, MarketplaceCache,
 };
 
-use systemprompt_extension::cli::CommandHost;
 use systemprompt_loader::ConfigLoader;
 use crate::shared::CommandOutput;
 
@@ -53,7 +53,7 @@ struct ExplainRow {
     reason: String,
 }
 
-pub async fn execute(command: MarketplaceCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(command: MarketplaceCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
         MarketplaceCommands::Explain(args) => {
             explain(&args, host)
@@ -66,7 +66,7 @@ pub async fn execute(command: MarketplaceCommands, host: &dyn CommandHost) -> Re
     }
 }
 
-pub async fn explain(args: &ExplainArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn explain(args: &ExplainArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let profile = host.profile()?;
     let services_root = host.services_root()?.path;
     let services = ConfigLoader::for_profile(profile, &services_root)

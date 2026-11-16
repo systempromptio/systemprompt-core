@@ -12,7 +12,7 @@
 use anyhow::{Context, Result, bail};
 use systemprompt_database::MigrationService;
 use systemprompt_database::services::DatabaseProvider;
-use systemprompt_extension::ExtensionRegistry;
+use systemprompt_extension::BuiltState;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
@@ -26,34 +26,34 @@ use super::types::{MigratePlanOutput, PendingMigrationInfo};
 
 pub(super) async fn execute_migrate_plan(
     ctx: &AppContext,
+    built: &BuiltState,
     extension: Option<&ExtensionId>,
     flags: PlanFlags,
     config: &CliConfig,
 ) -> Result<()> {
     let db = ctx.db_pool();
-    let registry = ctx.extension_registry();
-    run_migrate_plan(db.as_ref(), registry, extension, flags, config).await
+    run_migrate_plan(db.as_ref(), built, extension, flags, config).await
 }
 
 pub(super) async fn execute_migrate_plan_standalone(
     db_ctx: &DatabaseContext,
+    built: &BuiltState,
     extension: Option<&ExtensionId>,
     flags: PlanFlags,
     config: &CliConfig,
 ) -> Result<()> {
     let db = db_ctx.db_pool();
-    let registry = ExtensionRegistry::discover()?;
-    run_migrate_plan(db.as_ref(), &registry, extension, flags, config).await
+    run_migrate_plan(db.as_ref(), built, extension, flags, config).await
 }
 
 async fn run_migrate_plan(
     db: &dyn DatabaseProvider,
-    registry: &ExtensionRegistry,
+    built: &BuiltState,
     extension: Option<&ExtensionId>,
     flags: PlanFlags,
     config: &CliConfig,
 ) -> Result<()> {
-    let extensions = select_extensions(registry, extension)?;
+    let extensions = select_extensions(built, extension)?;
     let migration_service = MigrationService::new(db);
 
     let mut pending_rows: Vec<PendingMigrationInfo> = Vec::new();

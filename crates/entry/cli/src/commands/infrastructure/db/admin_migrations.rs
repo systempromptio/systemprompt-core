@@ -8,9 +8,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result};
 use systemprompt_database::MigrationService;
-use systemprompt_extension::ExtensionRegistry;
+use systemprompt_extension::BuiltState;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_logging::CliService;
 use systemprompt_runtime::DatabaseContext;
@@ -25,43 +25,39 @@ use super::types::{
 
 pub(super) async fn execute_migrations(
     ctx: &systemprompt_runtime::AppContext,
+    built: &BuiltState,
     cmd: MigrationsCommands,
     config: &CliConfig,
 ) -> Result<()> {
-    let db = ctx.db_pool();
-    let registry = ctx.extension_registry();
-
-    match cmd {
-        MigrationsCommands::Status => {
-            execute_migrations_status(db.as_ref(), registry, config).await
-        },
-        MigrationsCommands::History { extension } => {
-            execute_migrations_history(db.as_ref(), registry, &extension, config).await
-        },
-    }
+    run_migrations(ctx.db_pool().as_ref(), built, cmd, config).await
 }
 
 pub(super) async fn execute_migrations_standalone(
     db_ctx: &DatabaseContext,
+    built: &BuiltState,
     cmd: MigrationsCommands,
     config: &CliConfig,
 ) -> Result<()> {
-    let db = db_ctx.db_pool();
-    let registry = ExtensionRegistry::discover()?;
+    run_migrations(db_ctx.db_pool().as_ref(), built, cmd, config).await
+}
 
+async fn run_migrations(
+    db: &dyn systemprompt_database::services::DatabaseProvider,
+    built: &BuiltState,
+    cmd: MigrationsCommands,
+    config: &CliConfig,
+) -> Result<()> {
     match cmd {
-        MigrationsCommands::Status => {
-            execute_migrations_status(db.as_ref(), &registry, config).await
-        },
+        MigrationsCommands::Status => execute_migrations_status(db, built, config).await,
         MigrationsCommands::History { extension } => {
-            execute_migrations_history(db.as_ref(), &registry, &extension, config).await
+            execute_migrations_history(db, built, &extension, config).await
         },
     }
 }
 
 async fn execute_migrations_status(
     db: &dyn systemprompt_database::services::DatabaseProvider,
-    registry: &ExtensionRegistry,
+    built: &BuiltState,
     config: &CliConfig,
 ) -> Result<()> {
     let migration_service = MigrationService::new(db);
@@ -69,7 +65,7 @@ async fn execute_migrations_status(
     let mut total_pending = 0;
     let mut total_applied = 0;
 
-    for ext in super::admin_migrate::install_set(registry)? {
+    for ext in super::admin_migrate::install_set(built) {
         let status: systemprompt_database::MigrationStatus = migration_service
             .get_migration_status(ext.as_ref())
             .await
@@ -80,7 +76,6 @@ async fn execute_migrations_status(
 
         extensions.push(ExtensionMigrationStatus {
             extension_id: ExtensionId::new(status.extension_id),
-            is_required: ext.is_required(),
             total_defined: status.total_defined,
             total_applied: status.total_applied,
             pending_count: status.pending_count,
@@ -116,11 +111,10 @@ async fn execute_migrations_status(
 
         for ext in &output.extensions {
             let status_icon = if ext.pending_count == 0 { "✓" } else { "!" };
-            let required_tag = if ext.is_required { " [required]" } else { "" };
 
             CliService::info(&format!(
-                "  {} {}{}: {}/{} applied",
-                status_icon, ext.extension_id, required_tag, ext.total_applied, ext.total_defined
+                "  {} {}: {}/{} applied",
+                status_icon, ext.extension_id, ext.total_applied, ext.total_defined
             ));
 
             if !ext.pending_versions.is_empty() {
@@ -134,13 +128,11 @@ async fn execute_migrations_status(
 
 async fn execute_migrations_history(
     db: &dyn systemprompt_database::services::DatabaseProvider,
-    registry: &ExtensionRegistry,
+    built: &BuiltState,
     extension_id: &ExtensionId,
     config: &CliConfig,
 ) -> Result<()> {
-    let ext = registry
-        .get(extension_id.as_str())
-        .ok_or_else(|| anyhow!("Extension '{}' not found", extension_id))?;
+    let ext = super::admin_migrate::find_member(built, extension_id)?;
 
     let migration_service = MigrationService::new(db);
     let applied: Vec<systemprompt_database::AppliedMigration> = migration_service
@@ -171,7 +163,6 @@ async fn execute_migrations_history(
     } else {
         CliService::info(&format!("Migration history for '{}':", extension_id));
         CliService::info(&format!("  Version: {}", ext.version()));
-        CliService::info(&format!("  Required: {}", ext.is_required()));
         CliService::info("");
 
         if output.migrations.is_empty() {

@@ -21,21 +21,17 @@
 mod describe;
 mod registry;
 mod registry_error;
-mod seams;
 
 pub use describe::{classify_command_line, command_line_path, describe_command_line};
 pub use registry::{
     CommandOwner, CommandRegistry, RegistryEntry, ResolvedCommand, kernel_commands,
 };
 pub use registry_error::{RegistryError, ResolveError};
-pub use seams::{
-    LinkedSeamRegistration, SeamEntry, named, owned, prioritized, registered_seams, unnamed,
-};
 
 pub use crate::commands::shared::mcp_tools::McpToolEntry;
 pub use crate::commands::shared::{ValidationIssue, ValidationOutput, mcp_tools};
 pub use crate::context::CommandContext;
-pub use crate::define_pool_command;
+pub use crate::host::KernelHost;
 pub use crate::presentation::{StartupRenderer, tables};
 pub use crate::runner::interrupt::INTERRUPTED_EXIT_CODE;
 pub use crate::runner::{interrupt, routing};

@@ -19,6 +19,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, bail};
+use crate::kernel::KernelHost;
 use clap::Args;
 use std::sync::Arc;
 use std::time::Duration;
@@ -28,7 +29,6 @@ use systemprompt_scheduler::{
 };
 
 use super::types::{BatchJobRunOutput, JobRunOutput, JobRunResult};
-use systemprompt_extension::cli::CommandHost;
 use super::admitted_schedule;
 use crate::commands::shared::{app_context, services_config};
 use crate::shared::CommandOutput;
@@ -75,7 +75,7 @@ pub struct RunArgs {
     pub lock_wait_secs: u64,
 }
 
-pub(super) async fn execute(args: RunArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: RunArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let app = app_context(host).await?;
     let schedule = Arc::new(admitted_schedule(host).await?);
 

@@ -4,10 +4,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result};
+use crate::kernel::KernelHost;
 use clap::Args;
 use std::path::Path;
 
-use systemprompt_extension::cli::CommandHost;
 use crate::shared::CommandOutput;
 
 use super::types::{PluginListOutput, PluginSummary};
@@ -21,7 +21,7 @@ pub struct ListArgs {
     pub disabled: bool,
 }
 
-pub(super) fn execute(args: ListArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) fn execute(args: ListArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let plugins_path = host.services_root()?.path.join("plugins");
     let plugins = scan_plugins(&plugins_path)?;
 

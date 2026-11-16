@@ -12,9 +12,10 @@ pub mod list;
 pub mod show;
 
 use anyhow::{Context, Result};
+use crate::kernel::KernelHost;
 use clap::Subcommand;
 
-use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_extension::cli::{CommandOutput};
 
 #[derive(Debug, Subcommand)]
 pub enum SkillsCommands {
@@ -25,7 +26,7 @@ pub enum SkillsCommands {
     Show(show::ShowArgs),
 }
 
-pub async fn execute(command: SkillsCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(command: SkillsCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
         SkillsCommands::List(args) => {
             list::execute(args, host)

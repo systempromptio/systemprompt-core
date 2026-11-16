@@ -14,12 +14,33 @@ use systemprompt_extension::cli::{
 use systemprompt_extension::{Admitted, AdmittedSchedule, Resolved};
 use systemprompt_traits::{AppContext as _, BackgroundTasks, Dependencies};
 use systemprompt_loader::load_boot::load_boot_from_path;
-use systemprompt_manifest::{Config, Profile};
-use systemprompt_runtime::Kernel;
+use systemprompt_manifest::services::root::ActiveServicesRoot;
+use systemprompt_manifest::{Config, Profile, Secrets};
+use systemprompt_runtime::{AppContextBuilder, Kernel};
 use systemprompt_traits::DatabaseHandle;
 
 use crate::context::CommandContext;
 use crate::kernel::{CommandRegistry, classify_command_line};
+
+/// What the CLI kernel's own commands may ask of it beyond [`CommandHost`].
+///
+/// The kernel's groups (`core`, `infra`, `web`, `plugins`) read boot-only
+/// data a member's command never reaches: the active services root, the
+/// admitted composition, the loaded secrets, the profile's configuration and
+/// the sanctioned environment a child process is started with, and
+/// `infra services serve` the server's context builder over the same boot and
+/// admitted composition. Each value is
+/// read from the boot context the command kernel's state is seeded from, so
+/// there is one source. Only the kernel host implements it; it is not part of
+/// the extension contract.
+pub trait KernelHost: CommandHost {
+    fn services_root(&self) -> Result<ActiveServicesRoot, CommandError>;
+    fn admitted(&self) -> Result<&Admitted, CommandError>;
+    fn secrets(&self) -> Result<Arc<Secrets>, CommandError>;
+    fn config(&self) -> Result<Arc<Config>, CommandError>;
+    fn child_env(&self) -> Result<Vec<(&'static str, String)>, CommandError>;
+    fn server_builder(&self) -> Result<AppContextBuilder, CommandError>;
+}
 
 impl CommandContext {
     #[must_use]
@@ -52,6 +73,7 @@ impl CommandContext {
 
     fn command_seed(&self, base: Dependencies) -> Dependencies {
         let mut seed = base
+            .with(self.env.clone())
             .with(self.secrets_sources().clone())
             .with(self.interrupt_shield().clone());
         if let Ok(profile) = self.loaded_profile() {
@@ -163,5 +185,58 @@ impl CommandHost for CommandContext {
             let config = boot.try_init_config(None).map_err(CommandError::new)?;
             Ok(Arc::clone(config))
         })
+    }
+}
+
+impl KernelHost for CommandContext {
+    fn services_root(&self) -> Result<ActiveServicesRoot, CommandError> {
+        self.boot()
+            .map_err(CommandError::new)?
+            .services_root()
+            .cloned()
+            .ok_or_else(|| {
+                CommandError::new(anyhow::anyhow!(
+                    "This command requires the active services root, which the profile boot did \
+                     not resolve"
+                ))
+            })
+    }
+
+    fn admitted(&self) -> Result<&Admitted, CommandError> {
+        CommandContext::admitted(self)
+            .map(|admitted| &**admitted)
+            .map_err(CommandError::new)
+    }
+
+    fn secrets(&self) -> Result<Arc<Secrets>, CommandError> {
+        CommandContext::secrets(self)
+            .map(|service| service.get())
+            .map_err(CommandError::new)
+    }
+
+    fn config(&self) -> Result<Arc<Config>, CommandError> {
+        CommandContext::config(self)
+            .map(Arc::clone)
+            .map_err(CommandError::new)
+    }
+
+    fn child_env(&self) -> Result<Vec<(&'static str, String)>, CommandError> {
+        let profile = self
+            .loaded_profile()
+            .map_err(CommandError::new)?
+            .path()
+            .to_string_lossy()
+            .into_owned();
+        let pepper = CommandContext::secrets(self)
+            .map_err(CommandError::new)?
+            .oauth_at_rest_pepper();
+        Ok(vec![
+            ("SYSTEMPROMPT_PROFILE", profile),
+            ("OAUTH_AT_REST_PEPPER", pepper),
+        ])
+    }
+
+    fn server_builder(&self) -> Result<AppContextBuilder, CommandError> {
+        self.app_context_builder().map_err(CommandError::new)
     }
 }

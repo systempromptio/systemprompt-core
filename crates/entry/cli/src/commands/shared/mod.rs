@@ -17,6 +17,7 @@ pub mod mcp_tools;
 pub use validation::{ValidationIssue, ValidationOutput};
 
 use std::sync::Arc;
+use crate::kernel::KernelHost;
 
 use systemprompt_extension::cli::{CommandError, CommandHost, CommandOutput};
 use systemprompt_loader::ConfigLoader;
@@ -35,7 +36,7 @@ pub async fn app_context(host: &dyn CommandHost) -> Result<Arc<AppContext>, Comm
         .map_err(CommandError::new)
 }
 
-pub fn services_config(host: &dyn CommandHost) -> anyhow::Result<ServicesConfig> {
+pub fn services_config(host: &dyn KernelHost) -> anyhow::Result<ServicesConfig> {
     let profile = host.profile()?;
     let root = host.services_root()?;
     Ok(ConfigLoader::for_profile(profile, &root.path).load()?)

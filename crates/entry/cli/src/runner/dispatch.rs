@@ -4,7 +4,9 @@
 //! command, a group registered with the
 //! [`CommandRegistry`](crate::kernel::CommandRegistry), or none. Its
 //! descriptor drives bootstrap; [`dispatch_command`] then runs the selection
-//! against the built [`CommandContext`].
+//! against the built [`CommandContext`] and renders the output once: the
+//! output a command returns, or the output a failed command's
+//! [`CommandError`] carries, rendered before the failure is reported.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,10 +18,10 @@ use super::args;
 use crate::commands::{admin, core, infrastructure, plugins, web};
 use crate::context::CommandContext;
 use systemprompt_extension::cli::{
-    CommandDescriptor, CommandHost, DbUrlRouting, DescribeCommand, ParsedCommand,
+    CommandDescriptor, CommandError, CommandHost, DbUrlRouting, DescribeCommand, ParsedCommand,
 };
 
-use crate::kernel::{CommandRegistry, ResolveError, ResolvedCommand};
+use crate::kernel::{CommandRegistry, KernelHost, ResolveError, ResolvedCommand};
 
 pub(super) struct Invocation {
     pub(super) cli: args::Cli,
@@ -103,25 +105,35 @@ pub(super) async fn dispatch_command(selected: Selected, ctx: &CommandContext) -
         }
     }
 
-    match selected {
+    let host: &dyn KernelHost = ctx;
+    let outcome = match selected {
         Selected::Kernel(command) => match *command {
-            args::Commands::Core(cmd) => Box::pin(core::execute(cmd, ctx)).await?,
-            args::Commands::Infra(cmd) => infrastructure::execute(cmd, ctx).await?,
-            args::Commands::Admin(cmd) => {
-                ctx.render(&Box::pin(admin::execute(*cmd, ctx)).await?);
-            },
-            args::Commands::Web(cmd) => web::execute(cmd, ctx)?,
-            args::Commands::Plugins(cmd) => {
-                Box::pin(plugins::execute(cmd, ctx)).await?;
-            },
+            args::Commands::Core(cmd) => Box::pin(core::execute(cmd, host)).await,
+            args::Commands::Infra(cmd) => Box::pin(infrastructure::execute(cmd, host)).await,
+            args::Commands::Admin(cmd) => Box::pin(admin::execute(*cmd, host)).await,
+            args::Commands::Web(cmd) => web::execute(cmd, host),
+            args::Commands::Plugins(cmd) => Box::pin(plugins::execute(cmd, host)).await,
         },
-        Selected::Registered(registered) => {
-            ctx.render(&registered.run(ctx).await?);
-        },
+        Selected::Registered(registered) => registered.run(ctx).await.map_err(anyhow::Error::from),
         Selected::Bare(root) => {
             (*root).get_matches_from(["systemprompt", "--help"]);
+            return Ok(());
+        },
+    };
+
+    match outcome {
+        Ok(output) => {
+            ctx.render(&output);
+            Ok(())
+        },
+        Err(error) => {
+            if let Some(output) = error
+                .downcast_ref::<CommandError>()
+                .and_then(CommandError::output)
+            {
+                ctx.render(output);
+            }
+            Err(error)
         },
     }
-
-    Ok(())
 }

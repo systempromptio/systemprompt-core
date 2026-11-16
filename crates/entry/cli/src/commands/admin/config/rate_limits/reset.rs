@@ -4,10 +4,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
+use crate::commands::admin::config::restart_note;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::profile::RateLimitsConfig;
 
-use crate::cli_settings::OutputFormat;
 use crate::interactive::{Prompter, require_confirmation};
 use crate::shared::CommandOutput;
 use super::ResetArgs;
@@ -64,13 +64,10 @@ pub(super) fn execute_reset(
         message,
     };
 
-    if !args.dry_run && config.output_format() == OutputFormat::Table {
-        CliService::warning("Restart services for changes to take effect");
-    }
-
     Ok(
         CommandOutput::table_of(vec!["field", "old_value", "new_value"], &output.changes)
-            .with_title("Rate Limits Reset"),
+            .with_title("Rate Limits Reset")
+            .with_note(restart_note()),
     )
 }
 

@@ -5,9 +5,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, anyhow};
+use crate::kernel::KernelHost;
 use clap::Args;
 use systemprompt_extension::admitted::AdmittedMember;
-use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_extension::cli::{CommandOutput};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_loader::ExtensionLoader;
 
@@ -22,7 +23,7 @@ pub struct ShowArgs {
     pub id: String,
 }
 
-pub fn execute(args: &ShowArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub fn execute(args: &ShowArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let built = composition::built(host)?;
     let output = match composition::find(built, &args.id) {
         Some(member) => build_detail_output(member),

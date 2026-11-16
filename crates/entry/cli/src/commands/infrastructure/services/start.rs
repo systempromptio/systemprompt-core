@@ -5,7 +5,7 @@
 
 use systemprompt_cloud::CredentialsBootstrap;
 use crate::cli_settings::CliConfig;
-use systemprompt_extension::cli::CommandHost;
+use crate::kernel::KernelHost;
 use crate::presentation::StartupRenderer;
 use anyhow::Result;
 use std::sync::Arc;
@@ -69,7 +69,7 @@ pub struct StartupOptions {
 pub(super) async fn execute(
     target: ServiceTarget,
     options: StartupOptions,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<()> {
     let start_time = Instant::now();
 
@@ -102,7 +102,7 @@ pub(super) async fn execute(
 async fn run_startup(
     target: &ServiceTarget,
     options: &StartupOptions,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
     events: &systemprompt_traits::StartupEventSender,
 ) -> Result<String> {
     let plan = StartupPlan::compute(StartupRequest {

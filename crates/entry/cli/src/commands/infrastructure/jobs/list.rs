@@ -10,10 +10,11 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashSet;
+use crate::kernel::KernelHost;
 
 use anyhow::Result;
 use systemprompt_database::pool_from_handle;
-use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_extension::cli::{CommandOutput};
 use systemprompt_identifiers::{ExtensionId, JobName};
 use systemprompt_scheduler::{JobRepository, ScheduledJob};
 use systemprompt_traits::Job;
@@ -22,7 +23,7 @@ use super::admitted_schedule;
 use super::types::{JobInfo, JobListOutput};
 use crate::commands::shared::services_config;
 
-pub(super) async fn execute(host: &dyn CommandHost) -> Result<CommandOutput> {
+pub(super) async fn execute(host: &dyn KernelHost) -> Result<CommandOutput> {
     let schedule = admitted_schedule(host).await?;
     let configured = configured_job_names(host);
     let mut jobs: Vec<JobInfo> = schedule
@@ -82,7 +83,7 @@ fn unregistered_row(row: ScheduledJob) -> JobInfo {
     }
 }
 
-fn configured_job_names(host: &dyn CommandHost) -> HashSet<JobName> {
+fn configured_job_names(host: &dyn KernelHost) -> HashSet<JobName> {
     let Ok(config) = services_config(host) else {
         return HashSet::new();
     };

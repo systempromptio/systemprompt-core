@@ -4,12 +4,13 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
+use crate::kernel::KernelHost;
 
 use super::{RestartTarget, ServicesCommands, StartTarget, StopTarget, restart, start, stop};
-use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_extension::cli::{CommandOutput};
 use crate::commands::shared::{app_context, rendered};
 
-pub async fn execute(command: ServicesCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(command: ServicesCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     let config = host.output();
     match command {
         ServicesCommands::Start {
@@ -92,7 +93,7 @@ async fn execute_start(
     target: Option<StartTarget>,
     flags: start::ServiceFlags,
     options: start::StartupOptions,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<()> {
     if let Some(individual) = target {
         let app = app_context(host).await?;
@@ -114,7 +115,7 @@ async fn execute_stop(
     target: Option<StopTarget>,
     flags: start::ServiceFlags,
     force: bool,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let config = host.output();
     if let Some(individual) = target {
@@ -138,7 +139,7 @@ async fn execute_restart(
     failed: bool,
     agents: bool,
     mcp: bool,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let config = host.output();
     let app = app_context(host).await?;

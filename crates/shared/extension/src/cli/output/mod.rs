@@ -27,15 +27,17 @@ use systemprompt_models::artifacts::{
 };
 
 /// A command's renderable result: a typed [`CliArtifact`] plus terminal-only
-/// presentation state (an optional section title and a render-suppression
-/// flag).
+/// presentation state (an optional section title, trailing notes and a
+/// render-suppression flag).
 ///
-/// The artifact is the single source of truth on the wire; `title` and
-/// `skip_render` only affect interactive terminal rendering.
+/// The artifact is the single source of truth on the wire; `title`, `notes`
+/// and `skip_render` only affect interactive terminal rendering. Notes (a
+/// "restart services" reminder, say) print after the artifact.
 #[derive(Debug, Clone)]
 pub struct CommandOutput {
     artifact: CliArtifact,
     title: Option<String>,
+    notes: Vec<NoticeLine>,
     skip_render: bool,
 }
 
@@ -45,6 +47,7 @@ impl CommandOutput {
         Self {
             artifact,
             title: None,
+            notes: Vec::new(),
             skip_render: false,
         }
     }
@@ -74,6 +77,17 @@ impl CommandOutput {
     pub fn with_title(mut self, title: impl Into<String>) -> Self {
         self.title = Some(title.into());
         self
+    }
+
+    #[must_use]
+    pub fn with_note(mut self, note: NoticeLine) -> Self {
+        self.notes.push(note);
+        self
+    }
+
+    #[must_use]
+    pub fn notes(&self) -> &[NoticeLine] {
+        &self.notes
     }
 
     #[must_use]

@@ -5,8 +5,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, anyhow};
+use crate::kernel::KernelHost;
 use clap::Args;
-use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_extension::cli::{CommandOutput};
 use systemprompt_identifiers::ExtensionId;
 
 use super::composition;
@@ -21,7 +22,7 @@ pub struct ConfigArgs {
     pub id: Option<ExtensionId>,
 }
 
-pub fn execute(args: &ConfigArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub fn execute(args: &ConfigArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let built = composition::built(host)?;
 
     if let Some(id) = &args.id {
