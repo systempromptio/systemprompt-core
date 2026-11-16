@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.82.0] - 2026-11-16
+
+### Breaking
+
+- `ConfigPlane` gains the `build` field, and `documents::links::LinkRefusal` gains `Unavailable`. Migrate by setting `build` (usually `BuildIdentity::core()`) and adding the match arm.
+
+### Added
+
+- `AppContextBuilder::with_build_identity` and `AppContext::build_identity` carry the embedding binary's `BuildIdentity`.
+
+### Fixed
+
+- A link issuer reports an unreachable link endpoint or the status it returned (`LinkIssueError::tool_message`).
+
 ## [0.81.0] - 2026-11-12
 
 ### Breaking

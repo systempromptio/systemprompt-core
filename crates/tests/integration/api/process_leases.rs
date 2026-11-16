@@ -1,6 +1,8 @@
 //! Two `worker` replicas sharing one database split the supervised processes
 //! by rendezvous hashing, a crashed worker's processes move to the survivor,
-//! and the proxy's owner lookup resolves each process to its lease holder.
+//! and the proxy's owner lookup resolves each process to its lease holder. A
+//! withdrawn presence and an announced lease release each reach a listener on
+//! the process ownership channel, which is what wakes a peer's lease loop.
 
 use std::collections::BTreeMap;
 
@@ -9,8 +11,8 @@ use systemprompt_api::services::server::lifecycle::process_ownership::{
     KeyAction, LEASE_TTL, OwnershipStep, ProcessKey, key_action, ownership_step,
 };
 use systemprompt_database::{
-    CoordinationRepositories, CreateServiceInput, DbPool, ServiceModule, ServiceRepository,
-    ServiceStatus,
+    CoordinationRepositories, CreateServiceInput, DbPool, PROCESS_OWNERSHIP_CHANNEL,
+    ProcessOwnershipWake, ServiceModule, ServiceRepository, ServiceStatus,
 };
 use systemprompt_identifiers::{InstanceId, ServiceName};
 use systemprompt_manifest::profile::NodeRole;
@@ -253,5 +255,89 @@ async fn a_gracefully_departing_worker_hands_its_processes_over_within_one_tick(
         held_staying.len(),
         keys.len(),
         "the survivor claims every released process on its next tick"
+    );
+}
+
+async fn ownership_listener(db: &DbPool) -> sqlx::postgres::PgListener {
+    let mut listener = sqlx::postgres::PgListener::connect_with(&db.session_pool())
+        .await
+        .expect("listener");
+    listener
+        .listen(PROCESS_OWNERSHIP_CHANNEL)
+        .await
+        .expect("listen");
+    listener
+}
+
+async fn hears(listener: &mut sqlx::postgres::PgListener, payload: &str) -> bool {
+    let wanted = async {
+        loop {
+            match listener.recv().await {
+                Ok(notification) if notification.payload() == payload => return true,
+                Ok(_) => {},
+                Err(_) => return false,
+            }
+        }
+    };
+    tokio::time::timeout(std::time::Duration::from_secs(10), wanted)
+        .await
+        .unwrap_or(false)
+}
+
+#[tokio::test]
+async fn a_withdrawn_presence_and_a_released_lease_are_announced_to_listeners() {
+    let db = test_db_pool().await;
+    let leaving = Worker::boot(&db, "http://10.0.2.1:8080").await;
+    let key = ProcessKey::new(
+        ServiceModule::Mcp,
+        ServiceName::new(format!("wake_{}", uuid::Uuid::new_v4().simple())),
+    );
+    let mut listener = ownership_listener(&db).await;
+
+    assert_eq!(
+        leaving
+            .services
+            .delete_presence()
+            .await
+            .expect("withdraw presence"),
+        1
+    );
+    assert!(
+        hears(&mut listener, leaving.id.as_str()).await,
+        "the withdrawal names the departing worker on the ownership channel"
+    );
+
+    let lease = key.lease_key();
+    leaving
+        .services
+        .announce_process_released(&lease)
+        .await
+        .expect("announce release");
+    assert!(
+        hears(&mut listener, lease.as_str()).await,
+        "the release names the lease on the ownership channel"
+    );
+}
+
+#[tokio::test]
+async fn a_lease_loop_waiting_on_the_wake_returns_when_a_peer_withdraws() {
+    let db = test_db_pool().await;
+    let leaving = Worker::boot(&db, "http://10.0.3.1:8080").await;
+    let mut wake = ProcessOwnershipWake::new(&db);
+    assert!(
+        wake.wait(std::time::Duration::ZERO).await,
+        "a listener that has just connected reports a wake"
+    );
+    assert!(wake.is_listening());
+
+    let long = std::time::Duration::from_secs(30);
+    let started = std::time::Instant::now();
+    let (woken, withdrawn) = tokio::join!(wake.wait(long), leaving.services.delete_presence());
+    withdrawn.expect("withdraw presence");
+    assert!(woken, "the wait ends on the announcement");
+    assert!(
+        started.elapsed() < long,
+        "the wait ends before its timeout: {:?}",
+        started.elapsed()
     );
 }

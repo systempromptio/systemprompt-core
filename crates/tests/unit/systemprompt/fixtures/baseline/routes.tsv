@@ -187,6 +187,8 @@ GET	/api/v1/documents/{id}/proposals/{pid}	handler_verified(DocumentDownloadToke
 POST	/api/v1/documents/{id}/proposals/{pid}/accept	handler_verified(DocumentDownloadToken)>user	HandlerResolved>User	documents/Content	DocumentsState::max_body_bytes	ContentAndMisc	kernel	files.documents.enabled
 POST	/api/v1/documents/{id}/proposals/{pid}/reject	handler_verified(DocumentDownloadToken)>user	HandlerResolved>User	documents/Content	DocumentsState::max_body_bytes	ContentAndMisc	kernel	files.documents.enabled
 GET	/api/v1/documents/{id}/read	handler_verified(DocumentDownloadToken)>user	HandlerResolved>User	documents/Content	DocumentsState::max_body_bytes	ContentAndMisc	kernel	files.documents.enabled
+GET	/api/v1/documents/{id}/rendered	handler_verified(DocumentDownloadToken)>user	HandlerResolved>User	documents/Content	DocumentsState::max_body_bytes	ContentAndMisc	kernel	files.documents.enabled
+HEAD	/api/v1/documents/{id}/rendered	handler_verified(DocumentDownloadToken)>user	HandlerResolved>User	documents/Content	DocumentsState::max_body_bytes	ContentAndMisc	kernel	files.documents.enabled
 GET	/api/v1/documents/{id}/revisions	handler_verified(DocumentDownloadToken)>user	HandlerResolved>User	documents/Content	DocumentsState::max_body_bytes	ContentAndMisc	kernel	files.documents.enabled
 POST	/api/v1/documents/{id}/transfer	handler_verified(DocumentDownloadToken)>user	HandlerResolved>User	documents/Content	DocumentsState::max_body_bytes	ContentAndMisc	kernel	files.documents.enabled
 POST	/api/v1/documents/{id}/untrash	handler_verified(DocumentDownloadToken)>user	HandlerResolved>User	documents/Content	DocumentsState::max_body_bytes	ContentAndMisc	kernel	files.documents.enabled
