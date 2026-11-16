@@ -1,0 +1,34 @@
+[root]
+section = "Breaking"
+area = "CLI"
+text = "A command group or leaf runs as `run(&dyn CommandHost) -> CommandOutput` and the CLI renders the output once; groups are contributed with `Contributions::command` (`CommandDecl`) and request kernel grants with `requesting`. `CommandError` is no longer a tuple struct (`CommandError::new`, `with_output`, `output`) and `CommandOutput` gains `with_note`, `notes` and `rendered`. A member command needs a profile and is refused on a bare `--database-url` run; `infra jobs list`/`show` need a profile; `infra db migrate*`, `migrations` and `doctor` run over the admitted composition, and on a bare `--database-url` run install every linked member's schema. `--json` is removed from the four `infra db` migration subcommands (use the global `--json`). `plugins validate` and `plugins capabilities templates|tools` are removed; `plugins list|show|config|capabilities` report the admitted members, and `plugins seams` lists the admitted composition member by member (`--seam` is `--member`). Migrate a command group to `CommandHost`/`CommandOutput` and pass `--json` before the subcommand."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "Command groups take `&dyn CommandHost` and return `CommandOutput`; `admin::execute` no longer renders. `plugins validate`, `plugins capabilities templates|tools`, `infra db migrations status` `is_required`, `infra jobs list|show` `owner_enabled`, `--json` on the `infra db` migration subcommands, the linked-seam catalog (`kernel::{LinkedSeamRegistration, SeamEntry, registered_seams, named, owned, prioritized, unnamed}`), `define_pool_command!`, `presentation::tables::db_tables_table` and the `kernel` re-exports of the moved helpers are removed. `infra jobs list|show` refuse `--database-url`. `WebPaths::resolve` takes the services root."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Added"
+text = "`kernel::MemberHost`, `CommandHost::{render, env_profile, boot_config, profile_path, describe_command_line}` with `DescribedCommand`; `infra db` and `infra logs trace show` return structured output with trailing notes."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`CommandError` is a struct (`new` accepts any error convertible into `Box<dyn Error + Send + Sync>`, `with_output`, `output`); `CommandHost` requires `render`, `env_profile`, `boot_config`, `profile_path` and `describe_command_line`. Added `CommandOutput::{with_note, notes, rendered}`."
+
+[[crate]]
+name = "systemprompt-cloud-entry"
+section = "Breaking"
+text = "`CloudCliExtension` declares the `cloud` group; commands take `&dyn CommandHost` and the crate no longer depends on `systemprompt-cli`. `DockerCli::new` and `SystemCommandRunner::new` take `Arc<dyn ChildSupervisor>`. `cloud profile show` boots a named profile with the admitted secrets sources."
+
+[[crate]]
+name = "systemprompt-cloud"
+section = "Added"
+text = "`paths::ProjectRoot`, `provider_catalog`, `identity` and `routing::operator_tenant_token`, each with a typed error (`ProviderCatalogError`, `IdentityError`, `OperatorTokenError`)."
+
+[[crate]]
+name = "systemprompt-analytics-entry"
+section = "Breaking"
+text = "No longer depends on `systemprompt-api`, `systemprompt-cli` or `systemprompt-runtime`; commands take `&dyn CommandHost` and return `CommandOutput`; `PopularArgs::source` is a `SourceId`."
