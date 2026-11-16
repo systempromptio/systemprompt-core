@@ -143,13 +143,23 @@ fn install_closed_core_base_is_refused() {
 
 #[test]
 fn impostor_without_analytics_http_gains_none_of_its_privileges() {
+    let error = build(
+        reference()
+            .without::<AnalyticsHttpExtension>()
+            .with(Probe::new("analytics-http", |_| {})),
+    )
+    .expect_err("an install cannot hold analytics-http's id");
+    assert!(
+        matches!(&error, CompositionError::ReservedId(id) if id.as_str() == "analytics-http"),
+        "{error:?}"
+    );
     let impostor = |f: fn(&mut systemprompt_extension::Contributions<'_>)| {
         build(
             reference()
                 .without::<AnalyticsHttpExtension>()
-                .with(Probe::new("analytics-http", f)),
+                .with(Probe::new("analytics-impostor", f)),
         )
-        .expect_err("an install holding analytics-http's id gains nothing")
+        .expect_err("an install in analytics-http's place gains nothing")
     };
     assert!(matches!(
         impostor(|c| {
@@ -242,12 +252,15 @@ fn install_gateway_route_is_unlisted() {
 }
 
 #[test]
-fn install_with_a_core_id_is_a_duplicate() {
+fn install_with_a_core_id_is_refused_as_reserved() {
     let error = reference()
         .with(Probe::new("analytics-http", |_| {}))
         .declare()
         .expect_err("a core id cannot be taken by an install");
-    assert!(matches!(error, CompositionError::DuplicateId(id) if id.as_str() == "analytics-http"));
+    assert!(
+        matches!(&error, CompositionError::ReservedId(id) if id.as_str() == "analytics-http"),
+        "{error:?}"
+    );
 }
 
 #[test]

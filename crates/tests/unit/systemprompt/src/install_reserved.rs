@@ -160,11 +160,11 @@ fn the_core_owners_hold_their_reserved_paths() {
     let error = build(
         reference()
             .without::<AnalyticsHttpExtension>()
-            .with(Probe::new("analytics-http", |c| {
+            .with(Probe::new("analytics-impostor", |c| {
                 c.routes(plain_set(ROOT, "/track/engagement/x"));
             })),
     )
-    .expect_err("an install holding analytics-http's id does not hold its reserved path");
+    .expect_err("an install in analytics-http's place does not hold its reserved path");
     assert!(
         matches!(error, CompositionError::ReservedPrefix { prefix: "/track", .. }),
         "{error:?}"

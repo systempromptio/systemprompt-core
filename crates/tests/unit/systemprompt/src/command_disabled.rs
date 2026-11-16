@@ -5,7 +5,6 @@
 //! refused with `ProfileRequired` and a kernel command admits every linked
 //! member.
 
-use clap::Command;
 use systemprompt::reference;
 use systemprompt_cli::CliRunError;
 use systemprompt_cli::kernel::{CommandRegistry, ResolvedCommand, kernel_commands};
@@ -28,8 +27,7 @@ fn resolved_probe_command() -> ResolvedCommand {
     let declared = declared_probe();
     let registry = CommandRegistry::build(&declared.commands(), &kernel_commands())
         .expect("the registry accepts the probe group");
-    let matches = registry
-        .assemble(Command::new("systemprompt"))
+    let matches = systemprompt_cli::args::command(&registry)
         .expect("the probe group attaches")
         .try_get_matches_from(["systemprompt", "probe-tools", "status"])
         .expect("the probe command parses");
