@@ -1,0 +1,14 @@
+[root]
+section = "Breaking"
+area = "Database"
+text = "The schema installer runs over the admitted composition (`install_admitted_schemas`, or `install_schema_members` for an explicit member set) and records the owner of every table it creates in `schema_table_owners` (migration 010) and each member's purge declarations in `schema_purge_records` (migration 011). A member declaring a table recorded to another member is refused before any DDL, including a member the profile disables, so a disabled member's tables cannot be adopted. `infra db doctor` reports tables and migration ledgers of a member outside the composition as `absent_member_tables` and `absent_member_ledgers` rather than as undeclared residue. The schema fingerprint no longer includes the disabled list, so a profile with disabled extensions runs one full schema install on its next boot. Upgrade: run one install with every member enabled so table ownership and purge declarations are recorded for each member."
+
+[[crate]]
+name = "systemprompt-database"
+section = "Breaking"
+text = "`install_admitted_schemas(&BuiltState, db, MigrationConfig)` replaces `install_extension_schemas_full`; `schema_currency(db, &BuiltState)` and `schema_currency::{assert_schema_current, recheck}` take `&BuiltState`; `SchemaMember` gains `standing()` and `purges()`, `SchemaUnit` gains `standing` and `purges`, and `SchemaResidue` gains `absent_member_tables` and `absent_member_ledgers`. Added `install_schema_members`, `AbsentMemberTable` and migrations `010_schema_table_owners` and `011_schema_purge_records`."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Changed"
+text = "`infra db doctor` reports `absent_member_tables` and `absent_member_ledgers`."
