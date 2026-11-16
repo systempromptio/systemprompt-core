@@ -125,16 +125,15 @@ impl AppContextBuilder {
         )
         .await?;
 
-        let content = assembly::assemble_content_analytics(
+        let content = assembly::assemble_content_and_geoip(
             &config,
             &app_paths,
             &database,
             self.show_startup_warnings,
         )?;
 
-        let analytics = content.analytics_repositories;
         let (repositories, user_service, system_admin, mcp_registry) =
-            build_domain_layer(&self.boot, &database, analytics, policy, &services).await?;
+            build_domain_layer(&self.boot, &database, policy, &services).await?;
 
         let (ai_service, connector_tokens) = ai_service::build_ai_service(
             &self.boot,
@@ -209,7 +208,6 @@ impl AppContextBuilder {
         let app = AppContext::from_parts(
             build_data_plane(
                 database,
-                content.analytics_service,
                 content.fingerprint_repo,
                 user_service,
                 repositories,

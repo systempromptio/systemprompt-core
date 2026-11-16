@@ -9,11 +9,13 @@
 //! ([`DynContentPopularity`]) the
 //! content prerender orders its popular lists by.
 //!
-//! It provides the
+//! It provides its repositories (`Arc<AnalyticsRepositories>`), built from the
+//! kernel's database pool, the session store the `users` member provides and
+//! the logging event store; the `Arc<AnalyticsService>` over them, enriched
+//! with the `GeoIP` reader and the content routing when the kernel seeds
+//! them; and the
 //! [`DynSessionBehaviourScorer`](systemprompt_traits::DynSessionBehaviourScorer)
-//! the request-analytics middleware hands each tracked request's session to,
-//! built over the analytics repositories the kernel seeds; a kernel that does
-//! not seed them refuses to resolve this member.
+//! the request-analytics middleware hands each tracked request's session to.
 //!
 //! It contributes the analytics jobs (session classification, the on-demand
 //! geo backfill, the two detectors that feed the IP ban list, and the
@@ -35,7 +37,10 @@ use systemprompt_traits::{
     DynContentPopularity, DynIpBanStore, DynSessionBehaviourScorer, DynSessionStore,
 };
 
-use crate::SessionBehaviourService;
+use systemprompt_logging::AnalyticsRepository;
+use systemprompt_models::{ContentConfigRaw, ContentRouting};
+
+use crate::{AnalyticsService, GeoIpReader, SessionBehaviourService};
 use crate::jobs::{
     BackfillSessionGeoJob, BehavioralAnalysisJob, EngagementEventsPurge,
     FingerprintReputationPurge, GhostSessionCleanupJob, LinkFactsRollupJob,
@@ -66,6 +71,24 @@ impl Extension for AnalyticsExtension {
                 let popularity: DynContentPopularity =
                     Arc::new(ContentAnalyticsRepository::new(&db));
                 Ok(popularity)
+            })
+            .provide(|r: &Resolved<'_>| {
+                let db = r.get::<DbPool>()?;
+                let sessions = r.get::<DynSessionStore>()?;
+                let event_log = Arc::new(AnalyticsRepository::new(&db));
+                Ok(Arc::new(AnalyticsRepositories::new(&db, sessions, event_log)))
+            })
+            .provide(|r: &Resolved<'_>| {
+                let repositories = r.get::<Arc<AnalyticsRepositories>>()?;
+                let routing = r.optional::<Arc<ContentConfigRaw>>().map(|config| {
+                    let routing: Arc<dyn ContentRouting> = config;
+                    routing
+                });
+                Ok(Arc::new(AnalyticsService::new(
+                    r.optional::<GeoIpReader>(),
+                    routing,
+                    &repositories,
+                )))
             })
             .provide(|r: &Resolved<'_>| {
                 let repositories = r.get::<Arc<AnalyticsRepositories>>()?;
