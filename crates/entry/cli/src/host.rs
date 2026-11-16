@@ -73,6 +73,7 @@ impl CommandContext {
 
     fn command_seed(&self, base: Dependencies) -> Dependencies {
         let mut seed = base
+            .with(self.env.clone())
             .with(self.secrets_sources().clone())
             .with(self.interrupt_shield().clone());
         if let Ok(profile) = self.loaded_profile() {
