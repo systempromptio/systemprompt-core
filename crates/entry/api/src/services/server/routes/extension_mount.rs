@@ -18,6 +18,7 @@
 use super::RouteMountError;
 use super::protocol::MountCtx;
 use axum::{Extension, Router};
+use systemprompt_extension::router::full_path;
 use systemprompt_traits::{StartupEvent, StartupEventSender};
 
 use crate::routes::admin::services::{RefreshLock, ServicesRefresh};
@@ -57,7 +58,7 @@ pub(super) fn mount_extension_routes(
             if tx
                 .unbounded_send(StartupEvent::ExtensionRouteMounted {
                     name: set.owner.as_str().to_owned(),
-                    path: set.set.base().path().to_owned(),
+                    path: full_path(set.set.base(), "/"),
                     auth_required,
                 })
                 .is_err()

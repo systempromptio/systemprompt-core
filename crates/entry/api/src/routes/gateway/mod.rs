@@ -108,9 +108,12 @@ pub fn gateway_repositories(
         },
     )
     .with_artifact_ingest(ctx.artifact_ingest_arc())
-    .with_session_store(ctx.session_store())
     .with_payload_cap(profile.payload_cap_bytes())
     .with_quota_sharding(profile.quota_config());
+    let repos = match ctx.session_store() {
+        Some(sessions) => repos.with_session_store(sessions),
+        None => repos,
+    };
     #[cfg(feature = "brain")]
     let repos = repos.with_brain_recall(profile.brain.recall.clone());
     #[cfg(feature = "brain")]

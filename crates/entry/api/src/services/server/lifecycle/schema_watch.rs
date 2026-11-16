@@ -31,7 +31,7 @@ pub(in crate::services::server) fn start_schema_watch(ctx: &AppContext) {
                     _ = tick.tick() => {},
                 }
                 if let Err(error) = systemprompt_runtime::schema_currency::recheck(
-                    watched.extension_registry(),
+                    watched.admitted().built(),
                     watched.db_pool().write(),
                     watched.schema_state(),
                 )

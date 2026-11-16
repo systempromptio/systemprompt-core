@@ -9,7 +9,7 @@ use std::sync::Arc;
 use axum::extract::Request;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
-use systemprompt_extension::{LoaderError, SiteAuthConfig};
+use systemprompt_extension::{SiteAuthConfig, SlotError};
 use systemprompt_models::ApiError;
 use systemprompt_oauth_issuance::IDENTITY_PLANE;
 use systemprompt_runtime::AppContext;
@@ -41,10 +41,20 @@ impl std::fmt::Debug for SiteAuthGuard {
 }
 
 impl SiteAuthGuard {
-    pub fn from_context(ctx: &AppContext) -> Result<Option<Self>, LoaderError> {
-        let config = ctx
-            .extension_registry()
-            .enabled_site_auth(&ctx.profile().extensions.disabled)?;
+    pub fn from_context(ctx: &AppContext) -> Result<Option<Self>, SlotError> {
+        let mut declared = ctx
+            .admitted()
+            .built()
+            .members()
+            .flat_map(|member| member.sink.site_auth());
+        let config = declared.next().cloned();
+        let extra = declared.count();
+        if extra > 0 {
+            return Err(SlotError::MultipleEntries {
+                slot: "site_auth",
+                count: extra + 1,
+            });
+        }
         Ok(config.map(|config| Self {
             config,
             issuer: Arc::from(ctx.config().jwt_issuer.as_str()),
@@ -118,7 +128,7 @@ impl std::fmt::Debug for ProtectionGuards {
 }
 
 impl ProtectionGuards {
-    pub fn from_context(ctx: &AppContext) -> Result<Self, LoaderError> {
+    pub fn from_context(ctx: &AppContext) -> Result<Self, SlotError> {
         Ok(Self {
             site_auth: SiteAuthGuard::from_context(ctx)?,
             client_writes: Some(ClientWritesGuard::new(ctx.clone())),

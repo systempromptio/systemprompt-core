@@ -23,9 +23,12 @@ use systemprompt_manifest::services::ServiceModule;
 use systemprompt_runtime::AppContext;
 
 use super::health::{HEALTH_CHECK_QUERY, get_process_memory, get_system_stats};
-use super::probes::ExtensionReadiness;
-use systemprompt_extension::registry::ExtensionDiagnostic;
-use systemprompt_extension::{DiagnosticDetail, DiagnosticFailure, DiagnosticProbe, LoaderError};
+use super::probes::{ExtensionReadiness, admitted_factories};
+use systemprompt_extension::contribute::ContributionSink;
+use systemprompt_extension::{DiagnosticDetail, DiagnosticFailure, DiagnosticProbe, SlotError};
+use systemprompt_identifiers::ExtensionId;
+
+type ExtensionDiagnostic = (ExtensionId, Arc<dyn DiagnosticProbe>);
 
 async fn check_service_counts(ctx: &AppContext) -> (usize, &'static str, usize, &'static str) {
     let service_repo = ctx.service_repository();
@@ -188,11 +191,9 @@ impl std::fmt::Debug for ExtensionDiagnostics {
 }
 
 impl ExtensionDiagnostics {
-    pub fn from_context(ctx: &AppContext) -> Result<Self, LoaderError> {
+    pub fn from_context(ctx: &AppContext) -> Result<Self, SlotError> {
         Ok(Self {
-            probes: ctx
-                .extension_registry()
-                .all_diagnostics(ctx, &ctx.profile().extensions.disabled)?,
+            probes: admitted_factories(ctx, "diagnostic", ContributionSink::diagnostics)?,
         })
     }
 
@@ -205,14 +206,13 @@ impl ExtensionDiagnostics {
     async fn run(&self) -> (bool, Vec<(&'static str, serde_json::Value)>) {
         let outcomes =
             futures_util::future::join_all(self.probes.iter().map(|(extension, probe)| {
-                let extension = *extension;
                 async move {
                     let outcome =
                         tokio::time::timeout(super::health::HEALTH_PROBE_TIMEOUT, probe.probe())
                             .await;
                     (
                         probe.name(),
-                        diagnostic_entry(extension, probe.as_ref(), outcome),
+                        diagnostic_entry(extension.as_str(), probe.as_ref(), outcome),
                     )
                 }
             }))
@@ -233,7 +233,7 @@ type ProbeOutcome = Result<Option<DiagnosticDetail>, DiagnosticFailure>;
 
 // JSON: one `/health/detail` diagnostic entry.
 fn diagnostic_entry(
-    extension: &'static str,
+    extension: &str,
     probe: &dyn DiagnosticProbe,
     outcome: Result<ProbeOutcome, tokio::time::error::Elapsed>,
 ) -> (bool, Option<serde_json::Value>) {
@@ -270,7 +270,7 @@ fn diagnostic_entry(
 
 pub(crate) fn diagnostics_layer(
     ctx: &AppContext,
-) -> Result<axum::Extension<Arc<ExtensionDiagnostics>>, LoaderError> {
+) -> Result<axum::Extension<Arc<ExtensionDiagnostics>>, SlotError> {
     Ok(axum::Extension(Arc::new(
         ExtensionDiagnostics::from_context(ctx)?,
     )))

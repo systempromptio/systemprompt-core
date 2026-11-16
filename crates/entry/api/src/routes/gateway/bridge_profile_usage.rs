@@ -15,6 +15,7 @@ use std::sync::Arc;
 use axum::Json;
 use axum::http::HeaderMap;
 use chrono::Utc;
+use systemprompt_extension::HasAnalytics;
 use systemprompt_models::api::cloud::BridgeProfileUsage;
 
 use super::bridge_error::{BridgeError, authenticate_bridge};
@@ -28,7 +29,7 @@ pub async fn handle(
     let (claims, _user) = authenticate_bridge(&jwt_extractor, &headers).await?;
 
     let usage = ctx
-        .analytics_service()
+        .analytics()
         .profile_usage()
         .get_profile_usage(&claims.user_id, Utc::now())
         .await
