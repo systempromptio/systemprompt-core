@@ -4,9 +4,11 @@
 //! Commands run in the order the lease loop sends them, so a handover's stop
 //! always finishes before that process could be started here again. A
 //! handover releases the lease only after the process has stopped, so the new
-//! owner never runs it beside this one. A process that fails to start has its
-//! lease released and is reported back, and the lease loop holds off
-//! reclaiming it for [`super::process_ownership::FAILED_START_BACKOFF`].
+//! owner never runs it beside this one, and every release is announced so the
+//! worker that should take the process claims it at once. A process that fails
+//! to start has its lease released and is reported back, and the lease loop
+//! holds off reclaiming it for
+//! [`super::process_ownership::FAILED_START_BACKOFF`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -92,9 +94,7 @@ async fn apply(
                         error = %error,
                         "owned process failed to start; releasing its lease"
                     );
-                    if let Err(error) = leases.release(&key.lease_key()).await {
-                        tracing::warn!(service = %key.name(), error = %error, "lease release failed");
-                    }
+                    release_and_announce(ctx, leases, &key).await;
                     if failed.send(key).is_err() {
                         tracing::debug!("process lease loop has stopped");
                     }
@@ -111,11 +111,34 @@ async fn apply(
                     return;
                 }
                 tracing::info!(service = %key.name(), module = %key.module(), "owned process stopped");
-                if release && let Err(error) = leases.release(&key.lease_key()).await {
-                    tracing::warn!(service = %key.name(), error = %error, "lease release failed");
+                if release {
+                    release_and_announce(ctx, leases, &key).await;
                 }
             },
         }
+    }
+}
+
+pub(super) async fn release_and_announce(
+    ctx: &AppContext,
+    leases: &dyn LeaseRepository,
+    key: &ProcessKey,
+) {
+    let lease = key.lease_key();
+    if let Err(error) = leases.release(&lease).await {
+        tracing::warn!(service = %key.name(), error = %error, "process lease release failed");
+        return;
+    }
+    if let Err(error) = ctx
+        .service_repository()
+        .announce_process_released(&lease)
+        .await
+    {
+        tracing::warn!(
+            service = %key.name(),
+            error = %error,
+            "process lease release not announced; peers claim it at their next retry"
+        );
     }
 }
 

@@ -14,11 +14,13 @@
 //! worker that loses a lease, or cannot renew it before it would expire,
 //! stops that process alone. A worker that stops gracefully withdraws its
 //! presence before it stops and releases its processes, so its peers drop it
-//! from the reachable set at once; a worker that is preferred for a key whose
-//! lease is still held re-tries the claim every [`CLAIM_RETRY_EVERY`] until it
-//! wins it. A worker that dies without stopping leaves the reachable set when
-//! its presence is older than [`LEASE_TTL`]. `api` replicas find each process's
-//! holder through the service registry and forward to its advertised address.
+//! from the reachable set at once; the withdrawal and each release wake its
+//! peers, which claim without waiting for a tick, and a worker that is
+//! preferred for a key whose lease is still held re-tries the claim every
+//! [`CLAIM_RETRY_EVERY`] until it wins it, should a wake be lost. A worker that
+//! dies without stopping leaves the reachable set when its presence is older
+//! than [`LEASE_TTL`]. `api` replicas find each process's holder through the
+//! service registry and forward to its advertised address.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -41,6 +43,14 @@ pub const CLAIM_RETRY_EVERY: Duration = Duration::from_secs(2);
 pub enum TickKind {
     Full,
     ClaimOnly,
+}
+
+pub fn tick_kind(since_full: Option<Duration>) -> TickKind {
+    if since_full.is_none_or(|elapsed| elapsed >= RENEW_EVERY) {
+        TickKind::Full
+    } else {
+        TickKind::ClaimOnly
+    }
 }
 
 pub fn next_tick(since_full: Duration, pending: bool) -> Duration {

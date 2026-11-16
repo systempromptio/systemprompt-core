@@ -2,10 +2,11 @@
 //! its leases: once it is gone a surviving peer claims the keys it was
 //! preferred for instead of skipping them, and a peer that stands by on such a
 //! key retries the claim within [`CLAIM_RETRY_EVERY`] rather than a whole
-//! renewal tick.
+//! renewal tick. A loop woken between full ticks only claims.
 
 use systemprompt_api::services::server::lifecycle::process_ownership::{
-    CLAIM_RETRY_EVERY, KeyAction, RENEW_EVERY, key_action, next_tick, with_self,
+    CLAIM_RETRY_EVERY, KeyAction, RENEW_EVERY, TickKind, key_action, next_tick, tick_kind,
+    with_self,
 };
 use systemprompt_api::services::server::lifecycle::rendezvous::preferred_owner;
 use systemprompt_identifiers::{InstanceId, LeaseKey};
@@ -71,4 +72,17 @@ fn a_standby_on_a_preferred_key_retries_within_the_claim_retry_window() {
     assert_eq!(next_tick(late, true), std::time::Duration::from_secs(1));
     assert_eq!(next_tick(RENEW_EVERY * 2, true), std::time::Duration::ZERO);
     assert!(CLAIM_RETRY_EVERY < RENEW_EVERY);
+}
+
+#[test]
+fn a_loop_woken_between_full_ticks_only_claims() {
+    let second = std::time::Duration::from_secs(1);
+    assert_eq!(tick_kind(None), TickKind::Full);
+    assert_eq!(
+        tick_kind(Some(std::time::Duration::ZERO)),
+        TickKind::ClaimOnly
+    );
+    assert_eq!(tick_kind(Some(RENEW_EVERY - second)), TickKind::ClaimOnly);
+    assert_eq!(tick_kind(Some(RENEW_EVERY)), TickKind::Full);
+    assert_eq!(tick_kind(Some(RENEW_EVERY + second)), TickKind::Full);
 }
