@@ -1,4 +1,5 @@
 use systemprompt_files::documents::codecs::docx::{DocxCodec, blank_docx};
+use systemprompt_files::documents::codecs::{CodecRegistry, core_codecs};
 use systemprompt_provider_contracts::documents::{
     DocumentCodec, DocumentFormat, NodeKind, TemplateParams,
 };
@@ -166,7 +167,8 @@ fn preview_renders_semantic_html() {
 
 #[test]
 fn codec_is_registered_for_docx() {
-    let codec = systemprompt_provider_contracts::documents::codec_for(DocumentFormat::Docx)
+    let codec = CodecRegistry::from_codecs(core_codecs())
+        .for_format(DocumentFormat::Docx)
         .expect("registered docx codec");
     assert_eq!(codec.formats(), [DocumentFormat::Docx]);
 }
