@@ -4,7 +4,8 @@
 //! subject-dimension check and slots, the analytics-http and content-http
 //! members as the reference composition admits them, the brain and
 //! notifications capability slots and routes, the files and marketplace
-//! slots, and the MCP, MCP-host and agent-runs slots and routes.
+//! slots, the MCP, MCP-host and agent-runs slots and routes, and the
+//! reserved paths every install def is compared with.
 
 #[cfg(test)]
 mod analytics_http;
@@ -39,6 +40,8 @@ mod handed;
 #[cfg(test)]
 mod install_refusals;
 #[cfg(test)]
+mod install_reserved;
+#[cfg(test)]
 mod install_services;
 #[cfg(test)]
 mod mcp_slots;
@@ -46,3 +49,5 @@ mod mcp_slots;
 mod probe;
 #[cfg(test)]
 mod providers;
+#[cfg(test)]
+mod reserved_paths;
