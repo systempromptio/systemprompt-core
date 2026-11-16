@@ -7,22 +7,26 @@
 //! group, allowance, shape, routes); its owner must be that entry's
 //! [`CoreId`]; and no owner may hold privileges under two core ids. A
 //! handoff built any other way than by the composition therefore gains
-//! nothing beyond a listed shape. Reserved prefixes, built-in gateway
-//! prefixes and route conflicts are refused here too, whether or not any
-//! member claims them.
+//! nothing beyond a listed shape. A nested service is never privileged: it
+//! is held only by an install, at an unreserved extension base or the web
+//! root, with no other allowance, and its full prefix lies under no reserved
+//! prefix. Reserved prefixes, built-in gateway prefixes and route conflicts —
+//! a service prefix covering any other route included — are refused here
+//! too, whether or not any member claims them.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
-use systemprompt_extension::Admitted;
+use systemprompt_extension::{Admitted, StandingTag};
 use systemprompt_extension::admitted::{AdmittedGatewayRoute, AdmittedRouteSet};
 use systemprompt_extension::reserved::{
     BUILTIN_GATEWAY_PREFIXES, CoreId, PRIVILEGED_SHAPES, PrivilegedShape,
 };
 use systemprompt_extension::router::{
-    Allowance, ApiBase, BasePath, BaseRef, BodyLimit, RouteDef, RouteSet, WebBase,
+    Allowance, ApiBase, BasePath, BaseRef, BodyLimit, RouteDef, RouteSet, WebBase, first_overlap,
+    full_path, path_covers, reserved_prefix_of,
 };
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_models::modules::ApiPaths;
@@ -65,6 +69,7 @@ fn recheck_route_set(
             needed.push(Allowance::BodyLimit);
         }
     }
+    recheck_services(admitted, base, &needed)?;
     let privileged = !needed.is_empty() || !admitted.handles.is_empty();
     if !privileged {
         return Ok(());
@@ -94,6 +99,31 @@ fn recheck_route_set(
                 allowance: Allowance::KernelHandle(*handle),
             })?;
         check_owner(path_ref, &admitted.owner, entry.owner, holders)?;
+    }
+    Ok(())
+}
+
+fn recheck_services(
+    admitted: &AdmittedRouteSet,
+    base: BasePath,
+    needed: &[Allowance],
+) -> Result<(), MountError> {
+    let open_base = matches!(
+        base,
+        BasePath::Api(ApiBase::Extension(_)) | BasePath::Web(WebBase::Root)
+    );
+    for def in admitted.set.defs().iter().filter(|def| def.is_service()) {
+        let path = full_path(BaseRef::Path(base), def.path.as_str());
+        if let Some(prefix) = reserved_prefix_of(&path) {
+            return Err(MountError::ReservedPrefix(prefix));
+        }
+        let plain = needed.is_empty() && admitted.handles.is_empty();
+        if admitted.standing != StandingTag::Install || !open_base || !plain {
+            return Err(MountError::ServiceNotAdmitted {
+                base,
+                owner: admitted.owner.clone(),
+            });
+        }
     }
     Ok(())
 }
@@ -165,7 +195,7 @@ fn recheck_gateway_route(
     if let Some(builtin) = BUILTIN_GATEWAY_PREFIXES
         .iter()
         .copied()
-        .find(|prefix| shadows(relative, prefix))
+        .find(|prefix| path_covers(relative, prefix))
     {
         return Err(MountError::GatewayShadowsBuiltin(builtin));
     }
@@ -190,16 +220,6 @@ fn recheck_gateway_route(
     check_owner(base, &route.owner, entry.owner, holders)
 }
 
-fn shadows(relative: &str, prefix: &str) -> bool {
-    if prefix == "/" {
-        return relative == "/";
-    }
-    relative == prefix
-        || relative
-            .strip_prefix(prefix)
-            .is_some_and(|rest| rest.starts_with('/'))
-}
-
 pub fn path_base(set: &RouteSet) -> Result<BasePath, MountError> {
     match set.base() {
         BaseRef::Path(base) => Ok(base),
@@ -207,29 +227,18 @@ pub fn path_base(set: &RouteSet) -> Result<BasePath, MountError> {
     }
 }
 
-pub fn full_path(base: BasePath, path: &str) -> String {
-    match (base.path(), path) {
-        ("/", path) => path.to_owned(),
-        (base, "/") => base.to_owned(),
-        (base, path) => format!("{base}{path}"),
-    }
-}
-
 fn refuse_route_conflicts(routes: &[AdmittedRouteSet]) -> Result<(), MountError> {
-    let mut seen: HashSet<(http::Method, String)> = HashSet::new();
     for admitted in routes {
-        for def in admitted.set.defs() {
-            let key = (
-                def.method.clone(),
-                full_path(path_base(&admitted.set)?, def.path.as_str()),
-            );
-            if !seen.insert(key.clone()) {
-                return Err(MountError::RouteConflict {
-                    method: key.0,
-                    path: key.1,
-                });
-            }
-        }
+        path_base(&admitted.set)?;
     }
-    Ok(())
+    let defs = routes
+        .iter()
+        .flat_map(|admitted| admitted.set.defs().iter().map(|def| (admitted.set.base(), def)));
+    match first_overlap(defs) {
+        Some(overlap) => Err(MountError::RouteConflict {
+            method: overlap.method,
+            path: overlap.path,
+        }),
+        None => Ok(()),
+    }
 }

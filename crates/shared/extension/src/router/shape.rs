@@ -202,16 +202,67 @@ impl RoutePath {
     pub const fn as_str(self) -> &'static str {
         self.0
     }
+
+    #[must_use]
+    pub fn is_service_prefix(self) -> bool {
+        self.0 != "/" && !self.0.contains(['{', '}', '*'])
+    }
 }
 
 /// One declared route: method, path relative to the base, spec and optional
 /// operation schemas.
 #[derive(Debug, Clone)]
 pub struct RouteDef {
-    pub method: http::Method,
+    pub method: RouteMethod,
     pub path: RoutePath,
     pub spec: RouteSpec,
     pub openapi: Option<OperationSpec>,
+}
+
+impl RouteDef {
+    #[must_use]
+    pub const fn is_service(&self) -> bool {
+        matches!(self.method, RouteMethod::Any)
+    }
+}
+
+/// The method a declared route answers. [`RouteMethod::Any`] marks a service
+/// def, one opaque entry `ANY {path}/*`: it answers every method on every
+/// path under its prefix, carries no operation schemas, and is admitted only
+/// for an install at an unreserved extension base or the web root.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum RouteMethod {
+    One(http::Method),
+    Any,
+}
+
+impl std::fmt::Display for RouteMethod {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::One(method) => method.fmt(f),
+            Self::Any => f.write_str("ANY"),
+        }
+    }
+}
+
+impl PartialEq<http::Method> for RouteMethod {
+    fn eq(&self, other: &http::Method) -> bool {
+        matches!(self, Self::One(method) if method == other)
+    }
+}
+
+impl PartialEq<RouteMethod> for http::Method {
+    fn eq(&self, other: &RouteMethod) -> bool {
+        other == self
+    }
+}
+
+#[must_use]
+pub fn reserved_prefix_of(path: &str) -> Option<&'static str> {
+    RESERVED_API_PREFIXES
+        .iter()
+        .copied()
+        .find(|prefix| path.starts_with(prefix))
 }
 
 fn route_path_is_valid(path: &str, allow_params: bool) -> bool {
@@ -239,11 +290,4 @@ fn validate_extension_base(path: &'static str) -> Result<(), ContributionError> 
         return Err(ContributionError::InvalidBase(path));
     }
     Ok(())
-}
-
-fn reserved_prefix_of(path: &str) -> Option<&'static str> {
-    RESERVED_API_PREFIXES
-        .iter()
-        .copied()
-        .find(|prefix| path.starts_with(prefix))
 }

@@ -10355,6 +10355,7 @@ dependencies = [
  "systemprompt-provider-contracts",
  "systemprompt-traits",
  "thiserror 2.0.21",
+ "tower",
  "tracing",
  "xxhash-rust",
 ]
@@ -10418,6 +10419,7 @@ name = "systemprompt-facade-tests"
 version = "0.0.11"
 dependencies = [
  "async-trait",
+ "axum",
  "clap",
  "futures",
  "http",
@@ -11636,6 +11638,7 @@ dependencies = [
  "serde_yaml_ng",
  "sqlx",
  "systemprompt-agent",
+ "systemprompt-agent-runs",
  "systemprompt-ai",
  "systemprompt-analytics",
  "systemprompt-brain",

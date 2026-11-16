@@ -6946,6 +6946,7 @@ dependencies = [
  "systemprompt-traits",
  "thiserror 2.0.21",
  "tokio",
+ "tower",
  "tracing",
  "xxhash-rust",
 ]

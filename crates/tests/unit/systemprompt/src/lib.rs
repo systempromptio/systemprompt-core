@@ -37,6 +37,8 @@ mod handed;
 #[cfg(test)]
 mod install_refusals;
 #[cfg(test)]
+mod install_services;
+#[cfg(test)]
 mod mcp_slots;
 #[cfg(test)]
 mod probe;

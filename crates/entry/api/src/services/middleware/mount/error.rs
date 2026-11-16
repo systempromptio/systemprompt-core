@@ -6,7 +6,7 @@
 use systemprompt_extension::{LoaderError, ProtectionLayer};
 
 use systemprompt_extension::reserved::CoreId;
-use systemprompt_extension::router::{Allowance, BaseRef};
+use systemprompt_extension::router::{Allowance, BasePath, BaseRef, RouteMethod};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::MissingDependency;
 
@@ -77,8 +77,11 @@ pub enum MountError {
     #[error("gateway route shadows built-in {0}")]
     GatewayShadowsBuiltin(&'static str),
 
+    #[error("service nested at {base:?} by {owner}, which holds no plain install standing there")]
+    ServiceNotAdmitted { base: BasePath, owner: ExtensionId },
+
     #[error("route {method} {path} declared twice")]
-    RouteConflict { method: http::Method, path: String },
+    RouteConflict { method: RouteMethod, path: String },
 
     #[error("dependency resolution failed")]
     Resolve(#[from] MissingDependency),
