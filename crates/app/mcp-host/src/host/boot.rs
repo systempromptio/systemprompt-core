@@ -1,40 +1,34 @@
 //! Booting a [`HostContext`] from a spawned server's environment.
 //!
-//! [`HostKernel::boot`] composes the handles; the host context then binds the
-//! extension state and assembles notifications over itself, because both run
-//! extension factories that take the finished context.
+//! [`HostKernel::boot`] admits the composition against the child's profile,
+//! resolves its kernel and composes the handles; the host context reads the
+//! resolved kernel state.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 
-use systemprompt_provider_contracts::Dependencies;
-use systemprompt_runtime::{HostBootError, HostKernel, HostParts};
+use systemprompt_runtime::{AdmitFn, HostBootError, HostKernel};
 
 use super::HostContext;
 
 impl HostContext {
-    pub async fn from_process_env() -> Result<Self, HostBootError> {
-        let (parts, kernel) = HostKernel::from_process_env().await?;
-        Self::finish(parts, &kernel)
+    pub async fn from_process_env(admit: AdmitFn) -> Result<Self, HostBootError> {
+        Ok(Self::over(HostKernel::from_process_env(admit).await?))
     }
 
     pub async fn boot(
         lookup: impl Fn(&str) -> Option<String> + Send + Sync,
+        admit: AdmitFn,
     ) -> Result<Self, HostBootError> {
-        let (parts, kernel) = HostKernel::boot(lookup).await?;
-        Self::finish(parts, &kernel)
+        Ok(Self::over(HostKernel::boot(lookup, admit).await?))
     }
 
-    fn finish(parts: HostParts, kernel: &HostKernel) -> Result<Self, HostBootError> {
-        let mut host = Self {
-            extension_state: Dependencies::new(),
-            provider_tokens: Arc::default(),
+    fn over(parts: systemprompt_runtime::HostParts) -> Self {
+        Self {
             parts,
-        };
-        host.extension_state = kernel.bind_extension_state(&host, host.parts.kernel_state())?;
-        kernel.bind_notifications(&host)?;
-        Ok(host)
+            provider_tokens: Arc::default(),
+        }
     }
 }

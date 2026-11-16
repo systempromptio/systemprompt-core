@@ -6,9 +6,7 @@
 //! refuses to sign ([`VerifyingTokenAuthority`]). Its kernel state carries
 //! no OAuth or AI repositories, so a factory that looks them up finds none.
 //! An extension that needs either fails in the host instead of running with a
-//! narrower view. The host runs every extension's `provide` over this context
-//! before its seams are discovered, so extension state resolves as it does on
-//! the API.
+//! narrower view. Its extension state is the host's resolved kernel state.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -89,7 +87,7 @@ impl ExtensionContext for HostContext {
     }
 
     fn extension_state(&self) -> Dependencies {
-        self.extension_state.clone()
+        self.parts.kernel.state().clone()
     }
 
     fn provider_tokens(&self) -> Arc<dyn ProviderTokenCache> {
