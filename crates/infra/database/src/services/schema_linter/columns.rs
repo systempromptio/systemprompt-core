@@ -24,13 +24,6 @@ impl TableDef {
         &self.name
     }
 
-    pub(super) fn qualified_name(&self) -> String {
-        self.schema.as_ref().map_or_else(
-            || self.name.clone(),
-            |schema| format!("{schema}.{}", self.name),
-        )
-    }
-
     pub(super) fn primary_key(&self) -> Option<&[String]> {
         self.primary_key.as_deref()
     }

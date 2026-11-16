@@ -11,6 +11,12 @@
 //! The installer admits the same claims before it records them, so a recorded
 //! declaration of a member the profile has since disabled passed this check.
 //!
+//! A member's own tables are the `public` tables its schema SQL creates, read
+//! by [`created_table_names`] — the parser the installer records table
+//! ownership with — never the self-declared [`SchemaDefinition::table`]
+//! label, so a schema labelled with a core table's name owns only what its
+//! SQL creates. Schema SQL that does not parse refuses admission.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -34,6 +40,12 @@ pub enum PurgeAdmissionError {
     ForeignTable { member: ExtensionId, table: String },
     #[error("member '{member}' declares a purge predicate over table '{table}' with no values")]
     EmptyPredicate { member: ExtensionId, table: String },
+    #[error("schema SQL of member '{member}' does not parse")]
+    UnparseableSchema {
+        member: ExtensionId,
+        #[source]
+        source: pg_query::Error,
+    },
 }
 
 /// One member's purge declarations with what admission judges them by.
@@ -69,11 +81,46 @@ pub fn purge_declarations(sink: &ContributionSink) -> Vec<PurgeDeclaration> {
         .collect()
 }
 
-fn own_tables(schemas: &[SchemaDefinition]) -> impl Iterator<Item = &str> {
-    schemas
+pub fn created_table_names(sql: &str) -> Result<Vec<String>, pg_query::Error> {
+    let parsed = pg_query::parse(sql)?;
+    Ok(parsed
+        .protobuf
+        .stmts
         .iter()
-        .filter(|schema| schema.schema_name() == "public")
-        .filter_map(|schema| schema.table.as_deref())
+        .filter_map(|raw| match raw.stmt.as_ref()?.node.as_ref()? {
+            pg_query::protobuf::node::Node::CreateStmt(create) => {
+                let relation = create.relation.as_ref()?;
+                if relation.relname.is_empty() {
+                    None
+                } else if relation.schemaname.is_empty() {
+                    Some(relation.relname.clone())
+                } else {
+                    Some(format!("{}.{}", relation.schemaname, relation.relname))
+                }
+            },
+            _ => None,
+        })
+        .collect())
+}
+
+fn own_tables(
+    owner: &ExtensionId,
+    schemas: &[SchemaDefinition],
+) -> Result<BTreeSet<String>, PurgeAdmissionError> {
+    let mut own = BTreeSet::new();
+    for schema in schemas.iter().filter(|schema| schema.schema_name() == "public") {
+        let created =
+            created_table_names(&schema.sql).map_err(|source| PurgeAdmissionError::UnparseableSchema {
+                member: owner.clone(),
+                source,
+            })?;
+        own.extend(created.into_iter().filter_map(|name| match name.split_once('.') {
+            None => Some(name),
+            Some(("public", table)) => Some(table.to_owned()),
+            Some(_) => None,
+        }));
+    }
+    Ok(own)
 }
 
 impl AdmittedPurge {
@@ -96,16 +143,20 @@ impl AdmittedPurge {
     }
 
     pub fn admit(claims: &[PurgeClaim<'_>]) -> Result<Self, PurgeAdmissionError> {
+        let owned: Vec<BTreeSet<String>> = claims
+            .iter()
+            .map(|claim| own_tables(claim.owner, claim.schemas))
+            .collect::<Result<_, _>>()?;
         let core_tables: BTreeSet<&str> = claims
             .iter()
-            .filter(|claim| claim.standing == StandingTag::Core)
-            .flat_map(|claim| own_tables(claim.schemas))
+            .zip(&owned)
+            .filter(|(claim, _)| claim.standing == StandingTag::Core)
+            .flat_map(|(_, own)| own.iter().map(String::as_str))
             .collect();
         let mut entries = Vec::new();
-        for claim in claims {
-            let own: BTreeSet<&str> = own_tables(claim.schemas).collect();
+        for (claim, own) in claims.iter().zip(&owned) {
             for declaration in claim.declarations {
-                check_declaration(claim, declaration, &own, &core_tables)?;
+                check_declaration(claim, declaration, own, &core_tables)?;
                 entries.push(OwnedPurge {
                     owner: claim.owner.clone(),
                     declaration: declaration.clone(),
@@ -137,7 +188,7 @@ impl AdmittedPurge {
 fn check_declaration(
     claim: &PurgeClaim<'_>,
     declaration: &PurgeDeclaration,
-    own: &BTreeSet<&str>,
+    own: &BTreeSet<String>,
     core_tables: &BTreeSet<&str>,
 ) -> Result<(), PurgeAdmissionError> {
     for table in declaration.tables() {

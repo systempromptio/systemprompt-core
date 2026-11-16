@@ -37,6 +37,7 @@ clap = { workspace = true, optional = true }
 futures = { workspace = true, optional = true }
 tower = { workspace = true, optional = true }
 http = { workspace = true }
+pg_query = { workspace = true }
 schemars = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-traits = { workspace = true }
