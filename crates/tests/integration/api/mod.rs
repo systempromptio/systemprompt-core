@@ -225,6 +225,10 @@ mod internal_links_worker;
 mod routes_oauth_token;
 
 #[cfg(test)]
+#[path = "server_gateway_disabled.rs"]
+mod server_gateway_disabled;
+
+#[cfg(test)]
 #[path = "common.rs"]
 mod common;
 
