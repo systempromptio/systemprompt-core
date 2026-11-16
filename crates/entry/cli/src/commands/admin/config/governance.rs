@@ -15,10 +15,10 @@ use systemprompt_manifest::profile::{
     AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, UNRESTRICTED_ACKNOWLEDGEMENT,
 };
 
+use crate::shared::CommandOutput;
 use super::profile_io::{load_profile, profile_path, save_profile};
 use super::types::ConfigMutationOutput;
-use crate::context::CommandContext;
-use crate::shared::{CommandOutput, render_result};
+use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Subcommand)]
 pub enum GovernanceCommands {
@@ -47,10 +47,10 @@ pub struct SetArgs {
     pub acknowledgement: Option<String>,
 }
 
-pub fn execute(command: &GovernanceCommands, ctx: &CommandContext) -> Result<()> {
+pub fn execute(command: &GovernanceCommands, host: &dyn CommandHost) -> Result<()> {
     match command {
-        GovernanceCommands::Show => execute_show(ctx),
-        GovernanceCommands::Set(args) => execute_set(args, ctx),
+        GovernanceCommands::Show => execute_show(host),
+        GovernanceCommands::Set(args) => execute_set(args, host),
     }
 }
 
@@ -64,8 +64,8 @@ fn parse_mode(raw: &str) -> Result<AuthzMode> {
     }
 }
 
-fn execute_set(args: &SetArgs, ctx: &CommandContext) -> Result<()> {
-    let config = &ctx.cli;
+fn execute_set(args: &SetArgs, host: &dyn CommandHost) -> Result<()> {
+    let config = host.output();
     let mode = parse_mode(&args.mode)?;
 
     if matches!(mode, AuthzMode::Unrestricted)
@@ -77,7 +77,7 @@ fn execute_set(args: &SetArgs, ctx: &CommandContext) -> Result<()> {
         );
     }
 
-    let profile_path = profile_path(ctx)?;
+    let profile_path = profile_path(host)?;
     let mut profile = load_profile(profile_path)?;
     let (audit, quota, unapplied_planes) = profile
         .governance
@@ -101,22 +101,19 @@ fn execute_set(args: &SetArgs, ctx: &CommandContext) -> Result<()> {
 
     save_profile(&profile, profile_path)?;
 
-    render_result(
-        &CommandOutput::card_value(
+    host.render(&CommandOutput::card_value(
             "Governance Updated",
             &ConfigMutationOutput {
                 field: "governance.authz".to_owned(),
                 message: format!("Authz mode set to {}", args.mode.to_lowercase()),
             },
-        ),
-        config,
-    );
+        ));
     Ok(())
 }
 
-fn execute_show(ctx: &CommandContext) -> Result<()> {
-    let config = &ctx.cli;
-    let profile = ctx.profile()?;
+fn execute_show(host: &dyn CommandHost) -> Result<()> {
+    let config = host.output();
+    let profile = host.profile()?;
     let summary = profile
         .governance
         .as_ref()
@@ -130,9 +127,6 @@ fn execute_show(ctx: &CommandContext) -> Result<()> {
                 )
             },
         );
-    render_result(
-        &CommandOutput::text_titled("Governance Configuration", summary),
-        config,
-    );
+    host.render(&CommandOutput::text_titled("Governance Configuration", summary));
     Ok(())
 }

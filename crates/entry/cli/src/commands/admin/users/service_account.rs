@@ -13,8 +13,8 @@ use serde::Serialize;
 use systemprompt_identifiers::UserId;
 use systemprompt_users::{NewServiceAccount, UserRepository};
 
-use crate::context::CommandContext;
 use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Subcommand)]
 pub enum ServiceAccountCommands {
@@ -44,18 +44,18 @@ struct ServiceAccountOutput {
 
 pub(super) async fn execute(
     cmd: ServiceAccountCommands,
-    ctx: &CommandContext,
+    host: &dyn CommandHost,
 ) -> Result<CommandOutput> {
     match cmd {
-        ServiceAccountCommands::Create(args) => create(args, ctx).await,
+        ServiceAccountCommands::Create(args) => create(args, host).await,
     }
 }
 
-async fn create(args: CreateServiceAccountArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+async fn create(args: CreateServiceAccountArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
     if args.name.trim().is_empty() || args.email.trim().is_empty() {
         return Err(anyhow!("Service account name and email cannot be empty"));
     }
-    let pool = ctx.db_pool().await?;
+    let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
     let ensured = UserRepository::new(&pool)
         .ensure_service_account(NewServiceAccount {
             name: args.name.trim().to_owned(),

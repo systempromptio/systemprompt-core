@@ -6,9 +6,9 @@
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
 
-use super::types::{AgentDetailOutput, AgentListOutput, AgentSummary};
-use crate::context::CommandContext;
 use crate::shared::CommandOutput;
+use super::types::{AgentDetailOutput, AgentListOutput, AgentSummary};
+use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Clone, Args)]
 pub struct ListArgs {
@@ -22,9 +22,9 @@ pub struct ListArgs {
     pub disabled: bool,
 }
 
-pub(super) fn execute(args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let services_config = ctx
-        .boot()?
+pub(super) async fn execute(args: ListArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let services_config = crate::commands::admin::state::boot(host)
+        .await?
         .load_services_config()
         .context("Failed to load services configuration")?;
 

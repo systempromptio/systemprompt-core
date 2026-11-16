@@ -8,8 +8,8 @@ use clap::Args;
 use systemprompt_users::BannedIpRepository;
 
 use crate::commands::admin::users::types::BanCleanupOutput;
-use crate::context::CommandContext;
 use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct CleanupArgs {
@@ -17,8 +17,8 @@ pub struct CleanupArgs {
     pub yes: bool,
 }
 
-pub(super) async fn execute(args: CleanupArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let pool = ctx.db_pool().await?;
+pub(super) async fn execute(args: CleanupArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
     let ban_repository = BannedIpRepository::new(&pool);
 
     if !args.yes {

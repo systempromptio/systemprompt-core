@@ -16,8 +16,8 @@ use systemprompt_oauth::services::plugin_token::{PluginTokenService, PluginToken
 use systemprompt_security::DeploymentTokenAuthority;
 use systemprompt_users::{UserRepository, UserService};
 
-use crate::context::CommandContext;
 use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Args)]
 pub struct IssuePluginTokenArgs {
@@ -57,10 +57,10 @@ pub(super) struct IssuePluginTokenOutput {
 
 pub(super) async fn execute(
     args: IssuePluginTokenArgs,
-    ctx: &CommandContext,
+    host: &dyn CommandHost,
 ) -> Result<CommandOutput> {
-    let profile = ctx.profile()?;
-    let boot = ctx.boot()?;
+    let profile = host.profile()?;
+    let boot = crate::commands::admin::state::boot(host).await?;
     let secrets = boot.secrets().get();
 
     if args.duration_days == 0 || args.duration_days > 365 {
@@ -97,13 +97,13 @@ pub(super) async fn execute(
         email: user.email,
     };
 
-    let keys = crate::session::api::load_signing_keys(boot)?;
+    let keys = crate::session::api::load_signing_keys(&boot)?;
     let session_id = crate::session::api::create_local_session_row(
         &db_pool,
         &user.id,
         chrono::Duration::days(i64::from(args.duration_days)),
         keys.clone(),
-        boot,
+        &boot,
     )
     .await
     .context("Failed to create the session row backing the plugin token")?;

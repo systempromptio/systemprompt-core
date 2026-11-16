@@ -10,11 +10,11 @@ use systemprompt_agent::models::a2a::protocol::GetTaskParams;
 use systemprompt_identifiers::TaskId;
 use systemprompt_models::a2a::{Task, methods};
 
-use super::client::{A2aCall, ensure_agent_exists, send_a2a_request};
-use crate::context::CommandContext;
-use systemprompt_extension::cli::resolve_required;
 use crate::session::get_or_create_session;
 use crate::shared::CommandOutput;
+use super::client::{A2aCall, ensure_agent_exists, send_a2a_request};
+use systemprompt_extension::cli::CommandHost;
+use systemprompt_extension::cli::resolve_required;
 
 #[derive(Debug, Args)]
 pub struct TaskArgs {
@@ -40,15 +40,15 @@ pub struct TaskArgs {
     pub timeout: u64,
 }
 
-pub(super) async fn execute(args: TaskArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let config = &ctx.cli;
-    let session_ctx = get_or_create_session(ctx).await?;
+pub(super) async fn execute(args: TaskArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let config = host.output();
+    let session_ctx = get_or_create_session(host).await?;
 
     let agent = resolve_required(args.agent, "agent", config, || {
         Err(anyhow!("Agent name is required"))
     })?;
 
-    ensure_agent_exists(&agent, ctx)?;
+    ensure_agent_exists(&agent, host).await?;
 
     let task_id = resolve_required(args.task, "task-id", config, || {
         Err(anyhow!("Task ID is required. Use --task-id"))

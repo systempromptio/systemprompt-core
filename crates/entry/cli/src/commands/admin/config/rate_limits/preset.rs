@@ -7,14 +7,13 @@ use anyhow::{Result, bail};
 use systemprompt_logging::CliService;
 use systemprompt_manifest::profile::RateLimitsConfig;
 
-use super::super::profile_io::profile_path;
-use super::profile_edit::{collect_endpoint_changes, load_profile_for_edit, save_profile};
-use super::{PresetApplyArgs, PresetCommands, PresetShowArgs};
-use crate::CliConfig;
 use crate::cli_settings::OutputFormat;
-use crate::context::CommandContext;
 use crate::interactive::{Prompter, require_confirmation};
-use crate::shared::{CommandOutput, render_result};
+use crate::shared::CommandOutput;
+use super::profile_edit::{collect_endpoint_changes, load_profile_for_edit, save_profile};
+use super::super::profile_io::profile_path;
+use super::{PresetApplyArgs, PresetCommands, PresetShowArgs};
+use systemprompt_extension::cli::CommandHost;
 
 use super::super::types::{
     PresetApplyOutput, PresetInfo, PresetListOutput, PresetShowOutput, RateLimitsOutput,
@@ -24,20 +23,19 @@ use super::super::types::{
 pub(super) fn execute_preset(
     command: PresetCommands,
     prompter: &dyn Prompter,
-    ctx: &CommandContext,
+    host: &dyn CommandHost,
 ) -> Result<()> {
-    let config = &ctx.cli;
     match command {
         PresetCommands::List => {
-            execute_preset_list(config);
+            execute_preset_list(host);
             Ok(())
         },
-        PresetCommands::Show(args) => execute_preset_show(args, config),
-        PresetCommands::Apply(args) => execute_preset_apply(&args, prompter, ctx),
+        PresetCommands::Show(args) => execute_preset_show(args, host),
+        PresetCommands::Apply(args) => execute_preset_apply(&args, prompter, host),
     }
 }
 
-fn execute_preset_list(config: &CliConfig) {
+fn execute_preset_list(host: &dyn CommandHost) {
     let presets = vec![
         PresetInfo {
             name: "development".to_owned(),
@@ -57,14 +55,11 @@ fn execute_preset_list(config: &CliConfig) {
     ];
 
     let output = PresetListOutput { presets };
-    render_result(
-        &CommandOutput::table_of(vec!["name", "description", "builtin"], &output.presets)
-            .with_title("Available Presets"),
-        config,
-    );
+    host.render(&CommandOutput::table_of(vec!["name", "description", "builtin"], &output.presets)
+            .with_title("Available Presets"));
 }
 
-fn execute_preset_show(args: PresetShowArgs, config: &CliConfig) -> Result<()> {
+fn execute_preset_show(args: PresetShowArgs, host: &dyn CommandHost) -> Result<()> {
     let limits = get_preset_config(&args.name)?;
     let description = get_preset_description(&args.name)?;
 
@@ -90,10 +85,7 @@ fn execute_preset_show(args: PresetShowArgs, config: &CliConfig) -> Result<()> {
         },
     };
 
-    render_result(
-        &CommandOutput::card_value("Preset Configuration", &output),
-        config,
-    );
+    host.render(&CommandOutput::card_value("Preset Configuration", &output));
 
     Ok(())
 }
@@ -113,12 +105,11 @@ pub fn get_preset_description(name: &str) -> Result<String> {
 fn execute_preset_apply(
     args: &PresetApplyArgs,
     prompter: &dyn Prompter,
-    ctx: &CommandContext,
+    host: &dyn CommandHost,
 ) -> Result<()> {
-    let config = &ctx.cli;
     let preset_config = get_preset_config(&args.name)?;
 
-    if config.is_interactive() && !args.yes {
+    if host.output().is_interactive() && !args.yes {
         CliService::warning(&format!(
             "This will apply the '{}' preset to rate limits",
             args.name
@@ -128,10 +119,10 @@ fn execute_preset_apply(
         prompter,
         "Proceed with preset application?",
         args.yes,
-        config,
+        host,
     )?;
 
-    let profile_path = profile_path(ctx)?;
+    let profile_path = profile_path(host)?;
     let mut profile = load_profile_for_edit(profile_path)?;
 
     let mut changes: Vec<ResetChange> = Vec::new();
@@ -161,13 +152,10 @@ fn execute_preset_apply(
         message: format!("Applied '{}' preset successfully", args.name),
     };
 
-    render_result(
-        &CommandOutput::table_of(vec!["field", "old_value", "new_value"], &output.changes)
-            .with_title("Preset Applied"),
-        config,
-    );
+    host.render(&CommandOutput::table_of(vec!["field", "old_value", "new_value"], &output.changes)
+            .with_title("Preset Applied"));
 
-    if config.output_format() == OutputFormat::Table {
+    if host.output().output_format() == OutputFormat::Table {
         CliService::warning("Restart services for changes to take effect");
     }
 

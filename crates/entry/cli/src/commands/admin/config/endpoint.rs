@@ -14,7 +14,7 @@ use systemprompt_identifiers::{EndpointId, ProviderId};
 use systemprompt_manifest::services::catalog::EndpointRef;
 
 use super::catalog_edit::{apply, parse_wire};
-use crate::context::CommandContext;
+use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Subcommand)]
 pub enum EndpointCommands {
@@ -39,7 +39,7 @@ pub struct EndpointAddArgs {
     pub url: String,
 }
 
-pub async fn execute(command: &EndpointCommands, ctx: &CommandContext) -> Result<()> {
+pub async fn execute(command: &EndpointCommands, host: &dyn CommandHost) -> Result<()> {
     match command {
         EndpointCommands::Add(args) => {
             let spec = EndpointSpec {
@@ -48,7 +48,7 @@ pub async fn execute(command: &EndpointCommands, ctx: &CommandContext) -> Result
                 wire: parse_wire(&args.wire)?,
                 url: args.url.clone(),
             };
-            apply(ctx, "Endpoint Updated", |document, context| {
+            apply(host, "Endpoint Updated", |document, context| {
                 ProviderCatalogService::upsert_endpoint(document, context, spec)?;
                 Ok(format!("Endpoint {}/{} saved", args.provider, args.id))
             })
@@ -56,7 +56,7 @@ pub async fn execute(command: &EndpointCommands, ctx: &CommandContext) -> Result
         },
         EndpointCommands::Remove { endpoint } => {
             let target = EndpointRef::parse(endpoint).map_err(|e| anyhow!(e))?;
-            apply(ctx, "Endpoint Removed", |document, context| {
+            apply(host, "Endpoint Removed", |document, context| {
                 ProviderCatalogService::remove_endpoint(document, context, &target)?;
                 Ok(format!("Endpoint {endpoint} removed"))
             })

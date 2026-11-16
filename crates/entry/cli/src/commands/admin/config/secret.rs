@@ -19,10 +19,10 @@ use clap::{Args, Subcommand};
 use systemprompt_config::write_private_atomic;
 use systemprompt_manifest::profile::SecretsSource;
 
+use crate::shared::CommandOutput;
 use super::profile_io::{load_profile, profile_dir, profile_path};
 use super::types::ConfigMutationOutput;
-use crate::context::CommandContext;
-use crate::shared::{CommandOutput, render_result};
+use systemprompt_extension::cli::CommandHost;
 
 const RESERVED: &[&str] = &[
     "oauth_at_rest_pepper",
@@ -59,36 +59,33 @@ pub struct SetArgs {
     pub value: String,
 }
 
-pub async fn execute(command: &SecretCommands, ctx: &CommandContext) -> Result<()> {
-    let config = &ctx.cli;
+pub async fn execute(command: &SecretCommands, host: &dyn CommandHost) -> Result<()> {
+    let config = host.output();
     let args = match command {
         SecretCommands::Set(args) => args,
-        SecretCommands::Check => return super::secret_check::execute(ctx).await,
+        SecretCommands::Check => return super::secret_check::execute(host).await,
         SecretCommands::MigrateGitCredentials(args) => {
-            let output = super::git_credentials::execute(*args, ctx).await?;
-            render_result(&output, config);
+            let output = super::git_credentials::execute(*args, host).await?;
+            host.render(&output);
             return Ok(());
         },
     };
 
-    let secrets_file = file_secrets_path(ctx)?;
+    let secrets_file = file_secrets_path(host)?;
     set_secret(&secrets_file, &args.name, &args.value)?;
 
-    render_result(
-        &CommandOutput::card_value(
+    host.render(&CommandOutput::card_value(
             "Secret Updated",
             &ConfigMutationOutput {
                 field: "secrets".to_owned(),
                 message: format!("Secret '{}' set", args.name),
             },
-        ),
-        config,
-    );
+        ));
     Ok(())
 }
 
-pub fn file_secrets_path(ctx: &CommandContext) -> Result<std::path::PathBuf> {
-    let profile_path = profile_path(ctx)?;
+pub fn file_secrets_path(host: &dyn CommandHost) -> Result<std::path::PathBuf> {
+    let profile_path = profile_path(host)?;
     let profile = load_profile(profile_path)?;
     let secrets_config = profile
         .secrets

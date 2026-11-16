@@ -4,9 +4,8 @@
 //! server that lists `toolsets:` and names no `binary:`. It is a child host:
 //! it boots a [`HostContext`] from the environment the API granted it (never
 //! the CLI's profile, session or credentials) and serves the server's
-//! toolsets on its `port:` until its supervisor stops it. The group registers
-//! with the kernel through
-//! [`register_cli_command!`](crate::register_cli_command).
+//! toolsets on its `port:` until its supervisor stops it. The kernel declares
+//! the group under `admin` with the `ChildHost` grant.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -19,8 +18,9 @@ use systemprompt_identifiers::McpServerId;
 use systemprompt_mcp_host::HostContext;
 use systemprompt_mcp_host::toolsets::serve;
 
-use crate::kernel::{
-    CliCommandGroup, CommandContext, CommandDescriptor, DataImpact, DescribeCommand, KernelGrant,
+use systemprompt_extension::cli::{
+    CliCommandGroup, CommandDescriptor, CommandError, CommandHost, CommandOutput, DataImpact,
+    DescribeCommand,
 };
 
 #[derive(Debug, Clone, Subcommand)]
@@ -48,19 +48,16 @@ impl DescribeCommand for McpHostCommands {
 }
 
 impl CliCommandGroup for McpHostCommands {
-    const PARENT: &'static [&'static str] = &["admin"];
     const NAME: &'static str = "mcp";
     const ABOUT: &'static str = "Host MCP servers in this binary";
-    const GRANTS: &'static [KernelGrant] = &[KernelGrant::ChildHost];
 
-    fn run(self, _ctx: &CommandContext) -> impl Future<Output = Result<()>> + Send {
+    async fn run(self, _host: &dyn CommandHost) -> Result<CommandOutput, CommandError> {
         match self {
-            Self::Serve(args) => execute_serve(args),
+            Self::Serve(args) => execute_serve(args).await.map_err(CommandError::new)?,
         }
+        Ok(super::state::rendered())
     }
 }
-
-crate::register_cli_command!(McpHostCommands);
 
 async fn execute_serve(args: ServeArgs) -> Result<()> {
     let host = HostContext::from_process_env()

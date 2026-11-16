@@ -23,8 +23,8 @@ use systemprompt_manifest::profile::SecurityConfig;
 use systemprompt_security::jwt::{cut_off_by, rotation_overlap, signed_token_lifetimes};
 use systemprompt_security::keys::{RotationMode, promote, stage};
 
-use crate::context::CommandContext;
 use crate::shared::{CommandOutput, ConfirmArgs};
+use systemprompt_extension::cli::CommandHost;
 
 pub(super) const PROCEDURE: &str = "\
 Multi-replica procedure (no replica ever meets a token signed by a key it does not know):
@@ -97,10 +97,10 @@ pub(super) struct RetiredKeyOutput {
     pub expires_at: chrono::DateTime<Utc>,
 }
 
-pub(super) fn execute_stage(ctx: &CommandContext) -> Result<CommandOutput> {
-    let state = current_state(ctx)?;
+pub(super) async fn execute_stage(host: &dyn CommandHost) -> Result<CommandOutput> {
+    let state = current_state(host).await?;
     let (staged, next) = stage(&state).context("Failed to stage a signing key")?;
-    persist(ctx, &next)?;
+    persist(host, &next).await?;
     CliService::success(&format!(
         "Signing key {} staged. Restart every replica, then run `admin keys promote`.",
         staged.kid()
@@ -108,30 +108,36 @@ pub(super) fn execute_stage(ctx: &CommandContext) -> Result<CommandOutput> {
     output("Signing Key Staged", &next, false)
 }
 
-pub(super) fn execute_promote(args: PromoteArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let state = current_state(ctx)?;
-    promote_state(args, ctx, &state)
-}
-
-pub(super) fn execute_rotate(args: PromoteArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let state = current_state(ctx)?;
-    let (_, staged) = stage(&state).context("Failed to stage a signing key")?;
-    promote_state(args, ctx, &staged)
-}
-
-fn promote_state(
+pub(super) async fn execute_promote(
     args: PromoteArgs,
-    ctx: &CommandContext,
+    host: &dyn CommandHost,
+) -> Result<CommandOutput> {
+    let state = current_state(host).await?;
+    promote_state(args, host, &state).await
+}
+
+pub(super) async fn execute_rotate(
+    args: PromoteArgs,
+    host: &dyn CommandHost,
+) -> Result<CommandOutput> {
+    let state = current_state(host).await?;
+    let (_, staged) = stage(&state).context("Failed to stage a signing key")?;
+    promote_state(args, host, &staged).await
+}
+
+async fn promote_state(
+    args: PromoteArgs,
+    host: &dyn CommandHost,
     state: &SigningKeyState,
 ) -> Result<CommandOutput> {
     let mode = if args.revoke {
         RotationMode::Revoke
     } else {
-        RotationMode::Overlap(overlap_for(args, &ctx.profile()?.security)?)
+        RotationMode::Overlap(overlap_for(args, &host.profile()?.security)?)
     };
     let (promoted, next) =
         promote(state, mode, Utc::now()).context("Failed to promote the staged signing key")?;
-    persist(ctx, &next)?;
+    persist(host, &next).await?;
     if args.revoke {
         CliService::warning(
             "Promoted with no overlap: every token signed by an earlier key, and every previous \
@@ -146,9 +152,9 @@ fn promote_state(
     output("Signing Key Promoted", &next, args.revoke)
 }
 
-fn current_state(ctx: &CommandContext) -> Result<SigningKeyState> {
-    let boot = ctx.boot()?;
-    let keys = crate::session::api::load_signing_keys(boot)?;
+async fn current_state(host: &dyn CommandHost) -> Result<SigningKeyState> {
+    let boot = crate::commands::admin::state::boot(host).await?;
+    let keys = crate::session::api::load_signing_keys(&boot)?;
     let secrets = boot.secrets();
     Ok(SigningKeyState {
         active_private_pem: keys
@@ -164,8 +170,9 @@ fn current_state(ctx: &CommandContext) -> Result<SigningKeyState> {
     })
 }
 
-fn persist(ctx: &CommandContext, state: &SigningKeyState) -> Result<()> {
-    SecretsService::persist_signing_key_state(ctx.loaded_profile()?, state)
+async fn persist(host: &dyn CommandHost, state: &SigningKeyState) -> Result<()> {
+    let boot = crate::commands::admin::state::boot(host).await?;
+    SecretsService::persist_signing_key_state(boot.loaded_profile(), state)
         .context("Failed to write the signing keys to the secrets file")
 }
 

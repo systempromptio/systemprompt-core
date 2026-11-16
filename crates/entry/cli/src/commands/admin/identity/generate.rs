@@ -7,8 +7,8 @@ use anyhow::{Context, Result};
 use clap::Args;
 use systemprompt_logging::CliService;
 
-use crate::context::CommandContext;
 use systemprompt_cloud::identity::generate_identity;
+use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct GenerateArgs {
@@ -16,16 +16,16 @@ pub struct GenerateArgs {
     pub json: bool,
 }
 
-pub(super) fn execute(args: GenerateArgs, ctx: &CommandContext) -> Result<()> {
+pub(super) fn execute(args: GenerateArgs, host: &dyn CommandHost) -> Result<()> {
     let bundle = generate_identity()?;
-    if args.json || ctx.cli.is_json_output() {
+    if args.json || host.output().is_json_output() {
         let fragment = serde_json::json!({
             "oauth_at_rest_pepper": bundle.oauth_at_rest_pepper,
             "encryption_master_key": bundle.encryption_master_key,
             "manifest_signing_secret_seed": bundle.manifest_signing_secret_seed,
             "signing_key_pem": bundle.signing_key_pem,
         });
-        if ctx.cli.is_json_output() {
+        if host.output().is_json_output() {
             CliService::json(&fragment);
         } else {
             CliService::output(

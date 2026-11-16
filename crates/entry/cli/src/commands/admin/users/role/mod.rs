@@ -10,10 +10,10 @@ mod assign;
 mod demote;
 mod promote;
 
-use crate::context::CommandContext;
-use crate::shared::render_result;
 use anyhow::{Result, bail};
 use clap::Subcommand;
+use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Subcommand)]
 pub enum RoleCommands {
@@ -40,26 +40,23 @@ pub enum RoleCommands {
     Demote(demote::DemoteArgs),
 }
 
-pub(super) async fn execute(cmd: RoleCommands, ctx: &CommandContext) -> Result<()> {
-    if ctx.is_database_scoped() {
+pub(super) async fn execute(cmd: RoleCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+    if host.is_database_scoped() {
         bail!("Role management operations require full profile context");
     }
 
     match cmd {
         RoleCommands::Assign(args) => {
-            let result = assign::execute(args, ctx).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            let result = assign::execute(args, host).await?;
+            Ok(result)
         },
         RoleCommands::Promote(args) => {
-            let result = promote::execute(args, ctx).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            let result = promote::execute(args, host).await?;
+            Ok(result)
         },
         RoleCommands::Demote(args) => {
-            let result = demote::execute(args, ctx).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            let result = demote::execute(args, host).await?;
+            Ok(result)
         },
     }
 }

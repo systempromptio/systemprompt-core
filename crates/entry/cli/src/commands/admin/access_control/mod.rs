@@ -13,8 +13,8 @@ mod lint;
 use anyhow::Result;
 use clap::{Args, Subcommand};
 
-use crate::context::CommandContext;
-use crate::shared::{CommandOutput, render_result};
+use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Clone, Copy, Subcommand)]
 pub enum AccessControlCommands {
@@ -37,21 +37,20 @@ pub struct ExportYamlArgs;
 #[derive(Debug, Clone, Copy, Args)]
 pub struct LintArgs;
 
-pub async fn execute(cmd: AccessControlCommands, ctx: &CommandContext) -> Result<()> {
+pub async fn execute(cmd: AccessControlCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     match cmd {
         AccessControlCommands::ExportYaml(args) => {
-            let result = export::run(args, ctx).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            let result = export::run(args, host).await?;
+            Ok(result)
         },
         AccessControlCommands::Lint(args) => {
-            let (text, exit_nonzero) = lint::run(args, ctx).await?;
+            let (text, exit_nonzero) = lint::run(args, host).await?;
             let result = CommandOutput::text_titled("Access-control lint", text);
-            render_result(&result, &ctx.cli);
             if exit_nonzero {
+                host.render(&result);
                 anyhow::bail!("access-control lint failed; see report above");
             }
-            Ok(())
+            Ok(result)
         },
     }
 }

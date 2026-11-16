@@ -12,13 +12,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use anyhow::{Context, Result};
 use crate::CliConfig;
 use crate::interactive::Prompter;
-use anyhow::{Context, Result};
 use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
+use systemprompt_extension::cli::ChildSupervisor;
 use systemprompt_identifiers::{Email, ProviderId};
-use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_logging::CliService;
 
 use super::{SetupArgs, postgres, secrets};
@@ -86,7 +86,7 @@ pub(super) async fn setup_postgres(
     prompter: &dyn Prompter,
     config: &CliConfig,
     env_name: &str,
-    children: &ForegroundChildren,
+    children: &dyn ChildSupervisor,
 ) -> Result<PostgresConfig> {
     if args.yes || !config.is_interactive() {
         return postgres::setup_non_interactive(args, env_name, config, children).await;

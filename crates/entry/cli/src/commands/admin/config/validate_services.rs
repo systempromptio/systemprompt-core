@@ -16,13 +16,13 @@ use systemprompt_manifest::services::ServicesConfig;
 
 use super::types::ConfigFileInfo;
 use super::validate::{ValidateArgs, profile_document_target};
-use crate::context::CommandContext;
+use systemprompt_extension::cli::CommandHost;
 
-pub async fn prepare(args: &ValidateArgs, ctx: &CommandContext) -> Result<()> {
+pub async fn prepare(args: &ValidateArgs, host: &dyn CommandHost) -> Result<()> {
     if args.schema || profile_document_target(args).is_some() {
         return Ok(());
     }
-    let boot = ctx.boot()?;
+    let boot = crate::commands::admin::state::boot(host).await?;
     let profile = boot.profile();
     let root = boot
         .try_resolve_services_root(env!("CARGO_PKG_VERSION"))

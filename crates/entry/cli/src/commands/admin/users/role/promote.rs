@@ -9,8 +9,8 @@ use std::sync::Arc;
 use systemprompt_users::{PromoteResult, UserAdminService, UserRepository, UserService};
 
 use crate::commands::admin::users::types::RoleAssignOutput;
-use crate::context::CommandContext;
 use crate::shared::{CommandOutput, ConfirmArgs};
+use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Args)]
 pub struct PromoteArgs {
@@ -20,8 +20,8 @@ pub struct PromoteArgs {
     pub confirm: ConfirmArgs,
 }
 
-pub(super) async fn execute(args: PromoteArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let pool = ctx.db_pool().await?;
+pub(super) async fn execute(args: PromoteArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
     let user_service = UserService::new(Arc::new(UserRepository::new(&pool)));
     let admin_service = UserAdminService::new(user_service);
 

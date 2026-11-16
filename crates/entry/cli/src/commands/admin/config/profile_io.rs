@@ -14,10 +14,10 @@ use std::path::Path;
 use anyhow::{Context, Result};
 use systemprompt_manifest::Profile;
 
-use crate::context::CommandContext;
+use systemprompt_extension::cli::CommandHost;
 
-pub(super) fn profile_path(ctx: &CommandContext) -> Result<&str> {
-    let path = ctx.loaded_profile()?.path();
+pub(super) fn profile_path(host: &dyn CommandHost) -> Result<&str> {
+    let path = host.profile_path()?;
     path.to_str()
         .with_context(|| format!("Profile path is not valid UTF-8: {}", path.display()))
 }

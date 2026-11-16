@@ -24,8 +24,8 @@ use systemprompt_config::{
 use systemprompt_manifest::profile::resolve_with_home;
 use systemprompt_manifest::secrets::OAUTH_AT_REST_PEPPER_MIN_LENGTH;
 
-use crate::context::CommandContext;
-use crate::shared::{CommandOutput, render_result};
+use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandHost;
 
 pub const DATABASE_URL_ALIASES: &[&str] = &["database_url", "internal_database_url"];
 
@@ -43,20 +43,16 @@ pub struct SecretCheckReport {
     pub last_error: Option<String>,
 }
 
-pub async fn execute(ctx: &CommandContext) -> Result<()> {
-    let report = run(ctx).await?;
-    render_result(
-        &CommandOutput::card_value("Secrets Source", &report),
-        &ctx.cli,
-    );
+pub async fn execute(host: &dyn CommandHost) -> Result<()> {
+    let report = run(host).await?;
+    host.render(&CommandOutput::card_value("Secrets Source", &report));
     Ok(())
 }
 
-pub async fn run(ctx: &CommandContext) -> Result<SecretCheckReport> {
-    let profile = ctx.profile()?;
-    let profile_dir = ctx
-        .loaded_profile()?
-        .path()
+pub async fn run(host: &dyn CommandHost) -> Result<SecretCheckReport> {
+    let profile = host.profile()?;
+    let profile_dir = host
+        .profile_path()?
         .parent()
         .context("Profile path has no parent directory")?;
 
@@ -74,8 +70,17 @@ pub async fn run(ctx: &CommandContext) -> Result<SecretCheckReport> {
     let required =
         SecretsService::required_secret_keys(SecretsService::signing_key_pem_required(profile));
     let (source, detail, keys) =
-        describe(&resolved, profile_dir, &required, ctx.secrets_sources()).await?;
-    let status = ctx.boot().ok().map(|boot| boot.secrets().status());
+        describe(
+        &resolved,
+        profile_dir,
+        &required,
+        &crate::commands::admin::state::get::<systemprompt_config::SecretsSources>(host).await?,
+    )
+    .await?;
+    let status = crate::commands::admin::state::boot(host)
+        .await
+        .ok()
+        .map(|boot| boot.secrets().status());
     Ok(SecretCheckReport {
         missing_required: missing_required(&keys, &required),
         source,

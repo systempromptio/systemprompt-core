@@ -6,7 +6,7 @@
 use anyhow::{Context, Result};
 use std::process::Command;
 use systemprompt_cloud::constants::docker::{COMPOSE_PATH, container_name};
-use systemprompt_loader::subprocess::ForegroundChildren;
+use systemprompt_extension::cli::ChildSupervisor;
 use systemprompt_logging::CliService;
 
 use super::SetupArgs;
@@ -21,7 +21,7 @@ use systemprompt_cloud::docker_compose::{
 };
 
 pub async fn setup_docker_postgres_non_interactive(
-    children: &ForegroundChildren,
+    children: &dyn ChildSupervisor,
     config: &PostgresConfig,
     env_name: &str,
     reset_role_password: bool,
@@ -61,11 +61,11 @@ pub async fn setup_docker_postgres_non_interactive(
     Ok(config.clone())
 }
 
-async fn remove_container(children: &ForegroundChildren, container: &str) {
+async fn remove_container(children: &dyn ChildSupervisor, container: &str) {
     for action in ["stop", "rm"] {
         let mut cmd = Command::new("docker");
         cmd.args([action, container]);
-        let children = children.clone();
+        let children = children.handle();
         let outcome = tokio::task::spawn_blocking(move || children.output(cmd)).await;
         if let Err(e) = outcome.map_err(std::io::Error::other).and_then(|r| r) {
             tracing::warn!(container = %container, action, error = %e, "docker container removal step failed");
@@ -77,7 +77,7 @@ pub(super) async fn setup_docker_postgres_interactive(
     args: &SetupArgs,
     prompter: &dyn Prompter,
     env_name: &str,
-    children: &ForegroundChildren,
+    children: &dyn ChildSupervisor,
 ) -> Result<PostgresConfig> {
     CliService::info("Setting up PostgreSQL with Docker...");
 

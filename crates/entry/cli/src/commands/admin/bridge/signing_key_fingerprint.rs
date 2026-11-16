@@ -16,8 +16,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::context::CommandContext;
 use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct SigningKeyFingerprintArgs;
@@ -39,11 +39,12 @@ pub fn key_fingerprint(pubkey_b64: &str) -> String {
     hex::encode(Sha256::digest(pubkey_b64.trim().as_bytes()))
 }
 
-pub(super) fn execute(
+pub(super) async fn execute(
     _args: SigningKeyFingerprintArgs,
-    ctx: &CommandContext,
+    host: &dyn CommandHost,
 ) -> Result<CommandOutput> {
-    let seed = ctx.secrets()?.manifest_signing_secret_seed()?;
+    let boot = crate::commands::admin::state::boot(host).await?;
+    let seed = boot.secrets().manifest_signing_secret_seed()?;
     let pubkey_b64 = manifest_pubkey_b64(&seed);
     let output = SigningKeyFingerprintOutput {
         fingerprint: key_fingerprint(&pubkey_b64),

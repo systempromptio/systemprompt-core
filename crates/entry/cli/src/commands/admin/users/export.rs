@@ -13,10 +13,10 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_users::{UserRepository, UserService, UserStatus};
 
-use super::types::{UserExportItem, UserExportOutput};
 use crate::CliConfig;
-use crate::context::CommandContext;
 use crate::shared::CommandOutput;
+use super::types::{UserExportItem, UserExportOutput};
+use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Args)]
 pub struct ExportArgs {
@@ -41,8 +41,8 @@ pub struct ExportArgs {
     pub limit: i64,
 }
 
-pub(super) async fn execute(args: ExportArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    execute_with_pool(args, &ctx.db_pool().await?, &ctx.cli).await
+pub(super) async fn execute(args: ExportArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    execute_with_pool(args, &systemprompt_database::pool_from_handle(host.db().await?)?, host.output()).await
 }
 
 pub(super) async fn execute_with_pool(

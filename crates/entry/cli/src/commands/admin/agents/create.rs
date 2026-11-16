@@ -7,17 +7,17 @@ use anyhow::{Context, Result};
 use clap::Args;
 use std::path::Path;
 
+use crate::CliConfig;
+use crate::interactive::Prompter;
+use crate::shared::CommandOutput;
 use super::shared::AgentArgs;
 use super::types::AgentCreateOutput;
-use crate::CliConfig;
-use crate::context::CommandContext;
-use crate::interactive::Prompter;
-use systemprompt_extension::cli::resolve_required;
-use crate::shared::CommandOutput;
 use systemprompt_agent::services::config_authoring::{
     AgentCapabilityFlags, AgentCardLinks, AgentConfigAuthoringService, AgentCreateRequest,
     AgentModelChoice, AgentPlacement,
 };
+use systemprompt_extension::cli::CommandHost;
+use systemprompt_extension::cli::resolve_required;
 use systemprompt_logging::CliService;
 
 #[derive(Debug, Args)]
@@ -40,9 +40,9 @@ struct ResolvedAgentInput {
     system_prompt: String,
 }
 
-pub(super) fn execute(args: CreateArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let config = &ctx.cli;
-    let prompter = ctx.prompter();
+pub(super) async fn execute(args: CreateArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let config = host.output();
+    let prompter = host.prompter();
     let mut agent_args = args.agent;
 
     let name = resolve_required(args.name, "name", config, || prompt_name(prompter))?;
@@ -75,7 +75,7 @@ pub(super) fn execute(args: CreateArgs, ctx: &CommandContext) -> Result<CommandO
     };
     let request = build_create_request(input, args.enabled, agent_args);
 
-    let agent_file = write_agent_config(request, ctx)?;
+    let agent_file = write_agent_config(request, host).await?;
 
     CliService::success(&format!(
         "Agent '{}' created at {}",
@@ -164,11 +164,11 @@ fn build_create_request(
     }
 }
 
-fn write_agent_config(
+async fn write_agent_config(
     request: AgentCreateRequest,
-    ctx: &CommandContext,
+    host: &dyn CommandHost,
 ) -> Result<std::path::PathBuf> {
-    let profile = ctx.profile()?;
+    let profile = host.profile()?;
     let services_dir = Path::new(&profile.paths.services);
     let name = request.name.clone();
 
@@ -177,7 +177,7 @@ fn write_agent_config(
         .create(request)
         .with_context(|| format!("Failed to create agent '{}'", name))?;
 
-    ctx.boot()?.load_services_config().with_context(|| {
+    crate::commands::admin::state::boot(host).await?.load_services_config().with_context(|| {
         format!(
             "Agent file created at {} but validation failed. Please check the configuration.",
             agent_file.display()

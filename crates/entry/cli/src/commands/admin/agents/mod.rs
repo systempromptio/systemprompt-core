@@ -36,9 +36,8 @@ pub mod validate;
 use anyhow::{Context, Result, bail};
 use clap::Subcommand;
 
-use crate::context::CommandContext;
 use crate::descriptor::DataImpact;
-use crate::shared::render_result;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
 #[derive(Debug, Subcommand)]
 pub enum AgentsCommands {
@@ -82,52 +81,52 @@ pub enum AgentsCommands {
     Run(run::RunArgs),
 }
 
-pub async fn execute(command: AgentsCommands, ctx: &CommandContext) -> Result<()> {
+pub async fn execute(command: AgentsCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     let result = match command {
-        AgentsCommands::List(args) => list::execute(args, ctx).context("Failed to list agents")?,
-        AgentsCommands::Show(args) => show::execute(args, ctx).context("Failed to show agent")?,
+        AgentsCommands::List(args) => list::execute(args, host).await.context("Failed to list agents")?,
+        AgentsCommands::Show(args) => show::execute(args, host).await.context("Failed to show agent")?,
         AgentsCommands::Validate(args) => {
             let (result, valid) =
-                validate::execute(&args, ctx).context("Failed to validate agents")?;
-            render_result(&result, &ctx.cli);
+                validate::execute(&args, host).await.context("Failed to validate agents")?;
             if !valid {
+                host.render(&result);
                 bail!("Agent validation failed");
             }
-            return Ok(());
+            result
         },
         AgentsCommands::Create(args) => {
-            create::execute(args, ctx).context("Failed to create agent")?
+            create::execute(args, host).await.context("Failed to create agent")?
         },
-        AgentsCommands::Edit(args) => edit::execute(&args, ctx).context("Failed to edit agent")?,
-        AgentsCommands::Delete(args) => Box::pin(delete::execute(args, ctx))
+        AgentsCommands::Edit(args) => edit::execute(&args, host).await.context("Failed to edit agent")?,
+        AgentsCommands::Delete(args) => Box::pin(delete::execute(args, host))
             .await
             .context("Failed to delete agent")?,
-        AgentsCommands::Status(args) => status::execute(args, ctx)
+        AgentsCommands::Status(args) => status::execute(args, host)
             .await
             .context("Failed to get agent status")?,
-        AgentsCommands::Logs(args) => logs::execute(args, ctx)
+        AgentsCommands::Logs(args) => logs::execute(args, host)
             .await
             .context("Failed to get agent logs")?,
-        AgentsCommands::Registry(args) => registry::execute(args, ctx)
+        AgentsCommands::Registry(args) => registry::execute(args, host)
             .await
             .context("Failed to get agent registry")?,
-        AgentsCommands::Message(args) => Box::pin(message::execute(args, ctx))
+        AgentsCommands::Message(args) => Box::pin(message::execute(args, host))
             .await
             .context("Failed to send message to agent")?,
-        AgentsCommands::Task(args) => task::execute(args, ctx)
+        AgentsCommands::Task(args) => task::execute(args, host)
             .await
             .context("Failed to get task details")?,
-        AgentsCommands::Tools(args) => Box::pin(tools::execute(args, ctx))
+        AgentsCommands::Tools(args) => Box::pin(tools::execute(args, host))
             .await
             .context("Failed to list agent tools")?,
         AgentsCommands::Run(args) => {
-            return Box::pin(run::execute(args))
+            Box::pin(run::execute(args))
                 .await
-                .context("Failed to run agent");
+                .context("Failed to run agent")?;
+            super::state::rendered()
         },
     };
-    render_result(&result, &ctx.cli);
-    Ok(())
+    Ok(result)
 }
 
 impl AgentsCommands {

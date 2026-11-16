@@ -12,9 +12,9 @@ use serde::Serialize;
 use systemprompt_identifiers::{IssueReportId, UserId};
 use systemprompt_models::issues::IssueStatus;
 
-use crate::context::CommandContext;
 use crate::session::get_or_create_session;
 use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Args)]
 pub struct TriageArgs {
@@ -39,17 +39,17 @@ struct TriageOutput {
     note: Option<String>,
 }
 
-pub(super) async fn execute(args: TriageArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let session_ctx = get_or_create_session(ctx).await?;
-    execute_as(args, &session_ctx.session.user_id, ctx).await
+pub(super) async fn execute(args: TriageArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let session_ctx = get_or_create_session(host).await?;
+    execute_as(args, &session_ctx.session.user_id, host).await
 }
 
 pub async fn execute_as(
     args: TriageArgs,
     triager: &UserId,
-    ctx: &CommandContext,
+    host: &dyn CommandHost,
 ) -> Result<CommandOutput> {
-    let app = ctx.app_context().await?;
+    let app = crate::commands::admin::state::app(host).await?;
     let id = IssueReportId::try_new(args.id.as_str())
         .with_context(|| format!("invalid issue report id: {}", args.id))?;
     let from = app

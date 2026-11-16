@@ -13,8 +13,8 @@ use systemprompt_manifest::services::BridgeReleasesSpec;
 use systemprompt_models::bridge::instance::{BridgeVersionWindow, WindowStatus};
 use systemprompt_oauth::repository::{BridgeSessionRepository, BridgeSessionRow};
 
-use crate::context::CommandContext;
 use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandHost;
 
 const DEFAULT_WITHIN_SECS: u64 = 120;
 
@@ -51,8 +51,8 @@ pub(super) struct BridgeSessionSummary {
     pub forwarded_total: i64,
 }
 
-pub(super) async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let app = ctx.app_context().await?;
+pub(super) async fn execute(args: ListArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let app = crate::commands::admin::state::app(host).await?;
     let repo = BridgeSessionRepository::new(app.db_pool());
     let within = Duration::from_secs(args.within_secs);
 

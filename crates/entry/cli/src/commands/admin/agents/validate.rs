@@ -6,9 +6,9 @@
 use anyhow::{Context, Result};
 use clap::Args;
 
-use super::types::{ValidationIssue, ValidationOutput};
-use crate::context::CommandContext;
 use crate::shared::CommandOutput;
+use super::types::{ValidationIssue, ValidationOutput};
+use systemprompt_extension::cli::CommandHost;
 use systemprompt_manifest::secrets::Secrets;
 use systemprompt_manifest::services::catalog::{CatalogContext, ResolvedCatalog};
 use systemprompt_manifest::{AgentConfig, ServicesConfig};
@@ -26,15 +26,15 @@ pub struct ValidationSources<'a> {
     pub secrets: Option<&'a Secrets>,
 }
 
-pub(super) fn execute(args: &ValidateArgs, ctx: &CommandContext) -> Result<(CommandOutput, bool)> {
-    let services_config = ctx
-        .boot()?
+pub(super) async fn execute(args: &ValidateArgs, host: &dyn CommandHost) -> Result<(CommandOutput, bool)> {
+    let services_config = crate::commands::admin::state::boot(host)
+        .await?
         .load_services_config()
         .context("Failed to load services configuration")?;
     let catalog = services_config
         .resolve_catalog(&CatalogContext::default())
         .context("The services catalog does not resolve")?;
-    let secrets = ctx.secrets()?.get();
+    let secrets = crate::commands::admin::state::boot(host).await?.secrets().get();
     let sources = ValidationSources {
         services_config: &services_config,
         catalog: &catalog,

@@ -6,17 +6,17 @@
 use anyhow::{Context, Result};
 use systemprompt_identifiers::ProfileName;
 
+use crate::shared::CommandOutput;
 use super::profile_io::profile_path;
 use super::types::{
     ConfigOverviewOutput, PathsOverview, RateLimitsSummary, RuntimeOverview, SecurityOverview,
     ServerOverview,
 };
-use crate::context::CommandContext;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandHost;
 
-pub fn execute(ctx: &CommandContext) -> Result<CommandOutput> {
-    let profile = ctx.profile()?;
-    let profile_path = profile_path(ctx)?;
+pub fn execute(host: &dyn CommandHost) -> Result<CommandOutput> {
+    let profile = host.profile()?;
+    let profile_path = profile_path(host)?;
     let profile_name = ProfileName::try_new(profile.name.as_str()).with_context(|| {
         format!(
             "Profile name '{}' is not a valid profile name",

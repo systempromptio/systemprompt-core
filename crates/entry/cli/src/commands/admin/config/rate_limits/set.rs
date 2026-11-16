@@ -6,19 +6,19 @@
 use anyhow::{Result, bail};
 use systemprompt_logging::CliService;
 
-use super::super::profile_io::profile_path;
+use crate::cli_settings::OutputFormat;
+use crate::shared::CommandOutput;
 use super::SetArgs;
 use super::profile_edit::{
     get_endpoint_rate, load_profile_for_edit, save_profile, set_endpoint_rate,
 };
-use crate::cli_settings::OutputFormat;
-use crate::context::CommandContext;
-use crate::shared::{CommandOutput, render_result};
+use super::super::profile_io::profile_path;
+use systemprompt_extension::cli::CommandHost;
 
 use super::super::types::{RateLimitStatusOutput, SetRateLimitOutput};
 
-pub(super) fn execute_set(args: &SetArgs, ctx: &CommandContext) -> Result<()> {
-    let config = &ctx.cli;
+pub(super) fn execute_set(args: &SetArgs, host: &dyn CommandHost) -> Result<()> {
+    let config = host.output();
     if args.endpoint.is_some() && args.rate.is_none() {
         bail!("--rate is required when --endpoint is specified");
     }
@@ -29,7 +29,7 @@ pub(super) fn execute_set(args: &SetArgs, ctx: &CommandContext) -> Result<()> {
         bail!("Must specify one of: --endpoint with --rate, or --burst");
     }
 
-    let profile_path = profile_path(ctx)?;
+    let profile_path = profile_path(host)?;
     let mut profile = load_profile_for_edit(profile_path)?;
     let limits = &mut profile.rate_limits;
 
@@ -56,10 +56,7 @@ pub(super) fn execute_set(args: &SetArgs, ctx: &CommandContext) -> Result<()> {
     };
 
     save_profile(&profile, profile_path)?;
-    render_result(
-        &CommandOutput::card_value("Rate Limit Updated", &output),
-        config,
-    );
+    host.render(&CommandOutput::card_value("Rate Limit Updated", &output));
 
     if config.output_format() == OutputFormat::Table {
         CliService::warning("Restart services for changes to take effect");
@@ -68,9 +65,9 @@ pub(super) fn execute_set(args: &SetArgs, ctx: &CommandContext) -> Result<()> {
     Ok(())
 }
 
-pub(super) fn execute_enable(ctx: &CommandContext) -> Result<()> {
-    let config = &ctx.cli;
-    let profile_path = profile_path(ctx)?;
+pub(super) fn execute_enable(host: &dyn CommandHost) -> Result<()> {
+    let config = host.output();
+    let profile_path = profile_path(host)?;
     let mut profile = load_profile_for_edit(profile_path)?;
 
     if !profile.rate_limits.disabled {
@@ -78,10 +75,7 @@ pub(super) fn execute_enable(ctx: &CommandContext) -> Result<()> {
             enabled: true,
             message: "Rate limiting is already enabled".to_owned(),
         };
-        render_result(
-            &CommandOutput::card_value("Rate Limit Status", &output),
-            config,
-        );
+        host.render(&CommandOutput::card_value("Rate Limit Status", &output));
         return Ok(());
     }
 
@@ -92,10 +86,7 @@ pub(super) fn execute_enable(ctx: &CommandContext) -> Result<()> {
         enabled: true,
         message: "Rate limiting enabled".to_owned(),
     };
-    render_result(
-        &CommandOutput::card_value("Rate Limit Status", &output),
-        config,
-    );
+    host.render(&CommandOutput::card_value("Rate Limit Status", &output));
 
     if config.output_format() == OutputFormat::Table {
         CliService::warning("Restart services for changes to take effect");
@@ -104,9 +95,9 @@ pub(super) fn execute_enable(ctx: &CommandContext) -> Result<()> {
     Ok(())
 }
 
-pub(super) fn execute_disable(ctx: &CommandContext) -> Result<()> {
-    let config = &ctx.cli;
-    let profile_path = profile_path(ctx)?;
+pub(super) fn execute_disable(host: &dyn CommandHost) -> Result<()> {
+    let config = host.output();
+    let profile_path = profile_path(host)?;
     let mut profile = load_profile_for_edit(profile_path)?;
 
     if profile.rate_limits.disabled {
@@ -114,10 +105,7 @@ pub(super) fn execute_disable(ctx: &CommandContext) -> Result<()> {
             enabled: false,
             message: "Rate limiting is already disabled".to_owned(),
         };
-        render_result(
-            &CommandOutput::card_value("Rate Limit Status", &output),
-            config,
-        );
+        host.render(&CommandOutput::card_value("Rate Limit Status", &output));
         return Ok(());
     }
 
@@ -128,10 +116,7 @@ pub(super) fn execute_disable(ctx: &CommandContext) -> Result<()> {
         enabled: false,
         message: "Rate limiting disabled".to_owned(),
     };
-    render_result(
-        &CommandOutput::card_value("Rate Limit Status", &output),
-        config,
-    );
+    host.render(&CommandOutput::card_value("Rate Limit Status", &output));
 
     if config.output_format() == OutputFormat::Table {
         CliService::warning("Restart services for changes to take effect");

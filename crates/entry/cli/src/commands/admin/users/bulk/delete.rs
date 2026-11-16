@@ -11,8 +11,8 @@ use std::sync::Arc;
 use systemprompt_users::{UserRepository, UserService, UserStatus};
 
 use crate::commands::admin::users::types::BulkDeleteOutput;
-use crate::context::CommandContext;
 use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Args)]
 pub struct DeleteArgs {
@@ -56,7 +56,7 @@ pub(super) enum DeleteResult {
     Executed(BulkDeleteOutput),
 }
 
-pub(super) async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+pub(super) async fn execute(args: DeleteArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
     if !args.yes && !args.dry_run {
         return Err(anyhow!(
             "This will permanently delete users. Use --yes to confirm or --dry-run to preview."
@@ -69,7 +69,7 @@ pub(super) async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<Co
         ));
     }
 
-    let pool = ctx.db_pool().await?;
+    let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
     let user_service = UserService::new(Arc::new(UserRepository::new(&pool)));
 
     let users = user_service

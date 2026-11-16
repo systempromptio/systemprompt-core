@@ -10,10 +10,10 @@
 
 use std::path::{Path, PathBuf};
 
+use anyhow::Result;
 use crate::interactive::Prompter;
 use crate::shared::CommandOutput;
-use anyhow::Result;
-use systemprompt_loader::subprocess::ForegroundChildren;
+use systemprompt_extension::cli::ChildSupervisor;
 use systemprompt_logging::CliService;
 
 use super::types::{DatabaseSetupInfo, SecretsConfiguredInfo, SetupOutput};
@@ -43,7 +43,7 @@ pub(super) async fn execute(
     args: SetupArgs,
     prompter: &dyn Prompter,
     config: &CliConfig,
-    children: &ForegroundChildren,
+    children: &dyn ChildSupervisor,
 ) -> Result<CommandOutput> {
     if !config.is_json_output() {
         CliService::section("systemprompt.io Setup Wizard");

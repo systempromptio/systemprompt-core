@@ -46,10 +46,9 @@ use std::path::PathBuf;
 use anyhow::{Result, bail};
 use clap::Args;
 
+use crate::shared::CommandOutput;
 use super::types::ConfigMutationOutput;
-use crate::CliConfig;
-use crate::context::CommandContext;
-use crate::shared::{CommandOutput, render_result};
+use systemprompt_extension::cli::CommandHost;
 
 pub use plan::{MigrationPlan, legacy_files, plan};
 
@@ -82,28 +81,25 @@ pub struct MigrateArgs {
     pub profiles: Option<PathBuf>,
 }
 
-fn services_dir(args: &MigrateArgs, ctx: &CommandContext) -> Result<PathBuf> {
+fn services_dir(args: &MigrateArgs, host: &dyn CommandHost) -> Result<PathBuf> {
     match args.services.as_ref() {
         Some(dir) => Ok(dir.clone()),
-        None => Ok(PathBuf::from(&ctx.profile()?.paths.services)),
+        None => Ok(PathBuf::from(&host.profile()?.paths.services)),
     }
 }
 
-fn render(config: &CliConfig, title: &str, message: String) {
-    render_field(config, "catalog", title, message);
+fn render(host: &dyn CommandHost, title: &str, message: String) {
+    render_field(host, "catalog", title, message);
 }
 
-fn render_field(config: &CliConfig, field: &str, title: &str, message: String) {
-    render_result(
-        &CommandOutput::card_value(
+fn render_field(host: &dyn CommandHost, field: &str, title: &str, message: String) {
+    host.render(&CommandOutput::card_value(
             title,
             &ConfigMutationOutput {
                 field: field.to_owned(),
                 message,
             },
-        ),
-        config,
-    );
+        ));
 }
 
 fn describe(plan: &MigrationPlan, written: &[PathBuf]) -> String {
@@ -121,12 +117,12 @@ fn describe(plan: &MigrationPlan, written: &[PathBuf]) -> String {
     lines.join("\n")
 }
 
-fn execute_profiles(args: &MigrateArgs, dir: &std::path::Path, config: &CliConfig) -> Result<()> {
+fn execute_profiles(args: &MigrateArgs, dir: &std::path::Path, host: &dyn CommandHost) -> Result<()> {
     if args.check {
         let pending = profiles::plan(dir)?;
         if pending.is_empty() {
             render_field(
-                config,
+                host,
                 "profiles",
                 "Profile Migration",
                 profiles::describe(&pending),
@@ -134,7 +130,7 @@ fn execute_profiles(args: &MigrateArgs, dir: &std::path::Path, config: &CliConfi
             return Ok(());
         }
         render_field(
-            config,
+            host,
             "profiles",
             "Profile Migration Pending",
             profiles::describe(&pending),
@@ -146,7 +142,7 @@ fn execute_profiles(args: &MigrateArgs, dir: &std::path::Path, config: &CliConfi
     }
     let written = profiles::apply(dir)?;
     render_field(
-        config,
+        host,
         "profiles",
         "Profiles Migrated",
         profiles::describe(&written),
@@ -154,10 +150,10 @@ fn execute_profiles(args: &MigrateArgs, dir: &std::path::Path, config: &CliConfi
     Ok(())
 }
 
-pub async fn execute(args: &MigrateArgs, ctx: &CommandContext) -> Result<()> {
+pub async fn execute(args: &MigrateArgs, host: &dyn CommandHost) -> Result<()> {
     match args.profiles.as_ref() {
-        Some(dir) => execute_profiles(args, dir, &ctx.cli),
-        None => execute_services(args, ctx).await,
+        Some(dir) => execute_profiles(args, dir, host.output()),
+        None => execute_services(args, host).await,
     }
 }
 
@@ -175,10 +171,10 @@ fn refuse_pending_renames(services: &std::path::Path) -> Result<()> {
     Ok(())
 }
 
-fn apply_renames(config: &CliConfig, services: &std::path::Path) -> Result<()> {
+fn apply_renames(host: &dyn CommandHost, services: &std::path::Path) -> Result<()> {
     for path in hooks::migrate(services)? {
         render(
-            config,
+            host,
             "Plugin Hooks Migrated",
             format!(
                 "renamed hooks.evaluation to hooks.judge in {}",
@@ -188,7 +184,7 @@ fn apply_renames(config: &CliConfig, services: &std::path::Path) -> Result<()> {
     }
     for path in slack::migrate(services)? {
         render(
-            config,
+            host,
             "Slack Link Policy Migrated",
             format!(
                 "renamed authz.link_by_workspace_email to authz.link.link_by_email in {}",
@@ -199,9 +195,8 @@ fn apply_renames(config: &CliConfig, services: &std::path::Path) -> Result<()> {
     Ok(())
 }
 
-async fn execute_services(args: &MigrateArgs, ctx: &CommandContext) -> Result<()> {
-    let config = &ctx.cli;
-    let services = services_dir(args, ctx)?;
+async fn execute_services(args: &MigrateArgs, host: &dyn CommandHost) -> Result<()> {
+    let services = services_dir(args, host)?;
     let pending = plan(&services)?;
     if args.check {
         if roles::pending(&services) {
@@ -214,40 +209,44 @@ async fn execute_services(args: &MigrateArgs, ctx: &CommandContext) -> Result<()
         refuse_pending_renames(&services)?;
         let Some(plan) = pending else {
             render(
-                config,
+                host,
                 "Catalog Migration",
                 "the services tree is already in the 0.73 shape".to_owned(),
             );
             return Ok(());
         };
         write::verify(&services, &plan)?;
-        render(config, "Catalog Migration Pending", describe(&plan, &[]));
+        render(host, "Catalog Migration Pending", describe(&plan, &[]));
         bail!("a catalog migration is pending; run `systemprompt admin config migrate`");
     }
     match pending {
         Some(plan) => {
-            let written = write::apply(&services, &plan, ctx.interrupt_shield())?;
-            render(config, "Catalog Migrated", describe(&plan, &written));
+            let written = write::apply(
+                &services,
+                &plan,
+                &crate::commands::admin::state::get::<crate::runner::interrupt::InterruptShield>(host).await?,
+            )?;
+            render(host, "Catalog Migrated", describe(&plan, &written));
         },
         None => render(
-            config,
+            host,
             "Catalog Migration",
             "nothing to migrate: the services tree is already in the 0.73 shape".to_owned(),
         ),
     }
-    apply_renames(config, &services)?;
+    apply_renames(host, &services)?;
     if let Some(rules) = roles::migrate(&services)? {
         render(
-            config,
+            host,
             "Access Control Migrated",
             format!("folded {} into {}", roles::ROLES_FILE, rules.display()),
         );
     }
     if args.data {
         let map = data::read_map(&services)?;
-        let report = data::apply_with(&ctx.db_pool().await?, &map).await?;
+        let report = data::apply_with(&systemprompt_database::pool_from_handle(host.db().await?)?, &map).await?;
         render(
-            config,
+            host,
             "Catalog Data Migrated",
             format!(
                 "{} legacy entries recorded, {} personal keys moved, {} audit rows backfilled, {} host filters rewritten, {} legacy route rules moved onto model entities",

@@ -3,18 +3,18 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::context::CommandContext;
 use anyhow::{Context, Result, anyhow};
 use reqwest::Client;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use std::time::Duration;
 use systemprompt_agent::models::a2a::jsonrpc::{JSON_RPC_VERSION_2_0, JsonRpcResponse};
+use systemprompt_extension::cli::CommandHost;
 use systemprompt_models::a2a::{PROTOCOL_VERSION, VERSION_HEADER};
 
-pub(super) fn ensure_agent_exists(name: &str, ctx: &CommandContext) -> Result<()> {
-    let services_config = ctx
-        .boot()?
+pub(super) async fn ensure_agent_exists(name: &str, host: &dyn CommandHost) -> Result<()> {
+    let services_config = crate::commands::admin::state::boot(host)
+        .await?
         .load_services_config()
         .context("Failed to load services configuration")?;
     if !services_config.agents.contains_key(name) {

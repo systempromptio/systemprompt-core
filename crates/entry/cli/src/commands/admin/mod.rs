@@ -21,14 +21,14 @@ pub mod licence;
 pub mod mcp;
 pub mod session;
 pub mod setup;
+mod state;
 pub mod users;
 
 use anyhow::Result;
 use clap::Subcommand;
 
-use crate::context::CommandContext;
 use crate::descriptor::{CommandDescriptor, DataImpact, DescribeCommand};
-use crate::shared::render_result;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
 #[derive(Debug, Subcommand)]
 pub enum AdminCommands {
@@ -87,8 +87,8 @@ pub enum AdminCommands {
     Licence(licence::LicenceCommands),
 }
 
-pub async fn execute(cmd: AdminCommands, ctx: &CommandContext) -> Result<()> {
-    if ctx.is_database_scoped()
+pub async fn execute(cmd: AdminCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+    if host.is_database_scoped()
         && !matches!(
             cmd,
             AdminCommands::Users(_)
@@ -96,30 +96,22 @@ pub async fn execute(cmd: AdminCommands, ctx: &CommandContext) -> Result<()> {
                 | AdminCommands::Config(config::ConfigCommands::Migrate(_))
         )
     {
-        return Err(crate::shared::database_scoped_command_error(ctx));
+        return Err(crate::shared::database_scoped_command_error(host));
     }
 
     match cmd {
-        AdminCommands::Users(cmd) => users::execute(cmd, ctx).await,
-        AdminCommands::Agents(cmd) => Box::pin(agents::execute(cmd, ctx)).await,
-        AdminCommands::Config(cmd) => config::execute(cmd, ctx).await,
-        AdminCommands::Setup(args) => {
-            let result = Box::pin(setup::execute(args, ctx)).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
-        },
-        AdminCommands::Bootstrap(args) => {
-            let result = bootstrap::execute(args, ctx).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
-        },
-        AdminCommands::Session(cmd) => session::execute(cmd, ctx).await,
-        AdminCommands::Bridge(cmd) => bridge::execute(cmd, ctx).await,
-        AdminCommands::AccessControl(cmd) => access_control::execute(cmd, ctx).await,
-        AdminCommands::Keys(cmd) => keys::execute(cmd, ctx).await,
-        AdminCommands::Identity(cmd) => identity::execute(cmd, ctx),
-        AdminCommands::Issues(cmd) => Box::pin(issues::execute(cmd, ctx)).await,
-        AdminCommands::Licence(cmd) => licence::execute(cmd, ctx).await,
+        AdminCommands::Users(cmd) => users::execute(cmd, host).await,
+        AdminCommands::Agents(cmd) => Box::pin(agents::execute(cmd, host)).await,
+        AdminCommands::Config(cmd) => config::execute(cmd, host).await,
+        AdminCommands::Setup(args) => Box::pin(setup::execute(args, host)).await,
+        AdminCommands::Bootstrap(args) => bootstrap::execute(args, host).await,
+        AdminCommands::Session(cmd) => session::execute(cmd, host).await,
+        AdminCommands::Bridge(cmd) => bridge::execute(cmd, host).await,
+        AdminCommands::AccessControl(cmd) => access_control::execute(cmd, host).await,
+        AdminCommands::Keys(cmd) => keys::execute(cmd, host).await,
+        AdminCommands::Identity(cmd) => identity::execute(cmd, host),
+        AdminCommands::Issues(cmd) => Box::pin(issues::execute(cmd, host)).await,
+        AdminCommands::Licence(cmd) => licence::execute(cmd, host).await,
     }
 }
 

@@ -8,14 +8,14 @@ use systemprompt_logging::CliService;
 use systemprompt_manifest::profile::RateLimitsConfig;
 
 use crate::cli_settings::OutputFormat;
-use crate::context::CommandContext;
-use crate::shared::{CommandOutput, render_result};
+use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandHost;
 
 use super::super::types::ValidateOutput;
 
-pub(super) fn execute_validate(ctx: &CommandContext) -> Result<()> {
-    let config = &ctx.cli;
-    let profile = ctx.profile()?;
+pub(super) fn execute_validate(host: &dyn CommandHost) -> Result<()> {
+    let config = host.output();
+    let profile = host.profile()?;
     let limits = &profile.rate_limits;
 
     let mut errors: Vec<String> = Vec::new();
@@ -31,10 +31,7 @@ pub(super) fn execute_validate(ctx: &CommandContext) -> Result<()> {
         warnings,
     };
 
-    render_result(
-        &CommandOutput::card_value("Rate Limits Validation", &output),
-        config,
-    );
+    host.render(&CommandOutput::card_value("Rate Limits Validation", &output));
 
     if config.output_format() == OutputFormat::Table {
         if valid {

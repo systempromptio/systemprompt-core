@@ -8,9 +8,9 @@ use clap::Args;
 use std::sync::Arc;
 use systemprompt_users::{UserRepository, UserService};
 
-use super::types::UserCreatedOutput;
-use crate::context::CommandContext;
 use crate::shared::CommandOutput;
+use super::types::UserCreatedOutput;
+use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Args)]
 pub struct CreateArgs {
@@ -30,8 +30,8 @@ pub struct CreateArgs {
     pub if_not_exists: bool,
 }
 
-pub(super) async fn execute(args: CreateArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let pool = ctx.db_pool().await?;
+pub(super) async fn execute(args: CreateArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
     let user_service = UserService::new(Arc::new(UserRepository::new(&pool)));
 
     if args.name.trim().is_empty() {

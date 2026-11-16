@@ -17,9 +17,9 @@ pub use triage::{TriageArgs, execute_as as triage_as};
 use anyhow::Result;
 use clap::Subcommand;
 
-use crate::context::CommandContext;
 use crate::descriptor::DataImpact;
-use crate::shared::render_result;
+use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandHost;
 
 #[derive(Debug, Subcommand)]
 pub enum IssuesCommands {
@@ -33,14 +33,12 @@ pub enum IssuesCommands {
     Triage(TriageArgs),
 }
 
-pub async fn execute(cmd: IssuesCommands, ctx: &CommandContext) -> Result<()> {
-    let result = match cmd {
-        IssuesCommands::List(args) => list::execute(args, ctx).await?,
-        IssuesCommands::Show(args) => show::execute(args, ctx).await?,
-        IssuesCommands::Triage(args) => Box::pin(triage::execute(args, ctx)).await?,
-    };
-    render_result(&result, &ctx.cli);
-    Ok(())
+pub async fn execute(cmd: IssuesCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+    match cmd {
+        IssuesCommands::List(args) => list::execute(args, host).await,
+        IssuesCommands::Show(args) => show::execute(args, host).await,
+        IssuesCommands::Triage(args) => Box::pin(triage::execute(args, host)).await,
+    }
 }
 
 impl IssuesCommands {
