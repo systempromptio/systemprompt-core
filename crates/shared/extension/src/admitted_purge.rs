@@ -5,11 +5,15 @@
 //! seeds it into state; the users domain's delete, purge and dry run take it
 //! as an argument. Construction is admission: a declaration naming a table
 //! outside the declaring member's own schema tables is refused with
-//! [`PurgeAdmissionError::ForeignTable`]. A core member may also name a table
-//! another core member's schema declares, which is how the users member
-//! purges the core activity tables; an install member may name only its own.
-//! The installer admits the same claims before it records them, so a recorded
-//! declaration of a member the profile has since disabled passed this check.
+//! [`PurgeAdmissionError::ForeignTable`], whatever the member's standing.
+//! Every member declares the purge of its own tables, so a composition that
+//! leaves a member out leaves out exactly that member's declarations. An
+//! orphan sweep is judged by both of its tables: the swept table and the
+//! table whose references keep a row alive must both be the declarer's own,
+//! so a sweep never runs while the member that writes its references is
+//! absent. The installer admits the same claims before it records them, so a
+//! recorded declaration of a member the profile has since disabled passed
+//! this check.
 //!
 //! A member's own tables are the `public` tables its schema SQL creates, read
 //! by [`created_table_names`] — the parser the installer records table
@@ -147,16 +151,10 @@ impl AdmittedPurge {
             .iter()
             .map(|claim| own_tables(claim.owner, claim.schemas))
             .collect::<Result<_, _>>()?;
-        let core_tables: BTreeSet<&str> = claims
-            .iter()
-            .zip(&owned)
-            .filter(|(claim, _)| claim.standing == StandingTag::Core)
-            .flat_map(|(_, own)| own.iter().map(String::as_str))
-            .collect();
         let mut entries = Vec::new();
         for (claim, own) in claims.iter().zip(&owned) {
             for declaration in claim.declarations {
-                check_declaration(claim, declaration, own, &core_tables)?;
+                check_declaration(claim, declaration, own)?;
                 entries.push(OwnedPurge {
                     owner: claim.owner.clone(),
                     declaration: declaration.clone(),
@@ -189,11 +187,9 @@ fn check_declaration(
     claim: &PurgeClaim<'_>,
     declaration: &PurgeDeclaration,
     own: &BTreeSet<String>,
-    core_tables: &BTreeSet<&str>,
 ) -> Result<(), PurgeAdmissionError> {
     for table in declaration.tables() {
-        let core_reach = claim.standing == StandingTag::Core && core_tables.contains(table);
-        if !own.contains(table) && !core_reach {
+        if !own.contains(table) {
             return Err(PurgeAdmissionError::ForeignTable {
                 member: claim.owner.clone(),
                 table: table.to_owned(),

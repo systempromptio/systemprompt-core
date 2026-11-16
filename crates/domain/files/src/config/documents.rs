@@ -4,8 +4,10 @@
 //! retention of the agent read audit (`agentReadRetentionDays`),
 //! per-request input limits, the resumable upload limits (`uploads`) and
 //! whether a user with no access may request it
-//! (`accessRequests`, off by default), and the live-session tuning
-//! (`collab`: snapshot cadence and the owner lease).
+//! (`accessRequests`, off by default), the live-session tuning
+//! (`collab`: snapshot cadence and the owner lease), and what the rendered
+//! view of an HTML document may do (`renderedHtml`: run its scripts, load
+//! `https:` assets; both off by default).
 //!
 //! Turning `accessRequests` on tells a signed-in caller that a document they
 //! cannot open exists (the refusal carries `can_request: true`); with it off
@@ -53,6 +55,22 @@ pub struct DocumentsConfig {
     pub access_requests: bool,
     #[serde(default)]
     pub collab: CollabConfig,
+    #[serde(default)]
+    pub rendered_html: RenderedHtmlConfig,
+}
+
+/// What an HTML document shown as designed may do inside its sandbox.
+///
+/// The page is always an opaque-origin document; these switches only widen
+/// what it does to itself. With `scripts` and `remote_assets` both on, a
+/// document's script can send that document's own content to a remote host.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RenderedHtmlConfig {
+    #[serde(default)]
+    pub scripts: bool,
+    #[serde(default)]
+    pub remote_assets: bool,
 }
 
 /// When a live session snapshots.
@@ -147,6 +165,7 @@ impl Default for DocumentsConfig {
             uploads: UploadLimits::default(),
             access_requests: false,
             collab: CollabConfig::default(),
+            rendered_html: RenderedHtmlConfig::default(),
         }
     }
 }

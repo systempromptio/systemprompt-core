@@ -8,7 +8,7 @@ use anyhow::{Result, anyhow};
 use crate::kernel::KernelHost;
 use clap::Args;
 use systemprompt_extension::admitted::AdmittedMember;
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_extension::cli::{CommandError, CommandOutput};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_loader::ExtensionLoader;
 
@@ -27,7 +27,7 @@ pub fn execute(args: &ShowArgs, host: &dyn KernelHost) -> Result<CommandOutput> 
     let built = composition::built(host)?;
     let output = match composition::find(built, &args.id) {
         Some(member) => build_detail_output(member),
-        None => show_manifest(&args.id).ok_or_else(|| anyhow!("Extension '{}' not found", args.id))?,
+        None => show_manifest(&args.id)?.ok_or_else(|| anyhow!("Extension '{}' not found", args.id))?,
     };
 
     Ok(CommandOutput::card_value(
@@ -85,15 +85,18 @@ pub fn build_detail_output(member: &AdmittedMember) -> ExtensionDetailOutput {
     }
 }
 
-fn show_manifest(id: &str) -> Option<ExtensionDetailOutput> {
-    let project_root = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::new());
+fn show_manifest(id: &str) -> Result<Option<ExtensionDetailOutput>, CommandError> {
+    let project_root = std::env::current_dir().map_err(CommandError::new)?;
     let needle = id.to_lowercase();
-    let ext = ExtensionLoader::discover(&project_root)
+    let Some(ext) = ExtensionLoader::discover(&project_root)
         .into_iter()
-        .find(|e| e.manifest.extension.name.to_lowercase() == needle)?;
+        .find(|e| e.manifest.extension.name.to_lowercase() == needle)
+    else {
+        return Ok(None);
+    };
 
     let name = ext.manifest.extension.name;
-    Some(ExtensionDetailOutput {
+    Ok(Some(ExtensionDetailOutput {
         id: ExtensionId::new(name.clone()),
         name,
         version: "manifest".to_owned(),
@@ -103,5 +106,5 @@ fn show_manifest(id: &str) -> Option<ExtensionDetailOutput> {
         jobs: vec![],
         schemas: vec![],
         roles: vec![],
-    })
+    }))
 }

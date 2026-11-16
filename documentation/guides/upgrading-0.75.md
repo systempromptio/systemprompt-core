@@ -58,7 +58,7 @@ The migrations run whether or not the document store is enabled. After the upgra
 `server.role: admin` is replaced by two roles. A profile that names `admin` is refused at boot with an error naming both.
 
 - `api` serves the console, agent, MCP, content, stream, messaging, extension and static routes. It runs no scheduler and no MCP or agent processes, so it scales horizontally.
-- `worker` runs the scheduler and owns the MCP and agent processes. It requires `server.advertise_url`, the address other replicas use to reach it. Each MCP server and agent is leased to one worker, and an `api` replica forwards to the owner. A request that finds no live owner answers `503 no_live_owner`.
+- `worker` runs the scheduler and owns the MCP and agent processes. It requires `server.advertise_url`, the address other replicas use to reach it. Each MCP server and agent is leased to one worker, and an `api` replica forwards to the owner. A request that finds no live owner answers `503 no_live_owner`; while a process moves between workers the `api` replica holds the request for up to 10 s and forwards it to the new owner.
 
 Split an `admin` deployment into an `api` deployment and a `worker` deployment, or keep `all` for a single node. `database.pool.max_connections_by_role` takes `api` and `worker` keys instead of `admin`. An `api` or `worker` profile with `storage.backend: local` must set `storage.shared: true`.
 

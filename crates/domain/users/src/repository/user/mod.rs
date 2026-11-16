@@ -34,5 +34,4 @@ pub use declared::{DeclaredUserRow, DeclaredUserWrite};
 pub use merge::{MERGE_EXCLUDED_SECURITY_TABLES, MergeResult};
 pub use operations::UpdateUserParams;
 pub use purge::{PurgeCount, PurgeOutcome, SkippedPurge};
-pub(crate) use purge::{CORE_ORPHAN_SWEEPS, CORE_PURGE_TABLES};
 pub use service_account::{EnsuredServiceAccount, NewServiceAccount};

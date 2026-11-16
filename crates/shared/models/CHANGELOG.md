@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.82.0] - 2026-11-16
+
+### Added
+
+- `BuildIdentity`: the product name, version and optional source revision of the binary that embeds core.
+
 ## [0.81.0] - 2026-11-12
 
 ### Breaking

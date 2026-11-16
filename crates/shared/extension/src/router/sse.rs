@@ -34,7 +34,7 @@ pub fn sse_response(req: &RequestContext, sub: SubscribedStream, label: &'static
     tracing::info!(user_id = %req.user_id(), stream = label, "SSE stream ready");
     let frames = futures::stream::unfold(sub, |mut sub| async move {
         let frame = sub.frames.recv().await?;
-        Some((Ok::<Event, Infallible>(to_event(frame)), sub))
+        Some((Ok::<Event, Infallible>(frame_event(frame)), sub))
     });
     Sse::new(frames)
         .keep_alive(standard_keep_alive())
@@ -54,13 +54,14 @@ pub fn subscription_refused(req: &RequestContext, label: &'static str) -> Respon
     .into_response()
 }
 
-fn to_event(frame: SseFrame) -> Event {
-    let mut event = Event::default().data(frame.data);
+#[must_use]
+pub fn frame_event(frame: SseFrame) -> Event {
+    let mut event = Event::default();
     if let Some(name) = frame.event {
         event = event.event(name);
     }
     if let Some(id) = frame.id {
         event = event.id(id);
     }
-    event
+    event.data(frame.data)
 }

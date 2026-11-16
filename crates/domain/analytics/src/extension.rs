@@ -14,7 +14,7 @@
 //! the logging event store; the `Arc<AnalyticsService>` over them, enriched
 //! with the `GeoIP` reader and the content routing when the kernel seeds
 //! them; and the
-//! [`DynSessionBehaviourScorer`](systemprompt_traits::DynSessionBehaviourScorer)
+//! [`DynSessionBehaviourScorer`]
 //! the request-analytics middleware hands each tracked request's session to.
 //!
 //! It contributes the analytics jobs (session classification, the on-demand

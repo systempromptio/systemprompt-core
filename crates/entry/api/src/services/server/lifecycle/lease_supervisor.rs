@@ -11,12 +11,16 @@
 //! have a presence write in flight. A worker that stands by on a key it is
 //! preferred for retries the claim every
 //! [`CLAIM_RETRY_EVERY`](super::process_ownership::CLAIM_RETRY_EVERY) instead
-//! of waiting a whole [`RENEW_EVERY`]; retries only claim, they never renew or
-//! hand over, so the hand-over still waits for a peer settled over a whole
-//! tick. The stops run in parallel within the teardown's
-//! background grace, alongside the drain's own child termination; a process
-//! not confirmed stopped by then, or with no pid recorded yet because its
-//! start is still in flight, keeps its lease, which expires after
+//! of waiting a whole
+//! [`RENEW_EVERY`](super::process_ownership::RENEW_EVERY). The withdrawal and
+//! every release are announced to the other workers, whose loops wait on a
+//! [`ProcessOwnershipWake`] and run a claim-only tick as soon as one arrives;
+//! the retry and the full tick are the backstop for a lost announcement.
+//! Claim-only ticks never renew or hand over, so the hand-over still waits for
+//! a peer settled over a whole tick. The stops run in parallel within the
+//! teardown's background grace, alongside the drain's own child termination; a
+//! process not confirmed stopped by then, or with no pid recorded yet because
+//! its start is still in flight, keeps its lease, which expires after
 //! [`LEASE_TTL`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -27,7 +31,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use systemprompt_agent::services::registry::AgentRegistry;
-use systemprompt_database::{InstanceLeaseRepository, ServiceModule};
+use systemprompt_database::{InstanceLeaseRepository, ProcessOwnershipWake, ServiceModule};
 use systemprompt_identifiers::{InstanceId, ServiceName};
 use systemprompt_loader::subprocess::{self, ChildKind, StopOutcome};
 use systemprompt_manifest::profile::NodeRole;
@@ -35,10 +39,10 @@ use systemprompt_runtime::AppContext;
 use systemprompt_traits::LeaseRepository;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 
-use super::process_actuator::{ProcessCommand, spawn_process_actuator};
+use super::process_actuator::{ProcessCommand, release_and_announce, spawn_process_actuator};
 use super::process_ownership::{
-    FAILED_START_BACKOFF, KeyAction, LEASE_TTL, OwnershipStep, ProcessKey, RENEW_EVERY, TickKind,
-    key_action, next_tick, ownership_step, renewal_overdue, with_self,
+    FAILED_START_BACKOFF, KeyAction, LEASE_TTL, OwnershipStep, ProcessKey, TickKind, key_action,
+    next_tick, ownership_step, renewal_overdue, tick_kind, with_self,
 };
 
 struct LeaseLoop {
@@ -67,21 +71,20 @@ pub(in crate::services::server) fn start_leased_supervision(ctx: &AppContext) {
         backoff: HashMap::new(),
         pending: false,
     };
+    let mut wake = ProcessOwnershipWake::new(ctx.db_pool());
     tasks.spawn_cancellable("process_leases", move |cancel| async move {
         let mut last_full: Option<Instant> = None;
         let mut wait = Duration::ZERO;
         loop {
             tokio::select! {
                 () = cancel.cancelled() => break,
-                () = tokio::time::sleep(wait) => {},
+                _ = wake.wait(wait) => {},
             }
             state.absorb_failures(&mut failed_rx);
-            let kind = if last_full.is_none_or(|at| at.elapsed() >= RENEW_EVERY) {
+            let kind = tick_kind(last_full.map(|at| at.elapsed()));
+            if kind == TickKind::Full {
                 last_full = Some(Instant::now());
-                TickKind::Full
-            } else {
-                TickKind::ClaimOnly
-            };
+            }
             state.tick(kind).await;
             let since_full = last_full.map_or(Duration::ZERO, |at| at.elapsed());
             wait = next_tick(since_full, state.pending);
@@ -224,9 +227,7 @@ impl LeaseLoop {
             let stopped =
                 tokio::time::timeout(budget, stop_held(ctx, &key, timings.child_grace())).await;
             if stopped == Ok(true) {
-                if let Err(error) = leases.release(&key.lease_key()).await {
-                    tracing::warn!(service = %key.name(), error = %error, "process lease release failed");
-                }
+                release_and_announce(ctx, &**leases, &key).await;
             } else {
                 tracing::warn!(
                     service = %key.name(),
@@ -273,7 +274,7 @@ async fn stop_held(ctx: &AppContext, key: &ProcessKey, grace: Duration) -> bool 
     }
 }
 
-fn desired_processes(ctx: &AppContext) -> anyhow::Result<Vec<ProcessKey>> {
+pub(crate) fn desired_processes(ctx: &AppContext) -> anyhow::Result<Vec<ProcessKey>> {
     let mut wanted: Vec<ProcessKey> = ctx
         .mcp_registry()
         .get_managed_servers()?

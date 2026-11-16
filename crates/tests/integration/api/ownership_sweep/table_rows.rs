@@ -9,6 +9,7 @@ use super::table::{Row, owned, owned_at};
 
 const DOC: &str = "routes/documents/mod.rs::router";
 const COLLAB: &str = "routes/documents/mod.rs::with_collab";
+const VIEWS: &str = "routes/documents/mod.rs::with_views";
 const FOLDER: &str = "routes/documents/mod.rs::folders_router";
 const DRIVE: &str = "routes/documents/drive.rs::router";
 const UPLOAD: &str = "routes/uploads/mod.rs::routes";
@@ -77,8 +78,10 @@ pub(super) const OWNED: &[Row] = &[
     owned(DOC, "GET", r#""/{id}/proposals/{pid}""#, Documents, NotFound, Empty),
     owned(DOC, "POST", r#""/{id}/proposals/{pid}/accept""#, Documents, NotFound, Json("{}")),
     owned(DOC, "POST", r#""/{id}/proposals/{pid}/reject""#, Documents, NotFound, Json("{}")),
-    owned(DOC, "GET", r#""/{id}/projection""#, Documents, NotFound, Empty),
-    owned(DOC, "GET", r#""/{id}/preview""#, Documents, NotFound, Empty),
+    owned(VIEWS, "GET", r#""/{id}/projection""#, Documents, NotFound, Empty),
+    owned(VIEWS, "GET", r#""/{id}/preview""#, Documents, NotFound, Empty),
+    owned(VIEWS, "GET", r#""/{id}/rendered""#, Documents, NotFound, Empty),
+    owned(VIEWS, "HEAD", r#""/{id}/rendered""#, Documents, NotFound, Empty),
     owned(DOC, "GET", r#""/{id}/grants""#, Documents, NotFound, Empty),
     owned(DOC, "POST", r#""/{id}/grants""#, Documents, NotFound, Json(SHARE)),
     owned_at(DOC, "DELETE", r#""/{id}/grants""#, "/{id}/grants?grant_id={grant}", (Documents, NotFound, Empty)),

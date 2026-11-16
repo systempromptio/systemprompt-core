@@ -38,7 +38,7 @@ Per-type detail lives on [docs.rs](https://docs.rs/systemprompt-identifiers).
 
 ```toml
 [dependencies]
-systemprompt-identifiers = "0.81"
+systemprompt-identifiers = "0.82"
 ```
 
 ```rust

@@ -4,7 +4,7 @@
 //! append as a core default (`CoreSeam<dyn NotificationAudienceResolver,
 //! RoleAudience>`), its two maintenance jobs, the role directory governance's
 //! `RoleDirectorySlot` holds, the `role` subject-attribute provider, and the
-//! core user-keyed tables a user delete clears.
+//! purge of its own user-keyed tables a user delete clears.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -21,7 +21,6 @@ use systemprompt_traits::core_seam::RoleAudience;
 use systemprompt_traits::{CoreSeam, DynIpBanStore, DynSessionStore};
 
 use crate::jobs::{CleanupAnonymousUsersJob, UserRateLimitPruneJob};
-use crate::repository::user::{CORE_ORPHAN_SWEEPS, CORE_PURGE_TABLES};
 use crate::repository::{
     BannedIpRepository, SessionRepository, UserRepository, UsersRoleDirectory,
     UsersRoleSubjectProvider,
@@ -46,13 +45,17 @@ impl Extension for UsersExtension {
         for schema in schemas() {
             c.schema(schema);
         }
-        for table in CORE_PURGE_TABLES {
-            c.user_purge(*table);
-        }
-        for sweep in CORE_ORPHAN_SWEEPS {
-            c.orphan_sweep(*sweep);
-        }
-        c.migrations(extension_migrations!())
+        c.user_purge(UserPurgeTable {
+            table: "user_rate_limit_buckets",
+            column: "user_id",
+            predicate: None,
+        })
+        .user_purge(UserPurgeTable {
+            table: "sso_login_events",
+            column: "user_id",
+            predicate: None,
+        })
+        .migrations(extension_migrations!())
             .provide(|r: &Resolved<'_>| {
                 let db = r.get::<DbPool>()?;
                 let bans: DynIpBanStore = Arc::new(BannedIpRepository::new(&db));

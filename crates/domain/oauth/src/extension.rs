@@ -30,6 +30,11 @@ impl Extension for OauthExtension {
             c.schema(schema);
         }
         c.migrations(extension_migrations!()).job(OauthCleanupJob);
+        c.user_purge(UserPurgeTable {
+            table: "oauth_jti_revocations",
+            column: "user_id",
+            predicate: None,
+        });
         Ok(())
     }
 }

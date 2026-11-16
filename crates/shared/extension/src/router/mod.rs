@@ -54,7 +54,7 @@ pub use overlap::{
 };
 #[cfg(feature = "router")]
 pub use sse::{
-    HEARTBEAT_INTERVAL, HEARTBEAT_JSON, sse_response, standard_keep_alive, subscription_refused,
+    HEARTBEAT_INTERVAL, HEARTBEAT_JSON, frame_event, sse_response, standard_keep_alive, subscription_refused,
 };
 
 #[cfg(feature = "router")]

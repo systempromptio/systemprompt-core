@@ -12,28 +12,18 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use axum::response::sse::{Event, KeepAlive};
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::sync::{Arc, PoisonError, RwLock};
-use std::time::Duration;
+use systemprompt_extension::router::frame_event;
 use systemprompt_identifiers::{ConnectionId, UserId};
 use systemprompt_traits::events::SseFrame;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::mpsc::error::TrySendError;
 
-use crate::sse::frame_event;
 use crate::{Broadcaster, EventSender, ToSse};
 
-pub const HEARTBEAT_JSON: &str = r#"{"type":"heartbeat"}"#;
-
-pub const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(15);
-
-pub fn standard_keep_alive() -> KeepAlive {
-    KeepAlive::new()
-        .interval(HEARTBEAT_INTERVAL)
-        .event(Event::default().event("heartbeat").data(HEARTBEAT_JSON))
-}
+pub use systemprompt_extension::router::{HEARTBEAT_INTERVAL, HEARTBEAT_JSON, standard_keep_alive};
 
 type Registry = HashMap<UserId, HashMap<ConnectionId, Subscriber>>;
 

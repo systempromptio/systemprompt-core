@@ -25,6 +25,7 @@ pub mod templates;
 pub mod tenant;
 pub mod types;
 
+pub use admitted_views::AdmittedViews;
 pub use systemprompt_cloud::{Environment, OAuthProvider};
 
 use anyhow::Result;
@@ -190,7 +191,7 @@ pub async fn execute(cmd: CloudCommands, host: &dyn CommandHost) -> Result<Comma
                 host.prompter(),
                 host.output(),
                 host.children(),
-                &admitted_views::AdmittedViews::resolve(host).await?,
+                &AdmittedViews::resolve(host).await?,
             )
             .await?;
             Ok(CommandOutput::rendered())
@@ -221,7 +222,7 @@ pub async fn execute(cmd: CloudCommands, host: &dyn CommandHost) -> Result<Comma
                 distributed,
                 host.prompter(),
                 host.output(),
-                &admitted_views::AdmittedViews::resolve(host).await?,
+                &AdmittedViews::resolve(host).await?,
             )
             .await?;
             Ok(CommandOutput::rendered())

@@ -29,7 +29,7 @@
 //! that fails, or reads a value nothing provides, refuses the build: a seam
 //! is never silently left out. With the profile's brain enabled the build
 //! then binds the [`BrainHandle`](crate::handle::BrainHandle) assembled over
-//! the finished seams (see [`crate::assembly`]).
+//! the finished seams.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

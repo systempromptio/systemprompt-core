@@ -17,7 +17,7 @@ pub(crate) use document_limits::{
 };
 pub use documents::{
     CollabConfig, CollabOwnerConfig, DocumentsConfig, MAX_DOCUMENT_UPLOAD_BYTES,
-    MIN_DOCUMENT_UPLOAD_BYTES,
+    MIN_DOCUMENT_UPLOAD_BYTES, RenderedHtmlConfig,
 };
 pub use issues::IssuesConfig;
 pub use types::{AllowedFileTypes, FilePersistenceMode, FileUploadConfig, FilesConfigYaml};

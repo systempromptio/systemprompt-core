@@ -1,6 +1,6 @@
 //! How a member declares what it contributes.
 //!
-//! [`Extension::contribute`](crate::Extension::contribute) receives a
+//! [`Extension::contribute`] receives a
 //! [`Contributions`] bound to the member's own [`ContributionSink`]. Every
 //! method only stores: a value passed by value (`job`, `config_plane`, a
 //! retention hold) must be inert until admitted, and provide fns, factories,

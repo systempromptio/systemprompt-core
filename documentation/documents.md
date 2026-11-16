@@ -223,6 +223,7 @@ Routes mount under `/api/v1/documents` and `/api/v1/document-folders` with user 
 | `POST /api/v1/documents/{id}/proposals/{pid}/accept`, `/reject` | Review with an optional `note`. Accept answers the landed revision and whether it was rebased. |
 | `GET /api/v1/documents/{id}/revisions` | Revision history. |
 | `GET /api/v1/documents/{id}/projection`, `/preview` | Node projection and HTML preview. |
+| `GET /api/v1/documents/{id}/rendered` | An HTML document's stored bytes, inline and sandboxed, as its author designed it. |
 | `GET`, `POST`, `DELETE /api/v1/documents/{id}/grants` | Grants; `POST` takes an optional `message`. |
 | `GET`, `POST`, `DELETE /api/v1/document-folders/{id}/grants`, `GET /api/v1/document-folders/{id}/access` | Folder grants and access, in the same shapes as a document's. |
 | `PUT`, `GET /api/v1/documents/{id}/presence` | Presence beacons. |
@@ -335,6 +336,8 @@ The store reads the `files.documents` section of `<services>/config/files.yaml`.
 | `presenceTtlSecs` | 90 | at least 1 | How long a presence beacon stays valid. |
 | `trashRetentionDays` | 30 | at least 1 | How long a trashed document is kept before it is deleted. |
 | `accessRequests` | `false` | | Lets a signed-in user with no level request access, and adds `can_request: true` to their `not_found` refusals. |
+| `renderedHtml.scripts` | `false` | | Lets a rendered HTML document run its scripts inside its sandbox. |
+| `renderedHtml.remoteAssets` | `false` | | Lets a rendered HTML document load `https:` styles, images, fonts and media (and scripts, with `scripts` on). |
 | `limits.maxOpsPerCall` | 200 | 1 to 10,000 | Edit operations in one call. |
 | `limits.maxOpTextBytes` | 1 MiB | 1 KiB to 64 MiB | Text one operation carries. |
 | `limits.maxMarkdownBytes` | 1 MiB | 1 KiB to 64 MiB | Markdown, HTML or whole-document text one operation carries. |
@@ -367,6 +370,7 @@ All run once per cluster, and return without work while the store is disabled.
 - **Where bytes live.** Revision bytes are content-addressed blobs in the configured `FileStorage` backend (local disk, GCS or S3) under `documents/blobs/`. Encryption at rest is the backend's: bucket-level encryption on GCS and S3, disk or volume encryption for `local`. Core does not encrypt blobs itself and holds no key. Postgres holds names, paths, hashes, grants, comments, proposals, the plain-text search index of each head revision and the audit rows.
 - **Who can reach bytes.** Blobs are never served by the static `/files/*` route. They are reached only through the authorised document routes, the bridge Drive routes (device bearer, the device user's grants) and a signed download link: a user JWT with audience `documents.download` and purpose `document_download:<document>@<revision>`, valid for ten minutes, that opens exactly that revision.
 - **Previews.** The HTML preview is sanitised server-side (`ammonia`) and served with `Content-Security-Policy: sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:` and same-origin frame options, so a preview runs no script and loads nothing remote.
+- **Rendered HTML.** `GET /{id}/rendered` serves an HTML document's stored bytes inline so the page shows as designed. The response's CSP carries `sandbox` without `allow-same-origin`, so the page is an opaque-origin document whether framed or opened directly: it holds no session, reads no cookie and cannot call the installation's routes, navigate the window that frames it, open a window or submit a form. By default it runs no script and loads only what the file embeds (inline styles, `data:` images, fonts and media). `renderedHtml.scripts` lets its scripts run inside that sandbox and `renderedHtml.remoteAssets` lets it load `https:` assets; with both on, a document's script can send that document's own content to a remote host, so turn both on only where uploaders are trusted with what they upload. Assets addressed by a relative path do not resolve.
 - **Office files.** Codecs parse and rewrite package XML. Macros, embedded objects and external links are copied as opaque package entries and are never executed or followed.
 - **PDF export.** The renderer is pure Rust in-process (`pdf-writer`), embeds only its bundled fonts, draws only images the revision holds, fetches nothing and starts no subprocess.
 - **Purge finality.** A purged document, revision or blob is deleted from Postgres and from the storage backend; backups and object-store versioning are the operator's.
