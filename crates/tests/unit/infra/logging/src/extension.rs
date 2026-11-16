@@ -1,7 +1,15 @@
 //! Unit tests for the LoggingExtension implementation.
 
-use systemprompt_extension::Extension;
+use systemprompt_extension::contribute::ContributionSink;
+use systemprompt_extension::{Extension, StandingTag};
+use systemprompt_test_fixtures::admitted_member;
 use systemprompt_logging::LoggingExtension;
+
+fn contributions() -> ContributionSink {
+    admitted_member(&LoggingExtension, StandingTag::Core)
+        .expect("logging contributes")
+        .sink
+}
 
 #[test]
 fn metadata_id_and_name() {
@@ -12,14 +20,11 @@ fn metadata_id_and_name() {
 }
 
 #[test]
-fn extension_is_required() {
-    assert!(LoggingExtension.is_required());
-}
-
-#[test]
 fn schemas_include_logs_and_analytics() {
-    let schemas = LoggingExtension.schemas();
-    let names: Vec<&str> = schemas.iter().filter_map(|s| s.table.as_deref()).collect();
+    let sink = contributions();
+    let names: Vec<&str> = sink
+        .schemas()
+        .iter().filter_map(|s| s.table.as_deref()).collect();
     assert_eq!(
         names,
         vec![
@@ -33,7 +38,8 @@ fn schemas_include_logs_and_analytics() {
 
 #[test]
 fn schemas_have_required_columns() {
-    let schemas = LoggingExtension.schemas();
+    let sink = contributions();
+    let schemas = sink.schemas();
     let logs = schemas
         .iter()
         .find(|s| s.table.as_deref() == Some("logs"))
@@ -52,13 +58,6 @@ fn schemas_have_required_columns() {
 }
 
 #[test]
-fn dependencies_include_database_and_users() {
-    let deps = LoggingExtension.dependencies();
-    assert!(deps.contains(&"database"));
-    assert!(deps.contains(&"users"));
-}
-
-#[test]
 fn extension_default_constructs() {
     let _e = LoggingExtension::default();
 }
@@ -72,14 +71,9 @@ fn extension_copy_clone() {
 }
 
 #[test]
-fn migrations_returns_vec() {
-    let _ = LoggingExtension.migrations();
-}
-
-#[test]
 fn no_reporting_capture_or_privacy_sql_is_registered() {
     assert!(
-        LoggingExtension
+        contributions()
             .schemas()
             .iter()
             .all(|schema| !schema.sql.contains("reporting")),
