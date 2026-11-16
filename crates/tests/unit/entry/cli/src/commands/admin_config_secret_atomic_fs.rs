@@ -1,8 +1,9 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
+use systemprompt_cli::EnvOverrides;
 use systemprompt_cli::admin::config::ConfigCommands;
 use systemprompt_cli::admin::config::secret::{SecretCommands, SetArgs};
-use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_test_fixtures::ensure_test_bootstrap;
 
 fn set(name: &str, value: &str) -> ConfigCommands {

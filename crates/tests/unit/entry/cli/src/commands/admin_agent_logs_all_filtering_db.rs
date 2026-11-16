@@ -1,7 +1,7 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::CliConfig;
 use systemprompt_cli::admin::agents::{logs, logs_db};
+use systemprompt_extension::cli::CliConfig;
 use systemprompt_identifiers::{SessionId, TraceId, UserId};
 use systemprompt_logging::{LogActor, LogEntry, LogLevel, LoggingRepository};
 use systemprompt_test_fixtures::{DisposableDb, ensure_test_bootstrap, seed_user_row};

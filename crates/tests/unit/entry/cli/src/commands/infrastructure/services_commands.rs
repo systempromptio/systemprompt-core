@@ -8,8 +8,9 @@ use systemprompt_cli::infrastructure::services::start::{
     ServiceFlags, ServiceTarget, ServiceTargetFlags,
 };
 use systemprompt_cli::infrastructure::services::{self, ServicesCommands, cleanup};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_database::{DbPool, ServiceConfig, ServiceModule, ServiceStatus};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::ServiceName;
 use systemprompt_loader::subprocess::{StopOutcome, Termination};
 use systemprompt_runtime::DatabaseContext;

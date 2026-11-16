@@ -1,6 +1,6 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::shared::{ChartType, CommandOutput};
+use systemprompt_extension::cli::{ChartType, CommandOutput};
 use systemprompt_models::artifacts::{
     ChartArtifact, CliArtifact, DashboardArtifact, ListItem, NoticeLine, PresentationCardArtifact,
 };

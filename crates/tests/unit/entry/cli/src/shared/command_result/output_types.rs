@@ -1,6 +1,6 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::shared::{KeyValueOutput, SuccessOutput, TableOutput, TextOutput};
+use systemprompt_extension::cli::{KeyValueOutput, SuccessOutput, TableOutput, TextOutput};
 
 #[test]
 fn test_text_output_new() {

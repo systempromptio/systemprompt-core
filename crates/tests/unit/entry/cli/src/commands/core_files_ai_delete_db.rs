@@ -7,11 +7,10 @@
 use std::sync::Arc;
 
 use serde_json::Value;
-use systemprompt_cli::CliConfig;
 use systemprompt_cli::core::files::{ai, delete};
 use systemprompt_cli::interactive::ScriptedPrompter;
-use systemprompt_cli::shared::CommandOutput;
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 use systemprompt_files::FileRepository;
 use systemprompt_identifiers::FileId;
 use systemprompt_storage::{FileStorageBackend, build_file_storage};

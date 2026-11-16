@@ -23,6 +23,7 @@ async fn execute(command: CloudCommands) -> Result<(), String> {
     .await
     .expect("owned tenant command completes within ten seconds")
     .map_err(|error| format!("{error:#}"))
+    .map(drop)
 }
 
 #[tokio::test]

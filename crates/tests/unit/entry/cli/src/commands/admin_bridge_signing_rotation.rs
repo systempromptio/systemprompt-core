@@ -6,9 +6,10 @@ use systemprompt_test_fixtures::bounded_output;
 use base64::Engine;
 use clap::Parser;
 use systemprompt_cli::admin::bridge::{self, BridgeCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_cloud::profile_authoring::LocalProfileBuilder;
 use systemprompt_config::LoadedProfile;
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 
 const HELPER: &str = "commands::admin_bridge_signing_rotation::signing_rotation_helper";
 const ORIGINAL_SEED: &str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";

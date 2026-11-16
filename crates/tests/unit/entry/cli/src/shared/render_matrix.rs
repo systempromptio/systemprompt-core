@@ -6,8 +6,8 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::shared::{CommandOutput, render_result};
-use systemprompt_cli::{CliConfig, OutputFormat};
+use systemprompt_cli::shared::render_result;
+use systemprompt_extension::cli::{CliConfig, CommandOutput, OutputFormat};
 use systemprompt_models::artifacts::{
     ChartArtifact, ChartDataset, ChartType, DashboardArtifact, ListItem, NoticeLine,
     PresentationCardArtifact,

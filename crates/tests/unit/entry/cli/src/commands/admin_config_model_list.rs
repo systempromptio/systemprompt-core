@@ -1,5 +1,6 @@
 use systemprompt_cli::admin::config::model::{self, ModelAddArgs, ModelCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::ModelId;
 
 const CATALOG: &str = r#"

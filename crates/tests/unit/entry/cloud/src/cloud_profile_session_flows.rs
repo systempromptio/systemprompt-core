@@ -1,8 +1,9 @@
 //! `cloud deploy` profile selection and the interactive `cloud profile` menu,
 //! run inside an owned project whose profile the tests rewrite.
 
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides};
+use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_cloud::SessionKey;
+use systemprompt_extension::cli::CliConfig;
 
 use crate::session_project_fixture::Project;
 

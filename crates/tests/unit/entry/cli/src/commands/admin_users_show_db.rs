@@ -6,8 +6,8 @@
 use clap::Parser;
 use std::sync::Arc;
 use systemprompt_cli::admin::users::{self, UsersCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
-use systemprompt_database::DbPool;
+use systemprompt_cli::{CommandContext, EnvOverrides};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::SessionId;
 use systemprompt_test_fixtures::{
     seed_user_session, test_app_context, test_database_url, test_db_pool,
@@ -28,13 +28,13 @@ fn parse(args: &[&str]) -> UsersCommands {
 }
 
 
-fn ctx(pool: &DbPool, json: bool) -> CommandContext {
+async fn ctx(json: bool) -> CommandContext {
     let url = test_database_url();
     let mut cli = CliConfig::new().with_interactive(false);
     if json {
         cli = cli.with_output_format(OutputFormat::Json);
     }
-    crate::boot_ctx::with_app_boot(cli, EnvOverrides::default(), test_app_context(pool, &url))
+    crate::boot_ctx::with_app_boot(cli, EnvOverrides::default(), test_app_context(&url).await)
 }
 
 fn unique(prefix: &str) -> (String, String) {
@@ -60,22 +60,21 @@ async fn show_finds_user_by_email_with_sessions_and_activity() {
 
     users::execute(
         parse(&["show", &email, "--sessions", "--activity"]),
-        &ctx(&pool, true),
+        &ctx(true).await,
     )
     .await
     .unwrap();
 
-    users::execute(parse(&["show", &email]), &ctx(&pool, false))
+    users::execute(parse(&["show", &email]), &ctx(false).await)
         .await
         .unwrap();
 }
 
 #[tokio::test]
 async fn show_rejects_unknown_identifier() {
-    let pool = test_db_pool().await;
     let err = users::execute(
         parse(&["show", "no-such-user@show.invalid"]),
-        &ctx(&pool, false),
+        &ctx(false).await,
     )
     .await
     .expect_err("unknown user");

@@ -9,7 +9,8 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use systemprompt_cli::admin::config::{ConfigCommands, execute};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 
 #[derive(Debug, Parser)]
 struct Harness {
@@ -44,7 +45,7 @@ fn profile_yaml() -> String {
 
 async fn run(args: &[&str]) -> anyhow::Result<()> {
     profile_path();
-    execute(parse(args), &ctx()).await
+    execute(parse(args), &ctx()).await.map(drop)
 }
 
 #[tokio::test]

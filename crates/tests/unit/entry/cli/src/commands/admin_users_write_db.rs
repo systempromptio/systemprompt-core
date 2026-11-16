@@ -6,8 +6,8 @@
 use clap::Parser;
 use std::sync::Arc;
 use systemprompt_cli::admin::users::{self, UsersCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
-use systemprompt_database::DbPool;
+use systemprompt_cli::{CommandContext, EnvOverrides};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
 use systemprompt_users::{UserRepository, UserService};
 use uuid::Uuid;
@@ -25,14 +25,14 @@ fn parse(args: &[&str]) -> UsersCommands {
 }
 
 
-fn ctx(pool: &DbPool) -> CommandContext {
+async fn ctx() -> CommandContext {
     let url = test_database_url();
     crate::boot_ctx::with_app_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
-        test_app_context(pool, &url),
+        test_app_context(&url).await,
     )
 }
 
@@ -55,7 +55,7 @@ async fn update_applies_every_field() {
         .unwrap();
 
     let (_new_name, new_email) = unique("upd2");
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     users::execute(
         parse(&[
             "update",
@@ -85,7 +85,9 @@ async fn update_applies_every_field() {
     assert_eq!(refreshed.full_name.as_deref(), Some("New Full"));
     assert_eq!(refreshed.display_name.as_deref(), Some("New Disp"));
 
-    let _ = service.delete(&user.id).await;
+    let _ = service
+        .delete(&user.id, &crate::boot_ctx::core_purge())
+        .await;
 }
 
 #[tokio::test]
@@ -95,19 +97,20 @@ async fn update_without_fields_errors() {
     let (name, email) = unique("updn");
     let user = service.create(&name, &email, None, None).await.unwrap();
 
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     let err = users::execute(parse(&["update", user.id.as_str()]), &ctx)
         .await
         .unwrap_err();
     assert!(err.to_string().contains("No fields to update"), "{err}");
 
-    let _ = service.delete(&user.id).await;
+    let _ = service
+        .delete(&user.id, &crate::boot_ctx::core_purge())
+        .await;
 }
 
 #[tokio::test]
 async fn update_missing_user_errors() {
-    let pool = test_db_pool().await;
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     let missing = format!("no-such-{}", Uuid::new_v4().simple());
     let err = users::execute(parse(&["update", &missing, "--full-name", "x"]), &ctx)
         .await
@@ -124,7 +127,7 @@ async fn merge_transfers_and_deletes_source() {
     let source = service.create(&sn, &se, None, None).await.unwrap();
     let target = service.create(&tn, &te, None, None).await.unwrap();
 
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     users::execute(
         parse(&[
             "merge",
@@ -145,13 +148,14 @@ async fn merge_transfers_and_deletes_source() {
     );
     assert!(service.find_by_id(&target.id).await.unwrap().is_some());
 
-    let _ = service.delete(&target.id).await;
+    let _ = service
+        .delete(&target.id, &crate::boot_ctx::core_purge())
+        .await;
 }
 
 #[tokio::test]
 async fn merge_requires_confirmation() {
-    let pool = test_db_pool().await;
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     let err = users::execute(parse(&["merge", "--source", "a", "--target", "b"]), &ctx)
         .await
         .unwrap_err();
@@ -165,7 +169,7 @@ async fn merge_same_user_errors() {
     let (n, e) = unique("mrgsame");
     let user = service.create(&n, &e, None, None).await.unwrap();
 
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     let err = users::execute(
         parse(&[
             "merge",
@@ -181,7 +185,9 @@ async fn merge_same_user_errors() {
     .unwrap_err();
     assert!(err.to_string().contains("cannot be the same"), "{err}");
 
-    let _ = service.delete(&user.id).await;
+    let _ = service
+        .delete(&user.id, &crate::boot_ctx::core_purge())
+        .await;
 }
 
 #[tokio::test]
@@ -191,7 +197,7 @@ async fn merge_missing_users_errors() {
     let (n, e) = unique("mrgok");
     let target = service.create(&n, &e, None, None).await.unwrap();
 
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     let missing = format!("no-src-{}", Uuid::new_v4().simple());
     let err = users::execute(
         parse(&[
@@ -208,5 +214,7 @@ async fn merge_missing_users_errors() {
     .unwrap_err();
     assert!(err.to_string().contains("Source user not found"), "{err}");
 
-    let _ = service.delete(&target.id).await;
+    let _ = service
+        .delete(&target.id, &crate::boot_ctx::core_purge())
+        .await;
 }

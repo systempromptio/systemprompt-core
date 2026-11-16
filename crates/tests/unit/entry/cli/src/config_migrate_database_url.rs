@@ -7,9 +7,9 @@
 use systemprompt_cli::admin::AdminCommands;
 use systemprompt_cli::admin::config::ConfigCommands;
 use systemprompt_cli::admin::config::migrate::MigrateArgs;
-use systemprompt_cli::cli_settings::{CliConfig, OutputFormat};
 use systemprompt_cli::context::CommandContext;
 use systemprompt_cli::env_overrides::EnvOverrides;
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_runtime::DatabaseContext;
 use systemprompt_test_fixtures::{DisposableDb, ensure_test_bootstrap};
 

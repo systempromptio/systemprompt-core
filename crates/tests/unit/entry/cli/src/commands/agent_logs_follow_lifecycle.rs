@@ -7,7 +7,8 @@ use systemprompt_test_fixtures::bounded_output;
 
 use clap::Parser;
 use systemprompt_cli::admin::agents::{self, AgentsCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 
 const HELPER: &str = "commands::agent_logs_follow_lifecycle::agent_logs_follow_helper";
 

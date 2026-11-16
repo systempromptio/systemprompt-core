@@ -5,7 +5,8 @@ use std::collections::BTreeMap;
 use clap::Parser;
 use systemprompt_cli::core::skills::list::show_resolved_skill;
 use systemprompt_cli::core::{self, CoreCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_marketplace::managed::{
     AssetDigest, AssetFile, ComparisonEvidence, NewResource, NewRevision, PublicationAction,
     PublicationRequest, ResourceKind, RevisionFiles, SnapshotProvenance, SourceSpec,
@@ -77,7 +78,7 @@ fn seed_disk_skill(key: &str) {
 async fn fixture() -> ManagedSkillFixture {
     let bootstrap = ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let app = test_app_context(&pool, &bootstrap.database_url);
+    let app = test_app_context(&bootstrap.database_url).await;
     let owner = app.system_admin().id().clone();
     seed_user_row(
         &pool,

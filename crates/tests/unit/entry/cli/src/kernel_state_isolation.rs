@@ -6,20 +6,24 @@
 use std::sync::Arc;
 
 use systemprompt_cli::kernel::{KernelHost, MemberHost};
-use systemprompt_cli::{CliConfig, CommandContext, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
+use systemprompt_config::SecretsSources;
+use systemprompt_extension::cli::{
+    CliConfig, CommandDescriptor, CommandHost, KernelGrant, OutputFormat,
+};
 use systemprompt_identifiers::{InstanceId, UserId};
+use systemprompt_manifest::Config;
 use systemprompt_manifest::services::SystemAdmin;
 use systemprompt_runtime::Kernel;
 use systemprompt_traits::{BackgroundTasks, Dependencies};
-use systemprompt_cli::EnvOverrides;
-use systemprompt_config::SecretsSources;
-use systemprompt_extension::cli::{CommandDescriptor, CommandHost, KernelGrant};
-use systemprompt_manifest::Config;
 
 use crate::kernel_host::profile_host;
 use crate::services_profile_fixture as fx;
 
-fn assert_missing<T: Send + Sync + 'static>(host: &dyn CommandHost, runtime: &tokio::runtime::Runtime) {
+fn assert_missing<T: Clone + Send + Sync + 'static>(
+    host: &dyn CommandHost,
+    runtime: &tokio::runtime::Runtime,
+) {
     runtime.block_on(async {
         let resolved = host.resolved().await.expect("the detached kernel resolves");
         assert!(
@@ -111,7 +115,10 @@ async fn a_member_command_is_refused_a_sealed_seed_as_missing() {
         systemprompt_extension::MissingDependency::of::<SystemAdmin>()
     );
     assert!(resolved.optional::<SystemAdmin>().is_none());
-    assert!(resolved.get::<InstanceId>().is_ok(), "an open seed is served");
+    assert!(
+        resolved.get::<InstanceId>().is_ok(),
+        "an open seed is served"
+    );
 }
 
 #[tokio::test]
@@ -126,13 +133,12 @@ async fn a_kernel_command_reads_a_sealed_seed() {
 async fn app_host() -> CommandContext {
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let url = systemprompt_test_fixtures::test_database_url();
-    let pool = systemprompt_test_fixtures::test_db_pool().await;
     CommandContext::with_app_context(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
-        systemprompt_test_fixtures::test_app_context(&pool, &url),
+        systemprompt_test_fixtures::test_app_context(&url).await,
     )
 }
 
@@ -156,7 +162,10 @@ async fn a_config_reconcile_grant_serves_the_config_apply_service() {
             .is_err(),
         "no member resolves the application context"
     );
-    assert!(resolved.get::<Arc<Config>>().is_err(), "the grant unseals nothing");
+    assert!(
+        resolved.get::<Arc<Config>>().is_err(),
+        "the grant unseals nothing"
+    );
 }
 
 #[tokio::test]

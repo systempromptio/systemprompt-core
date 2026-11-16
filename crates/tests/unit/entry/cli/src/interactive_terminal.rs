@@ -8,11 +8,13 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_cli::interactive::{
-    ScriptedPrompter, confirm_optional, prompt_input, prompt_input_with_default,
-    require_confirmation, require_confirmation_default_yes, resolve_required, select_from_list,
+    ScriptedPrompter, confirm_optional, prompt_input, prompt_input_with_default, select_from_list,
     select_index,
 };
-use systemprompt_cli::{CliConfig, VerbosityLevel};
+use systemprompt_extension::cli::{
+    CliConfig, VerbosityLevel, require_confirmation, require_confirmation_default_yes,
+    resolve_required,
+};
 
 fn terminal() -> CliConfig {
     CliConfig::default()
@@ -48,12 +50,9 @@ fn default_yes_variant_also_honours_the_answer() {
 
 #[test]
 fn resolve_required_falls_back_to_the_prompt_when_the_flag_is_absent() {
-    let resolved = resolve_required(
-        None,
-        "name",
-        &terminal(),
-        || Ok("prompted-value".to_owned()),
-    )
+    let resolved = resolve_required(None, "name", &terminal(), || {
+        Ok::<_, anyhow::Error>("prompted-value".to_owned())
+    })
     .unwrap();
     assert_eq!(resolved, "prompted-value");
 }

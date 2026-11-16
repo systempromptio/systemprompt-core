@@ -5,9 +5,9 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_cli::admin::config::apply::{ApplyArgs, execute};
-use systemprompt_cli::cli_settings::{CliConfig, OutputFormat};
 use systemprompt_cli::context::CommandContext;
 use systemprompt_cli::env_overrides::EnvOverrides;
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_test_fixtures::{
     DisposableDb, ensure_test_bootstrap, seed_fixture_system_admin, test_database_url,
 };

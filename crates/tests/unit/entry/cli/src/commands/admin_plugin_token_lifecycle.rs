@@ -6,7 +6,8 @@ use systemprompt_identifiers::PluginId;
 use base64::Engine;
 use clap::Parser;
 use systemprompt_cli::admin::keys::{self, KeysCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::UserId;
 use systemprompt_security::HookTokenValidator;
 use systemprompt_test_fixtures::{

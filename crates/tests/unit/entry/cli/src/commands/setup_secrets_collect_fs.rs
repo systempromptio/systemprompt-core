@@ -7,11 +7,11 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::CliConfig;
 use systemprompt_cli::admin::setup::SetupArgs;
 use systemprompt_cli::admin::setup::secrets::{collect_interactive, collect_non_interactive};
 use systemprompt_cli::interactive::ScriptedPrompter;
 use systemprompt_config::decode_master_key;
+use systemprompt_extension::cli::CliConfig;
 
 fn args() -> SetupArgs {
     SetupArgs {

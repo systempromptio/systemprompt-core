@@ -1,6 +1,6 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::shared::ChartType;
+use systemprompt_extension::cli::ChartType;
 
 #[test]
 fn test_chart_type_bar_variant() {

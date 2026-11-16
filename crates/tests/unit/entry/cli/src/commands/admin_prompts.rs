@@ -5,13 +5,13 @@
 
 use std::path::Path;
 
-use systemprompt_cli::CliConfig;
 use systemprompt_cli::admin::agents::create::{
     prompt_name, prompt_port, resolve_description, resolve_display_name, validate_name_input,
     validate_port_input,
 };
 use systemprompt_cli::admin::agents::logs_disk::select_agent_from_log_files;
 use systemprompt_cli::interactive::ScriptedPrompter;
+use systemprompt_extension::cli::CliConfig;
 
 fn scripted(answers: &[&str]) -> ScriptedPrompter {
     ScriptedPrompter::new(answers.iter().map(|s| (*s).to_owned()))

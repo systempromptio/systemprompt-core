@@ -4,16 +4,29 @@ use std::path::PathBuf;
 
 use systemprompt_cli::admin::session::list::discover_profiles;
 use systemprompt_cli::interactive::ScriptedPrompter;
+use systemprompt_cloud_entry::cli::AdmittedViews;
 use systemprompt_cloud_entry::cli::deploy::DeployProfile;
 use systemprompt_cloud_entry::cli::deploy::pipeline::DeploySecretsSource;
 use systemprompt_cloud_entry::cli::doctor::{CheckStatus, run_managed};
 use systemprompt_cloud_entry::cli::profile::edit_document::ProfileEdit;
 use systemprompt_cloud_entry::cli::profile::edit_settings::edit_server_settings;
 use systemprompt_config::LoadedProfile;
+use systemprompt_extension::{AdmittedAssets, AdmittedConfigs, AdmittedMigrations};
 use systemprompt_manifest::ProfileType;
 use systemprompt_manifest::profile::ManagedProfile;
+use systemprompt_test_fixtures::fixture_admitted;
 
 use crate::services_profile_fixture::{ProfileTree, https_sources_block, write_tree};
+
+fn admitted_views() -> AdmittedViews {
+    let admitted = fixture_admitted();
+    let built = admitted.built();
+    AdmittedViews {
+        migrations: AdmittedMigrations::of(built),
+        configs: AdmittedConfigs::of(built),
+        assets: AdmittedAssets::of(built),
+    }
+}
 
 const TARGET_ONLY: &str = "SP_TARGET_ONLY_EXTERNAL_URL_c41e";
 const VAULT_ADDR: &str = "SP_TARGET_ONLY_VAULT_ADDR_c41e";
@@ -121,7 +134,13 @@ async fn the_deploy_preflight_does_not_block_on_a_target_only_variable() {
     let fixture = cloud_profile();
     let managed = ManagedProfile::load(&fixture.path).expect("management view loads");
 
-    let report = run_managed(&managed, fixture.path.parent().unwrap(), false).await;
+    let report = run_managed(
+        &managed,
+        fixture.path.parent().unwrap(),
+        false,
+        &admitted_views(),
+    )
+    .await;
 
     assert!(!report.has_blocking());
     assert!(
@@ -170,7 +189,7 @@ async fn the_preflight_runs_every_check_whose_inputs_resolve() {
     .unwrap();
     let managed = ManagedProfile::load(&fixture.path).expect("management view loads");
 
-    let report = run_managed(&managed, dir, false).await;
+    let report = run_managed(&managed, dir, false, &admitted_views()).await;
 
     let status = |name: &str| {
         report
@@ -292,12 +311,14 @@ async fn deploy_check(fixture: &CloudProfile) -> anyhow::Result<()> {
         .unwrap()
         .cmd;
     let ctx = systemprompt_cli::CommandContext::new(
-        systemprompt_cli::CliConfig::new().with_interactive(false),
+        systemprompt_extension::cli::CliConfig::new().with_interactive(false),
         systemprompt_cli::EnvOverrides::default(),
-    );
+    )
+    .with_admitted(Some(fixture_admitted()))
+    .with_detached_kernel();
     let outcome = systemprompt_cloud_entry::cli::execute(cmd, &ctx).await;
     std::env::set_current_dir(previous).unwrap();
-    outcome
+    outcome.map(drop)
 }
 
 fn with_access_token_expiration(fixture: &CloudProfile, seconds: &str) {
@@ -318,7 +339,13 @@ async fn an_invalid_resolved_field_blocks_the_preflight_despite_a_target_only_va
     with_access_token_expiration(&fixture, "-1");
     let managed = ManagedProfile::load(&fixture.path).expect("management view loads");
 
-    let report = run_managed(&managed, fixture.path.parent().unwrap(), false).await;
+    let report = run_managed(
+        &managed,
+        fixture.path.parent().unwrap(),
+        false,
+        &admitted_views(),
+    )
+    .await;
 
     assert!(report.has_blocking(), "{:?}", report.checks());
     let profile = report
@@ -358,7 +385,13 @@ async fn the_corrected_profile_deploys_with_the_not_evaluated_note() {
     with_access_token_expiration(&fixture, "900");
     let managed = ManagedProfile::load(&fixture.path).expect("management view loads");
 
-    let report = run_managed(&managed, fixture.path.parent().unwrap(), false).await;
+    let report = run_managed(
+        &managed,
+        fixture.path.parent().unwrap(),
+        false,
+        &admitted_views(),
+    )
+    .await;
 
     assert!(!report.has_blocking(), "{:?}", report.checks());
     assert!(report.not_evaluated() > 0);

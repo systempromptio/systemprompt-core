@@ -5,8 +5,9 @@
 
 use clap::Parser;
 use systemprompt_cli::admin::users::{self, UsersCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::UserId;
 use systemprompt_test_fixtures::{
     seed_user_row, test_app_context, test_database_url, test_db_pool,
@@ -25,19 +26,19 @@ fn parse(args: &[&str]) -> UsersCommands {
         .cmd
 }
 
-fn ctx(pool: &DbPool) -> CommandContext {
+async fn ctx() -> CommandContext {
     let url = test_database_url();
     crate::boot_ctx::with_app_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
-        test_app_context(pool, &url),
+        test_app_context(&url).await,
     )
 }
 
-async fn run(pool: &DbPool, args: &[&str]) -> anyhow::Result<()> {
-    users::execute(parse(args), &ctx(pool)).await
+async fn run(args: &[&str]) -> anyhow::Result<()> {
+    users::execute(parse(args), &ctx().await).await.map(drop)
 }
 
 async fn seeded_user(pool: &DbPool) -> String {
@@ -72,8 +73,8 @@ async fn issuing_if_absent_twice_leaves_one_key() {
         "--if-absent",
     ];
 
-    run(&pool, &args).await.expect("first issue");
-    run(&pool, &args).await.expect("second issue is a no-op");
+    run(&args).await.expect("first issue");
+    run(&args).await.expect("second issue is a no-op");
 
     assert_eq!(key_hashes(&pool, &user).await.len(), 1);
 }
@@ -84,8 +85,8 @@ async fn without_if_absent_every_issue_mints_a_new_key() {
     let user = seeded_user(&pool).await;
     let args = ["api-key", "issue", "--user", &user, "--name", "deploy"];
 
-    run(&pool, &args).await.expect("first");
-    run(&pool, &args).await.expect("second");
+    run(&args).await.expect("first");
+    run(&args).await.expect("second");
 
     assert_eq!(key_hashes(&pool, &user).await.len(), 2);
 }
@@ -100,19 +101,16 @@ async fn the_secret_file_holds_the_issued_secret_with_owner_only_mode() {
     let path = dir.path().join("pat");
     let path_str = path.to_str().unwrap().to_owned();
 
-    run(
-        &pool,
-        &[
-            "api-key",
-            "issue",
-            "--user",
-            &user,
-            "--name",
-            "filed",
-            "--secret-file",
-            &path_str,
-        ],
-    )
+    run(&[
+        "api-key",
+        "issue",
+        "--user",
+        &user,
+        "--name",
+        "filed",
+        "--secret-file",
+        &path_str,
+    ])
     .await
     .expect("issue");
 
@@ -168,8 +166,8 @@ async fn creating_a_service_account_twice_yields_one_account() {
         &creator,
     ];
 
-    run(&pool, &args).await.expect("create");
-    run(&pool, &args).await.expect("re-create is a no-op");
+    run(&args).await.expect("create");
+    run(&args).await.expect("re-create is a no-op");
 
     let (count,): (i64,) =
         sqlx::query_as("SELECT COUNT(*) FROM users WHERE email = $1 AND account_kind = 'service'")

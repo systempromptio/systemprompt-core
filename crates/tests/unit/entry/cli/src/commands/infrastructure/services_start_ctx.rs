@@ -17,8 +17,9 @@ use systemprompt_cli::infrastructure::services::start::{
     ServiceFlags, ServiceTarget, ServiceTargetFlags,
 };
 use systemprompt_cli::infrastructure::services::{self, ServicesCommands, load_service_configs};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
     DisposableDb, ensure_test_bootstrap, test_app_context, test_database_url, test_db_pool,
@@ -40,7 +41,7 @@ async fn app() -> (DbPool, Arc<AppContext>) {
     ensure_test_bootstrap();
     let url = test_database_url();
     let pool = test_db_pool().await;
-    let ctx = test_app_context(&pool, &url);
+    let ctx = test_app_context(&url).await;
     (pool, ctx)
 }
 
@@ -129,7 +130,7 @@ async fn a_start_without_skip_migrate_runs_the_migration_phase_idempotently() {
     ensure_test_bootstrap();
     let disp = DisposableDb::with_schema("cov_cli_startmig").await;
     let pool = disp.test_pool().await;
-    let app = test_app_context(&pool, disp.url());
+    let app = test_app_context(disp.url()).await;
 
     let applied_before = applied_migration_count(&pool).await;
 

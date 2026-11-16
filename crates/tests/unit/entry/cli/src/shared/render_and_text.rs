@@ -8,8 +8,8 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use serde::Serialize;
-use systemprompt_cli::cli_settings::{CliConfig, OutputFormat};
-use systemprompt_cli::shared::{ChartType, CommandOutput, render_result};
+use systemprompt_cli::shared::render_result;
+use systemprompt_extension::cli::{ChartType, CliConfig, CommandOutput, OutputFormat};
 use systemprompt_models::artifacts::{
     ChartArtifact, DashboardArtifact, ListItem, PresentationCardArtifact,
 };

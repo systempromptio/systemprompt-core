@@ -178,15 +178,15 @@ fn a_group_under_a_missing_parent_is_refused() {
 
 #[test]
 fn a_leaf_under_a_contributed_group_resolves_and_may_not_shadow_its_subcommand() {
-    let registry = registry(vec![
+    let resolving = registry(vec![
         ("probe-ext", CommandDecl::group::<ProbeGroup>()),
         (
             "probe-ext",
             CommandDecl::leaf_under::<UnderProbe, StatusLeaf>(),
         ),
     ]);
-    let root = args::command(&registry).expect("the tree assembles");
-    let resolved = registry
+    let root = args::command(&resolving).expect("the tree assembles");
+    let resolved = resolving
         .resolve(
             &root
                 .try_get_matches_from(["systemprompt", "probe", "status"])
@@ -196,7 +196,7 @@ fn a_leaf_under_a_contributed_group_resolves_and_may_not_shadow_its_subcommand()
         .expect("the leaf is an entry");
     assert_eq!(resolved.path, ["probe", "status"]);
 
-    let registry = registry(vec![
+    let shadowing = registry(vec![
         ("probe-ext", CommandDecl::group::<ProbeGroup>()),
         (
             "probe-ext",
@@ -204,7 +204,7 @@ fn a_leaf_under_a_contributed_group_resolves_and_may_not_shadow_its_subcommand()
         ),
     ]);
     assert!(matches!(
-        args::command(&registry),
+        args::command(&shadowing),
         Err(RegistryError::ShadowsGroup { .. })
     ));
 }

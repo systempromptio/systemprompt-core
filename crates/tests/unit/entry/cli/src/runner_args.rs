@@ -9,11 +9,13 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use clap::Parser;
+use systemprompt_cli::EnvOverrides;
 use systemprompt_cli::args::{
     Cli, build_cli_config, has_local_export_flag_in, reconstruct_args_from,
 };
-use systemprompt_cli::descriptor::{CommandDescriptor, DescribeCommand};
-use systemprompt_cli::{ColorMode, EnvOverrides, OutputFormat, VerbosityLevel};
+use systemprompt_extension::cli::{
+    ColorMode, CommandDescriptor, DescribeCommand, OutputFormat, VerbosityLevel,
+};
 
 fn cli(args: &[&str]) -> Cli {
     Cli::try_parse_from(std::iter::once("systemprompt").chain(args.iter().copied()))

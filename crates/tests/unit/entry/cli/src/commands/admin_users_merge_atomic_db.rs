@@ -3,8 +3,9 @@
 use std::sync::Arc;
 
 use clap::Parser;
+use systemprompt_cli::EnvOverrides;
 use systemprompt_cli::admin::users::{self, UsersCommands};
-use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::SessionId;
 use systemprompt_test_fixtures::{
     DisposableDb, ensure_test_bootstrap, seed_user_session, test_app_context,
@@ -75,7 +76,7 @@ async fn merge_rolls_back_transfers_on_late_failure_and_retry_commits_once() {
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
-        test_app_context(&pool, database.url()),
+        test_app_context(database.url()).await,
     );
     let command = || {
         parse(&[

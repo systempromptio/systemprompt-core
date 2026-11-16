@@ -6,9 +6,9 @@ use systemprompt_cli::admin::config::catalog::CatalogCommands;
 use systemprompt_cli::admin::session::SessionCommands;
 use systemprompt_cli::admin::session::login::LoginArgs;
 use systemprompt_cli::args::Commands;
-use systemprompt_cli::descriptor::{CommandDescriptor, DescribeCommand, RoutingClass};
 use systemprompt_cli::infrastructure::InfraCommands;
 use systemprompt_cli::infrastructure::services::ServicesCommands;
+use systemprompt_extension::cli::{CommandDescriptor, DescribeCommand, RoutingClass};
 
 #[test]
 fn session_switch_needs_no_profile_context() {

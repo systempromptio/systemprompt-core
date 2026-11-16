@@ -7,12 +7,12 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::CliConfig;
 use systemprompt_cli::admin::setup::SetupArgs;
 use systemprompt_cli::admin::setup::wizard_prompts::{
     detect_project_root, get_environment_name, resolve_admin_email, should_run_migrations,
 };
 use systemprompt_cli::interactive::ScriptedPrompter;
+use systemprompt_extension::cli::CliConfig;
 
 fn args() -> SetupArgs {
     SetupArgs {

@@ -4,11 +4,10 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::CliConfig;
 use systemprompt_cli::admin::agents::{logs as agent_logs, logs_db as agent_logs_db};
 use systemprompt_cli::plugins::mcp::{logs as mcp_logs, logs_db as mcp_logs_db};
-use systemprompt_cli::shared::CommandOutput;
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 use systemprompt_identifiers::{SessionId, TraceId};
 use systemprompt_logging::{LogActor, LogEntry, LogLevel, LoggingRepository};
 use systemprompt_test_fixtures::{test_db_pool, unique_user_id};

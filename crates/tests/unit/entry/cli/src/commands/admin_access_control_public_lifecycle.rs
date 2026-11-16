@@ -2,10 +2,11 @@
 
 use std::process::Command;
 
+use systemprompt_cli::EnvOverrides;
 use systemprompt_cli::admin::access_control::{
     self, AccessControlCommands, ExportYamlArgs, LintArgs,
 };
-use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::UserId;
 use systemprompt_test_fixtures::{
     DisposableDb, bounded_output, ensure_test_bootstrap, seed_user_row_with_roles,

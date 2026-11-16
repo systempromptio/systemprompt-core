@@ -7,8 +7,9 @@ use clap::Parser;
 use std::sync::Arc;
 use systemprompt_cli::admin::users::{self, UsersCommands};
 use systemprompt_cli::session::api::{DEFAULT_CLI_SESSION_HOURS, create_local_session_row};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_runtime::DatabaseContext;
 use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
 use systemprompt_users::{UserRepository, UserService};
@@ -27,14 +28,14 @@ fn parse(args: &[&str]) -> UsersCommands {
 }
 
 
-fn ctx(pool: &DbPool) -> CommandContext {
+async fn ctx() -> CommandContext {
     let url = test_database_url();
     crate::boot_ctx::with_app_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
-        test_app_context(pool, &url),
+        test_app_context(&url).await,
     )
 }
 
@@ -64,7 +65,7 @@ async fn role_assign_replaces_roles() {
     let (n, e) = unique("assign");
     let user = service.create(&n, &e, None, None).await.unwrap();
 
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     users::execute(
         parse(&["role", "assign", user.id.as_str(), "--roles", "user,admin"]),
         &ctx,
@@ -79,13 +80,14 @@ async fn role_assign_replaces_roles() {
         updated.roles
     );
 
-    let _ = service.delete(&user.id).await;
+    let _ = service
+        .delete(&user.id, &crate::boot_ctx::core_purge())
+        .await;
 }
 
 #[tokio::test]
 async fn role_assign_unknown_user_errors() {
-    let pool = test_db_pool().await;
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     let missing = format!("no-user-{}", Uuid::new_v4().simple());
     let err = users::execute(
         parse(&["role", "assign", &missing, "--roles", "admin"]),
@@ -103,7 +105,7 @@ async fn role_promote_then_repeat_reports_already_admin() {
     let (n, e) = unique("promote");
     let user = service.create(&n, &e, None, None).await.unwrap();
 
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     users::execute(parse(&["role", "promote", user.id.as_str()]), &ctx)
         .await
         .unwrap();
@@ -119,13 +121,14 @@ async fn role_promote_then_repeat_reports_already_admin() {
         .await
         .unwrap();
 
-    let _ = service.delete(&user.id).await;
+    let _ = service
+        .delete(&user.id, &crate::boot_ctx::core_purge())
+        .await;
 }
 
 #[tokio::test]
 async fn role_promote_unknown_user_errors() {
-    let pool = test_db_pool().await;
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     let missing = format!("no-user-{}", Uuid::new_v4().simple());
     let err = users::execute(parse(&["role", "promote", &missing]), &ctx)
         .await
@@ -140,7 +143,7 @@ async fn role_demote_admin_and_non_admin_paths() {
     let (n, e) = unique("demote");
     let user = service.create(&n, &e, None, None).await.unwrap();
 
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     users::execute(parse(&["role", "promote", user.id.as_str()]), &ctx)
         .await
         .unwrap();
@@ -159,13 +162,14 @@ async fn role_demote_admin_and_non_admin_paths() {
         .await
         .unwrap();
 
-    let _ = service.delete(&user.id).await;
+    let _ = service
+        .delete(&user.id, &crate::boot_ctx::core_purge())
+        .await;
 }
 
 #[tokio::test]
 async fn role_demote_unknown_user_errors() {
-    let pool = test_db_pool().await;
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     let missing = format!("no-user-{}", Uuid::new_v4().simple());
     let err = users::execute(parse(&["role", "demote", &missing]), &ctx)
         .await
@@ -186,7 +190,7 @@ async fn role_commands_require_full_profile_context() {
 #[tokio::test]
 async fn delete_requires_confirmation() {
     let pool = test_db_pool().await;
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     let service = UserService::new(Arc::new(UserRepository::new(&pool)));
     let (n, e) = unique("delconfirm");
     let user = service.create(&n, &e, None, None).await.unwrap();
@@ -212,8 +216,7 @@ async fn delete_requires_confirmation() {
 
 #[tokio::test]
 async fn delete_of_an_unknown_reference_reports_not_found() {
-    let pool = test_db_pool().await;
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     let err = users::execute(parse(&["delete", "no-such-user-reference"]), &ctx)
         .await
         .unwrap_err();
@@ -230,7 +233,7 @@ async fn delete_removes_user() {
     let (n, e) = unique("del");
     let user = service.create(&n, &e, None, None).await.unwrap();
 
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     users::execute(parse(&["delete", user.id.as_str(), "--yes"]), &ctx)
         .await
         .unwrap();
@@ -240,8 +243,7 @@ async fn delete_removes_user() {
 
 #[tokio::test]
 async fn delete_unknown_user_errors() {
-    let pool = test_db_pool().await;
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     let missing = format!("no-user-{}", Uuid::new_v4().simple());
     let err = users::execute(parse(&["delete", &missing, "--yes"]), &ctx)
         .await
@@ -256,13 +258,15 @@ async fn count_breakdown_reports_totals() {
     let (n, e) = unique("count");
     let user = service.create(&n, &e, None, None).await.unwrap();
 
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     users::execute(parse(&["count", "--breakdown"]), &ctx)
         .await
         .unwrap();
     users::execute(parse(&["count"]), &ctx).await.unwrap();
 
-    let _ = service.delete(&user.id).await;
+    let _ = service
+        .delete(&user.id, &crate::boot_ctx::core_purge())
+        .await;
 }
 
 #[tokio::test]
@@ -281,7 +285,7 @@ async fn session_list_recent_and_active_for_seeded_user() {
     .await
     .unwrap();
 
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     users::execute(parse(&["session", "list", user.id.as_str()]), &ctx)
         .await
         .unwrap();
@@ -292,13 +296,14 @@ async fn session_list_recent_and_active_for_seeded_user() {
     .await
     .unwrap();
 
-    let _ = service.delete(&user.id).await;
+    let _ = service
+        .delete(&user.id, &crate::boot_ctx::core_purge())
+        .await;
 }
 
 #[tokio::test]
 async fn session_list_unknown_user_errors() {
-    let pool = test_db_pool().await;
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     let missing = format!("no-user-{}", Uuid::new_v4().simple());
     let err = users::execute(parse(&["session", "list", &missing]), &ctx)
         .await
@@ -308,8 +313,7 @@ async fn session_list_unknown_user_errors() {
 
 #[tokio::test]
 async fn session_cleanup_requires_confirmation() {
-    let pool = test_db_pool().await;
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     let err = users::execute(parse(&["session", "cleanup"]), &ctx)
         .await
         .unwrap_err();
@@ -328,7 +332,7 @@ async fn session_cleanup_deletes_old_anonymous_users() {
         .await
         .unwrap();
 
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     users::execute(
         parse(&["session", "cleanup", "--days", "30", "--yes"]),
         &ctx,

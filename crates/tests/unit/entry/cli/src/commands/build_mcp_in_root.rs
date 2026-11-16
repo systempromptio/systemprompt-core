@@ -12,7 +12,7 @@ use std::path::Path;
 use systemprompt_loader::subprocess::ForegroundChildren;
 
 use systemprompt_cli::build::mcp::{McpArgs, execute_in_root};
-use systemprompt_cli::{CliConfig, OutputFormat};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 
 fn config() -> CliConfig {
     CliConfig::new()
@@ -26,7 +26,7 @@ fn write_manifest(root: &Path, dir_name: &str, body: &str) {
     fs::write(dir.join("manifest.yaml"), body).unwrap();
 }
 
-fn artifact_text(output: &systemprompt_cli::shared::CommandOutput) -> String {
+fn artifact_text(output: &systemprompt_extension::cli::CommandOutput) -> String {
     serde_json::to_value(output.artifact()).unwrap().to_string()
 }
 

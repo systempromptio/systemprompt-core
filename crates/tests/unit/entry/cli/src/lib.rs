@@ -41,13 +41,13 @@ mod help_env_values;
 #[cfg(test)]
 mod interactive;
 #[cfg(test)]
-mod kernel_host;
-
-mod kernel_state_isolation;
-#[cfg(test)]
 mod interactive_terminal;
 #[cfg(test)]
 mod irreversible_confirmation;
+#[cfg(test)]
+mod kernel_host;
+#[cfg(test)]
+mod kernel_state_isolation;
 #[cfg(test)]
 mod mcp_probe_flows;
 #[cfg(test)]

@@ -11,8 +11,8 @@
 use std::sync::Arc;
 
 use systemprompt_cli::infrastructure::services::restart;
-use systemprompt_cli::{CliConfig, OutputFormat};
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::McpServerId;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
@@ -26,7 +26,7 @@ async fn app_ctx() -> (DbPool, Arc<AppContext>) {
     ensure_test_bootstrap();
     let url = test_database_url();
     let pool = test_db_pool().await;
-    let ctx = test_app_context(&pool, &url);
+    let ctx = test_app_context(&url).await;
     (pool, ctx)
 }
 
@@ -43,7 +43,7 @@ fn text_config() -> CliConfig {
 // `card_value` flattens the output struct into presentation sections, so the
 // fields are read back out of the rendered card rather than off a nested
 // object.
-fn field(out: &systemprompt_cli::shared::CommandOutput, key: &str) -> Option<String> {
+fn field(out: &systemprompt_extension::cli::CommandOutput, key: &str) -> Option<String> {
     let card = serde_json::to_value(out.artifact()).unwrap();
     for section in card.get("sections")?.as_array()? {
         if section.get("heading").and_then(|h| h.as_str()) == Some(key) {
@@ -58,29 +58,29 @@ fn field(out: &systemprompt_cli::shared::CommandOutput, key: &str) -> Option<Str
     None
 }
 
-fn rendered(out: &systemprompt_cli::shared::CommandOutput) -> String {
+fn rendered(out: &systemprompt_extension::cli::CommandOutput) -> String {
     serde_json::to_string(&serde_json::to_value(out.artifact()).unwrap()).unwrap()
 }
 
-fn restarted_count(out: &systemprompt_cli::shared::CommandOutput) -> u64 {
+fn restarted_count(out: &systemprompt_extension::cli::CommandOutput) -> u64 {
     field(out, "restarted_count")
         .unwrap_or_else(|| panic!("no restarted_count in {}", rendered(out)))
         .parse()
         .expect("restarted_count is numeric")
 }
 
-fn failed_count(out: &systemprompt_cli::shared::CommandOutput) -> u64 {
+fn failed_count(out: &systemprompt_extension::cli::CommandOutput) -> u64 {
     field(out, "failed_count")
         .unwrap_or_else(|| panic!("no failed_count in {}", rendered(out)))
         .parse()
         .expect("failed_count is numeric")
 }
 
-fn message(out: &systemprompt_cli::shared::CommandOutput) -> String {
+fn message(out: &systemprompt_extension::cli::CommandOutput) -> String {
     field(out, "message").unwrap_or_else(|| panic!("no message in {}", rendered(out)))
 }
 
-fn service_type(out: &systemprompt_cli::shared::CommandOutput) -> String {
+fn service_type(out: &systemprompt_extension::cli::CommandOutput) -> String {
     field(out, "service_type").unwrap_or_else(|| panic!("no service_type in {}", rendered(out)))
 }
 

@@ -15,8 +15,9 @@ use systemprompt_ai::AiSafetyFindingRepository;
 use systemprompt_ai::models::AiRequestRecord;
 use systemprompt_ai::repository::{AiRequestRepository, InsertSafetyFinding};
 use systemprompt_cli::infrastructure::logs::{self, LogsCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_governance::authz::{
     DecisionTag, GovernanceDecisionRecord, GovernanceDecisionRepository,
 };
@@ -54,7 +55,7 @@ fn ctx(pool: &DbPool) -> CommandContext {
 }
 
 async fn run(pool: &DbPool, args: &[&str]) -> anyhow::Result<()> {
-    logs::execute(parse(args), &ctx(pool)).await
+    logs::execute(parse(args), &ctx(pool)).await.map(drop)
 }
 
 async fn seed_decision(

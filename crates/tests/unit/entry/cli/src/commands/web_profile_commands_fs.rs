@@ -10,7 +10,8 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use systemprompt_cli::web::{self, WebCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 
 #[derive(Debug, Parser)]
 struct Harness {
@@ -34,7 +35,7 @@ fn ctx() -> CommandContext {
 }
 
 fn run(args: &[&str]) -> anyhow::Result<()> {
-    web::execute(parse(args), &ctx())
+    web::execute(parse(args), &ctx()).map(drop)
 }
 
 fn services_root() -> PathBuf {

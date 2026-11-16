@@ -13,8 +13,9 @@ use std::sync::Arc;
 use futures::StreamExt;
 use systemprompt_cli::infrastructure::services::serve::{ServeOptions, execute_with_events};
 use systemprompt_cli::interactive::ScriptedPrompter;
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides};
+use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_config::LoadedProfile;
+use systemprompt_extension::cli::CliConfig;
 use systemprompt_test_fixtures::ensure_test_bootstrap;
 use systemprompt_traits::StartupEvent;
 
