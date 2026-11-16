@@ -9,6 +9,13 @@ pub async fn body_to_string(resp: Response<Body>) -> Result<(StatusCode, String)
     Ok((status, String::from_utf8_lossy(&body).into_owned()))
 }
 
+pub fn messaging_admitted() -> std::sync::Arc<systemprompt_extension::Admitted> {
+    let mut members = systemprompt_test_fixtures::core_members();
+    members.push(Box::new(systemprompt_slack_entry::extension::SlackExtension));
+    members.push(Box::new(systemprompt_teams_entry::extension::TeamsExtension));
+    systemprompt_test_fixtures::fixture_admitted_of(members)
+}
+
 pub fn mount_set<C: Clone + Send + Sync + 'static>(
     ctx: &systemprompt_runtime::AppContext,
     set: &systemprompt_extension::router::RouteSet,
@@ -19,7 +26,7 @@ pub fn mount_set<C: Clone + Send + Sync + 'static>(
     let seed = ctx
         .extension_state()
         .with(ctx.services())
-        .with(ctx.secrets())
+        .with(std::sync::Arc::clone(ctx.secrets()))
         .with(clients);
     let kernel = systemprompt_test_fixtures::offline_kernel(seed);
     set.materialize(&kernel.resolved())

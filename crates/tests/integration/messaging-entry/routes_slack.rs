@@ -31,7 +31,7 @@ use super::common::body_to_string;
 async fn messaging_ctx() -> anyhow::Result<(DbPool, Arc<AppContext>)> {
     let b = ensure_messaging_bootstrap();
     let pool = test_db_pool().await;
-    let ctx = test_app_context(&pool, &b.database_url);
+    let ctx = test_app_context(&b.database_url).await;
     Ok((pool, ctx))
 }
 
@@ -112,8 +112,7 @@ async fn url_verification_challenge_is_echoed() -> anyhow::Result<()> {
 #[tokio::test]
 async fn signed_slash_command_dispatches_and_posts_to_response_url() -> anyhow::Result<()> {
     let b = ensure_messaging_bootstrap();
-    let pool = test_db_pool().await;
-    let ctx = test_app_context(&pool, &b.database_url);
+    let ctx = test_app_context(&b.database_url).await;
 
     let agent = MockServer::start().await;
     Mock::given(method("POST"))
@@ -152,8 +151,7 @@ async fn signed_slash_command_dispatches_and_posts_to_response_url() -> anyhow::
 #[tokio::test]
 async fn signed_slash_command_with_a_loopback_response_url_sends_nothing() -> anyhow::Result<()> {
     let b = ensure_messaging_bootstrap();
-    let pool = test_db_pool().await;
-    let ctx = test_app_context(&pool, &b.database_url);
+    let ctx = test_app_context(&b.database_url).await;
 
     let agent = MockServer::start().await;
     Mock::given(method("POST"))
@@ -224,15 +222,11 @@ async fn coverage_command_reply(
     hook_status: u16,
 ) -> anyhow::Result<serde_json::Value> {
     let b = ensure_messaging_bootstrap();
-    let pool = test_db_pool().await;
     let ctx = if denied {
-        systemprompt_test_fixtures::fixture_app_context_with_hook(
-            &pool,
-            &b.database_url,
-            Arc::new(systemprompt_governance::authz::DenyAllHook::null()),
-        )?
+        systemprompt_test_fixtures::fixture_app_context_with_hook(&b.database_url,
+            Arc::new(systemprompt_governance::authz::DenyAllHook::null())).await?
     } else {
-        test_app_context(&pool, &b.database_url)
+        test_app_context(&b.database_url).await
     };
     let agent = MockServer::start().await;
     Mock::given(method("POST"))

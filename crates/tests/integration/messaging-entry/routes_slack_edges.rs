@@ -17,7 +17,7 @@ use tower::ServiceExt;
 async fn messaging_ctx() -> anyhow::Result<(DbPool, Arc<AppContext>)> {
     let b = ensure_messaging_bootstrap();
     let pool = test_db_pool().await;
-    let ctx = test_app_context(&pool, &b.database_url);
+    let ctx = test_app_context(&b.database_url).await;
     Ok((pool, ctx))
 }
 
