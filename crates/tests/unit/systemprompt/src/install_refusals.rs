@@ -317,10 +317,9 @@ fn install_at_web_root_is_admitted_and_cannot_take_core_redirect() {
     let error = build_with(Probe::new("probe-install", |c| {
         c.routes(plain_set(BasePath::Web(WebBase::Root), "/r/{short_code}"));
     }))
-    .expect_err("core's GET /r/{short_code} is protected by the route conflict check");
-    assert!(matches!(
-        error,
-        CompositionError::RouteConflict { method, path }
-            if method == http::Method::GET && path == "/r/{short_code}"
-    ));
+    .expect_err("core's /r is reserved for content-http");
+    assert!(
+        matches!(error, CompositionError::ReservedPrefix { prefix: "/r", .. }),
+        "{error:?}"
+    );
 }

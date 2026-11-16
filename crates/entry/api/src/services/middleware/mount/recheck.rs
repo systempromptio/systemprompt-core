@@ -9,10 +9,13 @@
 //! handoff built any other way than by the composition therefore gains
 //! nothing beyond a listed shape. A nested service is never privileged: it
 //! is held only by an install, at an unreserved extension base or the web
-//! root, with no other allowance, and its full prefix lies under no reserved
-//! prefix. Reserved prefixes, built-in gateway prefixes and route conflicts —
-//! a service prefix covering any other route included — are refused here
-//! too, whether or not any member claims them.
+//! root, with no other allowance. Every def's full path — a parameter
+//! segment, a catch-all and a service prefix with everything below it
+//! included — reaches no reserved path its holder does not own
+//! (`refused_reservation`), so neither a plain def under a kernel namespace
+//! nor a service covering one passes. Reserved paths, built-in gateway
+//! prefixes and route conflicts — a service prefix covering any other route
+//! included — are refused here too, whether or not any member claims them.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -26,7 +29,7 @@ use systemprompt_extension::reserved::{
 };
 use systemprompt_extension::router::{
     Allowance, ApiBase, BasePath, BaseRef, BodyLimit, RouteDef, RouteSet, WebBase, first_overlap,
-    full_path, path_covers, reserved_prefix_of,
+    path_covers, refused_reservation,
 };
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_models::modules::ApiPaths;
@@ -37,6 +40,7 @@ pub fn recheck(admitted: &Admitted) -> Result<(), MountError> {
     let mut holders: HashMap<ExtensionId, CoreId> = HashMap::new();
     for set in admitted.routes() {
         recheck_route_set(set, &mut holders)?;
+        recheck_reserved(set)?;
     }
     for route in admitted.gateway_routes() {
         recheck_gateway_route(route, &mut holders)?;
@@ -52,14 +56,14 @@ fn recheck_route_set(
     let base = path_base(set)?;
     let reserved = base.reserved_prefix();
     let mut needed: Vec<Allowance> = Vec::new();
-    if reserved.is_some() {
-        needed.push(Allowance::ReservedPrefix);
-    }
     match base {
         BasePath::Web(WebBase::TrackEngagement) => needed.push(Allowance::WebPath),
         BasePath::Api(ApiBase::Extension(_)) | BasePath::Web(WebBase::Root) => {},
         BasePath::Api(_) if reserved.is_none() => needed.push(Allowance::Plain),
         BasePath::Api(_) => {},
+    }
+    if reserved.is_some() {
+        needed.push(Allowance::ReservedPrefix);
     }
     for def in set.defs() {
         if let Some(verifier) = def.spec.policy.handler_verifier() {
@@ -112,17 +116,25 @@ fn recheck_services(
         base,
         BasePath::Api(ApiBase::Extension(_)) | BasePath::Web(WebBase::Root)
     );
-    for def in admitted.set.defs().iter().filter(|def| def.is_service()) {
-        let path = full_path(BaseRef::Path(base), def.path.as_str());
-        if let Some(prefix) = reserved_prefix_of(&path) {
-            return Err(MountError::ReservedPrefix(prefix));
-        }
-        let plain = needed.is_empty() && admitted.handles.is_empty();
-        if admitted.standing != StandingTag::Install || !open_base || !plain {
-            return Err(MountError::ServiceNotAdmitted {
-                base,
-                owner: admitted.owner.clone(),
-            });
+    let services = admitted.set.defs().iter().any(RouteDef::is_service);
+    let plain = needed.is_empty() && admitted.handles.is_empty();
+    if services && (admitted.standing != StandingTag::Install || !open_base || !plain) {
+        return Err(MountError::ServiceNotAdmitted {
+            base,
+            owner: admitted.owner.clone(),
+        });
+    }
+    Ok(())
+}
+
+fn recheck_reserved(admitted: &AdmittedRouteSet) -> Result<(), MountError> {
+    let holder = match admitted.standing {
+        StandingTag::Core => CoreId::for_id(admitted.owner.as_str()),
+        StandingTag::Install => None,
+    };
+    for def in admitted.set.defs() {
+        if let Some(reserved) = refused_reservation(admitted.set.base(), def, holder) {
+            return Err(MountError::ReservedPrefix(reserved.path));
         }
     }
     Ok(())

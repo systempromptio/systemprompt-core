@@ -11,8 +11,8 @@
 //!
 //! A base is a closed enum of `ApiPaths` constants. The one open variant,
 //! [`ApiBase::Extension`], is validated when the set is built: it starts with
-//! `/api/`, is a well-formed route path, and is not under any
-//! [`RESERVED_API_PREFIXES`](crate::reserved::RESERVED_API_PREFIXES) entry.
+//! `/api/`, is a well-formed route path, and neither lies under nor covers
+//! any [`RESERVED_PATHS`](crate::reserved::RESERVED_PATHS) entry.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -49,7 +49,9 @@ pub use shape::{
     RouteLimits, RouteMethod, RoutePath, RouteShape, RouteSpec, TypedSpec, WebBase,
     reserved_prefix_of,
 };
-pub use overlap::{RouteOverlap, first_overlap, full_path, path_covers};
+pub use overlap::{
+    RouteOverlap, first_overlap, full_path, path_covers, refused_reservation, reserved_below,
+};
 #[cfg(feature = "router")]
 pub use sse::{
     HEARTBEAT_INTERVAL, HEARTBEAT_JSON, sse_response, standard_keep_alive, subscription_refused,

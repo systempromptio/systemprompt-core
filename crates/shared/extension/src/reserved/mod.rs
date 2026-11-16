@@ -1,4 +1,4 @@
-//! The kernel's reservations: API prefixes, built-in gateway prefixes, CLI
+//! The kernel's reservations: reserved paths, built-in gateway prefixes, CLI
 //! paths and the closed set of privileged route shapes.
 //!
 //! These are paths and shapes, each privileged one named for the core member
@@ -22,6 +22,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use http::Method;
+use systemprompt_models::modules::ApiPaths;
 
 use crate::cli::KernelGrant;
 use crate::protection::RouteGroup;
@@ -33,19 +34,91 @@ pub use shapes::{CONTENT_GENERATE_ROUTES, CONTENT_REDIRECT_ROUTES, PRIVILEGED_SH
 
 pub const WEB_ROOT_BASE_PATH: &str = "/";
 
-pub const RESERVED_API_PREFIXES: &[&str] = &[
-    "/api/v1/oauth",
-    "/api/v1/users",
-    "/api/v1/agents",
-    "/api/v1/mcp",
-    "/api/v1/stream",
-    "/api/v1/content",
-    "/api/v1/files",
-    "/api/v1/analytics",
-    "/api/v1/scheduler",
-    "/api/v1/core",
-    "/api/v1/admin",
-    "/.well-known",
+/// How far a [`ReservedPath`] extends: `Prefix` holds every path whose text
+/// starts with it (so `/api/v1/contentx` is held with `/api/v1/content`),
+/// `Subtree` the path and every path below it segment by segment, `Exact`
+/// the path alone.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ReservedReach {
+    Prefix,
+    Subtree,
+    Exact,
+}
+
+/// A path only its core owner may route, whether or not that owner is
+/// composed. A nested entry (`/api/v1/admin/notifications` inside
+/// `/api/v1/admin`) is held by its own owner; the enclosing owner keeps the
+/// rest.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ReservedPath {
+    pub owner: CoreId,
+    pub path: &'static str,
+    pub reach: ReservedReach,
+}
+
+const fn kernel(path: &'static str, reach: ReservedReach) -> ReservedPath {
+    ReservedPath {
+        owner: CoreId::Kernel,
+        path,
+        reach,
+    }
+}
+
+const fn held(owner: CoreId, path: &'static str) -> ReservedPath {
+    ReservedPath {
+        owner,
+        path,
+        reach: ReservedReach::Prefix,
+    }
+}
+
+const fn subtree(owner: CoreId, path: &'static str) -> ReservedPath {
+    ReservedPath {
+        owner,
+        path,
+        reach: ReservedReach::Subtree,
+    }
+}
+
+pub const RESERVED_PATHS: &[ReservedPath] = &[
+    kernel(ApiPaths::DISCOVERY, ReservedReach::Exact),
+    kernel("/api/v1/oauth", ReservedReach::Prefix),
+    kernel("/api/v1/users", ReservedReach::Prefix),
+    kernel(ApiPaths::AGENTS_BASE, ReservedReach::Prefix),
+    kernel(ApiPaths::MCP_BASE, ReservedReach::Prefix),
+    kernel(ApiPaths::STREAM_BASE, ReservedReach::Prefix),
+    kernel("/api/v1/files", ReservedReach::Prefix),
+    kernel("/api/v1/scheduler", ReservedReach::Prefix),
+    kernel(ApiPaths::CORE_BASE, ReservedReach::Prefix),
+    kernel(ApiPaths::ADMIN_BASE, ReservedReach::Prefix),
+    kernel(ApiPaths::BRAIN, ReservedReach::Prefix),
+    kernel(ApiPaths::DOCUMENTS, ReservedReach::Prefix),
+    kernel(ApiPaths::DOCUMENT_FOLDERS, ReservedReach::Prefix),
+    kernel(ApiPaths::UPLOADS, ReservedReach::Prefix),
+    kernel("/api/v1/internal", ReservedReach::Prefix),
+    kernel("/api/v1/issues", ReservedReach::Prefix),
+    kernel(ApiPaths::MARKETPLACE_BASE, ReservedReach::Prefix),
+    kernel(ApiPaths::SYNC_BASE, ReservedReach::Prefix),
+    kernel(ApiPaths::WEBHOOK, ReservedReach::Prefix),
+    kernel(ApiPaths::HEALTH, ReservedReach::Prefix),
+    kernel("/api/v1/consumer", ReservedReach::Prefix),
+    kernel(ApiPaths::GATEWAY_PUBLIC_BASE, ReservedReach::Prefix),
+    kernel(ApiPaths::GATEWAY_BASE, ReservedReach::Subtree),
+    kernel(ApiPaths::WELLKNOWN_BASE, ReservedReach::Prefix),
+    kernel(WEB_ROOT_BASE_PATH, ReservedReach::Exact),
+    kernel("/health", ReservedReach::Exact),
+    kernel(ApiPaths::LIVEZ, ReservedReach::Exact),
+    kernel(ApiPaths::READYZ, ReservedReach::Exact),
+    kernel("/auth/link-passkey", ReservedReach::Exact),
+    held(CoreId::ContentHttp, ApiPaths::CONTENT_BASE),
+    subtree(CoreId::ContentHttp, "/r"),
+    held(CoreId::AnalyticsHttp, ApiPaths::ANALYTICS_BASE),
+    subtree(CoreId::AnalyticsHttp, ApiPaths::TRACK_BASE),
+    held(CoreId::NotificationsHttp, ApiPaths::NOTIFICATIONS),
+    held(CoreId::NotificationsHttp, ApiPaths::ADMIN_NOTIFICATIONS),
+    held(CoreId::AgentRunsApi, ApiPaths::AGENT_RUNS),
+    held(CoreId::Slack, ApiPaths::SLACK_BASE),
+    held(CoreId::Teams, ApiPaths::TEAMS_BASE),
 ];
 
 pub const BUILTIN_GATEWAY_PREFIXES: &[&str; 31] = &[
@@ -96,6 +169,22 @@ pub enum CoreId {
 }
 
 impl CoreId {
+    pub const ALL: [Self; 8] = [
+        Self::ContentHttp,
+        Self::AnalyticsHttp,
+        Self::NotificationsHttp,
+        Self::AgentRunsApi,
+        Self::Slack,
+        Self::Teams,
+        Self::Cloud,
+        Self::Kernel,
+    ];
+
+    #[must_use]
+    pub fn for_id(id: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|core| core.id() == id)
+    }
+
     #[must_use]
     pub const fn id(self) -> &'static str {
         match self {

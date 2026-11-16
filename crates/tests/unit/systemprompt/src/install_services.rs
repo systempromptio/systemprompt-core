@@ -76,13 +76,9 @@ fn a_service_under_a_reserved_prefix_is_refused() {
 
 #[test]
 fn a_service_prefix_covering_a_listed_route_conflicts() {
-    let error = install_service(ROOT, "/r").expect_err("the prefix covers core's redirect");
+    let error = install_service(ROOT, "/r").expect_err("the prefix is core's redirect path");
     assert!(
-        matches!(
-            &error,
-            CompositionError::RouteConflict { method, path }
-                if *method == RouteMethod::Any && path == "/r"
-        ),
+        matches!(&error, CompositionError::ReservedPrefix { prefix: "/r", .. }),
         "{error:?}"
     );
 
