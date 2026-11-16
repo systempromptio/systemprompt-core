@@ -27,7 +27,7 @@ pub async fn apply(
     host: &dyn CommandHost,
     title: &str,
     edit: impl FnOnce(&mut CatalogDocument, &CatalogContext) -> Result<String>,
-) -> Result<()> {
+) -> Result<CommandOutput> {
     let boot = crate::commands::admin::state::boot(host).await?;
     let loaded = boot.loaded_profile();
     let location = CatalogLocation::active(loaded);
@@ -44,22 +44,22 @@ pub async fn apply(
         &location.dir.display().to_string(),
     )
     .await;
-    host.render(&CommandOutput::card_value(
+    Ok(CommandOutput::card_value(
         title,
         &ConfigMutationOutput {
             field: "catalog".to_owned(),
             message: super::reconcile::append_reconcile_notice(message, &outcome),
         },
-    ));
-    Ok(())
+    ))
 }
 
-pub fn render_list(host: &dyn CommandHost, title: &str, rows: Vec<String>) {
+#[must_use]
+pub fn list_output(title: &str, rows: Vec<String>) -> CommandOutput {
     let items: Vec<ListItem> = rows
         .into_iter()
         .map(|row| ListItem::new(row, String::new(), String::new()))
         .collect();
-    host.render(&CommandOutput::list(items).with_title(title));
+    CommandOutput::list(items).with_title(title)
 }
 
 pub async fn read_active(host: &dyn CommandHost) -> Result<CatalogDocument> {

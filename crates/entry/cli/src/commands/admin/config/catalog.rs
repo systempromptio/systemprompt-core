@@ -7,7 +7,7 @@
 
 use anyhow::Result;
 use clap::Subcommand;
-use systemprompt_extension::cli::CommandHost;
+use systemprompt_extension::cli::CommandOutput;
 
 pub use super::catalog_discovery::discovery_rows;
 
@@ -19,10 +19,9 @@ pub enum CatalogCommands {
 
 pub fn execute(
     command: &CatalogCommands,
-    host: &dyn CommandHost,
     services: Option<&systemprompt_loader::ServicesState>,
-) -> Result<()> {
+) -> Result<CommandOutput> {
     match command {
-        CatalogCommands::Discovery => super::catalog_discovery::show_discovery(services, host),
+        CatalogCommands::Discovery => super::catalog_discovery::show_discovery(services),
     }
 }

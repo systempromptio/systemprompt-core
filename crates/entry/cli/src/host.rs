@@ -109,6 +109,12 @@ impl CommandHost for CommandContext {
         CommandContext::profile(self).map_err(CommandError::new)
     }
 
+    fn profile_path(&self) -> Result<&Path, CommandError> {
+        self.loaded_profile()
+            .map(|loaded| loaded.path())
+            .map_err(CommandError::new)
+    }
+
     fn db(&self) -> BoxFuture<'_, Result<Arc<dyn DatabaseHandle>, CommandError>> {
         Box::pin(async move {
             let pool = self.db_pool().await.map_err(CommandError::new)?;

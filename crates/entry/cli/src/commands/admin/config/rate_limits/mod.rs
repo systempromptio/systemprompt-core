@@ -22,7 +22,7 @@ use anyhow::Result;
 use clap::{Args, Subcommand};
 
 use crate::interactive::Prompter;
-use systemprompt_extension::cli::CommandHost;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
 #[derive(Debug, Subcommand)]
 pub enum RateLimitsCommands {
@@ -143,8 +143,7 @@ pub fn execute(
     command: RateLimitsCommands,
     prompter: &dyn Prompter,
     host: &dyn CommandHost,
-) -> Result<()> {
-    let config = host.output();
+) -> Result<CommandOutput> {
     match command {
         RateLimitsCommands::Show => show::execute_show(host),
         RateLimitsCommands::Set(args) => set::execute_set(&args, host),
@@ -154,14 +153,10 @@ pub fn execute(
         RateLimitsCommands::Reset(args) => reset::execute_reset(&args, prompter, host),
         RateLimitsCommands::Preset(cmd) => preset::execute_preset(cmd, prompter, host),
         RateLimitsCommands::Export(args) => {
-            let result = import_export::execute_export(&args, host)?;
-            host.render(&result);
-            Ok(())
+            import_export::execute_export(&args, host)
         },
         RateLimitsCommands::Import(args) => {
-            let result = import_export::execute_import(&args, prompter, host)?;
-            host.render(&result);
-            Ok(())
+            import_export::execute_import(&args, prompter, host)
         },
         RateLimitsCommands::Diff(args) => diff::execute_diff(&args, host),
     }

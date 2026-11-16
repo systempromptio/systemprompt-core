@@ -24,18 +24,15 @@ pub(super) fn execute_preset(
     command: PresetCommands,
     prompter: &dyn Prompter,
     host: &dyn CommandHost,
-) -> Result<()> {
+) -> Result<CommandOutput> {
     match command {
-        PresetCommands::List => {
-            execute_preset_list(host);
-            Ok(())
-        },
+        PresetCommands::List => Ok(execute_preset_list()),
         PresetCommands::Show(args) => execute_preset_show(args, host),
         PresetCommands::Apply(args) => execute_preset_apply(&args, prompter, host),
     }
 }
 
-fn execute_preset_list(host: &dyn CommandHost) {
+fn execute_preset_list() -> CommandOutput {
     let presets = vec![
         PresetInfo {
             name: "development".to_owned(),
@@ -55,11 +52,11 @@ fn execute_preset_list(host: &dyn CommandHost) {
     ];
 
     let output = PresetListOutput { presets };
-    host.render(&CommandOutput::table_of(vec!["name", "description", "builtin"], &output.presets)
-            .with_title("Available Presets"));
+    CommandOutput::table_of(vec!["name", "description", "builtin"], &output.presets)
+        .with_title("Available Presets")
 }
 
-fn execute_preset_show(args: PresetShowArgs, host: &dyn CommandHost) -> Result<()> {
+fn execute_preset_show(args: PresetShowArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
     let limits = get_preset_config(&args.name)?;
     let description = get_preset_description(&args.name)?;
 
@@ -85,9 +82,7 @@ fn execute_preset_show(args: PresetShowArgs, host: &dyn CommandHost) -> Result<(
         },
     };
 
-    host.render(&CommandOutput::card_value("Preset Configuration", &output));
-
-    Ok(())
+    Ok(CommandOutput::card_value("Preset Configuration", &output))
 }
 
 pub fn get_preset_description(name: &str) -> Result<String> {
@@ -106,7 +101,7 @@ fn execute_preset_apply(
     args: &PresetApplyArgs,
     prompter: &dyn Prompter,
     host: &dyn CommandHost,
-) -> Result<()> {
+) -> Result<CommandOutput> {
     let preset_config = get_preset_config(&args.name)?;
 
     if host.output().is_interactive() && !args.yes {
@@ -152,14 +147,14 @@ fn execute_preset_apply(
         message: format!("Applied '{}' preset successfully", args.name),
     };
 
-    host.render(&CommandOutput::table_of(vec!["field", "old_value", "new_value"], &output.changes)
-            .with_title("Preset Applied"));
-
     if host.output().output_format() == OutputFormat::Table {
         CliService::warning("Restart services for changes to take effect");
     }
 
-    Ok(())
+    Ok(
+        CommandOutput::table_of(vec!["field", "old_value", "new_value"], &output.changes)
+            .with_title("Preset Applied"),
+    )
 }
 
 pub fn get_preset_config(name: &str) -> Result<RateLimitsConfig> {

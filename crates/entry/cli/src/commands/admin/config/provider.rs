@@ -15,8 +15,8 @@ use clap::{Args, Subcommand};
 use systemprompt_config::{EndpointSpec, ProviderCatalogService, ProviderSpec};
 use systemprompt_identifiers::{CredentialId, EndpointId, ProviderId};
 
-use super::catalog_edit::{apply, parse_headers, parse_wire, read_active, render_list};
-use systemprompt_extension::cli::CommandHost;
+use super::catalog_edit::{apply, parse_headers, parse_wire, read_active, list_output};
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
 #[derive(Debug, Subcommand)]
 pub enum ProviderCommands {
@@ -77,7 +77,7 @@ fn first_endpoint(args: &ProviderAddArgs) -> Result<Option<EndpointSpec>> {
     }
 }
 
-pub async fn execute(command: &ProviderCommands, host: &dyn CommandHost) -> Result<()> {
+pub async fn execute(command: &ProviderCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     match command {
         ProviderCommands::List => {
             let document = read_active(host).await?;
@@ -98,8 +98,7 @@ pub async fn execute(command: &ProviderCommands, host: &dyn CommandHost) -> Resu
                     )
                 })
                 .collect();
-            render_list(host, "Providers", rows);
-            Ok(())
+            Ok(list_output("Providers", rows))
         },
         ProviderCommands::Add(args) => {
             let spec = ProviderSpec {
@@ -134,7 +133,7 @@ pub async fn execute(command: &ProviderCommands, host: &dyn CommandHost) -> Resu
     }
 }
 
-async fn set_enabled(host: &dyn CommandHost, id: &str, enabled: bool) -> Result<()> {
+async fn set_enabled(host: &dyn CommandHost, id: &str, enabled: bool) -> Result<CommandOutput> {
     apply(host, "Provider Updated", |document, context| {
         let credential = document
             .providers

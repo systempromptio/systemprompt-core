@@ -20,6 +20,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod audience;
 mod config;
 mod entries;
 mod error;
@@ -38,6 +39,7 @@ use systemprompt_provider_contracts::{ConfigPlane, Job};
 use systemprompt_traits::authz::SubjectAttributeProvider;
 use systemprompt_traits::{JobRunScope, RunOrigin, RunnerService};
 
+pub use audience::AudienceResolvers;
 pub use config::{ConfigDecl, ExtensionConfig};
 pub use entries::{ContributedJob, MemberDependency, ProvideEntry, ProvidedValue};
 pub use error::{ContributionError, FactoryError, ProvideError, SlotError};
@@ -46,7 +48,7 @@ pub use resolved::{
     build_factories,
 };
 pub use sink::{
-    AssetFn, ContributionSink, DiagnosticFactory, GatewayGuardFactory, PolicyFactory,
+    AssetFn, AudienceResolverFactory, ContributionSink, DiagnosticFactory, GatewayGuardFactory, PolicyFactory,
     ReadinessFactory, RunnerServiceFactory, SubjectProviderFactory,
 };
 pub use slot::{
@@ -228,7 +230,6 @@ impl<'a> Contributions<'a> {
         self.sink.subject_providers.push(Box::new(f));
         self
     }
-
     pub fn policy<F: Factory<Arc<dyn GovernancePolicy>>>(&mut self, f: F) -> &mut Self {
         self.sink.policies.push(Box::new(f));
         self

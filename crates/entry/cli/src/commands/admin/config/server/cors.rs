@@ -40,7 +40,7 @@ pub struct CorsRemoveArgs {
     pub origin: String,
 }
 
-pub(super) fn execute(command: &CorsCommands, host: &dyn CommandHost) -> Result<()> {
+pub(super) fn execute(command: &CorsCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     match command {
         CorsCommands::List => execute_list(host),
         CorsCommands::Add(args) => execute_add(args, host),
@@ -48,8 +48,7 @@ pub(super) fn execute(command: &CorsCommands, host: &dyn CommandHost) -> Result<
     }
 }
 
-fn execute_list(host: &dyn CommandHost) -> Result<()> {
-    let config = host.output();
+fn execute_list(host: &dyn CommandHost) -> Result<CommandOutput> {
     let profile = host.profile()?;
 
     let output = CorsListOutput {
@@ -62,12 +61,10 @@ fn execute_list(host: &dyn CommandHost) -> Result<()> {
         .into_iter()
         .map(|origin| ListItem::new(origin, String::new(), String::new()))
         .collect();
-    host.render(&CommandOutput::list(items).with_title("CORS Allowed Origins"));
-
-    Ok(())
+    Ok(CommandOutput::list(items).with_title("CORS Allowed Origins"))
 }
 
-fn execute_add(args: &CorsAddArgs, host: &dyn CommandHost) -> Result<()> {
+fn execute_add(args: &CorsAddArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
     let config = host.output();
     let profile_path = profile_path(host)?;
     let mut profile = load_profile(profile_path)?;
@@ -78,8 +75,7 @@ fn execute_add(args: &CorsAddArgs, host: &dyn CommandHost) -> Result<()> {
             origin: args.origin.clone(),
             message: format!("Origin {} already exists", args.origin),
         };
-        host.render(&CommandOutput::card_value("CORS Origin", &output));
-        return Ok(());
+        return Ok(CommandOutput::card_value("CORS Origin", &output));
     }
 
     profile.server.extra_cors_origins.push(args.origin.clone());
@@ -90,16 +86,14 @@ fn execute_add(args: &CorsAddArgs, host: &dyn CommandHost) -> Result<()> {
         origin: args.origin.clone(),
         message: format!("Added CORS origin: {}", args.origin),
     };
-    host.render(&CommandOutput::card_value("CORS Origin Added", &output));
-
     if config.output_format() == OutputFormat::Table {
         CliService::warning("Restart services for changes to take effect");
     }
 
-    Ok(())
+    Ok(CommandOutput::card_value("CORS Origin Added", &output))
 }
 
-fn execute_remove(args: &CorsRemoveArgs, host: &dyn CommandHost) -> Result<()> {
+fn execute_remove(args: &CorsRemoveArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
     let config = host.output();
     let profile_path = profile_path(host)?;
     let mut profile = load_profile(profile_path)?;
@@ -119,8 +113,7 @@ fn execute_remove(args: &CorsRemoveArgs, host: &dyn CommandHost) -> Result<()> {
                 args.origin
             ),
         };
-        host.render(&CommandOutput::card_value("CORS Origin", &output));
-        return Ok(());
+        return Ok(CommandOutput::card_value("CORS Origin", &output));
     }
 
     save_profile(&profile, profile_path)?;
@@ -130,11 +123,9 @@ fn execute_remove(args: &CorsRemoveArgs, host: &dyn CommandHost) -> Result<()> {
         origin: args.origin.clone(),
         message: format!("Removed CORS origin: {}", args.origin),
     };
-    host.render(&CommandOutput::card_value("CORS Origin Removed", &output));
-
     if config.output_format() == OutputFormat::Table {
         CliService::warning("Restart services for changes to take effect");
     }
 
-    Ok(())
+    Ok(CommandOutput::card_value("CORS Origin Removed", &output))
 }

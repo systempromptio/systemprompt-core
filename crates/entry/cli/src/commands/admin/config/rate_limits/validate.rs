@@ -13,7 +13,7 @@ use systemprompt_extension::cli::CommandHost;
 
 use super::super::types::ValidateOutput;
 
-pub(super) fn execute_validate(host: &dyn CommandHost) -> Result<()> {
+pub(super) fn execute_validate(host: &dyn CommandHost) -> Result<CommandOutput> {
     let config = host.output();
     let profile = host.profile()?;
     let limits = &profile.rate_limits;
@@ -31,7 +31,7 @@ pub(super) fn execute_validate(host: &dyn CommandHost) -> Result<()> {
         warnings,
     };
 
-    host.render(&CommandOutput::card_value("Rate Limits Validation", &output));
+    let result = CommandOutput::card_value("Rate Limits Validation", &output);
 
     if config.output_format() == OutputFormat::Table {
         if valid {
@@ -42,9 +42,10 @@ pub(super) fn execute_validate(host: &dyn CommandHost) -> Result<()> {
     }
 
     if !valid {
+        host.render(&result);
         bail!("Rate-limit configuration has errors");
     }
-    Ok(())
+    Ok(result)
 }
 
 fn check_endpoint_rates(limits: &RateLimitsConfig, errors: &mut Vec<String>) {

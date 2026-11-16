@@ -28,15 +28,14 @@ pub enum PathsCommands {
     Validate,
 }
 
-pub fn execute(command: PathsCommands, host: &dyn CommandHost) -> Result<()> {
+pub fn execute(command: PathsCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     match command {
         PathsCommands::Show => execute_show(host),
         PathsCommands::Validate => execute_validate(host),
     }
 }
 
-pub(super) fn execute_show(host: &dyn CommandHost) -> Result<()> {
-    let config = host.output();
+pub(super) fn execute_show(host: &dyn CommandHost) -> Result<CommandOutput> {
     let profile = host.profile()?;
 
     let output = PathsConfigOutput {
@@ -66,12 +65,10 @@ pub(super) fn execute_show(host: &dyn CommandHost) -> Result<()> {
         }),
     };
 
-    host.render(&CommandOutput::card_value("Paths Configuration", &output));
-
-    Ok(())
+    Ok(CommandOutput::card_value("Paths Configuration", &output))
 }
 
-pub(super) fn execute_validate(host: &dyn CommandHost) -> Result<()> {
+pub(super) fn execute_validate(host: &dyn CommandHost) -> Result<CommandOutput> {
     let config = host.output();
     let profile = host.profile()?;
 
@@ -83,8 +80,8 @@ pub(super) fn execute_validate(host: &dyn CommandHost) -> Result<()> {
         paths: validations,
     };
 
-    host.render(&CommandOutput::table_of(vec!["name", "path", "exists", "required"], &output.paths)
-            .with_title("Paths Validation"));
+    let result = CommandOutput::table_of(vec!["name", "path", "exists", "required"], &output.paths)
+        .with_title("Paths Validation");
 
     if config.output_format() == OutputFormat::Table {
         if valid {
@@ -95,9 +92,10 @@ pub(super) fn execute_validate(host: &dyn CommandHost) -> Result<()> {
     }
 
     if !valid {
+        host.render(&result);
         bail!("Some required paths are missing");
     }
-    Ok(())
+    Ok(result)
 }
 
 fn collect_path_validations(profile: &Profile) -> Vec<PathValidation> {

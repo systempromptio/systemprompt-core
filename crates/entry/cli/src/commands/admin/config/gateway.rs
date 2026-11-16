@@ -18,8 +18,8 @@ use systemprompt_manifest::services::catalog::CatalogDocument;
 use systemprompt_manifest::services::gateway::{ModelGlobs, RouteAlias, RouteDeployment};
 use systemprompt_manifest::services::{GatewayConfigSpec, GatewayRoute};
 
-use super::catalog_edit::{apply, parse_endpoints, read_active, render_list};
-use systemprompt_extension::cli::CommandHost;
+use super::catalog_edit::{apply, parse_endpoints, read_active, list_output};
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
 #[derive(Debug, Subcommand)]
 pub enum GatewayCommands {
@@ -87,9 +87,9 @@ pub struct RouteAddArgs {
     pub alias: Option<String>,
 }
 
-pub async fn execute(command: &GatewayCommands, host: &dyn CommandHost) -> Result<()> {
+pub async fn execute(command: &GatewayCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     match command {
-        GatewayCommands::Route(RouteCommands::List) => list_routes(host),
+        GatewayCommands::Route(RouteCommands::List) => list_routes(host).await,
         GatewayCommands::Enable => edit(host, |spec| Ok(set_enabled(spec, true))).await,
         GatewayCommands::Disable => edit(host, |spec| Ok(set_enabled(spec, false))).await,
         GatewayCommands::Route(RouteCommands::Add(args)) => {
@@ -118,7 +118,7 @@ pub async fn execute(command: &GatewayCommands, host: &dyn CommandHost) -> Resul
 async fn edit(
     host: &dyn CommandHost,
     mutate: impl FnOnce(&mut GatewayConfigSpec) -> Result<String>,
-) -> Result<()> {
+) -> Result<CommandOutput> {
     apply(host, "Gateway Updated", |document, context| {
         let message = mutate(spec_mut(document))?;
         document
@@ -171,7 +171,7 @@ pub fn remove_route(spec: &mut GatewayConfigSpec, id: &str) -> Result<String> {
     Ok(format!("Route {id} removed"))
 }
 
-fn list_routes(host: &dyn CommandHost) -> Result<()> {
+async fn list_routes(host: &dyn CommandHost) -> Result<CommandOutput> {
     let document = read_active(host).await?;
     let rows = document
         .gateway
@@ -180,6 +180,5 @@ fn list_routes(host: &dyn CommandHost) -> Result<()> {
         .iter()
         .map(|r| format!("{} ({}) models {:?}", r.id, r.audit_label(), r.models.0))
         .collect();
-    render_list(host, "Gateway Routes", rows);
-    Ok(())
+    Ok(list_output("Gateway Routes", rows))
 }

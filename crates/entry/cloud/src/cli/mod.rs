@@ -160,10 +160,6 @@ impl CliCommandGroup for CloudCommands {
     }
 }
 
-pub(crate) fn rendered() -> CommandOutput {
-    CommandOutput::text(String::new()).with_skip_render()
-}
-
 fn profile_name(profile: Option<String>) -> Result<Option<ProfileName>> {
     Ok(profile.map(ProfileName::try_new).transpose()?)
 }
@@ -173,7 +169,7 @@ pub async fn execute(cmd: CloudCommands, host: &dyn CommandHost) -> Result<Comma
         CloudCommands::Auth(cmd) => auth::execute(cmd, host).await,
         CloudCommands::Init { force } => {
             init::execute(force, host.output(), host.children())?;
-            Ok(rendered())
+            Ok(CommandOutput::rendered())
         },
         CloudCommands::Tenant { command } => tenant::execute(command, host).await,
         CloudCommands::Profile { command } => profile::execute(command, host).await,
@@ -195,7 +191,7 @@ pub async fn execute(cmd: CloudCommands, host: &dyn CommandHost) -> Result<Comma
                 host.children(),
             )
             .await?;
-            Ok(rendered())
+            Ok(CommandOutput::rendered())
         },
         CloudCommands::Backup {
             profile,
@@ -212,7 +208,7 @@ pub async fn execute(cmd: CloudCommands, host: &dyn CommandHost) -> Result<Comma
                 host.output(),
             )
             .await?;
-            Ok(rendered())
+            Ok(CommandOutput::rendered())
         },
         CloudCommands::Doctor {
             profile,
@@ -225,7 +221,7 @@ pub async fn execute(cmd: CloudCommands, host: &dyn CommandHost) -> Result<Comma
                 host.output(),
             )
             .await?;
-            Ok(rendered())
+            Ok(CommandOutput::rendered())
         },
         CloudCommands::Status => {
             let credentials = CredentialsBootstrap::load().await?;
@@ -266,5 +262,5 @@ fn execute_dockerfile(host: &dyn CommandHost) -> Result<CommandOutput> {
         return Ok(CommandOutput::copy_paste_titled("Dockerfile", content));
     }
     systemprompt_logging::CliService::output(&content);
-    Ok(rendered())
+    Ok(CommandOutput::rendered())
 }

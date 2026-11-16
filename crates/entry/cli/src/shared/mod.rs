@@ -20,8 +20,10 @@ pub use render::render_result;
 pub use text::truncate_with_ellipsis;
 
 #[must_use]
-pub fn database_scoped_command_error(ctx: &crate::context::CommandContext) -> anyhow::Error {
-    ctx.profile().map_or_else(
+pub fn database_scoped_command_error(
+    host: &dyn systemprompt_extension::cli::CommandHost,
+) -> anyhow::Error {
+    host.profile().map_or_else(
         |_| {
             anyhow::anyhow!(
                 "This command requires full profile context.\nPass --profile <local-profile> to \

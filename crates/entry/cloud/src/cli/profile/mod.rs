@@ -55,7 +55,7 @@ pub async fn execute(
             break;
         }
     }
-    Ok(crate::cli::rendered())
+    Ok(CommandOutput::rendered())
 }
 
 async fn execute_command(
@@ -71,7 +71,7 @@ async fn execute_command(
                 host.children(),
             )
             .await?;
-            Ok((crate::cli::rendered(), true))
+            Ok((CommandOutput::rendered(), true))
         },
         ProfileCommands::List => Ok((list::execute(host).await?, false)),
         ProfileCommands::Show {
@@ -89,7 +89,7 @@ async fn execute_command(
         )),
         ProfileCommands::Edit(args) => {
             edit::execute(&args, host)?;
-            Ok((crate::cli::rendered(), false))
+            Ok((CommandOutput::rendered(), false))
         },
     }
 }
