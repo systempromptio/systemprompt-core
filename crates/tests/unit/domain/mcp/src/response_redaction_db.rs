@@ -5,7 +5,7 @@
 use std::sync::Arc;
 use systemprompt_identifiers::{McpServerId, McpToolName};
 use systemprompt_mcp::ResponseServices;
-use systemprompt_mcp::services::ui_renderer::registry::create_default_registry;
+use systemprompt_mcp::services::ui_renderer::UiRendererRegistry;
 
 use rmcp::model::{CallToolResult, ContentBlock};
 use serde_json::json;
@@ -69,7 +69,7 @@ async fn a_redacted_result_reaches_the_wire_without_the_secret() {
         "summary",
         ResponseServices {
             ingest: &ingest,
-            renderers: &create_default_registry(),
+            renderers: &UiRendererRegistry::with_builtins(),
         },
         "text",
         None,

@@ -2,8 +2,9 @@
 //! provider standing, disabled members, kernel handles, the CLI re-check of
 //! a forged command handoff, the built-in gateway prefixes, the governance
 //! subject-dimension check and slots, the analytics-http and content-http
-//! members as the reference composition admits them, and the brain and
-//! notifications capability slots and routes.
+//! members as the reference composition admits them, the brain and
+//! notifications capability slots and routes, the files and marketplace
+//! slots, and the MCP, MCP-host and agent-runs slots and routes.
 
 #[cfg(test)]
 mod analytics_http;
@@ -22,6 +23,8 @@ mod core_ids;
 #[cfg(test)]
 mod disable_probe;
 #[cfg(test)]
+mod files_marketplace_slots;
+#[cfg(test)]
 mod forged_commands;
 #[cfg(test)]
 mod gateway_prefixes;
@@ -33,6 +36,8 @@ mod governance_slots;
 mod handed;
 #[cfg(test)]
 mod install_refusals;
+#[cfg(test)]
+mod mcp_slots;
 #[cfg(test)]
 mod probe;
 #[cfg(test)]

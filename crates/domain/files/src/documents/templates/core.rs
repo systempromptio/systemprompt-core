@@ -3,14 +3,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
-
 use systemprompt_identifiers::DocumentTemplateId;
 use systemprompt_provider_contracts::documents::{
     CodecError, DocumentFormat, DocumentTemplate, DocumentTemplateProvider, TemplatePlaceholder,
     TemplateSource,
 };
-use systemprompt_provider_contracts::register_document_template_provider;
 
 pub const CORE_TEMPLATE_PRIORITY: u32 = 100;
 
@@ -57,12 +54,6 @@ impl DocumentTemplateProvider for CoreTemplateProvider {
         CORE_TEMPLATE_PRIORITY
     }
 }
-
-fn factory() -> Arc<dyn DocumentTemplateProvider> {
-    Arc::new(CoreTemplateProvider)
-}
-
-register_document_template_provider!(factory);
 
 fn blank(
     id: &str,

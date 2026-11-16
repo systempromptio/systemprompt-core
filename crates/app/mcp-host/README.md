@@ -15,7 +15,7 @@ The least-privilege child hosts of the systemprompt.io API: the context a manage
 | `binary: <name>` | the extension binary `<name>` |
 | no `binary:`, `toolsets: [...]` | this product binary, `systemprompt admin mcp serve --server <id>` |
 
-Both receive the same cleared environment (profile path, database URLs, the public verification key set, the granted secrets) and the same spawn ownership marker. A hosted server's toolset ids are checked against the toolsets linked into the binary when the API starts.
+Both receive the same cleared environment (profile path, database URLs, the public verification key set, the granted secrets) and the same spawn ownership marker. A hosted server's toolset ids are checked against the contributed toolsets when the composition's toolset slot is built, so a composition that lists an unknown id does not start.
 
 ## Public surface
 
@@ -23,7 +23,8 @@ Both receive the same cleared environment (profile path, database URLs, the publ
 |------|---------|
 | `HostContext` | The child's context: `from_process_env()` / `boot(lookup)` |
 | `toolsets::{serve, serve_on, build_server}` | Serve one YAML-declared MCP server |
-| `submit_toolset!` | Register a toolset factory (and its id for startup validation) |
+| `McpHostExtension` | The member that contributes core's `issues` and `documents` toolsets |
+| `contract::ToolsetSlot` | Contribute a toolset: `c.slot::<ToolsetSlot>().toolset(id, build)` |
 | `AgentHost` | The agent's composition over a `HostContext` |
 
 ## License

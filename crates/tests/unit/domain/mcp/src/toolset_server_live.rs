@@ -6,6 +6,7 @@ use rmcp::model::{
     ResourceContents, Tool,
 };
 use rmcp::{ErrorData as McpError, ServerHandler};
+use std::sync::Arc;
 use systemprompt_extension::StandingTag;
 use systemprompt_governance::authz::{
     AllowAllHook, DenyAllHook, SharedAuthzHook, SubjectAttributeError, SubjectAttributeProvider,
@@ -17,6 +18,7 @@ use systemprompt_mcp::host::{
     ToolsetServerParts,
 };
 use systemprompt_mcp::repository::ToolUsageRepository;
+use systemprompt_mcp::services::ui_renderer::UiRendererRegistry;
 use systemprompt_mcp::{ArtifactIngest, McpToolExecutor, McpToolset, ToolsetCall};
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_models::authz::RuleType;
@@ -168,6 +170,7 @@ async fn parts(
         Arc::new(ToolUsageRepository::new(&db)),
         Arc::new(systemprompt_ai::repository::AiRequestRepository::new(&db)),
         Arc::new(ArtifactIngest::from_db(&db, None)),
+        Arc::new(UiRendererRegistry::with_builtins()),
         server_id.clone(),
     );
     let subjects = groups.map_or_else(SubjectProviderSet::default, |values| {

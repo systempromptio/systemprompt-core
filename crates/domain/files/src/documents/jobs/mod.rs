@@ -13,10 +13,9 @@
 //! [`DocumentNodeIdsBackfillJob`] mints node ids for revisions written before
 //! ids existed, once per release; [`DocumentMediaBackfillJob`] admits the
 //! images named by revisions written before admissions were recorded. All
-//! are cluster-scoped and registered with `submit_job!`, as the files domain
-//! registers its other jobs. Each run builds its repositories from the job
-//! context's `DbPool` and takes file storage from the context's
-//! `ExtensionContext`.
+//! are cluster-scoped and contributed by the files member's `contribute`. Each
+//! run builds its repositories from the job context's `DbPool` and takes file
+//! storage from the context's `ExtensionContext`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

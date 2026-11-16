@@ -10,9 +10,10 @@
 //!   composition stages, so the authz hook, subject providers and extension
 //!   state a host enforces are the API's by construction.
 //! - [`toolsets`] serves a YAML-declared MCP server: the deployment's
-//!   `toolsets:` built from the factories registered with [`submit_toolset!`],
-//!   behind the hop-verifying MCP router. A server that names no `binary:` is
-//!   this product binary re-run as `admin mcp serve --server <id>`.
+//!   `toolsets:` built from the toolsets contributed through
+//!   [`ToolsetSlot`](contract::ToolsetSlot), behind the hop-verifying MCP
+//!   router. A server that names no `binary:` is this product binary re-run as
+//!   `admin mcp serve --server <id>`.
 //! - [`AgentHost`] composes an agent's collaborators on a [`HostContext`].
 //!
 //! # What a toolset factory can reach
@@ -42,13 +43,11 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod agent_host;
+pub mod contract;
+pub(crate) mod extension;
 pub mod host;
 pub mod toolsets;
 
 pub use agent_host::{AgentHost, AgentHostError};
+pub use extension::McpHostExtension;
 pub use host::{HostBootError, HostContext, PROFILE_ENV};
-
-#[doc(hidden)]
-pub use systemprompt_mcp::__inventory as __toolset_inventory;
-#[doc(hidden)]
-pub use systemprompt_runtime::RegisteredToolsetId as __RegisteredToolsetId;

@@ -114,7 +114,8 @@ async fn disabling_agent_runs_while_its_routes_stay_enabled_is_refused_at_boot()
         Err(error) => format!("{error:#}"),
     };
     assert!(
-        message.contains("Extension 'agent_runs_api' requires state"),
+        message.contains("agent_runs_api requires")
+            && message.contains("its core provider agent_runs is disabled"),
         "{message}"
     );
     assert!(message.contains("AgentRunRepository"), "{message}");

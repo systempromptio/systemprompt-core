@@ -11,13 +11,18 @@
 //! rest. `extra_css` is appended last, for what a custom property cannot
 //! express — an `@font-face`, a backdrop filter, a rule aimed at one renderer.
 //!
-//! Registration is compile-time, the same shape the safety-scanner and
-//! route-selector registries use, so the branding is linked in by the extension
-//! that owns it rather than configured at runtime.
+//! A member contributes its theme with
+//! `c.slot::<UiSlot>().theme(..)` ([`UiSlot`](crate::contract::UiSlot)); the
+//! built [`UiRendererRegistry`](super::UiRendererRegistry) applies it to every
+//! document it renders. Two themes do not compose, so the slot refuses a
+//! second one.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use super::templates::html::{THEME_CSS_ANCHOR, THEME_TOKENS_ANCHOR};
+
+/// A deployment's re-declaration of the `--mcpui-*` design tokens.
 #[derive(Debug, Clone, Copy)]
 pub struct ArtifactTheme {
     pub tokens: &'static str,
@@ -36,47 +41,17 @@ impl ArtifactTheme {
         self.extra_css = css;
         self
     }
-}
 
-/// Compile-time registration of an [`ArtifactTheme`].
-///
-/// Two registered themes do not compose — both re-declaring `--mcpui-accent`
-/// has no meaningful winner — so [`active_theme`] picks the last by name and
-/// warns rather than blending them.
-#[derive(Debug, Clone, Copy)]
-pub struct ArtifactThemeRegistration {
-    pub name: &'static str,
-    pub factory: fn() -> ArtifactTheme,
-}
-
-inventory::collect!(ArtifactThemeRegistration);
-
-#[macro_export]
-macro_rules! register_artifact_theme {
-    ($factory:expr, name = $name:expr $(,)?) => {
-        $crate::__inventory::submit! {
-            $crate::services::ui_renderer::ArtifactThemeRegistration {
-                name: $name,
-                factory: $factory,
-            }
-        }
-    };
-}
-
-pub fn active_theme() -> Option<ArtifactTheme> {
-    // Why: `inventory` does not guarantee registration iteration order.
-    let mut found: Vec<&ArtifactThemeRegistration> =
-        inventory::iter::<ArtifactThemeRegistration>().collect();
-    found.sort_by_key(|registration| registration.name);
-
-    let last = found.last()?;
-    if found.len() > 1 {
-        let names: Vec<&str> = found.iter().map(|registration| registration.name).collect();
-        tracing::warn!(
-            themes = ?names,
-            chosen = last.name,
-            "more than one artifact theme registered; the last by name wins"
+    pub(crate) fn apply(&self, html: &str) -> String {
+        let tokens = format!(
+            "{THEME_TOKENS_ANCHOR}\n<style>\n:root {{\n{}\n}}\n</style>",
+            self.tokens
         );
+        let themed = html.replacen(THEME_TOKENS_ANCHOR, &tokens, 1);
+        if self.extra_css.is_empty() {
+            return themed;
+        }
+        let extra = format!("<style>\n{}\n</style>\n{THEME_CSS_ANCHOR}", self.extra_css);
+        themed.replacen(THEME_CSS_ANCHOR, &extra, 1)
     }
-    Some((last.factory)())
 }

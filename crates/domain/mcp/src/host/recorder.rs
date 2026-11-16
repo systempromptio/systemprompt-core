@@ -2,10 +2,12 @@
 //!
 //! Core decides who may list and call a tool; where the outcome is written is
 //! the installation's choice. An extension implements [`McpAccessRecorder`]
-//! and registers a factory with `register_mcp_access_recorder!`; the host
-//! builds every registered recorder once at start and reports each outcome to
-//! all of them. A recorder is best-effort by contract: it returns nothing, so
-//! an audit write that fails can never fail the call it describes.
+//! and contributes a factory with
+//! `c.slot::<AccessRecorderSlot>().recorder(..)`
+//! ([`AccessRecorderSlot`](crate::contract::AccessRecorderSlot)); the kernel
+//! builds every contributed recorder once and the host reports each outcome
+//! to all of them. A recorder is best-effort by contract: it returns nothing,
+//! so an audit write that fails can never fail the call it describes.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,7 +16,6 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::{McpServerId, UserId};
 
 /// What happened to one request at the host's gate.
@@ -61,31 +62,3 @@ pub trait McpAccessRecorder: Send + Sync + Debug {
 }
 
 pub type SharedMcpAccessRecorder = Arc<dyn McpAccessRecorder>;
-
-/// One inventory submission per
-/// [`register_mcp_access_recorder!`](crate::register_mcp_access_recorder) call.
-/// The factory runs once when a host is built and must not block.
-#[derive(Debug, Clone, Copy)]
-pub struct McpAccessRecorderRegistration {
-    pub factory: fn(&DbPool) -> SharedMcpAccessRecorder,
-}
-
-inventory::collect!(McpAccessRecorderRegistration);
-
-#[must_use]
-pub fn discover_mcp_access_recorders(pool: &DbPool) -> Vec<SharedMcpAccessRecorder> {
-    inventory::iter::<McpAccessRecorderRegistration>()
-        .map(|registration| (registration.factory)(pool))
-        .collect()
-}
-
-#[macro_export]
-macro_rules! register_mcp_access_recorder {
-    ($factory:expr) => {
-        $crate::__inventory::submit! {
-            $crate::host::McpAccessRecorderRegistration {
-                factory: $factory,
-            }
-        }
-    };
-}

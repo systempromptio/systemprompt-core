@@ -128,11 +128,11 @@ impl DatabaseHandle for StubDb {
 }
 
 pub(crate) fn kernel() -> Kernel {
-    Kernel::new(
-        Arc::new(StubDb),
-        BackgroundTasks::new(),
-        Dependencies::default(),
-    )
+    kernel_with(Dependencies::default())
+}
+
+pub(crate) fn kernel_with(dependencies: Dependencies) -> Kernel {
+    Kernel::new(Arc::new(StubDb), BackgroundTasks::new(), dependencies)
 }
 
 #[derive(Debug, Default)]

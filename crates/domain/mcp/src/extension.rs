@@ -1,7 +1,8 @@
 //! [`McpExtension`]: contributes the MCP tables, migrations, jobs and
 //! retention purge, and provides the tool-execution lookup and the MCP server
 //! registry (`Arc<dyn McpRegistryProvider>`, which sign-in reads for MCP
-//! resource scopes).
+//! resource scopes). It opens the [`UiSlot`] and the [`AccessRecorderSlot`],
+//! so both built values are present whenever this member is admitted.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,6 +15,7 @@ use systemprompt_manifest::Config;
 use systemprompt_manifest::services::{ServicesView, SystemAdmin};
 use systemprompt_traits::{DynToolExecutionLookup, McpRegistryProvider};
 
+use crate::contract::{AccessRecorderSlot, UiSlot};
 use crate::repository::ToolUsageRepository;
 use crate::services::registry::RegistryService;
 
@@ -127,6 +129,8 @@ impl Extension for McpExtension {
             },
         );
         crate::jobs::contribute(c);
+        c.slot::<UiSlot>();
+        c.slot::<AccessRecorderSlot>();
         Ok(())
     }
 }

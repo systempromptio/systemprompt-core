@@ -1,4 +1,4 @@
-//! The toolsets core itself registers: `issues` and `documents`.
+//! The toolsets core itself contributes: `issues` and `documents`.
 //!
 //! Each wraps the public tool library of the same name, so a server that
 //! composes the library by hand keeps working while a YAML-declared server
@@ -22,6 +22,7 @@ use systemprompt_runtime::issues::mcp::{IssuesMcpTools, IssuesToolCall};
 
 use super::factory::ToolsetBuildResult;
 use crate::HostContext;
+use crate::contract::ToolsetSlotBuilder;
 
 pub use systemprompt_runtime::documents::mcp::TOOLSET_ID as DOCUMENTS_TOOLSET;
 pub use systemprompt_runtime::issues::mcp::TOOLSET_ID as ISSUES_TOOLSET;
@@ -174,5 +175,7 @@ fn build_documents(host: &HostContext, server: &McpServerId) -> ToolsetBuildResu
     Ok(Some(Box::new(DocumentsToolset(tools))))
 }
 
-crate::submit_toolset!(ISSUES_TOOLSET, build_issues);
-crate::submit_toolset!(DOCUMENTS_TOOLSET, build_documents);
+pub(crate) fn contribute(slot: &mut ToolsetSlotBuilder) {
+    slot.toolset(ISSUES_TOOLSET, build_issues)
+        .toolset(DOCUMENTS_TOOLSET, build_documents);
+}

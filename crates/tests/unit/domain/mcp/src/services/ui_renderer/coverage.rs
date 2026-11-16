@@ -1,4 +1,4 @@
-use systemprompt_mcp::services::ui_renderer::registry::create_default_registry;
+use systemprompt_mcp::services::ui_renderer::UiRendererRegistry;
 use systemprompt_models::artifacts::{
     AudioArtifact, ChartArtifact, CopyPasteTextArtifact, DashboardArtifact, ImageArtifact,
     ListArtifact, MessageArtifact, PresentationCardArtifact, TableArtifact, TextArtifact,
@@ -44,7 +44,7 @@ fn enveloped(payload: serde_json::Value) -> Artifact {
 
 #[test]
 fn default_registry_covers_every_cli_artifact_variant() {
-    let registry = create_default_registry();
+    let registry = UiRendererRegistry::with_builtins();
     let missing: Vec<&&str> = CLI_ARTIFACT_TYPES
         .iter()
         .filter(|t| !registry.supports(t))
@@ -58,7 +58,7 @@ fn default_registry_covers_every_cli_artifact_variant() {
 
 #[tokio::test]
 async fn presentation_card_renders_sections_not_json() {
-    let registry = create_default_registry();
+    let registry = UiRendererRegistry::with_builtins();
     let artifact = enveloped(serde_json::json!({
         "artifact_type": "presentation_card",
         "title": "Platform Overview",
@@ -75,7 +75,7 @@ async fn presentation_card_renders_sections_not_json() {
 
 #[tokio::test]
 async fn presentation_card_renders_ctas_and_subtitle() {
-    let registry = create_default_registry();
+    let registry = UiRendererRegistry::with_builtins();
     let artifact = enveloped(serde_json::json!({
         "artifact_type": "presentation_card",
         "title": "Release Report",
@@ -99,7 +99,7 @@ async fn presentation_card_renders_ctas_and_subtitle() {
 
 #[tokio::test]
 async fn table_renders_items_rows() {
-    let registry = create_default_registry();
+    let registry = UiRendererRegistry::with_builtins();
     let artifact = enveloped(serde_json::json!({
         "artifact_type": "table",
         "columns": [{"name": "email", "column_type": "text"}],
@@ -114,7 +114,7 @@ async fn table_renders_items_rows() {
 
 #[tokio::test]
 async fn message_renders_severity_lines() {
-    let registry = create_default_registry();
+    let registry = UiRendererRegistry::with_builtins();
     let artifact = enveloped(serde_json::json!({
         "artifact_type": "message",
         "messages": [{"level": "warning", "text": "Nothing to do"}]
@@ -128,7 +128,7 @@ async fn message_renders_severity_lines() {
 
 #[tokio::test]
 async fn copy_paste_text_renders_preformatted() {
-    let registry = create_default_registry();
+    let registry = UiRendererRegistry::with_builtins();
     let artifact = enveloped(serde_json::json!({
         "artifact_type": "copy_paste_text",
         "title": "Command",
@@ -143,7 +143,7 @@ async fn copy_paste_text_renders_preformatted() {
 
 #[tokio::test]
 async fn every_rendered_document_negotiates_its_height() {
-    let registry = create_default_registry();
+    let registry = UiRendererRegistry::with_builtins();
     let artifact = enveloped(serde_json::json!({
         "artifact_type": "text",
         "content": "hello"

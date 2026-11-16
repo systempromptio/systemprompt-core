@@ -8,7 +8,7 @@ use systemprompt_identifiers::{
     Actor, AgentName, ContextId, McpExecutionId, McpServerId, McpToolName, SessionId, TraceId,
     UserId,
 };
-use systemprompt_mcp::services::ui_renderer::registry::create_default_registry;
+use systemprompt_mcp::services::ui_renderer::UiRendererRegistry;
 use systemprompt_mcp::{
     ArtifactIngest, ClientProfile, McpResponseBuilder, ResponseServices, ToolIdentity,
 };
@@ -54,7 +54,7 @@ async fn build(artifact: CliArtifact, repo: &ArtifactIngest) -> CallToolResult {
         "summary",
         ResponseServices {
             ingest: repo,
-            renderers: &create_default_registry(),
+            renderers: &UiRendererRegistry::with_builtins(),
         },
         "cli",
         Some("User Directory".to_owned()),
@@ -208,7 +208,7 @@ async fn response_build_failure_leaves_no_artifact_and_same_database_recovers() 
         "recovery summary",
         ResponseServices {
             ingest: &failed_repo,
-            renderers: &create_default_registry(),
+            renderers: &UiRendererRegistry::with_builtins(),
         },
         "cli",
         Some("Recovery table".to_owned()),
@@ -248,7 +248,7 @@ async fn response_build_failure_leaves_no_artifact_and_same_database_recovers() 
         "recovery summary",
         ResponseServices {
             ingest: &recovered_repo,
-            renderers: &create_default_registry(),
+            renderers: &UiRendererRegistry::with_builtins(),
         },
         "cli",
         Some("Recovery table".to_owned()),

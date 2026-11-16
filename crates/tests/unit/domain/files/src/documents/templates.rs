@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use systemprompt_files::documents::codecs::CodecRegistry;
+use systemprompt_files::documents::codecs::{CodecRegistry, core_codecs};
 use systemprompt_files::documents::templates::{
     CoreTemplateProvider, TemplateCatalogError, TemplateError, TemplateRegistry, load_catalog,
 };
@@ -9,7 +9,6 @@ use systemprompt_identifiers::DocumentTemplateId;
 use systemprompt_provider_contracts::documents::{
     DocumentFormat, DocumentTemplate, DocumentTemplateProvider, TemplateParams, TemplateSource,
 };
-use systemprompt_provider_contracts::register_document_template_provider;
 
 #[derive(Debug)]
 struct ProbeProvider;
@@ -41,11 +40,13 @@ impl DocumentTemplateProvider for ProbeProvider {
     }
 }
 
-fn probe_factory() -> Arc<dyn DocumentTemplateProvider> {
-    Arc::new(ProbeProvider)
+fn contributed() -> Vec<Arc<dyn DocumentTemplateProvider>> {
+    vec![Arc::new(CoreTemplateProvider), Arc::new(ProbeProvider)]
 }
 
-register_document_template_provider!(probe_factory);
+fn codecs() -> CodecRegistry {
+    CodecRegistry::from_codecs(core_codecs())
+}
 
 fn fixture_root(name: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -64,7 +65,7 @@ fn core_only() -> TemplateRegistry {
 
 fn instantiate_str(registry: &TemplateRegistry, id: &str, params: &TemplateParams) -> String {
     let made = registry
-        .instantiate(&tid(id), params, &CodecRegistry::discover())
+        .instantiate(&tid(id), params, &codecs())
         .expect("instantiate");
     String::from_utf8(made.bytes).expect("utf8")
 }
@@ -153,7 +154,7 @@ fn missing_required_placeholder_is_an_error() {
         .instantiate(
             &tid("blank-markdown"),
             &TemplateParams::default(),
-            &CodecRegistry::discover(),
+            &codecs(),
         )
         .expect_err("missing");
     assert!(
@@ -165,11 +166,7 @@ fn missing_required_placeholder_is_an_error() {
 #[test]
 fn unknown_template_is_not_found() {
     let err = core_only()
-        .instantiate(
-            &tid("nope"),
-            &TemplateParams::default(),
-            &CodecRegistry::discover(),
-        )
+        .instantiate(&tid("nope"), &TemplateParams::default(), &codecs())
         .expect_err("not found");
     assert!(matches!(err, TemplateError::NotFound { .. }), "{err:?}");
 }
@@ -183,8 +180,8 @@ fn list_for_html_contains_blank_html() {
 }
 
 #[test]
-fn discover_includes_core_and_macro_registered_provider() {
-    let registry = TemplateRegistry::discover(Vec::new());
+fn core_blanks_join_the_contributed_providers() {
+    let registry = TemplateRegistry::with_core_blanks(contributed(), Vec::new());
     assert!(registry.get(&tid("blank-text")).is_some());
     assert!(registry.get(&tid("probe-text")).is_some());
     let mut params = TemplateParams::default();
@@ -197,8 +194,8 @@ fn discover_includes_core_and_macro_registered_provider() {
 
 #[test]
 fn office_blanks_are_listed_and_project() {
-    let registry = TemplateRegistry::discover(Vec::new());
-    let codecs = CodecRegistry::discover();
+    let registry = TemplateRegistry::with_core_blanks(contributed(), Vec::new());
+    let codecs = codecs();
     for (id, format) in [
         ("blank-docx", DocumentFormat::Docx),
         ("blank-xlsx", DocumentFormat::Xlsx),
@@ -220,32 +217,11 @@ fn office_blanks_are_listed_and_project() {
     }
 }
 
-fn shipped_codecs() -> CodecRegistry {
-    use systemprompt_files::documents::codecs::docx::DocxCodec;
-    use systemprompt_files::documents::codecs::odf::{OdpCodec, OdsCodec, OdtCodec};
-    use systemprompt_files::documents::codecs::pptx::PptxCodec;
-    use systemprompt_files::documents::codecs::xlsx::XlsxCodec;
-    use systemprompt_files::documents::codecs::{HtmlCodec, MarkdownCodec, TextCodec};
-    use systemprompt_provider_contracts::documents::DocumentCodec;
-    let codecs: Vec<Arc<dyn DocumentCodec>> = vec![
-        Arc::new(TextCodec),
-        Arc::new(MarkdownCodec),
-        Arc::new(HtmlCodec),
-        Arc::new(DocxCodec),
-        Arc::new(XlsxCodec),
-        Arc::new(PptxCodec),
-        Arc::new(OdtCodec),
-        Arc::new(OdsCodec),
-        Arc::new(OdpCodec),
-    ];
-    CodecRegistry::from_codecs(codecs)
-}
-
 #[test]
 fn every_registered_template_instantiates_and_projects() {
     let catalog = load_catalog(&fixture_root("valid")).expect("catalog");
-    let registry = TemplateRegistry::discover(catalog);
-    let codecs = shipped_codecs();
+    let registry = TemplateRegistry::with_core_blanks(contributed(), catalog);
+    let codecs = codecs();
     let templates = registry.list();
     assert!(templates.len() > 9, "{} templates", templates.len());
     for template in templates {

@@ -12,13 +12,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
-
 use base64::Engine;
 use systemprompt_provider_contracts::documents::{
     CodecError, DocumentCodec, DocumentFormat, EditOp, Projection, TemplateParams, content_hash,
 };
-use systemprompt_provider_contracts::register_document_codec;
 
 pub const PREVIEW_IMAGE_BYTES: usize = 16 * 1024 * 1024;
 
@@ -28,12 +25,6 @@ pub struct FileCodec;
 const FORMATS: &[DocumentFormat] = &[DocumentFormat::File];
 
 const NO_PREVIEW: &str = "<p>This file has no preview. Download it to open it.</p>";
-
-fn factory() -> Arc<dyn DocumentCodec> {
-    Arc::new(FileCodec)
-}
-
-register_document_codec!(factory);
 
 #[must_use]
 pub fn image_mime(bytes: &[u8]) -> Option<&'static str> {

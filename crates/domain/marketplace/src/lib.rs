@@ -29,8 +29,8 @@
 //!   per-user filtering contract applied before signing.
 //! - [`render_marketplace_json`] / [`render_marketplace_list`]: JSON
 //!   projections for the HTTP catalogue endpoints.
-//! - [`MarketplaceFilterRegistration`] / [`discover_filters`]: the inventory
-//!   slot and lookup used to wire an extension-supplied filter.
+//! - [`contract::MarketplaceSlot`]: the contribution point for per-user filters
+//!   and publication gates, built core first and all-must-pass.
 //! - [`import`]: [`import_anthropic_tree`] translates a repository authored in
 //!   Anthropic `.claude-plugin` form into the services tree the loader reads,
 //!   taking everything that format cannot express from strict sidecars.
@@ -47,7 +47,7 @@
 //!
 //! Domain crate. Depends on `systemprompt-models` (wire types),
 //! `systemprompt-identifiers` (typed IDs), `systemprompt-database` (the
-//! `DbPool` handle passed to filter factories), and `systemprompt-security`
+//! `DbPool` handle filter factories read), and `systemprompt-security`
 //! (manifest signing). Managed resources use owner-scoped database
 //! repositories. Disk loaders take a
 //! services-root path, never an `AppContext`.
@@ -55,12 +55,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-#[doc(hidden)]
-pub use ::inventory as __inventory;
-
 pub mod bundle;
 mod candidate;
 pub mod catalog;
+pub mod contract;
 pub mod dev_files;
 mod error;
 mod extension;
@@ -71,7 +69,6 @@ mod keep;
 pub mod managed;
 mod manifest;
 mod membership;
-mod registry;
 mod scope;
 mod service;
 pub mod trace;
@@ -97,7 +94,6 @@ pub use keep::{KeepSetsSubject, keep_sets};
 pub use managed::{ManagedRepository, ManagedResourceResolver, ManagedSkillResolution};
 pub use manifest::{AssembleRequest, ManifestService};
 pub use membership::MarketplaceMembership;
-pub use registry::{MarketplaceFactoryContext, MarketplaceFilterRegistration, discover_filters};
 pub use scope::{enabled_marketplaces, scope_to_marketplace, scope_to_union, union_include};
 pub use service::MarketplaceService;
 pub use trace::{ManifestTrace, NoopTrace, TraceEvent, TraceKind, TraceSink, TraceStage};

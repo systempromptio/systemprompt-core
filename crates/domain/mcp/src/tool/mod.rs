@@ -29,7 +29,6 @@ use crate::schema::McpOutputSchema;
 use crate::services::artifact_ingest::ArtifactIngest;
 use crate::services::intent_claim::IntentClaimService;
 use crate::services::ui_renderer::UiRendererRegistry;
-use crate::services::ui_renderer::registry::create_default_registry;
 use chrono::Utc;
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CacheScope, CallToolRequestParams, CallToolResult, ListToolsResult, Tool};
@@ -65,13 +64,14 @@ impl McpToolExecutor {
         tool_usage_repo: Arc<ToolUsageRepository>,
         intents: DynToolCallIntentClaims,
         ingest: Arc<ArtifactIngest>,
+        renderers: Arc<UiRendererRegistry>,
         server_name: McpServerId,
     ) -> Self {
         Self {
             intent_claims: IntentClaimService::new(intents, Arc::clone(&tool_usage_repo)),
             tool_usage_repo,
             ingest,
-            renderers: Arc::new(create_default_registry()),
+            renderers,
             server_name,
         }
     }

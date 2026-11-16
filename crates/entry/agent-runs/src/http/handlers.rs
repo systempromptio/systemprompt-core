@@ -11,9 +11,10 @@ use axum::{Extension, Json};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_agent_runs::execute::outputs;
+use systemprompt_agent_runs::origin::AdmittedRunOrigins;
 use systemprompt_agent_runs::repository::{AgentRunRow, Enqueued, NewAgentRun};
-use systemprompt_agent_runs::{McpServerSpec, RunEvent, RunLayout, RunRequest, origin};
-use systemprompt_api::kernel::ApiHttpError;
+use systemprompt_agent_runs::{McpServerSpec, RunEvent, RunLayout, RunRequest};
+use systemprompt_extension::router::ApiHttpError;
 use systemprompt_identifiers::{AgentRunId, HostSessionId, SessionId};
 use systemprompt_models::RequestContext;
 
@@ -113,12 +114,16 @@ pub(super) async fn owned_run(
     }
 }
 
-fn refusal(body: &mut EnqueueBody, layout: &RunLayout) -> Option<String> {
-    if !origin::is_registered(&body.origin_kind) {
+fn refusal(
+    body: &mut EnqueueBody,
+    origins: &AdmittedRunOrigins,
+    layout: &RunLayout,
+) -> Option<String> {
+    if !origins.contains(&body.origin_kind) {
         return Some(format!(
             "origin_kind '{}' is not registered; registered: {:?}",
             body.origin_kind,
-            origin::registered()
+            origins.names()
         ));
     }
     let key = body.idempotency_key.trim();
@@ -151,7 +156,7 @@ pub(super) async fn enqueue(
     Json(mut body): Json<EnqueueBody>,
 ) -> Result<Response, AgentRunsHttpError> {
     let id = AgentRunId::generate();
-    if let Some(reason) = refusal(&mut body, &state.layouts.layout(&id)) {
+    if let Some(reason) = refusal(&mut body, &state.origins, &state.layouts.layout(&id)) {
         return Err(ApiHttpError::bad_request(reason).into());
     }
     let key = body.idempotency_key.trim().to_owned();

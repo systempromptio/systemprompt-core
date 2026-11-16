@@ -1,58 +1,63 @@
-//! The `agent_runs_api` extension's declaration of `/api/v1/agent-runs`: the
-//! user policy and context, the `agent_runs` tasks-budget rate limit, the
-//! `Agent` route group and no body limit above the default, read from the
-//! declaration the API server mounts. The run repository and the A2A run
-//! launcher it depends on come from the `agent_runs` extension's `provide`.
+//! The `agent_runs_api` member's contribution of `/api/v1/agent-runs`: one
+//! route set at `Api(AgentRuns)` in the `Agent` group, every route behind the
+//! user policy and context, the `agent_runs` tasks-budget rate limit and the
+//! default body limit — the shape the reference composition confers on
+//! `agent_runs_api` — and the run repository it requires from `agent_runs`.
+
+use std::any::TypeId;
 
 use systemprompt_agent_runs::AgentRunRepository;
-use systemprompt_agent_runs_entry::http::AgentRunsApiExtension;
+use systemprompt_agent_runs_entry::extension::AgentRunsApiExtension;
+use systemprompt_extension::contribute::ContributionSink;
+use systemprompt_extension::router::{ApiBase, BasePath, BodyLimit};
 use systemprompt_extension::{
-    ContextKind, Extension, RateBudget, RateLimit, RouteGroup, StateRequirement,
+    ContextKind, Contributions, Extension, RateBudget, RateLimit, RouteGroup,
 };
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_models::auth::UserType;
-use systemprompt_models::modules::ApiPaths;
-use systemprompt_test_fixtures::offline_extension_context;
-use systemprompt_traits::DynAgentRunLauncher;
+
+fn contributed() -> ContributionSink {
+    let mut sink = ContributionSink::default();
+    let mut c = Contributions::__new(ExtensionId::new("agent_runs_api"), &mut sink);
+    AgentRunsApiExtension
+        .contribute(&mut c)
+        .expect("the agent_runs_api member contributes");
+    sink
+}
 
 #[test]
-fn the_extension_requires_the_run_repository_agent_runs_provides() {
-    let extension = AgentRunsApiExtension;
-    assert_eq!(extension.metadata().id, "agent_runs_api");
-    assert_eq!(
-        extension.requires(),
-        vec![StateRequirement::of::<AgentRunRepository>()]
-    );
+fn the_member_requires_the_run_repository_agent_runs_provides() {
+    assert_eq!(AgentRunsApiExtension.metadata().id, "agent_runs_api");
+    let sink = contributed();
+    let required: Vec<TypeId> = sink.requires().iter().map(|r| r.type_id()).collect();
+    assert_eq!(required, [TypeId::of::<AgentRunRepository>()]);
 }
 
-#[tokio::test]
-async fn the_agent_runs_extension_provides_the_repository_and_the_launcher() {
-    let ctx = offline_extension_context();
-    let state = ctx.extension_state();
-    assert!(state.find::<AgentRunRepository>().is_some());
-    assert!(state.find::<DynAgentRunLauncher>().is_some());
+#[test]
+fn the_route_set_is_user_gated_and_rate_limited_at_agent_runs() {
+    let sink = contributed();
+    let sets = sink.routes();
+    assert_eq!(sets.len(), 1);
+    let set = &sets[0];
+    assert_eq!(set.base(), BasePath::Api(ApiBase::AgentRuns));
+    assert_eq!(set.group(), RouteGroup::Agent);
+    assert_eq!(set.defs().len(), 7);
+    for def in set.defs() {
+        assert_eq!(def.spec.context, ContextKind::User);
+        assert_eq!(
+            def.spec.policy.allowed(),
+            &[UserType::User, UserType::Admin]
+        );
+        assert!(def.spec.policy.handler_verifier().is_none());
+        assert_eq!(
+            def.spec.limits.rate,
+            RateLimit::new("agent_runs", RateBudget::Tasks)
+        );
+        assert_eq!(def.spec.limits.body, BodyLimit::Default);
+    }
 }
 
-#[tokio::test]
-async fn the_route_group_is_declared_user_gated_and_rate_limited() {
-    let ctx = offline_extension_context();
-    let mut declarations = AgentRunsApiExtension
-        .routers(&*ctx)
-        .expect("the routes are declared over a state with the run repository");
-    assert_eq!(declarations.len(), 1);
-    let declared = declarations.remove(0);
-    assert_eq!(declared.base_path, ApiPaths::AGENT_RUNS);
-    assert_eq!(declared.group, RouteGroup::Agent);
-    assert_eq!(declared.protection.context, ContextKind::User);
-    assert_eq!(
-        declared.protection.policy.allowed(),
-        &[UserType::User, UserType::Admin]
-    );
-    assert!(declared.protection.policy.handler_verifier().is_none());
-    assert_eq!(
-        declared.protection.rate_limit,
-        Some(RateLimit::new("agent_runs", RateBudget::Tasks))
-    );
-    assert_eq!(declared.protection.body_limit, None);
-    assert!(declared.protection.layers.is_empty());
-    assert!(declared.protection.frame_options.is_none());
+#[test]
+fn the_member_contributes_no_command() {
+    assert!(contributed().commands().is_empty());
 }

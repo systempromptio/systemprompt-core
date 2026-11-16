@@ -10,11 +10,10 @@
 //! edit into a proposal a person accepts, and `edit` leaves the user's level
 //! as it is.
 //!
-//! The cap is the stricter of two sources: the registered
-//! [`AgentAccessPolicy`] (core's default answers `edit` for every document,
-//! today's behaviour) and an owner-set override on the document or any
-//! folder above it. An override only ever tightens; one looser than the
-//! policy is refused.
+//! The cap is the stricter of two sources: the contributed
+//! [`AgentAccessPolicy`] (core's default answers `edit` for every document) and
+//! an owner-set override on the document or any folder above it. An override
+//! only ever tightens; one looser than the policy is refused.
 //!
 //! Whatever the cap, an agent may not take the [`AgentCapability`] actions
 //! (share or change grants, grant access through a mention, trash, delete,
@@ -42,8 +41,7 @@ pub use actor::{
 pub use cap::{AgentCap, AgentCapability, CapSource, EffectiveCap};
 pub use error::AgentRefusal;
 pub use policy::{
-    AgentAccessPolicy, AgentAccessPolicyRegistration, DefaultAgentAccessPolicy, DocumentContext,
-    MoveActor, MoveRefused, registered_policy,
+    AgentAccessPolicy, DefaultAgentAccessPolicy, DocumentContext, MoveActor, MoveRefused,
 };
 pub use rate::{AgentRateLimiter, MAX_TRACKED, Reservation};
 pub use rewrite::RewriteTracker;
