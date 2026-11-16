@@ -10,6 +10,10 @@
 //! inserted into the extension state as `Arc<S::Built>`, which consumers
 //! resolve with `Resolved::get::<Arc<S::Built>>()`.
 //!
+//! A [`SlotOrder::CoreFirst`] slot is built only when a core-standing member
+//! contributes to it: with its core owner disabled the slot is absent, never
+//! built from install entries alone.
+//!
 //! A built value enters the state through the same duplicate-checked insert
 //! a provided value does, owned by the slot's first core-standing
 //! contributor (else its first contributor): a slot value never replaces a
@@ -231,6 +235,12 @@ pub fn build_slot(
     let (slot, order, build, insert) = (first.slot, first.order, first.build, first.insert);
     let mut owner = first.entry.owner.clone();
     inputs.retain(|input| input.slot == slot);
+    let core_present = inputs
+        .iter()
+        .any(|input| input.entry.standing == StandingTag::Core);
+    if order == SlotOrder::CoreFirst && !core_present {
+        return Ok(None);
+    }
     if order == SlotOrder::CoreFirst {
         inputs.sort_by_key(|input| match input.entry.standing {
             StandingTag::Core => 0_u8,

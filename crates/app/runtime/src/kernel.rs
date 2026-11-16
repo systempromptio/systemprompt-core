@@ -20,7 +20,11 @@
 //! [`GatewayGuards`] — each inserted as an `Arc`, a reserved or doubly
 //! declared subject dimension refusing the resolution; and last every
 //! member's declared requirements, checked against the finished state, so a
-//! member may require a slot's built value or a governance surface. Only
+//! member may require a slot's built value or a governance surface. The
+//! values the kernel inserts after the provide fns run — the audience
+//! resolvers and the three governance surfaces — are reserved before any
+//! member's code runs: a member that provides one, or opens a slot that
+//! builds one, is refused with [`KernelError::ReservedType`]. Only
 //! admitted members' entries are present, so nothing a disabled member
 //! contributed runs.
 //!
@@ -62,6 +66,11 @@ pub enum KernelError {
     Duplicate(#[from] DuplicateDependency),
     #[error("{owner} requires {ty}, which no enabled member or the kernel provides")]
     Missing {
+        owner: ExtensionId,
+        ty: &'static str,
+    },
+    #[error("{owner} provides {ty}, which only the kernel inserts")]
+    ReservedType {
         owner: ExtensionId,
         ty: &'static str,
     },
@@ -168,6 +177,7 @@ impl Kernel {
         self.state.insert(AdmittedMigrations::of(admitted.built()));
         self.state.insert(AdmittedConfigs::of(admitted.built()));
         self.state.insert(AdmittedAssets::of(admitted.built()));
+        refuse_kernel_types(admitted.built())?;
         self.provide_all(admitted)?;
         let audiences = AudienceResolvers::from_admitted(admitted.built(), &self.resolved())?;
         self.state.insert(Arc::new(audiences));
@@ -257,6 +267,41 @@ impl Kernel {
         self.state.insert(Arc::new(guards));
         Ok(())
     }
+}
+
+fn kernel_inserted() -> [TypeId; 4] {
+    [
+        TypeId::of::<Arc<AudienceResolvers>>(),
+        TypeId::of::<Arc<SubjectProviderSet>>(),
+        TypeId::of::<Arc<PolicyCatalog>>(),
+        TypeId::of::<Arc<GatewayGuards>>(),
+    ]
+}
+
+fn refuse_kernel_types(built: &BuiltState) -> Result<(), KernelError> {
+    let reserved = kernel_inserted();
+    for member in built.members() {
+        let provided = member
+            .sink
+            .provides()
+            .iter()
+            .map(|entry| (entry.type_id(), entry.type_name()));
+        let slot_built = member
+            .sink
+            .slots()
+            .iter()
+            .map(|record| (record.built().type_id(), record.built().type_name()));
+        if let Some((_, ty)) = provided
+            .chain(slot_built)
+            .find(|(id, _)| reserved.contains(id))
+        {
+            return Err(KernelError::ReservedType {
+                owner: member.owner.clone(),
+                ty,
+            });
+        }
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone, Copy)]
