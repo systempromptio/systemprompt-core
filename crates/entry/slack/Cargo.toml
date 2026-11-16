@@ -32,10 +32,8 @@ http = [
     "dep:reqwest",
     "dep:systemprompt-client",
     "dep:systemprompt-identifiers",
-    "dep:systemprompt-models",
     "dep:systemprompt-provider-contracts",
     "dep:systemprompt-traits",
-    "dep:thiserror",
     "dep:tracing",
     "dep:url",
 ]
@@ -52,11 +50,9 @@ axum = { workspace = true, optional = true }
 chrono = { workspace = true, optional = true }
 systemprompt-slack = { workspace = true, optional = true }
 reqwest = { workspace = true, optional = true }
-thiserror = { workspace = true, optional = true }
 tracing = { workspace = true, optional = true }
 systemprompt-traits = { workspace = true, optional = true }
 systemprompt-client = { workspace = true, optional = true }
 systemprompt-identifiers = { workspace = true, optional = true }
-systemprompt-models = { workspace = true, optional = true }
 systemprompt-provider-contracts = { workspace = true, optional = true }
 url = { workspace = true, optional = true }
