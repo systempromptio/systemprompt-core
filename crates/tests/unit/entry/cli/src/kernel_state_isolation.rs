@@ -1,5 +1,7 @@
 //! The boot-only values a member's command must not resolve, and the
-//! profile boot a member reaches only with the `boot-profile` grant.
+//! profile boot a member reaches only with the `boot-profile` grant; sealed
+//! seeds a member's resolver refuses and a kernel command reads; the config
+//! apply service only a `config-reconcile` grant resolves.
 
 use std::sync::Arc;
 
@@ -119,4 +121,53 @@ async fn a_kernel_command_reads_a_sealed_seed() {
     let resolved = host.resolved().await.expect("the kernel resolves");
 
     assert!(resolved.get::<SystemAdmin>().is_ok());
+}
+
+async fn app_host() -> CommandContext {
+    systemprompt_test_fixtures::ensure_test_bootstrap();
+    let url = systemprompt_test_fixtures::test_database_url();
+    let pool = systemprompt_test_fixtures::test_db_pool().await;
+    CommandContext::with_app_context(
+        CliConfig::new()
+            .with_interactive(false)
+            .with_output_format(OutputFormat::Json),
+        EnvOverrides::default(),
+        systemprompt_test_fixtures::test_app_context(&pool, &url),
+    )
+}
+
+#[tokio::test]
+async fn a_config_reconcile_grant_serves_the_config_apply_service() {
+    let ctx = app_host().await;
+    let member = MemberHost::new(
+        &ctx,
+        CommandDescriptor::NONE.with_grant(KernelGrant::ConfigReconcile),
+    );
+    let resolved = member.resolved().await.expect("the granted state resolves");
+
+    assert!(
+        resolved
+            .get::<Arc<systemprompt_scheduler::services::ConfigApplyService>>()
+            .is_ok()
+    );
+    assert!(
+        resolved
+            .get::<Arc<systemprompt_runtime::AppContext>>()
+            .is_err(),
+        "no member resolves the application context"
+    );
+    assert!(resolved.get::<Arc<Config>>().is_err(), "the grant unseals nothing");
+}
+
+#[tokio::test]
+async fn an_ungranted_member_is_refused_the_config_apply_service() {
+    let ctx = app_host().await;
+    let member = MemberHost::new(&ctx, CommandDescriptor::NONE);
+    let resolved = member.resolved().await.expect("the kernel resolves");
+
+    assert!(
+        resolved
+            .get::<Arc<systemprompt_scheduler::services::ConfigApplyService>>()
+            .is_err()
+    );
 }

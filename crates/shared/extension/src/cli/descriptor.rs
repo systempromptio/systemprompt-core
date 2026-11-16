@@ -59,6 +59,7 @@ impl CommandDescriptor {
     const FLAG_CLOUD_OPERATOR: u16 = 0b0001_0000_0000_0000;
     const FLAG_LOCAL_EXPORT: u16 = 0b0010_0000_0000_0000;
     const FLAG_BOOT_PROFILE: u16 = 0b0100_0000_0000_0000;
+    const FLAG_CONFIG_RECONCILE: u16 = 0b1000_0000_0000_0000;
 
     pub const NONE: Self = Self { flags: 0 };
 
@@ -182,6 +183,7 @@ impl CommandDescriptor {
             KernelGrant::LocalExport => Self::FLAG_LOCAL_EXPORT,
             KernelGrant::SkipValidation => Self::FLAG_SKIP_VALIDATION,
             KernelGrant::BootProfile => Self::FLAG_BOOT_PROFILE,
+            KernelGrant::ConfigReconcile => Self::FLAG_CONFIG_RECONCILE,
         }
     }
 
