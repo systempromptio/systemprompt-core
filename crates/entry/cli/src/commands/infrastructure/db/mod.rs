@@ -59,7 +59,7 @@ async fn run(cmd: DbCommands, host: &dyn KernelHost) -> Result<()> {
     let config = host.output();
     let dispatched = if host.is_database_scoped() {
         let db_ctx = DatabaseContext::from_pool(pool_from_handle(host.db().await?)?);
-        dispatch_standalone_migration(cmd, &db_ctx, config).await?
+        dispatch_standalone_migration(cmd, &db_ctx, host).await?
     } else {
         dispatch_profile_migration(cmd, host).await?
     };
@@ -97,15 +97,23 @@ async fn run(cmd: DbCommands, host: &dyn KernelHost) -> Result<()> {
             bail!("migration command was not consumed by the migration dispatcher")
         },
         DbCommands::Migrations { cmd } => {
-            admin::execute_migrations(&app_context(host).await?, cmd, config).await
+            admin::execute_migrations(&app_context(host).await?, host.admitted()?.built(), cmd, config)
+                .await
         },
         DbCommands::MigratePlan { extension, flags } => {
-            admin::execute_migrate_plan(&app_context(host).await?, extension.as_ref(), flags, config)
-                .await
+            admin::execute_migrate_plan(
+                &app_context(host).await?,
+                host.admitted()?.built(),
+                extension.as_ref(),
+                flags,
+                config,
+            )
+            .await
         },
         DbCommands::MigrateStatus { extension, json } => {
             admin::execute_migrate_status(
                 &app_context(host).await?,
+                host.admitted()?.built(),
                 extension.as_ref(),
                 json,
                 config,
@@ -126,7 +134,7 @@ async fn run(cmd: DbCommands, host: &dyn KernelHost) -> Result<()> {
             introspect::execute_indexes(&admin_service, table, config).await
         },
         DbCommands::Size => introspect::execute_size(&admin_service, config).await,
-        DbCommands::Doctor => doctor::execute_doctor(&pool, config).await,
+        DbCommands::Doctor => doctor::execute_doctor(&pool, host.admitted()?.built(), config).await,
     }
 }
 

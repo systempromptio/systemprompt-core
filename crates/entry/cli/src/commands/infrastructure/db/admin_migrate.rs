@@ -7,10 +7,10 @@ use anyhow::{Context, Result, anyhow};
 use crate::kernel::KernelHost;
 use std::sync::Arc;
 use systemprompt_database::{
-    Database, MigrationConfig, MigrationService, SchemaInstallReport,
-    install_extension_schemas_full,
+    Database, MigrationConfig, MigrationService, SchemaInstallReport, SchemaMember,
+    install_admitted_schemas, schema_members,
 };
-use systemprompt_extension::{ExtensionRegistry, LoaderError};
+use systemprompt_extension::{BuiltState, LoaderError};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
@@ -57,16 +57,17 @@ pub(super) async fn execute_migrate(host: &dyn KernelHost, options: MigrateOptio
         .context("Failed to connect to the session database")?,
     );
 
-    run_install(&ExtensionRegistry::discover()?, &database, config, options).await
+    run_install(host.admitted()?.built(), &database, config, options).await
 }
 
 pub(super) async fn execute_migrate_standalone(
     db_ctx: &DatabaseContext,
+    built: &BuiltState,
     config: &CliConfig,
     options: MigrateOptions,
 ) -> Result<()> {
     let database = db_ctx.db_pool();
-    run_install(&ExtensionRegistry::discover()?, database, config, options).await
+    run_install(built, database, config, options).await
 }
 
 fn refuse_foreign_key_drift(report: &SchemaInstallReport) -> Result<()> {
@@ -92,7 +93,7 @@ fn refuse_foreign_key_drift(report: &SchemaInstallReport) -> Result<()> {
 }
 
 async fn run_install(
-    registry: &ExtensionRegistry,
+    built: &BuiltState,
     database: &Database,
     config: &CliConfig,
     MigrateOptions {
@@ -105,7 +106,7 @@ async fn run_install(
     if config.should_show_verbose() {
         CliService::info(&format!(
             "Installing schemas for {} extensions",
-            install_set(registry)?.len()
+            install_set(built).len()
         ));
     }
 
@@ -114,39 +115,27 @@ async fn run_install(
         force_full_install: full,
     };
 
-    let report = match install_extension_schemas_full(
-        registry,
-        write_provider,
-        ExtensionRegistry::INSTALL_EVERY_LINKED_SCHEMA,
-        migration_config,
-    )
-    .await
-    {
+    let report = match install_admitted_schemas(built, write_provider, migration_config).await {
         Ok(report) => report,
         Err(LoaderError::MigrationChecksumDrift { .. }) if repair_drift => {
             CliService::warning("Migration checksum drift found; re-applying drifted migrations");
             let service = MigrationService::new(write_provider);
-            for ext in install_set(registry)? {
+            for ext in install_set(built) {
                 service
                     .repair_drift(ext.as_ref())
                     .await
                     .map_err(|e| anyhow!("Failed to repair migrations: {e}"))?;
             }
-            install_extension_schemas_full(
-                registry,
-                write_provider,
-                ExtensionRegistry::INSTALL_EVERY_LINKED_SCHEMA,
-                migration_config,
-            )
-            .await
-            .map_err(|e| failure(&e))?
+            install_admitted_schemas(built, write_provider, migration_config)
+                .await
+                .map_err(|e| failure(&e))?
         },
         Err(e) => return Err(failure(&e)),
     };
     database.mark_schema_changed();
     refuse_foreign_key_drift(&report)?;
 
-    let installed_extensions: Vec<String> = install_set(registry)?
+    let installed_extensions: Vec<String> = install_set(built)
         .iter()
         .map(|ext| ext.id().to_owned())
         .collect();
@@ -200,17 +189,25 @@ fn failure(error: &LoaderError) -> anyhow::Error {
     )
 }
 
-pub(super) fn install_set(
-    registry: &ExtensionRegistry,
-) -> Result<Vec<Arc<dyn systemprompt_extension::Extension>>> {
-    Ok(registry.enabled_schema_extensions(ExtensionRegistry::INSTALL_EVERY_LINKED_SCHEMA)?)
+pub(super) fn install_set(built: &BuiltState) -> Vec<Arc<dyn SchemaMember>> {
+    schema_members(built)
+}
+
+pub(super) fn find_member(
+    built: &BuiltState,
+    extension: &ExtensionId,
+) -> Result<Arc<dyn SchemaMember>> {
+    install_set(built)
+        .into_iter()
+        .find(|member| member.id() == extension.as_str())
+        .ok_or_else(|| anyhow!("Extension '{}' not found or has no schema", extension))
 }
 
 pub(super) fn select_extensions(
-    registry: &ExtensionRegistry,
+    built: &BuiltState,
     extension: Option<&ExtensionId>,
-) -> Result<Vec<Arc<dyn systemprompt_extension::Extension>>> {
-    let all = install_set(registry)?;
+) -> Result<Vec<Arc<dyn SchemaMember>>> {
+    let all = install_set(built);
     if let Some(ext_id) = extension {
         let filtered: Vec<_> = all
             .into_iter()

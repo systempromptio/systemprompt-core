@@ -3,12 +3,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result};
 use crate::kernel::KernelHost;
 use std::sync::Arc;
 use systemprompt_database::services::DatabaseProvider;
 use systemprompt_database::{Database, MigrationService};
-use systemprompt_extension::ExtensionRegistry;
+use systemprompt_extension::BuiltState;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_logging::CliService;
 use systemprompt_runtime::DatabaseContext;
@@ -43,7 +43,7 @@ pub(super) async fn execute_migrate_down(
     );
 
     run_down(
-        &ExtensionRegistry::discover()?,
+        host.admitted()?.built(),
         database.session(),
         config,
         extension,
@@ -54,13 +54,14 @@ pub(super) async fn execute_migrate_down(
 
 pub(super) async fn execute_migrate_down_standalone(
     db_ctx: &DatabaseContext,
+    built: &BuiltState,
     config: &CliConfig,
     extension: &ExtensionId,
     count: u32,
 ) -> Result<()> {
     let database = db_ctx.db_pool();
     run_down(
-        &ExtensionRegistry::discover()?,
+        built,
         database.session(),
         config,
         extension,
@@ -70,15 +71,13 @@ pub(super) async fn execute_migrate_down_standalone(
 }
 
 async fn run_down(
-    registry: &ExtensionRegistry,
+    built: &BuiltState,
     write_provider: &dyn DatabaseProvider,
     config: &CliConfig,
     extension_id: &ExtensionId,
     count: u32,
 ) -> Result<()> {
-    let ext = registry
-        .get(extension_id.as_str())
-        .ok_or_else(|| anyhow!("Extension '{}' not found", extension_id))?;
+    let ext = super::admin_migrate::find_member(built, extension_id)?;
 
     let migration_service = MigrationService::new(write_provider);
     let result = migration_service

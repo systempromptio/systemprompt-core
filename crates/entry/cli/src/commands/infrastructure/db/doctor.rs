@@ -16,7 +16,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use systemprompt_database::services::DatabaseProvider;
 use systemprompt_database::services::schema_linter::created_table_names;
 use systemprompt_database::{DbPool, SchemaResidue, audit_schema_residue};
-use systemprompt_extension::ExtensionRegistry;
+use systemprompt_extension::BuiltState;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_logging::CliService;
 
@@ -38,9 +38,12 @@ struct MissingColumn {
     column: String,
 }
 
-pub(super) async fn execute_doctor(db_pool: &DbPool, config: &CliConfig) -> Result<()> {
-    let registry = ExtensionRegistry::discover()?;
-    let schema_extensions = super::admin_migrate::install_set(&registry)?;
+pub(super) async fn execute_doctor(
+    db_pool: &DbPool,
+    built: &BuiltState,
+    config: &CliConfig,
+) -> Result<()> {
+    let schema_extensions = super::admin_migrate::install_set(built);
     let write_provider = db_pool.write();
 
     let mut declared_columns: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();

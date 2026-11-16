@@ -12,12 +12,11 @@ use systemprompt_runtime::DatabaseContext;
 
 use super::admin;
 use super::commands::DbCommands;
-use crate::cli_settings::CliConfig;
-use systemprompt_extension::cli::CommandHost;
+use crate::kernel::KernelHost;
 
 pub(super) async fn dispatch_profile_migration(
     cmd: DbCommands,
-    host: &dyn CommandHost,
+    host: &dyn KernelHost,
 ) -> Result<Option<DbCommands>> {
     match cmd {
         DbCommands::Migrate {
@@ -77,8 +76,9 @@ pub(super) async fn dispatch_profile_migration(
 pub(super) async fn dispatch_standalone_migration(
     cmd: DbCommands,
     db_ctx: &DatabaseContext,
-    config: &CliConfig,
+    host: &dyn KernelHost,
 ) -> Result<Option<DbCommands>> {
+    let config = host.output();
     match cmd {
         DbCommands::Migrate {
             allow_checksum_drift,
@@ -86,6 +86,7 @@ pub(super) async fn dispatch_standalone_migration(
             full,
         } => admin::execute_migrate_standalone(
             db_ctx,
+            host.admitted()?.built(),
             config,
             admin::MigrateOptions {
                 allow_checksum_drift,
@@ -97,7 +98,13 @@ pub(super) async fn dispatch_standalone_migration(
         .map(|()| None),
         DbCommands::MigrateDown {
             extension, count, ..
-        } => admin::execute_migrate_down_standalone(db_ctx, config, &extension, count)
+        } => admin::execute_migrate_down_standalone(
+            db_ctx,
+            host.admitted()?.built(),
+            config,
+            &extension,
+            count,
+        )
             .await
             .map(|()| None),
         DbCommands::MigrateRepair {
@@ -107,6 +114,7 @@ pub(super) async fn dispatch_standalone_migration(
             json,
         } => admin::execute_migrate_repair_standalone(
             db_ctx,
+            host.admitted()?.built(),
             config,
             admin::RepairArgs {
                 extension: extension.as_ref(),
@@ -124,6 +132,7 @@ pub(super) async fn dispatch_standalone_migration(
             ..
         } => admin::execute_migrate_mark_applied_standalone(
             db_ctx,
+            host.admitted()?.built(),
             config,
             admin::MarkAppliedArgs {
                 extension: &extension,
@@ -133,26 +142,39 @@ pub(super) async fn dispatch_standalone_migration(
         )
         .await
         .map(|()| None),
-        other => dispatch_standalone_inspection(other, db_ctx, config).await,
+        other => dispatch_standalone_inspection(other, db_ctx, host).await,
     }
 }
 
 async fn dispatch_standalone_inspection(
     cmd: DbCommands,
     db_ctx: &DatabaseContext,
-    config: &CliConfig,
+    host: &dyn KernelHost,
 ) -> Result<Option<DbCommands>> {
+    let config = host.output();
     match cmd {
-        DbCommands::Migrations { cmd } => admin::execute_migrations_standalone(db_ctx, cmd, config)
+        DbCommands::Migrations { cmd } => admin::execute_migrations_standalone(db_ctx, host.admitted()?.built(), cmd, config)
             .await
             .map(|()| None),
         DbCommands::MigratePlan { extension, flags } => {
-            admin::execute_migrate_plan_standalone(db_ctx, extension.as_ref(), flags, config)
+            admin::execute_migrate_plan_standalone(
+                db_ctx,
+                host.admitted()?.built(),
+                extension.as_ref(),
+                flags,
+                config,
+            )
                 .await
                 .map(|()| None)
         },
         DbCommands::MigrateStatus { extension, json } => {
-            admin::execute_migrate_status_standalone(db_ctx, extension.as_ref(), json, config)
+            admin::execute_migrate_status_standalone(
+                db_ctx,
+                host.admitted()?.built(),
+                extension.as_ref(),
+                json,
+                config,
+            )
                 .await
                 .map(|()| None)
         },

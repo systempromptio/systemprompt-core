@@ -19,7 +19,7 @@ use crate::kernel::KernelHost;
 use std::sync::Arc;
 use systemprompt_database::services::DatabaseProvider;
 use systemprompt_database::{Database, MigrationService};
-use systemprompt_extension::ExtensionRegistry;
+use systemprompt_extension::BuiltState;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_logging::CliService;
 use systemprompt_runtime::DatabaseContext;
@@ -62,7 +62,7 @@ pub(super) async fn execute_migrate_repair(
 
     run_migrate_repair(
         database.session(),
-        &ExtensionRegistry::discover()?,
+        host.admitted()?.built(),
         args,
         config,
     )
@@ -71,12 +71,13 @@ pub(super) async fn execute_migrate_repair(
 
 pub(super) async fn execute_migrate_repair_standalone(
     db_ctx: &DatabaseContext,
+    built: &BuiltState,
     config: &CliConfig,
     args: RepairArgs<'_>,
 ) -> Result<()> {
     run_migrate_repair(
         db_ctx.db_pool().session(),
-        &ExtensionRegistry::discover()?,
+        built,
         args,
         config,
     )
@@ -85,7 +86,7 @@ pub(super) async fn execute_migrate_repair_standalone(
 
 async fn run_migrate_repair(
     write_provider: &dyn DatabaseProvider,
-    registry: &ExtensionRegistry,
+    built: &BuiltState,
     args: RepairArgs<'_>,
     config: &CliConfig,
 ) -> Result<()> {
@@ -95,7 +96,7 @@ async fn run_migrate_repair(
         reconcile_only,
         json,
     } = args;
-    let extensions = select_extensions(registry, extension)?;
+    let extensions = select_extensions(built, extension)?;
     let migration_service = MigrationService::new(write_provider);
 
     let mut drift_rows: Vec<MigrationDriftInfo> = Vec::new();
