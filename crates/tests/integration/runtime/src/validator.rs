@@ -96,7 +96,7 @@ fn validate_returns_services_config_error_when_the_services_tree_is_unloadable_q
     let cfg = minimal_config();
     let mut validator =
         StartupValidator::new(unloadable_boot().boot.clone()).expect("startup validator");
-    let report = validator.validate(&cfg);
+    let report = validator.validate(&cfg, systemprompt_test_fixtures::fixture_admitted().built());
     assert!(
         report.has_errors(),
         "validator must surface services-config failure when the services tree is unloadable; \
@@ -113,7 +113,7 @@ fn validate_returns_services_config_error_when_the_services_tree_is_unloadable_v
     let cfg = minimal_config();
     let mut validator =
         StartupValidator::new(unloadable_boot().boot.clone()).expect("startup validator");
-    let report = validator.validate(&cfg);
+    let report = validator.validate(&cfg, systemprompt_test_fixtures::fixture_admitted().built());
 
     assert!(
         report.has_errors(),
