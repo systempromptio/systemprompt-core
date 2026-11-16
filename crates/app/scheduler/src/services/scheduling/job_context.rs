@@ -1,6 +1,8 @@
 //! The [`JobContext`] every dispatched job receives: the application's
 //! extension state (the kernel's handles and every enabled extension's
-//! provided values) extended with the per-run handles the jobs read.
+//! provided values) extended with the per-run handles the jobs read and the
+//! [`AdmittedSchedule`] the retention job reads its purges, sweeps and holds
+//! from.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -8,7 +10,7 @@
 use std::sync::Arc;
 
 use systemprompt_database::{BudgetedDb, DbPool};
-use systemprompt_extension::ExtensionContext;
+use systemprompt_extension::{AdmittedSchedule, ExtensionContext};
 use systemprompt_identifiers::Actor;
 use systemprompt_loader::BootContext;
 use systemprompt_runtime::AppContext;
@@ -23,9 +25,11 @@ pub(crate) fn make_job_context(
     app_context: Arc<AppContext>,
     budget: Option<DbBudget>,
     inventory_memo: &Arc<InventoryRefreshMemo>,
+    schedule: &AdmittedSchedule,
 ) -> JobContext {
     let dependencies = brain_dependencies(&app_context, app_context.extension_state())
         .with(Arc::clone(inventory_memo))
+        .with(schedule.clone())
         .with(Arc::new(app_context.profile().brain.clone()))
         .with(Arc::clone(app_context.documents().service()))
         .with(app_context.signing_keys().clone())

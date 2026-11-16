@@ -1,20 +1,17 @@
 //! Retention holds applied to the plan: each target's age cutoff is clamped
-//! to the earliest watermark any registered hold reports for it, and a target
+//! to the earliest watermark any admitted hold reports for it, and a target
 //! whose hold cannot answer is withheld for the run.
 //!
-//! The holds consulted are every `register_retention_hold!` registration,
-//! built over the application's extension context, together with any
-//! [`RetentionHolds`] the job's dependencies carry. A hold whose watermark
-//! trails the age cutoff by more than the target's window again (at least a
-//! day) is reported as stalled.
+//! The holds consulted are the admitted members' `RetentionDecl::Hold`
+//! contributions ([`AdmittedSchedule::holds`]). A hold whose watermark trails
+//! the age cutoff by more than the target's window again (at least a day) is
+//! reported as stalled.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Duration, Utc};
-use systemprompt_extension::{EffectiveCutoff, ExtensionContext, RetentionHolds, RetentionTarget};
-use systemprompt_runtime::AppContext;
-use systemprompt_traits::JobContext;
+use systemprompt_extension::{EffectiveCutoff, RetentionTarget};
 use tracing::{info, warn};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -22,15 +19,6 @@ pub(super) enum HoldOutcome {
     None,
     Clamped(&'static str),
     Withheld(&'static str),
-}
-
-pub(super) fn retention_holds(ctx: &JobContext, app: &AppContext) -> RetentionHolds {
-    let extensions: &dyn ExtensionContext = app;
-    let registered = RetentionHolds::discover(extensions);
-    if let Ok(injected) = ctx.get::<RetentionHolds>() {
-        return registered.merged(injected);
-    }
-    registered
 }
 
 pub(super) fn report(

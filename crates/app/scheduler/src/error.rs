@@ -29,8 +29,8 @@ pub enum SchedulerError {
     JobNotFound { job_name: JobName },
 
     #[error(
-        "Scheduler config references job(s) not present in the inventory catalog: {names}. \
-         Every name in `jobs`/`bootstrap_jobs` must be registered via `submit_job!`."
+        "Scheduler config references job(s) no admitted extension contributes: {names}. \
+         A job of a disabled or absent extension cannot be named in `jobs`/`bootstrap_jobs`."
     )]
     UnknownJob { names: String },
 
@@ -77,9 +77,6 @@ pub enum SchedulerError {
         second: JobName,
         key: i64,
     },
-
-    #[error("Extension set: {0}")]
-    Extensions(#[from] systemprompt_extension::LoaderError),
 
     #[error("two retention purges are registered for table `{table}`")]
     DuplicateRetentionPurge { table: &'static str },

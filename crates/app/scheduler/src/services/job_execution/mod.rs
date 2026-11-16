@@ -1,7 +1,8 @@
 //! On-demand job execution outside the cron loop.
 //!
-//! [`JobExecutionService`] resolves a [`JobSelection`] against both the
-//! extension introspection manifest and the inventory catalog, runs each job
+//! [`JobExecutionService`] resolves a [`JobSelection`] against the jobs of
+//! the admitted composition ([`AdmittedSchedule`]), runs each job inside the
+//! admitted job-run scopes
 //! under a [`systemprompt_traits::JobContext`] actored to the system admin,
 //! and records the outcome on the job's `scheduled_jobs` row. Callers render
 //! the returned [`JobRunReport`] / [`JobBatchReport`]; a missing job is
@@ -29,10 +30,11 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use systemprompt_extension::AdmittedSchedule;
 use systemprompt_identifiers::{Actor, JobName};
 use systemprompt_manifest::SchedulerConfig;
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::{Job, run_in_job_scopes};
+use systemprompt_traits::Job;
 
 use super::scheduling::make_job_context;
 use crate::error::SchedulerResult;
@@ -50,6 +52,7 @@ pub struct JobExecutionService {
     scheduler_repo: SchedulerRepository,
     lock_wait: Duration,
     inventory_memo: Arc<InventoryRefreshMemo>,
+    schedule: Arc<AdmittedSchedule>,
 }
 
 impl std::fmt::Debug for JobExecutionService {
@@ -60,7 +63,11 @@ impl std::fmt::Debug for JobExecutionService {
 }
 
 impl JobExecutionService {
-    pub fn new(ctx: Arc<AppContext>, scheduler_config: SchedulerConfig) -> Self {
+    pub fn new(
+        ctx: Arc<AppContext>,
+        scheduler_config: SchedulerConfig,
+        schedule: Arc<AdmittedSchedule>,
+    ) -> Self {
         let job_repo = JobRepository::new(ctx.db_pool());
         let scheduler_repo = SchedulerRepository::new(ctx.db_pool());
         Self {
@@ -70,6 +77,7 @@ impl JobExecutionService {
             scheduler_repo,
             lock_wait: Duration::ZERO,
             inventory_memo: Arc::new(InventoryRefreshMemo::new()),
+            schedule,
         }
     }
 
@@ -110,36 +118,19 @@ impl JobExecutionService {
         let start = Instant::now();
 
         let runnable = match self.find_runnable(job_name) {
-            Ok(JobLookup::Runnable(job)) => job,
-            Ok(JobLookup::NotLinked) => {
-                return self
-                    .refuse(job_name, start, format!("Job '{job_name}' not found"))
-                    .await;
-            },
-            Ok(JobLookup::OwnerDisabled(owner)) => {
+            JobLookup::Runnable(job) => job,
+            JobLookup::Unregistered => {
                 return self
                     .refuse(
                         job_name,
                         start,
-                        format!(
-                            "Job '{job_name}' belongs to extension '{owner}', which the profile \
-                             disables"
-                        ),
-                    )
-                    .await;
-            },
-            Err(e) => {
-                return self
-                    .refuse(
-                        job_name,
-                        start,
-                        format!("Could not resolve the enabled extensions: {e}"),
+                        format!("Job '{job_name}' is not registered by any admitted extension"),
                     )
                     .await;
             },
         };
 
-        let guard = match self.claim(job_name, runnable).await {
+        let guard = match self.claim(job_name, runnable.as_ref()).await {
             Ok(Claimed::Held(guard)) => Some(guard),
             Ok(Claimed::Free) => None,
             Ok(Claimed::Contended) => return self.contended_report(job_name, start),
@@ -153,7 +144,7 @@ impl JobExecutionService {
         };
 
         let report = self
-            .execute_runnable(job_name, runnable, parameters, start)
+            .execute_runnable(job_name, runnable.as_ref(), parameters, start)
             .await;
         self.record_run(&report).await;
         if let Some(guard) = guard {
@@ -165,7 +156,7 @@ impl JobExecutionService {
     async fn execute_runnable(
         &self,
         job_name: &JobName,
-        job: &'static dyn Job,
+        job: &dyn Job,
         parameters: &HashMap<String, String>,
         start: Instant,
     ) -> JobRunReport {
@@ -187,11 +178,16 @@ impl JobExecutionService {
             Arc::clone(&self.ctx),
             job.db_budget(),
             &self.inventory_memo,
+            &self.schedule,
         )
         .with_enforce(enforce)
         .with_parameters(merged);
 
-        match run_in_job_scopes(job.name(), job.execute(&job_ctx)).await {
+        match self
+            .schedule
+            .run_in_scopes(job.name(), job.execute(&job_ctx))
+            .await
+        {
             Ok(result) => JobRunReport {
                 job_name: job_name.clone(),
                 success: result.success,

@@ -24,7 +24,7 @@ impl JobExecutionService {
     pub(super) async fn claim(
         &self,
         job_name: &JobName,
-        job: &'static dyn Job,
+        job: &dyn Job,
     ) -> SchedulerResult<Claimed> {
         let job_config = self
             .scheduler_config

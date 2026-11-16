@@ -1,5 +1,5 @@
 //! The passes that run before the retention windows: log rows whose owning
-//! user is gone, then every registered `RetentionSweep` (an owner's own
+//! user is gone, then every admitted `RetentionSweep` (an owner's own
 //! orphan settlement, such as the AI crate failing requests left `pending`
 //! by a lost settlement).
 //!
@@ -7,12 +7,11 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_database::DbPool;
+use systemprompt_extension::AdmittedSchedule;
 use systemprompt_logging::LoggingRepository;
-use systemprompt_traits::{JobContext, ProviderError, ProviderResult, registered_retention_sweeps};
+use systemprompt_traits::{JobContext, ProviderError, ProviderResult};
 use systemprompt_users::UserRepository;
 use tracing::{debug, info};
-
-use crate::services::EnabledExtensions;
 
 pub(super) async fn delete_orphaned_logs(db_pool: &DbPool, enforce: bool) -> ProviderResult<u64> {
     let logs = LoggingRepository::new(db_pool);
@@ -51,13 +50,9 @@ pub(super) async fn delete_orphaned_logs(db_pool: &DbPool, enforce: bool) -> Pro
 
 pub(super) async fn run_sweeps(
     ctx: &JobContext,
-    enabled: &EnabledExtensions,
+    schedule: &AdmittedSchedule,
 ) -> ProviderResult<()> {
-    for registration in registered_retention_sweeps() {
-        if !enabled.contains(registration.owner) {
-            continue;
-        }
-        let sweep = registration.sweep;
+    for (_, sweep) in schedule.sweeps() {
         debug!(sweep = sweep.name(), "Retention sweep");
         sweep.sweep(ctx, ctx.enforce()).await?;
     }

@@ -131,5 +131,3 @@ fn catalog_fingerprint(app: &AppContext) -> Option<[u8; 32]> {
         .inspect_err(|error| tracing::debug!(%error, "Inventory fingerprint unavailable"))
         .ok()
 }
-
-systemprompt_provider_contracts::submit_job!("scheduler", &InventoryRefreshJob);

@@ -61,5 +61,3 @@ impl Job for CleanupInactiveSessionsJob {
             .with_duration(duration_ms))
     }
 }
-
-systemprompt_provider_contracts::submit_job!("scheduler", &CleanupInactiveSessionsJob);

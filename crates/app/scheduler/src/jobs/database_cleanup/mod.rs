@@ -37,16 +37,16 @@ use std::time::Instant;
 
 use async_trait::async_trait;
 use systemprompt_database::DbPool;
+use systemprompt_extension::AdmittedSchedule;
 pub use systemprompt_extension::RetentionTarget;
 use systemprompt_manifest::profile::RetentionConfig;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::debug;
 
-use crate::services::EnabledExtensions;
 use crate::services::scheduling::job_app_context;
 
 use self::archived_users::purge_archived_users;
-use self::holds::{HoldOutcome, retention_holds};
+use self::holds::HoldOutcome;
 use self::orphans::{delete_orphaned_logs, run_sweeps};
 use self::tables::{PassRunner, RetentionOwners, RetentionPass};
 
@@ -79,23 +79,23 @@ impl Job for DatabaseCleanupJob {
         if let Some(days) = ctx.get_parameter_parsed::<u32>("log_retention_days")? {
             retention.logs_days = days;
         }
-        let enabled = EnabledExtensions::of(app)?;
-        let owners = RetentionOwners::discover(&enabled)?;
+        let schedule = ctx.get::<AdmittedSchedule>()?;
+        let owners = RetentionOwners::discover(schedule)?;
 
         debug!("Job started");
         let orphaned = delete_orphaned_logs(&db_pool, ctx.enforce()).await?;
-        run_sweeps(ctx, &enabled).await?;
+        run_sweeps(ctx, schedule).await?;
         let plan: Vec<_> = plan(&retention, app.services_state())
             .into_iter()
             .filter(|(target, _)| {
                 let owned = owners.owns(*target);
                 if !owned {
-                    debug!(table = target.table(), "no linked crate purges this target");
+                    debug!(table = target.table(), "no admitted member purges this target");
                 }
                 owned
             })
             .collect();
-        let holds = retention_holds(ctx, app);
+        let holds = schedule.holds();
         let mut passes = Vec::with_capacity(plan.len());
         let mut total = orphaned;
         let runner = PassRunner {
@@ -194,5 +194,3 @@ fn summary(orphaned: u64, passes: &[RetentionPass]) -> String {
     }));
     parts.join(" ")
 }
-
-systemprompt_provider_contracts::submit_job!("scheduler", &DatabaseCleanupJob);

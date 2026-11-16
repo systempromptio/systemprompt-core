@@ -13,7 +13,6 @@ use tokio::sync::Mutex;
 use super::{RunningJobs, SchedulerService, dispatch};
 use crate::error::SchedulerResult;
 use crate::models::JobStatus;
-use crate::services::EnabledExtensions;
 
 struct BootstrapCtx<'a> {
     owners: &'a HashMap<JobName, UserId>,
@@ -21,7 +20,6 @@ struct BootstrapCtx<'a> {
     system_admin_id: &'a UserId,
     running_jobs: &'a RunningJobs,
     events: Option<&'a StartupEventSender>,
-    enabled: &'a EnabledExtensions,
 }
 
 impl SchedulerService {
@@ -30,9 +28,7 @@ impl SchedulerService {
         events: Option<&StartupEventSender>,
     ) -> SchedulerResult<usize> {
         let resolved = self.resolve_owners(false).await?;
-        let linked_jobs = super::linked_jobs();
-        self.validate_configured_jobs(&linked_jobs)?;
-        let enabled = EnabledExtensions::of(&self.app_context)?;
+        self.validate_configured_jobs()?;
         let system_admin_id = self.app_context.system_admin().id().clone();
         let skipped: HashSet<&JobName> = resolved.skipped_names().collect();
         let running_jobs: RunningJobs = Arc::new(Mutex::new(HashSet::new()));
@@ -42,14 +38,13 @@ impl SchedulerService {
             system_admin_id: &system_admin_id,
             running_jobs: &running_jobs,
             events,
-            enabled: &enabled,
         };
 
         for job_name in &self.config.bootstrap_jobs {
             self.dispatch_bootstrap_job(job_name, &ctx).await;
         }
 
-        Ok(linked_jobs.len())
+        Ok(self.schedule.jobs().len())
     }
 
     async fn dispatch_bootstrap_job(&self, job_name: &JobName, ctx: &BootstrapCtx<'_>) {
@@ -57,11 +52,12 @@ impl SchedulerService {
             tracing::warn!(job_name = %job_name, "bootstrap job owner unresolved, skipping");
             return;
         }
-        let Some(job) = ctx.enabled.job(job_name.as_str()) else {
-            tracing::info!(
-                job_name = %job_name,
-                "bootstrap job's owning extension is disabled in the profile, skipping"
-            );
+        let Some(job) = self
+            .schedule
+            .job(job_name.as_str())
+            .map(|(_, job)| Arc::clone(job))
+        else {
+            tracing::warn!(job_name = %job_name, "bootstrap job is not admitted, skipping");
             return;
         };
         let owner_id = ctx
@@ -77,7 +73,7 @@ impl SchedulerService {
         let claim_policy = dispatch::claim_policy(
             &self.config,
             config_entry,
-            Some(job),
+            Some(job.as_ref()),
             &self.app_context.config().instance_id,
         );
         dispatch::execute_job(dispatch::JobDispatch {
@@ -94,6 +90,7 @@ impl SchedulerService {
                 .map(|job| job.parameters.clone())
                 .unwrap_or_default(),
             inventory_memo: Arc::clone(&self.inventory_memo),
+            schedule: Arc::clone(&self.schedule),
         })
         .await;
 

@@ -69,6 +69,7 @@ pub use ::inventory as __inventory;
 
 pub mod admitted;
 pub mod admitted_purge;
+pub mod admitted_schedule;
 mod asset;
 pub mod authz;
 pub mod brain;
@@ -104,6 +105,7 @@ mod traits;
 
 pub use admitted::{Admitted, BuiltState, DeclaredCommands};
 pub use admitted_purge::AdmittedPurge;
+pub use admitted_schedule::AdmittedSchedule;
 pub use asset::{AssetDefinition, AssetDefinitionBuilder, AssetPaths, AssetType};
 pub use authz::{AuthzPolicy, HandlerVerifier};
 pub use brain::{

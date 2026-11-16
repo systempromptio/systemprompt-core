@@ -71,5 +71,3 @@ impl Job for ConfigReconcileJob {
         .with_duration(duration_ms))
     }
 }
-
-systemprompt_provider_contracts::submit_job!("scheduler", &ConfigReconcileJob);

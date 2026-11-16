@@ -15,7 +15,8 @@ use systemprompt_database::DbPool;
 use systemprompt_provider_contracts::ProviderError;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 
-use systemprompt_database::projection::{ProjectionDrain, drain_projection};
+use systemprompt_database::projection::drain_projection;
+use systemprompt_extension::ProjectionDrain;
 
 const DRAIN: ProjectionDrain = ProjectionDrain {
     projection: "event_outbox_backlog",
@@ -55,5 +56,3 @@ impl Job for OutboxBacklogRollupJob {
         Ok(drained)
     }
 }
-
-systemprompt_provider_contracts::submit_job!("scheduler", &OutboxBacklogRollupJob);

@@ -103,8 +103,6 @@ impl Job for OtlpExportJob {
     }
 }
 
-systemprompt_provider_contracts::submit_job!("scheduler", &OtlpExportJob);
-
 pub async fn export_now(
     pool: &Arc<PgPool>,
     config: &OtlpExportConfig,
