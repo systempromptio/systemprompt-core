@@ -118,9 +118,7 @@ async fn migrations_history_requires_known_extension() {
 async fn migrate_repair_dry_run_reports_no_drift() {
     let pool = test_db_pool().await;
     let ctx = ctx(&pool);
-    db::execute(parse(&["migrate-repair", "--json"]), &ctx)
-        .await
-        .unwrap();
+    db::execute(parse(&["migrate-repair"]), &ctx).await.unwrap();
     db::execute(parse(&["migrate-repair"]), &ctx).await.unwrap();
 }
 

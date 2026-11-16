@@ -94,6 +94,7 @@ fn declared(commands: Vec<(&str, CommandDecl)>) -> DeclaredCommands {
             .into_iter()
             .map(|(owner, decl)| AdmittedCommand {
                 owner: ExtensionId::new(owner),
+                owner_type: "registry_build::ProbeMember",
                 decl,
             })
             .collect(),

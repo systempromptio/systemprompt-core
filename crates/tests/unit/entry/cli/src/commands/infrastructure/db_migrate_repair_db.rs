@@ -75,12 +75,9 @@ async fn repair_dry_run_reports_clean_state() {
     db::execute(parse(&["migrate-repair"]), &ctx(&pool, OutputFormat::Table))
         .await
         .unwrap();
-    db::execute(
-        parse(&["migrate-repair", "--json"]),
-        &ctx(&pool, OutputFormat::Json),
-    )
-    .await
-    .unwrap();
+    db::execute(parse(&["migrate-repair"]), &ctx(&pool, OutputFormat::Json))
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -117,7 +114,7 @@ async fn repair_dry_run_reports_tampered_checksum_drift() {
     )
     .await;
     let json_run = db::execute(
-        parse(&["migrate-repair", &ext, "--json"]),
+        parse(&["migrate-repair", &ext]),
         &ctx(&pool, OutputFormat::Json),
     )
     .await;

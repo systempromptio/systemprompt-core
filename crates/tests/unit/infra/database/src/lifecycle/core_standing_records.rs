@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use systemprompt_database::{DbPool, MigrationConfig, SchemaMember, SchemaUnit, install_schema_members};
+use systemprompt_database::{
+    DbPool, MigrationConfig, SchemaMember, SchemaUnit, install_schema_members,
+};
 use systemprompt_extension::{
     ExtensionMetadata, LoaderError, PurgeDeclaration, SchemaDefinition, StandingTag,
 };
@@ -73,7 +75,7 @@ async fn install(pool: &DbPool, members: Vec<Arc<dyn SchemaMember>>) -> Result<(
         .map(drop)
 }
 
-async fn recorded_standing(pool: &DbPool, sql: &str, key: &str) -> Option<String> {
+async fn recorded_standing(pool: &DbPool, sql: &'static str, key: &str) -> Option<String> {
     sqlx::query_scalar(sql)
         .bind(key)
         .fetch_optional(pool.write_pool().as_ref())
@@ -87,7 +89,10 @@ async fn an_install_with_a_core_members_id_cannot_adopt_its_table() {
     let pool = database.test_pool().await;
     install(
         &pool,
-        vec![ledger(), unit("squatted", StandingTag::Core, vec![facts()], vec![])],
+        vec![
+            ledger(),
+            unit("squatted", StandingTag::Core, vec![facts()], vec![]),
+        ],
     )
     .await
     .expect("the core member installs");
@@ -104,7 +109,10 @@ async fn an_install_with_a_core_members_id_cannot_adopt_its_table() {
 
     let err = install(
         &pool,
-        vec![ledger(), unit("squatted", StandingTag::Install, vec![facts()], vec![])],
+        vec![
+            ledger(),
+            unit("squatted", StandingTag::Install, vec![facts()], vec![]),
+        ],
     )
     .await
     .expect_err("an install claiming a core-recorded table is refused");
@@ -119,7 +127,10 @@ async fn an_install_with_a_core_members_id_cannot_adopt_its_table() {
 
     install(
         &pool,
-        vec![ledger(), unit("squatted", StandingTag::Core, vec![facts()], vec![])],
+        vec![
+            ledger(),
+            unit("squatted", StandingTag::Core, vec![facts()], vec![]),
+        ],
     )
     .await
     .expect("the core owner still installs over its own record");
@@ -136,7 +147,12 @@ async fn an_install_with_a_core_members_id_cannot_replace_its_purge_records() {
         &pool,
         vec![
             ledger(),
-            unit("squatted", StandingTag::Core, vec![facts()], vec![purge("standing_facts")]),
+            unit(
+                "squatted",
+                StandingTag::Core,
+                vec![facts()],
+                vec![purge("standing_facts")],
+            ),
         ],
     )
     .await
@@ -146,7 +162,12 @@ async fn an_install_with_a_core_members_id_cannot_replace_its_purge_records() {
         &pool,
         vec![
             ledger(),
-            unit("squatted", StandingTag::Install, vec![other()], vec![purge("standing_other")]),
+            unit(
+                "squatted",
+                StandingTag::Install,
+                vec![other()],
+                vec![purge("standing_other")],
+            ),
         ],
     )
     .await
@@ -154,7 +175,10 @@ async fn an_install_with_a_core_members_id_cannot_replace_its_purge_records() {
     assert!(
         matches!(
             &err,
-            LoaderError::CoreRecordClaimedByInstall { kind: "user purge records", .. }
+            LoaderError::CoreRecordClaimedByInstall {
+                kind: "user purge records",
+                ..
+            }
         ),
         "unexpected error: {err:?}"
     );
@@ -173,7 +197,12 @@ async fn an_install_with_a_core_members_id_cannot_replace_its_purge_records() {
         &pool,
         vec![
             ledger(),
-            unit("fresh_install", StandingTag::Install, vec![other()], vec![purge("standing_other")]),
+            unit(
+                "fresh_install",
+                StandingTag::Install,
+                vec![other()],
+                vec![purge("standing_other")],
+            ),
         ],
     )
     .await

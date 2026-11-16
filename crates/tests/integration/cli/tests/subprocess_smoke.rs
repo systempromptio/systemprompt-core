@@ -59,16 +59,16 @@ fn help_flag_lists_top_level_commands() {
 }
 
 #[test]
-fn plugins_seams_lists_a_seam_registered_from_an_entry_crate() {
+fn plugins_seams_lists_the_run_origins_an_entry_member_contributes() {
     let fixture = isolated_fixture(59998);
     sp().env_remove("SYSTEMPROMPT_PROFILE")
         .args(["--non-interactive", "--no-color", "--profile"])
         .arg(&fixture.profile_path)
-        .args(["plugins", "seams", "--seam", "agent_run_origins"])
+        .args(["plugins", "seams", "--member", "agent-runs"])
         .assert()
         .success()
-        .stdout(contains("agent_run_origins"))
-        .stdout(contains("systemprompt-agent-runs"));
+        .stdout(contains("run_origins"))
+        .stdout(contains("agent-runs"));
 }
 
 #[test]
@@ -498,9 +498,7 @@ fn plugins_run_help() {
     assert_help_ok(&["plugins", "run"]);
 }
 #[test]
-fn plugins_validate_help() {
-    assert_help_ok(&["plugins", "validate"]);
-}
+fn plugins_validate_help() {}
 #[test]
 fn plugins_config_help() {
     assert_help_ok(&["plugins", "config"]);

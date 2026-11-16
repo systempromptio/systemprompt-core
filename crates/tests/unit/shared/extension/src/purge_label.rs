@@ -43,7 +43,10 @@ fn admit_install(
 #[test]
 fn a_schema_labelled_with_a_core_table_does_not_own_it() {
     let refused = admit_install(
-        SchemaDefinition::new("oauth_clients", "CREATE TABLE IF NOT EXISTS acme_x (created_by TEXT)"),
+        SchemaDefinition::new(
+            "oauth_clients",
+            "CREATE TABLE IF NOT EXISTS acme_x (created_by TEXT)",
+        ),
         purge("oauth_clients"),
     );
     assert_eq!(
@@ -58,7 +61,10 @@ fn a_schema_labelled_with_a_core_table_does_not_own_it() {
 #[test]
 fn a_label_matching_the_created_table_is_admitted() {
     let admitted = admit_install(
-        SchemaDefinition::new("acme_x", "CREATE TABLE IF NOT EXISTS acme_x (created_by TEXT)"),
+        SchemaDefinition::new(
+            "acme_x",
+            "CREATE TABLE IF NOT EXISTS acme_x (created_by TEXT)",
+        ),
         purge("acme_x"),
     )
     .expect("a member purging the table its SQL creates is admitted");
@@ -76,6 +82,12 @@ fn an_unlabelled_schema_owns_the_tables_its_sql_creates() {
 
 #[test]
 fn schema_sql_that_does_not_parse_refuses_admission() {
-    let refused = admit_install(SchemaDefinition::new("acme_x", "CREATE TABLE ((("), purge("acme_x"));
-    assert!(matches!(refused, Err(PurgeAdmissionError::UnparseableSchema { .. })));
+    let refused = admit_install(
+        SchemaDefinition::new("acme_x", "CREATE TABLE ((("),
+        purge("acme_x"),
+    );
+    assert!(matches!(
+        refused,
+        Err(PurgeAdmissionError::UnparseableSchema { .. })
+    ));
 }

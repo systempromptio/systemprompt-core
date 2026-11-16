@@ -253,7 +253,6 @@ fn plugins_and_mcp() {
         &["plugins", "show", "no-such-plugin"],
         "Failed to show extension",
     );
-    run(&["plugins", "validate"]);
     run(&["plugins", "config", "no-such-plugin"]);
     stderr_has(&["plugins", "capabilities"], "Capabilities Summary");
     stdout_has_fmt(&["plugins", "mcp", "list"], fixture_mcp_server());

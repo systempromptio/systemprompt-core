@@ -81,12 +81,9 @@ async fn fresh_database_migrates_and_reports_status() {
     db::execute(parse(&["migrate-repair"]), &disp.ctx(false).await)
         .await
         .unwrap();
-    db::execute(
-        parse(&["migrate-repair", "--apply", "--json"]),
-        &disp.ctx(true).await,
-    )
-    .await
-    .unwrap();
+    db::execute(parse(&["migrate-repair", "--apply"]), &disp.ctx(true).await)
+        .await
+        .unwrap();
 
     disp.drop().await;
 }

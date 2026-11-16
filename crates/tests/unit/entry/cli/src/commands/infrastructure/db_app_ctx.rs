@@ -172,7 +172,7 @@ async fn the_profile_dispatcher_reports_a_clean_repair_without_writing() {
     db::execute(parse(&["migrate-repair"]), &ctx(&app, false))
         .await
         .expect("dry-run repair");
-    db::execute(parse(&["migrate-repair", "--json"]), &ctx(&app, true))
+    db::execute(parse(&["migrate-repair"]), &ctx(&app, true))
         .await
         .expect("dry-run repair, json");
 
