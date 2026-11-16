@@ -15,7 +15,7 @@ use systemprompt_identifiers::ExtensionId;
 use systemprompt_models::artifacts::NoticeLine;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 use super::admin_migrate::select_extensions;
 use super::types::{

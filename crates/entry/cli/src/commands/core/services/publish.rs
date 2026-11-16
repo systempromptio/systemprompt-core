@@ -13,7 +13,7 @@ use systemprompt_loader::bundle::source::push_bundle;
 use systemprompt_loader::bundle::verify;
 
 use super::signing::ENV_PREFIX;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 const OCI_SCHEME: &str = "oci://";
 

@@ -42,6 +42,10 @@ pub fn reference() -> Composition {
     members.push(Member::core::<systemprompt_mcp::McpExtension>(
         CoreTerms::OPTIONAL,
     ));
+    #[cfg(feature = "api")]
+    members.push(Member::core::<systemprompt_mcp_host::McpHostExtension>(
+        CoreTerms::OPTIONAL,
+    ));
     #[cfg(feature = "full")]
     members.push(Member::core::<systemprompt_ai::AiExtension>(
         CoreTerms::OPTIONAL,
@@ -104,7 +108,7 @@ pub fn reference() -> Composition {
     >(CoreTerms::conferred(CoreId::NotificationsHttp)));
     #[cfg(all(feature = "agent-runs", feature = "api"))]
     members.push(Member::core::<
-        systemprompt_agent_runs_entry::http::AgentRunsApiExtension,
+        systemprompt_agent_runs_entry::extension::AgentRunsApiExtension,
     >(CoreTerms::conferred(CoreId::AgentRunsApi)));
     #[cfg(all(feature = "cloud", feature = "cli"))]
     members.push(Member::core::<systemprompt_cloud_entry::CloudCliExtension>(

@@ -10,10 +10,10 @@ use anyhow::{Context, Result, anyhow};
 
 use super::logs::LogsArgs;
 use super::types::McpLogsOutput;
-use crate::CliConfig;
-use crate::interactive::Prompter;
+use systemprompt_extension::cli::CliConfig;
+use systemprompt_extension::cli::Prompter;
 use systemprompt_extension::cli::resolve_required;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use crate::shared::disk_logs::{display_names, find_log_file, list_log_files, read_log_lines};
 use systemprompt_extension::cli::ChildSupervisor;
 use systemprompt_models::artifacts::ListItem;

@@ -19,7 +19,7 @@ use anyhow::{Context, Result};
 use clap::Subcommand;
 
 use systemprompt_extension::cli::{CliConfig, CommandOutput};
-use crate::interactive::Prompter;
+use systemprompt_extension::cli::Prompter;
 use systemprompt_manifest::Profile;
 
 #[derive(Debug, Subcommand)]

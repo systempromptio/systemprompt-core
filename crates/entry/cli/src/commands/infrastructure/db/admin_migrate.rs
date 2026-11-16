@@ -16,8 +16,8 @@ use systemprompt_manifest::Profile;
 use systemprompt_models::artifacts::NoticeLine;
 use systemprompt_runtime::DatabaseContext;
 
-use crate::cli_settings::CliConfig;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CliConfig;
+use systemprompt_extension::cli::CommandOutput;
 
 use super::types::DbMigrateOutput;
 

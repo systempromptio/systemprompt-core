@@ -6,7 +6,7 @@
 use anyhow::{Result, anyhow};
 use systemprompt_models::content_config::ContentConfigRaw;
 
-use crate::interactive::Prompter;
+use systemprompt_extension::cli::Prompter;
 
 pub fn prompt_content_type_selection(
     prompter: &dyn Prompter,

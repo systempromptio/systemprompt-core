@@ -7,7 +7,7 @@ use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Args;
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use super::types::{ConfigFileInfo, ConfigListOutput, ConfigSection};
 use systemprompt_config::yaml_document::read_yaml_file;
 

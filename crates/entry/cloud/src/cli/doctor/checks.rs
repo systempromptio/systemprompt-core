@@ -14,6 +14,7 @@ use std::hash::BuildHasher;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+use systemprompt_extension::AdmittedConfigs;
 use systemprompt_manifest::Profile;
 use systemprompt_manifest::services::CredentialRegistry;
 
@@ -26,31 +27,21 @@ pub fn check_profile_valid(profile: &Profile) -> CheckResult {
     }
 }
 
-pub fn check_extension_configs(profile: &Profile) -> CheckResult {
+pub fn check_extension_configs(profile: &Profile, configs: &AdmittedConfigs) -> CheckResult {
     let services_path = Path::new(&profile.paths.services);
-    match systemprompt_runtime::validate_extension_configs(
-        services_path,
-        &profile.extensions.disabled,
-    ) {
-        Err(err) => CheckResult::fail(
-            "extension-config",
-            format!("could not discover extensions: {err}"),
-        ),
-        Ok(outcomes) => {
-            let failures: Vec<String> = outcomes
-                .iter()
-                .filter_map(|o| {
-                    o.error
-                        .as_ref()
-                        .map(|msg| format!("[ext:{}] {msg}", o.extension_id))
-                })
-                .collect();
-            if failures.is_empty() {
-                CheckResult::pass("extension-config", "all extension configs valid")
-            } else {
-                CheckResult::fail("extension-config", failures.join("\n"))
-            }
-        },
+    let failures: Vec<String> =
+        systemprompt_runtime::validate_extension_configs(configs, services_path)
+            .iter()
+            .filter_map(|o| {
+                o.error
+                    .as_ref()
+                    .map(|msg| format!("[ext:{}] {msg}", o.extension_id))
+            })
+            .collect();
+    if failures.is_empty() {
+        CheckResult::pass("extension-config", "all extension configs valid")
+    } else {
+        CheckResult::fail("extension-config", failures.join("\n"))
     }
 }
 

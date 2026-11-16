@@ -8,7 +8,7 @@ use anyhow::{Result, anyhow};
 use crate::kernel::KernelHost;
 use clap::Args;
 use systemprompt_extension::admitted::AdmittedMember;
-use systemprompt_extension::cli::{CommandOutput};
+use systemprompt_extension::cli::CommandOutput;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_loader::ExtensionLoader;
 

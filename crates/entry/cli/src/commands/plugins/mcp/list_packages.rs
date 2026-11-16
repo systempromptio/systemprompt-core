@@ -9,7 +9,7 @@ use clap::Args;
 
 use super::types::McpPackagesOutput;
 use crate::commands::shared::app_context;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use systemprompt_models::artifacts::ListItem;
 
 #[derive(Debug, Clone, Copy, Args)]

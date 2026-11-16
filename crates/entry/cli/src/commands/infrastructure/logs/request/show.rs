@@ -17,7 +17,7 @@ use super::{
     ClientEvidenceOutput, MessageRow, RequestShowOutput, ToolCallRow, build_request_show,
     request_show_not_found,
 };
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {

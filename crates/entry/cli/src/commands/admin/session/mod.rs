@@ -20,7 +20,7 @@ use systemprompt_cloud::{CloudError, SessionStore};
 use systemprompt_identifiers::ProfileName;
 use systemprompt_logging::CliService;
 
-use crate::descriptor::{CommandDescriptor, DescribeCommand};
+use systemprompt_extension::cli::{CommandDescriptor, DescribeCommand};
 use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]

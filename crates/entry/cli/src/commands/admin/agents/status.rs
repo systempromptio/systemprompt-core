@@ -7,7 +7,7 @@ use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use clap::Args;
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use super::types::{AgentStatusOutput, AgentStatusRow};
 use systemprompt_agent::services::agent_orchestration::AgentStatus;
 

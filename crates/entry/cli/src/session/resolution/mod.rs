@@ -29,7 +29,7 @@ use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 
 use super::context::CliSessionContext;
-use crate::cli_settings::{OutputFormat, VerbosityLevel};
+use systemprompt_extension::cli::{OutputFormat, VerbosityLevel};
 use crate::env_overrides::EnvOverrides;
 use systemprompt_config::SecretsSources;
 use context_resolver::{
@@ -84,7 +84,7 @@ async fn boot_for_profile(profile_path: &Path, ctx: &SessionHost<'_>) -> Result<
     {
         return Ok(BootContext::clone(boot));
     }
-    systemprompt_loader::load_boot::load_boot_from_path(profile_path, ctx.secrets.clone()).await
+    Ok(systemprompt_loader::load_boot::load_boot_from_path(profile_path, ctx.secrets.clone()).await?)
 }
 
 async fn get_session_for_loaded_profile(

@@ -18,7 +18,7 @@ use anyhow::{Context, Result, bail};
 use crate::kernel::KernelHost;
 use clap::Subcommand;
 
-use systemprompt_extension::cli::{CommandOutput};
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum PluginsCommands {

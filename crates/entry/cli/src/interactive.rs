@@ -217,7 +217,7 @@ pub fn prompt_input(
         ));
     }
 
-    prompter.input(prompt)
+    Ok(prompter.input(prompt)?)
 }
 
 pub fn prompt_input_with_default(
@@ -230,7 +230,7 @@ pub fn prompt_input_with_default(
         return Ok(default.to_owned());
     }
 
-    prompter.input_with_default(prompt, default)
+    Ok(prompter.input_with_default(prompt, default)?)
 }
 
 pub fn confirm_optional(
@@ -243,5 +243,5 @@ pub fn confirm_optional(
         return Ok(default);
     }
 
-    prompter.confirm(message, default)
+    Ok(prompter.confirm(message, default)?)
 }

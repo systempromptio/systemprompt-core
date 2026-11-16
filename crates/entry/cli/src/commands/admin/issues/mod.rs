@@ -18,8 +18,8 @@ use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Subcommand;
 
-use crate::descriptor::DataImpact;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::DataImpact;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum IssuesCommands {

@@ -10,9 +10,9 @@ use clap::Args;
 use std::path::Path;
 use std::sync::Arc;
 
-use crate::CliConfig;
-use crate::interactive::{Prompter, require_confirmation};
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CliConfig;
+use systemprompt_extension::cli::{Prompter, require_confirmation};
+use systemprompt_extension::cli::CommandOutput;
 use super::process_stop::stop_agent_process;
 use super::types::AgentDeleteOutput;
 use systemprompt_agent::services::a2a_server::streaming::webhook_client::HttpWebhookBroadcaster;

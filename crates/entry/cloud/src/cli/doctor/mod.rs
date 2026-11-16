@@ -35,6 +35,8 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Result, bail};
+
+use super::admitted_views::AdmittedViews;
 use systemprompt_cloud::{ProfilePath, ProjectContext};
 use systemprompt_identifiers::ProfileName;
 use systemprompt_loader::ConfigLoader;
@@ -207,6 +209,7 @@ pub(in crate::cli) async fn run(
     profile: &Profile,
     profile_dir: &Path,
     distributed: bool,
+    views: &AdmittedViews,
 ) -> DoctorReport {
     let mut checks = profile_checks(profile);
     let secrets = resolve_secrets(profile, profile_dir, &mut checks).await;
@@ -214,9 +217,9 @@ pub(in crate::cli) async fn run(
     checks.push(check_required_secrets(&secrets));
     checks.push(check_signing_key(profile, profile_dir, &secrets));
     checks.push(providers_check(profile, &secrets));
-    checks.push(check_extension_configs(profile));
+    checks.push(check_extension_configs(profile, &views.configs));
     checks.push(checks::check_database_reachable(&secrets).await);
-    checks.push(restore_checks::check_schema_not_ahead(&secrets).await);
+    checks.push(restore_checks::check_schema_not_ahead(&secrets, &views.migrations).await);
     checks.push(plane_checks::check_config_planes(profile, &secrets).await);
     checks.push(plane_checks::check_services_source(profile));
     checks.push(git_credential_checks::check_git_credentials(&secrets).await);
@@ -232,9 +235,10 @@ pub(in crate::cli) async fn execute(
     distributed: bool,
     prompter: &dyn Prompter,
     config: &CliConfig,
+    views: &AdmittedViews,
 ) -> Result<()> {
     let profile = resolve_profile(prompter, profile_name.as_ref(), config)?;
-    let report = run_managed(&profile.managed, profile.profile_dir(), distributed).await;
+    let report = run_managed(&profile.managed, profile.profile_dir(), distributed, views).await;
     report.render();
 
     if report.has_blocking() {

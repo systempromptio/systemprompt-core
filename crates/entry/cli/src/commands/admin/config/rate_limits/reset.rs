@@ -9,8 +9,8 @@ use crate::commands::admin::config::restart_note;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::profile::RateLimitsConfig;
 
-use crate::interactive::{Prompter, require_confirmation};
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::{Prompter, require_confirmation};
+use systemprompt_extension::cli::CommandOutput;
 use super::ResetArgs;
 use super::profile_edit::{
     collect_endpoint_changes, get_endpoint_rate, load_profile_for_edit, save_profile,

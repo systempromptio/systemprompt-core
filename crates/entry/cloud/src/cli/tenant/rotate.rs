@@ -101,13 +101,13 @@ fn resolve_rotation_target(
 }
 
 fn confirm_rotation(prompter: &dyn Prompter, tenant_name: &str) -> Result<bool> {
-    prompter.confirm(
+    Ok(prompter.confirm(
         &format!(
             "Rotate database credentials for '{}'? This will generate a new password.",
             tenant_name
         ),
         false,
-    )
+    )?)
 }
 
 fn cancelled_output(tenant_id: &TenantId, config: &CliConfig) -> CommandOutput {

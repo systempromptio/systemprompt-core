@@ -30,7 +30,7 @@ use systemprompt_scheduler::services::{
     ApplyOptions, ConfigApplyService, ConfigReconcileService, MergeReport,
 };
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use systemprompt_extension::cli::CommandError;
 
 #[derive(Debug, Clone, Args)]

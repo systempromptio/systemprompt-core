@@ -8,9 +8,9 @@ use std::process::Command;
 
 use anyhow::{Context, Result, anyhow};
 
-use crate::CliConfig;
-use crate::interactive::Prompter;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CliConfig;
+use systemprompt_extension::cli::Prompter;
+use systemprompt_extension::cli::CommandOutput;
 use crate::shared::disk_logs::{display_names, find_log_file, list_log_files, read_log_lines};
 use super::logs::LogsArgs;
 use super::types::AgentLogsOutput;

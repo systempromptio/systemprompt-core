@@ -16,7 +16,7 @@ use super::ai_display::{
 use super::ai_mcp::print_mcp_executions;
 use super::show::ShowArgs;
 use super::{AiSummaryRow, McpSummaryRow, StepSummaryRow, TraceViewOutput};
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 pub(super) async fn execute_ai_trace(
     service: &AiTraceService,

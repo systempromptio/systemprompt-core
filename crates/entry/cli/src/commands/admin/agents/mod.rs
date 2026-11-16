@@ -4,7 +4,7 @@
 //! validate, create, edit, delete, status, logs — plus A2A interaction
 //! (registry discovery, message, task, tools) and direct `run`. Each variant
 //! dispatches to a sibling module that returns a
-//! [`crate::shared::CommandOutput`].
+//! [`systemprompt_extension::cli::CommandOutput`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -37,7 +37,7 @@ use crate::kernel::KernelHost;
 use anyhow::{Context, Result, bail};
 use clap::Subcommand;
 
-use crate::descriptor::DataImpact;
+use systemprompt_extension::cli::DataImpact;
 use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
@@ -121,7 +121,7 @@ pub async fn execute(command: AgentsCommands, host: &dyn KernelHost) -> Result<C
             .await
             .context("Failed to list agent tools")?,
         AgentsCommands::Run(args) => {
-            Box::pin(run::execute(args))
+            Box::pin(run::execute(args, host))
                 .await
                 .context("Failed to run agent")?;
             CommandOutput::rendered()

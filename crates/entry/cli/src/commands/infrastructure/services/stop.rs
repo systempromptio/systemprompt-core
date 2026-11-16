@@ -4,9 +4,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::kernel::KernelHost;
-use crate::cli_settings::CliConfig;
+use systemprompt_extension::cli::CliConfig;
 use crate::commands::shared::app_context;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use anyhow::Result;
 use std::sync::Arc;
 use systemprompt_identifiers::{McpServerId, ServiceName};

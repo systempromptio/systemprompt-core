@@ -27,9 +27,9 @@ use systemprompt_ai::AiSafetyFindingRepository;
 use systemprompt_governance::authz::list_governance_warnings;
 use systemprompt_identifiers::UserId;
 
-use crate::CliConfig;
 use crate::commands::infrastructure::logs::duration::parse_since;
-use crate::shared::{CommandOutput, truncate_with_ellipsis};
+use crate::shared::truncate_with_ellipsis;
+use systemprompt_extension::cli::CommandOutput;
 
 /// Which dimension of the warn rollup to collapse onto.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, JsonSchema)]

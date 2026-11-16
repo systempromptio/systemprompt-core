@@ -7,7 +7,7 @@ use crate::kernel::KernelHost;
 use anyhow::{Result, bail};
 use crate::commands::admin::config::restart_note;
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use super::SetArgs;
 use super::profile_edit::{
     get_endpoint_rate, load_profile_for_edit, save_profile, set_endpoint_rate,

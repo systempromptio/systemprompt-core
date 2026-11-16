@@ -11,7 +11,7 @@ use systemprompt_identifiers::SessionId;
 use systemprompt_users::{UserAdminService, UserRepository, UserService};
 
 use crate::commands::admin::users::types::SessionEndOutput;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct EndArgs {

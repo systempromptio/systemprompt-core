@@ -12,7 +12,7 @@ use systemprompt_extension::admitted::AdmittedMember;
 use crate::kernel::KernelHost;
 use systemprompt_extension::contribute::StandingTag;
 use systemprompt_extension::{Admitted, BuiltState};
-use systemprompt_extension::cli::{CommandError};
+use systemprompt_extension::cli::CommandError;
 
 use super::types::{CapabilitySummary, ExtensionStanding};
 

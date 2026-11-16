@@ -10,9 +10,9 @@ use systemprompt_identifiers::ProfileName;
 use systemprompt_manifest::profile::{CloudConfig, ManagedProfile};
 
 use super::types::LogoutOutput;
-use crate::CliConfig;
-use crate::interactive::Prompter;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CliConfig;
+use systemprompt_extension::cli::Prompter;
+use systemprompt_extension::cli::CommandOutput;
 use systemprompt_cloud::paths::ResolvedPaths;
 
 #[derive(Debug, Args)]

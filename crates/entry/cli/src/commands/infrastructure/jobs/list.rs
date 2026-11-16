@@ -14,7 +14,7 @@ use crate::kernel::KernelHost;
 
 use anyhow::Result;
 use systemprompt_database::pool_from_handle;
-use systemprompt_extension::cli::{CommandOutput};
+use systemprompt_extension::cli::CommandOutput;
 use systemprompt_identifiers::{ExtensionId, JobName};
 use systemprompt_scheduler::{JobRepository, ScheduledJob};
 use systemprompt_traits::Job;

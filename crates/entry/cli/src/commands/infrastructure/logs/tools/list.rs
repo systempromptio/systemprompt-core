@@ -15,7 +15,7 @@ use systemprompt_runtime::{ToolExecutionFilter, TraceQueryService, TraceReposito
 
 use super::{ToolExecutionRow, ToolsListOutput};
 use crate::commands::infrastructure::logs::duration::parse_since;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct ListArgs {

@@ -12,6 +12,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_extension::AdmittedPurge;
+use systemprompt_identifiers::ExtensionId;
 use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use clap::Args;
@@ -21,7 +23,7 @@ use systemprompt_users::{
     ArchiveParams, PurgeCount, PurgeOutcome, UserAdminService, UserRepository, UserService,
 };
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use super::types::UserDeletedOutput;
 
 #[derive(Debug, Args)]
@@ -71,7 +73,7 @@ pub(super) async fn execute(args: DeleteArgs, host: &dyn KernelHost) -> Result<C
     };
 
     if args.dry_run {
-        let plan = crate::commands::admin::state::get::<AdmittedPurge>(host).await?;
+        let plan = host.resolved().await?.get::<AdmittedPurge>()?;
         let preview = user_service.purge_preview(&user.id, &plan).await?;
         let rows: Vec<PurgeRow> = preview.counts.iter().map(PurgeRow::from).collect();
         return Ok(CommandOutput::table_of(vec!["owner", "table", "rows", "member"], &rows)
@@ -98,7 +100,7 @@ pub(super) async fn execute(args: DeleteArgs, host: &dyn KernelHost) -> Result<C
     }
 
     if args.purge {
-        let plan = crate::commands::admin::state::get::<AdmittedPurge>(host).await?;
+        let plan = host.resolved().await?.get::<AdmittedPurge>()?;
         let removed = user_service.purge(&user.id, &plan).await?;
         let output = UserDeletedOutput {
             id: user.id.clone(),

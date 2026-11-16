@@ -12,7 +12,7 @@
 
 use anyhow::{Result, bail};
 
-use crate::descriptor::{DataImpact, RoutingClass};
+use systemprompt_extension::cli::{DataImpact, RoutingClass};
 
 /// Where a command runs once the routing target is known.
 #[derive(Debug, PartialEq, Eq)]

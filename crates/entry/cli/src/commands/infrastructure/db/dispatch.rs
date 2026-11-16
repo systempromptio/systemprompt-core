@@ -14,7 +14,7 @@ use systemprompt_runtime::DatabaseContext;
 use super::admin;
 use super::commands::DbCommands;
 use crate::kernel::KernelHost;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 pub(super) enum Dispatched {
     Done(CommandOutput),

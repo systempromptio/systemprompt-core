@@ -9,7 +9,7 @@ use clap::Args;
 use systemprompt_users::{BanDuration, BanIpParams, BannedIpRepository};
 
 use crate::commands::admin::users::types::BanAddOutput;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 const CLI_BAN_SOURCE: &str = "cli";
 

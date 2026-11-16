@@ -9,13 +9,13 @@ use std::sync::Arc;
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
 
-use crate::CliConfig;
+use systemprompt_extension::cli::CliConfig;
 use crate::commands::shared::mcp_tools::{
     McpToolEntry, direct_url, list_tools_authenticated, list_tools_unauthenticated,
 };
-use crate::interactive::Prompter;
+use systemprompt_extension::cli::Prompter;
 use crate::session::get_or_create_session;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use super::types::{AgentToolsOutput, AgentToolsSummary, UnavailableServer};
 use systemprompt_identifiers::{McpServerId, SessionToken};
 use systemprompt_mcp::McpServerConfig;

@@ -52,6 +52,7 @@ pub struct CommandContext {
     pub(crate) kernel: OnceCell<Arc<Kernel>>,
     pub(crate) registry: Option<Arc<CommandRegistry>>,
     secrets_sources: SecretsSources,
+    admit: std::sync::Mutex<Option<crate::runner::AdmitFn>>,
 }
 
 impl CommandContext {
@@ -76,7 +77,18 @@ impl CommandContext {
             kernel: OnceCell::new(),
             registry: None,
             secrets_sources: SecretsSources::default(),
+            admit: std::sync::Mutex::new(None),
         }
+    }
+
+    #[must_use]
+    pub fn with_admit(mut self, admit: Option<crate::runner::AdmitFn>) -> Self {
+        self.admit = std::sync::Mutex::new(admit);
+        self
+    }
+
+    pub(crate) fn take_admit(&self) -> Option<crate::runner::AdmitFn> {
+        self.admit.lock().ok().and_then(|mut slot| slot.take())
     }
 
     #[must_use]

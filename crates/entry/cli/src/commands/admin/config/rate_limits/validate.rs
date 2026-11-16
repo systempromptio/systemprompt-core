@@ -8,7 +8,7 @@ use anyhow::Result;
 use systemprompt_models::artifacts::NoticeLine;
 use systemprompt_manifest::profile::RateLimitsConfig;
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use systemprompt_extension::cli::CommandError;
 
 use super::super::types::ValidateOutput;

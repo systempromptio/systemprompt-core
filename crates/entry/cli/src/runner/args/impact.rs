@@ -9,7 +9,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::Commands;
-use crate::descriptor::DataImpact;
+use systemprompt_extension::cli::DataImpact;
 
 impl Commands {
     pub const fn data_impact(&self) -> DataImpact {

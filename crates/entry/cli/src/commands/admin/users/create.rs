@@ -9,7 +9,7 @@ use clap::Args;
 use std::sync::Arc;
 use systemprompt_users::{UserRepository, UserService};
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use super::types::UserCreatedOutput;
 
 #[derive(Debug, Args)]

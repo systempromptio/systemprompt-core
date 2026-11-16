@@ -13,7 +13,7 @@ use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
 use systemprompt_manifest::profile::{Environment, LogLevel, OutputFormat as ProfileOutputFormat};
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use super::profile_io::{load_profile, profile_path, save_profile};
 use super::types::{RuntimeConfigOutput, RuntimeSetOutput};
 

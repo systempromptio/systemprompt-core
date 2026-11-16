@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_cloud::CredentialsBootstrap;
-use crate::cli_settings::CliConfig;
+use systemprompt_extension::cli::CliConfig;
 use crate::kernel::KernelHost;
 use crate::presentation::StartupRenderer;
 use anyhow::Result;

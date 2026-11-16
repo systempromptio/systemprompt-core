@@ -23,7 +23,8 @@ use serde::{Deserialize, Serialize};
 use systemprompt_manifest::profile::TrustedIssuer;
 use systemprompt_users::{IssuerRekeyOutcome, UserRepository};
 
-use crate::shared::{CommandOutput, ConfirmArgs};
+use crate::shared::ConfirmArgs;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
 pub struct FederatedRekeyArgs {

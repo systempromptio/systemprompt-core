@@ -5,7 +5,7 @@
 
 use crate::commands::shared::app_context;
 use crate::kernel::KernelHost;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use anyhow::Result;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

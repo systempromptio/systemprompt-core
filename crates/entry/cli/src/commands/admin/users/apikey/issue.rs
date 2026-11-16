@@ -24,7 +24,7 @@ use systemprompt_users::{
 };
 
 use super::{parse_rfc3339, parse_scope_binding};
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct IssueArgs {

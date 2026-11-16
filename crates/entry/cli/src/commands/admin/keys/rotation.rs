@@ -24,7 +24,8 @@ use systemprompt_manifest::profile::SecurityConfig;
 use systemprompt_security::jwt::{cut_off_by, rotation_overlap, signed_token_lifetimes};
 use systemprompt_security::keys::{RotationMode, promote, stage};
 
-use crate::shared::{CommandOutput, ConfirmArgs};
+use crate::shared::ConfirmArgs;
+use systemprompt_extension::cli::CommandOutput;
 
 pub(super) const PROCEDURE: &str = "\
 Multi-replica procedure (no replica ever meets a token signed by a key it does not know):

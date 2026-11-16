@@ -12,7 +12,7 @@ use std::sync::Arc;
 use systemprompt_users::{UserRepository, UserService, UserStatus};
 
 use crate::commands::admin::users::types::BulkDeleteOutput;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct DeleteArgs {

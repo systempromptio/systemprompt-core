@@ -14,7 +14,7 @@ use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::{Args, Subcommand};
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Clone, Copy, Subcommand)]
 pub enum AccessControlCommands {

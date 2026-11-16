@@ -83,19 +83,25 @@ pub fn refuse_disabled(resolved: &ResolvedCommand, profile: &Profile) -> Result<
     }
 }
 
+pub(super) enum Admission {
+    Admitted(Arc<Admitted>),
+    Deferred(Option<AdmitFn>),
+}
+
 pub(super) fn admit_for(
     invocation: &Invocation,
     profile: Option<&systemprompt_config::LoadedProfile>,
     admit: AdmitFn,
-) -> Result<Option<Arc<Admitted>>> {
+) -> Result<Admission> {
     let Some(profile) = profile.map(systemprompt_config::LoadedProfile::profile) else {
-        return Ok(None);
+        let child_host = invocation.descriptor().child_host();
+        return Ok(Admission::Deferred(child_host.then_some(admit)));
     };
     if let Some(resolved) = invocation.resolved() {
         refuse_disabled(resolved, profile)?;
     }
     let admitted = admit(Some(profile)).map_err(CliRunError::Admit)?;
-    Ok(Some(Arc::new(admitted)))
+    Ok(Admission::Admitted(Arc::new(admitted)))
 }
 
 pub fn admit_unprofiled(

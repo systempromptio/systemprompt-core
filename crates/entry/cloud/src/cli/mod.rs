@@ -11,6 +11,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod admitted_views;
 pub mod auth;
 pub mod backup;
 pub mod deploy;
@@ -189,6 +190,7 @@ pub async fn execute(cmd: CloudCommands, host: &dyn CommandHost) -> Result<Comma
                 host.prompter(),
                 host.output(),
                 host.children(),
+                &admitted_views::AdmittedViews::resolve(host).await?,
             )
             .await?;
             Ok(CommandOutput::rendered())
@@ -219,6 +221,7 @@ pub async fn execute(cmd: CloudCommands, host: &dyn CommandHost) -> Result<Comma
                 distributed,
                 host.prompter(),
                 host.output(),
+                &admitted_views::AdmittedViews::resolve(host).await?,
             )
             .await?;
             Ok(CommandOutput::rendered())
