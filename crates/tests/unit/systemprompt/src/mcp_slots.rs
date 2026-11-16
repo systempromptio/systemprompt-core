@@ -16,7 +16,7 @@ use async_trait::async_trait;
 use systemprompt::reference;
 use systemprompt_agent_runs::origin::AdmittedRunOrigins;
 use systemprompt_extension::contribute::build_slot;
-use systemprompt_extension::router::{ApiBase, BasePath};
+use systemprompt_extension::router::{ApiBase, BasePath, BaseRef};
 use systemprompt_extension::{Admitted, FactoryError, Resolved, RouteGroup, Slot, SlotError};
 use systemprompt_identifiers::McpServerId;
 use systemprompt_manifest::services::ServicesView;
@@ -369,7 +369,10 @@ fn agent_runs_api_holds_one_route_set_in_the_agent_group() {
         .filter(|set| set.owner.as_str() == "agent_runs_api")
         .collect();
     assert_eq!(sets.len(), 1, "{sets:?}");
-    assert_eq!(sets[0].set.base(), BasePath::Api(ApiBase::AgentRuns));
+    assert_eq!(
+        sets[0].set.base(),
+        BaseRef::Path(BasePath::Api(ApiBase::AgentRuns))
+    );
     assert_eq!(
         sets[0].set.group(),
         RouteGroup::Agent,

@@ -255,6 +255,7 @@ fn resolved_routing(args: &[&str]) -> DbUrlRouting {
         .resolve(&matches)
         .expect("resolve")
         .unwrap_or_else(|| panic!("{args:?} resolves to a contributed command"))
+        .parsed
         .db_url_routing()
 }
 

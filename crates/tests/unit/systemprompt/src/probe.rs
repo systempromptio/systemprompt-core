@@ -86,10 +86,6 @@ pub(crate) fn shape(
         .expect("the privileged shape is listed")
 }
 
-pub(crate) const fn spec_of(entry: &PrivilegedShape) -> RouteSpec {
-    RouteSpec::new(entry.shape.policy, entry.shape.context, entry.shape.limits)
-}
-
 pub(crate) fn plain_set(base: BasePath, path: &'static str) -> RouteSet {
     RouteSet::at::<ProbeState>(base, RouteGroup::Extensions)
         .route(http::Method::GET, path, ok, PLAIN)
