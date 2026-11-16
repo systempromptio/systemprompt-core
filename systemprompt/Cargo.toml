@@ -232,6 +232,9 @@ rmcp = { workspace = true, optional = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
+async-trait = { workspace = true }
+axum = { workspace = true }
+clap = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
@@ -251,7 +254,7 @@ doc = false
 
 [[example]]
 name = "extension"
-required-features = ["core"]
+required-features = ["full"]
 
 [[example]]
 name = "database"
@@ -263,4 +266,4 @@ required-features = ["api"]
 
 [[example]]
 name = "cli"
-required-features = ["cli"]
+required-features = ["full"]
