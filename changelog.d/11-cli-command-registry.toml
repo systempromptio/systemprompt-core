@@ -1,14 +1,14 @@
 [root]
 section = "Breaking"
 area = "CLI"
-text = "`args::Commands::Build` and `Commands::serves_api` are removed and `args::Cli::command()` no longer contains registered groups; `admin::setup::{catalog, docker_compose, postgres_access, ddl}` move to `shared::{provider_catalog, docker_compose, postgres_access, ddl}`, `admin::config::config_section::{read_yaml_file, write_yaml_file}` to `shared::yaml_document`, `admin::config::services_io::write_gateway` to `shared::provider_catalog`, `admin::session::types::ProfileInfo` to `shared::profile` and `plugins::mcp::types::McpToolEntry` to `commands::shared::mcp_tools`. Migrate by building the command tree with `args::command(&CommandRegistry::collected()?)` and importing from the new paths."
+text = "`args::Commands::Build` and `Commands::serves_api` are removed and `args::Cli::command()` no longer contains registered groups; `admin::setup::{docker_compose, postgres_access, ddl}` move to `shared::{docker_compose, postgres_access, ddl}`, `admin::setup::catalog` and `admin::config::services_io::write_gateway` to `systemprompt_cloud::provider_catalog`, `admin::config::config_section::{read_yaml_file, write_yaml_file}` to `systemprompt_config::yaml_document`, `admin::session::types::ProfileInfo` to `shared::profile` and `plugins::mcp::types::McpToolEntry` to `commands::shared::mcp_tools`. Migrate by building the command tree with `args::command(&registry)` over the admitted command registry and importing from the new paths."
 
 [[crate]]
 name = "systemprompt-cli"
 section = "Breaking"
-text = "`args::Commands::Build` and `Commands::serves_api` are removed; `args::Cli::command()` no longer contains registered groups. Migrate with `args::command(&CommandRegistry::collected()?)`."
+text = "`args::Commands::Build` and `Commands::serves_api` are removed; `args::Cli::command()` no longer contains registered groups. Migrate with `args::command(&registry)` over the admitted command registry."
 
 [[crate]]
 name = "systemprompt-cli"
 section = "Breaking"
-text = "`admin::setup::{catalog, docker_compose, postgres_access, ddl}` move to `shared::{provider_catalog, docker_compose, postgres_access, ddl}`, `admin::config::config_section::{read_yaml_file, write_yaml_file}` to `shared::yaml_document`, `admin::config::services_io::write_gateway` to `shared::provider_catalog`, `admin::session::types::ProfileInfo` to `shared::profile` and `plugins::mcp::types::McpToolEntry` to `commands::shared::mcp_tools`."
+text = "`admin::setup::{docker_compose, postgres_access, ddl}` move to `shared::{docker_compose, postgres_access, ddl}`, `admin::setup::catalog` and `admin::config::services_io::write_gateway` to `systemprompt_cloud::provider_catalog`, `admin::config::config_section::{read_yaml_file, write_yaml_file}` to `systemprompt_config::yaml_document`, `admin::session::types::ProfileInfo` to `shared::profile` and `plugins::mcp::types::McpToolEntry` to `commands::shared::mcp_tools`."
