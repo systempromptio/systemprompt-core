@@ -38,6 +38,7 @@ pub mod schema;
 pub mod schema_template;
 pub mod secrets;
 pub mod service_row;
+pub mod slots;
 pub mod subprocess;
 pub mod usage;
 pub mod user;

@@ -4,25 +4,20 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use systemprompt_extension::{
-    FactoryError, Resolved, Slot, SlotEntry, SlotError, SlotOrder, StandingTag,
-};
+use systemprompt_extension::{FactoryError, Resolved, Slot, SlotError, SlotOrder, StandingTag};
 use systemprompt_governance::authz::{
     AllowAllHook, AuthzError, NullAuditSink, RoleDirectory, SharedAuthzHook, SharedRoleDirectory,
 };
 use systemprompt_governance::contract::{
     AuthzHookBuilder, AuthzHookSlot, RoleDirectoryBuilder, RoleDirectorySlot,
 };
-use systemprompt_identifiers::{ExtensionId, UserId};
+use systemprompt_identifiers::UserId;
+use systemprompt_test_fixtures::slots::built_slot;
 
 use crate::probe::kernel;
 
-fn entry<B>(owner: &str, standing: StandingTag, builder: B) -> SlotEntry<B> {
-    SlotEntry {
-        owner: ExtensionId::new(owner),
-        standing,
-        builder,
-    }
+fn entry<B>(owner: &str, standing: StandingTag, builder: B) -> (&str, StandingTag, B) {
+    (owner, standing, builder)
 }
 
 fn allow(_: &Resolved<'_>) -> Result<SharedAuthzHook, FactoryError> {
@@ -65,7 +60,7 @@ fn two_contributed_hooks_compose_into_one() {
     core.hook(allow);
     let mut install = AuthzHookBuilder::default();
     install.hook(allow);
-    let hooks = AuthzHookSlot::build(
+    let hooks = built_slot::<AuthzHookSlot>(
         vec![
             entry("core", StandingTag::Core, core),
             entry("install", StandingTag::Install, install),
@@ -83,7 +78,7 @@ fn a_second_role_directory_is_refused() {
     first.directory(directory);
     let mut second = RoleDirectoryBuilder::default();
     second.directory(directory);
-    let err = RoleDirectorySlot::build(
+    let err = built_slot::<RoleDirectorySlot>(
         vec![
             entry("users", StandingTag::Core, first),
             entry("acme", StandingTag::Install, second),
@@ -101,7 +96,7 @@ fn a_second_role_directory_is_refused() {
 fn one_role_directory_builds_as_the_negative_control() {
     let mut only = RoleDirectoryBuilder::default();
     only.directory(directory);
-    let built = RoleDirectorySlot::build(
+    let built = built_slot::<RoleDirectorySlot>(
         vec![entry("users", StandingTag::Core, only)],
         &kernel().resolved(),
     )

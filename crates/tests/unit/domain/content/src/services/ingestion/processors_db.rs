@@ -14,7 +14,7 @@ use async_trait::async_trait;
 use systemprompt_content::models::IngestionSource;
 use systemprompt_content::repository::ContentRepository;
 use systemprompt_content::{ContentSlot, ContentSlotBuilder, IngestionOptions, IngestionService};
-use systemprompt_extension::{Resolved, Slot, SlotEntry, StandingTag};
+use systemprompt_extension::{Resolved, Slot, SlotEntry};
 use systemprompt_identifiers::{CategoryId, ExtensionId, SourceId};
 use systemprompt_provider_contracts::{
     Dependencies, FrontmatterContext, FrontmatterProcessor, ProviderError, ProviderResult,
@@ -67,11 +67,10 @@ fn processors(pool: &systemprompt_database::DbPool) -> Vec<Arc<dyn FrontmatterPr
     let handle: Arc<dyn DatabaseHandle> = Arc::clone(pool);
     let kernel = Kernel::new(handle, BackgroundTasks::new(), Dependencies::default());
     let hooks = ContentSlot::build(
-        vec![SlotEntry {
-            owner: ExtensionId::new("test-frontmatter"),
-            standing: StandingTag::Install,
+        vec![SlotEntry::install(
+            ExtensionId::new("test-frontmatter"),
             builder,
-        }],
+        )],
         &kernel.resolved(),
     )
     .expect("the content slot builds");

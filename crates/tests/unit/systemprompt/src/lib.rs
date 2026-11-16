@@ -48,3 +48,5 @@ mod mcp_slots;
 mod probe;
 #[cfg(test)]
 mod providers;
+#[cfg(test)]
+mod slot_standing;

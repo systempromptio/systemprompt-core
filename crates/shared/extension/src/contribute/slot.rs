@@ -10,6 +10,13 @@
 //! inserted into the extension state as `Arc<S::Built>`, which consumers
 //! resolve with `Resolved::get::<Arc<S::Built>>()`.
 //!
+//! A built value enters the state through the same duplicate-checked insert
+//! a provided value does, owned by the slot's first core-standing
+//! contributor (else its first contributor): a slot value never replaces a
+//! seeded, provided or other slot-built value. An entry's standing is set by
+//! the runtime from the member's admitted standing; a [`SlotEntry`] built
+//! outside this crate is always [`StandingTag::Install`].
+//!
 //! The type-erased record ([`SlotRecord`]) is keyed by the slot's `TypeId`
 //! and carries a monomorphised build function, so the runtime can build every
 //! slot without naming any. It also names the `Arc<S::Built>` type it
@@ -23,7 +30,7 @@ use std::any::{Any, TypeId};
 use std::sync::{Arc, Mutex, PoisonError};
 
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_provider_contracts::Dependencies;
+use systemprompt_provider_contracts::{Dependencies, DuplicateDependency};
 
 use super::error::SlotError;
 use super::resolved::Resolved;
@@ -49,8 +56,24 @@ pub enum SlotOrder {
 #[derive(Debug)]
 pub struct SlotEntry<B> {
     pub owner: ExtensionId,
-    pub standing: StandingTag,
+    standing: StandingTag,
     pub builder: B,
+}
+
+impl<B> SlotEntry<B> {
+    #[must_use]
+    pub const fn install(owner: ExtensionId, builder: B) -> Self {
+        Self {
+            owner,
+            standing: StandingTag::Install,
+            builder,
+        }
+    }
+
+    #[must_use]
+    pub const fn standing(&self) -> StandingTag {
+        self.standing
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -62,7 +85,7 @@ pub enum StandingTag {
 type ErasedBuilder = Box<dyn Any + Send>;
 type ErasedBuilt = Arc<dyn Any + Send + Sync>;
 type BuildFn = fn(Vec<SlotEntry<ErasedBuilder>>, &Resolved<'_>) -> Result<ErasedBuilt, SlotError>;
-type InsertFn = fn(&mut Dependencies, ErasedBuilt);
+type InsertFn = fn(&mut Dependencies, &ExtensionId, ErasedBuilt) -> Result<(), DuplicateDependency>;
 
 /// One member's builder for one slot, with the slot's monomorphised build
 /// and insert functions. The builder is taken once, when the slot is built.
@@ -187,6 +210,7 @@ pub fn build_slot(
         return Ok(None);
     };
     let (slot, order, build, insert) = (first.slot, first.order, first.build, first.insert);
+    let mut owner = first.entry.owner.clone();
     inputs.retain(|input| input.slot == slot);
     if order == SlotOrder::CoreFirst {
         inputs.sort_by_key(|input| match input.entry.standing {
@@ -194,9 +218,19 @@ pub fn build_slot(
             StandingTag::Install => 1,
         });
     }
+    if let Some(core) = inputs
+        .iter()
+        .find(|input| input.entry.standing == StandingTag::Core)
+    {
+        owner = core.entry.owner.clone();
+    }
     let entries = inputs.into_iter().map(|input| input.entry).collect();
     let value = build(entries, r)?;
-    Ok(Some(SlotBuilt { value, insert }))
+    Ok(Some(SlotBuilt {
+        value,
+        insert,
+        owner,
+    }))
 }
 
 /// A built slot value, held until it is inserted into the extension state.
@@ -204,11 +238,12 @@ pub fn build_slot(
 pub struct SlotBuilt {
     value: ErasedBuilt,
     insert: InsertFn,
+    owner: ExtensionId,
 }
 
 impl SlotBuilt {
-    pub fn insert_into(self, state: &mut Dependencies) {
-        (self.insert)(state, self.value);
+    pub fn insert_into(self, state: &mut Dependencies) -> Result<(), DuplicateDependency> {
+        (self.insert)(state, &self.owner, self.value)
     }
 }
 
@@ -240,8 +275,13 @@ fn build_erased<S: Slot>(
     Ok(built)
 }
 
-fn insert_erased<S: Slot>(state: &mut Dependencies, value: ErasedBuilt) {
-    if let Ok(built) = value.downcast::<S::Built>() {
-        state.insert(built);
+fn insert_erased<S: Slot>(
+    state: &mut Dependencies,
+    owner: &ExtensionId,
+    value: ErasedBuilt,
+) -> Result<(), DuplicateDependency> {
+    match value.downcast::<S::Built>() {
+        Ok(built) => state.provide(owner, Arc::new(built)),
+        Err(_) => Ok(()),
     }
 }

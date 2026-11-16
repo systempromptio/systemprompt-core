@@ -21,9 +21,7 @@ use systemprompt_content::{
     default_homepage_prerenderer, default_list_branding_provider, default_list_items_renderer,
 };
 use systemprompt_database::DbPool;
-use systemprompt_extension::{
-    AssetDefinition, AssetPaths, AssetType, Resolved, Slot, SlotEntry, StandingTag,
-};
+use systemprompt_extension::{AssetDefinition, AssetPaths, AssetType, Resolved, Slot, SlotEntry};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::{
     ComponentContext, ComponentRenderer, ContentDataContext, ContentDataProvider, Dependencies,
@@ -333,11 +331,10 @@ pub fn fixture_hooks(db: &DbPool) -> ContentHooks {
     let handle: Arc<dyn DatabaseHandle> = Arc::clone(db);
     let kernel = Kernel::new(handle, BackgroundTasks::new(), Dependencies::default());
     ContentSlot::build(
-        vec![SlotEntry {
-            owner: ExtensionId::new("genproviders"),
-            standing: StandingTag::Install,
+        vec![SlotEntry::install(
+            ExtensionId::new("genproviders"),
             builder,
-        }],
+        )],
         &kernel.resolved(),
     )
     .expect("the fixture hooks build")

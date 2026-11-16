@@ -1,5 +1,7 @@
 //! The `authz` member: schema, migrations, the `access_control` and
-//! `governance` config planes, and core's `traffic` subject provider.
+//! `governance` config planes, and core's `traffic` subject provider. It
+//! opens the authz hook slot, so the composed hooks are built under core
+//! standing and no other slot can build the same value.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,6 +13,7 @@ use systemprompt_extension::prelude::*;
 use super::plane::AccessControlPlane;
 use super::subject::SharedSubjectAttributeProvider;
 use super::traffic::TrafficProvider;
+use crate::contract::AuthzHookSlot;
 use crate::policy::GovernancePlane;
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -39,6 +42,7 @@ impl Extension for AuthzExtension {
                 let provider: SharedSubjectAttributeProvider = Arc::new(TrafficProvider);
                 Ok(provider)
             });
+        c.slot::<AuthzHookSlot>();
         Ok(())
     }
 }

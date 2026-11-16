@@ -8,7 +8,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use serde_json::Value;
 use systemprompt_content::{ContentHooks, ContentSlot, ContentSlotBuilder};
-use systemprompt_extension::{FactoryError, Resolved, Slot, SlotEntry, SlotError, StandingTag};
+use systemprompt_extension::{FactoryError, Resolved, Slot, SlotEntry, SlotError};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::{
     ContentDataContext, ContentDataProvider, Dependencies, ProviderResult,
@@ -50,11 +50,7 @@ fn ranked(id: &'static str, priority: u32) -> ContentSlotBuilder {
 }
 
 fn entry(owner: &str, builder: ContentSlotBuilder) -> SlotEntry<ContentSlotBuilder> {
-    SlotEntry {
-        owner: ExtensionId::new(owner),
-        standing: StandingTag::Install,
-        builder,
-    }
+    SlotEntry::install(ExtensionId::new(owner), builder)
 }
 
 async fn build(entries: Vec<SlotEntry<ContentSlotBuilder>>) -> Result<ContentHooks, SlotError> {

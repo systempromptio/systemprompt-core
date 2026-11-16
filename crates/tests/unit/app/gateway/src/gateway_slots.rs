@@ -4,9 +4,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use systemprompt_extension::{
-    FactoryError, Resolved, Slot, SlotEntry, SlotError, SlotOrder, StandingTag,
-};
+use systemprompt_extension::{FactoryError, Resolved, Slot, SlotError, SlotOrder, StandingTag};
 use systemprompt_gateway::contract::{
     OutboundBuilder, OutboundSlot, OverrideSlot, RouteSelectorBuilder, RouteSelectorSlot,
     SafetyScannerBuilder, SafetyScannerSlot,
@@ -16,9 +14,9 @@ use systemprompt_gateway::{
     NullScanner, OutboundAdapter, RouteSelector, RouteSelectorError, SafetyConfig, SafetyScanner,
     ScannerFactory, ScannerSettings,
 };
-use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::services::GatewayRoute;
 use systemprompt_provider_contracts::Dependencies;
+use systemprompt_test_fixtures::slots::built_slot;
 use systemprompt_wire::canonical::CanonicalRequest;
 
 use crate::policies::route_selector::{pinned, req, route};
@@ -27,12 +25,8 @@ fn resolved_kernel() -> systemprompt_runtime::Kernel {
     systemprompt_test_fixtures::offline_kernel(Dependencies::default())
 }
 
-fn entry<B>(owner: &str, standing: StandingTag, builder: B) -> SlotEntry<B> {
-    SlotEntry {
-        owner: ExtensionId::new(owner),
-        standing,
-        builder,
-    }
+fn entry<B>(owner: &str, standing: StandingTag, builder: B) -> (&str, StandingTag, B) {
+    (owner, standing, builder)
 }
 
 fn adapter(_: &Resolved<'_>) -> Result<Arc<dyn OutboundAdapter>, FactoryError> {
@@ -53,7 +47,7 @@ fn an_install_adapter_tagged_like_a_builtin_is_refused() {
     for tag in ["anthropic", "openai-chat", "openai-responses", "gemini"] {
         let mut builder = OutboundBuilder::default();
         builder.adapter(tag, adapter);
-        let err = OutboundSlot::build(
+        let err = built_slot::<OutboundSlot>(
             vec![entry("acme", StandingTag::Install, builder)],
             &kernel.resolved(),
         )
@@ -72,7 +66,7 @@ fn two_adapters_with_one_tag_are_refused() {
     first.adapter("acme-wire", adapter);
     let mut second = OutboundBuilder::default();
     second.adapter("acme-wire", adapter);
-    let err = OutboundSlot::build(
+    let err = built_slot::<OutboundSlot>(
         vec![
             entry("first", StandingTag::Install, first),
             entry("second", StandingTag::Install, second),
@@ -91,7 +85,7 @@ fn a_new_tag_is_added_beside_the_builtins_as_the_negative_control() {
     let kernel = resolved_kernel();
     let mut builder = OutboundBuilder::default();
     builder.adapter("acme-wire", adapter);
-    let registry = OutboundSlot::build(
+    let registry = built_slot::<OutboundSlot>(
         vec![entry("acme", StandingTag::Install, builder)],
         &kernel.resolved(),
     )
@@ -113,7 +107,7 @@ fn a_scanner_named_like_a_builtin_or_twice_is_refused() {
     let mut shadow = SafetyScannerBuilder::default();
     shadow.scanner("heuristic", null_scanner);
     assert!(matches!(
-        SafetyScannerSlot::build(
+        built_slot::<SafetyScannerSlot>(
             vec![entry("acme", StandingTag::Install, shadow)],
             &kernel.resolved()
         ),
@@ -125,7 +119,7 @@ fn a_scanner_named_like_a_builtin_or_twice_is_refused() {
     let mut second = SafetyScannerBuilder::default();
     second.scanner("secrets", null_scanner);
     assert!(matches!(
-        SafetyScannerSlot::build(
+        built_slot::<SafetyScannerSlot>(
             vec![
                 entry("first", StandingTag::Install, first),
                 entry("second", StandingTag::Install, second),
@@ -162,7 +156,7 @@ async fn the_first_entry_in_core_first_order_is_consulted_first() {
     core.selector(|_: &Resolved<'_>| Ok(Arc::new(Reroute("core")) as Arc<dyn RouteSelector>));
     let mut install = RouteSelectorBuilder::default();
     install.selector(|_: &Resolved<'_>| Ok(Arc::new(Reroute("install")) as Arc<dyn RouteSelector>));
-    let chain = RouteSelectorSlot::build(
+    let chain = built_slot::<RouteSelectorSlot>(
         vec![
             entry("core", StandingTag::Core, core),
             entry("install", StandingTag::Install, install),

@@ -6,7 +6,7 @@
 use std::sync::Arc;
 use systemprompt_identifiers::ModelId;
 
-use systemprompt_extension::{FactoryError, Resolved, Slot, SlotEntry, SlotError, StandingTag};
+use systemprompt_extension::{FactoryError, Resolved, Slot, SlotEntry, SlotError};
 use systemprompt_gateway::contract::{SafetyScannerBuilder, SafetyScannerSlot};
 use systemprompt_gateway::protocol::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalReasoning, CanonicalRequest, CanonicalResponse,
@@ -33,11 +33,7 @@ pub(crate) fn registry_with(
     }
     let kernel = systemprompt_test_fixtures::offline_kernel(Default::default());
     SafetyScannerSlot::build(
-        vec![SlotEntry {
-            owner: ExtensionId::new("test"),
-            standing: StandingTag::Install,
-            builder,
-        }],
+        vec![SlotEntry::install(ExtensionId::new("test"), builder)],
         &kernel.resolved(),
     )
 }
