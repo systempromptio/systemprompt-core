@@ -201,6 +201,10 @@ pub fn enabled_documents() -> DocumentsConfig {
 fn write_files_config(services_path: &std::path::Path, documents: &DocumentsConfig) {
     let files = FilesConfigYaml {
         documents: documents.clone(),
+        issues: systemprompt_files::IssuesConfig {
+            enabled: true,
+            ..systemprompt_files::IssuesConfig::default()
+        },
         ..FilesConfigYaml::default()
     };
     let mut root = serde_yaml::Mapping::new();
@@ -524,6 +528,7 @@ paths:
   bin: {bin}
   web_path: {web}
   storage: {storage}
+  shipped_files: {storage}/shipped
   geoip_database: null
 security:
   jwt_access_token_expiration: 3600
