@@ -1,230 +1,92 @@
-//! `plugins seams`: every link-time registration seam and what this binary
-//! registers in it.
+//! `plugins seams`: the admitted composition, member by member.
 //!
-//! Registrations collected with `inventory` exist only in a binary that links
-//! the registering crate. The command lists each seam with its entries
-//! (including seams with none) and checks the active profile for settings
-//! that name a seam entry this binary does not link: such a profile fails at
-//! boot, so the command exits non-zero.
-//!
-//! An entry is active while the seam's owning extension and the entry's own
-//! owner (for a seam whose entries are switched on per registration, such as
-//! the gateway's guards and route groups) are both enabled; an entry whose own
-//! owner is disabled is rendered `[owner: owner_disabled]`. A requirement is
-//! met only by active entries, so it is unmet (status `missing`) when the
-//! entry is absent, when its owner or the seam's owner is disabled, or when no
-//! crate registers the seam at all (a row with owner `unregistered`). A seam
-//! with entries but none active, and no requirement on it, is
-//! `owner_disabled` and does not fail the command.
+//! Every member the composition admitted against the active profile is listed
+//! with what it contributes to the kernel, one row per contribution kind it
+//! uses: provided and required state values, capability slots it opens or
+//! contributes to, schemas, migrations, jobs, retention and purge
+//! declarations, projections, run origins, governance providers and
+//! policies, gateway guards, readiness checks, diagnostics, metrics, roles
+//! and configuration sections. A member the profile disables is not admitted
+//! and has no rows; a profile setting that needs a contribution no admitted
+//! member makes is refused when the composition is admitted, before any
+//! command runs.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-macro_rules! by_priority {
-    ($discover:expr) => {
-        prioritized(
-            $discover
-                .into_iter()
-                .map(|registration| registration.priority),
-        )
-    };
-}
-
-macro_rules! by_count {
-    ($registration:ty) => {
-        unnamed(inventory::iter::<$registration>.into_iter().count())
-    };
-}
-
-mod app_seams;
-pub mod catalog;
-mod domain_seams;
-mod extension_seams;
-mod shared_seams;
-
 use clap::Args;
-use systemprompt_identifiers::ExtensionId;
-use systemprompt_manifest::Profile;
-use systemprompt_manifest::profile::{AuthzMode, SecretsSource};
+use systemprompt_extension::admitted::AdmittedMember;
+use systemprompt_extension::cli::{CommandError, CommandHost, CommandOutput};
 
-pub use catalog::{LinkedSeam, linked_seams};
-
-use super::types::{SeamRow, SeamStatus};
-use crate::kernel::{SeamEntry, named};
-use crate::shared::CommandOutput;
-use systemprompt_config::SecretsSources;
+use super::composition;
+use super::types::SeamRow;
 
 #[derive(Debug, Clone, Args)]
 pub struct SeamsArgs {
-    #[arg(long, help = "Show only seams whose name contains this text")]
-    pub seam: Option<String>,
+    #[arg(long, help = "Show only members whose id or name contains this text")]
+    pub member: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Needed {
-    AnyEntry,
-    Entry(String),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Requirement {
-    pub seam: &'static str,
-    pub setting: String,
-    pub needed: Needed,
-}
-
-#[must_use]
-pub fn profile_requirements(profile: &Profile) -> Vec<Requirement> {
-    let mut requirements = Vec::new();
-    let authz_mode = profile
-        .governance
-        .as_ref()
-        .and_then(|governance| governance.authz.as_ref())
-        .map(|authz| authz.hook.mode);
-    if authz_mode == Some(AuthzMode::Extension) {
-        requirements.push(Requirement {
-            seam: "authz_hooks",
-            setting: "governance.authz.hook.mode = extension".to_owned(),
-            needed: Needed::AnyEntry,
-        });
-    }
-    if let Some(secrets) = profile.secrets.as_ref()
-        && secrets.source == SecretsSource::External
-        && let Some(external) = secrets.external.as_ref()
-    {
-        requirements.push(Requirement {
-            seam: "secrets_sources",
-            setting: format!("secrets.external.kind = {}", external.kind),
-            needed: Needed::Entry(external.kind.clone()),
-        });
-    }
-    requirements
-}
-
-fn is_disabled(owner: Option<&str>, disabled: &[ExtensionId]) -> bool {
-    owner.is_some_and(|owner| disabled.iter().any(|id| id.as_str() == owner))
-}
-
-fn satisfied(active: &[&SeamEntry], needed: &Needed) -> bool {
-    match needed {
-        Needed::AnyEntry => !active.is_empty(),
-        Needed::Entry(name) => active.iter().any(|entry| &entry.name == name),
-    }
-}
-
-fn render(entry: &SeamEntry, disabled: &[ExtensionId]) -> String {
-    match entry.owner {
-        Some(owner) if is_disabled(Some(owner), disabled) => {
-            format!("{} [{owner}: owner_disabled]", entry.name)
-        },
-        Some(owner) => format!("{} [{owner}]", entry.name),
-        None => entry.name.clone(),
-    }
-}
-
-#[must_use]
-pub fn evaluate(
-    seams: Vec<LinkedSeam>,
-    requirements: &[Requirement],
-    disabled: &[ExtensionId],
-) -> (Vec<SeamRow>, bool) {
-    let mut all_linked = true;
-    let mut seams = seams;
-    for requirement in requirements {
-        if !seams.iter().any(|seam| seam.name == requirement.seam) {
-            seams.push(LinkedSeam {
-                name: requirement.seam,
-                owner: "unregistered",
-                extension: None,
-                entries: Vec::new(),
-            });
-        }
-    }
-    let rows = seams
-        .into_iter()
-        .map(|seam| {
-            let applicable: Vec<&Requirement> = requirements
-                .iter()
-                .filter(|requirement| requirement.seam == seam.name)
-                .collect();
-            let seam_disabled = is_disabled(seam.extension, disabled);
-            let active: Vec<&SeamEntry> = seam
-                .entries
-                .iter()
-                .filter(|entry| !seam_disabled && !is_disabled(entry.owner, disabled))
-                .collect();
-            let missing = applicable
-                .iter()
-                .any(|requirement| !satisfied(&active, &requirement.needed));
-            all_linked &= !missing;
-            let status = if missing {
-                SeamStatus::Missing
-            } else if seam_disabled || (!seam.entries.is_empty() && active.is_empty()) {
-                SeamStatus::OwnerDisabled
-            } else if seam.entries.is_empty() {
-                SeamStatus::Empty
-            } else {
-                SeamStatus::Linked
-            };
-            SeamRow {
-                seam: seam.name.to_owned(),
-                owner: seam.owner.to_owned(),
-                extension: seam.extension.unwrap_or("kernel").to_owned(),
-                count: seam.entries.len(),
-                entries: seam
-                    .entries
-                    .iter()
-                    .map(|entry| render(entry, disabled))
-                    .collect::<Vec<_>>()
-                    .join(", "),
-                requires: applicable
-                    .iter()
-                    .map(|requirement| requirement.setting.as_str())
-                    .collect::<Vec<_>>()
-                    .join("; "),
-                status,
-            }
-        })
+pub fn execute(args: &SeamsArgs, host: &dyn CommandHost) -> Result<CommandOutput, CommandError> {
+    let built = composition::built(host)?;
+    let rows: Vec<SeamRow> = composition::matching(built, args.member.as_deref())
+        .flat_map(member_rows)
         .collect();
-    (rows, all_linked)
-}
-
-#[must_use]
-pub fn execute(
-    args: &SeamsArgs,
-    profile: Option<&Profile>,
-    secrets: &SecretsSources,
-) -> (CommandOutput, bool) {
-    let requirements = profile.map(profile_requirements).unwrap_or_default();
-    let disabled = profile.map_or(&[][..], |profile| profile.extensions.disabled.as_slice());
-    let mut seams = linked_seams();
-    seams.push(LinkedSeam {
-        name: "secrets_sources",
-        owner: "systemprompt-config",
-        extension: None,
-        entries: named(secrets.kinds()),
-    });
-    let (rows, all_linked) = evaluate(seams, &requirements, disabled);
-    let rows: Vec<SeamRow> = rows
-        .into_iter()
-        .filter(|row| {
-            args.seam
-                .as_ref()
-                .is_none_or(|f| row.seam.contains(f.as_str()))
-        })
-        .collect();
-    let output = CommandOutput::table_of(
-        vec![
-            "seam",
-            "owner",
-            "extension",
-            "count",
-            "entries",
-            "requires",
-            "status",
-        ],
+    Ok(CommandOutput::table_of(
+        vec!["member", "standing", "contribution", "count", "entries"],
         &rows,
     )
-    .with_title("Registration Seams Linked In This Binary");
-    (output, all_linked)
+    .with_title("Admitted Composition"))
+}
+
+#[must_use]
+pub fn member_rows(member: &AdmittedMember) -> Vec<SeamRow> {
+    let sink = &member.sink;
+    let named = |contribution: &str, entries: Vec<String>| (contribution.to_owned(), entries.len(), entries.join(", "));
+    let counted = |contribution: &str, count: usize| (contribution.to_owned(), count, String::new());
+    [
+        counted("provides", sink.provides().len()),
+        counted("requires", sink.requires().len()),
+        counted("slots", sink.slots().len()),
+        named(
+            "schemas",
+            sink.schemas().iter().filter_map(|schema| schema.table.clone()).collect(),
+        ),
+        counted("migrations", sink.migrations().len()),
+        counted("seeds", sink.seeds().len()),
+        named(
+            "jobs",
+            sink.jobs().iter().map(|job| job.job().name().to_owned()).collect(),
+        ),
+        counted("job_run_scopes", sink.job_run_scopes().len()),
+        counted("retention", sink.retention().len()),
+        counted("user_purges", sink.user_purges().len()),
+        counted("orphan_sweeps", sink.orphan_sweeps().len()),
+        counted("projections", sink.projections().len()),
+        counted("run_origins", sink.run_origins().len()),
+        counted("subject_providers", sink.subject_providers().len()),
+        counted("policies", sink.policies().len()),
+        counted("gateway_guards", sink.gateway_guards().len()),
+        counted("runner_services", sink.runner_services().len()),
+        counted("readiness", sink.readiness().len()),
+        counted("diagnostics", sink.diagnostics().len()),
+        counted("metrics", sink.metrics().len()),
+        named("roles", sink.roles().iter().map(|role| role.name.clone()).collect()),
+        named(
+            "configs",
+            sink.configs().iter().map(|config| config.prefix().to_owned()).collect(),
+        ),
+        counted("config_planes", sink.config_planes().len()),
+        counted("assets", sink.assets().len()),
+    ]
+    .into_iter()
+    .filter(|(_, count, _)| *count > 0)
+    .map(|(contribution, count, entries)| SeamRow {
+        member: member.owner.clone(),
+        standing: composition::standing(member),
+        contribution,
+        count,
+        entries,
+    })
+    .collect()
 }

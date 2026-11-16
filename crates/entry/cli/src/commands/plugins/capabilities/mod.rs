@@ -1,8 +1,8 @@
 //! `plugins capabilities` subcommands.
 //!
-//! Aggregates the capabilities each extension contributes — jobs, templates,
-//! schemas, tools, roles, and LLM providers — either as a per-kind listing or
-//! as a single rolled-up summary across the whole extension registry.
+//! Aggregates what each admitted member contributes — jobs, schemas, roles
+//! and configuration sections — either as a per-kind listing or as a single
+//! rolled-up summary across the admitted composition.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,15 +10,12 @@
 pub mod jobs;
 pub mod roles;
 pub mod schemas;
-pub mod templates;
-pub mod tools;
 
 use clap::{Args, Subcommand};
+use systemprompt_extension::cli::{CommandError, CommandHost, CommandOutput};
 
-use super::discover_registry;
+use super::composition;
 use super::types::CapabilitiesSummaryOutput;
-use crate::CliConfig;
-use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Args)]
 pub struct CapabilitiesArgs {
@@ -31,72 +28,43 @@ pub enum CapabilitiesCommands {
     #[command(about = "List all jobs across extensions")]
     Jobs(jobs::JobsArgs),
 
-    #[command(about = "List all templates across extensions")]
-    Templates(templates::TemplatesArgs),
-
     #[command(about = "List all schemas across extensions")]
     Schemas(schemas::SchemasArgs),
-
-    #[command(about = "List all tools across extensions")]
-    Tools(tools::ToolsArgs),
 
     #[command(about = "List all roles across extensions")]
     Roles(roles::RolesArgs),
 }
 
-pub(super) fn execute(args: CapabilitiesArgs, config: &CliConfig) {
-    match args.cmd {
-        None => {
-            render_result(&execute_summary(config), config);
-        },
-        Some(CapabilitiesCommands::Jobs(args)) => {
-            render_result(&jobs::execute(&args, config), config);
-        },
-        Some(CapabilitiesCommands::Templates(args)) => {
-            render_result(&templates::execute(&args, config), config);
-        },
-        Some(CapabilitiesCommands::Schemas(args)) => {
-            render_result(&schemas::execute(&args, config), config);
-        },
-        Some(CapabilitiesCommands::Tools(args)) => {
-            render_result(&tools::execute(&args, config), config);
-        },
-        Some(CapabilitiesCommands::Roles(args)) => {
-            render_result(&roles::execute(&args, config), config);
-        },
-    }
+pub(super) fn execute(
+    args: CapabilitiesArgs,
+    host: &dyn CommandHost,
+) -> Result<CommandOutput, CommandError> {
+    let built = composition::built(host)?;
+    Ok(match args.cmd {
+        None => execute_summary(built),
+        Some(CapabilitiesCommands::Jobs(args)) => jobs::execute(&args, built),
+        Some(CapabilitiesCommands::Schemas(args)) => schemas::execute(&args, built),
+        Some(CapabilitiesCommands::Roles(args)) => roles::execute(&args, built),
+    })
 }
 
-fn execute_summary(_config: &CliConfig) -> CommandOutput {
-    let registry = discover_registry();
-
-    let mut jobs = 0;
-    let mut templates = 0;
-    let mut schemas = 0;
-    let mut tools = 0;
-    let mut roles = 0;
-    let mut extension_count = 0;
-
-    for ext in registry.extensions() {
-        extension_count += 1;
-        jobs += super::owned_jobs(ext.id()).count();
-        schemas += ext.schemas().len();
-        roles += ext.roles().len();
-        tools += ext.tool_providers().len();
-
-        for provider in ext.template_providers() {
-            templates += provider.templates().len();
-        }
-    }
-
-    let output = CapabilitiesSummaryOutput {
-        jobs,
-        templates,
-        schemas,
-        tools,
-        roles,
-        extension_count,
+fn execute_summary(built: &systemprompt_extension::BuiltState) -> CommandOutput {
+    let mut output = CapabilitiesSummaryOutput {
+        jobs: 0,
+        schemas: 0,
+        roles: 0,
+        configs: 0,
+        extension_count: 0,
     };
+
+    for member in built.members() {
+        let capabilities = composition::capabilities(member);
+        output.extension_count += 1;
+        output.jobs += capabilities.jobs;
+        output.schemas += capabilities.schemas;
+        output.roles += capabilities.roles;
+        output.configs += capabilities.configs;
+    }
 
     CommandOutput::card_value("Capabilities Summary", &output)
 }

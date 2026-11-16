@@ -1,10 +1,11 @@
-//! `plugins` command group: discover and inspect compiled extensions.
+//! `plugins` command group: discover and inspect extensions.
 //!
-//! Covers listing and showing extensions, running CLI extension commands,
-//! validating dependencies and configuration, dumping config, summarising
-//! [`PluginsCommands::Capabilities`], listing link-time registration
-//! [`seams`], and the [`mcp`] server-management
-//! subtree. [`types`] holds the shared serialisable output shapes.
+//! Covers listing and showing the members the composition admitted (and the
+//! manifest-discovered extensions beside them), running CLI extension
+//! commands, dumping configuration sections, summarising
+//! [`PluginsCommands::Capabilities`], listing the admitted composition member
+//! by member ([`seams`]), and the [`mcp`] server-management subtree.
+//! [`types`] holds the shared serialisable output shapes.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,35 +13,22 @@
 pub mod types;
 
 pub mod capabilities;
+mod composition;
 pub mod config;
 pub mod list;
 mod run;
 pub mod seams;
 pub mod show;
-pub mod validate;
 
 pub mod mcp;
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use clap::Subcommand;
-use systemprompt_extension::ExtensionRegistry;
+use systemprompt_extension::cli::{
+    CommandDescriptor, CommandHost, CommandOutput, DataImpact, DescribeCommand,
+};
 
-use crate::context::CommandContext;
-use crate::descriptor::{CommandDescriptor, DataImpact, DescribeCommand};
-use crate::shared::render_result;
-
-fn owned_jobs(owner: &str) -> impl Iterator<Item = &'static dyn systemprompt_traits::Job> + '_ {
-    systemprompt_traits::registered_jobs()
-        .filter(move |registration| registration.owner == owner)
-        .map(|registration| registration.job)
-}
-
-fn discover_registry() -> ExtensionRegistry {
-    ExtensionRegistry::discover().unwrap_or_else(|e| {
-        tracing::error!(error = %e, "extension dependency cycle; using empty registry");
-        ExtensionRegistry::new()
-    })
-}
+use crate::commands::shared::rendered;
 
 #[derive(Debug, Subcommand)]
 pub enum PluginsCommands {
@@ -53,8 +41,6 @@ pub enum PluginsCommands {
     #[command(about = "Run a CLI extension command", trailing_var_arg = true)]
     Run(run::RunArgs),
 
-    #[command(about = "Validate extension dependencies and configurations")]
-    Validate(validate::ValidateArgs),
 
     #[command(about = "Show extension configuration")]
     Config(config::ConfigArgs),
@@ -62,7 +48,7 @@ pub enum PluginsCommands {
     #[command(about = "List capabilities across all extensions")]
     Capabilities(capabilities::CapabilitiesArgs),
 
-    #[command(about = "List every link-time registration seam and check the profile against it")]
+    #[command(about = "List the admitted composition, member by member")]
     Seams(seams::SeamsArgs),
 
     #[command(subcommand, about = "MCP server management")]
@@ -79,46 +65,20 @@ impl DescribeCommand for PluginsCommands {
     }
 }
 
-pub async fn execute(cmd: PluginsCommands, ctx: &CommandContext) -> Result<()> {
+pub async fn execute(cmd: PluginsCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     match cmd {
-        PluginsCommands::List(args) => {
-            render_result(&list::execute(&args, &ctx.cli), &ctx.cli);
-            Ok(())
-        },
-        PluginsCommands::Show(args) => {
-            let result = show::execute(&args, &ctx.cli).context("Failed to show extension")?;
-            render_result(&result, &ctx.cli);
-            Ok(())
-        },
-        PluginsCommands::Run(args) => run::execute(args, ctx).await,
-        PluginsCommands::Validate(args) => {
-            let (output, valid) = validate::execute(&args, &ctx.cli);
-            render_result(&output, &ctx.cli);
-            if !valid {
-                bail!("Extension validation failed");
-            }
-            Ok(())
+        PluginsCommands::List(args) => Ok(list::execute(&args, host)?),
+        PluginsCommands::Show(args) => show::execute(&args, host).context("Failed to show extension"),
+        PluginsCommands::Run(args) => {
+            run::execute(args, host).await?;
+            Ok(rendered())
         },
         PluginsCommands::Config(args) => {
-            let result =
-                config::execute(&args, &ctx.cli).context("Failed to get extension config")?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            config::execute(&args, host).context("Failed to get extension config")
         },
-        PluginsCommands::Capabilities(args) => {
-            capabilities::execute(args, &ctx.cli);
-            Ok(())
-        },
-        PluginsCommands::Seams(args) => {
-            let (output, all_linked) =
-                seams::execute(&args, ctx.profile().ok(), ctx.secrets_sources());
-            render_result(&output, &ctx.cli);
-            if !all_linked {
-                bail!("The profile names registrations this binary does not link");
-            }
-            Ok(())
-        },
-        PluginsCommands::Mcp(cmd) => Box::pin(mcp::execute(cmd, ctx)).await,
+        PluginsCommands::Capabilities(args) => Ok(capabilities::execute(args, host)?),
+        PluginsCommands::Seams(args) => Ok(seams::execute(&args, host)?),
+        PluginsCommands::Mcp(cmd) => Box::pin(mcp::execute(cmd, host)).await,
     }
 }
 
@@ -128,7 +88,6 @@ impl PluginsCommands {
             Self::List(_)
             | Self::Show(_)
             | Self::Run(_)
-            | Self::Validate(_)
             | Self::Config(_)
             | Self::Capabilities(_)
             | Self::Seams(_)

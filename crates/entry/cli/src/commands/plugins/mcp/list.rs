@@ -10,7 +10,8 @@ use std::fs;
 use std::path::PathBuf;
 
 use super::types::{McpListOutput, McpServerSummary};
-use crate::context::CommandContext;
+use systemprompt_extension::cli::CommandHost;
+use crate::commands::shared::app_context;
 use crate::shared::CommandOutput;
 use systemprompt_cloud::paths::ProjectRoot;
 use systemprompt_models::mcp::{Deployment, McpServerType};
@@ -24,11 +25,11 @@ pub struct ListArgs {
     pub disabled: bool,
 }
 
-pub(super) fn execute(args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let services_config = ctx
-        .boot()?
-        .load_services_config()
-        .context("Failed to load services configuration")?;
+pub(super) async fn execute(args: ListArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let services_config = app_context(host)
+        .await
+        .context("Failed to load services configuration")?
+        .services_config();
     let project_root = match ProjectRoot::discover() {
         Ok(root) => Some(root),
         Err(e) => {

@@ -67,6 +67,3 @@ reqwest = { workspace = true }
 [package.metadata.cargo-machete]
 ignored = ["inventory", "reqwest", "thiserror"]
 
-[[test]]
-name = "plugin_validation_inventory"
-path = "tests/plugin_validation_inventory.rs"

@@ -4,11 +4,11 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use clap::Args;
+use systemprompt_extension::BuiltState;
+use systemprompt_extension::cli::CommandOutput;
 
-use crate::CliConfig;
-use crate::commands::plugins::discover_registry;
+use crate::commands::plugins::composition;
 use crate::commands::plugins::types::{RoleWithExtension, RolesListOutput};
-use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
 pub struct RolesArgs {
@@ -16,30 +16,21 @@ pub struct RolesArgs {
     pub extension: Option<String>,
 }
 
-pub fn execute(args: &RolesArgs, _config: &CliConfig) -> CommandOutput {
-    let registry = discover_registry();
-
-    let roles: Vec<RoleWithExtension> = registry
-        .extensions()
-        .iter()
-        .filter(|ext| args.extension.as_ref().is_none_or(|f| ext.id().contains(f)))
-        .flat_map(|ext| {
-            ext.roles()
-                .iter()
-                .map(|role| RoleWithExtension {
-                    extension_id: systemprompt_identifiers::ExtensionId::new(ext.id()),
-                    extension_name: ext.name().to_owned(),
-                    role_name: role.name.clone(),
-                    display_name: role.display_name.clone(),
-                    description: role.description.clone(),
-                    permissions: role.permissions.clone(),
-                })
-                .collect::<Vec<_>>()
+pub fn execute(args: &RolesArgs, built: &BuiltState) -> CommandOutput {
+    let roles: Vec<RoleWithExtension> = composition::matching(built, args.extension.as_deref())
+        .flat_map(|member| {
+            member.sink.roles().iter().map(|role| RoleWithExtension {
+                extension_id: member.owner.clone(),
+                extension_name: member.metadata.name.to_owned(),
+                role_name: role.name.clone(),
+                display_name: role.display_name.clone(),
+                description: role.description.clone(),
+                permissions: role.permissions.clone(),
+            })
         })
         .collect();
 
     let total = roles.len();
-
     let output = RolesListOutput { roles, total };
 
     CommandOutput::table_of(
