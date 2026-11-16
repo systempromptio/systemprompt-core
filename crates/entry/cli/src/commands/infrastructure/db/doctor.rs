@@ -31,6 +31,13 @@ struct DoctorReport {
     absent_member_ledgers: Vec<String>,
     missing_tables: Vec<String>,
     missing_columns: Vec<MissingColumn>,
+    unparseable_schemas: Vec<UnparseableSchema>,
+}
+
+#[derive(Debug, Serialize)]
+struct UnparseableSchema {
+    extension: ExtensionId,
+    error: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -71,12 +78,20 @@ pub(super) async fn execute_doctor(
     // schema file registered without a table name still declares its
     // tables; the `schema.table` list above is only for required columns.
     let mut created_tables: Vec<String> = Vec::new();
+    let mut unparseable: Vec<UnparseableSchema> = Vec::new();
     let mut ids: Vec<ExtensionId> = Vec::new();
     for ext in &schema_extensions {
-        ids.push(ExtensionId::new(ext.id()));
+        let ext_id = ExtensionId::new(ext.id());
         for schema in ext.schemas() {
-            created_tables.extend(created_table_names(&schema.sql).unwrap_or_default());
+            match created_table_names(&schema.sql) {
+                Ok(names) => created_tables.extend(names),
+                Err(error) => unparseable.push(UnparseableSchema {
+                    extension: ext_id.clone(),
+                    error: error.to_string(),
+                }),
+            }
         }
+        ids.push(ext_id);
     }
     let residue = audit_schema_residue(write_provider, &created_tables, &ids).await?;
     let undeclared: Vec<String> = residue
@@ -103,8 +118,23 @@ pub(super) async fn execute_doctor(
         }
     }
 
-    let output = report_output(&undeclared, &residue, &missing_tables, &missing_columns);
+    let unparseable_count = unparseable.len();
+    let output = report_output(
+        &undeclared,
+        &residue,
+        &missing_tables,
+        &missing_columns,
+        unparseable,
+    );
 
+    if unparseable_count > 0 {
+        return Err(CommandError::new(format!(
+            "{unparseable_count} declared schema(s) do not parse: the residue audit cannot \
+             attribute their tables"
+        ))
+        .with_output(output)
+        .into());
+    }
     if !residue.is_empty() {
         return Err(CommandError::new(format!(
             "{} undeclared table(s) and {} orphan migration ledger(s): add a DROP TABLE migration",
@@ -122,6 +152,7 @@ fn report_output(
     residue: &SchemaResidue,
     missing_tables: &[String],
     missing_columns: &[(ExtensionId, String, String)],
+    unparseable_schemas: Vec<UnparseableSchema>,
 ) -> CommandOutput {
     let orphan_ledgers: Vec<String> = residue
         .orphan_migration_ledgers
@@ -150,7 +181,18 @@ fn report_output(
             ),
         ));
     }
+    if !unparseable_schemas.is_empty() {
+        notes.push(NoticeLine::new(
+            "warning",
+            format!(
+                "{} declared schema(s) do not parse; their tables are not attributed to their \
+                 member",
+                unparseable_schemas.len()
+            ),
+        ));
+    }
     if undeclared.is_empty()
+        && unparseable_schemas.is_empty()
         && orphan_ledgers.is_empty()
         && missing_tables.is_empty()
         && missing_columns.is_empty()
@@ -212,6 +254,7 @@ fn report_output(
                 column: col.clone(),
             })
             .collect(),
+        unparseable_schemas,
     };
     notes.into_iter().fold(
         CommandOutput::card_value("Database Doctor", &report),
