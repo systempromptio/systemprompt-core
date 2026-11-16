@@ -16,8 +16,9 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
-use systemprompt_database::{Database, MigrationService, SchemaUnit, validate_table_exists};
+use systemprompt_database::{Database, MigrationService, validate_table_exists};
 use systemprompt_extension::AdmittedMigrations;
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::Profile;
 use systemprompt_manifest::profile::StorageBackend;
 
@@ -106,15 +107,7 @@ pub(super) async fn check_schema_not_ahead(
     let migrations = MigrationService::new(&db);
     let mut ahead = Vec::new();
     for (metadata, list) in admitted.members() {
-        let unit = SchemaUnit {
-            metadata: *metadata,
-            schemas: vec![],
-            migrations: list.clone(),
-            seeds: vec![],
-            retirements: vec![],
-            cross_tables: vec![],
-        };
-        match migrations.status(&unit).await {
+        match migrations.status_of(&ExtensionId::new(metadata.id), list).await {
             Ok(status) if !status.ahead.is_empty() => {
                 ahead.push((status.extension_id.as_str().to_owned(), status.ahead));
             },

@@ -1,6 +1,7 @@
 use systemprompt_files::documents::codecs::pptx::{PptxCodec, blank_pptx};
+use systemprompt_files::documents::codecs::{CodecRegistry, core_codecs};
 use systemprompt_provider_contracts::documents::{
-    DocumentCodec, DocumentFormat, NodeKind, TemplateParams, codec_for, hash8,
+    DocumentCodec, DocumentFormat, NodeKind, TemplateParams, hash8,
 };
 
 use super::pptx_fixture::{hash_of, node, part, project, two_slide_deck};
@@ -164,6 +165,8 @@ fn instantiate_fills_a_placeholder_inside_one_run_in_place() {
 
 #[test]
 fn codec_is_registered_for_pptx() {
-    let codec = codec_for(DocumentFormat::Pptx).expect("registered");
+    let codec = CodecRegistry::from_codecs(core_codecs())
+        .for_format(DocumentFormat::Pptx)
+        .expect("registered");
     assert_eq!(codec.formats(), &[DocumentFormat::Pptx]);
 }

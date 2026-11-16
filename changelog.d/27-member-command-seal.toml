@@ -1,0 +1,19 @@
+[root]
+section = "Fixed"
+area = "Security"
+text = "A member command cannot read the kernel's configuration or secrets: its resolver refuses the sealed seeds (`Config`, `SecretStore`, `SystemAdmin`, `ActiveServicesRoot`, `EventRouter`), `SecretsSources`, `EnvOverrides`, `BootContext` and `AppContext`. Profile boot and config reconcile are kernel grants (`KernelGrant::BootProfile`, `KernelGrant::ConfigReconcile`) a command receives only on a reserved CLI path its owner holds; `CommandHost::boot_config` is served only to a command holding `BootProfile`."
+
+[[crate]]
+name = "systemprompt-provider-contracts"
+section = "Added"
+text = "`Dependencies::{insert_sealed, with_sealed, is_sealed}`: a sealed entry is read by the kernel and refused to a member command's resolver."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`KernelGrant` gains `BootProfile` and `ConfigReconcile`; a grant not listed for the command's reserved path and owner is refused."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "Member commands no longer resolve `SecretsSources`, `EnvOverrides`, `Arc<BootContext>`, `Arc<AppContext>` or the sealed kernel seeds; the kernel's own commands run on an internal `KernelHost`."

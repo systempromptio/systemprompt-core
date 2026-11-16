@@ -24,6 +24,21 @@ class NoInventory(GateFixture):
         )
         self.check([f"crates/shared/extension/src/lib.rs:{n}" for n in (1, 2, 3, 4)])
 
+    def test_rooted_path_and_macro_reexport_fail(self):
+        self.write(
+            "crates/shared/traits/src/lib.rs",
+            "pub use ::inventory as inv;\nmacro_rules! m { () => { $crate::__inventory::submit! {} } }\n",
+        )
+        self.check([f"crates/shared/traits/src/lib.rs:{n}" for n in (1, 2)])
+
+    def test_module_named_inventory_passes(self):
+        self.write(
+            "crates/domain/marketplace/src/a.rs",
+            "use crate::inventory::X;\nuse systemprompt_runtime::managed::inventory::{Y};\nuse super::inventory::Z;\n",
+        )
+        self.write("crates/shared/provider-contracts/src/tool/mod.rs", "mod inventory;\npub use inventory::{ToolInventory};\n")
+        self.check([])
+
     def test_facade_is_scanned(self):
         self.write("systemprompt/src/lib.rs", "fn f() { for x in inventory::iter::<X> {} }\n")
         self.check(["systemprompt/src/lib.rs:1"])

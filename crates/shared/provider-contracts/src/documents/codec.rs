@@ -1,10 +1,9 @@
-//! The [`DocumentCodec`] seam and its compile-time registry.
+//! The [`DocumentCodec`] seam.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeMap;
-use std::sync::Arc;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -188,36 +187,4 @@ pub fn text_fragment(base: &Projection, path: &DocumentNodeId) -> Result<NodeFra
         text: node.text.clone(),
         native: None,
     })
-}
-
-/// One compile-time codec registration, submitted by
-/// [`register_document_codec!`](crate::register_document_codec).
-#[derive(Debug, Clone, Copy)]
-pub struct DocumentCodecRegistration {
-    pub factory: fn() -> Arc<dyn DocumentCodec>,
-}
-
-inventory::collect!(DocumentCodecRegistration);
-
-#[macro_export]
-macro_rules! register_document_codec {
-    ($factory:path) => {
-        $crate::__inventory::submit! {
-            $crate::documents::DocumentCodecRegistration { factory: $factory }
-        }
-    };
-}
-
-pub fn registered_codecs() -> impl Iterator<Item = Arc<dyn DocumentCodec>> {
-    let mut codecs: Vec<Arc<dyn DocumentCodec>> = inventory::iter::<DocumentCodecRegistration>
-        .into_iter()
-        .map(|registration| (registration.factory)())
-        .collect();
-    codecs.sort_by_key(|codec| std::cmp::Reverse(codec.priority()));
-    codecs.into_iter()
-}
-
-#[must_use]
-pub fn codec_for(format: DocumentFormat) -> Option<Arc<dyn DocumentCodec>> {
-    registered_codecs().find(|codec| codec.formats().contains(&format))
 }

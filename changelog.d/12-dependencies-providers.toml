@@ -6,7 +6,7 @@ text = "`Dependencies` records the provider of every entry and refuses a second 
 [[crate]]
 name = "systemprompt-runtime"
 section = "Added"
-text = "`kernel_state` seeds the extension state with the kernel's handles, the analytics repositories and the GeoIP reader when configured."
+text = "`kernel_state` seeds the kernel state with the kernel's handles and the GeoIP reader when configured."
 
 [[crate]]
 name = "systemprompt-provider-contracts"

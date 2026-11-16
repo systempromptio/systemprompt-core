@@ -1,0 +1,19 @@
+[root]
+section = "Breaking"
+area = "Runtime"
+text = "`AppContext` is built from the admitted composition over a resolved `Kernel`: `AppContext::{new, builder}(boot, admitted)`, `AppContextBuilder::new(boot, admitted)` (no `with_extensions`), `from_parts(.., kernel, admitted)`, `AppContext::{kernel, admitted}`. `base_kernel_state(KernelSeed)` and `kernel_state(ApiKernelSeed)` seed the instance id, runtime config, services view and root, secret store, system admin, event router, escalation mode, brain profile and document handles; `Kernel::resolve` builds slots, then checks requirements. `session_store()` and `brain()` return `Option`, `load_governance()` returns `RuntimeResult`, and `extension_registry`, `analytics_service`, `analytics_repositories`, `session_usage` and `Plugins::extension_registry` are removed. Child hosts boot with `HostKernel::boot(lookup, AdmitFn) -> HostParts`. Migrate by building the context from the admitted composition and reading member-provided values from `kernel().state()`."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`AppContext::{new, builder}(boot, admitted)`, `from_parts(.., kernel, admitted)`, `base_kernel_state(KernelSeed)`, `kernel_state(ApiKernelSeed)`, `HostKernel::boot(lookup, AdmitFn)`; `session_store()`/`brain()` return `Option`; `load_governance()` returns `RuntimeResult`; `StartupValidator::validate` takes the admitted `BuiltState`; `UserSubjectDirectory::new` takes `Arc<AudienceResolvers>`. Removed: `extension_registry`, `analytics_service`, `analytics_repositories`, `session_usage`, `Plugins::extension_registry`, `documents::ExtensionAudiences`, the `notifications` module, `BrainCore`, `BrainInputs`, `RecallSeams`, `NotificationsInputs`, `Subsystems::{notifications, brain}`."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Added"
+text = "`Kernel` (`resolve`, `detached`, `state`), `KernelSeed`, `ApiKernelSeed`, `AdmitFn`, `KernelError` and `RuntimeError::{Kernel, Missing}`; the kernel seeds `AdmittedRunOrigins`, `AdmittedPurge` and `AdmittedSchedule` and inserts `SubjectProviderSet`, `PolicyCatalog`, `GatewayGuards` and `AudienceResolvers`."
+
+[[crate]]
+name = "systemprompt-mcp-host"
+section = "Breaking"
+text = "`HostContext::{from_process_env, boot}` take an `AdmitFn`; the child host admits the composition itself. `submit_toolset!` and the toolset registrations are replaced by `contract::ToolsetSlot` (`Toolsets`, `unregistered_toolsets`) and the `McpHostExtension` member."

@@ -1,17 +1,17 @@
 [root]
 section = "Breaking"
 area = "Notifications"
-text = "The notification routes are served by the `notifications-http` extension in the new `systemprompt-notifications-entry` crate: `/api/v1/notifications` (user gate) and `/api/v1/admin/notifications` (admin gate) are declared through `Extension::routers` in the content-and-misc route group, and the bridge inbox `/v1/bridge/notifications*` registers into the gateway surface with `register_gateway_route!`, keeping the gateway credential, the `bridge_notifications` rate-limit scope, the bearer window and the gateway access log. The `notifications` extension provides the producer `DynNotificationSink` and the `NotificationsServiceSlot` the host binds, and runs the delivery consumer as its runner service. A profile that disables `notifications-http` serves 404 on all three groups; one that disables `notifications` while `notifications-http` stays enabled, or while `brain` stays enabled, is refused at boot with `LoaderError::UnmetStateRequirement`. Without a bound notification service the `documents_inbox` tool is not offered. `systemprompt-api` and `systemprompt-mcp-host` have no `notifications` feature, and `brain` no longer implies `notifications` in `systemprompt-api`, `systemprompt-mcp-host` or `systemprompt-cli`. Migrate by enabling the facade's `notifications` feature, and by disabling `notifications-http` rather than `notifications` to switch off the routes alone."
+text = "The notification routes are served by the `notifications-http` extension in the new `systemprompt-notifications-entry` crate: `/api/v1/notifications` (user gate) and `/api/v1/admin/notifications` (admin gate) are contributed route sets in the content-and-misc route group, and the bridge inbox `/v1/bridge/notifications*` is a gateway route set, keeping the gateway credential, the `bridge_notifications` rate-limit scope, the bearer window and the gateway access log. The `notifications` extension provides the producer `DynNotificationSink` and the `NotificationsServiceSlot` the host binds, and runs the delivery consumer as its runner service. A profile that disables `notifications-http` serves 404 on all three groups; one that disables `notifications` while `notifications-http` stays enabled, or while `brain` stays enabled, is refused at boot. Without a bound notification service the `documents_inbox` tool is not offered. `systemprompt-api` and `systemprompt-mcp-host` have no `notifications` feature, and `brain` no longer implies `notifications` in `systemprompt-api`, `systemprompt-mcp-host` or `systemprompt-cli`. Migrate by enabling the facade's `notifications` feature, and by disabling `notifications-http` rather than `notifications` to switch off the routes alone."
 
 [[crate]]
 name = "systemprompt-notifications-entry"
 section = "Added"
-text = "New crate: behind the `http` feature, `NotificationsHttpExtension` (registered as `notifications-http`, `NOTIFICATIONS_HTTP_EXTENSION`), which requires `NotificationsServiceSlot`, declares the user and admin notification route groups and registers the bridge inbox into the gateway surface; `http::{router, admin_router, NotificationsState, NotificationsHttpError, ops}`, with `NotificationsState::from_extension_state`."
+text = "New crate: behind the `http` feature, `NotificationsHttpExtension` (the `notifications-http` member, `NOTIFICATIONS_HTTP_EXTENSION`), which requires `NotificationsServiceSlot` and contributes the user, admin and bridge-inbox route sets; `http::{user_routes, admin_routes, bridge_routes, NotificationsState, NotificationsHttpError, ops}`."
 
 [[crate]]
 name = "systemprompt-notifications"
 section = "Added"
-text = "`NotificationsServiceSlot`, provided unbound by `NotificationsExtension` and bound by the host; `NotificationsConsumerSlot` at the crate root; `OutboxNotificationSink::over_write_pool`. `NotificationsExtension` provides the producer `DynNotificationSink`, runs the consumer as its runner service once the consumer slot is bound, and declares the backlog gauges through `Extension::metrics`."
+text = "`NotificationsServiceSlot`, provided unbound by `NotificationsExtension` and bound by the host; `NotificationsConsumerSlot` at the crate root; `OutboxNotificationSink::over_write_pool`. `NotificationsExtension` provides the producer `DynNotificationSink`, runs the consumer as its runner service once the consumer slot is bound, and contributes the backlog gauges as metrics."
 
 [[crate]]
 name = "systemprompt-api"
@@ -21,17 +21,17 @@ text = "`routes::notifications` and the `notifications` feature are removed; the
 [[crate]]
 name = "systemprompt-runtime"
 section = "Breaking"
-text = "`AppContext::notifications()` is removed; read `NotificationsServiceSlot` / `NotificationsConsumerSlot` from the extension state. `HostKernel::bind_notifications(ctx)` binds a child host's assembled service into that slot, and `DocumentsMcpTools::for_host` takes the extension state. `DocumentsMcpConfig::notifications` is `Option<Arc<NotificationsService>>` and `DocumentsMcpTools::notifications` returns `Option<&NotificationsService>`. The kernel state no longer carries `DynNotificationSink`; the `notifications` extension provides it."
+text = "`AppContext::notifications()` is removed; read `NotificationsServiceSlot` / `NotificationsConsumerSlot` from the extension state. The notifications slot build binds the service. `DocumentsMcpConfig::notifications` is `Option<Arc<NotificationsService>>` and `DocumentsMcpTools::notifications` returns `Option<&NotificationsService>`. The kernel state no longer carries `DynNotificationSink`; the `notifications` extension provides it."
 
 [[crate]]
 name = "systemprompt-mcp-host"
 section = "Changed"
-text = "The child host binds the notification service into the extension state (`HostKernel::bind_notifications`), where the documents toolset reads it; the crate's only feature is `brain`."
+text = "The documents toolset reads the notification service the notifications slot binds; the crate's only feature is `brain`."
 
 [[crate]]
 name = "systemprompt-brain"
 section = "Changed"
-text = "`BrainExtension` requires `DynNotificationSink` in the extension state."
+text = "The brain member requires `DynNotificationSink`."
 
 [[crate]]
 name = "systemprompt-cli"

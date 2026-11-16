@@ -98,7 +98,7 @@ sqlx-postgres = { version = "0.9", default-features = false, features = ["any", 
 stable_deref_trait = { version = "1" }
 subtle = { version = "2", features = ["const-generics"] }
 sync_wrapper = { version = "1", default-features = false, features = ["futures"] }
-systemprompt-agent-runs-entry = { path = "../../../entry/agent-runs", features = ["cli", "http"] }
+systemprompt-agent-runs-entry = { path = "../../../entry/agent-runs", features = ["http"] }
 systemprompt-analytics = { path = "../../../domain/analytics", features = ["geolocation"] }
 systemprompt-analytics-entry = { path = "../../../entry/analytics", features = ["cli", "content-commands", "http"] }
 systemprompt-content-entry = { path = "../../../entry/content", features = ["cli", "http"] }

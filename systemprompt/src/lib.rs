@@ -160,7 +160,13 @@ pub mod system {
 #[cfg(feature = "api")]
 #[cfg_attr(docsrs, doc(cfg(feature = "api")))]
 pub mod api {
-    pub use systemprompt_api::*;
+    pub use systemprompt_api::routes::admin::services::ServicesRefresh;
+    pub use systemprompt_api::services::server::{EarlyServer, bind_and_serve};
+    pub use systemprompt_api::{
+        A2AContextMiddleware, ContextExtractor, HealthChecker, HealthSummary,
+        McpContextMiddleware, ModuleHealth, ProcessMonitor, PublicContextMiddleware,
+        UserOnlyContextMiddleware, error,
+    };
 }
 
 /// The AI gateway: protocol translation, gateway policies and the

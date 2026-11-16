@@ -1,0 +1,9 @@
+[root]
+section = "Changed"
+area = "API"
+text = "The server builds readiness checks, diagnostic probes and site auth from the admitted members' contributions; more than one member declaring site auth refuses the mount, and static content served without site auth logs a boot warning. A failing probe factory refuses the probe mount."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Changed"
+text = "Readiness checks, diagnostic probes and site auth come from the admitted members; a second site-auth declaration refuses the mount; boot warns when static content is served without site auth."

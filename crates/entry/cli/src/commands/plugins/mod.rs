@@ -29,7 +29,6 @@ use systemprompt_extension::cli::{
     CommandDescriptor, CommandOutput, DataImpact, DescribeCommand,
 };
 
-use crate::commands::shared::rendered;
 
 #[derive(Debug, Subcommand)]
 pub enum PluginsCommands {
@@ -72,7 +71,7 @@ pub async fn execute(cmd: PluginsCommands, host: &dyn KernelHost) -> Result<Comm
         PluginsCommands::Show(args) => show::execute(&args, host).context("Failed to show extension"),
         PluginsCommands::Run(args) => {
             run::execute(args, host).await?;
-            Ok(rendered())
+            Ok(CommandOutput::rendered())
         },
         PluginsCommands::Config(args) => {
             config::execute(&args, host).context("Failed to get extension config")

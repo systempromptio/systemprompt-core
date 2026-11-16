@@ -154,15 +154,6 @@ impl fmt::Debug for RetentionDecl {
     }
 }
 
-#[macro_export]
-macro_rules! register_retention_hold {
-    ($($args:tt)*) => {
-        $crate::__register_seam!(
-            retention, RetentionHoldRegistration, RetentionHold, $($args)*
-        );
-    };
-}
-
 /// The cutoff a target is pruned to after every hold has answered.
 #[derive(Debug)]
 pub enum EffectiveCutoff {

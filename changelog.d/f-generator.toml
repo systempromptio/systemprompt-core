@@ -1,12 +1,12 @@
 [root]
 section = "Changed"
 area = "Generator"
-text = "The `content_prerender` and `page_prerender` jobs are owned by the `generator` extension, which depends on `content`; a profile that disables `generator` leaves both registered but inactive, and `infra jobs list` names the owner. The prerender ranks popular content through the `ContentPopularity` provider in the extension state and renders without a popularity ordering when none is provided."
+text = "The `content_prerender` and `page_prerender` jobs are owned by the `generator` extension, which depends on `content`; a profile that disables `generator` does not schedule them, and `infra jobs list` names the owner. The prerender ranks popular content through the `ContentPopularity` the analytics member provides and renders without a popularity ordering when none is provided."
 
 [[crate]]
 name = "systemprompt-generator"
 section = "Added"
-text = "`GeneratorExtension` (`GENERATOR_EXTENSION`, id `generator`) owns the `content_prerender` and `page_prerender` job registrations; `PopularContent` (`Ranked`, `NoRankingProvider`, `UnnamedSource`) and the public `fetch_popular_ids`, which reads an optional `DynContentPopularity`."
+text = "`GeneratorExtension` (`GENERATOR_EXTENSION`, id `generator`) contributes the `content_prerender` and `page_prerender` jobs; `PopularContent` (`Ranked`, `NoRankingProvider`, `UnnamedSource`) and the public `fetch_popular_ids`, which reads an optional `DynContentPopularity`."
 
 [[crate]]
 name = "systemprompt-generator"

@@ -8,7 +8,7 @@ use crate::kernel::KernelHost;
 
 use super::{RestartTarget, ServicesCommands, StartTarget, StopTarget, restart, start, stop};
 use systemprompt_extension::cli::CommandOutput;
-use crate::commands::shared::{app_context, rendered};
+use crate::commands::shared::app_context;
 
 pub async fn execute(command: ServicesCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
@@ -31,7 +31,7 @@ pub async fn execute(command: ServicesCommands, host: &dyn KernelHost) -> Result
                 kill_port_process,
             };
             execute_start(target, flags, options, host).await?;
-            Ok(rendered())
+            Ok(CommandOutput::rendered())
         },
 
         ServicesCommands::Stop {
@@ -83,7 +83,7 @@ pub async fn execute(command: ServicesCommands, host: &dyn KernelHost) -> Result
                 host,
             )
             .await?;
-            Ok(rendered())
+            Ok(CommandOutput::rendered())
         },
     }
 }

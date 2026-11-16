@@ -11,7 +11,7 @@ Defines extension contracts and compile-time registration for routes, schemas, m
 
 ## Overview
 
-An extension declares its schemas, API routes, scheduled jobs, providers, seeds, and assets through the `Extension` trait. Authors register each one with the `register_extension!` macro, which submits it to the [`inventory`](https://docs.rs/inventory) linker collector. At startup the runtime gathers every registration, validates declared dependencies (`Extension::dependencies()`) and reserved API paths, and merges the resulting wiring into the host binary. `Extension` is the single extension trait: `metadata()` is required and every other hook is a defaulted method.
+An extension declares its schemas, API routes, scheduled jobs, providers, seeds, and assets through the `Extension` trait. An install names its extensions as members of its `Composition`; nothing is collected at link time. At startup the kernel admits the named members, validates declared dependencies (`Extension::dependencies()`) and reserved API paths, and merges the resulting wiring into the host binary. `Extension` is the single extension trait: `metadata()` is required and every other hook is a defaulted method.
 
 ## Module Map
 
@@ -24,14 +24,13 @@ An extension declares its schemas, API routes, scheduled jobs, providers, seeds,
 | `cost` | `CostDirective`, `CostDirectiveError`, `TriggerPolicy`. |
 | `error` | `LoaderError`, `ExtensionConfigError`. |
 | `frame_options` | Per-route `X-Frame-Options` override (`FrameOptionsOverride`, `stamp_frame_options`) over the provider-contracts `FrameOptions`, honoured by the host security-headers middleware. |
-| `gateway_guard` | `GatewayRequestGuard` and the `register_gateway_guard!` macro for gateway request guards. |
+| `gateway_guard` | `GatewayRequestGuard` and `GatewayGuards`, the guards a gateway consults. |
 | `metadata` | `ExtensionMetadata`, `ExtensionRole`, `SchemaDefinition`. |
 | `migration` | `Migration` value type for versioned extension migrations. |
 | `purge` | `UserPurgeTable`, `PurgePredicate` and `OrphanSweep` contributions, and their owned `PurgeDeclaration` form. |
-| `registry` | `ExtensionRegistry`, `ExtensionRegistration`, `RESERVED_PATHS`, discovery, queries, validation. |
 | `router` | `ExtensionRouter`, `ExtensionRouterConfig`, `SiteAuthConfig`. |
 | `seed` | `Seed`: idempotent post-migration data fixtures applied on every boot, outside migration tracking. |
-| `traits` (private, re-exported) | The `Extension` trait and `register_extension!` macro. |
+| `traits` (private, re-exported) | The `Extension` trait. |
 
 ## Usage
 
@@ -56,7 +55,6 @@ impl Extension for MyExtension {
     }
 }
 
-register_extension!(MyExtension);
 ```
 
 ## Feature Flags
@@ -65,7 +63,6 @@ None. This crate has no Cargo features; everything compiles into every build.
 
 ## Dependencies
 
-- `inventory`: Compile-time extension registration.
 - `axum`: Router types for `ExtensionRouter` and the frame-options middleware.
 - `async-trait`: `dyn`-compatible async hooks.
 - `serde` / `serde_json`: Metadata and configuration serialisation.

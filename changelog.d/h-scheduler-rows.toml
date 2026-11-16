@@ -11,7 +11,7 @@ text = "`SchedulerRepository::delete_jobs_not_in` and `JobRepository::delete_job
 [[crate]]
 name = "systemprompt-scheduler"
 section = "Added"
-text = "`JobPruneService` lists the `scheduled_jobs` rows no job linked into this binary names (a job whose extension the profile disables is kept) and deletes exactly the rows it is given; an empty registration set lists and deletes nothing."
+text = "`JobPruneService` lists the `scheduled_jobs` rows no admitted member contributes (a job whose member the profile disables is prunable) and deletes exactly the rows it is given; an empty registration set lists and deletes nothing."
 
 [[crate]]
 name = "systemprompt-scheduler"
@@ -21,7 +21,7 @@ text = "`upsert_job` refreshes the schedule on conflict and keeps the stored `en
 [[crate]]
 name = "systemprompt-cli"
 section = "Added"
-text = "`infra jobs prune [--dry-run] [--yes]` deletes, after confirmation, the `scheduled_jobs` rows no job linked into this binary names; a job whose extension the profile disables is kept. It refuses an implicitly selected cloud profile and is run from a binary that links every capability the cluster runs."
+text = "`infra jobs prune [--dry-run] [--yes]` deletes, after confirmation, the `scheduled_jobs` rows no admitted member contributes, including the jobs of a member the profile disables. It refuses an implicitly selected cloud profile and is run from a binary that links every capability the cluster runs."
 
 [[crate]]
 name = "systemprompt-cli"

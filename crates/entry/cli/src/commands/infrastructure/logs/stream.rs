@@ -4,7 +4,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::kernel::KernelHost;
-use crate::commands::shared::rendered;
 use anyhow::{Result, anyhow};
 use chrono::{DateTime, Utc};
 use clap::Args;
@@ -75,7 +74,7 @@ pub(super) async fn execute(args: StreamArgs, host: &dyn KernelHost) -> Result<C
 
         iterations += 1;
         if args.max_iterations != 0 && iterations >= args.max_iterations {
-            return Ok(rendered());
+            return Ok(CommandOutput::rendered());
         }
 
         time::sleep(Duration::from_millis(args.interval)).await;

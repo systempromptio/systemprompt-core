@@ -1,0 +1,24 @@
+[root]
+section = "Breaking"
+area = "Scheduler"
+text = "The scheduler runs the jobs, retention purges, sweeps, holds and job-run scopes of the admitted members, read from `AdmittedSchedule`; `SchedulerService::new`, `JobExecutionService::new`, `JobPruneService::new`, `unknown_job_names` and `unlisted_job_names` take it, and `EnabledExtensions` is removed. A scheduler config naming a job of a disabled or absent member is refused at validation, `admin config validate` reports it as not contributed, and `infra jobs prune` treats its row as prunable. Migrate by contributing jobs with `Contributions::job` and passing the kernel's `AdmittedSchedule`."
+
+[[crate]]
+name = "systemprompt-scheduler"
+section = "Breaking"
+text = "`SchedulerService::new`, `JobExecutionService::new`, `JobPruneService::new`, `unknown_job_names` and `unlisted_job_names` take `AdmittedSchedule`; `EnabledExtensions` is removed; a configured job of a disabled or absent member is refused."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`AdmittedSchedule`, `AdmittedPurge`, `AdmittedProjections`, `AdmittedMigrations`, `AdmittedConfigs` and `AdmittedAssets`: read-only views of the admitted members' jobs and retention, purges, projection drains, migrations, configs and assets. `AssetFn` is an `Arc`."
+
+[[crate]]
+name = "systemprompt-agent-runs"
+section = "Added"
+text = "`origin::AdmittedRunOrigins`; run origins are contributed with `Contributions::run_origin` and `register_run_origin!` is removed."
+
+[[crate]]
+name = "systemprompt-analytics"
+section = "Breaking"
+text = "The analytics jobs, including `jobs::LinkFactsRollupJob` (`analytics_event_link_facts_rollup`), and the `engagement_events` and `fingerprint_reputation` retention purges are contributed by the `analytics` member."

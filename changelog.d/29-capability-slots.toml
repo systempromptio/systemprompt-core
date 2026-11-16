@@ -1,0 +1,54 @@
+[root]
+section = "Breaking"
+area = "Extensions"
+text = "Capability seams are slots with one owner: a member contributes to a slot its owning domain opens, and the kernel builds it once. Two slots building one type, or a slot building a type another member provides, are refused (`DuplicateProvider`); an install slot value cannot meet a core requirement (`InstallSubstitution`) or replace the gateway safety scanners, authz hooks, route selectors, overrides or the audience set; slot values are inserted through the duplicate-checked provide. A failing contributed seam refuses the slot build (`SlotError::Entry`, `SlotError::Refused`) instead of being skipped, and a second artifact theme, two renderers for one artifact type, a second role directory, a second agent access policy, a hosted toolset id no member contributes, or an outbound adapter or safety scanner named like a built-in refuse the composition. The `register_*!`/`submit_*!` macros of these seams are removed. Migrate each registration to the owning crate's `contract` slot."
+
+[[crate]]
+name = "systemprompt-governance"
+section = "Breaking"
+text = "`register_subject_attribute_provider!`, `register_governance_policy!`, `register_authz_hook!` and `register_role_directory!` are removed: contribute through `Contributions::subject_attributes`, `Contributions::policy` and `contract::{AuthzHookSlot, RoleDirectorySlot}`. `GovernanceEngine::from_config` and `load` take a `&PolicyCatalog`; `AuthzWiring` drops its services, subjects, secrets and state fields; `AccessControlIngestionService::new` takes the role directory."
+
+[[crate]]
+name = "systemprompt-gateway"
+section = "Breaking"
+text = "`register_safety_scanner!`, `register_route_selector!`, `register_system_prompt_override!` and `OutboundAdapterRegistration` are removed (use `contract::{SafetyScannerSlot, RouteSelectorSlot, OverrideSlot, OutboundSlot}`); the `CallerWireShadowed` check is gone. `GatewayEngines::new(provider_tokens, resolved, secrets)` reads the kernel-built `Arc<GatewayGuards>`; `GatewayEnginesError::Guards` replaces `Guard`."
+
+[[crate]]
+name = "systemprompt-oauth-issuance"
+section = "Breaking"
+text = "`register_sso_provider!`, `register_auth_event_sink!` and `register_role_resolver!` are removed; contribute through `contract::SsoSlot`. `SsoDriver::discover` is replaced by `SsoDriver::new`."
+
+[[crate]]
+name = "systemprompt-notifications"
+section = "Breaking"
+text = "Notification seams are contributed through `contract::NotificationsSlot` (`router`, `channel`, `audience`, `publish_policy`, `resource_visibility`, each a `Factory`) and built into `NotificationSeams`; the `register_notification_*!` and `register_resource_visibility!` registrations are not read, and `NotificationsSlotBuilder::audience` is removed. The slot appends the core defaults after the contributed seams and binds the service and outbox consumer, which runs through `BoundConsumerRunner`."
+
+[[crate]]
+name = "systemprompt-brain"
+section = "Breaking"
+text = "The brain seams are contributed through `contract::BrainSlot` and built into `BrainSeams`; `PipelineSeams::discover` is removed (use `BrainSeams::pipeline`). `BrainHandle::start_consumer(model)` takes no `ExtensionContext`, `BrainHandle::mcp_tools` is removed (use `BrainMcpTools::from_parts(handle.routes())`); added `BrainHandle`, `BrainHandleParts`, `BrainHandleSlot`."
+
+[[crate]]
+name = "systemprompt-files"
+section = "Breaking"
+text = "Blob holders, the agent access policy, document codecs and template providers are contributed to `contract::{BlobHolderSlot, AgentAccessSlot, DocumentsSlot}`; `register_blob_holder!`, `register_agent_access_policy!`, `registered_policy`, `CodecRegistry::discover` and `TemplateRegistry::discover` are removed. `DocumentRepositories::new` and `DocumentBlobRepository::new` take `Arc<BlobHolders>`; `TemplateRegistry::with_core_blanks(providers, catalog)` replaces `discover`."
+
+[[crate]]
+name = "systemprompt-marketplace"
+section = "Breaking"
+text = "Filters and publication gates are contributed to `contract::MarketplaceSlot`, built core first and all-must-pass; `register_marketplace_filter!`, `register_publication_gate!`, `discover_filters`, `discover_publication_gates`, `MarketplaceFactoryContext` and `PublicationPolicy::discover` are removed (`PublicationPolicy::from_seams`)."
+
+[[crate]]
+name = "systemprompt-mcp"
+section = "Breaking"
+text = "`register_artifact_theme!`, `register_ui_renderer!`, `register_mcp_access_recorder!`, `create_default_registry`, `active_theme` and `discover_mcp_access_recorders` are removed; contribute through `contract::{UiSlot, AccessRecorderSlot}`. `McpToolExecutor::new` takes `Arc<UiRendererRegistry>`; `collect_manifest_errors` loses `known_toolsets`; the renderer registry applies the artifact theme to every document."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Changed"
+text = "The SSO routes, authorization stage, governance engine, documents runtime and artifact UI route read the kernel-built SSO providers, subject providers, authz hooks, marketplace seams, policy catalog, document seams, blob holders, agent access policy and UI renderer registry."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`routes::gateway::gateway_engines(ctx, kernel)`; `SsoRouteState::build(ctx, oauth, providers)` is infallible; `DocumentsRuntimeParts` gains `blob_holders`, `seams` and `agent_access`."

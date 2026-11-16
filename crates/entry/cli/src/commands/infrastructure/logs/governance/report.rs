@@ -13,7 +13,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::kernel::KernelHost;
-use crate::commands::shared::rendered;
 use systemprompt_database::pool_from_handle;
 use std::collections::BTreeMap;
 use std::io::Write;
@@ -207,7 +206,7 @@ async fn execute_with_pool_inner(
     if args.format == ReportFormat::Csv {
         let csv = format_csv(&output);
         std::io::stdout().write_all(csv.as_bytes())?;
-        return Ok(rendered());
+        return Ok(CommandOutput::rendered());
     }
 
     host.render(&CommandOutput::table_of(
