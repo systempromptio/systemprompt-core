@@ -16,15 +16,17 @@ use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, 
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    closed_db_pool, ensure_test_bootstrap, test_app_context, test_db_pool,
+    ensure_test_bootstrap, test_app_context,
 };
 
 use crate::common::{content_state, negotiating_state};
 
 async fn dead_context() -> std::sync::Arc<AppContext> {
     let boot = ensure_test_bootstrap();
-    let pool = closed_db_pool().await;
-    test_app_context(&pool, &boot.database_url)
+    let ctx = test_app_context(&boot.database_url).await;
+    ctx.db_pool().pool().close().await;
+    ctx.db_pool().write_pool().close().await;
+    ctx
 }
 
 fn req_ctx() -> RequestContext {
@@ -87,8 +89,7 @@ async fn fetching_markdown_reports_a_repository_failure_as_a_server_error() {
 #[tokio::test]
 async fn a_slug_that_does_not_exist_is_a_not_found_rather_than_an_empty_document() {
     let boot = ensure_test_bootstrap();
-    let pool = test_db_pool().await;
-    let ctx = test_app_context(&pool, &boot.database_url);
+    let ctx = test_app_context(&boot.database_url).await;
 
     let slug = format!("no-such-slug-{}", uuid::Uuid::new_v4().simple());
     let json = get_content_handler(
