@@ -51,6 +51,7 @@ use clap::Subcommand;
 
 use systemprompt_extension::cli::{CommandError, CommandHost, CommandOutput};
 use systemprompt_loader::ServicesState;
+use systemprompt_models::artifacts::NoticeLine;
 use serde::Serialize;
 
 use crate::descriptor::{CommandDescriptor, DescribeCommand};
@@ -191,6 +192,10 @@ pub async fn execute(command: ConfigCommands, host: &dyn CommandHost) -> Result<
         ConfigCommands::Planes(cmd) => planes::execute(cmd, host).await,
         ConfigCommands::Apply(ref args) => apply::execute(args, host).await,
     }
+}
+
+pub(crate) fn restart_note() -> NoticeLine {
+    NoticeLine::new("warning", "Restart services for changes to take effect")
 }
 
 pub(crate) fn changes_output<T: Serialize>(title: &str, changes: &[T]) -> CommandOutput {

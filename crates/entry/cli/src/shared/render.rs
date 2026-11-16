@@ -13,7 +13,7 @@
 
 use systemprompt_logging::CliService;
 use systemprompt_models::artifacts::{
-    ChartArtifact, CliArtifact, ListArtifact, PresentationCardArtifact, TableArtifact,
+    ChartArtifact, CliArtifact, ListArtifact, NoticeLine, PresentationCardArtifact, TableArtifact,
 };
 
 use systemprompt_models::text::truncate_with_ellipsis;
@@ -34,6 +34,22 @@ fn render_terminal(result: &CommandOutput) {
         CliService::section(title);
     }
 
+    render_artifact(result);
+    for note in result.notes() {
+        render_notice(note);
+    }
+}
+
+fn render_notice(line: &NoticeLine) {
+    match line.level.as_str() {
+        "success" => CliService::success(&line.text),
+        "warning" => CliService::warning(&line.text),
+        "error" => CliService::error(&line.text),
+        _ => CliService::info(&line.text),
+    }
+}
+
+fn render_artifact(result: &CommandOutput) {
     match result.artifact() {
         CliArtifact::Text { artifact } => {
             if result.title().is_none()
@@ -68,12 +84,7 @@ fn render_terminal(result: &CommandOutput) {
         CliArtifact::Video { artifact } => CliService::output(&artifact.src),
         CliArtifact::Message { artifact } => {
             for line in &artifact.messages {
-                match line.level.as_str() {
-                    "success" => CliService::success(&line.text),
-                    "warning" => CliService::warning(&line.text),
-                    "error" => CliService::error(&line.text),
-                    _ => CliService::info(&line.text),
-                }
+                render_notice(line);
             }
         },
     }

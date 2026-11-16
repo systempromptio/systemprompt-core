@@ -4,9 +4,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, bail};
-use systemprompt_logging::CliService;
+use crate::commands::admin::config::restart_note;
 
-use crate::cli_settings::OutputFormat;
 use crate::shared::CommandOutput;
 use super::SetArgs;
 use super::profile_edit::{
@@ -18,7 +17,6 @@ use systemprompt_extension::cli::CommandHost;
 use super::super::types::{RateLimitStatusOutput, SetRateLimitOutput};
 
 pub(super) fn execute_set(args: &SetArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
-    let config = host.output();
     if args.endpoint.is_some() && args.rate.is_none() {
         bail!("--rate is required when --endpoint is specified");
     }
@@ -56,15 +54,10 @@ pub(super) fn execute_set(args: &SetArgs, host: &dyn CommandHost) -> Result<Comm
     };
 
     save_profile(&profile, profile_path)?;
-    if config.output_format() == OutputFormat::Table {
-        CliService::warning("Restart services for changes to take effect");
-    }
-
-    Ok(CommandOutput::card_value("Rate Limit Updated", &output))
+    Ok(CommandOutput::card_value("Rate Limit Updated", &output).with_note(restart_note()))
 }
 
 pub(super) fn execute_enable(host: &dyn CommandHost) -> Result<CommandOutput> {
-    let config = host.output();
     let profile_path = profile_path(host)?;
     let mut profile = load_profile_for_edit(profile_path)?;
 
@@ -83,15 +76,10 @@ pub(super) fn execute_enable(host: &dyn CommandHost) -> Result<CommandOutput> {
         enabled: true,
         message: "Rate limiting enabled".to_owned(),
     };
-    if config.output_format() == OutputFormat::Table {
-        CliService::warning("Restart services for changes to take effect");
-    }
-
-    Ok(CommandOutput::card_value("Rate Limit Status", &output))
+    Ok(CommandOutput::card_value("Rate Limit Status", &output).with_note(restart_note()))
 }
 
 pub(super) fn execute_disable(host: &dyn CommandHost) -> Result<CommandOutput> {
-    let config = host.output();
     let profile_path = profile_path(host)?;
     let mut profile = load_profile_for_edit(profile_path)?;
 
@@ -110,9 +98,5 @@ pub(super) fn execute_disable(host: &dyn CommandHost) -> Result<CommandOutput> {
         enabled: false,
         message: "Rate limiting disabled".to_owned(),
     };
-    if config.output_format() == OutputFormat::Table {
-        CliService::warning("Restart services for changes to take effect");
-    }
-
-    Ok(CommandOutput::card_value("Rate Limit Status", &output))
+    Ok(CommandOutput::card_value("Rate Limit Status", &output).with_note(restart_note()))
 }

@@ -10,12 +10,12 @@
 mod cors;
 
 use super::changes_output;
+use crate::commands::admin::config::restart_note;
+use systemprompt_models::artifacts::NoticeLine;
 use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
-use systemprompt_logging::CliService;
 
 pub(super) use super::profile_io::{load_profile, profile_path, save_profile};
-use crate::cli_settings::OutputFormat;
 use crate::shared::CommandOutput;
 use super::types::{ServerConfigOutput, ServerSetOutput};
 use systemprompt_extension::cli::CommandHost;
@@ -82,7 +82,6 @@ fn change(field: &str, old: String, new: String) -> ServerSetOutput {
 }
 
 pub(super) fn execute_set(args: &SetArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
-    let config = host.output();
     if args.host.is_none() && args.port.is_none() && args.external_url.is_none() {
         bail!("Must specify at least one option: --host, --port, --external-url");
     }
@@ -112,19 +111,19 @@ pub(super) fn execute_set(args: &SetArgs, host: &dyn CommandHost) -> Result<Comm
 
     save_profile(&profile, profile_path)?;
 
-    if args.external_url.is_some() {
+    let output = changes_output("Server Updated", &changes);
+    let output = if args.external_url.is_some() {
         crate::session::clear_session(
             &systemprompt_cloud::paths::ResolvedPaths::discover(),
             host.profile()?,
         )?;
-        CliService::info(
+        output.with_note(NoticeLine::new(
+            "info",
             "Cleared the stored CLI session: its token was minted under the previous issuer.",
-        );
-    }
+        ))
+    } else {
+        output
+    };
 
-    if config.output_format() == OutputFormat::Table {
-        CliService::warning("Restart services for changes to take effect");
-    }
-
-    Ok(changes_output("Server Updated", &changes))
+    Ok(output.with_note(restart_note()))
 }

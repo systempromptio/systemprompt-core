@@ -4,12 +4,11 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result, bail};
+use systemprompt_models::artifacts::NoticeLine;
 use std::fs;
 use std::path::Path;
-use systemprompt_logging::CliService;
 use systemprompt_manifest::profile::RateLimitsConfig;
 
-use crate::cli_settings::OutputFormat;
 use crate::shared::CommandOutput;
 use super::DiffArgs;
 use systemprompt_extension::cli::CommandHost;
@@ -17,7 +16,6 @@ use systemprompt_extension::cli::CommandHost;
 use super::super::types::{DiffEntry, DiffOutput};
 
 pub(super) fn execute_diff(args: &DiffArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
-    let config = host.output();
     let profile = host.profile()?;
     let current = &profile.rate_limits;
 
@@ -53,17 +51,14 @@ pub(super) fn execute_diff(args: &DiffArgs, host: &dyn CommandHost) -> Result<Co
         differences,
     };
 
-    if config.output_format() == OutputFormat::Table {
-        if count == 0 {
-            CliService::success("No differences found");
-        } else {
-            CliService::info(&format!("{count} difference(s) found"));
-        }
-    }
-
     Ok(
         CommandOutput::table_of(vec!["field", "current", "other"], &output.differences)
-            .with_title("Rate Limits Diff"),
+            .with_title("Rate Limits Diff")
+            .with_note(if count == 0 {
+                NoticeLine::new("success", "No differences found")
+            } else {
+                NoticeLine::new("info", format!("{count} difference(s) found"))
+            }),
     )
 }
 

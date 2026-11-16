@@ -4,11 +4,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
+use crate::commands::admin::config::restart_note;
 use clap::{Args, Subcommand};
 
-use systemprompt_logging::CliService;
 
-use crate::cli_settings::OutputFormat;
 use crate::shared::CommandOutput;
 use super::super::profile_io::profile_path;
 use super::super::types::{CorsListOutput, CorsModifyOutput};
@@ -65,7 +64,6 @@ fn execute_list(host: &dyn CommandHost) -> Result<CommandOutput> {
 }
 
 fn execute_add(args: &CorsAddArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
-    let config = host.output();
     let profile_path = profile_path(host)?;
     let mut profile = load_profile(profile_path)?;
 
@@ -86,15 +84,10 @@ fn execute_add(args: &CorsAddArgs, host: &dyn CommandHost) -> Result<CommandOutp
         origin: args.origin.clone(),
         message: format!("Added CORS origin: {}", args.origin),
     };
-    if config.output_format() == OutputFormat::Table {
-        CliService::warning("Restart services for changes to take effect");
-    }
-
-    Ok(CommandOutput::card_value("CORS Origin Added", &output))
+    Ok(CommandOutput::card_value("CORS Origin Added", &output).with_note(restart_note()))
 }
 
 fn execute_remove(args: &CorsRemoveArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
-    let config = host.output();
     let profile_path = profile_path(host)?;
     let mut profile = load_profile(profile_path)?;
 
@@ -123,9 +116,5 @@ fn execute_remove(args: &CorsRemoveArgs, host: &dyn CommandHost) -> Result<Comma
         origin: args.origin.clone(),
         message: format!("Removed CORS origin: {}", args.origin),
     };
-    if config.output_format() == OutputFormat::Table {
-        CliService::warning("Restart services for changes to take effect");
-    }
-
-    Ok(CommandOutput::card_value("CORS Origin Removed", &output))
+    Ok(CommandOutput::card_value("CORS Origin Removed", &output).with_note(restart_note()))
 }

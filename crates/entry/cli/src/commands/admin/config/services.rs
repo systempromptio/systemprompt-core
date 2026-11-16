@@ -9,10 +9,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, bail};
+use crate::commands::admin::config::restart_note;
 use clap::{Args, Subcommand};
-use systemprompt_logging::CliService;
 
-use crate::cli_settings::OutputFormat;
 use crate::shared::CommandOutput;
 use super::profile_io::{load_profile, profile_path, save_profile};
 use super::types::{ServicesConfigOutput, ServicesSetOutput};
@@ -54,7 +53,6 @@ pub(super) fn execute_show(host: &dyn CommandHost) -> Result<CommandOutput> {
 }
 
 pub(super) fn execute_set(args: &SetArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
-    let config = host.output();
     let Some(port_offset) = args.port_offset else {
         bail!("Must specify at least one option: --port-offset");
     };
@@ -74,9 +72,5 @@ pub(super) fn execute_set(args: &SetArgs, host: &dyn CommandHost) -> Result<Comm
         message: format!("Updated port_offset to {port_offset}"),
     };
 
-    if config.output_format() == OutputFormat::Table {
-        CliService::warning("Restart services for changes to take effect");
-    }
-
-    Ok(CommandOutput::card_value("Services Updated", &change))
+    Ok(CommandOutput::card_value("Services Updated", &change).with_note(restart_note()))
 }

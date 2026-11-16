@@ -4,17 +4,15 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
-use systemprompt_logging::CliService;
+use systemprompt_models::artifacts::NoticeLine;
 use systemprompt_manifest::profile::RateLimitsConfig;
 
-use crate::cli_settings::OutputFormat;
 use crate::shared::CommandOutput;
 use systemprompt_extension::cli::{CommandError, CommandHost};
 
 use super::super::types::ValidateOutput;
 
 pub(super) fn execute_validate(host: &dyn CommandHost) -> Result<CommandOutput> {
-    let config = host.output();
     let profile = host.profile()?;
     let limits = &profile.rate_limits;
 
@@ -31,15 +29,11 @@ pub(super) fn execute_validate(host: &dyn CommandHost) -> Result<CommandOutput> 
         warnings,
     };
 
-    let result = CommandOutput::card_value("Rate Limits Validation", &output);
-
-    if config.output_format() == OutputFormat::Table {
-        if valid {
-            CliService::success("Configuration is valid");
-        } else {
-            CliService::error("Configuration has errors");
-        }
-    }
+    let result = CommandOutput::card_value("Rate Limits Validation", &output).with_note(if valid {
+        NoticeLine::new("success", "Configuration is valid")
+    } else {
+        NoticeLine::new("error", "Configuration has errors")
+    });
 
     if !valid {
         return Err(CommandError::new(anyhow::anyhow!("Rate-limit configuration has errors"))
