@@ -57,6 +57,8 @@ check-headers               unit    cheap    sql     0.2s
 lint-layers                 global  cheap    sql     0.1s; the cargo dependency graph
 lint-kernel-identity        global  cheap    errors  0.1s; the api mount and cli kernel trees against the CoreId ids
 lint-contributions-surface  global  cheap    errors  0.1s; the Contributions impl in shared/extension contribute/mod.rs
+lint-hidden-constructors    global  cheap    errors  0.3s; crates/ (minus crates/tests) and systemprompt/ token scan
+lint-no-inventory           global  cheap    errors  0.3s; crates/ (minus crates/tests) and systemprompt/ token scan
 check-no-vendor             unit    cheap    sql     0.1s
 lint-mode-enums             unit    cheap    bridge  0.3s; each enum against the two fixed vocabulary homes
 lint-sql-vocab              global  cheap    bridge  0.3s; registry rows tie a schema CHECK to an enum in another file
