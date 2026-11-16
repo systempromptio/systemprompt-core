@@ -12,7 +12,7 @@ use std::path::Path;
 use systemprompt_cloud::constants::container;
 use systemprompt_config::write_private_atomic;
 use systemprompt_identifiers::ProfileName;
-use systemprompt_loader::subprocess::ForegroundChildren;
+use systemprompt_extension::cli::ChildSupervisor;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 use systemprompt_models::CliPaths;
@@ -52,7 +52,7 @@ pub fn save_profile(profile: &Profile, profile_path: &Path) -> Result<()> {
         profile.display_name
     );
 
-    systemprompt_cli::kernel::profile::save_profile_yaml(profile, profile_path, Some(&header))
+    systemprompt_cloud::profile::save_profile_yaml(profile, profile_path, Some(&header))
 }
 
 pub fn save_dockerfile(path: &Path, profile_name: &ProfileName, project_root: &Path) -> Result<()> {
@@ -173,7 +173,7 @@ pub fn save_secrets(
             .with_context(|| format!("Failed to create directory {}", parent.display()))?;
     }
 
-    let identity = systemprompt_cli::kernel::generate_identity()?;
+    let identity = systemprompt_cloud::identity::generate_identity()?;
     let mut secrets = json!({
         "oauth_at_rest_pepper": identity.oauth_at_rest_pepper,
         "encryption_master_key": identity.encryption_master_key,
@@ -220,7 +220,7 @@ pub async fn validate_connection(db_url: &str) -> bool {
     matches!(result, Ok(Ok(_)))
 }
 
-pub fn run_migrations_cmd(profile_path: &Path, children: &ForegroundChildren) -> Result<()> {
+pub fn run_migrations_cmd(profile_path: &Path, children: &dyn ChildSupervisor) -> Result<()> {
     use std::process::Command;
 
     CliService::info("Running database migrations...");
@@ -281,7 +281,7 @@ pub fn update_ai_config_default_provider(provider: &str) -> Result<()> {
     let mut document = systemprompt_config::read_catalog(&ai_dir)
         .with_context(|| format!("Failed to read {}", ai_dir.display()))?;
     let Some(model) =
-        systemprompt_cli::kernel::provider_catalog::first_model_on(&document, provider)
+        systemprompt_cloud::provider_catalog::first_model_on(&document, provider)
     else {
         CliService::warning(&format!(
             "The catalog deploys no model on '{provider}'; gateway.default_model is unchanged"
@@ -292,7 +292,7 @@ pub fn update_ai_config_default_provider(provider: &str) -> Result<()> {
         .gateway
         .get_or_insert_with(systemprompt_manifest::services::GatewayConfigSpec::default);
     gateway.default_model = Some(model.clone());
-    systemprompt_cli::kernel::provider_catalog::write_gateway(&ai_dir, Some(gateway))?;
+    systemprompt_cloud::provider_catalog::write_gateway(&ai_dir, Some(gateway))?;
     CliService::success(&format!(
         "Set gateway.default_model to '{model}' (served by '{provider}')"
     ));

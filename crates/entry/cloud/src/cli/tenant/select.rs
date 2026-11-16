@@ -8,7 +8,7 @@ use systemprompt_cloud::{CloudCredentials, CredentialsBootstrap, StoredTenant};
 use systemprompt_identifiers::TenantId;
 use systemprompt_manifest::Profile;
 
-use systemprompt_cli::kernel::Prompter;
+use systemprompt_extension::cli::Prompter;
 
 pub fn get_credentials() -> Result<CloudCredentials> {
     CredentialsBootstrap::read_unvalidated()

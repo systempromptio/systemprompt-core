@@ -18,7 +18,7 @@ use crate::cli::types::{
     LoginCustomerInfo, LoginOutput, LoginTenantInfo, LoginUserInfo, TenantPlanInfo,
 };
 use crate::cli::{Environment, OAuthProvider};
-use systemprompt_cli::kernel::{CliConfig, CommandOutput, Prompter};
+use systemprompt_extension::cli::{CliConfig, CommandOutput, Prompter};
 
 pub(super) async fn execute(
     environment: Environment,

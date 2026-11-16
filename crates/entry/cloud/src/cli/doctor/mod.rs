@@ -43,7 +43,7 @@ use systemprompt_manifest::Profile;
 use systemprompt_manifest::profile::SecretsSource;
 
 use super::deploy::resolve_profile;
-use systemprompt_cli::kernel::{CliConfig, Prompter};
+use systemprompt_extension::cli::{CliConfig, Prompter};
 use systemprompt_cloud::secrets_env::load_secrets_json;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

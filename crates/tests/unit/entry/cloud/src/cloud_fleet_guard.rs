@@ -2,20 +2,37 @@
 //! the forwarded command with the router's own descriptor before any tenant
 //! is contacted.
 
+use systemprompt_cli::kernel::{
+    CommandRegistry, command_line_path, describe_command_line, kernel_commands,
+};
 use systemprompt_cloud_entry::cli::fleet::ensure_read_only;
+use systemprompt_extension::cli::DescribedCommand;
 
 fn args(command: &[&str]) -> Vec<String> {
     command.iter().map(|arg| (*arg).to_owned()).collect()
 }
 
+fn guard(command: &[String]) -> anyhow::Result<()> {
+    let declared = systemprompt::reference()
+        .declare()
+        .expect("the reference composition declares");
+    let registry = CommandRegistry::build(&declared.commands(), &kernel_commands())
+        .expect("the registry accepts the reference commands");
+    let described = DescribedCommand {
+        path: command_line_path(&registry, command)?,
+        descriptor: describe_command_line(&registry, command)?,
+    };
+    ensure_read_only(&described, command)
+}
+
 #[test]
 fn a_read_only_log_query_is_forwarded() {
-    ensure_read_only(&args(&["infra", "logs", "summary"])).expect("logs summary is read-only");
+    guard(&args(&["infra", "logs", "summary"])).expect("logs summary is read-only");
 }
 
 #[test]
 fn a_destructive_command_is_refused() {
-    let err = ensure_read_only(&args(&["infra", "db", "migrate"])).unwrap_err();
+    let err = guard(&args(&["infra", "db", "migrate"])).unwrap_err();
     assert!(
         err.to_string().contains("not a read-only command"),
         "{err:#}"
@@ -24,7 +41,7 @@ fn a_destructive_command_is_refused() {
 
 #[test]
 fn a_mutating_command_is_refused() {
-    let err = ensure_read_only(&args(&["infra", "jobs", "list"])).unwrap_err();
+    let err = guard(&args(&["infra", "jobs", "list"])).unwrap_err();
     assert!(
         err.to_string().contains("not a read-only command"),
         "{err:#}"
@@ -33,7 +50,7 @@ fn a_mutating_command_is_refused() {
 
 #[test]
 fn a_local_only_command_is_refused() {
-    let err = ensure_read_only(&args(&["infra", "services", "status"])).unwrap_err();
+    let err = guard(&args(&["infra", "services", "status"])).unwrap_err();
     assert!(
         err.to_string().contains("not a read-only command"),
         "{err:#}"
@@ -42,13 +59,13 @@ fn a_local_only_command_is_refused() {
 
 #[test]
 fn cloud_commands_are_refused() {
-    let err = ensure_read_only(&args(&["cloud", "status"])).unwrap_err();
+    let err = guard(&args(&["cloud", "status"])).unwrap_err();
     assert!(err.to_string().contains("run on this machine"), "{err:#}");
 }
 
 #[test]
 fn an_unknown_command_is_refused() {
-    let err = ensure_read_only(&args(&["no-such-command"])).unwrap_err();
+    let err = guard(&args(&["no-such-command"])).unwrap_err();
     assert!(
         err.to_string().contains("is not a systemprompt command"),
         "{err:#}"
@@ -68,7 +85,7 @@ fn irreversible_commands_are_kept_out_of_fleet_run() {
         &["admin", "keys", "rotate", "--revoke"],
         &["admin", "users", "role", "promote", "u"],
     ] {
-        let err = ensure_read_only(&args(command)).unwrap_err();
+        let err = guard(&args(command)).unwrap_err();
         assert!(
             err.to_string().contains("not a read-only command"),
             "{command:?}: {err:#}"
@@ -82,7 +99,7 @@ fn session_commands_are_refused_as_local_commands_not_as_cloud_commands() {
         &["admin", "session", "list"][..],
         &["admin", "session", "show"],
     ] {
-        let err = ensure_read_only(&args(command)).unwrap_err();
+        let err = guard(&args(command)).unwrap_err();
         let message = err.to_string();
         assert!(
             message.contains("not a read-only command"),
@@ -94,6 +111,6 @@ fn session_commands_are_refused_as_local_commands_not_as_cloud_commands() {
 
 #[test]
 fn cloud_commands_behind_global_flags_are_refused_as_cloud_commands() {
-    let err = ensure_read_only(&args(&["--json", "cloud", "status"])).unwrap_err();
+    let err = guard(&args(&["--json", "cloud", "status"])).unwrap_err();
     assert!(err.to_string().contains("run on this machine"), "{err:#}");
 }

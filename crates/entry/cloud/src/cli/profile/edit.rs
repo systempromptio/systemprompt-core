@@ -15,11 +15,11 @@ use serde_yaml::Value;
 use super::edit_document::ProfileEdit;
 use super::edit_secrets::edit_api_keys;
 use super::edit_settings::{edit_runtime_settings, edit_security_settings, edit_server_settings};
-use systemprompt_cli::kernel::{CommandContext, resolve_profile_path};
+use systemprompt_cloud::profile::resolve_profile_path;
+use systemprompt_extension::cli::CommandHost;
 
-pub(super) fn execute(args: &EditArgs, ctx: &CommandContext) -> Result<()> {
-    let profile_path =
-        resolve_profile_path(args.name.as_deref(), ctx.env.profile.as_deref(), None)?.path;
+pub(super) fn execute(args: &EditArgs, host: &dyn CommandHost) -> Result<()> {
+    let profile_path = resolve_profile_path(args.name.as_deref(), host.env_profile(), None)?.path;
     let profile_dir = profile_path
         .parent()
         .context("Invalid profile path")?
@@ -29,7 +29,7 @@ pub(super) fn execute(args: &EditArgs, ctx: &CommandContext) -> Result<()> {
         return apply_updates(args, &profile_path, &profile_dir);
     }
 
-    if !ctx.cli.is_interactive() {
+    if !host.output().is_interactive() {
         return Err(anyhow::anyhow!(
             "Profile edit requires --set-* flags in non-interactive mode.\nAvailable flags:\n  \
              --set-anthropic-key <KEY>\n  --set-openai-key <KEY>\n  --set-gemini-key <KEY>\n  \
@@ -41,7 +41,7 @@ pub(super) fn execute(args: &EditArgs, ctx: &CommandContext) -> Result<()> {
     CliService::section(&format!("Edit Profile: {}", profile_path.display()));
 
     let mut edit = ProfileEdit::open(&profile_path)?;
-    let prompter = ctx.prompter();
+    let prompter = host.prompter();
 
     let edit_options: Vec<String> = [
         "Server settings (host, port, URLs)",

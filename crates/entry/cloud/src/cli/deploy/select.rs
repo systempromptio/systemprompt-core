@@ -11,8 +11,8 @@ use systemprompt_logging::CliService;
 
 use super::target_profile::DeployProfile;
 
-use systemprompt_cli::kernel::profile::{DiscoveredProfile, discover_profiles};
-use systemprompt_cli::kernel::{CliConfig, Prompter};
+use systemprompt_cloud::profile::{DiscoveredProfile, discover_profiles};
+use systemprompt_extension::cli::{CliConfig, Prompter};
 
 #[derive(Debug)]
 struct DeployableProfile {

@@ -13,7 +13,7 @@ use systemprompt_logging::CliService;
 
 use super::select::get_credentials;
 use crate::cli::types::{TenantListOutput, TenantSummary};
-use systemprompt_cli::kernel::{CliConfig, CommandOutput, Prompter};
+use systemprompt_extension::cli::{CliConfig, CommandOutput, Prompter};
 
 pub async fn list_tenants(prompter: &dyn Prompter, config: &CliConfig) -> Result<CommandOutput> {
     let cloud_paths = get_cloud_paths();

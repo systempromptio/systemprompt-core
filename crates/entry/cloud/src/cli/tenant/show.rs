@@ -10,7 +10,7 @@ use systemprompt_logging::CliService;
 
 use super::select::select_tenant;
 use crate::cli::types::TenantDetailOutput;
-use systemprompt_cli::kernel::{CliConfig, CommandOutput, Prompter};
+use systemprompt_extension::cli::{CliConfig, CommandOutput, Prompter};
 
 pub fn show_tenant(
     prompter: &dyn Prompter,

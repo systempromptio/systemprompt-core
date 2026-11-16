@@ -10,7 +10,7 @@ use systemprompt_logging::CliService;
 
 use super::select::{get_credentials, select_tenant};
 use crate::cli::types::RotateCredentialsOutput;
-use systemprompt_cli::kernel::{CliConfig, CommandOutput, Prompter};
+use systemprompt_extension::cli::{CliConfig, CommandOutput, Prompter};
 
 pub async fn rotate_credentials(
     id: Option<TenantId>,

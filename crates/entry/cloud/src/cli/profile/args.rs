@@ -7,7 +7,7 @@ use clap::{Args, Subcommand, ValueEnum};
 use systemprompt_identifiers::{ProfileName, TenantId};
 use systemprompt_manifest::none_if_blank;
 
-use systemprompt_cli::kernel::parsers::{parse_profile_name, parse_tenant_id};
+use systemprompt_extension::cli::parsers::{parse_profile_name, parse_tenant_id};
 
 #[derive(Debug, Subcommand)]
 pub enum ProfileCommands {

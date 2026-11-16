@@ -6773,7 +6773,6 @@ dependencies = [
  "serde_yaml_ng",
  "sha2 0.11.1",
  "sqlx",
- "systemprompt-cli",
  "systemprompt-client",
  "systemprompt-cloud",
  "systemprompt-config",

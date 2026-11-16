@@ -36,15 +36,15 @@ use systemprompt_cloud::{
     get_cloud_paths,
 };
 use systemprompt_identifiers::{ProfileName, TenantId};
-use systemprompt_loader::subprocess::ForegroundChildren;
+use systemprompt_extension::cli::ChildSupervisor;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::profile::CloudConfig;
 
 use pipeline::{DeployOptions, DeployOrchestrator, DeployRequest};
 
 use super::tenant::get_credentials;
-use systemprompt_cli::kernel::project::ProjectRoot;
-use systemprompt_cli::kernel::{CliConfig, Prompter};
+use systemprompt_cloud::paths::ProjectRoot;
+use systemprompt_extension::cli::{CliConfig, Prompter};
 
 const GITOPS_READINESS_WAIT: ReadinessWait = ReadinessWait {
     timeout: Duration::from_mins(15),
@@ -93,7 +93,7 @@ pub(super) async fn execute(
     args: DeployArgs,
     prompter: &dyn Prompter,
     config: &CliConfig,
-    children: &ForegroundChildren,
+    children: &dyn ChildSupervisor,
 ) -> Result<()> {
     let Some(profile) = preflight(&args, prompter, config).await? else {
         return Ok(());
@@ -110,7 +110,7 @@ pub(super) async fn execute(
     let signing_key_path = profile.signing_key_path.clone();
     let licence_secret_required = profile.licence_secret_required;
     let progress = CliDeployProgress::new();
-    let orchestrator = DeployOrchestrator::new(DockerCli::new(children.clone()));
+    let orchestrator = DeployOrchestrator::new(DockerCli::new(children.handle()));
 
     match kind {
         DeployProviderKind::SystempromptCloud => {
@@ -156,7 +156,7 @@ pub(super) async fn execute(
 fn gitops_provider(
     cloud: Option<&CloudConfig>,
     project_root: &Path,
-    children: &ForegroundChildren,
+    children: &dyn ChildSupervisor,
 ) -> Result<(TenantId, String, GitOpsDeploy)> {
     let cloud_config = cloud.ok_or_else(|| anyhow!("No cloud configuration in profile"))?;
     let deploy = cloud_config
@@ -186,8 +186,8 @@ fn gitops_provider(
             deploy,
             project_root: project_root.to_path_buf(),
         },
-        DockerCli::new(children.clone()),
-        Box::new(SystemCommandRunner::new(children.clone())),
+        DockerCli::new(children.handle()),
+        Box::new(SystemCommandRunner::new(children.handle())),
     )?;
     Ok((tenant_id, tenant.name.clone(), provider))
 }

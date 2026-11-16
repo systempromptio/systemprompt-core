@@ -185,4 +185,12 @@ impl ChildSupervisor for ForegroundChildren {
     fn output(&self, cmd: Command) -> io::Result<Output> {
         Self::output(self, cmd)
     }
+
+    fn status(&self, cmd: Command) -> io::Result<ExitStatus> {
+        Self::status(self, cmd)
+    }
+
+    fn status_with_stdin(&self, cmd: Command, stdin: &[u8]) -> io::Result<ExitStatus> {
+        Self::status_with_stdin(self, cmd, stdin)
+    }
 }

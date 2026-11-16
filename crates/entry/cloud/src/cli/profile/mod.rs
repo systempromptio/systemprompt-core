@@ -32,57 +32,65 @@ pub use create_setup::handle_local_tenant_setup;
 pub use show_types::redact_database_url;
 
 use anyhow::Result;
-use systemprompt_cli::kernel::{CommandContext, Prompter, render_result};
+use systemprompt_extension::cli::{CommandHost, CommandOutput, Prompter};
 use systemprompt_cloud::{ProfilePath, ProjectContext};
 use systemprompt_logging::CliService;
 
-pub async fn execute(cmd: Option<ProfileCommands>, ctx: &CommandContext) -> Result<()> {
+pub async fn execute(
+    cmd: Option<ProfileCommands>,
+    host: &dyn CommandHost,
+) -> Result<CommandOutput> {
     if let Some(cmd) = cmd {
-        execute_command(cmd, ctx).await.map(drop)
-    } else {
-        if !ctx.cli.is_interactive() {
-            return Err(anyhow::anyhow!(
-                "Profile subcommand required in non-interactive mode"
-            ));
-        }
-        while let Some(cmd) = select_operation(ctx.prompter())? {
-            if execute_command(cmd, ctx).await? {
-                break;
-            }
-        }
-        Ok(())
+        return Ok(execute_command(cmd, host).await?.0);
     }
+    if !host.output().is_interactive() {
+        return Err(anyhow::anyhow!(
+            "Profile subcommand required in non-interactive mode"
+        ));
+    }
+    while let Some(cmd) = select_operation(host.prompter())? {
+        let (output, done) = execute_command(cmd, host).await?;
+        host.render(&output);
+        if done {
+            break;
+        }
+    }
+    Ok(crate::cli::rendered())
 }
 
-async fn execute_command(cmd: ProfileCommands, ctx: &CommandContext) -> Result<bool> {
+async fn execute_command(
+    cmd: ProfileCommands,
+    host: &dyn CommandHost,
+) -> Result<(CommandOutput, bool)> {
     match cmd {
-        ProfileCommands::Create(args) => create::execute(
-            &args.normalized(),
-            ctx.prompter(),
-            &ctx.cli,
-            ctx.foreground_children(),
-        )
-        .await
-        .map(|()| true),
-        ProfileCommands::List => {
-            let result = list::execute(ctx).await?;
-            render_result(&result, &ctx.cli);
-            Ok(false)
+        ProfileCommands::Create(args) => {
+            create::execute(
+                &args.normalized(),
+                host.prompter(),
+                host.output(),
+                host.children(),
+            )
+            .await?;
+            Ok((crate::cli::rendered(), true))
         },
+        ProfileCommands::List => Ok((list::execute(host).await?, false)),
         ProfileCommands::Show {
             name,
             filter,
             json,
             yaml,
-        } => show::execute(name.as_deref(), filter, json, yaml, ctx)
-            .await
-            .map(|()| false),
-        ProfileCommands::Delete(args) => {
-            let result = delete::execute(&args, ctx.prompter(), &ctx.cli)?;
-            render_result(&result, &ctx.cli);
-            Ok(false)
+        } => Ok((
+            show::execute(name.as_deref(), filter, json, yaml, host).await?,
+            false,
+        )),
+        ProfileCommands::Delete(args) => Ok((
+            delete::execute(&args, host.prompter(), host.output())?,
+            false,
+        )),
+        ProfileCommands::Edit(args) => {
+            edit::execute(&args, host)?;
+            Ok((crate::cli::rendered(), false))
         },
-        ProfileCommands::Edit(args) => edit::execute(&args, ctx).map(|()| false),
     }
 }
 

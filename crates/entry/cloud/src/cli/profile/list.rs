@@ -14,10 +14,10 @@ use systemprompt_logging::CliService;
 
 use super::{ShowFilter, show};
 use crate::cli::types::{ProfileListOutput, ProfileSummary};
-use systemprompt_cli::kernel::{CliConfig, CommandContext, CommandOutput, Prompter};
+use systemprompt_extension::cli::{CliConfig, CommandHost, CommandOutput, Prompter};
 
-pub(super) async fn execute(ctx: &CommandContext) -> Result<CommandOutput> {
-    let config = &ctx.cli;
+pub(super) async fn execute(host: &dyn CommandHost) -> Result<CommandOutput> {
+    let config = host.output();
     let project = ProjectContext::discover();
     let profiles_dir = project.profiles_dir();
 
@@ -25,7 +25,7 @@ pub(super) async fn execute(ctx: &CommandContext) -> Result<CommandOutput> {
         return Ok(render_no_profiles(config));
     }
 
-    let current_profile_name = active_profile_name(ctx.env.profile.as_deref());
+    let current_profile_name = active_profile_name(host.env_profile());
 
     let mut profiles = scan_profiles(&profiles_dir)?;
 
@@ -53,10 +53,10 @@ pub(super) async fn execute(ctx: &CommandContext) -> Result<CommandOutput> {
     if !config.is_json_output() {
         if config.is_interactive() {
             run_profile_picker(
-                ctx.prompter(),
+                host.prompter(),
                 &profiles,
                 current_profile_name.as_ref(),
-                ctx,
+                host,
             )
             .await?;
         } else {
@@ -128,7 +128,7 @@ async fn run_profile_picker(
     prompter: &dyn Prompter,
     profiles: &[(String, bool, PathBuf)],
     current: Option<&String>,
-    ctx: &CommandContext,
+    host: &dyn CommandHost,
 ) -> Result<()> {
     let options: Vec<String> = profiles
         .iter()
@@ -146,7 +146,8 @@ async fn run_profile_picker(
         }
 
         let (profile_name, _, _) = &profiles[selection];
-        show::execute(Some(profile_name), ShowFilter::All, false, false, ctx).await?;
+        let shown = show::execute(Some(profile_name), ShowFilter::All, false, false, host).await?;
+        host.render(&shown);
     }
 
     Ok(())

@@ -11,4 +11,10 @@ use std::sync::Arc;
 pub trait ChildSupervisor: Send + Sync {
     fn handle(&self) -> Arc<dyn ChildSupervisor>;
     fn output(&self, cmd: std::process::Command) -> std::io::Result<std::process::Output>;
+    fn status(&self, cmd: std::process::Command) -> std::io::Result<std::process::ExitStatus>;
+    fn status_with_stdin(
+        &self,
+        cmd: std::process::Command,
+        stdin: &[u8],
+    ) -> std::io::Result<std::process::ExitStatus>;
 }

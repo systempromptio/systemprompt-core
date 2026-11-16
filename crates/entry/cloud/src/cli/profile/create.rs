@@ -13,7 +13,7 @@ use anyhow::{Context, Result, bail};
 use systemprompt_cloud::{
     CloudPath, ProfilePath, ProjectContext, StoredTenant, TenantStore, get_cloud_paths,
 };
-use systemprompt_loader::subprocess::ForegroundChildren;
+use systemprompt_extension::cli::ChildSupervisor;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 
@@ -31,7 +31,7 @@ use super::templates::{
     existing_geoip_database, get_services_path, save_profile, update_ai_config_default_provider,
 };
 use super::tenant_credentials::ensure_unmasked_credentials;
-use systemprompt_cli::kernel::{CliConfig, Prompter};
+use systemprompt_extension::cli::{CliConfig, Prompter};
 use systemprompt_cloud::profile_authoring::{CloudProfileBuilder, LocalProfileBuilder};
 
 pub use super::profile_steps::{CreatedProfile, create_profile_for_tenant};
@@ -40,7 +40,7 @@ pub(super) async fn execute(
     args: &CreateArgs,
     prompter: &dyn Prompter,
     config: &CliConfig,
-    children: &ForegroundChildren,
+    children: &dyn ChildSupervisor,
 ) -> Result<()> {
     let name = &args.name;
     CliService::section(&format!("Create Profile: {}", name));

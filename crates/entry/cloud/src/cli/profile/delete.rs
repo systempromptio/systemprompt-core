@@ -8,7 +8,7 @@ use systemprompt_cloud::{ProfilePath, ProjectContext};
 use systemprompt_logging::CliService;
 
 use super::DeleteArgs;
-use systemprompt_cli::kernel::{CliConfig, CommandOutput, Prompter, SuccessOutput};
+use systemprompt_extension::cli::{CliConfig, CommandOutput, Prompter, SuccessOutput};
 
 pub(super) fn execute(
     args: &DeleteArgs,

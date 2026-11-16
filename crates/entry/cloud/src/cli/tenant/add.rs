@@ -18,8 +18,8 @@ use systemprompt_logging::CliService;
 use systemprompt_manifest::HostingProvider;
 
 use crate::cli::types::TenantDetailOutput;
-use systemprompt_cli::kernel::parsers::parse_tenant_id;
-use systemprompt_cli::kernel::{CliConfig, CommandOutput};
+use systemprompt_extension::cli::parsers::parse_tenant_id;
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 #[derive(Debug, Args)]
 pub struct TenantAddArgs {
