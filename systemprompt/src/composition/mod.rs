@@ -43,6 +43,7 @@ pub use error::{CompositionError, RunError};
 mod admit;
 mod declared;
 mod error;
+mod providers;
 mod reference;
 mod routes;
 
