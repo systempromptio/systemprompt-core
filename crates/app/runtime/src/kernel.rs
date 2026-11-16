@@ -5,8 +5,9 @@
 //! extension state. [`Kernel::resolve`] seeds that state with what the
 //! admitted members declared: their projection drains
 //! ([`AdmittedProjections`]), their agent-run origins ([`AdmittedRunOrigins`])
-//! and their owner-stamped purge tables and orphan sweeps in composition order
-//! ([`AdmittedPurge`]). It then builds the state from
+//! their owner-stamped purge tables and orphan sweeps in composition order
+//! ([`AdmittedPurge`]) and their jobs, retention work and job-run scopes
+//! ([`AdmittedSchedule`]). It then builds the state from
 //! the [`Admitted`] handoff: every admitted member's provide fns in
 //! composition order, each reading what was provided before it; every slot,
 //! built from its admitted entries (core first where the slot asks for it)
@@ -27,6 +28,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use systemprompt_agent_runs::origin::AdmittedRunOrigins;
+use systemprompt_extension::admitted_schedule::AdmittedSchedule;
 use systemprompt_extension::contribute::{SlotBuildInput, build_slot};
 use systemprompt_extension::prelude::RuleType;
 use systemprompt_extension::{
@@ -147,6 +149,7 @@ impl Kernel {
         self.state.insert(AdmittedProjections::of(admitted.built()));
         self.state.insert(AdmittedRunOrigins::of(admitted.built()));
         self.state.insert(AdmittedPurge::of(admitted.built()));
+        self.state.insert(AdmittedSchedule::of(admitted.built()));
         self.provide_all(admitted)?;
         self.build_slots(admitted)?;
         self.build_governance(admitted.built())?;
