@@ -26,6 +26,15 @@ supports, so a Vertex deployment tracks Google's catalogue without an operator e
 Provider adapters are tracking surface per [stability-contract.md §2.1](../security/stability-contract.md).
 New provider features appear in point releases.
 
+### Extension contract
+
+An extension is a composition member compiled into the binary: it implements `Extension`
+(`metadata` and `contribute`) and is added with `reference().with(member).run()`. There is no
+binary plugin interface, so a member is rebuilt against the facade version its binary uses. The
+stable surface is listed in [stability-contract.md §1.5](../security/stability-contract.md); a
+breaking change to it carries a `Breaking` CHANGELOG entry. See
+[authoring extensions](../guides/authoring-extensions.md).
+
 ### Inbound protocol compatibility
 
 Distinct from the outbound adapters above: the gateway also **accepts** requests in more

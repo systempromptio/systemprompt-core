@@ -54,7 +54,7 @@ Common Criteria mappings. Mirrors the 2017 TSC revision (effective through curre
 | CC6.3 Access removed on termination | Customer IdP revocation propagates on next token refresh | Token TTL configurable |
 | CC6.6 Protects against unauthorised external access | Operator-configured TLS and ingress restrictions; authenticated administrative API routes | `crates/entry/api/` |
 | CC6.7 Transmission of information | TLS 1.2+; customer-supplied trust store for outbound | Reverse-proxy config + provider adapter HTTPS |
-| CC6.8 Prevents unauthorised or malicious software | Single binary, no dynamic code loading; extensions are compile-time registered via `inventory` | `crates/shared/extension/src/lib.rs` |
+| CC6.8 Prevents unauthorised or malicious software | Single binary, no dynamic code loading; extensions are composition members named in the binary's `main` and admitted against the profile before any of their code runs | `crates/shared/extension/src/lib.rs` |
 
 ### CC7 — System Operations
 

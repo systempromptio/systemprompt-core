@@ -14,7 +14,7 @@ systemprompt-core provides five capabilities behind one HTTP surface:
 - **MCP (Model Context Protocol) servers.** MCP servers use streamable HTTP and can run as managed subprocesses behind the API proxy. Each server has its own scoped tool exposure, OAuth2, and access log, discoverable through a central registry.
 - **OAuth2 / OIDC authorization server.** A built-in authorization server issues and validates tokens for the system's own surfaces. It supports OIDC discovery, PKCE (S256), and WebAuthn. The JWT plane is RS256.
 - **Provider gateway.** A provider-facing proxy exposes a stable `/v1` surface (`POST /v1/messages`, `POST /v1/chat/completions`, `POST /v1/responses`, `GET /v1/models`) and routes each model pattern to a configured upstream provider. The upstream is selected in configuration, not in code.
-- **Compile-time extensions.** Functionality is extended in Rust through the `Extension` trait, registered at compile time with the `inventory` crate. There is no runtime plugin loader and no `dlopen`; extension code compiles into your binary.
+- **Compile-time extensions.** Functionality is extended in Rust through the `Extension` trait, composed into the binary in its `main` (`reference().with(MyExtension).run()`) and admitted against the profile before any of its code runs. There is no runtime plugin loader and no `dlopen`; extension code compiles into your binary.
 
 Across all five, the request path enforces authorization through a fail-closed authorization hook (default deny), rate limiting, and structured audit logging. Decisions are recorded with a `trace_id` so a single agent action can be reconstructed end to end.
 
@@ -70,7 +70,7 @@ The binary requires no outbound network access for governance operation. In an a
 | Term | Meaning |
 |------|---------|
 | **profile** | The `profile.yaml` configuration unit plus its referenced secrets source. The single source of truth for how a deployment runs. |
-| **extension** | A compile-time `Extension` implementation registered through the `inventory` crate. Distinct from the user-facing "plugin" CLI and marketplace surface. |
+| **extension** | A compile-time `Extension` implementation composed into the binary as a member. Distinct from the user-facing "plugin" CLI and marketplace surface. |
 | **the gateway** | The provider-facing proxy on the `/v1` base that routes model patterns to upstream inference providers. |
 | **authorization hook / authz hook** | The fail-closed (default-deny) check evaluated in the request path before an action is allowed. |
 | **audit log / governance decisions** | The append-only record of authorization decisions and system events, written to PostgreSQL and correlated by `trace_id`. |

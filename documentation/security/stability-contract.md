@@ -59,9 +59,14 @@ Migrations are **additive-only within a minor series**. A rolling upgrade from `
 Public traits in `crates/shared/extension/`:
 
 - the `Extension` trait (`traits/extension.rs`)
-- `ExtensionMetadata`, `SchemaDefinition`, `ExtensionRouter` (with its `RouteProtection` and `AuthzPolicy`), `Migration` shapes
-- the `register_extension!` and `extension_migrations!` macro contracts
-- the capability traits an extension declares against (`HasConfig`, `HasDatabase`, `HasHttpClient`, `HasEventBus`, and peers in `capabilities.rs`) and the `ExtensionContext` trait
+- the `Extension` trait's two methods, `metadata` and `contribute`, and the `Contributions` methods a member declares through
+- `ExtensionMetadata`, `SchemaDefinition`, `Migration`, `RouteSet` (with its `RouteSpec`, `AuthzPolicy`, `ContextKind` and `RouteLimits`), `UserPurgeTable`, `PurgePredicate` and `OrphanSweep` shapes
+- the `extension_migrations!` macro and `build::emit_migrations` contract
+- the CLI contract a member's commands implement (`CliCommandGroup`, `CommandDecl`, `CommandHost`, `CommandOutput`, `CommandError`)
+- the kernel's reservations (`reserved::RESERVED_PATHS`, `RESERVED_CLI_PATHS`, `PRIVILEGED_SHAPES`) as a closed set an install member cannot extend
+- the `ExtensionContext` trait a job reads its host through
+
+In the `systemprompt` facade: `Composition`, `reference()`, `with`, `without`, `secrets_source`, `run` and `CORE_MEMBER_IDS`.
 
 
 ### 1.6 Typed Identifiers
