@@ -14,14 +14,12 @@ use systemprompt_manifest::Profile;
 use systemprompt_models::BuildIdentity;
 use systemprompt_traits::BoxedSource;
 
-use super::dispatch::{Invocation, Selected};
+use super::dispatch::Invocation;
 use super::{interrupt, run_with};
 use crate::kernel::{
     CommandOwner, CommandRegistry, RegistryError, ResolvedCommand, kernel_commands,
 };
 
-/// The admission the facade hands the CLI: run once, against the loaded
-/// profile.
 /// Admits the composition: against the loaded profile, or, for a
 /// database-only kernel command run with `--database-url` and no profile,
 /// over every linked member with none disabled (`None`).
@@ -100,13 +98,14 @@ pub(super) fn admit_for(
     Ok(Some(Arc::new(admitted)))
 }
 
-pub(super) fn admit_unprofiled(selected: &Selected, admit: AdmitFn) -> Result<Arc<Admitted>> {
-    if let Selected::Registered(resolved) = selected {
+pub fn admit_unprofiled(
+    registered: Option<&ResolvedCommand>,
+    admit: AdmitFn,
+) -> Result<Admitted, CliRunError> {
+    if let Some(resolved) = registered {
         return Err(CliRunError::ProfileRequired {
             path: resolved.path.clone(),
-        }
-        .into());
+        });
     }
-    let admitted = admit(None).map_err(CliRunError::Admit)?;
-    Ok(Arc::new(admitted))
+    admit(None).map_err(CliRunError::Admit)
 }

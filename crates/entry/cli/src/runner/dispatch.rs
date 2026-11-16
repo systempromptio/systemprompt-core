@@ -89,6 +89,15 @@ pub(super) enum Selected {
     Bare(Box<Command>),
 }
 
+impl Selected {
+    pub(super) const fn registered(&self) -> Option<&ResolvedCommand> {
+        match self {
+            Self::Registered(resolved) => Some(resolved),
+            Self::Kernel(_) | Self::Bare(_) => None,
+        }
+    }
+}
+
 pub(super) async fn dispatch_command(selected: Selected, ctx: &CommandContext) -> Result<()> {
     if ctx.is_database_scoped() {
         let accepted = match &selected {
