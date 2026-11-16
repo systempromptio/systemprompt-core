@@ -4,12 +4,13 @@ use systemprompt_database::{
     DatabaseAdminService, DatabaseProvider, MigrationService, PostgresProvider,
 };
 use systemprompt_extension::{
-    Extension, ExtensionMetadata, LoaderError, Migration, MigrationFault, SchemaDefinition,
+    ContributionError, Contributions, Extension, ExtensionMetadata, LoaderError, Migration,
+    MigrationFault, SchemaDefinition,
 };
-use systemprompt_test_fixtures::install_extension_schemas_with_config;
 use tracing_subscriber::layer::SubscriberExt;
 
 use super::installation::{StubExtension, provider_and_db, registry_with, unique_id};
+use super::members::{admitted_of, install, unit};
 use crate::services::db_helper::test_pool;
 
 struct OwnedExtension {
@@ -17,6 +18,20 @@ struct OwnedExtension {
     schemas: Vec<SchemaDefinition>,
     cross: Vec<&'static str>,
     migrations: Vec<Migration>,
+}
+
+impl OwnedExtension {
+    fn schemas(&self) -> Vec<SchemaDefinition> {
+        self.schemas.clone()
+    }
+
+    fn cross_extension_tables(&self) -> Vec<&'static str> {
+        self.cross.clone()
+    }
+
+    fn migrations(&self) -> Vec<Migration> {
+        self.migrations.clone()
+    }
 }
 
 impl Extension for OwnedExtension {
@@ -28,16 +43,15 @@ impl Extension for OwnedExtension {
         }
     }
 
-    fn schemas(&self) -> Vec<SchemaDefinition> {
-        self.schemas.clone()
-    }
-
-    fn cross_extension_tables(&self) -> Vec<&'static str> {
-        self.cross.clone()
-    }
-
-    fn migrations(&self) -> Vec<Migration> {
-        self.migrations.clone()
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        for schema in self.schemas() {
+            c.schema(schema);
+        }
+        for table in self.cross_extension_tables() {
+            c.cross_table(table);
+        }
+        c.migrations(self.migrations());
+        Ok(())
     }
 }
 
@@ -118,7 +132,7 @@ async fn an_alter_on_a_foreign_table_is_refused_before_it_runs() {
     };
 
     let err = MigrationService::new(&provider)
-        .run_pending_migrations(&ext)
+        .run_pending_migrations(&unit(&ext))
         .await
         .expect_err("undeclared cross-extension alter");
 
@@ -179,7 +193,7 @@ async fn alters_on_declared_and_previously_created_tables_run() {
     };
 
     let result = MigrationService::new(&provider)
-        .run_pending_migrations(&ext)
+        .run_pending_migrations(&unit(&ext))
         .await
         .expect("owned alters run");
 
@@ -238,7 +252,7 @@ async fn suspended_triggers_are_named_in_the_migration_log() {
     };
 
     let result = MigrationService::new(&provider)
-        .run_pending_migrations(&ext)
+        .run_pending_migrations(&unit(&ext))
         .await
         .expect("migrations run");
 
@@ -275,7 +289,7 @@ async fn a_costed_migration_over_a_populated_table_applies() {
     };
 
     let result = MigrationService::new(&provider)
-        .run_pending_migrations(&ext)
+        .run_pending_migrations(&unit(&ext))
         .await
         .expect("costed migration");
 
@@ -348,7 +362,7 @@ async fn an_unmeasured_pending_rewrite_of_a_populated_hot_table_is_warned() {
         )],
     };
 
-    let outcome = install_extension_schemas_with_config(&registry_with(ext), &provider, &[]).await;
+    let outcome = install(&registry_with(ext), &provider).await;
 
     let text = logs.text();
     assert!(
@@ -379,7 +393,7 @@ async fn a_tombstone_cannot_be_marked_applied() {
     };
 
     let err = MigrationService::new(&provider)
-        .mark_applied(&ext, 1)
+        .mark_applied(&unit(&ext), 1)
         .await
         .expect_err("tombstone refused");
 
@@ -416,7 +430,7 @@ async fn a_failing_declarative_routine_aborts_the_install_with_its_statement() {
         migrations: vec![],
     };
 
-    let err = install_extension_schemas_with_config(&registry_with(ext), &provider, &[])
+    let err = install(&registry_with(ext), &provider)
         .await
         .expect_err("routine with an unknown return type");
 
@@ -444,7 +458,7 @@ async fn a_failing_schema_statement_rolls_back_and_names_the_statement() {
         migrations: vec![],
     };
 
-    let err = install_extension_schemas_with_config(&registry_with(ext), &provider, &[])
+    let err = install(&registry_with(ext), &provider)
         .await
         .expect_err("an index over a missing column fails the phase");
 
@@ -501,7 +515,7 @@ async fn an_unreachable_database_names_the_migration_step_that_failed() {
         migrations: vec![Migration::new(1, "one", "SELECT 1;")],
     };
     let run = service
-        .run_pending_migrations(&ext)
+        .run_pending_migrations(&unit(&ext))
         .await
         .expect_err("no database");
     assert_eq!(
@@ -521,7 +535,7 @@ async fn reverting_zero_migrations_touches_nothing() {
     };
 
     let result = MigrationService::new(&provider)
-        .run_down_migrations(&ext, 0)
+        .run_down_migrations(&unit(&ext), 0)
         .await
         .expect("a zero-count revert needs no database");
 
@@ -538,7 +552,7 @@ async fn schema_residue_on_an_unreachable_database_is_an_error() {
 
     match err {
         LoaderError::SchemaInstallationStepFailed { context, .. } => {
-            assert_eq!(context, "could not list live tables");
+            assert_eq!(context, "Failed to look up the table ownership records");
         },
         other => panic!("unexpected error: {other:?}"),
     }
@@ -559,10 +573,7 @@ async fn a_cross_extension_table_nobody_owns_is_refused() {
         cross: vec![phantom],
         migrations: vec![],
     };
-    let mut registry = systemprompt_extension::ExtensionRegistry::new();
-    registry.register(Arc::new(ext)).expect("register");
-
-    let err = install_extension_schemas_with_config(&registry, &provider, &[])
+    let err = install(&admitted_of(vec![Box::new(ext)]), &provider)
         .await
         .expect_err("phantom cross-extension table");
 

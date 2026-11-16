@@ -10,9 +10,11 @@ use std::sync::Arc;
 use sqlx::{PgPool, Row};
 use systemprompt_database::Database;
 use systemprompt_extension::{
-    Extension, ExtensionMetadata, ExtensionRegistry, Migration, SchemaDefinition,
+    ContributionError, Contributions, Extension, ExtensionMetadata, Migration, SchemaDefinition,
 };
-use systemprompt_test_fixtures::{install_extension_schemas, test_database_url};
+use systemprompt_test_fixtures::test_database_url;
+
+use crate::composition::install;
 use uuid::Uuid;
 
 fn leak_str(s: String) -> &'static str {
@@ -30,15 +32,7 @@ struct CanaryExtension {
     migration_sql: &'static str,
 }
 
-impl Extension for CanaryExtension {
-    fn metadata(&self) -> ExtensionMetadata {
-        ExtensionMetadata {
-            id: self.id,
-            name: "canary-test",
-            version: "0.0.0",
-        }
-    }
-
+impl CanaryExtension {
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![SchemaDefinition::new(
             self.table.to_string(),
@@ -48,6 +42,24 @@ impl Extension for CanaryExtension {
 
     fn migrations(&self) -> Vec<Migration> {
         vec![Migration::new(1, "canary", self.migration_sql)]
+    }
+}
+
+impl Extension for CanaryExtension {
+    fn metadata(&self) -> ExtensionMetadata {
+        ExtensionMetadata {
+            id: self.id,
+            name: "canary-test",
+            version: "0.0.0",
+        }
+    }
+
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        for schema in self.schemas() {
+            c.schema(schema);
+        }
+        c.migrations(self.migrations());
+        Ok(())
     }
 }
 
@@ -151,10 +163,7 @@ async fn fresh_database_stamps_migrations_without_executing_them() {
     };
 
     let db_arc = Arc::new(db);
-    let mut registry = ExtensionRegistry::new();
-    registry.register(Arc::new(ext)).expect("register");
-
-    install_extension_schemas(&registry, db_arc.as_ref())
+    install(vec![Box::new(ext)], db_arc.as_ref())
         .await
         .expect("fresh install must stamp the canary migration, never execute it");
 
@@ -221,10 +230,7 @@ async fn established_database_without_tracking_rows_executes_migrations() {
     };
 
     let db_arc = Arc::new(db);
-    let mut registry = ExtensionRegistry::new();
-    registry.register(Arc::new(ext)).expect("register");
-
-    install_extension_schemas(&registry, db_arc.as_ref())
+    install(vec![Box::new(ext)], db_arc.as_ref())
         .await
         .expect("legacy install must execute the migration");
 

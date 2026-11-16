@@ -3,8 +3,9 @@
 //! `CREATE TABLE` is applied after migrations, once per database, and never
 //! turns pre-existing rows into a boot failure.
 
+use super::members::install;
 use systemprompt_extension::{Migration, SchemaDefinition};
-use systemprompt_test_fixtures::{error_chain, install_extension_schemas_with_config};
+use systemprompt_test_fixtures::error_chain;
 
 use super::installation::{
     StubExtension, drop_table, leak, provider_and_db, registry_with, table_exists, unique_id,
@@ -82,7 +83,7 @@ async fn legacy_table_without_referenced_unique_gets_fk_after_migration_adds_ind
         migrations: vec![Migration::new(1, "owner_index", migration_sql)],
     });
 
-    install_extension_schemas_with_config(&registry, &provider, &[])
+    install(&registry, &provider)
         .await
         .expect("a legacy database converges: table, migration, then the deferred key");
 
@@ -114,7 +115,7 @@ async fn installing_twice_adds_exactly_one_foreign_key() {
     };
 
     for _ in 0..2 {
-        install_extension_schemas_with_config(&registry_with(build()), &provider, &[])
+        install(&registry_with(build()), &provider)
             .await
             .expect("install");
     }
@@ -152,9 +153,7 @@ async fn a_migration_authored_key_under_another_name_is_not_duplicated() {
         seeds: vec![],
         migrations: vec![],
     });
-    install_extension_schemas_with_config(&registry, &provider, &[])
-        .await
-        .expect("install");
+    install(&registry, &provider).await.expect("install");
 
     assert_eq!(foreign_key_count(&db, child).await, 1);
 
@@ -190,7 +189,7 @@ async fn orphan_rows_leave_the_key_not_valid_and_install_succeeds() {
         seeds: vec![],
         migrations: vec![],
     });
-    install_extension_schemas_with_config(&registry, &provider, &[])
+    install(&registry, &provider)
         .await
         .expect("orphan rows must not fail installation");
 
@@ -234,7 +233,7 @@ async fn a_deferred_foreign_key_that_cannot_be_satisfied_names_the_source_table(
         seeds: vec![],
         migrations: vec![],
     });
-    let err = install_extension_schemas_with_config(&registry, &provider, &[])
+    let err = install(&registry, &provider)
         .await
         .expect_err("no unique index on the referenced columns");
     let message = err.to_string();
@@ -284,7 +283,7 @@ async fn an_established_extension_reports_an_uncreatable_key_as_typed_drift() {
         migrations: vec![Migration::new(1, "noop", "SELECT 1")],
     });
 
-    let report = install_extension_schemas_with_config(&registry, &provider, &[])
+    let report = install(&registry, &provider)
         .await
         .expect("drift on an established database does not fail the install");
 
@@ -330,7 +329,7 @@ async fn a_failing_catalog_probe_fails_the_install_on_an_established_database() 
     });
 
     let failing = probe_failing::ProbeFailingProvider::new(provider);
-    let err = install_extension_schemas_with_config(&registry, &failing, &[])
+    let err = install(&registry, &failing)
         .await
         .expect_err("a failing catalog probe is not drift");
     assert!(error_chain(&err).contains("could not be probed"), "{err}");

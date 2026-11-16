@@ -1,12 +1,25 @@
+use super::members::unit;
 use std::sync::Arc;
 
-use systemprompt_database::{audit_migration_cost, audit_one};
-use systemprompt_extension::{Extension, ExtensionMetadata, Migration, SchemaDefinition};
+use systemprompt_database::{SchemaMember, audit_migration_cost, audit_one};
+use systemprompt_extension::{
+    ContributionError, Contributions, Extension, ExtensionMetadata, Migration, SchemaDefinition,
+};
 use systemprompt_identifiers::ExtensionId;
 
 struct Ext {
     id: &'static str,
     migrations: Vec<Migration>,
+}
+
+impl Ext {
+    fn schemas(&self) -> Vec<SchemaDefinition> {
+        vec![]
+    }
+
+    fn migrations(&self) -> Vec<Migration> {
+        self.migrations.clone()
+    }
 }
 
 impl Extension for Ext {
@@ -18,12 +31,12 @@ impl Extension for Ext {
         }
     }
 
-    fn schemas(&self) -> Vec<SchemaDefinition> {
-        vec![]
-    }
-
-    fn migrations(&self) -> Vec<Migration> {
-        self.migrations.clone()
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        for schema in self.schemas() {
+            c.schema(schema);
+        }
+        c.migrations(self.migrations());
+        Ok(())
     }
 }
 
@@ -31,23 +44,23 @@ const HOT: &[&str] = &["hot_rows"];
 
 #[test]
 fn the_catalogue_audit_reports_only_hot_rewrites_and_skips_tombstones() {
-    let extensions: Vec<Arc<dyn Extension>> = vec![
-        Arc::new(Ext {
+    let extensions: Vec<Arc<dyn SchemaMember>> = vec![
+        Arc::new(unit(&Ext {
             id: "cost_a",
             migrations: vec![
                 Migration::new(1, "create", "CREATE TABLE hot_rows (id BIGINT);"),
                 Migration::new(2, "backfill", "UPDATE hot_rows SET id = id + 1;"),
                 Migration::tombstone(3, "gone"),
             ],
-        }),
-        Arc::new(Ext {
+        })),
+        Arc::new(unit(&Ext {
             id: "cost_b",
             migrations: vec![Migration::new(
                 7,
                 "purge",
                 "DELETE FROM hot_rows WHERE id < 0; DELETE FROM cold_rows;",
             )],
-        }),
+        })),
     ];
     let found = audit_migration_cost(&extensions, HOT);
     let labels: Vec<String> = found.iter().map(|c| c.label()).collect();

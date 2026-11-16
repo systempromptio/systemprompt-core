@@ -10,9 +10,12 @@ use std::sync::Arc;
 use sqlx::{PgPool, Row};
 use systemprompt_database::Database;
 use systemprompt_extension::{
-    Extension, ExtensionMetadata, ExtensionRegistry, LoaderError, Migration, SchemaDefinition,
+    ContributionError, Contributions, Extension, ExtensionMetadata, LoaderError, Migration,
+    SchemaDefinition,
 };
-use systemprompt_test_fixtures::{install_extension_schemas, test_database_url};
+use systemprompt_test_fixtures::test_database_url;
+
+use crate::composition::install;
 use uuid::Uuid;
 
 fn leak_str(s: String) -> &'static str {
@@ -30,15 +33,7 @@ struct CanaryExtension {
     migration_sql: Option<&'static str>,
 }
 
-impl Extension for CanaryExtension {
-    fn metadata(&self) -> ExtensionMetadata {
-        ExtensionMetadata {
-            id: self.id,
-            name: "canary-test",
-            version: "0.0.0",
-        }
-    }
-
+impl CanaryExtension {
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![SchemaDefinition::new(
             self.table.to_string(),
@@ -50,6 +45,24 @@ impl Extension for CanaryExtension {
         self.migration_sql
             .map(|sql| vec![Migration::new(1, "canary", sql)])
             .unwrap_or_default()
+    }
+}
+
+impl Extension for CanaryExtension {
+    fn metadata(&self) -> ExtensionMetadata {
+        ExtensionMetadata {
+            id: self.id,
+            name: "canary-test",
+            version: "0.0.0",
+        }
+    }
+
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        for schema in self.schemas() {
+            c.schema(schema);
+        }
+        c.migrations(self.migrations());
+        Ok(())
     }
 }
 
@@ -194,16 +207,13 @@ async fn run_cross_extension_function_case(function_owner_first: bool) {
         ))),
     };
 
-    let mut registry = ExtensionRegistry::new();
-    if function_owner_first {
-        registry.register(Arc::new(owner)).expect("register owner");
-        registry.register(Arc::new(user)).expect("register user");
+    let members: Vec<Box<dyn Extension>> = if function_owner_first {
+        vec![Box::new(owner), Box::new(user)]
     } else {
-        registry.register(Arc::new(user)).expect("register user");
-        registry.register(Arc::new(owner)).expect("register owner");
-    }
+        vec![Box::new(user), Box::new(owner)]
+    };
 
-    install_extension_schemas(&registry, fx.db.as_ref())
+    install(members, fx.db.as_ref())
         .await
         .expect("a migration may execute a function only the declarative schema defines");
 
@@ -258,10 +268,7 @@ async fn migration_toggling_a_declarative_trigger_by_name_is_refused_before_any_
             "ALTER TABLE {table} DISABLE TRIGGER {trigger};"
         ))),
     };
-    let mut registry = ExtensionRegistry::new();
-    registry.register(Arc::new(ext)).expect("register");
-
-    let err = install_extension_schemas(&registry, fx.db.as_ref())
+    let err = install(vec![Box::new(ext)], fx.db.as_ref())
         .await
         .expect_err("a bare reference to a declarative-only trigger must be refused");
 
@@ -317,10 +324,7 @@ async fn a_do_block_guarding_the_same_trigger_is_accepted() {
              EXECUTE 'ALTER TABLE {table} DISABLE TRIGGER {trigger}'; END IF; END $$;"
         ))),
     };
-    let mut registry = ExtensionRegistry::new();
-    registry.register(Arc::new(ext)).expect("register");
-
-    install_extension_schemas(&registry, fx.db.as_ref())
+    install(vec![Box::new(ext)], fx.db.as_ref())
         .await
         .expect("a catalog-guarded reference inside a DO block is the sanctioned form");
 
@@ -368,10 +372,7 @@ async fn a_function_whose_signature_a_migration_reshapes_is_left_to_that_migrati
         table,
         migration_sql: Some(leak_str(format!("DROP FUNCTION {function}();"))),
     };
-    let mut registry = ExtensionRegistry::new();
-    registry.register(Arc::new(ext)).expect("register");
-
-    install_extension_schemas(&registry, fx.db.as_ref())
+    install(vec![Box::new(ext)], fx.db.as_ref())
         .await
         .expect("the pre-pass must not fail on a signature only a migration can change");
 
@@ -415,15 +416,7 @@ async fn a_migration_may_alter_a_table_an_earlier_migration_of_its_own_created()
         table: &'static str,
         transient: &'static str,
     }
-    impl Extension for ChainExtension {
-        fn metadata(&self) -> ExtensionMetadata {
-            ExtensionMetadata {
-                id: self.id,
-                name: "chain-test",
-                version: "0.0.0",
-            }
-        }
-
+    impl ChainExtension {
         fn schemas(&self) -> Vec<SchemaDefinition> {
             vec![SchemaDefinition::new(
                 self.table.to_string(),
@@ -461,18 +454,34 @@ async fn a_migration_may_alter_a_table_an_earlier_migration_of_its_own_created()
         }
     }
 
-    let mut registry = ExtensionRegistry::new();
-    registry
-        .register(Arc::new(ChainExtension {
+    impl Extension for ChainExtension {
+        fn metadata(&self) -> ExtensionMetadata {
+            ExtensionMetadata {
+                id: self.id,
+                name: "chain-test",
+                version: "0.0.0",
+            }
+        }
+
+        fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+            for schema in self.schemas() {
+                c.schema(schema);
+            }
+            c.migrations(self.migrations());
+            Ok(())
+        }
+    }
+
+    install(
+        vec![Box::new(ChainExtension {
             id: ext_id,
             table,
             transient,
-        }))
-        .expect("register");
-
-    install_extension_schemas(&registry, fx.db.as_ref())
-        .await
-        .expect("an ALTER on a table an earlier migration created is the extension's own");
+        })],
+        fx.db.as_ref(),
+    )
+    .await
+    .expect("an ALTER on a table an earlier migration created is the extension's own");
     assert_eq!(applied_versions(&fx.pool, ext_id).await, vec![1, 2, 3]);
     assert!(!table_exists(&fx.pool, transient).await);
 }

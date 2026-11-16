@@ -1,14 +1,27 @@
+use super::members::unit;
 use std::time::Duration;
 
 use systemprompt_database::{
     BOOTSTRAP_ADVISORY_LOCK_KEY, BootstrapLockGuard, DatabaseProvider, MigrationService,
     PostgresProvider,
 };
-use systemprompt_extension::{Extension, ExtensionMetadata, Migration, SchemaDefinition};
+use systemprompt_extension::{
+    ContributionError, Contributions, Extension, ExtensionMetadata, Migration, SchemaDefinition,
+};
 use systemprompt_test_fixtures::DisposableDb;
 
 struct Ext {
     sql: &'static str,
+}
+
+impl Ext {
+    fn schemas(&self) -> Vec<SchemaDefinition> {
+        vec![]
+    }
+
+    fn migrations(&self) -> Vec<Migration> {
+        vec![Migration::new(1, "counted", self.sql)]
+    }
 }
 
 impl Extension for Ext {
@@ -20,12 +33,12 @@ impl Extension for Ext {
         }
     }
 
-    fn schemas(&self) -> Vec<SchemaDefinition> {
-        vec![]
-    }
-
-    fn migrations(&self) -> Vec<Migration> {
-        vec![Migration::new(1, "counted", self.sql)]
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        for schema in self.schemas() {
+            c.schema(schema);
+        }
+        c.migrations(self.migrations());
+        Ok(())
     }
 }
 
@@ -63,7 +76,7 @@ async fn concurrent_repairs_reapply_a_drifted_migration_exactly_once() {
     let holder_db = database.test_pool().await;
     let holder = PostgresProvider::from_pool(holder_db.write_pool());
     MigrationService::new(&holder)
-        .run_pending_migrations(&Ext { sql: ORIGINAL })
+        .run_pending_migrations(&unit(&Ext { sql: ORIGINAL }))
         .await
         .expect("apply original");
 
@@ -77,7 +90,7 @@ async fn concurrent_repairs_reapply_a_drifted_migration_exactly_once() {
         tasks.push(tokio::spawn(async move {
             let provider = PostgresProvider::from_pool(pool.write_pool());
             MigrationService::new(&provider)
-                .repair_drift(&Ext { sql: EDITED })
+                .repair_drift(&unit(&Ext { sql: EDITED }))
                 .await
                 .map(|r| r.reapplied)
         }));

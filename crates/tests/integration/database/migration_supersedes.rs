@@ -8,9 +8,11 @@ use std::sync::Arc;
 use sqlx::{PgPool, Row};
 use systemprompt_database::Database;
 use systemprompt_extension::{
-    Extension, ExtensionMetadata, ExtensionRegistry, Migration, SchemaDefinition,
+    ContributionError, Contributions, Extension, ExtensionMetadata, Migration, SchemaDefinition,
 };
-use systemprompt_test_fixtures::{install_extension_schemas, test_database_url};
+use systemprompt_test_fixtures::test_database_url;
+
+use crate::composition;
 use uuid::Uuid;
 
 fn leak_str(s: String) -> &'static str {
@@ -23,15 +25,7 @@ struct CanaryExtension {
     migration: Migration,
 }
 
-impl Extension for CanaryExtension {
-    fn metadata(&self) -> ExtensionMetadata {
-        ExtensionMetadata {
-            id: self.id,
-            name: "canary-test",
-            version: "0.0.0",
-        }
-    }
-
+impl CanaryExtension {
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![SchemaDefinition::new(
             self.table.to_string(),
@@ -47,6 +41,24 @@ impl Extension for CanaryExtension {
     }
 }
 
+impl Extension for CanaryExtension {
+    fn metadata(&self) -> ExtensionMetadata {
+        ExtensionMetadata {
+            id: self.id,
+            name: "canary-test",
+            version: "0.0.0",
+        }
+    }
+
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        for schema in self.schemas() {
+            c.schema(schema);
+        }
+        c.migrations(self.migrations());
+        Ok(())
+    }
+}
+
 async fn stored_checksum(pool: &PgPool, ext_id: &str) -> Option<String> {
     sqlx::query("SELECT checksum FROM extension_migrations WHERE extension_id = $1 AND version = 1")
         .bind(ext_id)
@@ -57,9 +69,7 @@ async fn stored_checksum(pool: &PgPool, ext_id: &str) -> Option<String> {
 }
 
 async fn install(db: &Arc<Database>, ext: CanaryExtension) {
-    let mut registry = ExtensionRegistry::new();
-    registry.register(Arc::new(ext)).expect("register");
-    install_extension_schemas(&registry, db.as_ref())
+    composition::install(vec![Box::new(ext)], db.as_ref())
         .await
         .expect("install");
 }

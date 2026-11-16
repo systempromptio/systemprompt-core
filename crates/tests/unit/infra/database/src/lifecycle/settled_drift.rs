@@ -1,14 +1,13 @@
 use systemprompt_database::{
-    DbPool, MigrationConfig, install_extension_schemas_full, schema_catalog_digest,
+    DbPool, MigrationConfig, install_admitted_schemas, schema_catalog_digest,
 };
-use systemprompt_extension::{ExtensionRegistry, LoaderError};
-use systemprompt_test_fixtures::DisposableDb;
+use systemprompt_extension::LoaderError;
+use systemprompt_test_fixtures::{DisposableDb, schema_admitted};
 
 async fn install_with(pool: &DbPool, config: MigrationConfig) -> Result<(), LoaderError> {
-    install_extension_schemas_full(
-        &ExtensionRegistry::discover().expect("registry"),
+    install_admitted_schemas(
+        schema_admitted().expect("core members").built(),
         pool.write(),
-        &[],
         config,
     )
     .await
