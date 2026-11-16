@@ -335,3 +335,10 @@ governance:
         storage_yaml = opts.storage_yaml,
     )
 }
+
+pub(crate) fn core_admit() -> systemprompt_runtime::AdmitFn {
+    Box::new(|_profile| {
+        systemprompt_test_fixtures::schema_admitted()
+            .map_err(|e| -> systemprompt_traits::BoxedSource { Box::new(e) })
+    })
+}

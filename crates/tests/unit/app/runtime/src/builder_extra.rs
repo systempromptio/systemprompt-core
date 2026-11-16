@@ -3,12 +3,11 @@
 use std::sync::Arc;
 use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_runtime::{AppContextBuilder, MigrationConfig};
-use systemprompt_test_fixtures::ensure_test_bootstrap;
-
+use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_admitted};
 
 #[test]
 fn chain_combines_all_flags() {
-    let builder = AppContextBuilder::new(ensure_test_bootstrap().boot.clone())
+    let builder = AppContextBuilder::new(ensure_test_bootstrap().boot.clone(), fixture_admitted())
         .with_startup_warnings(true)
         .with_migrations(true)
         .with_migration_config(MigrationConfig::default())
@@ -19,21 +18,12 @@ fn chain_combines_all_flags() {
 }
 
 #[test]
-fn with_extensions_records_registry() {
-    use systemprompt_extension::ExtensionRegistry;
-    let builder = AppContextBuilder::new(ensure_test_bootstrap().boot.clone())
-        .with_extensions(ExtensionRegistry::new());
-    let dbg = format!("{:?}", builder);
-    assert!(dbg.contains("extension_registry: true"));
-}
-
-#[test]
 fn with_authz_hook_records_hook() {
     use std::sync::Arc;
     use systemprompt_governance::authz::{AllowAllHook, NullAuditSink};
     let hook = AllowAllHook::new(Arc::new(NullAuditSink));
     let builder =
-        AppContextBuilder::new(ensure_test_bootstrap().boot.clone()).with_authz_hook(hook);
+        AppContextBuilder::new(ensure_test_bootstrap().boot.clone(), fixture_admitted()).with_authz_hook(hook);
     let dbg = format!("{:?}", builder);
     assert!(dbg.contains("authz_hook: true"));
 }
@@ -45,7 +35,7 @@ fn with_shared_authz_hook_records_hook() {
     let hook: systemprompt_governance::authz::SharedAuthzHook =
         Arc::new(AllowAllHook::new(Arc::new(NullAuditSink)));
     let builder =
-        AppContextBuilder::new(ensure_test_bootstrap().boot.clone()).with_shared_authz_hook(hook);
+        AppContextBuilder::new(ensure_test_bootstrap().boot.clone(), fixture_admitted()).with_shared_authz_hook(hook);
     let dbg = format!("{:?}", builder);
     assert!(dbg.contains("authz_hook: true"));
 }
@@ -53,7 +43,7 @@ fn with_shared_authz_hook_records_hook() {
 #[test]
 fn with_startup_warnings_false_is_default() {
     let builder =
-        AppContextBuilder::new(ensure_test_bootstrap().boot.clone()).with_startup_warnings(false);
+        AppContextBuilder::new(ensure_test_bootstrap().boot.clone(), fixture_admitted()).with_startup_warnings(false);
     let dbg = format!("{:?}", builder);
     assert!(dbg.contains("show_startup_warnings: false"));
 }
@@ -61,7 +51,7 @@ fn with_startup_warnings_false_is_default() {
 #[test]
 fn with_migrations_false_is_default() {
     let builder =
-        AppContextBuilder::new(ensure_test_bootstrap().boot.clone()).with_migrations(false);
+        AppContextBuilder::new(ensure_test_bootstrap().boot.clone(), fixture_admitted()).with_migrations(false);
     let dbg = format!("{:?}", builder);
     assert!(dbg.contains("install_schemas: false"));
 }

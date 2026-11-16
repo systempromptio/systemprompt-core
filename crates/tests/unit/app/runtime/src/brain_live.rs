@@ -1,44 +1,22 @@
 use std::sync::Arc;
 
 use serde_json::json;
-use systemprompt_extension::DynNotificationSink;
 use systemprompt_extension::brain::SourceContent;
 use systemprompt_identifiers::{
-    BrainFactId, DocumentCommentId, DocumentId, DocumentRevisionId, InstanceId, SessionId, UserId,
+    BrainFactId, DocumentCommentId, DocumentId, DocumentRevisionId, SessionId, UserId,
 };
-use systemprompt_manifest::profile::BrainProfile;
 use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::brain::FactSource;
 use systemprompt_runtime::brain::mcp::{
     BrainMcpTools, BrainRefusalCode, DisputeHandler, ProposeHandler, RecallPreviewHandler,
     SearchHandler, WhyHandler, refusal_code,
 };
-use systemprompt_brain::BrainHandle;
 use systemprompt_files::documents::DocumentSourceContent;
-use systemprompt_runtime::documents::NotificationsUnavailableSink;
 use systemprompt_runtime::documents::mcp::{CommentHandler, CommentInput};
-use systemprompt_runtime::{BrainCore, BrainInputs, RecallSeams};
 
-use crate::documents_mcp_rig::{Rig, rig};
+use crate::brain_consumer_start::{handle_for, tools};
+use crate::documents_mcp_rig::rig;
 use crate::documents_mcp_support::{create_text, ctx_for, exec, registered};
-
-fn handle_for(r: &Rig) -> Arc<BrainHandle> {
-    let listener_pool = r.pool.write_pool().as_ref().clone();
-    let notifications: DynNotificationSink = Arc::new(NotificationsUnavailableSink);
-    let profile = BrainProfile {
-        enabled: true,
-        ..BrainProfile::default()
-    };
-    let core = BrainCore::new(&BrainInputs {
-        database: &r.pool,
-        instance_id: &InstanceId::new("brain-live"),
-        listener_pool: &listener_pool,
-        notifications: &notifications,
-        profile: &profile,
-    })
-    .expect("enabled core");
-    core.assemble(&r.runtime, RecallSeams::default())
-}
 
 fn code(error: &rmcp::ErrorData) -> BrainRefusalCode {
     refusal_code(error).unwrap_or_else(|| panic!("not a refusal: {error:?}"))
@@ -58,7 +36,7 @@ async fn an_assembled_handle_exposes_its_parts_and_tools() {
     let (_, recall, profile) = handle.routes();
     assert_eq!(recall.name(), handle.memory_recall().name());
     assert!(Arc::ptr_eq(&profile, handle.profile()));
-    let tools = handle.mcp_tools().expect("tools");
+    let tools = tools(&handle);
     assert!(tools.profile().enabled);
     assert!(format!("{handle:?}").contains("consumer: false"));
 }
@@ -66,7 +44,7 @@ async fn an_assembled_handle_exposes_its_parts_and_tools() {
 #[tokio::test]
 async fn live_search_scans_the_callers_facts_and_refuses_a_bad_subject() {
     let r = rig(false).await;
-    let tools: BrainMcpTools = handle_for(&r).mcp_tools().expect("tools");
+    let tools: BrainMcpTools = tools(&handle_for(&r));
     let user = registered("brain-search").await;
     let ctx = ctx_for(Some(&user));
     let (found, summary) = SearchHandler { tools: &tools }
@@ -99,7 +77,7 @@ async fn live_search_scans_the_callers_facts_and_refuses_a_bad_subject() {
 #[tokio::test]
 async fn proposing_refuses_a_governing_status_an_unknown_kind_and_a_bad_subject() {
     let r = rig(false).await;
-    let tools = handle_for(&r).mcp_tools().expect("tools");
+    let tools = tools(&handle_for(&r));
     let user = registered("brain-propose").await;
     let ctx = ctx_for(Some(&user));
     let propose = |value: serde_json::Value| {
@@ -126,7 +104,7 @@ async fn proposing_refuses_a_governing_status_an_unknown_kind_and_a_bad_subject(
 #[tokio::test]
 async fn why_and_dispute_of_an_unknown_fact_are_not_found() {
     let r = rig(false).await;
-    let tools = handle_for(&r).mcp_tools().expect("tools");
+    let tools = tools(&handle_for(&r));
     let user = registered("brain-why").await;
     let ctx = ctx_for(Some(&user));
     let fact = BrainFactId::generate();
@@ -162,7 +140,7 @@ async fn why_and_dispute_of_an_unknown_fact_are_not_found() {
 #[tokio::test]
 async fn a_recall_preview_with_no_facts_is_skipped() {
     let r = rig(false).await;
-    let tools = handle_for(&r).mcp_tools().expect("tools");
+    let tools = tools(&handle_for(&r));
     let user = registered("brain-recall").await;
     let (preview, summary) = RecallPreviewHandler { tools: &tools }
         .handle(

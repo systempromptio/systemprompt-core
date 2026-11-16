@@ -46,7 +46,7 @@ pub(crate) async fn harness() -> McpHarness {
         systemprompt_test_fixtures::fixture_notifications(&pool, &event_router, &runtime);
     let tools = DocumentsMcpTools::new(DocumentsMcpConfig {
         service: Arc::clone(runtime.service()),
-        notifications: Some(Arc::clone(&notifications.service)),
+        notifications: Some(Arc::clone(&notifications)),
         uploads: Some(Arc::clone(runtime.uploads())),
         users: Arc::new(UserRepository::new(&pool)),
         links: crate::link_rig::in_process_links(

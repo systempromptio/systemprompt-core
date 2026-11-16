@@ -71,7 +71,7 @@ async fn documents_tools_refuse_a_disabled_store_and_name_the_switch() {
     )
     .await
     .expect("seed the system admin");
-    let disabled = HostContext::boot(|name| env.get(name).cloned())
+    let disabled = HostContext::boot(|name| env.get(name).cloned(), crate::boot::core_admit())
         .await
         .expect("host context");
     let err = documents_tools(&disabled, McpServerId::new(SERVER))
@@ -84,7 +84,7 @@ async fn documents_tools_refuse_a_disabled_store_and_name_the_switch() {
         "files:\n  documents:\n    enabled: true\n",
     )
     .expect("write files.yaml");
-    let enabled = HostContext::boot(|name| env.get(name).cloned())
+    let enabled = HostContext::boot(|name| env.get(name).cloned(), crate::boot::core_admit())
         .await
         .expect("host context");
     let tools = documents_tools(&enabled, McpServerId::new(SERVER))

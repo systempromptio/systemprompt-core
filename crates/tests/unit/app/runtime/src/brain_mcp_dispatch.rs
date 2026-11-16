@@ -6,7 +6,7 @@ use systemprompt_mcp::{ClientProfile, McpToolExecutor};
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_runtime::brain::mcp::{BrainMcpTools, BrainToolCall, TOOL_NAMES};
 
-use crate::brain_consumer_start::handle_for;
+use crate::brain_consumer_start::{handle_for, tools};
 use crate::documents_mcp_rig::rig;
 use crate::documents_mcp_support::{ctx_for, registered};
 use crate::mcp_dispatch::{executor, refused, request, succeeded};
@@ -41,7 +41,7 @@ fn code(outcome: &Result<CallToolResult, McpError>) -> Option<String> {
 #[tokio::test]
 async fn every_brain_tool_dispatches_and_governing_tools_are_forbidden() {
     let r = rig(false).await;
-    let tools = handle_for(&r).mcp_tools().expect("tools");
+    let tools = tools(&handle_for(&r));
     let exec = executor("brain").await;
     let user = registered("brain-dispatch").await;
     let ctx = ctx_for(Some(&user));

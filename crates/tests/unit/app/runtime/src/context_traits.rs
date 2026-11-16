@@ -14,15 +14,14 @@ use systemprompt_identifiers::{InstanceId, LeaseKey};
 use systemprompt_models::RouteType;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, test_app_context, test_database_url, test_db_pool,
+    ensure_test_bootstrap, test_app_context, test_database_url,
 };
 use systemprompt_traits::AppContext as AppContextTrait;
 
 async fn context() -> (Arc<AppContext>, String) {
     ensure_test_bootstrap();
     let url = test_database_url();
-    let pool = test_db_pool().await;
-    (test_app_context(&pool, &url), url)
+    (test_app_context(&url).await, url)
 }
 
 #[tokio::test]
@@ -78,12 +77,10 @@ async fn the_extension_view_resolves_loaded_secrets_and_refuses_unknown_ones() {
 }
 
 #[tokio::test]
-async fn the_extension_view_finds_no_extension_that_was_never_registered() {
+async fn the_extension_view_reads_the_same_config_planes() {
     let (ctx, _url) = context().await;
     let view: &dyn ExtensionContext = ctx.as_ref();
 
-    assert!(view.get_extension("sp-no-such-extension").is_none());
-    assert!(!view.has_extension("sp-no-such-extension"));
     assert_eq!(view.config_planes().is_ok(), ctx.config_planes().is_ok());
 }
 
@@ -149,7 +146,7 @@ async fn the_extension_view_hands_out_the_shared_background_tasks() {
 #[tokio::test]
 async fn the_kernel_state_carries_the_oauth_repositories() {
     let (ctx, _url) = context().await;
-    let state = systemprompt_runtime::kernel_state(&ctx);
+    let state = ctx.kernel().state();
     let repos = state
         .get::<std::sync::Arc<systemprompt_oauth::repository::OAuthRepositories>>()
         .expect("the oauth repositories are a kernel state entry");
@@ -159,7 +156,7 @@ async fn the_kernel_state_carries_the_oauth_repositories() {
 #[tokio::test]
 async fn the_kernel_state_never_carries_the_analytics_broadcaster() {
     let (ctx, _url) = context().await;
-    let state = systemprompt_runtime::kernel_state(&ctx);
+    let state = ctx.kernel().state();
     assert!(
         state
             .find::<Arc<systemprompt_events::AnalyticsBroadcaster>>()

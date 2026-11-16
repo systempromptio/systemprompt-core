@@ -77,7 +77,7 @@ async fn compose(env: BTreeMap<String, String>) -> AgentHost {
     seed_fixture_system_admin(&test_db_pool().await)
         .await
         .expect("seed the system admin");
-    let host = HostContext::boot(move |name| env.get(name).cloned())
+    let host = HostContext::boot(move |name| env.get(name).cloned(), crate::boot::core_admit())
         .await
         .expect("host boots");
     AgentHost::compose(host).expect("agent composes")

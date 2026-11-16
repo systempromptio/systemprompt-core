@@ -15,10 +15,7 @@ use systemprompt_extension::{
 use systemprompt_identifiers::ExtensionId;
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
-pub struct CovOkConfig {
-    #[serde(default)]
-    pub mode: Option<String>,
-}
+pub struct CovOkConfig {}
 
 impl ExtensionConfig for CovOkConfig {
     const PREFIX: &'static str = "covextok";
@@ -29,10 +26,7 @@ impl ExtensionConfig for CovOkConfig {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
-pub struct CovBadConfig {
-    #[serde(default)]
-    pub mode: Option<String>,
-}
+pub struct CovBadConfig {}
 
 impl ExtensionConfig for CovBadConfig {
     const PREFIX: &'static str = "covextbad";
