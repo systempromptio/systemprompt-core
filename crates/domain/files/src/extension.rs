@@ -158,7 +158,7 @@ fn provide_core_seams(c: &mut Contributions<'_>) {
     .provide(
         |r: &Resolved<'_>| -> Result<SourceContentSeam, ProvideError> {
             let seam: Arc<dyn SourceContent> = Arc::new(DocumentSourceContent::new(
-                r.get::<Arc<DocumentService>>()?,
+                r.optional::<Arc<DocumentService>>(),
                 r.get::<Arc<DocumentRepositories>>()?,
             ));
             Ok(CoreSeam::new(seam))

@@ -28,16 +28,25 @@ use systemprompt_models::brain::{FactSource, SourceNode, SourceText};
 
 pub const BRAIN_ACTOR: &str = "brain";
 
+/// The documents store a [`DocumentSourceContent`] reads is not enabled on
+/// this host.
+#[derive(Debug, Clone, Copy, thiserror::Error)]
+#[error("the documents store is not enabled, so document sources are unavailable")]
+pub struct DocumentsSourceUnavailable;
+
 /// Reads document revisions and comment threads as extraction source text.
 #[derive(Debug, Clone)]
 pub struct DocumentSourceContent {
-    documents: Arc<DocumentService>,
+    documents: Option<Arc<DocumentService>>,
     repos: Arc<DocumentRepositories>,
 }
 
 impl DocumentSourceContent {
     #[must_use]
-    pub const fn new(documents: Arc<DocumentService>, repos: Arc<DocumentRepositories>) -> Self {
+    pub const fn new(
+        documents: Option<Arc<DocumentService>>,
+        repos: Arc<DocumentRepositories>,
+    ) -> Self {
         Self { documents, repos }
     }
 
@@ -46,6 +55,9 @@ impl DocumentSourceContent {
         document: &DocumentId,
         revision: &DocumentRevisionId,
     ) -> Result<Option<SourceText>, SourceContentError> {
+        let Some(documents) = &self.documents else {
+            return Err(failed("document", DocumentsSourceUnavailable));
+        };
         let Some(found) = self.repos.documents.find(document).await? else {
             return Ok(None);
         };
@@ -55,7 +67,7 @@ impl DocumentSourceContent {
             DocumentActor::System {
                 name: BRAIN_ACTOR.to_owned(),
             },
-            self.documents
+            documents
                 .project(&owner, document, Some(revision), &TraceId::system()),
         )
         .await;
@@ -107,7 +119,10 @@ impl DocumentSourceContent {
     }
 }
 
-fn failed(kind: &str, error: DocumentsError) -> SourceContentError {
+fn failed(
+    kind: &str,
+    error: impl std::error::Error + Send + Sync + 'static,
+) -> SourceContentError {
     SourceContentError::Other {
         source_kind: kind.to_owned(),
         source: Box::new(error),
