@@ -461,21 +461,6 @@ async fn the_catalog_stamp_moves_with_a_cohort_generation() {
     assert_ne!(before, after);
 }
 
-struct NamedGate(&'static str, AssetDigest);
-
-#[async_trait]
-impl PublicationGate for NamedGate {
-    fn id(&self) -> &'static str {
-        self.0
-    }
-
-    async fn admit(&self, _ctx: &GateContext<'_>) -> Result<GateVerdict, PublicationGateError> {
-        Ok(GateVerdict::Admit {
-            evidence_digest: self.1.clone(),
-        })
-    }
-}
-
 struct BrokenGate;
 
 #[async_trait]
@@ -505,7 +490,7 @@ fn the_policy_debug_names_its_gates_and_exposes_its_config() {
     let policy = PublicationPolicy::new(
         config,
         vec![
-            Arc::new(NamedGate("eval", AssetDigest::of(b"a"))),
+            admitting_with("eval", AssetDigest::of(b"a")),
             Arc::new(BrokenGate),
         ],
         SubjectProviderSet::default(),
@@ -527,8 +512,8 @@ async fn several_admitting_gates_record_one_combined_admission() {
         &f,
         PublicationGateConfig::default(),
         vec![
-            Arc::new(NamedGate("eval", first.clone())),
-            Arc::new(NamedGate("lint", AssetDigest::of(b"lint evidence"))),
+            admitting_with("eval", first.clone()),
+            admitting_with("lint", AssetDigest::of(b"lint evidence")),
         ],
     );
     let decision = repository
@@ -614,13 +599,12 @@ async fn publish_through(
         .await
 }
 
+fn admitting_with(id: &'static str, evidence_digest: AssetDigest) -> Arc<dyn PublicationGate> {
+    Arc::new(NamedGate(id, GateVerdict::Admit { evidence_digest }))
+}
+
 fn admitting(id: &'static str) -> Arc<dyn PublicationGate> {
-    Arc::new(NamedGate(
-        id,
-        GateVerdict::Admit {
-            evidence_digest: AssetDigest::of(id.as_bytes()),
-        },
-    ))
+    admitting_with(id, AssetDigest::of(id.as_bytes()))
 }
 
 fn refusing(id: &'static str) -> Arc<dyn PublicationGate> {
