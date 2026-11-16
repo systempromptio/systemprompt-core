@@ -4,10 +4,13 @@ version = "0.0.1"
 edition = "2024"
 publish = false
 license.workspace = true
-description = "Test helper: applies all extension schemas to a Postgres instance via install_extension_schemas."
+description = "Test helper: the core schema composition, and a tool that installs it into a Postgres database."
 
 [lints]
 workspace = true
+
+[lib]
+path = "src/lib.rs"
 
 [[bin]]
 name = "systemprompt-test-migrate"
@@ -19,9 +22,10 @@ anyhow = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true }
-
-# Force every schema-bearing extension to link into this binary so
-# ExtensionRegistry::discover() picks up their inventory entries.
+systemprompt-identifiers = { workspace = true }
+systemprompt-governance = { workspace = true }
+systemprompt-marketplace = { workspace = true }
+thiserror = { workspace = true }
 systemprompt-agent = { workspace = true }
 systemprompt-agent-runs = { workspace = true }
 systemprompt-ai = { workspace = true }
@@ -35,7 +39,6 @@ systemprompt-mcp = { workspace = true }
 systemprompt-notifications = { workspace = true }
 systemprompt-oauth = { workspace = true }
 systemprompt-scheduler = { workspace = true }
-systemprompt-security = { workspace = true }
 systemprompt-users = { workspace = true }
 systemprompt-test-hack = { version = "0.1", path = "../hack" }
 
