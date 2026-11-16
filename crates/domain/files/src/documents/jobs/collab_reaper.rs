@@ -12,7 +12,8 @@ use systemprompt_traits::{Job, JobContext, JobResult, JobScope, ProviderError, P
 
 use crate::FilesConfig;
 use crate::documents::agents::{DocumentActor, act_as};
-use crate::documents::service::DocumentService;
+use crate::documents::DocumentsHandlesSlot;
+use crate::documents::handles::bound_service;
 
 const BATCH: i64 = 50;
 const IDLE: Duration = Duration::from_secs(600);
@@ -29,7 +30,9 @@ impl DocumentCollabReaperJob {
         {
             return Ok(JobResult::success().with_message("document store disabled"));
         }
-        let Some(collab) = ctx.get::<Arc<DocumentService>>()?.collab() else {
+        let service = bound_service(ctx.get::<DocumentsHandlesSlot>()?)
+            .map_err(|error| ProviderError::Internal(Box::new(error)))?;
+        let Some(collab) = service.as_ref().and_then(|service| service.collab()) else {
             return Ok(JobResult::success().with_message("live co-editing not attached"));
         };
         let started = std::time::Instant::now();

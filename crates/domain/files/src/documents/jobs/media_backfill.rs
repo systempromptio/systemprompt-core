@@ -13,7 +13,8 @@ use systemprompt_traits::{Job, JobContext, JobResult, JobScope, ProviderError, P
 
 use crate::FilesConfig;
 use crate::documents::agents::{DocumentActor, act_as};
-use crate::documents::service::DocumentService;
+use crate::documents::DocumentsHandlesSlot;
+use crate::documents::handles::bound_service;
 
 const BATCH: i64 = 50;
 
@@ -26,7 +27,11 @@ impl DocumentMediaBackfillJob {
         if !documents.is_enabled() {
             return Ok(JobResult::success().with_message("document store disabled"));
         }
-        let service = Arc::clone(ctx.get::<Arc<DocumentService>>()?);
+        let Some(service) = bound_service(ctx.get::<DocumentsHandlesSlot>()?)
+            .map_err(|error| ProviderError::Internal(Box::new(error)))?
+        else {
+            return Ok(JobResult::success().with_message("document store disabled"));
+        };
         let started = std::time::Instant::now();
         let mut backfilled = 0;
         loop {
