@@ -32,3 +32,5 @@ mod services;
 mod startup;
 #[cfg(test)]
 mod static_content;
+#[cfg(test)]
+mod support;

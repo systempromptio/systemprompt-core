@@ -30,7 +30,7 @@ use systemprompt_models::feedback::receipts::{
 use systemprompt_models::feedback::{ContentDigest, EvaluatorClient};
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    TestBootstrap, fixture_app_context_on_bootstrap, fixture_config, init_isolated_bootstrap,
+    TestBootstrap, fixture_config, init_isolated_bootstrap,
     seed_bridge_credential, seed_user_row, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
@@ -108,9 +108,7 @@ struct Harness {
 async fn harness(filter: Arc<dyn MarketplaceFilter>) -> Harness {
     let boot = boot();
     let pool = test_db_pool().await;
-    let ctx =
-        fixture_app_context_on_bootstrap(boot, &pool, fixture_config(&boot.database_url), filter)
-            .expect("fixture context");
+    let ctx = crate::support::context_on(boot, fixture_config(&boot.database_url), filter).await;
     let owner = ctx.system_admin().id();
     seed_user_row(&pool, owner, &format!("{owner}@manifest-grants.invalid"))
         .await
@@ -790,13 +788,9 @@ async fn private_consumer(label: &str) -> PrivateConsumer {
     let database = systemprompt_test_fixtures::DisposableDb::with_schema(label).await;
     let pool = database.test_pool().await;
     let boot = boot();
-    let ctx = fixture_app_context_on_bootstrap(
-        boot,
-        &pool,
-        fixture_config(database.url()),
-        Arc::new(AllowAllFilter),
-    )
-    .unwrap();
+    let ctx =
+        crate::support::context_on(boot, fixture_config(database.url()), Arc::new(AllowAllFilter))
+            .await;
     let owner = ctx.system_admin().id().clone();
     seed_user_row(&pool, &owner, &format!("{owner}@private-consumer.invalid"))
         .await

@@ -16,11 +16,10 @@ use systemprompt_api::routes::gateway::bridge_manifest;
 use systemprompt_api::routes::gateway::bridge_resolved::Freshness;
 use systemprompt_api::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
 use systemprompt_identifiers::UserId;
-use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_marketplace::{MarketplaceCandidate, MarketplaceFilter, MarketplaceFilterError};
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    TestBootstrap, fixture_app_context_with, init_isolated_bootstrap, seed_bridge_credential,
+    TestBootstrap, fixture_config, init_isolated_bootstrap, seed_bridge_credential,
     seed_user_row, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
@@ -29,20 +28,6 @@ static BOOT: OnceLock<TestBootstrap> = OnceLock::new();
 
 fn boot() -> &'static TestBootstrap {
     BOOT.get_or_init(|| init_isolated_bootstrap("http://127.0.0.1", "plugins: {}\n"))
-}
-
-fn boot_paths(boot: &TestBootstrap) -> PathsConfig {
-    PathsConfig {
-        root: None,
-        system: boot.system_path.display().to_string(),
-        services: boot.services_path.display().to_string(),
-        bin: boot.bin_path.display().to_string(),
-        web_path: Some(boot.system_path.join("web").display().to_string()),
-        storage: Some(boot.storage_path.display().to_string()),
-        geoip_database: None,
-        shipped_files: None,
-        data: None,
-    }
 }
 
 // The filter runs once per catalogue rebuild and never on a memo hit, so
@@ -75,13 +60,7 @@ async fn harness(mailbox: &str) -> Harness {
     let boot = boot();
     let pool = test_db_pool().await;
     let filter = Arc::new(CountingFilter::default());
-    let ctx = fixture_app_context_with(
-        &pool,
-        &boot.database_url,
-        boot_paths(boot),
-        Arc::clone(&filter) as Arc<dyn MarketplaceFilter>,
-    )
-    .expect("fixture context");
+    let ctx = crate::support::context_on(boot, fixture_config(&boot.database_url), Arc::clone(&filter) as Arc<dyn MarketplaceFilter>).await;
     let owner = ctx.system_admin().id();
     seed_user_row(&pool, owner, &format!("{owner}@manifest-freshness.invalid"))
         .await

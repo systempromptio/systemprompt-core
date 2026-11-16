@@ -15,7 +15,7 @@ use systemprompt_api::services::middleware::{JtiRevocationChecker, JwtContextExt
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_identifiers::SessionId;
 use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context, test_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context};
 use systemprompt_traits::AppContext as _;
 
 struct Harness {
@@ -25,8 +25,7 @@ struct Harness {
 
 async fn harness() -> Harness {
     let boot = ensure_test_bootstrap();
-    let pool = test_db_pool().await;
-    let ctx = test_app_context(&pool, &boot.database_url);
+    let ctx = test_app_context(&boot.database_url).await;
     let extractor = JwtContextExtractor::new(
         ctx.session_provider().expect("session provider"),
         ctx.user_provider().expect("user provider"),

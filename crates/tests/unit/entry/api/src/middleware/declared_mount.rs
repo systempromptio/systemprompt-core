@@ -14,7 +14,7 @@ use axum::extract::{ConnectInfo, Request};
 use axum::http::{HeaderMap, StatusCode};
 use axum::routing::{get, post};
 use systemprompt_api::services::middleware::{
-    A2AContextMiddleware, BodyBudget, ContextExtractor, DEFAULT_BODY_LIMIT_BYTES,
+    A2AContextMiddleware, BodyBudget, ContextExtractor,
     McpContextMiddleware, MountError, MountLayers, ProtectionGuards, PublicContextMiddleware,
     RateLimitState, UserOnlyContextMiddleware, protect,
 };
