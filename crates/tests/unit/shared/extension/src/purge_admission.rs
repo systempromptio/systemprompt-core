@@ -1,5 +1,5 @@
 //! Admission of user-purge declarations: a member may purge only its own
-//! tables (a core member also another core member's), and a predicate is a
+//! tables, whatever its standing, and a predicate is a
 //! typed column-and-values narrowing, never SQL text.
 
 use systemprompt_extension::{
@@ -98,14 +98,14 @@ fn a_table_no_member_declares_is_refused_even_for_a_core_member() {
 }
 
 #[test]
-fn a_core_member_may_purge_a_core_peers_table_and_an_install_may_not() {
+fn neither_a_core_peer_nor_an_install_may_purge_a_core_members_table() {
     let users = ExtensionId::new("users");
     let mcp = ExtensionId::new("mcp");
     let install = ExtensionId::new("acme");
     let users_schemas = schemas(&["users"]);
     let mcp_schemas = schemas(&["mcp_artifacts"]);
     let install_schemas = schemas(&["acme_notes"]);
-    admit(&[
+    let core_reach = admit(&[
         (
             &users,
             StandingTag::Core,
@@ -113,8 +113,17 @@ fn a_core_member_may_purge_a_core_peers_table_and_an_install_may_not() {
             &[table("mcp_artifacts")],
         ),
         (&mcp, StandingTag::Core, &mcp_schemas, &[]),
-    ])
-    .expect("core reach over a core peer's table");
+    ]);
+    assert!(
+        matches!(core_reach, Err(PurgeAdmissionError::ForeignTable { member, .. }) if member == users)
+    );
+    admit(&[(
+        &mcp,
+        StandingTag::Core,
+        &mcp_schemas,
+        &[table("mcp_artifacts")],
+    )])
+    .expect("the owner purges its own table");
     let refused = admit(&[
         (&mcp, StandingTag::Core, &mcp_schemas, &[]),
         (
