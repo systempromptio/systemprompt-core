@@ -76,3 +76,22 @@ pub fn core_purge() -> systemprompt_extension::AdmittedPurge {
     )
     .expect("the core purge plan admits")
 }
+
+pub fn rendered(
+    host: &CommandContext,
+    outcome: anyhow::Result<systemprompt_extension::cli::CommandOutput>,
+) -> anyhow::Result<systemprompt_extension::cli::CommandOutput> {
+    use systemprompt_extension::cli::{CommandError, CommandHost};
+    match &outcome {
+        Ok(output) => host.render(output),
+        Err(error) => {
+            if let Some(output) = error
+                .downcast_ref::<CommandError>()
+                .and_then(CommandError::output)
+            {
+                host.render(output);
+            }
+        },
+    }
+    outcome
+}

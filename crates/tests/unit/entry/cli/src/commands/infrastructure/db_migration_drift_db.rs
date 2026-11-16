@@ -130,7 +130,7 @@ async fn a_drifted_checksum_is_reported_by_status_and_healed_by_repair_apply() {
     db::execute(parse(&["migrate-status"]), &disp.ctx(false).await)
         .await
         .unwrap();
-    db::execute(parse(&["migrate-status", "--json"]), &disp.ctx(true).await)
+    db::execute(parse(&["migrate-status"]), &disp.ctx(true).await)
         .await
         .unwrap();
 

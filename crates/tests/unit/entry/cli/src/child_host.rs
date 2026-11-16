@@ -2,10 +2,10 @@
 
 use clap::{CommandFactory, FromArgMatches};
 use systemprompt_cli::args::{self, Cli};
-use systemprompt_cli::kernel::{CommandOwner, CommandRegistry, kernel_commands};
+use systemprompt_cli::kernel::{CommandRegistry, kernel_commands};
 use systemprompt_extension::DeclaredCommands;
 use systemprompt_extension::cli::{
-    CommandDescriptor, DataImpact, DbUrlRouting, DescribeCommand, RoutingClass,
+    CommandDescriptor, DataImpact, DescribeCommand, RoutingClass,
 };
 
 fn assert_child_host(desc: CommandDescriptor) {
@@ -60,29 +60,32 @@ fn admin_agents_run_is_a_child_host() {
 }
 
 #[test]
-fn admin_mcp_serve_is_a_kernel_group_and_a_child_host() {
+fn admin_mcp_serve_is_a_kernel_command_and_a_child_host() {
     let registry = CommandRegistry::build(&DeclaredCommands::default(), &kernel_commands())
         .expect("the kernel groups build");
     assert!(
-        registry
+        !registry
             .entries()
             .iter()
-            .any(|entry| entry.decl().path() == ["admin", "mcp"]
-                && *entry.owner() == CommandOwner::Kernel),
-        "{registry:?}"
+            .any(|entry| entry.decl().path() == ["admin", "mcp"]),
+        "admin mcp is part of the kernel's own admin tree, not a registry entry: {registry:?}"
     );
 
     let root = args::command(&registry).expect("assemble");
-    let serve = registry
+    let resolved = registry
         .resolve(
             &root
                 .try_get_matches_from(["systemprompt", "admin", "mcp", "serve", "--server", "docs"])
                 .expect("admin mcp serve parses"),
         )
-        .expect("resolve")
-        .expect("admin mcp serve resolves to its registration");
-    assert_child_host(serve.parsed.descriptor());
-    assert_eq!(serve.parsed.db_url_routing(), DbUrlRouting::Unsupported);
+        .expect("resolve");
+    assert!(resolved.is_none(), "{resolved:?}");
+
+    let matches = Cli::command()
+        .try_get_matches_from(["systemprompt", "admin", "mcp", "serve", "--server", "docs"])
+        .expect("admin mcp serve parses");
+    let cli = Cli::from_arg_matches(&matches).expect("cli");
+    assert_child_host(cli.command.expect("a command").descriptor());
 }
 
 #[test]

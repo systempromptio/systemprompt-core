@@ -71,7 +71,7 @@ async fn migrate_renders_json_output() {
     execute(command(&["migrate"]), &ctx)
         .await
         .expect("json migrate succeeds");
-    execute(command(&["migrate-plan", "--json"]), &ctx)
+    execute(command(&["migrate-plan"]), &ctx)
         .await
         .expect("json plan succeeds");
 

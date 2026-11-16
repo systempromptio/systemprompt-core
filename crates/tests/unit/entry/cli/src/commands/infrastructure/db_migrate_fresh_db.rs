@@ -72,7 +72,7 @@ async fn fresh_database_migrates_and_reports_status() {
     db::execute(parse(&["migrate-status"]), &disp.ctx(false).await)
         .await
         .unwrap();
-    db::execute(parse(&["migrate-status", "--json"]), &disp.ctx(true).await)
+    db::execute(parse(&["migrate-status"]), &disp.ctx(true).await)
         .await
         .unwrap();
     db::execute(parse(&["migrate-plan"]), &disp.ctx(false).await)
@@ -160,7 +160,6 @@ async fn fresh_database_mark_applied_and_down() {
             "logging",
             "--version",
             "3",
-            "--json",
         ]),
         &disp.ctx(true).await,
     )

@@ -6,12 +6,10 @@
 use clap::Parser;
 use systemprompt_cli::infrastructure::jobs::{self, JobsCommands};
 use systemprompt_cli::{CommandContext, EnvOverrides};
-use systemprompt_database::DbPool;
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::JobName;
-use systemprompt_runtime::DatabaseContext;
 use systemprompt_scheduler::JobRepository;
-use systemprompt_test_fixtures::{test_database_url, test_db_pool};
+use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
 
 
 #[derive(Debug, Parser)]
@@ -27,22 +25,16 @@ fn parse(args: &[&str]) -> JobsCommands {
 }
 
 
-fn ctx(pool: &DbPool, json: bool) -> CommandContext {
+async fn ctx(json: bool) -> CommandContext {
     let mut cli = CliConfig::new().with_interactive(false);
     if json {
         cli = cli.with_output_format(OutputFormat::Json);
     }
-    crate::boot_ctx::with_database(
+    crate::boot_ctx::with_app_boot(
         cli,
         EnvOverrides::default(),
-        DatabaseContext::from_pool(pool.clone()),
-        test_database_url(),
+        test_app_context(&test_database_url()).await,
     )
-    .with_boot(Some(
-        systemprompt_test_fixtures::ensure_test_bootstrap()
-            .boot
-            .clone(),
-    ))
 }
 
 #[test]
@@ -68,7 +60,7 @@ async fn toggling_an_unregistered_job_is_refused_before_any_write() {
     assert!(before.is_none(), "the fixture job must not already exist");
 
     for verb in ["enable", "disable"] {
-        let err = jobs::execute(parse(&[verb, "no_such_job_at_all"]), &ctx(&pool, true))
+        let err = jobs::execute(parse(&[verb, "no_such_job_at_all"]), &ctx(true).await)
             .await
             .expect_err("an unregistered job name must be refused");
         let message = err.to_string();
@@ -93,12 +85,11 @@ async fn toggling_an_unregistered_job_is_refused_before_any_write() {
 
 #[tokio::test]
 async fn jobs_list_reports_the_inventory_registered_jobs() {
-    let pool = test_db_pool().await;
 
-    jobs::execute(parse(&["list"]), &ctx(&pool, true))
+    jobs::execute(parse(&["list"]), &ctx(true).await)
         .await
         .expect("json listing");
-    jobs::execute(parse(&["list"]), &ctx(&pool, false))
+    jobs::execute(parse(&["list"]), &ctx(false).await)
         .await
         .expect("text listing");
 }

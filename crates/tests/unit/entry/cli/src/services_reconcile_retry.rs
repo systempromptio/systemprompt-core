@@ -10,7 +10,6 @@
 use std::collections::BTreeMap;
 
 use chrono::Utc;
-use systemprompt_cli::context::CommandContext;
 use systemprompt_cli::core::services::reconcile::reconcile_after_swap;
 use systemprompt_cli::core::services::refresh::{
     RefreshOutcome, diff_states, outcome_with_pending,

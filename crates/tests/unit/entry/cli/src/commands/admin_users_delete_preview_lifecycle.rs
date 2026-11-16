@@ -90,12 +90,13 @@ async fn delete_preview_helper() {
         test_app_context(database.url()).await,
     );
     println!("BEGIN_PREVIEW");
-    users::execute(
+    let output = users::execute(
         parse(&["delete", target.id.as_str(), "--dry-run"]),
         &context,
     )
     .await
     .expect("public deletion preview");
+    systemprompt_extension::cli::CommandHost::render(&context, &output);
     println!("END_PREVIEW");
     let users_after: Vec<(String, String, String, Vec<String>)> = sqlx::query_as(
         "SELECT id, name, status, roles FROM users WHERE id IN ($1, $2) ORDER BY id",

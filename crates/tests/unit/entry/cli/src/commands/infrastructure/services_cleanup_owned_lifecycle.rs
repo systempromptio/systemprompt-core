@@ -122,9 +122,10 @@ async fn cleanup_owned_helper() {
         app.clone(),
     );
     println!("BEGIN_DRY");
-    services::execute(parse(&["cleanup", "--dry-run"]), &dry)
+    let output = services::execute(parse(&["cleanup", "--dry-run"]), &dry)
         .await
         .expect("dry run");
+    systemprompt_extension::cli::CommandHost::render(&dry, &output);
     println!("END_DRY");
     assert!(
         child

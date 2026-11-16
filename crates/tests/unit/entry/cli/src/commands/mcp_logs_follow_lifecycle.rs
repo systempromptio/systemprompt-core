@@ -65,7 +65,7 @@ async fn mcp_logs_follow_helper() {
     }
 
     println!("BEGIN_FOLLOW");
-    mcp::execute(
+    let output = mcp::execute(
         parse(&[
             "logs",
             "atlas",
@@ -77,6 +77,7 @@ async fn mcp_logs_follow_helper() {
     )
     .await
     .expect("successful tail follow renders an output artifact");
+    systemprompt_extension::cli::CommandHost::render(&context(), &output);
     println!("END_FOLLOW");
 
     let invoked = std::fs::read_to_string(&capture).expect("tail invocation capture");

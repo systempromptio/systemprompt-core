@@ -91,7 +91,7 @@ async fn files_ai_output_helper() {
         test_app_context(database.url()).await,
     );
     println!("BEGIN_AI_LIST");
-    core::execute(
+    let output = core::execute(
         parse(&[
             "files",
             "ai",
@@ -105,19 +105,22 @@ async fn files_ai_output_helper() {
     )
     .await
     .expect("public AI list");
+    systemprompt_extension::cli::CommandHost::render(&context, &output);
     println!("END_AI_LIST");
     println!("BEGIN_AI_SHOW");
-    core::execute(parse(&["files", "ai", "show", &id.to_string()]), &context)
+    let output = core::execute(parse(&["files", "ai", "show", &id.to_string()]), &context)
         .await
         .expect("public AI show");
+    systemprompt_extension::cli::CommandHost::render(&context, &output);
     println!("END_AI_SHOW");
     println!("BEGIN_AI_COUNT");
-    core::execute(
+    let output = core::execute(
         parse(&["files", "ai", "count", "--user", user.as_str()]),
         &context,
     )
     .await
     .expect("public AI count");
+    systemprompt_extension::cli::CommandHost::render(&context, &output);
     println!("END_AI_COUNT");
     println!("FIXTURE_ID={id}");
     println!("FIXTURE_PATH={path}");

@@ -69,7 +69,6 @@ async fn read_only_inspection_runs_under_a_full_profile_context() {
         vec!["size"],
         vec!["tables"],
         vec!["indexes"],
-        vec!["doctor"],
     ] {
         db::execute(parse(&args), &ctx(&app, true))
             .await
@@ -109,14 +108,14 @@ async fn describe_and_count_resolve_a_real_table_and_reject_an_absent_one() {
 async fn migration_reporting_subcommands_resolve_through_the_app_context() {
     let (_pool, app) = app().await;
 
-    for args in [
-        vec!["migrate-status"],
-        vec!["migrate-status", "--json"],
-        vec!["migrate-plan"],
-        vec!["migrate-plan", "--json"],
-        vec!["migrations", "status"],
+    for (args, json) in [
+        (vec!["migrate-status"], false),
+        (vec!["migrate-status"], true),
+        (vec!["migrate-plan"], false),
+        (vec!["migrate-plan"], true),
+        (vec!["migrations", "status"], false),
     ] {
-        db::execute(parse(&args), &ctx(&app, false))
+        db::execute(parse(&args), &ctx(&app, json))
             .await
             .unwrap_or_else(|e| panic!("`db {}`: {e}", args.join(" ")));
     }
@@ -130,6 +129,23 @@ async fn migration_reporting_subcommands_resolve_through_the_app_context() {
         unknown.is_err(),
         "history for an unregistered extension must error"
     );
+}
+
+#[tokio::test]
+async fn doctor_runs_under_a_full_profile_context() {
+    ensure_test_bootstrap();
+    let disp = DisposableDb::with_schema("cli_app_doctor").await;
+    let app = test_app_context(disp.url()).await;
+
+    db::execute(parse(&["doctor"]), &ctx(&app, true))
+        .await
+        .unwrap_or_else(|e| panic!("`db doctor` json: {e}"));
+    db::execute(parse(&["doctor"]), &ctx(&app, false))
+        .await
+        .unwrap_or_else(|e| panic!("`db doctor` text: {e}"));
+
+    drop(app);
+    disp.drop_now().await;
 }
 
 #[tokio::test]

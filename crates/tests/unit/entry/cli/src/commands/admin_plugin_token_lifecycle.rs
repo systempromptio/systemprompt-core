@@ -60,7 +60,7 @@ async fn plugin_token_helper() {
     .with_boot(Some(boot.boot.clone()));
 
     println!("BEGIN_PLUGIN_TOKEN");
-    keys::execute(
+    let output = keys::execute(
         parse(&[
             "issue-plugin-token",
             "--email",
@@ -74,6 +74,7 @@ async fn plugin_token_helper() {
     )
     .await
     .expect("admin plugin token issuance");
+    systemprompt_extension::cli::CommandHost::render(&context, &output);
     println!("END_PLUGIN_TOKEN");
 
     let before_refusal: i64 = sqlx::query_scalar("SELECT count(*) FROM user_sessions")

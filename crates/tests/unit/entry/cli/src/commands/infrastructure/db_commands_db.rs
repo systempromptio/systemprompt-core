@@ -8,7 +8,7 @@ use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_database::DbPool;
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_runtime::DatabaseContext;
-use systemprompt_test_fixtures::{test_database_url, test_db_pool};
+use systemprompt_test_fixtures::{DisposableDb, test_database_url, test_db_pool};
 
 #[derive(Debug, Parser)]
 struct Harness {
@@ -96,13 +96,7 @@ async fn migration_status_and_plan_report() {
     db::execute(parse(&["migrations", "status"]), &ctx)
         .await
         .unwrap();
-    db::execute(parse(&["migrate-status", "--json"]), &ctx)
-        .await
-        .unwrap();
     db::execute(parse(&["migrate-status"]), &ctx).await.unwrap();
-    db::execute(parse(&["migrate-plan", "--json"]), &ctx)
-        .await
-        .unwrap();
     db::execute(parse(&["migrate-plan"]), &ctx).await.unwrap();
 }
 
@@ -150,11 +144,19 @@ async fn migrate_down_rejects_unknown_extension() {
 
 #[tokio::test]
 async fn doctor_reconciles_schema_against_extension_declarations() {
-    let pool = test_db_pool().await;
-    let ctx = ctx(&pool);
+    let disposable = DisposableDb::with_schema("cli_db_doctor").await;
+    let ctx = crate::boot_ctx::with_database(
+        CliConfig::new()
+            .with_interactive(false)
+            .with_output_format(OutputFormat::Json),
+        EnvOverrides::default(),
+        DatabaseContext::from_pool(disposable.test_pool().await),
+        disposable.url().to_owned(),
+    );
     db::execute(parse(&["doctor"]), &ctx)
         .await
         .expect("doctor reconciles a migrated schema without erroring");
+    disposable.drop_now().await;
 }
 
 #[test]

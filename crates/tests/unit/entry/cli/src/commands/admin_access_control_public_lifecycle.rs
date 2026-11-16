@@ -64,9 +64,10 @@ async fn access_control_helper() {
         EnvOverrides::default(),
     );
     println!("BEGIN_EXPORT");
-    access_control::execute(AccessControlCommands::ExportYaml(ExportYamlArgs), &context)
+    let output = access_control::execute(AccessControlCommands::ExportYaml(ExportYamlArgs), &context)
         .await
         .expect("public export command");
+    systemprompt_extension::cli::CommandHost::render(&context, &output);
     println!("END_EXPORT");
     println!("BEGIN_LINT");
     let error = access_control::execute(AccessControlCommands::Lint(LintArgs), &context)

@@ -265,7 +265,7 @@ async fn logout_confirmation_helper() {
     single.cli = single.cli.clone().with_assume_terminal(true);
     println!("BEGIN_SINGLE_CANCEL");
     let parsed = Args::try_parse_from(["session", "logout", "--profile", "coverage"]).unwrap();
-    execute(parsed.command, &single).await.unwrap();
+    crate::boot_ctx::rendered(&single, execute(parsed.command, &single).await).unwrap();
     println!("END_SINGLE_CANCEL");
     assert_eq!(load_session_store(&project.paths()).unwrap().len(), before);
 
@@ -275,7 +275,7 @@ async fn logout_confirmation_helper() {
     all.cli = all.cli.clone().with_assume_terminal(true);
     println!("BEGIN_ALL_CANCEL");
     let parsed = Args::try_parse_from(["session", "logout", "--all"]).unwrap();
-    execute(parsed.command, &all).await.unwrap();
+    crate::boot_ctx::rendered(&all, execute(parsed.command, &all).await).unwrap();
     println!("END_ALL_CANCEL");
     assert_eq!(load_session_store(&project.paths()).unwrap().len(), before);
 

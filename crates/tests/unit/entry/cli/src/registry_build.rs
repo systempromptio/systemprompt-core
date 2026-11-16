@@ -135,11 +135,11 @@ fn a_kernel_group_resolves_to_the_kernel() {
     let resolved = registry
         .resolve(
             &root
-                .try_get_matches_from(["systemprompt", "admin", "mcp", "serve", "--server", "docs"])
+                .try_get_matches_from(["systemprompt", "build", "mcp"])
                 .expect("parses"),
         )
         .expect("resolves")
-        .expect("admin mcp is a registry entry");
+        .expect("build is a registry entry");
     assert_eq!(resolved.owner, CommandOwner::Kernel);
 }
 

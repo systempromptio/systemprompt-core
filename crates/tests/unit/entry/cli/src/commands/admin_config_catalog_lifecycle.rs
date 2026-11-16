@@ -27,13 +27,13 @@ providers:
 "#;
 
 fn json_config(boot: &systemprompt_test_fixtures::TestBootstrap) -> CommandContext {
-    CommandContext::new(
+    crate::boot_ctx::new_on(
+        boot,
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
     )
-    .with_boot(Some(boot.boot.clone()))
 }
 
 fn yaml(path: &std::path::Path) -> serde_yaml::Value {
@@ -98,9 +98,10 @@ async fn catalog_file_lifecycle_helper() {
     let config = json_config(&boot);
 
     println!("BEGIN_PROVIDER_LIST");
-    provider::execute(&ProviderCommands::List, &config)
+    let output = provider::execute(&ProviderCommands::List, &config)
         .await
         .expect("list booted provider");
+    systemprompt_extension::cli::CommandHost::render(&config, &output);
     println!("END_PROVIDER_LIST");
 
     let original = std::fs::read_to_string(&providers_path).expect("booted providers.yaml");
@@ -183,9 +184,10 @@ async fn catalog_file_lifecycle_helper() {
     );
 
     println!("BEGIN_MODEL_ADD");
-    model::execute(&model_add("fixture-openai/api"), &config)
+    let output = model::execute(&model_add("fixture-openai/api"), &config)
         .await
         .expect("add model");
+    systemprompt_extension::cli::CommandHost::render(&config, &output);
     println!("END_MODEL_ADD");
     let models = yaml(&ai.join("models.yaml"));
     assert_eq!(
@@ -249,7 +251,7 @@ async fn catalog_file_lifecycle_helper() {
     );
 
     println!("BEGIN_PROVIDER_REMOVE");
-    provider::execute(
+    let output = provider::execute(
         &ProviderCommands::Remove {
             id: "fixture-openai".to_owned(),
         },
@@ -257,6 +259,7 @@ async fn catalog_file_lifecycle_helper() {
     )
     .await
     .expect("remove provider");
+    systemprompt_extension::cli::CommandHost::render(&config, &output);
     println!("END_PROVIDER_REMOVE");
     let after_remove = files(&ai);
     let missing_provider = provider::execute(

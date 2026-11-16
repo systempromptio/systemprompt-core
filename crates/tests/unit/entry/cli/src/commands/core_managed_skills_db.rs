@@ -266,16 +266,18 @@ async fn managed_list_output_helper() {
 
     println!("FIXTURE_KEY={}", fixture.key);
     println!("BEGIN_PUBLISHED_LIST");
-    core::execute(command(&["skills", "list"]), &fixture.ctx)
+    let output = core::execute(command(&["skills", "list"]), &fixture.ctx)
         .await
         .expect("published managed skill list");
+    systemprompt_extension::cli::CommandHost::render(&fixture.ctx, &output);
     println!("END_PUBLISHED_LIST");
 
     withdraw(&fixture).await;
     println!("BEGIN_WITHDRAWN_LIST");
-    core::execute(command(&["skills", "list"]), &fixture.ctx)
+    let output = core::execute(command(&["skills", "list"]), &fixture.ctx)
         .await
         .expect("withdrawn managed skill list");
+    systemprompt_extension::cli::CommandHost::render(&fixture.ctx, &output);
     println!("END_WITHDRAWN_LIST");
 }
 

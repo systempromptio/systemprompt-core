@@ -63,14 +63,16 @@ async fn signing_rotation_helper() {
     let loaded = LoadedProfile::from_path(&profile_path).expect("initialize owned profile");
 
     println!("BEGIN_FIRST_ROTATION");
-    bridge::execute(rotate(), &context(&loaded))
+    let output = bridge::execute(rotate(), &context(&loaded))
         .await
         .expect("first signing rotation");
+    systemprompt_extension::cli::CommandHost::render(&context(&loaded), &output);
     println!("END_FIRST_ROTATION");
     println!("BEGIN_SECOND_ROTATION");
-    bridge::execute(rotate(), &context(&loaded))
+    let output = bridge::execute(rotate(), &context(&loaded))
         .await
         .expect("second signing rotation");
+    systemprompt_extension::cli::CommandHost::render(&context(&loaded), &output);
     println!("END_SECOND_ROTATION");
 
     let persisted: serde_json::Value =

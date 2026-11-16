@@ -444,9 +444,10 @@ async fn delete_all_agents_public_helper() {
     );
 
     println!("BEGIN_DELETE_ALL");
-    execute(parse(&["delete", "--all", "--yes"]), &context)
+    let output = execute(parse(&["delete", "--all", "--yes"]), &context)
         .await
         .expect("public delete-all command");
+    systemprompt_extension::cli::CommandHost::render(&context, &output);
     println!("END_DELETE_ALL");
     let includes = std::fs::read_to_string(root.join("config/config.yaml"))
         .expect("read includes after delete-all");

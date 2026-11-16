@@ -77,9 +77,10 @@ async fn empty_agent_tools_helper() {
         EnvOverrides::default(),
     );
     println!("BEGIN_EMPTY_TOOLS");
-    agents::execute(parse(&["tools", AGENT]), &context)
+    let output = agents::execute(parse(&["tools", AGENT]), &context)
         .await
         .expect("render empty tool inventory");
+    systemprompt_extension::cli::CommandHost::render(&context, &output);
     println!("END_EMPTY_TOOLS");
 }
 

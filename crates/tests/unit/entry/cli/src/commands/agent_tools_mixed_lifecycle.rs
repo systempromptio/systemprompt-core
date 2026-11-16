@@ -241,12 +241,13 @@ async fn mixed_agent_tools_helper() {
         app,
     );
     println!("BEGIN_MIXED_TOOLS");
-    agents::execute(
+    let output = agents::execute(
         parse(&["tools", AGENT, "--detailed", "--timeout", "5"]),
         &context,
     )
     .await
     .expect("healthy server keeps mixed tool listing successful");
+    systemprompt_extension::cli::CommandHost::render(&context, &output);
     println!("END_MIXED_TOOLS");
     drop(context);
     pool.write_pool().close().await;

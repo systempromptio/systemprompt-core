@@ -50,11 +50,10 @@ async fn db_doctor_repair_helper() {
     // there. Both renderers must take that exit, or a drifted schema passes a
     // deploy gate that is there to stop it.
     println!("BEGIN_DRIFT");
-    let json_drift = db::execute(
-        doctor(),
-        &context(pool.clone(), database.url(), OutputFormat::Json),
-    )
-    .await
+    let json_drift = {
+        let context = context(pool.clone(), database.url(), OutputFormat::Json);
+        crate::boot_ctx::rendered(&context, db::execute(doctor(), &context).await)
+    }
     .expect_err("doctor exits non-zero while undeclared residue is live");
     println!("END_DRIFT");
     assert!(
@@ -63,11 +62,10 @@ async fn db_doctor_repair_helper() {
     );
 
     println!("BEGIN_DRIFT_TEXT");
-    let text_drift = db::execute(
-        doctor(),
-        &context(pool.clone(), database.url(), OutputFormat::Table),
-    )
-    .await
+    let text_drift = {
+        let context = context(pool.clone(), database.url(), OutputFormat::Table);
+        crate::boot_ctx::rendered(&context, db::execute(doctor(), &context).await)
+    }
     .expect_err("doctor exits non-zero for a terminal too");
     println!("END_DRIFT_TEXT");
     assert!(
@@ -87,11 +85,10 @@ async fn db_doctor_repair_helper() {
     assert!(remaining.is_none());
 
     println!("BEGIN_REPAIRED");
-    db::execute(
-        doctor(),
-        &context(pool.clone(), database.url(), OutputFormat::Json),
-    )
-    .await
+    {
+        let context = context(pool.clone(), database.url(), OutputFormat::Json);
+        crate::boot_ctx::rendered(&context, db::execute(doctor(), &context).await)
+    }
     .expect("doctor exits zero once the residue is gone");
     println!("END_REPAIRED");
 

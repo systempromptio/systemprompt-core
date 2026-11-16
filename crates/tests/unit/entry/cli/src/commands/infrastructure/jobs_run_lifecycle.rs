@@ -55,7 +55,7 @@ async fn mixed_job_run_helper() {
     );
 
     println!("BEGIN_JOB_RUN");
-    let error = jobs::execute(
+    let outcome = jobs::execute(
         parse(&[
             "run",
             SUCCESS_JOB,
@@ -65,8 +65,8 @@ async fn mixed_job_run_helper() {
         ]),
         &ctx,
     )
-    .await
-    .expect_err("a batch with a failed job renders its table, then fails the command");
+    .await;
+    let error = crate::boot_ctx::rendered(&ctx, outcome).expect_err("a batch with a failed job renders its table, then fails the command");
     println!("END_JOB_RUN");
     let message = error.to_string();
     assert!(message.starts_with("1 of 2 job(s) failed:"), "{message}");

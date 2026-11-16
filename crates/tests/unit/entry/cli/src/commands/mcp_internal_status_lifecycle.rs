@@ -66,17 +66,19 @@ async fn internal_status_helper() {
     );
 
     println!("BEGIN_COMPACT_STATUS");
-    mcp::execute(parse(&["status", "--server", SERVER]), &context)
+    let output = mcp::execute(parse(&["status", "--server", SERVER]), &context)
         .await
         .expect("compact internal status");
+    systemprompt_extension::cli::CommandHost::render(&context, &output);
     println!("END_COMPACT_STATUS");
     println!("BEGIN_DETAILED_STATUS");
-    mcp::execute(
+    let output = mcp::execute(
         parse(&["status", "--server", SERVER, "--detailed"]),
         &context,
     )
     .await
     .expect("detailed internal status");
+    systemprompt_extension::cli::CommandHost::render(&context, &output);
     println!("END_DETAILED_STATUS");
 
     drop(context);

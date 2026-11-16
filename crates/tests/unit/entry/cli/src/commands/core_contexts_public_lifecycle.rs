@@ -42,8 +42,7 @@ impl Drop for CwdGuard {
 
 async fn run_marked(label: &str, args: &[&str], context: &CommandContext) {
     println!("BEGIN_{label}");
-    core::execute(parse(args), context)
-        .await
+    crate::boot_ctx::rendered(context, core::execute(parse(args), context).await)
         .unwrap_or_else(|error| panic!("{label} failed: {error:#}"));
     println!("END_{label}");
 }
