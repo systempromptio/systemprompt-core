@@ -30,6 +30,8 @@ use super::error::CompositionError;
 use super::{
     Conferral, CoreTerms, DeclaredMember, Member, RESERVED_SECRETS_KINDS, SecretsKind, Standing,
 };
+#[cfg(feature = "config")]
+use super::SecretsSourceDecl;
 
 pub(super) fn apply_removals(
     members: Vec<Member>,
