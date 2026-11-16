@@ -8313,7 +8313,6 @@ name = "systemprompt"
 version = "0.81.1"
 dependencies = [
  "axum",
- "http",
  "rmcp",
  "sqlx",
  "systemprompt-agent",
@@ -11414,7 +11413,6 @@ dependencies = [
  "chrono",
  "hex",
  "http",
- "inventory",
  "jsonwebtoken",
  "lru",
  "rand 0.10.3",
@@ -11997,9 +11995,9 @@ version = "0.81.1"
 dependencies = [
  "axum",
  "chrono",
- "inventory",
  "reqwest",
  "schemars 1.2.3",
+ "serde",
  "serde_json",
  "systemprompt-client",
  "systemprompt-extension",
@@ -12018,6 +12016,7 @@ dependencies = [
 name = "systemprompt-slack-entry-tests"
 version = "0.0.11"
 dependencies = [
+ "schemars 1.2.3",
  "serde_json",
  "systemprompt-extension",
  "systemprompt-models",
@@ -12111,9 +12110,9 @@ version = "0.81.1"
 dependencies = [
  "axum",
  "chrono",
- "inventory",
  "reqwest",
  "schemars 1.2.3",
+ "serde",
  "serde_json",
  "systemprompt-client",
  "systemprompt-extension",
@@ -12131,6 +12130,7 @@ dependencies = [
 name = "systemprompt-teams-entry-tests"
 version = "0.0.11"
 dependencies = [
+ "schemars 1.2.3",
  "serde_json",
  "systemprompt-extension",
  "systemprompt-models",
@@ -12507,7 +12507,6 @@ dependencies = [
  "async-trait",
  "chrono",
  "hex",
- "inventory",
  "rand 0.10.3",
  "serde",
  "serde_json",

@@ -6301,7 +6301,6 @@ name = "systemprompt"
 version = "0.81.1"
 dependencies = [
  "axum",
- "http",
  "inventory",
  "rmcp",
  "sqlx",
