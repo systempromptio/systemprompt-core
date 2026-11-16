@@ -9,7 +9,6 @@
 use anyhow::Result;
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::Arc;
 use systemprompt_config::LoadedProfile;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_loader::ConfigLoader;
@@ -22,7 +21,6 @@ use super::ShowFilter;
 use super::show_display::print_formatted_config;
 use super::show_types::{FullConfig, SettingsOutput, build_env_config};
 use systemprompt_cloud::profile::resolve_profile_path;
-use systemprompt_config::SecretsSources;
 use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
 pub(super) async fn execute(
@@ -60,7 +58,7 @@ pub(super) async fn execute(
     };
 
     let config = match &loaded {
-        Some(loaded) => match initialize_config(loaded).await {
+        Some(_) => match host.boot_config(&profile_path).await {
             Ok(config) => Some(config),
             Err(e) => {
                 CliService::warning(&format!("Config unavailable: {e}"));
@@ -88,11 +86,6 @@ pub(super) async fn execute(
     );
 
     Ok(output_config(&full_config, json_output, yaml_output))
-}
-
-async fn initialize_config(loaded: &Arc<LoadedProfile>) -> Result<Arc<Config>> {
-    let boot = systemprompt_loader::load_boot::load_boot(loaded, SecretsSources::default()).await?;
-    Ok(Arc::clone(boot.try_init_config(None)?))
 }
 
 fn current_app_paths(loaded: &LoadedProfile) -> Option<AppPaths> {
