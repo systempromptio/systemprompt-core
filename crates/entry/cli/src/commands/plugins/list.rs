@@ -4,7 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use clap::Args;
+use clap::{Args, ValueEnum};
 use crate::kernel::KernelHost;
 use systemprompt_extension::cli::{CommandError, CommandOutput};
 use systemprompt_identifiers::ExtensionId;
@@ -20,11 +20,30 @@ pub struct ListArgs {
     #[arg(long, help = "Filter by extension ID (substring match)")]
     pub filter: Option<String>,
 
-    #[arg(long, value_parser = ["jobs", "schemas", "roles", "configs"])]
-    pub capability: Option<String>,
+    #[arg(long, value_enum)]
+    pub capability: Option<CapabilityFilter>,
 
     #[arg(long, value_parser = ["compiled", "manifest", "cli", "mcp", "all"], default_value = "all", help = "Filter by extension type")]
     pub r#type: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum CapabilityFilter {
+    Jobs,
+    Schemas,
+    Roles,
+    Configs,
+}
+
+impl CapabilityFilter {
+    const fn held_by(self, capabilities: &CapabilitySummary) -> bool {
+        match self {
+            Self::Jobs => capabilities.jobs > 0,
+            Self::Schemas => capabilities.schemas > 0,
+            Self::Roles => capabilities.roles > 0,
+            Self::Configs => capabilities.configs > 0,
+        }
+    }
 }
 
 pub fn execute(args: &ListArgs, host: &dyn KernelHost) -> Result<CommandOutput, CommandError> {
@@ -35,7 +54,7 @@ pub fn execute(args: &ListArgs, host: &dyn KernelHost) -> Result<CommandOutput, 
         extensions.extend(
             composition::matching(built, args.filter.as_deref())
                 .map(|member| (member, composition::capabilities(member)))
-                .filter(|(_, capabilities)| has_capability(capabilities, args.capability.as_deref()))
+                .filter(|(_, capabilities)| args.capability.is_none_or(|filter| filter.held_by(capabilities)))
                 .map(|(member, capabilities)| ExtensionSummary {
                     id: member.owner.clone(),
                     name: member.metadata.name.to_owned(),
@@ -62,15 +81,6 @@ pub fn execute(args: &ListArgs, host: &dyn KernelHost) -> Result<CommandOutput, 
     .with_title("Extensions"))
 }
 
-fn has_capability(capabilities: &CapabilitySummary, capability: Option<&str>) -> bool {
-    match capability {
-        Some("jobs") => capabilities.jobs > 0,
-        Some("schemas") => capabilities.schemas > 0,
-        Some("roles") => capabilities.roles > 0,
-        Some("configs") => capabilities.configs > 0,
-        _ => true,
-    }
-}
 
 fn collect_manifest(args: &ListArgs) -> Result<Vec<ExtensionSummary>, CommandError> {
     let project_root = std::env::current_dir().map_err(CommandError::new)?;
