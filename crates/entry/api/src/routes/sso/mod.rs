@@ -5,7 +5,8 @@
 //! the provider's and the flow is the
 //! [`systemprompt_oauth_issuance::sso::SsoDriver`]'s. A deployment
 //! that registered its identity provider with other paths aliases them onto
-//! the same handlers via [`into_response`].
+//! the same handlers via [`into_response`]. The providers, auth-event sinks
+//! and role resolver are the kernel-built [`SsoProviders`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -23,6 +24,7 @@ use systemprompt_oauth::OAuthState;
 
 use crate::kernel::SessionCookie;
 use systemprompt_oauth::services::SessionCreationService;
+use systemprompt_oauth_issuance::contract::SsoProviders;
 use systemprompt_oauth_issuance::sso::SsoDriver;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::AnalyticsProvider;
@@ -47,34 +49,25 @@ impl std::fmt::Debug for SsoRouteState {
 }
 
 impl SsoRouteState {
-    pub fn build(
-        ctx: &AppContext,
-        oauth: &OAuthState,
-    ) -> Result<Self, systemprompt_oauth_issuance::sso::SsoProviderError> {
+    pub fn build(ctx: &AppContext, oauth: &OAuthState, sso: &SsoProviders) -> Self {
         let session_service = SessionCreationService::new(
             Arc::clone(oauth.session_provider()),
             Arc::clone(oauth.user_provider()),
             Arc::clone(oauth.token_authority()),
             Arc::clone(ctx.config_arc()),
         );
-        let secrets: Arc<dyn systemprompt_traits::SecretStore> =
-            Arc::<systemprompt_config::SecretsService>::clone(ctx.secrets());
-        let driver = SsoDriver::discover(
-            &systemprompt_oauth_issuance::sso::SsoHookContext {
-                db: Arc::clone(ctx.db_pool()),
-                config: Arc::clone(ctx.config_arc()),
-                services: ctx.services_state().view(),
-                services_root: ctx.boot().require_services_root(),
-                secrets,
-            },
+        let driver = SsoDriver::new(
+            sso,
+            ctx.db_pool(),
+            Arc::clone(ctx.config_arc()),
             oauth.oauth_repository().clone(),
             Arc::new(session_service),
-        )?;
-        Ok(Self {
+        );
+        Self {
             driver,
             analytics: Arc::clone(oauth.analytics_provider()),
             cookie: SessionCookie::from_config(ctx.config()),
-        })
+        }
     }
 }
 

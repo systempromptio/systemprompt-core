@@ -96,8 +96,7 @@ async fn fixture(schema: &str, policy: Option<serde_json::Value>) -> anyhow::Res
     let repos = Arc::new(repos(&pool));
     let engines = GatewayEngines::new(
         Default::default(),
-        &systemprompt_extension::BuiltState::default(),
-        &systemprompt_test_fixtures::offline_kernel(Default::default()).resolved(),
+        &systemprompt_test_fixtures::empty_resolved_kernel().resolved(),
         systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
     )?;
     let client = GatewayClient::builder(

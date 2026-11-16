@@ -13,6 +13,7 @@ pub mod agent_reads;
 pub mod app_context;
 pub mod bootstrap;
 pub mod catalog;
+pub mod composed;
 pub mod credential;
 pub mod db;
 pub mod disposable_db;
@@ -66,6 +67,10 @@ pub use bootstrap::{
     FIXTURE_EXTERNAL_URL, FIXTURE_SECRETS_BLOCK, TEST_SLACK_BOT_TOKEN, TEST_SLACK_SIGNING_SECRET,
     TEST_SLACK_WORKSPACE_ID, TEST_TEAMS_APP_ID, TEST_TEAMS_APP_PASSWORD, TEST_TEAMS_TENANT_ID,
     TEST_TEAMS_UNRESOLVABLE_APP_ID, TEST_TEAMS_UNRESOLVABLE_TENANT_ID,
+};
+pub use composed::{
+    empty_resolved_kernel, offline_resolved_kernel, probe_admitted, resolved_kernel, ComposedParts,
+    Probe,
 };
 pub use credential::{
     seed_admin_credential, seed_bridge_client_credential, seed_bridge_credential,

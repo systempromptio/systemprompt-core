@@ -3,10 +3,10 @@
 //!
 //! The inference surface authenticates inside its handlers (its own
 //! credential extraction accepts `x-api-key`), so each of its parts —
-//! inference traffic, the bridge credential exchange and every capability
-//! group registered with `register_gateway_route!` (the bridge inbox) — is
-//! protected as handler-verified by the gateway credential with its own rate
-//! limit and bearer window. The parts are merged under the access log, which
+//! inference traffic and the bridge credential exchange — is protected as
+//! handler-verified by the gateway credential with its own rate limit and
+//! bearer window, and every admitted gateway route (the bridge inbox) carries
+//! the protection its admission resolved. The parts are merged under the access log, which
 //! sits outside every limiter so a refused request is still recorded.
 //! The public session routes are a declaration like every other group.
 //!
@@ -32,7 +32,12 @@ pub(super) fn mount_gateway(
         traffic,
         bridge_auth,
         registered,
-    } = gateway_mount_parts(ctx, mount.engines)
+    } = gateway_mount_parts(
+        ctx,
+        mount.engines,
+        mount.composed.admitted,
+        mount.composed.kernel,
+    )
         .map_err(|source| RouteMountError::initialization("gateway", source))?;
     let traffic = mount.protect(
         traffic,
@@ -46,11 +51,7 @@ pub(super) fn mount_gateway(
     )?;
     let mut surface = traffic.merge(bridge_auth);
     for group in registered {
-        surface = surface.merge(mount.protect(
-            group.router,
-            &gateway_protection(group.scope, group.budget),
-            base,
-        )?);
+        surface = surface.merge(mount.protect(group.router, &group.protection, base)?);
     }
     router = place(router, base, with_access_log(ctx, surface));
     router = mount.mount(

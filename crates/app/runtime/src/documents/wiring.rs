@@ -1,4 +1,6 @@
-//! Assembly of the document service from the runtime's shared handles.
+//! Assembly of the document service from the runtime's shared handles and
+//! the kernel-built document values: the blob holders, the codec and
+//! template-provider seams, and the agent access policy.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -9,10 +11,10 @@ use systemprompt_database::DbPool;
 use systemprompt_events::EventRouter;
 use systemprompt_extension::{DynBrainSink, DynNotificationSink};
 use systemprompt_files::DocumentsConfig;
-use systemprompt_files::documents::agents::{DocumentActor, registered_policy};
+use systemprompt_files::contract::{AgentAccess, DocumentSeams};
+use systemprompt_files::documents::agents::DocumentActor;
 use systemprompt_files::documents::blob_store::BlobStore;
-use systemprompt_files::documents::codecs::CodecRegistry;
-use systemprompt_files::documents::repository::DocumentRepositories;
+use systemprompt_files::documents::repository::{BlobHolders, DocumentRepositories};
 use systemprompt_files::documents::templates::{CatalogTemplate, TemplateRegistry};
 use systemprompt_files::documents::{
     DocumentAccessRepositories, DocumentAccessService, DocumentEvents, DocumentService,
@@ -48,6 +50,9 @@ pub struct DocumentsRuntimeParts {
     pub issues: Arc<IssueService>,
     pub background_tasks: BackgroundTasks,
     pub unscoped_actor: Option<DocumentActor>,
+    pub blob_holders: Arc<BlobHolders>,
+    pub seams: Arc<DocumentSeams>,
+    pub agent_access: Arc<AgentAccess>,
 }
 
 impl std::fmt::Debug for DocumentsRuntimeParts {
@@ -100,12 +105,15 @@ impl DocumentsRuntime {
             issues,
             background_tasks,
             unscoped_actor,
+            blob_holders,
+            seams,
+            agent_access,
         } = parts;
-        let repositories = Arc::new(DocumentRepositories::new(&database));
+        let repositories = Arc::new(DocumentRepositories::new(&database, blob_holders));
         let access = access_service(
-            &database,
             &repositories,
             (access_entities, authz_hook, subjects, directory),
+            &agent_access,
             unscoped_actor,
         );
         let blobs = Arc::new(BlobStore::new(
@@ -125,8 +133,11 @@ impl DocumentsRuntime {
         let service = Arc::new(DocumentService::new(DocumentServiceParts {
             repos: Arc::clone(&repositories),
             blobs,
-            codecs: Arc::new(CodecRegistry::discover()),
-            templates: Arc::new(TemplateRegistry::discover(catalog)),
+            codecs: Arc::new(seams.codecs.clone()),
+            templates: Arc::new(TemplateRegistry::with_core_blanks(
+                seams.template_providers.clone(),
+                catalog,
+            )),
             access: Arc::clone(&access),
             events: Arc::new(DocumentEvents::new(Arc::new(event_router))),
             notifications,
@@ -238,9 +249,9 @@ type AccessCollaborators = (
 );
 
 fn access_service(
-    database: &DbPool,
     repositories: &DocumentRepositories,
     (access_entities, authz_hook, subjects, directory): AccessCollaborators,
+    agent_access: &AgentAccess,
     unscoped_actor: Option<DocumentActor>,
 ) -> Arc<DocumentAccessService> {
     let access = DocumentAccessService::new(
@@ -254,7 +265,7 @@ fn access_service(
         subjects,
         directory,
     )
-    .with_agent_policy(registered_policy(database));
+    .with_agent_policy(agent_access.policy());
     Arc::new(match unscoped_actor {
         Some(actor) => access.with_unscoped_actor(actor),
         None => access,
