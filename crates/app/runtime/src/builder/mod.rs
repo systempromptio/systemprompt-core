@@ -9,8 +9,11 @@
 //! every [`Extension::provide`](systemprompt_extension::Extension::provide)
 //! sees the database, config, event router and background tasks through its
 //! `ExtensionContext`; it is built and its declared requirements validated
-//! before the notification and brain seams, routers, jobs and gateway guards
-//! are collected, so each of their factories reads the finished state. A
+//! before routers, jobs and gateway guards are collected, so each of their
+//! factories reads the finished state. The notifications service and the
+//! brain are assembled by their members when the kernel builds their slots;
+//! the builder only binds the document directory's audience resolvers from
+//! the built notification seams. A
 //! failing step propagates as [`RuntimeError`](crate::error::RuntimeError);
 //! helpers live in [`assembly`].
 //!
@@ -20,8 +23,6 @@
 mod ai_service;
 pub(crate) mod assembly;
 pub(crate) mod authz;
-#[cfg(feature = "brain")]
-pub(crate) mod brain;
 pub(crate) mod composition;
 pub(crate) mod core_layer;
 pub(crate) mod database;
@@ -30,8 +31,6 @@ pub(crate) mod documents;
 pub(crate) mod events;
 pub(crate) mod governance;
 pub(crate) mod kernel_state;
-#[cfg(feature = "notifications")]
-pub(crate) mod notifications;
 mod options;
 pub use composition::owner_reassignments;
 use composition::{
@@ -148,23 +147,23 @@ impl AppContextBuilder {
         let (router, bridge, listener_pool) =
             event_plane(self.event_router, &database, &config, &cache_epochs);
         let background_tasks = self.background_tasks.unwrap_or_default();
+        drop(listener_pool);
         #[cfg(feature = "notifications")]
-        let notification_sink = notifications::notification_sink(&database, &config.instance_id);
+        let notification_sink =
+            systemprompt_notifications::OutboxNotificationSink::over_write_pool(
+                &database,
+                &config.instance_id,
+            );
         #[cfg(not(feature = "notifications"))]
         let notification_sink: systemprompt_extension::DynNotificationSink =
             Arc::new(crate::documents::NotificationsUnavailableSink);
-        #[cfg(not(feature = "notifications"))]
-        drop(listener_pool);
         #[cfg(feature = "brain")]
-        let brain_core = brain::BrainCore::new(&brain::BrainInputs {
-            database: &database,
-            instance_id: &config.instance_id,
-            listener_pool: &listener_pool,
-            notifications: &notification_sink,
-            profile: &self.boot.profile().brain,
-        });
-        #[cfg(feature = "brain")]
-        let brain_sink = brain::brain_sink(brain_core.as_ref());
+        let brain_sink: systemprompt_extension::DynBrainSink = if self.boot.profile().brain.enabled
+        {
+            systemprompt_brain::OutboxBrainSink::over_write_pool(&database, &config.instance_id)
+        } else {
+            Arc::new(crate::documents::BrainUnavailableSink)
+        };
         #[cfg(not(feature = "brain"))]
         let brain_sink: systemprompt_extension::DynBrainSink =
             Arc::new(crate::documents::BrainUnavailableSink);
@@ -184,21 +183,6 @@ impl AppContextBuilder {
             brain: &brain_sink,
             audiences: &audiences,
         })?;
-        #[cfg(feature = "notifications")]
-        let notifications_core =
-            notifications::NotificationsCore::new(&notifications::NotificationsInputs {
-                database: &database,
-                event_router: &router,
-                sink: &notification_sink,
-                listener_pool: &listener_pool,
-                documents: &documents,
-                profile: &self.boot.profile().notifications,
-                escalation: systemprompt_notifications::service::EscalationDelivery::InProcess,
-            });
-        #[cfg(feature = "brain")]
-        let brain_handle = brain_core
-            .as_ref()
-            .map(|core| core.assemble(&documents, brain::RecallSeams::default()));
         let subsystems = Subsystems {
             ai_service,
             artifact_ingest: build_artifact_ingest(&database, &governance.get()),
@@ -220,10 +204,6 @@ impl AppContextBuilder {
             publish_guard: Arc::default(),
             connector_tokens,
             documents,
-            #[cfg(feature = "notifications")]
-            notifications: notifications_core.assemble(notifications::ExtensionSeams::default()),
-            #[cfg(feature = "brain")]
-            brain: brain_handle,
         };
 
         let app = AppContext::from_parts(
@@ -248,34 +228,12 @@ impl AppContextBuilder {
             &market.state,
         )?;
         #[cfg(feature = "notifications")]
-        let app = {
-            let mut app = app;
-            let seams = notifications::ExtensionSeams::discover(&app);
+        if let Some(seams) = app
+            .extension_state
+            .find::<Arc<systemprompt_notifications::NotificationSeams>>()
+        {
             audiences.bind(seams.audiences.clone());
-            app.subsystems.notifications = notifications_core.assemble(seams);
-            if let Some(slot) = app
-                .extension_state
-                .find::<systemprompt_notifications::NotificationsServiceSlot>()
-            {
-                slot.bind(Arc::clone(&app.subsystems.notifications.service))?;
-            }
-            if let Some(slot) = app
-                .extension_state
-                .find::<systemprompt_notifications::NotificationsConsumerSlot>()
-            {
-                slot.bind(Arc::clone(&app.subsystems.notifications.consumer))?;
-            }
-            app
-        };
-        #[cfg(feature = "brain")]
-        let app = {
-            let mut app = app;
-            let seams = brain::RecallSeams::discover(&app);
-            app.subsystems.brain = brain_core
-                .as_ref()
-                .map(|core| core.assemble(&app.subsystems.documents, seams));
-            app
-        };
+        }
         Ok(app)
     }
 }

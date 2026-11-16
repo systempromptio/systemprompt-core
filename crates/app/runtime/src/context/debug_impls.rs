@@ -109,10 +109,6 @@ impl std::fmt::Debug for Subsystems {
             .field("publish_guard", &"Mutex<PublishGuard>")
             .field("connector_tokens", &"TokenCache")
             .field("documents", &self.documents);
-        #[cfg(feature = "notifications")]
-        debug.field("notifications", &self.notifications);
-        #[cfg(feature = "brain")]
-        debug.field("brain", &self.brain);
         debug.finish()
     }
 }

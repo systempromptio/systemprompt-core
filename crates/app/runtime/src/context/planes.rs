@@ -102,8 +102,4 @@ pub struct Subsystems {
     pub publish_guard: Arc<tokio::sync::Mutex<PublishGuard>>,
     pub connector_tokens: Arc<TokenCache>,
     pub documents: Arc<crate::documents::DocumentsRuntime>,
-    #[cfg(feature = "notifications")]
-    pub notifications: Arc<crate::notifications::NotificationsHandle>,
-    #[cfg(feature = "brain")]
-    pub brain: Option<Arc<crate::brain::BrainHandle>>,
 }
