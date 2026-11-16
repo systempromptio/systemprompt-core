@@ -15,7 +15,7 @@ fn mounted(ctx: &AppContext, set: &RouteSet) -> Router {
         .get::<NotificationsServiceSlot>()
         .expect("the fixture context provides the notification service handle")
         .clone();
-    let database: Arc<dyn DatabaseHandle> = Arc::clone(ctx.db_pool());
+    let database: Arc<dyn DatabaseHandle> = ctx.db_pool().clone();
     let kernel = Kernel::new(
         database,
         BackgroundTasks::new(),

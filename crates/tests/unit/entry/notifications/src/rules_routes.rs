@@ -14,7 +14,7 @@ use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::ContextExtractionError;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, seed_user_row, test_app_context, test_db_pool,
+    ensure_test_bootstrap, seed_user_row, test_app_context,
 };
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -36,8 +36,7 @@ impl ContextExtractor for Caller {
 
 async fn context() -> Arc<AppContext> {
     let boot = ensure_test_bootstrap();
-    let pool = test_db_pool().await;
-    test_app_context(&pool, &boot.database_url)
+    test_app_context(&boot.database_url).await
 }
 
 async fn user(ctx: &AppContext) -> UserId {
