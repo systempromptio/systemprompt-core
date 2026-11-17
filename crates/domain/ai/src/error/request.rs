@@ -20,6 +20,9 @@ pub enum RequestError {
         max: usize,
     },
 
+    #[error("thinking budget {budget} must be below the maximum output tokens {max_output_tokens}")]
+    ThinkingBudgetTooLarge { budget: u32, max_output_tokens: u32 },
+
     #[error("provider {provider} does not support resolution {}", .resolution.as_str())]
     UnsupportedResolution {
         provider: ProviderId,

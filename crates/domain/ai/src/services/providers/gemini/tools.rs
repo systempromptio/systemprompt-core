@@ -46,6 +46,7 @@ pub(super) async fn generate_with_tools(
         params.max_output_tokens,
     )
     .with_sampling(params.sampling)
+    .with_reasoning(params.reasoning)
     .with_tools(canonical_tools);
     if has_tools {
         build = build.with_tool_choice(Some(CanonicalToolChoice::Auto));
@@ -83,6 +84,7 @@ pub(super) async fn generate_with_tool_results(
         params.max_output_tokens,
     )
     .with_sampling(params.sampling)
+    .with_reasoning(params.reasoning)
     .into_request();
 
     let assistant: Vec<CanonicalContent> = params

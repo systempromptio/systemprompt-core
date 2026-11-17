@@ -8,21 +8,19 @@ use super::{embeddings, generation, search, streaming, tools, transport};
 use crate::error::Result;
 use crate::models::ai::{
     AiMessage, AiResponse, EmbeddingRequest, EmbeddingResponse, SamplingParams,
-    SearchGroundedResponse, StreamChunk,
+    SearchGroundedResponse,
 };
 use crate::models::tools::ToolCall;
 use crate::services::providers::served_model::{ServedModel, upstream_model_in};
 use crate::services::providers::{
-    GenerationParams, ModelPricing, ProviderClient, SchemaGenerationParams, SearchGenerationParams,
-    ToolGenerationParams, ToolResultsParams, catalog_default_model, catalog_pricing,
-    catalog_supports_model,
+    EventStream, GenerationParams, ModelPricing, ProviderClient, SchemaGenerationParams,
+    SearchGenerationParams, ToolGenerationParams, ToolResultsParams, catalog_default_model,
+    catalog_pricing, catalog_supports_model,
 };
 use crate::services::schema::ProviderCapabilities;
 use crate::services::upstream::UpstreamTarget;
 use async_trait::async_trait;
-use futures::Stream;
 use reqwest::Client;
-use std::pin::Pin;
 
 #[derive(Debug)]
 pub struct GeminiProvider {
@@ -142,6 +140,7 @@ impl ProviderClient for GeminiProvider {
         if let Some(sampling) = params.base.sampling {
             builder = builder.with_sampling(sampling);
         }
+        let builder = builder.with_reasoning(params.base.reasoning);
         tools::generate_with_tools(self, builder.build()).await
     }
 
@@ -159,13 +158,11 @@ impl ProviderClient for GeminiProvider {
         if let Some(sampling) = params.base.sampling {
             builder = builder.with_sampling(sampling);
         }
+        let builder = builder.with_reasoning(params.base.reasoning);
         tools::generate_with_tool_results(self, builder.build()).await
     }
 
-    async fn generate_stream(
-        &self,
-        params: GenerationParams<'_>,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
+    async fn generate_stream(&self, params: GenerationParams<'_>) -> Result<EventStream> {
         streaming::generate_stream(self, params).await
     }
 

@@ -1,11 +1,11 @@
-//! The [`ProviderClient`] abstraction and its request parameter types.
+//! The [`ProviderClient`] abstraction.
 //!
 //! Every LLM backend implements [`ProviderClient`], a `dyn`-dispatched trait
 //! covering plain generation, tool calling, structured/schema output, search
 //! grounding, and streaming. The borrowed parameter structs
 //! ([`GenerationParams`], [`ToolGenerationParams`], [`SchemaGenerationParams`],
 //! [`StructuredGenerationParams`], [`SearchGenerationParams`],
-//! [`ToolResultsParams`]) keep large call signatures readable.
+//! [`ToolResultsParams`]) live in `provider_params` and are re-exported here.
 //! [`systemprompt_manifest::services::ai::ModelPricing`] is re-exported here as
 //! the single pricing type for usage accounting.
 //!
@@ -14,136 +14,26 @@
 
 use crate::error::{AiError, ProviderCapability, Result};
 use crate::models::ai::{
-    AiMessage, AiResponse, EmbeddingRequest, EmbeddingResponse, ResponseFormat, SamplingParams,
-    SearchGroundedResponse, StreamChunk,
+    AiMessage, AiResponse, EmbeddingRequest, EmbeddingResponse, SamplingParams,
+    SearchGroundedResponse,
 };
-use crate::models::tools::{CallToolResult, McpTool, ToolCall};
+use crate::models::tools::ToolCall;
 use crate::services::schema::ProviderCapabilities;
 use async_trait::async_trait;
 use futures::stream::Stream;
 use rmcp::model::ContentBlock;
 use std::pin::Pin;
+use systemprompt_wire::canonical::CanonicalEvent;
 
+pub use super::provider_params::{
+    GenerationParams, SchemaGenerationParams, SearchGenerationParams, StructuredGenerationParams,
+    ToolGenerationParams, ToolResultsParams,
+};
 pub use super::served_model::{catalog_default_model, catalog_pricing, catalog_supports_model};
 pub use systemprompt_manifest::services::ai::ModelPricing;
 
-#[derive(Debug, Clone)]
-pub struct GenerationParams<'a> {
-    pub messages: &'a [AiMessage],
-    pub model: &'a str,
-    pub max_output_tokens: u32,
-    pub sampling: Option<&'a SamplingParams>,
-}
-
-impl<'a> GenerationParams<'a> {
-    pub const fn new(messages: &'a [AiMessage], model: &'a str, max_output_tokens: u32) -> Self {
-        Self {
-            messages,
-            model,
-            max_output_tokens,
-            sampling: None,
-        }
-    }
-
-    pub const fn with_sampling(mut self, sampling: &'a SamplingParams) -> Self {
-        self.sampling = Some(sampling);
-        self
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct ToolGenerationParams<'a> {
-    pub base: GenerationParams<'a>,
-    pub tools: Vec<McpTool>,
-}
-
-impl<'a> ToolGenerationParams<'a> {
-    pub const fn new(base: GenerationParams<'a>, tools: Vec<McpTool>) -> Self {
-        Self { base, tools }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct ToolResultsParams<'a> {
-    pub base: GenerationParams<'a>,
-    pub tool_calls: &'a [ToolCall],
-    pub tool_results: &'a [CallToolResult],
-}
-
-impl<'a> ToolResultsParams<'a> {
-    pub const fn new(
-        base: GenerationParams<'a>,
-        tool_calls: &'a [ToolCall],
-        tool_results: &'a [CallToolResult],
-    ) -> Self {
-        Self {
-            base,
-            tool_calls,
-            tool_results,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct SchemaGenerationParams<'a> {
-    pub base: GenerationParams<'a>,
-    // JSON: arbitrary caller-supplied JSON Schema
-    pub response_schema: serde_json::Value,
-}
-
-impl<'a> SchemaGenerationParams<'a> {
-    // JSON: JSON Schema for structured output — caller-supplied, arbitrary.
-    pub const fn new(base: GenerationParams<'a>, response_schema: serde_json::Value) -> Self {
-        Self {
-            base,
-            response_schema,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct StructuredGenerationParams<'a> {
-    pub base: GenerationParams<'a>,
-    pub response_format: &'a ResponseFormat,
-}
-
-impl<'a> StructuredGenerationParams<'a> {
-    pub const fn new(base: GenerationParams<'a>, response_format: &'a ResponseFormat) -> Self {
-        Self {
-            base,
-            response_format,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct SearchGenerationParams<'a> {
-    pub base: GenerationParams<'a>,
-    pub urls: Option<Vec<String>>,
-    // JSON: arbitrary caller-supplied JSON Schema
-    pub response_schema: Option<serde_json::Value>,
-}
-
-impl<'a> SearchGenerationParams<'a> {
-    pub const fn new(base: GenerationParams<'a>) -> Self {
-        Self {
-            base,
-            urls: None,
-            response_schema: None,
-        }
-    }
-
-    pub fn with_urls(mut self, urls: Vec<String>) -> Self {
-        self.urls = Some(urls);
-        self
-    }
-
-    // JSON: JSON Schema for structured output — caller-supplied, arbitrary.
-    pub fn with_response_schema(mut self, schema: serde_json::Value) -> Self {
-        self.response_schema = Some(schema);
-        self
-    }
-}
+/// The canonical event stream a provider yields for one streamed turn.
+pub type EventStream = Pin<Box<dyn Stream<Item = Result<CanonicalEvent>> + Send>>;
 
 // Why: Native async trait methods are not dyn-compatible; boxed providers
 // require `async_trait`.
@@ -215,6 +105,7 @@ pub trait ProviderClient: Send + Sync {
             model: params.base.model,
             max_output_tokens: params.base.max_output_tokens,
             sampling: params.base.sampling,
+            reasoning: params.base.reasoning,
         };
         self.generate(gen_params).await
     }
@@ -236,10 +127,7 @@ pub trait ProviderClient: Send + Sync {
         false
     }
 
-    async fn generate_stream(
-        &self,
-        _params: GenerationParams<'_>,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
+    async fn generate_stream(&self, _params: GenerationParams<'_>) -> Result<EventStream> {
         Err(AiError::capability_unsupported(
             self.name(),
             ProviderCapability::Streaming,
@@ -249,7 +137,7 @@ pub trait ProviderClient: Send + Sync {
     async fn generate_with_tools_stream(
         &self,
         _params: ToolGenerationParams<'_>,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
+    ) -> Result<EventStream> {
         Err(AiError::capability_unsupported(
             self.name(),
             ProviderCapability::ToolStreaming,

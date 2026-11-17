@@ -53,11 +53,7 @@ impl AiService {
         provider: &dyn ProviderClient,
         model: &str,
     ) -> Result<AiResponse> {
-        let base = GenerationParams::new(&request.messages, model, request.max_output_tokens());
-        let base = request
-            .sampling
-            .as_ref()
-            .map_or_else(|| base.clone(), |s| base.clone().with_sampling(s));
+        let base = GenerationParams::from_request(request, model)?;
 
         if let Some(schema) = request
             .structured_output

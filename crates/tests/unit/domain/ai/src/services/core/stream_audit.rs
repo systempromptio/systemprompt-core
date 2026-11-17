@@ -1,18 +1,21 @@
 // `StreamStorageWrapper` — the audit layer wrapped around a provider stream.
 //
-// It accumulates text, swallows `Usage` chunks into its own totals, and spawns
-// exactly one audit write when the stream finishes or errors. The completion
-// and error arms both write to `ai_requests`, so the DB is the observable
-// surface; the spawn is a detached task, so each assertion polls for it.
+// It passes every canonical event through, reads text, usage and the stop
+// reason off them into its own totals, and spawns exactly one audit write when
+// the stream finishes or errors. The text streams project it down to text. The
+// completion and error arms both write to `ai_requests`, so the DB is the
+// observable surface; the spawn is a detached task, so each assertion polls for
+// it.
 
 use std::time::Duration;
 
 use futures::StreamExt;
-use systemprompt_ai::error::{AiError, ProviderError};
-use systemprompt_ai::models::ai::{AiMessage, AiRequest};
+use systemprompt_ai::error::{AiError, ProviderError, RequestError};
+use systemprompt_ai::models::ai::{AiMessage, AiRequest, ReasoningParams};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_models::ai::StreamChunk;
+use systemprompt_wire::canonical::{CanonicalEvent, CanonicalStopReason, ContentBlockKind};
 
 use super::{bootstrapped_pool, seeded_context, service};
 use crate::services::providers::mock_http;
@@ -381,5 +384,139 @@ async fn sse_framing_noise_is_skipped_without_breaking_the_stream() {
         wait_for_audit(&pool, &user, "completed").await,
         1,
         "a stream that survived the noise must still audit as completed"
+    );
+}
+
+// A turn that thinks, then calls a tool, and reports usage on the way out.
+const REASONED_TOOL_SSE: &str = "data: {\"type\":\"message_start\",\"message\":{\"id\":\"x\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude\",\"content\":[],\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":7,\"output_tokens\":1}}}\n\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"thinking\",\"thinking\":\"\"}}\n\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"thinking_delta\",\"thinking\":\"look it up\"}}\n\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"signature_delta\",\"signature\":\"sig-1\"}}\n\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\ndata: {\"type\":\"content_block_start\",\"index\":1,\"content_block\":{\"type\":\"tool_use\",\"id\":\"call-1\",\"name\":\"search\",\"input\":{}}}\n\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"q\\\":\\\"rust\\\"}\"}}\n\ndata: {\"type\":\"content_block_stop\",\"index\":1}\n\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\"},\"usage\":{\"output_tokens\":23}}\n\n";
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn the_events_stream_carries_reasoning_and_tool_calls_and_audits_like_the_text_stream() {
+    let pool = bootstrapped_pool().await;
+    let server = mock_http::anthropic_messages_stream(REASONED_TOOL_SSE).await;
+    let svc = service(&pool, ANTHROPIC, server.uri());
+    let (user, context) = seeded_context(&pool).await;
+
+    let mut stream = svc
+        .generate_events_stream(&request(context))
+        .await
+        .expect("events stream opens");
+
+    let mut thinking = String::new();
+    let mut signature = String::new();
+    let mut tool = None;
+    let mut arguments = String::new();
+    let mut stop = None;
+    let mut usage_events = 0;
+    while let Some(item) = stream.next().await {
+        match item.expect("stream item") {
+            CanonicalEvent::ThinkingDelta { text, .. } => thinking.push_str(&text),
+            CanonicalEvent::SignatureDelta { signature: s, .. } => signature.push_str(&s),
+            CanonicalEvent::ContentBlockStart {
+                block: ContentBlockKind::ToolUse { id, name, .. },
+                ..
+            } => tool = Some((id, name)),
+            CanonicalEvent::ToolUseDelta { partial_json, .. } => arguments.push_str(&partial_json),
+            CanonicalEvent::UsageDelta(_) => usage_events += 1,
+            CanonicalEvent::MessageStop { stop_reason, .. } => stop = stop_reason,
+            _ => {},
+        }
+    }
+
+    assert_eq!(thinking, "look it up");
+    assert_eq!(signature, "sig-1");
+    assert_eq!(tool, Some(("call-1".to_owned(), "search".to_owned())));
+    assert_eq!(arguments, "{\"q\":\"rust\"}");
+    assert_eq!(stop, Some(CanonicalStopReason::ToolUse));
+    assert!(
+        usage_events > 0,
+        "the events stream forwards usage instead of withholding it"
+    );
+
+    assert_eq!(
+        wait_for_audit(&pool, &user, "completed").await,
+        1,
+        "the events stream writes the same single completed audit row"
+    );
+    let row = sqlx::query!(
+        "SELECT output_tokens, is_streaming FROM ai_requests WHERE user_id = $1",
+        user.as_str()
+    )
+    .fetch_one(pool.pool().as_ref())
+    .await
+    .unwrap();
+    assert_eq!(row.output_tokens, Some(23));
+    assert!(row.is_streaming);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn the_text_stream_withholds_reasoning_and_tool_events() {
+    let pool = bootstrapped_pool().await;
+    let server = mock_http::anthropic_messages_stream(REASONED_TOOL_SSE).await;
+    let svc = service(&pool, ANTHROPIC, server.uri());
+    let (user, context) = seeded_context(&pool).await;
+
+    let mut stream = svc
+        .generate_stream(&request(context))
+        .await
+        .expect("stream opens");
+    let mut items = 0;
+    while let Some(item) = stream.next().await {
+        item.expect("stream item");
+        items += 1;
+    }
+    assert_eq!(
+        items, 0,
+        "a turn with no text deltas yields nothing on the text stream"
+    );
+    assert_eq!(wait_for_audit(&pool, &user, "completed").await, 1);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn an_explicit_thinking_budget_reaches_the_provider_request() {
+    let pool = bootstrapped_pool().await;
+    let server = mock_http::anthropic_messages_stream(COMPLETE_SSE).await;
+    let svc = service(&pool, ANTHROPIC, server.uri());
+    let (_user, context) = seeded_context(&pool).await;
+    let mut reasoned = request(context);
+    reasoned.reasoning = Some(ReasoningParams::default().with_thinking_budget(64));
+
+    let mut stream = svc
+        .generate_events_stream(&reasoned)
+        .await
+        .expect("events stream opens");
+    while let Some(item) = stream.next().await {
+        item.expect("stream item");
+    }
+
+    let received = server.received_requests().await.expect("recorded requests");
+    let body: serde_json::Value = received[0].body_json().expect("json body");
+    assert_eq!(body["thinking"]["budget_tokens"], 64);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_thinking_budget_at_or_above_the_output_cap_is_refused_before_the_call() {
+    let pool = bootstrapped_pool().await;
+    let server = mock_http::anthropic_messages_stream(COMPLETE_SSE).await;
+    let svc = service(&pool, ANTHROPIC, server.uri());
+    let (_user, context) = seeded_context(&pool).await;
+    let mut reasoned = request(context);
+    reasoned.reasoning = Some(ReasoningParams::default().with_thinking_budget(128));
+
+    let refused = svc.generate_events_stream(&reasoned).await;
+    assert!(matches!(
+        refused,
+        Err(AiError::Request(RequestError::ThinkingBudgetTooLarge {
+            budget: 128,
+            max_output_tokens: 128,
+        }))
+    ));
+    assert!(
+        server
+            .received_requests()
+            .await
+            .expect("recorded requests")
+            .is_empty(),
+        "a refused request never reaches the provider"
     );
 }

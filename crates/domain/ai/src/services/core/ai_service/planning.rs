@@ -26,11 +26,7 @@ impl AiService {
         let provider = self.get_provider(request)?;
         let model = request.model();
 
-        let base = GenerationParams::new(&request.messages, model, request.max_output_tokens());
-        let base = request
-            .sampling
-            .as_ref()
-            .map_or_else(|| base.clone(), |s| base.clone().with_sampling(s));
+        let base = GenerationParams::from_request(request, model)?;
         let params = ToolGenerationParams::new(base, available_tools.to_vec());
 
         let result = provider.generate_with_tools(params).await;

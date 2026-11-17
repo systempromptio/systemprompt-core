@@ -1,5 +1,8 @@
 //! Stream wrapper capturing usage and persisting the assembled response.
 //!
+//! Every [`CanonicalEvent`] of the provider stream passes through unchanged;
+//! the wrapper reads text, usage and the stop reason off it for the audit row.
+//!
 //! Usage is accumulated as a [`CanonicalUsage`], normalised against the
 //! provider, and priced by the one cost function — the same type and the same
 //! arithmetic the gateway bills with, so an agent turn and a gateway turn on
@@ -17,12 +20,12 @@ use tokio_util::task::TaskTracker;
 use crate::models::RequestStatus;
 use crate::models::ai::{AiRequest, AiResponse};
 use crate::services::core::request_storage::{RequestStorage, StoreParams};
-use crate::services::providers::ModelPricing;
-use systemprompt_models::ai::StreamChunk;
-use systemprompt_wire::canonical::{CanonicalUsage, CanonicalUsageUpdate};
+use crate::services::providers::canonical_bridge::finish_reason;
+use crate::services::providers::{EventStream, ModelPricing};
+use systemprompt_wire::canonical::{CanonicalEvent, CanonicalUsage};
 
 pub(super) struct StreamStorageParams {
-    pub inner: Pin<Box<dyn Stream<Item = crate::error::Result<StreamChunk>> + Send>>,
+    pub inner: EventStream,
     pub storage: RequestStorage,
     pub audit_tasks: TaskTracker,
     pub request: AiRequest,
@@ -34,7 +37,7 @@ pub(super) struct StreamStorageParams {
 }
 
 pub(super) struct StreamStorageWrapper {
-    inner: Pin<Box<dyn Stream<Item = crate::error::Result<StreamChunk>> + Send>>,
+    inner: EventStream,
     storage: RequestStorage,
     audit_tasks: TaskTracker,
     request: AiRequest,
@@ -70,32 +73,26 @@ impl StreamStorageWrapper {
         }
     }
 
-    fn capture_usage(&mut self, chunk: StreamChunk) {
-        if let StreamChunk::Usage {
-            input_tokens,
-            output_tokens,
-            tokens_used,
-            cache_read_tokens,
-            cache_creation_tokens,
-            reasoning_tokens,
-            finish_reason,
-        } = chunk
-        {
-            CanonicalUsageUpdate {
-                input_tokens,
-                output_tokens,
-                cache_read_tokens,
-                cache_creation_tokens,
-                reasoning_tokens,
-                total_tokens: tokens_used,
-            }
-            .apply_to(&mut self.usage);
-            self.saw_usage = true;
-            self.usage.normalise_reasoning(&self.provider);
-            if finish_reason.is_some() {
-                self.finish_reason = finish_reason;
-            }
+    fn observe(&mut self, event: &CanonicalEvent) {
+        match event {
+            CanonicalEvent::TextDelta { text, .. } => self.accumulated.push_str(text),
+            CanonicalEvent::UsageDelta(update) => {
+                update.apply_to(&mut self.usage);
+                self.mark_usage_reported();
+            },
+            CanonicalEvent::MessageStop { stop_reason, .. } => {
+                self.mark_usage_reported();
+                if let Some(stop_reason) = stop_reason {
+                    self.finish_reason = Some(finish_reason(*stop_reason).to_owned());
+                }
+            },
+            _ => {},
         }
+    }
+
+    fn mark_usage_reported(&mut self) {
+        self.saw_usage = true;
+        self.usage.normalise_reasoning(&self.provider);
     }
 
     fn calculate_cost(&self) -> i64 {
@@ -208,20 +205,13 @@ impl Drop for StreamStorageWrapper {
 }
 
 impl Stream for StreamStorageWrapper {
-    type Item = crate::error::Result<StreamChunk>;
+    type Item = crate::error::Result<CanonicalEvent>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         match self.inner.as_mut().poll_next(cx) {
-            Poll::Ready(Some(Ok(chunk))) => match chunk {
-                StreamChunk::Text(ref text) => {
-                    self.accumulated.push_str(text);
-                    Poll::Ready(Some(Ok(chunk)))
-                },
-                usage @ StreamChunk::Usage { .. } => {
-                    self.capture_usage(usage);
-                    cx.waker().wake_by_ref();
-                    Poll::Pending
-                },
+            Poll::Ready(Some(Ok(event))) => {
+                self.observe(&event);
+                Poll::Ready(Some(Ok(event)))
             },
             Poll::Ready(Some(Err(e))) => {
                 if !self.completed {

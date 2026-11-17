@@ -196,6 +196,7 @@ impl ResponseSynthesizer {
             model: params.model,
             max_output_tokens: params.max_output_tokens,
             sampling: params.sampling,
+            reasoning: None,
         };
         let tool_results_params =
             ToolResultsParams::new(base.clone(), params.tool_calls, params.tool_results);
@@ -230,6 +231,7 @@ impl ResponseSynthesizer {
             model: params.model,
             max_output_tokens: params.max_output_tokens,
             sampling: params.sampling,
+            reasoning: None,
         };
 
         match params.provider.generate(gen_params).await {
