@@ -11,7 +11,7 @@ group_prefixes() {
     domain)      echo "/tests/unit/domain/" ;;
     # The gateway crate sits beside the runtime it is composed into; its unit
     # tests ride this shard rather than adding a CI matrix entry.
-    app-runtime)   echo "/tests/unit/app/runtime/ /tests/unit/app/gateway/ /tests/unit/app/gateway-golden/" ;;
+    app-runtime)   echo "/tests/unit/app/runtime/ /tests/unit/app/gateway/ /tests/unit/app/gateway-golden/ /tests/common/fixtures/" ;;
     app-scheduler) echo "/tests/unit/app/scheduler/" ;;
     app-agent-runs)  echo "/tests/unit/app/agent-runs/ /tests/unit/entry/agent-runs/" ;;
     app-generator) echo "/tests/unit/app/generator/ /tests/unit/entry/content/" ;;
