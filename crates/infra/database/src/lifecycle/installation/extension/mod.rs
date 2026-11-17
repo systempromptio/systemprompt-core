@@ -162,7 +162,7 @@ async fn run_install(
         return Ok(SchemaInstallReport::default());
     }
     let migration_service = MigrationService::new(db).with_config(migration_config);
-    let prepared = prepare_and_check(db, &migration_service, schema_extensions).await?;
+    let prepared = prepare_and_check(db, &migration_service, schema_extensions, held_back).await?;
 
     apply_retirements(db, schema_extensions).await?;
     let fresh = fresh_extension_ids(&migration_service, schema_extensions, &prepared).await?;
@@ -205,12 +205,17 @@ async fn prepare_and_check(
     db: &dyn DatabaseProvider,
     migration_service: &MigrationService<'_>,
     schema_extensions: &ExtensionSet,
+    held_back: &ExtensionSet,
 ) -> Result<Vec<PreparedSchema>, LoaderError> {
     let mut prepared: Vec<PreparedSchema> = Vec::with_capacity(schema_extensions.len());
     for ext in schema_extensions {
         prepared.push(prepare_extension_schema(ext.as_ref())?);
     }
-    validate_table_ownership(&prepared, schema_extensions)?;
+    let held: Vec<PreparedSchema> = held_back
+        .iter()
+        .map(|ext| prepare_extension_schema(ext.as_ref()))
+        .collect::<Result<_, _>>()?;
+    validate_table_ownership(&prepared, &held, schema_extensions)?;
     let owners = recorded_table_owners(db).await?;
     check_recorded_owners(&owners, &prepared)?;
     check_pending_migration_owners(&owners, migration_service, schema_extensions, &prepared)

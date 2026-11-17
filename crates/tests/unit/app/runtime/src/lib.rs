@@ -134,6 +134,8 @@ mod schema_behind_error;
 #[cfg(test)]
 mod schema_currency_boot;
 #[cfg(test)]
+mod schema_held_back_owner;
+#[cfg(test)]
 mod schema_state;
 #[cfg(test)]
 mod services_reconcile_decision;
