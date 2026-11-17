@@ -3,6 +3,7 @@
 mod bootstrap_lock_failures;
 mod core_standing_records;
 mod fk_deferral;
+mod index_presence_install;
 mod install_deadlock_retry;
 mod install_phase_failure;
 mod installation;

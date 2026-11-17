@@ -1,0 +1,9 @@
+[root]
+section = "Fixed"
+area = "Documents"
+text = "A document write that Postgres aborts as a deadlock or serialization victim (SQLSTATE `40P01` or `40001`) is re-run from its first statement, at most five attempts with jittered back-off of 25 to 400 ms, and the last error keeps its cause. This covers each documents transaction, the single-statement rename, trash, restore, ownership transfer and grant removals, and the hash-locked steps of blob storage and collection."
+
+[[crate]]
+name = "systemprompt-files"
+section = "Fixed"
+text = "Documents transactions, the single-statement path and grant writes, and the `HashLock` steps of `BlobStore::put`, `adopt`, `start_collection` and `finish_collection` are re-run when Postgres aborts them with SQLSTATE `40P01` or `40001`: at most five attempts, 25 to 400 ms jittered back-off, the last error returned with its source. An object `put` or `adopt` stored is removed only when the row could not be written on the last attempt."

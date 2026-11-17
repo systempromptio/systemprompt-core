@@ -1,7 +1,10 @@
 //! Garbage collection of unreferenced blobs, in two locked steps per hash so
 //! that no object transfer runs inside a transaction that also changes rows
 //! for long (see `blob_store`). Each pass first finishes collections an
-//! earlier pass recorded but did not complete.
+//! earlier pass recorded but did not complete. Each locked step is re-run
+//! when Postgres aborts it as a deadlock or serialization victim: it
+//! rechecks the row under the lock, and removing an object already gone
+//! counts as removed.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,6 +13,7 @@ use systemprompt_identifiers::ContentHash;
 use systemprompt_traits::{FileStorageError, StoredFileId};
 
 use super::blob_store::{BlobStore, BlobStoreError, GcReport, bounded};
+use super::transient::retry_conflicts;
 
 impl BlobStore {
     pub async fn delete_unreferenced(
@@ -52,6 +56,14 @@ impl BlobStore {
         hash: &ContentHash,
         storage_id: &StoredFileId,
     ) -> Result<bool, BlobStoreError> {
+        retry_conflicts(|| self.start_collection_once(hash, storage_id)).await
+    }
+
+    async fn start_collection_once(
+        &self,
+        hash: &ContentHash,
+        storage_id: &StoredFileId,
+    ) -> Result<bool, BlobStoreError> {
         let mut lock = self.blobs.lock(hash).await?;
         let started = lock.begin_collection(hash, storage_id).await?;
         lock.commit().await?;
@@ -59,6 +71,14 @@ impl BlobStore {
     }
 
     pub async fn finish_collection(
+        &self,
+        hash: &ContentHash,
+        storage_id: &StoredFileId,
+    ) -> Result<bool, BlobStoreError> {
+        retry_conflicts(|| self.finish_collection_once(hash, storage_id)).await
+    }
+
+    async fn finish_collection_once(
         &self,
         hash: &ContentHash,
         storage_id: &StoredFileId,

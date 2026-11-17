@@ -1,13 +1,13 @@
 //! Re-running a documents transaction that Postgres aborted as one side of a
 //! deadlock (`40P01`) or a serialization conflict (`40001`).
 //!
-//! A schema install on an established database re-runs its `CREATE INDEX IF
-//! NOT EXISTS` statements and takes `SHARE` on each live table in turn, while
-//! a document transaction holds `ROW EXCLUSIVE` on one of them and asks for
-//! another. Postgres breaks the cycle by aborting one side, and documents both
-//! codes as "retry the transaction". The aborted attempt was rolled back and
-//! wrote nothing, so the whole transaction runs again from its first
-//! statement. The decision reads the SQLSTATE and nothing else.
+//! A document write holds `ROW EXCLUSIVE` on one documents table and asks for
+//! another, so any session that locks those tables in the opposite order (DDL
+//! that creates a missing index, an operator's `LOCK TABLE`, another writer)
+//! can close a cycle with it. Postgres breaks the cycle by aborting one side,
+//! and documents both codes as "retry the transaction". The aborted attempt was
+//! rolled back and wrote nothing, so the whole transaction runs again from its
+//! first statement. The decision reads the SQLSTATE and nothing else.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,6 +18,7 @@ use std::time::Duration;
 use systemprompt_database::resilience::{Outcome, RetryConfig, retry_async};
 use systemprompt_traits::RepositoryError;
 
+use super::blob_store::BlobStoreError;
 use super::error::DocumentsError;
 
 const RETRY: RetryConfig = RetryConfig {
@@ -40,6 +41,12 @@ impl TransientConflict for RepositoryError {
 }
 
 impl TransientConflict for DocumentsError {
+    fn is_transient_conflict(&self) -> bool {
+        matches!(self, Self::Repository(error) if error.is_serialization_failure())
+    }
+}
+
+impl TransientConflict for BlobStoreError {
     fn is_transient_conflict(&self) -> bool {
         matches!(self, Self::Repository(error) if error.is_serialization_failure())
     }

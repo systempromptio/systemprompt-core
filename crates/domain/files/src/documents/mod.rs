@@ -34,6 +34,7 @@
 pub mod access;
 pub mod agents;
 mod blob_adopt;
+mod blob_locked;
 pub mod blob_store;
 mod blob_store_gc;
 mod brain_access;

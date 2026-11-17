@@ -71,7 +71,7 @@ impl DocumentService {
             comment_id: comment.clone(),
             resolved_by: who.id.clone(),
         };
-        let to = self.recipients(&current).await;
+        let to = self.recipients(current).await;
         if let Err(error) = self.events.comment_resolved(&to, &event).await {
             tracing::warn!(document_id = %document, error = %error, "Comment event not relayed");
         }

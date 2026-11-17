@@ -341,7 +341,9 @@ async fn an_unmeasured_pending_rewrite_of_a_populated_hot_table_is_warned() {
     let (provider, db) = provider_and_db().await;
     provider
         .execute_batch(
-            "INSERT INTO logs (level, module, message) VALUES ('INFO', 'cost_warning_test', 'seed');
+            "INSERT INTO logs (level, module, message, user_id, session_id, trace_id)
+             VALUES ('INFO', 'cost_warning_test', 'seed', 'cost_warning_test_user',
+                     'cost_warning_test_session', 'cost_warning_test_trace');
              ANALYZE logs;",
         )
         .await

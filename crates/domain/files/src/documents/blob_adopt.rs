@@ -3,7 +3,8 @@
 //!
 //! Adopting streams the staged object to the blob's content-addressed path
 //! (unless that object already exists there) outside any transaction, then
-//! upserts the row under the hash's lock, as `put` does, then removes the
+//! upserts the row under the hash's lock as `put` does (`blob_locked`),
+//! then removes the
 //! staged copy, so an adopted blob is stored exactly where [`BlobStore::put`]
 //! would have stored it.
 //!
@@ -15,7 +16,8 @@ use std::path::Path;
 use systemprompt_identifiers::ContentHash;
 use systemprompt_traits::StoredFileId;
 
-use super::blob_store::{BlobStore, BlobStoreError, StoredBlob, bounded, storage_id_for};
+use super::blob_locked::LockedRow;
+use super::blob_store::{BlobStore, BlobStoreError, StoredBlob, storage_id_for};
 
 impl BlobStore {
     pub async fn adopt(
@@ -27,25 +29,21 @@ impl BlobStore {
         let size_column = i64::try_from(size)
             .map_err(|source| BlobStoreError::SizeOutOfRange { size, source })?;
         let canonical = storage_id_for(hash);
-        let mut copied = if self.storage.exists(&canonical).await? {
+        let copied = if self.storage.exists(&canonical).await? {
             false
         } else {
             self.copy_staged(staged, &canonical).await?;
             true
         };
-        let mut lock = self.blobs.lock(hash).await?;
-        if !self.storage.exists(&canonical).await? {
-            bounded("re-store", self.copy_staged(staged, &canonical)).await??;
-            copied = true;
-        }
-        let inserted = match lock.upsert(hash, size_column, &canonical).await {
-            Ok(inserted) => inserted,
-            Err(error) => {
-                self.discard(copied, &canonical).await;
-                return Err(error.into());
-            },
+        let row = LockedRow {
+            hash,
+            size_column,
+            storage_id: &canonical,
+            freshly_stored: copied,
         };
-        lock.commit().await?;
+        let inserted = self
+            .register_locked(row, || self.copy_staged(staged, &canonical))
+            .await?;
         if let Err(error) = self.storage.delete(staged).await {
             tracing::warn!(storage_id = %staged, error = %error, "Failed to remove a staged blob");
         }
