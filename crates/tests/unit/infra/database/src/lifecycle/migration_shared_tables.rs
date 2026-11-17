@@ -4,7 +4,7 @@
 //! the owner itself (K-SEC5-1).
 
 use systemprompt_database::lifecycle::{
-    MigrationOwnershipError, RecordedTable, TableMutation, check_migration_ownership,
+    MigrationOwnershipError, Recorded, RecordedTable, TableMutation, check_migration_ownership,
     migration_ownership_findings,
 };
 use systemprompt_extension::{Migration, StandingTag};
@@ -23,21 +23,22 @@ const EXPLOIT: &str =
 fn redeclaring_a_peer_table_then_dropping_it_is_refused() {
     for standing in [StandingTag::Install, StandingTag::Core] {
         let members = [owner(), peer(standing, EXPLOIT)];
-        let findings: Vec<_> = migration_ownership_findings(only(&members), &[], &all_pending)
-            .into_iter()
-            .map(|finding| match finding {
-                MigrationOwnershipError::SharedTable { table, owner, .. } => {
-                    (String::from("shared"), table, owner)
-                },
-                MigrationOwnershipError::ForeignTable {
-                    table,
-                    owner,
-                    statement: TableMutation::Drop,
-                    ..
-                } => (String::from("drop"), table, owner),
-                other => panic!("unexpected finding {other}"),
-            })
-            .collect();
+        let findings: Vec<_> =
+            migration_ownership_findings(only(&members), &Recorded::NONE, &all_pending)
+                .into_iter()
+                .map(|finding| match finding {
+                    MigrationOwnershipError::SharedTable { table, owner, .. } => {
+                        (String::from("shared"), table, owner)
+                    },
+                    MigrationOwnershipError::ForeignTable {
+                        table,
+                        owner,
+                        statement: TableMutation::Drop,
+                        ..
+                    } => (String::from("drop"), table, owner),
+                    other => panic!("unexpected finding {other}"),
+                })
+                .collect();
         let owner_id = ExtensionId::new("mo-owner");
         assert_eq!(
             findings,
@@ -131,10 +132,10 @@ fn a_pending_create_of_a_recorded_table_is_refused() {
         "CREATE TABLE IF NOT EXISTS mo_disabled (id TEXT);",
     )];
     assert!(matches!(
-        check_migration_ownership(only(&members), &recorded, &all_pending),
+        check_migration_ownership(only(&members), &Recorded::tables(&recorded), &all_pending),
         Err(MigrationOwnershipError::SharedTable { owner, .. }) if owner.as_str() == "mo-disabled"
     ));
-    check_migration_ownership(only(&members), &[], &all_pending)
+    check_migration_ownership(only(&members), &Recorded::NONE, &all_pending)
         .expect("negative control: no record and no member claims the name");
 }
 

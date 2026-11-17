@@ -18,9 +18,13 @@
 //! every table recorded to the old id ([`LoaderError::DuplicateTableOwner`]
 //! names that recorded owner) until an operator re-assigns the records.
 //!
-//! Before any DDL the install also refuses a pending migration that changes
-//! a table or object another member owns, judged over the same records
-//! (`migration_owners`).
+//! Each install also records, in `schema_object_owners`, the owner of every
+//! index, routine, view, materialized view, sequence, type, domain and
+//! trigger an admitted member's SQL creates, and releases the records of one
+//! it no longer creates. Before any DDL the install refuses a pending
+//! migration that changes a table or object another member owns, judged over
+//! both sets of records (`migration_owners`), so a disabled member keeps its
+//! objects as it keeps its tables.
 //!
 //! A record is released only by its owner: an install in which the owner is
 //! admitted and either no longer declares the table and the table is gone
@@ -39,9 +43,12 @@ use std::collections::{BTreeMap, BTreeSet};
 use systemprompt_extension::{LoaderError, Migration, StandingTag};
 use systemprompt_identifiers::ExtensionId;
 
-use super::super::migration_owners::{MigrationMembers, RecordedTable, check_migration_ownership};
+use super::super::migration_owners::{
+    MigrationMembers, Recorded, RecordedTable, check_migration_ownership,
+};
 use super::super::prepare::PreparedSchema;
 use super::super::undeclared::qualify;
+use super::object_owners::{record_object_owners, recorded_object_owners};
 use crate::lifecycle::migrations::MigrationService;
 use crate::services::DatabaseProvider;
 
@@ -82,7 +89,7 @@ impl TableOwners {
         self.0.get(&qualify(table))
     }
 
-    fn recorded(&self) -> Vec<RecordedTable> {
+    pub(super) fn recorded(&self) -> Vec<RecordedTable> {
         self.0
             .iter()
             .map(|(table, owner)| RecordedTable {
@@ -95,13 +102,14 @@ impl TableOwners {
 }
 
 pub(super) async fn check_pending_migration_owners(
+    db: &dyn DatabaseProvider,
     owners: &TableOwners,
     migration_service: &MigrationService<'_>,
     judged: MigrationMembers<'_>,
     prepared: &[PreparedSchema],
 ) -> Result<(), LoaderError> {
-    let members = judged.judged;
-    let fresh = super::fresh_extension_ids(migration_service, members, prepared).await?;
+    let members: Vec<_> = judged.judged().cloned().collect();
+    let fresh = super::fresh_extension_ids(migration_service, &members, prepared).await?;
     let mut applied: BTreeMap<ExtensionId, BTreeSet<u32>> = BTreeMap::new();
     for member in members
         .iter()
@@ -121,7 +129,13 @@ pub(super) async fn check_pending_migration_owners(
             .get(id)
             .is_some_and(|versions| !versions.contains(&migration.version))
     };
-    check_migration_ownership(judged, &owners.recorded(), &pending).map_err(|error| {
+    let tables = owners.recorded();
+    let objects = recorded_object_owners(db).await?;
+    let recorded = Recorded {
+        tables: &tables,
+        objects: &objects,
+    };
+    check_migration_ownership(judged, &recorded, &pending).map_err(|error| {
         LoaderError::SchemaInstallationStepFailed {
             extension: error.member().clone(),
             context: "a pending migration is refused by the migration ownership rule".to_owned(),
@@ -189,7 +203,9 @@ pub(super) fn check_recorded_owners(
 pub(super) async fn record_owners(
     db: &dyn DatabaseProvider,
     prepared: &[PreparedSchema],
+    members: MigrationMembers<'_>,
 ) -> Result<(), LoaderError> {
+    record_object_owners(db, members).await?;
     if recorded_table_owners_present(db).await? {
         for p in prepared {
             let declared: Vec<String> = p.owned_tables.iter().map(|t| qualify(t)).collect();
@@ -211,17 +227,27 @@ pub(super) async fn record_owners(
 }
 
 async fn recorded_table_owners_present(db: &dyn DatabaseProvider) -> Result<bool, LoaderError> {
-    let row = db
-        .fetch_one(&OWNERS_PRESENT_SQL, &[])
-        .await
-        .map_err(|e| step_failed("Failed to look up the table ownership records", e))?;
+    present(db, OWNERS_PRESENT_SQL, "table").await
+}
+
+pub(super) async fn present(
+    db: &dyn DatabaseProvider,
+    sql: &str,
+    kind: &str,
+) -> Result<bool, LoaderError> {
+    let row = db.fetch_one(&sql, &[]).await.map_err(|e| {
+        step_failed(
+            &format!("Failed to look up the {kind} ownership records"),
+            e,
+        )
+    })?;
     Ok(row
         .get("present")
         .and_then(serde_json::Value::as_bool)
         .unwrap_or(false))
 }
 
-fn step_failed(context: &str, source: crate::error::RepositoryError) -> LoaderError {
+pub(super) fn step_failed(context: &str, source: crate::error::RepositoryError) -> LoaderError {
     LoaderError::SchemaInstallationStepFailed {
         extension: ExtensionId::new("database"),
         context: context.to_owned(),

@@ -2,12 +2,14 @@
 //! schema object another member owns, or whose effect the parser cannot
 //! read.
 //!
-//! A table is owned by the member whose declarative schema or migration
-//! creates it, or that `schema_table_owners` records for it; the kernel's
-//! ledger tables ([`KERNEL_LEDGERS`]) are owned by the `database` member. A
-//! member whose schema or migration creates a table another member creates
-//! or is recorded for is refused ([`MigrationOwnershipError::SharedTable`]),
-//! so a `CREATE TABLE IF NOT EXISTS` never makes a peer's table its own.
+//! A table is owned by its `schema_table_owners` record, then by the member
+//! whose declarative schema or migration creates it, a core member before an
+//! install member, a declarative schema before a migration, then composition
+//! order; the kernel's ledger tables ([`KERNEL_LEDGERS`]) are owned by the
+//! `database` member. A member whose schema or migration creates a table
+//! (including `CREATE TABLE ... AS`) another member owns is refused
+//! ([`MigrationOwnershipError::SharedTable`]), so a `CREATE TABLE IF NOT
+//! EXISTS` never makes a peer's table its own.
 //!
 //! The judged statements, refused when their table is another member's
 //! ([`MigrationOwnershipError::ForeignTable`]): `ALTER TABLE` (including
@@ -15,17 +17,27 @@
 //! constraint, trigger, policy or rule, `CREATE RULE`, `CREATE POLICY`, `ALTER
 //! POLICY`, `DROP POLICY|RULE ... ON`, and `GRANT`/`REVOKE` on a table.
 //!
-//! An index, routine, view, materialized view, sequence, type or domain is
-//! owned by the first member whose SQL creates it and does not drop it again:
-//! a core member before an install member, then a declarative schema before a
-//! migration, then composition order. For an install member, a create of an
-//! object another member owns is refused, in a migration or in its declarative
-//! schema, including `CREATE OR REPLACE`, `CREATE ... IF NOT EXISTS` and
-//! `CREATE INDEX IF NOT EXISTS`, and so are `ALTER` (including `RENAME`),
-//! `ALTER INDEX`, `DROP`, `DROP INDEX` and `SET SCHEMA` of it
+//! An index, routine, view, materialized view, sequence, type, domain or
+//! trigger (keyed by its name and its table) is owned by its
+//! `schema_object_owners` record, then by the first member whose SQL creates
+//! it and does not drop it again, in the same order as a table. Every member
+//! of the composition claims, a held-back member included; a disabled member,
+//! absent from the composition, owns what its records name. Every statement
+//! that names an object is judged against one resolution of that name across
+//! tables, objects, indexes and triggers, so a table spelling (`ALTER TABLE`,
+//! `RENAME`, `SET SCHEMA`, `OWNER TO`) of a view, materialized view,
+//! sequence or index is judged against that object's owner. For an install
+//! member, a create of an object another member owns is refused, in a
+//! migration or in its declarative schema, including `CREATE OR REPLACE`,
+//! `CREATE ... IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS` and `CREATE OR
+//! REPLACE TRIGGER`, and so are `ALTER` (including `RENAME`, `OWNER TO`, a
+//! type's `ADD|DROP|ALTER|RENAME ATTRIBUTE` and a domain's `RENAME
+//! CONSTRAINT`), `ALTER INDEX`, `ALTER TRIGGER ... RENAME`, `DROP`, `DROP
+//! INDEX`, `DROP TRIGGER` and `SET SCHEMA` of it
 //! ([`MigrationOwnershipError::ForeignObject`]); naming another member's
 //! object in a create never makes it the member's own. A core member's
-//! statements of these kinds are logged at `warn` as unjudged. Schema-level
+//! statements of these kinds are logged at `warn` as unjudged. A held-back
+//! member's SQL is read for ownership and never judged. Schema-level
 //! statements
 //! (`DROP SCHEMA`, `ALTER SCHEMA ... RENAME`, `GRANT ... ON ALL ... IN
 //! SCHEMA`, `ALTER TABLE ALL IN TABLESPACE`) are refused for an install
@@ -44,9 +56,10 @@
 //! does not classify. A core member's statements of these kinds are logged at
 //! `warn` as unjudged. At either standing a `DO` block, `CREATE EXTENSION`,
 //! a routine in a language other than `sql`, a routine call in a top-level
-//! `SELECT` or inside an `INSERT`/`UPDATE`/`DELETE`/`MERGE`, `CREATE INDEX`,
-//! `CREATE TRIGGER` and `DROP TRIGGER` on another member's table and a
-//! `DROP INDEX` of an index no member's SQL creates are logged as unjudged,
+//! `SELECT` or inside an `INSERT`/`UPDATE`/`DELETE`/`MERGE`, `CREATE INDEX`
+//! on another member's table, a `CREATE TRIGGER` of a new trigger or a
+//! `DROP TRIGGER` of the member's own trigger on another member's table, and
+//! a `DROP INDEX` of an index no member's SQL creates are logged as unjudged,
 //! once per kind and migration for hidden SQL; so is every `DROP ... CASCADE`
 //! of an install member, and a core member's of an object it does not own.
 //! The rule guards against mistakes, not a hostile member: a `DO` block or a
@@ -64,45 +77,40 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
-
-use systemprompt_extension::{Migration, StandingTag};
+use systemprompt_extension::Migration;
 use systemprompt_identifiers::ExtensionId;
 
-use crate::lifecycle::schema_member::SchemaMember;
 
 mod claims;
 mod drops;
 mod judge;
 mod kinds;
 mod ledger;
+mod member_reads;
+mod members;
 mod object_claims;
 mod objects;
+mod records;
 mod routines;
 mod statements;
 mod writes;
 
-pub(super) use claims::retired_tables;
 pub use kinds::{HiddenSql, TableMutation};
+pub(super) use member_reads::retired_tables;
+pub use members::MigrationMembers;
+pub use records::{ObjectKind, Recorded, RecordedObject, RecordedTable};
 
-pub const KERNEL_LEDGERS: [&str; 6] = [
+pub const KERNEL_LEDGERS: [&str; 7] = [
     "public.extension_migrations",
     "public.extension_migration_compat",
     "public.schema_table_owners",
+    "public.schema_object_owners",
     "public.schema_purge_records",
     "public.schema_install_fingerprint",
     "public.schema_trigger_digests",
 ];
 
 pub const KERNEL_LEDGER_OWNER: &str = "database";
-
-/// One table's owner as `schema_table_owners` records it.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RecordedTable {
-    pub table: String,
-    pub owner: ExtensionId,
-    pub standing: StandingTag,
-}
 
 #[derive(Debug, thiserror::Error)]
 pub enum MigrationOwnershipError {
@@ -189,35 +197,9 @@ impl MigrationOwnershipError {
     }
 }
 
-/// The members an install judges and the ones it only reads for ownership.
-#[derive(Clone, Copy)]
-pub struct MigrationMembers<'a> {
-    pub judged: &'a [Arc<dyn SchemaMember>],
-    pub held_back: &'a [Arc<dyn SchemaMember>],
-}
-
-impl<'a> MigrationMembers<'a> {
-    #[must_use]
-    pub const fn new(
-        judged: &'a [Arc<dyn SchemaMember>],
-        held_back: &'a [Arc<dyn SchemaMember>],
-    ) -> Self {
-        Self { judged, held_back }
-    }
-}
-
-impl std::fmt::Debug for MigrationMembers<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("MigrationMembers")
-            .field("judged", &self.judged.len())
-            .field("held_back", &self.held_back.len())
-            .finish()
-    }
-}
-
 pub fn check_migration_ownership(
     members: MigrationMembers<'_>,
-    recorded: &[RecordedTable],
+    recorded: &Recorded<'_>,
     pending: &dyn Fn(&ExtensionId, &Migration) -> bool,
 ) -> Result<(), MigrationOwnershipError> {
     migration_ownership_findings(members, recorded, pending)
@@ -229,10 +211,18 @@ pub fn check_migration_ownership(
 #[must_use]
 pub fn migration_ownership_findings(
     members: MigrationMembers<'_>,
-    recorded: &[RecordedTable],
+    recorded: &Recorded<'_>,
     pending: &dyn Fn(&ExtensionId, &Migration) -> bool,
 ) -> Vec<MigrationOwnershipError> {
     judge::findings(members, recorded, pending)
+}
+
+#[must_use]
+pub(crate) fn owned_objects(
+    members: MigrationMembers<'_>,
+    recorded: &Recorded<'_>,
+) -> Vec<RecordedObject> {
+    claims::ownership(members, recorded, &mut Vec::new()).owned_objects(members)
 }
 
 fn label(migration: &Migration) -> String {

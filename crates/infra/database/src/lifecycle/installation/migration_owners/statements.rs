@@ -68,6 +68,19 @@ pub(super) fn object_name(object: &Node) -> Option<String> {
     }
 }
 
+pub(super) fn trigger_key(trigger: &str, table: &str) -> String {
+    format!("{trigger} ON {table}")
+}
+
+pub(super) fn trigger_of(object: &Node) -> Option<String> {
+    let NodeEnum::List(list) = object.node.as_ref()? else {
+        return None;
+    };
+    let parts = strings(&list.items);
+    let (trigger, table) = parts.split_last()?;
+    Some(trigger_key(trigger, &qualified(table)?))
+}
+
 pub(super) fn object_on_table(object: &Node) -> Option<String> {
     let NodeEnum::List(list) = object.node.as_ref()? else {
         return None;
@@ -128,49 +141,27 @@ pub(super) fn effects_of(statement: &NodeEnum) -> Vec<Effect> {
 }
 
 fn table_effects(statement: &NodeEnum) -> Option<Vec<Effect>> {
+    if let Some(effects) = object_alter_effects(statement) {
+        return Some(effects);
+    }
     Some(match statement {
-        NodeEnum::AlterTableStmt(alter) => match object_type(alter.objtype) {
-            Some(ObjectType::ObjectTable | ObjectType::ObjectForeignTable) => {
-                on(TableMutation::Alter, alter.relation.as_ref())
-            },
-            Some(ObjectType::ObjectIndex) => alter
-                .relation
-                .as_ref()
-                .and_then(relation_name)
-                .map(|index| Effect::Object(TableMutation::AlterIndex, index))
-                .into_iter()
-                .collect(),
-            Some(
-                ObjectType::ObjectView | ObjectType::ObjectMatview | ObjectType::ObjectSequence,
-            ) => altered(alter.relation.as_ref().and_then(relation_name)),
-            _ => Vec::new(),
+        NodeEnum::AlterTypeStmt(alter) => altered(qualified(&strings(&alter.type_name))),
+        NodeEnum::AlterOwnerStmt(alter)
+            if matches!(
+                object_type(alter.object_type),
+                Some(
+                    ObjectType::ObjectFunction
+                        | ObjectType::ObjectProcedure
+                        | ObjectType::ObjectRoutine
+                        | ObjectType::ObjectAggregate
+                        | ObjectType::ObjectType
+                        | ObjectType::ObjectDomain
+                )
+            ) =>
+        {
+            altered(alter.object.as_deref().and_then(object_name))
         },
-        NodeEnum::AlterSeqStmt(alter) => altered(alter.sequence.as_ref().and_then(relation_name)),
-        NodeEnum::AlterFunctionStmt(alter) => altered(
-            alter
-                .func
-                .as_ref()
-                .and_then(|func| qualified(&strings(&func.objname))),
-        ),
-        NodeEnum::AlterEnumStmt(alter) => altered(qualified(&strings(&alter.type_name))),
-        NodeEnum::AlterDomainStmt(alter) => altered(qualified(&strings(&alter.type_name))),
         NodeEnum::RenameStmt(rename) => renamed(rename),
-        NodeEnum::AlterObjectSchemaStmt(moved) => match object_type(moved.object_type) {
-            Some(
-                ObjectType::ObjectTable
-                | ObjectType::ObjectForeignTable
-                | ObjectType::ObjectView
-                | ObjectType::ObjectMatview
-                | ObjectType::ObjectSequence,
-            ) => on(TableMutation::SetSchema, moved.relation.as_ref()),
-            _ => moved
-                .object
-                .as_deref()
-                .and_then(object_name)
-                .map(|name| Effect::Object(TableMutation::SetSchema, name))
-                .into_iter()
-                .collect(),
-        },
         NodeEnum::AlterTableMoveAllStmt(_) => vec![Effect::Schema(TableMutation::MoveAll, None)],
         NodeEnum::TruncateStmt(truncate) => truncate
             .relations
@@ -192,6 +183,61 @@ fn table_effects(statement: &NodeEnum) -> Option<Vec<Effect>> {
         },
         NodeEnum::AlterPolicyStmt(policy) => on(TableMutation::AlterPolicy, policy.table.as_ref()),
         NodeEnum::GrantStmt(grant) => granted(grant),
+        _ => return None,
+    })
+}
+
+fn object_alter_effects(statement: &NodeEnum) -> Option<Vec<Effect>> {
+    Some(match statement {
+        NodeEnum::AlterTableStmt(alter) => match object_type(alter.objtype) {
+            Some(ObjectType::ObjectTable | ObjectType::ObjectForeignTable) => {
+                on(TableMutation::Alter, alter.relation.as_ref())
+            },
+            Some(ObjectType::ObjectIndex) => alter
+                .relation
+                .as_ref()
+                .and_then(relation_name)
+                .map(|index| Effect::Object(TableMutation::AlterIndex, index))
+                .into_iter()
+                .collect(),
+            Some(
+                ObjectType::ObjectView
+                | ObjectType::ObjectMatview
+                | ObjectType::ObjectSequence
+                | ObjectType::ObjectType,
+            ) => altered(alter.relation.as_ref().and_then(relation_name)),
+            _ => Vec::new(),
+        },
+        NodeEnum::AlterObjectSchemaStmt(moved) => match object_type(moved.object_type) {
+            Some(ObjectType::ObjectTable | ObjectType::ObjectForeignTable) => {
+                on(TableMutation::SetSchema, moved.relation.as_ref())
+            },
+            Some(
+                ObjectType::ObjectView | ObjectType::ObjectMatview | ObjectType::ObjectSequence,
+            ) => moved
+                .relation
+                .as_ref()
+                .and_then(relation_name)
+                .map(|name| Effect::Object(TableMutation::SetSchema, name))
+                .into_iter()
+                .collect(),
+            _ => moved
+                .object
+                .as_deref()
+                .and_then(object_name)
+                .map(|name| Effect::Object(TableMutation::SetSchema, name))
+                .into_iter()
+                .collect(),
+        },
+        NodeEnum::AlterSeqStmt(alter) => altered(alter.sequence.as_ref().and_then(relation_name)),
+        NodeEnum::AlterFunctionStmt(alter) => altered(
+            alter
+                .func
+                .as_ref()
+                .and_then(|func| qualified(&strings(&func.objname))),
+        ),
+        NodeEnum::AlterEnumStmt(alter) => altered(qualified(&strings(&alter.type_name))),
+        NodeEnum::AlterDomainStmt(alter) => altered(qualified(&strings(&alter.type_name))),
         _ => return None,
     })
 }

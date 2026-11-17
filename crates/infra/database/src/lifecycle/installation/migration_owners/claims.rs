@@ -1,7 +1,10 @@
 //! Who owns each table. A record in `schema_table_owners` and the kernel
-//! ledgers come first, then a member's declarative schema, then the tables a
-//! member's migrations create and do not drop again; the first claim in that
-//! order is the owner.
+//! ledgers come first; then a core member before an install member; then a
+//! member's declarative schema before the tables a member's migrations create
+//! and do not drop again; then composition order. The first claim in that
+//! order is the owner. Every member of the composition claims, a held-back
+//! member included; a disabled member, absent from the composition, claims
+//! through its records.
 //!
 //! A member's retirements may name a table (`DROP TABLE IF EXISTS`): the
 //! member says its migration chain has retired that table. The table is then
@@ -18,13 +21,12 @@ use systemprompt_extension::{StandingTag, created_table_names};
 use systemprompt_identifiers::ExtensionId;
 
 use super::super::undeclared::qualify;
+use super::member_reads::{read_member, retired_tables};
 use super::objects::Created;
-use super::statements::{is_table, object_name, top_level};
 use super::{
-    KERNEL_LEDGER_OWNER, KERNEL_LEDGERS, MigrationMembers, MigrationOwnershipError, RecordedTable,
-    label,
+    KERNEL_LEDGER_OWNER, KERNEL_LEDGERS, MigrationMembers, MigrationOwnershipError, ObjectKind,
+    Recorded,
 };
-use crate::lifecycle::schema_member::SchemaMember;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(super) enum Rank {
@@ -38,26 +40,48 @@ pub(super) struct Claim {
     pub(super) rank: Rank,
     pub(super) id: ExtensionId,
     pub(super) standing: StandingTag,
+    pub(super) position: usize,
+}
+
+impl Claim {
+    const fn precedence(&self) -> (bool, u8, Rank, usize) {
+        let standing = match self.standing {
+            StandingTag::Core => 0,
+            StandingTag::Install => 1,
+        };
+        (
+            !matches!(self.rank, Rank::Record),
+            standing,
+            self.rank,
+            self.position,
+        )
+    }
+}
+
+pub(super) fn push_claim(claims: &mut BTreeMap<String, Vec<Claim>>, name: String, claim: Claim) {
+    let claims = claims.entry(name).or_default();
+    if claims
+        .iter()
+        .any(|held| held.id == claim.id && held.rank <= claim.rank)
+    {
+        return;
+    }
+    claims.push(claim);
+    claims.sort_by_key(Claim::precedence);
 }
 
 #[derive(Default)]
 pub(super) struct Ownership {
-    tables: BTreeMap<String, Vec<Claim>>,
+    pub(super) tables: BTreeMap<String, Vec<Claim>>,
     pub(super) objects: BTreeMap<String, Vec<Claim>>,
     pub(super) indexes: BTreeMap<String, Vec<Claim>>,
+    pub(super) triggers: BTreeMap<String, Vec<Claim>>,
     pub(super) created: BTreeMap<ExtensionId, Created>,
 }
 
 impl Ownership {
     fn claim(&mut self, table: String, claim: Claim) {
-        let claims = self.tables.entry(table).or_default();
-        if !claims
-            .iter()
-            .any(|held| held.id == claim.id && held.rank <= claim.rank)
-        {
-            claims.push(claim);
-            claims.sort_by_key(|held| held.rank);
-        }
+        push_claim(&mut self.tables, table, claim);
     }
 
     pub(super) fn owner(&self, table: &str) -> Option<&Claim> {
@@ -114,76 +138,10 @@ impl Ownership {
     }
 }
 
-pub(in crate::lifecycle::installation) fn retired_tables(
-    member: &dyn SchemaMember,
-) -> BTreeSet<String> {
-    let mut retired = BTreeSet::new();
-    for retirement in member.retirements() {
-        let Ok(parsed) = pg_query::parse(&retirement.sql) else {
-            continue;
-        };
-        for statement in top_level(&parsed) {
-            if let pg_query::NodeEnum::DropStmt(drop) = statement
-                && is_table(drop.remove_type)
-            {
-                retired.extend(drop.objects.iter().filter_map(object_name));
-            }
-        }
-    }
-    retired
-}
-
-fn read_member(
-    member: &dyn SchemaMember,
-    id: &ExtensionId,
-    findings: &mut Vec<MigrationOwnershipError>,
-) -> (Created, Created, BTreeSet<String>) {
-    let mut migrations: Vec<_> = member
-        .migrations()
-        .into_iter()
-        .filter(|m| !m.tombstone)
-        .collect();
-    migrations.sort_by_key(|m| m.version);
-    let mut created = Created::default();
-    for migration in &migrations {
-        if let Err(source) = created.read(migration.sql) {
-            findings.push(MigrationOwnershipError::Parse {
-                member: id.clone(),
-                migration: label(migration),
-                source,
-            });
-        }
-    }
-    for table in retired_tables(member) {
-        created.tables.remove(&table);
-        created.objects.remove(&table);
-    }
-    let mut declared = BTreeSet::new();
-    let mut declared_objects = Created::default();
-    for schema in member.schemas() {
-        let read = created_table_names(&schema.sql).and_then(|tables| {
-            created.read(&schema.sql)?;
-            declared_objects.read(&schema.sql)?;
-            Ok(tables)
-        });
-        match read {
-            Ok(tables) => declared.extend(tables.iter().map(|table| qualify(table))),
-            Err(source) => findings.push(MigrationOwnershipError::Parse {
-                member: id.clone(),
-                migration: String::from("schema"),
-                source,
-            }),
-        }
-    }
-    (created, declared_objects, declared)
-}
-
 impl Ownership {
-    fn claim_records(&mut self, members: MigrationMembers<'_>, recorded: &[RecordedTable]) {
+    fn claim_records(&mut self, members: MigrationMembers<'_>, recorded: &Recorded<'_>) {
         let retired: BTreeMap<ExtensionId, BTreeSet<String>> = members
-            .judged
-            .iter()
-            .chain(members.held_back)
+            .all()
             .map(|member| {
                 (
                     ExtensionId::new(member.id()),
@@ -191,7 +149,7 @@ impl Ownership {
                 )
             })
             .collect();
-        for record in recorded.iter().filter(|record| {
+        for record in recorded.tables.iter().filter(|record| {
             retired
                 .get(&record.owner)
                 .is_none_or(|tables| !tables.contains(&qualify(&record.table)))
@@ -202,6 +160,24 @@ impl Ownership {
                     rank: Rank::Record,
                     id: record.owner.clone(),
                     standing: record.standing,
+                    position: 0,
+                },
+            );
+        }
+        for record in recorded.objects {
+            let claims = match record.kind {
+                ObjectKind::Object => &mut self.objects,
+                ObjectKind::Index => &mut self.indexes,
+                ObjectKind::Trigger => &mut self.triggers,
+            };
+            push_claim(
+                claims,
+                record.name.clone(),
+                Claim {
+                    rank: Rank::Record,
+                    id: record.owner.clone(),
+                    standing: record.standing,
+                    position: 0,
                 },
             );
         }
@@ -212,6 +188,7 @@ impl Ownership {
                     rank: Rank::Record,
                     id: ExtensionId::new(KERNEL_LEDGER_OWNER),
                     standing: StandingTag::Core,
+                    position: 0,
                 },
             );
         }
@@ -220,17 +197,28 @@ impl Ownership {
 
 pub(super) fn ownership(
     members: MigrationMembers<'_>,
-    recorded: &[RecordedTable],
+    recorded: &Recorded<'_>,
     findings: &mut Vec<MigrationOwnershipError>,
 ) -> Ownership {
     let mut ownership = Ownership::default();
     ownership.claim_records(members, recorded);
     let mut declared_by = Vec::new();
     let mut declared_objects_by = Vec::new();
-    for member in members.judged.iter().chain(members.held_back) {
+    for (position, member) in members.all().enumerate() {
         let id = ExtensionId::new(member.id());
-        let (created, declared_objects, declared) = read_member(member.as_ref(), &id, findings);
-        ownership.claim_created(&id, member.standing(), &created, &declared_objects);
+        let judged = members.is_judged(member.as_ref());
+        let mut read_findings = Vec::new();
+        let (created, declared_objects, declared) =
+            read_member(member.as_ref(), &id, &mut read_findings);
+        if judged {
+            findings.extend(read_findings);
+        }
+        ownership.claim_created(
+            &id,
+            (member.standing(), position + 1),
+            &created,
+            &declared_objects,
+        );
         for table in &created.tables {
             let rank = if declared.contains(table) {
                 Rank::Schema
@@ -243,11 +231,14 @@ pub(super) fn ownership(
                     rank,
                     id: id.clone(),
                     standing: member.standing(),
+                    position: position + 1,
                 },
             );
         }
-        declared_by.push((id.clone(), declared));
-        if member.standing() == StandingTag::Install {
+        if judged {
+            declared_by.push((id.clone(), declared));
+        }
+        if judged && member.standing() == StandingTag::Install {
             declared_objects_by.push((id.clone(), Ownership::schema_creates(member.as_ref())));
         }
         ownership.created.insert(id, created);

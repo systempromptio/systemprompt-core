@@ -8,7 +8,7 @@
 use std::sync::Arc;
 
 use systemprompt_database::lifecycle::{
-    HiddenSql, MigrationMembers, MigrationOwnershipError, RecordedTable, TableMutation,
+    HiddenSql, MigrationMembers, MigrationOwnershipError, Recorded, RecordedTable, TableMutation,
     check_migration_ownership, migration_ownership_findings,
 };
 use systemprompt_database::{
@@ -24,6 +24,8 @@ use super::migration_edges::LogBuffer;
 
 const OWNERS_DDL: &str =
     include_str!("../../../../../../infra/database/schema/schema_table_owners.sql");
+const OBJECT_OWNERS_DDL: &str =
+    include_str!("../../../../../../infra/database/schema/schema_object_owners.sql");
 const RECORDS_DDL: &str =
     include_str!("../../../../../../infra/database/schema/schema_purge_records.sql");
 
@@ -89,14 +91,11 @@ pub(super) fn all_pending(_: &ExtensionId, _: &Migration) -> bool {
 }
 
 pub(super) fn only(judged: &[Arc<dyn SchemaMember>]) -> MigrationMembers<'_> {
-    MigrationMembers {
-        judged,
-        held_back: &[],
-    }
+    MigrationMembers::new(judged, &[])
 }
 
 pub(super) fn judged(members: &[Arc<dyn SchemaMember>]) -> Result<(), MigrationOwnershipError> {
-    check_migration_ownership(only(members), &[], &all_pending)
+    check_migration_ownership(only(members), &Recorded::NONE, &all_pending)
 }
 
 fn foreign(outcome: Result<(), MigrationOwnershipError>) -> (TableMutation, String, String) {
@@ -168,22 +167,23 @@ fn a_recorded_table_of_an_absent_member_is_refused() {
         standing: StandingTag::Install,
     }];
     let members = [peer(StandingTag::Install, "DROP TABLE mo_disabled;")];
-    let outcome = check_migration_ownership(only(&members), &recorded, &all_pending);
+    let outcome =
+        check_migration_ownership(only(&members), &Recorded::tables(&recorded), &all_pending);
     let (statement, table, owner_id) = foreign(outcome);
     assert_eq!(
         (statement, table.as_str(), owner_id.as_str()),
         (TableMutation::Drop, "public.mo_disabled", "mo-disabled")
     );
-    check_migration_ownership(only(&members), &[], &all_pending)
+    check_migration_ownership(only(&members), &Recorded::NONE, &all_pending)
         .expect("negative control: an unrecorded table of no member is not judged");
 }
 
 #[test]
 fn an_applied_migration_is_not_judged() {
     let members = [owner(), peer(StandingTag::Install, "DROP TABLE mo_owned;")];
-    check_migration_ownership(only(&members), &[], &|_, _| false)
+    check_migration_ownership(only(&members), &Recorded::NONE, &|_, _| false)
         .expect("a migration recorded as applied is history");
-    assert!(check_migration_ownership(only(&members), &[], &all_pending).is_err());
+    assert!(check_migration_ownership(only(&members), &Recorded::NONE, &all_pending).is_err());
 }
 
 #[test]
@@ -249,10 +249,11 @@ fn no_core_migration_mutates_another_members_table() {
         members.len() > 10,
         "the core composition has its schema members"
     );
-    let findings: Vec<String> = migration_ownership_findings(only(&members), &[], &all_pending)
-        .iter()
-        .map(ToString::to_string)
-        .collect();
+    let findings: Vec<String> =
+        migration_ownership_findings(only(&members), &Recorded::NONE, &all_pending)
+            .iter()
+            .map(ToString::to_string)
+            .collect();
     assert!(findings.is_empty(), "{findings:#?}");
 }
 
@@ -266,6 +267,7 @@ pub(super) fn ledger() -> Arc<dyn SchemaMember> {
         standing: StandingTag::Core,
         schemas: vec![
             SchemaDefinition::new("schema_table_owners", OWNERS_DDL),
+            SchemaDefinition::new("schema_object_owners", OBJECT_OWNERS_DDL),
             SchemaDefinition::new("schema_purge_records", RECORDS_DDL),
         ],
         migrations: vec![],

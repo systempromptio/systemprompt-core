@@ -9,15 +9,28 @@ use pg_query::protobuf::{DropBehavior, GrantTargetType, ObjectType};
 use super::kinds::{HiddenSql, TableMutation};
 use super::statements::{
     Effect, is_table, object_name, object_on_table, object_type, on, relation_name, strings,
+    trigger_key, trigger_of,
 };
 
 pub(super) fn renamed(rename: &pg_query::protobuf::RenameStmt) -> Vec<Effect> {
     match object_type(rename.rename_type) {
+        Some(ObjectType::ObjectTrigger) => {
+            let mut effects = on(TableMutation::Rename, rename.relation.as_ref());
+            effects.extend(
+                rename
+                    .relation
+                    .as_ref()
+                    .and_then(relation_name)
+                    .map(|table| {
+                        Effect::Object(TableMutation::Rename, trigger_key(&rename.subname, &table))
+                    }),
+            );
+            effects
+        },
         Some(
             ObjectType::ObjectTable
             | ObjectType::ObjectColumn
             | ObjectType::ObjectTabconstraint
-            | ObjectType::ObjectTrigger
             | ObjectType::ObjectPolicy
             | ObjectType::ObjectRule,
         ) => on(TableMutation::Rename, rename.relation.as_ref()),
@@ -32,22 +45,26 @@ pub(super) fn renamed(rename: &pg_query::protobuf::RenameStmt) -> Vec<Effect> {
             .map(|index| Effect::Object(TableMutation::AlterIndex, index))
             .into_iter()
             .collect(),
-        Some(ObjectType::ObjectView | ObjectType::ObjectMatview | ObjectType::ObjectSequence) => {
-            rename
-                .relation
-                .as_ref()
-                .and_then(relation_name)
-                .map(|object| Effect::Object(TableMutation::AlterObject, object))
-                .into_iter()
-                .collect()
-        },
+        Some(
+            ObjectType::ObjectView
+            | ObjectType::ObjectMatview
+            | ObjectType::ObjectSequence
+            | ObjectType::ObjectAttribute,
+        ) => rename
+            .relation
+            .as_ref()
+            .and_then(relation_name)
+            .map(|object| Effect::Object(TableMutation::AlterObject, object))
+            .into_iter()
+            .collect(),
         Some(
             ObjectType::ObjectFunction
             | ObjectType::ObjectProcedure
             | ObjectType::ObjectRoutine
             | ObjectType::ObjectAggregate
             | ObjectType::ObjectType
-            | ObjectType::ObjectDomain,
+            | ObjectType::ObjectDomain
+            | ObjectType::ObjectDomconstraint,
         ) => rename
             .object
             .as_deref()
@@ -80,6 +97,9 @@ pub(super) fn dropped(drop: &pg_query::protobuf::DropStmt) -> Vec<Effect> {
     for object in &drop.objects {
         if let Some(kind) = on_table {
             effects.extend(object_on_table(object).map(|table| Effect::Table(kind, table)));
+            if kind == TableMutation::DropTrigger {
+                effects.extend(trigger_of(object).map(|key| Effect::Object(kind, key)));
+            }
             continue;
         }
         if remove == Some(ObjectType::ObjectSchema) {
