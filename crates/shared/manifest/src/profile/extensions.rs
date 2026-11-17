@@ -127,15 +127,21 @@ fn entry<E: serde::de::Error>(value: Value) -> Result<DisabledExtension, E> {
                 Value::String(id) => ExtensionId::try_new(id)
                     .map(|id| DisabledExtension::interpolated(id, variables))
                     .map_err(|error| {
-                        E::custom(format!("the value of {named} is not an extension id: {error}"))
+                        E::custom(format!(
+                            "the value of {named} is not an extension id: {error}"
+                        ))
                     }),
-                _ => Err(E::custom(format!("the value of {named} is not an extension id"))),
+                _ => Err(E::custom(format!(
+                    "the value of {named} is not an extension id"
+                ))),
             }
         },
         Value::Tagged(tagged) if tagged.tag == UNRESOLVED_TAG => Err(E::custom(
             "an extensions.disabled entry references a variable that is not set",
         )),
-        _ => Err(E::custom("an extensions.disabled entry is not an extension id")),
+        _ => Err(E::custom(
+            "an extensions.disabled entry is not an extension id",
+        )),
     }
 }
 

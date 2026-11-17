@@ -16,9 +16,9 @@
 //! accepts [`FieldKind::PROVENANCE`] (its schema carries
 //! [`PROVENANCE_KEYWORD`]) receives a resolved value wrapped in an
 //! [`INTERPOLATED_TAG`] marker that names the variables it came from, so the
-//! field's type can report a refused value by its variable, never by the value. A placeholder whose
-//! variable is unset (or empty) and has no `:-` default is an
-//! [`InterpolationError`] naming the variable and the key path
+//! field's type can report a refused value by its variable, never by the value.
+//! A placeholder whose variable is unset (or empty) and has no `:-` default is
+//! an [`InterpolationError`] naming the variable and the key path
 //! ([`interpolate_yaml`], for configuration about to run), is recorded and
 //! left in the tree as a typed `!unresolved` marker
 //! ([`interpolate_yaml_available`], for a profile that is only inspected,

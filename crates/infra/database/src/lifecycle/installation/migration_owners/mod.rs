@@ -12,10 +12,10 @@
 //! The judged statements, refused when their table is another member's
 //! ([`MigrationOwnershipError::ForeignTable`]): `ALTER TABLE` (including
 //! `SET SCHEMA`), `DROP TABLE`, `TRUNCATE`, `RENAME` of a table, column,
-//! constraint, trigger, policy or rule, `CREATE RULE`, `CREATE POLICY`, `ALTER POLICY`, `DROP POLICY|RULE ... ON`,
-//! and `GRANT`/`REVOKE` on a table. `DROP INDEX`/`ALTER INDEX` and
-//! a `DROP` or `SET SCHEMA` of a type, routine, sequence or view are judged
-//! against the member whose SQL creates the object
+//! constraint, trigger, policy or rule, `CREATE RULE`, `CREATE POLICY`, `ALTER
+//! POLICY`, `DROP POLICY|RULE ... ON`, and `GRANT`/`REVOKE` on a table. `DROP
+//! INDEX`/`ALTER INDEX` and a `DROP` or `SET SCHEMA` of a type, routine,
+//! sequence or view are judged against the member whose SQL creates the object
 //! ([`MigrationOwnershipError::ForeignObject`]). Schema-level statements
 //! (`DROP SCHEMA`, `ALTER SCHEMA ... RENAME`, `GRANT ... ON ALL ... IN
 //! SCHEMA`, `ALTER TABLE ALL IN TABLESPACE`) are refused for an install

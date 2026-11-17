@@ -59,13 +59,13 @@ pub use brain::{
 };
 pub use cloud::{CloudConfig, CloudValidationMode, HostingProvider, UnknownHostingProvider};
 pub use config_planes::{ConfigPlanesConfig, PlaneAuthority};
-pub use extensions::{DisabledExtension, ExtensionsConfig};
 pub use database::{DatabaseConfig, PoolConfig, RoleMaxConnections};
 pub use deploy::{
     DEFAULT_GITOPS_COMMIT_MESSAGE, DeployConfig, GitOpsConfig, OperatorAuthConfig,
     default_operator_scopes,
 };
 pub use error::{ProfileError, ProfileResult};
+pub use extensions::{DisabledExtension, ExtensionsConfig};
 pub use external_secrets::{ExternalSecretsConfig, MIN_EXTERNAL_REFRESH_SECS};
 pub use field_kind::profile_field_kind;
 pub use governance::{

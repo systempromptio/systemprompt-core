@@ -38,7 +38,10 @@ fn an_interpolated_entry_keeps_its_variable_and_a_literal_entry_none() {
             DisabledExtension::literal(ExtensionId::new("mo-literal")),
         ]
     );
-    assert_eq!(config.disabled[0].to_string(), "the value of ${KF9_SECRETISH}");
+    assert_eq!(
+        config.disabled[0].to_string(),
+        "the value of ${KF9_SECRETISH}"
+    );
     assert_eq!(config.disabled[1].to_string(), "mo-literal");
     assert!(config.is_disabled(&ExtensionId::new(SECRET)));
 }
@@ -82,5 +85,8 @@ fn the_boot_layer_records_the_variable_of_a_disabled_entry() {
         .unwrap_or(Value::Null);
     let config: ExtensionsConfig = serde_yaml::from_value(section).expect("an id");
     assert_eq!(config.disabled[0].variables(), [var.to_owned()]);
-    assert_eq!(config.disabled[0].to_string(), format!("the value of ${{{var}}}"));
+    assert_eq!(
+        config.disabled[0].to_string(),
+        format!("the value of ${{{var}}}")
+    );
 }

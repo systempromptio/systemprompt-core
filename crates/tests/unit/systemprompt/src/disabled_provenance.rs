@@ -2,8 +2,7 @@
 //! the variable, never its value; a literal unknown id is named as written.
 
 use serde_yaml::Value;
-use systemprompt::CompositionError;
-use systemprompt::reference;
+use systemprompt::{CompositionError, reference};
 use systemprompt_manifest::profile::profile_field_kind;
 use systemprompt_manifest::{ExtensionsConfig, interpolate_yaml};
 

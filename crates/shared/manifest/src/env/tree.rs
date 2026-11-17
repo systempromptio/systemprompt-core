@@ -133,7 +133,10 @@ fn resolve_scalar(
         Value::String(resolved)
     };
     if kind.accepts(FieldKind::PROVENANCE) {
-        return Ok(Some(interpolated_marker(placeholder_variables(text), value)));
+        return Ok(Some(interpolated_marker(
+            placeholder_variables(text),
+            value,
+        )));
     }
     Ok(Some(value))
 }

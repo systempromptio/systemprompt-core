@@ -197,7 +197,10 @@ fn a_do_block_is_logged_once_per_migration_at_either_standing() {
         };
         outcome.unwrap_or_else(|e| panic!("{standing:?}: a DO block is logged, not refused: {e}"));
         let text = logs.text();
-        let lines: Vec<&str> = text.lines().filter(|l| l.contains("statement=DO")).collect();
+        let lines: Vec<&str> = text
+            .lines()
+            .filter(|l| l.contains("statement=DO"))
+            .collect();
         assert_eq!(lines.len(), 1, "one warning per migration: {text}");
         assert!(
             lines[0].contains("member=mo-peer") && lines[0].contains("migration=001_probe"),
