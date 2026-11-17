@@ -116,7 +116,7 @@ impl PassRunner<'_> {
             .owners
             .purges
             .get(target.table())
-            .map(|purge| purge.as_ref())
+            .map(AsRef::as_ref)
         else {
             return Ok((0, true));
         };

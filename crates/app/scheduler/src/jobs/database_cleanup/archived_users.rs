@@ -50,7 +50,7 @@ pub(super) async fn purge_archived_users(
         .purge_expired_archives(window_days, ARCHIVE_PURGE_BATCH, plan)
         .await
         .map_err(internal)?;
-    let mut incomplete = 0_u64;
+    let mut incomplete = 0u64;
     for archive in purged
         .iter()
         .filter(|archive| !archive.outcome.is_complete())

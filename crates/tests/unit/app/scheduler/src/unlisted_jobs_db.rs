@@ -97,7 +97,7 @@ async fn error_mode_refuses_to_start_and_names_the_jobs() {
     let (app_ctx, schedule) = crate::test_extension::scheduled_app(&url).await;
     let svc = SchedulerService::new(
         config(UnlistedJobs::Error, Vec::new()),
-        Arc::clone(&pool),
+        &pool,
         app_ctx,
         Arc::clone(&schedule),
     );
@@ -117,7 +117,7 @@ async fn default_mode_schedules_jobs_with_a_declared_default() {
     let (app_ctx, schedule) = crate::test_extension::scheduled_app(&url).await;
     let svc = SchedulerService::new(
         config(UnlistedJobs::Default, Vec::new()),
-        Arc::clone(&pool),
+        &pool,
         app_ctx,
         Arc::clone(&schedule),
     );
@@ -142,7 +142,7 @@ async fn warn_mode_schedules_nothing_it_was_not_told_to() {
     let (app_ctx, schedule) = crate::test_extension::scheduled_app(&url).await;
     let svc = SchedulerService::new(
         config(UnlistedJobs::Warn, Vec::new()),
-        Arc::clone(&pool),
+        &pool,
         app_ctx,
         Arc::clone(&schedule),
     );

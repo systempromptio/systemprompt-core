@@ -58,7 +58,7 @@ async fn cancelling_a_cluster_job_releases_its_session_lock_for_a_later_dispatch
             distributed_lock: true,
             unlisted_jobs: systemprompt_manifest::services::UnlistedJobs::Warn,
         },
-        Arc::clone(&pool),
+        &pool,
         context,
         Arc::clone(&schedule),
     ));

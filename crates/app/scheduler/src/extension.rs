@@ -1,6 +1,7 @@
-//! The scheduler member: the `scheduled_jobs`, config-plane, OTLP export and
-//! licence check-in schemas and migrations, and the kernel's built-in jobs
-//! (config reconcile, licence check-in, the inventory refresh, the drainers of
+//! The scheduler member: schemas, migrations and the kernel's built-in jobs.
+//!
+//! It owns the `scheduled_jobs`, config-plane, OTLP export and licence
+//! check-in schemas and migrations, and the built-in jobs (config reconcile, licence check-in, the inventory refresh, the drainers of
 //! kernel-owned projections, session housekeeping, database cleanup, Vertex
 //! discovery and, with `otel`, the OTLP export).
 //!

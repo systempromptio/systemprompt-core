@@ -72,7 +72,7 @@ async fn dispatch(
         distributed_lock,
         unlisted_jobs: systemprompt_manifest::services::UnlistedJobs::Warn,
     };
-    let svc = SchedulerService::new(config, Arc::clone(pool), app_ctx, Arc::clone(&schedule));
+    let svc = SchedulerService::new(config, pool, app_ctx, Arc::clone(&schedule));
     svc.run_bootstrap_jobs(None)
         .await
         .expect("bootstrap dispatch must not abort");

@@ -44,7 +44,7 @@ async fn dispatch_on(pool: &DbPool, url: &str, instance_id: &str, jobs: Vec<JobC
     let (app_ctx, schedule) = context_for_instance(url, instance_id).await;
     let svc = SchedulerService::new(
         bootstrap_config(jobs),
-        Arc::clone(pool),
+        pool,
         app_ctx,
         Arc::clone(&schedule),
     );

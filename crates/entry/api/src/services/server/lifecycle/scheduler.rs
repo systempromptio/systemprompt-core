@@ -34,7 +34,7 @@ pub(in crate::services::server) async fn initialize_scheduler(
     let schedule = Arc::new(ctx.kernel().resolved().get::<AdmittedSchedule>()?);
     let scheduler = SchedulerService::new(
         config,
-        Arc::clone(ctx.db_pool()),
+        ctx.db_pool(),
         Arc::new(ctx.clone()),
         schedule,
     );

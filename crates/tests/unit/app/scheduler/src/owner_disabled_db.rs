@@ -76,7 +76,7 @@ async fn a_configuration_naming_a_left_out_members_job_refuses_the_start() {
     let without = fixture_admitted_without(&[ExtensionId::new("mcp")]);
     let (ctx, schedule) = app_over(&test_database_url(), without).await;
 
-    let err = SchedulerService::new(naming_the_mcp_job(), pool, ctx, schedule)
+    let err = SchedulerService::new(naming_the_mcp_job(), &pool, ctx, schedule)
         .start()
         .await
         .expect_err("an unknown job refuses the start");
@@ -92,7 +92,7 @@ async fn the_same_configuration_starts_with_the_member_admitted() {
     let pool = test_db_pool().await;
     let (ctx, schedule) = app_over(&test_database_url(), fixture_admitted()).await;
 
-    let startup = SchedulerService::new(naming_the_mcp_job(), pool, ctx, schedule)
+    let startup = SchedulerService::new(naming_the_mcp_job(), &pool, ctx, schedule)
         .start()
         .await
         .expect("an admitted member's job starts");

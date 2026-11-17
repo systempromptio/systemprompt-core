@@ -128,7 +128,7 @@ async fn start_replicas(job: &str, distributed_lock: bool) -> Result<Vec<Schedul
     for _ in 0..2 {
         let startup = SchedulerService::new(
             probe_config(job, distributed_lock),
-            Arc::clone(&pool),
+            &pool,
             Arc::clone(&app_context),
             Arc::clone(&schedule),
         )

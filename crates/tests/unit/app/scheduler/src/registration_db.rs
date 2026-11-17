@@ -102,7 +102,7 @@ async fn start(jobs: Vec<JobConfig>) -> (SchedulerStartup, DbPool) {
     let (app_ctx, schedule) = crate::test_extension::scheduled_app(&url).await;
     let svc = SchedulerService::new(
         config(jobs),
-        Arc::clone(&pool),
+        &pool,
         app_ctx,
         Arc::clone(&schedule),
     );

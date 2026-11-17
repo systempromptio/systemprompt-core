@@ -52,13 +52,13 @@ fn collect_unlisted(
         .collect();
     let mut unlisted: Vec<Arc<dyn JobTrait>> = registered
         .values()
-        .cloned()
         .filter(|job| {
             !named.contains(job.name())
                 && job.enabled()
                 && job.schedulable()
                 && job.configured(deployment)
         })
+        .cloned()
         .collect();
     unlisted.sort_unstable_by_key(|job| job.name());
     unlisted

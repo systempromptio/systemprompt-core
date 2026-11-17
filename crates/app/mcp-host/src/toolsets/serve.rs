@@ -88,14 +88,14 @@ pub fn build_server(
 
     let mut toolsets: Vec<Box<dyn McpToolset>> = Vec::new();
     for reference in deployment.enabled_toolsets() {
-        let build = built
+        let factory = built
             .find(&reference.id)
             .ok_or_else(|| McpHostError::UnknownToolset {
                 server: server_id.clone(),
                 toolset: reference.id.clone(),
                 registered: built.ids().join(", "),
             })?;
-        match build(ctx, server_id) {
+        match factory(ctx, server_id) {
             Ok(Some(toolset)) => toolsets.push(toolset),
             Ok(None) => {
                 tracing::warn!(server = %server_id, toolset = %reference.id, "toolset unavailable in this installation; not served");

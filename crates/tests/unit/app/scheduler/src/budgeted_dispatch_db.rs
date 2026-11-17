@@ -26,7 +26,7 @@ async fn a_budgeted_job_runs_its_transactions_under_the_declared_limits() {
         distributed_lock: false,
         unlisted_jobs: systemprompt_manifest::services::UnlistedJobs::Warn,
     };
-    SchedulerService::new(config, Arc::clone(&pool), app_ctx, Arc::clone(&schedule))
+    SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule))
         .run_bootstrap_jobs(None)
         .await
         .expect("bootstrap dispatch");

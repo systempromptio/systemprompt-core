@@ -148,13 +148,13 @@ pub struct SchedulerService {
 impl SchedulerService {
     pub fn new(
         config: SchedulerConfig,
-        db_pool: DbPool,
+        db_pool: &DbPool,
         app_context: Arc<AppContext>,
         schedule: Arc<AdmittedSchedule>,
     ) -> Self {
-        let repository = SchedulerRepository::new(&db_pool);
+        let repository = SchedulerRepository::new(db_pool);
         let user_repository = Arc::clone(app_context.user_repository());
-        let logging_repository = systemprompt_logging::LoggingRepository::new(&db_pool);
+        let logging_repository = systemprompt_logging::LoggingRepository::new(db_pool);
         Self {
             config,
             repository,

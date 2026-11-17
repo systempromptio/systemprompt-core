@@ -113,7 +113,7 @@ fn config(jobs: &[&str], schedule: &str) -> SchedulerConfig {
 
 async fn start(pool: &DbPool, config: SchedulerConfig) -> SchedulerStartup {
     let (app_ctx, schedule) = crate::test_extension::scheduled_app(&test_database_url()).await;
-    SchedulerService::new(config, Arc::clone(pool), app_ctx, Arc::clone(&schedule))
+    SchedulerService::new(config, pool, app_ctx, Arc::clone(&schedule))
         .start()
         .await
         .expect("scheduler starts")
