@@ -1,6 +1,7 @@
 //! Where admitted routes land and when two of them claim one request.
 //!
-//! A full path joins a base and a declared path. Two handler defs overlap on
+//! A full path joins a base and a declared path; a gateway route set's defs
+//! are gateway-relative, so its full path joins the gateway base. Two handler defs overlap on
 //! the same method and full path; a service def ([`RouteMethod::Any`])
 //! overlaps every def whose full path its prefix covers, and another service
 //! whose prefix covers or is covered by its own.
@@ -21,6 +22,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::shape::{BaseRef, RouteDef, RouteMethod};
+use systemprompt_models::modules::ApiPaths;
+
 use crate::reserved::{CoreId, RESERVED_PATHS, ReservedPath, ReservedReach};
 
 /// Two admitted defs that claim one request: the same method and full path,
@@ -35,7 +38,7 @@ pub struct RouteOverlap {
 pub fn full_path(base: BaseRef, path: &str) -> String {
     let base = match base {
         BaseRef::Path(base) => base.path(),
-        BaseRef::Gateway(gateway) => gateway.path(),
+        BaseRef::Gateway(_) => ApiPaths::GATEWAY_BASE,
     };
     match (base, path) {
         ("/", path) => path.to_owned(),
