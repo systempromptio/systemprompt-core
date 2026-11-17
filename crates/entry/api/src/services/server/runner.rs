@@ -249,7 +249,7 @@ async fn start_metrics_listener(
         .admitted()
         .built()
         .members()
-        .flat_map(|member| member.sink.metrics().iter().cloned())
+        .flat_map(|member| member.sink.metrics().iter().copied())
         .collect();
     let handle = super::metrics::install_recorder(&ctx.config().instance_id, &metrics)?;
     super::pool_metrics::spawn_sampler(ctx);

@@ -16,6 +16,7 @@ use systemprompt_api::services::middleware::{
     MountLayers, ProtectionGuards, PublicContextMiddleware, RateLimitState,
     UserOnlyContextMiddleware, mount_admitted,
 };
+use systemprompt_api::services::server::routes::Composed;
 use systemprompt_extension::admitted::AdmittedRouteSet;
 use systemprompt_extension::reserved::CoreId;
 use systemprompt_extension::router::{BasePath, RouteSet, RouteSpec, WebBase};
@@ -86,8 +87,10 @@ async fn mount(owner: &str, serves: &dyn Fn(RouteGroup) -> bool) -> Result<Route
     );
     mount_admitted(
         Router::new(),
-        &admitted,
-        &kernel(),
+        Composed {
+            admitted: &admitted,
+            kernel: &kernel(),
+        },
         &layers().await,
         serves,
         &|router| router,
@@ -164,8 +167,10 @@ async fn an_install_service_is_nested_behind_its_def_protection() {
     );
     let router = mount_admitted(
         Router::new(),
-        &admitted,
-        &kernel(),
+        Composed {
+            admitted: &admitted,
+            kernel: &kernel(),
+        },
         &layers().await,
         &|_| true,
         &|router| router,

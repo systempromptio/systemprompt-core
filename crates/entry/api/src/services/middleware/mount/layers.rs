@@ -11,7 +11,7 @@ use axum::extract::DefaultBodyLimit;
 use systemprompt_extension::{ContextKind, ProtectionLayer, RouteProtection};
 
 use super::{MountError, MountLayers};
-use crate::services::middleware::rate_limit::{LayerReach, RouterExt, layer_with};
+use crate::services::middleware::rate_limit::{LayerReach, RateWindow, RouterExt, layer_with};
 
 pub(super) fn inner_layers(
     mut router: Router,
@@ -69,8 +69,10 @@ pub(super) fn rate_limited(
         router = router.with_bearer_window_reaching(
             &layers.limits,
             jwt,
-            per_second,
-            rate_limit.scope,
+            RateWindow {
+                per_second,
+                scope: rate_limit.scope,
+            },
             reach,
         );
     }

@@ -64,7 +64,7 @@ use self::global::{GLOBAL_WINDOW_SECS, GlobalUserLimit};
 pub use self::bearer::bearer_jwt;
 pub use self::key::{IdentityOrTrustedIpKey, TrustedIpKey, client_bucket};
 pub use self::keyed::KeyedLimiter;
-pub use self::router_ext::{LayerReach, RouterExt, layer_with};
+pub use self::router_ext::{LayerReach, RateWindow, RouterExt, layer_with};
 use self::throttle::{Keying, Throttle, throttle};
 pub use self::throttle::{SubjectThrottle, Throttled};
 

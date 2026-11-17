@@ -92,7 +92,7 @@ fn build_routes(
         .admitted
         .built()
         .members()
-        .flat_map(|member| member.sink.metrics().iter().cloned())
+        .flat_map(|member| member.sink.metrics().iter().copied())
         .collect();
     super::metrics::install_recorder(&ctx.config().instance_id, &metrics)
         .map_err(|source| RouteMountError::initialization("prometheus_metrics", source))?;

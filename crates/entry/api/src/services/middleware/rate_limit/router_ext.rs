@@ -27,6 +27,13 @@ pub enum LayerReach {
     Routes,
 }
 
+/// A per-user budget and the scope its global counter is keyed under.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RateWindow {
+    pub per_second: u64,
+    pub scope: &'static str,
+}
+
 pub fn layer_with<S, L>(router: Router<S>, reach: LayerReach, layer: L) -> Router<S>
 where
     S: Clone + Send + Sync + 'static,
@@ -60,10 +67,9 @@ pub trait RouterExt<S>: Sized {
         self,
         limits: &RateLimitState,
         jwt: &Arc<JwtContextExtractor>,
-        per_second: u64,
-        scope: &'static str,
+        window: RateWindow,
     ) -> Self {
-        self.with_bearer_window_reaching(limits, jwt, per_second, scope, LayerReach::Router)
+        self.with_bearer_window_reaching(limits, jwt, window, LayerReach::Router)
     }
 
     fn with_rate_limit_reaching(
@@ -85,8 +91,7 @@ pub trait RouterExt<S>: Sized {
         self,
         limits: &RateLimitState,
         jwt: &Arc<JwtContextExtractor>,
-        per_second: u64,
-        scope: &'static str,
+        window: RateWindow,
         reach: LayerReach,
     ) -> Self;
 }
@@ -157,15 +162,14 @@ where
         self,
         limits: &RateLimitState,
         jwt: &Arc<JwtContextExtractor>,
-        per_second: u64,
-        scope: &'static str,
+        window: RateWindow,
         reach: LayerReach,
     ) -> Self {
         if limits.config.disabled {
             return self;
         }
         let window = BearerWindow {
-            limit: limits.global_limit(per_second, scope),
+            limit: limits.global_limit(window.per_second, window.scope),
             jwt: Arc::clone(jwt),
         };
         layer_with(

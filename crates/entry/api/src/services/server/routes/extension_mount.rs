@@ -39,8 +39,7 @@ pub(super) fn mount_extension_routes(
     let admitted = mount.composed.admitted;
     let router = mount_admitted(
         router,
-        admitted,
-        mount.composed.kernel,
+        mount.composed,
         mount.layers,
         mount.serves,
         &decorate,

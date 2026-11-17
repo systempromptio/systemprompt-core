@@ -20,9 +20,10 @@ use systemprompt_extension::{Admitted, RouteGroup, RouteProtection};
 use systemprompt_runtime::Kernel;
 
 use super::recheck::{path_base, recheck};
+use crate::services::server::routes::Composed;
 use super::{MountError, MountLayers, place, protect};
 
-pub fn protection_of(spec: &RouteSpec) -> RouteProtection {
+pub const fn protection_of(spec: &RouteSpec) -> RouteProtection {
     let protection =
         RouteProtection::new(spec.policy, spec.context).with_rate_limit(spec.limits.rate);
     match spec.limits.body {
@@ -35,12 +36,12 @@ pub fn protection_of(spec: &RouteSpec) -> RouteProtection {
 
 pub fn mount_admitted(
     mut tree: Router,
-    admitted: &Admitted,
-    kernel: &Kernel,
+    composed: Composed<'_>,
     layers: &MountLayers,
     serves: &dyn Fn(RouteGroup) -> bool,
     decorate: &dyn Fn(Router) -> Router,
 ) -> Result<Router, MountError> {
+    let Composed { admitted, kernel } = composed;
     recheck(admitted)?;
     let mut by_base: Vec<(BasePath, Router)> = Vec::new();
     for set in admitted.routes() {

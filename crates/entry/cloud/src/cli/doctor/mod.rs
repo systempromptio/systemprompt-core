@@ -222,10 +222,10 @@ fn composition_failure(error: &CommandError) -> CheckResult {
 }
 
 fn extension_config_check(profile: &Profile, views: Composition<'_>) -> CheckResult {
-    match views {
-        Ok(views) => check_extension_configs(profile, &views.configs),
-        Err(_) => CheckResult::not_evaluated("extension-config", NEEDS_COMPOSITION),
-    }
+    views.map_or_else(
+        |_| CheckResult::not_evaluated("extension-config", NEEDS_COMPOSITION),
+        |views| check_extension_configs(profile, &views.configs),
+    )
 }
 
 async fn schema_check(secrets: &HashMap<String, String>, views: Composition<'_>) -> CheckResult {

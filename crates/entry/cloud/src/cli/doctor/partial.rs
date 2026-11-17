@@ -122,15 +122,9 @@ async fn run_partial(
     match inspection.evaluate(&["secrets"], |p| p.secrets.clone()) {
         Evaluation::Evaluated(config) => {
             let secrets = resolve_secrets_from(config.as_ref(), profile_dir, &mut checks).await;
-            secrets_checks(
-                inspection,
-                profile_dir,
-                &secrets,
-                distributed,
-                views,
-                &mut checks,
-            )
-            .await;
+            checks.extend(
+                secrets_checks(inspection, profile_dir, &secrets, distributed, views).await,
+            );
         },
         Evaluation::NotEvaluated { variables } => {
             for name in SECRETS_DEPENDENT {
@@ -147,9 +141,8 @@ async fn secrets_checks(
     secrets: &HashMap<String, String>,
     distributed: bool,
     views: Composition<'_>,
-    checks: &mut Vec<CheckResult>,
-) {
-    checks.push(check_required_secrets(secrets));
+) -> Vec<CheckResult> {
+    let mut checks = vec![check_required_secrets(secrets)];
     checks.push(outcome(
         "signing-key",
         inspection.evaluate(&["security.signing_key_path"], |p| {
@@ -186,6 +179,7 @@ async fn secrets_checks(
             },
         }
     }
+    checks
 }
 
 fn profile_rule_checks(inspection: &Inspection<'_>) -> Vec<CheckResult> {

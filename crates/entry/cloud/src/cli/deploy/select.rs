@@ -81,12 +81,11 @@ pub fn resolve_profile(
     profile_name: Option<&ProfileName>,
     config: &CliConfig,
 ) -> Result<DeployProfile> {
-    match profile_name {
-        Some(name) => DeployProfile::load(&profile_path_by_name(name)?),
-        None => {
-            require_interactive(config)?;
-            resolve_profile_interactive(prompter)
-        },
+    if let Some(name) = profile_name {
+        DeployProfile::load(&profile_path_by_name(name)?)
+    } else {
+        require_interactive(config)?;
+        resolve_profile_interactive(prompter)
     }
 }
 
@@ -95,12 +94,11 @@ pub fn resolve_profile_path(
     profile_name: Option<&ProfileName>,
     config: &CliConfig,
 ) -> Result<PathBuf> {
-    match profile_name {
-        Some(name) => profile_path_by_name(name),
-        None => {
-            require_interactive(config)?;
-            Ok(resolve_profile_interactive(prompter)?.path)
-        },
+    if let Some(name) = profile_name {
+        profile_path_by_name(name)
+    } else {
+        require_interactive(config)?;
+        Ok(resolve_profile_interactive(prompter)?.path)
     }
 }
 

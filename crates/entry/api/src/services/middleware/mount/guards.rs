@@ -47,7 +47,7 @@ impl SiteAuthGuard {
             .built()
             .members()
             .flat_map(|member| member.sink.site_auth());
-        let config = declared.next().cloned();
+        let config = declared.next().copied();
         let extra = declared.count();
         if extra > 0 {
             return Err(SlotError::MultipleEntries {

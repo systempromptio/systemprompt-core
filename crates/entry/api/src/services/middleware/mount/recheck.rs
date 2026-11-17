@@ -62,10 +62,10 @@ fn recheck_route_set(
     if let Some(prefix) = reserved.filter(|_| !listed_at(path_ref)) {
         return Err(MountError::ReservedPrefix(prefix));
     }
-    if let BasePath::Api(ApiBase::Extension(path)) = base {
-        if let Some(below) = reserved_below(path) {
-            return Err(MountError::ReservedPrefix(below.path));
-        }
+    if let BasePath::Api(ApiBase::Extension(path)) = base
+        && let Some(below) = reserved_below(path)
+    {
+        return Err(MountError::ReservedPrefix(below.path));
     }
     base.validate()
         .map_err(|source| MountError::InvalidBase { base, source })?;
@@ -270,7 +270,7 @@ fn recheck_gateway_route(
     check_owner(base, &route.owner, entry.owner, holders)
 }
 
-pub(super) fn path_base(set: &RouteSet) -> Result<BasePath, MountError> {
+pub(super) const fn path_base(set: &RouteSet) -> Result<BasePath, MountError> {
     match set.base() {
         BaseRef::Path(base) => Ok(base),
         base @ BaseRef::Gateway(_) => Err(MountError::RouteSetKind(base)),
