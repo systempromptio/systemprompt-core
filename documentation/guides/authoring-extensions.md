@@ -167,7 +167,15 @@ Every method on `Contributions` returns `&mut Self` and chains.
 
 The installer runs over the admitted composition and records the owner and standing of every table it creates in `schema_table_owners`. A member declaring a table recorded to another member is refused before any DDL runs, including a table recorded to a member the profile disables, and an install claiming a table recorded under core standing is refused (`LoaderError::CoreRecordClaimedByInstall`).
 
-Before any DDL the installer also judges every migration that will run (one not yet recorded as applied, on a database that is not fresh): an `ALTER TABLE`, `DROP TABLE`, `TRUNCATE` or `RENAME` of a table another member creates or is recorded for is refused (`MigrationOwnershipError::ForeignTable`, naming the member, the statement and the table), unless a `cross_table` declaration covers it. A foreign-key `REFERENCES`, a read and a data write are not judged. A `DO` block hides the tables it mutates, so a pending install migration holding one is refused (`MigrationOwnershipError::Unreadable`); a core migration's is logged. A member disabled before its first recorded install has no ownership record until it is next enabled, so after upgrading run one install with every member enabled.
+Before any DDL the installer also judges every migration that will run (one not yet recorded as applied, on a database that is not fresh). A table belongs to its ownership record, then to the member whose declarative schema creates it, then to the member whose migrations create it and do not drop it again.
+
+- A migration `CREATE TABLE`, with or without `IF NOT EXISTS`, of a table another member owns is refused (`MigrationOwnershipError::SharedTable`, naming both members and the table).
+- `ALTER TABLE` (including `SET SCHEMA`), `DROP TABLE`, `TRUNCATE`, `RENAME` of a table, column, constraint, trigger, policy or rule, `CREATE RULE`, `CREATE POLICY`, `ALTER POLICY`, `DROP POLICY|RULE ... ON`, and `GRANT`/`REVOKE` on another member's table are refused (`MigrationOwnershipError::ForeignTable`), unless a `cross_table` declaration covers it. A `sql`-language routine's body is read as part of the migration.
+- `DROP SCHEMA`, `ALTER SCHEMA ... RENAME` and `GRANT ... ON ALL ... IN SCHEMA` over `public` or a schema holding another member's objects, and `ALTER TABLE ALL IN TABLESPACE`, are refused (`MigrationOwnershipError::SchemaLevel`).
+- An `INSERT`, `UPDATE`, `DELETE`, `MERGE` or `COPY` into a kernel ledger (`extension_migrations`, `extension_migration_compat`, `schema_table_owners`, `schema_purge_records`, `schema_install_fingerprint`, `schema_trigger_digests`) is refused (`MigrationOwnershipError::LedgerWrite`), except `DELETE FROM extension_migrations WHERE extension_id = '<id>'` (or `IN (...)`) for ids no member or record holds.
+- For an install member: `DROP INDEX`, `ALTER INDEX`, `DROP` or `SET SCHEMA` of an index, type, routine, sequence or view another member's SQL creates is refused (`MigrationOwnershipError::ForeignObject`), and so are `DO`, `CALL`, `EXECUTE`, `COPY` from a file or program, a `sql` routine whose body does not parse, and any statement kind the reader does not classify (`MigrationOwnershipError::Unreadable`). A core member's statements of these kinds are logged as unjudged.
+
+An install migration may contain plain DDL on its own tables (create, alter, index, drop, constraints and triggers on them), `sql`-language functions, `COMMENT ON`, data writes into its own tables, and foreign-key `REFERENCES` to other members' tables. The installer logs, and does not refuse, `CREATE INDEX`, `CREATE TRIGGER` and `DROP TRIGGER` on another member's table, routines in other languages, a top-level `SELECT` that calls a routine, a `DROP INDEX` of an index no member's SQL creates, and a `CASCADE` drop of an object the member did not create; what those routines and triggers run, and data writes into another member's tables, are not judged. A member disabled before its first recorded install has no ownership record until it is next enabled, so after upgrading run one install with every member enabled.
 
 ### Routes
 
@@ -258,10 +266,11 @@ Admission refuses, before anything the member declares runs:
 - a route reaching a reserved path, a root fallback, or a base other than its own `/api/` extension base or the web root;
 - a privileged route shape, a reserved CLI path or a kernel grant;
 - a table, purge table or orphan sweep over a table it does not create, or a table recorded to another member;
-- a pending migration altering, dropping, truncating or renaming another member's table, or holding a `DO` block;
 - a second provider of a type, a type the kernel inserts, or a value substituting for a core requirement;
 - an audience resolver for a reserved subject or dimension, or a subject provider declaring `user`, `role` or `traffic`;
 - a slot entry that replaces a core-only seam.
+
+The schema installer separately refuses, before any DDL, a pending migration of the kinds listed under the schema rules above.
 
 These rules bound what a member can **declare**, and what its **commands** can read. They are not a sandbox: an install member is Rust code linked into the same process, with the same memory and system access as core.
 
@@ -293,7 +302,7 @@ A disabled member's contributions are dropped at admission, before any provide f
 
 - none of its contributions runs: no routes are mounted, no commands are offered, no jobs, retention, guards, seams or providers are built;
 - its job names are unknown: a scheduler config naming one is refused at validation, `admin config validate` reports it as not contributed, and `infra jobs prune` treats its rows as prunable;
-- its recorded tables are kept: the schema installer does not drop them, no other member can claim them, and no other member's pending migration can alter, drop, truncate or rename them. A member disabled before its first recorded install has no record until it is next enabled;
+- its recorded tables are kept: the schema installer does not drop them, no other member can claim them, and the installer refuses another member's pending migration that re-creates or changes them with a judged statement kind. A member disabled before its first recorded install has no record until it is next enabled;
 - a user purge still covers them, through the purge declarations recorded when the member was last installed.
 
 An id in `extensions.disabled` that names no composed member fails boot, as do a disabled required member, an enabled member that depends on a disabled one, and an enabled member requiring a type only a disabled member provides.

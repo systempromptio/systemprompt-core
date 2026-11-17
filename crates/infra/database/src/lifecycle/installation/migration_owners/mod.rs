@@ -1,68 +1,78 @@
-//! Refuses, before any database write, a migration that alters, drops,
-//! truncates or renames a table another member owns.
+//! Refuses, before any database write, a pending migration that changes a
+//! schema object another member owns, or whose effect the parser cannot
+//! read.
 //!
 //! A table is owned by the member whose declarative schema or migration
-//! creates it (the same `created_table_names` parse the purge and the
-//! ownership records use), or, for a table no admitted member creates, by
-//! the member `schema_table_owners` records for it. A migration that mutates
-//! a table owned by a different member is refused with
-//! [`MigrationOwnershipError::ForeignTable`], naming the member, the
-//! statement kind and the table. A table no member creates and none is
-//! recorded for is not judged: no member owns it. A `cross_extension_tables`
-//! declaration admits the mutation, except an install member's mutation of a
-//! core member's table. A foreign-key `REFERENCES`, a read and a data write
-//! are not judged.
+//! creates it, or that `schema_table_owners` records for it; the kernel's
+//! ledger tables ([`KERNEL_LEDGERS`]) are owned by the `database` member. A
+//! member whose schema or migration creates a table another member creates
+//! or is recorded for is refused ([`MigrationOwnershipError::SharedTable`]),
+//! so a `CREATE TABLE IF NOT EXISTS` never makes a peer's table its own.
+//!
+//! The judged statements, refused when their table is another member's
+//! ([`MigrationOwnershipError::ForeignTable`]): `ALTER TABLE` (including
+//! `SET SCHEMA`), `DROP TABLE`, `TRUNCATE`, `RENAME` of a table, column,
+//! constraint, trigger, policy or rule, `CREATE INDEX`, `CREATE TRIGGER`,
+//! `CREATE RULE`, `CREATE POLICY`, `ALTER POLICY`, `DROP TRIGGER|POLICY|RULE
+//! ... ON`, and `GRANT`/`REVOKE` on a table. `DROP INDEX`/`ALTER INDEX` and
+//! a `DROP` or `SET SCHEMA` of a type, routine, sequence or view are judged
+//! against the member whose SQL creates the object
+//! ([`MigrationOwnershipError::ForeignObject`]). Schema-level statements
+//! (`DROP SCHEMA`, `ALTER SCHEMA ... RENAME`, `GRANT ... ON ALL ... IN
+//! SCHEMA`, `ALTER TABLE ALL IN TABLESPACE`) are refused for an install
+//! member, and for a core member unless they name a non-`public` schema its
+//! own SQL creates ([`MigrationOwnershipError::SchemaLevel`]). An
+//! `INSERT`/`UPDATE`/`DELETE`/`MERGE`/`COPY` into a kernel ledger by any
+//! other member is refused ([`MigrationOwnershipError::LedgerWrite`]); other
+//! data writes, reads, `COMMENT ON` and foreign-key `REFERENCES` are not
+//! judged.
+//!
+//! For an install member a pending migration is also refused
+//! ([`MigrationOwnershipError::Unreadable`], [`MigrationOwnershipError::UnownedObject`])
+//! when it holds SQL the parser cannot attribute: `DO`, `CALL`, `EXECUTE`,
+//! a top-level `SELECT` that calls a routine, `COPY` from a file or
+//! program, a routine in a language other than `sql` (a `sql` routine's body
+//! is read as part of the migration), any statement kind the reader does not
+//! classify, a `DROP INDEX` of an index its own SQL does not create, and a
+//! `DROP ... CASCADE` of an object its own SQL does not create. A core
+//! member's statements of these kinds are logged at `warn` as unjudged.
 //!
 //! Only migrations that will run are judged: a migration recorded as applied
 //! is history, and a fresh database stamps its migrations without running
-//! them. A `DO` block hides the tables it mutates from the parser, so an
-//! install member's pending migration holding one is refused
-//! ([`MigrationOwnershipError::Unreadable`]); a core member's is logged at
-//! `warn` and passes, since core migrations ship in this tree.
+//! them. A `cross_extension_tables` declaration admits a table mutation,
+//! except an install member's mutation of a core member's table.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
-use pg_query::NodeEnum;
-use systemprompt_extension::{Migration, StandingTag, created_table_names};
+use systemprompt_extension::{Migration, StandingTag};
 use systemprompt_identifiers::ExtensionId;
-use tracing::warn;
 
-use self::statements::{mutations_of, top_level};
-use super::undeclared::qualify;
 use crate::lifecycle::schema_member::SchemaMember;
 
+mod claims;
+mod drops;
+mod judge;
+mod kinds;
+mod ledger;
+mod objects;
+mod routines;
 mod statements;
 
-/// The kind of statement a migration mutates a table with.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TableMutation {
-    Alter,
-    Drop,
-    Truncate,
-    Rename,
-}
+pub use kinds::{HiddenSql, TableMutation};
 
-impl TableMutation {
-    #[must_use]
-    pub const fn label(self) -> &'static str {
-        match self {
-            Self::Alter => "ALTER TABLE",
-            Self::Drop => "DROP TABLE",
-            Self::Truncate => "TRUNCATE",
-            Self::Rename => "RENAME",
-        }
-    }
-}
+pub const KERNEL_LEDGERS: [&str; 6] = [
+    "public.extension_migrations",
+    "public.extension_migration_compat",
+    "public.schema_table_owners",
+    "public.schema_purge_records",
+    "public.schema_install_fingerprint",
+    "public.schema_trigger_digests",
+];
 
-impl std::fmt::Display for TableMutation {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.label())
-    }
-}
+pub const KERNEL_LEDGER_OWNER: &str = "database";
 
 /// One table's owner as `schema_table_owners` records it.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -86,13 +96,64 @@ pub enum MigrationOwnershipError {
     },
 
     #[error(
-        "install member {member} migration {migration}: a {statement} statement hides the tables \
-         it mutates"
+        "member {member} {source_sql} creates table {table}, which member {owner} creates or is \
+         recorded for"
+    )]
+    SharedTable {
+        member: ExtensionId,
+        source_sql: String,
+        table: String,
+        owner: ExtensionId,
+    },
+
+    #[error(
+        "member {member} migration {migration}: {statement} of {object}, created by member {owner}"
+    )]
+    ForeignObject {
+        member: ExtensionId,
+        migration: String,
+        statement: TableMutation,
+        object: String,
+        owner: ExtensionId,
+    },
+
+    #[error(
+        "install member {member} migration {migration}: {statement} of {object}, which its own \
+         SQL does not create"
+    )]
+    UnownedObject {
+        member: ExtensionId,
+        migration: String,
+        statement: TableMutation,
+        object: String,
+    },
+
+    #[error("member {member} migration {migration}: {statement} of schema {schema}")]
+    SchemaLevel {
+        member: ExtensionId,
+        migration: String,
+        statement: TableMutation,
+        schema: String,
+    },
+
+    #[error(
+        "member {member} migration {migration}: {statement} into the kernel ledger {table}"
+    )]
+    LedgerWrite {
+        member: ExtensionId,
+        migration: String,
+        statement: TableMutation,
+        table: String,
+    },
+
+    #[error(
+        "install member {member} migration {migration}: a {statement} statement hides what it \
+         changes"
     )]
     Unreadable {
         member: ExtensionId,
         migration: String,
-        statement: &'static str,
+        statement: HiddenSql,
     },
 
     #[error("member {member} migration {migration} could not be parsed")]
@@ -109,20 +170,45 @@ impl MigrationOwnershipError {
     pub const fn member(&self) -> &ExtensionId {
         match self {
             Self::ForeignTable { member, .. }
+            | Self::SharedTable { member, .. }
+            | Self::ForeignObject { member, .. }
+            | Self::UnownedObject { member, .. }
+            | Self::SchemaLevel { member, .. }
+            | Self::LedgerWrite { member, .. }
             | Self::Unreadable { member, .. }
             | Self::Parse { member, .. } => member,
         }
     }
 }
 
-#[derive(Debug, Clone)]
-struct Owner {
-    id: ExtensionId,
-    standing: StandingTag,
+/// The members an install judges and the ones it only reads for ownership.
+#[derive(Clone, Copy)]
+pub struct MigrationMembers<'a> {
+    pub judged: &'a [Arc<dyn SchemaMember>],
+    pub held_back: &'a [Arc<dyn SchemaMember>],
+}
+
+impl<'a> MigrationMembers<'a> {
+    #[must_use]
+    pub const fn new(
+        judged: &'a [Arc<dyn SchemaMember>],
+        held_back: &'a [Arc<dyn SchemaMember>],
+    ) -> Self {
+        Self { judged, held_back }
+    }
+}
+
+impl std::fmt::Debug for MigrationMembers<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MigrationMembers")
+            .field("judged", &self.judged.len())
+            .field("held_back", &self.held_back.len())
+            .finish()
+    }
 }
 
 pub fn check_migration_ownership(
-    members: &[Arc<dyn SchemaMember>],
+    members: MigrationMembers<'_>,
     recorded: &[RecordedTable],
     pending: &dyn Fn(&ExtensionId, &Migration) -> bool,
 ) -> Result<(), MigrationOwnershipError> {
@@ -134,140 +220,11 @@ pub fn check_migration_ownership(
 
 #[must_use]
 pub fn migration_ownership_findings(
-    members: &[Arc<dyn SchemaMember>],
+    members: MigrationMembers<'_>,
     recorded: &[RecordedTable],
     pending: &dyn Fn(&ExtensionId, &Migration) -> bool,
 ) -> Vec<MigrationOwnershipError> {
-    let mut findings = Vec::new();
-    let (owners, own) = declared_owners(members, recorded, &mut findings);
-    for member in members {
-        foreign_mutations(member.as_ref(), &owners, &own, pending, &mut findings);
-    }
-    findings
-}
-
-fn declared_owners(
-    members: &[Arc<dyn SchemaMember>],
-    recorded: &[RecordedTable],
-    findings: &mut Vec<MigrationOwnershipError>,
-) -> (
-    BTreeMap<String, Owner>,
-    BTreeMap<ExtensionId, BTreeSet<String>>,
-) {
-    let mut owners: BTreeMap<String, Owner> = BTreeMap::new();
-    let mut own: BTreeMap<ExtensionId, BTreeSet<String>> = BTreeMap::new();
-    for member in members {
-        let id = ExtensionId::new(member.id());
-        let created = own.entry(id.clone()).or_default();
-        let sources = member
-            .schemas()
-            .into_iter()
-            .map(|schema| (String::from("schema"), schema.sql))
-            .chain(
-                member
-                    .migrations()
-                    .into_iter()
-                    .filter(|m| !m.tombstone)
-                    .map(|m| (label(&m), m.sql.to_owned())),
-            );
-        for (migration, sql) in sources {
-            match created_table_names(&sql) {
-                Ok(tables) => created.extend(tables.iter().map(|table| qualify(table))),
-                Err(source) => findings.push(MigrationOwnershipError::Parse {
-                    member: id.clone(),
-                    migration,
-                    source,
-                }),
-            }
-        }
-        for table in created.iter() {
-            owners.entry(table.clone()).or_insert_with(|| Owner {
-                id: id.clone(),
-                standing: member.standing(),
-            });
-        }
-    }
-    for record in recorded {
-        owners
-            .entry(qualify(&record.table))
-            .or_insert_with(|| Owner {
-                id: record.owner.clone(),
-                standing: record.standing,
-            });
-    }
-    (owners, own)
-}
-
-fn foreign_mutations(
-    member: &dyn SchemaMember,
-    owners: &BTreeMap<String, Owner>,
-    own: &BTreeMap<ExtensionId, BTreeSet<String>>,
-    pending: &dyn Fn(&ExtensionId, &Migration) -> bool,
-    findings: &mut Vec<MigrationOwnershipError>,
-) {
-    let id = ExtensionId::new(member.id());
-    let standing = member.standing();
-    let created = own.get(&id).cloned().unwrap_or_default();
-    let cross: BTreeSet<String> = member
-        .cross_extension_tables()
-        .into_iter()
-        .map(qualify)
-        .collect();
-    for migration in member.migrations().into_iter().filter(|m| !m.tombstone) {
-        if !pending(&id, &migration) {
-            continue;
-        }
-        let migration_label = label(&migration);
-        let parsed = match pg_query::parse(migration.sql) {
-            Ok(parsed) => parsed,
-            Err(source) => {
-                findings.push(MigrationOwnershipError::Parse {
-                    member: id.clone(),
-                    migration: migration_label,
-                    source,
-                });
-                continue;
-            },
-        };
-        for statement in top_level(&parsed) {
-            if matches!(statement, NodeEnum::DoStmt(_)) {
-                if standing == StandingTag::Install {
-                    findings.push(MigrationOwnershipError::Unreadable {
-                        member: id.clone(),
-                        migration: migration_label.clone(),
-                        statement: "DO",
-                    });
-                } else {
-                    warn!(
-                        member = %id,
-                        migration = %migration_label,
-                        "A core migration's DO block is not judged for the tables it mutates"
-                    );
-                }
-                continue;
-            }
-            for (kind, table) in mutations_of(statement) {
-                if created.contains(&table) {
-                    continue;
-                }
-                let Some(owner) = owners.get(&table).filter(|owner| owner.id != id) else {
-                    continue;
-                };
-                let admitted_cross = cross.contains(&table)
-                    && !(standing == StandingTag::Install && owner.standing == StandingTag::Core);
-                if admitted_cross {
-                    continue;
-                }
-                findings.push(MigrationOwnershipError::ForeignTable {
-                    member: id.clone(),
-                    migration: migration_label.clone(),
-                    statement: kind,
-                    table,
-                    owner: owner.id.clone(),
-                });
-            }
-        }
-    }
+    judge::findings(members, recorded, pending)
 }
 
 fn label(migration: &Migration) -> String {
