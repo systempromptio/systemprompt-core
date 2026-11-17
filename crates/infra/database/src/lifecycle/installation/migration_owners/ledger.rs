@@ -101,6 +101,8 @@ pub(super) fn ledger_reads(statement: &NodeEnum) -> Vec<(TableMutation, String)>
         .collect()
 }
 
+// JSON: serialised libpg_query parse tree of a view query or rule — walked for
+// every relation it names.
 fn range_vars(value: &serde_json::Value, named: &mut BTreeSet<String>) {
     match value {
         serde_json::Value::Object(fields) => {
