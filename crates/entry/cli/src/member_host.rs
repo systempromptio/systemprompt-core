@@ -27,8 +27,9 @@ use crate::host::{boot_profile_config, boot_profile_refused};
 /// [`KernelGrant::BootProfile`]. Its [`CommandHost::resolved`] is the one
 /// member-command resolver: it reads the command kernel's state but refuses
 /// every sealed seed as missing. A command holding
-/// [`KernelGrant::ConfigReconcile`] also resolves the kernel-built
-/// `Arc<ConfigApplyService>`; no member resolves the application context.
+/// [`KernelGrant::ConfigReconcile`] run where an application context is
+/// available also resolves the kernel-built `Arc<ConfigApplyService>`; no
+/// member resolves the application context.
 pub struct MemberHost<'a> {
     ctx: &'a CommandContext,
     descriptor: CommandDescriptor,
@@ -51,6 +52,13 @@ impl<'a> MemberHost<'a> {
             descriptor,
             granted: OnceCell::const_new(),
         }
+    }
+
+    fn serves_app_context(&self) -> bool {
+        self.ctx.runtime.get().is_some()
+            || (!self.ctx.is_database_scoped()
+                && self.ctx.boot().is_ok()
+                && self.ctx.admitted.is_some())
     }
 
     async fn config_reconcile_state(&self, kernel: &Kernel) -> Result<Dependencies, CommandError> {
@@ -95,7 +103,9 @@ impl CommandHost for MemberHost<'_> {
     fn resolved(&self) -> BoxFuture<'_, Result<Resolved<'_>, CommandError>> {
         Box::pin(async move {
             let kernel = self.ctx.command_kernel().await.map_err(CommandError::new)?;
-            let state = if self.descriptor.holds(KernelGrant::ConfigReconcile) {
+            let state = if self.descriptor.holds(KernelGrant::ConfigReconcile)
+                && self.serves_app_context()
+            {
                 self.granted
                     .get_or_try_init(|| self.config_reconcile_state(kernel))
                     .await?
