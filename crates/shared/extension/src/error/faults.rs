@@ -40,7 +40,7 @@ pub enum SchemaFault {
     #[error("only DROP … IF EXISTS is allowed, got `{statement}`")]
     RetirementNotDrop { statement: String },
 
-    #[error("only triggers, functions, procedures and views can be retired, got `{statement}`")]
+    #[error("only tables, triggers, functions, procedures and views can be retired, got `{statement}`")]
     RetirementObjectType { statement: String },
 
     #[error("a retirement must say IF EXISTS: `{statement}`")]
