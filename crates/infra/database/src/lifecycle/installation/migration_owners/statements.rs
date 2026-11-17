@@ -127,7 +127,13 @@ fn calls_a_routine(statement: &impl serde::Serialize) -> bool {
 }
 
 pub(super) fn effects_of(statement: &NodeEnum) -> Vec<Effect> {
-    match statement {
+    table_effects(statement)
+        .or_else(|| write_effects(statement))
+        .unwrap_or_else(|| other_effects(statement))
+}
+
+fn table_effects(statement: &NodeEnum) -> Option<Vec<Effect>> {
+    Some(match statement {
         NodeEnum::AlterTableStmt(alter) => match object_type(alter.objtype) {
             Some(ObjectType::ObjectTable | ObjectType::ObjectForeignTable) => {
                 on(TableMutation::Alter, alter.relation.as_ref())
@@ -179,6 +185,12 @@ pub(super) fn effects_of(statement: &NodeEnum) -> Vec<Effect> {
         },
         NodeEnum::AlterPolicyStmt(policy) => on(TableMutation::AlterPolicy, policy.table.as_ref()),
         NodeEnum::GrantStmt(grant) => granted(grant),
+        _ => return None,
+    })
+}
+
+fn write_effects(statement: &NodeEnum) -> Option<Vec<Effect>> {
+    Some(match statement {
         NodeEnum::InsertStmt(insert) => write(
             TableMutation::Insert,
             insert.relation.as_ref(),
@@ -211,6 +223,12 @@ pub(super) fn effects_of(statement: &NodeEnum) -> Vec<Effect> {
             }
             effects
         },
+        _ => return None,
+    })
+}
+
+fn other_effects(statement: &NodeEnum) -> Vec<Effect> {
+    match statement {
         NodeEnum::CreateFunctionStmt(function) => super::routines::routine_effects(function),
         NodeEnum::CreateSchemaStmt(schema) => schema
             .schema_elts

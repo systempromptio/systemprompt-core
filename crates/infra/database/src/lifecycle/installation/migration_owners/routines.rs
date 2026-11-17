@@ -60,8 +60,8 @@ pub(super) fn routine_effects(function: &CreateFunctionStmt) -> Vec<Effect> {
     let Some(sql) = body(function) else {
         return Vec::new();
     };
-    match pg_query::parse(sql) {
-        Ok(parsed) => top_level(&parsed).flat_map(effects_of).collect(),
-        Err(_) => vec![Effect::Hidden(HiddenSql::UnparseableBody)],
-    }
+    pg_query::parse(sql).map_or_else(
+        |_| vec![Effect::Hidden(HiddenSql::UnparseableBody)],
+        |parsed| top_level(&parsed).flat_map(effects_of).collect(),
+    )
 }

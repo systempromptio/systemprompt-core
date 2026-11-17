@@ -11,7 +11,7 @@
 use std::collections::BTreeSet;
 
 use pg_query::NodeEnum;
-use pg_query::protobuf::{ConstrType, Node};
+use pg_query::protobuf::{AlterTableStmt, ConstrType, CreateStmt, Node};
 
 use super::statements::{object_name, qualified, relation_name, top_level};
 
@@ -34,16 +34,7 @@ impl Created {
 
     fn statement(&mut self, statement: &NodeEnum) {
         match statement {
-            NodeEnum::CreateStmt(create) => {
-                let Some(table) = create.relation.as_ref().and_then(relation_name) else {
-                    return;
-                };
-                self.tables.insert(table.clone());
-                self.objects.insert(table.clone());
-                for element in &create.table_elts {
-                    self.element(&table, element);
-                }
-            },
+            NodeEnum::CreateStmt(create) => self.table(create),
             NodeEnum::IndexStmt(index) if !index.idxname.is_empty() => {
                 let schema = index
                     .relation
@@ -51,24 +42,7 @@ impl Created {
                     .map_or("", |relation| relation.schemaname.as_str());
                 self.indexes.insert(in_schema(schema, &index.idxname));
             },
-            NodeEnum::AlterTableStmt(alter) => {
-                let schema = alter
-                    .relation
-                    .as_ref()
-                    .map_or("", |relation| relation.schemaname.as_str());
-                for command in &alter.cmds {
-                    let Some(NodeEnum::AlterTableCmd(command)) = command.node.as_ref() else {
-                        continue;
-                    };
-                    if let Some(NodeEnum::Constraint(constraint)) =
-                        command.def.as_ref().and_then(|def| def.node.as_ref())
-                        && indexed(constraint.contype)
-                        && !constraint.conname.is_empty()
-                    {
-                        self.indexes.insert(in_schema(schema, &constraint.conname));
-                    }
-                }
-            },
+            NodeEnum::AlterTableStmt(alter) => self.added_constraints(alter),
             NodeEnum::CreateSchemaStmt(schema) => {
                 self.schemas.insert(schema.schemaname.clone());
                 for element in schema.schema_elts.iter().filter_map(|e| e.node.as_ref()) {
@@ -108,6 +82,36 @@ impl Created {
                 }
             },
             _ => {},
+        }
+    }
+
+    fn table(&mut self, create: &CreateStmt) {
+        let Some(table) = create.relation.as_ref().and_then(relation_name) else {
+            return;
+        };
+        self.tables.insert(table.clone());
+        self.objects.insert(table.clone());
+        for element in &create.table_elts {
+            self.element(&table, element);
+        }
+    }
+
+    fn added_constraints(&mut self, alter: &AlterTableStmt) {
+        let schema = alter
+            .relation
+            .as_ref()
+            .map_or("", |relation| relation.schemaname.as_str());
+        for command in &alter.cmds {
+            let Some(NodeEnum::AlterTableCmd(command)) = command.node.as_ref() else {
+                continue;
+            };
+            if let Some(NodeEnum::Constraint(constraint)) =
+                command.def.as_ref().and_then(|def| def.node.as_ref())
+                && indexed(constraint.contype)
+                && !constraint.conname.is_empty()
+            {
+                self.indexes.insert(in_schema(schema, &constraint.conname));
+            }
         }
     }
 
