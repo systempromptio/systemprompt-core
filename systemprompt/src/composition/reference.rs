@@ -120,18 +120,32 @@ fn entry_members() -> Vec<Member> {
         #[cfg(feature = "full")]
         Member::core::<systemprompt_scheduler::SchedulerExtension>(CoreTerms::OPTIONAL),
         #[cfg(feature = "content")]
-        Member::core::<systemprompt_content_entry::extension::ContentHttpExtension>(CoreTerms::conferred(CoreId::ContentHttp)),
+        Member::core::<systemprompt_content_entry::extension::ContentHttpExtension>(
+            CoreTerms::conferred(CoreId::ContentHttp),
+        ),
         #[cfg(feature = "analytics")]
-        Member::core::<systemprompt_analytics_entry::extension::AnalyticsHttpExtension>(CoreTerms::conferred(CoreId::AnalyticsHttp)),
+        Member::core::<systemprompt_analytics_entry::extension::AnalyticsHttpExtension>(
+            CoreTerms::conferred(CoreId::AnalyticsHttp),
+        ),
         #[cfg(feature = "notifications")]
-        Member::core::<systemprompt_notifications_entry::extension::NotificationsHttpExtension>(CoreTerms::conferred(CoreId::NotificationsHttp)),
+        Member::core::<systemprompt_notifications_entry::extension::NotificationsHttpExtension>(
+            CoreTerms::conferred(CoreId::NotificationsHttp),
+        ),
         #[cfg(all(feature = "agent-runs", feature = "api"))]
-        Member::core::<systemprompt_agent_runs_entry::extension::AgentRunsApiExtension>(CoreTerms::conferred(CoreId::AgentRunsApi)),
+        Member::core::<systemprompt_agent_runs_entry::extension::AgentRunsApiExtension>(
+            CoreTerms::conferred(CoreId::AgentRunsApi),
+        ),
         #[cfg(all(feature = "cloud", feature = "cli"))]
-        Member::core::<systemprompt_cloud_entry::CloudCliExtension>(CoreTerms::conferred(CoreId::Cloud)),
+        Member::core::<systemprompt_cloud_entry::CloudCliExtension>(CoreTerms::conferred(
+            CoreId::Cloud,
+        )),
         #[cfg(feature = "slack")]
-        Member::core::<systemprompt_slack_entry::SlackExtension>(CoreTerms::conferred(CoreId::Slack)),
+        Member::core::<systemprompt_slack_entry::SlackExtension>(CoreTerms::conferred(
+            CoreId::Slack,
+        )),
         #[cfg(feature = "teams")]
-        Member::core::<systemprompt_teams_entry::TeamsExtension>(CoreTerms::conferred(CoreId::Teams)),
+        Member::core::<systemprompt_teams_entry::TeamsExtension>(CoreTerms::conferred(
+            CoreId::Teams,
+        )),
     ]
 }

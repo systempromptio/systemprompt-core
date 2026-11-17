@@ -26,19 +26,14 @@ pub struct ValidationSources<'a> {
     pub secrets: Option<&'a Secrets>,
 }
 
-pub(super) fn execute(
-    args: &ValidateArgs,
-    host: &dyn KernelHost,
-) -> Result<(CommandOutput, bool)> {
+pub(super) fn execute(args: &ValidateArgs, host: &dyn KernelHost) -> Result<(CommandOutput, bool)> {
     let services_config = crate::commands::admin::state::boot(host)?
         .load_services_config()
         .context("Failed to load services configuration")?;
     let catalog = services_config
         .resolve_catalog(&CatalogContext::default())
         .context("The services catalog does not resolve")?;
-    let secrets = crate::commands::admin::state::boot(host)?
-        .secrets()
-        .get();
+    let secrets = crate::commands::admin::state::boot(host)?.secrets().get();
     let sources = ValidationSources {
         services_config: &services_config,
         catalog: &catalog,

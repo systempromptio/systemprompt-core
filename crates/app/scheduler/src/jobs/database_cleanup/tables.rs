@@ -112,12 +112,7 @@ impl PassRunner<'_> {
             deadline: self.started + RUN_BUDGET,
             full_batch: u64::try_from(BATCH_ROWS).unwrap_or(u64::MAX),
         };
-        let Some(purge) = self
-            .owners
-            .purges
-            .get(target.table())
-            .map(AsRef::as_ref)
-        else {
+        let Some(purge) = self.owners.purges.get(target.table()).map(AsRef::as_ref) else {
             return Ok((0, true));
         };
         let ctx = self.ctx;

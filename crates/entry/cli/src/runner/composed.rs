@@ -23,12 +23,12 @@ use crate::kernel::{
 
 /// Admits the composition against a profile's disabled-member list.
 ///
-/// That list is the one profile input admission reads: the loaded profile's (also when a cloud
-/// profile reaches its database directly), a target profile's read through
-/// [`KernelGrant::TargetAdmission`], or, for a command run with
-/// `--database-url` and no profile (a kernel command, or a member command
-/// whose routing is [`DbUrlRouting::Direct`]), over every linked member with
-/// none disabled (`None`).
+/// That list is the one profile input admission reads: the loaded profile's
+/// (also when a cloud profile reaches its database directly), a target
+/// profile's read through [`KernelGrant::TargetAdmission`], or, for a command
+/// run with `--database-url` and no profile (a kernel command, or a member
+/// command whose routing is [`DbUrlRouting::Direct`]), over every linked member
+/// with none disabled (`None`).
 pub type AdmitFn =
     Box<dyn FnOnce(Option<&ExtensionsConfig>) -> Result<Admitted, BoxedSource> + Send>;
 

@@ -21,10 +21,7 @@ pub struct RotateSigningKeyArgs {
     pub confirm: ConfirmArgs,
 }
 
-pub(super) fn execute(
-    _args: RotateSigningKeyArgs,
-    host: &dyn KernelHost,
-) -> Result<CommandOutput> {
+pub(super) fn execute(_args: RotateSigningKeyArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let boot = crate::commands::admin::state::boot(host)?;
     let seed = SecretsService::rotate_manifest_signing_seed(boot.loaded_profile())?;
     let key = SigningKey::from_bytes(&seed);

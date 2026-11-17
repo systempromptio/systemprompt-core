@@ -109,18 +109,12 @@ pub(super) fn execute_stage(host: &dyn KernelHost) -> Result<CommandOutput> {
     output("Signing Key Staged", &next, false)
 }
 
-pub(super) fn execute_promote(
-    args: PromoteArgs,
-    host: &dyn KernelHost,
-) -> Result<CommandOutput> {
+pub(super) fn execute_promote(args: PromoteArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let state = current_state(host)?;
     promote_state(args, host, &state)
 }
 
-pub(super) fn execute_rotate(
-    args: PromoteArgs,
-    host: &dyn KernelHost,
-) -> Result<CommandOutput> {
+pub(super) fn execute_rotate(args: PromoteArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let state = current_state(host)?;
     let (_, staged) = stage(&state).context("Failed to stage a signing key")?;
     promote_state(args, host, &staged)

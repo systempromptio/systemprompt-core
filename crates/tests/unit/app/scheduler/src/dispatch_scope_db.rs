@@ -42,12 +42,7 @@ fn bootstrap_config(jobs: Vec<JobConfig>) -> SchedulerConfig {
 
 async fn dispatch_on(pool: &DbPool, url: &str, instance_id: &str, jobs: Vec<JobConfig>) {
     let (app_ctx, schedule) = context_for_instance(url, instance_id).await;
-    let svc = SchedulerService::new(
-        bootstrap_config(jobs),
-        pool,
-        app_ctx,
-        Arc::clone(&schedule),
-    );
+    let svc = SchedulerService::new(bootstrap_config(jobs), pool, app_ctx, Arc::clone(&schedule));
     svc.run_bootstrap_jobs(None)
         .await
         .expect("bootstrap dispatch must not abort");

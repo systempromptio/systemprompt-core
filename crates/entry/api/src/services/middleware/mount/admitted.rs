@@ -20,8 +20,8 @@ use systemprompt_extension::{Admitted, RouteGroup, RouteProtection};
 use systemprompt_runtime::Kernel;
 
 use super::recheck::{path_base, recheck};
-use crate::services::server::routes::Composed;
 use super::{MountError, MountLayers, place, protect};
+use crate::services::server::routes::Composed;
 
 pub const fn protection_of(spec: &RouteSpec) -> RouteProtection {
     let protection =

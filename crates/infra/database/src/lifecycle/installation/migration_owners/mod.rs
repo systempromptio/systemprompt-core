@@ -254,8 +254,7 @@ fn foreign_mutations(
                     continue;
                 };
                 let admitted_cross = cross.contains(&table)
-                    && !(standing == StandingTag::Install
-                        && owner.standing == StandingTag::Core);
+                    && !(standing == StandingTag::Install && owner.standing == StandingTag::Core);
                 if admitted_cross {
                     continue;
                 }

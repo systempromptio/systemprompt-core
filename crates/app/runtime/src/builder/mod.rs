@@ -180,7 +180,8 @@ impl AppContextBuilder {
             geoip: content.geoip_reader.as_ref(),
             content_config: content.content_config.as_ref(),
         });
-        let handle: Arc<dyn DatabaseHandle> = Arc::<systemprompt_database::Database>::clone(&database);
+        let handle: Arc<dyn DatabaseHandle> =
+            Arc::<systemprompt_database::Database>::clone(&database);
         let subscriptions: Arc<dyn systemprompt_traits::events::AnalyticsSubscription> =
             Arc::new(systemprompt_events::AnalyticsSubscriptions::new(
                 Arc::clone(&router.broadcasters().analytics),
@@ -271,23 +272,23 @@ impl AppContextBuilder {
 
         AppContext::from_parts(
             ContextPlanes {
-            data: build_data_plane(
-                database,
-                content.fingerprint_repo,
-                user_service,
-                repositories,
-            ),
-            cfg: ConfigPlane {
-                boot: self.boot,
-                config,
-                app_paths,
-                files_config,
-                content_config: content.content_config,
-                route_classifier: content.route_classifier,
-                build: self.build,
-            },
-            plugins,
-            subsystems,
+                data: build_data_plane(
+                    database,
+                    content.fingerprint_repo,
+                    user_service,
+                    repositories,
+                ),
+                cfg: ConfigPlane {
+                    boot: self.boot,
+                    config,
+                    app_paths,
+                    files_config,
+                    content_config: content.content_config,
+                    route_classifier: content.route_classifier,
+                    build: self.build,
+                },
+                plugins,
+                subsystems,
             },
             Arc::new(kernel),
             self.admitted,

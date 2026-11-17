@@ -60,8 +60,7 @@ impl DialoguerPrompter {
 
 impl Prompter for DialoguerPrompter {
     fn confirm(&self, message: &str, default: bool) -> Result<bool, CommandError> {
-        Self::confirm_answer(message, default)
-            .map_err(CommandError::new)
+        Self::confirm_answer(message, default).map_err(CommandError::new)
     }
 
     fn input(&self, prompt: &str) -> Result<String, CommandError> {
@@ -69,8 +68,7 @@ impl Prompter for DialoguerPrompter {
     }
 
     fn input_with_default(&self, prompt: &str, default: &str) -> Result<String, CommandError> {
-        Self::input_with_default_answer(prompt, default)
-            .map_err(CommandError::new)
+        Self::input_with_default_answer(prompt, default).map_err(CommandError::new)
     }
 
     fn select(&self, prompt: &str, items: &[String]) -> Result<usize, CommandError> {

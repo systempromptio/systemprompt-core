@@ -8,8 +8,8 @@
 use systemprompt_extension::admitted::{AdmittedGatewayRoute, AdmittedRouteSet};
 use systemprompt_extension::reserved::CoreId;
 use systemprompt_extension::router::{
-    Allowance, ApiBase, BasePath, BaseRef, GatewayDefRefusal, RouteDef, RouteSet, WebBase, first_overlap,
-    path_covers, refused_gateway_def, refused_reservation,
+    Allowance, ApiBase, BasePath, BaseRef, GatewayDefRefusal, RouteDef, RouteSet, WebBase,
+    first_overlap, path_covers, refused_gateway_def, refused_reservation,
 };
 use systemprompt_extension::{ContributionError, StandingTag};
 

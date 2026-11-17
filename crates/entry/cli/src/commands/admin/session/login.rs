@@ -59,11 +59,7 @@ pub struct LoginOutput {
 }
 
 pub async fn execute(args: LoginArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    login_for_profile(
-        crate::commands::admin::state::boot(host)?.as_ref(),
-        &args,
-    )
-    .await
+    login_for_profile(crate::commands::admin::state::boot(host)?.as_ref(), &args).await
 }
 
 fn ensure_interactive_admin(admin_user: &User) -> Result<()> {

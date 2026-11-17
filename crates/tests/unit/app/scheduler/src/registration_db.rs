@@ -100,12 +100,7 @@ async fn start(jobs: Vec<JobConfig>) -> (SchedulerStartup, DbPool) {
     let url = test_database_url();
     let pool = test_db_pool().await;
     let (app_ctx, schedule) = crate::test_extension::scheduled_app(&url).await;
-    let svc = SchedulerService::new(
-        config(jobs),
-        &pool,
-        app_ctx,
-        Arc::clone(&schedule),
-    );
+    let svc = SchedulerService::new(config(jobs), &pool, app_ctx, Arc::clone(&schedule));
     let startup = svc.start().await.expect("scheduler starts");
     (startup, pool)
 }

@@ -60,8 +60,9 @@ impl CliCommandGroup for SitemapCommands {
         host: &dyn CommandHost,
     ) -> impl Future<Output = Result<CommandOutput, CommandError>> + Send {
         std::future::ready(
-            host.profile()
-                .and_then(|profile| execute(self, host.output(), profile).map_err(CommandError::new)),
+            host.profile().and_then(|profile| {
+                execute(self, host.output(), profile).map_err(CommandError::new)
+            }),
         )
     }
 }
