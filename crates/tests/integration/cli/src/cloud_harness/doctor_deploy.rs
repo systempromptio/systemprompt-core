@@ -4,8 +4,11 @@
 use std::collections::HashMap;
 
 use systemprompt_cloud_entry::cli::doctor::{
-    check_profile_valid, check_provider_secrets, check_required_secrets, check_signing_key,
+    CheckStatus, check_profile_valid, check_provider_secrets, check_required_secrets,
+    check_signing_key, run_managed,
 };
+use systemprompt_extension::cli::AdmittedViews;
+use systemprompt_manifest::profile::ManagedProfile;
 use systemprompt_cloud_entry::cli::{self as cloud, CloudCommands};
 use systemprompt_identifiers::TenantId;
 use systemprompt_loader::ProfileLoader;
@@ -292,13 +295,25 @@ async fn doctor_refuses_a_profile_that_states_the_derived_hook_url() {
         &target_host(&json_ctx()),
     )
     .await
-    .expect_err("a stated hook URL is refused at load");
+    .expect_err("a stated hook URL blocks the preflight");
+    assert!(format!("{error:#}").contains("Deploy preflight failed"), "{error:#}");
+
+    let path = env.root().join(".systemprompt/profiles/hook-stated/profile.yaml");
+    let managed = ManagedProfile::load(&path).expect("the management view loads");
+    let views = AdmittedViews::of(&systemprompt_test_fixtures::fixture_admitted());
+    let report = run_managed(&managed, path.parent().expect("profile dir"), false, Ok(&views)).await;
     remove_profile(&env, "hook-stated");
 
-    let message = format!("{error:#}");
+    let profile = report
+        .checks()
+        .iter()
+        .find(|check| check.name == "profile")
+        .expect("the doctor reports the profile check");
+    assert_eq!(profile.status, CheckStatus::Fail);
     assert!(
-        message.contains("governance.authz.hook.url"),
-        "the refusal names the derived field: {message}"
+        profile.detail.contains("governance.authz.hook.url"),
+        "the profile check names the derived field: {}",
+        profile.detail
     );
 }
 
