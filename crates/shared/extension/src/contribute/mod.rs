@@ -237,19 +237,16 @@ impl<'a> Contributions<'a> {
 
     pub fn slot<S: Slot>(&mut self) -> &mut S::Builder {
         let slots = &mut self.sink.slots;
-        let index = if let Some(index) = slots
+        let index = slots
             .iter()
             .position(|record| record.slot() == TypeId::of::<S>())
-        {
-            index
-        } else {
-            slots.push(SlotRecord::new::<S>());
-            slots.len() - 1
-        };
-        match slots[index].builder_mut::<S>() {
-            Some(builder) => builder,
-            None => unreachable!("slot records are keyed by the slot's TypeId"),
-        }
+            .unwrap_or_else(|| {
+                slots.push(SlotRecord::new::<S>());
+                slots.len() - 1
+            });
+        slots[index]
+            .builder_mut::<S>()
+            .unwrap_or_else(|| unreachable!("slot records are keyed by the slot's TypeId"))
     }
 
     #[cfg(feature = "router")]

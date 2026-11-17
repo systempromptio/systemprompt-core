@@ -54,7 +54,7 @@ pub struct ProjectionEntry {
 }
 
 impl ProjectionEntry {
-    pub(crate) fn of<J: DrainTarget>(drain: ProjectionDrain) -> Self {
+    pub(crate) const fn of<J: DrainTarget>(drain: ProjectionDrain) -> Self {
         Self {
             target: TypeId::of::<J>(),
             drain,

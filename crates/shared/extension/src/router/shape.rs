@@ -227,7 +227,9 @@ impl RouteDef {
     }
 }
 
-/// The method a declared route answers. [`RouteMethod::Any`] marks a service
+/// The method a declared route answers.
+///
+/// [`RouteMethod::Any`] marks a service
 /// def, one opaque entry `ANY {path}/*`: it answers every method on every
 /// path under its prefix, carries no operation schemas, and is admitted only
 /// for an install at an unreserved extension base or the web root.

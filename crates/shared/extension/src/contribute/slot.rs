@@ -219,7 +219,7 @@ pub fn build_slot(
     }
     if order == SlotOrder::CoreFirst {
         inputs.sort_by_key(|input| match input.entry.standing {
-            StandingTag::Core => 0_u8,
+            StandingTag::Core => 0u8,
             StandingTag::Install => 1,
         });
     }
@@ -285,8 +285,7 @@ fn insert_erased<S: Slot>(
     owner: &ExtensionId,
     value: ErasedBuilt,
 ) -> Result<(), DuplicateDependency> {
-    match value.downcast::<S::Built>() {
-        Ok(built) => state.provide(owner, Arc::new(built)),
-        Err(_) => Ok(()),
-    }
+    value
+        .downcast::<S::Built>()
+        .map_or(Ok(()), |built| state.provide(owner, Arc::new(built)))
 }

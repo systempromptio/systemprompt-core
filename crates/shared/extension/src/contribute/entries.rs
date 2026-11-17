@@ -98,10 +98,9 @@ fn insert_provided<T: Send + Sync + 'static>(
     provider: &ExtensionId,
     value: ErasedValue,
 ) -> Result<(), DuplicateDependency> {
-    match value.downcast::<T>() {
-        Ok(typed) => state.provide(provider, typed),
-        Err(_) => Ok(()),
-    }
+    value
+        .downcast::<T>()
+        .map_or(Ok(()), |typed| state.provide(provider, typed))
 }
 
 /// A declared dependency on another member of the same capability, by type.

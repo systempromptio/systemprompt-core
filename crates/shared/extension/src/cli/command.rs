@@ -49,7 +49,7 @@ pub const REGISTERED_DISPLAY_ORDER: usize = 900;
 #[derive(Debug)]
 pub struct CommandError {
     source: Box<dyn std::error::Error + Send + Sync>,
-    output: Option<CommandOutput>,
+    output: Option<Box<CommandOutput>>,
 }
 
 impl CommandError {
@@ -62,13 +62,13 @@ impl CommandError {
 
     #[must_use]
     pub fn with_output(mut self, output: CommandOutput) -> Self {
-        self.output = Some(output);
+        self.output = Some(Box::new(output));
         self
     }
 
     #[must_use]
-    pub const fn output(&self) -> Option<&CommandOutput> {
-        self.output.as_ref()
+    pub fn output(&self) -> Option<&CommandOutput> {
+        self.output.as_deref()
     }
 }
 

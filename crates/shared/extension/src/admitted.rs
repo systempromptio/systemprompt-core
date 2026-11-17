@@ -162,6 +162,13 @@ pub struct DeclaredCommands {
 impl DeclaredCommands {
     #[doc(hidden)]
     #[must_use]
+    #[cfg_attr(
+        not(feature = "cli"),
+        expect(
+            clippy::missing_const_for_fn,
+            reason = "with the `cli` feature the parts own a Vec, whose drop cannot run in a const fn"
+        )
+    )]
     pub fn __from_facade(parts: DeclaredCommandParts) -> Self {
         #[cfg(not(feature = "cli"))]
         let DeclaredCommandParts {} = parts;

@@ -34,7 +34,9 @@ pub use shapes::{CONTENT_GENERATE_ROUTES, CONTENT_REDIRECT_ROUTES, PRIVILEGED_SH
 
 pub const WEB_ROOT_BASE_PATH: &str = "/";
 
-/// How far a [`ReservedPath`] extends: `Prefix` holds every path whose text
+/// How far a [`ReservedPath`] extends.
+///
+/// `Prefix` holds every path whose text
 /// starts with it (so `/api/v1/contentx` is held with `/api/v1/content`),
 /// `Subtree` the path and every path below it segment by segment, `Exact`
 /// the path alone.
@@ -46,7 +48,9 @@ pub enum ReservedReach {
 }
 
 /// A path only its core owner may route, whether or not that owner is
-/// composed. A nested entry (`/api/v1/admin/notifications` inside
+/// composed.
+///
+/// A nested entry (`/api/v1/admin/notifications` inside
 /// `/api/v1/admin`) is held by its own owner; the enclosing owner keeps the
 /// rest.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

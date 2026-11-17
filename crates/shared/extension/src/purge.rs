@@ -65,7 +65,9 @@ pub struct PurgePredicate {
 }
 
 /// One table whose rows exist only while `referenced_by.via` points at
-/// `table.key`; `user_column` is the user key of `referenced_by`. A member
+/// `table.key`.
+///
+/// `user_column` is the user key of `referenced_by`. A member
 /// declares it over `&'static str` names; the recorded form in
 /// [`PurgeDeclaration::Sweep`] is the same type over owned names.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

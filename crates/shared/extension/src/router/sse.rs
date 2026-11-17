@@ -23,7 +23,6 @@ use super::ApiHttpError;
 pub const HEARTBEAT_JSON: &str = r#"{"type":"heartbeat"}"#;
 pub const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(15);
 
-#[must_use]
 pub fn standard_keep_alive() -> KeepAlive {
     KeepAlive::new()
         .interval(HEARTBEAT_INTERVAL)
@@ -54,7 +53,6 @@ pub fn subscription_refused(req: &RequestContext, label: &'static str) -> Respon
     .into_response()
 }
 
-#[must_use]
 pub fn frame_event(frame: SseFrame) -> Event {
     let mut event = Event::default();
     if let Some(name) = frame.event {

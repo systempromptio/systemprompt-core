@@ -54,7 +54,7 @@ impl RouteSet {
         }
     }
 
-    pub fn gateway<S: FromState + Clone>(
+    pub const fn gateway<S: FromState + Clone>(
         path: GatewayPath,
         group: RouteGroup,
     ) -> RouteSetBuilder<S> {
@@ -85,7 +85,7 @@ impl RouteSet {
         (self.materialize)(r)
     }
 
-    pub(crate) fn take_error(&mut self) -> Option<ContributionError> {
+    pub(crate) const fn take_error(&mut self) -> Option<ContributionError> {
         self.error.take()
     }
 }
@@ -114,7 +114,7 @@ impl<S: FromState + Clone> RouteSetBuilder<S> {
         H: Handler<T, S>,
         T: 'static,
     {
-        self.push(m, p, h, spec, None)
+        self.push(m, p, h, (spec, None))
     }
 
     pub fn route_typed<H, T>(self, m: http::Method, p: &'static str, h: H, spec: TypedSpec) -> Self
@@ -122,7 +122,7 @@ impl<S: FromState + Clone> RouteSetBuilder<S> {
         H: Handler<T, S>,
         T: 'static,
     {
-        self.push(m, p, h, spec.spec, Some(spec.openapi))
+        self.push(m, p, h, (spec.spec, Some(spec.openapi)))
     }
 
     fn push<H, T>(
@@ -130,8 +130,7 @@ impl<S: FromState + Clone> RouteSetBuilder<S> {
         m: http::Method,
         p: &'static str,
         h: H,
-        spec: RouteSpec,
-        openapi: Option<super::shape::OperationSpec>,
+        (spec, openapi): (RouteSpec, Option<super::shape::OperationSpec>),
     ) -> Self
     where
         H: Handler<T, S>,
