@@ -89,6 +89,17 @@ pub enum SlotError {
         resolver: &'static str,
         subject: String,
     },
+    #[error(
+        "audience dimension {dimension} is claimed by {first_owner} ({first}) and \
+         {second_owner} ({second})"
+    )]
+    SharedAudienceDimension {
+        dimension: String,
+        first_owner: ExtensionId,
+        first: &'static str,
+        second_owner: ExtensionId,
+        second: &'static str,
+    },
     #[error(transparent)]
     Missing(#[from] MissingDependency),
 }

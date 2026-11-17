@@ -2,17 +2,17 @@
 //!
 //! A member declares its section with `Contributions::config::<C>()`. The
 //! declaration records the section's prefix, its JSON schema and a
-//! monomorphised validator; the composition runs the validator against the
-//! profile's section at admission, so a malformed section refuses the
-//! composition rather than a request.
+//! monomorphised validator. Startup validation runs the validator against
+//! `services/config/<PREFIX>.yaml` (an empty object when the file is absent),
+//! so a malformed section fails startup rather than a request.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::ExtensionConfigError;
 
-/// A member's profile configuration section, deserialised and validated at
-/// admission.
+/// A member's configuration section, deserialised and validated by startup
+/// validation.
 pub trait ExtensionConfig:
     serde::de::DeserializeOwned + schemars::JsonSchema + Send + Sync + 'static
 {
