@@ -17,6 +17,7 @@ mod ai_trace_display;
 mod display;
 mod json;
 mod list;
+pub mod output;
 pub mod show;
 mod summary;
 

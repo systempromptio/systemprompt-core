@@ -11,6 +11,7 @@ use systemprompt_extension::cli::{
     AdmittedViews, BoxFuture, ChildSupervisor, CliConfig, CommandDescriptor, CommandError,
     CommandHost, CommandOutput, DescribedCommand, KernelGrant, Prompter,
 };
+use systemprompt_loader::load_boot::load_boot_from_path;
 use systemprompt_manifest::{Config, Profile};
 use systemprompt_runtime::Kernel;
 use systemprompt_scheduler::repository::ConfigReconcileRepository;
@@ -19,7 +20,6 @@ use systemprompt_traits::{DatabaseHandle, Dependencies};
 use tokio::sync::OnceCell;
 
 use crate::context::CommandContext;
-use crate::host::{boot_profile_config, boot_profile_refused};
 use crate::kernel::{TargetAdmissionError, admit_target};
 
 /// The host a member's registered command runs against.
@@ -154,4 +154,22 @@ impl CommandHost for MemberHost<'_> {
         }
         admit_target(self.ctx, profile).map_err(CommandError::new)
     }
+}
+
+pub(crate) async fn boot_profile_config(
+    ctx: &CommandContext,
+    profile: &Path,
+) -> Result<Arc<Config>, CommandError> {
+    let boot = load_boot_from_path(profile, ctx.secrets_sources().clone())
+        .await
+        .map_err(CommandError::new)?;
+    let config = boot.try_init_config(None).map_err(CommandError::new)?;
+    Ok(Arc::clone(config))
+}
+
+pub(crate) fn boot_profile_refused() -> CommandError {
+    CommandError::new(anyhow::anyhow!(
+        "Booting a profile requires the `{}` kernel grant",
+        KernelGrant::BootProfile
+    ))
 }

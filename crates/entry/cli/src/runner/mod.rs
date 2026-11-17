@@ -18,6 +18,7 @@ mod db_url;
 mod direct;
 mod dispatch;
 pub mod interrupt;
+mod local;
 pub mod profile_routing;
 pub mod routing;
 pub mod routing_decision;
@@ -32,15 +33,14 @@ use systemprompt_loader::subprocess::{self, ApiServerStamp, ForegroundChildren};
 use systemprompt_logging::OutputState;
 use systemprompt_models::BuildIdentity;
 
-use crate::context::CommandContext;
 use crate::env_overrides::EnvOverrides;
 use crate::kernel::{CommandRegistry, ResolveError};
-use composed::{Admission, admit_for};
 pub use composed::{
     AdmitFn, CliRunError, admit_direct, admit_unprofiled, refuse_disabled, run_composed,
 };
 use direct::{DirectDatabase, direct_database_url, run_with_database_url};
-use dispatch::{Invocation, Selected, dispatch_command};
+use dispatch::Invocation;
+use local::{LocalBoot, RunGuards, run_local};
 use systemprompt_extension::cli::{CliConfig, CommandDescriptor, OutputFormat};
 
 pub(super) async fn run_with(
@@ -172,74 +172,6 @@ async fn run_inner(
     run_local(invocation, cli_config, env, guards, local).await
 }
 
-struct LocalBoot {
-    confirm: confirmation::ConfirmationRequest,
-    credentials: Option<systemprompt_cloud::CloudCredentials>,
-    services: Option<systemprompt_loader::ServicesState>,
-    profile: Option<Arc<systemprompt_config::LoadedProfile>>,
-    boot: Option<systemprompt_loader::BootContext>,
-    database_url_override: Option<String>,
-}
-
-async fn run_local(
-    invocation: Invocation,
-    cli_config: CliConfig,
-    env: EnvOverrides,
-    guards: RunGuards,
-    local: LocalBoot,
-) -> Result<()> {
-    let desc = invocation.descriptor();
-    let LocalBoot {
-        confirm,
-        credentials,
-        services,
-        profile,
-        boot,
-        database_url_override,
-    } = local;
-    if !desc.profile() {
-        confirmation::gate(&desc, &confirm, &cli_config)?;
-    }
-
-    let RunGuards {
-        shield,
-        children,
-        build,
-        secrets,
-        admit,
-        registry,
-    } = guards;
-    let (admitted, deferred_admit) = match admit_for(&invocation, profile.as_deref(), admit)? {
-        Admission::Admitted(admitted) => (Some(admitted), None),
-        Admission::Deferred(admit) => (None, admit),
-    };
-    if desc.paths()
-        && !desc.skip_validation()
-        && let (Some(boot), Some(admitted)) = (&boot, &admitted)
-    {
-        bootstrap::run_validation(boot, admitted.built())?;
-    }
-    let ctx = CommandContext::new(cli_config, env)
-        .with_interrupt_shield(shield)
-        .with_foreground_children(children)
-        .with_build_identity(build)
-        .with_secrets_sources(secrets)
-        .with_admitted(admitted)
-        .with_admit(deferred_admit)
-        .with_registry(registry)
-        .with_cloud_credentials(credentials)
-        .with_database_url_override(database_url_override)
-        .with_services(services)
-        .with_profile(profile)
-        .with_boot(boot);
-    let ctx = if desc.database() {
-        ctx
-    } else {
-        ctx.with_detached_kernel()
-    };
-    Box::pin(dispatch_command(invocation.into_selected(), &ctx)).await
-}
-
 fn init_logging(
     output: &OutputState,
     desc: &CommandDescriptor,
@@ -293,33 +225,6 @@ fn resolve_log_level(
     }
 
     Some("warn".to_owned())
-}
-
-struct RunGuards {
-    shield: interrupt::InterruptShield,
-    children: ForegroundChildren,
-    build: BuildIdentity,
-    secrets: SecretsSources,
-    admit: AdmitFn,
-    registry: Arc<CommandRegistry>,
-}
-
-impl RunGuards {
-    fn apply(
-        self,
-        ctx: CommandContext,
-        selected: &Selected,
-        profile: Option<&systemprompt_manifest::Profile>,
-    ) -> Result<CommandContext> {
-        let admitted = admit_direct(selected.registered(), profile, self.admit)?;
-        Ok(ctx
-            .with_admitted(Some(Arc::new(admitted)))
-            .with_interrupt_shield(self.shield)
-            .with_foreground_children(self.children)
-            .with_build_identity(self.build)
-            .with_secrets_sources(self.secrets)
-            .with_registry(self.registry))
-    }
 }
 
 fn stamp_api_server_identity(desc: &CommandDescriptor) -> Result<()> {

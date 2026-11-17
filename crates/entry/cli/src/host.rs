@@ -10,11 +10,10 @@ use anyhow::Context;
 use systemprompt_config::SecretsSources;
 use systemprompt_extension::cli::{
     AdmittedViews, BoxFuture, ChildSupervisor, CliConfig, CommandError, CommandHost, CommandOutput,
-    DescribedCommand, KernelGrant, Prompter,
+    DescribedCommand, Prompter,
 };
 use systemprompt_extension::{Admitted, AdmittedSchedule, Resolved};
 use systemprompt_loader::BootContext;
-use systemprompt_loader::load_boot::load_boot_from_path;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_manifest::{Config, Profile, Secrets};
 use systemprompt_runtime::{AppContext, AppContextBuilder, Kernel};
@@ -23,6 +22,7 @@ use systemprompt_traits::{AppContext as _, BackgroundTasks, DatabaseHandle, Depe
 use crate::context::CommandContext;
 use crate::env_overrides::EnvOverrides;
 use crate::kernel::{CommandRegistry, classify_command_line};
+use crate::member_host::{boot_profile_config, boot_profile_refused};
 
 /// What the CLI kernel's own commands may ask of it beyond [`CommandHost`].
 ///
@@ -283,22 +283,4 @@ impl KernelHost for CommandContext {
             admit(Some(&profile.extensions))
         }))
     }
-}
-
-pub(crate) async fn boot_profile_config(
-    ctx: &CommandContext,
-    profile: &Path,
-) -> Result<Arc<Config>, CommandError> {
-    let boot = load_boot_from_path(profile, ctx.secrets_sources().clone())
-        .await
-        .map_err(CommandError::new)?;
-    let config = boot.try_init_config(None).map_err(CommandError::new)?;
-    Ok(Arc::clone(config))
-}
-
-pub(crate) fn boot_profile_refused() -> CommandError {
-    CommandError::new(anyhow::anyhow!(
-        "Booting a profile requires the `{}` kernel grant",
-        KernelGrant::BootProfile
-    ))
 }
