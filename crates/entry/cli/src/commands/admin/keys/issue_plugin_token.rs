@@ -60,7 +60,7 @@ pub(super) async fn execute(
     host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let profile = host.profile()?;
-    let boot = crate::commands::admin::state::boot(host).await?;
+    let boot = crate::commands::admin::state::boot(host)?;
     let secrets = boot.secrets().get();
 
     if args.duration_days == 0 || args.duration_days > 365 {

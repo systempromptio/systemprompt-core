@@ -27,7 +27,7 @@ pub fn execute(args: &JobsArgs, built: &BuiltState) -> CommandOutput {
                 .sink
                 .jobs()
                 .iter()
-                .map(|contributed| contributed.job())
+                .map(systemprompt_extension::contribute::ContributedJob::job)
                 .filter(|job| !args.enabled || job.enabled())
                 .map(|job| JobWithExtension {
                     extension_id: member.owner.clone(),

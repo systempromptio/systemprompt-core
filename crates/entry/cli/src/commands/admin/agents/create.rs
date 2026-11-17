@@ -37,7 +37,7 @@ struct ResolvedAgentInput {
     system_prompt: String,
 }
 
-pub(super) async fn execute(args: CreateArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+pub(super) fn execute(args: CreateArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let config = host.output();
     let prompter = host.prompter();
     let mut agent_args = args.agent;
@@ -72,7 +72,7 @@ pub(super) async fn execute(args: CreateArgs, host: &dyn KernelHost) -> Result<C
     };
     let request = build_create_request(input, args.enabled, agent_args);
 
-    let agent_file = write_agent_config(request, host).await?;
+    let agent_file = write_agent_config(request, host)?;
 
     CliService::success(&format!(
         "Agent '{}' created at {}",
@@ -161,7 +161,7 @@ fn build_create_request(
     }
 }
 
-async fn write_agent_config(
+fn write_agent_config(
     request: AgentCreateRequest,
     host: &dyn KernelHost,
 ) -> Result<std::path::PathBuf> {
@@ -174,8 +174,7 @@ async fn write_agent_config(
         .create(request)
         .with_context(|| format!("Failed to create agent '{}'", name))?;
 
-    crate::commands::admin::state::boot(host)
-        .await?
+    crate::commands::admin::state::boot(host)?
         .load_services_config()
         .with_context(|| {
             format!(

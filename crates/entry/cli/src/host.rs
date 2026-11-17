@@ -126,15 +126,15 @@ impl CommandHost for CommandContext {
     }
 
     fn prompter(&self) -> &dyn Prompter {
-        CommandContext::prompter(self)
+        Self::prompter(self)
     }
 
     fn is_database_scoped(&self) -> bool {
-        CommandContext::is_database_scoped(self)
+        Self::is_database_scoped(self)
     }
 
     fn profile(&self) -> Result<&Profile, CommandError> {
-        CommandContext::profile(self).map_err(CommandError::new)
+        Self::profile(self).map_err(CommandError::new)
     }
 
     fn profile_path(&self) -> Result<&Path, CommandError> {
@@ -172,7 +172,7 @@ impl CommandHost for CommandContext {
                 "Describing a command line requires the command registry"
             ))
         })?;
-        let profile = CommandContext::profile(self).map_err(CommandError::new)?;
+        let profile = Self::profile(self).map_err(CommandError::new)?;
         classify_command_line(registry, profile, command).map_err(CommandError::new)
     }
 
@@ -209,19 +209,19 @@ impl KernelHost for CommandContext {
     }
 
     fn admitted(&self) -> Result<&Admitted, CommandError> {
-        CommandContext::admitted(self)
+        Self::admitted(self)
             .map(|admitted| &**admitted)
             .map_err(CommandError::new)
     }
 
     fn secrets(&self) -> Result<Arc<Secrets>, CommandError> {
-        CommandContext::secrets(self)
+        Self::secrets(self)
             .map(|service| service.get())
             .map_err(CommandError::new)
     }
 
     fn config(&self) -> Result<Arc<Config>, CommandError> {
-        CommandContext::config(self)
+        Self::config(self)
             .map(Arc::clone)
             .map_err(CommandError::new)
     }
@@ -233,7 +233,7 @@ impl KernelHost for CommandContext {
             .path()
             .to_string_lossy()
             .into_owned();
-        let pepper = CommandContext::secrets(self)
+        let pepper = Self::secrets(self)
             .map_err(CommandError::new)?
             .oauth_at_rest_pepper();
         Ok(vec![
@@ -248,7 +248,7 @@ impl KernelHost for CommandContext {
 
     fn app_context(&self) -> BoxFuture<'_, Result<Arc<AppContext>, CommandError>> {
         Box::pin(async move {
-            CommandContext::app_context(self)
+            Self::app_context(self)
                 .await
                 .map(Arc::clone)
                 .map_err(CommandError::new)
@@ -256,7 +256,7 @@ impl KernelHost for CommandContext {
     }
 
     fn boot(&self) -> Result<Arc<BootContext>, CommandError> {
-        CommandContext::boot(self)
+        Self::boot(self)
             .map(|boot| Arc::new(boot.clone()))
             .map_err(CommandError::new)
     }
@@ -266,7 +266,7 @@ impl KernelHost for CommandContext {
     }
 
     fn secrets_sources(&self) -> &SecretsSources {
-        CommandContext::secrets_sources(self)
+        Self::secrets_sources(self)
     }
 
     fn boot_config<'a>(
@@ -278,7 +278,7 @@ impl KernelHost for CommandContext {
 
     fn take_admit(&self) -> Result<systemprompt_runtime::AdmitFn, CommandError> {
         let refused = || anyhow::anyhow!("Only a child-host command admits the composition");
-        let admit = CommandContext::take_admit(self).ok_or_else(|| CommandError::new(refused()))?;
+        let admit = Self::take_admit(self).ok_or_else(|| CommandError::new(refused()))?;
         Ok(Box::new(move |profile: &Profile| {
             admit(Some(&profile.extensions))
         }))

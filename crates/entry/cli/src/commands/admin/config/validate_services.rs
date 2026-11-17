@@ -22,7 +22,7 @@ pub async fn prepare(args: &ValidateArgs, host: &dyn KernelHost) -> Result<()> {
     if args.schema || profile_document_target(args).is_some() {
         return Ok(());
     }
-    let boot = crate::commands::admin::state::boot(host).await?;
+    let boot = crate::commands::admin::state::boot(host)?;
     let profile = boot.profile();
     let root = boot
         .try_resolve_services_root(env!("CARGO_PKG_VERSION"))

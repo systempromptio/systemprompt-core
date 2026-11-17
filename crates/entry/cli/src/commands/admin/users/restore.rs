@@ -43,8 +43,7 @@ async fn resolve(host: &dyn KernelHost, reference: &str) -> Result<(UserService,
 }
 
 pub(super) async fn execute(args: RestoreArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let window_days = crate::commands::admin::state::config(host)
-        .await?
+    let window_days = crate::commands::admin::state::config(host)?
         .retention
         .archived_users_days;
     let (user_service, user) = resolve(host, &args.user).await?;

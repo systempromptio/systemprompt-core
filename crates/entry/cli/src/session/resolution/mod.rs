@@ -53,13 +53,13 @@ struct SessionHost<'a> {
 }
 
 impl<'a> SessionHost<'a> {
-    async fn new(host: &'a dyn KernelHost) -> Result<Self> {
-        Ok(Self {
+    fn new(host: &'a dyn KernelHost) -> Self {
+        Self {
             host,
             env: host.env_overrides().clone(),
             active_boot: host.boot().ok(),
             secrets: host.secrets_sources().clone(),
-        })
+        }
     }
 }
 
@@ -216,7 +216,7 @@ async fn try_session_from_active_key(ctx: &SessionHost<'_>) -> Result<Option<Cli
 }
 
 pub async fn get_or_create_session(host: &dyn KernelHost) -> Result<CliSessionContext> {
-    let session_ctx = resolve_session(&SessionHost::new(host).await?).await?;
+    let session_ctx = resolve_session(&SessionHost::new(host)).await?;
 
     let config = host.output();
     let banner_requested = config.verbosity >= VerbosityLevel::Verbose;

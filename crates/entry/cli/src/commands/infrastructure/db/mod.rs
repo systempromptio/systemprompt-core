@@ -47,7 +47,6 @@ pub use types::{
 };
 
 pub async fn execute(cmd: DbCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let config = host.output();
     let dispatched = if host.is_database_scoped() {
         let db_ctx = DatabaseContext::from_pool(pool_from_handle(host.db().await?)?);
         dispatch_standalone_migration(cmd, &db_ctx, host).await?
@@ -55,10 +54,14 @@ pub async fn execute(cmd: DbCommands, host: &dyn KernelHost) -> Result<CommandOu
         dispatch_profile_migration(cmd, host).await?
     };
     let cmd = match dispatched {
-        Dispatched::Done(output) => return Ok(output),
+        Dispatched::Done(output) => return Ok(*output),
         Dispatched::Unhandled(cmd) => cmd,
     };
+    execute_connected(cmd, host).await
+}
 
+async fn execute_connected(cmd: DbCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
+    let config = host.output();
     let (pool, admin_service, query_executor) = connect_services(host).await?;
 
     match cmd {

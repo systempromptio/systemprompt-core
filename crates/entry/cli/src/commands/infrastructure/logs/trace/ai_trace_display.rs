@@ -12,7 +12,7 @@ use super::ai_display::{
     Transcript, agent_response, ai_requests as ai_requests_section, execution_steps, task_info,
     user_input,
 };
-use super::ai_mcp::mcp_executions as mcp_executions_section;
+use super::ai_mcp::{mcp_executions as mcp_executions_section, tool_errors_from_logs};
 use super::show::ShowArgs;
 use super::{AiSummaryRow, McpSummaryRow, StepSummaryRow, TraceViewOutput};
 use systemprompt_extension::cli::CommandOutput;
@@ -47,15 +47,11 @@ pub(super) async fn execute_ai_trace(
 
     let mcp_executions = service.get_mcp_executions(task_id, &context_id).await?;
     if text && (show_all || args.sections.mcp) {
-        mcp_executions_section(
-            &mut out,
-            service,
-            &mcp_executions,
-            task_id,
-            &context_id,
-            args.verbose,
-        )
-        .await;
+        if mcp_executions.is_empty() {
+            tool_errors_from_logs(&mut out, service, task_id, &context_id).await;
+        } else {
+            mcp_executions_section(&mut out, service, &mcp_executions, args.verbose).await;
+        }
     }
 
     if text && (show_all || args.sections.artifacts) {

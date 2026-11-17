@@ -23,10 +23,10 @@ pub(crate) async fn app(host: &dyn KernelHost) -> Result<Arc<AppContext>> {
     Ok(host.app_context().await?)
 }
 
-pub(crate) async fn boot(host: &dyn KernelHost) -> Result<Arc<BootContext>> {
+pub(crate) fn boot(host: &dyn KernelHost) -> Result<Arc<BootContext>> {
     Ok(host.boot()?)
 }
 
-pub(crate) async fn config(host: &dyn KernelHost) -> Result<Arc<Config>> {
+pub(crate) fn config(host: &dyn KernelHost) -> Result<Arc<Config>> {
     Ok(KernelHost::config(host)?)
 }

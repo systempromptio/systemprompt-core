@@ -76,11 +76,11 @@ pub async fn execute(cmd: BridgeCommands, host: &dyn KernelHost) -> Result<Comma
             Ok(result)
         },
         BridgeCommands::RotateSigningKey(args) => {
-            let result = rotate_signing_key::execute(args, host).await?;
+            let result = rotate_signing_key::execute(args, host)?;
             Ok(result)
         },
         BridgeCommands::SigningKeyFingerprint(args) => {
-            let result = signing_key_fingerprint::execute(args, host).await?;
+            let result = signing_key_fingerprint::execute(args, host)?;
             Ok(result)
         },
     }

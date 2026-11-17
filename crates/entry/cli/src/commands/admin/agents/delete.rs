@@ -45,8 +45,7 @@ pub struct DeleteArgs {
 pub(super) async fn execute(args: DeleteArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let prompter = host.prompter();
     let config = host.output();
-    let services_config = crate::commands::admin::state::boot(host)
-        .await?
+    let services_config = crate::commands::admin::state::boot(host)?
         .load_services_config()
         .context("Failed to load services configuration")?;
 
@@ -82,7 +81,7 @@ pub(super) async fn execute(args: DeleteArgs, host: &dyn KernelHost) -> Result<C
     }
 
     if !deleted.is_empty() {
-        crate::commands::admin::state::boot(host).await?.load_services_config().with_context(|| {
+        crate::commands::admin::state::boot(host)?.load_services_config().with_context(|| {
             "Agent(s) deleted but configuration validation failed. Please check the configuration."
         })?;
     }

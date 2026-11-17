@@ -160,7 +160,7 @@ impl DescribeCommand for ConfigCommands {
 pub async fn execute(command: ConfigCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
         ConfigCommands::Show => show::execute(host),
-        ConfigCommands::List(args) => list::execute(args, host).await,
+        ConfigCommands::List(args) => list::execute(args, host),
         ConfigCommands::Validate(args) => {
             validate_services::prepare(&args, host).await?;
             let (result, valid) = validate::execute(&args, host).await?;

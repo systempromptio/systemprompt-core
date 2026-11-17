@@ -43,7 +43,6 @@ pub(super) async fn execute(args: LogsArgs, host: &dyn KernelHost) -> Result<Com
         Some(dir) => PathBuf::from(dir),
         None => PathBuf::from(
             crate::commands::admin::state::config(host)
-                .await
                 .context("agent log directory requires an initialised profile")?
                 .logs_path(),
         ),

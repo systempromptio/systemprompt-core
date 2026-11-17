@@ -17,8 +17,8 @@ pub struct ListArgs {
     pub errors_only: bool,
 }
 
-pub async fn execute(args: ListArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let boot = crate::commands::admin::state::boot(host).await?;
+pub fn execute(args: ListArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+    let boot = crate::commands::admin::state::boot(host)?;
     let loaded = boot.loaded_profile();
     let mut files = Vec::new();
     let mut valid_count = 0;

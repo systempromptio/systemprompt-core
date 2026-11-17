@@ -14,15 +14,8 @@ pub(super) async fn mcp_executions(
     out: &mut Transcript,
     service: &AiTraceService,
     executions: &[McpToolExecution],
-    task_id: &TaskId,
-    context_id: &ContextId,
     show_full: bool,
 ) {
-    if executions.is_empty() {
-        tool_errors_from_logs(out, service, task_id, context_id).await;
-        return;
-    }
-
     out.section("MCP TOOL EXECUTIONS");
     out.info(mcp_tool_calls_table(executions));
 
@@ -140,7 +133,7 @@ async fn mcp_linked_ai_requests(
     }
 }
 
-async fn tool_errors_from_logs(
+pub(super) async fn tool_errors_from_logs(
     out: &mut Transcript,
     service: &AiTraceService,
     task_id: &TaskId,

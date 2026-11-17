@@ -50,15 +50,15 @@ pub async fn execute(cmd: KeysCommands, host: &dyn KernelHost) -> Result<Command
             generate::execute(&args).map(|()| CommandOutput::rendered())
         },
         KeysCommands::Stage(_) => {
-            let result = rotation::execute_stage(host).await?;
+            let result = rotation::execute_stage(host)?;
             Ok(result)
         },
         KeysCommands::Promote(args) => {
-            let result = rotation::execute_promote(args, host).await?;
+            let result = rotation::execute_promote(args, host)?;
             Ok(result)
         },
         KeysCommands::Rotate(args) => {
-            let result = rotation::execute_rotate(args, host).await?;
+            let result = rotation::execute_rotate(args, host)?;
             Ok(result)
         },
         KeysCommands::IssuePluginToken(args) => {

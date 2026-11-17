@@ -223,15 +223,14 @@ fn recheck_reserved(entries: &[RegistryEntry]) -> Result<(), RegistryError> {
         let reserved = RESERVED_CLI_PATHS
             .iter()
             .find(|reserved| reserved.path == path.as_slice());
-        if let Some(reserved) = reserved {
-            if !entry.holds(reserved.owner) {
+        if let Some(reserved) = reserved
+            && !entry.holds(reserved.owner) {
                 return Err(RegistryError::ReservedPath {
                     path: entry.path_text(),
                     claimant: entry.owner.clone(),
                     owner: reserved.owner,
                 });
             }
-        }
         if let Some(grant) = entry
             .decl
             .grants()

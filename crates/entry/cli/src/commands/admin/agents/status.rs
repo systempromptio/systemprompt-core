@@ -18,8 +18,7 @@ pub struct StatusArgs {
 }
 
 pub(super) async fn execute(args: StatusArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let services_config = crate::commands::admin::state::boot(host)
-        .await?
+    let services_config = crate::commands::admin::state::boot(host)?
         .load_services_config()
         .context("Failed to load services configuration")?;
 

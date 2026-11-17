@@ -50,11 +50,10 @@ pub struct EditArgs {
     pub agent: AgentArgs,
 }
 
-pub(super) async fn execute(args: &EditArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+pub(super) fn execute(args: &EditArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let config = host.output();
     let prompter = host.prompter();
-    let services_config = crate::commands::admin::state::boot(host)
-        .await?
+    let services_config = crate::commands::admin::state::boot(host)?
         .config_loader()
         .verbatim()
         .load()
@@ -96,8 +95,7 @@ pub(super) async fn execute(args: &EditArgs, host: &dyn KernelHost) -> Result<Co
     ConfigWriter::update_agent(&name, &agent, services_dir)
         .with_context(|| format!("Failed to update agent '{}'", name))?;
 
-    crate::commands::admin::state::boot(host)
-        .await?
+    crate::commands::admin::state::boot(host)?
         .load_services_config()
         .with_context(|| {
             format!(

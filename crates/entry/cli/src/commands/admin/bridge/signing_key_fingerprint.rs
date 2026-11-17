@@ -39,11 +39,11 @@ pub fn key_fingerprint(pubkey_b64: &str) -> String {
     hex::encode(Sha256::digest(pubkey_b64.trim().as_bytes()))
 }
 
-pub(super) async fn execute(
+pub(super) fn execute(
     _args: SigningKeyFingerprintArgs,
     host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
-    let boot = crate::commands::admin::state::boot(host).await?;
+    let boot = crate::commands::admin::state::boot(host)?;
     let seed = boot.secrets().manifest_signing_secret_seed()?;
     let pubkey_b64 = manifest_pubkey_b64(&seed);
     let output = SigningKeyFingerprintOutput {

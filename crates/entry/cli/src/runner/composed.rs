@@ -21,8 +21,9 @@ use crate::kernel::{
     CommandOwner, CommandRegistry, RegistryError, ResolvedCommand, kernel_commands,
 };
 
-/// Admits the composition against a profile's disabled-member list, the one
-/// profile input admission reads: the loaded profile's (also when a cloud
+/// Admits the composition against a profile's disabled-member list.
+///
+/// That list is the one profile input admission reads: the loaded profile's (also when a cloud
 /// profile reaches its database directly), a target profile's read through
 /// [`KernelGrant::TargetAdmission`], or, for a command run with
 /// `--database-url` and no profile (a kernel command, or a member command
@@ -52,14 +53,14 @@ pub enum CliRunError {
 
 pub fn run_composed<A>(
     build: BuildIdentity,
-    declared: DeclaredCommands,
+    declared: &DeclaredCommands,
     secrets: SecretsSources,
     admit: A,
 ) -> Result<ExitCode, CliRunError>
 where
     A: FnOnce(Option<&ExtensionsConfig>) -> Result<Admitted, BoxedSource> + Send + 'static,
 {
-    let registry = CommandRegistry::build(&declared, &kernel_commands())?;
+    let registry = CommandRegistry::build(declared, &kernel_commands())?;
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()

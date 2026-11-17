@@ -37,8 +37,11 @@ impl CliCommandGroup for BuildCommands {
     const DISPLAY_ORDER: usize = 80;
     const ABOUT: &'static str = "Build MCP extensions";
 
-    async fn run(self, host: &dyn CommandHost) -> Result<CommandOutput, CommandError> {
-        execute(self, host).map_err(CommandError::new)
+    fn run(
+        self,
+        host: &dyn CommandHost,
+    ) -> impl Future<Output = Result<CommandOutput, CommandError>> + Send {
+        std::future::ready(execute(self, host).map_err(CommandError::new))
     }
 }
 

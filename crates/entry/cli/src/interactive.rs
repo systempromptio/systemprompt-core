@@ -23,27 +23,27 @@ use systemprompt_extension::cli::{CliConfig, CommandError, Prompter};
 pub struct DialoguerPrompter;
 
 impl DialoguerPrompter {
-    fn confirm_answer(&self, message: &str, default: bool) -> Result<bool> {
+    fn confirm_answer(message: &str, default: bool) -> Result<bool> {
         Ok(Confirm::with_theme(&ColorfulTheme::default())
             .with_prompt(message)
             .default(default)
             .interact()?)
     }
 
-    fn input_answer(&self, prompt: &str) -> Result<String> {
+    fn input_answer(prompt: &str) -> Result<String> {
         Ok(Input::<String>::with_theme(&ColorfulTheme::default())
             .with_prompt(prompt)
             .interact_text()?)
     }
 
-    fn input_with_default_answer(&self, prompt: &str, default: &str) -> Result<String> {
+    fn input_with_default_answer(prompt: &str, default: &str) -> Result<String> {
         Ok(Input::<String>::with_theme(&ColorfulTheme::default())
             .with_prompt(prompt)
             .default(default.to_owned())
             .interact_text()?)
     }
 
-    fn select_answer(&self, prompt: &str, items: &[String]) -> Result<usize> {
+    fn select_answer(prompt: &str, items: &[String]) -> Result<usize> {
         Ok(Select::with_theme(&ColorfulTheme::default())
             .with_prompt(prompt)
             .items(items)
@@ -51,7 +51,7 @@ impl DialoguerPrompter {
             .interact()?)
     }
 
-    fn password_answer(&self, prompt: &str) -> Result<String> {
+    fn password_answer(prompt: &str) -> Result<String> {
         Ok(Password::with_theme(&ColorfulTheme::default())
             .with_prompt(prompt)
             .interact()?)
@@ -60,25 +60,25 @@ impl DialoguerPrompter {
 
 impl Prompter for DialoguerPrompter {
     fn confirm(&self, message: &str, default: bool) -> Result<bool, CommandError> {
-        self.confirm_answer(message, default)
+        Self::confirm_answer(message, default)
             .map_err(CommandError::new)
     }
 
     fn input(&self, prompt: &str) -> Result<String, CommandError> {
-        self.input_answer(prompt).map_err(CommandError::new)
+        Self::input_answer(prompt).map_err(CommandError::new)
     }
 
     fn input_with_default(&self, prompt: &str, default: &str) -> Result<String, CommandError> {
-        self.input_with_default_answer(prompt, default)
+        Self::input_with_default_answer(prompt, default)
             .map_err(CommandError::new)
     }
 
     fn select(&self, prompt: &str, items: &[String]) -> Result<usize, CommandError> {
-        self.select_answer(prompt, items).map_err(CommandError::new)
+        Self::select_answer(prompt, items).map_err(CommandError::new)
     }
 
     fn password(&self, prompt: &str) -> Result<String, CommandError> {
-        self.password_answer(prompt).map_err(CommandError::new)
+        Self::password_answer(prompt).map_err(CommandError::new)
     }
 }
 

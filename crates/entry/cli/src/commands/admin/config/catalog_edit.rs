@@ -28,7 +28,7 @@ pub async fn apply(
     title: &str,
     edit: impl FnOnce(&mut CatalogDocument, &CatalogContext) -> Result<String>,
 ) -> Result<CommandOutput> {
-    let boot = crate::commands::admin::state::boot(host).await?;
+    let boot = crate::commands::admin::state::boot(host)?;
     let loaded = boot.loaded_profile();
     let location = CatalogLocation::active(loaded);
     let before = location.read()?;
@@ -39,7 +39,7 @@ pub async fn apply(
     )?;
     let services = commit_catalog(&location, &after, loaded.profile())?;
     let outcome = super::reconcile::reconcile_authz(
-        crate::commands::admin::state::config(host).await?.as_ref(),
+        crate::commands::admin::state::config(host)?.as_ref(),
         &services,
         &location.dir.display().to_string(),
     )
@@ -63,7 +63,7 @@ pub fn list_output(title: &str, rows: Vec<String>) -> CommandOutput {
 }
 
 pub async fn read_active(host: &dyn KernelHost) -> Result<CatalogDocument> {
-    let boot = crate::commands::admin::state::boot(host).await?;
+    let boot = crate::commands::admin::state::boot(host)?;
     CatalogLocation::active(boot.loaded_profile()).read()
 }
 

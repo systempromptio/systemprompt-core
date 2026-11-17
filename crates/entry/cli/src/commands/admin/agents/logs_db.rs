@@ -18,8 +18,7 @@ pub(super) async fn execute_db_mode(
     host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
-    let services = crate::commands::admin::state::boot(host)
-        .await?
+    let services = crate::commands::admin::state::boot(host)?
         .load_services_config()
         .context("Failed to load services config")?;
     execute_db_mode_with_pool(args, &pool, &services, host.output()).await

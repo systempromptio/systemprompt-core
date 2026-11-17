@@ -120,12 +120,7 @@ async fn run_inner(
         .await;
     }
 
-    if desc.database() {
-        systemprompt_logging::init_deferred_console_logging(output.clone());
-    } else {
-        let effective_level = resolve_log_level(&cli_config, &env, !desc.child_host());
-        systemprompt_logging::init_console_logging_with_level(effective_level.as_deref(), output);
-    }
+    init_logging(output, &desc, &cli_config, &env);
 
     let mut credentials = None;
     let mut services = None;
@@ -133,8 +128,7 @@ async fn run_inner(
     let mut boot = None;
     if desc.profile() {
         let booted = profile_routing::bootstrap_profile(
-            &invocation.cli,
-            &desc,
+            &invocation,
             &cli_config,
             &env,
             &confirm,
@@ -167,6 +161,42 @@ async fn run_inner(
         }
     }
 
+    let local = LocalBoot {
+        confirm,
+        credentials,
+        services,
+        profile,
+        boot,
+        database_url_override,
+    };
+    run_local(invocation, cli_config, env, guards, local).await
+}
+
+struct LocalBoot {
+    confirm: confirmation::ConfirmationRequest,
+    credentials: Option<systemprompt_cloud::CloudCredentials>,
+    services: Option<systemprompt_loader::ServicesState>,
+    profile: Option<Arc<systemprompt_config::LoadedProfile>>,
+    boot: Option<systemprompt_loader::BootContext>,
+    database_url_override: Option<String>,
+}
+
+async fn run_local(
+    invocation: Invocation,
+    cli_config: CliConfig,
+    env: EnvOverrides,
+    guards: RunGuards,
+    local: LocalBoot,
+) -> Result<()> {
+    let desc = invocation.descriptor();
+    let LocalBoot {
+        confirm,
+        credentials,
+        services,
+        profile,
+        boot,
+        database_url_override,
+    } = local;
     if !desc.profile() {
         confirmation::gate(&desc, &confirm, &cli_config)?;
     }
@@ -208,6 +238,20 @@ async fn run_inner(
         ctx.with_detached_kernel()
     };
     Box::pin(dispatch_command(invocation.into_selected(), &ctx)).await
+}
+
+fn init_logging(
+    output: &OutputState,
+    desc: &CommandDescriptor,
+    cli_config: &CliConfig,
+    env: &EnvOverrides,
+) {
+    if desc.database() {
+        systemprompt_logging::init_deferred_console_logging(output.clone());
+    } else {
+        let effective_level = resolve_log_level(cli_config, env, !desc.child_host());
+        systemprompt_logging::init_console_logging_with_level(effective_level.as_deref(), output);
+    }
 }
 
 fn configure_output(

@@ -71,7 +71,6 @@ pub async fn run(host: &dyn KernelHost) -> Result<SecretCheckReport> {
     let (source, detail, keys) =
         describe(&resolved, profile_dir, &required, host.secrets_sources()).await?;
     let status = crate::commands::admin::state::boot(host)
-        .await
         .ok()
         .map(|boot| boot.secrets().status());
     Ok(SecretCheckReport {

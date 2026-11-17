@@ -62,14 +62,14 @@ pub async fn execute(args: &ValidateArgs, host: &dyn KernelHost) -> Result<(Comm
         return validate_profile_file(&path);
     }
 
-    let boot = crate::commands::admin::state::boot(host).await?;
+    let boot = crate::commands::admin::state::boot(host)?;
     let (mut results, mut all_valid) = validate_files(files_for_target(
         boot.loaded_profile(),
         args.target.as_deref(),
     )?);
 
     all_valid &= super::plane_validate::append_full_validation(
-        crate::commands::admin::state::config(host).await?.as_ref(),
+        crate::commands::admin::state::config(host)?.as_ref(),
         host.admitted()?.built(),
         args.target.as_ref(),
         &mut results,

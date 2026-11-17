@@ -40,7 +40,7 @@ pub struct BootstrapOutput {
 }
 
 pub async fn execute(args: BootstrapArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let config = crate::commands::admin::state::config(host).await?;
+    let config = crate::commands::admin::state::config(host)?;
     let name = resolve_admin_name(&config, args.name.as_deref())?;
 
     let email = resolve_admin_email(&config, args.email.as_deref())?;

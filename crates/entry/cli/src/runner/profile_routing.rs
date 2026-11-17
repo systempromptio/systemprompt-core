@@ -73,13 +73,14 @@ impl Bootstrapped {
 }
 
 pub(super) async fn bootstrap_profile(
-    cli: &args::Cli,
-    desc: &CommandDescriptor,
+    invocation: &super::dispatch::Invocation,
     cli_config: &CliConfig,
     env: &EnvOverrides,
     confirm: &ConfirmationRequest,
     secrets: &systemprompt_config::SecretsSources,
 ) -> Result<Bootstrapped> {
+    let cli = &invocation.cli;
+    let desc = &invocation.descriptor();
     let has_export = args::has_local_export_flag(desc);
     let ctx = bootstrap::resolve_and_display_profile(cli_config, env, has_export)?;
 
@@ -187,13 +188,14 @@ async fn initialize_post_routing(
         );
     }
 
-    let mut services = None;
-    if desc.paths() {
+    let services = if desc.paths() {
         let boot = boot
             .as_ref()
             .context("Secrets required to resolve the services paths")?;
-        services = Some(bootstrap::init_paths(boot, desc.discovers_models()).await?);
-    }
+        Some(bootstrap::init_paths(boot, desc.discovers_models()).await?)
+    } else {
+        None
+    };
 
     if !ctx.is_cloud {
         bootstrap::validate_cloud_credentials(&ctx.env, credentials.as_ref(), ctx.loaded.profile());

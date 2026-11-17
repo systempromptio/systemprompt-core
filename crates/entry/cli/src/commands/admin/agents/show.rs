@@ -16,11 +16,10 @@ pub struct ShowArgs {
     pub name: Option<String>,
 }
 
-pub(super) async fn execute(args: ShowArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+pub(super) fn execute(args: ShowArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let config = host.output();
     let prompter = host.prompter();
-    let services_config = crate::commands::admin::state::boot(host)
-        .await?
+    let services_config = crate::commands::admin::state::boot(host)?
         .load_services_config()
         .context("Failed to load services configuration")?;
 

@@ -22,9 +22,8 @@ pub struct ListArgs {
     pub disabled: bool,
 }
 
-pub(super) async fn execute(args: ListArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let services_config = crate::commands::admin::state::boot(host)
-        .await?
+pub(super) fn execute(args: ListArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+    let services_config = crate::commands::admin::state::boot(host)?
         .load_services_config()
         .context("Failed to load services configuration")?;
 

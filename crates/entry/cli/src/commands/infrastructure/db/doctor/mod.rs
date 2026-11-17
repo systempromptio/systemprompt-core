@@ -13,15 +13,17 @@
 use anyhow::{Context, Result};
 use serde::Serialize;
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 use systemprompt_database::services::DatabaseProvider;
 use systemprompt_database::services::schema_linter::created_table_names;
-use systemprompt_database::{DbPool, SchemaResidue, audit_schema_residue};
+use systemprompt_database::{DbPool, SchemaMember, audit_schema_residue};
 use systemprompt_extension::BuiltState;
 use systemprompt_extension::cli::CommandError;
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_models::artifacts::NoticeLine;
 
 use systemprompt_extension::cli::CommandOutput;
+
+mod report;
 
 #[derive(Debug, Serialize)]
 struct DoctorReport {
@@ -50,23 +52,7 @@ struct MissingColumn {
 pub(super) async fn execute_doctor(db_pool: &DbPool, built: &BuiltState) -> Result<CommandOutput> {
     let schema_extensions = super::admin_migrate::install_set(built);
     let write_provider = db_pool.write();
-
-    let mut declared_columns: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
-    let mut owner: BTreeMap<String, ExtensionId> = BTreeMap::new();
-
-    for ext in &schema_extensions {
-        let ext_id = ExtensionId::new(ext.id());
-        for schema in ext.schemas() {
-            let Some(table) = schema.table else {
-                continue;
-            };
-            owner.entry(table.clone()).or_insert_with(|| ext_id.clone());
-            let entry = declared_columns.entry(table).or_default();
-            for col in &schema.required_columns {
-                entry.insert(col.clone());
-            }
-        }
-    }
+    let (declared_columns, owner) = declared_columns(&schema_extensions);
 
     let live_tables = fetch_live_tables(write_provider).await?;
     let live_columns = fetch_live_columns(write_provider).await?;
@@ -103,20 +89,10 @@ pub(super) async fn execute_doctor(db_pool: &DbPool, built: &BuiltState) -> Resu
         .cloned()
         .collect();
 
-    let mut missing_columns: Vec<(ExtensionId, String, String)> = Vec::new();
-    for (table, required) in &declared_columns {
-        let (Some(live_cols), Some(owner_id)) = (live_columns.get(table), owner.get(table)) else {
-            continue;
-        };
-        for col in required {
-            if !live_cols.contains(col) {
-                missing_columns.push((owner_id.clone(), table.clone(), col.clone()));
-            }
-        }
-    }
+    let missing_columns = missing_columns(&declared_columns, &live_columns, &owner);
 
     let unparseable_count = unparseable.len();
-    let output = report_output(
+    let output = report::report_output(
         &undeclared,
         &residue,
         &missing_tables,
@@ -144,114 +120,46 @@ pub(super) async fn execute_doctor(db_pool: &DbPool, built: &BuiltState) -> Resu
     Ok(output)
 }
 
-fn report_output(
-    undeclared: &[String],
-    residue: &SchemaResidue,
-    missing_tables: &[String],
-    missing_columns: &[(ExtensionId, String, String)],
-    unparseable_schemas: Vec<UnparseableSchema>,
-) -> CommandOutput {
-    let orphan_ledgers: Vec<String> = residue
-        .orphan_migration_ledgers
-        .iter()
-        .map(|l| format!("{} ({} rows)", l.extension_id, l.rows))
-        .collect();
-    let absent_tables: Vec<String> = residue
-        .absent_member_tables
-        .iter()
-        .map(|t| {
-            format!(
-                "{}.{} ({} rows, owner {})",
-                t.schema, t.table, t.live_rows, t.owner
-            )
-        })
-        .collect();
-    let absent_ledgers: Vec<String> = residue
-        .absent_member_ledgers
-        .iter()
-        .map(|l| format!("{} ({} rows)", l.extension_id, l.rows))
-        .collect();
-    let mut notes = Vec::new();
-    if !absent_tables.is_empty() || !absent_ledgers.is_empty() {
-        notes.push(NoticeLine::new(
-            "info",
-            format!(
-                "{} table(s) and {} migration ledger(s) are kept for a member not in this \
-                 composition; they are not residue and must not be dropped",
-                absent_tables.len(),
-                absent_ledgers.len()
-            ),
-        ));
+type DeclaredColumns = BTreeMap<String, BTreeSet<String>>;
+
+fn declared_columns(
+    schema_extensions: &[Arc<dyn SchemaMember>],
+) -> (DeclaredColumns, BTreeMap<String, ExtensionId>) {
+    let mut declared: DeclaredColumns = BTreeMap::new();
+    let mut owner: BTreeMap<String, ExtensionId> = BTreeMap::new();
+    for ext in schema_extensions {
+        let ext_id = ExtensionId::new(ext.id());
+        for schema in ext.schemas() {
+            let Some(table) = schema.table else {
+                continue;
+            };
+            owner.entry(table.clone()).or_insert_with(|| ext_id.clone());
+            let entry = declared.entry(table).or_default();
+            for col in &schema.required_columns {
+                entry.insert(col.clone());
+            }
+        }
     }
-    if undeclared.is_empty()
-        && unparseable_schemas.is_empty()
-        && orphan_ledgers.is_empty()
-        && missing_tables.is_empty()
-        && missing_columns.is_empty()
-    {
-        notes.push(NoticeLine::new(
-            "success",
-            "Schema in sync with extension declarations",
-        ));
+    (declared, owner)
+}
+
+fn missing_columns(
+    declared: &DeclaredColumns,
+    live_columns: &DeclaredColumns,
+    owner: &BTreeMap<String, ExtensionId>,
+) -> Vec<(ExtensionId, String, String)> {
+    let mut missing = Vec::new();
+    for (table, required) in declared {
+        let (Some(live_cols), Some(owner_id)) = (live_columns.get(table), owner.get(table)) else {
+            continue;
+        };
+        for col in required {
+            if !live_cols.contains(col) {
+                missing.push((owner_id.clone(), table.clone(), col.clone()));
+            }
+        }
     }
-    if !missing_tables.is_empty() {
-        notes.push(NoticeLine::new(
-            "warning",
-            format!(
-                "{} declared table(s) absent from the live database",
-                missing_tables.len()
-            ),
-        ));
-    }
-    if !missing_columns.is_empty() {
-        notes.push(NoticeLine::new(
-            "warning",
-            format!(
-                "{} required column(s) absent from live tables",
-                missing_columns.len()
-            ),
-        ));
-    }
-    if !undeclared.is_empty() {
-        notes.push(NoticeLine::new(
-            "warning",
-            format!(
-                "{} live table(s) declared by no registered extension — a deleted crate's \
-                 residue; add a DROP TABLE … CASCADE migration",
-                undeclared.len()
-            ),
-        ));
-    }
-    if !orphan_ledgers.is_empty() {
-        notes.push(NoticeLine::new(
-            "warning",
-            format!(
-                "{} extension_migrations ledger(s) for extensions that no longer exist — delete \
-                 the rows in the same migration",
-                orphan_ledgers.len()
-            ),
-        ));
-    }
-    let report = DoctorReport {
-        undeclared_tables: undeclared.to_vec(),
-        orphan_migration_ledgers: orphan_ledgers,
-        absent_member_tables: absent_tables,
-        absent_member_ledgers: absent_ledgers,
-        missing_tables: missing_tables.to_vec(),
-        missing_columns: missing_columns
-            .iter()
-            .map(|(ext, table, col)| MissingColumn {
-                extension: ext.clone(),
-                table: table.clone(),
-                column: col.clone(),
-            })
-            .collect(),
-        unparseable_schemas,
-    };
-    notes.into_iter().fold(
-        CommandOutput::card_value("Database Doctor", &report),
-        CommandOutput::with_note,
-    )
+    missing
 }
 
 async fn fetch_live_tables(db: &dyn DatabaseProvider) -> Result<BTreeSet<String>> {

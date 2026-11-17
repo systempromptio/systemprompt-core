@@ -84,14 +84,11 @@ pub enum AgentsCommands {
 pub async fn execute(command: AgentsCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     let result = match command {
         AgentsCommands::List(args) => list::execute(args, host)
-            .await
             .context("Failed to list agents")?,
         AgentsCommands::Show(args) => show::execute(args, host)
-            .await
             .context("Failed to show agent")?,
         AgentsCommands::Validate(args) => {
             let (result, valid) = validate::execute(&args, host)
-                .await
                 .context("Failed to validate agents")?;
             if !valid {
                 return Err(
@@ -103,10 +100,8 @@ pub async fn execute(command: AgentsCommands, host: &dyn KernelHost) -> Result<C
             result
         },
         AgentsCommands::Create(args) => create::execute(args, host)
-            .await
             .context("Failed to create agent")?,
         AgentsCommands::Edit(args) => edit::execute(&args, host)
-            .await
             .context("Failed to edit agent")?,
         AgentsCommands::Delete(args) => Box::pin(delete::execute(args, host))
             .await

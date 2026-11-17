@@ -17,7 +17,7 @@ use crate::kernel::KernelHost;
 use systemprompt_extension::cli::CommandOutput;
 
 pub(super) enum Dispatched {
-    Done(CommandOutput),
+    Done(Box<CommandOutput>),
     Unhandled(DbCommands),
 }
 
@@ -73,7 +73,7 @@ pub(super) async fn dispatch_profile_migration(
         },
         other => return Ok(Dispatched::Unhandled(other)),
     };
-    Ok(Dispatched::Done(output))
+    Ok(Dispatched::Done(Box::new(output)))
 }
 
 pub(super) async fn dispatch_standalone_migration(
@@ -135,7 +135,7 @@ pub(super) async fn dispatch_standalone_migration(
         },
         other => return dispatch_standalone_inspection(other, db_ctx, host).await,
     };
-    Ok(Dispatched::Done(output))
+    Ok(Dispatched::Done(Box::new(output)))
 }
 
 async fn dispatch_standalone_inspection(
@@ -157,7 +157,7 @@ async fn dispatch_standalone_inspection(
         },
         other => return Ok(Dispatched::Unhandled(other)),
     };
-    Ok(Dispatched::Done(output))
+    Ok(Dispatched::Done(Box::new(output)))
 }
 
 fn built(host: &dyn KernelHost) -> Result<&BuiltState> {

@@ -22,8 +22,10 @@ use crate::context::CommandContext;
 use crate::host::{boot_profile_config, boot_profile_refused};
 use crate::kernel::{TargetAdmissionError, admit_target};
 
-/// The host a member's registered command runs against: the command context
-/// with the grants the registry conferred on that command. It serves
+/// The host a member's registered command runs against.
+///
+/// It is the command context with the grants the registry conferred on that
+/// command. It serves
 /// [`CommandHost::boot_config`] only when the command holds
 /// [`KernelGrant::BootProfile`]. Its [`CommandHost::resolved`] is the one
 /// member-command resolver: it reads the command kernel's state but refuses

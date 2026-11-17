@@ -70,7 +70,7 @@ pub fn execute(args: &InspectArgs, host: &dyn KernelHost) -> Result<CommandOutpu
     }
     Ok(CommandOutput::card_value(
         "Active Services Root",
-        &describe_active(host.profile()?, &host.services_root()?)?,
+        &describe_active(host.profile()?, &host.services_root()?),
     ))
 }
 
@@ -140,7 +140,7 @@ fn signature_status(signed: &SignedBundleManifest, profile: Option<&Profile>) ->
     }
 }
 
-fn describe_active(profile: &Profile, root: &ActiveServicesRoot) -> Result<ActiveReport> {
+fn describe_active(profile: &Profile, root: &ActiveServicesRoot) -> ActiveReport {
     let state = BundleCache::new(cache_root(profile)).read_state();
     let sources = state
         .sources
@@ -170,12 +170,12 @@ fn describe_active(profile: &Profile, root: &ActiveServicesRoot) -> Result<Activ
         },
     };
 
-    Ok(ActiveReport {
+    ActiveReport {
         path: root.path.display().to_string(),
         provenance: provenance.to_owned(),
         composed_hash,
         last_reconciled_hash: state.last_reconciled_hash,
         sources,
         detail,
-    })
+    }
 }

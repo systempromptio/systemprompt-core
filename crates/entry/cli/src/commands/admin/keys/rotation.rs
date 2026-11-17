@@ -98,10 +98,10 @@ pub(super) struct RetiredKeyOutput {
     pub expires_at: chrono::DateTime<Utc>,
 }
 
-pub(super) async fn execute_stage(host: &dyn KernelHost) -> Result<CommandOutput> {
-    let state = current_state(host).await?;
+pub(super) fn execute_stage(host: &dyn KernelHost) -> Result<CommandOutput> {
+    let state = current_state(host)?;
     let (staged, next) = stage(&state).context("Failed to stage a signing key")?;
-    persist(host, &next).await?;
+    persist(host, &next)?;
     CliService::success(&format!(
         "Signing key {} staged. Restart every replica, then run `admin keys promote`.",
         staged.kid()
@@ -109,24 +109,24 @@ pub(super) async fn execute_stage(host: &dyn KernelHost) -> Result<CommandOutput
     output("Signing Key Staged", &next, false)
 }
 
-pub(super) async fn execute_promote(
+pub(super) fn execute_promote(
     args: PromoteArgs,
     host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
-    let state = current_state(host).await?;
-    promote_state(args, host, &state).await
+    let state = current_state(host)?;
+    promote_state(args, host, &state)
 }
 
-pub(super) async fn execute_rotate(
+pub(super) fn execute_rotate(
     args: PromoteArgs,
     host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
-    let state = current_state(host).await?;
+    let state = current_state(host)?;
     let (_, staged) = stage(&state).context("Failed to stage a signing key")?;
-    promote_state(args, host, &staged).await
+    promote_state(args, host, &staged)
 }
 
-async fn promote_state(
+fn promote_state(
     args: PromoteArgs,
     host: &dyn KernelHost,
     state: &SigningKeyState,
@@ -138,7 +138,7 @@ async fn promote_state(
     };
     let (promoted, next) =
         promote(state, mode, Utc::now()).context("Failed to promote the staged signing key")?;
-    persist(host, &next).await?;
+    persist(host, &next)?;
     if args.revoke {
         CliService::warning(
             "Promoted with no overlap: every token signed by an earlier key, and every previous \
@@ -153,8 +153,8 @@ async fn promote_state(
     output("Signing Key Promoted", &next, args.revoke)
 }
 
-async fn current_state(host: &dyn KernelHost) -> Result<SigningKeyState> {
-    let boot = crate::commands::admin::state::boot(host).await?;
+fn current_state(host: &dyn KernelHost) -> Result<SigningKeyState> {
+    let boot = crate::commands::admin::state::boot(host)?;
     let keys = crate::session::api::load_signing_keys(&boot)?;
     let secrets = boot.secrets();
     Ok(SigningKeyState {
@@ -171,8 +171,8 @@ async fn current_state(host: &dyn KernelHost) -> Result<SigningKeyState> {
     })
 }
 
-async fn persist(host: &dyn KernelHost, state: &SigningKeyState) -> Result<()> {
-    let boot = crate::commands::admin::state::boot(host).await?;
+fn persist(host: &dyn KernelHost, state: &SigningKeyState) -> Result<()> {
+    let boot = crate::commands::admin::state::boot(host)?;
     SecretsService::persist_signing_key_state(boot.loaded_profile(), state)
         .context("Failed to write the signing keys to the secrets file")
 }
