@@ -141,31 +141,28 @@ async fn execute_restart(
     host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let config = host.output();
-    let app = app_context(host).await?;
-
-    let result = if failed {
-        restart::execute_failed(&app, config).await?
-    } else if agents {
-        restart::execute_all_agents(&app, config).await?
-    } else if mcp {
-        restart::execute_all_mcp(&app, config).await?
-    } else {
-        match target {
-            Some(RestartTarget::Api) => restart::execute_api(host.prompter(), host).await?,
+    if !(failed || agents || mcp) {
+        return match target {
+            Some(RestartTarget::Api) => restart::execute_api(host.prompter(), host).await,
             Some(RestartTarget::Agent { agent }) => {
-                restart::execute_agent(&app, &agent, config).await?
+                restart::execute_agent(&app_context(host).await?, &agent, config).await
             },
             Some(RestartTarget::Mcp { server_name, build }) => {
-                restart::execute_mcp(&app, &server_name, build, config).await?
+                restart::execute_mcp(&app_context(host).await?, &server_name, build, config).await
             },
-            None => {
-                return Err(anyhow::anyhow!(
-                    "Must specify target (api, agent, mcp) or use --failed/--agents/--mcp flag"
-                ));
-            },
-        }
-    };
-    Ok(result)
+            None => Err(anyhow::anyhow!(
+                "Must specify target (api, agent, mcp) or use --failed/--agents/--mcp flag"
+            )),
+        };
+    }
+    let app = app_context(host).await?;
+    if failed {
+        restart::execute_failed(&app, config).await
+    } else if agents {
+        restart::execute_all_agents(&app, config).await
+    } else {
+        restart::execute_all_mcp(&app, config).await
+    }
 }
 
 pub fn load_service_configs(
