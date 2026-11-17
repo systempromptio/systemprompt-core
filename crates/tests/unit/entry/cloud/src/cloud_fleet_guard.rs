@@ -35,7 +35,10 @@ impl ClassifyingHost {
         let registry = CommandRegistry::build(&declared.commands(), &kernel_commands())
             .expect("the registry accepts the reference commands");
         let mut profile = (*systemprompt_test_fixtures::test_boot_profile()).clone();
-        profile.extensions.disabled = disabled.iter().map(|id| ExtensionId::new(*id)).collect();
+        profile.extensions.disabled = disabled
+            .iter()
+            .map(|id| systemprompt_manifest::DisabledExtension::literal(ExtensionId::new(*id)))
+            .collect();
         Self {
             registry,
             profile,

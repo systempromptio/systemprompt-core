@@ -363,7 +363,13 @@ fn ctx_over(format: OutputFormat, profile: Option<Arc<LoadedProfile>>) -> Comman
 fn fixture_admit() -> systemprompt_cli::AdmitFn {
     Box::new(|extensions| {
         let disabled = extensions
-            .map(|extensions| extensions.disabled.clone())
+            .map(|extensions| {
+                extensions
+                    .disabled
+                    .iter()
+                    .map(|entry| entry.id().clone())
+                    .collect::<Vec<_>>()
+            })
             .unwrap_or_default();
         Ok(
             Arc::try_unwrap(systemprompt_test_fixtures::fixture_admitted_without(
