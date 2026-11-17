@@ -45,6 +45,24 @@ pub fn with_app_boot(
         .with_admitted(Some(admitted))
 }
 
+pub fn new_on_database(cli: CliConfig, env: EnvOverrides, database_url: &str) -> CommandContext {
+    let bootstrap = ensure_test_bootstrap();
+    let boot = systemprompt_loader::BootContext::new(
+        std::sync::Arc::clone(bootstrap.boot.loaded_profile()),
+        std::sync::Arc::clone(bootstrap.boot.secrets()),
+    );
+    let mut config = systemprompt_manifest::Config::clone(bootstrap.boot_config());
+    config.database_url = database_url.to_owned();
+    config.database_write_url = None;
+    config.database_session_url = None;
+    boot.install_config(config)
+        .expect("the profile's config over its own database");
+    boot.install_services_root(bootstrap.boot.require_services_root());
+    CommandContext::new(cli, env)
+        .with_boot(Some(boot))
+        .with_admitted(Some(fixture_admitted()))
+}
+
 pub fn new_on(
     bootstrap: &systemprompt_test_fixtures::TestBootstrap,
     cli: CliConfig,

@@ -39,8 +39,7 @@ async fn standalone(db: &DisposableDb, config: CliConfig) -> CommandContext {
 }
 
 fn profile_driven(db: &DisposableDb, config: CliConfig) -> CommandContext {
-    crate::boot_ctx::new_with_boot(config, EnvOverrides::default())
-        .with_database_url_override(Some(db.url().to_owned()))
+    crate::boot_ctx::new_on_database(config, EnvOverrides::default(), db.url())
 }
 
 #[tokio::test]
