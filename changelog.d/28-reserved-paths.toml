@@ -6,14 +6,14 @@ text = "An install route may not reach a reserved path: every route's full path,
 [[crate]]
 name = "systemprompt-extension"
 section = "Breaking"
-text = "`reserved::RESERVED_API_PREFIXES` is replaced by `RESERVED_PATHS: &[ReservedPath]`; an install route reaching a reserved path is `ReservedPrefix` and an `ApiBase::Extension` covering one is `InvalidBase`. Added `RouteSetBuilder::service`, `router::{refused_reservation, reserved_below}`, `CoreId::{ALL, for_id}`."
+text = "`reserved::RESERVED_API_PREFIXES` is replaced by `RESERVED_PATHS: &[ReservedPath]`; an install route reaching a reserved path is `ReservedPrefix` and an `ApiBase::Extension` covering one is `InvalidBase`. Added `RouteSetBuilder::service`, `router::{refused_reservation, reserved_below, refused_gateway_def, GatewayDefRefusal}`, `CoreId::{ALL, for_id}`."
 
 [[crate]]
 name = "systemprompt-api"
 section = "Changed"
-text = "The mount re-checks every admitted route set, gateway route and privileged command against the reserved paths and `PRIVILEGED_SHAPES`, and each admitted gateway route is protected with the protection its admission resolved."
+text = "The mount re-checks every admitted route set, gateway route and privileged command against the reserved paths and `PRIVILEGED_SHAPES`, and each admitted gateway route is protected with the protection its admission resolved. Every gateway route def must lie within its claimed gateway path and under no built-in gateway prefix (`MountError::{GatewayRouteOutsideClaim, GatewayRouteUnderBuiltin}`), and gateway defs join the route-conflict check."
 
 [[crate]]
 name = "systemprompt"
 section = "Breaking"
-text = "`CompositionError::{ReservedPrefix, ServiceNotAdmitted, ConferralShapeMismatch}` report a route reaching a reserved path or a privileged shape it does not hold."
+text = "`CompositionError::{ReservedPrefix, ServiceNotAdmitted, ConferralShapeMismatch}` report a route reaching a reserved path or a privileged shape it does not hold; `CompositionError::{GatewayRouteOutsideClaim, GatewayRouteUnderBuiltin}` refuse a gateway route def outside its claimed gateway path or under a built-in gateway prefix, and two gateway defs claiming one request are a `RouteConflict`."

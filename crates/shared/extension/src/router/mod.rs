@@ -50,7 +50,8 @@ pub use shape::{
     reserved_prefix_of,
 };
 pub use overlap::{
-    RouteOverlap, first_overlap, full_path, path_covers, refused_reservation, reserved_below,
+    GatewayDefRefusal, RouteOverlap, first_overlap, full_path, path_covers, refused_gateway_def,
+    refused_reservation, reserved_below,
 };
 #[cfg(feature = "router")]
 pub use sse::{

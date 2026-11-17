@@ -18,13 +18,19 @@
 //! kernel namespace. A holder routes inside a nested entry it owns
 //! (`/api/v1/admin/notifications`) without holding the enclosing one.
 //!
+//! A gateway route def is confined to the gateway path its set claims: its
+//! gateway-relative path lies within the claim, and no built-in gateway
+//! prefix covers it ([`refused_gateway_def`]).
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::shape::{BaseRef, RouteDef, RouteMethod};
+use super::shape::{BaseRef, GatewayPath, RouteDef, RouteMethod};
 use systemprompt_models::modules::ApiPaths;
 
-use crate::reserved::{CoreId, RESERVED_PATHS, ReservedPath, ReservedReach};
+use crate::reserved::{
+    BUILTIN_GATEWAY_PREFIXES, CoreId, RESERVED_PATHS, ReservedPath, ReservedReach,
+};
 
 /// Two admitted defs that claim one request: the same method and full path,
 /// or a service prefix covering another def's full path.
@@ -204,4 +210,37 @@ pub(super) fn reserved_holding(path: &str) -> Option<&'static ReservedPath> {
         .iter()
         .filter(|entry| entry.reach != ReservedReach::Exact && contained(&pattern, entry))
         .max_by_key(|entry| entry.path.len())
+}
+
+/// Why a gateway route def is refused at the gateway path its set claims.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum GatewayDefRefusal {
+    UnderBuiltin {
+        path: String,
+        builtin: &'static str,
+    },
+    OutsideClaim {
+        path: String,
+        claimed: &'static str,
+    },
+}
+
+#[must_use]
+pub fn refused_gateway_def(claimed: GatewayPath, def: &RouteDef) -> Option<GatewayDefRefusal> {
+    let path = def.path.as_str();
+    if let Some(builtin) = BUILTIN_GATEWAY_PREFIXES
+        .iter()
+        .copied()
+        .find(|builtin| path_covers(builtin, path))
+    {
+        return Some(GatewayDefRefusal::UnderBuiltin {
+            path: path.to_owned(),
+            builtin,
+        });
+    }
+    let claim = ApiPaths::gateway_relative(claimed.path());
+    (!path_covers(claim, path)).then(|| GatewayDefRefusal::OutsideClaim {
+        path: path.to_owned(),
+        claimed: claim,
+    })
 }

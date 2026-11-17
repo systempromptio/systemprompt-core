@@ -8,8 +8,8 @@
 use systemprompt_extension::admitted::{AdmittedGatewayRoute, AdmittedRouteSet};
 use systemprompt_extension::reserved::CoreId;
 use systemprompt_extension::router::{
-    Allowance, ApiBase, BasePath, BaseRef, RouteSet, WebBase, first_overlap, path_covers,
-    refused_reservation,
+    Allowance, ApiBase, BasePath, BaseRef, GatewayDefRefusal, RouteSet, WebBase, first_overlap,
+    path_covers, refused_gateway_def, refused_reservation,
 };
 use systemprompt_extension::{ContributionError, StandingTag};
 
@@ -212,6 +212,25 @@ pub(super) fn admit_gateway_route(
             builtin,
         });
     }
+    for def in decl.router.defs() {
+        match refused_gateway_def(path, def) {
+            Some(GatewayDefRefusal::UnderBuiltin { path, builtin }) => {
+                return Err(CompositionError::GatewayRouteUnderBuiltin {
+                    owner: member.id.clone(),
+                    path,
+                    builtin,
+                });
+            },
+            Some(GatewayDefRefusal::OutsideClaim { path, claimed }) => {
+                return Err(CompositionError::GatewayRouteOutsideClaim {
+                    owner: member.id.clone(),
+                    path,
+                    claimed,
+                });
+            },
+            None => {},
+        }
+    }
     let shape_ok = decl.limits == conferral.shape.limits
         && decl.router.group() == conferral.group
         && decl
@@ -258,5 +277,15 @@ pub(super) fn check_gateway_overlaps(
             });
         }
     }
-    Ok(())
+    let defs = routes.iter().flat_map(|route| {
+        let set = &route.decl.router;
+        set.defs().iter().map(|def| (set.base(), def))
+    });
+    match first_overlap(defs) {
+        Some(overlap) => Err(CompositionError::RouteConflict {
+            method: overlap.method,
+            path: overlap.path,
+        }),
+        None => Ok(()),
+    }
 }

@@ -16,6 +16,9 @@
 //! nor a service covering one passes. Reserved paths, built-in gateway
 //! prefixes and route conflicts — a service prefix covering any other route
 //! included — are refused here too, whether or not any member claims them.
+//! A gateway route's every def lies within the gateway path it claims and
+//! under no built-in gateway prefix, and gateway defs join the route-conflict
+//! check.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -28,8 +31,8 @@ use systemprompt_extension::reserved::{
     BUILTIN_GATEWAY_PREFIXES, CoreId, PRIVILEGED_SHAPES, PrivilegedShape,
 };
 use systemprompt_extension::router::{
-    Allowance, ApiBase, BasePath, BaseRef, BodyLimit, RouteDef, RouteSet, WebBase, first_overlap,
-    path_covers, refused_reservation, reserved_below,
+    Allowance, ApiBase, BasePath, BaseRef, BodyLimit, GatewayDefRefusal, RouteDef, RouteSet,
+    WebBase, first_overlap, path_covers, refused_gateway_def, refused_reservation, reserved_below,
 };
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_models::modules::ApiPaths;
@@ -45,7 +48,7 @@ pub fn recheck(admitted: &Admitted) -> Result<(), MountError> {
     for route in admitted.gateway_routes() {
         recheck_gateway_route(route, &mut holders)?;
     }
-    refuse_route_conflicts(admitted.routes())
+    refuse_route_conflicts(admitted.routes(), admitted.gateway_routes())
 }
 
 fn recheck_route_set(
@@ -235,6 +238,17 @@ fn recheck_gateway_route(
     {
         return Err(MountError::GatewayShadowsBuiltin(builtin));
     }
+    for def in route.decl.router.defs() {
+        match refused_gateway_def(path, def) {
+            Some(GatewayDefRefusal::UnderBuiltin { path, builtin }) => {
+                return Err(MountError::GatewayRouteUnderBuiltin { path, builtin });
+            },
+            Some(GatewayDefRefusal::OutsideClaim { path, claimed }) => {
+                return Err(MountError::GatewayRouteOutsideClaim { path, claimed });
+            },
+            None => {},
+        }
+    }
     let entry = PRIVILEGED_SHAPES
         .iter()
         .find(|entry| {
@@ -263,13 +277,18 @@ pub(super) fn path_base(set: &RouteSet) -> Result<BasePath, MountError> {
     }
 }
 
-fn refuse_route_conflicts(routes: &[AdmittedRouteSet]) -> Result<(), MountError> {
+fn refuse_route_conflicts(
+    routes: &[AdmittedRouteSet],
+    gateway_routes: &[AdmittedGatewayRoute],
+) -> Result<(), MountError> {
     for admitted in routes {
         path_base(&admitted.set)?;
     }
     let defs = routes
         .iter()
-        .flat_map(|admitted| admitted.set.defs().iter().map(|def| (admitted.set.base(), def)));
+        .map(|admitted| &admitted.set)
+        .chain(gateway_routes.iter().map(|route| &route.decl.router))
+        .flat_map(|set| set.defs().iter().map(|def| (set.base(), def)));
     match first_overlap(defs) {
         Some(overlap) => Err(MountError::RouteConflict {
             method: overlap.method,

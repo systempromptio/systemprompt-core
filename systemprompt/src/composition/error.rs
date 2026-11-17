@@ -87,6 +87,18 @@ pub enum CompositionError {
         owner: ExtensionId,
         builtin: &'static str,
     },
+    #[error("{owner} gateway route {path} lies under built-in gateway prefix {builtin}")]
+    GatewayRouteUnderBuiltin {
+        owner: ExtensionId,
+        path: String,
+        builtin: &'static str,
+    },
+    #[error("{owner} gateway route {path} lies outside its claimed gateway path {claimed}")]
+    GatewayRouteOutsideClaim {
+        owner: ExtensionId,
+        path: String,
+        claimed: &'static str,
+    },
     #[error("gateway routes overlap: {first} and {second}")]
     GatewayRouteOverlap {
         first: ExtensionId,

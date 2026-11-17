@@ -34,6 +34,8 @@ mod forged_commands;
 #[cfg(test)]
 mod forged_command_types;
 #[cfg(test)]
+mod gateway_def_paths;
+#[cfg(test)]
 mod gateway_prefixes;
 #[cfg(test)]
 mod governance_dimensions;

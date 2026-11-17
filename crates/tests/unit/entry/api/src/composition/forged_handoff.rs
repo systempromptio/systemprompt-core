@@ -340,7 +340,7 @@ fn bridge_route(limits: RouteLimits) -> AdmittedGatewayRoute {
             router: gateway_set(
                 GatewayPath::BridgeNotifications,
                 shape.group,
-                &[(http::Method::GET, "/", spec)],
+                &[(http::Method::GET, "/bridge/notifications/read", spec)],
             ),
         },
     }
