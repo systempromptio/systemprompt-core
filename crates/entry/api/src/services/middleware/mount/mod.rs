@@ -13,7 +13,11 @@
 //! the rate limit and bearer window (`RouterExt::with_rate_limit` /
 //! `with_bearer_window`), the context middleware and authorization gate
 //! (`RouterExt::with_auth`), the outer protection layers, and the
-//! frame-options stamp. [`place`] nests the result under its base path, or
+//! frame-options stamp. A group merged at the web root is protected on its
+//! routes alone (route layers), so an unmatched path anywhere in the tree
+//! answers 404 rather than that group's gate, and a root group with no route
+//! mounts nothing. A nested group is layered whole, its fallback included,
+//! which stays inside its base path. [`place`] nests the result under its base path, or
 //! merges it at the web root. Only the web root is merged: every other base
 //! path, `/track/engagement` included, is nested, so its routes are relative
 //! to it and cannot answer outside it.
@@ -72,7 +76,7 @@ use crate::services::middleware::context::{
     A2AContextMiddleware, McpContextMiddleware, PublicContextMiddleware, UserOnlyContextMiddleware,
 };
 use crate::services::middleware::jwt::JwtContextExtractor;
-use crate::services::middleware::rate_limit::{RateLimitState, RouterExt};
+use crate::services::middleware::rate_limit::{LayerReach, RateLimitState, RouterExt, layer_with};
 
 pub const DEFAULT_BODY_LIMIT_BYTES: usize = 2 * 1024 * 1024;
 
@@ -106,10 +110,18 @@ pub fn protect(
 ) -> Result<Router, MountError> {
     check_coherence(protection, base_path)?;
     check_body_limit(protection, base_path)?;
-    let router = inner_layers(router, protection, layers, base_path)?;
-    let router = rate_limited(router, protection, layers, base_path)?;
-    let router = authenticated(router, protection, layers);
-    outer_layers(router, protection, layers, base_path)
+    let reach = if base_path == WEB_ROOT_BASE_PATH {
+        if !router.has_routes() {
+            return Ok(Router::new());
+        }
+        LayerReach::Routes
+    } else {
+        LayerReach::Router
+    };
+    let router = inner_layers(router, protection, layers, base_path, reach)?;
+    let router = rate_limited(router, protection, layers, base_path, reach)?;
+    let router = authenticated(router, protection, layers, reach);
+    outer_layers(router, protection, layers, base_path, reach)
 }
 
 fn check_coherence(
@@ -160,9 +172,10 @@ fn inner_layers(
     protection: &RouteProtection,
     layers: &MountLayers,
     base_path: &'static str,
+    reach: LayerReach,
 ) -> Result<Router, MountError> {
     if let Some(bytes) = protection.body_limit {
-        router = router.route_layer(DefaultBodyLimit::max(bytes));
+        router = layer_with(router, reach, DefaultBodyLimit::max(bytes));
     }
     if protection
         .layers
@@ -176,9 +189,11 @@ fn inner_layers(
                 base_path,
                 layer: ProtectionLayer::RefuseFileManagedClientWrites,
             })?;
-        router = router.route_layer(axum::middleware::from_fn(move |request, next| {
-            guard.clone().refuse(request, next)
-        }));
+        router = layer_with(
+            router,
+            reach,
+            axum::middleware::from_fn(move |request, next| guard.clone().refuse(request, next)),
+        );
     }
     Ok(router)
 }
@@ -188,13 +203,14 @@ fn rate_limited(
     protection: &RouteProtection,
     layers: &MountLayers,
     base_path: &'static str,
+    reach: LayerReach,
 ) -> Result<Router, MountError> {
     let Some(rate_limit) = protection.rate_limit else {
         return Ok(router);
     };
     let per_second = rate_limit.budget.per_second(layers.limits.config());
     router = router
-        .with_rate_limit(&layers.limits, per_second, rate_limit.scope)
+        .with_rate_limit_reaching(&layers.limits, per_second, rate_limit.scope, reach)
         .map_err(|source| MountError::RateLimit {
             base_path,
             source: Box::new(source),
@@ -204,18 +220,29 @@ fn rate_limited(
             .bearer
             .as_ref()
             .ok_or(MountError::BearerWindowUnavailable { base_path })?;
-        router = router.with_bearer_window(&layers.limits, jwt, per_second, rate_limit.scope);
+        router = router.with_bearer_window_reaching(
+            &layers.limits,
+            jwt,
+            per_second,
+            rate_limit.scope,
+            reach,
+        );
     }
     Ok(router)
 }
 
-fn authenticated(router: Router, protection: &RouteProtection, layers: &MountLayers) -> Router {
+fn authenticated(
+    router: Router,
+    protection: &RouteProtection,
+    layers: &MountLayers,
+    reach: LayerReach,
+) -> Router {
     let policy = protection.policy;
     match protection.context {
-        ContextKind::Public => router.with_auth(layers.public, policy),
-        ContextKind::User => router.with_auth(layers.user.clone(), policy),
-        ContextKind::A2a => router.with_auth(layers.a2a.clone(), policy),
-        ContextKind::Mcp => router.with_auth(layers.mcp.clone(), policy),
+        ContextKind::Public => router.with_auth_reaching(layers.public, policy, reach),
+        ContextKind::User => router.with_auth_reaching(layers.user.clone(), policy, reach),
+        ContextKind::A2a => router.with_auth_reaching(layers.a2a.clone(), policy, reach),
+        ContextKind::Mcp => router.with_auth_reaching(layers.mcp.clone(), policy, reach),
         ContextKind::HandlerResolved => router,
     }
 }
@@ -225,6 +252,7 @@ fn outer_layers(
     protection: &RouteProtection,
     layers: &MountLayers,
     base_path: &'static str,
+    reach: LayerReach,
 ) -> Result<Router, MountError> {
     if protection.layers.contains(&ProtectionLayer::SiteAuth) {
         let guard = layers
@@ -235,15 +263,21 @@ fn outer_layers(
                 base_path,
                 layer: ProtectionLayer::SiteAuth,
             })?;
-        router = router.route_layer(axum::middleware::from_fn(move |request, next| {
-            guard.clone().gate(request, next)
-        }));
+        router = layer_with(
+            router,
+            reach,
+            axum::middleware::from_fn(move |request, next| guard.clone().gate(request, next)),
+        );
     }
 
     if let Some(frame_options) = protection.frame_options {
-        router = router.route_layer(axum::middleware::from_fn(move |request, next| {
-            systemprompt_extension::stamp_frame_options(frame_options, request, next)
-        }));
+        router = layer_with(
+            router,
+            reach,
+            axum::middleware::from_fn(move |request, next| {
+                systemprompt_extension::stamp_frame_options(frame_options, request, next)
+            }),
+        );
     }
 
     Ok(router)

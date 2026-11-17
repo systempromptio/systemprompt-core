@@ -54,7 +54,7 @@ pub use mount::{
 };
 pub use panic_fence::panic_fence;
 pub use rate_limit::{
-    ContextLayer, IdentityOrTrustedIpKey, RateLimitState, RouterExt, SubjectThrottle, Throttled,
+    ContextLayer, IdentityOrTrustedIpKey, LayerReach, RateLimitState, RouterExt, SubjectThrottle, Throttled,
     TrustedIpKey, with_pre_auth_ip_limit,
 };
 pub use security_headers::inject_security_headers;

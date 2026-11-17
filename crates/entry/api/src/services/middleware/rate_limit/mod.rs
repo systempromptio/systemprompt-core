@@ -167,15 +167,43 @@ impl ContextLayer for McpContextMiddleware {
     }
 }
 
+/// Whether a protection layer wraps the whole router (its fallback
+/// included) or only its routes. A group merged at the web root shares the
+/// tree's fallback, so it is protected on its routes alone.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LayerReach {
+    Router,
+    Routes,
+}
+
+pub fn layer_with<S, L>(router: Router<S>, reach: LayerReach, layer: L) -> Router<S>
+where
+    S: Clone + Send + Sync + 'static,
+    L: tower::Layer<axum::routing::Route> + Clone + Send + Sync + 'static,
+    L::Service: tower::Service<Request> + Clone + Send + Sync + 'static,
+    <L::Service as tower::Service<Request>>::Response: axum::response::IntoResponse + 'static,
+    <L::Service as tower::Service<Request>>::Error: Into<std::convert::Infallible> + 'static,
+    <L::Service as tower::Service<Request>>::Future: Send + 'static,
+{
+    match reach {
+        LayerReach::Router => router.layer(layer),
+        LayerReach::Routes => router.route_layer(layer),
+    }
+}
+
 pub trait RouterExt<S>: Sized {
     fn with_rate_limit(
         self,
         limits: &RateLimitState,
         per_second: u64,
         scope: &'static str,
-    ) -> Result<Self, LoaderError>;
+    ) -> Result<Self, LoaderError> {
+        self.with_rate_limit_reaching(limits, per_second, scope, LayerReach::Router)
+    }
 
-    fn with_auth<L: ContextLayer>(self, auth: L, policy: AuthzPolicy) -> Self;
+    fn with_auth<L: ContextLayer>(self, auth: L, policy: AuthzPolicy) -> Self {
+        self.with_auth_reaching(auth, policy, LayerReach::Router)
+    }
 
     fn with_bearer_window(
         self,
@@ -183,6 +211,32 @@ pub trait RouterExt<S>: Sized {
         jwt: &Arc<JwtContextExtractor>,
         per_second: u64,
         scope: &'static str,
+    ) -> Self {
+        self.with_bearer_window_reaching(limits, jwt, per_second, scope, LayerReach::Router)
+    }
+
+    fn with_rate_limit_reaching(
+        self,
+        limits: &RateLimitState,
+        per_second: u64,
+        scope: &'static str,
+        reach: LayerReach,
+    ) -> Result<Self, LoaderError>;
+
+    fn with_auth_reaching<L: ContextLayer>(
+        self,
+        auth: L,
+        policy: AuthzPolicy,
+        reach: LayerReach,
+    ) -> Self;
+
+    fn with_bearer_window_reaching(
+        self,
+        limits: &RateLimitState,
+        jwt: &Arc<JwtContextExtractor>,
+        per_second: u64,
+        scope: &'static str,
+        reach: LayerReach,
     ) -> Self;
 }
 
@@ -190,11 +244,12 @@ impl<S> RouterExt<S> for Router<S>
 where
     S: Clone + Send + Sync + 'static,
 {
-    fn with_rate_limit(
+    fn with_rate_limit_reaching(
         self,
         limits: &RateLimitState,
         per_second: u64,
         scope: &'static str,
+        reach: LayerReach,
     ) -> Result<Self, LoaderError> {
         let rate_config = &limits.config;
         if rate_config.disabled {
@@ -212,30 +267,48 @@ where
 
         let global = limits.global_limit(per_second, scope);
 
-        Ok(self
-            .route_layer(axum::middleware::from_fn_with_state(
-                global,
-                global_user_rate_limit,
-            ))
-            .route_layer(axum::middleware::from_fn_with_state(local, throttle)))
+        let router = layer_with(
+            self,
+            reach,
+            axum::middleware::from_fn_with_state(global, global_user_rate_limit),
+        );
+        Ok(layer_with(
+            router,
+            reach,
+            axum::middleware::from_fn_with_state(local, throttle),
+        ))
     }
 
-    fn with_auth<L: ContextLayer>(self, auth: L, policy: AuthzPolicy) -> Self {
-        self.route_layer(axum::middleware::from_fn(move |req, next| async move {
-            authz_gate(policy, req, next).await
-        }))
-        .route_layer(axum::middleware::from_fn(move |req, next| {
-            let auth = auth.clone();
-            async move { auth.handle(req, next).await }
-        }))
+    fn with_auth_reaching<L: ContextLayer>(
+        self,
+        auth: L,
+        policy: AuthzPolicy,
+        reach: LayerReach,
+    ) -> Self {
+        let router = layer_with(
+            self,
+            reach,
+            axum::middleware::from_fn(move |req, next| async move {
+                authz_gate(policy, req, next).await
+            }),
+        );
+        layer_with(
+            router,
+            reach,
+            axum::middleware::from_fn(move |req, next| {
+                let auth = auth.clone();
+                async move { auth.handle(req, next).await }
+            }),
+        )
     }
 
-    fn with_bearer_window(
+    fn with_bearer_window_reaching(
         self,
         limits: &RateLimitState,
         jwt: &Arc<JwtContextExtractor>,
         per_second: u64,
         scope: &'static str,
+        reach: LayerReach,
     ) -> Self {
         if limits.config.disabled {
             return self;
@@ -244,10 +317,11 @@ where
             limit: limits.global_limit(per_second, scope),
             jwt: Arc::clone(jwt),
         };
-        self.route_layer(axum::middleware::from_fn_with_state(
-            window,
-            bearer_user_rate_limit,
-        ))
+        layer_with(
+            self,
+            reach,
+            axum::middleware::from_fn_with_state(window, bearer_user_rate_limit),
+        )
     }
 }
 
