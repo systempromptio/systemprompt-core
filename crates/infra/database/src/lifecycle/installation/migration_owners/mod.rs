@@ -139,6 +139,21 @@ pub fn migration_ownership_findings(
     pending: &dyn Fn(&ExtensionId, &Migration) -> bool,
 ) -> Vec<MigrationOwnershipError> {
     let mut findings = Vec::new();
+    let (owners, own) = declared_owners(members, recorded, &mut findings);
+    for member in members {
+        foreign_mutations(member.as_ref(), &owners, &own, pending, &mut findings);
+    }
+    findings
+}
+
+fn declared_owners(
+    members: &[Arc<dyn SchemaMember>],
+    recorded: &[RecordedTable],
+    findings: &mut Vec<MigrationOwnershipError>,
+) -> (
+    BTreeMap<String, Owner>,
+    BTreeMap<ExtensionId, BTreeSet<String>>,
+) {
     let mut owners: BTreeMap<String, Owner> = BTreeMap::new();
     let mut own: BTreeMap<ExtensionId, BTreeSet<String>> = BTreeMap::new();
     for member in members {
@@ -180,74 +195,80 @@ pub fn migration_ownership_findings(
                 standing: record.standing,
             });
     }
+    (owners, own)
+}
 
-    for member in members {
-        let id = ExtensionId::new(member.id());
-        let standing = member.standing();
-        let created = own.get(&id).cloned().unwrap_or_default();
-        let cross: BTreeSet<String> = member
-            .cross_extension_tables()
-            .into_iter()
-            .map(qualify)
-            .collect();
-        for migration in member.migrations().into_iter().filter(|m| !m.tombstone) {
-            if !pending(&id, &migration) {
+fn foreign_mutations(
+    member: &dyn SchemaMember,
+    owners: &BTreeMap<String, Owner>,
+    own: &BTreeMap<ExtensionId, BTreeSet<String>>,
+    pending: &dyn Fn(&ExtensionId, &Migration) -> bool,
+    findings: &mut Vec<MigrationOwnershipError>,
+) {
+    let id = ExtensionId::new(member.id());
+    let standing = member.standing();
+    let created = own.get(&id).cloned().unwrap_or_default();
+    let cross: BTreeSet<String> = member
+        .cross_extension_tables()
+        .into_iter()
+        .map(qualify)
+        .collect();
+    for migration in member.migrations().into_iter().filter(|m| !m.tombstone) {
+        if !pending(&id, &migration) {
+            continue;
+        }
+        let migration_label = label(&migration);
+        let parsed = match pg_query::parse(migration.sql) {
+            Ok(parsed) => parsed,
+            Err(source) => {
+                findings.push(MigrationOwnershipError::Parse {
+                    member: id.clone(),
+                    migration: migration_label,
+                    source,
+                });
                 continue;
-            }
-            let migration_label = label(&migration);
-            let parsed = match pg_query::parse(migration.sql) {
-                Ok(parsed) => parsed,
-                Err(source) => {
-                    findings.push(MigrationOwnershipError::Parse {
-                        member: id.clone(),
-                        migration: migration_label,
-                        source,
-                    });
-                    continue;
-                },
-            };
-            for statement in top_level(&parsed) {
-                if matches!(statement, NodeEnum::DoStmt(_)) {
-                    if standing == StandingTag::Install {
-                        findings.push(MigrationOwnershipError::Unreadable {
-                            member: id.clone(),
-                            migration: migration_label.clone(),
-                            statement: "DO",
-                        });
-                    } else {
-                        warn!(
-                            member = %id,
-                            migration = %migration_label,
-                            "A core migration's DO block is not judged for the tables it mutates"
-                        );
-                    }
-                    continue;
-                }
-                for (kind, table) in mutations_of(statement) {
-                    if created.contains(&table) {
-                        continue;
-                    }
-                    let Some(owner) = owners.get(&table).filter(|owner| owner.id != id) else {
-                        continue;
-                    };
-                    let admitted_cross = cross.contains(&table)
-                        && !(standing == StandingTag::Install
-                            && owner.standing == StandingTag::Core);
-                    if admitted_cross {
-                        continue;
-                    }
-                    findings.push(MigrationOwnershipError::ForeignTable {
+            },
+        };
+        for statement in top_level(&parsed) {
+            if matches!(statement, NodeEnum::DoStmt(_)) {
+                if standing == StandingTag::Install {
+                    findings.push(MigrationOwnershipError::Unreadable {
                         member: id.clone(),
                         migration: migration_label.clone(),
-                        statement: kind,
-                        table,
-                        owner: owner.id.clone(),
+                        statement: "DO",
                     });
+                } else {
+                    warn!(
+                        member = %id,
+                        migration = %migration_label,
+                        "A core migration's DO block is not judged for the tables it mutates"
+                    );
                 }
+                continue;
+            }
+            for (kind, table) in mutations_of(statement) {
+                if created.contains(&table) {
+                    continue;
+                }
+                let Some(owner) = owners.get(&table).filter(|owner| owner.id != id) else {
+                    continue;
+                };
+                let admitted_cross = cross.contains(&table)
+                    && !(standing == StandingTag::Install
+                        && owner.standing == StandingTag::Core);
+                if admitted_cross {
+                    continue;
+                }
+                findings.push(MigrationOwnershipError::ForeignTable {
+                    member: id.clone(),
+                    migration: migration_label.clone(),
+                    statement: kind,
+                    table,
+                    owner: owner.id.clone(),
+                });
             }
         }
     }
-    findings
 }
 
 fn label(migration: &Migration) -> String {

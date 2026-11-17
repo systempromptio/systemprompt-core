@@ -38,13 +38,15 @@ impl Subscriber {
         match self {
             Self::Event(sender) => sender
                 .try_send(Ok(frame_event(frame.clone())))
-                .map_err(discard),
-            Self::Frame(sender) => sender.try_send(frame.clone()).map_err(discard),
+                .map_err(|error| discard(&error)),
+            Self::Frame(sender) => sender
+                .try_send(frame.clone())
+                .map_err(|error| discard(&error)),
         }
     }
 }
 
-fn discard<T>(error: TrySendError<T>) -> TrySendError<()> {
+const fn discard<T>(error: &TrySendError<T>) -> TrySendError<()> {
     match error {
         TrySendError::Full(_) => TrySendError::Full(()),
         TrySendError::Closed(_) => TrySendError::Closed(()),
@@ -213,8 +215,8 @@ impl<E: ToSse + Clone + Send + Sync + 'static> GenericBroadcaster<E> {
         for (conn_id, sender) in senders {
             match sender.try_send(&frame) {
                 Ok(()) => successful += 1,
-                Err(TrySendError::Closed(_)) => self.remove_connection(user_id, &conn_id),
-                Err(TrySendError::Full(_)) => {
+                Err(TrySendError::Closed(())) => self.remove_connection(user_id, &conn_id),
+                Err(TrySendError::Full(())) => {
                     tracing::warn!(
                         user_id = %user_id,
                         connection_id = %conn_id,

@@ -20,10 +20,10 @@ pub enum BootLoadError {
     Profile {
         path: PathBuf,
         #[source]
-        source: ConfigError,
+        source: Box<ConfigError>,
     },
     #[error("Secrets initialization failed")]
-    Secrets(#[source] ConfigError),
+    Secrets(#[source] Box<ConfigError>),
 }
 
 pub async fn load_boot(
@@ -32,7 +32,7 @@ pub async fn load_boot(
 ) -> Result<BootContext, BootLoadError> {
     let secrets = SecretsService::load(Arc::clone(profile), sources)
         .await
-        .map_err(BootLoadError::Secrets)?;
+        .map_err(|source| BootLoadError::Secrets(Box::new(source)))?;
     Ok(BootContext::new(Arc::clone(profile), secrets))
 }
 
@@ -42,7 +42,7 @@ pub async fn load_boot_from_path(
 ) -> Result<BootContext, BootLoadError> {
     let profile = LoadedProfile::from_path(path).map_err(|source| BootLoadError::Profile {
         path: path.to_path_buf(),
-        source,
+        source: Box::new(source),
     })?;
     load_boot(&profile, sources).await
 }

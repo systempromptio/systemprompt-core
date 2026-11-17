@@ -80,17 +80,17 @@ pub async fn audit_schema_residue(
         .filter_map(|t| t.split_once('.').map(|(schema, _)| schema.to_owned()))
         .collect();
     let registered: BTreeSet<&ExtensionId> = extension_ids.iter().collect();
-    let owners = recorded_table_owners(db).await?;
+    let table_owners = recorded_table_owners(db).await?;
     let mut residue = SchemaResidue::default();
     for (schema, table, live_rows) in live_tables(db).await? {
         let qualified = format!("{schema}.{table}");
         if !namespaces.contains(&schema) || declared.contains(&qualified) {
             continue;
         }
-        match owners.owner_of(&qualified) {
-            Some(owner) if !registered.contains(owner) => {
+        match table_owners.owner_of(&qualified) {
+            Some(table_owner) if !registered.contains(table_owner) => {
                 residue.absent_member_tables.push(AbsentMemberTable {
-                    owner: owner.clone(),
+                    owner: table_owner.clone(),
                     schema,
                     table,
                     live_rows,
@@ -108,7 +108,7 @@ pub async fn audit_schema_residue(
             continue;
         }
         let ledger = OrphanMigrationLedger { extension_id, rows };
-        if owners.is_owner(&ledger.extension_id) {
+        if table_owners.is_owner(&ledger.extension_id) {
             residue.absent_member_ledgers.push(ledger);
         } else {
             residue.orphan_migration_ledgers.push(ledger);

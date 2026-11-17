@@ -142,6 +142,10 @@ impl DatabaseHandle for Database {
 #[error("the database handle is not a systemprompt database pool")]
 pub struct ForeignDatabaseHandle;
 
+#[expect(
+    clippy::map_err_ignore,
+    reason = "a failed downcast hands back the handle itself, which carries no error to keep"
+)]
 pub fn pool_from_handle(handle: Arc<dyn DatabaseHandle>) -> Result<DbPool, ForeignDatabaseHandle> {
     handle
         .into_any()
