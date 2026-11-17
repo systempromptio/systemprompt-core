@@ -7,7 +7,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::documents::transient::retry_conflicts;
 use systemprompt_identifiers::DocumentId;
+use systemprompt_traits::RepositoryError;
 use uuid::Uuid;
 
 use super::grants::DocumentGrantRepository;
@@ -16,8 +18,9 @@ use crate::documents::models::GrantActor;
 
 impl DocumentGrantRepository {
     pub async fn delete(&self, id: Uuid, actor: &GrantActor) -> RepoResult<bool> {
-        let deleted = sqlx::query_scalar!(
-            r#"WITH g AS (DELETE FROM document_grants WHERE id = $1 RETURNING *),
+        let deleted = retry_conflicts(|| async move {
+            sqlx::query_scalar!(
+                r#"WITH g AS (DELETE FROM document_grants WHERE id = $1 RETURNING *),
                lost AS (
                    INSERT INTO document_path_changes
                        (document_id, from_path, subject_kind, subject_value, subject_access)
@@ -42,11 +45,14 @@ impl DocumentGrantRepository {
                       g.access_level, g.valid_until, $2, $3
                FROM g)
                SELECT COUNT(*) AS "deleted!" FROM g"#,
-            id,
-            actor.user.as_str(),
-            actor.trace.as_str(),
-        )
-        .fetch_one(&*self.pools.write)
+                id,
+                actor.user.as_str(),
+                actor.trace.as_str(),
+            )
+            .fetch_one(&*self.pools.write)
+            .await
+            .map_err(RepositoryError::from)
+        })
         .await?;
         Ok(deleted == 1)
     }
@@ -56,8 +62,9 @@ impl DocumentGrantRepository {
         id: &DocumentId,
         actor: &GrantActor,
     ) -> RepoResult<u64> {
-        let revoked = sqlx::query_scalar!(
-            r#"WITH g AS (DELETE FROM document_grants WHERE document_id = $1::text::uuid
+        let revoked = retry_conflicts(|| async move {
+            sqlx::query_scalar!(
+                r#"WITH g AS (DELETE FROM document_grants WHERE document_id = $1::text::uuid
                           RETURNING *),
                lost AS (
                    INSERT INTO document_path_changes
@@ -82,18 +89,22 @@ impl DocumentGrantRepository {
                       g.subject_value, g.access_level, g.valid_until, $2, $3
                FROM g)
                SELECT COUNT(*) AS "revoked!" FROM g"#,
-            id.as_str(),
-            actor.user.as_str(),
-            actor.trace.as_str(),
-        )
-        .fetch_one(&*self.pools.write)
+                id.as_str(),
+                actor.user.as_str(),
+                actor.trace.as_str(),
+            )
+            .fetch_one(&*self.pools.write)
+            .await
+            .map_err(RepositoryError::from)
+        })
         .await?;
         Ok(u64::try_from(revoked).unwrap_or(0))
     }
 
     pub async fn sweep_expired(&self, limit: i64) -> RepoResult<u64> {
-        let swept = sqlx::query_scalar!(
-            r#"WITH g AS (
+        let swept = retry_conflicts(|| async move {
+            sqlx::query_scalar!(
+                r#"WITH g AS (
                    DELETE FROM document_grants
                    WHERE id IN (SELECT id FROM document_grants
                                 WHERE valid_until <= now() LIMIT $1)
@@ -132,9 +143,12 @@ impl DocumentGrantRepository {
                       g.access_level, g.valid_until
                FROM g)
                SELECT COUNT(*) AS "swept!" FROM g"#,
-            limit.max(1),
-        )
-        .fetch_one(&*self.pools.write)
+                limit.max(1),
+            )
+            .fetch_one(&*self.pools.write)
+            .await
+            .map_err(RepositoryError::from)
+        })
         .await?;
         Ok(u64::try_from(swept.max(0)).unwrap_or(0))
     }

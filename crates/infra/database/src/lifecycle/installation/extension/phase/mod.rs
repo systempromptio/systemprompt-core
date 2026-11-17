@@ -14,14 +14,20 @@
 //! deadlocked each other from retrying in lockstep. Within the dependent
 //! phase a trigger whose declared statements and live definition are both
 //! unchanged since it was last applied is left in place
-//! ([`super::trigger_reuse`]), so its table is not locked at all.
+//! ([`super::trigger_reuse`]), and an index statement whose name is already
+//! taken is left out ([`index_presence`]), so neither locks its table.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod index_presence;
+
+use std::collections::HashMap;
+
 use systemprompt_extension::LoaderError;
 use systemprompt_identifiers::ExtensionId;
 
+use self::index_presence::IdempotentIndex;
 use super::super::lock_conflict::is_retryable_lock_conflict;
 use super::trigger_reuse::{self, DeclaredTrigger, TriggerReuse};
 use crate::error::RepositoryError;
@@ -45,10 +51,12 @@ pub(super) async fn execute_phase(
         TriggerReuse::Reuse => trigger_reuse::declared_triggers(statements),
         TriggerReuse::Reapply => Vec::new(),
     };
+    let indexes = index_presence::idempotent_indexes(statements);
     let phase = Phase {
         statements,
         stamp,
         triggers: &triggers,
+        indexes: &indexes,
         extension_id,
     };
     let mut attempt = 1;
@@ -80,6 +88,7 @@ struct Phase<'a> {
     statements: &'a [String],
     stamp: &'a [BaselineStamp],
     triggers: &'a [DeclaredTrigger],
+    indexes: &'a HashMap<usize, IdempotentIndex>,
     extension_id: &'a ExtensionId,
 }
 
@@ -113,10 +122,10 @@ type StepFailure = (String, RepositoryError);
 
 async fn apply_in(tx: &mut dyn DatabaseTransaction, phase: &Phase<'_>) -> Result<(), StepFailure> {
     let Phase {
-        statements,
         stamp,
         triggers,
         extension_id,
+        ..
     } = *phase;
     let bound = format!(
         "SET LOCAL lock_timeout = {}",
@@ -137,22 +146,7 @@ async fn apply_in(tx: &mut dyn DatabaseTransaction, phase: &Phase<'_>) -> Result
         );
     }
 
-    let total = statements.len();
-    for (idx, statement) in statements.iter().enumerate() {
-        if unchanged.contains(&idx) {
-            continue;
-        }
-        let sql_str: &str = statement.as_str();
-        tx.execute(&sql_str, &[]).await.map_err(|e| {
-            (
-                format!(
-                    "Statement {n}/{total} failed\nSQL:\n{statement}",
-                    n = idx + 1
-                ),
-                e,
-            )
-        })?;
-    }
+    apply_statements(tx, phase, &unchanged).await?;
 
     for row in stamp {
         let params: [&dyn systemprompt_identifiers::ToDbValue; 5] = [
@@ -195,4 +189,55 @@ async fn rolled_back(
         context: format!("{context}{rollback_note}"),
         source: Box::new(source),
     }
+}
+
+async fn apply_statements(
+    tx: &mut dyn DatabaseTransaction,
+    phase: &Phase<'_>,
+    unchanged: &std::collections::HashSet<usize>,
+) -> Result<(), StepFailure> {
+    let Phase {
+        statements,
+        indexes,
+        extension_id,
+        ..
+    } = *phase;
+    let total = statements.len();
+    let mut present = 0usize;
+    for (idx, statement) in statements.iter().enumerate() {
+        if unchanged.contains(&idx) {
+            continue;
+        }
+        if let Some(index) = indexes.get(&idx) {
+            let taken = index_presence::name_taken(tx, index).await.map_err(|e| {
+                (
+                    format!("Failed to look up index {n}/{total}", n = idx + 1),
+                    e,
+                )
+            })?;
+            if taken {
+                present += 1;
+                continue;
+            }
+        }
+        let sql_str: &str = statement.as_str();
+        tx.execute(&sql_str, &[]).await.map_err(|e| {
+            (
+                format!(
+                    "Statement {n}/{total} failed\nSQL:\n{statement}",
+                    n = idx + 1
+                ),
+                e,
+            )
+        })?;
+    }
+
+    if present > 0 {
+        tracing::debug!(
+            extension = %extension_id,
+            statements_skipped = present,
+            "Leaving existing indexes in place"
+        );
+    }
+    Ok(())
 }

@@ -35,6 +35,7 @@ use systemprompt_traits::{
     ByteRange, FileStorage, FileStorageError, RepositoryError, StoredFileId, StoredFileRead,
 };
 
+use super::blob_locked::LockedRow;
 use super::models::DocumentBlob;
 use super::repository::DocumentBlobRepository;
 #[cfg(doc)]
@@ -109,7 +110,7 @@ impl BlobStore {
         let size = bytes.len() as u64;
         let size_column = i64::try_from(size)
             .map_err(|source| BlobStoreError::SizeOutOfRange { size, source })?;
-        let mut freshly_stored = if self.storage.exists(&storage_id).await? {
+        let freshly_stored = if self.storage.exists(&storage_id).await? {
             false
         } else {
             self.storage
@@ -117,23 +118,21 @@ impl BlobStore {
                 .await?;
             true
         };
-        let mut lock = self.blobs.lock(&hash).await?;
-        if !self.storage.exists(&storage_id).await? {
-            bounded(
-                "re-store",
-                self.storage.store(Path::new(storage_id.as_str()), bytes),
-            )
-            .await??;
-            freshly_stored = true;
-        }
-        let inserted = match lock.upsert(&hash, size_column, &storage_id).await {
-            Ok(inserted) => inserted,
-            Err(error) => {
-                self.discard(freshly_stored, &storage_id).await;
-                return Err(error.into());
-            },
+        let row = LockedRow {
+            hash: &hash,
+            size_column,
+            storage_id: &storage_id,
+            freshly_stored,
         };
-        lock.commit().await?;
+        let inserted = self
+            .register_locked(row, || async {
+                self.storage
+                    .store(Path::new(storage_id.as_str()), bytes)
+                    .await
+                    .map(drop)
+                    .map_err(BlobStoreError::from)
+            })
+            .await?;
         Ok(StoredBlob {
             hash,
             size_bytes: size,
