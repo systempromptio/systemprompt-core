@@ -9,7 +9,8 @@
 //! [`describe_command_line`] classifies a forwarded argv against that
 //! registry, [`command_line_path`] names the path it selects and
 //! [`classify_command_line`] returns both with the owner, refusing a
-//! disabled owner's command. Output is
+//! disabled owner's command. [`read_disabled`] reads the one profile input
+//! admission needs from a target profile the host does not run. Output is
 //! rendered by [`render_result`]; the remaining items are the helpers the
 //! kernel's own groups share (profile access, session, presentation, the
 //! local database and the seeded model catalog). An interrupted command
@@ -21,6 +22,7 @@
 mod describe;
 mod registry;
 mod registry_error;
+mod target_admission;
 
 pub use describe::{classify_command_line, command_line_path, describe_command_line};
 pub use registry::{
@@ -28,6 +30,8 @@ pub use registry::{
     kernel_commands,
 };
 pub use registry_error::{RegistryError, ResolveError};
+pub(crate) use target_admission::admit_target;
+pub use target_admission::{TargetAdmissionError, read_disabled};
 
 pub use crate::commands::shared::mcp_tools::McpToolEntry;
 pub use crate::commands::shared::{ValidationIssue, ValidationOutput, mcp_tools};

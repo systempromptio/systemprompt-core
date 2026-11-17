@@ -229,6 +229,7 @@ pub const RESERVED_CLI_PATHS: &[ReservedCliPath] = &[
             KernelGrant::CloudOperator,
             KernelGrant::BootProfile,
             KernelGrant::ConfigReconcile,
+            KernelGrant::TargetAdmission,
         ],
     },
 ];

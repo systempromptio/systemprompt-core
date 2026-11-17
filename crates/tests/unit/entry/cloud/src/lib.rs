@@ -49,3 +49,7 @@ mod services_profile_fixture;
 #[allow(dead_code)]
 #[path = "../../cli/src/session_project_fixture.rs"]
 mod session_project_fixture;
+#[cfg(test)]
+mod target_admission;
+#[cfg(test)]
+mod target_host;

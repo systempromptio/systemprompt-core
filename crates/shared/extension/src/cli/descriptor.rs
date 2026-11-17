@@ -40,26 +40,27 @@ use super::KernelGrant;
 /// without deciding whether it destroys data.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct CommandDescriptor {
-    flags: u16,
+    flags: u32,
 }
 
 impl CommandDescriptor {
-    const FLAG_PROFILE: u16 = 0b0000_0000_0001;
-    const FLAG_SECRETS: u16 = 0b0000_0000_0010;
-    const FLAG_PATHS: u16 = 0b0000_0000_0100;
-    const FLAG_DATABASE: u16 = 0b0000_0000_1000;
-    const FLAG_REMOTE_ELIGIBLE: u16 = 0b0000_0001_0000;
-    const FLAG_SKIP_VALIDATION: u16 = 0b0000_0010_0000;
-    const FLAG_READ_ONLY: u16 = 0b0000_0100_0000;
-    const FLAG_MODEL_DISCOVERY: u16 = 0b0000_1000_0000;
-    const FLAG_DESTRUCTIVE: u16 = 0b0001_0000_0000;
-    const FLAG_IRREVERSIBLE: u16 = 0b0010_0000_0000;
-    const FLAG_SERVES_API: u16 = 0b0100_0000_0000;
-    const FLAG_CHILD_HOST: u16 = 0b1000_0000_0000;
-    const FLAG_CLOUD_OPERATOR: u16 = 0b0001_0000_0000_0000;
-    const FLAG_LOCAL_EXPORT: u16 = 0b0010_0000_0000_0000;
-    const FLAG_BOOT_PROFILE: u16 = 0b0100_0000_0000_0000;
-    const FLAG_CONFIG_RECONCILE: u16 = 0b1000_0000_0000_0000;
+    const FLAG_PROFILE: u32 = 0b0000_0000_0001;
+    const FLAG_SECRETS: u32 = 0b0000_0000_0010;
+    const FLAG_PATHS: u32 = 0b0000_0000_0100;
+    const FLAG_DATABASE: u32 = 0b0000_0000_1000;
+    const FLAG_REMOTE_ELIGIBLE: u32 = 0b0000_0001_0000;
+    const FLAG_SKIP_VALIDATION: u32 = 0b0000_0010_0000;
+    const FLAG_READ_ONLY: u32 = 0b0000_0100_0000;
+    const FLAG_MODEL_DISCOVERY: u32 = 0b0000_1000_0000;
+    const FLAG_DESTRUCTIVE: u32 = 0b0001_0000_0000;
+    const FLAG_IRREVERSIBLE: u32 = 0b0010_0000_0000;
+    const FLAG_SERVES_API: u32 = 0b0100_0000_0000;
+    const FLAG_CHILD_HOST: u32 = 0b1000_0000_0000;
+    const FLAG_CLOUD_OPERATOR: u32 = 0b0001_0000_0000_0000;
+    const FLAG_LOCAL_EXPORT: u32 = 0b0010_0000_0000_0000;
+    const FLAG_BOOT_PROFILE: u32 = 0b0100_0000_0000_0000;
+    const FLAG_CONFIG_RECONCILE: u32 = 0b1000_0000_0000_0000;
+    const FLAG_TARGET_ADMISSION: u32 = 0b0001_0000_0000_0000_0000;
 
     pub const NONE: Self = Self { flags: 0 };
 
@@ -175,7 +176,7 @@ impl CommandDescriptor {
         self.with_grant(KernelGrant::LocalExport)
     }
 
-    const fn grant_flag(grant: KernelGrant) -> u16 {
+    const fn grant_flag(grant: KernelGrant) -> u32 {
         match grant {
             KernelGrant::ChildHost => Self::FLAG_CHILD_HOST,
             KernelGrant::ServesApi => Self::FLAG_SERVES_API,
@@ -184,6 +185,7 @@ impl CommandDescriptor {
             KernelGrant::SkipValidation => Self::FLAG_SKIP_VALIDATION,
             KernelGrant::BootProfile => Self::FLAG_BOOT_PROFILE,
             KernelGrant::ConfigReconcile => Self::FLAG_CONFIG_RECONCILE,
+            KernelGrant::TargetAdmission => Self::FLAG_TARGET_ADMISSION,
         }
     }
 

@@ -11,8 +11,11 @@
 //!
 //! `DISPLAY_ORDER` places a top-level group in `--help`. The kernel's own
 //! groups hold the slots `10` (`core`), `20` (`infra`), `30` (`admin`), `60`
-//! (`web`) and `70` (`plugins`); `40` and `50` are the `cloud` and `analytics`
-//! slots. A declaration that names no slot gets [`REGISTERED_DISPLAY_ORDER`].
+//! (`web`), `70` (`plugins`) and `80` (`build`); `40` and `50` are the `cloud`
+//! and `analytics` slots. A declaration that names no slot gets
+//! [`REGISTERED_DISPLAY_ORDER`]; the registry lists such top-level groups from
+//! that slot on in composition order, after every kernel group and before
+//! clap's `help` (slot `999`).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -27,6 +30,7 @@ use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::{Config, Profile};
 use systemprompt_traits::DatabaseHandle;
 
+use super::admitted_views::AdmittedViews;
 use super::child::ChildSupervisor;
 use super::descriptor::{CommandDescriptor, DbUrlRouting, DescribeCommand};
 use super::output::CommandOutput;
@@ -37,7 +41,7 @@ use crate::contribute::Resolved;
 pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 pub type CommandFuture<'a> = BoxFuture<'a, Result<CommandOutput, CommandError>>;
 
-pub const REGISTERED_DISPLAY_ORDER: usize = 1000;
+pub const REGISTERED_DISPLAY_ORDER: usize = 900;
 
 /// A failed command: the cause, and optionally the output it produced
 /// before failing (a validation report, say), which the CLI kernel renders
@@ -187,6 +191,14 @@ pub struct DescribedCommand {
 /// every other caller. A command never boots a profile with sources of its
 /// own.
 ///
+/// [`CommandHost::admitted_views`] reads only the disabled-member list of the
+/// profile at a path, admits the binary's composition against it and returns
+/// the open [`AdmittedViews`]; nothing else in that profile is interpolated,
+/// validated or returned, and no member code runs. The host serves it only to
+/// a command holding
+/// [`KernelGrant::TargetAdmission`](super::KernelGrant::TargetAdmission), at
+/// most once per run.
+///
 /// [`CommandHost::render`] renders an intermediate output through the
 /// kernel's sink (a command that redraws until interrupted); the output a
 /// command returns is rendered once at exit, and a command that fails with
@@ -205,4 +217,5 @@ pub trait CommandHost: Send + Sync {
     fn describe_command_line(&self, command: &[String]) -> Result<DescribedCommand, CommandError>;
     fn env_profile(&self) -> Option<&str>;
     fn boot_config<'a>(&'a self, profile: &'a Path) -> BoxFuture<'a, Result<Arc<Config>, CommandError>>;
+    fn admitted_views(&self, profile: &Path) -> Result<AdmittedViews, CommandError>;
 }

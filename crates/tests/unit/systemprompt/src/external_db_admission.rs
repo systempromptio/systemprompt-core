@@ -11,7 +11,7 @@ use systemprompt_cli::kernel::{CommandRegistry, ResolvedCommand, kernel_commands
 use systemprompt_cli::runner::admit_direct;
 use systemprompt_extension::Admitted;
 use systemprompt_extension::cli::CommandDecl;
-use systemprompt_manifest::Profile;
+use systemprompt_manifest::ExtensionsConfig;
 use systemprompt_traits::BoxedSource;
 
 use crate::cli_probe::{DirectProbeGroup, ProbeGroup};
@@ -41,10 +41,10 @@ fn resolve_direct() -> ResolvedCommand {
         .expect("the probe command is a contributed command")
 }
 
-fn admit_profiled(profile: Option<&Profile>) -> Result<Admitted, BoxedSource> {
-    let profile = profile.expect("a loaded profile is passed to admission");
+fn admit_profiled(extensions: Option<&ExtensionsConfig>) -> Result<Admitted, BoxedSource> {
+    let extensions = extensions.expect("a loaded profile is passed to admission");
     declared_probe()
-        .admit(profile)
+        .admit(extensions)
         .map_err(|error| Box::new(error) as BoxedSource)
 }
 

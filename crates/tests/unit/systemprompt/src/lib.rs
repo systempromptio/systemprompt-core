@@ -14,6 +14,8 @@ mod analytics_http;
 #[cfg(test)]
 mod capability_slots;
 #[cfg(test)]
+mod cli_help_order;
+#[cfg(test)]
 mod cli_probe;
 #[cfg(test)]
 mod command_disabled;

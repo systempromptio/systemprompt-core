@@ -9,6 +9,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+#[cfg(feature = "cli")]
+mod admitted_views;
 mod child;
 #[cfg(feature = "cli")]
 mod command;
@@ -28,6 +30,8 @@ mod settings;
 #[cfg(feature = "cli")]
 pub mod time_format;
 
+#[cfg(feature = "cli")]
+pub use admitted_views::AdmittedViews;
 pub use child::ChildSupervisor;
 #[cfg(feature = "cli")]
 pub use command::{

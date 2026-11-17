@@ -85,7 +85,7 @@ fn a_member_command_with_no_profile_requires_one() {
 }
 
 fn admit_full(
-    profile: Option<&systemprompt_manifest::Profile>,
+    profile: Option<&systemprompt_manifest::ExtensionsConfig>,
 ) -> Result<systemprompt_extension::Admitted, systemprompt_traits::BoxedSource> {
     assert!(profile.is_none(), "a bare --database-url run has no profile");
     declared_probe()

@@ -215,7 +215,7 @@ fn a_disabled_members_agent_access_policy_is_never_built() {
         .with(policy_probe("probe-off", &off))
         .declare()
         .expect("both probes declare")
-        .admit(&profile(&["probe-off"]))
+        .admit(&profile(&["probe-off"]).extensions)
         .expect("admission succeeds");
     let access = built::<AgentAccessSlot>(&admitted)
         .expect("the disabled twin is dropped before the build")
@@ -234,7 +234,7 @@ fn a_disabled_files_member_leaves_no_files_slot() {
     let admitted = reference()
         .declare()
         .expect("the reference composition declares")
-        .admit(&profile(&["files"]))
+        .admit(&profile(&["files"]).extensions)
         .expect("disabling the files member admits");
     assert!(slot_owners::<BlobHolderSlot>(&admitted).is_empty());
     assert!(slot_owners::<AgentAccessSlot>(&admitted).is_empty());
@@ -251,7 +251,7 @@ fn a_disabled_managed_resources_member_leaves_no_marketplace_slot() {
     let admitted = reference()
         .declare()
         .expect("the reference composition declares")
-        .admit(&profile(&["managed_resources"]))
+        .admit(&profile(&["managed_resources"]).extensions)
         .expect("disabling the managed resources member admits");
     assert!(slot_owners::<MarketplaceSlot>(&admitted).is_empty());
     let enabled = build(reference()).expect("the reference composition admits");

@@ -35,6 +35,7 @@ fn ctx() -> CommandContext {
             .with_output_format(OutputFormat::Json),
         env,
     )
+    .with_admit(Some(crate::target_host::reference_admit()))
 }
 
 #[tokio::test]
@@ -61,7 +62,12 @@ async fn the_doctor_arm_runs_the_preflight_over_a_profile() {
         .to_string_lossy()
         .to_string();
 
-    let result = cloud::execute(parse(&["doctor", "--profile", &profile]), &ctx()).await;
+    let ctx = ctx();
+    let result = cloud::execute(
+        parse(&["doctor", "--profile", &profile]),
+        &crate::target_host::target_host(&ctx),
+    )
+    .await;
 
     // The preflight is expected to report blocking findings for a fixture
     // profile (no cloud tenant, no deploy secrets); either outcome exercises
@@ -70,6 +76,19 @@ async fn the_doctor_arm_runs_the_preflight_over_a_profile() {
         let rendered = format!("{e:#}");
         assert!(!rendered.is_empty(), "{rendered}");
     }
+}
+
+#[tokio::test]
+async fn an_unknown_doctor_profile_is_rejected() {
+    let ctx = ctx();
+    let result = cloud::execute(
+        parse(&["doctor", "--profile", "no-such-profile"]),
+        &crate::target_host::target_host(&ctx),
+    )
+    .await;
+
+    let error = result.expect_err("a profile that does not exist cannot be checked");
+    assert!(format!("{error:#}").contains("not found"), "{error:#}");
 }
 
 #[test]

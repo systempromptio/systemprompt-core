@@ -9,7 +9,7 @@ use std::sync::Arc;
 use systemprompt_extension::Resolved;
 use systemprompt_extension::cli::{
     BoxFuture, ChildSupervisor, CliConfig, CommandDescriptor, CommandError, CommandHost,
-    CommandOutput, DescribedCommand, KernelGrant, Prompter,
+    AdmittedViews, CommandOutput, DescribedCommand, KernelGrant, Prompter,
 };
 use systemprompt_manifest::{Config, Profile};
 use systemprompt_runtime::Kernel;
@@ -20,6 +20,7 @@ use tokio::sync::OnceCell;
 
 use crate::context::CommandContext;
 use crate::host::{boot_profile_config, boot_profile_refused};
+use crate::kernel::{TargetAdmissionError, admit_target};
 
 /// The host a member's registered command runs against: the command context
 /// with the grants the registry conferred on that command. It serves
@@ -29,7 +30,9 @@ use crate::host::{boot_profile_config, boot_profile_refused};
 /// every sealed seed as missing. A command holding
 /// [`KernelGrant::ConfigReconcile`] run where an application context is
 /// available also resolves the kernel-built `Arc<ConfigApplyService>`; no
-/// member resolves the application context.
+/// member resolves the application context. It serves
+/// [`CommandHost::admitted_views`] only when the command holds
+/// [`KernelGrant::TargetAdmission`].
 pub struct MemberHost<'a> {
     ctx: &'a CommandContext,
     descriptor: CommandDescriptor,
@@ -141,5 +144,12 @@ impl CommandHost for MemberHost<'_> {
         } else {
             Box::pin(async move { Err(boot_profile_refused()) })
         }
+    }
+
+    fn admitted_views(&self, profile: &Path) -> Result<AdmittedViews, CommandError> {
+        if !self.descriptor.holds(KernelGrant::TargetAdmission) {
+            return Err(CommandError::new(TargetAdmissionError::Refused));
+        }
+        admit_target(self.ctx, profile).map_err(CommandError::new)
     }
 }

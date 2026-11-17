@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::path::PathBuf;
 
 use anyhow::{Context, Result, bail};
 use systemprompt_cloud::{CloudPath, ProfilePath, ProjectContext, TenantStore, get_cloud_paths};
@@ -80,18 +81,37 @@ pub fn resolve_profile(
     profile_name: Option<&ProfileName>,
     config: &CliConfig,
 ) -> Result<DeployProfile> {
-    if let Some(name) = profile_name {
-        return resolve_profile_by_name(name);
+    match profile_name {
+        Some(name) => DeployProfile::load(&profile_path_by_name(name)?),
+        None => {
+            require_interactive(config)?;
+            resolve_profile_interactive(prompter)
+        },
     }
+}
 
+pub fn resolve_profile_path(
+    prompter: &dyn Prompter,
+    profile_name: Option<&ProfileName>,
+    config: &CliConfig,
+) -> Result<PathBuf> {
+    match profile_name {
+        Some(name) => profile_path_by_name(name),
+        None => {
+            require_interactive(config)?;
+            Ok(resolve_profile_interactive(prompter)?.path)
+        },
+    }
+}
+
+fn require_interactive(config: &CliConfig) -> Result<()> {
     if !config.is_interactive() {
         bail!("--profile is required in non-interactive mode for deploy");
     }
-
-    resolve_profile_interactive(prompter)
+    Ok(())
 }
 
-fn resolve_profile_by_name(name: &ProfileName) -> Result<DeployProfile> {
+fn profile_path_by_name(name: &ProfileName) -> Result<PathBuf> {
     let ctx = ProjectContext::discover();
     let profile_path = ctx.profile_path(name.as_str(), ProfilePath::Config);
 
@@ -99,7 +119,7 @@ fn resolve_profile_by_name(name: &ProfileName) -> Result<DeployProfile> {
         bail!("Profile '{}' not found at {}", name, profile_path.display());
     }
 
-    DeployProfile::load(&profile_path)
+    Ok(profile_path)
 }
 
 fn resolve_profile_interactive(prompter: &dyn Prompter) -> Result<DeployProfile> {

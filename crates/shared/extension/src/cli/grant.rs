@@ -12,7 +12,10 @@
 /// skips the services-config validation; `BootProfile` lets the command boot a
 /// profile at a path through [`CommandHost::boot_config`](crate::cli::CommandHost::boot_config); `ConfigReconcile` serves the
 /// command the kernel-built config apply service (database rows of every
-/// config plane, read with the loaded secrets) through its resolver. A member's command requests the
+/// config plane, read with the loaded secrets) through its resolver; `TargetAdmission` admits the
+/// binary's composition against the disabled-member list of a profile at a
+/// path and returns its open admitted views through
+/// [`CommandHost::admitted_views`](crate::cli::CommandHost::admitted_views). A member's command requests the
 /// grants it needs; the composition and the CLI registry refuse a request
 /// the reserved CLI paths do not list for that path and owner.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -24,10 +27,11 @@ pub enum KernelGrant {
     SkipValidation,
     BootProfile,
     ConfigReconcile,
+    TargetAdmission,
 }
 
 impl KernelGrant {
-    pub const ALL: [Self; 7] = [
+    pub const ALL: [Self; 8] = [
         Self::ChildHost,
         Self::ServesApi,
         Self::CloudOperator,
@@ -35,6 +39,7 @@ impl KernelGrant {
         Self::SkipValidation,
         Self::BootProfile,
         Self::ConfigReconcile,
+        Self::TargetAdmission,
     ];
 }
 
@@ -48,6 +53,7 @@ impl std::fmt::Display for KernelGrant {
             Self::SkipValidation => "skip-validation",
             Self::BootProfile => "boot-profile",
             Self::ConfigReconcile => "config-reconcile",
+            Self::TargetAdmission => "target-admission",
         })
     }
 }
