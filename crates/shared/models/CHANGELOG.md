@@ -9,7 +9,7 @@
 
 ### Added
 
-- `ReasoningParams` and `ReasoningEffort`, set with `AiRequestBuilder::with_reasoning`.
+- `ReasoningParams` and `ReasoningEffort`, set with `AiRequestBuilder::with_reasoning`: `thinking_budget_tokens` is the thinking budget of the Anthropic and Gemini wires, `effort` the reasoning effort of the OpenAI wires.
 - `AiContentPart::tool_use`, `tool_result` and `thinking` constructors for replaying a tool turn.
 
 ## [0.82.0] - 2026-11-16

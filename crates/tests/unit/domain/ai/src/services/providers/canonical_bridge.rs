@@ -487,6 +487,50 @@ fn explicit_effort_replaces_the_o_series_default() {
 }
 
 #[test]
+fn thinking_and_tool_results_lead_a_replayed_turn_that_also_has_text() {
+    let assistant = AiMessage {
+        role: MessageRole::Assistant,
+        content: "let me look".to_owned(),
+        parts: vec![
+            AiContentPart::tool_use("call-1", "search", json!({"q": "rust"})),
+            AiContentPart::thinking("weighing options", Some("sig-1".to_owned())),
+        ],
+    };
+    let user = AiMessage {
+        role: MessageRole::User,
+        content: "and summarise it".to_owned(),
+        parts: vec![AiContentPart::tool_result("call-1", "3 hits", false)],
+    };
+    let messages = [msg(MessageRole::User, "find it"), assistant, user];
+    let request = CanonicalBuild::new(BridgeProvider::Anthropic, &messages, "claude-sonnet-5", 512)
+        .into_request();
+
+    assert!(
+        matches!(
+            request.messages[1].content.as_slice(),
+            [
+                CanonicalContent::Thinking { .. },
+                CanonicalContent::Text { .. },
+                CanonicalContent::ToolUse { .. },
+            ]
+        ),
+        "an assistant turn opens with its thinking and closes with its tool use: {:?}",
+        request.messages[1].content
+    );
+    assert!(
+        matches!(
+            request.messages[2].content.as_slice(),
+            [
+                CanonicalContent::ToolResult { .. },
+                CanonicalContent::Text { .. },
+            ]
+        ),
+        "a user turn opens with its tool results: {:?}",
+        request.messages[2].content
+    );
+}
+
+#[test]
 fn tool_and_thinking_parts_become_canonical_blocks() {
     let assistant = AiMessage {
         role: MessageRole::Assistant,

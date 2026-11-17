@@ -9,7 +9,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::models::ai::{AiMessage, AiResponse, MessageRole, SamplingParams};
+use crate::models::ai::{AiMessage, AiResponse, MessageRole, ReasoningParams, SamplingParams};
 use crate::models::tools::{CallToolResult, ToolCall};
 use crate::services::providers::{GenerationParams, ProviderClient, ToolResultsParams};
 use systemprompt_models::ToolResultFormatter;
@@ -98,6 +98,7 @@ pub struct SynthesisParams<'a> {
     pub tool_calls: &'a [ToolCall],
     pub tool_results: &'a [CallToolResult],
     pub sampling: Option<&'a SamplingParams>,
+    pub reasoning: Option<ReasoningParams>,
     pub max_output_tokens: u32,
     pub model: &'a str,
 }
@@ -110,6 +111,7 @@ impl std::fmt::Debug for SynthesisParams<'_> {
             .field("tool_calls", &self.tool_calls)
             .field("tool_results", &self.tool_results)
             .field("sampling", &self.sampling)
+            .field("reasoning", &self.reasoning)
             .field("max_output_tokens", &self.max_output_tokens)
             .field("model", &self.model)
             .finish()
@@ -196,7 +198,7 @@ impl ResponseSynthesizer {
             model: params.model,
             max_output_tokens: params.max_output_tokens,
             sampling: params.sampling,
-            reasoning: None,
+            reasoning: params.reasoning,
         };
         let tool_results_params =
             ToolResultsParams::new(base.clone(), params.tool_calls, params.tool_results);
@@ -231,7 +233,7 @@ impl ResponseSynthesizer {
             model: params.model,
             max_output_tokens: params.max_output_tokens,
             sampling: params.sampling,
-            reasoning: None,
+            reasoning: params.reasoning,
         };
 
         match params.provider.generate(gen_params).await {

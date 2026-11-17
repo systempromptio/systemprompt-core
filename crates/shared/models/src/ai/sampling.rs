@@ -39,6 +39,10 @@ pub enum ReasoningEffort {
 
 /// Explicit reasoning controls for a request. A field left unset keeps the
 /// provider's per-model default.
+///
+/// `thinking_budget_tokens` is the thinking budget of the Anthropic and Gemini
+/// wires; `effort` is the reasoning effort of the `OpenAI` wires, which derive
+/// one from the budget when only the budget is set.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ReasoningParams {
     pub effort: Option<ReasoningEffort>,

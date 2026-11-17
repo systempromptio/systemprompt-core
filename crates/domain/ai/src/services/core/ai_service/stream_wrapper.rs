@@ -1,7 +1,8 @@
 //! Stream wrapper capturing usage and persisting the assembled response.
 //!
 //! Every [`CanonicalEvent`] of the provider stream passes through unchanged;
-//! the wrapper reads text, usage and the stop reason off it for the audit row.
+//! the wrapper reads text, tool calls, usage and the stop reason off it for the
+//! audit row.
 //!
 //! Usage is accumulated as a [`CanonicalUsage`], normalised against the
 //! provider, and priced by the one cost function — the same type and the same
@@ -12,17 +13,19 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use futures::Stream;
+use std::collections::BTreeMap;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use systemprompt_identifiers::AiRequestId;
+use systemprompt_identifiers::{AiRequestId, AiToolCallId};
 use tokio_util::task::TaskTracker;
 
 use crate::models::RequestStatus;
 use crate::models::ai::{AiRequest, AiResponse};
+use crate::models::tools::ToolCall;
 use crate::services::core::request_storage::{RequestStorage, StoreParams};
 use crate::services::providers::canonical_bridge::finish_reason;
 use crate::services::providers::{EventStream, ModelPricing};
-use systemprompt_wire::canonical::{CanonicalEvent, CanonicalUsage};
+use systemprompt_wire::canonical::{CanonicalEvent, CanonicalUsage, ContentBlockKind};
 
 pub(super) struct StreamStorageParams {
     pub inner: EventStream,
@@ -36,6 +39,24 @@ pub(super) struct StreamStorageParams {
     pub pricing: ModelPricing,
 }
 
+struct StreamedToolCall {
+    id: String,
+    name: String,
+    arguments: String,
+}
+
+impl StreamedToolCall {
+    // JSON: tool-call arguments are the tool's own JSON; a stream cut short
+    // leaves a fragment, recorded as the text that arrived.
+    fn arguments(&self) -> serde_json::Value {
+        if self.arguments.is_empty() {
+            return serde_json::Value::Object(serde_json::Map::new());
+        }
+        serde_json::from_str(&self.arguments)
+            .unwrap_or_else(|_| serde_json::Value::String(self.arguments.clone()))
+    }
+}
+
 pub(super) struct StreamStorageWrapper {
     inner: EventStream,
     storage: RequestStorage,
@@ -47,6 +68,7 @@ pub(super) struct StreamStorageWrapper {
     model: String,
     pricing: ModelPricing,
     accumulated: String,
+    tool_calls: BTreeMap<u32, StreamedToolCall>,
     completed: bool,
     usage: CanonicalUsage,
     saw_usage: bool,
@@ -66,6 +88,7 @@ impl StreamStorageWrapper {
             model: params.model,
             pricing: params.pricing,
             accumulated: String::new(),
+            tool_calls: BTreeMap::new(),
             completed: false,
             usage: CanonicalUsage::default(),
             saw_usage: false,
@@ -76,6 +99,27 @@ impl StreamStorageWrapper {
     fn observe(&mut self, event: &CanonicalEvent) {
         match event {
             CanonicalEvent::TextDelta { text, .. } => self.accumulated.push_str(text),
+            CanonicalEvent::ContentBlockStart {
+                index,
+                block: ContentBlockKind::ToolUse { id, name, .. },
+            } => {
+                self.tool_calls.insert(
+                    *index,
+                    StreamedToolCall {
+                        id: id.clone(),
+                        name: name.clone(),
+                        arguments: String::new(),
+                    },
+                );
+            },
+            CanonicalEvent::ToolUseDelta {
+                index,
+                partial_json,
+            } => {
+                if let Some(call) = self.tool_calls.get_mut(index) {
+                    call.arguments.push_str(partial_json);
+                }
+            },
             CanonicalEvent::UsageDelta(update) => {
                 update.apply_to(&mut self.usage);
                 self.mark_usage_reported();
@@ -116,6 +160,15 @@ impl StreamStorageWrapper {
         response.input_tokens = self.reported(self.usage.input_tokens);
         response.output_tokens = self.reported(self.usage.output_tokens);
         response.tokens_used = self.reported(self.usage.billable_total());
+        response.tool_calls = self
+            .tool_calls
+            .values()
+            .map(|call| ToolCall {
+                ai_tool_call_id: AiToolCallId::new(call.id.as_str()),
+                name: call.name.clone(),
+                arguments: call.arguments(),
+            })
+            .collect();
         response.finish_reason.clone_from(&self.finish_reason);
         response.cache_hit = self.usage.cache_read_tokens > 0;
         response.cache_read_tokens = self.reported(self.usage.cache_read_tokens);

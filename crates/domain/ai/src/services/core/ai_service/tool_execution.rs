@@ -168,6 +168,7 @@ impl AiService {
                         tool_calls: &tool_calls,
                         tool_results: &tool_results,
                         sampling: request.sampling.as_ref(),
+                        reasoning: request.reasoning,
                         max_output_tokens: request.max_output_tokens(),
                         model,
                     })

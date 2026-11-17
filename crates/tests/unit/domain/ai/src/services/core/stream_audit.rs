@@ -447,6 +447,29 @@ async fn the_events_stream_carries_reasoning_and_tool_calls_and_audits_like_the_
     .unwrap();
     assert_eq!(row.output_tokens, Some(23));
     assert!(row.is_streaming);
+
+    let mut recorded = None;
+    for _ in 0..100 {
+        recorded = sqlx::query!(
+            "SELECT t.tool_name, t.tool_input, t.ai_tool_call_id FROM ai_request_tool_calls t \
+             JOIN ai_requests r ON r.id = t.request_id WHERE r.user_id = $1",
+            user.as_str()
+        )
+        .fetch_optional(pool.pool().as_ref())
+        .await
+        .unwrap();
+        if recorded.is_some() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    let recorded = recorded.expect("the audit records the tool call the stream carried");
+    assert_eq!(recorded.tool_name, "search");
+    assert_eq!(recorded.ai_tool_call_id.as_deref(), Some("call-1"));
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&recorded.tool_input).unwrap(),
+        serde_json::json!({"q": "rust"})
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

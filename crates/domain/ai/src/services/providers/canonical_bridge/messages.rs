@@ -40,58 +40,70 @@ pub(super) fn messages_to_canonical(
     (system.map(SystemBlock::text).into_iter().collect(), out)
 }
 
+// Why: Anthropic rejects an assistant turn whose thinking blocks do not lead
+// and a user turn whose tool_result blocks do not lead, so those parts are
+// placed ahead of the message's own text.
 fn message_content(message: &AiMessage) -> Vec<CanonicalContent> {
-    let mut content: Vec<CanonicalContent> = Vec::new();
+    let (leading, rest): (Vec<&AiContentPart>, Vec<&AiContentPart>) =
+        message.parts.iter().partition(|part| {
+            matches!(
+                part,
+                AiContentPart::Thinking { .. } | AiContentPart::ToolResult { .. }
+            )
+        });
+    let mut content: Vec<CanonicalContent> = leading.into_iter().filter_map(part_content).collect();
     if !message.content.is_empty() {
         content.push(CanonicalContent::text(message.content.clone()));
     }
-    for part in &message.parts {
-        match part {
-            AiContentPart::Text { text } => content.push(CanonicalContent::text(text.clone())),
-            AiContentPart::Image { mime_type, data } => {
-                content.push(CanonicalContent::image(ImageSource::Base64 {
-                    media_type: mime_type.clone(),
-                    data: data.clone(),
-                    detail: None,
-                }));
-            },
-            AiContentPart::ToolUse {
-                id,
-                name,
-                input,
-                signature,
-            } => content.push(CanonicalContent::ToolUse {
-                id: id.clone(),
-                name: name.clone(),
-                input: input.clone(),
-                signature: signature.clone(),
-                cache_control: None,
-            }),
-            AiContentPart::ToolResult {
-                tool_use_id,
-                content: result,
-                is_error,
-            } => content.push(CanonicalContent::ToolResult {
-                tool_use_id: tool_use_id.clone(),
-                content: vec![CanonicalContent::text(result.clone())],
-                is_error: *is_error,
-                structured_content: None,
-                meta: None,
-                cache_control: None,
-            }),
-            AiContentPart::Thinking {
-                text,
-                signature,
-                id,
-                encrypted_content,
-            } => content.push(CanonicalContent::Thinking {
-                text: text.clone(),
-                signature: signature.clone(),
-                id: id.clone(),
-                encrypted_content: encrypted_content.clone(),
-            }),
-            AiContentPart::Audio { .. } | AiContentPart::Video { .. } => {},
-        }
-    }
+    content.extend(rest.into_iter().filter_map(part_content));
     content
+}
+
+fn part_content(part: &AiContentPart) -> Option<CanonicalContent> {
+    match part {
+        AiContentPart::Text { text } => Some(CanonicalContent::text(text.clone())),
+        AiContentPart::Image { mime_type, data } => {
+            Some(CanonicalContent::image(ImageSource::Base64 {
+                media_type: mime_type.clone(),
+                data: data.clone(),
+                detail: None,
+            }))
+        },
+        AiContentPart::ToolUse {
+            id,
+            name,
+            input,
+            signature,
+        } => Some(CanonicalContent::ToolUse {
+            id: id.clone(),
+            name: name.clone(),
+            input: input.clone(),
+            signature: signature.clone(),
+            cache_control: None,
+        }),
+        AiContentPart::ToolResult {
+            tool_use_id,
+            content: result,
+            is_error,
+        } => Some(CanonicalContent::ToolResult {
+            tool_use_id: tool_use_id.clone(),
+            content: vec![CanonicalContent::text(result.clone())],
+            is_error: *is_error,
+            structured_content: None,
+            meta: None,
+            cache_control: None,
+        }),
+        AiContentPart::Thinking {
+            text,
+            signature,
+            id,
+            encrypted_content,
+        } => Some(CanonicalContent::Thinking {
+            text: text.clone(),
+            signature: signature.clone(),
+            id: id.clone(),
+            encrypted_content: encrypted_content.clone(),
+        }),
+        AiContentPart::Audio { .. } | AiContentPart::Video { .. } => None,
+    }
 }

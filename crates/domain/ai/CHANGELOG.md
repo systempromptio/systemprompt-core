@@ -5,14 +5,15 @@
 ### Breaking
 
 - `ProviderClient::generate_stream` and `generate_with_tools_stream` return `EventStream`, a stream of `systemprompt_wire::canonical::CanonicalEvent`, instead of `StreamChunk`. Migrate an implementation by yielding canonical events; `canonical_bridge::event_to_chunk` projects one to its text chunk.
-- `GenerationParams` gains the `reasoning` field, `RequestError` gains `ThinkingBudgetTooLarge`, and the Gemini `ToolRequestParams` and `ToolResultParams` gain `reasoning`. Migrate by building through the constructors or setting `reasoning: None`, and by adding the match arm.
-- `canonical_bridge::event_to_chunk` yields a chunk for a text delta only; the stop-reason mapping is `canonical_bridge::finish_reason`.
+- `GenerationParams` and `SynthesisParams` gain the `reasoning` field, `RequestError` gains `ThinkingBudgetTooLarge`, and the Gemini `ToolRequestParams` and `ToolResultParams` gain `reasoning`. Migrate by building through the constructors or setting `reasoning: None`, and by adding the match arm.
+- `canonical_bridge::event_to_chunk` yields a chunk for a text delta only and no longer yields `StreamChunk::Usage`.
 
 ### Added
 
-- `AiService::generate_events_stream(&AiRequest)` returns the provider's full canonical event stream under the same audit row and cost accounting as `generate_stream`, offering the request's tools when it carries any.
-- `GenerationParams::from_request` carries a request's sampling and reasoning to the provider, and `CanonicalBuild::with_reasoning` lets an explicit `ReasoningParams` take precedence over the per-model default.
-- Tool-use, tool-result and thinking message parts map to the matching canonical blocks.
+- `AiService::generate_events_stream(&AiRequest)` returns the provider's full canonical event stream under the same audit row and cost accounting as `generate_stream`, offering the request's tools when it carries any; the audit row records the tool calls the stream carried.
+- `canonical_bridge::finish_reason` maps a canonical stop reason to the finish-reason string.
+- `GenerationParams::from_request` carries a request's sampling and reasoning to the provider, and `CanonicalBuild::with_reasoning` lets an explicit `ReasoningParams` take precedence over the per-model default, on the Gemini tool call and the synthesis turn as on every other call.
+- Tool-use, tool-result and thinking message parts map to the matching canonical blocks; thinking and tool-result parts are placed ahead of the message's own text.
 
 ## [0.81.0] - 2026-11-12
 

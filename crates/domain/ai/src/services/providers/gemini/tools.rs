@@ -54,7 +54,10 @@ pub(super) async fn generate_with_tools(
         build = build.with_search(Some(SearchConfig::default()));
     }
     let mut canonical = build.into_request();
-    canonical.reasoning.thinking = thinking_for(params.model);
+    canonical.reasoning.thinking = canonical
+        .reasoning
+        .thinking
+        .or_else(|| thinking_for(params.model));
 
     let body = gemini::build_request_body(&canonical, None);
     let value = transport::post(provider, &body, params.model, false)
