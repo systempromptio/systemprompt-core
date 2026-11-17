@@ -21,7 +21,10 @@
 //! every install resolver is held behind a guard that never handles,
 //! expands, answers or reports holding a reserved subject, so no reader can
 //! ask it one. Two resolvers sharing a name are refused, so an install
-//! cannot answer under a core resolver's name.
+//! cannot answer under a core resolver's name. A custom dimension a resolver
+//! declares (`dimensions`) that another resolver also declares or handles is
+//! refused ([`SlotError::SharedAudienceDimension`], naming both), so one
+//! member never silently shadows another's dimension.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -33,14 +36,13 @@ use systemprompt_identifiers::{ExtensionId, UserId};
 use systemprompt_models::notifications::AudienceSubject;
 use systemprompt_traits::CoreSeam;
 use systemprompt_traits::authz::RESERVED_SUBJECT_DIMENSIONS;
-use systemprompt_traits::core_seam::RoleAudience;
+use systemprompt_traits::core_seam::{CoreSeamKind, RoleAudience};
 
 use super::{Contributions, Factory, Resolved, SlotError, StandingTag, build_factories};
 use crate::admitted::BuiltState;
 use crate::notifications::{Membership, NotificationAudienceError, NotificationAudienceResolver};
 
 const POINT: &str = "audiences";
-const ROLE_OWNER: &str = "users";
 
 /// One resolver offered to the set, with its member and that member's
 /// admitted standing.
@@ -75,7 +77,7 @@ impl AudienceResolvers {
             r.optional::<CoreSeam<dyn NotificationAudienceResolver, RoleAudience>>()
         {
             contributed.push(AudienceEntry {
-                owner: ExtensionId::new(ROLE_OWNER),
+                owner: ExtensionId::new(RoleAudience::OWNER),
                 standing: StandingTag::Core,
                 resolver: roles.seam(),
             });
@@ -84,6 +86,7 @@ impl AudienceResolvers {
     }
 
     pub fn new(entries: Vec<AudienceEntry>) -> Result<Self, SlotError> {
+        refuse_shared_dimensions(&entries)?;
         let mut resolvers: Vec<Arc<dyn NotificationAudienceResolver>> =
             Vec::with_capacity(entries.len());
         for entry in entries {
@@ -125,6 +128,37 @@ impl AudienceResolvers {
     }
 }
 
+fn refuse_shared_dimensions(entries: &[AudienceEntry]) -> Result<(), SlotError> {
+    for (index, claimant) in entries.iter().enumerate() {
+        for dimension in claimant.resolver.dimensions() {
+            let probe = AudienceSubject::Dimension {
+                kind: (*dimension).to_owned(),
+                value: PROBE.to_owned(),
+            };
+            let rival = entries.iter().enumerate().find(|(other, entry)| {
+                *other != index
+                    && (entry.resolver.dimensions().contains(dimension)
+                        || entry.resolver.handles(&probe))
+            });
+            if let Some((other, entry)) = rival {
+                let (first, second) = if other < index {
+                    (entry, claimant)
+                } else {
+                    (claimant, entry)
+                };
+                return Err(SlotError::SharedAudienceDimension {
+                    dimension: (*dimension).to_owned(),
+                    first_owner: first.owner.clone(),
+                    first: first.resolver.name(),
+                    second_owner: second.owner.clone(),
+                    second: second.resolver.name(),
+                });
+            }
+        }
+    }
+    Ok(())
+}
+
 #[must_use]
 pub fn is_reserved_audience(subject: &AudienceSubject) -> bool {
     match subject {
@@ -164,6 +198,10 @@ impl NotificationAudienceResolver for InstallScoped {
 
     fn handles(&self, subject: &AudienceSubject) -> bool {
         !is_reserved_audience(subject) && self.0.handles(subject)
+    }
+
+    fn dimensions(&self) -> &'static [&'static str] {
+        self.0.dimensions()
     }
 
     async fn members(

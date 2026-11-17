@@ -68,6 +68,10 @@ pub trait NotificationAudienceResolver: Send + Sync {
 
     fn handles(&self, subject: &AudienceSubject) -> bool;
 
+    fn dimensions(&self) -> &'static [&'static str] {
+        &[]
+    }
+
     async fn members(
         &self,
         subject: &AudienceSubject,
