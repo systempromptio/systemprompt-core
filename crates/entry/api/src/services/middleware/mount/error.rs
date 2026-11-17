@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_extension::{LoaderError, ProtectionLayer};
+use systemprompt_extension::{LoaderError, ProtectionLayer, RouteGroup};
 
 use systemprompt_extension::reserved::CoreId;
 use systemprompt_extension::router::{Allowance, BasePath, BaseRef, RouteMethod};
@@ -86,6 +86,12 @@ pub enum MountError {
 
     #[error("service nested at {base:?} by {owner}, which holds no plain install standing there")]
     ServiceNotAdmitted { base: BasePath, owner: ExtensionId },
+
+    #[error("the web root fallback is held by the {held:?} group; {claimed:?} claims it too")]
+    SecondRootFallback {
+        held: RouteGroup,
+        claimed: RouteGroup,
+    },
 
     #[error("route {method} {path} declared twice")]
     RouteConflict { method: RouteMethod, path: String },

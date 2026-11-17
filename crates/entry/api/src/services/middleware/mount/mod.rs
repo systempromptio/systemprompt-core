@@ -14,9 +14,13 @@
 //! `with_bearer_window`), the context middleware and authorization gate
 //! (`RouterExt::with_auth`), the outer protection layers, and the
 //! frame-options stamp. A group merged at the web root is protected on its
-//! routes alone (route layers), so an unmatched path anywhere in the tree
-//! answers 404 rather than that group's gate, and a root group with no route
-//! mounts nothing. A nested group is layered whole, its fallback included,
+//! routes alone (route layers) and any fallback it carries is discarded, so
+//! an unmatched path anywhere in the tree never meets that group's gate, and
+//! a root group with no route mounts nothing. The tree's one fallback belongs
+//! to the kernel's static group: [`protect_root_fallback`] layers that router
+//! whole, so its protection (site auth and the public context) covers every
+//! page the fallback serves, and [`RootFallbackOwner`] refuses a second claim
+//! with [`MountError::SecondRootFallback`]. A nested group is layered whole, its fallback included,
 //! which stays inside its base path. [`place`] nests the result under its base path, or
 //! merges it at the web root. Only the web root is merged: every other base
 //! path, `/track/engagement` included, is nested, so its routes are relative
@@ -111,14 +115,62 @@ pub fn protect(
 ) -> Result<Router, MountError> {
     check_coherence(protection, base_path)?;
     check_body_limit(protection, base_path)?;
-    let reach = if base_path == WEB_ROOT_BASE_PATH {
+    let (router, reach) = if base_path == WEB_ROOT_BASE_PATH {
         if !router.has_routes() {
             return Ok(Router::new());
         }
-        LayerReach::Routes
+        (router.reset_fallback(), LayerReach::Routes)
     } else {
-        LayerReach::Router
+        (router, LayerReach::Router)
     };
+    apply(router, protection, layers, base_path, reach)
+}
+
+/// The web root's one fallback: its owner's router layered whole, so the
+/// owner's protection covers every unmatched path the tree serves.
+#[derive(Debug)]
+pub struct RootFallback {
+    router: Router,
+    group: RouteGroup,
+}
+
+pub fn protect_root_fallback(
+    router: Router,
+    protection: &RouteProtection,
+    layers: &MountLayers,
+    group: RouteGroup,
+) -> Result<RootFallback, MountError> {
+    check_coherence(protection, WEB_ROOT_BASE_PATH)?;
+    check_body_limit(protection, WEB_ROOT_BASE_PATH)?;
+    let router = apply(router, protection, layers, WEB_ROOT_BASE_PATH, LayerReach::Router)?;
+    Ok(RootFallback { router, group })
+}
+
+/// The group that has placed the web root's fallback in a tree; a second
+/// claim is refused.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct RootFallbackOwner(Option<RouteGroup>);
+
+impl RootFallbackOwner {
+    pub fn place(&mut self, tree: Router, fallback: RootFallback) -> Result<Router, MountError> {
+        if let Some(held) = self.0 {
+            return Err(MountError::SecondRootFallback {
+                held,
+                claimed: fallback.group,
+            });
+        }
+        self.0 = Some(fallback.group);
+        Ok(tree.merge(fallback.router))
+    }
+}
+
+fn apply(
+    router: Router,
+    protection: &RouteProtection,
+    layers: &MountLayers,
+    base_path: &'static str,
+    reach: LayerReach,
+) -> Result<Router, MountError> {
     let router = inner_layers(router, protection, layers, base_path, reach)?;
     let router = rate_limited(router, protection, layers, base_path, reach)?;
     let router = authenticated(router, protection, layers, reach);

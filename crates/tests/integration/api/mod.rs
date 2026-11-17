@@ -25,6 +25,10 @@ mod server_mount_gateway_and_mcp_scope;
 mod server_mount_analytics;
 
 #[cfg(test)]
+#[path = "server_static_site_auth.rs"]
+mod server_static_site_auth;
+
+#[cfg(test)]
 #[path = "server_mount_notifications.rs"]
 mod server_mount_notifications;
 

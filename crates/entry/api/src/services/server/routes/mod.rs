@@ -54,8 +54,8 @@ use systemprompt_traits::{DynIpBanStore, StartupEventSender};
 
 use crate::services::middleware::{
     A2AContextMiddleware, BodyBudget, JwtContextExtractor, McpContextMiddleware, MountLayers,
-    ProtectionGuards, PublicContextMiddleware, RateLimitState, UserOnlyContextMiddleware,
-    ip_ban_middleware,
+    ProtectionGuards, PublicContextMiddleware, RateLimitState, RootFallbackOwner,
+    UserOnlyContextMiddleware, ip_ban_middleware,
 };
 
 pub(super) fn configure_routes(
@@ -180,11 +180,10 @@ fn finish_router(
     }));
 
     if (mount.serves)(RouteGroup::Static) {
-        router = router.merge(static_setup::build_static_router(
-            ctx,
-            mount.layers,
-            events,
-        )?);
+        router = RootFallbackOwner::default().place(
+            router,
+            static_setup::build_static_router(ctx, mount.layers, events)?,
+        )?;
     }
 
     Ok(router.layer(axum::middleware::from_fn(super::metrics::track_metrics)))
