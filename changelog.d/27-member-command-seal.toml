@@ -1,7 +1,7 @@
 [root]
 section = "Fixed"
 area = "Security"
-text = "A member command cannot read the kernel's configuration or secrets: its resolver refuses the sealed seeds (`Config`, `SecretStore`, `SystemAdmin`, `ActiveServicesRoot`, `EventRouter`), `SecretsSources`, `EnvOverrides`, `BootContext` and `AppContext`. Profile boot and config reconcile are kernel grants (`KernelGrant::BootProfile`, `KernelGrant::ConfigReconcile`) a command receives only on a reserved CLI path its owner holds; `CommandHost::boot_config` is served only to a command holding `BootProfile`."
+text = "A member command cannot read the kernel's configuration or secrets: its resolver refuses the sealed seeds (`Config`, `SecretStore`, `SystemAdmin`, `ActiveServicesRoot`, `EventRouter`), `SecretsSources`, `EnvOverrides`, `BootContext` and `AppContext`. Profile boot, config reconcile and target admission are kernel grants (`KernelGrant::BootProfile`, `KernelGrant::ConfigReconcile`, `KernelGrant::TargetAdmission`) a command receives only on a reserved CLI path its owner holds; `CommandHost::boot_config` is served only to a command holding `BootProfile`, and `CommandHost::admitted_views` only to a command holding `TargetAdmission`, which reads nothing from the target profile but its disabled-member list."
 
 [[crate]]
 name = "systemprompt-provider-contracts"
@@ -11,9 +11,19 @@ text = "`Dependencies::{insert_sealed, with_sealed, is_sealed}`: a sealed entry 
 [[crate]]
 name = "systemprompt-extension"
 section = "Breaking"
-text = "`KernelGrant` gains `BootProfile` and `ConfigReconcile`; a grant not listed for the command's reserved path and owner is refused."
+text = "`KernelGrant` gains `BootProfile`, `ConfigReconcile` and `TargetAdmission`; a grant not listed for the command's reserved path and owner is refused. `CommandHost` requires `admitted_views`, which returns the new `cli::AdmittedViews`. A top-level group with no declared `--help` slot is listed before `help` in composition order (`REGISTERED_DISPLAY_ORDER` is 900)."
 
 [[crate]]
 name = "systemprompt-cli"
 section = "Breaking"
 text = "Member commands no longer resolve `SecretsSources`, `EnvOverrides`, `Arc<BootContext>`, `Arc<AppContext>` or the sealed kernel seeds; the kernel's own commands run on an internal `KernelHost`."
+
+[[crate]]
+name = "systemprompt"
+section = "Breaking"
+text = "`Declared::admit` takes the profile's `ExtensionsConfig`, the one profile input admission reads."
+
+[[crate]]
+name = "systemprompt-cloud-entry"
+section = "Fixed"
+text = "`cloud deploy` and `cloud doctor` admit the composition against their target profile's disabled-member list through `KernelGrant::TargetAdmission`, so `cloud deploy` no longer fails with a missing `AdmittedAssets`. `cloud doctor` again selects its own profile (`--profile`, or the picker when interactive), runs its partial preflight over target-only variables, and reports a failed validation or a failed admission as a check."
