@@ -21,7 +21,9 @@
 
 use clap::{ArgMatches, Command};
 use systemprompt_extension::DeclaredCommands;
-use systemprompt_extension::cli::{CommandDecl, KernelGrant, ParsedCommand};
+use systemprompt_extension::cli::{
+    CommandDecl, KernelGrant, ParsedCommand, REGISTERED_DISPLAY_ORDER,
+};
 use systemprompt_extension::reserved::{CoreId, RESERVED_CLI_PATHS};
 use systemprompt_identifiers::ExtensionId;
 
@@ -148,18 +150,20 @@ impl CommandRegistry {
     }
 
     pub fn assemble(&self, mut root: Command) -> Result<Command, RegistryError> {
+        let mut unslotted = 0;
         for entry in &self.entries {
             let parent = self
                 .entries
                 .iter()
                 .find(|other| other.is_at(entry.decl.parent()));
-            root = attach(
-                root,
-                entry.decl.parent(),
-                entry.decl.command(),
-                entry,
-                parent,
-            )?;
+            let mut command = entry.decl.command();
+            if entry.decl.parent().is_empty()
+                && command.get_display_order() == REGISTERED_DISPLAY_ORDER
+            {
+                command = command.display_order(REGISTERED_DISPLAY_ORDER + unslotted);
+                unslotted += 1;
+            }
+            root = attach(root, entry.decl.parent(), command, entry, parent)?;
         }
         Ok(root)
     }

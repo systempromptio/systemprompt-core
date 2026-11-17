@@ -11,8 +11,11 @@
 //!
 //! `DISPLAY_ORDER` places a top-level group in `--help`. The kernel's own
 //! groups hold the slots `10` (`core`), `20` (`infra`), `30` (`admin`), `60`
-//! (`web`) and `70` (`plugins`); `40` and `50` are the `cloud` and `analytics`
-//! slots. A declaration that names no slot gets [`REGISTERED_DISPLAY_ORDER`].
+//! (`web`), `70` (`plugins`) and `80` (`build`); `40` and `50` are the `cloud`
+//! and `analytics` slots. A declaration that names no slot gets
+//! [`REGISTERED_DISPLAY_ORDER`]; the registry lists such top-level groups from
+//! that slot on in composition order, after every kernel group and before
+//! clap's `help` (slot `999`).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -38,7 +41,7 @@ use crate::contribute::Resolved;
 pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 pub type CommandFuture<'a> = BoxFuture<'a, Result<CommandOutput, CommandError>>;
 
-pub const REGISTERED_DISPLAY_ORDER: usize = 1000;
+pub const REGISTERED_DISPLAY_ORDER: usize = 900;
 
 /// A failed command: the cause, and optionally the output it produced
 /// before failing (a validation report, say), which the CLI kernel renders
