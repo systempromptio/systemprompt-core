@@ -194,7 +194,7 @@ impl PolicyCatalog {
             .map(|c| &c.instance)
     }
 
-    pub(super) fn builtins(&self) -> &'static [BuiltinPolicy] {
+    pub(super) const fn builtins(&self) -> &'static [BuiltinPolicy] {
         self.builtins
     }
 

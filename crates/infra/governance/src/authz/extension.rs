@@ -1,6 +1,7 @@
 //! The `authz` member: schema, migrations, the `access_control` and
-//! `governance` config planes, and core's `traffic` subject provider. It
-//! opens the authz hook slot, so the composed hooks are built under core
+//! `governance` config planes, and core's `traffic` subject provider.
+//!
+//! It opens the authz hook slot, so the composed hooks are built under core
 //! standing and no other slot can build the same value.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

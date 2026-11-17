@@ -126,6 +126,8 @@ impl fmt::Debug for AgentAccess {
     }
 }
 
+type ContributedPolicy = (ExtensionId, Box<dyn Factory<Arc<dyn AgentAccessPolicy>>>);
+
 impl Slot for AgentAccessSlot {
     type Builder = AgentAccessSlotBuilder;
     type Built = AgentAccess;
@@ -135,7 +137,7 @@ impl Slot for AgentAccessSlot {
         entries: Vec<SlotEntry<Self::Builder>>,
         r: &Resolved<'_>,
     ) -> Result<Self::Built, SlotError> {
-        let contributed: Vec<(ExtensionId, Box<dyn Factory<Arc<dyn AgentAccessPolicy>>>)> = entries
+        let contributed: Vec<ContributedPolicy> = entries
             .into_iter()
             .flat_map(|entry| {
                 let owner = entry.owner;

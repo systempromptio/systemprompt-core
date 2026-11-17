@@ -1,4 +1,4 @@
-//! The oauth member: its client, token, WebAuthn and bridge schemas, its
+//! The oauth member: its client, token, `WebAuthn` and bridge schemas, its
 //! migrations, and the expired-grant cleanup job.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

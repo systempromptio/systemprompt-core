@@ -168,7 +168,7 @@ impl UserRepository {
         id: &UserId,
         plan: &AdmittedPurge,
     ) -> Result<PurgeOutcome> {
-        let Plan { steps, mut outcome } = load_plan(&mut **tx, plan).await?;
+        let Plan { steps, mut outcome } = load_plan(tx, plan).await?;
         let mut sweeps = Vec::new();
         for step in &steps {
             if let Some(sql) = sweep_sql(&step.declaration)? {
@@ -180,7 +180,7 @@ impl UserRepository {
             }
         }
         for step in &steps {
-            if let Some(rows) = table_rows(&mut **tx, id, &step.declaration, "DELETE").await? {
+            if let Some(rows) = table_rows(tx, id, &step.declaration, "DELETE").await? {
                 outcome.counts.push(step.count(rows));
             }
         }

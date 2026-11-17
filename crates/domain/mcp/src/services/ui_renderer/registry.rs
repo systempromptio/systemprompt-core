@@ -119,6 +119,6 @@ impl std::fmt::Debug for UiRendererRegistry {
         f.debug_struct("UiRendererRegistry")
             .field("registered_types", &self.supported_types())
             .field("themed", &self.theme.is_some())
-            .finish()
+            .finish_non_exhaustive()
     }
 }

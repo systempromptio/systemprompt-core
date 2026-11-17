@@ -42,12 +42,13 @@ impl RunnerService for BoundConsumerRunner {
     }
 
     async fn run(&self, ctx: JobContext, shutdown: CancellationToken) {
-        match self.slot.get() {
-            Some(consumer) => consumer.run(ctx, shutdown).await,
-            None => tracing::error!(
+        if let Some(consumer) = self.slot.get() {
+            consumer.run(ctx, shutdown).await;
+        } else {
+            tracing::error!(
                 runner = "notifications-consumer",
                 "notifications consumer slot is unbound; the consumer is not running"
-            ),
+            );
         }
     }
 }

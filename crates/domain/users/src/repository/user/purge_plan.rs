@@ -37,7 +37,9 @@ pub struct SkippedPurge {
 }
 
 /// What a purge removed, or a dry run would remove, and what it could not
-/// cover. `unrecorded_members` are members absent from this composition that
+/// cover.
+///
+/// `unrecorded_members` are members absent from this composition that
 /// own tables but whose purge declarations were never recorded; the purge
 /// cannot vouch for their rows.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -49,7 +51,7 @@ pub struct PurgeOutcome {
 
 impl PurgeOutcome {
     #[must_use]
-    pub fn is_complete(&self) -> bool {
+    pub const fn is_complete(&self) -> bool {
         self.skipped.is_empty() && self.unrecorded_members.is_empty()
     }
 

@@ -169,7 +169,7 @@ impl SubjectProviderSet {
 
     pub fn new(mut entries: Vec<SubjectProviderEntry>) -> Result<Self, SubjectProviderError> {
         entries.sort_by_key(|entry| match entry.standing {
-            StandingTag::Core => 0_u8,
+            StandingTag::Core => 0u8,
             StandingTag::Install => 1,
         });
         for (index, entry) in entries.iter().enumerate() {
