@@ -165,3 +165,53 @@ fn doctor_reports_and_clears_repairable_schema_drift() {
         "{repaired}"
     );
 }
+
+struct BrokenSchema;
+
+impl systemprompt_extension::Extension for BrokenSchema {
+    fn metadata(&self) -> systemprompt_extension::ExtensionMetadata {
+        systemprompt_extension::ExtensionMetadata {
+            id: "broken-schema",
+            name: "Broken schema",
+            version: "0.0.0",
+        }
+    }
+
+    fn contribute(
+        &self,
+        c: &mut systemprompt_extension::Contributions<'_>,
+    ) -> Result<(), systemprompt_extension::ContributionError> {
+        c.schema(systemprompt_extension::SchemaDefinition::new(
+            "broken_schema",
+            "CREATE TABLE (((",
+        ));
+        Ok(())
+    }
+}
+
+#[tokio::test]
+async fn doctor_fails_naming_a_member_whose_schema_does_not_parse() {
+    let database = DisposableDb::with_schema("cli_doctor_unparseable").await;
+    let pool = database.test_pool().await;
+    let mut members = systemprompt_test_fixtures::fixture_core_members();
+    members.push(Box::new(BrokenSchema));
+    let context = context(pool.clone(), database.url(), OutputFormat::Json).with_admitted(Some(
+        systemprompt_test_fixtures::fixture_admitted_of(members),
+    ));
+    let error = db::execute(doctor(), &context)
+        .await
+        .expect_err("a schema that does not parse fails the doctor");
+    assert!(
+        format!("{error:#}").contains("1 declared schema(s) do not parse"),
+        "{error:#}"
+    );
+    let output = error
+        .downcast_ref::<systemprompt_extension::cli::CommandError>()
+        .and_then(systemprompt_extension::cli::CommandError::output)
+        .expect("the failure carries the doctor report");
+    let report = serde_json::to_value(output.artifact()).expect("the report serialises");
+    let unparseable = section(&report, "unparseable_schemas");
+    assert_eq!(unparseable[0]["extension"], "broken-schema", "{report}");
+    pool.write_pool().close().await;
+    database.drop_now().await;
+}
