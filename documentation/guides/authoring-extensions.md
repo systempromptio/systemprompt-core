@@ -163,9 +163,11 @@ Every method on `Contributions` returns `&mut Self` and chains.
 - `c.schema(SchemaDefinition::new(table, sql))` declares a table. Embed the DDL from `{crate}/schema/<table>.sql` with `include_str!`. The tables a member owns are the tables its schema SQL creates (`CREATE TABLE`), not the `table` label; schema SQL that does not parse refuses admission.
 - `c.migrations(extension_migrations!())` returns the migrations `build.rs` discovers (see [Migrations](#migrations)).
 - `c.seed(Seed)` declares seed data; `c.retire(SchemaDefinition)` declares a table the member no longer creates.
-- `c.cross_table(table)` names a table another member creates that this member is permitted to `ALTER`. Do not list owned tables there.
+- `c.cross_table(table)` names a table another member creates that this member's migrations may alter, drop, truncate or rename. An install's declaration does not cover a core member's table. Do not list owned tables there.
 
 The installer runs over the admitted composition and records the owner and standing of every table it creates in `schema_table_owners`. A member declaring a table recorded to another member is refused before any DDL runs, including a table recorded to a member the profile disables, and an install claiming a table recorded under core standing is refused (`LoaderError::CoreRecordClaimedByInstall`).
+
+Before any DDL the installer also judges every migration that will run (one not yet recorded as applied, on a database that is not fresh): an `ALTER TABLE`, `DROP TABLE`, `TRUNCATE` or `RENAME` of a table another member creates or is recorded for is refused (`MigrationOwnershipError::ForeignTable`, naming the member, the statement and the table), unless a `cross_table` declaration covers it. A foreign-key `REFERENCES`, a read and a data write are not judged. A `DO` block hides the tables it mutates, so a pending install migration holding one is refused (`MigrationOwnershipError::Unreadable`); a core migration's is logged. A member disabled before its first recorded install has no ownership record until it is next enabled, so after upgrading run one install with every member enabled.
 
 ### Routes
 
@@ -185,13 +187,15 @@ RouteSet::at::<DemoState>(
 - `.service(prefix, service, spec)` nests one opaque service (a `tower` service) under a literal prefix of the set. It is recorded as one `ANY` route that conflicts with every other route the prefix covers.
 - Two routes with one method and path, across all members, refuse the composition.
 
-**Reserved paths.** An install member's base is `ApiBase::Extension(path)`, where the path starts with `/api/`, contains no `.` and does not cover a reserved path (`ContributionError::InvalidBase`). Every route's full path, parameter, catch-all and `service` prefix is checked at admission, and re-checked when the server mounts it, against `systemprompt_extension::reserved::RESERVED_PATHS`: the OAuth, users, agents, MCP, stream, files, scheduler, core, admin, brain, documents, uploads, internal, issues, marketplace, sync, webhook, health, consumer and gateway API prefixes, `/.well-known`, discovery, `/`, `/health`, `/livez`, `/readyz`, the content base and `/r`, the analytics base and `/track`, notifications, agent runs, Slack and Teams. Each is owned by one core member, whether or not that member is composed. A route reaching one is refused (`CompositionError::ReservedPrefix`).
+**Bases.** An install member's base is `ApiBase::Extension(path)`, where the path starts with `/api/`, contains no `.` and does not cover a reserved path (`ContributionError::InvalidBase`), or the web root (`BasePath::Web(WebBase::Root)`). A closed core API base is refused (`CompositionError::NotConferred`), as is `/track/engagement`. A set at the web root is protected route by route, so its gate never answers a path it does not route.
 
-**No root fallback.** An install cannot serve a catch-all at the root: `service("/")`, `/{*path}` and `/{slug}` are refused, and one opaque `service` cannot cover all of `/api/public`. Serve a fallback under an explicit prefix of the member's own base.
+**Reserved paths.** Every route's full path, parameter, catch-all and `service` prefix is checked at admission, and re-checked when the server mounts it, against `systemprompt_extension::reserved::RESERVED_PATHS`: discovery, `/api/v1/auth/me`, the meta, OAuth, users, agents, MCP, stream, files, scheduler, core, admin, brain, documents, document folders, uploads, internal, issues, marketplace, sync, webhook, health and consumer API prefixes, the gateway (`/v1` and `/api/public/gateway`), `/.well-known`, `/`, `/health`, `/livez`, `/readyz`, `/auth/link-passkey`, the content base and `/r`, the analytics base and `/track`, notifications and admin notifications, agent runs, Slack, Teams and the cloud tenants path. Each is owned by one core member, whether or not that member is composed. A route reaching one is refused (`CompositionError::ReservedPrefix`).
 
-**Privileged shapes.** A handler-verified policy, the `HandlerResolved` context, a body limit above the server default, a base outside `/api/` and a reserved CLI path are held only by the core member that `PRIVILEGED_SHAPES` or `RESERVED_CLI_PATHS` names, and only in exactly the listed shape. An install member using one is refused at admission, and the mount re-checks every admitted entry that uses a privilege.
+**No root fallback.** An install cannot serve a catch-all at the root: `service("/")`, `/{*path}` and `/{slug}` are refused, and one opaque `service` cannot cover all of `/api/public`. Serve a fallback under an explicit prefix of the member's own base. The tree's one fallback is the kernel's static content: it is layered whole, so a declared site auth and the public context cover every page it serves, and a second claim on it refuses boot (`MountError::SecondRootFallback`).
 
-Gateway routes (`c.gateway_route(GatewayRouteDecl)`, built with `RouteSet::gateway`) are admitted against the built-in gateway prefixes and each other (`GatewayRouteShadowsBuiltin`, `GatewayRouteOverlap`) and keep the gateway credential, bearer window and access log.
+**Privileged shapes.** A handler-verified policy, the `HandlerResolved` context, a body limit above the server default, a closed core base, `/track/engagement`, a gateway path and a reserved CLI path are held only by the core member that `PRIVILEGED_SHAPES` or `RESERVED_CLI_PATHS` names, and only in exactly the listed shape. An install member using one is refused at admission, and the mount re-checks every admitted entry that uses a privilege.
+
+Gateway routes (`c.gateway_route(GatewayRouteDecl)`, built with `RouteSet::gateway`) are held only by the core member a gateway path is listed for. Each is admitted against the built-in gateway prefixes and the others (`GatewayRouteShadowsBuiltin`, `GatewayRouteOverlap`); every route of the set lies within its claimed gateway path (`GatewayRouteOutsideClaim`) and under no built-in gateway prefix (`GatewayRouteUnderBuiltin`), and two gateway routes claiming one request conflict (`RouteConflict`). The mount re-checks each rule. Admitted gateway routes keep the gateway credential, bearer window and access log.
 
 ### Jobs
 
@@ -205,8 +209,8 @@ A job's `JobContext` reads the host context with `ctx.get::<Arc<dyn ExtensionCon
 
 A member command:
 
-- needs a profile; it is refused on a bare `--database-url` run;
-- reads state through `host.resolved().await`, which refuses the kernel's sealed values: the configuration, the secret store, the system admin, the active services root, the event router, the secrets sources, environment overrides, the boot context and the application context;
+- needs a profile, unless it declares `DbUrlRouting::Direct`: on a bare `--database-url` run (no profile) a `Direct` command runs over every linked member with none disabled, whatever its standing, and any other member command is refused (`ProfileRequired`);
+- reads state through `host.resolved().await`, which withholds the kernel's sealed values (the configuration, the secret store, the system admin, the active services root and the event router) and holds no secrets sources, environment overrides, boot context or application context. A value a member's own provide fn builds from a sealed value is not withheld, so an install that wraps one hands it to its commands;
 - may request kernel grants with `CommandDecl::requesting` only on a reserved CLI path its core owner holds (`admin mcp`, `analytics`, `cloud`). An install member holds no reserved CLI path, so a grant request by an install is refused (`CompositionError::GrantNotConferred`), as is a command at a reserved path (`ReservedCliPath`) or a path declared twice.
 
 ### User purge of the member's own tables
@@ -251,9 +255,10 @@ A failing entry refuses the slot build (`SlotError::Entry`, `SlotError::Refused`
 Admission refuses, before anything the member declares runs:
 
 - a core member id, or a duplicate id;
-- a route reaching a reserved path, a root fallback, or a base not under `/api/`;
+- a route reaching a reserved path, a root fallback, or a base other than its own `/api/` extension base or the web root;
 - a privileged route shape, a reserved CLI path or a kernel grant;
 - a table, purge table or orphan sweep over a table it does not create, or a table recorded to another member;
+- a pending migration altering, dropping, truncating or renaming another member's table, or holding a `DO` block;
 - a second provider of a type, a type the kernel inserts, or a value substituting for a core requirement;
 - an audience resolver for a reserved subject or dimension, or a subject provider declaring `user`, `role` or `traffic`;
 - a slot entry that replaces a core-only seam.
@@ -284,11 +289,11 @@ extensions:
     - demo-extension
 ```
 
-A disabled member's contributions are dropped at admission, before any provide fn, factory, slot build or asset closure runs:
+A disabled member's contributions are dropped at admission, before any provide fn, factory, slot build or asset closure runs. Its `contribute` still runs, since that is how its declarations are read, and only stores:
 
-- its code never runs: no routes are mounted, no commands are offered, no jobs, retention, guards, seams or providers are built;
+- none of its contributions runs: no routes are mounted, no commands are offered, no jobs, retention, guards, seams or providers are built;
 - its job names are unknown: a scheduler config naming one is refused at validation, `admin config validate` reports it as not contributed, and `infra jobs prune` treats its rows as prunable;
-- its recorded tables are kept: the schema installer does not drop them and no other member can claim them;
+- its recorded tables are kept: the schema installer does not drop them, no other member can claim them, and no other member's pending migration can alter, drop, truncate or rename them. A member disabled before its first recorded install has no record until it is next enabled;
 - a user purge still covers them, through the purge declarations recorded when the member was last installed.
 
 An id in `extensions.disabled` that names no composed member fails boot, as do a disabled required member, an enabled member that depends on a disabled one, and an enabled member requiring a type only a disabled member provides.
@@ -352,7 +357,7 @@ Core owns these contracts so a member never reimplements them against core table
 ## Upgrading from 0.82
 
 - Move each defaulted hook body (`schemas`, `migrations`, `routers`, `jobs`, `provide`, `requires`, the seam hooks) into `contribute`, and replace each `register_*!`/`submit_*!` registration with the matching `Contributions` method or the owning crate's `contract` slot. Drop the `inventory` dependency.
-- Replace `ExtensionRouter` with `RouteSet`s under the member's own `/api/` base, and any root fallback with an explicit prefix.
+- Replace `ExtensionRouter` with `RouteSet`s under the member's own `/api/` base or the web root, and any root fallback with an explicit prefix.
 - Move command groups to `run(&dyn CommandHost) -> CommandOutput`.
 - Replace the binary's `main` with `reference().with(..).run()`.
 - Run one install with every member enabled, so table ownership and purge declarations are recorded for each member. A profile with disabled members runs one full schema install on its next boot.
