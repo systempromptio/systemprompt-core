@@ -145,9 +145,7 @@ pub enum CloudCommands {
 impl DescribeCommand for CloudCommands {
     fn descriptor(&self) -> CommandDescriptor {
         match self {
-            Self::Deploy { .. } => {
-                CommandDescriptor::PROFILE_ONLY.with_data_impact(DataImpact::Destructive)
-            },
+            Self::Deploy { .. } => CommandDescriptor::NONE.with_data_impact(DataImpact::Preserving),
             Self::Doctor { .. } | Self::Backup { .. } | Self::Status => {
                 CommandDescriptor::PROFILE_ONLY
             },
@@ -182,17 +180,19 @@ pub async fn execute(cmd: CloudCommands, host: &dyn CommandHost) -> Result<Comma
         CloudCommands::Profile { command } => profile::execute(command, host).await,
         CloudCommands::Deploy {
             skip_push,
-            profile: _,
+            profile,
             check,
             wait,
         } => {
             deploy::execute(
                 deploy::DeployArgs {
                     skip_push,
-                    profile: DeployProfile::load(host.profile_path()?)?,
+                    profile_name: profile_name(profile)?,
                     check,
                     wait,
                 },
+                host.prompter(),
+                host.output(),
                 host.children(),
                 &AdmittedViews::resolve(host).await?,
             )

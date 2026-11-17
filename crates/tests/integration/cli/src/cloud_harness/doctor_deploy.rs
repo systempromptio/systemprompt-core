@@ -134,7 +134,7 @@ async fn deploy_check_blocks_on_failing_preflight() {
     let dir = write_cloud_profile(&env, "dep-check");
     std::fs::write(dir.join("secrets.json"), "{}").expect("empty secrets");
 
-    let err = cloud::execute(deploy_cmd(Some("dep-check"), true), &named_profile_ctx("dep-check"))
+    let err = cloud::execute(deploy_cmd(Some("dep-check"), true), &json_ctx())
         .await
         .expect_err("preflight blocks deploy");
     assert!(err.to_string().contains("preflight"));
@@ -157,11 +157,20 @@ async fn deploy_check_passes_without_deploying() {
     )
     .expect("write full secrets");
 
-    cloud::execute(deploy_cmd(Some("dep-pass"), true), &named_profile_ctx("dep-pass"))
+    cloud::execute(deploy_cmd(Some("dep-pass"), true), &json_ctx())
         .await
         .expect("check-only deploy passes");
 
     remove_profile(&env, "dep-pass");
+}
+
+#[tokio::test]
+async fn deploy_requires_profile_non_interactive() {
+    let _env = enter().await;
+    let err = cloud::execute(deploy_cmd(None, false), &json_ctx())
+        .await
+        .expect_err("needs --profile");
+    assert!(err.to_string().contains("--profile"));
 }
 
 #[tokio::test]
@@ -453,7 +462,7 @@ async fn deploy_skip_push_builds_owned_image_syncs_secrets_and_requests_deploy()
                 check: false,
                 wait: false,
             },
-            &named_profile_ctx(name),
+            &json_ctx(),
         ),
     )
     .await
@@ -717,7 +726,7 @@ async fn run_failure_deploy(name: &str) -> Result<(), String> {
                 check: false,
                 wait: false,
             },
-            &named_profile_ctx(name),
+            &json_ctx(),
         ),
     )
     .await
@@ -947,7 +956,7 @@ async fn deployment_logs_in_with_stdin_pushes_exact_image_then_provisions() {
                 check: false,
                 wait: false,
             },
-            &named_profile_ctx(name),
+            &json_ctx(),
         ),
     )
     .await
