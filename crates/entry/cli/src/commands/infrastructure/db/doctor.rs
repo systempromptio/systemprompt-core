@@ -181,16 +181,6 @@ fn report_output(
             ),
         ));
     }
-    if !unparseable_schemas.is_empty() {
-        notes.push(NoticeLine::new(
-            "warning",
-            format!(
-                "{} declared schema(s) do not parse; their tables are not attributed to their \
-                 member",
-                unparseable_schemas.len()
-            ),
-        ));
-    }
     if undeclared.is_empty()
         && unparseable_schemas.is_empty()
         && orphan_ledgers.is_empty()
