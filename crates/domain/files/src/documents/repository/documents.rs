@@ -5,6 +5,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::documents::transient::retry_conflicts;
 use chrono::{DateTime, Utc};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{
@@ -68,6 +69,10 @@ impl DocumentRepository {
     }
 
     pub async fn insert(&self, request: NewDocument) -> RepoResult<Document> {
+        retry_conflicts(|| self.insert_once(request.clone())).await
+    }
+
+    async fn insert_once(&self, request: NewDocument) -> RepoResult<Document> {
         let folder: Vec<&str> = request
             .folder_id
             .iter()

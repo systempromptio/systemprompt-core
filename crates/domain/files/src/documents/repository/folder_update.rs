@@ -5,6 +5,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::documents::transient::retry_conflicts;
 use systemprompt_identifiers::DocumentFolderId;
 use systemprompt_models::documents::AgentEditPolicy;
 
@@ -31,6 +32,10 @@ pub enum FolderUpdateOutcome {
 
 impl DocumentFolderRepository {
     pub async fn update(&self, update: FolderUpdate<'_>) -> RepoResult<FolderUpdateOutcome> {
+        retry_conflicts(|| self.update_once(update)).await
+    }
+
+    async fn update_once(&self, update: FolderUpdate<'_>) -> RepoResult<FolderUpdateOutcome> {
         let mut touched = vec![update.folder.as_str()];
         touched.extend(
             update

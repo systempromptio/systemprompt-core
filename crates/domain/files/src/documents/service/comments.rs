@@ -13,6 +13,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::documents::transient::retry_conflicts;
 use systemprompt_identifiers::{
     DocumentCommentId, DocumentId, DocumentRevisionId, TraceId, UserId,
 };
@@ -125,6 +126,15 @@ impl DocumentService {
     }
 
     async fn store_comment(
+        &self,
+        new: NewComment,
+        grants: &MentionGrants,
+        context: MentionContext<'_>,
+    ) -> Result<DocumentComment, DocumentsError> {
+        retry_conflicts(|| self.store_comment_once(new.clone(), grants, context)).await
+    }
+
+    async fn store_comment_once(
         &self,
         new: NewComment,
         grants: &MentionGrants,

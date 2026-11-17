@@ -105,18 +105,23 @@ impl DocumentService {
             written: Vec::new(),
             created: Vec::new(),
         };
-        let mut tx = self.repos.documents.begin().await?;
-        let claim = AckClaim {
-            document: &request.document_id,
-            op_id,
-            user: &who.id,
-            request_sha256: &digest,
-            ack: &ack,
-        };
-        let taken = DocumentWriteAckRepository::claim(&mut tx, claim).await?;
-        tx.commit()
-            .await
-            .map_err(|error| DocumentsError::Repository(RepositoryError::from(error)))?;
+        let (digest, ack) = (&digest, &ack);
+        let taken = crate::documents::transient::retry_conflicts(|| async move {
+            let mut tx = self.repos.documents.begin().await?;
+            let claim = AckClaim {
+                document: &request.document_id,
+                op_id,
+                user: &who.id,
+                request_sha256: digest,
+                ack,
+            };
+            let taken = DocumentWriteAckRepository::claim(&mut tx, claim).await?;
+            tx.commit()
+                .await
+                .map_err(|error| DocumentsError::Repository(RepositoryError::from(error)))?;
+            Ok::<_, DocumentsError>(taken)
+        })
+        .await?;
         Ok(taken.is_none().then_some(op_id))
     }
 

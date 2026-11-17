@@ -21,6 +21,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::documents::transient::retry_conflicts;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContentHash, DocumentEditSessionId, UserId};
 
@@ -80,6 +81,15 @@ impl DocumentCollabRepository {
     }
 
     pub async fn append(
+        &self,
+        session: &DocumentEditSessionId,
+        update: &[u8],
+        author: UpdateAuthor<'_>,
+    ) -> RepoResult<Option<i64>> {
+        retry_conflicts(|| self.append_once(session, update, author)).await
+    }
+
+    async fn append_once(
         &self,
         session: &DocumentEditSessionId,
         update: &[u8],
@@ -251,6 +261,14 @@ impl DocumentCollabRepository {
     }
 
     pub async fn set_snapshot(
+        &self,
+        session: &DocumentEditSessionId,
+        snapshot: SnapshotMark<'_>,
+    ) -> RepoResult<bool> {
+        retry_conflicts(|| self.set_snapshot_once(session, snapshot)).await
+    }
+
+    async fn set_snapshot_once(
         &self,
         session: &DocumentEditSessionId,
         snapshot: SnapshotMark<'_>,

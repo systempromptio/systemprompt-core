@@ -62,6 +62,7 @@ pub(super) fn check_mention_options(
     Ok(())
 }
 
+#[derive(Clone, Copy)]
 pub(super) struct MentionContext<'a> {
     pub(super) who: &'a AuthenticatedUser,
     pub(super) document: &'a Document,
@@ -70,6 +71,7 @@ pub(super) struct MentionContext<'a> {
     pub(super) options: &'a [MentionOption],
 }
 
+#[derive(Clone, Copy)]
 pub(super) struct MentionNotice<'a> {
     pub(super) context: MentionContext<'a>,
     pub(super) comment: &'a DocumentCommentId,

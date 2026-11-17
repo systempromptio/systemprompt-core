@@ -49,6 +49,8 @@ mod documents_actor;
 #[cfg(test)]
 mod documents_mcp_browse_share;
 #[cfg(test)]
+mod documents_mcp_conflict_retry;
+#[cfg(test)]
 mod documents_mcp_content;
 #[cfg(test)]
 mod documents_mcp_export;

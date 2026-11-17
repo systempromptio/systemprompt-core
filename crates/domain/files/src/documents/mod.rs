@@ -61,6 +61,7 @@ pub mod revision;
 pub mod service;
 mod sharing_events;
 pub mod templates;
+pub mod transient;
 
 pub use access::{
     AccessCheck, AccessTarget, DocumentAccessRepositories, DocumentAccessService, Granted,

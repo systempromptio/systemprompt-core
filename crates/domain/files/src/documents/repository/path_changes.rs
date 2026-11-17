@@ -10,6 +10,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::documents::transient::retry_conflicts;
 use systemprompt_identifiers::{DocumentFolderId, DocumentId, UserId};
 
 use super::documents::DocumentRepository;
@@ -18,7 +19,7 @@ use super::rows::RepoResult;
 use crate::documents::models::{DriveCursor, SubjectPairs};
 
 /// The path a document had and has after one trash, restore, rename or move.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PathMove<'a> {
     pub from: &'a str,
     pub to: &'a str,
@@ -79,6 +80,15 @@ impl DocumentRepository {
     }
 
     pub async fn move_to(
+        &self,
+        id: &DocumentId,
+        folder: Option<&DocumentFolderId>,
+        paths: PathMove<'_>,
+    ) -> RepoResult<bool> {
+        retry_conflicts(|| self.move_to_once(id, folder, paths)).await
+    }
+
+    async fn move_to_once(
         &self,
         id: &DocumentId,
         folder: Option<&DocumentFolderId>,
