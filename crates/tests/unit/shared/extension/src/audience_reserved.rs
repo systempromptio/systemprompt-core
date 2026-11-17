@@ -16,6 +16,7 @@ use systemprompt_models::notifications::AudienceSubject;
 struct Claims {
     name: &'static str,
     claims: fn(&AudienceSubject) -> bool,
+    dimensions: &'static [&'static str],
     held: Vec<AudienceSubject>,
 }
 
@@ -27,6 +28,10 @@ impl NotificationAudienceResolver for Claims {
 
     fn handles(&self, subject: &AudienceSubject) -> bool {
         (self.claims)(subject)
+    }
+
+    fn dimensions(&self) -> &'static [&'static str] {
+        self.dimensions
     }
 
     async fn members(
@@ -53,13 +58,17 @@ impl NotificationAudienceResolver for Claims {
 fn resolver(
     name: &'static str,
     claims: fn(&AudienceSubject) -> bool,
+    dimensions: &'static [&'static str],
 ) -> Arc<dyn NotificationAudienceResolver> {
     Arc::new(Claims {
         name,
         claims,
+        dimensions,
         held: Vec::new(),
     })
 }
+
+const DEPARTMENT: &[&str] = &["department"];
 
 fn roles(subject: &AudienceSubject) -> bool {
     !matches!(subject, AudienceSubject::Dimension { .. })
@@ -81,16 +90,45 @@ fn core(name: &'static str, claims: fn(&AudienceSubject) -> bool) -> AudienceEnt
     AudienceEntry {
         owner: ExtensionId::new("users"),
         standing: StandingTag::Core,
-        resolver: resolver(name, claims),
+        resolver: resolver(name, claims, &[]),
     }
 }
 
 fn install(name: &'static str, claims: fn(&AudienceSubject) -> bool) -> AudienceEntry {
+    let dimensions: &'static [&'static str] = if claims(&dimension("department")) {
+        DEPARTMENT
+    } else {
+        &[]
+    };
+    install_of("acme", name, claims, dimensions)
+}
+
+fn install_of(
+    owner: &'static str,
+    name: &'static str,
+    claims: fn(&AudienceSubject) -> bool,
+    dimensions: &'static [&'static str],
+) -> AudienceEntry {
     AudienceEntry {
-        owner: ExtensionId::new("acme"),
+        owner: ExtensionId::new(owner),
         standing: StandingTag::Install,
-        resolver: resolver(name, claims),
+        resolver: resolver(name, claims, dimensions),
     }
+}
+
+fn dimension(kind: &str) -> AudienceSubject {
+    AudienceSubject::Dimension {
+        kind: kind.to_owned(),
+        value: "probe".to_owned(),
+    }
+}
+
+fn team(subject: &AudienceSubject) -> bool {
+    matches!(subject, AudienceSubject::Dimension { kind, .. } if kind == "team")
+}
+
+fn region(subject: &AudienceSubject) -> bool {
+    matches!(subject, AudienceSubject::Dimension { kind, .. } if kind == "region")
 }
 
 fn ask<'a>(
@@ -174,6 +212,10 @@ impl NotificationAudienceResolver for Sly {
         matches!(subject, AudienceSubject::Role(role) if role == "admin") || department(subject)
     }
 
+    fn dimensions(&self) -> &'static [&'static str] {
+        &["department"]
+    }
+
     async fn members(
         &self,
         _subject: &AudienceSubject,
@@ -231,4 +273,68 @@ async fn an_install_resolver_is_never_asked_a_reserved_subject() {
     assert!(
         matches!(held.first(), Some(AudienceSubject::Dimension { kind, .. }) if kind == "department")
     );
+}
+
+#[test]
+fn two_installs_declaring_the_same_dimension_are_refused_naming_both() {
+    let err = AudienceResolvers::new(vec![
+        install_of("acme", "acme-teams", team, &["team"]),
+        install_of("globex", "globex-teams", team, &["team"]),
+    ])
+    .expect_err("two resolvers cannot both declare team");
+    assert!(
+        matches!(
+            &err,
+            SlotError::SharedAudienceDimension { dimension, first_owner, first, second_owner, second }
+                if dimension == "team"
+                    && first_owner.as_str() == "acme"
+                    && *first == "acme-teams"
+                    && second_owner.as_str() == "globex"
+                    && *second == "globex-teams"
+        ),
+        "unexpected error: {err:?}"
+    );
+}
+
+#[test]
+fn a_dimension_one_install_declares_and_another_handles_is_refused() {
+    let err = AudienceResolvers::new(vec![
+        install_of("acme", "acme-teams", team, &["team"]),
+        install_of("globex", "globex-teams", team, &[]),
+    ])
+    .expect_err("a resolver handling a declared dimension shadows it");
+    assert!(
+        matches!(
+            &err,
+            SlotError::SharedAudienceDimension { dimension, first_owner, second_owner, .. }
+                if dimension == "team"
+                    && first_owner.as_str() == "acme"
+                    && second_owner.as_str() == "globex"
+        ),
+        "unexpected error: {err:?}"
+    );
+}
+
+#[test]
+fn distinct_declared_dimensions_build_the_set() {
+    let set = AudienceResolvers::new(vec![
+        install_of("acme", "acme-teams", team, &["team"]),
+        install_of("globex", "globex-regions", region, &["region"]),
+    ])
+    .expect("distinct dimensions are each their member's own");
+    assert_eq!(
+        ask(&set, &dimension("team")).map(|r| r.name()),
+        Some("acme-teams")
+    );
+    assert_eq!(
+        ask(&set, &dimension("region")).map(|r| r.name()),
+        Some("globex-regions")
+    );
+}
+
+#[test]
+fn an_install_is_not_consulted_for_a_dimension_it_does_not_declare() {
+    let set = AudienceResolvers::new(vec![install_of("acme", "acme-teams", team, &[])])
+        .expect("an undeclared handler builds");
+    assert!(ask(&set, &dimension("team")).is_none());
 }

@@ -349,8 +349,12 @@ impl NotificationAudienceResolver for StubAudience {
         "stub-roles"
     }
 
-    fn handles(&self, _: &AudienceSubject) -> bool {
-        true
+    fn handles(&self, subject: &AudienceSubject) -> bool {
+        !matches!(subject, AudienceSubject::Dimension { .. })
+    }
+
+    fn dimensions(&self) -> &'static [&'static str] {
+        &[]
     }
 
     async fn members(
@@ -564,6 +568,10 @@ impl NotificationAudienceResolver for DimensionAudience {
 
     fn handles(&self, subject: &AudienceSubject) -> bool {
         matches!(subject, AudienceSubject::Dimension { kind, .. } if kind == "group")
+    }
+
+    fn dimensions(&self) -> &'static [&'static str] {
+        &["group"]
     }
 
     async fn members(

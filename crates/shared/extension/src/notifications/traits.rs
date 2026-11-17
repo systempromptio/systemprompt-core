@@ -62,15 +62,17 @@ pub enum Membership {
 
 /// Expands an audience subject to users; held as
 /// `Arc<dyn NotificationAudienceResolver>`.
+///
+/// `dimensions` names every custom `Dimension` kind the resolver answers.
+/// An install resolver is consulted only for the kinds it declares, and two
+/// resolvers declaring the same kind refuse the audience set.
 #[async_trait::async_trait]
 pub trait NotificationAudienceResolver: Send + Sync {
     fn name(&self) -> &'static str;
 
     fn handles(&self, subject: &AudienceSubject) -> bool;
 
-    fn dimensions(&self) -> &'static [&'static str] {
-        &[]
-    }
+    fn dimensions(&self) -> &'static [&'static str];
 
     async fn members(
         &self,

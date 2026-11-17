@@ -26,6 +26,10 @@ impl NotificationAudienceResolver for Team {
         matches!(subject, AudienceSubject::Dimension { kind, .. } if kind == "team")
     }
 
+    fn dimensions(&self) -> &'static [&'static str] {
+        &["team"]
+    }
+
     async fn members(
         &self,
         subject: &AudienceSubject,
