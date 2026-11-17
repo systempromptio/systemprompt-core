@@ -41,7 +41,6 @@ use super::super::migration_owners::{
 };
 use super::super::prepare::PreparedSchema;
 use super::super::undeclared::qualify;
-use super::ExtensionSet;
 use crate::lifecycle::migrations::MigrationService;
 use crate::services::DatabaseProvider;
 
@@ -97,10 +96,10 @@ impl TableOwners {
 pub(super) async fn check_pending_migration_owners(
     owners: &TableOwners,
     migration_service: &MigrationService<'_>,
-    members: &ExtensionSet,
-    held_back: &ExtensionSet,
+    judged: MigrationMembers<'_>,
     prepared: &[PreparedSchema],
 ) -> Result<(), LoaderError> {
+    let members = judged.judged;
     let fresh = super::fresh_extension_ids(migration_service, members, prepared).await?;
     let mut applied: BTreeMap<ExtensionId, BTreeSet<u32>> = BTreeMap::new();
     for member in members
@@ -120,10 +119,6 @@ pub(super) async fn check_pending_migration_owners(
         applied
             .get(id)
             .is_some_and(|versions| !versions.contains(&migration.version))
-    };
-    let judged = MigrationMembers {
-        judged: members,
-        held_back,
     };
     check_migration_ownership(judged, &owners.recorded(), &pending).map_err(|error| {
         LoaderError::SchemaInstallationStepFailed {

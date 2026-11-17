@@ -63,7 +63,6 @@ mod statements;
 
 pub use kinds::{HiddenSql, TableMutation};
 
-/// The kernel's ledger and record tables, owned by the `database` member.
 pub const KERNEL_LEDGERS: [&str; 6] = [
     "public.extension_migrations",
     "public.extension_migration_compat",
@@ -187,6 +186,16 @@ impl MigrationOwnershipError {
 pub struct MigrationMembers<'a> {
     pub judged: &'a [Arc<dyn SchemaMember>],
     pub held_back: &'a [Arc<dyn SchemaMember>],
+}
+
+impl<'a> MigrationMembers<'a> {
+    #[must_use]
+    pub const fn new(
+        judged: &'a [Arc<dyn SchemaMember>],
+        held_back: &'a [Arc<dyn SchemaMember>],
+    ) -> Self {
+        Self { judged, held_back }
+    }
 }
 
 impl std::fmt::Debug for MigrationMembers<'_> {
