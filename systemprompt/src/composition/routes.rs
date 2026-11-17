@@ -8,7 +8,7 @@
 use systemprompt_extension::admitted::{AdmittedGatewayRoute, AdmittedRouteSet};
 use systemprompt_extension::reserved::CoreId;
 use systemprompt_extension::router::{
-    Allowance, ApiBase, BasePath, BaseRef, GatewayDefRefusal, RouteSet, WebBase, first_overlap,
+    Allowance, ApiBase, BasePath, BaseRef, GatewayDefRefusal, RouteDef, RouteSet, WebBase, first_overlap,
     path_covers, refused_gateway_def, refused_reservation,
 };
 use systemprompt_extension::{ContributionError, StandingTag};
@@ -58,12 +58,11 @@ pub(super) fn admit_route_set(
             .filter(|c| {
                 c.group == set.group()
                     && c.shape == def.spec.shape()
-                    && match c.routes {
-                        Some(routes) => routes
+                    && c.routes.map_or(!pinned, |routes| {
+                        routes
                             .iter()
-                            .any(|(m, p)| *m == def.method && *p == def.path.as_str()),
-                        None => !pinned,
-                    }
+                            .any(|(m, p)| *m == def.method && *p == def.path.as_str())
+                    })
             })
             .count();
         if matches != 1 {
@@ -103,7 +102,7 @@ fn admit_services(
     set: &RouteSet,
     unconferred: bool,
 ) -> Result<(), CompositionError> {
-    if !set.defs().iter().any(|def| def.is_service()) {
+    if !set.defs().iter().any(RouteDef::is_service) {
         return Ok(());
     }
     let open_base = matches!(

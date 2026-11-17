@@ -106,10 +106,13 @@ impl CliCommandGroup for DemoCommands {
     const NAME: &'static str = "demo";
     const ABOUT: &'static str = "Demo extension commands";
 
-    async fn run(self, _host: &dyn CommandHost) -> Result<CommandOutput, CommandError> {
-        match self {
+    fn run(
+        self,
+        _host: &dyn CommandHost,
+    ) -> impl Future<Output = Result<CommandOutput, CommandError>> + Send {
+        std::future::ready(match self {
             Self::Status => Ok(CommandOutput::text("demo extension is installed")),
-        }
+        })
     }
 }
 

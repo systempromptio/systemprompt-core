@@ -54,121 +54,84 @@ pub(super) fn is_core_member_id(id: &str) -> bool {
 
 #[must_use]
 pub fn reference() -> Composition {
-    let mut members: Vec<Member> = Vec::new();
-    #[cfg(feature = "database")]
-    members.push(Member::core::<systemprompt_database::DatabaseExtension>(
-        CoreTerms::OPTIONAL,
-    ));
-    #[cfg(feature = "events")]
-    members.push(Member::core::<systemprompt_events::EventsExtension>(
-        CoreTerms::OPTIONAL,
-    ));
-    #[cfg(feature = "full")]
-    members.push(Member::core::<systemprompt_users::UsersExtension>(
-        CoreTerms::REQUIRED,
-    ));
-    #[cfg(feature = "logging")]
-    members.push(Member::core::<systemprompt_logging::LoggingExtension>(
-        CoreTerms::REQUIRED,
-    ));
-    #[cfg(feature = "security")]
-    members
-        .push(Member::core::<systemprompt_governance::authz::AuthzExtension>(CoreTerms::REQUIRED));
-    #[cfg(feature = "full")]
-    members.push(Member::core::<systemprompt_oauth::OauthExtension>(
-        CoreTerms::OPTIONAL,
-    ));
-    #[cfg(feature = "api")]
-    members
-        .push(Member::core::<systemprompt_oauth_issuance::IdentityExtension>(CoreTerms::OPTIONAL));
-    #[cfg(feature = "full")]
-    members.push(Member::core::<systemprompt_mcp::McpExtension>(
-        CoreTerms::OPTIONAL,
-    ));
-    #[cfg(feature = "api")]
-    members.push(Member::core::<systemprompt_mcp_host::McpHostExtension>(
-        CoreTerms::OPTIONAL,
-    ));
-    #[cfg(feature = "full")]
-    members.push(Member::core::<systemprompt_ai::AiExtension>(
-        CoreTerms::OPTIONAL,
-    ));
-    #[cfg(feature = "full")]
-    members.push(Member::core::<systemprompt_agent::AgentExtension>(
-        CoreTerms::OPTIONAL,
-    ));
-    #[cfg(feature = "analytics")]
-    members.push(Member::core::<systemprompt_analytics::AnalyticsExtension>(
-        CoreTerms::REQUIRED,
-    ));
-    #[cfg(feature = "content")]
-    members.push(Member::core::<systemprompt_content::ContentExtension>(
-        CoreTerms::OPTIONAL,
-    ));
-    #[cfg(feature = "full")]
-    members.push(Member::core::<systemprompt_files::FilesExtension>(
-        CoreTerms::REQUIRED,
-    ));
-    #[cfg(feature = "brain")]
-    members.push(Member::core::<systemprompt_brain::BrainExtension>(
-        CoreTerms::OPTIONAL,
-    ));
-    #[cfg(feature = "notifications")]
-    members.push(Member::core::<
-        systemprompt_notifications::NotificationsExtension,
-    >(CoreTerms::OPTIONAL));
-    #[cfg(feature = "full")]
-    members.push(Member::core::<
-        systemprompt_marketplace::ManagedResourcesExtension,
-    >(CoreTerms::REQUIRED));
-    #[cfg(feature = "api")]
-    members.push(Member::core::<
-        systemprompt_gateway::extension::GatewayExtension,
-    >(CoreTerms::OPTIONAL));
-    #[cfg(feature = "agent-runs")]
-    members.push(Member::core::<systemprompt_agent_runs::AgentRunsExtension>(
-        CoreTerms::OPTIONAL,
-    ));
-    #[cfg(feature = "full")]
-    members.push(Member::core::<systemprompt_generator::GeneratorExtension>(
-        CoreTerms::OPTIONAL,
-    ));
-    #[cfg(feature = "full")]
-    members.push(Member::core::<systemprompt_scheduler::SchedulerExtension>(
-        CoreTerms::OPTIONAL,
-    ));
-    #[cfg(feature = "content")]
-    members.push(Member::core::<
-        systemprompt_content_entry::extension::ContentHttpExtension,
-    >(CoreTerms::conferred(CoreId::ContentHttp)));
-    #[cfg(feature = "analytics")]
-    members.push(Member::core::<
-        systemprompt_analytics_entry::extension::AnalyticsHttpExtension,
-    >(CoreTerms::conferred(CoreId::AnalyticsHttp)));
-    #[cfg(feature = "notifications")]
-    members.push(Member::core::<
-        systemprompt_notifications_entry::extension::NotificationsHttpExtension,
-    >(CoreTerms::conferred(CoreId::NotificationsHttp)));
-    #[cfg(all(feature = "agent-runs", feature = "api"))]
-    members.push(Member::core::<
-        systemprompt_agent_runs_entry::extension::AgentRunsApiExtension,
-    >(CoreTerms::conferred(CoreId::AgentRunsApi)));
-    #[cfg(all(feature = "cloud", feature = "cli"))]
-    members.push(Member::core::<systemprompt_cloud_entry::CloudCliExtension>(
-        CoreTerms::conferred(CoreId::Cloud),
-    ));
-    #[cfg(feature = "slack")]
-    members.push(Member::core::<systemprompt_slack_entry::SlackExtension>(
-        CoreTerms::conferred(CoreId::Slack),
-    ));
-    #[cfg(feature = "teams")]
-    members.push(Member::core::<systemprompt_teams_entry::TeamsExtension>(
-        CoreTerms::conferred(CoreId::Teams),
-    ));
+    let mut members = kernel_members();
+    members.extend(domain_members());
+    members.extend(entry_members());
     Composition {
         members,
         removed: Vec::new(),
         #[cfg(feature = "config")]
         secrets: Vec::new(),
     }
+}
+
+fn kernel_members() -> Vec<Member> {
+    vec![
+        #[cfg(feature = "database")]
+        Member::core::<systemprompt_database::DatabaseExtension>(CoreTerms::OPTIONAL),
+        #[cfg(feature = "events")]
+        Member::core::<systemprompt_events::EventsExtension>(CoreTerms::OPTIONAL),
+        #[cfg(feature = "full")]
+        Member::core::<systemprompt_users::UsersExtension>(CoreTerms::REQUIRED),
+        #[cfg(feature = "logging")]
+        Member::core::<systemprompt_logging::LoggingExtension>(CoreTerms::REQUIRED),
+        #[cfg(feature = "security")]
+        Member::core::<systemprompt_governance::authz::AuthzExtension>(CoreTerms::REQUIRED),
+        #[cfg(feature = "full")]
+        Member::core::<systemprompt_oauth::OauthExtension>(CoreTerms::OPTIONAL),
+        #[cfg(feature = "api")]
+        Member::core::<systemprompt_oauth_issuance::IdentityExtension>(CoreTerms::OPTIONAL),
+        #[cfg(feature = "full")]
+        Member::core::<systemprompt_mcp::McpExtension>(CoreTerms::OPTIONAL),
+        #[cfg(feature = "api")]
+        Member::core::<systemprompt_mcp_host::McpHostExtension>(CoreTerms::OPTIONAL),
+        #[cfg(feature = "full")]
+        Member::core::<systemprompt_ai::AiExtension>(CoreTerms::OPTIONAL),
+    ]
+}
+
+fn domain_members() -> Vec<Member> {
+    vec![
+        #[cfg(feature = "full")]
+        Member::core::<systemprompt_agent::AgentExtension>(CoreTerms::OPTIONAL),
+        #[cfg(feature = "analytics")]
+        Member::core::<systemprompt_analytics::AnalyticsExtension>(CoreTerms::REQUIRED),
+        #[cfg(feature = "content")]
+        Member::core::<systemprompt_content::ContentExtension>(CoreTerms::OPTIONAL),
+        #[cfg(feature = "full")]
+        Member::core::<systemprompt_files::FilesExtension>(CoreTerms::REQUIRED),
+        #[cfg(feature = "brain")]
+        Member::core::<systemprompt_brain::BrainExtension>(CoreTerms::OPTIONAL),
+        #[cfg(feature = "notifications")]
+        Member::core::<systemprompt_notifications::NotificationsExtension>(CoreTerms::OPTIONAL),
+        #[cfg(feature = "full")]
+        Member::core::<systemprompt_marketplace::ManagedResourcesExtension>(CoreTerms::REQUIRED),
+        #[cfg(feature = "api")]
+        Member::core::<systemprompt_gateway::extension::GatewayExtension>(CoreTerms::OPTIONAL),
+        #[cfg(feature = "agent-runs")]
+        Member::core::<systemprompt_agent_runs::AgentRunsExtension>(CoreTerms::OPTIONAL),
+        #[cfg(feature = "full")]
+        Member::core::<systemprompt_generator::GeneratorExtension>(CoreTerms::OPTIONAL),
+    ]
+}
+
+fn entry_members() -> Vec<Member> {
+    vec![
+        #[cfg(feature = "full")]
+        Member::core::<systemprompt_scheduler::SchedulerExtension>(CoreTerms::OPTIONAL),
+        #[cfg(feature = "content")]
+        Member::core::<systemprompt_content_entry::extension::ContentHttpExtension>(CoreTerms::conferred(CoreId::ContentHttp)),
+        #[cfg(feature = "analytics")]
+        Member::core::<systemprompt_analytics_entry::extension::AnalyticsHttpExtension>(CoreTerms::conferred(CoreId::AnalyticsHttp)),
+        #[cfg(feature = "notifications")]
+        Member::core::<systemprompt_notifications_entry::extension::NotificationsHttpExtension>(CoreTerms::conferred(CoreId::NotificationsHttp)),
+        #[cfg(all(feature = "agent-runs", feature = "api"))]
+        Member::core::<systemprompt_agent_runs_entry::extension::AgentRunsApiExtension>(CoreTerms::conferred(CoreId::AgentRunsApi)),
+        #[cfg(all(feature = "cloud", feature = "cli"))]
+        Member::core::<systemprompt_cloud_entry::CloudCliExtension>(CoreTerms::conferred(CoreId::Cloud)),
+        #[cfg(feature = "slack")]
+        Member::core::<systemprompt_slack_entry::SlackExtension>(CoreTerms::conferred(CoreId::Slack)),
+        #[cfg(feature = "teams")]
+        Member::core::<systemprompt_teams_entry::TeamsExtension>(CoreTerms::conferred(CoreId::Teams)),
+    ]
 }

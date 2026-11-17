@@ -280,7 +280,7 @@ impl Composition {
         let secrets = declared.secrets_sources();
         systemprompt_cli::run_composed(
             systemprompt_models::BuildIdentity::core(),
-            commands,
+            &commands,
             secrets,
             move |extensions: Option<&systemprompt_manifest::ExtensionsConfig>| {
                 match extensions {
