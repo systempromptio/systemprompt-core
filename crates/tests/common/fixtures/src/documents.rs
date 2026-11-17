@@ -149,7 +149,7 @@ pub fn fixture_documents_runtime_configured(
         .with(slot)
         .with(CoreSeam::<dyn NotificationAudienceResolver, RoleAudience>::new(roles));
     let admitted = crate::app_context::fixture_admitted_of(vec![Box::new(
-        systemprompt_files::FilesExtension::default(),
+        systemprompt_files::FilesExtension,
     )]);
     let kernel = crate::composed::resolved_kernel(pool, &admitted, seed)
         .expect("the files member resolves over the fixture seeds");

@@ -27,7 +27,7 @@ pub(super) fn core_plan() -> AdmittedPurge {
         .iter()
         .map(|table| {
             PurgeDeclaration::from(UserPurgeTable {
-                table: *table,
+                table,
                 column: "user_id",
                 predicate: None,
             })
