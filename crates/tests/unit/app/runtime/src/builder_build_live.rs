@@ -3,7 +3,9 @@
 //! profile/secrets/config (nextest is process-per-test), seeds or omits the
 //! configured system-admin row, and asserts either the assembled context or
 //! the exact `RuntimeError` variant. The build that installs schemas runs on
-//! its own database: an install takes `SHARE` locks on every table it
+//! its own database, as does the legacy-context rehome (there is one legacy
+//! context row, and every concurrent build on the shared database rehomes it
+//! onto its own admin): an install takes `SHARE` locks on every table it
 //! re-indexes, which deadlocks against writers on the shared database.
 
 use systemprompt_extension::{ContributionError, Contributions, Extension, ExtensionMetadata};
@@ -154,8 +156,10 @@ async fn build_fails_when_system_admin_lacks_admin_role() {
 async fn build_rehomes_the_legacy_context_onto_the_current_system_admin() {
     let previous = unique_admin("prev");
     let admin = unique_admin("cur");
+    let database = systemprompt_test_fixtures::DisposableDb::with_schema("legacy_rehome").await;
     let fixture = boot(&BootOptions {
         admin_username: admin.clone(),
+        database_url: Some(database.url().to_owned()),
         ..BootOptions::default()
     });
     let pool = seed_admin(
@@ -197,6 +201,8 @@ async fn build_rehomes_the_legacy_context_onto_the_current_system_admin() {
 
     remove_admin(&pool, &admin).await;
     remove_admin(&pool, &previous).await;
+    pool.close().await;
+    database.drop_now().await;
 }
 
 #[tokio::test]
