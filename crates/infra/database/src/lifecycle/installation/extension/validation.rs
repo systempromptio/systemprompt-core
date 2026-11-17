@@ -10,17 +10,21 @@ use crate::lifecycle::schema_member::SchemaMember;
 use systemprompt_extension::{LoaderError, SchemaFault};
 use systemprompt_identifiers::ExtensionId;
 
-use super::super::prepare::{ColumnsToValidate, PreparedSchema};
+use super::super::prepare::{ColumnsToValidate, PreparedSchema, prepare_extension_schema};
 use crate::services::DatabaseProvider;
 
 pub(super) fn validate_table_ownership(
     prepared: &[PreparedSchema],
-    held_back: &[PreparedSchema],
+    held_back: &[std::sync::Arc<dyn SchemaMember>],
     schema_extensions: &[std::sync::Arc<dyn SchemaMember>],
 ) -> Result<(), LoaderError> {
+    let held: Vec<PreparedSchema> = held_back
+        .iter()
+        .map(|ext| prepare_extension_schema(ext.as_ref()))
+        .collect::<Result<_, _>>()?;
     let mut owners: std::collections::HashMap<&str, &ExtensionId> =
         std::collections::HashMap::new();
-    for p in prepared.iter().chain(held_back) {
+    for p in prepared.iter().chain(&held) {
         for table in &p.owned_tables {
             if let Some(prev) = owners.insert(table.as_str(), &p.extension_id)
                 && *prev != p.extension_id

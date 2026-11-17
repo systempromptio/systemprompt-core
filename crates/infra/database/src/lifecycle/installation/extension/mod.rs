@@ -211,11 +211,7 @@ async fn prepare_and_check(
     for ext in schema_extensions {
         prepared.push(prepare_extension_schema(ext.as_ref())?);
     }
-    let held: Vec<PreparedSchema> = held_back
-        .iter()
-        .map(|ext| prepare_extension_schema(ext.as_ref()))
-        .collect::<Result<_, _>>()?;
-    validate_table_ownership(&prepared, &held, schema_extensions)?;
+    validate_table_ownership(&prepared, held_back, schema_extensions)?;
     let owners = recorded_table_owners(db).await?;
     check_recorded_owners(&owners, &prepared)?;
     check_pending_migration_owners(&owners, migration_service, schema_extensions, &prepared)
