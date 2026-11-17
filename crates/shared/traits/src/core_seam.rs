@@ -53,22 +53,47 @@ impl<T: ?Sized, K> fmt::Debug for CoreSeam<T, K> {
     }
 }
 
+/// A core seam kind, naming the member that provides the seam.
+pub trait CoreSeamKind {
+    const OWNER: &'static str;
+}
+
 /// The user-role audience resolver the `users` member provides.
 #[derive(Debug, Clone, Copy)]
 pub enum RoleAudience {}
+
+impl CoreSeamKind for RoleAudience {
+    const OWNER: &'static str = "users";
+}
 
 /// The document, folder and comment visibility the `files` member provides.
 #[derive(Debug, Clone, Copy)]
 pub enum DocumentVisibility {}
 
+impl CoreSeamKind for DocumentVisibility {
+    const OWNER: &'static str = "files";
+}
+
 /// The issue-report visibility the `files` member provides.
 #[derive(Debug, Clone, Copy)]
 pub enum IssueVisibility {}
+
+impl CoreSeamKind for IssueVisibility {
+    const OWNER: &'static str = "files";
+}
 
 /// The document-sourced fact access the `files` member provides.
 #[derive(Debug, Clone, Copy)]
 pub enum DocumentSourceAccess {}
 
+impl CoreSeamKind for DocumentSourceAccess {
+    const OWNER: &'static str = "files";
+}
+
 /// The document and comment source reader the `files` member provides.
 #[derive(Debug, Clone, Copy)]
 pub enum DocumentSourceContent {}
+
+impl CoreSeamKind for DocumentSourceContent {
+    const OWNER: &'static str = "files";
+}
