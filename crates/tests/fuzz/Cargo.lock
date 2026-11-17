@@ -1520,15 +1520,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "inventory"
-version = "0.3.25"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6928282826c822ad91bf1c9a1cb90a30ba1c26770749929b4656cd6be829cd7c"
-dependencies = [
- "rustversion",
-]
-
-[[package]]
 name = "ipnet"
 version = "2.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3542,7 +3533,6 @@ dependencies = [
  "futures",
  "hex",
  "http",
- "inventory",
  "reqwest",
  "rmcp",
  "serde",
@@ -3577,7 +3567,6 @@ dependencies = [
  "base64 0.23.1",
  "chrono",
  "futures",
- "inventory",
  "jsonschema",
  "metrics",
  "regex",
@@ -3629,7 +3618,6 @@ dependencies = [
  "base64 0.23.1",
  "chrono",
  "hex",
- "inventory",
  "nix",
  "rand 0.10.3",
  "reqwest",
@@ -3659,7 +3647,6 @@ dependencies = [
  "base64 0.23.1",
  "chrono",
  "futures-util",
- "inventory",
  "pg_query",
  "rand 0.10.3",
  "rust_decimal",
@@ -3682,9 +3669,10 @@ name = "systemprompt-extension"
 version = "0.83.0"
 dependencies = [
  "async-trait",
- "axum",
  "chrono",
- "inventory",
+ "http",
+ "pg_query",
+ "schemars",
  "serde",
  "serde_json",
  "sqlx",
@@ -3726,7 +3714,6 @@ dependencies = [
  "futures-util",
  "hex",
  "http",
- "inventory",
  "metrics",
  "rand 0.10.3",
  "reqwest",
@@ -3766,7 +3753,6 @@ dependencies = [
  "chrono",
  "hex",
  "hmac 0.13.0",
- "inventory",
  "metrics",
  "regex",
  "reqwest",
@@ -3781,6 +3767,7 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-manifest",
  "systemprompt-models",
+ "systemprompt-provider-contracts",
  "systemprompt-traits",
  "thiserror 2.0.21",
  "tokio",
@@ -3818,6 +3805,7 @@ dependencies = [
  "serde_yaml_ng",
  "sha2 0.11.1",
  "systemprompt-config",
+ "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-manifest",
  "systemprompt-models",
@@ -3837,7 +3825,6 @@ version = "0.83.0"
 dependencies = [
  "async-trait",
  "chrono",
- "inventory",
  "serde",
  "serde_json",
  "serde_yaml_ng",
@@ -3892,7 +3879,6 @@ dependencies = [
  "chrono",
  "futures",
  "http",
- "inventory",
  "reqwest",
  "rmcp",
  "schemars",
@@ -3960,12 +3946,12 @@ dependencies = [
  "async-trait",
  "chrono",
  "hex",
- "inventory",
  "schemars",
  "serde",
  "serde_json",
  "serde_yaml_ng",
  "sha2 0.11.1",
+ "sqlx",
  "systemprompt-identifiers",
  "thiserror 2.0.21",
 ]
@@ -4014,7 +4000,6 @@ dependencies = [
  "chrono",
  "futures",
  "http",
- "inventory",
  "schemars",
  "serde",
  "serde_json",
@@ -4036,7 +4021,6 @@ dependencies = [
  "async-trait",
  "chrono",
  "hex",
- "inventory",
  "rand 0.10.3",
  "serde",
  "serde_json",
