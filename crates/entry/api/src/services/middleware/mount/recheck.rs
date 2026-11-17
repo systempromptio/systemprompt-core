@@ -29,7 +29,7 @@ use systemprompt_extension::reserved::{
 };
 use systemprompt_extension::router::{
     Allowance, ApiBase, BasePath, BaseRef, BodyLimit, RouteDef, RouteSet, WebBase, first_overlap,
-    path_covers, refused_reservation,
+    path_covers, refused_reservation, reserved_below,
 };
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_models::modules::ApiPaths;
@@ -55,6 +55,17 @@ fn recheck_route_set(
     let set = &admitted.set;
     let base = path_base(set)?;
     let reserved = base.reserved_prefix();
+    let path_ref = BaseRef::Path(base);
+    if let Some(prefix) = reserved.filter(|_| !listed_at(path_ref)) {
+        return Err(MountError::ReservedPrefix(prefix));
+    }
+    if let BasePath::Api(ApiBase::Extension(path)) = base {
+        if let Some(below) = reserved_below(path) {
+            return Err(MountError::ReservedPrefix(below.path));
+        }
+    }
+    base.validate()
+        .map_err(|source| MountError::InvalidBase { base, source })?;
     let mut needed: Vec<Allowance> = Vec::new();
     match base {
         BasePath::Web(WebBase::TrackEngagement) => needed.push(Allowance::WebPath),
@@ -66,6 +77,9 @@ fn recheck_route_set(
         needed.push(Allowance::ReservedPrefix);
     }
     for def in set.defs() {
+        if let Some(pinned) = pinned_at(path_ref, def) {
+            needed.push(pinned.allowance);
+        }
         if let Some(verifier) = def.spec.policy.handler_verifier() {
             needed.push(Allowance::HandlerVerified(verifier));
         }
@@ -78,7 +92,6 @@ fn recheck_route_set(
     if !privileged {
         return Ok(());
     }
-    let path_ref = BaseRef::Path(base);
     let allowance = needed.first().copied().unwrap_or(Allowance::Plain);
     for def in set.defs() {
         let entry = matching_entry(path_ref, set.group(), def).ok_or(match reserved {
@@ -138,6 +151,17 @@ fn recheck_reserved(admitted: &AdmittedRouteSet) -> Result<(), MountError> {
         }
     }
     Ok(())
+}
+
+fn pinned_at(base: BaseRef, def: &RouteDef) -> Option<&'static PrivilegedShape> {
+    PRIVILEGED_SHAPES.iter().find(|entry| {
+        entry.base == base
+            && entry.routes.is_some_and(|routes| {
+                routes
+                    .iter()
+                    .any(|(method, path)| *method == def.method && *path == def.path.as_str())
+            })
+    })
 }
 
 fn listed_at(base: BaseRef) -> bool {

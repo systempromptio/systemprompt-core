@@ -134,13 +134,10 @@ fn slack_shape_is_listed_only_in_a_slack_build() {
     if listed {
         assert!(result.is_ok(), "a slack build lists the slack shape");
     } else {
-        assert!(matches!(
-            result,
-            Err(MountError::UnlistedPrivilege {
-                allowance: Allowance::HandlerVerified(HandlerVerifier::SlackSignature),
-                ..
-            })
-        ));
+        assert!(
+            matches!(result, Err(MountError::ReservedPrefix("/api/v1/slack"))),
+            "{result:?}"
+        );
     }
 }
 
