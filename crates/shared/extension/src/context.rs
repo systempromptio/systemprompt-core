@@ -1,4 +1,5 @@
-//! Runtime context handed to extensions during router resolution.
+//! The runtime context a job reads from its job context, and the API mount
+//! passes to a kernel route's enable predicate.
 //!
 //! Beyond config, database and storage, the context carries the
 //! cross-replica seams core owns: [`ExtensionContext::instances`] answers
