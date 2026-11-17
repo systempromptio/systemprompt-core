@@ -33,6 +33,7 @@ use tower::ServiceExt;
 use super::common::setup_ctx_customised;
 
 const WHOAMI: &str = "/v1/bridge/notifications/whoami";
+const GATEWAY_RELATIVE_WHOAMI: &str = "/bridge/notifications/whoami";
 const OUTSIDE: &str = "/v1/bridge/notifications/elsewhere";
 const ANONYMOUS: &str = "anonymous";
 
@@ -67,7 +68,7 @@ fn bridge_route() -> AdmittedGatewayRoute {
         decl: GatewayRouteDecl {
             limits: shape.shape.limits,
             router: RouteSet::gateway::<ProbeState>(GatewayPath::BridgeNotifications, shape.group)
-                .route(http::Method::GET, "/whoami", whoami, spec)
+                .route(http::Method::GET, GATEWAY_RELATIVE_WHOAMI, whoami, spec)
                 .build(),
         },
     }

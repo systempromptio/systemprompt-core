@@ -13,8 +13,13 @@ use systemprompt_api::routes::admin::services::{RefreshLock, RefreshQuery, refre
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_manifest::services::root::{ActiveServicesRoot, ServicesProvenance};
 use systemprompt_models::RequestContext;
-use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context};
+use systemprompt_loader::BootContext;
+use systemprompt_marketplace::AllowAllFilter;
+use systemprompt_runtime::{AppContext, AppContextBuilder};
+use systemprompt_test_fixtures::{
+    ensure_test_bootstrap, fixture_admitted, fixture_config, seed_fixture_system_admin_at,
+    test_app_context, test_signing_keys,
+};
 
 async fn context() -> std::sync::Arc<AppContext> {
     let boot = ensure_test_bootstrap();
@@ -22,6 +27,30 @@ async fn context() -> std::sync::Arc<AppContext> {
     ctx.db_pool().pool().close().await;
     ctx.db_pool().write_pool().close().await;
     ctx
+}
+
+async fn context_serving(root: ActiveServicesRoot) -> std::sync::Arc<AppContext> {
+    let bootstrap = ensure_test_bootstrap();
+    let boot = BootContext::new(
+        std::sync::Arc::clone(bootstrap.boot.loaded_profile()),
+        std::sync::Arc::clone(bootstrap.boot.secrets()),
+    );
+    boot.install_config(fixture_config(&bootstrap.database_url))
+        .expect("the fixture config installs");
+    boot.install_services_root(root);
+    seed_fixture_system_admin_at(&bootstrap.database_url)
+        .await
+        .expect("the fixture admin is seeded");
+    let ctx = AppContextBuilder::new(boot, fixture_admitted())
+        .with_marketplace_filter(std::sync::Arc::new(AllowAllFilter))
+        .with_signing_keys(test_signing_keys())
+        .with_services(bootstrap.services.clone())
+        .build()
+        .await
+        .expect("a context serving the installed services root builds");
+    ctx.db_pool().pool().close().await;
+    ctx.db_pool().write_pool().close().await;
+    std::sync::Arc::new(ctx)
 }
 
 fn req_ctx() -> RequestContext {
@@ -117,15 +146,23 @@ async fn a_refresh_already_in_flight_is_refused_rather_than_queued() {
 
 #[tokio::test]
 async fn a_composition_that_no_longer_resolves_is_a_change_and_restarts() {
-    let ctx = context().await;
-    ctx.boot().install_services_root(ActiveServicesRoot {
-        path: std::path::PathBuf::from("/app/services-cache/current"),
-        base: std::path::PathBuf::from("/app/services"),
+    let baked = ensure_test_bootstrap().boot.require_services_root();
+    let ctx = context_serving(ActiveServicesRoot {
         provenance: ServicesProvenance::Fetched {
             composed_hash: "composed-active".to_owned(),
             versions: std::collections::BTreeMap::new(),
         },
-    });
+        ..baked
+    })
+    .await;
+    assert_eq!(
+        ctx.boot().services_root().and_then(|root| match &root.provenance {
+            ServicesProvenance::Fetched { composed_hash, .. } => Some(composed_hash.as_str()),
+            _ => None,
+        }),
+        Some("composed-active"),
+        "the context serves the fetched composition the test installed"
+    );
 
     let body = refresh(
         State((*ctx).clone()),
