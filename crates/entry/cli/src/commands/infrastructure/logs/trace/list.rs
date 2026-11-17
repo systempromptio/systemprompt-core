@@ -11,7 +11,6 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use systemprompt_governance::authz::list_trace_ids_with_decision;
-use systemprompt_logging::CliService;
 use systemprompt_runtime::{TraceListFilter, TraceQueryService, TraceRepository};
 
 use super::{TraceListOutput, TraceListRow};
@@ -141,11 +140,6 @@ async fn execute_with_pool_inner(
         total: traces.len() as u64,
         traces,
     };
-
-    if output.traces.is_empty() {
-        CliService::warning("No traces found");
-        return Ok(CommandOutput::rendered());
-    }
 
     let result = CommandOutput::table_of(
         vec![

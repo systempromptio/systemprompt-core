@@ -31,7 +31,7 @@ use systemprompt_scheduler::{
 use super::types::{BatchJobRunOutput, JobRunOutput, JobRunResult};
 use super::admitted_schedule;
 use crate::commands::shared::{app_context, services_config};
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_extension::cli::{CommandError, CommandOutput};
 
 #[derive(Debug, Args)]
 pub struct RunArgs {
@@ -126,13 +126,14 @@ pub(super) async fn execute(args: RunArgs, host: &dyn KernelHost) -> Result<Comm
     if output.failed == 0 {
         return Ok(table);
     }
-    host.render(&table);
-    bail!(
+    Err(CommandError::new(anyhow::anyhow!(
         "{} of {} job(s) failed:\n{}",
         output.failed,
         output.total,
         failures(&output.jobs_run)
-    );
+    ))
+    .with_output(table)
+    .into())
 }
 
 fn failures(runs: &[JobRunOutput]) -> String {

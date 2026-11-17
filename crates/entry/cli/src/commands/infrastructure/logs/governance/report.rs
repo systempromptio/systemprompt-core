@@ -15,7 +15,6 @@
 use crate::kernel::KernelHost;
 use systemprompt_database::pool_from_handle;
 use std::collections::BTreeMap;
-use std::io::Write;
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -111,7 +110,7 @@ pub(in crate::commands::infrastructure::logs) async fn execute(
     host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let pool = pool_from_handle(host.db().await?)?.pool();
-    execute_with_pool_inner(args, &pool, host).await
+    execute_with_pool_inner(args, &pool).await
 }
 
 #[derive(Default)]
@@ -199,50 +198,21 @@ async fn gather(args: &ReportArgs, pool: &Arc<sqlx::PgPool>) -> Result<Governanc
 async fn execute_with_pool_inner(
     args: ReportArgs,
     pool: &Arc<sqlx::PgPool>,
-    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let output = gather(&args, pool).await?;
 
     if args.format == ReportFormat::Csv {
-        let csv = format_csv(&output);
-        std::io::stdout().write_all(csv.as_bytes())?;
-        return Ok(CommandOutput::rendered());
+        return Ok(CommandOutput::text(format_csv(&output)));
     }
 
-    host.render(&CommandOutput::table_of(
-            vec![
-                "group",
-                "warnings",
-                "tools",
-                "users",
-                "last_seen",
-                "example_reason",
-            ],
-            &output.warnings,
-        )
-        .with_title(format!(
-            "Governance warnings by {} — {} in the last {}",
+    Ok(CommandOutput::card_value(
+        format!(
+            "Governance report by {} over the last {}",
             group_label(args.group_by),
-            output.total_warnings,
             args.since
-        )));
-
-    Ok(CommandOutput::table_of(
-            vec![
-                "category",
-                "scanner",
-                "severity",
-                "phase",
-                "findings",
-                "blocked",
-                "last_seen",
-            ],
-            &output.safety_findings,
-        )
-        .with_title(format!(
-            "Gateway safety findings — {} recorded, {} blocked",
-            output.total_findings, output.total_blocked_findings
-        )))
+        ),
+        &output,
+    ))
 }
 
 const fn group_label(group_by: GroupBy) -> &'static str {
