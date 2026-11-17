@@ -36,6 +36,10 @@ fn entry(
     (owner, standing, builder)
 }
 
+fn issuance_owner() -> (&'static str, StandingTag, SsoBuilder) {
+    entry("oauth-issuance", StandingTag::Core, SsoBuilder::default())
+}
+
 fn open_provider(builder: &mut SsoBuilder) {
     builder.provider(
         |_: &Resolved<'_>| -> Result<Option<Arc<dyn SsoProvider>>, FactoryError> {
@@ -66,6 +70,7 @@ async fn two_providers_with_one_id_are_refused() {
     open_provider(&mut second);
     let err = built_slot::<SsoSlot>(
         vec![
+            issuance_owner(),
             entry("first", StandingTag::Install, first),
             entry("second", StandingTag::Install, second),
         ],
@@ -84,7 +89,10 @@ async fn one_provider_builds_as_the_negative_control() {
     let mut builder = SsoBuilder::default();
     open_provider(&mut builder);
     let built = built_slot::<SsoSlot>(
-        vec![entry("acme", StandingTag::Install, builder)],
+        vec![
+            issuance_owner(),
+            entry("acme", StandingTag::Install, builder),
+        ],
         &kernel.resolved(),
     )
     .expect("one provider builds");

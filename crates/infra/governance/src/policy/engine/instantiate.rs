@@ -62,8 +62,20 @@ pub(super) fn instantiate(
     let instance = catalog
         .contributed(cfg.id.as_str())
         .ok_or_else(|| GovernanceEngineError::UnknownPolicyId { id: cfg.id.clone() })?;
-    if !cfg.params.is_null() {
+    if carries_settings(&cfg.params) {
         return Err(invalid(PolicyConfigurationError::ContributedPolicyParams));
     }
     Ok(BuiltPolicy::new(Arc::clone(instance)))
+}
+
+const CHAIN_KEYS: [&str; 3] = ["id", "enabled", "mode"];
+
+fn carries_settings(entry: &serde_yaml::Value) -> bool {
+    match entry {
+        serde_yaml::Value::Null => false,
+        serde_yaml::Value::Mapping(map) => map
+            .keys()
+            .any(|key| key.as_str().is_none_or(|key| !CHAIN_KEYS.contains(&key))),
+        _ => true,
+    }
 }
