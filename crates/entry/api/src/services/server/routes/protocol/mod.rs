@@ -11,11 +11,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::Router;
-use std::sync::Arc;
 use systemprompt_extension::{
     AuthzPolicy, ContextKind, RateBudget, RateLimit, RouteGroup, RouteProtection,
 };
-use systemprompt_gateway::GatewayEngines;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_runtime::AppContext;
 
@@ -27,7 +25,6 @@ pub(super) use content::mount_content_and_misc;
 
 pub(super) struct MountCtx<'a> {
     pub ctx: &'a AppContext,
-    pub engines: &'a Arc<GatewayEngines>,
     pub layers: &'a MountLayers,
     pub serves: &'a dyn Fn(RouteGroup) -> bool,
     pub composed: Composed<'a>,

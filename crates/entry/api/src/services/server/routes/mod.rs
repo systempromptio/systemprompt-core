@@ -62,7 +62,7 @@ pub(super) fn configure_routes(
     ctx: &AppContext,
     composed: Composed<'_>,
     events: Option<&StartupEventSender>,
-    engines: &Arc<GatewayEngines>,
+    engines: Option<&Arc<GatewayEngines>>,
 ) -> Result<Router, RouteMountError> {
     build_routes(ctx, composed, ctx.config().role, events, engines)
 }
@@ -74,7 +74,7 @@ pub fn configure_routes_for_role(
     events: Option<&StartupEventSender>,
     engines: &Arc<GatewayEngines>,
 ) -> anyhow::Result<Router> {
-    Ok(build_routes(ctx, composed, role, events, engines)?)
+    Ok(build_routes(ctx, composed, role, events, Some(engines))?)
 }
 
 fn build_routes(
@@ -82,7 +82,7 @@ fn build_routes(
     composed: Composed<'_>,
     role: NodeRole,
     events: Option<&StartupEventSender>,
-    engines: &Arc<GatewayEngines>,
+    engines: Option<&Arc<GatewayEngines>>,
 ) -> Result<Router, RouteMountError> {
     let groups = role::route_groups(role);
     let serves = |group: RouteGroup| groups.contains(&group);
@@ -102,7 +102,6 @@ fn build_routes(
 
     let mount = MountCtx {
         ctx,
-        engines,
         layers: &layers,
         serves: &serves,
         composed,
@@ -122,8 +121,10 @@ fn build_routes(
     if serves(RouteGroup::InternalLinks) {
         router = documents::mount_internal_links(router, &mount)?;
     }
-    if serves(RouteGroup::Gateway) {
-        router = gateway::mount_gateway(router, &mount)?;
+    if serves(RouteGroup::Gateway)
+        && let Some(engines) = engines
+    {
+        router = gateway::mount_gateway(router, &mount, engines)?;
     }
     router = feature_mount::mount_feature_routes(router, &mount)?;
     crate::services::messaging::bind_dispatcher(ctx)

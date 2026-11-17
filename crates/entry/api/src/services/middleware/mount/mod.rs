@@ -13,7 +13,11 @@
 //! the rate limit and bearer window (`RouterExt::with_rate_limit` /
 //! `with_bearer_window`), the context middleware and authorization gate
 //! (`RouterExt::with_auth`), the outer protection layers, and the
-//! frame-options stamp. [`place`] nests the result under its base path, or
+//! frame-options stamp. A group merged at the web root is protected on its
+//! routes alone (route layers), so an unmatched path anywhere in the tree
+//! answers 404 rather than that group's gate, and a root group with no route
+//! mounts nothing. A nested group is layered whole, its fallback included,
+//! which stays inside its base path. [`place`] nests the result under its base path, or
 //! merges it at the web root. Only the web root is merged: every other base
 //! path, `/track/engagement` included, is nested, so its routes are relative
 //! to it and cannot answer outside it.
@@ -50,6 +54,7 @@ mod admitted;
 mod error;
 mod guards;
 mod kernel_routes;
+mod layers;
 mod recheck;
 
 pub use admitted::{MountedGatewayRoute, gateway_routes, mount_admitted, protection_of};
@@ -61,18 +66,18 @@ pub use recheck::recheck;
 use std::sync::Arc;
 
 use axum::Router;
-use axum::extract::DefaultBodyLimit;
 use systemprompt_extension::reserved::{PRIVILEGED_SHAPES, WEB_ROOT_BASE_PATH};
 use systemprompt_extension::router::{Allowance, BaseRef, BodyLimit};
 use systemprompt_extension::{
-    ContextKind, ExtensionContext, ProtectionLayer, RouteGroup, RouteProtection,
+    ContextKind, ExtensionContext, RouteGroup, RouteProtection,
 };
 
 use crate::services::middleware::context::{
     A2AContextMiddleware, McpContextMiddleware, PublicContextMiddleware, UserOnlyContextMiddleware,
 };
 use crate::services::middleware::jwt::JwtContextExtractor;
-use crate::services::middleware::rate_limit::{RateLimitState, RouterExt};
+use self::layers::{authenticated, inner_layers, outer_layers, rate_limited};
+use crate::services::middleware::rate_limit::{LayerReach, RateLimitState};
 
 pub const DEFAULT_BODY_LIMIT_BYTES: usize = 2 * 1024 * 1024;
 
@@ -106,10 +111,18 @@ pub fn protect(
 ) -> Result<Router, MountError> {
     check_coherence(protection, base_path)?;
     check_body_limit(protection, base_path)?;
-    let router = inner_layers(router, protection, layers, base_path)?;
-    let router = rate_limited(router, protection, layers, base_path)?;
-    let router = authenticated(router, protection, layers);
-    outer_layers(router, protection, layers, base_path)
+    let reach = if base_path == WEB_ROOT_BASE_PATH {
+        if !router.has_routes() {
+            return Ok(Router::new());
+        }
+        LayerReach::Routes
+    } else {
+        LayerReach::Router
+    };
+    let router = inner_layers(router, protection, layers, base_path, reach)?;
+    let router = rate_limited(router, protection, layers, base_path, reach)?;
+    let router = authenticated(router, protection, layers, reach);
+    outer_layers(router, protection, layers, base_path, reach)
 }
 
 fn check_coherence(
@@ -134,7 +147,9 @@ fn check_body_limit(
     base_path: &'static str,
 ) -> Result<(), MountError> {
     match protection.body_limit {
-        Some(declared) if !admits_body_limit(base_path, declared) => {
+        Some(declared)
+            if declared > DEFAULT_BODY_LIMIT_BYTES && !admits_body_limit(base_path, declared) =>
+        {
             Err(MountError::UnlistedBodyExemption {
                 base_path,
                 declared,
@@ -151,100 +166,6 @@ fn admits_body_limit(base_path: &str, declared: usize) -> bool {
             && matches!(entry.base, BaseRef::Path(base) if base.path() == base_path)
             && declared == systemprompt_models::net::AGENT_REQUEST_BODY_LIMIT_BYTES
     })
-}
-
-fn inner_layers(
-    mut router: Router,
-    protection: &RouteProtection,
-    layers: &MountLayers,
-    base_path: &'static str,
-) -> Result<Router, MountError> {
-    if let Some(bytes) = protection.body_limit {
-        router = router.layer(DefaultBodyLimit::max(bytes));
-    }
-    if protection
-        .layers
-        .contains(&ProtectionLayer::RefuseFileManagedClientWrites)
-    {
-        let guard = layers
-            .guards
-            .client_writes
-            .clone()
-            .ok_or(MountError::GuardUnavailable {
-                base_path,
-                layer: ProtectionLayer::RefuseFileManagedClientWrites,
-            })?;
-        router = router.layer(axum::middleware::from_fn(move |request, next| {
-            guard.clone().refuse(request, next)
-        }));
-    }
-    Ok(router)
-}
-
-fn rate_limited(
-    mut router: Router,
-    protection: &RouteProtection,
-    layers: &MountLayers,
-    base_path: &'static str,
-) -> Result<Router, MountError> {
-    let Some(rate_limit) = protection.rate_limit else {
-        return Ok(router);
-    };
-    let per_second = rate_limit.budget.per_second(layers.limits.config());
-    router = router
-        .with_rate_limit(&layers.limits, per_second, rate_limit.scope)
-        .map_err(|source| MountError::RateLimit {
-            base_path,
-            source: Box::new(source),
-        })?;
-    if rate_limit.bearer_window {
-        let jwt = layers
-            .bearer
-            .as_ref()
-            .ok_or(MountError::BearerWindowUnavailable { base_path })?;
-        router = router.with_bearer_window(&layers.limits, jwt, per_second, rate_limit.scope);
-    }
-    Ok(router)
-}
-
-fn authenticated(router: Router, protection: &RouteProtection, layers: &MountLayers) -> Router {
-    let policy = protection.policy;
-    match protection.context {
-        ContextKind::Public => router.with_auth(layers.public, policy),
-        ContextKind::User => router.with_auth(layers.user.clone(), policy),
-        ContextKind::A2a => router.with_auth(layers.a2a.clone(), policy),
-        ContextKind::Mcp => router.with_auth(layers.mcp.clone(), policy),
-        ContextKind::HandlerResolved => router,
-    }
-}
-
-fn outer_layers(
-    mut router: Router,
-    protection: &RouteProtection,
-    layers: &MountLayers,
-    base_path: &'static str,
-) -> Result<Router, MountError> {
-    if protection.layers.contains(&ProtectionLayer::SiteAuth) {
-        let guard = layers
-            .guards
-            .site_auth
-            .clone()
-            .ok_or(MountError::GuardUnavailable {
-                base_path,
-                layer: ProtectionLayer::SiteAuth,
-            })?;
-        router = router.layer(axum::middleware::from_fn(move |request, next| {
-            guard.clone().gate(request, next)
-        }));
-    }
-
-    if let Some(frame_options) = protection.frame_options {
-        router = router.layer(axum::middleware::from_fn(move |request, next| {
-            systemprompt_extension::stamp_frame_options(frame_options, request, next)
-        }));
-    }
-
-    Ok(router)
 }
 
 pub fn place(tree: Router, base_path: &'static str, router: Router) -> Router {

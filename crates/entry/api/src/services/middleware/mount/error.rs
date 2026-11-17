@@ -71,6 +71,13 @@ pub enum MountError {
     #[error("route set at {0:?} is not a path route set")]
     RouteSetKind(BaseRef),
 
+    #[error("route set at {base:?} has an invalid base")]
+    InvalidBase {
+        base: BasePath,
+        #[source]
+        source: systemprompt_extension::ContributionError,
+    },
+
     #[error("route under reserved prefix {0}")]
     ReservedPrefix(&'static str),
 
