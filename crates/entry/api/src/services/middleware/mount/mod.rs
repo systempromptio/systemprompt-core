@@ -134,7 +134,9 @@ fn check_body_limit(
     base_path: &'static str,
 ) -> Result<(), MountError> {
     match protection.body_limit {
-        Some(declared) if !admits_body_limit(base_path, declared) => {
+        Some(declared)
+            if declared > DEFAULT_BODY_LIMIT_BYTES && !admits_body_limit(base_path, declared) =>
+        {
             Err(MountError::UnlistedBodyExemption {
                 base_path,
                 declared,
@@ -160,7 +162,7 @@ fn inner_layers(
     base_path: &'static str,
 ) -> Result<Router, MountError> {
     if let Some(bytes) = protection.body_limit {
-        router = router.layer(DefaultBodyLimit::max(bytes));
+        router = router.route_layer(DefaultBodyLimit::max(bytes));
     }
     if protection
         .layers
@@ -174,7 +176,7 @@ fn inner_layers(
                 base_path,
                 layer: ProtectionLayer::RefuseFileManagedClientWrites,
             })?;
-        router = router.layer(axum::middleware::from_fn(move |request, next| {
+        router = router.route_layer(axum::middleware::from_fn(move |request, next| {
             guard.clone().refuse(request, next)
         }));
     }
@@ -233,13 +235,13 @@ fn outer_layers(
                 base_path,
                 layer: ProtectionLayer::SiteAuth,
             })?;
-        router = router.layer(axum::middleware::from_fn(move |request, next| {
+        router = router.route_layer(axum::middleware::from_fn(move |request, next| {
             guard.clone().gate(request, next)
         }));
     }
 
     if let Some(frame_options) = protection.frame_options {
-        router = router.layer(axum::middleware::from_fn(move |request, next| {
+        router = router.route_layer(axum::middleware::from_fn(move |request, next| {
             systemprompt_extension::stamp_frame_options(frame_options, request, next)
         }));
     }
