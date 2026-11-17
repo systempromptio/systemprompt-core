@@ -213,18 +213,18 @@ where
         let global = limits.global_limit(per_second, scope);
 
         Ok(self
-            .layer(axum::middleware::from_fn_with_state(
+            .route_layer(axum::middleware::from_fn_with_state(
                 global,
                 global_user_rate_limit,
             ))
-            .layer(axum::middleware::from_fn_with_state(local, throttle)))
+            .route_layer(axum::middleware::from_fn_with_state(local, throttle)))
     }
 
     fn with_auth<L: ContextLayer>(self, auth: L, policy: AuthzPolicy) -> Self {
-        self.layer(axum::middleware::from_fn(move |req, next| async move {
+        self.route_layer(axum::middleware::from_fn(move |req, next| async move {
             authz_gate(policy, req, next).await
         }))
-        .layer(axum::middleware::from_fn(move |req, next| {
+        .route_layer(axum::middleware::from_fn(move |req, next| {
             let auth = auth.clone();
             async move { auth.handle(req, next).await }
         }))
@@ -244,7 +244,7 @@ where
             limit: limits.global_limit(per_second, scope),
             jwt: Arc::clone(jwt),
         };
-        self.layer(axum::middleware::from_fn_with_state(
+        self.route_layer(axum::middleware::from_fn_with_state(
             window,
             bearer_user_rate_limit,
         ))
