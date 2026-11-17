@@ -1,6 +1,7 @@
 //! Who owns each index, routine, view, materialized view, sequence, type,
-//! domain and trigger: a `schema_object_owners` record first, then the first
-//! member whose SQL creates it and does not drop it again, a core member
+//! domain and trigger: a live `schema_object_owners` record first (see
+//! `claims` for when a record is stale), then the first member whose SQL
+//! creates it and does not drop it again, a core member
 //! before an install member, then a declarative schema before a migration,
 //! then composition order. A trigger is keyed by its name and its table.
 //! Naming another member's object in a create never makes it the creator's
@@ -20,9 +21,7 @@ use systemprompt_identifiers::ExtensionId;
 use super::claims::{Claim, Ownership, Rank, push_claim};
 use super::kinds::TableMutation;
 use super::objects::Created;
-use super::statements::top_level;
-use super::{MigrationMembers, MigrationOwnershipError, ObjectKind, RecordedObject};
-use crate::lifecycle::schema_member::SchemaMember;
+use super::{MigrationMembers, ObjectKind, RecordedObject};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum Prefer {
@@ -101,13 +100,16 @@ impl Ownership {
     pub(super) fn foreign_object_creates(
         &self,
         id: &ExtensionId,
+        standing: StandingTag,
         created: &Created,
     ) -> Vec<(TableMutation, String, ExtensionId)> {
         let named = |kind: ObjectKind, statement: TableMutation, names: Vec<&String>| {
             names
                 .into_iter()
                 .filter_map(|name| {
-                    let owner = self.object_owner(kind, name).filter(|o| o.id != *id)?;
+                    let owner = self
+                        .object_owner(kind, name)
+                        .filter(|o| !o.held_by(id, standing))?;
                     Some((statement, name.clone(), owner.id.clone()))
                 })
                 .collect::<Vec<_>>()
@@ -129,39 +131,6 @@ impl Ownership {
             created.triggers.iter().collect(),
         ));
         refused
-    }
-
-    pub(super) fn schema_creates(member: &dyn SchemaMember) -> Vec<Created> {
-        member
-            .schemas()
-            .iter()
-            .filter_map(|schema| pg_query::parse(&schema.sql).ok())
-            .flat_map(|parsed| {
-                top_level(&parsed)
-                    .map(Created::of_statement)
-                    .collect::<Vec<_>>()
-            })
-            .collect()
-    }
-
-    pub(super) fn schema_object_findings(
-        &self,
-        id: &ExtensionId,
-        schema_created: &[Created],
-    ) -> Vec<MigrationOwnershipError> {
-        schema_created
-            .iter()
-            .flat_map(|created| self.foreign_object_creates(id, created))
-            .map(
-                |(statement, object, owner)| MigrationOwnershipError::ForeignObject {
-                    member: id.clone(),
-                    migration: String::from("schema"),
-                    statement,
-                    object,
-                    owner,
-                },
-            )
-            .collect()
     }
 
     pub(super) fn owned_objects(&self, members: MigrationMembers<'_>) -> Vec<RecordedObject> {

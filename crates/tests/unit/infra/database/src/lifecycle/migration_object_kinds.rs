@@ -8,7 +8,13 @@
 //! red. Ownership ranks a record first, then core before install, then a
 //! declarative schema before a migration, then composition order; a held-back
 //! member owns what it creates and its schema is not judged; a member outside
-//! the composition owns what its records name (K-SEC7-4).
+//! the composition owns what its records name (K-SEC7-4). An install
+//! member's declarative schema runs through the same judgement as a
+//! migration, every row of the table included; every relation a statement
+//! changes is judged (`INHERITS`, `PARTITION OF`, `INHERIT`, `ATTACH` and
+//! `DETACH PARTITION`), while a read or reference is not; a grant on any
+//! object is judged; a statement kind the reader does not classify is refused
+//! for an install and logged for core (K-SEC8-1/3/6).
 
 use std::sync::Arc;
 
@@ -230,7 +236,100 @@ const CASES: &[(&str, &[&str])] = &[
         &["table ALTER TABLE public.ko_ctas"],
     ),
     ("DROP TABLE ko_ctas;", &["table DROP TABLE public.ko_ctas"]),
+    ("SELECT 2 AS x INTO ko_ctas;", &["shared public.ko_ctas"]),
+    ("DROP VIEW IF EXISTS ko_v;", &["object DROP public.ko_v"]),
+    (
+        "DROP MATERIALIZED VIEW IF EXISTS ko_mv;",
+        &["object DROP public.ko_mv"],
+    ),
+    (
+        "DROP INDEX IF EXISTS ko_i;",
+        &["object DROP INDEX public.ko_i"],
+    ),
+    (
+        "DROP TRIGGER IF EXISTS ko_trg ON ko_t;",
+        &["object DROP TRIGGER ko_trg ON public.ko_t"],
+    ),
+    (
+        "CREATE RULE kp_rule AS ON INSERT TO ko_t DO INSTEAD NOTHING;",
+        &["table CREATE RULE public.ko_t"],
+    ),
+    (
+        "CREATE POLICY kp_policy ON ko_t USING (true);",
+        &["table CREATE POLICY public.ko_t"],
+    ),
+    (
+        "ALTER TABLE ko_t ENABLE ROW LEVEL SECURITY;",
+        &["table ALTER TABLE public.ko_t"],
+    ),
+    (
+        "CREATE TABLE kp_child (x INT) INHERITS (ko_t);",
+        &["table INHERITS/INHERIT/NO INHERIT public.ko_t"],
+    ),
+    (
+        "CREATE TABLE kp_part PARTITION OF ko_t FOR VALUES FROM (1) TO (2);",
+        &["table PARTITION OF/ATTACH/DETACH PARTITION public.ko_t"],
+    ),
+    (
+        "ALTER TABLE kp_t INHERIT ko_t;",
+        &["table INHERITS/INHERIT/NO INHERIT public.ko_t"],
+    ),
+    (
+        "ALTER TABLE kp_t NO INHERIT ko_t;",
+        &["table INHERITS/INHERIT/NO INHERIT public.ko_t"],
+    ),
+    (
+        "ALTER TABLE kp_t ATTACH PARTITION ko_t FOR VALUES FROM (1) TO (2);",
+        &["table PARTITION OF/ATTACH/DETACH PARTITION public.ko_t"],
+    ),
+    (
+        "ALTER TABLE kp_t DETACH PARTITION ko_t;",
+        &["table PARTITION OF/ATTACH/DETACH PARTITION public.ko_t"],
+    ),
+    (
+        "GRANT EXECUTE ON FUNCTION ko_f() TO PUBLIC;",
+        &["object GRANT public.ko_f"],
+    ),
+    (
+        "REVOKE ALL ON FUNCTION ko_f() FROM PUBLIC;",
+        &["object REVOKE public.ko_f"],
+    ),
+    (
+        "GRANT USAGE ON SEQUENCE ko_s TO PUBLIC;",
+        &["object GRANT public.ko_s"],
+    ),
+    (
+        "GRANT USAGE ON TYPE ko_e TO PUBLIC;",
+        &["object GRANT public.ko_e"],
+    ),
+    (
+        "GRANT USAGE ON DOMAIN ko_d TO PUBLIC;",
+        &["object GRANT public.ko_d"],
+    ),
 ];
+
+const READS: &[&str] = &[
+    "CREATE TABLE kp_like (LIKE ko_t INCLUDING ALL);",
+    "CREATE TABLE kp_ref (id INT REFERENCES ko_t (id));",
+    "ALTER TABLE kp_t ADD CONSTRAINT kp_fk FOREIGN KEY (id) REFERENCES ko_t (id);",
+    "CREATE VIEW kp_v AS SELECT id FROM ko_v;",
+    "SELECT id INTO kp_copy FROM ko_t;",
+    "COMMENT ON VIEW ko_v IS 'x';",
+];
+
+const UNCLASSIFIED: &[(&str, &str)] = &[
+    ("GRANT USAGE ON LANGUAGE sql TO PUBLIC;", "GrantStmt"),
+    ("ALTER COLLATION kp_c RENAME TO kp_d;", "RenameStmt"),
+    (
+        "ALTER DATABASE kp_db SET work_mem = '1MB';",
+        "AlterDatabaseSetStmt",
+    ),
+    ("CREATE ROLE kp_role;", "CreateRoleStmt"),
+];
+
+fn leak(sql: String) -> &'static str {
+    Box::leak(sql.into_boxed_str())
+}
 
 fn member(
     id: &'static str,
@@ -314,6 +413,95 @@ fn every_statement_kind_is_admitted_for_a_core_member_and_for_the_owner() {
             "the owner's own statement is admitted: {sql}"
         );
     }
+}
+
+#[test]
+fn every_statement_kind_in_an_install_schema_is_judged_like_a_migration() {
+    for (sql, expected) in CASES {
+        let schema = leak(format!("{PEER_SCHEMA}\n{sql}"));
+        assert_eq!(
+            findings_of(&[
+                owner(StandingTag::Core, None),
+                member("ko-peer", StandingTag::Install, Some(schema), None),
+            ]),
+            expected
+                .iter()
+                .map(|line| (*line).to_owned())
+                .collect::<Vec<_>>(),
+            "schema: {sql}"
+        );
+        let own = leak(format!("{OWNER_SCHEMA}\n{sql}"));
+        assert!(
+            findings_of(&[member("ko-owner", StandingTag::Install, Some(own), None)]).is_empty(),
+            "negative control, the owner's own schema statement is admitted: {sql}"
+        );
+    }
+}
+
+#[test]
+fn a_core_members_schema_is_not_judged() {
+    let schema = leak(format!("{PEER_SCHEMA}\nDROP VIEW IF EXISTS ko_v;"));
+    assert!(
+        findings_of(&[
+            owner(StandingTag::Core, None),
+            member("ko-peer", StandingTag::Core, Some(schema), None),
+        ])
+        .is_empty()
+    );
+}
+
+#[test]
+fn reading_or_referencing_another_members_relation_is_admitted() {
+    for sql in READS {
+        assert!(
+            findings_of(&[
+                owner(StandingTag::Core, None),
+                peer(StandingTag::Install, sql)
+            ])
+            .is_empty(),
+            "{sql}"
+        );
+    }
+}
+
+#[test]
+fn an_unclassified_statement_kind_is_refused_for_an_install_and_logged_for_core() {
+    for (sql, kind) in UNCLASSIFIED {
+        assert_eq!(
+            findings_of(&[
+                owner(StandingTag::Core, None),
+                peer(StandingTag::Install, sql)
+            ]),
+            vec![format!(
+                "install member ko-peer migration 001_probe: a unclassified {kind} statement \
+                 hides what it changes"
+            )],
+            "{sql}"
+        );
+        let logs = LogBuffer::default();
+        {
+            let _guard = logs.install();
+            assert!(
+                findings_of(&[owner(StandingTag::Core, None), peer(StandingTag::Core, sql)])
+                    .is_empty(),
+                "{sql}"
+            );
+        }
+        assert!(
+            logs.text()
+                .contains(&format!("statement=unclassified {kind}")),
+            "{sql}: {}",
+            logs.text()
+        );
+    }
+    assert!(
+        findings_of(&[
+            owner(StandingTag::Core, None),
+            peer(StandingTag::Install, "DO $$ BEGIN END $$;")
+        ])
+        .is_empty(),
+        "negative control: a DO block is logged, not refused"
+    );
 }
 
 #[test]
@@ -598,8 +786,8 @@ fn a_retired_tables_triggers_leave_with_it() {
     assert_eq!(
         install_findings(&[retiring_creator(false), declaring()]),
         vec![
-            "object CREATE TRIGGER kz_kept_trg ON public.kz_kept".to_owned(),
             "shared public.kz_kept".to_owned(),
+            "object CREATE TRIGGER kz_kept_trg ON public.kz_kept".to_owned(),
         ],
         "negative control: without the retirement both stay the creator's"
     );

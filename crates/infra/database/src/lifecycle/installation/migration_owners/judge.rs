@@ -1,5 +1,9 @@
-//! The judgement of each pending migration statement against the ownership
-//! of the tables and objects it names.
+//! The judgement of each pending migration statement, and of each statement
+//! of an install member's declarative schema (which every install runs),
+//! against the ownership of the tables and objects it names. Both go through
+//! one path: the statement's creates of another member's object, then every
+//! effect the reader extracts from it, each judged by the same rules. A core
+//! member's declarative schema is not judged.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,29 +15,33 @@ use systemprompt_identifiers::ExtensionId;
 use tracing::warn;
 
 use super::super::undeclared::qualify;
-use super::claims::{Ownership, ownership};
+use super::claims::{Claim, Ownership, ownership};
+use super::judge_objects::{foreign_object_creates, judge_named, judge_schema};
 use super::kinds::HiddenSql;
 use super::object_claims::Prefer;
-use super::objects::Created;
 use super::statements::{Effect, effects_of, top_level};
 use super::{
     KERNEL_LEDGER_OWNER, KERNEL_LEDGERS, MigrationMembers, MigrationOwnershipError, Recorded,
     TableMutation, label,
 };
 
-struct Judged<'a> {
-    id: &'a ExtensionId,
-    standing: StandingTag,
-    migration: &'a str,
+pub(super) struct Judged<'a> {
+    pub(super) id: &'a ExtensionId,
+    pub(super) standing: StandingTag,
+    pub(super) migration: &'a str,
     cross: &'a BTreeSet<String>,
 }
 
 impl Judged<'_> {
-    fn install(&self) -> bool {
+    pub(super) fn install(&self) -> bool {
         self.standing == StandingTag::Install
     }
 
-    fn unjudged(&self, statement: &dyn std::fmt::Display, object: &str) {
+    pub(super) fn owns(&self, claim: &Claim) -> bool {
+        claim.held_by(self.id, self.standing)
+    }
+
+    pub(super) fn unjudged(&self, statement: &dyn std::fmt::Display, object: &str) {
         warn!(
             member = %self.id,
             migration = %self.migration,
@@ -76,6 +84,7 @@ pub(super) fn findings(
             };
             findings.extend(ownership.foreign_creates(
                 &id,
+                member.standing(),
                 &format!("migration {migration_label}"),
                 migration.sql,
             ));
@@ -85,22 +94,49 @@ pub(super) fn findings(
                 migration: &migration_label,
                 cross: &cross,
             };
-            for statement in top_level(&parsed) {
-                findings.extend(foreign_object_creates(&ownership, &judged, statement));
-            }
-            let mut hidden = Vec::new();
-            for effect in top_level(&parsed).flat_map(effects_of) {
-                if let Effect::Hidden(statement) = &effect {
-                    if hidden.contains(statement) {
-                        continue;
-                    }
-                    hidden.push(statement.clone());
-                }
-                findings.extend(judge(&ownership, &judged, effect));
+            judge_statements(&ownership, &judged, &parsed, &mut findings);
+        }
+        if member.standing() != StandingTag::Install {
+            continue;
+        }
+        let judged = Judged {
+            id: &id,
+            standing: member.standing(),
+            migration: "schema",
+            cross: &cross,
+        };
+        for schema in member.schemas() {
+            if let Ok(parsed) = pg_query::parse(&schema.sql) {
+                judge_statements(&ownership, &judged, &parsed, &mut findings);
             }
         }
     }
     findings
+}
+
+fn judge_statements(
+    ownership: &Ownership,
+    judged: &Judged<'_>,
+    parsed: &pg_query::ParseResult,
+    findings: &mut Vec<MigrationOwnershipError>,
+) {
+    for statement in top_level(parsed) {
+        findings.extend(foreign_object_creates(ownership, judged, statement));
+    }
+    let mut hidden = Vec::new();
+    for effect in top_level(parsed).flat_map(effects_of) {
+        if let Effect::Hidden(statement) = &effect {
+            if hidden.contains(statement) {
+                continue;
+            }
+            hidden.push(statement.clone());
+        }
+        findings.extend(judge(ownership, judged, effect));
+    }
+}
+
+fn kernel(member: &Judged<'_>) -> bool {
+    member.id.as_str() == KERNEL_LEDGER_OWNER && member.standing == StandingTag::Core
 }
 
 const fn logged_table_statement(statement: TableMutation) -> bool {
@@ -127,7 +163,7 @@ fn judge(
     match effect {
         Effect::Table(statement, table) => judge_table(ownership, member, statement, table),
         Effect::Write(statement, table, pinned) => {
-            if !KERNEL_LEDGERS.contains(&table.as_str()) || id.as_str() == KERNEL_LEDGER_OWNER {
+            if !KERNEL_LEDGERS.contains(&table.as_str()) || kernel(member) {
                 return None;
             }
             let removed_members_only = statement == TableMutation::Delete
@@ -184,7 +220,7 @@ fn judge_table(
         if logged_table_statement(statement) {
             if ownership
                 .resolve(&table, Prefer::Table)
-                .is_some_and(|owner| owner.id != *member.id)
+                .is_some_and(|owner| !member.owns(owner))
             {
                 member.unjudged(&statement, &table);
             }
@@ -192,15 +228,17 @@ fn judge_table(
         }
         return judge_named(ownership, member, statement, table, Prefer::Table);
     };
-    if owner.id == *member.id {
+    if member.owns(owner) {
         return None;
     }
-    let admitted_cross =
-        member.cross.contains(&table) && !(member.install() && owner.standing == StandingTag::Core);
+    let ledger = KERNEL_LEDGERS.contains(&table.as_str());
+    let admitted_cross = !ledger
+        && member.cross.contains(&table)
+        && !(member.install() && owner.standing == StandingTag::Core);
     if admitted_cross {
         return None;
     }
-    if logged_table_statement(statement) {
+    if logged_table_statement(statement) && !ledger {
         member.unjudged(&statement, &table);
         return None;
     }
@@ -211,80 +249,4 @@ fn judge_table(
         table,
         owner: owner.id.clone(),
     })
-}
-
-fn judge_schema(
-    ownership: &Ownership,
-    member: &Judged<'_>,
-    statement: TableMutation,
-    schema: Option<String>,
-) -> Option<MigrationOwnershipError> {
-    let refused = schema
-        .as_deref()
-        .is_none_or(|schema| schema == "public" || ownership.held_by_another(schema, member.id));
-    if !refused {
-        member.unjudged(&statement, schema.as_deref().unwrap_or_default());
-        return None;
-    }
-    Some(MigrationOwnershipError::SchemaLevel {
-        member: member.id.clone(),
-        migration: member.migration.to_owned(),
-        statement,
-        schema: schema.unwrap_or_else(|| String::from("(every schema)")),
-    })
-}
-
-fn foreign_object_creates(
-    ownership: &Ownership,
-    member: &Judged<'_>,
-    statement: &pg_query::NodeEnum,
-) -> Vec<MigrationOwnershipError> {
-    let created = Created::of_statement(statement);
-    let mut refused = Vec::new();
-    for (kind, object, owner) in ownership.foreign_object_creates(member.id, &created) {
-        if member.install() {
-            refused.push(MigrationOwnershipError::ForeignObject {
-                member: member.id.clone(),
-                migration: member.migration.to_owned(),
-                statement: kind,
-                object,
-                owner,
-            });
-        } else {
-            member.unjudged(&kind, &object);
-        }
-    }
-    refused
-}
-
-fn judge_named(
-    ownership: &Ownership,
-    member: &Judged<'_>,
-    statement: TableMutation,
-    object: String,
-    prefer: Prefer,
-) -> Option<MigrationOwnershipError> {
-    let owner = ownership.resolve(&object, prefer);
-    if owner.is_some_and(|owner| owner.id == *member.id) {
-        return None;
-    }
-    match owner {
-        Some(owner) if member.install() => Some(MigrationOwnershipError::ForeignObject {
-            member: member.id.clone(),
-            migration: member.migration.to_owned(),
-            statement,
-            object,
-            owner: owner.id.clone(),
-        }),
-        Some(_) => {
-            member.unjudged(&statement, &object);
-            None
-        },
-        None => {
-            if prefer == Prefer::Index {
-                member.unjudged(&statement, &object);
-            }
-            None
-        },
-    }
 }

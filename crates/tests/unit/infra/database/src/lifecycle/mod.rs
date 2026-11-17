@@ -18,6 +18,7 @@ mod migration_object_kinds;
 mod migration_object_owners;
 mod migration_object_records;
 mod migration_ownership;
+mod migration_record_claims;
 mod migration_refs_errors;
 mod migration_retired_tables;
 mod migration_run_failures;

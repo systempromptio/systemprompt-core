@@ -12,8 +12,8 @@ use super::statements::{
     trigger_key, trigger_of,
 };
 
-pub(super) fn renamed(rename: &pg_query::protobuf::RenameStmt) -> Vec<Effect> {
-    match object_type(rename.rename_type) {
+pub(super) fn renamed(rename: &pg_query::protobuf::RenameStmt) -> Option<Vec<Effect>> {
+    Some(match object_type(rename.rename_type) {
         Some(ObjectType::ObjectTrigger) => {
             let mut effects = on(TableMutation::Rename, rename.relation.as_ref());
             effects.extend(
@@ -29,6 +29,7 @@ pub(super) fn renamed(rename: &pg_query::protobuf::RenameStmt) -> Vec<Effect> {
         },
         Some(
             ObjectType::ObjectTable
+            | ObjectType::ObjectForeignTable
             | ObjectType::ObjectColumn
             | ObjectType::ObjectTabconstraint
             | ObjectType::ObjectPolicy
@@ -72,8 +73,8 @@ pub(super) fn renamed(rename: &pg_query::protobuf::RenameStmt) -> Vec<Effect> {
             .map(|object| Effect::Object(TableMutation::AlterObject, object))
             .into_iter()
             .collect(),
-        _ => Vec::new(),
-    }
+        _ => return None,
+    })
 }
 
 pub(super) fn dropped(drop: &pg_query::protobuf::DropStmt) -> Vec<Effect> {
@@ -126,28 +127,55 @@ pub(super) fn dropped(drop: &pg_query::protobuf::DropStmt) -> Vec<Effect> {
     effects
 }
 
-pub(super) fn granted(grant: &pg_query::protobuf::GrantStmt) -> Vec<Effect> {
+pub(super) fn granted(grant: &pg_query::protobuf::GrantStmt) -> Option<Vec<Effect>> {
     let kind = if grant.is_grant {
         TableMutation::Grant
     } else {
         TableMutation::Revoke
     };
-    match GrantTargetType::try_from(grant.targtype) {
-        Ok(GrantTargetType::AclTargetAllInSchema) => strings(&grant.objects)
-            .into_iter()
-            .map(|schema| Effect::Schema(TableMutation::GrantInSchema, Some(schema.to_owned())))
-            .collect(),
-        Ok(GrantTargetType::AclTargetObject) if is_table(grant.objtype) => grant
+    if GrantTargetType::try_from(grant.targtype) == Ok(GrantTargetType::AclTargetAllInSchema) {
+        return Some(
+            strings(&grant.objects)
+                .into_iter()
+                .map(|schema| Effect::Schema(TableMutation::GrantInSchema, Some(schema.to_owned())))
+                .collect(),
+        );
+    }
+    if GrantTargetType::try_from(grant.targtype) != Ok(GrantTargetType::AclTargetObject) {
+        return None;
+    }
+    let relations = || {
+        grant
             .objects
             .iter()
             .filter_map(|node| match node.node.as_ref()? {
                 NodeEnum::RangeVar(relation) => relation_name(relation),
                 _ => None,
             })
+    };
+    Some(match object_type(grant.objtype)? {
+        ObjectType::ObjectTable | ObjectType::ObjectForeignTable => relations()
             .map(|table| Effect::Table(kind, table))
             .collect(),
-        _ => Vec::new(),
-    }
+        ObjectType::ObjectSequence => relations()
+            .map(|sequence| Effect::Object(kind, sequence))
+            .collect(),
+        ObjectType::ObjectFunction
+        | ObjectType::ObjectProcedure
+        | ObjectType::ObjectRoutine
+        | ObjectType::ObjectType
+        | ObjectType::ObjectDomain => grant
+            .objects
+            .iter()
+            .filter_map(object_name)
+            .map(|object| Effect::Object(kind, object))
+            .collect(),
+        ObjectType::ObjectSchema => strings(&grant.objects)
+            .into_iter()
+            .map(|schema| Effect::Schema(TableMutation::GrantOnSchema, Some(schema.to_owned())))
+            .collect(),
+        _ => return None,
+    })
 }
 
 pub(super) fn copied(copy: &pg_query::protobuf::CopyStmt) -> Vec<Effect> {

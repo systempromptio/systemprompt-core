@@ -96,30 +96,29 @@ pub fn created_table_names(sql: &str) -> Result<Vec<String>, pg_query::Error> {
         .iter()
         .filter_map(|raw| match raw.stmt.as_ref()?.node.as_ref()? {
             pg_query::protobuf::node::Node::CreateStmt(create) => {
-                let relation = create.relation.as_ref()?;
-                if relation.relname.is_empty() {
-                    None
-                } else if relation.schemaname.is_empty() {
-                    Some(relation.relname.clone())
-                } else {
-                    Some(format!("{}.{}", relation.schemaname, relation.relname))
-                }
+                table_name(create.relation.as_ref()?)
             },
             pg_query::protobuf::node::Node::CreateTableAsStmt(created)
                 if created.objtype == pg_query::protobuf::ObjectType::ObjectTable as i32 =>
             {
-                let relation = created.into.as_ref()?.rel.as_ref()?;
-                if relation.relname.is_empty() {
-                    None
-                } else if relation.schemaname.is_empty() {
-                    Some(relation.relname.clone())
-                } else {
-                    Some(format!("{}.{}", relation.schemaname, relation.relname))
-                }
+                table_name(created.into.as_ref()?.rel.as_ref()?)
+            },
+            pg_query::protobuf::node::Node::SelectStmt(select) => {
+                table_name(select.into_clause.as_ref()?.rel.as_ref()?)
             },
             _ => None,
         })
         .collect())
+}
+
+fn table_name(relation: &pg_query::protobuf::RangeVar) -> Option<String> {
+    if relation.relname.is_empty() {
+        None
+    } else if relation.schemaname.is_empty() {
+        Some(relation.relname.clone())
+    } else {
+        Some(format!("{}.{}", relation.schemaname, relation.relname))
+    }
 }
 
 fn own_tables(

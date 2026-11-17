@@ -6,6 +6,8 @@
 //! member included; a disabled member, absent from the composition, claims
 //! through its records.
 //!
+//! A record is a claim only while it is live (see `record_claims`).
+//!
 //! A member's retirements may name a table (`DROP TABLE IF EXISTS`): the
 //! member says its migration chain has retired that table. The table is then
 //! not the member's, neither by its migrations nor by a record naming it,
@@ -15,18 +17,16 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 use systemprompt_extension::{StandingTag, created_table_names};
 use systemprompt_identifiers::ExtensionId;
 
 use super::super::undeclared::qualify;
-use super::member_reads::{read_member, retired_tables};
+use super::member_reads::read_member;
 use super::objects::Created;
-use super::{
-    KERNEL_LEDGER_OWNER, KERNEL_LEDGERS, MigrationMembers, MigrationOwnershipError, ObjectKind,
-    Recorded,
-};
+use super::record_claims::{MemberRead, Stale};
+use super::{MigrationMembers, MigrationOwnershipError, Recorded};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(super) enum Rank {
@@ -44,6 +44,10 @@ pub(super) struct Claim {
 }
 
 impl Claim {
+    pub(super) fn held_by(&self, id: &ExtensionId, standing: StandingTag) -> bool {
+        self.id == *id && !(standing == StandingTag::Install && self.standing == StandingTag::Core)
+    }
+
     const fn precedence(&self) -> (bool, u8, Rank, usize) {
         let standing = match self.standing {
             StandingTag::Core => 0,
@@ -77,10 +81,11 @@ pub(super) struct Ownership {
     pub(super) indexes: BTreeMap<String, Vec<Claim>>,
     pub(super) triggers: BTreeMap<String, Vec<Claim>>,
     pub(super) created: BTreeMap<ExtensionId, Created>,
+    pub(super) stale: Stale,
 }
 
 impl Ownership {
-    fn claim(&mut self, table: String, claim: Claim) {
+    pub(super) fn claim(&mut self, table: String, claim: Claim) {
         push_claim(&mut self.tables, table, claim);
     }
 
@@ -116,6 +121,7 @@ impl Ownership {
     pub(super) fn foreign_creates(
         &self,
         id: &ExtensionId,
+        standing: StandingTag,
         source: &str,
         sql: &str,
     ) -> Vec<MigrationOwnershipError> {
@@ -126,7 +132,9 @@ impl Ownership {
             .iter()
             .map(|table| qualify(table))
             .filter_map(|table| {
-                let owner = self.owner(&table).filter(|owner| owner.id != *id)?;
+                let owner = self
+                    .owner(&table)
+                    .filter(|owner| !owner.held_by(id, standing))?;
                 Some(MigrationOwnershipError::SharedTable {
                     member: id.clone(),
                     source_sql: source.to_owned(),
@@ -138,72 +146,14 @@ impl Ownership {
     }
 }
 
-impl Ownership {
-    fn claim_records(&mut self, members: MigrationMembers<'_>, recorded: &Recorded<'_>) {
-        let retired: BTreeMap<ExtensionId, BTreeSet<String>> = members
-            .all()
-            .map(|member| {
-                (
-                    ExtensionId::new(member.id()),
-                    retired_tables(member.as_ref()),
-                )
-            })
-            .collect();
-        for record in recorded.tables.iter().filter(|record| {
-            retired
-                .get(&record.owner)
-                .is_none_or(|tables| !tables.contains(&qualify(&record.table)))
-        }) {
-            self.claim(
-                qualify(&record.table),
-                Claim {
-                    rank: Rank::Record,
-                    id: record.owner.clone(),
-                    standing: record.standing,
-                    position: 0,
-                },
-            );
-        }
-        for record in recorded.objects {
-            let claims = match record.kind {
-                ObjectKind::Object => &mut self.objects,
-                ObjectKind::Index => &mut self.indexes,
-                ObjectKind::Trigger => &mut self.triggers,
-            };
-            push_claim(
-                claims,
-                record.name.clone(),
-                Claim {
-                    rank: Rank::Record,
-                    id: record.owner.clone(),
-                    standing: record.standing,
-                    position: 0,
-                },
-            );
-        }
-        for ledger in KERNEL_LEDGERS {
-            self.claim(
-                ledger.to_owned(),
-                Claim {
-                    rank: Rank::Record,
-                    id: ExtensionId::new(KERNEL_LEDGER_OWNER),
-                    standing: StandingTag::Core,
-                    position: 0,
-                },
-            );
-        }
-    }
-}
-
 pub(super) fn ownership(
     members: MigrationMembers<'_>,
     recorded: &Recorded<'_>,
     findings: &mut Vec<MigrationOwnershipError>,
 ) -> Ownership {
     let mut ownership = Ownership::default();
-    ownership.claim_records(members, recorded);
-    let mut declared_by = Vec::new();
-    let mut declared_objects_by = Vec::new();
+    let mut reads = Vec::new();
+    let mut declarations = Vec::new();
     for (position, member) in members.all().enumerate() {
         let id = ExtensionId::new(member.id());
         let judged = members.is_judged(member.as_ref());
@@ -213,13 +163,23 @@ pub(super) fn ownership(
         if judged {
             findings.extend(read_findings);
         }
+        declarations.push((position + 1, declared_objects, declared));
+        reads.push(MemberRead {
+            id,
+            standing: member.standing(),
+            judged,
+            created,
+        });
+    }
+    ownership.claim_records(members, recorded, &reads);
+    for (read, (position, declared_objects, declared)) in reads.iter().zip(&declarations) {
         ownership.claim_created(
-            &id,
-            (member.standing(), position + 1),
-            &created,
-            &declared_objects,
+            &read.id,
+            (read.standing, *position),
+            &read.created,
+            declared_objects,
         );
-        for table in &created.tables {
+        for table in &read.created.tables {
             let rank = if declared.contains(table) {
                 Rank::Schema
             } else {
@@ -229,34 +189,33 @@ pub(super) fn ownership(
                 qualify(table),
                 Claim {
                     rank,
-                    id: id.clone(),
-                    standing: member.standing(),
-                    position: position + 1,
+                    id: read.id.clone(),
+                    standing: read.standing,
+                    position: *position,
                 },
             );
         }
-        if judged {
-            declared_by.push((id.clone(), declared));
-        }
-        if judged && member.standing() == StandingTag::Install {
-            declared_objects_by.push((id.clone(), Ownership::schema_creates(member.as_ref())));
-        }
-        ownership.created.insert(id, created);
     }
-    for (id, schema_created) in declared_objects_by {
-        findings.extend(ownership.schema_object_findings(&id, &schema_created));
-    }
-    for (id, declared) in declared_by {
+    for (read, (_, _, declared)) in reads.iter().zip(&declarations) {
+        if !read.judged {
+            continue;
+        }
         for table in declared {
-            if let Some(owner) = ownership.owner(&table).filter(|owner| owner.id != id) {
+            if let Some(owner) = ownership
+                .owner(table)
+                .filter(|owner| !owner.held_by(&read.id, read.standing))
+            {
                 findings.push(MigrationOwnershipError::SharedTable {
-                    member: id.clone(),
+                    member: read.id.clone(),
                     source_sql: String::from("schema"),
-                    table,
+                    table: table.clone(),
                     owner: owner.id.clone(),
                 });
             }
         }
+    }
+    for read in reads {
+        ownership.created.insert(read.id, read.created);
     }
     ownership
 }
