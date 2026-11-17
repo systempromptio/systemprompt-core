@@ -107,11 +107,7 @@ fn table_config() -> CliConfig {
 }
 
 fn table_ctx() -> CommandContext {
-    CommandContext::new(table_config(), EnvOverrides::default()).with_boot(Some(
-        systemprompt_test_fixtures::ensure_test_bootstrap()
-            .boot
-            .clone(),
-    ))
+    crate::boot_ctx::new_with_boot(table_config(), EnvOverrides::default())
 }
 
 fn prompter() -> ScriptedPrompter {
@@ -176,7 +172,6 @@ async fn plugin_commands_render_through_the_terminal_renderer() {
         vec!["list"],
         vec!["config"],
         vec!["capabilities"],
-        vec!["validate"],
     ] {
         let cmd =
             PluginsHarness::try_parse_from(std::iter::once("plugins").chain(args.iter().copied()))

@@ -133,7 +133,7 @@ async fn a_kernel_command_reads_a_sealed_seed() {
 async fn app_host() -> CommandContext {
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let url = systemprompt_test_fixtures::test_database_url();
-    CommandContext::with_app_context(
+    crate::boot_ctx::with_app_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),

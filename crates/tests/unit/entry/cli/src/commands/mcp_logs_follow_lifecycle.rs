@@ -65,7 +65,7 @@ async fn mcp_logs_follow_helper() {
     }
 
     println!("BEGIN_FOLLOW");
-    mcp::execute(
+    crate::boot_ctx::rendered(&context(), mcp::execute(
         parse(&[
             "logs",
             "atlas",
@@ -75,7 +75,7 @@ async fn mcp_logs_follow_helper() {
         ]),
         &context(),
     )
-    .await
+    .await)
     .expect("successful tail follow renders an output artifact");
     println!("END_FOLLOW");
 

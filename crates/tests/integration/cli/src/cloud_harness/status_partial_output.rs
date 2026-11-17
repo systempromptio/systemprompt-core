@@ -51,14 +51,16 @@ async fn mixed_status_helper() {
         .mount(env.server())
         .await;
 
+    let context = json_ctx();
     println!("BEGIN_MIXED_STATUS");
-    tokio::time::timeout(
+    let output = tokio::time::timeout(
         Duration::from_secs(10),
-        cloud::execute(CloudCommands::Status, &json_ctx()),
+        cloud::execute(CloudCommands::Status, &context),
     )
     .await
     .expect("mixed status completes within ten seconds")
     .expect("one failed tenant probe does not fail the command");
+    systemprompt_extension::cli::CommandHost::render(&context, &output);
     println!("END_MIXED_STATUS");
 }
 

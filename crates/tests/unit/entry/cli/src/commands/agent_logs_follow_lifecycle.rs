@@ -65,7 +65,7 @@ async fn agent_logs_follow_helper() {
     }
 
     println!("BEGIN_FOLLOW");
-    agents::execute(
+    crate::boot_ctx::rendered(&context(), agents::execute(
         parse(&[
             "logs",
             "orion",
@@ -75,7 +75,7 @@ async fn agent_logs_follow_helper() {
         ]),
         &context(),
     )
-    .await
+    .await)
     .expect("successful tail follow renders an output artifact");
     println!("END_FOLLOW");
 

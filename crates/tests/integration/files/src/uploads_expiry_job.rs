@@ -7,7 +7,7 @@ use systemprompt_files::uploads::{
 };
 use systemprompt_files::{DocumentsConfig, FilesConfig, FilesConfigYaml};
 use systemprompt_identifiers::{DocumentUploadId, UserId};
-use systemprompt_provider_contracts::{Dependencies, Job, JobContext, JobScope};
+use systemprompt_provider_contracts::{Job, JobContext, JobScope};
 use systemprompt_test_fixtures::{
     fixture_actor, test_app_context, test_database_url, test_db_pool,
 };
@@ -72,10 +72,13 @@ async fn the_enabled_expiry_job_closes_an_upload_past_its_lifetime() {
     .execute(&*db.pool())
     .await
     .expect("backdate");
-    let extensions: Arc<dyn ExtensionContext> = test_app_context(&test_database_url()).await;
+    let app = test_app_context(&test_database_url()).await;
+    let extensions: Arc<dyn ExtensionContext> = app.clone();
     let ctx = JobContext::new(
         fixture_actor(),
-        Dependencies::new()
+        app.kernel()
+            .state()
+            .clone()
             .with(Arc::clone(&db))
             .with(enabled())
             .with(extensions),

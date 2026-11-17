@@ -13,7 +13,13 @@ fn builder_default_flags_are_false() {
     let dbg = format!("{builder:?}");
     assert!(dbg.contains("show_startup_warnings: false"), "got: {dbg}");
     assert!(dbg.contains("install_schemas: false"), "got: {dbg}");
-    assert!(dbg.contains("admitted: 17"), "got: {dbg}");
+    assert!(
+        dbg.contains(&format!(
+            "admitted: {}",
+            systemprompt_test_fixtures::fixture_core_members().len()
+        )),
+        "got: {dbg}"
+    );
     assert!(dbg.contains("authz_hook: false"), "got: {dbg}");
     assert!(dbg.contains("marketplace_filter: false"), "got: {dbg}");
 }
@@ -108,7 +114,13 @@ fn builder_full_chain_all_flags_set() {
     let dbg = format!("{builder:?}");
     assert!(dbg.contains("show_startup_warnings: true"), "got: {dbg}");
     assert!(dbg.contains("install_schemas: true"), "got: {dbg}");
-    assert!(dbg.contains("admitted: 17"), "got: {dbg}");
+    assert!(
+        dbg.contains(&format!(
+            "admitted: {}",
+            systemprompt_test_fixtures::fixture_core_members().len()
+        )),
+        "got: {dbg}"
+    );
     assert!(dbg.contains("marketplace_filter: true"), "got: {dbg}");
     assert!(dbg.contains("authz_hook: true"), "got: {dbg}");
 }

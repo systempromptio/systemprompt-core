@@ -82,7 +82,7 @@ async fn ctx() -> Arc<HostContext> {
     .await
     .expect("seed the system admin");
     Arc::new(
-        HostContext::boot(move |name| env.get(name).cloned(), crate::boot::core_admit())
+        HostContext::boot(move |name| env.get(name).cloned(), crate::boot::host_admit())
             .await
             .expect("host context from the child environment"),
     )

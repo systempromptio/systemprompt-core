@@ -291,8 +291,8 @@ async fn validate_running_external_helper() {
 
     let context = ctx(&app);
     println!("BEGIN_VALIDATE_EXTERNAL");
-    mcp::execute(parse(&["validate", ENABLED, "--timeout", "1"]), &context)
-        .await
+    crate::boot_ctx::rendered(&context, mcp::execute(parse(&["validate", ENABLED, "--timeout", "1"]), &context)
+        .await)
         .expect_err("an invalid server renders its report and exits non-zero");
     println!("END_VALIDATE_EXTERNAL");
 
@@ -432,12 +432,12 @@ async fn validate_closed_database_helper() {
     boot();
     assert_configured();
     let database = DisposableDb::with_schema("cli_mcp_validate_closed_database").await;
-    let pool = database.test_pool().await;
     let app = app_over(database.url()).await;
-    pool.pool().close().await;
+    app.db_pool().pool().close().await;
+    app.db_pool().write_pool().close().await;
     println!("BEGIN_VALIDATE_CLOSED_DATABASE");
-    mcp::execute(parse(&["validate", ENABLED, "--timeout", "1"]), &ctx(&app))
-        .await
+    crate::boot_ctx::rendered(&ctx(&app), mcp::execute(parse(&["validate", ENABLED, "--timeout", "1"]), &ctx(&app))
+        .await)
         .expect_err("database lookup failure renders its report and exits non-zero");
     println!("END_VALIDATE_CLOSED_DATABASE");
     drop(app);
@@ -488,13 +488,13 @@ async fn validate_stopped_outputs_helper() {
     let app = app_over(database.url()).await;
     let context = ctx(&app);
     println!("BEGIN_VALIDATE_NAMED_STOPPED");
-    mcp::execute(parse(&["validate", ENABLED, "--timeout", "1"]), &context)
-        .await
+    crate::boot_ctx::rendered(&context, mcp::execute(parse(&["validate", ENABLED, "--timeout", "1"]), &context)
+        .await)
         .expect_err("a stopped server renders its report and exits non-zero");
     println!("END_VALIDATE_NAMED_STOPPED");
     println!("BEGIN_VALIDATE_BATCH_STOPPED");
-    mcp::execute(parse(&["validate", "--all", "--timeout", "1"]), &context)
-        .await
+    crate::boot_ctx::rendered(&context, mcp::execute(parse(&["validate", "--all", "--timeout", "1"]), &context)
+        .await)
         .expect_err("a stopped batch renders its report and exits non-zero");
     println!("END_VALIDATE_BATCH_STOPPED");
     drop(context);

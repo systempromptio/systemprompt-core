@@ -91,7 +91,7 @@ async fn files_ai_output_helper() {
         test_app_context(database.url()).await,
     );
     println!("BEGIN_AI_LIST");
-    core::execute(
+    crate::boot_ctx::rendered(&context, core::execute(
         parse(&[
             "files",
             "ai",
@@ -103,20 +103,20 @@ async fn files_ai_output_helper() {
         ]),
         &context,
     )
-    .await
+    .await)
     .expect("public AI list");
     println!("END_AI_LIST");
     println!("BEGIN_AI_SHOW");
-    core::execute(parse(&["files", "ai", "show", &id.to_string()]), &context)
-        .await
+    crate::boot_ctx::rendered(&context, core::execute(parse(&["files", "ai", "show", &id.to_string()]), &context)
+        .await)
         .expect("public AI show");
     println!("END_AI_SHOW");
     println!("BEGIN_AI_COUNT");
-    core::execute(
+    crate::boot_ctx::rendered(&context, core::execute(
         parse(&["files", "ai", "count", "--user", user.as_str()]),
         &context,
     )
-    .await
+    .await)
     .expect("public AI count");
     println!("END_AI_COUNT");
     println!("FIXTURE_ID={id}");

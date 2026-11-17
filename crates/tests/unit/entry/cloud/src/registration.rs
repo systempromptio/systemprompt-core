@@ -41,7 +41,7 @@ fn descriptor(args: &[&str]) -> CommandDescriptor {
 }
 
 #[test]
-fn the_cloud_member_declares_the_cloud_group_with_the_operator_grant() {
+fn the_cloud_member_declares_the_cloud_group_with_its_kernel_grants() {
     let declared = systemprompt::reference()
         .declare()
         .expect("the reference composition declares");
@@ -52,7 +52,17 @@ fn the_cloud_member_declares_the_cloud_group_with_the_operator_grant() {
         .filter(|command| command.owner.as_str() == "cloud")
         .map(|command| (command.decl.path(), command.decl.grants().to_vec()))
         .collect();
-    assert_eq!(cloud, [(vec!["cloud"], vec![KernelGrant::CloudOperator])]);
+    assert_eq!(
+        cloud,
+        [(
+            vec!["cloud"],
+            vec![
+                KernelGrant::CloudOperator,
+                KernelGrant::BootProfile,
+                KernelGrant::ConfigReconcile,
+            ]
+        )]
+    );
 }
 
 #[test]

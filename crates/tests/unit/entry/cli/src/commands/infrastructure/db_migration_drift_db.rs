@@ -94,7 +94,7 @@ impl Disposable {
             cli = cli.with_output_format(OutputFormat::Json);
         }
         let db_ctx = DatabaseContext::from_url(&self.url).await.unwrap();
-        CommandContext::with_database(cli, EnvOverrides::default(), db_ctx, self.url.clone())
+        crate::boot_ctx::with_database(cli, EnvOverrides::default(), db_ctx, self.url.clone())
     }
 
     async fn verbose_ctx(&self) -> CommandContext {
@@ -102,7 +102,7 @@ impl Disposable {
             .with_interactive(false)
             .with_verbosity(VerbosityLevel::Verbose);
         let db_ctx = DatabaseContext::from_url(&self.url).await.unwrap();
-        CommandContext::with_database(cli, EnvOverrides::default(), db_ctx, self.url.clone())
+        crate::boot_ctx::with_database(cli, EnvOverrides::default(), db_ctx, self.url.clone())
     }
 
     async fn drop(self) {
@@ -130,7 +130,7 @@ async fn a_drifted_checksum_is_reported_by_status_and_healed_by_repair_apply() {
     db::execute(parse(&["migrate-status"]), &disp.ctx(false).await)
         .await
         .unwrap();
-    db::execute(parse(&["migrate-status", "--json"]), &disp.ctx(true).await)
+    db::execute(parse(&["migrate-status"]), &disp.ctx(true).await)
         .await
         .unwrap();
 

@@ -33,7 +33,7 @@ fn parse(args: &[&str]) -> ServicesCommands {
 
 
 fn ctx(pool: &DbPool) -> CommandContext {
-    CommandContext::with_database(
+    crate::boot_ctx::with_database(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),

@@ -53,7 +53,7 @@ impl Disposable {
             cli = cli.with_output_format(OutputFormat::Json);
         }
         let db_ctx = DatabaseContext::from_url(&self.url).await.unwrap();
-        CommandContext::with_database(cli, EnvOverrides::default(), db_ctx, self.url.clone())
+        crate::boot_ctx::with_database(cli, EnvOverrides::default(), db_ctx, self.url.clone())
     }
 
     async fn drop(self) {
@@ -72,7 +72,7 @@ async fn fresh_database_migrates_and_reports_status() {
     db::execute(parse(&["migrate-status"]), &disp.ctx(false).await)
         .await
         .unwrap();
-    db::execute(parse(&["migrate-status", "--json"]), &disp.ctx(true).await)
+    db::execute(parse(&["migrate-status"]), &disp.ctx(true).await)
         .await
         .unwrap();
     db::execute(parse(&["migrate-plan"]), &disp.ctx(false).await)
@@ -160,7 +160,6 @@ async fn fresh_database_mark_applied_and_down() {
             "logging",
             "--version",
             "3",
-            "--json",
         ]),
         &disp.ctx(true).await,
     )

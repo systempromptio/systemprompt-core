@@ -59,16 +59,16 @@ fn help_flag_lists_top_level_commands() {
 }
 
 #[test]
-fn plugins_seams_lists_the_run_origins_an_entry_member_contributes() {
+fn plugins_seams_lists_the_contributions_an_app_member_makes() {
     let fixture = isolated_fixture(59998);
     sp().env_remove("SYSTEMPROMPT_PROFILE")
         .args(["--non-interactive", "--no-color", "--profile"])
         .arg(&fixture.profile_path)
-        .args(["plugins", "seams", "--member", "agent-runs"])
+        .args(["plugins", "seams", "--member", "agent_runs"])
         .assert()
         .success()
-        .stdout(contains("run_origins"))
-        .stdout(contains("agent-runs"));
+        .stdout(contains("agent_run_dirs_cleanup"))
+        .stdout(contains("agent_runs_api"));
 }
 
 #[test]

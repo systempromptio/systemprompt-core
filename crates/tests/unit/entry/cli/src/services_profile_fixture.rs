@@ -197,6 +197,7 @@ pub fn ctx_for(boot: &systemprompt_loader::BootContext) -> systemprompt_cli::Com
         systemprompt_cli::EnvOverrides::default(),
     )
     .with_boot(Some(boot.clone()))
+    .with_admitted(Some(systemprompt_test_fixtures::fixture_admitted()))
 }
 
 pub fn json_ctx(boot: &systemprompt_loader::BootContext) -> systemprompt_cli::CommandContext {
@@ -207,4 +208,5 @@ pub fn json_ctx(boot: &systemprompt_loader::BootContext) -> systemprompt_cli::Co
         systemprompt_cli::EnvOverrides::default(),
     )
     .with_boot(Some(boot.clone()))
+    .with_admitted(Some(systemprompt_test_fixtures::fixture_admitted()))
 }

@@ -6,7 +6,7 @@
 
 use systemprompt_extension::{ContributionError, Contributions, Extension, ExtensionMetadata};
 use systemprompt_runtime::{AppContext, KernelError, RuntimeError};
-use systemprompt_test_fixtures::{core_members, fixture_admitted, fixture_admitted_of};
+use systemprompt_test_fixtures::{core_members, fixture_admitted, fixture_admitted_of, fixture_core_members};
 
 use crate::boot::{BootOptions, boot};
 
@@ -74,7 +74,7 @@ async fn build_assembles_full_context_with_pool_and_write_url() {
         "a loaded content config provides routing"
     );
     assert!(ctx.geoip_reader().is_none());
-    assert_eq!(ctx.admitted().built().members().count(), core_members().len());
+    assert_eq!(ctx.admitted().built().members().count(), fixture_core_members().len());
 
     remove_admin(&pool, &admin).await;
 }
@@ -319,33 +319,34 @@ impl systemprompt_marketplace::MarketplaceFilter for ProbeMarketplaceFilter {
 
 fn marketplace_filter_of(contribute_filter: bool) -> String {
     use std::sync::Arc;
-    use systemprompt_extension::{FactoryError, Resolved};
+    use systemprompt_extension::{FactoryError, Resolved, Slot, StandingTag};
+    use systemprompt_governance::contract::RoleDirectorySlot;
     use systemprompt_marketplace::MarketplaceFilter;
-    use systemprompt_marketplace::contract::{MarketplaceSeams, MarketplaceSlot};
-    use systemprompt_test_fixtures::{ComposedParts, Probe};
+    use systemprompt_marketplace::contract::{MarketplaceSlot, MarketplaceSlotBuilder};
+    use systemprompt_test_fixtures::slots::built_slot;
 
-    let admitted = systemprompt_test_fixtures::probe_admitted(ComposedParts {
-        probes: vec![Probe::new("marketplace-probe", move |c| {
-            c.slot::<systemprompt_governance::contract::RoleDirectorySlot>();
-            let slot = c.slot::<MarketplaceSlot>();
-            if contribute_filter {
-                slot.filter(
-                    |_: &Resolved<'_>| -> Result<Arc<dyn MarketplaceFilter>, FactoryError> {
-                        Ok(Arc::new(ProbeMarketplaceFilter))
-                    },
-                );
-            }
-        })],
-        ..ComposedParts::default()
-    });
+    let roles = RoleDirectorySlot::build(
+        Vec::new(),
+        &systemprompt_test_fixtures::empty_resolved_kernel().resolved(),
+    )
+    .expect("an empty role directory slot builds");
     let kernel = systemprompt_test_fixtures::offline_resolved_kernel(
-        &admitted,
-        systemprompt_extension::prelude::Dependencies::new(),
+        &systemprompt_test_fixtures::probe_admitted(systemprompt_test_fixtures::ComposedParts::default()),
+        systemprompt_extension::prelude::Dependencies::new().with(Arc::new(roles)),
     );
-    let seams: Arc<MarketplaceSeams> = kernel
-        .resolved()
-        .get()
-        .expect("an opened marketplace slot is built");
+    let mut builder = MarketplaceSlotBuilder::default();
+    if contribute_filter {
+        builder.filter(
+            |_: &Resolved<'_>| -> Result<Arc<dyn MarketplaceFilter>, FactoryError> {
+                Ok(Arc::new(ProbeMarketplaceFilter))
+            },
+        );
+    }
+    let seams = built_slot::<MarketplaceSlot>(
+        vec![("marketplace-probe", StandingTag::Core, builder)],
+        &kernel.resolved(),
+    )
+    .expect("an opened marketplace slot is built");
     format!("{:?}", seams.filter())
 }
 

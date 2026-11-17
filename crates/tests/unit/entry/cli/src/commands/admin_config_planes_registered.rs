@@ -201,9 +201,13 @@ async fn list_titles_plainly_once_every_plane_is_applied() {
         &[],
     )
     .await;
-    systemprompt_test_fixtures::record_plane_applied(h.ctx.db_pool(), h.plane.name)
-        .await
-        .expect("record the apply");
+    let planes = h.ctx.config_planes().expect("the admitted planes");
+    assert!(planes.names().contains(&h.plane.name));
+    for name in planes.names() {
+        systemprompt_test_fixtures::record_plane_applied(h.ctx.db_pool(), name)
+            .await
+            .expect("record the apply");
+    }
     let out = run(PlanesCommands::List, &h.ctx).await.expect("list");
     let title = out.title().expect("title");
     assert!(!title.contains("NOT APPLIED"), "{title}");

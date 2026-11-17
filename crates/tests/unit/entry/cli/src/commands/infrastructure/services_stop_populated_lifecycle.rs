@@ -82,8 +82,8 @@ async fn populated_stop_helper() {
     );
 
     println!("BEGIN_STOP_ARTIFACT");
-    services::execute(parse(&["stop", "--agents", "--mcp"]), &ctx)
-        .await
+    crate::boot_ctx::rendered(&ctx, services::execute(parse(&["stop", "--agents", "--mcp"]), &ctx)
+        .await)
         .expect("stop selected populated service groups");
     println!("END_STOP_ARTIFACT");
 

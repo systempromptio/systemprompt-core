@@ -14,7 +14,7 @@ use systemprompt_runtime::DatabaseContext;
 use systemprompt_test_fixtures::{DisposableDb, ensure_test_bootstrap};
 
 async fn scoped(db: &DisposableDb) -> CommandContext {
-    CommandContext::with_database(
+    crate::boot_ctx::with_database(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),

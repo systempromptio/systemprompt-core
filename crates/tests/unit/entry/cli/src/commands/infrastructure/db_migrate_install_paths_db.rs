@@ -8,7 +8,7 @@
 use clap::Parser;
 use systemprompt_cli::infrastructure::db::{self, DbCommands};
 use systemprompt_cli::{CommandContext, EnvOverrides};
-use systemprompt_extension::cli::{CliConfig, VerbosityLevel};
+use systemprompt_extension::cli::{CliConfig, OutputFormat, VerbosityLevel};
 use systemprompt_runtime::DatabaseContext;
 use systemprompt_test_fixtures::{DisposableDb, ensure_test_bootstrap};
 
@@ -39,7 +39,7 @@ async fn ctx(url: &str, verbose: bool) -> CommandContext {
         cli = cli.with_verbosity(VerbosityLevel::Verbose);
     }
     let db_ctx = DatabaseContext::from_url(url).await.unwrap();
-    CommandContext::with_database(cli, EnvOverrides::default(), db_ctx, url.to_owned())
+    crate::boot_ctx::with_database(cli, EnvOverrides::default(), db_ctx, url.to_owned())
 }
 
 async fn exec(url: &str, sql: &str, extension: &str, version: i32) -> u64 {
@@ -124,10 +124,9 @@ async fn a_pending_breaking_migration_is_planned_and_fails_the_rolling_safe_gate
     db::execute(parse(&["migrate-plan"]), &ctx(&url, false).await)
         .await
         .expect("a text plan renders pending rows");
-    db::execute(
-        parse(&["migrate-plan", "ai", "--json"]),
-        &ctx(&url, false).await,
-    )
+    let mut json = ctx(&url, false).await;
+    json.cli = json.cli.clone().with_output_format(OutputFormat::Json);
+    db::execute(parse(&["migrate-plan", "ai"]), &json)
     .await
     .expect("a json plan renders pending rows");
 

@@ -60,14 +60,12 @@ struct FilesHarness {
 
 #[tokio::test]
 async fn files_validate_fails_for_a_file_the_upload_policy_rejects() {
-    let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
-    let ctx = CommandContext::new(
+    let ctx = crate::boot_ctx::new_with_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
-    )
-    .with_boot(Some(boot.boot.clone()));
+    );
     let dir = tempfile::tempdir().expect("tempdir");
     let file = dir.path().join("payload.exe");
     std::fs::write(&file, b"MZ").expect("write");
