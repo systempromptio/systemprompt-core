@@ -135,9 +135,17 @@ pub(super) fn ctes(with: &[Node]) -> Vec<Effect> {
 }
 
 pub(super) fn effects_of(statement: &NodeEnum) -> Vec<Effect> {
-    table_effects(statement)
+    let mut effects = table_effects(statement)
         .or_else(|| super::writes::write_effects(statement))
-        .unwrap_or_else(|| other_effects(statement))
+        .unwrap_or_else(|| other_effects(statement));
+    effects.extend(super::relations::secondary_effects(statement));
+    effects
+}
+
+pub(super) fn unclassified(statement: &NodeEnum) -> Vec<Effect> {
+    vec![Effect::Hidden(HiddenSql::Unclassified {
+        kind: statement_kind(statement),
+    })]
 }
 
 fn table_effects(statement: &NodeEnum) -> Option<Vec<Effect>> {
@@ -161,7 +169,7 @@ fn table_effects(statement: &NodeEnum) -> Option<Vec<Effect>> {
         {
             altered(alter.object.as_deref().and_then(object_name))
         },
-        NodeEnum::RenameStmt(rename) => renamed(rename),
+        NodeEnum::RenameStmt(rename) => renamed(rename).unwrap_or_else(|| unclassified(statement)),
         NodeEnum::AlterTableMoveAllStmt(_) => vec![Effect::Schema(TableMutation::MoveAll, None)],
         NodeEnum::TruncateStmt(truncate) => truncate
             .relations
@@ -182,7 +190,7 @@ fn table_effects(statement: &NodeEnum) -> Option<Vec<Effect>> {
             on(TableMutation::CreatePolicy, policy.table.as_ref())
         },
         NodeEnum::AlterPolicyStmt(policy) => on(TableMutation::AlterPolicy, policy.table.as_ref()),
-        NodeEnum::GrantStmt(grant) => granted(grant),
+        NodeEnum::GrantStmt(grant) => granted(grant).unwrap_or_else(|| unclassified(statement)),
         _ => return None,
     })
 }
@@ -206,7 +214,7 @@ fn object_alter_effects(statement: &NodeEnum) -> Option<Vec<Effect>> {
                 | ObjectType::ObjectSequence
                 | ObjectType::ObjectType,
             ) => altered(alter.relation.as_ref().and_then(relation_name)),
-            _ => Vec::new(),
+            _ => unclassified(statement),
         },
         NodeEnum::AlterObjectSchemaStmt(moved) => match object_type(moved.object_type) {
             Some(ObjectType::ObjectTable | ObjectType::ObjectForeignTable) => {
@@ -278,9 +286,7 @@ fn other_effects(statement: &NodeEnum) -> Vec<Effect> {
         | NodeEnum::NotifyStmt(_)
         | NodeEnum::VacuumStmt(_)
         | NodeEnum::ReindexStmt(_) => Vec::new(),
-        other => vec![Effect::Hidden(HiddenSql::Unclassified {
-            kind: statement_kind(other),
-        })],
+        other => unclassified(other),
     }
 }
 

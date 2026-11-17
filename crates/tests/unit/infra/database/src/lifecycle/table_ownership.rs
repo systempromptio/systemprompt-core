@@ -33,11 +33,20 @@ fn unit(
 }
 
 fn ledger() -> Arc<dyn SchemaMember> {
-    unit(
-        "database",
-        vec![SchemaDefinition::new("schema_table_owners", OWNERS_DDL)],
-        vec![],
-    )
+    Arc::new(SchemaUnit {
+        metadata: ExtensionMetadata {
+            id: "database",
+            name: "database",
+            version: "1.0.0",
+        },
+        standing: StandingTag::Core,
+        schemas: vec![SchemaDefinition::new("schema_table_owners", OWNERS_DDL)],
+        migrations: vec![],
+        seeds: vec![],
+        retirements: vec![],
+        cross_tables: vec![],
+        purges: vec![],
+    })
 }
 
 fn table(name: &str) -> SchemaDefinition {

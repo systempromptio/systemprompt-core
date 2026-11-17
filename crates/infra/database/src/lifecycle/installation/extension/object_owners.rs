@@ -2,10 +2,19 @@
 //! view, materialized view, sequence, type, domain and trigger.
 //!
 //! As `schema_table_owners` does for tables, `schema_object_owners` keeps a
-//! disabled member's objects its own while its code is absent: every install
-//! records, for each admitted member, the objects the ownership rule gives it
-//! and releases the records of those it no longer creates; a record of a
-//! member outside the composition is never touched.
+//! disabled or held-back member's objects its own while its code is absent
+//! or behind. After its DDL every install, full or settled:
+//!
+//! - deletes each stale record: one of an install-standing owner for a name a
+//!   core member's SQL creates, and one of a judged member for an object its
+//!   SQL no longer creates (a member's own record never counts as the create
+//!   that keeps it); the same install-standing rule deletes a
+//!   `schema_table_owners` record of a table a core member's SQL creates;
+//! - for each judged member, deletes its records of objects the ownership rule
+//!   no longer gives it and records those it does.
+//!
+//! A record of a held-back member, or of a member outside the composition, is
+//! deleted only by the core rule.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,10 +22,8 @@
 use systemprompt_extension::{LoaderError, StandingTag};
 use systemprompt_identifiers::ExtensionId;
 
-use super::super::migration_owners::{
-    MigrationMembers, ObjectKind, Recorded, RecordedObject, owned_objects,
-};
-use super::ownership::{present, recorded_table_owners, step_failed};
+use super::super::migration_owners::{MigrationMembers, ObjectKind, RecordedObject, Stale};
+use super::ownership::{present, step_failed};
 use crate::services::DatabaseProvider;
 
 const OBJECT_OWNERS_PRESENT_SQL: &str =
@@ -29,6 +36,15 @@ const RECORD_OBJECTS_SQL: &str = "INSERT INTO schema_object_owners \
      (object_kind, object_name, extension_id, standing) \
      SELECT d.kind, d.name, $3, $4 FROM unnest($1::text[], $2::text[]) AS d(kind, name) \
      ON CONFLICT (object_kind, object_name) DO NOTHING";
+
+const RELEASE_STALE_OBJECTS_SQL: &str = "DELETE FROM schema_object_owners AS o \
+     USING unnest($1::text[], $2::text[], $3::text[]) AS d(kind, name, owner) \
+     WHERE o.object_kind = d.kind AND o.object_name = d.name AND o.extension_id = d.owner";
+
+const RELEASE_STALE_TABLES_SQL: &str = "DELETE FROM schema_table_owners AS o \
+     USING unnest($1::text[], $2::text[]) AS d(name, owner) \
+     WHERE o.extension_id = d.owner \
+     AND (o.table_name = d.name OR 'public.' || o.table_name = d.name)";
 
 const RELEASE_OBJECTS_SQL: &str = "DELETE FROM schema_object_owners AS o \
      WHERE o.extension_id = $1 AND NOT EXISTS (\
@@ -58,22 +74,45 @@ pub(super) async fn recorded_object_owners(
         .collect())
 }
 
+pub(super) async fn release_stale_records(
+    db: &dyn DatabaseProvider,
+    stale: &Stale,
+) -> Result<(), LoaderError> {
+    if !stale.objects.is_empty() {
+        let (kinds, names, owners) = stale.objects.iter().fold(
+            (Vec::new(), Vec::new(), Vec::new()),
+            |(mut kinds, mut names, mut owners), record| {
+                kinds.push(record.kind.as_str().to_owned());
+                names.push(record.name.clone());
+                owners.push(record.owner.as_str().to_owned());
+                (kinds, names, owners)
+            },
+        );
+        db.execute(&RELEASE_STALE_OBJECTS_SQL, &[&kinds, &names, &owners])
+            .await
+            .map_err(|e| step_failed("Failed to release stale object ownership", e))?;
+    }
+    if !stale.tables.is_empty() {
+        let (names, owners): (Vec<String>, Vec<String>) = stale
+            .tables
+            .iter()
+            .map(|record| (record.table.clone(), record.owner.as_str().to_owned()))
+            .unzip();
+        db.execute(&RELEASE_STALE_TABLES_SQL, &[&names, &owners])
+            .await
+            .map_err(|e| step_failed("Failed to release stale table ownership", e))?;
+    }
+    Ok(())
+}
+
 pub(super) async fn record_object_owners(
     db: &dyn DatabaseProvider,
     members: MigrationMembers<'_>,
+    owned: &[RecordedObject],
 ) -> Result<(), LoaderError> {
     if !present(db, OBJECT_OWNERS_PRESENT_SQL, "object").await? {
         return Ok(());
     }
-    let tables = recorded_table_owners(db).await?.recorded();
-    let objects = recorded_object_owners(db).await?;
-    let owned = owned_objects(
-        members,
-        &Recorded {
-            tables: &tables,
-            objects: &objects,
-        },
-    );
     for member in members.judged() {
         let id = ExtensionId::new(member.id());
         let (kinds, names): (Vec<String>, Vec<String>) = owned

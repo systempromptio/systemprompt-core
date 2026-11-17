@@ -1,10 +1,10 @@
 //! The objects a member's own SQL creates and has not dropped since: tables
-//! (including `CREATE TABLE ... AS`), the indexes and constraint indexes on
-//! them, the triggers on them, schemas, and the other named objects (types,
-//! routines, sequences, views, materialized views) a `DROP` can name. The
-//! member's migrations are read in version order, then its declarative
-//! schema, so an object a later migration of the member drops is no longer
-//! its own unless the declarative schema creates it.
+//! (including `CREATE TABLE ... AS` and `SELECT ... INTO`), the indexes and
+//! constraint indexes on them, the triggers on them, schemas, and the other
+//! named objects (types, routines, sequences, views, materialized views) a
+//! `DROP` can name. The member's migrations are read in version order, then its
+//! declarative schema, so an object a later migration of the member drops is no
+//! longer its own unless the declarative schema creates it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,7 +12,7 @@
 use std::collections::BTreeSet;
 
 use pg_query::NodeEnum;
-use pg_query::protobuf::{AlterTableStmt, ConstrType, CreateStmt, Node, ObjectType};
+use pg_query::protobuf::{AlterTableStmt, ConstrType, CreateStmt, IntoClause, Node, ObjectType};
 
 use super::statements::{
     object_name, object_type, qualified, relation_name, top_level, trigger_key, trigger_of,
@@ -77,19 +77,11 @@ impl Created {
                 self.objects
                     .extend(created.view.as_ref().and_then(relation_name));
             },
-            NodeEnum::CreateTableAsStmt(created) => {
-                let name = created
-                    .into
-                    .as_ref()
-                    .and_then(|into| into.rel.as_ref())
-                    .and_then(relation_name);
-                if let Some(name) = name {
-                    if object_type(created.objtype) == Some(ObjectType::ObjectTable) {
-                        self.tables.insert(name.clone());
-                    }
-                    self.objects.insert(name);
-                }
-            },
+            NodeEnum::CreateTableAsStmt(created) => self.created_into(
+                created.into.as_deref(),
+                object_type(created.objtype) == Some(ObjectType::ObjectTable),
+            ),
+            NodeEnum::SelectStmt(select) => self.created_into(select.into_clause.as_deref(), true),
             NodeEnum::CreateTrigStmt(trigger) => {
                 if let Some(table) = trigger.relation.as_ref().and_then(relation_name) {
                     self.triggers.insert(trigger_key(&trigger.trigname, &table));
@@ -124,6 +116,19 @@ impl Created {
         for element in &create.table_elts {
             self.element(&table, element);
         }
+    }
+
+    fn created_into(&mut self, into: Option<&IntoClause>, table: bool) {
+        let Some(name) = into
+            .and_then(|into| into.rel.as_ref())
+            .and_then(relation_name)
+        else {
+            return;
+        };
+        if table {
+            self.tables.insert(name.clone());
+        }
+        self.objects.insert(name);
     }
 
     fn added_constraints(&mut self, alter: &AlterTableStmt) {

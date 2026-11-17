@@ -18,10 +18,17 @@
 //! every table recorded to the old id ([`LoaderError::DuplicateTableOwner`]
 //! names that recorded owner) until an operator re-assigns the records.
 //!
+//! A record carrying install standing never outranks a core member's SQL: a
+//! core member declaring a table recorded to an install member is not refused
+//! by that record, the record is no claim when the migration ownership rule
+//! ranks, and the install deletes it after its DDL, so a record written when
+//! an install's declarative schema outranked a core migration does not
+//! survive the next install.
+//!
 //! Each install also records, in `schema_object_owners`, the owner of every
 //! index, routine, view, materialized view, sequence, type, domain and
-//! trigger an admitted member's SQL creates, and releases the records of one
-//! it no longer creates. Before any DDL the install refuses a pending
+//! trigger an admitted member's SQL creates, and deletes stale records (see
+//! `object_owners`). Before any DDL the install refuses a pending
 //! migration that changes a table or object another member owns, judged over
 //! both sets of records (`migration_owners`), so a disabled member keeps its
 //! objects as it keeps its tables.
@@ -44,11 +51,11 @@ use systemprompt_extension::{LoaderError, Migration, StandingTag};
 use systemprompt_identifiers::ExtensionId;
 
 use super::super::migration_owners::{
-    MigrationMembers, Recorded, RecordedTable, check_migration_ownership,
+    MigrationMembers, Recorded, RecordedTable, check_migration_ownership, record_plan,
 };
 use super::super::prepare::PreparedSchema;
 use super::super::undeclared::qualify;
-use super::object_owners::{record_object_owners, recorded_object_owners};
+use super::object_owners::{record_object_owners, recorded_object_owners, release_stale_records};
 use crate::lifecycle::migrations::MigrationService;
 use crate::services::DatabaseProvider;
 
@@ -181,6 +188,9 @@ pub(super) fn check_recorded_owners(
             let Some(recorded) = owners.record_of(table) else {
                 continue;
             };
+            if recorded.standing == StandingTag::Install && p.standing == StandingTag::Core {
+                continue;
+            }
             if recorded.id != p.extension_id {
                 return Err(LoaderError::DuplicateTableOwner {
                     table: table.clone(),
@@ -205,7 +215,17 @@ pub(super) async fn record_owners(
     prepared: &[PreparedSchema],
     members: MigrationMembers<'_>,
 ) -> Result<(), LoaderError> {
-    record_object_owners(db, members).await?;
+    let tables = recorded_table_owners(db).await?.recorded();
+    let objects = recorded_object_owners(db).await?;
+    let (owned, stale) = record_plan(
+        members,
+        &Recorded {
+            tables: &tables,
+            objects: &objects,
+        },
+    );
+    release_stale_records(db, &stale).await?;
+    record_object_owners(db, members, &owned).await?;
     if recorded_table_owners_present(db).await? {
         for p in prepared {
             let declared: Vec<String> = p.owned_tables.iter().map(|t| qualify(t)).collect();

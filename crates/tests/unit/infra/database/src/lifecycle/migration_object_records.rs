@@ -3,7 +3,10 @@
 //! view, sequence and index, and `CREATE TABLE ... AS` creates a table, so
 //! each is judged as the object it names. An install records the owner of
 //! every non-table object in `schema_object_owners`, so a member outside the
-//! composition keeps its objects (K-SEC7-1, K-SEC7-4).
+//! composition keeps its objects (K-SEC7-1, K-SEC7-4). An install deletes a
+//! judged member's record of an object its SQL no longer creates and an
+//! install-standing record, table or object, of a name a core member's SQL
+//! creates; an absent member's other records stay (K-SEC8-2, K-SEC8-4).
 
 use std::sync::Arc;
 
@@ -157,5 +160,86 @@ async fn a_member_outside_the_composition_keeps_its_recorded_objects() {
     install(&pool, vec![ledger(), peer(own)])
         .await
         .expect("negative control: a drop of the member's own function installs");
+    database.drop_now().await;
+}
+
+const OWNER_WITHOUT_FN: &str = "CREATE TABLE IF NOT EXISTS ev_owned (id INT PRIMARY KEY);
+CREATE INDEX IF NOT EXISTS ev_owned_idx ON ev_owned (id);";
+
+const CORE_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS ev_core_t (id INT PRIMARY KEY);
+CREATE OR REPLACE FUNCTION ev_core_fn() RETURNS INT LANGUAGE sql AS $$ SELECT 1 $$;";
+
+async fn rows(
+    pool: &systemprompt_database::DbPool,
+    sql: &'static str,
+) -> Vec<(String, String, String)> {
+    sqlx::query_as(sql)
+        .fetch_all(pool.write_pool().as_ref())
+        .await
+        .expect("records read")
+}
+
+#[tokio::test]
+async fn an_install_releases_stale_object_and_table_records() {
+    let database = DisposableDb::empty("stale_records").await;
+    let pool = database.test_pool().await;
+    install(&pool, vec![ledger(), owner()])
+        .await
+        .expect("the first install records the owner's function");
+    sqlx::raw_sql(
+        "INSERT INTO schema_object_owners (object_kind, object_name, extension_id, standing) \
+         VALUES ('object', 'public.ev_core_fn', 'ev-gone', 'install'), \
+                ('object', 'public.ev_kept_fn', 'ev-gone', 'install');
+         INSERT INTO schema_table_owners (table_name, extension_id, standing) \
+         VALUES ('public.ev_core_t', 'ev-gone', 'install');",
+    )
+    .execute(pool.write_pool().as_ref())
+    .await
+    .expect("records written under the earlier ranking");
+    let core = unit(
+        "ev-core",
+        StandingTag::Core,
+        Some(CORE_SCHEMA),
+        vec![],
+        vec![],
+    );
+    let owner_now = unit(
+        "ev-owner",
+        StandingTag::Install,
+        Some(OWNER_WITHOUT_FN),
+        vec![],
+        vec![],
+    );
+    install(&pool, vec![ledger(), core, owner_now])
+        .await
+        .expect("a core member's create is not refused by an install-standing record");
+    assert_eq!(
+        rows(
+            &pool,
+            "SELECT object_name, extension_id, standing FROM schema_object_owners \
+             WHERE object_name IN ('public.ev_owned_fn', 'public.ev_core_fn', 'public.ev_kept_fn') \
+             ORDER BY object_name",
+        )
+        .await,
+        vec![
+            ("public.ev_core_fn".into(), "ev-core".into(), "core".into()),
+            (
+                "public.ev_kept_fn".into(),
+                "ev-gone".into(),
+                "install".into()
+            ),
+        ],
+        "the dropped function's record is released, the core function is re-recorded, \
+         and the absent member's other record stays"
+    );
+    assert_eq!(
+        rows(
+            &pool,
+            "SELECT table_name, extension_id, standing FROM schema_table_owners \
+             WHERE table_name = 'public.ev_core_t'",
+        )
+        .await,
+        vec![("public.ev_core_t".into(), "ev-core".into(), "core".into())]
+    );
     database.drop_now().await;
 }

@@ -37,6 +37,14 @@ fn an_install_taking_a_core_id_is_refused() {
 }
 
 #[test]
+fn an_install_taking_the_kernel_ledger_owners_id_is_refused() {
+    assert_eq!(
+        refused_id(build_with(Probe::new("database", |_| {}))),
+        "database"
+    );
+}
+
+#[test]
 fn an_install_with_a_fresh_id_is_admitted() {
     build_with(Probe::new("probe-fresh", |_| {})).expect("a fresh install id is admitted");
 }
