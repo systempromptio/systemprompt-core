@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 use systemprompt_extension::{
-    AdmittedPurge, PurgeClaim, PurgeDeclaration, PurgeFilter, SchemaDefinition, StandingTag,
+    AdmittedPurge, PurgeClaim, PurgeDeclaration, PurgeFilter, SchemaDefinition,
 };
 use systemprompt_identifiers::{ExtensionId, UserId};
 use systemprompt_users::{PurgeOutcome, UserError, UserRepository, UserService};
@@ -123,13 +123,11 @@ impl Ctx {
         AdmittedPurge::admit(&[
             PurgeClaim {
                 owner: &users,
-                standing: StandingTag::Core,
                 schemas: &[],
                 declarations: &[],
             },
             PurgeClaim {
                 owner: &owner,
-                standing: StandingTag::Install,
                 schemas: &schemas,
                 declarations: &declarations,
             },

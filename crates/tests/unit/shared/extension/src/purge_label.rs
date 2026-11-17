@@ -1,6 +1,6 @@
 use systemprompt_extension::{
     AdmittedPurge, PurgeAdmissionError, PurgeClaim, PurgeDeclaration, SchemaDefinition,
-    StandingTag, UserPurgeTable,
+    UserPurgeTable,
 };
 use systemprompt_identifiers::ExtensionId;
 
@@ -27,13 +27,11 @@ fn admit_install(
     AdmittedPurge::admit(&[
         PurgeClaim {
             owner: &core,
-            standing: StandingTag::Core,
             schemas: &core_schemas,
             declarations: &[],
         },
         PurgeClaim {
             owner: &install,
-            standing: StandingTag::Install,
             schemas: &install_schemas,
             declarations: &declarations,
         },

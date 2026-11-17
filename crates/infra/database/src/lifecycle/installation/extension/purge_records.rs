@@ -45,12 +45,9 @@ pub(super) fn admit_purges(members: &ExtensionSet) -> Result<(), LoaderError> {
     let ids: Vec<ExtensionId> = members.iter().map(|m| ExtensionId::new(m.id())).collect();
     let schemas: Vec<Vec<SchemaDefinition>> = members.iter().map(|m| m.schemas()).collect();
     let purges: Vec<Vec<PurgeDeclaration>> = members.iter().map(|m| m.purges()).collect();
-    let claims: Vec<PurgeClaim<'_>> = members
-        .iter()
-        .enumerate()
-        .map(|(i, m)| PurgeClaim {
+    let claims: Vec<PurgeClaim<'_>> = (0..ids.len())
+        .map(|i| PurgeClaim {
             owner: &ids[i],
-            standing: m.standing(),
             schemas: &schemas[i],
             declarations: &purges[i],
         })
