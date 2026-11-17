@@ -180,7 +180,11 @@ impl AppContextBuilder {
             content_config: content.content_config.as_ref(),
         });
         let handle: Arc<dyn DatabaseHandle> = database.clone();
-        let mut kernel = Kernel::new(handle, background_tasks.clone(), seed);
+        let subscriptions: Arc<dyn systemprompt_traits::events::AnalyticsSubscription> = Arc::new(
+            systemprompt_events::AnalyticsSubscriptions::new(Arc::clone(&router.broadcasters().analytics)),
+        );
+        let mut kernel = Kernel::new(handle, background_tasks.clone(), seed)
+            .with_handle::<systemprompt_extension::handles::AnalyticsBroadcaster>(subscriptions);
         kernel.resolve(&self.admitted)?;
         let r = kernel.resolved();
 
