@@ -17,8 +17,8 @@ use systemprompt_scheduler::services::{
     ReconcileTrigger,
 };
 use systemprompt_test_fixtures::{
-    core_members, fixture_admitted_of, fixture_app_context_with_extensions, fixture_config,
-    DisposableDb, test_database_url,
+    DisposableDb, core_members, fixture_admitted_of, fixture_app_context_with_extensions,
+    fixture_config, test_database_url,
 };
 
 use super::db_plane::{ApplyLog, DbPlane, ensure_table, seed_rows, stored_rows};

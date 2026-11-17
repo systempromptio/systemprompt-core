@@ -127,7 +127,9 @@ impl DocumentService {
             let (paths, parent) = (paths.clone(), parent.clone());
             let entries = blocking(move || {
                 Ok(match parent {
-                    Some(parent) => carry_forward(&parent, &paths, &CarryHints::default(), &mut minter),
+                    Some(parent) => {
+                        carry_forward(&parent, &paths, &CarryHints::default(), &mut minter)
+                    },
                     None => mint_all(&paths, &mut minter),
                 })
             })

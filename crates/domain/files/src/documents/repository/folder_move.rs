@@ -81,7 +81,10 @@ impl DocumentFolderRepository {
         retry_conflicts(|| self.move_to_once(relocation)).await
     }
 
-    async fn move_to_once(&self, relocation: FolderRelocation<'_>) -> RepoResult<FolderMoveOutcome> {
+    async fn move_to_once(
+        &self,
+        relocation: FolderRelocation<'_>,
+    ) -> RepoResult<FolderMoveOutcome> {
         let mut touched = vec![relocation.folder.as_str()];
         touched.extend(relocation.parent.map(DocumentFolderId::as_str));
         let mut tx = begin_tree_locked(&self.pools.write, &touched).await?;

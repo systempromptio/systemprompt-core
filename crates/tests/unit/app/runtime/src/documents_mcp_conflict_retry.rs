@@ -11,20 +11,18 @@
 
 use std::time::Duration;
 
+use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::documents::EditOp;
 use systemprompt_runtime::documents::mcp::{EditHandler, EditInput};
-use systemprompt_mcp::McpToolHandler;
 use systemprompt_test_fixtures::DisposableDb;
 
 use crate::documents_mcp_support::{create_text, ctx_for, exec, harness_on, registered_on};
 
 async fn deadlocks(pool: &sqlx::PgPool) -> i64 {
-    sqlx::query_scalar(
-        "SELECT deadlocks FROM pg_stat_database WHERE datname = current_database()",
-    )
-    .fetch_one(pool)
-    .await
-    .expect("read the deadlock counter")
+    sqlx::query_scalar("SELECT deadlocks FROM pg_stat_database WHERE datname = current_database()")
+        .fetch_one(pool)
+        .await
+        .expect("read the deadlock counter")
 }
 
 async fn waits_on_documents(pool: &sqlx::PgPool) -> bool {
