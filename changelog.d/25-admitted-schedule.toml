@@ -6,7 +6,7 @@ text = "The scheduler runs the jobs, retention purges, sweeps, holds and job-run
 [[crate]]
 name = "systemprompt-scheduler"
 section = "Breaking"
-text = "`SchedulerService::new`, `JobExecutionService::new`, `JobPruneService::new`, `unknown_job_names` and `unlisted_job_names` take `AdmittedSchedule`; `EnabledExtensions` is removed; a configured job of a disabled or absent member is refused."
+text = "`SchedulerService::new(config, &DbPool, app_context, schedule)` borrows the pool; `SchedulerService::new`, `JobExecutionService::new`, `JobPruneService::new`, `unknown_job_names` and `unlisted_job_names` take `AdmittedSchedule`; `EnabledExtensions` is removed; a configured job of a disabled or absent member is refused."
 
 [[crate]]
 name = "systemprompt-extension"

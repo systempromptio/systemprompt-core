@@ -7,3 +7,8 @@ text = "`LoaderError::SchemaInstallationFailed`, `MigrationFailed` and `Initiali
 name = "systemprompt-extension"
 section = "Breaking"
 text = "`LoaderError::{SchemaInstallationFailed, MigrationFailed, InitializationFailed}` are replaced by sourced `SchemaFault`, `MigrationFault` and `MissingProvider`; `ConfigValidationFailed` carries `ExtensionConfigError`; `LoaderError` gains `ProvideFailed` and `UnmetStateRequirement`."
+
+[[crate]]
+name = "systemprompt-loader"
+section = "Breaking"
+text = "`BootLoadError` holds its `ConfigError` sources boxed (`Box<ConfigError>`)."

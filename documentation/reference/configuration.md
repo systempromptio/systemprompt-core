@@ -386,7 +386,7 @@ A request over any `limits.*` value or `maxUploadBytes` is refused with `too_lar
 
 | Key | Type | Required | Default | Meaning |
 |-----|------|----------|---------|---------|
-| `disabled` | list of string | no | `[]` | Member IDs to disable. A disabled member is not admitted: none of its routes, jobs, retention, slot contributions or provided state is built, mounted or run. An ID that names no composed member, an ID of a required core member, or a disabled member whose provided state an admitted member requires, refuses the boot. |
+| `disabled` | list of string | no | `[]` | Member IDs to disable. A disabled member is not admitted: none of its routes, jobs, retention, slot contributions or provided state is built, mounted or run. An ID that names no composed member, an ID of a required core member, or a disabled member whose provided state an admitted member requires, refuses the boot. A refusal of an entry interpolated from `${VAR}` names "the value of `${VAR}`", never the resolved value, on boot, in the CLI and in target admission. |
 
 See [`concepts/extensions.md`](../concepts/extensions.md) for the extension model.
 

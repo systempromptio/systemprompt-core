@@ -1,7 +1,7 @@
 [root]
 section = "Fixed"
 area = "Security"
-text = "A member command cannot read the kernel's configuration or secrets: its resolver refuses the sealed seeds (`Config`, `SecretStore`, `SystemAdmin`, `ActiveServicesRoot`, `EventRouter`), `SecretsSources`, `EnvOverrides`, `BootContext` and `AppContext`. Profile boot, config reconcile and target admission are kernel grants (`KernelGrant::BootProfile`, `KernelGrant::ConfigReconcile`, `KernelGrant::TargetAdmission`) a command receives only on a reserved CLI path its owner holds; `CommandHost::boot_config` is served only to a command holding `BootProfile`, and `CommandHost::admitted_views` only to a command holding `TargetAdmission`, which reads nothing from the target profile but its disabled-member list. A refusal of that list names the path and the variable an entry came from, never its resolved value (`TargetAdmissionError::ParseWithheld`, `TargetAdmissionError::AdmitWithheld`)."
+text = "A member command cannot read the kernel's configuration or secrets: its resolver refuses the sealed seeds (`Config`, `SecretStore`, `SystemAdmin`, `ActiveServicesRoot`, `EventRouter`), `SecretsSources`, `EnvOverrides`, `BootContext` and `AppContext`. Profile boot, config reconcile and target admission are kernel grants (`KernelGrant::BootProfile`, `KernelGrant::ConfigReconcile`, `KernelGrant::TargetAdmission`) a command receives only on a reserved CLI path its owner holds; `CommandHost::boot_config` is served only to a command holding `BootProfile`, and `CommandHost::admitted_views` only to a command holding `TargetAdmission`, which reads nothing from the target profile but its disabled-member list. A refusal of that list names the path and the variable an entry came from, never its resolved value (`TargetAdmissionError::ParseWithheld`, `TargetAdmissionError::AdmitWithheld`); on boot and in the CLI an unknown, invalid or misplaced `extensions.disabled` value read from a variable is likewise named as the value of ${NAME}."
 
 [[crate]]
 name = "systemprompt-provider-contracts"
@@ -27,3 +27,8 @@ text = "`Declared::admit` takes the profile's `ExtensionsConfig`, the one profil
 name = "systemprompt-cloud-entry"
 section = "Fixed"
 text = "`cloud deploy` and `cloud doctor` admit the composition against their target profile's disabled-member list through `KernelGrant::TargetAdmission`, so `cloud deploy` no longer fails with a missing `AdmittedAssets`. `cloud doctor` again selects its own profile (`--profile`, or the picker when interactive), runs its partial preflight over target-only variables, and reports a failed validation or a failed admission as a check."
+
+[[crate]]
+name = "systemprompt-provider-contracts"
+section = "Changed"
+text = "The `Debug` output of `Dependencies` lists the sealed type names."

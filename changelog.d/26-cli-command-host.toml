@@ -6,7 +6,7 @@ text = "A command group or leaf runs as `run(&dyn CommandHost) -> CommandOutput`
 [[crate]]
 name = "systemprompt-cli"
 section = "Breaking"
-text = "Command groups take `&dyn CommandHost` and return `CommandOutput`; `admin::execute` no longer renders. `plugins validate`, `plugins capabilities templates|tools`, `infra db migrations status` `is_required`, `infra jobs list|show` `owner_enabled`, `--json` on the `infra db` migration subcommands, the linked-seam catalog (`kernel::{LinkedSeamRegistration, SeamEntry, registered_seams, named, owned, prioritized, unnamed}`), `define_pool_command!`, `presentation::tables::db_tables_table` and the `kernel` re-exports of the moved helpers are removed. `infra jobs list|show` refuse `--database-url`. `WebPaths::resolve` takes the services root."
+text = "Command groups take `&dyn CommandHost` and return `CommandOutput`; `admin::execute` no longer renders. `plugins validate`, `plugins capabilities templates|tools`, `infra db migrations status` `is_required`, `infra jobs list|show` `owner_enabled`, `--json` on the `infra db` migration subcommands, the linked-seam catalog (`kernel::{LinkedSeamRegistration, SeamEntry, registered_seams, named, owned, prioritized, unnamed}`), `define_pool_command!`, `presentation::tables::db_tables_table` and the `kernel` re-exports of the moved helpers are removed. `infra jobs list|show` refuse `--database-url`. `WebPaths::resolve` takes the services root. `TraceSummaries` and `build_trace_output` are in `commands::infrastructure::logs::trace::output`."
 
 [[crate]]
 name = "systemprompt-cli"
@@ -16,12 +16,12 @@ text = "`kernel::MemberHost`, `CommandHost::{render, env_profile, boot_config, p
 [[crate]]
 name = "systemprompt-extension"
 section = "Breaking"
-text = "`CommandError` is a struct (`new` accepts any error convertible into `Box<dyn Error + Send + Sync>`, `with_output`, `output`); `CommandHost` requires `render`, `env_profile`, `boot_config`, `profile_path` and `describe_command_line`. Added `CommandOutput::{with_note, notes, rendered}`."
+text = "`CommandError` is a struct (`new` accepts any error convertible into `Box<dyn Error + Send + Sync>`, `with_output`, `output`, which is not `const`; the output is held boxed); `CommandHost` requires `render`, `env_profile`, `boot_config`, `profile_path` and `describe_command_line`. Added `CommandOutput::{with_note, notes, rendered}`."
 
 [[crate]]
 name = "systemprompt-cloud-entry"
 section = "Breaking"
-text = "`CloudCliExtension` declares the `cloud` group; commands take `&dyn CommandHost` and the crate no longer depends on `systemprompt-cli`. `DockerCli::new` and `SystemCommandRunner::new` take `Arc<dyn ChildSupervisor>`. `cloud profile show` boots a named profile with the admitted secrets sources."
+text = "`CloudCliExtension` declares the `cloud` group; commands take `&dyn CommandHost` and the crate no longer depends on `systemprompt-cli`. `DockerCli::new` and `SystemCommandRunner::new` take `Arc<dyn ChildSupervisor>`. `cloud profile show` boots a named profile with the admitted secrets sources. `update_ai_config_default_provider` is in `cli::profile::ai_catalog`."
 
 [[crate]]
 name = "systemprompt-cloud"

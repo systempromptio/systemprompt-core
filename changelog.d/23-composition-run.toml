@@ -6,14 +6,19 @@ text = "A binary is a composition: `systemprompt::reference().with(member).witho
 [[crate]]
 name = "systemprompt"
 section = "Breaking"
-text = "`Composition`, `reference()`, `with`, `without`, `secrets_source` and `run` build the binary; `RuntimeBuilder`, `RuntimeError` and the re-exports of removed macros are removed. `CompositionError` reports unknown disabled ids, duplicate ids, disabled required members and dependencies, unmet requirements, duplicate providers, install substitution, conferral mismatches, reserved paths and dimension conflicts (carrying a `RuleType`)."
+text = "`Composition`, `reference()`, `with`, `without`, `secrets_source` and `run` build the binary; `RuntimeBuilder`, `RuntimeError` and the re-exports of removed macros are removed. `CompositionError` reports unknown disabled ids (`UnknownExtension` carries the `DisabledExtension` entry and prints the value of ${NAME} for an id read from a variable), duplicate ids, disabled required members and dependencies, unmet requirements, duplicate providers, install substitution, conferral mismatches, reserved paths and dimension conflicts (carrying a `RuleType`)."
 
 [[crate]]
 name = "systemprompt-cli"
 section = "Breaking"
-text = "`run`, `run_process`, `run_process_with` and `run_with` are replaced by `run_composed(build, declared, secrets, admit)`; `AdmitFn` takes `Option<&Profile>`; `runner::admit_unprofiled` admits a database-only kernel command on a bare `--database-url` run."
+text = "`run`, `run_process`, `run_process_with` and `run_with` are replaced by `run_composed(build, &DeclaredCommands, secrets, admit)`; `AdmitFn` takes `Option<&Profile>`; `runner::admit_unprofiled` admits a database-only kernel command on a bare `--database-url` run."
 
 [[crate]]
 name = "systemprompt-config"
 section = "Breaking"
 text = "`register_secrets_source!`, `SecretsSourceRegistration` and `registered_external_kinds` are removed; `SecretsSources` carries the composition's external secrets sources and `SecretsService::load`, `from_secrets` and `build_external_provider` take it. `yaml_document` (with `YamlDocumentError`) is added."
+
+[[crate]]
+name = "systemprompt-manifest"
+section = "Breaking"
+text = "`ExtensionsConfig::disabled` is a `Vec<DisabledExtension>`: each entry keeps its `ExtensionId` (`id()`) and the variables it was interpolated from (`variables()`), and displays as the id or as the value of ${NAME}; build one with `DisabledExtension::literal` or `interpolated`. A field whose schema carries `x-interpolation-provenance` (`PROVENANCE_KEYWORD`, `FieldKind::PROVENANCE`) receives a resolved value wrapped in an `!interpolated` marker (`INTERPOLATED_TAG`); `placeholder_variables` is added."
