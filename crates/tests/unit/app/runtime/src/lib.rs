@@ -77,6 +77,8 @@ mod documents_views_touched;
 #[cfg(test)]
 mod host_context;
 #[cfg(test)]
+mod kernel_resolve_once;
+#[cfg(test)]
 mod kernel_sealed_seeds;
 #[cfg(test)]
 mod kernel_seeds;
