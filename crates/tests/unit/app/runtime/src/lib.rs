@@ -77,6 +77,8 @@ mod documents_views_touched;
 #[cfg(test)]
 mod host_context;
 #[cfg(test)]
+mod kernel_resolve_once;
+#[cfg(test)]
 mod kernel_sealed_seeds;
 #[cfg(test)]
 mod kernel_seeds;
@@ -131,6 +133,8 @@ mod mcp_host_serve;
 mod schema_behind_error;
 #[cfg(test)]
 mod schema_currency_boot;
+#[cfg(test)]
+mod schema_held_back_owner;
 #[cfg(test)]
 mod schema_state;
 #[cfg(test)]

@@ -78,6 +78,8 @@ pub enum KernelError {
         owner: ExtensionId,
         ty: &'static str,
     },
+    #[error("the admitted composition was already resolved; the slot entries of {owner} were consumed")]
+    AlreadyResolved { owner: ExtensionId },
     #[error("slot build failed")]
     Slot(#[from] SlotError),
     #[error("user purge declarations refused")]
@@ -243,12 +245,15 @@ impl Kernel {
         let mut grouped: HashMap<TypeId, Vec<SlotBuildInput>> = HashMap::new();
         for member in admitted.built().members() {
             for record in member.sink.slots() {
-                if let Some(input) = record.take_entry(member.owner.clone(), member.standing) {
-                    if !grouped.contains_key(&input.slot()) {
-                        order.push(input.slot());
-                    }
-                    grouped.entry(input.slot()).or_default().push(input);
+                let input = record
+                    .take_entry(member.owner.clone(), member.standing)
+                    .ok_or_else(|| KernelError::AlreadyResolved {
+                        owner: member.owner.clone(),
+                    })?;
+                if !grouped.contains_key(&input.slot()) {
+                    order.push(input.slot());
                 }
+                grouped.entry(input.slot()).or_default().push(input);
             }
         }
         for slot in order {

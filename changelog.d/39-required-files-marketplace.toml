@@ -1,0 +1,19 @@
+[root]
+section = "Breaking"
+area = "Facade"
+text = "The `files` and `managed_resources` members are required: the runtime assembles the document store and the marketplace authorization stage on every host, so a profile listing either in `extensions.disabled` is refused at boot (`CompositionError::RequiredDisabled`). Remove them from `extensions.disabled`. A second `Kernel::resolve` over one admitted composition is refused (`KernelError::AlreadyResolved`), and a schema install where the database is ahead of one member still counts that member as the owner of its tables."
+
+[[crate]]
+name = "systemprompt"
+section = "Breaking"
+text = "`reference()` admits `FilesExtension` and `ManagedResourcesExtension` as required members; disabling either is refused with `CompositionError::RequiredDisabled`."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`KernelError::AlreadyResolved`: `Kernel::resolve` refuses an admitted composition whose slot entries a previous resolve consumed, instead of returning a state without them."
+
+[[crate]]
+name = "systemprompt-database"
+section = "Fixed"
+text = "The install's table-ownership check counts a member held back because the database is ahead of it, so a member declaring that member's table as a cross-extension table is no longer refused with `LoaderError::CrossExtensionTableNotOwned`."
