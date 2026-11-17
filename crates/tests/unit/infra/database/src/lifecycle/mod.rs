@@ -15,6 +15,7 @@ mod migration_edges;
 mod migration_ledger_writes;
 mod migration_ownership;
 mod migration_refs_errors;
+mod migration_retired_tables;
 mod migration_run_failures;
 mod migration_shared_tables;
 mod migration_statement_kinds;

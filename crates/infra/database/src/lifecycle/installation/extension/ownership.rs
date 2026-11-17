@@ -23,8 +23,11 @@
 //! (`migration_owners`).
 //!
 //! A record is released only by its owner: an install in which the owner is
-//! admitted, no longer declares the table, and the table is gone (its own
-//! migration chain dropped it). A database installed before the records
+//! admitted and either no longer declares the table and the table is gone
+//! (its own migration chain dropped it), or names the table in its
+//! retirements and no longer declares it (its chain retired the table, which
+//! may still exist on an established database until another member's
+//! migration drops it). A database installed before the records
 //! existed is recorded at its first install over the admitted members; a
 //! table no admitted member declares at that point stays unrecorded.
 //!
@@ -52,8 +55,8 @@ const RECORD_SQL: &str = "INSERT INTO schema_table_owners (table_name, extension
      ON CONFLICT (table_name) DO NOTHING";
 
 const RELEASE_SQL: &str = "DELETE FROM schema_table_owners \
-     WHERE extension_id = $1 AND NOT (table_name = ANY($2::text[])) \
-     AND to_regclass(table_name) IS NULL";
+     WHERE extension_id = $1 AND (table_name = ANY($3::text[]) \
+     OR (NOT (table_name = ANY($2::text[])) AND to_regclass(table_name) IS NULL))";
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct TableOwners(BTreeMap<String, RecordedOwner>);
@@ -190,8 +193,11 @@ pub(super) async fn record_owners(
     if recorded_table_owners_present(db).await? {
         for p in prepared {
             let declared: Vec<String> = p.owned_tables.iter().map(|t| qualify(t)).collect();
-            db.execute(&RELEASE_SQL, &[&p.extension_id.as_str(), &declared])
-                .await
+            db.execute(
+                &RELEASE_SQL,
+                &[&p.extension_id.as_str(), &declared, &p.retired_tables],
+            )
+            .await
                 .map_err(|e| step_failed("Failed to release dropped table ownership", e))?;
             db.execute(
                 &RECORD_SQL,

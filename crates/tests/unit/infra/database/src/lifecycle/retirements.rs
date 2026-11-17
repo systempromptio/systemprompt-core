@@ -1,7 +1,7 @@
 //! DB tests for the retire phase: retired triggers, functions and views are
-//! dropped ahead of every migration, idempotently, and any retirement that is
-//! not a `DROP … IF EXISTS` of those kinds refuses the boot before anything
-//! is written.
+//! dropped ahead of every migration, idempotently, a retired table is declared
+//! and never dropped, and any retirement that is not a `DROP … IF EXISTS` of
+//! those kinds refuses the boot before anything is written.
 
 use std::sync::Arc;
 
@@ -97,7 +97,7 @@ fn retire_all(prefix: &str) -> Vec<String> {
     vec![format!(
         "DROP VIEW IF EXISTS {prefix}_view;\nDROP TRIGGER IF EXISTS {prefix}_trg ON \
          {prefix}_legacy;\nDROP FUNCTION IF EXISTS {prefix}_fn();\nDROP PROCEDURE IF EXISTS \
-         {prefix}_proc();"
+         {prefix}_proc();\nDROP TABLE IF EXISTS {prefix}_legacy;"
     )]
 }
 
@@ -147,7 +147,7 @@ async fn retirements_drop_their_objects_and_are_a_no_op_on_the_next_boot() {
             &format!("to_regclass('{prefix}_legacy') IS NOT NULL")
         )
         .await,
-        "tables are never retired"
+        "a table retirement is declared, never executed"
     );
     drop_table(&db, &format!("{prefix}_legacy")).await;
     drop_table(&db, table).await;
@@ -181,14 +181,10 @@ async fn refused(statement: &str) -> (LoaderError, bool) {
 }
 
 #[tokio::test]
-async fn a_retired_table_is_refused_before_any_retirement_runs() {
-    let (error, untouched) = refused("DROP TABLE IF EXISTS {prefix}_legacy;").await;
+async fn a_retired_type_is_refused_before_any_retirement_runs() {
+    let (error, untouched) = refused("DROP TYPE IF EXISTS {prefix}_type;").await;
 
-    assert!(
-        error_chain(&error)
-            .contains("only triggers, functions, procedures and views can be retired"),
-        "{error}"
-    );
+    assert!(error_chain(&error).contains("can be retired"), "{error}");
     assert!(
         untouched,
         "the other extension's valid retirement did not run"

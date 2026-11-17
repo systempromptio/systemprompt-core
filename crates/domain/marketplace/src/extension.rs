@@ -34,6 +34,12 @@ impl Extension for ManagedResourcesExtension {
             c.schema(schema);
         }
         c.migrations(extension_migrations!());
+        c.retire(SchemaDefinition {
+            table: None,
+            sql: include_str!("../schema/retirements/retired_tables.sql").to_owned(),
+            required_columns: Vec::new(),
+            schema: None,
+        });
         c.slot::<MarketplaceSlot>();
         Ok(())
     }
