@@ -1,5 +1,9 @@
 //! `infra logs stream` command tailing filtered log entries.
 //!
+//! Each poll's new entries are rendered through the host as they arrive; the
+//! command's own output is the closing count of entries streamed and polls
+//! made.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -10,9 +14,10 @@ use clap::Args;
 use std::time::Duration;
 use systemprompt_logging::models::LogEntry;
 use systemprompt_logging::{CliService, LogFilter, LogLevel, LoggingMaintenanceService};
+use systemprompt_models::artifacts::NoticeLine;
 use tokio::time;
 
-use super::shared::print_level_line;
+use super::shared::level_notice;
 use systemprompt_extension::cli::CommandOutput;
 use systemprompt_database::pool_from_handle;
 
@@ -51,30 +56,35 @@ pub(super) async fn execute(args: StreamArgs, host: &dyn KernelHost) -> Result<C
 
     let mut last_timestamp: Option<DateTime<Utc>> = None;
 
-    CliService::section("Log Stream");
-    display_filters(&args);
+    host.render(&header(&args));
 
     let mut iterations: u64 = 0;
+    let mut streamed: usize = 0;
     loop {
         if args.clear {
             CliService::clear_screen();
-            CliService::section("Log Stream");
+            host.render(&header(&args));
         }
 
         let logs = get_logs(&service, &args, last_timestamp).await?;
 
         if !logs.is_empty() {
-            for log in &logs {
-                display_log_entry(log);
-            }
+            host.render(&CommandOutput::message(logs.iter().map(entry_notice).collect()));
+            streamed += logs.len();
             last_timestamp = logs.iter().map(|log| log.timestamp).max();
         } else if last_timestamp.is_none() {
-            CliService::warning("No logs found. Waiting for new entries...");
+            host.render(&CommandOutput::message(vec![NoticeLine::new(
+                "warning",
+                "No logs found. Waiting for new entries...",
+            )]));
         }
 
         iterations += 1;
         if args.max_iterations != 0 && iterations >= args.max_iterations {
-            return Ok(CommandOutput::rendered());
+            return Ok(CommandOutput::message(vec![NoticeLine::new(
+                "success",
+                format!("Streamed {streamed} log entries over {iterations} polls"),
+            )]));
         }
 
         time::sleep(Duration::from_millis(args.interval)).await;
@@ -114,17 +124,22 @@ async fn get_logs(
     Ok(logs)
 }
 
-fn display_filters(args: &StreamArgs) {
+fn header(args: &StreamArgs) -> CommandOutput {
+    let mut lines = Vec::new();
     if let Some(level) = args.level {
-        CliService::key_value("Level filter", level.as_str());
+        lines.push(NoticeLine::new("info", format!("Level filter: {}", level.as_str())));
     }
     if let Some(ref module) = args.module {
-        CliService::key_value("Module filter", module);
+        lines.push(NoticeLine::new("info", format!("Module filter: {module}")));
     }
-    CliService::key_value("Polling interval", &format!("{}ms", args.interval));
+    lines.push(NoticeLine::new(
+        "info",
+        format!("Polling interval: {}ms", args.interval),
+    ));
+    CommandOutput::message(lines).with_title("Log Stream")
 }
 
-fn display_log_entry(log: &LogEntry) {
+fn entry_notice(log: &LogEntry) -> NoticeLine {
     let timestamp = log.timestamp.format("%H:%M:%S%.3f");
     let level_str = match log.level {
         LogLevel::Error => "ERROR",
@@ -153,5 +168,5 @@ fn display_log_entry(log: &LogEntry) {
         },
     );
 
-    print_level_line(log.level, &line);
+    level_notice(log.level, line)
 }

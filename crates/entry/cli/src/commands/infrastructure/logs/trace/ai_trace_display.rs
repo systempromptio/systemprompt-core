@@ -5,15 +5,14 @@
 
 use anyhow::Result;
 use systemprompt_identifiers::{ContextId, TaskId};
-use systemprompt_logging::CliService;
 use systemprompt_runtime::{AiTraceService, TraceEvent};
 
-use super::ai_artifacts::print_artifacts;
+use super::ai_artifacts::artifacts as artifacts_section;
 use super::ai_display::{
-    print_agent_response, print_ai_requests, print_execution_steps, print_task_info,
-    print_user_input,
+    Transcript, agent_response, ai_requests as ai_requests_section, execution_steps, task_info,
+    user_input,
 };
-use super::ai_mcp::print_mcp_executions;
+use super::ai_mcp::mcp_executions as mcp_executions_section;
 use super::show::ShowArgs;
 use super::{AiSummaryRow, McpSummaryRow, StepSummaryRow, TraceViewOutput};
 use systemprompt_extension::cli::CommandOutput;
@@ -22,61 +21,63 @@ pub(super) async fn execute_ai_trace(
     service: &AiTraceService,
     task_id: &TaskId,
     args: &ShowArgs,
+    machine_output: bool,
 ) -> Result<CommandOutput> {
-    if !args.json {
-        CliService::section(&format!("Trace: {}", task_id.as_str()));
-    }
+    let text = !args.json && !machine_output;
+    let mut out = Transcript::default();
 
-    let task_info = service.get_task_info(task_id).await?;
-    let context_id: ContextId = task_info.context_id.clone();
+    let info = service.get_task_info(task_id).await?;
+    let context_id: ContextId = info.context_id.clone();
+    task_info(&mut out, &info);
 
-    if !args.json {
-        print_task_info(&task_info);
-    }
-
-    let user_input = service.get_user_input(task_id).await?;
-    if !args.json {
-        print_user_input(user_input.as_ref());
-    }
+    let input = service.get_user_input(task_id).await?;
+    user_input(&mut out, input.as_ref());
 
     let show_all = args.sections.all;
 
     let steps = service.get_execution_steps(task_id).await?;
-    if (show_all || args.sections.steps) && !args.json {
-        print_execution_steps(&steps);
+    if show_all || args.sections.steps {
+        execution_steps(&mut out, &steps);
     }
 
     let ai_requests = service.get_ai_requests(task_id).await?;
-    if (show_all || args.sections.ai) && !args.json {
-        print_ai_requests(&ai_requests);
+    if show_all || args.sections.ai {
+        ai_requests_section(&mut out, &ai_requests);
     }
 
     let mcp_executions = service.get_mcp_executions(task_id, &context_id).await?;
-    if (show_all || args.sections.mcp) && !args.json {
-        print_mcp_executions(service, &mcp_executions, task_id, &context_id, args.verbose).await;
+    if text && (show_all || args.sections.mcp) {
+        mcp_executions_section(
+            &mut out,
+            service,
+            &mcp_executions,
+            task_id,
+            &context_id,
+            args.verbose,
+        )
+        .await;
     }
 
-    if show_all || args.sections.artifacts {
+    if text && (show_all || args.sections.artifacts) {
         let artifacts = service.get_task_artifacts(task_id, &context_id).await?;
-        if !args.json {
-            print_artifacts(&artifacts);
-        }
+        artifacts_section(&mut out, &artifacts);
     }
 
     let response = service.get_agent_response(task_id).await?;
-    if !args.json {
-        print_agent_response(response.as_ref());
-        CliService::info(&"═".repeat(60));
-    }
+    agent_response(&mut out, response.as_ref());
 
-    let output = build_trace_output(task_id, &task_info, &ai_requests, &mcp_executions, &steps);
+    let output = build_trace_output(task_id, &info, &ai_requests, &mcp_executions, &steps);
 
     if args.json {
-        let content = CliService::json_string(&output).unwrap_or_else(|_| format!("{output:?}"));
+        let content =
+            serde_json::to_string_pretty(&output).unwrap_or_else(|_| format!("{output:?}"));
         return Ok(CommandOutput::copy_paste_titled("Trace JSON", content));
     }
+    if machine_output {
+        return Ok(CommandOutput::card_value("AI Trace Details", &output));
+    }
 
-    Ok(CommandOutput::card_value("AI Trace Details", &output).with_skip_render())
+    Ok(out.into_output(format!("Trace: {}", task_id.as_str())))
 }
 
 fn ai_summary(ai_requests: &[systemprompt_runtime::AiRequestInfo]) -> AiSummaryRow {

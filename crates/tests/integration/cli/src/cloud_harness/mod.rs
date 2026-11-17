@@ -345,12 +345,27 @@ pub(super) async fn mount_list_tenants(server: &MockServer) {
 }
 
 pub(super) fn ctx(format: OutputFormat) -> CommandContext {
+    ctx_over(format, harness_profile())
+}
+
+pub(super) fn named_profile_ctx(name: &str) -> CommandContext {
+    let root = &HARNESS.get().expect("harness entered").root;
+    let path = root
+        .join(".systemprompt/profiles")
+        .join(name)
+        .join("profile.yaml");
+    let profile =
+        LoadedProfile::from_path(&path).unwrap_or_else(|e| panic!("load profile {name}: {e}"));
+    ctx_over(OutputFormat::Json, Some(profile))
+}
+
+fn ctx_over(format: OutputFormat, profile: Option<Arc<LoadedProfile>>) -> CommandContext {
     let cli = CliConfig::default()
         .with_output_format(format)
         .with_interactive(false);
     CommandContext::new(cli, EnvOverrides::default())
         .with_cloud_credentials(harness_credentials())
-        .with_profile(harness_profile())
+        .with_profile(profile)
         .with_admitted(Some(systemprompt_test_fixtures::fixture_admitted()))
         .with_detached_kernel()
 }

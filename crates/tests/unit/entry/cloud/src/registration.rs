@@ -142,12 +142,17 @@ fn every_cloud_descriptor_is_a_cloud_operator_and_bypasses_routing() {
     }
 }
 
+
 #[test]
 fn bootstrap_requirements_match_each_subcommand() {
     let deploy = descriptor(&["cloud", "deploy"]);
     assert!(!deploy.profile() && !deploy.secrets() && !deploy.database());
 
-    for args in [&["cloud", "status"][..], &["cloud", "backup"]] {
+    for args in [
+        &["cloud", "status"][..],
+        &["cloud", "backup"],
+        &["cloud", "doctor"],
+    ] {
         let d = descriptor(args);
         assert!(d.profile() && !d.secrets() && !d.database(), "{args:?}");
     }
@@ -309,4 +314,24 @@ fn cloud_profile_create_help_names_the_provider_vars_without_their_values() {
         "cloud profile create --help leaked an env value:\n{help}"
     );
     assert!(help.contains("ANTHROPIC_API_KEY"), "{help}");
+}
+
+#[test]
+fn top_level_help_lists_the_groups_in_their_slots_and_help_last() {
+    let (_, mut root) = root();
+    let help = root.render_help().to_string();
+    let listed: Vec<&str> = help
+        .lines()
+        .skip_while(|line| !line.starts_with("Commands:"))
+        .skip(1)
+        .take_while(|line| line.starts_with("  "))
+        .filter_map(|line| line.split_whitespace().next())
+        .collect();
+    assert_eq!(
+        listed,
+        [
+            "core", "infra", "admin", "cloud", "analytics", "web", "plugins", "build", "help"
+        ],
+        "{help}"
+    );
 }

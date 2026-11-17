@@ -34,6 +34,7 @@ impl DescribeCommand for BuildCommands {
 
 impl CliCommandGroup for BuildCommands {
     const NAME: &'static str = "build";
+    const DISPLAY_ORDER: usize = 80;
     const ABOUT: &'static str = "Build MCP extensions";
 
     async fn run(self, host: &dyn CommandHost) -> Result<CommandOutput, CommandError> {
