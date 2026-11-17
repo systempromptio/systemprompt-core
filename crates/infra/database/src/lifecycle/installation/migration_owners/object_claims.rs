@@ -102,7 +102,7 @@ impl Ownership {
         id: &ExtensionId,
         standing: StandingTag,
         created: &Created,
-    ) -> Vec<(TableMutation, String, ExtensionId)> {
+    ) -> Vec<(TableMutation, String, ExtensionId, bool)> {
         let named = |kind: ObjectKind, statement: TableMutation, names: Vec<&String>| {
             names
                 .into_iter()
@@ -110,7 +110,12 @@ impl Ownership {
                     let owner = self
                         .object_owner(kind, name)
                         .filter(|o| !o.held_by(id, standing))?;
-                    Some((statement, name.clone(), owner.id.clone()))
+                    Some((
+                        statement,
+                        name.clone(),
+                        owner.id.clone(),
+                        self.unjudged_record(owner),
+                    ))
                 })
                 .collect::<Vec<_>>()
         };

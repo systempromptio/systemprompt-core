@@ -17,13 +17,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use systemprompt_extension::{StandingTag, created_table_names};
 use systemprompt_identifiers::ExtensionId;
 
 use super::super::undeclared::qualify;
-use super::member_reads::read_member;
+use super::member_reads::{read_member, retired_tables};
 use super::objects::Created;
 use super::record_claims::{MemberRead, Stale};
 use super::{MigrationMembers, MigrationOwnershipError, Recorded};
@@ -81,12 +81,19 @@ pub(super) struct Ownership {
     pub(super) indexes: BTreeMap<String, Vec<Claim>>,
     pub(super) triggers: BTreeMap<String, Vec<Claim>>,
     pub(super) created: BTreeMap<ExtensionId, Created>,
+    pub(super) judged: BTreeSet<ExtensionId>,
     pub(super) stale: Stale,
 }
 
 impl Ownership {
     pub(super) fn claim(&mut self, table: String, claim: Claim) {
         push_claim(&mut self.tables, table, claim);
+    }
+
+    pub(super) fn unjudged_record(&self, claim: &Claim) -> bool {
+        claim.rank == Rank::Record
+            && claim.standing == StandingTag::Install
+            && !self.judged.contains(&claim.id)
     }
 
     pub(super) fn owner(&self, table: &str) -> Option<&Claim> {
@@ -146,6 +153,45 @@ impl Ownership {
     }
 }
 
+impl Ownership {
+    fn declared_findings(
+        &self,
+        read: &MemberRead,
+        declared_objects: &Created,
+        declared: &BTreeSet<String>,
+    ) -> Vec<MigrationOwnershipError> {
+        let mut findings = Vec::new();
+        if read.standing == StandingTag::Core {
+            findings.extend(
+                self.foreign_object_creates(&read.id, read.standing, declared_objects)
+                    .into_iter()
+                    .filter(|refused| refused.3)
+                    .map(
+                        |(statement, object, owner, _)| MigrationOwnershipError::ForeignObject {
+                            member: read.id.clone(),
+                            migration: String::from("schema"),
+                            statement,
+                            object,
+                            owner,
+                        },
+                    ),
+            );
+        }
+        findings.extend(declared.iter().filter_map(|table| {
+            let owner = self
+                .owner(table)
+                .filter(|owner| !owner.held_by(&read.id, read.standing))?;
+            Some(MigrationOwnershipError::SharedTable {
+                member: read.id.clone(),
+                source_sql: String::from("schema"),
+                table: table.clone(),
+                owner: owner.id.clone(),
+            })
+        }));
+        findings
+    }
+}
+
 pub(super) fn ownership(
     members: MigrationMembers<'_>,
     recorded: &Recorded<'_>,
@@ -164,10 +210,15 @@ pub(super) fn ownership(
             findings.extend(read_findings);
         }
         declarations.push((position + 1, declared_objects, declared));
+        if judged {
+            ownership.judged.insert(id.clone());
+        }
         reads.push(MemberRead {
             id,
             standing: member.standing(),
             judged,
+            tombstoned: member.migrations().iter().any(|m| m.tombstone),
+            retired: retired_tables(member.as_ref()),
             created,
         });
     }
@@ -196,22 +247,9 @@ pub(super) fn ownership(
             );
         }
     }
-    for (read, (_, _, declared)) in reads.iter().zip(&declarations) {
-        if !read.judged {
-            continue;
-        }
-        for table in declared {
-            if let Some(owner) = ownership
-                .owner(table)
-                .filter(|owner| !owner.held_by(&read.id, read.standing))
-            {
-                findings.push(MigrationOwnershipError::SharedTable {
-                    member: read.id.clone(),
-                    source_sql: String::from("schema"),
-                    table: table.clone(),
-                    owner: owner.id.clone(),
-                });
-            }
+    for (read, (_, declared_objects, declared)) in reads.iter().zip(&declarations) {
+        if read.judged {
+            findings.extend(ownership.declared_findings(read, declared_objects, declared));
         }
     }
     for read in reads {

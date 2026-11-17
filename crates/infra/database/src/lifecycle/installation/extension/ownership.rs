@@ -18,12 +18,15 @@
 //! every table recorded to the old id ([`LoaderError::DuplicateTableOwner`]
 //! names that recorded owner) until an operator re-assigns the records.
 //!
-//! A record carrying install standing never outranks a core member's SQL: a
-//! core member declaring a table recorded to an install member is not refused
-//! by that record, the record is no claim when the migration ownership rule
-//! ranks, and the install deletes it after its DDL, so a record written when
-//! an install's declarative schema outranked a core migration does not
-//! survive the next install.
+//! A record carrying install standing yields to a core member's SQL only
+//! while its owner is admitted and judged in this install: a core member
+//! declaring such a table is not refused by that record, the record is no
+//! claim when the migration ownership rule ranks, the owner's own declaration
+//! of the table is refused as shared, and the install deletes the record
+//! after its DDL. When the recorded owner is held back or absent, the record
+//! outranks every member: a core member declaring the table is refused
+//! ([`LoaderError::DuplicateTableOwner`]), and the record, the table's rows
+//! and the owner's purge record stay.
 //!
 //! Each install also records, in `schema_object_owners`, the owner of every
 //! index, routine, view, materialized view, sequence, type, domain and
@@ -188,7 +191,13 @@ pub(super) fn check_recorded_owners(
             let Some(recorded) = owners.record_of(table) else {
                 continue;
             };
-            if recorded.standing == StandingTag::Install && p.standing == StandingTag::Core {
+            let owner_judged = prepared.iter().any(|owner| {
+                owner.extension_id == recorded.id && owner.standing == StandingTag::Install
+            });
+            if owner_judged
+                && recorded.standing == StandingTag::Install
+                && p.standing == StandingTag::Core
+            {
                 continue;
             }
             if recorded.id != p.extension_id {

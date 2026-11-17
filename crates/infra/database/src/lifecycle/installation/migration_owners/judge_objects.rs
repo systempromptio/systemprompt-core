@@ -39,10 +39,10 @@ pub(super) fn foreign_object_creates(
 ) -> Vec<MigrationOwnershipError> {
     let created = Created::of_statement(statement);
     let mut refused = Vec::new();
-    for (kind, object, owner) in
+    for (kind, object, owner, unjudged_record) in
         ownership.foreign_object_creates(member.id, member.standing, &created)
     {
-        if member.install() {
+        if member.install() || unjudged_record {
             refused.push(MigrationOwnershipError::ForeignObject {
                 member: member.id.clone(),
                 migration: member.migration.to_owned(),
