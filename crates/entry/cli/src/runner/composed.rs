@@ -8,6 +8,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use systemprompt_config::SecretsSources;
+use systemprompt_extension::cli::DbUrlRouting;
 use systemprompt_extension::{Admitted, DeclaredCommands};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::Profile;
@@ -20,9 +21,10 @@ use crate::kernel::{
     CommandOwner, CommandRegistry, RegistryError, ResolvedCommand, kernel_commands,
 };
 
-/// Admits the composition: against the loaded profile, or, for a
-/// database-only kernel command run with `--database-url` and no profile,
-/// over every linked member with none disabled (`None`).
+/// Admits the composition: against the loaded profile, or, for a command run
+/// with `--database-url` and no profile (a kernel command, or a member command
+/// whose routing is [`DbUrlRouting::Direct`]), over every linked member with
+/// none disabled (`None`).
 pub type AdmitFn = Box<dyn FnOnce(Option<&Profile>) -> Result<Admitted, BoxedSource> + Send>;
 
 #[derive(Debug, thiserror::Error)]
@@ -108,7 +110,9 @@ pub fn admit_unprofiled(
     registered: Option<&ResolvedCommand>,
     admit: AdmitFn,
 ) -> Result<Admitted, CliRunError> {
-    if let Some(resolved) = registered {
+    if let Some(resolved) = registered
+        && resolved.parsed.db_url_routing() != DbUrlRouting::Direct
+    {
         return Err(CliRunError::ProfileRequired {
             path: resolved.path.clone(),
         });
