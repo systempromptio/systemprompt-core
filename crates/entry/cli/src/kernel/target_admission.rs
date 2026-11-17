@@ -99,11 +99,12 @@ pub fn read_disabled(profile: &Path) -> Result<ExtensionsConfig, TargetAdmission
         Value::String(EXTENSIONS_KEY.to_owned()),
         section,
     )]));
-    interpolate_yaml(&mut scoped, &read_env_optional, &profile_field_kind)
-        .map_err(|source| TargetAdmissionError::Interpolation {
+    interpolate_yaml(&mut scoped, &read_env_optional, &profile_field_kind).map_err(|source| {
+        TargetAdmissionError::Interpolation {
             path: profile.to_path_buf(),
             source,
-        })?;
+        }
+    })?;
     let section = scoped.get(EXTENSIONS_KEY).cloned().unwrap_or(Value::Null);
     serde_yaml::from_value(section).map_err(|source| TargetAdmissionError::Parse {
         path: profile.to_path_buf(),

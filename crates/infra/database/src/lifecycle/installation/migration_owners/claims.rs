@@ -123,7 +123,9 @@ impl Ownership {
     }
 }
 
-pub(in crate::lifecycle::installation) fn retired_tables(member: &dyn SchemaMember) -> BTreeSet<String> {
+pub(in crate::lifecycle::installation) fn retired_tables(
+    member: &dyn SchemaMember,
+) -> BTreeSet<String> {
     let mut retired = BTreeSet::new();
     for retirement in member.retirements() {
         let Ok(parsed) = pg_query::parse(&retirement.sql) else {
@@ -193,7 +195,12 @@ pub(super) fn ownership(
         .judged
         .iter()
         .chain(members.held_back)
-        .map(|member| (ExtensionId::new(member.id()), retired_tables(member.as_ref())))
+        .map(|member| {
+            (
+                ExtensionId::new(member.id()),
+                retired_tables(member.as_ref()),
+            )
+        })
         .collect();
     for record in recorded.iter().filter(|record| {
         retired

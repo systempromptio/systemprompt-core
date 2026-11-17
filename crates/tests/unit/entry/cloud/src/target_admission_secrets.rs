@@ -96,7 +96,11 @@ fn a_disabled_field_that_is_not_a_list_is_named_by_the_variable() {
         "{error:?}"
     );
     assert!(!chain(&error).contains(SECRET), "{}", chain(&error));
-    assert!(chain(&error).contains(&format!("${{{var}}}")), "{}", chain(&error));
+    assert!(
+        chain(&error).contains(&format!("${{{var}}}")),
+        "{}",
+        chain(&error)
+    );
     let admitted = admit(&profile.path);
     assert!(!chain(&admitted).contains(SECRET));
     assert!(!composition_failure(&admitted).detail.contains(SECRET));

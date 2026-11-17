@@ -77,7 +77,11 @@ fn a_table_its_creator_retires_may_be_dropped_by_an_install() {
         None
     );
     assert_eq!(
-        dropped_by_peer(check_migration_ownership(only(&retired), &recorded(), &all_pending)),
+        dropped_by_peer(check_migration_ownership(
+            only(&retired),
+            &recorded(),
+            &all_pending
+        )),
         None,
         "the creator's record of a table it retires is not a claim"
     );
@@ -89,8 +93,12 @@ fn a_table_its_creator_retires_may_be_dropped_by_an_install() {
         "negative control: without the retirement the creator's migration owns it"
     );
     assert_eq!(
-        dropped_by_peer(check_migration_ownership(only(&kept), &recorded(), &all_pending))
-            .as_deref(),
+        dropped_by_peer(check_migration_ownership(
+            only(&kept),
+            &recorded(),
+            &all_pending
+        ))
+        .as_deref(),
         Some("mo-creator"),
         "negative control: without the retirement the record owns it"
     );

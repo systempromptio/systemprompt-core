@@ -198,7 +198,7 @@ pub(super) async fn record_owners(
                 &[&p.extension_id.as_str(), &declared, &p.retired_tables],
             )
             .await
-                .map_err(|e| step_failed("Failed to release dropped table ownership", e))?;
+            .map_err(|e| step_failed("Failed to release dropped table ownership", e))?;
             db.execute(
                 &RECORD_SQL,
                 &[&declared, &p.extension_id.as_str(), &p.standing.as_str()],
