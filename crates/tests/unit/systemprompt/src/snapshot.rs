@@ -48,8 +48,16 @@ const ROUTE_DELTA: &[(&str, Side, &str)] = &[
     ),
 ];
 const COMMAND_DELTA: &[(&str, Side, &str)] = &[
-    ("plugins capabilities templates", Side::OnlyBaseline, PLUGINS_REMOVED),
-    ("plugins capabilities tools", Side::OnlyBaseline, PLUGINS_REMOVED),
+    (
+        "plugins capabilities templates",
+        Side::OnlyBaseline,
+        PLUGINS_REMOVED,
+    ),
+    (
+        "plugins capabilities tools",
+        Side::OnlyBaseline,
+        PLUGINS_REMOVED,
+    ),
     ("plugins validate", Side::OnlyBaseline, PLUGINS_REMOVED),
 ];
 const JOB_DELTA: &[(&str, Side, &str)] = &[];
@@ -79,7 +87,11 @@ fn assert_matches(
     let mut found: Vec<(String, Side)> = baseline
         .difference(admitted)
         .map(|key| (key.clone(), Side::OnlyBaseline))
-        .chain(admitted.difference(baseline).map(|key| (key.clone(), Side::OnlyAdmitted)))
+        .chain(
+            admitted
+                .difference(baseline)
+                .map(|key| (key.clone(), Side::OnlyAdmitted)),
+        )
         .collect();
     found.sort_by(|a, b| a.0.cmp(&b.0));
     let unexplained: Vec<&(String, Side)> = found
@@ -117,15 +129,11 @@ fn admitted_member_routes_equal_the_baseline() {
         .skip(1)
         .filter(|line| !line.is_empty())
         .map(|line| line.split('\t').collect::<Vec<_>>())
-        .filter(|c| {
-            c[7] != "kernel" && (!OPT_IN_SHAPES.contains(&c[7]) || carried.contains(c[7]))
-        })
+        .filter(|c| c[7] != "kernel" && (!OPT_IN_SHAPES.contains(&c[7]) || carried.contains(c[7])))
         .map(|c| route_key(c[0], c[1]))
         .collect();
-    let members = admitted
-        .routes()
-        .iter()
-        .flat_map(|admitted| {
+    let members =
+        admitted.routes().iter().flat_map(|admitted| {
             let base = admitted.set.base();
             admitted.set.defs().iter().map(move |def| {
                 route_key(&def.method.to_string(), &full_path(base, def.path.as_str()))
@@ -140,7 +148,11 @@ fn admitted_member_routes_equal_the_baseline() {
         })
     });
     let routes: BTreeSet<String> = members.chain(gateway).collect();
-    assert!(baseline.len() > 30, "the baseline was read: {}", baseline.len());
+    assert!(
+        baseline.len() > 30,
+        "the baseline was read: {}",
+        baseline.len()
+    );
     assert_matches("routes", &baseline, &routes, ROUTE_DELTA);
 }
 
@@ -170,7 +182,11 @@ fn admitted_command_paths_equal_the_baseline() {
     let mut paths = BTreeSet::new();
     command_paths(&root, "", &mut paths);
     let baseline = column(COMMANDS, 0, |_| true);
-    assert!(baseline.len() > 400, "the baseline was read: {}", baseline.len());
+    assert!(
+        baseline.len() > 400,
+        "the baseline was read: {}",
+        baseline.len()
+    );
     assert_matches("commands", &baseline, &paths, COMMAND_DELTA);
 }
 
@@ -185,6 +201,10 @@ fn admitted_jobs_equal_the_baseline() {
         .map(|(_, job)| job.job().name().to_owned())
         .collect();
     let baseline = column(JOBS, 0, |_| true);
-    assert!(baseline.len() > 40, "the baseline was read: {}", baseline.len());
+    assert!(
+        baseline.len() > 40,
+        "the baseline was read: {}",
+        baseline.len()
+    );
     assert_matches("jobs", &baseline, &jobs, JOB_DELTA);
 }

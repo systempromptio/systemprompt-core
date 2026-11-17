@@ -31,7 +31,10 @@ pub fn level_notice(level: LogLevel, text: impl Into<String>) -> NoticeLine {
 pub fn filter_notes(filters: &LogFilters) -> Vec<NoticeLine> {
     let mut notes = Vec::new();
     if let Some(level) = filters.level {
-        notes.push(NoticeLine::new("info", format!("Level: {}", level.as_str())));
+        notes.push(NoticeLine::new(
+            "info",
+            format!("Level: {}", level.as_str()),
+        ));
     }
     if let Some(ref module) = filters.module {
         notes.push(NoticeLine::new("info", format!("Module: {module}")));

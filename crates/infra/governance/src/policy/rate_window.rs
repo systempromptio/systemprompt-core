@@ -18,8 +18,9 @@
 //! it was first charged at. [`RateWindowRepository::refund`] takes a call's
 //! charge back out of the window it landed in, for a request a later stage
 //! refused before it ran. A window whose charge fails is absent from
-//! [`RateCounts`](systemprompt_provider_contracts::governance::RateCounts), and the policy treats an absent count as a violation —
-//! fail-closed under `enforce`, a warning under `warn`.
+//! [`RateCounts`](systemprompt_provider_contracts::governance::RateCounts), and
+//! the policy treats an absent count as a violation — fail-closed under
+//! `enforce`, a warning under `warn`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

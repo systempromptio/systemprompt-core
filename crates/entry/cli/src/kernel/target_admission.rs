@@ -18,7 +18,9 @@ use serde_yaml::{Mapping, Value};
 use systemprompt_extension::cli::{AdmittedViews, KernelGrant};
 use systemprompt_manifest::profile::layered::{base_path_for, merge_yaml, parse_raw_layer};
 use systemprompt_manifest::profile::{ProfileError, profile_field_kind};
-use systemprompt_manifest::{ExtensionsConfig, InterpolationError, interpolate_yaml, read_env_optional};
+use systemprompt_manifest::{
+    ExtensionsConfig, InterpolationError, interpolate_yaml, read_env_optional,
+};
 use systemprompt_traits::BoxedSource;
 
 use crate::context::CommandContext;
@@ -27,9 +29,14 @@ const EXTENSIONS_KEY: &str = "extensions";
 
 #[derive(Debug, thiserror::Error)]
 pub enum TargetAdmissionError {
-    #[error("admitting a target profile requires the `{}` kernel grant", KernelGrant::TargetAdmission)]
+    #[error(
+        "admitting a target profile requires the `{}` kernel grant",
+        KernelGrant::TargetAdmission
+    )]
     Refused,
-    #[error("the composition admission is not available to this command: it was admitted against the runner's profile or already used")]
+    #[error(
+        "the composition admission is not available to this command: it was admitted against the runner's profile or already used"
+    )]
     Spent,
     #[error("reading the disabled members of {}", path.display())]
     Profile {
@@ -75,19 +82,26 @@ pub fn read_disabled(profile: &Path) -> Result<ExtensionsConfig, TargetAdmission
         Some(base) => merge_yaml(layer(&base)?, overlay),
         None => overlay,
     };
-    let Some(section) = tree.get(EXTENSIONS_KEY).filter(|value| !value.is_null()).cloned() else {
+    let Some(section) = tree
+        .get(EXTENSIONS_KEY)
+        .filter(|value| !value.is_null())
+        .cloned()
+    else {
         return Ok(ExtensionsConfig::default());
     };
     let mut scoped = Value::Mapping(Mapping::from_iter([(
         Value::String(EXTENSIONS_KEY.to_owned()),
         section,
     )]));
-    interpolate_yaml(&mut scoped, &|name| read_env_optional(name), &profile_field_kind).map_err(
-        |source| TargetAdmissionError::Interpolation {
-            path: profile.to_path_buf(),
-            source,
-        },
-    )?;
+    interpolate_yaml(
+        &mut scoped,
+        &|name| read_env_optional(name),
+        &profile_field_kind,
+    )
+    .map_err(|source| TargetAdmissionError::Interpolation {
+        path: profile.to_path_buf(),
+        source,
+    })?;
     let section = scoped.get(EXTENSIONS_KEY).cloned().unwrap_or(Value::Null);
     serde_yaml::from_value(section).map_err(|source| TargetAdmissionError::Parse {
         path: profile.to_path_buf(),

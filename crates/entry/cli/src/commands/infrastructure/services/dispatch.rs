@@ -3,12 +3,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::Result;
 use crate::kernel::KernelHost;
+use anyhow::Result;
 
 use super::{RestartTarget, ServicesCommands, StartTarget, StopTarget, restart, start, stop};
-use systemprompt_extension::cli::CommandOutput;
 use crate::commands::shared::app_context;
+use systemprompt_extension::cli::CommandOutput;
 
 pub async fn execute(command: ServicesCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
@@ -60,9 +60,7 @@ pub async fn execute(command: ServicesCommands, host: &dyn KernelHost) -> Result
             detailed,
             json,
             health,
-        } => {
-            super::status::execute(detailed, json, health, host).await
-        },
+        } => super::status::execute(detailed, json, health, host).await,
 
         ServicesCommands::Cleanup { yes, dry_run } => {
             super::cleanup::execute(yes, dry_run, host).await

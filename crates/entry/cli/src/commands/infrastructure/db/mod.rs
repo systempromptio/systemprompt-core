@@ -32,10 +32,9 @@ use systemprompt_database::{DatabaseAdminService, DbPool, QueryExecutor, pool_fr
 use systemprompt_runtime::DatabaseContext;
 
 use crate::commands::shared::app_context;
-use systemprompt_extension::cli::require_confirmation;
 use crate::kernel::KernelHost;
-use systemprompt_extension::cli::CommandOutput;
 use dispatch::{Dispatched, dispatch_profile_migration, dispatch_standalone_migration};
+use systemprompt_extension::cli::{CommandOutput, require_confirmation};
 
 pub use commands::{DbCommands, MigrationsCommands};
 pub use types::{
@@ -90,8 +89,12 @@ pub async fn execute(cmd: DbCommands, host: &dyn KernelHost) -> Result<CommandOu
             bail!("migration command was not consumed by the migration dispatcher")
         },
         DbCommands::Migrations { cmd } => {
-            admin::execute_migrations(app_context(host).await?.as_ref(), host.admitted()?.built(), cmd)
-                .await
+            admin::execute_migrations(
+                app_context(host).await?.as_ref(),
+                host.admitted()?.built(),
+                cmd,
+            )
+            .await
         },
         DbCommands::MigratePlan { extension, flags } => {
             admin::execute_migrate_plan(

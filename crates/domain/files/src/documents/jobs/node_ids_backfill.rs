@@ -23,9 +23,9 @@ use systemprompt_identifiers::JobName;
 use systemprompt_traits::{Job, JobContext, JobResult, JobScope, ProviderError, ProviderResult};
 
 use crate::FilesConfig;
+use crate::documents::DocumentsHandlesSlot;
 use crate::documents::agents::{DocumentActor, act_as};
 use crate::documents::error::DocumentsError;
-use crate::documents::DocumentsHandlesSlot;
 use crate::documents::handles::bound_service;
 use crate::documents::service::DocumentService;
 

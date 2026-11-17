@@ -235,14 +235,13 @@ impl ExtensionReadiness {
 
     // JSON: the per-check `/readyz` entries are an open JSON array.
     pub(crate) async fn run(&self) -> (bool, serde_json::Value) {
-        let outcomes =
-            futures_util::future::join_all(self.checks.iter().map(|(extension, check)| {
-                async move {
-                    let outcome = tokio::time::timeout(HEALTH_PROBE_TIMEOUT, check.check()).await;
-                    check_entry(extension.as_str(), check.name(), outcome)
-                }
-            }))
-            .await;
+        let outcomes = futures_util::future::join_all(self.checks.iter().map(
+            |(extension, check)| async move {
+                let outcome = tokio::time::timeout(HEALTH_PROBE_TIMEOUT, check.check()).await;
+                check_entry(extension.as_str(), check.name(), outcome)
+            },
+        ))
+        .await;
         let ready = outcomes.iter().all(|(ok, _)| *ok);
         let entries = outcomes.into_iter().map(|(_, entry)| entry).collect();
         (ready, serde_json::Value::Array(entries))

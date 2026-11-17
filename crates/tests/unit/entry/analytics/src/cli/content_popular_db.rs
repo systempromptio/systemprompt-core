@@ -5,8 +5,8 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_analytics_entry::cli::content_popular::{PopularArgs, execute_with_pool};
-use systemprompt_extension::cli::CliConfig;
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::CliConfig;
 use systemprompt_identifiers::SourceId;
 use systemprompt_test_fixtures::test_db_pool;
 

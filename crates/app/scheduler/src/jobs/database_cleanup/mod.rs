@@ -39,8 +39,8 @@ use std::time::Instant;
 
 use async_trait::async_trait;
 use systemprompt_database::DbPool;
-use systemprompt_extension::{AdmittedPurge, AdmittedSchedule};
 pub use systemprompt_extension::RetentionTarget;
+use systemprompt_extension::{AdmittedPurge, AdmittedSchedule};
 use systemprompt_manifest::profile::RetentionConfig;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::debug;
@@ -92,7 +92,10 @@ impl Job for DatabaseCleanupJob {
             .filter(|(target, _)| {
                 let owned = owners.owns(*target);
                 if !owned {
-                    debug!(table = target.table(), "no admitted member purges this target");
+                    debug!(
+                        table = target.table(),
+                        "no admitted member purges this target"
+                    );
                 }
                 owned
             })

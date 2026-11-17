@@ -8,8 +8,7 @@ use chrono::{DateTime, Utc};
 use clap::{Args, ValueEnum};
 use walkdir::WalkDir;
 
-use systemprompt_extension::cli::CliConfig;
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 use super::super::paths::WebPaths;
 use super::super::types::{AssetSummary, AssetType};

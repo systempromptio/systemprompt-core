@@ -56,20 +56,12 @@ fn schemas() -> Vec<SchemaDefinition> {
             "scheduled_jobs",
             include_str!("../schema/scheduled_jobs.sql"),
         )
-        .with_required_columns(vec![
-            "id".into(),
-            "job_name".into(),
-            "created_at".into(),
-        ]),
+        .with_required_columns(vec!["id".into(), "job_name".into(), "created_at".into()]),
         SchemaDefinition::new(
             "config_plane_state",
             include_str!("../schema/config_plane_state.sql"),
         )
-        .with_required_columns(vec![
-            "plane".into(),
-            "authority".into(),
-            "outcome".into(),
-        ]),
+        .with_required_columns(vec!["plane".into(), "authority".into(), "outcome".into()]),
         SchemaDefinition::new(
             "config_change_audit",
             include_str!("../schema/config_change_audit.sql"),
@@ -124,4 +116,3 @@ fn schemas() -> Vec<SchemaDefinition> {
         ]),
     ]
 }
-

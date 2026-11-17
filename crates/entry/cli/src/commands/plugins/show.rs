@@ -4,8 +4,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Result, anyhow};
 use crate::kernel::KernelHost;
+use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_extension::admitted::AdmittedMember;
 use systemprompt_extension::cli::{CommandError, CommandOutput};
@@ -27,7 +27,9 @@ pub fn execute(args: &ShowArgs, host: &dyn KernelHost) -> Result<CommandOutput> 
     let built = composition::built(host)?;
     let output = match composition::find(built, &args.id) {
         Some(member) => build_detail_output(member),
-        None => show_manifest(&args.id)?.ok_or_else(|| anyhow!("Extension '{}' not found", args.id))?,
+        None => {
+            show_manifest(&args.id)?.ok_or_else(|| anyhow!("Extension '{}' not found", args.id))?
+        },
     };
 
     Ok(CommandOutput::card_value(

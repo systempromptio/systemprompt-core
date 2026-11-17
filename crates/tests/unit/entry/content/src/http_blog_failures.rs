@@ -15,9 +15,7 @@ use systemprompt_content_entry::http::{
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, test_app_context,
-};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context};
 
 use crate::common::{content_state, negotiating_state};
 

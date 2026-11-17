@@ -11,10 +11,10 @@ use systemprompt_extension::{
     Admitted, ContributionError, Contributions, Extension, ExtensionMetadata, Migration,
     SchemaDefinition,
 };
-use systemprompt_test_fixtures::fixture_admitted_of;
 use systemprompt_manifest::Profile;
 use systemprompt_runtime::schema_currency::{recheck, refuse_breaking};
 use systemprompt_runtime::{RuntimeError, SchemaState, assert_schema_current};
+use systemprompt_test_fixtures::fixture_admitted_of;
 
 use crate::boot::{BootOptions, boot};
 
@@ -107,7 +107,9 @@ impl Fixture {
     async fn migrate(&self, migrations: Vec<Migration>) {
         let admitted = self.admitted(migrations);
         let members = schema_members(admitted.built());
-        let member = members.first().expect("the currency member carries a schema");
+        let member = members
+            .first()
+            .expect("the currency member carries a schema");
         MigrationService::new(self.db.write())
             .run_pending_migrations(member.as_ref())
             .await

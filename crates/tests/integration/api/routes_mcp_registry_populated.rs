@@ -11,9 +11,7 @@ use std::sync::OnceLock;
 
 use axum::Router;
 use systemprompt_api::routes::mcp_registry_router;
-use systemprompt_test_fixtures::{
-    TestBootstrap, init_isolated_bootstrap, test_app_context_on,
-};
+use systemprompt_test_fixtures::{TestBootstrap, init_isolated_bootstrap, test_app_context_on};
 use tower::ServiceExt;
 
 use super::common::{body_to_string, empty_get};

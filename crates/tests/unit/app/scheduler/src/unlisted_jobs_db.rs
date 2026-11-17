@@ -12,9 +12,7 @@ use systemprompt_scheduler::{
     JobConfig, SchedulerConfig, SchedulerError, SchedulerRepository, SchedulerService,
     unlisted_job_names,
 };
-use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, test_database_url, test_db_pool,
-};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_database_url, test_db_pool};
 
 use crate::test_jobs::{FAILING_JOB, WORKING_JOB};
 
@@ -31,7 +29,8 @@ fn config(mode: UnlistedJobs, jobs: Vec<JobConfig>) -> SchedulerConfig {
 }
 
 fn names(config: &SchedulerConfig) -> Vec<String> {
-    let schedule = crate::test_extension::schedule_of(&crate::test_extension::admitted_with_test_jobs());
+    let schedule =
+        crate::test_extension::schedule_of(&crate::test_extension::admitted_with_test_jobs());
     unlisted_job_names(config, &ensure_test_bootstrap().boot, &schedule)
         .into_iter()
         .map(|name| name.as_str().to_owned())
@@ -100,7 +99,7 @@ async fn error_mode_refuses_to_start_and_names_the_jobs() {
         config(UnlistedJobs::Error, Vec::new()),
         Arc::clone(&pool),
         app_ctx,
-            Arc::clone(&schedule),
+        Arc::clone(&schedule),
     );
 
     let err = svc.start().await.expect_err("unlisted jobs must fail boot");
@@ -120,7 +119,7 @@ async fn default_mode_schedules_jobs_with_a_declared_default() {
         config(UnlistedJobs::Default, Vec::new()),
         Arc::clone(&pool),
         app_ctx,
-            Arc::clone(&schedule),
+        Arc::clone(&schedule),
     );
 
     let startup = svc.start().await.expect("scheduler starts");
@@ -145,7 +144,7 @@ async fn warn_mode_schedules_nothing_it_was_not_told_to() {
         config(UnlistedJobs::Warn, Vec::new()),
         Arc::clone(&pool),
         app_ctx,
-            Arc::clone(&schedule),
+        Arc::clone(&schedule),
     );
 
     let startup = svc.start().await.expect("scheduler starts");

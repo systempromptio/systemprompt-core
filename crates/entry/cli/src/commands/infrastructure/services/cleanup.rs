@@ -3,11 +3,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use crate::commands::shared::app_context;
-use systemprompt_extension::cli::require_confirmation;
-use systemprompt_extension::cli::CommandOutput;
+use crate::kernel::KernelHost;
 use anyhow::Result;
+use systemprompt_extension::cli::{CommandOutput, require_confirmation};
 use systemprompt_loader::subprocess;
 use systemprompt_logging::CliService;
 use systemprompt_scheduler::{
@@ -28,8 +27,7 @@ pub(super) async fn execute(
         CliService::section("Cleaning Up Services");
     }
 
-    let app = app_context(host)
-        .await?;
+    let app = app_context(host).await?;
     let service_mgmt = ServiceManagementService::new(app.service_repository().as_ref().clone());
     let api_port = get_api_port(host.profile()?);
 

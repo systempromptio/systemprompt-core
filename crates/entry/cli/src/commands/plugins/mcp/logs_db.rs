@@ -11,9 +11,8 @@ use systemprompt_manifest::ServicesConfig;
 
 use super::logs::{LogLevel, LogsArgs};
 use super::types::McpLogsOutput;
-use systemprompt_extension::cli::CliConfig;
 use crate::commands::shared::app_context;
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 pub(super) async fn execute_db_mode(
     args: &LogsArgs,

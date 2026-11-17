@@ -11,8 +11,8 @@ use systemprompt_logging::CliService;
 
 use super::resolve::resolve_context;
 use super::types::ContextUpdatedOutput;
-use systemprompt_database::pool_from_handle;
 use crate::session::get_or_create_session;
+use systemprompt_database::pool_from_handle;
 use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]

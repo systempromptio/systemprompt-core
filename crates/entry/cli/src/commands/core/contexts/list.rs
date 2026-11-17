@@ -11,11 +11,10 @@ use systemprompt_database::DbPool;
 use systemprompt_logging::CliService;
 
 use super::types::{ContextListOutput, ContextSummary};
-use systemprompt_extension::cli::CliConfig;
-use systemprompt_database::pool_from_handle;
 use crate::presentation::tables::context_list_table;
 use crate::session::get_or_create_session;
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_database::pool_from_handle;
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ListArgs;

@@ -173,10 +173,7 @@ async fn serve_until_shutdown(
     serve_result
 }
 
-fn start_runner_services(
-    ctx: &AppContext,
-    brain: Option<Arc<dyn RunnerService>>,
-) -> Result<()> {
+fn start_runner_services(ctx: &AppContext, brain: Option<Arc<dyn RunnerService>>) -> Result<()> {
     let shared = Arc::new(ctx.clone());
     let mut started = 0usize;
     if let Some(consumer) = brain {

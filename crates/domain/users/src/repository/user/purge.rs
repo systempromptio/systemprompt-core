@@ -20,8 +20,8 @@ use systemprompt_extension::{AdmittedPurge, PurgeDeclaration};
 use systemprompt_identifiers::{ExtensionId, UserId};
 use tracing::warn;
 
-pub use super::purge_plan::{PurgeCount, PurgeOutcome, SkippedPurge};
 pub(crate) use super::purge_plan::USERS_OWNER;
+pub use super::purge_plan::{PurgeCount, PurgeOutcome, SkippedPurge};
 use super::purge_plan::{PurgeStep, RecordedPurge, plan_steps, sweep_sql, table_sql};
 use crate::error::Result;
 use crate::repository::UserRepository;
@@ -210,7 +210,8 @@ impl UserRepository {
             absent: false,
         });
         for step in &steps {
-            if let Some(rows) = table_rows(&mut conn, id, &step.declaration, "SELECT COUNT(*)").await?
+            if let Some(rows) =
+                table_rows(&mut conn, id, &step.declaration, "SELECT COUNT(*)").await?
             {
                 outcome.counts.push(step.count(rows));
             }
@@ -221,7 +222,9 @@ impl UserRepository {
                     .bind(id.as_str())
                     .fetch_one(&mut *conn)
                     .await?;
-                outcome.counts.push(step.count(u64::try_from(rows).unwrap_or(0)));
+                outcome
+                    .counts
+                    .push(step.count(u64::try_from(rows).unwrap_or(0)));
             }
         }
         Ok(outcome)

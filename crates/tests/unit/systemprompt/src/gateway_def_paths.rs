@@ -3,17 +3,18 @@
 //! claim or under a built-in gateway prefix is refused, and every def of the
 //! reference composition's gateway routes lies within its claim (K-SEC4-2).
 
+use systemprompt_extension::RouteGroup;
 use systemprompt_extension::router::{
     GatewayDefRefusal, GatewayPath, RouteSet, refused_gateway_def,
 };
-use systemprompt_extension::RouteGroup;
 
 use crate::probe::{PLAIN, ProbeState, build, ok};
 
 fn refusal(path: &'static str) -> Option<GatewayDefRefusal> {
-    let set = RouteSet::gateway::<ProbeState>(GatewayPath::BridgeNotifications, RouteGroup::Gateway)
-        .route(http::Method::GET, path, ok, PLAIN)
-        .build();
+    let set =
+        RouteSet::gateway::<ProbeState>(GatewayPath::BridgeNotifications, RouteGroup::Gateway)
+            .route(http::Method::GET, path, ok, PLAIN)
+            .build();
     refused_gateway_def(GatewayPath::BridgeNotifications, &set.defs()[0])
 }
 
@@ -66,9 +67,17 @@ fn every_reference_gateway_def_lies_within_its_claim() {
     let admitted = build(systemprompt::reference()).expect("the reference composition admits");
     assert!(!admitted.gateway_routes().is_empty());
     for route in admitted.gateway_routes() {
-        let claimed = route.decl.path().expect("a gateway route claims a gateway path");
+        let claimed = route
+            .decl
+            .path()
+            .expect("a gateway route claims a gateway path");
         for def in route.decl.router.defs() {
-            assert_eq!(refused_gateway_def(claimed, def), None, "{}", def.path.as_str());
+            assert_eq!(
+                refused_gateway_def(claimed, def),
+                None,
+                "{}",
+                def.path.as_str()
+            );
         }
     }
 }

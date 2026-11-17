@@ -40,6 +40,10 @@ pub use http_error::{ApiHttpError, unreadable_body};
 pub use negotiation::{
     AcceptedFormat, AcceptedMediaType, content_negotiation_middleware, parse_accept_header,
 };
+pub use overlap::{
+    GatewayDefRefusal, RouteOverlap, first_overlap, full_path, path_covers, refused_gateway_def,
+    refused_reservation, reserved_below,
+};
 #[cfg(feature = "router")]
 pub use principal::GatewayPrincipal;
 #[cfg(feature = "router")]
@@ -49,13 +53,10 @@ pub use shape::{
     RouteLimits, RouteMethod, RoutePath, RouteShape, RouteSpec, TypedSpec, WebBase,
     reserved_prefix_of,
 };
-pub use overlap::{
-    GatewayDefRefusal, RouteOverlap, first_overlap, full_path, path_covers, refused_gateway_def,
-    refused_reservation, reserved_below,
-};
 #[cfg(feature = "router")]
 pub use sse::{
-    HEARTBEAT_INTERVAL, HEARTBEAT_JSON, frame_event, sse_response, standard_keep_alive, subscription_refused,
+    HEARTBEAT_INTERVAL, HEARTBEAT_JSON, frame_event, sse_response, standard_keep_alive,
+    subscription_refused,
 };
 
 #[cfg(feature = "router")]

@@ -79,8 +79,9 @@ async fn allow_yields_the_agents_reply_text() -> anyhow::Result<()> {
 #[tokio::test]
 async fn deny_hook_short_circuits_to_denied() -> anyhow::Result<()> {
     let b = ensure_messaging_bootstrap();
-    let ctx = fixture_app_context_with_hook(&b.database_url,
-        std::sync::Arc::new(DenyAllHook::null())).await?;
+    let ctx =
+        fixture_app_context_with_hook(&b.database_url, std::sync::Arc::new(DenyAllHook::null()))
+            .await?;
 
     let user = format!("U_{}", Uuid::new_v4().simple());
     let outcome = dispatch_messaging(&ctx, inbound(&user, "hi"))

@@ -58,4 +58,3 @@ impl Job for OauthCleanupJob {
             .with_duration(duration_ms))
     }
 }
-

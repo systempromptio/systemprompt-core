@@ -53,7 +53,13 @@ const OWNER_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS mo_owned (id BIGINT PRIMA
 const PEER_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS mo_peer (id BIGINT PRIMARY KEY);";
 
 fn owner() -> Arc<dyn SchemaMember> {
-    unit("mo-owner", StandingTag::Core, Some(OWNER_SCHEMA), vec![], vec![])
+    unit(
+        "mo-owner",
+        StandingTag::Core,
+        Some(OWNER_SCHEMA),
+        vec![],
+        vec![],
+    )
 }
 
 fn peer(standing: StandingTag, sql: &'static str) -> Arc<dyn SchemaMember> {
@@ -101,12 +107,21 @@ fn foreign(outcome: Result<(), MigrationOwnershipError>) -> (TableMutation, Stri
 #[test]
 fn every_mutation_kind_of_a_peer_table_is_refused() {
     let cases = [
-        ("ALTER TABLE mo_owned ADD COLUMN x TEXT;", TableMutation::Alter),
+        (
+            "ALTER TABLE mo_owned ADD COLUMN x TEXT;",
+            TableMutation::Alter,
+        ),
         ("DROP TABLE mo_owned;", TableMutation::Drop),
         ("DROP TABLE IF EXISTS public.mo_owned;", TableMutation::Drop),
         ("TRUNCATE mo_owned;", TableMutation::Truncate),
-        ("ALTER TABLE mo_owned RENAME TO mo_taken;", TableMutation::Rename),
-        ("ALTER TABLE mo_owned RENAME COLUMN id TO key;", TableMutation::Rename),
+        (
+            "ALTER TABLE mo_owned RENAME TO mo_taken;",
+            TableMutation::Rename,
+        ),
+        (
+            "ALTER TABLE mo_owned RENAME COLUMN id TO key;",
+            TableMutation::Rename,
+        ),
     ];
     for standing in [StandingTag::Install, StandingTag::Core] {
         for (sql, kind) in cases {
@@ -166,7 +181,10 @@ fn a_do_block_is_refused_for_an_install_and_passes_for_core() {
     assert!(
         matches!(
             judged(&[owner(), peer(StandingTag::Install, sql)]),
-            Err(MigrationOwnershipError::Unreadable { statement: "DO", .. })
+            Err(MigrationOwnershipError::Unreadable {
+                statement: "DO",
+                ..
+            })
         ),
         "an install migration's DO block is refused"
     );
@@ -179,16 +197,31 @@ fn a_cross_table_declaration_admits_all_but_an_install_on_a_core_table() {
     let sql = "ALTER TABLE mo_owned ADD COLUMN x TEXT;";
     judged(&[owner(), peer_with(StandingTag::Core, sql, vec!["mo_owned"])])
         .expect("a core member's declared cross table is admitted");
-    let install_owner = unit("mo-owner", StandingTag::Install, Some(OWNER_SCHEMA), vec![], vec![]);
-    judged(&[install_owner, peer_with(StandingTag::Install, sql, vec!["mo_owned"])])
-        .expect("an install's declared cross table of an install owner is admitted");
-    foreign(judged(&[owner(), peer_with(StandingTag::Install, sql, vec!["mo_owned"])]));
+    let install_owner = unit(
+        "mo-owner",
+        StandingTag::Install,
+        Some(OWNER_SCHEMA),
+        vec![],
+        vec![],
+    );
+    judged(&[
+        install_owner,
+        peer_with(StandingTag::Install, sql, vec!["mo_owned"]),
+    ])
+    .expect("an install's declared cross table of an install owner is admitted");
+    foreign(judged(&[
+        owner(),
+        peer_with(StandingTag::Install, sql, vec!["mo_owned"]),
+    ]));
 }
 
 #[test]
 fn no_core_migration_mutates_another_members_table() {
     let members = schema_members(fixture_admitted().built());
-    assert!(members.len() > 10, "the core composition has its schema members");
+    assert!(
+        members.len() > 10,
+        "the core composition has its schema members"
+    );
     let findings: Vec<String> = migration_ownership_findings(&members, &[], &all_pending)
         .iter()
         .map(ToString::to_string)
@@ -217,7 +250,13 @@ fn ledger() -> Arc<dyn SchemaMember> {
 }
 
 fn installed_peer(migrations: Vec<Migration>, schema: &'static str) -> Arc<dyn SchemaMember> {
-    unit("mo-peer", StandingTag::Install, Some(schema), migrations, vec![])
+    unit(
+        "mo-peer",
+        StandingTag::Install,
+        Some(schema),
+        migrations,
+        vec![],
+    )
 }
 
 async fn install(pool: &DbPool, members: Vec<Arc<dyn SchemaMember>>) -> Result<(), LoaderError> {
@@ -239,17 +278,27 @@ async fn a_pending_foreign_migration_is_refused_before_any_ddl() {
     let database = DisposableDb::empty("migration_owners").await;
     let pool = database.test_pool().await;
     let first = vec![Migration::new(1, "first", "SELECT 1;")];
-    install(&pool, vec![ledger(), owner(), installed_peer(first.clone(), PEER_SCHEMA)])
-        .await
-        .expect("the first install stamps the peer's migration");
+    install(
+        &pool,
+        vec![
+            ledger(),
+            owner(),
+            installed_peer(first.clone(), PEER_SCHEMA),
+        ],
+    )
+    .await
+    .expect("the first install stamps the peer's migration");
 
     let grown = "CREATE TABLE IF NOT EXISTS mo_peer (id BIGINT PRIMARY KEY);\n\
                  CREATE TABLE IF NOT EXISTS mo_peer_new (id BIGINT PRIMARY KEY);";
     let mut foreign = first.clone();
     foreign.push(Migration::new(2, "take", "DROP TABLE mo_owned;"));
-    let error = install(&pool, vec![ledger(), owner(), installed_peer(foreign, grown)])
-        .await
-        .expect_err("a pending migration dropping a peer table is refused");
+    let error = install(
+        &pool,
+        vec![ledger(), owner(), installed_peer(foreign, grown)],
+    )
+    .await
+    .expect_err("a pending migration dropping a peer table is refused");
     let refusal = std::error::Error::source(&error)
         .and_then(|source| source.downcast_ref::<MigrationOwnershipError>());
     assert!(
@@ -269,7 +318,11 @@ async fn a_pending_foreign_migration_is_refused_before_any_ddl() {
     );
 
     let mut own = first;
-    own.push(Migration::new(2, "own", "ALTER TABLE mo_peer ADD COLUMN x TEXT;"));
+    own.push(Migration::new(
+        2,
+        "own",
+        "ALTER TABLE mo_peer ADD COLUMN x TEXT;",
+    ));
     install(&pool, vec![ledger(), owner(), installed_peer(own, grown)])
         .await
         .expect("negative control: a pending migration of its own table installs");

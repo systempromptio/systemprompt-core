@@ -19,9 +19,9 @@ use systemprompt_models::artifacts::ListItem;
 use systemprompt_models::providers::ClientFamily;
 use systemprompt_wire::WireProtocol;
 
-use systemprompt_extension::cli::CommandOutput;
 use super::services_io::{CatalogLocation, commit_catalog};
 use super::types::ConfigMutationOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 pub async fn apply(
     host: &dyn KernelHost,

@@ -10,8 +10,7 @@ use systemprompt_logging::LoggingMaintenanceService;
 
 use super::LogDeleteOutput;
 use systemprompt_database::pool_from_handle;
-use systemprompt_extension::cli::require_confirmation;
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_extension::cli::{CommandOutput, require_confirmation};
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct DeleteArgs {

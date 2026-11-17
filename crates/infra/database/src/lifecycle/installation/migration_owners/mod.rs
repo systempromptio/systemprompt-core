@@ -74,7 +74,9 @@ pub struct RecordedTable {
 
 #[derive(Debug, thiserror::Error)]
 pub enum MigrationOwnershipError {
-    #[error("member {member} migration {migration}: {statement} of table {table}, owned by {owner}")]
+    #[error(
+        "member {member} migration {migration}: {statement} of table {table}, owned by {owner}"
+    )]
     ForeignTable {
         member: ExtensionId,
         migration: String,
@@ -171,10 +173,12 @@ pub fn migration_ownership_findings(
         }
     }
     for record in recorded {
-        owners.entry(qualify(&record.table)).or_insert_with(|| Owner {
-            id: record.owner.clone(),
-            standing: record.standing,
-        });
+        owners
+            .entry(qualify(&record.table))
+            .or_insert_with(|| Owner {
+                id: record.owner.clone(),
+                standing: record.standing,
+            });
     }
 
     for member in members {
@@ -227,7 +231,8 @@ pub fn migration_ownership_findings(
                         continue;
                     };
                     let admitted_cross = cross.contains(&table)
-                        && !(standing == StandingTag::Install && owner.standing == StandingTag::Core);
+                        && !(standing == StandingTag::Install
+                            && owner.standing == StandingTag::Core);
                     if admitted_cross {
                         continue;
                     }
@@ -248,4 +253,3 @@ pub fn migration_ownership_findings(
 fn label(migration: &Migration) -> String {
     format!("{:03}_{}", migration.version, migration.name)
 }
-

@@ -26,8 +26,7 @@ mod target_admission;
 
 pub use describe::{classify_command_line, command_line_path, describe_command_line};
 pub use registry::{
-    CommandOwner, CommandRegistry, RegistryEntry, ResolvedCommand, core_owner_type,
-    kernel_commands,
+    CommandOwner, CommandRegistry, RegistryEntry, ResolvedCommand, core_owner_type, kernel_commands,
 };
 pub use registry_error::{RegistryError, ResolveError};
 pub(crate) use target_admission::admit_target;

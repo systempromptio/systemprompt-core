@@ -13,11 +13,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result};
-use systemprompt_extension::cli::CliConfig;
-use systemprompt_extension::cli::Prompter;
 use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
-use systemprompt_extension::cli::ChildSupervisor;
+use systemprompt_extension::cli::{ChildSupervisor, CliConfig, Prompter};
 use systemprompt_identifiers::{Email, ProviderId};
 use systemprompt_logging::CliService;
 

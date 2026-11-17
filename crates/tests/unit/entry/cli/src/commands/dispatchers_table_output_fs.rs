@@ -168,11 +168,7 @@ async fn web_commands_render_through_the_terminal_renderer() {
 async fn plugin_commands_render_through_the_terminal_renderer() {
     let ctx = table_ctx();
 
-    for args in [
-        vec!["list"],
-        vec!["config"],
-        vec!["capabilities"],
-    ] {
+    for args in [vec!["list"], vec!["config"], vec!["capabilities"]] {
         let cmd =
             PluginsHarness::try_parse_from(std::iter::once("plugins").chain(args.iter().copied()))
                 .unwrap()

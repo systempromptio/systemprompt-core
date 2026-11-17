@@ -10,10 +10,10 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use systemprompt_database::DbPool;
 use systemprompt_events::services::durable::{
     DurableEventError, DurableOutbox, ReportingFact, SseEvent,
 };
-use systemprompt_database::DbPool;
 use systemprompt_extension::brain::{BrainSink, BrainSinkError, DynBrainSink};
 use systemprompt_identifiers::{Actor, EventOutboxId, InstanceId};
 use systemprompt_models::brain::{BRAIN_CONSUMER, BRAIN_EVENT_VERSION, BrainEvent};

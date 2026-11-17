@@ -7,9 +7,9 @@ use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Args;
 
-use systemprompt_extension::cli::CommandOutput;
 use super::types::{ConfigFileInfo, ConfigListOutput, ConfigSection};
 use systemprompt_config::yaml_document::read_yaml_file;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ListArgs {

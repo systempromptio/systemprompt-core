@@ -27,7 +27,11 @@ pub fn push_summary(out: &mut Vec<NoticeLine>, ctx: &SummaryContext<'_>) {
 
     if let (Some(first), Some(last)) = (ctx.first, ctx.last) {
         let duration = last.signed_duration_since(first);
-        kv(out, "  Duration", &format!("{}ms", duration.num_milliseconds()));
+        kv(
+            out,
+            "  Duration",
+            &format!("{}ms", duration.num_milliseconds()),
+        );
     }
 
     push_event_counts(out, ctx.events);
@@ -51,7 +55,8 @@ fn push_event_counts(out: &mut Vec<NoticeLine>, events: &[TraceEvent]) {
         .iter()
         .map(|(k, v)| format!("{} {}", v, k))
         .collect();
-    kv(out, 
+    kv(
+        out,
         "  Events",
         &format!("{} ({})", events.len(), event_parts.join(", ")),
     );
@@ -61,7 +66,8 @@ fn push_ai_summary(out: &mut Vec<NoticeLine>, ai_summary: &AiRequestSummary) {
     if ai_summary.request_count > 0 {
         line(out, "info", "  AI Requests:");
         kv(out, "     Requests", &ai_summary.request_count.to_string());
-        kv(out, 
+        kv(
+            out,
             "     Tokens",
             &format!(
                 "{} (in: {}, out: {})",
@@ -72,7 +78,8 @@ fn push_ai_summary(out: &mut Vec<NoticeLine>, ai_summary: &AiRequestSummary) {
         );
         let dollars = ai_summary.total_cost_microdollars as f64 / 1_000_000.0;
         kv(out, "     Cost", &format!("${dollars:.6}"));
-        kv(out, 
+        kv(
+            out,
             "     Total Latency",
             &format!("{}ms", ai_summary.total_latency_ms),
         );
@@ -86,8 +93,13 @@ fn push_ai_summary(out: &mut Vec<NoticeLine>, ai_summary: &AiRequestSummary) {
 fn push_mcp_summary(out: &mut Vec<NoticeLine>, mcp_summary: &McpExecutionSummary) {
     if mcp_summary.execution_count > 0 {
         line(out, "info", "  MCP Tool Executions:");
-        kv(out, "     Executions", &mcp_summary.execution_count.to_string());
-        kv(out, 
+        kv(
+            out,
+            "     Executions",
+            &mcp_summary.execution_count.to_string(),
+        );
+        kv(
+            out,
             "     Total Time",
             &format!("{}ms", mcp_summary.total_execution_time_ms),
         );
@@ -101,7 +113,8 @@ fn push_mcp_summary(out: &mut Vec<NoticeLine>, mcp_summary: &McpExecutionSummary
 fn push_step_summary(out: &mut Vec<NoticeLine>, step_summary: &ExecutionStepSummary) {
     if step_summary.total > 0 {
         line(out, "info", "  Execution Steps:");
-        kv(out, 
+        kv(
+            out,
             "     Steps",
             &format!(
                 "{} ({} completed, {} failed, {} pending)",
@@ -116,7 +129,8 @@ fn push_step_summary(out: &mut Vec<NoticeLine>, step_summary: &ExecutionStepSumm
 
 fn push_trace_context(out: &mut Vec<NoticeLine>, events: &[TraceEvent], task_id: Option<&TaskId>) {
     if let Some(task_id) = task_id {
-        kv(out, 
+        kv(
+            out,
             "  Task",
             &format!(
                 "{} (use: systemprompt infra logs trace show <task_id>)",
@@ -153,5 +167,8 @@ pub(super) fn line(out: &mut Vec<NoticeLine>, level: &str, text: impl AsRef<str>
 }
 
 fn kv(out: &mut Vec<NoticeLine>, key: &str, value: impl AsRef<str>) {
-    out.push(NoticeLine::new("info", format!("{key}: {}", value.as_ref())));
+    out.push(NoticeLine::new(
+        "info",
+        format!("{key}: {}", value.as_ref()),
+    ));
 }

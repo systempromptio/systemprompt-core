@@ -66,16 +66,21 @@ async fn internal_status_helper() {
     );
 
     println!("BEGIN_COMPACT_STATUS");
-    crate::boot_ctx::rendered(&context, mcp::execute(parse(&["status", "--server", SERVER]), &context)
-        .await)
-        .expect("compact internal status");
+    crate::boot_ctx::rendered(
+        &context,
+        mcp::execute(parse(&["status", "--server", SERVER]), &context).await,
+    )
+    .expect("compact internal status");
     println!("END_COMPACT_STATUS");
     println!("BEGIN_DETAILED_STATUS");
-    crate::boot_ctx::rendered(&context, mcp::execute(
-        parse(&["status", "--server", SERVER, "--detailed"]),
+    crate::boot_ctx::rendered(
         &context,
+        mcp::execute(
+            parse(&["status", "--server", SERVER, "--detailed"]),
+            &context,
+        )
+        .await,
     )
-    .await)
     .expect("detailed internal status");
     println!("END_DETAILED_STATUS");
 

@@ -115,15 +115,22 @@ async fn run_partial(
     }
     checks.push(outcome(
         "extension-config",
-        inspection.evaluate(
-            &["paths", "security.signing_key_path", "extensions"],
-            |p| extension_config_check(p, views),
-        ),
+        inspection.evaluate(&["paths", "security.signing_key_path", "extensions"], |p| {
+            extension_config_check(p, views)
+        }),
     ));
     match inspection.evaluate(&["secrets"], |p| p.secrets.clone()) {
         Evaluation::Evaluated(config) => {
             let secrets = resolve_secrets_from(config.as_ref(), profile_dir, &mut checks).await;
-            secrets_checks(inspection, profile_dir, &secrets, distributed, views, &mut checks).await;
+            secrets_checks(
+                inspection,
+                profile_dir,
+                &secrets,
+                distributed,
+                views,
+                &mut checks,
+            )
+            .await;
         },
         Evaluation::NotEvaluated { variables } => {
             for name in SECRETS_DEPENDENT {

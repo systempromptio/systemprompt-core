@@ -27,7 +27,8 @@ use systemprompt_api::routes::proxy::{agents, mcp};
 use systemprompt_identifiers::{Actor, AgentName, ContextId, JwtToken, SessionId, TraceId, UserId};
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_test_fixtures::{
-    TestBootstrap, init_services_bootstrap, mint_admin_jwt, test_app_context_on, test_config, unique_name,
+    TestBootstrap, init_services_bootstrap, mint_admin_jwt, test_app_context_on, test_config,
+    unique_name,
 };
 use tower::ServiceExt;
 use uuid::Uuid;

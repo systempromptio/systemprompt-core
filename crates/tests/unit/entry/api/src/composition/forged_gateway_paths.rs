@@ -48,7 +48,11 @@ fn a_def_outside_the_claimed_gateway_path_is_refused() {
 
 #[test]
 fn a_def_under_a_builtin_gateway_prefix_is_refused() {
-    for (path, builtin) in [("/models/x", "/models"), ("/messages", "/messages"), ("/", "/")] {
+    for (path, builtin) in [
+        ("/models/x", "/models"),
+        ("/messages", "/messages"),
+        ("/", "/"),
+    ] {
         let outcome = recheck(&forged(vec![], vec![bridge_route(&[path])]));
         assert!(
             matches!(

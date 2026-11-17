@@ -3,9 +3,10 @@
 //!
 //! A full install over the core schema composition is the slow part of a
 //! schema-backed test, and its result depends only on the binary: the
-//! members' schemas, migrations, retirements, seeds and purge declarations, and the installer
-//! itself. So it runs once per server and fingerprint into a template database,
-//! and each test takes a `CREATE DATABASE ... TEMPLATE` copy of it.
+//! members' schemas, migrations, retirements, seeds and purge declarations, and
+//! the installer itself. So it runs once per server and fingerprint into a
+//! template database, and each test takes a `CREATE DATABASE ... TEMPLATE` copy
+//! of it.
 //!
 //! Tests run as separate processes against one server, so coordination is a
 //! Postgres advisory lock on the base database: copiers hold it shared, the one
@@ -69,11 +70,7 @@ pub(crate) async fn create_from_template(admin: &PgPool, base_url: &str, name: &
     close(conn).await
 }
 
-async fn build(
-    conn: &mut PgConnection,
-    base_url: &str,
-    template: &str,
-) -> Result<()> {
+async fn build(conn: &mut PgConnection, base_url: &str, template: &str) -> Result<()> {
     crate::orphans::sweep_stale_templates(conn, template).await;
     let staging = crate::orphans::database_name(STAGING_PREFIX);
     execute(conn, &format!("CREATE DATABASE \"{staging}\"")).await?;

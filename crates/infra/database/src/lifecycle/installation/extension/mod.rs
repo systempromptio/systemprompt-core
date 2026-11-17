@@ -11,9 +11,9 @@
 //! reference a function only the declarative schema defines; a migration
 //! that names a declarative-only trigger or view is refused before any
 //! statement runs (`migration_refs`), and so is a pending migration that
-//! mutates a table another member owns (`migration_owners`). Retirements run first of all, so a
-//! trigger one extension retires is gone before another extension's
-//! migration can drop what it writes or fire it (`retire`).
+//! mutates a table another member owns (`migration_owners`). Retirements run
+//! first of all, so a trigger one extension retires is gone before another
+//! extension's migration can drop what it writes or fire it (`retire`).
 //! A fresh database (no migration history, no owned tables) skips migration
 //! execution entirely: the declarative schema is the baseline, and every
 //! defined migration is stamped as applied without running — in the same

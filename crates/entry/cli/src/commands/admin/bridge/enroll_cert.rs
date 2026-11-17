@@ -10,8 +10,8 @@ use clap::Args;
 use std::sync::Arc;
 use systemprompt_users::{DeviceCertService, EnrollDeviceCertServiceParams, UserRepository};
 
-use systemprompt_extension::cli::CommandOutput;
 use super::types::DeviceCertEnrolledOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct EnrollCertArgs {

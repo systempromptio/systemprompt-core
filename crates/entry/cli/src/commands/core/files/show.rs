@@ -14,9 +14,8 @@ use super::types::{
     AudioMetadataOutput, ChecksumsOutput, DocumentMetadataOutput, FileDetailOutput,
     FileMetadataOutput, ImageMetadataOutput, VideoMetadataOutput,
 };
-use systemprompt_extension::cli::CliConfig;
 use systemprompt_database::pool_from_handle;
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 #[derive(Debug, Clone, Args)]
 pub struct ShowArgs {

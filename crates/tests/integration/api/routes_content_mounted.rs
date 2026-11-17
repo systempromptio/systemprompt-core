@@ -47,16 +47,19 @@ async fn node(role: NodeRole, disabled: &[ExtensionId]) -> Result<(DbPool, Route
     config.role = role;
     config.rate_limits = RateLimitsConfig::disabled();
     config.trusted_proxies = Vec::new();
-    let ctx = fixture_app_context_with_extensions(config, super::common::reference_admitted(disabled)?)
-        .await?;
+    let ctx =
+        fixture_app_context_with_extensions(config, super::common::reference_admitted(disabled)?)
+            .await?;
     let router = setup_api_server(
         &ctx,
         systemprompt_api::services::server::routes::Composed {
             admitted: ctx.admitted(),
             kernel: ctx.kernel(),
         },
-        None, &Arc::new(ReadinessState::new()))
-        .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
+        None,
+        &Arc::new(ReadinessState::new()),
+    )
+    .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
     Ok((pool, router))
 }
 

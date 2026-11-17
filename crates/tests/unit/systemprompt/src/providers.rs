@@ -74,11 +74,14 @@ fn install_cannot_substitute_for_a_disabled_core_provider() {
         }))
         .build(&profile(&CONTENT_AND_ITS_EARLIER_DEPENDENTS))
         .expect_err("analytics-http's catalog stats come from core content only");
-    assert!(matches!(
-        &error,
-        CompositionError::InstallSubstitution { owner, provider, .. }
-            if owner.as_str() == "analytics-http" && provider.as_str() == "probe-stats"
-    ), "{error:?}");
+    assert!(
+        matches!(
+            &error,
+            CompositionError::InstallSubstitution { owner, provider, .. }
+                if owner.as_str() == "analytics-http" && provider.as_str() == "probe-stats"
+        ),
+        "{error:?}"
+    );
 }
 
 #[test]
@@ -86,11 +89,14 @@ fn disabled_core_provider_is_named() {
     let error = reference()
         .build(&profile(&CONTENT_AND_ITS_EARLIER_DEPENDENTS))
         .expect_err("analytics-http requires the catalog stats content provides");
-    assert!(matches!(
-        &error,
-        CompositionError::DisabledDependency { owner, provider, .. }
-            if owner.as_str() == "analytics-http" && provider.as_str() == "content"
-    ), "{error:?}");
+    assert!(
+        matches!(
+            &error,
+            CompositionError::DisabledDependency { owner, provider, .. }
+                if owner.as_str() == "analytics-http" && provider.as_str() == "content"
+        ),
+        "{error:?}"
+    );
 }
 
 #[test]

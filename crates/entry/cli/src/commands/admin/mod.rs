@@ -28,8 +28,7 @@ use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Subcommand;
 
-use systemprompt_extension::cli::{CommandDescriptor, DataImpact, DescribeCommand};
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_extension::cli::{CommandDescriptor, CommandOutput, DataImpact, DescribeCommand};
 
 #[derive(Debug, Subcommand)]
 pub enum AdminCommands {

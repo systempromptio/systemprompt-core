@@ -30,8 +30,7 @@ use systemprompt_scheduler::services::{
     ApplyOptions, ConfigApplyService, ConfigReconcileService, MergeReport,
 };
 
-use systemprompt_extension::cli::CommandOutput;
-use systemprompt_extension::cli::CommandError;
+use systemprompt_extension::cli::{CommandError, CommandOutput};
 
 #[derive(Debug, Clone, Args)]
 pub struct ApplyArgs {

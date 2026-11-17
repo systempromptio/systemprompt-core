@@ -38,15 +38,18 @@ async fn worker() -> Result<(DbPool, Arc<AppContext>, Router)> {
     config.rate_limits.content_per_second = 1;
     config.rate_limits.burst_multiplier = 1;
     config.trusted_proxies = Vec::new();
-    let ctx = fixture_app_context_with_services(config, services_hosting(SERVER, &["documents"])).await?;
+    let ctx =
+        fixture_app_context_with_services(config, services_hosting(SERVER, &["documents"])).await?;
     let router = setup_api_server(
         &ctx,
         systemprompt_api::services::server::routes::Composed {
             admitted: ctx.admitted(),
             kernel: ctx.kernel(),
         },
-        None, &Arc::new(ReadinessState::new()))
-        .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
+        None,
+        &Arc::new(ReadinessState::new()),
+    )
+    .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
     Ok((pool, ctx, router))
 }
 

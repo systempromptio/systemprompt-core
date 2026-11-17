@@ -91,32 +91,40 @@ async fn files_ai_output_helper() {
         test_app_context(database.url()).await,
     );
     println!("BEGIN_AI_LIST");
-    crate::boot_ctx::rendered(&context, core::execute(
-        parse(&[
-            "files",
-            "ai",
-            "list",
-            "--user",
-            user.as_str(),
-            "--limit",
-            "10",
-        ]),
+    crate::boot_ctx::rendered(
         &context,
+        core::execute(
+            parse(&[
+                "files",
+                "ai",
+                "list",
+                "--user",
+                user.as_str(),
+                "--limit",
+                "10",
+            ]),
+            &context,
+        )
+        .await,
     )
-    .await)
     .expect("public AI list");
     println!("END_AI_LIST");
     println!("BEGIN_AI_SHOW");
-    crate::boot_ctx::rendered(&context, core::execute(parse(&["files", "ai", "show", &id.to_string()]), &context)
-        .await)
-        .expect("public AI show");
+    crate::boot_ctx::rendered(
+        &context,
+        core::execute(parse(&["files", "ai", "show", &id.to_string()]), &context).await,
+    )
+    .expect("public AI show");
     println!("END_AI_SHOW");
     println!("BEGIN_AI_COUNT");
-    crate::boot_ctx::rendered(&context, core::execute(
-        parse(&["files", "ai", "count", "--user", user.as_str()]),
+    crate::boot_ctx::rendered(
         &context,
+        core::execute(
+            parse(&["files", "ai", "count", "--user", user.as_str()]),
+            &context,
+        )
+        .await,
     )
-    .await)
     .expect("public AI count");
     println!("END_AI_COUNT");
     println!("FIXTURE_ID={id}");

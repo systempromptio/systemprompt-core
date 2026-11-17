@@ -18,8 +18,7 @@ mod show;
 use anyhow::{Context, Result};
 use clap::Subcommand;
 
-use systemprompt_extension::cli::{CliConfig, CommandOutput};
-use systemprompt_extension::cli::Prompter;
+use systemprompt_extension::cli::{CliConfig, CommandOutput, Prompter};
 use systemprompt_manifest::Profile;
 
 #[derive(Debug, Subcommand)]
@@ -51,20 +50,14 @@ pub fn execute(
             list::execute(&args, config, profile).context("Failed to list content types")
         },
         ContentTypesCommands::Show(args) => {
-            show::execute(args, prompter, config, profile)
-                .context("Failed to show content type")
+            show::execute(args, prompter, config, profile).context("Failed to show content type")
         },
-        ContentTypesCommands::Create(args) => {
-            create::execute(args, prompter, config, profile)
-                .context("Failed to create content type")
-        },
+        ContentTypesCommands::Create(args) => create::execute(args, prompter, config, profile)
+            .context("Failed to create content type"),
         ContentTypesCommands::Edit(args) => {
-            edit::execute(&args, prompter, config, profile)
-                .context("Failed to edit content type")
+            edit::execute(&args, prompter, config, profile).context("Failed to edit content type")
         },
-        ContentTypesCommands::Delete(args) => {
-            delete::execute(args, prompter, config, profile)
-                .context("Failed to delete content type")
-        },
+        ContentTypesCommands::Delete(args) => delete::execute(args, prompter, config, profile)
+            .context("Failed to delete content type"),
     }
 }

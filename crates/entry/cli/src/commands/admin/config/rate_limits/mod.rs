@@ -22,8 +22,7 @@ use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::{Args, Subcommand};
 
-use systemprompt_extension::cli::Prompter;
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_extension::cli::{CommandOutput, Prompter};
 
 #[derive(Debug, Subcommand)]
 pub enum RateLimitsCommands {
@@ -153,12 +152,8 @@ pub fn execute(
         RateLimitsCommands::Validate => validate::execute_validate(host),
         RateLimitsCommands::Reset(args) => reset::execute_reset(&args, prompter, host),
         RateLimitsCommands::Preset(cmd) => preset::execute_preset(cmd, prompter, host),
-        RateLimitsCommands::Export(args) => {
-            import_export::execute_export(&args, host)
-        },
-        RateLimitsCommands::Import(args) => {
-            import_export::execute_import(&args, prompter, host)
-        },
+        RateLimitsCommands::Export(args) => import_export::execute_export(&args, host),
+        RateLimitsCommands::Import(args) => import_export::execute_import(&args, prompter, host),
         RateLimitsCommands::Diff(args) => diff::execute_diff(&args, host),
     }
 }

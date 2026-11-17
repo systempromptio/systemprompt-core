@@ -227,8 +227,10 @@ async fn mounted(documents_enabled: bool) -> Result<(DbPool, Arc<AppContext>, Ro
             admitted: ctx.admitted(),
             kernel: ctx.kernel(),
         },
-        None, &Arc::new(ReadinessState::new()))
-        .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
+        None,
+        &Arc::new(ReadinessState::new()),
+    )
+    .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
     Ok((pool, ctx, router))
 }
 

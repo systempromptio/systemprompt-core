@@ -4,8 +4,7 @@
 
 use std::sync::Arc;
 use systemprompt_extension::{
-    AdmittedPurge, OrphanSweep, PurgeClaim, PurgeDeclaration, SchemaDefinition,
-    UserPurgeTable,
+    AdmittedPurge, OrphanSweep, PurgeClaim, PurgeDeclaration, SchemaDefinition, UserPurgeTable,
 };
 use systemprompt_identifiers::{ExtensionId, UserId};
 use systemprompt_users::{UserRepository, UserService};
@@ -142,7 +141,11 @@ async fn purge_removes_the_users_own_payload_and_keeps_one_shared_with_another_u
     seed_artifact(&ctx, &other, &shared).await;
 
     let plan = core_plan();
-    let preview = ctx.service.purge_preview(&victim, &plan).await.expect("preview");
+    let preview = ctx
+        .service
+        .purge_preview(&victim, &plan)
+        .await
+        .expect("preview");
     let previewed = preview
         .counts
         .iter()
@@ -171,7 +174,10 @@ async fn purge_removes_the_users_own_payload_and_keeps_one_shared_with_another_u
         "a body another user's artifact still references stays"
     );
 
-    ctx.service.delete(&other, &plan).await.expect("cleanup other");
+    ctx.service
+        .delete(&other, &plan)
+        .await
+        .expect("cleanup other");
     assert!(
         !payload_exists(&ctx, &shared).await,
         "the last reference leaving takes the body with it"
@@ -189,7 +195,11 @@ async fn purge_leaves_payloads_the_user_never_referenced() {
     seed_payload(&ctx, &unrelated).await;
     seed_artifact(&ctx, &victim, &own).await;
 
-    let removed = ctx.service.delete(&victim, &core_plan()).await.expect("delete");
+    let removed = ctx
+        .service
+        .delete(&victim, &core_plan())
+        .await
+        .expect("delete");
     let swept = removed
         .counts
         .iter()
@@ -230,7 +240,11 @@ async fn purge_removes_the_users_outbox_rows() {
     .await
     .expect("seed outbox event");
 
-    let removed = ctx.service.delete(&victim, &core_plan()).await.expect("delete");
+    let removed = ctx
+        .service
+        .delete(&victim, &core_plan())
+        .await
+        .expect("delete");
     let outbox = removed
         .counts
         .iter()

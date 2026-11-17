@@ -22,12 +22,10 @@ pub mod show;
 
 pub mod mcp;
 
-use anyhow::{Context, Result};
 use crate::kernel::KernelHost;
+use anyhow::{Context, Result};
 use clap::Subcommand;
-use systemprompt_extension::cli::{
-    CommandDescriptor, CommandOutput, DataImpact, DescribeCommand,
-};
+use systemprompt_extension::cli::{CommandDescriptor, CommandOutput, DataImpact, DescribeCommand};
 
 
 #[derive(Debug, Subcommand)]
@@ -40,7 +38,6 @@ pub enum PluginsCommands {
 
     #[command(about = "Run a CLI extension command", trailing_var_arg = true)]
     Run(run::RunArgs),
-
 
     #[command(about = "Show extension configuration")]
     Config(config::ConfigArgs),
@@ -68,7 +65,9 @@ impl DescribeCommand for PluginsCommands {
 pub async fn execute(cmd: PluginsCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match cmd {
         PluginsCommands::List(args) => Ok(list::execute(&args, host)?),
-        PluginsCommands::Show(args) => show::execute(&args, host).context("Failed to show extension"),
+        PluginsCommands::Show(args) => {
+            show::execute(&args, host).context("Failed to show extension")
+        },
         PluginsCommands::Run(args) => {
             run::execute(args, host).await?;
             Ok(CommandOutput::rendered())

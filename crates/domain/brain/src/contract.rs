@@ -39,10 +39,9 @@ use std::sync::Arc;
 
 use systemprompt_extension::brain::{FactConsolidator, Reranker, SourceAccess};
 use systemprompt_extension::{
-    BrainAnalysis, EventFilter, FactExtractor, FactRetriever, FactValidator, Factory,
-    AudienceResolvers, ImportanceModel, InjectionPolicy, NotificationAudienceResolver,
-    OutcomeSignal, Resolved, Slot, SlotEntry, SlotError, SlotOrder, SourceContent,
-    build_factories,
+    AudienceResolvers, BrainAnalysis, EventFilter, FactExtractor, FactRetriever, FactValidator,
+    Factory, ImportanceModel, InjectionPolicy, NotificationAudienceResolver, OutcomeSignal,
+    Resolved, Slot, SlotEntry, SlotError, SlotOrder, SourceContent, build_factories,
 };
 use systemprompt_traits::CoreSeam;
 use systemprompt_traits::core_seam::{DocumentSourceAccess, DocumentSourceContent};

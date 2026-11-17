@@ -8,11 +8,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_extension::admitted::AdmittedMember;
 use crate::kernel::KernelHost;
+use systemprompt_extension::admitted::AdmittedMember;
+use systemprompt_extension::cli::CommandError;
 use systemprompt_extension::contribute::StandingTag;
 use systemprompt_extension::{Admitted, BuiltState};
-use systemprompt_extension::cli::CommandError;
 
 use super::types::{CapabilitySummary, ExtensionStanding};
 
@@ -28,7 +28,11 @@ pub(super) fn matching<'a>(
     built.members().filter(move |member| {
         needle.as_ref().is_none_or(|needle| {
             member.metadata.id.to_lowercase().contains(needle.as_str())
-                || member.metadata.name.to_lowercase().contains(needle.as_str())
+                || member
+                    .metadata
+                    .name
+                    .to_lowercase()
+                    .contains(needle.as_str())
         })
     })
 }

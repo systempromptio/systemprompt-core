@@ -116,5 +116,8 @@ pub fn gateway_resolved_kernel() -> Kernel {
 }
 
 pub fn empty_resolved_kernel() -> Kernel {
-    offline_resolved_kernel(&probe_admitted(ComposedParts::default()), Dependencies::new())
+    offline_resolved_kernel(
+        &probe_admitted(ComposedParts::default()),
+        Dependencies::new(),
+    )
 }

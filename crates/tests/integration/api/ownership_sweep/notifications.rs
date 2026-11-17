@@ -37,7 +37,8 @@ fn notifications_router(ctx: &AppContext) -> Router {
         .get::<NotificationsServiceSlot>()
         .expect("notification service handle provided")
         .clone();
-    let database: Arc<dyn DatabaseHandle> = Arc::<systemprompt_database::Database>::clone(ctx.db_pool());
+    let database: Arc<dyn DatabaseHandle> =
+        Arc::<systemprompt_database::Database>::clone(ctx.db_pool());
     let kernel = Kernel::new(
         database,
         BackgroundTasks::new(),

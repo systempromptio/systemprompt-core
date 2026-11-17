@@ -5,10 +5,10 @@
 
 use std::sync::Arc;
 
+use systemprompt_database::DbPool;
 use systemprompt_extension::{
     Admitted, AdmittedSchedule, ContributionError, Contributions, Extension, ExtensionMetadata,
 };
-use systemprompt_database::DbPool;
 use systemprompt_manifest::Config;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
@@ -84,5 +84,3 @@ pub async fn job_dependencies(pool: &DbPool, database_url: &str) -> Dependencies
         .with(Arc::clone(pool))
         .with(app)
 }
-
-

@@ -254,11 +254,7 @@ impl UserService {
         self.repository.delete(id, plan).await
     }
 
-    pub async fn purge_preview(
-        &self,
-        id: &UserId,
-        plan: &AdmittedPurge,
-    ) -> Result<PurgeOutcome> {
+    pub async fn purge_preview(&self, id: &UserId, plan: &AdmittedPurge) -> Result<PurgeOutcome> {
         self.repository.purge_preview(id, plan).await
     }
 

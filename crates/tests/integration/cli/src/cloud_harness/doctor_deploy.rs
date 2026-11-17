@@ -7,11 +7,11 @@ use systemprompt_cloud_entry::cli::doctor::{
     CheckStatus, check_profile_valid, check_provider_secrets, check_required_secrets,
     check_signing_key, run_managed,
 };
-use systemprompt_extension::cli::AdmittedViews;
-use systemprompt_manifest::profile::ManagedProfile;
 use systemprompt_cloud_entry::cli::{self as cloud, CloudCommands};
+use systemprompt_extension::cli::AdmittedViews;
 use systemprompt_identifiers::TenantId;
 use systemprompt_loader::ProfileLoader;
+use systemprompt_manifest::profile::ManagedProfile;
 
 use super::{Env, TENANT_ID, enter, interactive_ctx, json_ctx, seed_tenants, target_host};
 
@@ -181,9 +181,12 @@ async fn deploy_check_blocks_on_failing_preflight() {
     let dir = write_cloud_profile(&env, "dep-check");
     std::fs::write(dir.join("secrets.json"), "{}").expect("empty secrets");
 
-    let err = cloud::execute(deploy_cmd(Some("dep-check"), true), &target_host(&json_ctx()))
-        .await
-        .expect_err("preflight blocks deploy");
+    let err = cloud::execute(
+        deploy_cmd(Some("dep-check"), true),
+        &target_host(&json_ctx()),
+    )
+    .await
+    .expect_err("preflight blocks deploy");
     assert!(err.to_string().contains("preflight"));
 
     remove_profile(&env, "dep-check");
@@ -204,9 +207,12 @@ async fn deploy_check_passes_without_deploying() {
     )
     .expect("write full secrets");
 
-    cloud::execute(deploy_cmd(Some("dep-pass"), true), &target_host(&json_ctx()))
-        .await
-        .expect("check-only deploy passes");
+    cloud::execute(
+        deploy_cmd(Some("dep-pass"), true),
+        &target_host(&json_ctx()),
+    )
+    .await
+    .expect("check-only deploy passes");
 
     remove_profile(&env, "dep-pass");
 }
@@ -296,12 +302,23 @@ async fn doctor_refuses_a_profile_that_states_the_derived_hook_url() {
     )
     .await
     .expect_err("a stated hook URL blocks the preflight");
-    assert!(format!("{error:#}").contains("Deploy preflight failed"), "{error:#}");
+    assert!(
+        format!("{error:#}").contains("Deploy preflight failed"),
+        "{error:#}"
+    );
 
-    let path = env.root().join(".systemprompt/profiles/hook-stated/profile.yaml");
+    let path = env
+        .root()
+        .join(".systemprompt/profiles/hook-stated/profile.yaml");
     let managed = ManagedProfile::load(&path).expect("the management view loads");
     let views = AdmittedViews::of(&systemprompt_test_fixtures::fixture_admitted());
-    let report = run_managed(&managed, path.parent().expect("profile dir"), false, Ok(&views)).await;
+    let report = run_managed(
+        &managed,
+        path.parent().expect("profile dir"),
+        false,
+        Ok(&views),
+    )
+    .await;
     remove_profile(&env, "hook-stated");
 
     let profile = report

@@ -16,9 +16,9 @@ use systemprompt_manifest::profile::{
     AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, UNRESTRICTED_ACKNOWLEDGEMENT,
 };
 
-use systemprompt_extension::cli::CommandOutput;
 use super::profile_io::{load_profile, profile_path, save_profile};
 use super::types::ConfigMutationOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum GovernanceCommands {
@@ -101,12 +101,12 @@ fn execute_set(args: &SetArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     save_profile(&profile, profile_path)?;
 
     Ok(CommandOutput::card_value(
-            "Governance Updated",
-            &ConfigMutationOutput {
-                field: "governance.authz".to_owned(),
-                message: format!("Authz mode set to {}", args.mode.to_lowercase()),
-            },
-        ))
+        "Governance Updated",
+        &ConfigMutationOutput {
+            field: "governance.authz".to_owned(),
+            message: format!("Authz mode set to {}", args.mode.to_lowercase()),
+        },
+    ))
 }
 
 fn execute_show(host: &dyn KernelHost) -> Result<CommandOutput> {
@@ -124,5 +124,8 @@ fn execute_show(host: &dyn KernelHost) -> Result<CommandOutput> {
                 )
             },
         );
-    Ok(CommandOutput::text_titled("Governance Configuration", summary))
+    Ok(CommandOutput::text_titled(
+        "Governance Configuration",
+        summary,
+    ))
 }

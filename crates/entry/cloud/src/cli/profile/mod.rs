@@ -32,8 +32,8 @@ pub use create_setup::handle_local_tenant_setup;
 pub use show_types::redact_database_url;
 
 use anyhow::Result;
-use systemprompt_extension::cli::{CommandHost, CommandOutput, Prompter};
 use systemprompt_cloud::{ProfilePath, ProjectContext};
+use systemprompt_extension::cli::{CommandHost, CommandOutput, Prompter};
 use systemprompt_logging::CliService;
 
 pub async fn execute(

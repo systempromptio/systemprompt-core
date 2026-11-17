@@ -21,7 +21,7 @@ macro_rules! db_service {
             JobExecutionService::new(
                 app_ctx,
                 systemprompt_manifest::SchedulerConfig::with_system_admin(),
-            Arc::clone(&schedule),
+                Arc::clone(&schedule),
             ),
             pool,
         )
@@ -324,8 +324,7 @@ mod kernel_state_context {
 
     #[tokio::test]
     async fn a_dispatched_job_reads_the_admitted_schedule_and_projections_from_its_context() {
-        let (app_ctx, schedule) =
-            crate::test_extension::scheduled_app(&test_database_url()).await;
+        let (app_ctx, schedule) = crate::test_extension::scheduled_app(&test_database_url()).await;
         let mut config = systemprompt_manifest::SchedulerConfig::with_system_admin();
         config.distributed_lock = false;
         let service = JobExecutionService::new(app_ctx, config, Arc::clone(&schedule));

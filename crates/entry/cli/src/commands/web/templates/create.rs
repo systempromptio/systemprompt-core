@@ -9,10 +9,7 @@ use std::fs;
 use std::io::{self, Read};
 use std::path::Path;
 
-use systemprompt_extension::cli::CliConfig;
-use systemprompt_extension::cli::Prompter;
-use systemprompt_extension::cli::resolve_required;
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_extension::cli::{CliConfig, CommandOutput, Prompter, resolve_required};
 use systemprompt_logging::CliService;
 
 use super::super::paths::WebPaths;
@@ -36,7 +33,12 @@ pub(super) fn execute(
     config: &CliConfig,
     services_root: &Path,
 ) -> Result<CommandOutput> {
-    execute_in_dir(args, prompter, config, &WebPaths::resolve(services_root)?.templates)
+    execute_in_dir(
+        args,
+        prompter,
+        config,
+        &WebPaths::resolve(services_root)?.templates,
+    )
 }
 
 pub fn execute_in_dir(

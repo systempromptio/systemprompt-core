@@ -27,7 +27,9 @@ async fn ctx() -> std::sync::Arc<systemprompt_runtime::AppContext> {
     ensure_test_bootstrap();
     let mut config = fixture_config(&url);
     config.allow_dynamic_client_registration = false;
-    fixture_app_context_with_config(config).await.expect("fixture AppContext with DCR closed")
+    fixture_app_context_with_config(config)
+        .await
+        .expect("fixture AppContext with DCR closed")
 }
 
 #[tokio::test]

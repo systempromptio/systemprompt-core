@@ -211,10 +211,16 @@ async fn cloud_doctor_reports_an_invalid_profile_as_its_profile_check() {
             && output.contains("access_token_expiration must be positive"),
         "the validation failure is the doctor's profile check: {output}"
     );
-    assert!(!output.contains("Profile initialization failed"), "{output}");
+    assert!(
+        !output.contains("Profile initialization failed"),
+        "{output}"
+    );
 
     let (valid, _) = place_edited(&fixture.profile_path, "doctor_valid", |text| text);
-    let control = combined(&doctor_named(&valid, database.url(), "doctor_valid"), database.url());
+    let control = combined(
+        &doctor_named(&valid, database.url(), "doctor_valid"),
+        database.url(),
+    );
     assert!(
         !control.contains("access_token_expiration must be positive"),
         "control: the unedited profile passes its profile rules: {control}"
@@ -227,16 +233,28 @@ async fn cloud_doctor_reports_an_invalid_profile_as_its_profile_check() {
 async fn cloud_doctor_runs_its_partial_preflight_over_target_only_variables() {
     let database = DisposableDb::with_schema("cli_cloud_doctor_target_only").await;
     let fixture = isolated_fixture(8080);
-    let (project_root, _) =
-        place_edited(&fixture.profile_path, "doctor_target_only", with_target_only_url);
+    let (project_root, _) = place_edited(
+        &fixture.profile_path,
+        "doctor_target_only",
+        with_target_only_url,
+    );
 
     let report = doctor_named(&project_root, database.url(), "doctor_target_only");
     let output = combined(&report, database.url());
     assert!(output.contains("Deploy preflight"), "{output}");
     assert!(output.contains("not evaluated"), "{output}");
-    assert!(output.contains(TARGET_ONLY), "the skipped checks name the variable: {output}");
-    assert!(!output.contains("Profile initialization failed"), "{output}");
-    assert!(!output.contains("composition:"), "the composition admits: {output}");
+    assert!(
+        output.contains(TARGET_ONLY),
+        "the skipped checks name the variable: {output}"
+    );
+    assert!(
+        !output.contains("Profile initialization failed"),
+        "{output}"
+    );
+    assert!(
+        !output.contains("composition:"),
+        "the composition admits: {output}"
+    );
 
     database.drop_now().await;
 }
@@ -254,8 +272,14 @@ async fn cloud_deploy_check_reads_the_admitted_views_of_its_target() {
     );
     let output = combined(&deploy, database.url());
     assert!(!output.contains("AdmittedAssets"), "{output}");
-    assert!(output.contains("Deploy preflight"), "the preflight ran: {output}");
-    assert!(!output.contains("composition:"), "the composition admits: {output}");
+    assert!(
+        output.contains("Deploy preflight"),
+        "the preflight ran: {output}"
+    );
+    assert!(
+        !output.contains("composition:"),
+        "the composition admits: {output}"
+    );
 
     database.drop_now().await;
 }

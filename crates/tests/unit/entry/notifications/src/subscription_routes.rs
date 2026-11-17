@@ -17,9 +17,7 @@ use systemprompt_models::execution::ContextExtractionError;
 use systemprompt_models::notifications::{AudienceSubject, StreamAttention, StreamDecl};
 use systemprompt_notifications::repository::NotificationStreamRepository;
 use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, seed_user_row, test_app_context,
-};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, seed_user_row, test_app_context};
 use tower::ServiceExt;
 use uuid::Uuid;
 

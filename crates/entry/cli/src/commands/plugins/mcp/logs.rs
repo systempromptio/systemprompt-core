@@ -78,13 +78,7 @@ pub(super) async fn execute(args: LogsArgs, host: &dyn KernelHost) -> Result<Com
     };
 
     if args.follow {
-        return execute_follow_mode(
-            &args,
-            prompter,
-            config,
-            &logs_path,
-            host.children(),
-        );
+        return execute_follow_mode(&args, prompter, config, &logs_path, host.children());
     }
 
     if args.disk {

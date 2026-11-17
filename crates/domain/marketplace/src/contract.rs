@@ -23,9 +23,7 @@ use std::fmt;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use systemprompt_extension::{
-    Factory, Resolved, Slot, SlotEntry, SlotError, SlotOrder,
-};
+use systemprompt_extension::{Factory, Resolved, Slot, SlotEntry, SlotError, SlotOrder};
 use systemprompt_governance::authz::SharedRoleDirectory;
 use systemprompt_governance::contract::RoleDirectories;
 use systemprompt_identifiers::UserId;

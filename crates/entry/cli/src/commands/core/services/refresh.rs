@@ -3,8 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Context, Result};
 use crate::kernel::KernelHost;
+use anyhow::{Context, Result};
 use clap::Args;
 use serde::Serialize;
 use systemprompt_loader::ServicesSourceBootstrap;
@@ -53,7 +53,9 @@ pub struct SourceRow {
 
 pub async fn execute(args: &RefreshArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let profile = host.profile()?;
-    let secrets = host.secrets().context("Secrets required to resolve the services bundle sources")?;
+    let secrets = host
+        .secrets()
+        .context("Secrets required to resolve the services bundle sources")?;
     let secrets = &*secrets;
     let cache = BundleCache::new(cache_root(profile));
     let before = cache.read_state();
@@ -70,7 +72,8 @@ pub async fn execute(args: &RefreshArgs, host: &dyn KernelHost) -> Result<Comman
     } else {
         "Services Sources"
     };
-    host.render(&CommandOutput::table_of(
+    host.render(
+        &CommandOutput::table_of(
             vec![
                 "name",
                 "previous_digest",
@@ -80,11 +83,14 @@ pub async fn execute(args: &RefreshArgs, host: &dyn KernelHost) -> Result<Comman
             ],
             &rows,
         )
-        .with_title(title));
+        .with_title(title),
+    );
 
     if !reconciled.is_empty() {
-        host.render(&CommandOutput::table_of(vec!["bundle", "registered", "deleted"], &reconciled)
-                .with_title("Gateway Routes Reconciled"));
+        host.render(
+            &CommandOutput::table_of(vec!["bundle", "registered", "deleted"], &reconciled)
+                .with_title("Gateway Routes Reconciled"),
+        );
     }
 
     // Why: a supervisor script distinguishes "nothing to do" from "restart me"

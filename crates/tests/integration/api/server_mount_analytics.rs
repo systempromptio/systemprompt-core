@@ -27,9 +27,9 @@ use axum::body::Body;
 use axum::extract::ConnectInfo;
 use axum::http::{Request, StatusCode, header};
 use http::Method;
+use systemprompt::CompositionError;
 use systemprompt_analytics::repository::AnalyticsRepositories;
 use systemprompt_analytics_entry::extension::{ANALYTICS_HTTP_EXTENSION, AnalyticsHttpExtension};
-use systemprompt::CompositionError;
 use systemprompt_extension::contribute::ContributionSink;
 use systemprompt_extension::{Contributions, Extension, ExtensionContext};
 use systemprompt_identifiers::{ExtensionId, JwtToken};
@@ -78,8 +78,7 @@ async fn context(
     let mut config = fixture_config(&bootstrap.database_url);
     config.rate_limits = rate_limits;
     config.trusted_proxies = Vec::new();
-    fixture_app_context_with_extensions(config, super::common::reference_admitted(disabled)?)
-        .await
+    fixture_app_context_with_extensions(config, super::common::reference_admitted(disabled)?).await
 }
 
 async fn full_router(
@@ -127,7 +126,10 @@ fn anonymous(method: Method, uri: &str) -> Request<Body> {
 
 #[test]
 fn the_routes_extension_carries_the_declared_id_and_requires_the_content_catalog() {
-    assert_eq!(AnalyticsHttpExtension.metadata().id, ANALYTICS_HTTP_EXTENSION);
+    assert_eq!(
+        AnalyticsHttpExtension.metadata().id,
+        ANALYTICS_HTTP_EXTENSION
+    );
     let mut sink = ContributionSink::default();
     let mut contributions =
         Contributions::__new(ExtensionId::new(ANALYTICS_HTTP_EXTENSION), &mut sink);

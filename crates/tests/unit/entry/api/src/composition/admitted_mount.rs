@@ -10,12 +10,12 @@ use axum::Router;
 use axum::body::Body;
 use axum::extract::{ConnectInfo, Request};
 use axum::http::{HeaderMap, StatusCode};
+use axum::routing::get;
 use systemprompt_api::services::middleware::{
     A2AContextMiddleware, BodyBudget, ContextExtractor, McpContextMiddleware, MountError,
     MountLayers, ProtectionGuards, PublicContextMiddleware, RateLimitState,
     UserOnlyContextMiddleware, mount_admitted,
 };
-use axum::routing::get;
 use systemprompt_extension::admitted::AdmittedRouteSet;
 use systemprompt_extension::reserved::CoreId;
 use systemprompt_extension::router::{BasePath, RouteSet, RouteSpec, WebBase};
@@ -172,7 +172,11 @@ async fn an_install_service_is_nested_behind_its_def_protection() {
     )
     .expect("an install service mounts");
     let nested = status_at(router.clone(), "/dash").await;
-    assert_ne!(nested, StatusCode::NOT_FOUND, "the prefix reaches the mount");
+    assert_ne!(
+        nested,
+        StatusCode::NOT_FOUND,
+        "the prefix reaches the mount"
+    );
     assert_ne!(
         nested,
         StatusCode::OK,

@@ -23,8 +23,7 @@ pub struct CountArgs {
 }
 
 pub async fn execute(args: CountArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let app = app_context(host)
-        .await?;
+    let app = app_context(host).await?;
     let service = FileRepository::new(app.db_pool());
 
     let user_id = args.user.as_ref().map(|u| UserId::new(u.clone()));

@@ -17,8 +17,8 @@ mod visibility;
 
 pub use error::{IssuesError, IssuesResult};
 pub use jobs::IssueRetentionJob;
-pub use visibility::IssueVisibility;
 pub use repository::{IssueListQuery, IssueReportRepository};
 pub use service::{
     FiledIssue, ISSUE_SUBJECT, ISSUES_STREAM, IssueFiling, IssueService, fingerprint,
 };
+pub use visibility::IssueVisibility;

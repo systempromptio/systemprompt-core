@@ -6,9 +6,7 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
 use systemprompt_api::routes::sso::{SsoRouteState, binder_from_headers, router};
 use systemprompt_oauth::OAuthState;
-use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, test_app_context, test_database_url,
-};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context, test_database_url};
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
 
@@ -28,7 +26,7 @@ async fn app() -> axum::Router {
         &oauth,
         &systemprompt_oauth_issuance::contract::SsoProviders::default(),
     ))
-        .layer(axum::Extension(ctx.config_arc().clone()))
+    .layer(axum::Extension(ctx.config_arc().clone()))
 }
 
 fn assert_refused_unavailable(resp: &axum::response::Response) {

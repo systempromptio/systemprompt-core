@@ -5,11 +5,10 @@
 
 use crate::kernel::KernelHost;
 use anyhow::Result;
-use systemprompt_models::artifacts::NoticeLine;
 use systemprompt_manifest::profile::RateLimitsConfig;
+use systemprompt_models::artifacts::NoticeLine;
 
-use systemprompt_extension::cli::CommandOutput;
-use systemprompt_extension::cli::CommandError;
+use systemprompt_extension::cli::{CommandError, CommandOutput};
 
 use super::super::types::ValidateOutput;
 
@@ -37,9 +36,11 @@ pub(super) fn execute_validate(host: &dyn KernelHost) -> Result<CommandOutput> {
     });
 
     if !valid {
-        return Err(CommandError::new(anyhow::anyhow!("Rate-limit configuration has errors"))
-            .with_output(result)
-            .into());
+        return Err(
+            CommandError::new(anyhow::anyhow!("Rate-limit configuration has errors"))
+                .with_output(result)
+                .into(),
+        );
     }
     Ok(result)
 }

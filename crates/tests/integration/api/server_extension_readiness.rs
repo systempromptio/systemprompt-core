@@ -21,8 +21,8 @@ use systemprompt_extension::{
     ReadinessFailure, Resolved,
 };
 use systemprompt_test_fixtures::{
-    Probe, ensure_test_bootstrap, fixture_admitted_of, fixture_core_members,
-    fixture_app_context_with_extensions, fixture_config,
+    Probe, ensure_test_bootstrap, fixture_admitted_of, fixture_app_context_with_extensions,
+    fixture_config, fixture_core_members,
 };
 use tower::ServiceExt;
 
@@ -61,9 +61,9 @@ impl ReadinessCheck for Check {
 
 fn readiness_member(outcome: Outcome) -> Probe {
     Probe::new("cov-readiness", move |c| {
-        c.readiness(move |_: &Resolved<'_>| {
-            Ok(Arc::new(Check(outcome)) as Arc<dyn ReadinessCheck>)
-        });
+        c.readiness(
+            move |_: &Resolved<'_>| Ok(Arc::new(Check(outcome)) as Arc<dyn ReadinessCheck>),
+        );
     })
 }
 

@@ -101,7 +101,9 @@ pub(super) async fn dispatch_standalone_migration(
         },
         DbCommands::MigrateDown {
             extension, count, ..
-        } => admin::execute_migrate_down_standalone(db_ctx, built(host)?, &extension, count).await?,
+        } => {
+            admin::execute_migrate_down_standalone(db_ctx, built(host)?, &extension, count).await?
+        },
         DbCommands::MigrateRepair {
             extension,
             apply,
@@ -150,7 +152,8 @@ async fn dispatch_standalone_inspection(
                 .await?
         },
         DbCommands::MigrateStatus { extension } => {
-            admin::execute_migrate_status_standalone(db_ctx, built(host)?, extension.as_ref()).await?
+            admin::execute_migrate_status_standalone(db_ctx, built(host)?, extension.as_ref())
+                .await?
         },
         other => return Ok(Dispatched::Unhandled(other)),
     };

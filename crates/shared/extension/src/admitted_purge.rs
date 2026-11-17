@@ -80,7 +80,11 @@ pub fn purge_declarations(sink: &ContributionSink) -> Vec<PurgeDeclaration> {
     sink.user_purges()
         .iter()
         .map(|table| PurgeDeclaration::from(*table))
-        .chain(sink.orphan_sweeps().iter().map(|sweep| PurgeDeclaration::from(*sweep)))
+        .chain(
+            sink.orphan_sweeps()
+                .iter()
+                .map(|sweep| PurgeDeclaration::from(*sweep)),
+        )
         .collect()
 }
 
@@ -111,17 +115,25 @@ fn own_tables(
     schemas: &[SchemaDefinition],
 ) -> Result<BTreeSet<String>, PurgeAdmissionError> {
     let mut own = BTreeSet::new();
-    for schema in schemas.iter().filter(|schema| schema.schema_name() == "public") {
-        let created =
-            created_table_names(&schema.sql).map_err(|source| PurgeAdmissionError::UnparseableSchema {
+    for schema in schemas
+        .iter()
+        .filter(|schema| schema.schema_name() == "public")
+    {
+        let created = created_table_names(&schema.sql).map_err(|source| {
+            PurgeAdmissionError::UnparseableSchema {
                 member: owner.clone(),
                 source,
-            })?;
-        own.extend(created.into_iter().filter_map(|name| match name.split_once('.') {
-            None => Some(name),
-            Some(("public", table)) => Some(table.to_owned()),
-            Some(_) => None,
-        }));
+            }
+        })?;
+        own.extend(
+            created
+                .into_iter()
+                .filter_map(|name| match name.split_once('.') {
+                    None => Some(name),
+                    Some(("public", table)) => Some(table.to_owned()),
+                    Some(_) => None,
+                }),
+        );
     }
     Ok(own)
 }

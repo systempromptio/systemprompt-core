@@ -13,10 +13,10 @@
 use std::sync::Arc;
 
 use systemprompt_analytics::{AnalyticsService, GeoIpReader};
-use systemprompt_extension::Admitted;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::{DbPool, SchemaInstallReport};
 use systemprompt_events::{EventBridgeHandle, EventRouter};
+use systemprompt_extension::Admitted;
 use systemprompt_governance::authz::SharedAuthzHook;
 use systemprompt_loader::BootContext;
 use systemprompt_manifest::Config;
@@ -81,9 +81,7 @@ impl AppContext {
         kernel: Arc<Kernel>,
         admitted: Arc<Admitted>,
     ) -> RuntimeResult<Self> {
-        let analytics = kernel
-            .resolved()
-            .get::<Arc<AnalyticsService>>()?;
+        let analytics = kernel.resolved().get::<Arc<AnalyticsService>>()?;
         Ok(Self {
             data,
             cfg,

@@ -9,10 +9,9 @@ use systemprompt_database::DbPool;
 use systemprompt_logging::LoggingRepository;
 use systemprompt_manifest::ServicesConfig;
 
-use systemprompt_extension::cli::CliConfig;
-use systemprompt_extension::cli::CommandOutput;
 use super::logs::LogsArgs;
 use super::types::AgentLogsOutput;
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 pub(super) async fn execute_db_mode(
     args: &LogsArgs,

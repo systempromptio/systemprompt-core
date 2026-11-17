@@ -3,16 +3,16 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::commands::admin::config::restart_note;
 use crate::kernel::KernelHost;
 use anyhow::Result;
-use crate::commands::admin::config::restart_note;
 use clap::{Args, Subcommand};
 
 
-use systemprompt_extension::cli::CommandOutput;
 use super::super::profile_io::profile_path;
 use super::super::types::{CorsListOutput, CorsModifyOutput};
 use super::{load_profile, save_profile};
+use systemprompt_extension::cli::CommandOutput;
 use systemprompt_models::artifacts::ListItem;
 
 #[derive(Debug, Subcommand)]

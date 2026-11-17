@@ -17,13 +17,14 @@ pub mod schema_member;
 pub use installation::{
     AbsentMemberTable, BOOTSTRAP_ADVISORY_LOCK_KEY, BackfillStatement, BootstrapLockGuard,
     BootstrapLockTimeout, DeferredForeignKey, ExpensiveStatement, FkDeferralError, ForeignKeyDrift,
-    HOT_TABLES, MigrationCost, MigrationOwnershipError, OrphanMigrationLedger, RecordedTable,
-    TableMutation, check_migration_ownership, migration_ownership_findings, PROJECTION_BACKLOG, RETRYABLE_SQLSTATES,
-    SchemaAhead, SchemaCurrency, SchemaInstallReport, SchemaResidue, SplitCreateTable,
-    UndeclaredTable, audit_migration_cost, audit_one, audit_schema_residue, backfill_statements,
+    HOT_TABLES, MigrationCost, MigrationOwnershipError, OrphanMigrationLedger, PROJECTION_BACKLOG,
+    RETRYABLE_SQLSTATES, RecordedTable, SchemaAhead, SchemaCurrency, SchemaInstallReport,
+    SchemaResidue, SplitCreateTable, TableMutation, UndeclaredTable, audit_migration_cost,
+    audit_one, audit_schema_residue, backfill_statements, check_migration_ownership,
     check_migration_references, check_trigger_routines, install_admitted_schemas,
-    install_schema_members, is_retryable_lock_conflict, is_retryable_sqlstate, projection_tables,
-    schema_catalog_digest, schema_currency, split_create_table_foreign_keys,
+    install_schema_members, is_retryable_lock_conflict, is_retryable_sqlstate,
+    migration_ownership_findings, projection_tables, schema_catalog_digest, schema_currency,
+    split_create_table_foreign_keys,
 };
 pub use migrations::{
     AppliedMigration, BaselineStamp, ChecksumDrift, ExtensionMigrationStatus, FreshnessCheck,

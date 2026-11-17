@@ -49,7 +49,10 @@ pub(super) fn refuse_kernel_types(built: &BuiltState) -> Result<(), KernelError>
     Ok(())
 }
 
-pub(super) fn gateway_guards(built: &BuiltState, r: &Resolved<'_>) -> Result<GatewayGuards, KernelError> {
+pub(super) fn gateway_guards(
+    built: &BuiltState,
+    r: &Resolved<'_>,
+) -> Result<GatewayGuards, KernelError> {
     let mut installed = Vec::new();
     for member in built.members() {
         for factory in member.sink.gateway_guards() {

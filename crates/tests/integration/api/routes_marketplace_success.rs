@@ -36,8 +36,7 @@ async fn router_with_marketplace() -> anyhow::Result<Router> {
     fs::create_dir_all(&dir)?;
     fs::write(dir.join("config.yaml"), MARKETPLACE_YAML)?;
 
-    let ctx =
-        systemprompt_test_fixtures::test_app_context_on(b).await;
+    let ctx = systemprompt_test_fixtures::test_app_context_on(b).await;
     Ok(marketplace::router().with_state((*ctx).clone()))
 }
 

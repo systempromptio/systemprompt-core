@@ -18,7 +18,10 @@ pub struct ListPackagesArgs {
     pub raw: bool,
 }
 
-pub(super) async fn execute(args: ListPackagesArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+pub(super) async fn execute(
+    args: ListPackagesArgs,
+    host: &dyn KernelHost,
+) -> Result<CommandOutput> {
     let app = app_context(host)
         .await
         .context("Failed to bootstrap AppContext")?;

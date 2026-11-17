@@ -35,7 +35,9 @@ pub async fn setup_drive_ctx() -> Result<(DbPool, Arc<AppContext>)> {
     let b = ensure_test_bootstrap();
     let pool = test_db_pool().await;
     let mut members = systemprompt_test_fixtures::fixture_core_members();
-    members.push(Box::new(super::documents_drive_policy::DriveSyncPolicyMember));
+    members.push(Box::new(
+        super::documents_drive_policy::DriveSyncPolicyMember,
+    ));
     let ctx = systemprompt_test_fixtures::fixture_app_context_with_extensions(
         fixture_config(&b.database_url),
         systemprompt_test_fixtures::fixture_admitted_of(members),

@@ -16,7 +16,7 @@ use clap::{Args, Subcommand};
 use systemprompt_config::{EndpointSpec, ProviderCatalogService, ProviderSpec};
 use systemprompt_identifiers::{CredentialId, EndpointId, ProviderId};
 
-use super::catalog_edit::{apply, parse_headers, parse_wire, read_active, list_output};
+use super::catalog_edit::{apply, list_output, parse_headers, parse_wire, read_active};
 use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]

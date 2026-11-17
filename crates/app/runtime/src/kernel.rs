@@ -15,16 +15,17 @@
 //! composition order, each reading what was provided before it; every slot,
 //! built from its admitted entries (core first where the slot asks for it)
 //! and inserted as `Arc<S::Built>`, after the shared audience-resolver set
-//! ([`AudienceResolvers`]) every audience-reading slot consults; the governance surfaces every member reads
-//! by type — the [`SubjectProviderSet`], the [`PolicyCatalog`] and the
-//! [`GatewayGuards`](systemprompt_extension::GatewayGuards) — each inserted as an `Arc`, a reserved or doubly
-//! declared subject dimension refusing the resolution; and last every
-//! member's declared requirements, checked against the finished state, so a
-//! member may require a slot's built value or a governance surface. The
-//! values the kernel inserts after the provide fns run — the audience
-//! resolvers and the three governance surfaces — are reserved before any
-//! member's code runs: a member that provides one, or opens a slot that
-//! builds one, is refused with [`KernelError::ReservedType`]. Only
+//! ([`AudienceResolvers`]) every audience-reading slot consults; the governance
+//! surfaces every member reads by type — the [`SubjectProviderSet`], the
+//! [`PolicyCatalog`] and the
+//! [`GatewayGuards`](systemprompt_extension::GatewayGuards) — each inserted as
+//! an `Arc`, a reserved or doubly declared subject dimension refusing the
+//! resolution; and last every member's declared requirements, checked against
+//! the finished state, so a member may require a slot's built value or a
+//! governance surface. The values the kernel inserts after the provide fns run
+//! — the audience resolvers and the three governance surfaces — are reserved
+//! before any member's code runs: a member that provides one, or opens a slot
+//! that builds one, is refused with [`KernelError::ReservedType`]. Only
 //! admitted members' entries are present, so nothing a disabled member
 //! contributed runs.
 //!
@@ -78,7 +79,9 @@ pub enum KernelError {
         owner: ExtensionId,
         ty: &'static str,
     },
-    #[error("the admitted composition was already resolved; the slot entries of {owner} were consumed")]
+    #[error(
+        "the admitted composition was already resolved; the slot entries of {owner} were consumed"
+    )]
     AlreadyResolved { owner: ExtensionId },
     #[error("slot build failed")]
     Slot(#[from] SlotError),

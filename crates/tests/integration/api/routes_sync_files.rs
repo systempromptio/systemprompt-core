@@ -1,8 +1,9 @@
 //! File download end to end through `sync_router`.
 //!
 //! Seeds allow-listed directories into the test bootstrap's services tree,
-//! which the `AppContext` reads as `paths.services`, then drives the manifest and download
-//! handlers so the internal `collect_files` and `create_tarball` helpers run.
+//! which the `AppContext` reads as `paths.services`, then drives the manifest
+//! and download handlers so the internal `collect_files` and `create_tarball`
+//! helpers run.
 //!
 //! `get_services_path` reads the context's `app_paths` only, so the test drives
 //! the path purely through the context (no env mutation, which the workspace

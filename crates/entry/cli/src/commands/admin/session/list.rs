@@ -8,10 +8,9 @@ use systemprompt_identifiers::ProfileName;
 use systemprompt_manifest::profile::{CloudConfig, ManagedProfile};
 
 use super::types::ProfileListOutput;
-use systemprompt_extension::cli::CliConfig;
-use systemprompt_extension::cli::CommandOutput;
 use systemprompt_cloud::paths::ResolvedPaths;
 use systemprompt_cloud::profile::ProfileInfo;
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 pub(super) fn execute(_config: &CliConfig) -> CommandOutput {
     let project_ctx = ProjectContext::discover();

@@ -8,14 +8,13 @@ use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use std::path::Path;
 
-use systemprompt_extension::cli::CommandOutput;
 use super::edit_apply::{
     apply_capability_fields, apply_card_fields, apply_enabled_flags, apply_mcp_server_changes,
     apply_metadata_fields, apply_runtime_fields, apply_set_value_changes, apply_skill_changes,
 };
 use super::shared::AgentArgs;
 use super::types::AgentEditOutput;
-use systemprompt_extension::cli::resolve_required;
+use systemprompt_extension::cli::{CommandOutput, resolve_required};
 use systemprompt_identifiers::AgentName;
 use systemprompt_loader::ConfigWriter;
 use systemprompt_logging::CliService;
@@ -97,12 +96,15 @@ pub(super) async fn execute(args: &EditArgs, host: &dyn KernelHost) -> Result<Co
     ConfigWriter::update_agent(&name, &agent, services_dir)
         .with_context(|| format!("Failed to update agent '{}'", name))?;
 
-    crate::commands::admin::state::boot(host).await?.load_services_config().with_context(|| {
-        format!(
-            "Agent '{}' updated but validation failed. Please check the configuration.",
-            name
-        )
-    })?;
+    crate::commands::admin::state::boot(host)
+        .await?
+        .load_services_config()
+        .with_context(|| {
+            format!(
+                "Agent '{}' updated but validation failed. Please check the configuration.",
+                name
+            )
+        })?;
 
     CliService::success(&format!("Agent '{}' updated successfully", name));
 

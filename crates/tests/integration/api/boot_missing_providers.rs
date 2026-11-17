@@ -11,11 +11,11 @@ use systemprompt_database::DbPool;
 use systemprompt_extension::{Extension, NotificationAudienceResolver, Resolved};
 use systemprompt_governance::authz::SharedRoleDirectory;
 use systemprompt_governance::contract::RoleDirectorySlot;
-use systemprompt_test_fixtures::{
-    Probe, ensure_test_bootstrap, fixture_admitted_of, fixture_core_members,
-    fixture_app_context_with_extensions, fixture_config,
-};
 use systemprompt_runtime::KernelError;
+use systemprompt_test_fixtures::{
+    Probe, ensure_test_bootstrap, fixture_admitted_of, fixture_app_context_with_extensions,
+    fixture_config, fixture_core_members,
+};
 use systemprompt_traits::core_seam::RoleAudience;
 use systemprompt_traits::{CoreSeam, DynSessionStore};
 use systemprompt_users::{

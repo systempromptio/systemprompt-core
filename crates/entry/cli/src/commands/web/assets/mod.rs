@@ -13,8 +13,8 @@ pub mod show;
 use anyhow::{Context, Result};
 use clap::Subcommand;
 
-use systemprompt_extension::cli::{CliConfig, CommandOutput};
 use std::path::Path;
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 #[derive(Debug, Subcommand)]
 pub enum AssetsCommands {

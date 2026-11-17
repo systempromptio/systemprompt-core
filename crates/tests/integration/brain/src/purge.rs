@@ -38,7 +38,10 @@ async fn purging_the_owner_removes_their_personal_facts_and_keeps_document_facts
     assert_eq!(h.fact_ids("personal").await.len(), 1);
 
     let users = UserService::new(Arc::new(UserRepository::new(&h.pool)));
-    users.delete(&owner, &crate::purge_plan()).await.expect("purge the owner");
+    users
+        .delete(&owner, &crate::purge_plan())
+        .await
+        .expect("purge the owner");
 
     assert!(
         h.fact_ids("personal").await.is_empty(),

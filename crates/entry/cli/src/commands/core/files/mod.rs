@@ -21,8 +21,8 @@ mod validate;
 
 pub mod ai;
 
-use anyhow::{Context, Result, bail};
 use crate::kernel::KernelHost;
+use anyhow::{Context, Result, bail};
 use clap::Subcommand;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_files::FilesConfig;
@@ -86,26 +86,18 @@ pub async fn execute(cmd: FilesCommands, host: &dyn KernelHost) -> Result<Comman
     }
 
     match cmd {
-        FilesCommands::List(args) => {
-            list::execute(args, host)
-                .await
-                .context("Failed to list files")
-        },
-        FilesCommands::Show(args) => {
-            show::execute(args, host)
-                .await
-                .context("Failed to show file")
-        },
-        FilesCommands::Upload(args) => {
-            upload::execute(args, host)
-                .await
-                .context("Failed to upload file")
-        },
-        FilesCommands::Delete(args) => {
-            delete::execute(args, host.prompter(), host)
-                .await
-                .context("Failed to delete file")
-        },
+        FilesCommands::List(args) => list::execute(args, host)
+            .await
+            .context("Failed to list files"),
+        FilesCommands::Show(args) => show::execute(args, host)
+            .await
+            .context("Failed to show file"),
+        FilesCommands::Upload(args) => upload::execute(args, host)
+            .await
+            .context("Failed to upload file"),
+        FilesCommands::Delete(args) => delete::execute(args, host.prompter(), host)
+            .await
+            .context("Failed to delete file"),
         FilesCommands::Validate(args) => {
             let (result, valid) =
                 validate::execute(&args, host).context("Failed to validate file")?;
@@ -118,16 +110,12 @@ pub async fn execute(cmd: FilesCommands, host: &dyn KernelHost) -> Result<Comman
         FilesCommands::Config(args) => {
             config::execute(args, host).context("Failed to get file config")
         },
-        FilesCommands::Search(args) => {
-            search::execute(args, host)
-                .await
-                .context("Failed to search files")
-        },
-        FilesCommands::Stats(args) => {
-            stats::execute(args, host)
-                .await
-                .context("Failed to get file stats")
-        },
+        FilesCommands::Search(args) => search::execute(args, host)
+            .await
+            .context("Failed to search files"),
+        FilesCommands::Stats(args) => stats::execute(args, host)
+            .await
+            .context("Failed to get file stats"),
         FilesCommands::Ai(cmd) => ai::execute(cmd, host).await,
     }
 }

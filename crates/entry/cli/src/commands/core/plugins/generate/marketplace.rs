@@ -9,9 +9,8 @@ use serde::Serialize;
 use std::path::Path;
 use systemprompt_identifiers::PluginId;
 use systemprompt_loader::ConfigLoader;
-use systemprompt_manifest::Profile;
 use systemprompt_manifest::services::ServicesConfig;
-use systemprompt_manifest::{MarketplaceConfig, PluginConfig};
+use systemprompt_manifest::{MarketplaceConfig, PluginConfig, Profile};
 use systemprompt_models::bridge::plugin_bundle::{ManifestAuthor, PluginManifest};
 
 pub(super) fn generate_marketplace_json(

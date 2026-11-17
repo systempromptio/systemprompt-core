@@ -37,7 +37,10 @@ fn claims(email: Option<&str>, verified: bool) -> FederatedIdentityClaims {
 
 async fn cleanup(ctx: &Ctx, user_id: &UserId) {
     // users.id is FK-referenced ON DELETE CASCADE from federated_identities.
-    let _ = ctx.repo.delete(user_id, &crate::purge_plan::purge_plan()).await;
+    let _ = ctx
+        .repo
+        .delete(user_id, &crate::purge_plan::purge_plan())
+        .await;
 }
 
 #[tokio::test]

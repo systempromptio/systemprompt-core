@@ -80,7 +80,11 @@ fn push_event_context(out: &mut Vec<NoticeLine>, event: &TraceEvent) {
     }
 
     if !context_parts.is_empty() {
-        line(out, "info", format!("           {}", context_parts.join(" | ")));
+        line(
+            out,
+            "info",
+            format!("           {}", context_parts.join(" | ")),
+        );
     }
 }
 

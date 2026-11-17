@@ -5,12 +5,12 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::kernel::KernelHost;
-use systemprompt_database::pool_from_handle;
 use anyhow::Result;
 use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use systemprompt_database::pool_from_handle;
 use systemprompt_logging::LogLevel;
 use systemprompt_runtime::{TraceQueryService, TraceRepository};
 

@@ -366,8 +366,10 @@ fn fixture_admit() -> systemprompt_cli::AdmitFn {
             .map(|extensions| extensions.disabled.clone())
             .unwrap_or_default();
         Ok(
-            Arc::try_unwrap(systemprompt_test_fixtures::fixture_admitted_without(&disabled))
-                .unwrap_or_else(|_| panic!("a fresh fixture admission is unshared")),
+            Arc::try_unwrap(systemprompt_test_fixtures::fixture_admitted_without(
+                &disabled,
+            ))
+            .unwrap_or_else(|_| panic!("a fresh fixture admission is unshared")),
         )
     })
 }

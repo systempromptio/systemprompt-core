@@ -3,12 +3,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
-use systemprompt_extension::cli::CliConfig;
 use crate::commands::shared::app_context;
-use systemprompt_extension::cli::CommandOutput;
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use std::sync::Arc;
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 use systemprompt_identifiers::{McpServerId, ServiceName};
 use systemprompt_loader::subprocess::StopOutcome;
 use systemprompt_logging::CliService;
@@ -27,8 +26,7 @@ pub(super) async fn execute(
     host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let config = host.output();
-    let app = app_context(host)
-        .await?;
+    let app = app_context(host).await?;
     let service_mgmt = ServiceManagementService::new(app.service_repository().as_ref().clone());
 
     let mcp_stopped = if target.mcp {

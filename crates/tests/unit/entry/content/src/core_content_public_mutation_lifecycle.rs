@@ -9,8 +9,7 @@ use systemprompt_content_entry::cli::content::verify::{self, VerifyArgs};
 use systemprompt_content_entry::cli::content::{self, ContentCommands};
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::SourceId;
-use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, };
+use systemprompt_test_fixtures::{DisposableDb, ensure_test_bootstrap};
 
 #[derive(Debug, Parser)]
 struct Harness {

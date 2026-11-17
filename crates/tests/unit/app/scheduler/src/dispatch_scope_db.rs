@@ -8,13 +8,11 @@ use std::sync::atomic::Ordering;
 use systemprompt_identifiers::JobName;
 
 use systemprompt_database::DbPool;
-use systemprompt_manifest::services::scheduler::JobScope;
 use systemprompt_extension::AdmittedSchedule;
+use systemprompt_manifest::services::scheduler::JobScope;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::{JobConfig, SchedulerConfig, SchedulerRepository, SchedulerService};
-use systemprompt_test_fixtures::{
-    fixture_config, test_database_url, test_db_pool,
-};
+use systemprompt_test_fixtures::{fixture_config, test_database_url, test_db_pool};
 
 use crate::test_jobs::{NODE_JOB, NODE_JOB_RUNS};
 
@@ -44,7 +42,12 @@ fn bootstrap_config(jobs: Vec<JobConfig>) -> SchedulerConfig {
 
 async fn dispatch_on(pool: &DbPool, url: &str, instance_id: &str, jobs: Vec<JobConfig>) {
     let (app_ctx, schedule) = context_for_instance(url, instance_id).await;
-    let svc = SchedulerService::new(bootstrap_config(jobs), Arc::clone(pool), app_ctx, Arc::clone(&schedule));
+    let svc = SchedulerService::new(
+        bootstrap_config(jobs),
+        Arc::clone(pool),
+        app_ctx,
+        Arc::clone(&schedule),
+    );
     svc.run_bootstrap_jobs(None)
         .await
         .expect("bootstrap dispatch must not abort");

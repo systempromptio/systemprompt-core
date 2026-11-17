@@ -49,12 +49,10 @@ pub use resolved::{
     build_factories,
 };
 pub use sink::{
-    AssetFn, AudienceResolverFactory, ContributionSink, DiagnosticFactory, GatewayGuardFactory, PolicyFactory,
-    ReadinessFactory, RunnerServiceFactory, SubjectProviderFactory,
+    AssetFn, AudienceResolverFactory, ContributionSink, DiagnosticFactory, GatewayGuardFactory,
+    PolicyFactory, ReadinessFactory, RunnerServiceFactory, SubjectProviderFactory,
 };
-pub use slot::{
-    Slot, SlotBuildInput, SlotBuilt, SlotEntry, SlotOrder, SlotRecord, build_slot,
-};
+pub use slot::{Slot, SlotBuildInput, SlotBuilt, SlotEntry, SlotOrder, SlotRecord, build_slot};
 pub use standing::StandingTag;
 pub use view::KernelView;
 

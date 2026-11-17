@@ -64,4 +64,3 @@ impl Job for UserRateLimitPruneJob {
             .with_duration(duration_ms))
     }
 }
-

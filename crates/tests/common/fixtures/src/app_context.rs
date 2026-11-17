@@ -7,10 +7,10 @@
 //! builder supplies no extension hook; [`fixture_app_context_with_hook`] builds
 //! on a copy of the profile whose mode is `extension`. Every build seeds the
 //! fixture system admin ([`crate::credential::seed_fixture_system_admin`]) on
-//! the config's database first. [`fixture_admitted`] is the core schema composition
-//! (`systemprompt_test_migrate::core_members`); a test crate that links the
-//! `systemprompt` facade passes `reference()` admitted instead. Schema
-//! installation stays off: the database is migrated before the run.
+//! the config's database first. [`fixture_admitted`] is the core schema
+//! composition (`systemprompt_test_migrate::core_members`); a test crate that
+//! links the `systemprompt` facade passes `reference()` admitted instead.
+//! Schema installation stays off: the database is migrated before the run.
 //!
 //! [`test_app_context`] panics when the context cannot be assembled: a test
 //! whose context is missing fails rather than skips (see [`crate::db`]).
@@ -19,9 +19,9 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use systemprompt_analytics::FingerprintRepository;
+use systemprompt_config::LoadedProfile;
 use systemprompt_database::DbPool;
 use systemprompt_extension::{Admitted, Extension, StandingTag};
-use systemprompt_config::LoadedProfile;
 use systemprompt_governance::authz::SharedAuthzHook;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_loader::BootContext;

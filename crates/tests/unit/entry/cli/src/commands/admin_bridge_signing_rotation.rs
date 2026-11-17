@@ -68,13 +68,11 @@ async fn signing_rotation_helper() {
     let context = context(&profile_path).await;
 
     println!("BEGIN_FIRST_ROTATION");
-    crate::boot_ctx::rendered(&context, bridge::execute(rotate(), &context)
-        .await)
+    crate::boot_ctx::rendered(&context, bridge::execute(rotate(), &context).await)
         .expect("first signing rotation");
     println!("END_FIRST_ROTATION");
     println!("BEGIN_SECOND_ROTATION");
-    crate::boot_ctx::rendered(&context, bridge::execute(rotate(), &context)
-        .await)
+    crate::boot_ctx::rendered(&context, bridge::execute(rotate(), &context).await)
         .expect("second signing rotation");
     println!("END_SECOND_ROTATION");
 

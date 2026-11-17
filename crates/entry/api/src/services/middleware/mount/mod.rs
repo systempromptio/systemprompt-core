@@ -20,11 +20,11 @@
 //! to the kernel's static group: [`protect_root_fallback`] layers that router
 //! whole, so its protection (site auth and the public context) covers every
 //! page the fallback serves, and [`RootFallbackOwner`] refuses a second claim
-//! with [`MountError::SecondRootFallback`]. A nested group is layered whole, its fallback included,
-//! which stays inside its base path. [`place`] nests the result under its base path, or
-//! merges it at the web root. Only the web root is merged: every other base
-//! path, `/track/engagement` included, is nested, so its routes are relative
-//! to it and cannot answer outside it.
+//! with [`MountError::SecondRootFallback`]. A nested group is layered whole,
+//! its fallback included, which stays inside its base path. [`place`] nests the
+//! result under its base path, or merges it at the web root. Only the web root
+//! is merged: every other base path, `/track/engagement` included, is nested,
+//! so its routes are relative to it and cannot answer outside it.
 //!
 //! A handler-verified policy (`AuthzPolicy::handler_verified`) pairs only
 //! with `ContextKind::HandlerResolved`: the group keeps its body limit, inner
@@ -72,15 +72,13 @@ use std::sync::Arc;
 use axum::Router;
 use systemprompt_extension::reserved::{PRIVILEGED_SHAPES, WEB_ROOT_BASE_PATH};
 use systemprompt_extension::router::{Allowance, BaseRef, BodyLimit};
-use systemprompt_extension::{
-    ContextKind, ExtensionContext, RouteGroup, RouteProtection,
-};
+use systemprompt_extension::{ContextKind, ExtensionContext, RouteGroup, RouteProtection};
 
+use self::layers::{authenticated, inner_layers, outer_layers, rate_limited};
 use crate::services::middleware::context::{
     A2AContextMiddleware, McpContextMiddleware, PublicContextMiddleware, UserOnlyContextMiddleware,
 };
 use crate::services::middleware::jwt::JwtContextExtractor;
-use self::layers::{authenticated, inner_layers, outer_layers, rate_limited};
 use crate::services::middleware::rate_limit::{LayerReach, RateLimitState};
 
 pub const DEFAULT_BODY_LIMIT_BYTES: usize = 2 * 1024 * 1024;
@@ -142,7 +140,13 @@ pub fn protect_root_fallback(
 ) -> Result<RootFallback, MountError> {
     check_coherence(protection, WEB_ROOT_BASE_PATH)?;
     check_body_limit(protection, WEB_ROOT_BASE_PATH)?;
-    let router = apply(router, protection, layers, WEB_ROOT_BASE_PATH, LayerReach::Router)?;
+    let router = apply(
+        router,
+        protection,
+        layers,
+        WEB_ROOT_BASE_PATH,
+        LayerReach::Router,
+    )?;
     Ok(RootFallback { router, group })
 }
 

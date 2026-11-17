@@ -30,8 +30,7 @@ use super::ExtensionSet;
 use crate::admin::SafeIdentifier;
 use crate::services::DatabaseProvider;
 
-const PRESENT_SQL: &str =
-    "SELECT to_regclass('schema_purge_records') IS NOT NULL AS present";
+const PRESENT_SQL: &str = "SELECT to_regclass('schema_purge_records') IS NOT NULL AS present";
 
 const RECORDED_SQL: &str = "SELECT extension_id, standing FROM schema_purge_records";
 
@@ -124,10 +123,15 @@ pub(super) async fn record_purges(
         let position = i32::try_from(position).unwrap_or(i32::MAX);
         db.execute(
             &RECORD_SQL,
-            &[&member.id(), &member.standing().as_str(), &position, &declarations],
+            &[
+                &member.id(),
+                &member.standing().as_str(),
+                &position,
+                &declarations,
+            ],
         )
-            .await
-            .map_err(|e| step_failed("Failed to record user purge declarations", Box::new(e)))?;
+        .await
+        .map_err(|e| step_failed("Failed to record user purge declarations", Box::new(e)))?;
     }
     Ok(())
 }

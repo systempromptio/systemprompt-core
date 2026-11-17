@@ -9,15 +9,13 @@ use std::sync::atomic::Ordering;
 use systemprompt_identifiers::JobName;
 
 use systemprompt_database::DbPool;
-use systemprompt_manifest::services::scheduler::JobScope;
 use systemprompt_extension::AdmittedSchedule;
+use systemprompt_manifest::services::scheduler::JobScope;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::{
     JobConfig, JobStatus, SchedulerConfig, SchedulerRepository, SchedulerService,
 };
-use systemprompt_test_fixtures::{
-    fixture_config, test_database_url, test_db_pool,
-};
+use systemprompt_test_fixtures::{fixture_config, test_database_url, test_db_pool};
 
 use crate::test_jobs::{STAMP_FAIL_JOB, STAMP_FAIL_JOB_RUNS, STAMP_PANIC_JOB};
 

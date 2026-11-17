@@ -68,15 +68,21 @@ use crate::documents::codecs::xml_tree::parse_xml;
 use crate::documents::codecs::zip_package::Package;
 use package::{CONTENT, Content, Splice, apply_splices, malformed};
 
-/// The `.odt` [`DocumentCodec`](systemprompt_provider_contracts::documents::DocumentCodec); registered at priority 100.
+/// The `.odt`
+/// [`DocumentCodec`](systemprompt_provider_contracts::documents::DocumentCodec);
+/// registered at priority 100.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct OdtCodec;
 
-/// The `.ods` [`DocumentCodec`](systemprompt_provider_contracts::documents::DocumentCodec); registered at priority 100.
+/// The `.ods`
+/// [`DocumentCodec`](systemprompt_provider_contracts::documents::DocumentCodec);
+/// registered at priority 100.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct OdsCodec;
 
-/// The `.odp` [`DocumentCodec`](systemprompt_provider_contracts::documents::DocumentCodec); registered at priority 100.
+/// The `.odp`
+/// [`DocumentCodec`](systemprompt_provider_contracts::documents::DocumentCodec);
+/// registered at priority 100.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct OdpCodec;
 

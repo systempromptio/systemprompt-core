@@ -216,6 +216,9 @@ pub trait CommandHost: Send + Sync {
     fn render(&self, output: &CommandOutput);
     fn describe_command_line(&self, command: &[String]) -> Result<DescribedCommand, CommandError>;
     fn env_profile(&self) -> Option<&str>;
-    fn boot_config<'a>(&'a self, profile: &'a Path) -> BoxFuture<'a, Result<Arc<Config>, CommandError>>;
+    fn boot_config<'a>(
+        &'a self,
+        profile: &'a Path,
+    ) -> BoxFuture<'a, Result<Arc<Config>, CommandError>>;
     fn admitted_views(&self, profile: &Path) -> Result<AdmittedViews, CommandError>;
 }

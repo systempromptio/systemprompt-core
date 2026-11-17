@@ -18,12 +18,12 @@ use systemprompt_manifest::Profile;
 
 use super::api::{create_local_session_row, load_signing_keys};
 use super::resolution::ProfileContext;
-use systemprompt_extension::cli::CliConfig;
 use admin_bootstrap::{
     SessionComponents, build_cli_session, connect_database, create_cli_context,
     generate_admin_token, load_secrets, resolve_admin_with_fallback,
     resolve_credentialed_user_email, resolve_local_admin, resolve_tenant_admin_with_fallback,
 };
+use systemprompt_extension::cli::CliConfig;
 
 pub(super) async fn create_local_session(
     profile_ctx: &ProfileContext<'_>,

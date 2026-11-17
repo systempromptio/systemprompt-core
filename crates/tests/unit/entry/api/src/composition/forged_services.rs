@@ -6,7 +6,9 @@ use axum::Router;
 use axum::routing::get;
 use systemprompt_api::services::middleware::{MountError, recheck};
 use systemprompt_extension::admitted::AdmittedRouteSet;
-use systemprompt_extension::router::{ApiBase, BasePath, RouteMethod, RouteSet, RouteSpec, WebBase};
+use systemprompt_extension::router::{
+    ApiBase, BasePath, RouteMethod, RouteSet, RouteSpec, WebBase,
+};
 use systemprompt_extension::{AuthzPolicy, ContextKind, RouteGroup, StandingTag};
 
 use super::forge::{PLAIN_LIMITS, ProbeState, forged, ok, routed, set};
@@ -31,7 +33,10 @@ fn held(standing: StandingTag, set: RouteSet) -> AdmittedRouteSet {
 #[test]
 fn a_service_held_by_a_core_member_is_refused() {
     for base in [ROOT, EXT] {
-        let admitted = forged(vec![held(StandingTag::Core, service_set(base, "/dash"))], vec![]);
+        let admitted = forged(
+            vec![held(StandingTag::Core, service_set(base, "/dash"))],
+            vec![],
+        );
         assert!(
             matches!(
                 recheck(&admitted),
@@ -66,7 +71,10 @@ fn a_service_at_a_closed_core_base_is_refused() {
 #[test]
 fn a_service_under_a_reserved_prefix_is_refused() {
     let admitted = forged(
-        vec![held(StandingTag::Install, service_set(ROOT, "/.well-known"))],
+        vec![held(
+            StandingTag::Install,
+            service_set(ROOT, "/.well-known"),
+        )],
         vec![],
     );
     assert!(matches!(
@@ -108,7 +116,10 @@ fn a_service_covering_another_route_conflicts() {
         ),
     );
     let admitted = forged(
-        vec![sibling, held(StandingTag::Install, service_set(ROOT, "/dash"))],
+        vec![
+            sibling,
+            held(StandingTag::Install, service_set(ROOT, "/dash")),
+        ],
         vec![],
     );
     assert!(recheck(&admitted).is_ok(), "negative control");

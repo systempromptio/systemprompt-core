@@ -19,8 +19,8 @@ use systemprompt_extension::router::{
     Allowance, BaseRef, GatewayPath, GatewayPrincipal, GatewayRouteDecl, RouteSet, RouteSpec,
 };
 use systemprompt_extension::{
-    Admitted, FactoryError, FromState, GatewayDenyReason, GatewayGuardRequest,
-    GatewayRequestGuard, MissingDependency, Resolved,
+    Admitted, FactoryError, FromState, GatewayDenyReason, GatewayGuardRequest, GatewayRequestGuard,
+    MissingDependency, Resolved,
 };
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::profile::{NodeRole, RateLimitsConfig};
@@ -105,10 +105,16 @@ struct Composition {
 fn composition(gateway_route: bool, probes: Vec<Probe>) -> Composition {
     let admitted = gateway_probe_admitted(ComposedParts {
         probes,
-        gateway_routes: if gateway_route { vec![bridge_route()] } else { Vec::new() },
+        gateway_routes: if gateway_route {
+            vec![bridge_route()]
+        } else {
+            Vec::new()
+        },
     });
-    let kernel =
-        offline_resolved_kernel(&admitted, systemprompt_extension::prelude::Dependencies::new());
+    let kernel = offline_resolved_kernel(
+        &admitted,
+        systemprompt_extension::prelude::Dependencies::new(),
+    );
     Composition { admitted, kernel }
 }
 
@@ -139,7 +145,11 @@ async fn router(composed: &Composition, role: NodeRole) -> anyhow::Result<Router
     )
 }
 
-async fn get(app: &Router, uri: &str, bearer: Option<&str>) -> anyhow::Result<(StatusCode, String)> {
+async fn get(
+    app: &Router,
+    uri: &str,
+    bearer: Option<&str>,
+) -> anyhow::Result<(StatusCode, String)> {
     let mut builder = Request::builder()
         .uri(uri)
         .header(header::HOST, "127.0.0.1")
@@ -163,7 +173,10 @@ async fn only_a_gateway_role_mounts_the_admitted_gateway_route() -> anyhow::Resu
     let gateway = router(&composed, NodeRole::Gateway).await?;
     let api = router(&composed, NodeRole::Api).await?;
 
-    assert_eq!(get(&gateway, WHOAMI, None).await?.0, StatusCode::UNAUTHORIZED);
+    assert_eq!(
+        get(&gateway, WHOAMI, None).await?.0,
+        StatusCode::UNAUTHORIZED
+    );
     assert_eq!(get(&api, WHOAMI, None).await?.0, StatusCode::NOT_FOUND);
     Ok(())
 }

@@ -40,11 +40,19 @@ impl fmt::Debug for AdmittedSchedule {
             .field("jobs", &self.job_names().collect::<Vec<_>>())
             .field(
                 "purges",
-                &self.purges.iter().map(|(_, p)| p.table()).collect::<Vec<_>>(),
+                &self
+                    .purges
+                    .iter()
+                    .map(|(_, p)| p.table())
+                    .collect::<Vec<_>>(),
             )
             .field(
                 "sweeps",
-                &self.sweeps.iter().map(|(_, s)| s.name()).collect::<Vec<_>>(),
+                &self
+                    .sweeps
+                    .iter()
+                    .map(|(_, s)| s.name())
+                    .collect::<Vec<_>>(),
             )
             .field(
                 "holds",
@@ -52,7 +60,11 @@ impl fmt::Debug for AdmittedSchedule {
             )
             .field(
                 "scopes",
-                &self.scopes.iter().map(|(_, s)| s.name()).collect::<Vec<_>>(),
+                &self
+                    .scopes
+                    .iter()
+                    .map(|(_, s)| s.name())
+                    .collect::<Vec<_>>(),
             )
             .finish()
     }
@@ -126,7 +138,12 @@ impl AdmittedSchedule {
 
     #[must_use]
     pub fn holds(&self) -> RetentionHolds {
-        RetentionHolds::new(self.holds.iter().map(|(_, hold)| Arc::clone(hold)).collect())
+        RetentionHolds::new(
+            self.holds
+                .iter()
+                .map(|(_, hold)| Arc::clone(hold))
+                .collect(),
+        )
     }
 
     #[must_use]

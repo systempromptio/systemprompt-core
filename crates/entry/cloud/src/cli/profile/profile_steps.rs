@@ -25,8 +25,8 @@ use super::templates::{
     DatabaseUrls, existing_geoip_database, get_services_path, save_dockerfile, save_dockerignore,
     save_entrypoint, save_profile, save_secrets, update_ai_config_default_provider,
 };
-use systemprompt_extension::cli::Prompter;
 use systemprompt_cloud::profile_authoring::{CloudProfileBuilder, LocalProfileBuilder};
+use systemprompt_extension::cli::Prompter;
 
 #[derive(Debug)]
 pub struct CreatedProfile {

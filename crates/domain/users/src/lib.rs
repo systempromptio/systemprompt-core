@@ -53,14 +53,14 @@ pub use repository::{
     EnrollDeviceCertParams, EnsuredApiKeyRecord, EnsuredServiceAccount, IssuerRekeyOutcome,
     IssuerRekeyPlan, MERGE_EXCLUDED_SECURITY_TABLES, MergeResult, NewServiceAccount,
     NewSsoLoginEvent, PurgeCount, PurgeOutcome, SessionRepository, SessionTrafficRollupRepository,
-    SkippedPurge, SsoLoginEvent, SsoLoginEventRepository, UserRateLimitBucketRepository, UserRepository, UsersRoleDirectory,
-    UsersRoleSubjectProvider,
+    SkippedPurge, SsoLoginEvent, SsoLoginEventRepository, UserRateLimitBucketRepository,
+    UserRepository, UsersRoleDirectory, UsersRoleSubjectProvider,
 };
 pub use services::{
     API_KEY_PREFIX, ApiKeyLifetime, ApiKeyService, DEVICE_FINGERPRINT_FOREIGN_USER, DemoteResult,
     DeviceCertService, EnrollDeviceCertServiceParams, EnsuredApiKey, IssueApiKeyParams,
-    OUTCOME_REFUSED, OUTCOME_SUCCESS, PostgresAuthEventSink, PromoteResult, UpdateUserParams,
-    PurgedArchive, UserAdminService, UserRoleAudienceResolver, UserService,
+    OUTCOME_REFUSED, OUTCOME_SUCCESS, PostgresAuthEventSink, PromoteResult, PurgedArchive,
+    UpdateUserParams, UserAdminService, UserRoleAudienceResolver, UserService,
 };
 
 pub use systemprompt_traits::auth::{RoleProvider, UserProvider};

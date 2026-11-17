@@ -27,10 +27,10 @@ use systemprompt_runtime::{
     StartupValidator, display_validation_report, display_validation_warnings,
 };
 
-use systemprompt_extension::cli::{CliConfig, OutputFormat, VerbosityLevel};
 use crate::env_overrides::EnvOverrides;
 use systemprompt_cloud::paths::ResolvedPaths;
 use systemprompt_cloud::profile::{ProfileSource, ResolvedProfile, resolve_profile_path};
+use systemprompt_extension::cli::{CliConfig, OutputFormat, VerbosityLevel};
 
 pub(super) struct ProfileContext {
     pub loaded: Arc<LoadedProfile>,

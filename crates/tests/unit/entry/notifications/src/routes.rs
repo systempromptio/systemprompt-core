@@ -22,9 +22,7 @@ use systemprompt_notifications::repository::{
 };
 use systemprompt_provider_contracts::ChangeSource;
 use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, seed_user_row, test_app_context,
-};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, seed_user_row, test_app_context};
 use tower::ServiceExt;
 use uuid::Uuid;
 

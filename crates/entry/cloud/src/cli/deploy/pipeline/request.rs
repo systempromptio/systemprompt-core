@@ -8,8 +8,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_extension::AdmittedAssets;
 use std::path::PathBuf;
+use systemprompt_extension::AdmittedAssets;
 
 use systemprompt_cloud::CloudCredentials;
 use systemprompt_identifiers::{ProfileName, TenantId};

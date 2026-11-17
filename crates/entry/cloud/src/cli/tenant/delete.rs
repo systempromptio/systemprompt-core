@@ -12,8 +12,8 @@ use anyhow::{Result, anyhow, bail};
 use systemprompt_cloud::{
     CloudApiClient, CloudPath, DockerCli, StoredTenant, TenantStore, get_cloud_paths,
 };
-use systemprompt_identifiers::TenantId;
 use systemprompt_extension::cli::ChildSupervisor;
+use systemprompt_identifiers::TenantId;
 use systemprompt_logging::CliService;
 
 use super::docker::{compose_path_for_project, remove_project};

@@ -110,8 +110,16 @@ async fn the_fallback_owner_is_layered_whole() {
         .place(Router::new(), owned)
         .expect("one owner is placed");
     let fallback = status_at(router, "/elsewhere").await;
-    assert_ne!(fallback, StatusCode::IM_A_TEAPOT, "the gate covers the fallback");
-    assert_ne!(fallback, StatusCode::NOT_FOUND, "the owner's fallback is the tree's");
+    assert_ne!(
+        fallback,
+        StatusCode::IM_A_TEAPOT,
+        "the gate covers the fallback"
+    );
+    assert_ne!(
+        fallback,
+        StatusCode::NOT_FOUND,
+        "the owner's fallback is the tree's"
+    );
 
     let open = protect_root_fallback(with_fallback(), &ungated(), &layers, RouteGroup::Static)
         .expect("an ungated owner mounts");
@@ -131,7 +139,9 @@ async fn a_second_fallback_owner_is_refused() {
     let mut owner = RootFallbackOwner::default();
     let first = protect_root_fallback(with_fallback(), &public(), &layers, RouteGroup::Static)
         .expect("the first owner mounts");
-    let tree = owner.place(Router::new(), first).expect("the first claim is placed");
+    let tree = owner
+        .place(Router::new(), first)
+        .expect("the first claim is placed");
     let second = protect_root_fallback(
         Router::new().fallback(teapot),
         &public(),

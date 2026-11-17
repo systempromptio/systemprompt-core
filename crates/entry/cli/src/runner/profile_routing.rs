@@ -23,12 +23,11 @@ use super::routing_decision::{RoutingDecision, decide_routing};
 use super::{args, bootstrap};
 use systemprompt_loader::ServicesState;
 
-use systemprompt_extension::cli::CliConfig;
 use crate::commands::infrastructure;
-use systemprompt_extension::cli::{CommandDescriptor, RoutingClass};
 use crate::env_overrides::EnvOverrides;
 use crate::interactive;
 use systemprompt_cloud::profile::ProfileSource;
+use systemprompt_extension::cli::{CliConfig, CommandDescriptor, RoutingClass};
 
 /// What the runner does once the profile is bootstrapped.
 ///

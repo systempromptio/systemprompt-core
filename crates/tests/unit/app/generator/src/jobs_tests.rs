@@ -134,7 +134,9 @@ async fn run_prerender_jobs_with_empty_sources(with_hooks: bool) {
     if with_hooks {
         state.insert(Arc::new(crate::ext_fixtures::fixture_hooks(&db)));
     } else {
-        state.insert(Arc::new(systemprompt_content::contract::ContentHooks::default()));
+        state.insert(Arc::new(
+            systemprompt_content::contract::ContentHooks::default(),
+        ));
     }
     let ctx = JobContext::new(fixture_actor(), state);
 

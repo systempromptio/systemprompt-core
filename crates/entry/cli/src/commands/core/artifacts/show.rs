@@ -15,10 +15,9 @@ use systemprompt_logging::CliService;
 use systemprompt_models::a2a::PartContent;
 
 use super::types::{ArtifactPartOutput, ArtifactSummary};
-use systemprompt_extension::cli::CliConfig;
-use systemprompt_database::pool_from_handle;
 use crate::session::get_or_create_session;
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_database::pool_from_handle;
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {

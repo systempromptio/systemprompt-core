@@ -5,48 +5,48 @@
 //! twin's is (the negative control); a failing seam factory refuses the
 //! build; the core defaults other members provide are appended after the
 //! contributed seams exactly when their owner provided them, and the
-//! analytics member alone provides its repositories. `notifications-http` holds its two route sets and one gateway
-//! route whose limits carry the bearer window (T18, facade side).
+//! analytics member alone provides its repositories. `notifications-http` holds
+//! its two route sets and one gateway route whose limits carry the bearer
+//! window (T18, facade side).
 
 use std::any::TypeId;
 use std::sync::Arc;
 
+use systemprompt::analytics::repository::AnalyticsRepositories;
 use systemprompt::brain::{BrainSeams, BrainSlot};
+use systemprompt::database::{Database, DbPool};
+use systemprompt::events::{EventBroadcasters, EventRouter};
 use systemprompt::models::brain::BrainEnvelope;
-use systemprompt::notifications::{NotificationSeams, NotificationsSlot};
+use systemprompt::notifications::service::EscalationDelivery;
+use systemprompt::notifications::{
+    NotificationSeams, NotificationsConsumerSlot, NotificationsServiceSlot, NotificationsSlot,
+    OutboxNotificationSink,
+};
 use systemprompt::reference;
+use systemprompt::users::SessionRepository;
+use systemprompt_extension::brain::{
+    SourceAccess, SourceAccessError, SourceContent, SourceContentError, SourceVerdict,
+};
 use systemprompt_extension::contribute::build_slot;
 use systemprompt_extension::reserved::CoreId;
 use systemprompt_extension::router::{
     Allowance, ApiBase, BasePath, BaseRef, GatewayPath, RouteSpec,
 };
-use systemprompt_extension::brain::{
-    SourceAccess, SourceAccessError, SourceContent, SourceContentError, SourceVerdict,
-};
 use systemprompt_extension::{
-    Admitted, AudienceResolvers, BuiltState, EventFilter, FactoryError, FilterVerdict, Membership, NotificationAudienceError,
-    NotificationAudienceResolver, NotificationRouter, Resolved, ResourceVisibility, RouteGroup,
-    Slot, SlotError, Visibility, VisibilityError,
+    Admitted, AudienceResolvers, BuiltState, EventFilter, FactoryError, FilterVerdict, Membership,
+    NotificationAudienceError, NotificationAudienceResolver, NotificationRouter, Resolved,
+    ResourceVisibility, RouteGroup, Slot, SlotError, Visibility, VisibilityError,
 };
-use systemprompt_traits::CoreSeam;
-use systemprompt_traits::core_seam::{
-    DocumentSourceAccess, DocumentSourceContent, DocumentVisibility, IssueVisibility, RoleAudience,
-};
-use systemprompt::database::{Database, DbPool};
-use systemprompt::events::{EventBroadcasters, EventRouter};
-use systemprompt::notifications::service::EscalationDelivery;
-use systemprompt::notifications::{
-    NotificationsConsumerSlot, NotificationsServiceSlot, OutboxNotificationSink,
-};
-use systemprompt::analytics::repository::AnalyticsRepositories;
-use systemprompt::users::SessionRepository;
 use systemprompt_identifiers::{ExtensionId, InstanceId, UserId};
+use systemprompt_manifest::profile::{BrainProfile, NotificationsProfile};
 use systemprompt_models::auth::RequestActor;
 use systemprompt_models::brain::{FactSource, SourceText};
 use systemprompt_models::notifications::{AudienceSubject, SubjectRef};
-use systemprompt_traits::DynSessionStore;
-use systemprompt_manifest::profile::{BrainProfile, NotificationsProfile};
 use systemprompt_provider_contracts::Dependencies;
+use systemprompt_traits::core_seam::{
+    DocumentSourceAccess, DocumentSourceContent, DocumentVisibility, IssueVisibility, RoleAudience,
+};
+use systemprompt_traits::{CoreSeam, DynSessionStore};
 
 use crate::probe::{Counter, Probe, build, kernel_with, profile, shape};
 
@@ -432,45 +432,73 @@ fn with_owner_seams(mut seed: Dependencies, users: bool, files: bool) -> Depende
         let issues: Arc<dyn ResourceVisibility> = Arc::new(StubVisibility(&["issue_report"]));
         let content: Arc<dyn SourceContent> = Arc::new(StubSource);
         let access: Arc<dyn SourceAccess> = Arc::new(StubAccess);
-        seed.insert(CoreSeam::<dyn ResourceVisibility, DocumentVisibility>::new(documents));
-        seed.insert(CoreSeam::<dyn ResourceVisibility, IssueVisibility>::new(issues));
-        seed.insert(CoreSeam::<dyn SourceContent, DocumentSourceContent>::new(content));
-        seed.insert(CoreSeam::<dyn SourceAccess, DocumentSourceAccess>::new(access));
+        seed.insert(CoreSeam::<dyn ResourceVisibility, DocumentVisibility>::new(
+            documents,
+        ));
+        seed.insert(CoreSeam::<dyn ResourceVisibility, IssueVisibility>::new(
+            issues,
+        ));
+        seed.insert(CoreSeam::<dyn SourceContent, DocumentSourceContent>::new(
+            content,
+        ));
+        seed.insert(CoreSeam::<dyn SourceAccess, DocumentSourceAccess>::new(
+            access,
+        ));
     }
     seed
 }
 
 fn notification_seams(users: bool, files: bool) -> NotificationSeams {
     let seed = with_owner_seams(slot_seed(), users, files);
-    let kernel = kernel_with(with_audiences(seed, &BuiltState::default()).expect("audiences build"));
+    let kernel =
+        kernel_with(with_audiences(seed, &BuiltState::default()).expect("audiences build"));
     NotificationsSlot::build(Vec::new(), &kernel.resolved()).expect("the notifications slot builds")
 }
 
 fn brain_seams(users: bool, files: bool) -> BrainSeams {
     let seed = with_owner_seams(slot_seed(), users, files);
-    let kernel = kernel_with(with_audiences(seed, &BuiltState::default()).expect("audiences build"));
+    let kernel =
+        kernel_with(with_audiences(seed, &BuiltState::default()).expect("audiences build"));
     BrainSlot::build(Vec::new(), &kernel.resolved()).expect("the brain slot builds")
 }
 
 fn kinds(seams: &NotificationSeams) -> Vec<&'static str> {
-    seams.visibilities.iter().flat_map(|v| v.kinds().iter().copied()).collect()
+    seams
+        .visibilities
+        .iter()
+        .flat_map(|v| v.kinds().iter().copied())
+        .collect()
 }
 
 #[test]
 fn the_notification_core_defaults_follow_their_owners() {
     let enabled = notification_seams(true, true);
     let audiences: Vec<&str> = enabled.audiences.iter().map(|a| a.name()).collect();
-    assert_eq!(audiences, ["stub-roles"], "the users member's role resolver is appended");
+    assert_eq!(
+        audiences,
+        ["stub-roles"],
+        "the users member's role resolver is appended"
+    );
     assert_eq!(kinds(&enabled), ["document", "issue_report"]);
     assert_eq!(enabled.channels.len(), 1, "the AG-UI channel");
-    assert_eq!(enabled.publish_policies.len(), 1, "the default publish policy");
+    assert_eq!(
+        enabled.publish_policies.len(),
+        1,
+        "the default publish policy"
+    );
 
     let no_users = notification_seams(false, true);
-    assert!(no_users.audiences.is_empty(), "no users member, no role resolver");
+    assert!(
+        no_users.audiences.is_empty(),
+        "no users member, no role resolver"
+    );
     assert_eq!(kinds(&no_users), ["document", "issue_report"]);
 
     let no_files = notification_seams(true, false);
-    assert!(no_files.visibilities.is_empty(), "no files member, no visibility");
+    assert!(
+        no_files.visibilities.is_empty(),
+        "no files member, no visibility"
+    );
     assert_eq!(no_files.audiences.len(), 1);
 }
 
@@ -483,9 +511,18 @@ fn the_brain_core_defaults_follow_their_owners() {
     assert!(enabled.source_access.is_some());
 
     let disabled = brain_seams(false, false);
-    assert!(disabled.sources.is_empty(), "no files member, no source reader");
-    assert!(disabled.audiences.is_empty(), "no users member, no role resolver");
-    assert!(disabled.source_access.is_none(), "the brain hides sourced facts");
+    assert!(
+        disabled.sources.is_empty(),
+        "no files member, no source reader"
+    );
+    assert!(
+        disabled.audiences.is_empty(),
+        "no users member, no role resolver"
+    );
+    assert!(
+        disabled.source_access.is_none(),
+        "the brain hides sourced facts"
+    );
 }
 
 #[test]
@@ -495,12 +532,20 @@ fn the_owning_members_provide_the_core_seams() {
         admitted
             .built()
             .members()
-            .filter(|member| member.sink.provides().iter().any(|entry| entry.type_id() == ty))
+            .filter(|member| {
+                member
+                    .sink
+                    .provides()
+                    .iter()
+                    .any(|entry| entry.type_id() == ty)
+            })
             .map(|member| member.owner.as_str().to_owned())
             .collect()
     };
     assert_eq!(
-        provider_of(TypeId::of::<CoreSeam<dyn NotificationAudienceResolver, RoleAudience>>()),
+        provider_of(TypeId::of::<
+            CoreSeam<dyn NotificationAudienceResolver, RoleAudience>,
+        >()),
         ["users"]
     );
     for ty in [
@@ -529,12 +574,21 @@ fn analytics_alone_provides_its_repositories() {
     let providers = admitted
         .built()
         .members()
-        .filter(|member| member.sink.provides().iter().any(|entry| entry.type_id() == ty))
+        .filter(|member| {
+            member
+                .sink
+                .provides()
+                .iter()
+                .any(|entry| entry.type_id() == ty)
+        })
         .count();
     assert_eq!(providers, 1);
 
     let mut seed = slot_seed();
-    let pool = seed.find::<DbPool>().cloned().expect("the seed holds the pool");
+    let pool = seed
+        .find::<DbPool>()
+        .cloned()
+        .expect("the seed holds the pool");
     let sessions: DynSessionStore = Arc::new(SessionRepository::new(&pool));
     seed.insert(sessions);
     let kernel = kernel_with(seed);
@@ -555,7 +609,10 @@ fn analytics_alone_provides_its_repositories() {
         .compute(&kernel.resolved())
         .expect("a second build")
         .insert_into(&mut state, &ExtensionId::new("probe-analytics"));
-    assert!(second.is_err(), "negative control: a second provider is a duplicate");
+    assert!(
+        second.is_err(),
+        "negative control: a second provider is a duplicate"
+    );
 }
 
 struct DimensionAudience(&'static str);
@@ -628,8 +685,9 @@ fn handler_of<'a>(
 #[test]
 fn one_audience_registration_serves_notifications_and_brain_recall() {
     let hits = Arc::new(Counter::default());
-    let admitted = build(reference().with(audience_probe("probe-audience", "install-groups", &hits)))
-        .expect("the probe admits");
+    let admitted =
+        build(reference().with(audience_probe("probe-audience", "install-groups", &hits)))
+            .expect("the probe admits");
     let seed = with_owner_seams(slot_seed(), true, false);
     let notifications = built_over::<NotificationsSlot>(&admitted, seed.clone())
         .expect("the notifications slot builds")
@@ -647,7 +705,10 @@ fn one_audience_registration_serves_notifications_and_brain_recall() {
         ["install-groups", "stub-roles"],
         "brain recall reads the same set in the same order"
     );
-    assert_eq!(handler_of(&brain.audiences, &group("platform")), Some("install-groups"));
+    assert_eq!(
+        handler_of(&brain.audiences, &group("platform")),
+        Some("install-groups")
+    );
     assert_eq!(
         handler_of(&notifications.audiences, &group("platform")),
         Some("install-groups")
@@ -674,8 +735,15 @@ fn a_disabled_audience_member_leaves_both_readers_withholding() {
     assert!(audience_names(&notifications.audiences).is_empty());
     assert!(audience_names(&brain.audiences).is_empty());
     assert_eq!(handler_of(&brain.audiences, &group("platform")), None);
-    assert_eq!(handler_of(&notifications.audiences, &group("platform")), None);
-    assert_eq!(hits.get(), 0, "a disabled member's resolver factory never runs");
+    assert_eq!(
+        handler_of(&notifications.audiences, &group("platform")),
+        None
+    );
+    assert_eq!(
+        hits.get(),
+        0,
+        "a disabled member's resolver factory never runs"
+    );
 }
 
 #[test]

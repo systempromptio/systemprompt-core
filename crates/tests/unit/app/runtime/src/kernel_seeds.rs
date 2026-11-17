@@ -39,7 +39,10 @@ fn reader_of<T: Clone + Send + Sync + 'static>() -> Admitted {
 }
 
 fn offline_pool() -> DbPool {
-    Arc::new(systemprompt_database::Database::from_pools(lazy_pg_pool(), None))
+    Arc::new(systemprompt_database::Database::from_pools(
+        lazy_pg_pool(),
+        None,
+    ))
 }
 
 async fn kernel_state() -> Dependencies {
@@ -62,7 +65,12 @@ async fn assert_seed<T: Clone + Send + Sync + 'static>() {
 
     let withheld = resolved_kernel(&pool, &admitted, Dependencies::new())
         .err()
-        .unwrap_or_else(|| panic!("{} withheld must refuse the reader", std::any::type_name::<T>()));
+        .unwrap_or_else(|| {
+            panic!(
+                "{} withheld must refuse the reader",
+                std::any::type_name::<T>()
+            )
+        });
     let mut rendered = withheld.to_string();
     let mut source = std::error::Error::source(&withheld);
     while let Some(cause) = source {
@@ -89,7 +97,12 @@ fn assert_admitted_view<T: Clone + Send + Sync + 'static>() {
         std::any::type_name::<T>()
     );
     let kernel = resolved_kernel(&offline_pool(), &reader_of::<T>(), Dependencies::new())
-        .unwrap_or_else(|e| panic!("{} is inserted on resolve: {e:#}", std::any::type_name::<T>()));
+        .unwrap_or_else(|e| {
+            panic!(
+                "{} is inserted on resolve: {e:#}",
+                std::any::type_name::<T>()
+            )
+        });
     assert!(kernel.resolved().get::<SeedRead>().is_ok());
 }
 

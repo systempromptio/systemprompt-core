@@ -27,7 +27,10 @@ async fn app() -> Result<(Router, DbPool)> {
     let b = ensure_test_bootstrap();
     let pool = test_db_pool().await;
     let ctx = test_app_context(&b.database_url).await;
-    Ok((gateway_router(&ctx, ctx.admitted(), ctx.kernel()).expect("gateway router builds"), pool))
+    Ok((
+        gateway_router(&ctx, ctx.admitted(), ctx.kernel()).expect("gateway router builds"),
+        pool,
+    ))
 }
 
 async fn credential(pool: &DbPool) -> Result<AuthedFixture> {

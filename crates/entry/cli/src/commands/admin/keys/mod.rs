@@ -46,7 +46,9 @@ pub enum KeysCommands {
 
 pub async fn execute(cmd: KeysCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match cmd {
-        KeysCommands::Generate(args) => generate::execute(&args).map(|()| CommandOutput::rendered()),
+        KeysCommands::Generate(args) => {
+            generate::execute(&args).map(|()| CommandOutput::rendered())
+        },
         KeysCommands::Stage(_) => {
             let result = rotation::execute_stage(host).await?;
             Ok(result)

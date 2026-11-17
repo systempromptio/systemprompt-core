@@ -9,9 +9,8 @@ use clap::Args;
 use systemprompt_database::DbPool;
 use systemprompt_users::BannedIpRepository;
 
-use systemprompt_extension::cli::CliConfig;
 use crate::commands::admin::users::types::{BanListOutput, BanSummary};
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 #[derive(Debug, Args)]
 pub struct ListArgs {
@@ -23,7 +22,12 @@ pub struct ListArgs {
 }
 
 pub(super) async fn execute(args: ListArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    execute_with_pool(args, &systemprompt_database::pool_from_handle(host.db().await?)?, host.output()).await
+    execute_with_pool(
+        args,
+        &systemprompt_database::pool_from_handle(host.db().await?)?,
+        host.output(),
+    )
+    .await
 }
 
 pub(super) async fn execute_with_pool(

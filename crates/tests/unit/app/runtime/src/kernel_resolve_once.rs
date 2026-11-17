@@ -13,15 +13,18 @@ async fn a_second_resolve_of_one_admitted_composition_is_refused() {
     let bootstrap = ensure_test_bootstrap();
     let admitted = fixture_admitted();
 
-    let first =
-        fixture_app_context_with_extensions(fixture_config(&bootstrap.database_url), admitted.clone())
-            .await;
+    let first = fixture_app_context_with_extensions(
+        fixture_config(&bootstrap.database_url),
+        admitted.clone(),
+    )
+    .await;
     if let Err(error) = first {
         panic!("the first resolve builds the context: {error:#}");
     }
 
     let second =
-        fixture_app_context_with_extensions(fixture_config(&bootstrap.database_url), admitted).await;
+        fixture_app_context_with_extensions(fixture_config(&bootstrap.database_url), admitted)
+            .await;
     let Err(error) = second else {
         panic!("a second resolve over the same admitted composition must be refused");
     };

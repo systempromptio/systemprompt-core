@@ -4,11 +4,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_extension::cli::CliConfig;
 use crate::interactive::confirm_optional;
-use systemprompt_extension::cli::Prompter;
 use anyhow::{Context, Result};
 use std::time::Duration;
+use systemprompt_extension::cli::{CliConfig, Prompter};
 use systemprompt_loader::subprocess::{self, ChildKind};
 use systemprompt_logging::CliService;
 use systemprompt_scheduler::{port_holders, wait_for_port_free};

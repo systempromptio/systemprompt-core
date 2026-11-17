@@ -298,9 +298,10 @@ pub(super) fn engines_with_scanners(
                 let factory = Arc::clone(factory);
                 c.slot::<SafetyScannerSlot>().scanner(
                     name,
-                    move |_: &Resolved<'_>| -> Result<Arc<dyn systemprompt_gateway::ScannerFactory>, FactoryError> {
-                        Ok(Arc::clone(&factory))
-                    },
+                    move |_: &Resolved<'_>| -> Result<
+                        Arc<dyn systemprompt_gateway::ScannerFactory>,
+                        FactoryError,
+                    > { Ok(Arc::clone(&factory)) },
                 );
             }
         })],

@@ -34,9 +34,8 @@ use systemprompt_notifications::service::{
 };
 use systemprompt_notifications::sink::OutboxNotificationSink;
 use systemprompt_notifications::{NotificationRepositories, NotificationsConsumer};
-use systemprompt_users::UserRoleAudienceResolver;
 use systemprompt_test_fixtures::{DisposableDb, unique_instance};
-use systemprompt_users::UserRepository;
+use systemprompt_users::{UserRepository, UserRoleAudienceResolver};
 
 #[derive(Default)]
 pub(crate) struct Hidden {

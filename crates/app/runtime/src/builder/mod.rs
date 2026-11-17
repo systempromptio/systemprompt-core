@@ -48,18 +48,17 @@ use systemprompt_files::documents::DocumentsHandlesSlot;
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_governance::contract::AuthzHooks;
 use systemprompt_governance::policy::PolicyCatalog;
-use systemprompt_marketplace::contract::MarketplaceSeams;
-use systemprompt_traits::{ConfigWatch, DatabaseHandle, SecretStore};
 use systemprompt_loader::BootContext;
 use systemprompt_marketplace::MarketplaceFilter;
-use systemprompt_traits::BackgroundTasks;
+use systemprompt_marketplace::contract::MarketplaceSeams;
+use systemprompt_traits::{BackgroundTasks, ConfigWatch, DatabaseHandle, SecretStore};
 use systemprompt_users::UserService;
 
 use crate::context::{AppContext, ConfigPlane, DataPlane, ShutdownRequest, Subsystems};
 use crate::error::RuntimeResult;
 use crate::kernel::Kernel;
-pub use core_layer::discover_vertex_models;
 use authz::{AuthzBuilt, authz_stage};
+pub use core_layer::discover_vertex_models;
 use core_layer::{CoreLayer, CoreOverrides, SchemaPolicy, init_core, install_schemas};
 use events::event_plane;
 pub(crate) use governance::load_governance;
@@ -180,11 +179,14 @@ impl AppContextBuilder {
             content_config: content.content_config.as_ref(),
         });
         let handle: Arc<dyn DatabaseHandle> = database.clone();
-        let subscriptions: Arc<dyn systemprompt_traits::events::AnalyticsSubscription> = Arc::new(
-            systemprompt_events::AnalyticsSubscriptions::new(Arc::clone(&router.broadcasters().analytics)),
-        );
+        let subscriptions: Arc<dyn systemprompt_traits::events::AnalyticsSubscription> =
+            Arc::new(systemprompt_events::AnalyticsSubscriptions::new(
+                Arc::clone(&router.broadcasters().analytics),
+            ));
         let mut kernel = Kernel::new(handle, background_tasks.clone(), seed)
-            .with_handle::<systemprompt_extension::handles::AnalyticsBroadcaster>(subscriptions);
+            .with_handle::<systemprompt_extension::handles::AnalyticsBroadcaster>(
+            subscriptions,
+        );
         kernel.resolve(&self.admitted)?;
         let r = kernel.resolved();
 
@@ -209,11 +211,10 @@ impl AppContextBuilder {
         let plugins = new_plugins(mcp_registry, self.marketplace_filter, &seams, &market);
 
         #[cfg(feature = "notifications")]
-        let notification_sink =
-            systemprompt_notifications::OutboxNotificationSink::over_write_pool(
-                &database,
-                &config.instance_id,
-            );
+        let notification_sink = systemprompt_notifications::OutboxNotificationSink::over_write_pool(
+            &database,
+            &config.instance_id,
+        );
         #[cfg(not(feature = "notifications"))]
         let notification_sink: systemprompt_extension::DynNotificationSink =
             Arc::new(crate::documents::NotificationsUnavailableSink);

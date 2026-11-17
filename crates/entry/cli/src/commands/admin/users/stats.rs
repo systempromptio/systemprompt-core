@@ -9,12 +9,15 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_users::{UserRepository, UserService};
 
-use systemprompt_extension::cli::CliConfig;
-use systemprompt_extension::cli::CommandOutput;
 use super::types::UserStatsOutput;
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 pub(super) async fn execute(host: &dyn KernelHost) -> Result<CommandOutput> {
-    execute_with_pool(&systemprompt_database::pool_from_handle(host.db().await?)?, host.output()).await
+    execute_with_pool(
+        &systemprompt_database::pool_from_handle(host.db().await?)?,
+        host.output(),
+    )
+    .await
 }
 
 pub(super) async fn execute_with_pool(pool: &DbPool, _config: &CliConfig) -> Result<CommandOutput> {

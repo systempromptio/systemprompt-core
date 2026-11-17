@@ -9,7 +9,7 @@
 //! purge records.
 
 use systemprompt_database::{
-    install_admitted_schemas, DatabaseProvider, MigrationConfig, SchemaInstallReport,
+    DatabaseProvider, MigrationConfig, SchemaInstallReport, install_admitted_schemas,
 };
 use systemprompt_extension::admitted::{AdmittedMember, AdmittedParts};
 use systemprompt_extension::contribute::ContributionSink;

@@ -56,50 +56,50 @@ impl Extension for UsersExtension {
             predicate: None,
         })
         .migrations(extension_migrations!())
-            .provide(|r: &Resolved<'_>| {
-                let db = r.get::<DbPool>()?;
-                let bans: DynIpBanStore = Arc::new(BannedIpRepository::new(&db));
-                Ok(bans)
-            })
-            .provide(|r: &Resolved<'_>| {
-                let db = r.get::<DbPool>()?;
-                let sessions: DynSessionStore = Arc::new(SessionRepository::new(&db));
-                Ok(sessions)
-            })
-            .provide(|r: &Resolved<'_>| {
-                let db = r.get::<DbPool>()?;
-                let resolver: Arc<dyn NotificationAudienceResolver> = Arc::new(
-                    UserRoleAudienceResolver::new(Arc::new(UserRepository::new(&db))),
-                );
-                Ok(RoleAudienceSeam::new(resolver))
-            })
-            .subject_attributes(|r: &Resolved<'_>| {
-                let db = r.get::<DbPool>()?;
-                let provider: Arc<dyn SubjectAttributeProvider> =
-                    Arc::new(UsersRoleSubjectProvider::new(db.write_pool()));
-                Ok(provider)
-            })
-            .job(UserRateLimitPruneJob)
-            .job(CleanupAnonymousUsersJob);
-        c.slot::<RoleDirectorySlot>()
-            .directory(|r: &Resolved<'_>| {
-                let db = r.get::<DbPool>()?;
-                let directory: SharedRoleDirectory = UsersRoleDirectory::shared(db.write_pool());
-                Ok(directory)
-            });
+        .provide(|r: &Resolved<'_>| {
+            let db = r.get::<DbPool>()?;
+            let bans: DynIpBanStore = Arc::new(BannedIpRepository::new(&db));
+            Ok(bans)
+        })
+        .provide(|r: &Resolved<'_>| {
+            let db = r.get::<DbPool>()?;
+            let sessions: DynSessionStore = Arc::new(SessionRepository::new(&db));
+            Ok(sessions)
+        })
+        .provide(|r: &Resolved<'_>| {
+            let db = r.get::<DbPool>()?;
+            let resolver: Arc<dyn NotificationAudienceResolver> = Arc::new(
+                UserRoleAudienceResolver::new(Arc::new(UserRepository::new(&db))),
+            );
+            Ok(RoleAudienceSeam::new(resolver))
+        })
+        .subject_attributes(|r: &Resolved<'_>| {
+            let db = r.get::<DbPool>()?;
+            let provider: Arc<dyn SubjectAttributeProvider> =
+                Arc::new(UsersRoleSubjectProvider::new(db.write_pool()));
+            Ok(provider)
+        })
+        .job(UserRateLimitPruneJob)
+        .job(CleanupAnonymousUsersJob);
+        c.slot::<RoleDirectorySlot>().directory(|r: &Resolved<'_>| {
+            let db = r.get::<DbPool>()?;
+            let directory: SharedRoleDirectory = UsersRoleDirectory::shared(db.write_pool());
+            Ok(directory)
+        });
         Ok(())
     }
 }
 
 fn schemas() -> Vec<SchemaDefinition> {
     vec![
-        SchemaDefinition::new("users", include_str!("../schema/users.sql"))
-            .with_required_columns(vec![
+        SchemaDefinition::new("users", include_str!("../schema/users.sql")).with_required_columns(
+            vec![
                 "id".into(),
                 "name".into(),
                 "email".into(),
                 "created_at".into(),
-            ]),
+            ],
+        ),
         SchemaDefinition::new("user_sessions", include_str!("../schema/user_sessions.sql"))
             .with_required_columns(vec![
                 "session_id".into(),
@@ -135,11 +135,7 @@ fn schemas() -> Vec<SchemaDefinition> {
             "user_api_key_scopes",
             include_str!("../schema/user_api_key_scopes.sql"),
         )
-        .with_required_columns(vec![
-            "key_id".into(),
-            "dimension".into(),
-            "value".into(),
-        ]),
+        .with_required_columns(vec!["key_id".into(), "dimension".into(), "value".into()]),
         SchemaDefinition::new(
             "user_device_certs",
             include_str!("../schema/user_device_certs.sql"),

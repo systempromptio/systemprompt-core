@@ -10,11 +10,11 @@
 
 use std::sync::Arc;
 
+use crate::{User, UserError, UserRepository};
 use async_trait::async_trait;
 use systemprompt_extension::{Membership, NotificationAudienceError, NotificationAudienceResolver};
 use systemprompt_identifiers::UserId;
 use systemprompt_models::notifications::AudienceSubject;
-use crate::{User, UserError, UserRepository};
 
 const NAME: &str = "core-users-roles";
 

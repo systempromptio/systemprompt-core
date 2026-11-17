@@ -14,8 +14,8 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::JobName;
 use systemprompt_manifest::services::UnlistedJobs;
 use systemprompt_scheduler::{
-    JobConfig, JobPruneService, JobRepository, SchedulerConfig,
-    SchedulerRepository, SchedulerService, SchedulerStartup,
+    JobConfig, JobPruneService, JobRepository, SchedulerConfig, SchedulerRepository,
+    SchedulerService, SchedulerStartup,
 };
 use systemprompt_test_fixtures::{test_database_url, test_db_pool};
 use systemprompt_traits::{Job, JobContext, JobResult};

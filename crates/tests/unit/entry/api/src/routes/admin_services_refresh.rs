@@ -11,10 +11,10 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use systemprompt_api::routes::admin::services::{RefreshLock, RefreshQuery, refresh};
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
-use systemprompt_manifest::services::root::{ActiveServicesRoot, ServicesProvenance};
-use systemprompt_models::RequestContext;
 use systemprompt_loader::BootContext;
+use systemprompt_manifest::services::root::{ActiveServicesRoot, ServicesProvenance};
 use systemprompt_marketplace::AllowAllFilter;
+use systemprompt_models::RequestContext;
 use systemprompt_runtime::{AppContext, AppContextBuilder};
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_admitted, fixture_config, seed_fixture_system_admin_at,
@@ -156,10 +156,12 @@ async fn a_composition_that_no_longer_resolves_is_a_change_and_restarts() {
     })
     .await;
     assert_eq!(
-        ctx.boot().services_root().and_then(|root| match &root.provenance {
-            ServicesProvenance::Fetched { composed_hash, .. } => Some(composed_hash.as_str()),
-            _ => None,
-        }),
+        ctx.boot()
+            .services_root()
+            .and_then(|root| match &root.provenance {
+                ServicesProvenance::Fetched { composed_hash, .. } => Some(composed_hash.as_str()),
+                _ => None,
+            }),
         Some("composed-active"),
         "the context serves the fetched composition the test installed"
     );

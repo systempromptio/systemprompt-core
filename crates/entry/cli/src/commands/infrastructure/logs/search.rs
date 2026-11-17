@@ -6,12 +6,12 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::kernel::KernelHost;
-use systemprompt_database::pool_from_handle;
 use anyhow::Result;
 use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use systemprompt_database::pool_from_handle;
 use systemprompt_identifiers::{McpServerId, McpToolName, TraceId};
 use systemprompt_logging::LogLevel;
 use systemprompt_models::artifacts::NoticeLine;
@@ -74,7 +74,10 @@ pub(in crate::commands::infrastructure::logs) async fn execute(
     execute_with_pool_inner(args, &pool).await
 }
 
-async fn execute_with_pool_inner(args: SearchArgs, pool: &Arc<sqlx::PgPool>) -> Result<CommandOutput> {
+async fn execute_with_pool_inner(
+    args: SearchArgs,
+    pool: &Arc<sqlx::PgPool>,
+) -> Result<CommandOutput> {
     let since_timestamp = parse_since(args.since.as_ref())?;
     let pattern = format!("%{}%", args.pattern);
 

@@ -195,7 +195,7 @@ async fn the_mounted_rendered_route_is_framed_by_the_app_alone_and_needs_a_sessi
         None,
         &Arc::new(ReadinessState::new()),
     )
-        .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
+    .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
     let state = DocumentsState::build(&ctx)?;
     let owner = seed_bridge_credential(&pool, "docs-rendered-mounted").await?;
     let id = designed_page(&state, &owner).await?;

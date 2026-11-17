@@ -8,8 +8,7 @@ use chrono::{DateTime, Utc};
 use clap::Args;
 use std::fs;
 
-use systemprompt_extension::cli::CliConfig;
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 use super::super::paths::WebPaths;
 use super::super::types::AssetDetailOutput;
@@ -71,10 +70,7 @@ pub(super) fn execute(
     ))
 }
 
-pub fn find_config_references(
-    asset_path: &str,
-    profile: &Profile,
-) -> Vec<String> {
+pub fn find_config_references(asset_path: &str, profile: &Profile) -> Vec<String> {
     let mut references = Vec::new();
 
     let web_config_path = profile.paths.web_config();

@@ -9,9 +9,9 @@ use clap::Args;
 use std::sync::Arc;
 use systemprompt_users::{UserAdminService, UserRepository, UserService, UserStatus};
 
-use systemprompt_extension::cli::CommandOutput;
 use super::list::StatusFilter;
 use super::types::UserUpdatedOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct UpdateArgs {

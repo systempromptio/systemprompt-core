@@ -163,9 +163,8 @@ pub mod api {
     pub use systemprompt_api::routes::admin::services::ServicesRefresh;
     pub use systemprompt_api::services::server::{EarlyServer, bind_and_serve};
     pub use systemprompt_api::{
-        A2AContextMiddleware, ContextExtractor, HealthChecker, HealthSummary,
-        McpContextMiddleware, ModuleHealth, ProcessMonitor, PublicContextMiddleware,
-        UserOnlyContextMiddleware, error,
+        A2AContextMiddleware, ContextExtractor, HealthChecker, HealthSummary, McpContextMiddleware,
+        ModuleHealth, ProcessMonitor, PublicContextMiddleware, UserOnlyContextMiddleware, error,
     };
 }
 

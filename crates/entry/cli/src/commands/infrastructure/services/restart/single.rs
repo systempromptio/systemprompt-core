@@ -3,12 +3,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_extension::cli::CliConfig;
 use crate::kernel::KernelHost;
-use systemprompt_extension::cli::Prompter;
-use systemprompt_extension::cli::CommandOutput;
 use anyhow::Result;
 use std::sync::Arc;
+use systemprompt_extension::cli::{CliConfig, CommandOutput, Prompter};
 use systemprompt_identifiers::{McpServerId, ServiceName};
 use systemprompt_loader::subprocess::StopOutcome;
 use systemprompt_logging::CliService;

@@ -11,10 +11,8 @@ use systemprompt_database::DbPool;
 use systemprompt_logging::CliService;
 use systemprompt_users::{UserAdminService, UserRepository, UserService};
 
-use systemprompt_extension::cli::CliConfig;
-use systemprompt_extension::cli::OutputFormat;
-use systemprompt_extension::cli::CommandOutput;
 use super::types::{SessionSummary, UserActivityOutput, UserDetailOutput};
+use systemprompt_extension::cli::{CliConfig, CommandOutput, OutputFormat};
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
@@ -28,7 +26,12 @@ pub struct ShowArgs {
 }
 
 pub(super) async fn execute(args: ShowArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    execute_with_pool(args, &systemprompt_database::pool_from_handle(host.db().await?)?, host.output()).await
+    execute_with_pool(
+        args,
+        &systemprompt_database::pool_from_handle(host.db().await?)?,
+        host.output(),
+    )
+    .await
 }
 
 pub(super) async fn execute_with_pool(

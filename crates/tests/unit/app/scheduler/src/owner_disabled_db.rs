@@ -29,7 +29,9 @@ async fn a_job_whose_member_is_not_admitted_is_refused_as_unregistered() {
         systemprompt_manifest::SchedulerConfig::with_system_admin(),
         schedule,
     );
-    let report = service.run_job(&JobName::new(MCP_JOB), &HashMap::new()).await;
+    let report = service
+        .run_job(&JobName::new(MCP_JOB), &HashMap::new())
+        .await;
 
     assert!(!report.success, "a job of a member left out must not run");
     let message = report.message.unwrap_or_default();
@@ -47,9 +49,15 @@ async fn the_same_job_runs_with_its_member_admitted() {
         systemprompt_manifest::SchedulerConfig::with_system_admin(),
         schedule,
     );
-    let report = service.run_job(&JobName::new(MCP_JOB), &HashMap::new()).await;
+    let report = service
+        .run_job(&JobName::new(MCP_JOB), &HashMap::new())
+        .await;
 
-    assert!(report.success, "an admitted member's job runs: {:?}", report.message);
+    assert!(
+        report.success,
+        "an admitted member's job runs: {:?}",
+        report.message
+    );
 }
 
 fn naming_the_mcp_job() -> SchedulerConfig {

@@ -15,8 +15,8 @@ pub mod templates;
 pub mod types;
 pub mod validate;
 
-use anyhow::Result;
 use crate::kernel::KernelHost;
+use anyhow::Result;
 use clap::Subcommand;
 
 use systemprompt_extension::cli::{CommandDescriptor, CommandOutput, DescribeCommand};

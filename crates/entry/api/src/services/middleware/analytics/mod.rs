@@ -23,13 +23,13 @@ use axum::middleware::Next;
 use axum::response::Response;
 use std::sync::Arc;
 
+use systemprompt_analytics::repository::AnalyticsRepositories;
 use systemprompt_extension::ExtensionContext as _;
 use systemprompt_identifiers::SessionId;
 use systemprompt_logging::AnalyticsRepository;
 use systemprompt_models::{RequestContext, RouteClassifier};
 use systemprompt_runtime::AppContext;
 use systemprompt_security::ScannerDetector;
-use systemprompt_analytics::repository::AnalyticsRepositories;
 use systemprompt_traits::{
     BackgroundTasks, DetectionSubject, DynContentCatalogStats, DynSessionBehaviourScorer,
     DynSessionStore,

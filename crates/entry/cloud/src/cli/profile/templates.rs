@@ -11,8 +11,8 @@ use anyhow::{Context, Result};
 use std::path::Path;
 use systemprompt_cloud::constants::container;
 use systemprompt_config::write_private_atomic;
-use systemprompt_identifiers::ProfileName;
 use systemprompt_extension::cli::ChildSupervisor;
+use systemprompt_identifiers::ProfileName;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 use systemprompt_models::CliPaths;
@@ -52,7 +52,11 @@ pub fn save_profile(profile: &Profile, profile_path: &Path) -> Result<()> {
         profile.display_name
     );
 
-    Ok(systemprompt_cloud::profile::save_profile_yaml(profile, profile_path, Some(&header))?)
+    Ok(systemprompt_cloud::profile::save_profile_yaml(
+        profile,
+        profile_path,
+        Some(&header),
+    )?)
 }
 
 pub fn save_dockerfile(path: &Path, profile_name: &ProfileName, project_root: &Path) -> Result<()> {
@@ -280,8 +284,7 @@ pub fn update_ai_config_default_provider(provider: &str) -> Result<()> {
 
     let mut document = systemprompt_config::read_catalog(&ai_dir)
         .with_context(|| format!("Failed to read {}", ai_dir.display()))?;
-    let Some(model) =
-        systemprompt_cloud::provider_catalog::first_model_on(&document, provider)
+    let Some(model) = systemprompt_cloud::provider_catalog::first_model_on(&document, provider)
     else {
         CliService::warning(&format!(
             "The catalog deploys no model on '{provider}'; gateway.default_model is unchanged"

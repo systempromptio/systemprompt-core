@@ -9,12 +9,13 @@
 //!
 //! [`DisposableDb::empty`] hands back an empty database; [`DisposableDb::
 //! with_schema`] hands back one with the core schema composition
-//! ([`crate::schema_admitted`]) installed, copied from a template installed once per schema fingerprint
-//! ([`crate::schema_template`]); [`DisposableDb::test_pool`] connects to it.
-//! All three panic on failure: a test that cannot get its database fails rather
-//! than skips (see [`crate::db`]). Each database is dropped by
-//! [`DisposableDb::drop_now`], and any a test never dropped is removed by a
-//! later run once its owner has exited ([`crate::orphans`]).
+//! ([`crate::schema_admitted`]) installed, copied from a template installed
+//! once per schema fingerprint ([`crate::schema_template`]);
+//! [`DisposableDb::test_pool`] connects to it. All three panic on failure: a
+//! test that cannot get its database fails rather than skips (see
+//! [`crate::db`]). Each database is dropped by [`DisposableDb::drop_now`], and
+//! any a test never dropped is removed by a later run once its owner has exited
+//! ([`crate::orphans`]).
 
 use anyhow::{Context, Result};
 use systemprompt_database::DbPool;

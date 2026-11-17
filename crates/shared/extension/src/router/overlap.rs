@@ -1,10 +1,10 @@
 //! Where admitted routes land and when two of them claim one request.
 //!
 //! A full path joins a base and a declared path; a gateway route set's defs
-//! are gateway-relative, so its full path joins the gateway base. Two handler defs overlap on
-//! the same method and full path; a service def ([`RouteMethod::Any`])
-//! overlaps every def whose full path its prefix covers, and another service
-//! whose prefix covers or is covered by its own.
+//! are gateway-relative, so its full path joins the gateway base. Two handler
+//! defs overlap on the same method and full path; a service def
+//! ([`RouteMethod::Any`]) overlaps every def whose full path its prefix covers,
+//! and another service whose prefix covers or is covered by its own.
 //!
 //! The kernel's own routes are claimed by [`RESERVED_PATHS`]: every route
 //! the kernel or a core member mounts lies under one entry, owned by the core
@@ -71,16 +71,18 @@ pub fn first_overlap<'a>(
     let mut seen: Vec<(&'a RouteMethod, String)> = Vec::new();
     for (base, def) in defs {
         let path = full_path(base, def.path.as_str());
-        let clash = seen.iter().any(|(method, earlier)| match (*method, &def.method) {
-            (RouteMethod::One(_), RouteMethod::One(_)) => {
-                **method == def.method && *earlier == path
-            },
-            (RouteMethod::Any, RouteMethod::One(_)) => path_covers(earlier, &path),
-            (RouteMethod::One(_), RouteMethod::Any) => path_covers(&path, earlier),
-            (RouteMethod::Any, RouteMethod::Any) => {
-                path_covers(earlier, &path) || path_covers(&path, earlier)
-            },
-        });
+        let clash = seen
+            .iter()
+            .any(|(method, earlier)| match (*method, &def.method) {
+                (RouteMethod::One(_), RouteMethod::One(_)) => {
+                    **method == def.method && *earlier == path
+                },
+                (RouteMethod::Any, RouteMethod::One(_)) => path_covers(earlier, &path),
+                (RouteMethod::One(_), RouteMethod::Any) => path_covers(&path, earlier),
+                (RouteMethod::Any, RouteMethod::Any) => {
+                    path_covers(earlier, &path) || path_covers(&path, earlier)
+                },
+            });
         if clash {
             return Some(RouteOverlap {
                 method: def.method.clone(),
@@ -215,14 +217,8 @@ pub(super) fn reserved_holding(path: &str) -> Option<&'static ReservedPath> {
 /// Why a gateway route def is refused at the gateway path its set claims.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GatewayDefRefusal {
-    UnderBuiltin {
-        path: String,
-        builtin: &'static str,
-    },
-    OutsideClaim {
-        path: String,
-        claimed: &'static str,
-    },
+    UnderBuiltin { path: String, builtin: &'static str },
+    OutsideClaim { path: String, claimed: &'static str },
 }
 
 #[must_use]

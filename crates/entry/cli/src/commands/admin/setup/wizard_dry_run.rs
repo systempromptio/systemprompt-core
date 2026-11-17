@@ -3,9 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_extension::cli::CliConfig;
-use systemprompt_extension::cli::CommandOutput;
 use std::path::Path;
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 use systemprompt_logging::CliService;
 
 use super::types::{DatabaseSetupInfo, SecretsConfiguredInfo, SetupOutput};

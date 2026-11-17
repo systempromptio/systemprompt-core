@@ -12,8 +12,8 @@
 use clap::{ArgMatches, Command, CommandFactory, FromArgMatches, Parser, Subcommand};
 
 use crate::commands::{admin, core, infrastructure, plugins, web};
-use systemprompt_extension::cli::{CommandDescriptor, DescribeCommand};
 use crate::kernel::{CommandRegistry, RegistryError};
+use systemprompt_extension::cli::{CommandDescriptor, DescribeCommand};
 
 #[derive(Debug, Clone, Copy, clap::Args)]
 pub struct VerbosityOpts {

@@ -35,8 +35,9 @@ async fn full_router(disabled: &[ExtensionId]) -> anyhow::Result<Router> {
     let bootstrap = ensure_test_bootstrap();
     let mut config = fixture_config(&bootstrap.database_url);
     config.trusted_proxies = Vec::new();
-    let ctx = fixture_app_context_with_extensions(config, super::common::reference_admitted(disabled)?)
-        .await?;
+    let ctx =
+        fixture_app_context_with_extensions(config, super::common::reference_admitted(disabled)?)
+            .await?;
     setup_api_server(&ctx)
 }
 

@@ -24,10 +24,11 @@
 //! subscribes on every user's stream. Every other seed is open.
 //!
 //! The process's one `AiService` (present only when inference is configured)
-//! is composed from several domains, so the composition root seeds it; an extension router reads them from
-//! [`ExtensionContext::extension_state`] and an absent `AiService` is a typed
-//! `MissingDependency`, never a fallback service. An absent `AiService` is
-//! still reserved for the kernel, so no extension can `provide` its own.
+//! is composed from several domains, so the composition root seeds it; an
+//! extension router reads them from [`ExtensionContext::extension_state`] and
+//! an absent `AiService` is a typed `MissingDependency`, never a fallback
+//! service. An absent `AiService` is still reserved for the kernel, so no
+//! extension can `provide` its own.
 //!
 //! The messaging dispatcher slot (`LateBound<dyn MessagingDispatcher>`) is
 //! seeded unbound: the dispatcher needs the API's agent proxy, which exists

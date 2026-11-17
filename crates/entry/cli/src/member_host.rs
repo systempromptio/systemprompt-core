@@ -8,8 +8,8 @@ use std::sync::Arc;
 
 use systemprompt_extension::Resolved;
 use systemprompt_extension::cli::{
-    BoxFuture, ChildSupervisor, CliConfig, CommandDescriptor, CommandError, CommandHost,
-    AdmittedViews, CommandOutput, DescribedCommand, KernelGrant, Prompter,
+    AdmittedViews, BoxFuture, ChildSupervisor, CliConfig, CommandDescriptor, CommandError,
+    CommandHost, CommandOutput, DescribedCommand, KernelGrant, Prompter,
 };
 use systemprompt_manifest::{Config, Profile};
 use systemprompt_runtime::Kernel;

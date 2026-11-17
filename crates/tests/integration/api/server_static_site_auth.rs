@@ -112,9 +112,17 @@ async fn a_fallback_page_under_a_protected_prefix_redirects_to_login() -> anyhow
 async fn a_public_page_and_an_unmatched_api_path_are_not_gated() -> anyhow::Result<()> {
     let router = full_router(true).await?;
     let page = get(&router, &format!("/{PAGE}")).await;
-    assert_eq!(page.status(), StatusCode::OK, "a page outside /admin is served");
+    assert_eq!(
+        page.status(),
+        StatusCode::OK,
+        "a page outside /admin is served"
+    );
     let api = get(&router, "/api/v1/nope").await;
-    assert_eq!(api.status(), StatusCode::NOT_FOUND, "an unmatched API path is the JSON 404");
+    assert_eq!(
+        api.status(),
+        StatusCode::NOT_FOUND,
+        "an unmatched API path is the JSON 404"
+    );
     assert!(
         api.headers()
             .get(header::CONTENT_TYPE)

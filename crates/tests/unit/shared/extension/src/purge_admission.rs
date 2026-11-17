@@ -24,11 +24,7 @@ fn table(name: &'static str) -> PurgeDeclaration {
 }
 
 fn admit(
-    members: &[(
-        &ExtensionId,
-        &[SchemaDefinition],
-        &[PurgeDeclaration],
-    )],
+    members: &[(&ExtensionId, &[SchemaDefinition], &[PurgeDeclaration])],
 ) -> Result<AdmittedPurge, PurgeAdmissionError> {
     let claims: Vec<PurgeClaim<'_>> = members
         .iter()
@@ -49,11 +45,7 @@ fn an_install_declaring_another_members_table_is_refused() {
     let install_schemas = schemas(&["acme_notes"]);
     let refused = admit(&[
         (&users, &users_schemas, &[]),
-        (
-            &install,
-            &install_schemas,
-            &[table("users")],
-        ),
+        (&install, &install_schemas, &[table("users")]),
     ]);
     assert_eq!(
         refused.unwrap_err(),
@@ -65,11 +57,7 @@ fn an_install_declaring_another_members_table_is_refused() {
 
     let admitted = admit(&[
         (&users, &users_schemas, &[]),
-        (
-            &install,
-            &install_schemas,
-            &[table("acme_notes")],
-        ),
+        (&install, &install_schemas, &[table("acme_notes")]),
     ])
     .expect("an install purging its own table is admitted");
     assert_eq!(admitted.entries().len(), 1);
@@ -81,11 +69,7 @@ fn an_install_declaring_another_members_table_is_refused() {
 fn a_table_no_member_declares_is_refused_even_for_a_core_member() {
     let users = ExtensionId::new("users");
     let users_schemas = schemas(&["users"]);
-    let refused = admit(&[(
-        &users,
-        &users_schemas,
-        &[table("oauth_clients")],
-    )]);
+    let refused = admit(&[(&users, &users_schemas, &[table("oauth_clients")])]);
     assert!(matches!(
         refused,
         Err(PurgeAdmissionError::ForeignTable { table, .. }) if table == "oauth_clients"
@@ -101,29 +85,17 @@ fn neither_a_core_peer_nor_an_install_may_purge_a_core_members_table() {
     let mcp_schemas = schemas(&["mcp_artifacts"]);
     let install_schemas = schemas(&["acme_notes"]);
     let core_reach = admit(&[
-        (
-            &users,
-            &users_schemas,
-            &[table("mcp_artifacts")],
-        ),
+        (&users, &users_schemas, &[table("mcp_artifacts")]),
         (&mcp, &mcp_schemas, &[]),
     ]);
     assert!(
         matches!(core_reach, Err(PurgeAdmissionError::ForeignTable { member, .. }) if member == users)
     );
-    admit(&[(
-        &mcp,
-        &mcp_schemas,
-        &[table("mcp_artifacts")],
-    )])
-    .expect("the owner purges its own table");
+    admit(&[(&mcp, &mcp_schemas, &[table("mcp_artifacts")])])
+        .expect("the owner purges its own table");
     let refused = admit(&[
         (&mcp, &mcp_schemas, &[]),
-        (
-            &install,
-            &install_schemas,
-            &[table("mcp_artifacts")],
-        ),
+        (&install, &install_schemas, &[table("mcp_artifacts")]),
     ]);
     assert!(
         matches!(refused, Err(PurgeAdmissionError::ForeignTable { member, .. }) if member == install)
@@ -137,11 +109,7 @@ fn a_core_member_may_not_reach_an_install_members_table() {
     let users_schemas = schemas(&["users"]);
     let install_schemas = schemas(&["acme_notes"]);
     let refused = admit(&[
-        (
-            &users,
-            &users_schemas,
-            &[table("acme_notes")],
-        ),
+        (&users, &users_schemas, &[table("acme_notes")]),
         (&install, &install_schemas, &[]),
     ]);
     assert!(
@@ -166,22 +134,14 @@ fn an_orphan_sweep_reading_a_foreign_referrer_is_refused() {
     };
     let refused = admit(&[
         (&users, &users_schemas, &[]),
-        (
-            &install,
-            &install_schemas,
-            &[sweep("users")],
-        ),
+        (&install, &install_schemas, &[sweep("users")]),
     ]);
     assert!(matches!(
         refused,
         Err(PurgeAdmissionError::ForeignTable { table, .. }) if table == "users"
     ));
-    admit(&[(
-        &install,
-        &install_schemas,
-        &[sweep("acme_refs")],
-    )])
-    .expect("a sweep over its own tables is admitted");
+    admit(&[(&install, &install_schemas, &[sweep("acme_refs")])])
+        .expect("a sweep over its own tables is admitted");
 }
 
 #[test]
@@ -223,8 +183,7 @@ fn an_empty_predicate_is_refused() {
             any_of: &["user"],
         }),
     });
-    admit(&[(&install, &owned, &[narrowed])])
-        .expect("a predicate with values is admitted");
+    admit(&[(&install, &owned, &[narrowed])]).expect("a predicate with values is admitted");
 }
 
 #[test]

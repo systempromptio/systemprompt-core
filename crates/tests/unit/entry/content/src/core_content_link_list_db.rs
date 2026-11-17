@@ -120,7 +120,6 @@ async fn list(
 // back the whole table rather than the caller's own links.
 #[tokio::test]
 async fn listing_without_a_filter_is_refused_rather_than_listing_everything() {
-
     let err = execute(
         ListArgs {
             campaign: None,

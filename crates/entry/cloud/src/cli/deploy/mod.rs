@@ -35,8 +35,8 @@ use systemprompt_cloud::{
     CloudApiClient, CloudError, CloudPath, DockerCli, SystemCommandRunner, TenantStore,
     get_cloud_paths,
 };
-use systemprompt_identifiers::{ProfileName, TenantId};
 use systemprompt_extension::cli::ChildSupervisor;
+use systemprompt_identifiers::{ProfileName, TenantId};
 use systemprompt_logging::CliService;
 use systemprompt_manifest::profile::CloudConfig;
 
@@ -75,7 +75,8 @@ async fn preflight(
 
     let views = host.admitted_views(&profile.path)?;
     let report =
-        super::doctor::run_managed(&profile.managed, profile.profile_dir(), false, Ok(&views)).await;
+        super::doctor::run_managed(&profile.managed, profile.profile_dir(), false, Ok(&views))
+            .await;
     report.render();
     if report.has_blocking() {
         bail!("Deploy preflight failed — fix the items above before deploying.");
@@ -90,10 +91,7 @@ async fn preflight(
     Ok(Some((profile, views)))
 }
 
-pub(super) async fn execute(
-    args: DeployArgs,
-    host: &dyn CommandHost,
-) -> Result<()> {
+pub(super) async fn execute(args: DeployArgs, host: &dyn CommandHost) -> Result<()> {
     let children = host.children();
     let Some((profile, views)) = preflight(&args, host).await? else {
         return Ok(());

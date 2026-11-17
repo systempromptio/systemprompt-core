@@ -19,8 +19,8 @@ use systemprompt_security::keys::RsaSigningKey;
 use systemprompt_test_fixtures::{
     TEST_TEAMS_APP_ID, TEST_TEAMS_TENANT_ID, TEST_TEAMS_UNRESOLVABLE_APP_ID,
     TEST_TEAMS_UNRESOLVABLE_TENANT_ID, agent_reply_response_json, ensure_messaging_bootstrap,
-    init_services_bootstrap, messaging_config_yaml_with_teams_endpoints, seed_agent_backend,
-    eventually, settle_background, test_app_context_on,
+    eventually, init_services_bootstrap, messaging_config_yaml_with_teams_endpoints,
+    seed_agent_backend, settle_background, test_app_context_on,
 };
 use systemprompt_traits::DrainOutcome;
 use tower::ServiceExt;
@@ -320,12 +320,16 @@ async fn wait_for_activity(
     server: &MockServer,
 ) -> Vec<u8> {
     let suffix = format!("/v3/conversations/{CONVERSATION_ID}/activities");
-    eventually("the reply task posts to the Bot Connector", Duration::from_secs(120), || async {
-        server
-            .received_requests()
-            .await
-            .is_some_and(|reqs| reqs.iter().any(|r| r.url.path() == suffix))
-    })
+    eventually(
+        "the reply task posts to the Bot Connector",
+        Duration::from_secs(120),
+        || async {
+            server
+                .received_requests()
+                .await
+                .is_some_and(|reqs| reqs.iter().any(|r| r.url.path() == suffix))
+        },
+    )
     .await;
     assert_eq!(
         settle_background(ctx.background_tasks(), baseline, Duration::from_secs(120)).await,

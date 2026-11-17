@@ -29,15 +29,15 @@ use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 
 use super::context::CliSessionContext;
-use systemprompt_extension::cli::{OutputFormat, VerbosityLevel};
 use crate::env_overrides::EnvOverrides;
-use systemprompt_config::SecretsSources;
 use context_resolver::{
     create_new_session, extract_profile_name, resolve_profile_path_from_session,
     resolve_profile_path_without_session, try_session_from_env, try_validate_context,
 };
 use systemprompt_cloud::paths::ResolvedPaths;
 use systemprompt_cloud::profile::ProfileSource;
+use systemprompt_config::SecretsSources;
+use systemprompt_extension::cli::{OutputFormat, VerbosityLevel};
 
 #[derive(Debug)]
 pub struct ProfileContext<'a> {
@@ -84,7 +84,10 @@ async fn boot_for_profile(profile_path: &Path, ctx: &SessionHost<'_>) -> Result<
     {
         return Ok(BootContext::clone(boot));
     }
-    Ok(systemprompt_loader::load_boot::load_boot_from_path(profile_path, ctx.secrets.clone()).await?)
+    Ok(
+        systemprompt_loader::load_boot::load_boot_from_path(profile_path, ctx.secrets.clone())
+            .await?,
+    )
 }
 
 async fn get_session_for_loaded_profile(
@@ -166,9 +169,7 @@ pub fn record_new_session(
     }
 }
 
-async fn try_session_from_active_key(
-    ctx: &SessionHost<'_>,
-) -> Result<Option<CliSessionContext>> {
+async fn try_session_from_active_key(ctx: &SessionHost<'_>) -> Result<Option<CliSessionContext>> {
     let paths = ResolvedPaths::discover();
     let sessions_dir = paths.sessions_dir();
     let store = SessionStore::load_or_create(&sessions_dir)?;

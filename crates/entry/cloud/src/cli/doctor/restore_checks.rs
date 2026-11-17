@@ -107,7 +107,10 @@ pub(super) async fn check_schema_not_ahead(
     let migrations = MigrationService::new(&db);
     let mut ahead = Vec::new();
     for (metadata, list) in admitted.members() {
-        match migrations.status_of(&ExtensionId::new(metadata.id), list).await {
+        match migrations
+            .status_of(&ExtensionId::new(metadata.id), list)
+            .await
+        {
             Ok(status) if !status.ahead.is_empty() => {
                 ahead.push((status.extension_id.as_str().to_owned(), status.ahead));
             },

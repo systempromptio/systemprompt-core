@@ -11,8 +11,8 @@ pub mod jobs;
 pub mod roles;
 pub mod schemas;
 
-use clap::{Args, Subcommand};
 use crate::kernel::KernelHost;
+use clap::{Args, Subcommand};
 use systemprompt_extension::cli::{CommandError, CommandOutput};
 
 use super::composition;

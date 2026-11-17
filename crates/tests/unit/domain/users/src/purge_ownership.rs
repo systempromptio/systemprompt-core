@@ -111,7 +111,10 @@ fn within_a_member_children_keep_their_order_relative_to_parents() {
 
 #[test]
 fn a_composition_without_an_owning_member_admits_its_purge_plan() {
-    assert!(!full_plan().entries().is_empty(), "control: the full plan admits");
+    assert!(
+        !full_plan().entries().is_empty(),
+        "control: the full plan admits"
+    );
     for (owner, tables) in OWNED.iter().filter(|(owner, _)| *owner != "users") {
         let admitted = fixture_admitted_without(&[ExtensionId::new(*owner)]);
         let plan = AdmittedPurge::of(admitted.built())

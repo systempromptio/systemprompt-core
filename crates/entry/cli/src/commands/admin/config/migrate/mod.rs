@@ -47,8 +47,8 @@ use std::path::PathBuf;
 use anyhow::{Result, bail};
 use clap::Args;
 
-use systemprompt_extension::cli::CommandOutput;
 use super::types::ConfigMutationOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 pub use plan::{MigrationPlan, legacy_files, plan};
 
@@ -212,7 +212,10 @@ async fn execute_services(args: &MigrateArgs, host: &dyn KernelHost) -> Result<C
             let written = write::apply(
                 &services,
                 &plan,
-                &crate::commands::admin::state::get::<crate::runner::interrupt::InterruptShield>(host).await?,
+                &crate::commands::admin::state::get::<crate::runner::interrupt::InterruptShield>(
+                    host,
+                )
+                .await?,
             )?;
             steps.push("catalog", describe(&plan, &written));
         },
@@ -230,7 +233,11 @@ async fn execute_services(args: &MigrateArgs, host: &dyn KernelHost) -> Result<C
     }
     if args.data {
         let map = data::read_map(&services)?;
-        let report = data::apply_with(&systemprompt_database::pool_from_handle(host.db().await?)?, &map).await?;
+        let report = data::apply_with(
+            &systemprompt_database::pool_from_handle(host.db().await?)?,
+            &map,
+        )
+        .await?;
         steps.push(
             "catalog_data",
             format!(

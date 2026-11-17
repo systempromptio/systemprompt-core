@@ -22,7 +22,9 @@ async fn disabled_brain_composes_nothing() {
 
 #[tokio::test]
 async fn enabled_brain_composes_a_handle_whose_sink_reaches_the_outbox() {
-    let handle = handle_for(true).await.expect("an enabled brain composes a handle");
+    let handle = handle_for(true)
+        .await
+        .expect("an enabled brain composes a handle");
 
     assert!(handle.sink().is_available());
 }

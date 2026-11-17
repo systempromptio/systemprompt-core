@@ -7,9 +7,9 @@ use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use clap::Args;
 
-use systemprompt_extension::cli::CommandOutput;
 use super::types::{AgentStatusOutput, AgentStatusRow};
 use systemprompt_agent::services::agent_orchestration::AgentStatus;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct StatusArgs {

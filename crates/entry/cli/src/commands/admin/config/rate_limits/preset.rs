@@ -3,17 +3,16 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::commands::admin::config::restart_note;
 use crate::kernel::KernelHost;
 use anyhow::{Result, bail};
-use crate::commands::admin::config::restart_note;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::profile::RateLimitsConfig;
 
-use systemprompt_extension::cli::{Prompter, require_confirmation};
-use systemprompt_extension::cli::CommandOutput;
-use super::profile_edit::{collect_endpoint_changes, load_profile_for_edit, save_profile};
 use super::super::profile_io::profile_path;
+use super::profile_edit::{collect_endpoint_changes, load_profile_for_edit, save_profile};
 use super::{PresetApplyArgs, PresetCommands, PresetShowArgs};
+use systemprompt_extension::cli::{CommandOutput, Prompter, require_confirmation};
 
 use super::super::types::{
     PresetApplyOutput, PresetInfo, PresetListOutput, PresetShowOutput, RateLimitsOutput,

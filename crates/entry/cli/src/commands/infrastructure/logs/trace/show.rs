@@ -132,7 +132,13 @@ async fn execute_trace_view(
         step: &step_summary,
     };
     if args.json {
-        return Ok(build_json(&events, &trace_id, &ai_summary, &mcp_summary, &step_summary));
+        return Ok(build_json(
+            &events,
+            &trace_id,
+            &ai_summary,
+            &mcp_summary,
+            &step_summary,
+        ));
     }
     if machine_output {
         let output = build_trace_output(
@@ -170,7 +176,11 @@ fn push_empty_trace(
     mcp_summary: &systemprompt_runtime::McpExecutionSummary,
 ) {
     if ai_summary.request_count == 0 && mcp_summary.execution_count == 0 {
-        line(out, "warning", format!("No events found for trace: {trace_id}"));
+        line(
+            out,
+            "warning",
+            format!("No events found for trace: {trace_id}"),
+        );
         line(
             out,
             "info",
@@ -182,7 +192,11 @@ fn push_empty_trace(
     line(out, "info", format!("Trace: {trace_id}"));
     line(out, "info", "No log events found, but trace has activity:");
     if ai_summary.request_count > 0 {
-        line(out, "info", format!("AI Requests: {}", ai_summary.request_count));
+        line(
+            out,
+            "info",
+            format!("AI Requests: {}", ai_summary.request_count),
+        );
         line(
             out,
             "info",
@@ -195,7 +209,11 @@ fn push_empty_trace(
         line(out, "info", format!("Cost: ${cost_dollars:.6}"));
     }
     if mcp_summary.execution_count > 0 {
-        line(out, "info", format!("MCP Calls: {}", mcp_summary.execution_count));
+        line(
+            out,
+            "info",
+            format!("MCP Calls: {}", mcp_summary.execution_count),
+        );
     }
     line(
         out,

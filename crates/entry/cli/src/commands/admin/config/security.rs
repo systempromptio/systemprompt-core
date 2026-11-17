@@ -7,17 +7,17 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use super::changes_output;
 use crate::commands::admin::config::restart_note;
+use crate::kernel::KernelHost;
 use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
 use systemprompt_config::{SecurityChange, SecurityConfigService, SecurityUpdate};
 use systemprompt_manifest::profile::TrustedIssuer;
 
-use systemprompt_extension::cli::CommandOutput;
 use super::profile_io::{load_profile, profile_path, save_profile};
 use super::types::{SecurityConfigOutput, SecuritySetOutput};
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum SecurityCommands {
@@ -125,7 +125,10 @@ pub(super) fn execute_set(args: &SetArgs, host: &dyn KernelHost) -> Result<Comma
     Ok(render_changes(&changes))
 }
 
-fn execute_trusted_issuer(command: &TrustedIssuerCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
+fn execute_trusted_issuer(
+    command: &TrustedIssuerCommands,
+    host: &dyn KernelHost,
+) -> Result<CommandOutput> {
     let profile_path = profile_path(host)?;
     let mut profile = load_profile(profile_path)?;
 

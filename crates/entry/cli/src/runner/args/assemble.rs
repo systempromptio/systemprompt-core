@@ -15,9 +15,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::Cli;
-use systemprompt_extension::cli::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
-use systemprompt_extension::cli::CommandDescriptor;
 use crate::env_overrides::EnvOverrides;
+use systemprompt_extension::cli::{
+    CliConfig, ColorMode, CommandDescriptor, OutputFormat, VerbosityLevel,
+};
 
 pub fn build_cli_config(cli: &Cli, env: &EnvOverrides) -> CliConfig {
     let mut cfg = env.cli_config();

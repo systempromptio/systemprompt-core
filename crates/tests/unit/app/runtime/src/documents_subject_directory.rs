@@ -5,11 +5,10 @@ use systemprompt_database::DbPool;
 use systemprompt_extension::notifications::{
     Membership, NotificationAudienceError, NotificationAudienceResolver,
 };
-use systemprompt_files::documents::SubjectDirectory;
-use systemprompt_identifiers::UserId;
-use systemprompt_models::notifications::AudienceSubject;
 use systemprompt_extension::{AudienceEntry, AudienceResolvers, StandingTag};
-use systemprompt_identifiers::ExtensionId;
+use systemprompt_files::documents::SubjectDirectory;
+use systemprompt_identifiers::{ExtensionId, UserId};
+use systemprompt_models::notifications::AudienceSubject;
 use systemprompt_runtime::documents::UserSubjectDirectory;
 use systemprompt_users::UserRepository;
 use uuid::Uuid;

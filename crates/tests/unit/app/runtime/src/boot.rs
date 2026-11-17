@@ -353,5 +353,3 @@ pub(crate) fn core_admit() -> systemprompt_runtime::AdmitFn {
             .map_err(|e| -> systemprompt_traits::BoxedSource { Box::new(e) })
     })
 }
-
-

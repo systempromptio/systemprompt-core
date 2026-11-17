@@ -7,9 +7,8 @@ use crate::kernel::KernelHost;
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
 
-use systemprompt_extension::cli::CommandOutput;
 use super::types::AgentDetailOutput;
-use systemprompt_extension::cli::resolve_required;
+use systemprompt_extension::cli::{CommandOutput, resolve_required};
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {

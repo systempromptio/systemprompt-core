@@ -31,10 +31,10 @@ use clap::Args;
 use super::types::{ConfigFileInfo, ConfigSection, ConfigValidateOutput};
 use super::validate_jobs::scheduler_catalog_error;
 pub use super::validate_jobs::{unknown_jobs_message, unlisted_jobs_message};
-use systemprompt_extension::cli::CommandOutput;
 use systemprompt_config::LoadedProfile;
 use systemprompt_config::yaml_document::read_yaml_file;
 use systemprompt_extension::AdmittedSchedule;
+use systemprompt_extension::cli::CommandOutput;
 use systemprompt_manifest::profile::Profile;
 
 #[derive(Debug, Clone, Args)]
@@ -53,10 +53,7 @@ pub struct ValidateArgs {
     pub schema: bool,
 }
 
-pub async fn execute(
-    args: &ValidateArgs,
-    host: &dyn KernelHost,
-) -> Result<(CommandOutput, bool)> {
+pub async fn execute(args: &ValidateArgs, host: &dyn KernelHost) -> Result<(CommandOutput, bool)> {
     if args.schema {
         return print_profile_schema();
     }

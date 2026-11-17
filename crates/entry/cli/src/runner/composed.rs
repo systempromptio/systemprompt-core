@@ -40,7 +40,9 @@ pub enum CliRunError {
         path: Vec<&'static str>,
         owner: ExtensionId,
     },
-    #[error("command {path:?} belongs to a member and requires a profile; it cannot run with --database-url alone")]
+    #[error(
+        "command {path:?} belongs to a member and requires a profile; it cannot run with --database-url alone"
+    )]
     ProfileRequired { path: Vec<&'static str> },
     #[error("command registry")]
     Registry(#[from] RegistryError),

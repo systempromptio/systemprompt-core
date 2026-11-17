@@ -14,8 +14,7 @@ use super::common::{
 async fn record_event_resolves_content_via_routing() -> anyhow::Result<()> {
     let (db, ctx) = setup_ctx().await?;
     let (_slug, page_url) = seed_content(&db).await?;
-    let app = analytics_router(&ctx)
-        .layer(Extension(request_context("user_an_more")));
+    let app = analytics_router(&ctx).layer(Extension(request_context("user_an_more")));
 
     let body = serde_json::json!({ "event_type": "page_view", "page_url": page_url });
     let resp = app.oneshot(json_post("/events", body)).await?;
@@ -31,8 +30,7 @@ async fn record_event_resolves_content_via_routing() -> anyhow::Result<()> {
 async fn record_event_with_explicit_slug_skips_routing() -> anyhow::Result<()> {
     let (db, ctx) = setup_ctx().await?;
     let (slug, _page_url) = seed_content(&db).await?;
-    let app =
-        analytics_router(&ctx).layer(Extension(request_context("user_an_more")));
+    let app = analytics_router(&ctx).layer(Extension(request_context("user_an_more")));
 
     let body = serde_json::json!({
         "event_type": "page_view",
@@ -52,8 +50,7 @@ async fn record_event_with_explicit_slug_skips_routing() -> anyhow::Result<()> {
 async fn page_exit_fanout_resolves_content_via_routing() -> anyhow::Result<()> {
     let (db, ctx) = setup_ctx().await?;
     let (_slug, page_url) = seed_content(&db).await?;
-    let app = analytics_router(&ctx)
-        .layer(Extension(request_context("user_an_more")));
+    let app = analytics_router(&ctx).layer(Extension(request_context("user_an_more")));
 
     let body = serde_json::json!({
         "event_type": "page_exit",
@@ -81,8 +78,7 @@ async fn page_exit_fanout_resolves_content_via_routing() -> anyhow::Result<()> {
 async fn batch_resolves_content_via_routing() -> anyhow::Result<()> {
     let (db, ctx) = setup_ctx().await?;
     let (_slug, page_url) = seed_content(&db).await?;
-    let app = analytics_router(&ctx)
-        .layer(Extension(request_context("user_an_more")));
+    let app = analytics_router(&ctx).layer(Extension(request_context("user_an_more")));
 
     let body = serde_json::json!({
         "events": [
@@ -107,8 +103,7 @@ async fn batch_resolves_content_via_routing() -> anyhow::Result<()> {
 async fn engagement_resolves_content_and_marks_conversion() -> anyhow::Result<()> {
     let (db, ctx) = setup_ctx().await?;
     let (_slug, page_url) = seed_content(&db).await?;
-    let app = engagement_router(&ctx)
-        .layer(Extension(request_context("user_en_more")));
+    let app = engagement_router(&ctx).layer(Extension(request_context("user_en_more")));
 
     let body = serde_json::json!({
         "page_url": page_url,
@@ -130,8 +125,7 @@ async fn engagement_resolves_content_and_marks_conversion() -> anyhow::Result<()
 async fn engagement_batch_resolves_and_marks_conversion() -> anyhow::Result<()> {
     let (db, ctx) = setup_ctx().await?;
     let (_slug, page_url) = seed_content(&db).await?;
-    let app = engagement_router(&ctx)
-        .layer(Extension(request_context("user_en_more")));
+    let app = engagement_router(&ctx).layer(Extension(request_context("user_en_more")));
 
     let body = serde_json::json!({
         "events": [

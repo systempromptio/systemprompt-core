@@ -29,8 +29,8 @@ pub mod staging;
 pub mod validate;
 pub mod versions;
 
-use anyhow::Result;
 use crate::kernel::KernelHost;
+use anyhow::Result;
 use clap::Subcommand;
 
 use systemprompt_extension::cli::CommandOutput;

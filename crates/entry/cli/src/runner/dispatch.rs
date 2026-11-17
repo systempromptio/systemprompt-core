@@ -21,8 +21,8 @@ use systemprompt_extension::cli::{
     CommandDescriptor, CommandError, CommandHost, DbUrlRouting, DescribeCommand,
 };
 
-use crate::member_host::MemberHost;
 use crate::kernel::{CommandRegistry, KernelHost, ResolveError, ResolvedCommand};
+use crate::member_host::MemberHost;
 
 pub(super) struct Invocation {
     pub(super) cli: args::Cli,

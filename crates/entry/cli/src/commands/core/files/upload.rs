@@ -38,8 +38,7 @@ pub struct UploadArgs {
 }
 
 pub async fn execute(args: UploadArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let app = app_context(host)
-        .await?;
+    let app = app_context(host).await?;
     let service = FileUploadService::new(
         (**app.file_repository()).clone(),
         (**app.files_config()).clone(),

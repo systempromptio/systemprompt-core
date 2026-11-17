@@ -57,9 +57,9 @@ use super::registry::{PolicyCatalog, PolicyConfigurationError};
 use super::secrets::SecretScanner;
 use crate::authz::types::Decision;
 use crate::policy::{GovernancePolicy, GovernedInput, PolicyContext, SecretFinding};
+use instantiate::{instantiate, reject_toothless_enforcement, reject_uncounted_rate_window};
 use systemprompt_manifest::EnforcementMode;
 use systemprompt_manifest::profile::UnappliedPlaneMode;
-use instantiate::{instantiate, reject_toothless_enforcement, reject_uncounted_rate_window};
 use unapplied::plane_applied;
 
 /// The outcome of one traced chain run: the first-deny-wins [`Decision`] and

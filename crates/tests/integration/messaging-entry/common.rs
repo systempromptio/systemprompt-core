@@ -10,7 +10,9 @@ pub async fn body_to_string(resp: Response<Body>) -> Result<(StatusCode, String)
 }
 
 pub fn messaging_admitted() -> std::sync::Arc<systemprompt_extension::Admitted> {
-    let profile = systemprompt_test_fixtures::ensure_messaging_bootstrap().boot.profile();
+    let profile = systemprompt_test_fixtures::ensure_messaging_bootstrap()
+        .boot
+        .profile();
     std::sync::Arc::new(
         systemprompt::reference()
             .build(profile)

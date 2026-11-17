@@ -7,10 +7,9 @@ use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use std::fs;
 
-use systemprompt_extension::cli::CliConfig;
-use systemprompt_extension::cli::{Prompter, require_confirmation};
-use systemprompt_extension::cli::resolve_required;
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_extension::cli::{
+    CliConfig, CommandOutput, Prompter, require_confirmation, resolve_required,
+};
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 use systemprompt_models::content_config::ContentConfigRaw;

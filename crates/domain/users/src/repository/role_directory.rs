@@ -13,10 +13,10 @@ use async_trait::async_trait;
 use sqlx::PgPool;
 use systemprompt_governance::authz::{AuthzError, RoleDirectory, SharedRoleDirectory};
 use systemprompt_identifiers::UserId;
+use systemprompt_provider_contracts::governance::RuleType;
 use systemprompt_traits::authz::{
     ROLE_PRECEDENCE, SubjectAttributeError, SubjectAttributeProvider, SubjectDimension,
 };
-use systemprompt_provider_contracts::governance::RuleType;
 
 #[derive(Debug)]
 pub struct UsersRoleDirectory {

@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
+use systemprompt_brain::BrainHandle;
 use systemprompt_extension::DynNotificationSink;
 use systemprompt_extension::brain::{BrainModelClient, BrainModelError};
 use systemprompt_manifest::profile::BrainProfile;
 use systemprompt_models::brain::{BrainModelRequest, BrainModelResponse};
-use systemprompt_brain::BrainHandle;
 use systemprompt_runtime::brain::mcp::BrainMcpTools;
 use systemprompt_runtime::documents::NotificationsUnavailableSink;
 use systemprompt_test_fixtures::fixture_brain;

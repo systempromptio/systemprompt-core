@@ -6,7 +6,7 @@
 
 #[cfg(test)]
 mod expansion {
-    use systemprompt::extension::router::{IntoApiError, __IntoResponse};
+    use systemprompt::extension::router::{__IntoResponse, IntoApiError};
     use systemprompt::models::ApiError;
 
     struct ProbeError;

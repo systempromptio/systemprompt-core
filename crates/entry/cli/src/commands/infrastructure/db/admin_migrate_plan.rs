@@ -13,8 +13,8 @@ use anyhow::{Context, Result};
 use systemprompt_database::MigrationService;
 use systemprompt_database::services::DatabaseProvider;
 use systemprompt_extension::BuiltState;
-use systemprompt_identifiers::ExtensionId;
 use systemprompt_extension::cli::CommandError;
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_models::artifacts::NoticeLine;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 

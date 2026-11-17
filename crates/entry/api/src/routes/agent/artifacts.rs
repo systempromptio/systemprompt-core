@@ -16,8 +16,8 @@ use axum::{Extension, Json};
 use serde::Deserialize;
 use std::sync::Arc;
 
-use systemprompt_identifiers::{ArtifactId, TaskId};
 use systemprompt_extension::{ExtensionContext as _, MissingDependency};
+use systemprompt_identifiers::{ArtifactId, TaskId};
 use systemprompt_mcp::McpDomainError;
 use systemprompt_mcp::services::ui_renderer::registry::resolve_artifact_type;
 use systemprompt_mcp::services::ui_renderer::{MCP_APP_MIME_TYPE, UiRendererRegistry};

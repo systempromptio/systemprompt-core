@@ -10,8 +10,8 @@ use anyhow::Result;
 use systemprompt_database::DbPool;
 use systemprompt_governance::authz::render_current_rules;
 
-use systemprompt_extension::cli::CommandOutput;
 use super::ExportYamlArgs;
+use systemprompt_extension::cli::CommandOutput;
 
 pub(super) async fn run(_args: ExportYamlArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let pool = systemprompt_database::pool_from_handle(host.db().await?)?;

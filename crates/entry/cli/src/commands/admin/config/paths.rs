@@ -10,14 +10,13 @@
 
 use crate::kernel::KernelHost;
 use anyhow::Result;
-use systemprompt_models::artifacts::NoticeLine;
 use clap::Subcommand;
 use std::path::Path;
 use systemprompt_manifest::Profile;
+use systemprompt_models::artifacts::NoticeLine;
 
-use systemprompt_extension::cli::CommandOutput;
 use super::types::{PathInfo, PathValidation, PathsConfigOutput, PathsValidateOutput};
-use systemprompt_extension::cli::CommandError;
+use systemprompt_extension::cli::{CommandError, CommandOutput};
 
 #[derive(Debug, Clone, Copy, Subcommand)]
 pub enum PathsCommands {
@@ -88,9 +87,11 @@ pub(super) fn execute_validate(host: &dyn KernelHost) -> Result<CommandOutput> {
         });
 
     if !valid {
-        return Err(CommandError::new(anyhow::anyhow!("Some required paths are missing"))
-            .with_output(result)
-            .into());
+        return Err(
+            CommandError::new(anyhow::anyhow!("Some required paths are missing"))
+                .with_output(result)
+                .into(),
+        );
     }
     Ok(result)
 }

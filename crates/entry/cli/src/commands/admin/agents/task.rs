@@ -11,10 +11,9 @@ use systemprompt_agent::models::a2a::protocol::GetTaskParams;
 use systemprompt_identifiers::TaskId;
 use systemprompt_models::a2a::{Task, methods};
 
-use crate::session::get_or_create_session;
-use systemprompt_extension::cli::CommandOutput;
 use super::client::{A2aCall, ensure_agent_exists, send_a2a_request};
-use systemprompt_extension::cli::resolve_required;
+use crate::session::get_or_create_session;
+use systemprompt_extension::cli::{CommandOutput, resolve_required};
 
 #[derive(Debug, Args)]
 pub struct TaskArgs {

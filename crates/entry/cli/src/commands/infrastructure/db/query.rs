@@ -67,10 +67,7 @@ async fn explain_query_error(msg: &str, admin_service: &DatabaseAdminService) ->
     )
 }
 
-pub(super) async fn execute_write(
-    executor: &QueryExecutor,
-    sql: &str,
-) -> Result<CommandOutput> {
+pub(super) async fn execute_write(executor: &QueryExecutor, sql: &str) -> Result<CommandOutput> {
     let result = executor
         .execute_write(sql)
         .await

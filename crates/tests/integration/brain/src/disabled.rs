@@ -1,12 +1,10 @@
 use std::sync::Arc;
 
-use systemprompt_brain::BrainError;
 use systemprompt_brain::service::BrainService;
-use systemprompt_extension::DynNotificationSink;
+use systemprompt_brain::{BrainError, BrainHandle};
+use systemprompt_extension::{DynBrainSink, DynNotificationSink};
 use systemprompt_manifest::profile::BrainProfile;
 use systemprompt_models::brain::{EnteredFact, EnteredStatus, FactScope, SubjectKey};
-use systemprompt_brain::BrainHandle;
-use systemprompt_extension::DynBrainSink;
 use systemprompt_runtime::documents::{BrainUnavailableSink, NotificationsUnavailableSink};
 
 use crate::events::Landed;
@@ -30,7 +28,10 @@ async fn a_disabled_brain_composes_nothing_and_its_producers_append_nothing() {
     let author = h.user("author", &[]).await;
 
     let disabled = brain(&h, false);
-    assert!(disabled.is_none(), "the slot binds no handle, so no consumer");
+    assert!(
+        disabled.is_none(),
+        "the slot binds no handle, so no consumer"
+    );
     let sink: DynBrainSink = Arc::new(BrainUnavailableSink);
     assert!(!sink.is_available());
     let mut tx = h.pg.begin().await.expect("begin");

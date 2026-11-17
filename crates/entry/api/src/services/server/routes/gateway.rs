@@ -7,9 +7,10 @@
 //! inference traffic and the bridge credential exchange — is protected as
 //! handler-verified by the gateway credential with its own rate limit and
 //! bearer window, and every admitted gateway route (the bridge inbox) carries
-//! the protection its admission resolved. The parts are merged under the access log, which
-//! sits outside every limiter so a refused request is still recorded.
-//! The public session routes are a declaration like every other group.
+//! the protection its admission resolved. The parts are merged under the access
+//! log, which sits outside every limiter so a refused request is still
+//! recorded. The public session routes are a declaration like every other
+//! group.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -37,12 +38,7 @@ pub(super) fn mount_gateway(
         traffic,
         bridge_auth,
         registered,
-    } = gateway_mount_parts(
-        ctx,
-        engines,
-        mount.composed.admitted,
-        mount.composed.kernel,
-    )
+    } = gateway_mount_parts(ctx, engines, mount.composed.admitted, mount.composed.kernel)
         .map_err(|source| RouteMountError::initialization("gateway", source))?;
     let traffic = mount.protect(
         traffic,

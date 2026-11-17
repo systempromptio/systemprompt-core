@@ -76,4 +76,3 @@ pub fn context_list_table(contexts: &[ContextSummary]) -> String {
         .collect();
     Table::new(rows).to_string()
 }
-

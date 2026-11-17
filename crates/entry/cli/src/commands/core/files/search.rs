@@ -10,10 +10,8 @@ use systemprompt_database::DbPool;
 use systemprompt_files::FileRepository;
 
 use super::types::FileSearchOutput;
-use systemprompt_extension::cli::FileSummary;
-use systemprompt_extension::cli::CliConfig;
 use systemprompt_database::pool_from_handle;
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_extension::cli::{CliConfig, CommandOutput, FileSummary};
 
 #[derive(Debug, Clone, Args)]
 pub struct SearchArgs {

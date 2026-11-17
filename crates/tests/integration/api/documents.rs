@@ -821,8 +821,10 @@ async fn the_mounted_content_route_takes_a_download_link_and_refuses_no_credenti
             admitted: ctx.admitted(),
             kernel: ctx.kernel(),
         },
-        None, &Arc::new(ReadinessState::new()))
-        .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
+        None,
+        &Arc::new(ReadinessState::new()),
+    )
+    .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
     let state = DocumentsState::build(&ctx)?;
     let owner = seed_bridge_credential(&pool, "docs-mounted").await?;
     let created = create_markdown(&state, &owner).await?;
@@ -880,8 +882,10 @@ async fn the_mounted_preview_frames_same_origin_and_keeps_its_sandbox_policy() -
             admitted: ctx.admitted(),
             kernel: ctx.kernel(),
         },
-        None, &Arc::new(ReadinessState::new()))
-        .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
+        None,
+        &Arc::new(ReadinessState::new()),
+    )
+    .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
     let state = DocumentsState::build(&ctx)?;
     let owner = seed_bridge_credential(&pool, "docs-preview").await?;
     let id = id_of(&create_markdown(&state, &owner).await?);
@@ -964,10 +968,11 @@ async fn a_disabled_store_mounts_no_document_or_drive_route() -> Result<()> {
 
     use axum::extract::ConnectInfo;
     use systemprompt_api::services::server::{ReadinessState, setup_api_server};
-    use systemprompt_manifest::profile::RateLimitsConfig;
     use systemprompt_files::DocumentsConfig;
+    use systemprompt_manifest::profile::RateLimitsConfig;
     use systemprompt_test_fixtures::{
-        fixture_admitted, fixture_app_context_on_bootstrap, fixture_config, init_documents_bootstrap,
+        fixture_admitted, fixture_app_context_on_bootstrap, fixture_config,
+        init_documents_bootstrap,
     };
 
     let bootstrap = init_documents_bootstrap(DocumentsConfig {
@@ -985,8 +990,10 @@ async fn a_disabled_store_mounts_no_document_or_drive_route() -> Result<()> {
             admitted: ctx.admitted(),
             kernel: ctx.kernel(),
         },
-        None, &Arc::new(ReadinessState::new()))
-        .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
+        None,
+        &Arc::new(ReadinessState::new()),
+    )
+    .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
     let device = seed_bridge_credential(&pool, "docs-disabled").await?;
 
     for uri in ["/api/v1/documents", "/api/v1/document-folders"] {

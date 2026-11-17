@@ -3,8 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::path::PathBuf;
 use crate::kernel::KernelHost;
+use std::path::PathBuf;
 
 use anyhow::{Result, anyhow};
 use clap::Args;

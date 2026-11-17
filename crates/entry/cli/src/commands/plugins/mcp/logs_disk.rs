@@ -10,12 +10,10 @@ use anyhow::{Context, Result, anyhow};
 
 use super::logs::LogsArgs;
 use super::types::McpLogsOutput;
-use systemprompt_extension::cli::CliConfig;
-use systemprompt_extension::cli::Prompter;
-use systemprompt_extension::cli::resolve_required;
-use systemprompt_extension::cli::CommandOutput;
 use crate::shared::disk_logs::{display_names, find_log_file, list_log_files, read_log_lines};
-use systemprompt_extension::cli::ChildSupervisor;
+use systemprompt_extension::cli::{
+    ChildSupervisor, CliConfig, CommandOutput, Prompter, resolve_required,
+};
 use systemprompt_models::artifacts::ListItem;
 
 pub(super) fn execute_disk_mode(

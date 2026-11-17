@@ -5,13 +5,13 @@
 
 use crate::kernel::KernelHost;
 use anyhow::{Context, Result, bail};
-use systemprompt_models::artifacts::NoticeLine;
 use std::fs;
 use std::path::Path;
 use systemprompt_manifest::profile::RateLimitsConfig;
+use systemprompt_models::artifacts::NoticeLine;
 
-use systemprompt_extension::cli::CommandOutput;
 use super::DiffArgs;
+use systemprompt_extension::cli::CommandOutput;
 
 use super::super::types::{DiffEntry, DiffOutput};
 

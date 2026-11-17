@@ -11,9 +11,7 @@ use systemprompt_manifest::Config;
 use systemprompt_manifest::services::SystemAdmin;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_runtime::{AppContext, Kernel};
-use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, test_database_url,
-};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_database_url};
 use systemprompt_traits::{AppContext as AppContextTrait, BackgroundTasks, SecretStore};
 
 async fn context() -> Arc<AppContext> {

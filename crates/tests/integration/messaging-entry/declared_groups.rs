@@ -43,7 +43,7 @@ async fn messaging_role() -> Result<Router> {
         None,
         &Arc::new(ReadinessState::new()),
     )
-        .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))
+    .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))
 }
 
 async fn messaging_disabled() -> Result<Router> {
@@ -61,7 +61,7 @@ async fn messaging_disabled() -> Result<Router> {
         None,
         &Arc::new(ReadinessState::new()),
     )
-        .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))
+    .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))
 }
 
 async fn send(

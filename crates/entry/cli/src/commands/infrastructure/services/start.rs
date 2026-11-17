@@ -3,13 +3,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_cloud::CredentialsBootstrap;
-use systemprompt_extension::cli::CliConfig;
 use crate::kernel::KernelHost;
 use crate::presentation::StartupRenderer;
 use anyhow::Result;
 use std::sync::Arc;
 use std::time::Instant;
+use systemprompt_cloud::CredentialsBootstrap;
+use systemprompt_extension::cli::CliConfig;
 use systemprompt_identifiers::{McpServerId, ServiceName};
 use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
@@ -167,7 +167,10 @@ async fn run_startup(
         events.phase_completed(Phase::McpServers);
     }
 
-    Ok(format!("http://127.0.0.1:{}", get_api_port(host.profile()?)))
+    Ok(format!(
+        "http://127.0.0.1:{}",
+        get_api_port(host.profile()?)
+    ))
 }
 
 pub(super) async fn execute_individual_agent(

@@ -10,8 +10,8 @@
 
 use anyhow::{Context, Result, bail};
 use systemprompt_cloud::{DockerCli, ProjectContext, StoredTenant};
-use systemprompt_identifiers::ProfileName;
 use systemprompt_extension::cli::ChildSupervisor;
+use systemprompt_identifiers::ProfileName;
 use systemprompt_logging::CliService;
 use systemprompt_models::defaults::DEFAULT_POSTGRES_PORT;
 

@@ -1,5 +1,6 @@
-//! Behaviour of the `mcp_session_cleanup` job the mcp member contributes: metadata,
-//! a successful run over a live pool, and the context/pool error arms.
+//! Behaviour of the `mcp_session_cleanup` job the mcp member contributes:
+//! metadata, a successful run over a live pool, and the context/pool error
+//! arms.
 
 use std::sync::Arc;
 

@@ -25,9 +25,7 @@ use std::collections::HashSet;
 use std::fmt;
 use std::sync::Arc;
 
-use systemprompt_extension::{
-    Factory, Resolved, Slot, SlotEntry, SlotError, SlotOrder,
-};
+use systemprompt_extension::{Factory, Resolved, Slot, SlotEntry, SlotError, SlotOrder};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::documents::{DocumentCodec, DocumentTemplateProvider};
 

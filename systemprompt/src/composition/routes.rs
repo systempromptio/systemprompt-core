@@ -251,9 +251,13 @@ pub(super) fn admit_gateway_route(
 }
 
 pub(super) fn check_route_conflicts(routes: &[AdmittedRouteSet]) -> Result<(), CompositionError> {
-    let defs = routes
-        .iter()
-        .flat_map(|admitted| admitted.set.defs().iter().map(|def| (admitted.set.base(), def)));
+    let defs = routes.iter().flat_map(|admitted| {
+        admitted
+            .set
+            .defs()
+            .iter()
+            .map(|def| (admitted.set.base(), def))
+    });
     match first_overlap(defs) {
         Some(overlap) => Err(CompositionError::RouteConflict {
             method: overlap.method,

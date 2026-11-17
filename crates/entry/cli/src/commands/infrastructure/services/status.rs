@@ -5,13 +5,13 @@
 
 use crate::commands::shared::app_context;
 use crate::kernel::KernelHost;
-use systemprompt_extension::cli::CommandOutput;
 use anyhow::Result;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::hash::BuildHasher;
 use std::sync::Arc;
+use systemprompt_extension::cli::CommandOutput;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::ServiceStatus;
 use systemprompt_mcp::services::McpOrchestrator;

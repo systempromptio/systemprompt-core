@@ -20,9 +20,7 @@ use systemprompt_identifiers::JobName;
 use systemprompt_scheduler::{
     JobRunRecord, JobStatus, SchedulerConfig, SchedulerRepository, SchedulerService,
 };
-use systemprompt_test_fixtures::{
-    test_database_url, test_db_pool, unique_instance,
-};
+use systemprompt_test_fixtures::{test_database_url, test_db_pool, unique_instance};
 
 fn config_with_bootstrap(bootstrap: Vec<String>, distributed_lock: bool) -> SchedulerConfig {
     SchedulerConfig {

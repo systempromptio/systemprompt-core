@@ -6,13 +6,14 @@ use systemprompt_scheduler::jobs::{
     BackfillRollupsJob, InventoryRefreshJob, InventoryRefreshMemo, LogSummaryRollupJob,
     SessionBotTypeRollupJob, TraceFactsRollupJob, VertexDiscoveryJob,
 };
-use systemprompt_test_fixtures::{
-    seed_user_row, test_database_url, test_db_pool,
-};
+use systemprompt_test_fixtures::{seed_user_row, test_database_url, test_db_pool};
 use systemprompt_traits::{Job, JobContext};
 
 async fn ctx(pool: &systemprompt_database::DbPool, url: &str) -> JobContext {
-    ctx_for(pool, systemprompt_test_fixtures::test_app_context(url).await)
+    ctx_for(
+        pool,
+        systemprompt_test_fixtures::test_app_context(url).await,
+    )
 }
 
 fn ctx_for(

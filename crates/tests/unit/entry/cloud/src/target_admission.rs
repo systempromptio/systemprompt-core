@@ -111,14 +111,22 @@ fn a_command_without_the_grant_is_refused() {
     let refused = MemberHost::new(&ctx, CommandDescriptor::NONE)
         .admitted_views(&target.path)
         .expect_err("no grant, no views");
-    assert!(chain(&refused).contains("`target-admission` kernel grant"), "{}", chain(&refused));
+    assert!(
+        chain(&refused).contains("`target-admission` kernel grant"),
+        "{}",
+        chain(&refused)
+    );
 
-    let kernel = CommandHost::admitted_views(&ctx, &target.path).expect_err("the kernel host serves no target admission");
+    let kernel = CommandHost::admitted_views(&ctx, &target.path)
+        .expect_err("the kernel host serves no target admission");
     assert!(chain(&kernel).contains("`target-admission` kernel grant"));
 
-    MemberHost::new(&ctx, CommandDescriptor::NONE.with_grant(KernelGrant::TargetAdmission))
-        .admitted_views(&target.path)
-        .expect("control: the same context serves a granted command");
+    MemberHost::new(
+        &ctx,
+        CommandDescriptor::NONE.with_grant(KernelGrant::TargetAdmission),
+    )
+    .admitted_views(&target.path)
+    .expect("control: the same context serves a granted command");
 }
 
 #[test]
@@ -135,7 +143,10 @@ fn a_disabled_member_is_absent_from_the_views() {
     let views = MemberHost::new(&ctx, cloud_doctor_descriptor())
         .admitted_views(&enabled.path)
         .unwrap_or_else(|e| panic!("{}", chain(&e)));
-    assert!(member_ids(&views).contains(&"notifications"), "control: enabled is present");
+    assert!(
+        member_ids(&views).contains(&"notifications"),
+        "control: enabled is present"
+    );
 }
 
 #[test]
@@ -182,6 +193,8 @@ fn the_admission_is_spent_after_one_use() {
     let ctx = ctx();
     let host = MemberHost::new(&ctx, cloud_doctor_descriptor());
     host.admitted_views(&target.path).expect("first admission");
-    let spent = host.admitted_views(&target.path).expect_err("second admission");
+    let spent = host
+        .admitted_views(&target.path)
+        .expect_err("second admission");
     assert!(chain(&spent).contains("not available"), "{}", chain(&spent));
 }

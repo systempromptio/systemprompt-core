@@ -28,12 +28,12 @@ use systemprompt_identifiers::{
 };
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_models::authz::{SubjectAttributeSource, SubjectAttributes, SubjectSourceError};
-use systemprompt_traits::authz::SubjectDimension;
 use systemprompt_models::brain::BrainEvent;
 use systemprompt_models::documents::ActorKind;
 use systemprompt_provider_contracts::documents::{DocumentTemplateProvider, TemplateParams};
 use systemprompt_storage::LocalFileStorage;
 use systemprompt_test_fixtures::{fixture_notification_sink, test_db_pool};
+use systemprompt_traits::authz::SubjectDimension;
 use systemprompt_traits::{BackgroundTasks, FileStorage};
 use tempfile::TempDir;
 use uuid::Uuid;

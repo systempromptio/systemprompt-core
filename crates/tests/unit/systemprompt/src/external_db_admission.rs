@@ -73,15 +73,23 @@ fn a_disabled_members_direct_command_is_refused_on_a_loaded_profile() {
 #[test]
 fn an_enabled_members_direct_command_runs_on_a_loaded_profile() {
     let resolved = resolve_direct();
-    let admitted = admit_direct(Some(&resolved), Some(&profile(&[])), Box::new(admit_profiled))
-        .expect("negative control: an enabled member's command runs");
+    let admitted = admit_direct(
+        Some(&resolved),
+        Some(&profile(&[])),
+        Box::new(admit_profiled),
+    )
+    .expect("negative control: an enabled member's command runs");
     assert!(holds_probe(&admitted));
 }
 
 #[test]
 fn a_kernel_command_on_a_loaded_profile_drops_the_disabled_member() {
-    let admitted = admit_direct(None, Some(&profile(&["probe-cli"])), Box::new(admit_profiled))
-        .expect("a kernel command admits against the profile");
+    let admitted = admit_direct(
+        None,
+        Some(&profile(&["probe-cli"])),
+        Box::new(admit_profiled),
+    )
+    .expect("a kernel command admits against the profile");
     assert!(
         !holds_probe(&admitted),
         "the disabled member is not admitted, so migrate installs none of its schema"

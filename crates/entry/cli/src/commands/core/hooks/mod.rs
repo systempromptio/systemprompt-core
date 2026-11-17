@@ -11,8 +11,8 @@ pub mod types;
 pub mod list;
 pub mod validate;
 
-use anyhow::{Context, Result, bail};
 use crate::kernel::KernelHost;
+use anyhow::{Context, Result, bail};
 use clap::Subcommand;
 
 use systemprompt_extension::cli::CommandOutput;
@@ -28,9 +28,7 @@ pub enum HooksCommands {
 
 pub fn execute(command: HooksCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
-        HooksCommands::List(args) => {
-            list::execute(args, host).context("Failed to list hooks")
-        },
+        HooksCommands::List(args) => list::execute(args, host).context("Failed to list hooks"),
         HooksCommands::Validate(args) => {
             let (result, valid) =
                 validate::execute(args, host).context("Failed to validate hooks")?;

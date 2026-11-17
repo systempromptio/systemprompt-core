@@ -9,16 +9,16 @@
 
 mod cors;
 
-use crate::kernel::KernelHost;
 use super::changes_output;
 use crate::commands::admin::config::restart_note;
-use systemprompt_models::artifacts::NoticeLine;
+use crate::kernel::KernelHost;
 use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
+use systemprompt_models::artifacts::NoticeLine;
 
 pub(super) use super::profile_io::{load_profile, profile_path, save_profile};
-use systemprompt_extension::cli::CommandOutput;
 use super::types::{ServerConfigOutput, ServerSetOutput};
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum ServerCommands {

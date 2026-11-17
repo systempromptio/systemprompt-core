@@ -16,8 +16,8 @@ use systemprompt_api::services::middleware::{JtiRevocationChecker, JwtContextExt
 use systemprompt_marketplace::{AllowAllFilter, MarketplaceFilter};
 use systemprompt_models::api::ErrorCode;
 use systemprompt_test_fixtures::{
-    TestBootstrap, fixture_config, init_isolated_bootstrap, seed_bridge_credential,
-    seed_user_row, test_db_pool,
+    TestBootstrap, fixture_config, init_isolated_bootstrap, seed_bridge_credential, seed_user_row,
+    test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 
@@ -32,7 +32,10 @@ fn with_lock_timeout(url: &str) -> String {
     format!("{url}{separator}options=-c%20lock_timeout%3D300")
 }
 
-async fn context(boot: &TestBootstrap, database_url: &str) -> Arc<systemprompt_runtime::AppContext> {
+async fn context(
+    boot: &TestBootstrap,
+    database_url: &str,
+) -> Arc<systemprompt_runtime::AppContext> {
     crate::support::context_on(
         boot,
         fixture_config(database_url),

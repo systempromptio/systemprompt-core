@@ -30,7 +30,11 @@ fn every_baseline_route_is_reserved_for_its_owner() {
         let columns: Vec<&'static str> = line.split('\t').collect();
         let (path, group, owner) = (columns[1], columns[6], columns[7]);
         if path == STATIC_FALLBACK {
-            assert_eq!((group, owner), ("Static", "kernel"), "the root fallback is the kernel's");
+            assert_eq!(
+                (group, owner),
+                ("Static", "kernel"),
+                "the root fallback is the kernel's"
+            );
             continue;
         }
         let path = if path.len() > 1 {
@@ -44,7 +48,8 @@ fn every_baseline_route_is_reserved_for_its_owner() {
             "{path} ({owner}) lies outside the reserved paths: an install could route it"
         );
         if group != "Gateway" {
-            let holder = CoreId::for_id(owner).unwrap_or_else(|| panic!("{owner} is not a core id"));
+            let holder =
+                CoreId::for_id(owner).unwrap_or_else(|| panic!("{owner} is not a core id"));
             assert_eq!(
                 refused_reservation(ROOT, &route, Some(holder)),
                 None,
@@ -93,9 +98,10 @@ fn every_privileged_shape_is_reserved_for_its_owner() {
         let BaseRef::Path(base) = shape.base else {
             continue;
         };
-        let paths: Vec<&'static str> = shape
-            .routes
-            .map_or_else(|| vec!["/probe"], |routes| routes.iter().map(|(_, path)| *path).collect());
+        let paths: Vec<&'static str> = shape.routes.map_or_else(
+            || vec!["/probe"],
+            |routes| routes.iter().map(|(_, path)| *path).collect(),
+        );
         for path in paths {
             let route = def(path);
             assert!(

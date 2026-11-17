@@ -20,7 +20,11 @@ fn page(owner: &str, standing: StandingTag, path: &'static str) -> AdmittedRoute
         standing,
         ..routed(
             owner,
-            set(ROOT, RouteGroup::Extensions, &[(http::Method::GET, path, PLAIN)]),
+            set(
+                ROOT,
+                RouteGroup::Extensions,
+                &[(http::Method::GET, path, PLAIN)],
+            ),
             vec![],
         )
     }
@@ -88,8 +92,18 @@ fn the_core_owner_holds_its_reserved_paths_at_mount() {
         assert!(result.is_ok(), "{owner} {path}: {result:?}");
     }
     for (owner, standing, path, reserved) in [
-        ("kernel", StandingTag::Core, "/api/v1/admin/notifications/x", "/api/v1/admin/notifications"),
-        ("content-http", StandingTag::Core, "/api/v1/mcp/x", "/api/v1/mcp"),
+        (
+            "kernel",
+            StandingTag::Core,
+            "/api/v1/admin/notifications/x",
+            "/api/v1/admin/notifications",
+        ),
+        (
+            "content-http",
+            StandingTag::Core,
+            "/api/v1/mcp/x",
+            "/api/v1/mcp",
+        ),
         ("kernel", StandingTag::Install, "/v1/x", "/v1"),
     ] {
         let result = rechecked(page(owner, standing, path));

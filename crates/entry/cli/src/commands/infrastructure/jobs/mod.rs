@@ -20,8 +20,8 @@ mod prune;
 mod run;
 mod show;
 
-use anyhow::Result;
 use crate::kernel::KernelHost;
+use anyhow::Result;
 use clap::Subcommand;
 
 use systemprompt_extension::AdmittedSchedule;

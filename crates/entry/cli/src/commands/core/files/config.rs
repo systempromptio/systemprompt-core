@@ -3,8 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::Result;
 use crate::kernel::KernelHost;
+use anyhow::Result;
 use clap::Args;
 use systemprompt_files::FilePersistenceMode;
 

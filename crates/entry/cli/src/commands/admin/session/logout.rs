@@ -10,10 +10,8 @@ use systemprompt_identifiers::ProfileName;
 use systemprompt_manifest::profile::{CloudConfig, ManagedProfile};
 
 use super::types::LogoutOutput;
-use systemprompt_extension::cli::CliConfig;
-use systemprompt_extension::cli::Prompter;
-use systemprompt_extension::cli::CommandOutput;
 use systemprompt_cloud::paths::ResolvedPaths;
+use systemprompt_extension::cli::{CliConfig, CommandOutput, Prompter};
 
 #[derive(Debug, Args)]
 pub struct LogoutArgs {

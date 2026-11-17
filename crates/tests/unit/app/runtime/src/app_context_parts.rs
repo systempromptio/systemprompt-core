@@ -26,32 +26,32 @@ fn builder_default_flags_are_false() {
 
 #[test]
 fn builder_with_startup_warnings_true_reflects_in_debug() {
-    let builder =
-        AppContextBuilder::new(ensure_test_bootstrap().boot.clone(), fixture_admitted()).with_startup_warnings(true);
+    let builder = AppContextBuilder::new(ensure_test_bootstrap().boot.clone(), fixture_admitted())
+        .with_startup_warnings(true);
     let dbg = format!("{builder:?}");
     assert!(dbg.contains("show_startup_warnings: true"), "got: {dbg}");
 }
 
 #[test]
 fn builder_with_startup_warnings_false_reflects_in_debug() {
-    let builder =
-        AppContextBuilder::new(ensure_test_bootstrap().boot.clone(), fixture_admitted()).with_startup_warnings(false);
+    let builder = AppContextBuilder::new(ensure_test_bootstrap().boot.clone(), fixture_admitted())
+        .with_startup_warnings(false);
     let dbg = format!("{builder:?}");
     assert!(dbg.contains("show_startup_warnings: false"), "got: {dbg}");
 }
 
 #[test]
 fn builder_with_migrations_true_reflects_in_debug() {
-    let builder =
-        AppContextBuilder::new(ensure_test_bootstrap().boot.clone(), fixture_admitted()).with_migrations(true);
+    let builder = AppContextBuilder::new(ensure_test_bootstrap().boot.clone(), fixture_admitted())
+        .with_migrations(true);
     let dbg = format!("{builder:?}");
     assert!(dbg.contains("install_schemas: true"), "got: {dbg}");
 }
 
 #[test]
 fn builder_with_migrations_false_reflects_in_debug() {
-    let builder =
-        AppContextBuilder::new(ensure_test_bootstrap().boot.clone(), fixture_admitted()).with_migrations(false);
+    let builder = AppContextBuilder::new(ensure_test_bootstrap().boot.clone(), fixture_admitted())
+        .with_migrations(false);
     let dbg = format!("{builder:?}");
     assert!(dbg.contains("install_schemas: false"), "got: {dbg}");
 }
@@ -71,8 +71,8 @@ fn builder_with_authz_hook_reflects_in_debug() {
     use std::sync::Arc;
     use systemprompt_governance::authz::{AllowAllHook, NullAuditSink};
     let hook = AllowAllHook::new(Arc::new(NullAuditSink));
-    let builder =
-        AppContextBuilder::new(ensure_test_bootstrap().boot.clone(), fixture_admitted()).with_authz_hook(hook);
+    let builder = AppContextBuilder::new(ensure_test_bootstrap().boot.clone(), fixture_admitted())
+        .with_authz_hook(hook);
     let dbg = format!("{builder:?}");
     assert!(dbg.contains("authz_hook: true"), "got: {dbg}");
 }
@@ -82,8 +82,8 @@ fn builder_with_shared_authz_hook_reflects_in_debug() {
     use std::sync::Arc;
     use systemprompt_governance::authz::{AllowAllHook, NullAuditSink, SharedAuthzHook};
     let hook: SharedAuthzHook = Arc::new(AllowAllHook::new(Arc::new(NullAuditSink)));
-    let builder =
-        AppContextBuilder::new(ensure_test_bootstrap().boot.clone(), fixture_admitted()).with_shared_authz_hook(hook);
+    let builder = AppContextBuilder::new(ensure_test_bootstrap().boot.clone(), fixture_admitted())
+        .with_shared_authz_hook(hook);
     let dbg = format!("{builder:?}");
     assert!(dbg.contains("authz_hook: true"), "got: {dbg}");
 }

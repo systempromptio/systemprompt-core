@@ -6,8 +6,8 @@
 use pg_query::NodeEnum;
 use pg_query::protobuf::{ObjectType, RangeVar};
 
-use super::TableMutation;
 use super::super::undeclared::qualify;
+use super::TableMutation;
 
 pub(super) fn top_level(parsed: &pg_query::ParseResult) -> impl Iterator<Item = &NodeEnum> {
     parsed

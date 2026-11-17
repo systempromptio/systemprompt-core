@@ -30,20 +30,14 @@ pub enum AiCommands {
 
 pub async fn execute(cmd: AiCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match cmd {
-        AiCommands::List(args) => {
-            list::execute(args, host)
-                .await
-                .context("Failed to list AI images")
-        },
-        AiCommands::Show(args) => {
-            show::execute(args, host)
-                .await
-                .context("Failed to show AI image")
-        },
-        AiCommands::Count(args) => {
-            count::execute(args, host)
-                .await
-                .context("Failed to count AI images")
-        },
+        AiCommands::List(args) => list::execute(args, host)
+            .await
+            .context("Failed to list AI images"),
+        AiCommands::Show(args) => show::execute(args, host)
+            .await
+            .context("Failed to show AI image"),
+        AiCommands::Count(args) => count::execute(args, host)
+            .await
+            .context("Failed to count AI images"),
     }
 }

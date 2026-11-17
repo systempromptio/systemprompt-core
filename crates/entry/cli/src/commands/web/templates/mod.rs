@@ -16,9 +16,8 @@ pub mod show;
 use anyhow::{Context, Result};
 use clap::Subcommand;
 
-use systemprompt_extension::cli::{CliConfig, CommandOutput};
-use systemprompt_extension::cli::Prompter;
 use std::path::Path;
+use systemprompt_extension::cli::{CliConfig, CommandOutput, Prompter};
 
 #[derive(Debug, Subcommand)]
 pub enum TemplatesCommands {
@@ -51,16 +50,12 @@ pub fn execute(
         TemplatesCommands::Show(args) => {
             show::execute(args, prompter, config, services_root).context("Failed to show template")
         },
-        TemplatesCommands::Create(args) => {
-            create::execute(args, prompter, config, services_root)
-                .context("Failed to create template")
-        },
+        TemplatesCommands::Create(args) => create::execute(args, prompter, config, services_root)
+            .context("Failed to create template"),
         TemplatesCommands::Edit(args) => {
             edit::execute(args, prompter, config, services_root).context("Failed to edit template")
         },
-        TemplatesCommands::Delete(args) => {
-            delete::execute(args, prompter, config, services_root)
-                .context("Failed to delete template")
-        },
+        TemplatesCommands::Delete(args) => delete::execute(args, prompter, config, services_root)
+            .context("Failed to delete template"),
     }
 }

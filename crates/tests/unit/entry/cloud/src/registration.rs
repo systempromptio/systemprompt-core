@@ -330,7 +330,15 @@ fn top_level_help_lists_the_groups_in_their_slots_and_help_last() {
     assert_eq!(
         listed,
         [
-            "core", "infra", "admin", "cloud", "analytics", "web", "plugins", "build", "help"
+            "core",
+            "infra",
+            "admin",
+            "cloud",
+            "analytics",
+            "web",
+            "plugins",
+            "build",
+            "help"
         ],
         "{help}"
     );

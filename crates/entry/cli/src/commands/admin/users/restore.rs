@@ -14,8 +14,8 @@ use clap::Args;
 use std::sync::Arc;
 use systemprompt_users::{User, UserRepository, UserService};
 
-use systemprompt_extension::cli::CommandOutput;
 use super::types::UserDeletedOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct RestoreArgs {

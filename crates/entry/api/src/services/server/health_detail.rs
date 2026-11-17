@@ -22,8 +22,8 @@ use serde_json::json;
 use systemprompt_manifest::services::ServiceModule;
 use systemprompt_runtime::AppContext;
 
-use super::health::{HEALTH_CHECK_QUERY, get_process_memory, get_system_stats};
 use super::contributed::admitted_factories;
+use super::health::{HEALTH_CHECK_QUERY, get_process_memory, get_system_stats};
 use super::probes::ExtensionReadiness;
 use systemprompt_extension::contribute::ContributionSink;
 use systemprompt_extension::{DiagnosticDetail, DiagnosticFailure, DiagnosticProbe, SlotError};
@@ -205,19 +205,17 @@ impl ExtensionDiagnostics {
 
     // JSON: each entry is a free-form diagnostic object.
     async fn run(&self) -> (bool, Vec<(&'static str, serde_json::Value)>) {
-        let outcomes =
-            futures_util::future::join_all(self.probes.iter().map(|(extension, probe)| {
-                async move {
-                    let outcome =
-                        tokio::time::timeout(super::health::HEALTH_PROBE_TIMEOUT, probe.probe())
-                            .await;
-                    (
-                        probe.name(),
-                        diagnostic_entry(extension.as_str(), probe.as_ref(), outcome),
-                    )
-                }
-            }))
-            .await;
+        let outcomes = futures_util::future::join_all(self.probes.iter().map(
+            |(extension, probe)| async move {
+                let outcome =
+                    tokio::time::timeout(super::health::HEALTH_PROBE_TIMEOUT, probe.probe()).await;
+                (
+                    probe.name(),
+                    diagnostic_entry(extension.as_str(), probe.as_ref(), outcome),
+                )
+            },
+        ))
+        .await;
         let mut ok = true;
         let mut entries = Vec::new();
         for (name, (healthy, entry)) in outcomes {

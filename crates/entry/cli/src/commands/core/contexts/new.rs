@@ -13,13 +13,11 @@ use systemprompt_cloud::{SessionKey, SessionStore};
 use systemprompt_logging::CliService;
 
 use super::types::ContextSwitchedOutput;
-use systemprompt_extension::cli::CliConfig;
-use systemprompt_database::pool_from_handle;
 use crate::session::{CliSessionContext, get_or_create_session};
-use systemprompt_extension::cli::CommandOutput;
 use std::path::Path;
 use systemprompt_cloud::paths::ResolvedPaths;
-use systemprompt_database::DbPool;
+use systemprompt_database::{DbPool, pool_from_handle};
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 #[derive(Debug, Args)]
 pub struct NewArgs {

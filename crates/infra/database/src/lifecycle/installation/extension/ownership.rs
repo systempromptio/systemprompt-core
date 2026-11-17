@@ -197,8 +197,8 @@ pub(super) async fn record_owners(
                 &RECORD_SQL,
                 &[&declared, &p.extension_id.as_str(), &p.standing.as_str()],
             )
-                .await
-                .map_err(|e| step_failed("Failed to record table ownership", e))?;
+            .await
+            .map_err(|e| step_failed("Failed to record table ownership", e))?;
         }
     }
     Ok(())

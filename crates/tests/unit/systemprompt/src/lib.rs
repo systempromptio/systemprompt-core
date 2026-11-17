@@ -30,13 +30,13 @@ mod core_ids;
 #[cfg(test)]
 mod disable_probe;
 #[cfg(test)]
-mod files_marketplace_slots;
+mod external_db_admission;
 #[cfg(test)]
-mod forged_commands;
+mod files_marketplace_slots;
 #[cfg(test)]
 mod forged_command_types;
 #[cfg(test)]
-mod external_db_admission;
+mod forged_commands;
 #[cfg(test)]
 mod gateway_def_paths;
 #[cfg(test)]
@@ -58,10 +58,6 @@ mod kernel_reserved;
 #[cfg(test)]
 mod mcp_slots;
 #[cfg(test)]
-mod schema_members_drift;
-#[cfg(test)]
-mod snapshot;
-#[cfg(test)]
 mod probe;
 #[cfg(test)]
 mod providers;
@@ -70,4 +66,8 @@ mod reserved_ids;
 #[cfg(test)]
 mod reserved_paths;
 #[cfg(test)]
+mod schema_members_drift;
+#[cfg(test)]
 mod slot_standing;
+#[cfg(test)]
+mod snapshot;

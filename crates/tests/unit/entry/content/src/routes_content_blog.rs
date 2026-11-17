@@ -14,9 +14,7 @@ use systemprompt_extension::router::{AcceptedFormat, AcceptedMediaType};
 use systemprompt_runtime::AppContext;
 use tower::ServiceExt;
 
-use crate::common::{
-    content_app, empty_get, negotiating_state, request_context, setup_ctx,
-};
+use crate::common::{content_app, empty_get, negotiating_state, request_context, setup_ctx};
 
 struct Seeded {
     source: String,

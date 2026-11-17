@@ -75,15 +75,27 @@ fn an_install_literal_under_a_kernel_namespace_is_refused() {
 
 #[test]
 fn an_install_parameter_or_catch_all_reaching_a_kernel_namespace_is_refused() {
-    assert_eq!(refused_at(install_page("/api/{version}/mcp/x")), "/api/v1/mcp");
+    assert_eq!(
+        refused_at(install_page("/api/{version}/mcp/x")),
+        "/api/v1/mcp"
+    );
     assert_eq!(
         refused_at(install_page("/api/public/{short_code}")),
         "/api/public/gateway"
     );
-    for path in ["/{slug}", "/{section}/agent-card.json", "/{*path}", "/api/{*rest}"] {
+    for path in [
+        "/{slug}",
+        "/{section}/agent-card.json",
+        "/{*path}",
+        "/api/{*rest}",
+    ] {
         refused_at(install_page(path));
     }
-    for path in ["/pages/{slug}", "/pages/{*rest}", "/api/public/s/{short_code}"] {
+    for path in [
+        "/pages/{slug}",
+        "/pages/{*rest}",
+        "/api/public/s/{short_code}",
+    ] {
         install_page(path).unwrap_or_else(|error| {
             panic!("negative control: {path} reaches no reserved path: {error:?}")
         });
@@ -137,7 +149,9 @@ fn an_extension_base_covering_a_kernel_namespace_is_refused() {
         build_with(Probe::new("probe-install", move |c| {
             c.routes(plain_set(BasePath::Api(ApiBase::Extension(path)), "/x"));
         }))
-        .unwrap_or_else(|error| panic!("negative control: {path} covers no reserved path: {error:?}"));
+        .unwrap_or_else(|error| {
+            panic!("negative control: {path} covers no reserved path: {error:?}")
+        });
     }
 }
 
@@ -145,15 +159,24 @@ fn an_extension_base_covering_a_kernel_namespace_is_refused() {
 fn the_core_owners_hold_their_reserved_paths() {
     let admitted = build(reference()).expect("the reference composition admits");
     let held = |owner: &str, base: BasePath| {
-        admitted
-            .routes()
-            .iter()
-            .any(|set| set.owner.as_str() == owner && set.set.base() == systemprompt_extension::router::BaseRef::Path(base))
+        admitted.routes().iter().any(|set| {
+            set.owner.as_str() == owner
+                && set.set.base() == systemprompt_extension::router::BaseRef::Path(base)
+        })
     };
-    assert!(held("content-http", ROOT), "content-http holds /r at the web root");
-    assert!(held("analytics-http", BasePath::Web(WebBase::TrackEngagement)));
     assert!(
-        held("notifications-http", BasePath::Api(ApiBase::AdminNotifications)),
+        held("content-http", ROOT),
+        "content-http holds /r at the web root"
+    );
+    assert!(held(
+        "analytics-http",
+        BasePath::Web(WebBase::TrackEngagement)
+    ));
+    assert!(
+        held(
+            "notifications-http",
+            BasePath::Api(ApiBase::AdminNotifications)
+        ),
         "notifications-http holds its entry nested in the kernel's /api/v1/admin"
     );
 
@@ -166,7 +189,13 @@ fn the_core_owners_hold_their_reserved_paths() {
     )
     .expect_err("an install in analytics-http's place does not hold its reserved path");
     assert!(
-        matches!(error, CompositionError::ReservedPrefix { prefix: "/track", .. }),
+        matches!(
+            error,
+            CompositionError::ReservedPrefix {
+                prefix: "/track",
+                ..
+            }
+        ),
         "{error:?}"
     );
 }

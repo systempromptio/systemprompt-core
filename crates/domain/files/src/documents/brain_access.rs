@@ -16,12 +16,12 @@
 
 use std::sync::Arc;
 
-use async_trait::async_trait;
-use systemprompt_extension::brain::{SourceAccess, SourceAccessError, SourceVerdict};
 use super::agents::{AgentActor, AgentCap, AgentChannel};
 use super::models::SubjectPairs;
 use super::repository::DocumentRepositories;
 use super::{DocumentAccessService, DocumentsError, Granted};
+use async_trait::async_trait;
+use systemprompt_extension::brain::{SourceAccess, SourceAccessError, SourceVerdict};
 use systemprompt_identifiers::{DocumentId, UserId};
 use systemprompt_models::auth::{AuthenticatedUser, RequestActor};
 use systemprompt_models::brain::DOCUMENT_SUBJECT_KIND;

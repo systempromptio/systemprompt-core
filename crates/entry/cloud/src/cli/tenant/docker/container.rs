@@ -17,8 +17,7 @@ use systemprompt_cloud::{DockerCli, ProjectContext};
 use systemprompt_config::write_private_atomic;
 
 use systemprompt_cloud::docker_compose::{
-    PostgresCredentials,
-    ComposeCredentials, PostgresCompose, postgres_compose,
+    ComposeCredentials, PostgresCompose, PostgresCredentials, postgres_compose,
 };
 
 const LOCAL_DB_USER: &str = "systemprompt";

@@ -13,7 +13,7 @@ use systemprompt_config::{ModelSpec, ProviderCatalogService};
 use systemprompt_identifiers::ModelId;
 use systemprompt_manifest::services::catalog::DeploymentTarget;
 
-use super::catalog_edit::{apply, parse_endpoints, read_active, list_output};
+use super::catalog_edit::{apply, list_output, parse_endpoints, read_active};
 use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]

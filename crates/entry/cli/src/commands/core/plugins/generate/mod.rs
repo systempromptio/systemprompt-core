@@ -13,8 +13,8 @@ pub mod marketplace;
 pub mod mcp;
 pub mod skills;
 
-use anyhow::{Context, Result, anyhow};
 use crate::kernel::KernelHost;
+use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use std::path::{Path, PathBuf};
 

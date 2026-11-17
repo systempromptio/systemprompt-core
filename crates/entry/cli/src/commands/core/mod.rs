@@ -19,13 +19,11 @@ pub mod plugins;
 pub mod services;
 pub mod skills;
 
-use anyhow::Result;
 use crate::kernel::KernelHost;
+use anyhow::Result;
 use clap::Subcommand;
 
-use systemprompt_extension::cli::{
-    CommandDescriptor, CommandOutput, DataImpact, DescribeCommand,
-};
+use systemprompt_extension::cli::{CommandDescriptor, CommandOutput, DataImpact, DescribeCommand};
 
 #[derive(Debug, Subcommand)]
 pub enum CoreCommands {

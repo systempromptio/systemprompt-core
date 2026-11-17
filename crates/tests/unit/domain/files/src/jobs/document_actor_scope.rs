@@ -7,9 +7,9 @@
 use std::sync::Arc;
 
 use systemprompt_extension::{AdmittedSchedule, StandingTag};
-use systemprompt_identifiers::ExtensionId;
 use systemprompt_files::FilesExtension;
 use systemprompt_files::documents::agents::{DocumentActor, current_actor, unscoped_actor};
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_test_fixtures::admitted_member;
 use systemprompt_traits::{JobResult, JobRunScope};
 
@@ -55,7 +55,10 @@ async fn outside_a_job_run_the_actor_is_the_unscoped_agent() {
 
 #[test]
 fn the_files_member_contributes_one_job_run_scope() {
-    let names: Vec<&str> = contributed_scopes().iter().map(|scope| scope.name()).collect();
+    let names: Vec<&str> = contributed_scopes()
+        .iter()
+        .map(|scope| scope.name())
+        .collect();
     assert_eq!(names, vec!["document_actor"]);
 }
 
@@ -72,7 +75,8 @@ async fn the_admitted_schedule_scopes_a_run_only_when_files_is_admitted() {
         .expect("scoped run");
     assert!(observed.success);
 
-    let without = systemprompt_test_fixtures::fixture_admitted_without(&[ExtensionId::new("files")]);
+    let without =
+        systemprompt_test_fixtures::fixture_admitted_without(&[ExtensionId::new("files")]);
     let without_files = AdmittedSchedule::of(without.built());
     let unscoped = without_files
         .run_in_scopes("scope_probe_job", async {

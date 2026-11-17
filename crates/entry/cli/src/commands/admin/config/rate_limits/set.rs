@@ -3,16 +3,16 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::commands::admin::config::restart_note;
 use crate::kernel::KernelHost;
 use anyhow::{Result, bail};
-use crate::commands::admin::config::restart_note;
 
-use systemprompt_extension::cli::CommandOutput;
+use super::super::profile_io::profile_path;
 use super::SetArgs;
 use super::profile_edit::{
     get_endpoint_rate, load_profile_for_edit, save_profile, set_endpoint_rate,
 };
-use super::super::profile_io::profile_path;
+use systemprompt_extension::cli::CommandOutput;
 
 use super::super::types::{RateLimitStatusOutput, SetRateLimitOutput};
 

@@ -12,8 +12,8 @@ use std::path::PathBuf;
 
 use super::types::{McpListOutput, McpServerSummary};
 use crate::commands::shared::app_context;
-use systemprompt_extension::cli::CommandOutput;
 use systemprompt_cloud::paths::ProjectRoot;
+use systemprompt_extension::cli::CommandOutput;
 use systemprompt_models::mcp::{Deployment, McpServerType};
 
 #[derive(Debug, Clone, Copy, Args)]

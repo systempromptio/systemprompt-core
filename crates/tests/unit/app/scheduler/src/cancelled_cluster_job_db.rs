@@ -5,7 +5,7 @@ use systemprompt_identifiers::JobName;
 
 use systemprompt_manifest::SchedulerConfig;
 use systemprompt_scheduler::{JobStatus, SchedulerRepository, SchedulerService};
-use systemprompt_test_fixtures::{DisposableDb};
+use systemprompt_test_fixtures::DisposableDb;
 use tracing_subscriber::layer::SubscriberExt;
 
 use crate::test_jobs::{
@@ -60,7 +60,7 @@ async fn cancelling_a_cluster_job_releases_its_session_lock_for_a_later_dispatch
         },
         Arc::clone(&pool),
         context,
-            Arc::clone(&schedule),
+        Arc::clone(&schedule),
     ));
 
     CANCELLABLE_CLUSTER_JOB_RUNS.store(0, Ordering::SeqCst);

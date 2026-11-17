@@ -4,19 +4,22 @@
 //! `DemoExtension::contribute` only declares; the composition admits each
 //! contribution against the profile before anything it declares runs.
 //!
-//! Run with: `cargo run -p systemprompt --example extension --features full -- demo status`
+//! Run with: `cargo run -p systemprompt --example extension --features full --
+//! demo status`
 
 use std::process::ExitCode;
 
 use async_trait::async_trait;
 use axum::http::Method;
+use systemprompt::extension::RouteGroup;
 use systemprompt::extension::cli::{
     CliCommandGroup, CommandDecl, CommandDescriptor, CommandError, CommandHost, CommandOutput,
     DescribeCommand,
 };
 use systemprompt::extension::prelude::*;
-use systemprompt::extension::router::{ApiBase, BasePath, BodyLimit, RouteLimits, RouteSet, RouteSpec};
-use systemprompt::extension::RouteGroup;
+use systemprompt::extension::router::{
+    ApiBase, BasePath, BodyLimit, RouteLimits, RouteSet, RouteSpec,
+};
 use systemprompt::traits::{Job, JobContext, JobResult, ProviderResult};
 use systemprompt::{RunError, reference};
 

@@ -188,9 +188,7 @@ mod agent_failure {
     use std::time::Duration;
 
     use systemprompt_api::services::server::{bind_and_serve, run_server};
-    use systemprompt_test_fixtures::{
-        TestBootstrap, fixture_config, init_isolated_bootstrap,
-    };
+    use systemprompt_test_fixtures::{TestBootstrap, fixture_config, init_isolated_bootstrap};
 
     const AGENT: &str = "unstartable_fixture_agent";
     const AGENT_PORT: u16 = 4931;
@@ -229,7 +227,11 @@ settings:
         let b = boot();
         let mut config = fixture_config(&b.database_url);
         config.cors_allowed_origins = vec!["http://127.0.0.1".to_owned()];
-        let ctx = systemprompt_test_fixtures::fixture_app_context_on_bootstrap(b, config, systemprompt_test_fixtures::fixture_admitted())
+        let ctx = systemprompt_test_fixtures::fixture_app_context_on_bootstrap(
+            b,
+            config,
+            systemprompt_test_fixtures::fixture_admitted(),
+        )
         .await?;
 
         let early = bind_and_serve(

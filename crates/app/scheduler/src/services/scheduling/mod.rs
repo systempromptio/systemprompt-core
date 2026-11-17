@@ -221,8 +221,9 @@ impl SchedulerService {
     }
 
     fn validate_configured_jobs(&self) -> SchedulerResult<()> {
-        let unknown =
-            collect_unknown_job_names(&self.config, |name| self.schedule.contains_job(name.as_str()));
+        let unknown = collect_unknown_job_names(&self.config, |name| {
+            self.schedule.contains_job(name.as_str())
+        });
         if unknown.is_empty() {
             Ok(())
         } else {

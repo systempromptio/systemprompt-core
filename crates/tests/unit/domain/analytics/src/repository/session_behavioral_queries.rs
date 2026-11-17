@@ -347,5 +347,8 @@ async fn get_total_content_pages_reads_the_catalog_it_is_given() {
     let failed = signals.get_total_content_pages(&UnreadableCatalog).await;
 
     assert_eq!(seven.expect("seven"), 7);
-    assert!(failed.is_err(), "an unreadable catalog is an error, not a count");
+    assert!(
+        failed.is_err(),
+        "an unreadable catalog is an error, not a count"
+    );
 }

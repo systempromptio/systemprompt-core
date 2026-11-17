@@ -1,5 +1,5 @@
-//! Test jobs, contributed by the test member, used to drive dispatch outcome arms
-//! (panic capture, failure recording, in-process overlap skip) that the
+//! Test jobs, contributed by the test member, used to drive dispatch outcome
+//! arms (panic capture, failure recording, in-process overlap skip) that the
 //! crate's built-in jobs never exercise.
 //!
 //! All jobs return `enabled() == false` so `JobSelection::All` (which filters
@@ -373,7 +373,9 @@ impl Job for KernelStateJob {
         let schedule = ctx.get::<systemprompt_extension::AdmittedSchedule>()?;
         ctx.get::<systemprompt_extension::AdmittedProjections>()?;
         if !schedule.contains_job(KERNEL_STATE_JOB) {
-            return Ok(JobResult::failure("the schedule in the job context is not the admitted one"));
+            return Ok(JobResult::failure(
+                "the schedule in the job context is not the admitted one",
+            ));
         }
         Ok(JobResult::success())
     }

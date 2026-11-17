@@ -56,10 +56,12 @@ pub(crate) fn append_core_defaults(
         .channels
         .push(Arc::new(AguiChannel::new(r.get::<Arc<EventRouter>>()?)));
     let profile = r.get::<Arc<NotificationsProfile>>()?;
-    seams.publish_policies.push(Arc::new(DefaultPublishPolicy::new(
-        seams.audiences.clone(),
-        Duration::from_millis(profile.consumer.resolver_timeout_ms),
-    )));
+    seams
+        .publish_policies
+        .push(Arc::new(DefaultPublishPolicy::new(
+            seams.audiences.clone(),
+            Duration::from_millis(profile.consumer.resolver_timeout_ms),
+        )));
     Ok(())
 }
 

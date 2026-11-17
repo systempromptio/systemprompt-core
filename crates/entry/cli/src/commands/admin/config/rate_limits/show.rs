@@ -35,7 +35,10 @@ pub(super) fn execute_show(host: &dyn KernelHost) -> Result<CommandOutput> {
 
     let result = CommandOutput::card_value("Rate Limits", &output);
     Ok(if limits.disabled {
-        result.with_note(NoticeLine::new("warning", "Rate limiting is currently DISABLED"))
+        result.with_note(NoticeLine::new(
+            "warning",
+            "Rate limiting is currently DISABLED",
+        ))
     } else {
         result
     })

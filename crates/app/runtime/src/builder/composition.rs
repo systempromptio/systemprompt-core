@@ -245,8 +245,7 @@ pub(super) async fn build_domain_layer(
     system_admin: &systemprompt_manifest::SystemAdmin,
 ) -> RuntimeResult<RepositoryBundles> {
     let config = boot.config()?;
-    let mut repositories =
-        build_repositories(database, config.instance_id.clone(), policy, seeded);
+    let mut repositories = build_repositories(database, config.instance_id.clone(), policy, seeded);
     repositories.install_organization_resolver(system_admin.id());
     ensure_legacy_context(&repositories, system_admin).await?;
     Ok(repositories)

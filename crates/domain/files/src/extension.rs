@@ -33,15 +33,15 @@ use systemprompt_traits::core_seam::{self, RoleAudience};
 
 use crate::contract::{AgentAccessSlot, BlobHolderSlot, DocumentsSlot};
 use crate::document_schemas::DOCUMENT_SCHEMAS;
+use crate::documents::DocumentsHandlesSlot;
 use crate::documents::codecs::core_codecs;
+use crate::documents::handles::{
+    BoundDocumentVisibility, BoundIssueVisibility, BoundSourceAccess, BoundSourceContent,
+};
 use crate::documents::jobs::{
     DocumentAgentReadRetentionJob, DocumentBlobGcJob, DocumentCollabUpdateSweepJob,
     DocumentMediaBackfillJob, DocumentNodeIdsBackfillJob, DocumentPresenceSweepJob,
     DocumentTrashPurgeJob,
-};
-use crate::documents::DocumentsHandlesSlot;
-use crate::documents::handles::{
-    BoundDocumentVisibility, BoundIssueVisibility, BoundSourceAccess, BoundSourceContent,
 };
 use crate::documents::repository::DOCUMENT_USER_PURGES;
 use crate::documents::templates::CoreTemplateProvider;

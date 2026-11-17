@@ -7,18 +7,18 @@ use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::Context;
+use systemprompt_config::SecretsSources;
 use systemprompt_extension::cli::{
-    AdmittedViews, BoxFuture, ChildSupervisor, CliConfig, CommandError, CommandHost,
-    CommandOutput, DescribedCommand, KernelGrant, Prompter,
+    AdmittedViews, BoxFuture, ChildSupervisor, CliConfig, CommandError, CommandHost, CommandOutput,
+    DescribedCommand, KernelGrant, Prompter,
 };
 use systemprompt_extension::{Admitted, AdmittedSchedule, Resolved};
-use systemprompt_traits::{AppContext as _, BackgroundTasks, DatabaseHandle, Dependencies};
-use systemprompt_config::SecretsSources;
 use systemprompt_loader::BootContext;
 use systemprompt_loader::load_boot::load_boot_from_path;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_manifest::{Config, Profile, Secrets};
 use systemprompt_runtime::{AppContext, AppContextBuilder, Kernel};
+use systemprompt_traits::{AppContext as _, BackgroundTasks, DatabaseHandle, Dependencies};
 
 use crate::context::CommandContext;
 use crate::env_overrides::EnvOverrides;
@@ -34,9 +34,9 @@ use crate::kernel::{CommandRegistry, classify_command_line};
 /// admitted composition, the application context, the boot context, the
 /// runner's environment overrides and secrets sources, and a profile booted
 /// at a path. None of these is placed in the state a member's command
-/// resolves. Each value is read from the boot context the command kernel's state is seeded from, so
-/// there is one source. Only the kernel host implements it; it is not part of
-/// the extension contract.
+/// resolves. Each value is read from the boot context the command kernel's
+/// state is seeded from, so there is one source. Only the kernel host
+/// implements it; it is not part of the extension contract.
 pub trait KernelHost: CommandHost {
     fn services_root(&self) -> Result<ActiveServicesRoot, CommandError>;
     fn admitted(&self) -> Result<&Admitted, CommandError>;
@@ -188,7 +188,9 @@ impl CommandHost for CommandContext {
     }
 
     fn admitted_views(&self, _profile: &Path) -> Result<AdmittedViews, CommandError> {
-        Err(CommandError::new(crate::kernel::TargetAdmissionError::Refused))
+        Err(CommandError::new(
+            crate::kernel::TargetAdmissionError::Refused,
+        ))
     }
 }
 
@@ -277,7 +279,9 @@ impl KernelHost for CommandContext {
     fn take_admit(&self) -> Result<systemprompt_runtime::AdmitFn, CommandError> {
         let refused = || anyhow::anyhow!("Only a child-host command admits the composition");
         let admit = CommandContext::take_admit(self).ok_or_else(|| CommandError::new(refused()))?;
-        Ok(Box::new(move |profile: &Profile| admit(Some(&profile.extensions))))
+        Ok(Box::new(move |profile: &Profile| {
+            admit(Some(&profile.extensions))
+        }))
     }
 }
 

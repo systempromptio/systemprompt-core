@@ -1,6 +1,6 @@
 //! Job dispatch and bookkeeping — runs a single admitted job inside the
-//! admitted job-run scopes and a panic-isolating wrapper, and records the run on its
-//! `scheduled_jobs` row.
+//! admitted job-run scopes and a panic-isolating wrapper, and records the run
+//! on its `scheduled_jobs` row.
 //!
 //! A tick first reads the job's row: a row an operator set to
 //! `enabled = false` (`infra jobs disable`) skips the tick, and so does a row

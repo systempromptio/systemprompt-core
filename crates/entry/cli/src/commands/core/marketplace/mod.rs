@@ -11,8 +11,8 @@
 
 pub mod import;
 
-use anyhow::{Context, Result};
 use crate::kernel::KernelHost;
+use anyhow::{Context, Result};
 use clap::{Args, Subcommand};
 use serde::Serialize;
 use systemprompt_identifiers::UserId;
@@ -20,8 +20,8 @@ use systemprompt_marketplace::{
     AllowAllFilter, AssembleRequest, ManifestService, ManifestTrace, MarketplaceCache,
 };
 
-use systemprompt_loader::ConfigLoader;
 use systemprompt_extension::cli::CommandOutput;
+use systemprompt_loader::ConfigLoader;
 
 #[derive(Debug, Subcommand)]
 pub enum MarketplaceCommands {
@@ -55,14 +55,10 @@ struct ExplainRow {
 
 pub async fn execute(command: MarketplaceCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
-        MarketplaceCommands::Explain(args) => {
-            explain(&args, host)
-                .await
-                .context("Failed to explain manifest")
-        },
-        MarketplaceCommands::Import(args) => {
-            import::execute(&args)
-        },
+        MarketplaceCommands::Explain(args) => explain(&args, host)
+            .await
+            .context("Failed to explain manifest"),
+        MarketplaceCommands::Import(args) => import::execute(&args),
     }
 }
 

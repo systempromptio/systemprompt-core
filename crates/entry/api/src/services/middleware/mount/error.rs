@@ -85,16 +85,10 @@ pub enum MountError {
     GatewayShadowsBuiltin(&'static str),
 
     #[error("gateway route {path} lies under built-in gateway prefix {builtin}")]
-    GatewayRouteUnderBuiltin {
-        path: String,
-        builtin: &'static str,
-    },
+    GatewayRouteUnderBuiltin { path: String, builtin: &'static str },
 
     #[error("gateway route {path} lies outside its claimed gateway path {claimed}")]
-    GatewayRouteOutsideClaim {
-        path: String,
-        claimed: &'static str,
-    },
+    GatewayRouteOutsideClaim { path: String, claimed: &'static str },
 
     #[error("service nested at {base:?} by {owner}, which holds no plain install standing there")]
     ServiceNotAdmitted { base: BasePath, owner: ExtensionId },

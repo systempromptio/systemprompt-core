@@ -51,7 +51,10 @@ pub(super) async fn purge_archived_users(
         .await
         .map_err(internal)?;
     let mut incomplete = 0_u64;
-    for archive in purged.iter().filter(|archive| !archive.outcome.is_complete()) {
+    for archive in purged
+        .iter()
+        .filter(|archive| !archive.outcome.is_complete())
+    {
         incomplete += 1;
         warn!(
             user_id = %archive.id,

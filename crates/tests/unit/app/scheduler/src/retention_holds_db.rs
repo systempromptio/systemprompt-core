@@ -151,12 +151,7 @@ async fn holds_clamp_withhold_and_compose_on_an_enforced_run() {
     .execute(&*pg)
     .await
     .expect("seed analytics event");
-    let result = run(
-        &pool,
-        &url,
-        vec![failing("broken", RetentionTarget::Logs)],
-    )
-    .await;
+    let result = run(&pool, &url, vec![failing("broken", RetentionTarget::Logs)]).await;
     assert!(result.success, "{:?}", result.message);
     assert_eq!(result.items_failed, Some(1), "one target withheld");
     let message = result.message.unwrap_or_default();

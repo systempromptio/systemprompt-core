@@ -206,12 +206,16 @@ fn urlencode(s: &str) -> String {
 // (identity linking, authz, proxy round-trip); under a loaded shard that has
 // been observed to stall past 30s, so the drain bound must dwarf it.
 async fn wait_for_request(ctx: &AppContext, baseline: usize, server: &MockServer) -> Vec<u8> {
-    eventually("the reply task posts to the response hook", Duration::from_secs(120), || async {
-        server
-            .received_requests()
-            .await
-            .is_some_and(|reqs| !reqs.is_empty())
-    })
+    eventually(
+        "the reply task posts to the response hook",
+        Duration::from_secs(120),
+        || async {
+            server
+                .received_requests()
+                .await
+                .is_some_and(|reqs| !reqs.is_empty())
+        },
+    )
     .await;
     assert_eq!(
         settle_background(ctx.background_tasks(), baseline, Duration::from_secs(120)).await,
@@ -233,8 +237,11 @@ async fn coverage_command_reply(
 ) -> anyhow::Result<serde_json::Value> {
     let b = ensure_messaging_bootstrap();
     let ctx = if denied {
-        systemprompt_test_fixtures::fixture_app_context_with_hook(&b.database_url,
-            Arc::new(systemprompt_governance::authz::DenyAllHook::null())).await?
+        systemprompt_test_fixtures::fixture_app_context_with_hook(
+            &b.database_url,
+            Arc::new(systemprompt_governance::authz::DenyAllHook::null()),
+        )
+        .await?
     } else {
         test_app_context(&b.database_url).await
     };

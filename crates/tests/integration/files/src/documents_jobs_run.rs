@@ -2,16 +2,15 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use systemprompt_database::DbPool;
-use systemprompt_files::IssuesConfig;
-use systemprompt_files::documents::{DocumentsHandles, DocumentsHandlesSlot};
-use systemprompt_files::issues::{IssueReportRepository, IssueService};
 use systemprompt_files::documents::jobs::{
     DocumentAgentReadRetentionJob, DocumentBlobGcJob, DocumentCollabReaperJob,
     DocumentCollabUpdateSweepJob, DocumentMediaBackfillJob, DocumentNodeIdsBackfillJob,
     DocumentPresenceSweepJob,
 };
+use systemprompt_files::documents::{DocumentsHandles, DocumentsHandlesSlot};
+use systemprompt_files::issues::{IssueReportRepository, IssueService};
 use systemprompt_files::uploads::DocumentUploadExpiryJob;
-use systemprompt_files::{DocumentsConfig, FilesConfig, FilesConfigYaml};
+use systemprompt_files::{DocumentsConfig, FilesConfig, FilesConfigYaml, IssuesConfig};
 use systemprompt_identifiers::{DocumentId, DocumentRevisionId};
 use systemprompt_models::documents::EditOp;
 use systemprompt_provider_contracts::{Dependencies, Job, JobContext, JobScope};

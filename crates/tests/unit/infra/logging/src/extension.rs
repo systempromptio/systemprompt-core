@@ -2,8 +2,8 @@
 
 use systemprompt_extension::contribute::ContributionSink;
 use systemprompt_extension::{Extension, StandingTag};
-use systemprompt_test_fixtures::admitted_member;
 use systemprompt_logging::LoggingExtension;
+use systemprompt_test_fixtures::admitted_member;
 
 fn contributions() -> ContributionSink {
     admitted_member(&LoggingExtension, StandingTag::Core)
@@ -24,7 +24,9 @@ fn schemas_include_logs_and_analytics() {
     let sink = contributions();
     let names: Vec<&str> = sink
         .schemas()
-        .iter().filter_map(|s| s.table.as_deref()).collect();
+        .iter()
+        .filter_map(|s| s.table.as_deref())
+        .collect();
     assert_eq!(
         names,
         vec![

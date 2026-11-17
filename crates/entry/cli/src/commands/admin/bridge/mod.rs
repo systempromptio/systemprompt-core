@@ -17,9 +17,9 @@ mod types;
 use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use clap::Subcommand;
-use systemprompt_extension::cli::CommandOutput;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::CommandOutput;
 use systemprompt_identifiers::UserId;
 use systemprompt_users::{UserAdminService, UserRepository, UserService};
 

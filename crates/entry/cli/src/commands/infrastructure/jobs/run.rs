@@ -18,8 +18,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Result, bail};
 use crate::kernel::KernelHost;
+use anyhow::{Result, bail};
 use clap::Args;
 use std::sync::Arc;
 use std::time::Duration;
@@ -28,8 +28,8 @@ use systemprompt_scheduler::{
     JobExecutionService, JobRunReport, JobSelection, parse_job_parameters,
 };
 
-use super::types::{BatchJobRunOutput, JobRunOutput, JobRunResult};
 use super::admitted_schedule;
+use super::types::{BatchJobRunOutput, JobRunOutput, JobRunResult};
 use crate::commands::shared::{app_context, services_config};
 use systemprompt_extension::cli::{CommandError, CommandOutput};
 

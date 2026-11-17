@@ -6,7 +6,9 @@
 
 use systemprompt_extension::{ContributionError, Contributions, Extension, ExtensionMetadata};
 use systemprompt_runtime::{AppContext, KernelError, RuntimeError};
-use systemprompt_test_fixtures::{core_members, fixture_admitted, fixture_admitted_of, fixture_core_members};
+use systemprompt_test_fixtures::{
+    core_members, fixture_admitted, fixture_admitted_of, fixture_core_members,
+};
 
 use crate::boot::{BootOptions, boot};
 
@@ -74,7 +76,10 @@ async fn build_assembles_full_context_with_pool_and_write_url() {
         "a loaded content config provides routing"
     );
     assert!(ctx.geoip_reader().is_none());
-    assert_eq!(ctx.admitted().built().members().count(), fixture_core_members().len());
+    assert_eq!(
+        ctx.admitted().built().members().count(),
+        fixture_core_members().len()
+    );
 
     remove_admin(&pool, &admin).await;
 }
@@ -331,7 +336,9 @@ fn marketplace_filter_of(contribute_filter: bool) -> String {
     )
     .expect("an empty role directory slot builds");
     let kernel = systemprompt_test_fixtures::offline_resolved_kernel(
-        &systemprompt_test_fixtures::probe_admitted(systemprompt_test_fixtures::ComposedParts::default()),
+        &systemprompt_test_fixtures::probe_admitted(
+            systemprompt_test_fixtures::ComposedParts::default(),
+        ),
         systemprompt_extension::prelude::Dependencies::new().with(Arc::new(roles)),
     );
     let mut builder = MarketplaceSlotBuilder::default();

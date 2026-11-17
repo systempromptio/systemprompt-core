@@ -18,10 +18,8 @@ use super::call_client::{
 };
 use super::types::{McpCallOutput, McpToolContent};
 use crate::commands::shared::app_context;
-use systemprompt_extension::cli::Prompter;
-use systemprompt_extension::cli::resolve_required;
 use crate::session::{CliSessionContext, get_or_create_session};
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_extension::cli::{CommandOutput, Prompter, resolve_required};
 
 #[derive(Debug, Args)]
 #[command(

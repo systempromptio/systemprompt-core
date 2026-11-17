@@ -8,8 +8,8 @@ use systemprompt_agent::models::context::ContextKind;
 use systemprompt_agent::repository::ContextRepository;
 use systemprompt_analytics_entry::cli::{self as analytics, AnalyticsCommands};
 use systemprompt_cli::{CommandContext, EnvOverrides};
-use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::SessionId;
 use systemprompt_runtime::DatabaseContext;
 use systemprompt_test_fixtures::{

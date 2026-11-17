@@ -157,12 +157,7 @@ async fn reconcile_only_rewrites_checksum_in_place() {
     .await;
 
     let apply_run = db::execute(
-        parse(&[
-            "migrate-repair",
-            &ext,
-            "--reconcile-only",
-            "--apply",
-        ]),
+        parse(&["migrate-repair", &ext, "--reconcile-only", "--apply"]),
         &ctx_on(&pool, &url, OutputFormat::Json),
     )
     .await;

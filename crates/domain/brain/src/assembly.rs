@@ -58,24 +58,19 @@ pub(crate) fn bind_handle(seams: &BrainSeams, r: &Resolved<'_>) -> Result<(), Sl
         .build();
     let store = Arc::new(BrainRecallStore::new(repos.clone(), profile.recall.stale));
     let source: Arc<dyn FactRecallSource> = Arc::<BrainRecallStore>::clone(&store);
-    let recall = BrainRecallService::builder(
-        source,
-        store,
-        source_access,
-        declared,
-        Arc::clone(&profile),
-    )
-    .retrievers(seams.retrievers.clone())
-    .rerankers(seams.rerankers.clone())
-    .injection_policies(seams.injection.clone())
-    .audiences(seams.audiences.clone())
-    .importance(seams.importance.clone())
-    .outcomes(OutcomeService::new(
-        Arc::clone(&repos.recalls),
-        Arc::clone(&repos.outcomes),
-        seams.outcome_signals.clone(),
-    ))
-    .build();
+    let recall =
+        BrainRecallService::builder(source, store, source_access, declared, Arc::clone(&profile))
+            .retrievers(seams.retrievers.clone())
+            .rerankers(seams.rerankers.clone())
+            .injection_policies(seams.injection.clone())
+            .audiences(seams.audiences.clone())
+            .importance(seams.importance.clone())
+            .outcomes(OutcomeService::new(
+                Arc::clone(&repos.recalls),
+                Arc::clone(&repos.outcomes),
+                seams.outcome_signals.clone(),
+            ))
+            .build();
     let handle = BrainHandle::new(BrainHandleParts {
         repos: Arc::new(repos),
         service: Arc::new(service),

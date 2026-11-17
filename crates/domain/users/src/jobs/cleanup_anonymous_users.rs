@@ -75,4 +75,3 @@ impl Job for CleanupAnonymousUsersJob {
             .with_duration(duration_ms))
     }
 }
-

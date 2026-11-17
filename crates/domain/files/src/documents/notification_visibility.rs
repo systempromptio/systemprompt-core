@@ -13,10 +13,10 @@
 
 use std::sync::Arc;
 
-use async_trait::async_trait;
-use systemprompt_extension::{ResourceVisibility, Visibility, VisibilityError};
 use super::repository::DocumentRepositories;
 use super::{DocumentAccessService, DocumentsError};
+use async_trait::async_trait;
+use systemprompt_extension::{ResourceVisibility, Visibility, VisibilityError};
 use systemprompt_identifiers::{DocumentCommentId, DocumentId, UserId};
 use systemprompt_models::documents::AccessLevel;
 use systemprompt_models::notifications::SubjectRef;

@@ -90,11 +90,14 @@ async fn delete_preview_helper() {
         test_app_context(database.url()).await,
     );
     println!("BEGIN_PREVIEW");
-    crate::boot_ctx::rendered(&context, users::execute(
-        parse(&["delete", target.id.as_str(), "--dry-run"]),
+    crate::boot_ctx::rendered(
         &context,
+        users::execute(
+            parse(&["delete", target.id.as_str(), "--dry-run"]),
+            &context,
+        )
+        .await,
     )
-    .await)
     .expect("public deletion preview");
     println!("END_PREVIEW");
     let users_after: Vec<(String, String, String, Vec<String>)> = sqlx::query_as(

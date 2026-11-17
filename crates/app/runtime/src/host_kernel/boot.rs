@@ -10,16 +10,16 @@ use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_config::{GrantedSecrets, LoadedProfile};
 use systemprompt_files::documents::DocumentsHandlesSlot;
+use systemprompt_governance::authz::SubjectProviderSet;
+use systemprompt_governance::contract::AuthzHooks;
+use systemprompt_governance::policy::PolicyCatalog;
 use systemprompt_loader::{ConfigLoader, ServicesSourceBootstrap, ServicesState};
+use systemprompt_marketplace::contract::MarketplaceSeams;
 use systemprompt_marketplace::managed::ManagedRepository;
 use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_models::subprocess::VERIFICATION_KEYS_ENV;
 use systemprompt_security::jwt::VerifyingTokenAuthority;
 use systemprompt_security::keys::{TokenVerificationKeys, VerificationKeyring};
-use systemprompt_governance::authz::SubjectProviderSet;
-use systemprompt_governance::contract::AuthzHooks;
-use systemprompt_governance::policy::PolicyCatalog;
-use systemprompt_marketplace::contract::MarketplaceSeams;
 use systemprompt_traits::{
     BackgroundTasks, CacheEpochs, DatabaseHandle, DynSessionUsageCounters, SecretStore,
 };
@@ -142,9 +142,13 @@ impl HostKernel {
             None,
             &cache_epochs,
             &AuthzBuilt {
-                providers: &*r.get::<Arc<SubjectProviderSet>>().map_err(RuntimeError::from)?,
+                providers: &*r
+                    .get::<Arc<SubjectProviderSet>>()
+                    .map_err(RuntimeError::from)?,
                 hooks: &*r.get::<Arc<AuthzHooks>>().map_err(RuntimeError::from)?,
-                seams: &*r.get::<Arc<MarketplaceSeams>>().map_err(RuntimeError::from)?,
+                seams: &*r
+                    .get::<Arc<MarketplaceSeams>>()
+                    .map_err(RuntimeError::from)?,
             },
         )?;
         let governance = load_governance(

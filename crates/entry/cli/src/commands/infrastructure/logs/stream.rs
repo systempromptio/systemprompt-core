@@ -18,8 +18,8 @@ use systemprompt_models::artifacts::NoticeLine;
 use tokio::time;
 
 use super::shared::level_notice;
-use systemprompt_extension::cli::CommandOutput;
 use systemprompt_database::pool_from_handle;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct StreamArgs {
@@ -69,7 +69,9 @@ pub(super) async fn execute(args: StreamArgs, host: &dyn KernelHost) -> Result<C
         let logs = get_logs(&service, &args, last_timestamp).await?;
 
         if !logs.is_empty() {
-            host.render(&CommandOutput::message(logs.iter().map(entry_notice).collect()));
+            host.render(&CommandOutput::message(
+                logs.iter().map(entry_notice).collect(),
+            ));
             streamed += logs.len();
             last_timestamp = logs.iter().map(|log| log.timestamp).max();
         } else if last_timestamp.is_none() {
@@ -127,7 +129,10 @@ async fn get_logs(
 fn header(args: &StreamArgs) -> CommandOutput {
     let mut lines = Vec::new();
     if let Some(level) = args.level {
-        lines.push(NoticeLine::new("info", format!("Level filter: {}", level.as_str())));
+        lines.push(NoticeLine::new(
+            "info",
+            format!("Level filter: {}", level.as_str()),
+        ));
     }
     if let Some(ref module) = args.module {
         lines.push(NoticeLine::new("info", format!("Module filter: {module}")));

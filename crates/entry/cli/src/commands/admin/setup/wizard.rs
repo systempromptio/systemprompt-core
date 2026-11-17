@@ -11,9 +11,7 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
-use systemprompt_extension::cli::Prompter;
-use systemprompt_extension::cli::CommandOutput;
-use systemprompt_extension::cli::ChildSupervisor;
+use systemprompt_extension::cli::{ChildSupervisor, CommandOutput, Prompter};
 use systemprompt_logging::CliService;
 
 use super::types::{DatabaseSetupInfo, SecretsConfiguredInfo, SetupOutput};
@@ -23,8 +21,8 @@ use super::wizard_prompts::{
     resolve_admin_email, setup_postgres, should_run_migrations,
 };
 use super::{SetupArgs, profile, secrets, services_files};
-use systemprompt_extension::cli::CliConfig;
 use crate::shared::postgres_access::PostgresConfig;
+use systemprompt_extension::cli::CliConfig;
 
 pub fn should_write(path: &Path, force: bool, config: &CliConfig) -> bool {
     if force || !path.exists() {

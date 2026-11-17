@@ -3,8 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Context, Result, anyhow};
 use crate::kernel::KernelHost;
+use anyhow::{Context, Result, anyhow};
 use std::sync::Arc;
 use systemprompt_database::{
     Database, MigrationConfig, MigrationService, SchemaInstallReport, SchemaMember,
@@ -16,8 +16,7 @@ use systemprompt_manifest::Profile;
 use systemprompt_models::artifacts::NoticeLine;
 use systemprompt_runtime::DatabaseContext;
 
-use systemprompt_extension::cli::CliConfig;
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 use super::types::DbMigrateOutput;
 

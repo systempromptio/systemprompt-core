@@ -52,7 +52,11 @@ impl DeployOrchestrator {
         request: &DeployRequest,
         progress: &dyn DeployProgress,
     ) -> Result<DeployReport> {
-        let artifacts = DeployArtifacts::resolve(&request.project_root, &request.profile_name, &request.assets)?;
+        let artifacts = DeployArtifacts::resolve(
+            &request.project_root,
+            &request.profile_name,
+            &request.assets,
+        )?;
         progress.event(&DeployEvent::ArtifactsResolved {
             tenant_name: &request.tenant_name,
             binary: &artifacts.binary,

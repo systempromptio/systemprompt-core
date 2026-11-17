@@ -36,8 +36,7 @@ mod webauthn;
 use crate::kernel::KernelHost;
 use anyhow::{Result, bail};
 use clap::Subcommand;
-use systemprompt_extension::cli::DataImpact;
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_extension::cli::{CommandOutput, DataImpact};
 
 pub use apikey::{ApiKeyCommands, IssueArgs as ApiKeyIssueArgs};
 pub use types::{
@@ -194,7 +193,9 @@ async fn refuse_file_managed_identity(host: &dyn KernelHost) -> Result<()> {
     if authority != systemprompt_manifest::profile::PlaneAuthority::File {
         return Ok(());
     }
-    let planes = crate::commands::admin::state::app(host).await?.config_planes()?;
+    let planes = crate::commands::admin::state::app(host)
+        .await?
+        .config_planes()?;
     planes.writer(systemprompt_oauth_issuance::IDENTITY_PLANE)?;
     Ok(())
 }

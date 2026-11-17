@@ -35,7 +35,13 @@ fn service_defs(admitted: &Admitted) -> Vec<(String, &'static str, bool)> {
         .iter()
         .filter(|set| set.owner.as_str() == "probe-install")
         .flat_map(|set| set.set.defs())
-        .map(|def| (def.method.to_string(), def.path.as_str(), def.openapi.is_none()))
+        .map(|def| {
+            (
+                def.method.to_string(),
+                def.path.as_str(),
+                def.openapi.is_none(),
+            )
+        })
         .collect()
 }
 
@@ -78,7 +84,10 @@ fn a_service_under_a_reserved_prefix_is_refused() {
 fn a_service_prefix_covering_a_listed_route_conflicts() {
     let error = install_service(ROOT, "/r").expect_err("the prefix is core's redirect path");
     assert!(
-        matches!(&error, CompositionError::ReservedPrefix { prefix: "/r", .. }),
+        matches!(
+            &error,
+            CompositionError::ReservedPrefix { prefix: "/r", .. }
+        ),
         "{error:?}"
     );
 

@@ -7,8 +7,7 @@ use std::sync::Arc;
 
 use systemprompt_cli::kernel::MemberHost;
 use systemprompt_cli::{CommandContext, EnvOverrides};
-use systemprompt_extension::cli::{CliConfig, OutputFormat};
-use systemprompt_extension::cli::{CommandDescriptor, CommandHost};
+use systemprompt_extension::cli::{CliConfig, CommandDescriptor, CommandHost, OutputFormat};
 use systemprompt_extension::{
     Admitted, AdmittedAssets, AdmittedConfigs, AdmittedMigrations, AssetDefinition, AssetPaths,
     Migration,
@@ -69,10 +68,8 @@ fn an_admitted_members_migrations_and_assets_are_in_its_views() {
     let assets = AdmittedAssets::of(admitted.built());
     let required = assets.required(&Paths(PathBuf::from("/srv")));
     assert!(
-        required
-            .iter()
-            .any(|(owner, asset)| owner.as_str() == PROBE
-                && asset.source() == Path::new("/srv/probe.css"))
+        required.iter().any(|(owner, asset)| owner.as_str() == PROBE
+            && asset.source() == Path::new("/srv/probe.css"))
     );
     let configs = AdmittedConfigs::of(admitted.built());
     let declared: usize = admitted
@@ -87,7 +84,12 @@ fn an_admitted_members_migrations_and_assets_are_in_its_views() {
 fn a_disabled_members_declarations_are_absent_from_its_views() {
     let admitted = admitted(&[PROBE]);
     let migrations = AdmittedMigrations::of(admitted.built());
-    assert!(!migrations.members().iter().any(|(meta, _)| meta.id == PROBE));
+    assert!(
+        !migrations
+            .members()
+            .iter()
+            .any(|(meta, _)| meta.id == PROBE)
+    );
     let required = AdmittedAssets::of(admitted.built()).required(&Paths(PathBuf::from("/srv")));
     assert!(!required.iter().any(|(owner, _)| owner.as_str() == PROBE));
 }
@@ -101,7 +103,12 @@ fn a_member_command_reads_the_open_views() {
     let migrations = resolved
         .get::<AdmittedMigrations>()
         .expect("the migrations view is open");
-    assert!(migrations.members().iter().any(|(meta, _)| meta.id == PROBE));
+    assert!(
+        migrations
+            .members()
+            .iter()
+            .any(|(meta, _)| meta.id == PROBE)
+    );
     assert!(resolved.get::<AdmittedConfigs>().is_ok());
     assert!(resolved.get::<AdmittedAssets>().is_ok());
 }

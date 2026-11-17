@@ -9,9 +9,9 @@ use std::path::PathBuf;
 use anyhow::{Context, Result};
 use clap::Args;
 
-use systemprompt_extension::cli::CommandOutput;
 use super::logs_db::execute_db_mode;
 use super::logs_disk::{execute_disk_mode, execute_follow_mode};
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct LogsArgs {
@@ -50,13 +50,7 @@ pub(super) async fn execute(args: LogsArgs, host: &dyn KernelHost) -> Result<Com
     };
 
     if args.follow {
-        return execute_follow_mode(
-            &args,
-            prompter,
-            config,
-            &logs_path,
-            host.children(),
-        );
+        return execute_follow_mode(&args, prompter, config, &logs_path, host.children());
     }
 
     if args.disk {

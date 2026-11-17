@@ -21,11 +21,9 @@ async fn node(disabled: &[ExtensionId]) -> anyhow::Result<Router> {
     let mut config = fixture_config(&bootstrap.database_url);
     config.rate_limits = RateLimitsConfig::disabled();
     config.trusted_proxies = Vec::new();
-    let ctx = fixture_app_context_with_extensions(
-        config,
-        super::common::reference_admitted(disabled)?,
-    )
-    .await?;
+    let ctx =
+        fixture_app_context_with_extensions(config, super::common::reference_admitted(disabled)?)
+            .await?;
     systemprompt_api::services::server::setup_api_server(
         &ctx,
         systemprompt_api::services::server::routes::Composed {

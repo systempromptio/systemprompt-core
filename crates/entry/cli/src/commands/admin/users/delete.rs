@@ -15,10 +15,10 @@
 
 use anyhow::{Result, anyhow};
 use clap::Args;
-use systemprompt_identifiers::UserId;
 use std::sync::Arc;
 use systemprompt_extension::AdmittedPurge;
 use systemprompt_extension::cli::{CommandError, CommandOutput};
+use systemprompt_identifiers::UserId;
 use systemprompt_users::{
     ArchiveParams, PurgeCount, PurgeOutcome, UserAdminService, UserRepository, UserService,
 };
@@ -76,13 +76,16 @@ pub(super) async fn execute(args: DeleteArgs, host: &dyn KernelHost) -> Result<C
         let plan = host.resolved().await?.get::<AdmittedPurge>()?;
         let preview = user_service.purge_preview(&user.id, &plan).await?;
         let rows: Vec<PurgeRow> = preview.counts.iter().map(PurgeRow::from).collect();
-        return Ok(CommandOutput::table_of(vec!["owner", "table", "rows", "member"], &rows)
-            .with_title(format!(
-                "Purging '{}' ({}) would remove{}",
-                user.name,
-                user.id,
-                coverage_note(&preview)
-            )));
+        return Ok(
+            CommandOutput::table_of(vec!["owner", "table", "rows", "member"], &rows).with_title(
+                format!(
+                    "Purging '{}' ({}) would remove{}",
+                    user.name,
+                    user.id,
+                    coverage_note(&preview)
+                ),
+            ),
+        );
     }
 
     if !args.yes {
@@ -199,7 +202,11 @@ impl From<&PurgeCount> for PurgeRow {
             owner: count.owner.to_string(),
             table: count.table.clone(),
             rows: count.rows,
-            member: if count.absent { "disabled (recorded)" } else { "enabled" },
+            member: if count.absent {
+                "disabled (recorded)"
+            } else {
+                "enabled"
+            },
         }
     }
 }

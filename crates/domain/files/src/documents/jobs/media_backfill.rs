@@ -12,8 +12,8 @@ use async_trait::async_trait;
 use systemprompt_traits::{Job, JobContext, JobResult, JobScope, ProviderError, ProviderResult};
 
 use crate::FilesConfig;
-use crate::documents::agents::{DocumentActor, act_as};
 use crate::documents::DocumentsHandlesSlot;
+use crate::documents::agents::{DocumentActor, act_as};
 use crate::documents::handles::bound_service;
 
 const BATCH: i64 = 50;

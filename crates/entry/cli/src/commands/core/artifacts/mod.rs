@@ -11,9 +11,9 @@ pub mod show;
 pub mod types;
 
 use crate::kernel::KernelHost;
-use systemprompt_extension::cli::CommandOutput;
 use anyhow::Result;
 use clap::Subcommand;
+use systemprompt_extension::cli::CommandOutput;
 
 pub use types::{ArtifactListOutput, ArtifactPartOutput, ArtifactSummary};
 

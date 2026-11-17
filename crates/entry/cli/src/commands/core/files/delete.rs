@@ -13,10 +13,8 @@ use systemprompt_identifiers::FileId;
 use systemprompt_traits::FileStorage;
 
 use super::types::FileDeleteOutput;
-use systemprompt_extension::cli::CliConfig;
 use crate::commands::shared::app_context;
-use systemprompt_extension::cli::Prompter;
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_extension::cli::{CliConfig, CommandOutput, Prompter};
 
 #[derive(Debug, Clone, Args)]
 pub struct DeleteArgs {
@@ -39,8 +37,7 @@ pub(super) async fn execute(
     prompter: &dyn Prompter,
     host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
-    let app = app_context(host)
-        .await?;
+    let app = app_context(host).await?;
     execute_with_pool(
         args,
         prompter,

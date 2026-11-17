@@ -11,9 +11,9 @@
 
 use axum::response::sse::Event;
 use serde::Serialize;
+use systemprompt_extension::router::frame_event;
 use systemprompt_models::api::CliOutputEvent;
 use systemprompt_models::{A2AEvent, AgUiEvent, AnalyticsEvent, ContextEvent, SystemEvent};
-use systemprompt_extension::router::frame_event;
 use systemprompt_traits::events::SseFrame;
 
 /// An event payload that renders itself as one server-sent event.

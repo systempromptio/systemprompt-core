@@ -56,7 +56,10 @@ fn unknown_job_names_covers_bootstrap_jobs() {
     cfg.bootstrap_jobs
         .push(JobName::new("publish_pipeline_typo"));
 
-    assert_eq!(unknown_job_names(&cfg, &core_schedule()), vec!["publish_pipeline_typo"]);
+    assert_eq!(
+        unknown_job_names(&cfg, &core_schedule()),
+        vec!["publish_pipeline_typo"]
+    );
 }
 
 #[test]
@@ -65,7 +68,10 @@ fn unknown_job_names_dedupes_a_name_in_both_lists() {
     cfg.jobs.push(JobConfig::new(JobName::new("phantom_job")));
     cfg.bootstrap_jobs.push(JobName::new("phantom_job"));
 
-    assert_eq!(unknown_job_names(&cfg, &core_schedule()), vec!["phantom_job"]);
+    assert_eq!(
+        unknown_job_names(&cfg, &core_schedule()),
+        vec!["phantom_job"]
+    );
 }
 
 #[test]

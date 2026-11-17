@@ -20,7 +20,10 @@ impl Extension for CloudCliExtension {
 
     #[cfg_attr(
         not(feature = "cli"),
-        expect(unused_variables, reason = "the cloud member contributes only CLI commands")
+        expect(
+            unused_variables,
+            reason = "the cloud member contributes only CLI commands"
+        )
     )]
     fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
         #[cfg(feature = "cli")]

@@ -77,9 +77,11 @@ async fn empty_agent_tools_helper() {
         EnvOverrides::default(),
     );
     println!("BEGIN_EMPTY_TOOLS");
-    crate::boot_ctx::rendered(&context, agents::execute(parse(&["tools", AGENT]), &context)
-        .await)
-        .expect("render empty tool inventory");
+    crate::boot_ctx::rendered(
+        &context,
+        agents::execute(parse(&["tools", AGENT]), &context).await,
+    )
+    .expect("render empty tool inventory");
     println!("END_EMPTY_TOOLS");
 }
 

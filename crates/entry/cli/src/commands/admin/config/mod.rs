@@ -50,10 +50,10 @@ use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Subcommand;
 
+use serde::Serialize;
 use systemprompt_extension::cli::{CommandError, CommandOutput};
 use systemprompt_loader::ServicesState;
 use systemprompt_models::artifacts::NoticeLine;
-use serde::Serialize;
 
 use systemprompt_extension::cli::{CommandDescriptor, DescribeCommand};
 
@@ -165,9 +165,11 @@ pub async fn execute(command: ConfigCommands, host: &dyn KernelHost) -> Result<C
             validate_services::prepare(&args, host).await?;
             let (result, valid) = validate::execute(&args, host).await?;
             if !valid {
-                return Err(CommandError::new(anyhow::anyhow!("Config validation failed"))
-                    .with_output(result)
-                    .into());
+                return Err(
+                    CommandError::new(anyhow::anyhow!("Config validation failed"))
+                        .with_output(result)
+                        .into(),
+                );
             }
             Ok(result)
         },

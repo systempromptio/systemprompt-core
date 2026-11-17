@@ -40,13 +40,13 @@ use systemprompt_traits::{
 use systemprompt_logging::AnalyticsRepository;
 use systemprompt_models::{ContentConfigRaw, ContentRouting};
 
-use crate::{AnalyticsService, GeoIpReader, SessionBehaviourService};
 use crate::jobs::{
     BackfillSessionGeoJob, BehavioralAnalysisJob, EngagementEventsPurge,
     FingerprintReputationPurge, GhostSessionCleanupJob, LinkFactsRollupJob,
     MaliciousIpBlacklistJob, NoJsCleanupJob,
 };
 use crate::repository::{AnalyticsRepositories, ContentAnalyticsRepository};
+use crate::{AnalyticsService, GeoIpReader, SessionBehaviourService};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AnalyticsExtension;
@@ -76,7 +76,9 @@ impl Extension for AnalyticsExtension {
                 let db = r.get::<DbPool>()?;
                 let sessions = r.get::<DynSessionStore>()?;
                 let event_log = Arc::new(AnalyticsRepository::new(&db));
-                Ok(Arc::new(AnalyticsRepositories::new(&db, sessions, event_log)))
+                Ok(Arc::new(AnalyticsRepositories::new(
+                    &db, sessions, event_log,
+                )))
             })
             .provide(|r: &Resolved<'_>| {
                 let repositories = r.get::<Arc<AnalyticsRepositories>>()?;

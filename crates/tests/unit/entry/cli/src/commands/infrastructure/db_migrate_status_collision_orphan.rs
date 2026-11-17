@@ -3,8 +3,8 @@
 use std::process::Command;
 
 use clap::Parser;
-use systemprompt_cli::infrastructure::db::{self, DbCommands};
 use systemprompt_cli::EnvOverrides;
+use systemprompt_cli::infrastructure::db::{self, DbCommands};
 use systemprompt_extension::cli::CliConfig;
 use systemprompt_runtime::DatabaseContext;
 use systemprompt_test_fixtures::{DisposableDb, bounded_output};
@@ -64,9 +64,11 @@ async fn dirty_status_helper() {
         database.url().to_owned(),
     );
     eprintln!("BEGIN_DIRTY_STATUS");
-    crate::boot_ctx::rendered(&context, db::execute(parse(&["migrate-status", "logging"]), &context)
-        .await)
-        .expect("render dirty migration diagnosis");
+    crate::boot_ctx::rendered(
+        &context,
+        db::execute(parse(&["migrate-status", "logging"]), &context).await,
+    )
+    .expect("render dirty migration diagnosis");
     eprintln!("END_DIRTY_STATUS");
     let after: Vec<(i32, String, String)> = sqlx::query_as(
         "SELECT version, name, checksum FROM extension_migrations \

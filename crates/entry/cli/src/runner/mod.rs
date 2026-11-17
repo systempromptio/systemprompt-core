@@ -1,9 +1,9 @@
 //! CLI runtime entry point and bootstrap helpers.
 //!
 //! Owns argument parsing (`args`), profile/secrets bootstrap (`bootstrap`),
-//! and cloud routing ([`routing`], [`profile_routing`]). [`run_composed`] is the
-//! process entry point: it assembles the command tree from the kernel groups
-//! and the [`CommandRegistry`], parses, resolves the selected command's
+//! and cloud routing ([`routing`], [`profile_routing`]). [`run_composed`] is
+//! the process entry point: it assembles the command tree from the kernel
+//! groups and the [`CommandRegistry`], parses, resolves the selected command's
 //! [`CommandDescriptor`], bootstraps what that descriptor asks for, and
 //! dispatches.
 //!
@@ -183,7 +183,8 @@ async fn run_inner(
         Admission::Admitted(admitted) => (Some(admitted), None),
         Admission::Deferred(admit) => (None, admit),
     };
-    if desc.paths() && !desc.skip_validation()
+    if desc.paths()
+        && !desc.skip_validation()
         && let (Some(boot), Some(admitted)) = (&boot, &admitted)
     {
         bootstrap::run_validation(boot, admitted.built())?;

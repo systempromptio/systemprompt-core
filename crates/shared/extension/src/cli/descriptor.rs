@@ -31,9 +31,9 @@ use super::KernelGrant;
 /// forwarding it to a tenant.
 ///
 /// `child_host`, `serves_api`, `cloud_operator`, `local_export`,
-/// `skip_validation` and `boot_profile` relax a requirement the runner would otherwise impose,
-/// so each is a [`KernelGrant`]: a registered command holds one only when it
-/// declares it and the kernel lists its path for it.
+/// `skip_validation` and `boot_profile` relax a requirement the runner would
+/// otherwise impose, so each is a [`KernelGrant`]: a registered command holds
+/// one only when it declares it and the kernel lists its path for it.
 ///
 /// `is_destructive` is never set by hand: it is projected from the command's
 /// exhaustive [`DataImpact`] classification, so a command cannot be added

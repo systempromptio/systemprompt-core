@@ -163,23 +163,38 @@ async fn purge_with(ctx: &Ctx, plan: &AdmittedPurge, absent: bool) {
     let declaration = ctx.probe_declaration("kind", &["user"]);
     ctx.record(&ctx.probe_owner(), &[declaration]).await;
 
-    let preview = ctx.service.purge_preview(&victim, plan).await.expect("preview");
+    let preview = ctx
+        .service
+        .purge_preview(&victim, plan)
+        .await
+        .expect("preview");
     let previewed = probe_count(&preview, &ctx.probe_table());
     assert_eq!(previewed.rows, 2);
-    assert_eq!(previewed.absent, absent, "the preview marks a disabled member's table");
+    assert_eq!(
+        previewed.absent, absent,
+        "the preview marks a disabled member's table"
+    );
     assert_eq!(previewed.owner, ctx.probe_owner());
 
     let removed = ctx.service.delete(&victim, plan).await.expect("delete");
     let purged = probe_count(&removed, &ctx.probe_table());
     assert_eq!(purged.rows, 2);
     assert_eq!(purged.absent, absent);
-    assert_eq!(ctx.count(&victim, "user").await, 0, "the user's own rows are gone");
+    assert_eq!(
+        ctx.count(&victim, "user").await,
+        0,
+        "the user's own rows are gone"
+    );
     assert_eq!(
         ctx.count(&victim, "system").await,
         1,
         "rows the predicate leaves out stay"
     );
-    assert_eq!(ctx.count(&other, "user").await, 1, "another user's rows stay");
+    assert_eq!(
+        ctx.count(&other, "user").await,
+        1,
+        "another user's rows stay"
+    );
     assert!(removed.skipped.is_empty());
 }
 
@@ -214,10 +229,21 @@ async fn a_recorded_table_that_is_gone_is_skipped_and_reported() {
     )
     .await;
 
-    let preview = ctx.service.purge_preview(&victim, &core_plan()).await.expect("preview");
+    let preview = ctx
+        .service
+        .purge_preview(&victim, &core_plan())
+        .await
+        .expect("preview");
     assert!(!preview.is_complete());
-    let removed = ctx.service.delete(&victim, &core_plan()).await.expect("delete");
-    assert!(!removed.is_complete(), "a partial purge never reads as complete");
+    let removed = ctx
+        .service
+        .delete(&victim, &core_plan())
+        .await
+        .expect("delete");
+    assert!(
+        !removed.is_complete(),
+        "a partial purge never reads as complete"
+    );
     assert!(
         removed
             .skipped
@@ -248,7 +274,11 @@ async fn a_member_with_tables_but_no_record_is_named_as_not_covered() {
         .expect("record an owner");
     ctx.record(&recorded, &[]).await;
 
-    let removed = ctx.service.delete(&victim, &core_plan()).await.expect("delete");
+    let removed = ctx
+        .service
+        .delete(&victim, &core_plan())
+        .await
+        .expect("delete");
     assert!(removed.unrecorded_members.contains(&ghost));
     assert!(
         !removed.unrecorded_members.contains(&recorded),
@@ -267,7 +297,11 @@ async fn a_predicate_value_is_bound_as_data_and_cannot_widen_the_delete() {
         &[ctx.probe_declaration("kind", &["1=1) OR (1=1"])],
     )
     .await;
-    let removed = ctx.service.delete(&victim, &core_plan()).await.expect("delete");
+    let removed = ctx
+        .service
+        .delete(&victim, &core_plan())
+        .await
+        .expect("delete");
     assert_eq!(probe_count(&removed, &ctx.probe_table()).rows, 0);
     assert_eq!(ctx.count(&victim, "user").await, 2);
     assert_eq!(ctx.count(&victim, "system").await, 1);
@@ -286,7 +320,11 @@ async fn a_predicate_column_that_is_not_an_identifier_is_refused_before_any_dele
     .await;
     let refused = ctx.service.delete(&victim, &core_plan()).await;
     assert!(matches!(refused, Err(UserError::PurgeIdentifier { .. })));
-    assert_eq!(ctx.count(&victim, "user").await, 2, "the transaction rolled back");
+    assert_eq!(
+        ctx.count(&victim, "user").await,
+        2,
+        "the transaction rolled back"
+    );
     assert_eq!(ctx.count(&other, "user").await, 1);
     ctx.fixture.finish().await;
 }

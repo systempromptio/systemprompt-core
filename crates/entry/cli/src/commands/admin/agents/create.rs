@@ -8,16 +8,13 @@ use anyhow::{Context, Result};
 use clap::Args;
 use std::path::Path;
 
-use systemprompt_extension::cli::CliConfig;
-use systemprompt_extension::cli::Prompter;
-use systemprompt_extension::cli::CommandOutput;
 use super::shared::AgentArgs;
 use super::types::AgentCreateOutput;
 use systemprompt_agent::services::config_authoring::{
     AgentCapabilityFlags, AgentCardLinks, AgentConfigAuthoringService, AgentCreateRequest,
     AgentModelChoice, AgentPlacement,
 };
-use systemprompt_extension::cli::resolve_required;
+use systemprompt_extension::cli::{CliConfig, CommandOutput, Prompter, resolve_required};
 use systemprompt_logging::CliService;
 
 #[derive(Debug, Args)]
@@ -177,12 +174,15 @@ async fn write_agent_config(
         .create(request)
         .with_context(|| format!("Failed to create agent '{}'", name))?;
 
-    crate::commands::admin::state::boot(host).await?.load_services_config().with_context(|| {
-        format!(
-            "Agent file created at {} but validation failed. Please check the configuration.",
-            agent_file.display()
-        )
-    })?;
+    crate::commands::admin::state::boot(host)
+        .await?
+        .load_services_config()
+        .with_context(|| {
+            format!(
+                "Agent file created at {} but validation failed. Please check the configuration.",
+                agent_file.display()
+            )
+        })?;
 
     Ok(agent_file)
 }

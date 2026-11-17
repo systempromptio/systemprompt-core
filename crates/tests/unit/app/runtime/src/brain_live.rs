@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use serde_json::json;
 use systemprompt_extension::brain::SourceContent;
+use systemprompt_files::documents::DocumentSourceContent;
 use systemprompt_identifiers::{
     BrainFactId, DocumentCommentId, DocumentId, DocumentRevisionId, SessionId, UserId,
 };
@@ -11,7 +12,6 @@ use systemprompt_runtime::brain::mcp::{
     BrainMcpTools, BrainRefusalCode, DisputeHandler, ProposeHandler, RecallPreviewHandler,
     SearchHandler, WhyHandler, refusal_code,
 };
-use systemprompt_files::documents::DocumentSourceContent;
 use systemprompt_runtime::documents::mcp::{CommentHandler, CommentInput};
 
 use crate::brain_consumer_start::{handle_for, tools};

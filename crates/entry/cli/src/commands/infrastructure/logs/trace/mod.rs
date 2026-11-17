@@ -184,8 +184,6 @@ pub struct AiTraceOutput {
 pub async fn execute(command: TraceCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
         TraceCommands::List(args) => list::execute(args, host).await,
-        TraceCommands::Show(args) => {
-            show::execute(args, host).await
-        },
+        TraceCommands::Show(args) => show::execute(args, host).await,
     }
 }

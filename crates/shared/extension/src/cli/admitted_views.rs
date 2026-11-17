@@ -8,7 +8,8 @@ use crate::{Admitted, AdmittedAssets, AdmittedConfigs, AdmittedMigrations};
 
 /// The declared migrations, configuration sections and assets of an admitted
 /// composition, each open: the same views the kernel seeds for a member's
-/// command, and what [`CommandHost::admitted_views`](crate::cli::CommandHost::admitted_views)
+/// command, and what
+/// [`CommandHost::admitted_views`](crate::cli::CommandHost::admitted_views)
 /// returns for a profile at a path.
 #[derive(Debug, Clone)]
 pub struct AdmittedViews {

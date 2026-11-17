@@ -55,7 +55,10 @@ impl Extension for Referrer {
     fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
         c.schema(SchemaDefinition::new(
             self.table,
-            format!("CREATE TABLE IF NOT EXISTS {} (id TEXT PRIMARY KEY);", self.table),
+            format!(
+                "CREATE TABLE IF NOT EXISTS {} (id TEXT PRIMARY KEY);",
+                self.table
+            ),
         ));
         c.cross_table(self.cross);
         Ok(())
@@ -83,7 +86,10 @@ async fn a_held_back_member_still_owns_its_tables_for_a_cross_extension_referenc
     let members = schema_members(admitted.built());
 
     let first = install_schema_members(&members, db.write(), MigrationConfig::default()).await;
-    assert!(first.is_ok(), "control: neither member ahead installs: {first:?}");
+    assert!(
+        first.is_ok(),
+        "control: neither member ahead installs: {first:?}"
+    );
 
     sqlx::query(
         "INSERT INTO extension_migrations (id, extension_id, version, name, checksum) \
@@ -98,7 +104,10 @@ async fn a_held_back_member_still_owns_its_tables_for_a_cross_extension_referenc
     let ahead = install_schema_members(&members, db.write(), MigrationConfig::default()).await;
     let report = ahead.unwrap_or_else(|e| panic!("the held-back owner still owns {owned}: {e:?}"));
     assert!(
-        report.ahead.iter().any(|a| a.extension.as_str() == owner_id),
+        report
+            .ahead
+            .iter()
+            .any(|a| a.extension.as_str() == owner_id),
         "the owner is reported ahead, so it was held back: {report:?}"
     );
 

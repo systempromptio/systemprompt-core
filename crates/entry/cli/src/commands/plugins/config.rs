@@ -4,8 +4,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Result, anyhow};
 use crate::kernel::KernelHost;
+use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_extension::cli::CommandOutput;
 use systemprompt_identifiers::ExtensionId;
@@ -68,9 +68,8 @@ pub fn execute(args: &ConfigArgs, host: &dyn KernelHost) -> Result<CommandOutput
     let total = extensions.len();
     let output = ExtensionConfigListOutput { extensions, total };
 
-    Ok(CommandOutput::table_of(
-        vec!["extension_id", "config_prefix"],
-        &output.extensions,
+    Ok(
+        CommandOutput::table_of(vec!["extension_id", "config_prefix"], &output.extensions)
+            .with_title("Extension Configurations"),
     )
-    .with_title("Extension Configurations"))
 }

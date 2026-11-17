@@ -13,8 +13,8 @@ use systemprompt_marketplace::{AllowAllFilter, MarketplaceFilter};
 use systemprompt_models::bridge::manifest::{MANIFEST_SCHEMA_HEADER, SignedManifestEnvelope};
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    TestBootstrap, fixture_config, init_isolated_bootstrap, seed_bridge_credential,
-    seed_user_row, test_db_pool,
+    TestBootstrap, fixture_config, init_isolated_bootstrap, seed_bridge_credential, seed_user_row,
+    test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 
@@ -33,7 +33,12 @@ struct Harness {
 async fn harness(mailbox: &str) -> Harness {
     let boot = boot();
     let pool = test_db_pool().await;
-    let ctx = crate::support::context_on(boot, fixture_config(&boot.database_url), Arc::new(AllowAllFilter) as Arc<dyn MarketplaceFilter>).await;
+    let ctx = crate::support::context_on(
+        boot,
+        fixture_config(&boot.database_url),
+        Arc::new(AllowAllFilter) as Arc<dyn MarketplaceFilter>,
+    )
+    .await;
     let owner = ctx.system_admin().id();
     seed_user_row(
         &pool,

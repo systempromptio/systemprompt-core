@@ -11,8 +11,8 @@ pub mod types;
 pub mod list;
 pub mod show;
 
-use anyhow::{Context, Result};
 use crate::kernel::KernelHost;
+use anyhow::{Context, Result};
 use clap::Subcommand;
 
 use systemprompt_extension::cli::CommandOutput;
@@ -28,15 +28,11 @@ pub enum SkillsCommands {
 
 pub async fn execute(command: SkillsCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
-        SkillsCommands::List(args) => {
-            list::execute(args, host)
-                .await
-                .context("Failed to list skills")
-        },
-        SkillsCommands::Show(args) => {
-            list::show_resolved_skill(&args.name, host)
-                .await
-                .context("Failed to show skill")
-        },
+        SkillsCommands::List(args) => list::execute(args, host)
+            .await
+            .context("Failed to list skills"),
+        SkillsCommands::Show(args) => list::show_resolved_skill(&args.name, host)
+            .await
+            .context("Failed to show skill"),
     }
 }

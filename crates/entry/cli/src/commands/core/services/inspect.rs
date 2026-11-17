@@ -4,16 +4,16 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::path::PathBuf;
 use crate::kernel::KernelHost;
+use std::path::PathBuf;
 
 use anyhow::{Context, Result, bail};
 use clap::Args;
 use serde::Serialize;
 use systemprompt_loader::bundle::{BundleCache, cache_root, verify};
 use systemprompt_manifest::Profile;
-use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_manifest::services::bundle::SignedBundleManifest;
+use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_security::manifest_signing::{canonical_manifest_bytes, verify_with_pubkey};
 
 use systemprompt_extension::cli::CommandOutput;

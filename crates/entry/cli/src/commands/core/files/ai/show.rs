@@ -10,12 +10,11 @@ use systemprompt_database::DbPool;
 use systemprompt_files::{FileRepository, TypeSpecificMetadata};
 use systemprompt_identifiers::FileId;
 
-use systemprompt_extension::cli::CliConfig;
 use crate::commands::core::files::types::{
     ChecksumsOutput, FileDetailOutput, FileMetadataOutput, ImageMetadataOutput,
 };
 use crate::commands::shared::app_context;
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 #[derive(Debug, Clone, Args)]
 pub struct ShowArgs {
@@ -24,8 +23,7 @@ pub struct ShowArgs {
 }
 
 pub(super) async fn execute(args: ShowArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let app = app_context(host)
-        .await?;
+    let app = app_context(host).await?;
     execute_with_pool(args, app.db_pool(), host.output()).await
 }
 

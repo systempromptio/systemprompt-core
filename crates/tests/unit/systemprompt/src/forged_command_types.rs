@@ -21,7 +21,9 @@ fn forged(owner_type: &'static str) -> DeclaredCommands {
 fn the_core_owner_types_name_the_owning_extensions() {
     assert_eq!(
         core_owner_type(CoreId::Cloud),
-        Some(std::any::type_name::<systemprompt::cloud::entry::CloudCliExtension>())
+        Some(std::any::type_name::<
+            systemprompt::cloud::entry::CloudCliExtension,
+        >())
     );
     assert_eq!(
         core_owner_type(CoreId::AnalyticsHttp),
@@ -33,11 +35,9 @@ fn the_core_owner_types_name_the_owning_extensions() {
 
 #[test]
 fn a_core_id_under_another_type_is_refused_its_reserved_path() {
-    let error = CommandRegistry::build(
-        &forged("probe_install::ProbeExtension"),
-        &kernel_commands(),
-    )
-    .expect_err("the cloud id under a probe type cannot hold the cloud path");
+    let error =
+        CommandRegistry::build(&forged("probe_install::ProbeExtension"), &kernel_commands())
+            .expect_err("the cloud id under a probe type cannot hold the cloud path");
     assert!(matches!(
         error,
         RegistryError::ReservedPath {

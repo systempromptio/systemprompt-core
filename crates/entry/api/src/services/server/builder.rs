@@ -59,7 +59,10 @@ pub fn setup_api_server(
     }
 
     let engines = if crate::routes::gateway::gateway_admitted(composed.admitted) {
-        let engines = Arc::new(crate::routes::gateway::gateway_engines(ctx, composed.kernel)?);
+        let engines = Arc::new(crate::routes::gateway::gateway_engines(
+            ctx,
+            composed.kernel,
+        )?);
         register_artifact_scanner(ctx, &engines);
         Some(engines)
     } else {

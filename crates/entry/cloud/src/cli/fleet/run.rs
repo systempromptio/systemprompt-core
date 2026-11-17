@@ -14,8 +14,8 @@ use systemprompt_identifiers::{ContextId, SessionToken, TenantId};
 use systemprompt_logging::CliService;
 
 use super::{FleetRunArgs, ensure_read_only, hosted_tenants};
-use systemprompt_extension::cli::{CliConfig, CommandHost};
 use systemprompt_cloud::routing::operator_tenant_token;
+use systemprompt_extension::cli::{CliConfig, CommandHost};
 
 #[derive(Debug, Default)]
 struct CaptureSink {

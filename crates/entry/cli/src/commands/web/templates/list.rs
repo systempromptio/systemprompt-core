@@ -8,8 +8,7 @@ use clap::Args;
 use std::fs;
 use std::path::Path;
 
-use systemprompt_extension::cli::CliConfig;
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 use super::super::paths::WebPaths;
 use super::super::types::{TemplateSummary, TemplatesConfig};

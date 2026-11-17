@@ -17,11 +17,11 @@
 
 use std::sync::Arc;
 
-use async_trait::async_trait;
-use systemprompt_extension::brain::{SourceContent, SourceContentError};
 use super::agents::{DocumentActor, act_as};
 use super::repository::DocumentRepositories;
 use super::{DocumentService, DocumentsError};
+use async_trait::async_trait;
+use systemprompt_extension::brain::{SourceContent, SourceContentError};
 use systemprompt_identifiers::{DocumentCommentId, DocumentId, DocumentRevisionId, TraceId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::brain::{FactSource, SourceNode, SourceText};
@@ -67,8 +67,7 @@ impl DocumentSourceContent {
             DocumentActor::System {
                 name: BRAIN_ACTOR.to_owned(),
             },
-            documents
-                .project(&owner, document, Some(revision), &TraceId::system()),
+            documents.project(&owner, document, Some(revision), &TraceId::system()),
         )
         .await;
         let projection = match read {
@@ -119,10 +118,7 @@ impl DocumentSourceContent {
     }
 }
 
-fn failed(
-    kind: &str,
-    error: impl std::error::Error + Send + Sync + 'static,
-) -> SourceContentError {
+fn failed(kind: &str, error: impl std::error::Error + Send + Sync + 'static) -> SourceContentError {
     SourceContentError::Other {
         source_kind: kind.to_owned(),
         source: Box::new(error),

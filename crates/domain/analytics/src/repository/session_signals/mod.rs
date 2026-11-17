@@ -41,11 +41,7 @@ impl std::fmt::Debug for SessionSignalsRepository {
 }
 
 impl SessionSignalsRepository {
-    pub fn new(
-        db: &DbPool,
-        owner: DynSessionStore,
-        events: DynAnalyticsEventStore,
-    ) -> Self {
+    pub fn new(db: &DbPool, owner: DynSessionStore, events: DynAnalyticsEventStore) -> Self {
         Self {
             write_pool: db.write_pool(),
             owner,

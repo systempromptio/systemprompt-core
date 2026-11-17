@@ -60,8 +60,7 @@ fn schema_declares_event_outbox_with_relay_columns() {
 #[test]
 fn migrations_come_from_the_schema_migrations_directory() {
     let sink = contributions();
-    let names: Vec<&str> = sink
-        .migrations().iter().map(|m| m.name.as_str()).collect();
+    let names: Vec<&str> = sink.migrations().iter().map(|m| m.name.as_str()).collect();
     assert_eq!(
         names,
         [

@@ -11,8 +11,8 @@ use systemprompt_extension::contribute::ContributionSink;
 use systemprompt_extension::router::{ApiBase, BasePath, BaseRef, WebBase};
 use systemprompt_extension::{Contributions, Extension, HandleId};
 use systemprompt_identifiers::{AgentName, ContextId, ExtensionId, SessionId, TraceId, UserId};
-use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::RequestContext;
+use systemprompt_models::modules::ApiPaths;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context, test_db_pool};
 
@@ -51,7 +51,11 @@ pub fn analytics_router(ctx: &AppContext) -> Router {
 pub fn engagement_router(ctx: &AppContext) -> Router {
     Router::new().nest(
         ApiPaths::TRACK_ENGAGEMENT,
-        member_router(ctx, BaseRef::Path(BasePath::Web(WebBase::TrackEngagement)), &[]),
+        member_router(
+            ctx,
+            BaseRef::Path(BasePath::Web(WebBase::TrackEngagement)),
+            &[],
+        ),
     )
 }
 

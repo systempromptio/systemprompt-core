@@ -19,11 +19,15 @@ pub struct SchemasArgs {
 pub fn execute(args: &SchemasArgs, built: &BuiltState) -> CommandOutput {
     let schemas: Vec<SchemaWithExtension> = composition::matching(built, args.extension.as_deref())
         .flat_map(|member| {
-            member.sink.schemas().iter().map(|schema| SchemaWithExtension {
-                extension_id: member.owner.clone(),
-                extension_name: member.metadata.name.to_owned(),
-                table: schema.table.clone(),
-            })
+            member
+                .sink
+                .schemas()
+                .iter()
+                .map(|schema| SchemaWithExtension {
+                    extension_id: member.owner.clone(),
+                    extension_name: member.metadata.name.to_owned(),
+                    table: schema.table.clone(),
+                })
         })
         .collect();
 

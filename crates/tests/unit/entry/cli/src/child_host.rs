@@ -4,9 +4,7 @@ use clap::{CommandFactory, FromArgMatches};
 use systemprompt_cli::args::{self, Cli};
 use systemprompt_cli::kernel::{CommandRegistry, kernel_commands};
 use systemprompt_extension::DeclaredCommands;
-use systemprompt_extension::cli::{
-    CommandDescriptor, DataImpact, DescribeCommand, RoutingClass,
-};
+use systemprompt_extension::cli::{CommandDescriptor, DataImpact, DescribeCommand, RoutingClass};
 
 fn assert_child_host(desc: CommandDescriptor) {
     assert!(desc.child_host());

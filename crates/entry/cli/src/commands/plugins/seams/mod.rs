@@ -14,8 +14,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use clap::Args;
 use crate::kernel::KernelHost;
+use clap::Args;
 use systemprompt_extension::admitted::AdmittedMember;
 use systemprompt_extension::cli::{CommandError, CommandOutput};
 
@@ -43,21 +43,30 @@ pub fn execute(args: &SeamsArgs, host: &dyn KernelHost) -> Result<CommandOutput,
 #[must_use]
 pub fn member_rows(member: &AdmittedMember) -> Vec<SeamRow> {
     let sink = &member.sink;
-    let named = |contribution: &str, entries: Vec<String>| (contribution.to_owned(), entries.len(), entries.join(", "));
-    let counted = |contribution: &str, count: usize| (contribution.to_owned(), count, String::new());
+    let named = |contribution: &str, entries: Vec<String>| {
+        (contribution.to_owned(), entries.len(), entries.join(", "))
+    };
+    let counted =
+        |contribution: &str, count: usize| (contribution.to_owned(), count, String::new());
     [
         counted("provides", sink.provides().len()),
         counted("requires", sink.requires().len()),
         counted("slots", sink.slots().len()),
         named(
             "schemas",
-            sink.schemas().iter().filter_map(|schema| schema.table.clone()).collect(),
+            sink.schemas()
+                .iter()
+                .filter_map(|schema| schema.table.clone())
+                .collect(),
         ),
         counted("migrations", sink.migrations().len()),
         counted("seeds", sink.seeds().len()),
         named(
             "jobs",
-            sink.jobs().iter().map(|job| job.job().name().to_owned()).collect(),
+            sink.jobs()
+                .iter()
+                .map(|job| job.job().name().to_owned())
+                .collect(),
         ),
         counted("job_run_scopes", sink.job_run_scopes().len()),
         counted("retention", sink.retention().len()),
@@ -72,10 +81,16 @@ pub fn member_rows(member: &AdmittedMember) -> Vec<SeamRow> {
         counted("readiness", sink.readiness().len()),
         counted("diagnostics", sink.diagnostics().len()),
         counted("metrics", sink.metrics().len()),
-        named("roles", sink.roles().iter().map(|role| role.name.clone()).collect()),
+        named(
+            "roles",
+            sink.roles().iter().map(|role| role.name.clone()).collect(),
+        ),
         named(
             "configs",
-            sink.configs().iter().map(|config| config.prefix().to_owned()).collect(),
+            sink.configs()
+                .iter()
+                .map(|config| config.prefix().to_owned())
+                .collect(),
         ),
         counted("config_planes", sink.config_planes().len()),
         counted("assets", sink.assets().len()),

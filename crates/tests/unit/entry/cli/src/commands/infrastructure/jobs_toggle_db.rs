@@ -85,7 +85,6 @@ async fn toggling_an_unregistered_job_is_refused_before_any_write() {
 
 #[tokio::test]
 async fn jobs_list_reports_the_inventory_registered_jobs() {
-
     jobs::execute(parse(&["list"]), &ctx(true).await)
         .await
         .expect("json listing");

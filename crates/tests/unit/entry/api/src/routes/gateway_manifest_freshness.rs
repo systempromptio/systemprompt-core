@@ -19,8 +19,8 @@ use systemprompt_identifiers::UserId;
 use systemprompt_marketplace::{MarketplaceCandidate, MarketplaceFilter, MarketplaceFilterError};
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    TestBootstrap, fixture_config, init_isolated_bootstrap, seed_bridge_credential,
-    seed_user_row, test_db_pool,
+    TestBootstrap, fixture_config, init_isolated_bootstrap, seed_bridge_credential, seed_user_row,
+    test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 
@@ -60,7 +60,12 @@ async fn harness(mailbox: &str) -> Harness {
     let boot = boot();
     let pool = test_db_pool().await;
     let filter = Arc::new(CountingFilter::default());
-    let ctx = crate::support::context_on(boot, fixture_config(&boot.database_url), Arc::clone(&filter) as Arc<dyn MarketplaceFilter>).await;
+    let ctx = crate::support::context_on(
+        boot,
+        fixture_config(&boot.database_url),
+        Arc::clone(&filter) as Arc<dyn MarketplaceFilter>,
+    )
+    .await;
     let owner = ctx.system_admin().id();
     seed_user_row(&pool, owner, &format!("{owner}@manifest-freshness.invalid"))
         .await

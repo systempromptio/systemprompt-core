@@ -37,8 +37,7 @@ use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use clap::Subcommand;
 
-use systemprompt_extension::cli::DataImpact;
-use systemprompt_extension::cli::{CommandError, CommandOutput};
+use systemprompt_extension::cli::{CommandError, CommandOutput, DataImpact};
 
 #[derive(Debug, Subcommand)]
 pub enum AgentsCommands {
@@ -84,22 +83,31 @@ pub enum AgentsCommands {
 
 pub async fn execute(command: AgentsCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     let result = match command {
-        AgentsCommands::List(args) => list::execute(args, host).await.context("Failed to list agents")?,
-        AgentsCommands::Show(args) => show::execute(args, host).await.context("Failed to show agent")?,
+        AgentsCommands::List(args) => list::execute(args, host)
+            .await
+            .context("Failed to list agents")?,
+        AgentsCommands::Show(args) => show::execute(args, host)
+            .await
+            .context("Failed to show agent")?,
         AgentsCommands::Validate(args) => {
-            let (result, valid) =
-                validate::execute(&args, host).await.context("Failed to validate agents")?;
+            let (result, valid) = validate::execute(&args, host)
+                .await
+                .context("Failed to validate agents")?;
             if !valid {
-                return Err(CommandError::new(anyhow::anyhow!("Agent validation failed"))
-                    .with_output(result)
-                    .into());
+                return Err(
+                    CommandError::new(anyhow::anyhow!("Agent validation failed"))
+                        .with_output(result)
+                        .into(),
+                );
             }
             result
         },
-        AgentsCommands::Create(args) => {
-            create::execute(args, host).await.context("Failed to create agent")?
-        },
-        AgentsCommands::Edit(args) => edit::execute(&args, host).await.context("Failed to edit agent")?,
+        AgentsCommands::Create(args) => create::execute(args, host)
+            .await
+            .context("Failed to create agent")?,
+        AgentsCommands::Edit(args) => edit::execute(&args, host)
+            .await
+            .context("Failed to edit agent")?,
         AgentsCommands::Delete(args) => Box::pin(delete::execute(args, host))
             .await
             .context("Failed to delete agent")?,

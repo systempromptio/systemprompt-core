@@ -17,8 +17,8 @@ use systemprompt_database::services::DatabaseProvider;
 use systemprompt_database::services::schema_linter::created_table_names;
 use systemprompt_database::{DbPool, SchemaResidue, audit_schema_residue};
 use systemprompt_extension::BuiltState;
-use systemprompt_identifiers::ExtensionId;
 use systemprompt_extension::cli::CommandError;
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_models::artifacts::NoticeLine;
 
 use systemprompt_extension::cli::CommandOutput;
@@ -47,10 +47,7 @@ struct MissingColumn {
     column: String,
 }
 
-pub(super) async fn execute_doctor(
-    db_pool: &DbPool,
-    built: &BuiltState,
-) -> Result<CommandOutput> {
+pub(super) async fn execute_doctor(db_pool: &DbPool, built: &BuiltState) -> Result<CommandOutput> {
     let schema_extensions = super::admin_migrate::install_set(built);
     let write_provider = db_pool.write();
 
@@ -162,7 +159,12 @@ fn report_output(
     let absent_tables: Vec<String> = residue
         .absent_member_tables
         .iter()
-        .map(|t| format!("{}.{} ({} rows, owner {})", t.schema, t.table, t.live_rows, t.owner))
+        .map(|t| {
+            format!(
+                "{}.{} ({} rows, owner {})",
+                t.schema, t.table, t.live_rows, t.owner
+            )
+        })
         .collect();
     let absent_ledgers: Vec<String> = residue
         .absent_member_ledgers

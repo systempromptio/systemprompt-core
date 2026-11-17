@@ -3,11 +3,12 @@
 //! [`SlackExtension`] is the capability's one member: the `slack` config
 //! section, and, behind the `http` feature, the inbound routes under
 //! `/api/v1/slack` (Events API, slash commands, Block Kit interactions). The
-//! routes are one `RouteSet` in the `Messaging` route group with the `SlackSignature` handler-verified policy:
-//! each handler verifies the request signature over the raw body before it
-//! acts. A verified message is dispatched through the shared
-//! `MessagingDispatcher` the agent capability binds into the extension state;
-//! this crate never names the agent or the API server's internals.
+//! routes are one `RouteSet` in the `Messaging` route group with the
+//! `SlackSignature` handler-verified policy: each handler verifies the request
+//! signature over the raw body before it acts. A verified message is dispatched
+//! through the shared `MessagingDispatcher` the agent capability binds into the
+//! extension state; this crate never names the agent or the API server's
+//! internals.
 //!
 //! When the profile disables the `slack` member, the routes are not mounted.
 //!

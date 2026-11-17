@@ -60,19 +60,22 @@ async fn plugin_token_helper() {
     .with_boot(Some(boot.boot.clone()));
 
     println!("BEGIN_PLUGIN_TOKEN");
-    crate::boot_ctx::rendered(&context, keys::execute(
-        parse(&[
-            "issue-plugin-token",
-            "--email",
-            admin_email,
-            "--plugin-id",
-            PLUGIN,
-            "--duration-days",
-            "7",
-        ]),
+    crate::boot_ctx::rendered(
         &context,
+        keys::execute(
+            parse(&[
+                "issue-plugin-token",
+                "--email",
+                admin_email,
+                "--plugin-id",
+                PLUGIN,
+                "--duration-days",
+                "7",
+            ]),
+            &context,
+        )
+        .await,
     )
-    .await)
     .expect("admin plugin token issuance");
     println!("END_PLUGIN_TOKEN");
 

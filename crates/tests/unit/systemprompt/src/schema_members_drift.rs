@@ -1,8 +1,8 @@
-//! The test database is installed from `systemprompt_test_migrate::core_members()`,
-//! an explicit list kept beside the fixtures; the production installer reads
-//! the schema-bearing members of the reference composition. The two lists
-//! must name the same members in the same order, or the test database drifts
-//! from what an installation creates.
+//! The test database is installed from
+//! `systemprompt_test_migrate::core_members()`, an explicit list kept beside
+//! the fixtures; the production installer reads the schema-bearing members of
+//! the reference composition. The two lists must name the same members in the
+//! same order, or the test database drifts from what an installation creates.
 
 use systemprompt::database::schema_members;
 use systemprompt::reference;

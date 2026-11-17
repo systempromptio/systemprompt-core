@@ -15,8 +15,7 @@ use systemprompt_events::services::durable::DurableOutbox;
 use systemprompt_extension::{Contributions, RetentionDecl};
 use systemprompt_governance::GovernanceDecisionRetention;
 use systemprompt_logging::{AnalyticsRepository, LoggingRepository};
-use systemprompt_traits::{
-JobContext, ProviderError, ProviderResult, RetentionPurge};
+use systemprompt_traits::{JobContext, ProviderError, ProviderResult, RetentionPurge};
 
 use crate::services::scheduling::job_app_context;
 

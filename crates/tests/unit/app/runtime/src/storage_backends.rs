@@ -28,10 +28,13 @@ async fn build_with(storage_yaml: &str, extra_secrets: Vec<(String, String)>) ->
         extra_secrets,
         ..BootOptions::default()
     });
-    AppContext::builder(fixture.boot.clone(), systemprompt_test_fixtures::fixture_admitted())
-        .build()
-        .await
-        .expect_err("no admin row is seeded, so the build must fail")
+    AppContext::builder(
+        fixture.boot.clone(),
+        systemprompt_test_fixtures::fixture_admitted(),
+    )
+    .build()
+    .await
+    .expect_err("no admin row is seeded, so the build must fail")
 }
 
 fn service_account_json() -> String {

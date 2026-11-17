@@ -11,8 +11,8 @@
 use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Args;
-use systemprompt_identifiers::JobName;
 use systemprompt_database::pool_from_handle;
+use systemprompt_identifiers::JobName;
 use systemprompt_scheduler::{JobRepository, ScheduledJob};
 
 use super::admitted_schedule;
@@ -36,21 +36,19 @@ pub(super) async fn execute(args: ShowArgs, host: &dyn KernelHost) -> Result<Com
     let db_job: Option<ScheduledJob> = repo.find_job(&args.job_name).await?;
 
     let output = match (registration, db_job) {
-        (Some((owner, job)), db_job) => {
-            JobShowOutput {
-                name: job.name().to_owned(),
-                owner: owner.to_string(),
-                description: job.description().to_owned(),
-                schedule: job.schedule().to_owned(),
-                schedule_human: parse_cron_human(job.schedule()),
-                enabled: db_job.as_ref().map_or_else(|| job.enabled(), |j| j.enabled),
-                last_run: db_job.as_ref().and_then(|j| j.last_run),
-                next_run: db_job.as_ref().and_then(|j| j.next_run),
-                last_status: db_job.as_ref().and_then(|j| j.last_status.clone()),
-                last_error: db_job.as_ref().and_then(|j| j.last_error.clone()),
-                run_count: db_job.as_ref().map_or(0, |j| j.run_count),
-                registered: true,
-            }
+        (Some((owner, job)), db_job) => JobShowOutput {
+            name: job.name().to_owned(),
+            owner: owner.to_string(),
+            description: job.description().to_owned(),
+            schedule: job.schedule().to_owned(),
+            schedule_human: parse_cron_human(job.schedule()),
+            enabled: db_job.as_ref().map_or_else(|| job.enabled(), |j| j.enabled),
+            last_run: db_job.as_ref().and_then(|j| j.last_run),
+            next_run: db_job.as_ref().and_then(|j| j.next_run),
+            last_status: db_job.as_ref().and_then(|j| j.last_status.clone()),
+            last_error: db_job.as_ref().and_then(|j| j.last_error.clone()),
+            run_count: db_job.as_ref().map_or(0, |j| j.run_count),
+            registered: true,
         },
         (None, Some(row)) => JobShowOutput {
             name: row.job_name.to_string(),

@@ -14,8 +14,8 @@ pub mod list;
 pub mod show;
 pub mod validate;
 
-use anyhow::{Context, Result, bail};
 use crate::kernel::KernelHost;
+use anyhow::{Context, Result, bail};
 use clap::Subcommand;
 
 use systemprompt_extension::cli::CommandOutput;
@@ -37,12 +37,8 @@ pub enum PluginsCommands {
 
 pub fn execute(command: PluginsCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
-        PluginsCommands::List(args) => {
-            list::execute(args, host).context("Failed to list plugins")
-        },
-        PluginsCommands::Show(args) => {
-            show::execute(&args, host).context("Failed to show plugin")
-        },
+        PluginsCommands::List(args) => list::execute(args, host).context("Failed to list plugins"),
+        PluginsCommands::Show(args) => show::execute(&args, host).context("Failed to show plugin"),
         PluginsCommands::Validate(args) => {
             let (result, valid) =
                 validate::execute(args, host).context("Failed to validate plugins")?;

@@ -3,8 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::path::PathBuf;
 use crate::kernel::KernelHost;
+use std::path::PathBuf;
 
 use anyhow::{Context, Result, bail};
 use clap::Args;
@@ -82,7 +82,9 @@ fn resolve_credential(args: &PublishArgs, host: &dyn KernelHost) -> Result<Optio
     let Some(name) = args.auth_secret.as_deref() else {
         return Ok(None);
     };
-    let secrets = host.secrets().context("--auth-secret needs an initialised profile")?;
+    let secrets = host
+        .secrets()
+        .context("--auth-secret needs an initialised profile")?;
     let value = secrets
         .get(name)
         .cloned()

@@ -10,7 +10,9 @@ use crate::test_extension::{core_schedule, schedule_of};
 #[test]
 fn with_nothing_disabled_every_core_owner_contributes_its_jobs() {
     let schedule = core_schedule();
-    let (owner, _) = schedule.job("database_cleanup").expect("database_cleanup is admitted");
+    let (owner, _) = schedule
+        .job("database_cleanup")
+        .expect("database_cleanup is admitted");
     assert_eq!(owner.as_str(), "scheduler");
     assert!(schedule.contains_job("mcp_session_cleanup"));
 }

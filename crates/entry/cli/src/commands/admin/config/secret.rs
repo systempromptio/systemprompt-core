@@ -20,9 +20,9 @@ use clap::{Args, Subcommand};
 use systemprompt_config::write_private_atomic;
 use systemprompt_manifest::profile::SecretsSource;
 
-use systemprompt_extension::cli::CommandOutput;
 use super::profile_io::{load_profile, profile_dir, profile_path};
 use super::types::ConfigMutationOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 const RESERVED: &[&str] = &[
     "oauth_at_rest_pepper",
@@ -72,12 +72,12 @@ pub async fn execute(command: &SecretCommands, host: &dyn KernelHost) -> Result<
     set_secret(&secrets_file, &args.name, &args.value)?;
 
     Ok(CommandOutput::card_value(
-            "Secret Updated",
-            &ConfigMutationOutput {
-                field: "secrets".to_owned(),
-                message: format!("Secret '{}' set", args.name),
-            },
-        ))
+        "Secret Updated",
+        &ConfigMutationOutput {
+            field: "secrets".to_owned(),
+            message: format!("Secret '{}' set", args.name),
+        },
+    ))
 }
 
 pub fn file_secrets_path(host: &dyn KernelHost) -> Result<std::path::PathBuf> {

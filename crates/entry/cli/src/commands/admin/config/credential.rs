@@ -15,7 +15,7 @@ use systemprompt_config::{CredentialSpec, ProviderCatalogService};
 use systemprompt_identifiers::{CredentialId, SecretName};
 use systemprompt_manifest::services::catalog::CredentialEntry;
 
-use super::catalog_edit::{apply, read_active, list_output};
+use super::catalog_edit::{apply, list_output, read_active};
 use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]

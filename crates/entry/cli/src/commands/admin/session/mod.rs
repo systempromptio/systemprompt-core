@@ -20,8 +20,7 @@ use systemprompt_cloud::{CloudError, SessionStore};
 use systemprompt_identifiers::ProfileName;
 use systemprompt_logging::CliService;
 
-use systemprompt_extension::cli::{CommandDescriptor, DescribeCommand};
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_extension::cli::{CommandDescriptor, CommandOutput, DescribeCommand};
 
 #[derive(Debug, Subcommand)]
 pub enum SessionCommands {

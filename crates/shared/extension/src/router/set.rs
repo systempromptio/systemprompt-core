@@ -3,12 +3,12 @@
 //! [`RouteSet::at`] names the base, the route group and the state type `S`
 //! every handler extracts; [`RouteSet::gateway`] names a closed gateway path
 //! in place of the base, for a [`GatewayRouteDecl`]; [`RouteSetBuilder::route`]
-//! adds one method and path with its [`RouteSpec`]; [`RouteSetBuilder::service`]
-//! nests one opaque service under a prefix, recorded as a single
-//! [`RouteMethod::Any`] def. The set stores the handlers type-erased; the API
-//! mount resolves `S` through its hand-written [`FromState`] impl only after
-//! admission, and builds one router per declared route so it can apply each
-//! route's own spec. A malformed path, an
+//! adds one method and path with its [`RouteSpec`];
+//! [`RouteSetBuilder::service`] nests one opaque service under a prefix,
+//! recorded as a single [`RouteMethod::Any`] def. The set stores the handlers
+//! type-erased; the API mount resolves `S` through its hand-written
+//! [`FromState`] impl only after admission, and builds one router per declared
+//! route so it can apply each route's own spec. A malformed path, an
 //! unsupported method or an invalid extension base is recorded on the set and
 //! refused when the composition reads the member's contributions.
 //!
@@ -20,8 +20,8 @@ use std::sync::Arc;
 
 use axum::Router;
 use axum::extract::Request;
-use axum::response::IntoResponse;
 use axum::handler::Handler;
+use axum::response::IntoResponse;
 use axum::routing::MethodFilter;
 use systemprompt_provider_contracts::MissingDependency;
 use tower::Service;

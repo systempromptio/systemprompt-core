@@ -241,11 +241,14 @@ async fn mixed_agent_tools_helper() {
         app,
     );
     println!("BEGIN_MIXED_TOOLS");
-    crate::boot_ctx::rendered(&context, agents::execute(
-        parse(&["tools", AGENT, "--detailed", "--timeout", "5"]),
+    crate::boot_ctx::rendered(
         &context,
+        agents::execute(
+            parse(&["tools", AGENT, "--detailed", "--timeout", "5"]),
+            &context,
+        )
+        .await,
     )
-    .await)
     .expect("healthy server keeps mixed tool listing successful");
     println!("END_MIXED_TOOLS");
     drop(context);

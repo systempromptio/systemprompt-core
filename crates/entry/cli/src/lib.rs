@@ -23,9 +23,9 @@ pub mod context;
 pub mod env_overrides;
 pub mod environment;
 mod host;
-mod member_host;
 pub mod interactive;
 pub mod kernel;
+mod member_host;
 pub mod presentation;
 pub mod runner;
 pub mod session;
@@ -36,4 +36,3 @@ pub use context::CommandContext;
 pub use env_overrides::{EnvOverrides, SessionEnv};
 pub use interactive::{DialoguerPrompter, ScriptedPrompter};
 pub use runner::{AdmitFn, CliRunError, args, run_composed};
-

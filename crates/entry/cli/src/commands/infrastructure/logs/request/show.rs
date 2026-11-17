@@ -5,8 +5,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::kernel::KernelHost;
-use systemprompt_database::pool_from_handle;
 use std::sync::Arc;
+use systemprompt_database::pool_from_handle;
 
 use anyhow::Result;
 use clap::Args;

@@ -31,8 +31,8 @@ use super::templates::{
     existing_geoip_database, get_services_path, save_profile, update_ai_config_default_provider,
 };
 use super::tenant_credentials::ensure_unmasked_credentials;
-use systemprompt_extension::cli::{CliConfig, Prompter};
 use systemprompt_cloud::profile_authoring::{CloudProfileBuilder, LocalProfileBuilder};
+use systemprompt_extension::cli::{CliConfig, Prompter};
 
 pub use super::profile_steps::{CreatedProfile, create_profile_for_tenant};
 

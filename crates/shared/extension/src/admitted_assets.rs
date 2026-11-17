@@ -30,7 +30,11 @@ impl fmt::Debug for AdmittedAssets {
         f.debug_struct("AdmittedAssets")
             .field(
                 "owners",
-                &self.assets.iter().map(|(owner, _)| owner).collect::<Vec<_>>(),
+                &self
+                    .assets
+                    .iter()
+                    .map(|(owner, _)| owner)
+                    .collect::<Vec<_>>(),
             )
             .finish()
     }

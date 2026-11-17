@@ -19,7 +19,9 @@ fn an_install_providing_a_kernel_inserted_type_is_refused_before_any_provide_run
     let admitted = build_with(Probe::new("probe-policy-catalog", |c| {
         c.provide::<Arc<PolicyCatalog>, _>(
             |_: &Resolved<'_>| -> Result<Arc<PolicyCatalog>, ProvideError> {
-                Err(ProvideError::Missing(MissingDependency::of::<PolicyCatalog>()))
+                Err(ProvideError::Missing(
+                    MissingDependency::of::<PolicyCatalog>(),
+                ))
             },
         );
     }))
@@ -68,7 +70,10 @@ fn hook_inputs(standing: StandingTag) -> Vec<SlotBuildInput> {
 fn a_core_first_slot_with_only_install_entries_is_absent() {
     let built = build_slot(hook_inputs(StandingTag::Install), &kernel().resolved())
         .expect("an ownerless core-first slot is not an error");
-    assert!(built.is_none(), "install entries alone never build a core-first slot");
+    assert!(
+        built.is_none(),
+        "install entries alone never build a core-first slot"
+    );
 }
 
 #[test]

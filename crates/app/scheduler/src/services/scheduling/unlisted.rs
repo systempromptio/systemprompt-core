@@ -2,11 +2,12 @@
 //! configuration never names.
 //!
 //! A job is unlisted when an admitted member contributes it, it is enabled,
-//! schedulable and configured in this deployment, and it appears in neither `jobs` nor `bootstrap_jobs`. Under `default` an unlisted
-//! job that declares [`systemprompt_traits::Job::default_schedule`] joins the
-//! schedule as a synthesised entry owned by the system admin; under `error`
-//! any unlisted job stops the scheduler from starting; every unlisted job left
-//! off the schedule is logged at `WARN`.
+//! schedulable and configured in this deployment, and it appears in neither
+//! `jobs` nor `bootstrap_jobs`. Under `default` an unlisted job that declares
+//! [`systemprompt_traits::Job::default_schedule`] joins the schedule as a
+//! synthesised entry owned by the system admin; under `error` any unlisted job
+//! stops the scheduler from starting; every unlisted job left off the schedule
+//! is logged at `WARN`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -64,10 +65,7 @@ fn collect_unlisted(
 }
 
 impl SchedulerService {
-    pub(super) fn adopt_unlisted_jobs(
-        &mut self,
-        registered: &JobMap,
-    ) -> SchedulerResult<()> {
+    pub(super) fn adopt_unlisted_jobs(&mut self, registered: &JobMap) -> SchedulerResult<()> {
         let unlisted = collect_unlisted(
             &self.config,
             registered,

@@ -142,10 +142,11 @@ async fn probes_and_health_report_the_build_the_embedding_binary_named() {
     let url = test_database_url();
     let build =
         systemprompt_models::BuildIdentity::new("acme-platform", "3.4.5").with_revision("0123abcd");
-    let ctx = (*systemprompt_test_fixtures::app_context::fixture_app_context_with_build(&url, build,
-    ).await
-    .expect("fixture context"))
-    .clone();
+    let ctx =
+        (*systemprompt_test_fixtures::app_context::fixture_app_context_with_build(&url, build)
+            .await
+            .expect("fixture context"))
+        .clone();
     let readiness = Arc::new(ReadinessState::new());
 
     for path in ["/livez", "/readyz", "/api/v1/health"] {

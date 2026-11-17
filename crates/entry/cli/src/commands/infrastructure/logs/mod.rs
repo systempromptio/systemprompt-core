@@ -187,16 +187,10 @@ pub async fn execute(command: LogsCommands, host: &dyn KernelHost) -> Result<Com
     }
 
     match command {
-        LogsCommands::View(args) => {
-            view::execute(args, host).await
-        },
-        LogsCommands::Search(args) => {
-            search::execute(args, host).await
-        },
+        LogsCommands::View(args) => view::execute(args, host).await,
+        LogsCommands::Search(args) => search::execute(args, host).await,
         LogsCommands::Stream(args) => stream::execute(args, host).await,
-        LogsCommands::Export(args) => {
-            export::execute(args, host).await
-        },
+        LogsCommands::Export(args) => export::execute(args, host).await,
         LogsCommands::Cleanup(args) => cleanup::execute(args, host).await,
         LogsCommands::Delete(args) => delete::execute(args, host).await,
         LogsCommands::Summary(args) => summary::execute(args, host).await,

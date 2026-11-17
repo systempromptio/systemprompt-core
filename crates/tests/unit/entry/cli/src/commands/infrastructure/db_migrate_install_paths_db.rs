@@ -127,8 +127,8 @@ async fn a_pending_breaking_migration_is_planned_and_fails_the_rolling_safe_gate
     let mut json = ctx(&url, false).await;
     json.cli = json.cli.clone().with_output_format(OutputFormat::Json);
     db::execute(parse(&["migrate-plan", "ai"]), &json)
-    .await
-    .expect("a json plan renders pending rows");
+        .await
+        .expect("a json plan renders pending rows");
 
     let err = db::execute(
         parse(&["migrate-plan", "--require-rolling-safe"]),

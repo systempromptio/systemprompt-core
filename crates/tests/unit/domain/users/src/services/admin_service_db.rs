@@ -73,7 +73,10 @@ async fn find_user_resolves_id_email_and_name() {
             .is_none()
     );
 
-    ctx.users.delete(&created.id, &crate::purge_plan::purge_plan()).await.expect("cleanup");
+    ctx.users
+        .delete(&created.id, &crate::purge_plan::purge_plan())
+        .await
+        .expect("cleanup");
     ctx.fixture.finish().await;
 }
 
@@ -105,7 +108,10 @@ async fn promote_grants_admin_then_reports_already_admin() {
         .expect("re-promote");
     assert!(matches!(again, PromoteResult::AlreadyAdmin(_)));
 
-    ctx.users.delete(&created.id, &crate::purge_plan::purge_plan()).await.expect("cleanup");
+    ctx.users
+        .delete(&created.id, &crate::purge_plan::purge_plan())
+        .await
+        .expect("cleanup");
     ctx.fixture.finish().await;
 }
 
@@ -133,7 +139,10 @@ async fn demote_removes_admin_and_keeps_user_role() {
         other => panic!("expected Demoted, got {other:?}"),
     }
 
-    ctx.users.delete(&created.id, &crate::purge_plan::purge_plan()).await.expect("cleanup");
+    ctx.users
+        .delete(&created.id, &crate::purge_plan::purge_plan())
+        .await
+        .expect("cleanup");
     ctx.fixture.finish().await;
 }
 

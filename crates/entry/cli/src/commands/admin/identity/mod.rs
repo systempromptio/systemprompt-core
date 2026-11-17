@@ -22,6 +22,8 @@ pub enum IdentityCommands {
 
 pub fn execute(cmd: IdentityCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match cmd {
-        IdentityCommands::Generate(args) => generate::execute(args, host).map(|()| CommandOutput::rendered()),
+        IdentityCommands::Generate(args) => {
+            generate::execute(args, host).map(|()| CommandOutput::rendered())
+        },
     }
 }

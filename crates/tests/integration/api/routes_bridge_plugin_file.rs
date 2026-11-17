@@ -15,7 +15,10 @@ use super::common::setup_ctx;
 
 async fn router_and_pool() -> anyhow::Result<(Router, DbPool)> {
     let (pool, ctx) = setup_ctx().await?;
-    Ok((gateway_router(&ctx, ctx.admitted(), ctx.kernel()).expect("gateway router builds"), pool))
+    Ok((
+        gateway_router(&ctx, ctx.admitted(), ctx.kernel()).expect("gateway router builds"),
+        pool,
+    ))
 }
 
 fn authed_get(uri: &str, token: &str) -> Request<Body> {
@@ -119,7 +122,10 @@ pub(crate) async fn bundle_router_and_pool() -> anyhow::Result<(Router, DbPool)>
     seed_plugin_tree();
     let pool = test_db_pool().await;
     let ctx = systemprompt_test_fixtures::test_app_context_on(b).await;
-    Ok((gateway_router(&ctx, ctx.admitted(), ctx.kernel()).expect("gateway router builds"), pool))
+    Ok((
+        gateway_router(&ctx, ctx.admitted(), ctx.kernel()).expect("gateway router builds"),
+        pool,
+    ))
 }
 
 #[tokio::test]

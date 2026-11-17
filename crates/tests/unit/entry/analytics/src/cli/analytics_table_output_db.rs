@@ -9,8 +9,8 @@
 use clap::Parser;
 use systemprompt_analytics_entry::cli::{self as analytics, AnalyticsCommands};
 use systemprompt_cli::{CommandContext, EnvOverrides};
-use systemprompt_extension::cli::CliConfig;
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::CliConfig;
 use systemprompt_identifiers::SessionId;
 use systemprompt_runtime::DatabaseContext;
 use systemprompt_test_fixtures::{

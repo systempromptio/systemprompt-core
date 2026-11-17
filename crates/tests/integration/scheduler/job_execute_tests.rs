@@ -7,9 +7,7 @@ use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_scheduler::{CleanupInactiveSessionsJob, DatabaseCleanupJob};
-use systemprompt_test_fixtures::{
-    fixture_actor, test_database_url, test_db_pool,
-};
+use systemprompt_test_fixtures::{fixture_actor, test_database_url, test_db_pool};
 use systemprompt_traits::{Dependencies, Job, JobContext};
 
 fn make_ctx(pool: &DbPool) -> JobContext {

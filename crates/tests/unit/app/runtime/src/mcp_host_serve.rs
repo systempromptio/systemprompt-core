@@ -82,9 +82,12 @@ async fn ctx() -> Arc<HostContext> {
     .await
     .expect("seed the system admin");
     Arc::new(
-        HostContext::boot(move |name| env.get(name).cloned(), crate::boot::host_admit())
-            .await
-            .expect("host context from the child environment"),
+        HostContext::boot(
+            move |name| env.get(name).cloned(),
+            crate::boot::host_admit(),
+        )
+        .await
+        .expect("host context from the child environment"),
     )
 }
 
@@ -228,5 +231,8 @@ async fn a_host_build_leaves_the_documents_handles_bound() {
         "the host binds the documents handles once its store is built"
     );
     let (unbound, _binder) = DocumentsHandlesSlot::unbound();
-    assert!(unbound.get().is_none(), "a slot no host bound holds nothing");
+    assert!(
+        unbound.get().is_none(),
+        "a slot no host bound holds nothing"
+    );
 }

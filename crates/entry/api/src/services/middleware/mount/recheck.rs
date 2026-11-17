@@ -25,7 +25,6 @@
 
 use std::collections::HashMap;
 
-use systemprompt_extension::{Admitted, StandingTag};
 use systemprompt_extension::admitted::{AdmittedGatewayRoute, AdmittedRouteSet};
 use systemprompt_extension::reserved::{
     BUILTIN_GATEWAY_PREFIXES, CoreId, PRIVILEGED_SHAPES, PrivilegedShape,
@@ -34,6 +33,7 @@ use systemprompt_extension::router::{
     Allowance, ApiBase, BasePath, BaseRef, BodyLimit, GatewayDefRefusal, RouteDef, RouteSet,
     WebBase, first_overlap, path_covers, refused_gateway_def, refused_reservation, reserved_below,
 };
+use systemprompt_extension::{Admitted, StandingTag};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_models::modules::ApiPaths;
 

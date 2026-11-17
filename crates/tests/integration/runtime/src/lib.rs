@@ -22,5 +22,3 @@ mod validate_database_path;
 mod validator;
 #[cfg(test)]
 mod validator_bootstrapped;
-
-

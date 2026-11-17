@@ -4,8 +4,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use clap::{Args, ValueEnum};
 use crate::kernel::KernelHost;
+use clap::{Args, ValueEnum};
 use systemprompt_extension::cli::{CommandError, CommandOutput};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_loader::ExtensionLoader;
@@ -54,7 +54,10 @@ pub fn execute(args: &ListArgs, host: &dyn KernelHost) -> Result<CommandOutput, 
         extensions.extend(
             composition::matching(built, args.filter.as_deref())
                 .map(|member| (member, composition::capabilities(member)))
-                .filter(|(_, capabilities)| args.capability.is_none_or(|filter| filter.held_by(capabilities)))
+                .filter(|(_, capabilities)| {
+                    args.capability
+                        .is_none_or(|filter| filter.held_by(capabilities))
+                })
                 .map(|(member, capabilities)| ExtensionSummary {
                     id: member.owner.clone(),
                     name: member.metadata.name.to_owned(),
@@ -75,7 +78,14 @@ pub fn execute(args: &ListArgs, host: &dyn KernelHost) -> Result<CommandOutput, 
     let output = ExtensionListOutput { extensions, total };
 
     Ok(CommandOutput::table_of(
-        vec!["id", "name", "version", "standing", "source", "capabilities"],
+        vec![
+            "id",
+            "name",
+            "version",
+            "standing",
+            "source",
+            "capabilities",
+        ],
         &output.extensions,
     )
     .with_title("Extensions"))

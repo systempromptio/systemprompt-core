@@ -7,12 +7,12 @@ use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use systemprompt_identifiers::ProfileName;
 
-use systemprompt_extension::cli::CommandOutput;
 use super::profile_io::profile_path;
 use super::types::{
     ConfigOverviewOutput, PathsOverview, RateLimitsSummary, RuntimeOverview, SecurityOverview,
     ServerOverview,
 };
+use systemprompt_extension::cli::CommandOutput;
 
 pub fn execute(host: &dyn KernelHost) -> Result<CommandOutput> {
     let profile = host.profile()?;

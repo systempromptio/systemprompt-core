@@ -14,8 +14,8 @@
 //! - [`PostgresProvider`] — the `PostgreSQL` implementation.
 //! - [`DatabaseResult`] — result alias over the workspace's single
 //!   [`systemprompt_traits::RepositoryError`].
-//! - [`MigrationService`], [`install_admitted_schemas`] — lifecycle
-//!   helpers driving extension-supplied DDL.
+//! - [`MigrationService`], [`install_admitted_schemas`] — lifecycle helpers
+//!   driving extension-supplied DDL.
 //! - [`DatabaseAdminService`], [`QueryExecutor`], [`AdminSql`],
 //!   [`SafeIdentifier`] — admin/introspection layer used by the CLI.
 //! - [`resilience`] — domain-agnostic resilience primitives

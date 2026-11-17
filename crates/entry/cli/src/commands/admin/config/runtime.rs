@@ -6,16 +6,16 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use super::changes_output;
 use crate::commands::admin::config::restart_note;
+use crate::kernel::KernelHost;
 use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
 use systemprompt_manifest::profile::{Environment, LogLevel, OutputFormat as ProfileOutputFormat};
 
-use systemprompt_extension::cli::CommandOutput;
 use super::profile_io::{load_profile, profile_path, save_profile};
 use super::types::{RuntimeConfigOutput, RuntimeSetOutput};
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum RuntimeCommands {

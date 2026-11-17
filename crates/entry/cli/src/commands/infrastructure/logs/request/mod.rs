@@ -17,8 +17,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use super::types::{MessageRow, ToolCallRow};
-use systemprompt_extension::cli::CommandOutput;
 use serde_json::Value as JsonValue;
+use systemprompt_extension::cli::CommandOutput;
 use systemprompt_identifiers::{AiRequestId, UserId};
 use systemprompt_models::artifacts::{Column, ColumnType, NoticeLine, TableArtifact};
 
@@ -196,12 +196,8 @@ impl From<systemprompt_runtime::AiRequestClientEvidence> for ClientEvidenceOutpu
 
 pub async fn execute(command: RequestCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
-        RequestCommands::List(args) => {
-            list::execute(args, host).await
-        },
-        RequestCommands::Show(args) => {
-            show::execute(args, host).await
-        },
+        RequestCommands::List(args) => list::execute(args, host).await,
+        RequestCommands::Show(args) => show::execute(args, host).await,
         RequestCommands::Stats(args) => stats::execute(args, host).await,
     }
 }

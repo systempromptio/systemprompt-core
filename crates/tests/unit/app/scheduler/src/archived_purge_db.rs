@@ -59,6 +59,9 @@ async fn a_complete_archived_user_purge_succeeds() {
 
     assert!(result.success, "{result:?}");
     let message = result.message.unwrap_or_default();
-    assert!(message.contains("archived_users=1 incomplete_purges=0"), "{message}");
+    assert!(
+        message.contains("archived_users=1 incomplete_purges=0"),
+        "{message}"
+    );
     database.drop_now().await;
 }

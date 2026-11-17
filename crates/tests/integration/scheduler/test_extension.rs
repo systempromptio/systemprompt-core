@@ -50,5 +50,3 @@ pub(crate) async fn app_with_test_jobs() -> (Arc<AppContext>, Arc<AdmittedSchedu
         .expect("the app context over the core members and the probe jobs builds");
     (app, schedule)
 }
-
-

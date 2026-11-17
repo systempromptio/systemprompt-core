@@ -102,9 +102,7 @@ impl RegistryEntry {
 
 #[must_use]
 pub fn kernel_commands() -> Vec<CommandDecl> {
-    vec![
-        CommandDecl::group::<crate::commands::build::BuildCommands>(),
-    ]
+    vec![CommandDecl::group::<crate::commands::build::BuildCommands>()]
 }
 
 /// A command line resolved to a registry entry: its owner, its path and the

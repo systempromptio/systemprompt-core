@@ -95,10 +95,7 @@ pub struct TenantDeleteArgs {
     pub yes: bool,
 }
 
-pub async fn execute(
-    cmd: Option<TenantCommands>,
-    host: &dyn CommandHost,
-) -> Result<CommandOutput> {
+pub async fn execute(cmd: Option<TenantCommands>, host: &dyn CommandHost) -> Result<CommandOutput> {
     if let Some(cmd) = cmd {
         return Ok(execute_command(cmd, host).await?.0);
     }

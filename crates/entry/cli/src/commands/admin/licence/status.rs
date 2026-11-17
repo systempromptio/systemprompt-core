@@ -6,8 +6,8 @@
 
 use anyhow::Result;
 use serde::Serialize;
-use systemprompt_identifiers::EnterpriseLicenseId;
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::EnterpriseLicenseId;
 use systemprompt_manifest::Profile;
 use systemprompt_scheduler::LicenceCheckinRepository;
 

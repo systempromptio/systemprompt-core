@@ -2,21 +2,21 @@ use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_events::{EventBroadcasters, EventRouter};
-use systemprompt_extension::DynNotificationSink;
-use systemprompt_files::documents::agents::DocumentActor;
+use systemprompt_extension::prelude::Dependencies;
+use systemprompt_extension::{
+    DynNotificationSink, NotificationAudienceResolver, ResourceVisibility, Slot,
+};
 use systemprompt_files::contract::{AgentAccess, DocumentSeams};
+use systemprompt_files::documents::agents::DocumentActor;
 use systemprompt_files::documents::repository::BlobHolders;
-use systemprompt_files::documents::{DocumentsHandles, DocumentsHandlesSlot};
+use systemprompt_files::documents::{DocumentVisibility, DocumentsHandles, DocumentsHandlesSlot};
+use systemprompt_files::issues::IssueVisibility;
 use systemprompt_files::DocumentsConfig;
 use systemprompt_governance::authz::{
     AccessControlRepository, SharedAuthzHook, SubjectProviderSet,
 };
 use systemprompt_manifest::profile::NotificationsProfile;
 use systemprompt_models::authz::SubjectAttributeSource;
-use systemprompt_extension::prelude::Dependencies;
-use systemprompt_extension::{NotificationAudienceResolver, ResourceVisibility, Slot};
-use systemprompt_files::documents::DocumentVisibility;
-use systemprompt_files::issues::IssueVisibility;
 use systemprompt_notifications::service::EscalationDelivery;
 use systemprompt_notifications::{
     NotificationsConsumerSlot, NotificationsService, NotificationsServiceSlot, NotificationsSlot,
@@ -60,12 +60,13 @@ pub fn fixture_notifications(
         .with(service.clone())
         .with(NotificationsConsumerSlot::default())
         .with(CoreSeam::<dyn NotificationAudienceResolver, RoleAudience>::new(roles))
-        .with(CoreSeam::<dyn ResourceVisibility, core_seam::DocumentVisibility>::new(
-            document_visibility,
-        ))
-        .with(CoreSeam::<dyn ResourceVisibility, core_seam::IssueVisibility>::new(
-            issue_visibility,
-        ));
+        .with(CoreSeam::<
+            dyn ResourceVisibility,
+            core_seam::DocumentVisibility,
+        >::new(document_visibility))
+        .with(
+            CoreSeam::<dyn ResourceVisibility, core_seam::IssueVisibility>::new(issue_visibility),
+        );
     let audiences = systemprompt_extension::AudienceResolvers::from_admitted(
         &systemprompt_extension::BuiltState::default(),
         &crate::app_context::fixture_kernel(pool, seed.clone()).resolved(),
@@ -180,9 +181,15 @@ pub fn fixture_documents_runtime_configured(
         )),
         background_tasks,
         unscoped_actor: Some(DocumentActor::Human),
-        blob_holders: r.get::<Arc<BlobHolders>>().expect("the files member builds its blob holders"),
-        seams: r.get::<Arc<DocumentSeams>>().expect("the files member builds its document seams"),
-        agent_access: r.get::<Arc<AgentAccess>>().expect("the files member builds its agent access"),
+        blob_holders: r
+            .get::<Arc<BlobHolders>>()
+            .expect("the files member builds its blob holders"),
+        seams: r
+            .get::<Arc<DocumentSeams>>()
+            .expect("the files member builds its document seams"),
+        agent_access: r
+            .get::<Arc<AgentAccess>>()
+            .expect("the files member builds its agent access"),
     }));
     let service = documents_enabled.then(|| Arc::clone(runtime.service()));
     binder

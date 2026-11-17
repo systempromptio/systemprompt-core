@@ -51,8 +51,7 @@ fn validate_config_accepts_a_well_formed_app_map() {
             "default_agent": "support-agent",
         }
     });
-    validate(&config)
-        .expect("a valid app map passes validation");
+    validate(&config).expect("a valid app map passes validation");
 }
 
 #[test]
@@ -75,8 +74,7 @@ fn validate_config_rejects_a_structurally_invalid_app() {
             "default_agent": "support-agent",
         }
     });
-    let err = validate(&config)
-        .expect_err("an empty app_id cannot deserialize into a TeamsAppId");
+    let err = validate(&config).expect_err("an empty app_id cannot deserialize into a TeamsAppId");
     assert!(
         matches!(err, ExtensionConfigError::ParseError { .. }),
         "expected ParseError, got {err:?}"
@@ -105,8 +103,8 @@ fn validate_config_refuses_an_app_password_ref_naming_a_built_in_secret() {
             "default_agent": "support-agent",
         }
     });
-    let err = validate(&config)
-        .expect_err("a built-in secret name is refused at config validation");
+    let err =
+        validate(&config).expect_err("a built-in secret name is refused at config validation");
     assert_eq!(
         built_in_secret_ref(&err),
         Some(("app_password_ref", "signing_key_pem".to_owned())),

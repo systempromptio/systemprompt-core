@@ -22,9 +22,9 @@ mod wizard_dry_run;
 #[doc(hidden)]
 pub mod wizard_prompts;
 
-use systemprompt_extension::cli::CommandOutput;
 use anyhow::Result;
 use clap::Args;
+use systemprompt_extension::cli::CommandOutput;
 use systemprompt_manifest::none_if_blank;
 use systemprompt_models::defaults::DEFAULT_POSTGRES_PORT;
 
