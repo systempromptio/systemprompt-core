@@ -26,6 +26,7 @@ pub mod tenant;
 pub mod types;
 
 pub use admitted_views::AdmittedViews;
+use deploy::DeployProfile;
 pub use systemprompt_cloud::{Environment, OAuthProvider};
 
 use anyhow::Result;
@@ -145,7 +146,9 @@ impl DescribeCommand for CloudCommands {
     fn descriptor(&self) -> CommandDescriptor {
         match self {
             Self::Deploy { .. } => CommandDescriptor::NONE.with_data_impact(DataImpact::Preserving),
-            Self::Backup { .. } | Self::Status => CommandDescriptor::PROFILE_ONLY,
+            Self::Doctor { .. } | Self::Backup { .. } | Self::Status => {
+                CommandDescriptor::PROFILE_ONLY
+            },
             Self::Sync(_) => CommandDescriptor::FULL.with_read_only(),
             _ => CommandDescriptor::NONE,
         }
@@ -214,14 +217,12 @@ pub async fn execute(cmd: CloudCommands, host: &dyn CommandHost) -> Result<Comma
             Ok(CommandOutput::rendered())
         },
         CloudCommands::Doctor {
-            profile,
+            profile: _,
             distributed,
         } => {
             doctor::execute(
-                profile_name(profile)?,
+                &DeployProfile::load(host.profile_path()?)?,
                 distributed,
-                host.prompter(),
-                host.output(),
                 &AdmittedViews::resolve(host).await?,
             )
             .await?;
