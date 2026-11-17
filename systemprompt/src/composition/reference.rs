@@ -107,7 +107,7 @@ pub fn reference() -> Composition {
     ));
     #[cfg(feature = "full")]
     members.push(Member::core::<systemprompt_files::FilesExtension>(
-        CoreTerms::OPTIONAL,
+        CoreTerms::REQUIRED,
     ));
     #[cfg(feature = "brain")]
     members.push(Member::core::<systemprompt_brain::BrainExtension>(
@@ -120,7 +120,7 @@ pub fn reference() -> Composition {
     #[cfg(feature = "full")]
     members.push(Member::core::<
         systemprompt_marketplace::ManagedResourcesExtension,
-    >(CoreTerms::OPTIONAL));
+    >(CoreTerms::REQUIRED));
     #[cfg(feature = "api")]
     members.push(Member::core::<
         systemprompt_gateway::extension::GatewayExtension,

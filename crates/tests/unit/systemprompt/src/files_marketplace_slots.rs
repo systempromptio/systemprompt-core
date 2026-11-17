@@ -1,10 +1,11 @@
 //! The files and marketplace slots as the reference composition admits them:
 //! the `files` member opens the blob holder, agent access and documents
 //! slots and fills them with the core holder, codecs and template provider;
-//! `managed_resources` opens the marketplace slot. The agent access slot is
-//! single-valued (T19), a disabled member's entries never build while an
-//! enabled twin's do (the negative control), and the marketplace slot builds
-//! core first with every gate kept.
+//! `managed_resources` opens the marketplace slot. Both members are required,
+//! so a profile disabling either is refused at admission. The agent access
+//! slot is single-valued (T19), a disabled member's entries never build while
+//! an enabled twin's do (the negative control), and the marketplace slot
+//! builds core first with every gate kept.
 
 use std::any::TypeId;
 use std::sync::Arc;
@@ -23,7 +24,7 @@ use systemprompt::marketplace::contract::{
 use systemprompt::marketplace::managed::{
     GateContext, GateVerdict, PublicationGate, PublicationGateError,
 };
-use systemprompt::reference;
+use systemprompt::{CompositionError, reference};
 use systemprompt_extension::contribute::build_slot;
 use systemprompt_extension::{
     Admitted, FactoryError, Resolved, Slot, SlotError, SlotOrder, StandingTag,
@@ -230,30 +231,21 @@ fn a_disabled_members_agent_access_policy_is_never_built() {
 }
 
 #[test]
-fn a_disabled_files_member_leaves_no_files_slot() {
-    let admitted = reference()
-        .declare()
-        .expect("the reference composition declares")
-        .admit(&profile(&["files"]))
-        .expect("disabling the files member admits");
-    assert!(slot_owners::<BlobHolderSlot>(&admitted).is_empty());
-    assert!(slot_owners::<AgentAccessSlot>(&admitted).is_empty());
-    assert!(slot_owners::<DocumentsSlot>(&admitted).is_empty());
-    assert!(
-        built::<DocumentsSlot>(&admitted)
-            .expect("an empty slot builds nothing")
-            .is_none()
-    );
+fn a_profile_disabling_files_or_managed_resources_is_refused_as_required() {
+    for id in ["files", "managed_resources"] {
+        let refused = reference()
+            .declare()
+            .expect("the reference composition declares")
+            .admit(&profile(&[id]));
+        assert!(
+            matches!(&refused, Err(CompositionError::RequiredDisabled(named)) if named.as_str() == id),
+            "{id}: {refused:?}"
+        );
+    }
 }
 
 #[test]
-fn a_disabled_managed_resources_member_leaves_no_marketplace_slot() {
-    let admitted = reference()
-        .declare()
-        .expect("the reference composition declares")
-        .admit(&profile(&["managed_resources"]))
-        .expect("disabling the managed resources member admits");
-    assert!(slot_owners::<MarketplaceSlot>(&admitted).is_empty());
+fn the_enabled_marketplace_slot_carries_no_core_gate() {
     let enabled = build(reference()).expect("the reference composition admits");
     let seams: Arc<MarketplaceSeams> = built_on::<MarketplaceSlot>(&enabled, &governed_kernel())
         .expect("the marketplace slot builds")
