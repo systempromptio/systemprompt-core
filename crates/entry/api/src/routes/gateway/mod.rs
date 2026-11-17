@@ -175,6 +175,18 @@ pub(crate) fn gateway_mount_parts(
     })
 }
 
+#[must_use]
+pub fn gateway_admitted(admitted: &Admitted) -> bool {
+    let id = systemprompt_extension::Extension::metadata(
+        &systemprompt_gateway::extension::GatewayExtension,
+    )
+    .id;
+    admitted
+        .built()
+        .members()
+        .any(|member| member.owner.as_str() == id)
+}
+
 pub fn gateway_engines(
     ctx: &AppContext,
     kernel: &Kernel,

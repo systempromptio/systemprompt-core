@@ -1,5 +1,6 @@
 //! Gateway route mount: the inference surface plus its public session
-//! routes. A gateway that cannot be built fails startup.
+//! routes. A gateway that cannot be built fails startup; a node that does not
+//! admit the `gateway` member builds no engines and mounts none of it.
 //!
 //! The inference surface authenticates inside its handlers (its own
 //! credential extraction accepts `x-api-key`), so each of its parts —
@@ -13,8 +14,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
+
 use axum::Router;
 use systemprompt_extension::{AuthzPolicy, ContextKind, RateBudget, RateLimit, RouteGroup};
+use systemprompt_gateway::GatewayEngines;
 use systemprompt_models::modules::ApiPaths;
 
 use super::RouteMountError;
@@ -25,6 +29,7 @@ use crate::services::middleware::{gateway_protection, place};
 pub(super) fn mount_gateway(
     mut router: Router,
     mount: &MountCtx<'_>,
+    engines: &Arc<GatewayEngines>,
 ) -> Result<Router, RouteMountError> {
     let ctx = mount.ctx;
     let base = ApiPaths::GATEWAY_BASE;
@@ -34,7 +39,7 @@ pub(super) fn mount_gateway(
         registered,
     } = gateway_mount_parts(
         ctx,
-        mount.engines,
+        engines,
         mount.composed.admitted,
         mount.composed.kernel,
     )

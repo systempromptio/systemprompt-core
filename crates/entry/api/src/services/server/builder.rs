@@ -58,9 +58,18 @@ pub fn setup_api_server(
         tx.warning("Rate limiting disabled - development mode only");
     }
 
-    let engines = Arc::new(crate::routes::gateway::gateway_engines(ctx, composed.kernel)?);
-    register_artifact_scanner(ctx, &engines);
-    let router = configure_routes(ctx, composed, events, &engines)?
+    let engines = if crate::routes::gateway::gateway_admitted(composed.admitted) {
+        let engines = Arc::new(crate::routes::gateway::gateway_engines(ctx, composed.kernel)?);
+        register_artifact_scanner(ctx, &engines);
+        Some(engines)
+    } else {
+        tracing::info!(
+            reason = "gateway_member_not_admitted",
+            "Gateway engines and routes not built"
+        );
+        None
+    };
+    let router = configure_routes(ctx, composed, events, engines.as_ref())?
         .layer(axum::Extension(Arc::clone(readiness)));
     apply_global_middleware(router, ctx)
 }
