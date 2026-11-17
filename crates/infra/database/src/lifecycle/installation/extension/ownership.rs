@@ -36,9 +36,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use systemprompt_extension::{LoaderError, Migration, StandingTag};
 use systemprompt_identifiers::ExtensionId;
 
-use super::super::migration_owners::{
-    MigrationMembers, RecordedTable, check_migration_ownership,
-};
+use super::super::migration_owners::{MigrationMembers, RecordedTable, check_migration_ownership};
 use super::super::prepare::PreparedSchema;
 use super::super::undeclared::qualify;
 use crate::lifecycle::migrations::MigrationService;

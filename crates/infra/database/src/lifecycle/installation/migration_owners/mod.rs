@@ -28,14 +28,15 @@
 //! judged.
 //!
 //! For an install member a pending migration is also refused
-//! ([`MigrationOwnershipError::Unreadable`], [`MigrationOwnershipError::UnownedObject`])
-//! when it holds SQL the parser cannot attribute: `DO`, `CALL`, `EXECUTE`,
-//! a top-level `SELECT` that calls a routine, `COPY` from a file or
-//! program, a routine in a language other than `sql` (a `sql` routine's body
-//! is read as part of the migration), any statement kind the reader does not
-//! classify, a `DROP INDEX` of an index its own SQL does not create, and a
-//! `DROP ... CASCADE` of an object its own SQL does not create. A core
-//! member's statements of these kinds are logged at `warn` as unjudged.
+//! ([`MigrationOwnershipError::Unreadable`],
+//! [`MigrationOwnershipError::UnownedObject`]) when it holds SQL the parser
+//! cannot attribute: `DO`, `CALL`, `EXECUTE`, a top-level `SELECT` that calls a
+//! routine, `COPY` from a file or program, a routine in a language other than
+//! `sql` (a `sql` routine's body is read as part of the migration), any
+//! statement kind the reader does not classify, a `DROP INDEX` of an index its
+//! own SQL does not create, and a `DROP ... CASCADE` of an object its own SQL
+//! does not create. A core member's statements of these kinds are logged at
+//! `warn` as unjudged.
 //!
 //! Only migrations that will run are judged: a migration recorded as applied
 //! is history, and a fresh database stamps its migrations without running
@@ -136,9 +137,7 @@ pub enum MigrationOwnershipError {
         schema: String,
     },
 
-    #[error(
-        "member {member} migration {migration}: {statement} into the kernel ledger {table}"
-    )]
+    #[error("member {member} migration {migration}: {statement} into the kernel ledger {table}")]
     LedgerWrite {
         member: ExtensionId,
         migration: String,

@@ -38,11 +38,17 @@ pub(super) fn pinned_members(where_clause: Option<&Node>) -> Option<Vec<String>>
     let right = expr.rexpr.as_deref()?;
     match AExprKind::try_from(expr.kind).ok()? {
         AExprKind::AexprOp => {
-            let operator = expr.name.first().and_then(|name| match name.node.as_ref()? {
-                NodeEnum::String(s) => Some(s.sval.as_str()),
-                _ => None,
-            });
-            (operator == Some("=")).then(|| literal(right)).flatten().map(|id| vec![id])
+            let operator = expr
+                .name
+                .first()
+                .and_then(|name| match name.node.as_ref()? {
+                    NodeEnum::String(s) => Some(s.sval.as_str()),
+                    _ => None,
+                });
+            (operator == Some("="))
+                .then(|| literal(right))
+                .flatten()
+                .map(|id| vec![id])
         },
         AExprKind::AexprIn => {
             let NodeEnum::List(list) = right.node.as_ref()? else {

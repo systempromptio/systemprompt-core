@@ -15,8 +15,8 @@ use super::claims::{Ownership, ownership};
 use super::kinds::HiddenSql;
 use super::statements::{Effect, effects_of, top_level};
 use super::{
-    KERNEL_LEDGER_OWNER, KERNEL_LEDGERS, MigrationMembers, MigrationOwnershipError,
-    RecordedTable, TableMutation, label,
+    KERNEL_LEDGER_OWNER, KERNEL_LEDGERS, MigrationMembers, MigrationOwnershipError, RecordedTable,
+    TableMutation, label,
 };
 
 struct Judged<'a> {
@@ -99,7 +99,10 @@ const fn logged_table_statement(statement: TableMutation) -> bool {
 }
 
 const fn logged_hidden(statement: &HiddenSql) -> bool {
-    matches!(statement, HiddenSql::Routine { .. } | HiddenSql::RoutineCall)
+    matches!(
+        statement,
+        HiddenSql::Routine { .. } | HiddenSql::RoutineCall
+    )
 }
 
 fn judge(
@@ -111,7 +114,9 @@ fn judge(
     let id = member.id.clone();
     match effect {
         Effect::Table(statement, table) => {
-            let owner = ownership.owner(&table).filter(|owner| owner.id != *member.id)?;
+            let owner = ownership
+                .owner(&table)
+                .filter(|owner| owner.id != *member.id)?;
             let admitted_cross = member.cross.contains(&table)
                 && !(member.install() && owner.standing == StandingTag::Core);
             if admitted_cross {
@@ -148,9 +153,10 @@ fn judge(
         Effect::Schema(statement, schema) => judge_schema(ownership, member, statement, schema),
         Effect::Object(statement, object) => judge_object(ownership, member, statement, object),
         Effect::Cascade(object) => {
-            let own = ownership.created.get(member.id).is_some_and(|own| {
-                own.objects.contains(&object) || own.indexes.contains(&object)
-            });
+            let own = ownership
+                .created
+                .get(member.id)
+                .is_some_and(|own| own.objects.contains(&object) || own.indexes.contains(&object));
             if !own {
                 member.unjudged(&TableMutation::DropCascade, &object);
             }
@@ -176,9 +182,9 @@ fn judge_schema(
     statement: TableMutation,
     schema: Option<String>,
 ) -> Option<MigrationOwnershipError> {
-    let refused = schema.as_deref().is_none_or(|schema| {
-        schema == "public" || ownership.held_by_another(schema, member.id)
-    });
+    let refused = schema
+        .as_deref()
+        .is_none_or(|schema| schema == "public" || ownership.held_by_another(schema, member.id));
     if !refused {
         member.unjudged(&statement, schema.as_deref().unwrap_or_default());
         return None;
@@ -197,11 +203,20 @@ fn judge_object(
     statement: TableMutation,
     object: String,
 ) -> Option<MigrationOwnershipError> {
-    let index = matches!(statement, TableMutation::DropIndex | TableMutation::AlterIndex);
+    let index = matches!(
+        statement,
+        TableMutation::DropIndex | TableMutation::AlterIndex
+    );
     let creators: Vec<ExtensionId> = if index {
-        ownership.creators(|c| &c.indexes, &object).cloned().collect()
+        ownership
+            .creators(|c| &c.indexes, &object)
+            .cloned()
+            .collect()
     } else {
-        ownership.creators(|c| &c.objects, &object).cloned().collect()
+        ownership
+            .creators(|c| &c.objects, &object)
+            .cloned()
+            .collect()
     };
     if creators.contains(member.id) {
         return None;

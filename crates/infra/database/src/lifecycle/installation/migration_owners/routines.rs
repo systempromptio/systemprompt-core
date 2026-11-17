@@ -11,10 +11,15 @@ use super::kinds::HiddenSql;
 use super::statements::{Effect, effects_of, top_level};
 
 fn option<'a>(function: &'a CreateFunctionStmt, name: &str) -> Option<&'a NodeEnum> {
-    function.options.iter().find_map(|option| match option.node.as_ref()? {
-        NodeEnum::DefElem(element) if element.defname == name => element.arg.as_ref()?.node.as_ref(),
-        _ => None,
-    })
+    function
+        .options
+        .iter()
+        .find_map(|option| match option.node.as_ref()? {
+            NodeEnum::DefElem(element) if element.defname == name => {
+                element.arg.as_ref()?.node.as_ref()
+            },
+            _ => None,
+        })
 }
 
 fn language(function: &CreateFunctionStmt) -> String {
@@ -28,10 +33,12 @@ fn body(function: &CreateFunctionStmt) -> Option<&str> {
     let Some(NodeEnum::List(list)) = option(function, "as") else {
         return None;
     };
-    list.items.first().and_then(|item| match item.node.as_ref()? {
-        NodeEnum::String(s) => Some(s.sval.as_str()),
-        _ => None,
-    })
+    list.items
+        .first()
+        .and_then(|item| match item.node.as_ref()? {
+            NodeEnum::String(s) => Some(s.sval.as_str()),
+            _ => None,
+        })
 }
 
 fn atomic_effects(node: &Node) -> Vec<Effect> {

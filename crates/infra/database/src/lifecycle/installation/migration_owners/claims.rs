@@ -14,8 +14,8 @@ use systemprompt_identifiers::ExtensionId;
 use super::super::undeclared::qualify;
 use super::objects::Created;
 use super::{
-    KERNEL_LEDGER_OWNER, KERNEL_LEDGERS, MigrationMembers, MigrationOwnershipError,
-    RecordedTable, label,
+    KERNEL_LEDGER_OWNER, KERNEL_LEDGERS, MigrationMembers, MigrationOwnershipError, RecordedTable,
+    label,
 };
 use crate::lifecycle::schema_member::SchemaMember;
 
@@ -42,7 +42,10 @@ pub(super) struct Ownership {
 impl Ownership {
     fn claim(&mut self, table: String, claim: Claim) {
         let claims = self.tables.entry(table).or_default();
-        if !claims.iter().any(|held| held.id == claim.id && held.rank <= claim.rank) {
+        if !claims
+            .iter()
+            .any(|held| held.id == claim.id && held.rank <= claim.rank)
+        {
             claims.push(claim);
             claims.sort_by_key(|held| held.rank);
         }
@@ -80,7 +83,10 @@ impl Ownership {
         let another_creates = self.created.iter().any(|(id, created)| {
             id != member
                 && (created.schemas.contains(schema)
-                    || created.objects.iter().any(|object| object.starts_with(&prefix)))
+                    || created
+                        .objects
+                        .iter()
+                        .any(|object| object.starts_with(&prefix)))
         });
         another_table || another_creates
     }

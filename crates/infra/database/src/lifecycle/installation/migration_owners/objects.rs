@@ -134,10 +134,15 @@ impl Created {
                 self.indexes.insert(format!("{schema}.{name}"));
             },
             Some(NodeEnum::ColumnDef(column)) => {
-                for constraint in column.constraints.iter().filter_map(|c| match c.node.as_ref()? {
-                    NodeEnum::Constraint(constraint) => Some(constraint),
-                    _ => None,
-                }) {
+                for constraint in
+                    column
+                        .constraints
+                        .iter()
+                        .filter_map(|c| match c.node.as_ref()? {
+                            NodeEnum::Constraint(constraint) => Some(constraint),
+                            _ => None,
+                        })
+                {
                     if indexed(constraint.contype) {
                         let name = if constraint.conname.is_empty() {
                             implicit(bare, Some(&column.colname), constraint.contype)

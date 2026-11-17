@@ -107,7 +107,11 @@ fn a_literal_unknown_id_is_named_as_written() {
     let error = admit(&profile.path);
     let text = chain(&error);
     assert!(text.contains("no-such-member-kfix8"), "{text}");
-    assert!(composition_failure(&error).detail.contains("no-such-member-kfix8"));
+    assert!(
+        composition_failure(&error)
+            .detail
+            .contains("no-such-member-kfix8")
+    );
     let literal = target("  disabled: \"no-such-member-kfix8\"\n");
     assert!(matches!(
         read_disabled(&literal.path),

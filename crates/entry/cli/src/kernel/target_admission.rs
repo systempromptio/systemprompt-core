@@ -135,9 +135,7 @@ pub fn read_disabled(profile: &Path) -> Result<ExtensionsConfig, TargetAdmission
     read_target(profile).map(|(extensions, _)| extensions)
 }
 
-fn read_target(
-    profile: &Path,
-) -> Result<(ExtensionsConfig, Vec<Resolved>), TargetAdmissionError> {
+fn read_target(profile: &Path) -> Result<(ExtensionsConfig, Vec<Resolved>), TargetAdmissionError> {
     let layer = |path: &Path| {
         std::fs::read_to_string(path)
             .map_err(|source| ProfileError::ReadFile {

@@ -49,7 +49,8 @@ pub(super) fn unit(
     })
 }
 
-pub(super) const OWNER_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS mo_owned (id BIGINT PRIMARY KEY);";
+pub(super) const OWNER_SCHEMA: &str =
+    "CREATE TABLE IF NOT EXISTS mo_owned (id BIGINT PRIMARY KEY);";
 pub(super) const PEER_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS mo_peer (id BIGINT PRIMARY KEY);";
 
 pub(super) fn owner() -> Arc<dyn SchemaMember> {
@@ -256,7 +257,10 @@ pub(super) fn ledger() -> Arc<dyn SchemaMember> {
     })
 }
 
-pub(super) fn installed_peer(migrations: Vec<Migration>, schema: &'static str) -> Arc<dyn SchemaMember> {
+pub(super) fn installed_peer(
+    migrations: Vec<Migration>,
+    schema: &'static str,
+) -> Arc<dyn SchemaMember> {
     unit(
         "mo-peer",
         StandingTag::Install,
@@ -266,7 +270,10 @@ pub(super) fn installed_peer(migrations: Vec<Migration>, schema: &'static str) -
     )
 }
 
-pub(super) async fn install(pool: &DbPool, members: Vec<Arc<dyn SchemaMember>>) -> Result<(), LoaderError> {
+pub(super) async fn install(
+    pool: &DbPool,
+    members: Vec<Arc<dyn SchemaMember>>,
+) -> Result<(), LoaderError> {
     install_schema_members(&members, pool.write(), MigrationConfig::default())
         .await
         .map(drop)
