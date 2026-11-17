@@ -39,7 +39,9 @@ async fn brain_model_client(ctx: &AppContext) -> Result<Arc<dyn BrainModelClient
     let gateway = ctx
         .services_config()
         .gateway_config()
-        .filter(|gateway| gateway.enabled && crate::routes::gateway::gateway_admitted(ctx.admitted()))
+        .filter(|gateway| {
+            gateway.enabled && crate::routes::gateway::gateway_admitted(ctx.admitted())
+        })
         .cloned()
         .context("brain extraction requires the gateway to be enabled")?;
     let sessions = ctx
