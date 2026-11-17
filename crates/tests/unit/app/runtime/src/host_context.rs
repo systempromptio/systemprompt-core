@@ -56,7 +56,7 @@ async fn boot_with(
     seed_fixture_system_admin(&test_db_pool().await)
         .await
         .expect("seed the system admin");
-    HostContext::boot(move |name| env.get(name).cloned(), crate::boot::core_admit()).await
+    HostContext::boot(move |name| env.get(name).cloned(), crate::boot::host_admit()).await
 }
 
 #[tokio::test]

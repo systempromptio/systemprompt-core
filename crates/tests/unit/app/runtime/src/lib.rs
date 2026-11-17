@@ -79,6 +79,8 @@ mod host_context;
 #[cfg(test)]
 mod kernel_sealed_seeds;
 #[cfg(test)]
+mod kernel_seeds;
+#[cfg(test)]
 mod link_rig;
 #[cfg(test)]
 mod links_issuer_errors;

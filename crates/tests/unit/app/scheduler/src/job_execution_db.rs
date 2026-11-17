@@ -139,7 +139,7 @@ mod execution {
         assert_eq!(report.job_name, "no_such_job");
         assert_eq!(
             report.message.as_deref(),
-            Some("Job 'no_such_job' not found")
+            Some("Job 'no_such_job' is not registered by any admitted extension")
         );
     }
 

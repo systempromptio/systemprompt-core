@@ -336,6 +336,17 @@ governance:
     )
 }
 
+pub(crate) fn host_admit() -> systemprompt_runtime::AdmitFn {
+    Box::new(|_profile| {
+        let mut members = systemprompt_test_fixtures::fixture_core_members();
+        members.push(Box::new(systemprompt_mcp_host::McpHostExtension));
+        std::sync::Arc::try_unwrap(systemprompt_test_fixtures::fixture_admitted_of(members))
+            .map_err(|_shared| -> systemprompt_traits::BoxedSource {
+                "the admitted host composition is uniquely owned".into()
+            })
+    })
+}
+
 pub(crate) fn core_admit() -> systemprompt_runtime::AdmitFn {
     Box::new(|_profile| {
         systemprompt_test_fixtures::schema_admitted()

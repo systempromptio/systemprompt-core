@@ -65,6 +65,11 @@ async fn documents_tools_refuse_a_disabled_store_and_name_the_switch() {
     use systemprompt_test_fixtures::{host_child_env, init_services_bootstrap};
 
     let bootstrap = init_services_bootstrap("mcp_servers: {}\n");
+    std::fs::write(
+        bootstrap.services_path.join("config/files.yaml"),
+        "files:\n  documents:\n    enabled: false\n",
+    )
+    .expect("disable the document store");
     let env = host_child_env(&bootstrap);
     systemprompt_test_fixtures::seed_fixture_system_admin(
         &systemprompt_test_fixtures::test_db_pool().await,

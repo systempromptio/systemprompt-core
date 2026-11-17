@@ -125,7 +125,12 @@ async fn boot_reports_planes_in_dependency_order_and_config_apply_writes_them() 
         .expect("boot pass");
 
     assert!(report.failures().is_empty(), "{:?}", report.failures());
-    let order: Vec<&str> = report.planes.iter().map(|p| p.plane.as_str()).collect();
+    let order: Vec<&str> = report
+        .planes
+        .iter()
+        .map(|p| p.plane.as_str())
+        .filter(|plane| [parent_name, child_name].contains(plane))
+        .collect();
     assert_eq!(order, vec![parent_name, child_name]);
     assert!(log.lock().expect("lock").is_empty(), "boot writes nothing");
     assert!(stored_rows(&h.pool, parent_name).await.is_empty());
@@ -252,7 +257,12 @@ async fn console_edits_survive_boot_passes_and_later_applies() {
         .await
         .expect("console edit");
     let boot = h.service.reconcile_all(ReconcileTrigger::Boot).await;
-    assert_eq!(boot.planes[0].outcome, PlaneOutcome::DriftReported);
+    let own = boot
+        .planes
+        .iter()
+        .find(|p| p.plane.as_str() == name)
+        .expect("the boot pass reports the test's plane");
+    assert_eq!(own.outcome, PlaneOutcome::DriftReported);
     let again = apply.apply(&options).await.expect("second apply");
     assert_eq!(again.planes[0].drift, vec!["a"]);
     assert_eq!(

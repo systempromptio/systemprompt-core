@@ -124,6 +124,7 @@ async fn the_extension_view_hands_out_the_shared_background_tasks() {
     let (ctx, _url) = context().await;
     let view: &dyn ExtensionContext = ctx.as_ref();
     let (release, released) = tokio::sync::oneshot::channel::<()>();
+    let before = ctx.background_tasks().in_flight();
 
     view.background_tasks()
         .spawn("context-traits-test", async move {
@@ -132,15 +133,19 @@ async fn the_extension_view_hands_out_the_shared_background_tasks() {
 
     assert_eq!(
         ctx.background_tasks().in_flight(),
-        1,
+        before + 1,
         "a task spawned through the extension view is tracked by the context's owner"
     );
     release.send(()).expect("task still waiting");
-    let outcome = ctx
-        .background_tasks()
-        .drain(std::time::Duration::from_secs(5))
-        .await;
-    assert!(outcome.is_drained());
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    while ctx.background_tasks().in_flight() > before && std::time::Instant::now() < deadline {
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+    assert_eq!(
+        ctx.background_tasks().in_flight(),
+        before,
+        "the released task finishes and leaves the owner's set"
+    );
 }
 
 #[tokio::test]
