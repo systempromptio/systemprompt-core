@@ -30,7 +30,7 @@ use systemprompt_identifiers::ExtensionId;
 use thiserror::Error;
 
 use crate::admitted::BuiltState;
-use crate::contribute::{ContributionSink, StandingTag};
+use crate::contribute::ContributionSink;
 use crate::metadata::SchemaDefinition;
 use crate::purge::PurgeDeclaration;
 
@@ -56,7 +56,6 @@ pub enum PurgeAdmissionError {
 #[derive(Debug, Clone, Copy)]
 pub struct PurgeClaim<'a> {
     pub owner: &'a ExtensionId,
-    pub standing: StandingTag,
     pub schemas: &'a [SchemaDefinition],
     pub declarations: &'a [PurgeDeclaration],
 }
@@ -138,7 +137,6 @@ impl AdmittedPurge {
             .zip(&declarations)
             .map(|(member, declarations)| PurgeClaim {
                 owner: &member.owner,
-                standing: member.standing,
                 schemas: member.sink.schemas(),
                 declarations,
             })

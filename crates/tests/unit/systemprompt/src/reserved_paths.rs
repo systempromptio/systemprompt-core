@@ -62,6 +62,32 @@ fn every_baseline_route_is_reserved_for_its_owner() {
 }
 
 #[test]
+fn the_unmounted_api_constants_are_reserved_for_their_owners() {
+    for (path, owner) in [
+        ("/api/v1/auth/me", CoreId::Kernel),
+        ("/api/v1/meta", CoreId::Kernel),
+        ("/api/v1/meta/probe", CoreId::Kernel),
+        ("/api/v1/tenants", CoreId::Cloud),
+        ("/api/v1/tenants/probe", CoreId::Cloud),
+    ] {
+        let route = def(path);
+        assert!(
+            refused_reservation(ROOT, &route, None).is_some(),
+            "{path} is open to an install"
+        );
+        assert_eq!(
+            refused_reservation(ROOT, &route, Some(owner)),
+            None,
+            "{path} is reserved away from {owner:?}"
+        );
+        assert!(
+            refused_reservation(ROOT, &route, Some(CoreId::ContentHttp)).is_some(),
+            "{path} is open to a core member that does not own it"
+        );
+    }
+}
+
+#[test]
 fn every_privileged_shape_is_reserved_for_its_owner() {
     for shape in PRIVILEGED_SHAPES {
         let BaseRef::Path(base) = shape.base else {

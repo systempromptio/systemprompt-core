@@ -52,7 +52,7 @@ pub use agent::{
 pub use app_context::{
     default_governance_engine, default_governance_watch, fixture_admitted, fixture_admitted_of,
     fixture_admitted_without, fixture_analytics_repositories, fixture_app_context_on_bootstrap,
-    fixture_app_context_with_build, fixture_app_context_with_config,
+    fixture_app_context_reloaded_on, fixture_app_context_with_build, fixture_app_context_with_config,
     fixture_app_context_with_extensions, fixture_app_context_with_filter,
     fixture_app_context_with_hook, fixture_app_context_with_services, fixture_artifact_ingest,
     fixture_config, fixture_context_builder, fixture_core_members, fixture_event_bridge,

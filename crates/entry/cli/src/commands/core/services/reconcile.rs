@@ -58,7 +58,11 @@ pub async fn reconcile_after_swap(
 
     let services = ConfigLoader::load_from_path(&root.path.join(CONFIG_RELPATH), Some(profile))
         .context("Failed to load the composed services config")?;
-    let pool = pool_from_handle(host.db().await?)
+    let pool = host
+        .db()
+        .await
+        .map_err(anyhow::Error::from)
+        .and_then(|handle| pool_from_handle(handle).map_err(anyhow::Error::from))
         .context("services refresh needs a database to project access rules into")?;
 
     let reports = reconcile_composed_bundles(&pool, &services, &bundles)

@@ -69,13 +69,7 @@ pub async fn run(host: &dyn KernelHost) -> Result<SecretCheckReport> {
     let required =
         SecretsService::required_secret_keys(SecretsService::signing_key_pem_required(profile));
     let (source, detail, keys) =
-        describe(
-        &resolved,
-        profile_dir,
-        &required,
-        &crate::commands::admin::state::get::<systemprompt_config::SecretsSources>(host).await?,
-    )
-    .await?;
+        describe(&resolved, profile_dir, &required, host.secrets_sources()).await?;
     let status = crate::commands::admin::state::boot(host)
         .await
         .ok()

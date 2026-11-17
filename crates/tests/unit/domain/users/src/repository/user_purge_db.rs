@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 use systemprompt_extension::{
-    AdmittedPurge, OrphanSweep, PurgeClaim, PurgeDeclaration, SchemaDefinition, StandingTag,
+    AdmittedPurge, OrphanSweep, PurgeClaim, PurgeDeclaration, SchemaDefinition,
     UserPurgeTable,
 };
 use systemprompt_identifiers::{ExtensionId, UserId};
@@ -43,7 +43,6 @@ pub(super) fn core_plan() -> AdmittedPurge {
     }));
     AdmittedPurge::admit(&[PurgeClaim {
         owner: &owner,
-        standing: StandingTag::Core,
         schemas: &schemas,
         declarations: &declarations,
     }])

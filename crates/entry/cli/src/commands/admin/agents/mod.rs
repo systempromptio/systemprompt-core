@@ -34,11 +34,11 @@ mod tools;
 pub mod validate;
 
 use crate::kernel::KernelHost;
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use clap::Subcommand;
 
 use systemprompt_extension::cli::DataImpact;
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_extension::cli::{CommandError, CommandOutput};
 
 #[derive(Debug, Subcommand)]
 pub enum AgentsCommands {
@@ -90,8 +90,9 @@ pub async fn execute(command: AgentsCommands, host: &dyn KernelHost) -> Result<C
             let (result, valid) =
                 validate::execute(&args, host).await.context("Failed to validate agents")?;
             if !valid {
-                host.render(&result);
-                bail!("Agent validation failed");
+                return Err(CommandError::new(anyhow::anyhow!("Agent validation failed"))
+                    .with_output(result)
+                    .into());
             }
             result
         },

@@ -42,6 +42,10 @@ impl NotificationAudienceResolver for GroupResolver {
         matches!(subject, AudienceSubject::Dimension { kind, .. } if kind == "group")
     }
 
+    fn dimensions(&self) -> &'static [&'static str] {
+        &["group"]
+    }
+
     async fn members(
         &self,
         _subject: &AudienceSubject,

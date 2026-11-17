@@ -20,9 +20,11 @@
 //! refused when the set is built ([`SlotError::ReservedAudience`]), and
 //! every install resolver is held behind a guard that never handles,
 //! expands, answers or reports holding a reserved subject, so no reader can
-//! ask it one. Two resolvers sharing a name are refused, so an install
-//! cannot answer under a core resolver's name. A custom dimension a resolver
-//! declares (`dimensions`) that another resolver also declares or handles is
+//! ask it one. The guard also answers a custom `Dimension` only when its kind
+//! is among the resolver's declared `dimensions`, so an install handles no
+//! kind it has not declared. Two resolvers sharing a name are refused, so an
+//! install cannot answer under a core resolver's name. A custom dimension a
+//! resolver declares that another resolver also declares or handles is
 //! refused ([`SlotError::SharedAudienceDimension`], naming both), so one
 //! member never silently shadows another's dimension.
 //!
@@ -190,6 +192,18 @@ fn reserved_probes() -> impl Iterator<Item = AudienceSubject> {
 
 struct InstallScoped(Arc<dyn NotificationAudienceResolver>);
 
+impl InstallScoped {
+    fn answers(&self, subject: &AudienceSubject) -> bool {
+        if is_reserved_audience(subject) {
+            return false;
+        }
+        match subject {
+            AudienceSubject::Dimension { kind, .. } => self.0.dimensions().contains(&kind.as_str()),
+            AudienceSubject::User(_) | AudienceSubject::Role(_) | AudienceSubject::Everyone => true,
+        }
+    }
+}
+
 #[async_trait::async_trait]
 impl NotificationAudienceResolver for InstallScoped {
     fn name(&self) -> &'static str {
@@ -197,7 +211,7 @@ impl NotificationAudienceResolver for InstallScoped {
     }
 
     fn handles(&self, subject: &AudienceSubject) -> bool {
-        !is_reserved_audience(subject) && self.0.handles(subject)
+        self.answers(subject) && self.0.handles(subject)
     }
 
     fn dimensions(&self) -> &'static [&'static str] {
@@ -209,7 +223,7 @@ impl NotificationAudienceResolver for InstallScoped {
         subject: &AudienceSubject,
         limit: usize,
     ) -> Result<Vec<UserId>, NotificationAudienceError> {
-        if is_reserved_audience(subject) {
+        if !self.answers(subject) {
             return Ok(Vec::new());
         }
         self.0.members(subject, limit).await
@@ -220,7 +234,7 @@ impl NotificationAudienceResolver for InstallScoped {
         subject: &AudienceSubject,
         user: &UserId,
     ) -> Result<Membership, NotificationAudienceError> {
-        if is_reserved_audience(subject) {
+        if !self.answers(subject) {
             return Ok(Membership::Unknown);
         }
         self.0.is_member(subject, user).await
@@ -230,7 +244,7 @@ impl NotificationAudienceResolver for InstallScoped {
         self.0.held(user).await.map(|subjects| {
             subjects
                 .into_iter()
-                .filter(|subject| !is_reserved_audience(subject))
+                .filter(|subject| self.answers(subject))
                 .collect()
         })
     }

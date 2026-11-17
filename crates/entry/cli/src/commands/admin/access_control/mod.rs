@@ -14,7 +14,7 @@ use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::{Args, Subcommand};
 
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_extension::cli::{CommandError, CommandOutput};
 
 #[derive(Debug, Clone, Copy, Subcommand)]
 pub enum AccessControlCommands {
@@ -47,8 +47,11 @@ pub async fn execute(cmd: AccessControlCommands, host: &dyn KernelHost) -> Resul
             let (text, exit_nonzero) = lint::run(args, host).await?;
             let result = CommandOutput::text_titled("Access-control lint", text);
             if exit_nonzero {
-                host.render(&result);
-                anyhow::bail!("access-control lint failed; see report above");
+                return Err(CommandError::new(anyhow::anyhow!(
+                    "access-control lint failed; see report above"
+                ))
+                .with_output(result)
+                .into());
             }
             Ok(result)
         },

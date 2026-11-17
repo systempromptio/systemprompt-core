@@ -53,6 +53,10 @@ impl NotificationAudienceResolver for UserRoleAudienceResolver {
         !matches!(subject, AudienceSubject::Dimension { .. })
     }
 
+    fn dimensions(&self) -> &'static [&'static str] {
+        &[]
+    }
+
     async fn members(
         &self,
         subject: &AudienceSubject,

@@ -5,7 +5,7 @@
 
 use systemprompt_extension::{
     AdmittedPurge, OrphanSweep, PurgeAdmissionError, PurgeClaim, PurgeDeclaration,
-    SchemaDefinition, StandingTag, UserPurgeTable,
+    SchemaDefinition, UserPurgeTable,
 };
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_test_fixtures::{fixture_admitted_without, schema_admitted};
@@ -148,13 +148,11 @@ fn a_core_member_naming_a_core_peers_table_is_refused() {
         AdmittedPurge::admit(&[
             PurgeClaim {
                 owner: &users,
-                standing: StandingTag::Core,
                 schemas: &users_schemas,
                 declarations: users_decl,
             },
             PurgeClaim {
                 owner: &mcp,
-                standing: StandingTag::Core,
                 schemas: &mcp_schemas,
                 declarations: mcp_decl,
             },
@@ -190,13 +188,11 @@ fn an_orphan_sweep_needs_both_its_tables_owned_by_the_declarer() {
         AdmittedPurge::admit(&[
             PurgeClaim {
                 owner: &files,
-                standing: StandingTag::Core,
                 schemas: &files_schemas,
                 declarations,
             },
             PurgeClaim {
                 owner: &mcp,
-                standing: StandingTag::Core,
                 schemas: &mcp_schemas,
                 declarations: &[],
             },
