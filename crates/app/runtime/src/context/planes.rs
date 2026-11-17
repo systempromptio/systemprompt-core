@@ -34,6 +34,15 @@ use systemprompt_users::{UserRepository, UserService};
 
 use super::ShutdownRequest;
 
+/// The four planes an [`AppContext`](super::AppContext) holds.
+#[derive(Debug, Clone)]
+pub struct ContextPlanes {
+    pub data: DataPlane,
+    pub cfg: ConfigPlane,
+    pub plugins: Plugins,
+    pub subsystems: Subsystems,
+}
+
 /// Database pool and the data-access services layered on it.
 ///
 /// `fingerprint_repo` and `user_service` are `None` when the corresponding

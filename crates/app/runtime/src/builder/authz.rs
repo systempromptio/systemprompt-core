@@ -29,6 +29,7 @@ pub(crate) struct AuthzBuilt<'a> {
     pub(crate) providers: &'a SubjectProviderSet,
     pub(crate) hooks: &'a AuthzHooks,
     pub(crate) seams: &'a MarketplaceSeams,
+    pub(crate) epochs: &'a CacheEpochs,
 }
 
 pub(crate) fn authz_stage(
@@ -36,7 +37,6 @@ pub(crate) fn authz_stage(
     database: &Arc<Database>,
     services: &ServicesState,
     hook_override: Option<SharedAuthzHook>,
-    epochs: &CacheEpochs,
     built: &AuthzBuilt<'_>,
 ) -> RuntimeResult<(PublicationPolicy, SharedAuthzHook, PluginInputs)> {
     let providers = built.providers.clone();
@@ -53,7 +53,7 @@ pub(crate) fn authz_stage(
         hook_override.or_else(|| built.hooks.hook()),
         AuthzWiring {
             sources: chain_sources(&services.config()),
-            epochs: epochs.clone(),
+            epochs: built.epochs.clone(),
             providers: providers.clone(),
         },
     )?;

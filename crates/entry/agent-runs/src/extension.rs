@@ -1,5 +1,7 @@
 //! [`AgentRunsApiExtension`] (`agent_runs_api`): the `/api/v1/agent-runs`
-//! route set, behind the user gate with a user context, the caller's
+//! route set.
+//!
+//! The set is behind the user gate with a user context, the caller's
 //! `agent_runs` rate limit on the tasks budget and the default body limit, in
 //! the `Agent` route group, so every node role that serves the agent protocol
 //! serves it. The shape equals the reference composition's conferral for

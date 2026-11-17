@@ -130,7 +130,7 @@ impl HostKernel {
             #[cfg(feature = "notifications")]
             escalation: systemprompt_notifications::service::EscalationDelivery::Consumer,
         });
-        let handle: Arc<dyn DatabaseHandle> = database.clone();
+        let handle: Arc<dyn DatabaseHandle> = Arc::<systemprompt_database::Database>::clone(&database);
         let mut kernel = Kernel::new(handle, background_tasks.clone(), seed);
         kernel.resolve(&admitted).map_err(RuntimeError::from)?;
         let r = kernel.resolved();
@@ -140,8 +140,8 @@ impl HostKernel {
             &database,
             &services,
             None,
-            &cache_epochs,
             &AuthzBuilt {
+                epochs: &cache_epochs,
                 providers: &*r
                     .get::<Arc<SubjectProviderSet>>()
                     .map_err(RuntimeError::from)?,

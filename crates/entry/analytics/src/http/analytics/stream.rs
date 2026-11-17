@@ -21,13 +21,13 @@ pub(crate) async fn analytics_stream(
     Extension(req_ctx): Extension<RequestContext>,
 ) -> Response {
     let connection_id = ConnectionId::generate();
-    match state
+    state
         .broadcaster
         .0
         .subscribe(req_ctx.user_id(), &connection_id)
         .await
-    {
-        Some(subscription) => sse_response(&req_ctx, subscription, "Analytics"),
-        None => subscription_refused(&req_ctx, "Analytics"),
-    }
+        .map_or_else(
+            || subscription_refused(&req_ctx, "Analytics"),
+            |subscription| sse_response(&req_ctx, subscription, "Analytics"),
+        )
 }

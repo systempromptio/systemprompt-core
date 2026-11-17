@@ -25,7 +25,7 @@ impl std::fmt::Debug for AppContext {
             .field("authz_hook", &"SharedAuthzHook")
             .field("signing_keys", &self.subsystems.signing_keys)
             .field("governance", &self.subsystems.governance)
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 

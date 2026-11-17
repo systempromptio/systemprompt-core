@@ -148,7 +148,7 @@ pub fn kernel_state(seed: ApiKernelSeed<'_>) -> Dependencies {
         None => state.reserve::<Arc<AiService>>(),
     }
     match seed.geoip {
-        Some(reader) => state.insert(reader.clone()),
+        Some(reader) => state.insert(Arc::clone(reader)),
         None => state.reserve::<GeoIpReader>(),
     }
     match seed.content_config {

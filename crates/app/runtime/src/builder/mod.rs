@@ -54,7 +54,9 @@ use systemprompt_marketplace::contract::MarketplaceSeams;
 use systemprompt_traits::{BackgroundTasks, ConfigWatch, DatabaseHandle, SecretStore};
 use systemprompt_users::UserService;
 
-use crate::context::{AppContext, ConfigPlane, DataPlane, ShutdownRequest, Subsystems};
+use crate::context::{
+    AppContext, ConfigPlane, ContextPlanes, DataPlane, ShutdownRequest, Subsystems,
+};
 use crate::error::RuntimeResult;
 use crate::kernel::Kernel;
 use authz::{AuthzBuilt, authz_stage};
@@ -178,7 +180,7 @@ impl AppContextBuilder {
             geoip: content.geoip_reader.as_ref(),
             content_config: content.content_config.as_ref(),
         });
-        let handle: Arc<dyn DatabaseHandle> = database.clone();
+        let handle: Arc<dyn DatabaseHandle> = Arc::<systemprompt_database::Database>::clone(&database);
         let subscriptions: Arc<dyn systemprompt_traits::events::AnalyticsSubscription> =
             Arc::new(systemprompt_events::AnalyticsSubscriptions::new(
                 Arc::clone(&router.broadcasters().analytics),
@@ -196,8 +198,8 @@ impl AppContextBuilder {
             &database,
             &services,
             authz_hook_override,
-            &cache_epochs,
             &AuthzBuilt {
+                epochs: &cache_epochs,
                 providers: &*r.get::<Arc<SubjectProviderSet>>()?,
                 hooks: &*r.get::<Arc<AuthzHooks>>()?,
                 seams: &seams,
@@ -268,13 +270,14 @@ impl AppContextBuilder {
         };
 
         AppContext::from_parts(
-            build_data_plane(
+            ContextPlanes {
+            data: build_data_plane(
                 database,
                 content.fingerprint_repo,
                 user_service,
                 repositories,
             ),
-            ConfigPlane {
+            cfg: ConfigPlane {
                 boot: self.boot,
                 config,
                 app_paths,
@@ -285,6 +288,7 @@ impl AppContextBuilder {
             },
             plugins,
             subsystems,
+            },
             Arc::new(kernel),
             self.admitted,
         )

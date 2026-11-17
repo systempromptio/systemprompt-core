@@ -55,8 +55,13 @@ impl CliCommandGroup for SitemapCommands {
     const NAME: &'static str = "sitemap";
     const ABOUT: &'static str = "Sitemap operations";
 
-    async fn run(self, host: &dyn CommandHost) -> Result<CommandOutput, CommandError> {
-        let profile = host.profile()?;
-        execute(self, host.output(), profile).map_err(CommandError::new)
+    fn run(
+        self,
+        host: &dyn CommandHost,
+    ) -> impl Future<Output = Result<CommandOutput, CommandError>> + Send {
+        std::future::ready(
+            host.profile()
+                .and_then(|profile| execute(self, host.output(), profile).map_err(CommandError::new)),
+        )
     }
 }

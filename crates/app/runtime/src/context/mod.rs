@@ -35,7 +35,7 @@ mod repositories;
 mod services;
 mod shutdown;
 
-pub use planes::{ConfigPlane, DataPlane, Plugins, Subsystems};
+pub use planes::{ConfigPlane, ContextPlanes, DataPlane, Plugins, Subsystems};
 pub use shutdown::ShutdownRequest;
 
 use crate::builder::AppContextBuilder;
@@ -74,13 +74,16 @@ impl AppContext {
     }
 
     pub fn from_parts(
-        data: DataPlane,
-        cfg: ConfigPlane,
-        plugins: Plugins,
-        subsystems: Subsystems,
+        planes: ContextPlanes,
         kernel: Arc<Kernel>,
         admitted: Arc<Admitted>,
     ) -> RuntimeResult<Self> {
+        let ContextPlanes {
+            data,
+            cfg,
+            plugins,
+            subsystems,
+        } = planes;
         let analytics = kernel.resolved().get::<Arc<AnalyticsService>>()?;
         Ok(Self {
             data,

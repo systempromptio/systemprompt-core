@@ -1,4 +1,6 @@
-//! The `gateway` member: the `gateway_policies` config plane. The gateway owns
+//! The `gateway` member: the `gateway_policies` config plane.
+//!
+//! The gateway owns
 //! no tables; the plane writes `ai_gateway_policies` through the AI domain's
 //! repository. Its slots are in [`crate::contract`]; the member opens each
 //! one, so every gateway slot value is built under core standing and no

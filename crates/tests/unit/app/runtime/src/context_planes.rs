@@ -11,7 +11,9 @@ use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::{ContentConfigRaw, RouteClassifier};
-use systemprompt_runtime::{AppContext, ConfigPlane, DataPlane, Plugins, Subsystems};
+use systemprompt_runtime::{
+    AppContext, ConfigPlane, ContextPlanes, DataPlane, Plugins, Subsystems,
+};
 use systemprompt_test_fixtures::{fixture_system_admin, unique_instance};
 
 fn tmp_paths() -> PathsConfig {
@@ -181,10 +183,12 @@ async fn plane_debug_impls_flag_optional_members() {
 
     let resolved = systemprompt_test_fixtures::test_app_context(&url).await;
     let ctx = AppContext::from_parts(
-        data,
-        cfg,
-        plugins,
-        subsystems,
+        ContextPlanes {
+            data,
+            cfg,
+            plugins,
+            subsystems,
+        },
         Arc::clone(resolved.kernel()),
         Arc::clone(resolved.admitted()),
     )

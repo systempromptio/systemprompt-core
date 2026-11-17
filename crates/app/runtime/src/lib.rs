@@ -43,7 +43,9 @@ mod validation;
 
 pub use builder::kernel_state::{ApiKernelSeed, KernelSeed, base_kernel_state, kernel_state};
 pub use builder::{AppContextBuilder, discover_vertex_models, owner_reassignments};
-pub use context::{AppContext, ConfigPlane, DataPlane, Plugins, ShutdownRequest, Subsystems};
+pub use context::{
+    AppContext, ConfigPlane, ContextPlanes, DataPlane, Plugins, ShutdownRequest, Subsystems,
+};
 pub use database_context::DatabaseContext;
 pub use error::{RuntimeError, RuntimeResult};
 pub use host_kernel::{AdmitFn, HostBootError, HostKernel, HostParts, PROFILE_ENV};

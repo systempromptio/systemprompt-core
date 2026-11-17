@@ -14,7 +14,7 @@ use systemprompt_governance::policy::PolicyCatalog;
 
 use super::KernelError;
 
-fn kernel_inserted() -> [TypeId; 4] {
+const fn kernel_inserted() -> [TypeId; 4] {
     [
         TypeId::of::<Arc<AudienceResolvers>>(),
         TypeId::of::<Arc<SubjectProviderSet>>(),

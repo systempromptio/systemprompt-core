@@ -38,9 +38,12 @@ const SAFETY_SCANNER_SLOT: &str = "safety_scanner";
 const OVERRIDE_SLOT: &str = "system_prompt_override";
 const OUTBOUND_SLOT: &str = "outbound_adapter";
 
+type Factories<T> = Vec<Box<dyn Factory<T>>>;
+type NamedFactory<T> = (&'static str, Box<dyn Factory<Arc<T>>>);
+
 fn build_all<T: 'static>(
     slot: &'static str,
-    entries: Vec<(ExtensionId, Vec<Box<dyn Factory<T>>>)>,
+    entries: Vec<(ExtensionId, Factories<T>)>,
     r: &Resolved<'_>,
 ) -> Result<Vec<T>, SlotError> {
     let mut built = Vec::new();
@@ -145,7 +148,7 @@ pub struct SafetyScannerSlot;
 
 #[derive(Default)]
 pub struct SafetyScannerBuilder {
-    scanners: Vec<(&'static str, Box<dyn Factory<Arc<dyn ScannerFactory>>>)>,
+    scanners: Vec<NamedFactory<dyn ScannerFactory>>,
 }
 
 impl std::fmt::Debug for SafetyScannerBuilder {
@@ -208,7 +211,7 @@ pub struct OutboundSlot;
 
 #[derive(Default)]
 pub struct OutboundBuilder {
-    adapters: Vec<(&'static str, Box<dyn Factory<Arc<dyn OutboundAdapter>>>)>,
+    adapters: Vec<NamedFactory<dyn OutboundAdapter>>,
 }
 
 impl std::fmt::Debug for OutboundBuilder {
