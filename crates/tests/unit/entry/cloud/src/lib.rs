@@ -52,4 +52,6 @@ mod session_project_fixture;
 #[cfg(test)]
 mod target_admission;
 #[cfg(test)]
+mod target_admission_secrets;
+#[cfg(test)]
 mod target_host;

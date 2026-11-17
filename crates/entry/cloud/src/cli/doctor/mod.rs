@@ -210,7 +210,7 @@ fn providers_check(profile: &Profile, secrets: &HashMap<String, String>) -> Chec
     }
 }
 
-fn composition_failure(error: &CommandError) -> CheckResult {
+pub fn composition_failure(error: &CommandError) -> CheckResult {
     let mut detail = error.to_string();
     let mut cause = std::error::Error::source(error);
     while let Some(next) = cause {
