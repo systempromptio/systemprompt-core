@@ -19,8 +19,9 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::headers::{SESSION_ID, SYSTEMPROMPT_AUTHORIZATION};
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    AuthedFixture, DisposableDb, TestBootstrap, init_services_bootstrap, seed_admin_credential,
-    settle_background, test_app_context_on, test_db_pool,
+    AuthedFixture, DisposableDb, TestBootstrap, fixture_admitted, fixture_app_context_on_bootstrap,
+    fixture_config, init_services_bootstrap, seed_admin_credential, settle_background,
+    test_app_context_on, test_db_pool,
 };
 use systemprompt_traits::DrainOutcome;
 use tokio::sync::OnceCell;
@@ -118,11 +119,30 @@ async fn harness() -> &'static Harness {
 
 async fn app_on() -> (Router, Arc<AppContext>, &'static MockServer) {
     let h = harness().await;
-    let ctx = test_app_context_on(&h.boot).await;
+    serve(test_app_context_on(&h.boot).await, &h.upstream)
+}
+
+async fn app_on_database(
+    database_url: &str,
+) -> Result<(Router, Arc<AppContext>, &'static MockServer)> {
+    let h = harness().await;
+    let paths = &h.boot.boot.profile().paths;
+    let mut config = fixture_config(database_url);
+    config.system_path = paths.system.clone();
+    config.services_path = paths.services.clone();
+    config.bin_path = paths.bin.clone();
+    let ctx = fixture_app_context_on_bootstrap(&h.boot, config, fixture_admitted()).await?;
+    Ok(serve(ctx, &h.upstream))
+}
+
+fn serve(
+    ctx: Arc<AppContext>,
+    upstream: &'static MockServer,
+) -> (Router, Arc<AppContext>, &'static MockServer) {
     (
         gateway_router(&ctx, ctx.admitted(), ctx.kernel()).expect("gateway router builds"),
         ctx,
-        &h.upstream,
+        upstream,
     )
 }
 
@@ -450,7 +470,7 @@ async fn a_request_without_the_dedicated_header_is_unauthenticated_upstream() ->
 async fn content_a_policy_would_redact_is_denied_rather_than_rewritten() -> Result<()> {
     let database = DisposableDb::with_schema("gw_caller_redact").await;
     let pool = database.test_pool().await;
-    let (app, _ctx, upstream) = app_on().await;
+    let (app, _ctx, upstream) = app_on_database(database.url()).await?;
     let cred = member(&pool).await?;
     sqlx::query(
         "INSERT INTO ai_gateway_policies (id, name, spec, enabled, priority) VALUES ($1, $2, $3, \
