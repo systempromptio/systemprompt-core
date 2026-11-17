@@ -83,7 +83,14 @@ pub(super) fn findings(
                 migration: &migration_label,
                 cross: &cross,
             };
+            let mut hidden = Vec::new();
             for effect in top_level(&parsed).flat_map(effects_of) {
+                if let Effect::Hidden(statement) = &effect {
+                    if hidden.contains(statement) {
+                        continue;
+                    }
+                    hidden.push(statement.clone());
+                }
                 findings.extend(judge(&ownership, &judged, effect));
             }
         }
@@ -101,7 +108,7 @@ const fn logged_table_statement(statement: TableMutation) -> bool {
 const fn logged_hidden(statement: &HiddenSql) -> bool {
     matches!(
         statement,
-        HiddenSql::Routine { .. } | HiddenSql::RoutineCall
+        HiddenSql::Do | HiddenSql::Routine { .. } | HiddenSql::RoutineCall
     )
 }
 

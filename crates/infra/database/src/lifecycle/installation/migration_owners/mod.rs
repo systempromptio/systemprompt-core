@@ -12,9 +12,8 @@
 //! The judged statements, refused when their table is another member's
 //! ([`MigrationOwnershipError::ForeignTable`]): `ALTER TABLE` (including
 //! `SET SCHEMA`), `DROP TABLE`, `TRUNCATE`, `RENAME` of a table, column,
-//! constraint, trigger, policy or rule, `CREATE INDEX`, `CREATE TRIGGER`,
-//! `CREATE RULE`, `CREATE POLICY`, `ALTER POLICY`, `DROP TRIGGER|POLICY|RULE
-//! ... ON`, and `GRANT`/`REVOKE` on a table. `DROP INDEX`/`ALTER INDEX` and
+//! constraint, trigger, policy or rule, `CREATE RULE`, `CREATE POLICY`, `ALTER POLICY`, `DROP POLICY|RULE ... ON`,
+//! and `GRANT`/`REVOKE` on a table. `DROP INDEX`/`ALTER INDEX` and
 //! a `DROP` or `SET SCHEMA` of a type, routine, sequence or view are judged
 //! against the member whose SQL creates the object
 //! ([`MigrationOwnershipError::ForeignObject`]). Schema-level statements
@@ -28,15 +27,17 @@
 //! judged.
 //!
 //! For an install member a pending migration is also refused
-//! ([`MigrationOwnershipError::Unreadable`],
-//! [`MigrationOwnershipError::UnownedObject`]) when it holds SQL the parser
-//! cannot attribute: `DO`, `CALL`, `EXECUTE`, a top-level `SELECT` that calls a
-//! routine, `COPY` from a file or program, a routine in a language other than
-//! `sql` (a `sql` routine's body is read as part of the migration), any
-//! statement kind the reader does not classify, a `DROP INDEX` of an index its
-//! own SQL does not create, and a `DROP ... CASCADE` of an object its own SQL
-//! does not create. A core member's statements of these kinds are logged at
-//! `warn` as unjudged.
+//! ([`MigrationOwnershipError::Unreadable`]) when it holds SQL the parser
+//! cannot attribute and no install ships: `CALL`, `EXECUTE`, `COPY` from a
+//! file or program, a `sql` routine whose body does not parse (a parseable
+//! body is read as part of the migration), and any statement kind the reader
+//! does not classify. A core member's statements of these kinds are logged at
+//! `warn` as unjudged. At either standing a `DO` block, a routine in a
+//! language other than `sql`, a top-level `SELECT` that calls a routine,
+//! `CREATE INDEX`, `CREATE TRIGGER` and `DROP TRIGGER` on another member's
+//! table, a `DROP INDEX` of an index no member's SQL creates and a
+//! `DROP ... CASCADE` of an object the member's SQL does not create are
+//! logged as unjudged, once per kind and migration for hidden SQL.
 //!
 //! Only migrations that will run are judged: a migration recorded as applied
 //! is history, and a fresh database stamps its migrations without running
@@ -118,17 +119,6 @@ pub enum MigrationOwnershipError {
         owner: ExtensionId,
     },
 
-    #[error(
-        "install member {member} migration {migration}: {statement} of {object}, which its own \
-         SQL does not create"
-    )]
-    UnownedObject {
-        member: ExtensionId,
-        migration: String,
-        statement: TableMutation,
-        object: String,
-    },
-
     #[error("member {member} migration {migration}: {statement} of schema {schema}")]
     SchemaLevel {
         member: ExtensionId,
@@ -171,7 +161,6 @@ impl MigrationOwnershipError {
             Self::ForeignTable { member, .. }
             | Self::SharedTable { member, .. }
             | Self::ForeignObject { member, .. }
-            | Self::UnownedObject { member, .. }
             | Self::SchemaLevel { member, .. }
             | Self::LedgerWrite { member, .. }
             | Self::Unreadable { member, .. }

@@ -60,7 +60,7 @@ fn leak(s: String) -> &'static str {
 }
 
 #[derive(Clone, Default)]
-struct LogBuffer(Arc<Mutex<Vec<u8>>>);
+pub(super) struct LogBuffer(Arc<Mutex<Vec<u8>>>);
 
 impl std::io::Write for LogBuffer {
     fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
@@ -82,11 +82,11 @@ impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for LogBuffer {
 }
 
 impl LogBuffer {
-    fn text(&self) -> String {
+    pub(super) fn text(&self) -> String {
         String::from_utf8(self.0.lock().expect("log buffer").clone()).expect("utf8 logs")
     }
 
-    fn install(&self) -> tracing::subscriber::DefaultGuard {
+    pub(super) fn install(&self) -> tracing::subscriber::DefaultGuard {
         let subscriber = tracing_subscriber::registry().with(
             tracing_subscriber::fmt::layer()
                 .with_ansi(false)

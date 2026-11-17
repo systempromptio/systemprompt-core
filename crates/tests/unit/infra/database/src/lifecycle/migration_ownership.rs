@@ -1,8 +1,9 @@
 //! A migration that alters, drops, truncates or renames a table another
 //! member owns is refused before any database write; a foreign-key
 //! reference, a read and a mutation of the member's own table are not; a
-//! migration recorded as applied is not judged; an install member's pending
-//! `DO` block is refused and a core member's passes (K-SEC4-4, N4).
+//! migration recorded as applied is not judged; a pending `DO` block is
+//! logged once per migration as unjudged at either standing, while an install
+//! member's `CALL` is refused (K-SEC4-4, N4).
 
 use std::sync::Arc;
 
@@ -18,6 +19,8 @@ use systemprompt_extension::{
 };
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_test_fixtures::{DisposableDb, fixture_admitted};
+
+use super::migration_edges::LogBuffer;
 
 const OWNERS_DDL: &str =
     include_str!("../../../../../../infra/database/schema/schema_table_owners.sql");
@@ -184,20 +187,33 @@ fn an_applied_migration_is_not_judged() {
 }
 
 #[test]
-fn a_do_block_is_refused_for_an_install_and_passes_for_core() {
-    let sql = "DO $$ BEGIN EXECUTE 'DROP TABLE mo_owned'; END $$;";
+fn a_do_block_is_logged_once_per_migration_at_either_standing() {
+    let sql = "DO $$ BEGIN PERFORM 1; END $$;\nDO $$ BEGIN PERFORM 2; END $$;";
+    for standing in [StandingTag::Install, StandingTag::Core] {
+        let logs = LogBuffer::default();
+        let outcome = {
+            let _guard = logs.install();
+            judged(&[owner(), peer(standing, sql)])
+        };
+        outcome.unwrap_or_else(|e| panic!("{standing:?}: a DO block is logged, not refused: {e}"));
+        let text = logs.text();
+        let lines: Vec<&str> = text.lines().filter(|l| l.contains("statement=DO")).collect();
+        assert_eq!(lines.len(), 1, "one warning per migration: {text}");
+        assert!(
+            lines[0].contains("member=mo-peer") && lines[0].contains("migration=001_probe"),
+            "the warning names member and migration: {text}"
+        );
+    }
     assert!(
         matches!(
-            judged(&[owner(), peer(StandingTag::Install, sql)]),
+            judged(&[owner(), peer(StandingTag::Install, "CALL mo_proc();")]),
             Err(MigrationOwnershipError::Unreadable {
-                statement: HiddenSql::Do,
+                statement: HiddenSql::Call,
                 ..
             })
         ),
-        "an install migration's DO block is refused"
+        "negative control: an install migration's CALL is still refused"
     );
-    judged(&[owner(), peer(StandingTag::Core, sql)])
-        .expect("a core migration's DO block passes, logged");
 }
 
 #[test]
