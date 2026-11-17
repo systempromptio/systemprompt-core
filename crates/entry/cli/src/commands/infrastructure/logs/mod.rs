@@ -30,7 +30,7 @@ mod view;
 
 pub use audit::{AuditOutput, AuditToolCall, build_audit, not_found_output as audit_not_found};
 pub use shared::{
-    cost_microdollars_to_dollars, display_log_row, format_optional_duration_ms, format_timestamp,
+    cost_microdollars_to_dollars, format_optional_duration_ms, format_timestamp, level_notice,
 };
 pub use summary::{LogsSummaryOutput, build_logs_summary};
 pub use types::{MessageRow, ToolCallRow};

@@ -85,7 +85,7 @@ async fn execute_with_pool_inner(
 ) -> Result<CommandOutput> {
     let ai_service = AiTraceService::new(TraceRepository::new(Arc::clone(pool)));
     if let Ok(task_id) = ai_service.resolve_task_id(&args.id).await {
-        return execute_ai_trace(&ai_service, &task_id, &args).await;
+        return execute_ai_trace(&ai_service, &task_id, &args, machine_output).await;
     }
 
     execute_trace_view(&args, pool, machine_output).await

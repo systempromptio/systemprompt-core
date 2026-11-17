@@ -4,14 +4,14 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::{ContextId, McpToolName, TaskId};
-use systemprompt_logging::{CliService, LogLevel};
+use systemprompt_logging::LogLevel;
 use systemprompt_runtime::{AiRequestInfo, AiTraceService, McpToolExecution, ToolLogEntry};
 
-use super::ai_display::{print_content_block, print_section, truncate};
-use crate::commands::infrastructure::logs::shared::print_level_line;
+use super::ai_display::{Transcript, truncate};
 use crate::presentation::tables::mcp_tool_calls_table;
 
-pub(super) async fn print_mcp_executions(
+pub(super) async fn mcp_executions(
+    out: &mut Transcript,
     service: &AiTraceService,
     executions: &[McpToolExecution],
     task_id: &TaskId,
@@ -19,22 +19,22 @@ pub(super) async fn print_mcp_executions(
     show_full: bool,
 ) {
     if executions.is_empty() {
-        print_tool_errors_from_logs(service, task_id, context_id).await;
+        tool_errors_from_logs(out, service, task_id, context_id).await;
         return;
     }
 
-    print_section("MCP TOOL EXECUTIONS");
-    CliService::info(&mcp_tool_calls_table(executions));
+    out.section("MCP TOOL EXECUTIONS");
+    out.info(mcp_tool_calls_table(executions));
 
     for exec in executions {
         if exec.status == "failed"
             && let Some(ref error) = exec.error_message
         {
-            CliService::error(&format!("  {} failed:", exec.tool_name));
-            print_content_block(error);
+            out.error(format!("  {} failed:", exec.tool_name));
+            out.block(error);
         }
 
-        print_tool_io(exec, show_full);
+        tool_io(out, exec, show_full);
 
         match service
             .get_mcp_linked_ai_requests(&exec.mcp_execution_id)
@@ -42,7 +42,7 @@ pub(super) async fn print_mcp_executions(
         {
             Ok(linked_requests) => {
                 if !linked_requests.is_empty() {
-                    print_mcp_linked_ai_requests(service, &linked_requests, &exec.tool_name).await;
+                    mcp_linked_ai_requests(out, service, &linked_requests, &exec.tool_name).await;
                 }
             },
             Err(e) => tracing::warn!(
@@ -54,56 +54,52 @@ pub(super) async fn print_mcp_executions(
     }
 }
 
-fn print_tool_io(exec: &McpToolExecution, show_full: bool) {
+fn tool_io(out: &mut Transcript, exec: &McpToolExecution, show_full: bool) {
     let has_input = !exec.input.is_empty();
     let has_output = exec.output.as_ref().is_some_and(|s| !s.is_empty());
 
     if has_input || has_output {
-        CliService::info(&format!("  → {}:", exec.tool_name));
+        out.info(format!("  → {}:", exec.tool_name));
 
         if has_input {
-            CliService::info("    input:");
+            out.info("    input:");
             if show_full || exec.input.len() <= 200 {
-                print_tool_content(&exec.input);
+                tool_content(out, &exec.input);
             } else {
-                print_tool_content(&truncate(&exec.input, 200));
+                tool_content(out, &truncate(&exec.input, 200));
             }
         }
 
         if let Some(ref output_str) = exec.output
             && !output_str.is_empty()
         {
-            CliService::info("    result:");
+            out.info("    result:");
             if show_full || output_str.len() <= 500 {
-                print_tool_content(output_str);
+                tool_content(out, output_str);
             } else {
-                print_tool_content(&truncate(output_str, 500));
-                CliService::info("    [Truncated - use --tool-results for full output]");
+                tool_content(out, &truncate(output_str, 500));
+                out.info("    [Truncated - use --tool-results for full output]");
             }
         }
     }
 }
 
-fn print_tool_content(content: &str) {
-    if let Ok(json) = serde_json::from_str::<serde_json::Value>(content)
-        && let Ok(pretty) = CliService::json_string(&json)
-    {
-        for line in pretty.lines() {
-            CliService::info(&format!("      {line}"));
-        }
-        return;
-    }
-    for line in content.lines() {
-        CliService::info(&format!("      {line}"));
+fn tool_content(out: &mut Transcript, content: &str) {
+    let pretty = serde_json::from_str::<serde_json::Value>(content)
+        .ok()
+        .and_then(|json| serde_json::to_string_pretty(&json).ok());
+    for line in pretty.as_deref().unwrap_or(content).lines() {
+        out.info(format!("      {line}"));
     }
 }
 
-async fn print_mcp_linked_ai_requests(
+async fn mcp_linked_ai_requests(
+    out: &mut Transcript,
     service: &AiTraceService,
     requests: &[AiRequestInfo],
     tool_name: &McpToolName,
 ) {
-    CliService::info(&format!("  → AI requests made by {tool_name}:"));
+    out.info(format!("  → AI requests made by {tool_name}:"));
 
     for req in requests {
         let tokens = req.input_tokens.unwrap_or(0) + req.output_tokens.unwrap_or(0);
@@ -111,7 +107,7 @@ async fn print_mcp_linked_ai_requests(
             .latency_ms
             .map_or_else(|| "-".to_owned(), |ms| format!("{ms}ms"));
 
-        CliService::info(&format!(
+        out.info(format!(
             "    {} {}/{} | {tokens} tokens | {latency_str}",
             truncate(req.id.as_str(), 8),
             req.provider.as_deref().unwrap_or("-"),
@@ -135,7 +131,7 @@ async fn print_mcp_linked_ai_requests(
                 truncate(&msg.content, 200)
             };
 
-            CliService::info(&format!(
+            out.info(format!(
                 "      #{} [{}] {preview}",
                 msg.sequence_number,
                 msg.role.to_uppercase()
@@ -144,7 +140,8 @@ async fn print_mcp_linked_ai_requests(
     }
 }
 
-async fn print_tool_errors_from_logs(
+async fn tool_errors_from_logs(
+    out: &mut Transcript,
     service: &AiTraceService,
     task_id: &TaskId,
     context_id: &ContextId,
@@ -161,8 +158,8 @@ async fn print_tool_errors_from_logs(
         return;
     }
 
-    print_section("TOOL EXECUTION LOGS");
-    CliService::info("  (MCP execution records not found - showing logs)");
+    out.section("TOOL EXECUTION LOGS");
+    out.info("  (MCP execution records not found - showing logs)");
 
     let mut has_errors = false;
     for log in &logs {
@@ -184,20 +181,20 @@ async fn print_tool_errors_from_logs(
             truncate(&log.message, 100)
         );
 
-        print_level_line(log.level, &log_line);
+        out.level(log.level, log_line);
     }
 
     if has_errors {
-        print_error_details(&logs);
+        error_details(out, &logs);
     }
 }
 
-fn print_error_details(logs: &[ToolLogEntry]) {
-    CliService::error("  Tool Errors:");
+fn error_details(out: &mut Transcript, logs: &[ToolLogEntry]) {
+    out.error("  Tool Errors:");
     for log in logs {
         if log.level == LogLevel::Error {
-            CliService::error(&format!("    {}: error:", log.module));
-            print_content_block(&format!("      {}", log.message));
+            out.error(format!("    {}: error:", log.module));
+            out.block(&format!("      {}", log.message));
         }
     }
 }
