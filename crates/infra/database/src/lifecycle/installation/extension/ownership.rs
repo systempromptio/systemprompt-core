@@ -18,9 +18,9 @@
 //! every table recorded to the old id ([`LoaderError::DuplicateTableOwner`]
 //! names that recorded owner) until an operator re-assigns the records.
 //!
-//! Before any DDL the install also refuses a pending migration that alters,
-//! drops, truncates or renames a table another member owns, judged over the
-//! same records (`migration_owners`).
+//! Before any DDL the install also refuses a pending migration that changes
+//! a table or object another member owns, judged over the same records
+//! (`migration_owners`).
 //!
 //! A record is released only by its owner: an install in which the owner is
 //! admitted, no longer declares the table, and the table is gone (its own
@@ -36,7 +36,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use systemprompt_extension::{LoaderError, Migration, StandingTag};
 use systemprompt_identifiers::ExtensionId;
 
-use super::super::migration_owners::{RecordedTable, check_migration_ownership};
+use super::super::migration_owners::{
+    MigrationMembers, RecordedTable, check_migration_ownership,
+};
 use super::super::prepare::PreparedSchema;
 use super::super::undeclared::qualify;
 use super::ExtensionSet;
@@ -96,6 +98,7 @@ pub(super) async fn check_pending_migration_owners(
     owners: &TableOwners,
     migration_service: &MigrationService<'_>,
     members: &ExtensionSet,
+    held_back: &ExtensionSet,
     prepared: &[PreparedSchema],
 ) -> Result<(), LoaderError> {
     let fresh = super::fresh_extension_ids(migration_service, members, prepared).await?;
@@ -118,10 +121,14 @@ pub(super) async fn check_pending_migration_owners(
             .get(id)
             .is_some_and(|versions| !versions.contains(&migration.version))
     };
-    check_migration_ownership(members, &owners.recorded(), &pending).map_err(|error| {
+    let judged = MigrationMembers {
+        judged: members,
+        held_back,
+    };
+    check_migration_ownership(judged, &owners.recorded(), &pending).map_err(|error| {
         LoaderError::SchemaInstallationStepFailed {
             extension: error.member().clone(),
-            context: "a pending migration mutates a table another member owns".to_owned(),
+            context: "a pending migration is refused by the migration ownership rule".to_owned(),
             source: Box::new(error),
         }
     })

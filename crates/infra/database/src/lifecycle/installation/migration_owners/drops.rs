@@ -1,0 +1,124 @@
+//! The renames, drops, grants and copies a migration statement makes.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use pg_query::NodeEnum;
+use pg_query::protobuf::{DropBehavior, GrantTargetType, ObjectType};
+
+use super::kinds::{HiddenSql, TableMutation};
+use super::statements::{
+    Effect, is_table, object_name, object_on_table, object_type, on, relation_name, strings,
+};
+
+pub(super) fn renamed(rename: &pg_query::protobuf::RenameStmt) -> Vec<Effect> {
+    match object_type(rename.rename_type) {
+        Some(
+            ObjectType::ObjectTable
+            | ObjectType::ObjectColumn
+            | ObjectType::ObjectTabconstraint
+            | ObjectType::ObjectTrigger
+            | ObjectType::ObjectPolicy
+            | ObjectType::ObjectRule,
+        ) => on(TableMutation::Rename, rename.relation.as_ref()),
+        Some(ObjectType::ObjectSchema) => vec![Effect::Schema(
+            TableMutation::RenameSchema,
+            Some(rename.subname.clone()),
+        )],
+        Some(ObjectType::ObjectIndex) => rename
+            .relation
+            .as_ref()
+            .and_then(relation_name)
+            .map(|index| Effect::Object(TableMutation::AlterIndex, index))
+            .into_iter()
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+pub(super) fn dropped(drop: &pg_query::protobuf::DropStmt) -> Vec<Effect> {
+    let cascade = DropBehavior::try_from(drop.behavior) == Ok(DropBehavior::DropCascade);
+    let remove = object_type(drop.remove_type);
+    if is_table(drop.remove_type) {
+        return drop
+            .objects
+            .iter()
+            .filter_map(object_name)
+            .map(|table| Effect::Table(TableMutation::Drop, table))
+            .collect();
+    }
+    let on_table = match remove {
+        Some(ObjectType::ObjectTrigger) => Some(TableMutation::DropTrigger),
+        Some(ObjectType::ObjectPolicy) => Some(TableMutation::DropPolicy),
+        Some(ObjectType::ObjectRule) => Some(TableMutation::DropRule),
+        _ => None,
+    };
+    let mut effects = Vec::new();
+    for object in &drop.objects {
+        if let Some(kind) = on_table {
+            effects.extend(object_on_table(object).map(|table| Effect::Table(kind, table)));
+            continue;
+        }
+        if remove == Some(ObjectType::ObjectSchema) {
+            let schema = match object.node.as_ref() {
+                Some(NodeEnum::String(s)) => Some(s.sval.clone()),
+                _ => None,
+            };
+            effects.push(Effect::Schema(TableMutation::DropSchema, schema));
+            continue;
+        }
+        let Some(name) = object_name(object) else {
+            continue;
+        };
+        let kind = if remove == Some(ObjectType::ObjectIndex) {
+            TableMutation::DropIndex
+        } else {
+            TableMutation::DropObject
+        };
+        effects.push(Effect::Object(kind, name.clone()));
+        if cascade {
+            effects.push(Effect::Cascade(name));
+        }
+    }
+    effects
+}
+
+pub(super) fn granted(grant: &pg_query::protobuf::GrantStmt) -> Vec<Effect> {
+    let kind = if grant.is_grant {
+        TableMutation::Grant
+    } else {
+        TableMutation::Revoke
+    };
+    match GrantTargetType::try_from(grant.targtype) {
+        Ok(GrantTargetType::AclTargetAllInSchema) => strings(&grant.objects)
+            .into_iter()
+            .map(|schema| Effect::Schema(TableMutation::GrantInSchema, Some(schema.to_owned())))
+            .collect(),
+        Ok(GrantTargetType::AclTargetObject) if is_table(grant.objtype) => grant
+            .objects
+            .iter()
+            .filter_map(|node| match node.node.as_ref()? {
+                NodeEnum::RangeVar(relation) => relation_name(relation),
+                _ => None,
+            })
+            .map(|table| Effect::Table(kind, table))
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+pub(super) fn copied(copy: &pg_query::protobuf::CopyStmt) -> Vec<Effect> {
+    let mut effects = Vec::new();
+    if copy.is_program || !copy.filename.is_empty() {
+        effects.push(Effect::Hidden(HiddenSql::CopyProgram));
+    }
+    if copy.is_from {
+        effects.extend(
+            copy.relation
+                .as_ref()
+                .and_then(relation_name)
+                .map(|table| Effect::Write(TableMutation::Copy, table, None)),
+        );
+    }
+    effects
+}

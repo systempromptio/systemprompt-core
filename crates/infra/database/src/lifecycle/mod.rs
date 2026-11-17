@@ -17,7 +17,8 @@ pub mod schema_member;
 pub use installation::{
     AbsentMemberTable, BOOTSTRAP_ADVISORY_LOCK_KEY, BackfillStatement, BootstrapLockGuard,
     BootstrapLockTimeout, DeferredForeignKey, ExpensiveStatement, FkDeferralError, ForeignKeyDrift,
-    HOT_TABLES, MigrationCost, MigrationOwnershipError, OrphanMigrationLedger, PROJECTION_BACKLOG,
+    HOT_TABLES, HiddenSql, KERNEL_LEDGER_OWNER, KERNEL_LEDGERS, MigrationCost, MigrationMembers,
+    MigrationOwnershipError, OrphanMigrationLedger, PROJECTION_BACKLOG,
     RETRYABLE_SQLSTATES, RecordedTable, SchemaAhead, SchemaCurrency, SchemaInstallReport,
     SchemaResidue, SplitCreateTable, TableMutation, UndeclaredTable, audit_migration_cost,
     audit_one, audit_schema_residue, backfill_statements, check_migration_ownership,
