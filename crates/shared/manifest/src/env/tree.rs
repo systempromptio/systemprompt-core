@@ -7,8 +7,9 @@
 use serde_yaml::Value;
 
 use super::{
-    FieldKind, FieldKindLookup, INTERPOLATION_REGEX, InterpolationError, PathSegment,
-    UNRESOLVED_TAG, UnsetVariable, contains_placeholder, interpolate, key_path_label,
+    FieldKind, FieldKindLookup, INTERPOLATED_TAG, INTERPOLATION_REGEX, InterpolationError,
+    PathSegment, UNRESOLVED_TAG, UnsetVariable, contains_placeholder, interpolate, key_path_label,
+    placeholder_variables,
 };
 
 pub fn interpolate_yaml(
@@ -126,10 +127,28 @@ fn resolve_scalar(
             variable,
             key_path: key_path_label(path),
         })?;
-    if !is_single_placeholder(text) {
-        return Ok(Some(Value::String(resolved)));
+    let value = if is_single_placeholder(text) {
+        typed_scalar(resolved, kind)
+    } else {
+        Value::String(resolved)
+    };
+    if kind.accepts(FieldKind::PROVENANCE) {
+        return Ok(Some(interpolated_marker(placeholder_variables(text), value)));
     }
-    Ok(Some(typed_scalar(resolved, kind)))
+    Ok(Some(value))
+}
+
+fn interpolated_marker(variables: Vec<String>, value: Value) -> Value {
+    Value::Tagged(Box::new(serde_yaml::value::TaggedValue {
+        tag: serde_yaml::value::Tag::new(INTERPOLATED_TAG),
+        value: Value::Mapping(serde_yaml::Mapping::from_iter([
+            (
+                Value::String(String::from("variables")),
+                Value::Sequence(variables.into_iter().map(Value::String).collect()),
+            ),
+            (Value::String(String::from("value")), value),
+        ])),
+    }))
 }
 
 fn typed_scalar(resolved: String, kind: FieldKind) -> Value {

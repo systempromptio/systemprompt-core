@@ -18,6 +18,8 @@ mod credentials_billing;
 #[cfg(test)]
 mod default_catalog;
 #[cfg(test)]
+mod disabled_provenance;
+#[cfg(test)]
 mod deployments_serde;
 #[cfg(test)]
 mod gateway_state;

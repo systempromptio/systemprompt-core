@@ -13,7 +13,7 @@ use systemprompt_extension::{
     ExtensionMetadata, FromState, MissingDependency, RateBudget, RateLimit, Resolved, RouteGroup,
 };
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_manifest::Profile;
+use systemprompt_manifest::{DisabledExtension, Profile};
 use systemprompt_provider_contracts::Dependencies;
 use systemprompt_runtime::Kernel;
 use systemprompt_traits::{BackgroundTasks, DatabaseHandle};
@@ -94,7 +94,10 @@ pub(crate) fn plain_set(base: BasePath, path: &'static str) -> RouteSet {
 
 pub(crate) fn profile(disabled: &[&str]) -> Profile {
     let mut profile = (*systemprompt_test_fixtures::test_boot_profile()).clone();
-    profile.extensions.disabled = disabled.iter().map(|id| ExtensionId::new(*id)).collect();
+    profile.extensions.disabled = disabled
+        .iter()
+        .map(|id| DisabledExtension::literal(ExtensionId::new(*id)))
+        .collect();
     profile
 }
 

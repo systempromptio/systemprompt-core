@@ -30,6 +30,8 @@ mod core_ids;
 #[cfg(test)]
 mod disable_probe;
 #[cfg(test)]
+mod disabled_provenance;
+#[cfg(test)]
 mod external_db_admission;
 #[cfg(test)]
 mod files_marketplace_slots;

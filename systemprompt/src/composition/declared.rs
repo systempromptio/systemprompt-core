@@ -10,7 +10,7 @@ use systemprompt_extension::admitted::{AdmittedMember, AdmittedParts, DeclaredCo
 use systemprompt_extension::contribute::ContributionSink;
 use systemprompt_extension::{Admitted, DeclaredCommands};
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_manifest::ExtensionsConfig;
+use systemprompt_manifest::{DisabledExtension, ExtensionsConfig};
 
 #[cfg(feature = "cli")]
 use systemprompt_extension::admitted::AdmittedCommand;
@@ -75,7 +75,7 @@ impl Declared {
         self.admit_without(&[])
     }
 
-    fn admit_without(self, disabled: &[ExtensionId]) -> Result<Admitted, CompositionError> {
+    fn admit_without(self, disabled: &[DisabledExtension]) -> Result<Admitted, CompositionError> {
         let disabled = disabled_members(&self.members, disabled)?;
         let (enabled, dropped): (Vec<DeclaredMember>, Vec<DeclaredMember>) = self
             .members

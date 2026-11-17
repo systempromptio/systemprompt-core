@@ -7,6 +7,7 @@ use systemprompt_extension::prelude::RuleType;
 use systemprompt_extension::{ContributionError, ExtensionConfigError, SlotError};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_identifiers::error::IdValidationError;
+use systemprompt_manifest::DisabledExtension;
 
 #[cfg(feature = "cli")]
 use systemprompt_extension::cli::KernelGrant;
@@ -16,7 +17,7 @@ use systemprompt_extension::router::{Allowance, BasePath, BaseRef};
 #[derive(Debug, thiserror::Error)]
 pub enum CompositionError {
     #[error("unknown extension in profile extensions.disabled: {0}")]
-    UnknownExtension(String),
+    UnknownExtension(DisabledExtension),
     #[error("extension id is invalid: {id}")]
     InvalidId {
         id: &'static str,

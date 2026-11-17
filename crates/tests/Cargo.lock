@@ -10421,6 +10421,7 @@ dependencies = [
  "futures",
  "http",
  "serde_json",
+ "serde_yaml_ng",
  "systemprompt",
  "systemprompt-agent-runs",
  "systemprompt-cli",

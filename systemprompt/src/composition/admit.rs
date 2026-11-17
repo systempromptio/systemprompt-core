@@ -9,6 +9,7 @@ use std::any::TypeId;
 #[cfg(feature = "cli")]
 use systemprompt_extension::admitted::AdmittedCommand;
 use systemprompt_identifiers::ExtensionId;
+use systemprompt_manifest::DisabledExtension;
 
 #[cfg(feature = "config")]
 use super::SecretsSourceDecl;
@@ -94,17 +95,17 @@ pub(super) fn check_member_dependencies(
 
 pub(super) fn disabled_members(
     members: &[DeclaredMember],
-    disabled: &[ExtensionId],
+    disabled: &[DisabledExtension],
 ) -> Result<Vec<ExtensionId>, CompositionError> {
-    for id in disabled {
-        let Some(member) = members.iter().find(|member| &member.id == id) else {
-            return Err(CompositionError::UnknownExtension(id.as_str().to_owned()));
+    for entry in disabled {
+        let Some(member) = members.iter().find(|member| &member.id == entry.id()) else {
+            return Err(CompositionError::UnknownExtension(entry.clone()));
         };
         if member.standing.required() {
             return Err(CompositionError::RequiredDisabled(member.id.clone()));
         }
     }
-    Ok(disabled.to_vec())
+    Ok(disabled.iter().map(|entry| entry.id().clone()).collect())
 }
 
 #[cfg(feature = "cli")]

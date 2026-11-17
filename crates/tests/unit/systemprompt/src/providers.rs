@@ -103,7 +103,7 @@ fn disabled_core_provider_is_named() {
 fn unknown_and_required_disables_are_refused() {
     assert!(matches!(
         reference().build(&profile(&["no-such-member"])),
-        Err(CompositionError::UnknownExtension(id)) if id == "no-such-member"
+        Err(CompositionError::UnknownExtension(entry)) if entry.id().as_str() == "no-such-member"
     ));
     assert!(matches!(
         reference().build(&profile(&["users"])),
