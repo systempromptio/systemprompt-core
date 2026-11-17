@@ -3,13 +3,18 @@
 //! sequence, type, domain, trigger) is stale when its owner is a judged
 //! member of this install whose SQL no longer creates the object: its code
 //! is present, so its code decides, and the record never counts as the
-//! create that keeps it. Any record, table or object, is stale when it
-//! carries install standing and a core member of the composition creates the
-//! same name: a record never outranks a core member's code. A stale record
-//! is no claim, and the install deletes it after its DDL (`Stale`). A record
-//! of a held-back member, or of a member outside the composition, is kept
-//! unless a core member creates the name; a table record is released by the
-//! rules in `extension::ownership`.
+//! create that keeps it. A member with a tombstoned migration cannot show from
+//! its code that it no longer creates an object (a tombstone carries no SQL),
+//! so its object records stay, except a trigger on a table its retirements
+//! name. Any record, table or object, is stale when it carries install
+//! standing, its owner is an install member judged in this install, and a
+//! core member of the composition creates the same name: the owner's own
+//! code is present, and its create of a core member's name is refused. A
+//! stale record is no claim, and the install deletes it after its DDL
+//! (`Stale`). A record of a held-back member, or of a member outside the
+//! composition, is never stale: it outranks every member's code, a core
+//! member's included, so a core member creating that name is refused; a
+//! table record is released by the rules in `extension::ownership`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -38,6 +43,8 @@ pub(super) struct MemberRead {
     pub(super) id: ExtensionId,
     pub(super) standing: StandingTag,
     pub(super) judged: bool,
+    pub(super) tombstoned: bool,
+    pub(super) retired: BTreeSet<String>,
     pub(super) created: Created,
 }
 
@@ -50,6 +57,14 @@ impl MemberRead {
             Some(ObjectKind::Trigger) => self.created.triggers.contains(name),
         }
     }
+
+    fn retired_trigger(&self, kind: Option<ObjectKind>, name: &str) -> bool {
+        kind == Some(ObjectKind::Trigger)
+            && self
+                .retired
+                .iter()
+                .any(|table| name.ends_with(&format!(" ON {table}")))
+    }
 }
 
 fn stale(
@@ -59,7 +74,11 @@ fn stale(
     owner: &ExtensionId,
     standing: StandingTag,
 ) -> bool {
+    let owner_judged = reads
+        .iter()
+        .any(|read| read.judged && read.id == *owner && read.standing == StandingTag::Install);
     let core_creates = standing == StandingTag::Install
+        && owner_judged
         && reads
             .iter()
             .any(|read| read.standing == StandingTag::Core && read.creates(kind, name));
@@ -69,6 +88,7 @@ fn stale(
                 && read.id == *owner
                 && !(read.standing == StandingTag::Install && standing == StandingTag::Core)
                 && !read.creates(kind, name)
+                && (!read.tombstoned || read.retired_trigger(kind, name))
         });
     core_creates || owner_dropped
 }

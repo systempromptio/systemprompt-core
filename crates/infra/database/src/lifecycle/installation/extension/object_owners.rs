@@ -5,16 +5,18 @@
 //! disabled or held-back member's objects its own while its code is absent
 //! or behind. After its DDL every install, full or settled:
 //!
-//! - deletes each stale record: one of an install-standing owner for a name a
-//!   core member's SQL creates, and one of a judged member for an object its
-//!   SQL no longer creates (a member's own record never counts as the create
-//!   that keeps it); the same install-standing rule deletes a
+//! - deletes each stale record: one of a judged install-standing owner for a
+//!   name a core member's SQL creates, and one of a judged member for an object
+//!   its SQL no longer creates (a member's own record never counts as the
+//!   create that keeps it); the same install-standing rule deletes a
 //!   `schema_table_owners` record of a table a core member's SQL creates;
 //! - for each judged member, deletes its records of objects the ownership rule
 //!   no longer gives it and records those it does.
 //!
 //! A record of a held-back member, or of a member outside the composition, is
-//! deleted only by the core rule.
+//! never deleted here. A settled install runs no DDL and judges nothing; it
+//! still runs this step over the same code, so it deletes the records a full
+//! install of that code would.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

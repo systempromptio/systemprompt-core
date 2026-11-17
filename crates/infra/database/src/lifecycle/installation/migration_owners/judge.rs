@@ -18,6 +18,7 @@ use super::super::undeclared::qualify;
 use super::claims::{Claim, Ownership, ownership};
 use super::judge_objects::{foreign_object_creates, judge_named, judge_schema};
 use super::kinds::HiddenSql;
+use super::ledger::ledger_reads;
 use super::object_claims::Prefer;
 use super::statements::{Effect, effects_of, top_level};
 use super::{
@@ -122,6 +123,19 @@ fn judge_statements(
 ) {
     for statement in top_level(parsed) {
         findings.extend(foreign_object_creates(ownership, judged, statement));
+        if judged.install() {
+            findings.extend(
+                ledger_reads(statement)
+                    .into_iter()
+                    .map(|(statement, table)| MigrationOwnershipError::ForeignTable {
+                        member: judged.id.clone(),
+                        migration: judged.migration.to_owned(),
+                        statement,
+                        table,
+                        owner: ExtensionId::new(KERNEL_LEDGER_OWNER),
+                    }),
+            );
+        }
     }
     let mut hidden = Vec::new();
     for effect in top_level(parsed).flat_map(effects_of) {

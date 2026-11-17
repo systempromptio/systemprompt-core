@@ -18,7 +18,7 @@ use systemprompt_identifiers::ExtensionId;
 
 use super::migration_ownership::{all_pending, only, unit};
 
-fn member(
+pub(super) fn member(
     id: &'static str,
     standing: StandingTag,
     schema: Option<&'static str>,
@@ -34,7 +34,12 @@ fn member(
     )
 }
 
-fn object(kind: ObjectKind, name: &str, owner: &str, standing: StandingTag) -> RecordedObject {
+pub(super) fn object(
+    kind: ObjectKind,
+    name: &str,
+    owner: &str,
+    standing: StandingTag,
+) -> RecordedObject {
     RecordedObject {
         kind,
         name: name.to_owned(),
@@ -43,7 +48,7 @@ fn object(kind: ObjectKind, name: &str, owner: &str, standing: StandingTag) -> R
     }
 }
 
-fn table(name: &str, owner: &str, standing: StandingTag) -> RecordedTable {
+pub(super) fn table(name: &str, owner: &str, standing: StandingTag) -> RecordedTable {
     RecordedTable {
         table: name.to_owned(),
         owner: ExtensionId::new(owner),
@@ -51,7 +56,7 @@ fn table(name: &str, owner: &str, standing: StandingTag) -> RecordedTable {
     }
 }
 
-fn described(
+pub(super) fn described(
     members: MigrationMembers<'_>,
     tables: &[RecordedTable],
     objects: &[RecordedObject],

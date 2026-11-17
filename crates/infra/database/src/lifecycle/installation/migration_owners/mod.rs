@@ -32,8 +32,12 @@
 //! `schema_object_owners` record, then by the first member whose SQL creates
 //! it and does not drop it again, in the same order as a table. A record is
 //! live unless its owner is a judged member whose SQL no longer creates the
-//! object, or it carries install standing and a core member's SQL creates
-//! the same table or object (see `claims`). Every member of the composition
+//! object, or it carries install standing, its owner is a judged install
+//! member, and a core member's SQL creates the same table or object (see
+//! `record_claims`). A record of a held-back or absent owner is always live,
+//! so a core member's create of its name is refused (`SharedTable`, or
+//! `ForeignObject` for an object, a core declarative schema's creates
+//! included). Every member of the composition
 //! claims, a held-back member included; a disabled member, absent from the
 //! composition, owns what its live records name. An install member never
 //! owns what a core-standing claim holds, even under the same id. Every
@@ -92,7 +96,12 @@
 //!
 //! Only migrations that will run are judged: a migration recorded as applied
 //! is history, and a fresh database stamps its migrations without running
-//! them. An install member's declarative schema is judged on every install.
+//! them. An install member's declarative schema is judged on every full
+//! install, and one that does not parse is refused
+//! ([`MigrationOwnershipError::Parse`]); a settled install runs no DDL and
+//! judges nothing. An install member's view, materialized view or rule that
+//! reads a kernel ledger is refused (`ForeignTable`): a simple view is
+//! auto-updatable, so a write into it writes the ledger.
 //! A `cross_extension_tables` declaration admits a table mutation, except an
 //! install member's mutation of a core member's table and any mutation of a
 //! kernel ledger.
