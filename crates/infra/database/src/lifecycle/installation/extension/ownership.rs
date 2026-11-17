@@ -18,6 +18,10 @@
 //! every table recorded to the old id ([`LoaderError::DuplicateTableOwner`]
 //! names that recorded owner) until an operator re-assigns the records.
 //!
+//! Before any DDL the install also refuses a pending migration that alters,
+//! drops, truncates or renames a table another member owns, judged over the
+//! same records (`migration_owners`).
+//!
 //! A record is released only by its owner: an install in which the owner is
 //! admitted, no longer declares the table, and the table is gone (its own
 //! migration chain dropped it). A database installed before the records
@@ -27,13 +31,16 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
-use systemprompt_extension::{LoaderError, StandingTag};
+use systemprompt_extension::{LoaderError, Migration, StandingTag};
 use systemprompt_identifiers::ExtensionId;
 
+use super::super::migration_owners::{RecordedTable, check_migration_ownership};
 use super::super::prepare::PreparedSchema;
 use super::super::undeclared::qualify;
+use super::ExtensionSet;
+use crate::lifecycle::migrations::MigrationService;
 use crate::services::DatabaseProvider;
 
 const OWNERS_PRESENT_SQL: &str = "SELECT to_regclass('schema_table_owners') IS NOT NULL AS present";
@@ -72,6 +79,52 @@ impl TableOwners {
     fn record_of(&self, table: &str) -> Option<&RecordedOwner> {
         self.0.get(&qualify(table))
     }
+
+    fn recorded(&self) -> Vec<RecordedTable> {
+        self.0
+            .iter()
+            .map(|(table, owner)| RecordedTable {
+                table: table.clone(),
+                owner: owner.id.clone(),
+                standing: owner.standing,
+            })
+            .collect()
+    }
+}
+
+pub(super) async fn check_pending_migration_owners(
+    owners: &TableOwners,
+    migration_service: &MigrationService<'_>,
+    members: &ExtensionSet,
+    prepared: &[PreparedSchema],
+) -> Result<(), LoaderError> {
+    let fresh = super::fresh_extension_ids(migration_service, members, prepared).await?;
+    let mut applied: BTreeMap<ExtensionId, BTreeSet<u32>> = BTreeMap::new();
+    for member in members
+        .iter()
+        .filter(|member| member.has_migrations() && !fresh.contains(member.id()))
+    {
+        let id = ExtensionId::new(member.id());
+        let versions = migration_service
+            .get_applied_migrations(&id)
+            .await?
+            .into_iter()
+            .map(|migration| migration.version)
+            .collect();
+        applied.insert(id, versions);
+    }
+    let pending = |id: &ExtensionId, migration: &Migration| {
+        applied
+            .get(id)
+            .is_some_and(|versions| !versions.contains(&migration.version))
+    };
+    check_migration_ownership(members, &owners.recorded(), &pending).map_err(|error| {
+        LoaderError::SchemaInstallationStepFailed {
+            extension: error.member().clone(),
+            context: "a pending migration mutates a table another member owns".to_owned(),
+            source: Box::new(error),
+        }
+    })
 }
 
 pub(crate) async fn recorded_table_owners(

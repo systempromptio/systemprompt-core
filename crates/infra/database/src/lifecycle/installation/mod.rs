@@ -11,6 +11,7 @@ mod extension;
 mod fk_deferral;
 mod lock_conflict;
 mod migration_cost;
+mod migration_owners;
 mod migration_refs;
 mod prepare;
 mod report;
@@ -28,6 +29,10 @@ pub use fk_deferral::{
 pub use lock_conflict::{RETRYABLE_SQLSTATES, is_retryable_lock_conflict, is_retryable_sqlstate};
 pub use migration_cost::{
     ExpensiveStatement, HOT_TABLES, MigrationCost, audit_migration_cost, audit_one,
+};
+pub use migration_owners::{
+    MigrationOwnershipError, RecordedTable, TableMutation, check_migration_ownership,
+    migration_ownership_findings,
 };
 pub use migration_refs::check_migration_references;
 pub use report::{ForeignKeyDrift, SchemaAhead, SchemaInstallReport};

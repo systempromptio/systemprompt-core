@@ -10,7 +10,8 @@
 //! unique index a migration introduces. Routines go first so a migration can
 //! reference a function only the declarative schema defines; a migration
 //! that names a declarative-only trigger or view is refused before any
-//! statement runs (`migration_refs`). Retirements run first of all, so a
+//! statement runs (`migration_refs`), and so is a pending migration that
+//! mutates a table another member owns (`migration_owners`). Retirements run first of all, so a
 //! trigger one extension retires is gone before another extension's
 //! migration can drop what it writes or fire it (`retire`).
 //! A fresh database (no migration history, no owned tables) skips migration
@@ -50,7 +51,9 @@ use tracing::{debug, info};
 use self::cost_warning::warn_unmeasured_migrations;
 use self::foreign_keys::apply_foreign_keys;
 use self::lock::BootstrapLockGuard;
-use self::ownership::{check_recorded_owners, record_owners, recorded_table_owners};
+use self::ownership::{
+    check_pending_migration_owners, check_recorded_owners, record_owners, recorded_table_owners,
+};
 use self::phase::execute_phase;
 use self::purge_records::{admit_purges, check_recorded_purges, record_purges};
 use self::retire::{apply_retirements, check_retirements};
@@ -208,7 +211,10 @@ async fn prepare_and_check(
         prepared.push(prepare_extension_schema(ext.as_ref())?);
     }
     validate_table_ownership(&prepared, schema_extensions)?;
-    check_recorded_owners(&recorded_table_owners(db).await?, &prepared)?;
+    let owners = recorded_table_owners(db).await?;
+    check_recorded_owners(&owners, &prepared)?;
+    check_pending_migration_owners(&owners, migration_service, schema_extensions, &prepared)
+        .await?;
     check_recorded_purges(db, schema_extensions).await?;
     check_migration_references(schema_extensions)?;
     check_retirements(schema_extensions)?;

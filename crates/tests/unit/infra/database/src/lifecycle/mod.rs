@@ -12,6 +12,7 @@ mod lock_wait;
 mod members;
 mod migration_cost_audit;
 mod migration_edges;
+mod migration_ownership;
 mod migration_refs_errors;
 mod migration_run_failures;
 mod migration_triggers;
