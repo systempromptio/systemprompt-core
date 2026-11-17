@@ -36,7 +36,7 @@ use systemprompt_cloud::{
     CloudApiClient, CloudError, CloudPath, DockerCli, SystemCommandRunner, TenantStore,
     get_cloud_paths,
 };
-use systemprompt_identifiers::{ProfileName, TenantId};
+use systemprompt_identifiers::TenantId;
 use systemprompt_extension::cli::ChildSupervisor;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::profile::CloudConfig;
@@ -45,7 +45,6 @@ use pipeline::{DeployOptions, DeployOrchestrator, DeployRequest};
 
 use super::tenant::get_credentials;
 use systemprompt_cloud::paths::ProjectRoot;
-use systemprompt_extension::cli::{CliConfig, Prompter};
 
 const GITOPS_READINESS_WAIT: ReadinessWait = ReadinessWait {
     timeout: Duration::from_mins(15),
@@ -54,20 +53,20 @@ const GITOPS_READINESS_WAIT: ReadinessWait = ReadinessWait {
 
 pub(super) struct DeployArgs {
     pub skip_push: bool,
-    pub profile_name: Option<ProfileName>,
+    pub profile: DeployProfile,
     pub check: bool,
     pub wait: bool,
 }
 
-async fn preflight(
-    args: &DeployArgs,
-    prompter: &dyn Prompter,
-    config: &CliConfig,
-    views: &AdmittedViews,
-) -> Result<Option<DeployProfile>> {
+async fn preflight(args: DeployArgs, views: &AdmittedViews) -> Result<Option<(DeployProfile, DeployOptions)>> {
     CliService::section("systemprompt.io Cloud Deploy");
 
-    let profile = resolve_profile(prompter, args.profile_name.as_ref(), config)?;
+    let DeployArgs {
+        skip_push,
+        profile,
+        check,
+        wait,
+    } = args;
 
     if profile.target != systemprompt_manifest::ProfileType::Cloud {
         bail!(
@@ -81,34 +80,34 @@ async fn preflight(
     if report.has_blocking() {
         bail!("Deploy preflight failed — fix the items above before deploying.");
     }
-    if !args.check && report.not_evaluated() > 0 {
+    if !check && report.not_evaluated() > 0 {
         report.render_summary("Deploy preflight passed");
     }
-    if args.check {
+    if check {
         report.render_summary("Deploy preflight passed (--check; nothing deployed)");
         return Ok(None);
     }
-    Ok(Some(profile))
+    Ok(Some((
+        profile,
+        DeployOptions {
+            skip_push,
+            wait_ready: wait,
+        },
+    )))
 }
 
 pub(super) async fn execute(
     args: DeployArgs,
-    prompter: &dyn Prompter,
-    config: &CliConfig,
     children: &dyn ChildSupervisor,
     views: &AdmittedViews,
 ) -> Result<()> {
-    let Some(profile) = preflight(&args, prompter, config, views).await? else {
+    let Some((profile, options)) = preflight(args, views).await? else {
         return Ok(());
     };
 
     let kind = DeployProviderKind::for_provider(profile.hosting_provider())?;
     let profile_name = profile.name.clone();
     let project = ProjectRoot::discover().map_err(|e| anyhow!("{}", e))?;
-    let options = DeployOptions {
-        skip_push: args.skip_push,
-        wait_ready: args.wait,
-    };
     let secrets = profile.secrets.clone();
     let signing_key_path = profile.signing_key_path.clone();
     let licence_secret_required = profile.licence_secret_required;

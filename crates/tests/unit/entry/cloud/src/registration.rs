@@ -127,7 +127,6 @@ fn every_cloud_descriptor_is_a_cloud_operator_and_bypasses_routing() {
     for args in [
         &["cloud", "status"][..],
         &["cloud", "doctor"],
-        &["cloud", "deploy"],
         &["cloud", "backup"],
         &["cloud", "init"],
         &["cloud", "dockerfile"],
@@ -143,11 +142,21 @@ fn every_cloud_descriptor_is_a_cloud_operator_and_bypasses_routing() {
 }
 
 #[test]
-fn bootstrap_requirements_match_each_subcommand() {
+fn cloud_deploy_is_a_destructive_cloud_operator_command() {
     let deploy = descriptor(&["cloud", "deploy"]);
-    assert!(!deploy.profile() && !deploy.secrets() && !deploy.database());
+    assert!(deploy.cloud_operator());
+    assert!(is_cloud_bypass_command(&deploy));
+    assert_eq!(deploy.data_impact(), DataImpact::Destructive);
+}
 
-    for args in [&["cloud", "status"][..], &["cloud", "backup"]] {
+#[test]
+fn bootstrap_requirements_match_each_subcommand() {
+    for args in [
+        &["cloud", "status"][..],
+        &["cloud", "backup"],
+        &["cloud", "doctor"],
+        &["cloud", "deploy"],
+    ] {
         let d = descriptor(args);
         assert!(d.profile() && !d.secrets() && !d.database(), "{args:?}");
     }

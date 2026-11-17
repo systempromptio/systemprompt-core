@@ -38,14 +38,12 @@ use anyhow::{Result, bail};
 
 use super::admitted_views::AdmittedViews;
 use systemprompt_cloud::{ProfilePath, ProjectContext};
-use systemprompt_identifiers::ProfileName;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 use systemprompt_manifest::profile::SecretsSource;
 
-use super::deploy::resolve_profile;
-use systemprompt_extension::cli::{CliConfig, Prompter};
+use super::deploy::DeployProfile;
 use systemprompt_cloud::secrets_env::load_secrets_json;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -231,13 +229,10 @@ pub(in crate::cli) async fn run(
 }
 
 pub(in crate::cli) async fn execute(
-    profile_name: Option<ProfileName>,
+    profile: &DeployProfile,
     distributed: bool,
-    prompter: &dyn Prompter,
-    config: &CliConfig,
     views: &AdmittedViews,
 ) -> Result<()> {
-    let profile = resolve_profile(prompter, profile_name.as_ref(), config)?;
     let report = run_managed(&profile.managed, profile.profile_dir(), distributed, views).await;
     report.render();
 

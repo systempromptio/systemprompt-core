@@ -72,14 +72,6 @@ async fn the_doctor_arm_runs_the_preflight_over_a_profile() {
     }
 }
 
-#[tokio::test]
-async fn an_unknown_doctor_profile_is_rejected() {
-    let result = cloud::execute(parse(&["doctor", "--profile", "no-such-profile"]), &ctx()).await;
-
-    let error = result.expect_err("a profile that does not exist cannot be checked");
-    assert!(!format!("{error:#}").is_empty());
-}
-
 #[test]
 fn a_doctor_profile_path_is_a_usage_error() {
     let error =

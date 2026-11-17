@@ -26,6 +26,7 @@ pub mod tenant;
 pub mod types;
 
 pub use admitted_views::AdmittedViews;
+use deploy::DeployProfile;
 pub use systemprompt_cloud::{Environment, OAuthProvider};
 
 use anyhow::Result;
@@ -144,8 +145,12 @@ pub enum CloudCommands {
 impl DescribeCommand for CloudCommands {
     fn descriptor(&self) -> CommandDescriptor {
         match self {
-            Self::Deploy { .. } => CommandDescriptor::NONE.with_data_impact(DataImpact::Preserving),
-            Self::Backup { .. } | Self::Status => CommandDescriptor::PROFILE_ONLY,
+            Self::Deploy { .. } => {
+                CommandDescriptor::PROFILE_ONLY.with_data_impact(DataImpact::Destructive)
+            },
+            Self::Doctor { .. } | Self::Backup { .. } | Self::Status => {
+                CommandDescriptor::PROFILE_ONLY
+            },
             Self::Sync(_) => CommandDescriptor::FULL.with_read_only(),
             _ => CommandDescriptor::NONE,
         }
@@ -177,19 +182,17 @@ pub async fn execute(cmd: CloudCommands, host: &dyn CommandHost) -> Result<Comma
         CloudCommands::Profile { command } => profile::execute(command, host).await,
         CloudCommands::Deploy {
             skip_push,
-            profile,
+            profile: _,
             check,
             wait,
         } => {
             deploy::execute(
                 deploy::DeployArgs {
                     skip_push,
-                    profile_name: profile_name(profile)?,
+                    profile: DeployProfile::load(host.profile_path()?)?,
                     check,
                     wait,
                 },
-                host.prompter(),
-                host.output(),
                 host.children(),
                 &AdmittedViews::resolve(host).await?,
             )
@@ -214,14 +217,12 @@ pub async fn execute(cmd: CloudCommands, host: &dyn CommandHost) -> Result<Comma
             Ok(CommandOutput::rendered())
         },
         CloudCommands::Doctor {
-            profile,
+            profile: _,
             distributed,
         } => {
             doctor::execute(
-                profile_name(profile)?,
+                &DeployProfile::load(host.profile_path()?)?,
                 distributed,
-                host.prompter(),
-                host.output(),
                 &AdmittedViews::resolve(host).await?,
             )
             .await?;
