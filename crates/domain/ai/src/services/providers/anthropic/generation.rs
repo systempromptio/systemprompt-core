@@ -40,6 +40,7 @@ pub(super) async fn generate(
         params.max_output_tokens,
     )
     .with_sampling(params.sampling)
+    .with_reasoning(params.reasoning)
     .into_request();
 
     let upstream = provider.upstream_model(params.model);
@@ -71,6 +72,7 @@ pub(super) async fn generate_with_tools(
         params.base.max_output_tokens,
     )
     .with_sampling(params.base.sampling)
+    .with_reasoning(params.base.reasoning)
     .with_tools(tools_to_canonical(params.tools))
     .into_request();
 
@@ -110,6 +112,7 @@ pub(super) async fn generate_with_schema(
         params.base.max_output_tokens,
     )
     .with_sampling(params.base.sampling)
+    .with_reasoning(params.base.reasoning)
     .with_response_format(Some(response_format))
     .into_request();
 

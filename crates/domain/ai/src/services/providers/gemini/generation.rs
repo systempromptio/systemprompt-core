@@ -36,6 +36,7 @@ pub(super) async fn generate(
         params.max_output_tokens,
     )
     .with_sampling(params.sampling)
+    .with_reasoning(params.reasoning)
     .into_request();
 
     let body = gemini::build_request_body(&canonical, None);
@@ -71,6 +72,7 @@ pub(super) async fn generate_with_schema(
         params.base.max_output_tokens,
     )
     .with_sampling(params.base.sampling)
+    .with_reasoning(params.base.reasoning)
     .with_response_format(Some(response_format))
     .into_request();
 

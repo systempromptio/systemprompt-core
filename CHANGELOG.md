@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.83.0] - 2026-11-17
+
+### Breaking
+
+- **Breaking:** **AI:** `ProviderClient::generate_stream` and `generate_with_tools_stream` return `EventStream`, a stream of `systemprompt_wire::canonical::CanonicalEvent`, instead of `StreamChunk`. Migrate an implementation by yielding canonical events; `canonical_bridge::event_to_chunk` projects one to its text chunk.
+- **Breaking:** **AI:** `AiRequest`, `GenerationParams`, `SynthesisParams` and the Gemini `ToolRequestParams` and `ToolResultParams` gain the `reasoning` field, and `RequestError` gains `ThinkingBudgetTooLarge`. Migrate a struct literal by setting `reasoning: None`, or build through `AiRequestBuilder` / `GenerationParams::new`.
+- **Breaking:** **AI:** `canonical_bridge::event_to_chunk` yields a chunk for a text delta only and no longer yields `StreamChunk::Usage`. Migrate a caller that read usage or the finish reason off the chunk stream to `AiService::generate_events_stream`.
+- **Breaking:** **AI:** `AiContentPart` gains `ToolUse`, `ToolResult` and `Thinking`. Migrate an exhaustive match by adding the arms.
+
+### Added
+
+- **AI:** `AiService::generate_events_stream(&AiRequest)` returns the provider's full canonical event stream (block start and stop, text, thinking, signature and tool-call deltas, usage, stop) under the same audit row and cost accounting as `generate_stream`, offering the request's tools when it carries any and recording the tool calls the stream carried on that audit row; `generate_stream` and `generate_with_tools_stream` are its text projection and yield what they did before.
+- **AI:** `AiRequest::reasoning` (`ReasoningParams`: `effort`, `thinking_budget_tokens`, set with `AiRequestBuilder::with_reasoning`) requests reasoning explicitly on every `AiService` generation path that takes an `AiRequest`, including the synthesis turn after tool execution: `thinking_budget_tokens` is the thinking budget of the Anthropic and Gemini wires and `effort` the reasoning effort of the OpenAI wires; a field left unset keeps the per-model default, and a thinking budget at or above the request's maximum output tokens is refused as `RequestError::ThinkingBudgetTooLarge` before the provider is called.
+- **AI:** an `AiMessage` carries tool calls, tool results and signed thinking as structured parts (`AiContentPart::tool_use`, `tool_result`, `thinking`), rendered as native blocks on the Anthropic, OpenAI and Gemini wires, so a caller running its own tool loop replays a turn with the tool-use and thinking parts on the assistant message and the tool-result parts on the user message after it; thinking and tool-result parts are placed ahead of the message's own text.
+
 ## [0.82.0] - 2026-11-16
 
 ### Breaking

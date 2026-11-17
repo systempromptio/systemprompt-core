@@ -13,6 +13,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod messages;
 mod request;
 mod response;
 mod stream;
@@ -22,4 +23,4 @@ pub use response::{
     CodeExecutionResponse, text_content, to_ai_response, to_code_execution, to_search_grounded,
     tool_calls,
 };
-pub use stream::event_to_chunk;
+pub use stream::{event_to_chunk, finish_reason};

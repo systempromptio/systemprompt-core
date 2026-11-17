@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.83.0] - 2026-11-17
+
+### Breaking
+
+- `AiRequest` gains the `reasoning` field. Migrate a struct literal by setting `reasoning: None`, or build through `AiRequestBuilder`.
+- `AiContentPart` gains `ToolUse`, `ToolResult` and `Thinking`. Migrate an exhaustive match by adding the arms.
+
+### Added
+
+- `ReasoningParams` and `ReasoningEffort`, set with `AiRequestBuilder::with_reasoning`: `thinking_budget_tokens` is the thinking budget of the Anthropic and Gemini wires, `effort` the reasoning effort of the OpenAI wires.
+- `AiContentPart::tool_use`, `tool_result` and `thinking` constructors for replaying a tool turn.
+
 ## [0.82.0] - 2026-11-16
 
 ### Added

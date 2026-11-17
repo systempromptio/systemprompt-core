@@ -28,7 +28,7 @@ The loader isolates file I/O from the shared model types. It sits one level abov
 
 ```toml
 [dependencies]
-systemprompt-loader = "0.82"
+systemprompt-loader = "0.83"
 ```
 
 ### Features
