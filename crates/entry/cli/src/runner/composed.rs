@@ -21,8 +21,9 @@ use crate::kernel::{
     CommandOwner, CommandRegistry, RegistryError, ResolvedCommand, kernel_commands,
 };
 
-/// Admits the composition: against the loaded profile, or, for a command run
-/// with `--database-url` and no profile (a kernel command, or a member command
+/// Admits the composition: against the loaded profile (also when a cloud
+/// profile reaches its database directly), or, for a command run with
+/// `--database-url` and no profile (a kernel command, or a member command
 /// whose routing is [`DbUrlRouting::Direct`]), over every linked member with
 /// none disabled (`None`).
 pub type AdmitFn = Box<dyn FnOnce(Option<&Profile>) -> Result<Admitted, BoxedSource> + Send>;
@@ -104,6 +105,20 @@ pub(super) fn admit_for(
     }
     let admitted = admit(Some(profile)).map_err(CliRunError::Admit)?;
     Ok(Admission::Admitted(Arc::new(admitted)))
+}
+
+pub fn admit_direct(
+    registered: Option<&ResolvedCommand>,
+    profile: Option<&Profile>,
+    admit: AdmitFn,
+) -> Result<Admitted, CliRunError> {
+    let Some(profile) = profile else {
+        return admit_unprofiled(registered, admit);
+    };
+    if let Some(resolved) = registered {
+        refuse_disabled(resolved, profile)?;
+    }
+    admit(Some(profile)).map_err(CliRunError::Admit)
 }
 
 pub fn admit_unprofiled(

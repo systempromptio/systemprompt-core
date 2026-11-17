@@ -4,6 +4,9 @@
 //! connection without a profile: [`direct_database_url`] decides whether the
 //! flag applies to the selected command, and [`run_with_database_url`] dials
 //! the database and dispatches with a database-scoped [`CommandContext`].
+//! A cloud profile with external database access takes the same path with
+//! its profile loaded: admission is against that profile, and a disabled
+//! member's command is refused.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,6 +14,7 @@
 use anyhow::{Context, Result, bail};
 use systemprompt_cloud::CloudCredentials;
 use systemprompt_extension::cli::{CliConfig, DbUrlRouting};
+use systemprompt_manifest::Profile;
 use systemprompt_runtime::DatabaseContext;
 
 use super::RunGuards;
@@ -35,6 +39,7 @@ pub(super) fn direct_database_url(invocation: &Invocation) -> Result<Option<Stri
 pub(super) struct DirectDatabase<'a> {
     pub(super) url: &'a str,
     pub(super) credentials: Option<CloudCredentials>,
+    pub(super) profile: Option<&'a Profile>,
 }
 
 pub(super) async fn run_with_database_url(
@@ -47,6 +52,7 @@ pub(super) async fn run_with_database_url(
     let DirectDatabase {
         url: database_url,
         credentials,
+        profile,
     } = database;
     let db_ctx = DatabaseContext::from_url(database_url)
         .await
@@ -58,6 +64,7 @@ pub(super) async fn run_with_database_url(
         .apply(
             CommandContext::with_database(cli_config, env, db_ctx, database_url.to_owned()),
             &selected,
+            profile,
         )?
         .with_cloud_credentials(credentials);
     Box::pin(dispatch_command(selected, &ctx)).await

@@ -36,7 +36,9 @@ use crate::context::CommandContext;
 use crate::env_overrides::EnvOverrides;
 use crate::kernel::{CommandRegistry, ResolveError};
 use composed::{Admission, admit_for};
-pub use composed::{AdmitFn, CliRunError, admit_unprofiled, refuse_disabled, run_composed};
+pub use composed::{
+    AdmitFn, CliRunError, admit_direct, admit_unprofiled, refuse_disabled, run_composed,
+};
 use direct::{DirectDatabase, direct_database_url, run_with_database_url};
 use dispatch::{Invocation, Selected, dispatch_command};
 use systemprompt_extension::cli::{CliConfig, CommandDescriptor, OutputFormat};
@@ -111,6 +113,7 @@ async fn run_inner(
             DirectDatabase {
                 url: &database_url,
                 credentials: None,
+                profile: None,
             },
             guards,
         ))
@@ -152,6 +155,9 @@ async fn run_inner(
                     DirectDatabase {
                         url: &external_db_url,
                         credentials: loaded,
+                        profile: profile
+                            .as_deref()
+                            .map(systemprompt_config::LoadedProfile::profile),
                     },
                     guards,
                 ))
@@ -254,8 +260,13 @@ struct RunGuards {
 }
 
 impl RunGuards {
-    fn apply(self, ctx: CommandContext, selected: &Selected) -> Result<CommandContext> {
-        let admitted = admit_unprofiled(selected.registered(), self.admit)?;
+    fn apply(
+        self,
+        ctx: CommandContext,
+        selected: &Selected,
+        profile: Option<&systemprompt_manifest::Profile>,
+    ) -> Result<CommandContext> {
+        let admitted = admit_direct(selected.registered(), profile, self.admit)?;
         Ok(ctx
             .with_admitted(Some(Arc::new(admitted)))
             .with_interrupt_shield(self.shield)

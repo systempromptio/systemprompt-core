@@ -34,6 +34,8 @@ mod forged_commands;
 #[cfg(test)]
 mod forged_command_types;
 #[cfg(test)]
+mod external_db_admission;
+#[cfg(test)]
 mod gateway_def_paths;
 #[cfg(test)]
 mod gateway_prefixes;
