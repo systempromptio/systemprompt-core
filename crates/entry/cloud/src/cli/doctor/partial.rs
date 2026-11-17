@@ -16,16 +16,16 @@ use std::path::Path;
 
 use systemprompt_manifest::Profile;
 
-use super::super::admitted_views::AdmittedViews;
 use systemprompt_manifest::profile::{Evaluation, Inspection, ManagedProfile, ProfileError};
 
 use super::checks::{
-    check_database_reachable, check_extension_configs, check_governance_hook_url,
-    check_proxy_topology, check_required_secrets, check_signing_key,
+    check_database_reachable, check_governance_hook_url, check_proxy_topology,
+    check_required_secrets, check_signing_key,
 };
 use super::{
-    CheckResult, DoctorReport, distributed, plane_checks, providers_check, resolve_secrets_from,
-    restore_checks, run,
+    CheckResult, Composition, DoctorReport, composition_failure, distributed,
+    extension_config_check, plane_checks, providers_check, resolve_secrets_from, restore_checks,
+    run, schema_check,
 };
 
 const HOOK_URL_INPUTS: &[&str] = &[
@@ -40,22 +40,27 @@ pub async fn run_managed(
     managed: &ManagedProfile,
     profile_dir: &Path,
     distributed: bool,
-    views: &AdmittedViews,
+    views: Composition<'_>,
 ) -> DoctorReport {
-    if managed.unresolved().is_empty() {
-        return match managed.profile() {
+    let mut report = if managed.unresolved().is_empty() {
+        match managed.profile() {
             Ok(profile) => run(&profile, profile_dir, distributed, views).await,
             Err(error) => DoctorReport {
                 checks: vec![CheckResult::fail("profile", format!("{error}"))],
             },
-        };
+        }
+    } else {
+        match managed.inspect() {
+            Ok(inspection) => run_partial(&inspection, profile_dir, distributed, views).await,
+            Err(error) => DoctorReport {
+                checks: vec![CheckResult::fail("profile", format!("{error}"))],
+            },
+        }
+    };
+    if let Err(error) = views {
+        report.checks.insert(0, composition_failure(error));
     }
-    match managed.inspect() {
-        Ok(inspection) => run_partial(&inspection, profile_dir, distributed, views).await,
-        Err(error) => DoctorReport {
-            checks: vec![CheckResult::fail("profile", format!("{error}"))],
-        },
-    }
+    report
 }
 
 type ProfileCheck = fn(&Profile) -> CheckResult;
@@ -102,7 +107,7 @@ async fn run_partial(
     inspection: &Inspection<'_>,
     profile_dir: &Path,
     distributed: bool,
-    views: &AdmittedViews,
+    views: Composition<'_>,
 ) -> DoctorReport {
     let mut checks = profile_rule_checks(inspection);
     for (name, inputs, check) in PROFILE_CHECKS {
@@ -112,7 +117,7 @@ async fn run_partial(
         "extension-config",
         inspection.evaluate(
             &["paths", "security.signing_key_path", "extensions"],
-            |p| check_extension_configs(p, &views.configs),
+            |p| extension_config_check(p, views),
         ),
     ));
     match inspection.evaluate(&["secrets"], |p| p.secrets.clone()) {
@@ -134,7 +139,7 @@ async fn secrets_checks(
     profile_dir: &Path,
     secrets: &HashMap<String, String>,
     distributed: bool,
-    views: &AdmittedViews,
+    views: Composition<'_>,
     checks: &mut Vec<CheckResult>,
 ) {
     checks.push(check_required_secrets(secrets));
@@ -145,7 +150,7 @@ async fn secrets_checks(
         }),
     ));
     checks.push(check_database_reachable(secrets).await);
-    checks.push(restore_checks::check_schema_not_ahead(secrets, &views.migrations).await);
+    checks.push(schema_check(secrets, views).await);
     checks.push(outcome(
         "providers",
         inspection.evaluate(&["paths", "services"], |p| providers_check(p, secrets)),

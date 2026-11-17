@@ -10,22 +10,56 @@ use systemprompt_test_fixtures::DisposableDb;
 
 const PROFILE_NAME: &str = "doctor_recovery";
 
+const TARGET_ONLY: &str = "SP_PX7B_SUBPROCESS_TARGET_ONLY_URL";
+
 fn place_in_project(fixture_profile: &Path) -> (PathBuf, PathBuf) {
+    place_edited(fixture_profile, PROFILE_NAME, |text| text)
+}
+
+fn place_edited(
+    fixture_profile: &Path,
+    name: &str,
+    edit: impl FnOnce(String) -> String,
+) -> (PathBuf, PathBuf) {
     let project_root = fixture_profile
         .parent()
         .and_then(Path::parent)
         .expect("owned project root")
         .to_path_buf();
-    let profile_dir = project_root
-        .join(".systemprompt/profiles")
-        .join(PROFILE_NAME);
+    let profile_dir = project_root.join(".systemprompt/profiles").join(name);
     std::fs::create_dir_all(&profile_dir).expect("create discoverable profile directory");
-    std::fs::copy(fixture_profile, profile_dir.join("profile.yaml"))
+    let text = std::fs::read_to_string(fixture_profile).expect("read fixture profile");
+    std::fs::write(profile_dir.join("profile.yaml"), edit(text))
         .expect("place profile where name discovery finds it");
     (project_root, profile_dir)
 }
 
+fn with_target_only_url(text: String) -> String {
+    text.lines()
+        .map(|line| {
+            if line.trim_start().starts_with("external_url:") {
+                format!("  external_url: \"${{{TARGET_ONLY}}}\"")
+            } else {
+                line.to_owned()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn as_cloud_target(text: String) -> String {
+    with_target_only_url(text.replacen("target: local", "target: cloud", 1))
+}
+
 fn doctor(project_root: &Path, database_url: &str) -> std::process::Output {
+    doctor_named(project_root, database_url, PROFILE_NAME)
+}
+
+fn doctor_named(project_root: &Path, database_url: &str, name: &str) -> std::process::Output {
+    cloud(project_root, database_url, &["doctor", "--profile", name])
+}
+
+fn cloud(project_root: &Path, database_url: &str, subcommand: &[&str]) -> std::process::Output {
     let mut command = Command::new(systemprompt_bin());
     command.env_remove("RUST_LOG");
     command.env_remove("SYSTEMPROMPT_PROFILE");
@@ -36,16 +70,11 @@ fn doctor(project_root: &Path, database_url: &str) -> std::process::Output {
     command.env("encryption_master_key", TEST_ENCRYPTION_MASTER_KEY);
     command.env("SYSTEMPROMPT_SUBPROCESS", "1");
     command.current_dir(project_root);
-    command.args([
-        "--non-interactive",
-        "--no-color",
-        "cloud",
-        "doctor",
-        "--profile",
-        PROFILE_NAME,
-    ]);
+    command.env_remove(TARGET_ONLY);
+    command.args(["--non-interactive", "--no-color", "cloud"]);
+    command.args(subcommand);
     command.timeout(Duration::from_secs(120));
-    command.output().expect("run bounded cloud doctor")
+    command.output().expect("run bounded cloud command")
 }
 
 fn redact(output: &[u8], database_url: &str) -> String {
@@ -149,6 +178,84 @@ async fn cloud_doctor_reports_missing_secrets_then_accepts_repaired_owned_profil
         repaired_output.contains("Deploy preflight passed"),
         "{repaired_output}"
     );
+
+    database.drop_now().await;
+}
+
+fn combined(output: &std::process::Output, database_url: &str) -> String {
+    format!(
+        "{}\n{}",
+        redact(&output.stdout, database_url),
+        redact(&output.stderr, database_url)
+    )
+}
+
+#[tokio::test]
+async fn cloud_doctor_reports_an_invalid_profile_as_its_profile_check() {
+    let database = DisposableDb::with_schema("cli_cloud_doctor_invalid").await;
+    let fixture = isolated_fixture(8080);
+    let (project_root, _) = place_edited(&fixture.profile_path, "doctor_invalid", |text| {
+        text.replacen(
+            "jwt_access_token_expiration: 3600",
+            "jwt_access_token_expiration: -1",
+            1,
+        )
+    });
+
+    let report = doctor_named(&project_root, database.url(), "doctor_invalid");
+    let output = combined(&report, database.url());
+    assert!(!report.status.success(), "{output}");
+    assert!(output.contains("Deploy preflight failed"), "{output}");
+    assert!(
+        output.contains("profile: Profile 'subprocess_full' validation failed")
+            && output.contains("access_token_expiration must be positive"),
+        "the validation failure is the doctor's profile check: {output}"
+    );
+    assert!(!output.contains("Profile initialization failed"), "{output}");
+
+    let (valid, _) = place_edited(&fixture.profile_path, "doctor_valid", |text| text);
+    let control = combined(&doctor_named(&valid, database.url(), "doctor_valid"), database.url());
+    assert!(
+        !control.contains("access_token_expiration must be positive"),
+        "control: the unedited profile passes its profile rules: {control}"
+    );
+
+    database.drop_now().await;
+}
+
+#[tokio::test]
+async fn cloud_doctor_runs_its_partial_preflight_over_target_only_variables() {
+    let database = DisposableDb::with_schema("cli_cloud_doctor_target_only").await;
+    let fixture = isolated_fixture(8080);
+    let (project_root, _) =
+        place_edited(&fixture.profile_path, "doctor_target_only", with_target_only_url);
+
+    let report = doctor_named(&project_root, database.url(), "doctor_target_only");
+    let output = combined(&report, database.url());
+    assert!(output.contains("Deploy preflight"), "{output}");
+    assert!(output.contains("not evaluated"), "{output}");
+    assert!(output.contains(TARGET_ONLY), "the skipped checks name the variable: {output}");
+    assert!(!output.contains("Profile initialization failed"), "{output}");
+    assert!(!output.contains("composition:"), "the composition admits: {output}");
+
+    database.drop_now().await;
+}
+
+#[tokio::test]
+async fn cloud_deploy_check_reads_the_admitted_views_of_its_target() {
+    let database = DisposableDb::with_schema("cli_cloud_deploy_views").await;
+    let fixture = isolated_fixture(8080);
+    let (project_root, _) = place_edited(&fixture.profile_path, "deploy_target", as_cloud_target);
+
+    let deploy = cloud(
+        &project_root,
+        database.url(),
+        &["deploy", "--profile", "deploy_target", "--check"],
+    );
+    let output = combined(&deploy, database.url());
+    assert!(!output.contains("AdmittedAssets"), "{output}");
+    assert!(output.contains("Deploy preflight"), "the preflight ran: {output}");
+    assert!(!output.contains("composition:"), "the composition admits: {output}");
 
     database.drop_now().await;
 }

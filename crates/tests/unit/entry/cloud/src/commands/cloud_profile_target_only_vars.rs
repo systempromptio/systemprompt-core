@@ -4,14 +4,13 @@ use std::path::PathBuf;
 
 use systemprompt_cli::admin::session::list::discover_profiles;
 use systemprompt_cli::interactive::ScriptedPrompter;
-use systemprompt_cloud_entry::cli::AdmittedViews;
 use systemprompt_cloud_entry::cli::deploy::DeployProfile;
 use systemprompt_cloud_entry::cli::deploy::pipeline::DeploySecretsSource;
 use systemprompt_cloud_entry::cli::doctor::{CheckStatus, run_managed};
 use systemprompt_cloud_entry::cli::profile::edit_document::ProfileEdit;
 use systemprompt_cloud_entry::cli::profile::edit_settings::edit_server_settings;
 use systemprompt_config::LoadedProfile;
-use systemprompt_extension::{AdmittedAssets, AdmittedConfigs, AdmittedMigrations};
+use systemprompt_extension::cli::AdmittedViews;
 use systemprompt_manifest::ProfileType;
 use systemprompt_manifest::profile::ManagedProfile;
 use systemprompt_test_fixtures::fixture_admitted;
@@ -19,13 +18,7 @@ use systemprompt_test_fixtures::fixture_admitted;
 use crate::services_profile_fixture::{ProfileTree, https_sources_block, write_tree};
 
 fn admitted_views() -> AdmittedViews {
-    let admitted = fixture_admitted();
-    let built = admitted.built();
-    AdmittedViews {
-        migrations: AdmittedMigrations::of(built),
-        configs: AdmittedConfigs::of(built),
-        assets: AdmittedAssets::of(built),
-    }
+    AdmittedViews::of(&fixture_admitted())
 }
 
 const TARGET_ONLY: &str = "SP_TARGET_ONLY_EXTERNAL_URL_c41e";
@@ -138,7 +131,7 @@ async fn the_deploy_preflight_does_not_block_on_a_target_only_variable() {
         &managed,
         fixture.path.parent().unwrap(),
         false,
-        &admitted_views(),
+        Ok(&admitted_views()),
     )
     .await;
 
@@ -189,7 +182,7 @@ async fn the_preflight_runs_every_check_whose_inputs_resolve() {
     .unwrap();
     let managed = ManagedProfile::load(&fixture.path).expect("management view loads");
 
-    let report = run_managed(&managed, dir, false, &admitted_views()).await;
+    let report = run_managed(&managed, dir, false, Ok(&admitted_views())).await;
 
     let status = |name: &str| {
         report
@@ -315,8 +308,10 @@ async fn deploy_check(fixture: &CloudProfile) -> anyhow::Result<()> {
         systemprompt_cli::EnvOverrides::default(),
     )
     .with_admitted(Some(fixture_admitted()))
+    .with_admit(Some(crate::target_host::reference_admit()))
     .with_detached_kernel();
-    let outcome = systemprompt_cloud_entry::cli::execute(cmd, &ctx).await;
+    let outcome =
+        systemprompt_cloud_entry::cli::execute(cmd, &crate::target_host::target_host(&ctx)).await;
     std::env::set_current_dir(previous).unwrap();
     outcome.map(drop)
 }
@@ -343,7 +338,7 @@ async fn an_invalid_resolved_field_blocks_the_preflight_despite_a_target_only_va
         &managed,
         fixture.path.parent().unwrap(),
         false,
-        &admitted_views(),
+        Ok(&admitted_views()),
     )
     .await;
 
@@ -389,7 +384,7 @@ async fn the_corrected_profile_deploys_with_the_not_evaluated_note() {
         &managed,
         fixture.path.parent().unwrap(),
         false,
-        &admitted_views(),
+        Ok(&admitted_views()),
     )
     .await;
 

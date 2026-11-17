@@ -11,7 +11,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod admitted_views;
 pub mod auth;
 pub mod backup;
 pub mod deploy;
@@ -25,8 +24,6 @@ pub mod templates;
 pub mod tenant;
 pub mod types;
 
-pub use admitted_views::AdmittedViews;
-use deploy::DeployProfile;
 pub use systemprompt_cloud::{Environment, OAuthProvider};
 
 use anyhow::Result;
@@ -146,9 +143,7 @@ impl DescribeCommand for CloudCommands {
     fn descriptor(&self) -> CommandDescriptor {
         match self {
             Self::Deploy { .. } => CommandDescriptor::NONE.with_data_impact(DataImpact::Preserving),
-            Self::Doctor { .. } | Self::Backup { .. } | Self::Status => {
-                CommandDescriptor::PROFILE_ONLY
-            },
+            Self::Backup { .. } | Self::Status => CommandDescriptor::PROFILE_ONLY,
             Self::Sync(_) => CommandDescriptor::FULL.with_read_only(),
             _ => CommandDescriptor::NONE,
         }
@@ -191,10 +186,7 @@ pub async fn execute(cmd: CloudCommands, host: &dyn CommandHost) -> Result<Comma
                     check,
                     wait,
                 },
-                host.prompter(),
-                host.output(),
-                host.children(),
-                &AdmittedViews::resolve(host).await?,
+                host,
             )
             .await?;
             Ok(CommandOutput::rendered())
@@ -217,13 +209,15 @@ pub async fn execute(cmd: CloudCommands, host: &dyn CommandHost) -> Result<Comma
             Ok(CommandOutput::rendered())
         },
         CloudCommands::Doctor {
-            profile: _,
+            profile,
             distributed,
         } => {
             doctor::execute(
-                &DeployProfile::load(host.profile_path()?)?,
+                profile_name(profile)?,
                 distributed,
-                &AdmittedViews::resolve(host).await?,
+                host.prompter(),
+                host.output(),
+                host,
             )
             .await?;
             Ok(CommandOutput::rendered())

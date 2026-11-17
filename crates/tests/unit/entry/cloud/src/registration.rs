@@ -60,6 +60,7 @@ fn the_cloud_member_declares_the_cloud_group_with_its_kernel_grants() {
                 KernelGrant::CloudOperator,
                 KernelGrant::BootProfile,
                 KernelGrant::ConfigReconcile,
+                KernelGrant::TargetAdmission,
             ]
         )]
     );
@@ -145,14 +146,13 @@ fn every_cloud_descriptor_is_a_cloud_operator_and_bypasses_routing() {
 
 #[test]
 fn bootstrap_requirements_match_each_subcommand() {
-    let deploy = descriptor(&["cloud", "deploy"]);
-    assert!(!deploy.profile() && !deploy.secrets() && !deploy.database());
+    for args in [&["cloud", "deploy"][..], &["cloud", "doctor"]] {
+        let d = descriptor(args);
+        assert!(!d.profile() && !d.secrets() && !d.database(), "{args:?}");
+        assert!(d.holds(KernelGrant::TargetAdmission), "{args:?}");
+    }
 
-    for args in [
-        &["cloud", "status"][..],
-        &["cloud", "backup"],
-        &["cloud", "doctor"],
-    ] {
+    for args in [&["cloud", "status"][..], &["cloud", "backup"]] {
         let d = descriptor(args);
         assert!(d.profile() && !d.secrets() && !d.database(), "{args:?}");
     }

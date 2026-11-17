@@ -348,17 +348,6 @@ pub(super) fn ctx(format: OutputFormat) -> CommandContext {
     ctx_over(format, harness_profile())
 }
 
-pub(super) fn named_profile_ctx(name: &str) -> CommandContext {
-    let root = &HARNESS.get().expect("harness entered").root;
-    let path = root
-        .join(".systemprompt/profiles")
-        .join(name)
-        .join("profile.yaml");
-    let profile =
-        LoadedProfile::from_path(&path).unwrap_or_else(|e| panic!("load profile {name}: {e}"));
-    ctx_over(OutputFormat::Json, Some(profile))
-}
-
 fn ctx_over(format: OutputFormat, profile: Option<Arc<LoadedProfile>>) -> CommandContext {
     let cli = CliConfig::default()
         .with_output_format(format)
@@ -367,7 +356,28 @@ fn ctx_over(format: OutputFormat, profile: Option<Arc<LoadedProfile>>) -> Comman
         .with_cloud_credentials(harness_credentials())
         .with_profile(profile)
         .with_admitted(Some(systemprompt_test_fixtures::fixture_admitted()))
+        .with_admit(Some(fixture_admit()))
         .with_detached_kernel()
+}
+
+fn fixture_admit() -> systemprompt_cli::AdmitFn {
+    Box::new(|extensions| {
+        let disabled = extensions
+            .map(|extensions| extensions.disabled.clone())
+            .unwrap_or_default();
+        Ok(
+            Arc::try_unwrap(systemprompt_test_fixtures::fixture_admitted_without(&disabled))
+                .unwrap_or_else(|_| panic!("a fresh fixture admission is unshared")),
+        )
+    })
+}
+
+pub(super) fn target_host(ctx: &CommandContext) -> systemprompt_cli::kernel::MemberHost<'_> {
+    systemprompt_cli::kernel::MemberHost::new(
+        ctx,
+        systemprompt_extension::cli::CommandDescriptor::NONE
+            .with_grant(systemprompt_extension::cli::KernelGrant::TargetAdmission),
+    )
 }
 
 fn harness_credentials() -> Option<CloudCredentials> {
@@ -395,6 +405,7 @@ pub(super) fn interactive_ctx(
         .with_cloud_credentials(harness_credentials())
         .with_profile(harness_profile())
         .with_admitted(Some(systemprompt_test_fixtures::fixture_admitted()))
+        .with_admit(Some(fixture_admit()))
         .with_detached_kernel()
         .with_prompter(Box::new(systemprompt_cli::ScriptedPrompter::new(answers)))
 }

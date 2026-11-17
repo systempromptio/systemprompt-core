@@ -21,10 +21,9 @@ pub mod select;
 pub mod target_profile;
 
 pub(in crate::cli) use progress::CliDeployProgress;
-pub(in crate::cli) use select::resolve_profile;
+pub(in crate::cli) use select::{resolve_profile, resolve_profile_path};
 pub use target_profile::DeployProfile;
 
-use super::admitted_views::AdmittedViews;
 use std::path::Path;
 use std::time::Duration;
 
@@ -45,7 +44,7 @@ use pipeline::{DeployOptions, DeployOrchestrator, DeployRequest};
 
 use super::tenant::get_credentials;
 use systemprompt_cloud::paths::ProjectRoot;
-use systemprompt_extension::cli::{CliConfig, Prompter};
+use systemprompt_extension::cli::{AdmittedViews, CommandHost};
 
 const GITOPS_READINESS_WAIT: ReadinessWait = ReadinessWait {
     timeout: Duration::from_mins(15),
@@ -61,13 +60,11 @@ pub(super) struct DeployArgs {
 
 async fn preflight(
     args: &DeployArgs,
-    prompter: &dyn Prompter,
-    config: &CliConfig,
-    views: &AdmittedViews,
-) -> Result<Option<DeployProfile>> {
+    host: &dyn CommandHost,
+) -> Result<Option<(DeployProfile, AdmittedViews)>> {
     CliService::section("systemprompt.io Cloud Deploy");
 
-    let profile = resolve_profile(prompter, args.profile_name.as_ref(), config)?;
+    let profile = resolve_profile(host.prompter(), args.profile_name.as_ref(), host.output())?;
 
     if profile.target != systemprompt_manifest::ProfileType::Cloud {
         bail!(
@@ -76,7 +73,9 @@ async fn preflight(
         );
     }
 
-    let report = super::doctor::run_managed(&profile.managed, profile.profile_dir(), false, views).await;
+    let views = host.admitted_views(&profile.path)?;
+    let report =
+        super::doctor::run_managed(&profile.managed, profile.profile_dir(), false, Ok(&views)).await;
     report.render();
     if report.has_blocking() {
         bail!("Deploy preflight failed — fix the items above before deploying.");
@@ -88,17 +87,15 @@ async fn preflight(
         report.render_summary("Deploy preflight passed (--check; nothing deployed)");
         return Ok(None);
     }
-    Ok(Some(profile))
+    Ok(Some((profile, views)))
 }
 
 pub(super) async fn execute(
     args: DeployArgs,
-    prompter: &dyn Prompter,
-    config: &CliConfig,
-    children: &dyn ChildSupervisor,
-    views: &AdmittedViews,
+    host: &dyn CommandHost,
 ) -> Result<()> {
-    let Some(profile) = preflight(&args, prompter, config, views).await? else {
+    let children = host.children();
+    let Some((profile, views)) = preflight(&args, host).await? else {
         return Ok(());
     };
 
