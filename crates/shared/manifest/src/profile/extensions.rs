@@ -35,7 +35,7 @@ impl ExtensionsConfig {
 
 /// One entry of `extensions.disabled`: the id and the variables it was
 /// interpolated from (empty for an id written literally).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct DisabledExtension {
     id: ExtensionId,
     variables: Vec<String>,
@@ -74,6 +74,26 @@ impl std::fmt::Display for DisabledExtension {
         f.write_str("the value of ")?;
         Variables(&self.variables).fmt(f)
     }
+}
+
+impl std::fmt::Debug for DisabledExtension {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut debug = f.debug_struct("DisabledExtension");
+        if self.variables.is_empty() {
+            debug.field("id", &self.id);
+        } else {
+            debug.field("variables", &self.variables);
+        }
+        debug.finish()
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error("the value of {variables} is not an extension id: {source}")]
+struct NotAnExtensionId {
+    variables: String,
+    #[source]
+    source: systemprompt_identifiers::error::IdValidationError,
 }
 
 struct Variables<'a>(&'a [String]);
@@ -126,10 +146,11 @@ fn entry<E: serde::de::Error>(value: Value) -> Result<DisabledExtension, E> {
             match value {
                 Value::String(id) => ExtensionId::try_new(id)
                     .map(|id| DisabledExtension::interpolated(id, variables))
-                    .map_err(|error| {
-                        E::custom(format!(
-                            "the value of {named} is not an extension id: {error}"
-                        ))
+                    .map_err(|source| {
+                        E::custom(NotAnExtensionId {
+                            variables: named,
+                            source,
+                        })
                     }),
                 _ => Err(E::custom(format!(
                     "the value of {named} is not an extension id"

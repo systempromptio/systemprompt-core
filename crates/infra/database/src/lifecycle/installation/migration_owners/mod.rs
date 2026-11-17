@@ -13,10 +13,20 @@
 //! ([`MigrationOwnershipError::ForeignTable`]): `ALTER TABLE` (including
 //! `SET SCHEMA`), `DROP TABLE`, `TRUNCATE`, `RENAME` of a table, column,
 //! constraint, trigger, policy or rule, `CREATE RULE`, `CREATE POLICY`, `ALTER
-//! POLICY`, `DROP POLICY|RULE ... ON`, and `GRANT`/`REVOKE` on a table. `DROP
-//! INDEX`/`ALTER INDEX` and a `DROP` or `SET SCHEMA` of a type, routine,
-//! sequence or view are judged against the member whose SQL creates the object
-//! ([`MigrationOwnershipError::ForeignObject`]). Schema-level statements
+//! POLICY`, `DROP POLICY|RULE ... ON`, and `GRANT`/`REVOKE` on a table.
+//!
+//! An index, routine, view, materialized view, sequence, type or domain is
+//! owned by the first member whose SQL creates it and does not drop it again:
+//! a core member before an install member, then a declarative schema before a
+//! migration, then composition order. For an install member, a create of an
+//! object another member owns is refused, in a migration or in its declarative
+//! schema, including `CREATE OR REPLACE`, `CREATE ... IF NOT EXISTS` and
+//! `CREATE INDEX IF NOT EXISTS`, and so are `ALTER` (including `RENAME`),
+//! `ALTER INDEX`, `DROP`, `DROP INDEX` and `SET SCHEMA` of it
+//! ([`MigrationOwnershipError::ForeignObject`]); naming another member's
+//! object in a create never makes it the member's own. A core member's
+//! statements of these kinds are logged at `warn` as unjudged. Schema-level
+//! statements
 //! (`DROP SCHEMA`, `ALTER SCHEMA ... RENAME`, `GRANT ... ON ALL ... IN
 //! SCHEMA`, `ALTER TABLE ALL IN TABLESPACE`) are refused for an install
 //! member, and for a core member unless they name a non-`public` schema its
@@ -32,12 +42,15 @@
 //! file or program, a `sql` routine whose body does not parse (a parseable
 //! body is read as part of the migration), and any statement kind the reader
 //! does not classify. A core member's statements of these kinds are logged at
-//! `warn` as unjudged. At either standing a `DO` block, a routine in a
-//! language other than `sql`, a top-level `SELECT` that calls a routine,
-//! `CREATE INDEX`, `CREATE TRIGGER` and `DROP TRIGGER` on another member's
-//! table, a `DROP INDEX` of an index no member's SQL creates and a
-//! `DROP ... CASCADE` of an object the member's SQL does not create are
-//! logged as unjudged, once per kind and migration for hidden SQL.
+//! `warn` as unjudged. At either standing a `DO` block, `CREATE EXTENSION`,
+//! a routine in a language other than `sql`, a routine call in a top-level
+//! `SELECT` or inside an `INSERT`/`UPDATE`/`DELETE`/`MERGE`, `CREATE INDEX`,
+//! `CREATE TRIGGER` and `DROP TRIGGER` on another member's table and a
+//! `DROP INDEX` of an index no member's SQL creates are logged as unjudged,
+//! once per kind and migration for hidden SQL; so is every `DROP ... CASCADE`
+//! of an install member, and a core member's of an object it does not own.
+//! The rule guards against mistakes, not a hostile member: a `DO` block or a
+//! routine in another language can run any statement it refuses.
 //!
 //! A table no member owns (never declared by any member, or retired by the
 //! member that created it, see `claims`) has no owner to protect: a
@@ -63,9 +76,11 @@ mod drops;
 mod judge;
 mod kinds;
 mod ledger;
+mod object_claims;
 mod objects;
 mod routines;
 mod statements;
+mod writes;
 
 pub(super) use claims::retired_tables;
 pub use kinds::{HiddenSql, TableMutation};

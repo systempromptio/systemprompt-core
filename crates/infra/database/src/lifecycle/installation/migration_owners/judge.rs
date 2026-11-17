@@ -13,6 +13,7 @@ use tracing::warn;
 use super::super::undeclared::qualify;
 use super::claims::{Ownership, ownership};
 use super::kinds::HiddenSql;
+use super::objects::Created;
 use super::statements::{Effect, effects_of, top_level};
 use super::{
     KERNEL_LEDGER_OWNER, KERNEL_LEDGERS, MigrationMembers, MigrationOwnershipError, RecordedTable,
@@ -83,6 +84,9 @@ pub(super) fn findings(
                 migration: &migration_label,
                 cross: &cross,
             };
+            for statement in top_level(&parsed) {
+                findings.extend(foreign_object_creates(&ownership, &judged, statement));
+            }
             let mut hidden = Vec::new();
             for effect in top_level(&parsed).flat_map(effects_of) {
                 if let Effect::Hidden(statement) = &effect {
@@ -108,7 +112,7 @@ const fn logged_table_statement(statement: TableMutation) -> bool {
 const fn logged_hidden(statement: &HiddenSql) -> bool {
     matches!(
         statement,
-        HiddenSql::Do | HiddenSql::Routine { .. } | HiddenSql::RoutineCall
+        HiddenSql::Do | HiddenSql::Routine { .. } | HiddenSql::RoutineCall | HiddenSql::Extension
     )
 }
 
@@ -160,11 +164,7 @@ fn judge(
         Effect::Schema(statement, schema) => judge_schema(ownership, member, statement, schema),
         Effect::Object(statement, object) => judge_object(ownership, member, statement, object),
         Effect::Cascade(object) => {
-            let own = ownership
-                .created
-                .get(member.id)
-                .is_some_and(|own| own.objects.contains(&object) || own.indexes.contains(&object));
-            if !own {
+            if member.install() || !ownership.owns_anything_named(member.id, &object) {
                 member.unjudged(&TableMutation::DropCascade, &object);
             }
             None
@@ -204,6 +204,29 @@ fn judge_schema(
     })
 }
 
+fn foreign_object_creates(
+    ownership: &Ownership,
+    member: &Judged<'_>,
+    statement: &pg_query::NodeEnum,
+) -> Vec<MigrationOwnershipError> {
+    let created = Created::of_statement(statement);
+    let mut refused = Vec::new();
+    for (kind, object, owner) in ownership.foreign_object_creates(member.id, &created) {
+        if member.install() {
+            refused.push(MigrationOwnershipError::ForeignObject {
+                member: member.id.clone(),
+                migration: member.migration.to_owned(),
+                statement: kind,
+                object,
+                owner,
+            });
+        } else {
+            member.unjudged(&kind, &object);
+        }
+    }
+    refused
+}
+
 fn judge_object(
     ownership: &Ownership,
     member: &Judged<'_>,
@@ -214,27 +237,17 @@ fn judge_object(
         statement,
         TableMutation::DropIndex | TableMutation::AlterIndex
     );
-    let creators: Vec<ExtensionId> = if index {
-        ownership
-            .creators(|c| &c.indexes, &object)
-            .cloned()
-            .collect()
-    } else {
-        ownership
-            .creators(|c| &c.objects, &object)
-            .cloned()
-            .collect()
-    };
-    if creators.contains(member.id) {
+    let owner = ownership.object_owner(index, &object);
+    if owner.is_some_and(|owner| owner.id == *member.id) {
         return None;
     }
-    match creators.first() {
+    match owner {
         Some(owner) if member.install() => Some(MigrationOwnershipError::ForeignObject {
             member: member.id.clone(),
             migration: member.migration.to_owned(),
             statement,
             object,
-            owner: owner.clone(),
+            owner: owner.id.clone(),
         }),
         Some(_) => {
             member.unjudged(&statement, &object);

@@ -13,6 +13,7 @@ mod members;
 mod migration_cost_audit;
 mod migration_edges;
 mod migration_ledger_writes;
+mod migration_object_owners;
 mod migration_ownership;
 mod migration_refs_errors;
 mod migration_retired_tables;
