@@ -82,6 +82,8 @@ const fn subtree(owner: CoreId, path: &'static str) -> ReservedPath {
 
 pub const RESERVED_PATHS: &[ReservedPath] = &[
     kernel(ApiPaths::DISCOVERY, ReservedReach::Exact),
+    kernel(ApiPaths::AUTH_ME, ReservedReach::Exact),
+    kernel(ApiPaths::META_BASE, ReservedReach::Prefix),
     kernel("/api/v1/oauth", ReservedReach::Prefix),
     kernel("/api/v1/users", ReservedReach::Prefix),
     kernel(ApiPaths::AGENTS_BASE, ReservedReach::Prefix),
@@ -119,6 +121,7 @@ pub const RESERVED_PATHS: &[ReservedPath] = &[
     held(CoreId::AgentRunsApi, ApiPaths::AGENT_RUNS),
     held(CoreId::Slack, ApiPaths::SLACK_BASE),
     held(CoreId::Teams, ApiPaths::TEAMS_BASE),
+    held(CoreId::Cloud, ApiPaths::CLOUD_TENANTS),
 ];
 
 pub const BUILTIN_GATEWAY_PREFIXES: &[&str; 31] = &[
