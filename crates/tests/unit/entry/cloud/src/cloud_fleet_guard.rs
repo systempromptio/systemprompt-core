@@ -12,8 +12,8 @@ use systemprompt_cli::kernel::{CommandRegistry, classify_command_line, kernel_co
 use systemprompt_cloud_entry::cli::fleet::ensure_read_only;
 use systemprompt_extension::Resolved;
 use systemprompt_extension::cli::{
-    BoxFuture, ChildSupervisor, CliConfig, CommandError, CommandHost, CommandOutput,
-    DescribedCommand, Prompter,
+    AdmittedViews, BoxFuture, ChildSupervisor, CliConfig, CommandError, CommandHost,
+    CommandOutput, DescribedCommand, Prompter,
 };
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_loader::subprocess::ForegroundChildren;
@@ -98,6 +98,10 @@ impl CommandHost for ClassifyingHost {
         _profile: &'a Path,
     ) -> BoxFuture<'a, Result<Arc<Config>, CommandError>> {
         Box::pin(async { Err(unavailable()) })
+    }
+
+    fn admitted_views(&self, _profile: &Path) -> Result<AdmittedViews, CommandError> {
+        Err(unavailable())
     }
 }
 

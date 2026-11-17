@@ -10,7 +10,7 @@ use systemprompt_extension::admitted::{AdmittedMember, AdmittedParts, DeclaredCo
 use systemprompt_extension::contribute::ContributionSink;
 use systemprompt_extension::{Admitted, DeclaredCommands};
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_manifest::Profile;
+use systemprompt_manifest::ExtensionsConfig;
 
 #[cfg(feature = "cli")]
 use systemprompt_extension::admitted::AdmittedCommand;
@@ -67,8 +67,8 @@ impl Declared {
         })
     }
 
-    pub fn admit(self, profile: &Profile) -> Result<Admitted, CompositionError> {
-        self.admit_without(&profile.extensions.disabled)
+    pub fn admit(self, extensions: &ExtensionsConfig) -> Result<Admitted, CompositionError> {
+        self.admit_without(&extensions.disabled)
     }
 
     pub fn admit_unprofiled(self) -> Result<Admitted, CompositionError> {

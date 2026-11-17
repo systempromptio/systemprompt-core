@@ -194,7 +194,7 @@ fn disabled_capability_members_leave_no_slot() {
     let admitted = reference()
         .declare()
         .expect("the reference composition declares")
-        .admit(&profile(&["brain", "notifications", "notifications-http"]))
+        .admit(&profile(&["brain", "notifications", "notifications-http"]).extensions)
         .expect("disabling the brain and notifications members admits");
     assert!(slot_owners::<BrainSlot>(&admitted).is_empty());
     assert!(slot_owners::<NotificationsSlot>(&admitted).is_empty());
@@ -236,7 +236,7 @@ fn disabled_member_brain_seam_is_never_built() {
         .with(filter_probe("probe-off", "off", &off))
         .declare()
         .expect("both probes declare")
-        .admit(&profile(&["probe-off"]))
+        .admit(&profile(&["probe-off"]).extensions)
         .expect("admission succeeds");
     let seams = built::<BrainSlot>(&admitted)
         .expect("the brain slot builds")
@@ -253,7 +253,7 @@ fn disabled_member_notification_seam_is_never_built() {
         .with(failing_router_probe("probe-off", &off))
         .declare()
         .expect("the probe declares")
-        .admit(&profile(&["probe-off"]))
+        .admit(&profile(&["probe-off"]).extensions)
         .expect("admission succeeds");
     let seams: Arc<NotificationSeams> = built::<NotificationsSlot>(&admitted)
         .expect("the disabled member's failing factory is dropped before the build")
@@ -662,7 +662,7 @@ fn a_disabled_audience_member_leaves_both_readers_withholding() {
         .with(audience_probe("probe-audience", "install-groups", &hits))
         .declare()
         .expect("the probe declares")
-        .admit(&profile(&["probe-audience"]))
+        .admit(&profile(&["probe-audience"]).extensions)
         .expect("admission succeeds");
     let seed = with_owner_seams(slot_seed(), false, false);
     let notifications = built_over::<NotificationsSlot>(&admitted, seed.clone())

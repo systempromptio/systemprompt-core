@@ -137,7 +137,7 @@ fn disabled_member_contributes_nothing_and_runs_nothing() {
     );
 
     let admitted = declared
-        .admit(&profile(&["probe-off"]))
+        .admit(&profile(&["probe-off"]).extensions)
         .expect("admission succeeds");
     assert_eq!(
         on.total() + off.total(),

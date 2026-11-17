@@ -8,10 +8,10 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use systemprompt_config::SecretsSources;
-use systemprompt_extension::cli::DbUrlRouting;
+use systemprompt_extension::cli::{DbUrlRouting, KernelGrant};
 use systemprompt_extension::{Admitted, DeclaredCommands};
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_manifest::Profile;
+use systemprompt_manifest::{ExtensionsConfig, Profile};
 use systemprompt_models::BuildIdentity;
 use systemprompt_traits::BoxedSource;
 
@@ -21,12 +21,15 @@ use crate::kernel::{
     CommandOwner, CommandRegistry, RegistryError, ResolvedCommand, kernel_commands,
 };
 
-/// Admits the composition: against the loaded profile (also when a cloud
-/// profile reaches its database directly), or, for a command run with
+/// Admits the composition against a profile's disabled-member list, the one
+/// profile input admission reads: the loaded profile's (also when a cloud
+/// profile reaches its database directly), a target profile's read through
+/// [`KernelGrant::TargetAdmission`], or, for a command run with
 /// `--database-url` and no profile (a kernel command, or a member command
 /// whose routing is [`DbUrlRouting::Direct`]), over every linked member with
 /// none disabled (`None`).
-pub type AdmitFn = Box<dyn FnOnce(Option<&Profile>) -> Result<Admitted, BoxedSource> + Send>;
+pub type AdmitFn =
+    Box<dyn FnOnce(Option<&ExtensionsConfig>) -> Result<Admitted, BoxedSource> + Send>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum CliRunError {
@@ -52,7 +55,7 @@ pub fn run_composed<A>(
     admit: A,
 ) -> Result<ExitCode, CliRunError>
 where
-    A: FnOnce(Option<&Profile>) -> Result<Admitted, BoxedSource> + Send + 'static,
+    A: FnOnce(Option<&ExtensionsConfig>) -> Result<Admitted, BoxedSource> + Send + 'static,
 {
     let registry = CommandRegistry::build(&declared, &kernel_commands())?;
     let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -97,13 +100,14 @@ pub(super) fn admit_for(
     admit: AdmitFn,
 ) -> Result<Admission> {
     let Some(profile) = profile.map(systemprompt_config::LoadedProfile::profile) else {
-        let child_host = invocation.descriptor().child_host();
-        return Ok(Admission::Deferred(child_host.then_some(admit)));
+        let descriptor = invocation.descriptor();
+        let deferred = descriptor.child_host() || descriptor.holds(KernelGrant::TargetAdmission);
+        return Ok(Admission::Deferred(deferred.then_some(admit)));
     };
     if let Some(resolved) = invocation.resolved() {
         refuse_disabled(resolved, profile)?;
     }
-    let admitted = admit(Some(profile)).map_err(CliRunError::Admit)?;
+    let admitted = admit(Some(&profile.extensions)).map_err(CliRunError::Admit)?;
     Ok(Admission::Admitted(Arc::new(admitted)))
 }
 
@@ -118,7 +122,7 @@ pub fn admit_direct(
     if let Some(resolved) = registered {
         refuse_disabled(resolved, profile)?;
     }
-    admit(Some(profile)).map_err(CliRunError::Admit)
+    admit(Some(&profile.extensions)).map_err(CliRunError::Admit)
 }
 
 pub fn admit_unprofiled(

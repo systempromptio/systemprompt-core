@@ -27,6 +27,7 @@ use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::{Config, Profile};
 use systemprompt_traits::DatabaseHandle;
 
+use super::admitted_views::AdmittedViews;
 use super::child::ChildSupervisor;
 use super::descriptor::{CommandDescriptor, DbUrlRouting, DescribeCommand};
 use super::output::CommandOutput;
@@ -187,6 +188,14 @@ pub struct DescribedCommand {
 /// every other caller. A command never boots a profile with sources of its
 /// own.
 ///
+/// [`CommandHost::admitted_views`] reads only the disabled-member list of the
+/// profile at a path, admits the binary's composition against it and returns
+/// the open [`AdmittedViews`]; nothing else in that profile is interpolated,
+/// validated or returned, and no member code runs. The host serves it only to
+/// a command holding
+/// [`KernelGrant::TargetAdmission`](super::KernelGrant::TargetAdmission), at
+/// most once per run.
+///
 /// [`CommandHost::render`] renders an intermediate output through the
 /// kernel's sink (a command that redraws until interrupted); the output a
 /// command returns is rendered once at exit, and a command that fails with
@@ -205,4 +214,5 @@ pub trait CommandHost: Send + Sync {
     fn describe_command_line(&self, command: &[String]) -> Result<DescribedCommand, CommandError>;
     fn env_profile(&self) -> Option<&str>;
     fn boot_config<'a>(&'a self, profile: &'a Path) -> BoxFuture<'a, Result<Arc<Config>, CommandError>>;
+    fn admitted_views(&self, profile: &Path) -> Result<AdmittedViews, CommandError>;
 }

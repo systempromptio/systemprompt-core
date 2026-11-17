@@ -270,7 +270,7 @@ impl Composition {
     }
 
     pub fn build(self, profile: &Profile) -> Result<Admitted, CompositionError> {
-        self.declare()?.admit(profile)
+        self.declare()?.admit(&profile.extensions)
     }
 
     #[cfg(feature = "cli")]
@@ -282,9 +282,9 @@ impl Composition {
             systemprompt_models::BuildIdentity::core(),
             commands,
             secrets,
-            move |profile: Option<&Profile>| {
-                match profile {
-                    Some(profile) => declared.admit(profile),
+            move |extensions: Option<&systemprompt_manifest::ExtensionsConfig>| {
+                match extensions {
+                    Some(extensions) => declared.admit(extensions),
                     None => declared.admit_unprofiled(),
                 }
                 .map_err(systemprompt_traits::BoxedSource::from)

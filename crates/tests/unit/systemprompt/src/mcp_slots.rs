@@ -252,7 +252,7 @@ fn a_disabled_members_renderer_is_never_built() {
         .with(renderer_probe("probe-render-off", &off))
         .declare()
         .expect("the probe declares")
-        .admit(&profile(&["probe-render-off"]))
+        .admit(&profile(&["probe-render-off"]).extensions)
         .expect("admission succeeds");
     let ui = built::<UiSlot>(&admitted)
         .expect("the ui slot builds")
@@ -281,7 +281,7 @@ fn a_disabled_members_recorder_is_never_built() {
         .with(recorder_probe("probe-rec-off", &off))
         .declare()
         .expect("both probes declare")
-        .admit(&profile(&["probe-rec-off"]))
+        .admit(&profile(&["probe-rec-off"]).extensions)
         .expect("admission succeeds");
     let recorders = built::<AccessRecorderSlot>(&admitted)
         .expect("the recorder slot builds")
@@ -343,7 +343,7 @@ fn a_disabled_members_toolset_is_not_hosted() {
         .with(toolset_probe("probe-toolset-off", "probe_toolset"))
         .declare()
         .expect("the probe declares")
-        .admit(&profile(&["probe-toolset-off"]))
+        .admit(&profile(&["probe-toolset-off"]).extensions)
         .expect("admission succeeds");
     let error = built_with::<ToolsetSlot>(
         &admitted,
@@ -390,7 +390,7 @@ fn admitted_run_origins_are_those_of_enabled_members() {
         .with(origin_probe("probe-origin-off", "probe_off"))
         .declare()
         .expect("both probes declare")
-        .admit(&profile(&["probe-origin-off"]))
+        .admit(&profile(&["probe-origin-off"]).extensions)
         .expect("admission succeeds");
     let origins = AdmittedRunOrigins::of(admitted.built());
     assert!(origins.contains("probe_on"));

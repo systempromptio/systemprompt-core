@@ -8,8 +8,8 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use systemprompt_extension::cli::{
-    BoxFuture, ChildSupervisor, CliConfig, CommandError, CommandHost, CommandOutput,
-    DescribedCommand, KernelGrant, Prompter,
+    AdmittedViews, BoxFuture, ChildSupervisor, CliConfig, CommandError, CommandHost,
+    CommandOutput, DescribedCommand, KernelGrant, Prompter,
 };
 use systemprompt_extension::{
     Admitted, AdmittedAssets, AdmittedConfigs, AdmittedMigrations, AdmittedSchedule, Resolved,
@@ -189,6 +189,10 @@ impl CommandHost for CommandContext {
     ) -> BoxFuture<'a, Result<Arc<Config>, CommandError>> {
         Box::pin(async move { Err(boot_profile_refused()) })
     }
+
+    fn admitted_views(&self, _profile: &Path) -> Result<AdmittedViews, CommandError> {
+        Err(CommandError::new(crate::kernel::TargetAdmissionError::Refused))
+    }
 }
 
 impl KernelHost for CommandContext {
@@ -276,7 +280,7 @@ impl KernelHost for CommandContext {
     fn take_admit(&self) -> Result<systemprompt_runtime::AdmitFn, CommandError> {
         let refused = || anyhow::anyhow!("Only a child-host command admits the composition");
         let admit = CommandContext::take_admit(self).ok_or_else(|| CommandError::new(refused()))?;
-        Ok(Box::new(move |profile: &Profile| admit(Some(profile))))
+        Ok(Box::new(move |profile: &Profile| admit(Some(&profile.extensions))))
     }
 }
 
