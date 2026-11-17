@@ -7,7 +7,7 @@
 use std::sync::Arc;
 
 use systemprompt_database::lifecycle::{
-    MigrationOwnershipError, RecordedTable, TableMutation, check_migration_ownership,
+    MigrationOwnershipError, Recorded, RecordedTable, TableMutation, check_migration_ownership,
 };
 use systemprompt_database::{DbPool, SchemaMember, SchemaUnit};
 use systemprompt_extension::{ExtensionMetadata, Migration, SchemaDefinition, StandingTag};
@@ -73,13 +73,17 @@ fn a_table_its_creator_retires_may_be_dropped_by_an_install() {
     let peer_drop = || peer(StandingTag::Install, "DROP TABLE IF EXISTS mo_retired;");
     let retired = [creator(OWNER_SCHEMA, &[RETIRED]), peer_drop()];
     assert_eq!(
-        dropped_by_peer(check_migration_ownership(only(&retired), &[], &all_pending)),
+        dropped_by_peer(check_migration_ownership(
+            only(&retired),
+            &Recorded::NONE,
+            &all_pending
+        )),
         None
     );
     assert_eq!(
         dropped_by_peer(check_migration_ownership(
             only(&retired),
-            &recorded(),
+            &Recorded::tables(&recorded()),
             &all_pending
         )),
         None,
@@ -88,14 +92,19 @@ fn a_table_its_creator_retires_may_be_dropped_by_an_install() {
 
     let kept = [creator(OWNER_SCHEMA, &[]), peer_drop()];
     assert_eq!(
-        dropped_by_peer(check_migration_ownership(only(&kept), &[], &all_pending)).as_deref(),
+        dropped_by_peer(check_migration_ownership(
+            only(&kept),
+            &Recorded::NONE,
+            &all_pending
+        ))
+        .as_deref(),
         Some("mo-creator"),
         "negative control: without the retirement the creator's migration owns it"
     );
     assert_eq!(
         dropped_by_peer(check_migration_ownership(
             only(&kept),
-            &recorded(),
+            &Recorded::tables(&recorded()),
             &all_pending
         ))
         .as_deref(),
@@ -112,7 +121,12 @@ fn a_retirement_never_takes_a_table_its_schema_declares_or_another_member_owns()
         peer(StandingTag::Install, "DROP TABLE IF EXISTS mo_retired;"),
     ];
     assert_eq!(
-        dropped_by_peer(check_migration_ownership(only(&members), &[], &all_pending)).as_deref(),
+        dropped_by_peer(check_migration_ownership(
+            only(&members),
+            &Recorded::NONE,
+            &all_pending
+        ))
+        .as_deref(),
         Some("mo-creator"),
         "a table the declarative schema still creates stays the member's"
     );
@@ -139,7 +153,7 @@ fn a_retirement_never_takes_a_table_its_schema_declares_or_another_member_owns()
     assert_eq!(
         dropped_by_peer(check_migration_ownership(
             only(&[owner(), stealing]),
-            &[],
+            &Recorded::NONE,
             &all_pending
         ))
         .as_deref(),
@@ -153,7 +167,7 @@ fn a_table_no_member_declares_has_no_owner_at_either_standing() {
     for standing in [StandingTag::Install, StandingTag::Core] {
         check_migration_ownership(
             only(&[owner(), peer(standing, "DROP TABLE mo_never_declared;")]),
-            &[],
+            &Recorded::NONE,
             &all_pending,
         )
         .unwrap_or_else(|e| panic!("{standing:?}: {e}"));

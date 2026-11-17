@@ -1,6 +1,7 @@
-//! The objects a member's own SQL creates and has not dropped since: tables,
-//! the indexes and constraint indexes on them, schemas, and the other named
-//! objects (types, routines, sequences, views) a `DROP` can name. The
+//! The objects a member's own SQL creates and has not dropped since: tables
+//! (including `CREATE TABLE ... AS`), the indexes and constraint indexes on
+//! them, the triggers on them, schemas, and the other named objects (types,
+//! routines, sequences, views, materialized views) a `DROP` can name. The
 //! member's migrations are read in version order, then its declarative
 //! schema, so an object a later migration of the member drops is no longer
 //! its own unless the declarative schema creates it.
@@ -11,9 +12,11 @@
 use std::collections::BTreeSet;
 
 use pg_query::NodeEnum;
-use pg_query::protobuf::{AlterTableStmt, ConstrType, CreateStmt, Node};
+use pg_query::protobuf::{AlterTableStmt, ConstrType, CreateStmt, Node, ObjectType};
 
-use super::statements::{object_name, qualified, relation_name, top_level};
+use super::statements::{
+    object_name, object_type, qualified, relation_name, top_level, trigger_key, trigger_of,
+};
 
 #[derive(Debug, Clone, Default)]
 pub(super) struct Created {
@@ -21,6 +24,7 @@ pub(super) struct Created {
     pub(super) indexes: BTreeSet<String>,
     pub(super) objects: BTreeSet<String>,
     pub(super) schemas: BTreeSet<String>,
+    pub(super) triggers: BTreeSet<String>,
 }
 
 impl Created {
@@ -74,16 +78,34 @@ impl Created {
                     .extend(created.view.as_ref().and_then(relation_name));
             },
             NodeEnum::CreateTableAsStmt(created) => {
-                self.objects.extend(
-                    created
-                        .into
-                        .as_ref()
-                        .and_then(|into| into.rel.as_ref())
-                        .and_then(relation_name),
-                );
+                let name = created
+                    .into
+                    .as_ref()
+                    .and_then(|into| into.rel.as_ref())
+                    .and_then(relation_name);
+                if let Some(name) = name {
+                    if object_type(created.objtype) == Some(ObjectType::ObjectTable) {
+                        self.tables.insert(name.clone());
+                    }
+                    self.objects.insert(name);
+                }
+            },
+            NodeEnum::CreateTrigStmt(trigger) => {
+                if let Some(table) = trigger.relation.as_ref().and_then(relation_name) {
+                    self.triggers.insert(trigger_key(&trigger.trigname, &table));
+                }
+            },
+            NodeEnum::DropStmt(drop)
+                if object_type(drop.remove_type) == Some(ObjectType::ObjectTrigger) =>
+            {
+                for key in drop.objects.iter().filter_map(trigger_of) {
+                    self.triggers.remove(&key);
+                }
             },
             NodeEnum::DropStmt(drop) => {
                 for name in drop.objects.iter().filter_map(object_name) {
+                    let suffix = format!(" ON {name}");
+                    self.triggers.retain(|key| !key.ends_with(&suffix));
                     self.tables.remove(&name);
                     self.objects.remove(&name);
                     self.indexes.remove(&name);

@@ -1,51 +1,63 @@
-//! Who owns each index, routine, view, sequence, type and domain: the first
+//! Who owns each index, routine, view, materialized view, sequence, type,
+//! domain and trigger: a `schema_object_owners` record first, then the first
 //! member whose SQL creates it and does not drop it again, a core member
 //! before an install member, then a declarative schema before a migration,
-//! then composition order. Naming another member's object in a create never
-//! makes it the creator's own.
+//! then composition order. A trigger is keyed by its name and its table.
+//! Naming another member's object in a create never makes it the creator's
+//! own.
+//!
+//! Every judgement of a named object goes through [`Ownership::resolve`],
+//! which looks a name up across tables, objects, indexes and triggers, so a
+//! statement that names a view, sequence or index through a table form is
+//! judged against that object's owner.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::BTreeMap;
-
 use systemprompt_extension::StandingTag;
 use systemprompt_identifiers::ExtensionId;
 
-use super::MigrationOwnershipError;
-use super::claims::{Claim, Ownership, Rank};
+use super::claims::{Claim, Ownership, Rank, push_claim};
 use super::kinds::TableMutation;
 use super::objects::Created;
 use super::statements::top_level;
+use super::{MigrationMembers, MigrationOwnershipError, ObjectKind, RecordedObject};
 use crate::lifecycle::schema_member::SchemaMember;
 
-const fn standing_rank(standing: StandingTag) -> u8 {
-    match standing {
-        StandingTag::Core => 0,
-        StandingTag::Install => 1,
-    }
-}
-
-fn claim_object(claims: &mut BTreeMap<String, Vec<Claim>>, name: &str, claim: Claim) {
-    let claims = claims.entry(name.to_owned()).or_default();
-    if claims.iter().any(|held| held.id == claim.id) {
-        return;
-    }
-    claims.push(claim);
-    claims.sort_by_key(|held| (standing_rank(held.standing), held.rank));
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum Prefer {
+    Table,
+    Object,
+    Index,
 }
 
 impl Ownership {
-    pub(super) fn object_owner(&self, index: bool, name: &str) -> Option<&Claim> {
-        let claims = if index { &self.indexes } else { &self.objects };
+    pub(super) fn resolve(&self, name: &str, prefer: Prefer) -> Option<&Claim> {
+        let order = match prefer {
+            Prefer::Table => [&self.tables, &self.objects, &self.indexes],
+            Prefer::Object => [&self.objects, &self.indexes, &self.tables],
+            Prefer::Index => [&self.indexes, &self.objects, &self.tables],
+        };
+        order
+            .into_iter()
+            .chain([&self.triggers])
+            .find_map(|claims| claims.get(name).and_then(|claims| claims.first()))
+    }
+
+    pub(super) fn object_owner(&self, kind: ObjectKind, name: &str) -> Option<&Claim> {
+        let claims = match kind {
+            ObjectKind::Object => &self.objects,
+            ObjectKind::Index => &self.indexes,
+            ObjectKind::Trigger => &self.triggers,
+        };
         claims.get(name).and_then(|claims| claims.first())
     }
 
     pub(super) fn owns_anything_named(&self, member: &ExtensionId, name: &str) -> bool {
         [
             self.owner(name),
-            self.object_owner(false, name),
-            self.object_owner(true, name),
+            self.object_owner(ObjectKind::Object, name),
+            self.object_owner(ObjectKind::Index, name),
         ]
         .into_iter()
         .flatten()
@@ -55,13 +67,14 @@ impl Ownership {
     pub(super) fn claim_created(
         &mut self,
         id: &ExtensionId,
-        standing: StandingTag,
+        (standing, position): (StandingTag, usize),
         created: &Created,
         declared: &Created,
     ) {
-        for (names, declared_names, index) in [
-            (&created.objects, &declared.objects, false),
-            (&created.indexes, &declared.indexes, true),
+        for (names, declared_names, kind) in [
+            (&created.objects, &declared.objects, ObjectKind::Object),
+            (&created.indexes, &declared.indexes, ObjectKind::Index),
+            (&created.triggers, &declared.triggers, ObjectKind::Trigger),
         ] {
             for name in names {
                 let rank = if declared_names.contains(name) {
@@ -73,13 +86,14 @@ impl Ownership {
                     rank,
                     id: id.clone(),
                     standing,
+                    position,
                 };
-                let claims = if index {
-                    &mut self.indexes
-                } else {
-                    &mut self.objects
+                let claims = match kind {
+                    ObjectKind::Object => &mut self.objects,
+                    ObjectKind::Index => &mut self.indexes,
+                    ObjectKind::Trigger => &mut self.triggers,
                 };
-                claim_object(claims, name, claim);
+                push_claim(claims, name.clone(), claim);
             }
         }
     }
@@ -89,19 +103,32 @@ impl Ownership {
         id: &ExtensionId,
         created: &Created,
     ) -> Vec<(TableMutation, String, ExtensionId)> {
+        let named = |kind: ObjectKind, statement: TableMutation, names: Vec<&String>| {
+            names
+                .into_iter()
+                .filter_map(|name| {
+                    let owner = self.object_owner(kind, name).filter(|o| o.id != *id)?;
+                    Some((statement, name.clone(), owner.id.clone()))
+                })
+                .collect::<Vec<_>>()
+        };
         let objects = created
             .objects
             .iter()
             .filter(|name| !created.tables.contains(*name))
-            .filter_map(|name| {
-                let owner = self.object_owner(false, name).filter(|o| o.id != *id)?;
-                Some((TableMutation::CreateObject, name.clone(), owner.id.clone()))
-            });
-        let indexes = created.indexes.iter().filter_map(|name| {
-            let owner = self.object_owner(true, name).filter(|o| o.id != *id)?;
-            Some((TableMutation::CreateIndex, name.clone(), owner.id.clone()))
-        });
-        objects.chain(indexes).collect()
+            .collect();
+        let mut refused = named(ObjectKind::Object, TableMutation::CreateObject, objects);
+        refused.extend(named(
+            ObjectKind::Index,
+            TableMutation::CreateIndex,
+            created.indexes.iter().collect(),
+        ));
+        refused.extend(named(
+            ObjectKind::Trigger,
+            TableMutation::CreateTrigger,
+            created.triggers.iter().collect(),
+        ));
+        refused
     }
 
     pub(super) fn schema_creates(member: &dyn SchemaMember) -> Vec<Created> {
@@ -135,5 +162,34 @@ impl Ownership {
                 },
             )
             .collect()
+    }
+
+    pub(super) fn owned_objects(&self, members: MigrationMembers<'_>) -> Vec<RecordedObject> {
+        let judged: Vec<ExtensionId> = members
+            .judged()
+            .map(|member| ExtensionId::new(member.id()))
+            .collect();
+        [
+            (ObjectKind::Object, &self.objects),
+            (ObjectKind::Index, &self.indexes),
+            (ObjectKind::Trigger, &self.triggers),
+        ]
+        .into_iter()
+        .flat_map(|(kind, claims)| {
+            claims
+                .iter()
+                .filter(|(name, _)| !self.tables.contains_key(*name))
+                .filter_map(move |(name, claims)| {
+                    let owner = claims.first()?;
+                    Some(RecordedObject {
+                        kind,
+                        name: name.clone(),
+                        owner: owner.id.clone(),
+                        standing: owner.standing,
+                    })
+                })
+        })
+        .filter(|record| judged.contains(&record.owner))
+        .collect()
     }
 }

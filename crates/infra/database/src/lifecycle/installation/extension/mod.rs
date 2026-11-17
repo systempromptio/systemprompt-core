@@ -34,6 +34,7 @@ mod cost_warning;
 pub(super) mod current;
 mod foreign_keys;
 pub(crate) mod lock;
+mod object_owners;
 pub(crate) mod ownership;
 mod phase;
 mod purge_records;
@@ -110,10 +111,7 @@ pub async fn install_schema_members(
                 });
             settled::install_unless_settled(
                 db,
-                settled::InstallSets {
-                    active: &active,
-                    held_back: &held_back,
-                },
+                settled::InstallSets::new(schema_extensions, &active, &held_back),
                 &currency,
                 migration_config,
             )
@@ -155,15 +153,15 @@ async fn fresh_extension_ids(
 
 async fn run_install(
     db: &dyn DatabaseProvider,
+    members: MigrationMembers<'_>,
     schema_extensions: &ExtensionSet,
-    held_back: &ExtensionSet,
     migration_config: MigrationConfig,
 ) -> Result<SchemaInstallReport, LoaderError> {
     if schema_extensions.is_empty() {
         return Ok(SchemaInstallReport::default());
     }
     let migration_service = MigrationService::new(db).with_config(migration_config);
-    let prepared = prepare_and_check(db, &migration_service, schema_extensions, held_back).await?;
+    let prepared = prepare_and_check(db, &migration_service, members, schema_extensions).await?;
 
     apply_retirements(db, schema_extensions).await?;
     let fresh = fresh_extension_ids(&migration_service, schema_extensions, &prepared).await?;
@@ -195,9 +193,9 @@ async fn run_install(
         apply_seeds(ext.as_ref(), db).await?;
     }
 
-    record_owners(db, &prepared).await?;
+    record_owners(db, &prepared, members).await?;
     record_purges(db, schema_extensions).await?;
-    report.residue = residue_including(db, &prepared, held_back).await?;
+    report.residue = residue_including(db, &prepared, members.held_back()).await?;
 
     Ok(report)
 }
@@ -205,18 +203,17 @@ async fn run_install(
 async fn prepare_and_check(
     db: &dyn DatabaseProvider,
     migration_service: &MigrationService<'_>,
+    members: MigrationMembers<'_>,
     schema_extensions: &ExtensionSet,
-    held_back: &ExtensionSet,
 ) -> Result<Vec<PreparedSchema>, LoaderError> {
     let mut prepared: Vec<PreparedSchema> = Vec::with_capacity(schema_extensions.len());
     for ext in schema_extensions {
         prepared.push(prepare_extension_schema(ext.as_ref())?);
     }
-    validate_table_ownership(&prepared, held_back, schema_extensions)?;
+    validate_table_ownership(&prepared, members.held_back(), schema_extensions)?;
     let owners = recorded_table_owners(db).await?;
     check_recorded_owners(&owners, &prepared)?;
-    let members = MigrationMembers::new(schema_extensions, held_back);
-    check_pending_migration_owners(&owners, migration_service, members, &prepared).await?;
+    check_pending_migration_owners(db, &owners, migration_service, members, &prepared).await?;
     check_recorded_purges(db, schema_extensions).await?;
     check_migration_references(schema_extensions)?;
     check_retirements(schema_extensions)?;

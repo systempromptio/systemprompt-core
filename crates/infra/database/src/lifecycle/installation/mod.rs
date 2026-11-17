@@ -32,7 +32,8 @@ pub use migration_cost::{
 };
 pub use migration_owners::{
     HiddenSql, KERNEL_LEDGER_OWNER, KERNEL_LEDGERS, MigrationMembers, MigrationOwnershipError,
-    RecordedTable, TableMutation, check_migration_ownership, migration_ownership_findings,
+    ObjectKind, Recorded, RecordedObject, RecordedTable, TableMutation, check_migration_ownership,
+    migration_ownership_findings,
 };
 pub use migration_refs::check_migration_references;
 pub use report::{ForeignKeyDrift, SchemaAhead, SchemaInstallReport};

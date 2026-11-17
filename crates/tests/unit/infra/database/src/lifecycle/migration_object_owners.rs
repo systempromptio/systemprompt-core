@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use systemprompt_database::SchemaMember;
 use systemprompt_database::lifecycle::{
-    MigrationOwnershipError, TableMutation, migration_ownership_findings,
+    MigrationOwnershipError, Recorded, TableMutation, migration_ownership_findings,
 };
 use systemprompt_extension::{Migration, StandingTag};
 
@@ -56,7 +56,7 @@ fn peer(standing: StandingTag, sql: &'static str) -> Arc<dyn SchemaMember> {
 }
 
 fn refusals(members: &[Arc<dyn SchemaMember>]) -> Vec<(TableMutation, String, String)> {
-    migration_ownership_findings(only(members), &[], &all_pending)
+    migration_ownership_findings(only(members), &Recorded::NONE, &all_pending)
         .into_iter()
         .map(|finding| match finding {
             MigrationOwnershipError::ForeignObject {
@@ -190,7 +190,7 @@ fn an_install_schema_recreating_a_core_function_is_refused() {
     };
     let findings = migration_ownership_findings(
         only(&[owner(), schema_peer(StandingTag::Install)]),
-        &[],
+        &Recorded::NONE,
         &all_pending,
     );
     assert!(

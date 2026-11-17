@@ -29,6 +29,7 @@ use systemprompt_identifiers::ExtensionId;
 use tracing::info;
 use xxhash_rust::xxh64::Xxh64;
 
+use super::super::migration_owners::MigrationMembers;
 use super::super::prepare::PreparedSchema;
 use super::super::report::SchemaInstallReport;
 use super::ExtensionSet;
@@ -39,16 +40,36 @@ use crate::services::DatabaseProvider;
 const FIELD_END: &[u8] = &[0x1f];
 
 pub(super) struct InstallSets<'a> {
+    pub(super) composition: &'a ExtensionSet,
     pub(super) active: &'a ExtensionSet,
     pub(super) held_back: &'a ExtensionSet,
 }
 
+impl<'a> InstallSets<'a> {
+    pub(super) const fn new(
+        composition: &'a ExtensionSet,
+        active: &'a ExtensionSet,
+        held_back: &'a ExtensionSet,
+    ) -> Self {
+        Self {
+            composition,
+            active,
+            held_back,
+        }
+    }
+}
+
 pub(super) async fn install_unless_settled(
     db: &dyn DatabaseProvider,
-    InstallSets { active, held_back }: InstallSets<'_>,
+    InstallSets {
+        composition,
+        active,
+        held_back,
+    }: InstallSets<'_>,
     currency: &super::current::SchemaCurrency,
     migration_config: MigrationConfig,
 ) -> Result<SchemaInstallReport, LoaderError> {
+    let members = MigrationMembers::new(composition, held_back);
     let fingerprint = fingerprint(active);
     let candidate = held_back.is_empty()
         && currency.is_current()
@@ -66,13 +87,13 @@ pub(super) async fn install_unless_settled(
         super::purge_records::check_recorded_purges(db, active).await?;
         if is_settled(db, &prepared, &fingerprint).await? {
             info!("Schema is settled at this release; applying no DDL");
-            return run_settled(db, active, held_back, &prepared).await;
+            return run_settled(db, members, active, held_back, &prepared).await;
         }
     }
     if migration_config.force_full_install {
         info!("Full schema install forced");
     }
-    let report = super::run_install(db, active, held_back, migration_config).await?;
+    let report = super::run_install(db, members, active, migration_config).await?;
     if held_back.is_empty() && report.foreign_key_drift.is_empty() {
         record(db, &fingerprint).await?;
     }
@@ -81,6 +102,7 @@ pub(super) async fn install_unless_settled(
 
 async fn run_settled(
     db: &dyn DatabaseProvider,
+    members: MigrationMembers<'_>,
     active: &ExtensionSet,
     held_back: &ExtensionSet,
     prepared: &[PreparedSchema],
@@ -94,7 +116,7 @@ async fn run_settled(
     for ext in active {
         super::apply_seeds(ext.as_ref(), db).await?;
     }
-    super::ownership::record_owners(db, prepared).await?;
+    super::ownership::record_owners(db, prepared, members).await?;
     super::purge_records::record_purges(db, active).await?;
     Ok(SchemaInstallReport {
         residue: super::residue_including(db, prepared, held_back).await?,
