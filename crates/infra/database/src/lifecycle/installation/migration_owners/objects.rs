@@ -32,6 +32,14 @@ impl Created {
         Ok(())
     }
 
+    pub(super) fn of_statement(statement: &NodeEnum) -> Self {
+        let mut created = Self::default();
+        if !matches!(statement, NodeEnum::CreateStmt(_)) {
+            created.statement(statement);
+        }
+        created
+    }
+
     fn statement(&mut self, statement: &NodeEnum) {
         match statement {
             NodeEnum::CreateStmt(create) => self.table(create),

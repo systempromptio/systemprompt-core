@@ -90,3 +90,15 @@ fn the_boot_layer_records_the_variable_of_a_disabled_entry() {
         format!("the value of ${{{var}}}")
     );
 }
+
+#[test]
+fn the_debug_of_an_interpolated_entry_names_its_variable_and_not_its_value() {
+    let config = extensions("extensions:\n  disabled: [\"${KF9_SECRETISH}\", mo-literal]\n")
+        .expect("both entries are ids");
+    let debug = format!("{:?}", config.disabled);
+    assert!(!debug.contains(SECRET), "{debug}");
+    assert!(debug.contains("KF9_SECRETISH"), "{debug}");
+    assert!(debug.contains("mo-literal"), "{debug}");
+    let pretty = format!("{:#?}", config);
+    assert!(!pretty.contains(SECRET), "{pretty}");
+}

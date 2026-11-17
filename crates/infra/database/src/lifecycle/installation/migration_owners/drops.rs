@@ -32,6 +32,29 @@ pub(super) fn renamed(rename: &pg_query::protobuf::RenameStmt) -> Vec<Effect> {
             .map(|index| Effect::Object(TableMutation::AlterIndex, index))
             .into_iter()
             .collect(),
+        Some(ObjectType::ObjectView | ObjectType::ObjectMatview | ObjectType::ObjectSequence) => {
+            rename
+                .relation
+                .as_ref()
+                .and_then(relation_name)
+                .map(|object| Effect::Object(TableMutation::AlterObject, object))
+                .into_iter()
+                .collect()
+        },
+        Some(
+            ObjectType::ObjectFunction
+            | ObjectType::ObjectProcedure
+            | ObjectType::ObjectRoutine
+            | ObjectType::ObjectAggregate
+            | ObjectType::ObjectType
+            | ObjectType::ObjectDomain,
+        ) => rename
+            .object
+            .as_deref()
+            .and_then(object_name)
+            .map(|object| Effect::Object(TableMutation::AlterObject, object))
+            .into_iter()
+            .collect(),
         _ => Vec::new(),
     }
 }

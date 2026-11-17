@@ -8,9 +8,8 @@ use pg_query::NodeEnum;
 use pg_query::protobuf::{Node, ObjectType, RangeVar};
 
 use super::super::undeclared::qualify;
-use super::drops::{copied, dropped, granted, renamed};
+use super::drops::{dropped, granted, renamed};
 use super::kinds::{HiddenSql, TableMutation};
-use super::ledger::pinned_members;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum Effect {
@@ -97,7 +96,7 @@ pub(super) fn on(kind: TableMutation, relation: Option<&RangeVar>) -> Vec<Effect
         .collect()
 }
 
-fn write(
+pub(super) fn write(
     kind: TableMutation,
     relation: Option<&RangeVar>,
     with: &[Node],
@@ -112,7 +111,7 @@ fn write(
     effects
 }
 
-fn ctes(with: &[Node]) -> Vec<Effect> {
+pub(super) fn ctes(with: &[Node]) -> Vec<Effect> {
     with.iter()
         .filter_map(|cte| match cte.node.as_ref()? {
             NodeEnum::CommonTableExpr(cte) => cte.ctequery.as_ref()?.node.as_ref(),
@@ -122,13 +121,9 @@ fn ctes(with: &[Node]) -> Vec<Effect> {
         .collect()
 }
 
-fn calls_a_routine(statement: &impl serde::Serialize) -> bool {
-    serde_json::to_string(statement).map_or(true, |json| json.contains("\"FuncCall\""))
-}
-
 pub(super) fn effects_of(statement: &NodeEnum) -> Vec<Effect> {
     table_effects(statement)
-        .or_else(|| write_effects(statement))
+        .or_else(|| super::writes::write_effects(statement))
         .unwrap_or_else(|| other_effects(statement))
 }
 
@@ -145,8 +140,20 @@ fn table_effects(statement: &NodeEnum) -> Option<Vec<Effect>> {
                 .map(|index| Effect::Object(TableMutation::AlterIndex, index))
                 .into_iter()
                 .collect(),
+            Some(
+                ObjectType::ObjectView | ObjectType::ObjectMatview | ObjectType::ObjectSequence,
+            ) => altered(alter.relation.as_ref().and_then(relation_name)),
             _ => Vec::new(),
         },
+        NodeEnum::AlterSeqStmt(alter) => altered(alter.sequence.as_ref().and_then(relation_name)),
+        NodeEnum::AlterFunctionStmt(alter) => altered(
+            alter
+                .func
+                .as_ref()
+                .and_then(|func| qualified(&strings(&func.objname))),
+        ),
+        NodeEnum::AlterEnumStmt(alter) => altered(qualified(&strings(&alter.type_name))),
+        NodeEnum::AlterDomainStmt(alter) => altered(qualified(&strings(&alter.type_name))),
         NodeEnum::RenameStmt(rename) => renamed(rename),
         NodeEnum::AlterObjectSchemaStmt(moved) => match object_type(moved.object_type) {
             Some(
@@ -189,42 +196,11 @@ fn table_effects(statement: &NodeEnum) -> Option<Vec<Effect>> {
     })
 }
 
-fn write_effects(statement: &NodeEnum) -> Option<Vec<Effect>> {
-    Some(match statement {
-        NodeEnum::InsertStmt(insert) => write(
-            TableMutation::Insert,
-            insert.relation.as_ref(),
-            insert.with_clause.as_ref().map_or(&[], |w| &w.ctes),
-            None,
-        ),
-        NodeEnum::UpdateStmt(update) => write(
-            TableMutation::Update,
-            update.relation.as_ref(),
-            update.with_clause.as_ref().map_or(&[], |w| &w.ctes),
-            None,
-        ),
-        NodeEnum::DeleteStmt(delete) => write(
-            TableMutation::Delete,
-            delete.relation.as_ref(),
-            delete.with_clause.as_ref().map_or(&[], |w| &w.ctes),
-            pinned_members(delete.where_clause.as_deref()),
-        ),
-        NodeEnum::MergeStmt(merge) => write(
-            TableMutation::Merge,
-            merge.relation.as_ref(),
-            merge.with_clause.as_ref().map_or(&[], |w| &w.ctes),
-            None,
-        ),
-        NodeEnum::CopyStmt(copy) => copied(copy),
-        NodeEnum::SelectStmt(select) => {
-            let mut effects = ctes(select.with_clause.as_ref().map_or(&[], |w| &w.ctes));
-            if calls_a_routine(select.as_ref()) {
-                effects.push(Effect::Hidden(HiddenSql::RoutineCall));
-            }
-            effects
-        },
-        _ => return None,
-    })
+fn altered(object: Option<String>) -> Vec<Effect> {
+    object
+        .map(|object| Effect::Object(TableMutation::AlterObject, object))
+        .into_iter()
+        .collect()
 }
 
 fn other_effects(statement: &NodeEnum) -> Vec<Effect> {
@@ -239,23 +215,19 @@ fn other_effects(statement: &NodeEnum) -> Vec<Effect> {
         NodeEnum::DoStmt(_) => vec![Effect::Hidden(HiddenSql::Do)],
         NodeEnum::CallStmt(_) => vec![Effect::Hidden(HiddenSql::Call)],
         NodeEnum::ExecuteStmt(_) => vec![Effect::Hidden(HiddenSql::Execute)],
+        NodeEnum::CreateExtensionStmt(_) => vec![Effect::Hidden(HiddenSql::Extension)],
         NodeEnum::CreateStmt(_)
         | NodeEnum::CreateTableAsStmt(_)
         | NodeEnum::ViewStmt(_)
         | NodeEnum::CreateSeqStmt(_)
-        | NodeEnum::AlterSeqStmt(_)
         | NodeEnum::CreateEnumStmt(_)
-        | NodeEnum::AlterEnumStmt(_)
         | NodeEnum::CompositeTypeStmt(_)
         | NodeEnum::CreateDomainStmt(_)
-        | NodeEnum::AlterDomainStmt(_)
         | NodeEnum::CreateRangeStmt(_)
         | NodeEnum::CommentStmt(_)
         | NodeEnum::VariableSetStmt(_)
         | NodeEnum::TransactionStmt(_)
-        | NodeEnum::CreateExtensionStmt(_)
         | NodeEnum::LockStmt(_)
-        | NodeEnum::AlterFunctionStmt(_)
         | NodeEnum::RefreshMatViewStmt(_)
         | NodeEnum::NotifyStmt(_)
         | NodeEnum::VacuumStmt(_)
