@@ -52,6 +52,17 @@ fn ctx(app: &Arc<AppContext>, json: bool) -> CommandContext {
     crate::boot_ctx::with_app_boot(cli, EnvOverrides::default(), Arc::clone(app))
 }
 
+// The ledger-count tests own their database: `extension_migrations` is
+// written by every suite that installs a stub extension on the shared
+// database, so a table-wide count there moves under a concurrent run.
+async fn owned_app(label: &str) -> (DisposableDb, DbPool, Arc<AppContext>) {
+    ensure_test_bootstrap();
+    let database = DisposableDb::with_schema(label).await;
+    let pool = database.test_pool().await;
+    let ctx = test_app_context(database.url()).await;
+    (database, pool, ctx)
+}
+
 async fn applied_migration_count(pool: &DbPool) -> i64 {
     sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM extension_migrations")
         .fetch_one(pool.pool().as_ref())
@@ -182,7 +193,7 @@ async fn the_profile_migration_dispatcher_reinstalls_idempotently() {
 
 #[tokio::test]
 async fn the_profile_dispatcher_reports_a_clean_repair_without_writing() {
-    let (pool, app) = app().await;
+    let (database, pool, app) = owned_app("cli_repair_dry_run").await;
     let before = applied_migration_count(&pool).await;
 
     db::execute(parse(&["migrate-repair"]), &ctx(&app, false))
@@ -197,11 +208,13 @@ async fn the_profile_dispatcher_reports_a_clean_repair_without_writing() {
         before,
         "a dry-run repair must not touch the ledger"
     );
+    drop(app);
+    database.drop_now().await;
 }
 
 #[tokio::test]
 async fn the_profile_dispatcher_refuses_an_irreversible_down_migration() {
-    let (pool, app) = app().await;
+    let (database, pool, app) = owned_app("cli_refused_down").await;
     let before = applied_migration_count(&pool).await;
 
     let err = db::execute(parse(&["migrate-down", "logging", "1"]), &ctx(&app, false))
@@ -218,6 +231,8 @@ async fn the_profile_dispatcher_refuses_an_irreversible_down_migration() {
         before,
         "a refused revert must leave the ledger intact"
     );
+    drop(app);
+    database.drop_now().await;
 }
 
 #[tokio::test]

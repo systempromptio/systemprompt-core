@@ -17,8 +17,8 @@ use systemprompt_scheduler::services::{
     ReconcileTrigger,
 };
 use systemprompt_test_fixtures::{
-    core_members, fixture_admitted_of, fixture_app_context_with_extensions, fixture_config,
-    test_database_url, test_db_pool,
+    DisposableDb, core_members, fixture_admitted_of, fixture_app_context_with_extensions,
+    fixture_config, test_database_url,
 };
 
 use super::db_plane::{ApplyLog, DbPlane, ensure_table, seed_rows, stored_rows};
@@ -57,7 +57,12 @@ async fn context_with_planes(
         .expect("context")
 }
 
+// Each harness owns its database: `config_plane_state` keeps a row per
+// reconciled plane, and these planes are uniquely named per run, so on the
+// shared database every run would leave its planes behind for every
+// `/readyz` and plane listing to report.
 struct Harness {
+    database: DisposableDb,
     pool: DbPool,
     ctx: Arc<AppContext>,
     service: ConfigReconcileService,
@@ -74,9 +79,10 @@ async fn harness_with(
     planes: Vec<Arc<dyn ConfigPlane>>,
     authority: &[(&str, PlaneAuthority)],
 ) -> Harness {
-    let pool = test_db_pool().await;
+    let database = DisposableDb::with_schema("config_planes_e2e").await;
+    let pool = database.test_pool().await;
     ensure_table(&pool).await;
-    let mut config = fixture_config(&test_database_url());
+    let mut config = fixture_config(database.url());
     config.services_path = root.display().to_string();
     for (name, value) in authority {
         config.planes.authority.insert((*name).to_owned(), *value);
@@ -92,7 +98,12 @@ async fn harness_with(
     let service =
         ConfigReconcileService::from_app_context(&ctx, ConfigReconcileRepository::new(&pool))
             .expect("service");
-    Harness { pool, ctx, service }
+    Harness {
+        database,
+        pool,
+        ctx,
+        service,
+    }
 }
 
 fn new_log() -> ApplyLog {
@@ -164,6 +175,7 @@ async fn boot_reports_planes_in_dependency_order_and_config_apply_writes_them() 
         (audit.len(), audit[0].actor.as_str(), audit[0].mode.as_str()),
         (1, "cli", "merge")
     );
+    h.database.drop_now().await;
 }
 
 #[tokio::test]
@@ -218,6 +230,7 @@ async fn export_round_trips_console_rows_into_a_clean_declaration() {
     assert_eq!(declared.entries, stored_rows(&h.pool, name).await);
     let diff = h.service.diff(name).await.expect("diff");
     assert!(diff.rows.is_empty(), "{:?}", diff.rows);
+    h.database.drop_now().await;
 }
 
 #[tokio::test]
@@ -228,6 +241,7 @@ async fn export_of_an_empty_plane_is_none() {
     let h = harness(root.path(), vec![Arc::new(plane)], &[name]).await;
 
     assert!(h.service.export(name).await.expect("export").is_none());
+    h.database.drop_now().await;
 }
 
 #[tokio::test]
@@ -276,6 +290,7 @@ async fn console_edits_survive_boot_passes_and_later_applies() {
         h.service.diff(name).await.expect("diff").effect,
         PlaneEffect::OnRestart
     );
+    h.database.drop_now().await;
 }
 
 #[tokio::test]
@@ -306,6 +321,7 @@ async fn an_apply_that_does_not_converge_rolls_back_rows_and_audit() {
             .expect("audit")
             .is_empty()
     );
+    h.database.drop_now().await;
 }
 
 #[tokio::test]
@@ -346,6 +362,7 @@ async fn a_scoped_apply_writes_and_audits_only_the_named_entities() {
         .expect("audit");
     assert_eq!(audit.len(), 1);
     assert_eq!(audit[0].entity, "a");
+    h.database.drop_now().await;
 }
 
 #[tokio::test]
@@ -400,6 +417,7 @@ async fn a_preview_apply_reports_the_changes_and_writes_nothing() {
             .expect("audit")
             .is_empty()
     );
+    h.database.drop_now().await;
 }
 
 fn options<'a>(planes: &'a [String], reason: &'a str) -> ApplyOptions<'a> {
@@ -449,6 +467,7 @@ async fn a_file_authority_apply_overwrites_console_rows_and_audits_overwrite() {
         .expect("audit");
     assert_eq!(audit.len(), 3);
     assert!(audit.iter().all(|row| row.mode == "overwrite"));
+    h.database.drop_now().await;
 }
 
 #[tokio::test]
@@ -520,4 +539,5 @@ async fn apply_file_managed_leaves_db_authority_planes_alone() {
         stored_rows(&h.pool, name).await,
         snapshot(&[("a", "console")])
     );
+    h.database.drop_now().await;
 }

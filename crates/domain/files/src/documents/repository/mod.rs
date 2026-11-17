@@ -21,6 +21,7 @@ mod blob_holders;
 mod blobs;
 mod collab_owners;
 mod collab_peers;
+mod collab_snapshot;
 mod collab_updates;
 mod collab_web_presence;
 mod documents;

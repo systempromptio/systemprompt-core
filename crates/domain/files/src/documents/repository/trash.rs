@@ -4,6 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::documents::transient::retry_conflicts;
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{
     DocumentFolderId, DocumentId, DocumentRevisionId, DocumentTemplateId, UserId,
@@ -70,6 +71,14 @@ impl DocumentRepository {
     }
 
     pub async fn move_to_any(
+        &self,
+        id: &DocumentId,
+        folder: Option<&DocumentFolderId>,
+    ) -> RepoResult<bool> {
+        retry_conflicts(|| self.move_to_any_once(id, folder)).await
+    }
+
+    async fn move_to_any_once(
         &self,
         id: &DocumentId,
         folder: Option<&DocumentFolderId>,

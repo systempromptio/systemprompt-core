@@ -28,6 +28,7 @@ pub struct BootOptions {
     pub broken_storage: bool,
     pub storage_yaml: String,
     pub extra_secrets: Vec<(String, String)>,
+    pub database_url: Option<String>,
 }
 
 impl Default for BootOptions {
@@ -41,12 +42,16 @@ impl Default for BootOptions {
             broken_storage: false,
             storage_yaml: String::new(),
             extra_secrets: Vec::new(),
+            database_url: None,
         }
     }
 }
 
 pub fn boot(opts: &BootOptions) -> BootFixture {
-    let database_url = systemprompt_test_fixtures::test_database_url();
+    let database_url = opts
+        .database_url
+        .clone()
+        .unwrap_or_else(systemprompt_test_fixtures::test_database_url);
     let tmp = tempfile::tempdir().expect("create boot tempdir");
     let root = tmp.path();
 

@@ -11,6 +11,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::documents::transient::retry_conflicts;
 use systemprompt_identifiers::{
     DocumentFolderId, DocumentId, DocumentRevisionId, DocumentTemplateId, UserId,
 };
@@ -48,6 +49,10 @@ pub enum SubtreeTrash {
 
 impl DocumentFolderRepository {
     pub async fn insert(&self, request: NewFolder) -> RepoResult<DocumentFolder> {
+        retry_conflicts(|| self.insert_once(request.clone())).await
+    }
+
+    async fn insert_once(&self, request: NewFolder) -> RepoResult<DocumentFolder> {
         let parent: Vec<&str> = request
             .parent_id
             .iter()
@@ -143,6 +148,15 @@ impl DocumentFolderRepository {
     }
 
     pub async fn trash_subtree(
+        &self,
+        root: &DocumentFolderId,
+        by: &UserId,
+        plan: SubtreeTrashPlan<'_>,
+    ) -> RepoResult<SubtreeTrash> {
+        retry_conflicts(|| self.trash_subtree_once(root, by, plan)).await
+    }
+
+    async fn trash_subtree_once(
         &self,
         root: &DocumentFolderId,
         by: &UserId,

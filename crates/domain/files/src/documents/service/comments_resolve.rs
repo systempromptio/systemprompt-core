@@ -8,6 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::documents::transient::retry_conflicts;
 use systemprompt_identifiers::TraceId;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{DocumentAction, DocumentCommentResolvedEvent};
@@ -40,25 +41,30 @@ impl DocumentService {
         if let Some(revision) = &answering {
             self.resolve_revision(&current, Some(revision)).await?;
         }
-        let mut tx = self.repos.documents.begin().await?;
-        if !DocumentCommentRepository::resolve_in(&mut tx, document, comment, &who.id).await? {
-            return Err(DocumentsError::CommentNotFound {
-                document_id: document.clone(),
-                comment_id: comment.clone(),
-            });
-        }
-        if let Some(revision) = &answering {
-            DocumentCommentRepository::set_answering_in(&mut tx, document, comment, revision)
-                .await?;
-        }
-        let resolved = ResolvedComment {
-            document: &current,
-            comment: &open,
-            resolved_by: &who.id,
-            answering: answering.as_ref(),
-        };
-        self.record_comment_resolved(&mut tx, resolved).await?;
-        tx.commit().await.map_err(RepositoryError::from)?;
+        let (current, open, answering) = (&current, &open, answering.as_ref());
+        retry_conflicts(|| async move {
+            let mut tx = self.repos.documents.begin().await?;
+            if !DocumentCommentRepository::resolve_in(&mut tx, document, comment, &who.id).await? {
+                return Err(DocumentsError::CommentNotFound {
+                    document_id: document.clone(),
+                    comment_id: comment.clone(),
+                });
+            }
+            if let Some(revision) = answering {
+                DocumentCommentRepository::set_answering_in(&mut tx, document, comment, revision)
+                    .await?;
+            }
+            let resolved = ResolvedComment {
+                document: current,
+                comment: open,
+                resolved_by: &who.id,
+                answering,
+            };
+            self.record_comment_resolved(&mut tx, resolved).await?;
+            tx.commit().await.map_err(RepositoryError::from)?;
+            Ok(())
+        })
+        .await?;
         let resolved = self.comment_of(document, comment).await?;
         let event = DocumentCommentResolvedEvent {
             document_id: document.clone(),

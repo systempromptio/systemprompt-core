@@ -32,6 +32,7 @@ use crate::documents::repository::{
     DocumentMediaRepository, DocumentNodeIdRepository, DocumentProposalRepository,
     DocumentRepository, DocumentRevisionRepository, DocumentWriteAckRepository, HeadMove,
 };
+use crate::documents::transient::retry_conflicts;
 
 pub(super) struct Prepared {
     pub(super) revision: NewRevision,
@@ -71,6 +72,16 @@ impl Placement<'_> {
     }
 }
 
+#[derive(Clone, Copy)]
+struct LandAttempt<'a> {
+    revision: &'a NewRevision,
+    carried: &'a Carried,
+    merged_from: Option<&'a DocumentRevisionId>,
+    applied: usize,
+    media: &'a [String],
+    detached: &'a [DocumentCommentId],
+}
+
 pub(super) struct Stored {
     pub(super) revision: DocumentRevision,
     pub(super) ids: Projection,
@@ -84,7 +95,7 @@ pub(super) enum LandResult {
     Claimed(StoredWriteAck),
 }
 
-fn sql(error: sqlx::Error) -> DocumentsError {
+pub(super) fn sql(error: sqlx::Error) -> DocumentsError {
     DocumentsError::Repository(RepositoryError::from(error))
 }
 
@@ -159,27 +170,53 @@ impl DocumentService {
         } = prepared;
         let carried = carry_live(next, previous, hints).await?;
         let detached = self.detached_by(document, &carried, &placement).await?;
+        let attempt = LandAttempt {
+            revision: &revision,
+            carried: &carried,
+            merged_from: merged_from.as_ref(),
+            applied,
+            media: &media,
+            detached: &detached,
+        };
+        retry_conflicts(|| self.land_once(document, attempt, placement)).await
+    }
+
+    async fn land_once(
+        &self,
+        document: &Document,
+        attempt: LandAttempt<'_>,
+        placement: Placement<'_>,
+    ) -> Result<LandResult, DocumentsError> {
+        let carried = attempt.carried;
+        let revision = attempt.revision;
         let mut tx = self.repos.documents.begin().await?;
         let writer = writer_tag(revision.author_user_id.as_str());
         let entries = reserve(
             &mut tx,
             &document.id,
             &writer,
-            carried.entries,
+            carried.entries.clone(),
             carried.created,
         )
         .await?;
-        let previous = carried.previous;
-        let ids = with_ids(carried.next, &entries);
+        let previous = carried.previous.clone();
+        let ids = with_ids(carried.next.clone(), &entries);
         let parent = revision.parent_revision_id.clone();
-        let mut revision = DocumentRevisionRepository::insert_in(&mut tx, revision).await?;
+        let mut revision =
+            DocumentRevisionRepository::insert_in(&mut tx, attempt.revision.clone()).await?;
         DocumentNodeIdRepository::insert(&mut tx, &document.id, &revision.id, &entries).await?;
-        admit_media_in(&mut tx, &document.id, &media, &revision.author_user_id).await?;
+        admit_media_in(
+            &mut tx,
+            &document.id,
+            attempt.media,
+            &revision.author_user_id,
+        )
+        .await?;
         let ack = WriteAck {
             revision_id: revision.id.clone(),
             parent_revision_id: parent.clone(),
-            merged_from,
-            applied,
+            merged_from: attempt.merged_from.cloned(),
+            applied: attempt.applied,
             written: written_nodes(previous.as_ref(), &ids),
             created: created_nodes(previous.as_ref(), &ids),
         };
@@ -215,39 +252,8 @@ impl DocumentService {
             revision,
             ids,
             ack,
-            detached,
+            detached: attempt.detached.to_vec(),
         })))
-    }
-
-    pub(super) async fn land_existing(
-        &self,
-        document: &Document,
-        base: &DocumentRevisionId,
-        proposed: &mut DocumentRevision,
-        proposal: &DocumentProposalId,
-    ) -> Result<bool, DocumentsError> {
-        let mut tx = self.repos.documents.begin().await?;
-        let head = HeadMove {
-            document: &document.id,
-            expected: Some(base),
-            new: &proposed.id,
-            lock_holder: None,
-        };
-        if !DocumentRepository::move_head(&mut tx, head).await? {
-            drop(tx);
-            self.refuse_lock(document, None).await?;
-            return Ok(false);
-        }
-        proposed.landed_at =
-            Some(DocumentRevisionRepository::mark_landed(&mut tx, &proposed.id).await?);
-        if !DocumentProposalRepository::settle_landed(&mut tx, proposal, &proposed.id).await? {
-            drop(tx);
-            return Err(self.proposal_closed(proposal).await);
-        }
-        self.record_revision_landed(&mut tx, document, proposed)
-            .await?;
-        tx.commit().await.map_err(sql)?;
-        Ok(true)
     }
 }
 

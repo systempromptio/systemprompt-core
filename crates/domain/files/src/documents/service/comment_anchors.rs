@@ -6,6 +6,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::documents::transient::retry_conflicts;
 use systemprompt_identifiers::{DocumentCommentId, DocumentId, DocumentRevisionId};
 use systemprompt_models::documents::{Projection, ProjectionNode};
 use systemprompt_traits::RepositoryError;
@@ -76,11 +77,15 @@ impl DocumentService {
         let Some(comment) = &policy.answering else {
             return Ok(());
         };
-        let mut tx = self.repos.documents.begin().await?;
-        let answered =
-            DocumentCommentRepository::set_answering_in(&mut tx, document, comment, revision)
-                .await?;
-        tx.commit().await.map_err(RepositoryError::from)?;
+        let answered = retry_conflicts(|| async move {
+            let mut tx = self.repos.documents.begin().await?;
+            let answered =
+                DocumentCommentRepository::set_answering_in(&mut tx, document, comment, revision)
+                    .await?;
+            tx.commit().await.map_err(RepositoryError::from)?;
+            Ok::<_, DocumentsError>(answered)
+        })
+        .await?;
         if !answered {
             tracing::warn!(
                 document_id = %document,

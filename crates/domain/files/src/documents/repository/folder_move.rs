@@ -12,6 +12,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::documents::transient::retry_conflicts;
 use sqlx::{Postgres, Transaction};
 use systemprompt_identifiers::{DocumentFolderId, UserId};
 
@@ -63,6 +64,10 @@ pub(super) async fn rename_in(
 
 impl DocumentFolderRepository {
     pub async fn rename(&self, id: &DocumentFolderId, name: &str) -> RepoResult<bool> {
+        retry_conflicts(|| self.rename_once(id, name)).await
+    }
+
+    async fn rename_once(&self, id: &DocumentFolderId, name: &str) -> RepoResult<bool> {
         let mut tx = begin_tree_locked(&self.pools.write, &[id.as_str()]).await?;
         if !rename_in(&mut tx, id, name).await? {
             tx.rollback().await?;
@@ -73,6 +78,13 @@ impl DocumentFolderRepository {
     }
 
     pub async fn move_to(&self, relocation: FolderRelocation<'_>) -> RepoResult<FolderMoveOutcome> {
+        retry_conflicts(|| self.move_to_once(relocation)).await
+    }
+
+    async fn move_to_once(
+        &self,
+        relocation: FolderRelocation<'_>,
+    ) -> RepoResult<FolderMoveOutcome> {
         let mut touched = vec![relocation.folder.as_str()];
         touched.extend(relocation.parent.map(DocumentFolderId::as_str));
         let mut tx = begin_tree_locked(&self.pools.write, &touched).await?;

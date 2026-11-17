@@ -14,6 +14,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::documents::transient::retry_conflicts;
 use systemprompt_identifiers::{DocumentAccessRequestId, DocumentId, TraceId};
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_models::documents::{
@@ -184,6 +185,16 @@ impl DocumentService {
     }
 
     async fn grant_request(
+        &self,
+        who: &AuthenticatedUser,
+        request: &DocumentAccessRequestId,
+        share: ShareRequest,
+        trace: &TraceId,
+    ) -> Result<bool, DocumentsError> {
+        retry_conflicts(|| self.grant_request_once(who, request, share.clone(), trace)).await
+    }
+
+    async fn grant_request_once(
         &self,
         who: &AuthenticatedUser,
         request: &DocumentAccessRequestId,

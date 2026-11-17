@@ -19,8 +19,8 @@ use systemprompt_identifiers::UserId;
 use systemprompt_marketplace::{MarketplaceCandidate, MarketplaceFilter, MarketplaceFilterError};
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    TestBootstrap, fixture_config, init_isolated_bootstrap, seed_bridge_credential, seed_user_row,
-    test_db_pool,
+    DisposableDb, TestBootstrap, fixture_config, init_isolated_bootstrap, seed_bridge_credential,
+    seed_user_row,
 };
 use systemprompt_traits::AppContext as _;
 
@@ -49,7 +49,13 @@ impl MarketplaceFilter for CountingFilter {
     }
 }
 
+// The memo key carries a stamp over every managed table row of the
+// organisation owner, and every context on the shared database has the same
+// owner. A sibling test publishing an organisation resource there changes the
+// stamp and forces a rebuild these tests would count, so each harness owns its
+// database.
 struct Harness {
+    database: DisposableDb,
     ctx: AppContext,
     extractor: Arc<JwtContextExtractor>,
     filter: Arc<CountingFilter>,
@@ -58,11 +64,12 @@ struct Harness {
 
 async fn harness(mailbox: &str) -> Harness {
     let boot = boot();
-    let pool = test_db_pool().await;
+    let database = DisposableDb::with_schema("manifest_freshness").await;
+    let pool = database.test_pool().await;
     let filter = Arc::new(CountingFilter::default());
     let ctx = crate::support::context_on(
         boot,
-        fixture_config(&boot.database_url),
+        fixture_config(database.url()),
         Arc::clone(&filter) as Arc<dyn MarketplaceFilter>,
     )
     .await;
@@ -84,6 +91,7 @@ async fn harness(mailbox: &str) -> Harness {
         .await
         .expect("consumer credential");
     Harness {
+        database,
         ctx: (*ctx).clone(),
         extractor,
         filter,
@@ -143,6 +151,7 @@ async fn a_plain_fetch_within_the_ttl_is_served_from_the_memo() {
         1,
         "the second fetch is a memo hit and never re-runs the filter"
     );
+    harness.database.drop_now().await;
 }
 
 #[tokio::test]
@@ -157,4 +166,5 @@ async fn no_cache_within_the_revalidate_window_is_served_from_the_memo() {
         1,
         "a memo younger than FRESH_REVALIDATE_AFTER satisfies no-cache"
     );
+    harness.database.drop_now().await;
 }

@@ -22,6 +22,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::documents::transient::retry_conflicts;
 use std::time::Duration;
 
 use systemprompt_identifiers::{AgentName, DocumentEditSessionId, DocumentId, UserId};
@@ -158,6 +159,16 @@ impl DocumentCollabRepository {
     }
 
     pub async fn append_on(
+        &self,
+        session: &DocumentEditSessionId,
+        validated_through: i64,
+        update: &[u8],
+        author: UpdateAuthor<'_>,
+    ) -> RepoResult<CollabAppend> {
+        retry_conflicts(|| self.append_on_once(session, validated_through, update, author)).await
+    }
+
+    async fn append_on_once(
         &self,
         session: &DocumentEditSessionId,
         validated_through: i64,

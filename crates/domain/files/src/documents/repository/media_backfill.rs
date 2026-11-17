@@ -6,6 +6,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::documents::transient::retry_conflicts;
 use sqlx::Acquire;
 use systemprompt_identifiers::{ContentHash, DocumentId, UserId};
 
@@ -53,6 +54,15 @@ impl DocumentMediaRepository {
     }
 
     pub async fn complete_backfill(
+        &self,
+        document: &DocumentId,
+        hashes: &[String],
+        admitted_by: &[String],
+    ) -> RepoResult<()> {
+        retry_conflicts(|| self.complete_backfill_once(document, hashes, admitted_by)).await
+    }
+
+    async fn complete_backfill_once(
         &self,
         document: &DocumentId,
         hashes: &[String],
