@@ -1,13 +1,16 @@
 //! What `AnalyticsExtension` contributes: its schemas, the protective and
 //! housekeeping jobs, the retention purges of its tables, the IP-ban-store
-//! requirement and the two values it provides. The required standing is the
+//! requirement and the four values it provides. The required standing is the
 //! reference composition's, asserted by the facade tests; the boot refusal of
 //! a profile that disables it is asserted on the full server in
 //! `integration/api/server_mount_analytics.rs`.
 
 use std::any::TypeId;
+use std::sync::Arc;
 
+use systemprompt_analytics::AnalyticsService;
 use systemprompt_analytics::extension::AnalyticsExtension;
+use systemprompt_analytics::repository::AnalyticsRepositories;
 use systemprompt_extension::contribute::ContributionSink;
 use systemprompt_extension::{Contributions, Extension};
 use systemprompt_identifiers::ExtensionId;
@@ -67,13 +70,15 @@ fn the_analytics_member_requires_the_ip_ban_store() {
 }
 
 #[test]
-fn the_analytics_member_provides_popularity_and_the_behaviour_scorer() {
+fn the_analytics_member_provides_popularity_its_repositories_service_and_the_behaviour_scorer() {
     let sink = contributed();
     let provided: Vec<TypeId> = sink.provides().iter().map(|p| p.type_id()).collect();
     assert_eq!(
         provided,
         [
             TypeId::of::<DynContentPopularity>(),
+            TypeId::of::<Arc<AnalyticsRepositories>>(),
+            TypeId::of::<Arc<AnalyticsService>>(),
             TypeId::of::<DynSessionBehaviourScorer>(),
         ]
     );

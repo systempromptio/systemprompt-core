@@ -1,11 +1,12 @@
+use systemprompt_database::DbPool;
 use systemprompt_files::UploadLimits;
 use systemprompt_files::uploads::{
     DocumentUploadRepository, UploadError, UploadSession, UploadStatus,
 };
 use systemprompt_identifiers::{DocumentUploadId, UserId};
-use systemprompt_test_fixtures::test_db_pool;
+use systemprompt_test_fixtures::{DisposableDb, test_db_pool};
 
-use crate::uploads_rig::{UploadRig, body, hash_of, request, rig_with, trace};
+use crate::uploads_rig::{UploadRig, body, hash_of, request, rig_on, rig_with, trace};
 
 const TEXT: &str = "text/plain";
 
@@ -34,8 +35,8 @@ async fn open(rig: &UploadRig, bytes: &[u8]) -> UploadSession {
         .expect("create")
 }
 
-async fn backdate(id: &DocumentUploadId) {
-    let pool = test_db_pool().await.pool();
+async fn backdate(db: &DbPool, id: &DocumentUploadId) {
+    let pool = db.pool();
     sqlx::query(
         "UPDATE document_uploads SET expires_at = now() - interval '1 hour' WHERE id = $1::uuid",
     )
@@ -113,24 +114,28 @@ async fn completing_a_session_another_caller_claimed_reports_it_closed() {
 
 #[tokio::test]
 async fn an_expired_session_cannot_be_claimed_and_expiry_closes_it() {
-    let rig = rig_with(four_byte_parts()).await;
+    let disposable = DisposableDb::with_schema("files_upload_expiry_sweep").await;
+    let db = disposable.test_pool().await;
+    let rig = rig_on(&db, four_byte_parts());
     let session = open(&rig, b"abcdefgh").await;
     rig.service
         .put_part(&session.owner_user_id, &session.id, 1, body(b"abcd"))
         .await
         .expect("part");
-    backdate(&session.id).await;
-    let uploads = repo().await;
+    backdate(&db, &session.id).await;
+    let uploads = DocumentUploadRepository::new(&db);
 
     assert!(!uploads.claim(&session.id).await.expect("claim expired"));
     let listed = uploads.list_expired(10_000).await.expect("list");
     assert!(listed.contains(&session.id));
 
     let outcome = rig.service.expire(10_000).await.expect("expire");
-    assert!(outcome.expired >= 1);
-    assert_eq!(status_of(&session.id).await, UploadStatus::Expired);
+    assert_eq!(outcome.expired, 1);
+    let closed = uploads.find(&session.id).await.expect("find").expect("row");
+    assert_eq!(closed.status, UploadStatus::Expired);
     let listed = uploads.list_expired(10_000).await.expect("list again");
     assert!(!listed.contains(&session.id));
+    disposable.drop_now().await;
 }
 
 #[tokio::test]

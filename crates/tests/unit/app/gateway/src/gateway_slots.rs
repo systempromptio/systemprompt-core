@@ -29,6 +29,10 @@ fn entry<B>(owner: &str, standing: StandingTag, builder: B) -> (&str, StandingTa
     (owner, standing, builder)
 }
 
+fn gateway_owner<B: Default>() -> (&'static str, StandingTag, B) {
+    entry("gateway", StandingTag::Core, B::default())
+}
+
 fn adapter(_: &Resolved<'_>) -> Result<Arc<dyn OutboundAdapter>, FactoryError> {
     Ok(Arc::new(AnthropicOutbound))
 }
@@ -48,7 +52,10 @@ fn an_install_adapter_tagged_like_a_builtin_is_refused() {
         let mut builder = OutboundBuilder::default();
         builder.adapter(tag, adapter);
         let err = built_slot::<OutboundSlot>(
-            vec![entry("acme", StandingTag::Install, builder)],
+            vec![
+                gateway_owner(),
+                entry("acme", StandingTag::Install, builder),
+            ],
             &kernel.resolved(),
         )
         .expect_err("a built-in tag is refused");
@@ -68,6 +75,7 @@ fn two_adapters_with_one_tag_are_refused() {
     second.adapter("acme-wire", adapter);
     let err = built_slot::<OutboundSlot>(
         vec![
+            gateway_owner(),
             entry("first", StandingTag::Install, first),
             entry("second", StandingTag::Install, second),
         ],
@@ -86,7 +94,10 @@ fn a_new_tag_is_added_beside_the_builtins_as_the_negative_control() {
     let mut builder = OutboundBuilder::default();
     builder.adapter("acme-wire", adapter);
     let registry = built_slot::<OutboundSlot>(
-        vec![entry("acme", StandingTag::Install, builder)],
+        vec![
+            gateway_owner(),
+            entry("acme", StandingTag::Install, builder),
+        ],
         &kernel.resolved(),
     )
     .expect("a new tag builds");
@@ -108,7 +119,7 @@ fn a_scanner_named_like_a_builtin_or_twice_is_refused() {
     shadow.scanner("heuristic", null_scanner);
     assert!(matches!(
         built_slot::<SafetyScannerSlot>(
-            vec![entry("acme", StandingTag::Install, shadow)],
+            vec![gateway_owner(), entry("acme", StandingTag::Install, shadow)],
             &kernel.resolved()
         ),
         Err(SlotError::DuplicateId { .. })
@@ -121,6 +132,7 @@ fn a_scanner_named_like_a_builtin_or_twice_is_refused() {
     assert!(matches!(
         built_slot::<SafetyScannerSlot>(
             vec![
+                gateway_owner(),
                 entry("first", StandingTag::Install, first),
                 entry("second", StandingTag::Install, second),
             ],

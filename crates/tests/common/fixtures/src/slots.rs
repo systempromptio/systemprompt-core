@@ -13,6 +13,7 @@ pub fn built_slot<S: Slot>(
     entries: Vec<(&str, StandingTag, S::Builder)>,
     r: &Resolved<'_>,
 ) -> Result<Arc<S::Built>, SlotError> {
+    let contributed = !entries.is_empty();
     let mut inputs = Vec::new();
     for (owner, standing, builder) in entries {
         let owner = ExtensionId::new(owner);
@@ -26,6 +27,10 @@ pub fn built_slot<S: Slot>(
         );
     }
     let Some(built) = build_slot(inputs, r)? else {
+        assert!(
+            !contributed,
+            "a core-first slot with no core-standing entry is not built; open it with the core owner's entry first"
+        );
         return S::build(Vec::new(), r).map(Arc::new);
     };
     let mut state = Dependencies::default();

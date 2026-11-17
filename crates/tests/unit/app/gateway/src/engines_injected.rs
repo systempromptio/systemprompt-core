@@ -11,7 +11,7 @@ use systemprompt_test_fixtures::ensure_test_secrets_bootstrap;
 async fn a_new_engine_set_carries_the_builtins_of_every_engine() {
     let engines = GatewayEngines::new(
         Default::default(),
-        &systemprompt_test_fixtures::empty_resolved_kernel().resolved(),
+        &systemprompt_test_fixtures::gateway_resolved_kernel().resolved(),
         ensure_test_secrets_bootstrap(),
     )
     .expect("gateway engines build");
@@ -45,7 +45,7 @@ async fn engines_are_values_not_a_process_singleton() {
     let first = Arc::new(
         GatewayEngines::new(
             Default::default(),
-            &systemprompt_test_fixtures::empty_resolved_kernel().resolved(),
+            &systemprompt_test_fixtures::gateway_resolved_kernel().resolved(),
             ensure_test_secrets_bootstrap(),
         )
         .expect("gateway engines build"),
@@ -53,7 +53,7 @@ async fn engines_are_values_not_a_process_singleton() {
     let second = Arc::new(
         GatewayEngines::new(
             Default::default(),
-            &systemprompt_test_fixtures::empty_resolved_kernel().resolved(),
+            &systemprompt_test_fixtures::gateway_resolved_kernel().resolved(),
             ensure_test_secrets_bootstrap(),
         )
         .expect("gateway engines build"),
@@ -71,13 +71,13 @@ async fn engines_are_values_not_a_process_singleton() {
 async fn failover_state_is_owned_per_engine_set() {
     let first = GatewayEngines::new(
         Default::default(),
-        &systemprompt_test_fixtures::empty_resolved_kernel().resolved(),
+        &systemprompt_test_fixtures::gateway_resolved_kernel().resolved(),
         ensure_test_secrets_bootstrap(),
     )
     .expect("gateway engines build");
     let second = GatewayEngines::new(
         Default::default(),
-        &systemprompt_test_fixtures::empty_resolved_kernel().resolved(),
+        &systemprompt_test_fixtures::gateway_resolved_kernel().resolved(),
         ensure_test_secrets_bootstrap(),
     )
     .expect("gateway engines build");
@@ -98,13 +98,13 @@ async fn failover_state_is_owned_per_engine_set() {
 async fn a_breaker_opened_on_one_engine_set_leaves_the_other_closed() {
     let first = GatewayEngines::new(
         Default::default(),
-        &systemprompt_test_fixtures::empty_resolved_kernel().resolved(),
+        &systemprompt_test_fixtures::gateway_resolved_kernel().resolved(),
         ensure_test_secrets_bootstrap(),
     )
     .expect("gateway engines build");
     let second = GatewayEngines::new(
         Default::default(),
-        &systemprompt_test_fixtures::empty_resolved_kernel().resolved(),
+        &systemprompt_test_fixtures::gateway_resolved_kernel().resolved(),
         ensure_test_secrets_bootstrap(),
     )
     .expect("gateway engines build");

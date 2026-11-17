@@ -45,7 +45,12 @@ fn test_database_extension_dependencies() {
 fn test_database_extension_schemas() {
     let sink = contributions();
     let schemas = sink.schemas();
-    assert_eq!(schemas.len(), 17);
+    assert_eq!(schemas.len(), 18);
+    assert!(
+        schemas
+            .iter()
+            .any(|s| s.table.as_deref() == Some("schema_object_owners"))
+    );
     assert!(
         schemas
             .iter()

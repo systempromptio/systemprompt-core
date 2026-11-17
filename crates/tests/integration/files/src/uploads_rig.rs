@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use sha2::{Digest, Sha256};
+use systemprompt_database::DbPool;
 use systemprompt_files::documents::blob_store::BlobStore;
 use systemprompt_files::documents::repository::DocumentBlobRepository;
 use systemprompt_files::uploads::{
@@ -23,16 +24,19 @@ pub(crate) struct UploadRig {
 }
 
 pub(crate) async fn rig_with(limits: UploadLimits) -> UploadRig {
-    let db = test_db_pool().await;
+    rig_on(&test_db_pool().await, limits)
+}
+
+pub(crate) fn rig_on(db: &DbPool, limits: UploadLimits) -> UploadRig {
     let dir = TempDir::new().expect("tempdir");
     let storage: Arc<dyn FileStorage> = Arc::new(LocalFileStorage::new(dir.path().to_path_buf()));
     let blobs = Arc::new(BlobStore::new(
         Arc::clone(&storage),
-        Arc::new(DocumentBlobRepository::new(&db, core_blob_holders())),
+        Arc::new(DocumentBlobRepository::new(db, core_blob_holders())),
     ));
     let service = UploadService::new(UploadServiceParts {
         storage,
-        uploads: Arc::new(DocumentUploadRepository::new(&db)),
+        uploads: Arc::new(DocumentUploadRepository::new(db)),
         blobs,
         max_upload_bytes: DocumentsConfig::default().max_upload_bytes,
         limits,

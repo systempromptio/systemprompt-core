@@ -178,6 +178,32 @@ fn unknown_config_id_rejects_engine_construction() {
 }
 
 #[test]
+fn a_contributed_entry_may_set_only_its_switch_and_mode() {
+    let e = engine(
+        "governance:\n  policies:\n    - id: t_deny\n      enabled: true\n      mode: enforce\n",
+    );
+    assert!(e.policies().any(|(cfg, _)| cfg.id == "t_deny"));
+
+    let config = GovernanceConfig::parse(
+        "governance:\n  policies:\n    - id: t_deny\n      params:\n        limit: 3\n",
+    )
+    .unwrap();
+    let error =
+        GovernanceEngine::from_config(&config, &catalog(), Some(crate::offline_rate_windows()))
+            .unwrap_err();
+    assert!(
+        matches!(
+            &error,
+            systemprompt_governance::policy::GovernanceEngineError::InvalidPolicyConfiguration {
+                id,
+                source: systemprompt_governance::policy::PolicyConfigurationError::ContributedPolicyParams,
+            } if id == "t_deny"
+        ),
+        "{error:?}"
+    );
+}
+
+#[test]
 fn unmentioned_registered_policies_are_appended_disabled() {
     let e = engine("governance:\n  policies:\n    - id: t_allow\n");
     let (cfg, _) = e
