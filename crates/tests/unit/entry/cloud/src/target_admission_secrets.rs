@@ -92,10 +92,11 @@ fn a_disabled_field_that_is_not_a_list_is_named_by_the_variable() {
     let profile = target(&format!("  disabled: \"${{{var}}}\"\n"));
     let error = read_disabled(&profile.path).expect_err("a string is not a list");
     assert!(
-        matches!(&error, TargetAdmissionError::ParseWithheld { variables, .. } if variables == &[var.to_owned()]),
+        matches!(&error, TargetAdmissionError::Parse { .. }),
         "{error:?}"
     );
     assert!(!chain(&error).contains(SECRET), "{}", chain(&error));
+    assert!(chain(&error).contains(&format!("${{{var}}}")), "{}", chain(&error));
     let admitted = admit(&profile.path);
     assert!(!chain(&admitted).contains(SECRET));
     assert!(!composition_failure(&admitted).detail.contains(SECRET));
