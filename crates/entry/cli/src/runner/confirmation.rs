@@ -17,9 +17,8 @@
 use anyhow::{Result, bail};
 use clap::ArgMatches;
 
-use crate::cli_settings::CliConfig;
-use crate::descriptor::CommandDescriptor;
-use crate::interactive::{DialoguerPrompter, Prompter};
+use crate::interactive::DialoguerPrompter;
+use systemprompt_extension::cli::{CliConfig, CommandDescriptor, Prompter};
 
 const YES_ARG: &str = "yes";
 

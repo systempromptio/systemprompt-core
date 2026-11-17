@@ -185,6 +185,6 @@ async fn the_same_sub_from_two_upstream_issuers_resolves_to_two_users() {
 
     assert_ne!(resolved[0], resolved[1], "the issuers' subs never alias");
     for id in &resolved {
-        let _ = users.delete(id).await;
+        let _ = users.delete(id, &crate::purge_plan()).await;
     }
 }

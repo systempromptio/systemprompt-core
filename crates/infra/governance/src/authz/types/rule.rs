@@ -6,7 +6,7 @@
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::RuleId;
 
-use super::kinds::{Access, EntityKind, RuleType};
+use super::{Access, EntityKind, RuleType};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, sqlx::FromRow)]
 pub struct AccessRule {
@@ -25,7 +25,7 @@ pub struct AccessRule {
 /// `"bootstrap:*"` for rows promoted from older schemas by a migration.
 ///
 /// A `None` lookup result means the entity is unknown to access control and
-/// the resolver returns [`super::decision::DenyReason::UnknownEntity`] rather
+/// the resolver returns [`super::DenyReason::UnknownEntity`] rather
 /// than the generic `NotAssigned`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EntityRow {

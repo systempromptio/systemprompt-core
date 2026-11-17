@@ -6,7 +6,7 @@ use std::sync::Arc;
 use systemprompt_agent::repository::EmptyContextRepository;
 use systemprompt_database::DbPool;
 use systemprompt_mcp::repository::ToolUsageRepository;
-use systemprompt_test_fixtures::test_db_pool;
+use systemprompt_test_fixtures::{DisposableDb, test_db_pool};
 
 fn empty_context_repository(pool: &DbPool) -> EmptyContextRepository {
     EmptyContextRepository::new(pool, Arc::new(ToolUsageRepository::new(pool)))
@@ -51,7 +51,8 @@ mod empty_context_repository {
 
     #[tokio::test]
     async fn cleanup_empty_contexts_executes_for_various_windows() {
-        let pool = test_db_pool().await;
+        let disposable = DisposableDb::with_schema("agent_empty_context_windows").await;
+        let pool = disposable.test_pool().await;
         let repo = empty_context_repository(&pool);
 
         for hours in [0_i64, 1, 24, 168] {
@@ -59,6 +60,7 @@ mod empty_context_repository {
                 .await
                 .expect("cleanup query should execute for any window");
         }
+        disposable.drop_now().await;
     }
 
     #[tokio::test]

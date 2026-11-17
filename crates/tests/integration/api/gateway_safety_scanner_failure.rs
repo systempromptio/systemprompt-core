@@ -1,13 +1,15 @@
 //! A safety scanner that fails is never read as clean: an enforcing policy
 //! blocks the request and persists a `scanner_failure` finding.
 
+use std::sync::Arc;
+
 use systemprompt_database::DbPool;
 use systemprompt_gateway::protocol::CanonicalContent;
 use systemprompt_gateway::protocol::canonical::{CanonicalRequest, CanonicalResponse};
 use systemprompt_gateway::service::{DispatchError, GatewayError, GatewayService};
 use systemprompt_gateway::{
-    CATEGORY_SCANNER_FAILURE, Finding, GatewayRepositories, SafetyScanner, ScanError,
-    ScannerSettings, register_safety_scanner,
+    CATEGORY_SCANNER_FAILURE, Finding, GatewayRepositories, SafetyConfig, SafetyScanner, ScanError,
+    ScannerFactory, ScannerSettings,
 };
 use systemprompt_identifiers::AiRequestId;
 use systemprompt_models::providers::ClientFamily;
@@ -17,8 +19,8 @@ use uuid::Uuid;
 
 use super::common::setup_ctx;
 use super::gateway_pipeline::{
-    MODEL, PROVIDER, canonical_request, gateway_config, gw_repos, inputs, install_provider_api_key,
-    provider_registry,
+    MODEL, PROVIDER, canonical_request, engines_with_scanners, gateway_config, gw_repos, inputs,
+    install_provider_api_key, provider_registry,
 };
 
 const SCANNER: &str = "test_failing_on_marker";
@@ -55,10 +57,14 @@ impl SafetyScanner for FailingOnMarkerScanner {
     }
 }
 
-register_safety_scanner!(
-    |_: &dyn systemprompt_extension::ExtensionContext, _: &ScannerSettings| FailingOnMarkerScanner,
-    name = SCANNER
-);
+fn contributed_engines() -> Arc<systemprompt_gateway::GatewayEngines> {
+    engines_with_scanners(vec![(
+        SCANNER,
+        Arc::new(|_: &SafetyConfig, _: &ScannerSettings| {
+            Arc::new(FailingOnMarkerScanner) as Arc<dyn SafetyScanner>
+        }) as Arc<dyn ScannerFactory>,
+    )])
+}
 
 async fn install_policy(pool: &DbPool, name: &str) -> anyhow::Result<()> {
     let pg = pool.pool();
@@ -120,7 +126,8 @@ async fn a_failing_scanner_blocks_the_request_under_an_enforcing_policy() -> any
     request.messages[0].content = vec![CanonicalContent::text(format!(
         "an ordinary question carrying the {MARKER}"
     ))];
-    let di = inputs(&cred, request, false);
+    let mut di = inputs(&cred, request, false);
+    di.engines = contributed_engines();
     let request_id = di.ctx.ai_request_id.clone();
 
     let repos = gw_repos(&pool);

@@ -4,8 +4,8 @@
 //! See <https://systemprompt.io> for licensing details.
 use systemprompt_logging::CliService;
 
-use crate::shared::CommandOutput;
 use serde_json::Value;
+use systemprompt_extension::cli::CommandOutput;
 use systemprompt_identifiers::TraceId;
 use systemprompt_runtime::{
     AiRequestSummary, ExecutionStepSummary, McpExecutionSummary, TraceEvent,

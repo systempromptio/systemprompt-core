@@ -1,15 +1,24 @@
-//! Behaviour of the inventory-registered `mcp_session_cleanup` job: metadata,
-//! a successful run over a live pool, and the context/pool error arms.
+//! Behaviour of the `mcp_session_cleanup` job the mcp member contributes:
+//! metadata, a successful run over a live pool, and the context/pool error
+//! arms.
 
+use std::sync::Arc;
+
+use systemprompt_extension::StandingTag;
 use systemprompt_identifiers::Actor;
+use systemprompt_mcp::McpExtension;
 use systemprompt_provider_contracts::{Dependencies, Job, JobContext, ProviderError};
-use systemprompt_test_fixtures::{closed_db_pool, fixture_user_id, test_db_pool};
+use systemprompt_test_fixtures::{admitted_member, closed_db_pool, fixture_user_id, test_db_pool};
 
-fn cleanup_job() -> &'static dyn Job {
-    systemprompt_traits::registered_jobs()
-        .map(|registration| registration.job)
+fn cleanup_job() -> Arc<dyn Job> {
+    admitted_member(&McpExtension, StandingTag::Core)
+        .expect("the mcp member admits")
+        .sink
+        .jobs()
+        .iter()
+        .map(|contributed| Arc::clone(contributed.job()))
         .find(|j| j.name() == "mcp_session_cleanup")
-        .expect("mcp_session_cleanup registered via submit_job!")
+        .expect("the mcp member contributes mcp_session_cleanup")
 }
 
 fn context_with(dependencies: Dependencies) -> JobContext {

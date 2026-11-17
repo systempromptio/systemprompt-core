@@ -8,20 +8,17 @@ use super::{embeddings, generation, search};
 use crate::error::Result;
 use crate::models::ai::{
     AiResponse, EmbeddingRequest, EmbeddingResponse, SamplingParams, SearchGroundedResponse,
-    StreamChunk,
 };
 use crate::models::tools::ToolCall;
 use crate::services::providers::canonical_bridge::tools_to_canonical;
 use crate::services::providers::{
-    GenerationParams, ModelPricing, ProviderClient, SchemaGenerationParams, SearchGenerationParams,
-    StructuredGenerationParams, ToolGenerationParams, catalog_default_model, catalog_pricing,
-    catalog_supports_model,
+    EventStream, GenerationParams, ModelPricing, ProviderClient, SchemaGenerationParams,
+    SearchGenerationParams, StructuredGenerationParams, ToolGenerationParams,
+    catalog_default_model, catalog_pricing, catalog_supports_model,
 };
 use crate::services::schema::ProviderCapabilities;
 use async_trait::async_trait;
-use futures::Stream;
 use reqwest::{Client, Response};
-use std::pin::Pin;
 
 // JSON: protocol boundary — the rendered wire body is dynamic JSON.
 use serde_json::Value;
@@ -177,17 +174,14 @@ impl ProviderClient for OpenAiProvider {
         true
     }
 
-    async fn generate_stream(
-        &self,
-        params: GenerationParams<'_>,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
+    async fn generate_stream(&self, params: GenerationParams<'_>) -> Result<EventStream> {
         self.create_stream_request(params, None).await
     }
 
     async fn generate_with_tools_stream(
         &self,
         params: ToolGenerationParams<'_>,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
+    ) -> Result<EventStream> {
         let tools = tools_to_canonical(params.tools);
         self.create_stream_request(params.base, Some(tools)).await
     }

@@ -1,0 +1,292 @@
+//! Rule and entity kind tags with parse/display.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use std::fmt;
+use std::str::FromStr;
+
+use std::borrow::Cow;
+
+use serde::{Deserialize, Serialize};
+
+use super::GovernanceParseError;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
+#[cfg_attr(feature = "sqlx", sqlx(type_name = "TEXT", rename_all = "lowercase"))]
+#[serde(rename_all = "lowercase")]
+pub enum Access {
+    Allow,
+    Deny,
+}
+
+impl fmt::Display for Access {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match *self {
+            Self::Allow => "allow",
+            Self::Deny => "deny",
+        })
+    }
+}
+
+impl FromStr for Access {
+    type Err = GovernanceParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "allow" => Ok(Self::Allow),
+            "deny" => Ok(Self::Deny),
+            other => Err(GovernanceParseError::InvalidAccess(other.to_owned())),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EntityKind {
+    GatewayRoute,
+    McpServer,
+    Plugin,
+    Agent,
+    Marketplace,
+    Skill,
+    Hook,
+    SlackWorkspace,
+    SlackChannel,
+    TeamsTenant,
+    TeamsConversation,
+    Model,
+    Provider,
+    Document,
+    Folder,
+}
+
+impl EntityKind {
+    pub const ALL: &'static [Self] = &[
+        Self::GatewayRoute,
+        Self::McpServer,
+        Self::Plugin,
+        Self::Agent,
+        Self::Marketplace,
+        Self::Skill,
+        Self::Hook,
+        Self::SlackWorkspace,
+        Self::SlackChannel,
+        Self::TeamsTenant,
+        Self::TeamsConversation,
+        Self::Model,
+        Self::Provider,
+        Self::Document,
+        Self::Folder,
+    ];
+
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::GatewayRoute => "gateway_route",
+            Self::McpServer => "mcp_server",
+            Self::Plugin => "plugin",
+            Self::Agent => "agent",
+            Self::Marketplace => "marketplace",
+            Self::Skill => "skill",
+            Self::Hook => "hook",
+            Self::SlackWorkspace => "slack_workspace",
+            Self::SlackChannel => "slack_channel",
+            Self::TeamsTenant => "teams_tenant",
+            Self::TeamsConversation => "teams_conversation",
+            Self::Model => "model",
+            Self::Provider => "provider",
+            Self::Document => "document",
+            Self::Folder => "folder",
+        }
+    }
+}
+
+impl FromStr for EntityKind {
+    type Err = GovernanceParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "gateway_route" => Ok(Self::GatewayRoute),
+            "mcp_server" => Ok(Self::McpServer),
+            "plugin" => Ok(Self::Plugin),
+            "agent" => Ok(Self::Agent),
+            "marketplace" => Ok(Self::Marketplace),
+            "skill" => Ok(Self::Skill),
+            "hook" => Ok(Self::Hook),
+            "slack_workspace" => Ok(Self::SlackWorkspace),
+            "slack_channel" => Ok(Self::SlackChannel),
+            "teams_tenant" => Ok(Self::TeamsTenant),
+            "teams_conversation" => Ok(Self::TeamsConversation),
+            "model" => Ok(Self::Model),
+            "provider" => Ok(Self::Provider),
+            "document" => Ok(Self::Document),
+            "folder" => Ok(Self::Folder),
+            other => Err(GovernanceParseError::UnknownEntityKind(other.to_owned())),
+        }
+    }
+}
+
+impl fmt::Display for EntityKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+#[cfg(feature = "sqlx")]
+impl sqlx::Type<sqlx::Postgres> for EntityKind {
+    fn type_info() -> <sqlx::Postgres as sqlx::Database>::TypeInfo {
+        <str as sqlx::Type<sqlx::Postgres>>::type_info()
+    }
+
+    fn compatible(ty: &<sqlx::Postgres as sqlx::Database>::TypeInfo) -> bool {
+        <str as sqlx::Type<sqlx::Postgres>>::compatible(ty)
+    }
+}
+
+#[cfg(feature = "sqlx")]
+impl<'q> sqlx::Encode<'q, sqlx::Postgres> for EntityKind {
+    fn encode_by_ref(
+        &self,
+        buf: &mut <sqlx::Postgres as sqlx::Database>::ArgumentBuffer,
+    ) -> Result<sqlx::encode::IsNull, sqlx::error::BoxDynError> {
+        <&str as sqlx::Encode<'q, sqlx::Postgres>>::encode(self.as_str(), buf)
+    }
+}
+
+#[cfg(feature = "sqlx")]
+impl<'r> sqlx::Decode<'r, sqlx::Postgres> for EntityKind {
+    fn decode(
+        value: <sqlx::Postgres as sqlx::Database>::ValueRef<'r>,
+    ) -> Result<Self, sqlx::error::BoxDynError> {
+        let raw = <&str as sqlx::Decode<'r, sqlx::Postgres>>::decode(value)?;
+        Ok(Self::from_str(raw)?)
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error("invalid rule_type: {0}")]
+pub struct RuleTypeError(pub String);
+
+/// Open subject-dimension vocabulary bound to `access_control_rules.rule_type`.
+///
+/// Core mints exactly two: [`RuleType::USER`] and [`RuleType::ROLE`]. Every
+/// other dimension (department, cost centre, clearance, ...) is an extension
+/// concern, minted with [`RuleType::extension`] and taught to the resolver via
+/// a subject dimension its subject-attribute provider declares. Core never
+/// interprets an extension slug. [`RuleType::extension_static`] mints a literal
+/// slug in a `const`, so a malformed one fails the build instead of a runtime
+/// check.
+///
+/// This mirrors the authz context: the column is an open vocabulary
+/// validated at the Rust boundary rather than by a SQL `CHECK`, so an
+/// unrecognised-but-well-formed slug is data, not an error.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct RuleType(Cow<'static, str>);
+
+impl RuleType {
+    pub const USER: Self = Self(Cow::Borrowed("user"));
+    pub const ROLE: Self = Self(Cow::Borrowed("role"));
+
+    pub fn extension(slug: impl Into<Cow<'static, str>>) -> Result<Self, RuleTypeError> {
+        let slug = slug.into();
+        if !is_extension_slug(slug.as_bytes()) {
+            return Err(RuleTypeError(slug.into_owned()));
+        }
+        Ok(Self(slug))
+    }
+
+    #[must_use]
+    pub const fn extension_static(slug: &'static str) -> Self {
+        assert!(
+            is_extension_slug(slug.as_bytes()),
+            "extension rule type must be [a-z0-9_], not edged by `_`, and not `user` or `role`"
+        );
+        Self(Cow::Borrowed(slug))
+    }
+
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+const fn is_extension_slug(slug: &[u8]) -> bool {
+    if matches!(slug, [] | [b'_', ..] | [.., b'_'])
+        || bytes_eq(slug, b"user")
+        || bytes_eq(slug, b"role")
+    {
+        return false;
+    }
+    let mut rest = slug;
+    while let [byte, tail @ ..] = rest {
+        if !(byte.is_ascii_lowercase() || byte.is_ascii_digit() || *byte == b'_') {
+            return false;
+        }
+        rest = tail;
+    }
+    true
+}
+
+const fn bytes_eq(left: &[u8], right: &[u8]) -> bool {
+    if left.len() != right.len() {
+        return false;
+    }
+    let (mut left, mut right) = (left, right);
+    while let ([a, left_tail @ ..], [b, right_tail @ ..]) = (left, right) {
+        if *a != *b {
+            return false;
+        }
+        left = left_tail;
+        right = right_tail;
+    }
+    true
+}
+
+impl fmt::Display for RuleType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl From<&str> for RuleType {
+    fn from(s: &str) -> Self {
+        match s {
+            "user" => Self::USER,
+            "role" => Self::ROLE,
+            other => Self(Cow::Owned(other.to_owned())),
+        }
+    }
+}
+
+#[cfg(feature = "sqlx")]
+impl sqlx::Type<sqlx::Postgres> for RuleType {
+    fn type_info() -> <sqlx::Postgres as sqlx::Database>::TypeInfo {
+        <str as sqlx::Type<sqlx::Postgres>>::type_info()
+    }
+
+    fn compatible(ty: &<sqlx::Postgres as sqlx::Database>::TypeInfo) -> bool {
+        <str as sqlx::Type<sqlx::Postgres>>::compatible(ty)
+    }
+}
+
+#[cfg(feature = "sqlx")]
+impl<'q> sqlx::Encode<'q, sqlx::Postgres> for RuleType {
+    fn encode_by_ref(
+        &self,
+        buf: &mut <sqlx::Postgres as sqlx::Database>::ArgumentBuffer,
+    ) -> Result<sqlx::encode::IsNull, sqlx::error::BoxDynError> {
+        <&str as sqlx::Encode<'q, sqlx::Postgres>>::encode(self.as_str(), buf)
+    }
+}
+
+#[cfg(feature = "sqlx")]
+impl<'r> sqlx::Decode<'r, sqlx::Postgres> for RuleType {
+    fn decode(
+        value: <sqlx::Postgres as sqlx::Database>::ValueRef<'r>,
+    ) -> Result<Self, sqlx::error::BoxDynError> {
+        let raw = <&str as sqlx::Decode<'r, sqlx::Postgres>>::decode(value)?;
+        Ok(Self::from(raw))
+    }
+}

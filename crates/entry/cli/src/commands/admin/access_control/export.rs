@@ -5,17 +5,17 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use systemprompt_database::DbPool;
 use systemprompt_governance::authz::render_current_rules;
 
 use super::ExportYamlArgs;
-use crate::context::CommandContext;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
-pub(super) async fn run(_args: ExportYamlArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let app = ctx.app_context().await?;
-    let yaml = render_yaml_snapshot(app.db_pool()).await?;
+pub(super) async fn run(_args: ExportYamlArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+    let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
+    let yaml = render_yaml_snapshot(&pool).await?;
     Ok(CommandOutput::text_titled(
         "Access control (paste into services/access-control/rules.yaml)",
         yaml,

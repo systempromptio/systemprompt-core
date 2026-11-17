@@ -10,13 +10,13 @@ use systemprompt_analytics::ConversationAnalyticsRepository;
 use systemprompt_analytics::models::reporting::{
     ConversationListRow as AgentRow, GatewaySessionListRow,
 };
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_logging::CliService;
-use systemprompt_runtime::DatabaseContext;
 
 use super::{ConversationListOutput, ConversationListRow};
 use crate::cli::shared::{export_to_csv, parse_time_range};
-use systemprompt_cli::kernel::{CliConfig, CommandOutput};
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 /// Where a conversation was held. Agent contexts carry A2A tasks; gateway
 /// sessions are `/v1/messages` clients (Claude Code, Cowork, SDKs) and are
@@ -99,10 +99,10 @@ fn gateway_row(row: GatewaySessionListRow) -> ConversationListRow {
 
 pub(super) async fn execute_with_pool(
     args: ListArgs,
-    db_ctx: &DatabaseContext,
+    pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let repo = ConversationAnalyticsRepository::new(db_ctx.db_pool());
+    let repo = ConversationAnalyticsRepository::new(pool);
     execute_internal(args, &repo).await
 }
 

@@ -3,23 +3,21 @@
 //! Config reconcile, the licence check-in, the inventory refresh, the
 //! drainers of kernel-owned projections, session housekeeping, OTLP export,
 //! and the two jobs that iterate what capability crates contribute
-//! (`database_cleanup` over registered retention purges, `backfill_rollups`
-//! over registered projection drains). Capability jobs live in, and are
-//! registered by, their owning crates.
+//! (`database_cleanup` over admitted retention purges, sweeps and holds,
+//! `backfill_rollups` over admitted projection drains). Capability jobs live
+//! in, and are contributed by, their owning members.
 //!
 //! Each module exposes a single zero-sized type implementing
-//! [`systemprompt_traits::Job`], submitted at the bottom of the module with
-//! [`systemprompt_provider_contracts::submit_job!`] under the `scheduler`
-//! extension id.
+//! [`systemprompt_traits::Job`]; [`crate::SchedulerExtension`] contributes
+//! them.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod analytics_event_link_facts_rollup;
 pub mod backfill_rollups;
 mod cleanup_inactive_sessions;
 mod config_reconcile;
-mod database_cleanup;
+pub(crate) mod database_cleanup;
 mod inventory;
 pub mod licence_checkin;
 mod log_summary_rollup;
@@ -30,7 +28,6 @@ mod session_bot_type_rollup;
 mod trace_facts_rollup;
 pub mod vertex_discovery;
 
-pub use analytics_event_link_facts_rollup::AnalyticsEventLinkFactsRollupJob;
 pub use backfill_rollups::BackfillRollupsJob;
 pub use cleanup_inactive_sessions::CleanupInactiveSessionsJob;
 pub use config_reconcile::ConfigReconcileJob;

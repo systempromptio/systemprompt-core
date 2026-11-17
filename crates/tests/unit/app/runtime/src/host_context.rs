@@ -56,7 +56,11 @@ async fn boot_with(
     seed_fixture_system_admin(&test_db_pool().await)
         .await
         .expect("seed the system admin");
-    HostContext::boot(move |name| env.get(name).cloned()).await
+    HostContext::boot(
+        move |name| env.get(name).cloned(),
+        crate::boot::host_admit(),
+    )
+    .await
 }
 
 #[tokio::test]
@@ -238,72 +242,6 @@ async fn the_host_serves_a_hop_authenticated_tool_call_on_its_grants_alone() {
     .expect("refused call");
     assert_eq!(refused.status(), reqwest::StatusCode::UNAUTHORIZED);
     task.abort();
-}
-
-const HOST_DIMENSION: &str = "t3b-host-team";
-
-#[derive(Default)]
-struct HostTeam;
-
-#[async_trait::async_trait]
-impl systemprompt_extension::notifications::NotificationAudienceResolver for HostTeam {
-    fn name(&self) -> &'static str {
-        "t3b-host-team"
-    }
-
-    fn handles(&self, subject: &systemprompt_models::notifications::AudienceSubject) -> bool {
-        matches!(
-            subject,
-            systemprompt_models::notifications::AudienceSubject::Dimension { kind, .. }
-                if kind == HOST_DIMENSION
-        )
-    }
-
-    async fn members(
-        &self,
-        subject: &systemprompt_models::notifications::AudienceSubject,
-        _limit: usize,
-    ) -> Result<
-        Vec<systemprompt_identifiers::UserId>,
-        systemprompt_extension::notifications::NotificationAudienceError,
-    > {
-        let systemprompt_models::notifications::AudienceSubject::Dimension { value, .. } = subject
-        else {
-            return Ok(Vec::new());
-        };
-        Ok(vec![systemprompt_identifiers::UserId::new(format!(
-            "member-of-{value}"
-        ))])
-    }
-
-    async fn is_member(
-        &self,
-        _subject: &systemprompt_models::notifications::AudienceSubject,
-        _user: &systemprompt_identifiers::UserId,
-    ) -> Result<
-        systemprompt_extension::notifications::Membership,
-        systemprompt_extension::notifications::NotificationAudienceError,
-    > {
-        Ok(systemprompt_extension::notifications::Membership::Unknown)
-    }
-}
-
-systemprompt_extension::register_notification_audience!(HostTeam, priority = 50);
-
-#[tokio::test]
-async fn the_host_binds_extension_audiences_so_a_dimension_subject_has_its_members() {
-    let host = boot_with(host_child_env(bootstrap())).await.expect("host");
-    let members = host
-        .documents()
-        .access()
-        .subject_members(HOST_DIMENSION, "blue")
-        .await
-        .expect("dimension members");
-    assert_eq!(
-        members,
-        vec![systemprompt_identifiers::UserId::new("member-of-blue")],
-        "the host resolves an extension dimension as the API does"
-    );
 }
 
 #[tokio::test]

@@ -1,10 +1,10 @@
 use std::sync::{Arc, OnceLock};
 
+use systemprompt_files::documents::DocumentsHandlesSlot;
 use systemprompt_identifiers::McpServerId;
 use systemprompt_mcp_host::HostContext;
 use systemprompt_mcp_host::toolsets::{
-    DOCUMENTS_TOOLSET, ISSUES_TOOLSET, McpHostError, build_server, registered_toolset_ids, serve,
-    serve_on,
+    ISSUES_TOOLSET, McpHostError, build_server, serve, serve_on,
 };
 use systemprompt_test_fixtures::{TestBootstrap, host_child_env, init_services_bootstrap};
 
@@ -82,17 +82,13 @@ async fn ctx() -> Arc<HostContext> {
     .await
     .expect("seed the system admin");
     Arc::new(
-        HostContext::boot(move |name| env.get(name).cloned())
-            .await
-            .expect("host context from the child environment"),
+        HostContext::boot(
+            move |name| env.get(name).cloned(),
+            crate::boot::host_admit(),
+        )
+        .await
+        .expect("host context from the child environment"),
     )
-}
-
-#[test]
-fn core_registers_the_issues_and_documents_toolsets() {
-    let ids = registered_toolset_ids();
-    assert!(ids.contains(&ISSUES_TOOLSET), "{ids:?}");
-    assert!(ids.contains(&DOCUMENTS_TOOLSET), "{ids:?}");
 }
 
 #[tokio::test]
@@ -220,5 +216,23 @@ async fn the_host_listener_is_not_reachable_on_a_non_loopback_address() {
         refused.is_err(),
         "{external}:{} must not reach the host",
         addr.port()
+    );
+}
+
+#[tokio::test]
+async fn a_host_build_leaves_the_documents_handles_bound() {
+    let ctx = ctx().await;
+    let slot = ctx
+        .state()
+        .get::<DocumentsHandlesSlot>()
+        .expect("the host seeds the documents handles slot");
+    assert!(
+        slot.get().is_some(),
+        "the host binds the documents handles once its store is built"
+    );
+    let (unbound, _binder) = DocumentsHandlesSlot::unbound();
+    assert!(
+        unbound.get().is_none(),
+        "a slot no host bound holds nothing"
     );
 }

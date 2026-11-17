@@ -9,10 +9,9 @@
 
 use serde_json::json;
 use systemprompt_governance::authz::types::{Decision, DenyReason};
-use systemprompt_governance::policy::governed::{GovernedInput, GovernedTarget, McpToolInput};
-use systemprompt_governance::policy::types::{AccessScope, AgentScope, PolicyContext};
 use systemprompt_governance::policy::{
-    ChainEntryResult, GovernanceConfig, GovernanceEngine, PROMPT_TARGET_NAME,
+    AccessScope, AgentScope, ChainEntryResult, GovernanceConfig, GovernanceEngine, GovernedInput,
+    GovernedTarget, McpToolInput, PROMPT_TARGET_NAME, PolicyContext,
 };
 use systemprompt_identifiers::{CallId, SessionId, UserId};
 
@@ -21,6 +20,7 @@ const EXTRA_PATTERN: &str = "governance:\n  policies:\n    - id: secret_scan\n  
 fn engine(yaml: &str) -> GovernanceEngine {
     GovernanceEngine::from_config(
         &GovernanceConfig::parse(yaml).unwrap(),
+        &systemprompt_governance::policy::PolicyCatalog::builtin(),
         Some(crate::offline_rate_windows()),
     )
     .unwrap()
@@ -126,6 +126,7 @@ fn a_prompt_target_names_itself_in_the_audit_row() {
 fn the_default_chain_does_not_enforce_prompt_secrets() {
     let engine = GovernanceEngine::from_config(
         &systemprompt_governance::policy::GovernanceConfig::defaults(),
+        &systemprompt_governance::policy::PolicyCatalog::builtin(),
         Some(crate::offline_rate_windows()),
     )
     .expect("defaults");

@@ -10,7 +10,7 @@
 
 use systemprompt_agent::AgentError;
 use systemprompt_config::{ProfileBootstrapError, SecretsBootstrapError};
-use systemprompt_governance::authz::{AuthzError, ScopeBindingError};
+use systemprompt_governance::authz::{AuthzError, ScopeBindingError, SubjectAttributeError};
 use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_loader::{BundleError, ConfigLoadError};
 use systemprompt_marketplace::MarketplaceError;
@@ -40,6 +40,15 @@ impl From<RepositoryError> for ApiHttpError {
 
 impl From<AuthzError> for ApiHttpError {
     fn from(err: AuthzError) -> Self {
+        Self(Box::new(ApiError::internal(
+            "Authorization lookup failed",
+            err,
+        )))
+    }
+}
+
+impl From<SubjectAttributeError> for ApiHttpError {
+    fn from(err: SubjectAttributeError) -> Self {
         Self(Box::new(ApiError::internal(
             "Authorization lookup failed",
             err,

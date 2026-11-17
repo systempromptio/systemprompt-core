@@ -17,6 +17,7 @@ mod bulk;
 mod count;
 mod create;
 pub(crate) mod delete;
+pub use delete::purge_output;
 mod export;
 pub mod federated_rekey;
 mod list;
@@ -32,11 +33,10 @@ mod types;
 mod update;
 mod webauthn;
 
-use crate::context::CommandContext;
-use crate::descriptor::DataImpact;
-use crate::shared::{CommandOutput, render_result};
+use crate::kernel::KernelHost;
 use anyhow::{Result, bail};
 use clap::Subcommand;
+use systemprompt_extension::cli::{CommandOutput, DataImpact};
 
 pub use apikey::{ApiKeyCommands, IssueArgs as ApiKeyIssueArgs};
 pub use types::{
@@ -124,8 +124,8 @@ pub enum UsersCommands {
     ServiceAccount(service_account::ServiceAccountCommands),
 }
 
-pub async fn execute(cmd: UsersCommands, ctx: &CommandContext) -> Result<()> {
-    if ctx.is_database_scoped()
+pub async fn execute(cmd: UsersCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
+    if host.is_database_scoped()
         && matches!(
             cmd,
             UsersCommands::Create(_)
@@ -143,21 +143,31 @@ pub async fn execute(cmd: UsersCommands, ctx: &CommandContext) -> Result<()> {
     {
         bail!("Write operations require full profile context");
     }
-    if !ctx.is_database_scoped() && writes_identity(&cmd) {
-        refuse_file_managed_identity(ctx).await?;
+    if !host.is_database_scoped() && writes_identity(&cmd) {
+        refuse_file_managed_identity(host).await?;
     }
 
     match cmd {
-        UsersCommands::Bulk(cmd) => Box::pin(bulk::execute(cmd, ctx)).await,
-        UsersCommands::Role(cmd) => Box::pin(role::execute(cmd, ctx)).await,
-        UsersCommands::Session(cmd) => Box::pin(session::execute(cmd, ctx)).await,
-        UsersCommands::Ban(cmd) => Box::pin(ban::execute(cmd, ctx)).await,
-        UsersCommands::Webauthn(cmd) => Box::pin(webauthn::execute(cmd, ctx)).await,
-        other => {
-            let output = Box::pin(render_output(other, ctx)).await?;
-            render_result(&output, &ctx.cli);
-            Ok(())
-        },
+        UsersCommands::Bulk(cmd) => Box::pin(bulk::execute(cmd, host)).await,
+        UsersCommands::Role(cmd) => Box::pin(role::execute(cmd, host)).await,
+        UsersCommands::Session(cmd) => Box::pin(session::execute(cmd, host)).await,
+        UsersCommands::Ban(cmd) => Box::pin(ban::execute(cmd, host)).await,
+        UsersCommands::Webauthn(cmd) => Box::pin(webauthn::execute(cmd, host)).await,
+        UsersCommands::List(args) => Box::pin(list::execute(args, host)).await,
+        UsersCommands::Show(args) => Box::pin(show::execute(args, host)).await,
+        UsersCommands::Search(args) => Box::pin(search::execute(args, host)).await,
+        UsersCommands::Create(args) => Box::pin(create::execute(args, host)).await,
+        UsersCommands::Update(args) => Box::pin(update::execute(args, host)).await,
+        UsersCommands::Delete(args) => Box::pin(delete::execute(args, host)).await,
+        UsersCommands::Restore(args) => Box::pin(restore::execute(args, host)).await,
+        UsersCommands::LegalHold(args) => Box::pin(restore::execute_legal_hold(args, host)).await,
+        UsersCommands::Count(args) => Box::pin(count::execute(args, host)).await,
+        UsersCommands::Export(args) => Box::pin(export::execute(args, host)).await,
+        UsersCommands::Stats => Box::pin(stats::execute(host)).await,
+        UsersCommands::Merge(args) => Box::pin(merge::execute(args, host)).await,
+        UsersCommands::FederatedRekey(args) => Box::pin(federated_rekey::execute(args, host)).await,
+        UsersCommands::ApiKey(cmd) => Box::pin(apikey::execute(cmd, host)).await,
+        UsersCommands::ServiceAccount(cmd) => Box::pin(service_account::execute(cmd, host)).await,
     }
 }
 
@@ -175,45 +185,19 @@ const fn writes_identity(cmd: &UsersCommands) -> bool {
     )
 }
 
-async fn refuse_file_managed_identity(ctx: &CommandContext) -> Result<()> {
-    let authority = ctx
+async fn refuse_file_managed_identity(host: &dyn KernelHost) -> Result<()> {
+    let authority = host
         .profile()?
         .config_planes
         .authority_for(systemprompt_oauth_issuance::IDENTITY_PLANE);
     if authority != systemprompt_manifest::profile::PlaneAuthority::File {
         return Ok(());
     }
-    let planes = ctx.app_context().await?.config_planes()?;
+    let planes = crate::commands::admin::state::app(host)
+        .await?
+        .config_planes()?;
     planes.writer(systemprompt_oauth_issuance::IDENTITY_PLANE)?;
     Ok(())
-}
-
-async fn render_output(cmd: UsersCommands, ctx: &CommandContext) -> Result<CommandOutput> {
-    match cmd {
-        UsersCommands::List(args) => Box::pin(list::execute(args, ctx)).await,
-        UsersCommands::Show(args) => Box::pin(show::execute(args, ctx)).await,
-        UsersCommands::Search(args) => Box::pin(search::execute(args, ctx)).await,
-        UsersCommands::Create(args) => Box::pin(create::execute(args, ctx)).await,
-        UsersCommands::Update(args) => Box::pin(update::execute(args, ctx)).await,
-        UsersCommands::Delete(args) => Box::pin(delete::execute(args, ctx)).await,
-        UsersCommands::Restore(args) => Box::pin(restore::execute(args, ctx)).await,
-        UsersCommands::LegalHold(args) => Box::pin(restore::execute_legal_hold(args, ctx)).await,
-        UsersCommands::Count(args) => Box::pin(count::execute(args, ctx)).await,
-        UsersCommands::Export(args) => Box::pin(export::execute(args, ctx)).await,
-        UsersCommands::Stats => Box::pin(stats::execute(ctx)).await,
-        UsersCommands::Merge(args) => Box::pin(merge::execute(args, ctx)).await,
-        UsersCommands::FederatedRekey(args) => Box::pin(federated_rekey::execute(args, ctx)).await,
-        UsersCommands::ApiKey(cmd) => Box::pin(apikey::execute(cmd, ctx)).await,
-        UsersCommands::ServiceAccount(cmd) => Box::pin(service_account::execute(cmd, ctx)).await,
-        UsersCommands::Bulk(_)
-        | UsersCommands::Role(_)
-        | UsersCommands::Session(_)
-        | UsersCommands::Ban(_)
-        | UsersCommands::Webauthn(_) => bail!(
-            "internal: a users subgroup reached the rendering dispatch, which only serves \
-             commands that produce a single output"
-        ),
-    }
 }
 
 impl UsersCommands {

@@ -14,8 +14,8 @@
 //! - [`PostgresProvider`] — the `PostgreSQL` implementation.
 //! - [`DatabaseResult`] — result alias over the workspace's single
 //!   [`systemprompt_traits::RepositoryError`].
-//! - [`MigrationService`], [`install_extension_schemas_full`] — lifecycle
-//!   helpers driving extension-supplied DDL.
+//! - [`MigrationService`], [`install_admitted_schemas`] — lifecycle helpers
+//!   driving extension-supplied DDL.
 //! - [`DatabaseAdminService`], [`QueryExecutor`], [`AdminSql`],
 //!   [`SafeIdentifier`] — admin/introspection layer used by the CLI.
 //! - [`resilience`] — domain-agnostic resilience primitives
@@ -87,35 +87,38 @@ pub use services::{
 
 pub use error::DatabaseResult;
 pub use lifecycle::{
-    AppliedMigration, BOOTSTRAP_ADVISORY_LOCK_KEY, BackfillStatement, BaselineStamp,
-    BootstrapLockGuard, BootstrapLockTimeout, ChecksumDrift, DeferredForeignKey,
+    AbsentMemberTable, AppliedMigration, BOOTSTRAP_ADVISORY_LOCK_KEY, BackfillStatement,
+    BaselineStamp, BootstrapLockGuard, BootstrapLockTimeout, ChecksumDrift, DeferredForeignKey,
     ExpensiveStatement, ExtensionMigrationStatus, FkDeferralError, ForeignKeyDrift, FreshnessCheck,
     HOT_TABLES, MarkAppliedOutcome, MigrationConfig, MigrationCost, MigrationResult,
     MigrationService, MigrationStatus, OrphanMigrationLedger, OrphanedMigration,
     PROJECTION_BACKLOG, PendingMigration, RETRYABLE_SQLSTATES, RepairResult, ReplicaStatus,
-    SchemaAhead, SchemaCurrency, SchemaInstallReport, SchemaResidue, SlotCollision,
-    SplitCreateTable, TombstonedSlot, UndeclaredTable, audit_migration_cost, audit_one,
-    audit_schema_residue, backfill_statements, check_migration_references, check_trigger_routines,
-    install_extension_schemas_full, is_retirement, is_retryable_lock_conflict,
-    is_retryable_sqlstate, projection_tables, replica_status, schema_catalog_digest,
-    schema_currency, split_create_table_foreign_keys, validate_column_exists,
-    validate_database_connection, validate_table_exists, validate_write_pool_is_primary,
+    SchemaAhead, SchemaCurrency, SchemaInstallReport, SchemaMember, SchemaResidue, SchemaUnit,
+    SlotCollision, SplitCreateTable, TombstonedSlot, UndeclaredTable, audit_migration_cost,
+    audit_one, audit_schema_residue, backfill_statements, check_migration_references,
+    check_trigger_routines, install_admitted_schemas, install_schema_members, is_retirement,
+    is_retryable_lock_conflict, is_retryable_sqlstate, projection_tables, replica_status,
+    schema_catalog_digest, schema_currency, schema_members, split_create_table_foreign_keys,
+    validate_column_exists, validate_database_connection, validate_table_exists,
+    validate_write_pool_is_primary,
 };
 pub use repository::{
     CLAIM_DEAD_PEER_SECS, CoordinationRepositories, CreateServiceInput, EXTENSION_LOCK_CLASS,
     INSTANCE_CLAIM_CLASS, INSTANCE_DEAD_AFTER_SECS, InstanceClaim, InstanceClaimError,
-    InstanceLeaseRepository, PLANE_NOT_APPLIED_HINT, PgConfigVersion, PgDbPool, PlaneTransaction,
-    ProcessOwner, Reaped, ReapedService, ReleaseGate, ReleaseRun, ReleaseStampError,
-    ReleaseStampRepository, RoleCount, ServiceConfig, ServiceModule, ServiceRepository,
-    ServiceStatus, SessionAdvisoryLock, SessionAdvisoryLocks, StampOutcome,
-    UpsertServiceProcessInput, find_config_plane_applied, record_config_plane_applied, release_key,
-    with_change_context,
+    InstanceLeaseRepository, PLANE_NOT_APPLIED_HINT, PROCESS_OWNERSHIP_CHANNEL, PgConfigVersion,
+    PgDbPool, PlaneTransaction, ProcessOwner, ProcessOwnershipWake, Reaped, ReapedService,
+    ReleaseGate, ReleaseRun, ReleaseStampError, ReleaseStampRepository, RoleCount, ServiceConfig,
+    ServiceModule, ServiceRepository, ServiceStatus, SessionAdvisoryLock, SessionAdvisoryLocks,
+    StampOutcome, UpsertServiceProcessInput, find_config_plane_applied,
+    record_config_plane_applied, release_key, with_change_context,
 };
 
 pub use admin::{
     AdminSql, AdminSqlError, DEFAULT_READONLY_ROW_LIMIT, DatabaseAdminService, IdentifierError,
     QueryExecutor, QueryExecutorError, SafeIdentifier,
 };
+
+use std::sync::Arc;
 
 use systemprompt_traits::DatabaseHandle;
 
@@ -127,4 +130,25 @@ impl DatabaseHandle for Database {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
+
+    fn into_any(self: Arc<Self>) -> Arc<dyn std::any::Any + Send + Sync> {
+        self
+    }
+}
+
+/// The handle a command host or resolution hands out is not this crate's
+/// database.
+#[derive(Debug, Clone, Copy, thiserror::Error)]
+#[error("the database handle is not a systemprompt database pool")]
+pub struct ForeignDatabaseHandle;
+
+#[expect(
+    clippy::map_err_ignore,
+    reason = "a failed downcast hands back the handle itself, which carries no error to keep"
+)]
+pub fn pool_from_handle(handle: Arc<dyn DatabaseHandle>) -> Result<DbPool, ForeignDatabaseHandle> {
+    handle
+        .into_any()
+        .downcast::<Database>()
+        .map_err(|_| ForeignDatabaseHandle)
 }

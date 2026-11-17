@@ -2,9 +2,7 @@ use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode};
 use serde_json::Value;
 use systemprompt_api::routes::wellknown::agent_cards::wellknown_router;
-use systemprompt_test_fixtures::{
-    fixture_app_context_on_bootstrap, init_isolated_bootstrap, test_db_pool,
-};
+use systemprompt_test_fixtures::{fixture_app_context_on_bootstrap, init_isolated_bootstrap};
 use tower::ServiceExt;
 
 #[path = "../../../../../contract/src/a2a/schema.rs"]
@@ -65,13 +63,12 @@ async fn get(app: &axum::Router, uri: &str) -> (StatusCode, Value) {
 #[tokio::test]
 async fn configured_default_named_and_list_cards_share_the_public_agent_contract() {
     let boot = init_isolated_bootstrap("https://agents.example.test/base", SERVICES);
-    let pool = test_db_pool().await;
     let ctx = fixture_app_context_on_bootstrap(
         &boot,
-        &pool,
         boot.boot_config().as_ref().clone(),
-        std::sync::Arc::new(systemprompt_marketplace::AllowAllFilter),
+        systemprompt_test_fixtures::fixture_admitted(),
     )
+    .await
     .unwrap();
     let app = wellknown_router(&ctx);
 

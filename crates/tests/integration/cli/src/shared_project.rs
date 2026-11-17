@@ -1,5 +1,5 @@
 use std::path::Path;
-use systemprompt_cli::shared::project::{ProjectError, ProjectRoot};
+use systemprompt_cloud::paths::{ProjectError, ProjectRoot};
 use systemprompt_test_fixtures::canonical_tempdir;
 
 use crate::env_lock;

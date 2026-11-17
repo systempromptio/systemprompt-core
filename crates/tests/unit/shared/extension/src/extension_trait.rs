@@ -1,8 +1,24 @@
+use std::any::TypeId;
 use std::sync::Arc;
 
+use systemprompt_extension::contribute::ContributionSink;
 use systemprompt_extension::error::LoaderError;
-use systemprompt_extension::{Extension, ExtensionMetadata, ExtensionRole, SchemaDefinition};
+use systemprompt_extension::{
+    ContributionError, Contributions, Extension, ExtensionMetadata, ExtensionRole, Migration,
+    SchemaDefinition,
+};
 use systemprompt_identifiers::ExtensionId;
+
+fn contributions(ext: &dyn Extension) -> ContributionSink {
+    let mut sink = ContributionSink::default();
+    ext.contribute(&mut Contributions::__new(
+        ExtensionId::new(ext.metadata().id),
+        &mut sink,
+    ))
+    .expect("the member contributes");
+    assert!(sink.take_errors().is_empty());
+    sink
+}
 
 struct MinimalExt;
 
@@ -13,6 +29,10 @@ impl Extension for MinimalExt {
             name: "Minimal",
             version: "0.1.0",
         }
+    }
+
+    fn contribute(&self, _c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        Ok(())
     }
 }
 
@@ -27,43 +47,14 @@ impl Extension for SchemaExt {
         }
     }
 
-    fn schemas(&self) -> Vec<SchemaDefinition> {
-        vec![SchemaDefinition::new(
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        c.schema(SchemaDefinition::new(
             "things",
             "CREATE TABLE things (id TEXT)",
-        )]
-    }
-}
-
-struct RequiredExt;
-
-impl Extension for RequiredExt {
-    fn metadata(&self) -> ExtensionMetadata {
-        ExtensionMetadata {
-            id: "required-ext",
-            name: "Required",
-            version: "1.0.0",
-        }
-    }
-
-    fn is_required(&self) -> bool {
-        true
-    }
-}
-
-struct PriorityExt;
-
-impl Extension for PriorityExt {
-    fn metadata(&self) -> ExtensionMetadata {
-        ExtensionMetadata {
-            id: "priority-ext",
-            name: "Priority",
-            version: "1.0.0",
-        }
-    }
-
-    fn priority(&self) -> u32 {
-        42
+        ))
+        .migrations(vec![Migration::new(1, "seed_things", "SELECT 1;")])
+        .cross_table("users");
+        Ok(())
     }
 }
 
@@ -78,8 +69,9 @@ impl Extension for DepExt {
         }
     }
 
-    fn dependencies(&self) -> Vec<&'static str> {
-        vec!["other-ext"]
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        c.depends_on::<MinimalExt>();
+        Ok(())
     }
 }
 
@@ -94,292 +86,62 @@ impl Extension for RolesExt {
         }
     }
 
-    fn roles(&self) -> Vec<ExtensionRole> {
-        vec![ExtensionRole::new("viewer", "Viewer", "Read-only")]
-    }
-}
-
-struct StorageExt;
-
-impl Extension for StorageExt {
-    fn metadata(&self) -> ExtensionMetadata {
-        ExtensionMetadata {
-            id: "storage-ext",
-            name: "Storage",
-            version: "1.0.0",
-        }
-    }
-
-    fn required_storage_paths(&self) -> Vec<&'static str> {
-        vec!["/var/data/uploads", "/var/data/cache"]
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        c.role(ExtensionRole::new("viewer", "Viewer", "Read-only"));
+        Ok(())
     }
 }
 
 #[test]
-fn extension_default_id_delegates_to_metadata() {
-    let ext = MinimalExt;
-    assert_eq!(ext.id(), "minimal");
+fn metadata_carries_id_name_and_version() {
+    let metadata = MinimalExt.metadata();
+    assert_eq!(metadata.id, "minimal");
+    assert_eq!(metadata.name, "Minimal");
+    assert_eq!(metadata.version, "0.1.0");
 }
 
 #[test]
-fn extension_default_name_delegates_to_metadata() {
-    let ext = MinimalExt;
-    assert_eq!(ext.name(), "Minimal");
+fn a_member_that_contributes_nothing_leaves_an_empty_sink() {
+    let sink = contributions(&MinimalExt);
+    assert!(sink.schemas().is_empty());
+    assert!(sink.migrations().is_empty());
+    assert!(sink.seeds().is_empty());
+    assert!(sink.cross_tables().is_empty());
+    assert!(sink.roles().is_empty());
+    assert!(sink.depends_on().is_empty());
+    assert!(sink.assets().is_empty());
+    assert!(sink.site_auth().is_empty());
 }
 
 #[test]
-fn extension_default_version_delegates_to_metadata() {
-    let ext = MinimalExt;
-    assert_eq!(ext.version(), "0.1.0");
+fn contributed_schemas_migrations_and_cross_tables_are_recorded() {
+    let sink = contributions(&SchemaExt);
+    assert_eq!(sink.schemas().len(), 1);
+    assert_eq!(sink.schemas()[0].table.as_deref(), Some("things"));
+    assert_eq!(sink.migrations().len(), 1);
+    assert_eq!(sink.migrations()[0].version, 1);
+    assert_eq!(sink.cross_tables(), ["users"]);
 }
 
 #[test]
-fn extension_default_schemas_is_empty() {
-    let ext = MinimalExt;
-    assert!(ext.schemas().is_empty());
+fn a_member_dependency_is_recorded_by_type() {
+    let sink = contributions(&DepExt);
+    assert_eq!(sink.depends_on().len(), 1);
+    assert_eq!(sink.depends_on()[0].type_id(), TypeId::of::<MinimalExt>());
 }
 
 #[test]
-fn extension_default_has_schemas_is_false() {
-    let ext = MinimalExt;
-    assert!(!ext.has_schemas());
-}
-
-#[test]
-fn extension_has_schemas_true_when_schemas_nonempty() {
-    let ext = SchemaExt;
-    assert!(ext.has_schemas());
-    assert_eq!(ext.schemas().len(), 1);
-}
-
-#[test]
-fn extension_default_config_prefix_is_none() {
-    let ext = MinimalExt;
-    assert!(ext.config_prefix().is_none());
-}
-
-#[test]
-fn extension_default_has_config_is_false() {
-    let ext = MinimalExt;
-    assert!(!ext.has_config());
-}
-
-#[test]
-fn extension_default_config_schema_is_none() {
-    let ext = MinimalExt;
-    assert!(ext.config_schema().is_none());
-}
-
-#[test]
-fn extension_default_validate_config_returns_ok() {
-    let ext = MinimalExt;
-    let config = serde_json::json!({});
-    assert!(ext.validate_config(&config).is_ok());
-}
-
-#[test]
-fn extension_default_tool_providers_is_empty() {
-    let ext = MinimalExt;
-    assert!(ext.tool_providers().is_empty());
-}
-
-#[test]
-fn extension_default_has_tool_providers_is_false() {
-    let ext = MinimalExt;
-    assert!(!ext.has_tool_providers());
-}
-
-#[test]
-fn extension_default_template_providers_is_empty() {
-    let ext = MinimalExt;
-    assert!(ext.template_providers().is_empty());
-}
-
-#[test]
-fn extension_default_has_template_providers_is_false() {
-    let ext = MinimalExt;
-    assert!(!ext.has_template_providers());
-}
-
-#[tokio::test]
-async fn extension_default_component_renderers_is_empty() {
-    let ctx = systemprompt_test_fixtures::fixture_extension_context(
-        &systemprompt_test_fixtures::test_db_pool().await,
-    );
-    let ext = MinimalExt;
-    assert!(ext.component_renderers(ctx.as_ref()).is_empty());
-}
-
-#[tokio::test]
-async fn extension_default_template_data_extenders_is_empty() {
-    let ctx = systemprompt_test_fixtures::fixture_extension_context(
-        &systemprompt_test_fixtures::test_db_pool().await,
-    );
-    let ext = MinimalExt;
-    assert!(ext.template_data_extenders(ctx.as_ref()).is_empty());
-}
-
-#[tokio::test]
-async fn extension_default_page_data_providers_is_empty() {
-    let ctx = systemprompt_test_fixtures::fixture_extension_context(
-        &systemprompt_test_fixtures::test_db_pool().await,
-    );
-    let ext = MinimalExt;
-    assert!(ext.page_data_providers(ctx.as_ref()).is_empty());
-}
-
-#[tokio::test]
-async fn extension_default_page_prerenderers_is_empty() {
-    let ctx = systemprompt_test_fixtures::fixture_extension_context(
-        &systemprompt_test_fixtures::test_db_pool().await,
-    );
-    let ext = MinimalExt;
-    assert!(ext.page_prerenderers(ctx.as_ref()).is_empty());
-}
-
-#[test]
-fn extension_default_frontmatter_processors_is_empty() {
-    let ext = MinimalExt;
-    assert!(ext.frontmatter_processors().is_empty());
-}
-
-#[tokio::test]
-async fn extension_default_content_data_providers_is_empty() {
-    let ctx = systemprompt_test_fixtures::fixture_extension_context(
-        &systemprompt_test_fixtures::test_db_pool().await,
-    );
-    let ext = MinimalExt;
-    assert!(ext.content_data_providers(ctx.as_ref()).is_empty());
-}
-
-#[test]
-fn extension_default_rss_feed_providers_is_empty() {
-    let ext = MinimalExt;
-    assert!(ext.rss_feed_providers().is_empty());
-}
-
-#[test]
-fn extension_default_sitemap_providers_is_empty() {
-    let ext = MinimalExt;
-    assert!(ext.sitemap_providers().is_empty());
-}
-
-#[test]
-fn extension_default_site_auth_is_none() {
-    let ext = MinimalExt;
-    assert!(ext.site_auth().is_none());
-}
-
-#[test]
-fn extension_default_required_storage_paths_is_empty() {
-    let ext = MinimalExt;
-    assert!(ext.required_storage_paths().is_empty());
-}
-
-#[test]
-fn extension_default_has_storage_paths_is_false() {
-    let ext = MinimalExt;
-    assert!(!ext.has_storage_paths());
-}
-
-#[test]
-fn extension_has_storage_paths_true_when_nonempty() {
-    let ext = StorageExt;
-    assert!(ext.has_storage_paths());
-    assert_eq!(ext.required_storage_paths().len(), 2);
-}
-
-#[test]
-fn extension_default_dependencies_is_empty() {
-    let ext = MinimalExt;
-    assert!(ext.dependencies().is_empty());
-}
-
-#[test]
-fn extension_default_is_required_false() {
-    let ext = MinimalExt;
-    assert!(!ext.is_required());
-}
-
-#[test]
-fn extension_is_required_overrideable() {
-    let ext = RequiredExt;
-    assert!(ext.is_required());
-}
-
-#[test]
-fn extension_default_priority_is_100() {
-    let ext = MinimalExt;
-    assert_eq!(ext.priority(), 100);
-}
-
-#[test]
-fn extension_priority_overrideable() {
-    let ext = PriorityExt;
-    assert_eq!(ext.priority(), 42);
-}
-
-#[test]
-fn extension_dependencies_overrideable() {
-    let ext = DepExt;
-    assert_eq!(ext.dependencies(), vec!["other-ext"]);
-}
-
-#[test]
-fn extension_default_migrations_is_empty() {
-    let ext = MinimalExt;
-    assert!(ext.migrations().is_empty());
-}
-
-#[test]
-fn extension_default_has_migrations_is_false() {
-    let ext = MinimalExt;
-    assert!(!ext.has_migrations());
-}
-
-#[test]
-fn extension_default_seeds_is_empty() {
-    let ext = MinimalExt;
-    assert!(ext.seeds().is_empty());
-}
-
-#[test]
-fn extension_default_cross_extension_tables_is_empty() {
-    let ext = MinimalExt;
-    assert!(ext.cross_extension_tables().is_empty());
-}
-
-#[test]
-fn extension_default_roles_is_empty() {
-    let ext = MinimalExt;
-    assert!(ext.roles().is_empty());
-}
-
-#[test]
-fn extension_default_has_roles_is_false() {
-    let ext = MinimalExt;
-    assert!(!ext.has_roles());
-}
-
-#[test]
-fn extension_has_roles_true_when_nonempty() {
-    let ext = RolesExt;
-    assert!(ext.has_roles());
-    assert_eq!(ext.roles().len(), 1);
-}
-
-#[test]
-fn extension_default_declares_assets_is_false() {
-    let ext = MinimalExt;
-    assert!(!ext.declares_assets());
+fn contributed_roles_are_recorded() {
+    let sink = contributions(&RolesExt);
+    assert_eq!(sink.roles().len(), 1);
+    assert_eq!(sink.roles()[0].name, "viewer");
 }
 
 #[test]
 fn extension_is_arc_dyn_compatible() {
     let ext: Arc<dyn Extension> = Arc::new(MinimalExt);
-    assert_eq!(ext.id(), "minimal");
-    assert_eq!(ext.priority(), 100);
-    assert!(!ext.is_required());
+    assert_eq!(ext.metadata().id, "minimal");
+    assert!(contributions(ext.as_ref()).schemas().is_empty());
 }
 
 #[test]

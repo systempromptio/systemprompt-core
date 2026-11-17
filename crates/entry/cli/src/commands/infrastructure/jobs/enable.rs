@@ -3,34 +3,35 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use clap::Args;
 use systemprompt_identifiers::JobName;
 use systemprompt_scheduler::JobRepository;
 
+use super::admitted_schedule;
 use super::types::JobEnableOutput;
-use crate::context::CommandContext;
-use crate::shared::CommandOutput;
+use crate::commands::shared::app_context;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct EnableArgs {
-    #[arg(value_parser = crate::shared::parse_job_name, help = "Job name to enable")]
+    #[arg(value_parser = systemprompt_extension::cli::parsers::parse_job_name, help = "Job name to enable")]
     pub job_name: JobName,
 }
 
-pub(super) async fn execute(args: EnableArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let job = systemprompt_traits::registered_jobs()
-        .map(|registration| registration.job)
-        .find(|j| j.name() == args.job_name);
-
-    if job.is_none() {
+pub(super) async fn execute(args: EnableArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+    if !admitted_schedule(host)
+        .await?
+        .contains_job(args.job_name.as_str())
+    {
         anyhow::bail!(
             "Unknown job: {}. Use 'jobs list' to see available jobs",
             args.job_name
         );
     }
 
-    let app = ctx.app_context().await?;
+    let app = app_context(host).await?;
     let repo = JobRepository::new(app.db_pool());
     repo.set_enabled(&args.job_name, true)
         .await

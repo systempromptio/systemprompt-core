@@ -1,0 +1,9 @@
+[root]
+section = "Fixed"
+area = "Database"
+text = "A schema install leaves out a `CREATE INDEX IF NOT EXISTS` whose index name is already taken in the indexed table's schema, so a no-op install takes no `SHARE` lock on a live table and no longer forms a lock cycle with writers."
+
+[[crate]]
+name = "systemprompt-database"
+section = "Fixed"
+text = "A schema phase checks the catalog before each named, non-concurrent `CREATE INDEX IF NOT EXISTS` and leaves the statement out when a relation of that name already exists in the indexed table's schema, the condition under which Postgres would skip it after taking `SHARE` on the table. A missing index is still created."

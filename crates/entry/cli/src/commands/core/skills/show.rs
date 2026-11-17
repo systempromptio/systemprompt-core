@@ -8,6 +8,6 @@ use systemprompt_identifiers::SkillId;
 
 #[derive(Debug, Clone, Args)]
 pub struct ShowArgs {
-    #[arg(help = "Skill ID (directory name)", value_parser = crate::shared::parse_skill_id)]
+    #[arg(help = "Skill ID (directory name)", value_parser = systemprompt_extension::cli::parsers::parse_skill_id)]
     pub name: SkillId,
 }

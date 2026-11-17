@@ -4,14 +4,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Args;
 use std::sync::Arc;
-use systemprompt_users::{DeviceCertService, EnrollDeviceCertServiceParams};
+use systemprompt_users::{DeviceCertService, EnrollDeviceCertServiceParams, UserRepository};
 
 use super::types::DeviceCertEnrolledOutput;
-use crate::context::CommandContext;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct EnrollCertArgs {
@@ -33,11 +33,11 @@ pub struct EnrollCertArgs {
     pub label: String,
 }
 
-pub(super) async fn execute(args: EnrollCertArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let app = ctx.app_context().await?;
-    let service = DeviceCertService::new(Arc::clone(app.user_repository()));
+pub(super) async fn execute(args: EnrollCertArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+    let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
+    let service = DeviceCertService::new(Arc::new(UserRepository::new(&pool)));
 
-    let user_id = super::resolve_user_id(app.db_pool(), &args.user_ref).await?;
+    let user_id = super::resolve_user_id(&pool, &args.user_ref).await?;
 
     let record = service
         .enroll(EnrollDeviceCertServiceParams {

@@ -5,6 +5,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
+
 use chrono::{DateTime, Utc};
 use sqlx::{PgPool, Postgres, Transaction};
 use systemprompt_database::DbPool;
@@ -12,19 +14,21 @@ use systemprompt_identifiers::ContentHash;
 use systemprompt_traits::StoredFileId;
 
 use super::Pools;
-use super::blob_holders::held_by_holders;
+use super::blob_holders::BlobHolders;
 use super::rows::RepoResult;
 use crate::documents::models::DocumentBlob;
 
 #[derive(Debug, Clone)]
 pub struct DocumentBlobRepository {
     pools: Pools,
+    holders: Arc<BlobHolders>,
 }
 
 impl DocumentBlobRepository {
-    pub fn new(db: &DbPool) -> Self {
+    pub fn new(db: &DbPool, holders: Arc<BlobHolders>) -> Self {
         Self {
             pools: Pools::new(db),
+            holders,
         }
     }
 
@@ -94,7 +98,7 @@ impl DocumentBlobRepository {
                 .iter()
                 .map(|blob| blob.content_sha256.as_str().to_owned())
                 .collect();
-            let held = held_by_holders(&mut conn, &hashes).await?;
+            let held = self.holders.held_among(&mut conn, &hashes).await?;
             collected.extend(
                 page.into_iter()
                     .filter(|blob| !held.contains(blob.content_sha256.as_str())),
@@ -130,7 +134,10 @@ impl DocumentBlobRepository {
         sqlx::query!("SELECT pg_advisory_xact_lock($1)", lock_key(hash))
             .execute(&mut *tx)
             .await?;
-        Ok(HashLock { tx })
+        Ok(HashLock {
+            tx,
+            holders: Arc::clone(&self.holders),
+        })
     }
 
     pub async fn upsert(
@@ -159,6 +166,7 @@ impl DocumentBlobRepository {
 #[derive(Debug)]
 pub struct HashLock {
     tx: Transaction<'static, Postgres>,
+    holders: Arc<BlobHolders>,
 }
 
 impl HashLock {
@@ -182,7 +190,10 @@ impl HashLock {
     }
 
     pub async fn delete_unreferenced(&mut self, hash: &ContentHash) -> RepoResult<bool> {
-        let held = held_by_holders(&mut self.tx, &[hash.as_str().to_owned()]).await?;
+        let held = self
+            .holders
+            .held_among(&mut self.tx, &[hash.as_str().to_owned()])
+            .await?;
         if !held.is_empty() {
             return Ok(false);
         }

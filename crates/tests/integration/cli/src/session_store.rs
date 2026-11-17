@@ -1,5 +1,5 @@
-use systemprompt_cli::paths::ResolvedPaths;
 use systemprompt_cli::session::{clear_all_sessions, clear_session, load_session_store};
+use systemprompt_cloud::paths::ResolvedPaths;
 use tempfile::{TempDir, tempdir};
 
 fn owned_project() -> (TempDir, ResolvedPaths) {

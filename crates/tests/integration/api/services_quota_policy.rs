@@ -4,14 +4,18 @@
 //! settings. Lives in the integration crate so we can pull the test-fixtures
 //! DB pool.
 
+use std::sync::Arc;
+use systemprompt_extension::StandingTag;
 use systemprompt_gateway::policies::{PolicyResolver, QuotaWindow, merge_policy_rows};
 use systemprompt_gateway::quota::{
     AccountingOutcome, QuotaDecision, QuotaDimension, QuotaEstimate, QuotaReservation,
     QuotaSubjects, QuotaUsage, ReserveOutcome, ReserveParams, ReservedWindow, precheck_and_reserve,
     release, settle,
 };
-use systemprompt_governance::authz::{AuthzHookContext, NullAuditSink, SubjectProviderSet};
-use systemprompt_identifiers::{QuotaSubjectKind, UserId};
+use systemprompt_governance::authz::{
+    SharedSubjectAttributeProvider, SubjectAttributeError, SubjectProviderEntry, SubjectProviderSet,
+};
+use systemprompt_identifiers::{ExtensionId, QuotaSubjectKind, UserId};
 use systemprompt_manifest::services::QuotaFaultMode;
 use systemprompt_models::attribution::RequestAttribution;
 
@@ -36,13 +40,10 @@ impl systemprompt_governance::authz::SubjectAttributeProvider for ErroringSubjec
         }
     }
 
-    async fn values_for(
-        &self,
-        user_id: &UserId,
-    ) -> Result<Vec<String>, systemprompt_governance::authz::AuthzError> {
+    async fn values_for(&self, user_id: &UserId) -> Result<Vec<String>, SubjectAttributeError> {
         if user_id.as_str().starts_with(ERROR_USER_PREFIX) {
-            return Err(systemprompt_governance::authz::AuthzError::Validation(
-                "subject lookup unavailable".to_owned(),
+            return Err(SubjectAttributeError::Lookup(
+                "subject lookup unavailable".into(),
             ));
         }
         Ok(vec!["tenant-a".to_owned()])
@@ -62,20 +63,10 @@ impl systemprompt_governance::authz::SubjectAttributeProvider for EmptySubjectPr
         }
     }
 
-    async fn values_for(
-        &self,
-        _user_id: &UserId,
-    ) -> Result<Vec<String>, systemprompt_governance::authz::AuthzError> {
+    async fn values_for(&self, _user_id: &UserId) -> Result<Vec<String>, SubjectAttributeError> {
         Ok(Vec::new())
     }
 }
-
-systemprompt_governance::register_subject_attribute_provider!(|_ctx| std::sync::Arc::new(
-    ErroringSubjectProvider
-));
-systemprompt_governance::register_subject_attribute_provider!(|_ctx| std::sync::Arc::new(
-    EmptySubjectProvider
-));
 
 fn quota_repo(
     db: &systemprompt_database::DbPool,
@@ -96,15 +87,22 @@ fn window(window_seconds: i32) -> QuotaWindow {
     }
 }
 
-fn providers(p: &systemprompt_database::DbPool) -> SubjectProviderSet {
-    SubjectProviderSet::discover(&AuthzHookContext {
-        pool: p.pool(),
-        sink: std::sync::Arc::new(NullAuditSink),
-        services: systemprompt_test_fixtures::fixture_services_view(),
-        subjects: Default::default(),
-        secrets: systemprompt_test_fixtures::fixture_secret_store(),
-        state: Default::default(),
-    })
+fn providers() -> SubjectProviderSet {
+    let install: [SharedSubjectAttributeProvider; 2] = [
+        Arc::new(ErroringSubjectProvider),
+        Arc::new(EmptySubjectProvider),
+    ];
+    SubjectProviderSet::new(
+        install
+            .into_iter()
+            .map(|provider| SubjectProviderEntry {
+                owner: ExtensionId::new("test"),
+                standing: StandingTag::Install,
+                provider,
+            })
+            .collect(),
+    )
+    .expect("distinct install dimensions build a set")
 }
 
 async fn reserve_with(
@@ -119,7 +117,7 @@ async fn reserve_with(
         &quota_repo(p),
         ReserveParams {
             sharding: systemprompt_manifest::profile::QuotaConfig::default(),
-            providers: &providers(p),
+            providers: &providers(),
             subjects: QuotaSubjects {
                 user_id: user,
                 api_key_id: None,
@@ -393,7 +391,7 @@ async fn an_attributed_scope_keys_its_window_by_the_attributed_value() {
         &quota_repo(&p),
         ReserveParams {
             sharding: systemprompt_manifest::profile::QuotaConfig::default(),
-            providers: &providers(&p),
+            providers: &providers(),
             subjects: QuotaSubjects {
                 user_id: &user,
                 api_key_id: None,

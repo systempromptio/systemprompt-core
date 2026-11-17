@@ -11,18 +11,18 @@ use systemprompt_analytics::AgentAnalyticsRepository;
 use systemprompt_analytics::models::reporting::{
     AgentErrorRow, AgentHourlyRow, AgentStatusBreakdownRow, AgentSummaryRow,
 };
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::AgentName;
 use systemprompt_logging::CliService;
 use systemprompt_models::artifacts::NoticeLine;
-use systemprompt_runtime::DatabaseContext;
 
 use super::{
     AgentShowOutput, AgentStatsOutput, ErrorBreakdownItem, HourlyDistributionItem,
     StatusBreakdownItem,
 };
 use crate::cli::shared::{export_single_to_csv, parse_time_range};
-use systemprompt_cli::kernel::parsers::parse_agent_name;
-use systemprompt_cli::kernel::{CliConfig, CommandOutput};
+use systemprompt_extension::cli::parsers::parse_agent_name;
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
@@ -46,10 +46,10 @@ pub struct ShowArgs {
 
 pub(super) async fn execute_with_pool(
     args: ShowArgs,
-    db_ctx: &DatabaseContext,
+    pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let repo = AgentAnalyticsRepository::new(db_ctx.db_pool());
+    let repo = AgentAnalyticsRepository::new(pool);
     execute_internal(args, &repo).await
 }
 

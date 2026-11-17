@@ -1,64 +1,75 @@
-//! `plugins config` command rendering extension config schemas.
+//! `plugins config` command: the configuration sections the admitted
+//! members declare, and their schemas.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use clap::Args;
-use systemprompt_extension::ExtensionRegistry;
+use systemprompt_extension::cli::CommandOutput;
+use systemprompt_identifiers::ExtensionId;
 
+use super::composition;
 use super::types::{ExtensionConfigListOutput, ExtensionConfigOutput, ExtensionConfigSummary};
-use crate::CliConfig;
-use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
 pub struct ConfigArgs {
     #[arg(
         help = "Extension ID (optional - lists all if not specified)",
-        value_parser = crate::shared::parse_extension_id
+        value_parser = systemprompt_extension::cli::parsers::parse_extension_id
     )]
-    pub id: Option<systemprompt_identifiers::ExtensionId>,
+    pub id: Option<ExtensionId>,
 }
 
-pub fn execute(args: &ConfigArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let registry = ExtensionRegistry::discover()?;
+pub fn execute(args: &ConfigArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+    let built = composition::built(host)?;
 
     if let Some(id) = &args.id {
-        let ext = registry
-            .get(id.as_str())
+        let member = built
+            .members()
+            .find(|member| &member.owner == id)
             .ok_or_else(|| anyhow!("Extension '{}' not found", id))?;
 
-        let output = ExtensionConfigOutput {
-            extension_id: systemprompt_identifiers::ExtensionId::new(ext.id()),
-            config_prefix: ext.config_prefix().map(String::from),
-            config_schema: ext.config_schema(),
-            has_config: ext.has_config(),
-        };
-
-        Ok(CommandOutput::card_value(
-            format!("Extension Config: {}", id),
-            &output,
-        ))
-    } else {
-        let mut extensions: Vec<ExtensionConfigSummary> = registry
-            .extensions()
+        let configs = member
+            .sink
+            .configs()
             .iter()
-            .map(|ext| ExtensionConfigSummary {
-                extension_id: systemprompt_identifiers::ExtensionId::new(ext.id()),
-                config_prefix: ext.config_prefix().map(String::from),
-                has_config: ext.has_config(),
+            .map(|config| {
+                Ok(ExtensionConfigOutput {
+                    extension_id: member.owner.clone(),
+                    config_prefix: config.prefix().to_owned(),
+                    config_schema: serde_json::to_value(config.schema())?,
+                })
             })
-            .collect();
+            .collect::<Result<Vec<_>>>()?;
 
-        extensions.sort_by(|a, b| a.extension_id.cmp(&b.extension_id));
-        let total = extensions.len();
-
-        let output = ExtensionConfigListOutput { extensions, total };
-
-        Ok(CommandOutput::table_of(
-            vec!["extension_id", "config_prefix", "has_config"],
-            &output.extensions,
-        )
-        .with_title("Extension Configurations"))
+        return Ok(CommandOutput::card_value(
+            format!("Extension Config: {}", id),
+            &configs,
+        ));
     }
+
+    let mut extensions: Vec<ExtensionConfigSummary> = built
+        .members()
+        .flat_map(|member| {
+            member
+                .sink
+                .configs()
+                .iter()
+                .map(|config| ExtensionConfigSummary {
+                    extension_id: member.owner.clone(),
+                    config_prefix: config.prefix().to_owned(),
+                })
+        })
+        .collect();
+
+    extensions.sort_by(|a, b| a.extension_id.cmp(&b.extension_id));
+    let total = extensions.len();
+    let output = ExtensionConfigListOutput { extensions, total };
+
+    Ok(
+        CommandOutput::table_of(vec!["extension_id", "config_prefix"], &output.extensions)
+            .with_title("Extension Configurations"),
+    )
 }

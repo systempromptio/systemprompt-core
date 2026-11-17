@@ -29,7 +29,12 @@ use super::gateway_pipeline::gw_repos;
 const HEADER: &str = "x-systemprompt-scope-traffic";
 
 fn traffic_only() -> SubjectProviderSet {
-    SubjectProviderSet::from_providers(vec![Arc::new(TrafficProvider)])
+    SubjectProviderSet::new(vec![systemprompt_governance::authz::SubjectProviderEntry {
+        owner: systemprompt_identifiers::ExtensionId::new("test"),
+        standing: systemprompt_extension::StandingTag::Core,
+        provider: Arc::new(TrafficProvider),
+    }])
+    .expect("subject provider set builds")
 }
 
 fn partial() -> RejectionPartial {
@@ -131,8 +136,8 @@ fn traffic_class_parses_only_its_two_values() {
 
 #[tokio::test]
 async fn the_registered_traffic_provider_is_discovered() {
-    let (pool, _ctx) = setup_ctx().await.expect("ctx");
-    assert!(gw_repos(&pool).subject_providers.find("traffic").is_some());
+    let (_pool, ctx) = setup_ctx().await.expect("ctx");
+    assert!(ctx.subject_providers().find("traffic").is_some());
 }
 
 #[tokio::test]

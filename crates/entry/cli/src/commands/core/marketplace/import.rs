@@ -11,7 +11,7 @@ use clap::Args;
 use serde::Serialize;
 use systemprompt_marketplace::{ImportOptions, ImportReport, import_anthropic_tree};
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
 pub struct ImportArgs {

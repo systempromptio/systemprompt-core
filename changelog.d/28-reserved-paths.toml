@@ -1,0 +1,19 @@
+[root]
+section = "Breaking"
+area = "Security"
+text = "An install route may not reach a reserved path: every route's full path, parameter, catch-all and `service` prefix is checked at admission and re-checked at mount against `RESERVED_PATHS` (MCP proxy, gateway `/v1` and `/api/public/gateway`, well-known, discovery, probes, `/`, `/api/v1/core`, documents, uploads, issues, brain, notifications, content `/r`, analytics `/track`), each owned by a `CoreId` with a `ReservedReach` (`Prefix`, `Subtree`, `Exact`). An install has no root fallback (`service(\"/\")`, `/{*path}` and `/{slug}` are refused), and one opaque `service` cannot cover all of `/api/public`. `RouteSetBuilder::service` nests one opaque service under a literal prefix, recorded as one `ANY` route that conflicts with every route the prefix covers. Migrate a fallback route to an explicit prefix under the member's base."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`reserved::RESERVED_API_PREFIXES` is replaced by `RESERVED_PATHS: &[ReservedPath]`; an install route reaching a reserved path is `ReservedPrefix` and an `ApiBase::Extension` covering one is `InvalidBase`. Added `RouteSetBuilder::service`, `router::{refused_reservation, reserved_below, refused_gateway_def, GatewayDefRefusal}`, `CoreId::{ALL, for_id}`."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Changed"
+text = "The mount re-checks every admitted route set, gateway route and privileged command against the reserved paths and `PRIVILEGED_SHAPES`, and each admitted gateway route is protected with the protection its admission resolved. Every gateway route def must lie within its claimed gateway path and under no built-in gateway prefix (`MountError::{GatewayRouteOutsideClaim, GatewayRouteUnderBuiltin}`), and gateway defs join the route-conflict check."
+
+[[crate]]
+name = "systemprompt"
+section = "Breaking"
+text = "`CompositionError::{ReservedPrefix, ServiceNotAdmitted, ConferralShapeMismatch}` report a route reaching a reserved path or a privileged shape it does not hold; `CompositionError::{GatewayRouteOutsideClaim, GatewayRouteUnderBuiltin}` refuse a gateway route def outside its claimed gateway path or under a built-in gateway prefix, and two gateway defs claiming one request are a `RouteConflict`."

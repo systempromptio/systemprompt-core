@@ -47,11 +47,7 @@ impl AiService {
 
         request_logging::log_tooled_request_start(&request_id, request, request.provider(), model);
 
-        let base = GenerationParams::new(&request.messages, model, request.max_output_tokens());
-        let base = request
-            .sampling
-            .as_ref()
-            .map_or_else(|| base.clone(), |s| base.clone().with_sampling(s));
+        let base = GenerationParams::from_request(request, model)?;
         let params = ToolGenerationParams::new(base, tools.to_vec());
 
         let ai_result = provider.generate_with_tools(params).await;
@@ -172,6 +168,7 @@ impl AiService {
                         tool_calls: &tool_calls,
                         tool_results: &tool_results,
                         sampling: request.sampling.as_ref(),
+                        reasoning: request.reasoning,
                         max_output_tokens: request.max_output_tokens(),
                         model,
                     })
@@ -203,11 +200,7 @@ impl AiService {
         let model = request.model();
         let tools = request.tools.clone().unwrap_or_else(Vec::new);
 
-        let base = GenerationParams::new(&request.messages, model, request.max_output_tokens());
-        let base = request
-            .sampling
-            .as_ref()
-            .map_or_else(|| base.clone(), |s| base.clone().with_sampling(s));
+        let base = GenerationParams::from_request(request, model)?;
         let params = ToolGenerationParams::new(base, tools);
 
         let result = provider.generate_with_tools(params).await;

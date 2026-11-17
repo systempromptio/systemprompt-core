@@ -18,8 +18,8 @@ systemprompt-api = { workspace = true, features = ["brain", "bridge", "collab", 
 systemprompt-brain = { workspace = true }
 systemprompt-gateway = { workspace = true }
 systemprompt-ai = { workspace = true }
-systemprompt-extension = { workspace = true }
-inventory = { workspace = true }
+systemprompt-extension = { workspace = true, features = ["router"] }
+systemprompt-provider-contracts = { workspace = true }
 systemprompt-oauth = { workspace = true }
 systemprompt-oauth-issuance = { workspace = true }
 systemprompt-security = { workspace = true }
@@ -73,4 +73,4 @@ systemprompt-config = { workspace = true }
 uuid = { workspace = true }
 
 [package.metadata.cargo-machete]
-ignored = ["inventory", "jsonschema"]
+ignored = ["jsonschema"]

@@ -2,10 +2,10 @@
 //!
 //! [`OverridePolicy`] evaluates the profile's declarative
 //! [`SystemPromptRule`]s first (file order, first match wins), then the
-//! `inventory`-registered extension overrides in registration order. The first
-//! non-[`OverrideAction::Passthrough`] result wins; an extension that errors is
-//! logged and treated as pass-through so a misconfigured override can never
-//! fail dispatch.
+//! contributed overrides, core first and then installs in composition order.
+//! The first non-[`OverrideAction::Passthrough`] result wins; an extension that
+//! errors is logged and treated as pass-through so a misconfigured override can
+//! never fail dispatch.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,7 +16,6 @@ use systemprompt_manifest::services::{OverrideRuleAction, SystemPromptRule};
 
 use super::{
     OverrideAction, OverrideContext, OverrideResolution, OverrideSource, SystemPromptOverride,
-    SystemPromptOverrideRegistration,
 };
 
 pub struct OverridePolicy {
@@ -25,7 +24,7 @@ pub struct OverridePolicy {
 
 impl Default for OverridePolicy {
     fn default() -> Self {
-        Self::new()
+        Self::new(Vec::new())
     }
 }
 
@@ -39,12 +38,8 @@ impl std::fmt::Debug for OverridePolicy {
 
 impl OverridePolicy {
     #[must_use]
-    pub fn new() -> Self {
-        Self {
-            extensions: inventory::iter::<SystemPromptOverrideRegistration>()
-                .map(|reg| (reg.factory)())
-                .collect(),
-        }
+    pub fn new(extensions: Vec<Arc<dyn SystemPromptOverride>>) -> Self {
+        Self { extensions }
     }
 
     #[must_use]

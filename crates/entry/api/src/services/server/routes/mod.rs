@@ -37,7 +37,7 @@ mod static_setup;
 
 use axum::Router;
 use std::sync::Arc;
-use systemprompt_extension::registry::WEB_ROOT_BASE_PATH;
+use systemprompt_extension::reserved::WEB_ROOT_BASE_PATH;
 use systemprompt_extension::{
     AuthzPolicy, ContextKind, ExtensionContext as _, LoaderError, RateBudget, RateLimit, RouteGroup,
 };
@@ -46,53 +46,54 @@ use systemprompt_manifest::profile::NodeRole;
 
 use crate::routes::admin::services::RefreshLock;
 pub(super) use error::RouteMountError;
+pub use protocol::Composed;
 use protocol::{MountCtx, declare};
 use systemprompt_gateway::GatewayEngines;
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::{DynIpBanStore, StartupEventExt as _, StartupEventSender};
+use systemprompt_traits::{DynIpBanStore, StartupEventSender};
 
 use crate::services::middleware::{
     A2AContextMiddleware, BodyBudget, JwtContextExtractor, McpContextMiddleware, MountLayers,
-    ProtectionGuards, PublicContextMiddleware, RateLimitState, UserOnlyContextMiddleware,
-    ip_ban_middleware,
+    ProtectionGuards, PublicContextMiddleware, RateLimitState, RootFallbackOwner,
+    UserOnlyContextMiddleware, ip_ban_middleware,
 };
 
 pub(super) fn configure_routes(
     ctx: &AppContext,
+    composed: Composed<'_>,
     events: Option<&StartupEventSender>,
-    engines: &Arc<GatewayEngines>,
+    engines: Option<&Arc<GatewayEngines>>,
 ) -> Result<Router, RouteMountError> {
-    build_routes(ctx, ctx.config().role, events, engines)
+    build_routes(ctx, composed, ctx.config().role, events, engines)
 }
 
 pub fn configure_routes_for_role(
     ctx: &AppContext,
+    composed: Composed<'_>,
     role: NodeRole,
     events: Option<&StartupEventSender>,
     engines: &Arc<GatewayEngines>,
 ) -> anyhow::Result<Router> {
-    crate::services::middleware::admit_core_owners(
-        ctx.extension_registry()
-            .extensions()
-            .iter()
-            .map(|ext| &**ext),
-    )?;
-    Ok(build_routes(ctx, role, events, engines)?)
+    Ok(build_routes(ctx, composed, role, events, Some(engines))?)
 }
 
 fn build_routes(
     ctx: &AppContext,
+    composed: Composed<'_>,
     role: NodeRole,
     events: Option<&StartupEventSender>,
-    engines: &Arc<GatewayEngines>,
+    engines: Option<&Arc<GatewayEngines>>,
 ) -> Result<Router, RouteMountError> {
     let groups = role::route_groups(role);
     let serves = |group: RouteGroup| groups.contains(&group);
     let mut router = Router::new();
 
-    let metrics = ctx
-        .extension_registry()
-        .all_metrics(&ctx.profile().extensions.disabled)?;
+    let metrics: Vec<_> = composed
+        .admitted
+        .built()
+        .members()
+        .flat_map(|member| member.sink.metrics().iter().copied())
+        .collect();
     super::metrics::install_recorder(&ctx.config().instance_id, &metrics)
         .map_err(|source| RouteMountError::initialization("prometheus_metrics", source))?;
 
@@ -101,9 +102,9 @@ fn build_routes(
 
     let mount = MountCtx {
         ctx,
-        engines,
         layers: &layers,
         serves: &serves,
+        composed,
     };
     if serves(RouteGroup::Oauth) {
         router = oauth_mount::mount_oauth(router, &mount)?;
@@ -120,9 +121,10 @@ fn build_routes(
     if serves(RouteGroup::InternalLinks) {
         router = documents::mount_internal_links(router, &mount)?;
     }
-    if serves(RouteGroup::Gateway) {
-        router = gateway::mount_gateway(router, &mount)?;
-        report_gateway_guards(engines.guards.not_installed(), events);
+    if serves(RouteGroup::Gateway)
+        && let Some(engines) = engines
+    {
+        router = gateway::mount_gateway(router, &mount, engines)?;
     }
     router = feature_mount::mount_feature_routes(router, &mount)?;
     crate::services::messaging::bind_dispatcher(ctx)
@@ -137,20 +139,7 @@ fn build_routes(
     finish_router(router, &mount, events)
 }
 
-pub fn report_gateway_guards(skipped: &[&str], events: Option<&StartupEventSender>) {
-    if skipped.is_empty() {
-        return;
-    }
-    events.warning_with_context(
-        format!(
-            "{} gateway guards not installed: owner disabled",
-            skipped.len()
-        ),
-        skipped.join(", "),
-    );
-}
-
-fn mount_layers(ctx: &AppContext, role: NodeRole) -> Result<MountLayers, LoaderError> {
+fn mount_layers(ctx: &AppContext, role: NodeRole) -> Result<MountLayers, RouteMountError> {
     let jwt_extractor = JwtContextExtractor::from_app_context(ctx)?;
     let limits = if role.shares_process_ownership() {
         RateLimitState::from_context(ctx).unmetered()
@@ -191,11 +180,10 @@ fn finish_router(
     }));
 
     if (mount.serves)(RouteGroup::Static) {
-        router = router.merge(static_setup::build_static_router(
-            ctx,
-            mount.layers,
-            events,
-        )?);
+        router = RootFallbackOwner::default().place(
+            router,
+            static_setup::build_static_router(ctx, mount.layers, events)?,
+        )?;
     }
 
     Ok(router.layer(axum::middleware::from_fn(super::metrics::track_metrics)))
@@ -255,7 +243,7 @@ fn mount_discovery(mut router: Router, mount: &MountCtx<'_>) -> Result<Router, R
     Ok(router)
 }
 
-fn link_passkey_router() -> systemprompt_extension::ExtensionRouter {
+fn link_passkey_router() -> crate::services::middleware::KernelRoutes {
     declare(
         Router::new().route(
             "/auth/link-passkey",

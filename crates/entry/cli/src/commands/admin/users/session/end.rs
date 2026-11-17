@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use std::sync::Arc;
@@ -10,8 +11,7 @@ use systemprompt_identifiers::SessionId;
 use systemprompt_users::{UserAdminService, UserRepository, UserService};
 
 use crate::commands::admin::users::types::SessionEndOutput;
-use crate::context::CommandContext;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct EndArgs {
@@ -37,14 +37,14 @@ pub struct EndArgs {
     pub yes: bool,
 }
 
-pub(super) async fn execute(args: EndArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+pub(super) async fn execute(args: EndArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     if !args.yes {
         return Err(anyhow!(
             "This will end user session(s). Use --yes to confirm."
         ));
     }
 
-    let pool = ctx.db_pool().await?;
+    let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
     let user_service = UserService::new(Arc::new(UserRepository::new(&pool)));
     let admin_service = UserAdminService::new(user_service.clone());
 

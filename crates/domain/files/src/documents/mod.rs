@@ -34,8 +34,11 @@
 pub mod access;
 pub mod agents;
 mod blob_adopt;
+mod blob_locked;
 pub mod blob_store;
 mod blob_store_gc;
+mod brain_access;
+mod brain_content;
 pub mod codecs;
 #[cfg(feature = "collab")]
 pub mod collab;
@@ -44,11 +47,13 @@ mod comment_events;
 pub mod engine;
 pub mod error;
 pub mod events;
+pub mod handles;
 pub mod jobs;
 pub mod live;
 pub mod model;
 pub mod models;
 pub mod nodes;
+mod notification_visibility;
 pub mod outline;
 #[cfg(feature = "pdf")]
 pub mod pdf;
@@ -57,12 +62,19 @@ pub mod revision;
 pub mod service;
 mod sharing_events;
 pub mod templates;
+pub mod transient;
 
 pub use access::{
     AccessCheck, AccessTarget, DocumentAccessRepositories, DocumentAccessService, Granted,
     MAX_SUBJECT_SEARCH, SubjectDirectory, SubjectDirectoryError, SubjectMatch, SubjectSearch,
     SubjectValidation,
 };
+pub use brain_access::DocumentSourceAccess;
+pub use brain_content::{BRAIN_ACTOR, DocumentSourceContent, DocumentsSourceUnavailable};
 pub use error::DocumentsError;
 pub use events::DocumentEvents;
+pub use handles::{
+    DocumentsHandles, DocumentsHandlesBinder, DocumentsHandlesSlot, DocumentsUnbound,
+};
+pub use notification_visibility::DocumentVisibility;
 pub use service::{DocumentService, DocumentServiceParts};

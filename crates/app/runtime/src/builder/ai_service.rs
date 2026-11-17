@@ -24,12 +24,10 @@ use systemprompt_mcp::McpToolProvider;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_users::{SessionRepository, UsersAiSessionProvider};
 
-use super::composition::RepositoryBundles;
-
 pub(super) fn build_ai_service(
     boot: &BootContext,
     database: &DbPool,
-    repositories: &RepositoryBundles,
+    ai: &systemprompt_ai::repository::AiRepositories,
     mcp_registry: &RegistryService,
     services_state: &systemprompt_loader::ServicesState,
 ) -> (Option<Arc<AiService>>, Arc<TokenCache>) {
@@ -47,7 +45,7 @@ pub(super) fn build_ai_service(
         SessionRepository::new(database),
     ));
     let materializer = Arc::new(systemprompt_agent::services::ContextProviderService::new(
-        repositories.a2a.contexts.clone(),
+        systemprompt_agent::repository::ContextRepository::new(database),
     ));
     let catalog = Arc::clone(services_state.catalog());
     match AiService::new(
@@ -60,7 +58,7 @@ pub(super) fn build_ai_service(
             secrets,
             session_ttl_seconds: mcp_registry.config().jwt_access_token_expiration,
         },
-        &repositories.ai.request_audit(),
+        &ai.request_audit(),
     ) {
         Ok(service) => (
             Some(Arc::new(service.with_context_materializer(materializer))),

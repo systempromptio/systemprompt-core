@@ -189,7 +189,7 @@ fn infra_services_and_jobs() {
 #[test]
 fn infra_db_connection_and_tables() {
     stderr_has_fmt(&["infra", "db", "status"], "Database connection");
-    stderr_has_fmt(&["infra", "db", "info"], "Database: PostgreSQL");
+    stdout_has_fmt(&["infra", "db", "info"], "PostgreSQL");
     stdout_has_fmt(&["infra", "db", "tables"], "users");
     run_with_formats(&["infra", "db", "doctor"]);
 }
@@ -199,7 +199,7 @@ fn infra_db_objects() {
     stderr_has_fmt(&["infra", "db", "indexes"], "Indexes");
     stderr_has_fmt(&["infra", "db", "size"], "Database Size");
     stdout_has_fmt(&["infra", "db", "describe", "users"], "email");
-    stderr_has_fmt(&["infra", "db", "count", "users"], "users:");
+    stderr_has_fmt(&["infra", "db", "count", "users"], "Row Count");
 }
 
 #[test]
@@ -207,7 +207,7 @@ fn infra_db_query_and_migrations() {
     stdout_has_fmt(&["infra", "db", "query", "SELECT 1 AS one"], "one");
     stderr_has_fmt(&["infra", "db", "migrate-status"], "Applied:");
     stderr_has_fmt(&["infra", "db", "migrate-plan"], "migration");
-    stderr_has_fmt(&["infra", "db", "migrations", "status"], "applied");
+    stdout_has_fmt(&["infra", "db", "migrations", "status"], "total_applied");
 }
 
 #[test]
@@ -253,7 +253,6 @@ fn plugins_and_mcp() {
         &["plugins", "show", "no-such-plugin"],
         "Failed to show extension",
     );
-    run(&["plugins", "validate"]);
     run(&["plugins", "config", "no-such-plugin"]);
     stderr_has(&["plugins", "capabilities"], "Capabilities Summary");
     stdout_has_fmt(&["plugins", "mcp", "list"], fixture_mcp_server());

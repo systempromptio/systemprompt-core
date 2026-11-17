@@ -2,10 +2,9 @@
 
 use clap::{CommandFactory, FromArgMatches};
 use systemprompt_cli::args::{self, Cli};
-use systemprompt_cli::descriptor::{
-    CommandDescriptor, DataImpact, DbUrlRouting, DescribeCommand, RoutingClass,
-};
-use systemprompt_cli::kernel::CommandRegistry;
+use systemprompt_cli::kernel::{CommandRegistry, kernel_commands};
+use systemprompt_extension::DeclaredCommands;
+use systemprompt_extension::cli::{CommandDescriptor, DataImpact, DescribeCommand, RoutingClass};
 
 fn assert_child_host(desc: CommandDescriptor) {
     assert!(desc.child_host());
@@ -59,32 +58,38 @@ fn admin_agents_run_is_a_child_host() {
 }
 
 #[test]
-fn admin_mcp_serve_is_registered_through_the_seam_as_a_child_host() {
-    let registry = CommandRegistry::collected().expect("collected registrations are disjoint");
+fn admin_mcp_serve_is_a_kernel_command_and_a_child_host() {
+    let registry = CommandRegistry::build(&DeclaredCommands::default(), &kernel_commands())
+        .expect("the kernel groups build");
     assert!(
-        registry
-            .registrations()
+        !registry
+            .entries()
             .iter()
-            .any(|entry| entry.path() == "admin mcp" && entry.group().ends_with("McpHostCommands")),
-        "{registry:?}"
+            .any(|entry| entry.decl().path() == ["admin", "mcp"]),
+        "admin mcp is part of the kernel's own admin tree, not a registry entry: {registry:?}"
     );
 
     let root = args::command(&registry).expect("assemble");
-    let serve = registry
+    let resolved = registry
         .resolve(
             &root
                 .try_get_matches_from(["systemprompt", "admin", "mcp", "serve", "--server", "docs"])
                 .expect("admin mcp serve parses"),
         )
-        .expect("resolve")
-        .expect("admin mcp serve resolves to its registration");
-    assert_child_host(serve.descriptor());
-    assert_eq!(serve.db_url_routing(), DbUrlRouting::Unsupported);
+        .expect("resolve");
+    assert!(resolved.is_none(), "{resolved:?}");
+
+    let matches = Cli::command()
+        .try_get_matches_from(["systemprompt", "admin", "mcp", "serve", "--server", "docs"])
+        .expect("admin mcp serve parses");
+    let cli = Cli::from_arg_matches(&matches).expect("cli");
+    assert_child_host(cli.command.expect("a command").descriptor());
 }
 
 #[test]
 fn admin_mcp_serve_requires_a_server_id() {
-    let registry = CommandRegistry::collected().expect("collected registrations are disjoint");
+    let registry = CommandRegistry::build(&DeclaredCommands::default(), &kernel_commands())
+        .expect("the kernel groups build");
     let root = args::command(&registry).expect("assemble");
     assert!(
         root.try_get_matches_from(["systemprompt", "admin", "mcp", "serve"])

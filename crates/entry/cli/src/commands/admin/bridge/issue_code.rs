@@ -3,15 +3,16 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Args;
 use std::sync::Arc;
+use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_oauth::services::issue_bridge_exchange_code;
 use systemprompt_users::{UserRepository, UserService};
 
 use super::types::ExchangeCodeIssuedOutput;
-use crate::context::CommandContext;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct IssueCodeArgs {
@@ -23,14 +24,14 @@ pub struct IssueCodeArgs {
     pub user_ref: String,
 }
 
-pub(super) async fn execute(args: IssueCodeArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let app = ctx.app_context().await?;
+pub(super) async fn execute(args: IssueCodeArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+    let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
+    let oauth = crate::commands::admin::state::get::<Arc<OAuthRepositories>>(host).await?;
 
-    let user_id = super::resolve_user_id(app.db_pool(), &args.user_ref).await?;
+    let user_id = super::resolve_user_id(&pool, &args.user_ref).await?;
 
-    let users = UserService::new(Arc::new(UserRepository::new(app.db_pool())));
-    let issued =
-        issue_bridge_exchange_code(&app.oauth_repositories().oauth, &users, &user_id).await?;
+    let users = UserService::new(Arc::new(UserRepository::new(&pool)));
+    let issued = issue_bridge_exchange_code(&oauth.oauth, &users, &user_id).await?;
 
     let output = ExchangeCodeIssuedOutput {
         user_id: user_id.clone(),

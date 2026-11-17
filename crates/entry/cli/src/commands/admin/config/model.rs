@@ -8,14 +8,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::{Args, Subcommand};
 use systemprompt_config::{ModelSpec, ProviderCatalogService};
 use systemprompt_identifiers::ModelId;
 use systemprompt_manifest::services::catalog::DeploymentTarget;
 
-use super::catalog_edit::{apply, parse_clients, parse_endpoints, read_active, render_list};
-use crate::context::CommandContext;
+use super::catalog_edit::{apply, list_output, parse_clients, parse_endpoints, read_active};
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum ModelCommands {
@@ -25,14 +26,14 @@ pub enum ModelCommands {
     Add(ModelAddArgs),
     #[command(about = "Remove a model and its deployments")]
     Remove {
-        #[arg(long, value_parser = crate::shared::parse_model_id)]
+        #[arg(long, value_parser = systemprompt_extension::cli::parsers::parse_model_id)]
         id: ModelId,
     },
 }
 
 #[derive(Debug, Clone, Args)]
 pub struct ModelAddArgs {
-    #[arg(long, value_parser = crate::shared::parse_model_id)]
+    #[arg(long, value_parser = systemprompt_extension::cli::parsers::parse_model_id)]
     pub id: ModelId,
     #[arg(
         long = "deployment",
@@ -53,11 +54,10 @@ pub struct ModelAddArgs {
     pub clients: Option<Vec<String>>,
 }
 
-pub async fn execute(command: &ModelCommands, ctx: &CommandContext) -> Result<()> {
-    let config = &ctx.cli;
+pub async fn execute(command: &ModelCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
         ModelCommands::List => {
-            let document = read_active(ctx)?;
+            let document = read_active(host).await?;
             let rows = document
                 .models
                 .iter()
@@ -77,8 +77,7 @@ pub async fn execute(command: &ModelCommands, ctx: &CommandContext) -> Result<()
                     )
                 })
                 .collect();
-            render_list(config, "Models", rows);
-            Ok(())
+            Ok(list_output("Models", rows))
         },
         ModelCommands::Add(args) => {
             let deployments = parse_endpoints(&args.deployments)?
@@ -94,14 +93,14 @@ pub async fn execute(command: &ModelCommands, ctx: &CommandContext) -> Result<()
                 deployments,
                 pricing: None,
             };
-            apply(ctx, "Model Updated", |document, context| {
+            apply(host, "Model Updated", |document, context| {
                 ProviderCatalogService::upsert_model(document, context, spec)?;
                 Ok(format!("Model {} saved", args.id))
             })
             .await
         },
         ModelCommands::Remove { id } => {
-            apply(ctx, "Model Removed", |document, context| {
+            apply(host, "Model Removed", |document, context| {
                 ProviderCatalogService::remove_model(document, context, id)?;
                 Ok(format!("Model {id} removed"))
             })

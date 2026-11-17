@@ -2,9 +2,6 @@
 //!
 //! [`BuildCommands`] dispatches to the core workspace build and the MCP
 //! extension build; [`types`] holds the shared result rows surfaced by both.
-//! The group registers itself with the kernel through
-//! [`register_cli_command!`](crate::register_cli_command) rather than being
-//! named in the kernel's command enum.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,9 +12,9 @@ pub mod types;
 
 use anyhow::{Context, Result};
 use clap::Subcommand;
-
-use crate::kernel::{
-    CliCommandGroup, CommandContext, CommandDescriptor, DataImpact, DescribeCommand, render_result,
+use systemprompt_extension::cli::{
+    CliCommandGroup, CommandDescriptor, CommandError, CommandHost, CommandOutput, DataImpact,
+    DescribeCommand,
 };
 
 #[derive(Debug, Clone, Copy, Subcommand)]
@@ -36,30 +33,24 @@ impl DescribeCommand for BuildCommands {
 }
 
 impl CliCommandGroup for BuildCommands {
-    const PARENT: &'static [&'static str] = &[];
     const NAME: &'static str = "build";
+    const DISPLAY_ORDER: usize = 80;
     const ABOUT: &'static str = "Build MCP extensions";
 
-    fn run(self, ctx: &CommandContext) -> impl Future<Output = Result<()>> + Send {
-        std::future::ready(execute(self, ctx))
+    fn run(
+        self,
+        host: &dyn CommandHost,
+    ) -> impl Future<Output = Result<CommandOutput, CommandError>> + Send {
+        std::future::ready(execute(self, host).map_err(CommandError::new))
     }
 }
 
-crate::register_cli_command!(BuildCommands);
-
-pub fn execute(cmd: BuildCommands, ctx: &CommandContext) -> Result<()> {
+pub fn execute(cmd: BuildCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     match cmd {
         BuildCommands::Core(args) => {
-            let result = core::execute(args, &ctx.cli, ctx.foreground_children())
-                .context("Failed to build core")?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            core::execute(args, host.output(), host.children()).context("Failed to build core")
         },
-        BuildCommands::Mcp(args) => {
-            let result = mcp::execute(args, &ctx.cli, ctx.foreground_children())
-                .context("Failed to build MCP extensions")?;
-            render_result(&result, &ctx.cli);
-            Ok(())
-        },
+        BuildCommands::Mcp(args) => mcp::execute(args, host.output(), host.children())
+            .context("Failed to build MCP extensions"),
     }
 }

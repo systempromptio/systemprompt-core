@@ -5,14 +5,14 @@
 
 use anyhow::{Context, Result};
 use std::process::Command;
-use systemprompt_loader::subprocess::ForegroundChildren;
+use systemprompt_extension::cli::ChildSupervisor;
 use systemprompt_logging::CliService;
 
 use super::provision::provision_role_and_db;
 use crate::shared::postgres_access::{PostgresConfig, connect};
 
 pub(super) async fn create_database_in_docker(
-    children: &ForegroundChildren,
+    children: &dyn ChildSupervisor,
     config: &PostgresConfig,
     container_name: &str,
     reset_role_password: bool,
@@ -21,7 +21,7 @@ pub(super) async fn create_database_in_docker(
 
     let mut cmd = Command::new("docker");
     cmd.args(["exec", container_name, "printenv", "POSTGRES_PASSWORD"]);
-    let children = children.clone();
+    let children = children.handle();
     let output = tokio::task::spawn_blocking(move || children.output(cmd))
         .await
         .context("Failed to get container password")?

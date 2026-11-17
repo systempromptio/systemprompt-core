@@ -4,9 +4,10 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use clap::Parser;
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_content_entry::cli::content::{self, ContentCommands};
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
 use uuid::Uuid;
 
@@ -23,14 +24,14 @@ fn parse(args: &[&str]) -> ContentCommands {
 }
 
 
-fn ctx(pool: &DbPool) -> CommandContext {
+async fn ctx() -> CommandContext {
     let url = test_database_url();
     crate::common::with_app_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
-        test_app_context(pool, &url),
+        test_app_context(&url).await,
     )
 }
 
@@ -63,7 +64,7 @@ async fn seed_link(pool: &DbPool, ctx: &CommandContext) -> (String, String) {
 #[tokio::test]
 async fn show_reports_seeded_link() {
     let pool = test_db_pool().await;
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     let (_id, short_code) = seed_link(&pool, &ctx).await;
 
     content::execute(parse(&["link", "show", &short_code]), &ctx)
@@ -73,8 +74,7 @@ async fn show_reports_seeded_link() {
 
 #[tokio::test]
 async fn show_unknown_short_code_errors() {
-    let pool = test_db_pool().await;
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     let missing = format!("nope{}", Uuid::new_v4().simple());
     let err = content::execute(parse(&["link", "show", &missing]), &ctx)
         .await
@@ -85,7 +85,7 @@ async fn show_unknown_short_code_errors() {
 #[tokio::test]
 async fn performance_reports_zero_click_link() {
     let pool = test_db_pool().await;
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     let (id, _short_code) = seed_link(&pool, &ctx).await;
 
     content::execute(parse(&["link", "performance", &id]), &ctx)
@@ -95,8 +95,7 @@ async fn performance_reports_zero_click_link() {
 
 #[tokio::test]
 async fn performance_unknown_link_errors() {
-    let pool = test_db_pool().await;
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     let missing = format!("missing-{}", Uuid::new_v4().simple());
     let err = content::execute(parse(&["link", "performance", &missing]), &ctx)
         .await
@@ -107,7 +106,7 @@ async fn performance_unknown_link_errors() {
 #[tokio::test]
 async fn delete_with_yes_removes_link() {
     let pool = test_db_pool().await;
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     let (id, short_code) = seed_link(&pool, &ctx).await;
 
     content::execute(parse(&["link", "delete", &id, "--yes"]), &ctx)
@@ -122,8 +121,7 @@ async fn delete_with_yes_removes_link() {
 
 #[tokio::test]
 async fn delete_unknown_link_errors() {
-    let pool = test_db_pool().await;
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     let missing = format!("missing-{}", Uuid::new_v4().simple());
     let err = content::execute(parse(&["link", "delete", &missing, "--yes"]), &ctx)
         .await

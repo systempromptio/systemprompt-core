@@ -6,10 +6,11 @@
 //! [`BackgroundTasks`] so the request path is never blocked on persistence and
 //! shutdown drains every pending write.
 //!
-//! The session store and the behavioural scorer are read from the extension
-//! state (provided by the `users` and `analytics` extensions) through their
-//! shared traits. Recording is not a guard: when either is absent the request
-//! is served and that part of the record is skipped.
+//! The session store, the behavioural scorer, the content catalog the scorer
+//! counts site pages from and the analytics repositories are read from the
+//! extension state (provided by the `users`, `analytics` and `content`
+//! members). Recording is not a guard: when one is absent the request is
+//! served and that part of the record is skipped.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -22,6 +23,7 @@ use axum::middleware::Next;
 use axum::response::Response;
 use std::sync::Arc;
 
+use systemprompt_analytics::repository::AnalyticsRepositories;
 use systemprompt_extension::ExtensionContext as _;
 use systemprompt_identifiers::SessionId;
 use systemprompt_logging::AnalyticsRepository;
@@ -29,7 +31,8 @@ use systemprompt_models::{RequestContext, RouteClassifier};
 use systemprompt_runtime::AppContext;
 use systemprompt_security::ScannerDetector;
 use systemprompt_traits::{
-    BackgroundTasks, DetectionSubject, DynSessionBehaviourScorer, DynSessionStore,
+    BackgroundTasks, DetectionSubject, DynContentCatalogStats, DynSessionBehaviourScorer,
+    DynSessionStore,
 };
 
 pub use events::AnalyticsEventParams;
@@ -49,8 +52,8 @@ struct TrackingParams<'a> {
 #[derive(Clone)]
 pub struct AnalyticsMiddleware {
     sessions: Option<DynSessionStore>,
-    scorer: Option<DynSessionBehaviourScorer>,
-    analytics_repo: Arc<AnalyticsRepository>,
+    scoring: Option<(DynSessionBehaviourScorer, DynContentCatalogStats)>,
+    analytics_repo: Option<Arc<AnalyticsRepository>>,
     route_classifier: Arc<RouteClassifier>,
     background: BackgroundTasks,
 }
@@ -59,8 +62,8 @@ impl std::fmt::Debug for AnalyticsMiddleware {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("AnalyticsMiddleware")
             .field("records_sessions", &self.sessions.is_some())
-            .field("scores_behaviour", &self.scorer.is_some())
-            .field("analytics_repo", &self.analytics_repo)
+            .field("scores_behaviour", &self.scoring.is_some())
+            .field("records_events", &self.analytics_repo.is_some())
             .field("route_classifier", &self.route_classifier)
             .field("background", &self.background)
             .finish_non_exhaustive()
@@ -71,13 +74,18 @@ impl AnalyticsMiddleware {
     pub fn new(app_context: &AppContext) -> Self {
         let state = app_context.extension_state();
         let sessions = state.find::<DynSessionStore>().cloned();
-        let scorer = state.find::<DynSessionBehaviourScorer>().cloned();
-        let analytics_repo = Arc::clone(&app_context.analytics_repositories().event_log);
+        let scoring = state
+            .find::<DynSessionBehaviourScorer>()
+            .cloned()
+            .zip(state.find::<DynContentCatalogStats>().cloned());
+        let analytics_repo = state
+            .find::<Arc<AnalyticsRepositories>>()
+            .map(|repositories| Arc::clone(&repositories.event_log));
         let route_classifier = Arc::clone(app_context.route_classifier());
 
         Self {
             sessions,
-            scorer,
+            scoring,
             analytics_repo,
             route_classifier,
             background: app_context.background_tasks().clone(),
@@ -179,10 +187,11 @@ impl AnalyticsMiddleware {
             );
         }
 
-        if let Some(scorer) = &self.scorer {
+        if let Some((scorer, content)) = &self.scoring {
             spawn_behavioral_detection_task(
                 &self.background,
                 Arc::clone(scorer),
+                Arc::clone(content),
                 DetectionSubject {
                     session_id: req_ctx.request.session_id.clone(),
                     fingerprint_hash: req_ctx.request.fingerprint_hash.clone(),
@@ -192,23 +201,25 @@ impl AnalyticsMiddleware {
             );
         }
 
-        events::spawn_analytics_event_task(
-            &self.background,
-            Arc::clone(&self.analytics_repo),
-            Arc::clone(&self.route_classifier),
-            AnalyticsEventParams {
-                req_ctx: req_ctx.clone(),
-                endpoint,
-                path,
-                method: method.to_string(),
-                uri: uri.clone(),
-                status_code,
-                response_time_ms,
-                user_agent,
-                referer,
-                html_response,
-            },
-        );
+        if let Some(analytics_repo) = &self.analytics_repo {
+            events::spawn_analytics_event_task(
+                &self.background,
+                Arc::clone(analytics_repo),
+                Arc::clone(&self.route_classifier),
+                AnalyticsEventParams {
+                    req_ctx: req_ctx.clone(),
+                    endpoint,
+                    path,
+                    method: method.to_string(),
+                    uri: uri.clone(),
+                    status_code,
+                    response_time_ms,
+                    user_agent,
+                    referer,
+                    html_response,
+                },
+            );
+        }
     }
 }
 
@@ -273,10 +284,11 @@ fn spawn_mark_scanner_task(
 fn spawn_behavioral_detection_task(
     background: &BackgroundTasks,
     scorer: DynSessionBehaviourScorer,
+    content: DynContentCatalogStats,
     subject: DetectionSubject,
 ) {
     background.spawn("analytics_behavioral_detection", async move {
-        if let Err(e) = scorer.score(subject).await {
+        if let Err(e) = scorer.score(subject, &*content).await {
             tracing::error!(error = %e, "Failed to update behavioral detection");
         }
     });

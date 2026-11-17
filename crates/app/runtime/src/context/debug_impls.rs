@@ -10,12 +10,11 @@ impl std::fmt::Debug for AppContext {
         f.debug_struct("AppContext")
             .field("config", &"Config")
             .field("database", &"DbPool")
-            .field("extension_registry", &self.plugins.extension_registry)
-            .field("extension_state", &self.extension_state)
+            .field("kernel", &self.kernel)
+            .field("admitted_members", &self.admitted.built().members().count())
             .field("geoip_reader", &self.subsystems.geoip_reader.is_some())
             .field("content_config", &self.cfg.content_config.is_some())
             .field("route_classifier", &"RouteClassifier")
-            .field("analytics_service", &"AnalyticsService")
             .field("fingerprint_repo", &self.data.fingerprint_repo.is_some())
             .field("user_service", &self.data.user_service.is_some())
             .field("app_paths", &"AppPaths")
@@ -26,7 +25,7 @@ impl std::fmt::Debug for AppContext {
             .field("authz_hook", &"SharedAuthzHook")
             .field("signing_keys", &self.subsystems.signing_keys)
             .field("governance", &self.subsystems.governance)
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
@@ -34,7 +33,6 @@ impl std::fmt::Debug for DataPlane {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DataPlane")
             .field("database", &"DbPool")
-            .field("analytics_service", &"AnalyticsService")
             .field("fingerprint_repo", &self.fingerprint_repo.is_some())
             .field("user_service", &self.user_service.is_some())
             .field("a2a_repositories", &"A2ARepositories")
@@ -44,7 +42,6 @@ impl std::fmt::Debug for DataPlane {
             .field("service_repository", &"ServiceRepository")
             .field("coordination", &"CoordinationRepositories")
             .field("ai_repositories", &"AiRepositories")
-            .field("analytics_repositories", &"AnalyticsRepositories")
             .field("file_repository", &"FileRepository")
             .field("mcp_session_repository", &"McpSessionRepository")
             .field("managed_repository", &"ManagedRepository")
@@ -69,7 +66,6 @@ impl std::fmt::Debug for ConfigPlane {
 impl std::fmt::Debug for Plugins {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Plugins")
-            .field("extension_registry", &self.extension_registry)
             .field("mcp_registry", &"RegistryService")
             .field("marketplace_filter", &self.marketplace_filter)
             .field("marketplace_cache", &self.marketplace_cache)
@@ -109,10 +105,6 @@ impl std::fmt::Debug for Subsystems {
             .field("publish_guard", &"Mutex<PublishGuard>")
             .field("connector_tokens", &"TokenCache")
             .field("documents", &self.documents);
-        #[cfg(feature = "notifications")]
-        debug.field("notifications", &self.notifications);
-        #[cfg(feature = "brain")]
-        debug.field("brain", &self.brain);
         debug.finish()
     }
 }

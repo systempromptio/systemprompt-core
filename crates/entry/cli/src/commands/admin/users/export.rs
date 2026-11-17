@@ -2,6 +2,7 @@
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+use crate::kernel::KernelHost;
 use systemprompt_logging::CliService;
 
 use anyhow::Result;
@@ -14,9 +15,7 @@ use systemprompt_database::DbPool;
 use systemprompt_users::{UserRepository, UserService, UserStatus};
 
 use super::types::{UserExportItem, UserExportOutput};
-use crate::CliConfig;
-use crate::context::CommandContext;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 #[derive(Debug, Args)]
 pub struct ExportArgs {
@@ -41,8 +40,13 @@ pub struct ExportArgs {
     pub limit: i64,
 }
 
-pub(super) async fn execute(args: ExportArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    execute_with_pool(args, &ctx.db_pool().await?, &ctx.cli).await
+pub(super) async fn execute(args: ExportArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+    execute_with_pool(
+        args,
+        &systemprompt_database::pool_from_handle(host.db().await?)?,
+        host.output(),
+    )
+    .await
 }
 
 pub(super) async fn execute_with_pool(

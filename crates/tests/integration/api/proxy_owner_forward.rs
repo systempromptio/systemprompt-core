@@ -3,11 +3,16 @@
 //! services, endpoint and presence rows, stamped with an owner-hop marker
 //! signed for that service. With no live owner the proxy answers 503
 //! `no_live_owner`. A worker ignores a marker a client supplies and forwards
-//! the request to the owner as if it had arrived directly.
+//! the request to the owner as if it had arrived directly. For a process the
+//! configuration supervises, the `api` replica holds the request while the
+//! process is between owners and forwards it once the new owner registers;
+//! when none appears within the wait it answers 503, and at once thereafter.
 
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode};
-use systemprompt_api::services::proxy::service::owner::{OwnerCache, owner_url};
+use systemprompt_api::services::proxy::service::owner::{
+    HandoverWaits, OWNER_HANDOVER_POLL, OWNER_HANDOVER_WAIT, OwnerCache, owner_url,
+};
 use systemprompt_database::{
     CreateServiceInput, ProcessOwner, ServiceModule, ServiceRepository, ServiceStatus,
 };
@@ -17,7 +22,8 @@ use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
 use systemprompt_security::jwt::verify_owner_hop;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_app_context_with_config, fixture_config, test_db_pool,
+    TestBootstrap, ensure_test_bootstrap, fixture_app_context_with_config,
+    fixture_app_context_with_services, fixture_config, init_services_bootstrap, test_db_pool,
 };
 use tower::ServiceExt;
 use wiremock::matchers::{header_exists, method};
@@ -29,10 +35,9 @@ async fn app_with_role(
     role: NodeRole,
 ) -> anyhow::Result<(axum::Router, std::sync::Arc<AppContext>)> {
     let b = ensure_test_bootstrap();
-    let pool = test_db_pool().await;
     let mut config = fixture_config(&b.database_url);
     config.role = role;
-    let ctx = fixture_app_context_with_config(&pool, config)?;
+    let ctx = fixture_app_context_with_config(config).await?;
     Ok((
         with_config(systemprompt_api::routes::proxy::mcp::router(&ctx), &ctx),
         ctx,
@@ -54,21 +59,76 @@ fn mcp_request(service: &str, ctx: RequestContext) -> anyhow::Result<Request<Bod
 }
 
 async fn live_owner(owner: &MockServer) -> anyhow::Result<ServiceName> {
-    let pool = test_db_pool().await;
     let suffix = uuid::Uuid::new_v4().simple().to_string();
     let service = ServiceName::new(format!("owned-{}", &suffix[..10]));
+    register_owner(&owner.uri(), &service).await?;
+    Ok(service)
+}
+
+async fn register_owner(advertise_url: &str, service: &ServiceName) -> anyhow::Result<()> {
+    let pool = test_db_pool().await;
+    let suffix = uuid::Uuid::new_v4().simple().to_string();
     let rows = ServiceRepository::new(&pool, InstanceId::new(format!("owner_{suffix}")));
-    rows.advertise_endpoint(&owner.uri()).await?;
+    rows.advertise_endpoint(advertise_url).await?;
     rows.touch_presence(NodeRole::All).await?;
     rows.create_service(CreateServiceInput {
-        name: &service,
+        name: service,
         module_name: ServiceModule::Mcp,
         status: ServiceStatus::Running,
         port: 5601,
         binary_mtime: None,
     })
     .await?;
-    Ok(service)
+    Ok(())
+}
+
+struct SupervisedApi {
+    app: axum::Router,
+    service: ServiceName,
+    _boot: TestBootstrap,
+}
+
+async fn api_supervising_one_mcp_server() -> anyhow::Result<SupervisedApi> {
+    let name = format!("moving_{}", uuid::Uuid::new_v4().simple());
+    let services = format!(
+        r#"mcp_servers:
+  {name}:
+    server_type: internal
+    binary: fixture
+    package: fixture
+    port: 5602
+    enabled: true
+    tool_policy: allow
+    display_in_web: false
+    oauth:
+      required: true
+      scopes: [admin]
+      audience: mcp
+      client_id: null
+settings:
+  agent_port_range: [4000, 4999]
+  mcp_port_range: [5000, 5999]
+"#
+    );
+    let boot = init_services_bootstrap(&services);
+    let manifest_dir = boot.system_path.join("extensions").join("fixture");
+    std::fs::create_dir_all(&manifest_dir)?;
+    std::fs::write(
+        manifest_dir.join("manifest.yaml"),
+        "extension:\n  type: mcp\n  name: fixture\n  binary: fixture\n",
+    )?;
+    let state = boot.services.clone();
+    let mut config = fixture_config(&boot.database_url);
+    config.role = NodeRole::Api;
+    config.system_path = boot.system_path.display().to_string();
+    config.services_path = boot.services_path.display().to_string();
+    config.bin_path = boot.bin_path.display().to_string();
+    let ctx = fixture_app_context_with_services(config, state).await?;
+    Ok(SupervisedApi {
+        app: with_config(systemprompt_api::routes::proxy::mcp::router(&ctx), &ctx),
+        service: ServiceName::new(name),
+        _boot: boot,
+    })
 }
 
 fn markers_verify(ctx: &AppContext, service: &ServiceName, received: &[wiremock::Request]) -> bool {
@@ -189,5 +249,140 @@ fn owner_urls_join_cleanly_and_the_cache_returns_what_was_put() {
     assert_eq!(
         cache.get(&name).map(|o| o.advertise_url),
         Some("http://a:1".to_owned())
+    );
+}
+
+#[tokio::test]
+async fn an_api_replica_holds_a_request_until_the_new_owner_registers() -> anyhow::Result<()> {
+    let owner = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_body_string("from-new-owner"))
+        .expect(1)
+        .mount(&owner)
+        .await;
+    let api = api_supervising_one_mcp_server().await?;
+
+    let gap = std::time::Duration::from_millis(700);
+    let (uri, service) = (owner.uri(), api.service.clone());
+    let registering = tokio::spawn(async move {
+        tokio::time::sleep(gap).await;
+        register_owner(&uri, &service).await
+    });
+
+    let started = std::time::Instant::now();
+    let response = api
+        .app
+        .clone()
+        .oneshot(mcp_request(
+            api.service.as_str(),
+            request_context("owner-moving"),
+        )?)
+        .await?;
+    let waited = started.elapsed();
+    registering.await??;
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = to_bytes(response.into_body(), 1 << 16).await?;
+    assert_eq!(&body[..], b"from-new-owner");
+    assert!(
+        waited >= gap,
+        "the request was held through the gap: {waited:?}"
+    );
+    assert!(
+        waited < OWNER_HANDOVER_WAIT,
+        "the request was forwarded when the owner registered, not at the deadline: {waited:?}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_supervised_process_nobody_claims_is_refused_after_the_wait_and_then_at_once()
+-> anyhow::Result<()> {
+    let api = api_supervising_one_mcp_server().await?;
+
+    let started = std::time::Instant::now();
+    let first = api
+        .app
+        .clone()
+        .oneshot(mcp_request(
+            api.service.as_str(),
+            request_context("owner-absent"),
+        )?)
+        .await?;
+    let waited = started.elapsed();
+    assert_eq!(first.status(), StatusCode::SERVICE_UNAVAILABLE);
+    assert!(
+        waited >= OWNER_HANDOVER_WAIT,
+        "the first request waits out the hand-over window: {waited:?}"
+    );
+
+    let started = std::time::Instant::now();
+    let second = api
+        .app
+        .clone()
+        .oneshot(mcp_request(
+            api.service.as_str(),
+            request_context("owner-absent"),
+        )?)
+        .await?;
+    let waited = started.elapsed();
+    assert_eq!(second.status(), StatusCode::SERVICE_UNAVAILABLE);
+    assert!(
+        waited < OWNER_HANDOVER_WAIT / 2,
+        "a request after the window is refused without a second wait: {waited:?}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn an_unsupervised_name_is_refused_without_waiting() -> anyhow::Result<()> {
+    let app = api_app().await?;
+    let service = format!(
+        "orphan-{}",
+        &uuid::Uuid::new_v4().simple().to_string()[..10]
+    );
+    let started = std::time::Instant::now();
+    let response = app
+        .oneshot(mcp_request(
+            service.as_str(),
+            request_context("owner-missing"),
+        )?)
+        .await?;
+    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    assert!(
+        started.elapsed() < OWNER_HANDOVER_WAIT / 2,
+        "a name the configuration does not supervise is never waited for: {:?}",
+        started.elapsed()
+    );
+    Ok(())
+}
+
+#[test]
+fn requests_for_one_service_share_a_deadline_and_ration_registry_reads() {
+    let waits = HandoverWaits::default();
+    let name = ServiceName::new("moving");
+    let start = std::time::Instant::now();
+
+    let deadline = waits.deadline(&name, start);
+    assert_eq!(deadline, start + OWNER_HANDOVER_WAIT);
+    assert_eq!(
+        waits.deadline(&name, start + std::time::Duration::from_secs(3)),
+        deadline,
+        "a later request joins the wait already running"
+    );
+
+    assert!(!waits.probe_due(&name, start + OWNER_HANDOVER_POLL / 2));
+    assert!(waits.probe_due(&name, start + OWNER_HANDOVER_POLL));
+    assert!(
+        !waits.probe_due(&name, start + OWNER_HANDOVER_POLL + OWNER_HANDOVER_POLL / 2),
+        "one read per poll interval however many requests wait"
+    );
+
+    waits.clear(&name);
+    let later = start + OWNER_HANDOVER_WAIT * 2;
+    assert_eq!(
+        waits.deadline(&name, later),
+        later + OWNER_HANDOVER_WAIT,
+        "a found owner ends the wait, so the next hand-over starts a new one"
     );
 }

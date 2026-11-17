@@ -5,8 +5,9 @@
 
 use clap::Parser;
 use systemprompt_cli::infrastructure::logs::{self, LogsCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides};
+use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::CliConfig;
 use systemprompt_identifiers::{SessionId, TraceId};
 use systemprompt_logging::{LogActor, LogEntry, LogLevel, LoggingRepository};
 use systemprompt_test_fixtures::{
@@ -26,12 +27,12 @@ fn parse(args: &[&str]) -> LogsCommands {
 }
 
 
-fn app_ctx(pool: &DbPool) -> CommandContext {
+async fn app_ctx() -> CommandContext {
     let url = test_database_url();
     crate::boot_ctx::with_app_boot(
         CliConfig::new().with_interactive(false),
         EnvOverrides::default(),
-        test_app_context(pool, &url),
+        test_app_context(&url).await,
     )
 }
 
@@ -52,7 +53,7 @@ async fn stream_bounded_renders_recent_logs() {
     let module = format!("cli.stream.{}", uuid::Uuid::new_v4().simple());
     seed_log(&pool, LogLevel::Error, &module, "stream error line").await;
     seed_log(&pool, LogLevel::Info, &module, "stream info line").await;
-    let ctx = app_ctx(&pool);
+    let ctx = app_ctx().await;
 
     logs::execute(
         parse(&[
@@ -88,7 +89,7 @@ async fn stream_renders_all_levels_and_plain_entries() {
     let plain = LogEntry::new(LogLevel::Info, &module, "no metadata line", actor);
     LoggingRepository::new(&pool).log(plain).await.unwrap();
 
-    let ctx = app_ctx(&pool);
+    let ctx = app_ctx().await;
     logs::execute(
         parse(&[
             "stream",
@@ -107,8 +108,7 @@ async fn stream_renders_all_levels_and_plain_entries() {
 
 #[tokio::test]
 async fn stream_clear_and_empty_filter_terminate() {
-    let pool = test_db_pool().await;
-    let ctx = app_ctx(&pool);
+    let ctx = app_ctx().await;
     let missing = format!("cli.stream.none.{}", uuid::Uuid::new_v4().simple());
 
     logs::execute(
@@ -130,13 +130,12 @@ async fn stream_clear_and_empty_filter_terminate() {
 
 #[tokio::test]
 async fn stream_rejects_json_output() {
-    let pool = test_db_pool().await;
     let ctx = crate::boot_ctx::with_app_boot(
         CliConfig::new()
             .with_interactive(false)
-            .with_output_format(systemprompt_cli::OutputFormat::Json),
+            .with_output_format(systemprompt_extension::cli::OutputFormat::Json),
         EnvOverrides::default(),
-        test_app_context(&pool, &test_database_url()),
+        test_app_context(&test_database_url()).await,
     );
     let err = logs::execute(parse(&["stream", "--max-iterations", "1"]), &ctx)
         .await
@@ -146,8 +145,7 @@ async fn stream_rejects_json_output() {
 
 #[tokio::test]
 async fn cleanup_dry_run_reports_cutoff() {
-    let pool = test_db_pool().await;
-    let ctx = app_ctx(&pool);
+    let ctx = app_ctx().await;
     logs::execute(
         parse(&["cleanup", "--older-than", "3650d", "--dry-run"]),
         &ctx,
@@ -158,8 +156,7 @@ async fn cleanup_dry_run_reports_cutoff() {
 
 #[tokio::test]
 async fn cleanup_keep_last_days_deletes_with_confirmation() {
-    let pool = test_db_pool().await;
-    let ctx = app_ctx(&pool);
+    let ctx = app_ctx().await;
     logs::execute(
         parse(&["cleanup", "--keep-last-days", "3650", "--yes"]),
         &ctx,
@@ -170,8 +167,7 @@ async fn cleanup_keep_last_days_deletes_with_confirmation() {
 
 #[tokio::test]
 async fn cleanup_requires_a_bound() {
-    let pool = test_db_pool().await;
-    let ctx = app_ctx(&pool);
+    let ctx = app_ctx().await;
     let err = logs::execute(parse(&["cleanup", "--yes"]), &ctx)
         .await
         .unwrap_err();

@@ -10,12 +10,20 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_extension::AdmittedPurge;
 use systemprompt_identifiers::UserId;
 
 use super::UserService;
 use crate::error::{Result, UserError};
 use crate::models::User;
-use crate::repository::{ArchiveOutcome, ArchiveParams, ArchiveState, PurgeCount};
+use crate::repository::{ArchiveOutcome, ArchiveParams, ArchiveState, PurgeOutcome};
+
+/// One archived user the retention pass purged, with what the purge covered.
+#[derive(Debug, Clone)]
+pub struct PurgedArchive {
+    pub id: UserId,
+    pub outcome: PurgeOutcome,
+}
 
 impl UserService {
     pub async fn archive(&self, id: &UserId, params: ArchiveParams<'_>) -> Result<ArchiveOutcome> {
@@ -49,7 +57,7 @@ impl UserService {
         self.repository.find_archive_state(id).await
     }
 
-    pub async fn purge(&self, id: &UserId) -> Result<Vec<PurgeCount>> {
+    pub async fn purge(&self, id: &UserId, plan: &AdmittedPurge) -> Result<PurgeOutcome> {
         let state = self
             .repository
             .find_archive_state(id)
@@ -61,22 +69,23 @@ impl UserService {
         if state.legal_hold {
             return Err(UserError::LegalHold(id.clone()));
         }
-        self.repository.delete(id).await
+        self.repository.delete(id, plan).await
     }
 
     pub async fn purge_expired_archives(
         &self,
         window_days: u32,
         limit: i64,
-    ) -> Result<Vec<UserId>> {
+        plan: &AdmittedPurge,
+    ) -> Result<Vec<PurgedArchive>> {
         let ids = self
             .repository
             .list_purgeable_archives(window_days, limit)
             .await?;
         let mut purged = Vec::with_capacity(ids.len());
         for id in ids {
-            self.purge(&id).await?;
-            purged.push(id);
+            let outcome = self.purge(&id, plan).await?;
+            purged.push(PurgedArchive { id, outcome });
         }
         Ok(purged)
     }

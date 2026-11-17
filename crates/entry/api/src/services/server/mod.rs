@@ -20,6 +20,7 @@ pub mod health;
 mod health_stats;
 
 mod config_fingerprint;
+mod contributed;
 pub mod health_detail;
 mod identity;
 pub mod lifecycle;

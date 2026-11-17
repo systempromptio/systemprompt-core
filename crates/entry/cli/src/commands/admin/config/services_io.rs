@@ -25,7 +25,7 @@ use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_manifest::services::catalog::{CATALOG_FILES, CatalogDocument};
 
 use super::config_section::ConfigSection;
-use crate::shared::provider_catalog::write_gateway;
+use systemprompt_cloud::provider_catalog::write_gateway;
 
 /// The catalog directory and the root services file it belongs to.
 #[derive(Debug, Clone)]
@@ -59,7 +59,7 @@ fn write_document(location: &CatalogLocation, document: &CatalogDocument) -> Res
         .with_context(|| format!("Failed to create {}", location.dir.display()))?;
     write_catalog(&location.dir, document)
         .with_context(|| format!("Failed to write {}", location.dir.display()))?;
-    write_gateway(&location.dir, document.gateway.as_ref())
+    Ok(write_gateway(&location.dir, document.gateway.as_ref())?)
 }
 
 fn snapshot(location: &CatalogLocation) -> Result<Vec<(PathBuf, Option<Vec<u8>>)>> {

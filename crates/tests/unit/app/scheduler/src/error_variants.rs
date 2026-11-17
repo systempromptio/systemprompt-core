@@ -70,8 +70,8 @@ mod additional_variants {
             "UnknownJob message must list every offending name"
         );
         assert!(
-            msg.contains("submit_job!"),
-            "UnknownJob message should point at the inventory registration macro"
+            msg.contains("no admitted extension contributes"),
+            "UnknownJob message should say no admitted extension contributes the job"
         );
     }
 

@@ -5,80 +5,14 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{ExtensionId, JobName, McpToolName};
+use systemprompt_identifiers::{ExtensionId, JobName};
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, JsonSchema)]
 pub struct CapabilitySummary {
     pub jobs: usize,
-    pub templates: usize,
     pub schemas: usize,
-    pub routes: usize,
-    pub tools: usize,
     pub roles: usize,
-    pub storage_paths: usize,
-}
-
-impl CapabilitySummary {
-    pub fn summary_string(&self) -> String {
-        let mut parts = Vec::new();
-
-        if self.jobs > 0 {
-            parts.push(format!(
-                "{} {}",
-                self.jobs,
-                if self.jobs == 1 { "job" } else { "jobs" }
-            ));
-        }
-        if self.templates > 0 {
-            parts.push(format!(
-                "{} {}",
-                self.templates,
-                if self.templates == 1 {
-                    "template"
-                } else {
-                    "templates"
-                }
-            ));
-        }
-        if self.schemas > 0 {
-            parts.push(format!(
-                "{} {}",
-                self.schemas,
-                if self.schemas == 1 {
-                    "schema"
-                } else {
-                    "schemas"
-                }
-            ));
-        }
-        if self.routes > 0 {
-            parts.push(format!(
-                "{} {}",
-                self.routes,
-                if self.routes == 1 { "route" } else { "routes" }
-            ));
-        }
-        if self.tools > 0 {
-            parts.push(format!(
-                "{} {}",
-                self.tools,
-                if self.tools == 1 { "tool" } else { "tools" }
-            ));
-        }
-        if self.roles > 0 {
-            parts.push(format!(
-                "{} {}",
-                self.roles,
-                if self.roles == 1 { "role" } else { "roles" }
-            ));
-        }
-
-        if parts.is_empty() {
-            "none".to_owned()
-        } else {
-            parts.join(", ")
-        }
-    }
+    pub configs: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -97,43 +31,15 @@ pub struct JobsListOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct TemplateWithExtension {
-    pub extension_id: ExtensionId,
-    pub extension_name: String,
-    pub template_name: String,
-    pub description: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct TemplatesListOutput {
-    pub templates: Vec<TemplateWithExtension>,
-    pub total: usize,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SchemaWithExtension {
     pub extension_id: ExtensionId,
     pub extension_name: String,
     pub table: Option<String>,
-    pub source: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SchemasListOutput {
     pub schemas: Vec<SchemaWithExtension>,
-    pub total: usize,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ToolWithExtension {
-    pub extension_id: ExtensionId,
-    pub extension_name: String,
-    pub tool_name: McpToolName,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ToolsListOutput {
-    pub tools: Vec<ToolWithExtension>,
     pub total: usize,
 }
 
@@ -156,9 +62,8 @@ pub struct RolesListOutput {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 pub struct CapabilitiesSummaryOutput {
     pub jobs: usize,
-    pub templates: usize,
     pub schemas: usize,
-    pub tools: usize,
     pub roles: usize,
+    pub configs: usize,
     pub extension_count: usize,
 }

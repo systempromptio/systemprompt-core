@@ -15,15 +15,17 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use systemprompt_manifest::Profile;
+
 use systemprompt_manifest::profile::{Evaluation, Inspection, ManagedProfile, ProfileError};
 
 use super::checks::{
-    check_database_reachable, check_extension_configs, check_governance_hook_url,
-    check_proxy_topology, check_required_secrets, check_signing_key,
+    check_database_reachable, check_governance_hook_url, check_proxy_topology,
+    check_required_secrets, check_signing_key,
 };
 use super::{
-    CheckResult, DoctorReport, distributed, plane_checks, providers_check, resolve_secrets_from,
-    restore_checks, run,
+    CheckResult, Composition, DoctorReport, composition_failure, distributed,
+    extension_config_check, plane_checks, providers_check, resolve_secrets_from, restore_checks,
+    run, schema_check,
 };
 
 const HOOK_URL_INPUTS: &[&str] = &[
@@ -38,21 +40,27 @@ pub async fn run_managed(
     managed: &ManagedProfile,
     profile_dir: &Path,
     distributed: bool,
+    views: Composition<'_>,
 ) -> DoctorReport {
-    if managed.unresolved().is_empty() {
-        return match managed.profile() {
-            Ok(profile) => run(&profile, profile_dir, distributed).await,
+    let mut report = if managed.unresolved().is_empty() {
+        match managed.profile() {
+            Ok(profile) => run(&profile, profile_dir, distributed, views).await,
             Err(error) => DoctorReport {
                 checks: vec![CheckResult::fail("profile", format!("{error}"))],
             },
-        };
+        }
+    } else {
+        match managed.inspect() {
+            Ok(inspection) => run_partial(&inspection, profile_dir, distributed, views).await,
+            Err(error) => DoctorReport {
+                checks: vec![CheckResult::fail("profile", format!("{error}"))],
+            },
+        }
+    };
+    if let Err(error) = views {
+        report.checks.insert(0, composition_failure(error));
     }
-    match managed.inspect() {
-        Ok(inspection) => run_partial(&inspection, profile_dir, distributed).await,
-        Err(error) => DoctorReport {
-            checks: vec![CheckResult::fail("profile", format!("{error}"))],
-        },
-    }
+    report
 }
 
 type ProfileCheck = fn(&Profile) -> CheckResult;
@@ -80,11 +88,6 @@ const PROFILE_CHECKS: &[(&str, &[&str], ProfileCheck)] = &[
         restore_checks::check_storage_backup,
     ),
     (
-        "extension-config",
-        &["paths", "security.signing_key_path", "extensions"],
-        check_extension_configs,
-    ),
-    (
         "services-source",
         &["services"],
         plane_checks::check_services_source,
@@ -104,15 +107,24 @@ async fn run_partial(
     inspection: &Inspection<'_>,
     profile_dir: &Path,
     distributed: bool,
+    views: Composition<'_>,
 ) -> DoctorReport {
     let mut checks = profile_rule_checks(inspection);
     for (name, inputs, check) in PROFILE_CHECKS {
         checks.push(outcome(name, inspection.evaluate(inputs, check)));
     }
+    checks.push(outcome(
+        "extension-config",
+        inspection.evaluate(&["paths", "security.signing_key_path", "extensions"], |p| {
+            extension_config_check(p, views)
+        }),
+    ));
     match inspection.evaluate(&["secrets"], |p| p.secrets.clone()) {
         Evaluation::Evaluated(config) => {
             let secrets = resolve_secrets_from(config.as_ref(), profile_dir, &mut checks).await;
-            secrets_checks(inspection, profile_dir, &secrets, distributed, &mut checks).await;
+            checks.extend(
+                secrets_checks(inspection, profile_dir, &secrets, distributed, views).await,
+            );
         },
         Evaluation::NotEvaluated { variables } => {
             for name in SECRETS_DEPENDENT {
@@ -128,9 +140,9 @@ async fn secrets_checks(
     profile_dir: &Path,
     secrets: &HashMap<String, String>,
     distributed: bool,
-    checks: &mut Vec<CheckResult>,
-) {
-    checks.push(check_required_secrets(secrets));
+    views: Composition<'_>,
+) -> Vec<CheckResult> {
+    let mut checks = vec![check_required_secrets(secrets)];
     checks.push(outcome(
         "signing-key",
         inspection.evaluate(&["security.signing_key_path"], |p| {
@@ -138,7 +150,7 @@ async fn secrets_checks(
         }),
     ));
     checks.push(check_database_reachable(secrets).await);
-    checks.push(restore_checks::check_schema_not_ahead(secrets).await);
+    checks.push(schema_check(secrets, views).await);
     checks.push(outcome(
         "providers",
         inspection.evaluate(&["paths", "services"], |p| providers_check(p, secrets)),
@@ -167,6 +179,7 @@ async fn secrets_checks(
             },
         }
     }
+    checks
 }
 
 fn profile_rule_checks(inspection: &Inspection<'_>) -> Vec<CheckResult> {

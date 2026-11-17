@@ -1,9 +1,9 @@
-//! Tests for the external secrets-source registry.
+//! Tests for the external secrets sources handed to the bootstrap.
 
 use systemprompt_config::{
     DynSecretsProvider, EnvLookup, ExternalSecretsConfig, SecretsBootstrapError, SecretsDocument,
-    SecretsProvider, SharedSecretsProvider, build_external_provider, register_secrets_source,
-    registered_external_kinds,
+    SecretsProvider, SecretsSourceRegistration, SecretsSources, SharedSecretsProvider,
+    build_external_provider,
 };
 
 struct StubProvider {
@@ -62,8 +62,22 @@ fn failing_factory(
     })
 }
 
-register_secrets_source!("registry-test-stub", stub_factory);
-register_secrets_source!("registry-test-failing", failing_factory);
+fn sources() -> SecretsSources {
+    SecretsSources::new(vec![
+        SecretsSourceRegistration {
+            kind: "registry-test-stub",
+            factory: stub_factory,
+        },
+        SecretsSourceRegistration {
+            kind: "registry-test-failing",
+            factory: failing_factory,
+        },
+        SecretsSourceRegistration {
+            kind: "registry-test-stub",
+            factory: stub_factory,
+        },
+    ])
+}
 
 fn external(kind: &str) -> ExternalSecretsConfig {
     let mut config = serde_json::Map::new();
@@ -81,7 +95,8 @@ fn external(kind: &str) -> ExternalSecretsConfig {
 #[tokio::test]
 async fn a_registered_kind_is_built_with_its_config_and_env() {
     let env: EnvLookup = Box::new(|name| (name == "STUB_TOKEN").then(|| "tok".to_owned()));
-    let provider = build_external_provider(&external("registry-test-stub"), env).expect("built");
+    let provider =
+        build_external_provider(&external("registry-test-stub"), env, &sources()).expect("built");
     assert_eq!(provider.describe(), "stub (eu)");
     let document = provider.fetch_boxed().await.expect("fetched");
     assert_eq!(
@@ -93,7 +108,8 @@ async fn a_registered_kind_is_built_with_its_config_and_env() {
 
 #[test]
 fn an_unknown_kind_lists_every_registered_kind() {
-    let Err(err) = build_external_provider(&external("nope"), Box::new(|_| None)) else {
+    let Err(err) = build_external_provider(&external("nope"), Box::new(|_| None), &sources())
+    else {
         panic!("unknown kind built");
     };
     match err {
@@ -108,8 +124,11 @@ fn an_unknown_kind_lists_every_registered_kind() {
 
 #[test]
 fn a_factory_error_is_returned_unchanged() {
-    let Err(err) = build_external_provider(&external("registry-test-failing"), Box::new(|_| None))
-    else {
+    let Err(err) = build_external_provider(
+        &external("registry-test-failing"),
+        Box::new(|_| None),
+        &sources(),
+    ) else {
         panic!("failing factory built");
     };
     assert!(
@@ -119,12 +138,25 @@ fn a_factory_error_is_returned_unchanged() {
 }
 
 #[test]
-fn registered_kinds_are_sorted_and_unique() {
-    let kinds = registered_external_kinds();
-    let mut sorted = kinds.clone();
-    sorted.sort_unstable();
-    sorted.dedup();
-    assert_eq!(kinds, sorted);
+fn declared_kinds_are_sorted_and_unique() {
+    assert_eq!(
+        sources().kinds(),
+        vec!["registry-test-failing", "registry-test-stub"]
+    );
+}
+
+#[test]
+fn no_declared_source_builds_no_external_kind() {
+    let Err(err) = build_external_provider(
+        &external("registry-test-stub"),
+        Box::new(|_| None),
+        &SecretsSources::default(),
+    ) else {
+        panic!("undeclared kind built");
+    };
+    assert!(
+        matches!(err, SecretsBootstrapError::UnknownExternalKind { ref known, .. } if known.is_empty())
+    );
 }
 
 #[test]

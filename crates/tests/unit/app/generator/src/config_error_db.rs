@@ -184,7 +184,8 @@ async fn prerender_content_malformed_content_config_is_parse_error() {
         systemprompt_generator::PrerenderEnv {
             config: ensure_test_bootstrap().boot_config(),
             paths: &boot.app_paths,
-            extensions: systemprompt_test_fixtures::fixture_extension_context(&db).as_ref(),
+            hooks: &crate::ext_fixtures::fixture_hooks(&db),
+            state: &systemprompt_provider_contracts::Dependencies::default(),
         },
     )
     .await
@@ -210,7 +211,8 @@ async fn prerender_content_missing_content_config_is_read_error() {
         systemprompt_generator::PrerenderEnv {
             config: ensure_test_bootstrap().boot_config(),
             paths: &boot.app_paths,
-            extensions: systemprompt_test_fixtures::fixture_extension_context(&db).as_ref(),
+            hooks: &crate::ext_fixtures::fixture_hooks(&db),
+            state: &systemprompt_provider_contracts::Dependencies::default(),
         },
     )
     .await
@@ -236,7 +238,8 @@ async fn prerender_content_malformed_web_config_is_web_config_error() {
         systemprompt_generator::PrerenderEnv {
             config: ensure_test_bootstrap().boot_config(),
             paths: &boot.app_paths,
-            extensions: systemprompt_test_fixtures::fixture_extension_context(&db).as_ref(),
+            hooks: &crate::ext_fixtures::fixture_hooks(&db),
+            state: &systemprompt_provider_contracts::Dependencies::default(),
         },
     )
     .await
@@ -327,7 +330,8 @@ async fn prerender_content_missing_templates_dir_is_config_error() {
         systemprompt_generator::PrerenderEnv {
             config: ensure_test_bootstrap().boot_config(),
             paths: &boot.app_paths,
-            extensions: systemprompt_test_fixtures::fixture_extension_context(&db).as_ref(),
+            hooks: &crate::ext_fixtures::fixture_hooks(&db),
+            state: &systemprompt_provider_contracts::Dependencies::default(),
         },
     )
     .await
@@ -369,7 +373,8 @@ async fn prerender_content_with_closed_pool_is_fetch_error() {
         systemprompt_generator::PrerenderEnv {
             config: ensure_test_bootstrap().boot_config(),
             paths: &boot.app_paths,
-            extensions: systemprompt_test_fixtures::fixture_extension_context(&closed).as_ref(),
+            hooks: &crate::ext_fixtures::fixture_hooks(&closed),
+            state: &systemprompt_provider_contracts::Dependencies::default(),
         },
     )
     .await

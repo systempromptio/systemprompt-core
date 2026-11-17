@@ -9,23 +9,22 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result, anyhow, bail};
-use systemprompt_loader::subprocess::ForegroundChildren;
+use systemprompt_extension::cli::ChildSupervisor;
 use systemprompt_logging::CliService;
 
 use super::SetupArgs;
 use super::provision::provision_role_and_db;
-use crate::CliConfig;
-use crate::interactive::Prompter;
 use crate::shared::postgres_access::{
     PostgresConfig, connect, detect_postgresql, enable_extensions, generate_password,
     test_connection,
 };
+use systemprompt_extension::cli::{CliConfig, Prompter};
 
 pub async fn setup_non_interactive(
     args: &SetupArgs,
     env_name: &str,
     cli_config: &CliConfig,
-    children: &ForegroundChildren,
+    children: &dyn ChildSupervisor,
 ) -> Result<PostgresConfig> {
     if !cli_config.is_json_output() {
         CliService::section(&format!("PostgreSQL Setup ({})", env_name));
@@ -104,7 +103,7 @@ pub async fn setup_interactive(
     prompter: &dyn Prompter,
     env_name: &str,
     _cli_config: &CliConfig,
-    children: &ForegroundChildren,
+    children: &dyn ChildSupervisor,
 ) -> Result<PostgresConfig> {
     CliService::section(&format!("PostgreSQL Setup ({})", env_name));
     CliService::info("Configure PostgreSQL database for your local environment.");

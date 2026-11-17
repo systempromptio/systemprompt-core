@@ -9,8 +9,8 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
-use systemprompt_cli::CliConfig;
 use systemprompt_cli::web::assets::list::{AssetTypeFilter, ListArgs, execute_in_dir};
+use systemprompt_extension::cli::CliConfig;
 
 fn cfg() -> CliConfig {
     CliConfig::new().with_interactive(false)

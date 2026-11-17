@@ -20,8 +20,7 @@ mod repository;
 
 pub use cohort::CohortSelector;
 pub use gate::{
-    GateContext, GateVerdict, PublicationGate, PublicationGateError, PublicationGateRegistration,
-    PublicationPolicy, discover_publication_gates,
+    GateContext, GateVerdict, PublicationGate, PublicationGateError, PublicationPolicy,
 };
 pub use repository::ResourceResolutionRow;
 

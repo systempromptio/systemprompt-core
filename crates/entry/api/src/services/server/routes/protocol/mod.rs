@@ -1,7 +1,7 @@
 //! Protocol-surface route mounting.
 //!
 //! Mounts the agent (A2A), MCP, stream, and content/admin/marketplace route
-//! groups onto the server router. Each group is an [`ExtensionRouter`]
+//! groups onto the server router. Each group is an [`KernelRoutes`]
 //! declaration — base path, `AuthzPolicy`, context kind, rate limit, body
 //! limit — mounted through the one declaration mount in
 //! `services::middleware::mount`. [`MountCtx`] carries the enforcement
@@ -11,15 +11,13 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::Router;
-use std::sync::Arc;
 use systemprompt_extension::{
-    AuthzPolicy, ContextKind, ExtensionRouter, RateBudget, RateLimit, RouteGroup, RouteProtection,
+    AuthzPolicy, ContextKind, RateBudget, RateLimit, RouteGroup, RouteProtection,
 };
-use systemprompt_gateway::GatewayEngines;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_runtime::AppContext;
 
-use crate::services::middleware::{MountError, MountLayers, mount, place, protect};
+use crate::services::middleware::{KernelRoutes, MountError, MountLayers, mount, place, protect};
 
 mod content;
 
@@ -27,17 +25,20 @@ pub(super) use content::mount_content_and_misc;
 
 pub(super) struct MountCtx<'a> {
     pub ctx: &'a AppContext,
-    pub engines: &'a Arc<GatewayEngines>,
     pub layers: &'a MountLayers,
     pub serves: &'a dyn Fn(RouteGroup) -> bool,
+    pub composed: Composed<'a>,
+}
+
+/// The admitted composition and the kernel its route sets resolve against.
+#[derive(Debug, Clone, Copy)]
+pub struct Composed<'a> {
+    pub admitted: &'a systemprompt_extension::Admitted,
+    pub kernel: &'a systemprompt_runtime::Kernel,
 }
 
 impl MountCtx<'_> {
-    pub(super) fn mount(
-        &self,
-        tree: Router,
-        declared: ExtensionRouter,
-    ) -> Result<Router, MountError> {
+    pub(super) fn mount(&self, tree: Router, declared: KernelRoutes) -> Result<Router, MountError> {
         mount(tree, declared, self.layers, self.ctx, self.serves)
     }
 
@@ -57,8 +58,8 @@ pub(super) const fn declare(
     policy: AuthzPolicy,
     context: ContextKind,
     group: RouteGroup,
-) -> ExtensionRouter {
-    ExtensionRouter::new(router, base_path, policy, context).in_group(group)
+) -> KernelRoutes {
+    KernelRoutes::new(router, base_path, policy, context).in_group(group)
 }
 
 pub(super) fn mount_agent(mut router: Router, mount: &MountCtx<'_>) -> Result<Router, MountError> {

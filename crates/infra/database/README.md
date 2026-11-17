@@ -26,7 +26,7 @@ The crate owns the pool, the transaction helpers, the extension migration runner
 | `admin` | Constrained admin surfaces: `DatabaseAdminService` introspection, the read-only `QueryExecutor`, `AdminSql` builders, and `SafeIdentifier` validation. |
 | `resilience` | Domain-agnostic resilience primitives (`ResilienceGuard`, `CircuitBreaker`, `Bulkhead`, `retry_async`, classify, stream) that wrap outbound calls; the crate's own retries run on them. |
 | `squash_baseline` | `SquashBaselineService` locates an extension's source crate and writes squashed migration baselines; filesystem-only, with its own `SquashBaselineError`. |
-| `extension` | `DatabaseExtension` registers the crate's base schema (`functions.sql`, `extension_migrations.sql`) through the workspace extension framework. |
+| `extension` | `DatabaseExtension` contributes the crate's base schema (`functions.sql`, `extension_migrations.sql`) through `Extension::contribute`. |
 | `error` | `RepositoryError` and `DatabaseResult<T>`. |
 
 Schema DDL lives in `schema/` (`functions.sql`, `extension_migrations.sql`).
@@ -35,7 +35,7 @@ Schema DDL lives in `schema/` (`functions.sql`, `extension_migrations.sql`).
 
 ```toml
 [dependencies]
-systemprompt-database = "0.81"
+systemprompt-database = "0.83"
 ```
 
 ```rust
@@ -105,7 +105,7 @@ async fn count_users(db: &DbPool) -> Result<i64, RepositoryError> {
 | Function | Source | Description |
 |----------|--------|-------------|
 | `with_transaction_retry` | `services/transaction.rs` | Transaction retried on serialization failure |
-| `install_extension_schemas_full` | `lifecycle/installation/mod.rs` | Install schemas and run pending migrations under a `MigrationConfig` |
+| `install_admitted_schemas` | `lifecycle/installation/mod.rs` | Install schemas and run pending migrations under a `MigrationConfig` |
 | `validate_database_connection` | `lifecycle/validation.rs` | Probe the live connection |
 | `validate_table_exists` | `lifecycle/validation.rs` | Assert a table is present |
 | `validate_column_exists` | `lifecycle/validation.rs` | Assert a column is present |
@@ -143,7 +143,6 @@ From `systemprompt-traits`: `DbValue`, `ToDbValue`, `FromDbValue`, `JsonRow`, `p
 - `thiserror` — error derivation
 - `async-trait` — `dyn`-compatible async traits
 - `tracing` — structured logging
-- `inventory` — extension registration
 
 ## License
 

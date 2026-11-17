@@ -9,7 +9,7 @@ use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, 
 use systemprompt_models::RequestContext;
 use tower::ServiceExt;
 
-use crate::common::{content_state, empty_get, json_post, request_context, setup_ctx};
+use crate::common::{content_app, empty_get, json_post, request_context, setup_ctx};
 
 fn bot_context() -> RequestContext {
     RequestContext::new(
@@ -43,7 +43,7 @@ async fn seed_link(db: &DbPool) -> anyhow::Result<String> {
 async fn redirect_seeded_link_tracks_and_redirects() -> anyhow::Result<()> {
     let (db, ctx) = setup_ctx().await?;
     let short_code = seed_link(&db).await?;
-    let app = content::redirect_router(content_state(&ctx))
+    let app = content_app(content::redirect_routes(), &ctx)
         .layer(Extension(request_context("user_redirect")));
     let resp = app.oneshot(empty_get(&format!("/r/{short_code}"))).await?;
     assert_eq!(resp.status().as_u16(), 307, "{}", resp.status());
@@ -54,7 +54,7 @@ async fn redirect_seeded_link_tracks_and_redirects() -> anyhow::Result<()> {
 async fn redirect_bot_session_skips_tracking() -> anyhow::Result<()> {
     let (db, ctx) = setup_ctx().await?;
     let short_code = seed_link(&db).await?;
-    let app = content::redirect_router(content_state(&ctx)).layer(Extension(bot_context()));
+    let app = content_app(content::redirect_routes(), &ctx).layer(Extension(bot_context()));
     let resp = app.oneshot(empty_get(&format!("/r/{short_code}"))).await?;
     assert_eq!(resp.status().as_u16(), 307, "{}", resp.status());
     Ok(())
@@ -63,7 +63,7 @@ async fn redirect_bot_session_skips_tracking() -> anyhow::Result<()> {
 #[tokio::test]
 async fn redirect_unknown_short_code_is_not_found() -> anyhow::Result<()> {
     let (_db, ctx) = setup_ctx().await?;
-    let app = content::redirect_router(content_state(&ctx))
+    let app = content_app(content::redirect_routes(), &ctx)
         .layer(Extension(request_context("user_redirect")));
     let resp = app.oneshot(empty_get("/r/does-not-exist")).await?;
     assert_eq!(resp.status().as_u16(), 404, "{}", resp.status());
@@ -73,7 +73,7 @@ async fn redirect_unknown_short_code_is_not_found() -> anyhow::Result<()> {
 #[tokio::test]
 async fn generate_link_invalid_type_is_bad_request() -> anyhow::Result<()> {
     let (_db, ctx) = setup_ctx().await?;
-    let app = content::authenticated_router(content_state(&ctx))
+    let app = content_app(content::authenticated_routes(), &ctx)
         .layer(Extension(request_context("user_gen")));
     let body = serde_json::json!({ "target_url": "https://example.com", "link_type": "bogus" });
     let resp = app.oneshot(json_post("/links/generate", body)).await?;
@@ -85,7 +85,7 @@ async fn generate_link_invalid_type_is_bad_request() -> anyhow::Result<()> {
 async fn generate_link_utm_and_both_types_run_handler() -> anyhow::Result<()> {
     let (_db, ctx) = setup_ctx().await?;
     for link_type in ["redirect", "utm", "both"] {
-        let app = content::authenticated_router(content_state(&ctx))
+        let app = content_app(content::authenticated_routes(), &ctx)
             .layer(Extension(request_context("user_gen")));
         let body = serde_json::json!({
             "target_url": "https://example.com/page",
@@ -108,12 +108,12 @@ async fn generate_link_utm_and_both_types_run_handler() -> anyhow::Result<()> {
 async fn list_links_by_campaign_and_source_content() -> anyhow::Result<()> {
     let (_db, ctx) = setup_ctx().await?;
     let app =
-        content::public_router(content_state(&ctx)).layer(Extension(request_context("user_ll")));
+        content_app(content::public_routes(), &ctx).layer(Extension(request_context("user_ll")));
     let resp = app.oneshot(empty_get("/links?campaign_id=camp_x")).await?;
     assert!(resp.status().as_u16() >= 200, "{}", resp.status());
 
     let app =
-        content::public_router(content_state(&ctx)).layer(Extension(request_context("user_ll")));
+        content_app(content::public_routes(), &ctx).layer(Extension(request_context("user_ll")));
     let resp = app
         .oneshot(empty_get("/links?source_content_id=content_y"))
         .await?;
@@ -146,7 +146,7 @@ async fn query_over_seeded_content_returns_results() -> anyhow::Result<()> {
     .await?;
 
     let app =
-        content::public_router(content_state(&ctx)).layer(Extension(request_context("user_query")));
+        content_app(content::public_routes(), &ctx).layer(Extension(request_context("user_query")));
     let body = serde_json::json!({ "query": "Searchable", "limit": 10 });
     let resp = app.oneshot(json_post("/query", body)).await?;
     assert!(resp.status().as_u16() >= 200, "{}", resp.status());

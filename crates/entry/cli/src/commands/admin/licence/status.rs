@@ -4,15 +4,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
-
 use anyhow::Result;
 use serde::Serialize;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::EnterpriseLicenseId;
-use systemprompt_runtime::AppContext;
+use systemprompt_manifest::Profile;
 use systemprompt_scheduler::LicenceCheckinRepository;
 
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Serialize)]
 struct LicenceStatusOutput {
@@ -29,9 +28,9 @@ struct LicenceStatusOutput {
     failures_total: i64,
 }
 
-pub(super) async fn execute(app: &Arc<AppContext>) -> Result<CommandOutput> {
-    let licence = &app.profile().licence;
-    let repository = LicenceCheckinRepository::new(app.db_pool().pool().as_ref().clone());
+pub(super) async fn execute(profile: &Profile, pool: &DbPool) -> Result<CommandOutput> {
+    let licence = &profile.licence;
+    let repository = LicenceCheckinRepository::new(pool.pool().as_ref().clone());
     let state = repository.find_state().await?.unwrap_or_default();
     let output = LicenceStatusOutput {
         enabled: licence.enabled(),

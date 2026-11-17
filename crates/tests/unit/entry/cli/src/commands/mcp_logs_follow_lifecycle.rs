@@ -7,7 +7,8 @@ use systemprompt_test_fixtures::bounded_output;
 
 use clap::Parser;
 use systemprompt_cli::plugins::mcp::{self, McpCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 
 const HELPER: &str = "commands::mcp_logs_follow_lifecycle::mcp_logs_follow_helper";
 
@@ -64,17 +65,20 @@ async fn mcp_logs_follow_helper() {
     }
 
     println!("BEGIN_FOLLOW");
-    mcp::execute(
-        parse(&[
-            "logs",
-            "atlas",
-            "--follow",
-            "--logs-dir",
-            logs.to_str().unwrap(),
-        ]),
+    crate::boot_ctx::rendered(
         &context(),
+        mcp::execute(
+            parse(&[
+                "logs",
+                "atlas",
+                "--follow",
+                "--logs-dir",
+                logs.to_str().unwrap(),
+            ]),
+            &context(),
+        )
+        .await,
     )
-    .await
     .expect("successful tail follow renders an output artifact");
     println!("END_FOLLOW");
 

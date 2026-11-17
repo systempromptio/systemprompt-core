@@ -7,9 +7,10 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use systemprompt_identifiers::UserId;
 use systemprompt_models::authz::{
-    RuleType, SubjectAttributeSource, SubjectAttributes, SubjectDimension, SubjectSourceError,
-    SubjectSourceHandle,
+    SubjectAttributeSource, SubjectAttributes, SubjectSourceError, SubjectSourceHandle,
 };
+use systemprompt_provider_contracts::governance::RuleType;
+use systemprompt_traits::authz::SubjectDimension;
 
 const DEPARTMENT: RuleType = RuleType::extension_static("department");
 

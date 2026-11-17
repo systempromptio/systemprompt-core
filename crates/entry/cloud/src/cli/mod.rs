@@ -5,8 +5,8 @@
 //! command's profile/secret requirements via [`DescribeCommand`]. Every
 //! descriptor is a cloud-operator descriptor: the runner loads the operator's
 //! cloud credentials for it and lets it run on a cloud profile that arrived
-//! implicitly. The group registers itself as the top-level `cloud` command
-//! through `register_cli_command!`, in the `--help` slot after `admin`.
+//! implicitly. The cloud member declares the group as the top-level `cloud`
+//! command with the `CloudOperator` grant, in the `--help` slot after `admin`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -28,10 +28,11 @@ pub use systemprompt_cloud::{Environment, OAuthProvider};
 
 use anyhow::Result;
 use clap::Subcommand;
-use systemprompt_cli::kernel::{
-    CliCommandGroup, CommandContext, CommandDescriptor, DataImpact, DescribeCommand, KernelGrant,
+use systemprompt_cloud::CredentialsBootstrap;
+use systemprompt_extension::cli::{
+    CliCommandGroup, CommandDescriptor, CommandError, CommandHost, CommandOutput, DataImpact,
+    DescribeCommand,
 };
-use systemprompt_cli::register_cli_command;
 use systemprompt_identifiers::ProfileName;
 
 #[derive(Debug, Subcommand)]
@@ -65,7 +66,7 @@ pub enum CloudCommands {
         #[arg(
             long,
             short = 'p',
-            value_parser = systemprompt_cli::kernel::parsers::parse_profile_name_arg,
+            value_parser = systemprompt_extension::cli::parsers::parse_profile_name_arg,
             help = "Profile name to deploy"
         )]
         profile: Option<String>,
@@ -85,7 +86,7 @@ pub enum CloudCommands {
         #[arg(
             long,
             short = 'p',
-            value_parser = systemprompt_cli::kernel::parsers::parse_profile_name_arg,
+            value_parser = systemprompt_extension::cli::parsers::parse_profile_name_arg,
             help = "Profile name to back up"
         )]
         profile: Option<String>,
@@ -106,7 +107,7 @@ pub enum CloudCommands {
         #[arg(
             long,
             short = 'p',
-            value_parser = systemprompt_cli::kernel::parsers::parse_profile_name_arg,
+            value_parser = systemprompt_extension::cli::parsers::parse_profile_name_arg,
             help = "Profile name to check"
         )]
         profile: Option<String>,
@@ -150,29 +151,28 @@ impl DescribeCommand for CloudCommands {
 }
 
 impl CliCommandGroup for CloudCommands {
-    const PARENT: &'static [&'static str] = &[];
     const NAME: &'static str = "cloud";
     const ABOUT: &'static str = "Cloud deployment, backup, and setup";
     const DISPLAY_ORDER: usize = 40;
-    const GRANTS: &'static [KernelGrant] = &[KernelGrant::CloudOperator];
 
-    fn run(self, ctx: &CommandContext) -> impl Future<Output = Result<()>> + Send {
-        execute(self, ctx)
+    async fn run(self, host: &dyn CommandHost) -> Result<CommandOutput, CommandError> {
+        execute(self, host).await.map_err(CommandError::new)
     }
 }
-
-register_cli_command!(CloudCommands);
 
 fn profile_name(profile: Option<String>) -> Result<Option<ProfileName>> {
     Ok(profile.map(ProfileName::try_new).transpose()?)
 }
 
-pub async fn execute(cmd: CloudCommands, ctx: &CommandContext) -> Result<()> {
+pub async fn execute(cmd: CloudCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     match cmd {
-        CloudCommands::Auth(cmd) => auth::execute(cmd, ctx).await,
-        CloudCommands::Init { force } => init::execute(force, &ctx.cli, ctx.foreground_children()),
-        CloudCommands::Tenant { command } => tenant::execute(command, ctx).await,
-        CloudCommands::Profile { command } => profile::execute(command, ctx).await,
+        CloudCommands::Auth(cmd) => auth::execute(cmd, host).await,
+        CloudCommands::Init { force } => {
+            init::execute(force, host.output(), host.children())?;
+            Ok(CommandOutput::rendered())
+        },
+        CloudCommands::Tenant { command } => tenant::execute(command, host).await,
+        CloudCommands::Profile { command } => profile::execute(command, host).await,
         CloudCommands::Deploy {
             skip_push,
             profile,
@@ -186,11 +186,10 @@ pub async fn execute(cmd: CloudCommands, ctx: &CommandContext) -> Result<()> {
                     check,
                     wait,
                 },
-                ctx.prompter(),
-                &ctx.cli,
-                ctx.foreground_children(),
+                host,
             )
-            .await
+            .await?;
+            Ok(CommandOutput::rendered())
         },
         CloudCommands::Backup {
             profile,
@@ -203,10 +202,11 @@ pub async fn execute(cmd: CloudCommands, ctx: &CommandContext) -> Result<()> {
                     output,
                     list,
                 },
-                ctx.prompter(),
-                &ctx.cli,
+                host.prompter(),
+                host.output(),
             )
-            .await
+            .await?;
+            Ok(CommandOutput::rendered())
         },
         CloudCommands::Doctor {
             profile,
@@ -215,31 +215,29 @@ pub async fn execute(cmd: CloudCommands, ctx: &CommandContext) -> Result<()> {
             doctor::execute(
                 profile_name(profile)?,
                 distributed,
-                ctx.prompter(),
-                &ctx.cli,
+                host.prompter(),
+                host.output(),
+                host,
             )
-            .await
+            .await?;
+            Ok(CommandOutput::rendered())
         },
         CloudCommands::Status => {
-            let result =
-                status::execute(&ctx.cli, ctx.profile().ok(), ctx.cloud_credentials()).await?;
-            systemprompt_cli::kernel::render_result(&result, &ctx.cli);
-            Ok(())
+            let credentials = CredentialsBootstrap::load().await?;
+            status::execute(host.output(), host.profile().ok(), credentials.as_ref()).await
         },
-        CloudCommands::Fleet(cmd) => fleet::execute(cmd, ctx).await,
-        CloudCommands::Dockerfile => execute_dockerfile(ctx),
-        CloudCommands::Sync(cmd) => sync::execute(cmd, ctx).await,
+        CloudCommands::Fleet(cmd) => fleet::execute(cmd, host).await,
+        CloudCommands::Dockerfile => execute_dockerfile(host),
+        CloudCommands::Sync(cmd) => sync::execute(cmd, host).await,
     }
 }
 
-fn execute_dockerfile(ctx: &CommandContext) -> Result<()> {
-    use systemprompt_cli::kernel::project::ProjectRoot;
+fn execute_dockerfile(host: &dyn CommandHost) -> Result<CommandOutput> {
     use systemprompt_cloud::deploy::DockerfileBuilder;
-    use types::DockerfileOutput;
+    use systemprompt_cloud::paths::ProjectRoot;
 
-    let config = &ctx.cli;
-    let project = ProjectRoot::discover().map_err(|e| anyhow::anyhow!("{}", e))?;
-    let profile = match ctx.profile() {
+    let project = ProjectRoot::discover()?;
+    let profile = match host.profile() {
         Ok(profile) => Some(profile),
         Err(error) => {
             tracing::debug!(%error, "no active profile; rendering the default Dockerfile");
@@ -259,21 +257,9 @@ fn execute_dockerfile(ctx: &CommandContext) -> Result<()> {
     }
     let content = builder.build();
 
-    let output = DockerfileOutput {
-        content: content.clone(),
-    };
-
-    if config.is_json_output() {
-        systemprompt_cli::kernel::render_result(
-            &systemprompt_cli::kernel::CommandOutput::copy_paste_titled(
-                "Dockerfile",
-                output.content,
-            ),
-            config,
-        );
-    } else {
-        systemprompt_logging::CliService::output(&content);
+    if host.output().is_json_output() {
+        return Ok(CommandOutput::copy_paste_titled("Dockerfile", content));
     }
-
-    Ok(())
+    systemprompt_logging::CliService::output(&content);
+    Ok(CommandOutput::rendered())
 }

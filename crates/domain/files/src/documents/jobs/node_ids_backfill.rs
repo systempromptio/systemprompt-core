@@ -23,8 +23,10 @@ use systemprompt_identifiers::JobName;
 use systemprompt_traits::{Job, JobContext, JobResult, JobScope, ProviderError, ProviderResult};
 
 use crate::FilesConfig;
+use crate::documents::DocumentsHandlesSlot;
 use crate::documents::agents::{DocumentActor, act_as};
 use crate::documents::error::DocumentsError;
+use crate::documents::handles::bound_service;
 use crate::documents::service::DocumentService;
 
 const BATCH: i64 = 100;
@@ -76,7 +78,11 @@ impl DocumentNodeIdsBackfillJob {
         if !documents.is_enabled() {
             return Ok(JobResult::success().with_message("document store disabled"));
         }
-        let service = Arc::clone(ctx.get::<Arc<DocumentService>>()?);
+        let Some(service) = bound_service(ctx.get::<DocumentsHandlesSlot>()?)
+            .map_err(|error| ProviderError::Internal(Box::new(error)))?
+        else {
+            return Ok(JobResult::success().with_message("document store disabled"));
+        };
         let stamps = ReleaseStampRepository::new(ctx.get::<DbPool>()?);
         let name = JobName::new(self.name());
         let run = ReleaseRun {
@@ -134,5 +140,3 @@ impl Job for DocumentNodeIdsBackfillJob {
         act_as(DocumentActor::system(self.name()), self.run(ctx)).await
     }
 }
-
-systemprompt_provider_contracts::submit_job!("files", &DocumentNodeIdsBackfillJob);

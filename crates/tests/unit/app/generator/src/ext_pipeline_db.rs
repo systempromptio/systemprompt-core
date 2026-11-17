@@ -1,4 +1,4 @@
-//! Tests driven by the inventory fixtures in [`crate::ext_fixtures`]:
+//! Tests driven by the fixtures in [`crate::ext_fixtures`]:
 //! the extension-asset copy loop end-to-end, the component / extender /
 //! content-data enrichment arms in the prerender pipeline, and the page
 //! prerenderer arms (rendered page, duplicate page type, `None` spec).
@@ -19,7 +19,7 @@ use systemprompt_identifiers::SourceId;
 use systemprompt_test_fixtures::{TestBootstrap, ensure_test_bootstrap, test_db_pool};
 
 use crate::config_error_db::web_config_yaml_with_templates_path;
-use crate::ext_fixtures::{GEN_REQUIRED_ASSET_DEST, GEN_REQUIRED_ASSET_SOURCE};
+use crate::ext_fixtures::{GEN_REQUIRED_ASSET_DEST, GEN_REQUIRED_ASSET_SOURCE, fixture_assets};
 
 static SERIALIZE: Mutex<()> = Mutex::new(());
 
@@ -82,13 +82,13 @@ async fn copy_extension_assets_copies_required_and_tolerates_optional_missing() 
     fs::write(&src, "body { margin: 0 }").unwrap();
     fs::create_dir_all(paths.web().dist()).unwrap();
 
-    let result = execute_copy_extension_assets(&paths, &[])
+    let result = execute_copy_extension_assets(&paths, &fixture_assets(&paths))
         .await
         .expect("job must succeed with optional-missing asset");
     assert!(result.success);
     assert!(
-        result.items_processed.unwrap_or(0) >= 1,
-        "the required asset and every asset shipped from a crate tree are copied"
+        result.items_processed == Some(1),
+        "the required asset is copied"
     );
     assert_eq!(result.items_failed, Some(1), "one optional asset missing");
 
@@ -121,7 +121,7 @@ async fn copy_extension_assets_fails_when_required_asset_missing() {
     .expect("paths");
     fs::create_dir_all(paths.web().dist()).unwrap();
 
-    let err = execute_copy_extension_assets(&paths, &[])
+    let err = execute_copy_extension_assets(&paths, &fixture_assets(&paths))
         .await
         .expect_err("missing required asset must fail the job");
     assert!(
@@ -172,7 +172,8 @@ async fn prerender_runs_fixture_components_extenders_and_enrichment() {
         systemprompt_generator::PrerenderEnv {
             config: ensure_test_bootstrap().boot_config(),
             paths: &boot.app_paths,
-            extensions: systemprompt_test_fixtures::fixture_extension_context(&db).as_ref(),
+            hooks: &crate::ext_fixtures::fixture_hooks(&db),
+            state: &systemprompt_provider_contracts::Dependencies::default(),
         },
     )
     .await
@@ -222,7 +223,8 @@ async fn prerender_pages_renders_fixture_page_with_provider_data() {
         systemprompt_generator::PrerenderEnv {
             config: ensure_test_bootstrap().boot_config(),
             paths: &boot.app_paths,
-            extensions: systemprompt_test_fixtures::fixture_extension_context(&db).as_ref(),
+            hooks: &crate::ext_fixtures::fixture_hooks(&db),
+            state: &systemprompt_provider_contracts::Dependencies::default(),
         },
     )
     .await
@@ -270,7 +272,8 @@ async fn prerender_empty_source_retries_then_renders_nothing() {
         systemprompt_generator::PrerenderEnv {
             config: ensure_test_bootstrap().boot_config(),
             paths: &boot.app_paths,
-            extensions: systemprompt_test_fixtures::fixture_extension_context(&db).as_ref(),
+            hooks: &crate::ext_fixtures::fixture_hooks(&db),
+            state: &systemprompt_provider_contracts::Dependencies::default(),
         },
     )
     .await

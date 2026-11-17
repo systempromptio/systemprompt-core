@@ -9,13 +9,12 @@
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use systemprompt_api::routes::wellknown::agent_cards::wellknown_router;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context, test_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context};
 use tower::ServiceExt;
 
 async fn router() -> axum::Router {
     let boot = ensure_test_bootstrap();
-    let pool = test_db_pool().await;
-    let ctx = test_app_context(&pool, &boot.database_url);
+    let ctx = test_app_context(&boot.database_url).await;
     wellknown_router(&ctx)
 }
 

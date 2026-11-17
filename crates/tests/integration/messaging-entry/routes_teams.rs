@@ -19,8 +19,8 @@ use systemprompt_security::keys::RsaSigningKey;
 use systemprompt_test_fixtures::{
     TEST_TEAMS_APP_ID, TEST_TEAMS_TENANT_ID, TEST_TEAMS_UNRESOLVABLE_APP_ID,
     TEST_TEAMS_UNRESOLVABLE_TENANT_ID, agent_reply_response_json, ensure_messaging_bootstrap,
-    init_services_bootstrap, messaging_config_yaml_with_teams_endpoints, seed_agent_backend,
-    test_app_context_on, test_db_pool,
+    eventually, init_services_bootstrap, messaging_config_yaml_with_teams_endpoints,
+    seed_agent_backend, settle_background, test_app_context_on,
 };
 use systemprompt_traits::DrainOutcome;
 use tower::ServiceExt;
@@ -31,16 +31,16 @@ const ISSUER: &str = "https://api.botframework.com";
 const CONVERSATION_ID: &str = "conv-test-1";
 
 pub(crate) fn router(ctx: &std::sync::Arc<systemprompt_runtime::AppContext>) -> axum::Router {
-    systemprompt_api::services::messaging::bind_dispatcher(ctx).expect("dispatcher slot seeded");
-    systemprompt_teams_entry::http::router(
-        systemprompt_teams_entry::http::TeamsState::with_service_url_client(
-            &**ctx,
+    super::common::mount_set(
+        ctx,
+        &systemprompt_teams_entry::http::routes(),
+        systemprompt_teams_entry::http::TeamsClients::with_service_url_client(
             systemprompt_client::GuardedClient::configured(
                 &systemprompt_client::GuardedClientConfig::for_configured(),
             )
             .expect("loopback-permitting reply client"),
         )
-        .expect("teams router state builds"),
+        .expect("teams clients build"),
     )
 }
 
@@ -72,8 +72,7 @@ pub(crate) fn post_messages(body: &str, bearer: Option<&str>) -> Request<Body> {
 #[tokio::test]
 async fn malformed_activity_body_is_bad_request() -> anyhow::Result<()> {
     let b = ensure_messaging_bootstrap();
-    let pool = test_db_pool().await;
-    let ctx = test_app_context_on(&b, &pool);
+    let ctx = test_app_context_on(&b).await;
     let resp = router(&ctx)
         .oneshot(post_messages("not json", None))
         .await?;
@@ -84,8 +83,7 @@ async fn malformed_activity_body_is_bad_request() -> anyhow::Result<()> {
 #[tokio::test]
 async fn unknown_tenant_is_acked() -> anyhow::Result<()> {
     let b = ensure_messaging_bootstrap();
-    let pool = test_db_pool().await;
-    let ctx = test_app_context_on(&b, &pool);
+    let ctx = test_app_context_on(&b).await;
     let body = activity_json("tenant-unknown", "https://smba.example");
     let resp = router(&ctx).oneshot(post_messages(&body, None)).await?;
     assert_eq!(resp.status(), StatusCode::OK, "unknown tenant is acked");
@@ -95,8 +93,7 @@ async fn unknown_tenant_is_acked() -> anyhow::Result<()> {
 #[tokio::test]
 async fn missing_bearer_is_unauthorized() -> anyhow::Result<()> {
     let b = ensure_messaging_bootstrap();
-    let pool = test_db_pool().await;
-    let ctx = test_app_context_on(&b, &pool);
+    let ctx = test_app_context_on(&b).await;
     let body = activity_json(TEST_TEAMS_TENANT_ID, "https://smba.example");
     let resp = router(&ctx).oneshot(post_messages(&body, None)).await?;
     assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
@@ -106,8 +103,7 @@ async fn missing_bearer_is_unauthorized() -> anyhow::Result<()> {
 #[tokio::test]
 async fn malformed_bearer_is_unauthorized() -> anyhow::Result<()> {
     let b = ensure_messaging_bootstrap();
-    let pool = test_db_pool().await;
-    let ctx = test_app_context_on(&b, &pool);
+    let ctx = test_app_context_on(&b).await;
     let body = activity_json(TEST_TEAMS_TENANT_ID, "https://smba.example");
     // `not-a-jwt` fails `decode_header` before any JWKS fetch.
     let resp = router(&ctx)
@@ -156,8 +152,8 @@ async fn signed_activity_dispatches_and_posts_the_card() -> anyhow::Result<()> {
         &format!("{}/openid", connector.uri()),
         &format!("{}/token", connector.uri()),
     ))));
-    let pool = test_db_pool().await;
-    let ctx = test_app_context_on(&b, &pool);
+    let ctx = test_app_context_on(&b).await;
+    let baseline = ctx.background_tasks().in_flight();
 
     // Agent backend the dispatch proxies to.
     let agent = MockServer::start().await;
@@ -209,7 +205,7 @@ async fn signed_activity_dispatches_and_posts_the_card() -> anyhow::Result<()> {
         .await?;
     assert_eq!(resp.status(), StatusCode::OK, "the route acks immediately");
 
-    let posted = wait_for_activity(&ctx, &connector).await;
+    let posted = wait_for_activity(&ctx, baseline, &connector).await;
     let card = String::from_utf8_lossy(&posted);
     // The pipeline answers with a generic error card whatever went wrong, so
     // say which side of the proxy hop failed — otherwise a failure here is
@@ -248,8 +244,7 @@ async fn an_unresolvable_app_password_is_service_unavailable_not_acked() -> anyh
         &format!("{}/openid", connector.uri()),
         &format!("{}/token", connector.uri()),
     ))));
-    let pool = test_db_pool().await;
-    let ctx = test_app_context_on(&b, &pool);
+    let ctx = test_app_context_on(&b).await;
 
     let signing = systemprompt_test_fixtures::next_test_key();
     mount_connector_jwks(&connector, &signing).await;
@@ -290,8 +285,7 @@ async fn activities_through_one_router_fetch_the_signing_keys_once() -> anyhow::
         &format!("{}/openid", connector.uri()),
         &format!("{}/token", connector.uri()),
     ))));
-    let pool = test_db_pool().await;
-    let ctx = test_app_context_on(&b, &pool);
+    let ctx = test_app_context_on(&b).await;
 
     let signing = systemprompt_test_fixtures::next_test_key();
     mount_connector_jwks(&connector, &signing).await;
@@ -320,13 +314,28 @@ async fn activities_through_one_router_fetch_the_signing_keys_once() -> anyhow::
 // The reply comes from a background task running the full dispatch pipeline
 // (identity linking, authz, proxy round-trip); under a loaded shard that has
 // been observed to stall past 30s, so the drain bound must dwarf it.
-async fn wait_for_activity(ctx: &systemprompt_runtime::AppContext, server: &MockServer) -> Vec<u8> {
+async fn wait_for_activity(
+    ctx: &systemprompt_runtime::AppContext,
+    baseline: usize,
+    server: &MockServer,
+) -> Vec<u8> {
+    let suffix = format!("/v3/conversations/{CONVERSATION_ID}/activities");
+    eventually(
+        "the reply task posts to the Bot Connector",
+        Duration::from_secs(120),
+        || async {
+            server
+                .received_requests()
+                .await
+                .is_some_and(|reqs| reqs.iter().any(|r| r.url.path() == suffix))
+        },
+    )
+    .await;
     assert_eq!(
-        ctx.background_tasks().drain(Duration::from_secs(120)).await,
+        settle_background(ctx.background_tasks(), baseline, Duration::from_secs(120)).await,
         DrainOutcome::Drained,
         "the reply task must finish within the drain bound"
     );
-    let suffix = format!("/v3/conversations/{CONVERSATION_ID}/activities");
     server
         .received_requests()
         .await

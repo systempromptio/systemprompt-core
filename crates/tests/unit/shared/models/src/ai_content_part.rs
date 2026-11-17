@@ -61,3 +61,46 @@ fn ai_content_part_is_media_excludes_text() {
     assert!(AiContentPart::audio("audio/mpeg", "x").is_media());
     assert!(AiContentPart::video("video/mp4", "x").is_media());
 }
+
+#[test]
+fn tool_use_serde_round_trip_omits_an_absent_signature() {
+    let p = AiContentPart::tool_use("call-1", "search", serde_json::json!({"q": "rust"}));
+    let json = serde_json::to_value(&p).unwrap();
+    assert_eq!(
+        json,
+        serde_json::json!({
+            "type": "tool_use",
+            "id": "call-1",
+            "name": "search",
+            "input": {"q": "rust"},
+        })
+    );
+    assert_eq!(serde_json::from_value::<AiContentPart>(json).unwrap(), p);
+    assert!(!p.is_media());
+}
+
+#[test]
+fn tool_result_deserialises_without_is_error() {
+    let p: AiContentPart = serde_json::from_value(serde_json::json!({
+        "type": "tool_result",
+        "tool_use_id": "call-1",
+        "content": "3 hits",
+    }))
+    .unwrap();
+    assert_eq!(p, AiContentPart::tool_result("call-1", "3 hits", false));
+}
+
+#[test]
+fn thinking_serde_round_trip_keeps_the_signature() {
+    let p = AiContentPart::thinking("weighing options", Some("sig-1".to_owned()));
+    let json = serde_json::to_value(&p).unwrap();
+    assert_eq!(
+        json,
+        serde_json::json!({
+            "type": "thinking",
+            "text": "weighing options",
+            "signature": "sig-1",
+        })
+    );
+    assert_eq!(serde_json::from_value::<AiContentPart>(json).unwrap(), p);
+}

@@ -1,7 +1,8 @@
 use axum::response::IntoResponse;
 use http::StatusCode;
 use serde_json::Value;
-use systemprompt_api::kernel::{ApiHttpError, IntoApiError, capability_error_response};
+use systemprompt_extension::capability_error_response;
+use systemprompt_extension::router::{ApiHttpError, IntoApiError};
 use systemprompt_models::api::ApiError;
 
 #[derive(Debug)]

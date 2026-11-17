@@ -1,7 +1,8 @@
-//! `Extension` registration for the MCP domain: schemas, migrations,
-//! dependencies, and the provided tool-execution lookup and MCP server
+//! [`McpExtension`]: contributes the MCP tables, migrations, jobs and
+//! retention purge, and provides the tool-execution lookup and the MCP server
 //! registry (`Arc<dyn McpRegistryProvider>`, which sign-in reads for MCP
-//! resource scopes).
+//! resource scopes). It opens the [`UiSlot`] and the [`AccessRecorderSlot`],
+//! so both built values are present whenever this member is admitted.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,8 +11,11 @@ use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_extension::prelude::*;
+use systemprompt_manifest::Config;
+use systemprompt_manifest::services::{ServicesView, SystemAdmin};
 use systemprompt_traits::{DynToolExecutionLookup, McpRegistryProvider};
 
+use crate::contract::{AccessRecorderSlot, UiSlot};
 use crate::repository::ToolUsageRepository;
 use crate::services::registry::RegistryService;
 
@@ -95,42 +99,65 @@ impl Extension for McpExtension {
         }
     }
 
-    fn schemas(&self) -> Vec<SchemaDefinition> {
-        TABLES
-            .iter()
-            .map(|(name, sql, columns)| {
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        for (name, sql, columns) in TABLES {
+            c.schema(
                 SchemaDefinition::new(*name, *sql)
-                    .with_required_columns(columns.iter().map(|c| (*c).to_owned()).collect())
-            })
-            .chain([
-                SchemaDefinition::sql_only(include_str!("../schema/tool_row_facts.sql")),
-                SchemaDefinition::sql_only(include_str!("../schema/trace_facts_mcp.sql")),
-            ])
-            .collect()
-    }
-    fn dependencies(&self) -> Vec<&'static str> {
-        vec!["users"]
-    }
-
-    fn migrations(&self) -> Vec<Migration> {
-        extension_migrations!()
-    }
-
-    fn provide(
-        &self,
-        ctx: &dyn ExtensionContext,
-        state: &mut StateBuilder<'_>,
-    ) -> Result<(), ExtensionStateError> {
-        let db = Arc::clone(state.state().get::<DbPool>()?);
-        let executions: DynToolExecutionLookup = Arc::new(ToolUsageRepository::new(&db));
-        state.provide(executions)?;
-        let registry: Arc<dyn McpRegistryProvider> = Arc::new(RegistryService::new(
-            ctx.system_owner_id(),
-            ctx.services(),
-            ctx.app_config(),
-        ));
-        state.provide(registry)
+                    .with_required_columns(columns.iter().map(|c| (*c).to_owned()).collect()),
+            );
+        }
+        c.schema(SchemaDefinition::sql_only(include_str!(
+            "../schema/tool_row_facts.sql"
+        )))
+        .schema(SchemaDefinition::sql_only(include_str!(
+            "../schema/trace_facts_mcp.sql"
+        )))
+        .migrations(extension_migrations!())
+        .provide(
+            |r: &Resolved<'_>| -> Result<DynToolExecutionLookup, ProvideError> {
+                let db = r.get::<DbPool>()?;
+                Ok(Arc::new(ToolUsageRepository::new(&db)))
+            },
+        )
+        .provide(
+            |r: &Resolved<'_>| -> Result<Arc<dyn McpRegistryProvider>, ProvideError> {
+                Ok(Arc::new(RegistryService::new(
+                    r.get::<SystemAdmin>()?.id().clone(),
+                    r.get::<ServicesView>()?,
+                    r.get::<Arc<Config>>()?,
+                )))
+            },
+        );
+        crate::jobs::contribute(c);
+        c.slot::<UiSlot>();
+        c.slot::<AccessRecorderSlot>();
+        c.user_purge(UserPurgeTable {
+            table: "mcp_artifacts",
+            column: "user_id",
+            predicate: None,
+        });
+        c.user_purge(UserPurgeTable {
+            table: "mcp_tool_executions",
+            column: "user_id",
+            predicate: None,
+        });
+        c.user_purge(UserPurgeTable {
+            table: "mcp_sessions",
+            column: "user_id",
+            predicate: None,
+        });
+        c.user_purge(UserPurgeTable {
+            table: "mcp_external_sessions",
+            column: "user_id",
+            predicate: None,
+        });
+        c.orphan_sweep(OrphanSweep {
+            table: "artifact_payloads",
+            key: "sha256",
+            referenced_by: "mcp_artifacts",
+            via: "payload_sha256",
+            user_column: "user_id",
+        });
+        Ok(())
     }
 }
-
-register_extension!(McpExtension);

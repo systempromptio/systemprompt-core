@@ -22,7 +22,10 @@ pub fn block_on_secrets_load(profile: &Arc<LoadedProfile>) -> Result<Arc<Secrets
                     .enable_all()
                     .build()
                     .map_err(|e| e.to_string())?
-                    .block_on(SecretsService::load(Arc::clone(profile)))
+                    .block_on(SecretsService::load(
+                        Arc::clone(profile),
+                        systemprompt_config::SecretsSources::default(),
+                    ))
                     .map_err(|e| e.to_string())
             })
             .join()

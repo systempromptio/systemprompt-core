@@ -2,11 +2,12 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
+use systemprompt_cli::ScriptedPrompter;
 use systemprompt_cli::web::content_types::create::{
     prompt_category_id, prompt_name, prompt_path, prompt_sitemap_config, prompt_source_id,
     resolve_description, resolve_sitemap,
 };
-use systemprompt_cli::{CliConfig, ScriptedPrompter};
+use systemprompt_extension::cli::CliConfig;
 use systemprompt_models::content_config::ContentConfigRaw;
 
 fn interactive() -> CliConfig {

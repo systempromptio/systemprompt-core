@@ -53,5 +53,3 @@ impl Job for ThoughtSignatureCleanupJob {
             .with_duration(duration_ms))
     }
 }
-
-systemprompt_traits::submit_job!("ai", &ThoughtSignatureCleanupJob);

@@ -10,11 +10,13 @@
 
 use anyhow::{Result, bail};
 
-use systemprompt_cli::kernel::{RoutingClass, command_line_path, describe_command_line};
+use systemprompt_extension::cli::{DescribedCommand, RoutingClass};
 
-pub fn ensure_read_only(command: &[String]) -> Result<()> {
-    let descriptor = describe_command_line(command)?;
-    if command_line_path(command)?.first().map(String::as_str) == Some("cloud") {
+pub fn ensure_read_only(described: &DescribedCommand, command: &[String]) -> Result<()> {
+    let DescribedCommand {
+        path, descriptor, ..
+    } = described;
+    if path.first().map(String::as_str) == Some("cloud") {
         bail!(
             "cloud commands run on this machine, not on tenants; fleet run forwards tenant \
              commands"

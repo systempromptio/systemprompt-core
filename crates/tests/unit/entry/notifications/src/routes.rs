@@ -20,16 +20,13 @@ use systemprompt_models::notifications::{
 use systemprompt_notifications::repository::{
     NotificationStreamRepository, NotificationSubscriptionRepository,
 };
-use systemprompt_notifications_entry::http::router;
 use systemprompt_provider_contracts::ChangeSource;
 use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, seed_user_row, test_app_context, test_db_pool,
-};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, seed_user_row, test_app_context};
 use tower::ServiceExt;
 use uuid::Uuid;
 
-use crate::support::state;
+use crate::support::user_router;
 
 #[derive(Clone)]
 struct Caller(Option<RequestContext>);
@@ -59,12 +56,11 @@ fn caller(user: &UserId) -> RequestContext {
 
 async fn context() -> Arc<AppContext> {
     let boot = ensure_test_bootstrap();
-    let pool = test_db_pool().await;
-    test_app_context(&pool, &boot.database_url)
+    test_app_context(&boot.database_url).await
 }
 
 fn app(ctx: &AppContext, user: Option<&UserId>) -> Router {
-    router(state(ctx)).with_auth(
+    user_router(ctx).with_auth(
         UserOnlyContextMiddleware::new(Caller(user.map(caller))),
         AuthzPolicy::user(),
     )
@@ -143,7 +139,7 @@ async fn every_route_requires_a_signed_in_user() {
 async fn an_anonymous_caller_is_refused_by_the_user_policy() {
     let ctx = context().await;
     let anon = caller(&UserId::generate()).with_user_type(UserType::Anon);
-    let app = router(state(&ctx)).with_auth(
+    let app = user_router(&ctx).with_auth(
         UserOnlyContextMiddleware::new(Caller(Some(anon))),
         AuthzPolicy::user(),
     );

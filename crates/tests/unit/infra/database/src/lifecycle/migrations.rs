@@ -4,6 +4,7 @@
 //! (transactional wrapping, `no_transaction` opt-out, tombstoned slots, and
 //! `run_down_migrations` reversibility).
 
+use super::members::unit;
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
@@ -16,7 +17,8 @@ use systemprompt_database::{
     QuerySelector, SlotCollision, ToDbValue, TombstonedSlot,
 };
 use systemprompt_extension::{
-    Extension, ExtensionMetadata, LoaderError, Migration, MigrationFault, SchemaDefinition,
+    ContributionError, Contributions, Extension, ExtensionMetadata, LoaderError, Migration,
+    MigrationFault, SchemaDefinition,
 };
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_test_fixtures::{DisposableDb, error_chain};
@@ -394,6 +396,16 @@ struct StubExtension {
     migrations: Vec<Migration>,
 }
 
+impl StubExtension {
+    fn schemas(&self) -> Vec<SchemaDefinition> {
+        vec![]
+    }
+
+    fn migrations(&self) -> Vec<Migration> {
+        self.migrations.clone()
+    }
+}
+
 impl Extension for StubExtension {
     fn metadata(&self) -> ExtensionMetadata {
         ExtensionMetadata {
@@ -403,12 +415,12 @@ impl Extension for StubExtension {
         }
     }
 
-    fn schemas(&self) -> Vec<SchemaDefinition> {
-        vec![]
-    }
-
-    fn migrations(&self) -> Vec<Migration> {
-        self.migrations.clone()
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        for schema in self.schemas() {
+            c.schema(schema);
+        }
+        c.migrations(self.migrations());
+        Ok(())
     }
 }
 
@@ -428,7 +440,7 @@ async fn execute_migration_wraps_statements_in_a_transaction() {
     };
 
     service
-        .run_pending_migrations(&extension)
+        .run_pending_migrations(&unit(&extension))
         .await
         .expect("migration succeeds");
 
@@ -468,7 +480,7 @@ async fn execute_migration_rolls_back_and_skips_recording_on_failure() {
     };
 
     let err = service
-        .run_pending_migrations(&extension)
+        .run_pending_migrations(&unit(&extension))
         .await
         .expect_err("migration must fail");
     assert!(matches!(err, LoaderError::MigrationStepFailed { .. }));
@@ -520,7 +532,7 @@ async fn transactional_boundary_failures_never_commit_partial_migrations() {
         };
         let message = error_chain(
             &MigrationService::new(&provider)
-                .run_pending_migrations(&extension)
+                .run_pending_migrations(&unit(&extension))
                 .await
                 .expect_err("boundary failure rejects migration"),
         );
@@ -556,7 +568,7 @@ async fn no_transaction_migration_runs_statements_without_begin_commit() {
     };
 
     service
-        .run_pending_migrations(&extension)
+        .run_pending_migrations(&unit(&extension))
         .await
         .expect("no-transaction migration succeeds");
 
@@ -601,7 +613,7 @@ async fn run_down_migrations_rejects_irreversible_migration() {
     );
 
     let result = service
-        .run_down_migrations(&extension, 1)
+        .run_down_migrations(&unit(&extension), 1)
         .await
         .expect("nothing applied -> Ok");
     assert_eq!(result.migrations_run, 0);
@@ -623,7 +635,7 @@ async fn mark_applied_records_migration_without_running_sql() {
     };
 
     let outcome: MarkAppliedOutcome = service
-        .mark_applied(&extension, 4)
+        .mark_applied(&unit(&extension), 4)
         .await
         .expect("mark applied succeeds");
 
@@ -660,7 +672,7 @@ async fn mark_applied_rejects_unknown_version() {
     };
 
     let err = service
-        .mark_applied(&extension, 99)
+        .mark_applied(&unit(&extension), 99)
         .await
         .expect_err("unknown version must fail");
 
@@ -704,7 +716,7 @@ async fn run_pending_migrations_short_circuits_when_extension_has_none() {
     };
 
     let result = service
-        .run_pending_migrations(&extension)
+        .run_pending_migrations(&unit(&extension))
         .await
         .expect("no migrations -> Ok");
     assert_eq!(result.migrations_run, 0);
@@ -727,7 +739,7 @@ async fn transactional_migration_with_unparseable_sql_fails_before_execution() {
     };
 
     let err = service
-        .run_pending_migrations(&extension)
+        .run_pending_migrations(&unit(&extension))
         .await
         .expect_err("unparseable migration must fail");
     match err {
@@ -747,7 +759,7 @@ async fn transactional_migration_with_unparseable_sql_fails_before_execution() {
 }
 
 mod checksum_drift_db {
-    use super::{Migration, MigrationService, StubExtension, error_chain};
+    use super::{Migration, MigrationService, StubExtension, error_chain, unit};
     use crate::services::db_helper::test_pool;
     use systemprompt_database::{MigrationConfig, PostgresProvider};
 
@@ -782,13 +794,13 @@ mod checksum_drift_db {
             "CREATE TABLE IF NOT EXISTS drift_ext_t (id BIGINT PRIMARY KEY);",
         );
         let first = service
-            .run_pending_migrations(&original)
+            .run_pending_migrations(&unit(&original))
             .await
             .expect("initial apply");
         assert_eq!(first.migrations_run, 1);
 
         let rerun = service
-            .run_pending_migrations(&original)
+            .run_pending_migrations(&unit(&original))
             .await
             .expect("identical rerun");
         assert_eq!(rerun.migrations_run, 0);
@@ -799,7 +811,7 @@ mod checksum_drift_db {
             "CREATE TABLE IF NOT EXISTS drift_ext_t (id BIGINT PRIMARY KEY, extra TEXT);",
         );
         let err = service
-            .run_pending_migrations(&edited)
+            .run_pending_migrations(&unit(&edited))
             .await
             .expect_err("edited migration must be refused");
         assert!(
@@ -812,7 +824,7 @@ mod checksum_drift_db {
             force_full_install: false,
         });
         let tolerated = tolerant
-            .run_pending_migrations(&edited)
+            .run_pending_migrations(&unit(&edited))
             .await
             .expect("drift tolerated with --allow-checksum-drift");
         assert_eq!(tolerated.migrations_run, 0);
@@ -1044,7 +1056,7 @@ async fn run_down_migrations_reverts_the_applied_version_in_a_transaction() {
     };
 
     let result = service
-        .run_down_migrations(&extension, 1)
+        .run_down_migrations(&unit(&extension), 1)
         .await
         .expect("a reversible migration must revert");
     assert_eq!(result.migrations_run, 1);
@@ -1085,7 +1097,7 @@ async fn run_down_migrations_refuses_a_version_with_no_down_sql() {
     };
 
     let err = service
-        .run_down_migrations(&extension, 1)
+        .run_down_migrations(&unit(&extension), 1)
         .await
         .expect_err("a migration with no down SQL cannot be reverted");
     assert!(
@@ -1114,7 +1126,7 @@ async fn run_down_migrations_reverts_newest_first_and_honours_the_count() {
     };
 
     let result = service
-        .run_down_migrations(&extension, 2)
+        .run_down_migrations(&unit(&extension), 2)
         .await
         .expect("both versions revert");
     assert_eq!(
@@ -1155,7 +1167,7 @@ async fn run_down_migrations_rejects_unparseable_down_sql_before_deleting_the_re
         )],
     };
 
-    let result = service.run_down_migrations(&extension, 1).await;
+    let result = service.run_down_migrations(&unit(&extension), 1).await;
     let deleted = log.snapshot().iter().any(|e| e == "execute");
     assert_eq!(
         result.is_ok(),
@@ -1190,7 +1202,7 @@ async fn run_down_migrations_rejects_a_corrupt_ledger_version_without_writing() 
     };
 
     let error = MigrationService::new(db.write())
-        .run_down_migrations(&extension, 1)
+        .run_down_migrations(&unit(&extension), 1)
         .await
         .expect_err("negative ledger version must be rejected");
 
@@ -1246,7 +1258,7 @@ async fn run_down_migrations_refuses_an_applied_tombstone_without_writing() {
     };
 
     let error = MigrationService::new(db.write())
-        .run_down_migrations(&extension, 1)
+        .run_down_migrations(&unit(&extension), 1)
         .await
         .expect_err("an applied tombstone cannot be reverted");
 
@@ -1455,7 +1467,7 @@ async fn a_migration_already_recorded_with_a_matching_checksum_is_skipped_not_re
     };
 
     let result = service
-        .run_pending_migrations(&extension)
+        .run_pending_migrations(&unit(&extension))
         .await
         .expect("an already-applied migration is not an error");
 
@@ -1500,7 +1512,7 @@ async fn an_extension_with_no_migrations_short_circuits_before_touching_the_ledg
     };
 
     let result = service
-        .run_pending_migrations(&extension)
+        .run_pending_migrations(&unit(&extension))
         .await
         .expect("no migrations is not an error");
 
@@ -1544,7 +1556,7 @@ async fn a_tombstoned_slot_is_neither_executed_nor_recorded() {
     };
 
     let result = service
-        .run_pending_migrations(&extension)
+        .run_pending_migrations(&unit(&extension))
         .await
         .expect("a tombstone must never fail the run");
 
@@ -1822,7 +1834,7 @@ async fn status_reports_a_renamed_slot_as_a_collision_not_as_drift() {
     let service = MigrationService::new(&provider);
 
     let status = service
-        .status(&repair_extension("034_project_activity"))
+        .status(&unit(&repair_extension("034_project_activity")))
         .await
         .expect("status succeeds");
 
@@ -1851,7 +1863,7 @@ async fn repair_drift_refuses_a_reused_slot() {
     let service = MigrationService::new(&provider);
 
     let err = service
-        .repair_drift(&repair_extension("034_project_activity"))
+        .repair_drift(&unit(&repair_extension("034_project_activity")))
         .await
         .expect_err("a reused slot must be refused");
 
@@ -1878,7 +1890,7 @@ async fn reconcile_drift_refuses_a_reused_slot() {
     let service = MigrationService::new(&provider);
 
     service
-        .reconcile_drift(&repair_extension("034_project_activity"))
+        .reconcile_drift(&unit(&repair_extension("034_project_activity")))
         .await
         .expect_err("a reused slot must be refused");
     assert!(
@@ -1897,7 +1909,7 @@ async fn repair_drift_reapplies_when_the_name_matches() {
     let service = MigrationService::new(&provider);
 
     let result = service
-        .repair_drift(&repair_extension("034_knowledge_bank"))
+        .repair_drift(&unit(&repair_extension("034_knowledge_bank")))
         .await
         .expect("genuine drift repairs");
 
@@ -1918,7 +1930,7 @@ async fn reconcile_drift_rewrites_bookkeeping_without_executing_sql() {
     let service = MigrationService::new(&provider);
 
     let result = service
-        .reconcile_drift(&repair_extension("034_knowledge_bank"))
+        .reconcile_drift(&unit(&repair_extension("034_knowledge_bank")))
         .await
         .expect("reconcile succeeds");
 
@@ -2021,7 +2033,7 @@ async fn historical_checksum_status_requires_exact_sql_and_slot_identity_without
             id: "rows_ext",
             migrations: vec![Migration::new(1, name, sql)],
         };
-        let status = service.status(&extension).await.unwrap();
+        let status = service.status(&unit(&extension)).await.unwrap();
         assert_eq!(status.drift.len(), expected_drift);
         assert_eq!(status.slot_collisions.len(), expected_collision);
         assert_eq!(status.applied[0].checksum, historical);
@@ -2045,7 +2057,7 @@ async fn persisted_users001_checksum_matches_exact_historical_release_bytes() {
         migrations: vec![Migration::new(1, "users001", SQL)],
     };
     let status = MigrationService::new(&provider)
-        .status(&extension)
+        .status(&unit(&extension))
         .await
         .unwrap();
     assert!(
@@ -2082,7 +2094,7 @@ async fn repair_drift_rejects_unparseable_replacement_without_changing_trusted_c
     let service = MigrationService::new(&provider);
 
     let error = service
-        .repair_drift(&broken)
+        .repair_drift(&unit(&broken))
         .await
         .expect_err("invalid replacement SQL must not repair trusted migration history");
     let message = error.to_string();
@@ -2109,7 +2121,7 @@ async fn repair_drift_rejects_unparseable_replacement_without_changing_trusted_c
     );
 
     let recovered = service
-        .repair_drift(&repair_extension("034_knowledge_bank"))
+        .repair_drift(&unit(&repair_extension("034_knowledge_bank")))
         .await
         .expect("a valid replacement can recover after rejected SQL");
     assert_eq!(recovered.reapplied, 1);

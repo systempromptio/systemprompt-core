@@ -3,7 +3,7 @@
 
 use systemprompt_cli::interactive::ScriptedPrompter;
 use systemprompt_cli::web::templates::delete::{self, DeleteArgs};
-use systemprompt_cli::{CliConfig, OutputFormat};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 
 #[test]
 fn cancelled_then_confirmed_metadata_deletion_preserves_the_html_file() {

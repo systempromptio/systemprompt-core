@@ -1,10 +1,9 @@
 //! `db` CLI command group: schema inspection, queries, and migration tooling.
 //!
-//! [`execute`] runs commands against the invocation's
-//! [`CommandContext`]: migration variants are
-//! routed to the profile or standalone dispatcher depending on whether the
+//! [`execute`] runs commands against the command host: migration variants
+//! are routed to the profile or standalone dispatcher depending on whether the
 //! invocation is database-scoped, and the remaining subcommands share the
-//! context's pool. Subcommands cover ad-hoc queries, schema introspection,
+//! host's pool. Subcommands cover ad-hoc queries, schema introspection,
 //! migration apply/down/repair, and the schema doctor.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -29,13 +28,13 @@ mod types;
 
 use anyhow::{Context, Result, bail};
 use std::sync::Arc;
-use systemprompt_database::{DatabaseAdminService, DbPool, QueryExecutor};
+use systemprompt_database::{DatabaseAdminService, DbPool, QueryExecutor, pool_from_handle};
+use systemprompt_runtime::DatabaseContext;
 
-use crate::cli_settings::CliConfig;
-use crate::context::CommandContext;
-use crate::interactive::require_confirmation;
-use crate::shared::render_result;
-use dispatch::{dispatch_profile_migration, dispatch_standalone_migration};
+use crate::commands::shared::app_context;
+use crate::kernel::KernelHost;
+use dispatch::{Dispatched, dispatch_profile_migration, dispatch_standalone_migration};
+use systemprompt_extension::cli::{CommandOutput, require_confirmation};
 
 pub use commands::{DbCommands, MigrationsCommands};
 pub use types::{
@@ -47,40 +46,45 @@ pub use types::{
     MigrationStatusOutput, PendingMigrationInfo, TableIndexInfo, TableInfo, TableSizeInfo,
 };
 
-pub(crate) use text_format::format_bytes;
-
-pub async fn execute(cmd: DbCommands, ctx: &CommandContext) -> Result<()> {
-    let config = &ctx.cli;
-    let Some(cmd) = (match ctx.database_context() {
-        Some(db_ctx) => dispatch_standalone_migration(cmd, db_ctx, config).await?,
-        None => dispatch_profile_migration(cmd, ctx).await?,
-    }) else {
-        return Ok(());
+pub async fn execute(cmd: DbCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
+    let dispatched = if host.is_database_scoped() {
+        let db_ctx = DatabaseContext::from_pool(pool_from_handle(host.db().await?)?);
+        dispatch_standalone_migration(cmd, &db_ctx, host).await?
+    } else {
+        dispatch_profile_migration(cmd, host).await?
     };
+    let cmd = match dispatched {
+        Dispatched::Done(output) => return Ok(*output),
+        Dispatched::Unhandled(cmd) => cmd,
+    };
+    execute_connected(cmd, host).await
+}
 
-    let (pool, admin_service, query_executor) = connect_services(ctx).await?;
+async fn execute_connected(cmd: DbCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
+    let config = host.output();
+    let (pool, admin_service, query_executor) = connect_services(host).await?;
 
     match cmd {
         DbCommands::Query { sql, limit, offset } => {
             let params = query::QueryParams::new(&sql, limit, offset);
-            run_query(&query_executor, &admin_service, &params, config).await
+            query::execute_query(&query_executor, &admin_service, &params).await
         },
         DbCommands::Execute { sql, yes } => {
             require_confirmation(
-                ctx.prompter(),
+                host.prompter(),
                 &format!("Execute this write against the database?\n  {sql}"),
                 yes,
                 config,
             )?;
-            run_write(&query_executor, &sql, config).await
+            query::execute_write(&query_executor, &sql).await
         },
         DbCommands::Tables { filter, exact } => {
-            schema::execute_tables(&admin_service, filter, exact, config).await
+            schema::execute_tables(&admin_service, filter, exact).await
         },
         DbCommands::Describe { table_name } => {
-            schema::execute_describe(&admin_service, &table_name, config).await
+            schema::execute_describe(&admin_service, &table_name).await
         },
-        DbCommands::Info => schema::execute_info(&admin_service, config).await,
+        DbCommands::Info => schema::execute_info(&admin_service).await,
         DbCommands::Migrate { .. }
         | DbCommands::MigrateDown { .. }
         | DbCommands::MigrateRepair { .. }
@@ -88,65 +92,53 @@ pub async fn execute(cmd: DbCommands, ctx: &CommandContext) -> Result<()> {
             bail!("migration command was not consumed by the migration dispatcher")
         },
         DbCommands::Migrations { cmd } => {
-            admin::execute_migrations(ctx.app_context().await?, cmd, config).await
+            admin::execute_migrations(
+                app_context(host).await?.as_ref(),
+                host.admitted()?.built(),
+                cmd,
+            )
+            .await
         },
         DbCommands::MigratePlan { extension, flags } => {
-            admin::execute_migrate_plan(ctx.app_context().await?, extension.as_ref(), flags, config)
-                .await
-        },
-        DbCommands::MigrateStatus { extension, json } => {
-            admin::execute_migrate_status(
-                ctx.app_context().await?,
+            admin::execute_migrate_plan(
+                app_context(host).await?.as_ref(),
+                host.admitted()?.built(),
                 extension.as_ref(),
-                json,
-                config,
+                flags,
+            )
+            .await
+        },
+        DbCommands::MigrateStatus { extension } => {
+            admin::execute_migrate_status(
+                app_context(host).await?.as_ref(),
+                host.admitted()?.built(),
+                extension.as_ref(),
             )
             .await
         },
         DbCommands::AssignAdmin { user, .. } => {
-            if ctx.is_database_scoped() {
+            if host.is_database_scoped() {
                 bail!("assign-admin requires full profile context");
             }
-            admin::execute_assign_admin(ctx.app_context().await?, &user, config).await
+            admin::execute_assign_admin(app_context(host).await?.as_ref(), &user).await
         },
-        DbCommands::Status => admin::execute_status(&admin_service, config).await,
+        DbCommands::Status => admin::execute_status(&admin_service).await,
         DbCommands::Count { table_name } => {
-            schema::execute_count(&admin_service, &table_name, config).await
+            schema::execute_count(&admin_service, &table_name).await
         },
-        DbCommands::Indexes { table } => {
-            introspect::execute_indexes(&admin_service, table, config).await
-        },
-        DbCommands::Size => introspect::execute_size(&admin_service, config).await,
-        DbCommands::Doctor => doctor::execute_doctor(&pool, config).await,
+        DbCommands::Indexes { table } => introspect::execute_indexes(&admin_service, table).await,
+        DbCommands::Size => introspect::execute_size(&admin_service).await,
+        DbCommands::Doctor => doctor::execute_doctor(&pool, host.admitted()?.built()).await,
     }
 }
 
 async fn connect_services(
-    ctx: &CommandContext,
+    host: &dyn KernelHost,
 ) -> Result<(DbPool, DatabaseAdminService, QueryExecutor)> {
-    let pool = ctx
-        .db_pool()
-        .await
+    let pool = pool_from_handle(host.db().await?)
         .context("Failed to connect to database. Check your profile configuration.")?;
     let write_pool = pool.write_pool();
     let admin_service = DatabaseAdminService::new(Arc::clone(&write_pool));
     let query_executor = QueryExecutor::new(write_pool);
     Ok((pool, admin_service, query_executor))
-}
-
-async fn run_query(
-    executor: &QueryExecutor,
-    admin_service: &DatabaseAdminService,
-    params: &query::QueryParams<'_>,
-    config: &CliConfig,
-) -> Result<()> {
-    let result = query::execute_query(executor, admin_service, params, config).await?;
-    render_result(&result, config);
-    Ok(())
-}
-
-async fn run_write(executor: &QueryExecutor, sql: &str, config: &CliConfig) -> Result<()> {
-    let result = query::execute_write(executor, sql, config).await?;
-    render_result(&result, config);
-    Ok(())
 }

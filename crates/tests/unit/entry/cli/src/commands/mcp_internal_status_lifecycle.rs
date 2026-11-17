@@ -1,17 +1,12 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use std::process::Command;
-use std::sync::Arc;
 
 use clap::Parser;
+use systemprompt_cli::EnvOverrides;
 use systemprompt_cli::plugins::mcp::{self, McpCommands};
-use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat};
-use systemprompt_manifest::profile::PathsConfig;
-use systemprompt_marketplace::AllowAllFilter;
-use systemprompt_test_fixtures::{
-    DisposableDb, bounded_output, fixture_app_context_on_bootstrap_with_paths,
-    init_services_bootstrap,
-};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
+use systemprompt_test_fixtures::{DisposableDb, bounded_output, init_services_bootstrap};
 
 const SERVER: &str = "cov_internal_status";
 const BINARY: &str = "cov-internal-mcp";
@@ -49,28 +44,19 @@ async fn internal_status_helper() {
     )
     .expect("write internal extension manifest");
 
-    let selected_bin = boot._tmp.path().join("build/current");
-    let release_binary = boot._tmp.path().join("build/release").join(BINARY);
+    let release_binary = boot
+        .bin_path
+        .parent()
+        .expect("the bootstrap bin path has a parent")
+        .join("release")
+        .join(BINARY);
     std::fs::create_dir_all(release_binary.parent().unwrap()).unwrap();
-    std::fs::create_dir_all(&selected_bin).unwrap();
+    std::fs::create_dir_all(&boot.bin_path).unwrap();
     std::fs::write(&release_binary, "owned fixture binary\n").unwrap();
 
     let database = DisposableDb::with_schema("cli_mcp_internal_status").await;
     let pool = database.test_pool().await;
-    let paths = PathsConfig {
-        root: None,
-        system: boot.system_path.to_string_lossy().into_owned(),
-        services: boot.services_path.to_string_lossy().into_owned(),
-        bin: selected_bin.to_string_lossy().into_owned(),
-        web_path: Some(boot.system_path.join("web").to_string_lossy().into_owned()),
-        storage: Some(boot.storage_path.to_string_lossy().into_owned()),
-        geoip_database: None,
-        shipped_files: None,
-        data: None,
-    };
-    let app =
-        fixture_app_context_on_bootstrap_with_paths(&boot, &pool, paths, Arc::new(AllowAllFilter))
-            .expect("fixture app context with owned build paths");
+    let app = crate::boot_ctx::app_on_database(&boot, database.url()).await;
     let context = crate::boot_ctx::with_app_boot(
         CliConfig::new()
             .with_interactive(false)
@@ -80,16 +66,21 @@ async fn internal_status_helper() {
     );
 
     println!("BEGIN_COMPACT_STATUS");
-    mcp::execute(parse(&["status", "--server", SERVER]), &context)
-        .await
-        .expect("compact internal status");
+    crate::boot_ctx::rendered(
+        &context,
+        mcp::execute(parse(&["status", "--server", SERVER]), &context).await,
+    )
+    .expect("compact internal status");
     println!("END_COMPACT_STATUS");
     println!("BEGIN_DETAILED_STATUS");
-    mcp::execute(
-        parse(&["status", "--server", SERVER, "--detailed"]),
+    crate::boot_ctx::rendered(
         &context,
+        mcp::execute(
+            parse(&["status", "--server", SERVER, "--detailed"]),
+            &context,
+        )
+        .await,
     )
-    .await
     .expect("detailed internal status");
     println!("END_DETAILED_STATUS");
 

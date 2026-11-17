@@ -1,9 +1,14 @@
-//! Durable source, revision and publication storage.
+//! [`ManagedResourcesExtension`]: durable source, revision and publication
+//! storage. It contributes the managed-resource schemas and migrations and
+//! opens the [`MarketplaceSlot`], so the built marketplace seams are present
+//! whenever this member is admitted.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_extension::prelude::*;
+
+use crate::contract::MarketplaceSlot;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ManagedResourcesExtension;
@@ -17,26 +22,28 @@ impl Extension for ManagedResourcesExtension {
         }
     }
 
-    fn schemas(&self) -> Vec<SchemaDefinition> {
-        let mut schemas = source_schemas();
-        schemas.extend(publication_schemas());
-        schemas.extend(attestation_schemas());
-        schemas.extend(consumer_schemas());
-        schemas.extend(inventory_schemas());
-        schemas.extend(operation_schemas());
-        schemas
-    }
-
-    fn dependencies(&self) -> Vec<&'static str> {
-        vec!["ai", "users"]
-    }
-
-    fn migrations(&self) -> Vec<Migration> {
-        extension_migrations!()
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        for schema in source_schemas()
+            .into_iter()
+            .chain(publication_schemas())
+            .chain(attestation_schemas())
+            .chain(consumer_schemas())
+            .chain(inventory_schemas())
+            .chain(operation_schemas())
+        {
+            c.schema(schema);
+        }
+        c.migrations(extension_migrations!());
+        c.retire(SchemaDefinition {
+            table: None,
+            sql: include_str!("../schema/retirements/retired_tables.sql").to_owned(),
+            required_columns: Vec::new(),
+            schema: None,
+        });
+        c.slot::<MarketplaceSlot>();
+        Ok(())
     }
 }
-
-register_extension!(ManagedResourcesExtension);
 
 fn source_schemas() -> Vec<SchemaDefinition> {
     vec![

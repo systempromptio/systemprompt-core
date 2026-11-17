@@ -22,10 +22,9 @@
 //! host happens to carry. The profile's `secrets.validation` field is not
 //! consulted.
 //!
-//! `secrets.source: external` hands the fetch to the provider an extension
-//! registered for the profile's `external.kind` with
-//! [`register_secrets_source!`](crate::register_secrets_source). It sits at
-//! the same precedence as Vault and is equally fail-closed. The store is
+//! `secrets.source: external` hands the fetch to the provider the composition
+//! declared for the profile's `external.kind` (see [`SecretsSources`]). It sits
+//! at the same precedence as Vault and is equally fail-closed. The store is
 //! reloadable: see [`SecretsService::reload`].
 //!
 //! A Vault token is never written into profile YAML — `${VAULT_TOKEN}`
@@ -71,8 +70,8 @@ pub use io::load_secrets_from_path;
 pub use logging::build_loaded_secrets_message;
 pub use provider::{DynSecretsProvider, SecretsDocument, SecretsFetch, SecretsProvider};
 pub use registry::{
-    EnvLookup, SecretsSourceFactory, SecretsSourceRegistration, SharedSecretsProvider,
-    build_external_provider, process_env_lookup, registered_external_kinds,
+    EnvLookup, SecretsSourceFactory, SecretsSourceRegistration, SecretsSources,
+    SharedSecretsProvider, build_external_provider, process_env_lookup,
 };
 pub use reload::{
     PINNED_SECRET_KEYS, ReloadOutcome, SecretsStatus, diff_secrets, refresh_interval_for,
@@ -93,24 +92,40 @@ pub use vault::{VaultAttemptFailure, VaultError, VaultKvProvider};
 #[derive(Debug)]
 pub struct SecretsService {
     profile: Arc<LoadedProfile>,
+    sources: SecretsSources,
     state: SecretsState,
 }
 
 impl SecretsService {
-    pub async fn load(profile: Arc<LoadedProfile>) -> ConfigResult<Arc<Self>> {
-        let secrets = loader::load_from_profile_config(&profile).await?;
+    pub async fn load(
+        profile: Arc<LoadedProfile>,
+        sources: SecretsSources,
+    ) -> ConfigResult<Arc<Self>> {
+        let secrets = loader::load_from_profile_config(&profile, &sources).await?;
         Self::validate_identity(&profile, &secrets)?;
 
         Self::log_loaded_secrets(&secrets);
 
         let state = SecretsState::new(secrets, active_source_name(&profile));
-        Ok(Arc::new(Self { profile, state }))
+        Ok(Arc::new(Self {
+            profile,
+            sources,
+            state,
+        }))
     }
 
     #[must_use]
-    pub fn from_secrets(profile: Arc<LoadedProfile>, secrets: Secrets) -> Arc<Self> {
+    pub fn from_secrets(
+        profile: Arc<LoadedProfile>,
+        sources: SecretsSources,
+        secrets: Secrets,
+    ) -> Arc<Self> {
         let state = SecretsState::new(secrets, active_source_name(&profile));
-        Arc::new(Self { profile, state })
+        Arc::new(Self {
+            profile,
+            sources,
+            state,
+        })
     }
 
     #[must_use]

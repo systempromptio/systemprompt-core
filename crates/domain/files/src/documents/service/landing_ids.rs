@@ -22,11 +22,13 @@ use crate::documents::repository::DocumentNodeIdRepository;
 
 const PROVISIONAL: &str = "~";
 
+#[derive(Clone)]
 pub(super) struct CarriedEntry {
     pub(super) entry: NodeIdEntry,
     minted: bool,
 }
 
+#[derive(Clone)]
 pub(super) struct Carried {
     pub(super) entries: Vec<CarriedEntry>,
     pub(super) next: Projection,

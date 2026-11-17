@@ -58,8 +58,8 @@ async fn a_services_file_corrupted_after_boot_is_refused_and_the_route_keeps_ser
         "agents: {}\nmcp_servers: {}\n",
     );
     let pool = test_db_pool().await;
-    let ctx = test_app_context_on(&b, &pool);
-    let app = gateway_router(&ctx).expect("gateway router builds");
+    let ctx = test_app_context_on(&b).await;
+    let app = gateway_router(&ctx, ctx.admitted(), ctx.kernel()).expect("gateway router builds");
     let cred = seed_admin_credential(&pool, "manifest-badcfg@example.invalid").await?;
 
     let (before_status, before) = fetch_manifest(app.clone(), cred.jwt.as_str()).await?;

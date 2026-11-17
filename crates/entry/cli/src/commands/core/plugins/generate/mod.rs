@@ -13,12 +13,12 @@ pub mod marketplace;
 pub mod mcp;
 pub mod skills;
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use std::path::{Path, PathBuf};
 
-use crate::context::CommandContext;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use systemprompt_identifiers::PluginId;
 use systemprompt_manifest::PluginConfigFile;
 
@@ -31,7 +31,7 @@ pub struct GenerateArgs {
     #[arg(
         long,
         help = "Plugin ID to generate (generates all if omitted)",
-        value_parser = crate::shared::parse_plugin_id
+        value_parser = systemprompt_extension::cli::parsers::parse_plugin_id
     )]
     pub id: Option<PluginId>,
 
@@ -47,10 +47,9 @@ pub struct PluginGenerateContext<'a> {
     pub output_dir_override: Option<&'a str>,
 }
 
-pub(super) fn execute(args: &GenerateArgs, cmd: &CommandContext) -> Result<CommandOutput> {
-    let boot = cmd.boot()?;
-    let profile = boot.profile();
-    let services_path = boot.require_services_root().path;
+pub(super) fn execute(args: &GenerateArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+    let profile = host.profile()?;
+    let services_path = host.services_root()?.path;
     let plugins_path = services_path.join("plugins");
     let skills_path = services_path.join("skills");
 
@@ -84,7 +83,7 @@ pub(super) fn execute(args: &GenerateArgs, cmd: &CommandContext) -> Result<Comma
         .join("storage")
         .join("files")
         .join("plugins");
-    marketplace::generate_marketplace_json(boot, &plugins_path, &plugins_output_path)?;
+    marketplace::generate_marketplace_json(profile, &services_path, &plugins_output_path)?;
 
     let install_hint = extract_install_command(profile.site.github_link.as_deref());
 

@@ -12,7 +12,7 @@ use systemprompt_identifiers::JobName;
 
 use systemprompt_logging::{LogLevel, LoggingRepository};
 use systemprompt_scheduler::{JobConfig, SchedulerConfig, SchedulerService};
-use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
+use systemprompt_test_fixtures::{test_database_url, test_db_pool};
 
 mod start_owner_resolution_db {
     use super::*;
@@ -21,7 +21,7 @@ mod start_owner_resolution_db {
     async fn ownerless_job_resolves_to_system_admin_and_starts() {
         let url = test_database_url();
         let pool = test_db_pool().await;
-        let app_ctx = test_app_context(&pool, &url);
+        let (app_ctx, schedule) = crate::test_extension::scheduled_app(&url).await;
 
         let config = SchedulerConfig {
             enabled: true,
@@ -33,7 +33,7 @@ mod start_owner_resolution_db {
             distributed_lock: false,
             unlisted_jobs: systemprompt_manifest::services::UnlistedJobs::Warn,
         };
-        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx);
+        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule));
 
         let startup = svc.start().await.expect("scheduler must start");
         assert!(startup.handle.is_some(), "scheduler must start");
@@ -51,7 +51,7 @@ mod start_owner_resolution_db {
     async fn unresolved_explicit_owner_is_skipped_and_logged() {
         let url = test_database_url();
         let pool = test_db_pool().await;
-        let app_ctx = test_app_context(&pool, &url);
+        let (app_ctx, schedule) = crate::test_extension::scheduled_app(&url).await;
 
         let bad_owner = "no-such-active-user-zzz";
         let config = SchedulerConfig {
@@ -67,7 +67,7 @@ mod start_owner_resolution_db {
             distributed_lock: false,
             unlisted_jobs: systemprompt_manifest::services::UnlistedJobs::Warn,
         };
-        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx);
+        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule));
 
         let startup = svc
             .start()
@@ -113,7 +113,7 @@ mod start_lifecycle_db {
     async fn disabled_scheduler_returns_no_handle() {
         let url = test_database_url();
         let pool = test_db_pool().await;
-        let app_ctx = test_app_context(&pool, &url);
+        let (app_ctx, schedule) = crate::test_extension::scheduled_app(&url).await;
 
         let config = SchedulerConfig {
             enabled: false,
@@ -122,7 +122,7 @@ mod start_lifecycle_db {
             distributed_lock: false,
             unlisted_jobs: systemprompt_manifest::services::UnlistedJobs::Warn,
         };
-        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx);
+        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule));
 
         let startup = svc
             .start()
@@ -139,7 +139,7 @@ mod start_lifecycle_db {
     async fn unknown_configured_job_fails_start_loud() {
         let url = test_database_url();
         let pool = test_db_pool().await;
-        let app_ctx = test_app_context(&pool, &url);
+        let (app_ctx, schedule) = crate::test_extension::scheduled_app(&url).await;
 
         let config = SchedulerConfig {
             enabled: true,
@@ -150,7 +150,7 @@ mod start_lifecycle_db {
             distributed_lock: false,
             unlisted_jobs: systemprompt_manifest::services::UnlistedJobs::Warn,
         };
-        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx);
+        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule));
 
         let err = svc
             .start()
@@ -166,7 +166,7 @@ mod start_lifecycle_db {
     async fn disabled_job_config_is_not_registered_or_upserted() {
         let url = test_database_url();
         let pool = test_db_pool().await;
-        let app_ctx = test_app_context(&pool, &url);
+        let (app_ctx, schedule) = crate::test_extension::scheduled_app(&url).await;
         let pg = pool.write_pool();
 
         let job_name = crate::test_jobs::EMPTY_SCHEDULE_JOB;
@@ -186,7 +186,7 @@ mod start_lifecycle_db {
             distributed_lock: false,
             unlisted_jobs: systemprompt_manifest::services::UnlistedJobs::Warn,
         };
-        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx);
+        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule));
 
         let startup = svc.start().await.expect("start must succeed");
         let repo = SchedulerRepository::new(&pool);
@@ -208,7 +208,7 @@ mod start_lifecycle_db {
     async fn empty_schedule_job_is_bootstrap_only_and_not_upserted() {
         let url = test_database_url();
         let pool = test_db_pool().await;
-        let app_ctx = test_app_context(&pool, &url);
+        let (app_ctx, schedule) = crate::test_extension::scheduled_app(&url).await;
         let pg = pool.write_pool();
 
         let job_name = crate::test_jobs::EMPTY_SCHEDULE_JOB;
@@ -226,7 +226,7 @@ mod start_lifecycle_db {
             distributed_lock: false,
             unlisted_jobs: systemprompt_manifest::services::UnlistedJobs::Warn,
         };
-        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx);
+        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule));
 
         let startup = svc.start().await.expect("start must succeed");
         let repo = SchedulerRepository::new(&pool);
@@ -247,7 +247,7 @@ mod start_lifecycle_db {
     async fn overlapping_cron_ticks_skip_while_job_is_running() {
         let url = test_database_url();
         let pool = test_db_pool().await;
-        let app_ctx = test_app_context(&pool, &url);
+        let (app_ctx, schedule) = crate::test_extension::scheduled_app(&url).await;
 
         use std::sync::atomic::Ordering;
         use std::time::{Duration, Instant};
@@ -261,7 +261,7 @@ mod start_lifecycle_db {
             distributed_lock: false,
             unlisted_jobs: systemprompt_manifest::services::UnlistedJobs::Warn,
         };
-        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx);
+        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule));
 
         let startup = svc.start().await.expect("start must succeed");
         let handle = startup

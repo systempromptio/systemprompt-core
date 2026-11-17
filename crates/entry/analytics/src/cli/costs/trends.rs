@@ -8,14 +8,14 @@ use clap::Args;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use systemprompt_analytics::CostAnalyticsRepository;
+use systemprompt_database::DbPool;
 use systemprompt_logging::CliService;
-use systemprompt_runtime::DatabaseContext;
 
 use super::{CostTrendPoint, CostTrendsOutput};
 use crate::cli::shared::{
     export_to_csv, format_date_range, format_period_label, parse_time_range, truncate_to_period,
 };
-use systemprompt_cli::kernel::{ChartType, CliConfig, CommandOutput};
+use systemprompt_extension::cli::{ChartType, CliConfig, CommandOutput};
 use systemprompt_models::artifacts::{ChartArtifact, ChartDataset};
 
 #[derive(Debug, Args)]
@@ -44,10 +44,10 @@ pub struct TrendsArgs {
 
 pub(super) async fn execute_with_pool(
     args: TrendsArgs,
-    db_ctx: &DatabaseContext,
+    pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let repo = CostAnalyticsRepository::new(db_ctx.db_pool());
+    let repo = CostAnalyticsRepository::new(pool);
     execute_internal(args, &repo).await
 }
 

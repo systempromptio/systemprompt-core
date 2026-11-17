@@ -1,10 +1,9 @@
-//! The [`DocumentTemplateProvider`] seam and its compile-time registry.
+//! The [`DocumentTemplateProvider`] seam.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::PathBuf;
-use std::sync::Arc;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -52,33 +51,4 @@ pub trait DocumentTemplateProvider: Send + Sync + std::fmt::Debug {
     fn priority(&self) -> u32 {
         100
     }
-}
-
-/// One compile-time template provider registration, submitted by
-/// [`register_document_template_provider!
-/// `](crate::register_document_template_provider).
-#[derive(Debug, Clone, Copy)]
-pub struct DocumentTemplateProviderRegistration {
-    pub factory: fn() -> Arc<dyn DocumentTemplateProvider>,
-}
-
-inventory::collect!(DocumentTemplateProviderRegistration);
-
-#[macro_export]
-macro_rules! register_document_template_provider {
-    ($factory:path) => {
-        $crate::__inventory::submit! {
-            $crate::documents::DocumentTemplateProviderRegistration { factory: $factory }
-        }
-    };
-}
-
-pub fn registered_template_providers() -> impl Iterator<Item = Arc<dyn DocumentTemplateProvider>> {
-    let mut providers: Vec<Arc<dyn DocumentTemplateProvider>> =
-        inventory::iter::<DocumentTemplateProviderRegistration>
-            .into_iter()
-            .map(|registration| (registration.factory)())
-            .collect();
-    providers.sort_by_key(|provider| std::cmp::Reverse(provider.priority()));
-    providers.into_iter()
 }

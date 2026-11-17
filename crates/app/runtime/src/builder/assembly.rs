@@ -7,14 +7,11 @@
 
 use std::sync::Arc;
 
-use systemprompt_analytics::{AnalyticsService, FingerprintRepository, GeoIpReader};
+use systemprompt_analytics::{FingerprintRepository, GeoIpReader};
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::Database;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::{SystemAdmin, SystemAdminConfig};
-use systemprompt_marketplace::{
-    AllowAllFilter, MarketplaceFactoryContext, MarketplaceFilter, discover_filters,
-};
 use systemprompt_models::auth::UserRole;
 use systemprompt_models::{ContentConfigRaw, ContentRouting};
 use systemprompt_users::UserService;
@@ -22,54 +19,31 @@ use systemprompt_users::UserService;
 use crate::context::AppContext;
 use crate::error::{RuntimeError, RuntimeResult};
 
-pub(super) struct ContentAnalytics {
+pub(super) struct ContentAndGeoIp {
     pub(super) geoip_reader: Option<GeoIpReader>,
     pub(super) content_config: Option<Arc<ContentConfigRaw>>,
     pub(super) route_classifier: Arc<systemprompt_models::RouteClassifier>,
-    pub(super) analytics_service: Arc<AnalyticsService>,
-    pub(super) analytics_repositories:
-        Arc<systemprompt_analytics::repository::AnalyticsRepositories>,
     pub(super) fingerprint_repo: Option<Arc<FingerprintRepository>>,
 }
 
-pub(super) fn assemble_content_analytics(
+pub(super) fn assemble_content_and_geoip(
     config: &Config,
     app_paths: &AppPaths,
     database: &Arc<Database>,
     show_startup_warnings: bool,
-) -> RuntimeResult<ContentAnalytics> {
+) -> RuntimeResult<ContentAndGeoIp> {
     let geoip_reader = AppContext::load_geoip_database(config, show_startup_warnings)?;
     let content_config = AppContext::load_content_config(config, app_paths);
     let content_routing = content_routing_from(content_config.as_ref());
-    let route_classifier = Arc::new(systemprompt_models::RouteClassifier::new(
-        content_routing.clone(),
-    ));
+    let route_classifier = Arc::new(systemprompt_models::RouteClassifier::new(content_routing));
     let sessions: systemprompt_traits::DynSessionStore =
         Arc::new(systemprompt_users::SessionRepository::new(database));
-    let event_log = Arc::new(systemprompt_logging::AnalyticsRepository::new(database));
-    let content_stats = Arc::new(systemprompt_content::ContentRepository::new(database));
-    let analytics_repositories = Arc::new(
-        systemprompt_analytics::repository::AnalyticsRepositories::new(
-            database,
-            Arc::clone(&sessions),
-            event_log,
-            content_stats,
-        ),
-    );
-    let analytics_service = Arc::new(AnalyticsService::new(
-        geoip_reader.clone(),
-        content_routing,
-        &analytics_repositories,
-    ));
-
     let fingerprint_repo = Some(Arc::new(FingerprintRepository::new(database, sessions)));
 
-    Ok(ContentAnalytics {
+    Ok(ContentAndGeoIp {
         geoip_reader,
         content_config,
         route_classifier,
-        analytics_service,
-        analytics_repositories,
         fingerprint_repo,
     })
 }
@@ -107,31 +81,6 @@ async fn resolve_system_admin(
         });
     }
     Ok(SystemAdmin::new(user.id, user.name))
-}
-
-pub(super) fn build_marketplace_filter(
-    ctx: &MarketplaceFactoryContext,
-) -> Arc<dyn MarketplaceFilter> {
-    for reg in discover_filters() {
-        match (reg.factory)(ctx) {
-            Ok(filter) => {
-                tracing::debug!(
-                    priority = reg.priority,
-                    "marketplace filter registered via inventory; using highest-priority impl",
-                );
-                return filter;
-            },
-            Err(err) => {
-                tracing::error!(
-                    priority = reg.priority,
-                    error = %err,
-                    "marketplace filter factory failed; trying next candidate",
-                );
-            },
-        }
-    }
-    let fallback: Arc<dyn MarketplaceFilter> = Arc::new(AllowAllFilter);
-    fallback
 }
 
 pub(super) fn content_routing_from(

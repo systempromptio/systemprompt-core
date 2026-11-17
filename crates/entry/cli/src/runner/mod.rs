@@ -1,9 +1,9 @@
 //! CLI runtime entry point and bootstrap helpers.
 //!
 //! Owns argument parsing (`args`), profile/secrets bootstrap (`bootstrap`),
-//! and cloud routing ([`routing`], [`profile_routing`]). [`run`] is the
-//! process entry point: it assembles the command tree from the kernel groups
-//! and the [`CommandRegistry`], parses, resolves the selected command's
+//! and cloud routing ([`routing`], [`profile_routing`]). [`run_composed`] is
+//! the process entry point: it assembles the command tree from the kernel
+//! groups and the [`CommandRegistry`], parses, resolves the selected command's
 //! [`CommandDescriptor`], bootstraps what that descriptor asks for, and
 //! dispatches.
 //!
@@ -12,51 +12,46 @@
 
 pub mod args;
 mod bootstrap;
+mod composed;
 pub mod confirmation;
 mod db_url;
+mod direct;
 mod dispatch;
 pub mod interrupt;
+mod local;
 pub mod profile_routing;
 pub mod routing;
 pub mod routing_decision;
 mod structured_output;
 mod tls;
 
-use std::process::ExitCode;
+use std::sync::Arc;
 
-use anyhow::{Context, Result, bail};
-use systemprompt_cloud::CloudCredentials;
+use anyhow::{Context, Result};
+use systemprompt_config::SecretsSources;
 use systemprompt_loader::subprocess::{self, ApiServerStamp, ForegroundChildren};
 use systemprompt_logging::OutputState;
 use systemprompt_models::BuildIdentity;
-use systemprompt_runtime::DatabaseContext;
 
-use crate::cli_settings::{CliConfig, OutputFormat};
-use crate::context::CommandContext;
-use crate::descriptor::{CommandDescriptor, DbUrlRouting};
 use crate::env_overrides::EnvOverrides;
 use crate::kernel::{CommandRegistry, ResolveError};
-use dispatch::{Invocation, Selected, dispatch_command};
+pub use composed::{
+    AdmitFn, CliRunError, admit_direct, admit_unprofiled, refuse_disabled, run_composed,
+};
+use direct::{DirectDatabase, direct_database_url, run_with_database_url};
+use dispatch::Invocation;
+use local::{LocalBoot, RunGuards, run_local};
+use systemprompt_extension::cli::{CliConfig, CommandDescriptor, OutputFormat};
 
-pub async fn run() -> Result<()> {
-    Box::pin(run_with(BuildIdentity::core())).await
-}
-
-pub fn run_process() -> Result<ExitCode> {
-    run_process_with(BuildIdentity::core())
-}
-
-pub fn run_process_with(build: BuildIdentity) -> Result<ExitCode> {
-    let runtime = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()?;
-    interrupt::exit_code(runtime.block_on(Box::pin(run_with(build))))
-}
-
-pub async fn run_with(build: BuildIdentity) -> Result<()> {
+pub(super) async fn run_with(
+    build: BuildIdentity,
+    registry: CommandRegistry,
+    secrets: SecretsSources,
+    admit: AdmitFn,
+) -> Result<()> {
     tls::install_crypto_provider();
+    let registry = Arc::new(registry);
     let output = OutputState::new();
-    let registry = CommandRegistry::collected()?;
     let root = args::command(&registry)?;
     let matches = root.clone().get_matches();
     let invocation = match Invocation::parse(&registry, root, &matches) {
@@ -77,6 +72,9 @@ pub async fn run_with(build: BuildIdentity) -> Result<()> {
         shield: shield.clone(),
         children: children.clone(),
         build,
+        secrets,
+        admit,
+        registry: Arc::clone(&registry),
     };
     let outcome = if invocation.descriptor().owns_signals() {
         Box::pin(run_inner(&output, invocation, confirm, guards, env)).await
@@ -115,27 +113,28 @@ async fn run_inner(
             DirectDatabase {
                 url: &database_url,
                 credentials: None,
+                profile: None,
             },
             guards,
         ))
         .await;
     }
 
-    if desc.database() {
-        systemprompt_logging::init_deferred_console_logging(output.clone());
-    } else {
-        let effective_level = resolve_log_level(&cli_config, &env, !desc.child_host());
-        systemprompt_logging::init_console_logging_with_level(effective_level.as_deref(), output);
-    }
+    init_logging(output, &desc, &cli_config, &env);
 
     let mut credentials = None;
     let mut services = None;
     let mut profile = None;
     let mut boot = None;
     if desc.profile() {
-        let booted =
-            profile_routing::bootstrap_profile(&invocation.cli, &desc, &cli_config, &env, &confirm)
-                .await?;
+        let booted = profile_routing::bootstrap_profile(
+            &invocation,
+            &cli_config,
+            &env,
+            &confirm,
+            &guards.secrets,
+        )
+        .await?;
         let loaded = booted.credentials;
         services = booted.services;
         profile = booted.profile;
@@ -150,6 +149,9 @@ async fn run_inner(
                     DirectDatabase {
                         url: &external_db_url,
                         credentials: loaded,
+                        profile: profile
+                            .as_deref()
+                            .map(systemprompt_config::LoadedProfile::profile),
                     },
                     guards,
                 ))
@@ -159,18 +161,29 @@ async fn run_inner(
         }
     }
 
-    if !desc.profile() {
-        confirmation::gate(&desc, &confirm, &cli_config)?;
-    }
+    let local = LocalBoot {
+        confirm,
+        credentials,
+        services,
+        profile,
+        boot,
+        database_url_override,
+    };
+    run_local(invocation, cli_config, env, guards, local).await
+}
 
-    let ctx = guards
-        .apply(CommandContext::new(cli_config, env))
-        .with_cloud_credentials(credentials)
-        .with_database_url_override(database_url_override)
-        .with_services(services)
-        .with_profile(profile)
-        .with_boot(boot);
-    Box::pin(dispatch_command(invocation.into_selected(), &ctx)).await
+fn init_logging(
+    output: &OutputState,
+    desc: &CommandDescriptor,
+    cli_config: &CliConfig,
+    env: &EnvOverrides,
+) {
+    if desc.database() {
+        systemprompt_logging::init_deferred_console_logging(output.clone());
+    } else {
+        let effective_level = resolve_log_level(cli_config, env, !desc.child_host());
+        systemprompt_logging::init_console_logging_with_level(effective_level.as_deref(), output);
+    }
 }
 
 fn configure_output(
@@ -186,20 +199,6 @@ fn configure_output(
         console::set_colors_enabled(false);
     }
     cli_config
-}
-
-fn direct_database_url(invocation: &Invocation) -> Result<Option<String>> {
-    let Some(database_url) = invocation.cli.database.database_url.clone() else {
-        return Ok(None);
-    };
-    match invocation.db_url_routing() {
-        Some(DbUrlRouting::Direct) => Ok(Some(database_url)),
-        Some(DbUrlRouting::Unsupported) => bail!(
-            "This command cannot run with --database-url; it requires full profile \
-             initialization. Remove --database-url."
-        ),
-        Some(DbUrlRouting::ProfileDriven) | None => Ok(None),
-    }
 }
 
 fn resolve_log_level(
@@ -226,53 +225,6 @@ fn resolve_log_level(
     }
 
     Some("warn".to_owned())
-}
-
-struct RunGuards {
-    shield: interrupt::InterruptShield,
-    children: ForegroundChildren,
-    build: BuildIdentity,
-}
-
-impl RunGuards {
-    fn apply(self, ctx: CommandContext) -> CommandContext {
-        ctx.with_interrupt_shield(self.shield)
-            .with_foreground_children(self.children)
-            .with_build_identity(self.build)
-    }
-}
-
-struct DirectDatabase<'a> {
-    url: &'a str,
-    credentials: Option<CloudCredentials>,
-}
-
-async fn run_with_database_url(
-    selected: Selected,
-    cli_config: CliConfig,
-    env: EnvOverrides,
-    database: DirectDatabase<'_>,
-    guards: RunGuards,
-) -> Result<()> {
-    let DirectDatabase {
-        url: database_url,
-        credentials,
-    } = database;
-    let db_ctx = DatabaseContext::from_url(database_url)
-        .await
-        .context("Failed to connect to database")?;
-
-    systemprompt_logging::init_logging(&db_ctx.db_pool_arc(), None);
-
-    let ctx = guards
-        .apply(CommandContext::with_database(
-            cli_config,
-            env,
-            db_ctx,
-            database_url.to_owned(),
-        ))
-        .with_cloud_credentials(credentials);
-    Box::pin(dispatch_command(selected, &ctx)).await
 }
 
 fn stamp_api_server_identity(desc: &CommandDescriptor) -> Result<()> {

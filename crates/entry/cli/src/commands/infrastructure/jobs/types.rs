@@ -12,7 +12,6 @@ use systemprompt_identifiers::JobName;
 pub struct JobInfo {
     pub name: String,
     pub owner: String,
-    pub owner_enabled: bool,
     pub description: String,
     pub schedule: String,
     pub enabled: bool,
@@ -46,7 +45,6 @@ pub struct JobRunResult {
 pub struct JobShowOutput {
     pub name: String,
     pub owner: String,
-    pub owner_enabled: bool,
     pub description: String,
     pub schedule: String,
     pub schedule_human: String,

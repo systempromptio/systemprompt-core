@@ -19,7 +19,8 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::headers::{SESSION_ID, SYSTEMPROMPT_AUTHORIZATION};
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    AuthedFixture, DisposableDb, TestBootstrap, init_services_bootstrap, seed_admin_credential,
+    AuthedFixture, DisposableDb, TestBootstrap, fixture_admitted, fixture_app_context_on_bootstrap,
+    fixture_config, init_services_bootstrap, seed_admin_credential, settle_background,
     test_app_context_on, test_db_pool,
 };
 use systemprompt_traits::DrainOutcome;
@@ -116,13 +117,32 @@ async fn harness() -> &'static Harness {
         .await
 }
 
-async fn app_on(pool: &DbPool) -> (Router, Arc<AppContext>, &'static MockServer) {
+async fn app_on() -> (Router, Arc<AppContext>, &'static MockServer) {
     let h = harness().await;
-    let ctx = test_app_context_on(&h.boot, pool);
+    serve(test_app_context_on(&h.boot).await, &h.upstream)
+}
+
+async fn app_on_database(
+    database_url: &str,
+) -> Result<(Router, Arc<AppContext>, &'static MockServer)> {
+    let h = harness().await;
+    let paths = &h.boot.boot.profile().paths;
+    let mut config = fixture_config(database_url);
+    config.system_path = paths.system.clone();
+    config.services_path = paths.services.clone();
+    config.bin_path = paths.bin.clone();
+    let ctx = fixture_app_context_on_bootstrap(&h.boot, config, fixture_admitted()).await?;
+    Ok(serve(ctx, &h.upstream))
+}
+
+fn serve(
+    ctx: Arc<AppContext>,
+    upstream: &'static MockServer,
+) -> (Router, Arc<AppContext>, &'static MockServer) {
     (
-        gateway_router(&ctx).expect("gateway router builds"),
+        gateway_router(&ctx, ctx.admitted(), ctx.kernel()).expect("gateway router builds"),
         ctx,
-        &h.upstream,
+        upstream,
     )
 }
 
@@ -173,9 +193,9 @@ async fn collect(response: Response<Body>) -> (http::StatusCode, http::HeaderMap
     (status, headers, body)
 }
 
-async fn drain(ctx: &AppContext) {
+async fn drain(ctx: &AppContext, baseline: usize) {
     assert_eq!(
-        ctx.background_tasks().drain(DRAIN_BOUND).await,
+        settle_background(ctx.background_tasks(), baseline, DRAIN_BOUND).await,
         DrainOutcome::Drained,
         "the post-response audit work must finish"
     );
@@ -214,7 +234,8 @@ async fn audit_row(pool: &DbPool, cred: &AuthedFixture) -> AuditRow {
 #[tokio::test]
 async fn a_request_reaches_the_upstream_as_sent_and_its_answer_returns_whole() -> Result<()> {
     let pool = test_db_pool().await;
-    let (app, ctx, upstream) = app_on(&pool).await;
+    let (app, ctx, upstream) = app_on().await;
+    let baseline = ctx.background_tasks().in_flight();
     let cred = member(&pool).await?;
     let marker = "marker-whole";
     Mock::given(method("POST"))
@@ -238,7 +259,7 @@ async fn a_request_reaches_the_upstream_as_sent_and_its_answer_returns_whole() -
         .body(Body::from(body.clone()))?;
 
     let (status, headers, returned) = collect(app.oneshot(request).await?).await;
-    drain(&ctx).await;
+    drain(&ctx, baseline).await;
 
     let received = received_with(upstream, marker).await;
     assert_eq!(received.len(), 1, "sent once");
@@ -322,7 +343,8 @@ async fn a_request_reaches_the_upstream_as_sent_and_its_answer_returns_whole() -
 #[tokio::test]
 async fn a_stream_returns_byte_for_byte_and_is_metered_from_its_copy() -> Result<()> {
     let pool = test_db_pool().await;
-    let (app, ctx, upstream) = app_on(&pool).await;
+    let (app, ctx, upstream) = app_on().await;
+    let baseline = ctx.background_tasks().in_flight();
     let cred = member(&pool).await?;
     let marker = "marker-stream";
     Mock::given(method("POST"))
@@ -336,7 +358,7 @@ async fn a_stream_returns_byte_for_byte_and_is_metered_from_its_copy() -> Result
         .oneshot(post(&cred, "/messages", request_body(MODEL, marker, true)))
         .await?;
     let (status, headers, returned) = collect(response).await;
-    drain(&ctx).await;
+    drain(&ctx, baseline).await;
 
     assert_eq!(status, http::StatusCode::OK);
     assert_eq!(
@@ -362,7 +384,7 @@ async fn a_stream_returns_byte_for_byte_and_is_metered_from_its_copy() -> Result
 #[tokio::test]
 async fn a_rate_limit_is_the_upstreams_own_answer_and_is_not_retried() -> Result<()> {
     let pool = test_db_pool().await;
-    let (app, _ctx, upstream) = app_on(&pool).await;
+    let (app, _ctx, upstream) = app_on().await;
     let cred = member(&pool).await?;
     let marker = "marker-limited";
     let refusal = r#"{"type":"error","error":{"type":"rate_limit_error","message":"This request would exceed your account's rate limit."}}"#;
@@ -401,7 +423,7 @@ async fn a_rate_limit_is_the_upstreams_own_answer_and_is_not_retried() -> Result
 #[tokio::test]
 async fn another_request_format_is_refused_before_the_upstream_is_called() -> Result<()> {
     let pool = test_db_pool().await;
-    let (app, _ctx, upstream) = app_on(&pool).await;
+    let (app, _ctx, upstream) = app_on().await;
     let cred = member(&pool).await?;
     let marker = "marker-responses";
     let body = format!(r#"{{"model":"{MODEL}","input":"{marker} hi"}}"#);
@@ -421,7 +443,7 @@ async fn another_request_format_is_refused_before_the_upstream_is_called() -> Re
 #[tokio::test]
 async fn a_request_without_the_dedicated_header_is_unauthenticated_upstream() -> Result<()> {
     let pool = test_db_pool().await;
-    let (app, _ctx, upstream) = app_on(&pool).await;
+    let (app, _ctx, upstream) = app_on().await;
     let cred = member(&pool).await?;
     let marker = "marker-no-own-credential";
     let request = Request::builder()
@@ -448,7 +470,7 @@ async fn a_request_without_the_dedicated_header_is_unauthenticated_upstream() ->
 async fn content_a_policy_would_redact_is_denied_rather_than_rewritten() -> Result<()> {
     let database = DisposableDb::with_schema("gw_caller_redact").await;
     let pool = database.test_pool().await;
-    let (app, _ctx, upstream) = app_on(&pool).await;
+    let (app, _ctx, upstream) = app_on_database(database.url()).await?;
     let cred = member(&pool).await?;
     sqlx::query(
         "INSERT INTO ai_gateway_policies (id, name, spec, enabled, priority) VALUES ($1, $2, $3, \
@@ -500,7 +522,7 @@ async fn content_a_policy_would_redact_is_denied_rather_than_rewritten() -> Resu
 #[tokio::test]
 async fn one_members_rate_limit_does_not_open_the_circuit_for_the_next() -> Result<()> {
     let pool = test_db_pool().await;
-    let (app, _ctx, upstream) = app_on(&pool).await;
+    let (app, _ctx, upstream) = app_on().await;
     let ann = member(&pool).await?;
     let ben = member(&pool).await?;
     let run = Uuid::new_v4().simple().to_string();

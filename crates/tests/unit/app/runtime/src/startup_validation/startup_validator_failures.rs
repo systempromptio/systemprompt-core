@@ -17,7 +17,10 @@ fn domain_validation_failure_is_aggregated_and_gates_extension_validation() {
 
     let report = StartupValidator::new(fixture.boot.clone())
         .expect("startup validator")
-        .validate(&config);
+        .validate(
+            &config,
+            systemprompt_test_fixtures::fixture_admitted().built(),
+        );
 
     let skills = report
         .domains

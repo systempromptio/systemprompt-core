@@ -24,5 +24,6 @@ mod rate_limit_bucket_db;
 mod user;
 mod user_identity_db;
 mod user_purge_db;
+mod user_purge_records_db;
 mod user_queries_db;
 mod user_sessions_db;

@@ -8,10 +8,10 @@
 
 use std::collections::BTreeMap;
 
-use systemprompt_cli::cli_settings::{CliConfig, OutputFormat};
 use systemprompt_cli::context::CommandContext;
 use systemprompt_cli::core::services::reconcile::reconcile_after_swap;
 use systemprompt_cli::env_overrides::EnvOverrides;
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_loader::bundle::BundleCache;
 use systemprompt_manifest::services::bundle::ServicesBundleState;
 use systemprompt_manifest::services::root::{ActiveServicesRoot, ServicesProvenance};
@@ -200,7 +200,7 @@ async fn a_fetched_composition_is_projected_once_and_records_its_hash() {
             versions: BTreeMap::new(),
         },
     };
-    let command = CommandContext::with_database(
+    let command = crate::boot_ctx::with_database(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
@@ -226,7 +226,7 @@ async fn a_fetched_composition_is_projected_once_and_records_its_hash() {
     pool.write_pool().close().await;
     drop(pool);
     let closed = systemprompt_test_fixtures::closed_db_pool().await;
-    let no_database_needed = CommandContext::with_database(
+    let no_database_needed = crate::boot_ctx::with_database(
         CliConfig::new().with_interactive(false),
         EnvOverrides::default(),
         DatabaseContext::from_pool(closed),

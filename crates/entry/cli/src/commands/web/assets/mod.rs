@@ -13,9 +13,8 @@ pub mod show;
 use anyhow::{Context, Result};
 use clap::Subcommand;
 
-use crate::CliConfig;
-use crate::shared::render_result;
-use systemprompt_loader::BootContext;
+use std::path::Path;
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 #[derive(Debug, Subcommand)]
 pub enum AssetsCommands {
@@ -26,17 +25,18 @@ pub enum AssetsCommands {
     Show(show::ShowArgs),
 }
 
-pub fn execute(command: AssetsCommands, config: &CliConfig, boot: &BootContext) -> Result<()> {
+pub fn execute(
+    command: AssetsCommands,
+    config: &CliConfig,
+    services_root: &Path,
+    profile: &systemprompt_manifest::Profile,
+) -> Result<CommandOutput> {
     match command {
         AssetsCommands::List(args) => {
-            let result = list::execute(args, config, boot).context("Failed to list assets")?;
-            render_result(&result, config);
-            Ok(())
+            list::execute(args, config, services_root).context("Failed to list assets")
         },
         AssetsCommands::Show(args) => {
-            let result = show::execute(&args, config, boot).context("Failed to show asset")?;
-            render_result(&result, config);
-            Ok(())
+            show::execute(&args, config, services_root, profile).context("Failed to show asset")
         },
     }
 }

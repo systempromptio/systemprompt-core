@@ -1,31 +1,29 @@
 //! Explicit retirement of `scheduled_jobs` rows.
 //!
-//! A node's boot never deletes a row, so a job that no build registers any
-//! longer keeps its row until an operator removes it. [`JobPruneService`]
-//! computes those rows against every job linked into *this* binary, whether
-//! or not this profile enables the owning extension, and deletes exactly the
-//! rows it listed. A job whose extension is disabled here but enabled on
-//! another node is therefore never listed. It is correct only from a binary
-//! that links every capability the cluster runs; a row only another binary
-//! links would otherwise be listed.
+//! A node's boot never deletes a row, so a job no admitted member contributes
+//! any longer keeps its row until an operator removes it. [`JobPruneService`]
+//! computes those rows against the jobs of the admitted composition
+//! ([`AdmittedSchedule`]) and deletes exactly the rows it listed. A disabled
+//! member is not admitted, so its jobs' rows are listed as prunable; an
+//! operator pruning from a profile that disables a member another node runs
+//! must say so at the confirmation.
 //!
-//! An empty registration set lists and deletes nothing: an inventory that
-//! failed to load is never read as "every job is retired".
+//! An empty job set lists and deletes nothing: a composition that admitted no
+//! jobs is never read as "every job is retired".
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashSet;
 
+use systemprompt_extension::AdmittedSchedule;
 use systemprompt_identifiers::JobName;
-use systemprompt_traits::registered_jobs;
 
 use crate::error::SchedulerResult;
 use crate::models::ScheduledJob;
 use crate::repository::JobRepository;
 
-/// Lists and deletes the `scheduled_jobs` rows no job linked into this binary
-/// names.
+/// Lists and deletes the `scheduled_jobs` rows no admitted job names.
 #[derive(Debug, Clone)]
 pub struct JobPruneService {
     repository: JobRepository,
@@ -34,10 +32,8 @@ pub struct JobPruneService {
 
 impl JobPruneService {
     #[must_use]
-    pub fn new(repository: JobRepository) -> Self {
-        let registered = registered_jobs()
-            .map(|registration| JobName::new(registration.job.name()))
-            .collect();
+    pub fn new(repository: JobRepository, schedule: &AdmittedSchedule) -> Self {
+        let registered = schedule.job_names().map(JobName::new).collect();
         Self {
             repository,
             registered,

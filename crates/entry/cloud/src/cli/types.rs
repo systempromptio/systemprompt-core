@@ -12,7 +12,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{CloudAppId, CloudUserId, TenantId};
 
-use systemprompt_cli::kernel::profile::ProfileInfo;
+use systemprompt_cloud::profile::ProfileInfo;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CredentialsInfo {

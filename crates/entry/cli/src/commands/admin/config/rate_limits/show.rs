@@ -3,18 +3,16 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
-use systemprompt_logging::CliService;
+use systemprompt_models::artifacts::NoticeLine;
 
-use crate::cli_settings::OutputFormat;
-use crate::context::CommandContext;
-use crate::shared::{CommandOutput, render_result};
+use systemprompt_extension::cli::CommandOutput;
 
 use super::super::types::RateLimitsOutput;
 
-pub(super) fn execute_show(ctx: &CommandContext) -> Result<()> {
-    let config = &ctx.cli;
-    let profile = ctx.profile()?;
+pub(super) fn execute_show(host: &dyn KernelHost) -> Result<CommandOutput> {
+    let profile = host.profile()?;
     let limits = &profile.rate_limits;
 
     let output = RateLimitsOutput {
@@ -35,11 +33,13 @@ pub(super) fn execute_show(ctx: &CommandContext) -> Result<()> {
         burst_multiplier: limits.burst_multiplier,
     };
 
-    render_result(&CommandOutput::card_value("Rate Limits", &output), config);
-
-    if config.output_format() == OutputFormat::Table && limits.disabled {
-        CliService::warning("Rate limiting is currently DISABLED");
-    }
-
-    Ok(())
+    let result = CommandOutput::card_value("Rate Limits", &output);
+    Ok(if limits.disabled {
+        result.with_note(NoticeLine::new(
+            "warning",
+            "Rate limiting is currently DISABLED",
+        ))
+    } else {
+        result
+    })
 }

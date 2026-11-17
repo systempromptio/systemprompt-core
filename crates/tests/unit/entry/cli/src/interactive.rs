@@ -8,11 +8,13 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_cli::interactive::{
-    Prompter, ScriptedPrompter, confirm_optional, prompt_input, prompt_input_with_default,
-    require_confirmation, require_confirmation_default_yes, resolve_required, select_from_list,
+    ScriptedPrompter, confirm_optional, prompt_input, prompt_input_with_default, select_from_list,
     select_index,
 };
-use systemprompt_cli::{CliConfig, VerbosityLevel};
+use systemprompt_extension::cli::{
+    CliConfig, Prompter, VerbosityLevel, require_confirmation, require_confirmation_default_yes,
+    resolve_required,
+};
 
 fn non_interactive() -> CliConfig {
     CliConfig::default()
@@ -61,14 +63,16 @@ fn require_confirmation_default_yes_non_interactive_errors() {
 #[test]
 fn resolve_required_returns_provided_value() {
     let cfg = non_interactive();
-    let v = resolve_required(Some(42_u32), "count", &cfg, || Ok(0)).expect("value passes through");
+    let v = resolve_required(Some(42_u32), "count", &cfg, || Ok::<_, anyhow::Error>(0))
+        .expect("value passes through");
     assert_eq!(v, 42);
 }
 
 #[test]
 fn resolve_required_non_interactive_without_value_errors() {
     let cfg = non_interactive();
-    let result: anyhow::Result<u32> = resolve_required(None, "count", &cfg, || Ok(0));
+    let result: anyhow::Result<u32> =
+        resolve_required(None, "count", &cfg, || Ok::<_, anyhow::Error>(0));
     let err = result.unwrap_err().to_string();
     assert!(err.contains("--count"));
     assert!(err.contains("non-interactive"));

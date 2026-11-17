@@ -1,0 +1,2 @@
+path	scope	budget	bearer_window	policy	context	owner	source
+/v1/bridge/notifications	bridge_notifications	Notifications	yes	handler_verified(GatewayCredential)	HandlerResolved	notifications-http	register_gateway_route! (crates/entry/notifications/src/extension.rs, factory bridge::routes)

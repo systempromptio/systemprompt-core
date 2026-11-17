@@ -10,15 +10,15 @@
 
 use anyhow::{Context, Result, bail};
 use systemprompt_cloud::{DockerCli, ProjectContext, StoredTenant};
+use systemprompt_extension::cli::ChildSupervisor;
 use systemprompt_identifiers::ProfileName;
-use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_logging::CliService;
 use systemprompt_models::defaults::DEFAULT_POSTGRES_PORT;
 
 use crate::cli::init::ensure_project_scaffolding;
 use crate::cli::profile::templates::validate_connection;
 use crate::cli::profile::{collect_api_keys, create_profile_for_tenant, handle_local_tenant_setup};
-use systemprompt_cli::kernel::Prompter;
+use systemprompt_extension::cli::Prompter;
 
 use super::super::docker::{
     TenantContainer, generate_admin_password, is_project_running, nanoid, new_local_tenant_id,
@@ -29,7 +29,7 @@ use super::sanitize_database_name;
 
 pub async fn create_local_tenant(
     prompter: &dyn Prompter,
-    children: &ForegroundChildren,
+    children: &dyn ChildSupervisor,
 ) -> Result<StoredTenant> {
     CliService::section("Create Local PostgreSQL Tenant");
 
@@ -42,7 +42,7 @@ pub async fn create_local_tenant(
         .parse()
         .context("PostgreSQL port must be a number")?;
 
-    let docker = DockerCli::new(children.clone());
+    let docker = DockerCli::new(children.handle());
 
     if is_project_running(&docker, &project) {
         bail!("A container for project '{project}' is already running");
@@ -76,7 +76,7 @@ pub async fn create_local_tenant(
 
 pub async fn create_external_tenant(
     prompter: &dyn Prompter,
-    children: &ForegroundChildren,
+    children: &dyn ChildSupervisor,
 ) -> Result<StoredTenant> {
     CliService::section("Create Local Tenant (External PostgreSQL)");
 
@@ -110,7 +110,7 @@ async fn setup_local_profile(
     name: &str,
     database_url: &str,
     prompter: &dyn Prompter,
-    children: &ForegroundChildren,
+    children: &dyn ChildSupervisor,
 ) -> Result<()> {
     CliService::section("Profile Setup");
     let profile_name = ProfileName::try_new(prompter.input_with_default("Profile name", name)?)

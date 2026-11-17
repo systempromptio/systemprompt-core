@@ -7,12 +7,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use std::path::Path;
 
-use crate::context::CommandContext;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 use super::types::{PluginValidateAllOutput, PluginValidateOutput};
 use systemprompt_identifiers::PluginId;
@@ -21,13 +21,13 @@ use systemprompt_identifiers::PluginId;
 pub struct ValidateArgs {
     #[arg(
         help = "Plugin ID to validate (validates all if omitted)",
-        value_parser = crate::shared::parse_plugin_id
+        value_parser = systemprompt_extension::cli::parsers::parse_plugin_id
     )]
     pub id: Option<PluginId>,
 }
 
-pub(super) fn execute(args: ValidateArgs, ctx: &CommandContext) -> Result<(CommandOutput, bool)> {
-    let services_root = &ctx.boot()?.require_services_root().path;
+pub(super) fn execute(args: ValidateArgs, host: &dyn KernelHost) -> Result<(CommandOutput, bool)> {
+    let services_root = &host.services_root()?.path;
     let plugins_path = services_root.join("plugins");
     let skills_path = services_root.join("skills");
 

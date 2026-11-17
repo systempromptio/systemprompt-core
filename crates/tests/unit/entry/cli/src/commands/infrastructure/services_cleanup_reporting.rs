@@ -7,8 +7,8 @@
 use systemprompt_cli::infrastructure::services::cleanup::{
     dry_run_result, format_cleanup_message, no_services_result,
 };
-use systemprompt_cli::shared::CommandOutput;
 use systemprompt_database::{ServiceConfig, ServiceModule, ServiceStatus};
+use systemprompt_extension::cli::CommandOutput;
 use systemprompt_identifiers::{InstanceId, ServiceName};
 
 fn service(name: &str, pid: Option<i32>, port: i32) -> ServiceConfig {

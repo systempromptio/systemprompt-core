@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::context::CommandContext;
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use clap::Args;
 use std::process::{Command, Stdio};
@@ -18,7 +18,7 @@ pub struct RunArgs {
     pub args: Vec<String>,
 }
 
-pub(super) async fn execute(args: RunArgs, ctx: &CommandContext) -> Result<()> {
+pub(super) async fn execute(args: RunArgs, host: &dyn KernelHost) -> Result<()> {
     let project_root = std::env::current_dir().context("Failed to get current directory")?;
 
     let extension = ExtensionLoader::find_cli_extension(&project_root, &args.extension)
@@ -43,25 +43,18 @@ pub(super) async fn execute(args: RunArgs, ctx: &CommandContext) -> Result<()> {
             )
         })?;
 
-    let profile_path = ctx.loaded_profile()?.path();
-
     let mut cmd = Command::new(&binary_path);
     cmd.args(&args.args)
-        .env("SYSTEMPROMPT_PROFILE", profile_path)
+        .envs(host.child_env()?)
         .stdin(Stdio::inherit())
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit());
 
-    cmd.env(
-        "OAUTH_AT_REST_PEPPER",
-        ctx.secrets()?.oauth_at_rest_pepper(),
-    );
-
-    if ctx.cli.is_json_output() && extension.supports_json_output() {
+    if host.output().is_json_output() && extension.supports_json_output() {
         cmd.arg("--json");
     }
 
-    let children = ctx.foreground_children().clone();
+    let children = host.children().handle();
     let status = tokio::task::spawn_blocking(move || children.status(cmd))
         .await
         .context("Extension supervisor task failed")?

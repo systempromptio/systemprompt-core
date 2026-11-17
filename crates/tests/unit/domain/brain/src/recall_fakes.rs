@@ -106,6 +106,10 @@ impl NotificationAudienceResolver for EnumeratingResolver {
         matches!(subject, AudienceSubject::Role(_))
     }
 
+    fn dimensions(&self) -> &'static [&'static str] {
+        &[]
+    }
+
     async fn members(
         &self,
         _subject: &AudienceSubject,
@@ -145,6 +149,10 @@ impl NotificationAudienceResolver for SlowResolver {
         self.inner.handles(subject)
     }
 
+    fn dimensions(&self) -> &'static [&'static str] {
+        self.inner.dimensions()
+    }
+
     async fn members(
         &self,
         subject: &AudienceSubject,
@@ -178,6 +186,10 @@ impl NotificationAudienceResolver for FakeResolver {
             subject,
             AudienceSubject::Role(_) | AudienceSubject::Dimension { .. }
         )
+    }
+
+    fn dimensions(&self) -> &'static [&'static str] {
+        &[]
     }
 
     async fn members(

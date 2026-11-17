@@ -1,7 +1,5 @@
 use systemprompt_mcp::services::ui_renderer::UiRendererRegistry;
-use systemprompt_mcp::services::ui_renderer::registry::{
-    create_default_registry, resolve_artifact_type,
-};
+use systemprompt_mcp::services::ui_renderer::registry::resolve_artifact_type;
 use systemprompt_models::{A2aArtifact as Artifact, ArtifactMetadata, Part};
 
 fn make_artifact(artifact_type: &str, parts: Vec<Part>) -> Artifact {
@@ -34,7 +32,7 @@ fn data_part(data: serde_json::Value) -> Part {
 
 #[test]
 fn registry_registers_default_artifact_types() {
-    let registry = create_default_registry();
+    let registry = UiRendererRegistry::with_builtins();
     assert!(registry.supports("table"));
     assert!(registry.supports("chart"));
     assert!(registry.supports("text"));
@@ -94,7 +92,7 @@ fn resolve_artifact_type_envelope_without_data_tag_stays_envelope() {
 
 #[tokio::test]
 async fn registry_renders_enveloped_table_artifact() {
-    let registry = create_default_registry();
+    let registry = UiRendererRegistry::with_builtins();
     let artifact = make_artifact(
         "cli",
         vec![data_part(serde_json::json!({
@@ -109,7 +107,7 @@ async fn registry_renders_enveloped_table_artifact() {
 
 #[tokio::test]
 async fn registry_render_unresolved_envelope_errors() {
-    let registry = create_default_registry();
+    let registry = UiRendererRegistry::with_builtins();
     let artifact = make_artifact("cli", vec![]);
     let result = registry.render(&artifact);
     assert!(result.is_err());

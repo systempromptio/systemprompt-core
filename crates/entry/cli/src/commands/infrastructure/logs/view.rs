@@ -4,17 +4,18 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_logging::models::LogEntry;
-use systemprompt_logging::{CliService, LogFilter, LogLevel, LoggingMaintenanceService};
+use systemprompt_logging::{LogFilter, LogLevel, LoggingMaintenanceService};
+use systemprompt_models::artifacts::NoticeLine;
 
 use super::duration::parse_since;
-use super::shared::display_log_row;
+use super::shared::filter_notes;
 use super::{LogEntryRow, LogFilters, LogViewOutput};
-use crate::CliConfig;
-use crate::context::CommandContext;
-use crate::shared::CommandOutput;
+use systemprompt_database::pool_from_handle;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct ViewArgs {
@@ -40,31 +41,32 @@ pub struct ViewArgs {
     pub since: Option<String>,
 }
 
-pub(super) async fn execute(args: ViewArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let service = LoggingMaintenanceService::new(&ctx.db_pool().await?);
-    execute_inner(args, &service, &ctx.cli).await
+pub(super) async fn execute(args: ViewArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+    let service = LoggingMaintenanceService::new(&pool_from_handle(host.db().await?)?);
+    let logs = get_logs(&service, &args).await?;
+    Ok(view_output(&build_output(&logs, &args)))
 }
 
-async fn execute_inner(
-    args: ViewArgs,
-    service: &LoggingMaintenanceService,
-    config: &CliConfig,
-) -> Result<CommandOutput> {
-    let logs = get_logs(service, &args).await?;
-    let output = build_output(&logs, &args);
-
-    let result = CommandOutput::table_of(
+fn view_output(output: &LogViewOutput) -> CommandOutput {
+    let table = CommandOutput::table_of(
         vec!["id", "trace_id", "timestamp", "level", "module", "message"],
         &output.logs,
     )
     .with_title("Log Entries");
-
-    if config.is_json_output() {
-        return Ok(result);
+    let mut notes = filter_notes(&output.filters);
+    if output.logs.is_empty() {
+        notes.push(NoticeLine::new("warning", "No logs found"));
+    } else {
+        notes.push(NoticeLine::new(
+            "info",
+            format!("Showing {} log entries", output.total),
+        ));
+        notes.push(NoticeLine::new(
+            "info",
+            "Tip: Use 'logs show <id>' for details or 'logs trace show <trace_id>' for full trace",
+        ));
     }
-
-    render_logs(&output);
-    Ok(result.with_skip_render())
+    notes.into_iter().fold(table, CommandOutput::with_note)
 }
 
 fn build_filter(args: &ViewArgs) -> Result<LogFilter> {
@@ -120,37 +122,4 @@ fn log_to_row(log: &LogEntry) -> LogEntryRow {
         message: log.message.clone(),
         metadata: log.metadata.clone(),
     }
-}
-
-fn render_logs(output: &LogViewOutput) {
-    CliService::section("Log Entries");
-
-    if output.filters.level.is_some()
-        || output.filters.module.is_some()
-        || output.filters.since.is_some()
-    {
-        if let Some(level) = output.filters.level {
-            CliService::key_value("Level", level.as_str());
-        }
-        if let Some(ref module) = output.filters.module {
-            CliService::key_value("Module", module);
-        }
-        if let Some(ref since) = output.filters.since {
-            CliService::key_value("Since", since);
-        }
-    }
-
-    if output.logs.is_empty() {
-        CliService::warning("No logs found");
-        return;
-    }
-
-    for log in &output.logs {
-        display_log_row(log);
-    }
-
-    CliService::info(&format!("Showing {} log entries", output.total));
-    CliService::info(
-        "Tip: Use 'logs show <id>' for details or 'logs trace show <trace_id>' for full trace",
-    );
 }

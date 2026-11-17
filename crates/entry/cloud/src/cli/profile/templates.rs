@@ -11,13 +11,11 @@ use anyhow::{Context, Result};
 use std::path::Path;
 use systemprompt_cloud::constants::container;
 use systemprompt_config::write_private_atomic;
+use systemprompt_extension::cli::ChildSupervisor;
 use systemprompt_identifiers::ProfileName;
-use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 use systemprompt_models::CliPaths;
-
-use crate::cli::init::templates::{ai_config, catalog_files};
 
 use systemprompt_cloud::deploy::DockerfileBuilder;
 
@@ -52,7 +50,11 @@ pub fn save_profile(profile: &Profile, profile_path: &Path) -> Result<()> {
         profile.display_name
     );
 
-    systemprompt_cli::kernel::profile::save_profile_yaml(profile, profile_path, Some(&header))
+    Ok(systemprompt_cloud::profile::save_profile_yaml(
+        profile,
+        profile_path,
+        Some(&header),
+    )?)
 }
 
 pub fn save_dockerfile(path: &Path, profile_name: &ProfileName, project_root: &Path) -> Result<()> {
@@ -173,7 +175,7 @@ pub fn save_secrets(
             .with_context(|| format!("Failed to create directory {}", parent.display()))?;
     }
 
-    let identity = systemprompt_cli::kernel::generate_identity()?;
+    let identity = systemprompt_cloud::identity::generate_identity()?;
     let mut secrets = json!({
         "oauth_at_rest_pepper": identity.oauth_at_rest_pepper,
         "encryption_master_key": identity.encryption_master_key,
@@ -220,7 +222,7 @@ pub async fn validate_connection(db_url: &str) -> bool {
     matches!(result, Ok(Ok(_)))
 }
 
-pub fn run_migrations_cmd(profile_path: &Path, children: &ForegroundChildren) -> Result<()> {
+pub fn run_migrations_cmd(profile_path: &Path, children: &dyn ChildSupervisor) -> Result<()> {
     use std::process::Command;
 
     CliService::info("Running database migrations...");
@@ -250,51 +252,4 @@ pub fn run_migrations_cmd(profile_path: &Path, children: &ForegroundChildren) ->
     };
 
     anyhow::bail!("Migration failed: {}", error_output)
-}
-
-pub fn update_ai_config_default_provider(provider: &str) -> Result<()> {
-    let services_path = get_services_path()?;
-    let ai_dir = Path::new(&services_path).join("ai");
-    let gateway_path = ai_dir.join("gateway.yaml");
-
-    if !gateway_path.exists() {
-        CliService::warning("Model catalog not found. Creating services/ai/");
-        CliService::info("Run 'systemprompt cloud init' for full project setup");
-        std::fs::create_dir_all(&ai_dir)
-            .with_context(|| format!("Failed to create directory {}", ai_dir.display()))?;
-        if !ai_dir.join("config.yaml").exists() {
-            std::fs::write(ai_dir.join("config.yaml"), ai_config())
-                .with_context(|| format!("Failed to write {}", ai_dir.display()))?;
-        }
-        for (name, body) in catalog_files(provider)? {
-            let path = ai_dir.join(name);
-            std::fs::write(&path, body)
-                .with_context(|| format!("Failed to write {}", path.display()))?;
-        }
-        CliService::success(&format!(
-            "Created the model catalog in {}",
-            ai_dir.display()
-        ));
-        return Ok(());
-    }
-
-    let mut document = systemprompt_config::read_catalog(&ai_dir)
-        .with_context(|| format!("Failed to read {}", ai_dir.display()))?;
-    let Some(model) =
-        systemprompt_cli::kernel::provider_catalog::first_model_on(&document, provider)
-    else {
-        CliService::warning(&format!(
-            "The catalog deploys no model on '{provider}'; gateway.default_model is unchanged"
-        ));
-        return Ok(());
-    };
-    let gateway = document
-        .gateway
-        .get_or_insert_with(systemprompt_manifest::services::GatewayConfigSpec::default);
-    gateway.default_model = Some(model.clone());
-    systemprompt_cli::kernel::provider_catalog::write_gateway(&ai_dir, Some(gateway))?;
-    CliService::success(&format!(
-        "Set gateway.default_model to '{model}' (served by '{provider}')"
-    ));
-    Ok(())
 }

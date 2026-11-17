@@ -20,7 +20,8 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{AgentName, McpServerId, McpToolName};
 
 use crate::cli::shared::with_resolved_export;
-use systemprompt_cli::kernel::{CommandContext, render_result};
+use systemprompt_database::pool_from_handle;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
 #[derive(Debug, Subcommand)]
 pub enum ToolsCommands {
@@ -112,36 +113,32 @@ pub struct AgentUsageItem {
     pub percentage: f64,
 }
 
-pub async fn execute(command: ToolsCommands, ctx: &CommandContext) -> Result<()> {
-    let db_ctx = ctx.database().await?;
+pub async fn execute(command: ToolsCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let pool = pool_from_handle(host.db().await?)?;
     match command {
         ToolsCommands::Stats(args) => {
             let result =
-                stats::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                stats::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
                     .await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            Ok(result)
         },
         ToolsCommands::List(args) => {
             let result =
-                list::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                list::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
                     .await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            Ok(result)
         },
         ToolsCommands::Trends(args) => {
             let result =
-                trends::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                trends::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
                     .await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            Ok(result)
         },
         ToolsCommands::Show(args) => {
             let result =
-                show::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                show::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
                     .await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            Ok(result)
         },
     }
 }

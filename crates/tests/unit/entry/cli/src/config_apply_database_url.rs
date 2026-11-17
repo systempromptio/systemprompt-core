@@ -5,9 +5,8 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_cli::admin::config::apply::{ApplyArgs, execute};
-use systemprompt_cli::cli_settings::{CliConfig, OutputFormat};
-use systemprompt_cli::context::CommandContext;
 use systemprompt_cli::env_overrides::EnvOverrides;
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_test_fixtures::{
     DisposableDb, ensure_test_bootstrap, seed_fixture_system_admin, test_database_url,
 };
@@ -33,13 +32,13 @@ async fn apply_with_a_database_url_writes_to_that_database_only() {
     let before = applied_planes(&profile_db).await;
     assert_eq!(applied_planes(other.url()).await, 0);
 
-    let ctx = CommandContext::new(
+    let ctx = crate::boot_ctx::new_on(
+        boot,
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
     )
-    .with_boot(Some(boot.boot.clone()))
     .with_database_url_override(Some(other.url().to_owned()));
     let args = ApplyArgs {
         planes: Vec::new(),

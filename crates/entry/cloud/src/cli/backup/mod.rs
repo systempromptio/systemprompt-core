@@ -21,7 +21,7 @@ use systemprompt_logging::CliService;
 use client::BackupClient;
 
 use super::deploy::{resolve_deploy_target, resolve_profile};
-use systemprompt_cli::kernel::{CliConfig, Prompter};
+use systemprompt_extension::cli::{CliConfig, Prompter};
 
 const BACKUP_DIRS: &[&str] = &[
     "agents", "skills", "content", "mcp", "ai", "config", "profiles",

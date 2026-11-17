@@ -4,7 +4,7 @@
 //! and sync, so counting happens before the chain runs: the enforcement point
 //! calls [`GovernanceEngine::charge`][super::GovernanceEngine::charge],
 //! which charges every enabled rate window in Postgres and hands the
-//! resulting [`RateCounts`] to the policy through
+//! resulting [`RateCounts`](systemprompt_provider_contracts::governance::RateCounts) to the policy through
 //! [`PolicyContext::rate_counts`][super::PolicyContext::rate_counts]. Every
 //! replica charges the same row, so a budget holds per deployment.
 //!
@@ -18,8 +18,9 @@
 //! it was first charged at. [`RateWindowRepository::refund`] takes a call's
 //! charge back out of the window it landed in, for a request a later stage
 //! refused before it ran. A window whose charge fails is absent from
-//! [`RateCounts`], and the policy treats an absent count as a violation —
-//! fail-closed under `enforce`, a warning under `warn`.
+//! [`RateCounts`](systemprompt_provider_contracts::governance::RateCounts), and
+//! the policy treats an absent count as a violation — fail-closed under
+//! `enforce`, a warning under `warn`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -30,43 +31,6 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use sqlx::PgPool;
 use systemprompt_identifiers::{CallId, PolicyId};
 use systemprompt_models::errors::RepositoryError;
-
-/// Each charged window's 1-based position of the current call within it.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct RateCounts {
-    positions: Vec<(PolicyId, u64)>,
-}
-
-impl RateCounts {
-    #[must_use]
-    pub const fn empty() -> Self {
-        Self {
-            positions: Vec::new(),
-        }
-    }
-
-    #[must_use]
-    pub fn charged(positions: impl IntoIterator<Item = (PolicyId, u64)>) -> Self {
-        let mut counts = Self::empty();
-        for (policy_id, position) in positions {
-            counts.record(policy_id, position);
-        }
-        counts
-    }
-
-    pub(crate) fn record(&mut self, policy_id: PolicyId, position: u64) {
-        self.positions.retain(|(id, _)| *id != policy_id);
-        self.positions.push((policy_id, position));
-    }
-
-    #[must_use]
-    pub fn position(&self, policy_id: &PolicyId) -> Option<u64> {
-        self.positions
-            .iter()
-            .find(|(id, _)| id == policy_id)
-            .map(|(_, position)| *position)
-    }
-}
 
 #[derive(Debug, Clone, Copy)]
 pub struct RateCharge<'a> {

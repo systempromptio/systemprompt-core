@@ -10,10 +10,8 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::interactive::Prompter;
-use crate::shared::CommandOutput;
 use anyhow::Result;
-use systemprompt_loader::subprocess::ForegroundChildren;
+use systemprompt_extension::cli::{ChildSupervisor, CommandOutput, Prompter};
 use systemprompt_logging::CliService;
 
 use super::types::{DatabaseSetupInfo, SecretsConfiguredInfo, SetupOutput};
@@ -23,8 +21,8 @@ use super::wizard_prompts::{
     resolve_admin_email, setup_postgres, should_run_migrations,
 };
 use super::{SetupArgs, profile, secrets, services_files};
-use crate::CliConfig;
 use crate::shared::postgres_access::PostgresConfig;
+use systemprompt_extension::cli::CliConfig;
 
 pub fn should_write(path: &Path, force: bool, config: &CliConfig) -> bool {
     if force || !path.exists() {
@@ -43,7 +41,7 @@ pub(super) async fn execute(
     args: SetupArgs,
     prompter: &dyn Prompter,
     config: &CliConfig,
-    children: &ForegroundChildren,
+    children: &dyn ChildSupervisor,
 ) -> Result<CommandOutput> {
     if !config.is_json_output() {
         CliService::section("systemprompt.io Setup Wizard");
@@ -139,13 +137,13 @@ fn confirm_setup(
     if args.dry_run || args.yes || !config.is_interactive() {
         return Ok(true);
     }
-    prompter.confirm(
+    Ok(prompter.confirm(
         &format!(
             "This will create/update configuration for '{}' environment. Continue?",
             env_name
         ),
         true,
-    )
+    )?)
 }
 
 #[derive(Clone, Copy)]

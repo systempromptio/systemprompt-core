@@ -12,8 +12,9 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_cli::core::files::ai::count::{CountArgs, execute};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::UserId;
 use systemprompt_test_fixtures::{
     seed_user_row, test_app_context, test_database_url, test_db_pool,
@@ -21,14 +22,14 @@ use systemprompt_test_fixtures::{
 use uuid::Uuid;
 
 
-fn ctx(pool: &DbPool) -> CommandContext {
+async fn ctx() -> CommandContext {
     let url = test_database_url();
     crate::boot_ctx::with_app_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
-        test_app_context(pool, &url),
+        test_app_context(&url).await,
     )
 }
 
@@ -71,12 +72,12 @@ async fn seed_file(pool: &DbPool, f: &File<'_>) -> String {
     id.to_string()
 }
 
-async fn count_for(pool: &DbPool, user: Option<&str>) -> i64 {
+async fn count_for(user: Option<&str>) -> i64 {
     let output = execute(
         CountArgs {
             user: user.map(str::to_owned),
         },
-        &ctx(pool),
+        &ctx().await,
     )
     .await
     .expect("counting should succeed");
@@ -123,11 +124,11 @@ async fn a_user_filter_counts_only_that_users_images() {
     .await;
 
     assert_eq!(
-        count_for(&pool, Some(&mine)).await,
+        count_for(Some(&mine)).await,
         3,
         "another user's images must not be counted here"
     );
-    assert_eq!(count_for(&pool, Some(&theirs)).await, 1);
+    assert_eq!(count_for(Some(&theirs)).await, 1);
 }
 
 // Why: the command counts AI images specifically. Counting every upload would
@@ -157,7 +158,7 @@ async fn files_that_are_not_ai_generated_are_not_counted() {
     .await;
 
     assert_eq!(
-        count_for(&pool, Some(&user)).await,
+        count_for(Some(&user)).await,
         1,
         "a plain upload is not an AI image"
     );
@@ -190,7 +191,7 @@ async fn soft_deleted_images_stop_being_counted() {
     .await;
 
     assert_eq!(
-        count_for(&pool, Some(&user)).await,
+        count_for(Some(&user)).await,
         1,
         "a deleted image must leave the count"
     );
@@ -201,7 +202,7 @@ async fn a_user_with_no_images_counts_zero_rather_than_failing() {
     let pool = test_db_pool().await;
     let user = seeded_user(&pool).await;
 
-    assert_eq!(count_for(&pool, Some(&user)).await, 0);
+    assert_eq!(count_for(Some(&user)).await, 0);
 }
 
 // Why: without a filter the count spans every user. Asserted as a lower bound
@@ -224,13 +225,13 @@ async fn an_unfiltered_count_spans_users_rather_than_scoping_to_one() {
         .await;
     }
 
-    let global = count_for(&pool, None).await;
+    let global = count_for(None).await;
     assert!(
         global >= 2,
         "an unfiltered count must include both users' images, got {global}"
     );
     assert!(
-        global > count_for(&pool, Some(&mine)).await,
+        global > count_for(Some(&mine)).await,
         "the unfiltered count must exceed a single user's"
     );
 }

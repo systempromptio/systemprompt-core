@@ -11,7 +11,7 @@ use serde::Deserialize;
 use serde_yaml::Value as YamlValue;
 
 use super::operators::{Op, erase_indices};
-use crate::policy::governed::GovernedScalar;
+use crate::policy::GovernedScalar;
 use crate::policy::registry::PolicyConfigurationError;
 
 #[derive(Debug, Clone, Copy, Default, Deserialize, PartialEq, Eq)]

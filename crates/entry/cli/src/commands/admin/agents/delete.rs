@@ -4,6 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use std::path::Path;
@@ -11,15 +12,14 @@ use std::sync::Arc;
 
 use super::process_stop::stop_agent_process;
 use super::types::AgentDeleteOutput;
-use crate::CliConfig;
-use crate::context::CommandContext;
-use crate::interactive::{Prompter, require_confirmation, resolve_required};
-use crate::shared::CommandOutput;
 use systemprompt_agent::services::a2a_server::streaming::webhook_client::HttpWebhookBroadcaster;
 use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
 use systemprompt_agent::services::agent_orchestration::process::SpawnEnvironment;
 use systemprompt_agent::services::config_authoring::AgentConfigAuthoringService;
 use systemprompt_agent::{AgentAuth, AgentState};
+use systemprompt_extension::cli::{
+    CliConfig, CommandOutput, Prompter, require_confirmation, resolve_required,
+};
 use systemprompt_identifiers::AgentName;
 use systemprompt_logging::CliService;
 use systemprompt_oauth::JwtValidationProviderImpl;
@@ -28,7 +28,7 @@ use systemprompt_oauth::JwtValidationProviderImpl;
 pub struct DeleteArgs {
     #[arg(
         help = "Agent name (required in non-interactive mode)",
-        value_parser = crate::shared::parse_agent_name
+        value_parser = systemprompt_extension::cli::parsers::parse_agent_name
     )]
     pub name: Option<AgentName>,
 
@@ -42,11 +42,10 @@ pub struct DeleteArgs {
     pub force: bool,
 }
 
-pub(super) async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let prompter = ctx.prompter();
-    let config = &ctx.cli;
-    let services_config = ctx
-        .boot()?
+pub(super) async fn execute(args: DeleteArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+    let prompter = host.prompter();
+    let config = host.output();
+    let services_config = crate::commands::admin::state::boot(host)?
         .load_services_config()
         .context("Failed to load services configuration")?;
 
@@ -59,10 +58,10 @@ pub(super) async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<Co
         config,
     )?;
 
-    let profile = ctx.profile()?;
+    let profile = host.profile()?;
     let authoring = AgentConfigAuthoringService::new(Path::new(&profile.paths.services));
 
-    let orchestrator = build_orchestrator(ctx)
+    let orchestrator = build_orchestrator(host)
         .await
         .context("Cannot stop agents safely without the orchestrator")?;
 
@@ -82,7 +81,7 @@ pub(super) async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<Co
     }
 
     if !deleted.is_empty() {
-        ctx.boot()?.load_services_config().with_context(|| {
+        crate::commands::admin::state::boot(host)?.load_services_config().with_context(|| {
             "Agent(s) deleted but configuration validation failed. Please check the configuration."
         })?;
     }
@@ -162,8 +161,8 @@ pub fn delete_success_message(deleted: &[AgentName]) -> String {
     }
 }
 
-pub(super) async fn build_orchestrator(ctx: &CommandContext) -> Result<AgentOrchestrator> {
-    let app = ctx.app_context().await?;
+pub(super) async fn build_orchestrator(host: &dyn KernelHost) -> Result<AgentOrchestrator> {
+    let app = crate::commands::admin::state::app(host).await?;
     let jwt_provider = Arc::new(JwtValidationProviderImpl::from_config(
         app.config(),
         app.signing_keys().keyring().clone(),

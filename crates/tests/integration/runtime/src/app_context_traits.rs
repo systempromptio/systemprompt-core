@@ -9,13 +9,11 @@ use anyhow::Result;
 use systemprompt_extension::{
     ExtensionContext, HasAnalytics, HasFingerprint, HasRouteClassifier, HasUserService,
 };
-use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
+use systemprompt_test_fixtures::{fixture_admitted, test_database_url};
 use systemprompt_traits::AppContext as AppContextTrait;
 
 async fn build_ctx() -> std::sync::Arc<systemprompt_runtime::AppContext> {
-    let url = test_database_url();
-    let pool = test_db_pool().await;
-    test_app_context(&pool, &url)
+    systemprompt_test_fixtures::test_app_context(&test_database_url()).await
 }
 
 #[tokio::test]
@@ -40,8 +38,6 @@ async fn extension_context_dispatch() -> Result<()> {
     let ctx = build_ctx().await;
     let _cfg = ExtensionContext::config(ctx.as_ref());
     let _db = ExtensionContext::database(ctx.as_ref());
-    let none = ExtensionContext::get_extension(ctx.as_ref(), "unknown_xxx");
-    assert!(none.is_none());
     Ok(())
 }
 
@@ -78,13 +74,11 @@ async fn app_context_accessors_via_from_parts_path() -> Result<()> {
     let ctx = build_ctx().await;
     let _ = ctx.config();
     let _ = ctx.db_pool();
-    let _ = ctx.extension_registry();
     let _ = ctx.app_paths();
     let _ = ctx.app_paths_arc();
     let _ = ctx.marketplace_filter();
     let _ = ctx.event_bridge();
     let _ = ctx.mcp_registry();
-    let _ = ctx.analytics_service();
     let _ = ctx.route_classifier();
     let _ = ctx.geoip_reader();
     let _ = ctx.content_config();
@@ -96,13 +90,13 @@ async fn app_context_accessors_via_from_parts_path() -> Result<()> {
     Ok(())
 }
 
-
 #[tokio::test]
 async fn app_context_builder_accessor() {
     let _b = systemprompt_runtime::AppContext::builder(
         systemprompt_test_fixtures::ensure_test_bootstrap()
             .boot
             .clone(),
+        fixture_admitted(),
     );
 }
 

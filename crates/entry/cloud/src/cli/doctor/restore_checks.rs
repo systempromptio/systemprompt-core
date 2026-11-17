@@ -17,7 +17,8 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use systemprompt_database::{Database, MigrationService, validate_table_exists};
-use systemprompt_extension::ExtensionRegistry;
+use systemprompt_extension::AdmittedMigrations;
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::Profile;
 use systemprompt_manifest::profile::StorageBackend;
 
@@ -65,7 +66,10 @@ pub fn schema_ahead_result(ahead: &[(String, Vec<u32>)]) -> CheckResult {
     )
 }
 
-pub(super) async fn check_schema_not_ahead(secrets: &HashMap<String, String>) -> CheckResult {
+pub(super) async fn check_schema_not_ahead(
+    secrets: &HashMap<String, String>,
+    admitted: &AdmittedMigrations,
+) -> CheckResult {
     let Some(url) = secrets
         .get("external_database_url")
         .or_else(|| secrets.get("database_url"))
@@ -100,21 +104,13 @@ pub(super) async fn check_schema_not_ahead(secrets: &HashMap<String, String>) ->
             );
         },
     }
-    let schema_extensions = match ExtensionRegistry::discover().and_then(|registry| {
-        registry.enabled_schema_extensions(ExtensionRegistry::INSTALL_EVERY_LINKED_SCHEMA)
-    }) {
-        Ok(schema_extensions) => schema_extensions,
-        Err(error) => {
-            return CheckResult::warn(
-                SCHEMA,
-                format!("extensions could not be discovered ({error}), schema not checked"),
-            );
-        },
-    };
     let migrations = MigrationService::new(&db);
     let mut ahead = Vec::new();
-    for extension in schema_extensions {
-        match migrations.status(extension.as_ref()).await {
+    for (metadata, list) in admitted.members() {
+        match migrations
+            .status_of(&ExtensionId::new(metadata.id), list)
+            .await
+        {
             Ok(status) if !status.ahead.is_empty() => {
                 ahead.push((status.extension_id.as_str().to_owned(), status.ahead));
             },
@@ -124,7 +120,7 @@ pub(super) async fn check_schema_not_ahead(secrets: &HashMap<String, String>) ->
                     SCHEMA,
                     format!(
                         "migration status for {} unreadable ({error}), schema not checked",
-                        extension.id()
+                        metadata.id
                     ),
                 );
             },

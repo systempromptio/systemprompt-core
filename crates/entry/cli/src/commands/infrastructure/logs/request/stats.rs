@@ -4,16 +4,17 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use systemprompt_database::pool_from_handle;
 use systemprompt_runtime::{TraceQueryService, TraceRepository};
 
-use crate::CliConfig;
 use crate::commands::infrastructure::logs::duration::parse_since;
-use crate::shared::{CommandOutput, render_result};
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct StatsArgs {
@@ -60,13 +61,18 @@ pub struct ModelStats {
     pub avg_latency_ms: i64,
 }
 
-crate::define_pool_command!(StatsArgs => (), with_config);
+pub(in crate::commands::infrastructure::logs) async fn execute(
+    args: StatsArgs,
+    host: &dyn KernelHost,
+) -> Result<CommandOutput> {
+    let pool = pool_from_handle(host.db().await?)?.pool();
+    execute_with_pool_inner(args, &pool).await
+}
 
 async fn execute_with_pool_inner(
     args: StatsArgs,
     pool: &Arc<sqlx::PgPool>,
-    config: &CliConfig,
-) -> Result<()> {
+) -> Result<CommandOutput> {
     let since_timestamp = parse_since(args.since.as_ref())?;
 
     let service = TraceQueryService::new(TraceRepository::new(Arc::clone(pool)));
@@ -109,9 +115,7 @@ async fn execute_with_pool_inner(
             .collect(),
     };
 
-    render_result(&build_request_stats(&output), config);
-
-    Ok(())
+    Ok(build_request_stats(&output))
 }
 
 #[must_use]

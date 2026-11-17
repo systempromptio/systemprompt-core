@@ -13,7 +13,7 @@ use systemprompt_logging::CliService;
 use systemprompt_manifest::{Environment, LogLevel};
 
 use super::edit_document::{ProfileEdit, parse_number};
-use systemprompt_cli::kernel::Prompter;
+use systemprompt_extension::cli::Prompter;
 
 pub fn edit_server_settings(prompter: &dyn Prompter, edit: &mut ProfileEdit) -> Result<()> {
     CliService::section("Server Settings");

@@ -78,5 +78,3 @@ impl Job for DocumentTrashPurgeJob {
         act_as(DocumentActor::system(self.name()), Self::run(ctx)).await
     }
 }
-
-systemprompt_provider_contracts::submit_job!("files", &DocumentTrashPurgeJob);

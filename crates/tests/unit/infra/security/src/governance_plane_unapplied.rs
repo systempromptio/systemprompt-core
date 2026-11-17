@@ -6,9 +6,10 @@
 use serde_json::json;
 use systemprompt_database::DbPool;
 use systemprompt_governance::authz::types::{Decision, DenyReason};
-use systemprompt_governance::policy::governed::{GovernedInput, GovernedTarget, McpToolInput};
-use systemprompt_governance::policy::types::{AccessScope, AgentScope, PolicyContext};
-use systemprompt_governance::policy::{GovernanceEngine, RateCounts};
+use systemprompt_governance::policy::{
+    AccessScope, AgentScope, GovernanceEngine, GovernedInput, GovernedTarget, McpToolInput,
+    PolicyContext, RateCounts,
+};
 use systemprompt_identifiers::{CallId, McpToolName, SessionId, UserId};
 use systemprompt_manifest::profile::UnappliedPlaneMode;
 use systemprompt_test_fixtures::{DisposableDb, apply_governance_plane};
@@ -29,6 +30,7 @@ static NO_RATE_COUNTS: RateCounts = RateCounts::empty();
 async fn load(pool: &DbPool, mode: UnappliedPlaneMode) -> GovernanceEngine {
     GovernanceEngine::load(
         pool.pool().as_ref(),
+        &systemprompt_governance::policy::PolicyCatalog::builtin(),
         Some(crate::offline_rate_windows()),
         mode,
     )

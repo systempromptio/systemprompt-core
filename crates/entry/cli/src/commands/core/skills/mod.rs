@@ -1,8 +1,7 @@
 //! `skills` CLI command group: list and show configured skills.
 //!
 //! [`SkillsCommands`] enumerates the subcommands; [`execute`] dispatches each
-//! against the invocation's [`CommandContext`]. Output payload types live in
-//! [`types`].
+//! against the command host. Output payload types live in [`types`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,11 +11,11 @@ pub mod types;
 pub mod list;
 pub mod show;
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use clap::Subcommand;
 
-use crate::context::CommandContext;
-use crate::shared::render_result;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum SkillsCommands {
@@ -27,21 +26,13 @@ pub enum SkillsCommands {
     Show(show::ShowArgs),
 }
 
-pub async fn execute(command: SkillsCommands, ctx: &CommandContext) -> Result<()> {
+pub async fn execute(command: SkillsCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
-        SkillsCommands::List(args) => {
-            let result = list::execute(args, ctx)
-                .await
-                .context("Failed to list skills")?;
-            render_result(&result, &ctx.cli);
-            Ok(())
-        },
-        SkillsCommands::Show(args) => {
-            let result = list::show_resolved_skill(&args.name, ctx)
-                .await
-                .context("Failed to show skill")?;
-            render_result(&result, &ctx.cli);
-            Ok(())
-        },
+        SkillsCommands::List(args) => list::execute(args, host)
+            .await
+            .context("Failed to list skills"),
+        SkillsCommands::Show(args) => list::show_resolved_skill(&args.name, host)
+            .await
+            .context("Failed to show skill"),
     }
 }

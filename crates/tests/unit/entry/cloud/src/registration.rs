@@ -1,19 +1,20 @@
-//! The `cloud` group reaches the CLI only through its registration: these
-//! assemble the command tree from `CommandRegistry::collected()` exactly as
-//! the runner does, so each assertion fails if the registration, its `--help`
-//! slot, a subcommand path, a flag, a cloud-operator descriptor or a hidden
-//! env value is lost in the move out of `systemprompt-cli`.
+//! The `cloud` group reaches the CLI only through the cloud member's
+//! declaration: these assemble the command tree from the reference
+//! composition's declared commands exactly as the runner does, so each
+//! assertion fails if the declaration, its owner or grant, its `--help` slot,
+//! a subcommand path, a flag, a cloud-operator descriptor or a hidden env value
+//! is lost.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use clap::{Arg, Command, FromArgMatches};
 use systemprompt_cli::args::{self, Cli};
-use systemprompt_cli::kernel::{
-    CommandDescriptor, CommandRegistry, DataImpact, DbUrlRouting, RoutingClass,
-    describe_command_line,
-};
+use systemprompt_cli::kernel::{CommandRegistry, describe_command_line, kernel_commands};
 use systemprompt_cli::runner::profile_routing::is_cloud_bypass_command;
 use systemprompt_cloud_entry::cli::CloudCommands;
+use systemprompt_extension::cli::{
+    CommandDescriptor, DataImpact, DbUrlRouting, KernelGrant, RoutingClass,
+};
 
 const SENTINEL: &str = "sentinel-do-not-leak";
 
@@ -21,25 +22,47 @@ fn argv(args: &[&str]) -> Vec<String> {
     args.iter().map(|arg| (*arg).to_owned()).collect()
 }
 
+fn registry() -> CommandRegistry {
+    let declared = systemprompt::reference()
+        .declare()
+        .expect("the reference composition declares");
+    CommandRegistry::build(&declared.commands(), &kernel_commands())
+        .expect("the registry accepts the reference commands")
+}
+
 fn root() -> (CommandRegistry, Command) {
-    let registry = CommandRegistry::collected().expect("collected registrations are disjoint");
+    let registry = registry();
     let root = args::command(&registry).expect("assemble the command tree");
     (registry, root)
 }
 
 fn descriptor(args: &[&str]) -> CommandDescriptor {
-    describe_command_line(&argv(args)).unwrap_or_else(|e| panic!("{args:?}: {e:#}"))
+    describe_command_line(&registry(), &argv(args)).unwrap_or_else(|e| panic!("{args:?}: {e:#}"))
 }
 
 #[test]
-fn cloud_is_collected_from_its_registration() {
-    let (registry, _) = root();
-    assert!(
-        registry
-            .registrations()
-            .iter()
-            .any(|entry| entry.path() == "cloud" && entry.group().ends_with("CloudCommands")),
-        "{registry:?}"
+fn the_cloud_member_declares_the_cloud_group_with_its_kernel_grants() {
+    let declared = systemprompt::reference()
+        .declare()
+        .expect("the reference composition declares");
+    let commands = declared.commands();
+    let cloud: Vec<_> = commands
+        .commands()
+        .iter()
+        .filter(|command| command.owner.as_str() == "cloud")
+        .map(|command| (command.decl.path(), command.decl.grants().to_vec()))
+        .collect();
+    assert_eq!(
+        cloud,
+        [(
+            vec!["cloud"],
+            vec![
+                KernelGrant::CloudOperator,
+                KernelGrant::BootProfile,
+                KernelGrant::ConfigReconcile,
+                KernelGrant::TargetAdmission,
+            ]
+        )]
     );
 }
 
@@ -120,10 +143,14 @@ fn every_cloud_descriptor_is_a_cloud_operator_and_bypasses_routing() {
     }
 }
 
+
 #[test]
 fn bootstrap_requirements_match_each_subcommand() {
-    let deploy = descriptor(&["cloud", "deploy"]);
-    assert!(!deploy.profile() && !deploy.secrets() && !deploy.database());
+    for args in [&["cloud", "deploy"][..], &["cloud", "doctor"]] {
+        let d = descriptor(args);
+        assert!(!d.profile() && !d.secrets() && !d.database(), "{args:?}");
+        assert!(d.holds(KernelGrant::TargetAdmission), "{args:?}");
+    }
 
     for args in [&["cloud", "status"][..], &["cloud", "backup"]] {
         let d = descriptor(args);
@@ -148,7 +175,10 @@ fn cloud_refuses_a_direct_database_url() {
         .resolve(&matches)
         .expect("resolve")
         .expect("cloud resolves to its registration");
-    assert_eq!(registered.db_url_routing(), DbUrlRouting::Unsupported);
+    assert_eq!(
+        registered.parsed.db_url_routing(),
+        DbUrlRouting::Unsupported
+    );
 }
 
 fn cloud_profile(args: &[&str]) -> Result<(Cli, Option<String>), clap::Error> {
@@ -284,4 +314,32 @@ fn cloud_profile_create_help_names_the_provider_vars_without_their_values() {
         "cloud profile create --help leaked an env value:\n{help}"
     );
     assert!(help.contains("ANTHROPIC_API_KEY"), "{help}");
+}
+
+#[test]
+fn top_level_help_lists_the_groups_in_their_slots_and_help_last() {
+    let (_, mut root) = root();
+    let help = root.render_help().to_string();
+    let listed: Vec<&str> = help
+        .lines()
+        .skip_while(|line| !line.starts_with("Commands:"))
+        .skip(1)
+        .take_while(|line| line.starts_with("  "))
+        .filter_map(|line| line.split_whitespace().next())
+        .collect();
+    assert_eq!(
+        listed,
+        [
+            "core",
+            "infra",
+            "admin",
+            "cloud",
+            "analytics",
+            "web",
+            "plugins",
+            "build",
+            "help"
+        ],
+        "{help}"
+    );
 }

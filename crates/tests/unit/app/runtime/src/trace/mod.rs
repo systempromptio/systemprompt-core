@@ -2,5 +2,6 @@
 
 mod models;
 mod queries;
+mod request_paging;
 mod seeded_audit;
 mod seeded_queries;

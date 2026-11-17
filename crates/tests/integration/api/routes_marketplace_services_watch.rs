@@ -13,10 +13,8 @@ use std::time::Duration;
 use async_trait::async_trait;
 use axum::Router;
 use systemprompt_api::routes::marketplace;
-use systemprompt_manifest::profile::PathsConfig;
-use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_app_context_with, test_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context};
 use systemprompt_traits::{CacheDomain, ConfigVersionSource, RepositoryError, WatchSignals};
 use tower::ServiceExt;
 
@@ -45,19 +43,7 @@ impl ConfigVersionSource for FixedVersion {
 
 async fn context() -> anyhow::Result<AppContext> {
     let b = ensure_test_bootstrap();
-    let paths = PathsConfig {
-        root: None,
-        system: b.system_path.display().to_string(),
-        services: b.services_path.display().to_string(),
-        bin: b.bin_path.display().to_string(),
-        web_path: Some(b.system_path.join("web").display().to_string()),
-        storage: Some(b.storage_path.display().to_string()),
-        geoip_database: None,
-        shipped_files: None,
-        data: None,
-    };
-    let pool = test_db_pool().await;
-    let ctx = fixture_app_context_with(&pool, &b.database_url, paths, Arc::new(AllowAllFilter))?;
+    let ctx = test_app_context(&b.database_url).await;
     Ok((*ctx).clone())
 }
 

@@ -2,13 +2,14 @@
 //! `/api/v1/analytics` ([`analytics`]) and engagement ingestion under
 //! `/track/engagement` ([`engagement`]).
 //!
-//! Both read their handles from the extension state through
-//! [`AnalyticsHttpState`]: the analytics repositories (session store
-//! included) the API kernel seeds, the loaded content configuration when one
-//! is configured, and the content catalog the `content` extension provides.
-//! The live stream's analytics broadcaster is not in the extension state: the
-//! API hands it to the `/api/v1/analytics` router alone, as a request
-//! extension. An event that names no content id gets one
+//! Both resolve their handles through a hand-written [`FromState`]: the
+//! analytics repositories (session store included) the kernel seeds, the
+//! loaded content configuration when one is configured, and the content
+//! catalog the `content` extension provides. The engagement group's
+//! [`EngagementState`] holds only those. [`AnalyticsHttpState`] adds the
+//! analytics broadcaster, which the kernel hands only to a route set at the
+//! `/api/v1/analytics` base its conferral names; it is never in the shared
+//! state. An event that names no content id gets one
 //! from [`ContentResolver`]: the slug it carries, or the slug the loaded
 //! content configuration resolves its page URL to, looked up in that catalog. A
 //! failed lookup is logged and leaves the event without a content id; it never
@@ -23,9 +24,10 @@ pub mod engagement;
 use std::sync::Arc;
 
 use systemprompt_analytics::repository::AnalyticsRepositories;
+use systemprompt_extension::handles::AnalyticsBroadcaster;
+use systemprompt_extension::{FromState, Handed, MissingDependency, Resolved};
 use systemprompt_identifiers::{ContentId, LocaleCode};
 use systemprompt_models::{ContentConfigRaw, ContentRouting};
-use systemprompt_provider_contracts::{Dependencies, MissingDependency};
 use systemprompt_traits::DynContentCatalogStats;
 
 /// Resolves the content id an ingested event belongs to, from its slug or
@@ -68,37 +70,57 @@ impl ContentResolver {
     }
 }
 
-/// The handles both analytics route groups are built from, read once from
-/// the extension state.
+/// The handles the engagement routes are built from: the repositories and
+/// the content resolver, without the analytics broadcaster.
 #[derive(Clone)]
-pub struct AnalyticsHttpState {
+pub struct EngagementState {
     pub(crate) repositories: Arc<AnalyticsRepositories>,
     pub(crate) content: ContentResolver,
 }
 
-impl std::fmt::Debug for AnalyticsHttpState {
+impl std::fmt::Debug for EngagementState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("AnalyticsHttpState")
+        f.debug_struct("EngagementState")
             .field("content", &self.content)
             .finish_non_exhaustive()
     }
 }
 
-impl AnalyticsHttpState {
-    pub const fn new(repositories: Arc<AnalyticsRepositories>, content: ContentResolver) -> Self {
-        Self {
-            repositories,
-            content,
-        }
+impl FromState for EngagementState {
+    fn from_state(r: &Resolved<'_>) -> Result<Self, MissingDependency> {
+        let routing = r
+            .optional::<Arc<ContentConfigRaw>>()
+            .map(|config| -> Arc<dyn ContentRouting> { config });
+        Ok(Self {
+            repositories: r.get()?,
+            content: ContentResolver::new(r.get()?, routing),
+        })
     }
+}
 
-    pub fn from_extension_state(state: &Dependencies) -> Result<Self, MissingDependency> {
-        let routing = state
-            .find::<Arc<ContentConfigRaw>>()
-            .map(|config| -> Arc<dyn ContentRouting> { Arc::<ContentConfigRaw>::clone(config) });
-        Ok(Self::new(
-            Arc::clone(state.get::<Arc<AnalyticsRepositories>>()?),
-            ContentResolver::new(Arc::clone(state.get::<DynContentCatalogStats>()?), routing),
-        ))
+/// The handles the `/api/v1/analytics` routes are built from: the
+/// engagement handles plus the analytics broadcaster the kernel hands this
+/// route set.
+#[derive(Clone)]
+pub struct AnalyticsHttpState {
+    pub(crate) ingest: EngagementState,
+    pub(crate) broadcaster: Handed<AnalyticsBroadcaster>,
+}
+
+impl std::fmt::Debug for AnalyticsHttpState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AnalyticsHttpState")
+            .field("ingest", &self.ingest)
+            .field("broadcaster", &self.broadcaster)
+            .finish()
+    }
+}
+
+impl FromState for AnalyticsHttpState {
+    fn from_state(r: &Resolved<'_>) -> Result<Self, MissingDependency> {
+        Ok(Self {
+            ingest: EngagementState::from_state(r)?,
+            broadcaster: Handed::from_state(r)?,
+        })
     }
 }

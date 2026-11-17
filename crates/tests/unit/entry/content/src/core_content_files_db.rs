@@ -5,13 +5,12 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use serde_json::Value;
-use systemprompt_cli::CliConfig;
 use systemprompt_cli::interactive::ScriptedPrompter;
-use systemprompt_cli::kernel::CommandOutput;
 use systemprompt_content::ContentRepository;
 use systemprompt_content::models::CreateContentParams;
 use systemprompt_content_entry::cli::content::files::{featured, link, list, unlink};
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 use systemprompt_files::{FileRepository, FileRole};
 use systemprompt_identifiers::{ContentId, FileId, SourceId};
 use systemprompt_test_fixtures::test_db_pool;
@@ -378,29 +377,28 @@ async fn featured_set_unlinked_file_errors() {
 // subcommand directly through its pool seam, so nothing exercised the routing
 // that decides which subcommand a parsed variant reaches. These drive
 // `ContentFilesCommands` and assert the effect in the database, because a
-// variant wired to the wrong arm would still return `Ok(())`.
+// variant wired to the wrong arm would still return `Ok`.
 mod dispatch {
     use super::{cfg, link, linked_roles, seed_content, seed_file, test_db_pool};
-    use systemprompt_cli::interactive::ScriptedPrompter;
-    use systemprompt_cli::{CommandContext, EnvOverrides, OutputFormat};
+    use systemprompt_cli::{CommandContext, EnvOverrides};
     use systemprompt_content_entry::cli::content::files::{
         ContentFilesCommands, execute, featured, list, unlink,
     };
-    use systemprompt_database::DbPool;
+    use systemprompt_extension::cli::OutputFormat;
     use systemprompt_files::FileRole;
     use systemprompt_test_fixtures::{test_app_context, test_database_url};
 
-    fn ctx(pool: &DbPool) -> CommandContext {
+    async fn ctx() -> CommandContext {
         let url = test_database_url();
         crate::common::with_app_boot(
             cfg().with_output_format(OutputFormat::Json),
             EnvOverrides::default(),
-            test_app_context(pool, &url),
+            test_app_context(&url).await,
         )
     }
 
-    async fn dispatch(pool: &DbPool, cmd: ContentFilesCommands) -> anyhow::Result<()> {
-        execute(cmd, &ScriptedPrompter::default(), &ctx(pool)).await
+    async fn dispatch(cmd: ContentFilesCommands) -> anyhow::Result<()> {
+        execute(cmd, &ctx().await).await.map(drop)
     }
 
     #[tokio::test]
@@ -409,15 +407,12 @@ mod dispatch {
         let content = seed_content(&pool).await;
         let file = seed_file(&pool).await;
 
-        dispatch(
-            &pool,
-            ContentFilesCommands::Link(link::LinkArgs {
-                file: file.clone(),
-                content: content.as_str().to_owned(),
-                role: link::FileRoleArg::Attachment,
-                order: 0,
-            }),
-        )
+        dispatch(ContentFilesCommands::Link(link::LinkArgs {
+            file: file.clone(),
+            content: content.as_str().to_owned(),
+            role: link::FileRoleArg::Attachment,
+            order: 0,
+        }))
         .await
         .expect("linking through the dispatcher should succeed");
 
@@ -434,27 +429,21 @@ mod dispatch {
         let content = seed_content(&pool).await;
         let file = seed_file(&pool).await;
 
-        dispatch(
-            &pool,
-            ContentFilesCommands::Link(link::LinkArgs {
-                file: file.clone(),
-                content: content.as_str().to_owned(),
-                role: link::FileRoleArg::Attachment,
-                order: 0,
-            }),
-        )
+        dispatch(ContentFilesCommands::Link(link::LinkArgs {
+            file: file.clone(),
+            content: content.as_str().to_owned(),
+            role: link::FileRoleArg::Attachment,
+            order: 0,
+        }))
         .await
         .expect("seed the link");
 
-        dispatch(
-            &pool,
-            ContentFilesCommands::Unlink(unlink::UnlinkArgs {
-                file: file.clone(),
-                content: content.as_str().to_owned(),
-                yes: true,
-                dry_run: false,
-            }),
-        )
+        dispatch(ContentFilesCommands::Unlink(unlink::UnlinkArgs {
+            file: file.clone(),
+            content: content.as_str().to_owned(),
+            yes: true,
+            dry_run: false,
+        }))
         .await
         .expect("unlinking through the dispatcher should succeed");
 
@@ -473,27 +462,21 @@ mod dispatch {
         let content = seed_content(&pool).await;
         let file = seed_file(&pool).await;
 
-        dispatch(
-            &pool,
-            ContentFilesCommands::Link(link::LinkArgs {
-                file: file.clone(),
-                content: content.as_str().to_owned(),
-                role: link::FileRoleArg::Inline,
-                order: 0,
-            }),
-        )
+        dispatch(ContentFilesCommands::Link(link::LinkArgs {
+            file: file.clone(),
+            content: content.as_str().to_owned(),
+            role: link::FileRoleArg::Inline,
+            order: 0,
+        }))
         .await
         .expect("seed the link");
 
-        dispatch(
-            &pool,
-            ContentFilesCommands::Unlink(unlink::UnlinkArgs {
-                file: file.clone(),
-                content: content.as_str().to_owned(),
-                yes: true,
-                dry_run: true,
-            }),
-        )
+        dispatch(ContentFilesCommands::Unlink(unlink::UnlinkArgs {
+            file: file.clone(),
+            content: content.as_str().to_owned(),
+            yes: true,
+            dry_run: true,
+        }))
         .await
         .expect("a dry run should succeed");
 
@@ -509,27 +492,21 @@ mod dispatch {
         let pool = test_db_pool().await;
         let content = seed_content(&pool).await;
 
-        dispatch(
-            &pool,
-            ContentFilesCommands::List(list::ListArgs {
-                content: Some(content.as_str().to_owned()),
-                file: None,
-            }),
-        )
+        dispatch(ContentFilesCommands::List(list::ListArgs {
+            content: Some(content.as_str().to_owned()),
+            file: None,
+        }))
         .await
         .expect("listing a content item with no files is not a failure");
     }
 
-    async fn link(pool: &DbPool, file: &str, content: &str, role: link::FileRoleArg) {
-        dispatch(
-            pool,
-            ContentFilesCommands::Link(link::LinkArgs {
-                file: file.to_owned(),
-                content: content.to_owned(),
-                role,
-                order: 0,
-            }),
-        )
+    async fn link(file: &str, content: &str, role: link::FileRoleArg) {
+        dispatch(ContentFilesCommands::Link(link::LinkArgs {
+            file: file.to_owned(),
+            content: content.to_owned(),
+            role,
+            order: 0,
+        }))
         .await
         .expect("seed the link");
     }
@@ -539,21 +516,12 @@ mod dispatch {
         let pool = test_db_pool().await;
         let content = seed_content(&pool).await;
         let file = seed_file(&pool).await;
-        link(
-            &pool,
-            &file,
-            content.as_str(),
-            link::FileRoleArg::Attachment,
-        )
-        .await;
+        link(&file, content.as_str(), link::FileRoleArg::Attachment).await;
 
-        dispatch(
-            &pool,
-            ContentFilesCommands::Featured(featured::FeaturedArgs {
-                content: content.as_str().to_owned(),
-                set: Some(file.clone()),
-            }),
-        )
+        dispatch(ContentFilesCommands::Featured(featured::FeaturedArgs {
+            content: content.as_str().to_owned(),
+            set: Some(file.clone()),
+        }))
         .await
         .expect("featuring a linked file should succeed");
 
@@ -573,13 +541,10 @@ mod dispatch {
         let content = seed_content(&pool).await;
         let file = seed_file(&pool).await;
 
-        let err = dispatch(
-            &pool,
-            ContentFilesCommands::Featured(featured::FeaturedArgs {
-                content: content.as_str().to_owned(),
-                set: Some(file.clone()),
-            }),
-        )
+        let err = dispatch(ContentFilesCommands::Featured(featured::FeaturedArgs {
+            content: content.as_str().to_owned(),
+            set: Some(file.clone()),
+        }))
         .await
         .expect_err("an unlinked file must not become the featured image");
 
@@ -599,29 +564,14 @@ mod dispatch {
         let content = seed_content(&pool).await;
         let first = seed_file(&pool).await;
         let second = seed_file(&pool).await;
-        link(
-            &pool,
-            &first,
-            content.as_str(),
-            link::FileRoleArg::Attachment,
-        )
-        .await;
-        link(
-            &pool,
-            &second,
-            content.as_str(),
-            link::FileRoleArg::Attachment,
-        )
-        .await;
+        link(&first, content.as_str(), link::FileRoleArg::Attachment).await;
+        link(&second, content.as_str(), link::FileRoleArg::Attachment).await;
 
         for file in [&first, &second] {
-            dispatch(
-                &pool,
-                ContentFilesCommands::Featured(featured::FeaturedArgs {
-                    content: content.as_str().to_owned(),
-                    set: Some(file.clone()),
-                }),
-            )
+            dispatch(ContentFilesCommands::Featured(featured::FeaturedArgs {
+                content: content.as_str().to_owned(),
+                set: Some(file.clone()),
+            }))
             .await
             .expect("featuring should succeed");
         }

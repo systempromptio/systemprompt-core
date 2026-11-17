@@ -37,7 +37,10 @@ async fn init_loads_the_secrets_document_from_vault() {
     let profile = fixture::write_tree(&vault_secrets_section(&server.uri()), None);
     let loaded = LoadedProfile::from_path(&profile.profile_path).unwrap();
 
-    let secrets = SecretsService::load(loaded).await.unwrap().get();
+    let secrets = SecretsService::load(loaded, systemprompt_config::SecretsSources::default())
+        .await
+        .unwrap()
+        .get();
 
     assert_eq!(secrets.oauth_at_rest_pepper, fixture::PEPPER);
     assert_eq!(secrets.database_url, fixture::DB_URL);
@@ -60,7 +63,9 @@ async fn an_unreachable_vault_fails_the_boot_even_with_a_valid_pepper_in_the_env
     let profile = fixture::write_tree(&vault_secrets_section(&server.uri()), None);
     let loaded = LoadedProfile::from_path(&profile.profile_path).unwrap();
 
-    let err = SecretsService::load(loaded).await.unwrap_err();
+    let err = SecretsService::load(loaded, systemprompt_config::SecretsSources::default())
+        .await
+        .unwrap_err();
 
     assert!(matches!(
         err,

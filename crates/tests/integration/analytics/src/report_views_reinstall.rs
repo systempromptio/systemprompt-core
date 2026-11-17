@@ -8,9 +8,8 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
-use systemprompt_database::{MigrationConfig, install_extension_schemas_full};
-use systemprompt_extension::ExtensionRegistry;
-use systemprompt_test_fixtures::DisposableDb;
+use systemprompt_database::{MigrationConfig, install_admitted_schemas};
+use systemprompt_test_fixtures::{DisposableDb, schema_admitted};
 
 const REPORTS: [&str; 3] = [
     "SELECT count(*) FROM report_clean_traffic",
@@ -21,7 +20,7 @@ const REPORTS: [&str; 3] = [
 #[tokio::test]
 async fn a_full_reinstall_never_hides_the_session_reports_from_a_reader() -> anyhow::Result<()> {
     let db = DisposableDb::with_schema("report_views_reinstall").await;
-    let registry = ExtensionRegistry::discover()?;
+    let admitted = schema_admitted()?;
     let installer = db.test_pool().await;
     let reader = db.test_pool().await.pool();
 
@@ -51,10 +50,9 @@ async fn a_full_reinstall_never_hides_the_session_reports_from_a_reader() -> any
 
     let mut installed = Ok(());
     for _ in 0..2 {
-        installed = install_extension_schemas_full(
-            &registry,
+        installed = install_admitted_schemas(
+            admitted.built(),
             installer.write(),
-            &[],
             MigrationConfig {
                 allow_checksum_drift: false,
                 force_full_install: true,

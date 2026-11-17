@@ -2,18 +2,19 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use systemprompt_database::DbPool;
-use systemprompt_files::documents::DocumentService;
 use systemprompt_files::documents::jobs::{
     DocumentAgentReadRetentionJob, DocumentBlobGcJob, DocumentCollabReaperJob,
     DocumentCollabUpdateSweepJob, DocumentMediaBackfillJob, DocumentNodeIdsBackfillJob,
     DocumentPresenceSweepJob,
 };
+use systemprompt_files::documents::{DocumentsHandles, DocumentsHandlesSlot};
+use systemprompt_files::issues::{IssueReportRepository, IssueService};
 use systemprompt_files::uploads::DocumentUploadExpiryJob;
-use systemprompt_files::{DocumentsConfig, FilesConfig, FilesConfigYaml};
+use systemprompt_files::{DocumentsConfig, FilesConfig, FilesConfigYaml, IssuesConfig};
 use systemprompt_identifiers::{DocumentId, DocumentRevisionId};
 use systemprompt_models::documents::EditOp;
 use systemprompt_provider_contracts::{Dependencies, Job, JobContext, JobScope};
-use systemprompt_test_fixtures::{fixture_actor, test_db_pool};
+use systemprompt_test_fixtures::{fixture_actor, fixture_notification_sink, test_db_pool};
 use uuid::Uuid;
 
 use crate::documents_service_fixture::{
@@ -31,10 +32,30 @@ fn files_config(enabled: bool) -> Arc<FilesConfig> {
     Arc::new(FilesConfig::new(PathBuf::from("/tmp"), yaml))
 }
 
-fn context(db: DbPool, enabled: bool, service: Option<&DocumentService>) -> JobContext {
-    let mut deps = Dependencies::new().with(db).with(files_config(enabled));
-    if let Some(service) = service {
-        deps.insert(Arc::new(service.clone()));
+fn bound_handles(db: &DbPool, h: &Harness) -> DocumentsHandlesSlot {
+    let (slot, binder) = DocumentsHandlesSlot::unbound();
+    let issues = IssueService::new(
+        IssueReportRepository::new(db),
+        fixture_notification_sink(db),
+        IssuesConfig::default(),
+    );
+    binder
+        .bind(Arc::new(DocumentsHandles {
+            access: Arc::clone(&h.access),
+            repositories: Arc::clone(&h.repos),
+            issues: Arc::new(issues),
+            service: Some(Arc::new(h.service.clone())),
+        }))
+        .expect("a fresh cell binds");
+    slot
+}
+
+fn context(db: DbPool, enabled: bool, harness: Option<&Harness>) -> JobContext {
+    let mut deps = Dependencies::new()
+        .with(Arc::clone(&db))
+        .with(files_config(enabled));
+    if let Some(h) = harness {
+        deps.insert(bound_handles(&db, h));
     }
     JobContext::new(fixture_actor(), deps)
 }
@@ -74,7 +95,7 @@ async fn exec(sql: &'static str, key: &str) {
 #[tokio::test]
 async fn every_document_job_is_a_cluster_noop_while_the_store_is_disabled() {
     let h = harness(allow(), GroupSource::new(&[])).await;
-    let ctx = context(test_db_pool().await, false, Some(&h.service));
+    let ctx = context(test_db_pool().await, false, Some(&h));
     let jobs: Vec<Box<dyn Job>> = vec![
         Box::new(DocumentAgentReadRetentionJob),
         Box::new(DocumentBlobGcJob),
@@ -173,7 +194,7 @@ async fn agent_read_retention_purges_rows_past_the_window_only() {
 async fn the_collab_reaper_stands_down_without_live_co_editing() {
     let h = harness(allow(), GroupSource::new(&[])).await;
     let result = DocumentCollabReaperJob
-        .execute(&context(test_db_pool().await, true, Some(&h.service)))
+        .execute(&context(test_db_pool().await, true, Some(&h)))
         .await
         .expect("reaper");
     assert!(result.success);
@@ -211,7 +232,7 @@ async fn the_backfill_job_mints_missing_ids_once_per_release() {
     )
     .await;
 
-    let ctx = context(test_db_pool().await, true, Some(&h.service));
+    let ctx = context(test_db_pool().await, true, Some(&h));
     let first = DocumentNodeIdsBackfillJob
         .execute(&ctx)
         .await

@@ -26,10 +26,9 @@ use http::HeaderValue;
 // uninspectable body from an empty one.
 use serde_json::Value;
 use systemprompt_governance::authz::types::{Decision, DenyReason};
-use systemprompt_governance::policy::secrets::SecretFinding;
 use systemprompt_governance::policy::{
     ChainEntryOutcome, ChainEntryResult, Evaluation, GovernanceEngine, GovernedInput,
-    PolicyContext, SECRET_SCAN_ID,
+    PolicyContext, SECRET_SCAN_ID, SecretFinding,
 };
 use systemprompt_identifiers::PolicyId;
 use systemprompt_wire::canonical::CanonicalRequest;

@@ -8,15 +8,35 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_extension::user_purge_tables;
+use systemprompt_extension::{PurgePredicate, UserPurgeTable};
 
-user_purge_tables!(
-    "systemprompt-files",
-    [
-        ("document_presence", "user_id"),
-        ("document_collab_peers", "user_id"),
-        ("document_locks", "holder_user_id"),
-        ("document_grants", "subject_value", "subject_kind = 'user'"),
-        ("document_access_requests", "requester_user_id"),
-    ]
-);
+pub(crate) const DOCUMENT_USER_PURGES: &[UserPurgeTable] = &[
+    UserPurgeTable {
+        table: "document_presence",
+        column: "user_id",
+        predicate: None,
+    },
+    UserPurgeTable {
+        table: "document_collab_peers",
+        column: "user_id",
+        predicate: None,
+    },
+    UserPurgeTable {
+        table: "document_locks",
+        column: "holder_user_id",
+        predicate: None,
+    },
+    UserPurgeTable {
+        table: "document_grants",
+        column: "subject_value",
+        predicate: Some(PurgePredicate {
+            column: "subject_kind",
+            any_of: &["user"],
+        }),
+    },
+    UserPurgeTable {
+        table: "document_access_requests",
+        column: "requester_user_id",
+        predicate: None,
+    },
+];

@@ -8,8 +8,9 @@
 use std::io;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Output};
+use std::sync::Arc;
 
-use systemprompt_loader::subprocess::ForegroundChildren;
+use systemprompt_extension::cli::ChildSupervisor;
 
 #[derive(Debug, Clone)]
 pub struct CommandSpec {
@@ -55,14 +56,21 @@ pub trait CommandRunner: Send + Sync {
     fn status_with_stdin(&self, spec: &CommandSpec, stdin: &[u8]) -> io::Result<ExitStatus>;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct SystemCommandRunner {
-    children: ForegroundChildren,
+    children: Arc<dyn ChildSupervisor>,
+}
+
+impl std::fmt::Debug for SystemCommandRunner {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SystemCommandRunner")
+            .finish_non_exhaustive()
+    }
 }
 
 impl SystemCommandRunner {
     #[must_use]
-    pub const fn new(children: ForegroundChildren) -> Self {
+    pub fn new(children: Arc<dyn ChildSupervisor>) -> Self {
         Self { children }
     }
 

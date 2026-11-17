@@ -5,6 +5,7 @@
 
 use std::sync::Arc;
 use systemprompt_identifiers::McpServerId;
+use systemprompt_mcp::services::ui_renderer::UiRendererRegistry;
 
 use rmcp::ErrorData as McpError;
 use rmcp::model::CallToolRequestParams;
@@ -145,6 +146,7 @@ async fn execute_success_records_and_returns_result() {
         tool_repo,
         intents(&db),
         art_repo,
+        Arc::new(UiRendererRegistry::with_builtins()),
         McpServerId::new("srv-echo"),
     );
 
@@ -169,6 +171,7 @@ async fn execute_handler_error_propagates() {
         tool_repo,
         intents(&db),
         art_repo,
+        Arc::new(UiRendererRegistry::with_builtins()),
         McpServerId::new("srv-fail"),
     );
 
@@ -196,6 +199,7 @@ async fn execute_input_parse_error_returns_invalid_params() {
         tool_repo,
         intents(&db),
         art_repo,
+        Arc::new(UiRendererRegistry::with_builtins()),
         McpServerId::new("srv-bad"),
     );
 

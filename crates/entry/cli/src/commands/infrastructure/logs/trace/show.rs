@@ -7,22 +7,22 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use clap::Args;
 use std::sync::Arc;
 use systemprompt_identifiers::{TaskId, TraceId};
-use systemprompt_logging::CliService;
+use systemprompt_models::artifacts::NoticeLine;
 use systemprompt_runtime::{AiTraceService, TraceEvent, TraceQueryService, TraceRepository};
 
 use super::ai_trace_display::{execute_ai_trace, filter_log_events};
-use super::display::{print_event, print_table};
+use super::display::{push_event, push_table};
 use super::json::build_json;
-use super::summary::{SummaryContext, print_summary};
-use super::{AiSummaryRow, McpSummaryRow, StepSummaryRow, TraceEventRow, TraceViewOutput};
-use crate::CliConfig;
-use crate::context::CommandContext;
-use crate::shared::{CommandOutput, render_result};
+use super::output::{TraceSummaries, build_trace_output};
+use super::summary::{SummaryContext, line, push_summary};
+use systemprompt_database::pool_from_handle;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
@@ -57,16 +57,9 @@ pub struct TraceSections {
     pub all: bool,
 }
 
-#[derive(Debug)]
-pub struct TraceSummaries<'a> {
-    pub ai: &'a systemprompt_runtime::AiRequestSummary,
-    pub mcp: &'a systemprompt_runtime::McpExecutionSummary,
-    pub step: &'a systemprompt_runtime::ExecutionStepSummary,
-}
 
 struct FormattedDisplayContext<'a> {
     events: &'a [TraceEvent],
-    trace_id: &'a TraceId,
     task_id: Option<&'a TaskId>,
     verbose: bool,
     ai_summary: &'a systemprompt_runtime::AiRequestSummary,
@@ -74,28 +67,28 @@ struct FormattedDisplayContext<'a> {
     step_summary: &'a systemprompt_runtime::ExecutionStepSummary,
 }
 
-pub(super) async fn execute(args: ShowArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let pool = ctx.db_pool().await?.pool();
-    execute_with_pool_inner(args, &pool, &ctx.cli).await
+pub(super) async fn execute(args: ShowArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+    let pool = pool_from_handle(host.db().await?)?.pool();
+    execute_with_pool_inner(args, &pool, host.output().is_json_output()).await
 }
 
 async fn execute_with_pool_inner(
     args: ShowArgs,
     pool: &Arc<sqlx::PgPool>,
-    config: &CliConfig,
+    machine_output: bool,
 ) -> Result<CommandOutput> {
     let ai_service = AiTraceService::new(TraceRepository::new(Arc::clone(pool)));
     if let Ok(task_id) = ai_service.resolve_task_id(&args.id).await {
-        return execute_ai_trace(&ai_service, &task_id, &args).await;
+        return execute_ai_trace(&ai_service, &task_id, &args, machine_output).await;
     }
 
-    execute_trace_view(&args, pool, config).await
+    execute_trace_view(&args, pool, machine_output).await
 }
 
 async fn execute_trace_view(
     args: &ShowArgs,
     pool: &Arc<sqlx::PgPool>,
-    config: &CliConfig,
+    machine_output: bool,
 ) -> Result<CommandOutput> {
     let service = TraceQueryService::new(TraceRepository::new(Arc::clone(pool)));
     let trace_id = TraceId::try_new(args.id.as_str())?;
@@ -132,90 +125,109 @@ async fn execute_trace_view(
         mcp: &mcp_summary,
         step: &step_summary,
     };
-    let output = build_trace_output(
-        &trace_id,
-        &events,
-        &summaries,
-        task_id.as_ref(),
-        duration_ms,
-    );
-
-    let result = CommandOutput::card_value("Trace Details", &output);
-
-    if events.is_empty() {
-        if !args.json {
-            report_empty_trace(&trace_id, &ai_summary, &mcp_summary);
-        }
-        return Ok(result.with_skip_render());
+    if args.json {
+        return Ok(build_json(
+            &events,
+            &trace_id,
+            &ai_summary,
+            &mcp_summary,
+            &step_summary,
+        ));
+    }
+    if machine_output {
+        let output = build_trace_output(
+            &trace_id,
+            &events,
+            &summaries,
+            task_id.as_ref(),
+            duration_ms,
+        );
+        return Ok(CommandOutput::card_value("Trace Details", &output));
     }
 
-    if args.json {
-        let json_result = build_json(&events, &trace_id, &ai_summary, &mcp_summary, &step_summary);
-        render_result(&json_result, config);
-        return Ok(result.with_skip_render());
+    let mut lines = Vec::new();
+    if events.is_empty() {
+        push_empty_trace(&mut lines, &trace_id, &ai_summary, &mcp_summary);
+        return Ok(CommandOutput::message(lines));
     }
 
     let display_ctx = FormattedDisplayContext {
         events: &events,
-        trace_id: &trace_id,
         task_id: task_id.as_ref(),
         verbose: args.verbose,
         ai_summary: &ai_summary,
         mcp_summary: &mcp_summary,
         step_summary: &step_summary,
     };
-    print_formatted(&display_ctx);
-
-    Ok(result.with_skip_render())
+    push_formatted(&mut lines, &display_ctx);
+    Ok(CommandOutput::message(lines).with_title(format!("Trace Flow: {trace_id}")))
 }
 
-fn report_empty_trace(
+fn push_empty_trace(
+    out: &mut Vec<NoticeLine>,
     trace_id: &TraceId,
     ai_summary: &systemprompt_runtime::AiRequestSummary,
     mcp_summary: &systemprompt_runtime::McpExecutionSummary,
 ) {
     if ai_summary.request_count == 0 && mcp_summary.execution_count == 0 {
-        CliService::warning(&format!("No events found for trace: {}", trace_id));
-        CliService::info(
+        line(
+            out,
+            "warning",
+            format!("No events found for trace: {trace_id}"),
+        );
+        line(
+            out,
+            "info",
             "Tip: The trace may take a moment to populate. Try again in a few seconds.",
         );
         return;
     }
 
-    CliService::section(&format!("Trace: {}", trace_id));
-    CliService::info("No log events found, but trace has activity:");
+    line(out, "info", format!("Trace: {trace_id}"));
+    line(out, "info", "No log events found, but trace has activity:");
     if ai_summary.request_count > 0 {
-        CliService::key_value("AI Requests", &ai_summary.request_count.to_string());
-        CliService::key_value(
-            "Total Tokens",
-            &format!(
-                "{} in / {} out",
+        line(
+            out,
+            "info",
+            format!("AI Requests: {}", ai_summary.request_count),
+        );
+        line(
+            out,
+            "info",
+            format!(
+                "Total Tokens: {} in / {} out",
                 ai_summary.total_input_tokens, ai_summary.total_output_tokens
             ),
         );
         let cost_dollars = f64::from(ai_summary.total_cost_microdollars as i32) / 1_000_000.0;
-        CliService::key_value("Cost", &format!("${:.6}", cost_dollars));
+        line(out, "info", format!("Cost: ${cost_dollars:.6}"));
     }
     if mcp_summary.execution_count > 0 {
-        CliService::key_value("MCP Calls", &mcp_summary.execution_count.to_string());
+        line(
+            out,
+            "info",
+            format!("MCP Calls: {}", mcp_summary.execution_count),
+        );
     }
-    CliService::info("Use --verbose to see all log entries, or --ai/--mcp for details");
+    line(
+        out,
+        "info",
+        "Use --verbose to see all log entries, or --ai/--mcp for details",
+    );
 }
 
-fn print_formatted(ctx: &FormattedDisplayContext<'_>) {
-    CliService::section(&format!("Trace Flow: {}", ctx.trace_id));
-
+fn push_formatted(out: &mut Vec<NoticeLine>, ctx: &FormattedDisplayContext<'_>) {
     let first_timestamp = ctx.events.first().map(|e| e.timestamp);
     let last_timestamp = ctx.events.last().map(|e| e.timestamp);
 
     if ctx.verbose {
         let mut prev_timestamp: Option<DateTime<Utc>> = None;
         for event in ctx.events {
-            print_event(event, ctx.verbose, prev_timestamp);
+            push_event(out, event, ctx.verbose, prev_timestamp);
             prev_timestamp = Some(event.timestamp);
         }
     } else {
-        print_table(ctx.events);
+        push_table(out, ctx.events);
     }
 
     let summary_ctx = SummaryContext {
@@ -227,66 +239,5 @@ fn print_formatted(ctx: &FormattedDisplayContext<'_>) {
         mcp_summary: ctx.mcp_summary,
         step_summary: ctx.step_summary,
     };
-    print_summary(&summary_ctx);
-}
-
-pub fn build_trace_output(
-    trace_id: &TraceId,
-    events: &[TraceEvent],
-    summaries: &TraceSummaries<'_>,
-    task_id: Option<&TaskId>,
-    duration_ms: Option<i64>,
-) -> TraceViewOutput {
-    let first_timestamp = events.first().map(|e| e.timestamp);
-
-    let event_rows: Vec<TraceEventRow> = events
-        .iter()
-        .map(|e| {
-            let delta_ms =
-                first_timestamp.map_or(0, |first| (e.timestamp - first).num_milliseconds());
-            TraceEventRow {
-                timestamp: e.timestamp.format("%Y-%m-%d %H:%M:%S%.3f").to_string(),
-                delta_ms,
-                event_type: e.event_type.clone(),
-                details: e.details.clone(),
-                latency_ms: None,
-            }
-        })
-        .collect();
-
-    let cost_dollars = f64::from(summaries.ai.total_cost_microdollars as i32) / 1_000_000.0;
-
-    let status = if summaries.step.failed > 0 {
-        "failed".to_owned()
-    } else if summaries.step.pending > 0 {
-        "in_progress".to_owned()
-    } else {
-        "completed".to_owned()
-    };
-
-    TraceViewOutput {
-        trace_id: trace_id.clone(),
-        events: event_rows,
-        ai_summary: AiSummaryRow {
-            request_count: summaries.ai.request_count,
-            total_tokens: summaries.ai.total_input_tokens + summaries.ai.total_output_tokens,
-            input_tokens: summaries.ai.total_input_tokens,
-            output_tokens: summaries.ai.total_output_tokens,
-            cost_dollars,
-            total_latency_ms: summaries.ai.total_latency_ms,
-        },
-        mcp_summary: McpSummaryRow {
-            execution_count: summaries.mcp.execution_count,
-            total_execution_time_ms: summaries.mcp.total_execution_time_ms,
-        },
-        step_summary: StepSummaryRow {
-            total: summaries.step.total,
-            completed: summaries.step.completed,
-            failed: summaries.step.failed,
-            pending: summaries.step.pending,
-        },
-        task: task_id.map(|t| t.as_str().to_owned()),
-        duration_ms,
-        status,
-    }
+    push_summary(out, &summary_ctx);
 }

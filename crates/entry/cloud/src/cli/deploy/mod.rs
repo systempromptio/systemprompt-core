@@ -21,7 +21,7 @@ pub mod select;
 pub mod target_profile;
 
 pub(in crate::cli) use progress::CliDeployProgress;
-pub(in crate::cli) use select::resolve_profile;
+pub(in crate::cli) use select::{resolve_profile, resolve_profile_path};
 pub use target_profile::DeployProfile;
 
 use std::path::Path;
@@ -35,16 +35,16 @@ use systemprompt_cloud::{
     CloudApiClient, CloudError, CloudPath, DockerCli, SystemCommandRunner, TenantStore,
     get_cloud_paths,
 };
+use systemprompt_extension::cli::ChildSupervisor;
 use systemprompt_identifiers::{ProfileName, TenantId};
-use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::profile::CloudConfig;
 
 use pipeline::{DeployOptions, DeployOrchestrator, DeployRequest};
 
 use super::tenant::get_credentials;
-use systemprompt_cli::kernel::project::ProjectRoot;
-use systemprompt_cli::kernel::{CliConfig, Prompter};
+use systemprompt_cloud::paths::ProjectRoot;
+use systemprompt_extension::cli::{AdmittedViews, CommandHost};
 
 const GITOPS_READINESS_WAIT: ReadinessWait = ReadinessWait {
     timeout: Duration::from_mins(15),
@@ -60,12 +60,11 @@ pub(super) struct DeployArgs {
 
 async fn preflight(
     args: &DeployArgs,
-    prompter: &dyn Prompter,
-    config: &CliConfig,
-) -> Result<Option<DeployProfile>> {
+    host: &dyn CommandHost,
+) -> Result<Option<(DeployProfile, AdmittedViews)>> {
     CliService::section("systemprompt.io Cloud Deploy");
 
-    let profile = resolve_profile(prompter, args.profile_name.as_ref(), config)?;
+    let profile = resolve_profile(host.prompter(), args.profile_name.as_ref(), host.output())?;
 
     if profile.target != systemprompt_manifest::ProfileType::Cloud {
         bail!(
@@ -74,7 +73,10 @@ async fn preflight(
         );
     }
 
-    let report = super::doctor::run_managed(&profile.managed, profile.profile_dir(), false).await;
+    let views = host.admitted_views(&profile.path)?;
+    let report =
+        super::doctor::run_managed(&profile.managed, profile.profile_dir(), false, Ok(&views))
+            .await;
     report.render();
     if report.has_blocking() {
         bail!("Deploy preflight failed — fix the items above before deploying.");
@@ -86,16 +88,12 @@ async fn preflight(
         report.render_summary("Deploy preflight passed (--check; nothing deployed)");
         return Ok(None);
     }
-    Ok(Some(profile))
+    Ok(Some((profile, views)))
 }
 
-pub(super) async fn execute(
-    args: DeployArgs,
-    prompter: &dyn Prompter,
-    config: &CliConfig,
-    children: &ForegroundChildren,
-) -> Result<()> {
-    let Some(profile) = preflight(&args, prompter, config).await? else {
+pub(super) async fn execute(args: DeployArgs, host: &dyn CommandHost) -> Result<()> {
+    let children = host.children();
+    let Some((profile, views)) = preflight(&args, host).await? else {
         return Ok(());
     };
 
@@ -110,7 +108,7 @@ pub(super) async fn execute(
     let signing_key_path = profile.signing_key_path.clone();
     let licence_secret_required = profile.licence_secret_required;
     let progress = CliDeployProgress::new();
-    let orchestrator = DeployOrchestrator::new(DockerCli::new(children.clone()));
+    let orchestrator = DeployOrchestrator::new(DockerCli::new(children.handle()));
 
     match kind {
         DeployProviderKind::SystempromptCloud => {
@@ -128,6 +126,7 @@ pub(super) async fn execute(
                 signing_key_path,
                 licence_secret_required,
                 options,
+                assets: views.assets.clone(),
             };
             orchestrator.deploy(&provider, &request, &progress).await?;
         },
@@ -145,6 +144,7 @@ pub(super) async fn execute(
                 signing_key_path,
                 licence_secret_required,
                 options,
+                assets: views.assets.clone(),
             };
             orchestrator.deploy(&provider, &request, &progress).await?;
         },
@@ -156,7 +156,7 @@ pub(super) async fn execute(
 fn gitops_provider(
     cloud: Option<&CloudConfig>,
     project_root: &Path,
-    children: &ForegroundChildren,
+    children: &dyn ChildSupervisor,
 ) -> Result<(TenantId, String, GitOpsDeploy)> {
     let cloud_config = cloud.ok_or_else(|| anyhow!("No cloud configuration in profile"))?;
     let deploy = cloud_config
@@ -186,8 +186,8 @@ fn gitops_provider(
             deploy,
             project_root: project_root.to_path_buf(),
         },
-        DockerCli::new(children.clone()),
-        Box::new(SystemCommandRunner::new(children.clone())),
+        DockerCli::new(children.handle()),
+        Box::new(SystemCommandRunner::new(children.handle())),
     )?;
     Ok((tenant_id, tenant.name.clone(), provider))
 }

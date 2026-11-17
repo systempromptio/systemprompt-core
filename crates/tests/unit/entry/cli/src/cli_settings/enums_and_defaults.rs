@@ -3,7 +3,7 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::cli_settings::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
+use systemprompt_extension::cli::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
 
 #[test]
 fn test_output_format_table_variant() {

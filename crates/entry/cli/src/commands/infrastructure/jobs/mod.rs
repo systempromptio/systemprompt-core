@@ -1,7 +1,7 @@
 //! `jobs` CLI command group: list, inspect, run, and manage scheduled jobs.
 //!
 //! [`JobsCommands`] enumerates the subcommands; [`execute`] dispatches each to
-//! its submodule and renders the result. Includes manual job runs, history and
+//! its submodule and returns the result. Includes manual job runs, history and
 //! enable/disable toggles, and `prune`, the only path that deletes
 //! `scheduled_jobs` rows; one-off cleanups run as jobs (`infra jobs run`) or
 //! through `infra logs cleanup` / `admin users session cleanup`.
@@ -20,11 +20,12 @@ mod prune;
 mod run;
 mod show;
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Subcommand;
 
-use crate::context::CommandContext;
-use crate::shared::render_result;
+use systemprompt_extension::AdmittedSchedule;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum JobsCommands {
@@ -52,26 +53,30 @@ pub enum JobsCommands {
     Disable(disable::DisableArgs),
 
     #[command(
-        about = "Delete scheduled_jobs rows no job linked into this binary names",
-        long_about = "Lists the scheduled_jobs rows that no job linked into this binary names, \
-                      and deletes them after confirmation (--dry-run only lists). A job whose \
-                      extension this profile disables is still linked and is never listed. A \
-                      node's boot never deletes a row, so this is how a retired job's row is \
-                      removed. Run it from a binary that links every capability the cluster \
-                      runs: a row only another binary links would otherwise be deleted."
+        about = "Delete scheduled_jobs rows no admitted job names",
+        long_about = "Lists the scheduled_jobs rows that no job of the admitted composition \
+                      names, and deletes them after confirmation (--dry-run only lists). The \
+                      rows of a member this profile disables are included: it is not admitted. \
+                      A node's boot never deletes a row, so this is how a retired job's row is \
+                      removed. Run it with a binary and profile that admit every capability the \
+                      cluster runs: a row only another composition admits would otherwise be \
+                      deleted."
     )]
     Prune(prune::PruneArgs),
 }
 
-pub async fn execute(cmd: JobsCommands, ctx: &CommandContext) -> Result<()> {
+pub async fn execute(cmd: JobsCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match cmd {
-        JobsCommands::List => render_result(&list::execute(ctx).await?, &ctx.cli),
-        JobsCommands::Show(args) => render_result(&show::execute(args, ctx).await?, &ctx.cli),
-        JobsCommands::Run(args) => render_result(&run::execute(args, ctx).await?, &ctx.cli),
-        JobsCommands::History(args) => render_result(&history::execute(args, ctx).await?, &ctx.cli),
-        JobsCommands::Enable(args) => render_result(&enable::execute(args, ctx).await?, &ctx.cli),
-        JobsCommands::Disable(args) => render_result(&disable::execute(args, ctx).await?, &ctx.cli),
-        JobsCommands::Prune(args) => render_result(&prune::execute(args, ctx).await?, &ctx.cli),
+        JobsCommands::List => list::execute(host).await,
+        JobsCommands::Show(args) => show::execute(args, host).await,
+        JobsCommands::Run(args) => run::execute(args, host).await,
+        JobsCommands::History(args) => history::execute(args, host).await,
+        JobsCommands::Enable(args) => enable::execute(args, host).await,
+        JobsCommands::Disable(args) => disable::execute(args, host).await,
+        JobsCommands::Prune(args) => prune::execute(args, host).await,
     }
-    Ok(())
+}
+
+async fn admitted_schedule(host: &dyn KernelHost) -> Result<AdmittedSchedule> {
+    Ok(host.resolved().await?.get::<AdmittedSchedule>()?)
 }

@@ -8,11 +8,13 @@ use axum::Router;
 use axum::body::Body;
 use axum::extract::ConnectInfo;
 use axum::http::{Request, StatusCode, header};
-use systemprompt_api::services::server::routes::configure_routes_for_role;
+use systemprompt_api::services::server::routes::{Composed, configure_routes_for_role};
 use systemprompt_api::services::server::setup_api_server;
+use systemprompt_extension::prelude::Dependencies;
 use systemprompt_manifest::profile::{NodeRole, RateLimitsConfig};
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_app_context_with_config, fixture_config, test_db_pool,
+    ComposedParts, ensure_test_bootstrap, fixture_app_context_with_config, fixture_config,
+    gateway_probe_admitted, offline_resolved_kernel,
 };
 use tower::ServiceExt;
 
@@ -20,14 +22,19 @@ const NO_ROUTE: &str = "No route matches";
 
 async fn router_for(role: NodeRole) -> anyhow::Result<Router> {
     let bootstrap = ensure_test_bootstrap();
-    let pool = test_db_pool().await;
     let mut config = fixture_config(&bootstrap.database_url);
     config.rate_limits = RateLimitsConfig::disabled();
     config.trusted_proxies = Vec::new();
     config.role = role;
-    let ctx = fixture_app_context_with_config(&pool, config)?;
+    let ctx = fixture_app_context_with_config(config).await?;
+    let admitted = gateway_probe_admitted(ComposedParts::default());
+    let kernel = offline_resolved_kernel(&admitted, Dependencies::new());
     setup_api_server(
         &ctx,
+        Composed {
+            admitted: &admitted,
+            kernel: &kernel,
+        },
         None,
         &std::sync::Arc::new(systemprompt_api::services::server::ReadinessState::new()),
     )
@@ -91,26 +98,24 @@ async fn api_node_refuses_the_gateway_and_serves_api_surfaces() -> anyhow::Resul
 async fn configure_routes_for_role_mounts_the_gateway_regardless_of_the_configured_role()
 -> anyhow::Result<()> {
     let bootstrap = ensure_test_bootstrap();
-    let pool = test_db_pool().await;
     let mut config = fixture_config(&bootstrap.database_url);
     config.rate_limits = RateLimitsConfig::disabled();
     config.role = NodeRole::Api;
-    let ctx = fixture_app_context_with_config(&pool, config)?;
+    let ctx = fixture_app_context_with_config(config).await?;
+    let admitted = gateway_probe_admitted(ComposedParts::default());
+    let kernel = offline_resolved_kernel(&admitted, Dependencies::new());
 
     let gateway = configure_routes_for_role(
         &ctx,
+        Composed {
+            admitted: &admitted,
+            kernel: &kernel,
+        },
         NodeRole::Gateway,
         None,
-        &std::sync::Arc::new(
-            systemprompt_gateway::GatewayEngines::new(
-                Default::default(),
-                &systemprompt_test_fixtures::fixture_extension_context(
-                    &systemprompt_test_fixtures::test_db_pool().await,
-                ),
-                systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
-            )
-            .expect("gateway engines build"),
-        ),
+        &std::sync::Arc::new(systemprompt_api::routes::gateway::gateway_engines(
+            &ctx, &kernel,
+        )?),
     )?;
     assert!(is_mounted(&gateway, "/v1/models").await?);
     Ok(())

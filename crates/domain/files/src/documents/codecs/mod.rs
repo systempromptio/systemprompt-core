@@ -1,7 +1,8 @@
 //! Core document codecs and the registry that selects one per format.
 //!
-//! Four codecs ship with core and register themselves at compile time with
-//! `register_document_codec!`:
+//! Four codecs ship with core, plus the office codecs under the `office`
+//! feature; [`core_codecs`] lists them and the files member contributes them
+//! to [`DocumentsSlot`](crate::contract::DocumentsSlot):
 //!
 //! - [`FileCodec`] — any other upload, stored as bytes and never edited.
 //! - [`TextCodec`] — plain text, projected as `line[N]` nodes.
@@ -11,9 +12,9 @@
 //!   document order (`body/p[2]`).
 //!
 //! Every core codec reports the default priority (100). An extension that
-//! registers a codec for the same format with a higher priority replaces the
-//! core codec in [`CodecRegistry`]; among equal priorities the codec
-//! registered first wins.
+//! contributes a codec for the same format with a higher priority replaces
+//! the core codec in [`CodecRegistry`]; among equal priorities the codec
+//! contributed first wins.
 //!
 //! Anchored ops in one batch address the projection they were read from.
 //! A whole-document op (`str_replace`, `set_text`, `set_html`) rewrites that
@@ -70,3 +71,33 @@ pub mod pptx;
 
 #[cfg(feature = "office")]
 pub mod odf;
+
+use std::sync::Arc;
+
+use systemprompt_provider_contracts::documents::DocumentCodec;
+
+#[must_use]
+pub fn core_codecs() -> Vec<Arc<dyn DocumentCodec>> {
+    let plain: [Arc<dyn DocumentCodec>; 4] = [
+        Arc::new(FileCodec),
+        Arc::new(TextCodec),
+        Arc::new(MarkdownCodec),
+        Arc::new(HtmlCodec),
+    ];
+    let codecs = plain.into_iter();
+    #[cfg(feature = "office")]
+    let codecs = codecs.chain(office_codecs());
+    codecs.collect()
+}
+
+#[cfg(feature = "office")]
+fn office_codecs() -> [Arc<dyn DocumentCodec>; 6] {
+    [
+        Arc::new(docx::DocxCodec),
+        Arc::new(xlsx::XlsxCodec),
+        Arc::new(pptx::PptxCodec),
+        Arc::new(odf::OdtCodec),
+        Arc::new(odf::OdsCodec),
+        Arc::new(odf::OdpCodec),
+    ]
+}

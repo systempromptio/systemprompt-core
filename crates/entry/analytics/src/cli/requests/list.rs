@@ -10,12 +10,12 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use systemprompt_analytics::RequestAnalyticsRepository;
 use systemprompt_analytics::models::reporting::{RequestListFilter, RequestListRow};
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiRequestId, UserId};
 use systemprompt_logging::CliService;
-use systemprompt_runtime::DatabaseContext;
 
 use crate::cli::shared::{export_to_csv, parse_time_range};
-use systemprompt_cli::kernel::{CliConfig, CommandOutput};
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 #[derive(Debug, Args)]
 pub struct ListArgs {
@@ -81,10 +81,10 @@ pub(super) struct RequestListOutput {
 
 pub(super) async fn execute_with_pool(
     args: ListArgs,
-    db_ctx: &DatabaseContext,
+    pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let repo = RequestAnalyticsRepository::new(db_ctx.db_pool());
+    let repo = RequestAnalyticsRepository::new(pool);
     execute_internal(args, &repo).await
 }
 

@@ -11,6 +11,7 @@ pub mod show;
 mod switch;
 pub mod types;
 
+use crate::kernel::KernelHost;
 use std::path::Path;
 
 use anyhow::Result;
@@ -19,9 +20,7 @@ use systemprompt_cloud::{CloudError, SessionStore};
 use systemprompt_identifiers::ProfileName;
 use systemprompt_logging::CliService;
 
-use crate::context::CommandContext;
-use crate::descriptor::{CommandDescriptor, DescribeCommand};
-use crate::shared::render_result;
+use systemprompt_extension::cli::{CommandDescriptor, CommandOutput, DescribeCommand};
 
 #[derive(Debug, Subcommand)]
 pub enum SessionCommands {
@@ -30,7 +29,7 @@ pub enum SessionCommands {
 
     #[command(about = "Switch to a different profile")]
     Switch {
-        #[arg(value_parser = crate::shared::parse_profile_name)]
+        #[arg(value_parser = systemprompt_extension::cli::parsers::parse_profile_name)]
         profile_name: ProfileName,
     },
 
@@ -56,32 +55,27 @@ impl DescribeCommand for SessionCommands {
     }
 }
 
-pub async fn execute(cmd: SessionCommands, ctx: &CommandContext) -> Result<()> {
+pub async fn execute(cmd: SessionCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match cmd {
         SessionCommands::Show => {
-            let result = show::execute(&ctx.cli);
-            render_result(&result, &ctx.cli);
-            Ok(())
+            let result = show::execute(host.output());
+            Ok(result)
         },
         SessionCommands::Switch { profile_name } => {
             let result = switch::execute(&profile_name)?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            Ok(result)
         },
         SessionCommands::List => {
-            let result = list::execute(&ctx.cli);
-            render_result(&result, &ctx.cli);
-            Ok(())
+            let result = list::execute(host.output());
+            Ok(result)
         },
         SessionCommands::Login(args) => {
-            let result = login::execute(args, ctx).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            let result = login::execute(args, host).await?;
+            Ok(result)
         },
         SessionCommands::Logout(ref args) => {
-            let result = logout::execute(args, ctx.prompter(), &ctx.cli)?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            let result = logout::execute(args, host.prompter(), host.output())?;
+            Ok(result)
         },
     }
 }

@@ -4,10 +4,11 @@
 
 use clap::Parser;
 use systemprompt_cli::infrastructure::db::{self, DbCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_runtime::DatabaseContext;
-use systemprompt_test_fixtures::{test_database_url, test_db_pool};
+use systemprompt_test_fixtures::{DisposableDb, test_database_url, test_db_pool};
 
 #[derive(Debug, Parser)]
 struct Harness {
@@ -25,7 +26,7 @@ fn try_parse(args: &[&str]) -> Result<Harness, clap::Error> {
 
 
 fn ctx(pool: &DbPool) -> CommandContext {
-    CommandContext::with_database(
+    crate::boot_ctx::with_database(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
@@ -95,13 +96,7 @@ async fn migration_status_and_plan_report() {
     db::execute(parse(&["migrations", "status"]), &ctx)
         .await
         .unwrap();
-    db::execute(parse(&["migrate-status", "--json"]), &ctx)
-        .await
-        .unwrap();
     db::execute(parse(&["migrate-status"]), &ctx).await.unwrap();
-    db::execute(parse(&["migrate-plan", "--json"]), &ctx)
-        .await
-        .unwrap();
     db::execute(parse(&["migrate-plan"]), &ctx).await.unwrap();
 }
 
@@ -117,9 +112,7 @@ async fn migrations_history_requires_known_extension() {
 async fn migrate_repair_dry_run_reports_no_drift() {
     let pool = test_db_pool().await;
     let ctx = ctx(&pool);
-    db::execute(parse(&["migrate-repair", "--json"]), &ctx)
-        .await
-        .unwrap();
+    db::execute(parse(&["migrate-repair"]), &ctx).await.unwrap();
     db::execute(parse(&["migrate-repair"]), &ctx).await.unwrap();
 }
 
@@ -151,11 +144,19 @@ async fn migrate_down_rejects_unknown_extension() {
 
 #[tokio::test]
 async fn doctor_reconciles_schema_against_extension_declarations() {
-    let pool = test_db_pool().await;
-    let ctx = ctx(&pool);
+    let disposable = DisposableDb::with_schema("cli_db_doctor").await;
+    let ctx = crate::boot_ctx::with_database(
+        CliConfig::new()
+            .with_interactive(false)
+            .with_output_format(OutputFormat::Json),
+        EnvOverrides::default(),
+        DatabaseContext::from_pool(disposable.test_pool().await),
+        disposable.url().to_owned(),
+    );
     db::execute(parse(&["doctor"]), &ctx)
         .await
         .expect("doctor reconciles a migrated schema without erroring");
+    disposable.drop_now().await;
 }
 
 #[test]

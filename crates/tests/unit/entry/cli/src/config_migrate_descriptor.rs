@@ -11,7 +11,7 @@
 
 use clap::Parser;
 use systemprompt_cli::args::Commands;
-use systemprompt_cli::descriptor::DescribeCommand;
+use systemprompt_extension::cli::DescribeCommand;
 
 #[derive(Debug, Parser)]
 struct Harness {
@@ -19,7 +19,7 @@ struct Harness {
     cmd: Commands,
 }
 
-fn descriptor(args: &[&str]) -> systemprompt_cli::descriptor::CommandDescriptor {
+fn descriptor(args: &[&str]) -> systemprompt_extension::cli::CommandDescriptor {
     Harness::try_parse_from(std::iter::once("systemprompt").chain(args.iter().copied()))
         .unwrap_or_else(|e| panic!("failed to parse {args:?}: {e}"))
         .cmd

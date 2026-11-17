@@ -36,7 +36,7 @@ The contracts are here, in the shared layer. The implementations live in domain 
 
 ```toml
 [dependencies]
-systemprompt-provider-contracts = "0.81"
+systemprompt-provider-contracts = "0.83"
 ```
 
 ```rust
@@ -100,7 +100,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 |-------|---------|
 | `async-trait` | Async trait support for `dyn`-compatible providers |
 | `futures` | Stream primitives for `ChatStream` |
-| `inventory` | Compile-time provider registration |
 | `serde`, `serde_json`, `serde_yaml` | Request/response and config (de)serialization |
 | `thiserror` | Typed error enums |
 | `chrono` | Timestamps in feed and sitemap entries |

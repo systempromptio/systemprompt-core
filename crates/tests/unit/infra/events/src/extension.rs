@@ -1,5 +1,13 @@
 use systemprompt_events::EventsExtension;
-use systemprompt_extension::Extension;
+use systemprompt_extension::contribute::ContributionSink;
+use systemprompt_extension::{Extension, StandingTag};
+use systemprompt_test_fixtures::admitted_member;
+
+fn contributions() -> ContributionSink {
+    admitted_member(&EventsExtension, StandingTag::Core)
+        .expect("events contributes")
+        .sink
+}
 
 #[test]
 fn metadata_identifies_the_events_extension() {
@@ -15,8 +23,9 @@ fn metadata_identifies_the_events_extension() {
 
 #[test]
 fn schema_declares_event_outbox_with_relay_columns() {
-    let schemas = EventsExtension.schemas();
-    let tables: Vec<_> = schemas
+    let sink = contributions();
+    let tables: Vec<_> = sink
+        .schemas()
         .iter()
         .filter(|schema| schema.table.is_some())
         .collect();
@@ -50,8 +59,8 @@ fn schema_declares_event_outbox_with_relay_columns() {
 
 #[test]
 fn migrations_come_from_the_schema_migrations_directory() {
-    let migrations = EventsExtension.migrations();
-    let names: Vec<&str> = migrations.iter().map(|m| m.name.as_str()).collect();
+    let sink = contributions();
+    let names: Vec<&str> = sink.migrations().iter().map(|m| m.name.as_str()).collect();
     assert_eq!(
         names,
         [

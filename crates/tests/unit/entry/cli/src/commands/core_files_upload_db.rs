@@ -7,19 +7,19 @@ use std::path::PathBuf;
 
 use sha2::{Digest, Sha256};
 use systemprompt_cli::core::files::upload::{self, UploadArgs};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
-use systemprompt_database::DbPool;
+use systemprompt_cli::{CommandContext, EnvOverrides};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::ContextId;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context, test_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context};
 use tempfile::TempDir;
 
-fn ctx(pool: &DbPool, database_url: &str) -> CommandContext {
+async fn ctx(database_url: &str) -> CommandContext {
     crate::boot_ctx::with_app_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
-        test_app_context(pool, database_url),
+        test_app_context(database_url).await,
     )
 }
 
@@ -45,8 +45,7 @@ fn hex_sha256(bytes: &[u8]) -> String {
 #[tokio::test]
 async fn uploads_a_text_file_and_reports_size_mime_and_checksum() {
     let boot = ensure_test_bootstrap();
-    let pool = test_db_pool().await;
-    let ctx = ctx(&pool, &boot.database_url);
+    let ctx = ctx(&boot.database_url).await;
 
     let tmp = TempDir::new().unwrap();
     let path = tmp.path().join("notes.txt");
@@ -90,8 +89,7 @@ async fn uploads_a_text_file_and_reports_size_mime_and_checksum() {
 #[tokio::test]
 async fn uploads_binary_content_without_corrupting_the_checksum() {
     let boot = ensure_test_bootstrap();
-    let pool = test_db_pool().await;
-    let ctx = ctx(&pool, &boot.database_url);
+    let ctx = ctx(&boot.database_url).await;
 
     // A PNG header followed by every byte value: an allowed mime type whose
     // payload is genuinely binary, so a base64 round-trip bug would show up in
@@ -127,8 +125,7 @@ async fn uploads_binary_content_without_corrupting_the_checksum() {
 #[tokio::test]
 async fn disallowed_mime_type_is_rejected() {
     let boot = ensure_test_bootstrap();
-    let pool = test_db_pool().await;
-    let ctx = ctx(&pool, &boot.database_url);
+    let ctx = ctx(&boot.database_url).await;
 
     let tmp = TempDir::new().unwrap();
     let path = tmp.path().join("payload.bin");
@@ -149,8 +146,7 @@ async fn disallowed_mime_type_is_rejected() {
 #[tokio::test]
 async fn empty_file_uploads_with_the_empty_digest() {
     let boot = ensure_test_bootstrap();
-    let pool = test_db_pool().await;
-    let ctx = ctx(&pool, &boot.database_url);
+    let ctx = ctx(&boot.database_url).await;
 
     let tmp = TempDir::new().unwrap();
     let path = tmp.path().join("empty.txt");
@@ -172,8 +168,7 @@ async fn empty_file_uploads_with_the_empty_digest() {
 #[tokio::test]
 async fn missing_file_reports_the_offending_path() {
     let boot = ensure_test_bootstrap();
-    let pool = test_db_pool().await;
-    let ctx = ctx(&pool, &boot.database_url);
+    let ctx = ctx(&boot.database_url).await;
 
     let context_id = ContextId::generate();
     let missing = PathBuf::from("/nonexistent/definitely-not-here.txt");
@@ -192,8 +187,7 @@ async fn missing_file_reports_the_offending_path() {
 #[tokio::test]
 async fn attaches_the_supplied_user_and_session() {
     let boot = ensure_test_bootstrap();
-    let pool = test_db_pool().await;
-    let ctx = ctx(&pool, &boot.database_url);
+    let ctx = ctx(&boot.database_url).await;
 
     let tmp = TempDir::new().unwrap();
     let path = tmp.path().join("attributed.md");

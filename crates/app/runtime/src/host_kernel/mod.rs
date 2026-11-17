@@ -3,18 +3,22 @@
 //! A managed MCP server and a spawned agent boot from the environment the API
 //! spawned them with: the profile path, the database URLs, the deployment's
 //! public verification key set and the secrets their manifest grants. The
-//! sequence runs the same composition stages as [`AppContextBuilder`]
-//! (database, authz, governed extensions, event plane, documents,
-//! notifications) over that narrower input, so a child enforces the API's
-//! authorization by construction. It never reads the profile's secrets
-//! source and builds no OAuth repository.
+//! child admits the same composition the API admits ([`AdmitFn`], run once
+//! against the loaded profile), seeds its kernel with [`base_kernel_state`]
+//! (escalations go to the serving host's consumer,
+//! `EscalationDelivery::Consumer`), resolves it, and then runs the stages
+//! that read the resolved state — authz, governance, documents — over that
+//! narrower input, so a child enforces the API's authorization by
+//! construction. It never reads the profile's secrets source and builds no
+//! OAuth repository.
 //!
-//! [`HostKernel::boot`] returns the composed handles in [`HostParts`] and a
-//! [`HostKernel`] that finishes the two steps that need the composed context
-//! itself as an [`ExtensionContext`]: binding the extension state and
-//! assembling notifications over the discovered extension seams.
+//! [`HostKernel::boot`] returns the composed handles in [`HostParts`],
+//! including the resolved [`Kernel`] whose state the child's extension
+//! context reads. The notifications member binds its own service slot while
+//! the kernel resolves; the child binds only the files member's document
+//! store slot.
 //!
-//! [`AppContextBuilder`]: crate::AppContextBuilder
+//! [`base_kernel_state`]: crate::base_kernel_state
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -27,32 +31,30 @@ use systemprompt_agent::repository::A2ARepositories;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_config::{GrantedSecrets, GrantedSecretsError, LoadedProfile};
 use systemprompt_database::DbPool;
-use systemprompt_extension::{ExtensionContext, ExtensionRegistry, StateHandle};
+use systemprompt_extension::Admitted;
 use systemprompt_files::FilesConfig;
 use systemprompt_governance::authz::{SharedAuthzHook, SubjectProviderSet};
-use systemprompt_identifiers::{ExtensionId, UserId};
+use systemprompt_identifiers::UserId;
 use systemprompt_loader::ServicesState;
-use systemprompt_manifest::Config;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
+use systemprompt_manifest::{Config, Profile};
 use systemprompt_marketplace::managed::PublicationPolicy;
 use systemprompt_mcp::ArtifactIngest;
 use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_models::authz::SubjectSourceHandle;
 use systemprompt_models::subprocess::VERIFICATION_KEYS_ENV;
-#[cfg(feature = "notifications")]
-use systemprompt_notifications::service::NotificationsServiceSlot;
 use systemprompt_provider_contracts::Dependencies;
 use systemprompt_security::jwt::VerifyingTokenAuthority;
 use systemprompt_security::keys::VerificationKeyring;
-use systemprompt_traits::{BackgroundTasks, DynToolCallIntentClaims, FileStorage};
+use systemprompt_traits::{BackgroundTasks, BoxedSource, DynToolCallIntentClaims, FileStorage};
 use systemprompt_users::UserRepository;
 
-#[cfg(feature = "notifications")]
-use crate::builder::notifications::{ExtensionSeams, NotificationsCore};
 use crate::documents::DocumentsRuntime;
-#[cfg(feature = "notifications")]
-use crate::documents::ExtensionAudiences;
 use crate::error::RuntimeError;
+use crate::kernel::Kernel;
+
+/// The admission a host runs once, against the loaded profile.
+pub type AdmitFn = Box<dyn FnOnce(&Profile) -> Result<Admitted, BoxedSource> + Send>;
 
 pub const PROFILE_ENV: &str = "SYSTEMPROMPT_PROFILE";
 
@@ -76,6 +78,8 @@ pub enum HostBootError {
     Services(#[source] Box<systemprompt_loader::ConfigLoadError>),
     #[error("the runtime configuration could not be built")]
     Config(#[source] Box<systemprompt_config::ConfigError>),
+    #[error("the composition could not be admitted against the profile")]
+    Admission(#[source] BoxedSource),
     #[error(transparent)]
     Runtime(Box<RuntimeError>),
 }
@@ -111,7 +115,8 @@ pub struct HostParts {
     pub log_sink: systemprompt_logging::LogSink,
     pub tokens: Arc<VerifyingTokenAuthority>,
     pub file_storage: Arc<dyn FileStorage>,
-    pub extensions: Arc<ExtensionRegistry>,
+    pub kernel: Arc<Kernel>,
+    pub admitted: Arc<Admitted>,
     pub system_owner: UserId,
     pub a2a: Arc<A2ARepositories>,
 }
@@ -127,80 +132,11 @@ impl std::fmt::Debug for HostParts {
 
 impl HostParts {
     #[must_use]
-    pub fn kernel_state(&self) -> Dependencies {
-        crate::base_kernel_state(
-            &self.database,
-            &self.app_paths,
-            &self.files_config,
-            self.profile.profile(),
-            &self.documents,
-        )
+    pub fn kernel_state(&self) -> &Dependencies {
+        self.kernel.state()
     }
 }
 
-/// Finishes a child's composition once the context exists.
-///
-/// `bind_notifications` assembles the child's notification service with the
-/// discovered extension seams and binds it into the `NotificationsServiceSlot`
-/// of the host's extension state. A child never binds the consumer slot: it
-/// delivers escalations through the serving host's consumer. When the
-/// `notifications` extension is disabled the slot is absent and nothing is
-/// assembled, so the inbox tool is not offered.
-pub struct HostKernel {
-    market_state: StateHandle,
-    extensions: Arc<ExtensionRegistry>,
-    disabled_extensions: Vec<ExtensionId>,
-    #[cfg(feature = "notifications")]
-    audiences: ExtensionAudiences,
-    #[cfg(feature = "notifications")]
-    notifications: NotificationsCore,
-}
-
-impl std::fmt::Debug for HostKernel {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("HostKernel")
-            .field("disabled_extensions", &self.disabled_extensions)
-            .finish_non_exhaustive()
-    }
-}
-
-impl HostKernel {
-    pub fn bind_extension_state(
-        &self,
-        ctx: &dyn ExtensionContext,
-        kernel: Dependencies,
-    ) -> Result<Dependencies, HostBootError> {
-        let state = self
-            .extensions
-            .build_state(ctx, kernel, &self.disabled_extensions)
-            .map_err(RuntimeError::from)?;
-        self.market_state
-            .bind(state.clone())
-            .map_err(RuntimeError::from)?;
-        Ok(state)
-    }
-
-    #[cfg_attr(
-        not(feature = "notifications"),
-        expect(
-            unused_variables,
-            clippy::unused_self,
-            clippy::unnecessary_wraps,
-            reason = "the notification service is assembled only when the runtime links it"
-        )
-    )]
-    pub fn bind_notifications(&self, ctx: &dyn ExtensionContext) -> Result<(), HostBootError> {
-        #[cfg(feature = "notifications")]
-        {
-            let state = ctx.extension_state();
-            let Some(slot) = state.find::<NotificationsServiceSlot>() else {
-                return Ok(());
-            };
-            let seams = ExtensionSeams::discover(ctx);
-            self.audiences.bind(seams.audiences.clone());
-            slot.bind(Arc::clone(&self.notifications.assemble(seams).service))
-                .map_err(RuntimeError::from)?;
-        }
-        Ok(())
-    }
-}
+/// The boot sequence of a child host; see the module documentation.
+#[derive(Debug, Clone, Copy)]
+pub struct HostKernel;

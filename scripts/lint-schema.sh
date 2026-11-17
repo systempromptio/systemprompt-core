@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Pre-merge gate enforcing the declarative-schema / imperative-migration split.
 #
-# Scans every crates/**/schema/*.sql (not under schema/migrations/) for the
+# Scans every crates/**/schema/*.sql (not under schema/migrations/ or
+# schema/retirements/, whose `DROP … IF EXISTS` declarations the install-time
+# retirement check judges) for the
 # imperative-SQL forms the install-time linter rejects. The runner's
 # schema_linter is the authoritative enforcement point at boot — this script
 # is a fast pre-merge preview so authors hit the rule on their workstation,
@@ -40,7 +42,8 @@ fi
 
 # shellcheck disable=SC2207
 files=($(find "${ROOTS[@]}" \( -name target -o -name 'target-*' \) -prune \
-    -o -type f -name '*.sql' -path '*/schema/*' -not -path '*/schema/migrations/*' -print \
+    -o -type f -name '*.sql' -path '*/schema/*' -not -path '*/schema/migrations/*' \
+    -not -path '*/schema/retirements/*' -print \
     | sort))
 
 if [ ${#files[@]} -eq 0 ]; then

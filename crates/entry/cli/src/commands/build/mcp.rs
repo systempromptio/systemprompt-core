@@ -9,14 +9,12 @@ use std::path::Path;
 use std::process::Command;
 
 use systemprompt_loader::ExtensionLoader;
-use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_logging::CliService;
 use systemprompt_models::BuildType;
 
 use super::types::{BuildExtensionRow, BuildOutput};
-use crate::CliConfig;
-use crate::shared::command_result::CommandOutput;
-use crate::shared::project::ProjectRoot;
+use systemprompt_cloud::paths::ProjectRoot;
+use systemprompt_extension::cli::{ChildSupervisor, CliConfig, CommandOutput};
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct McpArgs {
@@ -27,7 +25,7 @@ pub struct McpArgs {
 pub(super) fn execute(
     args: McpArgs,
     config: &CliConfig,
-    children: &ForegroundChildren,
+    children: &dyn ChildSupervisor,
 ) -> Result<CommandOutput> {
     let project_root = ProjectRoot::discover().map_err(|e| anyhow!("{}", e))?;
     execute_in_root(args, config, project_root.as_path(), children)
@@ -37,7 +35,7 @@ pub fn execute_in_root(
     args: McpArgs,
     config: &CliConfig,
     root: &Path,
-    children: &ForegroundChildren,
+    children: &dyn ChildSupervisor,
 ) -> Result<CommandOutput> {
     let extensions = ExtensionLoader::get_enabled_mcp_extensions(root);
 
@@ -130,7 +128,7 @@ fn build_workspace_crate(
     package: &str,
     release: bool,
     config: &CliConfig,
-    children: &ForegroundChildren,
+    children: &dyn ChildSupervisor,
 ) -> Result<()> {
     if !config.is_json_output() {
         CliService::info(&format!("Building {} (workspace)", package));
@@ -166,7 +164,7 @@ fn build_submodule_crate(
     project_root: &Path,
     release: bool,
     config: &CliConfig,
-    children: &ForegroundChildren,
+    children: &dyn ChildSupervisor,
 ) -> Result<()> {
     let name = extension_path
         .file_name()

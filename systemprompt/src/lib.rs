@@ -21,7 +21,7 @@
 //! | `client` | `systemprompt-client` | HTTP API client used by the CLI. |
 //! | `security` | `systemprompt-security`, `systemprompt-governance` | JWT, scope/RBAC, secret scanning, rate limit. |
 //! | `cli` | `systemprompt-cli` (which depends on `systemprompt-api`, so it compiles the `api` crate graph) | The `systemprompt` CLI as a library entry point. |
-//! | `runtime` | `cli` + `systemprompt-extension` | `RuntimeBuilder` for embedding the CLI in a custom binary. The `systemprompt::runtime` module also compiles under `full`, where it re-exports the document store runtime as `systemprompt::runtime::documents` (the document MCP tools are `systemprompt::runtime::documents::mcp`). |
+//! | `runtime` | `cli` + `systemprompt-extension` | The `systemprompt::runtime` module (a custom binary runs the CLI through `Composition::run`); it also compiles under `full`, where it re-exports the document store runtime as `systemprompt::runtime::documents` (the document MCP tools are `systemprompt::runtime::documents::mcp`). |
 //! | `analytics` | `systemprompt-analytics`, and the `/api/v1/analytics` and engagement routes and the `analytics` command group from `systemprompt-analytics-entry` | Request, conversation, agent, tool, and cost metrics without the rest of `full`. The routes need `api`, the commands `cli`; `core content popular` also needs `content`. In `full`. |
 //! | `content` | the `systemprompt::content` module, and the `/api/v1/content` and link-redirect routes and the `core content` commands from `systemprompt-content-entry` (with `analytics`, also the `core content popular` leaf) | Content ingestion, links and campaigns without the rest of `full`. The routes need `api`, the commands `cli`. In `full`. |
 //! | `slack` | the `systemprompt::slack` module and the `/api/v1/slack` routes from `systemprompt-slack-entry` | Slack Events API, slash commands, interactivity. Not part of `full`. |
@@ -36,7 +36,7 @@
 //! | `full` | `api`, `mcp`, `cloud`, `cli`, `config`, `logging`, `loader`, `events`, `storage`, `client`, `security`, `analytics`, and the domain crates (`agent`, `ai`, `mcp`, `oauth`, `users`, `content`, `marketplace`, `scheduler`, `generator`, `files`, `agent-runs`, `notifications`, `brain`), `files-office`, `files-pdf`, `otel` and `bridge` | Building a product binary, and the composition of this crate's own `systemprompt` binary. The `slack` and `teams` modules stay opt-in. |
 //!
 //! ```toml
-//! systemprompt = { version = "0.81.1", features = ["full"] }
+//! systemprompt = { version = "0.83.0", features = ["full"] }
 //! ```
 //!
 //! Crates are reachable as a module of the same name (`systemprompt::models`,
@@ -48,6 +48,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+#[cfg(feature = "full")]
+pub mod composition;
+#[cfg(feature = "full")]
+pub use composition::{Composition, CompositionError, Declared, RunError, SecretsKind, reference};
 #[cfg(feature = "core")]
 #[cfg_attr(docsrs, doc(cfg(feature = "core")))]
 pub mod traits {
@@ -156,7 +160,12 @@ pub mod system {
 #[cfg(feature = "api")]
 #[cfg_attr(docsrs, doc(cfg(feature = "api")))]
 pub mod api {
-    pub use systemprompt_api::*;
+    pub use systemprompt_api::routes::admin::services::ServicesRefresh;
+    pub use systemprompt_api::services::server::{EarlyServer, bind_and_serve};
+    pub use systemprompt_api::{
+        A2AContextMiddleware, ContextExtractor, HealthChecker, HealthSummary, McpContextMiddleware,
+        ModuleHealth, ProcessMonitor, PublicContextMiddleware, UserOnlyContextMiddleware, error,
+    };
 }
 
 /// The AI gateway: protocol translation, gateway policies and the
@@ -171,23 +180,13 @@ pub mod gateway {
 #[cfg(feature = "cli")]
 #[cfg_attr(docsrs, doc(cfg(feature = "cli")))]
 pub mod cli {
-    pub use systemprompt_cli::{
-        CliConfig, ColorMode, OutputFormat, VerbosityLevel, run, run_process, run_process_with,
-        run_with,
-    };
+    pub use systemprompt_cli::CliRunError;
+    pub use systemprompt_extension::cli::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
 }
 
 #[cfg(any(feature = "runtime", feature = "full"))]
 #[cfg_attr(docsrs, doc(cfg(any(feature = "runtime", feature = "full"))))]
 pub mod runtime;
-
-#[cfg(feature = "runtime")]
-#[cfg_attr(docsrs, doc(cfg(feature = "runtime")))]
-pub use runtime::RuntimeBuilder;
-
-#[cfg(feature = "runtime")]
-#[cfg_attr(docsrs, doc(cfg(feature = "runtime")))]
-pub use runtime::RuntimeError;
 
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
@@ -264,12 +263,8 @@ pub mod oauth_issuance {
 #[cfg(any(feature = "files-office", feature = "files-pdf"))]
 #[cfg_attr(docsrs, doc(cfg(any(feature = "files-office", feature = "files-pdf"))))]
 pub mod files {
-    pub use systemprompt_files::{register_agent_access_policy, *};
+    pub use systemprompt_files::*;
 }
-
-#[cfg(any(feature = "files-office", feature = "files-pdf"))]
-#[cfg_attr(docsrs, doc(cfg(any(feature = "files-office", feature = "files-pdf"))))]
-pub use systemprompt_files::register_agent_access_policy;
 
 #[cfg(feature = "brain")]
 #[cfg_attr(docsrs, doc(cfg(feature = "brain")))]

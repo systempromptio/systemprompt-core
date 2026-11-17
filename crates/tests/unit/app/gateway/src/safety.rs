@@ -6,6 +6,8 @@
 use std::sync::Arc;
 use systemprompt_identifiers::ModelId;
 
+use systemprompt_extension::{FactoryError, Resolved, Slot, SlotEntry, SlotError};
+use systemprompt_gateway::contract::{SafetyScannerBuilder, SafetyScannerSlot};
 use systemprompt_gateway::protocol::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalReasoning, CanonicalRequest, CanonicalResponse,
     CanonicalSampling, CanonicalTooling, CanonicalUsage, Role,
@@ -13,9 +15,46 @@ use systemprompt_gateway::protocol::canonical::{
 use systemprompt_gateway::registry::SafetyScannerRegistry;
 use systemprompt_gateway::{
     CATEGORY_SCANNER_FAILURE, Finding, HeuristicScanner, NullScanner, PHASE_REQUEST, SafetyConfig,
-    SafetyScanner, SafetyScannerRegistration, ScanError, ScannerSettings, Severity,
-    register_safety_scanner,
+    SafetyScanner, ScanError, ScannerFactory, ScannerSettings, Severity,
 };
+use systemprompt_identifiers::ExtensionId;
+
+pub(crate) fn registry_with(
+    scanners: Vec<(&'static str, Arc<dyn ScannerFactory>)>,
+) -> Result<SafetyScannerRegistry, SlotError> {
+    let mut builder = SafetyScannerBuilder::default();
+    for (name, factory) in scanners {
+        builder.scanner(
+            name,
+            move |_: &Resolved<'_>| -> Result<Arc<dyn ScannerFactory>, FactoryError> {
+                Ok(Arc::clone(&factory))
+            },
+        );
+    }
+    let kernel = systemprompt_test_fixtures::offline_kernel(Default::default());
+    SafetyScannerSlot::build(
+        vec![SlotEntry::install(ExtensionId::new("test"), builder)],
+        &kernel.resolved(),
+    )
+}
+
+fn stub_registry() -> SafetyScannerRegistry {
+    registry_with(vec![
+        (
+            "stub_secrets",
+            Arc::new(|_: &SafetyConfig, _: &ScannerSettings| {
+                Arc::new(StubSecretsScanner) as Arc<dyn SafetyScanner>
+            }) as Arc<dyn ScannerFactory>,
+        ),
+        (
+            "stub_broken",
+            Arc::new(|_: &SafetyConfig, _: &ScannerSettings| {
+                Arc::new(StubBrokenScanner) as Arc<dyn SafetyScanner>
+            }),
+        ),
+    ])
+    .expect("distinct non-builtin scanner names build")
+}
 
 fn req_with(text: &str) -> CanonicalRequest {
     CanonicalRequest {
@@ -93,11 +132,6 @@ impl SafetyScanner for StubSecretsScanner {
     }
 }
 
-register_safety_scanner!(
-    |_: &dyn systemprompt_extension::ExtensionContext, _: &ScannerSettings| StubSecretsScanner,
-    name = "stub_secrets"
-);
-
 #[derive(Default)]
 struct StubBrokenScanner;
 
@@ -123,19 +157,11 @@ impl SafetyScanner for StubBrokenScanner {
     }
 }
 
-register_safety_scanner!(
-    |_: &dyn systemprompt_extension::ExtensionContext, _: &ScannerSettings| StubBrokenScanner,
-    name = "stub_broken"
-);
-
 #[tokio::test]
 async fn a_failing_extension_scanner_reports_failure_instead_of_an_empty_clean_list() {
-    let scanner =
-        SafetyScannerRegistry::discover(&systemprompt_test_fixtures::fixture_extension_context(
-            &systemprompt_test_fixtures::test_db_pool().await,
-        ))
+    let scanner = stub_registry()
         .create("stub_broken", &SafetyConfig::default())
-        .expect("extension scanner is collected via inventory");
+        .expect("the contributed scanner is in the built registry");
     let request_outcome = scanner.scan_request(&req_with("anything")).await;
     assert!(
         matches!(
@@ -180,10 +206,7 @@ fn severity_as_str() {
 
 #[tokio::test]
 async fn registry_creates_the_builtin_heuristic_per_policy() {
-    let scanner =
-        SafetyScannerRegistry::discover(&systemprompt_test_fixtures::fixture_extension_context(
-            &systemprompt_test_fixtures::test_db_pool().await,
-        ))
+    let scanner = SafetyScannerRegistry::builtin()
         .create("heuristic", &SafetyConfig::default())
         .expect("heuristic is built in");
     assert_eq!(scanner.name(), "heuristic");
@@ -192,23 +215,18 @@ async fn registry_creates_the_builtin_heuristic_per_policy() {
 #[tokio::test]
 async fn registry_returns_none_for_unknown_scanner() {
     assert!(
-        SafetyScannerRegistry::discover(&systemprompt_test_fixtures::fixture_extension_context(
-            &systemprompt_test_fixtures::test_db_pool().await
-        ))
-        .create("does_not_exist", &SafetyConfig::default())
-        .is_none()
+        SafetyScannerRegistry::builtin()
+            .create("does_not_exist", &SafetyConfig::default())
+            .is_none()
     );
 }
 
 #[tokio::test]
 async fn registry_resolves_registered_extension_scanner() {
-    let registry =
-        SafetyScannerRegistry::discover(&systemprompt_test_fixtures::fixture_extension_context(
-            &systemprompt_test_fixtures::test_db_pool().await,
-        ));
+    let registry = stub_registry();
     let scanner = registry
         .create("stub_secrets", &SafetyConfig::default())
-        .expect("extension scanner is collected via inventory");
+        .expect("the contributed scanner is in the built registry");
     let findings = scanner
         .scan_request(&req_with("anything"))
         .await
@@ -217,18 +235,30 @@ async fn registry_resolves_registered_extension_scanner() {
     assert_eq!(findings[0].category, "secret");
 }
 
-#[tokio::test]
-async fn registration_factory_builds_scanner() {
-    let ctx = systemprompt_test_fixtures::fixture_extension_context(
-        &systemprompt_test_fixtures::test_db_pool().await,
-    );
-    let reg = SafetyScannerRegistration {
-        name: "stub_secrets",
-        factory: |_, _| Arc::new(StubSecretsScanner) as Arc<dyn SafetyScanner>,
+#[test]
+fn a_scanner_factory_closure_builds_its_scanner() {
+    let factory = |_: &SafetyConfig, _: &ScannerSettings| {
+        Arc::new(StubSecretsScanner) as Arc<dyn SafetyScanner>
     };
     assert_eq!(
-        (reg.factory)(ctx.as_ref(), &ScannerSettings::default()).name(),
+        factory
+            .create(&SafetyConfig::default(), &ScannerSettings::default())
+            .name(),
         "stub_secrets"
+    );
+}
+
+#[test]
+fn a_contributed_scanner_named_like_a_builtin_is_refused() {
+    let refused = registry_with(vec![(
+        "heuristic",
+        Arc::new(|_: &SafetyConfig, _: &ScannerSettings| {
+            Arc::new(StubSecretsScanner) as Arc<dyn SafetyScanner>
+        }) as Arc<dyn ScannerFactory>,
+    )]);
+    assert!(
+        matches!(refused, Err(SlotError::DuplicateId { .. })),
+        "{refused:?}"
     );
 }
 
@@ -416,10 +446,7 @@ mod dedup {
 
 #[tokio::test]
 async fn registry_resolves_the_null_scanner_by_name() {
-    let scanner =
-        SafetyScannerRegistry::discover(&systemprompt_test_fixtures::fixture_extension_context(
-            &systemprompt_test_fixtures::test_db_pool().await,
-        ))
+    let scanner = SafetyScannerRegistry::builtin()
         .create("null", &SafetyConfig::default())
         .expect("null is built in");
     assert_eq!(scanner.name(), "null");

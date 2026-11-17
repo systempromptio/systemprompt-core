@@ -17,13 +17,14 @@ use systemprompt_identifiers::CloudAppId;
 use chrono::Utc;
 use serde_json::json;
 use std::sync::Arc;
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_cloud::tenants::{NewCloudTenantParams, StoredTenant, TenantStore};
 use systemprompt_cloud::{CloudCredentials, CloudPath, CredentialsBootstrap, get_cloud_paths};
 use systemprompt_cloud_entry::cli::auth::AuthCommands;
 use systemprompt_cloud_entry::cli::tenant::{TenantCommands, TenantDeleteArgs, TenantRotateArgs};
 use systemprompt_cloud_entry::cli::{self as cloud, CloudCommands};
 use systemprompt_config::LoadedProfile;
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::TenantId;
 use tempfile::TempDir;
 use tokio::sync::{Mutex, MutexGuard, OnceCell};
@@ -344,12 +345,47 @@ pub(super) async fn mount_list_tenants(server: &MockServer) {
 }
 
 pub(super) fn ctx(format: OutputFormat) -> CommandContext {
+    ctx_over(format, harness_profile())
+}
+
+fn ctx_over(format: OutputFormat, profile: Option<Arc<LoadedProfile>>) -> CommandContext {
     let cli = CliConfig::default()
         .with_output_format(format)
         .with_interactive(false);
     CommandContext::new(cli, EnvOverrides::default())
         .with_cloud_credentials(harness_credentials())
-        .with_profile(harness_profile())
+        .with_profile(profile)
+        .with_admitted(Some(systemprompt_test_fixtures::fixture_admitted()))
+        .with_admit(Some(fixture_admit()))
+        .with_detached_kernel()
+}
+
+fn fixture_admit() -> systemprompt_cli::AdmitFn {
+    Box::new(|extensions| {
+        let disabled = extensions
+            .map(|extensions| {
+                extensions
+                    .disabled
+                    .iter()
+                    .map(|entry| entry.id().clone())
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        Ok(
+            Arc::try_unwrap(systemprompt_test_fixtures::fixture_admitted_without(
+                &disabled,
+            ))
+            .unwrap_or_else(|_| panic!("a fresh fixture admission is unshared")),
+        )
+    })
+}
+
+pub(super) fn target_host(ctx: &CommandContext) -> systemprompt_cli::kernel::MemberHost<'_> {
+    systemprompt_cli::kernel::MemberHost::new(
+        ctx,
+        systemprompt_extension::cli::CommandDescriptor::NONE
+            .with_grant(systemprompt_extension::cli::KernelGrant::TargetAdmission),
+    )
 }
 
 fn harness_credentials() -> Option<CloudCredentials> {
@@ -376,6 +412,9 @@ pub(super) fn interactive_ctx(
     CommandContext::new(cli, EnvOverrides::default())
         .with_cloud_credentials(harness_credentials())
         .with_profile(harness_profile())
+        .with_admitted(Some(systemprompt_test_fixtures::fixture_admitted()))
+        .with_admit(Some(fixture_admit()))
+        .with_detached_kernel()
         .with_prompter(Box::new(systemprompt_cli::ScriptedPrompter::new(answers)))
 }
 

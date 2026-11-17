@@ -1,20 +1,21 @@
-//! Content-negotiation-enabled branches of `routes::content`: the extra
-//! `.md`-suffix route registered by `public_router` and the `Link` alternate
-//! header stamped on JSON responses when negotiation is on.
+//! Content-negotiation branches of the public content routes: the Markdown
+//! route answers only when negotiation is on and the trailing segment equals
+//! the configured suffix, and JSON responses carry the `Link` alternate when
+//! negotiation is on.
 
 use anyhow::Result;
 use axum::{Extension, Router};
 use http_body_util::BodyExt;
-use systemprompt_api::kernel::{AcceptedFormat, AcceptedMediaType};
 use systemprompt_content_entry::http as content;
 use systemprompt_database::DbPool;
+use systemprompt_extension::router::{AcceptedFormat, AcceptedMediaType};
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_app_context_with_config, fixture_config, test_db_pool,
 };
 use tower::ServiceExt;
 
-use crate::common::{content_state, empty_get, request_context};
+use crate::common::{content_app, empty_get, request_context};
 
 async fn negotiating_ctx() -> Result<(DbPool, std::sync::Arc<AppContext>)> {
     let b = ensure_test_bootstrap();
@@ -22,7 +23,7 @@ async fn negotiating_ctx() -> Result<(DbPool, std::sync::Arc<AppContext>)> {
     let mut config = fixture_config(&b.database_url);
     config.content_negotiation.enabled = true;
     config.content_negotiation.markdown_suffix = ".md".to_owned();
-    let ctx = fixture_app_context_with_config(&pool, config)?;
+    let ctx = fixture_app_context_with_config(config).await?;
     Ok((pool, ctx))
 }
 
@@ -52,7 +53,7 @@ async fn seed_content(db: &DbPool) -> Result<(String, String)> {
 }
 
 fn public(ctx: &AppContext) -> Router {
-    content::public_router(content_state(ctx))
+    content_app(content::public_routes(), ctx)
         .layer(Extension(AcceptedFormat(AcceptedMediaType::Json)))
         .layer(Extension(request_context("neg_reader")))
 }
@@ -103,13 +104,24 @@ async fn suffix_route_serves_markdown_when_negotiation_enabled() -> Result<()> {
 }
 
 #[tokio::test]
-async fn suffix_route_absent_when_negotiation_disabled() -> Result<()> {
+async fn suffix_route_answers_not_found_when_negotiation_disabled() -> Result<()> {
     let b = ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let ctx = fixture_app_context_with_config(&pool, fixture_config(&b.database_url))?;
+    let ctx = fixture_app_context_with_config(fixture_config(&b.database_url)).await?;
     let (source, slug) = seed_content(&pool).await?;
     let resp = public(&ctx)
         .oneshot(empty_get(&format!("/{source}/{slug}/md")))
+        .await?;
+    assert_eq!(resp.status().as_u16(), 404, "{}", resp.status());
+    Ok(())
+}
+
+#[tokio::test]
+async fn suffix_route_answers_not_found_for_another_suffix() -> Result<()> {
+    let (db, ctx) = negotiating_ctx().await?;
+    let (source, slug) = seed_content(&db).await?;
+    let resp = public(&ctx)
+        .oneshot(empty_get(&format!("/{source}/{slug}/txt")))
         .await?;
     assert_eq!(resp.status().as_u16(), 404, "{}", resp.status());
     Ok(())

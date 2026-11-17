@@ -21,15 +21,15 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 use crate::common::{
-    body_to_string, content_state, empty_get, json_post, request_context, setup_ctx,
+    body_to_string, content_app, empty_get, json_post, request_context, setup_ctx,
 };
 
 fn public(ctx: &AppContext) -> Router {
-    content::public_router(content_state(ctx)).layer(Extension(request_context("content_user")))
+    content_app(content::public_routes(), ctx).layer(Extension(request_context("content_user")))
 }
 
 fn authenticated(ctx: &AppContext) -> Router {
-    content::authenticated_router(content_state(ctx))
+    content_app(content::authenticated_routes(), ctx)
         .layer(Extension(request_context("content_user")))
 }
 
@@ -234,7 +234,7 @@ async fn an_unknown_campaign_has_no_performance() -> Result<()> {
 async fn search_database_failure_is_a_json_500_and_recovers_after_schema_repair() -> Result<()> {
     let owned = DisposableDb::with_schema("content_query_failure").await;
     let db = owned.test_pool().await;
-    let ctx = test_app_context(&db, owned.url());
+    let ctx = test_app_context(owned.url()).await;
     let raw = db.pool();
     sqlx::query("ALTER TABLE markdown_content RENAME TO markdown_content_unavailable")
         .execute(raw.as_ref())
@@ -378,7 +378,7 @@ async fn link_analytics_reads_report_database_outage_and_recover_without_false_e
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let owned = DisposableDb::with_schema("link_read_outage").await;
     let db = owned.test_pool().await;
-    let ctx = test_app_context(&db, owned.url());
+    let ctx = test_app_context(owned.url()).await;
     let click_user = systemprompt_identifiers::UserId::new("content_user");
     let click_session = systemprompt_identifiers::SessionId::generate();
     systemprompt_test_fixtures::seed_user_row(&db, &click_user, "content-user@outage.invalid")
@@ -438,7 +438,7 @@ async fn link_analytics_reads_report_database_outage_and_recover_without_false_e
         .as_str()
         .expect("short code")
         .to_owned();
-    let redirect = content::redirect_router(content_state(&ctx))
+    let redirect = content_app(content::redirect_routes(), &ctx)
         .layer(Extension(click_context))
         .oneshot(empty_get(&format!("/r/{short}")))
         .await?;
@@ -446,14 +446,15 @@ async fn link_analytics_reads_report_database_outage_and_recover_without_false_e
     assert_link_reads_live(&ctx, &link, &campaign, &source).await?;
 
     let raw = db.pool();
-    raw.close().await;
+    ctx.db_pool().pool().close().await;
+    ctx.db_pool().write_pool().close().await;
     assert_link_reads_outage(&ctx, &link, &campaign, &source, owned.url()).await?;
     drop(ctx);
     drop(raw);
     drop(db);
 
     let recovered = owned.test_pool().await;
-    let recovered_ctx = test_app_context(&recovered, owned.url());
+    let recovered_ctx = test_app_context(owned.url()).await;
     assert_link_reads_live(&recovered_ctx, &link, &campaign, &source).await?;
     let row: i64 = sqlx::query_scalar("SELECT count(*) FROM campaign_links WHERE id=$1")
         .bind(&link)

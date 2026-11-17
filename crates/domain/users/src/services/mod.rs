@@ -13,6 +13,7 @@ mod admin_service;
 mod api_key_service;
 mod api_key_validation;
 mod device_cert_service;
+mod role_audience;
 mod sso_events;
 mod user;
 
@@ -25,5 +26,6 @@ pub use device_cert_service::{
     DEVICE_FINGERPRINT_FOREIGN_USER, DeviceCertService,
     EnrollParams as EnrollDeviceCertServiceParams,
 };
+pub use role_audience::UserRoleAudienceResolver;
 pub use sso_events::{OUTCOME_REFUSED, OUTCOME_SUCCESS, PostgresAuthEventSink};
-pub use user::UserService;
+pub use user::{PurgedArchive, UserService};

@@ -5,7 +5,7 @@
 
 use anyhow::{Result, anyhow};
 
-use crate::interactive::Prompter;
+use systemprompt_extension::cli::Prompter;
 
 use super::super::types::TemplatesConfig;
 

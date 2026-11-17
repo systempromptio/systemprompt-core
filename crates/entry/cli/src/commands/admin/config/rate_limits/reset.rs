@@ -3,6 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::commands::admin::config::restart_note;
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::profile::RateLimitsConfig;
@@ -13,20 +15,17 @@ use super::profile_edit::{
     collect_endpoint_changes, get_endpoint_rate, load_profile_for_edit, save_profile,
     set_endpoint_rate,
 };
-use crate::cli_settings::OutputFormat;
-use crate::context::CommandContext;
-use crate::interactive::{Prompter, require_confirmation};
-use crate::shared::{CommandOutput, render_result};
+use systemprompt_extension::cli::{CommandOutput, Prompter, require_confirmation};
 
 use super::super::types::{ResetChange, ResetOutput};
 
 pub(super) fn execute_reset(
     args: &ResetArgs,
     prompter: &dyn Prompter,
-    ctx: &CommandContext,
-) -> Result<()> {
-    let config = &ctx.cli;
-    let profile_path = profile_path(ctx)?;
+    host: &dyn KernelHost,
+) -> Result<CommandOutput> {
+    let config = host.output();
+    let profile_path = profile_path(host)?;
     let mut profile = load_profile_for_edit(profile_path)?;
     let defaults = RateLimitsConfig::default();
 
@@ -64,17 +63,11 @@ pub(super) fn execute_reset(
         message,
     };
 
-    render_result(
-        &CommandOutput::table_of(vec!["field", "old_value", "new_value"], &output.changes)
-            .with_title("Rate Limits Reset"),
-        config,
-    );
-
-    if !args.dry_run && config.output_format() == OutputFormat::Table {
-        CliService::warning("Restart services for changes to take effect");
-    }
-
-    Ok(())
+    Ok(
+        CommandOutput::table_of(vec!["field", "old_value", "new_value"], &output.changes)
+            .with_title("Rate Limits Reset")
+            .with_note(restart_note()),
+    )
 }
 
 fn reset_endpoint(

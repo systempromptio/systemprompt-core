@@ -8,7 +8,6 @@ use tabled::{Table, Tabled};
 
 use crate::commands::core::artifacts::ArtifactSummary;
 use crate::commands::core::contexts::ContextSummary;
-use crate::commands::infrastructure::db::TableInfo;
 use crate::shared::truncate_with_ellipsis;
 
 use super::{OrDash, dash};
@@ -73,29 +72,6 @@ pub fn context_list_table(contexts: &[ContextSummary]) -> String {
             } else {
                 String::new()
             },
-        })
-        .collect();
-    Table::new(rows).to_string()
-}
-
-#[derive(Tabled)]
-struct DbTableRow {
-    #[tabled(rename = "Table")]
-    name: String,
-    #[tabled(rename = "Rows (est.)")]
-    row_count: i64,
-    #[tabled(rename = "Size")]
-    size: String,
-}
-
-#[must_use]
-pub fn db_tables_table(tables: &[TableInfo]) -> String {
-    let rows: Vec<DbTableRow> = tables
-        .iter()
-        .map(|t| DbTableRow {
-            name: t.name.clone(),
-            row_count: t.row_count,
-            size: crate::commands::infrastructure::db::format_bytes(t.size_bytes),
         })
         .collect();
     Table::new(rows).to_string()

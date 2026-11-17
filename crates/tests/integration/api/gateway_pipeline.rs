@@ -28,15 +28,14 @@ use systemprompt_manifest::services::catalog::{
     EndpointConfig, ModelEntry, ProviderConfig, ResolvedCatalog,
 };
 use systemprompt_models::providers::ClientFamily;
-use systemprompt_test_fixtures::{AuthedFixture, seed_admin_credential};
+use systemprompt_test_fixtures::{AuthedFixture, ComposedParts, Probe, seed_admin_credential};
 use systemprompt_wire::WireProtocol;
 use tracing_subscriber::prelude::*;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use super::common::setup_ctx;
-use systemprompt_governance::policy::types::AccessScope;
-use systemprompt_governance::policy::{GovernanceConfig, GovernanceEngine};
+use systemprompt_governance::policy::{AccessScope, GovernanceConfig, GovernanceEngine};
 use systemprompt_models::origin::{
     ClientAttestation, ClientEvidence, ClientKind, InboundWireProtocol, RequestOrigin,
 };
@@ -279,12 +278,47 @@ pub(super) fn shared_engines() -> Arc<systemprompt_gateway::GatewayEngines> {
         Arc::new(
             systemprompt_gateway::GatewayEngines::new(
                 Default::default(),
-                &systemprompt_test_fixtures::offline_extension_context(),
+                &systemprompt_test_fixtures::gateway_resolved_kernel().resolved(),
                 systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
             )
             .expect("gateway engines build"),
         )
     }))
+}
+
+pub(super) fn engines_with_scanners(
+    scanners: Vec<(&'static str, Arc<dyn systemprompt_gateway::ScannerFactory>)>,
+) -> Arc<systemprompt_gateway::GatewayEngines> {
+    use systemprompt_extension::{FactoryError, Resolved};
+    use systemprompt_gateway::contract::SafetyScannerSlot;
+
+    let admitted = systemprompt_test_fixtures::gateway_probe_admitted(ComposedParts {
+        probes: vec![Probe::new("scanners", move |c| {
+            for (name, factory) in &scanners {
+                let factory = Arc::clone(factory);
+                c.slot::<SafetyScannerSlot>().scanner(
+                    name,
+                    move |_: &Resolved<'_>| -> Result<
+                        Arc<dyn systemprompt_gateway::ScannerFactory>,
+                        FactoryError,
+                    > { Ok(Arc::clone(&factory)) },
+                );
+            }
+        })],
+        ..ComposedParts::default()
+    });
+    let kernel = systemprompt_test_fixtures::offline_resolved_kernel(
+        &admitted,
+        systemprompt_extension::prelude::Dependencies::new(),
+    );
+    Arc::new(
+        systemprompt_gateway::GatewayEngines::new(
+            Default::default(),
+            &kernel.resolved(),
+            systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+        )
+        .expect("gateway engines build"),
+    )
 }
 
 pub(super) fn inputs_with(
@@ -328,6 +362,7 @@ fn governance_inputs(
     dispatch.governance = Arc::new(
         GovernanceEngine::from_config(
             &GovernanceConfig::parse(yaml).expect("valid governance fixture"),
+            &systemprompt_governance::policy::PolicyCatalog::builtin(),
             Some(systemprompt_test_fixtures::offline_rate_windows()),
         )
         .expect("governance fixture builds"),
@@ -1452,7 +1487,6 @@ async fn coverage_quota_warning_continues_dispatch_and_records_a_warning_decisio
     coverage_quota_dispatch("warn").await
 }
 
-#[derive(Default)]
 struct CoverageGatewayGuard;
 #[async_trait::async_trait]
 impl systemprompt_extension::GatewayRequestGuard for CoverageGatewayGuard {
@@ -1474,7 +1508,24 @@ impl systemprompt_extension::GatewayRequestGuard for CoverageGatewayGuard {
         }
     }
 }
-systemprompt_extension::register_gateway_guard!("gateway", CoverageGatewayGuard);
+
+fn coverage_guard_kernel() -> systemprompt_runtime::Kernel {
+    let admitted = systemprompt_test_fixtures::gateway_probe_admitted(ComposedParts {
+        probes: vec![Probe::new("coverage-guard", |c| {
+            c.gateway_guard(
+                |_: &systemprompt_extension::Resolved<'_>| -> Result<
+                    Arc<dyn systemprompt_extension::GatewayRequestGuard>,
+                    systemprompt_extension::FactoryError,
+                > { Ok(Arc::new(CoverageGatewayGuard)) },
+            );
+        })],
+        ..ComposedParts::default()
+    });
+    systemprompt_test_fixtures::offline_resolved_kernel(
+        &admitted,
+        systemprompt_extension::prelude::Dependencies::new(),
+    )
+}
 
 async fn coverage_guard_dispatch(model: &str, status: http::StatusCode) -> anyhow::Result<()> {
     install_provider_api_key();
@@ -1502,7 +1553,10 @@ async fn coverage_guard_dispatch(model: &str, status: http::StatusCode) -> anyho
         .deploy(model, [format!("{PROVIDER}/api").as_str()])
         .build();
     let mut di = inputs(&cred, canonical_request(model, false), false);
-    di.engines = Arc::new(systemprompt_api::routes::gateway::gateway_engines(&ctx)?);
+    di.engines = Arc::new(systemprompt_api::routes::gateway::gateway_engines(
+        &ctx,
+        &coverage_guard_kernel(),
+    )?);
     let id = di.ctx.ai_request_id.clone();
     let error = GatewayService::dispatch(
         &gateway_config(PROVIDER),
@@ -1547,7 +1601,6 @@ async fn coverage_gateway_credit_guard_denial_keeps_its_retry_after() -> anyhow:
     )
     .await
 }
-// Draft for crates/tests/integration/api/gateway_pipeline.rs
 
 fn owned_gateway_repos(
     pool: &DbPool,

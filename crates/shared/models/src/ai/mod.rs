@@ -34,7 +34,9 @@ pub use response::{
     AiResponse, SafetyRating, SearchGroundedResponse, StreamChunk, UrlMetadata, WebSource,
 };
 pub use response_format::{ResponseFormat, StructuredOutputOptions};
-pub use sampling::{ModelHint, ModelPreferences, ProviderConfig, SamplingParams};
+pub use sampling::{
+    ModelHint, ModelPreferences, ProviderConfig, ReasoningEffort, ReasoningParams, SamplingParams,
+};
 pub use template_resolver::TemplateResolver;
 pub use template_validation::{PlanValidationError, TemplateValidator, ValidationErrorKind};
 pub use tools::{CallToolResult, McpTool, ToolCall};

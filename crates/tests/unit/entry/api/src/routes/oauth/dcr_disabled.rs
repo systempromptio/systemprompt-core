@@ -18,7 +18,6 @@ use systemprompt_oauth::OAuthState;
 use systemprompt_oauth_issuance::JwksCache;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_app_context_with_config, fixture_config, test_database_url,
-    test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
@@ -26,10 +25,11 @@ use tower::ServiceExt;
 async fn ctx() -> std::sync::Arc<systemprompt_runtime::AppContext> {
     let url = test_database_url();
     ensure_test_bootstrap();
-    let pool = test_db_pool().await;
     let mut config = fixture_config(&url);
     config.allow_dynamic_client_registration = false;
-    fixture_app_context_with_config(&pool, config).expect("fixture AppContext with DCR closed")
+    fixture_app_context_with_config(config)
+        .await
+        .expect("fixture AppContext with DCR closed")
 }
 
 #[tokio::test]

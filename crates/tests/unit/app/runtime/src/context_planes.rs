@@ -5,15 +5,15 @@
 
 use std::sync::Arc;
 
-use systemprompt_analytics::AnalyticsService;
 use systemprompt_config::paths::AppPaths;
-use systemprompt_extension::ExtensionRegistry;
 use systemprompt_governance::authz::{AllowAllHook, NullAuditSink};
 use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::{ContentConfigRaw, RouteClassifier};
-use systemprompt_runtime::{AppContext, ConfigPlane, DataPlane, Plugins, Subsystems};
+use systemprompt_runtime::{
+    AppContext, ConfigPlane, ContextPlanes, DataPlane, Plugins, Subsystems,
+};
 use systemprompt_test_fixtures::{fixture_system_admin, unique_instance};
 
 fn tmp_paths() -> PathsConfig {
@@ -40,16 +40,10 @@ async fn plane_debug_impls_flag_optional_members() {
     let url = systemprompt_test_fixtures::test_database_url();
     let pool = systemprompt_test_fixtures::test_db_pool().await;
 
-    let analytics_service = Arc::new(AnalyticsService::new(
-        None,
-        None,
-        &systemprompt_test_fixtures::fixture_analytics_repositories(&pool).expect("repositories"),
-    ));
-    let session_store = Arc::clone(analytics_service.session_store());
-    let session_usage: systemprompt_traits::DynSessionUsageCounters = session_store;
+    let session_usage: systemprompt_traits::DynSessionUsageCounters =
+        Arc::new(systemprompt_users::SessionRepository::new(&pool));
     let data = DataPlane {
         database: Arc::clone(&pool),
-        analytics_service,
         fingerprint_repo: None,
         user_service: None,
         a2a_repositories: Arc::new(systemprompt_agent::repository::A2ARepositories::new(
@@ -86,10 +80,6 @@ async fn plane_debug_impls_flag_optional_members() {
             )
             .expect("at-rest cipher"),
         )),
-        analytics_repositories: Arc::new(
-            systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
-                .expect("analytics repositories"),
-        ),
         file_repository: Arc::new(systemprompt_files::FileRepository::new(&pool)),
         mcp_session_repository: Arc::new(systemprompt_mcp::repository::McpSessionRepository::new(
             &pool,
@@ -132,7 +122,6 @@ async fn plane_debug_impls_flag_optional_members() {
     assert!(dbg.contains("content_config: true"), "got: {dbg}");
 
     let plugins = Plugins {
-        extension_registry: Arc::new(ExtensionRegistry::new()),
         mcp_registry: RegistryService::new(
             systemprompt_test_fixtures::fixture_user_id(),
             systemprompt_test_fixtures::fixture_services_view(),
@@ -158,8 +147,6 @@ async fn plane_debug_impls_flag_optional_members() {
     let event_router = systemprompt_events::EventRouter::local_only(Arc::new(
         systemprompt_events::EventBroadcasters::new(),
     ));
-    let notifications =
-        systemprompt_test_fixtures::fixture_notifications(&pool, &event_router, &documents);
     let subsystems = Subsystems {
         system_admin: Arc::new(fixture_system_admin("planeadmin")),
         logging: systemprompt_test_fixtures::fixture_logging_runtime(),
@@ -186,8 +173,6 @@ async fn plane_debug_impls_flag_optional_members() {
         )),
         connector_tokens: Arc::default(),
         documents,
-        notifications,
-        brain: None,
     };
     let dbg = format!("{subsystems:?}");
     assert!(dbg.contains("Subsystems"), "got: {dbg}");
@@ -196,14 +181,18 @@ async fn plane_debug_impls_flag_optional_members() {
     assert!(dbg.contains("outbox: None"), "got: {dbg}");
     assert!(dbg.contains("geoip_reader: false"), "got: {dbg}");
 
+    let resolved = systemprompt_test_fixtures::test_app_context(&url).await;
     let ctx = AppContext::from_parts(
-        data,
-        cfg,
-        plugins,
-        subsystems,
-        &systemprompt_extension::StateHandle::default(),
+        ContextPlanes {
+            data,
+            cfg,
+            plugins,
+            subsystems,
+        },
+        Arc::clone(resolved.kernel()),
+        Arc::clone(resolved.admitted()),
     )
-    .expect("context with an empty extension registry");
+    .expect("context over the resolved core kernel");
     let routing = ctx.content_routing();
     assert!(
         routing.is_some(),

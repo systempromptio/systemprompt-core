@@ -13,10 +13,10 @@ mod cleanup;
 mod list;
 mod remove;
 
-use crate::context::CommandContext;
-use crate::shared::render_result;
+use crate::kernel::KernelHost;
 use anyhow::{Result, bail};
 use clap::Subcommand;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum BanCommands {
@@ -36,8 +36,8 @@ pub enum BanCommands {
     Cleanup(cleanup::CleanupArgs),
 }
 
-pub(super) async fn execute(cmd: BanCommands, ctx: &CommandContext) -> Result<()> {
-    if ctx.is_database_scoped()
+pub(super) async fn execute(cmd: BanCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
+    if host.is_database_scoped()
         && matches!(
             cmd,
             BanCommands::Add(_) | BanCommands::Remove(_) | BanCommands::Cleanup(_)
@@ -48,29 +48,24 @@ pub(super) async fn execute(cmd: BanCommands, ctx: &CommandContext) -> Result<()
 
     match cmd {
         BanCommands::List(args) => {
-            let result = list::execute(args, ctx).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            let result = list::execute(args, host).await?;
+            Ok(result)
         },
         BanCommands::Add(args) => {
-            let result = add::execute(args, ctx).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            let result = add::execute(args, host).await?;
+            Ok(result)
         },
         BanCommands::Remove(args) => {
-            let result = remove::execute(args, ctx).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            let result = remove::execute(args, host).await?;
+            Ok(result)
         },
         BanCommands::Check(args) => {
-            let result = check::execute(args, ctx).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            let result = check::execute(args, host).await?;
+            Ok(result)
         },
         BanCommands::Cleanup(args) => {
-            let result = cleanup::execute(args, ctx).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            let result = cleanup::execute(args, host).await?;
+            Ok(result)
         },
     }
 }

@@ -6,7 +6,7 @@
 
 The analytics HTTP routes and CLI reports of systemprompt.io: event ingestion, live streams, and the traffic, session, cost and content reports.
 
-**Layer**: Entry. The `http` feature carries the routes, declared through `systemprompt-extension` and mounted by the API server; the `cli` feature carries the commands, registered with the CLI. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
+**Layer**: Entry. The `http` feature carries the routes, declared through `systemprompt-extension` and mounted by the API server; the `cli` feature carries the commands, contributed to the CLI through `Contributions::command`. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
 ## Routes (`http`)
 
@@ -22,4 +22,4 @@ The live stream subscribes to the analytics event broadcaster, which the API han
 
 ## Commands (`cli`)
 
-The top-level `analytics` group (`overview`, `conversations`, `agents`, `tools`, `requests`, `sessions`, `content`, `traffic`, `costs`), registered with the CLI kernel. With the `content-commands` feature as well, `core content popular`, a leaf under the `core content` group of `systemprompt-content-entry`; enable it only in a build that also registers that group (the `systemprompt` facade does so when both `analytics` and `content` are on). Every command is read-only and accepts `--database-url`; `analytics` writes `--export` files locally.
+The top-level `analytics` group (`overview`, `conversations`, `agents`, `tools`, `requests`, `sessions`, `content`, `traffic`, `costs`), contributed by `AnalyticsHttpExtension` with the `LocalExport` and `SkipValidation` grants. With the `content-commands` feature as well, `core content popular`, a leaf under the `core content` group of `systemprompt-content-entry`; enable it only in a build whose composition also contributes that group (the `systemprompt` facade does so when both `analytics` and `content` are on). Every command is read-only and needs a profile (a run given only `--database-url` is refused); `analytics` writes `--export` files locally.

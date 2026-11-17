@@ -1,14 +1,15 @@
-//! Unit tests for UsersExtension.
-//!
-//! Tests cover:
-//! - Extension trait implementation
-//! - Metadata (id, name, version)
-//! - Migration weight and required flag
-//! - Schema definitions
-//! - Dependencies
-
 use systemprompt_extension::prelude::Extension;
+use systemprompt_extension::{SchemaDefinition, StandingTag};
+use systemprompt_test_fixtures::admitted_member;
 use systemprompt_users::UsersExtension;
+
+fn contributed_schemas() -> Vec<SchemaDefinition> {
+    admitted_member(&UsersExtension, StandingTag::Core)
+        .expect("the users member admits")
+        .sink
+        .schemas()
+        .to_vec()
+}
 
 mod extension_metadata_tests {
     use super::*;
@@ -38,31 +39,12 @@ mod extension_metadata_tests {
     }
 }
 
-mod extension_config_tests {
-    use super::*;
-
-    #[test]
-    fn is_required_returns_true() {
-        let ext = UsersExtension;
-
-        assert!(ext.is_required());
-    }
-
-    #[test]
-    fn dependencies_order_event_capture_before_user_triggers() {
-        let ext = UsersExtension;
-
-        assert_eq!(ext.dependencies(), vec!["events"]);
-    }
-}
-
 mod extension_schema_tests {
     use super::*;
 
     #[test]
     fn schemas_returns_expected_definitions() {
-        let ext = UsersExtension;
-        let schemas = ext.schemas();
+        let schemas = contributed_schemas();
 
         let names: Vec<&str> = schemas.iter().filter_map(|s| s.table.as_deref()).collect();
         assert_eq!(
@@ -85,8 +67,7 @@ mod extension_schema_tests {
 
     #[test]
     fn schemas_include_users_table() {
-        let ext = UsersExtension;
-        let schemas = ext.schemas();
+        let schemas = contributed_schemas();
 
         let users_schema = schemas.iter().find(|s| s.table.as_deref() == Some("users"));
         users_schema.expect("expected Some value");
@@ -94,8 +75,7 @@ mod extension_schema_tests {
 
     #[test]
     fn schemas_include_user_sessions_table() {
-        let ext = UsersExtension;
-        let schemas = ext.schemas();
+        let schemas = contributed_schemas();
 
         let sessions_schema = schemas
             .iter()
@@ -105,8 +85,7 @@ mod extension_schema_tests {
 
     #[test]
     fn schemas_include_banned_ips_table() {
-        let ext = UsersExtension;
-        let schemas = ext.schemas();
+        let schemas = contributed_schemas();
 
         let banned_schema = schemas
             .iter()
@@ -116,8 +95,7 @@ mod extension_schema_tests {
 
     #[test]
     fn users_schema_has_required_columns() {
-        let ext = UsersExtension;
-        let schemas = ext.schemas();
+        let schemas = contributed_schemas();
 
         let users_schema = schemas
             .iter()
@@ -133,8 +111,7 @@ mod extension_schema_tests {
 
     #[test]
     fn user_sessions_schema_has_required_columns() {
-        let ext = UsersExtension;
-        let schemas = ext.schemas();
+        let schemas = contributed_schemas();
 
         let sessions_schema = schemas
             .iter()
@@ -148,8 +125,7 @@ mod extension_schema_tests {
 
     #[test]
     fn banned_ips_schema_has_required_columns() {
-        let ext = UsersExtension;
-        let schemas = ext.schemas();
+        let schemas = contributed_schemas();
 
         let banned_schema = schemas
             .iter()
@@ -164,8 +140,7 @@ mod extension_schema_tests {
 
     #[test]
     fn all_schemas_have_inline_sql() {
-        let ext = UsersExtension;
-        let schemas = ext.schemas();
+        let schemas = contributed_schemas();
 
         for schema in &schemas {
             assert!(
@@ -179,7 +154,6 @@ mod extension_schema_tests {
 
 mod extension_trait_tests {
     use super::*;
-
 
     #[test]
     fn extension_default() {
@@ -196,33 +170,14 @@ mod extension_trait_tests {
     }
 
     #[test]
-    fn extension_has_schemas() {
-        let ext = UsersExtension;
-        assert!(ext.has_schemas());
-    }
-
-    #[test]
-    fn extension_id_method() {
-        let ext = UsersExtension;
-        assert_eq!(ext.id(), "users");
-    }
-
-    #[test]
-    fn extension_name_method() {
-        let ext = UsersExtension;
-        assert_eq!(ext.name(), "Users");
-    }
-
-    #[test]
-    fn extension_version_method() {
-        let ext = UsersExtension;
-        assert!(!ext.version().is_empty());
+    fn extension_contributes_schemas() {
+        assert!(!contributed_schemas().is_empty());
     }
 }
 
 #[test]
 fn session_expiry_is_declared_without_reporting_privacy() {
-    let schemas = UsersExtension.schemas();
+    let schemas = contributed_schemas();
     assert!(
         schemas
             .iter()

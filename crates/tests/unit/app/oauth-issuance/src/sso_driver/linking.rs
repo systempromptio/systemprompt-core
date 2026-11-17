@@ -103,7 +103,7 @@ impl Db {
     }
 
     async fn cleanup(&self, id: &UserId) {
-        let _ = self.repo.delete(id).await;
+        let _ = self.repo.delete(id, &crate::purge_plan()).await;
     }
 }
 

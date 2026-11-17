@@ -1,0 +1,25 @@
+[root]
+section = "Fixed"
+area = "Security"
+text = "A user purge predicate is a typed `PurgePredicate` (an identifier-checked column and bound values), not SQL text. Each member declares the user purge of its own tables, so a composition that leaves a member out boots and leaves out only that member's declarations. A purge table, and both tables of an orphan sweep, are admitted only over the declaring member's own schema tables whatever its standing, refused at kernel resolve (`KernelError::Purge`) and at schema install (`LoaderError::PurgeAdmission`). The installer records each member's purge declarations (`schema_purge_records`), and a user purge also covers the recorded tables of members the profile disables; it returns a `PurgeOutcome` naming skipped tables and absent members with no record, and the dry run marks a disabled member's tables."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`UserPurgeTable.predicate` is `Option<PurgePredicate>`; `AdmittedPurge::of` returns `Result`, `AdmittedPurge::{new, tables, sweeps}` are removed and `entries`, `members`, `contains` and `admit` are added. Added `PurgePredicate`, `PurgeDeclaration`, `PurgeFilter`, `PurgeClaim`, `OwnedPurge`, `PurgeAdmissionError` and `purge_declarations`."
+
+[[crate]]
+name = "systemprompt-users"
+section = "Breaking"
+text = "`UserService::{delete, purge, purge_preview}` return `PurgeOutcome` and `purge_expired_archives` returns `Vec<PurgedArchive>`; `PurgeCount.table` is `String` and `PurgeCount` gains `absent`. Added `PurgeOutcome`, `SkippedPurge` and `PurgedArchive`."
+
+[[crate]]
+name = "systemprompt-files"
+section = "Changed"
+text = "The document purge declarations use `PurgePredicate`, and the member declares the user purge of `files`."
+
+
+[[crate]]
+name = "systemprompt-scheduler"
+section = "Fixed"
+text = "The archived-user retention pass purges through the admitted purge plan."

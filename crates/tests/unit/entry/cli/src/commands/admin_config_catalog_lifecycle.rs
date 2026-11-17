@@ -3,7 +3,8 @@ use systemprompt_cli::admin::config::credential::{self, CredentialAddArgs, Crede
 use systemprompt_cli::admin::config::endpoint::{self, EndpointAddArgs, EndpointCommands};
 use systemprompt_cli::admin::config::model::{self, ModelAddArgs, ModelCommands};
 use systemprompt_cli::admin::config::provider::{self, ProviderAddArgs, ProviderCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::ModelId;
 
 const HELPER: &str = "commands::admin_config_catalog_lifecycle::catalog_file_lifecycle_helper";
@@ -26,13 +27,13 @@ providers:
 "#;
 
 fn json_config(boot: &systemprompt_test_fixtures::TestBootstrap) -> CommandContext {
-    CommandContext::new(
+    crate::boot_ctx::new_on(
+        boot,
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
     )
-    .with_boot(Some(boot.boot.clone()))
 }
 
 fn yaml(path: &std::path::Path) -> serde_yaml::Value {
@@ -97,9 +98,11 @@ async fn catalog_file_lifecycle_helper() {
     let config = json_config(&boot);
 
     println!("BEGIN_PROVIDER_LIST");
-    provider::execute(&ProviderCommands::List, &config)
-        .await
-        .expect("list booted provider");
+    crate::boot_ctx::rendered(
+        &config,
+        provider::execute(&ProviderCommands::List, &config).await,
+    )
+    .expect("list booted provider");
     println!("END_PROVIDER_LIST");
 
     let original = std::fs::read_to_string(&providers_path).expect("booted providers.yaml");
@@ -155,15 +158,18 @@ async fn catalog_file_lifecycle_helper() {
     }
 
     println!("BEGIN_PROVIDER_ADD");
-    provider::execute(
-        &provider_add(
-            "fixture-openai",
-            "fixture_openai_key",
-            vec!["X-Fixture=enabled".to_owned()],
-        ),
+    crate::boot_ctx::rendered(
         &config,
+        provider::execute(
+            &provider_add(
+                "fixture-openai",
+                "fixture_openai_key",
+                vec!["X-Fixture=enabled".to_owned()],
+            ),
+            &config,
+        )
+        .await,
     )
-    .await
     .expect("add provider with its first endpoint");
     println!("END_PROVIDER_ADD");
     let stored = yaml(&providers_path);
@@ -182,9 +188,11 @@ async fn catalog_file_lifecycle_helper() {
     );
 
     println!("BEGIN_MODEL_ADD");
-    model::execute(&model_add("fixture-openai/api"), &config)
-        .await
-        .expect("add model");
+    crate::boot_ctx::rendered(
+        &config,
+        model::execute(&model_add("fixture-openai/api"), &config).await,
+    )
+    .expect("add model");
     println!("END_MODEL_ADD");
     let models = yaml(&ai.join("models.yaml"));
     assert_eq!(
@@ -232,13 +240,16 @@ async fn catalog_file_lifecycle_helper() {
     assert_eq!(files(&ai), before_unknown);
 
     println!("BEGIN_MODEL_REMOVE");
-    model::execute(
-        &ModelCommands::Remove {
-            id: ModelId::new("fixture-model"),
-        },
+    crate::boot_ctx::rendered(
         &config,
+        model::execute(
+            &ModelCommands::Remove {
+                id: ModelId::new("fixture-model"),
+            },
+            &config,
+        )
+        .await,
     )
-    .await
     .expect("remove model");
     println!("END_MODEL_REMOVE");
     assert!(
@@ -248,13 +259,16 @@ async fn catalog_file_lifecycle_helper() {
     );
 
     println!("BEGIN_PROVIDER_REMOVE");
-    provider::execute(
-        &ProviderCommands::Remove {
-            id: "fixture-openai".to_owned(),
-        },
+    crate::boot_ctx::rendered(
         &config,
+        provider::execute(
+            &ProviderCommands::Remove {
+                id: "fixture-openai".to_owned(),
+            },
+            &config,
+        )
+        .await,
     )
-    .await
     .expect("remove provider");
     println!("END_PROVIDER_REMOVE");
     let after_remove = files(&ai);
@@ -270,8 +284,12 @@ async fn catalog_file_lifecycle_helper() {
     assert_eq!(files(&ai), after_remove);
 
     println!("BEGIN_DISCOVERY_EMPTY");
-    catalog::execute(&CatalogCommands::Discovery, &config.cli, None)
+    let empty = catalog::execute(&CatalogCommands::Discovery, None)
         .expect("missing discovery report is informative");
+    println!(
+        "{}",
+        serde_json::to_string(empty.artifact()).expect("discovery artifact serialises")
+    );
     println!("END_DISCOVERY_EMPTY");
 
     use systemprompt_scheduler::jobs::vertex_discovery::VertexDiscoveryJob;
@@ -290,11 +308,12 @@ async fn catalog_file_lifecycle_helper() {
         "{report:?}"
     );
     println!("BEGIN_DISCOVERY_PARTIAL");
-    systemprompt_cli::admin::config::catalog_discovery::render_discovery(
-        Some(&report),
-        &config.cli,
-    )
-    .expect("partial discovery report is rendered");
+    let partial = systemprompt_cli::admin::config::catalog_discovery::discovery(&report)
+        .expect("partial discovery report is built");
+    println!(
+        "{}",
+        serde_json::to_string(&partial).expect("discovery report serialises")
+    );
     println!("END_DISCOVERY_PARTIAL");
 }
 
@@ -309,19 +328,6 @@ fn marked_json(stdout: &str, name: &str) -> serde_json::Value {
     serde_json::from_str(text).unwrap_or_else(|error| panic!("{name}: {error}: {text}"))
 }
 
-fn marked_json_stream(stdout: &str, name: &str) -> Vec<serde_json::Value> {
-    let begin = format!("BEGIN_{name}");
-    let end = format!("END_{name}");
-    let text = stdout
-        .split_once(&begin)
-        .and_then(|(_, tail)| tail.split_once(&end))
-        .map(|(value, _)| value.trim())
-        .unwrap_or_else(|| panic!("missing {begin}/{end}: {stdout}"));
-    serde_json::Deserializer::from_str(text)
-        .into_iter::<serde_json::Value>()
-        .collect::<Result<Vec<_>, _>>()
-        .unwrap_or_else(|error| panic!("{name}: {error}: {text}"))
-}
 
 #[test]
 fn catalog_file_lifecycle_is_durable_and_structured() {
@@ -410,20 +416,9 @@ fn catalog_file_lifecycle_is_durable_and_structured() {
         .lines()
         .find_map(|line| line.strip_prefix("DISCOVERY_RAN_AT="))
         .expect("captured discovery timestamp");
-    let partial = marked_json_stream(&stdout, "DISCOVERY_PARTIAL");
-    assert_eq!(partial.len(), 2, "{partial:?}");
-    assert_eq!(partial[0]["artifact_type"], "table");
-    let column_names = partial[0]["columns"]
-        .as_array()
-        .expect("discovery table columns")
-        .iter()
-        .map(|column| column["name"].as_str().expect("column name"))
-        .collect::<Vec<_>>();
-    assert_eq!(column_names, ["upstream_or_id", "state", "retires_on"]);
-    assert_eq!(partial[0]["items"], serde_json::json!([]));
-    let notes = partial[1]["messages"]
-        .as_array()
-        .expect("discovery report notes");
+    let partial = marked_json(&stdout, "DISCOVERY_PARTIAL");
+    assert_eq!(partial["models"], serde_json::json!([]), "{partial}");
+    let notes = partial["notes"].as_array().expect("discovery report notes");
     assert!(
         notes.iter().any(|line| {
             line["level"] == "warning"

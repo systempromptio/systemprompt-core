@@ -61,5 +61,3 @@ impl Job for AiRequestToolFlagRollupJob {
             .with_duration(duration_ms))
     }
 }
-
-systemprompt_traits::submit_job!("ai", &AiRequestToolFlagRollupJob);

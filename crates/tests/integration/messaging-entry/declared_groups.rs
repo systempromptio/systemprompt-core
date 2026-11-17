@@ -16,39 +16,52 @@ use axum::body::Body;
 use axum::extract::ConnectInfo;
 use axum::http::{Request, StatusCode, header};
 use systemprompt_api::services::server::{ReadinessState, setup_api_server};
-use systemprompt_extension::ExtensionRegistry;
-use systemprompt_identifiers::ExtensionId;
+use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::{NodeRole, RateLimitsConfig};
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_slack::signature::sign;
 use systemprompt_test_fixtures::{
-    TEST_TEAMS_TENANT_ID, ensure_messaging_bootstrap, fixture_app_context_with_extensions,
-    fixture_config, test_app_context_on, test_db_pool,
+    TEST_TEAMS_TENANT_ID, ensure_messaging_bootstrap, fixture_admitted,
+    fixture_app_context_on_bootstrap, fixture_config,
 };
 use tower::ServiceExt;
 
 async fn messaging_role() -> Result<Router> {
     let bootstrap = ensure_messaging_bootstrap();
-    let pool = test_db_pool().await;
-    let ctx = test_app_context_on(&bootstrap, &pool);
-    setup_api_server(&ctx, None, &Arc::new(ReadinessState::new()))
-        .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))
+    let ctx = fixture_app_context_on_bootstrap(
+        bootstrap,
+        Config::clone(bootstrap.boot_config()),
+        crate::common::messaging_admitted(),
+    )
+    .await?;
+    setup_api_server(
+        &ctx,
+        systemprompt_api::services::server::routes::Composed {
+            admitted: ctx.admitted(),
+            kernel: ctx.kernel(),
+        },
+        None,
+        &Arc::new(ReadinessState::new()),
+    )
+    .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))
 }
 
 async fn messaging_disabled() -> Result<Router> {
     let bootstrap = ensure_messaging_bootstrap();
-    let pool = test_db_pool().await;
     let mut config = fixture_config(&bootstrap.database_url);
     config.role = NodeRole::All;
     config.rate_limits = RateLimitsConfig::disabled();
-    let ctx = fixture_app_context_with_extensions(
-        &pool,
-        config,
-        ExtensionRegistry::discover()?,
-        &[ExtensionId::new("slack"), ExtensionId::new("teams")],
-    )?;
-    setup_api_server(&ctx, None, &Arc::new(ReadinessState::new()))
-        .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))
+    let ctx = fixture_app_context_on_bootstrap(bootstrap, config, fixture_admitted()).await?;
+    setup_api_server(
+        &ctx,
+        systemprompt_api::services::server::routes::Composed {
+            admitted: ctx.admitted(),
+            kernel: ctx.kernel(),
+        },
+        None,
+        &Arc::new(ReadinessState::new()),
+    )
+    .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))
 }
 
 async fn send(

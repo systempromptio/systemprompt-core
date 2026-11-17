@@ -18,12 +18,11 @@ mod set;
 mod show;
 mod validate;
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::{Args, Subcommand};
 
-use crate::context::CommandContext;
-use crate::interactive::Prompter;
-use crate::shared::render_result;
+use systemprompt_extension::cli::{CommandOutput, Prompter};
 
 #[derive(Debug, Subcommand)]
 pub enum RateLimitsCommands {
@@ -143,27 +142,18 @@ pub struct DiffArgs {
 pub fn execute(
     command: RateLimitsCommands,
     prompter: &dyn Prompter,
-    ctx: &CommandContext,
-) -> Result<()> {
-    let config = &ctx.cli;
+    host: &dyn KernelHost,
+) -> Result<CommandOutput> {
     match command {
-        RateLimitsCommands::Show => show::execute_show(ctx),
-        RateLimitsCommands::Set(args) => set::execute_set(&args, ctx),
-        RateLimitsCommands::Enable => set::execute_enable(ctx),
-        RateLimitsCommands::Disable => set::execute_disable(ctx),
-        RateLimitsCommands::Validate => validate::execute_validate(ctx),
-        RateLimitsCommands::Reset(args) => reset::execute_reset(&args, prompter, ctx),
-        RateLimitsCommands::Preset(cmd) => preset::execute_preset(cmd, prompter, ctx),
-        RateLimitsCommands::Export(args) => {
-            let result = import_export::execute_export(&args, ctx)?;
-            render_result(&result, config);
-            Ok(())
-        },
-        RateLimitsCommands::Import(args) => {
-            let result = import_export::execute_import(&args, prompter, ctx)?;
-            render_result(&result, config);
-            Ok(())
-        },
-        RateLimitsCommands::Diff(args) => diff::execute_diff(&args, ctx),
+        RateLimitsCommands::Show => show::execute_show(host),
+        RateLimitsCommands::Set(args) => set::execute_set(&args, host),
+        RateLimitsCommands::Enable => set::execute_enable(host),
+        RateLimitsCommands::Disable => set::execute_disable(host),
+        RateLimitsCommands::Validate => validate::execute_validate(host),
+        RateLimitsCommands::Reset(args) => reset::execute_reset(&args, prompter, host),
+        RateLimitsCommands::Preset(cmd) => preset::execute_preset(cmd, prompter, host),
+        RateLimitsCommands::Export(args) => import_export::execute_export(&args, host),
+        RateLimitsCommands::Import(args) => import_export::execute_import(&args, prompter, host),
+        RateLimitsCommands::Diff(args) => diff::execute_diff(&args, host),
     }
 }

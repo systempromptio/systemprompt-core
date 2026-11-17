@@ -7,12 +7,12 @@ use anyhow::Result;
 use clap::Args;
 use std::path::PathBuf;
 use systemprompt_analytics::ToolAnalyticsRepository;
+use systemprompt_database::DbPool;
 use systemprompt_logging::CliService;
-use systemprompt_runtime::DatabaseContext;
 
 use super::ToolStatsOutput;
 use crate::cli::shared::{export_single_to_csv, parse_time_range};
-use systemprompt_cli::kernel::{CliConfig, CommandOutput};
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 #[derive(Debug, Args)]
 pub struct StatsArgs {
@@ -36,10 +36,10 @@ pub struct StatsArgs {
 
 pub(super) async fn execute_with_pool(
     args: StatsArgs,
-    db_ctx: &DatabaseContext,
+    pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let repo = ToolAnalyticsRepository::new(db_ctx.db_pool());
+    let repo = ToolAnalyticsRepository::new(pool);
     execute_internal(args, &repo).await
 }
 

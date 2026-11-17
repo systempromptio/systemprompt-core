@@ -1,20 +1,15 @@
 //! The retention job under `enforce`: every table's batched delete runs, and
 //! a row past its window is gone afterwards while a fresh one stays.
 
-use std::sync::Arc;
 
 use systemprompt_scheduler::DatabaseCleanupJob;
-use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
-use systemprompt_traits::{Dependencies, Job, JobContext};
+use systemprompt_test_fixtures::{test_database_url, test_db_pool};
+use systemprompt_traits::{Job, JobContext};
 
-fn ctx(pool: &systemprompt_database::DbPool, url: &str) -> JobContext {
+async fn ctx(pool: &systemprompt_database::DbPool, url: &str) -> JobContext {
     use systemprompt_identifiers::{Actor, UserId};
 
-    let app_ctx = test_app_context(pool, url);
-    let dependencies = Dependencies::new()
-        .with(Arc::clone(app_ctx.app_paths_arc()))
-        .with(Arc::clone(pool))
-        .with(app_ctx);
+    let dependencies = crate::test_extension::job_dependencies(pool, url).await;
     JobContext::new(
         Actor::job(UserId::new("retention-test-admin"), "test".to_owned()),
         dependencies,
@@ -53,7 +48,7 @@ async fn enforce_deletes_rows_past_their_window_and_keeps_fresh_ones() {
     seed_log(&pg, &fresh, 0).await;
 
     let result = DatabaseCleanupJob
-        .execute(&ctx(&pool, &url).with_enforce(true))
+        .execute(&ctx(&pool, &url).await.with_enforce(true))
         .await
         .expect("enforced retention run");
 
@@ -96,7 +91,7 @@ async fn without_enforce_an_expired_row_is_kept() {
     let mut params = std::collections::HashMap::new();
     params.insert("log_retention_days".to_owned(), "1".to_owned());
     let result = DatabaseCleanupJob
-        .execute(&ctx(&pool, &url).with_parameters(params))
+        .execute(&ctx(&pool, &url).await.with_parameters(params))
         .await
         .expect("dry-run retention");
 

@@ -5,10 +5,11 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::DatabaseTransaction;
+use crate::lifecycle::schema_member::SchemaMember;
 use crate::services::DatabaseProvider;
 use std::collections::HashSet;
 use std::time::Instant;
-use systemprompt_extension::{Extension, LoaderError, Migration};
+use systemprompt_extension::{LoaderError, Migration};
 use systemprompt_identifiers::{ExtensionId, ToDbValue};
 use tracing::{info, warn};
 
@@ -206,7 +207,7 @@ async fn apply_in_transaction(
 }
 
 pub(super) fn check_cross_extension_alters(
-    extension: &dyn Extension,
+    extension: &dyn SchemaMember,
     migration: &Migration,
 ) -> Result<(), LoaderError> {
     let ext_id = &ExtensionId::new(extension.metadata().id);

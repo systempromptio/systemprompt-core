@@ -124,7 +124,11 @@ fn unreadable_files_yaml_fails_load_with_read_error() {
     let b = ensure_test_bootstrap();
     // A directory at the files.yaml path makes read_to_string fail while
     // `exists()` still passes, driving the read-error arm deterministically.
-    std::fs::create_dir_all(b.services_path.join("config/files.yaml")).expect("mkdir files.yaml");
+    let files_yaml = b.services_path.join("config/files.yaml");
+    if files_yaml.is_file() {
+        std::fs::remove_file(&files_yaml).expect("remove the bootstrap files.yaml");
+    }
+    std::fs::create_dir_all(&files_yaml).expect("mkdir files.yaml");
     let mut v = FilesConfigValidator::new(ensure_test_bootstrap().app_paths.clone());
     let err = v.load(&StubProvider).expect_err("unreadable yaml");
     match err {

@@ -7,7 +7,6 @@ use super::authz::PluginInputs;
 use super::{Arc, DataPlane, RuntimeResult, UserService, assembly};
 use crate::context::Plugins;
 use systemprompt_database::DbPool;
-use systemprompt_extension::ExtensionRegistry;
 use systemprompt_loader::{BootContext, ServicesState};
 use systemprompt_marketplace::MarketplaceFilter;
 use systemprompt_mcp::services::registry::RegistryService;
@@ -15,14 +14,12 @@ use systemprompt_security::at_rest::AtRestCipher;
 
 pub(super) fn build_data_plane(
     database: Arc<systemprompt_database::Database>,
-    analytics_service: Arc<systemprompt_analytics::AnalyticsService>,
     fingerprint_repo: Option<Arc<systemprompt_analytics::FingerprintRepository>>,
     user_service: Arc<UserService>,
     repositories: RepositoryBundles,
 ) -> DataPlane {
     DataPlane {
         database,
-        analytics_service,
         fingerprint_repo,
         user_service: Some(user_service),
         a2a_repositories: repositories.a2a,
@@ -32,7 +29,6 @@ pub(super) fn build_data_plane(
         service_repository: repositories.services,
         coordination: repositories.coordination,
         ai_repositories: repositories.ai,
-        analytics_repositories: repositories.analytics,
         file_repository: repositories.files,
         mcp_session_repository: repositories.mcp_sessions,
         managed_repository: repositories.managed,
@@ -59,7 +55,6 @@ pub(super) struct RepositoryBundles {
     services: Arc<systemprompt_database::ServiceRepository>,
     coordination: Arc<systemprompt_database::CoordinationRepositories>,
     pub(super) ai: Arc<systemprompt_ai::repository::AiRepositories>,
-    analytics: Arc<systemprompt_analytics::repository::AnalyticsRepositories>,
     files: Arc<systemprompt_files::FileRepository>,
     mcp_sessions: Arc<systemprompt_mcp::repository::McpSessionRepository>,
     managed: Arc<systemprompt_marketplace::managed::ManagedRepository>,
@@ -110,25 +105,42 @@ pub(crate) fn organization_skills(
     a2a.clone().with_managed_skill_resolver(resolver)
 }
 
-pub(super) fn build_repositories(
+pub(super) struct SeededRepositories {
+    pub(super) oauth: Arc<systemprompt_oauth::repository::OAuthRepositories>,
+    pub(super) ai: Arc<systemprompt_ai::repository::AiRepositories>,
+    pub(super) users: Arc<systemprompt_users::UserRepository>,
+}
+
+pub(super) fn seeded_repositories(
     database: &DbPool,
-    analytics: Arc<systemprompt_analytics::repository::AnalyticsRepositories>,
-    instance_id: systemprompt_identifiers::InstanceId,
-    publication: systemprompt_marketplace::managed::PublicationPolicy,
     secrets: &systemprompt_manifest::secrets::Secrets,
-) -> RuntimeResult<RepositoryBundles> {
+) -> RuntimeResult<SeededRepositories> {
     let cipher = AtRestCipher::from_secrets(secrets)?;
     let pepper: Arc<str> = Arc::from(secrets.oauth_at_rest_pepper.as_str());
-    let session_store = Arc::clone(&analytics.session_store);
-    let session_usage: systemprompt_traits::DynSessionUsageCounters = session_store;
+    Ok(SeededRepositories {
+        oauth: Arc::new(systemprompt_oauth::repository::OAuthRepositories::new(
+            database, pepper,
+        )),
+        ai: Arc::new(systemprompt_ai::repository::AiRepositories::new(
+            database, cipher,
+        )),
+        users: Arc::new(systemprompt_users::UserRepository::new(database)),
+    })
+}
+
+pub(super) fn build_repositories(
+    database: &DbPool,
+    instance_id: systemprompt_identifiers::InstanceId,
+    publication: systemprompt_marketplace::managed::PublicationPolicy,
+    seeded: &SeededRepositories,
+) -> RepositoryBundles {
+    let session_usage: systemprompt_traits::DynSessionUsageCounters =
+        Arc::new(systemprompt_users::SessionRepository::new(database));
     let managed = Arc::new(
         systemprompt_marketplace::managed::ManagedRepository::new(database)
             .with_publication_policy(publication),
     );
-    let ai = Arc::new(systemprompt_ai::repository::AiRepositories::new(
-        database, cipher,
-    ));
-    Ok(RepositoryBundles {
+    RepositoryBundles {
         a2a: Arc::new(a2a_repositories(
             database,
             instance_id.clone(),
@@ -138,10 +150,8 @@ pub(super) fn build_repositories(
         content: Arc::new(systemprompt_content::repository::ContentRepositories::new(
             database,
         )),
-        oauth: Arc::new(systemprompt_oauth::repository::OAuthRepositories::new(
-            database, pepper,
-        )),
-        users: Arc::new(systemprompt_users::UserRepository::new(database)),
+        oauth: Arc::clone(&seeded.oauth),
+        users: Arc::clone(&seeded.users),
         services: Arc::new(systemprompt_database::ServiceRepository::new(
             database,
             instance_id.clone(),
@@ -150,14 +160,13 @@ pub(super) fn build_repositories(
             database,
             instance_id,
         )),
-        ai,
-        analytics,
+        ai: Arc::clone(&seeded.ai),
         files: Arc::new(systemprompt_files::FileRepository::new(database)),
         mcp_sessions: Arc::new(systemprompt_mcp::repository::McpSessionRepository::new(
             database,
         )),
         managed,
-    })
+    }
 }
 
 pub fn owner_reassignments(database: &DbPool) -> Vec<systemprompt_traits::DynOwnerReassignment> {
@@ -183,20 +192,17 @@ pub fn owner_reassignments(database: &DbPool) -> Vec<systemprompt_traits::DynOwn
 }
 
 pub(super) fn new_plugins(
-    extension_registry: Arc<ExtensionRegistry>,
     mcp_registry: RegistryService,
     marketplace_filter: Option<Arc<dyn MarketplaceFilter>>,
+    seams: &systemprompt_marketplace::contract::MarketplaceSeams,
     inputs: &PluginInputs,
 ) -> Plugins {
-    let factory_ctx = &inputs.factory;
     Plugins {
-        extension_registry,
         mcp_registry,
-        marketplace_filter: marketplace_filter
-            .unwrap_or_else(|| assembly::build_marketplace_filter(factory_ctx)),
+        marketplace_filter: marketplace_filter.unwrap_or_else(|| seams.filter()),
         marketplace_cache: Arc::default(),
         subject_providers: inputs.subject_providers.clone(),
-        subjects: factory_ctx.subjects.clone(),
+        subjects: inputs.subjects.clone(),
     }
 }
 
@@ -208,39 +214,41 @@ pub(crate) fn build_artifact_ingest(
     Arc::new(systemprompt_mcp::ArtifactIngest::from_db(database, scanner))
 }
 
-pub(super) async fn build_domain_layer(
+pub(super) async fn load_identity(
     boot: &BootContext,
     database: &DbPool,
-    analytics_repositories: Arc<systemprompt_analytics::repository::AnalyticsRepositories>,
-    policy: systemprompt_marketplace::managed::PublicationPolicy,
+    users: &Arc<systemprompt_users::UserRepository>,
     services: &ServicesState,
 ) -> RuntimeResult<(
-    RepositoryBundles,
     Arc<UserService>,
     Arc<systemprompt_manifest::SystemAdmin>,
     RegistryService,
 )> {
     let config = boot.config()?;
-    let mut repositories = build_repositories(
-        database,
-        analytics_repositories,
-        config.instance_id.clone(),
-        policy,
-        &boot.secrets().get(),
-    )?;
     let user_service = Arc::new(
-        UserService::new(Arc::clone(&repositories.users))
-            .with_owner_reassignments(owner_reassignments(database)),
+        UserService::new(Arc::clone(users)).with_owner_reassignments(owner_reassignments(database)),
     );
     let system_admin = assembly::load_system_admin(config, &user_service).await?;
-    repositories.install_organization_resolver(system_admin.id());
     let mcp_registry = RegistryService::new(
         system_admin.id().clone(),
         services.view(),
         Arc::clone(config),
     );
-    ensure_legacy_context(&repositories, &system_admin).await?;
-    Ok((repositories, user_service, system_admin, mcp_registry))
+    Ok((user_service, system_admin, mcp_registry))
+}
+
+pub(super) async fn build_domain_layer(
+    boot: &BootContext,
+    database: &DbPool,
+    policy: systemprompt_marketplace::managed::PublicationPolicy,
+    seeded: &SeededRepositories,
+    system_admin: &systemprompt_manifest::SystemAdmin,
+) -> RuntimeResult<RepositoryBundles> {
+    let config = boot.config()?;
+    let mut repositories = build_repositories(database, config.instance_id.clone(), policy, seeded);
+    repositories.install_organization_resolver(system_admin.id());
+    ensure_legacy_context(&repositories, system_admin).await?;
+    Ok(repositories)
 }
 
 pub(super) fn new_spawner() -> RuntimeResult<Arc<systemprompt_loader::subprocess::Spawner>> {

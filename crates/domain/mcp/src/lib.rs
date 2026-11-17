@@ -7,7 +7,9 @@
 //!
 //! # Layered components
 //!
-//! - [`extension::McpExtension`] — `Extension` registration entry-point.
+//! - [`extension::McpExtension`] — the MCP member's contributions.
+//! - [`contract`] — the [`UiSlot`](contract::UiSlot) and
+//!   [`AccessRecorderSlot`](contract::AccessRecorderSlot) contribution points.
 //! - [`services::McpOrchestrator`] — top-level service supervisor.
 //! - [`services::registry::RegistryService`] — registry of MCP servers
 //!   configured via `services.yaml`.
@@ -36,6 +38,7 @@
 
 pub(crate) mod capabilities;
 pub(crate) mod client_profile;
+pub mod contract;
 pub(crate) mod error;
 pub(crate) mod extension;
 pub mod host;
@@ -50,9 +53,6 @@ pub(crate) mod schema;
 pub mod services;
 pub(crate) mod tool;
 pub mod toolset;
-
-#[doc(hidden)]
-pub use ::inventory as __inventory;
 
 pub use extension::McpExtension;
 

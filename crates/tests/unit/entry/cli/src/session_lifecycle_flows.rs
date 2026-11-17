@@ -3,8 +3,9 @@ use systemprompt_cli::admin::session::{SessionCommands, execute};
 use systemprompt_cli::session::{
     clear_all_sessions, clear_session, get_or_create_session, load_session_store,
 };
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides};
+use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_cloud::{CloudCredentials, SessionKey};
+use systemprompt_extension::cli::CliConfig;
 use systemprompt_identifiers::{CloudAuthToken, Email, UserId};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, seed_user_row_with_roles, test_db_pool};
 
@@ -34,7 +35,9 @@ struct Args {
 async fn command(project: &Project, args: &[&str]) -> anyhow::Result<()> {
     let args =
         Args::try_parse_from(std::iter::once("session").chain(args.iter().copied())).unwrap();
-    execute(args.command, &project.context(false)).await
+    execute(args.command, &project.context(false))
+        .await
+        .map(drop)
 }
 
 #[tokio::test]
@@ -68,13 +71,15 @@ async fn coverage_active_profile_is_resolved_after_explicit_override_is_removed(
         .await
         .unwrap()
         .session;
-    let ctx = CommandContext::new(
-        CliConfig::new().with_interactive(false),
-        EnvOverrides::default(),
-    )
-    .with_profile(Some(
-        systemprompt_config::LoadedProfile::from_path(&project.profile).unwrap(),
-    ));
+    let ctx = crate::kernel_host::kernel_host(
+        CommandContext::new(
+            CliConfig::new().with_interactive(false),
+            EnvOverrides::default(),
+        )
+        .with_profile(Some(
+            systemprompt_config::LoadedProfile::from_path(&project.profile).unwrap(),
+        )),
+    );
     let resumed = get_or_create_session(&ctx).await.unwrap().session;
     assert_eq!(resumed.session_id, first.session_id);
     assert_eq!(resumed.user_id, user);
@@ -187,7 +192,11 @@ fn coverage_manifest_plugins_are_listed_by_type_and_shown_case_insensitively() {
         )
         .unwrap();
     }
-    let config = CliConfig::new().with_interactive(false);
+    let host = CommandContext::new(
+        CliConfig::new().with_interactive(false),
+        EnvOverrides::default(),
+    )
+    .with_admitted(Some(systemprompt_test_fixtures::fixture_admitted()));
     for (kind, cli, mcp) in [
         ("manifest", true, true),
         ("cli", true, false),
@@ -200,8 +209,9 @@ fn coverage_manifest_plugins_are_listed_by_type_and_shown_case_insensitively() {
                 capability: None,
                 r#type: kind.to_owned(),
             },
-            &config,
-        );
+            &host,
+        )
+        .unwrap();
         let text = serde_json::to_string(out.artifact()).unwrap();
         assert_eq!(text.contains("coverage-cli"), cli, "{kind}: {text}");
         assert_eq!(text.contains("coverage-mcp"), mcp, "{kind}: {text}");
@@ -212,15 +222,16 @@ fn coverage_manifest_plugins_are_listed_by_type_and_shown_case_insensitively() {
             capability: None,
             r#type: "manifest".to_owned(),
         },
-        &config,
-    );
+        &host,
+    )
+    .unwrap();
     let text = serde_json::to_string(out.artifact()).unwrap();
     assert!(text.contains("coverage-mcp") && !text.contains("coverage-cli"));
     let out = show::execute(
         &show::ShowArgs {
             id: "COVERAGE-MCP".to_owned(),
         },
-        &config,
+        &host,
     )
     .unwrap();
     let text = serde_json::to_string(out.artifact()).unwrap();
@@ -230,7 +241,7 @@ fn coverage_manifest_plugins_are_listed_by_type_and_shown_case_insensitively() {
             &show::ShowArgs {
                 id: "unknown-manifest".to_owned()
             },
-            &config
+            &host
         )
         .is_err()
     );
@@ -254,7 +265,7 @@ async fn logout_confirmation_helper() {
     single.cli = single.cli.clone().with_assume_terminal(true);
     println!("BEGIN_SINGLE_CANCEL");
     let parsed = Args::try_parse_from(["session", "logout", "--profile", "coverage"]).unwrap();
-    execute(parsed.command, &single).await.unwrap();
+    crate::boot_ctx::rendered(&single, execute(parsed.command, &single).await).unwrap();
     println!("END_SINGLE_CANCEL");
     assert_eq!(load_session_store(&project.paths()).unwrap().len(), before);
 
@@ -264,7 +275,7 @@ async fn logout_confirmation_helper() {
     all.cli = all.cli.clone().with_assume_terminal(true);
     println!("BEGIN_ALL_CANCEL");
     let parsed = Args::try_parse_from(["session", "logout", "--all"]).unwrap();
-    execute(parsed.command, &all).await.unwrap();
+    crate::boot_ctx::rendered(&all, execute(parsed.command, &all).await).unwrap();
     println!("END_ALL_CANCEL");
     assert_eq!(load_session_store(&project.paths()).unwrap().len(), before);
 
@@ -313,7 +324,7 @@ fn logout_confirmation_preserves_sessions_and_reports_cancellation() {
 #[tokio::test]
 async fn malformed_active_profile_fails_without_replacing_the_bound_session() {
     use chrono::Duration;
-    use systemprompt_cli::paths::ResolvedPaths;
+    use systemprompt_cloud::paths::ResolvedPaths;
     use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity, SessionStore};
     use systemprompt_identifiers::{ContextId, ProfileName, SessionId, SessionToken};
     use systemprompt_models::auth::UserType;
@@ -350,10 +361,10 @@ async fn malformed_active_profile_fails_without_replacing_the_bound_session() {
         .expect("persist malformed-profile session");
     let session_file = sessions_dir.join("index.json");
     let before = std::fs::read(&session_file).expect("stored session bytes");
-    let ctx = CommandContext::new(
+    let ctx = crate::kernel_host::kernel_host(CommandContext::new(
         CliConfig::new().with_interactive(false),
         EnvOverrides::default(),
-    );
+    ));
 
     let error = get_or_create_session(&ctx)
         .await

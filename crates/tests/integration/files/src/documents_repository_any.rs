@@ -5,6 +5,8 @@ use systemprompt_models::documents::DocumentFormat;
 use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;
 
+use crate::documents_service_fixture::core_blob_holders;
+
 fn unique(prefix: &str) -> String {
     format!("{prefix}-{}", Uuid::new_v4().simple())
 }
@@ -42,7 +44,7 @@ async fn document(repos: &DocumentRepositories, owner: &UserId) -> DocumentId {
 
 #[tokio::test]
 async fn hard_delete_removes_the_row_once() {
-    let repos = DocumentRepositories::new(&test_db_pool().await);
+    let repos = DocumentRepositories::new(&test_db_pool().await, core_blob_holders());
     let owner = UserId::new(unique("hard-delete"));
     let id = document(&repos, &owner).await;
     assert!(repos.documents.hard_delete(&id).await.expect("delete"));
@@ -52,7 +54,7 @@ async fn hard_delete_removes_the_row_once() {
 
 #[tokio::test]
 async fn move_to_any_files_into_a_live_folder_back_to_root_and_refuses_a_deleted_one() {
-    let repos = DocumentRepositories::new(&test_db_pool().await);
+    let repos = DocumentRepositories::new(&test_db_pool().await, core_blob_holders());
     let owner = UserId::new(unique("move-any"));
     let id = document(&repos, &owner).await;
     let live = folder(&repos, &owner).await;

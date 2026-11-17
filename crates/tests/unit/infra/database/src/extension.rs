@@ -1,7 +1,15 @@
 //! Unit tests for DatabaseExtension
 
 use systemprompt_database::DatabaseExtension;
-use systemprompt_extension::Extension;
+use systemprompt_extension::contribute::ContributionSink;
+use systemprompt_extension::{Extension, StandingTag};
+use systemprompt_test_fixtures::admitted_member;
+
+fn contributions() -> ContributionSink {
+    admitted_member(&DatabaseExtension, StandingTag::Core)
+        .expect("database contributes")
+        .sink
+}
 
 #[test]
 fn test_database_extension_metadata_id() {
@@ -30,16 +38,29 @@ fn test_database_extension_metadata_version() {
 
 #[test]
 fn test_database_extension_dependencies() {
-    let ext = DatabaseExtension;
-    let deps = ext.dependencies();
-    assert!(deps.is_empty());
+    assert!(contributions().depends_on().is_empty());
 }
 
 #[test]
 fn test_database_extension_schemas() {
-    let ext = DatabaseExtension;
-    let schemas = ext.schemas();
-    assert_eq!(schemas.len(), 15);
+    let sink = contributions();
+    let schemas = sink.schemas();
+    assert_eq!(schemas.len(), 18);
+    assert!(
+        schemas
+            .iter()
+            .any(|s| s.table.as_deref() == Some("schema_object_owners"))
+    );
+    assert!(
+        schemas
+            .iter()
+            .any(|s| s.table.as_deref() == Some("schema_table_owners"))
+    );
+    assert!(
+        schemas
+            .iter()
+            .any(|s| s.table.as_deref() == Some("schema_purge_records"))
+    );
     assert!(
         schemas
             .iter()
@@ -114,8 +135,8 @@ fn test_database_extension_schemas() {
 
 #[test]
 fn test_database_extension_declares_shared_functions_without_a_table() {
-    let ext = DatabaseExtension;
-    let schemas = ext.schemas();
+    let sink = contributions();
+    let schemas = sink.schemas();
 
     let functions = schemas
         .iter()
@@ -128,7 +149,6 @@ fn test_database_extension_declares_shared_functions_without_a_table() {
     );
     assert!(!functions.sql.to_uppercase().contains("CREATE TABLE"));
 }
-
 
 #[test]
 fn test_database_extension_default() {

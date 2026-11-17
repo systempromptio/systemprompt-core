@@ -25,12 +25,12 @@ rustdoc-args = ["--cfg", "docsrs"]
 default = []
 http = []
 cli = [
-    "dep:systemprompt-cli",
+    "systemprompt-extension/cli",
+    "systemprompt-logging/cli",
     "dep:systemprompt-cloud",
     "dep:systemprompt-client",
     "dep:systemprompt-config",
     "dep:systemprompt-database",
-    "dep:systemprompt-extension",
     "dep:systemprompt-gateway",
     "dep:systemprompt-governance",
     "dep:systemprompt-identifiers",
@@ -61,12 +61,11 @@ cli = [
 ]
 
 [dependencies]
-systemprompt-cli = { workspace = true, optional = true }
 systemprompt-cloud = { workspace = true, optional = true }
 systemprompt-client = { workspace = true, optional = true }
 systemprompt-config = { workspace = true, optional = true }
 systemprompt-database = { workspace = true, optional = true }
-systemprompt-extension = { workspace = true, optional = true }
+systemprompt-extension = { workspace = true }
 systemprompt-gateway = { workspace = true, optional = true }
 systemprompt-governance = { workspace = true, optional = true }
 systemprompt-identifiers = { workspace = true, optional = true }

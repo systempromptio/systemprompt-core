@@ -2,14 +2,15 @@
 //! one mapping onto the HTTP error envelope: a storage or output failure is
 //! the fixed 5xx body with its cause logged; a failure the API already
 //! models (an invalid run id, an unknown run, a refused request) passes
-//! through as its `ApiHttpError`. The response is built by the API kernel's
+//! through as its `ApiHttpError`. The response is built by
 //! `capability_error_response!`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_agent_runs::AgentRunsError;
-use systemprompt_api::kernel::{ApiHttpError, IntoApiError, capability_error_response};
+use systemprompt_extension::capability_error_response;
+use systemprompt_extension::router::{ApiHttpError, IntoApiError};
 use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_models::api::ApiError;
 
@@ -29,7 +30,7 @@ impl From<ApiHttpError> for AgentRunsHttpError {
 
 impl From<IdValidationError> for AgentRunsHttpError {
     fn from(error: IdValidationError) -> Self {
-        Self::Http(ApiHttpError::from(error))
+        Self::Http(ApiHttpError::from(ApiError::from(error)))
     }
 }
 

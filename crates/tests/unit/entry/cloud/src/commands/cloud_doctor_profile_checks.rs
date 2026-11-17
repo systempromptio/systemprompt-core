@@ -13,8 +13,10 @@ use systemprompt_cloud_entry::cli::doctor::{
     CheckStatus, check_extension_configs, check_profile_valid, check_provider_secrets,
     check_signing_key,
 };
+use systemprompt_extension::AdmittedConfigs;
 use systemprompt_manifest::Profile;
 use systemprompt_manifest::services::catalog::{CredentialRegistry, DefaultCatalog};
+use systemprompt_test_fixtures::fixture_admitted;
 
 fn fixture_profile() -> (Profile, PathBuf) {
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
@@ -54,7 +56,8 @@ fn a_profile_with_an_empty_name_fails_validation() {
 fn extension_configs_are_checked_against_the_services_tree() {
     let (profile, _dir) = fixture_profile();
 
-    let result = check_extension_configs(&profile);
+    let result =
+        check_extension_configs(&profile, &AdmittedConfigs::of(fixture_admitted().built()));
     assert_eq!(result.name, "extension-config");
     assert_ne!(result.detail, "");
 }

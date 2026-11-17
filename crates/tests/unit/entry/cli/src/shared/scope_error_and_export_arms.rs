@@ -22,7 +22,7 @@ fn the_database_scope_error_names_the_active_profile_once_one_is_installed() {
 #[test]
 fn the_database_scope_error_without_a_profile_asks_for_one() {
     let bare = systemprompt_cli::CommandContext::new(
-        systemprompt_cli::CliConfig::new().with_interactive(false),
+        systemprompt_extension::cli::CliConfig::new().with_interactive(false),
         systemprompt_cli::EnvOverrides::default(),
     );
 

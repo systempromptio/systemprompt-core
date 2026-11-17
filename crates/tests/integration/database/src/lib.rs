@@ -7,6 +7,9 @@
 //! that the schema references must already exist when the schema runs.
 
 #[cfg(test)]
+mod composition;
+
+#[cfg(test)]
 #[path = "../schema_migration_order.rs"]
 mod schema_migration_order;
 

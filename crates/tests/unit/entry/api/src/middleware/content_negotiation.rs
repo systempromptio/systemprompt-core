@@ -7,9 +7,7 @@
 //! - parse_accept_header with various Accept header values
 //! - Quality factor parsing and priority
 
-use systemprompt_api::services::middleware::{
-    AcceptedFormat, AcceptedMediaType, parse_accept_header,
-};
+use systemprompt_extension::router::{AcceptedFormat, AcceptedMediaType, parse_accept_header};
 
 #[test]
 fn json_content_type() {

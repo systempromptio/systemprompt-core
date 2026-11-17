@@ -5,11 +5,11 @@
 
 mod status;
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Subcommand;
 
-use crate::context::CommandContext;
-use crate::shared::render_result;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Clone, Copy, Debug, Subcommand)]
 pub enum LicenceCommands {
@@ -17,11 +17,9 @@ pub enum LicenceCommands {
     Status,
 }
 
-pub async fn execute(cmd: LicenceCommands, ctx: &CommandContext) -> Result<()> {
-    let app = ctx.app_context().await?;
-    let output = match cmd {
-        LicenceCommands::Status => status::execute(app).await?,
-    };
-    render_result(&output, &ctx.cli);
-    Ok(())
+pub async fn execute(cmd: LicenceCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
+    let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
+    match cmd {
+        LicenceCommands::Status => status::execute(host.profile()?, &pool).await,
+    }
 }

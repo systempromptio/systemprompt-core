@@ -4,11 +4,12 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use clap::Args;
+use systemprompt_extension::BuiltState;
+use systemprompt_extension::cli::CommandOutput;
+use systemprompt_identifiers::JobName;
 
-use crate::CliConfig;
+use crate::commands::plugins::composition;
 use crate::commands::plugins::types::{JobWithExtension, JobsListOutput};
-use crate::commands::plugins::{discover_registry, owned_jobs};
-use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
 pub struct JobsArgs {
@@ -19,34 +20,26 @@ pub struct JobsArgs {
     pub enabled: bool,
 }
 
-pub fn execute(args: &JobsArgs, _config: &CliConfig) -> CommandOutput {
-    let registry = discover_registry();
-
-    let jobs: Vec<JobWithExtension> = registry
-        .extensions()
-        .iter()
-        .filter(|ext| args.extension.as_ref().is_none_or(|f| ext.id().contains(f)))
-        .flat_map(|ext| {
-            owned_jobs(ext.id())
-                .filter_map(|job| {
-                    if args.enabled && !job.enabled() {
-                        return None;
-                    }
-
-                    Some(JobWithExtension {
-                        extension_id: systemprompt_identifiers::ExtensionId::new(ext.id()),
-                        extension_name: ext.name().to_owned(),
-                        job_name: systemprompt_identifiers::JobName::new(job.name()),
-                        schedule: job.schedule().to_owned(),
-                        enabled: job.enabled(),
-                    })
+pub fn execute(args: &JobsArgs, built: &BuiltState) -> CommandOutput {
+    let jobs: Vec<JobWithExtension> = composition::matching(built, args.extension.as_deref())
+        .flat_map(|member| {
+            member
+                .sink
+                .jobs()
+                .iter()
+                .map(systemprompt_extension::contribute::ContributedJob::job)
+                .filter(|job| !args.enabled || job.enabled())
+                .map(|job| JobWithExtension {
+                    extension_id: member.owner.clone(),
+                    extension_name: member.metadata.name.to_owned(),
+                    job_name: JobName::new(job.name()),
+                    schedule: job.schedule().to_owned(),
+                    enabled: job.enabled(),
                 })
-                .collect::<Vec<_>>()
         })
         .collect();
 
     let total = jobs.len();
-
     let output = JobsListOutput { jobs, total };
 
     CommandOutput::table_of(

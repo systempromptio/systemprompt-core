@@ -8,14 +8,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use std::sync::Arc;
 use systemprompt_users::{User, UserRepository, UserService};
 
 use super::types::UserDeletedOutput;
-use crate::context::CommandContext;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct RestoreArgs {
@@ -32,8 +32,8 @@ pub struct LegalHoldArgs {
     pub release: bool,
 }
 
-async fn resolve(ctx: &CommandContext, reference: &str) -> Result<(UserService, User)> {
-    let pool = ctx.db_pool().await?;
+async fn resolve(host: &dyn KernelHost, reference: &str) -> Result<(UserService, User)> {
+    let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
     let user_service = UserService::new(Arc::new(UserRepository::new(&pool)));
     let user = user_service
         .find_by_reference_any_status(reference)
@@ -42,14 +42,11 @@ async fn resolve(ctx: &CommandContext, reference: &str) -> Result<(UserService, 
     Ok((user_service, user))
 }
 
-pub(super) async fn execute(args: RestoreArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let window_days = ctx
-        .app_context()
-        .await?
-        .config()
+pub(super) async fn execute(args: RestoreArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+    let window_days = crate::commands::admin::state::config(host)?
         .retention
         .archived_users_days;
-    let (user_service, user) = resolve(ctx, &args.user).await?;
+    let (user_service, user) = resolve(host, &args.user).await?;
     user_service.restore(&user.id, window_days).await?;
     let output = UserDeletedOutput {
         id: user.id.clone(),
@@ -63,9 +60,9 @@ pub(super) async fn execute(args: RestoreArgs, ctx: &CommandContext) -> Result<C
 
 pub(super) async fn execute_legal_hold(
     args: LegalHoldArgs,
-    ctx: &CommandContext,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
-    let (user_service, user) = resolve(ctx, &args.user).await?;
+    let (user_service, user) = resolve(host, &args.user).await?;
     user_service.set_legal_hold(&user.id, !args.release).await?;
     let output = UserDeletedOutput {
         id: user.id.clone(),

@@ -8,7 +8,7 @@ use std::path::Path;
 use systemprompt_cli::interactive::ScriptedPrompter;
 use systemprompt_cli::web::templates::{create, delete, edit, list, selection, show};
 use systemprompt_cli::web::types::TemplatesConfig;
-use systemprompt_cli::{CliConfig, Prompter};
+use systemprompt_extension::cli::{CliConfig, Prompter};
 
 fn cfg() -> CliConfig {
     CliConfig::new().with_interactive(false)

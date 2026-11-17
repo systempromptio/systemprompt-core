@@ -236,7 +236,7 @@ async fn service_delete_user() -> Result<()> {
         .create(&unique_name, &unique_email, None, None)
         .await?;
 
-    service.delete(&created.id).await?;
+    service.delete(&created.id, &crate::purge_plan()).await?;
 
     let found = service.find_by_id(&created.id).await?;
     assert!(found.is_none());
@@ -258,7 +258,7 @@ async fn service_delete_anonymous_user() -> Result<()> {
     let fingerprint = format!("svc_del_user_{}", uuid::Uuid::new_v4());
     let created = service.create_anonymous(&fingerprint).await?;
 
-    service.delete(&created.id).await?;
+    service.delete(&created.id, &crate::purge_plan()).await?;
 
     let found = service.find_by_email(&created.email).await?;
     assert!(found.is_none());

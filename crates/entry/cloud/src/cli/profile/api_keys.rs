@@ -6,7 +6,7 @@
 use anyhow::{Result, bail};
 use systemprompt_logging::CliService;
 
-use systemprompt_cli::kernel::Prompter;
+use systemprompt_extension::cli::Prompter;
 
 #[derive(Debug)]
 pub struct ApiKeys {

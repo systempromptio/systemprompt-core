@@ -282,7 +282,9 @@ async fn handle_health_is_degraded_until_the_event_relay_listens() -> anyhow::Re
 
 #[tokio::test]
 async fn handle_health_reports_healthy_with_a_listening_relay() -> anyhow::Result<()> {
-    let (_pool, ctx) = setup_ctx().await?;
+    let db = systemprompt_test_fixtures::DisposableDb::with_schema("api_health_applied").await;
+    systemprompt_test_fixtures::record_plane_applied(&db.test_pool().await, "governance").await?;
+    let ctx = systemprompt_test_fixtures::test_app_context(db.url()).await;
     assert!(
         ctx.event_bridge().start(),
         "a fresh fixture context has no relay"
@@ -297,8 +299,10 @@ async fn handle_health_reports_healthy_with_a_listening_relay() -> anyhow::Resul
         .with_state((*ctx).clone());
     let (status, body) = body_json(app, "/health").await;
     ctx.event_bridge().shutdown().await;
+    drop(ctx);
+    db.drop_now().await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(body["status"], "healthy");
+    assert_eq!(body["status"], "healthy", "{body}");
     Ok(())
 }
 
@@ -329,10 +333,12 @@ async fn health_detail_reports_each_enabled_extension_readiness_check() -> anyho
     let extensions = body["checks"]["extensions"]
         .as_array()
         .unwrap_or_else(|| panic!("extension readiness is an array: {body}"));
-    let expected = ctx
-        .extension_registry()
-        .all_readiness_checks(&*ctx, &ctx.profile().extensions.disabled)?
-        .len();
+    let expected: usize = ctx
+        .admitted()
+        .built()
+        .members()
+        .map(|member| member.sink.readiness().len())
+        .sum();
     assert_eq!(extensions.len(), expected, "{body}");
     let notifications = &body["checks"]["notifications"];
     assert_eq!(notifications["status"], "healthy", "{notifications}");

@@ -41,8 +41,14 @@ async fn setup(prefix: &str) -> Ctx {
 
 async fn cleanup(ctx: &Ctx) {
     // user_device_certs.user_id is FK ON DELETE CASCADE.
-    let _ = ctx.repo.delete(&ctx.owner).await;
-    let _ = ctx.repo.delete(&ctx.other).await;
+    let _ = ctx
+        .repo
+        .delete(&ctx.owner, &crate::purge_plan::purge_plan())
+        .await;
+    let _ = ctx
+        .repo
+        .delete(&ctx.other, &crate::purge_plan::purge_plan())
+        .await;
 }
 
 // Why: fingerprints are globally unique, so each test mints its own; two

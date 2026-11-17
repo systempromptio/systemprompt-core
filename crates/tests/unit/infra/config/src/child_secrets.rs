@@ -22,7 +22,9 @@ async fn service(storage: &str) -> (fixture::Fixture, std::sync::Arc<SecretsServ
     let profile = std::fs::read_to_string(&fx.profile_path).expect("read profile");
     std::fs::write(&fx.profile_path, format!("{profile}{storage}")).expect("write profile");
     let profile = LoadedProfile::from_path(&fx.profile_path).expect("profile");
-    let service = SecretsService::load(profile).await.expect("secrets");
+    let service = SecretsService::load(profile, systemprompt_config::SecretsSources::default())
+        .await
+        .expect("secrets");
     (fx, service)
 }
 

@@ -97,7 +97,7 @@ settings:
         "extension:\n  type: mcp\n  name: fixture\n  binary: fixture\n",
     )?;
     let pool = test_db_pool().await;
-    let ctx = test_app_context_on(&boot, &pool);
+    let ctx = test_app_context_on(&boot).await;
     seed_running_service(&ctx, &name, "mcp", backend.address().port()).await?;
     Ok(Edge {
         name,

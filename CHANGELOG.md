@@ -1,5 +1,48 @@
 # Changelog
 
+## [0.83.0] - 2026-11-17
+
+### Breaking
+
+- **Breaking:** **AI:** `ProviderClient::generate_stream` and `generate_with_tools_stream` return `EventStream`, a stream of `systemprompt_wire::canonical::CanonicalEvent`, instead of `StreamChunk`. Migrate an implementation by yielding canonical events; `canonical_bridge::event_to_chunk` projects one to its text chunk.
+- **Breaking:** **AI:** `AiRequest`, `GenerationParams`, `SynthesisParams` and the Gemini `ToolRequestParams` and `ToolResultParams` gain the `reasoning` field, and `RequestError` gains `ThinkingBudgetTooLarge`. Migrate a struct literal by setting `reasoning: None`, or build through `AiRequestBuilder` / `GenerationParams::new`.
+- **Breaking:** **AI:** `canonical_bridge::event_to_chunk` yields a chunk for a text delta only and no longer yields `StreamChunk::Usage`. Migrate a caller that read usage or the finish reason off the chunk stream to `AiService::generate_events_stream`.
+- **Breaking:** **AI:** `AiContentPart` gains `ToolUse`, `ToolResult` and `Thinking`. Migrate an exhaustive match by adding the arms.
+
+### Added
+
+- **AI:** `AiService::generate_events_stream(&AiRequest)` returns the provider's full canonical event stream (block start and stop, text, thinking, signature and tool-call deltas, usage, stop) under the same audit row and cost accounting as `generate_stream`, offering the request's tools when it carries any and recording the tool calls the stream carried on that audit row; `generate_stream` and `generate_with_tools_stream` are its text projection and yield what they did before.
+- **AI:** `AiRequest::reasoning` (`ReasoningParams`: `effort`, `thinking_budget_tokens`, set with `AiRequestBuilder::with_reasoning`) requests reasoning explicitly on every `AiService` generation path that takes an `AiRequest`, including the synthesis turn after tool execution: `thinking_budget_tokens` is the thinking budget of the Anthropic and Gemini wires and `effort` the reasoning effort of the OpenAI wires; a field left unset keeps the per-model default, and a thinking budget at or above the request's maximum output tokens is refused as `RequestError::ThinkingBudgetTooLarge` before the provider is called.
+- **AI:** an `AiMessage` carries tool calls, tool results and signed thinking as structured parts (`AiContentPart::tool_use`, `tool_result`, `thinking`), rendered as native blocks on the Anthropic, OpenAI and Gemini wires, so a caller running its own tool loop replays a turn with the tool-use and thinking parts on the assistant message and the tool-result parts on the user message after it; thinking and tool-result parts are placed ahead of the message's own text.
+
+## [0.82.0] - 2026-11-16
+
+### Breaking
+
+- **Breaking:** **Runtime:** `ConfigPlane` gains the `build` field. Migrate by setting it, usually to `BuildIdentity::core()`.
+- **Breaking:** **MCP:** `read_artifact_resource` takes the caller's `UserId`, and `McpArtifactRepository::find_by_id` is replaced by `find_owned(artifact_id, owner)`. Migrate by passing the authenticated caller.
+- **Breaking:** **Files:** `DocumentsConfig` gains the `rendered_html` field (`RenderedHtmlConfig`). Migrate by setting it, usually to `RenderedHtmlConfig::default()`.
+- **Breaking:** **API:** `RouteGroup` gains `InternalLinks`, and `systemprompt_runtime::documents::links::LinkRefusal` gains `Unavailable`. Migrate by adding the match arms.
+
+### Added
+
+- **Documents:** `GET /api/v1/documents/{id}/rendered` (also `HEAD`, `?revision=`) serves an HTML document's stored bytes inline as `text/html`, so an uploaded page shows as its author designed it. The response carries a `sandbox` CSP without `allow-same-origin`, which makes the page an opaque-origin document framed or not: it holds no session, reads no cookie and reaches no route of the installation; it is `nosniff`, `no-store`, `no-referrer` and frameable only by the app. By default it runs no script and loads only what the file embeds; `files.documents.renderedHtml.scripts` lets its scripts run inside the sandbox and `files.documents.renderedHtml.remoteAssets` lets it load `https:` assets. Any other format is refused as `unsupported_op`.
+- **CLI:** `systemprompt_cli::run_with(BuildIdentity)` (also `systemprompt::cli::run_with`) lets an embedding binary name itself — product name, version and optional source revision (`systemprompt_models::BuildIdentity`); `/livez`, `/readyz`, `/api/v1/health`, `/api/v1/health/detail` and the root discovery document report it under `build` next to core's `version`, and `run` reports core itself. The runtime takes it through `AppContextBuilder::with_build_identity` and exposes it as `AppContext::build_identity`.
+
+### Changed
+
+- **Database:** a full schema install leaves a declarative trigger in place when its statements and its live definition (`pg_get_triggerdef`) are unchanged since it was last applied, so a deploy that changes some other part of the schema takes no exclusive lock on that trigger's table; the digests live in `schema_trigger_digests` (migration `009`), a trigger changed or dropped out of band is re-applied, and `MigrationConfig::force_full_install` re-creates every trigger.
+
+### Fixed
+
+- **MCP:** an MCP artifact resource (`ui://<server>/artifact/<id>`) is read only by the user it was stored for; any other caller receives the same answer as for an unknown artifact, and an artifact stored without an owner is read by no one.
+- **API:** a `worker` node serves `POST /api/v1/internal/links` (route group `InternalLinks`, also on `api` and `all`), so `issue_attachment`, `documents_upload` and link-based `documents_export` work on a role-split install, where a managed MCP server asks its own node for a signed link; the worker mounts none of the documents surface, and the links it signs point at `api_external_url`. `LinkRefusal` gains `Unavailable` (any status but 401, 403, 409 and 500), and the tools report an unreachable link endpoint or the status it returned (`LinkIssueError::tool_message`) instead of "the upload links could not be signed".
+- **API:** a `worker` that stops gracefully withdraws its presence before it stops and releases its processes (`ServiceRepository::delete_presence`), so a surviving worker claims them on its next tick instead of after the 45 s presence staleness, and a worker preferred for a key whose lease is still held retries the claim every 2 s (`CLAIM_RETRY_EVERY`). A worker that dies without stopping still leaves after `LEASE_TTL`.
+- **API:** a process moving between workers on a graceful stop has no window of `503 no_live_owner`. The departing worker's presence withdrawal and each process lease release are announced on the Postgres channel `systemprompt_process_ownership` (`ServiceRepository::announce_process_released`, `PROCESS_OWNERSHIP_CHANNEL`), and every worker's lease loop waits on a `ProcessOwnershipWake`, so the surviving worker claims as the lease is released instead of at its next 15 s tick or 2 s claim retry; both remain the backstop when the listener is down (it needs a session-level `LISTEN`, so `database_session_url` behind a transaction pooler). An `api` node holds a request for a supervised MCP server or agent that has no owner, re-reading the registry every 200 ms for at most 10 s (`OWNER_HANDOVER_POLL`, `OWNER_HANDOVER_WAIT`), and forwards it when the new owner registers; requests for one service share the wait, and once it has passed with no owner they are answered 503 at once until an owner is found again. A name the configuration does not supervise is refused without waiting.
+- **Database:** a schema phase that deadlocks with live writers (`40P01`) or hits a serialization failure (`40001`) is rolled back and retried like a lock timeout (`55P03`); retryability is read from the SQLSTATE (`is_retryable_lock_conflict`, `RETRYABLE_SQLSTATES`), falling back to the message only when no code is present, and the backoff is jittered.
+- **CLI:** `admin config catalog discovery` runs the read-only Vertex discovery pass with the node's profile and credentials and reports its outcome, including a credential that cannot mint a token, instead of reading the boot report that only a serving process holds and answering "has not run".
+- **Dependencies:** `ammonia` is 4.2.5 in every lockfile (RUSTSEC-2026-0533).
+
 ## [0.81.1] - 2026-11-13
 
 ### Fixed

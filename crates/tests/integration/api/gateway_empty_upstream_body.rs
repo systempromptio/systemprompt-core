@@ -20,7 +20,7 @@ use systemprompt_identifiers::headers::SESSION_ID;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
     AuthedFixture, TestBootstrap, init_services_bootstrap, seed_admin_credential,
-    test_app_context_on, test_db_pool,
+    settle_background, test_app_context_on, test_db_pool,
 };
 use systemprompt_traits::DrainOutcome;
 use tokio::sync::OnceCell;
@@ -98,9 +98,9 @@ async fn harness() -> &'static Harness {
 async fn app() -> Result<(Router, DbPool, Arc<AppContext>)> {
     let h = harness().await;
     let pool = test_db_pool().await;
-    let ctx = test_app_context_on(&h.boot, &pool);
+    let ctx = test_app_context_on(&h.boot).await;
     Ok((
-        gateway_router(&ctx).expect("gateway router builds"),
+        gateway_router(&ctx, ctx.admitted(), ctx.kernel()).expect("gateway router builds"),
         pool,
         ctx,
     ))
@@ -155,10 +155,11 @@ async fn an_empty_upstream_body_is_not_relayed_as_a_successful_turn() -> Result<
 async fn an_empty_upstream_body_is_audited_as_failed() -> Result<()> {
     let (app, pool, ctx) = app().await?;
     let cred = credential(&pool).await?;
+    let baseline = ctx.background_tasks().in_flight();
     let _ = super::common::body_to_string(app.oneshot(messages_post(&cred)).await?).await?;
 
     assert_eq!(
-        ctx.background_tasks().drain(Duration::from_secs(30)).await,
+        settle_background(ctx.background_tasks(), baseline, Duration::from_secs(30)).await,
         DrainOutcome::Drained,
         "the post-response audit work must finish"
     );

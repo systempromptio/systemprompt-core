@@ -6,10 +6,37 @@
 
 use std::sync::Mutex;
 
+use serde::Deserialize;
+use systemprompt_extension::{Admitted, ExtensionConfig, ExtensionConfigError};
 use systemprompt_logging::OutputState;
 use systemprompt_runtime::{StartupValidator, validate_extension_configs};
-use systemprompt_test_fixtures::ensure_test_bootstrap;
+use systemprompt_test_fixtures::{ComposedParts, Probe, ensure_test_bootstrap, probe_admitted};
 use tracing_subscriber::layer::SubscriberExt;
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct ProbeConfig {}
+
+impl ExtensionConfig for ProbeConfig {
+    const PREFIX: &'static str = "validatorprobe";
+
+    fn validate(&self) -> Result<(), ExtensionConfigError> {
+        Ok(())
+    }
+}
+
+fn admitted(with_probe: bool) -> Admitted {
+    let probes = if with_probe {
+        vec![Probe::new("validatorprobe", |c| {
+            c.config::<ProbeConfig>();
+        })]
+    } else {
+        Vec::new()
+    };
+    probe_admitted(ComposedParts {
+        probes,
+        ..ComposedParts::default()
+    })
+}
 
 static STARTUP_MODE_LOCK: Mutex<()> = Mutex::new(());
 
@@ -25,7 +52,7 @@ fn validate_runs_full_pipeline_when_bootstrapped_quiet() {
     let env = ensure_test_bootstrap();
     let cfg = env.boot_config().as_ref().clone();
     let mut validator = StartupValidator::new(env.boot.clone()).expect("startup validator");
-    let report = validator.validate(&cfg);
+    let report = validator.validate(&cfg, admitted(false).built());
 
     assert!(
         report.profile_path.is_some(),
@@ -49,7 +76,7 @@ fn validate_runs_full_pipeline_when_bootstrapped_verbose() {
 
     let cfg = env.boot_config().as_ref().clone();
     let mut validator = StartupValidator::new(env.boot.clone()).expect("startup validator");
-    let report = validator.validate(&cfg);
+    let report = validator.validate(&cfg, admitted(false).built());
 
     assert!(
         report.profile_path.is_some(),
@@ -63,20 +90,35 @@ fn validate_runs_full_pipeline_when_bootstrapped_verbose() {
 }
 
 #[test]
-fn validate_extension_configs_over_bootstrapped_services_path() {
+fn validate_extension_configs_reports_each_admitted_config_section() {
     let env = ensure_test_bootstrap();
 
-    let outcomes =
-        validate_extension_configs(&env.services_path, &[]).expect("extension registry discovers");
+    let outcomes = validate_extension_configs(
+        &systemprompt_extension::AdmittedConfigs::of(admitted(true).built()),
+        &env.services_path,
+    );
 
-    for outcome in &outcomes {
-        assert!(
-            !outcome.extension_id.as_str().is_empty(),
-            "each outcome names its extension: {outcome:?}",
-        );
-        assert!(
-            outcome.config_key.ends_with(".config"),
-            "config_key is the `<prefix>.config` field name: {outcome:?}",
-        );
-    }
+    let probe = outcomes
+        .iter()
+        .find(|outcome| outcome.extension_id.as_str() == "validatorprobe")
+        .unwrap_or_else(|| panic!("the admitted probe's config is validated: {outcomes:?}"));
+    assert_eq!(probe.config_key, "validatorprobe.config");
+    assert_eq!(probe.error, None);
+}
+
+#[test]
+fn validate_extension_configs_reports_nothing_for_an_unadmitted_member() {
+    let env = ensure_test_bootstrap();
+
+    let outcomes = validate_extension_configs(
+        &systemprompt_extension::AdmittedConfigs::of(admitted(false).built()),
+        &env.services_path,
+    );
+
+    assert!(
+        outcomes
+            .iter()
+            .all(|outcome| outcome.extension_id.as_str() != "validatorprobe"),
+        "a member that is not admitted is not validated: {outcomes:?}"
+    );
 }

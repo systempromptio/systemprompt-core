@@ -20,7 +20,7 @@ mod role_directory;
 mod session;
 mod session_traffic;
 mod sso_login_events;
-mod user;
+pub(crate) mod user;
 
 pub use api_key::{CreateApiKeyParams, EnsuredApiKeyRecord};
 pub use banned_ip::{
@@ -29,14 +29,14 @@ pub use banned_ip::{
 pub use device_cert::EnrollDeviceCertParams;
 pub use federated_identity::{IssuerRekeyOutcome, IssuerRekeyPlan};
 pub use rate_limit_bucket::UserRateLimitBucketRepository;
-pub use role_directory::UsersRoleDirectory;
+pub use role_directory::{UsersRoleDirectory, UsersRoleSubjectProvider};
 pub use session::SessionRepository;
 pub use session_traffic::SessionTrafficRollupRepository;
 pub use sso_login_events::{NewSsoLoginEvent, SsoLoginEvent, SsoLoginEventRepository};
 pub use user::{
     ArchiveOutcome, ArchiveParams, ArchiveState, DeclaredUserRow, DeclaredUserWrite,
     EnsuredServiceAccount, MERGE_EXCLUDED_SECURITY_TABLES, MergeResult, NewServiceAccount,
-    PurgeCount, UpdateUserParams,
+    PurgeCount, PurgeOutcome, SkippedPurge, UpdateUserParams,
 };
 
 use sqlx::PgPool;

@@ -39,6 +39,7 @@ pub mod error;
 pub mod extension_binary_index;
 pub mod extension_loader;
 pub mod fingerprint;
+pub mod load_boot;
 pub mod profile_loader;
 pub mod services_state;
 pub mod subprocess;

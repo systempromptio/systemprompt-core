@@ -23,12 +23,14 @@
 #      `systemprompt-client` is the one sanctioned network crate
 #      (architecture.md "The client crate performs network I/O") and is
 #      exempt from the `reqwest` / `tokio` rows only. `axum` is exempt for
-#      exactly two crates: `systemprompt-extension` (the extension routing
-#      contract is `Extension::router()`, whose `ExtensionRouter` wraps an
-#      `axum::Router`) and
+#      exactly two crates, each only as an optional dependency:
+#      `systemprompt-extension` behind its `router` feature (the route-set
+#      contract `router::RouteSet` carries axum handlers) and
 #      `systemprompt-models` behind its optional `web` feature (the
-#      `IntoResponse` impls for the API envelopes). Neither opens a socket;
-#      replacing them is a router-abstraction redesign, not a dependency trim.
+#      `IntoResponse` impls for the API envelopes). `clap` is optional in
+#      `systemprompt-extension` too, behind its `cli` feature (the command
+#      contract `cli::CommandDecl`), so a crate that needs neither the HTTP
+#      nor the CLI contract builds the extension crate without them.
 #   5. The shared model crates keep their order. `systemprompt-wire` (provider
 #      wire codecs) depends on no workspace crate but
 #      `systemprompt-identifiers`; `systemprompt-models` (runtime models)
@@ -53,7 +55,17 @@ cd "$(dirname "$0")/.."
 
 command -v python3 >/dev/null || { echo "lint-layers: python3 not found"; exit 1; }
 
-cargo metadata --no-deps --format-version 1 | python3 -c '
+# `--metadata FILE` reads the cargo metadata JSON from FILE instead of running
+# cargo (scripts/test-lint-layers.py feeds fixture graphs this way).
+metadata() {
+    if [ "${1:-}" = "--metadata" ]; then
+        cat "$2"
+    else
+        cargo metadata --no-deps --format-version 1
+    fi
+}
+
+metadata "$@" | python3 -c '
 import json, sys
 from collections import defaultdict
 sys.path.insert(0, "scripts/lib")
@@ -116,7 +128,7 @@ for name in sorted(local):
         visit(name)
 
 NETWORK_CRATE = "systemprompt-client"
-ROUTER_CONTRACT_CRATES = {"systemprompt-extension", "systemprompt-models"}
+OPTIONAL_CONTRACT_DEPS = {"systemprompt-extension": ("axum", "clap"), "systemprompt-models": ("axum",)}
 capability = []
 for name in sorted(local):
     if layer[name] != "shared":
@@ -127,7 +139,9 @@ for name in sorted(local):
         dep = d["name"]
         if dep in ("reqwest", "tokio") and name == NETWORK_CRATE:
             continue
-        if dep == "axum" and name in ROUTER_CONTRACT_CRATES:
+        if dep in OPTIONAL_CONTRACT_DEPS.get(name, ()):
+            if not d["optional"]:
+                capability.append(f"  {name} -> {dep} (non-optional): the contract dependency must be optional behind its feature")
             continue
         if dep in ("reqwest", "axum", "libc"):
             optional = " (optional)" if d["optional"] else ""
@@ -163,6 +177,10 @@ if violations or cycles or capability:
 
 print(f"lint-layers: OK — {len(local)} crates, no upward dependencies, no cycles, domain isolation holds, shared model crates ordered, shared layer is I/O-free")
 '
+
+if [ "${1:-}" = "--metadata" ]; then
+    exit 0
+fi
 
 if rg --line-number --ignore-case --multiline \
     '\b(FROM|JOIN|UPDATE|INSERT\s+INTO|DELETE\s+FROM)\s+(public\.)?(users|user_sessions|agent_tasks|task_messages|user_contexts|ai_requests|ai_request_messages|mcp_tool_executions|markdown_content|logs|analytics_events)\b' \

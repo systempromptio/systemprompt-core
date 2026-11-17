@@ -18,7 +18,7 @@ use systemprompt_identifiers::{
 use systemprompt_models::errors::RepositoryError;
 
 use crate::authz::types::DecisionTag;
-use crate::policy::types::AccessScope;
+use crate::policy::AccessScope;
 
 pub const AUDIT_WRITE_FAILED_TOTAL: &str = "governance_audit_write_failed_total";
 

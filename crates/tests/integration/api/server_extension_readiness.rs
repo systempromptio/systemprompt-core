@@ -17,11 +17,12 @@ use systemprompt_api::services::server::builder::{
 };
 use systemprompt_api::services::server::readiness::ReadinessState;
 use systemprompt_extension::{
-    DiagnosticDetail, DiagnosticFailure, DiagnosticProbe, Extension, ExtensionContext,
-    ExtensionMetadata, ExtensionRegistry, ReadinessCheck, ReadinessFailure,
+    DiagnosticDetail, DiagnosticFailure, DiagnosticProbe, Extension, ReadinessCheck,
+    ReadinessFailure, Resolved,
 };
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_app_context_with_extensions, fixture_config, test_db_pool,
+    Probe, ensure_test_bootstrap, fixture_admitted_of, fixture_app_context_with_extensions,
+    fixture_config, fixture_core_members,
 };
 use tower::ServiceExt;
 
@@ -58,33 +59,27 @@ impl ReadinessCheck for Check {
     }
 }
 
-struct ReadinessExt(Outcome);
+fn readiness_member(outcome: Outcome) -> Probe {
+    Probe::new("cov-readiness", move |c| {
+        c.readiness(
+            move |_: &Resolved<'_>| Ok(Arc::new(Check(outcome)) as Arc<dyn ReadinessCheck>),
+        );
+    })
+}
 
-impl Extension for ReadinessExt {
-    fn metadata(&self) -> ExtensionMetadata {
-        ExtensionMetadata {
-            id: "cov-readiness",
-            name: "Readiness fixture",
-            version: "0.0.0",
-        }
-    }
-
-    fn readiness(&self, _ctx: &dyn ExtensionContext) -> Vec<Arc<dyn ReadinessCheck>> {
-        vec![Arc::new(Check(self.0))]
-    }
+async fn context_with(member: Probe) -> Result<Arc<systemprompt_runtime::AppContext>> {
+    let bootstrap = ensure_test_bootstrap();
+    let mut members: Vec<Box<dyn Extension>> = fixture_core_members();
+    members.push(Box::new(member));
+    fixture_app_context_with_extensions(
+        fixture_config(&bootstrap.database_url),
+        fixture_admitted_of(members),
+    )
+    .await
 }
 
 async fn readyz(outcome: Outcome) -> Result<(u16, serde_json::Value)> {
-    let bootstrap = ensure_test_bootstrap();
-    let pool = test_db_pool().await;
-    let mut registry = ExtensionRegistry::new();
-    registry.register(Arc::new(ReadinessExt(outcome)))?;
-    let ctx = fixture_app_context_with_extensions(
-        &pool,
-        fixture_config(&bootstrap.database_url),
-        registry,
-        &[],
-    )?;
+    let ctx = context_with(readiness_member(outcome)).await?;
     let readiness = std::sync::Arc::new(ReadinessState::new());
     readiness.signal_ready();
     let app = discovery_router(&ctx)?.layer(axum::Extension(std::sync::Arc::clone(&readiness)));
@@ -158,24 +153,13 @@ impl DiagnosticProbe for FailingDiagnostic {
     }
 }
 
-struct DiagnosticExt;
-
-impl Extension for DiagnosticExt {
-    fn metadata(&self) -> ExtensionMetadata {
-        ExtensionMetadata {
-            id: "cov-diagnostic",
-            name: "Diagnostic fixture",
-            version: "0.0.0",
-        }
-    }
-
-    fn readiness(&self, _ctx: &dyn ExtensionContext) -> Vec<Arc<dyn ReadinessCheck>> {
-        vec![Arc::new(Check(Outcome::Pass))]
-    }
-
-    fn diagnostics(&self, _ctx: &dyn ExtensionContext) -> Vec<Arc<dyn DiagnosticProbe>> {
-        vec![Arc::new(FailingDiagnostic)]
-    }
+fn diagnostic_member() -> Probe {
+    Probe::new("cov-diagnostic", |c| {
+        c.readiness(|_: &Resolved<'_>| {
+            Ok(Arc::new(Check(Outcome::Pass)) as Arc<dyn ReadinessCheck>)
+        })
+        .diagnostic(|_: &Resolved<'_>| Ok(Arc::new(FailingDiagnostic) as Arc<dyn DiagnosticProbe>));
+    })
 }
 
 async fn get_json(app: axum::Router, uri: &str) -> Result<(u16, serde_json::Value)> {
@@ -189,16 +173,7 @@ async fn get_json(app: axum::Router, uri: &str) -> Result<(u16, serde_json::Valu
 
 #[tokio::test]
 async fn an_erroring_diagnostic_leaves_readyz_ready_and_degrades_the_detail() -> Result<()> {
-    let bootstrap = ensure_test_bootstrap();
-    let pool = test_db_pool().await;
-    let mut registry = ExtensionRegistry::new();
-    registry.register(Arc::new(DiagnosticExt))?;
-    let ctx = fixture_app_context_with_extensions(
-        &pool,
-        fixture_config(&bootstrap.database_url),
-        registry,
-        &[],
-    )?;
+    let ctx = context_with(diagnostic_member()).await?;
     let readiness = std::sync::Arc::new(ReadinessState::new());
     readiness.signal_ready();
 

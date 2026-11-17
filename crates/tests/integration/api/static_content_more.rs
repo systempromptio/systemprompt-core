@@ -16,36 +16,18 @@ use systemprompt_api::services::static_content::serve_homepage;
 use systemprompt_api::services::static_content::session::ensure_session;
 use systemprompt_api::services::static_content::static_files::{StaticContentState, compute_etag};
 use systemprompt_identifiers::JwtToken;
-use systemprompt_manifest::profile::PathsConfig;
-use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_models::RouteClassifier;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_app_context_with, test_db_pool};
-use tempfile::TempDir;
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context};
 
-async fn state_with_dist() -> anyhow::Result<(TempDir, StaticContentState)> {
-    let b = ensure_test_bootstrap();
-    let pool = test_db_pool().await;
-    let tmp = TempDir::new()?;
-    let web = tmp.path().join("web");
-    std::fs::create_dir_all(web.join("dist"))?;
-    let paths = PathsConfig {
-        root: None,
-        system: tmp.path().to_string_lossy().into_owned(),
-        services: "/tmp".to_owned(),
-        bin: "/tmp".to_owned(),
-        web_path: Some(web.to_string_lossy().into_owned()),
-        storage: Some("/tmp".to_owned()),
-        geoip_database: None,
-        shipped_files: None,
-        data: None,
-    };
-    let ctx = fixture_app_context_with(&pool, &b.database_url, paths, Arc::new(AllowAllFilter))?;
+async fn state_with_dist() -> anyhow::Result<StaticContentState> {
+    let ctx = test_app_context(&ensure_test_bootstrap().database_url).await;
+    std::fs::create_dir_all(ctx.app_paths().web().dist())?;
     let state = StaticContentState {
         ctx,
         matcher: Arc::new(StaticContentMatcher::empty()),
         route_classifier: Arc::new(RouteClassifier::new(None)),
     };
-    Ok((tmp, state))
+    Ok(state)
 }
 
 fn dist(state: &StaticContentState) -> std::path::PathBuf {
@@ -61,7 +43,7 @@ async fn homepage(state: &StaticContentState, headers: HeaderMap) -> (StatusCode
 
 #[tokio::test]
 async fn serve_homepage_serves_index() -> anyhow::Result<()> {
-    let (_tmp, state) = state_with_dist().await?;
+    let state = state_with_dist().await?;
     std::fs::write(dist(&state).join("index.html"), "<h1>home</h1>")?;
     let (status, hdrs) = homepage(&state, HeaderMap::new()).await;
     assert_eq!(status, StatusCode::OK);
@@ -75,7 +57,7 @@ async fn serve_homepage_serves_index() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn serve_homepage_returns_304_on_matching_etag() -> anyhow::Result<()> {
-    let (_tmp, state) = state_with_dist().await?;
+    let state = state_with_dist().await?;
     let content = b"<h1>home</h1>";
     std::fs::write(dist(&state).join("index.html"), content)?;
     let mut headers = HeaderMap::new();
@@ -90,7 +72,7 @@ async fn serve_homepage_returns_304_on_matching_etag() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn serve_homepage_missing_index_is_404() -> anyhow::Result<()> {
-    let (_tmp, state) = state_with_dist().await?;
+    let state = state_with_dist().await?;
     let (status, _hdrs) = homepage(&state, HeaderMap::new()).await;
     assert_eq!(status, StatusCode::NOT_FOUND);
     Ok(())
@@ -99,7 +81,7 @@ async fn serve_homepage_missing_index_is_404() -> anyhow::Result<()> {
 #[tokio::test]
 async fn ensure_session_mints_anonymous_session_without_token() -> anyhow::Result<()> {
     ensure_test_bootstrap();
-    let (_tmp, state) = state_with_dist().await?;
+    let state = state_with_dist().await?;
 
     let mut headers = HeaderMap::new();
     headers.insert(
@@ -119,7 +101,7 @@ async fn ensure_session_mints_anonymous_session_without_token() -> anyhow::Resul
 async fn ensure_session_reuses_a_valid_browser_token_without_creating_another_session()
 -> anyhow::Result<()> {
     ensure_test_bootstrap();
-    let (_tmp, state) = state_with_dist().await?;
+    let state = state_with_dist().await?;
     let mut first_headers = HeaderMap::new();
     first_headers.insert(
         "user-agent",

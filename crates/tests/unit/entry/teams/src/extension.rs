@@ -1,13 +1,26 @@
 //! Tests for the Teams `Extension` registration surface.
 //!
-//! Exercises the metadata, config-prefix, config-schema, and config-validation
-//! hooks the loader calls during bootstrap. Pure-logic — no registry wiring, no
+//! Exercises the metadata and the `teams` config section's prefix, schema and
+//! validation the composition runs at admission. Pure logic — no kernel, no
 //! network.
 
 use serde_json::json;
-use systemprompt_extension::{Extension, ExtensionConfigError};
+use systemprompt_extension::{Extension, ExtensionConfig, ExtensionConfigError};
 use systemprompt_models::errors::ServicesValidationError;
 use systemprompt_teams_entry::TeamsExtension;
+use systemprompt_teams_entry::extension::TeamsAppsConfig;
+
+fn validate(section: &serde_json::Value) -> Result<(), ExtensionConfigError> {
+    serde_json::from_value::<TeamsAppsConfig>(section.clone())
+        .map_err(|source| ExtensionConfigError::ParseError {
+            source: Box::new(source),
+        })?
+        .validate()
+}
+
+fn schema() -> serde_json::Value {
+    serde_json::to_value(schemars::schema_for!(TeamsAppsConfig)).expect("schema renders")
+}
 
 #[test]
 fn metadata_identifies_the_teams_extension() {
@@ -19,14 +32,12 @@ fn metadata_identifies_the_teams_extension() {
 
 #[test]
 fn config_is_scoped_under_the_teams_prefix() {
-    assert_eq!(TeamsExtension.config_prefix(), Some("teams"));
+    assert_eq!(<TeamsAppsConfig as ExtensionConfig>::PREFIX, "teams");
 }
 
 #[test]
 fn config_schema_is_published() {
-    let schema = TeamsExtension
-        .config_schema()
-        .expect("teams publishes a config schema");
+    let schema = schema();
     assert!(schema.is_object());
 }
 
@@ -40,15 +51,12 @@ fn validate_config_accepts_a_well_formed_app_map() {
             "default_agent": "support-agent",
         }
     });
-    TeamsExtension
-        .validate_config(&config)
-        .expect("a valid app map passes validation");
+    validate(&config).expect("a valid app map passes validation");
 }
 
 #[test]
 fn validate_config_rejects_a_non_object_document() {
-    let err = TeamsExtension
-        .validate_config(&json!("not an app map"))
+    let err = validate(&json!("not an app map"))
         .expect_err("a scalar document cannot deserialize into the app map");
     assert!(
         matches!(err, ExtensionConfigError::ParseError { .. }),
@@ -66,9 +74,7 @@ fn validate_config_rejects_a_structurally_invalid_app() {
             "default_agent": "support-agent",
         }
     });
-    let err = TeamsExtension
-        .validate_config(&config)
-        .expect_err("an empty app_id cannot deserialize into a TeamsAppId");
+    let err = validate(&config).expect_err("an empty app_id cannot deserialize into a TeamsAppId");
     assert!(
         matches!(err, ExtensionConfigError::ParseError { .. }),
         "expected ParseError, got {err:?}"
@@ -97,9 +103,8 @@ fn validate_config_refuses_an_app_password_ref_naming_a_built_in_secret() {
             "default_agent": "support-agent",
         }
     });
-    let err = TeamsExtension
-        .validate_config(&config)
-        .expect_err("a built-in secret name is refused at config validation");
+    let err =
+        validate(&config).expect_err("a built-in secret name is refused at config validation");
     assert_eq!(
         built_in_secret_ref(&err),
         Some(("app_password_ref", "signing_key_pem".to_owned())),

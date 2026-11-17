@@ -100,8 +100,11 @@ async fn harness() -> &'static Harness {
 async fn app() -> Result<(Router, DbPool)> {
     let h = harness().await;
     let pool = test_db_pool().await;
-    let ctx = test_app_context_on(&h.boot, &pool);
-    Ok((gateway_router(&ctx).expect("gateway router builds"), pool))
+    let ctx = test_app_context_on(&h.boot).await;
+    Ok((
+        gateway_router(&ctx, ctx.admitted(), ctx.kernel()).expect("gateway router builds"),
+        pool,
+    ))
 }
 
 async fn credential(pool: &DbPool) -> Result<AuthedFixture> {

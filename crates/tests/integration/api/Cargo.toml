@@ -13,16 +13,12 @@ path = "mod.rs"
 [lints]
 workspace = true
 
-[package.metadata.cargo-machete]
-# register_gateway_guard! and register_run_origin! expand to ::inventory::submit! in this crate.
-ignored = ["inventory"]
-
 [dependencies]
 systemprompt-catalog-fixtures = { workspace = true }
 async-trait = { workspace = true }
-inventory = { workspace = true }
+systemprompt = { workspace = true, features = ["full"] }
 systemprompt-test-fixtures = { workspace = true }
-systemprompt-api = { workspace = true, features = ["brain", "bridge", "collab", "otel", "pdf"] }
+systemprompt-api = { workspace = true, features = ["brain", "bridge", "collab", "otel"] }
 systemprompt-brain = { workspace = true }
 systemprompt-gateway = { workspace = true }
 systemprompt-runtime = { workspace = true, features = ["brain", "engine-loro", "notifications"] }

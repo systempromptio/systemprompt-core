@@ -4,11 +4,12 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use std::sync::Arc;
+use systemprompt_extension::StandingTag;
 use systemprompt_governance::authz::{
-    AuthzError, RuleType, ScopeBindingError, SubjectAttributeProvider, SubjectDimension,
-    SubjectProviderSet,
+    RuleType, ScopeBindingError, SubjectAttributeError, SubjectAttributeProvider, SubjectDimension,
+    SubjectProviderEntry, SubjectProviderSet,
 };
-use systemprompt_identifiers::{ScopeDimension, UserId};
+use systemprompt_identifiers::{ExtensionId, ScopeDimension, UserId};
 use systemprompt_models::attribution::ScopeBinding;
 
 const PROJECT: RuleType = RuleType::extension_static("project");
@@ -26,7 +27,7 @@ impl SubjectAttributeProvider for ProjectProvider {
         }
     }
 
-    async fn values_for(&self, user_id: &UserId) -> Result<Vec<String>, AuthzError> {
+    async fn values_for(&self, user_id: &UserId) -> Result<Vec<String>, SubjectAttributeError> {
         if user_id.as_str() == "member" {
             return Ok(vec!["p-primary".to_owned(), "p-other".to_owned()]);
         }
@@ -35,7 +36,12 @@ impl SubjectAttributeProvider for ProjectProvider {
 }
 
 fn providers() -> SubjectProviderSet {
-    SubjectProviderSet::from_providers(vec![Arc::new(ProjectProvider)])
+    SubjectProviderSet::new(vec![SubjectProviderEntry {
+        owner: ExtensionId::new("test"),
+        standing: StandingTag::Install,
+        provider: Arc::new(ProjectProvider),
+    }])
+    .expect("one install dimension builds a set")
 }
 
 fn binding(dimension: &str, value: &str) -> ScopeBinding {

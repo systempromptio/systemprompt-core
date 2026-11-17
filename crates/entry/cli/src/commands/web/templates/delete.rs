@@ -8,15 +8,14 @@ use clap::Args;
 use std::fs;
 use std::path::Path;
 
-use crate::CliConfig;
-use crate::interactive::{Prompter, require_confirmation, resolve_required};
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::{
+    CliConfig, CommandOutput, Prompter, require_confirmation, resolve_required,
+};
 use systemprompt_logging::CliService;
 
 use super::super::paths::WebPaths;
 use super::super::types::{TemplateDeleteOutput, TemplatesConfig};
 use super::selection::prompt_template_selection;
-use systemprompt_loader::BootContext;
 
 #[derive(Debug, Args)]
 pub struct DeleteArgs {
@@ -34,9 +33,14 @@ pub(super) fn execute(
     args: DeleteArgs,
     prompter: &dyn Prompter,
     config: &CliConfig,
-    boot: &BootContext,
+    services_root: &Path,
 ) -> Result<CommandOutput> {
-    execute_in_dir(args, prompter, config, &WebPaths::resolve(boot)?.templates)
+    execute_in_dir(
+        args,
+        prompter,
+        config,
+        &WebPaths::resolve(services_root)?.templates,
+    )
 }
 
 pub fn execute_in_dir(

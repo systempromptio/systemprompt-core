@@ -5,10 +5,11 @@
 
 use clap::Parser;
 use systemprompt_cli::infrastructure::db::{self, DbCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_runtime::DatabaseContext;
-use systemprompt_test_fixtures::{test_database_url, test_db_pool};
+use systemprompt_test_fixtures::{DisposableDb, test_database_url, test_db_pool};
 
 #[derive(Debug, Parser)]
 struct Harness {
@@ -24,13 +25,17 @@ fn parse(args: &[&str]) -> DbCommands {
 
 
 fn ctx(pool: &DbPool, format: OutputFormat) -> CommandContext {
-    CommandContext::with_database(
+    ctx_on(pool, &test_database_url(), format)
+}
+
+fn ctx_on(pool: &DbPool, url: &str, format: OutputFormat) -> CommandContext {
+    crate::boot_ctx::with_database(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(format),
         EnvOverrides::default(),
         DatabaseContext::from_pool(pool.clone()),
-        test_database_url(),
+        url.to_owned(),
     )
 }
 
@@ -74,12 +79,9 @@ async fn repair_dry_run_reports_clean_state() {
     db::execute(parse(&["migrate-repair"]), &ctx(&pool, OutputFormat::Table))
         .await
         .unwrap();
-    db::execute(
-        parse(&["migrate-repair", "--json"]),
-        &ctx(&pool, OutputFormat::Json),
-    )
-    .await
-    .unwrap();
+    db::execute(parse(&["migrate-repair"]), &ctx(&pool, OutputFormat::Json))
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -96,28 +98,29 @@ async fn repair_unknown_extension_errors() {
 
 #[tokio::test]
 async fn repair_dry_run_reports_tampered_checksum_drift() {
-    let pool = test_db_pool().await;
+    let db = DisposableDb::with_schema("cli_repair_drift").await;
+    let pool = db.test_pool().await;
+    let url = db.url().to_owned();
 
     db::execute(
         parse(&["migrate-repair", "--apply"]),
-        &ctx(&pool, OutputFormat::Json),
+        &ctx_on(&pool, &url, OutputFormat::Json),
     )
     .await
     .unwrap();
 
-    // skip-ok: no database, so nothing to act on
-    let Some((ext, version, original)) = tamper_checksum(&pool).await else {
-        return;
-    };
+    let (ext, version, original) = tamper_checksum(&pool)
+        .await
+        .expect("an installed database records its migrations");
 
     let text_run = db::execute(
         parse(&["migrate-repair", &ext]),
-        &ctx(&pool, OutputFormat::Table),
+        &ctx_on(&pool, &url, OutputFormat::Table),
     )
     .await;
     let json_run = db::execute(
-        parse(&["migrate-repair", &ext, "--json"]),
-        &ctx(&pool, OutputFormat::Json),
+        parse(&["migrate-repair", &ext]),
+        &ctx_on(&pool, &url, OutputFormat::Json),
     )
     .await;
 
@@ -134,32 +137,28 @@ async fn repair_dry_run_reports_tampered_checksum_drift() {
     .await
     .unwrap();
     assert_eq!(checksum, original);
+    db.drop_now().await;
 }
 
 #[tokio::test]
 async fn reconcile_only_rewrites_checksum_in_place() {
-    let pool = test_db_pool().await;
+    let db = DisposableDb::with_schema("cli_repair_reconcile").await;
+    let pool = db.test_pool().await;
+    let url = db.url().to_owned();
 
-    // skip-ok: no database, so nothing to act on
-    let Some((ext, version, original)) = tamper_checksum(&pool).await else {
-        return;
-    };
+    let (ext, version, original) = tamper_checksum(&pool)
+        .await
+        .expect("an installed database records its migrations");
 
     let dry_run = db::execute(
         parse(&["migrate-repair", &ext, "--reconcile-only"]),
-        &ctx(&pool, OutputFormat::Table),
+        &ctx_on(&pool, &url, OutputFormat::Table),
     )
     .await;
 
     let apply_run = db::execute(
-        parse(&[
-            "migrate-repair",
-            &ext,
-            "--reconcile-only",
-            "--apply",
-            "--json",
-        ]),
-        &ctx(&pool, OutputFormat::Json),
+        parse(&["migrate-repair", &ext, "--reconcile-only", "--apply"]),
+        &ctx_on(&pool, &url, OutputFormat::Json),
     )
     .await;
 
@@ -179,4 +178,5 @@ async fn reconcile_only_rewrites_checksum_in_place() {
         "reconcile must rewrite the tampered checksum back to the file's current checksum"
     );
     assert_ne!(checksum, "cov-tampered-checksum");
+    db.drop_now().await;
 }

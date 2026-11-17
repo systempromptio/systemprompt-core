@@ -25,7 +25,7 @@ use crate::recall::held::HeldKeys;
 use crate::recall::visible::{Verdict, Visibility};
 
 #[derive(Debug, Clone, Copy)]
-pub(super) struct NoSourceAccess;
+pub(crate) struct NoSourceAccess;
 
 #[async_trait::async_trait]
 impl SourceAccess for NoSourceAccess {

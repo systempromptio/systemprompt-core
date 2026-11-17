@@ -3,7 +3,7 @@ use systemprompt_gateway::registry::{GatewayUpstreamRegistry, SafetyScannerRegis
 
 #[test]
 fn built_in_protocol_tags_present() {
-    let registry = GatewayUpstreamRegistry::new();
+    let registry = GatewayUpstreamRegistry::builtin();
     for tag in ["anthropic", "openai-chat", "openai-responses", "gemini"] {
         assert!(registry.get(tag).is_some(), "missing built-in tag: {tag}");
     }
@@ -11,14 +11,14 @@ fn built_in_protocol_tags_present() {
 
 #[test]
 fn provider_names_are_not_registry_keys() {
-    let registry = GatewayUpstreamRegistry::new();
+    let registry = GatewayUpstreamRegistry::builtin();
     assert!(registry.get("openai").is_none());
     assert!(registry.get("minimax").is_none());
 }
 
 #[test]
 fn the_registry_enumerates_the_tags_it_can_dispatch() {
-    let registry = GatewayUpstreamRegistry::new();
+    let registry = GatewayUpstreamRegistry::builtin();
     let tags = registry.tags();
 
     for expected in ["anthropic", "openai-chat", "openai-responses", "gemini"] {
@@ -31,7 +31,7 @@ fn the_registry_enumerates_the_tags_it_can_dispatch() {
 
 #[test]
 fn every_enumerated_tag_resolves_to_an_adapter() {
-    let registry = GatewayUpstreamRegistry::new();
+    let registry = GatewayUpstreamRegistry::builtin();
 
     for tag in registry.tags() {
         assert!(
@@ -43,10 +43,7 @@ fn every_enumerated_tag_resolves_to_an_adapter() {
 
 #[tokio::test]
 async fn the_safety_registry_carries_both_builtins() {
-    let registry =
-        SafetyScannerRegistry::discover(&systemprompt_test_fixtures::fixture_extension_context(
-            &systemprompt_test_fixtures::test_db_pool().await,
-        ));
+    let registry = SafetyScannerRegistry::builtin();
     let safety = SafetyConfig::default();
 
     assert!(
@@ -64,20 +61,15 @@ async fn an_unknown_scanner_name_resolves_to_nothing() {
     // A policy naming a scanner that was never registered must fail to resolve
     // rather than silently falling back to a permissive one.
     assert!(
-        SafetyScannerRegistry::discover(&systemprompt_test_fixtures::fixture_extension_context(
-            &systemprompt_test_fixtures::test_db_pool().await
-        ))
-        .create("no-such-scanner", &SafetyConfig::default())
-        .is_none()
+        SafetyScannerRegistry::builtin()
+            .create("no-such-scanner", &SafetyConfig::default())
+            .is_none()
     );
 }
 
 #[tokio::test]
 async fn every_named_safety_scanner_resolves() {
-    let registry =
-        SafetyScannerRegistry::discover(&systemprompt_test_fixtures::fixture_extension_context(
-            &systemprompt_test_fixtures::test_db_pool().await,
-        ));
+    let registry = SafetyScannerRegistry::builtin();
 
     let safety = SafetyConfig::default();
     let names = registry.names();
@@ -96,16 +88,11 @@ async fn every_named_safety_scanner_resolves() {
 
 #[tokio::test]
 async fn registry_debug_lists_what_each_registry_dispatches() {
-    let upstreams = format!("{:?}", GatewayUpstreamRegistry::new());
+    let upstreams = format!("{:?}", GatewayUpstreamRegistry::builtin());
     assert!(upstreams.contains("GatewayUpstreamRegistry"), "{upstreams}");
     assert!(upstreams.contains("anthropic"), "{upstreams}");
 
-    let scanners = format!(
-        "{:?}",
-        SafetyScannerRegistry::discover(&systemprompt_test_fixtures::fixture_extension_context(
-            &systemprompt_test_fixtures::test_db_pool().await,
-        ))
-    );
+    let scanners = format!("{:?}", SafetyScannerRegistry::builtin());
     assert!(scanners.contains("heuristic"), "{scanners}");
     assert!(scanners.contains("null"), "{scanners}");
 }

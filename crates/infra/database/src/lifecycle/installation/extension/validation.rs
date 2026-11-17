@@ -1,21 +1,30 @@
-//! Post-install verification of extension-declared required columns.
+//! Install-time checks: every cross-extension table a member declares is
+//! owned by another member of the install (a member held back because the
+//! database is ahead of it still owns its tables), and every
+//! extension-declared required column exists after the install.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_extension::{Extension, LoaderError, SchemaFault};
+use crate::lifecycle::schema_member::SchemaMember;
+use systemprompt_extension::{LoaderError, SchemaFault};
 use systemprompt_identifiers::ExtensionId;
 
-use super::super::prepare::{ColumnsToValidate, PreparedSchema};
+use super::super::prepare::{ColumnsToValidate, PreparedSchema, prepare_extension_schema};
 use crate::services::DatabaseProvider;
 
 pub(super) fn validate_table_ownership(
     prepared: &[PreparedSchema],
-    schema_extensions: &[std::sync::Arc<dyn Extension>],
+    held_back: &[std::sync::Arc<dyn SchemaMember>],
+    schema_extensions: &[std::sync::Arc<dyn SchemaMember>],
 ) -> Result<(), LoaderError> {
+    let held: Vec<PreparedSchema> = held_back
+        .iter()
+        .map(|ext| prepare_extension_schema(ext.as_ref()))
+        .collect::<Result<_, _>>()?;
     let mut owners: std::collections::HashMap<&str, &ExtensionId> =
         std::collections::HashMap::new();
-    for p in prepared {
+    for p in prepared.iter().chain(&held) {
         for table in &p.owned_tables {
             if let Some(prev) = owners.insert(table.as_str(), &p.extension_id)
                 && *prev != p.extension_id

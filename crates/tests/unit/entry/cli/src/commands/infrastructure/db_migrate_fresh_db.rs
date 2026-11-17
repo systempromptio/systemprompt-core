@@ -7,7 +7,8 @@
 
 use clap::Parser;
 use systemprompt_cli::infrastructure::db::{self, DbCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_runtime::DatabaseContext;
 use systemprompt_test_fixtures::DisposableDb;
 
@@ -52,7 +53,7 @@ impl Disposable {
             cli = cli.with_output_format(OutputFormat::Json);
         }
         let db_ctx = DatabaseContext::from_url(&self.url).await.unwrap();
-        CommandContext::with_database(cli, EnvOverrides::default(), db_ctx, self.url.clone())
+        crate::boot_ctx::with_database(cli, EnvOverrides::default(), db_ctx, self.url.clone())
     }
 
     async fn drop(self) {
@@ -71,7 +72,7 @@ async fn fresh_database_migrates_and_reports_status() {
     db::execute(parse(&["migrate-status"]), &disp.ctx(false).await)
         .await
         .unwrap();
-    db::execute(parse(&["migrate-status", "--json"]), &disp.ctx(true).await)
+    db::execute(parse(&["migrate-status"]), &disp.ctx(true).await)
         .await
         .unwrap();
     db::execute(parse(&["migrate-plan"]), &disp.ctx(false).await)
@@ -80,12 +81,9 @@ async fn fresh_database_migrates_and_reports_status() {
     db::execute(parse(&["migrate-repair"]), &disp.ctx(false).await)
         .await
         .unwrap();
-    db::execute(
-        parse(&["migrate-repair", "--apply", "--json"]),
-        &disp.ctx(true).await,
-    )
-    .await
-    .unwrap();
+    db::execute(parse(&["migrate-repair", "--apply"]), &disp.ctx(true).await)
+        .await
+        .unwrap();
 
     disp.drop().await;
 }
@@ -162,7 +160,6 @@ async fn fresh_database_mark_applied_and_down() {
             "logging",
             "--version",
             "3",
-            "--json",
         ]),
         &disp.ctx(true).await,
     )

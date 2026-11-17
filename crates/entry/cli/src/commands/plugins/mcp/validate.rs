@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use std::sync::Arc;
@@ -10,9 +11,8 @@ use std::time::Duration;
 
 use super::types::{McpBatchValidateOutput, McpValidateOutput, McpValidateSummary};
 pub use super::validate_output::{FailureDetail, failure_output, success_output};
-use crate::context::CommandContext;
-use crate::interactive::{Prompter, resolve_required};
-use crate::shared::CommandOutput;
+use crate::commands::shared::app_context;
+use systemprompt_extension::cli::{CommandOutput, Prompter, resolve_required};
 use systemprompt_identifiers::ServiceName;
 use systemprompt_manifest::services::ServiceStatus;
 use systemprompt_mcp::services::client::validate_connection_with_auth;
@@ -21,14 +21,14 @@ use systemprompt_models::Deployment;
 
 #[derive(Debug, Args)]
 pub struct ValidateArgs {
-    #[arg(help = "MCP server name", value_parser = crate::shared::parse_service_name)]
+    #[arg(help = "MCP server name", value_parser = systemprompt_extension::cli::parsers::parse_service_name)]
     pub server: Option<ServiceName>,
 
     #[arg(
         long = "service",
         conflicts_with = "server",
         help = "Alias for the positional MCP server name",
-        value_parser = crate::shared::parse_service_name
+        value_parser = systemprompt_extension::cli::parsers::parse_service_name
     )]
     pub service: Option<ServiceName>,
 
@@ -41,19 +41,15 @@ pub struct ValidateArgs {
 
 pub(super) async fn execute(
     args: ValidateArgs,
-    ctx: &CommandContext,
+    host: &dyn KernelHost,
 ) -> Result<(CommandOutput, bool)> {
-    let prompter = ctx.prompter();
-    let config = &ctx.cli;
-    let services_config = ctx
-        .boot()?
-        .load_services_config()
-        .context("Failed to load services configuration")?;
-
-    let app = ctx
-        .app_context()
+    let prompter = host.prompter();
+    let config = host.output();
+    let app = app_context(host)
         .await
         .context("Failed to initialize application context")?;
+    let services_config = app.services_config();
+
 
     let database = DatabaseService::new(
         (**app.service_repository()).clone(),

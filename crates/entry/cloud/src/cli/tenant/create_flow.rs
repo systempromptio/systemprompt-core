@@ -8,16 +8,16 @@
 
 use anyhow::Result;
 use systemprompt_cloud::{CloudPath, StoredTenant, TenantStore, get_cloud_paths};
-use systemprompt_loader::subprocess::ForegroundChildren;
+use systemprompt_extension::cli::ChildSupervisor;
 use systemprompt_logging::CliService;
 
 use super::{create_external_tenant, create_local_tenant};
-use systemprompt_cli::kernel::{CliConfig, Prompter};
+use systemprompt_extension::cli::{CliConfig, Prompter};
 
 pub(super) async fn tenant_create(
     prompter: &dyn Prompter,
     config: &CliConfig,
-    children: &ForegroundChildren,
+    children: &dyn ChildSupervisor,
 ) -> Result<()> {
     if !config.is_interactive() {
         return Err(anyhow::anyhow!(
@@ -38,7 +38,7 @@ pub(super) async fn tenant_create(
 
 async fn create_local_or_external_tenant(
     prompter: &dyn Prompter,
-    children: &ForegroundChildren,
+    children: &dyn ChildSupervisor,
 ) -> Result<StoredTenant> {
     let db_options = vec![
         "Docker (creates PostgreSQL container automatically)".to_owned(),

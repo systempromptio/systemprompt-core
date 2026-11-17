@@ -31,9 +31,9 @@ pub mod documents;
 mod error;
 pub mod host_kernel;
 pub mod issues;
+mod kernel;
 pub mod managed;
-#[cfg(feature = "notifications")]
-pub mod notifications;
+mod resolved_impl;
 pub mod schema_currency;
 pub mod services_reconcile;
 mod startup_validation;
@@ -41,21 +41,19 @@ pub mod storage;
 pub mod trace;
 mod validation;
 
-#[cfg(feature = "brain")]
-pub use builder::brain::{BrainCore, BrainInputs, RecallSeams, brain_sink};
-pub use builder::kernel_state::{base_kernel_state, kernel_state};
-#[cfg(feature = "notifications")]
-pub use builder::notifications::{NotificationsInputs, core_notifications, notification_sink};
+pub use builder::kernel_state::{ApiKernelSeed, KernelSeed, base_kernel_state, kernel_state};
 pub use builder::{AppContextBuilder, discover_vertex_models, owner_reassignments};
-pub use context::{AppContext, ConfigPlane, DataPlane, Plugins, ShutdownRequest, Subsystems};
+pub use context::{
+    AppContext, ConfigPlane, ContextPlanes, DataPlane, Plugins, ShutdownRequest, Subsystems,
+};
 pub use database_context::DatabaseContext;
 pub use error::{RuntimeError, RuntimeResult};
-pub use host_kernel::{HostBootError, HostKernel, HostParts, PROFILE_ENV};
+pub use host_kernel::{AdmitFn, HostBootError, HostKernel, HostParts, PROFILE_ENV};
+pub use kernel::{Kernel, KernelError};
 pub use schema_currency::{SchemaState, assert_schema_current};
 pub use startup_validation::{
-    ExtensionConfigOutcome, RegisteredToolsetId, StartupValidator, collect_manifest_errors,
-    collect_toolset_errors, display_validation_report, display_validation_warnings,
-    merge_mcp_errors, registered_toolset_ids, validate_extension_configs,
+    ExtensionConfigOutcome, StartupValidator, collect_manifest_errors, display_validation_report,
+    display_validation_warnings, merge_mcp_errors, validate_extension_configs,
 };
 pub use systemprompt_database::MigrationConfig;
 #[cfg(feature = "notifications")]

@@ -1,7 +1,7 @@
+use std::sync::Arc;
+
 use async_trait::async_trait;
-use systemprompt_gateway::{
-    RouteSelector, RouteSelectorChain, RouteSelectorError, register_route_selector,
-};
+use systemprompt_gateway::{RouteSelector, RouteSelectorChain, RouteSelectorError};
 use systemprompt_identifiers::ModelId;
 use systemprompt_manifest::services::catalog::EndpointRef;
 use systemprompt_manifest::services::{GatewayRoute, ModelGlobs, RouteDeployment};
@@ -9,11 +9,11 @@ use systemprompt_wire::canonical::{
     CanonicalReasoning, CanonicalRequest, CanonicalSampling, CanonicalTooling,
 };
 
-fn pinned(provider: &str) -> Vec<RouteDeployment> {
+pub(crate) fn pinned(provider: &str) -> Vec<RouteDeployment> {
     vec![RouteDeployment::Endpoint(EndpointRef::new(provider, "api"))]
 }
 
-fn route(pattern: &str, provider: &str) -> GatewayRoute {
+pub(crate) fn route(pattern: &str, provider: &str) -> GatewayRoute {
     GatewayRoute {
         models: ModelGlobs(vec![pattern.to_owned()]),
         deployments: pinned(provider),
@@ -25,7 +25,7 @@ fn pinned_provider(route: &GatewayRoute) -> &str {
     route.deployments[0].endpoint().provider.as_str()
 }
 
-fn req(model: &str) -> CanonicalRequest {
+pub(crate) fn req(model: &str) -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new(model),
         cache_control: None,
@@ -85,22 +85,25 @@ impl RouteSelector for RerouteToGemini {
     }
 }
 
-register_route_selector!(RerouteToGemini::new, name = "reroute-to-gemini");
+fn chain() -> RouteSelectorChain {
+    RouteSelectorChain::new(vec![
+        Arc::new(AlwaysErrors::new()) as Arc<dyn RouteSelector>,
+        Arc::new(RerouteToGemini::new()),
+    ])
+}
 
 #[tokio::test]
 async fn engine_collects_the_registered_selector() {
     assert!(
-        RouteSelectorChain::new().has_selectors(),
-        "the inventory-registered selector must be visible to the engine"
+        chain().has_selectors(),
+        "the contributed selectors must be visible to the engine"
     );
 }
 
 #[tokio::test]
 async fn selector_passes_through_unmatched_requests() {
     let matched = route("claude-*", "anthropic");
-    let refined = RouteSelectorChain::new()
-        .refine(&matched, &req("claude-opus-4-8"))
-        .await;
+    let refined = chain().refine(&matched, &req("claude-opus-4-8")).await;
     assert!(
         refined.is_none(),
         "a selector that returns None re-routes nothing"
@@ -110,7 +113,7 @@ async fn selector_passes_through_unmatched_requests() {
 #[tokio::test]
 async fn selector_reroutes_and_reports_its_name() {
     let matched = route("claude-*", "anthropic");
-    let (refined, name) = RouteSelectorChain::new()
+    let (refined, name) = chain()
         .refine(&matched, &req("reroute-me"))
         .await
         .expect("selector must re-route the matching request");
@@ -154,8 +157,6 @@ impl RouteSelector for AlwaysErrors {
     }
 }
 
-register_route_selector!(AlwaysErrors::new, name = "always-errors");
-
 #[tokio::test]
 async fn a_failing_selector_does_not_abort_the_chain_or_the_matched_route() {
     let matched = route("claude-*", "anthropic");
@@ -163,15 +164,13 @@ async fn a_failing_selector_does_not_abort_the_chain_or_the_matched_route() {
     // The erroring selector runs in the same chain as the rerouter; a chain
     // that aborted on the first error would take the gateway down whenever an
     // extension's selector backend was unavailable.
-    let unmatched = RouteSelectorChain::new()
-        .refine(&matched, &req("claude-opus-4-8"))
-        .await;
+    let unmatched = chain().refine(&matched, &req("claude-opus-4-8")).await;
     assert!(
         unmatched.is_none(),
         "an erroring selector must leave the matched route in place, not re-route"
     );
 
-    let (refined, name) = RouteSelectorChain::new()
+    let (refined, name) = chain()
         .refine(&matched, &req("reroute-me"))
         .await
         .expect("a later healthy selector must still be reached");
@@ -180,8 +179,13 @@ async fn a_failing_selector_does_not_abort_the_chain_or_the_matched_route() {
 }
 
 #[test]
+fn an_empty_chain_holds_no_selectors() {
+    assert!(!RouteSelectorChain::default().has_selectors());
+}
+
+#[test]
 fn the_engine_debug_reports_how_many_selectors_it_holds_without_naming_them() {
-    let rendered = format!("{:?}", RouteSelectorChain::new());
+    let rendered = format!("{:?}", chain());
 
     assert!(rendered.contains("RouteSelectorChain"));
     assert!(

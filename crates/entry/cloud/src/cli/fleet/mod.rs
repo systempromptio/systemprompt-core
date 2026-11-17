@@ -4,7 +4,7 @@
 //! tenant over the remote CLI gateway and prefixes every output line with the
 //! tenant's name; under `--json` the per-tenant outputs are aggregated into
 //! one document. The command is parsed and classified with the same
-//! [`CommandDescriptor`](systemprompt_cli::kernel::CommandDescriptor) the
+//! [`CommandDescriptor`](systemprompt_extension::cli::CommandDescriptor) the
 //! router uses, and anything that is not read-only is refused before any tenant
 //! is contacted. `fleet versions` reads each tenant's `/readyz` for its core
 //! version and readiness.
@@ -26,7 +26,7 @@ use anyhow::{Context, Result};
 use clap::{Args, Subcommand};
 use systemprompt_cloud::{CloudPath, StoredTenant, TenantStore, get_cloud_paths};
 
-use systemprompt_cli::kernel::{CommandContext, render_result};
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
 #[derive(Debug, Subcommand)]
 pub enum FleetCommands {
@@ -51,14 +51,13 @@ pub struct FleetRunArgs {
     pub command: Vec<String>,
 }
 
-pub async fn execute(cmd: FleetCommands, ctx: &CommandContext) -> Result<()> {
+pub async fn execute(cmd: FleetCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     match cmd {
-        FleetCommands::Run(args) => run::execute(args, &ctx.cli).await,
-        FleetCommands::Versions => {
-            let result = versions::execute().await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+        FleetCommands::Run(args) => {
+            run::execute(args, host).await?;
+            Ok(CommandOutput::rendered())
         },
+        FleetCommands::Versions => versions::execute().await,
     }
 }
 

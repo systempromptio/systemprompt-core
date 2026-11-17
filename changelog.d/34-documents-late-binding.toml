@@ -1,0 +1,14 @@
+[root]
+section = "Changed"
+area = "Documents"
+text = "The document store is bound by the host after the kernel resolves: `DocumentsHandlesSlot` is a read half the host seeds (`DocumentsHandlesSlot::unbound()` returns the slot and a `DocumentsHandlesBinder` that never enters the extension state), a read before the bind fails with `DocumentsUnbound`, and a brain document source read without a document service fails with `DocumentsSourceUnavailable`. A composition without the files member fails API boot at the document stage."
+
+[[crate]]
+name = "systemprompt-files"
+section = "Added"
+text = "`documents::{DocumentsHandles, DocumentsHandlesSlot, DocumentsHandlesBinder, DocumentsUnbound, DocumentsSourceUnavailable, DocumentVisibility, DocumentSourceAccess, DocumentSourceContent, BRAIN_ACTOR}` and `issues::IssueVisibility` (`IssueVisibility::new(issues, roles)`); `DocumentSourceContent::new` takes `Option<Arc<DocumentService>>`."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`KernelSeed` carries `documents`; `ApiKernelSeed` no longer has `artifact_ingest`; `brain::{BrainHandle, DocumentSourceAccess, DocumentSourceContent}` move to the brain and files crates."

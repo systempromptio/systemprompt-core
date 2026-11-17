@@ -15,8 +15,8 @@ pub use login::{build_login_output, complete_login};
 
 use anyhow::Result;
 use clap::{Args, Subcommand};
-use systemprompt_cli::kernel::parsers::parse_client_id;
-use systemprompt_cli::kernel::{CommandContext, render_result};
+use systemprompt_extension::cli::parsers::parse_client_id;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
 use super::Environment;
 use systemprompt_identifiers::ClientId;
@@ -61,29 +61,17 @@ pub struct LogoutArgs {
     pub yes: bool,
 }
 
-pub async fn execute(cmd: AuthCommands, ctx: &CommandContext) -> Result<()> {
+pub async fn execute(cmd: AuthCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     match cmd {
         AuthCommands::Login {
             environment,
             issuer,
             client_id,
-        } => {
-            let result = match operator::operator_request(issuer, client_id, ctx.profile().ok())? {
-                Some(request) => operator::execute(&request, &ctx.cli).await?,
-                None => login::execute(environment, ctx.prompter(), &ctx.cli).await?,
-            };
-            render_result(&result, &ctx.cli);
-            Ok(())
+        } => match operator::operator_request(issuer, client_id, host.profile().ok())? {
+            Some(request) => operator::execute(&request, host.output()).await,
+            None => login::execute(environment, host.prompter(), host.output()).await,
         },
-        AuthCommands::Logout(args) => {
-            let result = logout::execute(args, ctx.prompter(), &ctx.cli)?;
-            render_result(&result, &ctx.cli);
-            Ok(())
-        },
-        AuthCommands::Whoami => {
-            let result = whoami::execute(&ctx.cli).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
-        },
+        AuthCommands::Logout(args) => logout::execute(args, host.prompter(), host.output()),
+        AuthCommands::Whoami => whoami::execute(host.output()).await,
     }
 }

@@ -1,17 +1,17 @@
 [root]
 section = "Added"
 area = "MCP"
-text = "An internal MCP server that lists `toolsets:` and names no `binary:` is hosted by the product binary: the API spawns the running executable as `admin mcp serve --server <id>`, with the same cleared environment, granted secrets and spawn marker as an extension binary. API startup validation refuses a hosted server whose toolset id no linked crate registers; a binary that links no toolsets refuses every hosted toolset. `admin agents run` and `admin mcp serve` run as child hosts: the CLI resolves no profile, session, cloud credential or profile log level for them and installs no Ctrl-C handler."
+text = "An internal MCP server that lists `toolsets:` and names no `binary:` is hosted by the product binary: the API spawns the running executable as `admin mcp serve --server <id>`, with the same cleared environment, granted secrets and spawn marker as an extension binary. A hosted server whose toolset id no composed member contributes refuses the composition when the toolset slot is built. `admin agents run` and `admin mcp serve` run as child hosts: the CLI resolves no profile, session, cloud credential or profile log level for them and installs no Ctrl-C handler."
 
 [[crate]]
 name = "systemprompt-mcp-host"
 section = "Added"
-text = "New crate: `HostContext`, the YAML-declared toolset host (`toolsets::{serve, serve_on, build_server}`, `submit_toolset!`) and `AgentHost`."
+text = "New crate: `HostContext`, the YAML-declared toolset host (`toolsets::{serve, serve_on, build_server}`, `contract::ToolsetSlot`, `McpHostExtension`) and `AgentHost`."
 
 [[crate]]
 name = "systemprompt-runtime"
 section = "Breaking"
-text = "`HostContext`, `AgentHost`, `AgentHostError`, `mcp_host::*` and `submit_toolset!` move to `systemprompt_mcp_host` (`toolsets::*` for the host); the facade paths `systemprompt::system::HostContext` and `systemprompt::mcp::host::*` are unchanged. `IssuesMcpTools::from_host` / `DocumentsMcpTools::from_host` and their error enums are replaced by `systemprompt_mcp_host::toolsets::{issues_tools, documents_tools, IssuesMcpError, DocumentsMcpError}`. `collect_manifest_errors` takes the registered toolset ids. Added: `HostKernel`, `HostParts`, `base_kernel_state`, `RegisteredToolsetId`, `registered_toolset_ids`."
+text = "`HostContext`, `AgentHost`, `AgentHostError` and `mcp_host::*` move to `systemprompt_mcp_host` (`toolsets::*` for the host); the facade paths `systemprompt::system::HostContext` and `systemprompt::mcp::host::*` are unchanged. `IssuesMcpTools::from_host` / `DocumentsMcpTools::from_host` and their error enums are replaced by `systemprompt_mcp_host::toolsets::{issues_tools, documents_tools, IssuesMcpError, DocumentsMcpError}`. Added: `HostKernel`, `HostParts`, `base_kernel_state`."
 
 [[crate]]
 name = "systemprompt-mcp"

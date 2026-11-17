@@ -71,7 +71,7 @@ AG-UI and A2A events route to both their primary broadcaster and the context bro
 
 ```toml
 [dependencies]
-systemprompt-events = "0.81"
+systemprompt-events = "0.83"
 ```
 
 ```rust
@@ -104,7 +104,7 @@ async fn active_listeners(user_id: &UserId) -> usize {
 | `EventRouter` | Routes events to appropriate broadcasters |
 | `PostgresEventBridge` | LISTEN/NOTIFY relay draining the `event_outbox` table across replicas |
 | `OutboxChannel` / `OUTBOX_CHANNEL` | Outbox notification channel type and name |
-| `EventsExtension` | Extension registering the `event_outbox` schema |
+| `EventsExtension` | Extension contributing the `event_outbox` schema |
 
 ### Constants
 | Constant | Value | Purpose |
@@ -130,12 +130,11 @@ Tests are located in `crates/tests/unit/infra/events/` following the project con
 |-------|---------|
 | `systemprompt-models` | Event types (`AgUiEvent`, `A2AEvent`, `ContextEvent`, `SystemEvent`, `AnalyticsEvent`) |
 | `systemprompt-identifiers` | `UserId` / `ConnectionId` types (`sqlx` feature) |
-| `systemprompt-extension` | Schema registration for the `event_outbox` table |
+| `systemprompt-extension` | Contributes the `event_outbox` schema |
 | `tokio` | Async runtime, channels, synchronization |
 | `axum` | SSE `Event` and `KeepAlive` types |
 | `sqlx` | Durable outbox relay over Postgres LISTEN/NOTIFY |
 | `chrono` | Outbox row timestamps |
-| `inventory` | Compile-time extension registration |
 | `serde` / `serde_json` | Event serialization |
 | `tracing` | Structured logging |
 

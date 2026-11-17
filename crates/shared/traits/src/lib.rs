@@ -59,6 +59,7 @@ pub use config_watch::{CONFIG_WATCH_POLL, ConfigVersionSource, ConfigWatch, Watc
 pub use stream_drain::{StreamDrain, StreamDrainWatch};
 pub mod analytics_events;
 pub mod auth;
+pub mod authz;
 pub mod content;
 pub use content::{
     ContentCatalogStats, ContentPopularity, DynContentCatalogStats, DynContentPopularity,
@@ -66,7 +67,10 @@ pub use content::{
 pub use traffic_class_counts::{DynTrafficClassCounts, TrafficClassCounts, TrafficClassTotals};
 pub mod context;
 pub mod context_provider;
+pub mod core_seam;
+pub use core_seam::CoreSeam;
 pub mod coordination;
+pub mod events;
 pub mod extension_error;
 pub mod ip_bans;
 pub mod job_scope;
@@ -83,9 +87,11 @@ pub mod process_liveness;
 pub mod registry;
 pub mod repository;
 pub mod retention_purge;
+pub mod run_origin;
 pub mod runner_service;
 pub mod secret;
 pub use process_liveness::ProcessLiveness;
+pub use run_origin::RunOrigin;
 pub use runner_service::RunnerService;
 pub use secret::{
     ExtensionSecret, ReloadOutcome, SECRET_SEED_BYTES, SecretLookup, SecretStore, SecretStoreError,
@@ -99,10 +105,9 @@ pub mod validation;
 
 pub use systemprompt_provider_contracts::{
     BatchPlan, BatchedRun, ChangeActor, ChangeSource, DbBudget, Dependencies, Job, JobContext,
-    JobRegistration, JobResult, JobScope, MissingDependency, ProviderError, ProviderResult,
-    ServerListingFailure, ToolCallRequest, ToolCallResult, ToolContent, ToolContext,
-    ToolDefinition, ToolInventory, ToolProvider, ToolProviderError, ToolProviderResult,
-    registered_jobs, run_batched, submit_job,
+    JobResult, JobScope, MissingDependency, ProviderError, ProviderResult, ServerListingFailure,
+    ToolCallRequest, ToolCallResult, ToolContent, ToolContext, ToolDefinition, ToolInventory,
+    ToolProvider, ToolProviderError, ToolProviderResult, run_batched,
 };
 
 pub use context::{
@@ -117,16 +122,8 @@ pub use systemprompt_identifiers::{
 pub use repository::{BoxedSource, ConstraintKind, RepositoryError};
 
 pub use ip_bans::{DynIpBanStore, IpBanRequest, IpBanStore, IpBanStoreError};
-pub use job_scope::{
-    JobRunScope, JobRunScopeRegistration, registered_job_run_scopes, run_in_job_scopes,
-};
-pub use retention_purge::{
-    RetentionPurge, RetentionPurgeRegistration, RetentionSweep, RetentionSweepRegistration,
-    registered_retention_purges, registered_retention_sweeps,
-};
-
-#[doc(hidden)]
-pub use inventory as __inventory;
+pub use job_scope::JobRunScope;
+pub use retention_purge::{RetentionPurge, RetentionSweep};
 
 pub use coordination::{
     AdvisoryLockGuard, AdvisoryLocks, CoordinationError, CoordinationResult, DynAdvisoryLocks,

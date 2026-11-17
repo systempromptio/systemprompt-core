@@ -14,16 +14,13 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use systemprompt_api::routes::oauth::wellknown_routes;
 use systemprompt_models::modules::ApiPaths;
-use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, test_app_context, test_database_url, test_db_pool,
-};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context, test_database_url};
 use tower::ServiceExt;
 
 async fn router() -> Router {
     let url = test_database_url();
     ensure_test_bootstrap();
-    let pool = test_db_pool().await;
-    let ctx = test_app_context(&pool, &url);
+    let ctx = test_app_context(&url).await;
     wellknown_routes(&ctx)
 }
 

@@ -34,6 +34,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub(crate) mod config;
+pub mod contract;
 mod document_schemas;
 pub mod documents;
 pub mod error;
@@ -45,15 +46,14 @@ pub(crate) mod repository;
 pub(crate) mod services;
 pub mod uploads;
 
-#[doc(hidden)]
-pub use ::inventory as __inventory;
 pub use error::{FilesError, FilesResult};
 pub use extension::FilesExtension;
 
 pub use config::{
     AllowedFileTypes, CollabConfig, CollabOwnerConfig, DocumentLimits, DocumentsConfig,
     FilePersistenceMode, FileUploadConfig, FilesConfig, FilesConfigValidator, FilesConfigYaml,
-    IssuesConfig, MAX_DOCUMENT_UPLOAD_BYTES, MIN_DOCUMENT_UPLOAD_BYTES, UploadLimits,
+    IssuesConfig, MAX_DOCUMENT_UPLOAD_BYTES, MIN_DOCUMENT_UPLOAD_BYTES, RenderedHtmlConfig,
+    UploadLimits,
 };
 pub use jobs::FileIngestionJob;
 pub use models::{

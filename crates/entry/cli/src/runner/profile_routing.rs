@@ -23,12 +23,11 @@ use super::routing_decision::{RoutingDecision, decide_routing};
 use super::{args, bootstrap};
 use systemprompt_loader::ServicesState;
 
-use crate::cli_settings::CliConfig;
 use crate::commands::infrastructure;
-use crate::descriptor::{CommandDescriptor, RoutingClass};
 use crate::env_overrides::EnvOverrides;
 use crate::interactive;
-use crate::shared::ProfileSource;
+use systemprompt_cloud::profile::ProfileSource;
+use systemprompt_extension::cli::{CliConfig, CommandDescriptor, RoutingClass};
 
 /// What the runner does once the profile is bootstrapped.
 ///
@@ -74,12 +73,14 @@ impl Bootstrapped {
 }
 
 pub(super) async fn bootstrap_profile(
-    cli: &args::Cli,
-    desc: &CommandDescriptor,
+    invocation: &super::dispatch::Invocation,
     cli_config: &CliConfig,
     env: &EnvOverrides,
     confirm: &ConfirmationRequest,
+    secrets: &systemprompt_config::SecretsSources,
 ) -> Result<Bootstrapped> {
+    let cli = &invocation.cli;
+    let desc = &invocation.descriptor();
     let has_export = args::has_local_export_flag(desc);
     let ctx = bootstrap::resolve_and_display_profile(cli_config, env, has_export)?;
 
@@ -92,7 +93,7 @@ pub(super) async fn bootstrap_profile(
     }
 
     let needs_cloud = is_cloud_bypass_command(desc);
-    initialize_post_routing(&ctx, desc, needs_cloud).await
+    initialize_post_routing(&ctx, desc, needs_cloud, secrets).await
 }
 
 async fn enforce_routing_policy(
@@ -162,6 +163,7 @@ async fn initialize_post_routing(
     ctx: &bootstrap::ProfileContext,
     desc: &CommandDescriptor,
     needs_cloud: bool,
+    secrets: &systemprompt_config::SecretsSources,
 ) -> Result<Bootstrapped> {
     let credentials = if needs_cloud || (ctx.is_cloud && ctx.external_db_access) {
         bootstrap::init_credentials_gracefully(needs_cloud).await?
@@ -170,7 +172,7 @@ async fn initialize_post_routing(
     };
 
     let boot = if desc.secrets() {
-        Some(bootstrap::init_secrets(&ctx.loaded).await?)
+        Some(bootstrap::init_secrets(&ctx.loaded, secrets).await?)
     } else {
         None
     };
@@ -186,16 +188,14 @@ async fn initialize_post_routing(
         );
     }
 
-    let mut services = None;
-    if desc.paths() {
+    let services = if desc.paths() {
         let boot = boot
             .as_ref()
             .context("Secrets required to resolve the services paths")?;
-        services = Some(bootstrap::init_paths(boot, desc.discovers_models()).await?);
-        if !desc.skip_validation() {
-            bootstrap::run_validation(boot)?;
-        }
-    }
+        Some(bootstrap::init_paths(boot, desc.discovers_models()).await?)
+    } else {
+        None
+    };
 
     if !ctx.is_cloud {
         bootstrap::validate_cloud_credentials(&ctx.env, credentials.as_ref(), ctx.loaded.profile());
@@ -271,10 +271,10 @@ pub fn confirm_remote_job_run(
         profile.name
     );
 
-    interactive::require_confirmation(
+    Ok(systemprompt_extension::cli::require_confirmation(
         &interactive::DialoguerPrompter,
         &message,
         run_args.yes,
         cli_config,
-    )
+    )?)
 }

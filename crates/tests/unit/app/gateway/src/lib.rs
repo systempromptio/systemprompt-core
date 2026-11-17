@@ -25,6 +25,8 @@ mod engines_injected;
 #[cfg(test)]
 mod failover;
 #[cfg(test)]
+mod gateway_slots;
+#[cfg(test)]
 mod google_credentials;
 #[cfg(test)]
 mod image_fetch;

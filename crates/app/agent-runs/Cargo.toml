@@ -33,7 +33,6 @@ chrono = { workspace = true }
 sqlx = { workspace = true }
 async-trait = { workspace = true }
 thiserror = { workspace = true }
-inventory = { workspace = true }
 
 systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true }
@@ -56,7 +55,3 @@ semver = { workspace = true }
 
 [target.'cfg(unix)'.dependencies]
 nix = { workspace = true }
-
-[package.metadata.cargo-machete]
-# inventory: compile-time registration via register_extension!/register_run_origin! (::inventory::submit!)
-ignored = ["inventory"]

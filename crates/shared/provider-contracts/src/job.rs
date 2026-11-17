@@ -1,8 +1,8 @@
-//! [`Job`] contract for scheduled / on-startup background jobs registered
-//! via the `inventory` crate.
+//! [`Job`] contract for scheduled / on-startup background jobs a member
+//! contributes to the admitted schedule.
 //!
-//! Jobs are dispatched as `&'static dyn Job` from the inventory, so the trait
-//! uses `#[async_trait]`; native `async fn` in traits is not `dyn`-compatible.
+//! Jobs are dispatched as `dyn Job` trait objects, so the trait uses
+//! `#[async_trait]`; native `async fn` in traits is not `dyn`-compatible.
 //!
 //! [`JobResult::is_idle`] is a successful run that found nothing to do: zero
 //! items processed, none failed, and no message. The scheduler does not record
@@ -237,39 +237,4 @@ pub trait Job: Send + Sync + 'static {
     fn db_budget(&self) -> Option<crate::DbBudget> {
         None
     }
-}
-
-/// A [`Job`] linked into the binary, with the id of the extension that owns
-/// it. The scheduler runs a registration only while its owner is enabled.
-#[derive(Clone, Copy)]
-pub struct JobRegistration {
-    pub owner: &'static str,
-    pub job: &'static dyn Job,
-}
-
-impl std::fmt::Debug for JobRegistration {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("JobRegistration")
-            .field("owner", &self.owner)
-            .field("job", &self.job.name())
-            .finish()
-    }
-}
-
-inventory::collect!(JobRegistration);
-
-pub fn registered_jobs() -> impl Iterator<Item = &'static JobRegistration> {
-    inventory::iter::<JobRegistration>.into_iter()
-}
-
-#[macro_export]
-macro_rules! submit_job {
-    ($owner:literal, $job:expr) => {
-        $crate::__inventory::submit! {
-            $crate::JobRegistration {
-                owner: $owner,
-                job: $job as &'static dyn $crate::Job,
-            }
-        }
-    };
 }

@@ -1,5 +1,6 @@
 //! Schema installation for compile-time-registered
-//! [`systemprompt_extension::Extension`] instances.
+//! [`SchemaMember`](crate::lifecycle::schema_member::SchemaMember) snapshots of
+//! the admitted composition.
 //!
 //! Installation runs globally in six phases — retirements, structural DDL, then
 //! the declarative routines, then migrations, then dependent DDL, then the
@@ -9,9 +10,10 @@
 //! unique index a migration introduces. Routines go first so a migration can
 //! reference a function only the declarative schema defines; a migration
 //! that names a declarative-only trigger or view is refused before any
-//! statement runs (`migration_refs`). Retirements run first of all, so a
-//! trigger one extension retires is gone before another extension's
-//! migration can drop what it writes or fire it (`retire`).
+//! statement runs (`migration_refs`), and so is a pending migration the
+//! migration ownership rule refuses (`migration_owners`). Retirements run
+//! first of all, so a trigger one extension retires is gone before another
+//! extension's migration can drop what it writes or fire it (`retire`).
 //! A fresh database (no migration history, no owned tables) skips migration
 //! execution entirely: the declarative schema is the baseline, and every
 //! defined migration is stamped as applied without running — in the same
@@ -32,49 +34,64 @@ mod cost_warning;
 pub(super) mod current;
 mod foreign_keys;
 pub(crate) mod lock;
+mod object_owners;
+pub(crate) mod ownership;
 mod phase;
+mod purge_records;
 mod retire;
 mod routine_prepass;
 mod settled;
 mod trigger_reuse;
 mod validation;
 
-use systemprompt_extension::{Extension, ExtensionRegistry, LoaderError};
+use crate::lifecycle::schema_member::{SchemaMember, schema_members};
+use systemprompt_extension::{BuiltState, LoaderError};
 use systemprompt_identifiers::ExtensionId;
 use tracing::{debug, info};
 
 use self::cost_warning::warn_unmeasured_migrations;
 use self::foreign_keys::apply_foreign_keys;
 use self::lock::BootstrapLockGuard;
+use self::ownership::{
+    check_pending_migration_owners, check_recorded_owners, record_owners, recorded_table_owners,
+};
 use self::phase::execute_phase;
+use self::purge_records::{admit_purges, check_recorded_purges, record_purges};
 use self::retire::{apply_retirements, check_retirements};
 use self::routine_prepass::apply_routine_prepass;
 use self::trigger_reuse::TriggerReuse;
 use self::validation::{validate_extension_columns, validate_table_ownership};
+use super::migration_owners::MigrationMembers;
 use super::migration_refs::check_migration_references;
 use super::prepare::{PreparedSchema, prepare_extension_schema};
 use super::report::SchemaInstallReport;
 use super::routine_refs::check_trigger_routines;
 use super::seeds::apply_seeds;
-use super::undeclared::audit_schema_residue;
+use super::undeclared::residue_including;
 use crate::lifecycle::migrations::{MigrationConfig, MigrationService};
 use crate::services::DatabaseProvider;
 
-type ExtensionSet = [std::sync::Arc<dyn Extension>];
+type ExtensionSet = [std::sync::Arc<dyn SchemaMember>];
 type FreshSet = std::collections::HashSet<ExtensionId>;
 
-pub async fn install_extension_schemas_full(
-    registry: &ExtensionRegistry,
+pub async fn install_admitted_schemas(
+    built: &BuiltState,
     db: &dyn DatabaseProvider,
-    disabled_extensions: &[ExtensionId],
     migration_config: MigrationConfig,
 ) -> Result<SchemaInstallReport, LoaderError> {
-    let schema_extensions = registry.enabled_schema_extensions(disabled_extensions)?;
+    install_schema_members(&schema_members(built), db, migration_config).await
+}
 
+pub async fn install_schema_members(
+    schema_extensions: &ExtensionSet,
+    db: &dyn DatabaseProvider,
+    migration_config: MigrationConfig,
+) -> Result<SchemaInstallReport, LoaderError> {
     if schema_extensions.is_empty() {
         info!("No extension schemas to install");
         return Ok(SchemaInstallReport::default());
     }
+    admit_purges(schema_extensions)?;
 
     info!(
         extensions = schema_extensions.len(),
@@ -83,7 +100,7 @@ pub async fn install_extension_schemas_full(
 
     let guard = BootstrapLockGuard::acquire(db).await?;
 
-    let result = match current::schema_currency(db, registry, disabled_extensions).await {
+    let result = match current::members_currency(db, schema_extensions).await {
         Ok(currency) => {
             let (held_back, active): (Vec<_>, Vec<_>) =
                 schema_extensions.iter().cloned().partition(|ext| {
@@ -94,12 +111,8 @@ pub async fn install_extension_schemas_full(
                 });
             settled::install_unless_settled(
                 db,
-                settled::InstallSets {
-                    active: &active,
-                    held_back: &held_back,
-                },
+                settled::InstallSets::new(schema_extensions, &active, &held_back),
                 &currency,
-                disabled_extensions,
                 migration_config,
             )
             .await
@@ -140,15 +153,15 @@ async fn fresh_extension_ids(
 
 async fn run_install(
     db: &dyn DatabaseProvider,
+    members: MigrationMembers<'_>,
     schema_extensions: &ExtensionSet,
-    held_back: &ExtensionSet,
     migration_config: MigrationConfig,
 ) -> Result<SchemaInstallReport, LoaderError> {
     if schema_extensions.is_empty() {
         return Ok(SchemaInstallReport::default());
     }
     let migration_service = MigrationService::new(db).with_config(migration_config);
-    let prepared = prepare_and_check(db, &migration_service, schema_extensions).await?;
+    let prepared = prepare_and_check(db, &migration_service, members, schema_extensions).await?;
 
     apply_retirements(db, schema_extensions).await?;
     let fresh = fresh_extension_ids(&migration_service, schema_extensions, &prepared).await?;
@@ -180,7 +193,9 @@ async fn run_install(
         apply_seeds(ext.as_ref(), db).await?;
     }
 
-    report.residue = residue_including(db, &prepared, held_back).await?;
+    record_owners(db, &prepared, members).await?;
+    record_purges(db, schema_extensions).await?;
+    report.residue = residue_including(db, &prepared, members.held_back()).await?;
 
     Ok(report)
 }
@@ -188,13 +203,18 @@ async fn run_install(
 async fn prepare_and_check(
     db: &dyn DatabaseProvider,
     migration_service: &MigrationService<'_>,
+    members: MigrationMembers<'_>,
     schema_extensions: &ExtensionSet,
 ) -> Result<Vec<PreparedSchema>, LoaderError> {
     let mut prepared: Vec<PreparedSchema> = Vec::with_capacity(schema_extensions.len());
     for ext in schema_extensions {
         prepared.push(prepare_extension_schema(ext.as_ref())?);
     }
-    validate_table_ownership(&prepared, schema_extensions)?;
+    validate_table_ownership(&prepared, members.held_back(), schema_extensions)?;
+    let owners = recorded_table_owners(db).await?;
+    check_recorded_owners(&owners, &prepared)?;
+    check_pending_migration_owners(db, &owners, migration_service, members, &prepared).await?;
+    check_recorded_purges(db, schema_extensions).await?;
     check_migration_references(schema_extensions)?;
     check_retirements(schema_extensions)?;
     warn_unmeasured_migrations(db, migration_service, schema_extensions).await;
@@ -274,21 +294,4 @@ async fn apply_dependent(
         report.foreign_key_drift.extend(drift);
     }
     Ok(report)
-}
-
-// Why: an ahead extension is held back from the install but still owns its
-// tables and ledger; leaving it out of the audit would report them as residue.
-async fn residue_including(
-    db: &dyn DatabaseProvider,
-    prepared: &[PreparedSchema],
-    held_back: &ExtensionSet,
-) -> Result<super::undeclared::SchemaResidue, LoaderError> {
-    let mut held: Vec<PreparedSchema> = Vec::with_capacity(held_back.len());
-    for ext in held_back {
-        held.push(prepare_extension_schema(ext.as_ref())?);
-    }
-    let all = || prepared.iter().chain(&held);
-    let owned: Vec<String> = all().flat_map(|p| p.owned_tables.clone()).collect();
-    let ids: Vec<ExtensionId> = all().map(|p| p.extension_id.clone()).collect();
-    audit_schema_residue(db, &owned, &ids).await
 }

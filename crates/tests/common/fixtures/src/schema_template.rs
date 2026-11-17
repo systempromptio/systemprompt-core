@@ -1,11 +1,12 @@
 //! The installed-schema template every [`crate::DisposableDb::with_schema`]
 //! database is copied from.
 //!
-//! A full install over every registered extension is the slow part of a
+//! A full install over the core schema composition is the slow part of a
 //! schema-backed test, and its result depends only on the binary: the
-//! extensions' schemas, migrations, retirements and seeds, and the installer
-//! itself. So it runs once per server and fingerprint into a template database,
-//! and each test takes a `CREATE DATABASE ... TEMPLATE` copy of it.
+//! members' schemas, migrations, retirements, seeds and purge declarations, and
+//! the installer itself. So it runs once per server and fingerprint into a
+//! template database, and each test takes a `CREATE DATABASE ... TEMPLATE` copy
+//! of it.
 //!
 //! Tests run as separate processes against one server, so coordination is a
 //! Postgres advisory lock on the base database: copiers hold it shared, the one
@@ -18,7 +19,7 @@
 use anyhow::{Context, Result};
 use sha2::{Digest, Sha256};
 use sqlx::{Connection, PgConnection, PgPool};
-use systemprompt_extension::ExtensionRegistry;
+use systemprompt_database::{schema_members, SchemaMember};
 
 use crate::db::connect;
 
@@ -31,8 +32,8 @@ const INVALID_CATALOG_NAME: &str = "3D000";
 const DUPLICATE_DATABASE: &str = "42P04";
 
 pub(crate) async fn create_from_template(admin: &PgPool, base_url: &str, name: &str) -> Result<()> {
-    let registry = ExtensionRegistry::discover().context("extension registry discovery")?;
-    let template = template_name(&registry)?;
+    let members = core_schema_members()?;
+    let template = template_name(&members);
     let mut conn = admin
         .acquire()
         .await
@@ -57,7 +58,7 @@ pub(crate) async fn create_from_template(admin: &PgPool, base_url: &str, name: &
     advisory(&mut conn, "pg_advisory_lock").await?;
     let built = async {
         if !exists(&mut conn, &template).await? {
-            build(&mut conn, &registry, base_url, &template).await?;
+            build(&mut conn, base_url, &template).await?;
         }
         copy(&mut conn, &template, name)
             .await
@@ -69,17 +70,12 @@ pub(crate) async fn create_from_template(admin: &PgPool, base_url: &str, name: &
     close(conn).await
 }
 
-async fn build(
-    conn: &mut PgConnection,
-    registry: &ExtensionRegistry,
-    base_url: &str,
-    template: &str,
-) -> Result<()> {
+async fn build(conn: &mut PgConnection, base_url: &str, template: &str) -> Result<()> {
     crate::orphans::sweep_stale_templates(conn, template).await;
     let staging = crate::orphans::database_name(STAGING_PREFIX);
     execute(conn, &format!("CREATE DATABASE \"{staging}\"")).await?;
 
-    let installed = install(registry, &sibling_url(base_url, &staging)?).await;
+    let installed = install(&sibling_url(base_url, &staging)?).await;
     if let Err(e) = installed {
         drop_database(conn, &staging).await;
         return Err(e);
@@ -121,32 +117,30 @@ async fn build(
 // Why: the schema is installed through the same entry point the server
 // boots with, so the database a test starts from is the shape a real
 // fresh install produces -- baseline stamps included.
-async fn install(registry: &ExtensionRegistry, url: &str) -> Result<()> {
+async fn install(url: &str) -> Result<()> {
     let pool = connect(url).await?;
-    let installed = systemprompt_database::install_extension_schemas_full(
-        registry,
-        pool.write(),
-        &[],
-        systemprompt_database::MigrationConfig::default(),
-    )
-    .await
-    .context("failed to install the extension schemas into the template database");
+    let installed = systemprompt_test_migrate::install_core_schemas(pool.write())
+        .await
+        .context("failed to install the extension schemas into the template database");
     pool.pool().close().await;
     pool.write_pool().close().await;
     installed.map(|_| ())
 }
 
-fn template_name(registry: &ExtensionRegistry) -> Result<String> {
-    let extensions = registry
-        .enabled_schema_extensions(&[])
-        .context("schema extensions for the template fingerprint")?;
+fn core_schema_members() -> Result<Vec<std::sync::Arc<dyn SchemaMember>>> {
+    let admitted = systemprompt_test_migrate::schema_admitted()
+        .context("the core schema composition for the template fingerprint")?;
+    Ok(schema_members(admitted.built()))
+}
+
+fn template_name(extensions: &[std::sync::Arc<dyn SchemaMember>]) -> String {
     let mut hasher = Sha256::new();
     let mut field = |bytes: &[u8]| {
         hasher.update(bytes);
         hasher.update([0]);
     };
     field(env!("SYSTEMPROMPT_INSTALLER_SOURCE_DIGEST").as_bytes());
-    for ext in &extensions {
+    for ext in extensions {
         field(ext.id().as_bytes());
         field(ext.version().as_bytes());
         for schema in ext.schemas() {
@@ -167,6 +161,9 @@ fn template_name(registry: &ExtensionRegistry) -> Result<String> {
         for table in ext.cross_extension_tables() {
             field(table.as_bytes());
         }
+        for purge in ext.purges() {
+            field(format!("{purge:?}").as_bytes());
+        }
         for seed in ext.seeds() {
             field(seed.id.as_bytes());
             field(seed.sql.as_bytes());
@@ -174,7 +171,7 @@ fn template_name(registry: &ExtensionRegistry) -> Result<String> {
     }
     let digest = hasher.finalize();
     let hex: String = digest.iter().map(|b| format!("{b:02x}")).collect();
-    Ok(format!("{TEMPLATE_PREFIX}{}", &hex[..FINGERPRINT_HEX]))
+    format!("{TEMPLATE_PREFIX}{}", &hex[..FINGERPRINT_HEX])
 }
 
 pub(crate) fn sibling_url(base_url: &str, name: &str) -> Result<String> {

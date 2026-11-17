@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use clap::Args;
 use serde::Serialize;
@@ -14,8 +15,7 @@ use systemprompt_manifest::{Profile, Secrets};
 use systemprompt_runtime::services_reconcile::pending_composed_hash;
 
 use super::reconcile::{ReconcileRow, reconcile_after_swap};
-use crate::context::CommandContext;
-use crate::shared::{CommandOutput, render_result};
+use systemprompt_extension::cli::CommandOutput;
 
 pub const EXIT_CHANGED: i32 = 3;
 
@@ -51,12 +51,11 @@ pub struct SourceRow {
     pub changed: bool,
 }
 
-pub async fn execute(args: &RefreshArgs, ctx: &CommandContext) -> Result<()> {
-    let profile = ctx.profile()?;
-    let secrets = ctx
+pub async fn execute(args: &RefreshArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+    let profile = host.profile()?;
+    let secrets = host
         .secrets()
-        .context("Secrets required to resolve the services bundle sources")?
-        .get();
+        .context("Secrets required to resolve the services bundle sources")?;
     let secrets = &*secrets;
     let cache = BundleCache::new(cache_root(profile));
     let before = cache.read_state();
@@ -65,7 +64,7 @@ pub async fn execute(args: &RefreshArgs, ctx: &CommandContext) -> Result<()> {
         let (rows, outcome) = check_sources(profile, secrets, &before).await?;
         (rows, outcome, Vec::new())
     } else {
-        Box::pin(swap_sources(profile, secrets, &cache, &before, ctx)).await?
+        Box::pin(swap_sources(profile, secrets, &cache, &before, host)).await?
     };
 
     let title = if args.check {
@@ -73,7 +72,7 @@ pub async fn execute(args: &RefreshArgs, ctx: &CommandContext) -> Result<()> {
     } else {
         "Services Sources"
     };
-    render_result(
+    host.render(
         &CommandOutput::table_of(
             vec![
                 "name",
@@ -85,14 +84,12 @@ pub async fn execute(args: &RefreshArgs, ctx: &CommandContext) -> Result<()> {
             &rows,
         )
         .with_title(title),
-        &ctx.cli,
     );
 
     if !reconciled.is_empty() {
-        render_result(
+        host.render(
             &CommandOutput::table_of(vec!["bundle", "registered", "deleted"], &reconciled)
                 .with_title("Gateway Routes Reconciled"),
-            &ctx.cli,
         );
     }
 
@@ -107,7 +104,7 @@ pub async fn execute(args: &RefreshArgs, ctx: &CommandContext) -> Result<()> {
         )]
         std::process::exit(code);
     }
-    Ok(())
+    Ok(CommandOutput::rendered())
 }
 
 async fn check_sources(
@@ -168,7 +165,7 @@ async fn swap_sources(
     secrets: &Secrets,
     cache: &BundleCache,
     before: &ServicesBundleState,
-    ctx: &CommandContext,
+    host: &dyn KernelHost,
 ) -> Result<(Vec<SourceRow>, RefreshOutcome, Vec<ReconcileRow>)> {
     let root = ServicesSourceBootstrap::resolve(
         profile,
@@ -185,7 +182,7 @@ async fn swap_sources(
     let outcome = outcome_with_pending(&rows, reconcile_pending);
 
     let reconciled = if outcome == RefreshOutcome::Changed {
-        Box::pin(reconcile_after_swap(profile, &root, cache, ctx)).await?
+        Box::pin(reconcile_after_swap(profile, &root, cache, host)).await?
     } else {
         Vec::new()
     };

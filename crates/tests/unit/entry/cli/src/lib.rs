@@ -25,9 +25,6 @@ mod child_host;
 #[cfg(test)]
 mod cli_settings;
 #[cfg(test)]
-#[cfg(test)]
-mod command_registry;
-#[cfg(test)]
 mod commands;
 #[cfg(test)]
 mod config_migrate_descriptor;
@@ -48,6 +45,10 @@ mod interactive_terminal;
 #[cfg(test)]
 mod irreversible_confirmation;
 #[cfg(test)]
+mod kernel_host;
+#[cfg(test)]
+mod kernel_state_isolation;
+#[cfg(test)]
 mod mcp_probe_flows;
 #[cfg(test)]
 mod paths;
@@ -60,7 +61,7 @@ mod presentation_tables;
 #[cfg(test)]
 mod profile_flag_parsing;
 #[cfg(test)]
-mod registered_top_level_group;
+mod registry_build;
 #[cfg(test)]
 mod runner_args;
 #[cfg(test)]

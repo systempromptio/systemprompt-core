@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.82.0] - 2026-11-16
+
+### Added
+
+- `run_with(BuildIdentity)` lets an embedding binary name itself.
+
+### Fixed
+
+- `admin config catalog discovery` runs the read-only Vertex discovery pass itself and reports its outcome.
+
 ## [0.81.0] - 2026-11-12
 
 ### Breaking

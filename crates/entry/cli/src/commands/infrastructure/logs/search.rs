@@ -5,20 +5,22 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use systemprompt_database::pool_from_handle;
 use systemprompt_identifiers::{McpServerId, McpToolName, TraceId};
-use systemprompt_logging::{CliService, LogLevel};
+use systemprompt_logging::LogLevel;
+use systemprompt_models::artifacts::NoticeLine;
 use systemprompt_runtime::{LogSearchItem, ToolExecutionItem, TraceQueryService, TraceRepository};
 
 use super::duration::parse_since;
-use super::shared::display_log_row;
+use super::shared::filter_notes;
 use super::{LogEntryRow, LogFilters};
-use crate::CliConfig;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct SearchArgs {
@@ -64,12 +66,17 @@ pub struct CombinedSearchOutput {
     pub filters: LogFilters,
 }
 
-crate::define_pool_command!(SearchArgs => CommandOutput, with_config);
+pub(in crate::commands::infrastructure::logs) async fn execute(
+    args: SearchArgs,
+    host: &dyn KernelHost,
+) -> Result<CommandOutput> {
+    let pool = pool_from_handle(host.db().await?)?.pool();
+    execute_with_pool_inner(args, &pool).await
+}
 
 async fn execute_with_pool_inner(
     args: SearchArgs,
     pool: &Arc<sqlx::PgPool>,
-    config: &CliConfig,
 ) -> Result<CommandOutput> {
     let since_timestamp = parse_since(args.since.as_ref())?;
     let pattern = format!("%{}%", args.pattern);
@@ -107,18 +114,48 @@ async fn execute_with_pool_inner(
         filters,
     };
 
-    let result = CommandOutput::table_of(
+    Ok(search_output(&output, &args.pattern))
+}
+
+fn search_output(output: &CombinedSearchOutput, pattern: &str) -> CommandOutput {
+    let table = CommandOutput::table_of(
         vec!["id", "trace_id", "timestamp", "level", "module", "message"],
         &output.logs,
     )
-    .with_title("Search Results");
-
-    if config.is_json_output() {
-        return Ok(result);
+    .with_title(format!("Search Results: \"{pattern}\""));
+    let mut notes = filter_notes(&output.filters);
+    for tool in &output.tools {
+        notes.push(tool_notice(tool));
     }
+    if output.logs.is_empty() && output.tools.is_empty() {
+        notes.push(NoticeLine::new("warning", "No matching results found"));
+    } else {
+        notes.push(NoticeLine::new(
+            "info",
+            format!(
+                "Found {} log entries and {} tool executions",
+                output.log_count, output.tool_count
+            ),
+        ));
+    }
+    notes.into_iter().fold(table, CommandOutput::with_note)
+}
 
-    render_combined_results(&output.logs, &output.tools, &args.pattern, &output.filters);
-    Ok(result.with_skip_render())
+fn tool_notice(tool: &ToolSearchResult) -> NoticeLine {
+    let duration = tool.duration_ms.map(|d| format!(" ({d}ms)"));
+    let line = format!(
+        "MCP {} {}/{} [{}]{}  trace:{}",
+        tool.timestamp,
+        tool.server.as_ref().map_or("unknown", McpServerId::as_str),
+        tool.tool_name,
+        tool.status,
+        duration.as_deref().unwrap_or(""),
+        tool.trace_id
+    );
+    match tool.status.as_str() {
+        "error" | "failed" => NoticeLine::new("error", line),
+        _ => NoticeLine::new("info", line),
+    }
 }
 
 pub fn map_log_rows(rows: Vec<LogSearchItem>, module_filter: Option<&str>) -> Vec<LogEntryRow> {
@@ -154,63 +191,4 @@ pub fn map_tool_rows(rows: Vec<ToolExecutionItem>) -> Vec<ToolSearchResult> {
             duration_ms: r.execution_time_ms.map(i64::from),
         })
         .collect()
-}
-
-fn render_combined_results(
-    logs: &[LogEntryRow],
-    tools: &[ToolSearchResult],
-    pattern: &str,
-    filters: &LogFilters,
-) {
-    CliService::section(&format!("Search Results: \"{}\"", pattern));
-
-    if filters.level.is_some() || filters.module.is_some() || filters.since.is_some() {
-        if let Some(level) = filters.level {
-            CliService::key_value("Level", level.as_str());
-        }
-        if let Some(ref module) = filters.module {
-            CliService::key_value("Module", module);
-        }
-        if let Some(ref since) = filters.since {
-            CliService::key_value("Since", since);
-        }
-    }
-
-    if !tools.is_empty() {
-        CliService::subsection(&format!("MCP Tool Executions ({})", tools.len()));
-        for tool in tools {
-            let duration = tool.duration_ms.map(|d| format!(" ({}ms)", d));
-            let line = format!(
-                "{} {}/{} [{}]{}  trace:{}",
-                tool.timestamp,
-                tool.server.as_ref().map_or("unknown", McpServerId::as_str),
-                tool.tool_name,
-                tool.status,
-                duration.as_deref().unwrap_or(""),
-                tool.trace_id
-            );
-            match tool.status.as_str() {
-                "error" | "failed" => CliService::error(&line),
-                _ => CliService::info(&line),
-            }
-        }
-    }
-
-    if !logs.is_empty() {
-        CliService::subsection(&format!("Log Entries ({})", logs.len()));
-        for log in logs {
-            display_log_row(log);
-        }
-    }
-
-    if logs.is_empty() && tools.is_empty() {
-        CliService::warning("No matching results found");
-        return;
-    }
-
-    CliService::info(&format!(
-        "Found {} log entries and {} tool executions",
-        logs.len(),
-        tools.len()
-    ));
 }

@@ -77,7 +77,6 @@ impl AnalyticsRepositories {
         db: &DbPool,
         sessions: DynSessionStore,
         event_log: Arc<AnalyticsRepository>,
-        content: systemprompt_traits::DynContentCatalogStats,
     ) -> Self {
         let event_sink: systemprompt_traits::DynAnalyticsEventStore =
             Arc::<AnalyticsRepository>::clone(&event_log);
@@ -86,7 +85,6 @@ impl AnalyticsRepositories {
                 db,
                 Arc::clone(&sessions),
                 Arc::clone(&event_sink),
-                content,
             ),
             session_store: sessions,
             costs: CostAnalyticsRepository::new(db),

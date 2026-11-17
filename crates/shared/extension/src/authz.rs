@@ -49,7 +49,7 @@ pub enum HandlerVerifier {
 }
 
 /// The caller types a route group admits.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct AuthzPolicy {
     allowed: &'static [UserType],
     verifier: Option<HandlerVerifier>,

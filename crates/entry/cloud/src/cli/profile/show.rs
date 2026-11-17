@@ -9,7 +9,6 @@
 use anyhow::Result;
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::Arc;
 use systemprompt_config::LoadedProfile;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_loader::ConfigLoader;
@@ -21,18 +20,17 @@ use systemprompt_models::ContentConfigRaw;
 use super::ShowFilter;
 use super::show_display::print_formatted_config;
 use super::show_types::{FullConfig, SettingsOutput, build_env_config};
-use systemprompt_cli::kernel::{
-    CliConfig, CommandContext, CommandOutput, render_result, resolve_profile_path,
-};
+use systemprompt_cloud::profile::resolve_profile_path;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
 pub(super) async fn execute(
     name: Option<&str>,
     filter: ShowFilter,
     json_output: bool,
     yaml_output: bool,
-    ctx: &CommandContext,
-) -> Result<()> {
-    let profile_path = resolve_profile_path(name, ctx.env.profile.as_deref(), None)?.path;
+    host: &dyn CommandHost,
+) -> Result<CommandOutput> {
+    let profile_path = resolve_profile_path(name, host.env_profile(), None)?.path;
 
     CliService::section(&format!("Profile: {}", profile_path.display()));
 
@@ -46,7 +44,7 @@ pub(super) async fn execute(
             }
             None
         },
-        Ok(_) => match systemprompt_cli::kernel::load_profile(&profile_path) {
+        Ok(_) => match LoadedProfile::from_path(&profile_path) {
             Ok(loaded) => Some(loaded),
             Err(e) => {
                 CliService::warning(&format!("Config unavailable: {e}"));
@@ -60,7 +58,7 @@ pub(super) async fn execute(
     };
 
     let config = match &loaded {
-        Some(loaded) => match initialize_config(loaded).await {
+        Some(_) => match host.boot_config(&profile_path).await {
             Ok(config) => Some(config),
             Err(e) => {
                 CliService::warning(&format!("Config unavailable: {e}"));
@@ -87,13 +85,7 @@ pub(super) async fn execute(
         paths.as_ref(),
     );
 
-    output_config(&full_config, json_output, yaml_output, &ctx.cli);
-    Ok(())
-}
-
-async fn initialize_config(loaded: &Arc<LoadedProfile>) -> Result<Arc<Config>> {
-    let boot = systemprompt_cli::kernel::load_boot(loaded).await?;
-    Ok(Arc::clone(boot.try_init_config(None)?))
+    Ok(output_config(&full_config, json_output, yaml_output))
 }
 
 fn current_app_paths(loaded: &LoadedProfile) -> Option<AppPaths> {
@@ -245,13 +237,14 @@ pub(super) fn load_content_config(paths: &AppPaths) -> Option<ContentConfigRaw> 
     }
 }
 
-fn output_config(config: &FullConfig, json_output: bool, yaml_output: bool, cli: &CliConfig) {
+fn output_config(config: &FullConfig, json_output: bool, yaml_output: bool) -> CommandOutput {
     if json_output {
-        let result = CommandOutput::card_value("Profile Configuration", config);
-        render_result(&result, cli);
-    } else if yaml_output {
+        return CommandOutput::card_value("Profile Configuration", config);
+    }
+    if yaml_output {
         CliService::yaml(config);
     } else {
         print_formatted_config(config);
     }
+    CommandOutput::rendered()
 }

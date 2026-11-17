@@ -1,6 +1,6 @@
-//! Job dispatch and bookkeeping — runs a single inventory-registered job
-//! within a panic-isolating wrapper and records the run on its
-//! `scheduled_jobs` row.
+//! Job dispatch and bookkeeping — runs a single admitted job inside the
+//! admitted job-run scopes and a panic-isolating wrapper, and records the run
+//! on its `scheduled_jobs` row.
 //!
 //! A tick first reads the job's row: a row an operator set to
 //! `enabled = false` (`infra jobs disable`) skips the tick, and so does a row
@@ -23,10 +23,10 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use systemprompt_database::DbPool;
+use systemprompt_extension::AdmittedSchedule;
 use systemprompt_identifiers::{Actor, InstanceId, JobName};
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::{Job as JobTrait, JobResult, run_in_job_scopes};
+use systemprompt_traits::{Job as JobTrait, JobResult};
 use tracing::{debug, error, trace, warn};
 
 use super::claim::{Claim, acquire_cluster_claim, acquire_node_claim};
@@ -40,10 +40,9 @@ use crate::services::job_metrics;
 pub(super) use super::claim::{ClaimPolicy, claim_policy};
 
 pub(super) struct JobDispatch {
-    pub(super) job: &'static dyn JobTrait,
+    pub(super) job: Arc<dyn JobTrait>,
     pub(super) job_name: JobName,
     pub(super) actor: Actor,
-    pub(super) db_pool: DbPool,
     pub(super) repository: SchedulerRepository,
     pub(super) app_context: Arc<AppContext>,
     pub(super) running_jobs: RunningJobs,
@@ -51,6 +50,7 @@ pub(super) struct JobDispatch {
     pub(super) enforce: bool,
     pub(super) parameters: HashMap<String, String>,
     pub(super) inventory_memo: Arc<InventoryRefreshMemo>,
+    pub(super) schedule: Arc<AdmittedSchedule>,
 }
 
 pub(super) async fn execute_job(dispatch: JobDispatch) {
@@ -58,7 +58,6 @@ pub(super) async fn execute_job(dispatch: JobDispatch) {
         job,
         job_name,
         actor,
-        db_pool,
         repository,
         app_context,
         running_jobs,
@@ -66,6 +65,7 @@ pub(super) async fn execute_job(dispatch: JobDispatch) {
         enforce,
         parameters,
         inventory_memo,
+        schedule,
     } = dispatch;
     let instance_id = app_context.config().instance_id.clone();
 
@@ -102,11 +102,11 @@ pub(super) async fn execute_job(dispatch: JobDispatch) {
     trace!(job_name = %job_name, "Starting job");
 
     let budget = job.db_budget();
-    let ctx = make_job_context(actor, db_pool, app_context, budget, &inventory_memo)
+    let ctx = make_job_context(actor, app_context, budget, &inventory_memo)
         .with_enforce(enforce)
         .with_parameters(parameters);
     let started = std::time::Instant::now();
-    let result = execute_in_scope(job, &job_name, &ctx).await;
+    let result = execute_in_scope(job.as_ref(), &job_name, &ctx, &schedule).await;
     job_metrics::record_job_run(
         &job_name,
         job_metrics::run_status(&result),
@@ -139,14 +139,15 @@ async fn enabled_by_operator(job_name: &JobName, repository: &SchedulerRepositor
 }
 
 async fn execute_in_scope(
-    job: &'static dyn JobTrait,
+    job: &dyn JobTrait,
     job_name: &JobName,
     ctx: &systemprompt_traits::JobContext,
+    schedule: &AdmittedSchedule,
 ) -> SchedulerResult<JobResult> {
     use futures::FutureExt;
     use std::panic::AssertUnwindSafe;
 
-    match AssertUnwindSafe(run_in_job_scopes(job.name(), job.execute(ctx)))
+    match AssertUnwindSafe(schedule.run_in_scopes(job.name(), job.execute(ctx)))
         .catch_unwind()
         .await
     {

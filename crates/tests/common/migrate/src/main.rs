@@ -2,17 +2,7 @@ use std::env;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use systemprompt_database::{Database, MigrationConfig, install_extension_schemas_full};
-use systemprompt_extension::ExtensionRegistry;
-
-#[allow(unused_imports)]
-use {
-    systemprompt_agent as _, systemprompt_agent_runs as _, systemprompt_ai as _,
-    systemprompt_analytics as _, systemprompt_brain as _, systemprompt_content as _,
-    systemprompt_events as _, systemprompt_files as _, systemprompt_logging as _,
-    systemprompt_mcp as _, systemprompt_notifications as _, systemprompt_oauth as _,
-    systemprompt_scheduler as _, systemprompt_security as _, systemprompt_users as _,
-};
+use systemprompt_database::Database;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -26,20 +16,13 @@ async fn main() -> Result<()> {
             .context("Failed to connect to Postgres")?,
     );
 
-    let registry = ExtensionRegistry::discover()?;
-    let count = registry
-        .enabled_schema_extensions(ExtensionRegistry::INSTALL_EVERY_LINKED_SCHEMA)?
-        .len();
-    println!("Discovered {count} schema-bearing extensions");
-
-    install_extension_schemas_full(
-        &registry,
-        db.write(),
-        ExtensionRegistry::INSTALL_EVERY_LINKED_SCHEMA,
-        MigrationConfig::default(),
-    )
-    .await
-    .map_err(|e| anyhow::anyhow!("Schema installation failed: {e}"))?;
+    println!(
+        "Installing {} core members",
+        systemprompt_test_migrate::core_members().len()
+    );
+    systemprompt_test_migrate::install_core_schemas(db.write())
+        .await
+        .context("Schema installation failed")?;
 
     println!("Extension schemas applied.");
     Ok(())

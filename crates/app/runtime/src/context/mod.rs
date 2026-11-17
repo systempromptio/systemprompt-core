@@ -1,11 +1,11 @@
 //! [`AppContext`] — the application-wide runtime container.
 //!
-//! Holds shared handles (config, database pool, extension registry,
-//! analytics, route classifier, etc.) cloned cheaply via [`Arc`].
-//! Constructed via [`crate::AppContextBuilder`] or [`AppContext::new`]; both
-//! end in [`AppContext::from_parts`], which builds the extension state (the
-//! kernel's handles, then every enabled extension's `provide`), so no context
-//! exists without it.
+//! Holds shared handles (config, database pool, route classifier, etc.)
+//! cloned cheaply via [`Arc`], the admitted composition and the [`Kernel`]
+//! resolved over it. Constructed via [`crate::AppContextBuilder`] or
+//! [`AppContext::new`]; both end in [`AppContext::from_parts`], which takes
+//! the resolved kernel, so the context's extension state is the kernel's
+//! state and no context exists without it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,7 +16,7 @@ use systemprompt_analytics::{AnalyticsService, GeoIpReader};
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::{DbPool, SchemaInstallReport};
 use systemprompt_events::{EventBridgeHandle, EventRouter};
-use systemprompt_extension::{ExtensionRegistry, StateHandle};
+use systemprompt_extension::Admitted;
 use systemprompt_governance::authz::SharedAuthzHook;
 use systemprompt_loader::BootContext;
 use systemprompt_manifest::Config;
@@ -24,7 +24,6 @@ use systemprompt_marketplace::inventory::PublishGuard;
 use systemprompt_marketplace::{MarketplaceCache, MarketplaceFilter};
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::{ContentConfigRaw, ContentRouting};
-use systemprompt_provider_contracts::Dependencies;
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::FileStorage;
 
@@ -36,11 +35,12 @@ mod repositories;
 mod services;
 mod shutdown;
 
-pub use planes::{ConfigPlane, DataPlane, Plugins, Subsystems};
+pub use planes::{ConfigPlane, ContextPlanes, DataPlane, Plugins, Subsystems};
 pub use shutdown::ShutdownRequest;
 
 use crate::builder::AppContextBuilder;
 use crate::error::RuntimeResult;
+use crate::kernel::Kernel;
 
 /// Application-wide runtime container shared across the HTTP server, the
 /// scheduler, and CLI commands.
@@ -50,48 +50,60 @@ use crate::error::RuntimeResult;
 /// an `Arc`-internal handle such as [`DbPool`]), so `clone` is a
 /// reference-count bump rather than a deep copy. Construct it via
 /// [`AppContext::builder`] or [`AppContext::new`]; [`AppContext::from_parts`]
-/// bypasses the bootstrap for tests and embedders that assemble the planes.
+/// bypasses the bootstrap for tests and embedders that assemble the planes
+/// and resolve the kernel themselves.
 #[derive(Clone)]
 pub struct AppContext {
     pub(crate) data: DataPlane,
     pub(crate) cfg: ConfigPlane,
     pub(crate) plugins: Plugins,
     pub(crate) subsystems: Subsystems,
-    pub(crate) extension_state: Dependencies,
+    pub(crate) kernel: Arc<Kernel>,
+    pub(crate) admitted: Arc<Admitted>,
+    pub(crate) analytics: Arc<AnalyticsService>,
 }
 
 impl AppContext {
-    pub async fn new(boot: BootContext) -> RuntimeResult<Self> {
-        Self::builder(boot).build().await
+    pub async fn new(boot: BootContext, admitted: Arc<Admitted>) -> RuntimeResult<Self> {
+        Self::builder(boot, admitted).build().await
     }
 
     #[must_use]
-    pub fn builder(boot: BootContext) -> AppContextBuilder {
-        AppContextBuilder::new(boot)
+    pub fn builder(boot: BootContext, admitted: Arc<Admitted>) -> AppContextBuilder {
+        AppContextBuilder::new(boot, admitted)
     }
 
     pub fn from_parts(
-        data: DataPlane,
-        cfg: ConfigPlane,
-        plugins: Plugins,
-        subsystems: Subsystems,
-        authz_state: &StateHandle,
+        planes: ContextPlanes,
+        kernel: Arc<Kernel>,
+        admitted: Arc<Admitted>,
     ) -> RuntimeResult<Self> {
-        let mut app = Self {
+        let ContextPlanes {
             data,
             cfg,
             plugins,
             subsystems,
-            extension_state: Dependencies::new(),
-        };
-        let state = app.plugins.extension_registry.build_state(
-            &app,
-            crate::kernel_state(&app),
-            &app.profile().extensions.disabled,
-        )?;
-        authz_state.bind(state.clone())?;
-        app.extension_state = state;
-        Ok(app)
+        } = planes;
+        let analytics = kernel.resolved().get::<Arc<AnalyticsService>>()?;
+        Ok(Self {
+            data,
+            cfg,
+            plugins,
+            subsystems,
+            kernel,
+            admitted,
+            analytics,
+        })
+    }
+
+    #[must_use]
+    pub const fn kernel(&self) -> &Arc<Kernel> {
+        &self.kernel
+    }
+
+    #[must_use]
+    pub const fn admitted(&self) -> &Arc<Admitted> {
+        &self.admitted
     }
 
     pub fn load_geoip_database(
@@ -126,10 +138,6 @@ impl AppContext {
         &self.data.database
     }
 
-    pub fn extension_registry(&self) -> &ExtensionRegistry {
-        &self.plugins.extension_registry
-    }
-
     pub fn server_address(&self) -> String {
         format!("{}:{}", self.cfg.config.host, self.cfg.config.port)
     }
@@ -142,18 +150,12 @@ impl AppContext {
         &self.subsystems.file_storage
     }
 
-    pub const fn analytics_service(&self) -> &Arc<AnalyticsService> {
-        &self.data.analytics_service
-    }
-
     #[must_use]
-    pub fn session_usage(&self) -> systemprompt_traits::DynSessionUsageCounters {
-        self.session_store()
-    }
-
-    #[must_use]
-    pub fn session_store(&self) -> systemprompt_traits::DynSessionStore {
-        Arc::clone(&self.data.analytics_repositories.session_store)
+    pub fn session_store(&self) -> Option<systemprompt_traits::DynSessionStore> {
+        self.kernel
+            .state()
+            .find::<systemprompt_traits::DynSessionStore>()
+            .cloned()
     }
 
     pub fn context_materializer(&self) -> systemprompt_traits::DynContextMaterializer {

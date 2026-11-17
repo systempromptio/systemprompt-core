@@ -1,8 +1,14 @@
 //! Static-content route setup for the web bundle.
 //!
+//! The static router owns the tree's fallback, so it is layered whole: its
+//! protection covers `/` and every page and file the fallback serves.
+//!
 //! The static router is a public declaration; when an extension declares a
 //! `SiteAuthConfig`, it also carries the `SiteAuth` protection layer, which
 //! redirects unauthenticated page requests to the extension's login path.
+//! With no admitted declaration the static content is served without site
+//! auth, and boot says so: a structured `warn!` and a startup warning, since
+//! a disabled member's declaration never reaches the kernel.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,11 +16,13 @@
 use axum::Router;
 use axum::routing::get;
 use std::sync::Arc;
-use systemprompt_extension::{AuthzPolicy, ContextKind, ProtectionLayer, RouteProtection};
+use systemprompt_extension::{
+    AuthzPolicy, ContextKind, ProtectionLayer, RouteGroup, RouteProtection,
+};
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{StartupEvent, StartupEventSender};
 
-use crate::services::middleware::{MountError, MountLayers, protect};
+use crate::services::middleware::{MountError, MountLayers, RootFallback, protect_root_fallback};
 use crate::services::static_content::{
     StaticContentMatcher, StaticContentState, serve_homepage, smart_fallback_handler,
 };
@@ -23,7 +31,7 @@ pub(super) fn build_static_router(
     ctx: &AppContext,
     layers: &MountLayers,
     events: Option<&StartupEventSender>,
-) -> Result<Router, MountError> {
+) -> Result<RootFallback, MountError> {
     let path = ctx.app_paths().system().content_config().to_path_buf();
     let content_matcher = path.to_str().map_or_else(
         || {
@@ -71,11 +79,22 @@ pub(super) fn build_static_router(
     let mut protection = RouteProtection::new(AuthzPolicy::public(), ContextKind::Public);
     if layers.guards.site_auth.is_some() {
         protection = protection.with_layer(ProtectionLayer::SiteAuth);
+    } else {
+        tracing::warn!(
+            mount = systemprompt_extension::reserved::WEB_ROOT_BASE_PATH,
+            site_auth = false,
+            "static content is served without site auth: no admitted member declares it"
+        );
+        if let Some(tx) = events
+            && tx
+                .unbounded_send(StartupEvent::Warning {
+                    message: "Static content is served without site auth".to_owned(),
+                    context: Some("No admitted member declares site auth".to_owned()),
+                })
+                .is_err()
+        {
+            tracing::debug!("Startup event receiver dropped");
+        }
     }
-    protect(
-        static_router,
-        &protection,
-        layers,
-        systemprompt_extension::registry::WEB_ROOT_BASE_PATH,
-    )
+    protect_root_fallback(static_router, &protection, layers, RouteGroup::Static)
 }

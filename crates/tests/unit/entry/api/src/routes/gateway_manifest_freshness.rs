@@ -16,12 +16,11 @@ use systemprompt_api::routes::gateway::bridge_manifest;
 use systemprompt_api::routes::gateway::bridge_resolved::Freshness;
 use systemprompt_api::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
 use systemprompt_identifiers::UserId;
-use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_marketplace::{MarketplaceCandidate, MarketplaceFilter, MarketplaceFilterError};
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    TestBootstrap, fixture_app_context_with, init_isolated_bootstrap, seed_bridge_credential,
-    seed_user_row, test_db_pool,
+    DisposableDb, TestBootstrap, fixture_config, init_isolated_bootstrap, seed_bridge_credential,
+    seed_user_row,
 };
 use systemprompt_traits::AppContext as _;
 
@@ -29,20 +28,6 @@ static BOOT: OnceLock<TestBootstrap> = OnceLock::new();
 
 fn boot() -> &'static TestBootstrap {
     BOOT.get_or_init(|| init_isolated_bootstrap("http://127.0.0.1", "plugins: {}\n"))
-}
-
-fn boot_paths(boot: &TestBootstrap) -> PathsConfig {
-    PathsConfig {
-        root: None,
-        system: boot.system_path.display().to_string(),
-        services: boot.services_path.display().to_string(),
-        bin: boot.bin_path.display().to_string(),
-        web_path: Some(boot.system_path.join("web").display().to_string()),
-        storage: Some(boot.storage_path.display().to_string()),
-        geoip_database: None,
-        shipped_files: None,
-        data: None,
-    }
 }
 
 // The filter runs once per catalogue rebuild and never on a memo hit, so
@@ -64,7 +49,13 @@ impl MarketplaceFilter for CountingFilter {
     }
 }
 
+// The memo key carries a stamp over every managed table row of the
+// organisation owner, and every context on the shared database has the same
+// owner. A sibling test publishing an organisation resource there changes the
+// stamp and forces a rebuild these tests would count, so each harness owns its
+// database.
 struct Harness {
+    database: DisposableDb,
     ctx: AppContext,
     extractor: Arc<JwtContextExtractor>,
     filter: Arc<CountingFilter>,
@@ -73,15 +64,15 @@ struct Harness {
 
 async fn harness(mailbox: &str) -> Harness {
     let boot = boot();
-    let pool = test_db_pool().await;
+    let database = DisposableDb::with_schema("manifest_freshness").await;
+    let pool = database.test_pool().await;
     let filter = Arc::new(CountingFilter::default());
-    let ctx = fixture_app_context_with(
-        &pool,
-        &boot.database_url,
-        boot_paths(boot),
+    let ctx = crate::support::context_on(
+        boot,
+        fixture_config(database.url()),
         Arc::clone(&filter) as Arc<dyn MarketplaceFilter>,
     )
-    .expect("fixture context");
+    .await;
     let owner = ctx.system_admin().id();
     seed_user_row(&pool, owner, &format!("{owner}@manifest-freshness.invalid"))
         .await
@@ -100,6 +91,7 @@ async fn harness(mailbox: &str) -> Harness {
         .await
         .expect("consumer credential");
     Harness {
+        database,
         ctx: (*ctx).clone(),
         extractor,
         filter,
@@ -159,6 +151,7 @@ async fn a_plain_fetch_within_the_ttl_is_served_from_the_memo() {
         1,
         "the second fetch is a memo hit and never re-runs the filter"
     );
+    harness.database.drop_now().await;
 }
 
 #[tokio::test]
@@ -173,4 +166,5 @@ async fn no_cache_within_the_revalidate_window_is_served_from_the_memo() {
         1,
         "a memo younger than FRESH_REVALIDATE_AFTER satisfies no-cache"
     );
+    harness.database.drop_now().await;
 }

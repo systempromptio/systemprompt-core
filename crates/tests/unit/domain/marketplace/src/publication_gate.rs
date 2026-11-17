@@ -1,14 +1,14 @@
 // Publication gates run before the publication transaction: a required gate
-// with none registered refuses, a refusal refuses, and an admission is
-// recorded on the review. Cohort rings resolve a consumer through the first
-// matching ring with a cohort selection, and the catalogue stamp moves with
-// cohort generations.
+// with none contributed refuses, every gate must admit whatever the order, a
+// refusal refuses, and an admission is recorded on the review. Cohort rings
+// resolve a consumer through the first matching ring with a cohort selection,
+// and the catalogue stamp moves with cohort generations.
 
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use systemprompt_governance::authz::{
-    AuthzHookContext, NullAuditSink, SubjectProviderSet, discover_role_directory,
+    AuthzError, RoleDirectory, SharedRoleDirectory, SubjectAttributeError, SubjectProviderSet,
 };
 use systemprompt_identifiers::{ResourceRevisionId, UserId};
 use systemprompt_manifest::services::{
@@ -20,12 +20,25 @@ use systemprompt_marketplace::managed::{
     PublicationGate, PublicationGateError, PublicationPolicy, PublicationRequest, ResourceKind,
 };
 use systemprompt_test_fixtures::{seed_user_row_with_roles, test_db_pool};
-use systemprompt_users as _;
+use systemprompt_users::UserRepository;
 use uuid::Uuid;
 
 use crate::managed_resolution::{Fixture, fixture, publish, skill_files};
 
 struct FixedGate(GateVerdict);
+
+struct NamedGate(&'static str, GateVerdict);
+
+#[async_trait]
+impl PublicationGate for NamedGate {
+    fn id(&self) -> &'static str {
+        self.0
+    }
+
+    async fn admit(&self, _ctx: &GateContext<'_>) -> Result<GateVerdict, PublicationGateError> {
+        Ok(self.1.clone())
+    }
+}
 
 #[async_trait]
 impl PublicationGate for FixedGate {
@@ -56,16 +69,28 @@ fn gated(
         ))
 }
 
+#[derive(Debug)]
+struct UsersTableRoles(UserRepository);
+
+#[async_trait]
+impl RoleDirectory for UsersTableRoles {
+    async fn unknown_roles(&self, _candidates: &[String]) -> Result<Vec<String>, AuthzError> {
+        Ok(Vec::new())
+    }
+
+    async fn roles_of(&self, user: &UserId) -> Result<Vec<String>, AuthzError> {
+        let found = self
+            .0
+            .find_by_id(user)
+            .await
+            .map_err(|e| AuthzError::Subject(SubjectAttributeError::Lookup(Box::new(e))))?;
+        Ok(found.map(|u| u.roles).unwrap_or_default())
+    }
+}
+
 async fn ringed(f: &Fixture, rings: &[(&str, &str)]) -> ManagedRepository {
     let db = test_db_pool().await;
-    let roles = discover_role_directory(&AuthzHookContext {
-        pool: db.pool(),
-        sink: Arc::new(NullAuditSink),
-        services: systemprompt_test_fixtures::fixture_services_view(),
-        subjects: Default::default(),
-        secrets: systemprompt_test_fixtures::fixture_secret_store(),
-        state: Default::default(),
-    });
+    let roles: SharedRoleDirectory = Arc::new(UsersTableRoles(UserRepository::new(&db)));
     f.repository
         .clone()
         .with_publication_policy(PublicationPolicy::new(
@@ -81,7 +106,7 @@ async fn ringed(f: &Fixture, rings: &[(&str, &str)]) -> ManagedRepository {
             },
             Vec::new(),
             SubjectProviderSet::default(),
-            roles,
+            Some(roles),
         ))
 }
 
@@ -163,7 +188,7 @@ async fn resolved_revision(
 }
 
 #[tokio::test]
-async fn a_required_gate_with_none_registered_refuses_an_improvement() {
+async fn a_required_gate_with_none_contributed_refuses_an_improvement() {
     let f = fixture().await;
     publish(&f).await;
     let candidate = next_revision(&f, "# improved\n").await;
@@ -436,21 +461,6 @@ async fn the_catalog_stamp_moves_with_a_cohort_generation() {
     assert_ne!(before, after);
 }
 
-struct NamedGate(&'static str, AssetDigest);
-
-#[async_trait]
-impl PublicationGate for NamedGate {
-    fn id(&self) -> &'static str {
-        self.0
-    }
-
-    async fn admit(&self, _ctx: &GateContext<'_>) -> Result<GateVerdict, PublicationGateError> {
-        Ok(GateVerdict::Admit {
-            evidence_digest: self.1.clone(),
-        })
-    }
-}
-
 struct BrokenGate;
 
 #[async_trait]
@@ -480,7 +490,7 @@ fn the_policy_debug_names_its_gates_and_exposes_its_config() {
     let policy = PublicationPolicy::new(
         config,
         vec![
-            Arc::new(NamedGate("eval", AssetDigest::of(b"a"))),
+            admitting_with("eval", AssetDigest::of(b"a")),
             Arc::new(BrokenGate),
         ],
         SubjectProviderSet::default(),
@@ -502,8 +512,8 @@ async fn several_admitting_gates_record_one_combined_admission() {
         &f,
         PublicationGateConfig::default(),
         vec![
-            Arc::new(NamedGate("eval", first.clone())),
-            Arc::new(NamedGate("lint", AssetDigest::of(b"lint evidence"))),
+            admitting_with("eval", first.clone()),
+            admitting_with("lint", AssetDigest::of(b"lint evidence")),
         ],
     );
     let decision = repository
@@ -566,4 +576,62 @@ async fn a_failing_gate_refuses_as_an_internal_error() {
         .await
         .expect("head");
     assert_eq!(head, 1);
+}
+
+async fn publish_through(
+    gates: Vec<Arc<dyn PublicationGate>>,
+) -> Result<PublicationDecision, ManagedError> {
+    let f = fixture().await;
+    publish(&f).await;
+    let candidate = next_revision(&f, "# improved\n").await;
+    gated(&f, PublicationGateConfig::default(), gates)
+        .review_and_publish(
+            &f.owner,
+            &f.owner,
+            &improvement(
+                &f,
+                Some(&candidate),
+                PublicationAction::PublishImprovement,
+                1,
+                None,
+            ),
+        )
+        .await
+}
+
+fn admitting_with(id: &'static str, evidence_digest: AssetDigest) -> Arc<dyn PublicationGate> {
+    Arc::new(NamedGate(id, GateVerdict::Admit { evidence_digest }))
+}
+
+fn admitting(id: &'static str) -> Arc<dyn PublicationGate> {
+    admitting_with(id, AssetDigest::of(id.as_bytes()))
+}
+
+fn refusing(id: &'static str) -> Arc<dyn PublicationGate> {
+    Arc::new(NamedGate(
+        id,
+        GateVerdict::Refuse {
+            reason: "core gate refuses".to_owned(),
+        },
+    ))
+}
+
+#[tokio::test]
+async fn an_admitting_install_gate_cannot_outvote_a_refusing_core_gate_in_either_order() {
+    for gates in [
+        vec![admitting("install"), refusing("core")],
+        vec![refusing("core"), admitting("install")],
+    ] {
+        let refused = publish_through(gates).await;
+        assert!(
+            matches!(&refused, Err(ManagedError::Conflict(reason)) if reason.contains("core")),
+            "{refused:?}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn two_admitting_gates_admit_as_the_negative_control() {
+    let admitted = publish_through(vec![admitting("core"), admitting("install")]).await;
+    assert!(admitted.is_ok(), "{admitted:?}");
 }

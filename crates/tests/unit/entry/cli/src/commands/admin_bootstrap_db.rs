@@ -17,7 +17,7 @@ fn args(name: Option<&str>) -> BootstrapArgs {
     }
 }
 
-fn card(output: &systemprompt_cli::shared::CommandOutput) -> serde_json::Value {
+fn card(output: &systemprompt_extension::cli::CommandOutput) -> serde_json::Value {
     serde_json::to_value(output.artifact()).unwrap()
 }
 

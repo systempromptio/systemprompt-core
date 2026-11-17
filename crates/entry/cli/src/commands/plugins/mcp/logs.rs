@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use std::path::PathBuf;
 
 use anyhow::Result;
@@ -10,9 +11,8 @@ use clap::{Args, ValueEnum};
 
 use super::logs_db::execute_db_mode;
 use super::logs_disk::{execute_disk_mode, execute_follow_mode};
-use crate::context::CommandContext;
-use crate::shared::CommandOutput;
-use systemprompt_config::paths::AppPaths;
+use crate::commands::shared::app_context;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Clone, Copy, ValueEnum, PartialEq, Eq)]
 pub enum LogLevel {
@@ -65,44 +65,27 @@ pub struct LogsArgs {
     pub level: Option<LogLevel>,
 }
 
-fn get_default_logs_dir(ctx: &CommandContext) -> PathBuf {
-    ctx.boot()
-        .ok()
-        .and_then(|boot| {
-            let profile = boot.profile();
-            AppPaths::from_profile(
-                &profile.paths,
-                profile.path_resolution(),
-                boot.services_root().map(|r| r.path.as_path()),
-            )
-            .ok()
-        })
-        .map_or_else(|| PathBuf::from("/var/log"), |paths| paths.system().logs())
+async fn default_logs_dir(host: &dyn KernelHost) -> Result<PathBuf> {
+    Ok(app_context(host).await?.app_paths().system().logs())
 }
 
-pub(super) async fn execute(args: LogsArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let prompter = ctx.prompter();
-    let config = &ctx.cli;
-    let logs_path = args
-        .logs_dir
-        .as_ref()
-        .map_or_else(|| get_default_logs_dir(ctx), PathBuf::from);
+pub(super) async fn execute(args: LogsArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+    let prompter = host.prompter();
+    let config = host.output();
+    let logs_path = match args.logs_dir.as_ref() {
+        Some(dir) => PathBuf::from(dir),
+        None => default_logs_dir(host).await?,
+    };
 
     if args.follow {
-        return execute_follow_mode(
-            &args,
-            prompter,
-            config,
-            &logs_path,
-            ctx.foreground_children(),
-        );
+        return execute_follow_mode(&args, prompter, config, &logs_path, host.children());
     }
 
     if args.disk {
         return execute_disk_mode(&args, prompter, config, &logs_path);
     }
 
-    match execute_db_mode(&args, ctx).await {
+    match execute_db_mode(&args, host).await {
         Ok(result) => Ok(result),
         Err(e) => {
             tracing::debug!(error = %e, "DB log query failed, falling back to disk");

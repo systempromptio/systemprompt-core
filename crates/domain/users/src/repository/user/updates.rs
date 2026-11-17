@@ -179,7 +179,11 @@ impl UserRepository {
         Ok(row)
     }
 
-    pub async fn delete(&self, id: &UserId) -> Result<Vec<super::PurgeCount>> {
+    pub async fn delete(
+        &self,
+        id: &UserId,
+        plan: &systemprompt_extension::AdmittedPurge,
+    ) -> Result<super::PurgeOutcome> {
         let mut tx = self.write_pool.begin().await?;
         if !Self::lock_unless_held(&mut tx, id).await? {
             return Err(UserError::NotFound(id.clone()));
@@ -187,13 +191,14 @@ impl UserRepository {
         let sessions = sqlx::query!("DELETE FROM user_sessions WHERE user_id = $1", id.as_str())
             .execute(&mut *tx)
             .await?;
-        let mut removed = Self::purge_user_rows(&mut tx, id).await?;
-        removed.insert(
+        let mut removed = Self::purge_user_rows(&mut tx, id, plan).await?;
+        removed.counts.insert(
             0,
             super::PurgeCount {
-                owner: "systemprompt-core",
-                table: "user_sessions",
+                owner: systemprompt_identifiers::ExtensionId::new(super::purge::USERS_OWNER),
+                table: "user_sessions".to_owned(),
                 rows: i64::try_from(sessions.rows_affected()).unwrap_or(i64::MAX),
+                absent: false,
             },
         );
         let result = sqlx::query!(r#"DELETE FROM users WHERE id = $1"#, id.as_str())

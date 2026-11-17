@@ -15,14 +15,14 @@ use systemprompt_analytics::{
     AnalyticsEventBatchResponse, AnalyticsEventType, CreateAnalyticsEventBatchInput,
     CreateAnalyticsEventInput, CreateEngagementEventInput, EngagementOptionalMetrics,
 };
-use systemprompt_api::kernel::ApiHttpError;
+use systemprompt_extension::router::ApiHttpError;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::execution::context::RequestContext;
 
-use crate::http::AnalyticsHttpState;
+use crate::http::{AnalyticsHttpState, EngagementState};
 
-pub(super) async fn record_event(
-    State(state): State<AnalyticsHttpState>,
+pub(crate) async fn record_event(
+    State(AnalyticsHttpState { ingest: state, .. }): State<AnalyticsHttpState>,
     Extension(req_ctx): Extension<RequestContext>,
     Json(mut input): Json<CreateAnalyticsEventInput>,
 ) -> Result<impl IntoResponse, ApiHttpError> {
@@ -50,8 +50,8 @@ pub(super) async fn record_event(
     Ok((StatusCode::CREATED, Json(created)))
 }
 
-pub(super) async fn record_events_batch(
-    State(state): State<AnalyticsHttpState>,
+pub(crate) async fn record_events_batch(
+    State(AnalyticsHttpState { ingest: state, .. }): State<AnalyticsHttpState>,
     Extension(req_ctx): Extension<RequestContext>,
     Json(mut input): Json<CreateAnalyticsEventBatchInput>,
 ) -> Result<impl IntoResponse, ApiHttpError> {
@@ -90,7 +90,7 @@ pub(super) async fn record_events_batch(
 }
 
 async fn fan_out_engagement(
-    state: &AnalyticsHttpState,
+    state: &EngagementState,
     req_ctx: &RequestContext,
     input: &CreateAnalyticsEventInput,
 ) {

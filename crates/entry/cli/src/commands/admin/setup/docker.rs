@@ -6,22 +6,22 @@
 use anyhow::{Context, Result};
 use std::process::Command;
 use systemprompt_cloud::constants::docker::{COMPOSE_PATH, container_name};
-use systemprompt_loader::subprocess::ForegroundChildren;
+use systemprompt_extension::cli::ChildSupervisor;
 use systemprompt_logging::CliService;
 
 use super::SetupArgs;
 use super::docker_database::create_database_in_docker;
-use crate::interactive::Prompter;
-use crate::shared::docker_compose::{
-    create_compose_files_if_missing, is_compose_available, is_container_running,
-    is_docker_available, start_compose, wait_for_postgres_ready,
-};
 use crate::shared::postgres_access::{
     PostgresConfig, detect_postgresql, enable_extensions, test_connection,
 };
+use systemprompt_cloud::docker_compose::{
+    create_compose_files_if_missing, is_compose_available, is_container_running,
+    is_docker_available, start_compose, wait_for_postgres_ready,
+};
+use systemprompt_extension::cli::Prompter;
 
 pub async fn setup_docker_postgres_non_interactive(
-    children: &ForegroundChildren,
+    children: &dyn ChildSupervisor,
     config: &PostgresConfig,
     env_name: &str,
     reset_role_password: bool,
@@ -54,18 +54,18 @@ pub async fn setup_docker_postgres_non_interactive(
 
     ensure_port_free(config)?;
     create_compose_files_if_missing(&compose_dir, &container, config.port)?;
-    start_compose(children, config, &compose_dir, &container)?;
-    wait_for_postgres_ready(children, config, &container);
+    start_compose(children, config.credentials(), &compose_dir, &container)?;
+    wait_for_postgres_ready(children, config.credentials(), &container);
     enable_extensions(config).await?;
 
     Ok(config.clone())
 }
 
-async fn remove_container(children: &ForegroundChildren, container: &str) {
+async fn remove_container(children: &dyn ChildSupervisor, container: &str) {
     for action in ["stop", "rm"] {
         let mut cmd = Command::new("docker");
         cmd.args([action, container]);
-        let children = children.clone();
+        let children = children.handle();
         let outcome = tokio::task::spawn_blocking(move || children.output(cmd)).await;
         if let Err(e) = outcome.map_err(std::io::Error::other).and_then(|r| r) {
             tracing::warn!(container = %container, action, error = %e, "docker container removal step failed");
@@ -77,7 +77,7 @@ pub(super) async fn setup_docker_postgres_interactive(
     args: &SetupArgs,
     prompter: &dyn Prompter,
     env_name: &str,
-    children: &ForegroundChildren,
+    children: &dyn ChildSupervisor,
 ) -> Result<PostgresConfig> {
     CliService::info("Setting up PostgreSQL with Docker...");
 
@@ -152,9 +152,9 @@ pub(super) async fn setup_docker_postgres_interactive(
     }
 
     ensure_port_free(&config)?;
-    start_compose(children, &config, &compose_dir, &container)?;
+    start_compose(children, config.credentials(), &compose_dir, &container)?;
 
-    wait_for_postgres_ready(children, &config, &container);
+    wait_for_postgres_ready(children, config.credentials(), &container);
 
     enable_extensions(&config).await?;
 

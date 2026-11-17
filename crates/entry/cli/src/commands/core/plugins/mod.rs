@@ -14,11 +14,11 @@ pub mod list;
 pub mod show;
 pub mod validate;
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result, bail};
 use clap::Subcommand;
 
-use crate::context::CommandContext;
-use crate::shared::render_result;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum PluginsCommands {
@@ -35,31 +35,21 @@ pub enum PluginsCommands {
     Generate(generate::GenerateArgs),
 }
 
-pub fn execute(command: PluginsCommands, ctx: &CommandContext) -> Result<()> {
+pub fn execute(command: PluginsCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
-        PluginsCommands::List(args) => {
-            let result = list::execute(args, ctx).context("Failed to list plugins")?;
-            render_result(&result, &ctx.cli);
-            Ok(())
-        },
-        PluginsCommands::Show(args) => {
-            let result = show::execute(&args, ctx).context("Failed to show plugin")?;
-            render_result(&result, &ctx.cli);
-            Ok(())
-        },
+        PluginsCommands::List(args) => list::execute(args, host).context("Failed to list plugins"),
+        PluginsCommands::Show(args) => show::execute(&args, host).context("Failed to show plugin"),
         PluginsCommands::Validate(args) => {
             let (result, valid) =
-                validate::execute(args, ctx).context("Failed to validate plugins")?;
-            render_result(&result, &ctx.cli);
+                validate::execute(args, host).context("Failed to validate plugins")?;
             if !valid {
+                host.render(&result);
                 bail!("Plugin validation failed");
             }
-            Ok(())
+            Ok(result)
         },
         PluginsCommands::Generate(args) => {
-            let result = generate::execute(&args, ctx).context("Failed to generate plugins")?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            generate::execute(&args, host).context("Failed to generate plugins")
         },
     }
 }

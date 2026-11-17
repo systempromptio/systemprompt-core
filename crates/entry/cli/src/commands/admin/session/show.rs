@@ -7,9 +7,8 @@ use systemprompt_cloud::{CliSession, LOCAL_SESSION_KEY, SessionKey, TenantStore}
 use systemprompt_identifiers::{ProfileName, TenantId};
 
 use super::types::{RoutingInfo, SessionInfo, SessionShowOutput};
-use crate::CliConfig;
-use crate::paths::ResolvedPaths;
-use crate::shared::CommandOutput;
+use systemprompt_cloud::paths::ResolvedPaths;
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 pub(super) fn execute(_config: &CliConfig) -> CommandOutput {
     let paths = ResolvedPaths::discover();

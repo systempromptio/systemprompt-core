@@ -6,13 +6,14 @@ use std::time::Instant;
 
 use serde_json::json;
 use systemprompt_ai::models::ai::{
-    AiContentPart, AiMessage, MessageRole, ResponseFormat as AgentResponseFormat, SamplingParams,
-    StreamChunk,
+    AiContentPart, AiMessage, MessageRole, ReasoningEffort, ReasoningParams,
+    ResponseFormat as AgentResponseFormat, SamplingParams, StreamChunk,
 };
 use systemprompt_ai::models::tools::McpTool;
 use systemprompt_ai::services::providers::canonical_bridge::{
-    BridgeProvider, CanonicalBuild, agent_response_format, event_to_chunk, text_content,
-    to_ai_response, to_code_execution, to_search_grounded, tool_calls, tools_to_canonical,
+    BridgeProvider, CanonicalBuild, agent_response_format, event_to_chunk, finish_reason,
+    text_content, to_ai_response, to_code_execution, to_search_grounded, tool_calls,
+    tools_to_canonical,
 };
 use systemprompt_identifiers::{AiRequestId, McpServerId};
 use systemprompt_wire::canonical::{
@@ -410,7 +411,18 @@ fn event_to_chunk_empty_text_delta_is_dropped() {
 }
 
 #[test]
-fn event_to_chunk_usage_delta_carries_token_totals() {
+fn stop_reasons_map_to_the_recorded_finish_reason() {
+    assert_eq!(finish_reason(CanonicalStopReason::MaxTokens), "length");
+    assert_eq!(finish_reason(CanonicalStopReason::ToolUse), "tool_calls");
+    assert_eq!(finish_reason(CanonicalStopReason::EndTurn), "stop");
+    assert_eq!(
+        finish_reason(CanonicalStopReason::Refusal),
+        "content_filter"
+    );
+}
+
+#[test]
+fn event_to_chunk_projects_text_only() {
     let usage = CanonicalUsageUpdate {
         input_tokens: Some(12),
         output_tokens: Some(8),
@@ -419,94 +431,233 @@ fn event_to_chunk_usage_delta_carries_token_totals() {
         reasoning_tokens: None,
         total_tokens: Some(23),
     };
-    match event_to_chunk(CanonicalEvent::UsageDelta(usage)) {
-        Some(StreamChunk::Usage {
-            input_tokens,
-            output_tokens,
-            tokens_used,
-            cache_read_tokens,
-            cache_creation_tokens,
-            reasoning_tokens,
-            finish_reason,
-        }) => {
-            assert_eq!(input_tokens, Some(12));
-            assert_eq!(output_tokens, Some(8));
-            // The wire's own total is relayed, never recomputed here.
-            assert_eq!(tokens_used, Some(23));
-            assert_eq!(cache_read_tokens, Some(3));
-            assert_eq!(cache_creation_tokens, None);
-            assert_eq!(reasoning_tokens, None);
-            assert!(finish_reason.is_none());
-        },
-        other => panic!("expected Usage chunk, got {other:?}"),
-    }
-}
-
-#[test]
-fn event_to_chunk_message_stop_maps_finish_reason() {
-    match event_to_chunk(CanonicalEvent::MessageStop {
-        id: "m".to_owned(),
-        stop_reason: Some(CanonicalStopReason::MaxTokens),
-        raw_finish_reason: None,
-    }) {
-        Some(StreamChunk::Usage { finish_reason, .. }) => {
-            assert_eq!(finish_reason.as_deref(), Some("length"));
-        },
-        other => panic!("expected Usage chunk, got {other:?}"),
-    }
-}
-
-#[test]
-fn event_to_chunk_tool_use_stop_reason_maps_to_tool_calls() {
-    match event_to_chunk(CanonicalEvent::MessageStop {
-        id: "m".to_owned(),
-        stop_reason: Some(CanonicalStopReason::ToolUse),
-        raw_finish_reason: None,
-    }) {
-        Some(StreamChunk::Usage { finish_reason, .. }) => {
-            assert_eq!(finish_reason.as_deref(), Some("tool_calls"));
-        },
-        other => panic!("expected Usage chunk, got {other:?}"),
-    }
-}
-
-#[test]
-fn event_to_chunk_end_turn_maps_to_stop() {
-    match event_to_chunk(CanonicalEvent::MessageStop {
-        id: "m".to_owned(),
-        stop_reason: Some(CanonicalStopReason::EndTurn),
-        raw_finish_reason: None,
-    }) {
-        Some(StreamChunk::Usage { finish_reason, .. }) => {
-            assert_eq!(finish_reason.as_deref(), Some("stop"));
-        },
-        other => panic!("expected Usage chunk, got {other:?}"),
-    }
-}
-
-#[test]
-fn event_to_chunk_other_events_are_dropped() {
+    assert!(event_to_chunk(CanonicalEvent::UsageDelta(usage)).is_none());
+    assert!(
+        event_to_chunk(CanonicalEvent::MessageStop {
+            id: "m".to_owned(),
+            stop_reason: Some(CanonicalStopReason::EndTurn),
+            raw_finish_reason: None,
+        })
+        .is_none()
+    );
+    assert!(
+        event_to_chunk(CanonicalEvent::ThinkingDelta {
+            index: 0,
+            text: "pondering".to_owned(),
+        })
+        .is_none()
+    );
     assert!(event_to_chunk(CanonicalEvent::Error("boom".to_owned())).is_none());
     assert!(event_to_chunk(CanonicalEvent::ContentBlockStop { index: 0 }).is_none());
 }
 
 #[test]
-fn event_to_chunk_relays_no_total_when_the_frame_states_none() {
-    let usage = CanonicalUsageUpdate {
-        input_tokens: Some(12),
-        output_tokens: Some(8),
-        cache_read_tokens: Some(3),
-        cache_creation_tokens: None,
-        reasoning_tokens: None,
-        total_tokens: None,
+fn explicit_thinking_budget_overrides_the_model_heuristic() {
+    let messages = [msg(MessageRole::User, "hi")];
+    let request = CanonicalBuild::new(
+        BridgeProvider::Anthropic,
+        &messages,
+        "claude-sonnet-5",
+        4096,
+    )
+    .with_reasoning(Some(
+        ReasoningParams::effort(ReasoningEffort::High).with_thinking_budget(2048),
+    ))
+    .into_request();
+    let thinking = request.reasoning.thinking.expect("thinking requested");
+    assert!(thinking.enabled);
+    assert_eq!(thinking.budget_tokens, Some(2048));
+    assert_eq!(
+        request.reasoning.reasoning_effort,
+        Some(systemprompt_wire::canonical::ReasoningEffort::High)
+    );
+}
+
+#[test]
+fn explicit_effort_replaces_the_o_series_default() {
+    let messages = [msg(MessageRole::User, "hi")];
+    let request = CanonicalBuild::new(BridgeProvider::OpenAi, &messages, "o3-mini", 4096)
+        .with_reasoning(Some(ReasoningParams::effort(ReasoningEffort::Low)))
+        .into_request();
+    assert_eq!(
+        request.reasoning.reasoning_effort,
+        Some(systemprompt_wire::canonical::ReasoningEffort::Low)
+    );
+    assert!(request.reasoning.thinking.is_none());
+}
+
+#[test]
+fn thinking_and_tool_results_lead_a_replayed_turn_that_also_has_text() {
+    let assistant = AiMessage {
+        role: MessageRole::Assistant,
+        content: "let me look".to_owned(),
+        parts: vec![
+            AiContentPart::tool_use("call-1", "search", json!({"q": "rust"})),
+            AiContentPart::thinking("weighing options", Some("sig-1".to_owned())),
+        ],
     };
-    match event_to_chunk(CanonicalEvent::UsageDelta(usage)) {
-        Some(StreamChunk::Usage { tokens_used, .. }) => assert_eq!(
-            tokens_used, None,
-            "a frame with no stated total leaves tokens_used to billable_total"
+    let user = AiMessage {
+        role: MessageRole::User,
+        content: "and summarise it".to_owned(),
+        parts: vec![AiContentPart::tool_result("call-1", "3 hits", false)],
+    };
+    let messages = [msg(MessageRole::User, "find it"), assistant, user];
+    let request = CanonicalBuild::new(BridgeProvider::Anthropic, &messages, "claude-sonnet-5", 512)
+        .into_request();
+
+    assert!(
+        matches!(
+            request.messages[1].content.as_slice(),
+            [
+                CanonicalContent::Thinking { .. },
+                CanonicalContent::Text { .. },
+                CanonicalContent::ToolUse { .. },
+            ]
         ),
-        other => panic!("expected Usage chunk, got {other:?}"),
+        "an assistant turn opens with its thinking and closes with its tool use: {:?}",
+        request.messages[1].content
+    );
+    assert!(
+        matches!(
+            request.messages[2].content.as_slice(),
+            [
+                CanonicalContent::ToolResult { .. },
+                CanonicalContent::Text { .. },
+            ]
+        ),
+        "a user turn opens with its tool results: {:?}",
+        request.messages[2].content
+    );
+}
+
+#[test]
+fn tool_and_thinking_parts_become_canonical_blocks() {
+    let assistant = AiMessage {
+        role: MessageRole::Assistant,
+        content: String::new(),
+        parts: vec![
+            AiContentPart::thinking("weighing options", Some("sig-1".to_owned())),
+            AiContentPart::tool_use("call-1", "search", json!({"q": "rust"})),
+        ],
+    };
+    let user = AiMessage {
+        role: MessageRole::User,
+        content: String::new(),
+        parts: vec![AiContentPart::tool_result("call-1", "3 hits", false)],
+    };
+    let messages = [msg(MessageRole::User, "find it"), assistant, user];
+    let request = CanonicalBuild::new(BridgeProvider::Anthropic, &messages, "claude-sonnet-5", 512)
+        .into_request();
+
+    assert_eq!(request.messages.len(), 3);
+    match request.messages[1].content.as_slice() {
+        [
+            CanonicalContent::Thinking {
+                text, signature, ..
+            },
+            CanonicalContent::ToolUse {
+                id, name, input, ..
+            },
+        ] => {
+            assert_eq!(text, "weighing options");
+            assert_eq!(signature.as_deref(), Some("sig-1"));
+            assert_eq!(id, "call-1");
+            assert_eq!(name, "search");
+            assert_eq!(input, &json!({"q": "rust"}));
+        },
+        other => panic!("expected thinking then tool use, got {other:?}"),
     }
+    match request.messages[2].content.as_slice() {
+        [
+            CanonicalContent::ToolResult {
+                tool_use_id,
+                content,
+                is_error,
+                ..
+            },
+        ] => {
+            assert_eq!(tool_use_id, "call-1");
+            assert!(!is_error);
+            assert!(
+                matches!(content.as_slice(), [CanonicalContent::Text { text, .. }] if text == "3 hits")
+            );
+        },
+        other => panic!("expected one tool result, got {other:?}"),
+    }
+}
+
+fn tool_turn() -> [AiMessage; 3] {
+    [
+        msg(MessageRole::User, "find it"),
+        AiMessage {
+            role: MessageRole::Assistant,
+            content: String::new(),
+            parts: vec![
+                AiContentPart::thinking("weighing options", Some("sig-1".to_owned())),
+                AiContentPart::tool_use("call-1", "search", json!({"q": "rust"})),
+            ],
+        },
+        AiMessage {
+            role: MessageRole::User,
+            content: String::new(),
+            parts: vec![AiContentPart::tool_result("call-1", "3 hits", false)],
+        },
+    ]
+}
+
+#[test]
+fn a_replayed_tool_turn_renders_natively_on_the_anthropic_wire() {
+    let messages = tool_turn();
+    let request = CanonicalBuild::new(BridgeProvider::Anthropic, &messages, "claude-sonnet-5", 512)
+        .into_request();
+    let body = systemprompt_wire::anthropic::build_request_body(&request, "claude-sonnet-5", None);
+
+    let assistant = &body["messages"][1]["content"];
+    assert_eq!(assistant[0]["type"], "thinking");
+    assert_eq!(assistant[0]["signature"], "sig-1");
+    assert_eq!(assistant[1]["type"], "tool_use");
+    assert_eq!(assistant[1]["id"], "call-1");
+    assert_eq!(assistant[1]["input"], json!({"q": "rust"}));
+    let result = &body["messages"][2]["content"][0];
+    assert_eq!(body["messages"][2]["role"], "user");
+    assert_eq!(result["type"], "tool_result");
+    assert_eq!(result["tool_use_id"], "call-1");
+}
+
+#[test]
+fn a_replayed_tool_turn_renders_natively_on_the_openai_chat_wire() {
+    let messages = tool_turn();
+    let request =
+        CanonicalBuild::new(BridgeProvider::OpenAi, &messages, "gpt-4o-mini", 512).into_request();
+    let body = systemprompt_wire::openai_chat::build_request_body(&request, "gpt-4o-mini", None);
+
+    let rendered = body["messages"].as_array().expect("messages array");
+    let assistant = rendered
+        .iter()
+        .find(|m| m["role"] == "assistant")
+        .expect("assistant message");
+    assert_eq!(assistant["tool_calls"][0]["id"], "call-1");
+    assert_eq!(assistant["tool_calls"][0]["function"]["name"], "search");
+    let tool = rendered
+        .iter()
+        .find(|m| m["role"] == "tool")
+        .expect("tool message");
+    assert_eq!(tool["tool_call_id"], "call-1");
+    assert_eq!(tool["content"], "3 hits");
+}
+
+#[test]
+fn a_replayed_tool_turn_renders_natively_on_the_gemini_wire() {
+    let messages = tool_turn();
+    let request = CanonicalBuild::new(BridgeProvider::Gemini, &messages, "gemini-2.5-flash", 512)
+        .into_request();
+    let body = systemprompt_wire::gemini::build_request_body(&request, None).to_string();
+
+    assert!(body.contains("functionCall"), "tool call part: {body}");
+    assert!(
+        body.contains("functionResponse"),
+        "tool result part: {body}"
+    );
 }
 
 #[test]

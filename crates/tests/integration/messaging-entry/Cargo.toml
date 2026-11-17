@@ -14,6 +14,7 @@ path = "mod.rs"
 workspace = true
 
 [dependencies]
+systemprompt = { workspace = true, features = ["full", "slack", "teams"] }
 systemprompt-api = { workspace = true }
 systemprompt-slack-entry = { workspace = true, features = ["http"] }
 systemprompt-teams-entry = { workspace = true, features = ["http"] }
@@ -21,7 +22,6 @@ systemprompt-slack = { workspace = true }
 systemprompt-client = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true }
-systemprompt-identifiers = { workspace = true }
 systemprompt-governance = { workspace = true }
 systemprompt-manifest = { workspace = true }
 systemprompt-models = { workspace = true }

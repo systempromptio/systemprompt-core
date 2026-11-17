@@ -4,11 +4,11 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use clap::Args;
+use systemprompt_extension::BuiltState;
+use systemprompt_extension::cli::CommandOutput;
 
-use crate::CliConfig;
-use crate::commands::plugins::discover_registry;
+use crate::commands::plugins::composition;
 use crate::commands::plugins::types::{SchemaWithExtension, SchemasListOutput};
-use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
 pub struct SchemasArgs {
@@ -16,30 +16,24 @@ pub struct SchemasArgs {
     pub extension: Option<String>,
 }
 
-pub fn execute(args: &SchemasArgs, _config: &CliConfig) -> CommandOutput {
-    let registry = discover_registry();
-
-    let schemas: Vec<SchemaWithExtension> = registry
-        .extensions()
-        .iter()
-        .filter(|ext| args.extension.as_ref().is_none_or(|f| ext.id().contains(f)))
-        .flat_map(|ext| {
-            ext.schemas()
+pub fn execute(args: &SchemasArgs, built: &BuiltState) -> CommandOutput {
+    let schemas: Vec<SchemaWithExtension> = composition::matching(built, args.extension.as_deref())
+        .flat_map(|member| {
+            member
+                .sink
+                .schemas()
                 .iter()
                 .map(|schema| SchemaWithExtension {
-                    extension_id: systemprompt_identifiers::ExtensionId::new(ext.id()),
-                    extension_name: ext.name().to_owned(),
+                    extension_id: member.owner.clone(),
+                    extension_name: member.metadata.name.to_owned(),
                     table: schema.table.clone(),
-                    source: "inline".to_owned(),
                 })
-                .collect::<Vec<_>>()
         })
         .collect();
 
     let total = schemas.len();
-
     let output = SchemasListOutput { schemas, total };
 
-    CommandOutput::table_of(vec!["extension_id", "table", "source"], &output.schemas)
+    CommandOutput::table_of(vec!["extension_id", "table"], &output.schemas)
         .with_title("Schemas Across Extensions")
 }

@@ -7,9 +7,9 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_cli::admin::config::secret_check::{execute, file_key_names, run};
-use systemprompt_cli::cli_settings::{CliConfig, OutputFormat};
 use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_config::LoadedProfile;
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 
 use crate::services_profile_fixture as fx;
 

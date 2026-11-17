@@ -4,15 +4,15 @@
 
 use std::sync::Arc;
 
+use super::members::{admitted_of, install};
 use systemprompt_database::{
     BOOTSTRAP_ADVISORY_LOCK_KEY, BootstrapLockGuard, DbPool, PostgresProvider,
 };
 use systemprompt_extension::{
-    Extension, ExtensionMetadata, ExtensionRegistry, LoaderError, Migration, SchemaDefinition,
-    SchemaFault, Seed,
+    Admitted, ContributionError, Contributions, Extension, ExtensionMetadata, LoaderError,
+    Migration, SchemaDefinition, SchemaFault, Seed,
 };
-use systemprompt_identifiers::ExtensionId;
-use systemprompt_test_fixtures::{error_chain, install_extension_schemas_with_config};
+use systemprompt_test_fixtures::error_chain;
 
 use crate::services::db_helper::test_pool;
 
@@ -27,15 +27,7 @@ pub(super) struct StubExtension {
     pub(super) migrations: Vec<Migration>,
 }
 
-impl Extension for StubExtension {
-    fn metadata(&self) -> ExtensionMetadata {
-        ExtensionMetadata {
-            id: self.id,
-            name: self.id,
-            version: "0.0.1",
-        }
-    }
-
+impl StubExtension {
     fn schemas(&self) -> Vec<SchemaDefinition> {
         self.schemas.clone()
     }
@@ -49,14 +41,33 @@ impl Extension for StubExtension {
     }
 }
 
+impl Extension for StubExtension {
+    fn metadata(&self) -> ExtensionMetadata {
+        ExtensionMetadata {
+            id: self.id,
+            name: self.id,
+            version: "0.0.1",
+        }
+    }
+
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        for schema in self.schemas() {
+            c.schema(schema);
+        }
+        for seed in self.seeds() {
+            c.seed(seed);
+        }
+        c.migrations(self.migrations());
+        Ok(())
+    }
+}
+
 pub(super) fn unique_id(prefix: &str) -> &'static str {
     leak(format!("{prefix}_{}", uuid::Uuid::new_v4().simple()))
 }
 
-pub(super) fn registry_with(ext: StubExtension) -> ExtensionRegistry {
-    let mut registry = ExtensionRegistry::new();
-    registry.register(Arc::new(ext)).expect("register stub");
-    registry
+pub(super) fn registry_with(ext: StubExtension) -> Arc<Admitted> {
+    admitted_of(vec![Box::new(ext)])
 }
 
 pub(super) async fn provider_and_db() -> (PostgresProvider, DbPool) {
@@ -107,7 +118,7 @@ async fn install_creates_schema_index_and_applies_seed_idempotently() {
     };
 
     for _ in 0..2 {
-        install_extension_schemas_with_config(&registry_with(build()), &provider, &[])
+        install(&registry_with(build()), &provider)
             .await
             .expect("install");
     }
@@ -122,32 +133,6 @@ async fn install_creates_schema_index_and_applies_seed_idempotently() {
     assert_eq!(seeded, 1);
 
     drop_table(&db, table).await;
-}
-
-#[tokio::test]
-async fn install_skips_disabled_extensions() {
-    let (provider, db) = provider_and_db().await;
-    let table = unique_id("install_disabled");
-    let ext_id = unique_id("ext_disabled");
-    let ext = StubExtension {
-        id: ext_id,
-        schemas: vec![SchemaDefinition::new(
-            table,
-            format!("CREATE TABLE IF NOT EXISTS \"{table}\" (id BIGINT PRIMARY KEY);"),
-        )],
-        seeds: vec![],
-        migrations: vec![],
-    };
-
-    install_extension_schemas_with_config(
-        &registry_with(ext),
-        &provider,
-        &[ExtensionId::new(ext_id)],
-    )
-    .await
-    .expect("install with extension disabled");
-
-    assert!(!table_exists(&db, table).await);
 }
 
 #[tokio::test]
@@ -167,7 +152,7 @@ async fn install_rejects_seed_with_delete_statement() {
         migrations: vec![],
     };
 
-    let err = install_extension_schemas_with_config(&registry_with(ext), &provider, &[])
+    let err = install(&registry_with(ext), &provider)
         .await
         .expect_err("delete seed rejected");
     assert!(
@@ -194,7 +179,7 @@ async fn install_rejects_non_idempotent_insert_seed() {
         migrations: vec![],
     };
 
-    let err = install_extension_schemas_with_config(&registry_with(ext), &provider, &[])
+    let err = install(&registry_with(ext), &provider)
         .await
         .expect_err("plain insert seed rejected");
     assert!(matches!(err, LoaderError::SeedInsertNotIdempotent { .. }));
@@ -219,7 +204,7 @@ async fn install_fails_when_required_column_is_missing() {
         migrations: vec![],
     };
 
-    let err = install_extension_schemas_with_config(&registry_with(ext), &provider, &[])
+    let err = install(&registry_with(ext), &provider)
         .await
         .expect_err("missing required column rejected");
     assert!(matches!(
@@ -236,19 +221,21 @@ async fn install_rejects_duplicate_table_ownership() {
     let (provider, _db) = provider_and_db().await;
     let table = unique_id("install_shared");
     let sql = format!("CREATE TABLE IF NOT EXISTS \"{table}\" (id BIGINT PRIMARY KEY);");
-    let mut registry = ExtensionRegistry::new();
-    for prefix in ["ext_owner_a", "ext_owner_b"] {
-        registry
-            .register(Arc::new(StubExtension {
-                id: unique_id(prefix),
-                schemas: vec![SchemaDefinition::new(table, sql.clone())],
-                seeds: vec![],
-                migrations: vec![],
-            }))
-            .expect("register stub");
-    }
+    let registry = admitted_of(
+        ["ext_owner_a", "ext_owner_b"]
+            .into_iter()
+            .map(|prefix| -> Box<dyn Extension> {
+                Box::new(StubExtension {
+                    id: unique_id(prefix),
+                    schemas: vec![SchemaDefinition::new(table, sql.clone())],
+                    seeds: vec![],
+                    migrations: vec![],
+                })
+            })
+            .collect(),
+    );
 
-    let err = install_extension_schemas_with_config(&registry, &provider, &[])
+    let err = install(&registry, &provider)
         .await
         .expect_err("duplicate ownership rejected");
     assert!(matches!(err, LoaderError::DuplicateTableOwner { .. }));
@@ -271,7 +258,7 @@ async fn install_rejects_imperative_sql_in_declarative_schema() {
         migrations: vec![],
     };
 
-    let err = install_extension_schemas_with_config(&registry_with(ext), &provider, &[])
+    let err = install(&registry_with(ext), &provider)
         .await
         .expect_err("imperative DDL rejected");
     assert!(matches!(
@@ -293,7 +280,7 @@ async fn seed_rejection(seed_sql: &'static str) -> LoaderError {
         seeds: vec![Seed::new(unique_id("seed"), seed_sql)],
         migrations: vec![],
     };
-    install_extension_schemas_with_config(&registry_with(ext), &provider, &[])
+    install(&registry_with(ext), &provider)
         .await
         .expect_err("disallowed seed statement rejected")
 }
@@ -360,7 +347,7 @@ async fn install_surfaces_seed_execution_failure_and_rolls_back() {
         migrations: vec![],
     };
 
-    let err = install_extension_schemas_with_config(&registry_with(ext), &provider, &[])
+    let err = install(&registry_with(ext), &provider)
         .await
         .expect_err("seed hitting a missing table must fail");
     match err {
@@ -402,7 +389,7 @@ async fn install_applies_update_and_multi_statement_seed() {
         migrations: vec![],
     };
 
-    install_extension_schemas_with_config(&registry_with(ext), &provider, &[])
+    install(&registry_with(ext), &provider)
         .await
         .expect("multi-statement seed applies");
 
@@ -441,7 +428,7 @@ async fn a_dependent_statement_that_fails_rolls_back_the_whole_phase() {
         migrations: vec![],
     });
 
-    let err = install_extension_schemas_with_config(&registry, &provider, &[])
+    let err = install(&registry, &provider)
         .await
         .expect_err("an index over a missing column must fail installation");
     let message = systemprompt_test_fixtures::error_chain(&err);
@@ -475,7 +462,7 @@ async fn an_extension_declaring_no_schema_installs_cleanly() {
         migrations: vec![],
     });
 
-    install_extension_schemas_with_config(&registry, &provider, &[])
+    install(&registry, &provider)
         .await
         .expect("an extension with nothing to install is not an error");
 }
@@ -491,7 +478,7 @@ async fn a_schema_that_does_not_parse_is_rejected_before_any_statement_runs() {
         migrations: vec![],
     });
 
-    let err = install_extension_schemas_with_config(&registry, &provider, &[])
+    let err = install(&registry, &provider)
         .await
         .expect_err("unparseable schema SQL must be refused");
     assert!(!err.to_string().is_empty());
@@ -673,7 +660,7 @@ mod transaction_failures {
         }
     }
 
-    fn seeded_registry() -> ExtensionRegistry {
+    fn seeded_registry() -> Arc<Admitted> {
         let table = unique_id("txfail_tbl");
         registry_with(StubExtension {
             id: unique_id("txfail_ext"),
@@ -702,7 +689,7 @@ mod transaction_failures {
             fail_at,
             pool: db.pool(),
         };
-        install_extension_schemas_with_config(&seeded_registry(), &provider, &[])
+        install(&seeded_registry(), &provider)
             .await
             .expect_err("a provider that fails must fail the install")
     }
@@ -758,7 +745,7 @@ async fn a_statement_type_the_classifier_does_not_know_is_refused_with_guidance(
         migrations: vec![],
     });
 
-    let err = install_extension_schemas_with_config(&registry, &provider, &[])
+    let err = install(&registry, &provider)
         .await
         .expect_err("an unclassified statement type must not install");
     let message = systemprompt_test_fixtures::error_chain(&err);
@@ -799,7 +786,7 @@ async fn a_safe_drop_clears_the_linter_and_classifies_as_dependent() {
         migrations: vec![],
     });
 
-    install_extension_schemas_with_config(&registry, &provider, &[])
+    install(&registry, &provider)
         .await
         .expect("a guarded view drop is declarative and must install");
 
@@ -841,7 +828,7 @@ async fn an_unguarded_drop_is_rejected_as_imperative() {
         migrations: vec![],
     });
 
-    let err = install_extension_schemas_with_config(&registry, &provider, &[])
+    let err = install(&registry, &provider)
         .await
         .expect_err("an unguarded DROP belongs in a migration, not a schema");
     assert!(
@@ -919,7 +906,7 @@ async fn a_declarative_function_without_or_replace_is_refused() {
         migrations: vec![],
     });
 
-    let err = install_extension_schemas_with_config(&registry, &provider, &[])
+    let err = install(&registry, &provider)
         .await
         .expect_err("a routine the installer applies twice must be CREATE OR REPLACE");
     assert!(

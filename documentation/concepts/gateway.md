@@ -42,7 +42,7 @@ Each proxied request passes through a fixed sequence of gateway-owned controls b
 
 ## Safety scanners
 
-A gateway policy's `safety` block names the scanners that judge each request (and, when `block_response_categories` is set, each response). Core ships two: `heuristic` (phrase list, email and card-number detection) and `null`. Any other scanner — a vendor guardrail service, an in-house classifier — is implemented outside core and registered at compile time with `register_safety_scanner!`.
+A gateway policy's `safety` block names the scanners that judge each request (and, when `block_response_categories` is set, each response). Core ships two: `heuristic` (phrase list, email and card-number detection) and `null`. Any other scanner — a vendor guardrail service, an in-house classifier — is implemented outside core and contributed to the gateway's `SafetyScannerSlot` (`systemprompt_gateway::contract`).
 
 Every scanner is governed the same way, whoever wrote it:
 
@@ -89,15 +89,17 @@ Scanners locate matches with `Finding.spans` (`FindingSpan { part, range }`, whe
 
 ### Writing an external scanner
 
-An extension crate depends on `systemprompt-gateway`, implements `SafetyScanner`, and registers a factory that receives the scanner's `ScannerSettings`:
+An extension crate depends on `systemprompt-gateway`, implements `SafetyScanner`, and contributes a `ScannerFactory` (`Fn(&SafetyConfig, &ScannerSettings) -> Arc<dyn SafetyScanner>`) under the scanner's name:
 
 ```rust
 use std::sync::Arc;
 
+use systemprompt_extension::prelude::*;
+use systemprompt_gateway::contract::SafetyScannerSlot;
 use systemprompt_gateway::protocol::canonical::{CanonicalRequest, CanonicalResponse};
 use systemprompt_gateway::{
-    Finding, PHASE_REQUEST, SafetyScanner, ScanError, ScannerSettings, Severity,
-    register_safety_scanner,
+    Finding, PHASE_REQUEST, SafetyConfig, SafetyScanner, ScanError, ScannerFactory,
+    ScannerSettings, Severity,
 };
 
 struct VendorGuard {
@@ -139,11 +141,16 @@ impl SafetyScanner for VendorGuard {
     }
 }
 
-register_safety_scanner!(VendorGuard::from_settings, name = "vendor_guard");
+// in the member's `Extension::contribute`:
+// c.slot::<SafetyScannerSlot>().scanner("vendor_guard", |_r: &Resolved<'_>| {
+//     let factory = |_safety: &SafetyConfig, settings: &ScannerSettings| -> Arc<dyn SafetyScanner> {
+//         Arc::new(VendorGuard::from_settings(settings))
+//     };
+//     Ok::<Arc<dyn ScannerFactory>, FactoryError>(Arc::new(factory))
+// });
 ```
 
-The factory runs once per policy evaluation with that policy's settings (defaults when the policy has no `scanner_settings` entry for the scanner). The scanner does not need its own timeout or fail-open logic: the gateway applies `timeout_ms` and `fail_mode` around every call. A registration that reuses a built-in name (`heuristic`, `null`) is rejected.
-
+The factory runs once per policy evaluation with that policy's settings (defaults when the policy has no `scanner_settings` entry for the scanner). The scanner does not need its own timeout or fail-open logic: the gateway applies `timeout_ms` and `fail_mode` around every call. A scanner named like a built-in (`heuristic`, `null`) or like another contributed scanner refuses the composition.
 ## Resilience
 
 The gateway uses a shared outbound HTTP client and a bounded retry policy. Transient

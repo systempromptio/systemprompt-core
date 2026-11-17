@@ -1,0 +1,9 @@
+[root]
+section = "Fixed"
+area = "Governance"
+text = "A `governance.policies` entry naming a contributed policy is accepted when it sets only `id`, `enabled` and `mode`; an entry carrying any other setting is refused with `PolicyConfigurationError::ContributedPolicyParams`."
+
+[[crate]]
+name = "systemprompt-governance"
+section = "Fixed"
+text = "The engine judges a contributed policy's configuration entry by its keys: `id`, `enabled` and `mode` are chain settings, and any other key is refused as policy settings with `PolicyConfigurationError::ContributedPolicyParams`."

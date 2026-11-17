@@ -19,7 +19,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeMap;
-use std::sync::Arc;
 
 use pulldown_cmark::{Event, Options, Parser, Tag, TagEnd};
 use systemprompt_identifiers::DocumentNodeId;
@@ -27,7 +26,6 @@ use systemprompt_provider_contracts::documents::{
     CodecError, DocumentCodec, DocumentFormat, EditOp, NodeKind, Projection, ProjectionNode,
     READ_ONLY_ATTR, TemplateParams, content_hash, hash8,
 };
-use systemprompt_provider_contracts::register_document_codec;
 
 use super::anchors::decode_utf8;
 use super::placeholders::substitute;
@@ -37,12 +35,6 @@ use super::text::{apply_lines, line_body};
 pub struct MarkdownCodec;
 
 const FORMATS: &[DocumentFormat] = &[DocumentFormat::Markdown];
-
-fn factory() -> Arc<dyn DocumentCodec> {
-    Arc::new(MarkdownCodec)
-}
-
-register_document_codec!(factory);
 
 fn options() -> Options {
     Options::ENABLE_TABLES | Options::ENABLE_STRIKETHROUGH | Options::ENABLE_TASKLISTS

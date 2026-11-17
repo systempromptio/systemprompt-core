@@ -13,14 +13,14 @@ Defines shared interfaces for runtime capabilities, provider integration, events
 
 ```toml
 [dependencies]
-systemprompt-traits = "0.81"
+systemprompt-traits = "0.83"
 ```
 
 Enable the `web` feature to pull in the `axum`-backed `ApiModule` trait:
 
 ```toml
 [dependencies]
-systemprompt-traits = { version = "0.81", features = ["web"] }
+systemprompt-traits = { version = "0.83", features = ["web"] }
 ```
 
 ## Example
@@ -48,17 +48,14 @@ impl Service for HealthPinger {
 | `analytics` | `AnalyticsProvider`, `FingerprintProvider`, session inputs, and `AnalyticsProviderError`. |
 | `auth` | `UserProvider`, `RoleProvider`, `AuthUser`, `FederatedIdentityClaims`, and `AuthProviderError`. |
 | `content` | `ContentProvider`, `ContentSummary`, `ContentItem`, and `ContentFilter`. |
-| `context` | `AppContext`, `ConfigProvider`, `DatabaseHandle`, `ModuleRegistry`, `Module`, `ContextPropagation`, and the optional `ApiModule` (`web` feature). |
+| `context` | `AppContext`, `ConfigProvider`, `DatabaseHandle`, `ContextPropagation` and `InjectContextHeaders`. |
 | `context_provider` | `ContextProvider` for conversation contexts and `ContextWithStats`. |
 | `events` | Log, user, and analytics event publisher traits. |
 | `extension_error` | `ExtensionError` trait, `ApiError`, and `McpErrorData` wire types. |
 | `jwt` | `JwtValidationProvider`, `AgentJwtClaims`, and `GenerateTokenParams`. |
 | `log_service` | Generic `LogService` persistence trait. |
-| `module` | `register_module!` macro for compile-time module registration via `inventory`. |
 | `registry` | `AgentRegistryProvider`, `McpRegistryProvider`, `AgentInfo`, and `McpServerInfo`. |
 | `repository` | `RepositoryError` enum shared by domain repositories. |
-| `scheduler` | `JobStatus` and scheduler error types. |
-| `service` | `Service` and `AsyncService` lifecycle traits. |
 | `startup_events` | Startup phase, service, and module event types plus publisher extensions. |
 | `storage` | `FileStorage`, `StoredFileId`, and `StoredFileMetadata`. |
 | `validation` | `Validate`, `MetadataValidation`, and the field-level `ValidationError`. |
@@ -79,16 +76,15 @@ Most provider traits are exposed as `Arc<dyn TraitName>` via the `Dyn*` aliases.
 
 | Feature | Default | Effect |
 |---------|---------|--------|
-| `web` | off | Enables the `ApiModule` trait and pulls in `axum` for HTTP routing. |
+| `sqlx` | off | Enables the `sqlx` integrations, including `systemprompt-provider-contracts/sqlx`. |
 
 ## Dependencies
 
 - `systemprompt-provider-contracts`, `systemprompt-identifiers`: sibling shared-layer crates.
 - `async-trait`: async methods on dyn-compatible traits.
 - `thiserror`: error enum derives.
-- `inventory`: compile-time module registration.
-- `serde`, `serde_json`, `chrono`, `uuid`, `futures`, `http`, `tracing`, `xxhash-rust`.
-- `axum` (optional, `web` feature).
+- `serde`, `serde_json`, `chrono`, `futures`, `http`, `tracing`, `xxhash-rust`.
+- `sqlx` (optional, `sqlx` feature).
 
 ## License
 

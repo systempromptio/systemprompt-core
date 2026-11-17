@@ -5,10 +5,11 @@ use systemprompt_database::DbPool;
 use systemprompt_extension::notifications::{
     Membership, NotificationAudienceError, NotificationAudienceResolver,
 };
+use systemprompt_extension::{AudienceEntry, AudienceResolvers, StandingTag};
 use systemprompt_files::documents::SubjectDirectory;
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{ExtensionId, UserId};
 use systemprompt_models::notifications::AudienceSubject;
-use systemprompt_runtime::documents::{ExtensionAudiences, UserSubjectDirectory};
+use systemprompt_runtime::documents::UserSubjectDirectory;
 use systemprompt_users::UserRepository;
 use uuid::Uuid;
 
@@ -22,6 +23,10 @@ impl NotificationAudienceResolver for Team {
 
     fn handles(&self, subject: &AudienceSubject) -> bool {
         matches!(subject, AudienceSubject::Dimension { kind, .. } if kind == "team")
+    }
+
+    fn dimensions(&self) -> &'static [&'static str] {
+        &["team"]
     }
 
     async fn members(
@@ -71,11 +76,11 @@ async fn insert(
     id
 }
 
-async fn directory(pool: &DbPool, audiences: ExtensionAudiences) -> UserSubjectDirectory {
+async fn directory(pool: &DbPool, audiences: AudienceResolvers) -> UserSubjectDirectory {
     UserSubjectDirectory::new(
         Arc::new(UserRepository::new(pool)),
         vec!["catalog-role".to_owned()],
-        audiences,
+        Arc::new(audiences),
     )
 }
 
@@ -87,7 +92,7 @@ async fn users_and_roles_resolve_only_active_people() {
     let active = insert(&pool, &tag, "active", "active", "person", &["user", &role]).await;
     let suspended = insert(&pool, &tag, "suspended", "suspended", "person", &[&role]).await;
     let service = insert(&pool, &tag, "service", "active", "service", &[&role]).await;
-    let dir = directory(&pool, ExtensionAudiences::default()).await;
+    let dir = directory(&pool, AudienceResolvers::default()).await;
 
     assert_eq!(
         dir.roles_of(&active).await.unwrap(),
@@ -146,7 +151,7 @@ async fn users_and_roles_resolve_only_active_people() {
 #[tokio::test]
 async fn dimensions_resolve_through_the_first_handling_resolver() {
     let pool = systemprompt_test_fixtures::test_db_pool().await;
-    let unbound = directory(&pool, ExtensionAudiences::default()).await;
+    let unbound = directory(&pool, AudienceResolvers::default()).await;
     assert!(
         unbound
             .members("team", "core", 10)
@@ -155,8 +160,12 @@ async fn dimensions_resolve_through_the_first_handling_resolver() {
             .is_empty()
     );
 
-    let audiences = ExtensionAudiences::default();
-    audiences.bind(vec![Arc::new(Team)]);
+    let audiences = AudienceResolvers::new(vec![AudienceEntry {
+        owner: ExtensionId::new("test-team"),
+        standing: StandingTag::Install,
+        resolver: Arc::new(Team),
+    }])
+    .expect("an install resolver over an unreserved dimension is admitted");
     let bound = directory(&pool, audiences).await;
 
     assert_eq!(

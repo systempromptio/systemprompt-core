@@ -10,11 +10,11 @@ pub mod count;
 pub mod list;
 pub mod show;
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use clap::Subcommand;
 
-use crate::context::CommandContext;
-use crate::shared::render_result;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum AiCommands {
@@ -28,29 +28,16 @@ pub enum AiCommands {
     Count(count::CountArgs),
 }
 
-pub async fn execute(cmd: AiCommands, ctx: &CommandContext) -> Result<()> {
-    let config = &ctx.cli;
+pub async fn execute(cmd: AiCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match cmd {
-        AiCommands::List(args) => {
-            let result = list::execute(args, ctx)
-                .await
-                .context("Failed to list AI images")?;
-            render_result(&result, config);
-            Ok(())
-        },
-        AiCommands::Show(args) => {
-            let result = show::execute(args, ctx)
-                .await
-                .context("Failed to show AI image")?;
-            render_result(&result, config);
-            Ok(())
-        },
-        AiCommands::Count(args) => {
-            let result = count::execute(args, ctx)
-                .await
-                .context("Failed to count AI images")?;
-            render_result(&result, config);
-            Ok(())
-        },
+        AiCommands::List(args) => list::execute(args, host)
+            .await
+            .context("Failed to list AI images"),
+        AiCommands::Show(args) => show::execute(args, host)
+            .await
+            .context("Failed to show AI image"),
+        AiCommands::Count(args) => count::execute(args, host)
+            .await
+            .context("Failed to count AI images"),
     }
 }

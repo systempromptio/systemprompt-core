@@ -145,7 +145,7 @@ fn db_fails(args: &[&str], needle: &str) {
 #[test]
 fn db_connection_and_tables() {
     db_stderr_fmt(&["infra", "db", "status"], "Database connection");
-    db_stderr_fmt(&["infra", "db", "info"], "Database: PostgreSQL");
+    db_stdout_fmt(&["infra", "db", "info"], "PostgreSQL");
     db_stdout_fmt(&["infra", "db", "tables"], "users");
     db_stdout_fmt(&["infra", "db", "tables", "--filter", "user"], "users");
     db_stderr_fmt(
@@ -158,7 +158,7 @@ fn db_connection_and_tables() {
 fn db_size_indexes_describe_and_count() {
     db_stderr_fmt(&["infra", "db", "size"], "Database Size");
     db_stderr_fmt(&["infra", "db", "indexes"], "Indexes");
-    db_stderr_fmt(
+    db_stdout_fmt(
         &["infra", "db", "indexes", "--table", "users"],
         "idx_users_name",
     );
@@ -167,7 +167,7 @@ fn db_size_indexes_describe_and_count() {
         &["infra", "db", "describe", "definitely_not_a_real_table"],
         "not found",
     );
-    db_stderr_fmt(&["infra", "db", "count", "users"], "users:");
+    db_stderr_fmt(&["infra", "db", "count", "users"], "Row Count");
     db_fails(
         &["infra", "db", "count", "definitely_not_a_real_table"],
         "not found",
@@ -177,24 +177,24 @@ fn db_size_indexes_describe_and_count() {
 #[test]
 fn db_doctor_and_migration_ledger() {
     run_db_with_format(&["infra", "db", "doctor"]);
-    db_stderr_fmt(&["infra", "db", "migrations", "status"], "applied");
+    db_stdout_fmt(&["infra", "db", "migrations", "status"], "total_applied");
     run_db(&["infra", "db", "migrations", "history", "nonexistent_ext"]);
 }
 
 #[test]
 fn db_migrate_plan_and_status() {
     db_stderr_fmt(&["infra", "db", "migrate-plan"], "migrations");
-    run_db(&["infra", "db", "migrate-plan", "--json"]);
+    run_db(&["--json", "infra", "db", "migrate-plan"]);
     run_db_with_format(&["infra", "db", "migrate-plan", "users"]);
     db_stderr_fmt(&["infra", "db", "migrate-status"], "Applied:");
-    run_db(&["infra", "db", "migrate-status", "--json"]);
+    run_db(&["--json", "infra", "db", "migrate-status"]);
     run_db_with_format(&["infra", "db", "migrate-status", "users"]);
 }
 
 #[test]
 fn db_migrate_repair_and_apply() {
     run_db(&["infra", "db", "migrate-repair"]);
-    run_db(&["infra", "db", "migrate-repair", "--json"]);
+    run_db(&["--json", "infra", "db", "migrate-repair"]);
     run_db(&["infra", "db", "migrate-repair", "users"]);
     run_db(&["infra", "db", "migrate"]);
     run_db(&["infra", "db", "migrate", "--allow-checksum-drift"]);

@@ -11,11 +11,11 @@ pub mod types;
 pub mod list;
 pub mod validate;
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result, bail};
 use clap::Subcommand;
 
-use crate::context::CommandContext;
-use crate::shared::render_result;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Clone, Copy, Subcommand)]
 pub enum HooksCommands {
@@ -26,21 +26,17 @@ pub enum HooksCommands {
     Validate(validate::ValidateArgs),
 }
 
-pub fn execute(command: HooksCommands, ctx: &CommandContext) -> Result<()> {
+pub fn execute(command: HooksCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
-        HooksCommands::List(args) => {
-            let result = list::execute(args, ctx).context("Failed to list hooks")?;
-            render_result(&result, &ctx.cli);
-            Ok(())
-        },
+        HooksCommands::List(args) => list::execute(args, host).context("Failed to list hooks"),
         HooksCommands::Validate(args) => {
             let (result, valid) =
-                validate::execute(args, ctx).context("Failed to validate hooks")?;
-            render_result(&result, &ctx.cli);
+                validate::execute(args, host).context("Failed to validate hooks")?;
             if !valid {
+                host.render(&result);
                 bail!("Hook validation failed");
             }
-            Ok(())
+            Ok(result)
         },
     }
 }

@@ -13,7 +13,8 @@ use std::path::PathBuf;
 use crate::boot_ctx::bootstrap_ctx_with;
 use clap::Parser;
 use systemprompt_cli::admin::config::rate_limits::{RateLimitsCommands, execute};
-use systemprompt_cli::{CliConfig, CommandContext, OutputFormat, ScriptedPrompter};
+use systemprompt_cli::{CommandContext, ScriptedPrompter};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 
 #[derive(Debug, Parser)]
 struct Harness {
@@ -43,7 +44,7 @@ fn profile_path() -> PathBuf {
 
 fn run(args: &[&str]) -> anyhow::Result<()> {
     let prompter = ScriptedPrompter::new(Vec::<String>::new());
-    execute(parse(args), &prompter, &config())
+    execute(parse(args), &prompter, &config()).map(drop)
 }
 
 fn profile_yaml() -> String {

@@ -18,9 +18,7 @@ mod show;
 use anyhow::{Context, Result};
 use clap::Subcommand;
 
-use crate::CliConfig;
-use crate::interactive::Prompter;
-use crate::shared::render_result;
+use systemprompt_extension::cli::{CliConfig, CommandOutput, Prompter};
 use systemprompt_manifest::Profile;
 
 #[derive(Debug, Subcommand)]
@@ -46,37 +44,20 @@ pub fn execute(
     prompter: &dyn Prompter,
     config: &CliConfig,
     profile: &Profile,
-) -> Result<()> {
+) -> Result<CommandOutput> {
     match command {
         ContentTypesCommands::List(args) => {
-            let result =
-                list::execute(&args, config, profile).context("Failed to list content types")?;
-            render_result(&result, config);
-            Ok(())
+            list::execute(&args, config, profile).context("Failed to list content types")
         },
         ContentTypesCommands::Show(args) => {
-            let result = show::execute(args, prompter, config, profile)
-                .context("Failed to show content type")?;
-            render_result(&result, config);
-            Ok(())
+            show::execute(args, prompter, config, profile).context("Failed to show content type")
         },
-        ContentTypesCommands::Create(args) => {
-            let result = create::execute(args, prompter, config, profile)
-                .context("Failed to create content type")?;
-            render_result(&result, config);
-            Ok(())
-        },
+        ContentTypesCommands::Create(args) => create::execute(args, prompter, config, profile)
+            .context("Failed to create content type"),
         ContentTypesCommands::Edit(args) => {
-            let result = edit::execute(&args, prompter, config, profile)
-                .context("Failed to edit content type")?;
-            render_result(&result, config);
-            Ok(())
+            edit::execute(&args, prompter, config, profile).context("Failed to edit content type")
         },
-        ContentTypesCommands::Delete(args) => {
-            let result = delete::execute(args, prompter, config, profile)
-                .context("Failed to delete content type")?;
-            render_result(&result, config);
-            Ok(())
-        },
+        ContentTypesCommands::Delete(args) => delete::execute(args, prompter, config, profile)
+            .context("Failed to delete content type"),
     }
 }

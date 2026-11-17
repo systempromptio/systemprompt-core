@@ -16,7 +16,7 @@ use systemprompt_models::bridge::opencode::agents_md::{self, AGENTS_MD_BUDGET_CH
 
 use super::staging::{StagedBundle, compose_staged, stage_archive, stage_tree};
 use super::versions::detect_drift;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 const VALIDATE_API_URL: &str = "http://localhost";
 const CONFIG_RELPATH: &str = "config/config.yaml";

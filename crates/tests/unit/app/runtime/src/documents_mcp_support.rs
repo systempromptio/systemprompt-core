@@ -35,7 +35,11 @@ pub(crate) fn allow() -> SharedAuthzHook {
 /// tests cover what each tool does, and the agent caps the MCP surface puts
 /// around them are covered in the files integration tests.
 pub(crate) async fn harness() -> McpHarness {
-    let pool = systemprompt_test_fixtures::test_db_pool().await;
+    harness_on(&systemprompt_test_fixtures::test_db_pool().await)
+}
+
+pub(crate) fn harness_on(pool: &systemprompt_database::DbPool) -> McpHarness {
+    let pool = pool.clone();
     let storage = TempDir::new().expect("tempdir");
     let files: Arc<dyn FileStorage> = Arc::new(LocalFileStorage::new(storage.path().to_path_buf()));
     let runtime = systemprompt_test_fixtures::fixture_documents_runtime(&pool, &files, &allow());
@@ -46,7 +50,7 @@ pub(crate) async fn harness() -> McpHarness {
         systemprompt_test_fixtures::fixture_notifications(&pool, &event_router, &runtime);
     let tools = DocumentsMcpTools::new(DocumentsMcpConfig {
         service: Arc::clone(runtime.service()),
-        notifications: Some(Arc::clone(&notifications.service)),
+        notifications: Some(Arc::clone(&notifications)),
         uploads: Some(Arc::clone(runtime.uploads())),
         users: Arc::new(UserRepository::new(&pool)),
         links: crate::link_rig::in_process_links(
@@ -173,8 +177,14 @@ pub(crate) fn line_for<'a>(read: &'a ReadOutput, text: &str) -> (&'a str, &'a st
 }
 
 pub(crate) async fn registered(prefix: &str) -> AuthenticatedUser {
+    registered_on(&systemprompt_test_fixtures::test_db_pool().await, prefix).await
+}
+
+pub(crate) async fn registered_on(
+    pool: &systemprompt_database::DbPool,
+    prefix: &str,
+) -> AuthenticatedUser {
     let user = person(prefix);
-    let pool = systemprompt_test_fixtures::test_db_pool().await;
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
         .bind(user.id.as_str())
         .bind(&user.email)

@@ -18,7 +18,7 @@
 
 use std::collections::HashMap;
 
-use super::super::governed::GovernedString;
+use crate::policy::GovernedString;
 
 // Why: Gemini thought signatures are opaque reasoning state that clients must
 // echo unchanged.

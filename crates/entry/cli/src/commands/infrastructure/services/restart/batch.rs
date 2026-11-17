@@ -3,11 +3,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::cli_settings::CliConfig;
-use crate::shared::CommandOutput;
 use anyhow::{Result, anyhow};
 use std::sync::Arc;
 use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 use systemprompt_identifiers::ServiceName;
 use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;

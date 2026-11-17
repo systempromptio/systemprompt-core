@@ -1,6 +1,7 @@
-use systemprompt_cli::shared::profile::{
-    DiscoveredProfile, ProfileResolutionError, ProfileSource, discover_profiles,
-    generate_oauth_at_rest_pepper, is_path_input, resolve_profile_from_path, resolve_profile_path,
+use systemprompt_cloud::identity::generate_oauth_at_rest_pepper;
+use systemprompt_cloud::profile::{
+    DiscoveredProfile, ProfileResolutionError, ProfileSource, discover_profiles, is_path_input,
+    resolve_profile_from_path, resolve_profile_path,
 };
 use tempfile::tempdir;
 

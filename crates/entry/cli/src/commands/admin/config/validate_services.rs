@@ -9,6 +9,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use systemprompt_config::paths::AppPaths;
 use systemprompt_loader::BootContext;
@@ -16,13 +17,12 @@ use systemprompt_manifest::services::ServicesConfig;
 
 use super::types::ConfigFileInfo;
 use super::validate::{ValidateArgs, profile_document_target};
-use crate::context::CommandContext;
 
-pub async fn prepare(args: &ValidateArgs, ctx: &CommandContext) -> Result<()> {
+pub async fn prepare(args: &ValidateArgs, host: &dyn KernelHost) -> Result<()> {
     if args.schema || profile_document_target(args).is_some() {
         return Ok(());
     }
-    let boot = ctx.boot()?;
+    let boot = crate::commands::admin::state::boot(host)?;
     let profile = boot.profile();
     let root = boot
         .try_resolve_services_root(env!("CARGO_PKG_VERSION"))

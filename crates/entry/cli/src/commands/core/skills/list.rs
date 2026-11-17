@@ -7,14 +7,17 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use std::path::Path;
 use systemprompt_identifiers::SkillId;
 use systemprompt_manifest::SKILL_CONFIG_FILENAME;
 
-use crate::CommandContext;
-use crate::shared::{CommandOutput, truncate_with_ellipsis};
+
+use crate::commands::shared::app_context;
+use crate::shared::truncate_with_ellipsis;
+use systemprompt_extension::cli::CommandOutput;
 
 use super::types::{SkillDetail, SkillListOutput, SkillSummary, parse_skill_from_config};
 use systemprompt_marketplace::ManagedSkillResolution;
@@ -24,7 +27,7 @@ use systemprompt_marketplace::managed::ResourceKind;
 pub struct ListArgs {
     #[arg(
         help = "Skill ID to show details (optional)",
-        value_parser = crate::shared::parse_skill_id
+        value_parser = systemprompt_extension::cli::parsers::parse_skill_id
     )]
     pub name: Option<SkillId>,
 
@@ -35,13 +38,13 @@ pub struct ListArgs {
     pub disabled: bool,
 }
 
-pub(super) async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let skills_path = get_skills_path(ctx)?;
+pub(super) async fn execute(args: ListArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+    let skills_path = get_skills_path(host)?;
     if let Some(name) = args.name {
-        return show_resolved_skill(&name, ctx).await;
+        return show_resolved_skill(&name, host).await;
     }
     let mut skills = scan_skills(&skills_path)?;
-    let Some((resolver, owner)) = managed_context(ctx).await else {
+    let Some((resolver, owner)) = managed_context(host).await else {
         return Ok(render_list(args.enabled, args.disabled, skills));
     };
     let repository = resolver.repository();
@@ -123,12 +126,12 @@ fn render_list(enabled: bool, disabled: bool, skills: Vec<SkillSummary>) -> Comm
 }
 
 async fn managed_context(
-    ctx: &CommandContext,
+    host: &dyn KernelHost,
 ) -> Option<(
     systemprompt_marketplace::ManagedResourceResolver,
     systemprompt_identifiers::UserId,
 )> {
-    let app = match ctx.app_context().await {
+    let app = match app_context(host).await {
         Ok(app) => app,
         Err(error) => {
             tracing::warn!(
@@ -151,9 +154,9 @@ async fn managed_context(
 
 pub async fn show_resolved_skill(
     skill_id: &SkillId,
-    ctx: &CommandContext,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
-    if let Some((resolver, owner)) = managed_context(ctx).await {
+    if let Some((resolver, owner)) = managed_context(host).await {
         match resolver.resolve_skill(&owner, skill_id.as_str()).await? {
             ManagedSkillResolution::Withheld(reason) => {
                 return Err(anyhow!(
@@ -186,11 +189,11 @@ pub async fn show_resolved_skill(
             },
         }
     }
-    show_skill_detail(skill_id, &get_skills_path(ctx)?)
+    show_skill_detail(skill_id, &get_skills_path(host)?)
 }
 
-fn get_skills_path(ctx: &CommandContext) -> Result<std::path::PathBuf> {
-    Ok(ctx.boot()?.require_services_root().path.join("skills"))
+fn get_skills_path(host: &dyn KernelHost) -> Result<std::path::PathBuf> {
+    Ok(host.services_root()?.path.join("skills"))
 }
 
 pub fn show_skill_detail(skill_id: &SkillId, skills_path: &Path) -> Result<CommandOutput> {

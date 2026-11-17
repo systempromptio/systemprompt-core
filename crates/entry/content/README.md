@@ -6,14 +6,14 @@
 
 The content HTTP routes and CLI commands of systemprompt.io: published content, search, trackable links and the short-link redirect, the `core content` commands and sitemap generation.
 
-**Layer**: Entry. The `http` feature carries the routes, declared through `systemprompt-extension` and mounted by the API server; the `cli` feature carries the commands, registered with the CLI. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
+**Layer**: Entry. The `http` feature carries the routes and the `cli` feature the commands; `ContentHttpExtension` contributes both to the composition, which the API server and the CLI mount. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
 ## Features
 
 | Feature | Carries |
 |---------|---------|
 | `http` | `ContentHttpExtension` (id `content-http`, depends on `content`): the public `/api/v1/content` routes, link generation at `/api/v1/content/links/generate` for a signed-in user, and the `/r/{short_code}` redirect at the web root, all in the content-and-misc role group under the `content` rate limit. The routes read the content repositories the `content` extension provides. |
-| `cli` | `core content` (registered under `core`, accepts `--database-url` for its read-only commands) and `web sitemap` (registered under `web`). |
+| `cli` | `core content` (contributed under `core`; a member command, so it needs a profile and is refused on a run given only `--database-url`) and `web sitemap` (contributed under `web`). |
 
 Either feature links `systemprompt-generator`, whose `generator` extension owns the `content_prerender` and `page_prerender` jobs.
 

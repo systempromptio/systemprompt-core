@@ -6,15 +6,16 @@ use async_trait::async_trait;
 use systemprompt_cli::admin::config::planes::{
     ApplyArgs, DiffArgs, ExportArgs, ModeArg, PlanesCommands, run,
 };
-use systemprompt_cli::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 use systemprompt_extension::prelude::{
     ApplyOutcome, ApplyRequest, ConfigPlane, ConfigPlaneResult, DeclaredState, PlaneContext,
     PlaneSnapshot, PlaneTx,
 };
-use systemprompt_extension::{Extension, ExtensionMetadata, ExtensionRegistry};
+use systemprompt_extension::{ContributionError, Contributions, Extension, ExtensionMetadata};
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    fixture_app_context_with_extensions, fixture_config, test_database_url, test_db_pool,
+    core_members, fixture_admitted_of, fixture_app_context_with_extensions, fixture_config,
+    test_database_url,
 };
 
 struct MemoryPlane {
@@ -107,8 +108,9 @@ impl Extension for PlanesExtension {
         }
     }
 
-    fn config_planes(&self) -> Vec<Arc<dyn ConfigPlane>> {
-        vec![Arc::clone(&self.plane) as Arc<dyn ConfigPlane>]
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        c.config_plane(Arc::clone(&self.plane) as Arc<dyn ConfigPlane>);
+        Ok(())
     }
 }
 
@@ -149,17 +151,16 @@ async fn harness(declared: Option<&str>, stored: &[(&str, &str)]) -> Harness {
         std::fs::create_dir_all(path.parent().expect("parent")).expect("mkdir");
         std::fs::write(path, body).expect("declaration");
     }
-    let pool = test_db_pool().await;
     let mut config = fixture_config(&test_database_url());
     config.services_path = root.path().display().to_string();
-    let mut registry = ExtensionRegistry::new();
-    registry
-        .register(Arc::new(PlanesExtension {
-            id: unique("cli_planes_ext"),
-            plane: Arc::clone(&plane),
-        }))
-        .expect("register");
-    let ctx = fixture_app_context_with_extensions(&pool, config, registry, &[]).expect("context");
+    let mut members = core_members();
+    members.push(Box::new(PlanesExtension {
+        id: unique("cli_planes_ext"),
+        plane: Arc::clone(&plane),
+    }));
+    let ctx = fixture_app_context_with_extensions(config, fixture_admitted_of(members))
+        .await
+        .expect("context");
     Harness { root, plane, ctx }
 }
 
@@ -200,9 +201,13 @@ async fn list_titles_plainly_once_every_plane_is_applied() {
         &[],
     )
     .await;
-    systemprompt_test_fixtures::record_plane_applied(h.ctx.db_pool(), h.plane.name)
-        .await
-        .expect("record the apply");
+    let planes = h.ctx.config_planes().expect("the admitted planes");
+    assert!(planes.names().contains(&h.plane.name));
+    for name in planes.names() {
+        systemprompt_test_fixtures::record_plane_applied(h.ctx.db_pool(), name)
+            .await
+            .expect("record the apply");
+    }
     let out = run(PlanesCommands::List, &h.ctx).await.expect("list");
     let title = out.title().expect("title");
     assert!(!title.contains("NOT APPLIED"), "{title}");

@@ -6,14 +6,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
 use systemprompt_config::{ModelSpec, ProviderCatalogService};
 use systemprompt_identifiers::ModelId;
 use systemprompt_manifest::services::catalog::DeploymentTarget;
 
-use super::catalog_edit::{apply, parse_endpoints, read_active, render_list};
-use crate::context::CommandContext;
+use super::catalog_edit::{apply, list_output, parse_endpoints, read_active};
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum DeploymentCommands {
@@ -25,7 +26,7 @@ pub enum DeploymentCommands {
 
 #[derive(Debug, Clone, Args)]
 pub struct DeploymentSetArgs {
-    #[arg(long, value_parser = crate::shared::parse_model_id)]
+    #[arg(long, value_parser = systemprompt_extension::cli::parsers::parse_model_id)]
     pub model: ModelId,
     #[arg(
         long = "endpoint",
@@ -34,11 +35,10 @@ pub struct DeploymentSetArgs {
     pub endpoints: Vec<String>,
 }
 
-pub async fn execute(command: &DeploymentCommands, ctx: &CommandContext) -> Result<()> {
-    let config = &ctx.cli;
+pub async fn execute(command: &DeploymentCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
         DeploymentCommands::List => {
-            let document = read_active(ctx)?;
+            let document = read_active(host).await?;
             let rows = document
                 .deployments
                 .iter()
@@ -48,15 +48,14 @@ pub async fn execute(command: &DeploymentCommands, ctx: &CommandContext) -> Resu
                     format!("{model}: {}", chain.join(" > "))
                 })
                 .collect();
-            render_list(config, "Deployments", rows);
-            Ok(())
+            Ok(list_output("Deployments", rows))
         },
         DeploymentCommands::Set(args) => {
             let deployments: Vec<DeploymentTarget> = parse_endpoints(&args.endpoints)?
                 .into_iter()
                 .map(DeploymentTarget::Endpoint)
                 .collect();
-            apply(ctx, "Deployments Updated", |document, context| {
+            apply(host, "Deployments Updated", |document, context| {
                 if document.models.get(args.model.as_str()).is_none() {
                     bail!(
                         "model '{}' is not declared; add it with `admin config model add`",

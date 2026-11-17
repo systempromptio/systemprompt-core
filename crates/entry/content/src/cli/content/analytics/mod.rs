@@ -1,7 +1,7 @@
 //! `core content analytics` command group: link, campaign, and journey metrics.
 //!
 //! Dispatches the [`AnalyticsCommands`] subcommands (clicks, campaign,
-//! journey) against the invocation's [`CommandContext`].
+//! journey) against the invocation's [`CommandHost`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,7 +12,7 @@ pub mod journey;
 
 use anyhow::{Context, Result};
 use clap::Subcommand;
-use systemprompt_cli::kernel::{CommandContext, render_result};
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
 #[derive(Debug, Subcommand)]
 pub enum AnalyticsCommands {
@@ -26,26 +26,16 @@ pub enum AnalyticsCommands {
     Journey(journey::JourneyArgs),
 }
 
-pub async fn execute(command: AnalyticsCommands, ctx: &CommandContext) -> Result<()> {
+pub async fn execute(command: AnalyticsCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     match command {
-        AnalyticsCommands::Clicks(args) => {
-            let result = clicks::execute(args, ctx)
-                .await
-                .context("Failed to get link clicks")?;
-            render_result(&result, &ctx.cli);
-        },
-        AnalyticsCommands::Campaign(args) => {
-            let result = campaign::execute(args, ctx)
-                .await
-                .context("Failed to get campaign analytics")?;
-            render_result(&result, &ctx.cli);
-        },
-        AnalyticsCommands::Journey(args) => {
-            let result = journey::execute(args, ctx)
-                .await
-                .context("Failed to get content journey")?;
-            render_result(&result, &ctx.cli);
-        },
+        AnalyticsCommands::Clicks(args) => clicks::execute(args, host)
+            .await
+            .context("Failed to get link clicks"),
+        AnalyticsCommands::Campaign(args) => campaign::execute(args, host)
+            .await
+            .context("Failed to get campaign analytics"),
+        AnalyticsCommands::Journey(args) => journey::execute(args, host)
+            .await
+            .context("Failed to get content journey"),
     }
-    Ok(())
 }

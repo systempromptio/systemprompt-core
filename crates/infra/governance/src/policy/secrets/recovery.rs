@@ -7,26 +7,12 @@ use std::ops::Range;
 
 use systemprompt_identifiers::SecretPatternId;
 
-use super::super::GovernedInput;
 use super::patterns::field_matches;
 use super::{SecretScanner, SignatureExemptions, selected_match};
+use systemprompt_provider_contracts::governance::{GovernedInput, SecretFinding, SecretSource};
 
 pub const REDACTION_MARKER: &str = "[REDACTED_BY_GOVERNANCE]";
 pub const MAX_RECOVERY_FINDINGS: usize = 4096;
-
-/// Index into the ordered string surfaces returned by `GovernedInput::strings`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct SecretSource {
-    pub part_index: usize,
-}
-
-/// Credential-free match metadata with UTF-8 byte offsets into its source.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SecretFinding {
-    pub source: SecretSource,
-    pub span: Range<usize>,
-    pub pattern_id: SecretPatternId,
-}
 
 pub(super) fn secret_findings(
     scanner: &SecretScanner,

@@ -1,12 +1,17 @@
-//! `/api/v1/notifications`, `/api/v1/admin/notifications` and the bridge
-//! inbox under `/v1/bridge/notifications` over HTTP.
+//! The handlers of `/api/v1/notifications`, `/api/v1/admin/notifications`
+//! and the bridge inbox under `/v1/bridge/notifications`.
 //!
 //! They serve a user's notification feed, seen, read and escalation state,
 //! streams, subscriptions and personal rules, and the admin routing
 //! simulator.
 //!
+//! [`user_routes`], [`admin_routes`] and [`bridge_routes`] are the three
+//! route sets the member contributes, each with its conferred shape; the
+//! bridge set is placed under the gateway, which attaches the caller's
+//! principal.
+//!
 //! Each handler resolves the caller and calls one operation of the shared
-//! [`ops`] layer, which the bridge routes in `bridge` call too, so both
+//! [`ops`] layer, which the bridge handlers in `bridge` call too, so both
 //! surfaces answer with the same shapes. The service
 //! authorizes and records every call against the surface it names: the
 //! dashboard for a first-party browser session, the API otherwise.
@@ -15,7 +20,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod admin;
-pub(crate) mod bridge;
+mod bridge;
 mod error;
 mod escalate;
 mod feed;
@@ -29,15 +34,19 @@ pub use error::NotificationsHttpError;
 
 use std::sync::Arc;
 
-use axum::Router;
-use axum::routing::{delete, get, post};
+use axum::http::Method;
+use systemprompt_extension::prelude::*;
+use systemprompt_extension::router::{
+    ApiBase, BasePath, BodyLimit, GatewayPath, RouteLimits, RouteSet, RouteSpec,
+};
+use systemprompt_extension::{HandlerVerifier, RouteGroup};
 use systemprompt_models::RequestContext;
+use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::notifications::{SURFACE_API, SURFACE_DASHBOARD};
 use systemprompt_notifications::service::{NotificationsService, NotificationsServiceSlot};
-use systemprompt_provider_contracts::{Dependencies, MissingDependency};
 
-/// Router-scoped state of the notification routes: the one notification
-/// service, read from the host-bound slot in the extension state.
+/// State of every notification route set: the one notification service,
+/// read from the late-bound handle the composition root binds.
 #[derive(Clone)]
 pub struct NotificationsState {
     pub(crate) service: Arc<NotificationsService>,
@@ -49,10 +58,10 @@ impl std::fmt::Debug for NotificationsState {
     }
 }
 
-impl NotificationsState {
-    pub fn from_extension_state(state: &Dependencies) -> Result<Self, MissingDependency> {
-        let service = state
-            .get::<NotificationsServiceSlot>()?
+impl FromState for NotificationsState {
+    fn from_state(r: &Resolved<'_>) -> Result<Self, MissingDependency> {
+        let slot = r.get::<NotificationsServiceSlot>()?;
+        let service = slot
             .get()
             .ok_or_else(MissingDependency::of::<NotificationsService>)?;
         Ok(Self {
@@ -69,26 +78,114 @@ const fn surface(req_ctx: &RequestContext) -> &'static str {
     }
 }
 
-pub fn router(state: NotificationsState) -> Router {
-    Router::new()
-        .route("/", get(feed::feed))
-        .route("/unread", get(feed::unread))
-        .route("/read", post(read::mark_read))
-        .route("/seen", post(read::mark_seen))
-        .route("/{id}/escalate", post(escalate::escalate))
-        .route("/streams", get(streams::list))
-        .route("/streams/{id}/publish", post(streams::publish))
-        .route(
-            "/subscriptions",
-            get(subscriptions::list).post(subscriptions::create),
-        )
-        .route("/subscriptions/{id}", delete(subscriptions::remove))
-        .route("/rules", get(rules::list).put(rules::replace))
-        .with_state(state)
+const LIMITS: RouteLimits = RouteLimits {
+    rate: RateLimit::new("notifications", RateBudget::Notifications),
+    body: BodyLimit::Default,
+};
+pub const BRIDGE_LIMITS: RouteLimits = RouteLimits {
+    rate: RateLimit::new("bridge_notifications", RateBudget::Notifications).with_bearer_window(),
+    body: BodyLimit::Default,
+};
+const USER: RouteSpec = RouteSpec::new(AuthzPolicy::user(), ContextKind::User, LIMITS);
+const ADMIN: RouteSpec = RouteSpec::new(AuthzPolicy::admin(), ContextKind::User, LIMITS);
+const BRIDGE: RouteSpec = RouteSpec::new(
+    AuthzPolicy::handler_verified(HandlerVerifier::GatewayCredential),
+    ContextKind::HandlerResolved,
+    BRIDGE_LIMITS,
+);
+
+#[must_use]
+pub fn user_routes() -> RouteSet {
+    RouteSet::at::<NotificationsState>(
+        BasePath::Api(ApiBase::Notifications),
+        RouteGroup::ContentAndMisc,
+    )
+    .route(Method::GET, "/", feed::feed, USER)
+    .route(Method::GET, "/unread", feed::unread, USER)
+    .route(Method::POST, "/read", read::mark_read, USER)
+    .route(Method::POST, "/seen", read::mark_seen, USER)
+    .route(Method::POST, "/{id}/escalate", escalate::escalate, USER)
+    .route(Method::GET, "/streams", streams::list, USER)
+    .route(
+        Method::POST,
+        "/streams/{id}/publish",
+        streams::publish,
+        USER,
+    )
+    .route(Method::GET, "/subscriptions", subscriptions::list, USER)
+    .route(Method::POST, "/subscriptions", subscriptions::create, USER)
+    .route(
+        Method::DELETE,
+        "/subscriptions/{id}",
+        subscriptions::remove,
+        USER,
+    )
+    .route(Method::GET, "/rules", rules::list, USER)
+    .route(Method::PUT, "/rules", rules::replace, USER)
+    .build()
 }
 
-pub fn admin_router(state: NotificationsState) -> Router {
-    Router::new()
-        .route("/simulate", post(admin::simulate))
-        .with_state(state)
+#[must_use]
+pub fn admin_routes() -> RouteSet {
+    RouteSet::at::<NotificationsState>(
+        BasePath::Api(ApiBase::AdminNotifications),
+        RouteGroup::ContentAndMisc,
+    )
+    .route(Method::POST, "/simulate", admin::simulate, ADMIN)
+    .build()
+}
+
+#[must_use]
+pub fn bridge_routes() -> RouteSet {
+    let at = ApiPaths::gateway_relative;
+    RouteSet::gateway::<NotificationsState>(GatewayPath::BridgeNotifications, RouteGroup::Gateway)
+        .route(
+            Method::GET,
+            at(ApiPaths::BRIDGE_NOTIFICATIONS),
+            bridge::feed,
+            BRIDGE,
+        )
+        .route(
+            Method::POST,
+            at(ApiPaths::BRIDGE_NOTIFICATIONS_READ),
+            bridge::mark_read,
+            BRIDGE,
+        )
+        .route(
+            Method::POST,
+            at(ApiPaths::BRIDGE_NOTIFICATIONS_SEEN),
+            bridge::mark_seen,
+            BRIDGE,
+        )
+        .route(
+            Method::POST,
+            at(ApiPaths::BRIDGE_NOTIFICATIONS_ESCALATE_ROUTE),
+            bridge::escalate,
+            BRIDGE,
+        )
+        .route(
+            Method::GET,
+            at(ApiPaths::BRIDGE_NOTIFICATIONS_STREAMS),
+            bridge::streams,
+            BRIDGE,
+        )
+        .route(
+            Method::GET,
+            at(ApiPaths::BRIDGE_NOTIFICATIONS_SUBSCRIPTIONS),
+            bridge::subscriptions,
+            BRIDGE,
+        )
+        .route(
+            Method::POST,
+            at(ApiPaths::BRIDGE_NOTIFICATIONS_SUBSCRIPTIONS),
+            bridge::subscribe,
+            BRIDGE,
+        )
+        .route(
+            Method::DELETE,
+            at(ApiPaths::BRIDGE_NOTIFICATIONS_SUBSCRIPTION_ROUTE),
+            bridge::unsubscribe,
+            BRIDGE,
+        )
+        .build()
 }

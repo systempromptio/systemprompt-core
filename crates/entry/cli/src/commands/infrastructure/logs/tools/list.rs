@@ -3,17 +3,16 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Args;
 use std::sync::Arc;
-use systemprompt_identifiers::McpServerId;
-use systemprompt_logging::CliService;
+use systemprompt_database::pool_from_handle;
 use systemprompt_runtime::{ToolExecutionFilter, TraceQueryService, TraceRepository};
 
 use super::{ToolExecutionRow, ToolsListOutput};
-use crate::CliConfig;
 use crate::commands::infrastructure::logs::duration::parse_since;
-use crate::shared::{CommandOutput, render_result};
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct ListArgs {
@@ -33,13 +32,18 @@ pub struct ListArgs {
     pub limit: i64,
 }
 
-crate::define_pool_command!(ListArgs => (), with_config);
+pub(in crate::commands::infrastructure::logs) async fn execute(
+    args: ListArgs,
+    host: &dyn KernelHost,
+) -> Result<CommandOutput> {
+    let pool = pool_from_handle(host.db().await?)?.pool();
+    execute_with_pool_inner(args, &pool).await
+}
 
 async fn execute_with_pool_inner(
     args: ListArgs,
     pool: &Arc<sqlx::PgPool>,
-    config: &CliConfig,
-) -> Result<()> {
+) -> Result<CommandOutput> {
     let since_timestamp = parse_since(args.since.as_ref())?;
     let name_pattern = args.name.as_ref().map(|n| format!("%{n}%"));
     let server_pattern = args.server.as_ref().map(|s| format!("%{s}%"));
@@ -78,67 +82,16 @@ async fn execute_with_pool_inner(
         executions,
     };
 
-    if config.is_json_output() {
-        let result = CommandOutput::table_of(
-            vec![
-                "timestamp",
-                "trace_id",
-                "tool_name",
-                "server",
-                "status",
-                "duration_ms",
-            ],
-            &output.executions,
-        )
-        .with_title("MCP Tool Executions");
-        render_result(&result, config);
-    } else {
-        render_tool_list(&output, &args);
-    }
-
-    Ok(())
-}
-
-fn render_tool_list(output: &ToolsListOutput, args: &ListArgs) {
-    CliService::section("MCP Tool Executions");
-
-    if args.name.is_some() || args.server.is_some() || args.status.is_some() || args.since.is_some()
-    {
-        if let Some(ref name) = args.name {
-            CliService::key_value("Tool", name);
-        }
-        if let Some(ref server) = args.server {
-            CliService::key_value("Server", server);
-        }
-        if let Some(ref status) = args.status {
-            CliService::key_value("Status", status);
-        }
-        if let Some(ref since) = args.since {
-            CliService::key_value("Since", since);
-        }
-    }
-
-    if output.executions.is_empty() {
-        CliService::warning("No tool executions found");
-        return;
-    }
-
-    for exec in &output.executions {
-        let duration = exec.duration_ms.map(|d| format!(" ({}ms)", d));
-        let line = format!(
-            "{} {}/{} [{}]{}  trace:{}",
-            exec.timestamp,
-            exec.server.as_ref().map_or("unknown", McpServerId::as_str),
-            exec.tool_name,
-            exec.status,
-            duration.as_deref().unwrap_or(""),
-            exec.trace_id
-        );
-        match exec.status.as_str() {
-            "error" | "failed" => CliService::error(&line),
-            _ => CliService::info(&line),
-        }
-    }
-
-    CliService::info(&format!("Total: {} executions", output.total));
+    Ok(CommandOutput::table_of(
+        vec![
+            "timestamp",
+            "trace_id",
+            "tool_name",
+            "server",
+            "status",
+            "duration_ms",
+        ],
+        &output.executions,
+    )
+    .with_title("MCP Tool Executions"))
 }

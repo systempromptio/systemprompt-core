@@ -4,8 +4,9 @@
 
 use std::path::PathBuf;
 
-use systemprompt_cli::paths::ResolvedPaths;
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
+use systemprompt_cloud::paths::ResolvedPaths;
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_test_fixtures::ensure_test_bootstrap;
 
 pub struct Project {
@@ -51,6 +52,7 @@ impl Project {
                 .with_profile_override(Some(self.profile.display().to_string())),
             EnvOverrides::default(),
         )
+        .with_detached_kernel()
     }
 }
 

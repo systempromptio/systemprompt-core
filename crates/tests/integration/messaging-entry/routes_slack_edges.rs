@@ -17,7 +17,7 @@ use tower::ServiceExt;
 async fn messaging_ctx() -> anyhow::Result<(DbPool, Arc<AppContext>)> {
     let b = ensure_messaging_bootstrap();
     let pool = test_db_pool().await;
-    let ctx = test_app_context(&pool, &b.database_url);
+    let ctx = test_app_context(&b.database_url).await;
     Ok((pool, ctx))
 }
 
@@ -43,18 +43,7 @@ fn signed_post(path: &str, body: &str, secret: &str) -> Request<Body> {
 }
 
 fn router(ctx: &Arc<AppContext>) -> axum::Router {
-    systemprompt_api::services::messaging::bind_dispatcher(ctx).expect("dispatcher slot seeded");
-    systemprompt_slack_entry::http::router(
-        systemprompt_slack_entry::http::SlackState::with_clients(
-            &**ctx,
-            reqwest::Client::new(),
-            systemprompt_client::GuardedClient::configured(
-                &systemprompt_client::GuardedClientConfig::for_configured(),
-            )
-            .expect("loopback-permitting reply client"),
-        )
-        .expect("slack router state builds"),
-    )
+    super::common::slack_test_router(ctx)
 }
 
 fn urlencode(s: &str) -> String {

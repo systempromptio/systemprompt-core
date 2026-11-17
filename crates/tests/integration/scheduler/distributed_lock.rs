@@ -23,7 +23,7 @@ use sqlx::pool::PoolConnection;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::JobName;
 use systemprompt_scheduler::{JobConfig, SchedulerConfig, SchedulerHandle, SchedulerService};
-use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 
 const LOCKED_JOB: &str = "test_distributed_lock_probe_locked";
@@ -32,7 +32,7 @@ const HELD_TICKS: Duration = Duration::from_secs(3);
 const RUN_DEADLINE: Duration = Duration::from_secs(30);
 
 #[derive(Debug, Clone, Copy)]
-struct LockedProbeJob;
+pub(crate) struct LockedProbeJob;
 
 #[async_trait]
 impl Job for LockedProbeJob {
@@ -54,7 +54,7 @@ impl Job for LockedProbeJob {
 }
 
 #[derive(Debug, Clone, Copy)]
-struct UnlockedProbeJob;
+pub(crate) struct UnlockedProbeJob;
 
 #[async_trait]
 impl Job for UnlockedProbeJob {
@@ -74,9 +74,6 @@ impl Job for UnlockedProbeJob {
         Ok(JobResult::success())
     }
 }
-
-systemprompt_traits::submit_job!("scheduler_test_jobs", &LockedProbeJob);
-systemprompt_traits::submit_job!("scheduler_test_jobs", &UnlockedProbeJob);
 
 fn probe_config(job: &str, distributed_lock: bool) -> SchedulerConfig {
     SchedulerConfig {
@@ -125,15 +122,15 @@ async fn release_job_lock(mut peer: PoolConnection<Postgres>, job: &str) -> Resu
 }
 
 async fn start_replicas(job: &str, distributed_lock: bool) -> Result<Vec<SchedulerHandle>> {
-    let database_url = test_database_url();
     let pool = test_db_pool().await;
-    let app_context = test_app_context(&pool, &database_url);
+    let (app_context, schedule) = crate::test_extension::app_with_test_jobs().await;
     let mut handles = Vec::with_capacity(2);
     for _ in 0..2 {
         let startup = SchedulerService::new(
             probe_config(job, distributed_lock),
-            Arc::clone(&pool),
+            &pool,
             Arc::clone(&app_context),
+            Arc::clone(&schedule),
         )
         .start()
         .await?;

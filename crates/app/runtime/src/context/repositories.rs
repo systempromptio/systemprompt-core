@@ -8,7 +8,6 @@ use std::sync::Arc;
 
 use systemprompt_agent::repository::A2ARepositories;
 use systemprompt_ai::repository::AiRepositories;
-use systemprompt_analytics::repository::AnalyticsRepositories;
 use systemprompt_content::repository::ContentRepositories;
 use systemprompt_database::{CoordinationRepositories, ServiceRepository};
 use systemprompt_files::FileRepository;
@@ -52,10 +51,6 @@ impl AppContext {
     #[must_use]
     pub fn tool_call_intents(&self) -> systemprompt_traits::DynToolCallIntentClaims {
         Arc::new(self.data.ai_repositories.requests.clone())
-    }
-
-    pub const fn analytics_repositories(&self) -> &Arc<AnalyticsRepositories> {
-        &self.data.analytics_repositories
     }
 
     pub const fn file_repository(&self) -> &Arc<FileRepository> {

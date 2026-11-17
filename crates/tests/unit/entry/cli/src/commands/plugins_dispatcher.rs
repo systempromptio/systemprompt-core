@@ -7,8 +7,9 @@
 
 use clap::Parser;
 use systemprompt_cli::plugins::{self, PluginsCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
-use systemprompt_extension::ExtensionRegistry;
+use systemprompt_cli::{CommandContext, EnvOverrides};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
+use systemprompt_test_fixtures::fixture_admitted;
 
 #[derive(Debug, Parser)]
 struct Harness {
@@ -29,15 +30,16 @@ fn ctx() -> CommandContext {
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
     )
+    .with_admitted(Some(fixture_admitted()))
 }
 
 fn first_extension_id() -> String {
-    ExtensionRegistry::discover()
-        .unwrap()
-        .extensions()
-        .first()
-        .map(|e| e.id().to_owned())
-        .expect("compiled registry must not be empty")
+    fixture_admitted()
+        .built()
+        .members()
+        .next()
+        .map(|member| member.owner.as_str().to_owned())
+        .expect("the admitted composition must not be empty")
 }
 
 #[tokio::test]
@@ -67,7 +69,7 @@ async fn show_arm_maps_an_unknown_extension_to_an_error() {
 }
 
 #[tokio::test]
-async fn capabilities_and_validate_arms_run_over_the_registry() {
+async fn capabilities_arms_run_over_the_registry() {
     let ctx = ctx();
 
     plugins::execute(parse(&["capabilities"]), &ctx)
@@ -76,5 +78,4 @@ async fn capabilities_and_validate_arms_run_over_the_registry() {
     plugins::execute(parse(&["capabilities", "jobs"]), &ctx)
         .await
         .unwrap();
-    plugins::execute(parse(&["validate"]), &ctx).await.unwrap();
 }

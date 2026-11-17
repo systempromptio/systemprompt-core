@@ -9,17 +9,20 @@ use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_identifiers::{NotificationStreamId, UserId};
 use systemprompt_models::auth::UserType;
 use systemprompt_models::notifications::{AudienceSubject, StreamAttention, StreamDecl};
+use systemprompt_notifications::NotificationsServiceSlot;
 use systemprompt_notifications::repository::NotificationStreamRepository;
-use systemprompt_notifications_entry::http::{NotificationsState, router};
-use systemprompt_runtime::AppContext;
+use systemprompt_notifications_entry::http::user_routes;
+use systemprompt_runtime::{AppContext, Kernel};
 use systemprompt_test_fixtures::{
-    AuthedFixture, notifications_service, seed_bridge_credential, seed_user_row, unique_user_id,
+    AuthedFixture, ensure_test_bootstrap, fixture_app_context_with_extensions, fixture_config,
+    notifications_service, seed_bridge_credential, seed_user_row, unique_user_id,
 };
+use systemprompt_traits::{BackgroundTasks, DatabaseHandle, Dependencies};
 use uuid::Uuid;
 
 use super::engine::{Fixture, get, send, sweep, with_bearer};
 use super::table::Family;
-use crate::common::{json_post, request_context, setup_ctx};
+use crate::common::{json_post, reference_admitted, request_context, setup_ctx};
 
 struct Notifications {
     ctx: Arc<AppContext>,
@@ -29,13 +32,27 @@ struct Notifications {
     view: &'static str,
 }
 
-fn notifications_state(ctx: &AppContext) -> NotificationsState {
-    let state = systemprompt_extension::ExtensionContext::extension_state(ctx);
-    NotificationsState::from_extension_state(&state).expect("notification service bound")
+fn notifications_router(ctx: &AppContext) -> Router {
+    let slot = systemprompt_extension::ExtensionContext::extension_state(ctx)
+        .get::<NotificationsServiceSlot>()
+        .expect("notification service handle provided")
+        .clone();
+    let database: Arc<dyn DatabaseHandle> =
+        Arc::<systemprompt_database::Database>::clone(ctx.db_pool());
+    let kernel = Kernel::new(
+        database,
+        BackgroundTasks::new(),
+        Dependencies::default().with(slot),
+    );
+    user_routes()
+        .materialize(&kernel.resolved())
+        .expect("notification service bound")
+        .into_iter()
+        .fold(Router::new(), Router::merge)
 }
 
 fn as_user(ctx: &AppContext, user: &UserId) -> Router {
-    router(notifications_state(ctx)).layer(Extension(
+    notifications_router(ctx).layer(Extension(
         request_context(user.as_str()).with_user_type(UserType::User),
     ))
 }
@@ -208,8 +225,13 @@ async fn subscribe(ctx: &AppContext, owner: &UserId) -> Result<String> {
 
 #[tokio::test]
 async fn a_second_bridge_user_is_refused_every_owned_bridge_notification_route() -> Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
-    let gateway = gateway_router(&ctx)?;
+    let (pool, _) = setup_ctx().await?;
+    let ctx = fixture_app_context_with_extensions(
+        fixture_config(&ensure_test_bootstrap().database_url),
+        reference_admitted(&[])?,
+    )
+    .await?;
+    let gateway = gateway_router(&ctx, ctx.admitted(), ctx.kernel())?;
     let owner = seed_bridge_credential(&pool, "sweep-bridge-notify-owner").await?;
     let stranger = seed_bridge_credential(&pool, "sweep-bridge-notify-stranger").await?;
     let notification = notify(&ctx, &owner.user_id).await?;

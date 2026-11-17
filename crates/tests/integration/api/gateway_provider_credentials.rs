@@ -9,7 +9,7 @@ use axum::body::Body;
 use axum::http::{HeaderMap, Request, StatusCode, header};
 use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_test_fixtures::{
-    TestBootstrap, init_services_bootstrap, seed_admin_credential, test_app_context_on,
+    TestBootstrap, init_services_bootstrap, seed_admin_credential, test_app_context_on_with,
     test_db_pool,
 };
 use tower::ServiceExt;
@@ -88,9 +88,8 @@ gateway:
 
 pub(super) async fn app() -> anyhow::Result<Router> {
     let b = boot();
-    let pool = test_db_pool().await;
-    let ctx = test_app_context_on(b, &pool);
-    Ok(gateway_router(&ctx).expect("gateway router builds"))
+    let ctx = test_app_context_on_with(b, super::common::reference_admitted(&[])?).await;
+    Ok(gateway_router(&ctx, ctx.admitted(), ctx.kernel()).expect("gateway router builds"))
 }
 
 pub(super) async fn token(email: &str) -> anyhow::Result<String> {

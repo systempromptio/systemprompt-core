@@ -36,7 +36,6 @@ async-trait = { workspace = true }
 chrono = { workspace = true }
 futures = { workspace = true }
 hex = { workspace = true }
-inventory = { workspace = true }
 metrics = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -47,7 +46,3 @@ tokio = { workspace = true }
 tokio-util = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true }
-
-[package.metadata.cargo-machete]
-# inventory: compile-time registration via register_extension!/user_purge_tables! (::inventory::submit!)
-ignored = ["inventory"]

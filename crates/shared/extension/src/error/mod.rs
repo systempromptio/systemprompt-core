@@ -114,6 +114,9 @@ pub enum LoaderError {
     #[error("Dependency cycle detected while ordering extensions: {chain}")]
     DependencyCycle { chain: String },
 
+    #[error("user purge declarations refused")]
+    PurgeAdmission(#[from] crate::admitted_purge::PurgeAdmissionError),
+
     #[error("Extension '{extension}' failed to provide its state: {source}")]
     ProvideFailed {
         extension: ExtensionId,
@@ -206,6 +209,16 @@ pub enum LoaderError {
         table: String,
         extension_a: ExtensionId,
         extension_b: ExtensionId,
+    },
+
+    #[error(
+        "Install member '{owner}' claims {kind} '{name}', recorded to the core member of that id; \
+         an install never takes over a core member's records"
+    )]
+    CoreRecordClaimedByInstall {
+        kind: &'static str,
+        name: String,
+        owner: ExtensionId,
     },
 
     #[error(

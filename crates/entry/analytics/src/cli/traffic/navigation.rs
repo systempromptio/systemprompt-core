@@ -7,13 +7,13 @@ use anyhow::Result;
 use clap::Args;
 use std::path::PathBuf;
 use systemprompt_analytics::{NavigationQuery, TrafficAnalyticsRepository};
+use systemprompt_database::DbPool;
 use systemprompt_logging::CliService;
-use systemprompt_runtime::DatabaseContext;
 use systemprompt_users::SessionTrafficRollupRepository;
 
 use super::{NavigationOutput, NavigationRow};
 use crate::cli::shared::{export_to_csv, format_date_range, parse_time_range};
-use systemprompt_cli::kernel::{CliConfig, CommandOutput};
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 #[derive(Debug, Args)]
 pub struct NavigationArgs {
@@ -41,12 +41,12 @@ pub struct NavigationArgs {
 
 pub(super) async fn execute_with_pool(
     args: NavigationArgs,
-    db_ctx: &DatabaseContext,
+    pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
     let repo = TrafficAnalyticsRepository::new(
-        db_ctx.db_pool(),
-        std::sync::Arc::new(SessionTrafficRollupRepository::new(db_ctx.db_pool())),
+        pool,
+        std::sync::Arc::new(SessionTrafficRollupRepository::new(pool)),
     );
     execute_internal(args, &repo).await
 }

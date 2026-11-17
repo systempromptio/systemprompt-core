@@ -33,7 +33,9 @@ fn body(tag: &str) -> String {
 async fn a_reload_that_changes_the_key_set_is_refused_and_keeps_every_key() {
     let fx = fixture::write_tree(FILE_REFRESH_SECRETS, Some(&body("one")));
     let profile = LoadedProfile::from_path(&fx.profile_path).expect("profile");
-    let service = SecretsService::load(profile).await.expect("secrets");
+    let service = SecretsService::load(profile, systemprompt_config::SecretsSources::default())
+        .await
+        .expect("secrets");
     let generation = service.generation();
     let before = service.get();
 
@@ -69,7 +71,9 @@ async fn a_reload_that_changes_the_key_set_is_refused_and_keeps_every_key() {
 async fn a_reload_that_only_drops_the_previous_keys_is_refused() {
     let fx = fixture::write_tree(FILE_REFRESH_SECRETS, Some(&body("one")));
     let profile = LoadedProfile::from_path(&fx.profile_path).expect("profile");
-    let service = SecretsService::load(profile).await.expect("secrets");
+    let service = SecretsService::load(profile, systemprompt_config::SecretsSources::default())
+        .await
+        .expect("secrets");
 
     let mut doc: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(&fx.secrets_path).expect("read"))

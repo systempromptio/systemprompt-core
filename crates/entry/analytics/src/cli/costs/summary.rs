@@ -10,12 +10,12 @@ use std::future::Future;
 use std::path::PathBuf;
 use systemprompt_analytics::CostAnalyticsRepository;
 use systemprompt_analytics::models::reporting::CostSummaryRow;
+use systemprompt_database::DbPool;
 use systemprompt_logging::CliService;
-use systemprompt_runtime::DatabaseContext;
 
 use super::CostSummaryOutput;
 use crate::cli::shared::{export_single_to_csv, parse_time_range};
-use systemprompt_cli::kernel::{CliConfig, CommandOutput};
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 #[derive(Debug, Args)]
 pub struct SummaryArgs {
@@ -36,10 +36,10 @@ pub struct SummaryArgs {
 
 pub(super) async fn execute_with_pool(
     args: SummaryArgs,
-    db_ctx: &DatabaseContext,
+    pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let repo = CostAnalyticsRepository::new(db_ctx.db_pool());
+    let repo = CostAnalyticsRepository::new(pool);
     execute_internal(args, &repo).await
 }
 

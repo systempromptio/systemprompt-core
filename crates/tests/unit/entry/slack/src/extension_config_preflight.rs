@@ -2,14 +2,38 @@
 //!
 //! `systemprompt_runtime::validate_extension_configs` is the shared validator
 //! the serve boot path and the `cloud deploy` / `cloud doctor` preflight both
-//! run. A `slack.yaml` in the flat shape rather than
+//! run over the admitted build. A `slack.yaml` in the flat shape rather than
 //! `map<app-name, SlackAppConfig>` must be reported as an error here rather
 //! than first crashing the deployed binary.
 
 use std::fs;
 
+use systemprompt_extension::admitted::{AdmittedMember, AdmittedParts};
+use systemprompt_extension::contribute::ContributionSink;
+use systemprompt_extension::{Admitted, Contributions, Extension, StandingTag};
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_runtime::validate_extension_configs;
+use systemprompt_slack_entry::SlackExtension;
 use tempfile::TempDir;
+
+fn slack_admitted() -> Admitted {
+    let extension = SlackExtension;
+    let metadata = extension.metadata();
+    let owner = ExtensionId::new(metadata.id);
+    let mut sink = ContributionSink::default();
+    extension
+        .contribute(&mut Contributions::__new(owner.clone(), &mut sink))
+        .expect("the slack member contributes");
+    Admitted::__from_facade(AdmittedParts {
+        members: vec![AdmittedMember {
+            owner,
+            metadata,
+            standing: StandingTag::Core,
+            sink,
+        }],
+        ..AdmittedParts::default()
+    })
+}
 
 fn services_dir_with_slack(slack_yaml: &str) -> TempDir {
     let dir = TempDir::new().expect("tempdir");
@@ -20,11 +44,14 @@ fn services_dir_with_slack(slack_yaml: &str) -> TempDir {
 }
 
 fn slack_error(dir: &std::path::Path) -> Option<String> {
-    let outcomes = validate_extension_configs(dir, &[]).expect("extension discovery");
+    let outcomes = validate_extension_configs(
+        &systemprompt_extension::AdmittedConfigs::of(slack_admitted().built()),
+        dir,
+    );
     let slack = outcomes
         .iter()
         .find(|o| o.extension_id == "slack")
-        .expect("slack extension registered in this binary");
+        .expect("the admitted slack member declares its config");
     slack.error.clone()
 }
 

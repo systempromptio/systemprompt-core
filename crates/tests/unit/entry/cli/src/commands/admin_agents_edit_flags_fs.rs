@@ -9,7 +9,8 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use systemprompt_cli::admin::agents::{AgentsCommands, execute};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 
 const AGENT: &str = "covedited";
 
@@ -101,7 +102,7 @@ fn written(root: &std::path::Path) -> String {
 }
 
 async fn run(args: &[&str]) -> anyhow::Result<()> {
-    execute(parse(args), &ctx()).await
+    execute(parse(args), &ctx()).await.map(drop)
 }
 
 #[tokio::test]

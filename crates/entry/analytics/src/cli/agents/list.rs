@@ -7,12 +7,12 @@ use anyhow::Result;
 use clap::{Args, ValueEnum};
 use std::path::PathBuf;
 use systemprompt_analytics::AgentAnalyticsRepository;
+use systemprompt_database::DbPool;
 use systemprompt_logging::CliService;
-use systemprompt_runtime::DatabaseContext;
 
 use super::{AgentListOutput, AgentListRow};
 use crate::cli::shared::{export_to_csv, parse_time_range};
-use systemprompt_cli::kernel::{CliConfig, CommandOutput};
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 #[derive(Debug, Clone, Copy, Default, ValueEnum)]
 pub enum AgentSortBy {
@@ -69,10 +69,10 @@ pub struct ListArgs {
 
 pub(super) async fn execute_with_pool(
     args: ListArgs,
-    db_ctx: &DatabaseContext,
+    pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let repo = AgentAnalyticsRepository::new(db_ctx.db_pool());
+    let repo = AgentAnalyticsRepository::new(pool);
     execute_internal(args, &repo).await
 }
 

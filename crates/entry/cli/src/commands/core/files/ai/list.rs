@@ -3,16 +3,16 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Args;
 use systemprompt_database::DbPool;
 use systemprompt_files::FileRepository;
 use systemprompt_identifiers::UserId;
 
-use crate::CliConfig;
-use crate::commands::core::files::types::{AiFilesListOutput, FileSummary};
-use crate::context::CommandContext;
-use crate::shared::CommandOutput;
+use crate::commands::core::files::types::AiFilesListOutput;
+use crate::commands::shared::app_context;
+use systemprompt_extension::cli::{CliConfig, CommandOutput, FileSummary};
 
 #[derive(Debug, Clone, Args)]
 pub struct ListArgs {
@@ -26,9 +26,9 @@ pub struct ListArgs {
     pub user: Option<String>,
 }
 
-pub(super) async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let app = ctx.app_context().await?;
-    execute_with_pool(args, app.db_pool(), &ctx.cli).await
+pub(super) async fn execute(args: ListArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+    let app = app_context(host).await?;
+    execute_with_pool(args, app.db_pool(), host.output()).await
 }
 
 pub async fn execute_with_pool(

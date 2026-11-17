@@ -6,6 +6,7 @@ use serde_json::{Map, Value, json};
 use systemprompt_ai::repository::AiRequestRepository;
 use systemprompt_identifiers::McpServerId;
 use systemprompt_mcp::repository::ToolUsageRepository;
+use systemprompt_mcp::services::ui_renderer::UiRendererRegistry;
 use systemprompt_mcp::{ArtifactIngest, ClientProfile, McpToolExecutor};
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_runtime::documents::mcp::{DocumentsMcpTools, DocumentsToolCall, TOOL_NAMES};
@@ -20,6 +21,7 @@ pub(crate) async fn executor(server: &str) -> McpToolExecutor {
         Arc::new(ToolUsageRepository::new(&db)),
         Arc::new(AiRequestRepository::new(&db)),
         Arc::new(ArtifactIngest::from_db(&db, None)),
+        Arc::new(UiRendererRegistry::with_builtins()),
         McpServerId::new(server),
     )
 }

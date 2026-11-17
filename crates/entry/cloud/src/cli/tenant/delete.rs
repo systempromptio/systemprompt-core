@@ -12,20 +12,20 @@ use anyhow::{Result, anyhow, bail};
 use systemprompt_cloud::{
     CloudApiClient, CloudPath, DockerCli, StoredTenant, TenantStore, get_cloud_paths,
 };
+use systemprompt_extension::cli::ChildSupervisor;
 use systemprompt_identifiers::TenantId;
-use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_logging::CliService;
 
 use super::docker::{compose_path_for_project, remove_project};
 use super::select::{get_credentials, select_tenant};
 use crate::cli::tenant::TenantDeleteArgs;
-use systemprompt_cli::kernel::{CliConfig, CommandOutput, Prompter, SuccessOutput};
+use systemprompt_extension::cli::{CliConfig, CommandOutput, Prompter, SuccessOutput};
 
 pub async fn delete_tenant(
     args: TenantDeleteArgs,
     prompter: &dyn Prompter,
     config: &CliConfig,
-    children: &ForegroundChildren,
+    children: &dyn ChildSupervisor,
 ) -> Result<CommandOutput> {
     let cloud_paths = get_cloud_paths();
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
@@ -119,7 +119,7 @@ fn confirm_delete(
         format!("Delete tenant '{}'?", tenant.name)
     };
 
-    prompter.confirm(&prompt, false)
+    Ok(prompter.confirm(&prompt, false)?)
 }
 
 async fn delete_cloud_tenant(tenant_id: &TenantId, config: &CliConfig) -> Result<()> {
@@ -141,7 +141,7 @@ fn cleanup_managed_container_tenant(
     tenant: &StoredTenant,
     prompter: &dyn Prompter,
     config: &CliConfig,
-    children: &ForegroundChildren,
+    children: &dyn ChildSupervisor,
 ) -> Result<()> {
     let Some(ref project) = tenant.docker_project else {
         return Ok(());
@@ -165,7 +165,7 @@ fn cleanup_managed_container_tenant(
         return Ok(());
     }
 
-    let docker = DockerCli::new(children.clone());
+    let docker = DockerCli::new(children.handle());
     let spinner = CliService::spinner(&format!("Removing container '{project}'..."));
     let removed = remove_project(&docker, project);
     spinner.finish_and_clear();

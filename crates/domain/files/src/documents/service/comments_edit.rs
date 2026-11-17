@@ -12,6 +12,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::documents::transient::retry_conflicts;
 use systemprompt_identifiers::{DocumentCommentId, DocumentId, TraceId, UserId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{
@@ -172,6 +173,15 @@ impl DocumentService {
     }
 
     async fn store_edit(
+        &self,
+        edit: CommentBodyEdit<'_>,
+        grants: &MentionGrants,
+        notice: MentionNotice<'_>,
+    ) -> Result<(), DocumentsError> {
+        retry_conflicts(|| self.store_edit_once(edit, grants, notice)).await
+    }
+
+    async fn store_edit_once(
         &self,
         edit: CommentBodyEdit<'_>,
         grants: &MentionGrants,

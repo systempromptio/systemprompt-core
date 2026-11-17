@@ -15,7 +15,10 @@ use super::common::setup_ctx;
 
 async fn router_and_pool() -> anyhow::Result<(Router, DbPool)> {
     let (pool, ctx) = setup_ctx().await?;
-    Ok((gateway_router(&ctx).expect("gateway router builds"), pool))
+    Ok((
+        gateway_router(&ctx, ctx.admitted(), ctx.kernel()).expect("gateway router builds"),
+        pool,
+    ))
 }
 
 fn authed_get(uri: &str, token: &str) -> Request<Body> {
@@ -118,24 +121,11 @@ pub(crate) async fn bundle_router_and_pool() -> anyhow::Result<(Router, DbPool)>
     let b = systemprompt_test_fixtures::ensure_test_bootstrap();
     seed_plugin_tree();
     let pool = test_db_pool().await;
-    let paths = systemprompt_manifest::profile::PathsConfig {
-        root: None,
-        system: b.system_path.to_string_lossy().into_owned(),
-        services: b.services_path.to_string_lossy().into_owned(),
-        bin: b.bin_path.to_string_lossy().into_owned(),
-        web_path: None,
-        storage: Some(b.storage_path.to_string_lossy().into_owned()),
-        geoip_database: None,
-        shipped_files: None,
-        data: None,
-    };
-    let ctx = systemprompt_test_fixtures::fixture_app_context_on_bootstrap_with_paths(
-        b,
-        &pool,
-        paths,
-        std::sync::Arc::new(systemprompt_marketplace::AllowAllFilter),
-    )?;
-    Ok((gateway_router(&ctx).expect("gateway router builds"), pool))
+    let ctx = systemprompt_test_fixtures::test_app_context_on(b).await;
+    Ok((
+        gateway_router(&ctx, ctx.admitted(), ctx.kernel()).expect("gateway router builds"),
+        pool,
+    ))
 }
 
 #[tokio::test]

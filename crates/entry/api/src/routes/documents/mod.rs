@@ -45,6 +45,7 @@ mod live;
 mod media;
 mod proposals;
 mod read;
+mod rendered;
 mod requests;
 mod schema;
 mod sharing;
@@ -150,9 +151,19 @@ const fn with_collab(router: Router<DocumentsState>) -> Router<DocumentsState> {
     router
 }
 
+fn with_views(router: Router<DocumentsState>) -> Router<DocumentsState> {
+    router
+        .route("/{id}/projection", get(history::projection))
+        .route("/{id}/preview", get(history::preview))
+        .route(
+            "/{id}/rendered",
+            get(rendered::rendered).head(rendered::rendered),
+        )
+}
+
 pub fn router(state: DocumentsState) -> Router {
     let limit = state.max_body_bytes();
-    with_collab(Router::new())
+    with_views(with_collab(Router::new()))
         .route("/", get(listing::list).post(items::create))
         .route("/import", post(import::import))
         .route("/schema", get(schema::schema))
@@ -205,8 +216,6 @@ pub fn router(state: DocumentsState) -> Router {
         .route("/{id}/proposals/{pid}", get(proposals::get))
         .route("/{id}/proposals/{pid}/accept", post(proposals::accept))
         .route("/{id}/proposals/{pid}/reject", post(proposals::reject))
-        .route("/{id}/projection", get(history::projection))
-        .route("/{id}/preview", get(history::preview))
         .route(
             "/{id}/grants",
             get(sharing::list_grants)

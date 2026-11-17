@@ -1,6 +1,10 @@
-//! `Extension` registration for the users domain: schema, required flag,
-//! and the provided IP-ban store and session store (`DynSessionStore`), the
-//! one session store the API's session, sign-in and JWT paths read.
+//! The users member: its schemas and migrations, the IP-ban store and the
+//! session store (`DynSessionStore`) the API's session, sign-in and JWT paths
+//! read, the user-role audience resolver the notifications and brain slots
+//! append as a core default (`CoreSeam<dyn NotificationAudienceResolver,
+//! RoleAudience>`), its two maintenance jobs, the role directory governance's
+//! `RoleDirectorySlot` holds, the `role` subject-attribute provider, and the
+//! purge of its own user-keyed tables a user delete clears.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -8,10 +12,22 @@
 use std::sync::Arc;
 
 use systemprompt_database::DbPool;
+use systemprompt_extension::NotificationAudienceResolver;
 use systemprompt_extension::prelude::*;
-use systemprompt_traits::{DynIpBanStore, DynSessionStore};
+use systemprompt_governance::authz::SharedRoleDirectory;
+use systemprompt_governance::contract::RoleDirectorySlot;
+use systemprompt_traits::authz::SubjectAttributeProvider;
+use systemprompt_traits::core_seam::RoleAudience;
+use systemprompt_traits::{CoreSeam, DynIpBanStore, DynSessionStore};
 
-use crate::repository::{BannedIpRepository, SessionRepository};
+use crate::jobs::{CleanupAnonymousUsersJob, UserRateLimitPruneJob};
+use crate::repository::{
+    BannedIpRepository, SessionRepository, UserRepository, UsersRoleDirectory,
+    UsersRoleSubjectProvider,
+};
+use crate::services::UserRoleAudienceResolver;
+
+type RoleAudienceSeam = CoreSeam<dyn NotificationAudienceResolver, RoleAudience>;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct UsersExtension;
@@ -25,108 +41,127 @@ impl Extension for UsersExtension {
         }
     }
 
-    fn is_required(&self) -> bool {
-        true
-    }
-
-    fn schemas(&self) -> Vec<SchemaDefinition> {
-        vec![
-            SchemaDefinition::new("users", include_str!("../schema/users.sql"))
-                .with_required_columns(vec![
-                    "id".into(),
-                    "name".into(),
-                    "email".into(),
-                    "created_at".into(),
-                ]),
-            SchemaDefinition::new("user_sessions", include_str!("../schema/user_sessions.sql"))
-                .with_required_columns(vec![
-                    "session_id".into(),
-                    "started_at".into(),
-                    "bot_type".into(),
-                ]),
-            SchemaDefinition::sql_only(include_str!("../schema/session_bot_type.sql")),
-            SchemaDefinition::new(
-                "session_traffic_rollup_hourly",
-                include_str!("../schema/session_traffic_rollup_hourly.sql"),
-            )
-            .with_required_columns(vec![
-                "bucket".into(),
-                "traffic_class".into(),
-                "sessions".into(),
-            ]),
-            SchemaDefinition::new("banned_ips", include_str!("../schema/banned_ips.sql"))
-                .with_required_columns(vec![
-                    "ip_address".into(),
-                    "reason".into(),
-                    "banned_at".into(),
-                ]),
-            SchemaDefinition::new("user_api_keys", include_str!("../schema/user_api_keys.sql"))
-                .with_required_columns(vec![
-                    "id".into(),
-                    "user_id".into(),
-                    "key_prefix".into(),
-                    "key_hash".into(),
-                    "model_allowlist".into(),
-                    "request_window_seconds".into(),
-                ]),
-            SchemaDefinition::new(
-                "user_api_key_scopes",
-                include_str!("../schema/user_api_key_scopes.sql"),
-            )
-            .with_required_columns(vec![
-                "key_id".into(),
-                "dimension".into(),
-                "value".into(),
-            ]),
-            SchemaDefinition::new(
-                "user_device_certs",
-                include_str!("../schema/user_device_certs.sql"),
-            )
-            .with_required_columns(vec![
-                "id".into(),
-                "user_id".into(),
-                "fingerprint".into(),
-                "label".into(),
-            ]),
-            SchemaDefinition::new(
-                "user_rate_limit_buckets",
-                include_str!("../schema/user_rate_limit_buckets.sql"),
-            )
-            .with_required_columns(vec![
-                "user_id".into(),
-                "scope".into(),
-                "window_start".into(),
-                "hits".into(),
-            ]),
-        ]
-        .into_iter()
-        .chain(std::iter::once(api_key_session_schema()))
-        .chain(federation_schemas())
-        .collect()
-    }
-
-    fn dependencies(&self) -> Vec<&'static str> {
-        vec!["events"]
-    }
-
-    fn provide(
-        &self,
-        _ctx: &dyn ExtensionContext,
-        state: &mut StateBuilder<'_>,
-    ) -> Result<(), ExtensionStateError> {
-        let db = Arc::clone(state.state().get::<DbPool>()?);
-        let bans: DynIpBanStore = Arc::new(BannedIpRepository::new(&db));
-        state.provide(bans)?;
-        let sessions: DynSessionStore = Arc::new(SessionRepository::new(&db));
-        state.provide(sessions)
-    }
-
-    fn migrations(&self) -> Vec<Migration> {
-        extension_migrations!()
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        for schema in schemas() {
+            c.schema(schema);
+        }
+        c.user_purge(UserPurgeTable {
+            table: "user_rate_limit_buckets",
+            column: "user_id",
+            predicate: None,
+        })
+        .user_purge(UserPurgeTable {
+            table: "sso_login_events",
+            column: "user_id",
+            predicate: None,
+        })
+        .migrations(extension_migrations!())
+        .provide(|r: &Resolved<'_>| {
+            let db = r.get::<DbPool>()?;
+            let bans: DynIpBanStore = Arc::new(BannedIpRepository::new(&db));
+            Ok(bans)
+        })
+        .provide(|r: &Resolved<'_>| {
+            let db = r.get::<DbPool>()?;
+            let sessions: DynSessionStore = Arc::new(SessionRepository::new(&db));
+            Ok(sessions)
+        })
+        .provide(|r: &Resolved<'_>| {
+            let db = r.get::<DbPool>()?;
+            let resolver: Arc<dyn NotificationAudienceResolver> = Arc::new(
+                UserRoleAudienceResolver::new(Arc::new(UserRepository::new(&db))),
+            );
+            Ok(RoleAudienceSeam::new(resolver))
+        })
+        .subject_attributes(|r: &Resolved<'_>| {
+            let db = r.get::<DbPool>()?;
+            let provider: Arc<dyn SubjectAttributeProvider> =
+                Arc::new(UsersRoleSubjectProvider::new(db.write_pool()));
+            Ok(provider)
+        })
+        .job(UserRateLimitPruneJob)
+        .job(CleanupAnonymousUsersJob);
+        c.slot::<RoleDirectorySlot>().directory(|r: &Resolved<'_>| {
+            let db = r.get::<DbPool>()?;
+            let directory: SharedRoleDirectory = UsersRoleDirectory::shared(db.write_pool());
+            Ok(directory)
+        });
+        Ok(())
     }
 }
 
-register_extension!(UsersExtension);
+fn schemas() -> Vec<SchemaDefinition> {
+    vec![
+        SchemaDefinition::new("users", include_str!("../schema/users.sql")).with_required_columns(
+            vec![
+                "id".into(),
+                "name".into(),
+                "email".into(),
+                "created_at".into(),
+            ],
+        ),
+        SchemaDefinition::new("user_sessions", include_str!("../schema/user_sessions.sql"))
+            .with_required_columns(vec![
+                "session_id".into(),
+                "started_at".into(),
+                "bot_type".into(),
+            ]),
+        SchemaDefinition::sql_only(include_str!("../schema/session_bot_type.sql")),
+        SchemaDefinition::new(
+            "session_traffic_rollup_hourly",
+            include_str!("../schema/session_traffic_rollup_hourly.sql"),
+        )
+        .with_required_columns(vec![
+            "bucket".into(),
+            "traffic_class".into(),
+            "sessions".into(),
+        ]),
+        SchemaDefinition::new("banned_ips", include_str!("../schema/banned_ips.sql"))
+            .with_required_columns(vec![
+                "ip_address".into(),
+                "reason".into(),
+                "banned_at".into(),
+            ]),
+        SchemaDefinition::new("user_api_keys", include_str!("../schema/user_api_keys.sql"))
+            .with_required_columns(vec![
+                "id".into(),
+                "user_id".into(),
+                "key_prefix".into(),
+                "key_hash".into(),
+                "model_allowlist".into(),
+                "request_window_seconds".into(),
+            ]),
+        SchemaDefinition::new(
+            "user_api_key_scopes",
+            include_str!("../schema/user_api_key_scopes.sql"),
+        )
+        .with_required_columns(vec!["key_id".into(), "dimension".into(), "value".into()]),
+        SchemaDefinition::new(
+            "user_device_certs",
+            include_str!("../schema/user_device_certs.sql"),
+        )
+        .with_required_columns(vec![
+            "id".into(),
+            "user_id".into(),
+            "fingerprint".into(),
+            "label".into(),
+        ]),
+        SchemaDefinition::new(
+            "user_rate_limit_buckets",
+            include_str!("../schema/user_rate_limit_buckets.sql"),
+        )
+        .with_required_columns(vec![
+            "user_id".into(),
+            "scope".into(),
+            "window_start".into(),
+            "hits".into(),
+        ]),
+    ]
+    .into_iter()
+    .chain(std::iter::once(api_key_session_schema()))
+    .chain(federation_schemas())
+    .collect()
+}
 
 fn federation_schemas() -> [SchemaDefinition; 2] {
     [

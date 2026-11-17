@@ -5,10 +5,11 @@
 
 mod generate;
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Subcommand;
 
-use crate::context::CommandContext;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Clone, Copy, Debug, Subcommand)]
 pub enum IdentityCommands {
@@ -19,8 +20,10 @@ pub enum IdentityCommands {
     Generate(generate::GenerateArgs),
 }
 
-pub fn execute(cmd: IdentityCommands, ctx: &CommandContext) -> Result<()> {
+pub fn execute(cmd: IdentityCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match cmd {
-        IdentityCommands::Generate(args) => generate::execute(args, ctx),
+        IdentityCommands::Generate(args) => {
+            generate::execute(args, host).map(|()| CommandOutput::rendered())
+        },
     }
 }

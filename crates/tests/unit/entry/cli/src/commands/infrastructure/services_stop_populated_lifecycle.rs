@@ -7,9 +7,10 @@ use std::time::{Duration, Instant};
 
 use clap::Parser;
 use serde_json::Value;
+use systemprompt_cli::EnvOverrides;
 use systemprompt_cli::infrastructure::services::{self, ServicesCommands};
-use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat};
 use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceStatus};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::ServiceName;
 use systemprompt_test_fixtures::{DisposableDb, ensure_test_bootstrap, test_app_context};
 
@@ -47,7 +48,7 @@ async fn populated_stop_helper() {
         std::env::var_os("GROUPED_STOP_DATABASE_INFO").expect("private database info channel");
     std::fs::write(database_info_path, database.url()).expect("write private database info");
     let pool = database.test_pool().await;
-    let app = test_app_context(&pool, database.url());
+    let app = test_app_context(database.url()).await;
     let repository = app.service_repository().clone();
     for (name, module, port) in [
         ("owned-stop-agent", ServiceModule::Agent, 9311),
@@ -81,9 +82,11 @@ async fn populated_stop_helper() {
     );
 
     println!("BEGIN_STOP_ARTIFACT");
-    services::execute(parse(&["stop", "--agents", "--mcp"]), &ctx)
-        .await
-        .expect("stop selected populated service groups");
+    crate::boot_ctx::rendered(
+        &ctx,
+        services::execute(parse(&["stop", "--agents", "--mcp"]), &ctx).await,
+    )
+    .expect("stop selected populated service groups");
     println!("END_STOP_ARTIFACT");
 
     let raw = pool.pool();

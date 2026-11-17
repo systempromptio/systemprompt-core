@@ -6,13 +6,13 @@ use std::fs;
 use std::path::Path;
 use systemprompt_loader::subprocess::ForegroundChildren;
 
-use systemprompt_cli::CliConfig;
 use systemprompt_cli::build::mcp::{McpArgs, execute_in_root};
+use systemprompt_extension::cli::CliConfig;
 
 fn cfg() -> CliConfig {
     CliConfig::new()
         .with_interactive(false)
-        .with_output_format(systemprompt_cli::OutputFormat::Json)
+        .with_output_format(systemprompt_extension::cli::OutputFormat::Json)
 }
 
 fn write_manifest(root: &Path, name: &str, body: &str) {

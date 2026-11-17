@@ -9,9 +9,9 @@ use systemprompt_gateway::service::stages::recovery::{
 };
 use systemprompt_governance::authz::types::Decision;
 use systemprompt_governance::policy::secrets::REDACTION_MARKER;
-use systemprompt_governance::policy::types::AccessScope;
 use systemprompt_governance::policy::{
-    AgentScope, GovernanceConfig, GovernanceEngine, GovernedInput, GovernedTarget, PolicyContext,
+    AccessScope, AgentScope, GovernanceConfig, GovernanceEngine, GovernedInput, GovernedTarget,
+    PolicyContext,
 };
 use systemprompt_identifiers::{CallId, ModelId, SessionId, UserId};
 
@@ -21,6 +21,7 @@ pub(super) const POLICY: &str = "governance:\n  policies:\n    - id: secret_scan
 pub(super) fn engine(yaml: &str) -> GovernanceEngine {
     GovernanceEngine::from_config(
         &GovernanceConfig::parse(yaml).unwrap(),
+        &systemprompt_governance::policy::PolicyCatalog::builtin(),
         Some(crate::offline_rate_windows()),
     )
     .unwrap()

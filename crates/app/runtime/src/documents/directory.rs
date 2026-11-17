@@ -3,8 +3,9 @@
 //!
 //! A `user` subject names itself when the user is active, a `role` subject
 //! names the active users holding the role, and a subject dimension names
-//! the members the first extension audience resolver that handles it
-//! returns; a dimension no resolver handles names nobody.
+//! the members the first resolver of the kernel's shared audience set
+//! ([`AudienceResolvers`]) that handles it returns; a dimension no resolver
+//! handles names nobody.
 //!
 //! The role catalogue is the built-in `admin` and `user` roles, the roles
 //! extensions declare, and every role an active user holds.
@@ -16,13 +17,13 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use systemprompt_extension::AudienceResolvers;
 use systemprompt_files::documents::{SubjectDirectory, SubjectDirectoryError, SubjectMatch};
 use systemprompt_identifiers::UserId;
 use systemprompt_models::auth::UserRole;
 use systemprompt_models::notifications::AudienceSubject;
 use systemprompt_users::{User, UserError, UserRepository};
 
-use super::ExtensionAudiences;
 use super::subjects::{ROLE_SUBJECT_KIND, USER_SUBJECT_KIND};
 
 /// The [`SubjectDirectory`] over the user repository.
@@ -30,7 +31,7 @@ use super::subjects::{ROLE_SUBJECT_KIND, USER_SUBJECT_KIND};
 pub struct UserSubjectDirectory {
     users: Arc<UserRepository>,
     catalog_roles: Vec<String>,
-    audiences: ExtensionAudiences,
+    audiences: Arc<AudienceResolvers>,
 }
 
 impl UserSubjectDirectory {
@@ -38,7 +39,7 @@ impl UserSubjectDirectory {
     pub const fn new(
         users: Arc<UserRepository>,
         catalog_roles: Vec<String>,
-        audiences: ExtensionAudiences,
+        audiences: Arc<AudienceResolvers>,
     ) -> Self {
         Self {
             users,

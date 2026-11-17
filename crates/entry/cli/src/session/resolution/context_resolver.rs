@@ -20,8 +20,8 @@ use systemprompt_models::auth::UserType;
 
 use super::ProfileContext;
 use crate::env_overrides::EnvOverrides;
-use crate::paths::ResolvedPaths;
 use crate::session::context::CliSessionContext;
+use systemprompt_cloud::paths::ResolvedPaths;
 
 pub fn try_session_from_env(profile: &Profile, env: &EnvOverrides) -> Option<CliSessionContext> {
     if !env.is_remote_cli {
@@ -65,7 +65,7 @@ pub fn extract_profile_name(profile_path: &Path) -> Result<ProfileName> {
 pub(super) async fn create_new_session(
     profile_ctx: &ProfileContext<'_>,
     session_key: &SessionKey,
-    config: &crate::CliConfig,
+    config: &systemprompt_extension::cli::CliConfig,
     session_email_hint: Option<&str>,
     boot: &BootContext,
 ) -> Result<CliSession> {

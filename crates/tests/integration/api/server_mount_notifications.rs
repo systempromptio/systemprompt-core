@@ -15,7 +15,6 @@ use axum::body::Body;
 use axum::extract::ConnectInfo;
 use axum::http::{Request, StatusCode, header};
 use http::Method;
-use systemprompt_extension::ExtensionRegistry;
 use systemprompt_identifiers::{ExtensionId, JwtToken};
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_test_fixtures::{
@@ -34,21 +33,21 @@ const GROUPS: [(Method, &str); 3] = [
 
 async fn full_router(disabled: &[ExtensionId]) -> anyhow::Result<Router> {
     let bootstrap = ensure_test_bootstrap();
-    let pool = test_db_pool().await;
     let mut config = fixture_config(&bootstrap.database_url);
     config.trusted_proxies = Vec::new();
-    let ctx = fixture_app_context_with_extensions(
-        &pool,
-        config,
-        ExtensionRegistry::discover()?,
-        disabled,
-    )?;
+    let ctx =
+        fixture_app_context_with_extensions(config, super::common::reference_admitted(disabled)?)
+            .await?;
     setup_api_server(&ctx)
 }
 
 fn setup_api_server(ctx: &systemprompt_runtime::AppContext) -> anyhow::Result<Router> {
     systemprompt_api::services::server::setup_api_server(
         ctx,
+        systemprompt_api::services::server::routes::Composed {
+            admitted: ctx.admitted(),
+            kernel: ctx.kernel(),
+        },
         None,
         &std::sync::Arc::new(systemprompt_api::services::server::ReadinessState::new()),
     )

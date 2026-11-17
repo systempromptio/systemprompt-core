@@ -8,9 +8,7 @@ use clap::Args;
 use std::fs;
 use systemprompt_identifiers::{CategoryId, SourceId};
 
-use crate::CliConfig;
-use crate::interactive::{Prompter, resolve_required};
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::{CliConfig, CommandOutput, Prompter, resolve_required};
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 use systemprompt_models::content_config::{ContentConfigRaw, SitemapConfig};
@@ -30,7 +28,7 @@ pub struct CreateArgs {
     #[arg(long = "source-id", help = "Source ID")]
     pub source: Option<String>,
 
-    #[arg(long, help = "Category ID", value_parser = crate::shared::parse_category_id)]
+    #[arg(long, help = "Category ID", value_parser = systemprompt_extension::cli::parsers::parse_category_id)]
     pub category_id: Option<CategoryId>,
 
     #[arg(long, help = "Description")]
@@ -173,11 +171,11 @@ pub fn prompt_name(prompter: &dyn Prompter) -> Result<String> {
 }
 
 pub fn prompt_path(prompter: &dyn Prompter, name: &str) -> Result<String> {
-    prompter.input_with_default("Content path", &format!("content/{}", name))
+    Ok(prompter.input_with_default("Content path", &format!("content/{}", name))?)
 }
 
 pub fn prompt_source_id(prompter: &dyn Prompter, name: &str) -> Result<String> {
-    prompter.input_with_default("Source ID", name)
+    Ok(prompter.input_with_default("Source ID", name)?)
 }
 
 pub fn prompt_category_id(
@@ -197,7 +195,7 @@ pub fn prompt_category_id(
 }
 
 pub fn prompt_description(prompter: &dyn Prompter) -> Result<String> {
-    prompter.input("Description")
+    Ok(prompter.input("Description")?)
 }
 
 pub fn prompt_sitemap_config(prompter: &dyn Prompter) -> Result<Option<SitemapConfig>> {

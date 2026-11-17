@@ -7,7 +7,8 @@ use systemprompt_test_fixtures::bounded_output;
 
 use clap::Parser;
 use systemprompt_cli::admin::agents::{self, AgentsCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 
 const HELPER: &str = "commands::agent_logs_follow_lifecycle::agent_logs_follow_helper";
 
@@ -64,17 +65,20 @@ async fn agent_logs_follow_helper() {
     }
 
     println!("BEGIN_FOLLOW");
-    agents::execute(
-        parse(&[
-            "logs",
-            "orion",
-            "--follow",
-            "--logs-dir",
-            logs.to_str().unwrap(),
-        ]),
+    crate::boot_ctx::rendered(
         &context(),
+        agents::execute(
+            parse(&[
+                "logs",
+                "orion",
+                "--follow",
+                "--logs-dir",
+                logs.to_str().unwrap(),
+            ]),
+            &context(),
+        )
+        .await,
     )
-    .await
     .expect("successful tail follow renders an output artifact");
     println!("END_FOLLOW");
 

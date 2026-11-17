@@ -9,14 +9,13 @@ use std::sync::atomic::Ordering;
 use systemprompt_identifiers::JobName;
 
 use systemprompt_database::DbPool;
+use systemprompt_extension::AdmittedSchedule;
 use systemprompt_manifest::services::scheduler::JobScope;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::{
     JobConfig, JobStatus, SchedulerConfig, SchedulerRepository, SchedulerService,
 };
-use systemprompt_test_fixtures::{
-    fixture_app_context_with_config, fixture_config, test_database_url, test_db_pool,
-};
+use systemprompt_test_fixtures::{fixture_config, test_database_url, test_db_pool};
 
 use crate::test_jobs::{STAMP_FAIL_JOB, STAMP_FAIL_JOB_RUNS, STAMP_PANIC_JOB};
 
@@ -30,10 +29,14 @@ async fn pool_and_url() -> (DbPool, String) {
     (pool, url)
 }
 
-fn context_for_instance(pool: &DbPool, url: &str, instance_id: &str) -> Arc<AppContext> {
+async fn context_for_instance(
+    url: &str,
+    instance_id: &str,
+) -> (Arc<AppContext>, Arc<AdmittedSchedule>) {
     let mut config = fixture_config(url);
     config.instance_id = systemprompt_identifiers::InstanceId::new(instance_id);
-    fixture_app_context_with_config(pool, config).expect("fixture AppContext")
+    crate::test_extension::app_over_config(config, crate::test_extension::admitted_with_test_jobs())
+        .await
 }
 
 async fn seed_row(pool: &DbPool, job_name: &str) -> SchedulerRepository {
@@ -61,7 +64,7 @@ async fn dispatch(
     jobs: Vec<JobConfig>,
     distributed_lock: bool,
 ) {
-    let app_ctx = context_for_instance(pool, url, instance_id);
+    let (app_ctx, schedule) = context_for_instance(url, instance_id).await;
     let config = SchedulerConfig {
         enabled: true,
         jobs,
@@ -69,7 +72,7 @@ async fn dispatch(
         distributed_lock,
         unlisted_jobs: systemprompt_manifest::services::UnlistedJobs::Warn,
     };
-    let svc = SchedulerService::new(config, Arc::clone(pool), app_ctx);
+    let svc = SchedulerService::new(config, pool, app_ctx, Arc::clone(&schedule));
     svc.run_bootstrap_jobs(None)
         .await
         .expect("bootstrap dispatch must not abort");

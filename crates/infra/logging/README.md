@@ -24,7 +24,7 @@ A `tracing` layer batches structured events into PostgreSQL asynchronously, prop
 | `trace` | `TraceQueryService` and `AiTraceService` with the typed rows for traces, AI requests, and MCP tool executions. |
 | `attribution` | Installs the process-wide system-actor attribution used to stamp platform-originated log rows (`install_log_attribution`, `platform_attribution`). |
 | `sanitize` | Internal helpers that scrub sensitive fields before rows are persisted. |
-| `extension` | `LoggingExtension` registers the `logs` and `analytics_events` schema through the workspace extension framework. |
+| `extension` | `LoggingExtension` contributes the `logs` and `analytics_events` schema through `Extension::contribute`. |
 
 The `cli` submodule under `services/` provides `banners`, `display`, `macros`, `service` (`CliService`), `startup`, `table`, `theme`, and `types`. Schema DDL lives in `schema/` (`log.sql`, `analytics.sql`, and the `migrations/` directory).
 
@@ -32,7 +32,7 @@ The `cli` submodule under `services/` provides `banners`, `display`, `macros`, `
 
 ```toml
 [dependencies]
-systemprompt-logging = "0.81"
+systemprompt-logging = "0.83"
 ```
 
 ```rust
@@ -58,7 +58,7 @@ async fn recent_errors(pool: &DbPool) -> Result<(), LoggingError> {
 - `init_logging(db_pool)` - Initialize with database persistence
 - `init_console_logging()` - Initialize console-only logging
 - `init_console_logging_with_level(level)` - Initialize console logging at a specific level
-- `LoggingExtension` - Inventory-registered schema/extension entry point
+- `LoggingExtension` - The logging member's `Extension` implementation (schemas and migrations)
 
 ### Core Types
 - `LogEntry` - Log entry with metadata and context IDs
@@ -106,7 +106,7 @@ async fn recent_errors(pool: &DbPool) -> Result<(), LoggingError> {
 
 ### Internal
 - `systemprompt-database` - Database pool management
-- `systemprompt-extension` - Extension framework (schema registration)
+- `systemprompt-extension` - Extension framework (schema contribution)
 - `systemprompt-identifiers` - Typed identifiers (UserId, SessionId, etc.)
 - `systemprompt-models` - Shared model types
 - `systemprompt-traits` - Shared trait definitions (`LogService`)
@@ -118,7 +118,7 @@ async fn recent_errors(pool: &DbPool) -> Result<(), LoggingError> {
 - `serde`, `serde_json`, `serde_yaml` - Serialisation
 - `chrono` - Timestamp handling
 - `uuid` - Log entry identifiers
-- `async-trait`, `thiserror`, `inventory` - Trait, error, and registration utilities
+- `async-trait`, `thiserror` - Trait and error utilities
 - `console`, `indicatif` - CLI utilities (`cli` feature)
 
 ## License

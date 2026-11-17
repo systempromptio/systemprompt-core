@@ -17,14 +17,13 @@ use systemprompt_api::services::middleware::load_shed::shed;
 use systemprompt_api::services::server::metrics::{MetricsState, install_recorder, metrics_router};
 use systemprompt_api::services::server::{ReadinessState, discovery_router};
 use systemprompt_identifiers::InstanceId;
-use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
+use systemprompt_test_fixtures::{test_app_context, test_database_url};
 use tokio::sync::Notify;
 use tower::ServiceExt;
 
 async fn app(limit: Arc<LoadShed>, release: Arc<Notify>, entered: Arc<Notify>) -> Router {
     let url = test_database_url();
-    let pool = test_db_pool().await;
-    let ctx = (*test_app_context(&pool, &url)).clone();
+    let ctx = (*test_app_context(&url).await).clone();
     let handle = install_recorder(&InstanceId::new("load-shed-fixture"), &[]).expect("recorder");
     let slow = axum::routing::get(move || {
         let release = Arc::clone(&release);

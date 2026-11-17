@@ -37,9 +37,17 @@ async fn all_role() -> Result<(DbPool, Router)> {
     config.role = NodeRole::All;
     config.rate_limits = RateLimitsConfig::disabled();
     config.trusted_proxies = Vec::new();
-    let ctx = fixture_app_context_with_config(&pool, config)?;
-    let router = setup_api_server(&ctx, None, &Arc::new(ReadinessState::new()))
-        .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
+    let ctx = fixture_app_context_with_config(config).await?;
+    let router = setup_api_server(
+        &ctx,
+        systemprompt_api::services::server::routes::Composed {
+            admitted: ctx.admitted(),
+            kernel: ctx.kernel(),
+        },
+        None,
+        &Arc::new(ReadinessState::new()),
+    )
+    .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
     Ok((pool, router))
 }
 

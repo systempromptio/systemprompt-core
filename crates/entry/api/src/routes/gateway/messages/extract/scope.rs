@@ -1,7 +1,7 @@
 //! Scope attribution for one gateway request.
 //!
-//! Every subject dimension a tenant registers through
-//! `register_subject_attribute_provider!` is resolved per request, in order:
+//! Every subject dimension a member contributes through
+//! `Contributions::subject_attributes` is resolved per request, in order:
 //!
 //! 1. an `x-systemprompt-scope-<dimension>` header, whose value must be one of
 //!    the provider's values for the caller (`403` otherwise — an unknown value

@@ -17,17 +17,19 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result, bail};
 use systemprompt_cloud::CloudCredentials;
-use systemprompt_config::{LoadedProfile, SecretsService};
+use systemprompt_config::{LoadedProfile, SecretsService, SecretsSources};
 use systemprompt_database::DbPool;
+use systemprompt_extension::Admitted;
+use systemprompt_extension::cli::{CliConfig, Prompter};
 use systemprompt_loader::{BootContext, ServicesState};
 use systemprompt_manifest::{Config, Profile};
 use systemprompt_models::BuildIdentity;
-use systemprompt_runtime::{AppContext, AppContextBuilder, DatabaseContext};
+use systemprompt_runtime::{AppContext, AppContextBuilder, DatabaseContext, Kernel};
 use tokio::sync::OnceCell;
 
-use crate::cli_settings::CliConfig;
 use crate::env_overrides::EnvOverrides;
-use crate::interactive::{DialoguerPrompter, Prompter};
+use crate::interactive::DialoguerPrompter;
+use crate::kernel::CommandRegistry;
 use crate::runner::interrupt::InterruptShield;
 use systemprompt_loader::subprocess::ForegroundChildren;
 
@@ -35,7 +37,7 @@ pub struct CommandContext {
     pub cli: CliConfig,
     pub env: EnvOverrides,
     prompter: Box<dyn Prompter>,
-    runtime: OnceCell<Arc<AppContext>>,
+    pub(crate) runtime: OnceCell<Arc<AppContext>>,
     db: Option<DatabaseContext>,
     database_url: Option<String>,
     database_url_override: Option<String>,
@@ -44,8 +46,13 @@ pub struct CommandContext {
     profile: Option<Arc<LoadedProfile>>,
     boot: Option<BootContext>,
     interrupt_shield: InterruptShield,
-    foreground_children: ForegroundChildren,
+    pub(crate) foreground_children: ForegroundChildren,
     build: BuildIdentity,
+    pub(crate) admitted: Option<Arc<Admitted>>,
+    pub(crate) kernel: OnceCell<Arc<Kernel>>,
+    pub(crate) registry: Option<Arc<CommandRegistry>>,
+    secrets_sources: SecretsSources,
+    admit: std::sync::Mutex<Option<crate::runner::AdmitFn>>,
 }
 
 impl CommandContext {
@@ -66,7 +73,33 @@ impl CommandContext {
             interrupt_shield: InterruptShield::default(),
             foreground_children: ForegroundChildren::default(),
             build: BuildIdentity::core(),
+            admitted: None,
+            kernel: OnceCell::new(),
+            registry: None,
+            secrets_sources: SecretsSources::default(),
+            admit: std::sync::Mutex::new(None),
         }
+    }
+
+    #[must_use]
+    pub fn with_admit(mut self, admit: Option<crate::runner::AdmitFn>) -> Self {
+        self.admit = std::sync::Mutex::new(admit);
+        self
+    }
+
+    pub(crate) fn take_admit(&self) -> Option<crate::runner::AdmitFn> {
+        self.admit.lock().ok().and_then(|mut slot| slot.take())
+    }
+
+    #[must_use]
+    pub fn with_secrets_sources(mut self, sources: SecretsSources) -> Self {
+        self.secrets_sources = sources;
+        self
+    }
+
+    #[must_use]
+    pub const fn secrets_sources(&self) -> &SecretsSources {
+        &self.secrets_sources
     }
 
     #[must_use]
@@ -81,7 +114,7 @@ impl CommandContext {
 
     pub fn app_context_builder(&self) -> Result<AppContextBuilder> {
         let builder = self.services.clone().into_iter().fold(
-            AppContext::builder(self.boot()?.clone()),
+            AppContext::builder(self.boot()?.clone(), Arc::clone(self.admitted()?)),
             AppContextBuilder::with_services,
         );
         Ok(builder.with_build_identity(self.build.clone()))
@@ -181,42 +214,17 @@ impl CommandContext {
         db: DatabaseContext,
         database_url: String,
     ) -> Self {
-        Self {
-            cli,
-            env,
-            prompter: Box::new(DialoguerPrompter),
-            runtime: OnceCell::new(),
-            db: Some(db),
-            database_url: Some(database_url),
-            database_url_override: None,
-            cloud_credentials: None,
-            services: None,
-            profile: None,
-            boot: None,
-            interrupt_shield: InterruptShield::default(),
-            foreground_children: ForegroundChildren::default(),
-            build: BuildIdentity::core(),
-        }
+        let mut ctx = Self::new(cli, env);
+        ctx.db = Some(db);
+        ctx.database_url = Some(database_url);
+        ctx
     }
 
     #[must_use]
     pub fn with_app_context(cli: CliConfig, env: EnvOverrides, app: Arc<AppContext>) -> Self {
-        Self {
-            cli,
-            env,
-            prompter: Box::new(DialoguerPrompter),
-            runtime: OnceCell::new_with(Some(app)),
-            db: None,
-            database_url: None,
-            database_url_override: None,
-            cloud_credentials: None,
-            services: None,
-            profile: None,
-            boot: None,
-            interrupt_shield: InterruptShield::default(),
-            foreground_children: ForegroundChildren::default(),
-            build: BuildIdentity::core(),
-        }
+        let mut ctx = Self::new(cli, env);
+        ctx.runtime = OnceCell::new_with(Some(app));
+        ctx
     }
 
     #[must_use]
@@ -249,9 +257,9 @@ impl CommandContext {
         if self.db.is_some() {
             bail!("This command requires full profile initialization. Remove --database-url flag.");
         }
-        let mut builder = self.app_context_builder()?;
         self.runtime
             .get_or_try_init(|| async {
+                let mut builder = self.app_context_builder()?;
                 if let Some(url) = &self.database_url_override {
                     builder = builder.with_database_url(url.clone());
                 }

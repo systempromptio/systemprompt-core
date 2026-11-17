@@ -20,13 +20,14 @@ use systemprompt_identifiers::ProfileName;
 use systemprompt_manifest::profile::TrustedIssuer;
 
 use super::CreateArgs;
+use super::ai_catalog::update_ai_config_default_provider;
 use super::api_keys::ApiKeys;
 use super::templates::{
     DatabaseUrls, existing_geoip_database, get_services_path, save_dockerfile, save_dockerignore,
-    save_entrypoint, save_profile, save_secrets, update_ai_config_default_provider,
+    save_entrypoint, save_profile, save_secrets,
 };
-use systemprompt_cli::kernel::Prompter;
 use systemprompt_cloud::profile_authoring::{CloudProfileBuilder, LocalProfileBuilder};
+use systemprompt_extension::cli::Prompter;
 
 #[derive(Debug)]
 pub struct CreatedProfile {

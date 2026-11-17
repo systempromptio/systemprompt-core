@@ -5,80 +5,58 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, Response};
 use http_body_util::BodyExt;
-use systemprompt_analytics_entry::http::{
-    AnalyticsHttpState, ContentResolver, analytics, engagement,
-};
+use systemprompt_analytics_entry::extension::AnalyticsHttpExtension;
 use systemprompt_database::DbPool;
-use systemprompt_extension::ExtensionContext;
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
+use systemprompt_extension::contribute::ContributionSink;
+use systemprompt_extension::router::{ApiBase, BasePath, BaseRef, WebBase};
+use systemprompt_extension::{Contributions, Extension, HandleId};
+use systemprompt_identifiers::{AgentName, ContextId, ExtensionId, SessionId, TraceId, UserId};
+use systemprompt_models::RequestContext;
 use systemprompt_models::modules::ApiPaths;
-use systemprompt_models::{ContentRouting, RequestContext};
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context, test_db_pool};
-use systemprompt_traits::DynContentCatalogStats;
 
 pub async fn setup_ctx() -> Result<(DbPool, Arc<AppContext>)> {
     let bootstrap = ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let ctx = test_app_context(&pool, &bootstrap.database_url);
+    let ctx = test_app_context(&bootstrap.database_url).await;
     Ok((pool, ctx))
 }
 
-fn state(ctx: &AppContext, routing: Option<Arc<dyn ContentRouting>>) -> AnalyticsHttpState {
-    let extension_state = ctx.extension_state();
-    let catalog = extension_state
-        .get::<DynContentCatalogStats>()
-        .expect("the content extension provides the catalog");
-    AnalyticsHttpState::new(
-        Arc::clone(ctx.analytics_repositories()),
-        ContentResolver::new(Arc::clone(catalog), routing),
-    )
+fn member_router(ctx: &AppContext, base: BaseRef, handles: &[HandleId]) -> Router {
+    let mut sink = ContributionSink::default();
+    let mut contributions = Contributions::__new(ExtensionId::new("analytics_http"), &mut sink);
+    AnalyticsHttpExtension
+        .contribute(&mut contributions)
+        .expect("the analytics_http member contributes");
+    let resolved = ctx.kernel().route_scoped(handles);
+    sink.routes()
+        .iter()
+        .filter(|set| set.base() == base)
+        .flat_map(|set| {
+            set.materialize(&resolved)
+                .expect("the fixture kernel resolves the analytics route state")
+        })
+        .fold(Router::new(), Router::merge)
 }
 
 pub fn analytics_router(ctx: &AppContext) -> Router {
-    analytics_router_with_routing(ctx, None)
-}
-
-pub fn analytics_router_with_routing(
-    ctx: &AppContext,
-    routing: Option<Arc<dyn ContentRouting>>,
-) -> Router {
-    analytics::router(state(ctx, routing)).layer(axum::Extension(Arc::clone(
-        &ctx.event_broadcasters().analytics,
-    )))
-}
-
-pub fn engagement_router(ctx: &AppContext) -> Router {
-    engagement_router_with_routing(ctx, None)
-}
-
-pub fn engagement_router_with_routing(
-    ctx: &AppContext,
-    routing: Option<Arc<dyn ContentRouting>>,
-) -> Router {
-    Router::new().nest(
-        ApiPaths::TRACK_ENGAGEMENT,
-        engagement::router(state(ctx, routing)),
+    member_router(
+        ctx,
+        BaseRef::Path(BasePath::Api(ApiBase::Analytics)),
+        &[HandleId::AnalyticsBroadcaster],
     )
 }
 
-pub struct SlugRouter {
-    pub page_url: String,
-    pub slug: String,
-}
-
-impl ContentRouting for SlugRouter {
-    fn is_html_page(&self, _path: &str) -> bool {
-        true
-    }
-
-    fn determine_source(&self, _path: &str) -> String {
-        "test".to_owned()
-    }
-
-    fn resolve_slug(&self, path: &str) -> Option<String> {
-        (path == self.page_url).then(|| self.slug.clone())
-    }
+pub fn engagement_router(ctx: &AppContext) -> Router {
+    Router::new().nest(
+        ApiPaths::TRACK_ENGAGEMENT,
+        member_router(
+            ctx,
+            BaseRef::Path(BasePath::Web(WebBase::TrackEngagement)),
+            &[],
+        ),
+    )
 }
 
 pub async fn seed_content(db: &DbPool) -> Result<(String, String)> {

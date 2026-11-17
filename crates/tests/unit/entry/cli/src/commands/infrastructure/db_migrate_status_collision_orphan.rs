@@ -3,8 +3,9 @@
 use std::process::Command;
 
 use clap::Parser;
+use systemprompt_cli::EnvOverrides;
 use systemprompt_cli::infrastructure::db::{self, DbCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides};
+use systemprompt_extension::cli::CliConfig;
 use systemprompt_runtime::DatabaseContext;
 use systemprompt_test_fixtures::{DisposableDb, bounded_output};
 
@@ -56,16 +57,18 @@ async fn dirty_status_helper() {
     .await
     .unwrap();
 
-    let context = CommandContext::with_database(
+    let context = crate::boot_ctx::with_database(
         CliConfig::new().with_interactive(false),
         EnvOverrides::default(),
         DatabaseContext::from_pool(pool.clone()),
         database.url().to_owned(),
     );
     eprintln!("BEGIN_DIRTY_STATUS");
-    db::execute(parse(&["migrate-status", "logging"]), &context)
-        .await
-        .expect("render dirty migration diagnosis");
+    crate::boot_ctx::rendered(
+        &context,
+        db::execute(parse(&["migrate-status", "logging"]), &context).await,
+    )
+    .expect("render dirty migration diagnosis");
     eprintln!("END_DIRTY_STATUS");
     let after: Vec<(i32, String, String)> = sqlx::query_as(
         "SELECT version, name, checksum FROM extension_migrations \

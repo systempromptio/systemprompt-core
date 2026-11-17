@@ -1,9 +1,8 @@
 use systemprompt_identifiers::UserId;
-use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_marketplace::inventory::LatestPublicationStatus;
 use systemprompt_runtime::managed::inventory;
 use systemprompt_test_fixtures::{
-    fixture_app_context_with, init_isolated_bootstrap, seed_user_row, test_db_pool,
+    init_isolated_bootstrap, seed_user_row, test_app_context_on, test_db_pool,
 };
 
 fn skill(root: &std::path::Path, body: &str) {
@@ -26,24 +25,10 @@ async fn runtime_inventory_retains_last_good_membership_across_scan_failure_and_
     seed_user_row(&pool, &owner, &format!("{owner}@inventory.invalid"))
         .await
         .unwrap();
-    let paths = PathsConfig {
-        root: None,
-        system: boot.system_path.display().to_string(),
-        services: boot.services_path.display().to_string(),
-        bin: boot.bin_path.display().to_string(),
-        web_path: Some(boot.system_path.join("web").display().to_string()),
-        storage: Some(boot.storage_path.display().to_string()),
-        geoip_database: None,
-        shipped_files: None,
-        data: None,
-    };
-    let ctx = fixture_app_context_with(
-        &pool,
-        &boot.database_url,
-        paths,
-        std::sync::Arc::new(systemprompt_marketplace::AllowAllFilter),
-    )
-    .unwrap();
+    systemprompt_test_fixtures::seed_fixture_system_admin(&pool)
+        .await
+        .expect("seed the system admin");
+    let ctx = test_app_context_on(&boot).await;
     skill(&boot.services_path, "# generation one\n");
 
     let first = inventory::refresh(&ctx, &owner).await.unwrap();

@@ -18,6 +18,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Result, bail};
 use clap::Args;
 use std::sync::Arc;
@@ -27,14 +28,15 @@ use systemprompt_scheduler::{
     JobExecutionService, JobRunReport, JobSelection, parse_job_parameters,
 };
 
+use super::admitted_schedule;
 use super::types::{BatchJobRunOutput, JobRunOutput, JobRunResult};
-use crate::context::CommandContext;
-use crate::shared::{CommandOutput, render_result};
+use crate::commands::shared::{app_context, services_config};
+use systemprompt_extension::cli::{CommandError, CommandOutput};
 
 #[derive(Debug, Args)]
 pub struct RunArgs {
     #[arg(
-        value_parser = crate::shared::parse_job_name,
+        value_parser = systemprompt_extension::cli::parsers::parse_job_name,
         help = "Job name(s) to run",
         num_args = 1..
     )]
@@ -73,8 +75,9 @@ pub struct RunArgs {
     pub lock_wait_secs: u64,
 }
 
-pub(super) async fn execute(args: RunArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let app = Arc::clone(ctx.app_context().await?);
+pub(super) async fn execute(args: RunArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+    let app = app_context(host).await?;
+    let schedule = Arc::new(admitted_schedule(host).await?);
 
     let parameters = parse_job_parameters(&args.params)?;
     let selection = if args.all {
@@ -85,12 +88,10 @@ pub(super) async fn execute(args: RunArgs, ctx: &CommandContext) -> Result<Comma
         JobSelection::Names(args.job_names)
     };
 
-    let scheduler_config = ctx
-        .boot()?
-        .load_services_config()?
+    let scheduler_config = services_config(host)?
         .scheduler
         .unwrap_or_else(systemprompt_manifest::SchedulerConfig::with_system_admin);
-    let service = JobExecutionService::new(app, scheduler_config)
+    let service = JobExecutionService::new(app, scheduler_config, schedule)
         .with_lock_wait(Duration::from_secs(args.lock_wait_secs));
     let batch = service.run_jobs(&selection, &parameters).await?;
 
@@ -125,13 +126,14 @@ pub(super) async fn execute(args: RunArgs, ctx: &CommandContext) -> Result<Comma
     if output.failed == 0 {
         return Ok(table);
     }
-    render_result(&table, &ctx.cli);
-    bail!(
+    Err(CommandError::new(anyhow::anyhow!(
         "{} of {} job(s) failed:\n{}",
         output.failed,
         output.total,
         failures(&output.jobs_run)
-    );
+    ))
+    .with_output(table)
+    .into())
 }
 
 fn failures(runs: &[JobRunOutput]) -> String {

@@ -7,7 +7,7 @@
 use crate::services::providers::mock_http;
 use serde_json::json;
 use systemprompt_ai::MessageRole;
-use systemprompt_ai::models::ai::AiMessage;
+use systemprompt_ai::models::ai::{AiMessage, ReasoningParams};
 use systemprompt_ai::models::tools::{CallToolResult, McpTool, ToolCall};
 use systemprompt_ai::services::providers::gemini::GeminiProvider;
 use systemprompt_ai::services::providers::{
@@ -86,6 +86,27 @@ async fn generate_with_tools_returns_function_call() {
     assert_eq!(tool_calls[0].name, "get_weather");
     assert_eq!(tool_calls[0].arguments["city"], json!("Paris"));
     assert_eq!(response.tool_calls.len(), 1);
+}
+
+#[tokio::test]
+async fn generate_with_tools_sends_an_explicit_thinking_budget() {
+    let body = gemini_function_call_body("get_weather", json!({ "city": "Paris" }));
+    let server = mock_http::gemini_generate_success(body).await;
+    let p = provider(server.uri());
+    let messages = msgs();
+    let base = GenerationParams::new(&messages, "gemini-2.5-flash", 64)
+        .with_reasoning(ReasoningParams::default().with_thinking_budget(32));
+    let params = ToolGenerationParams::new(base, vec![weather_tool()]);
+
+    p.generate_with_tools(params).await.expect("ok");
+
+    let requests = server.received_requests().await.expect("recorded requests");
+    let sent: serde_json::Value = requests[0].body_json().expect("json request body");
+    assert_eq!(
+        sent["generationConfig"]["thinkingConfig"]["thinkingBudget"],
+        json!(32),
+        "the caller's budget is sent instead of the per-model default: {sent}"
+    );
 }
 
 #[tokio::test]

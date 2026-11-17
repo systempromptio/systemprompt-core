@@ -3,20 +3,18 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use std::sync::Arc;
 
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
 
 use super::types::{AgentToolsOutput, AgentToolsSummary, UnavailableServer};
-use crate::CliConfig;
 use crate::commands::shared::mcp_tools::{
     McpToolEntry, direct_url, list_tools_authenticated, list_tools_unauthenticated,
 };
-use crate::context::CommandContext;
-use crate::interactive::Prompter;
 use crate::session::get_or_create_session;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::{CliConfig, CommandOutput, Prompter};
 use systemprompt_identifiers::{McpServerId, SessionToken};
 use systemprompt_mcp::McpServerConfig;
 use systemprompt_mcp::services::McpOrchestrator;
@@ -47,14 +45,13 @@ struct CollectedTools {
     servers_queried: usize,
 }
 
-pub(super) async fn execute(args: ToolsArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let config = &ctx.cli;
-    let services_config = ctx
-        .boot()?
+pub(super) async fn execute(args: ToolsArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+    let config = host.output();
+    let services_config = crate::commands::admin::state::boot(host)?
         .load_services_config()
         .context("Failed to load services configuration")?;
 
-    let name = resolve_agent_name(args.name, ctx.prompter(), config, &services_config)?;
+    let name = resolve_agent_name(args.name, host.prompter(), config, &services_config)?;
 
     let agent = services_config
         .agents
@@ -67,10 +64,9 @@ pub(super) async fn execute(args: ToolsArgs, ctx: &CommandContext) -> Result<Com
         return Ok(no_servers_output(&name));
     }
 
-    let session_ctx = get_or_create_session(ctx).await?;
+    let session_ctx = get_or_create_session(host).await?;
 
-    let app = ctx
-        .app_context()
+    let app = crate::commands::admin::state::app(host)
         .await
         .context("Failed to initialize application context")?;
 

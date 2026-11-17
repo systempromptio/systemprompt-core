@@ -18,6 +18,7 @@
 
 pub mod context_resolver;
 
+use crate::kernel::KernelHost;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
@@ -28,14 +29,15 @@ use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 
 use super::context::CliSessionContext;
-use crate::cli_settings::{OutputFormat, VerbosityLevel};
-use crate::context::CommandContext;
-use crate::paths::ResolvedPaths;
-use crate::shared::ProfileSource;
+use crate::env_overrides::EnvOverrides;
 use context_resolver::{
     create_new_session, extract_profile_name, resolve_profile_path_from_session,
     resolve_profile_path_without_session, try_session_from_env, try_validate_context,
 };
+use systemprompt_cloud::paths::ResolvedPaths;
+use systemprompt_cloud::profile::ProfileSource;
+use systemprompt_config::SecretsSources;
+use systemprompt_extension::cli::{OutputFormat, VerbosityLevel};
 
 #[derive(Debug)]
 pub struct ProfileContext<'a> {
@@ -43,12 +45,31 @@ pub struct ProfileContext<'a> {
     pub path: PathBuf,
 }
 
+struct SessionHost<'a> {
+    host: &'a dyn KernelHost,
+    env: EnvOverrides,
+    active_boot: Option<std::sync::Arc<BootContext>>,
+    secrets: SecretsSources,
+}
+
+impl<'a> SessionHost<'a> {
+    fn new(host: &'a dyn KernelHost) -> Self {
+        Self {
+            host,
+            env: host.env_overrides().clone(),
+            active_boot: host.boot().ok(),
+            secrets: host.secrets_sources().clone(),
+        }
+    }
+}
+
 async fn get_session_for_profile(
     profile_input: &str,
-    ctx: &CommandContext,
+    ctx: &SessionHost<'_>,
 ) -> Result<CliSessionContext> {
-    let (profile_path, profile) = crate::shared::resolve_profile_with_data(profile_input)
-        .map_err(|e| anyhow::anyhow!("{}", e))?;
+    let (profile_path, profile) =
+        systemprompt_cloud::profile::resolve_profile_with_data(profile_input)
+            .map_err(|e| anyhow::anyhow!("{}", e))?;
 
     let boot = boot_for_profile(&profile_path, ctx)
         .await
@@ -57,20 +78,23 @@ async fn get_session_for_profile(
     get_session_for_loaded_profile(&profile, &profile_path, ProfileSource::Cli, ctx, &boot).await
 }
 
-async fn boot_for_profile(profile_path: &Path, ctx: &CommandContext) -> Result<BootContext> {
-    if let (Ok(boot), Ok(loaded)) = (ctx.boot(), ctx.loaded_profile())
-        && loaded.path() == profile_path
+async fn boot_for_profile(profile_path: &Path, ctx: &SessionHost<'_>) -> Result<BootContext> {
+    if let (Some(boot), Ok(active)) = (ctx.active_boot.as_ref(), ctx.host.profile_path())
+        && active == profile_path
     {
-        return Ok(boot.clone());
+        return Ok(BootContext::clone(boot));
     }
-    crate::boot::load_boot_from_path(profile_path).await
+    Ok(
+        systemprompt_loader::load_boot::load_boot_from_path(profile_path, ctx.secrets.clone())
+            .await?,
+    )
 }
 
 async fn get_session_for_loaded_profile(
     profile: &Profile,
     profile_path: &Path,
     source: ProfileSource,
-    ctx: &CommandContext,
+    ctx: &SessionHost<'_>,
     boot: &BootContext,
 ) -> Result<CliSessionContext> {
     if let Some(session_ctx) = try_session_from_env(profile, &ctx.env) {
@@ -113,7 +137,7 @@ async fn get_session_for_loaded_profile(
     let session = create_new_session(
         &profile_ctx,
         &session_key,
-        &ctx.cli,
+        ctx.host.output(),
         session_email_hint.as_deref(),
         boot,
     )
@@ -145,7 +169,7 @@ pub fn record_new_session(
     }
 }
 
-async fn try_session_from_active_key(ctx: &CommandContext) -> Result<Option<CliSessionContext>> {
+async fn try_session_from_active_key(ctx: &SessionHost<'_>) -> Result<Option<CliSessionContext>> {
     let paths = ResolvedPaths::discover();
     let sessions_dir = paths.sessions_dir();
     let store = SessionStore::load_or_create(&sessions_dir)?;
@@ -191,10 +215,10 @@ async fn try_session_from_active_key(ctx: &CommandContext) -> Result<Option<CliS
     Ok(Some(session_ctx))
 }
 
-pub async fn get_or_create_session(ctx: &CommandContext) -> Result<CliSessionContext> {
-    let session_ctx = resolve_session(ctx).await?;
+pub async fn get_or_create_session(host: &dyn KernelHost) -> Result<CliSessionContext> {
+    let session_ctx = resolve_session(&SessionHost::new(host)).await?;
 
-    let config = &ctx.cli;
+    let config = host.output();
     let banner_requested = config.verbosity >= VerbosityLevel::Verbose;
     let banner_warranted = session_ctx.profile.target.is_cloud();
     if config.is_interactive()
@@ -218,28 +242,28 @@ pub async fn get_or_create_session(ctx: &CommandContext) -> Result<CliSessionCon
     Ok(session_ctx)
 }
 
-async fn resolve_session(ctx: &CommandContext) -> Result<CliSessionContext> {
-    if let Some(ref profile_name) = ctx.cli.profile_override {
+async fn resolve_session(ctx: &SessionHost<'_>) -> Result<CliSessionContext> {
+    if let Some(ref profile_name) = ctx.host.output().profile_override {
         return get_session_for_profile(profile_name, ctx).await;
     }
 
-    if ctx.env.profile.is_none()
+    if ctx.host.env_profile().is_none()
         && let Some(session_ctx) = try_session_from_active_key(ctx).await?
     {
         return Ok(session_ctx);
     }
 
-    let loaded = ctx.loaded_profile().map_err(|_e| {
+    let required = |_| {
         anyhow::anyhow!(
             "Profile required.\n\nSet SYSTEMPROMPT_PROFILE environment variable to your \
              profile.yaml path, or use --profile <name>."
         )
-    })?;
-    let profile = loaded.profile().clone();
-    let profile_path = loaded.path();
+    };
+    let profile = ctx.host.profile().map_err(required)?.clone();
+    let profile_path = ctx.host.profile_path().map_err(required)?;
     let boot = boot_for_profile(profile_path, ctx).await?;
 
-    let source = if ctx.env.profile.is_some() {
+    let source = if ctx.host.env_profile().is_some() {
         ProfileSource::Env
     } else {
         ProfileSource::Discovery

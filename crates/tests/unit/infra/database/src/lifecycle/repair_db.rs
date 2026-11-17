@@ -1,6 +1,8 @@
+use super::members::unit;
 use systemprompt_database::{DatabaseProvider, MigrationService, PostgresProvider};
 use systemprompt_extension::{
-    Extension, ExtensionMetadata, LoaderError, Migration, SchemaDefinition,
+    ContributionError, Contributions, Extension, ExtensionMetadata, LoaderError, Migration,
+    SchemaDefinition,
 };
 
 use crate::services::db_helper::test_pool;
@@ -8,6 +10,16 @@ use crate::services::db_helper::test_pool;
 struct Ext {
     id: &'static str,
     migrations: Vec<Migration>,
+}
+
+impl Ext {
+    fn schemas(&self) -> Vec<SchemaDefinition> {
+        vec![]
+    }
+
+    fn migrations(&self) -> Vec<Migration> {
+        self.migrations.clone()
+    }
 }
 
 impl Extension for Ext {
@@ -19,12 +31,12 @@ impl Extension for Ext {
         }
     }
 
-    fn schemas(&self) -> Vec<SchemaDefinition> {
-        vec![]
-    }
-
-    fn migrations(&self) -> Vec<Migration> {
-        self.migrations.clone()
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        for schema in self.schemas() {
+            c.schema(schema);
+        }
+        c.migrations(self.migrations());
+        Ok(())
     }
 }
 
@@ -73,7 +85,7 @@ async fn a_drifted_no_transaction_migration_is_reapplied_and_restamped() {
         )],
     };
     service
-        .run_pending_migrations(&original)
+        .run_pending_migrations(&unit(&original))
         .await
         .expect("apply");
 
@@ -87,25 +99,33 @@ async fn a_drifted_no_transaction_migration_is_reapplied_and_restamped() {
         )],
     };
     assert_eq!(
-        service.status(&edited).await.expect("status").drift.len(),
+        service
+            .status(&unit(&edited))
+            .await
+            .expect("status")
+            .drift
+            .len(),
         1
     );
 
-    let result = service.repair_drift(&edited).await.expect("repair");
+    let result = service.repair_drift(&unit(&edited)).await.expect("repair");
     assert_eq!(result.reapplied, 1);
     assert_eq!(result.repaired.len(), 1);
     assert_eq!(result.migrations_run, 0);
     assert!(column_exists(&provider, "repair_nt_t", "note").await);
     assert!(
         service
-            .status(&edited)
+            .status(&unit(&edited))
             .await
             .expect("status")
             .drift
             .is_empty()
     );
 
-    let again = service.repair_drift(&edited).await.expect("repair noop");
+    let again = service
+        .repair_drift(&unit(&edited))
+        .await
+        .expect("repair noop");
     assert_eq!(again.reapplied, 0);
     assert!(again.repaired.is_empty());
 }
@@ -125,7 +145,7 @@ async fn a_failing_no_transaction_reapply_keeps_the_drift_tracked() {
         )],
     };
     service
-        .run_pending_migrations(&original)
+        .run_pending_migrations(&unit(&original))
         .await
         .expect("apply");
 
@@ -139,7 +159,7 @@ async fn a_failing_no_transaction_reapply_keeps_the_drift_tracked() {
         )],
     };
     let err = service
-        .repair_drift(&broken)
+        .repair_drift(&unit(&broken))
         .await
         .expect_err("reapply fails");
     match &err {
@@ -152,7 +172,12 @@ async fn a_failing_no_transaction_reapply_keeps_the_drift_tracked() {
         other => panic!("unexpected {other:?}"),
     }
     assert_eq!(
-        service.status(&broken).await.expect("status").drift.len(),
+        service
+            .status(&unit(&broken))
+            .await
+            .expect("status")
+            .drift
+            .len(),
         1
     );
 }
@@ -172,7 +197,7 @@ async fn a_failing_transactional_reapply_rolls_back_and_stays_drifted() {
         )],
     };
     service
-        .run_pending_migrations(&original)
+        .run_pending_migrations(&unit(&original))
         .await
         .expect("apply");
 
@@ -186,22 +211,30 @@ async fn a_failing_transactional_reapply_rolls_back_and_stays_drifted() {
         )],
     };
     service
-        .repair_drift(&broken)
+        .repair_drift(&unit(&broken))
         .await
         .expect_err("reapply fails");
     assert!(!column_exists(&provider, "repair_tx_t", "note").await);
     assert_eq!(
-        service.status(&broken).await.expect("status").drift.len(),
+        service
+            .status(&unit(&broken))
+            .await
+            .expect("status")
+            .drift
+            .len(),
         1
     );
 
-    let reconciled = service.reconcile_drift(&broken).await.expect("reconcile");
+    let reconciled = service
+        .reconcile_drift(&unit(&broken))
+        .await
+        .expect("reconcile");
     assert_eq!(reconciled.repaired.len(), 1);
     assert_eq!(reconciled.reapplied, 0);
     assert!(!column_exists(&provider, "repair_tx_t", "note").await);
     assert!(
         service
-            .status(&broken)
+            .status(&unit(&broken))
             .await
             .expect("status")
             .drift
@@ -222,8 +255,14 @@ async fn reconcile_without_drift_is_a_noop() {
             "CREATE TABLE IF NOT EXISTS repair_clean_t (id BIGINT PRIMARY KEY);",
         )],
     };
-    service.run_pending_migrations(&ext).await.expect("apply");
-    let result = service.reconcile_drift(&ext).await.expect("reconcile");
+    service
+        .run_pending_migrations(&unit(&ext))
+        .await
+        .expect("apply");
+    let result = service
+        .reconcile_drift(&unit(&ext))
+        .await
+        .expect("reconcile");
     assert!(result.repaired.is_empty());
     assert_eq!(result.migrations_run, 0);
 }

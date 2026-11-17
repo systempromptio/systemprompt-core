@@ -10,6 +10,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use std::collections::HashMap;
 
 use anyhow::{Result, anyhow};
@@ -20,16 +21,15 @@ use systemprompt_wire::WireProtocol;
 
 use super::services_io::{CatalogLocation, commit_catalog};
 use super::types::ConfigMutationOutput;
-use crate::CliConfig;
-use crate::context::CommandContext;
-use crate::shared::{CommandOutput, render_result};
+use systemprompt_extension::cli::CommandOutput;
 
 pub async fn apply(
-    ctx: &CommandContext,
+    host: &dyn KernelHost,
     title: &str,
     edit: impl FnOnce(&mut CatalogDocument, &CatalogContext) -> Result<String>,
-) -> Result<()> {
-    let loaded = ctx.loaded_profile()?;
+) -> Result<CommandOutput> {
+    let boot = crate::commands::admin::state::boot(host)?;
+    let loaded = boot.loaded_profile();
     let location = CatalogLocation::active(loaded);
     let before = location.read()?;
     let mut after = before.clone();
@@ -39,34 +39,32 @@ pub async fn apply(
     )?;
     let services = commit_catalog(&location, &after, loaded.profile())?;
     let outcome = super::reconcile::reconcile_authz(
-        ctx.config()?,
+        crate::commands::admin::state::config(host)?.as_ref(),
         &services,
         &location.dir.display().to_string(),
     )
     .await;
-    render_result(
-        &CommandOutput::card_value(
-            title,
-            &ConfigMutationOutput {
-                field: "catalog".to_owned(),
-                message: super::reconcile::append_reconcile_notice(message, &outcome),
-            },
-        ),
-        &ctx.cli,
-    );
-    Ok(())
+    Ok(CommandOutput::card_value(
+        title,
+        &ConfigMutationOutput {
+            field: "catalog".to_owned(),
+            message: super::reconcile::append_reconcile_notice(message, &outcome),
+        },
+    ))
 }
 
-pub fn render_list(config: &CliConfig, title: &str, rows: Vec<String>) {
+#[must_use]
+pub fn list_output(title: &str, rows: Vec<String>) -> CommandOutput {
     let items: Vec<ListItem> = rows
         .into_iter()
         .map(|row| ListItem::new(row, String::new(), String::new()))
         .collect();
-    render_result(&CommandOutput::list(items).with_title(title), config);
+    CommandOutput::list(items).with_title(title)
 }
 
-pub fn read_active(ctx: &CommandContext) -> Result<CatalogDocument> {
-    CatalogLocation::active(ctx.loaded_profile()?).read()
+pub async fn read_active(host: &dyn KernelHost) -> Result<CatalogDocument> {
+    let boot = crate::commands::admin::state::boot(host)?;
+    CatalogLocation::active(boot.loaded_profile()).read()
 }
 
 pub fn parse_wire(raw: &str) -> Result<WireProtocol> {

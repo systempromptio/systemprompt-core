@@ -3,14 +3,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 
 use super::{RestartTarget, ServicesCommands, StartTarget, StopTarget, restart, start, stop};
-use crate::context::CommandContext;
-use crate::shared::render_result;
+use crate::commands::shared::app_context;
+use systemprompt_extension::cli::CommandOutput;
 
-pub async fn execute(command: ServicesCommands, ctx: &CommandContext) -> Result<()> {
-    let config = &ctx.cli;
+pub async fn execute(command: ServicesCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
         ServicesCommands::Start {
             target,
@@ -30,7 +30,8 @@ pub async fn execute(command: ServicesCommands, ctx: &CommandContext) -> Result<
                 skip_migrate,
                 kill_port_process,
             };
-            execute_start(target, flags, options, ctx).await
+            execute_start(target, flags, options, host).await?;
+            Ok(CommandOutput::rendered())
         },
 
         ServicesCommands::Stop {
@@ -45,7 +46,7 @@ pub async fn execute(command: ServicesCommands, ctx: &CommandContext) -> Result<
                 all,
                 targets: start::ServiceTargetFlags { api, agents, mcp },
             };
-            execute_stop(target, flags, force, ctx).await
+            execute_stop(target, flags, force, host).await
         },
 
         ServicesCommands::Restart {
@@ -53,22 +54,16 @@ pub async fn execute(command: ServicesCommands, ctx: &CommandContext) -> Result<
             failed,
             agents,
             mcp,
-        } => execute_restart(target, failed, agents, mcp, ctx).await,
+        } => execute_restart(target, failed, agents, mcp, host).await,
 
         ServicesCommands::Status {
             detailed,
             json,
             health,
-        } => {
-            let result = super::status::execute(detailed, json, health, ctx).await?;
-            render_result(&result, config);
-            Ok(())
-        },
+        } => super::status::execute(detailed, json, health, host).await,
 
         ServicesCommands::Cleanup { yes, dry_run } => {
-            let result = super::cleanup::execute(yes, dry_run, ctx).await?;
-            render_result(&result, config);
-            Ok(())
+            super::cleanup::execute(yes, dry_run, host).await
         },
 
         ServicesCommands::Serve {
@@ -77,15 +72,16 @@ pub async fn execute(command: ServicesCommands, ctx: &CommandContext) -> Result<
             skip_migrate,
         } => {
             super::serve::execute(
-                ctx.prompter(),
+                host.prompter(),
                 super::serve::ServeFlags {
                     foreground,
                     kill_port_process,
                     skip_migrate,
                 },
-                ctx,
+                host,
             )
-            .await
+            .await?;
+            Ok(CommandOutput::rendered())
         },
     }
 }
@@ -94,51 +90,45 @@ async fn execute_start(
     target: Option<StartTarget>,
     flags: start::ServiceFlags,
     options: start::StartupOptions,
-    ctx: &CommandContext,
+    host: &dyn KernelHost,
 ) -> Result<()> {
     if let Some(individual) = target {
-        let app = ctx.app_context().await?;
+        let app = app_context(host).await?;
         return match individual {
             StartTarget::Agent { agent } => {
-                start::execute_individual_agent(app, &agent, &ctx.cli).await
+                start::execute_individual_agent(&app, &agent, host.output()).await
             },
             StartTarget::Mcp { server_name } => {
-                start::execute_individual_mcp(app, &server_name, &ctx.cli).await
+                start::execute_individual_mcp(&app, &server_name, host.output()).await
             },
         };
     }
 
     let service_target = start::ServiceTarget::from_flags(flags);
-    start::execute(service_target, options, ctx).await
+    start::execute(service_target, options, host).await
 }
 
 async fn execute_stop(
     target: Option<StopTarget>,
     flags: start::ServiceFlags,
     force: bool,
-    ctx: &CommandContext,
-) -> Result<()> {
-    let config = &ctx.cli;
+    host: &dyn KernelHost,
+) -> Result<CommandOutput> {
+    let config = host.output();
     if let Some(individual) = target {
-        let app = ctx.app_context().await?;
+        let app = app_context(host).await?;
         return match individual {
             StopTarget::Agent { agent, force } => {
-                let result = stop::execute_individual_agent(app, &agent, force, config).await?;
-                render_result(&result, config);
-                Ok(())
+                stop::execute_individual_agent(&app, &agent, force, config).await
             },
             StopTarget::Mcp { server_name, force } => {
-                let result = stop::execute_individual_mcp(app, &server_name, force, config).await?;
-                render_result(&result, config);
-                Ok(())
+                stop::execute_individual_mcp(&app, &server_name, force, config).await
             },
         };
     }
 
     let service_target = start::ServiceTarget::from_flags(flags);
-    let result = stop::execute(service_target, force, ctx).await?;
-    render_result(&result, config);
-    Ok(())
+    stop::execute(service_target, force, host).await
 }
 
 async fn execute_restart(
@@ -146,35 +136,31 @@ async fn execute_restart(
     failed: bool,
     agents: bool,
     mcp: bool,
-    ctx: &CommandContext,
-) -> Result<()> {
-    let config = &ctx.cli;
-    let app = ctx.app_context().await?;
-
-    let result = if failed {
-        restart::execute_failed(app, config).await?
-    } else if agents {
-        restart::execute_all_agents(app, config).await?
-    } else if mcp {
-        restart::execute_all_mcp(app, config).await?
-    } else {
-        match target {
-            Some(RestartTarget::Api) => restart::execute_api(ctx.prompter(), ctx).await?,
+    host: &dyn KernelHost,
+) -> Result<CommandOutput> {
+    let config = host.output();
+    if !(failed || agents || mcp) {
+        return match target {
+            Some(RestartTarget::Api) => restart::execute_api(host.prompter(), host).await,
             Some(RestartTarget::Agent { agent }) => {
-                restart::execute_agent(app, &agent, config).await?
+                restart::execute_agent(&app_context(host).await?, &agent, config).await
             },
             Some(RestartTarget::Mcp { server_name, build }) => {
-                restart::execute_mcp(app, &server_name, build, config).await?
+                restart::execute_mcp(&app_context(host).await?, &server_name, build, config).await
             },
-            None => {
-                return Err(anyhow::anyhow!(
-                    "Must specify target (api, agent, mcp) or use --failed/--agents/--mcp flag"
-                ));
-            },
-        }
-    };
-    render_result(&result, config);
-    Ok(())
+            None => Err(anyhow::anyhow!(
+                "Must specify target (api, agent, mcp) or use --failed/--agents/--mcp flag"
+            )),
+        };
+    }
+    let app = app_context(host).await?;
+    if failed {
+        restart::execute_failed(&app, config).await
+    } else if agents {
+        restart::execute_all_agents(&app, config).await
+    } else {
+        restart::execute_all_mcp(&app, config).await
+    }
 }
 
 pub fn load_service_configs(

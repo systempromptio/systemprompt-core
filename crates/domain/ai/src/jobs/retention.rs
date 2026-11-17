@@ -12,9 +12,9 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use systemprompt_database::DbPool;
+use systemprompt_extension::{Contributions, RetentionDecl};
 use systemprompt_traits::{
     JobContext, ProviderError, ProviderResult, RetentionPurge, RetentionSweep,
-    register_retention_purge, register_retention_sweep,
 };
 use tracing::{info, warn};
 
@@ -120,7 +120,9 @@ impl RetentionSweep for OrphanedRequestsSweep {
     }
 }
 
-register_retention_purge!("ai", &RequestMessagesPurge);
-register_retention_purge!("ai", &RequestPayloadsPurge);
-register_retention_purge!("ai", &QuotaBucketsPurge);
-register_retention_sweep!("ai", &OrphanedRequestsSweep);
+pub(super) fn contribute(c: &mut Contributions<'_>) {
+    c.retention(RetentionDecl::Purge(Arc::new(RequestMessagesPurge)))
+        .retention(RetentionDecl::Purge(Arc::new(RequestPayloadsPurge)))
+        .retention(RetentionDecl::Purge(Arc::new(QuotaBucketsPurge)))
+        .retention(RetentionDecl::Sweep(Arc::new(OrphanedRequestsSweep)));
+}

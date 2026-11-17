@@ -6,8 +6,9 @@ use std::time::{Duration, Instant};
 
 use clap::Parser;
 use serde_json::Value;
+use systemprompt_cli::EnvOverrides;
 use systemprompt_cli::infrastructure::jobs::{self, JobsCommands};
-use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::JobName;
 use systemprompt_scheduler::JobRepository;
 use systemprompt_test_fixtures::{DisposableDb, ensure_test_bootstrap, test_app_context};
@@ -37,7 +38,7 @@ async fn mixed_job_run_helper() {
         std::env::var_os("JOBS_RUN_DATABASE_INFO").expect("private database info channel");
     std::fs::write(info_path, database.url()).expect("write private database info");
     let pool = database.test_pool().await;
-    let app = test_app_context(&pool, database.url());
+    let app = test_app_context(database.url()).await;
     let repository = JobRepository::new(&pool);
     for name in [SUCCESS_JOB, MISSING_JOB] {
         repository
@@ -54,7 +55,7 @@ async fn mixed_job_run_helper() {
     );
 
     println!("BEGIN_JOB_RUN");
-    let error = jobs::execute(
+    let outcome = jobs::execute(
         parse(&[
             "run",
             SUCCESS_JOB,
@@ -64,13 +65,16 @@ async fn mixed_job_run_helper() {
         ]),
         &ctx,
     )
-    .await
-    .expect_err("a batch with a failed job renders its table, then fails the command");
+    .await;
+    let error = crate::boot_ctx::rendered(&ctx, outcome)
+        .expect_err("a batch with a failed job renders its table, then fails the command");
     println!("END_JOB_RUN");
     let message = error.to_string();
     assert!(message.starts_with("1 of 2 job(s) failed:"), "{message}");
     assert!(
-        message.contains("owned_missing_job: Job 'owned_missing_job' not found"),
+        message.contains(
+            "owned_missing_job: Job 'owned_missing_job' is not registered by any admitted extension"
+        ),
         "{message}"
     );
 
@@ -212,7 +216,7 @@ fn mixed_manual_run_reports_rows_and_persists_each_outcome() {
     assert_eq!(rows[1]["result"]["success"], false);
     assert_eq!(
         rows[1]["result"]["message"],
-        "Job 'owned_missing_job' not found"
+        "Job 'owned_missing_job' is not registered by any admitted extension"
     );
     assert!(rows[1]["result"]["items_processed"].is_null());
     assert!(rows[1]["result"]["items_failed"].is_null());
@@ -228,7 +232,7 @@ fn mixed_manual_run_reports_rows_and_persists_each_outcome() {
             [
                 MISSING_JOB,
                 "failed",
-                "Job 'owned_missing_job' not found",
+                "Job 'owned_missing_job' is not registered by any admitted extension",
                 1
             ]
         ])

@@ -1,0 +1,14 @@
+[root]
+section = "Breaking"
+area = "Analytics"
+text = "The analytics member provides `Arc<AnalyticsRepositories>` and `Arc<AnalyticsService>`, and the analytics stream is handed its broadcaster by the composition as the subscribe-only `AnalyticsSubscription`: a route set at the engagement base cannot resolve it, and a missing handle refuses boot. The request-analytics middleware skips the part of the record whose provider is absent. `AnalyticsRepositories::new(db, sessions, event_log)` and `SessionSignalsRepository::new(db, owner, events)` no longer take the content catalog; `get_total_content_pages`, `collect_analysis_input` and `SessionBehaviourScorer::score` take it per call. Migrate by passing the `DynContentCatalogStats` the content member provides."
+
+[[crate]]
+name = "systemprompt-analytics"
+section = "Breaking"
+text = "`AnalyticsRepositories::new(db, sessions, event_log)` and `SessionSignalsRepository::new(db, owner, events)` no longer take the content catalog; `AnalyticsExtension` and `AnalyticsHttpExtension` implement `contribute` and the member provides `Arc<AnalyticsRepositories>` and `Arc<AnalyticsService>`."
+
+[[crate]]
+name = "systemprompt-events"
+section = "Added"
+text = "`AnalyticsSubscriptions`: the analytics broadcaster as the subscribe-only `AnalyticsSubscription` handle, serving frame subscribers. `ToSse` requires `to_frame` and derives `to_sse` from it."

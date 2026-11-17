@@ -18,7 +18,10 @@ async fn setup() -> Ctx {
 }
 
 async fn delete_user(ctx: &Ctx, id: &UserId) {
-    ctx.service.delete(id).await.expect("cleanup user");
+    ctx.service
+        .delete(id, &crate::purge_plan::purge_plan())
+        .await
+        .expect("cleanup user");
 }
 
 fn unique(prefix: &str) -> (String, String) {
@@ -186,7 +189,10 @@ async fn delete_removes_user() {
         .await
         .expect("create");
 
-    ctx.service.delete(&created.id).await.expect("delete");
+    ctx.service
+        .delete(&created.id, &crate::purge_plan::purge_plan())
+        .await
+        .expect("delete");
     assert!(
         ctx.service
             .find_by_id(&created.id)

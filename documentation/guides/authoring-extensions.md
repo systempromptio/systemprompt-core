@@ -1,46 +1,44 @@
 # Authoring an extension
 
-How to build a systemprompt extension: declare metadata, embed schema DDL and migrations, mount API routes, and register the extension so the runtime discovers it at compile time.
+How to build a systemprompt extension: a Rust type that declares its schema, routes, jobs, commands and seams, composed into the binary with the core members.
 
-An extension is a Rust type that implements the `Extension` trait and is registered with the `register_extension!` macro. Registrations are collected at compile time through the [`inventory`](https://docs.rs/inventory) crate — there is no runtime plugin loading, no dynamic library, and no manifest file to ship. An extension is code that links into the binary. For the design rationale, see [concepts/extensions.md](../concepts/extensions.md).
+An extension is a composition member: a type that implements `Extension` and is added to the binary's `Composition`. There is no runtime plugin loading, no dynamic library, no registration macro and no manifest file to ship; a member contributes only when the binary's `main` composes it. For the design, see [concepts/extensions.md](../concepts/extensions.md).
 
 ## Prerequisites
 
 - A Rust toolchain matching the workspace edition (Edition 2024; minimum Rust per `rust-toolchain.toml`).
-- A crate that depends on the `systemprompt` facade with the `core` feature, or directly on `systemprompt-extension`.
-- The extension crate must be linked into the binary you run. Compile-time registration only takes effect for crates that are actually compiled and linked; an extension crate that nothing depends on contributes nothing.
+- A crate that depends on the `systemprompt` facade with the `full` feature. `Composition` and `reference()` are compiled only with `full`; a library crate that only declares a member can depend on `systemprompt-extension` (with its `router` and `cli` features for route sets and commands).
 
 ```toml
 # Cargo.toml
 [dependencies]
-systemprompt = { version = "0.81", features = ["core"] }
-inventory = "0.3"
+systemprompt = { version = "0.83", features = ["full"] }
 ```
 
-The trait, the macro, and the value types are re-exported through the facade prelude:
+The complete minimal member and binary is the facade example `systemprompt/examples/extension.rs`:
 
 ```rust
+use std::process::ExitCode;
+
+use async_trait::async_trait;
+use axum::http::Method;
+use systemprompt::extension::cli::{
+    CliCommandGroup, CommandDecl, CommandDescriptor, CommandError, CommandHost, CommandOutput,
+    DescribeCommand,
+};
 use systemprompt::extension::prelude::*;
-```
+use systemprompt::extension::router::{ApiBase, BasePath, BodyLimit, RouteLimits, RouteSet, RouteSpec};
+use systemprompt::extension::RouteGroup;
+use systemprompt::traits::{Job, JobContext, JobResult, ProviderResult};
+use systemprompt::{RunError, reference};
 
-This brings `Extension`, `ExtensionMetadata`, `SchemaDefinition`, `ExtensionRouter`, `Migration`, `register_extension!`, `extension_migrations!`, `register_gateway_guard!`, the `ExtensionContext` trait, the state types (`StateBuilder`, `StateRequirement`, `StateHandle`, `ExtensionStateError`, `Dependencies`) and the provider contracts into scope.
+const LIMITS: RouteLimits = RouteLimits {
+    rate: RateLimit::new("demo", RateBudget::Contexts),
+    body: BodyLimit::Default,
+};
+const USER: RouteSpec = RouteSpec::new(AuthzPolicy::user(), ContextKind::User, LIMITS);
 
-## Step 1 — Implement the `Extension` trait
-
-`Extension` has one required method, `metadata`. Every other method has a default that returns an empty contribution, so you implement only the surfaces your extension provides.
-
-`ExtensionMetadata` has three fields, all `&'static str`:
-
-| Field | Meaning |
-|-------|---------|
-| `id` | Stable identifier, used for dependency references and registry lookup. |
-| `name` | Display name. |
-| `version` | Version string; `env!("CARGO_PKG_VERSION")` is the conventional value. |
-
-```rust
-use systemprompt::extension::prelude::*;
-
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, Default)]
 struct DemoExtension;
 
 impl Extension for DemoExtension {
@@ -51,62 +49,270 @@ impl Extension for DemoExtension {
             version: env!("CARGO_PKG_VERSION"),
         }
     }
+
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        c.schema(SchemaDefinition::new(
+            "demo_extension_state",
+            "CREATE TABLE IF NOT EXISTS demo_extension_state (id TEXT PRIMARY KEY)",
+        ))
+        .routes(
+            RouteSet::at::<DemoState>(
+                BasePath::Api(ApiBase::Extension("/api/demo")),
+                RouteGroup::Extensions,
+            )
+            .route(Method::GET, "/status", status, USER)
+            .build(),
+        )
+        .job(DemoJob)
+        .command(CommandDecl::group::<DemoCommands>());
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone)]
+struct DemoState;
+
+impl FromState for DemoState {
+    fn from_state(_r: &Resolved<'_>) -> Result<Self, MissingDependency> {
+        Ok(Self)
+    }
+}
+
+async fn status() -> &'static str {
+    "ok"
+}
+
+#[derive(Debug, Clone, Copy)]
+struct DemoJob;
+
+#[async_trait]
+impl Job for DemoJob {
+    fn name(&self) -> &'static str {
+        "demo_heartbeat"
+    }
+
+    fn schedule(&self) -> &'static str {
+        "0 0 * * * *"
+    }
+
+    async fn execute(&self, _ctx: &JobContext) -> ProviderResult<JobResult> {
+        Ok(JobResult::success())
+    }
+}
+
+#[derive(Debug, Clone, clap::Subcommand)]
+enum DemoCommands {
+    Status,
+}
+
+impl DescribeCommand for DemoCommands {
+    fn descriptor(&self) -> CommandDescriptor {
+        CommandDescriptor::NONE
+    }
+}
+
+impl CliCommandGroup for DemoCommands {
+    const NAME: &'static str = "demo";
+    const ABOUT: &'static str = "Demo extension commands";
+
+    async fn run(self, _host: &dyn CommandHost) -> Result<CommandOutput, CommandError> {
+        match self {
+            Self::Status => Ok(CommandOutput::text("demo extension is installed")),
+        }
+    }
+}
+
+fn main() -> Result<ExitCode, RunError> {
+    reference().with(DemoExtension).run()
 }
 ```
-
-The type must be `Send + Sync + 'static`. The `register_extension!($type)` form constructs the extension with `Default::default()`, so implementing or deriving `Default` is required when you register by type.
-
-## Step 2 — Register the extension
-
-`register_extension!` submits an `inventory` registration. The runtime iterates every registration at startup, builds each extension, validates declared dependencies, and merges the schemas, routes, jobs, and providers into the host.
-
-```rust
-register_extension!(DemoExtension);
-```
-
-Two forms are accepted:
-
-- `register_extension!(DemoExtension)` — constructs via `Default`.
-- `register_extension!(DemoExtension::default())` — registers a factory expression. The expression runs in a noncapturing factory and cannot refer to local variables.
-
-The complete minimal extension is the facade example `systemprompt/examples/extension.rs`, runnable with:
 
 ```bash
-cargo run -p systemprompt --example extension --features core
+cargo run -p systemprompt --example extension --features full -- demo status
 ```
 
-## Step 3 — Declare schema tables
+## The `Extension` trait
 
-Return a `SchemaDefinition` for each table the extension owns. Embed the DDL from a `.sql` file with `include_str!` rather than inlining a SQL string literal; the convention is `{crate}/schema/<table>.sql`.
+`Extension` has two methods:
 
 ```rust
-fn schemas(&self) -> Vec<SchemaDefinition> {
-    vec![
-        SchemaDefinition::new("demo_items", include_str!("../schema/demo_items.sql"))
-            .with_required_columns(vec!["id".into(), "created_at".into()]),
-    ]
+pub trait Extension: Send + Sync + 'static {
+    fn metadata(&self) -> ExtensionMetadata;
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError>;
 }
 ```
 
-`SchemaDefinition::new(table, sql)` takes the table name and the DDL. `with_required_columns` records columns the runtime validates against the live schema. `with_schema(name)` targets a non-`public` Postgres schema; the default is `public`.
+`ExtensionMetadata` has three `&'static str` fields: `id` (validated into an `ExtensionId` once, at composition), `name` and `version`.
 
-The DDL file (`schema/demo_items.sql`) holds the `CREATE TABLE`:
+`contribute` runs once per composition, before the profile is loaded, and only stores declarations into the member's own sink. No method of `Contributions` accepts or returns another member's entries. Provide fns, factories, slot builds and asset closures are deferred: nothing a member declares runs until the composition has admitted it against the profile. A declaration that fails validation (an invalid base path, a route set built through the wrong builder) refuses the composition with `CompositionError::Contribution` naming the member.
 
-```sql
-CREATE TABLE IF NOT EXISTS demo_items (
-    id          TEXT PRIMARY KEY,
-    label       TEXT NOT NULL,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+## Identity and standing
+
+A member's identity is its Rust type and its standing, not a string it supplies. Every member a binary adds with `Composition::with` has **install** standing; the core members in `reference()` have **core** standing. There is no API that confers core standing, a reserved path, a privileged route shape or a kernel grant on an install member, and no API that replaces a core member.
+
+An install member may not take a core member id (`CompositionError::ReservedId`), whether or not that core member is linked or enabled; `systemprompt::CORE_MEMBER_IDS` is the list. Two members with one id are refused (`DuplicateId`).
+
+Tables, purge records and migration ledgers are recorded against the member id. Changing a member's id is refused against tables recorded to the old id (`LoaderError::DuplicateTableOwner` names the owner) until the records are re-assigned.
+
+## What a member contributes
+
+Every method on `Contributions` returns `&mut Self` and chains.
+
+### Schemas, migrations and seeds
+
+- `c.schema(SchemaDefinition::new(table, sql))` declares a table. Embed the DDL from `{crate}/schema/<table>.sql` with `include_str!`. The tables a member owns are the tables its schema SQL creates (`CREATE TABLE`), not the `table` label; schema SQL that does not parse refuses admission.
+- `c.migrations(extension_migrations!())` returns the migrations `build.rs` discovers (see [Migrations](#migrations)).
+- `c.seed(Seed)` declares seed data; `c.retire(SchemaDefinition)` declares a table the member no longer creates.
+- `c.cross_table(table)` names a table another member creates that this member's migrations may alter, drop, truncate or rename. An install's declaration does not cover a core member's table. Do not list owned tables there.
+
+The installer runs over the admitted composition and records the owner and standing of every table it creates in `schema_table_owners`. A member declaring a table recorded to another member is refused before any DDL runs, including a table recorded to a member the profile disables, and an install claiming a table recorded under core standing is refused (`LoaderError::CoreRecordClaimedByInstall`).
+
+Before any DDL the installer also judges every migration that will run (one not yet recorded as applied, on a database that is not fresh) and every statement of an install member's declarative schema, which runs on every full install (an install whose schema is settled runs no DDL and judges nothing). A schema statement is judged exactly as a migration statement is (the finding names `schema` in place of the migration); a core member's declarative schema is not judged. A table belongs to its live ownership record, then to the member whose declarative schema creates it, then to the member whose migrations create it and do not drop it again.
+
+- A `CREATE TABLE`, with or without `IF NOT EXISTS`, `CREATE TABLE ... AS` or `SELECT ... INTO` of a table another member owns is refused (`MigrationOwnershipError::SharedTable`, naming both members and the table).
+- `ALTER TABLE` (including `SET SCHEMA` and `ENABLE ROW LEVEL SECURITY`), `DROP TABLE`, `TRUNCATE`, `RENAME` of a table, column, constraint, trigger, policy or rule, `CREATE RULE`, `CREATE POLICY`, `ALTER POLICY`, `DROP POLICY|RULE ... ON`, and `GRANT`/`REVOKE` on another member's table are refused (`MigrationOwnershipError::ForeignTable`), unless a `cross_table` declaration covers it. Every relation a statement changes is judged, not only its main one: the parent of `CREATE TABLE ... INHERITS`, `PARTITION OF` and `ALTER TABLE ... INHERIT | NO INHERIT`, the partition of `ALTER TABLE ... ATTACH | DETACH PARTITION`, and each statement a `CREATE RULE` runs. A relation a statement only reads or constrains against (`LIKE ... INCLUDING`, a foreign-key `REFERENCES`, a query's `FROM`) is not changed by it and is not judged. A `sql`-language routine's body is read as part of the migration.
+- `DROP SCHEMA`, `ALTER SCHEMA ... RENAME`, `GRANT`/`REVOKE ... ON SCHEMA` and `GRANT ... ON ALL ... IN SCHEMA` over `public` or a schema holding another member's objects, and `ALTER TABLE ALL IN TABLESPACE`, are refused (`MigrationOwnershipError::SchemaLevel`).
+- An `INSERT`, `UPDATE`, `DELETE`, `MERGE` or `COPY` into a kernel ledger (`extension_migrations`, `extension_migration_compat`, `schema_table_owners`, `schema_object_owners`, `schema_purge_records`, `schema_install_fingerprint`, `schema_trigger_digests`) is refused (`MigrationOwnershipError::LedgerWrite`), also inside a rule's actions, except `DELETE FROM extension_migrations WHERE extension_id = '<id>'` (or `IN (...)`) for ids no member or record holds. Every other statement on a ledger, a trigger, index, rule or policy included, is refused (`ForeignTable`) for every member but the core `database` member, and so is an install member's view, materialized view or rule that reads a ledger (a simple view over a ledger is auto-updatable, so a write into it would be a write into the ledger); an install cannot take that id (`CompositionError::ReservedId`), and an install-standing member never holds a core-standing claim even under the same id.
+- Tables and objects are ranked the same way: a live ownership record first (`schema_table_owners` for tables, `schema_object_owners` for every other object), then a core member before an install member, then a declarative schema before a migration, then composition order. A table created by `CREATE TABLE ... AS` or `SELECT ... INTO` is a table. A record is not live, is no claim, and is deleted by the install after its DDL, when it carries install standing, its owner is admitted and not held back in this install, and a core member's SQL creates the same table or object (the owner's own create of that name is then refused as shared, so one written when an install's declarative schema outranked a core migration does not survive), or when it names an object its owner, admitted and not held back, no longer creates (a member's own record never counts as the create that keeps it; a member with a tombstoned migration keeps its object records, since a tombstone carries no SQL, except a trigger on a table its retirements name; an object such a member really dropped therefore keeps its record, and another install member creating that name is refused until the record is removed from `schema_object_owners`). A record whose owner is held back or disabled is always live: a core member declaring that table is refused (`LoaderError::DuplicateTableOwner`), and a core member creating that object is refused (`ForeignObject`), so a disabled member's recorded tables and objects cannot be adopted; the record, the rows and the absent member's purge record stay, and `infra db doctor` keeps listing the table under the absent member. An index, routine, view, materialized view, sequence, type, domain or trigger (a trigger is identified by its name and its table) belongs to the first member whose SQL creates it and does not drop it again. For an install member, a create of such an object another member owns is refused, in a migration or in its declarative schema, including `CREATE OR REPLACE`, `CREATE ... IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS` and `CREATE OR REPLACE TRIGGER`; so are `ALTER` (including `RENAME`, `OWNER TO`, a type's `ADD`, `DROP`, `ALTER` or `RENAME ATTRIBUTE` and a domain's `RENAME CONSTRAINT`), `ALTER INDEX`, `ALTER TRIGGER ... RENAME`, `DROP`, `DROP INDEX` and `DROP TRIGGER` (with or without `IF EXISTS`), `SET SCHEMA`, and `GRANT`/`REVOKE` on a routine, sequence, type or domain of such an object (`MigrationOwnershipError::ForeignObject`). The object is found by its name whatever statement form names it, so `ALTER TABLE` used to rename, move or re-own a view, materialized view, sequence or index is judged against that object's owner. Naming another member's object in a create never makes it the install's own. A member held back from an install still owns what it creates and its SQL is not judged; a disabled member owns what its live records name. Dropping or retiring a table releases the triggers on it, their records included.
+- For an install member, also refused are `CALL`, `EXECUTE`, `COPY` from a file or program, a `sql` routine whose body does not parse, and any statement kind the reader does not classify, whatever it names (a `RENAME` or `GRANT` of an object kind not listed above included) (`MigrationOwnershipError::Unreadable`). A core member's statements of these kinds are logged as unjudged.
+
+An install migration or declarative schema may contain plain DDL on its own tables (create, alter, index, drop, constraints and triggers on them), `sql`-language functions, `COMMENT ON`, `LOCK`, `REFRESH MATERIALIZED VIEW`, `VACUUM`, `REINDEX`, data writes into its own tables, and foreign-key `REFERENCES` to other members' tables. The installer logs at `warn`, naming the member and the migration, and does not refuse, a `DO` block (once per migration), `CREATE INDEX` on another member's table, a new trigger, or a drop of the member's own trigger, on another member's table (not a kernel ledger), routines in other languages, `CREATE EXTENSION`, a routine call in a top-level `SELECT` or inside an `INSERT`, `UPDATE`, `DELETE` or `MERGE`, a `DROP INDEX` of an index no member's SQL creates, and a `CASCADE` drop (every one by an install member; by a core member, one of an object it does not own); what those routines and triggers run, and data writes into another member's tables, are not judged. A table whose owner names it in its retirements and no longer declares it has no owner: its record is released, any member's migration may alter or drop it, and a member may declare it on a later install. The rule guards against mistakes in a member's migrations and declarative schema; it is not a sandbox, since a `DO` block or a routine in another language can run any statement the rule refuses. A member disabled before its first recorded install has no table or object ownership record until it is next enabled, so after upgrading run one install with every member enabled.
+
+### Routes
+
+A member's HTTP surface is one or more `RouteSet`s, contributed with `c.routes(set)`. A set has a base, a route group, a state type and a spec per route:
+
+```rust
+RouteSet::at::<DemoState>(
+    BasePath::Api(ApiBase::Extension("/api/demo")),
+    RouteGroup::Extensions,
+)
+.route(Method::GET, "/status", status, USER)
+.build()
 ```
 
-The tables an extension owns are derived from these `CREATE TABLE` statements. Do not list owned tables in `cross_extension_tables` — that method is only for tables another extension creates that this one is permitted to `ALTER`.
+- The state type implements `FromState` and is built from the resolved state once the composition is admitted; a missing dependency fails boot.
+- Each route carries a `RouteSpec`: an `AuthzPolicy` (`public()`, `authenticated()`, `user()`, `admin()`, …), a `ContextKind` and `RouteLimits` (a `RateLimit` scope and budget, and a `BodyLimit`). The API mount applies each admitted set's policy, context, rate limit, body limit and protection layers; nothing is applied that the spec does not name.
+- `.service(prefix, service, spec)` nests one opaque service (a `tower` service) under a literal prefix of the set. It is recorded as one `ANY` route that conflicts with every other route the prefix covers.
+- Two routes with one method and path, across all members, refuse the composition.
 
-## Step 4 — Add migrations discovered by `build.rs`
+**Bases.** An install member's base is `ApiBase::Extension(path)`, where the path starts with `/api/`, contains no `.` and does not cover a reserved path (`ContributionError::InvalidBase`), or the web root (`BasePath::Web(WebBase::Root)`). A closed core API base is refused (`CompositionError::NotConferred`), as is `/track/engagement`. A set at the web root is protected route by route, so its gate never answers a path it does not route.
 
-Schema changes after the initial `CREATE TABLE` are migrations. Migration SQL lives in `{crate}/schema/migrations/NNN_<name>.sql`, where `NNN` is a numeric version prefix. The version and name come from the filename, so they cannot drift from the SQL they label.
+**Reserved paths.** Every route's full path, parameter, catch-all and `service` prefix is checked at admission, and re-checked when the server mounts it, against `systemprompt_extension::reserved::RESERVED_PATHS`: discovery, `/api/v1/auth/me`, the meta, OAuth, users, agents, MCP, stream, files, scheduler, core, admin, brain, documents, document folders, uploads, internal, issues, marketplace, sync, webhook, health and consumer API prefixes, the gateway (`/v1` and `/api/public/gateway`), `/.well-known`, `/`, `/health`, `/livez`, `/readyz`, `/auth/link-passkey`, the content base and `/r`, the analytics base and `/track`, notifications and admin notifications, agent runs, Slack, Teams and the cloud tenants path. Each is owned by one core member, whether or not that member is composed. A route reaching one is refused (`CompositionError::ReservedPrefix`).
 
-1. Add a build script that emits the migration list:
+**No root fallback.** An install cannot serve a catch-all at the root: `service("/")`, `/{*path}` and `/{slug}` are refused, and one opaque `service` cannot cover all of `/api/public`. Serve a fallback under an explicit prefix of the member's own base. The tree's one fallback is the kernel's static content: it is layered whole, so a declared site auth and the public context cover every page it serves, and a second claim on it refuses boot (`MountError::SecondRootFallback`).
+
+**Privileged shapes.** A handler-verified policy, the `HandlerResolved` context, a body limit above the server default, a closed core base, `/track/engagement`, a gateway path and a reserved CLI path are held only by the core member that `PRIVILEGED_SHAPES` or `RESERVED_CLI_PATHS` names, and only in exactly the listed shape. An install member using one is refused at admission, and the mount re-checks every admitted entry that uses a privilege.
+
+Gateway routes (`c.gateway_route(GatewayRouteDecl)`, built with `RouteSet::gateway`) are held only by the core member a gateway path is listed for. Each is admitted against the built-in gateway prefixes and the others (`GatewayRouteShadowsBuiltin`, `GatewayRouteOverlap`); every route of the set lies within its claimed gateway path (`GatewayRouteOutsideClaim`) and under no built-in gateway prefix (`GatewayRouteUnderBuiltin`), and two gateway routes claiming one request conflict (`RouteConflict`). The mount re-checks each rule. Admitted gateway routes keep the gateway credential, bearer window and access log.
+
+### Jobs
+
+`c.job(job)` contributes a scheduled job (a `Job` implementation with a `name` and a cron `schedule`). The scheduler runs only the jobs of admitted members, read from `AdmittedSchedule`. Retention declarations (`c.retention`), job-run scopes (`c.job_run_scope`) and projection drains (`c.projection`) are admitted the same way.
+
+A job's `JobContext` reads the host context with `ctx.get::<Arc<dyn ExtensionContext>>()` and provided values with `ctx.get::<T>()`; see [Runtime seams](#runtime-seams).
+
+### Commands
+
+`c.command(CommandDecl::group::<T>())` contributes a CLI group (`CommandDecl::group_under` and `leaf_under` attach below an existing group). The type implements `clap::Subcommand`, `DescribeCommand` and `CliCommandGroup`; its `run(self, host: &dyn CommandHost)` returns a `CommandOutput` that the CLI renders once (text, or JSON under the global `--json`).
+
+A member command:
+
+- needs a profile, unless it declares `DbUrlRouting::Direct`: on a bare `--database-url` run (no profile) a `Direct` command runs over every linked member with none disabled, whatever its standing, and any other member command is refused (`ProfileRequired`). A cloud profile that reaches its database directly (`external_db_access`) is still a profiled run: admission is against that profile and a disabled member's command is refused (`CommandDisabled`);
+- reads state through `host.resolved().await`, which withholds the kernel's sealed values (the configuration, the secret store, the system admin, the active services root and the event router) and holds no secrets sources, environment overrides, boot context or application context. A value a member's own provide fn builds from a sealed value is not withheld, so an install that wraps one hands it to its commands;
+- may request kernel grants with `CommandDecl::requesting` only on a reserved CLI path its core owner holds (`admin mcp`, `analytics`, `cloud`). An install member holds no reserved CLI path, so a grant request by an install is refused (`CompositionError::GrantNotConferred`), as is a command at a reserved path (`ReservedCliPath`) or a path declared twice.
+
+### User purge of the member's own tables
+
+A member that owns user-keyed tables declares how a user's rows leave them:
+
+```rust
+c.user_purge(UserPurgeTable { table: "demo_items", column: "user_id", predicate: None })
+    .orphan_sweep(OrphanSweep {
+        table: "demo_payloads",
+        key: "sha256",
+        referenced_by: "demo_items",
+        via: "payload_sha256",
+        user_column: "user_id",
+    });
+```
+
+A `PurgePredicate` (`{ column, any_of }`) narrows a table to rows whose column holds one of a fixed set of values. It is not SQL: the column is rendered as a quoted identifier and the values are bound. A purge table, and both tables of an orphan sweep, are admitted only over the declaring member's own schema tables, whatever its standing; anything else is refused when the kernel resolves (`KernelError::Purge`) and at schema install (`LoaderError::PurgeAdmission`). The installer records each member's declarations in `schema_purge_records`.
+
+### Configuration
+
+`c.config::<C>()` declares a typed configuration section: `C` implements `ExtensionConfig` (`serde::Deserialize` + `schemars::JsonSchema`, a `PREFIX` and `validate`). Startup validation reads `<services>/config/<PREFIX>.yaml` (an absent file validates as `{}`) and reports a malformed section under `<PREFIX>.config`. `c.config_plane(plane)` contributes a config plane reconciled against the services tree.
+
+### Shared state
+
+`c.provide::<T, _>(|r| …)` provides a value of type `T` built from the resolved state; `c.requires::<T>()` declares a type the member cannot run without; `c.depends_on::<E>()` orders the member after `E`. A provide fn reads dependencies with `r.get::<T>()` (a missing one fails boot) or `r.optional::<T>()`. Each type has exactly one provider: two members providing one type are refused (`DuplicateProvider`), and a type the kernel inserts (the audience resolvers, subject provider set, policy catalog and gateway guards) cannot be provided or slot-built by any member (`KernelError::ReservedType`). An install-provided value cannot meet a core member's requirement (`InstallSubstitution`).
+
+Readiness checks (`c.readiness`), diagnostic probes (`c.diagnostic`), metric descriptors (`c.metric`), runner services (`c.runner_service`), gateway guards (`c.gateway_guard`), subject attribute providers (`c.subject_attributes`), governance policies (`c.policy`), site auth (`c.site_auth`), roles (`c.role`), run origins (`c.run_origin`) and assets (`c.asset_with`) are contributed the same way, each as a factory or value the kernel builds after admission.
+
+### Slots
+
+A capability seam is a slot its owning crate defines in a `contract` module; a member contributes an entry with `c.slot::<S>()`, which returns the slot's builder. The kernel builds each slot once. The slots are `SsoSlot` (oauth-issuance), `ToolsetSlot` (mcp-host), `RouteSelectorSlot`, `OverrideSlot`, `SafetyScannerSlot` and `OutboundSlot` (gateway), `AuthzHookSlot` and `RoleDirectorySlot` (governance), `BrainSlot`, `NotificationsSlot`, `MarketplaceSlot`, `UiSlot` and `AccessRecorderSlot` (mcp), `ContentSlot`, and `BlobHolderSlot`, `AgentAccessSlot` and `DocumentsSlot` (files).
+
+A failing entry refuses the slot build (`SlotError::Entry`, `SlotError::Refused`); it is never skipped. An install entry cannot replace the gateway safety scanners, authz hooks, route selectors or overrides, and an outbound adapter or safety scanner named like a built-in, a second artifact theme, two renderers for one artifact type, a second role directory or a second agent access policy refuses the composition.
+
+### Audience resolvers
+
+`c.audience_resolver(factory)` contributes a `NotificationAudienceResolver` to the one `AudienceResolvers` set the notification pipeline and brain recall both read. Core alone resolves the `User`, `Role` and `Everyone` subjects and the reserved subject dimensions: an install resolver is for a custom dimension only. One claiming a reserved subject is refused (`SlotError::ReservedAudience`), every install resolver sits behind a guard that never answers a reserved subject, and two resolvers with one name are refused.
+
+## What an install member may not do
+
+Admission refuses, before anything the member declares runs:
+
+- a core member id, or a duplicate id;
+- a route reaching a reserved path, a root fallback, or a base other than its own `/api/` extension base or the web root;
+- a privileged route shape, a reserved CLI path or a kernel grant;
+- a table, purge table or orphan sweep over a table it does not create, or a table recorded to another member;
+- a second provider of a type, a type the kernel inserts, or a value substituting for a core requirement;
+- an audience resolver for a reserved subject or dimension, or a subject provider declaring `user`, `role` or `traffic`;
+- a slot entry that replaces a core-only seam.
+
+The schema installer separately refuses, before any DDL, a pending migration of the kinds listed under the schema rules above.
+
+These rules bound what a member can **declare**, and what its **commands** can read. They are not a sandbox: an install member is Rust code linked into the same process, with the same memory and system access as core.
+
+## Composing the binary
+
+The binary's `main` is the composition:
+
+```rust
+fn main() -> Result<ExitCode, RunError> {
+    reference().with(DemoExtension).run()
+}
+```
+
+- `reference()` is every core member this build links, in dependency order.
+- `.with(member)` adds a member with install standing; call it once per member.
+- `.without::<CoreMember>()` removes an optional core member; a required one cannot be removed.
+- `.secrets_source(kind, factory)` declares an external secrets source; a kind registered twice, or reserved for core, is refused.
+- `.run()` calls every member's `contribute`, admits commands against the reserved CLI paths, builds the command tree and starts the CLI; once a profile is loaded the composition is admitted against it, and `infra services serve` starts the server over the admitted members.
+
+## Disabling a member in a profile
+
+```yaml
+extensions:
+  disabled:
+    - demo-extension
+```
+
+A disabled member's contributions are dropped at admission, before any provide fn, factory, slot build or asset closure runs. Its `contribute` still runs, since that is how its declarations are read, and only stores:
+
+- none of its contributions runs: no routes are mounted, no commands are offered, no jobs, retention, guards, seams or providers are built;
+- its job names are unknown: a scheduler config naming one is refused at validation, `admin config validate` reports it as not contributed, and `infra jobs prune` treats its rows as prunable;
+- its recorded tables are kept: the schema installer does not drop them, no other member can claim them, and the installer refuses another member's pending migration that re-creates or changes them with a judged statement kind. A member disabled before its first recorded install has no record until it is next enabled;
+- a user purge still covers them, through the purge declarations recorded when the member was last installed.
+
+An id in `extensions.disabled` that names no composed member fails boot, as do a disabled required member, an enabled member that depends on a disabled one, and an enabled member requiring a type only a disabled member provides.
+
+## Migrations
+
+Schema changes after the initial `CREATE TABLE` are migrations in `{crate}/schema/migrations/NNN_<name>.sql`, where `NNN` is a numeric version prefix. The version and name come from the filename.
+
+1. Add a build script, with `systemprompt-extension` in `[build-dependencies]`:
 
    ```rust
    // build.rs
@@ -115,28 +321,9 @@ Schema changes after the initial `CREATE TABLE` are migrations. Migration SQL li
    }
    ```
 
-   Add the same dependency to `[build-dependencies]`:
+2. Add migration files, for example `schema/migrations/001_add_demo_items_label_index.sql`.
 
-   ```toml
-   [build-dependencies]
-   systemprompt-extension = "0.81"
-   ```
-
-2. Add migration files. For example `schema/migrations/001_add_demo_items_label_index.sql`:
-
-   ```sql
-   CREATE INDEX idx_demo_items_label ON demo_items (label);
-   ```
-
-3. Return the generated list from `migrations` with the `extension_migrations!` macro, which `include!`s the file `emit_migrations` wrote to `OUT_DIR`:
-
-   ```rust
-   fn migrations(&self) -> Vec<Migration> {
-       extension_migrations!()
-   }
-   ```
-
-Filename conventions enforced by the build script:
+3. Contribute the generated list: `c.migrations(extension_migrations!())`.
 
 | File | Effect |
 |------|--------|
@@ -150,9 +337,9 @@ The build fails if a file is misnamed or two files claim the same version. Addin
 
 ### Deleting a migration
 
-**Never free a number by deleting its file.** A migration that has shipped is applied in every established database, which keeps a tracking row for that version forever. Delete the file and the number *looks* free, but refilling it means the runner sees the version as already applied, skips the new SQL entirely, and then refuses to boot on a checksum belonging to a migration nobody can find.
+**Never free a number by deleting its file.** A migration that has shipped is applied in every established database, which keeps a tracking row for that version. Refilling a freed number means the runner sees the version as applied, skips the new SQL, and refuses to boot on a checksum belonging to a migration nobody can find.
 
-So deleting is two steps: remove the `.sql` and leave a `.tombstone` in its place, keeping the original name.
+Deleting is two steps: remove the `.sql` and leave a `.tombstone` in its place, keeping the original name.
 
 ```
 schema/migrations/
@@ -160,137 +347,42 @@ schema/migrations/
   008_next_change.sql
 ```
 
-The runner never executes, records, or checksums a tombstoned slot, and `emit_migrations` treats the number as occupied — so reusing it fails the **build** rather than a deployment. `infra db migrate-status` lists any applied version that no file claims as `orphaned`; that is the list of tombstones still owed.
-
-## Step 5 — Mount an API router
-
-To serve HTTP routes, return one `ExtensionRouter` per route group from `routers`. The method receives an `&dyn ExtensionContext`, which exposes the profile and configuration, the database handle, file storage, secrets, background tasks, the coordination seams, lookup of other extensions and the extension state.
-
-```rust
-fn routers(
-    &self,
-    _ctx: &dyn ExtensionContext,
-) -> Result<Vec<ExtensionRouter>, ExtensionStateError> {
-    let router = axum::Router::new()
-        .route("/items", axum::routing::get(|| async { "ok" }));
-    Ok(vec![
-        ExtensionRouter::new(router, "/api/v1/demo", AuthzPolicy::user(), ContextKind::User)
-            .with_rate_limit(RateLimit::new("demo", RateBudget::Content)),
-    ])
-}
-```
-
-The default returns no routers. An `Err` (a client or provided value the routers need cannot be built) fails boot with `LoaderError::RouterBuildFailed` naming the extension; a router is never left silently unmounted.
-
-An `ExtensionRouter` is a mount declaration (`crates/shared/extension/src/router.rs`). The host applies everything it carries with the same enforcement it uses for its own routes; nothing is applied that the declaration does not name, and there is no default policy.
-
-| Field | Set with | Meaning |
-|---|---|---|
-| Authorization policy | `new(router, base_path, policy, context)` (required) | `AuthzPolicy::public()`, `authenticated()`, `user()`, `admin()`, `restricted_to(&[..])` or `deferred_to_handler()`: the caller types that may reach the routes. A policy that admits no caller type fails boot. |
-| Context kind | `new(..)` (required) | `ContextKind::Public`, `User`, `A2a` or `Mcp`: the request-context middleware the routes sit behind. |
-| Rate limit | `with_rate_limit(RateLimit)` | A scope name and a budget: a profile rate (`RateBudget::Content`, `Gateway`, …) or `RateBudget::PerSecond(n)`. `RateLimit::with_bearer_window()` also charges the replica-shared window by the verified bearer token, for routes that authenticate in their handlers. |
-| Body limit | `with_body_limit(bytes)` | Maximum request body the routes accept. |
-| Protection layers | `with_layer(ProtectionLayer)` | A closed set of extra host guards (`SiteAuth`, `RefuseFileManagedClientWrites`). |
-| Frame options | `with_frame_options(FrameOptions)` | Overrides the sitewide `X-Frame-Options` for these routes. |
-| Role group | `in_group(RouteGroup)` | Defaults to `RouteGroup::Extensions`. A node mounts the router only when its role serves both `RouteGroup::Extensions` and the declared group, so an extension router is served by the `all` and `api` roles at most. |
-| Enable predicate | `enabled_when(fn(&dyn ExtensionContext) -> bool)` | The router is mounted only when the predicate holds at boot. |
-
-Use `AuthzPolicy::public()` with `ContextKind::Public` only for routes that must be reachable unauthenticated; a public handler that changes state must check ownership itself. `AuthzPolicy::user()` with `ContextKind::User` reproduces the protection the two-argument `ExtensionRouter::new` used to apply; `authenticated()` also admits agent, MCP and service tokens. A `Public` context paired with a policy that does not admit anonymous callers fails boot.
-
-Three protections are reserved for core route groups, and an extension declaration that uses one fails boot with a typed error, on every node role: a body limit above the server default (2 MiB), a handler-verified policy (`AuthzPolicy::handler_verified`) or the `HandlerResolved` context, and a base path under a reserved prefix (`RESERVED_PATHS`, for example `/api/v1/admin`, `/api/v1/oauth` or `/.well-known`). The server keeps one closed table of core declarations, including those granted one of these, each by extension id, exact base path, route group and protection shape; a declaration that does not match an entry exactly is refused. The table guards against a route being mounted ungated or under a core prefix by declaration; it is not a boundary against code linked into the same binary.
-
-## Step 6 — Provide shared state (optional)
-
-An extension that builds a cache, a repository or a service once and reads it from several factories (its router, readiness checks, gateway guards, authz hook, notification or brain seams) provides it as typed state instead of holding it in a global.
-
-```rust
-use systemprompt_extension::prelude::*;
-
-struct GrantCache { /* ... */ }
-
-impl Extension for MyExtension {
-    fn dependencies(&self) -> Vec<&'static str> {
-        vec!["base"]
-    }
-
-    fn provide(
-        &self,
-        ctx: &dyn ExtensionContext,
-        state: &mut StateBuilder<'_>,
-    ) -> Result<(), ExtensionStateError> {
-        let base = state.state().get_arc::<BaseService>()?;
-        state.provide(GrantCache::new(ctx.database(), base))
-    }
-
-    fn requires(&self) -> Vec<StateRequirement> {
-        vec![StateRequirement::of::<BaseService>()]
-    }
-
-    fn routers(
-        &self,
-        ctx: &dyn ExtensionContext,
-    ) -> Result<Vec<ExtensionRouter>, ExtensionStateError> {
-        let cache = ctx.extension_state().get_arc::<GrantCache>()?;
-        /* build the routers over `cache` */
-    }
-}
-```
-
-- The state is one `Dependencies` map. The host seeds it with the kernel's handles (database pool, paths, files configuration, notification configuration, the documents service when enabled, and on the API the OAuth and AI repositories), then `provide` runs once at boot, synchronously, for every enabled extension in registry order: every dependency before its dependents, ties broken by `(priority, id)`. During `provide` an extension reads the kernel's handles and what its dependencies already provided through `state.state()`; reading another extension's value while providing requires declaring that extension in `dependencies()`.
-- Each type has exactly one provider. Providing a type the kernel or another extension already provided fails boot with an error naming both providers.
-- `requires` declares types the extension cannot run without. After every `provide` has run, boot fails if any declared type is absent, naming the extension and the type, before any route is served. A requirement is met by any enabled provider, because requirements are checked once against the finished state that every later read sees.
-- Extensions listed in the profile's `extensions.disabled` neither provide nor have their requirements checked. An enabled extension that requires a type only a disabled extension provides fails boot; one that depends on a disabled extension is refused.
-- The finished state is immutable. Every factory reads it through `ctx.extension_state()`: `get::<T>()` borrows the value and `get_arc::<T>()` returns a shared `Arc<T>`; both return a `MissingDependency` naming the type when it is absent. Job and runner-service contexts start from the same state, so `ctx.get::<T>()` in a job finds provided values too. Values that change at run time hold their own synchronisation inside the provided type.
-- An authz hook factory (`register_authz_hook!`) runs before the state exists. It receives `AuthzHookContext::state`, a `StateHandle` the host binds to the finished state before anything serves; the hook captures the handle and reads `state.get_arc::<T>()` when it evaluates. A read before binding fails with `ExtensionStateError::NotReady`, so the hook must deny rather than allow.
-- An unknown dependency id or a dependency cycle (the error names the cycle) fails registry construction before any `provide` runs.
-- Managed MCP servers run the same `provide` pass over their own context, so a seam factory finds the same types there.
-
-## Step 7 — Contribute jobs and providers (optional)
-
-Further `Extension` methods extend the runtime:
-
-- `jobs` returns `Vec<Arc<dyn Job>>` — scheduled work registered with the scheduler.
-- `runner_services` returns long-running services the server supervises.
-- `config_planes` returns config planes reconciled against the services tree.
-- `tool_providers` returns tool provider implementations the AI layer can call.
-- `template_providers`, `component_renderers`, `template_data_extenders`, `page_data_providers`, `page_prerenderers`, `frontmatter_processors`, `content_data_providers`, `rss_feed_providers` and `sitemap_providers` contribute to content rendering and publishing.
-
-All default to empty; implement them only when the extension supplies that surface. AI model providers are not contributed by extensions; they are configured in the profile and served through the gateway.
-
-## The extension context
-
-The framework exposes a single `Extension` trait. There are no typed sub-traits: what an extension needs from its host it reads from the `&dyn ExtensionContext` every factory receives (profile, configuration, services, database handle, file storage, secrets, background tasks, instance id, token authority, subject attributes, provider tokens, coordination seams and the extension state). The host context also implements `HasAnalytics`, `HasFingerprint`, `HasUserService` and `HasRouteClassifier` for host code that needs those services directly. Extensions that participate in gateway request governance implement `GatewayRequestGuard` and register it with `register_gateway_guard!`.
+The runner never executes, records or checksums a tombstoned slot, and `emit_migrations` treats the number as occupied, so reusing it fails the build rather than a deployment. `infra db migrate-status` lists any applied version that no file claims as `orphaned`.
 
 ## Runtime seams
 
-Core owns these contracts so an extension never reimplements them against core tables:
+Core owns these contracts so a member never reimplements them against core tables. `ctx` below is the `ExtensionContext` a job reads with `ctx.get::<Arc<dyn ExtensionContext>>()`.
 
-- **Governance:** build a `PolicyRequest` and call `GovernanceEngine::charge_and_evaluate`. The engine charges every armed rate window before the chain runs, so a caller cannot evaluate an uncharged call. A chain that arms `rate_limit` without a rate-window repository refuses to build.
-- **Replica liveness:** `ctx.instances().is_alive(&instance_id)` is true while that replica holds its boot-time instance claim or heartbeats its `services` rows within 90 seconds. Use it instead of querying `services` with a staleness window of your own. `ctx.instance_id()` is this node's identity.
-- **Leases:** `ctx.leases().claim(&LeaseKey::new("…"), ttl)` grants an expiring single-owner claim on a named resource, or `None` while another live replica holds it. Claim again before `ttl` elapses to keep it; a dead owner's lease is forfeit even before it expires. `release` and `holder` complete the set.
-- **Advisory locks:** `ctx.advisory_locks().try_acquire(&AdvisoryLockKey::new("…"))` (or `acquire_within(key, wait)`) takes a cluster-wide lock on the session pool, never on a pool behind a transaction-mode pooler. Call `release().await` on the guard; dropping it closes the locking session, which also frees the lock. The key space is disjoint from the scheduler's job locks.
-- **Quota usage:** read a quota window through `QuotaUsageRepository` (`ai_repositories().quota_usage`): `usage(window, subject_id)` and `window_usage(window, limit)` sum every shard row of the window. Never sum `ai_quota_buckets` directly; a window may be spread over several shards.
-- **Job database budgets:** override `Job::db_budget` to return a `DbBudget` (statement timeout, optional lock timeout and `work_mem`), then open the job's transactions with `ctx.get::<BudgetedDb>()?.begin()`. The budget is applied with `SET LOCAL`, so a runaway statement is cancelled and rolled back without the limit leaking to other users of the pooled connection.
-- **Batched jobs:** drain a backlog with `run_batched(BatchPlan { deadline, full_batch }, || batch())`. It stops when a batch comes back short or the deadline passes, and `BatchedRun::into_job_result` reports what remains for the next run.
-- **Once per release:** `ReleaseStampRepository::run_once(ReleaseRun { name, release: env!("CARGO_PKG_VERSION"), gate, wait }, work)` runs `work` under a cluster-wide lock when this release is ahead of the recorded one (`ReleaseGate::IfBehind`) or not behind it (`ReleaseGate::UnlessNewer`), and records the release only when `work` succeeds. A binary older than the recorded release never runs it, so a lagging pod in a rolling update cannot redo a newer release's work.
-- **Secrets:** `ctx.secrets().secret("my_api_key")` returns a custom secret from the platform secrets document (any configured secrets source, including reloads) as an `ExtensionSecret` that redacts itself in `Debug`. Core credentials such as the pepper and database URLs are never handed out. Do not read credentials or `HOSTNAME` from the environment; `ctx.instance_id()` is the node identity.
-- **Readiness:** override `Extension::readiness(ctx)` to return named `ReadinessCheck`s. Every `/readyz` runs them; a check that returns `ReadinessFailure`, errors, or overruns the probe timeout answers 503 with the failing check under `extensions`, so the probe fails closed. An `Unready` reason is shown; a `Failed` cause is only logged.
-- **Metrics:** emit through the `metrics` facade and declare each metric in `Extension::metrics()` as a `MetricDescriptor`. A histogram's buckets register before the recorder installs, so it renders as buckets rather than a summary, and every descriptor's help text appears on `/metrics`.
+- **Governance:** build a `PolicyRequest` and call `GovernanceEngine::charge_and_evaluate`. The engine charges every armed rate window before the chain runs.
+- **Replica liveness:** `ctx.instances().is_alive(&instance_id)` is true while that replica holds its instance claim or heartbeats its `services` rows within 90 seconds. `ctx.instance_id()` is this node's identity.
+- **Leases:** `ctx.leases().claim(&LeaseKey::new("…"), ttl)` grants an expiring single-owner claim on a named resource, or `None` while another live replica holds it. A dead owner's lease is forfeit even before it expires.
+- **Advisory locks:** `ctx.advisory_locks().try_acquire(&AdvisoryLockKey::new("…"))` (or `acquire_within(key, wait)`) takes a cluster-wide lock on the session pool. Call `release().await` on the guard; dropping it closes the locking session, which also frees the lock.
+- **Job database budgets:** override `Job::db_budget` to return a `DbBudget`, then open the job's transactions with `ctx.get::<BudgetedDb>()?.begin()`. The budget is applied with `SET LOCAL`.
+- **Batched jobs:** drain a backlog with `run_batched(BatchPlan { deadline, full_batch }, || batch())`; `BatchedRun::into_job_result` reports what remains for the next run.
+- **Once per release:** `ReleaseStampRepository::run_once(ReleaseRun { name, release: env!("CARGO_PKG_VERSION"), gate, wait }, work)` runs `work` under a cluster-wide lock when this release is ahead of the recorded one (`ReleaseGate::IfBehind`) or not behind it (`ReleaseGate::UnlessNewer`), and records the release only when `work` succeeds.
+- **Secrets:** `ctx.secrets().secret("my_api_key")` returns a custom secret from the platform secrets document as an `ExtensionSecret` that redacts itself in `Debug`. Do not read credentials or `HOSTNAME` from the environment.
+- **Readiness:** a check contributed with `c.readiness` runs on every `/readyz`; a check that fails, errors or overruns the probe timeout answers 503 with the failing check under `extensions`.
+- **Metrics:** emit through the `metrics` facade and declare each metric with `c.metric(MetricDescriptor)`, so a histogram renders as buckets and its help text appears on `/metrics`.
 
-## How discovery works
+## Upgrading from 0.82
 
-There is no runtime loader and no plugin file format. `register_extension!` expands to `inventory::submit!`, which places the registration in a link-time collection. At startup the runtime iterates `inventory::iter` over those registrations, instantiates each extension, validates that every declared dependency is also registered and that the dependency graph has no cycle, and orders the result so every dependency precedes its dependents, with ties broken by `priority` (default `100`) and then id. That one order drives schema installation, route and job collection, and the `provide` pass. Because discovery is compile-time, an extension only participates if its crate is compiled into the running binary.
+- Move each defaulted hook body (`schemas`, `migrations`, `routers`, `jobs`, `provide`, `requires`, the seam hooks) into `contribute`, and replace each `register_*!`/`submit_*!` registration with the matching `Contributions` method or the owning crate's `contract` slot. Drop the `inventory` dependency.
+- Replace `ExtensionRouter` with `RouteSet`s under the member's own `/api/` base or the web root, and any root fallback with an explicit prefix.
+- Move command groups to `run(&dyn CommandHost) -> CommandOutput`.
+- Replace the binary's `main` with `reference().with(..).run()`.
+- Run one install with every member enabled, so table ownership and purge declarations are recorded for each member. When a core release newly creates a table or object that a disabled or held-back install member has recorded, every full install is refused until that member is enabled for one install; that install moves the record to core. A profile with disabled members runs one full schema install on its next boot.
 
 ## Verify
 
 ```bash
-cargo build -p <your-extension-crate>
-cargo run -p systemprompt --example extension --features core
+cargo check -p <your-extension-crate>
+systemprompt plugins list
+systemprompt plugins seams --member <id>
 ```
 
-Build the host binary and verify that startup discovers the extension, accepts its dependencies and finds every type its `requires` declares. Compilation alone does not verify runtime initialization.
+`plugins list` and `plugins seams` report the admitted composition member by member. Compilation alone does not admit a member: run the binary against a profile to see admission accept it.
 
 ## Related pages
 
-- [concepts/extensions.md](../concepts/extensions.md) — why the framework is compile-time and how the pieces fit together.
+- [concepts/extensions.md](../concepts/extensions.md) — the composition contract and how the pieces fit together.
 - [configure-providers.md](configure-providers.md) — configuring AI providers through the gateway.

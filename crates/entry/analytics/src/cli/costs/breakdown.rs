@@ -8,12 +8,12 @@ use clap::{Args, ValueEnum};
 use std::path::PathBuf;
 use systemprompt_analytics::CostAnalyticsRepository;
 use systemprompt_analytics::models::reporting::{CostBreakdownRow, CostUserBreakdownRow};
+use systemprompt_database::DbPool;
 use systemprompt_logging::CliService;
-use systemprompt_runtime::DatabaseContext;
 
 use super::{CostBreakdownItem, CostBreakdownOutput};
 use crate::cli::shared::{export_to_csv, parse_time_range};
-use systemprompt_cli::kernel::{CliConfig, CommandOutput};
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum BreakdownType {
@@ -55,10 +55,10 @@ pub struct BreakdownArgs {
 
 pub(super) async fn execute_with_pool(
     args: BreakdownArgs,
-    db_ctx: &DatabaseContext,
+    pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let repo = CostAnalyticsRepository::new(db_ctx.db_pool());
+    let repo = CostAnalyticsRepository::new(pool);
     execute_internal(args, &repo).await
 }
 

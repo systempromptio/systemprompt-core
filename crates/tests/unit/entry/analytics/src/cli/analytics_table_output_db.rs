@@ -1,16 +1,16 @@
 //! Table-output runs of the analytics dispatcher.
 //!
-//! The analytics suite standardises on `OutputFormat::Json`, which returns from
-//! `render_result` before the terminal renderer. Running the same commands in
-//! the default table mode is the only route into the analytics summary
-//! printers, and seeded rows keep them off their empty-result arms.
+//! The analytics suite standardises on `OutputFormat::Json`. Running the same
+//! commands in the default table mode drives the commands' table-mode arms,
+//! and seeded rows keep them off their empty-result arms.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use clap::Parser;
 use systemprompt_analytics_entry::cli::{self as analytics, AnalyticsCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides};
+use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::CliConfig;
 use systemprompt_identifiers::SessionId;
 use systemprompt_runtime::DatabaseContext;
 use systemprompt_test_fixtures::{

@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
@@ -16,8 +17,7 @@ use systemprompt_oauth::services::plugin_token::{PluginTokenService, PluginToken
 use systemprompt_security::DeploymentTokenAuthority;
 use systemprompt_users::{UserRepository, UserService};
 
-use crate::context::CommandContext;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct IssuePluginTokenArgs {
@@ -30,7 +30,7 @@ pub struct IssuePluginTokenArgs {
     #[arg(
         long,
         default_value = "cowork-bundle",
-        value_parser = crate::shared::parse_plugin_id,
+        value_parser = systemprompt_extension::cli::parsers::parse_plugin_id,
         help = "Plugin identifier to embed in the token's `plugin_id` claim."
     )]
     pub plugin_id: PluginId,
@@ -57,10 +57,10 @@ pub(super) struct IssuePluginTokenOutput {
 
 pub(super) async fn execute(
     args: IssuePluginTokenArgs,
-    ctx: &CommandContext,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
-    let profile = ctx.profile()?;
-    let boot = ctx.boot()?;
+    let profile = host.profile()?;
+    let boot = crate::commands::admin::state::boot(host)?;
     let secrets = boot.secrets().get();
 
     if args.duration_days == 0 || args.duration_days > 365 {
@@ -97,13 +97,13 @@ pub(super) async fn execute(
         email: user.email,
     };
 
-    let keys = crate::session::api::load_signing_keys(boot)?;
+    let keys = crate::session::api::load_signing_keys(&boot)?;
     let session_id = crate::session::api::create_local_session_row(
         &db_pool,
         &user.id,
         chrono::Duration::days(i64::from(args.duration_days)),
         keys.clone(),
-        boot,
+        &boot,
     )
     .await
     .context("Failed to create the session row backing the plugin token")?;

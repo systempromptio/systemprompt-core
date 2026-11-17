@@ -3,19 +3,17 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Result, bail};
-use systemprompt_logging::CliService;
+use crate::kernel::KernelHost;
+use anyhow::Result;
 use systemprompt_manifest::profile::RateLimitsConfig;
+use systemprompt_models::artifacts::NoticeLine;
 
-use crate::cli_settings::OutputFormat;
-use crate::context::CommandContext;
-use crate::shared::{CommandOutput, render_result};
+use systemprompt_extension::cli::{CommandError, CommandOutput};
 
 use super::super::types::ValidateOutput;
 
-pub(super) fn execute_validate(ctx: &CommandContext) -> Result<()> {
-    let config = &ctx.cli;
-    let profile = ctx.profile()?;
+pub(super) fn execute_validate(host: &dyn KernelHost) -> Result<CommandOutput> {
+    let profile = host.profile()?;
     let limits = &profile.rate_limits;
 
     let mut errors: Vec<String> = Vec::new();
@@ -31,23 +29,20 @@ pub(super) fn execute_validate(ctx: &CommandContext) -> Result<()> {
         warnings,
     };
 
-    render_result(
-        &CommandOutput::card_value("Rate Limits Validation", &output),
-        config,
-    );
-
-    if config.output_format() == OutputFormat::Table {
-        if valid {
-            CliService::success("Configuration is valid");
-        } else {
-            CliService::error("Configuration has errors");
-        }
-    }
+    let result = CommandOutput::card_value("Rate Limits Validation", &output).with_note(if valid {
+        NoticeLine::new("success", "Configuration is valid")
+    } else {
+        NoticeLine::new("error", "Configuration has errors")
+    });
 
     if !valid {
-        bail!("Rate-limit configuration has errors");
+        return Err(
+            CommandError::new(anyhow::anyhow!("Rate-limit configuration has errors"))
+                .with_output(result)
+                .into(),
+        );
     }
-    Ok(())
+    Ok(result)
 }
 
 fn check_endpoint_rates(limits: &RateLimitsConfig, errors: &mut Vec<String>) {

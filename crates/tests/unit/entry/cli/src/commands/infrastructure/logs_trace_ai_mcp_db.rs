@@ -6,8 +6,9 @@
 
 use clap::Parser;
 use systemprompt_cli::infrastructure::logs::{self, LogsCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::ContextId;
 use systemprompt_runtime::DatabaseContext;
 use systemprompt_test_fixtures::{test_database_url, test_db_pool};
@@ -25,7 +26,7 @@ fn parse(args: &[&str]) -> LogsCommands {
 }
 
 fn ctx(pool: &DbPool) -> CommandContext {
-    CommandContext::with_database(
+    crate::boot_ctx::with_database(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Table),

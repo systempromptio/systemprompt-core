@@ -1,8 +1,8 @@
 //! Profile resolution and the staged bootstrap of CLI runtime state.
 //!
 //! Resolves the active profile (CLI override, active session, or path), then
-//! initialises secrets, credentials, paths, and config in order, and runs
-//! startup validation before a command executes.
+//! initialises secrets, credentials, paths, and config in order. Startup
+//! validation runs once the composition is admitted, over its built state.
 //!
 //! The boot sequence returns one owned [`BootContext`]: only the server runs
 //! boot-time model discovery, and every other command loads the services
@@ -27,10 +27,10 @@ use systemprompt_runtime::{
     StartupValidator, display_validation_report, display_validation_warnings,
 };
 
-use crate::cli_settings::{CliConfig, OutputFormat, VerbosityLevel};
 use crate::env_overrides::EnvOverrides;
-use crate::paths::ResolvedPaths;
-use crate::shared::{ProfileSource, ResolvedProfile, resolve_profile_path};
+use systemprompt_cloud::paths::ResolvedPaths;
+use systemprompt_cloud::profile::{ProfileSource, ResolvedProfile, resolve_profile_path};
+use systemprompt_extension::cli::{CliConfig, OutputFormat, VerbosityLevel};
 
 pub(super) struct ProfileContext {
     pub loaded: Arc<LoadedProfile>,
@@ -47,7 +47,12 @@ pub(super) fn resolve_and_display_profile(
     has_export: bool,
 ) -> Result<ProfileContext> {
     let resolved = resolve_profile(cli_config.profile_override.as_deref(), env)?;
-    let loaded = crate::boot::load_profile(&resolved.path)?;
+    let loaded = LoadedProfile::from_path(&resolved.path).with_context(|| {
+        format!(
+            "Profile initialization failed from: {}",
+            resolved.path.display()
+        )
+    })?;
     let profile = loaded.profile();
 
     let banner_requested = cli_config.verbosity >= VerbosityLevel::Verbose;
@@ -83,9 +88,9 @@ pub(super) fn resolve_profile(
     env: &EnvOverrides,
 ) -> Result<ResolvedProfile> {
     if let Some(profile_input) = cli_profile_override
-        && crate::shared::is_path_input(profile_input)
+        && systemprompt_cloud::profile::is_path_input(profile_input)
     {
-        return crate::shared::resolve_profile_from_path(profile_input)
+        return systemprompt_cloud::profile::resolve_profile_from_path(profile_input)
             .map(|path| ResolvedProfile {
                 path,
                 source: ProfileSource::Cli,
@@ -169,8 +174,11 @@ pub(super) async fn init_credentials_gracefully(
     }
 }
 
-pub(super) async fn init_secrets(profile: &Arc<LoadedProfile>) -> Result<BootContext> {
-    crate::boot::load_boot(profile).await
+pub(super) async fn init_secrets(
+    profile: &Arc<LoadedProfile>,
+    secrets: &systemprompt_config::SecretsSources,
+) -> Result<BootContext> {
+    Ok(systemprompt_loader::load_boot::load_boot(profile, secrets.clone()).await?)
 }
 
 pub(super) async fn init_paths(
@@ -205,9 +213,12 @@ pub(super) async fn init_paths(
     Ok(services)
 }
 
-pub(super) fn run_validation(boot: &BootContext) -> Result<()> {
+pub(super) fn run_validation(
+    boot: &BootContext,
+    built: &systemprompt_extension::BuiltState,
+) -> Result<()> {
     let mut validator = StartupValidator::new(boot.clone())?;
-    let report = validator.validate(boot.config()?);
+    let report = validator.validate(boot.config()?, built);
 
     if report.has_errors() {
         display_validation_report(&report);

@@ -1,8 +1,6 @@
 //! Drives the public job-execution surface
-//! (`execute_copy_extension_assets`) end-to-end against an empty
-//! extension registry so the no-assets-to-copy branch is covered. With
-//! `inventory`-registered extensions absent in this test binary the
-//! registry yields zero required assets and the job succeeds with empty
+//! (`execute_copy_extension_assets`) end-to-end with no declared assets so
+//! the no-assets-to-copy branch is covered: the step succeeds with empty
 //! stats.
 
 use systemprompt_config::paths::AppPaths;
@@ -44,13 +42,13 @@ fn paths_in(tmp: &TempDir) -> AppPaths {
 }
 
 #[tokio::test]
-async fn copy_extension_assets_no_op_when_registry_is_empty() {
+async fn copy_extension_assets_no_op_when_no_asset_is_declared() {
     let tmp = TempDir::new().expect("tempdir");
     let paths = paths_in(&tmp);
 
     let result = execute_copy_extension_assets(&paths, &[])
         .await
-        .expect("copy job must succeed when no assets are registered");
+        .expect("copy job must succeed when no assets are declared");
 
     assert!(
         result.success,

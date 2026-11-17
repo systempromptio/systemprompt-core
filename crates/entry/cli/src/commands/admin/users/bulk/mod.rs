@@ -10,10 +10,10 @@
 mod delete;
 mod update;
 
-use crate::context::CommandContext;
-use crate::shared::render_result;
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Subcommand;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum BulkCommands {
@@ -24,17 +24,15 @@ pub enum BulkCommands {
     Update(update::UpdateArgs),
 }
 
-pub(super) async fn execute(cmd: BulkCommands, ctx: &CommandContext) -> Result<()> {
+pub(super) async fn execute(cmd: BulkCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match cmd {
         BulkCommands::Delete(args) => {
-            let result = delete::execute(args, ctx).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            let result = delete::execute(args, host).await?;
+            Ok(result)
         },
         BulkCommands::Update(args) => {
-            let result = update::execute(args, ctx).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            let result = update::execute(args, host).await?;
+            Ok(result)
         },
     }
 }

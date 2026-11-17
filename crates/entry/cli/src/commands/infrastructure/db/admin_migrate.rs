@@ -3,21 +3,20 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result, anyhow};
 use std::sync::Arc;
 use systemprompt_database::{
-    Database, MigrationConfig, MigrationService, SchemaInstallReport,
-    install_extension_schemas_full,
+    Database, MigrationConfig, MigrationService, SchemaInstallReport, SchemaMember,
+    install_admitted_schemas, schema_members,
 };
-use systemprompt_extension::{ExtensionRegistry, LoaderError};
+use systemprompt_extension::{BuiltState, LoaderError};
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
+use systemprompt_models::artifacts::NoticeLine;
 use systemprompt_runtime::DatabaseContext;
 
-use crate::cli_settings::CliConfig;
-use crate::context::CommandContext;
-use crate::shared::{CommandOutput, render_result};
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 use super::types::DbMigrateOutput;
 
@@ -28,17 +27,21 @@ pub(super) struct MigrateOptions {
     pub(super) full: bool,
 }
 
-pub(super) async fn execute_migrate(ctx: &CommandContext, options: MigrateOptions) -> Result<()> {
-    let config = &ctx.cli;
-    let sys_config = ctx.config()?;
+pub(super) async fn execute_migrate(
+    host: &dyn KernelHost,
+    options: MigrateOptions,
+) -> Result<CommandOutput> {
+    let config = host.output();
+    let sys_config = host.config()?;
 
+    let mut notes = Vec::new();
     if config.should_show_verbose() {
-        CliService::info(&format!("System path: {}", sys_config.system_path));
-        CliService::info(&format!("Database type: {}", sys_config.database_type));
-        CliService::info(&format!(
+        notes.push(info(format!("System path: {}", sys_config.system_path)));
+        notes.push(info(format!("Database type: {}", sys_config.database_type)));
+        notes.push(info(format!(
             "Database URL: {}",
             Profile::mask_database_url(&sys_config.database_url)
-        ));
+        )));
     }
 
     let database = Arc::new(
@@ -57,16 +60,18 @@ pub(super) async fn execute_migrate(ctx: &CommandContext, options: MigrateOption
         .context("Failed to connect to the session database")?,
     );
 
-    run_install(&ExtensionRegistry::discover()?, &database, config, options).await
+    let output = run_install(host.admitted()?.built(), &database, config, options).await?;
+    Ok(notes.into_iter().fold(output, CommandOutput::with_note))
 }
 
 pub(super) async fn execute_migrate_standalone(
     db_ctx: &DatabaseContext,
+    built: &BuiltState,
     config: &CliConfig,
     options: MigrateOptions,
-) -> Result<()> {
+) -> Result<CommandOutput> {
     let database = db_ctx.db_pool();
-    run_install(&ExtensionRegistry::discover()?, database, config, options).await
+    run_install(built, database, config, options).await
 }
 
 fn refuse_foreign_key_drift(report: &SchemaInstallReport) -> Result<()> {
@@ -92,7 +97,7 @@ fn refuse_foreign_key_drift(report: &SchemaInstallReport) -> Result<()> {
 }
 
 async fn run_install(
-    registry: &ExtensionRegistry,
+    built: &BuiltState,
     database: &Database,
     config: &CliConfig,
     MigrateOptions {
@@ -100,13 +105,14 @@ async fn run_install(
         repair_drift,
         full,
     }: MigrateOptions,
-) -> Result<()> {
+) -> Result<CommandOutput> {
     let write_provider = database.session();
+    let mut notes = Vec::new();
     if config.should_show_verbose() {
-        CliService::info(&format!(
+        notes.push(info(format!(
             "Installing schemas for {} extensions",
-            install_set(registry)?.len()
-        ));
+            install_set(built).len()
+        )));
     }
 
     let migration_config = MigrationConfig {
@@ -114,39 +120,30 @@ async fn run_install(
         force_full_install: full,
     };
 
-    let report = match install_extension_schemas_full(
-        registry,
-        write_provider,
-        ExtensionRegistry::INSTALL_EVERY_LINKED_SCHEMA,
-        migration_config,
-    )
-    .await
-    {
+    let report = match install_admitted_schemas(built, write_provider, migration_config).await {
         Ok(report) => report,
         Err(LoaderError::MigrationChecksumDrift { .. }) if repair_drift => {
-            CliService::warning("Migration checksum drift found; re-applying drifted migrations");
+            notes.push(NoticeLine::new(
+                "warning",
+                "Migration checksum drift found; re-applied drifted migrations",
+            ));
             let service = MigrationService::new(write_provider);
-            for ext in install_set(registry)? {
+            for ext in install_set(built) {
                 service
                     .repair_drift(ext.as_ref())
                     .await
                     .map_err(|e| anyhow!("Failed to repair migrations: {e}"))?;
             }
-            install_extension_schemas_full(
-                registry,
-                write_provider,
-                ExtensionRegistry::INSTALL_EVERY_LINKED_SCHEMA,
-                migration_config,
-            )
-            .await
-            .map_err(|e| failure(&e))?
+            install_admitted_schemas(built, write_provider, migration_config)
+                .await
+                .map_err(|e| failure(&e))?
         },
         Err(e) => return Err(failure(&e)),
     };
     database.mark_schema_changed();
     refuse_foreign_key_drift(&report)?;
 
-    let installed_extensions: Vec<String> = install_set(registry)?
+    let installed_extensions: Vec<String> = install_set(built)
         .iter()
         .map(|ext| ext.id().to_owned())
         .collect();
@@ -156,14 +153,15 @@ async fn run_install(
         message: "Database migration completed successfully".to_owned(),
     };
 
-    if config.is_json_output() {
-        let result = CommandOutput::card_value("Database Admin", &output);
-        render_result(&result, config);
-    } else {
-        CliService::success(&output.message);
-    }
+    notes.push(NoticeLine::new("success", output.message.clone()));
+    Ok(notes.into_iter().fold(
+        CommandOutput::card_value("Database Admin", &output),
+        CommandOutput::with_note,
+    ))
+}
 
-    Ok(())
+fn info(text: String) -> NoticeLine {
+    NoticeLine::new("info", text)
 }
 
 // Why: the error alone says which statement failed; the hint says what kind
@@ -200,17 +198,25 @@ fn failure(error: &LoaderError) -> anyhow::Error {
     )
 }
 
-pub(super) fn install_set(
-    registry: &ExtensionRegistry,
-) -> Result<Vec<Arc<dyn systemprompt_extension::Extension>>> {
-    Ok(registry.enabled_schema_extensions(ExtensionRegistry::INSTALL_EVERY_LINKED_SCHEMA)?)
+pub(super) fn install_set(built: &BuiltState) -> Vec<Arc<dyn SchemaMember>> {
+    schema_members(built)
+}
+
+pub(super) fn find_member(
+    built: &BuiltState,
+    extension: &ExtensionId,
+) -> Result<Arc<dyn SchemaMember>> {
+    install_set(built)
+        .into_iter()
+        .find(|member| member.id() == extension.as_str())
+        .ok_or_else(|| anyhow!("Extension '{}' not found or has no schema", extension))
 }
 
 pub(super) fn select_extensions(
-    registry: &ExtensionRegistry,
+    built: &BuiltState,
     extension: Option<&ExtensionId>,
-) -> Result<Vec<Arc<dyn systemprompt_extension::Extension>>> {
-    let all = install_set(registry)?;
+) -> Result<Vec<Arc<dyn SchemaMember>>> {
+    let all = install_set(built);
     if let Some(ext_id) = extension {
         let filtered: Vec<_> = all
             .into_iter()

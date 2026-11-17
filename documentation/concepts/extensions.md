@@ -1,92 +1,74 @@
 # The extension model
 
-How systemprompt-core lets downstream projects add capabilities — schemas, routes, jobs, providers — at compile time, through link-time discovery rather than runtime plugin loading.
+How systemprompt-core lets downstream projects add capabilities — schemas, routes, jobs, commands and seams — as composition members compiled into the binary, admitted against the profile before any of their code runs.
 
-systemprompt-core is a library you compile into your binary, not a framework you drop plugins into. Extensions are Rust types that implement the `Extension` trait and register themselves at compile time. Extensions are linked into the binary and discovered at startup through registered factories. The registry stores trait objects; adding compiled code requires rebuilding.
+systemprompt-core is a library you compile into your binary, not a framework you drop plugins into. An extension is a Rust type that implements the `Extension` trait; the binary's `main` composes it with the core members. There is no runtime plugin loader, no `dlopen` and no registration macro: a member contributes because `main` names it.
 
 ## The `Extension` trait
 
-A single trait, `Extension`, aggregates every capability a crate can contribute. Every capability method has a default that returns "nothing", so an extension implements only `metadata()` and overrides the handful of methods for the capabilities it actually provides.
-
 ```rust
-use systemprompt_extension::prelude::*;
-
-#[derive(Default)]
-struct MyExtension;
-
-impl Extension for MyExtension {
-    fn metadata(&self) -> ExtensionMetadata { /* id, name, version */ }
-
-    fn schemas(&self) -> Vec<SchemaDefinition> { /* tables this extension owns */ }
-    fn routers(&self, ctx: &dyn ExtensionContext) -> Result<Vec<ExtensionRouter>, ExtensionStateError> { /* HTTP route groups */ }
-    // ...everything else defaults to empty
-}
-
-register_extension!(MyExtension);
-submit_job!("my-extension", &MyNightlyJob);
-```
-
-A background job is registered once, with `submit_job!`, naming the id of the extension that owns it; there is no job method on the trait. The scheduler, a manual run and the job listing all read that one owner-attributed inventory, so a job runs only while its owning extension is enabled.
-
-The capability surface includes schemas, migrations, seeds and retirements, HTTP route groups, runner services, config planes, configuration schema and validation, readiness checks and metric descriptors, tool providers, a family of content/template/rendering providers, required storage paths and assets, RBAC roles, declared dependencies on other extensions, and typed shared state. AI model providers are configured through the profile and the gateway, not contributed by extensions. An extension opts into exactly what it needs by overriding the corresponding method.
-
-### Typed extension state
-
-The platform has one type-keyed map, `Dependencies`, used for extension state, job contexts, config-plane contexts and prerender contexts alike. At boot the host seeds it with the kernel's own handles (database pool, paths, files configuration, notification configuration, the OAuth, AI and analytics repositories, the artifact ingest service, the AI service when inference is configured, the documents service when the document store is enabled and, with the brain feature, the brain configuration and notification sink), then `Extension::provide(ctx, state)` runs once for every enabled extension, in dependency order, and contributes values keyed by type. The host owns the finished state; it is immutable after boot and reached by every factory through `ExtensionContext::extension_state()`, and job and runner contexts start from it. This is how an extension builds a repository, service or cache once and shares it between its router, readiness checks, gateway guards, authz hook and other seams without a global.
-
-The authz hook is built before the extension state exists, because the hook is an input to the context extensions provide from. Its factories receive a `StateHandle` in `AuthzHookContext::state`; the host binds the handle to the finished state before anything serves, and a read before binding fails closed.
-
-Boot validates the graph before anything serves: an unknown dependency, a dependency cycle, a second provider of a type the kernel or another extension already provided, or a type declared in `Extension::requires()` that neither the kernel nor any enabled extension provides is a typed startup error, never a failure on a request. An extension listed in the profile's `extensions.disabled` neither provides state nor has its requirements checked; an enabled extension that requires a type only a disabled one provides fails boot, and one that depends on a disabled extension is refused.
-
-### The extension context
-
-Every factory receives an `&dyn ExtensionContext`. It hands an extension the profile, the resolved configuration, the services view and root, the database handle, file storage, secrets, background tasks, the instance id, a token authority, subject attributes, provider tokens, the cross-replica coordination seams (instances, leases, advisory locks) and the extension state. There are no separate typed sub-traits to implement. The host context also implements four narrow capability traits — `HasAnalytics`, `HasFingerprint`, `HasUserService` and `HasRouteClassifier` — for host code that needs those services directly. Extensions that govern gateway requests implement `GatewayRequestGuard` and register it with `register_gateway_guard!`.
-
-## Registration and link-time discovery
-
-`register_extension!` does not call anything at module-load time. It emits an `inventory::submit!` of a small factory that constructs the extension as `Arc<dyn Extension>`:
-
-```rust
-inventory::submit! {
-    ExtensionRegistration { factory: || Arc::new(MyExtension::default()) as Arc<dyn Extension> }
+pub trait Extension: Send + Sync + 'static {
+    fn metadata(&self) -> ExtensionMetadata;
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError>;
 }
 ```
 
-The `inventory` crate collects every such submission across all linked crates into a single static set. At startup, `ExtensionRegistry::discover()` walks that set, instantiates each extension, and validates the result; the registry is then stored on the `AppContext`. This is link-time discovery: an extension is found because its crate is in the binary, not because a directory was scanned or a shared object was loaded.
+`contribute` is the one declaration. It receives a `Contributions` bound to the member's own sink and only stores: schemas, migrations, seeds, route sets, gateway routes, commands, jobs, retention, projections, run origins, user purges, provided and required state, slot entries, audience resolvers, readiness checks, diagnostics, metrics, gateway guards, site auth, configuration sections and assets. Provide fns, factories, slot builds and asset closures are deferred; nothing a member declares runs before admission. The step-by-step guide is [authoring extensions](../guides/authoring-extensions.md).
 
-```
-crate A  register_extension!(A)  ─┐
-crate B  register_extension!(B)  ─┼─►  inventory static set
-crate C  register_extension!(C)  ─┘          │
-                                             ▼
-                              ExtensionRegistry::discover()
-                                  ├─ enabled_schema_extensions → install schemas and migrations
-                                  ├─ build_state               → kernel handles + provide, requires checked
-                                  ├─ api_routers               → mount routes
-                                  ├─ config_extensions         → startup validation
-                                  └─ enabled_extensions        → owners whose jobs the scheduler runs
+## The composition
+
+A binary is a `Composition`:
+
+```rust
+fn main() -> Result<ExitCode, RunError> {
+    reference().with(MyExtension).run()
+}
 ```
 
-`enabled_extensions(profile.extensions.disabled)` is the one definition of an enabled extension, and every collector of contributions (routes, site auth, readiness checks, metrics, config, config planes, assets, storage paths, frontmatter processors, prerender providers, roles, jobs) walks only that set. Schema installation and migrations are the one deliberate exception: every linked extension's tables are created and migrated whatever the profile disables, because linked code (the user purge, kernel-composed repositories, cross-extension views and triggers) reads those tables regardless, and re-enabling an extension must find them current.
+`reference()` is every core member the build links, in dependency order, each with **core** standing and the terms the kernel's conferral table grants it. `with` adds a member with **install** standing; `without` removes an optional core member. There is no API that replaces a member, configures a core member's terms or confers anything on an install.
 
-### The product-binary requirement
+Composition runs in two phases:
 
-Because `inventory` statics are only linked when their crate is part of the final binary, the product — not core's CLI — must own the binary. A product crate re-exports core plus its extensions and the binary references the product crate so its statics link. This is the trade-off of compile-time registration: the binary is the unit of composition, and adding an extension means rebuilding, not dropping a file into a directory.
+1. **Declare.** Every member's `contribute` runs once, before any profile is loaded. Ids are validated (an install may not take a core member id), commands are admitted against the reserved CLI paths, and the CLI builds its command tree from the result.
+2. **Admit.** Once the profile is read, every contribution of a member listed in `extensions.disabled` is dropped, then routes are admitted against the reserved paths and privileged shapes, and providers are checked. An unknown disabled id, a disabled required member, an enabled member depending on or requiring a disabled one, and two providers of one type fail boot with a `CompositionError`.
 
-This is also what keeps the layered architecture strict (see [architecture.md](architecture.md)). Because capabilities are discovered through `inventory` at link time, a domain crate never needs a compile-time dependency on another domain crate to reach its capability — which is why the dependency graph has zero cross-domain edges.
+The runtime then resolves the **kernel** over the admitted members: it seeds the kernel's own values (instance id, runtime configuration, services view and root, secret store, system admin, event router and the document handles), runs every admitted provide fn in composition order, builds the audience resolvers, builds each slot once, and checks every declared requirement. A missing requirement is a typed startup error, never a failure on a request.
+
+## What admission enforces
+
+The kernel's admission rules bound what a member can declare:
+
+- **Reserved paths.** `RESERVED_PATHS` names every API prefix and path a core member owns (OAuth, users, agents, MCP, gateway, admin, documents, brain, notifications, content, analytics, the probes, `/.well-known`, `/` and others), whether or not that member is composed. An install route reaching one is refused at admission and re-checked at mount. An install's base is its own `ApiBase::Extension` path under `/api/` or the web root (`WebBase::Root`); a closed core API base and `/track/engagement` are refused. At the web root an install's routes are protected route by route and it has no root fallback (`service("/")`, `/{*path}` and `/{slug}` are refused): the tree's one fallback is the kernel's static content, which a declared site auth covers whole.
+- **Privileged shapes.** A handler-verified policy, an above-default body limit, a closed core base, `/track/engagement`, a gateway path and a reserved CLI path are held only by the core member `PRIVILEGED_SHAPES` or `RESERVED_CLI_PATHS` names, and only in the listed shape.
+- **Single-owner state and slots.** Each type has one provider; a slot is built once by the kernel from its entries; a type the kernel inserts cannot be provided by any member; an install value cannot satisfy a core requirement or replace a core-only seam.
+- **Table ownership.** The schema installer records the owner and standing of every table it creates. A member declaring a table another member creates or is recorded for is refused before any DDL, including the recorded table of a disabled member. A pending migration is judged before any DDL too: one that re-creates another member's table, or alters, drops, truncates, renames, moves, grants on, or attaches a rule or policy to it, or writes into the kernel's ledger tables, is refused, and so is an install migration's schema-level statement over a shared schema, drop of another member's index or object, or SQL the parser cannot attribute that no install ships (`CALL`, `EXECUTE`, `COPY` from a program, an unclassified statement); a `DO` block is logged as unjudged. The rule covers those statement kinds only; the guide lists what it logs instead of refusing. A member disabled before its first recorded install has no record until it is next enabled; run one install with every member enabled after upgrading.
+- **Typed purge.** A user purge is declared per member as a table, a column and an optional typed predicate over the member's own tables, never SQL text. Declarations are recorded, so a user purge also covers the tables of a member the profile disables.
+- **Command seal.** A member's command resolves state through a resolver that withholds the kernel's sealed values (the configuration, the secret store, the system admin, the active services root and the event router) and holds no secrets sources, boot context or application context; it receives a kernel grant only on a reserved CLI path its core owner holds. A value a member's own provide fn builds from a sealed value is not withheld.
+
+These rules govern declarations and member commands. They do not isolate in-process code: an install member is Rust code linked into the binary, and its routes, jobs and factories run with the process's privileges.
+
+## Typed state
+
+The platform has one type-keyed map, `Dependencies`, used for the kernel state, job contexts, config-plane contexts and prerender contexts alike. A route set's state type implements `FromState` and is built from the resolved state; a provide fn and a factory read it through `Resolved` (`get`, `optional`). The finished state is immutable after boot. This is how a member builds a repository, service or cache once and shares it between its routes, jobs and seams without a global.
+
+Jobs read the host's `ExtensionContext` from their context. It hands a job the profile, the resolved configuration, the services view and root, the database handle, file storage, custom secrets, background tasks, the instance id, a token authority, provider tokens and the cross-replica coordination seams (instances, leases, advisory locks).
+
+## Why composition, not discovery
+
+Because a member contributes only when `main` composes it, the binary is the unit of composition: adding a member means rebuilding. A domain crate never needs a compile-time dependency on another domain crate to reach its capability — the owning crate defines a slot in its `contract` module, and the composition root wires the members — which is why the dependency graph has no cross-domain edges (see [architecture.md](architecture.md)).
 
 ## Schema and migration embedding
 
-An extension owns its database schema, and the schema travels inside the crate so it works when the crate is published to crates.io.
+A member owns its database schema, and the schema travels inside the crate so it works when the crate is published to crates.io.
 
-- **Schema DDL** lives in `{crate}/schema/*.sql` and is embedded with `include_str!` inside the extension's `schemas()` implementation. A missing file is a compile error, so the SQL cannot drift away from the code that references it.
-- **Migrations** live in `{crate}/schema/migrations/NNN_<name>.sql`. A one-line `build.rs` calls `systemprompt_extension::build::emit_migrations()`, which discovers those files at build time and generates the body of `Extension::migrations()`; the extension consumes it through the `extension_migrations!()` macro. Version and name are derived from the filename, so adding a migration is adding one file — no Rust edit — and `cargo:rerun-if-changed` retriggers the build when a file appears.
+- **Schema DDL** lives in `{crate}/schema/*.sql` and is embedded with `include_str!` in the member's `contribute`. A missing file is a compile error.
+- **Migrations** live in `{crate}/schema/migrations/NNN_<name>.sql`. A one-line `build.rs` calls `systemprompt_extension::build::emit_migrations()`, which discovers those files at build time; the member contributes them with `c.migrations(extension_migrations!())`. Version and name are derived from the filename, and `cargo:rerun-if-changed` retriggers the build when a file appears.
 
-> The extension framework's `build.rs` is the one sanctioned exception to the shared layer's no-I/O rule: it performs file I/O only at compile time and is never reached by any runtime code path.
+> The extension framework's `build.rs` helper is the one sanctioned exception to the shared layer's no-I/O rule: it performs file I/O only at compile time and is never reached by any runtime code path.
 
-The registry orders extensions once — every dependency before its dependents, ties broken by priority and then id — and that order drives schema installation, so a dependency's tables exist before its dependents' migrations run.
+The installer runs over the admitted composition in composition order, so a dependency's tables exist before its dependents' migrations run. A disabled member's schema is not installed or migrated; its recorded tables are kept.
 
 ## See also
 
 - [authoring extensions](../guides/authoring-extensions.md) — the step-by-step guide to building one.
-- [architecture.md](architecture.md) — how extensions keep the dependency graph acyclic and cross-domain-free.
+- [architecture.md](architecture.md) — how members keep the dependency graph acyclic and cross-domain-free.

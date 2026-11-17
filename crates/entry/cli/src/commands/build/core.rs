@@ -8,13 +8,11 @@ use clap::Args;
 use std::process::Command;
 use std::time::Instant;
 
-use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_logging::CliService;
 
 use super::types::CoreBuildOutput;
-use crate::CliConfig;
-use crate::shared::command_result::CommandOutput;
-use crate::shared::project::ProjectRoot;
+use systemprompt_cloud::paths::ProjectRoot;
+use systemprompt_extension::cli::{ChildSupervisor, CliConfig, CommandOutput};
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct CoreArgs {
@@ -28,7 +26,7 @@ pub struct CoreArgs {
 pub(super) fn execute(
     args: CoreArgs,
     config: &CliConfig,
-    children: &ForegroundChildren,
+    children: &dyn ChildSupervisor,
 ) -> Result<CommandOutput> {
     let project_root = ProjectRoot::discover()?;
     let root = project_root.as_path();

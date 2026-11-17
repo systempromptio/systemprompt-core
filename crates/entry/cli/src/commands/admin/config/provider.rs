@@ -10,13 +10,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
 use systemprompt_config::{EndpointSpec, ProviderCatalogService, ProviderSpec};
 use systemprompt_identifiers::{CredentialId, EndpointId, ProviderId};
 
-use super::catalog_edit::{apply, parse_headers, parse_wire, read_active, render_list};
-use crate::context::CommandContext;
+use super::catalog_edit::{apply, list_output, parse_headers, parse_wire, read_active};
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum ProviderCommands {
@@ -77,12 +78,10 @@ fn first_endpoint(args: &ProviderAddArgs) -> Result<Option<EndpointSpec>> {
     }
 }
 
-
-pub async fn execute(command: &ProviderCommands, ctx: &CommandContext) -> Result<()> {
-    let config = &ctx.cli;
+pub async fn execute(command: &ProviderCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
         ProviderCommands::List => {
-            let document = read_active(ctx)?;
+            let document = read_active(host).await?;
             let rows = document
                 .providers
                 .iter()
@@ -100,8 +99,7 @@ pub async fn execute(command: &ProviderCommands, ctx: &CommandContext) -> Result
                     )
                 })
                 .collect();
-            render_list(config, "Providers", rows);
-            Ok(())
+            Ok(list_output("Providers", rows))
         },
         ProviderCommands::Add(args) => {
             let spec = ProviderSpec {
@@ -113,7 +111,7 @@ pub async fn execute(command: &ProviderCommands, ctx: &CommandContext) -> Result
                 enabled: None,
                 first_endpoint: first_endpoint(args)?,
             };
-            apply(ctx, "Provider Updated", |document, context| {
+            apply(host, "Provider Updated", |document, context| {
                 if document.providers.get(spec.id.as_str()).is_none()
                     && spec.first_endpoint.is_none()
                 {
@@ -124,10 +122,10 @@ pub async fn execute(command: &ProviderCommands, ctx: &CommandContext) -> Result
             })
             .await
         },
-        ProviderCommands::Enable { id } => set_enabled(ctx, id, true).await,
-        ProviderCommands::Disable { id } => set_enabled(ctx, id, false).await,
+        ProviderCommands::Enable { id } => set_enabled(host, id, true).await,
+        ProviderCommands::Disable { id } => set_enabled(host, id, false).await,
         ProviderCommands::Remove { id } => {
-            apply(ctx, "Provider Removed", |document, context| {
+            apply(host, "Provider Removed", |document, context| {
                 ProviderCatalogService::remove_provider(document, context, &ProviderId::new(id))?;
                 Ok(format!("Provider {id} removed"))
             })
@@ -136,8 +134,8 @@ pub async fn execute(command: &ProviderCommands, ctx: &CommandContext) -> Result
     }
 }
 
-async fn set_enabled(ctx: &CommandContext, id: &str, enabled: bool) -> Result<()> {
-    apply(ctx, "Provider Updated", |document, context| {
+async fn set_enabled(host: &dyn KernelHost, id: &str, enabled: bool) -> Result<CommandOutput> {
+    apply(host, "Provider Updated", |document, context| {
         let credential = document
             .providers
             .get(id)

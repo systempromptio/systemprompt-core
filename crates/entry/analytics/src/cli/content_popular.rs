@@ -1,9 +1,9 @@
 //! `core content popular`: a source's content ranked by distinct human
 //! viewers over a parsed duration window.
 //!
-//! Registered as a leaf under the `core content` group the content entry
-//! crate registers; the kernel resolves it to this leaf, with this leaf's
-//! descriptor, and lists it after the group's own subcommands. It reads the
+//! Contributed as a leaf under the kernel's `core content` group; the kernel
+//! resolves it to this leaf, with this leaf's descriptor, and lists it after
+//! the group's own subcommands. It reads the
 //! ranking and the content rows from the analytics report views, so it names
 //! no content-capability type.
 //!
@@ -13,11 +13,12 @@
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use systemprompt_analytics::ContentAnalyticsRepository;
-use systemprompt_cli::kernel::{
-    CliCommandLeaf, CliConfig, CommandContext, CommandDescriptor, CommandOutput, DataImpact,
-    DbUrlRouting, DescribeCommand, render_result,
+use systemprompt_database::{DbPool, pool_from_handle};
+use systemprompt_extension::cli::parsers::parse_source_id;
+use systemprompt_extension::cli::{
+    CliCommandLeaf, CliConfig, CommandDescriptor, CommandError, CommandHost, CommandOutput,
+    DataImpact, DbUrlRouting, DescribeCommand,
 };
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::SourceId;
 
 fn parse_duration(s: &str) -> Result<i64> {
@@ -43,8 +44,8 @@ fn parse_duration(s: &str) -> Result<i64> {
 
 #[derive(Debug, Args)]
 pub struct PopularArgs {
-    #[arg(help = "Source ID")]
-    pub source: String,
+    #[arg(help = "Source ID", value_parser = parse_source_id)]
+    pub source: SourceId,
 
     #[arg(long, default_value = "30d", help = "Time period (e.g., 7d, 30d, 1w)")]
     pub since: String,
@@ -60,7 +61,6 @@ impl DescribeCommand for PopularArgs {
 }
 
 impl CliCommandLeaf for PopularArgs {
-    const PARENT: &'static [&'static str] = &["core", "content"];
     const NAME: &'static str = "popular";
     const ABOUT: &'static str = "Get popular content";
 
@@ -68,19 +68,17 @@ impl CliCommandLeaf for PopularArgs {
         DbUrlRouting::Direct
     }
 
-    async fn run(self, ctx: &CommandContext) -> Result<()> {
-        let result = execute(self, ctx)
+    async fn run(self, host: &dyn CommandHost) -> Result<CommandOutput, CommandError> {
+        execute(self, host)
             .await
-            .context("Failed to get popular content")?;
-        render_result(&result, &ctx.cli);
-        Ok(())
+            .context("Failed to get popular content")
+            .map_err(CommandError::new)
     }
 }
 
-systemprompt_cli::register_cli_command!(leaf PopularArgs);
-
-pub async fn execute(args: PopularArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    execute_with_pool(args, &ctx.db_pool().await?, &ctx.cli).await
+pub async fn execute(args: PopularArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let pool = pool_from_handle(host.db().await?)?;
+    execute_with_pool(args, &pool, host.output()).await
 }
 
 pub async fn execute_with_pool(
@@ -88,12 +86,11 @@ pub async fn execute_with_pool(
     pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let source = SourceId::new(args.source);
     let days_i64 = parse_duration(&args.since)?;
     let days = i32::try_from(days_i64).map_err(|_e| anyhow!("Duration too large"))?;
 
     let items = ContentAnalyticsRepository::new(pool)
-        .popular_content(&source, days, args.limit)
+        .popular_content(&args.source, days, args.limit)
         .await?;
 
     Ok(

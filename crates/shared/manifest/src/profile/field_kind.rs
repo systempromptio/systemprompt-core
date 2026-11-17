@@ -16,7 +16,7 @@ use std::sync::LazyLock;
 use serde_json::Value as Json;
 
 use super::Profile;
-use crate::env::{FieldKind, PathSegment};
+use crate::env::{FieldKind, PROVENANCE_KEYWORD, PathSegment};
 
 static PROFILE_SCHEMA: LazyLock<Json> = LazyLock::new(|| {
     serde_json::to_value(schemars::schema_for!(Profile)).unwrap_or(Json::Bool(true))
@@ -98,7 +98,11 @@ fn kind_of(node: &Json) -> FieldKind {
     if node.as_bool() == Some(true) || node.as_object().is_some_and(serde_json::Map::is_empty) {
         return FieldKind::UNKNOWN;
     }
-    let mut kind = FieldKind::NONE;
+    let mut kind = if node.get(PROVENANCE_KEYWORD).and_then(Json::as_bool) == Some(true) {
+        FieldKind::PROVENANCE
+    } else {
+        FieldKind::NONE
+    };
     let types: Vec<&str> = match node.get("type") {
         Some(Json::String(t)) => vec![t.as_str()],
         Some(Json::Array(ts)) => ts.iter().filter_map(Json::as_str).collect(),

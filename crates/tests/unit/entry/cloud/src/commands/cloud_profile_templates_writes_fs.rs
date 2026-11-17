@@ -3,10 +3,10 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
+use systemprompt_cloud_entry::cli::profile::ai_catalog::update_ai_config_default_provider;
 use systemprompt_cloud_entry::cli::profile::api_keys::ApiKeys;
 use systemprompt_cloud_entry::cli::profile::templates::{
-    DatabaseUrls, get_services_path, save_dockerfile, save_secrets,
-    update_ai_config_default_provider, validate_connection,
+    DatabaseUrls, get_services_path, save_dockerfile, save_secrets, validate_connection,
 };
 use systemprompt_identifiers::ProfileName;
 

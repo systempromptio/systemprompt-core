@@ -3,6 +3,7 @@
 //! disposable database.
 
 mod cloud_doctor_recovery;
+mod reference_boot;
 mod serve_lifecycle;
 mod subprocess_bridge_list_lifecycle;
 mod subprocess_profile_migration_wrapper;

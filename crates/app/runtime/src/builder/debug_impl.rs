@@ -10,7 +10,7 @@ impl std::fmt::Debug for AppContextBuilder {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("AppContextBuilder")
             .field("boot", &self.boot)
-            .field("extension_registry", &self.extension_registry.is_some())
+            .field("admitted", &self.admitted.built().members().count())
             .field("show_startup_warnings", &self.show_startup_warnings)
             .field("marketplace_filter", &self.marketplace_filter.is_some())
             .field("authz_hook", &self.core.authz_hook.is_some())

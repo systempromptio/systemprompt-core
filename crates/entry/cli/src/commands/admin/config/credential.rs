@@ -8,14 +8,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
 use systemprompt_config::{CredentialSpec, ProviderCatalogService};
 use systemprompt_identifiers::{CredentialId, SecretName};
 use systemprompt_manifest::services::catalog::CredentialEntry;
 
-use super::catalog_edit::{apply, read_active, render_list};
-use crate::context::CommandContext;
+use super::catalog_edit::{apply, list_output, read_active};
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum CredentialCommands {
@@ -45,11 +46,10 @@ pub struct CredentialAddArgs {
     pub label: Option<String>,
 }
 
-pub async fn execute(command: &CredentialCommands, ctx: &CommandContext) -> Result<()> {
-    let config = &ctx.cli;
+pub async fn execute(command: &CredentialCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
         CredentialCommands::List => {
-            let document = read_active(ctx)?;
+            let document = read_active(host).await?;
             let rows = document
                 .credentials
                 .iter()
@@ -61,19 +61,18 @@ pub async fn execute(command: &CredentialCommands, ctx: &CommandContext) -> Resu
                     format!("{id} [{}]{secret}", entry.kind.as_str())
                 })
                 .collect();
-            render_list(config, "Credentials", rows);
-            Ok(())
+            Ok(list_output("Credentials", rows))
         },
         CredentialCommands::Add(args) => {
             let spec = credential_spec(args)?;
-            apply(ctx, "Credential Updated", |document, context| {
+            apply(host, "Credential Updated", |document, context| {
                 ProviderCatalogService::upsert_credential(document, context, spec)?;
                 Ok(format!("Credential {} ({}) saved", args.id, args.kind))
             })
             .await
         },
         CredentialCommands::Remove { id } => {
-            apply(ctx, "Credential Removed", |document, context| {
+            apply(host, "Credential Removed", |document, context| {
                 ProviderCatalogService::remove_credential(
                     document,
                     context,

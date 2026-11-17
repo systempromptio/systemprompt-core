@@ -6,8 +6,8 @@
 use clap::Parser;
 use std::sync::Arc;
 use systemprompt_cli::admin::users::{self, UsersCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
-use systemprompt_database::DbPool;
+use systemprompt_cli::{CommandContext, EnvOverrides};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
 use systemprompt_users::{UserRepository, UserService, UserStatus};
 use uuid::Uuid;
@@ -25,14 +25,14 @@ fn parse(args: &[&str]) -> UsersCommands {
 }
 
 
-fn ctx(pool: &DbPool) -> CommandContext {
+async fn ctx() -> CommandContext {
     let url = test_database_url();
     crate::boot_ctx::with_app_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
-        test_app_context(pool, &url),
+        test_app_context(&url).await,
     )
 }
 
@@ -56,8 +56,7 @@ fn unique_ip() -> String {
 
 #[tokio::test]
 async fn ban_add_list_and_remove_round_trip() {
-    let pool = test_db_pool().await;
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     let ip = unique_ip();
 
     users::execute(
@@ -86,8 +85,7 @@ async fn ban_add_list_and_remove_round_trip() {
 
 #[tokio::test]
 async fn ban_add_permanent_and_default_duration() {
-    let pool = test_db_pool().await;
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
 
     let ip = unique_ip();
     users::execute(
@@ -111,8 +109,7 @@ async fn ban_add_permanent_and_default_duration() {
 
 #[tokio::test]
 async fn ban_add_rejects_bad_duration() {
-    let pool = test_db_pool().await;
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     let err = users::execute(
         parse(&[
             "ban",
@@ -132,8 +129,7 @@ async fn ban_add_rejects_bad_duration() {
 
 #[tokio::test]
 async fn ban_remove_and_cleanup_require_confirmation() {
-    let pool = test_db_pool().await;
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
 
     let err = users::execute(parse(&["ban", "remove", "10.0.0.1"]), &ctx)
         .await
@@ -148,8 +144,7 @@ async fn ban_remove_and_cleanup_require_confirmation() {
 
 #[tokio::test]
 async fn ban_cleanup_runs_with_confirmation() {
-    let pool = test_db_pool().await;
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     users::execute(parse(&["ban", "cleanup", "--yes"]), &ctx)
         .await
         .unwrap();
@@ -157,8 +152,7 @@ async fn ban_cleanup_runs_with_confirmation() {
 
 #[tokio::test]
 async fn bulk_delete_requires_confirmation_and_filter() {
-    let pool = test_db_pool().await;
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
 
     let err = users::execute(parse(&["bulk", "delete", "--role", "x"]), &ctx)
         .await
@@ -183,7 +177,7 @@ async fn bulk_delete_dry_run_then_execute_scoped_by_role() {
         .await
         .unwrap();
 
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     users::execute(
         parse(&["bulk", "delete", "--role", &role, "--dry-run"]),
         &ctx,
@@ -200,8 +194,7 @@ async fn bulk_delete_dry_run_then_execute_scoped_by_role() {
 
 #[tokio::test]
 async fn bulk_delete_reports_empty_match() {
-    let pool = test_db_pool().await;
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     let role = format!("norole_{}", Uuid::new_v4().simple());
     users::execute(parse(&["bulk", "delete", "--role", &role, "--yes"]), &ctx)
         .await
@@ -220,7 +213,7 @@ async fn bulk_update_validates_status_and_applies_by_role() {
         .await
         .unwrap();
 
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     assert!(
         UsersHarness::try_parse_from([
             "users",
@@ -284,7 +277,9 @@ async fn bulk_update_validates_status_and_applies_by_role() {
     let updated = service.find_by_id(&user.id).await.unwrap().unwrap();
     assert_eq!(updated.status, UserStatus::Suspended);
 
-    let _ = service.delete(&user.id).await;
+    let _ = service
+        .delete(&user.id, &crate::boot_ctx::core_purge())
+        .await;
 }
 
 #[tokio::test]
@@ -299,7 +294,7 @@ async fn export_writes_file_and_prints_without_path() {
         .await
         .unwrap();
 
-    let ctx = ctx(&pool);
+    let ctx = ctx().await;
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("users.json");
     users::execute(
@@ -322,5 +317,7 @@ async fn export_writes_file_and_prints_without_path() {
         .await
         .unwrap();
 
-    let _ = service.delete(&user.id).await;
+    let _ = service
+        .delete(&user.id, &crate::boot_ctx::core_purge())
+        .await;
 }

@@ -3,14 +3,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::context::CommandContext;
-use crate::shared::CommandOutput;
+use crate::commands::shared::app_context;
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::hash::BuildHasher;
 use std::sync::Arc;
+use systemprompt_extension::cli::CommandOutput;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::ServiceStatus;
 use systemprompt_mcp::services::McpOrchestrator;
@@ -146,14 +147,14 @@ pub(super) async fn execute(
     detailed: bool,
     json: bool,
     health: bool,
-    cmd_ctx: &CommandContext,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
-    let config = &cmd_ctx.cli;
-    let ctx = Arc::clone(cmd_ctx.app_context().await?);
+    let config = host.output();
+    let ctx = app_context(host).await?;
 
     let Ok(configs) = super::load_service_configs(ctx.boot()) else {
         let mut validator = StartupValidator::new(ctx.boot().clone())?;
-        let report = validator.validate(ctx.config());
+        let report = validator.validate(ctx.config(), host.admitted()?.built());
         if report.has_errors() {
             display_validation_report(&report);
             return Err(anyhow::anyhow!("Startup validation failed"));

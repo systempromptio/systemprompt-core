@@ -25,16 +25,12 @@ mod server_mount_gateway_and_mcp_scope;
 mod server_mount_analytics;
 
 #[cfg(test)]
+#[path = "server_static_site_auth.rs"]
+mod server_static_site_auth;
+
+#[cfg(test)]
 #[path = "server_mount_notifications.rs"]
 mod server_mount_notifications;
-
-#[cfg(test)]
-#[path = "server_mount_core_owners.rs"]
-mod server_mount_core_owners;
-
-#[cfg(test)]
-#[path = "server_boot_core_owner_impostor.rs"]
-mod server_boot_core_owner_impostor;
 
 #[cfg(test)]
 #[path = "routes_content_mounted.rs"]
@@ -43,6 +39,10 @@ mod routes_content_mounted;
 #[cfg(test)]
 #[path = "routes_role_gateway.rs"]
 mod routes_role_gateway;
+
+#[cfg(test)]
+#[path = "gateway_admitted_routes.rs"]
+mod gateway_admitted_routes;
 
 #[cfg(test)]
 #[path = "server_declared_groups.rs"]
@@ -143,12 +143,6 @@ mod routes_agent_contexts;
 #[path = "server_boot.rs"]
 mod server_boot;
 
-#[cfg(test)]
-#[path = "server_extension_mount.rs"]
-mod server_extension_mount;
-#[cfg(test)]
-#[path = "server_extension_mount_roles.rs"]
-mod server_extension_mount_roles;
 
 #[cfg(test)]
 #[path = "boot_missing_providers.rs"]
@@ -221,6 +215,8 @@ mod documents_pdf;
 #[cfg(test)]
 mod documents_read_parity;
 #[cfg(test)]
+mod documents_rendered;
+#[cfg(test)]
 mod documents_review;
 #[cfg(test)]
 mod documents_sharing;
@@ -233,6 +229,10 @@ mod internal_links_worker;
 #[cfg(test)]
 #[path = "routes_oauth_token.rs"]
 mod routes_oauth_token;
+
+#[cfg(test)]
+#[path = "server_gateway_disabled.rs"]
+mod server_gateway_disabled;
 
 #[cfg(test)]
 #[path = "common.rs"]

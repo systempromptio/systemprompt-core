@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use clap::Args;
 use systemprompt_agent::repository::context::ContextRepository;
@@ -11,13 +12,11 @@ use systemprompt_logging::CliService;
 
 use super::resolve::resolve_context;
 use super::types::ContextSwitchedOutput;
-use crate::CliConfig;
-use crate::context::CommandContext;
-use crate::paths::ResolvedPaths;
 use crate::session::{CliSessionContext, get_or_create_session};
-use crate::shared::CommandOutput;
 use std::path::Path;
-use systemprompt_database::DbPool;
+use systemprompt_cloud::paths::ResolvedPaths;
+use systemprompt_database::{DbPool, pool_from_handle};
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 #[derive(Debug, Args)]
 pub struct UseArgs {
@@ -25,11 +24,11 @@ pub struct UseArgs {
     pub context: String,
 }
 
-pub(super) async fn execute(args: UseArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let session_ctx = get_or_create_session(ctx).await?;
-    let pool = ctx.db_pool().await?;
+pub(super) async fn execute(args: UseArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+    let session_ctx = get_or_create_session(host).await?;
+    let pool = pool_from_handle(host.db().await?)?;
     let sessions_dir = ResolvedPaths::discover().sessions_dir();
-    execute_resolved(args, &ctx.cli, &session_ctx, &pool, &sessions_dir).await
+    execute_resolved(args, host.output(), &session_ctx, &pool, &sessions_dir).await
 }
 
 pub async fn execute_resolved(

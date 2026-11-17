@@ -2,13 +2,10 @@
 //! policies, resource visibility and delivery channels.
 //!
 //! Producers emit through the injected `NotificationSink` inside their own
-//! transaction. Extensions contribute the other five seams with the
-//! `register_notification_*!`/`register_resource_visibility!` macros; each
-//! registration carries a `priority` and a factory over the
-//! [`crate::ExtensionContext`], and the matching `discover_*` function returns
-//! them sorted by ascending priority. Every trait is held as `Arc<dyn _>`, so
-//! each uses `#[async_trait]`; native `async fn` in traits is not
-//! `dyn`-compatible.
+//! transaction. Extensions contribute the other five seams through the
+//! notifications capability's slot, as factories over `Resolved`. Every trait
+//! is held as `Arc<dyn _>`, so each uses `#[async_trait]`; native `async fn` in
+//! traits is not `dyn`-compatible.
 //!
 //! Audience resolvers also answer [`NotificationAudienceResolver::is_member`]
 //! with a [`Membership`] so a subscription can be checked against its
@@ -24,19 +21,11 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod errors;
-mod registry;
 mod traits;
 
 pub use errors::{
     ChannelError, NotificationAudienceError, NotificationRouterError, NotificationSinkError,
     PublishPolicyError, VisibilityError,
-};
-pub use registry::{
-    NotificationAudienceRegistration, NotificationChannelRegistration,
-    NotificationRouterRegistration, PublishPolicyRegistration, ResourceVisibilityRegistration,
-    discover_notification_audiences, discover_notification_channels,
-    discover_notification_publish_policies, discover_notification_routers,
-    discover_resource_visibilities,
 };
 #[cfg(feature = "sqlx")]
 pub use traits::{DynNotificationSink, NotificationSink};

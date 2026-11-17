@@ -30,7 +30,6 @@ serde_jcs = { workspace = true }
 globset = { workspace = true }
 async-trait = { workspace = true }
 thiserror = { workspace = true }
-inventory = { workspace = true }
 tracing = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

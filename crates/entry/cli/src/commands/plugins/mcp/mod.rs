@@ -17,11 +17,12 @@ pub mod types;
 pub mod validate;
 mod validate_output;
 
-use anyhow::{Context, Result, bail};
+use crate::kernel::KernelHost;
+use anyhow::{Context, Result};
 use clap::Subcommand;
 
-use crate::context::CommandContext;
-use crate::shared::render_result;
+use systemprompt_extension::cli::CommandOutput;
+
 
 #[derive(Debug, Subcommand)]
 pub enum McpCommands {
@@ -47,58 +48,35 @@ pub enum McpCommands {
     Call(call::CallArgs),
 }
 
-pub async fn execute(command: McpCommands, ctx: &CommandContext) -> Result<()> {
-    let config = &ctx.cli;
+pub async fn execute(command: McpCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
-        McpCommands::List(args) => {
-            let result = list::execute(args, ctx).context("Failed to list MCP servers")?;
-            render_result(&result, config);
-            Ok(())
-        },
-        McpCommands::Status(args) => {
-            let result = status::execute(args, ctx)
-                .await
-                .context("Failed to get MCP server status")?;
-            render_result(&result, config);
-            Ok(())
-        },
+        McpCommands::List(args) => list::execute(args, host)
+            .await
+            .context("Failed to list MCP servers"),
+        McpCommands::Status(args) => status::execute(args, host)
+            .await
+            .context("Failed to get MCP server status"),
         McpCommands::Validate(args) => {
-            let (result, valid) = Box::pin(validate::execute(args, ctx))
+            let (result, valid) = Box::pin(validate::execute(args, host))
                 .await
                 .context("Failed to validate MCP server")?;
-            render_result(&result, config);
-            if !valid {
-                bail!("MCP server validation failed");
+            if valid {
+                return Ok(result);
             }
-            Ok(())
+            host.render(&result);
+            anyhow::bail!("MCP server validation failed")
         },
-        McpCommands::Logs(args) => {
-            let result = logs::execute(args, ctx)
-                .await
-                .context("Failed to get MCP server logs")?;
-            render_result(&result, config);
-            Ok(())
-        },
-        McpCommands::ListPackages(args) => {
-            let result = list_packages::execute(args, ctx)
-                .await
-                .context("Failed to list MCP packages")?;
-            render_result(&result, config);
-            Ok(())
-        },
-        McpCommands::Tools(args) => {
-            let result = Box::pin(tools::execute(args, ctx))
-                .await
-                .context("Failed to list MCP tools")?;
-            render_result(&result, config);
-            Ok(())
-        },
-        McpCommands::Call(args) => {
-            let result = Box::pin(call::execute(args, ctx))
-                .await
-                .context("Failed to execute MCP tool")?;
-            render_result(&result, config);
-            Ok(())
-        },
+        McpCommands::Logs(args) => logs::execute(args, host)
+            .await
+            .context("Failed to get MCP server logs"),
+        McpCommands::ListPackages(args) => list_packages::execute(args, host)
+            .await
+            .context("Failed to list MCP packages"),
+        McpCommands::Tools(args) => Box::pin(tools::execute(args, host))
+            .await
+            .context("Failed to list MCP tools"),
+        McpCommands::Call(args) => Box::pin(call::execute(args, host))
+            .await
+            .context("Failed to execute MCP tool"),
     }
 }

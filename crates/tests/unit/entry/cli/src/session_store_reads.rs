@@ -6,9 +6,9 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::paths::ResolvedPaths;
 use systemprompt_cli::session::{get_session_for_key, load_session_store};
 use systemprompt_cloud::SessionKey;
+use systemprompt_cloud::paths::ResolvedPaths;
 use tempfile::TempDir;
 
 fn owned_project() -> TempDir {

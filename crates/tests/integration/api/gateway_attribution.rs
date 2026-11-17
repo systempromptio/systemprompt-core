@@ -1,5 +1,5 @@
-//! Scope attribution seam: a tenant `project` dimension registered through
-//! `register_subject_attribute_provider!` is resolved from the
+//! Scope attribution seam: a tenant `project` dimension contributed as a
+//! subject attribute provider is resolved from the
 //! `x-systemprompt-scope-project` header, the API key's binding, or the
 //! provider's first value, verified against the caller's values, and
 //! persisted on the audit row (`ai_request_attributions`, `api_key_id`).
@@ -12,7 +12,7 @@ use systemprompt_api::routes::gateway::messages::extract::scope::{
 use systemprompt_api::routes::gateway::messages::rejection::persist_rejection;
 use systemprompt_gateway::service::GatewayService;
 use systemprompt_governance::authz::{
-    AuthzError, RuleType, SubjectAttributeProvider, SubjectDimension, SubjectProviderSet,
+    RuleType, SubjectAttributeProvider, SubjectDimension, SubjectProviderSet,
 };
 use systemprompt_identifiers::{AiRequestId, ApiKeyId, ScopeDimension, UserId};
 use systemprompt_models::attribution::{AttributionSource, RequestAttribution, ScopeBinding};
@@ -48,17 +48,16 @@ impl SubjectAttributeProvider for ProjectProvider {
         }
     }
 
-    async fn values_for(&self, user_id: &UserId) -> Result<Vec<String>, AuthzError> {
+    async fn values_for(
+        &self,
+        user_id: &UserId,
+    ) -> Result<Vec<String>, systemprompt_governance::authz::SubjectAttributeError> {
         if user_id.as_str().starts_with(SCOPED_USER_PREFIX) {
             return Ok(vec!["p-primary".to_owned(), "p-other".to_owned()]);
         }
         Ok(Vec::new())
     }
 }
-
-systemprompt_governance::register_subject_attribute_provider!(|_ctx| std::sync::Arc::new(
-    ProjectProvider
-));
 
 fn partial() -> RejectionPartial {
     RejectionPartial::new(RequestOrigin::gateway(
@@ -83,8 +82,13 @@ fn headers(pairs: &[(&str, &str)]) -> HeaderMap {
     map
 }
 
-fn project_only() -> SubjectProviderSet {
-    SubjectProviderSet::from_providers(vec![std::sync::Arc::new(ProjectProvider)])
+pub(super) fn project_only() -> SubjectProviderSet {
+    SubjectProviderSet::new(vec![systemprompt_governance::authz::SubjectProviderEntry {
+        owner: systemprompt_identifiers::ExtensionId::new("test"),
+        standing: systemprompt_extension::StandingTag::Install,
+        provider: std::sync::Arc::new(ProjectProvider),
+    }])
+    .expect("subject provider set builds")
 }
 
 fn binding(value: &str) -> ScopeBinding {
@@ -136,9 +140,9 @@ fn project_entry(attribution: &RequestAttribution) -> (&str, AttributionSource) 
 }
 
 #[tokio::test]
-async fn registered_provider_is_discovered_through_the_gateway_repositories() {
+async fn a_contributed_provider_is_carried_by_the_gateway_repositories() {
     let (pool, _ctx) = setup_ctx().await.expect("ctx");
-    let repos = gw_repos(&pool);
+    let repos = gw_repos(&pool).with_subject_providers(project_only());
     assert!(repos.subject_providers.find(PROJECT).is_some());
     let user = scoped_user();
     let mut partial = partial();
@@ -381,7 +385,7 @@ async fn attribution_rows(
 async fn a_rejected_request_persists_its_attribution() -> anyhow::Result<()> {
     let (pool, _ctx) = setup_ctx().await?;
     let cred = seed_admin_credential(&pool, "scope-reject@example.invalid").await?;
-    let repos = gw_repos(&pool);
+    let repos = gw_repos(&pool).with_subject_providers(project_only());
     let id = AiRequestId::generate();
     let mut partial = partial();
     partial.user_id = Some(cred.user_id.clone());
@@ -444,7 +448,7 @@ async fn a_completed_request_persists_its_attribution_and_api_key() -> anyhow::R
         api_key_id: Some(ApiKeyId::new("key-completed")),
     };
     let id = dispatch.ctx.ai_request_id.clone();
-    let repos = gw_repos(&pool);
+    let repos = gw_repos(&pool).with_subject_providers(project_only());
     let response = GatewayService::dispatch(&config, &registry, &pool, &repos, dispatch)
         .await
         .expect("dispatch succeeds");

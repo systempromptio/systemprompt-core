@@ -1,9 +1,9 @@
 //! Scheduler core — owns the [`tokio_cron_scheduler::JobScheduler`],
-//! discovers inventory-registered jobs, and dispatches them under a typed
-//! error boundary.
+//! schedules the jobs of the admitted composition ([`AdmittedSchedule`]),
+//! and dispatches them under a typed error boundary.
 //!
 //! Start never deletes a `scheduled_jobs` row. A node schedules the jobs its
-//! enabled extensions register and ignores every other row, so nodes of
+//! admitted members contribute and ignores every other row, so nodes of
 //! different releases or compositions sharing one database keep each other's
 //! rows, operator `enabled` flags and run history. A row no node registers any
 //! longer is removed only by `infra jobs prune`.
@@ -25,14 +25,14 @@ use crate::error::{SchedulerError, SchedulerResult};
 use crate::jobs::InventoryRefreshMemo;
 use crate::models::{SchedulerConfig, SkippedJob};
 use crate::repository::SchedulerRepository;
-use crate::services::EnabledExtensions;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use systemprompt_database::DbPool;
+use systemprompt_extension::AdmittedSchedule;
 use systemprompt_identifiers::{JobName, UserId};
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::{Job as JobTrait, registered_jobs};
+use systemprompt_traits::Job as JobTrait;
 use tokio::sync::Mutex;
 use tokio_cron_scheduler::JobScheduler;
 use tracing::{debug, info, warn};
@@ -42,6 +42,16 @@ pub(crate) use job_context::{deployment_dependencies, job_app_context, make_job_
 pub use unlisted::unlisted_job_names;
 
 pub(crate) type RunningJobs = Arc<Mutex<HashSet<JobName>>>;
+
+pub(crate) type JobMap = HashMap<&'static str, Arc<dyn JobTrait>>;
+
+pub(crate) fn job_map(schedule: &AdmittedSchedule) -> JobMap {
+    schedule
+        .jobs()
+        .iter()
+        .map(|(_, job)| (job.name(), Arc::clone(job)))
+        .collect()
+}
 
 /// Live handle to a started scheduler, returned by [`SchedulerService::start`].
 ///
@@ -73,7 +83,7 @@ impl SchedulerHandle {
 /// dropped because their explicit owner did not resolve or because
 /// registration failed, for the caller to surface as a health signal.
 /// `scheduled` is how many jobs are actually on the cron loop, as distinct
-/// from the inventory total the build happens to contain.
+/// from the number of jobs the admitted composition contributes.
 #[derive(Debug)]
 pub struct SchedulerStartup {
     pub handle: Option<SchedulerHandle>,
@@ -93,23 +103,16 @@ impl SchedulerStartup {
 
 struct RegistrationCtx<'a> {
     scheduler: &'a JobScheduler,
-    registered_jobs: &'a HashMap<&'a str, &'static dyn JobTrait>,
+    registered_jobs: &'a JobMap,
     running_jobs: &'a RunningJobs,
     owners: &'a HashMap<JobName, UserId>,
 }
 
 #[must_use]
-pub fn unknown_job_names(config: &SchedulerConfig) -> Vec<JobName> {
-    let registered: HashSet<&'static str> = linked_jobs().into_keys().collect();
-    collect_unknown_job_names(config, |name| registered.contains(name.as_str()))
+pub fn unknown_job_names(config: &SchedulerConfig, schedule: &AdmittedSchedule) -> Vec<JobName> {
+    collect_unknown_job_names(config, |name| schedule.contains_job(name.as_str()))
         .into_iter()
         .cloned()
-        .collect()
-}
-
-fn linked_jobs() -> HashMap<&'static str, &'static dyn JobTrait> {
-    registered_jobs()
-        .map(|registration| (registration.job.name(), registration.job))
         .collect()
 }
 
@@ -134,27 +137,32 @@ fn collect_unknown_job_names(
 #[derive(Debug)]
 pub struct SchedulerService {
     config: SchedulerConfig,
-    db_pool: DbPool,
     repository: SchedulerRepository,
     user_repository: Arc<systemprompt_users::UserRepository>,
     logging_repository: systemprompt_logging::LoggingRepository,
     app_context: Arc<AppContext>,
     inventory_memo: Arc<InventoryRefreshMemo>,
+    schedule: Arc<AdmittedSchedule>,
 }
 
 impl SchedulerService {
-    pub fn new(config: SchedulerConfig, db_pool: DbPool, app_context: Arc<AppContext>) -> Self {
-        let repository = SchedulerRepository::new(&db_pool);
+    pub fn new(
+        config: SchedulerConfig,
+        db_pool: &DbPool,
+        app_context: Arc<AppContext>,
+        schedule: Arc<AdmittedSchedule>,
+    ) -> Self {
+        let repository = SchedulerRepository::new(db_pool);
         let user_repository = Arc::clone(app_context.user_repository());
-        let logging_repository = systemprompt_logging::LoggingRepository::new(&db_pool);
+        let logging_repository = systemprompt_logging::LoggingRepository::new(db_pool);
         Self {
             config,
-            db_pool,
             repository,
             user_repository,
             logging_repository,
             app_context,
             inventory_memo: Arc::new(InventoryRefreshMemo::new()),
+            schedule,
         }
     }
 
@@ -164,19 +172,17 @@ impl SchedulerService {
             return Ok(SchedulerStartup::disabled());
         }
 
-        let linked_jobs = linked_jobs();
-        let registered_jobs = self.enabled_jobs()?;
-        self.validate_configured_jobs(&linked_jobs)?;
+        let registered_jobs = job_map(&self.schedule);
+        self.validate_configured_jobs()?;
         self.adopt_unlisted_jobs(&registered_jobs)?;
-        self.verify_lock_keys(&linked_jobs).await?;
+        self.verify_lock_keys(&registered_jobs).await?;
 
         let resolved = self.resolve_owners(true).await?;
 
         debug!(
-            linked = linked_jobs.len(),
-            enabled = registered_jobs.len(),
+            admitted = registered_jobs.len(),
             configured = self.config.jobs.len(),
-            "Discovered jobs via inventory"
+            "Admitted jobs resolved"
         );
 
         let running_jobs: RunningJobs = Arc::new(Mutex::new(HashSet::new()));
@@ -208,28 +214,15 @@ impl SchedulerService {
         })
     }
 
-    async fn verify_lock_keys(
-        &self,
-        registered_jobs: &HashMap<&'static str, &'static dyn JobTrait>,
-    ) -> SchedulerResult<()> {
+    async fn verify_lock_keys(&self, registered_jobs: &JobMap) -> SchedulerResult<()> {
         let mut names: Vec<JobName> = registered_jobs.keys().map(|n| JobName::new(*n)).collect();
         names.push(JobName::new(crate::repository::RECONCILE_LOCK));
         self.repository.verify_lock_keys(&names).await
     }
 
-    fn enabled_jobs(&self) -> SchedulerResult<HashMap<&'static str, &'static dyn JobTrait>> {
-        Ok(EnabledExtensions::of(&self.app_context)?
-            .jobs()
-            .map(|job| (job.name(), job))
-            .collect())
-    }
-
-    fn validate_configured_jobs(
-        &self,
-        registered_jobs: &HashMap<&'static str, &'static dyn JobTrait>,
-    ) -> SchedulerResult<()> {
+    fn validate_configured_jobs(&self) -> SchedulerResult<()> {
         let unknown = collect_unknown_job_names(&self.config, |name| {
-            registered_jobs.contains_key(name.as_str())
+            self.schedule.contains_job(name.as_str())
         });
         if unknown.is_empty() {
             Ok(())

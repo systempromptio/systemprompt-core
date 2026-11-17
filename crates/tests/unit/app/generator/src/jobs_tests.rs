@@ -1,16 +1,17 @@
 //! Tests for the scheduled prerender jobs: metadata accessors and the
 //! `execute` guard arms for a missing `DbPool` / `AppPaths` in the
-//! `JobContext`, plus a full success run against an empty source config, and
-//! the generator extension's ownership of both registrations.
+//! `JobContext`, plus a full success run against an empty source config with
+//! and without built content hooks in the context, and the generator member's
+//! contribution of both jobs.
 
 use std::fs;
 use std::sync::{Arc, Mutex};
 
-use systemprompt_extension::Extension;
+use systemprompt_extension::contribute::ContributionSink;
+use systemprompt_extension::{Contributions, Extension};
 use systemprompt_generator::{ContentPrerenderJob, GeneratorExtension, PagePrerenderJob};
-use systemprompt_provider_contracts::{
-    Dependencies, Job, JobContext, JobRegistration, JobScope, ProviderError,
-};
+use systemprompt_identifiers::ExtensionId;
+use systemprompt_provider_contracts::{Dependencies, Job, JobContext, JobScope, ProviderError};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_actor, test_db_pool};
 
 static SERIALIZE: Mutex<()> = Mutex::new(());
@@ -28,17 +29,18 @@ fn content_prerender_job_metadata() {
 }
 
 #[test]
-fn the_generator_extension_owns_both_prerender_jobs() {
-    let extension = GeneratorExtension;
-    assert_eq!(extension.metadata().id, "generator");
-    assert_eq!(extension.dependencies(), vec!["content"]);
-    let mut owned: Vec<&str> = inventory::iter::<JobRegistration>
-        .into_iter()
-        .filter(|registration| registration.owner == "generator")
-        .map(|registration| registration.job.name())
-        .collect();
+fn the_generator_member_contributes_both_prerender_jobs() {
+    assert_eq!(GeneratorExtension.metadata().id, "generator");
+    let mut sink = ContributionSink::default();
+    let mut c = Contributions::__new(ExtensionId::new("generator"), &mut sink);
+    GeneratorExtension
+        .contribute(&mut c)
+        .expect("the generator member contributes");
+    let mut owned: Vec<&str> = sink.jobs().iter().map(|job| job.job().name()).collect();
     owned.sort_unstable();
     assert_eq!(owned, vec!["content_prerender", "page_prerender"]);
+    assert!(sink.schemas().is_empty());
+    assert!(sink.provides().is_empty());
 }
 
 #[test]
@@ -107,8 +109,7 @@ async fn page_prerender_job_without_app_paths_is_configuration_error() {
     );
 }
 
-#[tokio::test]
-async fn prerender_jobs_run_to_success_with_empty_sources() {
+async fn run_prerender_jobs_with_empty_sources(with_hooks: bool) {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
     let db = test_db_pool().await;
@@ -126,14 +127,18 @@ async fn prerender_jobs_run_to_success_with_empty_sources() {
     fs::create_dir_all(boot.app_paths.web().dist()).expect("mkdir dist");
     fs::create_dir_all(boot.app_paths.web().root().join("templates")).expect("mkdir templates");
 
-    let ctx = JobContext::new(
-        fixture_actor(),
-        Dependencies::new()
-            .with(db.clone())
-            .with(Arc::clone(boot.boot_config()))
-            .with(Arc::new(boot.app_paths.clone()))
-            .with(systemprompt_test_fixtures::fixture_extension_context(&db)),
-    );
+    let mut state = Dependencies::new()
+        .with(db.clone())
+        .with(Arc::clone(boot.boot_config()))
+        .with(Arc::new(boot.app_paths.clone()));
+    if with_hooks {
+        state.insert(Arc::new(crate::ext_fixtures::fixture_hooks(&db)));
+    } else {
+        state.insert(Arc::new(
+            systemprompt_content::contract::ContentHooks::default(),
+        ));
+    }
+    let ctx = JobContext::new(fixture_actor(), state);
 
     let result = ContentPrerenderJob
         .execute(&ctx)
@@ -145,4 +150,14 @@ async fn prerender_jobs_run_to_success_with_empty_sources() {
     if let Ok(res) = result {
         assert!(res.success);
     }
+}
+
+#[tokio::test]
+async fn prerender_jobs_run_to_success_with_empty_sources_and_the_built_hooks() {
+    run_prerender_jobs_with_empty_sources(true).await;
+}
+
+#[tokio::test]
+async fn prerender_jobs_run_to_success_with_empty_sources_and_no_built_hooks() {
+    run_prerender_jobs_with_empty_sources(false).await;
 }

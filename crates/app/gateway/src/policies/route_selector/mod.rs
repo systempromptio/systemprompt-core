@@ -4,17 +4,18 @@
 //! [`RouteMatch`](systemprompt_manifest::services::RouteMatch) predicates. When
 //! a request needs classification those predicates cannot express — accurate
 //! token counting, a learned task classifier, heuristic shape detection — a
-//! [`RouteSelector`] contributed through the
-//! [`register_route_selector!`](crate::register_route_selector) macro and
-//! collected via `inventory` may *re-route* the request to a different
+//! [`RouteSelector`] contributed to
+//! [`RouteSelectorSlot`](crate::contract::RouteSelectorSlot) may *re-route*
+//! the request to a different
 //! [`GatewayRoute`]. It can never deny: the authorization hook owns denial,
 //! and a selector that errors is logged and treated as no-op so a
 //! misconfigured extension can never fail dispatch.
 //!
 //! This mirrors the
 //! [`SystemPromptOverride`](super::overrides::SystemPromptOverride)
-//! seam: a `dyn`-object trait, an `inventory`-collected registration, and a
-//! process-global engine resolved once.
+//! seam: a `dyn`-object trait, a core-first slot, and one engine built from
+//! the admitted entries. Selectors run core first, then installs in
+//! composition order; the first that re-routes wins.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -47,33 +48,13 @@ pub trait RouteSelector: Send + Sync {
     ) -> Result<Option<GatewayRoute>, RouteSelectorError>;
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct RouteSelectorRegistration {
-    pub name: &'static str,
-    pub factory: fn() -> Arc<dyn RouteSelector>,
-}
-
-inventory::collect!(RouteSelectorRegistration);
-
-#[macro_export]
-macro_rules! register_route_selector {
-    ($factory:expr, name = $name:expr $(,)?) => {
-        $crate::__inventory::submit! {
-            $crate::RouteSelectorRegistration {
-                name: $name,
-                factory: || ::std::sync::Arc::new($factory()),
-            }
-        }
-    };
-}
-
 pub struct RouteSelectorChain {
     selectors: Vec<Arc<dyn RouteSelector>>,
 }
 
 impl Default for RouteSelectorChain {
     fn default() -> Self {
-        Self::new()
+        Self::new(Vec::new())
     }
 }
 
@@ -87,12 +68,8 @@ impl std::fmt::Debug for RouteSelectorChain {
 
 impl RouteSelectorChain {
     #[must_use]
-    pub fn new() -> Self {
-        Self {
-            selectors: inventory::iter::<RouteSelectorRegistration>()
-                .map(|reg| (reg.factory)())
-                .collect(),
-        }
+    pub fn new(selectors: Vec<Arc<dyn RouteSelector>>) -> Self {
+        Self { selectors }
     }
 
     #[must_use]

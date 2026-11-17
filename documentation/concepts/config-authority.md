@@ -1,6 +1,6 @@
 # Config planes
 
-A config plane is a configuration file under the services tree that is projected into database rows. A typical example is an access-control file whose rules become rows the runtime enforces. Extensions contribute planes through `Extension::config_planes()`. The host reconciles each plane against its file, records every change it makes, and exposes the result in `/readyz`, in the Prometheus metrics and through `admin config planes`.
+A config plane is a configuration file under the services tree that is projected into database rows. A typical example is an access-control file whose rules become rows the runtime enforces. Extensions contribute planes from `Extension::contribute` with `Contributions::config_plane`; only the planes of admitted members are reconciled. The host reconciles each plane against its file, records every change it makes, and exposes the result in `/readyz`, in the Prometheus metrics and through `admin config planes`.
 
 The contract is `ConfigPlane` in `crates/shared/provider-contracts/src/config_plane/`. The reconciler is `ConfigReconcileService` in `crates/app/scheduler/src/services/config_reconcile/`.
 
@@ -32,7 +32,7 @@ The `identity` plane declares users (email, name, roles, status), service accoun
 
 ## Ordering and effect
 
-A plane can name the planes whose rows it references through `depends_on()`. The host orders planes so each one follows its dependencies, using registration order to break ties, and reconciles them in that order. At boot it refuses to start when a plane depends on an unregistered plane or when the dependencies form a cycle.
+A plane can name the planes whose rows it references through `depends_on()`. The host orders planes so each one follows its dependencies, using contribution order to break ties, and reconciles them in that order. At boot it refuses to start when a plane depends on a plane no admitted member contributes or when the dependencies form a cycle.
 
 A plane's `effect()` says when a written change reaches the running system. `live` means the next read sees it. `on_restart` means the runtime loads the projection at boot, so a change takes effect only after a restart. The effect appears in `admin config planes list` and `diff`, and in each plane entry of the `/readyz` `config` block.
 

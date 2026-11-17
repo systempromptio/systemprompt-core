@@ -62,8 +62,10 @@ impl std::fmt::Debug for AgentHost {
 }
 
 impl AgentHost {
-    pub async fn from_process_env() -> Result<Self, AgentHostError> {
-        Self::compose(HostContext::from_process_env().await?)
+    pub async fn from_process_env(
+        admit: systemprompt_runtime::AdmitFn,
+    ) -> Result<Self, AgentHostError> {
+        Self::compose(HostContext::from_process_env(admit).await?)
     }
 
     pub fn compose(host: HostContext) -> Result<Self, AgentHostError> {

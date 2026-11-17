@@ -15,11 +15,12 @@ pub mod template_validation;
 use anyhow::Result;
 use clap::{Args, ValueEnum};
 
-use crate::CliConfig;
+use systemprompt_extension::cli::CliConfig;
 
 use super::paths::WebPaths;
 use super::types::ValidationOutput;
-use systemprompt_loader::BootContext;
+use std::path::Path;
+use systemprompt_manifest::Profile;
 
 #[derive(Debug, Clone, Copy, ValueEnum, Default)]
 pub enum ValidationCategory {
@@ -40,10 +41,10 @@ pub struct ValidateArgs {
 pub(super) fn execute(
     args: &ValidateArgs,
     _config: &CliConfig,
-    boot: &BootContext,
+    services_root: &Path,
+    profile: &Profile,
 ) -> Result<ValidationOutput> {
-    let web_paths = WebPaths::resolve(boot)?;
-    let profile = boot.profile();
+    let web_paths = WebPaths::resolve(services_root)?;
 
     let mut errors = Vec::new();
     let mut warnings = Vec::new();

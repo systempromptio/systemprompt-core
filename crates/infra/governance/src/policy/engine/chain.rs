@@ -12,10 +12,9 @@ use super::{ChainEntry, Evaluation, GovernanceEngine};
 use crate::authz::types::{Decision, DenyReason, MatchedBy};
 use crate::policy::audit::{ChainEntryOutcome, ChainEntryResult};
 use crate::policy::config::PolicyConfig;
-use crate::policy::governed::{GovernedInput, GovernedTarget};
 use crate::policy::plane::GOVERNANCE_PLANE;
-use crate::policy::secrets::{MAX_RECOVERY_FINDINGS, SecretFinding};
-use crate::policy::types::PolicyContext;
+use crate::policy::secrets::MAX_RECOVERY_FINDINGS;
+use crate::policy::{GovernedInput, GovernedTarget, PolicyContext, SecretFinding};
 use systemprompt_manifest::profile::UnappliedPlaneMode;
 
 type PromptRecovery<'a> = &'a mut dyn FnMut(&[SecretFinding]) -> Option<GovernedInput>;

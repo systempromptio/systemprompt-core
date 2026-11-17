@@ -21,8 +21,9 @@
 use std::io;
 use std::path::Path;
 use std::process::{ExitStatus, Output};
+use std::sync::Arc;
 
-use systemprompt_loader::subprocess::ForegroundChildren;
+use systemprompt_extension::cli::ChildSupervisor;
 
 use crate::error::{CloudError, CloudResult};
 
@@ -58,7 +59,7 @@ impl std::fmt::Debug for DockerCli {
 
 impl DockerCli {
     #[must_use]
-    pub fn new(children: ForegroundChildren) -> Self {
+    pub fn new(children: Arc<dyn ChildSupervisor>) -> Self {
         Self {
             runner: Box::new(SystemCommandRunner::new(children)),
         }

@@ -11,7 +11,7 @@ use systemprompt_api::services::proxy::resolver::ServiceResolver;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{InstanceId, ServiceName};
 use systemprompt_test_fixtures::{
-    closed_db_pool, ensure_test_bootstrap, test_app_context, test_db_pool, unique_name,
+    ensure_test_bootstrap, test_app_context, test_db_pool, unique_name,
 };
 
 async fn live_pool() -> DbPool {
@@ -47,8 +47,9 @@ async fn delete_service(pool: &DbPool, name: &str) {
 #[tokio::test]
 async fn an_unreachable_database_is_reported_as_a_database_error_not_a_missing_service() {
     let boot = ensure_test_bootstrap();
-    let pool = closed_db_pool().await;
-    let ctx = test_app_context(&pool, &boot.database_url);
+    let ctx = test_app_context(&boot.database_url).await;
+    ctx.db_pool().pool().close().await;
+    ctx.db_pool().write_pool().close().await;
 
     let error = ServiceResolver::resolve(&ServiceName::new("anything"), &ctx)
         .await
@@ -63,9 +64,8 @@ async fn an_unreachable_database_is_reported_as_a_database_error_not_a_missing_s
 
 #[tokio::test]
 async fn a_service_no_row_names_is_reported_as_not_found() {
-    let pool = live_pool().await;
     let boot = ensure_test_bootstrap();
-    let ctx = test_app_context(&pool, &boot.database_url);
+    let ctx = test_app_context(&boot.database_url).await;
 
     let error = ServiceResolver::resolve(&ServiceName::new(unique_name("absent")), &ctx)
         .await
@@ -82,7 +82,7 @@ async fn a_service_no_row_names_is_reported_as_not_found() {
 async fn a_registered_but_stopped_service_reports_the_status_that_refused_it() {
     let pool = live_pool().await;
     let boot = ensure_test_bootstrap();
-    let ctx = test_app_context(&pool, &boot.database_url);
+    let ctx = test_app_context(&boot.database_url).await;
     let name = unique_name("stopped");
     seed_service(&pool, &ctx.config().instance_id, &name, "stopped").await;
 
@@ -115,7 +115,7 @@ async fn a_registered_but_stopped_service_reports_the_status_that_refused_it() {
 async fn a_crashed_service_that_cannot_be_restarted_is_refused_rather_than_retried_forever() {
     let pool = live_pool().await;
     let boot = ensure_test_bootstrap();
-    let ctx = test_app_context(&pool, &boot.database_url);
+    let ctx = test_app_context(&boot.database_url).await;
     let name = unique_name("crashed_unregistered");
     seed_service(&pool, &ctx.config().instance_id, &name, "error").await;
 
@@ -153,7 +153,7 @@ async fn a_crashed_service_that_cannot_be_restarted_is_refused_rather_than_retri
 async fn a_crashed_service_that_comes_back_running_is_returned_to_the_caller() {
     let pool = live_pool().await;
     let boot = ensure_test_bootstrap();
-    let ctx = test_app_context(&pool, &boot.database_url);
+    let ctx = test_app_context(&boot.database_url).await;
     let name = unique_name("crashed_recovers");
     seed_service(&pool, &ctx.config().instance_id, &name, "error").await;
 
@@ -195,15 +195,16 @@ async fn a_crashed_service_that_comes_back_running_is_returned_to_the_caller() {
 async fn a_read_failure_on_the_restart_recheck_is_reported_as_a_database_error() {
     let pool = live_pool().await;
     let boot = ensure_test_bootstrap();
-    let ctx = test_app_context(&pool, &boot.database_url);
+    let ctx = test_app_context(&boot.database_url).await;
     let name = unique_name("crashed_then_outage");
     seed_service(&pool, &ctx.config().instance_id, &name, "error").await;
 
     let closer = {
-        let pool = pool.clone();
+        let pool = std::sync::Arc::clone(ctx.db_pool());
         tokio::spawn(async move {
             tokio::time::sleep(std::time::Duration::from_millis(150)).await;
             pool.pool().close().await;
+            pool.write_pool().close().await;
         })
     };
 

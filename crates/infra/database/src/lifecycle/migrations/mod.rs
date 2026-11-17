@@ -29,9 +29,10 @@ pub use status::{
     OrphanedMigration, PendingMigration, SlotCollision, TombstonedSlot,
 };
 
+use crate::lifecycle::schema_member::SchemaMember;
 use crate::services::{DatabaseProvider, SqlExecutor};
 use std::collections::HashSet;
-use systemprompt_extension::{Extension, LoaderError, Migration, MigrationFault};
+use systemprompt_extension::{LoaderError, Migration, MigrationFault};
 use systemprompt_identifiers::ExtensionId;
 use tracing::{debug, info, warn};
 
@@ -109,7 +110,7 @@ impl<'a> MigrationService<'a> {
 
     pub async fn run_pending_migrations(
         &self,
-        extension: &dyn Extension,
+        extension: &dyn SchemaMember,
     ) -> Result<MigrationResult, LoaderError> {
         let ext_id = &ExtensionId::new(extension.metadata().id);
         let migrations = extension.migrations();

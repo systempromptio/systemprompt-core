@@ -112,6 +112,7 @@ async fn the_engine_is_unapplied_when_empty_and_follows_the_applied_rows() {
 
     let empty = GovernanceEngine::load(
         pool.pool().as_ref(),
+        &systemprompt_governance::policy::PolicyCatalog::builtin(),
         Some(crate::offline_rate_windows()),
         Default::default(),
     )
@@ -125,6 +126,7 @@ async fn the_engine_is_unapplied_when_empty_and_follows_the_applied_rows() {
     write_declared(&pool, CHAIN).await;
     let applied = GovernanceEngine::load(
         pool.pool().as_ref(),
+        &systemprompt_governance::policy::PolicyCatalog::builtin(),
         Some(crate::offline_rate_windows()),
         Default::default(),
     )
@@ -157,6 +159,7 @@ async fn a_governance_epoch_swaps_in_the_rebuilt_engine() {
     let load = |pool: DbPool| async move {
         GovernanceEngine::load(
             pool.pool().as_ref(),
+            &systemprompt_governance::policy::PolicyCatalog::builtin(),
             Some(crate::offline_rate_windows()),
             Default::default(),
         )

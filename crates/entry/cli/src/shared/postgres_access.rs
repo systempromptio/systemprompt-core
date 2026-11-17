@@ -35,6 +35,15 @@ impl PostgresConfig {
     }
 
     #[must_use]
+    pub fn credentials(&self) -> systemprompt_cloud::docker_compose::PostgresCredentials<'_> {
+        systemprompt_cloud::docker_compose::PostgresCredentials {
+            user: &self.user,
+            password: &self.password,
+            database: &self.database,
+        }
+    }
+
+    #[must_use]
     pub fn connect_options(&self) -> PgConnectOptions {
         connect_options(
             &self.user,

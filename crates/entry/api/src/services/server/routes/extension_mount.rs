@@ -1,57 +1,16 @@
-//! Mounts extension-provided routers onto the server router.
+//! Mounts the admitted composition's route sets onto the server router.
 //!
-//! Each extension returns its `ExtensionRouter` declarations; each is
-//! mounted through the same declaration mount as every core route group, so
-//! its authorization policy, context middleware, rate limit, body limit,
-//! protection layers, frame options, role group and enable predicate are
-//! applied exactly as declared.
+//! Every admitted route set is mounted through the enumerating mount
+//! ([`mount_admitted`]), which first re-checks the whole handoff against the
+//! kernel's reserved constants, so a route set reaches the router only with
+//! a shape the conferral table lists for its owner. Each set is mounted on
+//! the roles that serve its route group.
 //!
-//! An extension's routers are built only on a role that could serve one of
-//! them (`extension_built`): a role that serves `RouteGroup::Extensions`, or
-//! one that serves the group of a core declaration row listing that
-//! extension. At the base, `mount_extension_routes` ran only on roles serving
-//! `Extensions` (the guard in `build_routes`), so a router build error, the
-//! base-path and reserved-prefix checks and admission never ran on the
-//! gateway, worker or runner roles; they still do not, except that a worker
-//! builds and admits the agent-runs extension it serves. On a role that
-//! builds them, every declaration is admitted together (`admit_extensions`,
-//! against the closed core declaration table: base path, reserved prefix,
-//! handler verification, body limit, one declaration per core row, and the
-//! route pins that confine a core row's router) before any is mounted, so an
-//! inadmissible declaration refuses boot even when this role would not serve
-//! it. A core
-//! declaration listed in the core declaration table is then
-//! mounted by the roles that serve its own route group, and every other
-//! declaration only by the roles that serve both `RouteGroup::Extensions` and
-//! its own group, so an install extension keeps its role exposure.
-//!
-//! Every path into this mount is downstream of the core owner check
-//! (`admit_core_owners`): each registered extension whose id names a core
-//! declaration row must be the Rust type that row names, or boot is refused
-//! before any extension factory runs, so neither a core row's treatment nor
-//! its kernel handle can be reached by id alone.
-//!
-//! Extension configuration is not validated here: startup validation runs
-//! the `validate_config` of each enabled extension with a `config_prefix`
-//! against its own `services/config/<prefix>.yaml` before the server is
-//! built.
-//!
-//! Every extension router receives the process's one governance engine as
-//! an axum extension: an extension that enforces policy (the MCP governance
-//! webhook, say) must charge the same rate-limiter budget as the gateway, and
-//! the only way it can reach that engine is to be handed it here. The same
-//! layer carries a `ServicesRefresh` handle, so a console that authorises a
-//! caller by its own rule can run the services refresh in-process rather than
-//! minting an admin token for the admin route. Capability services (the
-//! `AiService`, the `ArtifactIngest`) are not injected: a router reads them
-//! from `ExtensionContext::extension_state()` when it is built, and an absent
-//! one is a typed `MissingDependency`.
-//!
-//! A kernel handle that must not enter the shared extension state (the
-//! analytics event broadcaster) is layered, after admission, onto exactly the
-//! router whose declaration matches the core row the table hands it to
-//! (`hand_kernel_handles`); every other router, install or core, never sees
-//! it in its request extensions.
+//! Every composition route receives the process's one governance engine as
+//! an axum extension: a route that enforces policy must charge the same
+//! rate-limiter budget as the gateway. The same layer carries a
+//! `ServicesRefresh` handle, so a console that authorises a caller by its own
+//! rule can run the services refresh in-process.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -59,70 +18,53 @@
 use super::RouteMountError;
 use super::protocol::MountCtx;
 use axum::{Extension, Router};
+use systemprompt_extension::router::full_path;
 use systemprompt_traits::{StartupEvent, StartupEventSender};
 
 use crate::routes::admin::services::{RefreshLock, ServicesRefresh};
-use crate::services::middleware::{
-    admit_extensions, extension_built, extension_served, hand_kernel_handles,
-};
+use crate::services::middleware::mount_admitted;
 
 pub(super) fn mount_extension_routes(
-    mut router: Router,
+    router: Router,
     mount: &MountCtx<'_>,
     refresh_lock: &RefreshLock,
     events: Option<&StartupEventSender>,
 ) -> Result<Router, RouteMountError> {
     let ctx = mount.ctx;
-    let registry = ctx.extension_registry();
-    let builds = |extension: &str| extension_built(extension, mount.serves);
-    let mut api_extensions =
-        registry.api_routers(ctx, &ctx.profile().extensions.disabled, &builds)?;
-    admit_extensions(&mut api_extensions)?;
-
-    for (ext, mut declared) in api_extensions {
-        let ext_id = ext.metadata().id;
-        let ext_name = ext.metadata().name;
-
-        let base_path = declared.base_path;
-        if !extension_served(ext_id, &declared, mount.serves) || !declared.is_enabled(ctx) {
-            tracing::info!(
-                extension = ext_id,
-                base_path,
-                group = ?declared.group,
-                "Extension router not mounted on this node"
-            );
-            continue;
-        }
-        let auth_required = declared.protection.requires_authentication();
-        tracing::debug!(
-            extension = ext_id,
-            base_path,
-            policy = ?declared.protection.policy,
-            context = ?declared.protection.context,
-            group = ?declared.group,
-            "Mounting extension router"
-        );
-
-        declared.router = declared
-            .router
+    let decorate = |routes: Router| {
+        routes
             .layer(Extension(ctx.governance_watch().clone()))
-            .layer(Extension(ServicesRefresh::new(ctx, refresh_lock.clone())));
-        let declared = hand_kernel_handles(ext_id, declared, ctx.event_broadcasters());
-
-        router = mount.mount(router, declared)?;
-
-        if let Some(tx) = events
-            && tx
+            .layer(Extension(ServicesRefresh::new(ctx, refresh_lock.clone())))
+    };
+    let admitted = mount.composed.admitted;
+    let router = mount_admitted(
+        router,
+        mount.composed,
+        mount.layers,
+        mount.serves,
+        &decorate,
+    )?;
+    if let Some(tx) = events {
+        for set in admitted.routes() {
+            if !(mount.serves)(set.set.group()) {
+                continue;
+            }
+            let auth_required = set.set.defs().iter().any(|def| {
+                !def.spec
+                    .policy
+                    .permits(systemprompt_models::auth::UserType::Anon)
+            });
+            if tx
                 .unbounded_send(StartupEvent::ExtensionRouteMounted {
-                    name: ext_name.to_owned(),
-                    path: base_path.to_owned(),
+                    name: set.owner.as_str().to_owned(),
+                    path: full_path(set.set.base(), "/"),
                     auth_required,
                 })
                 .is_err()
-        {
-            tracing::debug!("Startup event receiver dropped");
+            {
+                tracing::debug!("Startup event receiver dropped");
+            }
         }
     }
-
     Ok(router)
 }

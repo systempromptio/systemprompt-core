@@ -19,8 +19,7 @@ use systemprompt_models::brain::{
     TopicDecl,
 };
 use systemprompt_models::notifications::AudienceSubject;
-use systemprompt_runtime::notifications::UserRoleAudienceResolver;
-use systemprompt_users::UserRepository;
+use systemprompt_users::{UserRepository, UserRoleAudienceResolver};
 
 use crate::events::{PRODUCT, entered};
 use crate::harness::{Harness, Setup};
@@ -40,6 +39,10 @@ impl NotificationAudienceResolver for GroupResolver {
 
     fn handles(&self, subject: &AudienceSubject) -> bool {
         matches!(subject, AudienceSubject::Dimension { kind, .. } if kind == "group")
+    }
+
+    fn dimensions(&self) -> &'static [&'static str] {
+        &["group"]
     }
 
     async fn members(

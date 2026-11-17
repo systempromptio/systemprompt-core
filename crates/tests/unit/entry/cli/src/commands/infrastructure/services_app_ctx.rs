@@ -14,8 +14,9 @@ use std::sync::Arc;
 
 use clap::Parser;
 use systemprompt_cli::infrastructure::services::{self, ServicesCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, test_app_context, test_database_url, test_db_pool,
@@ -37,7 +38,7 @@ async fn app() -> (DbPool, Arc<AppContext>) {
     ensure_test_bootstrap();
     let url = test_database_url();
     let pool = test_db_pool().await;
-    let ctx = test_app_context(&pool, &url);
+    let ctx = test_app_context(&url).await;
     (pool, ctx)
 }
 

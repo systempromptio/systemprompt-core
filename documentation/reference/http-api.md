@@ -9,6 +9,7 @@ A2A is the agent-to-agent protocol; MCP is the Model Context Protocol. The gatew
 - Path constants are defined in `crates/shared/models/src/modules/api_paths.rs`. Routes are mounted in `crates/entry/api/src/services/server/discovery.rs`, `crates/entry/api/src/services/server/routes/protocol.rs`, and the routers under `crates/entry/api/src/routes/`.
 - All paths in this document are relative to the configured external base URL (`api_external_url` in the profile). Examples below use `http://127.0.0.1:8080`.
 - `{name}` denotes a path parameter.
+- Routes an installation adds are declared as route sets and admitted before the server mounts them. An install route may not reach a reserved core path (`RESERVED_PATHS`; for example the MCP proxy, the gateway `/v1` and `/api/public/gateway`, well-known, discovery, probes, `/`, `/api/v1/core`, documents, uploads, issues, brain, notifications, content `/r`, analytics `/track`); the check runs at admission and again at mount, and a violation refuses the boot. An installation has no root fallback: `/`, `/{*path}` and `/{slug}` routes are refused.
 
 ### Authentication
 
@@ -372,6 +373,7 @@ The shared document store ([documents.md](../documents.md)). Mounted only while 
 | POST | `/api/v1/documents/{id}/edits` | Structured edit operations with optional `base_revision`, `op_id`, `answering`, `allow_detach` and `mode` (`land`, `propose`); a proposal answers `201`. |
 | GET | `/api/v1/documents/{id}/read` | The `documents_read` views: `view=outline`, `text`, `range`, `cells`, `changes`, `node`, `search`, `meta`; `revision_id`, `verbose`. |
 | GET | `/api/v1/documents/{id}/revisions`, `/projection`, `/preview` | History; node projection; sanitised sandboxed HTML preview. |
+| GET, HEAD | `/api/v1/documents/{id}/rendered` | An HTML document's stored bytes at `?revision=`, inline as `text/html` under a `sandbox` CSP without `allow-same-origin`, never cached and frameable only by the app; scripts and `https:` assets load only as `files.documents.renderedHtml` allows. Any other format is refused as `unsupported_op`. |
 | GET, POST | `/api/v1/documents/{id}/comments` | Comment threads; `POST .../comments/{comment_id}/resolve` resolves one. |
 | GET | `/api/v1/documents/{id}/proposals`, `/proposals/{pid}` | Proposals (`?status=`); one proposal with its changed lines. |
 | POST | `/api/v1/documents/{id}/proposals/{pid}/accept`, `/reject` | Review with an optional `note`; `self_review` for one's own. |
@@ -398,7 +400,7 @@ A refused document request answers the common error envelope with `error_key` se
 
 ## Other mounted areas
 
-These areas are mounted by `mount_content_and_misc` (`protocol.rs:149`), except the content routes, which the `content-http` extension (`systemprompt-content-entry`) declares in the same role group. A profile that disables `content-http` mounts none of them, and those paths answer 404.
+These areas are mounted by `mount_content_and_misc` (`crates/entry/api/src/services/server/routes/protocol/content.rs`), except the content routes, which the `content-http` extension (`systemprompt-content-entry`) declares in the same role group. A profile that disables `content-http` mounts none of them, and those paths answer 404.
 
 | Base path | Auth | Purpose |
 |-----------|------|---------|

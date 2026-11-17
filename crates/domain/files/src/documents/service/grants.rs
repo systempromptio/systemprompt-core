@@ -19,6 +19,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::documents::transient::retry_conflicts;
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{AgentName, TraceId, UserId};
 use systemprompt_models::auth::AuthenticatedUser;
@@ -102,10 +103,15 @@ impl DocumentService {
         trace: &TraceId,
     ) -> Result<DocumentGrant, DocumentsError> {
         let checked = self.check_share(who, request, trace).await?;
-        let mut tx = self.repos.documents.begin().await?;
-        let grant = self.insert_checked(&mut tx, &checked).await?;
-        self.record_checked(&mut tx, who, &checked, &grant).await?;
-        tx.commit().await.map_err(RepositoryError::from)?;
+        let stored = &checked;
+        let grant = retry_conflicts(|| async move {
+            let mut tx = self.repos.documents.begin().await?;
+            let grant = self.insert_checked(&mut tx, stored).await?;
+            self.record_checked(&mut tx, who, stored, &grant).await?;
+            tx.commit().await.map_err(RepositoryError::from)?;
+            Ok::<_, DocumentsError>(grant)
+        })
+        .await?;
         self.announce_checked(who, checked, &grant).await;
         Ok(grant)
     }

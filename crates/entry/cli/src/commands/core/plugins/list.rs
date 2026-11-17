@@ -3,12 +3,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use clap::Args;
 use std::path::Path;
 
-use crate::context::CommandContext;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 use super::types::{PluginListOutput, PluginSummary};
 
@@ -21,8 +21,8 @@ pub struct ListArgs {
     pub disabled: bool,
 }
 
-pub(super) fn execute(args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let plugins_path = ctx.boot()?.require_services_root().path.join("plugins");
+pub(super) fn execute(args: ListArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+    let plugins_path = host.services_root()?.path.join("plugins");
     let plugins = scan_plugins(&plugins_path)?;
 
     let filtered: Vec<PluginSummary> = plugins

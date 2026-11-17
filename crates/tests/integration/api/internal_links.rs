@@ -19,6 +19,7 @@ use systemprompt_api::routes::documents::document_service;
 use systemprompt_api::routes::internal::links_router;
 use systemprompt_api::services::server::{ReadinessState, setup_api_server};
 use systemprompt_database::DbPool;
+use systemprompt_files::DocumentsConfig;
 use systemprompt_files::uploads::models::NewUpload;
 use systemprompt_identifiers::{JwtToken, McpServerId, SessionId, TraceId, UserId, headers};
 use systemprompt_manifest::profile::RateLimitsConfig;
@@ -32,8 +33,8 @@ use systemprompt_runtime::documents::links::{
 use systemprompt_security::jwt::{encode_mcp_hop, mcp_hop_claims};
 use systemprompt_security::keys::{RsaSigningKey, SigningKeys};
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_app_context_with_services, fixture_config,
-    seed_bridge_credential, services_hosting, test_db_pool,
+    TestBootstrap, ensure_test_bootstrap, fixture_admitted, fixture_config,
+    fixture_context_builder, init_documents_bootstrap, seed_bridge_credential, services_hosting,
 };
 use tower::ServiceExt;
 
@@ -195,22 +196,41 @@ async fn the_internal_links_route_signs_only_for_the_owner_of_a_verified_hop() -
     Ok(())
 }
 
+static DOCUMENTS_DISABLED: std::sync::OnceLock<TestBootstrap> = std::sync::OnceLock::new();
+
 async fn mounted(documents_enabled: bool) -> Result<(DbPool, Arc<AppContext>, Router)> {
-    let bootstrap = ensure_test_bootstrap();
-    let pool = test_db_pool().await;
+    let bootstrap = if documents_enabled {
+        ensure_test_bootstrap()
+    } else {
+        DOCUMENTS_DISABLED.get_or_init(|| {
+            init_documents_bootstrap(DocumentsConfig {
+                enabled: false,
+                ..DocumentsConfig::default()
+            })
+        })
+    };
     let mut config = fixture_config(&bootstrap.database_url);
     config.rate_limits = RateLimitsConfig::testing();
     config.rate_limits.content_per_second = 1;
     config.rate_limits.burst_multiplier = 1;
     config.trusted_proxies = Vec::new();
-    let ctx = fixture_app_context_with_services(
-        &pool,
-        config,
-        services_hosting(SERVER, &["documents"]),
-        documents_enabled,
-    )?;
-    let router = setup_api_server(&ctx, None, &Arc::new(ReadinessState::new()))
-        .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
+    let ctx = Arc::new(
+        fixture_context_builder(bootstrap, config, fixture_admitted())?
+            .with_services(services_hosting(SERVER, &["documents"]))
+            .build()
+            .await?,
+    );
+    let pool = ctx.db_pool().clone();
+    let router = setup_api_server(
+        &ctx,
+        systemprompt_api::services::server::routes::Composed {
+            admitted: ctx.admitted(),
+            kernel: ctx.kernel(),
+        },
+        None,
+        &Arc::new(ReadinessState::new()),
+    )
+    .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
     Ok((pool, ctx, router))
 }
 

@@ -1,15 +1,17 @@
 //! DB tests for the retire phase: retired triggers, functions and views are
-//! dropped ahead of every migration, idempotently, and any retirement that is
-//! not a `DROP … IF EXISTS` of those kinds refuses the boot before anything
-//! is written.
+//! dropped ahead of every migration, idempotently, a retired table is declared
+//! and never dropped, and any retirement that is not a `DROP … IF EXISTS` of
+//! those kinds refuses the boot before anything is written.
 
 use std::sync::Arc;
 
+use super::members::{admitted_of, install};
 use systemprompt_database::{DatabaseProvider, PostgresProvider};
 use systemprompt_extension::{
-    Extension, ExtensionMetadata, ExtensionRegistry, LoaderError, SchemaDefinition,
+    Admitted, ContributionError, Contributions, Extension, ExtensionMetadata, LoaderError,
+    SchemaDefinition,
 };
-use systemprompt_test_fixtures::{error_chain, install_extension_schemas_with_config};
+use systemprompt_test_fixtures::error_chain;
 
 use super::installation::{drop_table, provider_and_db, unique_id};
 
@@ -19,15 +21,7 @@ struct RetiringExtension {
     retirements: Vec<String>,
 }
 
-impl Extension for RetiringExtension {
-    fn metadata(&self) -> ExtensionMetadata {
-        ExtensionMetadata {
-            id: self.id,
-            name: self.id,
-            version: "0.0.1",
-        }
-    }
-
+impl RetiringExtension {
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![SchemaDefinition::new(
             self.table,
@@ -46,14 +40,33 @@ impl Extension for RetiringExtension {
     }
 }
 
-fn registry(extensions: Vec<RetiringExtension>) -> ExtensionRegistry {
-    let mut registry = ExtensionRegistry::new();
-    for extension in extensions {
-        registry
-            .register(Arc::new(extension))
-            .expect("register retiring extension");
+impl Extension for RetiringExtension {
+    fn metadata(&self) -> ExtensionMetadata {
+        ExtensionMetadata {
+            id: self.id,
+            name: self.id,
+            version: "0.0.1",
+        }
     }
-    registry
+
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        for schema in self.schemas() {
+            c.schema(schema);
+        }
+        for schema in self.retirements() {
+            c.retire(schema);
+        }
+        Ok(())
+    }
+}
+
+fn registry(extensions: Vec<RetiringExtension>) -> Arc<Admitted> {
+    admitted_of(
+        extensions
+            .into_iter()
+            .map(|extension| -> Box<dyn Extension> { Box::new(extension) })
+            .collect(),
+    )
 }
 
 async fn exists(provider: &PostgresProvider, probe: &str) -> bool {
@@ -84,7 +97,7 @@ fn retire_all(prefix: &str) -> Vec<String> {
     vec![format!(
         "DROP VIEW IF EXISTS {prefix}_view;\nDROP TRIGGER IF EXISTS {prefix}_trg ON \
          {prefix}_legacy;\nDROP FUNCTION IF EXISTS {prefix}_fn();\nDROP PROCEDURE IF EXISTS \
-         {prefix}_proc();"
+         {prefix}_proc();\nDROP TABLE IF EXISTS {prefix}_legacy;"
     )]
 }
 
@@ -94,14 +107,15 @@ async fn retirements_drop_their_objects_and_are_a_no_op_on_the_next_boot() {
     let prefix = unique_id("ret_ok");
     let table = unique_id("ret_ok_table");
     legacy_objects(&provider, prefix).await;
+    let id = unique_id("ret_ext");
     let build = || RetiringExtension {
-        id: unique_id("ret_ext"),
+        id,
         table,
         retirements: retire_all(prefix),
     };
 
     for _ in 0..2 {
-        install_extension_schemas_with_config(&registry(vec![build()]), &provider, &[])
+        install(&registry(vec![build()]), &provider)
             .await
             .expect("retirements applied");
     }
@@ -133,7 +147,7 @@ async fn retirements_drop_their_objects_and_are_a_no_op_on_the_next_boot() {
             &format!("to_regclass('{prefix}_legacy') IS NOT NULL")
         )
         .await,
-        "tables are never retired"
+        "a table retirement is declared, never executed"
     );
     drop_table(&db, &format!("{prefix}_legacy")).await;
     drop_table(&db, table).await;
@@ -154,10 +168,9 @@ async fn refused(statement: &str) -> (LoaderError, bool) {
         retirements: vec![statement.replace("{prefix}", prefix)],
     };
 
-    let error =
-        install_extension_schemas_with_config(&registry(vec![valid, invalid]), &provider, &[])
-            .await
-            .expect_err("retirement refused");
+    let error = install(&registry(vec![valid, invalid]), &provider)
+        .await
+        .expect_err("retirement refused");
     let untouched = exists(
         &provider,
         &format!("to_regclass('{prefix}_view') IS NOT NULL"),
@@ -168,14 +181,10 @@ async fn refused(statement: &str) -> (LoaderError, bool) {
 }
 
 #[tokio::test]
-async fn a_retired_table_is_refused_before_any_retirement_runs() {
-    let (error, untouched) = refused("DROP TABLE IF EXISTS {prefix}_legacy;").await;
+async fn a_retired_type_is_refused_before_any_retirement_runs() {
+    let (error, untouched) = refused("DROP TYPE IF EXISTS {prefix}_type;").await;
 
-    assert!(
-        error_chain(&error)
-            .contains("only triggers, functions, procedures and views can be retired"),
-        "{error}"
-    );
+    assert!(error_chain(&error).contains("can be retired"), "{error}");
     assert!(
         untouched,
         "the other extension's valid retirement did not run"

@@ -12,6 +12,8 @@
 #![allow(clippy::all)]
 
 #[cfg(test)]
+mod archived_purge_db;
+#[cfg(test)]
 mod bootstrap;
 #[cfg(test)]
 mod bootstrap_dispatch_db;

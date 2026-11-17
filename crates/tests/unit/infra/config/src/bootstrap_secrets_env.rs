@@ -21,7 +21,10 @@ async fn env_source_falls_back_to_environment_when_file_missing() {
     fixture::set_env("GEMINI_API_KEY", "gem-key");
     fixture::set_env("ANTHROPIC_API_KEY", "ant-key");
 
-    let secrets = SecretsService::load(loaded).await.unwrap().get();
+    let secrets = SecretsService::load(loaded, systemprompt_config::SecretsSources::default())
+        .await
+        .unwrap()
+        .get();
 
     assert_eq!(secrets.database_url, ENV_DB_URL);
     assert_eq!(
@@ -45,7 +48,10 @@ async fn env_source_prefers_file_when_present() {
     let loaded = LoadedProfile::from_path(&fx.profile_path).unwrap();
     set_base_env();
 
-    let secrets = SecretsService::load(loaded).await.unwrap().get();
+    let secrets = SecretsService::load(loaded, systemprompt_config::SecretsSources::default())
+        .await
+        .unwrap()
+        .get();
 
     assert_eq!(secrets.database_url, fixture::DB_URL);
 }
@@ -56,7 +62,9 @@ async fn env_source_does_not_fall_back_past_a_malformed_secrets_file() {
     let loaded = LoadedProfile::from_path(&fx.profile_path).unwrap();
     set_base_env();
 
-    let err = SecretsService::load(loaded).await.unwrap_err();
+    let err = SecretsService::load(loaded, systemprompt_config::SecretsSources::default())
+        .await
+        .unwrap_err();
 
     assert!(
         matches!(
@@ -74,7 +82,9 @@ async fn env_source_missing_pepper_errors() {
     fixture::remove_env("OAUTH_AT_REST_PEPPER");
     fixture::set_env("DATABASE_URL", ENV_DB_URL);
 
-    let err = SecretsService::load(loaded).await.unwrap_err();
+    let err = SecretsService::load(loaded, systemprompt_config::SecretsSources::default())
+        .await
+        .unwrap_err();
 
     assert!(matches!(
         err,
@@ -90,7 +100,9 @@ async fn env_source_empty_database_url_errors() {
     fixture::set_env("MANIFEST_SIGNING_SECRET_SEED", fixture::SEED);
     fixture::set_env("DATABASE_URL", "");
 
-    let err = SecretsService::load(loaded).await.unwrap_err();
+    let err = SecretsService::load(loaded, systemprompt_config::SecretsSources::default())
+        .await
+        .unwrap_err();
 
     assert!(matches!(
         err,
@@ -106,7 +118,10 @@ async fn fly_environment_loads_from_env_without_profile_secrets() {
     set_base_env();
     fixture::set_env("SIGNING_KEY_PEM", fixture::SIGNING_KEY_PEM);
 
-    let secrets = SecretsService::load(loaded).await.unwrap().get();
+    let secrets = SecretsService::load(loaded, systemprompt_config::SecretsSources::default())
+        .await
+        .unwrap()
+        .get();
 
     assert_eq!(secrets.database_url, ENV_DB_URL);
     assert_eq!(secrets.oauth_at_rest_pepper, fixture::PEPPER);
@@ -125,7 +140,9 @@ async fn fly_environment_without_seed_refuses_to_boot() {
     fixture::set_env("DATABASE_URL", ENV_DB_URL);
     fixture::remove_env("MANIFEST_SIGNING_SECRET_SEED");
 
-    let err = SecretsService::load(loaded).await.unwrap_err();
+    let err = SecretsService::load(loaded, systemprompt_config::SecretsSources::default())
+        .await
+        .unwrap_err();
     fixture::remove_env("FLY_APP_NAME");
 
     assert!(
@@ -145,7 +162,9 @@ async fn fly_environment_with_env_source_and_no_pepper_errors() {
     fixture::remove_env("OAUTH_AT_REST_PEPPER");
     fixture::set_env("DATABASE_URL", ENV_DB_URL);
 
-    let err = SecretsService::load(loaded).await.unwrap_err();
+    let err = SecretsService::load(loaded, systemprompt_config::SecretsSources::default())
+        .await
+        .unwrap_err();
 
     assert!(matches!(
         err,
@@ -163,7 +182,10 @@ async fn a_child_marker_and_pepper_in_env_never_replace_the_file_source() {
     fixture::set_env("SYSTEMPROMPT_SUBPROCESS", "1");
     fixture::set_env("OAUTH_AT_REST_PEPPER", &"e".repeat(64));
 
-    let secrets = SecretsService::load(loaded).await.unwrap().get();
+    let secrets = SecretsService::load(loaded, systemprompt_config::SecretsSources::default())
+        .await
+        .unwrap()
+        .get();
 
     assert_eq!(secrets.oauth_at_rest_pepper, fixture::PEPPER);
     assert_eq!(secrets.database_url, fixture::DB_URL);
@@ -179,7 +201,10 @@ async fn env_source_reads_moonshot_and_qwen_alias_keys() {
     fixture::remove_env("QWEN_API_KEY");
     fixture::set_env("DASHSCOPE_API_KEY", "dash-key");
 
-    let secrets = SecretsService::load(loaded).await.unwrap().get();
+    let secrets = SecretsService::load(loaded, systemprompt_config::SecretsSources::default())
+        .await
+        .unwrap()
+        .get();
 
     assert_eq!(secrets.moonshot.as_deref(), Some("kimi-key"));
     assert_eq!(secrets.qwen.as_deref(), Some("dash-key"));
@@ -198,7 +223,10 @@ async fn env_source_collects_custom_secrets_from_listed_keys() {
     fixture::set_env("COV_TWO", "two-value");
     fixture::remove_env("COV_ABSENT");
 
-    let secrets = SecretsService::load(loaded).await.unwrap().get();
+    let secrets = SecretsService::load(loaded, systemprompt_config::SecretsSources::default())
+        .await
+        .unwrap()
+        .get();
 
     assert_eq!(secrets.custom.len(), 3);
     assert_eq!(
@@ -219,7 +247,9 @@ async fn env_source_on_deployment_host_requires_signing_key_pem() {
     fixture::set_env("SYSTEMPROMPT_DEPLOYMENT_HOST", "node-a");
     fixture::remove_env("SIGNING_KEY_PEM");
 
-    let err = SecretsService::load(loaded).await.unwrap_err();
+    let err = SecretsService::load(loaded, systemprompt_config::SecretsSources::default())
+        .await
+        .unwrap_err();
     fixture::remove_env("SYSTEMPROMPT_DEPLOYMENT_HOST");
 
     assert!(matches!(
@@ -236,7 +266,9 @@ async fn an_empty_rotation_secret_in_the_environment_reads_as_absent() {
     fixture::set_env("SIGNING_KEY_PREVIOUS_KEYS", "");
     fixture::set_env("SIGNING_KEY_STAGED_PEM", "");
 
-    let service = SecretsService::load(loaded).await.unwrap();
+    let service = SecretsService::load(loaded, systemprompt_config::SecretsSources::default())
+        .await
+        .unwrap();
     let secrets = service.get();
 
     assert!(secrets.signing_key_previous_keys.is_none());

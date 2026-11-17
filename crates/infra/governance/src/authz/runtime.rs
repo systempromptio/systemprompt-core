@@ -10,8 +10,8 @@
 //! - `mode: webhook` with a non-empty `url` that passes SSRF validation →
 //!   [`WebhookHook`] (fail-closed) ahead of [`RuleBasedHook`] under a
 //!   [`CompositeAuthzHook`].
-//! - `mode: extension` with one or more extension hooks
-//!   (`AppContextBuilder::with_authz_hook` or `register_authz_hook!`) →
+//! - `mode: extension` with an extension hook (the hooks contributed to
+//!   [`AuthzHookSlot`][crate::contract::AuthzHookSlot], composed core first) →
 //!   composite `[RuleBasedHook, ...extensions]`. Bootstrap fails with
 //!   [`AuthzBootstrapError::ExtensionModeButNoHook`] if no extension hook is
 //!   supplied.
@@ -51,7 +51,7 @@ use super::audit::{AuthzAuditSink, DbAuditSink, GovernanceDecisionRepository};
 use super::composite::CompositeAuthzHook;
 use super::error::{AuthzBootstrapError, AuthzResult};
 use super::hook::{AllowAllHook, DenyAllHook, SharedAuthzHook, WebhookHook};
-use super::registry::{AuthzHookContext, AuthzWiring, discover_authz_hook};
+use super::registry::AuthzWiring;
 use super::rule_based::RuleBasedHook;
 
 pub fn build_authz_hook(
@@ -63,17 +63,6 @@ pub fn build_authz_hook(
     let sink: Arc<dyn AuthzAuditSink> = Arc::new(DbAuditSink::new(
         GovernanceDecisionRepository::from_pool(Arc::clone(&pool)),
     ));
-
-    let extension = extension.or_else(|| {
-        discover_authz_hook(&AuthzHookContext {
-            pool: Arc::clone(&pool),
-            sink: Arc::clone(&sink),
-            services: wiring.services.clone(),
-            subjects: wiring.subjects.clone(),
-            secrets: Arc::clone(&wiring.secrets),
-            state: wiring.state.clone(),
-        })
-    });
 
     let Some(authz) = governance.and_then(|g| g.authz.as_ref()) else {
         if extension.is_some() {

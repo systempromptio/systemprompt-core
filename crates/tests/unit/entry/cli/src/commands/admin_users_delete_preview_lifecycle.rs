@@ -5,9 +5,10 @@ use std::process::Command;
 use std::sync::Arc;
 
 use clap::Parser;
+use systemprompt_cli::EnvOverrides;
 use systemprompt_cli::admin::users::{self, UsersCommands};
 use systemprompt_cli::session::api::create_local_session_row;
-use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_test_fixtures::{
     DisposableDb, bounded_output, ensure_test_bootstrap, test_app_context,
 };
@@ -86,14 +87,17 @@ async fn delete_preview_helper() {
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
-        test_app_context(&pool, database.url()),
+        test_app_context(database.url()).await,
     );
     println!("BEGIN_PREVIEW");
-    users::execute(
-        parse(&["delete", target.id.as_str(), "--dry-run"]),
+    crate::boot_ctx::rendered(
         &context,
+        users::execute(
+            parse(&["delete", target.id.as_str(), "--dry-run"]),
+            &context,
+        )
+        .await,
     )
-    .await
     .expect("public deletion preview");
     println!("END_PREVIEW");
     let users_after: Vec<(String, String, String, Vec<String>)> = sqlx::query_as(
@@ -157,7 +161,7 @@ fn deletion_preview_reports_owned_rows_and_preserves_target_and_sibling() {
     let rows = artifact["items"].as_array().expect("preview rows");
     let sessions = rows
         .iter()
-        .find(|r| r["owner"] == "systemprompt-core" && r["table"] == "user_sessions")
+        .find(|r| r["owner"] == "users" && r["table"] == "user_sessions")
         .expect("session preview row");
     assert_eq!(sessions["rows"], 1);
     let state: serde_json::Value = serde_json::from_str(

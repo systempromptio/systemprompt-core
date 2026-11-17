@@ -1,17 +1,21 @@
-//! [`NotificationsExtension`]: registers the notifications tables and
-//! migrations, the `notifications` config plane and the retention job, and
-//! depends on the `users` extension.
+//! [`NotificationsExtension`]: contributes the notifications tables and
+//! migrations, the `notifications` config plane, the retention job and the
+//! user-purge rows of its tables.
 //!
 //! It provides the producer sink (`DynNotificationSink`, the outbox sink over
-//! the write pool) that extensions emitting notifications require, and two
-//! empty slots, the [`NotificationsServiceSlot`] and the
-//! [`NotificationsConsumerSlot`]. The service and the consumer need the
-//! pipeline seams the host assembles, so the host binds them. The serving
-//! host binds both and delivers escalations in process; a child host binds
-//! only the service and leaves escalated delivery to the serving host's
-//! consumer. The consumer runs as this extension's runner service once its
-//! slot is bound, and reports its backlog gauges on every sweep. Its backlog
-//! is reported on `/health/detail` through `diagnostics()`, never `/readyz`.
+//! the write pool, stamped with the kernel's instance id) that members
+//! emitting notifications require, and two empty late-bound handles, the
+//! [`NotificationsServiceSlot`] and the [`NotificationsConsumerSlot`]. The
+//! service and the consumer are assembled over the built
+//! [`NotificationSeams`](crate::contract::NotificationSeams) when the kernel
+//! builds the [`NotificationsSlot`], which binds them; the build reads the
+//! kernel's `Arc<EventRouter>`, `Arc<NotificationsProfile>` and the host's
+//! `EscalationDelivery`. The consumer runs as this member's
+//! runner service once its handle is bound, and reports its backlog gauges on
+//! every sweep and its backlog on `/health/detail`, never `/readyz`.
+//!
+//! It opens the [`NotificationsSlot`] itself, so the built seams are present
+//! whenever this member is admitted and absent when the profile disables it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -20,10 +24,13 @@ use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_extension::prelude::*;
-use systemprompt_extension::{DiagnosticProbe, MetricDescriptor, MetricKind};
+use systemprompt_extension::{DiagnosticProbe, DynNotificationSink, MetricDescriptor, MetricKind};
+use systemprompt_identifiers::InstanceId;
 use systemprompt_traits::RunnerService;
 
-use crate::consumer::{BacklogDiagnostic, NotificationsConsumerSlot};
+use crate::consumer::{BacklogDiagnostic, BoundConsumerRunner, NotificationsConsumerSlot};
+use crate::contract::NotificationsSlot;
+use crate::jobs::NotificationRetentionJob;
 use crate::pipeline::metrics::{BACKLOG_OLDEST_SECONDS, BACKLOG_PENDING};
 use crate::plane::NotificationsPlane;
 use crate::schema::NOTIFICATION_SCHEMAS;
@@ -42,85 +49,67 @@ impl Extension for NotificationsExtension {
         }
     }
 
-    fn schemas(&self) -> Vec<SchemaDefinition> {
-        NOTIFICATION_SCHEMAS
-            .iter()
-            .map(|(table, sql, columns)| {
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        for (table, sql, columns) in NOTIFICATION_SCHEMAS {
+            c.schema(
                 SchemaDefinition::new(*table, *sql)
-                    .with_required_columns(columns.iter().map(|c| (*c).into()).collect())
-            })
-            .collect()
-    }
-
-    fn dependencies(&self) -> Vec<&'static str> {
-        vec!["users"]
-    }
-
-    fn cross_extension_tables(&self) -> Vec<&'static str> {
-        vec!["users"]
-    }
-
-    fn migrations(&self) -> Vec<Migration> {
-        extension_migrations!()
-    }
-
-    fn config_planes(&self) -> Vec<Arc<dyn ConfigPlane>> {
-        vec![Arc::new(NotificationsPlane)]
-    }
-
-    fn provide(
-        &self,
-        ctx: &dyn ExtensionContext,
-        state: &mut StateBuilder<'_>,
-    ) -> Result<(), ExtensionStateError> {
-        let db = Arc::clone(state.state().get::<DbPool>()?);
-        state.provide(OutboxNotificationSink::over_write_pool(
-            &db,
-            &ctx.instance_id(),
-        ))?;
-        state.provide(NotificationsServiceSlot::default())?;
-        state.provide(NotificationsConsumerSlot::default())
-    }
-
-    fn runner_services(&self, ctx: &dyn ExtensionContext) -> Vec<Arc<dyn RunnerService>> {
-        ctx.extension_state()
-            .find::<NotificationsConsumerSlot>()
-            .and_then(|slot| slot.get().cloned())
-            .map(|consumer| -> Arc<dyn RunnerService> { consumer })
-            .into_iter()
-            .collect()
-    }
-
-    fn metrics(&self) -> Vec<MetricDescriptor> {
-        vec![
-            MetricDescriptor {
+                    .with_required_columns(columns.iter().map(|c| (*c).into()).collect()),
+            );
+        }
+        c.cross_table("users")
+            .migrations(extension_migrations!())
+            .config_plane(Arc::new(NotificationsPlane))
+            .provide(
+                |r: &Resolved<'_>| -> Result<DynNotificationSink, ProvideError> {
+                    let db = r.get::<DbPool>()?;
+                    let instance = r.get::<InstanceId>()?;
+                    Ok(OutboxNotificationSink::over_write_pool(&db, &instance))
+                },
+            )
+            .provide(
+                |_: &Resolved<'_>| -> Result<NotificationsServiceSlot, ProvideError> {
+                    Ok(NotificationsServiceSlot::default())
+                },
+            )
+            .provide(
+                |_: &Resolved<'_>| -> Result<NotificationsConsumerSlot, ProvideError> {
+                    Ok(NotificationsConsumerSlot::default())
+                },
+            )
+            .runner_service(
+                |r: &Resolved<'_>| -> Result<Arc<dyn RunnerService>, FactoryError> {
+                    let slot = r.get::<NotificationsConsumerSlot>()?;
+                    Ok(BoundConsumerRunner::new(slot).into_service())
+                },
+            )
+            .diagnostic(
+                |r: &Resolved<'_>| -> Result<Arc<dyn DiagnosticProbe>, FactoryError> {
+                    let slot = r.get::<NotificationsConsumerSlot>()?;
+                    Ok(BacklogDiagnostic::new(slot).into_probe())
+                },
+            )
+            .metric(MetricDescriptor {
                 name: BACKLOG_PENDING,
                 help: "Notification rows committed and not yet delivered",
                 kind: MetricKind::Gauge,
-            },
-            MetricDescriptor {
+            })
+            .metric(MetricDescriptor {
                 name: BACKLOG_OLDEST_SECONDS,
                 help: "Age in seconds of the oldest undelivered notification row",
                 kind: MetricKind::Gauge,
-            },
-        ]
-    }
-
-    fn diagnostics(&self, ctx: &dyn ExtensionContext) -> Vec<Arc<dyn DiagnosticProbe>> {
-        ctx.extension_state()
-            .find::<NotificationsConsumerSlot>()
-            .map(|slot| BacklogDiagnostic::new(slot.clone()).into_probe())
-            .into_iter()
-            .collect()
+            })
+            .job(NotificationRetentionJob)
+            .user_purge(UserPurgeTable {
+                table: "notification_subscriptions",
+                column: "subject_user_id",
+                predicate: None,
+            })
+            .user_purge(UserPurgeTable {
+                table: "notification_delivery_failures",
+                column: "recipient_user_id",
+                predicate: None,
+            });
+        c.slot::<NotificationsSlot>();
+        Ok(())
     }
 }
-
-register_extension!(NotificationsExtension);
-
-user_purge_tables!(
-    "systemprompt-notifications",
-    [
-        ("notification_subscriptions", "subject_user_id"),
-        ("notification_delivery_failures", "recipient_user_id"),
-    ]
-);

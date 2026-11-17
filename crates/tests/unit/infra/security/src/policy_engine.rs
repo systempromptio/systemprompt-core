@@ -1,12 +1,11 @@
 use serde_json::json;
+use std::sync::Arc;
 use systemprompt_governance::authz::types::{Decision, DenyReason, MatchedBy};
-use systemprompt_governance::policy::governed::{GovernedInput, GovernedTarget, McpToolInput};
-use systemprompt_governance::policy::types::{
-    AccessScope, AgentScope, GovernancePolicy, PolicyContext,
+use systemprompt_governance::policy::{
+    AccessScope, AgentScope, ChainEntryResult, GovernanceConfig, GovernanceEngine,
+    GovernancePolicy, GovernedInput, GovernedTarget, McpToolInput, PolicyCatalog, PolicyContext,
 };
-use systemprompt_governance::policy::{ChainEntryResult, GovernanceConfig, GovernanceEngine};
-use systemprompt_governance::register_governance_policy;
-use systemprompt_identifiers::{CallId, McpToolName, PolicyId, SessionId, UserId};
+use systemprompt_identifiers::{CallId, ExtensionId, McpToolName, PolicyId, SessionId, UserId};
 
 #[derive(Debug)]
 struct StaticAllow;
@@ -54,8 +53,20 @@ impl GovernancePolicy for StaticDeny {
     }
 }
 
-register_governance_policy!("t_allow", |_| Ok(Box::new(StaticAllow)));
-register_governance_policy!("t_deny", |_| Ok(Box::new(StaticDeny)));
+fn catalog() -> PolicyCatalog {
+    PolicyCatalog::builtin()
+        .with_contributed(
+            ExtensionId::new("test"),
+            Arc::new(StaticAllow) as Arc<dyn GovernancePolicy>,
+        )
+        .and_then(|c| {
+            c.with_contributed(
+                ExtensionId::new("test"),
+                Arc::new(StaticDeny) as Arc<dyn GovernancePolicy>,
+            )
+        })
+        .expect("test policies join the catalog")
+}
 
 fn ctx<'a>(
     session: &'a SessionId,
@@ -83,6 +94,7 @@ fn ctx<'a>(
 fn engine(yaml: &str) -> GovernanceEngine {
     GovernanceEngine::from_config(
         &GovernanceConfig::parse(yaml).unwrap(),
+        &catalog(),
         Some(crate::offline_rate_windows()),
     )
     .unwrap()
@@ -156,12 +168,39 @@ fn unknown_config_id_rejects_engine_construction() {
     )
     .unwrap();
     let error =
-        GovernanceEngine::from_config(&config, Some(crate::offline_rate_windows())).unwrap_err();
+        GovernanceEngine::from_config(&config, &catalog(), Some(crate::offline_rate_windows()))
+            .unwrap_err();
     assert!(matches!(
         error,
         systemprompt_governance::policy::GovernanceEngineError::UnknownPolicyId { id }
         if id == "no_such_policy"
     ));
+}
+
+#[test]
+fn a_contributed_entry_may_set_only_its_switch_and_mode() {
+    let e = engine(
+        "governance:\n  policies:\n    - id: t_deny\n      enabled: true\n      mode: enforce\n",
+    );
+    assert!(e.policies().any(|(cfg, _)| cfg.id == "t_deny"));
+
+    let config = GovernanceConfig::parse(
+        "governance:\n  policies:\n    - id: t_deny\n      params:\n        limit: 3\n",
+    )
+    .unwrap();
+    let error =
+        GovernanceEngine::from_config(&config, &catalog(), Some(crate::offline_rate_windows()))
+            .unwrap_err();
+    assert!(
+        matches!(
+            &error,
+            systemprompt_governance::policy::GovernanceEngineError::InvalidPolicyConfiguration {
+                id,
+                source: systemprompt_governance::policy::PolicyConfigurationError::ContributedPolicyParams,
+            } if id == "t_deny"
+        ),
+        "{error:?}"
+    );
 }
 
 #[test]
@@ -266,6 +305,7 @@ fn the_master_switch_defaults_to_on_when_the_key_is_absent() {
 fn default_config_builds_the_four_builtins_enabled() {
     let e = GovernanceEngine::from_config(
         &GovernanceConfig::defaults(),
+        &catalog(),
         Some(crate::offline_rate_windows()),
     )
     .unwrap();
@@ -301,6 +341,7 @@ static NO_RATE_COUNTS: systemprompt_governance::policy::RateCounts =
 fn engine_from(yaml: &str) -> GovernanceEngine {
     GovernanceEngine::from_config(
         &systemprompt_governance::policy::GovernanceConfig::parse(yaml).expect("parses"),
+        &catalog(),
         Some(crate::offline_rate_windows()),
     )
     .expect("valid config")
@@ -310,6 +351,7 @@ fn engine_from(yaml: &str) -> GovernanceEngine {
 fn the_default_chain_is_warn_only() {
     let e = GovernanceEngine::from_config(
         &systemprompt_governance::policy::GovernanceConfig::defaults(),
+        &catalog(),
         Some(crate::offline_rate_windows()),
     )
     .expect("defaults build");

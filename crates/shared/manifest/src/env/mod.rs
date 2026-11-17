@@ -12,9 +12,13 @@
 //! string receives the value as a string, a numeric or boolean field receives
 //! it parsed, and an empty value is null where the field accepts null. A
 //! placeholder embedded in longer text always yields a string. A field whose
-//! kind is [`FieldKind::VERBATIM`] is never rewritten. A placeholder whose
-//! variable is unset (or empty) and has no `:-` default is an
-//! [`InterpolationError`] naming the variable and the key path
+//! kind is [`FieldKind::VERBATIM`] is never rewritten. A field whose kind
+//! accepts [`FieldKind::PROVENANCE`] (its schema carries
+//! [`PROVENANCE_KEYWORD`]) receives a resolved value wrapped in an
+//! [`INTERPOLATED_TAG`] marker that names the variables it came from, so the
+//! field's type can report a refused value by its variable, never by the value.
+//! A placeholder whose variable is unset (or empty) and has no `:-` default is
+//! an [`InterpolationError`] naming the variable and the key path
 //! ([`interpolate_yaml`], for configuration about to run), is recorded and
 //! left in the tree as a typed `!unresolved` marker
 //! ([`interpolate_yaml_available`], for a profile that is only inspected,
@@ -110,6 +114,7 @@ impl FieldKind {
     pub const NULL: Self = Self(8);
     pub const UNKNOWN: Self = Self(16);
     pub const VERBATIM: Self = Self(32);
+    pub const PROVENANCE: Self = Self(64);
 
     #[must_use]
     pub const fn union(self, other: Self) -> Self {
@@ -142,6 +147,20 @@ pub const fn untyped(_path: &[PathSegment]) -> FieldKind {
 }
 
 pub const UNRESOLVED_TAG: &str = "!unresolved";
+
+pub const INTERPOLATED_TAG: &str = "!interpolated";
+
+pub const PROVENANCE_KEYWORD: &str = "x-interpolation-provenance";
+
+#[must_use]
+pub fn placeholder_variables(input: &str) -> Vec<String> {
+    let mut variables: Vec<String> = INTERPOLATION_REGEX
+        .captures_iter(input)
+        .map(|caps| caps[1].to_owned())
+        .collect();
+    variables.dedup();
+    variables
+}
 
 #[must_use]
 pub fn key_path_label(path: &[PathSegment]) -> String {

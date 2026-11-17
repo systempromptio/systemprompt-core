@@ -76,5 +76,3 @@ impl Job for BackfillSessionGeoJob {
             .with_duration(duration_ms))
     }
 }
-
-systemprompt_traits::submit_job!("analytics", &BackfillSessionGeoJob);

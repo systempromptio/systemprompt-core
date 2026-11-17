@@ -2,8 +2,8 @@
 //! config.
 //!
 //! [`SitemapCommands`] shows the configured routes or generates a
-//! `sitemap.xml`. It registers under the kernel's `web` group through
-//! `register_cli_command!`, needs the profile, secrets and paths, and leaves
+//! `sitemap.xml`. `content-http` contributes it under the kernel's `web`
+//! group. It needs the profile, secrets and paths, and leaves
 //! the data behind the profile unchanged.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -15,9 +15,9 @@ pub mod types;
 
 use anyhow::{Context, Result};
 use clap::Subcommand;
-use systemprompt_cli::kernel::{
-    CliCommandGroup, CliConfig, CommandContext, CommandDescriptor, DataImpact, DescribeCommand,
-    render_result,
+use systemprompt_extension::cli::{
+    CliCommandGroup, CliConfig, CommandDescriptor, CommandError, CommandHost, CommandOutput,
+    DataImpact, DescribeCommand,
 };
 use systemprompt_manifest::Profile;
 
@@ -30,18 +30,17 @@ pub enum SitemapCommands {
     Generate(generate::GenerateArgs),
 }
 
-pub fn execute(command: SitemapCommands, config: &CliConfig, profile: &Profile) -> Result<()> {
+pub fn execute(
+    command: SitemapCommands,
+    config: &CliConfig,
+    profile: &Profile,
+) -> Result<CommandOutput> {
     match command {
         SitemapCommands::Show(args) => {
-            let result = show::execute(args, config, profile).context("Failed to show sitemap")?;
-            render_result(&result, config);
-            Ok(())
+            show::execute(args, config, profile).context("Failed to show sitemap")
         },
         SitemapCommands::Generate(args) => {
-            let result =
-                generate::execute(&args, config, profile).context("Failed to generate sitemap")?;
-            render_result(&result, config);
-            Ok(())
+            generate::execute(&args, config, profile).context("Failed to generate sitemap")
         },
     }
 }
@@ -53,16 +52,17 @@ impl DescribeCommand for SitemapCommands {
 }
 
 impl CliCommandGroup for SitemapCommands {
-    const PARENT: &'static [&'static str] = &["web"];
     const NAME: &'static str = "sitemap";
     const ABOUT: &'static str = "Sitemap operations";
 
-    fn run(self, ctx: &CommandContext) -> impl Future<Output = Result<()>> + Send {
-        let outcome = ctx
-            .profile()
-            .and_then(|profile| execute(self, &ctx.cli, profile));
-        async move { outcome }
+    fn run(
+        self,
+        host: &dyn CommandHost,
+    ) -> impl Future<Output = Result<CommandOutput, CommandError>> + Send {
+        std::future::ready(
+            host.profile().and_then(|profile| {
+                execute(self, host.output(), profile).map_err(CommandError::new)
+            }),
+        )
     }
 }
-
-systemprompt_cli::register_cli_command!(SitemapCommands);

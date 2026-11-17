@@ -10,7 +10,7 @@
 use anyhow::{Context, Result};
 use std::path::Path;
 use systemprompt_cloud::ProjectContext;
-use systemprompt_loader::subprocess::ForegroundChildren;
+use systemprompt_extension::cli::ChildSupervisor;
 use systemprompt_logging::CliService;
 use systemprompt_models::CliPaths;
 
@@ -18,7 +18,7 @@ pub mod scaffolding;
 pub mod templates;
 
 use scaffolding::generate_services_boilerplate;
-use systemprompt_cli::kernel::CliConfig;
+use systemprompt_extension::cli::CliConfig;
 
 const GITIGNORE_CONTENT: &str = "# Ignore sensitive files
 credentials.json
@@ -64,7 +64,7 @@ exec /app/bin/systemprompt {services_serve_cmd} --foreground
 pub(super) fn execute(
     force: bool,
     _config: &CliConfig,
-    children: &ForegroundChildren,
+    children: &dyn ChildSupervisor,
 ) -> Result<()> {
     let project_root = std::env::current_dir().context("Failed to get current directory")?;
     let ctx = ProjectContext::new(project_root.clone());
@@ -132,7 +132,7 @@ fn create_systemprompt_dir(dir: &Path, project_root: &Path) -> Result<()> {
 
 pub(super) fn ensure_project_scaffolding(
     project_root: &Path,
-    children: &ForegroundChildren,
+    children: &dyn ChildSupervisor,
 ) -> Result<()> {
     let services_dir = project_root.join("services");
     let web_dir = project_root.join("web");

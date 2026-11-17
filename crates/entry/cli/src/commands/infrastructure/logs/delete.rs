@@ -3,14 +3,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_logging::LoggingMaintenanceService;
 
 use super::LogDeleteOutput;
-use crate::context::CommandContext;
-use crate::interactive::require_confirmation;
-use crate::shared::{CommandOutput, render_result};
+use systemprompt_database::pool_from_handle;
+use systemprompt_extension::cli::{CommandOutput, require_confirmation};
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct DeleteArgs {
@@ -18,15 +18,15 @@ pub struct DeleteArgs {
     pub yes: bool,
 }
 
-pub(super) async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<()> {
+pub(super) async fn execute(args: DeleteArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     require_confirmation(
-        ctx.prompter(),
+        host.prompter(),
         "Delete ALL log entries? This cannot be undone.",
         args.yes,
-        &ctx.cli,
+        host.output(),
     )?;
 
-    let service = LoggingMaintenanceService::new(&ctx.db_pool().await?);
+    let service = LoggingMaintenanceService::new(&pool_from_handle(host.db().await?)?);
 
     let deleted_count = service
         .clear_all_logs()
@@ -40,7 +40,5 @@ pub(super) async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<()
 
     let result = CommandOutput::card_value("Logs Deleted", &output);
 
-    render_result(&result, &ctx.cli);
-
-    Ok(())
+    Ok(result)
 }

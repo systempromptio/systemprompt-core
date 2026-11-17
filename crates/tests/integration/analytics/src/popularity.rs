@@ -11,7 +11,7 @@ use systemprompt_traits::DynContentPopularity;
 #[tokio::test]
 async fn the_extension_state_carries_the_analytics_popularity_ranking() -> anyhow::Result<()> {
     let pool = test_db_pool().await;
-    let ctx = test_app_context(&pool, &ensure_test_bootstrap().database_url);
+    let ctx = test_app_context(&ensure_test_bootstrap().database_url).await;
     let state = ctx.extension_state();
     let popularity = state
         .find::<DynContentPopularity>()

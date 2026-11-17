@@ -14,17 +14,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod decision;
-mod entity_ref;
-mod kinds;
 mod request;
 mod request_document;
 mod rule;
 mod subject_ref;
 
-pub use decision::{Decision, DecisionTag, DenyReason, MatchedBy, PendingReason};
-pub use entity_ref::EntityRef;
-pub use kinds::{Access, EntityKind, RuleType};
 pub use request::{AuthzContext, AuthzDecision, AuthzRequest};
 pub use rule::{AccessRule, EntityRow};
 pub use subject_ref::SubjectRef;
+pub use systemprompt_provider_contracts::governance::{
+    Access, Decision, DecisionTag, DenyReason, EntityKind, EntityRef, MatchedBy, PendingReason,
+    RuleType, RuleTypeError,
+};

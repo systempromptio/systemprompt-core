@@ -19,18 +19,21 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod archive;
+
+pub use archive::PurgedArchive;
 mod bulk;
 mod merge;
 mod provider;
 
 use std::fmt;
 use std::sync::Arc;
+use systemprompt_extension::AdmittedPurge;
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_traits::DynOwnerReassignment;
 
 use crate::error::Result;
 use crate::models::{User, UserActivity, UserRole, UserSession, UserStatus, UserWithSessions};
-use crate::repository::{PurgeCount, UpdateUserParams, UserRepository};
+use crate::repository::{PurgeOutcome, UpdateUserParams, UserRepository};
 
 #[derive(Clone)]
 pub struct UserService {
@@ -247,12 +250,12 @@ impl UserService {
         self.repository.assign_roles(id, roles).await
     }
 
-    pub async fn delete(&self, id: &UserId) -> Result<Vec<PurgeCount>> {
-        self.repository.delete(id).await
+    pub async fn delete(&self, id: &UserId, plan: &AdmittedPurge) -> Result<PurgeOutcome> {
+        self.repository.delete(id, plan).await
     }
 
-    pub async fn purge_preview(&self, id: &UserId) -> Result<Vec<PurgeCount>> {
-        self.repository.purge_preview(id).await
+    pub async fn purge_preview(&self, id: &UserId, plan: &AdmittedPurge) -> Result<PurgeOutcome> {
+        self.repository.purge_preview(id, plan).await
     }
 
     pub async fn cleanup_old_anonymous(&self, days: i32) -> Result<u64> {

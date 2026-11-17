@@ -11,11 +11,10 @@ use std::sync::Arc;
 
 use clap::Parser;
 use systemprompt_cli::infrastructure::services::{self, ServicesCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, test_app_context, test_database_url, test_db_pool,
-};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context, test_database_url};
 
 #[derive(Debug, Parser)]
 struct Harness {
@@ -32,8 +31,7 @@ fn parse(args: &[&str]) -> ServicesCommands {
 async fn app() -> Arc<AppContext> {
     ensure_test_bootstrap();
     let url = test_database_url();
-    let pool = test_db_pool().await;
-    test_app_context(&pool, &url)
+    test_app_context(&url).await
 }
 
 fn ctx(app: &Arc<AppContext>, json: bool) -> CommandContext {
@@ -46,7 +44,9 @@ fn ctx(app: &Arc<AppContext>, json: bool) -> CommandContext {
 
 async fn run(args: &[&str], json: bool) -> anyhow::Result<()> {
     let app = app().await;
-    services::execute(parse(args), &ctx(&app, json)).await
+    services::execute(parse(args), &ctx(&app, json))
+        .await
+        .map(drop)
 }
 
 #[tokio::test]

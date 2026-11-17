@@ -1,9 +1,12 @@
-//! OAuth extension registration metadata.
+//! The oauth member: its client, token, `WebAuthn` and bridge schemas, its
+//! migrations, and the expired-grant cleanup job.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_extension::prelude::*;
+
+use crate::jobs::OauthCleanupJob;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct OauthExtension;
@@ -17,20 +20,22 @@ impl Extension for OauthExtension {
         }
     }
 
-    fn schemas(&self) -> Vec<SchemaDefinition> {
-        let mut schemas = client_schemas();
-        schemas.extend(token_schemas());
-        schemas.extend(webauthn_schemas());
-        schemas.extend(bridge_schemas());
-        schemas
-    }
-
-    fn dependencies(&self) -> Vec<&'static str> {
-        vec!["users"]
-    }
-
-    fn migrations(&self) -> Vec<Migration> {
-        extension_migrations!()
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        for schema in client_schemas()
+            .into_iter()
+            .chain(token_schemas())
+            .chain(webauthn_schemas())
+            .chain(bridge_schemas())
+        {
+            c.schema(schema);
+        }
+        c.migrations(extension_migrations!()).job(OauthCleanupJob);
+        c.user_purge(UserPurgeTable {
+            table: "oauth_jti_revocations",
+            column: "user_id",
+            predicate: None,
+        });
+        Ok(())
     }
 }
 
@@ -179,5 +184,3 @@ fn bridge_schemas() -> Vec<SchemaDefinition> {
         .with_required_columns(vec!["scope".into(), "id".into(), "expires_at".into()]),
     ]
 }
-
-register_extension!(OauthExtension);

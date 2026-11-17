@@ -3,11 +3,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::cli_settings::CliConfig;
-use crate::context::CommandContext;
-use crate::shared::CommandOutput;
+use crate::commands::shared::app_context;
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use std::sync::Arc;
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 use systemprompt_identifiers::{McpServerId, ServiceName};
 use systemprompt_loader::subprocess::StopOutcome;
 use systemprompt_logging::CliService;
@@ -23,10 +23,10 @@ use super::{get_api_port, lifecycle};
 pub(super) async fn execute(
     target: ServiceTarget,
     force: bool,
-    ctx: &CommandContext,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
-    let config = &ctx.cli;
-    let app = ctx.app_context().await?;
+    let config = host.output();
+    let app = app_context(host).await?;
     let service_mgmt = ServiceManagementService::new(app.service_repository().as_ref().clone());
 
     let mcp_stopped = if target.mcp {
@@ -51,7 +51,7 @@ pub(super) async fn execute(
         if !config.is_json_output() {
             CliService::section("Stopping API Server");
         }
-        stop_api(ctx.profile()?, force, config.is_json_output()).await?
+        stop_api(host.profile()?, force, config.is_json_output()).await?
     } else {
         false
     };

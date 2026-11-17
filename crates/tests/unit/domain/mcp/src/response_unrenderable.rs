@@ -8,7 +8,7 @@ use serde::Serialize;
 use systemprompt_identifiers::{
     AgentName, ContextId, McpExecutionId, McpServerId, McpToolName, SessionId, TraceId, UserId,
 };
-use systemprompt_mcp::services::ui_renderer::registry::create_default_registry;
+use systemprompt_mcp::services::ui_renderer::UiRendererRegistry;
 use systemprompt_mcp::{
     ArtifactIngest, ClientProfile, McpOutputSchema, McpResponseBuilder, ResponseServices,
     ToolIdentity, UI_RESOURCE_URI_META_KEY,
@@ -68,7 +68,7 @@ async fn an_artifact_with_no_renderer_still_produces_a_successful_result() {
         "summary for the model",
         ResponseServices {
             ingest: &repo,
-            renderers: &create_default_registry(),
+            renderers: &UiRendererRegistry::with_builtins(),
         },
         UnrenderableArtifact::artifact_type(),
         Some("Unrenderable".to_owned()),
@@ -120,7 +120,7 @@ async fn the_result_meta_names_the_ui_resource_even_when_rendering_failed() {
         "summary",
         ResponseServices {
             ingest: &repo,
-            renderers: &create_default_registry(),
+            renderers: &UiRendererRegistry::with_builtins(),
         },
         UnrenderableArtifact::artifact_type(),
         None,

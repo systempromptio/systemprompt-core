@@ -8,16 +8,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Result, bail};
+use crate::kernel::KernelHost;
+use anyhow::Result;
 use clap::Subcommand;
 use std::path::Path;
-use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
+use systemprompt_models::artifacts::NoticeLine;
 
 use super::types::{PathInfo, PathValidation, PathsConfigOutput, PathsValidateOutput};
-use crate::cli_settings::OutputFormat;
-use crate::context::CommandContext;
-use crate::shared::{CommandOutput, render_result};
+use systemprompt_extension::cli::{CommandError, CommandOutput};
 
 #[derive(Debug, Clone, Copy, Subcommand)]
 pub enum PathsCommands {
@@ -28,16 +27,15 @@ pub enum PathsCommands {
     Validate,
 }
 
-pub fn execute(command: PathsCommands, ctx: &CommandContext) -> Result<()> {
+pub fn execute(command: PathsCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
-        PathsCommands::Show => execute_show(ctx),
-        PathsCommands::Validate => execute_validate(ctx),
+        PathsCommands::Show => execute_show(host),
+        PathsCommands::Validate => execute_validate(host),
     }
 }
 
-pub(super) fn execute_show(ctx: &CommandContext) -> Result<()> {
-    let config = &ctx.cli;
-    let profile = ctx.profile()?;
+pub(super) fn execute_show(host: &dyn KernelHost) -> Result<CommandOutput> {
+    let profile = host.profile()?;
 
     let output = PathsConfigOutput {
         system: PathInfo {
@@ -66,17 +64,11 @@ pub(super) fn execute_show(ctx: &CommandContext) -> Result<()> {
         }),
     };
 
-    render_result(
-        &CommandOutput::card_value("Paths Configuration", &output),
-        config,
-    );
-
-    Ok(())
+    Ok(CommandOutput::card_value("Paths Configuration", &output))
 }
 
-pub(super) fn execute_validate(ctx: &CommandContext) -> Result<()> {
-    let config = &ctx.cli;
-    let profile = ctx.profile()?;
+pub(super) fn execute_validate(host: &dyn KernelHost) -> Result<CommandOutput> {
+    let profile = host.profile()?;
 
     let validations = collect_path_validations(profile);
     let valid = validations.iter().filter(|v| v.required).all(|v| v.exists);
@@ -86,24 +78,22 @@ pub(super) fn execute_validate(ctx: &CommandContext) -> Result<()> {
         paths: validations,
     };
 
-    render_result(
-        &CommandOutput::table_of(vec!["name", "path", "exists", "required"], &output.paths)
-            .with_title("Paths Validation"),
-        config,
-    );
-
-    if config.output_format() == OutputFormat::Table {
-        if valid {
-            CliService::success("All required paths exist");
+    let result = CommandOutput::table_of(vec!["name", "path", "exists", "required"], &output.paths)
+        .with_title("Paths Validation")
+        .with_note(if valid {
+            NoticeLine::new("success", "All required paths exist")
         } else {
-            CliService::error("Some required paths are missing");
-        }
-    }
+            NoticeLine::new("error", "Some required paths are missing")
+        });
 
     if !valid {
-        bail!("Some required paths are missing");
+        return Err(
+            CommandError::new(anyhow::anyhow!("Some required paths are missing"))
+                .with_output(result)
+                .into(),
+        );
     }
-    Ok(())
+    Ok(result)
 }
 
 fn collect_path_validations(profile: &Profile) -> Vec<PathValidation> {

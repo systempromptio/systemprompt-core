@@ -7,9 +7,9 @@ use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use std::fs;
 
-use crate::CliConfig;
-use crate::interactive::{Prompter, require_confirmation, resolve_required};
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::{
+    CliConfig, CommandOutput, Prompter, require_confirmation, resolve_required,
+};
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 use systemprompt_models::content_config::ContentConfigRaw;

@@ -146,16 +146,17 @@ async fn agent_read_routes_report_database_outage_and_recover_without_data_loss(
     let owned = DisposableDb::with_schema("agent_read_outage").await;
     let db = owned.test_pool().await;
     let seeded = seed(&db).await?;
-    let ctx = test_app_context(&db, owned.url());
+    let ctx = test_app_context(owned.url()).await;
     assert_live(&ctx, &seeded).await?;
     let raw = db.pool();
-    raw.close().await;
+    ctx.db_pool().pool().close().await;
+    ctx.db_pool().write_pool().close().await;
     assert_outage(&ctx, &seeded, owned.url()).await?;
     drop(ctx);
     drop(raw);
     drop(db);
     let recovered = owned.test_pool().await;
-    let recovered_ctx = test_app_context(&recovered, owned.url());
+    let recovered_ctx = test_app_context(owned.url()).await;
     assert_live(&recovered_ctx, &seeded).await?;
     let count: i64 = sqlx::query_scalar("SELECT count(*) FROM agent_tasks WHERE task_id=$1")
         .bind(seeded.task.as_str())

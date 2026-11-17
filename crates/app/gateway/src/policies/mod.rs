@@ -9,8 +9,8 @@
 //! into the effective [`GatewayPolicySpec`] a request is governed by.
 //!
 //! The extension contracts a policy selects by name live here too: safety
-//! scanners ([`register_safety_scanner!`](crate::register_safety_scanner)),
-//! route selectors and system-prompt overrides.
+//! scanners, route selectors and system-prompt overrides, each contributed to
+//! its slot in [`crate::contract`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -28,19 +28,17 @@ pub use config::{GatewayPolicyConfig, GatewayPolicyEntry};
 pub use error::GatewayPolicyError;
 pub use overrides::{
     OverrideAction, OverrideContext, OverrideContextBuilder, OverrideError, OverridePolicy,
-    OverrideResolution, OverrideSource, SystemPromptOverride, SystemPromptOverrideRegistration,
+    OverrideResolution, OverrideSource, SystemPromptOverride,
 };
 pub use plane::{GATEWAY_POLICIES_FILE, GATEWAY_POLICIES_PLANE, GatewayPoliciesPlane};
 pub use resolver::{
     MalformedPolicy, MalformedSpec, PolicyResolver, PolicyUnavailable, merge_policy_rows,
 };
-pub use route_selector::{
-    RouteSelector, RouteSelectorChain, RouteSelectorError, RouteSelectorRegistration,
-};
+pub use route_selector::{RouteSelector, RouteSelectorChain, RouteSelectorError};
 pub use safety::{
     CATEGORY_SCANNER_FAILURE, Finding, FindingSpan, HeuristicScanner, NullScanner, PHASE_REQUEST,
-    PHASE_REQUEST_HISTORY, PHASE_RESPONSE, PartReplacement, SafetyScanner,
-    SafetyScannerRegistration, ScanError, ScannerFactory, Severity,
+    PHASE_REQUEST_HISTORY, PHASE_RESPONSE, PartReplacement, SafetyScanner, ScanError,
+    ScannerFactory, Severity,
 };
 pub use spec::{
     CalendarPeriod, DEFAULT_SCANNER_TIMEOUT_MS, GatewayPolicySpec, HeuristicConfig, QuotaWindow,

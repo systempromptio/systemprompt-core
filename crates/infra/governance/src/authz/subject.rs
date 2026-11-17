@@ -1,18 +1,25 @@
-//! Extension-declared subject dimensions for the RBAC resolver.
+//! Member-declared subject dimensions for the RBAC resolver.
 //!
-//! Core's resolver knows two subject dimensions, `user` and `role`. Anything
-//! else an operator wants to write rules against — department, cost centre,
-//! clearance, jurisdiction — is a tenant concept, and core deliberately does
-//! not learn it. What core provides instead is the mechanism:
+//! Core's resolver knows two subject dimensions, `user` and `role`, plus the
+//! dimensions its own providers declare (`traffic`). Anything else an operator
+//! wants to write rules against — department, cost centre, clearance,
+//! jurisdiction — is a tenant concept, and core deliberately does not learn
+//! it. What core provides instead is the mechanism:
 //!
-//! 1. An extension mints a [`RuleType`] with [`RuleType::extension`] and
-//!    describes it as a [`SubjectDimension`], choosing where it slots in the
-//!    precedence ladder.
+//! 1. A member mints a [`RuleType`] with [`RuleType::extension`] and describes
+//!    it as a [`SubjectDimension`], choosing where it slots in the precedence
+//!    ladder.
 //! 2. It implements [`SubjectAttributeProvider`] to look up that dimension's
-//!    values for a user, and registers the provider with
-//!    [`register_subject_attribute_provider!
-//!    `][crate::register_subject_attribute_provider].
-//! 3. The enforcement path calls [`gather_subject_attributes`] once per request
+//!    values for a user, and contributes the provider with
+//!    `Contributions::subject_attributes`.
+//! 3. [`SubjectProviderSet::from_admitted`] runs every admitted member's
+//!    factory once — core members first, then installs in composition order —
+//!    and refuses a set in which two providers declare one dimension
+//!    ([`SubjectProviderError::DimensionConflict`]) or an install declares a
+//!    reserved core dimension ([`SubjectProviderError::ReservedDimension`]),
+//!    `role` included: only a core member provides roles. No provider may
+//!    declare `user`, which the resolver reads off the request itself.
+//! 4. The enforcement path calls [`gather_subject_attributes`] once per request
 //!    and hands the resulting [`SubjectAttributes`] to
 //!    [`resolve`][super::resolver::resolve] alongside the dimension list.
 //!
@@ -28,81 +35,56 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::fmt::Debug;
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use systemprompt_identifiers::UserId;
 
-use super::registry::AuthzHookContext;
-use super::types::RuleType;
+use systemprompt_extension::{BuiltState, FactoryError, Resolved, StandingTag};
+use systemprompt_identifiers::ExtensionId;
 pub use systemprompt_models::authz::{
-    SubjectAttributeSource, SubjectAttributes, SubjectDimension, SubjectSourceError,
+    SubjectAttributeSource, SubjectAttributes, SubjectSourceError,
+};
+pub use systemprompt_traits::authz::{
+    RESERVED_SUBJECT_DIMENSIONS, ROLE_PRECEDENCE, SubjectAttributeError, SubjectAttributeProvider,
+    SubjectDimension, USER_PRECEDENCE,
 };
 
-pub const USER_PRECEDENCE: u16 = 0;
-pub const ROLE_PRECEDENCE: u16 = 200;
+use super::types::RuleType;
 
 pub static NO_SUBJECT_ATTRIBUTES: SubjectAttributes = SubjectAttributes::EMPTY;
 
-/// Looks up the values a user holds for one extension-owned dimension.
-///
-/// `default_attribution` says whether a request with no header and no key
-/// binding for this dimension is attributed to the first value the user holds.
-/// `false` makes the dimension header-only: such a request carries no
-/// attribution for it, while a header or key binding is still verified against
-/// `values_for`.
-///
-/// `key_bound_values` are values no user holds: an API key bound to one
-/// carries it, and a header may name it only when the authenticating key is
-/// bound to that same value. Key issuance accepts them without a membership
-/// check, so binding one is the issuer's authority, never the caller's.
-///
-/// `known_values` lists every value the dimension can take when the
-/// provider can enumerate them (sharing validates and searches against it);
-/// the default `None` means the values cannot be listed.
-///
-/// `#[async_trait]` because providers are held as
-/// [`SharedSubjectAttributeProvider`], an `Arc<dyn …>`, so the trait must stay
-/// `dyn`-compatible.
-#[async_trait]
-pub trait SubjectAttributeProvider: Send + Sync + Debug {
-    fn dimension(&self) -> SubjectDimension;
-
-    async fn values_for(&self, user_id: &UserId) -> Result<Vec<String>, super::AuthzError>;
-
-    fn default_attribution(&self) -> bool {
-        true
-    }
-
-    fn key_bound_values(&self) -> &'static [&'static str] {
-        &[]
-    }
-
-    async fn known_values(&self) -> Result<Option<Vec<String>>, super::AuthzError> {
-        Ok(None)
-    }
-}
-
-/// Shared handle to a registered provider.
+/// Shared handle to a contributed provider.
 pub type SharedSubjectAttributeProvider = Arc<dyn SubjectAttributeProvider>;
 
-/// One inventory submission per
-/// [`register_subject_attribute_provider!
-/// `][crate::register_subject_attribute_provider] call. The factory runs once
-/// at `AppContext` build time and must not block.
-#[derive(Debug, Clone, Copy)]
-pub struct SubjectProviderRegistration {
-    pub factory: fn(&AuthzHookContext) -> SharedSubjectAttributeProvider,
+/// Why the subject provider set could not be built.
+#[derive(Debug, thiserror::Error)]
+pub enum SubjectProviderError {
+    #[error("subject provider factory of {owner} failed")]
+    Factory {
+        owner: ExtensionId,
+        #[source]
+        source: FactoryError,
+    },
+    #[error("subject dimension {dimension} declared by {second}, already owned by {first}")]
+    DimensionConflict {
+        dimension: RuleType,
+        first: ExtensionId,
+        second: ExtensionId,
+    },
+    #[error("{owner} declares reserved subject dimension {dimension}")]
+    ReservedDimension {
+        owner: ExtensionId,
+        dimension: RuleType,
+    },
 }
 
-inventory::collect!(SubjectProviderRegistration);
-
-#[must_use]
-pub fn discover_subject_providers(ctx: &AuthzHookContext) -> Vec<SharedSubjectAttributeProvider> {
-    inventory::iter::<SubjectProviderRegistration>()
-        .map(|reg| (reg.factory)(ctx))
-        .collect()
+/// One contributed provider with the member that contributed it.
+#[derive(Debug, Clone)]
+pub struct SubjectProviderEntry {
+    pub owner: ExtensionId,
+    pub standing: StandingTag,
+    pub provider: SharedSubjectAttributeProvider,
 }
 
 #[must_use]
@@ -136,20 +118,24 @@ pub async fn gather_subject_attributes(
     Ok(attributes)
 }
 
-#[macro_export]
-macro_rules! register_subject_attribute_provider {
-    ($factory:expr) => {
-        $crate::__inventory::submit! {
-            $crate::authz::SubjectProviderRegistration {
-                factory: $factory,
-            }
-        }
-    };
+fn refuse_reserved(entry: &SubjectProviderEntry) -> Result<(), SubjectProviderError> {
+    let dimension = entry.provider.dimension().rule_type;
+    let request_dimension = dimension == RuleType::USER;
+    let reserved = RESERVED_SUBJECT_DIMENSIONS
+        .iter()
+        .any(|d| d.rule_type == dimension);
+    if request_dimension || (reserved && entry.standing == StandingTag::Install) {
+        return Err(SubjectProviderError::ReservedDimension {
+            owner: entry.owner.clone(),
+            dimension,
+        });
+    }
+    Ok(())
 }
 
-/// The registered subject-attribute providers, discovered once at a
-/// composition root and shared by every consumer that needs to look a
-/// dimension up by name (gateway scope attribution, quota subjects).
+/// The admitted subject-attribute providers, built once from the admitted
+/// composition and shared by every consumer that needs to look a dimension up
+/// by name (gateway scope attribution, quota subjects).
 #[derive(Debug, Clone, Default)]
 pub struct SubjectProviderSet {
     providers: Arc<[SharedSubjectAttributeProvider]>,
@@ -157,17 +143,55 @@ pub struct SubjectProviderSet {
 }
 
 impl SubjectProviderSet {
-    #[must_use]
-    pub fn discover(ctx: &AuthzHookContext) -> Self {
-        Self::from_providers(discover_subject_providers(ctx))
+    pub fn from_admitted(
+        built: &BuiltState,
+        r: &Resolved<'_>,
+    ) -> Result<Self, SubjectProviderError> {
+        let mut entries = Vec::new();
+        for member in built.members() {
+            for factory in member.sink.subject_providers() {
+                let provider =
+                    factory
+                        .build(r)
+                        .map_err(|source| SubjectProviderError::Factory {
+                            owner: member.owner.clone(),
+                            source,
+                        })?;
+                entries.push(SubjectProviderEntry {
+                    owner: member.owner.clone(),
+                    standing: member.standing,
+                    provider,
+                });
+            }
+        }
+        Self::new(entries)
     }
 
-    #[must_use]
-    pub fn from_providers(providers: Vec<SharedSubjectAttributeProvider>) -> Self {
-        Self {
+    pub fn new(mut entries: Vec<SubjectProviderEntry>) -> Result<Self, SubjectProviderError> {
+        entries.sort_by_key(|entry| match entry.standing {
+            StandingTag::Core => 0u8,
+            StandingTag::Install => 1,
+        });
+        for (index, entry) in entries.iter().enumerate() {
+            refuse_reserved(entry)?;
+            let dimension = entry.provider.dimension().rule_type;
+            if let Some(first) = entries[..index]
+                .iter()
+                .find(|earlier| earlier.provider.dimension().rule_type == dimension)
+            {
+                return Err(SubjectProviderError::DimensionConflict {
+                    dimension,
+                    first: first.owner.clone(),
+                    second: entry.owner.clone(),
+                });
+            }
+        }
+        let providers: Vec<SharedSubjectAttributeProvider> =
+            entries.into_iter().map(|entry| entry.provider).collect();
+        Ok(Self {
             dimensions: dimensions_of(&providers).into(),
             providers: providers.into(),
-        }
+        })
     }
 
     #[must_use]
@@ -209,7 +233,7 @@ impl SubjectProviderSet {
     }
 }
 
-fn source_error(dimension: &RuleType, source: super::AuthzError) -> SubjectSourceError {
+fn source_error(dimension: &RuleType, source: SubjectAttributeError) -> SubjectSourceError {
     SubjectSourceError::Provider {
         dimension: dimension.as_str().to_owned(),
         source: source.into(),

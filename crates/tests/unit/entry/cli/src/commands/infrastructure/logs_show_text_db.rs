@@ -7,8 +7,9 @@
 
 use clap::Parser;
 use systemprompt_cli::infrastructure::logs::{self, LogsCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::{ContextId, SessionId, TaskId, TraceId};
 use systemprompt_logging::{LogActor, LogEntry, LogLevel, LoggingRepository};
 use systemprompt_runtime::DatabaseContext;
@@ -32,7 +33,7 @@ fn ctx(pool: &DbPool, json: bool) -> CommandContext {
     if json {
         cli = cli.with_output_format(OutputFormat::Json);
     }
-    CommandContext::with_database(
+    crate::boot_ctx::with_database(
         cli,
         EnvOverrides::default(),
         DatabaseContext::from_pool(pool.clone()),

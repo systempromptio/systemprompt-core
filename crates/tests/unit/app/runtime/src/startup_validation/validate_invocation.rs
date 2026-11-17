@@ -1,5 +1,5 @@
-//! Drives `StartupValidator::validate(&Config)` end-to-end against a
-//! minimal config against a boot context whose services tree does not parse,
+//! Drives `StartupValidator::validate(&Config, &BuiltState)` end-to-end against
+//! a minimal config against a boot context whose services tree does not parse,
 //! so the services load fails and the validator takes the early-return /
 //! error-report branch in `load_configs`.
 //!
@@ -83,7 +83,7 @@ fn validate_with_an_unloadable_services_tree_short_circuits_with_services_config
     .expect("corrupt the services config");
     let mut validator = StartupValidator::new(unloadable.boot.clone()).expect("startup validator");
     let cfg = minimal_config();
-    let report = validator.validate(&cfg);
+    let report = validator.validate(&cfg, crate::ext_fixtures::fixture_admitted().built());
 
     assert!(
         report.has_errors(),

@@ -4,12 +4,13 @@ use systemprompt_database::{
     DatabaseAdminService, DatabaseProvider, MigrationService, PostgresProvider,
 };
 use systemprompt_extension::{
-    Extension, ExtensionMetadata, LoaderError, Migration, MigrationFault, SchemaDefinition,
+    ContributionError, Contributions, Extension, ExtensionMetadata, LoaderError, Migration,
+    MigrationFault, SchemaDefinition,
 };
-use systemprompt_test_fixtures::install_extension_schemas_with_config;
 use tracing_subscriber::layer::SubscriberExt;
 
 use super::installation::{StubExtension, provider_and_db, registry_with, unique_id};
+use super::members::{admitted_of, install, unit};
 use crate::services::db_helper::test_pool;
 
 struct OwnedExtension {
@@ -19,15 +20,7 @@ struct OwnedExtension {
     migrations: Vec<Migration>,
 }
 
-impl Extension for OwnedExtension {
-    fn metadata(&self) -> ExtensionMetadata {
-        ExtensionMetadata {
-            id: self.id,
-            name: "owned",
-            version: "0.0.0",
-        }
-    }
-
+impl OwnedExtension {
     fn schemas(&self) -> Vec<SchemaDefinition> {
         self.schemas.clone()
     }
@@ -41,12 +34,33 @@ impl Extension for OwnedExtension {
     }
 }
 
+impl Extension for OwnedExtension {
+    fn metadata(&self) -> ExtensionMetadata {
+        ExtensionMetadata {
+            id: self.id,
+            name: "owned",
+            version: "0.0.0",
+        }
+    }
+
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        for schema in self.schemas() {
+            c.schema(schema);
+        }
+        for table in self.cross_extension_tables() {
+            c.cross_table(table);
+        }
+        c.migrations(self.migrations());
+        Ok(())
+    }
+}
+
 fn leak(s: String) -> &'static str {
     Box::leak(s.into_boxed_str())
 }
 
 #[derive(Clone, Default)]
-struct LogBuffer(Arc<Mutex<Vec<u8>>>);
+pub(super) struct LogBuffer(Arc<Mutex<Vec<u8>>>);
 
 impl std::io::Write for LogBuffer {
     fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
@@ -68,11 +82,11 @@ impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for LogBuffer {
 }
 
 impl LogBuffer {
-    fn text(&self) -> String {
+    pub(super) fn text(&self) -> String {
         String::from_utf8(self.0.lock().expect("log buffer").clone()).expect("utf8 logs")
     }
 
-    fn install(&self) -> tracing::subscriber::DefaultGuard {
+    pub(super) fn install(&self) -> tracing::subscriber::DefaultGuard {
         let subscriber = tracing_subscriber::registry().with(
             tracing_subscriber::fmt::layer()
                 .with_ansi(false)
@@ -118,7 +132,7 @@ async fn an_alter_on_a_foreign_table_is_refused_before_it_runs() {
     };
 
     let err = MigrationService::new(&provider)
-        .run_pending_migrations(&ext)
+        .run_pending_migrations(&unit(&ext))
         .await
         .expect_err("undeclared cross-extension alter");
 
@@ -179,7 +193,7 @@ async fn alters_on_declared_and_previously_created_tables_run() {
     };
 
     let result = MigrationService::new(&provider)
-        .run_pending_migrations(&ext)
+        .run_pending_migrations(&unit(&ext))
         .await
         .expect("owned alters run");
 
@@ -238,7 +252,7 @@ async fn suspended_triggers_are_named_in_the_migration_log() {
     };
 
     let result = MigrationService::new(&provider)
-        .run_pending_migrations(&ext)
+        .run_pending_migrations(&unit(&ext))
         .await
         .expect("migrations run");
 
@@ -275,7 +289,7 @@ async fn a_costed_migration_over_a_populated_table_applies() {
     };
 
     let result = MigrationService::new(&provider)
-        .run_pending_migrations(&ext)
+        .run_pending_migrations(&unit(&ext))
         .await
         .expect("costed migration");
 
@@ -327,7 +341,9 @@ async fn an_unmeasured_pending_rewrite_of_a_populated_hot_table_is_warned() {
     let (provider, db) = provider_and_db().await;
     provider
         .execute_batch(
-            "INSERT INTO logs (level, module, message) VALUES ('INFO', 'cost_warning_test', 'seed');
+            "INSERT INTO logs (level, module, message, user_id, session_id, trace_id)
+             VALUES ('INFO', 'cost_warning_test', 'seed', 'cost_warning_test_user',
+                     'cost_warning_test_session', 'cost_warning_test_trace');
              ANALYZE logs;",
         )
         .await
@@ -348,7 +364,7 @@ async fn an_unmeasured_pending_rewrite_of_a_populated_hot_table_is_warned() {
         )],
     };
 
-    let outcome = install_extension_schemas_with_config(&registry_with(ext), &provider, &[]).await;
+    let outcome = install(&registry_with(ext), &provider).await;
 
     let text = logs.text();
     assert!(
@@ -379,7 +395,7 @@ async fn a_tombstone_cannot_be_marked_applied() {
     };
 
     let err = MigrationService::new(&provider)
-        .mark_applied(&ext, 1)
+        .mark_applied(&unit(&ext), 1)
         .await
         .expect_err("tombstone refused");
 
@@ -416,7 +432,7 @@ async fn a_failing_declarative_routine_aborts_the_install_with_its_statement() {
         migrations: vec![],
     };
 
-    let err = install_extension_schemas_with_config(&registry_with(ext), &provider, &[])
+    let err = install(&registry_with(ext), &provider)
         .await
         .expect_err("routine with an unknown return type");
 
@@ -444,7 +460,7 @@ async fn a_failing_schema_statement_rolls_back_and_names_the_statement() {
         migrations: vec![],
     };
 
-    let err = install_extension_schemas_with_config(&registry_with(ext), &provider, &[])
+    let err = install(&registry_with(ext), &provider)
         .await
         .expect_err("an index over a missing column fails the phase");
 
@@ -501,7 +517,7 @@ async fn an_unreachable_database_names_the_migration_step_that_failed() {
         migrations: vec![Migration::new(1, "one", "SELECT 1;")],
     };
     let run = service
-        .run_pending_migrations(&ext)
+        .run_pending_migrations(&unit(&ext))
         .await
         .expect_err("no database");
     assert_eq!(
@@ -521,7 +537,7 @@ async fn reverting_zero_migrations_touches_nothing() {
     };
 
     let result = MigrationService::new(&provider)
-        .run_down_migrations(&ext, 0)
+        .run_down_migrations(&unit(&ext), 0)
         .await
         .expect("a zero-count revert needs no database");
 
@@ -538,7 +554,7 @@ async fn schema_residue_on_an_unreachable_database_is_an_error() {
 
     match err {
         LoaderError::SchemaInstallationStepFailed { context, .. } => {
-            assert_eq!(context, "could not list live tables");
+            assert_eq!(context, "Failed to look up the table ownership records");
         },
         other => panic!("unexpected error: {other:?}"),
     }
@@ -559,10 +575,7 @@ async fn a_cross_extension_table_nobody_owns_is_refused() {
         cross: vec![phantom],
         migrations: vec![],
     };
-    let mut registry = systemprompt_extension::ExtensionRegistry::new();
-    registry.register(Arc::new(ext)).expect("register");
-
-    let err = install_extension_schemas_with_config(&registry, &provider, &[])
+    let err = install(&admitted_of(vec![Box::new(ext)]), &provider)
         .await
         .expect_err("phantom cross-extension table");
 

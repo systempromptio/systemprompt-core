@@ -36,8 +36,8 @@ use systemprompt_identifiers::TenantId;
 use systemprompt_logging::CliService;
 
 use create_flow::tenant_create;
-use systemprompt_cli::kernel::parsers::parse_tenant_id;
-use systemprompt_cli::kernel::{CommandContext, Prompter, render_result};
+use systemprompt_extension::cli::parsers::parse_tenant_id;
+use systemprompt_extension::cli::{CommandHost, CommandOutput, Prompter};
 
 #[derive(Debug, Subcommand)]
 pub enum TenantCommands {
@@ -95,68 +95,47 @@ pub struct TenantDeleteArgs {
     pub yes: bool,
 }
 
-pub async fn execute(cmd: Option<TenantCommands>, ctx: &CommandContext) -> Result<()> {
+pub async fn execute(cmd: Option<TenantCommands>, host: &dyn CommandHost) -> Result<CommandOutput> {
     if let Some(cmd) = cmd {
-        execute_command(cmd, ctx).await.map(drop)
-    } else {
-        if !ctx.cli.is_interactive() {
-            return Err(anyhow::anyhow!(
-                "Tenant subcommand required in non-interactive mode"
-            ));
-        }
-        while let Some(cmd) = select_operation(ctx.prompter())? {
-            if execute_command(cmd, ctx).await? {
-                break;
-            }
-        }
-        Ok(())
+        return Ok(execute_command(cmd, host).await?.0);
     }
+    if !host.output().is_interactive() {
+        return Err(anyhow::anyhow!(
+            "Tenant subcommand required in non-interactive mode"
+        ));
+    }
+    while let Some(cmd) = select_operation(host.prompter())? {
+        let (output, done) = execute_command(cmd, host).await?;
+        host.render(&output);
+        if done {
+            break;
+        }
+    }
+    Ok(CommandOutput::rendered())
 }
 
-async fn execute_command(cmd: TenantCommands, ctx: &CommandContext) -> Result<bool> {
+async fn execute_command(
+    cmd: TenantCommands,
+    host: &dyn CommandHost,
+) -> Result<(CommandOutput, bool)> {
+    let (cli, prompter) = (host.output(), host.prompter());
     match cmd {
         TenantCommands::Create => {
-            tenant_create(ctx.prompter(), &ctx.cli, ctx.foreground_children())
-                .await
-                .map(|()| true)
+            tenant_create(prompter, cli, host.children()).await?;
+            Ok((CommandOutput::rendered(), true))
         },
-        TenantCommands::Add(args) => {
-            let result = add_tenant(args, &ctx.cli)?;
-            render_result(&result, &ctx.cli);
-            Ok(false)
-        },
-        TenantCommands::List => {
-            let result = list_tenants(ctx.prompter(), &ctx.cli).await?;
-            render_result(&result, &ctx.cli);
-            Ok(false)
-        },
-        TenantCommands::Show { id } => {
-            let result = show_tenant(ctx.prompter(), id.as_ref(), &ctx.cli)?;
-            render_result(&result, &ctx.cli);
-            Ok(false)
-        },
-        TenantCommands::Delete(args) => {
-            let result =
-                delete_tenant(args, ctx.prompter(), &ctx.cli, ctx.foreground_children()).await?;
-            render_result(&result, &ctx.cli);
-            Ok(false)
-        },
-        TenantCommands::Edit { id } => {
-            let result = edit_tenant(id, ctx.prompter(), &ctx.cli)?;
-            render_result(&result, &ctx.cli);
-            Ok(false)
-        },
-        TenantCommands::RotateCredentials(args) => {
-            let result = rotate_credentials(
-                args.id,
-                args.yes || !ctx.cli.is_interactive(),
-                ctx.prompter(),
-                &ctx.cli,
-            )
-            .await?;
-            render_result(&result, &ctx.cli);
-            Ok(false)
-        },
+        TenantCommands::Add(args) => Ok((add_tenant(args, cli)?, false)),
+        TenantCommands::List => Ok((list_tenants(prompter, cli).await?, false)),
+        TenantCommands::Show { id } => Ok((show_tenant(prompter, id.as_ref(), cli)?, false)),
+        TenantCommands::Delete(args) => Ok((
+            delete_tenant(args, prompter, cli, host.children()).await?,
+            false,
+        )),
+        TenantCommands::Edit { id } => Ok((edit_tenant(id, prompter, cli)?, false)),
+        TenantCommands::RotateCredentials(args) => Ok((
+            rotate_credentials(args.id, args.yes || !cli.is_interactive(), prompter, cli).await?,
+            false,
+        )),
     }
 }
 

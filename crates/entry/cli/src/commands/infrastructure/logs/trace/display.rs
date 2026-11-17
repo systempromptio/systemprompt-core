@@ -5,12 +5,15 @@
 
 use chrono::{DateTime, Utc};
 use serde_json::Value;
-use systemprompt_logging::CliService;
+use systemprompt_models::artifacts::NoticeLine;
+
+use super::summary::line;
 use systemprompt_runtime::TraceEvent;
 
 use crate::presentation::tables::{format_metadata_value, trace_events_table};
 
-pub(super) fn print_event(
+pub(super) fn push_event(
+    out: &mut Vec<NoticeLine>,
     event: &TraceEvent,
     verbose: bool,
     prev_timestamp: Option<DateTime<Utc>>,
@@ -41,18 +44,18 @@ pub(super) fn print_event(
     let event_line = format!("{timestamp} {delta} {type_label} {}", event.details);
 
     match event.event_type.as_str() {
-        "LOG" if event.details.starts_with("ERROR") => CliService::error(&event_line),
-        "LOG" if event.details.starts_with("WARN") => CliService::warning(&event_line),
-        _ => CliService::info(&event_line),
+        "LOG" if event.details.starts_with("ERROR") => line(out, "error", event_line),
+        "LOG" if event.details.starts_with("WARN") => line(out, "warning", event_line),
+        _ => line(out, "info", event_line),
     }
 
     if verbose {
-        print_event_context(event);
-        print_event_metadata(event);
+        push_event_context(out, event);
+        push_event_metadata(out, event);
     }
 }
 
-fn print_event_context(event: &TraceEvent) {
+fn push_event_context(out: &mut Vec<NoticeLine>, event: &TraceEvent) {
     let mut context_parts = Vec::new();
 
     if let Some(ref session_id) = event.session_id {
@@ -77,11 +80,15 @@ fn print_event_context(event: &TraceEvent) {
     }
 
     if !context_parts.is_empty() {
-        CliService::info(&format!("           {}", context_parts.join(" | ")));
+        line(
+            out,
+            "info",
+            format!("           {}", context_parts.join(" | ")),
+        );
     }
 }
 
-fn print_event_metadata(event: &TraceEvent) {
+fn push_event_metadata(out: &mut Vec<NoticeLine>, event: &TraceEvent) {
     if let Some(ref metadata) = event.metadata
         && let Ok(parsed) = serde_json::from_str::<Value>(metadata)
         && let Some(obj) = parsed.as_object()
@@ -89,15 +96,15 @@ fn print_event_metadata(event: &TraceEvent) {
         for (key, value) in obj {
             if !value.is_null() {
                 let formatted_value = format_metadata_value(key, value);
-                CliService::info(&format!("           {key}: {formatted_value}"));
+                line(out, "info", format!("           {key}: {formatted_value}"));
             }
         }
     }
 }
 
-pub(super) fn print_table(events: &[TraceEvent]) {
+pub(super) fn push_table(out: &mut Vec<NoticeLine>, events: &[TraceEvent]) {
     let table = trace_events_table(events);
     if !table.is_empty() {
-        CliService::info(&table);
+        line(out, "info", table);
     }
 }

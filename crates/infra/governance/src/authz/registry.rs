@@ -1,108 +1,24 @@
-//! Inventory-based registration for extension-built authz hooks.
-//!
-//! Companion to [`AppContextBuilder::with_authz_hook`][with]: binaries that
-//! delegate to `systemprompt::cli::run()` have no builder site to call, so
-//! they register a hook factory at static-init time via
-//! [`crate::register_authz_hook!`]. [`build_authz_hook`][bah] consults this
-//! registry when no builder-supplied hook is present and the profile selects
-//! `mode: extension`.
-//!
-//! Multiple registrations are auto-composed into a [`CompositeAuthzHook`] in
-//! collection order. For deterministic ordering across many extensions,
-//! register a single factory that returns a pre-composed hook.
-//!
-//! [with]: ../../../runtime/struct.AppContextBuilder.html#method.with_authz_hook
-//! [bah]: super::runtime::build_authz_hook
+//! The inputs a rule-based authz hook is wired from at the composition root.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
-
-use systemprompt_extension::StateHandle;
-use systemprompt_manifest::services::ServicesView;
-use systemprompt_models::authz::SubjectSourceHandle;
 use systemprompt_traits::CacheEpochs;
 
-use super::audit::AuthzAuditSink;
-use super::composite::CompositeAuthzHook;
-use super::hook::SharedAuthzHook;
 use super::parent_chain::ChainSources;
 use super::subject::SubjectProviderSet;
 
-/// The chain sources, cache epochs and services a rule-based hook is wired
-/// from at the composition root.
+/// The chain sources, cache epochs and subject providers a rule-based hook is
+/// wired from at the composition root.
 #[derive(Clone)]
 pub struct AuthzWiring {
     pub sources: ChainSources,
     pub epochs: CacheEpochs,
-    pub services: ServicesView,
-    pub subjects: SubjectSourceHandle,
     pub providers: SubjectProviderSet,
-    pub secrets: Arc<dyn systemprompt_traits::SecretStore>,
-    pub state: StateHandle,
 }
 
 impl std::fmt::Debug for AuthzWiring {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("AuthzWiring").finish_non_exhaustive()
     }
-}
-
-/// Inputs passed to every registered factory at bootstrap.
-///
-/// `pool` is the write-side Postgres pool already used by the audit sink;
-/// `sink` is the same [`DbAuditSink`][super::audit::DbAuditSink] core uses
-/// internally so extension hooks record through one consistent audit path.
-/// `state` is the extension state: the hook is built before the state
-/// exists, so a factory captures the handle and the hook reads the value the
-/// extension provided once the host binds it, before anything serves. A read
-/// before binding fails closed with `ExtensionStateError::NotReady`. Only the
-/// handle handed to authz hook and subject provider factories is bound;
-/// role directories discovered elsewhere receive an unbound handle.
-#[derive(Clone)]
-pub struct AuthzHookContext {
-    pub pool: Arc<sqlx::PgPool>,
-    pub sink: Arc<dyn AuthzAuditSink>,
-    pub services: ServicesView,
-    pub subjects: SubjectSourceHandle,
-    pub secrets: Arc<dyn systemprompt_traits::SecretStore>,
-    pub state: StateHandle,
-}
-
-impl std::fmt::Debug for AuthzHookContext {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("AuthzHookContext").finish_non_exhaustive()
-    }
-}
-
-/// One inventory submission per [`crate::register_authz_hook!`] call. The
-/// factory runs once at `AppContext` build time and must not block.
-#[derive(Debug, Clone, Copy)]
-pub struct AuthzHookRegistration {
-    pub factory: fn(&AuthzHookContext) -> SharedAuthzHook,
-}
-
-inventory::collect!(AuthzHookRegistration);
-
-#[must_use]
-pub fn discover_authz_hook(ctx: &AuthzHookContext) -> Option<SharedAuthzHook> {
-    let mut hooks = inventory::iter::<AuthzHookRegistration>().map(|reg| (reg.factory)(ctx));
-    let first = hooks.next()?;
-    let rest: Vec<SharedAuthzHook> = hooks.collect();
-    if rest.is_empty() {
-        return Some(first);
-    }
-    Some(Arc::new(CompositeAuthzHook::new(first, rest)))
-}
-
-#[macro_export]
-macro_rules! register_authz_hook {
-    ($factory:expr) => {
-        $crate::__inventory::submit! {
-            $crate::authz::AuthzHookRegistration {
-                factory: $factory,
-            }
-        }
-    };
 }

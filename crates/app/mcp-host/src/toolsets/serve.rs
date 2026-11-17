@@ -1,9 +1,10 @@
 //! Builds and serves one YAML-declared MCP server from its [`HostContext`].
 //!
 //! [`build_server`] resolves the deployment's enabled `toolsets:` against the
-//! factory inventory (an id no linked crate registers fails start), builds
-//! each toolset, discovers the registered access recorders and hands the lot
-//! to [`ToolsetServer`], which refuses a `tools:` entry no toolset serves.
+//! built [`Toolsets`] (an id no admitted member contributes fails start),
+//! builds each toolset, takes the built access recorders and UI renderers and
+//! hands the lot to [`ToolsetServer`], which refuses a `tools:` entry no
+//! toolset serves.
 //! [`serve`] binds the deployment's `port:` on the loopback interface only
 //! (the API proxy on the same host is its one caller, and every request must
 //! carry the proxy's hop token, verified against the context's public key
@@ -15,25 +16,28 @@
 use std::sync::Arc;
 
 use systemprompt_identifiers::McpServerId;
+use systemprompt_mcp::contract::AccessRecorders;
 use systemprompt_mcp::host::{
-    ToolsetAuthz, ToolsetHostError, ToolsetServer, ToolsetServerParts,
-    discover_mcp_access_recorders, serve_router,
+    ToolsetAuthz, ToolsetHostError, ToolsetServer, ToolsetServerParts, serve_router,
 };
 use systemprompt_mcp::middleware::HopVerifier;
 use systemprompt_mcp::repository::ToolUsageRepository;
+use systemprompt_mcp::services::ui_renderer::UiRendererRegistry;
 use systemprompt_mcp::{McpHttpConfig, McpToolExecutor, McpToolset, create_router};
+use systemprompt_provider_contracts::MissingDependency;
 use tokio::net::TcpListener;
 
-use super::factory::{ToolsetBuildError, find_toolset_factory, registered_toolset_ids};
+use super::factory::ToolsetBuildError;
 use crate::HostContext;
+use crate::contract::Toolsets;
 
 #[derive(Debug, thiserror::Error)]
 pub enum McpHostError {
     #[error("MCP server '{server}' is not declared in the services configuration")]
     UnknownServer { server: McpServerId },
     #[error(
-        "MCP server '{server}' lists toolset '{toolset}', which no linked crate registers \
-         (registered: {registered})"
+        "MCP server '{server}' lists toolset '{toolset}', which no composed member contributes \
+         (contributed: {registered})"
     )]
     UnknownToolset {
         server: McpServerId,
@@ -49,6 +53,8 @@ pub enum McpHostError {
     },
     #[error(transparent)]
     Host(#[from] ToolsetHostError),
+    #[error("the host's composed state lacks a built slot")]
+    State(#[from] MissingDependency),
     #[error("MCP server '{server}' has no `port:` in its YAML")]
     NoPort { server: McpServerId },
     #[error("failed to bind {addr}")]
@@ -75,15 +81,21 @@ pub fn build_server(
                 server: server_id.clone(),
             })?;
 
+    let state = ctx.state();
+    let built = Arc::clone(state.get::<Arc<Toolsets>>()?);
+    let recorders = state.get::<Arc<AccessRecorders>>()?.to_vec();
+    let renderers = Arc::clone(state.get::<Arc<UiRendererRegistry>>()?);
+
     let mut toolsets: Vec<Box<dyn McpToolset>> = Vec::new();
     for reference in deployment.enabled_toolsets() {
-        let factory =
-            find_toolset_factory(&reference.id).ok_or_else(|| McpHostError::UnknownToolset {
+        let factory = built
+            .find(&reference.id)
+            .ok_or_else(|| McpHostError::UnknownToolset {
                 server: server_id.clone(),
                 toolset: reference.id.clone(),
-                registered: registered_toolset_ids().join(", "),
+                registered: built.ids().join(", "),
             })?;
-        match (factory.build)(ctx, server_id) {
+        match factory(ctx, server_id) {
             Ok(Some(toolset)) => toolsets.push(toolset),
             Ok(None) => {
                 tracing::warn!(server = %server_id, toolset = %reference.id, "toolset unavailable in this installation; not served");
@@ -102,6 +114,7 @@ pub fn build_server(
         Arc::new(ToolUsageRepository::new(ctx.db_pool())),
         ctx.tool_call_intents(),
         ctx.artifact_ingest(),
+        renderers,
         server_id.clone(),
     );
     ToolsetServer::new(ToolsetServerParts {
@@ -112,7 +125,7 @@ pub fn build_server(
             services,
             subjects: ctx.subject_providers().clone(),
         },
-        recorders: discover_mcp_access_recorders(ctx.db_pool()),
+        recorders,
         toolsets,
     })
     .map_err(McpHostError::from)

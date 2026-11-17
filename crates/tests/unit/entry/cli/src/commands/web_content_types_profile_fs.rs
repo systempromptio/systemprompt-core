@@ -7,8 +7,9 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use clap::Parser;
+use systemprompt_cli::ScriptedPrompter;
 use systemprompt_cli::web::content_types::{ContentTypesCommands, execute};
-use systemprompt_cli::{CliConfig, OutputFormat, ScriptedPrompter};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_models::content_config::ContentConfigRaw;
 
 const SEEDED: &str = r#"content_sources:
@@ -81,6 +82,7 @@ fn run(args: &[&str]) -> anyhow::Result<()> {
             .boot
             .profile(),
     )
+    .map(drop)
 }
 
 #[test]

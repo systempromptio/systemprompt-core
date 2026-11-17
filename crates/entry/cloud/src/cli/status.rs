@@ -14,8 +14,8 @@ use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 
 use crate::cli::types::{CloudStatusOutput, CredentialsInfo, TenantStatusInfo};
-use systemprompt_cli::kernel::profile::ProfileInfo;
-use systemprompt_cli::kernel::{CliConfig, CommandOutput};
+use systemprompt_cloud::profile::ProfileInfo;
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 pub(super) async fn execute(
     config: &CliConfig,

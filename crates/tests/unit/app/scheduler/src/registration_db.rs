@@ -15,7 +15,7 @@ use systemprompt_identifiers::JobName;
 use systemprompt_logging::{LogLevel, LoggingRepository};
 use systemprompt_manifest::services::UnlistedJobs;
 use systemprompt_scheduler::{JobConfig, SchedulerConfig, SchedulerService, SchedulerStartup};
-use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
+use systemprompt_test_fixtures::{test_database_url, test_db_pool};
 use systemprompt_traits::{Dependencies, Job, JobContext, JobResult, JobScope};
 
 const TICK_JOB: &str = "sp_test_registration_tick_job";
@@ -82,8 +82,9 @@ impl Job for UnconfiguredJob {
     }
 }
 
-systemprompt_provider_contracts::submit_job!("scheduler_test_jobs", &TickJob);
-systemprompt_provider_contracts::submit_job!("scheduler_test_jobs", &UnconfiguredJob);
+pub(crate) fn contribute(c: &mut systemprompt_extension::Contributions<'_>) {
+    c.job(TickJob).job(UnconfiguredJob);
+}
 
 fn config(jobs: Vec<JobConfig>) -> SchedulerConfig {
     SchedulerConfig {
@@ -98,8 +99,8 @@ fn config(jobs: Vec<JobConfig>) -> SchedulerConfig {
 async fn start(jobs: Vec<JobConfig>) -> (SchedulerStartup, DbPool) {
     let url = test_database_url();
     let pool = test_db_pool().await;
-    let app_ctx = test_app_context(&pool, &url);
-    let svc = SchedulerService::new(config(jobs), Arc::clone(&pool), app_ctx);
+    let (app_ctx, schedule) = crate::test_extension::scheduled_app(&url).await;
+    let svc = SchedulerService::new(config(jobs), &pool, app_ctx, Arc::clone(&schedule));
     let startup = svc.start().await.expect("scheduler starts");
     (startup, pool)
 }

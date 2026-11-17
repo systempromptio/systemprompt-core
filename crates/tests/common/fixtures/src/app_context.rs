@@ -1,10 +1,16 @@
-//! Minimal [`AppContext`] fixture for integration tests.
+//! [`AppContext`] fixtures for integration tests.
 //!
-//! Bypasses the full
-//! [`AppContextBuilder`](systemprompt_runtime::AppContextBuilder)
-//! bootstrap (profile / config / logging / system-admin resolution) and
-//! assembles a context directly via `AppContext::from_parts`. The fixture wires
-//! in an [`AllowAllHook`] so route handlers behave like permissive auth.
+//! Every context is built by [`AppContextBuilder`] over an admitted
+//! composition, on a test bootstrap's profile with the given [`Config`]
+//! installed, an allow-all marketplace filter and the fixture signing keys.
+//! The fixture profile's authorization mode is `unrestricted`, so the default
+//! builder supplies no extension hook; [`fixture_app_context_with_hook`] builds
+//! on a copy of the profile whose mode is `extension`. Every build seeds the
+//! fixture system admin ([`crate::credential::seed_fixture_system_admin`]) on
+//! the config's database first. [`fixture_admitted`] is the core schema
+//! composition (`systemprompt_test_migrate::core_members`); a test crate that
+//! links the `systemprompt` facade passes `reference()` admitted instead.
+//! Schema installation stays off: the database is migrated before the run.
 //!
 //! [`test_app_context`] panics when the context cannot be assembled: a test
 //! whose context is missing fails rather than skips (see [`crate::db`]).
@@ -12,29 +18,21 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
-use systemprompt_config::paths::AppPaths;
+use systemprompt_analytics::FingerprintRepository;
 use systemprompt_config::LoadedProfile;
 use systemprompt_database::DbPool;
-use systemprompt_extension::ExtensionRegistry;
-use systemprompt_files::DocumentsConfig;
-use systemprompt_governance::authz::{
-    AllowAllHook, NullAuditSink, SharedAuthzHook, SubjectProviderSet,
-};
+use systemprompt_extension::{Admitted, Extension, StandingTag};
+use systemprompt_governance::authz::SharedAuthzHook;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_loader::BootContext;
 use systemprompt_manifest::profile::{
-    ContentNegotiationConfig, PathsConfig, RateLimitsConfig, SecurityHeadersConfig,
+    ContentNegotiationConfig, RateLimitsConfig, SecurityHeadersConfig,
 };
 use systemprompt_manifest::Config;
-use systemprompt_marketplace::{AllowAllFilter, MarketplaceCache, MarketplaceFilter};
-use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_models::RouteClassifier;
-use systemprompt_runtime::{AppContext, ConfigPlane, DataPlane, Plugins, Subsystems};
-use systemprompt_traits::BackgroundTasks;
-use systemprompt_users::UserService;
+use systemprompt_marketplace::{AllowAllFilter, MarketplaceFilter};
+use systemprompt_runtime::{AppContext, AppContextBuilder};
 
-use crate::user::{fixture_system_admin, fixture_user_id};
+use crate::bootstrap::{ensure_test_bootstrap, TestBootstrap};
 
 pub const FIXTURE_JWT_ISSUER: &str = "https://issuer.test";
 
@@ -46,7 +44,6 @@ pub fn fixture_analytics_repositories(
             db,
             Arc::new(systemprompt_users::SessionRepository::new(db)),
             Arc::new(systemprompt_logging::AnalyticsRepository::new(db)),
-            Arc::new(systemprompt_content::repository::ContentRepository::new(db)),
         ),
     )
 }
@@ -121,8 +118,11 @@ pub fn fixture_config(database_url: &str) -> Config {
         cors_allowed_origins: vec!["http://localhost:3000".to_string()],
         trusted_proxies: vec![],
         is_cloud: false,
-        system_admin_username: "admin".to_string(),
-        system_admin_email: Some(systemprompt_identifiers::Email::local_admin()),
+        system_admin_username: crate::credential::FIXTURE_SYSTEM_ADMIN_USERNAME.to_owned(),
+        system_admin_email: Some(
+            systemprompt_identifiers::Email::try_new(crate::credential::FIXTURE_SYSTEM_ADMIN_EMAIL)
+                .expect("the fixture admin email is well-formed"),
+        ),
         content_negotiation: ContentNegotiationConfig::default(),
         security_headers: SecurityHeadersConfig::default(),
         allow_registration: false,
@@ -143,572 +143,232 @@ pub fn test_config_with(customize: impl FnOnce(&mut Config)) -> Arc<Config> {
     Arc::new(config)
 }
 
-pub fn test_app_context(pool: &DbPool, database_url: &str) -> Arc<AppContext> {
-    fixture_app_context_with_filter(pool, database_url, Arc::new(AllowAllFilter))
-        .unwrap_or_else(|e| panic!("fixture AppContext over the test database: {e:#}"))
+pub fn fixture_admitted_of(members: Vec<Box<dyn Extension>>) -> Arc<Admitted> {
+    let members = members
+        .iter()
+        .map(|ext| {
+            systemprompt_test_migrate::admitted_member(ext.as_ref(), StandingTag::Core)
+                .unwrap_or_else(|e| panic!("{} contributes: {e}", ext.metadata().id))
+        })
+        .collect();
+    Arc::new(Admitted::__from_facade(
+        systemprompt_extension::admitted::AdmittedParts {
+            members,
+            ..Default::default()
+        },
+    ))
 }
 
-fn tmp_paths() -> PathsConfig {
-    PathsConfig {
-        root: None,
-        system: "/tmp".to_string(),
-        services: "/tmp".to_string(),
-        bin: "/tmp".to_string(),
-        web_path: Some("/tmp".to_string()),
-        storage: Some("/tmp".to_string()),
-        geoip_database: None,
-        shipped_files: None,
-        data: None,
-    }
+pub fn fixture_core_members() -> Vec<Box<dyn Extension>> {
+    let mut members = systemprompt_test_migrate::core_members();
+    members.push(Box::new(systemprompt_gateway::extension::GatewayExtension));
+    members
 }
 
-pub fn fixture_app_context_with_filter(
-    pool: &DbPool,
-    database_url: &str,
-    marketplace_filter: Arc<dyn MarketplaceFilter>,
-) -> Result<Arc<AppContext>> {
-    fixture_app_context_with(pool, database_url, tmp_paths(), marketplace_filter)
+pub fn fixture_admitted() -> Arc<Admitted> {
+    fixture_admitted_of(fixture_core_members())
 }
 
-pub fn fixture_app_context_with(
-    pool: &DbPool,
-    database_url: &str,
-    paths: PathsConfig,
-    marketplace_filter: Arc<dyn MarketplaceFilter>,
-) -> Result<Arc<AppContext>> {
-    let hook = Arc::new(AllowAllHook::new(Arc::new(NullAuditSink)));
-    fixture_app_context_full(pool, database_url, paths, marketplace_filter, hook)
+pub fn fixture_admitted_without(disabled: &[ExtensionId]) -> Arc<Admitted> {
+    fixture_admitted_of(
+        fixture_core_members()
+            .into_iter()
+            .filter(|ext| !disabled.iter().any(|id| id.as_str() == ext.metadata().id))
+            .collect(),
+    )
 }
 
-pub fn fixture_app_context_with_config(pool: &DbPool, config: Config) -> Result<Arc<AppContext>> {
-    fixture_app_context_with_extensions(pool, config, ExtensionRegistry::discover()?, &[])
-}
-
-pub fn fixture_app_context_with_extensions(
-    pool: &DbPool,
+pub fn fixture_context_builder(
+    bootstrap: &TestBootstrap,
     config: Config,
-    extension_registry: ExtensionRegistry,
-    disabled_extensions: &[ExtensionId],
-) -> Result<Arc<AppContext>> {
-    let hook = Arc::new(AllowAllHook::new(Arc::new(NullAuditSink)));
-    let user_repository = Arc::new(systemprompt_users::UserRepository::new(pool));
-    fixture_app_context_assembled(
-        pool,
-        config,
-        tmp_paths(),
-        FixtureSeams {
-            marketplace_filter: Arc::new(AllowAllFilter),
-            authz_hook: hook,
-            user_repository,
-            extension_registry: Arc::new(extension_registry),
-            services: None,
-            documents: enabled_documents(),
-            disabled_extensions: disabled_extensions.to_vec(),
-            build: systemprompt_models::BuildIdentity::core(),
-        },
-    )
-}
-
-// Build a fixture context that reports the given binary identity, as an
-// embedding binary's `run_with` does.
-pub fn fixture_app_context_with_build(
-    pool: &DbPool,
-    database_url: &str,
-    build: systemprompt_models::BuildIdentity,
-) -> Result<Arc<AppContext>> {
-    let hook = Arc::new(AllowAllHook::new(Arc::new(NullAuditSink)));
-    let user_repository = Arc::new(systemprompt_users::UserRepository::new(pool));
-    fixture_app_context_assembled(
-        pool,
-        fixture_config(database_url),
-        tmp_paths(),
-        FixtureSeams {
-            marketplace_filter: Arc::new(AllowAllFilter),
-            authz_hook: hook,
-            user_repository,
-            extension_registry: Arc::new(ExtensionRegistry::new()),
-            services: None,
-            documents: enabled_documents(),
-            disabled_extensions: Vec::new(),
-            build,
-        },
-    )
-}
-
-// Build a fixture context whose document store is switched off, as an
-// installation without `files.documents.enabled` runs.
-pub fn fixture_app_context_documents_disabled(
-    pool: &DbPool,
-    config: Config,
-) -> Result<Arc<AppContext>> {
-    let hook = Arc::new(AllowAllHook::new(Arc::new(NullAuditSink)));
-    let user_repository = Arc::new(systemprompt_users::UserRepository::new(pool));
-    fixture_app_context_assembled(
-        pool,
-        config,
-        tmp_paths(),
-        FixtureSeams {
-            marketplace_filter: Arc::new(AllowAllFilter),
-            authz_hook: hook,
-            user_repository,
-            extension_registry: Arc::new(ExtensionRegistry::discover()?),
-            services: None,
-            documents: DocumentsConfig::default(),
-            disabled_extensions: Vec::new(),
-            build: systemprompt_models::BuildIdentity::core(),
-        },
-    )
-}
-
-// Build a fixture context whose document store runs with the given
-// `files.documents` section, as an installation that enables access requests
-// or tunes its limits runs.
-pub fn fixture_app_context_documents_configured(
-    pool: &DbPool,
-    config: Config,
-    documents: DocumentsConfig,
-) -> Result<Arc<AppContext>> {
-    let hook = Arc::new(AllowAllHook::new(Arc::new(NullAuditSink)));
-    let user_repository = Arc::new(systemprompt_users::UserRepository::new(pool));
-    fixture_app_context_assembled(
-        pool,
-        config,
-        tmp_paths(),
-        FixtureSeams {
-            marketplace_filter: Arc::new(AllowAllFilter),
-            authz_hook: hook,
-            user_repository,
-            extension_registry: Arc::new(ExtensionRegistry::discover()?),
-            services: None,
-            documents,
-            disabled_extensions: Vec::new(),
-            build: systemprompt_models::BuildIdentity::core(),
-        },
-    )
-}
-
-// Build a fixture context over the given services config, with the document
-// store enabled or left disabled.
-pub fn fixture_app_context_with_services(
-    pool: &DbPool,
-    config: Config,
-    services: systemprompt_loader::ServicesState,
-    documents_enabled: bool,
-) -> Result<Arc<AppContext>> {
-    let hook = Arc::new(AllowAllHook::new(Arc::new(NullAuditSink)));
-    let user_repository = Arc::new(systemprompt_users::UserRepository::new(pool));
-    fixture_app_context_assembled(
-        pool,
-        config,
-        tmp_paths(),
-        FixtureSeams {
-            marketplace_filter: Arc::new(AllowAllFilter),
-            authz_hook: hook,
-            user_repository,
-            extension_registry: Arc::new(ExtensionRegistry::discover()?),
-            services: Some(services),
-            documents: if documents_enabled {
-                enabled_documents()
-            } else {
-                DocumentsConfig::default()
-            },
-            disabled_extensions: Vec::new(),
-            build: systemprompt_models::BuildIdentity::core(),
-        },
-    )
-}
-
-fn enabled_documents() -> DocumentsConfig {
-    DocumentsConfig {
-        enabled: true,
-        ..DocumentsConfig::default()
-    }
-}
-
-fn fixture_files_yaml(documents: DocumentsConfig) -> systemprompt_files::FilesConfigYaml {
-    systemprompt_files::FilesConfigYaml {
-        documents,
-        ..systemprompt_files::FilesConfigYaml::default()
-    }
-}
-
-// The collaborators a test may swap out; everything else is built from the
-// pool.
-struct FixtureSeams {
-    marketplace_filter: Arc<dyn MarketplaceFilter>,
-    authz_hook: SharedAuthzHook,
-    user_repository: Arc<systemprompt_users::UserRepository>,
-    extension_registry: Arc<ExtensionRegistry>,
-    services: Option<systemprompt_loader::ServicesState>,
-    documents: DocumentsConfig,
-    disabled_extensions: Vec<ExtensionId>,
-    build: systemprompt_models::BuildIdentity,
-}
-
-// Build a fixture context whose user repository is supplied by the test —
-// used to drive the user-data read failures of a route while every other
-// repository stays healthy.
-pub fn fixture_app_context_with_user_repository(
-    pool: &DbPool,
-    database_url: &str,
-    paths: PathsConfig,
-    marketplace_filter: Arc<dyn MarketplaceFilter>,
-    user_repository: Arc<systemprompt_users::UserRepository>,
-) -> Result<Arc<AppContext>> {
-    let hook = Arc::new(AllowAllHook::new(Arc::new(NullAuditSink)));
-    fixture_app_context_assembled(
-        pool,
-        fixture_config(database_url),
-        paths,
-        FixtureSeams {
-            marketplace_filter,
-            authz_hook: hook,
-            user_repository,
-            extension_registry: Arc::new(ExtensionRegistry::discover()?),
-            services: None,
-            documents: enabled_documents(),
-            disabled_extensions: Vec::new(),
-            build: systemprompt_models::BuildIdentity::core(),
-        },
-    )
-}
-
-// Build a fixture context with an explicit authorization hook — used by tests
-// that need to drive the `Deny` branch (pass a
-// [`DenyAllHook`](systemprompt_governance::authz::DenyAllHook)).
-pub fn fixture_app_context_with_hook(
-    pool: &DbPool,
-    database_url: &str,
-    authz_hook: SharedAuthzHook,
-) -> Result<Arc<AppContext>> {
-    fixture_app_context_full(
-        pool,
-        database_url,
-        tmp_paths(),
-        Arc::new(AllowAllFilter),
-        authz_hook,
-    )
-}
-
-fn fixture_app_context_full(
-    pool: &DbPool,
-    database_url: &str,
-    paths: PathsConfig,
-    marketplace_filter: Arc<dyn MarketplaceFilter>,
-    authz_hook: SharedAuthzHook,
-) -> Result<Arc<AppContext>> {
-    let user_repository = Arc::new(systemprompt_users::UserRepository::new(pool));
-    fixture_app_context_assembled(
-        pool,
-        fixture_config(database_url),
-        paths,
-        FixtureSeams {
-            marketplace_filter,
-            authz_hook,
-            user_repository,
-            extension_registry: Arc::new(ExtensionRegistry::discover()?),
-            services: None,
-            documents: enabled_documents(),
-            disabled_extensions: Vec::new(),
-            build: systemprompt_models::BuildIdentity::core(),
-        },
-    )
-}
-
-fn fixture_app_context_assembled(
-    pool: &DbPool,
-    config: Config,
-    paths: PathsConfig,
-    seams: FixtureSeams,
-) -> Result<Arc<AppContext>> {
-    fixture_app_context_assembled_on(
-        crate::bootstrap::ensure_test_bootstrap(),
-        pool,
-        config,
-        paths,
-        seams,
-    )
-}
-
-pub fn test_app_context_on(
-    bootstrap: &crate::bootstrap::TestBootstrap,
-    pool: &DbPool,
-) -> Arc<AppContext> {
-    fixture_app_context_on_bootstrap_with_paths(
+    admitted: Arc<Admitted>,
+) -> Result<AppContextBuilder> {
+    context_builder_on_profile(
         bootstrap,
-        pool,
-        bootstrap.boot.profile().paths.clone(),
-        Arc::new(AllowAllFilter),
-    )
-    .unwrap_or_else(|e| panic!("fixture AppContext on the supplied bootstrap: {e:#}"))
-}
-
-pub fn fixture_app_context_on_bootstrap(
-    bootstrap: &crate::bootstrap::TestBootstrap,
-    pool: &DbPool,
-    config: Config,
-    marketplace_filter: Arc<dyn MarketplaceFilter>,
-) -> Result<Arc<AppContext>> {
-    let hook = Arc::new(AllowAllHook::new(Arc::new(NullAuditSink)));
-    let user_repository = Arc::new(systemprompt_users::UserRepository::new(pool));
-    fixture_app_context_assembled_on(
-        bootstrap,
-        pool,
+        Arc::clone(bootstrap.boot.loaded_profile()),
         config,
-        bootstrap.boot.profile().paths.clone(),
-        FixtureSeams {
-            marketplace_filter,
-            authz_hook: hook,
-            user_repository,
-            extension_registry: Arc::new(ExtensionRegistry::discover()?),
-            services: None,
-            documents: enabled_documents(),
-            disabled_extensions: Vec::new(),
-            build: systemprompt_models::BuildIdentity::core(),
-        },
+        admitted,
     )
 }
 
-pub fn fixture_app_context_on_bootstrap_with_paths(
-    bootstrap: &crate::bootstrap::TestBootstrap,
-    pool: &DbPool,
-    paths: PathsConfig,
-    marketplace_filter: Arc<dyn MarketplaceFilter>,
-) -> Result<Arc<AppContext>> {
-    let hook = Arc::new(AllowAllHook::new(Arc::new(NullAuditSink)));
-    let user_repository = Arc::new(systemprompt_users::UserRepository::new(pool));
-    let services = systemprompt_loader::ServicesState::load(&bootstrap.boot)
-        .unwrap_or_else(|_| bootstrap.services.clone());
+fn context_builder_on_profile(
+    bootstrap: &TestBootstrap,
+    profile: Arc<LoadedProfile>,
+    config: Config,
+    admitted: Arc<Admitted>,
+) -> Result<AppContextBuilder> {
+    let boot = BootContext::new(profile, Arc::clone(bootstrap.boot.secrets()));
+    boot.install_config(config)?;
+    Ok(AppContextBuilder::new(boot, admitted)
+        .with_marketplace_filter(Arc::new(AllowAllFilter))
+        .with_signing_keys(crate::jwt::test_signing_keys())
+        .with_services(bootstrap.services.clone()))
+}
+
+fn extension_mode_profile(bootstrap: &TestBootstrap) -> Result<Arc<LoadedProfile>> {
+    let source = std::fs::read_to_string(&bootstrap.profile_path)?;
+    let mut doc: serde_yaml::Value = serde_yaml::from_str(&source)?;
+    let hook = doc
+        .get_mut("governance")
+        .and_then(|g| g.get_mut("authz"))
+        .and_then(|a| a.get_mut("hook"))
+        .and_then(serde_yaml::Value::as_mapping_mut)
+        .ok_or_else(|| anyhow::anyhow!("the fixture profile declares governance.authz.hook"))?;
+    hook.insert("mode".into(), "extension".into());
+    hook.remove("acknowledgement");
+    let dir = bootstrap
+        .profile_path
+        .parent()
+        .ok_or_else(|| anyhow::anyhow!("the fixture profile has a parent directory"))?;
+    let path = dir.join(format!("profile-extension-{}.yaml", uuid::Uuid::new_v4()));
+    std::fs::write(&path, serde_yaml::to_string(&doc)?)?;
+    Ok(LoadedProfile::from_path(&path)?)
+}
+
+pub async fn seed_fixture_system_admin_at(database_url: &str) -> Result<()> {
+    let pool = crate::db::connect(database_url).await?;
+    crate::credential::seed_fixture_system_admin(&pool).await
+}
+
+fn bootstrap_config(bootstrap: &TestBootstrap) -> Config {
+    let paths = &bootstrap.boot.profile().paths;
     let mut config = fixture_config(&bootstrap.database_url);
     config.system_path = paths.system.clone();
     config.services_path = paths.services.clone();
     config.bin_path = paths.bin.clone();
-    fixture_app_context_assembled_on(
-        bootstrap,
-        pool,
-        config,
-        paths,
-        FixtureSeams {
-            marketplace_filter,
-            authz_hook: hook,
-            user_repository,
-            extension_registry: Arc::new(ExtensionRegistry::discover()?),
-            services: Some(services),
-            documents: enabled_documents(),
-            disabled_extensions: Vec::new(),
-            build: systemprompt_models::BuildIdentity::core(),
-        },
-    )
+    config
 }
 
-fn fixture_app_context_assembled_on(
-    bootstrap: &crate::bootstrap::TestBootstrap,
-    pool: &DbPool,
-    config: Config,
-    paths: PathsConfig,
-    seams: FixtureSeams,
+async fn build(builder: AppContextBuilder, database_url: &str) -> Result<Arc<AppContext>> {
+    seed_fixture_system_admin_at(database_url).await?;
+    Ok(Arc::new(builder.build().await?))
+}
+
+pub async fn test_app_context(database_url: &str) -> Arc<AppContext> {
+    fixture_app_context_with_config(fixture_config(database_url))
+        .await
+        .unwrap_or_else(|e| panic!("fixture AppContext over the test database: {e:#}"))
+}
+
+pub async fn test_app_context_on(bootstrap: &TestBootstrap) -> Arc<AppContext> {
+    test_app_context_on_with(bootstrap, fixture_admitted()).await
+}
+
+// The services tree is read again at build, so files a test writes into the
+// bootstrap's services directory after the bootstrap was created are seen.
+pub async fn test_app_context_on_with(
+    bootstrap: &TestBootstrap,
+    admitted: Arc<Admitted>,
+) -> Arc<AppContext> {
+    let services = systemprompt_loader::ServicesState::load(&bootstrap.boot)
+        .unwrap_or_else(|_| bootstrap.services.clone());
+    let built = match fixture_context_builder(bootstrap, bootstrap_config(bootstrap), admitted) {
+        Ok(builder) => build(builder.with_services(services), &bootstrap.database_url).await,
+        Err(error) => Err(error),
+    };
+    built.unwrap_or_else(|e| panic!("fixture AppContext on the supplied bootstrap: {e:#}"))
+}
+
+pub async fn fixture_app_context_reloaded_on(
+    bootstrap: &TestBootstrap,
+    database_url: &str,
+    admitted: Arc<Admitted>,
 ) -> Result<Arc<AppContext>> {
-    let FixtureSeams {
-        marketplace_filter,
-        authz_hook,
-        user_repository,
-        extension_registry,
-        services,
-        documents,
-        disabled_extensions,
-        build,
-    } = seams;
-    let services = services.unwrap_or_else(|| bootstrap.services.clone());
-    let governance = systemprompt_traits::ConfigWatch::new(
-        systemprompt_governance::policy::GovernanceEngine::from_config(
-            &systemprompt_governance::policy::GovernanceConfig::defaults(),
-            Some(systemprompt_governance::policy::RateWindowRepository::new(
-                pool.write_pool().as_ref().clone(),
-            )),
-        )?,
-    );
-    let app_paths = Arc::new(AppPaths::from_profile(
-        &paths,
-        systemprompt_manifest::PathResolution::Canonicalize,
-        None,
-    )?);
-
-    let analytics_repositories = Arc::new(fixture_analytics_repositories(pool)?);
-    let analytics_service = Arc::new(AnalyticsService::new(None, None, &analytics_repositories));
-    let session_store = Arc::clone(analytics_service.session_store());
-    let session_usage: systemprompt_traits::DynSessionUsageCounters = session_store;
-    let file_storage =
-        systemprompt_storage::build_file_storage(systemprompt_storage::FileStorageBackend::Local {
-            root: app_paths.storage().root().to_path_buf(),
-        });
-    let documents_config = documents;
-    let documents = crate::documents::fixture_documents_runtime_configured(
-        pool,
-        &file_storage,
-        &authz_hook,
-        Arc::new(SubjectProviderSet::default()),
-        BackgroundTasks::new(),
-        documents_config.clone(),
-    );
-    let instance_id = config.instance_id.clone();
-    let event_router = systemprompt_events::EventRouter::local_only(Arc::new(
-        systemprompt_events::EventBroadcasters::new(),
-    ));
-    let notifications = crate::fixture_notifications(pool, &event_router, &documents);
-    let config = Arc::new(config);
-    let fixture_boot = &bootstrap.boot;
-    let boot = BootContext::new(
-        profile_disabling(bootstrap, &disabled_extensions)?,
-        Arc::clone(fixture_boot.secrets()),
-    );
-    boot.install_config(config.as_ref().clone())?;
-    let boot_secrets = boot.secrets().get();
-    let ctx = AppContext::from_parts(
-        DataPlane {
-            database: Arc::clone(pool),
-            analytics_service,
-            fingerprint_repo: Some(Arc::new(fixture_fingerprint_repository(pool)?)),
-            user_service: Some(Arc::new(
-                UserService::new(Arc::clone(&user_repository))
-                    .with_owner_reassignments(systemprompt_runtime::owner_reassignments(pool)),
-            )),
-            a2a_repositories: Arc::new(systemprompt_agent::repository::A2ARepositories::new(
-                pool,
-                systemprompt_agent::repository::A2aDependencies {
-                    session_usage,
-                    instance_id: instance_id.clone(),
-                    managed_skills: crate::agent::not_managed_skills(),
-                    tool_executions: crate::agent::tool_execution_ledger(
-                        crate::agent::ToolExecutionLedger::Exists,
-                    ),
-                },
-            )),
-            content_repositories: Arc::new(
-                systemprompt_content::repository::ContentRepositories::new(pool),
-            ),
-            oauth_repositories: Arc::new(systemprompt_oauth::repository::OAuthRepositories::new(
-                pool,
-                Arc::from(boot_secrets.oauth_at_rest_pepper.as_str()),
-            )),
-            user_repository,
-            service_repository: Arc::new(systemprompt_database::ServiceRepository::new(
-                pool,
-                instance_id.clone(),
-            )),
-            coordination: Arc::new(systemprompt_database::CoordinationRepositories::new(
-                pool,
-                instance_id,
-            )),
-            ai_repositories: Arc::new(systemprompt_ai::repository::AiRepositories::new(
-                pool,
-                systemprompt_security::at_rest::AtRestCipher::from_secrets(&boot_secrets)?,
-            )),
-            analytics_repositories,
-            file_repository: Arc::new(systemprompt_files::FileRepository::new(pool)),
-            mcp_session_repository: Arc::new(
-                systemprompt_mcp::repository::McpSessionRepository::new(pool),
-            ),
-            managed_repository: Arc::new(
-                systemprompt_marketplace::managed::ManagedRepository::new(pool),
-            ),
-        },
-        ConfigPlane {
-            boot,
-            config: Arc::clone(&config),
-            files_config: Arc::new(systemprompt_files::FilesConfig::new(
-                app_paths.storage().root().to_path_buf(),
-                fixture_files_yaml(documents_config),
-            )),
-            app_paths,
-            content_config: None,
-            route_classifier: Arc::new(RouteClassifier::new(None)),
-            build,
-        },
-        Plugins {
-            extension_registry,
-            mcp_registry: RegistryService::new(
-                fixture_user_id(),
-                services.view(),
-                Arc::clone(&config),
-            ),
-            marketplace_filter,
-            marketplace_cache: Arc::new(MarketplaceCache::default()),
-            subject_providers: fixture_subject_providers(pool),
-            subjects: Default::default(),
-        },
-        Subsystems {
-            system_admin: Arc::new(fixture_system_admin("admin")),
-            logging: crate::fixture_logging_runtime(),
-            authz_hook,
-            signing_keys: crate::jwt::test_signing_keys(),
-            governance,
-            services,
-            cache_epochs: systemprompt_traits::CacheEpochs::new(),
-            ai_service: None,
-            artifact_ingest: fixture_artifact_ingest(pool)?,
-            schema_install: Arc::new(systemprompt_runtime::SchemaState::from(
-                systemprompt_database::SchemaInstallReport::default(),
-            )),
-            event_bridge: fixture_event_bridge(pool),
-            event_router,
-            geoip_reader: None,
-            file_storage,
-            shutdown: Default::default(),
-            background_tasks: Default::default(),
-            spawner: crate::subprocess::test_spawner(),
-            publish_guard: Arc::new(tokio::sync::Mutex::new(
-                systemprompt_marketplace::inventory::PublishGuard::default(),
-            )),
-            connector_tokens: Arc::default(),
-            documents,
-            notifications: Arc::clone(&notifications),
-            brain: None,
-        },
-        &systemprompt_extension::StateHandle::default(),
-    )?;
-    let state = systemprompt_extension::ExtensionContext::extension_state(&ctx);
-    if let Some(slot) = state.find::<systemprompt_notifications::NotificationsServiceSlot>() {
-        slot.bind(Arc::clone(&notifications.service))?;
-    }
-    if let Some(slot) = state.find::<systemprompt_notifications::NotificationsConsumerSlot>() {
-        slot.bind(Arc::clone(&notifications.consumer))?;
-    }
-
-    Ok(Arc::new(ctx))
+    let services = systemprompt_loader::ServicesState::load(&bootstrap.boot)?;
+    let mut config = bootstrap_config(bootstrap);
+    database_url.clone_into(&mut config.database_url);
+    build(
+        fixture_context_builder(bootstrap, config, admitted)?.with_services(services),
+        database_url,
+    )
+    .await
 }
 
-// An ingest over the fixture pool with no scanners: the narrow waist itself,
-// not the installation's policy.
-// The bootstrap profile, or a copy of it whose `extensions.disabled` lists
-// the given ids, so a fixture context resolves the enabled set the way a
-// profile that disables those extensions does.
-fn profile_disabling(
-    bootstrap: &crate::bootstrap::TestBootstrap,
-    disabled_extensions: &[ExtensionId],
-) -> Result<Arc<LoadedProfile>> {
-    if disabled_extensions.is_empty() {
-        return Ok(Arc::clone(bootstrap.boot.loaded_profile()));
-    }
-    let original = std::fs::read_to_string(&bootstrap.profile_path)?;
-    let listed: String = disabled_extensions
-        .iter()
-        .map(|id| format!("\n    - {}", id.as_str()))
-        .collect();
-    let rewritten = original.replacen(
-        "extensions:\n  disabled: []",
-        &format!("extensions:\n  disabled:{listed}"),
-        1,
-    );
-    anyhow::ensure!(
-        rewritten != original,
-        "the fixture profile declares no empty extensions.disabled list to replace"
-    );
-    let path = bootstrap.profile_path.with_file_name(format!(
-        "profile-disabled-{}.yaml",
-        uuid::Uuid::new_v4().simple()
-    ));
-    std::fs::write(&path, rewritten)?;
-    Ok(LoadedProfile::from_path(&path)?)
+pub async fn fixture_app_context_on_bootstrap(
+    bootstrap: &TestBootstrap,
+    config: Config,
+    admitted: Arc<Admitted>,
+) -> Result<Arc<AppContext>> {
+    let database_url = config.database_url.clone();
+    build(
+        fixture_context_builder(bootstrap, config, admitted)?,
+        &database_url,
+    )
+    .await
+}
+
+pub async fn fixture_app_context_with_config(config: Config) -> Result<Arc<AppContext>> {
+    fixture_app_context_with_extensions(config, fixture_admitted()).await
+}
+
+pub async fn fixture_app_context_with_extensions(
+    config: Config,
+    admitted: Arc<Admitted>,
+) -> Result<Arc<AppContext>> {
+    fixture_app_context_on_bootstrap(ensure_test_bootstrap(), config, admitted).await
+}
+
+pub async fn fixture_app_context_with_filter(
+    database_url: &str,
+    marketplace_filter: Arc<dyn MarketplaceFilter>,
+) -> Result<Arc<AppContext>> {
+    build(
+        fixture_context_builder(
+            ensure_test_bootstrap(),
+            fixture_config(database_url),
+            fixture_admitted(),
+        )?
+        .with_marketplace_filter(marketplace_filter),
+        database_url,
+    )
+    .await
+}
+
+pub async fn fixture_app_context_with_hook(
+    database_url: &str,
+    authz_hook: SharedAuthzHook,
+) -> Result<Arc<AppContext>> {
+    let bootstrap = ensure_test_bootstrap();
+    build(
+        context_builder_on_profile(
+            bootstrap,
+            extension_mode_profile(bootstrap)?,
+            fixture_config(database_url),
+            fixture_admitted(),
+        )?
+        .with_shared_authz_hook(authz_hook),
+        database_url,
+    )
+    .await
+}
+
+pub async fn fixture_app_context_with_build(
+    database_url: &str,
+    build_identity: systemprompt_models::BuildIdentity,
+) -> Result<Arc<AppContext>> {
+    build(
+        fixture_context_builder(
+            ensure_test_bootstrap(),
+            fixture_config(database_url),
+            fixture_admitted(),
+        )?
+        .with_build_identity(build_identity),
+        database_url,
+    )
+    .await
+}
+
+pub async fn fixture_app_context_with_services(
+    config: Config,
+    services: systemprompt_loader::ServicesState,
+) -> Result<Arc<AppContext>> {
+    let database_url = config.database_url.clone();
+    build(
+        fixture_context_builder(ensure_test_bootstrap(), config, fixture_admitted())?
+            .with_services(services),
+        &database_url,
+    )
+    .await
 }
 
 pub fn fixture_event_bridge(pool: &DbPool) -> Arc<systemprompt_events::EventBridgeHandle> {
@@ -732,13 +392,9 @@ pub fn fixture_artifact_ingest(db: &DbPool) -> Result<Arc<systemprompt_mcp::Arti
 // A counter store that never answers: built without a runtime, so a sync
 // test can arm a rate window; every charge through it fails closed.
 pub fn offline_rate_windows() -> systemprompt_governance::policy::RateWindowRepository {
-    let pool = sqlx::postgres::PgPoolOptions::new()
-        .acquire_timeout(std::time::Duration::from_millis(50))
-        .idle_timeout(None)
-        .max_lifetime(None)
-        .connect_lazy("postgres://offline:offline@127.0.0.1:1/offline")
-        .expect("lazy pool construction is infallible for a well-formed URL");
-    systemprompt_governance::policy::RateWindowRepository::new(pool)
+    systemprompt_governance::policy::RateWindowRepository::new(sqlx::PgPool::clone(
+        &crate::db::lazy_pg_pool(),
+    ))
 }
 
 // The vendor-neutral warn-only chain: what a deployment without a
@@ -747,6 +403,7 @@ pub fn default_governance_engine() -> Arc<systemprompt_governance::policy::Gover
     Arc::new(
         systemprompt_governance::policy::GovernanceEngine::from_config(
             &systemprompt_governance::policy::GovernanceConfig::defaults(),
+            &systemprompt_governance::policy::PolicyCatalog::builtin(),
             Some(offline_rate_windows()),
         )
         .expect("the default governance chain always builds"),
@@ -758,6 +415,7 @@ pub fn default_governance_watch(
     systemprompt_traits::ConfigWatch::new(
         systemprompt_governance::policy::GovernanceEngine::from_config(
             &systemprompt_governance::policy::GovernanceConfig::defaults(),
+            &systemprompt_governance::policy::PolicyCatalog::builtin(),
             Some(offline_rate_windows()),
         )
         .expect("the default governance chain always builds"),
@@ -765,34 +423,37 @@ pub fn default_governance_watch(
 }
 
 pub fn fixture_subject_providers(
-    db: &systemprompt_database::DbPool,
+    _db: &systemprompt_database::DbPool,
 ) -> systemprompt_governance::authz::SubjectProviderSet {
-    systemprompt_governance::authz::SubjectProviderSet::discover(
-        &systemprompt_governance::authz::AuthzHookContext {
-            pool: db.pool(),
-            sink: std::sync::Arc::new(systemprompt_governance::authz::NullAuditSink),
-            services: fixture_services_view(),
-            subjects: Default::default(),
-            secrets: fixture_secret_store(),
-            state: Default::default(),
-        },
-    )
+    systemprompt_governance::authz::SubjectProviderSet::default()
 }
 
-pub fn fixture_extension_context(
-    pool: &DbPool,
+pub async fn fixture_extension_context(
+    database_url: &str,
 ) -> Arc<dyn systemprompt_extension::ExtensionContext> {
-    let concrete = test_app_context_on(crate::bootstrap::ensure_test_bootstrap(), pool);
+    let concrete = test_app_context(database_url).await;
     let ctx: Arc<dyn systemprompt_extension::ExtensionContext> = concrete;
     ctx
 }
 
-pub fn offline_extension_context() -> Arc<dyn systemprompt_extension::ExtensionContext> {
+pub fn fixture_kernel(
+    pool: &DbPool,
+    seed: systemprompt_extension::prelude::Dependencies,
+) -> systemprompt_runtime::Kernel {
+    let database: Arc<dyn systemprompt_traits::DatabaseHandle> = Arc::clone(pool) as _;
+    systemprompt_runtime::Kernel::new(database, systemprompt_traits::BackgroundTasks::new(), seed)
+}
+
+// A kernel over a pool that never connects; it needs no Tokio runtime (see
+// [`crate::db::lazy_pg_pool`]), so a sync test may build one.
+pub fn offline_kernel(
+    seed: systemprompt_extension::prelude::Dependencies,
+) -> systemprompt_runtime::Kernel {
     let pool: DbPool = Arc::new(systemprompt_database::Database::from_pools(
         crate::db::lazy_pg_pool(),
         None,
     ));
-    fixture_extension_context(&pool)
+    fixture_kernel(&pool, seed)
 }
 
 pub fn fixture_secret_store() -> Arc<dyn systemprompt_traits::SecretStore> {

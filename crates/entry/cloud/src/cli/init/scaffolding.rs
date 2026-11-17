@@ -10,7 +10,7 @@
 use anyhow::{Context, Result};
 use std::path::Path;
 use std::process::Command;
-use systemprompt_loader::subprocess::ForegroundChildren;
+use systemprompt_extension::cli::ChildSupervisor;
 use systemprompt_logging::CliService;
 
 use super::templates::{
@@ -25,7 +25,7 @@ const ADMIN_MCP_REPO: &str = "https://github.com/systempromptio/systemprompt-mcp
 pub fn generate_services_boilerplate(
     project_root: &Path,
     project_name: &str,
-    children: &ForegroundChildren,
+    children: &dyn ChildSupervisor,
 ) -> Result<()> {
     CliService::section("Creating Services Boilerplate");
 
@@ -144,7 +144,7 @@ fn write_content_files(services_dir: &Path, project_name: &str) -> Result<()> {
     Ok(())
 }
 
-fn clone_admin_mcp_server(services_dir: &Path, children: &ForegroundChildren) -> Result<()> {
+fn clone_admin_mcp_server(services_dir: &Path, children: &dyn ChildSupervisor) -> Result<()> {
     let mcp_dir = services_dir.join("mcp/systemprompt-admin");
 
     if mcp_dir.exists() {

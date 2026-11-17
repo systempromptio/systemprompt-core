@@ -14,8 +14,8 @@ use systemprompt_identifiers::{ContextId, SessionToken, TenantId};
 use systemprompt_logging::CliService;
 
 use super::{FleetRunArgs, ensure_read_only, hosted_tenants};
-use systemprompt_cli::kernel::CliConfig;
-use systemprompt_cli::kernel::routing::operator_tenant_token;
+use systemprompt_cloud::routing::operator_tenant_token;
+use systemprompt_extension::cli::{CliConfig, CommandHost};
 
 #[derive(Debug, Default)]
 struct CaptureSink {
@@ -58,8 +58,9 @@ struct FleetRunOutput {
     tenants: Vec<TenantRun>,
 }
 
-pub(super) async fn execute(args: FleetRunArgs, config: &CliConfig) -> Result<()> {
-    ensure_read_only(&args.command)?;
+pub(super) async fn execute(args: FleetRunArgs, host: &dyn CommandHost) -> Result<()> {
+    ensure_read_only(&host.describe_command_line(&args.command)?, &args.command)?;
+    let config = host.output();
 
     let mut forwarded = args.command.clone();
     if config.is_json_output() && !forwarded.iter().any(|arg| arg == "--json") {

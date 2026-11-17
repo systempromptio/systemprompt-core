@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
@@ -11,8 +12,8 @@ use anyhow::{Context, Result};
 use clap::Args;
 
 use super::types::{McpStatusEntry, McpStatusOutput, McpStatusSummary};
-use crate::context::CommandContext;
-use crate::shared::CommandOutput;
+use crate::commands::shared::app_context;
+use systemprompt_extension::cli::CommandOutput;
 use systemprompt_manifest::ServicesConfig;
 use systemprompt_mcp::services::McpOrchestrator;
 use systemprompt_mcp::{HealthStatus, McpServiceStatus};
@@ -27,16 +28,12 @@ pub struct StatusArgs {
     pub server: Option<String>,
 }
 
-pub(super) async fn execute(args: StatusArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let services_config = ctx
-        .boot()?
-        .load_services_config()
-        .context("Failed to load services configuration")?;
-
-    let app = ctx
-        .app_context()
+pub(super) async fn execute(args: StatusArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+    let app = app_context(host)
         .await
         .context("Failed to initialize application context")?;
+    let services_config = app.services_config();
+
 
     let bin_path = app.app_paths().build().bin().to_path_buf();
 

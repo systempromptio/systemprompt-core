@@ -1,7 +1,7 @@
 use crate::services::providers::mock_http;
 use futures::StreamExt;
 use serde_json::json;
-use systemprompt_ai::models::ai::{AiMessage, SamplingParams, StreamChunk};
+use systemprompt_ai::models::ai::{AiMessage, SamplingParams};
 use systemprompt_ai::models::tools::McpTool;
 use systemprompt_ai::services::providers::anthropic::{
     AnthropicProvider, search as anthropic_search,
@@ -12,6 +12,7 @@ use systemprompt_ai::services::providers::{
 };
 use systemprompt_identifiers::McpServerId;
 use systemprompt_wire::WireProtocol;
+use systemprompt_wire::canonical::CanonicalEvent;
 
 fn provider(endpoint: String) -> AnthropicProvider {
     AnthropicProvider::with_target(mock_http::api_key_target(
@@ -151,7 +152,7 @@ async fn generate_stream_yields_text_chunks() {
     let mut count = 0_usize;
     let mut text = String::new();
     while let Some(chunk) = stream.next().await {
-        if let StreamChunk::Text(t) = chunk.expect("chunk ok") {
+        if let CanonicalEvent::TextDelta { text: t, .. } = chunk.expect("chunk ok") {
             text.push_str(&t);
         }
         count += 1;

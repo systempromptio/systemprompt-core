@@ -6,19 +6,19 @@
 use crate::cli::content::types::CampaignAnalyticsOutput;
 use anyhow::{Result, anyhow};
 use clap::Args;
-use systemprompt_cli::kernel::{CliConfig, CommandContext, CommandOutput};
 use systemprompt_content::{ContentRepositories, LinkAnalyticsService};
-use systemprompt_database::DbPool;
+use systemprompt_database::{DbPool, pool_from_handle};
+use systemprompt_extension::cli::{CliConfig, CommandHost, CommandOutput};
 use systemprompt_identifiers::CampaignId;
 
 #[derive(Debug, Args)]
 pub struct CampaignArgs {
-    #[arg(help = "Campaign ID", value_parser = systemprompt_cli::kernel::parsers::parse_campaign_id)]
+    #[arg(help = "Campaign ID", value_parser = systemprompt_extension::cli::parsers::parse_campaign_id)]
     pub campaign_id: CampaignId,
 }
 
-pub async fn execute(args: CampaignArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    execute_with_pool(args, &ctx.db_pool().await?, &ctx.cli).await
+pub async fn execute(args: CampaignArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    execute_with_pool(args, &pool_from_handle(host.db().await?)?, host.output()).await
 }
 
 pub async fn execute_with_pool(

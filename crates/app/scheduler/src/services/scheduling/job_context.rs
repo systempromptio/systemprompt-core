@@ -1,13 +1,20 @@
-//! The [`JobContext`] every dispatched job receives: the application's
-//! extension state (the kernel's handles and every enabled extension's
-//! provided values) extended with the per-run handles the jobs read.
+//! The [`JobContext`] every dispatched job receives: the resolved kernel
+//! state (the kernel's seeds, every admitted member's provided values and
+//! built slots, the [`AdmittedSchedule`] the retention job reads its purges,
+//! sweeps and holds from, and the [`AdmittedProjections`] the drainers read)
+//! extended with only the per-run handles: the budgeted database, the
+//! inventory refresh memo, the signing keys and the application context the
+//! jobs that still read it reach through [`job_app_context`].
+//!
+//! [`AdmittedSchedule`]: systemprompt_extension::AdmittedSchedule
+//! [`AdmittedProjections`]: systemprompt_extension::AdmittedProjections
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 
-use systemprompt_database::{BudgetedDb, DbPool};
+use systemprompt_database::BudgetedDb;
 use systemprompt_extension::ExtensionContext;
 use systemprompt_identifiers::Actor;
 use systemprompt_loader::BootContext;
@@ -19,20 +26,14 @@ use crate::jobs::InventoryRefreshMemo;
 
 pub(crate) fn make_job_context(
     actor: Actor,
-    db_pool: DbPool,
     app_context: Arc<AppContext>,
     budget: Option<DbBudget>,
     inventory_memo: &Arc<InventoryRefreshMemo>,
 ) -> JobContext {
-    let dependencies = brain_dependencies(&app_context, app_context.extension_state())
+    let dependencies = brain_dependencies(&app_context, app_context.kernel().state().clone())
         .with(Arc::clone(inventory_memo))
-        .with(Arc::new(app_context.profile().brain.clone()))
-        .with(Arc::clone(app_context.documents().service()))
         .with(app_context.signing_keys().clone())
-        .with(app_context.services_state().view())
-        .with(BudgetedDb::new(Arc::clone(&db_pool), budget))
-        .with(db_pool)
-        .with(Arc::clone(app_context.config_arc()))
+        .with(BudgetedDb::new(Arc::clone(app_context.db_pool()), budget))
         .with(extension_context(&app_context))
         .with(app_context);
     JobContext::new(actor, dependencies)

@@ -4,13 +4,16 @@
 use std::collections::HashMap;
 
 use systemprompt_cloud_entry::cli::doctor::{
-    check_profile_valid, check_provider_secrets, check_required_secrets, check_signing_key,
+    CheckStatus, check_profile_valid, check_provider_secrets, check_required_secrets,
+    check_signing_key, run_managed,
 };
 use systemprompt_cloud_entry::cli::{self as cloud, CloudCommands};
+use systemprompt_extension::cli::AdmittedViews;
 use systemprompt_identifiers::TenantId;
 use systemprompt_loader::ProfileLoader;
+use systemprompt_manifest::profile::ManagedProfile;
 
-use super::{Env, TENANT_ID, enter, interactive_ctx, json_ctx, seed_tenants};
+use super::{Env, TENANT_ID, enter, interactive_ctx, json_ctx, seed_tenants, target_host};
 
 fn write_cloud_profile(env: &Env, name: &str) -> std::path::PathBuf {
     let dir = env.root().join(".systemprompt/profiles").join(name);
@@ -72,7 +75,7 @@ async fn doctor_reports_blocking_failures() {
             profile: Some("doc-fail".to_owned()),
             distributed: false,
         },
-        &json_ctx(),
+        &target_host(&json_ctx()),
     )
     .await
     .expect_err("preflight fails");
@@ -101,7 +104,7 @@ async fn doctor_passes_with_complete_profile() {
             profile: Some("doc-pass".to_owned()),
             distributed: false,
         },
-        &json_ctx(),
+        &target_host(&json_ctx()),
     )
     .await
     .expect("preflight passes");
@@ -117,7 +120,7 @@ async fn doctor_requires_profile_flag_non_interactive() {
             profile: None,
             distributed: false,
         },
-        &json_ctx(),
+        &target_host(&json_ctx()),
     )
     .await
     .expect_err("needs --profile");
@@ -132,7 +135,7 @@ async fn doctor_interactive_without_cloud_profiles_bails() {
             profile: None,
             distributed: false,
         },
-        &interactive_ctx(Vec::<String>::new()),
+        &target_host(&interactive_ctx(Vec::<String>::new())),
     )
     .await
     .expect_err("no deployable profiles");
@@ -147,7 +150,7 @@ async fn doctor_missing_profile_name_errors() {
             profile: Some("ghost".to_owned()),
             distributed: false,
         },
-        &json_ctx(),
+        &target_host(&json_ctx()),
     )
     .await
     .expect_err("unknown profile");
@@ -166,7 +169,7 @@ fn deploy_cmd(profile: Option<&str>, check: bool) -> CloudCommands {
 #[tokio::test]
 async fn deploy_rejects_local_profile() {
     let _env = enter().await;
-    let err = cloud::execute(deploy_cmd(Some("local"), false), &json_ctx())
+    let err = cloud::execute(deploy_cmd(Some("local"), false), &target_host(&json_ctx()))
         .await
         .expect_err("local profile rejected");
     assert!(err.to_string().contains("local profile"));
@@ -178,9 +181,12 @@ async fn deploy_check_blocks_on_failing_preflight() {
     let dir = write_cloud_profile(&env, "dep-check");
     std::fs::write(dir.join("secrets.json"), "{}").expect("empty secrets");
 
-    let err = cloud::execute(deploy_cmd(Some("dep-check"), true), &json_ctx())
-        .await
-        .expect_err("preflight blocks deploy");
+    let err = cloud::execute(
+        deploy_cmd(Some("dep-check"), true),
+        &target_host(&json_ctx()),
+    )
+    .await
+    .expect_err("preflight blocks deploy");
     assert!(err.to_string().contains("preflight"));
 
     remove_profile(&env, "dep-check");
@@ -201,9 +207,12 @@ async fn deploy_check_passes_without_deploying() {
     )
     .expect("write full secrets");
 
-    cloud::execute(deploy_cmd(Some("dep-pass"), true), &json_ctx())
-        .await
-        .expect("check-only deploy passes");
+    cloud::execute(
+        deploy_cmd(Some("dep-pass"), true),
+        &target_host(&json_ctx()),
+    )
+    .await
+    .expect("check-only deploy passes");
 
     remove_profile(&env, "dep-pass");
 }
@@ -211,7 +220,7 @@ async fn deploy_check_passes_without_deploying() {
 #[tokio::test]
 async fn deploy_requires_profile_non_interactive() {
     let _env = enter().await;
-    let err = cloud::execute(deploy_cmd(None, false), &json_ctx())
+    let err = cloud::execute(deploy_cmd(None, false), &target_host(&json_ctx()))
         .await
         .expect_err("needs --profile");
     assert!(err.to_string().contains("--profile"));
@@ -289,16 +298,39 @@ async fn doctor_refuses_a_profile_that_states_the_derived_hook_url() {
             profile: Some("hook-stated".to_owned()),
             distributed: false,
         },
-        &json_ctx(),
+        &target_host(&json_ctx()),
     )
     .await
-    .expect_err("a stated hook URL is refused at load");
+    .expect_err("a stated hook URL blocks the preflight");
+    assert!(
+        format!("{error:#}").contains("Deploy preflight failed"),
+        "{error:#}"
+    );
+
+    let path = env
+        .root()
+        .join(".systemprompt/profiles/hook-stated/profile.yaml");
+    let managed = ManagedProfile::load(&path).expect("the management view loads");
+    let views = AdmittedViews::of(&systemprompt_test_fixtures::fixture_admitted());
+    let report = run_managed(
+        &managed,
+        path.parent().expect("profile dir"),
+        false,
+        Ok(&views),
+    )
+    .await;
     remove_profile(&env, "hook-stated");
 
-    let message = format!("{error:#}");
+    let profile = report
+        .checks()
+        .iter()
+        .find(|check| check.name == "profile")
+        .expect("the doctor reports the profile check");
+    assert_eq!(profile.status, CheckStatus::Fail);
     assert!(
-        message.contains("governance.authz.hook.url"),
-        "the refusal names the derived field: {message}"
+        profile.detail.contains("governance.authz.hook.url"),
+        "the profile check names the derived field: {}",
+        profile.detail
     );
 }
 
@@ -510,7 +542,7 @@ async fn deploy_skip_push_builds_owned_image_syncs_secrets_and_requests_deploy()
                 check: false,
                 wait: false,
             },
-            &json_ctx(),
+            &target_host(&json_ctx()),
         ),
     )
     .await
@@ -774,12 +806,13 @@ async fn run_failure_deploy(name: &str) -> Result<(), String> {
                 check: false,
                 wait: false,
             },
-            &json_ctx(),
+            &target_host(&json_ctx()),
         ),
     )
     .await
     .expect("owned failure deployment completes within its bound")
     .map_err(|error| format!("{error:#}"))
+    .map(drop)
 }
 
 #[cfg(unix)]
@@ -1003,7 +1036,7 @@ async fn deployment_logs_in_with_stdin_pushes_exact_image_then_provisions() {
                 check: false,
                 wait: false,
             },
-            &json_ctx(),
+            &target_host(&json_ctx()),
         ),
     )
     .await

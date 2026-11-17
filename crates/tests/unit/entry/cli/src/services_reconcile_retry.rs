@@ -10,13 +10,12 @@
 use std::collections::BTreeMap;
 
 use chrono::Utc;
-use systemprompt_cli::cli_settings::{CliConfig, OutputFormat};
-use systemprompt_cli::context::CommandContext;
 use systemprompt_cli::core::services::reconcile::reconcile_after_swap;
 use systemprompt_cli::core::services::refresh::{
     RefreshOutcome, diff_states, outcome_with_pending,
 };
 use systemprompt_cli::env_overrides::EnvOverrides;
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::ContentHash;
 use systemprompt_loader::bundle::BundleCache;
 use systemprompt_manifest::profile::ServicesSource;
@@ -98,7 +97,7 @@ async fn a_failed_reconcile_is_retried_by_the_next_refresh() {
         https: None,
         oci: None,
     }];
-    let command = CommandContext::with_database(
+    let command = crate::boot_ctx::with_database(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),

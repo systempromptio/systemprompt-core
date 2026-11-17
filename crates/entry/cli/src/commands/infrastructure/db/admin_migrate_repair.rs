@@ -14,18 +14,17 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use std::sync::Arc;
 use systemprompt_database::services::DatabaseProvider;
 use systemprompt_database::{Database, MigrationService};
-use systemprompt_extension::ExtensionRegistry;
+use systemprompt_extension::BuiltState;
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_logging::CliService;
+use systemprompt_models::artifacts::NoticeLine;
 use systemprompt_runtime::DatabaseContext;
 
-use crate::cli_settings::CliConfig;
-use crate::context::CommandContext;
-use crate::shared::{CommandOutput, render_result};
+use systemprompt_extension::cli::CommandOutput;
 
 use super::admin_migrate::select_extensions;
 use super::types::{MigrateRepairOutput, MigrationDriftInfo};
@@ -35,15 +34,13 @@ pub(super) struct RepairArgs<'a> {
     pub extension: Option<&'a ExtensionId>,
     pub apply: bool,
     pub reconcile_only: bool,
-    pub json: bool,
 }
 
 pub(super) async fn execute_migrate_repair(
-    ctx: &CommandContext,
+    host: &dyn KernelHost,
     args: RepairArgs<'_>,
-) -> Result<()> {
-    let config = &ctx.cli;
-    let sys_config = ctx.config()?;
+) -> Result<CommandOutput> {
+    let sys_config = host.config()?;
     let database = Arc::new(
         Database::connect(
             &sys_config.database_url,
@@ -60,42 +57,28 @@ pub(super) async fn execute_migrate_repair(
         .context("Failed to connect to the session database")?,
     );
 
-    run_migrate_repair(
-        database.session(),
-        &ExtensionRegistry::discover()?,
-        args,
-        config,
-    )
-    .await
+    run_migrate_repair(database.session(), host.admitted()?.built(), args).await
 }
 
 pub(super) async fn execute_migrate_repair_standalone(
     db_ctx: &DatabaseContext,
-    config: &CliConfig,
+    built: &BuiltState,
     args: RepairArgs<'_>,
-) -> Result<()> {
-    run_migrate_repair(
-        db_ctx.db_pool().session(),
-        &ExtensionRegistry::discover()?,
-        args,
-        config,
-    )
-    .await
+) -> Result<CommandOutput> {
+    run_migrate_repair(db_ctx.db_pool().session(), built, args).await
 }
 
 async fn run_migrate_repair(
     write_provider: &dyn DatabaseProvider,
-    registry: &ExtensionRegistry,
+    built: &BuiltState,
     args: RepairArgs<'_>,
-    config: &CliConfig,
-) -> Result<()> {
+) -> Result<CommandOutput> {
     let RepairArgs {
         extension,
         apply,
         reconcile_only,
-        json,
     } = args;
-    let extensions = select_extensions(registry, extension)?;
+    let extensions = select_extensions(built, extension)?;
     let migration_service = MigrationService::new(write_provider);
 
     let mut drift_rows: Vec<MigrationDriftInfo> = Vec::new();
@@ -151,20 +134,16 @@ async fn run_migrate_repair(
         migrations_run,
     };
 
-    if json || config.is_json_output() {
-        let result = CommandOutput::card_value("Migration Repair", &output);
-        render_result(&result, config);
-    } else {
-        render_repair_text(&output);
-    }
-
-    Ok(())
+    Ok(repair_output(&output))
 }
 
-fn render_repair_text(output: &MigrateRepairOutput) {
+fn repair_output(output: &MigrateRepairOutput) -> CommandOutput {
+    let card = CommandOutput::card_value("Migration Repair", output);
     if output.drift.is_empty() {
-        CliService::success("No checksum drift — nothing to repair.");
-        return;
+        return card.with_note(NoticeLine::new(
+            "success",
+            "No checksum drift — nothing to repair.",
+        ));
     }
 
     let header = if output.applied && output.reconcile_only {
@@ -174,36 +153,49 @@ fn render_repair_text(output: &MigrateRepairOutput) {
     } else {
         "Drifted migration(s):"
     };
-    CliService::info(header);
-    for d in &output.drift {
-        CliService::info(&format!(
-            "  {} v{:03} {}: stored={} current={}",
-            d.extension_id,
-            d.version,
-            d.name,
-            &d.stored_checksum[..d.stored_checksum.len().min(8)],
-            &d.current_checksum[..d.current_checksum.len().min(8)]
-        ));
-    }
-    CliService::info("");
+    let mut notes = vec![NoticeLine::new("info", header)];
+    notes.extend(output.drift.iter().map(|d| {
+        NoticeLine::new(
+            "info",
+            format!(
+                "  {} v{:03} {}: stored={} current={}",
+                d.extension_id,
+                d.version,
+                d.name,
+                &d.stored_checksum[..d.stored_checksum.len().min(8)],
+                &d.current_checksum[..d.current_checksum.len().min(8)]
+            ),
+        )
+    }));
 
-    if output.applied && output.reconcile_only {
-        CliService::warning(&format!(
-            "Bookkeeping only: rewrote the stored checksum of {} migration(s). NO SQL WAS \
-             EXECUTED, so the database schema was not checked against the edited files. Drift: 0",
-            output.drift.len()
-        ));
+    notes.push(if output.applied && output.reconcile_only {
+        NoticeLine::new(
+            "warning",
+            format!(
+                "Bookkeeping only: rewrote the stored checksum of {} migration(s). NO SQL WAS \
+                 EXECUTED, so the database schema was not checked against the edited files. \
+                 Drift: 0",
+                output.drift.len()
+            ),
+        )
     } else if output.applied {
-        CliService::success(&format!(
-            "Re-executed the SQL of {} drifted migration(s) and rewrote their stored checksums; \
-             {} previously-pending migration(s) also run. Drift: 0",
-            output.reapplied, output.migrations_run
-        ));
+        NoticeLine::new(
+            "success",
+            format!(
+                "Re-executed the SQL of {} drifted migration(s) and rewrote their stored \
+                 checksums; {} previously-pending migration(s) also run. Drift: 0",
+                output.reapplied, output.migrations_run
+            ),
+        )
     } else {
-        CliService::warning(&format!(
-            "{} migration(s) drifted. Re-run with --reconcile-only --apply to rewrite stored \
-             checksums without executing SQL, or --apply to re-execute the edited migrations.",
-            output.drift.len()
-        ));
-    }
+        NoticeLine::new(
+            "warning",
+            format!(
+                "{} migration(s) drifted. Re-run with --reconcile-only --apply to rewrite stored \
+                 checksums without executing SQL, or --apply to re-execute the edited migrations.",
+                output.drift.len()
+            ),
+        )
+    });
+    notes.into_iter().fold(card, CommandOutput::with_note)
 }

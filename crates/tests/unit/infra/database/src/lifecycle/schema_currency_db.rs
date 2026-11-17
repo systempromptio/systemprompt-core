@@ -9,7 +9,7 @@ use systemprompt_extension::{Migration, SchemaDefinition};
 use super::installation::{
     StubExtension, drop_table, leak, provider_and_db, registry_with, unique_id,
 };
-use systemprompt_test_fixtures::install_extension_schemas_with_config;
+use super::members::install;
 
 fn stub(ext_id: &'static str, table: &'static str, migration_sql: &'static str) -> StubExtension {
     StubExtension {
@@ -36,7 +36,7 @@ async fn an_uninstalled_extension_is_reported_fresh() {
     let table = unique_id("currency_fresh_t");
     let registry = registry_with(stub(ext_id, table, migration_sql(table)));
 
-    let currency = schema_currency(&provider, &registry, &[])
+    let currency = schema_currency(&provider, registry.built())
         .await
         .expect("currency");
 
@@ -52,10 +52,10 @@ async fn an_installed_extension_is_current_until_a_ledger_row_goes_missing() {
     let table = unique_id("currency_pending_t");
     let sql = migration_sql(table);
 
-    install_extension_schemas_with_config(&registry_with(stub(ext_id, table, sql)), &provider, &[])
+    install(&registry_with(stub(ext_id, table, sql)), &provider)
         .await
         .expect("install");
-    let currency = schema_currency(&provider, &registry_with(stub(ext_id, table, sql)), &[])
+    let currency = schema_currency(&provider, registry_with(stub(ext_id, table, sql)).built())
         .await
         .expect("currency");
     assert!(currency.is_current(), "{currency:?}");
@@ -66,7 +66,7 @@ async fn an_installed_extension_is_current_until_a_ledger_row_goes_missing() {
         .await
         .expect("drop ledger row");
 
-    let currency = schema_currency(&provider, &registry_with(stub(ext_id, table, sql)), &[])
+    let currency = schema_currency(&provider, registry_with(stub(ext_id, table, sql)).built())
         .await
         .expect("currency");
     assert!(!currency.is_current());
@@ -89,10 +89,9 @@ async fn an_edited_applied_migration_is_reported_as_drift() {
     let ext_id = unique_id("currency_drift");
     let table = unique_id("currency_drift_t");
 
-    install_extension_schemas_with_config(
+    install(
         &registry_with(stub(ext_id, table, migration_sql(table))),
         &provider,
-        &[],
     )
     .await
     .expect("install");
@@ -100,9 +99,12 @@ async fn an_edited_applied_migration_is_reported_as_drift() {
     let edited = leak(format!(
         "ALTER TABLE \"{table}\" ADD COLUMN IF NOT EXISTS note VARCHAR(64);"
     ));
-    let currency = schema_currency(&provider, &registry_with(stub(ext_id, table, edited)), &[])
-        .await
-        .expect("currency");
+    let currency = schema_currency(
+        &provider,
+        registry_with(stub(ext_id, table, edited)).built(),
+    )
+    .await
+    .expect("currency");
     assert!(!currency.is_current());
     assert!(currency.pending.is_empty());
     assert_eq!(currency.drift.len(), 1, "{currency:?}");

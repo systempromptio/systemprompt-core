@@ -6,7 +6,6 @@ use std::sync::Arc;
 
 use std::sync::Mutex;
 use systemprompt_extension::context::{DynExtensionContext, ExtensionContext};
-use systemprompt_extension::{Extension, ExtensionMetadata};
 
 use systemprompt_identifiers::InstanceId;
 use systemprompt_traits::{
@@ -55,20 +54,9 @@ impl DatabaseHandle for MockDatabase {
     fn as_any(&self) -> &dyn Any {
         self
     }
-}
 
-#[derive(Debug)]
-struct TestExtension {
-    id: &'static str,
-}
-
-impl Extension for TestExtension {
-    fn metadata(&self) -> ExtensionMetadata {
-        ExtensionMetadata {
-            id: self.id,
-            name: "Test Extension",
-            version: "1.0.0",
-        }
+    fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
+        self
     }
 }
 
@@ -149,7 +137,6 @@ impl FileStorage for MemoryFiles {
 struct MockExtensionContext {
     config: Arc<dyn ConfigProvider>,
     database: Arc<dyn DatabaseHandle>,
-    extensions: HashMap<String, Arc<dyn Extension>>,
     files: Arc<MemoryFiles>,
     instance: InstanceId,
 }
@@ -167,14 +154,14 @@ struct StubSubjects;
 
 #[async_trait::async_trait]
 impl systemprompt_models::authz::SubjectAttributeSource for StubSubjects {
-    fn dimensions(&self) -> &[systemprompt_models::authz::SubjectDimension] {
+    fn dimensions(&self) -> &[systemprompt_traits::authz::SubjectDimension] {
         &[]
     }
 
     async fn values_for(
         &self,
         _user: &systemprompt_identifiers::UserId,
-        dimension: &systemprompt_models::authz::SubjectDimension,
+        dimension: &systemprompt_traits::authz::SubjectDimension,
     ) -> Result<Vec<String>, systemprompt_models::authz::SubjectSourceError> {
         Err(
             systemprompt_models::authz::SubjectSourceError::UnknownDimension(
@@ -243,9 +230,6 @@ impl ExtensionContext for MockExtensionContext {
     fn token_authority(&self) -> Arc<dyn systemprompt_models::auth::TokenAuthority> {
         systemprompt_test_fixtures::test_token_authority(&self.app_config().jwt_issuer)
     }
-    fn get_extension(&self, id: &str) -> Option<Arc<dyn Extension>> {
-        self.extensions.get(id).cloned()
-    }
     fn extension_state(&self) -> systemprompt_provider_contracts::Dependencies {
         systemprompt_provider_contracts::Dependencies::new()
     }
@@ -256,7 +240,6 @@ fn test_extension_context_config() {
     let ctx = MockExtensionContext {
         config: Arc::new(MockConfig),
         database: Arc::new(MockDatabase { connected: true }),
-        extensions: HashMap::new(),
         files: Arc::new(MemoryFiles::default()),
         instance: InstanceId::new("replica-a"),
     };
@@ -272,7 +255,6 @@ fn test_extension_context_database() {
     let ctx = MockExtensionContext {
         config: Arc::new(MockConfig),
         database: Arc::new(MockDatabase { connected: true }),
-        extensions: HashMap::new(),
         files: Arc::new(MemoryFiles::default()),
         instance: InstanceId::new("replica-a"),
     };
@@ -286,7 +268,6 @@ fn test_extension_context_database_disconnected() {
     let ctx = MockExtensionContext {
         config: Arc::new(MockConfig),
         database: Arc::new(MockDatabase { connected: false }),
-        extensions: HashMap::new(),
         files: Arc::new(MemoryFiles::default()),
         instance: InstanceId::new("replica-a"),
     };
@@ -296,107 +277,10 @@ fn test_extension_context_database_disconnected() {
 }
 
 #[test]
-fn test_extension_context_get_extension_exists() {
-    let ext: Arc<dyn Extension> = Arc::new(TestExtension { id: "test-ext" });
-    let mut extensions = HashMap::new();
-    extensions.insert("test-ext".to_string(), ext);
-
-    let ctx = MockExtensionContext {
-        config: Arc::new(MockConfig),
-        database: Arc::new(MockDatabase { connected: true }),
-        extensions,
-        files: Arc::new(MemoryFiles::default()),
-        instance: InstanceId::new("replica-a"),
-    };
-
-    let found = ctx.get_extension("test-ext");
-    found.as_ref().expect("found should be present");
-    assert_eq!(found.expect("extension exists").id(), "test-ext");
-}
-
-#[test]
-fn test_extension_context_get_extension_not_found() {
-    let ctx = MockExtensionContext {
-        config: Arc::new(MockConfig),
-        database: Arc::new(MockDatabase { connected: true }),
-        extensions: HashMap::new(),
-        files: Arc::new(MemoryFiles::default()),
-        instance: InstanceId::new("replica-a"),
-    };
-
-    assert!(ctx.get_extension("nonexistent").is_none());
-}
-
-#[test]
-fn test_extension_context_has_extension_true() {
-    let ext: Arc<dyn Extension> = Arc::new(TestExtension { id: "my-ext" });
-    let mut extensions = HashMap::new();
-    extensions.insert("my-ext".to_string(), ext);
-
-    let ctx = MockExtensionContext {
-        config: Arc::new(MockConfig),
-        database: Arc::new(MockDatabase { connected: true }),
-        extensions,
-        files: Arc::new(MemoryFiles::default()),
-        instance: InstanceId::new("replica-a"),
-    };
-
-    assert!(ctx.has_extension("my-ext"));
-}
-
-#[test]
-fn test_extension_context_has_extension_false() {
-    let ctx = MockExtensionContext {
-        config: Arc::new(MockConfig),
-        database: Arc::new(MockDatabase { connected: true }),
-        extensions: HashMap::new(),
-        files: Arc::new(MemoryFiles::default()),
-        instance: InstanceId::new("replica-a"),
-    };
-
-    assert!(!ctx.has_extension("missing-ext"));
-}
-
-#[test]
-fn test_extension_context_multiple_extensions() {
-    let ext1: Arc<dyn Extension> = Arc::new(TestExtension { id: "ext-1" });
-    let ext2: Arc<dyn Extension> = Arc::new(TestExtension { id: "ext-2" });
-    let ext3: Arc<dyn Extension> = Arc::new(TestExtension { id: "ext-3" });
-
-    let mut extensions = HashMap::new();
-    extensions.insert("ext-1".to_string(), ext1);
-    extensions.insert("ext-2".to_string(), ext2);
-    extensions.insert("ext-3".to_string(), ext3);
-
-    let ctx = MockExtensionContext {
-        config: Arc::new(MockConfig),
-        database: Arc::new(MockDatabase { connected: true }),
-        extensions,
-        files: Arc::new(MemoryFiles::default()),
-        instance: InstanceId::new("replica-a"),
-    };
-
-    assert!(ctx.has_extension("ext-1"));
-    assert!(ctx.has_extension("ext-2"));
-    assert!(ctx.has_extension("ext-3"));
-    assert!(!ctx.has_extension("ext-4"));
-
-    assert_eq!(
-        ctx.get_extension("ext-1").expect("ext-1 exists").id(),
-        "ext-1"
-    );
-    assert_eq!(
-        ctx.get_extension("ext-2").expect("ext-2 exists").id(),
-        "ext-2"
-    );
-}
-
-#[test]
 fn test_dyn_extension_context_type_alias() {
     let ctx = MockExtensionContext {
         config: Arc::new(MockConfig),
         database: Arc::new(MockDatabase { connected: true }),
-        extensions: HashMap::new(),
         files: Arc::new(MemoryFiles::default()),
         instance: InstanceId::new("replica-a"),
     };
@@ -410,7 +294,6 @@ fn test_dyn_extension_context_clone() {
     let ctx = MockExtensionContext {
         config: Arc::new(MockConfig),
         database: Arc::new(MockDatabase { connected: true }),
-        extensions: HashMap::new(),
         files: Arc::new(MemoryFiles::default()),
         instance: InstanceId::new("replica-a"),
     };
@@ -429,7 +312,6 @@ fn test_dyn_extension_context_thread_safe() {
     let ctx = MockExtensionContext {
         config: Arc::new(MockConfig),
         database: Arc::new(MockDatabase { connected: true }),
-        extensions: HashMap::new(),
         files: Arc::new(MemoryFiles::default()),
         instance: InstanceId::new("replica-a"),
     };
@@ -443,104 +325,12 @@ fn test_dyn_extension_context_thread_safe() {
     assert!(handle.join().expect("thread should complete"));
 }
 
-#[test]
-fn test_extension_default_schemas() {
-    let ext = TestExtension { id: "test" };
-    assert!(ext.schemas().is_empty());
-}
-
-#[test]
-fn test_extension_default_router() {
-    let ext = TestExtension { id: "test" };
-    let ctx = MockExtensionContext {
-        config: Arc::new(MockConfig),
-        database: Arc::new(MockDatabase { connected: true }),
-        extensions: HashMap::new(),
-        files: Arc::new(MemoryFiles::default()),
-        instance: InstanceId::new("replica-a"),
-    };
-    assert!(
-        ext.routers(&ctx)
-            .expect("the default declares no routers")
-            .is_empty()
-    );
-}
-
-#[test]
-fn test_extension_default_config_prefix() {
-    let ext = TestExtension { id: "test" };
-    assert!(ext.config_prefix().is_none());
-}
-
-#[test]
-fn test_extension_default_config_schema() {
-    let ext = TestExtension { id: "test" };
-    assert!(ext.config_schema().is_none());
-}
-
-#[test]
-fn test_extension_default_validate_config() {
-    let ext = TestExtension { id: "test" };
-    let config = serde_json::json!({});
-    ext.validate_config(&config)
-        .expect("ext.validate_config(&config) should succeed");
-}
-
-#[test]
-fn test_extension_default_tool_providers() {
-    let ext = TestExtension { id: "test" };
-    assert!(ext.tool_providers().is_empty());
-}
-
-#[test]
-fn test_extension_default_dependencies() {
-    let ext = TestExtension { id: "test" };
-    assert!(ext.dependencies().is_empty());
-}
-
-#[test]
-fn test_extension_default_priority() {
-    let ext = TestExtension { id: "test" };
-    assert_eq!(ext.priority(), 100);
-}
-
-#[test]
-fn test_extension_derived_methods() {
-    let ext = TestExtension { id: "my-ext" };
-
-    assert_eq!(ext.id(), "my-ext");
-    assert_eq!(ext.name(), "Test Extension");
-    assert_eq!(ext.version(), "1.0.0");
-}
-
-#[test]
-fn test_extension_has_methods() {
-    let ext = TestExtension { id: "test" };
-    let ctx = MockExtensionContext {
-        config: Arc::new(MockConfig),
-        database: Arc::new(MockDatabase { connected: true }),
-        extensions: HashMap::new(),
-        files: Arc::new(MemoryFiles::default()),
-        instance: InstanceId::new("replica-a"),
-    };
-
-    assert!(!ext.has_schemas());
-    assert!(
-        ext.routers(&ctx)
-            .expect("the default declares no routers")
-            .is_empty()
-    );
-    assert!(!ext.has_config());
-    assert!(!ext.has_tool_providers());
-}
-
 #[tokio::test]
 async fn file_storage_shares_one_backend_across_handles() {
     let files = Arc::new(MemoryFiles::default());
     let ctx: DynExtensionContext = Arc::new(MockExtensionContext {
         config: Arc::new(MockConfig),
         database: Arc::new(MockDatabase { connected: true }),
-        extensions: HashMap::new(),
         files: Arc::clone(&files),
         instance: InstanceId::new("replica-a"),
     });
@@ -565,7 +355,6 @@ fn instance_id_is_the_context_replica() {
     let ctx: DynExtensionContext = Arc::new(MockExtensionContext {
         config: Arc::new(MockConfig),
         database: Arc::new(MockDatabase { connected: true }),
-        extensions: HashMap::new(),
         files: Arc::new(MemoryFiles::default()),
         instance: InstanceId::new("replica-a"),
     });

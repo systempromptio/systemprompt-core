@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
 use systemprompt_extension::{ResourceVisibility, Visibility};
+use systemprompt_files::documents::DocumentVisibility;
 use systemprompt_identifiers::{DocumentId, UserId};
 use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::documents::AccessLevel;
 use systemprompt_models::notifications::SubjectRef;
 use systemprompt_runtime::documents::mcp::{ShareHandler, ShareInput};
-use systemprompt_runtime::notifications::DocumentVisibility;
 
 use crate::documents_mcp_rig::rig;
 use crate::documents_mcp_support::{create_text, ctx_for, exec, registered};

@@ -12,9 +12,7 @@ use systemprompt_scheduler::{
     JobConfig, SchedulerConfig, SchedulerError, SchedulerRepository, SchedulerService,
     unlisted_job_names,
 };
-use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, test_app_context, test_database_url, test_db_pool,
-};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_database_url, test_db_pool};
 
 use crate::test_jobs::{FAILING_JOB, WORKING_JOB};
 
@@ -31,7 +29,9 @@ fn config(mode: UnlistedJobs, jobs: Vec<JobConfig>) -> SchedulerConfig {
 }
 
 fn names(config: &SchedulerConfig) -> Vec<String> {
-    unlisted_job_names(config, &ensure_test_bootstrap().boot)
+    let schedule =
+        crate::test_extension::schedule_of(&crate::test_extension::admitted_with_test_jobs());
+    unlisted_job_names(config, &ensure_test_bootstrap().boot, &schedule)
         .into_iter()
         .map(|name| name.as_str().to_owned())
         .collect()
@@ -60,8 +60,11 @@ fn unlisted_jobs_exclude_named_and_disabled_jobs() {
 
 #[test]
 fn the_read_model_rollups_declare_a_default_schedule() {
-    let declared: Vec<&str> = systemprompt_traits::registered_jobs()
-        .map(|registration| registration.job)
+    let schedule = crate::test_extension::core_schedule();
+    let declared: Vec<&str> = schedule
+        .jobs()
+        .iter()
+        .map(|(_, job)| job)
         .filter(|job| job.default_schedule().is_some())
         .map(|job| job.name())
         .collect();
@@ -80,7 +83,7 @@ fn the_read_model_rollups_declare_a_default_schedule() {
             "{rollup} must declare a default"
         );
     }
-    for job in systemprompt_traits::registered_jobs().map(|registration| registration.job) {
+    for (_, job) in schedule.jobs() {
         if let Some(schedule) = job.default_schedule() {
             assert_eq!(schedule, job.schedule(), "{}", job.name());
         }
@@ -91,11 +94,12 @@ fn the_read_model_rollups_declare_a_default_schedule() {
 async fn error_mode_refuses_to_start_and_names_the_jobs() {
     let url = test_database_url();
     let pool = test_db_pool().await;
-    let app_ctx = test_app_context(&pool, &url);
+    let (app_ctx, schedule) = crate::test_extension::scheduled_app(&url).await;
     let svc = SchedulerService::new(
         config(UnlistedJobs::Error, Vec::new()),
-        Arc::clone(&pool),
+        &pool,
         app_ctx,
+        Arc::clone(&schedule),
     );
 
     let err = svc.start().await.expect_err("unlisted jobs must fail boot");
@@ -110,11 +114,12 @@ async fn error_mode_refuses_to_start_and_names_the_jobs() {
 async fn default_mode_schedules_jobs_with_a_declared_default() {
     let url = test_database_url();
     let pool = test_db_pool().await;
-    let app_ctx = test_app_context(&pool, &url);
+    let (app_ctx, schedule) = crate::test_extension::scheduled_app(&url).await;
     let svc = SchedulerService::new(
         config(UnlistedJobs::Default, Vec::new()),
-        Arc::clone(&pool),
+        &pool,
         app_ctx,
+        Arc::clone(&schedule),
     );
 
     let startup = svc.start().await.expect("scheduler starts");
@@ -134,11 +139,12 @@ async fn default_mode_schedules_jobs_with_a_declared_default() {
 async fn warn_mode_schedules_nothing_it_was_not_told_to() {
     let url = test_database_url();
     let pool = test_db_pool().await;
-    let app_ctx = test_app_context(&pool, &url);
+    let (app_ctx, schedule) = crate::test_extension::scheduled_app(&url).await;
     let svc = SchedulerService::new(
         config(UnlistedJobs::Warn, Vec::new()),
-        Arc::clone(&pool),
+        &pool,
         app_ctx,
+        Arc::clone(&schedule),
     );
 
     let startup = svc.start().await.expect("scheduler starts");

@@ -10,7 +10,8 @@
 
 use clap::{Arg, Command, CommandFactory};
 use systemprompt_cli::args::{self, Cli};
-use systemprompt_cli::kernel::CommandRegistry;
+use systemprompt_cli::kernel::{CommandRegistry, kernel_commands};
+use systemprompt_extension::DeclaredCommands;
 
 const SENTINEL: &str = "sentinel-do-not-leak";
 
@@ -44,7 +45,8 @@ fn walk(cmd: &Command, path: &str, leaking: &mut Vec<String>) {
 #[test]
 fn no_sensitive_env_bound_arg_renders_its_value_in_help() {
     let mut leaking = Vec::new();
-    let registry = CommandRegistry::collected().expect("registrations are disjoint");
+    let registry = CommandRegistry::build(&DeclaredCommands::default(), &kernel_commands())
+        .expect("the kernel groups build");
     let root = args::command(&registry).expect("assemble the command tree");
     walk(&root, "systemprompt", &mut leaking);
     assert!(

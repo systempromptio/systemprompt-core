@@ -3,8 +3,9 @@
 use std::process::Command;
 
 use clap::Parser;
+use systemprompt_cli::EnvOverrides;
 use systemprompt_cli::core::{self, CoreCommands};
-use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::UserId;
 use systemprompt_test_fixtures::{
     DisposableDb, bounded_output, ensure_test_bootstrap, seed_user_row, test_app_context,
@@ -87,35 +88,43 @@ async fn files_ai_output_helper() {
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
-        test_app_context(&pool, database.url()),
+        test_app_context(database.url()).await,
     );
     println!("BEGIN_AI_LIST");
-    core::execute(
-        parse(&[
-            "files",
-            "ai",
-            "list",
-            "--user",
-            user.as_str(),
-            "--limit",
-            "10",
-        ]),
+    crate::boot_ctx::rendered(
         &context,
+        core::execute(
+            parse(&[
+                "files",
+                "ai",
+                "list",
+                "--user",
+                user.as_str(),
+                "--limit",
+                "10",
+            ]),
+            &context,
+        )
+        .await,
     )
-    .await
     .expect("public AI list");
     println!("END_AI_LIST");
     println!("BEGIN_AI_SHOW");
-    core::execute(parse(&["files", "ai", "show", &id.to_string()]), &context)
-        .await
-        .expect("public AI show");
+    crate::boot_ctx::rendered(
+        &context,
+        core::execute(parse(&["files", "ai", "show", &id.to_string()]), &context).await,
+    )
+    .expect("public AI show");
     println!("END_AI_SHOW");
     println!("BEGIN_AI_COUNT");
-    core::execute(
-        parse(&["files", "ai", "count", "--user", user.as_str()]),
+    crate::boot_ctx::rendered(
         &context,
+        core::execute(
+            parse(&["files", "ai", "count", "--user", user.as_str()]),
+            &context,
+        )
+        .await,
     )
-    .await
     .expect("public AI count");
     println!("END_AI_COUNT");
     println!("FIXTURE_ID={id}");

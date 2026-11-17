@@ -30,7 +30,7 @@ async fn harness() -> Harness {
     let url = test_database_url();
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let ctx = test_app_context(&pool, &url);
+    let ctx = test_app_context(&url).await;
     let extractor = Arc::new(JwtContextExtractor::new(
         ctx.session_provider().expect("session provider"),
         ctx.user_provider().expect("user provider"),

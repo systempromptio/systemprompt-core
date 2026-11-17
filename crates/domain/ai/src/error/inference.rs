@@ -13,17 +13,7 @@ impl From<AiError> for AiInferenceError {
         match err {
             AiError::Provider(e) => from_provider(e),
             AiError::Routing(e) => from_routing(e),
-            AiError::Request(ref e) => {
-                let provider = match e {
-                    RequestError::PromptTooLong { provider, .. }
-                    | RequestError::UnsupportedResolution { provider, .. }
-                    | RequestError::UnsupportedAspectRatio { provider, .. } => provider.to_string(),
-                };
-                Self::Provider {
-                    provider,
-                    message: err.to_string(),
-                }
-            },
+            AiError::Request(e) => from_request(e),
             AiError::Tool(ToolError::MissingField { .. } | ToolError::EmptyDescription { .. })
             | AiError::Storage(StorageError::ImageDecode(_) | StorageError::InvalidFileId(_)) => {
                 Self::InvalidRequest(Box::new(err))
@@ -37,6 +27,20 @@ impl From<AiError> for AiInferenceError {
                 Self::Internal(Box::new(err))
             },
         }
+    }
+}
+
+fn from_request(err: RequestError) -> AiInferenceError {
+    match &err {
+        RequestError::ThinkingBudgetTooLarge { .. } => {
+            AiInferenceError::InvalidRequest(Box::new(AiError::Request(err)))
+        },
+        RequestError::PromptTooLong { provider, .. }
+        | RequestError::UnsupportedResolution { provider, .. }
+        | RequestError::UnsupportedAspectRatio { provider, .. } => AiInferenceError::Provider {
+            provider: provider.to_string(),
+            message: err.to_string(),
+        },
     }
 }
 

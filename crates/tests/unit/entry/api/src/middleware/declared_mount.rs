@@ -14,13 +14,13 @@ use axum::extract::{ConnectInfo, Request};
 use axum::http::{HeaderMap, StatusCode};
 use axum::routing::{get, post};
 use systemprompt_api::services::middleware::{
-    A2AContextMiddleware, BodyBudget, ContextExtractor, DEFAULT_BODY_LIMIT_BYTES,
-    McpContextMiddleware, MountError, MountLayers, ProtectionGuards, PublicContextMiddleware,
-    RateLimitState, UserOnlyContextMiddleware, admit_extension, protect,
+    A2AContextMiddleware, BodyBudget, ContextExtractor, McpContextMiddleware, MountError,
+    MountLayers, ProtectionGuards, PublicContextMiddleware, RateLimitState,
+    UserOnlyContextMiddleware, protect,
 };
 use systemprompt_extension::{
-    AuthzPolicy, ContextKind, ExtensionRouter, FrameOptionsOverride, ProtectionLayer, RateBudget,
-    RateLimit, RouteProtection,
+    AuthzPolicy, ContextKind, FrameOptionsOverride, ProtectionLayer, RateBudget, RateLimit,
+    RouteProtection,
 };
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_manifest::profile::{FrameOptions, RateLimitsConfig};
@@ -355,23 +355,4 @@ async fn a_public_context_with_a_policy_excluding_anonymous_callers_is_refused_a
             "{policy:?} behind the public context must not mount"
         );
     }
-}
-
-#[test]
-fn an_extension_body_limit_above_the_server_default_is_refused() {
-    let at_ceiling =
-        ExtensionRouter::new(Router::new(), BASE, AuthzPolicy::user(), ContextKind::User)
-            .with_body_limit(DEFAULT_BODY_LIMIT_BYTES);
-    assert!(admit_extension("covext", &at_ceiling).is_ok());
-
-    let above = ExtensionRouter::new(Router::new(), BASE, AuthzPolicy::user(), ContextKind::User)
-        .with_body_limit(DEFAULT_BODY_LIMIT_BYTES + 1);
-    assert!(matches!(
-        admit_extension("covext", &above),
-        Err(MountError::ExtensionBodyLimitTooLarge {
-            declared,
-            ceiling: DEFAULT_BODY_LIMIT_BYTES,
-            ..
-        }) if declared == DEFAULT_BODY_LIMIT_BYTES + 1
-    ));
 }

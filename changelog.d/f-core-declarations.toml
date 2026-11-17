@@ -1,9 +1,0 @@
-[root]
-section = "Added"
-area = "API"
-text = "The `CoreDeclaration` table also lists the analytics (`analytics-http`: `/api/v1/analytics`, and engagement at `/track/engagement`) and content (`content-http`: the public and authenticated `/api/v1/content` declarations and the link redirect at the web root) routes, with their protection shapes. One owner may list several shapes at one base path and group. Every core row is claimed by exactly one declaration of its owner, so boot refuses a row left unclaimed or claimed twice; a row with route pins confines its router to the pinned routes; an extension base path outside `/api/` other than the web root needs a row granting `Allowance::WebPath`. The analytics event broadcaster is handed, as a request extension, only to the router that matches the `Analytics` row in full."
-
-[[crate]]
-name = "systemprompt-api"
-section = "Added"
-text = "`services::middleware::admit_extensions` admits every built extension declaration against the core table before any is mounted; `MountError` gains `CoreDeclarationUnclaimed`, `CoreDeclarationClaimedTwice`, `CoreDeclarationAmbiguous` and `ExtensionWebPath`; `Allowance::WebPath`; `CoreDeclaration::route_pins` with `RoutePin`, `PinnedMethod`, `pinned`, `excluding` and `confined`; `KernelHandle`, `CoreDeclaration::kernel_handles`, `kernel_handles_for` and `hand_kernel_handles`."

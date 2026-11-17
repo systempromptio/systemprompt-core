@@ -12,7 +12,7 @@
 
 use super::args::Commands;
 use crate::commands::{admin, core, infrastructure};
-use crate::descriptor::DbUrlRouting;
+use systemprompt_extension::cli::DbUrlRouting;
 
 impl admin::AdminCommands {
     const fn db_url_routing(&self) -> DbUrlRouting {
@@ -44,11 +44,7 @@ impl Commands {
             | Self::Infra(
                 infrastructure::InfraCommands::Db(_)
                 | infrastructure::InfraCommands::Logs(_)
-                | infrastructure::InfraCommands::Jobs(
-                    infrastructure::jobs::JobsCommands::List
-                    | infrastructure::jobs::JobsCommands::Show(_)
-                    | infrastructure::jobs::JobsCommands::History(_),
-                ),
+                | infrastructure::InfraCommands::Jobs(infrastructure::jobs::JobsCommands::History(_)),
             ) => DbUrlRouting::Direct,
 
             _ => DbUrlRouting::Unsupported,

@@ -19,9 +19,9 @@ use systemprompt_identifiers::{
 };
 use systemprompt_models::errors::RepositoryError;
 
-use super::types::AccessScope;
 use crate::authz::types::{Decision, DecisionTag};
 use crate::authz::{GovernanceDecisionRecord, insert_governance_decision};
+use crate::policy::AccessScope;
 
 #[derive(Debug, Serialize, Clone, Copy, PartialEq, Eq)]
 #[serde(tag = "result", rename_all = "lowercase")]

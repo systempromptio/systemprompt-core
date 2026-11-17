@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Args;
 use systemprompt_database::DbPool;
@@ -10,12 +11,12 @@ use systemprompt_identifiers::JobName;
 use systemprompt_scheduler::JobRepository;
 
 use super::types::{JobHistoryEntry, JobHistoryOutput};
-use crate::context::CommandContext;
-use crate::shared::CommandOutput;
+use crate::commands::shared::app_context;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct HistoryArgs {
-    #[arg(long, value_parser = crate::shared::parse_job_name, help = "Filter by job name")]
+    #[arg(long, value_parser = systemprompt_extension::cli::parsers::parse_job_name, help = "Filter by job name")]
     pub job: Option<JobName>,
 
     #[arg(
@@ -30,8 +31,8 @@ pub struct HistoryArgs {
     pub status: Option<String>,
 }
 
-pub(super) async fn execute(args: HistoryArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let app = ctx.app_context().await?;
+pub(super) async fn execute(args: HistoryArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+    let app = app_context(host).await?;
     execute_with_pool(args, app.db_pool()).await
 }
 

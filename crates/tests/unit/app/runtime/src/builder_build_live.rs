@@ -2,9 +2,17 @@
 //! and the live test database. Each test bootstraps its own process-global
 //! profile/secrets/config (nextest is process-per-test), seeds or omits the
 //! configured system-admin row, and asserts either the assembled context or
-//! the exact `RuntimeError` variant.
+//! the exact `RuntimeError` variant. The build that installs schemas runs on
+//! its own database, as does the legacy-context rehome (there is one legacy
+//! context row, and every concurrent build on the shared database rehomes it
+//! onto its own admin): an install takes `SHARE` locks on every table it
+//! re-indexes, which deadlocks against writers on the shared database.
 
-use systemprompt_runtime::{AppContext, RuntimeError};
+use systemprompt_extension::{ContributionError, Contributions, Extension, ExtensionMetadata};
+use systemprompt_runtime::{AppContext, KernelError, RuntimeError};
+use systemprompt_test_fixtures::{
+    core_members, fixture_admitted, fixture_admitted_of, fixture_core_members,
+};
 
 use crate::boot::{BootOptions, boot};
 
@@ -42,16 +50,17 @@ async fn remove_admin(pool: &sqlx::PgPool, name: &str) {
 #[tokio::test]
 async fn build_assembles_full_context_with_pool_and_write_url() {
     let admin = unique_admin("ok");
+    let database = systemprompt_test_fixtures::DisposableDb::with_schema("build_migrates").await;
     let fixture = boot(&BootOptions {
         admin_username: admin.clone(),
         pool_settings: true,
         write_url: true,
+        database_url: Some(database.url().to_owned()),
         ..BootOptions::default()
     });
     let pool = seed_admin(&fixture.database_url, &admin, "active", &["admin", "user"]).await;
 
-    let ctx = AppContext::builder(fixture.boot.clone())
-        .with_extensions(systemprompt_extension::ExtensionRegistry::new())
+    let ctx = AppContext::builder(fixture.boot.clone(), fixture_admitted())
         .with_migrations(true)
         .build()
         .await
@@ -73,14 +82,14 @@ async fn build_assembles_full_context_with_pool_and_write_url() {
         "a loaded content config provides routing"
     );
     assert!(ctx.geoip_reader().is_none());
-    assert_eq!(ctx.extension_registry().ids().len(), 0);
-    assert!(
-        format!("{:?}", ctx.marketplace_filter()).contains("CovMarketplaceFilter"),
-        "the highest-priority factory fails, so the next registered factory must win; got {:?}",
-        ctx.marketplace_filter()
+    assert_eq!(
+        ctx.admitted().built().members().count(),
+        fixture_core_members().len()
     );
 
     remove_admin(&pool, &admin).await;
+    pool.close().await;
+    database.drop_now().await;
 }
 
 #[tokio::test]
@@ -91,8 +100,7 @@ async fn build_fails_when_system_admin_is_missing() {
         ..BootOptions::default()
     });
 
-    let err = AppContext::builder(fixture.boot.clone())
-        .with_extensions(systemprompt_extension::ExtensionRegistry::new())
+    let err = AppContext::builder(fixture.boot.clone(), fixture_admitted())
         .build()
         .await
         .expect_err("build must fail without the admin row");
@@ -111,8 +119,7 @@ async fn build_fails_when_system_admin_is_inactive() {
     });
     let pool = seed_admin(&fixture.database_url, &admin, "inactive", &["admin"]).await;
 
-    let err = AppContext::builder(fixture.boot.clone())
-        .with_extensions(systemprompt_extension::ExtensionRegistry::new())
+    let err = AppContext::builder(fixture.boot.clone(), fixture_admitted())
         .build()
         .await
         .expect_err("build must fail with an inactive admin");
@@ -133,8 +140,7 @@ async fn build_fails_when_system_admin_lacks_admin_role() {
     });
     let pool = seed_admin(&fixture.database_url, &admin, "active", &["user"]).await;
 
-    let err = AppContext::builder(fixture.boot.clone())
-        .with_extensions(systemprompt_extension::ExtensionRegistry::new())
+    let err = AppContext::builder(fixture.boot.clone(), fixture_admitted())
         .build()
         .await
         .expect_err("build must fail when the admin role is missing");
@@ -150,8 +156,10 @@ async fn build_fails_when_system_admin_lacks_admin_role() {
 async fn build_rehomes_the_legacy_context_onto_the_current_system_admin() {
     let previous = unique_admin("prev");
     let admin = unique_admin("cur");
+    let database = systemprompt_test_fixtures::DisposableDb::with_schema("legacy_rehome").await;
     let fixture = boot(&BootOptions {
         admin_username: admin.clone(),
+        database_url: Some(database.url().to_owned()),
         ..BootOptions::default()
     });
     let pool = seed_admin(
@@ -173,8 +181,7 @@ async fn build_rehomes_the_legacy_context_onto_the_current_system_admin() {
     .await
     .expect("legacy context owned by the previous admin");
 
-    let ctx = AppContext::builder(fixture.boot.clone())
-        .with_extensions(systemprompt_extension::ExtensionRegistry::new())
+    let ctx = AppContext::builder(fixture.boot.clone(), fixture_admitted())
         .build()
         .await
         .expect("a legacy context owned by an earlier admin must not block boot");
@@ -194,6 +201,8 @@ async fn build_rehomes_the_legacy_context_onto_the_current_system_admin() {
 
     remove_admin(&pool, &admin).await;
     remove_admin(&pool, &previous).await;
+    pool.close().await;
+    database.drop_now().await;
 }
 
 #[tokio::test]
@@ -207,8 +216,7 @@ async fn a_database_url_override_replaces_the_profile_database_and_its_write_url
     let other = systemprompt_test_fixtures::DisposableDb::with_schema("db_url_override").await;
     let pool = seed_admin(other.url(), &admin, "active", &["admin", "user"]).await;
 
-    let ctx = AppContext::builder(fixture.boot.clone())
-        .with_extensions(systemprompt_extension::ExtensionRegistry::new())
+    let ctx = AppContext::builder(fixture.boot.clone(), fixture_admitted())
         .with_database_url(other.url())
         .build()
         .await
@@ -228,45 +236,35 @@ async fn a_database_url_override_replaces_the_profile_database_and_its_write_url
 #[derive(Debug)]
 struct AbsentCache;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct ProvidedCache(u32);
 
 struct StateExtension {
     requires_absent: bool,
 }
 
-impl systemprompt_extension::Extension for StateExtension {
-    fn metadata(&self) -> systemprompt_extension::ExtensionMetadata {
-        systemprompt_extension::ExtensionMetadata {
+impl Extension for StateExtension {
+    fn metadata(&self) -> ExtensionMetadata {
+        ExtensionMetadata {
             id: "covrt-state",
             name: "covrt-state",
             version: "1.0.0",
         }
     }
 
-    fn provide(
-        &self,
-        _ctx: &dyn systemprompt_extension::ExtensionContext,
-        state: &mut systemprompt_extension::StateBuilder<'_>,
-    ) -> Result<(), systemprompt_extension::ExtensionStateError> {
-        state.provide(ProvidedCache(7))
-    }
-
-    fn requires(&self) -> Vec<systemprompt_extension::StateRequirement> {
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        c.provide::<ProvidedCache, _>(|_| Ok(ProvidedCache(7)));
         if self.requires_absent {
-            vec![systemprompt_extension::StateRequirement::of::<AbsentCache>()]
-        } else {
-            vec![]
+            c.requires::<AbsentCache>();
         }
+        Ok(())
     }
 }
 
-fn state_registry(requires_absent: bool) -> systemprompt_extension::ExtensionRegistry {
-    let mut registry = systemprompt_extension::ExtensionRegistry::new();
-    registry
-        .register(std::sync::Arc::new(StateExtension { requires_absent }))
-        .expect("one extension registers");
-    registry
+fn state_admitted(requires_absent: bool) -> std::sync::Arc<systemprompt_extension::Admitted> {
+    let mut members = core_members();
+    members.push(Box::new(StateExtension { requires_absent }));
+    fixture_admitted_of(members)
 }
 
 #[tokio::test]
@@ -278,20 +276,16 @@ async fn build_fails_with_the_typed_unmet_state_requirement() {
     });
     let pool = seed_admin(&fixture.database_url, &admin, "active", &["admin", "user"]).await;
 
-    let err = AppContext::builder(fixture.boot.clone())
-        .with_extensions(state_registry(true))
+    let err = AppContext::builder(fixture.boot.clone(), state_admitted(true))
         .build()
         .await
         .expect_err("a requirement nothing provides fails the build");
     match err {
-        RuntimeError::Loader(systemprompt_extension::LoaderError::UnmetStateRequirement {
-            extension,
-            type_name,
-        }) => {
-            assert_eq!(extension.as_str(), "covrt-state");
-            assert!(type_name.ends_with("AbsentCache"), "got: {type_name}");
+        RuntimeError::Kernel(KernelError::Missing { owner, ty }) => {
+            assert_eq!(owner.as_str(), "covrt-state");
+            assert!(ty.ends_with("AbsentCache"), "got: {ty}");
         },
-        other => panic!("expected UnmetStateRequirement, got: {other:?}"),
+        other => panic!("expected KernelError::Missing, got: {other:?}"),
     }
 
     remove_admin(&pool, &admin).await;
@@ -308,8 +302,7 @@ async fn build_seeds_the_kernel_entries_and_keeps_provided_state() {
     });
     let pool = seed_admin(&fixture.database_url, &admin, "active", &["admin", "user"]).await;
 
-    let ctx = AppContext::builder(fixture.boot.clone())
-        .with_extensions(state_registry(false))
+    let ctx = AppContext::builder(fixture.boot.clone(), state_admitted(false))
         .build()
         .await
         .expect("the provided state satisfies the build");
@@ -322,4 +315,74 @@ async fn build_seeds_the_kernel_entries_and_keeps_provided_state() {
     assert!(std::sync::Arc::ptr_eq(pool_entry, ctx.db_pool()));
 
     remove_admin(&pool, &admin).await;
+}
+
+#[derive(Debug)]
+struct ProbeMarketplaceFilter;
+
+#[async_trait::async_trait]
+impl systemprompt_marketplace::MarketplaceFilter for ProbeMarketplaceFilter {
+    async fn filter(
+        &self,
+        _user_id: &systemprompt_identifiers::UserId,
+        candidate: systemprompt_marketplace::MarketplaceCandidate,
+    ) -> Result<
+        systemprompt_marketplace::MarketplaceCandidate,
+        systemprompt_marketplace::MarketplaceFilterError,
+    > {
+        Ok(candidate)
+    }
+}
+
+fn marketplace_filter_of(contribute_filter: bool) -> String {
+    use std::sync::Arc;
+    use systemprompt_extension::{FactoryError, Resolved, Slot, StandingTag};
+    use systemprompt_governance::contract::RoleDirectorySlot;
+    use systemprompt_marketplace::MarketplaceFilter;
+    use systemprompt_marketplace::contract::{MarketplaceSlot, MarketplaceSlotBuilder};
+    use systemprompt_test_fixtures::slots::built_slot;
+
+    let roles = RoleDirectorySlot::build(
+        Vec::new(),
+        &systemprompt_test_fixtures::empty_resolved_kernel().resolved(),
+    )
+    .expect("an empty role directory slot builds");
+    let kernel = systemprompt_test_fixtures::offline_resolved_kernel(
+        &systemprompt_test_fixtures::probe_admitted(
+            systemprompt_test_fixtures::ComposedParts::default(),
+        ),
+        systemprompt_extension::prelude::Dependencies::new().with(Arc::new(roles)),
+    );
+    let mut builder = MarketplaceSlotBuilder::default();
+    if contribute_filter {
+        builder.filter(
+            |_: &Resolved<'_>| -> Result<Arc<dyn MarketplaceFilter>, FactoryError> {
+                Ok(Arc::new(ProbeMarketplaceFilter))
+            },
+        );
+    }
+    let seams = built_slot::<MarketplaceSlot>(
+        vec![("marketplace-probe", StandingTag::Core, builder)],
+        &kernel.resolved(),
+    )
+    .expect("an opened marketplace slot is built");
+    format!("{:?}", seams.filter())
+}
+
+#[test]
+fn a_contributed_marketplace_filter_is_the_built_filter() {
+    let filter = marketplace_filter_of(true);
+    assert!(
+        filter.contains("ProbeMarketplaceFilter"),
+        "the admitted probe's filter must be built: {filter}"
+    );
+}
+
+#[test]
+fn with_no_contributed_filter_the_built_filter_allows_all() {
+    let filter = marketplace_filter_of(false);
+    assert!(
+        filter.contains("AllowAllFilter") && !filter.contains("ProbeMarketplaceFilter"),
+        "no contributed filter must build the default: {filter}"
+    );
 }

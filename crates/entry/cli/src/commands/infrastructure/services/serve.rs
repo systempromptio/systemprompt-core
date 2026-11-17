@@ -3,10 +3,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::context::CommandContext;
-use crate::interactive::Prompter;
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use std::sync::Arc;
+use systemprompt_extension::cli::Prompter;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 use systemprompt_runtime::{ShutdownRequest, validate_system};
@@ -25,10 +25,10 @@ pub struct ServeOptions {
 pub async fn execute_with_events(
     prompter: &dyn Prompter,
     options: ServeOptions,
-    ctx: &CommandContext,
+    host: &dyn KernelHost,
     events: Option<&StartupEventSender>,
 ) -> Result<String> {
-    let profile = ctx.profile()?;
+    let profile = host.profile()?;
     let ServeOptions {
         foreground,
         kill_port_process,
@@ -40,13 +40,13 @@ pub async fn execute_with_events(
         CliService::startup_banner(Some("Starting services..."));
     }
 
-    ensure_port_free(prompter, port, kill_port_process, &ctx.cli, events).await?;
+    ensure_port_free(prompter, port, kill_port_process, host.output(), events).await?;
 
     let shutdown = ShutdownRequest::default();
     let early = bind_early(profile, foreground, events, shutdown.clone()).await?;
 
     let app = Arc::new(
-        ctx.app_context_builder()?
+        host.server_builder()?
             .with_startup_warnings(true)
             .with_shutdown(shutdown)
             .with_migrations(run_migrations)
@@ -124,9 +124,9 @@ pub const fn effective_run_migrations(skip_flag: bool, migrate_on_boot: bool) ->
 pub async fn execute(
     prompter: &dyn Prompter,
     flags: ServeFlags,
-    ctx: &CommandContext,
+    host: &dyn KernelHost,
 ) -> Result<()> {
-    let migrate_on_boot = ctx.profile()?.database.migrate_on_boot;
+    let migrate_on_boot = host.profile()?.database.migrate_on_boot;
     execute_with_events(
         prompter,
         ServeOptions {
@@ -134,7 +134,7 @@ pub async fn execute(
             kill_port_process: flags.kill_port_process,
             run_migrations: effective_run_migrations(flags.skip_migrate, migrate_on_boot),
         },
-        ctx,
+        host,
         None,
     )
     .await

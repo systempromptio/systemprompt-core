@@ -3,28 +3,26 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Context, Result, anyhow};
+use crate::kernel::KernelHost;
+use anyhow::{Context, Result};
 use std::sync::Arc;
 use systemprompt_database::services::DatabaseProvider;
 use systemprompt_database::{Database, MigrationService};
-use systemprompt_extension::ExtensionRegistry;
+use systemprompt_extension::BuiltState;
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_logging::CliService;
+use systemprompt_models::artifacts::NoticeLine;
 use systemprompt_runtime::DatabaseContext;
 
-use crate::cli_settings::CliConfig;
-use crate::context::CommandContext;
-use crate::shared::{CommandOutput, render_result};
+use systemprompt_extension::cli::CommandOutput;
 
 use super::types::DbMigrateDownOutput;
 
 pub(super) async fn execute_migrate_down(
-    ctx: &CommandContext,
+    host: &dyn KernelHost,
     extension: &ExtensionId,
     count: u32,
-) -> Result<()> {
-    let config = &ctx.cli;
-    let sys_config = ctx.config()?;
+) -> Result<CommandOutput> {
+    let sys_config = host.config()?;
 
     let database = Arc::new(
         Database::connect(
@@ -43,9 +41,8 @@ pub(super) async fn execute_migrate_down(
     );
 
     run_down(
-        &ExtensionRegistry::discover()?,
+        host.admitted()?.built(),
         database.session(),
-        config,
         extension,
         count,
     )
@@ -54,31 +51,20 @@ pub(super) async fn execute_migrate_down(
 
 pub(super) async fn execute_migrate_down_standalone(
     db_ctx: &DatabaseContext,
-    config: &CliConfig,
+    built: &BuiltState,
     extension: &ExtensionId,
     count: u32,
-) -> Result<()> {
-    let database = db_ctx.db_pool();
-    run_down(
-        &ExtensionRegistry::discover()?,
-        database.session(),
-        config,
-        extension,
-        count,
-    )
-    .await
+) -> Result<CommandOutput> {
+    run_down(built, db_ctx.db_pool().session(), extension, count).await
 }
 
 async fn run_down(
-    registry: &ExtensionRegistry,
+    built: &BuiltState,
     write_provider: &dyn DatabaseProvider,
-    config: &CliConfig,
     extension_id: &ExtensionId,
     count: u32,
-) -> Result<()> {
-    let ext = registry
-        .get(extension_id.as_str())
-        .ok_or_else(|| anyhow!("Extension '{}' not found", extension_id))?;
+) -> Result<CommandOutput> {
+    let ext = super::admin_migrate::find_member(built, extension_id)?;
 
     let migration_service = MigrationService::new(write_provider);
     let result = migration_service
@@ -95,12 +81,6 @@ async fn run_down(
         ),
     };
 
-    if config.is_json_output() {
-        let result = CommandOutput::card_value("Database Admin", &output);
-        render_result(&result, config);
-    } else {
-        CliService::success(&output.message);
-    }
-
-    Ok(())
+    let note = NoticeLine::new("success", output.message.clone());
+    Ok(CommandOutput::card_value("Database Admin", &output).with_note(note))
 }

@@ -8,16 +8,17 @@ use systemprompt_extension::{BrainSink, BrainSinkError, DynBrainSink};
 use systemprompt_files::DocumentsConfig;
 use systemprompt_files::documents::agents::{AgentAccessPolicy, DocumentActor};
 use systemprompt_files::documents::blob_store::BlobStore;
-use systemprompt_files::documents::codecs::CodecRegistry;
+use systemprompt_files::documents::codecs::{CodecRegistry, core_codecs};
 use systemprompt_files::documents::model::Media;
 use systemprompt_files::documents::models::{RevisionAttribution, RevisionOrigin};
-use systemprompt_files::documents::repository::DocumentRepositories;
+use systemprompt_files::documents::repository::{BlobHolders, DocumentRepositories};
 use systemprompt_files::documents::service::{Author, CreateRequest};
-use systemprompt_files::documents::templates::TemplateRegistry;
+use systemprompt_files::documents::templates::{CoreTemplateProvider, TemplateRegistry};
 use systemprompt_files::documents::{
     DocumentAccessRepositories, DocumentAccessService, DocumentEvents, DocumentService,
     DocumentServiceParts, SubjectDirectory, SubjectDirectoryError, SubjectMatch,
 };
+use systemprompt_files::issues::repository::ISSUE_ATTACHMENTS_HOLDER;
 use systemprompt_files::uploads::{UploadService, UploadServiceParts};
 use systemprompt_governance::authz::{
     AccessControlRepository, AllowAllHook, DenyAllHook, RuleType, SharedAuthzHook,
@@ -26,14 +27,13 @@ use systemprompt_identifiers::{
     DocumentFolderId, DocumentTemplateId, EventOutboxId, TraceId, UserId,
 };
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
-use systemprompt_models::authz::{
-    SubjectAttributeSource, SubjectAttributes, SubjectDimension, SubjectSourceError,
-};
+use systemprompt_models::authz::{SubjectAttributeSource, SubjectAttributes, SubjectSourceError};
 use systemprompt_models::brain::BrainEvent;
 use systemprompt_models::documents::ActorKind;
-use systemprompt_provider_contracts::documents::TemplateParams;
+use systemprompt_provider_contracts::documents::{DocumentTemplateProvider, TemplateParams};
 use systemprompt_storage::LocalFileStorage;
 use systemprompt_test_fixtures::{fixture_notification_sink, test_db_pool};
+use systemprompt_traits::authz::SubjectDimension;
 use systemprompt_traits::{BackgroundTasks, FileStorage};
 use tempfile::TempDir;
 use uuid::Uuid;
@@ -208,6 +208,7 @@ impl SubjectDirectory for RoleDirectory {
 
 pub(crate) struct Harness {
     pub(crate) service: DocumentService,
+    pub(crate) access: Arc<DocumentAccessService>,
     pub(crate) repos: Arc<DocumentRepositories>,
     pub(crate) access_entities: Arc<AccessControlRepository>,
     pub(crate) storage: Arc<TempDir>,
@@ -290,6 +291,10 @@ pub(crate) fn harness_with_policy(
     )
 }
 
+pub(crate) fn core_blob_holders() -> Arc<BlobHolders> {
+    Arc::new(BlobHolders::new(vec![ISSUE_ATTACHMENTS_HOLDER]))
+}
+
 pub(crate) fn harness_wired(
     db: DbPool,
     (hook, subjects, directory): (SharedAuthzHook, GroupSource, RoleDirectory),
@@ -297,7 +302,7 @@ pub(crate) fn harness_wired(
     config: DocumentsConfig,
     (policy, brain): (Option<Arc<dyn AgentAccessPolicy>>, DynBrainSink),
 ) -> Harness {
-    let repos = Arc::new(DocumentRepositories::new(&db));
+    let repos = Arc::new(DocumentRepositories::new(&db, core_blob_holders()));
     let access_entities = Arc::new(AccessControlRepository::new(&db));
     let access = DocumentAccessService::new(
         DocumentAccessRepositories {
@@ -336,9 +341,12 @@ pub(crate) fn harness_wired(
     let service = DocumentService::new(DocumentServiceParts {
         repos: Arc::clone(&repos),
         blobs,
-        codecs: Arc::new(CodecRegistry::discover()),
-        templates: Arc::new(TemplateRegistry::discover(Vec::new())),
-        access,
+        codecs: Arc::new(CodecRegistry::from_codecs(core_codecs())),
+        templates: Arc::new(TemplateRegistry::with_core_blanks(
+            [Arc::new(CoreTemplateProvider) as Arc<dyn DocumentTemplateProvider>],
+            Vec::new(),
+        )),
+        access: Arc::clone(&access),
         events,
         notifications: fixture_notification_sink(&db),
         brain,
@@ -347,6 +355,7 @@ pub(crate) fn harness_wired(
     service.attach_uploads(&uploads);
     Harness {
         service,
+        access,
         repos,
         access_entities,
         storage,

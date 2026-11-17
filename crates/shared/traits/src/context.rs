@@ -68,4 +68,5 @@ pub trait ConfigProvider: Send + Sync {
 pub trait DatabaseHandle: Send + Sync {
     fn is_connected(&self) -> bool;
     fn as_any(&self) -> &dyn std::any::Any;
+    fn into_any(self: Arc<Self>) -> Arc<dyn std::any::Any + Send + Sync>;
 }

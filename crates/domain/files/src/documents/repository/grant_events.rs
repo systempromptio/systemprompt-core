@@ -5,6 +5,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::documents::transient::retry_conflicts;
 use chrono::{DateTime, Utc};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{DocumentFolderId, DocumentId, TraceId, UserId};
@@ -113,8 +114,9 @@ impl DocumentGrantEventRepository {
     }
 
     pub async fn transfer_owner(&self, transfer: &OwnerTransfer) -> RepoResult<bool> {
-        let moved = sqlx::query_scalar!(
-            r#"WITH d AS (
+        let moved = retry_conflicts(|| async move {
+            sqlx::query_scalar!(
+                r#"WITH d AS (
                    UPDATE documents SET owner_user_id = $3, updated_at = now()
                    WHERE id = $1::text::uuid AND deleted_at IS NULL AND owner_user_id = $2
                    RETURNING id, folder_id, name),
@@ -159,14 +161,17 @@ impl DocumentGrantEventRepository {
                           (SELECT access_level FROM prev), 'edit', $5, $6
                    FROM g)
                SELECT COUNT(*) AS "moved!" FROM d"#,
-            transfer.document_id.as_str(),
-            transfer.from.as_str(),
-            transfer.to.as_str(),
-            transfer.from_display,
-            transfer.actor.user.as_str(),
-            transfer.actor.trace.as_str(),
-        )
-        .fetch_one(&*self.pools.write)
+                transfer.document_id.as_str(),
+                transfer.from.as_str(),
+                transfer.to.as_str(),
+                transfer.from_display,
+                transfer.actor.user.as_str(),
+                transfer.actor.trace.as_str(),
+            )
+            .fetch_one(&*self.pools.write)
+            .await
+            .map_err(RepositoryError::from)
+        })
         .await?;
         Ok(moved == 1)
     }

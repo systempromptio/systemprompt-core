@@ -199,9 +199,8 @@ async fn zero_limit_is_an_explicit_empty_page_with_more_available() -> anyhow::R
 
 async fn app() -> anyhow::Result<Router> {
     let b = boot();
-    let pool = test_db_pool().await;
-    let ctx = test_app_context_on(&b, &pool);
-    Ok(gateway_router(&ctx).expect("gateway router builds"))
+    let ctx = test_app_context_on(&b).await;
+    Ok(gateway_router(&ctx, ctx.admitted(), ctx.kernel()).expect("gateway router builds"))
 }
 
 async fn authed_get(uri: &str, email: &str) -> anyhow::Result<Request<Body>> {

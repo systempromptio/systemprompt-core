@@ -13,12 +13,12 @@ crate's `CHANGELOG.md`, then deletes the fragments it consumed. Nobody edits a
 [root]
 section = "Breaking"
 area = "Extensions"
-text = "`ExtensionRouter::new` takes an `AuthzPolicy`. Migrate by ..."
+text = "`RouteSpec::new` takes an `AuthzPolicy`. Migrate by ..."
 
 [[crate]]
 name = "systemprompt-extension"
 section = "Breaking"
-text = "`ExtensionRouter::new` takes an `AuthzPolicy` and a `ContextKind`. Migrate by ..."
+text = "`RouteSpec::new` takes an `AuthzPolicy`, a `ContextKind` and `RouteLimits`. Migrate by ..."
 ```
 
 - `[root]` (at most one): the entry in the root `CHANGELOG.md`. `area` is the

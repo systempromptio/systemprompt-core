@@ -5,8 +5,9 @@
 //! other gateway request. The client is built here, at the API composition
 //! root, from the gateway configuration, catalog, repositories and engines,
 //! acting as the `brain` service account (ensured on first start, created by
-//! the system admin). An enabled brain on a profile without a gateway fails
-//! the start rather than leaving the consumer unable to extract.
+//! the system admin). An enabled brain on a profile without a gateway (its
+//! config disabled, or the `gateway` member not admitted) fails the start
+//! rather than leaving the consumer unable to extract.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -30,7 +31,7 @@ pub(super) async fn brain_consumer(ctx: &AppContext) -> Result<Option<Arc<dyn Ru
         return Ok(None);
     };
     let model = brain_model_client(ctx).await?;
-    let consumer: Arc<dyn RunnerService> = brain.start_consumer(ctx, model)?;
+    let consumer: Arc<dyn RunnerService> = brain.start_consumer(model)?;
     Ok(Some(consumer))
 }
 
@@ -38,7 +39,9 @@ async fn brain_model_client(ctx: &AppContext) -> Result<Arc<dyn BrainModelClient
     let gateway = ctx
         .services_config()
         .gateway_config()
-        .filter(|gateway| gateway.enabled)
+        .filter(|gateway| {
+            gateway.enabled && crate::routes::gateway::gateway_admitted(ctx.admitted())
+        })
         .cloned()
         .context("brain extraction requires the gateway to be enabled")?;
     let sessions = ctx
@@ -61,7 +64,7 @@ async fn brain_model_client(ctx: &AppContext) -> Result<Arc<dyn BrainModelClient
         catalog: Arc::clone(ctx.services_state().catalog()),
         db: Arc::clone(ctx.db_pool()),
         repos: Arc::new(crate::routes::gateway::gateway_repositories(ctx)?),
-        engines: Arc::new(crate::routes::gateway::gateway_engines(ctx)?),
+        engines: Arc::new(crate::routes::gateway::gateway_engines(ctx, ctx.kernel())?),
         governance: ctx.governance(),
     };
     let mut client = GatewayClient::builder(parts, principal)

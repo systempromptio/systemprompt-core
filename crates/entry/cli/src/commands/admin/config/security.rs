@@ -7,18 +7,17 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use super::changes_output;
+use crate::commands::admin::config::restart_note;
+use crate::kernel::KernelHost;
 use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
 use systemprompt_config::{SecurityChange, SecurityConfigService, SecurityUpdate};
-use systemprompt_logging::CliService;
 use systemprompt_manifest::profile::TrustedIssuer;
 
 use super::profile_io::{load_profile, profile_path, save_profile};
 use super::types::{SecurityConfigOutput, SecuritySetOutput};
-use crate::CliConfig;
-use crate::cli_settings::OutputFormat;
-use crate::context::CommandContext;
-use crate::shared::{CommandOutput, render_result};
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum SecurityCommands {
@@ -71,17 +70,16 @@ pub struct TrustedIssuerAddArgs {
     pub audience: String,
 }
 
-pub fn execute(command: &SecurityCommands, ctx: &CommandContext) -> Result<()> {
+pub fn execute(command: &SecurityCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
-        SecurityCommands::Show => execute_show(ctx),
-        SecurityCommands::Set(args) => execute_set(args, ctx),
-        SecurityCommands::TrustedIssuer(cmd) => execute_trusted_issuer(cmd, ctx),
+        SecurityCommands::Show => execute_show(host),
+        SecurityCommands::Set(args) => execute_set(args, host),
+        SecurityCommands::TrustedIssuer(cmd) => execute_trusted_issuer(cmd, host),
     }
 }
 
-pub(super) fn execute_show(ctx: &CommandContext) -> Result<()> {
-    let config = &ctx.cli;
-    let profile = ctx.profile()?;
+pub(super) fn execute_show(host: &dyn KernelHost) -> Result<CommandOutput> {
+    let profile = host.profile()?;
 
     let output = SecurityConfigOutput {
         jwt_issuer: profile.security.issuer.clone(),
@@ -95,16 +93,10 @@ pub(super) fn execute_show(ctx: &CommandContext) -> Result<()> {
             .collect(),
     };
 
-    render_result(
-        &CommandOutput::card_value("Security Configuration", &output),
-        config,
-    );
-
-    Ok(())
+    Ok(CommandOutput::card_value("Security Configuration", &output))
 }
 
-pub(super) fn execute_set(args: &SetArgs, ctx: &CommandContext) -> Result<()> {
-    let config = &ctx.cli;
+pub(super) fn execute_set(args: &SetArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     if args.access_expiry.is_none()
         && args.refresh_expiry.is_none()
         && args.resource_audiences.is_empty()
@@ -114,7 +106,7 @@ pub(super) fn execute_set(args: &SetArgs, ctx: &CommandContext) -> Result<()> {
         );
     }
 
-    let profile_path = profile_path(ctx)?;
+    let profile_path = profile_path(host)?;
     let mut profile = load_profile(profile_path)?;
 
     let update = SecurityUpdate {
@@ -130,13 +122,14 @@ pub(super) fn execute_set(args: &SetArgs, ctx: &CommandContext) -> Result<()> {
 
     save_profile(&profile, profile_path)?;
 
-    render_changes(&changes, config);
-    Ok(())
+    Ok(render_changes(&changes))
 }
 
-fn execute_trusted_issuer(command: &TrustedIssuerCommands, ctx: &CommandContext) -> Result<()> {
-    let config = &ctx.cli;
-    let profile_path = profile_path(ctx)?;
+fn execute_trusted_issuer(
+    command: &TrustedIssuerCommands,
+    host: &dyn KernelHost,
+) -> Result<CommandOutput> {
+    let profile_path = profile_path(host)?;
     let mut profile = load_profile(profile_path)?;
 
     let change = match command {
@@ -163,8 +156,7 @@ fn execute_trusted_issuer(command: &TrustedIssuerCommands, ctx: &CommandContext)
     };
 
     save_profile(&profile, profile_path)?;
-    render_changes(&[to_output(change)], config);
-    Ok(())
+    Ok(render_changes(&[to_output(change)]))
 }
 
 fn to_output(change: SecurityChange) -> SecuritySetOutput {
@@ -176,14 +168,6 @@ fn to_output(change: SecurityChange) -> SecuritySetOutput {
     }
 }
 
-fn render_changes(changes: &[SecuritySetOutput], config: &CliConfig) {
-    for change in changes {
-        render_result(
-            &CommandOutput::card_value("Security Updated", change),
-            config,
-        );
-    }
-    if config.output_format() == OutputFormat::Table {
-        CliService::warning("Restart services for changes to take effect");
-    }
+fn render_changes(changes: &[SecuritySetOutput]) -> CommandOutput {
+    changes_output("Security Updated", changes).with_note(restart_note())
 }

@@ -83,6 +83,7 @@ pub struct ProxyService {
     artifact_ingest: Option<Arc<systemprompt_mcp::ArtifactIngest>>,
     mcp_client: Arc<McpClient>,
     owners: Arc<owner::OwnerCache>,
+    handovers: Arc<owner::HandoverWaits>,
 }
 
 impl ProxyService {
@@ -108,6 +109,7 @@ impl ProxyService {
                 ),
             )),
             owners: Arc::new(owner::OwnerCache::default()),
+            handovers: Arc::new(owner::HandoverWaits::default()),
         }
     }
 

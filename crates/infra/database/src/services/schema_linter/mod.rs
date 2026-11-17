@@ -80,11 +80,12 @@ mod foreign_keys;
 mod location;
 mod passes;
 
+pub use systemprompt_extension::created_table_names;
+
 use std::fmt;
 
-use pg_query::protobuf::node::Node;
 
-use columns::{TableDef, collect_create_stmt};
+use columns::TableDef;
 use location::LineIndex;
 use passes::{classify_pass, column_ref_pass, foreign_key_pass};
 
@@ -122,18 +123,6 @@ impl fmt::Display for LintError {
     }
 }
 
-pub fn created_table_names(sql: &str) -> Result<Vec<String>, pg_query::Error> {
-    let parsed = pg_query::parse(sql)?;
-    Ok(parsed
-        .protobuf
-        .stmts
-        .iter()
-        .filter_map(|raw| match raw.stmt.as_ref()?.node.as_ref()? {
-            Node::CreateStmt(create) => collect_create_stmt(create).map(|t| t.qualified_name()),
-            _ => None,
-        })
-        .collect())
-}
 
 pub fn lint_declarative_schema(sql: &str, source: &str) -> Result<Vec<LintError>, Vec<LintError>> {
     lint_declarative_schemas(&[(source, sql)])

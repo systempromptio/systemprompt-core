@@ -10,7 +10,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::documents::transient::retry_conflicts;
 use systemprompt_identifiers::{DocumentFolderId, DocumentId, UserId};
+use systemprompt_traits::RepositoryError;
 
 use super::documents::DocumentRepository;
 use super::feed::FeedHorizon;
@@ -18,7 +20,7 @@ use super::rows::RepoResult;
 use crate::documents::models::{DriveCursor, SubjectPairs};
 
 /// The path a document had and has after one trash, restore, rename or move.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PathMove<'a> {
     pub from: &'a str,
     pub to: &'a str,
@@ -60,25 +62,38 @@ impl DocumentRepository {
         name: &str,
         paths: PathMove<'_>,
     ) -> RepoResult<bool> {
-        let updated = sqlx::query_scalar!(
-            r#"WITH moved AS (
+        let updated = retry_conflicts(|| async move {
+            sqlx::query_scalar!(
+                r#"WITH moved AS (
                    UPDATE documents SET name = $2, updated_at = now()
                    WHERE id = $1::text::uuid AND deleted_at IS NULL RETURNING id),
                logged AS (
                    INSERT INTO document_path_changes (document_id, from_path, to_path)
                    SELECT id, $3, $4 FROM moved WHERE $3 <> $4 RETURNING 1)
                SELECT COUNT(*) AS "updated!" FROM moved"#,
-            id.as_str(),
-            name,
-            paths.from,
-            paths.to,
-        )
-        .fetch_one(&*self.pools.write)
+                id.as_str(),
+                name,
+                paths.from,
+                paths.to,
+            )
+            .fetch_one(&*self.pools.write)
+            .await
+            .map_err(RepositoryError::from)
+        })
         .await?;
         Ok(updated == 1)
     }
 
     pub async fn move_to(
+        &self,
+        id: &DocumentId,
+        folder: Option<&DocumentFolderId>,
+        paths: PathMove<'_>,
+    ) -> RepoResult<bool> {
+        retry_conflicts(|| self.move_to_once(id, folder, paths)).await
+    }
+
+    async fn move_to_once(
         &self,
         id: &DocumentId,
         folder: Option<&DocumentFolderId>,
@@ -140,36 +155,44 @@ impl DocumentRepository {
     }
 
     pub async fn trash(&self, id: &DocumentId, by: &UserId, from_path: &str) -> RepoResult<bool> {
-        let updated = sqlx::query_scalar!(
-            r#"WITH trashed AS (
+        let updated = retry_conflicts(|| async move {
+            sqlx::query_scalar!(
+                r#"WITH trashed AS (
                    UPDATE documents SET deleted_at = now(), trashed_by = $2, updated_at = now()
                    WHERE id = $1::text::uuid AND deleted_at IS NULL RETURNING id),
                logged AS (
                    INSERT INTO document_path_changes (document_id, from_path)
                    SELECT id, $3 FROM trashed RETURNING 1)
                SELECT COUNT(*) AS "updated!" FROM trashed"#,
-            id.as_str(),
-            by.as_str(),
-            from_path,
-        )
-        .fetch_one(&*self.pools.write)
+                id.as_str(),
+                by.as_str(),
+                from_path,
+            )
+            .fetch_one(&*self.pools.write)
+            .await
+            .map_err(RepositoryError::from)
+        })
         .await?;
         Ok(updated == 1)
     }
 
     pub async fn restore(&self, id: &DocumentId, to_path: &str) -> RepoResult<bool> {
-        let updated = sqlx::query_scalar!(
-            r#"WITH restored AS (
+        let updated = retry_conflicts(|| async move {
+            sqlx::query_scalar!(
+                r#"WITH restored AS (
                    UPDATE documents SET deleted_at = NULL, trashed_by = NULL, updated_at = now()
                    WHERE id = $1::text::uuid AND deleted_at IS NOT NULL RETURNING id),
                logged AS (
                    INSERT INTO document_path_changes (document_id, to_path)
                    SELECT id, $2 FROM restored RETURNING 1)
                SELECT COUNT(*) AS "updated!" FROM restored"#,
-            id.as_str(),
-            to_path,
-        )
-        .fetch_one(&*self.pools.write)
+                id.as_str(),
+                to_path,
+            )
+            .fetch_one(&*self.pools.write)
+            .await
+            .map_err(RepositoryError::from)
+        })
         .await?;
         Ok(updated == 1)
     }

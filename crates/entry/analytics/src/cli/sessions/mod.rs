@@ -17,7 +17,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::cli::shared::with_resolved_export;
-use systemprompt_cli::kernel::{CommandContext, render_result};
+use systemprompt_database::pool_from_handle;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
 #[derive(Debug, Subcommand)]
 pub enum SessionsCommands {
@@ -77,32 +78,28 @@ pub struct LiveSessionsOutput {
     pub timestamp: String,
 }
 
-pub async fn execute(command: SessionsCommands, ctx: &CommandContext) -> Result<()> {
-    let db_ctx = ctx.database().await?;
+pub async fn execute(command: SessionsCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let pool = pool_from_handle(host.db().await?)?;
     match command {
         SessionsCommands::Stats(args) => {
             let result =
-                stats::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                stats::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
                     .await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            Ok(result)
         },
         SessionsCommands::Trends(args) => {
             let result =
-                trends::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                trends::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
                     .await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+            Ok(result)
         },
         SessionsCommands::Live(mut args) => {
-            if ctx.is_database_scoped() {
+            if host.is_database_scoped() {
                 args.no_refresh = true;
             }
             let result =
-                live::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
-                    .await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
+                live::execute_with_pool(with_resolved_export!(args, host), &pool, host).await?;
+            Ok(result)
         },
     }
 }

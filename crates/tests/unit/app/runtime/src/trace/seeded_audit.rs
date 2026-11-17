@@ -660,7 +660,7 @@ async fn request_list_pages_backwards_with_until_and_before_cursor() {
               status, cost_microdollars, created_at) \
              VALUES ($1, $1, $2, '00000000-0000-0000-0000-00000000c0de', $3, 'anthropic', \
                      'pagination-model', 'user', $2, 'completed', 0, \
-                     now() - make_interval(mins => $4))",
+                     now() - make_interval(hours => $4))",
         )
         .bind(&id)
         .bind(&seed.user_id)
@@ -706,17 +706,17 @@ async fn request_list_pages_backwards_with_until_and_before_cursor() {
         .list_ai_requests(
             &AiRequestFilter::new(50)
                 .with_user(user)
-                .with_until(Utc::now() - ChronoDuration::minutes(2)),
+                .with_until(Utc::now() - ChronoDuration::hours(2)),
         )
         .await
         .unwrap();
     let bounded_ids: Vec<&str> = bounded.iter().map(|r| r.id.as_str()).collect();
     assert!(
         bounded_ids.contains(&ids[2].as_str()),
-        "3 minutes old is before --until"
+        "3 hours old is before --until"
     );
     assert!(
         !bounded_ids.contains(&ids[0].as_str()),
-        "1 minute old is after --until"
+        "1 hour old is after --until"
     );
 }

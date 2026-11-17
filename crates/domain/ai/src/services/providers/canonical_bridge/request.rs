@@ -9,16 +9,18 @@
 use serde_json::json;
 use systemprompt_identifiers::ModelId;
 use systemprompt_wire::canonical::{
-    CanonicalContent, CanonicalMessage, CanonicalReasoning, CanonicalRequest, CanonicalSampling,
-    CanonicalTool, CanonicalToolChoice, CanonicalTooling, ImageSource, ReasoningEffort,
-    ResponseFormat, Role, SearchConfig, SystemBlock, ThinkingConfig,
+    CanonicalReasoning, CanonicalRequest, CanonicalSampling, CanonicalTool, CanonicalToolChoice,
+    CanonicalTooling, ReasoningEffort, ResponseFormat, SearchConfig, ThinkingConfig,
 };
 use systemprompt_wire::inspect::ForwardedSurface;
 
 use crate::models::ai::{
-    AiContentPart, AiMessage, MessageRole, ResponseFormat as AgentResponseFormat, SamplingParams,
+    AiMessage, ReasoningEffort as AgentReasoningEffort, ReasoningParams,
+    ResponseFormat as AgentResponseFormat, SamplingParams,
 };
 use crate::models::tools::McpTool;
+
+use super::messages::messages_to_canonical;
 
 const DEFAULT_SCHEMA_NAME: &str = "structured_output";
 
@@ -39,6 +41,7 @@ pub struct CanonicalBuild<'a> {
     model: &'a str,
     max_output_tokens: u32,
     sampling: Option<&'a SamplingParams>,
+    reasoning: Option<ReasoningParams>,
     tools: Vec<CanonicalTool>,
     tool_choice: Option<CanonicalToolChoice>,
     response_format: Option<ResponseFormat>,
@@ -60,6 +63,7 @@ impl<'a> CanonicalBuild<'a> {
             model,
             max_output_tokens,
             sampling: None,
+            reasoning: None,
             tools: Vec::new(),
             tool_choice: None,
             response_format: None,
@@ -72,6 +76,12 @@ impl<'a> CanonicalBuild<'a> {
     #[must_use]
     pub const fn with_sampling(mut self, sampling: Option<&'a SamplingParams>) -> Self {
         self.sampling = sampling;
+        self
+    }
+
+    #[must_use]
+    pub const fn with_reasoning(mut self, reasoning: Option<ReasoningParams>) -> Self {
+        self.reasoning = reasoning;
         self
     }
 
@@ -146,8 +156,19 @@ impl<'a> CanonicalBuild<'a> {
                 code_execution: self.code_execution,
             },
             reasoning: CanonicalReasoning {
-                thinking: auto_thinking(self.provider, self.model),
-                reasoning_effort: auto_reasoning(self.provider, self.model),
+                thinking: self
+                    .reasoning
+                    .and_then(|r| r.thinking_budget_tokens)
+                    .map(|budget| ThinkingConfig {
+                        enabled: true,
+                        budget_tokens: Some(budget),
+                    })
+                    .or_else(|| auto_thinking(self.provider, self.model)),
+                reasoning_effort: self
+                    .reasoning
+                    .and_then(|r| r.effort)
+                    .map(canonical_effort)
+                    .or_else(|| auto_reasoning(self.provider, self.model)),
             },
         }
     }
@@ -163,6 +184,14 @@ fn auto_thinking(provider: BridgeProvider, model: &str) -> Option<ThinkingConfig
         });
     }
     None
+}
+
+const fn canonical_effort(effort: AgentReasoningEffort) -> ReasoningEffort {
+    match effort {
+        AgentReasoningEffort::Low => ReasoningEffort::Low,
+        AgentReasoningEffort::Medium => ReasoningEffort::Medium,
+        AgentReasoningEffort::High => ReasoningEffort::High,
+    }
 }
 
 fn auto_reasoning(provider: BridgeProvider, model: &str) -> Option<ReasoningEffort> {
@@ -204,53 +233,4 @@ pub fn tools_to_canonical(tools: Vec<McpTool>) -> Vec<CanonicalTool> {
             cache_control: None,
         })
         .collect()
-}
-
-fn messages_to_canonical(messages: &[AiMessage]) -> (Vec<SystemBlock>, Vec<CanonicalMessage>) {
-    let mut system: Option<String> = None;
-    let mut out: Vec<CanonicalMessage> = Vec::new();
-    for message in messages {
-        match message.role {
-            MessageRole::System => match &mut system {
-                Some(existing) => {
-                    existing.push('\n');
-                    existing.push_str(&message.content);
-                },
-                None => system = Some(message.content.clone()),
-            },
-            MessageRole::User | MessageRole::Assistant => {
-                let role = if matches!(message.role, MessageRole::Assistant) {
-                    Role::Assistant
-                } else {
-                    Role::User
-                };
-                let content = message_content(message);
-                if !content.is_empty() {
-                    out.push(CanonicalMessage { role, content });
-                }
-            },
-        }
-    }
-    (system.map(SystemBlock::text).into_iter().collect(), out)
-}
-
-fn message_content(message: &AiMessage) -> Vec<CanonicalContent> {
-    let mut content: Vec<CanonicalContent> = Vec::new();
-    if !message.content.is_empty() {
-        content.push(CanonicalContent::text(message.content.clone()));
-    }
-    for part in &message.parts {
-        match part {
-            AiContentPart::Text { text } => content.push(CanonicalContent::text(text.clone())),
-            AiContentPart::Image { mime_type, data } => {
-                content.push(CanonicalContent::image(ImageSource::Base64 {
-                    media_type: mime_type.clone(),
-                    data: data.clone(),
-                    detail: None,
-                }));
-            },
-            AiContentPart::Audio { .. } | AiContentPart::Video { .. } => {},
-        }
-    }
-    content
 }

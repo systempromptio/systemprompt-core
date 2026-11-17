@@ -78,11 +78,12 @@ pub trait Broadcaster: Send + Sync {
 
 pub use extension::EventsExtension;
 pub use services::{
-    A2ABroadcaster, AgUiBroadcaster, AnalyticsBroadcaster, BroadcasterConnections,
-    CACHE_INVALIDATION_CHANNEL, CACHE_INVALIDATIONS_RECEIVED_TOTAL, ConnectionGuard,
-    ContextBroadcaster, EventBridgeHandle, EventBroadcasters, EventRouter, EventsOwnerReassignment,
-    GenericBroadcaster, HEARTBEAT_INTERVAL, HEARTBEAT_JSON, NOTIFICATION_FACTS_CHANNEL,
-    OUTBOX_CHANNEL, OutboxChannel, PostgresEventBridge, RELAY_LOST_EVENT, RelayStatus,
-    TOPIC_BUFFER, TopicBroadcaster, TopicEvent, invalidate_all_cache_domains, process_origin,
-    receive_cache_invalidation, relay_lost_event, relays_row, scoped_origin, standard_keep_alive,
+    A2ABroadcaster, AgUiBroadcaster, AnalyticsBroadcaster, AnalyticsSubscriptions,
+    BroadcasterConnections, CACHE_INVALIDATION_CHANNEL, CACHE_INVALIDATIONS_RECEIVED_TOTAL,
+    ConnectionGuard, ContextBroadcaster, EventBridgeHandle, EventBroadcasters, EventRouter,
+    EventsOwnerReassignment, GenericBroadcaster, HEARTBEAT_INTERVAL, HEARTBEAT_JSON,
+    NOTIFICATION_FACTS_CHANNEL, OUTBOX_CHANNEL, OutboxChannel, PostgresEventBridge,
+    RELAY_LOST_EVENT, RelayStatus, TOPIC_BUFFER, TopicBroadcaster, TopicEvent,
+    invalidate_all_cache_domains, process_origin, receive_cache_invalidation, relay_lost_event,
+    relays_row, scoped_origin, standard_keep_alive,
 };

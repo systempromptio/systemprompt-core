@@ -34,10 +34,13 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod analyses;
+mod assembly;
 pub mod consumer;
+pub mod contract;
 pub mod defaults;
 pub mod error;
 pub mod extension;
+pub mod handle;
 pub mod index;
 pub mod jobs;
 pub mod model;
@@ -53,8 +56,10 @@ pub mod service;
 pub mod sink;
 pub mod version;
 
+pub use contract::{BrainSeams, BrainSlot, BrainSlotBuilder};
 pub use error::{BrainError, BrainResult};
 pub use extension::BrainExtension;
+pub use handle::{BrainHandle, BrainHandleParts, BrainHandleSlot};
 pub use models::{
     CursorError, FactChange, FactCursor, FactFilter, FactPage, Inserted, NewFact, NewRecall,
 };

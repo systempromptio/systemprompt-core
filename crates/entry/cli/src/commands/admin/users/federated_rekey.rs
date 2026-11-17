@@ -15,6 +15,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Result, bail};
 use clap::Args;
 use schemars::JsonSchema;
@@ -22,8 +23,8 @@ use serde::{Deserialize, Serialize};
 use systemprompt_manifest::profile::TrustedIssuer;
 use systemprompt_users::{IssuerRekeyOutcome, UserRepository};
 
-use crate::context::CommandContext;
-use crate::shared::{CommandOutput, ConfirmArgs};
+use crate::shared::ConfirmArgs;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
 pub struct FederatedRekeyArgs {
@@ -113,9 +114,9 @@ pub struct FederatedRekeyOutput {
 
 pub(super) async fn execute(
     args: FederatedRekeyArgs,
-    ctx: &CommandContext,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
-    let profile = ctx.profile()?;
+    let profile = host.profile()?;
     let own_issuer = profile.security.issuer.clone();
     let candidates = id_jag_candidates(&own_issuer, &profile.security.trusted_issuers);
     let choice = resolve_choice(
@@ -124,7 +125,7 @@ pub(super) async fn execute(
         args.delete,
         args.apply,
     )?;
-    let pool = ctx.db_pool().await?;
+    let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
     let repo = UserRepository::new(&pool);
     let apply = if args.apply { choice.as_ref() } else { None };
     let output = run(&repo, &own_issuer, &candidates, choice.as_ref(), apply).await?;

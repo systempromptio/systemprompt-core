@@ -6,8 +6,7 @@
 use anyhow::{Result, anyhow};
 use systemprompt_database::{DatabaseAdminService, QueryExecutor};
 
-use crate::CliConfig;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 use super::text_format::{extract_relation_name, suggest_table_name};
 use super::types::DbExecuteOutput;
@@ -28,7 +27,6 @@ pub(super) async fn execute_query(
     executor: &QueryExecutor,
     admin_service: &DatabaseAdminService,
     params: &QueryParams<'_>,
-    _config: &CliConfig,
 ) -> Result<CommandOutput> {
     let final_sql = match (params.limit, params.offset) {
         (None, None) => params.sql.to_owned(),
@@ -69,11 +67,7 @@ async fn explain_query_error(msg: &str, admin_service: &DatabaseAdminService) ->
     )
 }
 
-pub(super) async fn execute_write(
-    executor: &QueryExecutor,
-    sql: &str,
-    _config: &CliConfig,
-) -> Result<CommandOutput> {
+pub(super) async fn execute_write(executor: &QueryExecutor, sql: &str) -> Result<CommandOutput> {
     let result = executor
         .execute_write(sql)
         .await

@@ -1,20 +1,19 @@
 [root]
 section = "Added"
 area = "Kernel contract"
-text = "A capability entry crate answers its own error type through the API kernel (`kernel::IntoApiError`, `capability_error_response!`) and keeps `?` in its handlers, with the response, including the fixed 5xx body, built by `ApiHttpError`. A CLI command group or leaf declares its `--help` position (`DISPLAY_ORDER`) and the runner requirements it relaxes (`GRANTS: &[KernelGrant]`); the kernel admits a grant only for the command paths its closed table lists, refuses a parsed descriptor holding an undeclared grant before bootstrap, and resolves a parsed command line to the deepest registration on its path."
+text = "A capability entry crate answers its own error type through `systemprompt_extension::router` (`capability_error_response!`, `capability_response`) and keeps `?` in its handlers, with the response, including the fixed 5xx body, built by the API error envelope. A CLI command group or leaf declares its `--help` position (`DISPLAY_ORDER`) and requests the kernel grants it needs (`CommandDecl::requesting(&[KernelGrant])`); the kernel admits a grant only for the reserved command paths and owner its closed table lists, refuses a parsed descriptor holding an undeclared grant before bootstrap, and resolves a parsed command line to the deepest registration on its path."
 
 [[crate]]
-name = "systemprompt-api"
+name = "systemprompt-extension"
 section = "Added"
-text = "`kernel::IntoApiError`, `kernel::capability_response` and the `capability_error_response!` macro map an entry crate's error type onto the API error envelope; `kernel::create_sse_stream` is exported for capability route crates."
+text = "`router::{capability_response, capability_error_response!}`, `cli::{KernelGrant, CommandDecl, DescribedCommand, REGISTERED_DISPLAY_ORDER}`, `CliCommandGroup::DISPLAY_ORDER`, `CliCommandLeaf::DISPLAY_ORDER` and `CommandDescriptor::{holds, with_grant, with_cloud_operator, with_local_export}`."
 
 [[crate]]
 name = "systemprompt-cli"
 section = "Added"
-text = "`kernel::KernelGrant` (`ChildHost`, `ServesApi`, `CloudOperator`, `LocalExport`, `SkipValidation`), `CliCommandGroup::DISPLAY_ORDER` and `CliCommandLeaf::DISPLAY_ORDER` (default `kernel::REGISTERED_DISPLAY_ORDER`, after the kernel groups), `CliCommandGroup::GRANTS` and `CliCommandLeaf::GRANTS`, `kernel::ResolveError` (returned by `CommandRegistry::resolve`), `RegistryError::{ShadowsGroup, GrantNotListed, UndeclaredGrant}`, `kernel::{describe_command_line, command_line_path}`, `kernel::FileSummary`, and `CommandDescriptor::{holds, with_grant, with_cloud_operator, with_local_export}`."
+text = "`kernel::ResolveError` (returned by `CommandRegistry::resolve`), `RegistryError::{ShadowsGroup, ReservedPath, GrantNotListed, UndeclaredGrant}` and `kernel::describe_command_line`."
 
 [[crate]]
 name = "systemprompt-cli"
 section = "Breaking"
 text = "`runner::profile_routing::is_cloud_bypass_command`, `args::has_local_export_flag` and `args::has_local_export_flag_in` take the command's `&CommandDescriptor` instead of the parsed `Option<&Commands>`."
-

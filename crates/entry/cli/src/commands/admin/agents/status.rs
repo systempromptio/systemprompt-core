@@ -3,13 +3,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use clap::Args;
 
 use super::types::{AgentStatusOutput, AgentStatusRow};
-use crate::context::CommandContext;
-use crate::shared::CommandOutput;
 use systemprompt_agent::services::agent_orchestration::AgentStatus;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct StatusArgs {
@@ -17,13 +17,12 @@ pub struct StatusArgs {
     pub name: Option<String>,
 }
 
-pub(super) async fn execute(args: StatusArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let services_config = ctx
-        .boot()?
+pub(super) async fn execute(args: StatusArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+    let services_config = crate::commands::admin::state::boot(host)?
         .load_services_config()
         .context("Failed to load services configuration")?;
 
-    let orchestrator = super::delete::build_orchestrator(ctx)
+    let orchestrator = super::delete::build_orchestrator(host)
         .await
         .context("Failed to initialize agent orchestrator")?;
 

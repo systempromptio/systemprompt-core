@@ -192,7 +192,7 @@ async fn apply_system_prompt_override_is_noop_without_overrides() {
     let mut request = canonical();
     let before = request.system.clone();
     let descriptor = apply_system_prompt_override(
-        &OverridePolicy::new(),
+        &OverridePolicy::default(),
         &config,
         &provider,
         "claude-test-upstream",
@@ -221,7 +221,7 @@ async fn apply_system_prompt_override_replace_swaps_system_prompt() {
     });
     let mut request = canonical();
     let descriptor = apply_system_prompt_override(
-        &OverridePolicy::new(),
+        &OverridePolicy::default(),
         &config,
         &ProviderId::new("anthropic"),
         "claude-test-upstream",
@@ -246,7 +246,7 @@ async fn apply_system_prompt_override_strip_clears_system_prompt() {
     let mut request = canonical();
     request.system = vec![SystemBlock::text("to be removed".to_owned())];
     let descriptor = apply_system_prompt_override(
-        &OverridePolicy::new(),
+        &OverridePolicy::default(),
         &config,
         &ProviderId::new("anthropic"),
         "claude-test-upstream",
@@ -271,7 +271,7 @@ async fn apply_system_prompt_override_non_matching_provider_passes_through() {
     let mut request = canonical();
     let before = request.system.clone();
     apply_system_prompt_override(
-        &OverridePolicy::new(),
+        &OverridePolicy::default(),
         &config,
         &ProviderId::new("anthropic"),
         "claude-test-upstream",

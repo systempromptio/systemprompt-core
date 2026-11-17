@@ -12,6 +12,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -25,8 +26,7 @@ use systemprompt_manifest::profile::UnappliedPlaneMode;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::services::ConfigReconcileService;
 
-use crate::context::CommandContext;
-use crate::shared::{CommandOutput, render_result};
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum PlanesCommands {
@@ -121,11 +121,9 @@ struct PlaneListRow {
     reconciled_at: Option<String>,
 }
 
-pub async fn execute(command: PlanesCommands, ctx: &CommandContext) -> Result<()> {
-    let app = ctx.app_context().await?;
-    let output = run(command, app).await?;
-    render_result(&output, &ctx.cli);
-    Ok(())
+pub async fn execute(command: PlanesCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
+    let app = crate::commands::admin::state::app(host).await?;
+    run(command, &app).await
 }
 
 pub async fn run(command: PlanesCommands, ctx: &Arc<AppContext>) -> Result<CommandOutput> {

@@ -3,7 +3,7 @@
 //! Every tick that actually runs a job (the claim was won) records
 //! `scheduler_job_runs_total{job,status}` and
 //! `scheduler_job_duration_seconds{job}`; `status` is `success`, `idle` or
-//! `error`. Job names come from the compiled-in inventory, so the label set is
+//! `error`. Job names come from the admitted composition, so the label set is
 //! closed.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

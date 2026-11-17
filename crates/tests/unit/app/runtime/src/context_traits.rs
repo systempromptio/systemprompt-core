@@ -13,16 +13,16 @@ use systemprompt_extension::{
 use systemprompt_identifiers::{InstanceId, LeaseKey};
 use systemprompt_models::RouteType;
 use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, test_app_context, test_database_url, test_db_pool,
-};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_database_url};
 use systemprompt_traits::AppContext as AppContextTrait;
 
 async fn context() -> (Arc<AppContext>, String) {
     ensure_test_bootstrap();
     let url = test_database_url();
-    let pool = test_db_pool().await;
-    (test_app_context(&pool, &url), url)
+    (
+        systemprompt_test_fixtures::test_app_context(&url).await,
+        url,
+    )
 }
 
 #[tokio::test]
@@ -78,12 +78,10 @@ async fn the_extension_view_resolves_loaded_secrets_and_refuses_unknown_ones() {
 }
 
 #[tokio::test]
-async fn the_extension_view_finds_no_extension_that_was_never_registered() {
+async fn the_extension_view_reads_the_same_config_planes() {
     let (ctx, _url) = context().await;
     let view: &dyn ExtensionContext = ctx.as_ref();
 
-    assert!(view.get_extension("sp-no-such-extension").is_none());
-    assert!(!view.has_extension("sp-no-such-extension"));
     assert_eq!(view.config_planes().is_ok(), ctx.config_planes().is_ok());
 }
 
@@ -127,6 +125,7 @@ async fn the_extension_view_hands_out_the_shared_background_tasks() {
     let (ctx, _url) = context().await;
     let view: &dyn ExtensionContext = ctx.as_ref();
     let (release, released) = tokio::sync::oneshot::channel::<()>();
+    let before = ctx.background_tasks().in_flight();
 
     view.background_tasks()
         .spawn("context-traits-test", async move {
@@ -135,21 +134,25 @@ async fn the_extension_view_hands_out_the_shared_background_tasks() {
 
     assert_eq!(
         ctx.background_tasks().in_flight(),
-        1,
+        before + 1,
         "a task spawned through the extension view is tracked by the context's owner"
     );
     release.send(()).expect("task still waiting");
-    let outcome = ctx
-        .background_tasks()
-        .drain(std::time::Duration::from_secs(5))
-        .await;
-    assert!(outcome.is_drained());
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    while ctx.background_tasks().in_flight() > before && std::time::Instant::now() < deadline {
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+    assert_eq!(
+        ctx.background_tasks().in_flight(),
+        before,
+        "the released task finishes and leaves the owner's set"
+    );
 }
 
 #[tokio::test]
 async fn the_kernel_state_carries_the_oauth_repositories() {
     let (ctx, _url) = context().await;
-    let state = systemprompt_runtime::kernel_state(&ctx);
+    let state = ctx.kernel().state();
     let repos = state
         .get::<std::sync::Arc<systemprompt_oauth::repository::OAuthRepositories>>()
         .expect("the oauth repositories are a kernel state entry");
@@ -159,7 +162,7 @@ async fn the_kernel_state_carries_the_oauth_repositories() {
 #[tokio::test]
 async fn the_kernel_state_never_carries_the_analytics_broadcaster() {
     let (ctx, _url) = context().await;
-    let state = systemprompt_runtime::kernel_state(&ctx);
+    let state = ctx.kernel().state();
     assert!(
         state
             .find::<Arc<systemprompt_events::AnalyticsBroadcaster>>()
@@ -171,5 +174,19 @@ async fn the_kernel_state_never_carries_the_analytics_broadcaster() {
         view.extension_state()
             .find::<Arc<systemprompt_events::AnalyticsBroadcaster>>()
             .is_none()
+    );
+}
+
+#[tokio::test]
+async fn the_api_build_leaves_the_documents_handles_bound() {
+    let (ctx, _url) = context().await;
+    let slot = ctx
+        .kernel()
+        .state()
+        .get::<systemprompt_files::documents::DocumentsHandlesSlot>()
+        .expect("the API seeds the documents handles slot");
+    assert!(
+        slot.get().is_some(),
+        "the API binds the documents handles once its store is built"
     );
 }

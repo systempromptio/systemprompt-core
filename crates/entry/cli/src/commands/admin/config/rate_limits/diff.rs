@@ -3,22 +3,20 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result, bail};
 use std::fs;
 use std::path::Path;
-use systemprompt_logging::CliService;
 use systemprompt_manifest::profile::RateLimitsConfig;
+use systemprompt_models::artifacts::NoticeLine;
 
 use super::DiffArgs;
-use crate::cli_settings::OutputFormat;
-use crate::context::CommandContext;
-use crate::shared::{CommandOutput, render_result};
+use systemprompt_extension::cli::CommandOutput;
 
 use super::super::types::{DiffEntry, DiffOutput};
 
-pub(super) fn execute_diff(args: &DiffArgs, ctx: &CommandContext) -> Result<()> {
-    let config = &ctx.cli;
-    let profile = ctx.profile()?;
+pub(super) fn execute_diff(args: &DiffArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+    let profile = host.profile()?;
     let current = &profile.rate_limits;
 
     let (compare_with, source) = if args.defaults {
@@ -53,21 +51,15 @@ pub(super) fn execute_diff(args: &DiffArgs, ctx: &CommandContext) -> Result<()> 
         differences,
     };
 
-    render_result(
-        &CommandOutput::table_of(vec!["field", "current", "other"], &output.differences)
-            .with_title("Rate Limits Diff"),
-        config,
-    );
-
-    if config.output_format() == OutputFormat::Table {
-        if count == 0 {
-            CliService::success("No differences found");
-        } else {
-            CliService::info(&format!("{count} difference(s) found"));
-        }
-    }
-
-    Ok(())
+    Ok(
+        CommandOutput::table_of(vec!["field", "current", "other"], &output.differences)
+            .with_title("Rate Limits Diff")
+            .with_note(if count == 0 {
+                NoticeLine::new("success", "No differences found")
+            } else {
+                NoticeLine::new("info", format!("{count} difference(s) found"))
+            }),
+    )
 }
 
 pub fn collect_differences(

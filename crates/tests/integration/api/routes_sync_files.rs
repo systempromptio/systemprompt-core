@@ -1,8 +1,9 @@
 //! File download end to end through `sync_router`.
 //!
-//! Builds an `AppContext` whose `paths.services` points at a temp tree
-//! containing allow-listed directories, then drives the manifest and download
-//! handlers so the internal `collect_files` and `create_tarball` helpers run.
+//! Seeds allow-listed directories into the test bootstrap's services tree,
+//! which the `AppContext` reads as `paths.services`, then drives the manifest
+//! and download handlers so the internal `collect_files` and `create_tarball`
+//! helpers run.
 //!
 //! `get_services_path` reads the context's `app_paths` only, so the test drives
 //! the path purely through the context (no env mutation, which the workspace
@@ -13,44 +14,27 @@ use std::sync::Arc;
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, Response, header};
 use systemprompt_api::routes::sync_router;
-use systemprompt_manifest::profile::PathsConfig;
-use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::app_context::fixture_app_context_with;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context};
 use tower::ServiceExt;
 
-async fn ctx_with_services(tree: &std::path::Path) -> anyhow::Result<Arc<AppContext>> {
+async fn ctx_with_services() -> anyhow::Result<Arc<AppContext>> {
     let b = ensure_test_bootstrap();
-    let pool = test_db_pool().await;
-    let services = tree.to_string_lossy().into_owned();
-    let paths = PathsConfig {
-        root: None,
-        system: services.clone(),
-        services,
-        bin: "/tmp".to_string(),
-        web_path: Some("/tmp".to_string()),
-        storage: Some("/tmp".to_string()),
-        geoip_database: None,
-        shipped_files: None,
-        data: None,
-    };
-    fixture_app_context_with(&pool, &b.database_url, paths, Arc::new(AllowAllFilter))
+    seed_services_tree(&b.services_path);
+    Ok(test_app_context(&b.database_url).await)
 }
 
 fn app(ctx: &AppContext) -> axum::Router {
     sync_router().with_state(ctx.clone())
 }
 
-fn make_services_tree() -> tempfile::TempDir {
-    let dir = tempfile::tempdir().expect("tempdir");
-    let agents = dir.path().join("agents");
+fn seed_services_tree(root: &std::path::Path) {
+    let agents = root.join("agents");
     std::fs::create_dir_all(&agents).expect("mkdir agents");
     std::fs::write(agents.join("hello.yaml"), b"name: hello\n").expect("write file");
-    let config = dir.path().join("config");
+    let config = root.join("config");
     std::fs::create_dir_all(&config).expect("mkdir config");
     std::fs::write(config.join("settings.json"), b"{}\n").expect("write file");
-    dir
 }
 
 async fn read_json(resp: Response<Body>) -> anyhow::Result<(http::StatusCode, serde_json::Value)> {
@@ -69,8 +53,7 @@ fn get(uri: &str) -> Request<Body> {
 
 #[tokio::test]
 async fn manifest_lists_files_in_services_tree() -> anyhow::Result<()> {
-    let tree = make_services_tree();
-    let ctx = ctx_with_services(tree.path()).await?;
+    let ctx = ctx_with_services().await?;
 
     let resp = app(&ctx).oneshot(get("/files/manifest")).await?;
     let (status, body) = read_json(resp).await?;
@@ -91,8 +74,7 @@ async fn manifest_lists_files_in_services_tree() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn manifest_with_filter_restricts_directories() -> anyhow::Result<()> {
-    let tree = make_services_tree();
-    let ctx = ctx_with_services(tree.path()).await?;
+    let ctx = ctx_with_services().await?;
 
     let resp = app(&ctx)
         .oneshot(get("/files/manifest?filter=agents"))
@@ -111,8 +93,7 @@ async fn manifest_with_filter_restricts_directories() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn download_dry_run_returns_manifest() -> anyhow::Result<()> {
-    let tree = make_services_tree();
-    let ctx = ctx_with_services(tree.path()).await?;
+    let ctx = ctx_with_services().await?;
 
     let resp = app(&ctx).oneshot(get("/files?dry_run=true")).await?;
     let (status, body) = read_json(resp).await?;
@@ -123,8 +104,7 @@ async fn download_dry_run_returns_manifest() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn download_streams_gzip_tarball() -> anyhow::Result<()> {
-    let tree = make_services_tree();
-    let ctx = ctx_with_services(tree.path()).await?;
+    let ctx = ctx_with_services().await?;
 
     let resp = app(&ctx).oneshot(get("/files")).await?;
     assert_eq!(resp.status().as_u16(), 200);

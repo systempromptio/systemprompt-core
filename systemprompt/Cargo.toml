@@ -49,6 +49,7 @@ api = [
     "dep:systemprompt-mcp-host",
     "dep:systemprompt-oauth-issuance",
     "dep:axum",
+    "systemprompt-extension?/router",
     "systemprompt-slack-entry?/http",
     "systemprompt-teams-entry?/http",
     "systemprompt-agent-runs-entry?/http",
@@ -69,7 +70,7 @@ client = ["dep:systemprompt-client"]
 security = ["dep:systemprompt-security", "dep:systemprompt-governance"]
 
 # CLI entry point for product binaries (standalone, use 'full' for everything)
-cli = ["dep:systemprompt-cli", "systemprompt-agent-runs-entry?/cli", "systemprompt-cloud-entry?/cli", "systemprompt-content-entry?/cli", "systemprompt-analytics-entry?/cli"]
+cli = ["config", "dep:systemprompt-cli", "dep:systemprompt-extension", "systemprompt-extension/cli", "systemprompt-cloud-entry?/cli", "systemprompt-content-entry?/cli", "systemprompt-analytics-entry?/cli"]
 
 # Runtime builder for embedding systemprompt as a library
 runtime = ["cli", "dep:systemprompt-extension"]
@@ -87,11 +88,11 @@ content = ["dep:systemprompt-content", "dep:systemprompt-content-entry", "system
 # Slack integration: the domain crate and the `/api/v1/slack` inbound routes
 # (Events API, slash commands, interactivity). Opt-in: excluded from `default`
 # and `full`.
-slack = ["dep:systemprompt-slack", "dep:systemprompt-slack-entry"]
+slack = ["dep:systemprompt-slack", "dep:systemprompt-slack-entry", "systemprompt-extension?/slack"]
 
 # Microsoft Teams integration: the domain crate and the `/api/v1/teams`
 # Bot Framework activity routes. Opt-in: excluded from `default` and `full`.
-teams = ["dep:systemprompt-teams", "dep:systemprompt-teams-entry"]
+teams = ["dep:systemprompt-teams", "dep:systemprompt-teams-entry", "systemprompt-extension?/teams"]
 
 # Headless coding-agent executor (Claude Code, Codex CLI runs with a leased
 # claim queue): the domain crate, the `/api/v1/agent-runs` routes and the agent
@@ -100,18 +101,18 @@ agent-runs = ["dep:systemprompt-agent-runs", "dep:systemprompt-agent-runs-entry"
 
 # OpenTelemetry: the gateway's OTLP/HTTP ingest routes and the `otlp_export`
 # job that ships the audit trail to a collector. `full` implies it.
-otel = ["systemprompt-api?/otel", "systemprompt-cli?/otel", "systemprompt-scheduler?/otel"]
+otel = ["systemprompt-api?/otel", "systemprompt-scheduler?/otel"]
 
 # The device-credential consumer surface the bridge reports installation
 # evidence through. `full` implies it.
-bridge = ["systemprompt-api?/bridge", "systemprompt-cli?/bridge"]
+bridge = ["systemprompt-api?/bridge"]
 
 # Office document codecs (.docx) for the files domain. `full` implies it.
 files-office = ["dep:systemprompt-files", "systemprompt-files/office"]
 
 # The PDF renderer for document export and its embedded fonts. Without it a
 # PDF export is refused as an unsupported operation. `full` implies it.
-files-pdf = ["dep:systemprompt-files", "systemprompt-files/pdf", "systemprompt-api?/pdf", "systemprompt-cli?/pdf"]
+files-pdf = ["dep:systemprompt-files", "systemprompt-files/pdf"]
 
 # Live co-editing of HTML and Markdown documents (engine-agnostic) and its HTTP
 # routes. `full` implies it.
@@ -231,7 +232,9 @@ rmcp = { workspace = true, optional = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
-inventory = { workspace = true }
+async-trait = { workspace = true }
+axum = { workspace = true }
+clap = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
@@ -241,8 +244,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 # The in-repo `systemprompt` binary. It is the reference composition: every
-# capability in `full` is linked, so each one's inventory registrations
-# (extensions, CLI commands, seams, gateway routes) are present. `doc = false`:
+# capability in `full` is a member of its composition. `doc = false`:
 # the library of the same name is the documented target.
 [[bin]]
 name = "systemprompt"
@@ -252,7 +254,7 @@ doc = false
 
 [[example]]
 name = "extension"
-required-features = ["core"]
+required-features = ["full"]
 
 [[example]]
 name = "database"
@@ -264,4 +266,4 @@ required-features = ["api"]
 
 [[example]]
 name = "cli"
-required-features = ["cli"]
+required-features = ["full"]

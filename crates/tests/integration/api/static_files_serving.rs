@@ -17,38 +17,19 @@ use systemprompt_api::services::static_content::config::StaticContentMatcher;
 use systemprompt_api::services::static_content::static_files::{
     StaticContentState, compute_etag, serve_static_content,
 };
-use systemprompt_manifest::profile::PathsConfig;
-use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_models::RouteClassifier;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_app_context_with, test_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context};
 use tempfile::TempDir;
 
-async fn state_with_dist(
-    matcher: StaticContentMatcher,
-) -> anyhow::Result<(TempDir, StaticContentState)> {
-    let b = ensure_test_bootstrap();
-    let pool = test_db_pool().await;
-    let tmp = TempDir::new()?;
-    let web = tmp.path().join("web");
-    std::fs::create_dir_all(web.join("dist"))?;
-    let paths = PathsConfig {
-        root: None,
-        system: tmp.path().to_string_lossy().into_owned(),
-        services: "/tmp".to_owned(),
-        bin: "/tmp".to_owned(),
-        web_path: Some(web.to_string_lossy().into_owned()),
-        storage: Some("/tmp".to_owned()),
-        geoip_database: None,
-        shipped_files: None,
-        data: None,
-    };
-    let ctx = fixture_app_context_with(&pool, &b.database_url, paths, Arc::new(AllowAllFilter))?;
+async fn state_with_dist(matcher: StaticContentMatcher) -> anyhow::Result<StaticContentState> {
+    let ctx = test_app_context(&ensure_test_bootstrap().database_url).await;
+    std::fs::create_dir_all(ctx.app_paths().web().dist())?;
     let state = StaticContentState {
         ctx,
         matcher: Arc::new(matcher),
         route_classifier: Arc::new(RouteClassifier::new(None)),
     };
-    Ok((tmp, state))
+    Ok(state)
 }
 
 fn dist_dir(state: &StaticContentState) -> std::path::PathBuf {
@@ -80,7 +61,7 @@ async fn serve(
 
 #[tokio::test]
 async fn serves_homepage_index() -> anyhow::Result<()> {
-    let (_tmp, state) = state_with_dist(StaticContentMatcher::empty()).await?;
+    let state = state_with_dist(StaticContentMatcher::empty()).await?;
     std::fs::write(dist_dir(&state).join("index.html"), "<h1>home</h1>")?;
 
     let (status, hdrs, body) = serve(&state, "/", HeaderMap::new()).await;
@@ -93,7 +74,7 @@ async fn serves_homepage_index() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn homepage_returns_304_when_etag_matches() -> anyhow::Result<()> {
-    let (_tmp, state) = state_with_dist(StaticContentMatcher::empty()).await?;
+    let state = state_with_dist(StaticContentMatcher::empty()).await?;
     let content = b"<h1>home</h1>";
     std::fs::write(dist_dir(&state).join("index.html"), content)?;
     let etag = compute_etag(content);
@@ -108,7 +89,7 @@ async fn homepage_returns_304_when_etag_matches() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn homepage_missing_index_is_500() -> anyhow::Result<()> {
-    let (_tmp, state) = state_with_dist(StaticContentMatcher::empty()).await?;
+    let state = state_with_dist(StaticContentMatcher::empty()).await?;
     let (status, _hdrs, _body) = serve(&state, "/", HeaderMap::new()).await;
     assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
     Ok(())
@@ -116,7 +97,7 @@ async fn homepage_missing_index_is_500() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn serves_static_asset_with_resolved_mime() -> anyhow::Result<()> {
-    let (_tmp, state) = state_with_dist(StaticContentMatcher::empty()).await?;
+    let state = state_with_dist(StaticContentMatcher::empty()).await?;
     let dist = dist_dir(&state);
     std::fs::create_dir_all(dist.join("assets"))?;
     std::fs::write(dist.join("assets/app.js"), "console.log(1)")?;
@@ -148,7 +129,7 @@ async fn serves_static_asset_with_resolved_mime() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn unhashed_asset_revalidates_via_etag() -> anyhow::Result<()> {
-    let (_tmp, state) = state_with_dist(StaticContentMatcher::empty()).await?;
+    let state = state_with_dist(StaticContentMatcher::empty()).await?;
     let dist = dist_dir(&state);
     std::fs::create_dir_all(dist.join("css"))?;
     std::fs::write(dist.join("css/content.css"), "body{color:red}")?;
@@ -175,7 +156,7 @@ async fn unhashed_asset_revalidates_via_etag() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn content_hashed_asset_is_immutable() -> anyhow::Result<()> {
-    let (_tmp, state) = state_with_dist(StaticContentMatcher::empty()).await?;
+    let state = state_with_dist(StaticContentMatcher::empty()).await?;
     let dist = dist_dir(&state);
     std::fs::create_dir_all(dist.join("assets"))?;
     std::fs::write(dist.join("assets/app.4f3a9c1e.js"), "console.log(1)")?;
@@ -191,7 +172,7 @@ async fn content_hashed_asset_is_immutable() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn missing_static_asset_is_404() -> anyhow::Result<()> {
-    let (_tmp, state) = state_with_dist(StaticContentMatcher::empty()).await?;
+    let state = state_with_dist(StaticContentMatcher::empty()).await?;
     let (status, _hdrs, _body) = serve(&state, "/assets/nope.js", HeaderMap::new()).await;
     assert_eq!(status, StatusCode::NOT_FOUND);
     Ok(())
@@ -199,7 +180,7 @@ async fn missing_static_asset_is_404() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn serves_metadata_files_and_rss_mime() -> anyhow::Result<()> {
-    let (_tmp, state) = state_with_dist(StaticContentMatcher::empty()).await?;
+    let state = state_with_dist(StaticContentMatcher::empty()).await?;
     let dist = dist_dir(&state);
     std::fs::write(dist.join("sitemap.xml"), "<urlset/>")?;
     std::fs::write(dist.join("robots.txt"), "User-agent: *")?;
@@ -231,7 +212,7 @@ async fn serves_metadata_files_and_rss_mime() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn missing_metadata_file_is_404() -> anyhow::Result<()> {
-    let (_tmp, state) = state_with_dist(StaticContentMatcher::empty()).await?;
+    let state = state_with_dist(StaticContentMatcher::empty()).await?;
     let (status, _hdrs, _b) = serve(&state, "/llms.txt", HeaderMap::new()).await;
     assert_eq!(status, StatusCode::NOT_FOUND);
     Ok(())
@@ -239,7 +220,7 @@ async fn missing_metadata_file_is_404() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn serves_parent_route_index() -> anyhow::Result<()> {
-    let (_tmp, state) = state_with_dist(StaticContentMatcher::empty()).await?;
+    let state = state_with_dist(StaticContentMatcher::empty()).await?;
     let dist = dist_dir(&state);
     std::fs::create_dir_all(dist.join("about"))?;
     std::fs::write(dist.join("about/index.html"), "<h1>about</h1>")?;
@@ -256,7 +237,7 @@ async fn serves_parent_route_index() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn unmatched_path_is_404() -> anyhow::Result<()> {
-    let (_tmp, state) = state_with_dist(StaticContentMatcher::empty()).await?;
+    let state = state_with_dist(StaticContentMatcher::empty()).await?;
     let (status, _hdrs, body) = serve(&state, "/no/such/page", HeaderMap::new()).await;
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert!(String::from_utf8_lossy(&body).contains("404"));
@@ -265,7 +246,7 @@ async fn unmatched_path_is_404() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn custom_404_html_is_served() -> anyhow::Result<()> {
-    let (_tmp, state) = state_with_dist(StaticContentMatcher::empty()).await?;
+    let state = state_with_dist(StaticContentMatcher::empty()).await?;
     std::fs::write(dist_dir(&state).join("404.html"), "<h1>custom 404</h1>")?;
 
     let (status, hdrs, body) = serve(&state, "/nope-page", HeaderMap::new()).await;
@@ -301,7 +282,7 @@ async fn content_page_matcher_falls_back_to_repo_lookup() -> anyhow::Result<()> 
     let matcher = StaticContentMatcher::from_config(cfg_path.to_str().unwrap())?;
     assert!(matcher.matches("/blog/my-post").is_some());
 
-    let (_tmp, state) = state_with_dist(matcher).await?;
+    let state = state_with_dist(matcher).await?;
     let (status, _hdrs, _body) = serve(&state, "/blog/unknown-post", HeaderMap::new()).await;
     assert_eq!(
         status,
@@ -362,7 +343,7 @@ async fn seed_blog_post(state: &StaticContentState, slug: &str) -> anyhow::Resul
 #[tokio::test]
 async fn a_prerendered_content_page_is_served_from_disk() -> anyhow::Result<()> {
     let tmp_cfg = TempDir::new()?;
-    let (_tmp, state) = state_with_dist(blog_matcher(&tmp_cfg)?).await?;
+    let state = state_with_dist(blog_matcher(&tmp_cfg)?).await?;
     let dist = dist_dir(&state);
     std::fs::create_dir_all(dist.join("blog"))?;
     std::fs::write(dist.join("blog/rendered.html"), "<h1>rendered post</h1>")?;
@@ -386,7 +367,7 @@ async fn a_prerendered_content_page_is_served_from_disk() -> anyhow::Result<()> 
 #[tokio::test]
 async fn a_prerendered_content_page_served_as_a_directory_index() -> anyhow::Result<()> {
     let tmp_cfg = TempDir::new()?;
-    let (_tmp, state) = state_with_dist(blog_matcher(&tmp_cfg)?).await?;
+    let state = state_with_dist(blog_matcher(&tmp_cfg)?).await?;
     let dist = dist_dir(&state);
     std::fs::create_dir_all(dist.join("blog/nested"))?;
     std::fs::write(dist.join("blog/nested/index.html"), "<h1>nested post</h1>")?;
@@ -401,7 +382,7 @@ async fn a_prerendered_content_page_served_as_a_directory_index() -> anyhow::Res
 #[tokio::test]
 async fn content_that_exists_but_was_never_prerendered_says_so() -> anyhow::Result<()> {
     let tmp_cfg = TempDir::new()?;
-    let (_tmp, state) = state_with_dist(blog_matcher(&tmp_cfg)?).await?;
+    let state = state_with_dist(blog_matcher(&tmp_cfg)?).await?;
     let slug = format!("unrendered-{}", uuid::Uuid::new_v4().simple());
     seed_blog_post(&state, &slug).await?;
 
@@ -422,7 +403,7 @@ async fn content_that_exists_but_was_never_prerendered_says_so() -> anyhow::Resu
 #[tokio::test]
 async fn a_prerendered_page_revalidates_with_its_etag() -> anyhow::Result<()> {
     let tmp_cfg = TempDir::new()?;
-    let (_tmp, state) = state_with_dist(blog_matcher(&tmp_cfg)?).await?;
+    let state = state_with_dist(blog_matcher(&tmp_cfg)?).await?;
     let dist = dist_dir(&state);
     std::fs::create_dir_all(dist.join("blog"))?;
     let content = b"<h1>cacheable post</h1>";

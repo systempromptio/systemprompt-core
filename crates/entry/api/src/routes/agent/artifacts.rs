@@ -2,7 +2,9 @@
 //!
 //! Handlers list artifacts by context, task, or user, fetch a single artifact,
 //! and render an artifact as MCP App UI. Every accessor enforces ownership
-//! against the authenticated [`RequestContext`] before returning data.
+//! against the authenticated [`RequestContext`] before returning data. The
+//! UI renderers are the kernel-built [`UiRendererRegistry`] read from the
+//! resolved extension state; without it a UI request fails.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,13 +14,13 @@ use axum::http::{StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use serde::Deserialize;
+use std::sync::Arc;
 
+use systemprompt_extension::{ExtensionContext as _, MissingDependency};
 use systemprompt_identifiers::{ArtifactId, TaskId};
 use systemprompt_mcp::McpDomainError;
-use systemprompt_mcp::services::ui_renderer::MCP_APP_MIME_TYPE;
-use systemprompt_mcp::services::ui_renderer::registry::{
-    create_default_registry, resolve_artifact_type,
-};
+use systemprompt_mcp::services::ui_renderer::registry::resolve_artifact_type;
+use systemprompt_mcp::services::ui_renderer::{MCP_APP_MIME_TYPE, UiRendererRegistry};
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
 use systemprompt_runtime::AppContext;
@@ -139,7 +141,10 @@ pub async fn get_artifact_ui(
         .await?;
     let artifact = artifact_repo.find_owned_artifact(&owned).await?;
 
-    let registry = create_default_registry();
+    let state = app_context.extension_state();
+    let registry = state
+        .get::<Arc<UiRendererRegistry>>()
+        .map_err(ArtifactUiError::Renderers)?;
     let artifact_type = resolve_artifact_type(&artifact);
 
     if !registry.supports(artifact_type) {
@@ -169,6 +174,8 @@ pub async fn get_artifact_ui(
 
 #[derive(Debug, thiserror::Error)]
 enum ArtifactUiError {
+    #[error("the UI renderer registry is missing from the resolved state")]
+    Renderers(#[source] MissingDependency),
     #[error("failed to render artifact UI")]
     Render(#[source] McpDomainError),
     #[error("failed to build artifact UI response")]
@@ -178,6 +185,7 @@ enum ArtifactUiError {
 impl From<ArtifactUiError> for ApiHttpError {
     fn from(err: ArtifactUiError) -> Self {
         let context = match &err {
+            ArtifactUiError::Renderers(_) => "UI renderers unavailable",
             ArtifactUiError::Render(_) => "Failed to render artifact UI",
             ArtifactUiError::Response(_) => "Failed to build response",
         };

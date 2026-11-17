@@ -122,6 +122,10 @@ impl NotificationAudienceResolver for Roles {
         matches!(subject, AudienceSubject::Role(_))
     }
 
+    fn dimensions(&self) -> &'static [&'static str] {
+        &[]
+    }
+
     async fn members(
         &self,
         subject: &AudienceSubject,
@@ -255,6 +259,10 @@ impl NotificationAudienceResolver for MembershipOnly {
         matches!(subject, AudienceSubject::Role(_))
     }
 
+    fn dimensions(&self) -> &'static [&'static str] {
+        &[]
+    }
+
     async fn members(
         &self,
         subject: &AudienceSubject,
@@ -326,6 +334,10 @@ async fn an_unknown_membership_never_admits_a_publisher() {
             true
         }
 
+        fn dimensions(&self) -> &'static [&'static str] {
+            &[]
+        }
+
         async fn members(
             &self,
             _subject: &AudienceSubject,
@@ -366,6 +378,10 @@ async fn a_membership_check_that_times_out_refuses_the_publish() {
 
         fn handles(&self, _subject: &AudienceSubject) -> bool {
             true
+        }
+
+        fn dimensions(&self) -> &'static [&'static str] {
+            &[]
         }
 
         async fn members(

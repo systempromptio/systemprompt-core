@@ -6,17 +6,14 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
 use systemprompt_api::routes::sso::{SsoRouteState, binder_from_headers, router};
 use systemprompt_oauth::OAuthState;
-use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, test_app_context, test_database_url, test_db_pool,
-};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context, test_database_url};
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
 
 async fn app() -> axum::Router {
     let url = test_database_url();
     ensure_test_bootstrap();
-    let pool = test_db_pool().await;
-    let ctx = test_app_context(&pool, &url);
+    let ctx = test_app_context(&url).await;
     let oauth = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider(),
@@ -24,8 +21,12 @@ async fn app() -> axum::Router {
         ctx.user_provider().expect("user"),
         systemprompt_test_fixtures::test_oauth_signing(),
     );
-    router(SsoRouteState::build(&ctx, &oauth).expect("sso routes build"))
-        .layer(axum::Extension(ctx.config_arc().clone()))
+    router(SsoRouteState::build(
+        &ctx,
+        &oauth,
+        &systemprompt_oauth_issuance::contract::SsoProviders::default(),
+    ))
+    .layer(axum::Extension(ctx.config_arc().clone()))
 }
 
 fn assert_refused_unavailable(resp: &axum::response::Response) {

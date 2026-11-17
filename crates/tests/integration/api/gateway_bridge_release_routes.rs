@@ -89,9 +89,9 @@ async fn app() -> anyhow::Result<(Router, String)> {
     let b = boot().await;
     let pool = test_db_pool().await;
     let fixture = seed_admin_credential(&pool, "bridge-release").await?;
-    let ctx = test_app_context_on(&b, &pool);
+    let ctx = test_app_context_on(&b).await;
     Ok((
-        gateway_router(&ctx).expect("gateway router builds"),
+        gateway_router(&ctx, ctx.admitted(), ctx.kernel()).expect("gateway router builds"),
         fixture.jwt.as_str().to_owned(),
     ))
 }

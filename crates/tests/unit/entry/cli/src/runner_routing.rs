@@ -10,7 +10,6 @@
 
 use clap::Parser;
 use systemprompt_cli::args::Cli;
-use systemprompt_cli::descriptor::{CommandDescriptor, DataImpact, DescribeCommand, RoutingClass};
 use systemprompt_cli::runner::profile_routing::{
     BootstrapOutcome, confirm_remote_job_run, is_cloud_bypass_command,
 };
@@ -21,8 +20,10 @@ use systemprompt_cli::runner::routing::{
 use systemprompt_cli::runner::routing_decision::{
     RoutingDecision, allow_local_execution, decide_routing, remediation_for,
 };
-use systemprompt_cli::{CliConfig, OutputFormat};
 use systemprompt_cloud::SessionKey;
+use systemprompt_extension::cli::{
+    CliConfig, CommandDescriptor, DataImpact, DescribeCommand, OutputFormat, RoutingClass,
+};
 use systemprompt_identifiers::{ContextId, SessionToken, TenantId};
 use systemprompt_manifest::Profile;
 

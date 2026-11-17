@@ -1,0 +1,49 @@
+[root]
+section = "Breaking"
+area = "Extensions"
+text = "`Extension` is `metadata()` plus one `contribute(&mut Contributions)`: a member declares its schemas, migrations, seeds, routes (`RouteSet`), gateway routes, commands, jobs, retention, projections, run origins, provided and required state, slots, readiness checks, diagnostics, metrics, gateway guards, site auth, configs and assets through `Contributions`, and the composition admits them before any is built. The defaulted hooks (`schemas`, `router`, `routers`, `jobs`, `provide`, `requires`, `diagnostics`, `metrics`, `runner_services`, the content, gateway, governance, notification, brain, files, marketplace and MCP hooks), `ExtensionRegistry`, `ExtensionRouter`, `ExtensionRouterConfig`, `StateBuilder` and `ExtensionContext::{get_extension, has_extension}` are removed. The `register_extension!`, `submit_job!`, `register_retention_purge!`, `register_retention_sweep!`, `register_retention_hold!`, `register_job_run_scope!`, `register_gateway_guard!`, `register_notification_*!`, `register_resource_visibility!`, `register_brain_*!`, `register_document_codec!` and `register_document_template_provider!` macros, their registration types and `registered_*` readers are removed, and the `inventory` dependency is gone. Contract types move: `SubjectAttributeProvider`, `SubjectDimension`, `SubjectAttributeError` and `RESERVED_SUBJECT_DIMENSIONS` to `systemprompt_traits::authz`; `GovernancePolicy` (without `secret_scanner`), `Decision`, `EntityKind` and `RuleType` to `systemprompt_provider_contracts::governance`; `ProjectionDrain` to `systemprompt_extension`; `RunOrigin` and the subscribe-only `AnalyticsSubscription` to `systemprompt_traits`; the capability HTTP error, `capability_error_response!` and content negotiation to `systemprompt_extension::router`; the CLI command traits, descriptor, settings, output and `Prompter` to `systemprompt_extension::cli`. Migrate by moving each hook body into `contribute` and importing the moved types from their new paths."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`Extension` is `metadata()` plus `contribute(&mut Contributions)`; the defaulted hooks, `ExtensionRegistry`, `ExtensionRouter`, `ExtensionRouterConfig`, `StateBuilder` and `ExtensionContext::{get_extension, has_extension}` are removed, as are `register_extension!`, `register_gateway_guard!`, `register_retention_hold!`, the `register_notification_*!`, `register_resource_visibility!` and `register_brain_*!` macros and their registration types. Routes are `router::RouteSet` (`RouteSet::base` returns `BaseRef`; a gateway set is built with `RouteSet::gateway(GatewayPath, RouteGroup)`; `GatewayRouteDecl::path` replaces its field; a set built through the wrong builder is `ContributionError::RouteSetKind`); `RouteDef::method` is `RouteMethod`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`Contributions`, `Resolved`/`FromState`, capability `Slot`s with `SlotError`, `FactoryError::into_slot_error`, `build_factories`, `ExtensionConfig`, `Handed<handles::AnalyticsBroadcaster>`, `reserved` (`RESERVED_PATHS`, `BUILTIN_GATEWAY_PREFIXES`, `RESERVED_CLI_PATHS`, `PRIVILEGED_SHAPES`, `CoreId`), `router` (`RouteSet`, `RouteSetBuilder::service`, `capability_error_response!`, `subscription_refused`, `refused_reservation`, `reserved_below`), `cli` (`CliCommandGroup`, `CliCommandLeaf`, `CommandDecl`, `CommandHost`, `CommandOutput`, `CommandError`, `KernelGrant`, `parsers`, `time_format`, `resolve_required`, `FlagRequired`, `FileSummary`), `projection::{AdmittedProjections, DrainTarget}` and the `router` and `cli` features."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Breaking"
+text = "`SubjectAttributeProvider`, `SubjectDimension`, `SubjectAttributeError` and `RESERVED_SUBJECT_DIMENSIONS` are in `authz`; `RunOrigin` and `AnalyticsSubscription` are added. `register_retention_purge!`, `register_retention_sweep!` and `register_job_run_scope!` and their registration types are removed."
+
+[[crate]]
+name = "systemprompt-provider-contracts"
+section = "Breaking"
+text = "`governance` holds `GovernancePolicy` (without `secret_scanner`), `Decision`, `EntityKind` and `RuleType`. `submit_job!`, `JobRegistration`, `registered_jobs`, `register_document_codec!` and `register_document_template_provider!` are removed."
+
+[[crate]]
+name = "systemprompt-database"
+section = "Breaking"
+text = "`projection::{ProjectionDrainContribution, registered_drains}` and `submit_projection_drain!` are removed; a drain binds with `Contributions::projection` and drainer jobs read `AdmittedProjections`. `ProjectionDrain` is in `systemprompt_extension`."
+
+[[crate]]
+name = "systemprompt-events"
+section = "Changed"
+text = "The events member declares its schema and contributions through `Extension::contribute`."
+
+[[crate]]
+name = "systemprompt-logging"
+section = "Changed"
+text = "The logging member declares its schema and contributions through `Extension::contribute`."
+
+[[crate]]
+name = "systemprompt-loader"
+section = "Removed"
+text = "`ModuleLoader`, which had no caller."
+
+[[crate]]
+name = "systemprompt-cloud"
+section = "Changed"
+text = "The generated Dockerfile creates the storage directories of every admitted member."

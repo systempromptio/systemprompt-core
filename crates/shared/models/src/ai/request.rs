@@ -2,15 +2,17 @@
 //!
 //! [`AiRequest`] is the unified request shape passed to any LLM provider: a
 //! sequence of [`AiMessage`]s (each optionally carrying multimodal
-//! [`AiContentPart`]s), the provider/model config, sampling params, available
-//! tools, and structured-output options. Build via [`AiRequestBuilder`] for the
-//! optional fields.
+//! [`AiContentPart`]s), the provider/model config, sampling and reasoning
+//! params, available tools, and structured-output options. A caller running
+//! its own tool loop replays a turn with the tool-use and thinking parts on the
+//! assistant message and the tool-result parts on the user message after it.
+//! Build via [`AiRequestBuilder`] for the optional fields.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use super::response_format::StructuredOutputOptions;
-use super::sampling::{ProviderConfig, SamplingParams};
+use super::sampling::{ProviderConfig, ReasoningParams, SamplingParams};
 use super::tools::McpTool;
 use crate::execution::context::RequestContext;
 use serde::{Deserialize, Serialize};
@@ -18,10 +20,44 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum AiContentPart {
-    Text { text: String },
-    Image { mime_type: String, data: String },
-    Audio { mime_type: String, data: String },
-    Video { mime_type: String, data: String },
+    Text {
+        text: String,
+    },
+    Image {
+        mime_type: String,
+        data: String,
+    },
+    Audio {
+        mime_type: String,
+        data: String,
+    },
+    Video {
+        mime_type: String,
+        data: String,
+    },
+    ToolUse {
+        id: String,
+        name: String,
+        // JSON: tool-call arguments are the tool's own JSON object.
+        input: serde_json::Value,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        signature: Option<String>,
+    },
+    ToolResult {
+        tool_use_id: String,
+        content: String,
+        #[serde(default)]
+        is_error: bool,
+    },
+    Thinking {
+        text: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        signature: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        id: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        encrypted_content: Option<String>,
+    },
 }
 
 impl AiContentPart {
@@ -47,6 +83,41 @@ impl AiContentPart {
         Self::Video {
             mime_type: mime_type.into(),
             data: data.into(),
+        }
+    }
+
+    pub fn tool_use(
+        id: impl Into<String>,
+        name: impl Into<String>,
+        // JSON: tool-call arguments are the tool's own JSON object.
+        input: serde_json::Value,
+    ) -> Self {
+        Self::ToolUse {
+            id: id.into(),
+            name: name.into(),
+            input,
+            signature: None,
+        }
+    }
+
+    pub fn tool_result(
+        tool_use_id: impl Into<String>,
+        content: impl Into<String>,
+        is_error: bool,
+    ) -> Self {
+        Self::ToolResult {
+            tool_use_id: tool_use_id.into(),
+            content: content.into(),
+            is_error,
+        }
+    }
+
+    pub fn thinking(text: impl Into<String>, signature: Option<String>) -> Self {
+        Self::Thinking {
+            text: text.into(),
+            signature,
+            id: None,
+            encrypted_content: None,
         }
     }
 
@@ -106,6 +177,8 @@ pub struct AiRequest {
     pub provider_config: ProviderConfig,
     pub context: RequestContext,
     pub sampling: Option<SamplingParams>,
+    #[serde(default)]
+    pub reasoning: Option<ReasoningParams>,
     pub tools: Option<Vec<McpTool>>,
     pub structured_output: Option<StructuredOutputOptions>,
     pub system_prompt: Option<String>,
@@ -145,6 +218,7 @@ pub struct AiRequestBuilder {
     provider_config: ProviderConfig,
     context: RequestContext,
     sampling: Option<SamplingParams>,
+    reasoning: Option<ReasoningParams>,
     tools: Option<Vec<McpTool>>,
     structured_output: Option<StructuredOutputOptions>,
     system_prompt: Option<String>,
@@ -163,6 +237,7 @@ impl AiRequestBuilder {
             provider_config: ProviderConfig::new(provider, model, max_output_tokens),
             context,
             sampling: None,
+            reasoning: None,
             tools: None,
             structured_output: None,
             system_prompt: None,
@@ -171,6 +246,11 @@ impl AiRequestBuilder {
 
     pub fn with_sampling(mut self, sampling: SamplingParams) -> Self {
         self.sampling = Some(sampling);
+        self
+    }
+
+    pub const fn with_reasoning(mut self, reasoning: ReasoningParams) -> Self {
+        self.reasoning = Some(reasoning);
         self
     }
 
@@ -195,6 +275,7 @@ impl AiRequestBuilder {
             provider_config: self.provider_config,
             context: self.context,
             sampling: self.sampling,
+            reasoning: self.reasoning,
             tools: self.tools,
             structured_output: self.structured_output,
             system_prompt: self.system_prompt,

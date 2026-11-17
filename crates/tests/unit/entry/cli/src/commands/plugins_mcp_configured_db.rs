@@ -17,11 +17,12 @@
 use std::sync::{Arc, OnceLock};
 
 use clap::Parser;
-use systemprompt_cli::paths::ResolvedPaths;
 use systemprompt_cli::plugins::mcp::{self, McpCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
+use systemprompt_cloud::paths::ResolvedPaths;
 use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity, SessionKey, SessionStore};
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken};
 use systemprompt_models::auth::UserType;
 use systemprompt_runtime::AppContext;
@@ -114,14 +115,13 @@ fn parse(args: &[&str]) -> McpCommands {
         .cmd
 }
 
-fn app_over(pool: &DbPool) -> Arc<AppContext> {
-    let b = boot();
+async fn app_over(database_url: &str) -> Arc<AppContext> {
     systemprompt_test_fixtures::fixture_app_context_on_bootstrap(
-        b,
-        pool,
-        systemprompt_test_fixtures::fixture_config(&b.database_url),
-        Arc::new(systemprompt_marketplace::AllowAllFilter),
+        boot(),
+        systemprompt_test_fixtures::fixture_config(database_url),
+        systemprompt_test_fixtures::fixture_admitted(),
     )
+    .await
     .expect("fixture AppContext over the services bootstrap")
 }
 
@@ -131,7 +131,7 @@ async fn app() -> (DbPool, Arc<AppContext>) {
     seed_fixture_system_admin(&pool)
         .await
         .expect("seed the configured system admin");
-    let app = app_over(&pool);
+    let app = app_over(&boot().database_url).await;
     (pool, app)
 }
 
@@ -148,7 +148,7 @@ fn ctx(app: &Arc<AppContext>) -> CommandContext {
 async fn run(args: &[&str]) -> anyhow::Result<()> {
     let (_pool, app) = app().await;
     assert_configured();
-    mcp::execute(parse(args), &ctx(&app)).await
+    mcp::execute(parse(args), &ctx(&app)).await.map(drop)
 }
 
 fn assert_configured() {
@@ -277,7 +277,7 @@ async fn validate_running_external_helper() {
     assert_configured();
     let database = DisposableDb::with_schema("cli_mcp_validate_external").await;
     let pool = database.test_pool().await;
-    let app = app_over(&pool);
+    let app = app_over(database.url()).await;
     app.service_repository()
         .create_service(CreateServiceInput {
             name: &ServiceName::new(ENABLED),
@@ -291,9 +291,11 @@ async fn validate_running_external_helper() {
 
     let context = ctx(&app);
     println!("BEGIN_VALIDATE_EXTERNAL");
-    mcp::execute(parse(&["validate", ENABLED, "--timeout", "1"]), &context)
-        .await
-        .expect_err("an invalid server renders its report and exits non-zero");
+    crate::boot_ctx::rendered(
+        &context,
+        mcp::execute(parse(&["validate", ENABLED, "--timeout", "1"]), &context).await,
+    )
+    .expect_err("an invalid server renders its report and exits non-zero");
     println!("END_VALIDATE_EXTERNAL");
 
     drop(context);
@@ -432,13 +434,15 @@ async fn validate_closed_database_helper() {
     boot();
     assert_configured();
     let database = DisposableDb::with_schema("cli_mcp_validate_closed_database").await;
-    let pool = database.test_pool().await;
-    let app = app_over(&pool);
-    pool.pool().close().await;
+    let app = app_over(database.url()).await;
+    app.db_pool().pool().close().await;
+    app.db_pool().write_pool().close().await;
     println!("BEGIN_VALIDATE_CLOSED_DATABASE");
-    mcp::execute(parse(&["validate", ENABLED, "--timeout", "1"]), &ctx(&app))
-        .await
-        .expect_err("database lookup failure renders its report and exits non-zero");
+    crate::boot_ctx::rendered(
+        &ctx(&app),
+        mcp::execute(parse(&["validate", ENABLED, "--timeout", "1"]), &ctx(&app)).await,
+    )
+    .expect_err("database lookup failure renders its report and exits non-zero");
     println!("END_VALIDATE_CLOSED_DATABASE");
     drop(app);
     database.drop_now().await;
@@ -485,17 +489,21 @@ async fn validate_stopped_outputs_helper() {
     assert_configured();
     let database = DisposableDb::with_schema("cli_mcp_validate_stopped_outputs").await;
     let pool = database.test_pool().await;
-    let app = app_over(&pool);
+    let app = app_over(database.url()).await;
     let context = ctx(&app);
     println!("BEGIN_VALIDATE_NAMED_STOPPED");
-    mcp::execute(parse(&["validate", ENABLED, "--timeout", "1"]), &context)
-        .await
-        .expect_err("a stopped server renders its report and exits non-zero");
+    crate::boot_ctx::rendered(
+        &context,
+        mcp::execute(parse(&["validate", ENABLED, "--timeout", "1"]), &context).await,
+    )
+    .expect_err("a stopped server renders its report and exits non-zero");
     println!("END_VALIDATE_NAMED_STOPPED");
     println!("BEGIN_VALIDATE_BATCH_STOPPED");
-    mcp::execute(parse(&["validate", "--all", "--timeout", "1"]), &context)
-        .await
-        .expect_err("a stopped batch renders its report and exits non-zero");
+    crate::boot_ctx::rendered(
+        &context,
+        mcp::execute(parse(&["validate", "--all", "--timeout", "1"]), &context).await,
+    )
+    .expect_err("a stopped batch renders its report and exits non-zero");
     println!("END_VALIDATE_BATCH_STOPPED");
     drop(context);
     drop(app);

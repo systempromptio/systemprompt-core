@@ -2,7 +2,8 @@
 
 use clap::Parser;
 use systemprompt_cli::infrastructure::db::{DbCommands, execute};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_runtime::DatabaseContext;
 use systemprompt_test_fixtures::{DisposableDb, ensure_test_bootstrap};
 
@@ -29,7 +30,7 @@ fn json_config() -> CliConfig {
 }
 
 async fn standalone(db: &DisposableDb, config: CliConfig) -> CommandContext {
-    CommandContext::with_database(
+    crate::boot_ctx::with_database(
         config,
         EnvOverrides::default(),
         DatabaseContext::from_pool(db.test_pool().await),
@@ -38,8 +39,7 @@ async fn standalone(db: &DisposableDb, config: CliConfig) -> CommandContext {
 }
 
 fn profile_driven(db: &DisposableDb, config: CliConfig) -> CommandContext {
-    crate::boot_ctx::new_with_boot(config, EnvOverrides::default())
-        .with_database_url_override(Some(db.url().to_owned()))
+    crate::boot_ctx::new_on_database(config, EnvOverrides::default(), db.url())
 }
 
 #[tokio::test]
@@ -70,7 +70,7 @@ async fn migrate_renders_json_output() {
     execute(command(&["migrate"]), &ctx)
         .await
         .expect("json migrate succeeds");
-    execute(command(&["migrate-plan", "--json"]), &ctx)
+    execute(command(&["migrate-plan"]), &ctx)
         .await
         .expect("json plan succeeds");
 
@@ -125,7 +125,7 @@ async fn verbose_profile_migrate_reports_its_target_and_stays_a_no_op() {
         .expect("seed the profile's system admin");
     let ctx = profile_driven(
         &db,
-        text_config().with_verbosity(systemprompt_cli::VerbosityLevel::Verbose),
+        text_config().with_verbosity(systemprompt_extension::cli::VerbosityLevel::Verbose),
     );
 
     execute(command(&["migrate"]), &ctx)

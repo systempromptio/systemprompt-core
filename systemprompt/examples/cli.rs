@@ -1,18 +1,13 @@
-//! Boots the standard `systemprompt` CLI through the facade.
+//! Boots the standard `systemprompt` CLI through the facade: the reference
+//! composition, run as a command-line binary.
 //!
-//! Run with: `cargo run -p systemprompt --example cli --features cli -- --help`
+//! Run with: `cargo run -p systemprompt --example cli --features full --
+//! --help`
 
-use systemprompt::cli::run;
+use std::process::ExitCode;
 
-#[tokio::main(flavor = "multi_thread")]
-async fn main() {
-    tracing_subscriber::fmt::init();
+use systemprompt::{RunError, reference};
 
-    // `run()` parses argv and builds its own config; this mirrors the template's
-    // `main.rs`. `CliConfig`/`OutputFormat`/`VerbosityLevel`/`ColorMode` are
-    // exposed for embedders that construct settings out-of-band.
-    if let Err(err) = Box::pin(run()).await {
-        tracing::error!(error = %err, "cli exited with error");
-        std::process::exit(1);
-    }
+fn main() -> Result<ExitCode, RunError> {
+    reference().run()
 }

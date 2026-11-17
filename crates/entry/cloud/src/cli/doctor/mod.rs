@@ -34,17 +34,24 @@ pub use partial::run_managed;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, anyhow, bail};
+
 use systemprompt_cloud::{ProfilePath, ProjectContext};
+use systemprompt_extension::cli::{AdmittedViews, CliConfig, CommandError, CommandHost, Prompter};
 use systemprompt_identifiers::ProfileName;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
-use systemprompt_manifest::profile::SecretsSource;
+use systemprompt_manifest::profile::{ManagedProfile, SecretsSource};
 
-use super::deploy::resolve_profile;
-use systemprompt_cli::kernel::{CliConfig, Prompter};
+use super::deploy::resolve_profile_path;
 use systemprompt_cloud::secrets_env::load_secrets_json;
+
+/// The composition as the checked profile admits it: its open views, or the
+/// admission failure the doctor reports as the `composition` check.
+pub type Composition<'a> = Result<&'a AdmittedViews, &'a CommandError>;
+
+const NEEDS_COMPOSITION: &str = "the admitted composition";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CheckStatus {
@@ -203,10 +210,36 @@ fn providers_check(profile: &Profile, secrets: &HashMap<String, String>) -> Chec
     }
 }
 
+pub fn composition_failure(error: &CommandError) -> CheckResult {
+    let mut detail = error.to_string();
+    let mut cause = std::error::Error::source(error);
+    while let Some(next) = cause {
+        detail.push_str(": ");
+        detail.push_str(&next.to_string());
+        cause = next.source();
+    }
+    CheckResult::fail("composition", detail)
+}
+
+fn extension_config_check(profile: &Profile, views: Composition<'_>) -> CheckResult {
+    views.map_or_else(
+        |_| CheckResult::not_evaluated("extension-config", NEEDS_COMPOSITION),
+        |views| check_extension_configs(profile, &views.configs),
+    )
+}
+
+async fn schema_check(secrets: &HashMap<String, String>, views: Composition<'_>) -> CheckResult {
+    match views {
+        Ok(views) => restore_checks::check_schema_not_ahead(secrets, &views.migrations).await,
+        Err(_) => CheckResult::not_evaluated("schema-version", NEEDS_COMPOSITION),
+    }
+}
+
 pub(in crate::cli) async fn run(
     profile: &Profile,
     profile_dir: &Path,
     distributed: bool,
+    views: Composition<'_>,
 ) -> DoctorReport {
     let mut checks = profile_checks(profile);
     let secrets = resolve_secrets(profile, profile_dir, &mut checks).await;
@@ -214,9 +247,9 @@ pub(in crate::cli) async fn run(
     checks.push(check_required_secrets(&secrets));
     checks.push(check_signing_key(profile, profile_dir, &secrets));
     checks.push(providers_check(profile, &secrets));
-    checks.push(check_extension_configs(profile));
+    checks.push(extension_config_check(profile, views));
     checks.push(checks::check_database_reachable(&secrets).await);
-    checks.push(restore_checks::check_schema_not_ahead(&secrets).await);
+    checks.push(schema_check(&secrets, views).await);
     checks.push(plane_checks::check_config_planes(profile, &secrets).await);
     checks.push(plane_checks::check_services_source(profile));
     checks.push(git_credential_checks::check_git_credentials(&secrets).await);
@@ -232,9 +265,16 @@ pub(in crate::cli) async fn execute(
     distributed: bool,
     prompter: &dyn Prompter,
     config: &CliConfig,
+    host: &dyn CommandHost,
 ) -> Result<()> {
-    let profile = resolve_profile(prompter, profile_name.as_ref(), config)?;
-    let report = run_managed(&profile.managed, profile.profile_dir(), distributed).await;
+    let path = resolve_profile_path(prompter, profile_name.as_ref(), config)?;
+    let managed = ManagedProfile::load(&path)
+        .with_context(|| format!("Failed to load profile: {}", path.display()))?;
+    let profile_dir = path
+        .parent()
+        .ok_or_else(|| anyhow!("Invalid profile path: {}", path.display()))?;
+    let views = host.admitted_views(&path);
+    let report = run_managed(&managed, profile_dir, distributed, views.as_ref()).await;
     report.render();
 
     if report.has_blocking() {

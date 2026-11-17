@@ -1,17 +1,21 @@
 //! Direct tests of the public `validate_extension_configs` seam, which runs
 //! the same per-extension load-and-validate pass as the serve boot path but
-//! needs neither a profile nor a `Config`. The inventory fixture extensions
-//! (`ext_fixtures`) provide one always-valid and one always-rejecting
-//! config-bearing extension.
+//! needs neither a profile nor a `Config`. The fixture members
+//! (`ext_fixtures::fixture_admitted`) provide one always-valid and one
+//! always-rejecting config section.
 
 use systemprompt_runtime::validate_extension_configs;
+
+use crate::ext_fixtures::fixture_admitted;
 
 #[test]
 fn missing_config_files_fall_back_to_empty_config() {
     let tmp = tempfile::tempdir().expect("tempdir");
 
-    let outcomes =
-        validate_extension_configs(tmp.path(), &[]).expect("registry discovery succeeds");
+    let outcomes = validate_extension_configs(
+        &systemprompt_extension::AdmittedConfigs::of(fixture_admitted().built()),
+        tmp.path(),
+    );
 
     let ok = outcomes
         .iter()
@@ -49,8 +53,10 @@ fn malformed_config_file_reports_load_error() {
     std::fs::write(tmp.path().join("config/covextok.yaml"), ": : not yaml [")
         .expect("write malformed config");
 
-    let outcomes =
-        validate_extension_configs(tmp.path(), &[]).expect("registry discovery succeeds");
+    let outcomes = validate_extension_configs(
+        &systemprompt_extension::AdmittedConfigs::of(fixture_admitted().built()),
+        tmp.path(),
+    );
 
     let ok = outcomes
         .iter()
@@ -72,8 +78,10 @@ fn valid_config_file_passes_validation() {
     std::fs::write(tmp.path().join("config/covextok.yaml"), "mode: fine\n")
         .expect("write valid config");
 
-    let outcomes =
-        validate_extension_configs(tmp.path(), &[]).expect("registry discovery succeeds");
+    let outcomes = validate_extension_configs(
+        &systemprompt_extension::AdmittedConfigs::of(fixture_admitted().built()),
+        tmp.path(),
+    );
 
     let ok = outcomes
         .iter()
@@ -88,8 +96,10 @@ fn a_rejected_extension_config_file_is_reported_by_the_startup_pass() {
     std::fs::create_dir_all(tmp.path().join("config")).expect("mkdir config");
     std::fs::write(tmp.path().join("config/covextbad.yaml"), "mode: fine\n").expect("write config");
 
-    let outcomes =
-        validate_extension_configs(tmp.path(), &[]).expect("registry discovery succeeds");
+    let outcomes = validate_extension_configs(
+        &systemprompt_extension::AdmittedConfigs::of(fixture_admitted().built()),
+        tmp.path(),
+    );
 
     let bad = outcomes
         .iter()
@@ -99,7 +109,7 @@ fn a_rejected_extension_config_file_is_reported_by_the_startup_pass() {
         bad.error
             .as_deref()
             .is_some_and(|e| e.contains("fixture always rejects")),
-        "the extension's own config document must reach validate_config, got: {:?}",
+        "the member's own config document must reach its config validation, got: {:?}",
         bad.error
     );
 }

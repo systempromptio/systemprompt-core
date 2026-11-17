@@ -4,11 +4,11 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_agent::repository::context::ContextRepository;
-use systemprompt_cli::CliConfig;
 use systemprompt_cli::core::contexts::{create, delete, edit, resolve, show};
 use systemprompt_cli::interactive::ScriptedPrompter;
 use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity};
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::CliConfig;
 use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken, UserId};
 use systemprompt_models::auth::UserType;
 use systemprompt_test_fixtures::{seed_user_row, seed_user_session, test_db_pool, unique_user_id};
@@ -47,7 +47,7 @@ fn cfg() -> CliConfig {
     CliConfig::new().with_interactive(false)
 }
 
-fn card_title(out: &systemprompt_cli::shared::CommandOutput) -> String {
+fn card_title(out: &systemprompt_extension::cli::CommandOutput) -> String {
     serde_json::to_value(out.artifact())
         .ok()
         .and_then(|v| v.get("title").and_then(|t| t.as_str()).map(str::to_owned))

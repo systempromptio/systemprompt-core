@@ -1,6 +1,6 @@
 //! The built-in gateway prefix list is complete by construction: every route
 //! the built-in gateway surface declares, read from the router source, lies
-//! under a prefix of `builtin_gateway_prefixes()`, and every prefix covers at
+//! under a prefix of `BUILTIN_GATEWAY_PREFIXES`, and every prefix covers at
 //! least one such route.
 //!
 //! The surface is every site under `routes/gateway/` except the public
@@ -25,8 +25,8 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
-use systemprompt_api::routes::gateway::builtin::builtin_gateway_prefixes;
 use systemprompt_api::services::middleware::path_under;
+use systemprompt_extension::reserved::BUILTIN_GATEWAY_PREFIXES;
 use systemprompt_models::modules::ApiPaths;
 
 use super::inventory::{Source, each_call, enclosing_fn, fn_body, sources, split_first_arg};
@@ -198,7 +198,7 @@ fn every_way_the_builtin_surface_gains_routes_is_scanned() {
 
 #[test]
 fn every_builtin_gateway_route_lies_under_a_listed_prefix() {
-    let prefixes = builtin_gateway_prefixes();
+    let prefixes = BUILTIN_GATEWAY_PREFIXES;
     let uncovered: Vec<String> = builtin_routes(&sources())
         .into_iter()
         .filter(|(_, path)| !prefixes.iter().any(|prefix| path_under(path, prefix)))
@@ -206,7 +206,7 @@ fn every_builtin_gateway_route_lies_under_a_listed_prefix() {
         .collect();
     assert!(
         uncovered.is_empty(),
-        "built-in gateway routes outside every builtin_gateway_prefixes() entry would answer \
+        "built-in gateway routes outside every BUILTIN_GATEWAY_PREFIXES entry would answer \
          404: {uncovered:#?}"
     );
 }
@@ -214,8 +214,9 @@ fn every_builtin_gateway_route_lies_under_a_listed_prefix() {
 #[test]
 fn every_listed_prefix_covers_a_builtin_gateway_route() {
     let routes = builtin_routes(&sources());
-    let dead: Vec<&str> = builtin_gateway_prefixes()
-        .into_iter()
+    let dead: Vec<&str> = BUILTIN_GATEWAY_PREFIXES
+        .iter()
+        .copied()
         .filter(|prefix| !routes.iter().any(|(_, path)| path_under(path, prefix)))
         .collect();
     assert!(

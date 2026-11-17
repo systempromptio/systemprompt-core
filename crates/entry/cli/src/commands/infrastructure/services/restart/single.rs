@@ -3,12 +3,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::cli_settings::CliConfig;
-use crate::context::CommandContext;
-use crate::interactive::Prompter;
-use crate::shared::CommandOutput;
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use std::sync::Arc;
+use systemprompt_extension::cli::{CliConfig, CommandOutput, Prompter};
 use systemprompt_identifiers::{McpServerId, ServiceName};
 use systemprompt_loader::subprocess::StopOutcome;
 use systemprompt_logging::CliService;
@@ -18,15 +16,15 @@ use systemprompt_scheduler::{ServiceManagementService, port_holders};
 use super::super::lifecycle;
 use super::super::types::RestartOutput;
 
-pub async fn execute_api(prompter: &dyn Prompter, ctx: &CommandContext) -> Result<CommandOutput> {
-    let config = &ctx.cli;
+pub async fn execute_api(prompter: &dyn Prompter, host: &dyn KernelHost) -> Result<CommandOutput> {
+    let config = host.output();
     let quiet = config.is_json_output();
 
     if !quiet {
         CliService::section("Restarting API Server");
     }
 
-    let port = super::super::get_api_port(ctx.profile()?);
+    let port = super::super::get_api_port(host.profile()?);
     let Some(pid) = port_holders(port).await?.first().copied() else {
         if !quiet {
             CliService::warning("API server is not running");
@@ -39,7 +37,7 @@ pub async fn execute_api(prompter: &dyn Prompter, ctx: &CommandContext) -> Resul
                 kill_port_process: false,
                 skip_migrate: false,
             },
-            ctx,
+            host,
         )
         .await?;
         let output = RestartOutput {
@@ -81,7 +79,7 @@ pub async fn execute_api(prompter: &dyn Prompter, ctx: &CommandContext) -> Resul
             kill_port_process: false,
             skip_migrate: false,
         },
-        ctx,
+        host,
     )
     .await?;
 

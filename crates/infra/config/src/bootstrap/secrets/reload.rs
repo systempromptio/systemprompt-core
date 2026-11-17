@@ -140,7 +140,7 @@ impl SecretsService {
     }
 
     async fn load_candidate(&self, active: &Secrets) -> ConfigResult<(Secrets, Vec<String>)> {
-        let fresh = loader::load_from_profile_config(&self.profile).await?;
+        let fresh = loader::load_from_profile_config(&self.profile, &self.sources).await?;
         Self::validate_identity(&self.profile, &fresh)?;
         let changed = diff_secrets(active, &fresh).map_err(ConfigError::from)?;
         Ok((fresh, changed))

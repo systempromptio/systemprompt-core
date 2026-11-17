@@ -17,11 +17,13 @@ mod ai_trace_display;
 mod display;
 mod json;
 mod list;
+pub mod output;
 pub mod show;
 mod summary;
 
-pub use summary::{SummaryContext, print_summary};
+pub use summary::{SummaryContext, push_summary};
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Subcommand;
 use schemars::JsonSchema;
@@ -29,8 +31,7 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{AgentName, AiRequestId, McpToolName, TraceId};
 
 use super::types::ToolCallRow;
-use crate::context::CommandContext;
-use crate::shared::render_result;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum TraceCommands {
@@ -181,13 +182,9 @@ pub struct AiTraceOutput {
     pub agent_response: Option<String>,
 }
 
-pub async fn execute(command: TraceCommands, ctx: &CommandContext) -> Result<()> {
+pub async fn execute(command: TraceCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
-        TraceCommands::List(args) => list::execute(args, ctx).await,
-        TraceCommands::Show(args) => {
-            let result = show::execute(args, ctx).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
-        },
+        TraceCommands::List(args) => list::execute(args, host).await,
+        TraceCommands::Show(args) => show::execute(args, host).await,
     }
 }

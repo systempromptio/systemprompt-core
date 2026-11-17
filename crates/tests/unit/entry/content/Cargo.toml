@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "Route, command and declaration tests for the systemprompt-content-entry crate"
+description = "Route and command tests for the systemprompt-content-entry crate"
 publish = false
 
 [lints]
@@ -12,17 +12,16 @@ workspace = true
 
 [dependencies]
 wiremock = { workspace = true }
-systemprompt-api = { workspace = true }
 systemprompt-cli = { workspace = true }
 systemprompt-content = { workspace = true }
 systemprompt-content-entry = { workspace = true, features = ["cli", "http"] }
 systemprompt-database = { workspace = true }
-systemprompt-extension = { workspace = true }
+systemprompt-extension = { workspace = true, features = ["cli", "router"] }
 systemprompt-files = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-manifest = { workspace = true }
-systemprompt-marketplace = { workspace = true }
 systemprompt-models = { workspace = true }
+systemprompt-provider-contracts = { workspace = true }
 systemprompt-runtime = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 systemprompt-traits = { workspace = true }

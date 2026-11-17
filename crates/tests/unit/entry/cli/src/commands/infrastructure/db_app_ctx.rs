@@ -16,8 +16,9 @@ use std::sync::Arc;
 
 use clap::Parser;
 use systemprompt_cli::infrastructure::db::{self, DbCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
     DisposableDb, ensure_test_bootstrap, test_app_context, test_database_url, test_db_pool,
@@ -39,7 +40,7 @@ async fn app() -> (DbPool, Arc<AppContext>) {
     ensure_test_bootstrap();
     let url = test_database_url();
     let pool = test_db_pool().await;
-    let ctx = test_app_context(&pool, &url);
+    let ctx = test_app_context(&url).await;
     (pool, ctx)
 }
 
@@ -49,6 +50,17 @@ fn ctx(app: &Arc<AppContext>, json: bool) -> CommandContext {
         cli = cli.with_output_format(OutputFormat::Json);
     }
     crate::boot_ctx::with_app_boot(cli, EnvOverrides::default(), Arc::clone(app))
+}
+
+// The ledger-count tests own their database: `extension_migrations` is
+// written by every suite that installs a stub extension on the shared
+// database, so a table-wide count there moves under a concurrent run.
+async fn owned_app(label: &str) -> (DisposableDb, DbPool, Arc<AppContext>) {
+    ensure_test_bootstrap();
+    let database = DisposableDb::with_schema(label).await;
+    let pool = database.test_pool().await;
+    let ctx = test_app_context(database.url()).await;
+    (database, pool, ctx)
 }
 
 async fn applied_migration_count(pool: &DbPool) -> i64 {
@@ -68,7 +80,6 @@ async fn read_only_inspection_runs_under_a_full_profile_context() {
         vec!["size"],
         vec!["tables"],
         vec!["indexes"],
-        vec!["doctor"],
     ] {
         db::execute(parse(&args), &ctx(&app, true))
             .await
@@ -108,14 +119,14 @@ async fn describe_and_count_resolve_a_real_table_and_reject_an_absent_one() {
 async fn migration_reporting_subcommands_resolve_through_the_app_context() {
     let (_pool, app) = app().await;
 
-    for args in [
-        vec!["migrate-status"],
-        vec!["migrate-status", "--json"],
-        vec!["migrate-plan"],
-        vec!["migrate-plan", "--json"],
-        vec!["migrations", "status"],
+    for (args, json) in [
+        (vec!["migrate-status"], false),
+        (vec!["migrate-status"], true),
+        (vec!["migrate-plan"], false),
+        (vec!["migrate-plan"], true),
+        (vec!["migrations", "status"], false),
     ] {
-        db::execute(parse(&args), &ctx(&app, false))
+        db::execute(parse(&args), &ctx(&app, json))
             .await
             .unwrap_or_else(|e| panic!("`db {}`: {e}", args.join(" ")));
     }
@@ -132,6 +143,23 @@ async fn migration_reporting_subcommands_resolve_through_the_app_context() {
 }
 
 #[tokio::test]
+async fn doctor_runs_under_a_full_profile_context() {
+    ensure_test_bootstrap();
+    let disp = DisposableDb::with_schema("cli_app_doctor").await;
+    let app = test_app_context(disp.url()).await;
+
+    db::execute(parse(&["doctor"]), &ctx(&app, true))
+        .await
+        .unwrap_or_else(|e| panic!("`db doctor` json: {e}"));
+    db::execute(parse(&["doctor"]), &ctx(&app, false))
+        .await
+        .unwrap_or_else(|e| panic!("`db doctor` text: {e}"));
+
+    drop(app);
+    disp.drop_now().await;
+}
+
+#[tokio::test]
 async fn the_profile_migration_dispatcher_reinstalls_idempotently() {
     // A database created for this run, not the shared one: the command under
     // test installs a schema, and an install that lands on whatever an
@@ -139,7 +167,7 @@ async fn the_profile_migration_dispatcher_reinstalls_idempotently() {
     ensure_test_bootstrap();
     let disp = DisposableDb::with_schema("cov_cli_reinstall").await;
     let pool = disp.test_pool().await;
-    let app = test_app_context(&pool, disp.url());
+    let app = test_app_context(disp.url()).await;
 
     let before = applied_migration_count(&pool).await;
     assert!(
@@ -165,13 +193,13 @@ async fn the_profile_migration_dispatcher_reinstalls_idempotently() {
 
 #[tokio::test]
 async fn the_profile_dispatcher_reports_a_clean_repair_without_writing() {
-    let (pool, app) = app().await;
+    let (database, pool, app) = owned_app("cli_repair_dry_run").await;
     let before = applied_migration_count(&pool).await;
 
     db::execute(parse(&["migrate-repair"]), &ctx(&app, false))
         .await
         .expect("dry-run repair");
-    db::execute(parse(&["migrate-repair", "--json"]), &ctx(&app, true))
+    db::execute(parse(&["migrate-repair"]), &ctx(&app, true))
         .await
         .expect("dry-run repair, json");
 
@@ -180,11 +208,13 @@ async fn the_profile_dispatcher_reports_a_clean_repair_without_writing() {
         before,
         "a dry-run repair must not touch the ledger"
     );
+    drop(app);
+    database.drop_now().await;
 }
 
 #[tokio::test]
 async fn the_profile_dispatcher_refuses_an_irreversible_down_migration() {
-    let (pool, app) = app().await;
+    let (database, pool, app) = owned_app("cli_refused_down").await;
     let before = applied_migration_count(&pool).await;
 
     let err = db::execute(parse(&["migrate-down", "logging", "1"]), &ctx(&app, false))
@@ -201,6 +231,8 @@ async fn the_profile_dispatcher_refuses_an_irreversible_down_migration() {
         before,
         "a refused revert must leave the ledger intact"
     );
+    drop(app);
+    database.drop_now().await;
 }
 
 #[tokio::test]

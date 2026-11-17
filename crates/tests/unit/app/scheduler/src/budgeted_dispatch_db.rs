@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use systemprompt_identifiers::JobName;
 use systemprompt_scheduler::{JobStatus, SchedulerConfig, SchedulerRepository, SchedulerService};
-use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
+use systemprompt_test_fixtures::{test_database_url, test_db_pool};
 
 use crate::test_jobs::{BUDGETED_JOB, BUDGETED_JOB_SETTINGS};
 
@@ -13,7 +13,7 @@ use crate::test_jobs::{BUDGETED_JOB, BUDGETED_JOB_SETTINGS};
 async fn a_budgeted_job_runs_its_transactions_under_the_declared_limits() {
     let url = test_database_url();
     let pool = test_db_pool().await;
-    let app_ctx = test_app_context(&pool, &url);
+    let (app_ctx, schedule) = crate::test_extension::scheduled_app(&url).await;
     let repo = SchedulerRepository::new(&pool);
     repo.upsert_job(&JobName::new(BUDGETED_JOB), "0 0 * * * *", true)
         .await
@@ -26,7 +26,7 @@ async fn a_budgeted_job_runs_its_transactions_under_the_declared_limits() {
         distributed_lock: false,
         unlisted_jobs: systemprompt_manifest::services::UnlistedJobs::Warn,
     };
-    SchedulerService::new(config, Arc::clone(&pool), app_ctx)
+    SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule))
         .run_bootstrap_jobs(None)
         .await
         .expect("bootstrap dispatch");

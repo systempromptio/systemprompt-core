@@ -25,9 +25,10 @@
 
 use super::MigrationService;
 use super::exec::execute_statements_transactional;
+use crate::lifecycle::schema_member::SchemaMember;
 use crate::services::SqlExecutor;
 use pg_query::NodeEnum;
-use systemprompt_extension::{Extension, LoaderError, Migration};
+use systemprompt_extension::{LoaderError, Migration};
 use systemprompt_identifiers::ExtensionId;
 use tracing::{debug, warn};
 
@@ -119,7 +120,7 @@ impl MigrationService<'_> {
 
     pub async fn run_stamped_retirements(
         &self,
-        extension: &dyn Extension,
+        extension: &dyn SchemaMember,
     ) -> Result<usize, LoaderError> {
         let ext_id = &ExtensionId::new(extension.metadata().id);
         let mut ran = 0usize;
@@ -151,7 +152,7 @@ impl MigrationService<'_> {
     }
 
     #[must_use]
-    pub fn baseline_stamp_rows(extension: &dyn Extension) -> Vec<BaselineStamp> {
+    pub fn baseline_stamp_rows(extension: &dyn SchemaMember) -> Vec<BaselineStamp> {
         let ext_id = &ExtensionId::new(extension.metadata().id);
         extension
             .migrations()

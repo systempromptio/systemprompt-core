@@ -9,7 +9,7 @@ use rmcp::model::ContentBlock;
 use serde_json::json;
 use std::sync::Mutex;
 use systemprompt_ai::error::{AiError, ProviderError, Result};
-use systemprompt_ai::models::ai::{AiMessage, AiResponse, MessageRole};
+use systemprompt_ai::models::ai::{AiMessage, AiResponse, MessageRole, ReasoningParams};
 use systemprompt_ai::models::tools::{CallToolResult, ToolCall};
 use systemprompt_ai::services::providers::{
     GenerationParams, ProviderClient, SchemaGenerationParams, ToolGenerationParams,
@@ -30,6 +30,7 @@ struct StubProvider {
     tool_results_outcome: Outcome,
     generate_outcome: Outcome,
     generate_calls: Mutex<usize>,
+    seen_reasoning: Mutex<Vec<Option<ReasoningParams>>>,
 }
 
 impl StubProvider {
@@ -38,6 +39,7 @@ impl StubProvider {
             tool_results_outcome,
             generate_outcome,
             generate_calls: Mutex::new(0),
+            seen_reasoning: Mutex::new(Vec::new()),
         }
     }
 
@@ -98,8 +100,12 @@ impl ProviderClient for StubProvider {
         Some(systemprompt_ai::services::providers::ModelPricing::default())
     }
 
-    async fn generate(&self, _params: GenerationParams<'_>) -> Result<AiResponse> {
+    async fn generate(&self, params: GenerationParams<'_>) -> Result<AiResponse> {
         *self.generate_calls.lock().expect("lock") += 1;
+        self.seen_reasoning
+            .lock()
+            .expect("lock")
+            .push(params.reasoning);
         Self::resolve(self.generate_outcome)
     }
 
@@ -112,8 +118,12 @@ impl ProviderClient for StubProvider {
 
     async fn generate_with_tool_results(
         &self,
-        _params: ToolResultsParams<'_>,
+        params: ToolResultsParams<'_>,
     ) -> Result<AiResponse> {
+        self.seen_reasoning
+            .lock()
+            .expect("lock")
+            .push(params.base.reasoning);
         Self::resolve(self.tool_results_outcome)
     }
 
@@ -158,10 +168,40 @@ async fn run(provider: &StubProvider) -> String {
         tool_calls: &calls,
         tool_results: &results,
         sampling: None,
+        reasoning: None,
         max_output_tokens: 256,
         model: "stub-model",
     };
     synthesizer.synthesize_or_fallback(params).await.content
+}
+
+#[tokio::test]
+async fn explicit_reasoning_reaches_both_synthesis_calls() {
+    let provider = StubProvider::new(Outcome::Empty, Outcome::Text("Guidance synthesis."));
+    let messages = original_messages();
+    let calls = tool_calls();
+    let results = tool_results();
+    let reasoning = ReasoningParams::default().with_thinking_budget(64);
+    let params = SynthesisParams {
+        provider: &provider,
+        original_messages: &messages,
+        tool_calls: &calls,
+        tool_results: &results,
+        sampling: None,
+        reasoning: Some(reasoning),
+        max_output_tokens: 256,
+        model: "stub-model",
+    };
+
+    ResponseSynthesizer::new()
+        .synthesize_or_fallback(params)
+        .await;
+
+    assert_eq!(
+        *provider.seen_reasoning.lock().expect("lock"),
+        vec![Some(reasoning), Some(reasoning)],
+        "the tool-results call and the guidance retry both carry the request's reasoning"
+    );
 }
 
 #[tokio::test]
@@ -224,6 +264,7 @@ async fn the_synthesis_params_debug_elides_the_provider_but_keeps_the_inputs() {
         tool_calls: &calls,
         tool_results: &results,
         sampling: None,
+        reasoning: None,
         max_output_tokens: 256,
         model: "stub-model-for-debug",
     };

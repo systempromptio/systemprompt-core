@@ -3,16 +3,18 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Args;
 use std::sync::Arc;
+use systemprompt_database::pool_from_handle;
 use systemprompt_runtime::{
     AiRequestFilter, RequestCursor, RequestCursorError, TraceQueryService, TraceRepository,
 };
 
 use super::{RequestListRow, build_request_list};
 use crate::commands::infrastructure::logs::duration::{parse_since, parse_until};
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct ListArgs {
@@ -62,7 +64,13 @@ pub struct ListArgs {
     pub billing_source: Option<String>,
 }
 
-crate::define_pool_command!(ListArgs => CommandOutput, no_config);
+pub(in crate::commands::infrastructure::logs) async fn execute(
+    args: ListArgs,
+    host: &dyn KernelHost,
+) -> Result<CommandOutput> {
+    let pool = pool_from_handle(host.db().await?)?.pool();
+    execute_with_pool_inner(args, &pool).await
+}
 
 async fn execute_with_pool_inner(
     args: ListArgs,

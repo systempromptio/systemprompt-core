@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use clap::Args;
@@ -10,9 +11,9 @@ use std::fs;
 use std::path::PathBuf;
 
 use super::types::{McpListOutput, McpServerSummary};
-use crate::context::CommandContext;
-use crate::shared::CommandOutput;
-use crate::shared::project::ProjectRoot;
+use crate::commands::shared::app_context;
+use systemprompt_cloud::paths::ProjectRoot;
+use systemprompt_extension::cli::CommandOutput;
 use systemprompt_models::mcp::{Deployment, McpServerType};
 
 #[derive(Debug, Clone, Copy, Args)]
@@ -24,11 +25,11 @@ pub struct ListArgs {
     pub disabled: bool,
 }
 
-pub(super) fn execute(args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let services_config = ctx
-        .boot()?
-        .load_services_config()
-        .context("Failed to load services configuration")?;
+pub(super) async fn execute(args: ListArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+    let services_config = app_context(host)
+        .await
+        .context("Failed to load services configuration")?
+        .services_config();
     let project_root = match ProjectRoot::discover() {
         Ok(root) => Some(root),
         Err(e) => {

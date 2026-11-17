@@ -8,13 +8,11 @@ use std::sync::Arc;
 
 use systemprompt_agent::repository::A2ARepositories;
 use systemprompt_ai::repository::AiRepositories;
-use systemprompt_analytics::repository::AnalyticsRepositories;
-use systemprompt_analytics::{AnalyticsService, FingerprintRepository, GeoIpReader};
+use systemprompt_analytics::{FingerprintRepository, GeoIpReader};
 use systemprompt_config::paths::AppPaths;
 use systemprompt_content::repository::ContentRepositories;
 use systemprompt_database::{CoordinationRepositories, DbPool, ServiceRepository};
 use systemprompt_events::{EventBridgeHandle, EventRouter};
-use systemprompt_extension::ExtensionRegistry;
 use systemprompt_files::{FileRepository, FilesConfig};
 use systemprompt_governance::authz::SharedAuthzHook;
 use systemprompt_governance::policy::GovernanceEngine;
@@ -36,6 +34,15 @@ use systemprompt_users::{UserRepository, UserService};
 
 use super::ShutdownRequest;
 
+/// The four planes an [`AppContext`](super::AppContext) holds.
+#[derive(Debug, Clone)]
+pub struct ContextPlanes {
+    pub data: DataPlane,
+    pub cfg: ConfigPlane,
+    pub plugins: Plugins,
+    pub subsystems: Subsystems,
+}
+
 /// Database pool and the data-access services layered on it.
 ///
 /// `fingerprint_repo` and `user_service` are `None` when the corresponding
@@ -43,7 +50,6 @@ use super::ShutdownRequest;
 #[derive(Clone)]
 pub struct DataPlane {
     pub database: DbPool,
-    pub analytics_service: Arc<AnalyticsService>,
     pub fingerprint_repo: Option<Arc<FingerprintRepository>>,
     pub user_service: Option<Arc<UserService>>,
     pub a2a_repositories: Arc<A2ARepositories>,
@@ -53,7 +59,6 @@ pub struct DataPlane {
     pub service_repository: Arc<ServiceRepository>,
     pub coordination: Arc<CoordinationRepositories>,
     pub ai_repositories: Arc<AiRepositories>,
-    pub analytics_repositories: Arc<AnalyticsRepositories>,
     pub file_repository: Arc<FileRepository>,
     pub mcp_session_repository: Arc<McpSessionRepository>,
     pub managed_repository: Arc<ManagedRepository>,
@@ -72,7 +77,6 @@ pub struct ConfigPlane {
 
 #[derive(Clone)]
 pub struct Plugins {
-    pub extension_registry: Arc<ExtensionRegistry>,
     pub mcp_registry: RegistryService,
     pub marketplace_filter: Arc<dyn MarketplaceFilter>,
     pub marketplace_cache: Arc<MarketplaceCache>,
@@ -102,8 +106,4 @@ pub struct Subsystems {
     pub publish_guard: Arc<tokio::sync::Mutex<PublishGuard>>,
     pub connector_tokens: Arc<TokenCache>,
     pub documents: Arc<crate::documents::DocumentsRuntime>,
-    #[cfg(feature = "notifications")]
-    pub notifications: Arc<crate::notifications::NotificationsHandle>,
-    #[cfg(feature = "brain")]
-    pub brain: Option<Arc<crate::brain::BrainHandle>>,
 }

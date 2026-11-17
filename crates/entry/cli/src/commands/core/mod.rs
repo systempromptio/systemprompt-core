@@ -3,8 +3,9 @@
 //! Dispatches the [`CoreCommands`] subgroups — artifacts, files, contexts,
 //! skills, plugins, marketplace, hooks and services bundles. On a
 //! `--database-url` invocation only the files subgroup is served; the rest
-//! require a full profile context. Capabilities register further subgroups
-//! under `core` (such as `core content`) through `register_cli_command!`.
+//! require a full profile context. Capabilities contribute further
+//! subgroups under `core` (such as `core content`) with
+//! `CommandDecl::group_under`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,11 +19,11 @@ pub mod plugins;
 pub mod services;
 pub mod skills;
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Subcommand;
 
-use crate::context::CommandContext;
-use crate::descriptor::{CommandDescriptor, DataImpact, DescribeCommand};
+use systemprompt_extension::cli::{CommandDescriptor, CommandOutput, DataImpact, DescribeCommand};
 
 #[derive(Debug, Subcommand)]
 pub enum CoreCommands {
@@ -54,20 +55,20 @@ pub enum CoreCommands {
     Services(services::ServicesCommands),
 }
 
-pub async fn execute(cmd: CoreCommands, ctx: &CommandContext) -> Result<()> {
-    if ctx.is_database_scoped() && !matches!(cmd, CoreCommands::Files(_)) {
-        return Err(crate::shared::database_scoped_command_error(ctx));
+pub async fn execute(cmd: CoreCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
+    if host.is_database_scoped() && !matches!(cmd, CoreCommands::Files(_)) {
+        return Err(crate::shared::database_scoped_command_error(host));
     }
 
     match cmd {
-        CoreCommands::Artifacts(cmd) => Box::pin(artifacts::execute(cmd, ctx)).await,
-        CoreCommands::Files(cmd) => files::execute(cmd, ctx).await,
-        CoreCommands::Contexts(cmd) => Box::pin(contexts::execute(cmd, ctx)).await,
-        CoreCommands::Skills(cmd) => skills::execute(cmd, ctx).await,
-        CoreCommands::Plugins(cmd) => plugins::execute(cmd, ctx),
-        CoreCommands::Marketplace(cmd) => marketplace::execute(cmd, ctx).await,
-        CoreCommands::Hooks(cmd) => hooks::execute(cmd, ctx),
-        CoreCommands::Services(cmd) => Box::pin(services::execute(cmd, ctx)).await,
+        CoreCommands::Artifacts(cmd) => Box::pin(artifacts::execute(cmd, host)).await,
+        CoreCommands::Files(cmd) => files::execute(cmd, host).await,
+        CoreCommands::Contexts(cmd) => Box::pin(contexts::execute(cmd, host)).await,
+        CoreCommands::Skills(cmd) => skills::execute(cmd, host).await,
+        CoreCommands::Plugins(cmd) => plugins::execute(cmd, host),
+        CoreCommands::Marketplace(cmd) => marketplace::execute(cmd, host).await,
+        CoreCommands::Hooks(cmd) => hooks::execute(cmd, host),
+        CoreCommands::Services(cmd) => Box::pin(services::execute(cmd, host)).await,
     }
 }
 

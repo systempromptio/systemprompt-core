@@ -1,4 +1,4 @@
-//! Unit tests for the brain identifiers, models, seams and profile in the
+//! Unit tests for the brain identifiers, models and profile in the
 //! shared crates.
 
 #[cfg(test)]
@@ -11,8 +11,6 @@ mod declarations_refusals;
 mod profile;
 #[cfg(test)]
 mod render;
-#[cfg(test)]
-mod seams;
 #[cfg(test)]
 mod source;
 #[cfg(test)]

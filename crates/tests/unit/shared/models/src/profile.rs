@@ -642,7 +642,10 @@ fn output_format_from_str_invalid() {
 #[test]
 fn extensions_config_is_disabled() {
     let config = ExtensionsConfig {
-        disabled: vec![ExtensionId::new("ext-a"), ExtensionId::new("ext-b")],
+        disabled: vec![
+            systemprompt_manifest::DisabledExtension::literal(ExtensionId::new("ext-a")),
+            systemprompt_manifest::DisabledExtension::literal(ExtensionId::new("ext-b")),
+        ],
     };
     assert!(config.is_disabled(&ExtensionId::new("ext-a")));
     assert!(config.is_disabled(&ExtensionId::new("ext-b")));

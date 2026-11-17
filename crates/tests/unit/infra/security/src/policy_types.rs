@@ -2,9 +2,9 @@ use std::str::FromStr;
 
 use serde_json::json;
 use systemprompt_governance::authz::types::{Decision, MatchedBy};
-use systemprompt_governance::policy::governed::McpToolInput;
-use systemprompt_governance::policy::types::{
-    AccessScope, AgentScope, GovernancePolicy, PolicyContext, RateLimitWindow, SecretLocation,
+use systemprompt_governance::policy::{
+    AccessScope, AgentScope, GovernancePolicy, McpToolInput, PolicyContext, RateLimitWindow,
+    SecretLocation,
 };
 use systemprompt_identifiers::{PolicyId, UserId};
 
@@ -185,12 +185,11 @@ fn access_scope_from_roles_prefers_admin_then_user() {
 }
 
 #[test]
-fn governance_policy_defaults_contribute_no_scanner_findings_or_window() {
+fn governance_policy_defaults_contribute_no_findings_or_window() {
     let p = AllowPolicy;
-    let input = systemprompt_governance::policy::governed::GovernedInput::ToolArguments {
+    let input = systemprompt_governance::policy::GovernedInput::ToolArguments {
         arguments: McpToolInput::new(json!({ "token": "sk-live-abc" })),
     };
-    assert!(p.secret_scanner().is_none());
     assert!(p.prompt_secret_findings(&input).is_none());
     assert!(p.rate_window().is_none());
 }

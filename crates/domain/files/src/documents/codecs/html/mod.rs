@@ -27,14 +27,11 @@ mod edit;
 mod markup;
 mod tree;
 
-use std::sync::Arc;
-
 use ego_tree::NodeRef;
 use scraper::{ElementRef, Html, Node, StrTendril};
 use systemprompt_provider_contracts::documents::{
     CodecError, DocumentCodec, DocumentFormat, EditOp, Projection, TemplateParams, content_hash,
 };
-use systemprompt_provider_contracts::register_document_codec;
 
 use super::anchors::{decode_utf8, ensure_base};
 use super::placeholders::substitute;
@@ -78,12 +75,6 @@ const TEXT_BREAKS: &[&str] = &[
     "tr",
     "ul",
 ];
-
-fn factory() -> Arc<dyn DocumentCodec> {
-    Arc::new(HtmlCodec)
-}
-
-register_document_codec!(factory);
 
 fn parse(bytes: &[u8]) -> Result<Html, CodecError> {
     Ok(Html::parse_document(decode_utf8(bytes, "html")?))

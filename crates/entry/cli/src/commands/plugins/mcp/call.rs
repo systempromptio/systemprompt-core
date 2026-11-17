@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use std::sync::Arc;
 
 use crate::commands::shared::mcp_tools::direct_url;
@@ -16,10 +17,9 @@ use super::call_client::{
     ToolCallParams, convert_content, execute_tool_call, list_available_tools,
 };
 use super::types::{McpCallOutput, McpToolContent};
-use crate::context::CommandContext;
-use crate::interactive::{Prompter, resolve_required};
+use crate::commands::shared::app_context;
 use crate::session::{CliSessionContext, get_or_create_session};
-use crate::shared::{CommandOutput, render_result};
+use systemprompt_extension::cli::{CommandOutput, Prompter, resolve_required};
 
 #[derive(Debug, Args)]
 #[command(
@@ -30,13 +30,13 @@ use crate::shared::{CommandOutput, render_result};
 pub struct CallArgs {
     #[arg(
         help = "MCP server name (required in non-interactive mode)",
-        value_parser = crate::shared::parse_mcp_server_id
+        value_parser = systemprompt_extension::cli::parsers::parse_mcp_server_id
     )]
     pub server: Option<McpServerId>,
 
     #[arg(
         help = "Tool name to execute (required in non-interactive mode)",
-        value_parser = crate::shared::parse_mcp_tool_name
+        value_parser = systemprompt_extension::cli::parsers::parse_mcp_tool_name
     )]
     pub tool: Option<McpToolName>,
 
@@ -47,14 +47,14 @@ pub struct CallArgs {
     pub timeout: u64,
 }
 
-pub(super) async fn execute(args: CallArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let config = &ctx.cli;
-    let prompter = ctx.prompter();
-    let services_config = ctx
-        .boot()?
-        .load_services_config()
-        .context("Failed to load services configuration")?;
-    let session_ctx = get_or_create_session(ctx).await?;
+pub(super) async fn execute(args: CallArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+    let config = host.output();
+    let prompter = host.prompter();
+    let services_config = app_context(host)
+        .await
+        .context("Failed to load services configuration")?
+        .services_config();
+    let session_ctx = get_or_create_session(host).await?;
 
     let server_arg = args.server.clone();
     let tool_arg = args.tool.clone();
@@ -69,7 +69,7 @@ pub(super) async fn execute(args: CallArgs, ctx: &CommandContext) -> Result<Comm
         .get(server_name.as_str())
         .ok_or_else(|| anyhow!("MCP server '{}' not found in configuration", server_name))?;
 
-    let url = resolve_running_url(&server_name, ctx).await?;
+    let url = resolve_running_url(&server_name, host).await?;
 
     let tool_name = resolve_required(tool_arg, "tool", config, || {
         prompt_tool_selection(prompter, &server_name, &url, &session_ctx, timeout_secs)
@@ -106,16 +106,15 @@ pub(super) async fn execute(args: CallArgs, ctx: &CommandContext) -> Result<Comm
     let card = CommandOutput::card_value(format!("Tool Execution: {}", tool_name), &output);
 
     if let Some(msg) = failure {
-        render_result(&card, config);
+        host.render(&card);
         return Err(anyhow!(msg));
     }
 
     Ok(card)
 }
 
-async fn resolve_running_url(server_name: &McpServerId, ctx: &CommandContext) -> Result<String> {
-    let app = ctx
-        .app_context()
+async fn resolve_running_url(server_name: &McpServerId, host: &dyn KernelHost) -> Result<String> {
+    let app = app_context(host)
         .await
         .context("Failed to initialize application context")?;
 

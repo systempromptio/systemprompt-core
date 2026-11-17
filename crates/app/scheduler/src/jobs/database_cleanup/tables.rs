@@ -11,37 +11,31 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use chrono::{DateTime, Utc};
-use systemprompt_extension::RetentionHolds;
+use systemprompt_extension::{AdmittedSchedule, RetentionHolds};
 use systemprompt_provider_contracts::{BatchPlan, run_batched};
-use systemprompt_traits::{
-    JobContext, ProviderResult, RetentionPurge, registered_retention_purges,
-};
+use systemprompt_traits::{JobContext, ProviderResult, RetentionPurge};
 use tracing::info;
 
 use super::RetentionTarget;
 use super::holds::{HoldOutcome, report};
 use crate::error::{SchedulerError, SchedulerResult};
-use crate::services::EnabledExtensions;
 
 pub(super) const BATCH_ROWS: i64 = 5000;
 const RUN_BUDGET: Duration = Duration::from_mins(15);
 
 pub(super) struct RetentionOwners {
-    purges: HashMap<&'static str, &'static dyn RetentionPurge>,
+    purges: HashMap<&'static str, Arc<dyn RetentionPurge>>,
 }
 
 impl RetentionOwners {
-    pub(super) fn discover(enabled: &EnabledExtensions) -> SchedulerResult<Self> {
-        let mut purges: HashMap<&'static str, &'static dyn RetentionPurge> = HashMap::new();
-        for registration in registered_retention_purges() {
-            if !enabled.contains(registration.owner) {
-                continue;
-            }
-            let purge = registration.purge;
-            if purges.insert(purge.table(), purge).is_some() {
+    pub(super) fn discover(schedule: &AdmittedSchedule) -> SchedulerResult<Self> {
+        let mut purges: HashMap<&'static str, Arc<dyn RetentionPurge>> = HashMap::new();
+        for (_, purge) in schedule.purges() {
+            if purges.insert(purge.table(), Arc::clone(purge)).is_some() {
                 return Err(SchedulerError::DuplicateRetentionPurge {
                     table: purge.table(),
                 });
@@ -118,7 +112,7 @@ impl PassRunner<'_> {
             deadline: self.started + RUN_BUDGET,
             full_batch: u64::try_from(BATCH_ROWS).unwrap_or(u64::MAX),
         };
-        let Some(purge) = self.owners.purges.get(target.table()).copied() else {
+        let Some(purge) = self.owners.purges.get(target.table()).map(AsRef::as_ref) else {
             return Ok((0, true));
         };
         let ctx = self.ctx;

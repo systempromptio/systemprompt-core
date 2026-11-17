@@ -5,8 +5,8 @@
 //! catalog editors (credential, provider, endpoint, model, deployment,
 //! gateway), `migrate`, the one reader of the pre-0.73 shape, and `apply`, the
 //! deploy pipeline's explicit code-to-database step.
-//! Each sub-module owns its clap surface and renders results through
-//! [`crate::shared::render_result`].
+//! Each sub-module owns its clap surface; the group returns the output the
+//! kernel renders.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -46,12 +46,16 @@ pub mod validate;
 mod validate_jobs;
 pub mod validate_services;
 
-use anyhow::{Result, bail};
+use crate::kernel::KernelHost;
+use anyhow::Result;
 use clap::Subcommand;
 
-use crate::context::CommandContext;
-use crate::descriptor::{CommandDescriptor, DescribeCommand};
-use crate::shared::render_result;
+use serde::Serialize;
+use systemprompt_extension::cli::{CommandError, CommandOutput};
+use systemprompt_loader::ServicesState;
+use systemprompt_models::artifacts::NoticeLine;
+
+use systemprompt_extension::cli::{CommandDescriptor, DescribeCommand};
 
 #[derive(Debug, Subcommand)]
 pub enum ConfigCommands {
@@ -153,44 +157,51 @@ impl DescribeCommand for ConfigCommands {
     }
 }
 
-pub async fn execute(command: ConfigCommands, ctx: &CommandContext) -> Result<()> {
+pub async fn execute(command: ConfigCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
-        ConfigCommands::Show => {
-            let result = show::execute(ctx)?;
-            render_result(&result, &ctx.cli);
-            Ok(())
-        },
-        ConfigCommands::List(args) => {
-            let result = list::execute(args, ctx)?;
-            render_result(&result, &ctx.cli);
-            Ok(())
-        },
+        ConfigCommands::Show => show::execute(host),
+        ConfigCommands::List(args) => list::execute(args, host),
         ConfigCommands::Validate(args) => {
-            validate_services::prepare(&args, ctx).await?;
-            let (result, valid) = validate::execute(&args, ctx)?;
-            render_result(&result, &ctx.cli);
+            validate_services::prepare(&args, host).await?;
+            let (result, valid) = validate::execute(&args, host).await?;
             if !valid {
-                bail!("Config validation failed");
+                return Err(
+                    CommandError::new(anyhow::anyhow!("Config validation failed"))
+                        .with_output(result)
+                        .into(),
+                );
             }
-            Ok(())
+            Ok(result)
         },
-        ConfigCommands::RateLimits(cmd) => rate_limits::execute(cmd, ctx.prompter(), ctx),
-        ConfigCommands::Server(ref cmd) => server::execute(cmd, ctx),
-        ConfigCommands::Runtime(cmd) => runtime::execute(cmd, ctx),
-        ConfigCommands::Security(ref cmd) => security::execute(cmd, ctx),
-        ConfigCommands::Services(ref cmd) => services::execute(cmd, ctx),
-        ConfigCommands::Paths(cmd) => paths::execute(cmd, ctx),
-        ConfigCommands::Credential(ref cmd) => credential::execute(cmd, ctx).await,
-        ConfigCommands::Provider(ref cmd) => provider::execute(cmd, ctx).await,
-        ConfigCommands::Endpoint(ref cmd) => endpoint::execute(cmd, ctx).await,
-        ConfigCommands::Model(ref cmd) => model::execute(cmd, ctx).await,
-        ConfigCommands::Deployment(ref cmd) => deployment::execute(cmd, ctx).await,
-        ConfigCommands::Gateway(ref cmd) => gateway::execute(cmd, ctx).await,
-        ConfigCommands::Governance(ref cmd) => governance::execute(cmd, ctx),
-        ConfigCommands::Catalog(ref cmd) => catalog::execute(cmd, &ctx.cli, ctx.services()),
-        ConfigCommands::Migrate(ref args) => migrate::execute(args, ctx).await,
-        ConfigCommands::Secret(ref cmd) => secret::execute(cmd, ctx).await,
-        ConfigCommands::Planes(cmd) => planes::execute(cmd, ctx).await,
-        ConfigCommands::Apply(ref args) => apply::execute(args, ctx).await,
+        ConfigCommands::RateLimits(cmd) => rate_limits::execute(cmd, host.prompter(), host),
+        ConfigCommands::Server(ref cmd) => server::execute(cmd, host),
+        ConfigCommands::Runtime(cmd) => runtime::execute(cmd, host),
+        ConfigCommands::Security(ref cmd) => security::execute(cmd, host),
+        ConfigCommands::Services(ref cmd) => services::execute(cmd, host),
+        ConfigCommands::Paths(cmd) => paths::execute(cmd, host),
+        ConfigCommands::Credential(ref cmd) => credential::execute(cmd, host).await,
+        ConfigCommands::Provider(ref cmd) => provider::execute(cmd, host).await,
+        ConfigCommands::Endpoint(ref cmd) => endpoint::execute(cmd, host).await,
+        ConfigCommands::Model(ref cmd) => model::execute(cmd, host).await,
+        ConfigCommands::Deployment(ref cmd) => deployment::execute(cmd, host).await,
+        ConfigCommands::Gateway(ref cmd) => gateway::execute(cmd, host).await,
+        ConfigCommands::Governance(ref cmd) => governance::execute(cmd, host),
+        ConfigCommands::Catalog(ref cmd) => {
+            let services = host.resolved().await?.optional::<ServicesState>();
+            catalog::execute(cmd, services.as_ref())
+        },
+        ConfigCommands::Migrate(ref args) => migrate::execute(args, host).await,
+        ConfigCommands::Secret(ref cmd) => secret::execute(cmd, host).await,
+        ConfigCommands::Planes(cmd) => planes::execute(cmd, host).await,
+        ConfigCommands::Apply(ref args) => apply::execute(args, host).await,
     }
+}
+
+pub(crate) fn restart_note() -> NoticeLine {
+    NoticeLine::new("warning", "Restart services for changes to take effect")
+}
+
+pub(crate) fn changes_output<T: Serialize>(title: &str, changes: &[T]) -> CommandOutput {
+    CommandOutput::table_of(vec!["field", "old_value", "new_value", "message"], changes)
+        .with_title(title)
 }

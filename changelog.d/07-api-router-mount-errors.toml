@@ -7,3 +7,8 @@ text = "`discovery_router` and `probes_router` return `Result<Router, LoaderErro
 name = "systemprompt-api"
 section = "Breaking"
 text = "`discovery_router` and `probes_router` return `Result<Router, LoaderError>`; an extension router whose declaration cannot be applied fails boot with `MountError`. Migrate by propagating the error."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`mount_admitted(tree, Composed, layers, serves, decorate)` mounts the admitted route sets; `RouterExt::with_bearer_window` and `with_bearer_window_reaching` take a `RateWindow { per_second, scope }`."

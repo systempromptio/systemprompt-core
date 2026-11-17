@@ -30,7 +30,7 @@ The content publishing pipeline runs in four stages:
 | `rss` | RSS 2.0 feed generation with a default feed provider |
 | `sitemap` | XML sitemap generation with chunking and a default sitemap provider |
 | `templates` | Template-path resolution and `WebConfig` loading |
-| `jobs` | Scheduled jobs registered with the systemprompt scheduler via `inventory` |
+| `jobs` | The content and page prerender jobs the `generator` member contributes, and the copy-extension-assets step |
 | `error` | Typed `PublishError` and `GeneratorResult` returned across the public API |
 
 ### Key Types
@@ -43,7 +43,7 @@ The content publishing pipeline runs in four stages:
 | `PublishError` / `GeneratorResult` | Public error and result alias for every entry point |
 | `PagePrerenderResult` | Outcome of a single page-prerenderer invocation |
 | `ContentPrerenderJob` / `PagePrerenderJob` | Scheduler jobs for content and page prerendering, owned by the `generator` extension |
-| `GeneratorExtension` | The `generator` extension (depends on `content`); disabling it leaves both prerender jobs registered but inactive |
+| `GeneratorExtension` | The `generator` member; it contributes both prerender jobs, so disabling it admits neither |
 | `SitemapUrl` / `DefaultSitemapProvider` | Sitemap entries and default provider |
 | `RssChannel` / `RssItem` / `GeneratedFeed` / `DefaultRssFeedProvider` | RSS feed types and default provider |
 
@@ -51,7 +51,7 @@ The content publishing pipeline runs in four stages:
 
 ```toml
 [dependencies]
-systemprompt-generator = "0.81"
+systemprompt-generator = "0.83"
 ```
 
 ### Public Exports

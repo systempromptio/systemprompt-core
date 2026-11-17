@@ -58,5 +58,3 @@ impl Job for OauthCleanupJob {
             .with_duration(duration_ms))
     }
 }
-
-systemprompt_provider_contracts::submit_job!("oauth", &OauthCleanupJob);

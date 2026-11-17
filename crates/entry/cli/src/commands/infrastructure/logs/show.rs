@@ -4,18 +4,18 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use systemprompt_database::pool_from_handle;
 use systemprompt_identifiers::{ContextId, LogId, SessionId, TaskId, TraceId, UserId};
-use systemprompt_logging::{CliService, LogEntry, LogLevel};
+use systemprompt_logging::{LogEntry, LogLevel};
 use systemprompt_runtime::{TraceQueryService, TraceRepository};
 
-use super::shared::print_level_line;
-use crate::CliConfig;
-use crate::shared::{CommandOutput, render_result};
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
@@ -48,40 +48,35 @@ struct LogShowOutput {
     pub context_id: Option<ContextId>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-struct TraceLogsOutput {
-    pub trace_id: TraceId,
-    pub total: u64,
-    pub logs: Vec<LogShowOutput>,
+pub(in crate::commands::infrastructure::logs) async fn execute(
+    args: ShowArgs,
+    host: &dyn KernelHost,
+) -> Result<CommandOutput> {
+    let pool = pool_from_handle(host.db().await?)?.pool();
+    execute_with_pool_inner(args, &pool).await
 }
-
-crate::define_pool_command!(ShowArgs => (), with_config);
 
 async fn execute_with_pool_inner(
     args: ShowArgs,
     pool: &Arc<sqlx::PgPool>,
-    config: &CliConfig,
-) -> Result<()> {
+) -> Result<CommandOutput> {
     let service = TraceQueryService::new(TraceRepository::new(Arc::clone(pool)));
 
     if let Ok(log_id) = LogId::try_new(args.id.as_str())
         && let Some(log) = service.find_log_by_id(&log_id).await?
     {
-        display_single_log(&log, config, args.json);
-        return Ok(());
+        return Ok(single_log(&log));
     }
 
     if let Ok(trace_id) = TraceId::try_new(args.id.as_str()) {
         let logs = service.find_logs_by_trace_id(&trace_id).await?;
         if !logs.is_empty() {
-            display_trace_logs(&logs, config, args.json);
-            return Ok(());
+            return Ok(trace_logs(&logs));
         }
     }
 
     if let Some(log) = service.find_log_by_partial_id(&args.id).await? {
-        display_single_log(&log, config, args.json);
-        return Ok(());
+        return Ok(single_log(&log));
     }
 
     Err(anyhow!(
@@ -106,94 +101,15 @@ fn entry_to_output(entry: &LogEntry) -> LogShowOutput {
     }
 }
 
-fn display_single_log(log: &LogEntry, config: &CliConfig, json: bool) {
-    let output = entry_to_output(log);
-
-    if config.is_json_output() || json {
-        let result = CommandOutput::card_value("Log Entry Details", &output);
-        render_result(&result, config);
-        return;
-    }
-
-    CliService::section("Log Entry Details");
-    CliService::key_value("ID", output.id.as_str());
-    CliService::key_value("Trace ID", output.trace_id.as_str());
-    CliService::key_value("Timestamp", &output.timestamp);
-    CliService::key_value("Level", output.level.as_str());
-    CliService::key_value("Module", &output.module);
-    CliService::key_value("Message", &output.message);
-
-    if let Some(user_id) = &output.user_id {
-        CliService::key_value("User ID", user_id.as_str());
-    }
-    if let Some(session_id) = &output.session_id {
-        CliService::key_value("Session ID", session_id.as_str());
-    }
-    if let Some(task_id) = &output.task_id {
-        CliService::key_value("Task ID", task_id.as_str());
-    }
-    if let Some(context_id) = &output.context_id {
-        CliService::key_value("Context ID", context_id.as_str());
-    }
-
-    if let Some(metadata) = &output.metadata {
-        CliService::subsection("Metadata");
-        if let Some(obj) = metadata.as_object() {
-            for (key, value) in obj {
-                let formatted = format!("{}", value).trim_matches('"').to_owned();
-                CliService::key_value(key, &formatted);
-            }
-        } else {
-            CliService::info(&format!("{}", metadata));
-        }
-    }
-
-    CliService::info("");
-    CliService::info(&format!(
-        "Tip: Use 'logs trace show {}' for full execution trace",
-        output.trace_id
-    ));
+fn single_log(log: &LogEntry) -> CommandOutput {
+    CommandOutput::card_value("Log Entry Details", &entry_to_output(log))
 }
 
-fn display_trace_logs(logs: &[LogEntry], config: &CliConfig, json: bool) {
-    let Some(first_log) = logs.first() else {
-        return;
-    };
-    let trace_id = first_log.trace_id.clone();
+fn trace_logs(logs: &[LogEntry]) -> CommandOutput {
     let outputs: Vec<LogShowOutput> = logs.iter().map(entry_to_output).collect();
-
-    let output = TraceLogsOutput {
-        trace_id: trace_id.clone(),
-        total: outputs.len() as u64,
-        logs: outputs,
-    };
-
-    if config.is_json_output() || json {
-        let result = CommandOutput::table_of(
-            vec!["id", "trace_id", "timestamp", "level", "module", "message"],
-            &output.logs,
-        )
-        .with_title("Logs for Trace");
-        render_result(&result, config);
-        return;
-    }
-
-    CliService::section(&format!("Logs for Trace: {trace_id}"));
-    CliService::info(&format!("Found {} log entries", logs.len()));
-    CliService::info("");
-
-    for log in logs {
-        let time_part = log.timestamp.format("%H:%M:%S%.3f").to_string();
-        let line = format!(
-            "{} {} [{}] {}",
-            time_part, log.level, log.module, log.message
-        );
-        print_level_line(log.level, &line);
-    }
-
-    CliService::info("");
-    CliService::info(&format!(
-        "Tip: Use 'logs trace show {}' for full trace with AI/MCP details",
-        trace_id
-    ));
+    CommandOutput::table_of(
+        vec!["id", "trace_id", "timestamp", "level", "module", "message"],
+        &outputs,
+    )
+    .with_title("Logs for Trace")
 }

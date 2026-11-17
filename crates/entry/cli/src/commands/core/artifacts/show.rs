@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use clap::Args;
 use systemprompt_agent::models::a2a::Artifact;
@@ -14,10 +15,9 @@ use systemprompt_logging::CliService;
 use systemprompt_models::a2a::PartContent;
 
 use super::types::{ArtifactPartOutput, ArtifactSummary};
-use crate::cli_settings::CliConfig;
-use crate::context::CommandContext;
 use crate::session::get_or_create_session;
-use crate::shared::CommandOutput;
+use systemprompt_database::pool_from_handle;
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
@@ -31,13 +31,13 @@ pub struct ShowArgs {
     pub full: bool,
 }
 
-pub(super) async fn execute(args: ShowArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let session_ctx = get_or_create_session(ctx).await?;
+pub(super) async fn execute(args: ShowArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+    let session_ctx = get_or_create_session(host).await?;
     execute_with_pool(
         args,
         &session_ctx.session.user_id,
-        &ctx.db_pool().await?,
-        &ctx.cli,
+        &pool_from_handle(host.db().await?)?,
+        host.output(),
     )
     .await
 }

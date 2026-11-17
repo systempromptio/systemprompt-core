@@ -44,6 +44,7 @@ mod admin_users_delete_preview_lifecycle;
 mod admin_users_dispatcher_db;
 mod admin_users_merge_atomic_db;
 mod admin_users_provisioning_db;
+mod admin_users_purge_outcome;
 mod admin_users_restore_db;
 mod admin_users_role_session_db;
 mod admin_users_session_end_db;
@@ -94,14 +95,8 @@ mod mcp_list_summaries;
 mod mcp_logs_follow_lifecycle;
 mod mcp_prompts;
 mod mcp_validate_outputs;
-mod plugins_capability_listings;
-mod plugins_capability_types;
 mod plugins_dispatcher;
-mod plugins_list_filters;
 mod plugins_mcp_configured_db;
-mod plugins_registry;
-mod plugins_seams;
-mod plugins_show_detail;
 mod rate_limits_diff;
 mod rate_limits_dispatcher_fs;
 mod rate_limits_preset_commands;
@@ -141,6 +136,3 @@ mod agents_shared_args;
 
 #[cfg(test)]
 mod cli_pure_helpers;
-
-#[cfg(test)]
-mod plugins_validate;

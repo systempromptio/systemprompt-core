@@ -3,10 +3,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::context::CommandContext;
-use crate::interactive::require_confirmation;
-use crate::shared::CommandOutput;
+use crate::commands::shared::app_context;
+use crate::kernel::KernelHost;
 use anyhow::Result;
+use systemprompt_extension::cli::{CommandOutput, require_confirmation};
 use systemprompt_loader::subprocess;
 use systemprompt_logging::CliService;
 use systemprompt_scheduler::{
@@ -19,17 +19,17 @@ use super::types::CleanupOutput;
 pub(super) async fn execute(
     yes: bool,
     dry_run: bool,
-    ctx: &CommandContext,
+    host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
-    let config = &ctx.cli;
+    let config = host.output();
     let quiet = config.is_json_output();
     if !quiet {
         CliService::section("Cleaning Up Services");
     }
 
-    let app = ctx.app_context().await?;
+    let app = app_context(host).await?;
     let service_mgmt = ServiceManagementService::new(app.service_repository().as_ref().clone());
-    let api_port = get_api_port(ctx.profile()?);
+    let api_port = get_api_port(host.profile()?);
 
     if !quiet {
         CliService::info("Finding running services...");
@@ -47,7 +47,7 @@ pub(super) async fn execute(
 
     let service_count = running_services.len() + usize::from(api_pid.is_some());
     require_confirmation(
-        ctx.prompter(),
+        host.prompter(),
         &format!("This will stop {} service(s). Continue?", service_count),
         yes,
         config,

@@ -31,9 +31,6 @@ domain_error! {
             source: chrono::ParseError,
         },
 
-        #[error("could not resolve the enabled extensions")]
-        Extensions(#[from] systemprompt_extension::LoaderError),
-
         #[error("invalid identifier: {0}")]
         InvalidIdentifier(#[from] systemprompt_identifiers::error::IdValidationError),
     }

@@ -3,17 +3,16 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::commands::admin::config::restart_note;
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::{Args, Subcommand};
 
-use systemprompt_logging::CliService;
 
 use super::super::profile_io::profile_path;
 use super::super::types::{CorsListOutput, CorsModifyOutput};
 use super::{load_profile, save_profile};
-use crate::cli_settings::OutputFormat;
-use crate::context::CommandContext;
-use crate::shared::{CommandOutput, render_result};
+use systemprompt_extension::cli::CommandOutput;
 use systemprompt_models::artifacts::ListItem;
 
 #[derive(Debug, Subcommand)]
@@ -40,17 +39,16 @@ pub struct CorsRemoveArgs {
     pub origin: String,
 }
 
-pub(super) fn execute(command: &CorsCommands, ctx: &CommandContext) -> Result<()> {
+pub(super) fn execute(command: &CorsCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
-        CorsCommands::List => execute_list(ctx),
-        CorsCommands::Add(args) => execute_add(args, ctx),
-        CorsCommands::Remove(args) => execute_remove(args, ctx),
+        CorsCommands::List => execute_list(host),
+        CorsCommands::Add(args) => execute_add(args, host),
+        CorsCommands::Remove(args) => execute_remove(args, host),
     }
 }
 
-fn execute_list(ctx: &CommandContext) -> Result<()> {
-    let config = &ctx.cli;
-    let profile = ctx.profile()?;
+fn execute_list(host: &dyn KernelHost) -> Result<CommandOutput> {
+    let profile = host.profile()?;
 
     let output = CorsListOutput {
         origins: profile.server.cors_allowed_origins.clone(),
@@ -62,17 +60,11 @@ fn execute_list(ctx: &CommandContext) -> Result<()> {
         .into_iter()
         .map(|origin| ListItem::new(origin, String::new(), String::new()))
         .collect();
-    render_result(
-        &CommandOutput::list(items).with_title("CORS Allowed Origins"),
-        config,
-    );
-
-    Ok(())
+    Ok(CommandOutput::list(items).with_title("CORS Allowed Origins"))
 }
 
-fn execute_add(args: &CorsAddArgs, ctx: &CommandContext) -> Result<()> {
-    let config = &ctx.cli;
-    let profile_path = profile_path(ctx)?;
+fn execute_add(args: &CorsAddArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+    let profile_path = profile_path(host)?;
     let mut profile = load_profile(profile_path)?;
 
     if profile.server.cors_allowed_origins.contains(&args.origin) {
@@ -81,8 +73,7 @@ fn execute_add(args: &CorsAddArgs, ctx: &CommandContext) -> Result<()> {
             origin: args.origin.clone(),
             message: format!("Origin {} already exists", args.origin),
         };
-        render_result(&CommandOutput::card_value("CORS Origin", &output), config);
-        return Ok(());
+        return Ok(CommandOutput::card_value("CORS Origin", &output));
     }
 
     profile.server.extra_cors_origins.push(args.origin.clone());
@@ -93,21 +84,11 @@ fn execute_add(args: &CorsAddArgs, ctx: &CommandContext) -> Result<()> {
         origin: args.origin.clone(),
         message: format!("Added CORS origin: {}", args.origin),
     };
-    render_result(
-        &CommandOutput::card_value("CORS Origin Added", &output),
-        config,
-    );
-
-    if config.output_format() == OutputFormat::Table {
-        CliService::warning("Restart services for changes to take effect");
-    }
-
-    Ok(())
+    Ok(CommandOutput::card_value("CORS Origin Added", &output).with_note(restart_note()))
 }
 
-fn execute_remove(args: &CorsRemoveArgs, ctx: &CommandContext) -> Result<()> {
-    let config = &ctx.cli;
-    let profile_path = profile_path(ctx)?;
+fn execute_remove(args: &CorsRemoveArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+    let profile_path = profile_path(host)?;
     let mut profile = load_profile(profile_path)?;
 
     let original_len = profile.server.extra_cors_origins.len();
@@ -125,8 +106,7 @@ fn execute_remove(args: &CorsRemoveArgs, ctx: &CommandContext) -> Result<()> {
                 args.origin
             ),
         };
-        render_result(&CommandOutput::card_value("CORS Origin", &output), config);
-        return Ok(());
+        return Ok(CommandOutput::card_value("CORS Origin", &output));
     }
 
     save_profile(&profile, profile_path)?;
@@ -136,14 +116,5 @@ fn execute_remove(args: &CorsRemoveArgs, ctx: &CommandContext) -> Result<()> {
         origin: args.origin.clone(),
         message: format!("Removed CORS origin: {}", args.origin),
     };
-    render_result(
-        &CommandOutput::card_value("CORS Origin Removed", &output),
-        config,
-    );
-
-    if config.output_format() == OutputFormat::Table {
-        CliService::warning("Restart services for changes to take effect");
-    }
-
-    Ok(())
+    Ok(CommandOutput::card_value("CORS Origin Removed", &output).with_note(restart_note()))
 }

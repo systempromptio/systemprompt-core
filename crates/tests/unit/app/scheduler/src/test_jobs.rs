@@ -1,5 +1,5 @@
-//! Inventory-registered test jobs used to drive dispatch outcome arms
-//! (panic capture, failure recording, in-process overlap skip) that the
+//! Test jobs, contributed by the test member, used to drive dispatch outcome
+//! arms (panic capture, failure recording, in-process overlap skip) that the
 //! crate's built-in jobs never exercise.
 //!
 //! All jobs return `enabled() == false` so `JobSelection::All` (which filters
@@ -10,6 +10,7 @@ use std::sync::OnceLock;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use async_trait::async_trait;
+use systemprompt_extension::Contributions;
 use systemprompt_traits::{Job, JobContext, JobResult, JobScope};
 
 pub const PANIC_JOB: &str = "sp_test_panic_job";
@@ -23,6 +24,7 @@ pub const CANCELLABLE_CLUSTER_JOB: &str = "sp_test_cancellable_cluster_job";
 pub const WORKING_JOB: &str = "sp_test_working_job";
 pub const IDLE_JOB: &str = "sp_test_idle_job";
 pub const BUDGETED_JOB: &str = "sp_test_budgeted_job";
+pub const KERNEL_STATE_JOB: &str = "sp_test_kernel_state_job";
 
 pub static BUDGETED_JOB_SETTINGS: std::sync::Mutex<Vec<(String, String, String)>> =
     std::sync::Mutex::new(Vec::new());
@@ -287,17 +289,21 @@ impl Job for StampPanicJob {
     }
 }
 
-systemprompt_provider_contracts::submit_job!("scheduler_test_jobs", &NodeJob);
-systemprompt_provider_contracts::submit_job!("scheduler_test_jobs", &StampFailJob);
-systemprompt_provider_contracts::submit_job!("scheduler_test_jobs", &StampPanicJob);
-systemprompt_provider_contracts::submit_job!("scheduler_test_jobs", &PanicJob);
-systemprompt_provider_contracts::submit_job!("scheduler_test_jobs", &FailingJob);
-systemprompt_provider_contracts::submit_job!("scheduler_test_jobs", &SlowJob);
-systemprompt_provider_contracts::submit_job!("scheduler_test_jobs", &EmptyScheduleJob);
-systemprompt_provider_contracts::submit_job!("scheduler_test_jobs", &CancellableClusterJob);
-systemprompt_provider_contracts::submit_job!("scheduler_test_jobs", &WorkingJob);
-systemprompt_provider_contracts::submit_job!("scheduler_test_jobs", &IdleJob);
-systemprompt_provider_contracts::submit_job!("scheduler_test_jobs", &BudgetedJob);
+
+pub(crate) fn contribute(c: &mut Contributions<'_>) {
+    c.job(NodeJob)
+        .job(StampFailJob)
+        .job(StampPanicJob)
+        .job(PanicJob)
+        .job(FailingJob)
+        .job(SlowJob)
+        .job(EmptyScheduleJob)
+        .job(CancellableClusterJob)
+        .job(WorkingJob)
+        .job(IdleJob)
+        .job(BudgetedJob)
+        .job(KernelStateJob);
+}
 
 struct BudgetedJob;
 
@@ -341,5 +347,36 @@ impl Job for BudgetedJob {
         tx.rollback().await.expect("rollback");
         BUDGETED_JOB_SETTINGS.lock().expect("lock").push(row);
         Ok(JobResult::success().with_stats(1, 0))
+    }
+}
+
+pub struct KernelStateJob;
+
+#[async_trait]
+impl Job for KernelStateJob {
+    fn name(&self) -> &'static str {
+        KERNEL_STATE_JOB
+    }
+
+    fn schedule(&self) -> &'static str {
+        ""
+    }
+
+    fn enabled(&self) -> bool {
+        false
+    }
+
+    async fn execute(
+        &self,
+        ctx: &JobContext,
+    ) -> systemprompt_provider_contracts::ProviderResult<JobResult> {
+        let schedule = ctx.get::<systemprompt_extension::AdmittedSchedule>()?;
+        ctx.get::<systemprompt_extension::AdmittedProjections>()?;
+        if !schedule.contains_job(KERNEL_STATE_JOB) {
+            return Ok(JobResult::failure(
+                "the schedule in the job context is not the admitted one",
+            ));
+        }
+        Ok(JobResult::success())
     }
 }

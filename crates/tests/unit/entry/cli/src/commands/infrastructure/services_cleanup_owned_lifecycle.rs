@@ -8,8 +8,9 @@ use std::process::{Child, Command};
 
 use clap::Parser;
 use systemprompt_cli::infrastructure::services::{self, ServicesCommands};
-use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat, ScriptedPrompter};
+use systemprompt_cli::{EnvOverrides, ScriptedPrompter};
 use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceStatus};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::ServiceName;
 use systemprompt_models::subprocess::{AGENT_NAME_ENV, SUBPROCESS_MARKER_ENV};
 use systemprompt_test_fixtures::{
@@ -99,7 +100,7 @@ async fn cleanup_owned_helper() {
     let pid = child.id();
     let mut child = OwnedChild(Some(child));
     let pool = database.test_pool().await;
-    let app = test_app_context(&pool, database.url());
+    let app = test_app_context(database.url()).await;
     let repo = app.service_repository().clone();
     let service = ServiceName::new(SERVICE);
     repo.create_service(CreateServiceInput {
@@ -121,9 +122,11 @@ async fn cleanup_owned_helper() {
         app.clone(),
     );
     println!("BEGIN_DRY");
-    services::execute(parse(&["cleanup", "--dry-run"]), &dry)
-        .await
-        .expect("dry run");
+    crate::boot_ctx::rendered(
+        &dry,
+        services::execute(parse(&["cleanup", "--dry-run"]), &dry).await,
+    )
+    .expect("dry run");
     println!("END_DRY");
     assert!(
         child
@@ -170,9 +173,11 @@ async fn cleanup_owned_helper() {
         ServiceStatus::Running
     );
     println!("BEGIN_CONFIRMED");
-    services::execute(parse(&["cleanup", "--yes"]), &dry)
-        .await
-        .expect("confirmed cleanup");
+    crate::boot_ctx::rendered(
+        &dry,
+        services::execute(parse(&["cleanup", "--yes"]), &dry).await,
+    )
+    .expect("confirmed cleanup");
     println!("END_CONFIRMED");
     assert!(
         !systemprompt_loader::subprocess::is_running(pid).await,

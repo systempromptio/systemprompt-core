@@ -17,18 +17,6 @@ include = ["src/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 [package.metadata.docs.rs]
 all-features = true
 
-[features]
-# Each feature mirrors the facade's optional domain of the same name; the
-# `systemprompt` binary is built by the facade, which forwards them.
-notifications = ["systemprompt-runtime/notifications"]
-collab = ["systemprompt-files/collab", "systemprompt-runtime/collab", "systemprompt-api/collab"]
-engine-loro = ["collab", "systemprompt-runtime/engine-loro"]
-office = ["systemprompt-files/office"]
-pdf = ["systemprompt-files/pdf", "systemprompt-api/pdf"]
-brain = ["systemprompt-runtime/brain", "systemprompt-mcp-host/brain", "systemprompt-api/brain"]
-otel = ["systemprompt-api/otel", "systemprompt-scheduler/otel"]
-bridge = ["systemprompt-api/bridge"]
-
 [lints]
 workspace = true
 
@@ -59,7 +47,6 @@ systemprompt-files = { workspace = true }
 systemprompt-scheduler = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-governance = { workspace = true }
-systemprompt-gateway = { workspace = true }
 systemprompt-ai = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-manifest = { workspace = true }
@@ -68,7 +55,7 @@ systemprompt-config = { workspace = true }
 systemprompt-loader = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-traits = { workspace = true }
-systemprompt-extension = { workspace = true }
+systemprompt-extension = { workspace = true, features = ["cli"] }
 systemprompt-cloud = { workspace = true }
 systemprompt-client = { workspace = true }
 
@@ -82,7 +69,6 @@ schemars = { workspace = true }
 chrono = { workspace = true }
 console = { workspace = true }
 tabled = { workspace = true }
-inventory = { workspace = true }
 uuid = { workspace = true }
 reqwest = { workspace = true }
 rustls = { workspace = true }
@@ -95,7 +81,6 @@ bytes = { workspace = true }
 # default is lean (see root Cargo.toml); these are additive on rmcp's defaults.
 rmcp = { workspace = true, features = ["client", "transport-streamable-http-server", "transport-streamable-http-server-session", "transport-streamable-http-client"] }
 dialoguer = { workspace = true }
-dirs = { workspace = true }
 base64 = { workspace = true }
 ed25519-dalek = { workspace = true }
 sha2 = { workspace = true }

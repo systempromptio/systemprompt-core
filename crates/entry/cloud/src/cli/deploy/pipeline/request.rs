@@ -9,6 +9,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::PathBuf;
+use systemprompt_extension::AdmittedAssets;
 
 use systemprompt_cloud::CloudCredentials;
 use systemprompt_identifiers::{ProfileName, TenantId};
@@ -29,6 +30,7 @@ pub struct DeployRequest {
     pub signing_key_path: PathBuf,
     pub licence_secret_required: bool,
     pub options: DeployOptions,
+    pub assets: AdmittedAssets,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

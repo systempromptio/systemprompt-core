@@ -2,6 +2,8 @@
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+use crate::kernel::KernelHost;
+use systemprompt_database::pool_from_handle;
 use systemprompt_logging::CliService;
 
 use anyhow::Result;
@@ -14,7 +16,7 @@ use systemprompt_runtime::{TraceQueryService, TraceRepository};
 
 use super::duration::parse_since;
 use super::{LogEntryRow, LogExportOutput};
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Clone, Copy, Default, ValueEnum)]
 pub enum ExportFormat {
@@ -58,7 +60,13 @@ pub struct ExportArgs {
     pub limit: i64,
 }
 
-crate::define_pool_command!(ExportArgs => CommandOutput, no_config);
+pub(in crate::commands::infrastructure::logs) async fn execute(
+    args: ExportArgs,
+    host: &dyn KernelHost,
+) -> Result<CommandOutput> {
+    let pool = pool_from_handle(host.db().await?)?.pool();
+    execute_with_pool_inner(args, &pool).await
+}
 
 async fn execute_with_pool_inner(
     args: ExportArgs,

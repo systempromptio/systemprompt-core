@@ -18,7 +18,7 @@ use axum::{Router, middleware};
 use systemprompt_api::services::middleware::{AnalyticsMiddleware, SessionMiddleware};
 use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::ensure_test_bootstrap;
+use systemprompt_test_fixtures::{ensure_test_bootstrap, settle_background};
 use systemprompt_traits::DrainOutcome;
 use tower::ServiceExt;
 
@@ -74,9 +74,9 @@ fn browser_get_as(uri: &str, user_agent: &str) -> Request<Body> {
         .expect("request build")
 }
 
-async fn drain(ctx: &AppContext) {
+async fn drain(ctx: &AppContext, baseline: usize) {
     assert_eq!(
-        ctx.background_tasks().drain(Duration::from_secs(30)).await,
+        settle_background(ctx.background_tasks(), baseline, Duration::from_secs(30)).await,
         DrainOutcome::Drained
     );
 }
@@ -93,10 +93,11 @@ async fn event_severities(db: &DbPool, user_agent: &str) -> Vec<String> {
 async fn tracked_page_view_spawns_activity_and_event_tasks() -> Result<()> {
     let (db, ctx) = setup().await?;
     let app = build(&ctx)?;
+    let baseline = ctx.background_tasks().in_flight();
     let agent = browser_agent();
     let resp = app.oneshot(browser_get_as("/article", &agent)).await?;
     assert!(resp.status().is_success(), "{}", resp.status());
-    drain(&ctx).await;
+    drain(&ctx, baseline).await;
     assert_eq!(event_severities(&db, &agent).await, vec!["info".to_owned()]);
     Ok(())
 }
@@ -105,10 +106,11 @@ async fn tracked_page_view_spawns_activity_and_event_tasks() -> Result<()> {
 async fn tracked_server_error_records_error_severity_event() -> Result<()> {
     let (db, ctx) = setup().await?;
     let app = build(&ctx)?;
+    let baseline = ctx.background_tasks().in_flight();
     let agent = browser_agent();
     let resp = app.oneshot(browser_get_as("/boom", &agent)).await?;
     assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
-    drain(&ctx).await;
+    drain(&ctx, baseline).await;
     assert_eq!(
         event_severities(&db, &agent).await,
         vec!["error".to_owned()]
@@ -128,10 +130,11 @@ struct LoggedEvent {
 async fn logged_event_keeps_severity_endpoint_and_response_time() -> Result<()> {
     let (db, ctx) = setup().await?;
     let app = build(&ctx)?;
+    let baseline = ctx.background_tasks().in_flight();
     let agent = browser_agent();
     let resp = app.oneshot(browser_get_as("/boom", &agent)).await?;
     assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
-    drain(&ctx).await;
+    drain(&ctx, baseline).await;
     let rows: Vec<LoggedEvent> = sqlx::query_as(
         "SELECT severity, endpoint, response_time_ms, error_code FROM analytics_events WHERE \
          position($1 in metadata) > 0",
@@ -157,9 +160,10 @@ async fn logged_event_keeps_severity_endpoint_and_response_time() -> Result<()> 
 async fn scanner_path_marks_session_as_scanner() -> Result<()> {
     let (_db, ctx) = setup().await?;
     let app = build(&ctx)?;
+    let baseline = ctx.background_tasks().in_flight();
     let resp = app.oneshot(browser_get("/wp-login.php")).await?;
     assert!(resp.status().as_u16() < 500, "{}", resp.status());
-    drain(&ctx).await;
+    drain(&ctx, baseline).await;
     Ok(())
 }
 
@@ -167,13 +171,14 @@ async fn scanner_path_marks_session_as_scanner() -> Result<()> {
 async fn untracked_context_skips_analytics_fanout() -> Result<()> {
     let (_db, ctx) = setup().await?;
     let app = build(&ctx)?;
+    let baseline = ctx.background_tasks().in_flight();
     let req = Request::builder()
         .uri("/health")
         .header("user-agent", "Mozilla/5.0 (X11; Linux x86_64)")
         .body(Body::empty())?;
     let resp = app.oneshot(req).await?;
     assert!(resp.status().is_success(), "{}", resp.status());
-    drain(&ctx).await;
+    drain(&ctx, baseline).await;
     Ok(())
 }
 

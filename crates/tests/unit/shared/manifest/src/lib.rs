@@ -20,6 +20,8 @@ mod default_catalog;
 #[cfg(test)]
 mod deployments_serde;
 #[cfg(test)]
+mod disabled_provenance;
+#[cfg(test)]
 mod gateway_state;
 #[cfg(test)]
 mod legacy_refusal;

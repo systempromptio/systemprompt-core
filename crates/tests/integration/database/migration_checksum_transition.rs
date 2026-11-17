@@ -1,5 +1,6 @@
 //! Historical checksum conversion must never become migration drift repair.
 use super::*;
+use crate::composition::member;
 use std::hash::{Hash, Hasher};
 use systemprompt_test_fixtures::error_chain;
 
@@ -35,14 +36,14 @@ async fn exact_historical_hash_converts_without_reexecution_or_timestamp_change(
         f.create_sql, f.table
     ));
     let migration = Migration::new(7, "original", sql);
-    let ext = SlotExt {
+    let ext = member(SlotExt {
         id: f.ext_id,
         table: f.table,
         schema_sql: f.schema_sql,
         migrations: vec![migration.clone()],
-    };
+    });
     let service = MigrationService::new(f.db.write());
-    service.run_pending_migrations(&ext).await.unwrap();
+    service.run_pending_migrations(ext.as_ref()).await.unwrap();
     historical_row(&f, 7, sql).await;
     let before: String =
         query("SELECT applied_at::text AS value FROM extension_migrations WHERE extension_id=$1")
@@ -51,7 +52,7 @@ async fn exact_historical_hash_converts_without_reexecution_or_timestamp_change(
             .await
             .unwrap()
             .get("value");
-    let status = service.status(&ext).await.unwrap();
+    let status = service.status(ext.as_ref()).await.unwrap();
     assert!(status.drift.is_empty());
     assert_eq!(
         stored(&f, 7).await,
@@ -59,7 +60,7 @@ async fn exact_historical_hash_converts_without_reexecution_or_timestamp_change(
         "status must remain read-only"
     );
     let result = service
-        .run_pending_migrations(&ext)
+        .run_pending_migrations(ext.as_ref())
         .await
         .expect("exact historical checksum is eligible");
     assert_eq!((result.migrations_run, result.migrations_skipped), (0, 1));
@@ -84,7 +85,7 @@ async fn exact_historical_hash_converts_without_reexecution_or_timestamp_change(
         count, 1,
         "non-idempotent original SQL must not execute again"
     );
-    let repeated = service.run_pending_migrations(&ext).await.unwrap();
+    let repeated = service.run_pending_migrations(ext.as_ref()).await.unwrap();
     assert_eq!(
         (repeated.migrations_run, repeated.migrations_skipped),
         (0, 1)
@@ -104,13 +105,24 @@ async fn edited_sql_rejects_entire_extension_before_any_checksum_transition() {
         migrations: vec![original.clone(), second.clone()],
     };
     let service = MigrationService::new(f.db.write());
-    service.run_pending_migrations(&ext).await.unwrap();
+    service
+        .run_pending_migrations(member(ext.clone()).as_ref())
+        .await
+        .unwrap();
     historical_row(&f, 7, original.sql).await;
     historical_row(&f, 8, second.sql).await;
     ext.migrations[1] = Migration::new(8, "second", "SELECT 9;");
-    assert_eq!(service.status(&ext).await.unwrap().drift.len(), 1);
+    assert_eq!(
+        service
+            .status(member(ext.clone()).as_ref())
+            .await
+            .unwrap()
+            .drift
+            .len(),
+        1
+    );
     let error = service
-        .run_pending_migrations(&ext)
+        .run_pending_migrations(member(ext.clone()).as_ref())
         .await
         .expect_err("edited SQL is real drift");
     assert!(error_chain(&error).contains("edited"));
@@ -118,7 +130,7 @@ async fn edited_sql_rejects_entire_extension_before_any_checksum_transition() {
     assert_eq!(stored(&f, 8).await, historical(second.sql));
     ext.migrations[1] = second.clone();
     service
-        .run_pending_migrations(&ext)
+        .run_pending_migrations(member(ext.clone()).as_ref())
         .await
         .expect("restoring exact original SQL permits bookkeeping transition");
     assert_eq!(stored(&f, 7).await, original.checksum());
@@ -138,17 +150,37 @@ async fn historical_hash_does_not_authorize_reused_or_tombstoned_slots() {
     };
     let service = MigrationService::new(f.db.write());
     assert!(matches!(
-        service.run_pending_migrations(&ext).await,
+        service
+            .run_pending_migrations(member(ext.clone()).as_ref())
+            .await,
         Err(LoaderError::MigrationSlotReused { .. })
     ));
     assert_eq!(stored(&f, 7).await, historical(f.create_sql));
     ext.migrations = vec![Migration::tombstone(7, "retired")];
-    let result = service.run_pending_migrations(&ext).await.unwrap();
+    let result = service
+        .run_pending_migrations(member(ext.clone()).as_ref())
+        .await
+        .unwrap();
     assert_eq!((result.migrations_run, result.migrations_skipped), (0, 0));
     assert_eq!(stored(&f, 7).await, historical(f.create_sql));
-    assert!(service.status(&ext).await.unwrap().tombstoned[0].tracked);
+    assert!(
+        service
+            .status(member(ext.clone()).as_ref())
+            .await
+            .unwrap()
+            .tombstoned[0]
+            .tracked
+    );
     ext.migrations.clear();
-    assert_eq!(service.status(&ext).await.unwrap().orphaned.len(), 1);
+    assert_eq!(
+        service
+            .status(member(ext.clone()).as_ref())
+            .await
+            .unwrap()
+            .orphaned
+            .len(),
+        1
+    );
     assert_eq!(stored(&f, 7).await, historical(f.create_sql));
 }
 
@@ -157,14 +189,14 @@ async fn concurrent_history_replacement_rolls_back_earlier_conversions() {
     let f = fixture().await;
     let first = Migration::new(7, "original", f.create_sql);
     let second = Migration::new(8, "second", "SELECT 8;");
-    let ext = SlotExt {
+    let ext = member(SlotExt {
         id: f.ext_id,
         table: f.table,
         schema_sql: f.schema_sql,
         migrations: vec![first.clone(), second.clone()],
-    };
+    });
     MigrationService::new(f.db.write())
-        .run_pending_migrations(&ext)
+        .run_pending_migrations(ext.as_ref())
         .await
         .unwrap();
     historical_row(&f, 7, first.sql).await;
@@ -180,7 +212,7 @@ async fn concurrent_history_replacement_rolls_back_earlier_conversions() {
     let db = f.db.clone();
     let mut runner = tokio::spawn(async move {
         MigrationService::new(db.write())
-            .run_pending_migrations(&ext)
+            .run_pending_migrations(ext.as_ref())
             .await
     });
     // The runner's first transition is visible as a held row lock, while its

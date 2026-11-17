@@ -7,7 +7,7 @@
 //! full router from `AppContext` (extensions return an `ExtensionRouter` from
 //! `Extension::router(&ctx)`) and swaps it in via `EarlyServer::activate`.
 
-use systemprompt::api::services::server::bind_and_serve;
+use systemprompt::api::bind_and_serve;
 use systemprompt::manifest::profile::ShutdownConfig;
 use systemprompt::prelude::Router;
 use systemprompt::system::ShutdownRequest;

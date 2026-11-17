@@ -51,7 +51,6 @@ mod profile_governance;
 #[cfg(test)]
 mod registered_entities;
 #[cfg(test)]
-mod registry_discovery;
 #[cfg(test)]
 mod request_wire_compat;
 #[cfg(test)]

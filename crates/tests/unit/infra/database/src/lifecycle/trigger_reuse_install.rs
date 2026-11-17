@@ -5,15 +5,13 @@
 //! `pg_trigger` row version (`xmin`) changes whenever it is dropped and
 //! created or replaced, so an unchanged version means it was left alone.
 
-use systemprompt_database::{DbPool, MigrationConfig, install_extension_schemas_full};
-use systemprompt_extension::ExtensionRegistry;
-use systemprompt_test_fixtures::DisposableDb;
+use systemprompt_database::{DbPool, MigrationConfig, install_admitted_schemas};
+use systemprompt_test_fixtures::{DisposableDb, schema_admitted};
 
 async fn install(pool: &DbPool, config: MigrationConfig) {
-    install_extension_schemas_full(
-        &ExtensionRegistry::discover().expect("registry"),
+    install_admitted_schemas(
+        schema_admitted().expect("core members").built(),
         pool.write(),
-        &[],
         config,
     )
     .await

@@ -20,16 +20,16 @@
 //!
 //! - [`identity`] is the `identity` config plane: users, their roles, service
 //!   accounts and static OAuth clients declared under `services/identity/`.
+//! - [`sso`] runs browser-redirect single sign-on over the providers, audit
+//!   sinks and role resolvers members contribute to [`contract::SsoSlot`].
 //!
 //! Every failure is an [`IssuanceError`], partitioned by RFC 6749 error code.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-#[doc(hidden)]
-pub use ::inventory as __inventory;
-
 pub mod client_credentials;
+pub mod contract;
 pub mod drive_sync;
 pub mod error;
 mod extension;

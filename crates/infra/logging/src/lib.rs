@@ -24,8 +24,8 @@
 //!   lines (`observability.log_format`); both redact the same fields.
 //! - [`LogSink::shutdown`] — flush the database sink's buffered and queued
 //!   entries and stop its writer task; awaited on server shutdown.
-//! - [`LoggingExtension`] — schema/extension registration via the `inventory`
-//!   framework.
+//! - [`LoggingExtension`] — the logging member: its schemas, migrations and
+//!   contributions to the composition.
 //! - [`LoggingRepository`], [`AnalyticsRepository`] — direct repository access.
 //!
 //! ## Process state

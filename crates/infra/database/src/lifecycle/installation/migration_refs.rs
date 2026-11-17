@@ -21,9 +21,10 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
+use crate::lifecycle::schema_member::SchemaMember;
 use pg_query::protobuf::{AlterTableType, ObjectType};
 use pg_query::{Context, NodeEnum};
-use systemprompt_extension::{Extension, LoaderError};
+use systemprompt_extension::LoaderError;
 use systemprompt_identifiers::ExtensionId;
 use tracing::warn;
 
@@ -76,7 +77,7 @@ struct ParsedMigration {
     toggles: Vec<(String, String)>,
 }
 
-pub fn check_migration_references(extensions: &[Arc<dyn Extension>]) -> Result<(), LoaderError> {
+pub fn check_migration_references(extensions: &[Arc<dyn SchemaMember>]) -> Result<(), LoaderError> {
     let mut declared = Objects::default();
     let mut migrated = Objects::default();
     let mut migrations = Vec::new();

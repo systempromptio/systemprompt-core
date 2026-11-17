@@ -6,19 +6,19 @@
 use anyhow::{Context, Result};
 use std::path::Path;
 use systemprompt_cloud::{DockerCli, ProjectContext};
-use systemprompt_loader::subprocess::ForegroundChildren;
+use systemprompt_extension::cli::ChildSupervisor;
 use systemprompt_logging::CliService;
 
 use super::templates::{run_migrations_cmd, validate_connection};
 use crate::cli::tenant::wait_for_postgres_healthy;
-use systemprompt_cli::kernel::Prompter;
+use systemprompt_extension::cli::Prompter;
 
 pub async fn handle_local_tenant_setup(
     prompter: &dyn Prompter,
     db_url: &str,
     tenant_name: &str,
     profile_path: &Path,
-    children: &ForegroundChildren,
+    children: &dyn ChildSupervisor,
 ) -> Result<()> {
     let spinner = CliService::spinner("Validating PostgreSQL connection...");
     let mut connection_valid = validate_connection(db_url).await;
@@ -60,7 +60,7 @@ pub async fn handle_local_tenant_setup(
 
 async fn start_postgres_container(
     compose_path: &Path,
-    children: &ForegroundChildren,
+    children: &dyn ChildSupervisor,
 ) -> Result<bool> {
     CliService::info("Starting PostgreSQL container...");
 
@@ -73,7 +73,7 @@ async fn start_postgres_container(
         .ok_or_else(|| anyhow::anyhow!("Invalid compose path"))?
         .to_owned();
 
-    let docker = DockerCli::new(children.clone());
+    let docker = DockerCli::new(children.handle());
     let status = docker
         .status(&[
             "compose",

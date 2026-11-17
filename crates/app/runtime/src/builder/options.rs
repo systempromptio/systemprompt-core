@@ -8,7 +8,6 @@ use std::sync::Arc;
 
 use systemprompt_database::MigrationConfig;
 use systemprompt_events::EventRouter;
-use systemprompt_extension::ExtensionRegistry;
 use systemprompt_governance::authz::{AuthzDecisionHook, SharedAuthzHook};
 use systemprompt_marketplace::MarketplaceFilter;
 use systemprompt_security::keys::SigningKeys;
@@ -18,12 +17,6 @@ use super::AppContextBuilder;
 use crate::context::ShutdownRequest;
 
 impl AppContextBuilder {
-    #[must_use]
-    pub fn with_extensions(mut self, registry: ExtensionRegistry) -> Self {
-        self.extension_registry = Some(registry);
-        self
-    }
-
     #[must_use]
     pub const fn with_startup_warnings(mut self, show: bool) -> Self {
         self.show_startup_warnings = show;

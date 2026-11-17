@@ -1,96 +1,47 @@
-//! The CLI kernel surface command groups build on.
+//! The CLI kernel: the command registry, command-line description and the
+//! helpers the kernel's own groups share.
 //!
-//! A command group, whether it lives in this crate or in a capability's entry
-//! crate, reaches the kernel only through this module:
-//!
-//! - **Registration** — [`CliCommandGroup`] and [`CliCommandLeaf`] (with a
-//!   `--help` slot, [`REGISTERED_DISPLAY_ORDER`] by default),
-//!   [`crate::register_cli_command!`] and the [`CommandRegistry`] the runner
-//!   assembles the command tree from; [`LinkedSeamRegistration`] and
-//!   [`crate::register_linked_seam!`] for the link-time seams `plugins seams`
-//!   lists ([`registered_seams`], whose [`SeamEntry`] values are rendered with
-//!   [`named`], [`owned`], [`prioritized`] and [`unnamed`]).
-//! - **Bootstrap declaration** — [`CommandDescriptor`], [`KernelGrant`],
-//!   [`DataImpact`], [`DbUrlRouting`], [`RoutingClass`] and
-//!   [`DescribeCommand`]: what a command needs before it runs (profile,
-//!   secrets, paths, database, cloud credentials for a cloud-operator command,
-//!   a local `--export`) and what it does to the data behind the profile;
-//!   [`describe_command_line`] classifies a forwarded argv the same way and
-//!   [`command_line_path`] names the path it selects.
-//! - **Execution context** — [`CommandContext`] (profile, paths, database,
-//!   session, foreground children) and the output settings in [`CliConfig`] and
-//!   [`OutputFormat`].
-//! - **Output** — [`CommandOutput`] and its row/section types, rendered with
-//!   [`render_result`]; validation results in [`ValidationOutput`].
-//! - **Operator interaction** — [`Prompter`], [`require_confirmation`] and
-//!   [`ConfirmArgs`] for `--yes`.
-//! - **Argument parsing** — the typed-identifier value parsers in [`parsers`].
-//! - **Profile access** — [`resolve_profile_path`], [`profile`], [`boot`
-//!   loading](load_boot), [`ResolvedPaths`], [`project`] discovery and the
-//!   database-scope refusal [`database_scoped_command_error`].
-//! - **Session** — [`session`], [`CliSessionContext`] and
-//!   [`get_or_create_session`] for commands that call the API as the operator.
-//! - **Presentation and process** — [`tables`], [`StartupRenderer`],
-//!   [`time_format`], [`text`], [`disk_logs`], [`interrupt`] and [`routing`],
-//!   plus [`define_pool_command!`] for pooled database commands.
-//! - **Helpers several groups share** — [`provider_catalog`] (the seeded model
-//!   catalog and `gateway.yaml`), [`docker_compose`], [`postgres_access`] and
-//!   [`ddl`] (the local database), [`yaml_document`] (lossless YAML edits),
-//!   [`ProfileInfo`], [`McpToolEntry`] and [`FileSummary`] (a file row the
-//!   `core files` and content commands both render). A command group names
-//!   these here and never reaches into another group's modules.
-//!
-//! Errors are `anyhow::Result<()>` from `run`; the runner maps them to the
-//! process exit code, and an interrupted command exits with
-//! [`INTERRUPTED_EXIT_CODE`].
+//! A contributed command declares against `systemprompt_extension::cli`
+//! (`CommandDecl`, `CliCommandGroup`, `CliCommandLeaf`, `CommandHost`,
+//! `CommandOutput`) and never against this module. The kernel builds its
+//! [`CommandRegistry`] from the composition's declared commands and its own
+//! built-ins, re-checking every reserved path and grant;
+//! [`describe_command_line`] classifies a forwarded argv against that
+//! registry, [`command_line_path`] names the path it selects and
+//! [`classify_command_line`] returns both with the owner, refusing a
+//! disabled owner's command. [`read_disabled`] reads the one profile input
+//! admission needs from a target profile the host does not run. Output is
+//! rendered by [`render_result`]; the remaining items are the helpers the
+//! kernel's own groups share (profile access, session, presentation, the
+//! local database and the seeded model catalog). An interrupted command
+//! exits with [`INTERRUPTED_EXIT_CODE`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod command;
 mod describe;
-mod grants;
 mod registry;
 mod registry_error;
-mod seams;
+mod target_admission;
 
-pub use command::{
-    CliCommandGroup, CliCommandLeaf, CommandFuture, REGISTERED_DISPLAY_ORDER, RegisteredCommand,
+pub use describe::{classify_command_line, command_line_path, describe_command_line};
+pub use registry::{
+    CommandOwner, CommandRegistry, RegistryEntry, ResolvedCommand, core_owner_type, kernel_commands,
 };
-pub use describe::{command_line_path, describe_command_line};
-pub use grants::KernelGrant;
-pub use registry::{CliCommandRegistration, CommandRegistry};
 pub use registry_error::{RegistryError, ResolveError};
-pub use seams::{
-    LinkedSeamRegistration, SeamEntry, named, owned, prioritized, registered_seams, unnamed,
-};
+pub(crate) use target_admission::admit_target;
+pub use target_admission::{TargetAdmissionError, read_disabled};
 
-pub use crate::boot::{load_boot, load_boot_from_path, load_profile};
-pub use crate::cli_settings::{CliConfig, OutputFormat};
-pub use crate::commands::core::files::types::FileSummary;
 pub use crate::commands::shared::mcp_tools::McpToolEntry;
 pub use crate::commands::shared::{ValidationIssue, ValidationOutput, mcp_tools};
 pub use crate::context::CommandContext;
-pub use crate::define_pool_command;
-pub use crate::descriptor::{
-    CommandDescriptor, DataImpact, DbUrlRouting, DescribeCommand, RoutingClass,
-};
-pub use crate::interactive::{
-    DialoguerPrompter, Prompter, require_confirmation, require_confirmation_default_yes,
-    resolve_required,
-};
-pub use crate::paths::ResolvedPaths;
+pub use crate::host::KernelHost;
+pub use crate::member_host::MemberHost;
 pub use crate::presentation::{StartupRenderer, tables};
 pub use crate::runner::interrupt::INTERRUPTED_EXIT_CODE;
 pub use crate::runner::{interrupt, routing};
 pub use crate::session::{self, CliSessionContext, get_or_create_session};
-pub use crate::shared::command_result::{
-    ChartType, CommandOutput, KeyValueItem, KeyValueOutput, SuccessOutput, TableOutput, TextOutput,
-    render_result,
-};
-pub use crate::shared::profile::ProfileInfo;
+pub use crate::shared::render::render_result;
 pub use crate::shared::{
-    ConfirmArgs, IdentityBundle, database_scoped_command_error, ddl, disk_logs, docker_compose,
-    generate_identity, parsers, postgres_access, profile, project, provider_catalog,
-    resolve_profile_path, text, time_format, yaml_document,
+    ConfirmArgs, database_scoped_command_error, ddl, disk_logs, postgres_access, text,
 };

@@ -1,57 +1,37 @@
-//! Inventory-registered fixture extensions that make the extension arms of
-//! the startup validator reachable in this test binary:
-//! - `covextok`: config-bearing, always validates OK
-//! - `covextbad`: config-bearing, always rejects its config
+//! Fixture members that make the extension arms of the startup validator
+//! reachable, admitted into a [`BuiltState`] by [`fixture_admitted`]:
+//! - `covextok`: declares a config section that always validates
+//! - `covextbad`: declares a config section that always rejects
 //! - `covassets_missing`: declares a required asset that never exists
 //! - `covassets_ok`: declares a required asset the boot fixture creates
-//!
-//! Registration is per-binary (inventory), so every test in this crate that
-//! reaches extension discovery sees all four; assertions account for that.
 
-use std::sync::Arc;
-
+use serde::Deserialize;
+use systemprompt_extension::admitted::{AdmittedMember, AdmittedParts};
+use systemprompt_extension::contribute::ContributionSink;
 use systemprompt_extension::{
-    AssetDefinition, AssetPaths, Extension, ExtensionConfigError, ExtensionMetadata,
-    register_extension,
+    Admitted, AssetDefinition, ContributionError, Contributions, Extension, ExtensionConfig,
+    ExtensionConfigError, ExtensionMetadata, StandingTag,
 };
-use systemprompt_marketplace::{
-    MarketplaceCandidate, MarketplaceFilter, MarketplaceFilterError, register_marketplace_filter,
-};
+use systemprompt_identifiers::ExtensionId;
 
-#[derive(Default)]
-pub struct CovExtOk;
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct CovOkConfig {}
 
-impl Extension for CovExtOk {
-    fn metadata(&self) -> ExtensionMetadata {
-        ExtensionMetadata {
-            id: "covextok",
-            name: "Coverage OK Extension",
-            version: "0.0.1",
-        }
-    }
+impl ExtensionConfig for CovOkConfig {
+    const PREFIX: &'static str = "covextok";
 
-    fn config_prefix(&self) -> Option<&str> {
-        Some("covextok")
+    fn validate(&self) -> Result<(), ExtensionConfigError> {
+        Ok(())
     }
 }
 
-#[derive(Default)]
-pub struct CovExtBad;
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct CovBadConfig {}
 
-impl Extension for CovExtBad {
-    fn metadata(&self) -> ExtensionMetadata {
-        ExtensionMetadata {
-            id: "covextbad",
-            name: "Coverage Bad Extension",
-            version: "0.0.1",
-        }
-    }
+impl ExtensionConfig for CovBadConfig {
+    const PREFIX: &'static str = "covextbad";
 
-    fn config_prefix(&self) -> Option<&str> {
-        Some("covextbad")
-    }
-
-    fn validate_config(&self, _config: &serde_json::Value) -> Result<(), ExtensionConfigError> {
+    fn validate(&self) -> Result<(), ExtensionConfigError> {
         Err(ExtensionConfigError::InvalidValue {
             key: "covextbad.mode".to_owned(),
             message: "fixture always rejects".to_owned(),
@@ -59,86 +39,82 @@ impl Extension for CovExtBad {
     }
 }
 
-#[derive(Default)]
-pub struct CovAssetsMissing;
+struct Fixture {
+    id: &'static str,
+    contribute: fn(&mut Contributions<'_>),
+}
 
-impl Extension for CovAssetsMissing {
+impl Extension for Fixture {
     fn metadata(&self) -> ExtensionMetadata {
         ExtensionMetadata {
-            id: "covassets_missing",
-            name: "Coverage Missing Assets Extension",
+            id: self.id,
+            name: self.id,
             version: "0.0.1",
         }
     }
 
-    fn declares_assets(&self) -> bool {
-        true
-    }
-
-    fn required_assets(&self, paths: &dyn AssetPaths) -> Vec<AssetDefinition> {
-        vec![AssetDefinition::css(
-            paths.storage_files().join("covassets_missing/absent.css"),
-            "css/absent.css",
-        )]
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        (self.contribute)(c);
+        Ok(())
     }
 }
 
-#[derive(Default)]
-pub struct CovAssetsOk;
+const FIXTURES: [Fixture; 4] = [
+    Fixture {
+        id: "covextok",
+        contribute: |c| {
+            c.config::<CovOkConfig>();
+        },
+    },
+    Fixture {
+        id: "covextbad",
+        contribute: |c| {
+            c.config::<CovBadConfig>();
+        },
+    },
+    Fixture {
+        id: "covassets_missing",
+        contribute: |c| {
+            c.asset_with(|paths| {
+                vec![AssetDefinition::css(
+                    paths.storage_files().join("covassets_missing/absent.css"),
+                    "css/absent.css",
+                )]
+            });
+        },
+    },
+    Fixture {
+        id: "covassets_ok",
+        contribute: |c| {
+            c.asset_with(|paths| {
+                vec![AssetDefinition::css(
+                    paths.storage_files().join("covassets_ok/present.css"),
+                    "css/present.css",
+                )]
+            });
+        },
+    },
+];
 
-impl Extension for CovAssetsOk {
-    fn metadata(&self) -> ExtensionMetadata {
-        ExtensionMetadata {
-            id: "covassets_ok",
-            name: "Coverage Present Assets Extension",
-            version: "0.0.1",
-        }
-    }
-
-    fn declares_assets(&self) -> bool {
-        true
-    }
-
-    fn required_assets(&self, paths: &dyn AssetPaths) -> Vec<AssetDefinition> {
-        vec![AssetDefinition::css(
-            paths.storage_files().join("covassets_ok/present.css"),
-            "css/present.css",
-        )]
-    }
+pub fn fixture_admitted() -> Admitted {
+    let members = FIXTURES
+        .iter()
+        .map(|fixture| {
+            let owner = ExtensionId::new(fixture.id);
+            let mut sink = ContributionSink::default();
+            fixture
+                .contribute(&mut Contributions::__new(owner.clone(), &mut sink))
+                .expect("the fixture contributes");
+            AdmittedMember {
+                owner,
+                metadata: fixture.metadata(),
+                standing: StandingTag::Install,
+                sink,
+            }
+        })
+        .collect();
+    Admitted::__from_facade(AdmittedParts {
+        members,
+        ..AdmittedParts::default()
+    })
 }
-
-#[derive(Debug)]
-pub struct CovMarketplaceFilter;
-
-#[async_trait::async_trait]
-impl MarketplaceFilter for CovMarketplaceFilter {
-    async fn filter(
-        &self,
-        _user_id: &systemprompt_identifiers::UserId,
-        candidate: MarketplaceCandidate,
-    ) -> Result<MarketplaceCandidate, MarketplaceFilterError> {
-        Ok(candidate)
-    }
-}
-
-fn failing_filter_factory(
-    _ctx: &systemprompt_marketplace::MarketplaceFactoryContext,
-) -> Result<Arc<dyn MarketplaceFilter>, MarketplaceFilterError> {
-    Err(MarketplaceFilterError::Backend(
-        "fixture factory always fails".into(),
-    ))
-}
-
-fn cov_filter_factory(
-    _ctx: &systemprompt_marketplace::MarketplaceFactoryContext,
-) -> Result<Arc<dyn MarketplaceFilter>, MarketplaceFilterError> {
-    Ok(Arc::new(CovMarketplaceFilter))
-}
-
-register_marketplace_filter!(failing_filter_factory, priority = 100);
-register_marketplace_filter!(cov_filter_factory, priority = 10);
-
-register_extension!(CovExtOk);
-register_extension!(CovExtBad);
-register_extension!(CovAssetsMissing);
-register_extension!(CovAssetsOk);

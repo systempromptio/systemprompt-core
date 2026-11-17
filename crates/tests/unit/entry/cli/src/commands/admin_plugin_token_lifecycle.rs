@@ -6,7 +6,8 @@ use systemprompt_identifiers::PluginId;
 use base64::Engine;
 use clap::Parser;
 use systemprompt_cli::admin::keys::{self, KeysCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CommandContext, EnvOverrides};
+use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::UserId;
 use systemprompt_security::HookTokenValidator;
 use systemprompt_test_fixtures::{
@@ -59,19 +60,22 @@ async fn plugin_token_helper() {
     .with_boot(Some(boot.boot.clone()));
 
     println!("BEGIN_PLUGIN_TOKEN");
-    keys::execute(
-        parse(&[
-            "issue-plugin-token",
-            "--email",
-            admin_email,
-            "--plugin-id",
-            PLUGIN,
-            "--duration-days",
-            "7",
-        ]),
+    crate::boot_ctx::rendered(
         &context,
+        keys::execute(
+            parse(&[
+                "issue-plugin-token",
+                "--email",
+                admin_email,
+                "--plugin-id",
+                PLUGIN,
+                "--duration-days",
+                "7",
+            ]),
+            &context,
+        )
+        .await,
     )
-    .await
     .expect("admin plugin token issuance");
     println!("END_PLUGIN_TOKEN");
 

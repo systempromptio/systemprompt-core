@@ -6,14 +6,14 @@
 use crate::cli::content::types::{ClickRow, ClicksOutput};
 use anyhow::Result;
 use clap::Args;
-use systemprompt_cli::kernel::{CliConfig, CommandContext, CommandOutput};
 use systemprompt_content::{ContentRepositories, LinkAnalyticsService};
-use systemprompt_database::DbPool;
+use systemprompt_database::{DbPool, pool_from_handle};
+use systemprompt_extension::cli::{CliConfig, CommandHost, CommandOutput};
 use systemprompt_identifiers::LinkId;
 
 #[derive(Debug, Args)]
 pub struct ClicksArgs {
-    #[arg(help = "Link ID", value_parser = systemprompt_cli::kernel::parsers::parse_link_id)]
+    #[arg(help = "Link ID", value_parser = systemprompt_extension::cli::parsers::parse_link_id)]
     pub link_id: LinkId,
 
     #[arg(long, default_value = "20")]
@@ -23,8 +23,8 @@ pub struct ClicksArgs {
     pub offset: i64,
 }
 
-pub async fn execute(args: ClicksArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    execute_with_pool(args, &ctx.db_pool().await?, &ctx.cli).await
+pub async fn execute(args: ClicksArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    execute_with_pool(args, &pool_from_handle(host.db().await?)?, host.output()).await
 }
 
 pub async fn execute_with_pool(

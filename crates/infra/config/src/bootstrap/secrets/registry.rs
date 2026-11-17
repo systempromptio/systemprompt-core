@@ -1,13 +1,13 @@
-//! Registry of extension-supplied secrets sources.
+//! The secrets sources a composition contributes.
 //!
 //! A profile with `secrets.source: external` names a `kind`; the provider for
-//! that kind is contributed at compile time with
-//! [`register_secrets_source!`](crate::register_secrets_source) and collected
-//! through `inventory`, the same way authorization subject providers are.
-//! Core ships no external kind of its own.
+//! that kind is declared on the composition and handed to the secrets
+//! bootstrap as [`SecretsSources`]. Core ships no external kind of its own.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+
+use std::sync::Arc;
 
 use systemprompt_manifest::profile::ExternalSecretsConfig;
 
@@ -27,7 +27,33 @@ pub struct SecretsSourceRegistration {
     pub factory: SecretsSourceFactory,
 }
 
-inventory::collect!(SecretsSourceRegistration);
+/// The external secrets sources the bootstrap may build, by kind.
+#[derive(Debug, Clone, Default)]
+pub struct SecretsSources(Arc<[SecretsSourceRegistration]>);
+
+impl SecretsSources {
+    #[must_use]
+    pub fn new(registrations: Vec<SecretsSourceRegistration>) -> Self {
+        Self(registrations.into())
+    }
+
+    #[must_use]
+    pub fn find(&self, kind: &str) -> Option<&SecretsSourceRegistration> {
+        self.0.iter().find(|registration| registration.kind == kind)
+    }
+
+    #[must_use]
+    pub fn kinds(&self) -> Vec<&'static str> {
+        let mut kinds: Vec<&'static str> = self
+            .0
+            .iter()
+            .map(|registration| registration.kind)
+            .collect();
+        kinds.sort_unstable();
+        kinds.dedup();
+        kinds
+    }
+}
 
 pub fn process_env_lookup() -> EnvLookup {
     Box::new(systemprompt_manifest::read_env_optional)
@@ -36,37 +62,14 @@ pub fn process_env_lookup() -> EnvLookup {
 pub fn build_external_provider(
     cfg: &ExternalSecretsConfig,
     env: EnvLookup,
+    sources: &SecretsSources,
 ) -> Result<SharedSecretsProvider, SecretsBootstrapError> {
-    let registration = inventory::iter::<SecretsSourceRegistration>()
-        .find(|registration| registration.kind == cfg.kind)
-        .ok_or_else(|| SecretsBootstrapError::UnknownExternalKind {
-            kind: cfg.kind.clone(),
-            known: registered_external_kinds()
-                .into_iter()
-                .map(str::to_owned)
-                .collect(),
-        })?;
+    let registration =
+        sources
+            .find(&cfg.kind)
+            .ok_or_else(|| SecretsBootstrapError::UnknownExternalKind {
+                kind: cfg.kind.clone(),
+                known: sources.kinds().into_iter().map(str::to_owned).collect(),
+            })?;
     (registration.factory)(cfg, env)
-}
-
-#[must_use]
-pub fn registered_external_kinds() -> Vec<&'static str> {
-    let mut kinds: Vec<&'static str> = inventory::iter::<SecretsSourceRegistration>()
-        .map(|registration| registration.kind)
-        .collect();
-    kinds.sort_unstable();
-    kinds.dedup();
-    kinds
-}
-
-#[macro_export]
-macro_rules! register_secrets_source {
-    ($kind:expr, $factory:expr $(,)?) => {
-        $crate::__inventory::submit! {
-            $crate::SecretsSourceRegistration {
-                kind: $kind,
-                factory: $factory,
-            }
-        }
-    };
 }

@@ -1,7 +1,7 @@
 [root]
 section = "Breaking"
 area = "Scheduler"
-text = "capability jobs are exported by their owning crates: `BehavioralAnalysisJob`, `MaliciousIpBlacklistJob`, `GhostSessionCleanupJob`, `NoJsCleanupJob`, `BackfillSessionGeoJob` by `systemprompt-analytics`; `UsageAnomalyScanJob`, `ThoughtSignatureCleanupJob` and `AiRequestToolFlagRollupJob` by `systemprompt-ai`; `CleanupEmptyContextsJob`, `UserContextCountersRollupJob` and `EmptyContextRepository` by `systemprompt-agent`; `ToolRowFactsRollupJob` by `systemprompt-mcp`. `repository::{AnalyticsRepository, SecurityRepository, IpSessionRecord}` and `SchedulerRepository::{cleanup_empty_contexts, count_empty_contexts}` are removed, `SchedulerError` loses `Analytics`, `Managed` and `Mcp` and gains `DuplicateRetentionPurge` and `Extensions`, `otlp_export_now` takes an attribution lookup, and `JobExecutionService::new` takes no registry and reads the context's. Job names, schedules and parameters are unchanged. Migrate by importing each job from its owner."
+text = "capability jobs are exported by their owning crates: `BehavioralAnalysisJob`, `MaliciousIpBlacklistJob`, `GhostSessionCleanupJob`, `NoJsCleanupJob`, `BackfillSessionGeoJob` by `systemprompt-analytics`; `UsageAnomalyScanJob`, `ThoughtSignatureCleanupJob` and `AiRequestToolFlagRollupJob` by `systemprompt-ai`; `CleanupEmptyContextsJob`, `UserContextCountersRollupJob` and `EmptyContextRepository` by `systemprompt-agent`; `ToolRowFactsRollupJob` by `systemprompt-mcp`. `repository::{AnalyticsRepository, SecurityRepository, IpSessionRecord}` and `SchedulerRepository::{cleanup_empty_contexts, count_empty_contexts}` are removed, `SchedulerError` loses `Analytics`, `Managed` and `Mcp` and gains `DuplicateRetentionPurge` and `Extensions`, `otlp_export_now` takes an attribution lookup and `JobExecutionService::new` takes the `AdmittedSchedule`. Job names, schedules and parameters are unchanged. Migrate by importing each job from its owner."
 
 [[crate]]
 name = "systemprompt-scheduler"
@@ -11,7 +11,7 @@ text = "Capability jobs are exported by `systemprompt-analytics`, `systemprompt-
 [[crate]]
 name = "systemprompt-scheduler"
 section = "Breaking"
-text = "`SchedulerError` loses `Analytics`, `Managed` and `Mcp` and gains `DuplicateRetentionPurge` and `Extensions`; `otlp_export_now` takes an attribution lookup; `JobExecutionService::new` takes no registry and reads the context's."
+text = "`SchedulerError` loses `Analytics`, `Managed` and `Mcp` and gains `DuplicateRetentionPurge` and `Extensions`; `otlp_export_now` takes an attribution lookup; `JobExecutionService::new` takes the `AdmittedSchedule`."
 
 [[crate]]
 name = "systemprompt-agent"

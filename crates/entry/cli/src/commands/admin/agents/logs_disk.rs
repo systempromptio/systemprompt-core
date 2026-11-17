@@ -10,11 +10,10 @@ use anyhow::{Context, Result, anyhow};
 
 use super::logs::LogsArgs;
 use super::types::AgentLogsOutput;
-use crate::CliConfig;
-use crate::interactive::{Prompter, resolve_required};
-use crate::shared::CommandOutput;
 use crate::shared::disk_logs::{display_names, find_log_file, list_log_files, read_log_lines};
-use systemprompt_loader::subprocess::ForegroundChildren;
+use systemprompt_extension::cli::{
+    ChildSupervisor, CliConfig, CommandOutput, Prompter, resolve_required,
+};
 use systemprompt_models::artifacts::ListItem;
 
 pub(super) fn execute_disk_mode(
@@ -69,7 +68,7 @@ pub(super) fn execute_follow_mode(
     prompter: &dyn Prompter,
     config: &CliConfig,
     logs_path: &Path,
-    children: &ForegroundChildren,
+    children: &dyn ChildSupervisor,
 ) -> Result<CommandOutput> {
     if !logs_path.exists() {
         return Err(anyhow!(

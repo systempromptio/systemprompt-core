@@ -157,6 +157,18 @@ scripts/*
 !scripts/sqlx-prepare.sh
 !scripts/check-http-errors.sh
 !scripts/lint-layers.sh
+!scripts/test-lint-layers.py
+!scripts/lint-kernel-deps.py
+!scripts/test-lint-kernel-deps.py
+!scripts/lint-hidden-constructors.py
+!scripts/test-lint-hidden-constructors.py
+!scripts/lint-no-inventory.py
+!scripts/test-lint-no-inventory.py
+!scripts/lint-kernel-identity.py
+!scripts/test-lint-kernel-identity.py
+!scripts/lint-contributions-surface.py
+!scripts/test-lint-contributions-surface.py
+!scripts/lib/fixture_tree.py
 !scripts/check-release-tag.sh
 !scripts/check-crate-changelogs.sh
 !scripts/regen.sh
@@ -214,6 +226,7 @@ scripts/*
 !scripts/lib/
 !scripts/lib/gate-scope.sh
 !scripts/lib/gate_scope.py
+!scripts/lib/rust_tokens.py
 !scripts/lib/rust-contracts.sh
 !scripts/lib/units.py
 !scripts/lib/gh_api.py

@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use std::path::Path;
@@ -13,9 +14,7 @@ use super::edit_apply::{
 };
 use super::shared::AgentArgs;
 use super::types::AgentEditOutput;
-use crate::context::CommandContext;
-use crate::interactive::resolve_required;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::{CommandOutput, resolve_required};
 use systemprompt_identifiers::AgentName;
 use systemprompt_loader::ConfigWriter;
 use systemprompt_logging::CliService;
@@ -24,7 +23,7 @@ use systemprompt_logging::CliService;
 pub struct EditArgs {
     #[arg(
         help = "Agent name (required in non-interactive mode)",
-        value_parser = crate::shared::parse_agent_name
+        value_parser = systemprompt_extension::cli::parsers::parse_agent_name
     )]
     pub name: Option<AgentName>,
 
@@ -51,11 +50,10 @@ pub struct EditArgs {
     pub agent: AgentArgs,
 }
 
-pub(super) fn execute(args: &EditArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let config = &ctx.cli;
-    let prompter = ctx.prompter();
-    let services_config = ctx
-        .boot()?
+pub(super) fn execute(args: &EditArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+    let config = host.output();
+    let prompter = host.prompter();
+    let services_config = crate::commands::admin::state::boot(host)?
         .config_loader()
         .verbatim()
         .load()
@@ -91,18 +89,20 @@ pub(super) fn execute(args: &EditArgs, ctx: &CommandContext) -> Result<CommandOu
 
     CliService::info(&format!("Updating agent '{}'...", name));
 
-    let profile = ctx.profile()?;
+    let profile = host.profile()?;
     let services_dir = Path::new(&profile.paths.services);
 
     ConfigWriter::update_agent(&name, &agent, services_dir)
         .with_context(|| format!("Failed to update agent '{}'", name))?;
 
-    ctx.boot()?.load_services_config().with_context(|| {
-        format!(
-            "Agent '{}' updated but validation failed. Please check the configuration.",
-            name
-        )
-    })?;
+    crate::commands::admin::state::boot(host)?
+        .load_services_config()
+        .with_context(|| {
+            format!(
+                "Agent '{}' updated but validation failed. Please check the configuration.",
+                name
+            )
+        })?;
 
     CliService::success(&format!("Agent '{}' updated successfully", name));
 

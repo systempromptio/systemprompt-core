@@ -102,11 +102,7 @@ impl SchedulerService {
         }
 
         let Some(registered_job) = ctx.registered_jobs.get(job_config.name.as_str()) else {
-            info!(
-                job = %job_config.name,
-                "Job's owning extension is disabled in the profile; not scheduled"
-            );
-            return Ok(Registered::No);
+            return Err(SchedulerError::job_not_found(job_config.name.clone()));
         };
 
         if !registered_job.configured(&deployment_dependencies(self.app_context.boot())) {
@@ -150,45 +146,46 @@ impl SchedulerService {
         schedule: &str,
         actor: Actor,
     ) -> SchedulerResult<Job> {
-        let registered_job: &'static dyn JobTrait = *ctx
-            .registered_jobs
-            .get(job_config.name.as_str())
-            .ok_or_else(|| SchedulerError::job_not_found(job_config.name.clone()))?;
+        let registered_job: Arc<dyn JobTrait> = Arc::clone(
+            ctx.registered_jobs
+                .get(job_config.name.as_str())
+                .ok_or_else(|| SchedulerError::job_not_found(job_config.name.clone()))?,
+        );
         let running_jobs = ctx.running_jobs;
         let enforce = job_config.enforce;
         let parameters = job_config.parameters.clone();
         let job_name_owned = job_config.name.clone();
         let schedule_owned = schedule.to_owned();
-        let db_pool = Arc::clone(&self.db_pool);
         let repository = self.repository.clone();
         let app_context = Arc::clone(&self.app_context);
         let running_jobs = Arc::clone(running_jobs);
         let inventory_memo = Arc::clone(&self.inventory_memo);
+        let schedule = Arc::clone(&self.schedule);
         let claim_policy = dispatch::claim_policy(
             &self.config,
             Some(job_config),
-            Some(registered_job),
+            Some(registered_job.as_ref()),
             &self.app_context.config().instance_id,
         );
 
         let job = Job::new_async(schedule_owned.as_str(), move |_uuid, _lock| {
             let job_name = job_name_owned.clone();
             let actor = actor.clone();
-            let db_pool = Arc::clone(&db_pool);
             let repository = repository.clone();
             let app_context = Arc::clone(&app_context);
             let running_jobs = Arc::clone(&running_jobs);
             let inventory_memo = Arc::clone(&inventory_memo);
+            let schedule = Arc::clone(&schedule);
+            let job = Arc::clone(&registered_job);
             let parameters = parameters.clone();
             let claim_policy = claim_policy.clone();
 
             Box::pin(async move {
                 let span = SystemSpan::new(&format!("scheduler:{job_name}"));
                 dispatch::execute_job(dispatch::JobDispatch {
-                    job: registered_job,
+                    job,
                     job_name,
                     actor,
-                    db_pool,
                     repository,
                     app_context,
                     running_jobs,
@@ -196,6 +193,7 @@ impl SchedulerService {
                     enforce,
                     parameters,
                     inventory_memo,
+                    schedule,
                 })
                 .instrument(span.span().clone())
                 .await;

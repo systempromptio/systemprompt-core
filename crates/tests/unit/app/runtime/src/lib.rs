@@ -49,6 +49,8 @@ mod documents_actor;
 #[cfg(test)]
 mod documents_mcp_browse_share;
 #[cfg(test)]
+mod documents_mcp_conflict_retry;
+#[cfg(test)]
 mod documents_mcp_content;
 #[cfg(test)]
 mod documents_mcp_export;
@@ -76,6 +78,12 @@ mod documents_subject_directory;
 mod documents_views_touched;
 #[cfg(test)]
 mod host_context;
+#[cfg(test)]
+mod kernel_resolve_once;
+#[cfg(test)]
+mod kernel_sealed_seeds;
+#[cfg(test)]
+mod kernel_seeds;
 #[cfg(test)]
 mod link_rig;
 #[cfg(test)]
@@ -127,6 +135,8 @@ mod mcp_host_serve;
 mod schema_behind_error;
 #[cfg(test)]
 mod schema_currency_boot;
+#[cfg(test)]
+mod schema_held_back_owner;
 #[cfg(test)]
 mod schema_state;
 #[cfg(test)]

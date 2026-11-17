@@ -19,15 +19,12 @@ use std::io::{self, Write};
 use anyhow::{Context, Result};
 use systemprompt_client::{OutputSink, RemoteCliExecutor, RemoteCliRequest};
 use systemprompt_cloud::deploy::provider::tenant_base_url;
-use systemprompt_cloud::operator::{OperatorCredentials, exchange_for_tenant};
-use systemprompt_cloud::{
-    CloudPath, SessionKey, SessionStore, StoredTenant, TenantStore, get_cloud_paths,
-};
+use systemprompt_cloud::{SessionKey, SessionStore, StoredTenant, TenantStore};
 use systemprompt_identifiers::{ContextId, SessionToken};
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 
-use crate::paths::ResolvedPaths;
+use systemprompt_cloud::paths::ResolvedPaths;
 
 #[doc(hidden)]
 #[derive(Debug)]
@@ -103,21 +100,12 @@ pub async fn authorize_target(target: ExecutionTarget) -> Result<ExecutionTarget
     let ExecutionTarget::SelfManaged { hostname } = target else {
         return Ok(target);
     };
-    let token = operator_tenant_token(&hostname).await?;
+    let token = systemprompt_cloud::routing::operator_tenant_token(&hostname).await?;
     Ok(ExecutionTarget::Remote {
         hostname,
         token,
         context: ContextId::generate(),
     })
-}
-
-pub async fn operator_tenant_token(hostname: &str) -> Result<SessionToken> {
-    let path = get_cloud_paths().resolve(CloudPath::OperatorCredentials);
-    let operator = OperatorCredentials::load_valid(&path)?;
-    let session = exchange_for_tenant(&tenant_base_url(hostname), &operator)
-        .await
-        .with_context(|| format!("Operator token exchange with {hostname} failed"))?;
-    Ok(SessionToken::new(session.access_token))
 }
 
 pub fn resolve_tenant(

@@ -9,9 +9,9 @@ Notifications live in the `notifications` domain (`crates/domain/notifications`)
 Notifications are opt-in at build time. Enable the `notifications` feature of the `systemprompt` crate; `full` includes it and `core` does not.
 
 ```toml
-systemprompt = { version = "0.81", features = ["full"] }
+systemprompt = { version = "0.83", features = ["full"] }
 # or, on top of a narrower set:
-systemprompt = { version = "0.81", features = ["api", "notifications"] }
+systemprompt = { version = "0.83", features = ["api", "notifications"] }
 ```
 
 A server built without the feature behaves as follows:
@@ -22,7 +22,7 @@ A server built without the feature behaves as follows:
 - A comment that sets `mention_options` is refused with `unsupported_op`, because the requested attention cannot be honoured.
 - The desktop bridge shows that notifications are not enabled on the server and hides its inbox count.
 
-A server built with the feature can switch notifications off per profile by listing both `notifications` and `notifications-http` under `extensions.disabled`. The routes then answer 404, no consumer runs, and the documents MCP server does not list `documents_inbox`. Listing `notifications-http` alone unmounts all three route groups and keeps the service. Listing `notifications` alone refuses to boot, because the routes require its service. The brain records notifications, so a profile that disables `notifications` and enables `brain` also refuses to boot.
+A server built with the feature can switch notifications off per profile by listing both `notifications` and `notifications-http` under `extensions.disabled`. The routes then answer 404, no consumer runs, and the documents MCP server does not list `documents_inbox`. Listing `notifications-http` alone unmounts all three route groups and keeps the service. Listing `notifications` alone refuses to boot, because the routes require its service. The `brain` member requires the notification sink `notifications` provides, so a profile that disables `notifications` while `brain` is admitted also refuses to boot. An ID under `extensions.disabled` that names no composed member, or a required core member, refuses to boot.
 
 The HTTP routes are served by the `systemprompt-notifications-entry` crate. The bridge inbox is mounted inside the gateway surface: it is authenticated with the gateway credential, rate-limited under its own `bridge_notifications` budget, and recorded in the gateway access log.
 
@@ -73,7 +73,7 @@ Each row records why it holds its level in `attention_reason`: the policy step t
 
 A stream is a named channel with an audience, a list of publishers and an attention band:
 
-- `audience` and `publishers` are lists of audience subjects: `user:<id>`, `role:<name>`, `<dimension>:<value>` for a dimension an extension registers (for example `group:sales`), or `everyone`.
+- `audience` and `publishers` are lists of audience subjects: `user:<id>`, `role:<name>`, `<dimension>:<value>` for a dimension an extension contributes (for example `group:sales`), or `everyone`.
 - `attention.default` is the level the audience receives. `attention.floor` and `attention.ceiling` clamp every recipient before the recipient's rules apply.
 - `retention_days` purges the stream's rows older than that, read or unread.
 - `coalesce_window_secs` folds repeated events into one row (see below).
@@ -121,7 +121,7 @@ Each recipient's level is decided by these steps, in this order. `attention_reas
 
 1. **Core default.** The default router's level for the kind, or the stream's `attention.default` for a stream item.
 2. **Sender attention.** The attention the producer chose for the event or for one recipient.
-3. **Extension routers.** Registered routers add recipients; when two plans name one recipient, the louder level wins.
+3. **Extension routers.** Contributed routers add recipients; when two plans name one recipient, the louder level wins.
 4. **Stream floor and ceiling.** The stream's band clamps the level.
 5. **Recipient rules.** Declared rules, then the recipient's own rules (`set`, `cap`, `floor`, `mute`).
 6. **Stream ceiling, again.** The stream's ceiling applies once more, so no rule raises a stream item above it.
@@ -404,14 +404,14 @@ A recipient-specific failure names the recipient. A failure about a whole subjec
 
 ## Extension seams
 
-Extensions add behaviour through compile-time registrations, each with a priority:
+A member contributes from `Extension::contribute` with `c.slot::<NotificationsSlot>()` (`systemprompt_notifications::contract`) and the builder method below; each method takes a factory run once against the resolved state when the kernel builds the slot. A factory that fails refuses the build; no seam is silently skipped. Contributed seams run in composition order, ahead of the core defaults.
 
-| Seam | Registration | Purpose |
+| Seam | Contribution | Purpose |
 |---|---|---|
-| `NotificationRouter` | `register_notification_router!` | Plan recipients for an event; plans merge and the louder decision wins |
-| `NotificationAudienceResolver` | `register_notification_audience!` | Expand a role or dimension subject to users |
-| `PublishPolicy` | `register_notification_publish_policy!` | Admit or refuse a publisher; every policy must admit |
-| `ResourceVisibility` | `register_resource_visibility!` | Decide whether a reader may see a resource kind and its content |
-| `NotificationChannel` | `register_notification_channel!` | Deliver committed rows to another surface, such as email |
+| `NotificationRouter` | `NotificationsSlot` `.router(f)` | Plan recipients for an event; plans merge and the louder decision wins |
+| `NotificationAudienceResolver` | `Contributions::audience_resolver(f)` | Expand a dimension subject to users; one set shared with brain recall |
+| `PublishPolicy` | `NotificationsSlot` `.publish_policy(f)` | Admit or refuse a publisher; every policy must admit |
+| `ResourceVisibility` | `NotificationsSlot` `.resource_visibility(f)` | Decide whether a reader may see a resource kind and its content |
+| `NotificationChannel` | `NotificationsSlot` `.channel(f)` | Deliver committed rows to another surface, such as email |
 
-Core registers a default router, a resolver for users, roles and `everyone`, the declared-publishers policy, document-store visibility and the AG-UI channel. No email channel ships in core.
+Core alone resolves the `user`, `role` and `everyone` subjects and the reserved dimensions: a contributed audience resolver that claims one refuses the composition, and two resolvers with one name are refused. Core provides a default router, the user-role resolver, the declared-publishers policy, document and issue visibility and the AG-UI channel. No email channel ships in core.

@@ -1,9 +1,9 @@
-//! Tests for `CliConfig::resolve` env handling and query methods.
+//! Tests for `EnvOverrides::cli_config` env handling and query methods.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::cli_settings::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
 use systemprompt_cli::env_overrides::EnvOverrides;
+use systemprompt_extension::cli::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
 
 fn env_of(vars: &[(&str, &str)]) -> EnvOverrides {
     EnvOverrides::from_vars(vars.iter().copied())
@@ -11,7 +11,7 @@ fn env_of(vars: &[(&str, &str)]) -> EnvOverrides {
 
 #[test]
 fn resolve_empty_env_yields_defaults() {
-    let cfg = CliConfig::resolve(&env_of(&[]));
+    let cfg = env_of(&[]).cli_config();
     assert_eq!(cfg.output_format, OutputFormat::Table);
     assert_eq!(cfg.verbosity, VerbosityLevel::Normal);
     assert_eq!(cfg.color_mode, ColorMode::Auto);
@@ -21,19 +21,19 @@ fn resolve_empty_env_yields_defaults() {
 
 #[test]
 fn resolve_output_format_json() {
-    let cfg = CliConfig::resolve(&env_of(&[("SYSTEMPROMPT_OUTPUT_FORMAT", "json")]));
+    let cfg = env_of(&[("SYSTEMPROMPT_OUTPUT_FORMAT", "json")]).cli_config();
     assert_eq!(cfg.output_format, OutputFormat::Json);
 }
 
 #[test]
 fn resolve_output_format_yaml_case_insensitive() {
-    let cfg = CliConfig::resolve(&env_of(&[("SYSTEMPROMPT_OUTPUT_FORMAT", "YAML")]));
+    let cfg = env_of(&[("SYSTEMPROMPT_OUTPUT_FORMAT", "YAML")]).cli_config();
     assert_eq!(cfg.output_format, OutputFormat::Yaml);
 }
 
 #[test]
 fn resolve_output_format_invalid_keeps_default() {
-    let cfg = CliConfig::resolve(&env_of(&[("SYSTEMPROMPT_OUTPUT_FORMAT", "xml")]));
+    let cfg = env_of(&[("SYSTEMPROMPT_OUTPUT_FORMAT", "xml")]).cli_config();
     assert_eq!(cfg.output_format, OutputFormat::Table);
 }
 
@@ -46,29 +46,29 @@ fn resolve_log_level_variants() {
         ("DEBUG", VerbosityLevel::Debug),
     ];
     for (value, expected) in cases {
-        let cfg = CliConfig::resolve(&env_of(&[("SYSTEMPROMPT_LOG_LEVEL", value)]));
+        let cfg = env_of(&[("SYSTEMPROMPT_LOG_LEVEL", value)]).cli_config();
         assert_eq!(cfg.verbosity, expected, "Failed for {value}");
     }
 }
 
 #[test]
 fn resolve_log_level_invalid_keeps_default() {
-    let cfg = CliConfig::resolve(&env_of(&[("SYSTEMPROMPT_LOG_LEVEL", "loud")]));
+    let cfg = env_of(&[("SYSTEMPROMPT_LOG_LEVEL", "loud")]).cli_config();
     assert_eq!(cfg.verbosity, VerbosityLevel::Normal);
 }
 
 #[test]
 fn resolve_no_color_disables_color() {
-    let cfg = CliConfig::resolve(&env_of(&[("NO_COLOR", "1")]));
+    let cfg = env_of(&[("NO_COLOR", "1")]).cli_config();
     assert_eq!(cfg.color_mode, ColorMode::Never);
 
-    let cfg = CliConfig::resolve(&env_of(&[("SYSTEMPROMPT_NO_COLOR", "1")]));
+    let cfg = env_of(&[("SYSTEMPROMPT_NO_COLOR", "1")]).cli_config();
     assert_eq!(cfg.color_mode, ColorMode::Never);
 }
 
 #[test]
 fn resolve_non_interactive_disables_interactivity() {
-    let cfg = CliConfig::resolve(&env_of(&[("SYSTEMPROMPT_NON_INTERACTIVE", "1")]));
+    let cfg = env_of(&[("SYSTEMPROMPT_NON_INTERACTIVE", "1")]).cli_config();
     assert!(!cfg.interactive);
 }
 
@@ -76,20 +76,20 @@ fn resolve_non_interactive_disables_interactivity() {
 fn flag_overrides_env_overrides_default() {
     let env = env_of(&[("SYSTEMPROMPT_OUTPUT_FORMAT", "json")]);
 
-    let default_only = CliConfig::resolve(&env_of(&[]));
+    let default_only = env_of(&[]).cli_config();
     assert_eq!(default_only.output_format, OutputFormat::Table);
 
-    let env_only = CliConfig::resolve(&env);
+    let env_only = env.cli_config();
     assert_eq!(env_only.output_format, OutputFormat::Json);
 
-    let flag_over_env = CliConfig::resolve(&env).with_output_format(OutputFormat::Yaml);
+    let flag_over_env = env.cli_config().with_output_format(OutputFormat::Yaml);
     assert_eq!(flag_over_env.output_format, OutputFormat::Yaml);
 }
 
 #[test]
 fn flag_overrides_env_verbosity() {
     let env = env_of(&[("SYSTEMPROMPT_LOG_LEVEL", "quiet")]);
-    let cfg = CliConfig::resolve(&env).with_verbosity(VerbosityLevel::Debug);
+    let cfg = env.cli_config().with_verbosity(VerbosityLevel::Debug);
     assert_eq!(cfg.verbosity, VerbosityLevel::Debug);
 }
 

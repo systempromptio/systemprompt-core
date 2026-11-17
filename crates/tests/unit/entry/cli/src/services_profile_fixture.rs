@@ -185,6 +185,7 @@ pub fn boot_for(tree: &ProfileTree) -> systemprompt_loader::BootContext {
         .expect("fixture profile loads");
     let secrets = systemprompt_config::SecretsService::from_secrets(
         std::sync::Arc::clone(&loaded),
+        systemprompt_config::SecretsSources::default(),
         (*systemprompt_test_fixtures::ensure_test_secrets_bootstrap().get()).clone(),
     );
     systemprompt_loader::BootContext::new(loaded, secrets)
@@ -192,18 +193,20 @@ pub fn boot_for(tree: &ProfileTree) -> systemprompt_loader::BootContext {
 
 pub fn ctx_for(boot: &systemprompt_loader::BootContext) -> systemprompt_cli::CommandContext {
     systemprompt_cli::CommandContext::new(
-        systemprompt_cli::CliConfig::new().with_interactive(false),
+        systemprompt_extension::cli::CliConfig::new().with_interactive(false),
         systemprompt_cli::EnvOverrides::default(),
     )
     .with_boot(Some(boot.clone()))
+    .with_admitted(Some(systemprompt_test_fixtures::fixture_admitted()))
 }
 
 pub fn json_ctx(boot: &systemprompt_loader::BootContext) -> systemprompt_cli::CommandContext {
     systemprompt_cli::CommandContext::new(
-        systemprompt_cli::CliConfig::new()
+        systemprompt_extension::cli::CliConfig::new()
             .with_interactive(false)
-            .with_output_format(systemprompt_cli::OutputFormat::Json),
+            .with_output_format(systemprompt_extension::cli::OutputFormat::Json),
         systemprompt_cli::EnvOverrides::default(),
     )
     .with_boot(Some(boot.clone()))
+    .with_admitted(Some(systemprompt_test_fixtures::fixture_admitted()))
 }

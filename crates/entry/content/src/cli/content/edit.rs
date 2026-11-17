@@ -9,11 +9,11 @@ use super::edit_apply::{
 use super::types::UpdateOutput;
 use anyhow::{Result, anyhow};
 use clap::Args;
-use systemprompt_cli::kernel::{
-    CliConfig, CommandContext, CommandOutput, Prompter, resolve_required,
-};
 use systemprompt_content::{CategoryIdUpdate, ContentRepository};
-use systemprompt_database::DbPool;
+use systemprompt_database::{DbPool, pool_from_handle};
+use systemprompt_extension::cli::{
+    CliConfig, CommandHost, CommandOutput, Prompter, resolve_required,
+};
 use systemprompt_identifiers::{ContentId, LocaleCode, SourceId};
 use systemprompt_logging::CliService;
 
@@ -41,9 +41,9 @@ pub struct EditArgs {
     pub body_file: Option<String>,
 }
 
-pub(super) async fn execute(args: EditArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let app = ctx.app_context().await?;
-    execute_with_pool(args, ctx.prompter(), app.db_pool(), &ctx.cli).await
+pub(super) async fn execute(args: EditArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let pool = pool_from_handle(host.db().await?)?;
+    execute_with_pool(args, host.prompter(), &pool, host.output()).await
 }
 
 pub async fn execute_with_pool(

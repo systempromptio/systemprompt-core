@@ -1,8 +1,8 @@
 //! Registry of the tables that hold a document blob outside the document
 //! store, so blob collection keeps what they hold without naming them.
 //!
-//! A holder is declared next to its own repository with
-//! [`register_blob_holder!`](crate::register_blob_holder) and answers, for a
+//! A holder is contributed to
+//! [`BlobHolderSlot`](crate::contract::BlobHolderSlot) and answers, for a
 //! batch of content hashes, which of them it still references. Each holder's
 //! query is a compile-time `sqlx::query!` in its own module.
 //!
@@ -21,38 +21,42 @@ pub type HeldAmong = for<'c> fn(
     &'c [String],
 ) -> BoxFuture<'c, Result<Vec<String>, sqlx::Error>>;
 
-/// One registered holder, submitted through
-/// [`register_blob_holder!`](crate::register_blob_holder).
+/// One contributed holder.
 #[derive(Debug, Clone, Copy)]
 pub struct BlobHolder {
     pub name: &'static str,
     pub held_among: HeldAmong,
 }
 
-inventory::collect!(BlobHolder);
-
-#[macro_export]
-macro_rules! register_blob_holder {
-    ($name:expr, $held_among:expr $(,)?) => {
-        $crate::__inventory::submit! {
-            $crate::documents::repository::BlobHolder {
-                name: $name,
-                held_among: $held_among,
-            }
-        }
-    };
+/// Every admitted blob holder, built by
+/// [`BlobHolderSlot`](crate::contract::BlobHolderSlot).
+#[derive(Debug, Clone, Default)]
+pub struct BlobHolders {
+    holders: Vec<BlobHolder>,
 }
 
-pub(super) async fn held_by_holders(
-    conn: &mut PgConnection,
-    hashes: &[String],
-) -> Result<HashSet<String>, RepositoryError> {
-    let mut held = HashSet::new();
-    if hashes.is_empty() {
-        return Ok(held);
+impl BlobHolders {
+    #[must_use]
+    pub const fn new(holders: Vec<BlobHolder>) -> Self {
+        Self { holders }
     }
-    for holder in inventory::iter::<BlobHolder>() {
-        held.extend((holder.held_among)(&mut *conn, hashes).await?);
+
+    pub fn names(&self) -> impl Iterator<Item = &'static str> + '_ {
+        self.holders.iter().map(|holder| holder.name)
     }
-    Ok(held)
+
+    pub(super) async fn held_among(
+        &self,
+        conn: &mut PgConnection,
+        hashes: &[String],
+    ) -> Result<HashSet<String>, RepositoryError> {
+        let mut held = HashSet::new();
+        if hashes.is_empty() {
+            return Ok(held);
+        }
+        for holder in &self.holders {
+            held.extend((holder.held_among)(&mut *conn, hashes).await?);
+        }
+        Ok(held)
+    }
 }

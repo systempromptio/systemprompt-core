@@ -1,7 +1,7 @@
 //! The built-in governance policies.
 //!
-//! Each registers itself with the [`super::registry`] under a stable id and is
-//! enabled by [`super::GovernanceConfig::defaults`]:
+//! Each is listed in [`BUILTIN_POLICIES`] under a stable id and is enabled by
+//! [`super::GovernanceConfig::defaults`]:
 //!
 //! | id | denies with |
 //! |----|-------------|
@@ -10,7 +10,7 @@
 //! | `tool_blocklist` | [`DenyReason::ToolBlocked`][crate::authz::DenyReason::ToolBlocked] |
 //! | `rate_limit` | [`DenyReason::RateLimitExceeded`][crate::authz::DenyReason::RateLimitExceeded] |
 //!
-//! A fifth, `require_approval`, is registered but not enabled by `defaults` —
+//! A fifth, `require_approval`, is listed but not enabled by `defaults` —
 //! it is the only policy that returns
 //! [`Decision::Pending`][crate::authz::Decision] rather than an allow or a
 //! deny, and it holds nothing until it is given patterns to match.
@@ -25,6 +25,8 @@ mod scope_check;
 pub(crate) mod secret_scan;
 mod tool_blocklist;
 
+use super::registry::BuiltinPolicy;
+
 pub use require_approval::ApprovalSettings;
 
 pub const SECRET_SCAN_ID: &str = "secret_scan";
@@ -34,4 +36,12 @@ pub const BUILTIN_POLICY_IDS: &[&str] = &[
     SECRET_SCAN_ID,
     tool_blocklist::ID,
     rate_limit::ID,
+];
+
+pub const BUILTIN_POLICIES: &[BuiltinPolicy] = &[
+    scope_check::POLICY,
+    secret_scan::POLICY,
+    tool_blocklist::POLICY,
+    rate_limit::POLICY,
+    require_approval::POLICY,
 ];

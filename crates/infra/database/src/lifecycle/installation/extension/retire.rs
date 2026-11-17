@@ -9,19 +9,23 @@
 //! table core already dropped. Retirements run here instead, ahead of every
 //! migration, so a retired object is gone before anything can fire it.
 //!
-//! Only `DROP … IF EXISTS` of triggers, functions, procedures and views is
-//! accepted, checked before anything is written: the phase runs on every
-//! boot and must be a no-op once applied. Tables are never retired here; a
-//! table's data is the migration chain's to move or drop.
+//! Only `DROP … IF EXISTS` of tables, triggers, functions, procedures and
+//! views is accepted, checked before anything is written: the phase runs on
+//! every boot and must be a no-op once applied. A table retirement is never
+//! executed here, since a table's data is the migration chain's to move or
+//! drop. It declares that the member's chain has retired the table: the
+//! migration ownership rule no longer counts the table as the member's, and
+//! the install releases the member's record of it (`ownership`).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 
+use crate::lifecycle::schema_member::SchemaMember;
 use pg_query::NodeEnum;
 use pg_query::protobuf::ObjectType;
-use systemprompt_extension::{Extension, LoaderError, SchemaFault};
+use systemprompt_extension::{LoaderError, SchemaFault};
 use systemprompt_identifiers::ExtensionId;
 use tracing::info;
 
@@ -53,9 +57,10 @@ fn unparseable(
     }
 }
 
-fn check_statement(extension: &ExtensionId, statement: &str) -> Result<(), LoaderError> {
+fn check_statement(extension: &ExtensionId, statement: &str) -> Result<bool, LoaderError> {
     let parsed =
         pg_query::parse(statement).map_err(|e| unparseable(extension, "SQL parse failed", e))?;
+    let mut executed = false;
     for raw in &parsed.protobuf.stmts {
         let node = raw.stmt.as_ref().and_then(|s| s.node.as_ref());
         let Some(NodeEnum::DropStmt(drop)) = node else {
@@ -66,9 +71,11 @@ fn check_statement(extension: &ExtensionId, statement: &str) -> Result<(), Loade
                 },
             ));
         };
+        let remove = ObjectType::try_from(drop.remove_type);
         let allowed = matches!(
-            ObjectType::try_from(drop.remove_type),
-            Ok(ObjectType::ObjectTrigger
+            remove,
+            Ok(ObjectType::ObjectTable
+                | ObjectType::ObjectTrigger
                 | ObjectType::ObjectFunction
                 | ObjectType::ObjectProcedure
                 | ObjectType::ObjectView)
@@ -89,11 +96,12 @@ fn check_statement(extension: &ExtensionId, statement: &str) -> Result<(), Loade
                 },
             ));
         }
+        executed |= remove != Ok(ObjectType::ObjectTable);
     }
-    Ok(())
+    Ok(executed)
 }
 
-fn prepare(extensions: &[Arc<dyn Extension>]) -> Result<Vec<Retirement>, LoaderError> {
+fn prepare(extensions: &[Arc<dyn SchemaMember>]) -> Result<Vec<Retirement>, LoaderError> {
     let mut out = Vec::new();
     for ext in extensions {
         let extension = ExtensionId::new(ext.id());
@@ -102,8 +110,9 @@ fn prepare(extensions: &[Arc<dyn Extension>]) -> Result<Vec<Retirement>, LoaderE
             let parsed = SqlExecutor::parse_sql_statements(&retirement.sql)
                 .map_err(|e| unparseable(&extension, "SQL split failed", e))?;
             for statement in parsed {
-                check_statement(&extension, &statement)?;
-                statements.push(statement);
+                if check_statement(&extension, &statement)? {
+                    statements.push(statement);
+                }
             }
         }
         if !statements.is_empty() {
@@ -116,13 +125,13 @@ fn prepare(extensions: &[Arc<dyn Extension>]) -> Result<Vec<Retirement>, LoaderE
     Ok(out)
 }
 
-pub(super) fn check_retirements(extensions: &[Arc<dyn Extension>]) -> Result<(), LoaderError> {
+pub(super) fn check_retirements(extensions: &[Arc<dyn SchemaMember>]) -> Result<(), LoaderError> {
     prepare(extensions).map(|_| ())
 }
 
 pub(super) async fn apply_retirements(
     db: &dyn DatabaseProvider,
-    extensions: &[Arc<dyn Extension>],
+    extensions: &[Arc<dyn SchemaMember>],
 ) -> Result<(), LoaderError> {
     for retirement in prepare(extensions)? {
         execute_phase(

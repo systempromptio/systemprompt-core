@@ -64,7 +64,7 @@ those primary owner interfaces. Reports read analytics-owned `report_*` views
 over the owners' source tables; see
 [analytics ownership and reporting](analytics-migration.md).
 
-This is why the extension framework matters to the layering (see [extensions.md](extensions.md)): capabilities are discovered at link time through the `inventory` crate rather than wired through compile-time dependency edges, so a domain never needs to name another domain to reach it.
+This is why the extension framework matters to the layering (see [extensions.md](extensions.md)): a capability is a slot its owning crate defines and other members contribute to, wired at the composition root rather than through compile-time dependency edges, so a domain never needs to name another domain to reach it.
 
 ## Request data flow
 
@@ -113,7 +113,8 @@ ProfileBootstrap  →  SecretsBootstrap  →  CredentialsBootstrap  →  Config 
 2. **SecretsBootstrap** loads the secrets envelope. The envelope is customer-owned; the binary never holds the master key.
 3. **CredentialsBootstrap** loads cloud credentials where present.
 4. **Config** builds the validated configuration object and confirms required paths exist.
-5. **AppContext** is assembled. Within `AppContextBuilder::build` the steps run in order: profile → app paths → files config → database pool → authorization hook (built after the pool so its audit sink can write `governance_decisions`) → logging → extension registry (discovered via `inventory` and validated, with schema installation optionally applied) → ancillary services (analytics, fingerprint repo, user service, system admin, MCP registry, marketplace filter).
+5. **Composition** is admitted against the profile: every contribution of a disabled member is dropped, and routes, commands and providers are checked against the kernel's reservations.
+6. **AppContext** is assembled from the admitted composition. Within `AppContextBuilder::build` the steps run in order: core layer (profile, app paths, files config, database pool) → schema installation over the admitted members → content configuration and geolocation → seeded repositories → identity (user service, system admin, MCP registry) → AI service → event routing → kernel state seeded and the kernel resolved (provide fns, audience resolvers, slots, requirements) → authorization stage (subject providers, authz hooks, marketplace seams) → governance → domain repositories.
 
 A failure at any step propagates as a `RuntimeError` and aborts startup. Configuration and schema validation are blocking by design — there is no `--force` bypass.
 

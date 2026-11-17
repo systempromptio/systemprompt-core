@@ -8,12 +8,11 @@ use std::sync::atomic::Ordering;
 use systemprompt_identifiers::JobName;
 
 use systemprompt_database::DbPool;
+use systemprompt_extension::AdmittedSchedule;
 use systemprompt_manifest::services::scheduler::JobScope;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::{JobConfig, SchedulerConfig, SchedulerRepository, SchedulerService};
-use systemprompt_test_fixtures::{
-    fixture_app_context_with_config, fixture_config, test_database_url, test_db_pool,
-};
+use systemprompt_test_fixtures::{fixture_config, test_database_url, test_db_pool};
 
 use crate::test_jobs::{NODE_JOB, NODE_JOB_RUNS};
 
@@ -21,10 +20,14 @@ use crate::test_jobs::{NODE_JOB, NODE_JOB_RUNS};
 // so they must not interleave within the process.
 static SERIALIZE: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
-fn context_for_instance(pool: &DbPool, url: &str, instance_id: &str) -> Arc<AppContext> {
+async fn context_for_instance(
+    url: &str,
+    instance_id: &str,
+) -> (Arc<AppContext>, Arc<AdmittedSchedule>) {
     let mut config = fixture_config(url);
     config.instance_id = systemprompt_identifiers::InstanceId::new(instance_id);
-    fixture_app_context_with_config(pool, config).expect("fixture AppContext")
+    crate::test_extension::app_over_config(config, crate::test_extension::admitted_with_test_jobs())
+        .await
 }
 
 fn bootstrap_config(jobs: Vec<JobConfig>) -> SchedulerConfig {
@@ -38,8 +41,8 @@ fn bootstrap_config(jobs: Vec<JobConfig>) -> SchedulerConfig {
 }
 
 async fn dispatch_on(pool: &DbPool, url: &str, instance_id: &str, jobs: Vec<JobConfig>) {
-    let app_ctx = context_for_instance(pool, url, instance_id);
-    let svc = SchedulerService::new(bootstrap_config(jobs), Arc::clone(pool), app_ctx);
+    let (app_ctx, schedule) = context_for_instance(url, instance_id).await;
+    let svc = SchedulerService::new(bootstrap_config(jobs), pool, app_ctx, Arc::clone(&schedule));
     svc.run_bootstrap_jobs(None)
         .await
         .expect("bootstrap dispatch must not abort");

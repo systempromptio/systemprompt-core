@@ -3,9 +3,50 @@
 //! this transaction's capture triggers write are delivered, not purged.
 
 use std::sync::Arc;
-use systemprompt_identifiers::UserId;
+use systemprompt_extension::{
+    AdmittedPurge, OrphanSweep, PurgeClaim, PurgeDeclaration, SchemaDefinition, UserPurgeTable,
+};
+use systemprompt_identifiers::{ExtensionId, UserId};
 use systemprompt_users::{UserRepository, UserService};
 use uuid::Uuid;
+
+const CORE_TABLES: &[&str] = &[
+    "mcp_artifacts",
+    "mcp_tool_executions",
+    "event_outbox",
+    "artifact_payloads",
+];
+
+pub(super) fn core_plan() -> AdmittedPurge {
+    let owner = ExtensionId::new("users");
+    let schemas: Vec<SchemaDefinition> = CORE_TABLES
+        .iter()
+        .map(|t| SchemaDefinition::new(*t, format!("CREATE TABLE IF NOT EXISTS {t} (id TEXT)")))
+        .collect();
+    let mut declarations: Vec<PurgeDeclaration> = CORE_TABLES[..3]
+        .iter()
+        .map(|table| {
+            PurgeDeclaration::from(UserPurgeTable {
+                table,
+                column: "user_id",
+                predicate: None,
+            })
+        })
+        .collect();
+    declarations.push(PurgeDeclaration::from(OrphanSweep {
+        table: "artifact_payloads",
+        key: "sha256",
+        referenced_by: "mcp_artifacts",
+        via: "payload_sha256",
+        user_column: "user_id",
+    }));
+    AdmittedPurge::admit(&[PurgeClaim {
+        owner: &owner,
+        schemas: &schemas,
+        declarations: &declarations,
+    }])
+    .expect("the core plan is admitted")
+}
 
 struct Ctx {
     fixture: crate::privacy_fixture::PrivacyFixture,
@@ -99,19 +140,27 @@ async fn purge_removes_the_users_own_payload_and_keeps_one_shared_with_another_u
     seed_artifact(&ctx, &victim, &shared).await;
     seed_artifact(&ctx, &other, &shared).await;
 
-    let preview = ctx.service.purge_preview(&victim).await.expect("preview");
+    let plan = core_plan();
+    let preview = ctx
+        .service
+        .purge_preview(&victim, &plan)
+        .await
+        .expect("preview");
     let previewed = preview
+        .counts
         .iter()
         .find(|c| c.table == "artifact_payloads")
         .expect("preview reports the payload sweep");
-    assert_eq!(previewed.owner, "systemprompt-core");
+    assert_eq!(previewed.owner, ExtensionId::new("users"));
+    assert!(!previewed.absent);
     assert_eq!(
         previewed.rows, 1,
         "only the payload nothing but this user's artifacts reference is previewed"
     );
 
-    let removed = ctx.service.delete(&victim).await.expect("delete");
+    let removed = ctx.service.delete(&victim, &plan).await.expect("delete");
     let swept = removed
+        .counts
         .iter()
         .find(|c| c.table == "artifact_payloads")
         .expect("delete reports the payload sweep");
@@ -125,7 +174,10 @@ async fn purge_removes_the_users_own_payload_and_keeps_one_shared_with_another_u
         "a body another user's artifact still references stays"
     );
 
-    ctx.service.delete(&other).await.expect("cleanup other");
+    ctx.service
+        .delete(&other, &plan)
+        .await
+        .expect("cleanup other");
     assert!(
         !payload_exists(&ctx, &shared).await,
         "the last reference leaving takes the body with it"
@@ -143,8 +195,13 @@ async fn purge_leaves_payloads_the_user_never_referenced() {
     seed_payload(&ctx, &unrelated).await;
     seed_artifact(&ctx, &victim, &own).await;
 
-    let removed = ctx.service.delete(&victim).await.expect("delete");
+    let removed = ctx
+        .service
+        .delete(&victim, &core_plan())
+        .await
+        .expect("delete");
     let swept = removed
+        .counts
         .iter()
         .find(|c| c.table == "artifact_payloads")
         .expect("delete reports the payload sweep");
@@ -183,8 +240,13 @@ async fn purge_removes_the_users_outbox_rows() {
     .await
     .expect("seed outbox event");
 
-    let removed = ctx.service.delete(&victim).await.expect("delete");
+    let removed = ctx
+        .service
+        .delete(&victim, &core_plan())
+        .await
+        .expect("delete");
     let outbox = removed
+        .counts
         .iter()
         .find(|c| c.table == "event_outbox")
         .expect("delete reports the outbox purge");

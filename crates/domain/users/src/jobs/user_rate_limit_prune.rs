@@ -64,5 +64,3 @@ impl Job for UserRateLimitPruneJob {
             .with_duration(duration_ms))
     }
 }
-
-systemprompt_provider_contracts::submit_job!("users", &UserRateLimitPruneJob);

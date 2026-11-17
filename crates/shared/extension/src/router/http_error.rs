@@ -1,0 +1,133 @@
+//! The HTTP error a route handler returns.
+//!
+//! The wire shape is the shared [`ApiError`] JSON envelope; [`ApiHttpError`]
+//! is the newtype every handler returns so a response is always built by one
+//! `IntoResponse`. `into_response` logs exactly once by status class, with the
+//! internal cause chain as a structured field, and writes the redacting wire
+//! shape.
+//!
+//! A 5xx never carries the underlying error's text: [`ApiError`] serialises the
+//! fixed public message of its code for every 5xx and logs the attached
+//! source chain once, so 5xx paths are built with `ApiError::internal(ctx, e)`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use std::error::Error;
+
+use axum::Json;
+use axum::http::{StatusCode, header};
+use axum::response::{IntoResponse, Response};
+use systemprompt_models::api::ApiError;
+use systemprompt_traits::BoxedSource;
+
+#[derive(Debug)]
+pub struct ApiHttpError(Box<ApiError>);
+
+impl ApiHttpError {
+    pub fn not_found(message: impl Into<String>) -> Self {
+        Self(Box::new(ApiError::not_found(message)))
+    }
+
+    pub fn bad_request(message: impl Into<String>) -> Self {
+        Self(Box::new(ApiError::bad_request(message)))
+    }
+
+    pub fn unauthorized(message: impl Into<String>) -> Self {
+        Self(Box::new(ApiError::unauthorized(message)))
+    }
+
+    pub fn forbidden(message: impl Into<String>) -> Self {
+        Self(Box::new(ApiError::forbidden(message)))
+    }
+
+    pub fn internal(context: &'static str, source: impl Into<BoxedSource>) -> Self {
+        Self(Box::new(ApiError::internal(context, source)))
+    }
+
+    pub fn conflict(message: impl Into<String>) -> Self {
+        Self(Box::new(ApiError::conflict(message)))
+    }
+
+    pub fn api(&self) -> &ApiError {
+        &self.0
+    }
+
+    pub fn into_inner(self) -> ApiError {
+        *self.0
+    }
+}
+
+impl From<ApiError> for ApiHttpError {
+    fn from(error: ApiError) -> Self {
+        Self(Box::new(error))
+    }
+}
+
+fn cause_chain(source: Option<&(dyn Error + Send + Sync + 'static)>) -> Option<String> {
+    let source = source?;
+    let mut chain = source.to_string();
+    let mut next = source.source();
+    while let Some(cause) = next {
+        chain.push_str(": ");
+        chain.push_str(&cause.to_string());
+        next = cause.source();
+    }
+    Some(chain)
+}
+
+impl IntoResponse for ApiHttpError {
+    fn into_response(self) -> Response {
+        let error = *self.0;
+        let status = error.code.status_code();
+        let cause = cause_chain(error.source());
+
+        if status.is_server_error() {
+            tracing::error!(
+                error_code = ?error.code,
+                context = %error.message,
+                details = ?error.details,
+                error_key = ?error.error_key,
+                cause = ?cause,
+                path = ?error.path,
+                trace_id = ?error.trace_id,
+                "API server error response"
+            );
+        } else if status.is_client_error() {
+            tracing::warn!(
+                error_code = ?error.code,
+                message = %error.message,
+                error_key = ?error.error_key,
+                cause = ?cause,
+                path = ?error.path,
+                trace_id = ?error.trace_id,
+                "API client error response"
+            );
+        }
+
+        let mut response = (status, Json(error)).into_response();
+
+        if status == StatusCode::UNAUTHORIZED
+            && let Ok(header_value) =
+                "Bearer resource_metadata=\"/.well-known/oauth-protected-resource\"".parse()
+        {
+            response
+                .headers_mut()
+                .insert(header::WWW_AUTHENTICATE, header_value);
+        }
+
+        response
+    }
+}
+
+pub fn unreadable_body(
+    status: StatusCode,
+    message: &str,
+    source: impl Error + Send + Sync + 'static,
+) -> ApiError {
+    if status == StatusCode::PAYLOAD_TOO_LARGE {
+        ApiError::payload_too_large(message).with_source(source)
+    } else {
+        ApiError::bad_request(message).with_source(source)
+    }
+}

@@ -9,15 +9,16 @@
 
 mod cors;
 
+use super::changes_output;
+use crate::commands::admin::config::restart_note;
+use crate::kernel::KernelHost;
 use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
-use systemprompt_logging::CliService;
+use systemprompt_models::artifacts::NoticeLine;
 
 pub(super) use super::profile_io::{load_profile, profile_path, save_profile};
 use super::types::{ServerConfigOutput, ServerSetOutput};
-use crate::cli_settings::OutputFormat;
-use crate::context::CommandContext;
-use crate::shared::{CommandOutput, render_result};
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum ServerCommands {
@@ -46,17 +47,16 @@ pub struct SetArgs {
     pub external_url: Option<String>,
 }
 
-pub fn execute(command: &ServerCommands, ctx: &CommandContext) -> Result<()> {
+pub fn execute(command: &ServerCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
-        ServerCommands::Show => execute_show(ctx),
-        ServerCommands::Set(args) => execute_set(args, ctx),
-        ServerCommands::Cors(cmd) => cors::execute(cmd, ctx),
+        ServerCommands::Show => execute_show(host),
+        ServerCommands::Set(args) => execute_set(args, host),
+        ServerCommands::Cors(cmd) => cors::execute(cmd, host),
     }
 }
 
-pub(super) fn execute_show(ctx: &CommandContext) -> Result<()> {
-    let config = &ctx.cli;
-    let profile = ctx.profile()?;
+pub(super) fn execute_show(host: &dyn KernelHost) -> Result<CommandOutput> {
+    let profile = host.profile()?;
 
     let output = ServerConfigOutput {
         host: profile.server.host.clone(),
@@ -69,12 +69,7 @@ pub(super) fn execute_show(ctx: &CommandContext) -> Result<()> {
         cors_allowed_origins: profile.server.cors_allowed_origins.clone(),
     };
 
-    render_result(
-        &CommandOutput::card_value("Server Configuration", &output),
-        config,
-    );
-
-    Ok(())
+    Ok(CommandOutput::card_value("Server Configuration", &output))
 }
 
 fn change(field: &str, old: String, new: String) -> ServerSetOutput {
@@ -86,13 +81,12 @@ fn change(field: &str, old: String, new: String) -> ServerSetOutput {
     }
 }
 
-pub(super) fn execute_set(args: &SetArgs, ctx: &CommandContext) -> Result<()> {
-    let config = &ctx.cli;
+pub(super) fn execute_set(args: &SetArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     if args.host.is_none() && args.port.is_none() && args.external_url.is_none() {
         bail!("Must specify at least one option: --host, --port, --external-url");
     }
 
-    let profile_path = profile_path(ctx)?;
+    let profile_path = profile_path(host)?;
     let mut profile = load_profile(profile_path)?;
 
     let mut changes: Vec<ServerSetOutput> = Vec::new();
@@ -117,20 +111,19 @@ pub(super) fn execute_set(args: &SetArgs, ctx: &CommandContext) -> Result<()> {
 
     save_profile(&profile, profile_path)?;
 
-    if args.external_url.is_some() {
-        crate::session::clear_session(&crate::paths::ResolvedPaths::discover(), ctx.profile()?)?;
-        CliService::info(
+    let output = changes_output("Server Updated", &changes);
+    let output = if args.external_url.is_some() {
+        crate::session::clear_session(
+            &systemprompt_cloud::paths::ResolvedPaths::discover(),
+            host.profile()?,
+        )?;
+        output.with_note(NoticeLine::new(
+            "info",
             "Cleared the stored CLI session: its token was minted under the previous issuer.",
-        );
-    }
+        ))
+    } else {
+        output
+    };
 
-    for change in &changes {
-        render_result(&CommandOutput::card_value("Server Updated", change), config);
-    }
-
-    if config.output_format() == OutputFormat::Table {
-        CliService::warning("Restart services for changes to take effect");
-    }
-
-    Ok(())
+    Ok(output.with_note(restart_note()))
 }

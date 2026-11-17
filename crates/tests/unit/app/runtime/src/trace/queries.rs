@@ -214,7 +214,11 @@ async fn trace_service_ai_request_lookups_on_random_ids() {
 
 #[tokio::test]
 async fn trace_service_log_lookups_on_random_ids() {
-    let pool = std::sync::Arc::new(test_pg_pool().await);
+    // The unfiltered listing reads the newest rows of the whole table, so on
+    // the shared database it decodes whatever a sibling suite is seeding at
+    // that moment; the lookups run on a database of their own.
+    let database = systemprompt_test_fixtures::DisposableDb::with_schema("trace_log_lookups").await;
+    let pool = std::sync::Arc::new(database.test_pool().await.write_pool().as_ref().clone());
     let svc = TraceQueryService::new(TraceRepository::new(pool));
     let missing = nonexistent_tag();
 
@@ -244,6 +248,7 @@ async fn trace_service_log_lookups_on_random_ids() {
         svc.list_logs_filtered(None, None, 10).await.unwrap().len() <= 10,
         "limit must be respected"
     );
+    database.drop_now().await;
 }
 
 #[tokio::test]

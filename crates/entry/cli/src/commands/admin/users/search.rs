@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Args;
 use std::sync::Arc;
@@ -10,9 +11,7 @@ use systemprompt_database::DbPool;
 use systemprompt_users::{UserRepository, UserService};
 
 use super::types::{UserListOutput, UserSummary};
-use crate::CliConfig;
-use crate::context::CommandContext;
-use crate::shared::CommandOutput;
+use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 #[derive(Debug, Args)]
 pub struct SearchArgs {
@@ -25,8 +24,13 @@ pub struct SearchArgs {
     pub include_anonymous: bool,
 }
 
-pub(super) async fn execute(args: SearchArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    execute_with_pool(args, &ctx.db_pool().await?, &ctx.cli).await
+pub(super) async fn execute(args: SearchArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+    execute_with_pool(
+        args,
+        &systemprompt_database::pool_from_handle(host.db().await?)?,
+        host.output(),
+    )
+    .await
 }
 
 pub(super) async fn execute_with_pool(

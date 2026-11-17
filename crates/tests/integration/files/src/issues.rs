@@ -16,6 +16,8 @@ use systemprompt_models::notifications::{NOTIFICATIONS_CONSUMER, NotificationKin
 use systemprompt_test_fixtures::{fixture_notification_sink, test_db_pool};
 use systemprompt_traits::StoredFileId;
 
+use crate::documents_service_fixture::core_blob_holders;
+
 fn enabled() -> IssuesConfig {
     IssuesConfig {
         enabled: true,
@@ -82,7 +84,7 @@ fn random_hash() -> ContentHash {
 
 async fn upload(db: &DbPool, owner: &UserId, status: &str) -> (DocumentUploadId, ContentHash) {
     let hash = random_hash();
-    DocumentBlobRepository::new(db)
+    DocumentBlobRepository::new(db, core_blob_holders())
         .upsert(
             &hash,
             128,
@@ -352,7 +354,7 @@ async fn a_resolved_report_takes_no_attachments() {
 async fn the_blob_collector_keeps_an_attached_blob_until_its_report_is_purged() {
     let db = test_db_pool().await;
     let issues = service(&db, enabled());
-    let blobs = DocumentBlobRepository::new(&db);
+    let blobs = DocumentBlobRepository::new(&db, core_blob_holders());
     let who = reporter("gc");
     let (id, _) = issues
         .file(filing(&who, "Corrupt export"))

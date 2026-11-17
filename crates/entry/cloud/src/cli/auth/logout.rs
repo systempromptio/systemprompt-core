@@ -12,7 +12,7 @@ use systemprompt_logging::CliService;
 
 use super::LogoutArgs;
 use crate::cli::types::LogoutOutput;
-use systemprompt_cli::kernel::{CliConfig, CommandOutput, Prompter};
+use systemprompt_extension::cli::{CliConfig, CommandOutput, Prompter};
 
 pub(super) fn execute(
     args: LogoutArgs,

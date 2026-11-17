@@ -29,7 +29,7 @@ Connect supported AI clients to your gateway and expose governed MCP tools. Core
 | MCP and agents | Governed tool access and hosted agents with A2A transport. |
 | Enforcement | Scope checks, credential-pattern detection, blocklists and rate limits on governed tool calls. |
 | Audit | Correlated request and tool records linking identity, decisions, results and inference usage. |
-| Composition | Your routes, providers, tools, jobs and persistence registered through extension contracts. |
+| Composition | Your routes, jobs, commands, seams and persistence declared through the extension contract. |
 
 Governance applies to traffic routed through these surfaces. Client-side tool execution needs the corresponding integration; a model gateway alone cannot govern every action on a laptop.
 
@@ -43,11 +43,11 @@ SystemPrompt Core + your extensions + your configuration
                       PostgreSQL
 ```
 
-Build company-specific behavior on the same extension contract used by Core's own domains. The [AI domain](crates/domain/ai/src/extension.rs), for example, registers its schemas, migrations and dependencies through `Extension`.
+Build company-specific behavior on the same extension contract used by Core's own domains. The [AI domain](crates/domain/ai/src/extension.rs), for example, declares its schemas, migrations and dependencies in `Extension::contribute`.
 
-An extension can contribute API routes, model and tool providers, scheduled jobs, configuration validation, schemas, migrations and roles. Gateway request guards let you add application-specific decisions before inference dispatch. The [demo's credit extension](https://github.com/systempromptio/systemprompt-demo/tree/next/extensions/credits) shows that hook in use.
+An extension can contribute API routes, CLI commands, scheduled jobs, configuration validation, schemas, migrations, roles and entries in the capability slots core defines. Gateway request guards let you add application-specific decisions before inference dispatch. The [demo's credit extension](https://github.com/systempromptio/systemprompt-demo/tree/next/extensions/credits) shows that hook in use.
 
-Registration happens at compile/link time through `inventory`. At startup, the runtime discovers registrations and validates their dependency graph. See the [extension API source](crates/shared/extension/src/lib.rs) for the contract and registration flow.
+A binary is a composition: `systemprompt::reference().with(MyExtension).run()` adds a member to the core members, and the profile's `extensions.disabled` list switches members off. Each member's contributions are admitted against the profile and the kernel's reserved paths before any of them runs. See [authoring extensions](documentation/guides/authoring-extensions.md) for the contract.
 
 Compiled extensions are trusted Rust code sharing your process. External MCP servers can run separately. This gives you a compact deployment while keeping process isolation available where the integration needs it.
 
@@ -57,7 +57,7 @@ The workspace publishes a `systemprompt` facade with feature-gated `systemprompt
 
 ```toml
 [dependencies]
-systemprompt = { version = "0.81", features = ["full"] }
+systemprompt = { version = "0.83", features = ["full"] }
 ```
 
 | Feature | Includes |

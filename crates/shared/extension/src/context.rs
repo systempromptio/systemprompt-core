@@ -1,4 +1,5 @@
-//! Runtime context handed to extensions during router resolution.
+//! The runtime context a job reads from its job context, and the API mount
+//! passes to a kernel route's enable predicate.
 //!
 //! Beyond config, database and storage, the context carries the
 //! cross-replica seams core owns: [`ExtensionContext::instances`] answers
@@ -82,12 +83,6 @@ pub trait ExtensionContext: Send + Sync {
     }
 
     fn secrets(&self) -> Arc<dyn SecretStore>;
-
-    fn get_extension(&self, id: &str) -> Option<Arc<dyn crate::Extension>>;
-
-    fn has_extension(&self, id: &str) -> bool {
-        self.get_extension(id).is_some()
-    }
 
     fn services(&self) -> ServicesView;
 

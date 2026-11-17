@@ -10,7 +10,7 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use std::path::PathBuf;
 use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context, test_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context};
 use tower::ServiceExt;
 
 struct Scratch {
@@ -22,7 +22,7 @@ struct Scratch {
 impl Scratch {
     fn new() -> Self {
         let id = format!("cov-{}", uuid::Uuid::new_v4());
-        let root = PathBuf::from("/tmp/marketplaces");
+        let root = ensure_test_bootstrap().services_path.join("marketplaces");
         std::fs::create_dir_all(&root).expect("marketplaces root");
         let escape_target = PathBuf::from(format!("/tmp/{id}-outside"));
         Self {
@@ -47,8 +47,7 @@ impl Drop for Scratch {
 
 async fn context() -> AppContext {
     let boot = ensure_test_bootstrap();
-    let pool = test_db_pool().await;
-    (*test_app_context(&pool, &boot.database_url)).clone()
+    (*test_app_context(&boot.database_url).await).clone()
 }
 
 async fn fetch(id: &str) -> (StatusCode, Vec<u8>) {

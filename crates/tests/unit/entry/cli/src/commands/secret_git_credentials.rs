@@ -7,7 +7,7 @@
 use clap::Parser;
 use systemprompt_cli::admin::config::git_credentials::{CredentialStatus, migrate_file};
 use systemprompt_cli::args::{Cli, Commands};
-use systemprompt_cli::descriptor::{CommandDescriptor, DataImpact, DescribeCommand};
+use systemprompt_extension::cli::{CommandDescriptor, DataImpact, DescribeCommand};
 use systemprompt_identifiers::ManagedSourceId;
 use systemprompt_marketplace::managed::GitCredentialSource;
 

@@ -19,6 +19,7 @@ mod database;
 mod deploy;
 pub mod derived;
 mod error;
+mod extensions;
 mod external_secrets;
 mod field_kind;
 mod governance;
@@ -64,6 +65,7 @@ pub use deploy::{
     default_operator_scopes,
 };
 pub use error::{ProfileError, ProfileResult};
+pub use extensions::{DisabledExtension, ExtensionsConfig};
 pub use external_secrets::{ExternalSecretsConfig, MIN_EXTERNAL_REFRESH_SECS};
 pub use field_kind::profile_field_kind;
 pub use governance::{
@@ -117,20 +119,6 @@ pub use vault::{
 };
 
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::ExtensionId;
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct ExtensionsConfig {
-    #[serde(default)]
-    pub disabled: Vec<ExtensionId>,
-}
-
-impl ExtensionsConfig {
-    pub fn is_disabled(&self, extension_id: &ExtensionId) -> bool {
-        self.disabled.contains(extension_id)
-    }
-}
 
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, schemars::JsonSchema,

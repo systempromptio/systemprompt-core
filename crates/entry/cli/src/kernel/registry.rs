@@ -1,228 +1,172 @@
-//! Compile-time registration of CLI command groups.
+//! The validated command registry the CLI builds its tree from.
 //!
-//! A command group is a clap `Subcommand` enum that implements
-//! [`CliCommandGroup`] and is submitted with
-//! [`register_cli_command!`](crate::register_cli_command); a single command
-//! is a clap `Args` struct that implements [`CliCommandLeaf`] and is
-//! submitted with `register_cli_command!(leaf T)`. The kernel collects
-//! every submission through `inventory`, attaches each group to the command
-//! tree at the place it declares (top level, or under an existing kernel
-//! group such as `admin`), and dispatches a parsed invocation to the group's
-//! `run` with the shared [`CommandContext`](crate::kernel::CommandContext).
+//! The registry is built from the composition's [`DeclaredCommands`] and the
+//! kernel's own contributed built-ins, before the profile is loaded. Every
+//! entry that claims a [`RESERVED_CLI_PATHS`] path, or requests a
+//! [`KernelGrant`], is re-checked here whatever handed it over: the path's
+//! listed [`CoreId`] must own it, every requested grant must be listed for
+//! that path, and no owner may hold reserved paths under two core ids. The
+//! owner is bound to its type as well as its id: a member entry holds a
+//! reserved path only when the Rust type the composition stamped on it is
+//! the core owner's type ([`core_owner_type`]), so a handoff naming a core
+//! id under another type is refused. A
+//! command attaches under a kernel group or under another entry, and never
+//! shadows an existing subcommand.
 //!
-//! The group declares its bootstrap requirements through
-//! [`DescribeCommand`](crate::kernel::DescribeCommand), the same descriptor
-//! every kernel command carries, so the runner resolves profile, secrets,
-//! paths, database, routing and data-impact gates for a registered group
-//! exactly as for a built-in one. The traits and the parsed form live in
-//! [`super::command`].
-//!
-//! Registrations are attached in `(parent, name)` order, so `--help` lists
-//! them deterministically after the kernel groups; a group nested under a
-//! kernel group is attached in place, so the parent keeps its position.
-//!
-//! Precedence is fixed and never silent:
-//!
-//! - A kernel command owns its path; a registration on it is refused
-//!   ([`RegistryError::ShadowsKernel`]).
-//! - Two registrations of one path are refused ([`RegistryError::Duplicate`]).
-//! - A registration may attach under a registered group (`core content popular`
-//!   under `core content`). It is listed in the group's `--help` after the
-//!   group's own subcommands, parses its own arguments, and resolves to its own
-//!   descriptor: [`CommandRegistry::resolve`] picks the deepest registration on
-//!   the parsed path, so neither the parent's descriptor nor its grants apply
-//!   to it, and the child's never apply to the parent's own subcommands. A name
-//!   that collides with one of the group's own subcommands is refused
-//!   ([`RegistryError::ShadowsGroup`]).
-//! - A registration under a parent that does not exist is refused
-//!   ([`RegistryError::UnknownParent`]).
-//!
-//! A [`KernelGrant`] relaxes a requirement the runner imposes, so the kernel
-//! holds the closed list of registration paths allowed each one:
-//! `cloud` → cloud-operator, `analytics` → local-export and skip-validation,
-//! `admin mcp` → child-host. Each listed path is reserved for one owning
-//! type (its `std::any::type_name`); a registration there by any other type
-//! is refused whether or not it declares a grant
-//! ([`RegistryError::ReservedPath`]). A registration declaring a grant the
-//! list does not give its path and type is refused
-//! ([`RegistryError::GrantNotListed`]), and a
-//! parsed descriptor holding a grant its registration did not declare is
-//! refused at resolution ([`RegistryError::UndeclaredGrant`]).
+//! Resolution returns the parsed command with its owner, so the runner can
+//! refuse a command whose owner the profile disables before it runs.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use clap::{ArgMatches, Command};
-
-use super::command::{
-    CliCommandGroup, CliCommandLeaf, RegisteredCommand, group_command, leaf_command, resolve_group,
-    resolve_leaf,
+use systemprompt_extension::DeclaredCommands;
+use systemprompt_extension::cli::{
+    CommandDecl, KernelGrant, ParsedCommand, REGISTERED_DISPLAY_ORDER,
 };
-use super::grants::{KernelGrant, listed_for, reserved_at};
+use systemprompt_extension::reserved::{CoreId, RESERVED_CLI_PATHS};
+use systemprompt_identifiers::ExtensionId;
+
 use super::registry_error::{RegistryError, ResolveError};
 
-/// One `inventory` submission: a type-erased [`CliCommandGroup`].
-#[derive(Clone, Copy)]
-pub struct CliCommandRegistration {
-    parent: &'static [&'static str],
-    name: &'static str,
-    group: fn() -> &'static str,
-    grants: &'static [KernelGrant],
-    command: fn() -> Command,
-    resolve: fn(&ArgMatches) -> Result<RegisteredCommand, clap::Error>,
+/// Who contributed a registry entry.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum CommandOwner {
+    Kernel,
+    Member(ExtensionId),
 }
 
-inventory::collect!(CliCommandRegistration);
+#[must_use]
+pub const fn core_owner_type(core: CoreId) -> Option<&'static str> {
+    match core {
+        CoreId::AnalyticsHttp => {
+            Some("systemprompt_analytics_entry::extension::AnalyticsHttpExtension")
+        },
+        CoreId::Cloud => Some("systemprompt_cloud_entry::extension::CloudCliExtension"),
+        CoreId::ContentHttp
+        | CoreId::NotificationsHttp
+        | CoreId::AgentRunsApi
+        | CoreId::Slack
+        | CoreId::Teams
+        | CoreId::Kernel => None,
+    }
+}
 
-impl std::fmt::Debug for CliCommandRegistration {
+impl std::fmt::Display for CommandOwner {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("CliCommandRegistration")
-            .field("path", &self.path())
-            .field("group", &(self.group)())
-            .finish_non_exhaustive()
+        match self {
+            Self::Kernel => f.write_str(CoreId::Kernel.id()),
+            Self::Member(id) => f.write_str(id.as_str()),
+        }
     }
 }
 
-impl CliCommandRegistration {
-    pub const fn of<T: CliCommandGroup>() -> Self {
-        Self {
-            parent: T::PARENT,
-            name: T::NAME,
-            group: std::any::type_name::<T>,
-            grants: T::GRANTS,
-            command: group_command::<T>,
-            resolve: resolve_group::<T>,
+#[derive(Debug, Clone)]
+pub struct RegistryEntry {
+    owner: CommandOwner,
+    owner_type: Option<&'static str>,
+    decl: CommandDecl,
+}
+
+impl RegistryEntry {
+    #[must_use]
+    pub const fn owner(&self) -> &CommandOwner {
+        &self.owner
+    }
+
+    #[must_use]
+    pub const fn decl(&self) -> &CommandDecl {
+        &self.decl
+    }
+
+    fn holds(&self, core: CoreId) -> bool {
+        match &self.owner {
+            CommandOwner::Kernel => core == CoreId::Kernel,
+            CommandOwner::Member(id) => {
+                core != CoreId::Kernel
+                    && id.as_str() == core.id()
+                    && core_owner_type(core).is_some_and(|owner| self.owner_type == Some(owner))
+            },
         }
     }
 
-    pub const fn leaf<T: CliCommandLeaf>() -> Self {
-        Self {
-            parent: T::PARENT,
-            name: T::NAME,
-            group: std::any::type_name::<T>,
-            grants: T::GRANTS,
-            command: leaf_command::<T>,
-            resolve: resolve_leaf::<T>,
-        }
-    }
-
-    pub fn path(&self) -> String {
-        self.parent
-            .iter()
-            .chain(std::iter::once(&self.name))
-            .copied()
-            .collect::<Vec<_>>()
-            .join(" ")
-    }
-
-    pub fn group(&self) -> &'static str {
-        (self.group)()
-    }
-
-    pub const fn grants(&self) -> &'static [KernelGrant] {
-        self.grants
-    }
-
-    const fn key(&self) -> (&'static [&'static str], &'static str) {
-        (self.parent, self.name)
+    fn path_text(&self) -> String {
+        self.decl.path().join(" ")
     }
 
     fn is_at(&self, path: &[&str]) -> bool {
         path.split_last()
-            .is_some_and(|(name, parent)| *name == self.name && parent == self.parent)
+            .is_some_and(|(name, parent)| *name == self.decl.name() && parent == self.decl.parent())
     }
 }
 
-#[macro_export]
-macro_rules! register_cli_command {
-    (leaf $leaf:ty) => {
-        $crate::__inventory::submit! {
-            $crate::kernel::CliCommandRegistration::leaf::<$leaf>()
-        }
-    };
-    ($group:ty) => {
-        $crate::__inventory::submit! {
-            $crate::kernel::CliCommandRegistration::of::<$group>()
-        }
-    };
+#[must_use]
+pub fn kernel_commands() -> Vec<CommandDecl> {
+    vec![CommandDecl::group::<crate::commands::build::BuildCommands>()]
 }
 
-/// The validated set of registered command groups.
+/// A command line resolved to a registry entry: its owner, its path and the
+/// parsed command.
+#[derive(Debug, Clone)]
+pub struct ResolvedCommand {
+    pub owner: CommandOwner,
+    pub path: Vec<&'static str>,
+    pub parsed: ParsedCommand,
+}
+
+/// The validated set of contributed commands.
 #[derive(Debug, Clone)]
 pub struct CommandRegistry {
-    entries: Vec<CliCommandRegistration>,
+    entries: Vec<RegistryEntry>,
 }
 
 impl CommandRegistry {
-    pub fn collected() -> Result<Self, RegistryError> {
-        Self::from_registrations(
-            inventory::iter::<CliCommandRegistration>
-                .into_iter()
-                .copied(),
-        )
-    }
-
-    pub fn from_registrations(
-        registrations: impl IntoIterator<Item = CliCommandRegistration>,
+    pub fn build(
+        declared: &DeclaredCommands,
+        kernel: &[CommandDecl],
     ) -> Result<Self, RegistryError> {
-        let mut entries: Vec<CliCommandRegistration> = registrations.into_iter().collect();
-        entries.sort_by_key(CliCommandRegistration::key);
-        if let Some(pair) = entries
-            .windows(2)
-            .find(|pair| pair[0].key() == pair[1].key())
-        {
-            let (first, second) = (pair[0].group(), pair[1].group());
-            let (first, second) = if first <= second {
-                (first, second)
-            } else {
-                (second, first)
-            };
-            return Err(RegistryError::Duplicate {
-                path: pair[0].path(),
-                first,
-                second,
-            });
-        }
-        if let Some((entry, owner)) = entries.iter().find_map(|entry| {
-            reserved_at(entry.parent, entry.name)
-                .filter(|reserved| reserved.owner() != entry.group())
-                .map(|reserved| (entry, reserved.owner()))
-        }) {
-            return Err(RegistryError::ReservedPath {
-                path: entry.path(),
-                group: entry.group(),
-                owner,
-            });
-        }
-        if let Some((entry, grant)) = entries.iter().find_map(|entry| {
-            entry
-                .grants
-                .iter()
-                .find(|grant| !listed_for(entry.parent, entry.name, entry.group(), **grant))
-                .map(|grant| (entry, *grant))
-        }) {
-            return Err(RegistryError::GrantNotListed {
-                path: entry.path(),
-                group: entry.group(),
-                grant,
-            });
-        }
+        let mut entries: Vec<RegistryEntry> = kernel
+            .iter()
+            .map(|decl| RegistryEntry {
+                owner: CommandOwner::Kernel,
+                owner_type: None,
+                decl: *decl,
+            })
+            .collect();
+        entries.extend(declared.commands().iter().map(|command| RegistryEntry {
+            owner: CommandOwner::Member(command.owner.clone()),
+            owner_type: Some(command.owner_type),
+            decl: command.decl,
+        }));
+        refuse_duplicates(&entries)?;
+        recheck_reserved(&entries)?;
         Ok(Self { entries })
     }
 
-    pub fn registrations(&self) -> &[CliCommandRegistration] {
+    pub fn entries(&self) -> &[RegistryEntry] {
         &self.entries
     }
 
     pub fn assemble(&self, mut root: Command) -> Result<Command, RegistryError> {
+        let mut unslotted = 0;
         for entry in &self.entries {
-            let parent = self.entries.iter().find(|other| other.is_at(entry.parent));
-            root = attach(root, entry.parent, (entry.command)(), entry, parent)?;
+            let parent = self
+                .entries
+                .iter()
+                .find(|other| other.is_at(entry.decl.parent()));
+            let mut command = entry.decl.command();
+            if entry.decl.parent().is_empty()
+                && command.get_display_order() == REGISTERED_DISPLAY_ORDER
+            {
+                command = command.display_order(REGISTERED_DISPLAY_ORDER + unslotted);
+                unslotted += 1;
+            }
+            root = attach(root, entry.decl.parent(), command, entry, parent)?;
         }
         Ok(root)
     }
 
-    pub fn resolve(&self, matches: &ArgMatches) -> Result<Option<RegisteredCommand>, ResolveError> {
+    pub fn resolve(&self, matches: &ArgMatches) -> Result<Option<ResolvedCommand>, ResolveError> {
         let mut path: Vec<&str> = Vec::new();
         let mut current = matches;
         let mut deepest = None;
@@ -236,41 +180,92 @@ impl CommandRegistry {
         let Some((entry, sub)) = deepest else {
             return Ok(None);
         };
-        let registered = (entry.resolve)(sub)?;
-        let descriptor = registered.descriptor();
+        let parsed = entry.decl.resolve(sub)?;
+        let descriptor = parsed.descriptor();
         if let Some(grant) = KernelGrant::ALL
             .into_iter()
-            .find(|grant| descriptor.holds(*grant) && !entry.grants.contains(grant))
+            .find(|grant| descriptor.holds(*grant) && !entry.decl.grants().contains(grant))
         {
             return Err(RegistryError::UndeclaredGrant {
-                path: entry.path(),
-                group: entry.group(),
+                path: entry.path_text(),
+                owner: entry.owner.clone(),
                 grant,
             }
             .into());
         }
-        Ok(Some(registered.granted(entry.grants)))
+        Ok(Some(ResolvedCommand {
+            owner: entry.owner.clone(),
+            path: entry.decl.path(),
+            parsed: parsed.granted(entry.decl.grants()),
+        }))
     }
+}
+
+fn refuse_duplicates(entries: &[RegistryEntry]) -> Result<(), RegistryError> {
+    for (index, entry) in entries.iter().enumerate() {
+        if let Some(other) = entries[index + 1..]
+            .iter()
+            .find(|other| other.decl.path() == entry.decl.path())
+        {
+            return Err(RegistryError::Duplicate {
+                path: entry.path_text(),
+                first: entry.owner.clone(),
+                second: other.owner.clone(),
+            });
+        }
+    }
+    Ok(())
+}
+
+fn recheck_reserved(entries: &[RegistryEntry]) -> Result<(), RegistryError> {
+    for entry in entries {
+        let path = entry.decl.path();
+        let reserved = RESERVED_CLI_PATHS
+            .iter()
+            .find(|reserved| reserved.path == path.as_slice());
+        if let Some(reserved) = reserved
+            && !entry.holds(reserved.owner)
+        {
+            return Err(RegistryError::ReservedPath {
+                path: entry.path_text(),
+                claimant: entry.owner.clone(),
+                owner: reserved.owner,
+            });
+        }
+        if let Some(grant) = entry
+            .decl
+            .grants()
+            .iter()
+            .find(|grant| !reserved.is_some_and(|reserved| reserved.grants.contains(grant)))
+        {
+            return Err(RegistryError::GrantNotListed {
+                path: entry.path_text(),
+                claimant: entry.owner.clone(),
+                grant: *grant,
+            });
+        }
+    }
+    Ok(())
 }
 
 fn attach(
     mut parent: Command,
     rest: &[&str],
     child: Command,
-    entry: &CliCommandRegistration,
-    registered_parent: Option<&CliCommandRegistration>,
+    entry: &RegistryEntry,
+    registered_parent: Option<&RegistryEntry>,
 ) -> Result<Command, RegistryError> {
     let Some((head, tail)) = rest.split_first() else {
         if parent.find_subcommand(child.get_name()).is_some() {
             return Err(registered_parent.map_or_else(
                 || RegistryError::ShadowsKernel {
-                    path: entry.path(),
-                    group: entry.group(),
+                    path: entry.path_text(),
+                    claimant: entry.owner.clone(),
                 },
                 |owner| RegistryError::ShadowsGroup {
-                    path: entry.path(),
-                    group: entry.group(),
-                    parent: owner.group(),
+                    path: entry.path_text(),
+                    claimant: entry.owner.clone(),
+                    parent: owner.owner.clone(),
                 },
             ));
         }
@@ -281,8 +276,8 @@ fn attach(
         .find(|sub| sub.get_name() == *head)
     else {
         return Err(RegistryError::UnknownParent {
-            path: entry.path(),
-            group: entry.group(),
+            path: entry.path_text(),
+            claimant: entry.owner.clone(),
         });
     };
     *existing = attach(

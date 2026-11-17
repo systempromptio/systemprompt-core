@@ -25,39 +25,33 @@ rustdoc-args = ["--cfg", "docsrs"]
 default = []
 http = [
     "dep:systemprompt-analytics",
-    "dep:systemprompt-api",
-    "dep:systemprompt-events",
-    "dep:systemprompt-extension",
+    "systemprompt-extension/router",
     "dep:systemprompt-identifiers",
     "dep:systemprompt-models",
-    "dep:systemprompt-provider-contracts",
     "dep:systemprompt-traits",
     "dep:axum",
-    "dep:inventory",
     "dep:serde",
     "dep:serde_json",
     "dep:tracing",
 ]
 cli = [
     "dep:systemprompt-analytics",
-    "dep:systemprompt-cli",
+    "systemprompt-extension/cli",
     "dep:systemprompt-config",
     "dep:systemprompt-database",
     "dep:systemprompt-identifiers",
-    "dep:systemprompt-logging",
+    "systemprompt-logging/cli",
     "dep:systemprompt-models",
-    "dep:systemprompt-runtime",
     "dep:systemprompt-users",
     "dep:anyhow",
     "dep:chrono",
     "dep:clap",
-    "dep:inventory",
     "dep:schemars",
     "dep:serde",
     "dep:serde_json",
     "dep:tokio",
 ]
-# The `core content popular` leaf, registered under the `core content` group
+# The `core content popular` leaf, contributed under the `core content` group
 # of `systemprompt-content-entry`. Compiled only together with `cli`; the
 # facade turns it on when both the analytics and content capabilities are
 # composed.
@@ -65,30 +59,21 @@ content-commands = []
 
 [dependencies]
 systemprompt-analytics = { workspace = true, optional = true }
-systemprompt-api = { workspace = true, optional = true }
-systemprompt-cli = { workspace = true, optional = true }
 systemprompt-config = { workspace = true, optional = true }
 systemprompt-database = { workspace = true, optional = true }
-systemprompt-events = { workspace = true, optional = true }
-systemprompt-extension = { workspace = true, optional = true }
+systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true, optional = true }
 systemprompt-logging = { workspace = true, optional = true }
 systemprompt-models = { workspace = true, optional = true }
-systemprompt-provider-contracts = { workspace = true, optional = true }
-systemprompt-runtime = { workspace = true, optional = true }
 systemprompt-traits = { workspace = true, optional = true }
 systemprompt-users = { workspace = true, optional = true }
 anyhow = { workspace = true, optional = true }
 axum = { workspace = true, optional = true }
 chrono = { workspace = true, optional = true }
 clap = { workspace = true, optional = true }
-inventory = { workspace = true, optional = true }
 schemars = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true, features = ["time"] }
 tracing = { workspace = true, optional = true }
 
-[package.metadata.cargo-machete]
-# inventory: compile-time registration via register_extension!/register_cli_command! (::inventory::submit!)
-ignored = ["inventory"]

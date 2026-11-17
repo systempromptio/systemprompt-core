@@ -3,14 +3,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use std::sync::Arc;
 use systemprompt_users::{DemoteResult, UserAdminService, UserRepository, UserService};
 
 use crate::commands::admin::users::types::RoleAssignOutput;
-use crate::context::CommandContext;
-use crate::shared::{CommandOutput, ConfirmArgs};
+use crate::shared::ConfirmArgs;
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct DemoteArgs {
@@ -20,8 +21,8 @@ pub struct DemoteArgs {
     pub confirm: ConfirmArgs,
 }
 
-pub(super) async fn execute(args: DemoteArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let pool = ctx.db_pool().await?;
+pub(super) async fn execute(args: DemoteArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+    let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
     let user_service = UserService::new(Arc::new(UserRepository::new(&pool)));
     let admin_service = UserAdminService::new(user_service);
 

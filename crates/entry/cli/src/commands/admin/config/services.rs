@@ -8,15 +8,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::commands::admin::config::restart_note;
+use crate::kernel::KernelHost;
 use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
-use systemprompt_logging::CliService;
 
 use super::profile_io::{load_profile, profile_path, save_profile};
 use super::types::{ServicesConfigOutput, ServicesSetOutput};
-use crate::cli_settings::OutputFormat;
-use crate::context::CommandContext;
-use crate::shared::{CommandOutput, render_result};
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Clone, Copy, Subcommand)]
 pub enum ServicesCommands {
@@ -36,36 +35,29 @@ pub struct SetArgs {
     pub port_offset: Option<u16>,
 }
 
-pub fn execute(command: &ServicesCommands, ctx: &CommandContext) -> Result<()> {
+pub fn execute(command: &ServicesCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
-        ServicesCommands::Show => execute_show(ctx),
-        ServicesCommands::Set(args) => execute_set(args, ctx),
+        ServicesCommands::Show => execute_show(host),
+        ServicesCommands::Set(args) => execute_set(args, host),
     }
 }
 
-pub(super) fn execute_show(ctx: &CommandContext) -> Result<()> {
-    let config = &ctx.cli;
-    let profile = ctx.profile()?;
+pub(super) fn execute_show(host: &dyn KernelHost) -> Result<CommandOutput> {
+    let profile = host.profile()?;
 
     let output = ServicesConfigOutput {
         port_offset: profile.services.port_offset,
     };
 
-    render_result(
-        &CommandOutput::card_value("Services Configuration", &output),
-        config,
-    );
-
-    Ok(())
+    Ok(CommandOutput::card_value("Services Configuration", &output))
 }
 
-pub(super) fn execute_set(args: &SetArgs, ctx: &CommandContext) -> Result<()> {
-    let config = &ctx.cli;
+pub(super) fn execute_set(args: &SetArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let Some(port_offset) = args.port_offset else {
         bail!("Must specify at least one option: --port-offset");
     };
 
-    let profile_path = profile_path(ctx)?;
+    let profile_path = profile_path(host)?;
     let mut profile = load_profile(profile_path)?;
 
     let old = profile.services.port_offset;
@@ -80,14 +72,5 @@ pub(super) fn execute_set(args: &SetArgs, ctx: &CommandContext) -> Result<()> {
         message: format!("Updated port_offset to {port_offset}"),
     };
 
-    render_result(
-        &CommandOutput::card_value("Services Updated", &change),
-        config,
-    );
-
-    if config.output_format() == OutputFormat::Table {
-        CliService::warning("Restart services for changes to take effect");
-    }
-
-    Ok(())
+    Ok(CommandOutput::card_value("Services Updated", &change).with_note(restart_note()))
 }

@@ -1,18 +1,22 @@
-//! Builder that assembles an [`AppContext`] from profile + config state.
+//! Builder that assembles an [`AppContext`] from profile + config state over
+//! the admitted composition.
 //!
 //! The builder owns the bootstrap order: profile -> paths -> files ->
-//! database -> logging -> extensions -> ancillary services -> extension state
-//! -> extension seams. Extension state is built once the context exists,
-//! seeded with the kernel's handles ([`kernel_state`]) and honouring the
-//! profile's disabled extensions, and bound to the authz hook's state handle
-//! before anything serves, so
-//! every [`Extension::provide`](systemprompt_extension::Extension::provide)
-//! sees the database, config, event router and background tasks through its
-//! `ExtensionContext`; it is built and its declared requirements validated
-//! before the notification and brain seams, routers, jobs and gateway guards
-//! are collected, so each of their factories reads the finished state. A
-//! failing step propagates as [`RuntimeError`](crate::error::RuntimeError);
-//! helpers live in [`assembly`].
+//! database -> logging -> schema install over the admitted members ->
+//! kernel seeds -> [`Kernel::resolve`] -> the stages that read the resolved
+//! state (authz, governance, repositories, documents) -> the context. The
+//! kernel is seeded with plain handles ([`kernel_state`]) before it resolves,
+//! so every member's provide fn, slot and governance surface reads the
+//! database, config, event router and the other kernel seeds; the authz hook,
+//! publication policy, policy engine and document store are built from what
+//! it resolved. The host seeds the read half of the document store cell
+//! (`DocumentsHandlesSlot`) and binds it, through the binder it kept out of
+//! the state, once the store exists, so the document seams other
+//! members' slots appended read it from then on. A failing step propagates
+//! as [`RuntimeError`](crate::error::RuntimeError); helpers live in
+//! [`assembly`].
+//!
+//! [`Kernel::resolve`]: crate::Kernel::resolve
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -20,8 +24,6 @@
 mod ai_service;
 pub(crate) mod assembly;
 pub(crate) mod authz;
-#[cfg(feature = "brain")]
-pub(crate) mod brain;
 pub(crate) mod composition;
 pub(crate) mod core_layer;
 pub(crate) mod database;
@@ -30,44 +32,50 @@ pub(crate) mod documents;
 pub(crate) mod events;
 pub(crate) mod governance;
 pub(crate) mod kernel_state;
-#[cfg(feature = "notifications")]
-pub(crate) mod notifications;
 mod options;
 pub use composition::owner_reassignments;
 use composition::{
-    build_artifact_ingest, build_data_plane, build_domain_layer, new_plugins, new_spawner,
+    build_artifact_ingest, build_data_plane, build_domain_layer, load_identity, new_plugins,
+    new_spawner, seeded_repositories,
 };
 
 use std::sync::Arc;
 
 use systemprompt_database::MigrationConfig;
 use systemprompt_events::EventRouter;
-use systemprompt_extension::ExtensionRegistry;
+use systemprompt_extension::Admitted;
+use systemprompt_files::documents::DocumentsHandlesSlot;
+use systemprompt_governance::authz::SubjectProviderSet;
+use systemprompt_governance::contract::AuthzHooks;
+use systemprompt_governance::policy::PolicyCatalog;
 use systemprompt_loader::BootContext;
 use systemprompt_marketplace::MarketplaceFilter;
-use systemprompt_traits::BackgroundTasks;
+use systemprompt_marketplace::contract::MarketplaceSeams;
+use systemprompt_traits::{BackgroundTasks, ConfigWatch, DatabaseHandle, SecretStore};
 use systemprompt_users::UserService;
 
-use crate::context::{AppContext, ConfigPlane, DataPlane, ShutdownRequest, Subsystems};
-use crate::documents::ExtensionAudiences;
+use crate::context::{
+    AppContext, ConfigPlane, ContextPlanes, DataPlane, ShutdownRequest, Subsystems,
+};
 use crate::error::RuntimeResult;
+use crate::kernel::Kernel;
+use authz::{AuthzBuilt, authz_stage};
 pub use core_layer::discover_vertex_models;
-use core_layer::{CoreLayer, CoreOverrides, SchemaPolicy, init_core};
+use core_layer::{CoreLayer, CoreOverrides, SchemaPolicy, init_core, install_schemas};
 use events::event_plane;
-use governance::init_governed_extensions;
 pub(crate) use governance::load_governance;
+use kernel_state::{ApiKernelSeed, KernelSeed, kernel_state};
 
 /// Assembles an [`AppContext`], owning the bootstrap order described on the
 /// module.
 ///
-/// All fields default to a no-op build: extensions are discovered via
-/// inventory, schema installation is off, and the marketplace filter falls
-/// back to the inventory-registered implementation (or an allow-all filter).
-/// Override these with the `with_*` methods before calling
+/// The admitted composition is fixed at construction. Schema installation is
+/// off by default, and the marketplace filter is the one the marketplace
+/// seams built. Override these with the `with_*` methods before calling
 /// [`build`](Self::build).
 pub struct AppContextBuilder {
     boot: BootContext,
-    extension_registry: Option<ExtensionRegistry>,
+    admitted: Arc<Admitted>,
     show_startup_warnings: bool,
     marketplace_filter: Option<Arc<dyn MarketplaceFilter>>,
     core: CoreOverrides,
@@ -81,10 +89,10 @@ pub struct AppContextBuilder {
 
 impl AppContextBuilder {
     #[must_use]
-    pub fn new(boot: BootContext) -> Self {
+    pub fn new(boot: BootContext, admitted: Arc<Admitted>) -> Self {
         Self {
             boot,
-            extension_registry: None,
+            admitted,
             show_startup_warnings: false,
             marketplace_filter: None,
             core: CoreOverrides::default(),
@@ -107,98 +115,138 @@ impl AppContextBuilder {
             app_paths,
             files_config,
             database,
-            authz_hook,
+            authz_hook_override,
             signing_keys,
             file_storage,
             cache_epochs,
             log_sink,
-            policy,
             services,
-            market,
+            services_root,
         } = init_core(&self.boot, self.core).await?;
+        let profile = self.boot.profile();
 
-        let (extensions, schema_install, governance) = init_governed_extensions(
-            self.boot.profile(),
-            self.extension_registry,
+        let schema_install = install_schemas(
+            profile,
+            &self.admitted,
             self.schema,
             self.migration_config,
             &database,
         )
         .await?;
 
-        let content = assembly::assemble_content_analytics(
+        let content = assembly::assemble_content_and_geoip(
             &config,
             &app_paths,
             &database,
             self.show_startup_warnings,
         )?;
-
-        let analytics = content.analytics_repositories;
-        let (repositories, user_service, system_admin, mcp_registry) =
-            build_domain_layer(&self.boot, &database, analytics, policy, &services).await?;
-
+        let seeded = seeded_repositories(&database, &self.boot.secrets().get())?;
+        let (user_service, system_admin, mcp_registry) =
+            load_identity(&self.boot, &database, &seeded.users, &services).await?;
         let (ai_service, connector_tokens) = ai_service::build_ai_service(
             &self.boot,
             &database,
-            &repositories,
+            &seeded.ai,
             &mcp_registry,
             &services,
         );
-        let plugins = new_plugins(extensions, mcp_registry, self.marketplace_filter, &market);
         let (router, bridge, listener_pool) =
             event_plane(self.event_router, &database, &config, &cache_epochs);
+        drop(listener_pool);
         let background_tasks = self.background_tasks.unwrap_or_default();
+
+        let secrets: Arc<dyn SecretStore> =
+            Arc::<systemprompt_config::SecretsService>::clone(self.boot.secrets());
+        let (documents_slot, documents_binder) = DocumentsHandlesSlot::unbound();
+        let seed = kernel_state(ApiKernelSeed {
+            base: KernelSeed {
+                database: &database,
+                app_paths: &app_paths,
+                files_config: &files_config,
+                profile,
+                config: &config,
+                services: services.view(),
+                services_root,
+                secrets,
+                system_admin: &system_admin,
+                event_router: &router,
+                documents: documents_slot,
+                #[cfg(feature = "notifications")]
+                escalation: systemprompt_notifications::service::EscalationDelivery::InProcess,
+            },
+            oauth: &seeded.oauth,
+            ai: &seeded.ai,
+            ai_service: ai_service.as_ref(),
+            geoip: content.geoip_reader.as_ref(),
+            content_config: content.content_config.as_ref(),
+        });
+        let handle: Arc<dyn DatabaseHandle> =
+            Arc::<systemprompt_database::Database>::clone(&database);
+        let subscriptions: Arc<dyn systemprompt_traits::events::AnalyticsSubscription> =
+            Arc::new(systemprompt_events::AnalyticsSubscriptions::new(
+                Arc::clone(&router.broadcasters().analytics),
+            ));
+        let mut kernel = Kernel::new(handle, background_tasks.clone(), seed)
+            .with_handle::<systemprompt_extension::handles::AnalyticsBroadcaster>(
+            subscriptions,
+        );
+        kernel.resolve(&self.admitted)?;
+        let r = kernel.resolved();
+
+        let seams = r.get::<Arc<MarketplaceSeams>>()?;
+        let (policy, authz_hook, market) = authz_stage(
+            profile,
+            &database,
+            &services,
+            authz_hook_override,
+            &AuthzBuilt {
+                epochs: &cache_epochs,
+                providers: &*r.get::<Arc<SubjectProviderSet>>()?,
+                hooks: &*r.get::<Arc<AuthzHooks>>()?,
+                seams: &seams,
+            },
+        )?;
+        let governance = ConfigWatch::new(
+            load_governance(profile, &database, &*r.get::<Arc<PolicyCatalog>>()?).await?,
+        );
+        let repositories =
+            build_domain_layer(&self.boot, &database, policy, &seeded, &system_admin).await?;
+        let plugins = new_plugins(mcp_registry, self.marketplace_filter, &seams, &market);
+
         #[cfg(feature = "notifications")]
-        let notification_sink = notifications::notification_sink(&database, &config.instance_id);
+        let notification_sink = systemprompt_notifications::OutboxNotificationSink::over_write_pool(
+            &database,
+            &config.instance_id,
+        );
         #[cfg(not(feature = "notifications"))]
         let notification_sink: systemprompt_extension::DynNotificationSink =
             Arc::new(crate::documents::NotificationsUnavailableSink);
-        #[cfg(not(feature = "notifications"))]
-        drop(listener_pool);
         #[cfg(feature = "brain")]
-        let brain_core = brain::BrainCore::new(&brain::BrainInputs {
-            database: &database,
-            instance_id: &config.instance_id,
-            listener_pool: &listener_pool,
-            notifications: &notification_sink,
-            profile: &self.boot.profile().brain,
-        });
-        #[cfg(feature = "brain")]
-        let brain_sink = brain::brain_sink(brain_core.as_ref());
+        let brain_sink: systemprompt_extension::DynBrainSink = if profile.brain.enabled {
+            systemprompt_brain::OutboxBrainSink::over_write_pool(&database, &config.instance_id)
+        } else {
+            Arc::new(crate::documents::BrainUnavailableSink)
+        };
         #[cfg(not(feature = "brain"))]
         let brain_sink: systemprompt_extension::DynBrainSink =
             Arc::new(crate::documents::BrainUnavailableSink);
-        let audiences = ExtensionAudiences::default();
-        let documents = documents::build_documents(&documents::DocumentsInputs {
-            services_root: &self.boot.require_services_root().path,
-            database: &database,
-            file_storage: &file_storage,
-            authz_hook: &authz_hook,
-            subjects: &plugins.subjects,
-            event_router: &router,
-            files_config: &files_config,
-            background_tasks: &background_tasks,
-            extensions: &plugins.extension_registry,
-            disabled_extensions: &self.boot.profile().extensions.disabled,
-            notifications: &notification_sink,
-            brain: &brain_sink,
-            audiences: &audiences,
-        })?;
-        #[cfg(feature = "notifications")]
-        let notifications_core =
-            notifications::NotificationsCore::new(&notifications::NotificationsInputs {
+        let documents = documents::build_documents(
+            &documents::DocumentsInputs {
+                services_root: &self.boot.require_services_root().path,
                 database: &database,
+                file_storage: &file_storage,
+                authz_hook: &authz_hook,
+                subjects: &plugins.subjects,
                 event_router: &router,
-                sink: &notification_sink,
-                listener_pool: &listener_pool,
-                documents: &documents,
-                profile: &self.boot.profile().notifications,
-                escalation: systemprompt_notifications::service::EscalationDelivery::InProcess,
-            });
-        #[cfg(feature = "brain")]
-        let brain_handle = brain_core
-            .as_ref()
-            .map(|core| core.assemble(&documents, brain::RecallSeams::default()));
+                files_config: &files_config,
+                background_tasks: &background_tasks,
+                admitted: &self.admitted,
+                notifications: &notification_sink,
+                brain: &brain_sink,
+                binder: &documents_binder,
+            },
+            &r,
+        )?;
         let subsystems = Subsystems {
             ai_service,
             artifact_ingest: build_artifact_ingest(&database, &governance.get()),
@@ -220,62 +268,30 @@ impl AppContextBuilder {
             publish_guard: Arc::default(),
             connector_tokens,
             documents,
-            #[cfg(feature = "notifications")]
-            notifications: notifications_core.assemble(notifications::ExtensionSeams::default()),
-            #[cfg(feature = "brain")]
-            brain: brain_handle,
         };
 
-        let app = AppContext::from_parts(
-            build_data_plane(
-                database,
-                content.analytics_service,
-                content.fingerprint_repo,
-                user_service,
-                repositories,
-            ),
-            ConfigPlane {
-                boot: self.boot,
-                config,
-                app_paths,
-                files_config,
-                content_config: content.content_config,
-                route_classifier: content.route_classifier,
-                build: self.build,
+        AppContext::from_parts(
+            ContextPlanes {
+                data: build_data_plane(
+                    database,
+                    content.fingerprint_repo,
+                    user_service,
+                    repositories,
+                ),
+                cfg: ConfigPlane {
+                    boot: self.boot,
+                    config,
+                    app_paths,
+                    files_config,
+                    content_config: content.content_config,
+                    route_classifier: content.route_classifier,
+                    build: self.build,
+                },
+                plugins,
+                subsystems,
             },
-            plugins,
-            subsystems,
-            &market.state,
-        )?;
-        #[cfg(feature = "notifications")]
-        let app = {
-            let mut app = app;
-            let seams = notifications::ExtensionSeams::discover(&app);
-            audiences.bind(seams.audiences.clone());
-            app.subsystems.notifications = notifications_core.assemble(seams);
-            if let Some(slot) = app
-                .extension_state
-                .find::<systemprompt_notifications::NotificationsServiceSlot>()
-            {
-                slot.bind(Arc::clone(&app.subsystems.notifications.service))?;
-            }
-            if let Some(slot) = app
-                .extension_state
-                .find::<systemprompt_notifications::NotificationsConsumerSlot>()
-            {
-                slot.bind(Arc::clone(&app.subsystems.notifications.consumer))?;
-            }
-            app
-        };
-        #[cfg(feature = "brain")]
-        let app = {
-            let mut app = app;
-            let seams = brain::RecallSeams::discover(&app);
-            app.subsystems.brain = brain_core
-                .as_ref()
-                .map(|core| core.assemble(&app.subsystems.documents, seams));
-            app
-        };
-        Ok(app)
+            Arc::new(kernel),
+            self.admitted,
+        )
     }
 }

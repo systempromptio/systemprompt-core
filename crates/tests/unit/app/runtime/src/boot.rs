@@ -28,6 +28,7 @@ pub struct BootOptions {
     pub broken_storage: bool,
     pub storage_yaml: String,
     pub extra_secrets: Vec<(String, String)>,
+    pub database_url: Option<String>,
 }
 
 impl Default for BootOptions {
@@ -41,12 +42,16 @@ impl Default for BootOptions {
             broken_storage: false,
             storage_yaml: String::new(),
             extra_secrets: Vec::new(),
+            database_url: None,
         }
     }
 }
 
 pub fn boot(opts: &BootOptions) -> BootFixture {
-    let database_url = systemprompt_test_fixtures::test_database_url();
+    let database_url = opts
+        .database_url
+        .clone()
+        .unwrap_or_else(systemprompt_test_fixtures::test_database_url);
     let tmp = tempfile::tempdir().expect("create boot tempdir");
     let root = tmp.path();
 
@@ -334,4 +339,22 @@ governance:
         ack = UNRESTRICTED_ACKNOWLEDGEMENT,
         storage_yaml = opts.storage_yaml,
     )
+}
+
+pub(crate) fn host_admit() -> systemprompt_runtime::AdmitFn {
+    Box::new(|_profile| {
+        let mut members = systemprompt_test_fixtures::fixture_core_members();
+        members.push(Box::new(systemprompt_mcp_host::McpHostExtension));
+        std::sync::Arc::try_unwrap(systemprompt_test_fixtures::fixture_admitted_of(members))
+            .map_err(|_shared| -> systemprompt_traits::BoxedSource {
+                "the admitted host composition is uniquely owned".into()
+            })
+    })
+}
+
+pub(crate) fn core_admit() -> systemprompt_runtime::AdmitFn {
+    Box::new(|_profile| {
+        systemprompt_test_fixtures::schema_admitted()
+            .map_err(|e| -> systemprompt_traits::BoxedSource { Box::new(e) })
+    })
 }

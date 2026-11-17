@@ -65,13 +65,18 @@ async fn documents_tools_refuse_a_disabled_store_and_name_the_switch() {
     use systemprompt_test_fixtures::{host_child_env, init_services_bootstrap};
 
     let bootstrap = init_services_bootstrap("mcp_servers: {}\n");
+    std::fs::write(
+        bootstrap.services_path.join("config/files.yaml"),
+        "files:\n  documents:\n    enabled: false\n",
+    )
+    .expect("disable the document store");
     let env = host_child_env(&bootstrap);
     systemprompt_test_fixtures::seed_fixture_system_admin(
         &systemprompt_test_fixtures::test_db_pool().await,
     )
     .await
     .expect("seed the system admin");
-    let disabled = HostContext::boot(|name| env.get(name).cloned())
+    let disabled = HostContext::boot(|name| env.get(name).cloned(), crate::boot::core_admit())
         .await
         .expect("host context");
     let err = documents_tools(&disabled, McpServerId::new(SERVER))
@@ -84,7 +89,7 @@ async fn documents_tools_refuse_a_disabled_store_and_name_the_switch() {
         "files:\n  documents:\n    enabled: true\n",
     )
     .expect("write files.yaml");
-    let enabled = HostContext::boot(|name| env.get(name).cloned())
+    let enabled = HostContext::boot(|name| env.get(name).cloned(), crate::boot::core_admit())
         .await
         .expect("host context");
     let tools = documents_tools(&enabled, McpServerId::new(SERVER))

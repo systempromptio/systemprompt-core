@@ -50,6 +50,7 @@ mod engine_loro_sheet;
 mod engine_loro_structured;
 mod engine_loro_table;
 mod events_routing;
+mod handles_binding;
 mod live_resume;
 mod lock_origin;
 mod model_docx_review;

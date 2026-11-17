@@ -1,15 +1,17 @@
-//! Publication gates: extension-registered checks a publication must pass
-//! before its transaction opens.
+//! Publication gates: contributed checks a publication must pass before its
+//! transaction opens.
 //!
-//! An extension implements [`PublicationGate`] and registers a factory with
-//! [`register_publication_gate!`][crate::register_publication_gate]. The
-//! composition root instantiates every registration once, ordered by
-//! descending priority, into a [`PublicationPolicy`]. Gating applies to
+//! An extension implements [`PublicationGate`] and contributes a factory to
+//! [`MarketplaceSlot`][crate::contract::MarketplaceSlot]. The slot builds every
+//! gate once, core members first, and the composition root assembles them
+//! into a [`PublicationPolicy`] with [`PublicationPolicy::from_seams`]. Gating
+//! applies to
 //! `PublishImprovement`, and to `InitialAdoption` when
 //! `marketplace.publication.gate.on_adoption` is set. Every gate must admit;
 //! a refusal or a gate failure refuses the publication, and
-//! `marketplace.publication.gate.required` with no registered gate refuses
-//! every gated publication.
+//! `marketplace.publication.gate.required` with no contributed gate refuses
+//! every gated publication. Because every gate must admit, the outcome does
+//! not depend on gate order.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,11 +20,8 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
-use crate::registry::MarketplaceFactoryContext;
-use systemprompt_governance::authz::{
-    AuthzHookContext, NullAuditSink, SharedRoleDirectory, SubjectProviderSet,
-    discover_role_directory,
-};
+use crate::contract::MarketplaceSeams;
+use systemprompt_governance::authz::{SharedRoleDirectory, SubjectProviderSet};
 use systemprompt_identifiers::{ManagedResourceId, ResourceRevisionId, UserId};
 use systemprompt_manifest::services::ManagedMarketplaceConfig;
 use systemprompt_traits::BoxedSource;
@@ -74,47 +73,11 @@ pub enum PublicationGateError {
     Evidence(String),
 }
 
-type PublicationGateFactory =
-    fn(
-        &MarketplaceFactoryContext,
-    ) -> std::result::Result<Arc<dyn PublicationGate>, PublicationGateError>;
-
-#[derive(Debug, Clone, Copy)]
-pub struct PublicationGateRegistration {
-    pub factory: PublicationGateFactory,
-    pub priority: i32,
-}
-
-inventory::collect!(PublicationGateRegistration);
-
-#[must_use]
-pub fn discover_publication_gates() -> Vec<&'static PublicationGateRegistration> {
-    let mut all: Vec<&PublicationGateRegistration> =
-        inventory::iter::<PublicationGateRegistration>().collect();
-    all.sort_by_key(|reg| std::cmp::Reverse(reg.priority));
-    all
-}
-
-#[macro_export]
-macro_rules! register_publication_gate {
-    ($factory:expr, priority = $priority:expr $(,)?) => {
-        $crate::__inventory::submit! {
-            $crate::managed::PublicationGateRegistration {
-                factory: $factory,
-                priority: $priority,
-            }
-        }
-    };
-    ($factory:expr $(,)?) => {
-        $crate::register_publication_gate!($factory, priority = 0);
-    };
-}
-
 /// The publication policy a [`ManagedRepository`][super::ManagedRepository]
 /// enforces.
 ///
-/// It holds the services `marketplace:` block, the instantiated gates in
-/// priority order, and the subject providers cohort membership is read from.
+/// It holds the services `marketplace:` block, the built gates core first, and
+/// the subject providers cohort membership is read from.
 #[derive(Clone, Default)]
 pub struct PublicationPolicy {
     pub(crate) config: ManagedMarketplaceConfig,
@@ -157,33 +120,13 @@ impl PublicationPolicy {
         }
     }
 
-    pub fn discover(
-        factory_ctx: &MarketplaceFactoryContext,
+    #[must_use]
+    pub fn from_seams(
         config: ManagedMarketplaceConfig,
-        providers: SubjectProviderSet,
-    ) -> Result<Self> {
-        let gates = discover_publication_gates()
-            .into_iter()
-            .map(|registration| (registration.factory)(factory_ctx))
-            .collect::<std::result::Result<Vec<_>, _>>()
-            .map_err(|source| ManagedError::Internal {
-                context: "publication gate factory",
-                source: source.into(),
-            })?;
-        let hook_ctx = AuthzHookContext {
-            pool: factory_ctx.db.pool(),
-            sink: Arc::new(NullAuditSink),
-            services: factory_ctx.services.clone(),
-            subjects: factory_ctx.subjects.clone(),
-            secrets: Arc::clone(&factory_ctx.secrets),
-            state: systemprompt_extension::StateHandle::default(),
-        };
-        Ok(Self::new(
-            config,
-            gates,
-            providers,
-            discover_role_directory(&hook_ctx),
-        ))
+        seams: &MarketplaceSeams,
+        subjects: SubjectProviderSet,
+    ) -> Self {
+        Self::new(config, seams.gates().to_vec(), subjects, seams.roles())
     }
 
     #[must_use]
@@ -207,7 +150,7 @@ impl PublicationPolicy {
             if self.config.publication.gate.required {
                 tracing::warn!(
                     resource_id = %ctx.resource_id,
-                    "publication refused: a publication gate is required and none is registered"
+                    "publication refused: a publication gate is required and none is contributed"
                 );
                 return Err(ManagedError::Unavailable);
             }

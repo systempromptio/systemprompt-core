@@ -11,6 +11,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::documents::transient::retry_conflicts;
 use systemprompt_models::documents::{DocumentFormat, Projection};
 use systemprompt_traits::RepositoryError;
 
@@ -112,27 +113,34 @@ impl DocumentService {
         let bytes = self.revision_bytes(revision).await?;
         let paths = self.project_paths(document.format, bytes).await?;
         let parent = self.parent_ids(&document, revision).await?;
-        let mut tx = self.repos.documents.begin().await?;
-        if DocumentNodeIdRepository::lock_revision(&mut tx, &revision.id).await? {
-            return Ok(0);
-        }
-        let writer = writer_tag(revision.id.as_str());
-        let count = i64::try_from(paths.nodes().count()).unwrap_or(i64::MAX);
-        let first =
-            DocumentNodeIdRepository::reserve(&mut tx, &document.id, &writer, count).await?;
-        let mut minter = NodeIdMinter::new(writer, u64::try_from(first - 1).unwrap_or(0));
-        let entries = blocking(move || {
-            Ok(match parent {
-                Some(parent) => carry_forward(&parent, &paths, &CarryHints::default(), &mut minter),
-                None => mint_all(&paths, &mut minter),
+        let (document, paths, parent) = (&document, &paths, &parent);
+        retry_conflicts(|| async move {
+            let mut tx = self.repos.documents.begin().await?;
+            if DocumentNodeIdRepository::lock_revision(&mut tx, &revision.id).await? {
+                return Ok(0);
+            }
+            let writer = writer_tag(revision.id.as_str());
+            let count = i64::try_from(paths.nodes().count()).unwrap_or(i64::MAX);
+            let first =
+                DocumentNodeIdRepository::reserve(&mut tx, &document.id, &writer, count).await?;
+            let mut minter = NodeIdMinter::new(writer, u64::try_from(first - 1).unwrap_or(0));
+            let (paths, parent) = (paths.clone(), parent.clone());
+            let entries = blocking(move || {
+                Ok(match parent {
+                    Some(parent) => {
+                        carry_forward(&parent, &paths, &CarryHints::default(), &mut minter)
+                    },
+                    None => mint_all(&paths, &mut minter),
+                })
             })
+            .await?;
+            DocumentNodeIdRepository::insert(&mut tx, &document.id, &revision.id, &entries).await?;
+            tx.commit()
+                .await
+                .map_err(|error| DocumentsError::Repository(RepositoryError::from(error)))?;
+            Ok(entries.len())
         })
-        .await?;
-        DocumentNodeIdRepository::insert(&mut tx, &document.id, &revision.id, &entries).await?;
-        tx.commit()
-            .await
-            .map_err(|error| DocumentsError::Repository(RepositoryError::from(error)))?;
-        Ok(entries.len())
+        .await
     }
 
     async fn parent_ids(

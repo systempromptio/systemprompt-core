@@ -41,6 +41,7 @@ serde_json = { workspace = true }
 url = { workspace = true }
 
 # systemprompt.io dependencies
+systemprompt-extension = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }
