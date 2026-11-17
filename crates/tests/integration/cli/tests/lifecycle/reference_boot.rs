@@ -14,13 +14,6 @@ use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_app_context_with_extensions, fixture_config, test_boot_profile,
 };
 
-#[derive(Debug)]
-enum Outcome {
-    Mounted { disabled: Vec<ExtensionId> },
-    Required,
-    Failed { disabled: Vec<ExtensionId>, error: String },
-}
-
 fn admit(disabled: &[ExtensionId]) -> Result<systemprompt_extension::Admitted, CompositionError> {
     let mut profile = (*test_boot_profile()).clone();
     profile.extensions.disabled = disabled.to_vec();
@@ -71,31 +64,30 @@ async fn the_reference_composition_resolves_and_mounts_with_every_member_admitte
 
 #[tokio::test]
 async fn each_disableable_member_disabled_in_turn_still_builds_the_api_application() {
-    let mut outcomes = Vec::new();
+    let mut mounted = 0usize;
+    let mut failed = Vec::new();
     for id in reference().member_ids() {
-        let outcome = match with_dependants(id) {
-            Err(CompositionError::RequiredDisabled(_)) => Outcome::Required,
-            Err(error) => Outcome::Failed {
-                disabled: vec![ExtensionId::new(id)],
-                error: format!("admission: {error}"),
+        let line = match with_dependants(id) {
+            Err(CompositionError::RequiredDisabled(_)) => format!("{id}: required"),
+            Err(error) => {
+                let line = format!("{id}: refused at admission: {error}");
+                failed.push(line.clone());
+                line
             },
             Ok(disabled) => match mount(&disabled).await {
-                Ok(()) => Outcome::Mounted { disabled },
-                Err(error) => Outcome::Failed { disabled, error },
+                Ok(()) => {
+                    mounted += 1;
+                    format!("{id}: mounted with {disabled:?} disabled")
+                },
+                Err(error) => {
+                    let line = format!("{id}: failed with {disabled:?} disabled: {error}");
+                    failed.push(line.clone());
+                    line
+                },
             },
         };
-        eprintln!("{id}: {outcome:?}");
-        outcomes.push((id, outcome));
+        eprintln!("{line}");
     }
-    assert!(
-        outcomes
-            .iter()
-            .any(|(_, outcome)| matches!(outcome, Outcome::Mounted { .. })),
-        "at least one optional member is exercised: {outcomes:?}"
-    );
-    let failed: Vec<_> = outcomes
-        .iter()
-        .filter(|(_, outcome)| matches!(outcome, Outcome::Failed { .. }))
-        .collect();
+    assert!(mounted > 0, "at least one optional member is exercised");
     assert!(failed.is_empty(), "{failed:#?}");
 }
