@@ -351,6 +351,8 @@ pub(super) fn ctx(format: OutputFormat) -> CommandContext {
     CommandContext::new(cli, EnvOverrides::default())
         .with_cloud_credentials(harness_credentials())
         .with_profile(harness_profile())
+        .with_admitted(Some(systemprompt_test_fixtures::fixture_admitted()))
+        .with_detached_kernel()
 }
 
 fn harness_credentials() -> Option<CloudCredentials> {
@@ -377,6 +379,8 @@ pub(super) fn interactive_ctx(
     CommandContext::new(cli, EnvOverrides::default())
         .with_cloud_credentials(harness_credentials())
         .with_profile(harness_profile())
+        .with_admitted(Some(systemprompt_test_fixtures::fixture_admitted()))
+        .with_detached_kernel()
         .with_prompter(Box::new(systemprompt_cli::ScriptedPrompter::new(answers)))
 }
 

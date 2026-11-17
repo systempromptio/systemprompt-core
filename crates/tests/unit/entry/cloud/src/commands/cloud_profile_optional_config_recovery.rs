@@ -40,18 +40,25 @@ async fn optional_config_helper() {
             ..EnvOverrides::default()
         },
     );
+    let member = systemprompt_cli::kernel::MemberHost::new(
+        &context,
+        systemprompt_extension::cli::CommandDescriptor::NONE
+            .with_grant(systemprompt_extension::cli::KernelGrant::BootProfile),
+    );
     println!("BEGIN_BROKEN_OPTIONAL");
-    profile::execute(Some(show()), &context)
+    let output = profile::execute(Some(show()), &member)
         .await
         .expect("show profile while optional configs are malformed");
+    systemprompt_extension::cli::CommandHost::render(&context, &output);
     println!("END_BROKEN_OPTIONAL");
 
     std::fs::write(&skills, "enabled: true\nskills: {}\n").unwrap();
     std::fs::write(&content, "categories: {}\ncontent_sources: {}\n").unwrap();
     println!("BEGIN_REPAIRED_OPTIONAL");
-    profile::execute(Some(show()), &context)
+    let output = profile::execute(Some(show()), &member)
         .await
         .expect("show profile after optional configs are repaired");
+    systemprompt_extension::cli::CommandHost::render(&context, &output);
     println!("END_REPAIRED_OPTIONAL");
 }
 
