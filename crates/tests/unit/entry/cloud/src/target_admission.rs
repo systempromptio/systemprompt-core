@@ -161,7 +161,7 @@ fn an_unknown_disabled_id_is_the_composition_error() {
         .unwrap_or_else(|| panic!("the cause is the composition error: {}", chain(&error)));
     assert!(matches!(
         composition,
-        systemprompt::CompositionError::UnknownExtension(id) if id == "no-such-member-5d1a"
+        systemprompt::CompositionError::UnknownExtension(entry) if entry.id() == "no-such-member-5d1a"
     ));
 }
 

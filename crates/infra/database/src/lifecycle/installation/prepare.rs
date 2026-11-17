@@ -16,6 +16,8 @@ use tracing::warn;
 
 use super::classify::{Classified, classify_statement};
 use super::fk_deferral::DeferredForeignKey;
+use super::migration_owners::retired_tables;
+use super::undeclared::qualify;
 use crate::services::SqlExecutor;
 use crate::services::schema_linter::{created_table_names, lint_declarative_schemas};
 
@@ -28,6 +30,7 @@ pub(super) struct PreparedSchema {
     pub(super) foreign_keys: Vec<DeferredForeignKey>,
     pub(super) columns_to_validate: Vec<ColumnsToValidate>,
     pub(super) owned_tables: Vec<String>,
+    pub(super) retired_tables: Vec<String>,
 }
 
 pub(super) struct ColumnsToValidate {
@@ -80,6 +83,11 @@ pub(super) fn prepare_extension_schema(
         foreign_keys,
     } = phase_statements(&extension_id, parsed)?;
 
+    let retired_tables = retired_tables(ext)
+        .into_iter()
+        .filter(|table| !owned_tables.iter().any(|owned| qualify(owned) == *table))
+        .collect();
+
     Ok(PreparedSchema {
         extension_id,
         standing: ext.standing(),
@@ -89,6 +97,7 @@ pub(super) fn prepare_extension_schema(
         foreign_keys,
         columns_to_validate,
         owned_tables,
+        retired_tables,
     })
 }
 

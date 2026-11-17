@@ -39,6 +39,10 @@
 //! `DROP ... CASCADE` of an object the member's SQL does not create are
 //! logged as unjudged, once per kind and migration for hidden SQL.
 //!
+//! A table no member owns (never declared by any member, or retired by the
+//! member that created it, see `claims`) has no owner to protect: a
+//! mutation of it, including `DROP TABLE`, is admitted at either standing.
+//!
 //! Only migrations that will run are judged: a migration recorded as applied
 //! is history, and a fresh database stamps its migrations without running
 //! them. A `cross_extension_tables` declaration admits a table mutation,
@@ -63,6 +67,7 @@ mod objects;
 mod routines;
 mod statements;
 
+pub(super) use claims::retired_tables;
 pub use kinds::{HiddenSql, TableMutation};
 
 pub const KERNEL_LEDGERS: [&str; 6] = [

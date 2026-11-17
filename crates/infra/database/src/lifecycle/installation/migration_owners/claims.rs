@@ -3,6 +3,12 @@
 //! member's migrations create and do not drop again; the first claim in that
 //! order is the owner.
 //!
+//! A member's retirements may name a table (`DROP TABLE IF EXISTS`): the
+//! member says its migration chain has retired that table. The table is then
+//! not the member's, neither by its migrations nor by a record naming it,
+//! unless its declarative schema still creates it. A table no member claims
+//! has no owner, and a mutation of it is not judged.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -13,6 +19,7 @@ use systemprompt_identifiers::ExtensionId;
 
 use super::super::undeclared::qualify;
 use super::objects::Created;
+use super::statements::{is_table, object_name, top_level};
 use super::{
     KERNEL_LEDGER_OWNER, KERNEL_LEDGERS, MigrationMembers, MigrationOwnershipError, RecordedTable,
     label,
@@ -116,6 +123,25 @@ impl Ownership {
     }
 }
 
+pub(in crate::lifecycle::installation) fn retired_tables(
+    member: &dyn SchemaMember,
+) -> BTreeSet<String> {
+    let mut retired = BTreeSet::new();
+    for retirement in member.retirements() {
+        let Ok(parsed) = pg_query::parse(&retirement.sql) else {
+            continue;
+        };
+        for statement in top_level(&parsed) {
+            if let pg_query::NodeEnum::DropStmt(drop) = statement
+                && is_table(drop.remove_type)
+            {
+                retired.extend(drop.objects.iter().filter_map(object_name));
+            }
+        }
+    }
+    retired
+}
+
 fn read_member(
     member: &dyn SchemaMember,
     id: &ExtensionId,
@@ -136,6 +162,10 @@ fn read_member(
                 source,
             });
         }
+    }
+    for table in retired_tables(member) {
+        created.tables.remove(&table);
+        created.objects.remove(&table);
     }
     let mut declared = BTreeSet::new();
     for schema in member.schemas() {
@@ -161,7 +191,22 @@ pub(super) fn ownership(
     findings: &mut Vec<MigrationOwnershipError>,
 ) -> Ownership {
     let mut ownership = Ownership::default();
-    for record in recorded {
+    let retired: BTreeMap<ExtensionId, BTreeSet<String>> = members
+        .judged
+        .iter()
+        .chain(members.held_back)
+        .map(|member| {
+            (
+                ExtensionId::new(member.id()),
+                retired_tables(member.as_ref()),
+            )
+        })
+        .collect();
+    for record in recorded.iter().filter(|record| {
+        retired
+            .get(&record.owner)
+            .is_none_or(|tables| !tables.contains(&qualify(&record.table)))
+    }) {
         ownership.claim(
             qualify(&record.table),
             Claim {

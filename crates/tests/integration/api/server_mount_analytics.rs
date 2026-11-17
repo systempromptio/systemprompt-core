@@ -346,7 +346,11 @@ fn content_and_its_dependants_except_the_routes() -> Vec<ExtensionId> {
     let mut disabled = vec![ExtensionId::new("content")];
     loop {
         let mut profile = (*systemprompt_test_fixtures::test_boot_profile()).clone();
-        profile.extensions.disabled = disabled.clone();
+        profile.extensions.disabled = disabled
+            .iter()
+            .cloned()
+            .map(systemprompt_manifest::DisabledExtension::literal)
+            .collect();
         match systemprompt::reference().build(&profile) {
             Err(CompositionError::DisabledDependency { owner, .. })
                 if owner.as_str() != ANALYTICS_HTTP_EXTENSION =>

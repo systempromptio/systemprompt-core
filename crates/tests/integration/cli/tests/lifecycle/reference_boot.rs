@@ -16,7 +16,11 @@ use systemprompt_test_fixtures::{
 
 fn admit(disabled: &[ExtensionId]) -> Result<systemprompt_extension::Admitted, CompositionError> {
     let mut profile = (*test_boot_profile()).clone();
-    profile.extensions.disabled = disabled.to_vec();
+    profile.extensions.disabled = disabled
+        .iter()
+        .cloned()
+        .map(systemprompt_manifest::DisabledExtension::literal)
+        .collect();
     reference().build(&profile)
 }
 

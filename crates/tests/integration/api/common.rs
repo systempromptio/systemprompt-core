@@ -20,7 +20,11 @@ pub fn reference_admitted(
     disabled: &[systemprompt_identifiers::ExtensionId],
 ) -> Result<Arc<systemprompt_extension::Admitted>> {
     let mut profile = (*systemprompt_test_fixtures::test_boot_profile()).clone();
-    profile.extensions.disabled = disabled.to_vec();
+    profile.extensions.disabled = disabled
+        .iter()
+        .cloned()
+        .map(systemprompt_manifest::DisabledExtension::literal)
+        .collect();
     Ok(Arc::new(systemprompt::reference().build(&profile)?))
 }
 

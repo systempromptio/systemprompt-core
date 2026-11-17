@@ -10,16 +10,14 @@
 //! Nothing else in the profile is interpolated, validated or returned.
 //!
 //! An error on this path names the path, the field and a variable's name,
-//! never a resolved value: when a parse or admission refusal would print the
-//! value of a variable the section interpolated, the refusal is replaced by
-//! one that names the variable ([`TargetAdmissionError::ParseWithheld`],
-//! [`TargetAdmissionError::AdmitWithheld`]). A literal id is reported as
-//! written.
+//! never a resolved value: the interpolation records which variables each
+//! disabled entry came from, and the manifest's and the composition's
+//! refusals name those variables in place of the value. A literal id is
+//! reported as written.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 
 use serde_yaml::{Mapping, Value};
@@ -64,78 +62,15 @@ pub enum TargetAdmissionError {
         #[source]
         source: serde_yaml::Error,
     },
-    #[error(
-        "the disabled members of {} are not a list of extension ids: the field holds the value of {}",
-        path.display(),
-        Variables(variables)
-    )]
-    ParseWithheld {
-        path: PathBuf,
-        variables: Vec<String>,
-    },
     #[error("the composition does not admit against the disabled members of {}", path.display())]
     Admit {
         path: PathBuf,
         #[source]
         source: BoxedSource,
     },
-    #[error(
-        "the composition does not admit against the disabled members of {}: it refuses the value of {}",
-        path.display(),
-        Variables(variables)
-    )]
-    AdmitWithheld {
-        path: PathBuf,
-        variables: Vec<String>,
-    },
-}
-
-struct Variables<'a>(&'a [String]);
-
-impl std::fmt::Display for Variables<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for (index, name) in self.0.iter().enumerate() {
-            if index > 0 {
-                f.write_str(", ")?;
-            }
-            write!(f, "${{{name}}}")?;
-        }
-        Ok(())
-    }
-}
-
-struct Resolved {
-    name: String,
-    value: String,
-}
-
-fn chain_text(error: &dyn std::error::Error) -> String {
-    let mut text = error.to_string();
-    let mut cause = error.source();
-    while let Some(next) = cause {
-        text.push('\n');
-        text.push_str(&next.to_string());
-        cause = next.source();
-    }
-    text
-}
-
-fn printed(error: &dyn std::error::Error, resolved: &[Resolved]) -> Vec<String> {
-    let text = chain_text(error);
-    let mut names: Vec<String> = resolved
-        .iter()
-        .filter(|variable| text.contains(&variable.value))
-        .map(|variable| variable.name.clone())
-        .collect();
-    names.dedup();
-    names
 }
 
 pub fn read_disabled(profile: &Path) -> Result<ExtensionsConfig, TargetAdmissionError> {
-    read_target(profile).map(|(extensions, _)| extensions)
-}
-
-fn read_target(profile: &Path) -> Result<(ExtensionsConfig, Vec<Resolved>), TargetAdmissionError> {
     let layer = |path: &Path| {
         std::fs::read_to_string(path)
             .map_err(|source| ProfileError::ReadFile {
@@ -158,71 +93,34 @@ fn read_target(profile: &Path) -> Result<(ExtensionsConfig, Vec<Resolved>), Targ
         .filter(|value| !value.is_null())
         .cloned()
     else {
-        return Ok((ExtensionsConfig::default(), Vec::new()));
+        return Ok(ExtensionsConfig::default());
     };
     let mut scoped = Value::Mapping(Mapping::from_iter([(
         Value::String(EXTENSIONS_KEY.to_owned()),
         section,
     )]));
-    let resolved: RefCell<Vec<Resolved>> = RefCell::new(Vec::new());
-    interpolate_yaml(
-        &mut scoped,
-        &|name| {
-            let value = read_env_optional(name);
-            if let Some(value) = &value {
-                resolved.borrow_mut().push(Resolved {
-                    name: name.to_owned(),
-                    value: value.clone(),
-                });
-            }
-            value
-        },
-        &profile_field_kind,
-    )
-    .map_err(|source| TargetAdmissionError::Interpolation {
+    interpolate_yaml(&mut scoped, &read_env_optional, &profile_field_kind).map_err(|source| {
+        TargetAdmissionError::Interpolation {
+            path: profile.to_path_buf(),
+            source,
+        }
+    })?;
+    let section = scoped.get(EXTENSIONS_KEY).cloned().unwrap_or(Value::Null);
+    serde_yaml::from_value(section).map_err(|source| TargetAdmissionError::Parse {
         path: profile.to_path_buf(),
         source,
-    })?;
-    let resolved = resolved.into_inner();
-    let section = scoped.get(EXTENSIONS_KEY).cloned().unwrap_or(Value::Null);
-    match serde_yaml::from_value(section) {
-        Ok(extensions) => Ok((extensions, resolved)),
-        Err(source) => {
-            let variables = printed(&source, &resolved);
-            Err(if variables.is_empty() {
-                TargetAdmissionError::Parse {
-                    path: profile.to_path_buf(),
-                    source,
-                }
-            } else {
-                TargetAdmissionError::ParseWithheld {
-                    path: profile.to_path_buf(),
-                    variables,
-                }
-            })
-        },
-    }
+    })
 }
 
 pub(crate) fn admit_target(
     ctx: &CommandContext,
     profile: &Path,
 ) -> Result<AdmittedViews, TargetAdmissionError> {
-    let (extensions, resolved) = read_target(profile)?;
+    let extensions = read_disabled(profile)?;
     let admit = ctx.take_admit().ok_or(TargetAdmissionError::Spent)?;
-    let admitted = admit(Some(&extensions)).map_err(|source| {
-        let variables = printed(source.as_ref(), &resolved);
-        if variables.is_empty() {
-            TargetAdmissionError::Admit {
-                path: profile.to_path_buf(),
-                source,
-            }
-        } else {
-            TargetAdmissionError::AdmitWithheld {
-                path: profile.to_path_buf(),
-                variables,
-            }
-        }
+    let admitted = admit(Some(&extensions)).map_err(|source| TargetAdmissionError::Admit {
+        path: profile.to_path_buf(),
+        source,
     })?;
     Ok(AdmittedViews::of(&admitted))
 }
