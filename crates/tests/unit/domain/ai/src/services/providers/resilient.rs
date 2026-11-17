@@ -1,25 +1,23 @@
 use async_trait::async_trait;
 use futures::{StreamExt, stream};
-use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::services::providers::mock_http;
 use systemprompt_ai::error::{AiError, ProviderError, Result};
-use systemprompt_ai::models::ai::{
-    AiMessage, AiResponse, ResponseFormat, SamplingParams, StreamChunk,
-};
+use systemprompt_ai::models::ai::{AiMessage, AiResponse, ResponseFormat, SamplingParams};
 use systemprompt_ai::models::tools::{McpTool, ToolCall};
 use systemprompt_ai::services::providers::anthropic::AnthropicProvider;
 use systemprompt_ai::services::providers::resilient_provider::ResilientProvider;
 use systemprompt_ai::services::providers::{
-    GenerationParams, ModelPricing, ProviderClient, SchemaGenerationParams,
+    EventStream, GenerationParams, ModelPricing, ProviderClient, SchemaGenerationParams,
     StructuredGenerationParams, ToolGenerationParams, ToolResultsParams,
 };
 use systemprompt_ai::services::schema::ProviderCapabilities;
 use systemprompt_identifiers::{AiRequestId, McpServerId};
 use systemprompt_manifest::services::ResilienceSettings;
 use systemprompt_wire::WireProtocol;
+use systemprompt_wire::canonical::CanonicalEvent;
 
 fn settings() -> ResilienceSettings {
     ResilienceSettings::default()
@@ -366,17 +364,15 @@ impl ProviderClient for SequencedStreamProvider {
         ))
     }
 
-    async fn generate_stream(
-        &self,
-        _: GenerationParams<'_>,
-    ) -> Result<Pin<Box<dyn futures::Stream<Item = Result<StreamChunk>> + Send>>> {
+    async fn generate_stream(&self, _: GenerationParams<'_>) -> Result<EventStream> {
         let sequence = self.opens.fetch_add(1, Ordering::SeqCst);
         if sequence == 0 {
             Ok(Box::pin(stream::pending()))
         } else {
-            Ok(Box::pin(stream::iter([Ok(StreamChunk::Text(
-                "recovered".to_owned(),
-            ))])))
+            Ok(Box::pin(stream::iter([Ok(CanonicalEvent::TextDelta {
+                index: 0,
+                text: "recovered".to_owned(),
+            })])))
         }
     }
 }
@@ -421,7 +417,7 @@ async fn idle_stream_timeout_releases_the_provider_bulkhead_for_a_later_stream()
         .expect("the timeout must release the sole bulkhead permit");
     assert!(matches!(
         recovered.next().await,
-        Some(Ok(StreamChunk::Text(ref text))) if text == "recovered"
+        Some(Ok(CanonicalEvent::TextDelta { ref text, .. })) if text == "recovered"
     ));
     assert!(
         first_stream.next().await.is_none(),

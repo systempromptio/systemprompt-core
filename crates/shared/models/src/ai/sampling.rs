@@ -29,6 +29,40 @@ pub struct SamplingParams {
     pub stop_sequences: Option<Vec<String>>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReasoningEffort {
+    Low,
+    Medium,
+    High,
+}
+
+/// Explicit reasoning controls for a request. A field left unset keeps the
+/// provider's per-model default.
+///
+/// `thinking_budget_tokens` is the thinking budget of the Anthropic and Gemini
+/// wires; `effort` is the reasoning effort of the `OpenAI` wires, which derive
+/// one from the budget when only the budget is set.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReasoningParams {
+    pub effort: Option<ReasoningEffort>,
+    pub thinking_budget_tokens: Option<u32>,
+}
+
+impl ReasoningParams {
+    pub const fn effort(effort: ReasoningEffort) -> Self {
+        Self {
+            effort: Some(effort),
+            thinking_budget_tokens: None,
+        }
+    }
+
+    pub const fn with_thinking_budget(mut self, budget_tokens: u32) -> Self {
+        self.thinking_budget_tokens = Some(budget_tokens);
+        self
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderConfig {
     pub provider: String,

@@ -11,11 +11,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::future::Future;
-use std::pin::Pin;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use futures::stream::Stream;
 use systemprompt_database::resilience::{
     Admission, ResilienceConfig, ResilienceError, ResilienceGuard, guarded_stream,
 };
@@ -24,18 +22,17 @@ use systemprompt_manifest::services::ResilienceSettings;
 use crate::error::{AiError, ProviderError, Result};
 use crate::models::ai::{
     AiResponse, EmbeddingRequest, EmbeddingResponse, SamplingParams, SearchGroundedResponse,
-    StreamChunk,
 };
 use crate::models::tools::ToolCall;
 use crate::services::schema::ProviderCapabilities;
 use systemprompt_identifiers::ProviderId;
 
 use super::provider_trait::{
-    GenerationParams, ModelPricing, ProviderClient, SchemaGenerationParams, SearchGenerationParams,
-    StructuredGenerationParams, ToolGenerationParams, ToolResultsParams,
+    EventStream, GenerationParams, ModelPricing, ProviderClient, SchemaGenerationParams,
+    SearchGenerationParams, StructuredGenerationParams, ToolGenerationParams, ToolResultsParams,
 };
 
-type StreamResult = Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>>;
+type StreamResult = Result<EventStream>;
 
 pub struct ResilientProvider {
     provider: String,
