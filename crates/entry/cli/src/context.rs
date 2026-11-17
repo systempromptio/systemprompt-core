@@ -37,7 +37,7 @@ pub struct CommandContext {
     pub cli: CliConfig,
     pub env: EnvOverrides,
     prompter: Box<dyn Prompter>,
-    runtime: OnceCell<Arc<AppContext>>,
+    pub(crate) runtime: OnceCell<Arc<AppContext>>,
     db: Option<DatabaseContext>,
     database_url: Option<String>,
     database_url_override: Option<String>,
@@ -257,9 +257,9 @@ impl CommandContext {
         if self.db.is_some() {
             bail!("This command requires full profile initialization. Remove --database-url flag.");
         }
-        let mut builder = self.app_context_builder()?;
         self.runtime
             .get_or_try_init(|| async {
+                let mut builder = self.app_context_builder()?;
                 if let Some(url) = &self.database_url_override {
                     builder = builder.with_database_url(url.clone());
                 }
