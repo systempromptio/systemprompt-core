@@ -7,16 +7,18 @@
 //! refused unless the user is already archived and not under legal hold;
 //! `database_cleanup` purges archives past the window on its own. The dry run
 //! and the purge cover the tables of members the profile disables too, from
-//! their recorded declarations, and name what they could not cover.
+//! their recorded declarations, and name what they could not cover; a purge
+//! that could not cover every table fails the command, carrying its output.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, anyhow};
 use clap::Args;
+use systemprompt_identifiers::UserId;
 use std::sync::Arc;
 use systemprompt_extension::AdmittedPurge;
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_extension::cli::{CommandError, CommandOutput};
 use systemprompt_users::{
     ArchiveParams, PurgeCount, PurgeOutcome, UserAdminService, UserRepository, UserService,
 };
@@ -100,17 +102,7 @@ pub(super) async fn execute(args: DeleteArgs, host: &dyn KernelHost) -> Result<C
     if args.purge {
         let plan = host.resolved().await?.get::<AdmittedPurge>()?;
         let removed = user_service.purge(&user.id, &plan).await?;
-        let output = UserDeletedOutput {
-            id: user.id.clone(),
-            message: format!(
-                "User '{}' purged ({} rows across {} tables){}",
-                user.name,
-                removed.rows(),
-                removed.counts.len(),
-                coverage_note(&removed)
-            ),
-        };
-        return Ok(CommandOutput::card_value("User Purged", &output));
+        return purge_output(&user.name, &user.id, &removed);
     }
 
     let outcome = user_service
@@ -141,6 +133,28 @@ pub(super) async fn execute(args: DeleteArgs, host: &dyn KernelHost) -> Result<C
         ),
     };
     Ok(CommandOutput::card_value("User Archived", &output))
+}
+
+pub fn purge_output(name: &str, id: &UserId, removed: &PurgeOutcome) -> Result<CommandOutput> {
+    let output = UserDeletedOutput {
+        id: id.clone(),
+        message: format!(
+            "User '{name}' purged ({} rows across {} tables){}",
+            removed.rows(),
+            removed.counts.len(),
+            coverage_note(removed)
+        ),
+    };
+    let card = CommandOutput::card_value("User Purged", &output);
+    if removed.is_complete() {
+        return Ok(card);
+    }
+    Err(CommandError::new(format!(
+        "the purge of user '{name}' is incomplete{}",
+        coverage_note(removed)
+    ))
+    .with_output(card)
+    .into())
 }
 
 fn coverage_note(outcome: &PurgeOutcome) -> String {

@@ -41,6 +41,7 @@ mod admin_users_apikey_db;
 mod admin_users_ban_bulk_db;
 mod admin_users_ban_dispatcher_db;
 mod admin_users_delete_preview_lifecycle;
+mod admin_users_purge_outcome;
 mod admin_users_dispatcher_db;
 mod admin_users_merge_atomic_db;
 mod admin_users_provisioning_db;

@@ -17,6 +17,7 @@ mod bulk;
 mod count;
 mod create;
 pub(crate) mod delete;
+pub use delete::purge_output;
 mod export;
 pub mod federated_rekey;
 mod list;
