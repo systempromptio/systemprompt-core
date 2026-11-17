@@ -2,7 +2,9 @@
 //! and the live test database. Each test bootstraps its own process-global
 //! profile/secrets/config (nextest is process-per-test), seeds or omits the
 //! configured system-admin row, and asserts either the assembled context or
-//! the exact `RuntimeError` variant.
+//! the exact `RuntimeError` variant. The build that installs schemas runs on
+//! its own database: an install takes `SHARE` locks on every table it
+//! re-indexes, which deadlocks against writers on the shared database.
 
 use systemprompt_extension::{ContributionError, Contributions, Extension, ExtensionMetadata};
 use systemprompt_runtime::{AppContext, KernelError, RuntimeError};
@@ -46,10 +48,12 @@ async fn remove_admin(pool: &sqlx::PgPool, name: &str) {
 #[tokio::test]
 async fn build_assembles_full_context_with_pool_and_write_url() {
     let admin = unique_admin("ok");
+    let database = systemprompt_test_fixtures::DisposableDb::with_schema("build_migrates").await;
     let fixture = boot(&BootOptions {
         admin_username: admin.clone(),
         pool_settings: true,
         write_url: true,
+        database_url: Some(database.url().to_owned()),
         ..BootOptions::default()
     });
     let pool = seed_admin(&fixture.database_url, &admin, "active", &["admin", "user"]).await;
@@ -82,6 +86,8 @@ async fn build_assembles_full_context_with_pool_and_write_url() {
     );
 
     remove_admin(&pool, &admin).await;
+    pool.close().await;
+    database.drop_now().await;
 }
 
 #[tokio::test]
