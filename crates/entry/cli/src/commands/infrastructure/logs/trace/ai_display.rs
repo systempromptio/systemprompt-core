@@ -16,7 +16,6 @@ use crate::presentation::tables::{ai_requests_table, execution_steps_table, task
 
 pub(super) use crate::presentation::tables::truncate_cell as truncate;
 
-/// The levelled lines of an AI trace, in the order its sections are read.
 #[derive(Debug, Default)]
 pub(super) struct Transcript {
     lines: Vec<NoticeLine>,
