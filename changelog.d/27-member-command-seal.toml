@@ -1,7 +1,7 @@
 [root]
 section = "Fixed"
 area = "Security"
-text = "A member command cannot read the kernel's configuration or secrets: its resolver refuses the sealed seeds (`Config`, `SecretStore`, `SystemAdmin`, `ActiveServicesRoot`, `EventRouter`), `SecretsSources`, `EnvOverrides`, `BootContext` and `AppContext`. Profile boot, config reconcile and target admission are kernel grants (`KernelGrant::BootProfile`, `KernelGrant::ConfigReconcile`, `KernelGrant::TargetAdmission`) a command receives only on a reserved CLI path its owner holds; `CommandHost::boot_config` is served only to a command holding `BootProfile`, and `CommandHost::admitted_views` only to a command holding `TargetAdmission`, which reads nothing from the target profile but its disabled-member list."
+text = "A member command cannot read the kernel's configuration or secrets: its resolver refuses the sealed seeds (`Config`, `SecretStore`, `SystemAdmin`, `ActiveServicesRoot`, `EventRouter`), `SecretsSources`, `EnvOverrides`, `BootContext` and `AppContext`. Profile boot, config reconcile and target admission are kernel grants (`KernelGrant::BootProfile`, `KernelGrant::ConfigReconcile`, `KernelGrant::TargetAdmission`) a command receives only on a reserved CLI path its owner holds; `CommandHost::boot_config` is served only to a command holding `BootProfile`, and `CommandHost::admitted_views` only to a command holding `TargetAdmission`, which reads nothing from the target profile but its disabled-member list. A refusal of that list names the path and the variable an entry came from, never its resolved value (`TargetAdmissionError::ParseWithheld`, `TargetAdmissionError::AdmitWithheld`)."
 
 [[crate]]
 name = "systemprompt-provider-contracts"
