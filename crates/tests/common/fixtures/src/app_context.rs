@@ -269,6 +269,21 @@ pub async fn test_app_context_on_with(
     built.unwrap_or_else(|e| panic!("fixture AppContext on the supplied bootstrap: {e:#}"))
 }
 
+pub async fn fixture_app_context_reloaded_on(
+    bootstrap: &TestBootstrap,
+    database_url: &str,
+    admitted: Arc<Admitted>,
+) -> Result<Arc<AppContext>> {
+    let services = systemprompt_loader::ServicesState::load(&bootstrap.boot)?;
+    let mut config = bootstrap_config(bootstrap);
+    database_url.clone_into(&mut config.database_url);
+    build(
+        fixture_context_builder(bootstrap, config, admitted)?.with_services(services),
+        database_url,
+    )
+    .await
+}
+
 pub async fn fixture_app_context_on_bootstrap(
     bootstrap: &TestBootstrap,
     config: Config,

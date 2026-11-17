@@ -91,7 +91,7 @@ async fn restarting_failed_agent_reports_failure_and_preserves_failed_state() {
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
     let database = DisposableDb::with_schema("cli_restart_failed").await;
     let pool = database.test_pool().await;
-    let app = crate::boot_ctx::app_on_database(boot, database.url()).await;
+    let app = crate::boot_ctx::app_reloaded_on_database(boot, database.url()).await;
     let services = &app.a2a_repositories().agent_services;
     services
         .register_agent(
@@ -373,7 +373,7 @@ async fn coverage_restart_populated_registry_reports_failed_starts_and_skips_dis
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
     let database = DisposableDb::with_schema("cli_restart_all_agents").await;
     let pool = database.test_pool().await;
-    let app = crate::boot_ctx::app_on_database(boot, database.url()).await;
+    let app = crate::boot_ctx::app_reloaded_on_database(boot, database.url()).await;
     let config = CliConfig::new()
         .with_interactive(false)
         .with_output_format(OutputFormat::Json);

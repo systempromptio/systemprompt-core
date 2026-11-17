@@ -70,6 +70,19 @@ pub async fn app_on_database(
     .expect("fixture app context on the bootstrap's own paths")
 }
 
+pub async fn app_reloaded_on_database(
+    bootstrap: &systemprompt_test_fixtures::TestBootstrap,
+    database_url: &str,
+) -> std::sync::Arc<systemprompt_runtime::AppContext> {
+    systemprompt_test_fixtures::fixture_app_context_reloaded_on(
+        bootstrap,
+        database_url,
+        systemprompt_test_fixtures::fixture_admitted(),
+    )
+    .await
+    .expect("fixture app context over the services tree as the test seeded it")
+}
+
 pub fn core_purge() -> systemprompt_extension::AdmittedPurge {
     systemprompt_extension::AdmittedPurge::of(
         systemprompt_test_fixtures::fixture_admitted().built(),
