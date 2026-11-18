@@ -12,13 +12,10 @@ use systemprompt_bridge::proxy::drive_signal::{
 use systemprompt_bridge::proxy::forward::ForwardError;
 use systemprompt_bridge::proxy::token_cache::{RefreshFn, TokenCache};
 use systemprompt_identifiers::{
-    ContentHash, DocumentId, DocumentRevisionId, DriveDeviceId, UserId, ValidatedUrl,
+    DocumentId, DocumentRevisionId, DriveDeviceId, UserId, ValidatedUrl,
 };
 use systemprompt_models::ApiPaths;
-use systemprompt_models::documents::{
-    ActorKind, DocumentPresenceEvent, DocumentRevisionCreatedEvent, PresenceSource, PresenceState,
-    RevisionOriginKind,
-};
+use systemprompt_models::documents::{DocumentPresenceEvent, PresenceSource, PresenceState};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -213,17 +210,7 @@ fn the_loop_syncs_and_folds_proxy_signals_into_the_status() {
         run.signals.send(DriveSignal::Touched(
             std::env::temp_dir().join("elsewhere.md"),
         ));
-        run.signals.send(DriveSignal::RevisionCreated(Box::new(
-            DocumentRevisionCreatedEvent {
-                document_id: doc.clone(),
-                revision_id: DocumentRevisionId::generate(),
-                parent_revision_id: None,
-                content_sha256: ContentHash::try_new("0".repeat(64)).expect("hash"),
-                author_id: UserId::new("bob"),
-                actor_kind: ActorKind::User,
-                origin_kind: RevisionOriginKind::WebSession,
-            },
-        )));
+        run.signals.send(DriveSignal::DriveChanged);
 
         let deadline = tokio::time::Instant::now() + Duration::from_secs(15);
         loop {

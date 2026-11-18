@@ -4,9 +4,10 @@
 //! its next poll.
 //!
 //! Recipients are the document's access holders, resolved when the hint is
-//! sent. Any repository or resolver error withholds the hint from everyone:
-//! the client's poll covers it, and no partial or wider audience is ever
-//! addressed.
+//! sent and capped at the subject fan-out limit, with the owner and the
+//! author always among the candidates. Any repository or resolver error
+//! withholds the hint from everyone: the client's poll covers it, and no
+//! partial or wider audience is ever addressed.
 //!
 //! Hints are coalesced per document on each replica: the first revision in
 //! a quiet document sends one at once, and every later revision inside
@@ -136,7 +137,7 @@ impl DocumentService {
 
     async fn send_drive_hint(&self, pending: &PendingHint) {
         let document = &pending.document;
-        let recipients = match self.access_holders(document).await {
+        let recipients = match self.access_holders(document, &pending.actor).await {
             Ok(recipients) => recipients,
             Err(error) => {
                 tracing::warn!(

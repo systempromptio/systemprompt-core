@@ -2,12 +2,10 @@
 //!
 //! The proxy sits below the Drive module, so it cannot call into it. What the
 //! proxy observes that Drive cares about — a `PostToolUse` hook naming a file,
-//! a `document.drive.changed`, `document.revision.created` or
-//! `document.presence` frame on the bridge stream — travels over this bounded
-//! channel instead. Servers from 0.84 announce revisions to a user's stream
-//! only as `document.drive.changed`; the revision arm serves older ones. Every
-//! signal is a hint: the Drive loop also polls, so a signal dropped on a full
-//! channel delays a cycle and loses nothing.
+//! a `document.drive.changed` or `document.presence` frame on the bridge
+//! stream — travels over this bounded channel instead. Every signal is a
+//! hint: the Drive loop also polls, so a signal dropped on a full channel
+//! delays a cycle and loses nothing.
 //!
 //! A `document.shared` or `document.proposal.opened` frame becomes a
 //! [`DocumentNotice`] the desktop shows as a toast; [`notice_for`] is that
@@ -23,7 +21,7 @@ use std::path::PathBuf;
 use serde::Serialize;
 use systemprompt_identifiers::{DocumentId, DocumentProposalId, UserId};
 use systemprompt_models::documents::{
-    DocumentPresenceEvent, DocumentProposalEvent, DocumentRevisionCreatedEvent, DocumentSharedEvent,
+    DocumentPresenceEvent, DocumentProposalEvent, DocumentSharedEvent,
 };
 use tokio::sync::mpsc;
 
@@ -33,7 +31,6 @@ const CAPACITY: usize = 256;
 pub enum DriveSignal {
     Touched(PathBuf),
     DriveChanged,
-    RevisionCreated(Box<DocumentRevisionCreatedEvent>),
     Presence(Box<DocumentPresenceEvent>),
     Notice(Box<DocumentNotice>),
 }

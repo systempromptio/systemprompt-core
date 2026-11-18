@@ -69,4 +69,5 @@ pub use service::{
     AccessCheck, AccessTarget, DocumentAccessRepositories, DocumentAccessService, Granted,
     root_folder_entity,
 };
+pub(crate) use subjects::MAX_SUBJECT_MEMBERS;
 pub use subtree::SubtreePartition;

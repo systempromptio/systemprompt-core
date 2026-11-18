@@ -123,6 +123,7 @@ impl SubjectAttributeSource for GroupSource {
 pub(crate) struct RoleDirectory {
     roles: HashMap<String, Vec<UserId>>,
     users: Vec<(UserId, String)>,
+    members_fail: bool,
 }
 
 impl RoleDirectory {
@@ -131,6 +132,11 @@ impl RoleDirectory {
             role.to_owned(),
             members.iter().map(|user| (*user).clone()).collect(),
         );
+        self
+    }
+
+    pub(crate) const fn failing_members(mut self) -> Self {
+        self.members_fail = true;
         self
     }
 
@@ -169,6 +175,11 @@ impl SubjectDirectory for RoleDirectory {
         value: &str,
         limit: usize,
     ) -> Result<Vec<UserId>, SubjectDirectoryError> {
+        if self.members_fail {
+            return Err(SubjectDirectoryError(Box::new(std::io::Error::other(
+                "subject directory unavailable",
+            ))));
+        }
         Ok(match kind {
             "user" => vec![UserId::new(value)],
             "role" => self

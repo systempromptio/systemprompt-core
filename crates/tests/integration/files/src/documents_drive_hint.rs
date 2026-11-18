@@ -1,21 +1,25 @@
 //! The `document.drive.changed` hint a landed revision sends: who receives
 //! it (grant subjects on the document and its folder chain, never a stranger
-//! or a revoked user) and how revisions inside one window coalesce.
+//! or a revoked user), the cap on its audience, that a resolver failure
+//! withholds it from everyone, and how revisions inside one window coalesce.
 
 use std::sync::Arc;
 use std::time::Duration;
 
 use systemprompt_events::Broadcaster;
 use systemprompt_files::documents::model::Media;
-use systemprompt_files::documents::models::GrantTarget;
+use systemprompt_files::documents::models::{GrantTarget, NewGrant};
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{
     CommentPolicy, CommitOutcome, CommitRequest, DRIVE_HINT_INTERVAL, NewFolderRequest,
     ShareRequest,
 };
-use systemprompt_identifiers::{ConnectionId, DocumentFolderId, DocumentId, DocumentRevisionId};
+use systemprompt_identifiers::{
+    ConnectionId, DocumentFolderId, DocumentId, DocumentRevisionId, TraceId, UserId,
+};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{AccessLevel, DocumentDriveChangedEvent, EditOp};
+use systemprompt_test_fixtures::test_db_pool;
 use tempfile::TempDir;
 use tokio::sync::mpsc;
 
@@ -25,11 +29,15 @@ use crate::documents_service_fixture::{
 };
 
 async fn listen(h: &Harness, who: &AuthenticatedUser) -> mpsc::Receiver<impl std::fmt::Debug> {
+    listen_as(h, &who.id).await
+}
+
+async fn listen_as(h: &Harness, user: &UserId) -> mpsc::Receiver<impl std::fmt::Debug> {
     let (tx, rx) = mpsc::channel(64);
     assert!(
         h.broadcasters
             .agui
-            .register(&who.id, &ConnectionId::generate(), tx)
+            .register(user, &ConnectionId::generate(), tx)
             .await
     );
     rx
@@ -257,4 +265,113 @@ async fn revisions_inside_one_window_coalesce_into_one_trailing_hint() {
         0,
         "nothing more once the window has drained"
     );
+}
+
+async fn role_grant(h: &Harness, document: &DocumentId, owner: &UserId, role: &str) {
+    let pool = test_db_pool().await;
+    let mut conn = pool.write_pool().acquire().await.expect("acquire");
+    h.repos
+        .grants
+        .insert(
+            &mut conn,
+            NewGrant {
+                target: GrantTarget::Document(document.clone()),
+                subject_kind: "role".to_owned(),
+                subject_value: role.to_owned(),
+                subject_display: None,
+                access_level: AccessLevel::View,
+                granted_by: owner.clone(),
+                valid_until: None,
+                trace_id: TraceId::generate(),
+                reason: None,
+                via_agent: None,
+            },
+        )
+        .await
+        .expect("insert role grant");
+}
+
+#[tokio::test]
+async fn a_resolver_failure_withholds_the_hint_from_everyone() {
+    let owner = person("hint-fail-owner");
+    let reader = person("hint-fail-reader");
+    let h = harness_with(
+        allow(),
+        GroupSource::new(&[]),
+        Arc::new(TempDir::new().expect("tempdir")),
+        RoleDirectory::default().failing_members(),
+    )
+    .await;
+    let (id, first) = document(&h, &owner, None).await;
+    h.service
+        .share(
+            &owner,
+            share(
+                GrantTarget::Document(id.clone()),
+                "user",
+                reader.id.as_str(),
+                AccessLevel::View,
+            ),
+            &trace(),
+        )
+        .await
+        .expect("share");
+    role_grant(&h, &id, &owner.id, &unique("hint-fail-role")).await;
+    quiet().await;
+    let mut owner_rx = listen(&h, &owner).await;
+    let mut reader_rx = listen(&h, &reader).await;
+
+    commit(&h, &owner, &id, &first, "unresolvable\n").await;
+    let window = Duration::from_secs(1);
+    assert_eq!(
+        hints_within(&mut owner_rx, window).await,
+        0,
+        "not even the owner is hinted when the audience cannot be resolved"
+    );
+    assert_eq!(hints_within(&mut reader_rx, window).await, 0);
+}
+
+#[tokio::test]
+async fn the_audience_is_capped_across_subjects_in_user_id_order() {
+    let prefix = unique("hint-cap");
+    let members: Vec<UserId> = (0..600)
+        .map(|n| UserId::new(format!("{prefix}-{n:04}")))
+        .collect();
+    let (first_half, second_half) = members.split_at(300);
+    let (role_a, role_b) = (unique("hint-cap-a"), unique("hint-cap-b"));
+    let owner = person("hint-cap-owner");
+    let h = harness_with(
+        allow(),
+        GroupSource::new(&[]),
+        Arc::new(TempDir::new().expect("tempdir")),
+        RoleDirectory::default()
+            .with_role(&role_a, &first_half.iter().collect::<Vec<_>>())
+            .with_role(&role_b, &second_half.iter().collect::<Vec<_>>()),
+    )
+    .await;
+    let (id, first) = document(&h, &owner, None).await;
+    role_grant(&h, &id, &owner.id, &role_a).await;
+    role_grant(&h, &id, &owner.id, &role_b).await;
+    quiet().await;
+    let mut owner_rx = listen(&h, &owner).await;
+    let mut head_rx = listen_as(&h, &members[0]).await;
+    let mut last_kept_rx = listen_as(&h, &members[498]).await;
+    let mut past_cap_rx = listen_as(&h, &members[499]).await;
+    let mut tail_rx = listen_as(&h, &members[599]).await;
+
+    commit(&h, &owner, &id, &first, "capped\n").await;
+    let window = Duration::from_secs(2);
+    assert_eq!(
+        hints_within(&mut owner_rx, window).await,
+        1,
+        "the owner is always kept"
+    );
+    assert_eq!(hints_within(&mut head_rx, window).await, 1);
+    assert_eq!(hints_within(&mut last_kept_rx, window).await, 1);
+    assert_eq!(
+        hints_within(&mut past_cap_rx, window).await,
+        0,
+        "the owner and the first 499 others in user-id order fill the cap of 500"
+    );
+    assert_eq!(hints_within(&mut tail_rx, window).await, 0);
 }

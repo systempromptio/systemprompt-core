@@ -8,7 +8,7 @@
 
 ### Added
 
-- A landed revision sends `document.drive.changed` to every user who holds `view` or better on the document, coalesced per document to at most one every `DRIVE_HINT_INTERVAL` (two seconds) on each replica. A failure resolving the audience withholds the hint from everyone.
+- A landed revision sends `document.drive.changed` to every user who holds `view` or better on the document, coalesced per document to at most one every `DRIVE_HINT_INTERVAL` (two seconds) on each replica. The audience is capped at 500 users, the owner and the author always among them; a failure resolving it withholds the hint from everyone.
 
 ## [0.82.0] - 2026-11-16
 
