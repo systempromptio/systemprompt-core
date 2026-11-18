@@ -19,6 +19,8 @@
 ### Fixed
 
 - **Documents:** `documentation/documents.md` no longer says that `document.revision.created` reaches the owner's and present users' AG-UI streams; since 0.77 it is published on the document's live channel only.
+- **Documents:** creating, renaming or moving a folder to a name a sibling folder already has is refused as `name_taken` (409 over REST), not a generic store failure.
+
 - **Documents:** an MCP call naming a blob that did not pass the content check its format needs is refused as `invalid_params` (the message names `unchecked_format`), not `integrity_mismatch`.
 
 ## [0.83.0] - 2026-11-17

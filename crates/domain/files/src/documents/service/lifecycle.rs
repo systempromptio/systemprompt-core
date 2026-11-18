@@ -253,6 +253,8 @@ impl DocumentService {
     }
 }
 
+const FOLDER_NAME_INDEX: &str = "uq_document_folders_parent_name";
+
 fn split_extension(name: &str) -> (&str, &str) {
     name.rfind('.')
         .filter(|&dot| dot > 0)
@@ -267,6 +269,27 @@ pub(super) fn name_taken(error: RepositoryError, name: &str) -> DocumentsError {
     } else {
         DocumentsError::Repository(error)
     }
+}
+
+pub(super) fn folder_name_taken(error: RepositoryError, name: &str) -> DocumentsError {
+    if is_folder_name_taken(&error) {
+        DocumentsError::FolderNameTaken {
+            name: name.to_owned(),
+        }
+    } else {
+        DocumentsError::Repository(error)
+    }
+}
+
+pub(super) fn is_folder_name_taken(error: &RepositoryError) -> bool {
+    matches!(
+        error,
+        RepositoryError::Constraint {
+            kind: ConstraintKind::Unique,
+            constraint,
+            ..
+        } if constraint == FOLDER_NAME_INDEX
+    )
 }
 
 const fn is_name_taken(error: &RepositoryError) -> bool {

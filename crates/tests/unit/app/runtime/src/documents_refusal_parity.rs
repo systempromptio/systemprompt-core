@@ -42,6 +42,7 @@ const fn listed(error: &DocumentsError) -> bool {
         | DocumentsError::ContentRefused { .. }
         | DocumentsError::InvalidName { .. }
         | DocumentsError::NameTaken { .. }
+        | DocumentsError::FolderNameTaken { .. }
         | DocumentsError::UnknownSubjectKind { .. }
         | DocumentsError::UnknownSubject { .. }
         | DocumentsError::OwnNotGrantable
@@ -231,6 +232,12 @@ fn table() -> Vec<(DocumentsError, RefusalCode)> {
         (
             DocumentsError::NameTaken {
                 name: "plan.md".to_owned(),
+            },
+            RefusalCode::NameTaken,
+        ),
+        (
+            DocumentsError::FolderNameTaken {
+                name: "Artifacts".to_owned(),
             },
             RefusalCode::NameTaken,
         ),

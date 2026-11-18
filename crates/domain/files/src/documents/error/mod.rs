@@ -26,9 +26,10 @@ use self::labels::{
     base_label, closest_label, comment_list, conflict_label, held_label, kinds_label, policy_label,
 };
 use self::messages::{
-    access_request_not_needed, access_request_open, guard_missing, integrity_mismatch,
-    invalid_name, live_unsupported, name_taken, op_id_mismatch, ownership_changed,
-    share_below_existing, stale_anchor, subtree_changed, trashed, unknown_node, unknown_subject,
+    access_request_not_needed, access_request_open, folder_name_taken, guard_missing,
+    integrity_mismatch, invalid_name, live_unsupported, name_taken, op_id_mismatch,
+    ownership_changed, share_below_existing, stale_anchor, subtree_changed, trashed, unknown_node,
+    unknown_subject,
 };
 use super::access::SubjectDirectoryError;
 use super::agents::AgentRefusal;
@@ -157,6 +158,8 @@ pub enum DocumentsError {
     InvalidName { name: String },
     #[error("{}", name_taken(.name))]
     NameTaken { name: String },
+    #[error("{}", folder_name_taken(.name))]
+    FolderNameTaken { name: String },
     #[error("subject kind \"{kind}\" is not user, role or a registered subject dimension")]
     UnknownSubjectKind { kind: String },
     #[error("{}", unknown_subject(.kind, .value))]

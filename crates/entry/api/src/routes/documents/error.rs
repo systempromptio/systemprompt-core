@@ -212,7 +212,8 @@ pub(crate) fn status_of(error: &DocumentsError) -> fn(String) -> ApiError {
         | DocumentsError::ProposalClosed { .. }
         | DocumentsError::AccessRequestOpen { .. }
         | DocumentsError::AccessRequestClosed { .. }
-        | DocumentsError::NameTaken { .. } => conflict,
+        | DocumentsError::NameTaken { .. }
+        | DocumentsError::FolderNameTaken { .. } => conflict,
         DocumentsError::Agent(AgentRefusal::RateLimited { .. }) => rate_limited,
         DocumentsError::Agent(
             AgentRefusal::OverrideLooser { .. } | AgentRefusal::MoveRefused { .. },

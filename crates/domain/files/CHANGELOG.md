@@ -4,11 +4,16 @@
 
 ### Breaking
 
-- `DocumentServiceParts` gains the `tasks` field (`BackgroundTasks`). Migrate by passing the composition root's `BackgroundTasks`.
-
 ### Added
 
 - A landed revision sends `document.drive.changed` to every user who holds `view` or better on the document, coalesced per document to at most one every `DRIVE_HINT_INTERVAL` (two seconds) on each replica. The audience is capped at 500 users, the owner and the author always among them; a failure resolving it withholds the hint from everyone.
+
+### Fixed
+
+- Creating, renaming or moving a folder onto a sibling's name is `FolderNameTaken`, not a repository error.
+
+- `DocumentServiceParts` gains the `tasks` field (`BackgroundTasks`). Migrate by passing the composition root's `BackgroundTasks`.
+- `DocumentsError` gains `FolderNameTaken`. Migrate by handling it beside `NameTaken` in exhaustive matches.
 
 ## [0.82.0] - 2026-11-16
 

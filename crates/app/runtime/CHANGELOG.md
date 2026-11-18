@@ -8,6 +8,7 @@
 
 ### Fixed
 
+- `DocumentsError::FolderNameTaken` maps to the `name_taken` refusal.
 - A documents MCP call naming a blob that did not pass its format's content check is refused as `invalid_params`, not `integrity_mismatch`.
 
 ## [0.82.0] - 2026-11-16

@@ -71,6 +71,13 @@ pub(super) fn name_taken(name: &str) -> String {
     )
 }
 
+pub(super) fn folder_name_taken(name: &str) -> String {
+    format!(
+        "a folder named \"{name}\" already exists there; choose another name or use that \
+         folder"
+    )
+}
+
 pub(super) fn unknown_subject(kind: &str, value: &str) -> String {
     format!(
         "no active {kind} \"{value}\" exists; name an existing, active subject (a user id for \

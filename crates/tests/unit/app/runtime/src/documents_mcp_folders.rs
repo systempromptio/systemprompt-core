@@ -91,6 +91,70 @@ async fn an_agent_creates_renames_and_nests_folders_it_lists() {
 }
 
 #[tokio::test]
+async fn a_folder_name_a_sibling_holds_is_refused_as_name_taken() {
+    let r = rig(true).await;
+    let user = registered("mcp-folder-taken").await;
+    let ctx = ctx_for(Some(&user));
+    let name = unique("Taken");
+    let (parent, _) = as_agent(folder(
+        &r.tools,
+        &ctx,
+        json!({"action": "create", "name": unique("parent")}),
+    ))
+    .await
+    .expect("parent");
+    as_agent(folder(
+        &r.tools,
+        &ctx,
+        json!({"action": "create", "name": name, "parent_id": parent.folder_id}),
+    ))
+    .await
+    .expect("first");
+    let again = as_agent(folder(
+        &r.tools,
+        &ctx,
+        json!({"action": "create", "name": name, "parent_id": parent.folder_id}),
+    ))
+    .await
+    .expect_err("same name, same parent");
+    assert_eq!(code_of(&again), RefusalCode::NameTaken, "{}", again.message);
+    assert!(again.message.contains("folder"), "{}", again.message);
+
+    let (sibling, _) = as_agent(folder(
+        &r.tools,
+        &ctx,
+        json!({"action": "create", "name": "other", "parent_id": parent.folder_id}),
+    ))
+    .await
+    .expect("sibling");
+    let renamed = as_agent(folder(
+        &r.tools,
+        &ctx,
+        json!({"action": "update", "folder_id": sibling.folder_id, "name": name}),
+    ))
+    .await
+    .expect_err("rename onto a sibling's name");
+    assert_eq!(
+        code_of(&renamed),
+        RefusalCode::NameTaken,
+        "{}",
+        renamed.message
+    );
+
+    let (elsewhere, _) = folder(&r.tools, &ctx, json!({"action": "create", "name": name}))
+        .await
+        .expect("same name at the root");
+    let moved = folder(
+        &r.tools,
+        &ctx,
+        json!({"action": "update", "folder_id": elsewhere.folder_id, "parent_id": parent.folder_id}),
+    )
+    .await
+    .expect_err("move beside a folder of the same name");
+    assert_eq!(code_of(&moved), RefusalCode::NameTaken, "{}", moved.message);
+}
+
+#[tokio::test]
 async fn the_person_moves_a_folder_and_an_agent_is_refused_the_move() {
     let r = rig(true).await;
     let user = registered("mcp-folder-move").await;
