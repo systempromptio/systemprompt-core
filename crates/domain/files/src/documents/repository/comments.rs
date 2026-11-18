@@ -10,7 +10,8 @@ use chrono::{DateTime, Utc};
 use sqlx::PgConnection;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{
-    AgentName, DocumentCommentId, DocumentId, DocumentNodeId, DocumentRevisionId, UserId,
+    AgentName, ClientId, ContextId, DocumentCommentId, DocumentId, DocumentNodeId,
+    DocumentRevisionId, UserId,
 };
 
 use super::Pools;
@@ -41,6 +42,9 @@ pub(super) struct CommentRow {
     pub(super) updated_at: DateTime<Utc>,
     pub(super) edited_at: Option<DateTime<Utc>>,
     pub(super) deleted_at: Option<DateTime<Utc>>,
+    pub(super) via_agent: Option<AgentName>,
+    pub(super) context_id: Option<ContextId>,
+    pub(super) client_id: Option<ClientId>,
 }
 
 impl From<CommentRow> for DocumentComment {
@@ -68,6 +72,9 @@ impl From<CommentRow> for DocumentComment {
             updated_at: row.updated_at,
             edited_at: row.edited_at,
             deleted_at: row.deleted_at,
+            via_agent: row.via_agent,
+            context_id: row.context_id,
+            client_id: row.client_id,
         }
     }
 }
@@ -94,8 +101,10 @@ impl DocumentCommentRepository {
             CommentRow,
             r#"INSERT INTO document_comments
                    (document_id, node_id, anchor_find, anchor_nth, anchor_start, anchor_end,
-                    author_user_id, body, mentions, parent_id, via_agent)
-               VALUES ($1::text::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10::text::uuid, $11)
+                    author_user_id, body, mentions, parent_id, via_agent, context_id,
+                    client_id)
+               VALUES ($1::text::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10::text::uuid, $11,
+                       $12, $13)
                RETURNING id::text AS "id!: DocumentCommentId",
                          document_id::text AS "document_id!: DocumentId",
                          node_id AS "node_id: DocumentNodeId",
@@ -104,7 +113,10 @@ impl DocumentCommentRepository {
                          body, mentions, parent_id::text AS "parent_id: DocumentCommentId",
                          resolved_at, resolved_by AS "resolved_by: UserId",
                          answering_revision_id::text AS "answering_revision_id: DocumentRevisionId",
-                         created_at, updated_at, edited_at, deleted_at"#,
+                         created_at, updated_at, edited_at, deleted_at,
+                         via_agent AS "via_agent: AgentName",
+                         context_id AS "context_id: ContextId",
+                         client_id AS "client_id: ClientId""#,
             request.document_id.as_str(),
             request.anchor.node.as_str(),
             request.anchor.find,
@@ -116,6 +128,8 @@ impl DocumentCommentRepository {
             &mentions,
             request.parent_id.as_ref().map(DocumentCommentId::as_str),
             request.via_agent.as_ref().map(AgentName::as_str),
+            request.context_id.as_ref().map(ContextId::as_str),
+            request.client_id.as_ref().map(ClientId::as_str),
         )
         .fetch_one(&mut *conn)
         .await?;
@@ -150,7 +164,10 @@ impl DocumentCommentRepository {
                       body, mentions, parent_id::text AS "parent_id: DocumentCommentId",
                       resolved_at, resolved_by AS "resolved_by: UserId",
                       answering_revision_id::text AS "answering_revision_id: DocumentRevisionId",
-                      created_at, updated_at, edited_at, deleted_at
+                      created_at, updated_at, edited_at, deleted_at,
+                      via_agent AS "via_agent: AgentName",
+                      context_id AS "context_id: ContextId",
+                      client_id AS "client_id: ClientId"
                FROM document_comments WHERE document_id = $1::text::uuid
                ORDER BY created_at, id"#,
             document.as_str()

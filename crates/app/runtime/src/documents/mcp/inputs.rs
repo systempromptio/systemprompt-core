@@ -9,8 +9,8 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use systemprompt_files::documents::service::MentionOption;
 use systemprompt_identifiers::{
-    ContentHash, DocumentCommentId, DocumentFolderId, DocumentId, DocumentNodeId, DocumentOpId,
-    DocumentRevisionId, DocumentTemplateId, UserId,
+    ContentHash, ContextId, DocumentCommentId, DocumentFolderId, DocumentId, DocumentNodeId,
+    DocumentOpId, DocumentRevisionId, DocumentTemplateId, UserId,
 };
 use systemprompt_models::documents::{AccessLevel, DocumentFormat, EditMode, EditOp};
 use systemprompt_models::notifications::Attention;
@@ -80,6 +80,8 @@ pub struct CreateInput {
     pub ops: Vec<EditOp>,
     #[serde(default)]
     pub message: Option<String>,
+    #[serde(default)]
+    pub context_id: Option<ContextId>,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -103,6 +105,8 @@ pub struct EditInput {
     pub allow_detach: bool,
     #[serde(default)]
     pub verbose: bool,
+    #[serde(default)]
+    pub context_id: Option<ContextId>,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -222,6 +226,8 @@ pub struct CommentInput {
     pub mentions: Vec<UserId>,
     #[serde(default)]
     pub mention_options: Vec<MentionOptionInput>,
+    #[serde(default)]
+    pub context_id: Option<ContextId>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, JsonSchema)]

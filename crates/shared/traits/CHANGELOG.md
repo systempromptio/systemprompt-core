@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- `ContextDirectory` (`owned_context`, `owned_names`), `DynContextDirectory` and `OwnedContextSummary`: the conversation contexts one user owns, for a domain that attributes work to a conversation without depending on the agent domain.
+
 ## [0.81.0] - 2026-11-12
 
 ### Breaking

@@ -8,7 +8,8 @@
 use chrono::{DateTime, Utc};
 use sqlx::PgConnection;
 use systemprompt_identifiers::{
-    ContentHash, ContextId, DocumentId, DocumentRevisionId, SessionId, TaskId, TraceId, UserId,
+    AgentName, ClientId, ContentHash, ContextId, DocumentId, DocumentRevisionId, SessionId, TaskId,
+    TraceId, UserId,
 };
 
 use super::revisions::{DocumentRevisionRepository, RevisionRow};
@@ -36,9 +37,10 @@ impl DocumentRevisionRepository {
             r#"INSERT INTO document_revisions
                    (id, document_id, parent_revision_id, content_sha256, author_user_id,
                     actor_kind, origin_kind, origin_id, message, edit_ops,
-                    session_id, context_id, trace_id, task_id, on_behalf_of)
+                    session_id, context_id, trace_id, task_id, on_behalf_of,
+                    agent_name, client_id)
                VALUES ($15::text::uuid, $1::text::uuid, $2::text::uuid, $3, $4, $5, $6,
-                       $7, $8, $9, $10, $11, $12, $13, $14)
+                       $7, $8, $9, $10, $11, $12, $13, $14, $16, $17)
                RETURNING id::text AS "id!: DocumentRevisionId",
                          document_id::text AS "document_id!: DocumentId",
                          parent_revision_id::text AS "parent_revision_id: DocumentRevisionId",
@@ -50,6 +52,8 @@ impl DocumentRevisionRepository {
                          trace_id AS "trace_id: TraceId",
                          task_id AS "task_id: TaskId",
                          on_behalf_of AS "on_behalf_of: UserId",
+                         agent_name AS "agent_name: AgentName",
+                         client_id AS "client_id: ClientId",
                          created_at, landed_at"#,
             request.document_id.as_str(),
             request
@@ -69,6 +73,8 @@ impl DocumentRevisionRepository {
             attribution.task_id.as_ref().map(TaskId::as_str),
             attribution.on_behalf_of.as_ref().map(UserId::as_str),
             request.id.as_str(),
+            attribution.agent_name.as_ref().map(AgentName::as_str),
+            attribution.client_id.as_ref().map(ClientId::as_str),
         )
         .fetch_one(conn)
         .await?;

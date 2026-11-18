@@ -68,6 +68,37 @@ impl RequestStorage {
         self
     }
 
+    // Why: a tool server that attributes work to a conversation (the document
+    // store) accepts only a context the calling user owns, so a turn's
+    // context must exist as that user's row before its tool calls go out,
+    // not only once the turn is audited.
+    pub async fn materialize_context(&self, context: &RequestContext) {
+        let Some(materializer) = self.context_materializer.as_ref() else {
+            return;
+        };
+        let context_id = context.context_id();
+        if context_id.as_str().is_empty() {
+            return;
+        }
+        let session_id = Some(context.session_id()).filter(|id| !id.as_str().is_empty());
+        if let Err(e) = materializer
+            .ensure_context(EnsureContextParams {
+                context_id,
+                user_id: context.user_id(),
+                session_id,
+                name: context.agent_name().as_str(),
+                kind: "derived",
+            })
+            .await
+        {
+            tracing::warn!(
+                error = %e,
+                context_id = %context_id,
+                "Could not materialize the derived context; continuing without it"
+            );
+        }
+    }
+
     pub async fn store(&self, params: &StoreParams<'_>) -> Result<(), AiError> {
         let record = build_record(&BuildRecordParams {
             request: params.request,
@@ -103,23 +134,7 @@ impl RequestStorage {
             .await;
         }
 
-        if let Some(materializer) = self.context_materializer.as_ref()
-            && let Err(e) = materializer
-                .ensure_context(EnsureContextParams {
-                    context_id: &record.context_id,
-                    user_id: &user_id,
-                    session_id: session_id.as_ref(),
-                    name: params.context.agent_name().as_str(),
-                    kind: "derived",
-                })
-                .await
-        {
-            tracing::warn!(
-                error = %e,
-                context_id = %record.context_id,
-                "Could not materialize the derived context; storing the request anyway"
-            );
-        }
+        self.materialize_context(params.context).await;
 
         let db_id = store_request(&self.ai_request_repo, &record).await?;
 

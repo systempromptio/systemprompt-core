@@ -124,7 +124,7 @@ impl DocumentService {
                 template_id: None,
                 bytes,
                 author: request.author,
-                message: None,
+                message: request.message,
                 ops: None,
                 mime_type,
                 vouched: Vec::new(),

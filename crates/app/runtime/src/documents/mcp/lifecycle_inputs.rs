@@ -7,7 +7,9 @@
 use schemars::JsonSchema;
 use serde::Deserialize;
 use systemprompt_files::documents::service::FolderMove;
-use systemprompt_identifiers::{ContentHash, DocumentFolderId, DocumentId, DocumentProposalId};
+use systemprompt_identifiers::{
+    ContentHash, ContextId, DocumentFolderId, DocumentId, DocumentProposalId,
+};
 use systemprompt_models::documents::DocumentFormat;
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -17,6 +19,8 @@ pub struct CopyInput {
     pub name: Option<String>,
     #[serde(default)]
     pub folder_id: Option<DocumentFolderId>,
+    #[serde(default)]
+    pub context_id: Option<ContextId>,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -63,6 +67,10 @@ pub struct ImportInput {
     pub folder_id: Option<DocumentFolderId>,
     #[serde(default)]
     pub format: Option<DocumentFormat>,
+    #[serde(default)]
+    pub message: Option<String>,
+    #[serde(default)]
+    pub context_id: Option<ContextId>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, JsonSchema)]
@@ -84,4 +92,6 @@ pub struct ProposalsInput {
     pub proposal_id: Option<DocumentProposalId>,
     #[serde(default)]
     pub note: Option<String>,
+    #[serde(default)]
+    pub context_id: Option<ContextId>,
 }

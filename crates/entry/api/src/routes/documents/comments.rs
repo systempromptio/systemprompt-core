@@ -7,7 +7,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::extract::{Path, State};
-use axum::http::StatusCode;
+use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use serde::Deserialize;
@@ -18,10 +18,11 @@ use systemprompt_files::documents::service::{
 use systemprompt_identifiers::{DocumentCommentId, DocumentNodeId, DocumentRevisionId, UserId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::notifications::Attention;
+use systemprompt_runtime::documents::attribution::edit_origin;
 use systemprompt_runtime::documents::views::{CommentItem, CommentOutput, comments_view};
 
 use super::DocumentsState;
-use super::caller::caller;
+use super::caller::{api_comment_origin, caller};
 use super::error::DocumentsResult;
 use super::items::document_id;
 
@@ -33,7 +34,14 @@ pub(super) async fn list(
     let who = caller(&state, &req_ctx).await?;
     let id = document_id(&id)?;
     Ok(Json(
-        comments_view(&state.service, &who.user, &id, &who.trace).await?,
+        comments_view(
+            &state.service,
+            state.contexts.as_ref(),
+            &who.user,
+            &id,
+            &who.trace,
+        )
+        .await?,
     ))
 }
 
@@ -81,9 +89,11 @@ pub(super) async fn create(
     State(state): State<DocumentsState>,
     Extension(req_ctx): Extension<RequestContext>,
     Path(id): Path<String>,
+    headers: HeaderMap,
     Json(body): Json<CommentBody>,
 ) -> DocumentsResult<Response> {
     let who = caller(&state, &req_ctx).await?;
+    let origin = api_comment_origin(&state, &req_ctx, &headers).await?;
     let (anchor, range) = body
         .anchor
         .map(|anchor| {
@@ -106,7 +116,7 @@ pub(super) async fn create(
     };
     let comment = state
         .service
-        .create_comment(&who.user, request, &who.trace)
+        .create_comment_from(&who.user, request, &origin, &who.trace)
         .await?;
     Ok((StatusCode::CREATED, Json(CommentItem::from(comment))).into_response())
 }
@@ -160,9 +170,10 @@ pub(super) async fn edit(
         mentions: body.mentions,
         mention_options: mention_options(body.mention_options),
     };
+    let origin = edit_origin(&req_ctx);
     let edited = state
         .service
-        .edit_comment(&who.user, request, &who.trace)
+        .edit_comment_from(&who.user, request, &origin, &who.trace)
         .await?;
     Ok(Json(CommentItem::from(edited)))
 }

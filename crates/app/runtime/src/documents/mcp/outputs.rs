@@ -13,8 +13,8 @@ use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::Serialize;
 use systemprompt_identifiers::{
-    ContentHash, ContextId, DocumentFolderId, DocumentId, DocumentProposalId, DocumentRevisionId,
-    SessionId, TaskId, TraceId, UserId,
+    AgentName, ClientId, ContentHash, ContextId, DocumentFolderId, DocumentId, DocumentProposalId,
+    DocumentRevisionId, SessionId, TaskId, TraceId, UserId,
 };
 use systemprompt_mcp::McpOutputSchema;
 
@@ -138,6 +138,12 @@ pub struct RevisionAttributionItem {
     pub task_id: Option<TaskId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub on_behalf_of: Option<UserId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agent_name: Option<AgentName>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub client_id: Option<ClientId>,
 }
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]

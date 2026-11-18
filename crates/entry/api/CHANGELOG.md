@@ -2,9 +2,18 @@
 
 ## [Unreleased]
 
+### Breaking
+
+- A document write whose `x-context-id` is not a conversation the caller owns answers `422 unknown_context` and writes nothing; a header that is not a context id answers `400`.
+
 ### Added
 
 - The root discovery document carries `endpoints.documents`: `{"enabled": false}` while the document store is off, and otherwise its route URLs and upload `limits` (`maxUploadBytes`, `inlineMaxBytes`, `uploadPartBytes`).
+- `POST /api/v1/documents` and `POST /api/v1/documents/import` take an optional `message` for the first revision; `GET /api/v1/documents/{id}/revisions` answers `context_id`, `agent_name`, `client_id` and the owner-only `context_name`.
+
+### Fixed
+
+- A REST comment written with an agent's bearer token records the agent.
 
 ### Fixed
 

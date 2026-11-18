@@ -250,6 +250,7 @@ const fn plain_code(error: &DocumentsError) -> Option<RefusalCode> {
         | DocumentsError::NotFound { .. }
         | DocumentsError::CommentNotFound { .. } => Some(RefusalCode::NotFound),
         DocumentsError::UnknownSubject { .. } => Some(RefusalCode::UnknownSubject),
+        DocumentsError::UnknownContext { .. } => Some(RefusalCode::UnknownContext),
         DocumentsError::LockHeld { .. } => Some(RefusalCode::Locked),
         DocumentsError::FolderNotEmpty { .. } | DocumentsError::SubtreeChanged { .. } => {
             Some(RefusalCode::FolderNotEmpty)
@@ -292,6 +293,7 @@ const fn plain_code(error: &DocumentsError) -> Option<RefusalCode> {
         | DocumentsError::Events { .. }
         | DocumentsError::Worker(_)
         | DocumentsError::Directory(_)
+        | DocumentsError::Contexts(_)
         | DocumentsError::LiveSession(_) => None,
     }
 }

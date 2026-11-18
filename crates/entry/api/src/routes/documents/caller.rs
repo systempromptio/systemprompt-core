@@ -3,20 +3,22 @@
 //! a role change applies to the next request; and the author a REST write
 //! records, attributed to the actor the request was made by (a person, or an
 //! agent acting for the signed-in user), to the request's session, trace and
-//! task and to the conversation named by an `x-context-id` header.
+//! task, to the agent and OAuth client of the token, and to the conversation
+//! named by an `x-context-id` header, which must be one the caller owns.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::http::HeaderMap;
 use systemprompt_files::documents::agents::DocumentActor;
-use systemprompt_files::documents::models::{RevisionAttribution, RevisionOrigin};
-use systemprompt_files::documents::service::Author;
+use systemprompt_files::documents::models::RevisionOrigin;
+use systemprompt_files::documents::service::{Author, CommentOrigin};
 use systemprompt_identifiers::{ContextId, TraceId, UserId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::ActorKind;
 use systemprompt_runtime::documents::actor::request_actor;
+use systemprompt_runtime::documents::attribution::{comment_origin, request_author};
 use systemprompt_traits::{AuthUser, UserProvider};
 
 use super::DocumentsState;
@@ -64,34 +66,38 @@ const fn actor_kind(actor: &DocumentActor) -> ActorKind {
     }
 }
 
-pub(super) fn api_author(ctx: &RequestContext, headers: &HeaderMap) -> Author {
-    let present = |value: &str| !value.is_empty();
-    let actor_kind = actor_kind(&request_actor(ctx));
-    let on_behalf_of = (actor_kind == ActorKind::Agent)
-        .then(|| ctx.user_id().clone())
-        .filter(|id| present(id.as_str()));
-    Author {
-        actor_kind,
-        origin: RevisionOrigin::Api,
-        attribution: RevisionAttribution {
-            session_id: Some(ctx.session_id().clone()).filter(|id| present(id.as_str())),
-            context_id: headers
-                .get(systemprompt_identifiers::headers::CONTEXT_ID)
-                .and_then(|value| value.to_str().ok())
-                .and_then(context_id),
-            trace_id: Some(ctx.trace_id().clone()).filter(|id| present(id.as_str())),
-            task_id: ctx.task_id().cloned(),
-            on_behalf_of,
-        },
-    }
+pub(super) async fn api_author(
+    state: &DocumentsState,
+    ctx: &RequestContext,
+    headers: &HeaderMap,
+) -> DocumentsResult<Author> {
+    let claimed = header_context(headers)?;
+    let kind = actor_kind(&request_actor(ctx));
+    Ok(request_author(
+        state.contexts.as_ref(),
+        ctx,
+        (kind, RevisionOrigin::Api),
+        claimed.as_ref(),
+    )
+    .await?)
 }
 
-fn context_id(raw: &str) -> Option<ContextId> {
-    match ContextId::try_new(raw) {
-        Ok(id) => Some(id),
-        Err(error) => {
-            tracing::warn!(error = %error, "x-context-id is not a context id; revision carries none");
-            None
-        },
+pub(super) async fn api_comment_origin(
+    state: &DocumentsState,
+    ctx: &RequestContext,
+    headers: &HeaderMap,
+) -> DocumentsResult<CommentOrigin> {
+    let claimed = header_context(headers)?;
+    Ok(comment_origin(state.contexts.as_ref(), ctx, claimed.as_ref()).await?)
+}
+
+fn header_context(headers: &HeaderMap) -> DocumentsResult<Option<ContextId>> {
+    let Some(value) = headers.get(systemprompt_identifiers::headers::CONTEXT_ID) else {
+        return Ok(None);
+    };
+    let raw = value.to_str()?;
+    if raw.is_empty() {
+        return Ok(None);
     }
+    Ok(Some(ContextId::try_new(raw)?))
 }

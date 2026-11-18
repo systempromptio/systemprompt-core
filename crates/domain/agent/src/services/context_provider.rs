@@ -5,11 +5,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::HashMap;
+
 use async_trait::async_trait;
 use systemprompt_identifiers::{ContextId, SessionId, UserId};
 use systemprompt_traits::{
-    ContextMaterializer, ContextProvider, ContextProviderError, ContextWithStats,
-    EnsureContextParams,
+    ContextDirectory, ContextMaterializer, ContextProvider, ContextProviderError, ContextWithStats,
+    EnsureContextParams, OwnedContextSummary,
 };
 
 use crate::models::context::ContextKind;
@@ -142,5 +144,40 @@ impl ContextMaterializer for ContextProviderService {
             .ensure_context(&params, kind)
             .await
             .map_err(|e| ContextProviderError::Database(e.into()))
+    }
+}
+
+#[async_trait]
+impl ContextDirectory for ContextProviderService {
+    async fn owned_context(
+        &self,
+        user_id: &UserId,
+        context_id: &ContextId,
+    ) -> Result<Option<OwnedContextSummary>, ContextProviderError> {
+        let name = self
+            .repo
+            .find_owned_name(context_id, user_id)
+            .await
+            .map_err(|e| ContextProviderError::Database(e.into()))?;
+        Ok(name.map(|name| OwnedContextSummary {
+            context_id: context_id.clone(),
+            name,
+        }))
+    }
+
+    async fn owned_names(
+        &self,
+        user_id: &UserId,
+        context_ids: &[ContextId],
+    ) -> Result<HashMap<ContextId, String>, ContextProviderError> {
+        if context_ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+        let names = self
+            .repo
+            .owned_names(user_id, context_ids)
+            .await
+            .map_err(|e| ContextProviderError::Database(e.into()))?;
+        Ok(names.into_iter().collect())
     }
 }

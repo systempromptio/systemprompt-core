@@ -18,6 +18,8 @@ CREATE TABLE IF NOT EXISTS document_comments (
     edited_at TIMESTAMPTZ,
     deleted_at TIMESTAMPTZ,
     via_agent TEXT CHECK (via_agent IS NULL OR length(via_agent) BETWEEN 1 AND 64),
+    context_id VARCHAR(255),
+    client_id TEXT,
     CONSTRAINT document_comments_anchor_nth CHECK (anchor_nth IS NULL OR anchor_find IS NOT NULL)
 );
 
@@ -27,3 +29,5 @@ CREATE INDEX IF NOT EXISTS idx_document_comments_document_node
     ON document_comments (document_id, node_id);
 CREATE INDEX IF NOT EXISTS idx_document_comments_author_created
     ON document_comments (author_user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_document_comments_context_created
+    ON document_comments (context_id, created_at);

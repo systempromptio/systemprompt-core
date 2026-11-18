@@ -130,7 +130,7 @@ A tool call is an agent acting for the user, attended when its token says a pers
 | `documents_read` | A revision as hashlines, by outline, text, node range, one node, spreadsheet cells or search; the changes since a revision; or the document's metadata and who is in it now. |
 | `documents_edit` | Apply edit operations as one revision on the head, guarded per node, optionally idempotent by `op_id`. `answering` records the revision on a comment; an edit that removes text a comment is anchored to is refused unless `allow_detach` is set. In place of `ops`, `content_blob_ref` names a blob the caller uploaded with `documents_upload` as the document's whole new content, written on the `base_revision` the caller read (required with it), checked as the document's format and landed byte for byte (or proposed); an agent lands it only where the agent access policy allows `replace_content`. |
 | `documents_comment` | Create, list and resolve comment threads anchored to a node and, optionally, a quote inside it. |
-| `documents_history` | Revisions, newest first, with `author`, `actor`, `at` (to the second) and message, and with `verbose` the session, context, trace, task and on-behalf-of user. |
+| `documents_history` | Revisions, newest first, with `author`, `actor`, `at` (to the second) and message, and with `verbose` the session, context, trace, task, on-behalf-of user, the agent and OAuth client that wrote it, and the context's name when the caller owns that conversation. |
 | `documents_proposals` | A document's proposals with their status, or, with `action: accept` or `reject`, review one with an optional note (needs edit access). |
 | `documents_share` | Grant a subject access to a document or a folder subtree with an optional `message`, transfer a document's ownership, or revoke every grant on it. |
 | `documents_access` | The owner, the grants on a document with each subject's display name, the grants it inherits from its folders with the folder named, and the caller's level; for holders of `share`, open access requests and, with `history: true`, the grant audit log. |
@@ -142,9 +142,11 @@ A tool call is an agent acting for the user, attended when its token says a pers
 | `documents_export` | A signed ten-minute download link, or the sanitised HTML preview returned in the result's structured content. |
 | `documents_upload` | Put a file in the store and answer its `blob_ref`: inline as base64 up to the inline limit, or as a resumable upload of signed parts. |
 | `documents_import` | A document from a `blob_ref` the caller uploaded, named by `name` and placed in `folder_id`; the name's extension picks the format unless `format` is given, and any other blob becomes a `file` document. The bytes are stored as uploaded once the format's codec has parsed them, so an HTML page keeps its scripts and styles. Another user's blob is `not_found`, a blob that did not pass the format's content check is `invalid_params`, and one past the document upload limit is `too_large`. |
-| `documents_guide` | Working detail by topic: the eight topics `editing`, `formats`, `sheets`, `slides`, `sharing`, `comments`, `lifecycle` and `proposals`, plus `refusal.<code>` for each of the 23 refusal codes. |
+| `documents_guide` | Working detail by topic: the eight topics `editing`, `formats`, `sheets`, `slides`, `sharing`, `comments`, `lifecycle` and `proposals`, plus `refusal.<code>` for each of the 29 refusal codes. |
 | `documents_people` | Find people to mention or share with. |
 | `documents_inbox` | The caller's notifications, when the installation is built with notifications. |
+
+**Conversation attribution.** `documents_create`, `documents_edit`, `documents_comment`, `documents_proposals`, `documents_copy` and `documents_import` take an optional `context_id`, which attributes the write to that conversation and takes precedence over the connection's `x-context-id` header; `documents_import` also takes a `message` for the first revision. Without either, a write is attributed to the context derived from the caller's session. Any other id must be a conversation the calling user owns (`POST /api/v1/core/contexts` creates one with a title); one they do not own and one that does not exist are both refused as `unknown_context`. A revision records the agent and the OAuth client of the token that wrote it, and a comment records its conversation and client beside the agent. A context's name appears in history and comment listings only for the user who owns it. An agent turn run by the platform's own AI service materialises its conversation as the user's context before its tool calls go out, so its writes are attributed to it.
 
 The server `instructions` carry the working contract in seven points: read the outline first; edit by node id and hash or by quote in one call, with an `op_id` so a retry is safe; anchor the next edit on the acknowledgement and resume later with the changes since your last revision; on `guard_mismatch` or `stale_base` the head edit wins, so re-aim from the returned text and never resend the old text; do not re-read between your own writes; an edit may land as a proposal, which a reviewer accepts with `documents_proposals`; and a file is brought in with `documents_upload`, then `documents_import` of the returned `blob_ref`. The whole `tools/list` stays under 8 KiB on the wire.
 
@@ -162,7 +164,7 @@ The server `instructions` carry the working contract in seven points: read the o
 
 **Refusals.** A refused call is a tool result with `isError: true`. Its structured content carries a stable `code` and the detail the failure knows. The text names what to do next. The HTTP API answers in the same vocabulary, with the code as `error_key` and the same detail under `detail` (see [Errors](#errors)). A server-side failure (storage, database, authz hook, codec worker) is not a refusal: it is a protocol error with a fixed message, and its cause is logged.
 
-There are 23 codes (`RefusalCode::ALL` in `crates/app/runtime/src/documents/refusal/code.rs`). `documents_guide` explains each as `refusal.<code>`.
+There are 29 codes (`RefusalCode::ALL` in `crates/app/runtime/src/documents/refusal/code.rs`). `documents_guide` explains each as `refusal.<code>`.
 
 | Code | HTTP | Meaning | Detail carried |
 |---|---|---|---|
@@ -194,6 +196,7 @@ There are 23 codes (`RefusalCode::ALL` in `crates/app/runtime/src/documents/refu
 | `access_request_not_needed` | 400 | The caller already holds a level on the document. | |
 | `access_request_closed` | 409 | The request was already granted or declined. | |
 | `name_taken` | 409 | The folder already holds a document of that name. | |
+| `unknown_context` | 422 | The `context_id` or `x-context-id` is not a conversation the caller owns; an unknown id and another user's get the same answer, and nothing is written. | |
 
 The detail object (`Refusal`) has the optional fields `head_revision`, `head_content_sha256`, `base_revision`, `written_by`, `actor_kind`, `at`, `node`, `hash`, `current_text`, `matches`, `accepted_kinds`, `owner`, `existing_level`, `trashed` and `comments`; absent fields are omitted.
 
@@ -241,7 +244,7 @@ Routes mount under `/api/v1/documents` and `/api/v1/document-folders` with user 
 
 With the `files-collab` facade feature (part of `full`), four further routes co-edit HTML and Markdown documents live. See [Live co-editing](#live-co-editing).
 
-A write records the request's session, trace and task, and the conversation named by an `x-context-id` header. A merged write answers `merged_from`, and a replayed `op_id` answers the stored response with `replayed: true`.
+A write records the request's session, trace and task, the agent and OAuth client of its token, and the conversation named by an `x-context-id` header. The header must name a conversation the caller owns (or the context derived from the caller's session); an unknown id and another user's are both refused as `422 unknown_context` and nothing is written. `POST /api/v1/documents` (JSON or multipart, as a `message` part) and `POST /api/v1/documents/import` take an optional `message`, stored on the first revision. `GET /api/v1/documents/{id}/revisions` answers each revision's `context_id`, `agent_name` and `client_id`, and `context_name` when the caller owns that conversation; comment listings carry `via_agent`, `context_id`, `client_id` and the owner-only `context_name` the same way. A merged write answers `merged_from`, and a replayed `op_id` answers the stored response with `replayed: true`.
 
 ### Errors
 
@@ -254,7 +257,7 @@ A refused request answers the common error envelope ([reference/http-api.md](ref
 | `503` | `collab_engine_unavailable` (a live session route with `files-collab` and no engine) |
 | `404` | `not_found`, `trashed` |
 | `413` | `too_large` |
-| `422` | `integrity_mismatch`, `template_failed`, and `invalid_params` for a document that cannot be parsed |
+| `422` | `integrity_mismatch`, `template_failed`, `unknown_context`, and `invalid_params` for a document that cannot be parsed |
 | `423` | `locked` (a held lock also names the `lock` under `detail`) |
 | `400` | `invalid_params`, `unsupported_op`, `unsupported_format`, `unknown_subject`, `access_request_not_needed`, `find_none` for an `old_str` quote |
 

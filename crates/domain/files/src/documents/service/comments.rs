@@ -98,6 +98,8 @@ impl DocumentService {
             mentions: plan.mentions,
             parent_id: request.parent_id,
             via_agent: origin.via_agent.clone(),
+            context_id: origin.context_id.clone(),
+            client_id: origin.client_id.clone(),
         };
         let context = MentionContext {
             who,

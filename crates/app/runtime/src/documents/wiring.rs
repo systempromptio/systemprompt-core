@@ -22,7 +22,7 @@ use systemprompt_files::issues::IssueService;
 use systemprompt_files::uploads::{UploadService, UploadServiceParts};
 use systemprompt_governance::authz::{AccessControlRepository, SharedAuthzHook};
 use systemprompt_models::authz::SubjectAttributeSource;
-use systemprompt_traits::{BackgroundTasks, FileStorage};
+use systemprompt_traits::{BackgroundTasks, DynContextDirectory, FileStorage};
 
 #[cfg(feature = "collab")]
 use systemprompt_files::CollabConfig;
@@ -48,6 +48,7 @@ pub struct DocumentsRuntimeParts {
     pub issues: Arc<IssueService>,
     pub background_tasks: BackgroundTasks,
     pub unscoped_actor: Option<DocumentActor>,
+    pub contexts: DynContextDirectory,
 }
 
 impl std::fmt::Debug for DocumentsRuntimeParts {
@@ -66,16 +67,26 @@ impl std::fmt::Debug for DocumentsRuntimeParts {
 /// service, whose timer runs on the runtime's background tasks. Beside it
 /// sits the [`UploadService`] the resumable upload API runs on, over the
 /// same blob store, and the [`IssueService`] whose report attachments are
-/// that service's uploads.
-#[derive(Debug, Clone)]
+/// that service's uploads. The conversation contexts a write is attributed
+/// to are checked against the caller's own through `contexts`.
+#[derive(Clone)]
 pub struct DocumentsRuntime {
     repositories: Arc<DocumentRepositories>,
     access: Arc<DocumentAccessService>,
     service: Arc<DocumentService>,
     uploads: Arc<UploadService>,
     issues: Arc<IssueService>,
+    contexts: DynContextDirectory,
     #[cfg(feature = "collab")]
     collab: Arc<CollabService>,
+}
+
+impl std::fmt::Debug for DocumentsRuntime {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DocumentsRuntime")
+            .field("service", &self.service)
+            .finish_non_exhaustive()
+    }
 }
 
 impl DocumentsRuntime {
@@ -100,6 +111,7 @@ impl DocumentsRuntime {
             issues,
             background_tasks,
             unscoped_actor,
+            contexts,
         } = parts;
         let repositories = Arc::new(DocumentRepositories::new(&database));
         let access = access_service(
@@ -162,6 +174,7 @@ impl DocumentsRuntime {
             service,
             uploads,
             issues,
+            contexts,
             #[cfg(feature = "collab")]
             collab,
         }
@@ -196,6 +209,11 @@ impl DocumentsRuntime {
     #[must_use]
     pub const fn issues(&self) -> &Arc<IssueService> {
         &self.issues
+    }
+
+    #[must_use]
+    pub const fn contexts(&self) -> &DynContextDirectory {
+        &self.contexts
     }
 
     pub async fn reconcile_folder_entities(&self) -> Result<u64, DocumentsError> {

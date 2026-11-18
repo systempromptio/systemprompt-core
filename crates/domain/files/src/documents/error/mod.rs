@@ -11,16 +11,16 @@
 
 use systemprompt_extension::{BrainSinkError, NotificationSinkError};
 use systemprompt_identifiers::{
-    ContentHash, DocumentAccessRequestId, DocumentCommentId, DocumentFolderId, DocumentId,
-    DocumentNodeId, DocumentOpId, DocumentProposalId, DocumentRevisionId, DocumentTemplateId,
-    UserId,
+    ContentHash, ContextId, DocumentAccessRequestId, DocumentCommentId, DocumentFolderId,
+    DocumentId, DocumentNodeId, DocumentOpId, DocumentProposalId, DocumentRevisionId,
+    DocumentTemplateId, UserId,
 };
 use systemprompt_models::documents::{
     AccessLevel, AccessRequestStatus, DocumentAction, DocumentFormat, ProposalStatus,
 };
 use systemprompt_models::notifications::NotificationKindError;
 use systemprompt_provider_contracts::documents::{ClosestBlock, CodecError};
-use systemprompt_traits::RepositoryError;
+use systemprompt_traits::{ContextProviderError, RepositoryError};
 
 use self::labels::{
     base_label, closest_label, comment_list, conflict_label, held_label, kinds_label, policy_label,
@@ -253,6 +253,13 @@ pub enum DocumentsError {
     Worker(#[from] tokio::task::JoinError),
     #[error("grant subjects could not be resolved to users")]
     Directory(#[from] SubjectDirectoryError),
+    #[error(
+        "context {context_id} is not one of your conversations: send the id of a conversation \
+         you own (POST /api/v1/core/contexts creates one), or none to write without one"
+    )]
+    UnknownContext { context_id: ContextId },
+    #[error("the conversation context could not be looked up")]
+    Contexts(#[source] ContextProviderError),
     #[error("the notification could not be recorded; nothing was stored")]
     Notifications(#[from] NotificationSinkError),
     #[error("notification kind is invalid")]

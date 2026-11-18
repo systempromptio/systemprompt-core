@@ -1,5 +1,5 @@
 //! The `multipart/form-data` body of `POST /`: the `file` part, with its
-//! optional `name`, `folder_id` and `format` parts.
+//! optional `name`, `folder_id`, `format` and `message` parts.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -20,6 +20,7 @@ pub(super) struct MultipartFile {
     pub(super) format: Option<DocumentFormat>,
     pub(super) mime: String,
     pub(super) bytes: Vec<u8>,
+    pub(super) message: Option<String>,
 }
 
 pub(super) async fn read_file(mut form: Multipart) -> DocumentsResult<MultipartFile> {
@@ -28,6 +29,7 @@ pub(super) async fn read_file(mut form: Multipart) -> DocumentsResult<MultipartF
     let mut format = None;
     let mut file: Option<(Option<String>, Vec<u8>)> = None;
     let mut mime = None;
+    let mut message = None;
     while let Some(field) = form.next_field().await? {
         let part = field.name().unwrap_or_default().to_owned();
         let file_name = field.file_name().map(str::to_owned);
@@ -39,6 +41,7 @@ pub(super) async fn read_file(mut form: Multipart) -> DocumentsResult<MultipartF
         match part.as_str() {
             "file" => file = Some((file_name, bytes.to_vec())),
             "name" => name = Some(text()),
+            "message" => message = Some(text()).filter(|text| !text.is_empty()),
             "folder_id" => folder = folder_id(Some(&text()))?,
             "format" => {
                 format = Some(text().parse::<DocumentFormat>().map_err(|source| {
@@ -60,5 +63,6 @@ pub(super) async fn read_file(mut form: Multipart) -> DocumentsResult<MultipartF
         format,
         mime: mime.unwrap_or_else(|| OPAQUE_MIME.to_owned()),
         bytes,
+        message,
     })
 }

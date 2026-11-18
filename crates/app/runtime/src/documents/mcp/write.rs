@@ -30,7 +30,7 @@ use rmcp::ErrorData as McpError;
 use systemprompt_files::documents::model::Media;
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{
-    CommentPolicy, CommitOutcome, CommitRequest, EditModeRequest, ExternalWrite,
+    Author, CommentPolicy, CommitOutcome, CommitRequest, EditModeRequest, ExternalWrite,
 };
 use systemprompt_identifiers::{
     ContentHash, DocumentId, DocumentOpId, DocumentRevisionId, McpExecutionId,
@@ -60,7 +60,7 @@ pub(super) struct EditCall<'a> {
     pub(super) tools: &'a DocumentsMcpTools,
     pub(super) who: &'a AuthenticatedUser,
     pub(super) ctx: &'a RequestContext,
-    pub(super) exec_id: &'a McpExecutionId,
+    pub(super) author: Author,
     pub(super) document: DocumentId,
     pub(super) base: Option<DocumentRevisionId>,
     pub(super) ops: Vec<EditOp>,
@@ -99,7 +99,7 @@ async fn commit_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError
         document_id: call.document.clone(),
         base_revision: call.base.clone(),
         body: CommitBody::Ops(call.ops.clone()),
-        author: agent_author(call.ctx, call.exec_id),
+        author: call.author.clone(),
         message: call.message.clone(),
         lock_holder: None,
         comments: call.comments.clone(),
@@ -180,7 +180,7 @@ async fn replace_body(
         document_id: call.document.clone(),
         base_revision: call.base.clone(),
         body: CommitBody::Bytes(bytes),
-        author: agent_author(call.ctx, call.exec_id),
+        author: call.author.clone(),
         message: call.message.clone(),
         lock_holder: None,
         comments: call.comments.clone(),
@@ -259,11 +259,12 @@ impl McpToolHandler for EditHandler<'_> {
             },
             (_, blob) => blob,
         };
+        let author = agent_author(self.tools, ctx, exec_id, input.context_id.as_ref()).await?;
         let call = EditCall {
             tools: self.tools,
             who,
             ctx,
-            exec_id,
+            author,
             document: input.document_id,
             base: input.base_revision,
             ops: input.ops,

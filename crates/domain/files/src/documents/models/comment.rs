@@ -12,7 +12,8 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{
-    AgentName, DocumentCommentId, DocumentId, DocumentNodeId, DocumentRevisionId, TraceId, UserId,
+    AgentName, ClientId, ContextId, DocumentCommentId, DocumentId, DocumentNodeId,
+    DocumentRevisionId, TraceId, UserId,
 };
 
 /// Where a comment points: a node, and optionally the `nth` (0-based)
@@ -48,6 +49,9 @@ pub struct DocumentComment {
     pub updated_at: DateTime<Utc>,
     pub edited_at: Option<DateTime<Utc>>,
     pub deleted_at: Option<DateTime<Utc>>,
+    pub via_agent: Option<AgentName>,
+    pub context_id: Option<ContextId>,
+    pub client_id: Option<ClientId>,
 }
 
 #[derive(Debug, Clone)]
@@ -60,6 +64,8 @@ pub struct NewComment {
     pub mentions: Vec<UserId>,
     pub parent_id: Option<DocumentCommentId>,
     pub via_agent: Option<AgentName>,
+    pub context_id: Option<ContextId>,
+    pub client_id: Option<ClientId>,
 }
 
 /// The users a comment shares the document with.

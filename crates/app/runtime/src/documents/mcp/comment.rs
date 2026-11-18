@@ -45,6 +45,7 @@ impl CommentHandler<'_> {
             nth: input.anchor.as_ref().and_then(|a| a.nth),
         });
         let resolved = resolve_mentions(self.tools.users(), input.mentions, body).await?;
+        let origin = agent_origin(self.tools, ctx, input.context_id.as_ref()).await?;
         let comment = self
             .tools
             .service()
@@ -59,7 +60,7 @@ impl CommentHandler<'_> {
                     mention_options: input.mention_options.into_iter().map(Into::into).collect(),
                     parent_id: input.parent_id,
                 },
-                &agent_origin(ctx),
+                &origin,
                 ctx.trace_id(),
             )
             .await
@@ -124,6 +125,7 @@ impl McpToolHandler for CommentHandler<'_> {
             CommentAction::Delete => self.delete(who, input, ctx).await?,
             CommentAction::List => comments_view(
                 self.tools.service(),
+                self.tools.contexts().as_ref(),
                 who,
                 &input.document_id,
                 ctx.trace_id(),

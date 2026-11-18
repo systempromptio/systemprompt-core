@@ -19,6 +19,7 @@ use super::{
     Author, CommentPolicy, CommitOutcome, CommitRequest, DocumentService, ExternalWrite,
     FolderMove, ImportRequest, UpdateRequest,
 };
+use crate::documents::agents::DocumentActor;
 use crate::documents::error::DocumentsError;
 use crate::documents::model::Media;
 use crate::documents::models::{LockHolder, RevisionAttribution, RevisionOrigin};
@@ -42,7 +43,7 @@ impl DocumentService {
         let author = Author {
             actor_kind: ActorKind::Bridge,
             origin: RevisionOrigin::BridgeDevice(meta.device_id.clone()),
-            attribution: RevisionAttribution::default(),
+            attribution: drive_attribution(&self.access.actor()),
         };
         let document_id = if let Some(id) = meta.document_id {
             id
@@ -63,6 +64,7 @@ impl DocumentService {
                     mime_type: None,
                     bytes,
                     author,
+                    message: None,
                 };
                 let (_, revision) = self.import_external(who, request, trace).await?;
                 return Ok(DriveCommitResponse::Committed {
@@ -171,5 +173,12 @@ impl DocumentService {
             folder = Some(child.id);
         }
         Ok((folder, name))
+    }
+}
+
+fn drive_attribution(actor: &DocumentActor) -> RevisionAttribution {
+    RevisionAttribution {
+        agent_name: actor.as_agent().map(|agent| agent.name.clone()),
+        ..RevisionAttribution::default()
     }
 }

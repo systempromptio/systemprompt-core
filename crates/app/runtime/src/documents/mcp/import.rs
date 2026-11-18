@@ -97,7 +97,9 @@ impl McpToolHandler for ImportHandler<'_> {
                     format: Some(format),
                     mime_type: Some(origin.mime),
                     bytes,
-                    author: agent_author(ctx, exec_id),
+                    author: agent_author(self.tools, ctx, exec_id, input.context_id.as_ref())
+                        .await?,
+                    message: input.message,
                 },
                 ctx.trace_id(),
             )

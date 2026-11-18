@@ -12,9 +12,10 @@ use systemprompt_models::execution::context::RequestContext;
 
 use super::comment::CommentHandler;
 use super::inputs::CommentInput;
-use super::mentions::{agent_origin, resolve_mentions};
+use super::mentions::resolve_mentions;
 use super::refusal::refusal;
 use super::support::tool_error;
+use crate::documents::attribution::edit_origin;
 use crate::documents::refusal::RefusalCode;
 use crate::documents::views::{CommentOutput, comments_view};
 
@@ -45,7 +46,7 @@ impl CommentHandler<'_> {
                     mentions: resolved.ids,
                     mention_options: input.mention_options.into_iter().map(Into::into).collect(),
                 },
-                &agent_origin(ctx),
+                &edit_origin(ctx),
                 ctx.trace_id(),
             )
             .await
@@ -76,8 +77,14 @@ impl CommentHandler<'_> {
             )
             .await
             .map_err(tool_error)?;
-        comments_view(service, who, &input.document_id, ctx.trace_id())
-            .await
-            .map_err(tool_error)
+        comments_view(
+            service,
+            self.tools.contexts().as_ref(),
+            who,
+            &input.document_id,
+            ctx.trace_id(),
+        )
+        .await
+        .map_err(tool_error)
     }
 }

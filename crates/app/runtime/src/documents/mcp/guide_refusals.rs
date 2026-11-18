@@ -136,6 +136,11 @@ const fn agent_refusal_text(code: RefusalCode) -> &'static str {
             "name_taken: the folder already holds a document or folder of that name; choose \
              another name, or edit the existing document or use the existing folder."
         },
+        RefusalCode::UnknownContext => {
+            "unknown_context: the context_id (or x-context-id header) is not one of your \
+             user's conversations; nothing was written. Send a context your user owns, or \
+             leave it out to write in this connection's own conversation."
+        },
         _ => "",
     }
 }

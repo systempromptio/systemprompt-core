@@ -4,6 +4,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::HashMap;
+
 use rmcp::ErrorData as McpError;
 use systemprompt_files::documents::models::{
     Document, ListScope, ListSort, ListedDocument, ListingCursor,
@@ -21,6 +23,7 @@ use super::outputs::{
     SearchHit, SearchOutput,
 };
 use super::support::{caller, clamp_limit, tool_error};
+use crate::documents::attribution::owned_context_names;
 
 fn document_uri(document: &Document) -> DocumentUri {
     let uri = DocumentUri::new(document.id.clone());
@@ -246,6 +249,19 @@ impl McpToolHandler for HistoryHandler<'_> {
             .await
             .map_err(tool_error)?;
         let verbose = input.verbose;
+        let names = if verbose {
+            owned_context_names(
+                self.tools.contexts().as_ref(),
+                &who.id,
+                revisions
+                    .iter()
+                    .filter_map(|r| r.attribution.context_id.as_ref()),
+            )
+            .await
+            .map_err(tool_error)?
+        } else {
+            HashMap::new()
+        };
         let revisions: Vec<RevisionItem> = revisions
             .into_iter()
             .map(|r| RevisionItem {
@@ -257,12 +273,19 @@ impl McpToolHandler for HistoryHandler<'_> {
                 actor_kind: r.actor_kind,
                 message: r.message,
                 content_sha256: verbose.then_some(r.content_sha256),
-                attribution: verbose.then_some(RevisionAttributionItem {
+                attribution: verbose.then(|| RevisionAttributionItem {
+                    context_name: r
+                        .attribution
+                        .context_id
+                        .as_ref()
+                        .and_then(|id| names.get(id).cloned()),
                     session_id: r.attribution.session_id,
                     context_id: r.attribution.context_id,
                     trace_id: r.attribution.trace_id,
                     task_id: r.attribution.task_id,
                     on_behalf_of: r.attribution.on_behalf_of,
+                    agent_name: r.attribution.agent_name,
+                    client_id: r.attribution.client_id,
                 }),
                 created_at: r.created_at,
             })

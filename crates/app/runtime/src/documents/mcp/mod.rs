@@ -61,6 +61,7 @@ use systemprompt_mcp::{ClientProfile, McpToolExecutor};
 use systemprompt_models::execution::context::RequestContext;
 #[cfg(feature = "notifications")]
 use systemprompt_notifications::service::NotificationsService;
+use systemprompt_traits::DynContextDirectory;
 use systemprompt_users::UserRepository;
 
 pub use access::AccessHandler;
@@ -124,6 +125,7 @@ pub struct DocumentsMcpConfig {
     pub uploads: Option<Arc<UploadService>>,
     pub users: Arc<UserRepository>,
     pub links: Arc<dyn LinkIssuer>,
+    pub contexts: DynContextDirectory,
     pub server_name: McpServerId,
 }
 
@@ -146,6 +148,7 @@ pub struct DocumentsMcpTools {
     uploads: Option<Arc<UploadService>>,
     users: Arc<UserRepository>,
     links: Arc<dyn LinkIssuer>,
+    contexts: DynContextDirectory,
     server_name: McpServerId,
 }
 
@@ -175,6 +178,7 @@ impl DocumentsMcpTools {
             uploads: config.uploads,
             users: config.users,
             links: config.links,
+            contexts: config.contexts,
             server_name: config.server_name,
         }
     }
@@ -199,6 +203,7 @@ impl DocumentsMcpTools {
             uploads: Some(Arc::clone(host.documents().uploads())),
             users: Arc::clone(host.user_repository()),
             links,
+            contexts: Arc::clone(host.documents().contexts()),
             server_name,
         }))
     }
@@ -227,6 +232,11 @@ impl DocumentsMcpTools {
     #[must_use]
     pub fn link_issuer(&self) -> &dyn LinkIssuer {
         self.links.as_ref()
+    }
+
+    #[must_use]
+    pub const fn contexts(&self) -> &DynContextDirectory {
+        &self.contexts
     }
 
     #[must_use]

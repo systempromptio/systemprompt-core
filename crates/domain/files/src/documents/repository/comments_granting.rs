@@ -16,7 +16,8 @@
 
 use sqlx::PgConnection;
 use systemprompt_identifiers::{
-    AgentName, DocumentCommentId, DocumentId, DocumentNodeId, DocumentRevisionId, UserId,
+    AgentName, ClientId, ContextId, DocumentCommentId, DocumentId, DocumentNodeId,
+    DocumentRevisionId, UserId,
 };
 
 use super::comments::{CommentRow, DocumentCommentRepository};
@@ -42,8 +43,10 @@ impl DocumentCommentRepository {
             r#"WITH c AS (
                    INSERT INTO document_comments
                        (document_id, node_id, anchor_find, anchor_nth, anchor_start, anchor_end,
-                        author_user_id, body, mentions, parent_id, via_agent)
-                   VALUES ($1::text::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10::text::uuid, $11)
+                        author_user_id, body, mentions, parent_id, via_agent, context_id,
+                        client_id)
+                   VALUES ($1::text::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10::text::uuid, $11,
+                           $15, $16)
                    RETURNING *),
                prev AS (
                    SELECT subject_value, access_level FROM document_grants
@@ -79,7 +82,10 @@ impl DocumentCommentRepository {
                       c.resolved_at, c.resolved_by AS "resolved_by: UserId",
                       c.answering_revision_id::text AS "answering_revision_id: DocumentRevisionId",
                       c.created_at AS "created_at!", c.updated_at AS "updated_at!",
-                      c.edited_at, c.deleted_at
+                      c.edited_at, c.deleted_at,
+                      c.via_agent AS "via_agent: AgentName",
+                      c.context_id AS "context_id: ContextId",
+                      c.client_id AS "client_id: ClientId"
                FROM c"#,
             request.document_id.as_str(),
             request.anchor.node.as_str(),
@@ -95,6 +101,8 @@ impl DocumentCommentRepository {
             grants.granted_by.as_str(),
             &grantees,
             grants.trace_id.as_str(),
+            request.context_id.as_ref().map(ContextId::as_str),
+            request.client_id.as_ref().map(ClientId::as_str),
         )
         .fetch_one(&mut *conn)
         .await?;

@@ -90,6 +90,7 @@ pub struct ImportRequest {
     pub mime_type: Option<String>,
     pub bytes: Vec<u8>,
     pub author: Author,
+    pub message: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

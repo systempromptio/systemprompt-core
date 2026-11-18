@@ -1,14 +1,14 @@
 //! `POST /import`: a document from a completed upload.
 //!
-//! The body names the upload's `blob_ref`, the target `folder_id` and the
-//! document `name` (its extension picks the format unless `format` is
-//! given; `.csv` imports as text). A blob of no editable format becomes a
-//! `file` document under the MIME type its upload recorded, listed and
-//! downloadable like any other. Only the user who uploaded a blob may
-//! import it, and an editable format is imported only from an upload that
-//! passed that format's content check (the zip guard for Office and
-//! `OpenDocument`, the text check for HTML, Markdown and text); anything
-//! else answers `422 unchecked_format`. A blob past the
+//! The body names the upload's `blob_ref`, the target `folder_id`, an
+//! optional `message` for the first revision and the document `name` (its
+//! extension picks the format unless `format` is given; `.csv` imports as
+//! text). A blob of no editable format becomes a `file` document under the MIME
+//! type its upload recorded, listed and downloadable like any other. Only the
+//! user who uploaded a blob may import it, and an editable format is imported
+//! only from an upload that passed that format's content check (the zip guard
+//! for Office and `OpenDocument`, the text check for HTML, Markdown and text);
+//! anything else answers `422 unchecked_format`. A blob past the
 //! document upload limit is refused with `413`, never truncated, and the
 //! format's codec must parse it whole before the document is created.
 //!
@@ -41,6 +41,8 @@ pub(super) struct ImportBody {
     pub(super) name: String,
     #[serde(default)]
     pub(super) format: Option<DocumentFormat>,
+    #[serde(default)]
+    pub(super) message: Option<String>,
 }
 
 pub(super) async fn import(
@@ -85,7 +87,8 @@ pub(super) async fn import_blob(
         format: Some(format),
         mime_type: Some(origin.mime),
         bytes,
-        author: api_author(req_ctx, headers),
+        author: api_author(state, req_ctx, headers).await?,
+        message: body.message,
     };
     Ok(state.service.import(&who.user, request, &who.trace).await?)
 }

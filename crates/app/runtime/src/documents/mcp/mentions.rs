@@ -12,20 +12,31 @@
 use rmcp::ErrorData as McpError;
 use systemprompt_files::documents::agents::DocumentActor;
 use systemprompt_files::documents::service::CommentOrigin;
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{ContextId, UserId};
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_users::{User, UserRepository, normalise_email};
 
+use super::DocumentsMcpTools;
 use super::refusal::refusal;
-use crate::documents::actor::{request_actor, signed_agent_name};
+use super::support::tool_error;
+use crate::documents::actor::request_actor;
+use crate::documents::attribution::comment_origin;
 use crate::documents::refusal::RefusalCode;
 
 const MAX_MENTIONS: usize = 20;
 
-pub(super) fn agent_origin(ctx: &RequestContext) -> CommentOrigin {
-    CommentOrigin {
-        via_agent: Some(signed_agent_name(ctx)),
-    }
+pub(super) async fn agent_origin(
+    tools: &DocumentsMcpTools,
+    ctx: &RequestContext,
+    context_id: Option<&ContextId>,
+) -> Result<CommentOrigin, McpError> {
+    comment_origin(
+        tools.contexts().as_ref(),
+        ctx,
+        context_id.or_else(|| Some(ctx.context_id())),
+    )
+    .await
+    .map_err(tool_error)
 }
 
 pub(super) fn document_actor(ctx: &RequestContext) -> DocumentActor {

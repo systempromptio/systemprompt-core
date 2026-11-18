@@ -65,7 +65,7 @@ use systemprompt_models::auth::TokenAuthority;
 use systemprompt_runtime::AppContext;
 #[cfg(feature = "collab")]
 use systemprompt_traits::BackgroundTasks;
-use systemprompt_traits::{AppContext as _, UserProvider};
+use systemprompt_traits::{AppContext as _, DynContextDirectory, UserProvider};
 use systemprompt_users::UserRepository;
 
 /// Router-scoped state of the document and upload routes: the one document
@@ -78,6 +78,7 @@ pub struct DocumentsState {
     pub(crate) users: Arc<dyn UserProvider>,
     pub(crate) user_repository: Arc<UserRepository>,
     pub(crate) tokens: Arc<dyn TokenAuthority>,
+    pub(crate) contexts: DynContextDirectory,
     #[cfg(feature = "collab")]
     pub(crate) collab: Arc<CollabService>,
     #[cfg(feature = "collab")]
@@ -106,6 +107,7 @@ impl DocumentsState {
                 .ok_or(DocumentsMountError::MissingUserProvider)?,
             user_repository: Arc::clone(ctx.user_repository()),
             tokens: ctx.token_authority(),
+            contexts: Arc::clone(ctx.documents().contexts()),
             #[cfg(feature = "collab")]
             collab: collab_service(ctx),
             #[cfg(feature = "collab")]
