@@ -4,21 +4,19 @@
 
 ### Breaking
 
+- `DocumentsError` gains `FolderNameTaken` and `AgentRefusal` gains `WholesaleReplace`. Migrate by handling both variants in exhaustive matches (`FolderNameTaken` beside `NameTaken`, `WholesaleReplace` beside `BroadRewrite`).
+- `DocumentServiceParts` gains the `tasks` field (`BackgroundTasks`). Migrate by passing the composition root's `BackgroundTasks`.
+
 ### Added
 
 - A landed revision sends `document.drive.changed` to every user who holds `view` or better on the document, coalesced per document to at most one every `DRIVE_HINT_INTERVAL` (two seconds) on each replica. The audience is capped at 500 users, the owner and the author always among them; a failure resolving it withholds the hint from everyone.
 - `DocumentService::propose_write`: a whole-file write proposed on its base, with comment access.
-
-- `DocumentsError` gains `FolderNameTaken` and `AgentRefusal` gains `WholesaleReplace`. Migrate by handling both variants in exhaustive matches (`FolderNameTaken` beside `NameTaken`, `WholesaleReplace` beside `BroadRewrite`).
 
 ### Fixed
 
 - The HTML codec's `str_replace` and `set_html` refuse (`CodecError::Refused`) a resulting body its sanitiser would alter instead of stripping scripts, styles, classes and pending blocks from the whole body; one codec-wide sanitiser keeps `class`, `data-pending` and link `rel` and still drops `id`, inline `style`, `<style>`, scripts and event handlers. Previews keep ammonia's defaults.
 - An agent's `str_replace` covering more than half the head's bytes in a document of three or more nodes needs `broad_rewrite`.
 - Creating, renaming or moving a folder onto a sibling's name is `FolderNameTaken`, not a repository error.
-
-- `DocumentServiceParts` gains the `tasks` field (`BackgroundTasks`). Migrate by passing the composition root's `BackgroundTasks`.
-- `DocumentsError` gains `FolderNameTaken`. Migrate by handling it beside `NameTaken` in exhaustive matches.
 
 ## [0.82.0] - 2026-11-16
 
