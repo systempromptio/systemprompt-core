@@ -13,7 +13,7 @@
 
 ### Fixed
 
-- The HTML codec's `str_replace` and `set_html` refuse (`CodecError::Refused`) a resulting body its sanitiser would alter instead of stripping scripts, styles, classes and pending blocks from the whole body; one codec-wide sanitiser keeps `data-pending` and link `rel`.
+- The HTML codec's `str_replace` and `set_html` refuse (`CodecError::Refused`) a resulting body its sanitiser would alter instead of stripping scripts, styles, classes and pending blocks from the whole body; one codec-wide sanitiser keeps `class`, `data-pending` and link `rel` and still drops `id`, inline `style`, `<style>`, scripts and event handlers. Previews keep ammonia's defaults.
 - An agent's `str_replace` covering more than half the head's bytes in a document of three or more nodes needs `broad_rewrite`.
 - Creating, renaming or moving a folder onto a sibling's name is `FolderNameTaken`, not a repository error.
 

@@ -24,7 +24,8 @@ restore {revision_id} alone makes an old revision the head (base_revision must b
 Whole file: documents_edit {document_id, content_blob_ref, base_revision, mode?} with no ops \
 replaces the content with a blob you uploaded with documents_upload, byte for byte, as one \
 revision (or a proposal) on the revision you read. In html, str_replace and set_html refuse a body holding scripts, \
-styles, classes or other markup they would strip; rewrite such a page whole this way.
+styles, ids, inline styles or other markup they would strip (classes are kept); rewrite \
+such a page whole this way.
 Rich ops (html, markdown, docx, odt; a batch of only these): set_marks {node, expected_hash, \
 find?, nth?, add: [{mark: bold|italic|underline|strike|code|link|color|highlight, value?}], \
 remove: [mark]}; set_block_type {node, expected_hash, block: {type: paragraph} | {type: \

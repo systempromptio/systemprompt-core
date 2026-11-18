@@ -115,11 +115,41 @@ fn str_replace_on_a_scripted_page_is_refused_and_keeps_the_scripts_out_of_reach(
 }
 
 #[test]
-fn str_replace_on_a_page_with_classes_is_refused_rather_than_stripping_them() {
+fn str_replace_on_a_sample_page_with_an_id_is_refused_rather_than_stripping_it() {
     stripped(applied(
         SAMPLE_HTML,
         &[str_replace("Second para", "Swapped")],
     ));
+}
+
+#[test]
+fn str_replace_on_a_classed_page_lands_and_keeps_its_classes() {
+    let page = b"<!DOCTYPE html><html><head><style>.lead{color:red}</style></head>\
+<body class=\"page\"><h1 class=\"title main\">Heading</h1><p class=\"lead\">First para</p>\
+<ul class=\"items\"><li class=\"item\">one</li></ul><p>Second para</p></body></html>";
+    let out = applied(page, &[str_replace("Second para", "Swapped")]).expect("classes are kept");
+    assert!(
+        out.contains(r#"<h1 class="title main">Heading</h1>"#),
+        "{out}"
+    );
+    assert!(out.contains(r#"<p class="lead">First para</p>"#), "{out}");
+    assert!(out.contains(r#"<li class="item">one</li>"#), "{out}");
+    assert!(out.contains("<p>Swapped</p>"), "{out}");
+}
+
+#[test]
+fn str_replace_on_a_page_with_an_id_or_inline_style_is_refused() {
+    for body in [
+        r#"<h1 id="top">Heading</h1><p>Second para</p>"#,
+        r#"<h1 style="color:red">Heading</h1><p>Second para</p>"#,
+        "<style>p{color:red}</style><h1>Heading</h1><p>Second para</p>",
+    ] {
+        let page = format!("<!DOCTYPE html><html><head></head><body>{body}</body></html>");
+        stripped(applied(
+            page.as_bytes(),
+            &[str_replace("Second para", "Swapped")],
+        ));
+    }
 }
 
 #[test]

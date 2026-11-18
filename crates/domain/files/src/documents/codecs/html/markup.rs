@@ -2,9 +2,11 @@
 //! rendered and sanitised, and each pending-intent line written as a
 //! placeholder paragraph the agent fills later.
 //!
-//! One sanitiser serves the whole codec. It keeps what the codec itself
-//! writes (the pending-block attribute, a link's `rel`) and adds nothing, so
-//! markup the codec wrote passes it unchanged. A body edit whose result the
+//! One sanitiser serves the codec's writes. It keeps what the codec itself
+//! writes (the pending-block attribute, a link's `rel`) and an element's
+//! `class`, which carries no execution, and adds nothing, so markup the codec
+//! wrote passes it unchanged. `id`, `style`, `<style>`, scripts and event
+//! handlers are dropped. A body edit whose result the
 //! sanitiser would alter is refused rather than silently stripped.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -20,7 +22,7 @@ use super::super::text::escape_html;
 use super::tree::PENDING_ATTR;
 
 const STRIPPED: &str = "the edited body holds markup an edit op would strip (a script, style, \
-                        class, event handler, comment or other attribute the sanitiser drops); \
+                        id, event handler, comment or other attribute the sanitiser drops); \
                         edit ops never write it. Replace the whole file instead: upload the page \
                         with documents_upload and call documents_edit {document_id, \
                         content_blob_ref}";
@@ -29,7 +31,7 @@ static SANITISER: LazyLock<ammonia::Builder<'static>> = LazyLock::new(|| {
     let mut builder = ammonia::Builder::default();
     builder
         .link_rel(None)
-        .add_generic_attributes(&[PENDING_ATTR])
+        .add_generic_attributes(&[PENDING_ATTR, "class"])
         .add_tag_attributes("a", &["rel"]);
     builder
 });

@@ -22,6 +22,8 @@
 
 - **Documents:** `documentation/documents.md` no longer says that `document.revision.created` reaches the owner's and present users' AG-UI streams; since 0.77 it is published on the document's live channel only.
 - **Documents:** `str_replace` and `set_html` on an HTML document no longer run the sanitiser over the whole body, silently removing every script, style, class, event handler and pending block; an edit whose resulting body the sanitiser would alter is refused as `unsupported_op`, naming `content_blob_ref`. The sanitiser now keeps the `data-pending` placeholders and link `rel` attributes the codec itself writes.
+- **Documents:** `str_replace` and `set_html` on an HTML document no longer run the sanitiser over the whole body, silently removing every script, style, class, event handler and pending block; an edit whose resulting body the sanitiser would alter is refused as `unsupported_op`, naming `content_blob_ref`. The sanitiser now keeps `class` attributes and the `data-pending` placeholders and link `rel` attributes the codec itself writes, so a classed page stays editable by ops; `id`, inline `style`, `<style>`, scripts and event handlers are still refused.
+
 - **Documents:** an agent's `str_replace` whose `old_str` covers more than half of a document of three or more nodes is a broad rewrite and needs the agent access policy's `broad_rewrite`, like rewriting more than half the blocks with node ops.
 
 - **Documents:** creating, renaming or moving a folder to a name a sibling folder already has is refused as `name_taken` (409 over REST), not a generic store failure.
