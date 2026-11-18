@@ -21,6 +21,10 @@ str_replace {old_str, new_str} (old_str must occur once); set_cells {sheet, rang
 insert_slide {after, layout, title, body}; set_text {text}; set_html {html}; append_markdown \
 {markdown}; insert_from_revision {revision_id, node, after} copies a block back from history; \
 restore {revision_id} alone makes an old revision the head (base_revision must be the head).
+Whole file: documents_edit {document_id, content_blob_ref, base_revision, mode?} with no ops \
+replaces the content with a blob you uploaded with documents_upload, byte for byte, as one \
+revision (or a proposal) on the revision you read. In html, str_replace and set_html refuse a body holding scripts, \
+styles, classes or other markup they would strip; rewrite such a page whole this way.
 Rich ops (html, markdown, docx, odt; a batch of only these): set_marks {node, expected_hash, \
 find?, nth?, add: [{mark: bold|italic|underline|strike|code|link|color|highlight, value?}], \
 remove: [mark]}; set_block_type {node, expected_hash, block: {type: paragraph} | {type: \
@@ -156,8 +160,9 @@ deployment's agent policy and an owner's override on the document or a folder ab
 which can only tighten it; documents_access shows your agent_cap and why. Whatever the cap, \
 agents do not share or change grants, give access by mentioning someone (mention only people \
 who can already see the document), trash, untrash or delete, move or transfer, restore an \
-old revision, replace the whole content (a whole file, set_text or set_html, or ops rewriting \
-more than half the nodes: edit what you mean to change), accept and reject proposals, or copy \
+old revision, replace the whole content (a whole file, set_text or set_html, a str_replace over \
+more than half the document, or ops rewriting more than half the nodes: edit what you mean to \
+change), accept and reject proposals, or copy \
 a document capped below edit (a copy keeps its source's cap), unless the policy allows it: \
 ask your user. Agent \
 edits are limited per user per hour (agent_rate_limited).";

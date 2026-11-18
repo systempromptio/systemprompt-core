@@ -40,6 +40,7 @@ async fn stale_anchor_names_node_hashes_and_current_text() {
         .handle(
             EditInput {
                 document_id: document,
+                content_blob_ref: None,
                 base_revision: Some(revision),
                 mode: None,
                 op_id: None,
@@ -80,6 +81,7 @@ async fn edit_acknowledges_the_written_lines_and_records_the_message() {
         .handle(
             EditInput {
                 document_id: document.clone(),
+                content_blob_ref: None,
                 base_revision: Some(revision.clone()),
                 mode: None,
                 op_id: None,
@@ -136,6 +138,7 @@ async fn str_replace_reports_the_match_count() {
     let (document, revision) = create_text(&h.tools, &ctx, "alpha\nbeta\nalpha").await;
     let replace = |old: &str| EditInput {
         document_id: document.clone(),
+        content_blob_ref: None,
         base_revision: Some(revision.clone()),
         mode: None,
         op_id: None,
@@ -186,6 +189,7 @@ async fn stale_base_names_the_head_revision() {
     let (document, base) = create_text(&h.tools, &ctx, "alpha\nbeta").await;
     let set = |text: &str| EditInput {
         document_id: document.clone(),
+        content_blob_ref: None,
         base_revision: Some(base.clone()),
         mode: None,
         op_id: None,

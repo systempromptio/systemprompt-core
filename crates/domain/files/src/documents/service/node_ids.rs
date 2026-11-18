@@ -72,7 +72,7 @@ impl DocumentService {
         self.projected_from(document, revision, bytes).await
     }
 
-    async fn projected_from(
+    pub(super) async fn projected_from(
         &self,
         document: &Document,
         revision: &DocumentRevision,

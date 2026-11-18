@@ -16,17 +16,28 @@
 //! says it was converted. An edit on a document with an open live session
 //! is written into that session instead of onto the head (see `live_edit`).
 //!
+//! In place of `ops`, `content_blob_ref` names a blob the caller uploaded
+//! with `documents_upload` as the document's whole new content, written on
+//! the `base_revision` the caller read (required with it): the bytes
+//! pass the document format's checks and land byte for byte as one revision
+//! (or one proposal), so an HTML page keeps its scripts. A landed whole-file
+//! write by an agent needs the access policy's `replace_content`.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use rmcp::ErrorData as McpError;
 use systemprompt_files::documents::DocumentsError;
-use systemprompt_files::documents::model::{ModelViewV2, RICH_TEXT_VERSION, RichText, markdown};
+use systemprompt_files::documents::model::{
+    Media, ModelViewV2, RICH_TEXT_VERSION, RichText, markdown,
+};
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{
-    CommentPolicy, CommitOutcome, CommitRequest, CreateRequest, EditModeRequest,
+    CommentPolicy, CommitOutcome, CommitRequest, CreateRequest, EditModeRequest, ExternalWrite,
 };
-use systemprompt_identifiers::{DocumentId, DocumentOpId, DocumentRevisionId, McpExecutionId};
+use systemprompt_identifiers::{
+    ContentHash, DocumentId, DocumentOpId, DocumentRevisionId, McpExecutionId,
+};
 use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{EditMode, EditOp};
@@ -35,11 +46,12 @@ use systemprompt_provider_contracts::documents::{CodecError, TemplateParams};
 
 use super::DocumentsMcpTools;
 use super::agent_presence::announce_agent;
+use super::import::owned_blob;
 use super::inputs::{CreateInput, EditInput};
 use super::live_edit::edit_live;
 use super::media::{image_refs, resolve_media};
 use super::outputs::CreateOutput;
-use super::proposals::propose_ops;
+use super::proposals::{proposal_ack, propose_ops};
 use super::refusal::refusal;
 use super::support::{agent_author, caller, stale_base, tool_error};
 use crate::documents::refusal::RefusalCode;
@@ -147,6 +159,13 @@ async fn commit_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError
         .commit(call.who, request, call.ctx.trace_id())
         .await
         .map_err(tool_error)?;
+    landed_ack(&call, outcome).await
+}
+
+async fn landed_ack(
+    call: &EditCall<'_>,
+    outcome: CommitOutcome,
+) -> Result<(EditOutput, String), McpError> {
     let landed = match outcome {
         CommitOutcome::Committed(landed) | CommitOutcome::Merged(landed) => *landed,
         CommitOutcome::Conflict { head, base } => {
@@ -155,7 +174,7 @@ async fn commit_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError
     };
     let output = edit_ack(&call.document, landed, call.verbose);
     if !output.replayed {
-        announce_agent(&call, &output).await;
+        announce_agent(call, &output).await;
     }
     let summary = if output.replayed {
         format!(
@@ -166,6 +185,73 @@ async fn commit_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError
         format!("wrote {}", output.written.len())
     };
     Ok((output, summary))
+}
+
+async fn replace_body(
+    call: EditCall<'_>,
+    blob: &ContentHash,
+) -> Result<(EditOutput, String), McpError> {
+    let service = call.tools.service();
+    let trace = call.ctx.trace_id();
+    let mode = service
+        .edit_mode(
+            call.who,
+            EditModeRequest {
+                document: &call.document,
+                requested: call.mode,
+            },
+            trace,
+        )
+        .await
+        .map_err(tool_error)?;
+    let format = service
+        .get(call.who, &call.document, trace)
+        .await
+        .map_err(tool_error)?
+        .document
+        .format;
+    let (bytes, _) = owned_blob(
+        call.tools,
+        call.ctx.user_id(),
+        blob,
+        format,
+        service.config().max_upload_bytes,
+    )
+    .await?;
+    let request = CommitRequest {
+        document_id: call.document.clone(),
+        base_revision: call.base.clone(),
+        body: CommitBody::Bytes(bytes),
+        author: agent_author(call.ctx, call.exec_id),
+        message: call.message.clone(),
+        lock_holder: None,
+        comments: call.comments.clone(),
+        op_id: call.op_id.clone(),
+        media: Media::new(),
+    };
+    let written = if mode == EditMode::Propose {
+        ExternalWrite::Proposed(Box::new(
+            service
+                .propose_write(call.who, request, trace)
+                .await
+                .map_err(tool_error)?,
+        ))
+    } else {
+        service
+            .write_external(call.who, request, trace)
+            .await
+            .map_err(tool_error)?
+    };
+    match written {
+        ExternalWrite::Landed(outcome) => landed_ack(&call, outcome).await,
+        ExternalWrite::Proposed(proposed) => {
+            let (output, summary) = proposal_ack(&call, *proposed, 1).await?;
+            if call.mode == Some(EditMode::Propose) {
+                return Ok((output, summary));
+            }
+            Ok((output, format!("{summary}. {CONVERTED}")))
+        },
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -258,7 +344,8 @@ impl McpToolHandler for EditHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Apply ops, or propose them. Guide: editing."
+        "Apply ops or replace the whole file from a content_blob_ref, or propose either. \
+         Guide: editing."
     }
 
     async fn handle(
@@ -268,7 +355,29 @@ impl McpToolHandler for EditHandler<'_> {
         exec_id: &McpExecutionId,
     ) -> Result<(EditOutput, String), McpError> {
         let who = caller(ctx)?;
-        commit_ops(EditCall {
+        let blob = match (input.ops.is_empty(), input.content_blob_ref) {
+            (true, None) => {
+                return Err(refusal(
+                    RefusalCode::InvalidParams,
+                    "documents_edit needs ops, or content_blob_ref to replace the whole file",
+                ));
+            },
+            (false, Some(_)) => {
+                return Err(refusal(
+                    RefusalCode::InvalidParams,
+                    "ops and content_blob_ref are exclusive: send ops to edit blocks, or \
+                     content_blob_ref alone to replace the whole file",
+                ));
+            },
+            (true, Some(_)) if input.base_revision.is_none() => {
+                return Err(refusal(
+                    RefusalCode::InvalidParams,
+                    "content_blob_ref replaces the revision you read: pass it as base_revision",
+                ));
+            },
+            (_, blob) => blob,
+        };
+        let call = EditCall {
             tools: self.tools,
             who,
             ctx,
@@ -284,7 +393,10 @@ impl McpToolHandler for EditHandler<'_> {
                 answering: input.answering,
             },
             verbose: input.verbose,
-        })
-        .await
+        };
+        match blob {
+            Some(blob) => replace_body(call, &blob).await,
+            None => commit_ops(call).await,
+        }
     }
 }

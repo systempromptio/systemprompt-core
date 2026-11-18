@@ -72,6 +72,7 @@ async fn comment_tool_creates_lists_and_resolves_and_edits_refuse_anchors_affect
 
     let edit = |allow_detach: bool| EditInput {
         document_id: document.clone(),
+        content_blob_ref: None,
         base_revision: None,
         mode: None,
         op_id: None,

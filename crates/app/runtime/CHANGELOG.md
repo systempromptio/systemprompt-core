@@ -4,11 +4,12 @@
 
 ### Added
 
+- `EditInput::content_blob_ref`: `documents_edit` replaces the whole file from an uploaded blob in place of `ops` (exclusive with it; neither or both is `invalid_params`).
 - `documents::mcp::{FolderHandler, FolderInput, FolderAction, ImportHandler, ImportInput}`: the `documents_folder` and `documents_import` tools; `TOOL_NAMES` lists them (21 tools, 20 without `notifications`).
 
 ### Fixed
 
-- `DocumentsError::FolderNameTaken` maps to the `name_taken` refusal.
+- `DocumentsError::FolderNameTaken` and `AgentRefusal::WholesaleReplace` map to the `name_taken` and `agent_forbidden` refusals.
 - A documents MCP call naming a blob that did not pass its format's content check is refused as `invalid_params`, not `integrity_mismatch`.
 
 ## [0.82.0] - 2026-11-16

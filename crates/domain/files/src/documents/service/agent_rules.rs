@@ -1,7 +1,8 @@
 //! The write rules an agent caller meets on top of its cap: no restore of
 //! an earlier revision and no whole-content replacement (a whole-file body,
-//! `set_text` or `set_html`, or ops rewriting or deleting more than half the
-//! head's nodes) unless the agent
+//! `set_text` or `set_html`, ops rewriting or deleting more than half the
+//! head's nodes, or a `str_replace` whose `old_str` covers more than half
+//! the head's bytes in a document of three or more nodes) unless the agent
 //! access policy allows it, and a ceiling on agent edits per hour per user
 //! and agent
 //! (`files.documents.limits.agentEditsPerHour`). A person passes untouched.
@@ -57,7 +58,47 @@ impl DocumentService {
         let CommitBody::Ops(ops) = body else {
             return Ok(());
         };
+        self.wholesale_replace_rule(who, document, ops).await?;
         self.broad_rewrite_rule(who, document, ops).await
+    }
+
+    async fn wholesale_replace_rule(
+        &self,
+        who: &AuthenticatedUser,
+        document: &Document,
+        ops: &[EditOp],
+    ) -> Result<(), DocumentsError> {
+        let widest = ops
+            .iter()
+            .filter_map(|op| match op {
+                EditOp::StrReplace { old_str, .. } => Some(old_str.len()),
+                _ => None,
+            })
+            .max();
+        let (Some(replaced), Some(agent)) = (widest, self.access.actor().as_agent().cloned())
+        else {
+            return Ok(());
+        };
+        let head = self.resolve_revision(document, None).await?;
+        let bytes = self.revision_bytes(&head).await?;
+        let (projected, bytes) = self.projected_from(document, &head, bytes).await?;
+        let size = bytes.len();
+        if projected.ids.nodes().count() < MIN_BROAD_REWRITE || replaced.saturating_mul(2) <= size {
+            return Ok(());
+        }
+        let allowed = self
+            .access
+            .require_agent_capability(who, document, AgentCapability::BroadRewrite)
+            .await;
+        if let Err(DocumentsError::Agent(AgentRefusal::HardRule { .. })) = allowed {
+            return Err(AgentRefusal::WholesaleReplace {
+                agent: agent.name,
+                replaced,
+                size,
+            }
+            .into());
+        }
+        allowed
     }
 
     async fn broad_rewrite_rule(

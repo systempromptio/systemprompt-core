@@ -83,8 +83,10 @@ pub struct EditInput {
     pub document_id: DocumentId,
     #[serde(default)]
     pub base_revision: Option<DocumentRevisionId>,
-    #[serde(deserialize_with = "super::op_inputs::ops")]
+    #[serde(default, deserialize_with = "super::op_inputs::ops")]
     pub ops: Vec<EditOp>,
+    #[serde(default)]
+    pub content_blob_ref: Option<ContentHash>,
     #[serde(default)]
     pub mode: Option<EditMode>,
     #[serde(default)]

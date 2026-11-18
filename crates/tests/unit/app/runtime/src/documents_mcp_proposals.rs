@@ -34,6 +34,7 @@ async fn edit(
         .handle(
             EditInput {
                 document_id: document.clone(),
+                content_blob_ref: None,
                 base_revision: None,
                 mode,
                 op_id: None,

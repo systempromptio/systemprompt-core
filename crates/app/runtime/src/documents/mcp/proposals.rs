@@ -13,7 +13,7 @@
 
 use rmcp::ErrorData as McpError;
 use systemprompt_files::documents::models::DocumentProposal;
-use systemprompt_files::documents::service::{ProposeRequest, ReviewRequest};
+use systemprompt_files::documents::service::{ProposeRequest, Proposed, ReviewRequest};
 use systemprompt_identifiers::McpExecutionId;
 use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::documents::{DocumentUri, ProposalStatus};
@@ -46,6 +46,14 @@ pub(super) async fn propose_ops(call: EditCall<'_>) -> Result<(EditOutput, Strin
         )
         .await
         .map_err(tool_error)?;
+    proposal_ack(&call, proposed, applied).await
+}
+
+pub(super) async fn proposal_ack(
+    call: &EditCall<'_>,
+    proposed: Proposed,
+    applied: usize,
+) -> Result<(EditOutput, String), McpError> {
     let revision = proposed.revision;
     let view = call
         .tools

@@ -2,12 +2,56 @@
 //! rendered and sanitised, and each pending-intent line written as a
 //! placeholder paragraph the agent fills later.
 //!
+//! One sanitiser serves the whole codec. It keeps what the codec itself
+//! writes (the pending-block attribute, a link's `rel`) and adds nothing, so
+//! markup the codec wrote passes it unchanged. A body edit whose result the
+//! sanitiser would alter is refused rather than silently stripped.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+
+use std::sync::LazyLock;
+
+use scraper::Html;
+use systemprompt_provider_contracts::documents::CodecError;
 
 use super::super::pending::intent_of_line;
 use super::super::text::escape_html;
 use super::tree::PENDING_ATTR;
+
+const STRIPPED: &str = "the edited body holds markup an edit op would strip (a script, style, \
+                        class, event handler, comment or other attribute the sanitiser drops); \
+                        edit ops never write it. Replace the whole file instead: upload the page \
+                        with documents_upload and call documents_edit {document_id, \
+                        content_blob_ref}";
+
+static SANITISER: LazyLock<ammonia::Builder<'static>> = LazyLock::new(|| {
+    let mut builder = ammonia::Builder::default();
+    builder
+        .link_rel(None)
+        .add_generic_attributes(&[PENDING_ATTR])
+        .add_tag_attributes("a", &["rel"]);
+    builder
+});
+
+fn sanitise(markup: &str) -> String {
+    SANITISER.clean(markup).to_string()
+}
+
+fn normalised(markup: &str) -> String {
+    Html::parse_fragment(markup).root_element().inner_html()
+}
+
+pub(super) fn unaltered_body(markup: &str) -> Result<String, CodecError> {
+    let cleaned = sanitise(markup);
+    if normalised(&cleaned) == normalised(markup) {
+        Ok(cleaned)
+    } else {
+        Err(CodecError::Refused {
+            detail: STRIPPED.to_owned(),
+        })
+    }
+}
 
 pub(super) fn markdown_chunk(markdown: &str) -> String {
     let mut rendered = String::new();
@@ -18,7 +62,7 @@ pub(super) fn markdown_chunk(markdown: &str) -> String {
             pulldown_cmark::Options::ENABLE_TABLES | pulldown_cmark::Options::ENABLE_STRIKETHROUGH,
         ),
     );
-    ammonia::clean(&rendered)
+    sanitise(&rendered)
 }
 
 pub(super) fn pending_markup(intent: &str) -> String {
