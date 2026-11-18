@@ -120,6 +120,8 @@ The fifteen document event names are `document.revision.created`, `document.pres
 
 Document tools are exposed through MCP and authorise as the calling user, never as the server. There are sixteen tools. Read-only tools are annotated as such.
 
+A tool call is an agent acting for the user, attended when its token says a person is at the host. The bridge mints such a token for a desktop host the user enrolled in the browser: through the session exchange, or by exchanging at `/v1/auth/bridge/pat` the device key that `/v1/auth/bridge/session-pat` issues. A user-created PAT, and any token carrying a purpose, is unattended. Attended means a person is at the host, not that they approved each call.
+
 | Tool | Purpose |
 |---|---|
 | `documents_list` | Documents by scope: one folder with its subfolders, documents shared with the caller, the caller's own, or the ones the caller last edited, commented on or opened. Filtered by name, sorted by name, last update or last touch, paged by cursor. Each item carries its size and the caller's access level. |

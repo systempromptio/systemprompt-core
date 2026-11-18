@@ -7,9 +7,12 @@
 //! claims, never from request metadata: the name is the token's `purpose`
 //! (an agent run's `farm:<run>`), else its `client_id`, else `agent`;
 //! `attended` is `true` only for a token whose `interaction` claim is
-//! `interactive`, which only the exchange-code bridge host flow mints, and
-//! never for one carrying a `purpose` (a service account's, a broker's or
-//! an agent run's), whatever else it claims.
+//! `interactive`, which the bridge mints for a desktop host a person
+//! enrolled in the browser (the exchange-code session flow, and the
+//! `/v1/auth/bridge/pat` exchange of the device key `session-pat` issues),
+//! and never for one carrying a `purpose` (a service account's, a broker's
+//! or an agent run's), whatever else it claims. A user-created PAT is
+//! unattended.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
