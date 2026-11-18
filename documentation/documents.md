@@ -326,6 +326,8 @@ files:
 
 Two further switches follow from it. An installation's MCP server declaration (`services/mcp/<name>.yaml` `enabled:`) decides whether the document tools are served to agents. The bridge `[drive] enabled` setting decides whether a device syncs its Drive folder. A bridge that meets a server with the store off shows Drive as disabled, with no error, and checks again on its normal cadence.
 
+The root discovery document (`GET /api/v1`) always carries `endpoints.documents`, so a client need not probe for a `404`. With the store off it is `{"enabled": false}`. With it on it also names the `href`, `folders` and `uploads` route URLs and the `limits` a client sizes its uploads by: `maxUploadBytes`, `inlineMaxBytes` (`uploads.inlineMaxBytes`) and `uploadPartBytes` (`uploads.partSizeBytes`).
+
 ### Keys
 
 The store reads the `files.documents` section of `<services>/config/files.yaml`.

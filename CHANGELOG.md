@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- **Documents:** the root discovery document (`GET /api/v1`) carries `endpoints.documents`: `{"enabled": false}` while `files.documents.enabled` is off, and otherwise the `href`, `folders` and `uploads` route URLs with `limits` (`maxUploadBytes`, `inlineMaxBytes`, `uploadPartBytes`).
+
 ## [0.83.0] - 2026-11-17
 
 ### Breaking

@@ -15,6 +15,7 @@ use systemprompt_models::api::SingleResponse;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_runtime::AppContext;
 
+use super::discovery_documents::DocumentsDiscovery;
 use super::health::handle_health;
 use super::health_detail::handle_health_detail;
 use super::probes::{handle_livez, handle_readyz, readiness_layer};
@@ -23,6 +24,7 @@ pub async fn handle_root_discovery(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
 ) -> impl axum::response::IntoResponse {
     let base = &ctx.config().api_external_url;
+    let documents = DocumentsDiscovery::new(ctx.files_config().documents_config(), base);
     let data = json!({
         "name": format!("{} API", ctx.config().sitename),
         "version": env!("CARGO_PKG_VERSION"),
@@ -73,7 +75,8 @@ pub async fn handle_root_discovery(
                 "endpoints": {
                     "contexts": format!("{}{}", base, ApiPaths::STREAM_CONTEXTS)
                 }
-            }
+            },
+            "documents": documents
         },
         "wellknown": {
             "oauth": format!("{}{}", base, ApiPaths::WELLKNOWN_OAUTH_SERVER),

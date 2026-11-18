@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- The root discovery document carries `endpoints.documents`: `{"enabled": false}` while the document store is off, and otherwise its route URLs and upload `limits` (`maxUploadBytes`, `inlineMaxBytes`, `uploadPartBytes`).
+
 ## [0.82.0] - 2026-11-16
 
 ### Breaking
