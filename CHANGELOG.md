@@ -4,9 +4,6 @@
 
 ### Breaking
 
-- **Breaking:** **Files:** `DocumentServiceParts` gains the `tasks` field (`BackgroundTasks`). Migrate by passing the composition root's `BackgroundTasks`.
-- **Breaking:** **Events:** `OutboxChannel` gains `AgUiMany`, and `DocumentEventName` gains `DriveChanged` (`DocumentEventName::ALL` now holds 20 names). Migrate an exhaustive match by adding the arms.
-
 ### Added
 
 - **Documents:** the root discovery document (`GET /api/v1`) carries `endpoints.documents`: `{"enabled": false}` while `files.documents.enabled` is off, and otherwise the `href`, `folders` and `uploads` route URLs with `limits` (`maxUploadBytes`, `inlineMaxBytes`, `uploadPartBytes`).
@@ -15,20 +12,22 @@
 - **Events:** `EventRouter::route_agui_many(actor, recipients, event)` delivers one AG-UI event to many users through a single `event_outbox` row (channel `agui_many`), which each replica's bridge fans out locally.
 - **Bridge:** Drive sync wakes on `document.drive.changed` instead of waiting for its 20-second poll; the never-firing `document.revision.created` arm and `DriveSignal::RevisionCreated` are removed.
 - **Documents:** `documents_edit` takes `content_blob_ref` in place of `ops`: a blob the caller uploaded becomes the document's whole new content, byte for byte, as one revision or, in `propose` mode or under a `suggest` cap, one proposal. An agent lands it only where the agent access policy allows `replace_content`, so a scripted HTML page can be rewritten by an agent without losing its scripts.
-
 - **Documents:** the MCP tools `documents_folder` (`action: create` makes a folder under `parent_id`; `action: update` renames and moves one in one transaction, a move needing the agent policy's `administer`) and `documents_import` (a document from a `blob_ref` the caller uploaded with `documents_upload`, stored byte for byte once its codec parses it, so an imported HTML page keeps its scripts and styles). The server instructions and the `uploads` guide topic named an import no tool offered; they now name `documents_import`.
+- **Documents:** `GET /api/v1/documents/people` names the people a caller can mention or share with, from the same directory and with the same fields as the `documents_people` MCP tool (`{people: [{user_id, name, email, access?}]}`): `?query=&limit=&document_id=` searches active people by name, email or id prefix, and `?ids=` looks up at most 20 user ids, leaving out unknown and inactive ones; more ids, an empty query, or both or neither mode are refused as `invalid_params`. `DocumentAccessService::find_people` and the views `people_search_view` and `people_lookup_view` back both surfaces.
 
 ### Fixed
 
 - **Documents:** `documentation/documents.md` no longer says that `document.revision.created` reaches the owner's and present users' AG-UI streams; since 0.77 it is published on the document's live channel only.
 - **Documents:** `str_replace` and `set_html` on an HTML document no longer run the sanitiser over the whole body, silently removing every script, style, class, event handler and pending block; an edit whose resulting body the sanitiser would alter is refused as `unsupported_op`, naming `content_blob_ref`. The sanitiser now keeps the `data-pending` placeholders and link `rel` attributes the codec itself writes.
 - **Documents:** `str_replace` and `set_html` on an HTML document no longer run the sanitiser over the whole body, silently removing every script, style, class, event handler and pending block; an edit whose resulting body the sanitiser would alter is refused as `unsupported_op`, naming `content_blob_ref`. The sanitiser now keeps `class` attributes and the `data-pending` placeholders and link `rel` attributes the codec itself writes, so a classed page stays editable by ops; `id`, inline `style`, `<style>`, scripts and event handlers are still refused.
-
 - **Documents:** an agent's `str_replace` whose `old_str` covers more than half of a document of three or more nodes is a broad rewrite and needs the agent access policy's `broad_rewrite`, like rewriting more than half the blocks with node ops.
-
 - **Documents:** creating, renaming or moving a folder to a name a sibling folder already has is refused as `name_taken` (409 over REST), not a generic store failure.
-
 - **Documents:** an MCP call naming a blob that did not pass the content check its format needs is refused as `invalid_params` (the message names `unchecked_format`), not `integrity_mismatch`.
+
+- **Breaking:** **Files:** `DocumentServiceParts` gains the `tasks` field (`BackgroundTasks`). Migrate by passing the composition root's `BackgroundTasks`.
+- **Breaking:** **Events:** `OutboxChannel` gains `AgUiMany`, and `DocumentEventName` gains `DriveChanged` (`DocumentEventName::ALL` now holds 20 names). Migrate an exhaustive match by adding the arms.
+- **Breaking:** **Files:** `SubjectDirectory` gains `find_people(&[UserId])`, the active people among a list of user ids in the order asked. Migrate an implementation by answering the active, non-service users it knows among them.
+- **Breaking:** **Runtime:** `PersonItem` and `PeopleOutput` move from `systemprompt_runtime::documents::mcp` to `systemprompt_runtime::documents::views`. Migrate by importing them from `views`.
 
 ## [0.83.0] - 2026-11-17
 

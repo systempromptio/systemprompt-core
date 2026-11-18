@@ -43,6 +43,7 @@ mod lifecycle;
 mod listing;
 mod live;
 mod media;
+mod people;
 mod proposals;
 mod read;
 mod rendered;
@@ -205,6 +206,7 @@ pub fn router(state: DocumentsState) -> Router {
         .route("/{id}/copy", post(lifecycle::copy))
         .route("/subject-kinds", get(access::subject_kinds))
         .route("/subjects", get(access::subjects))
+        .route("/people", get(people::people))
         .route("/{id}/access-requests", post(requests::create))
         .route("/{id}/access-requests/{rid}/grant", post(requests::grant))
         .route(

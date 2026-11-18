@@ -210,6 +210,25 @@ impl SubjectDirectory for RoleDirectory {
             .collect())
     }
 
+    async fn find_people(
+        &self,
+        users: &[UserId],
+    ) -> Result<Vec<SubjectMatch>, SubjectDirectoryError> {
+        Ok(users
+            .iter()
+            .filter_map(|user| {
+                self.users
+                    .iter()
+                    .find(|(known, _)| known == user)
+                    .map(|(known, display)| SubjectMatch {
+                        value: known.as_str().to_owned(),
+                        display: display.clone(),
+                        detail: None,
+                    })
+            })
+            .collect())
+    }
+
     async fn roles(&self) -> Result<Vec<String>, SubjectDirectoryError> {
         let mut roles: Vec<String> = self.roles.keys().cloned().collect();
         roles.sort();
