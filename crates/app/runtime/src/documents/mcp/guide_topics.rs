@@ -124,8 +124,12 @@ edits and shares refuse trashed. documents_untrash \
 {document_id} brings it back; trashed documents are deleted for good after the retention \
 period. Both need own. documents_copy {document_id, name?, folder_id?} starts a new document \
 you own from the head, with its own history. documents_update {document_id, name?, \
-folder_id?} renames or moves. documents_list {scope: folder | shared | mine | recent, \
-folder_id?, query?, sort: name | updated | recent, limit, cursor}: shared is what others \
+folder_id?} renames or moves. documents_folder {action: create, name, parent_id?} makes a \
+folder (create access on the parent; no parent_id is the root); {action: update, folder_id, \
+name?, parent_id?} renames it and moves it (parent_id null is the root) in one step. Moving \
+a folder is administration, which agents may do only where the deployment's policy allows. \
+documents_list {scope: folder | shared | mine | recent, folder_id?, query?, sort: name | \
+updated | recent, limit, cursor} also lists a folder's subfolders: shared is what others \
 shared with you, recent is what you last edited, commented on or opened; each item carries \
 size_bytes and my_access.";
 
@@ -268,8 +272,10 @@ const fn access_refusal_text(code: RefusalCode) -> &'static str {
 pub(super) const UPLOADS: &str = "\
 documents_upload: send content_base64 (up to 5 MiB) and get a blob_ref back; for a larger file \
 declare size and sha256 and get signed part URLs and a token, then complete it for the \
-blob_ref; upload_id re-issues the token. Import a blob_ref as a document, or place it as an \
-image in a docx (guide topic model). A blob_ref is yours: another user's never resolves.";
+blob_ref; upload_id re-issues the token. documents_import a blob_ref as a document (name's \
+extension picks the format unless format is given; the bytes are kept as uploaded, so an \
+HTML page keeps its scripts), or place it as an image (guide topic model). A blob_ref is \
+yours: another user's never resolves.";
 
 const fn agent_refusal_text(code: RefusalCode) -> &'static str {
     match code {

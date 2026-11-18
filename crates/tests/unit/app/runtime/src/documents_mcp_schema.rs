@@ -28,6 +28,15 @@ async fn tool_list_matches_the_plan_in_order() {
 }
 
 #[tokio::test]
+async fn the_tool_list_stays_under_its_documented_budget() {
+    let h = harness().await;
+    let bytes = serde_json::to_vec(&h.tools.list_tools())
+        .expect("tool list")
+        .len();
+    assert!(bytes < 8192, "{bytes} bytes");
+}
+
+#[tokio::test]
 async fn every_input_schema_is_an_object() {
     let h = harness().await;
     for tool in h.tools.list_tools() {

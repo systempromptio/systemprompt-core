@@ -18,7 +18,7 @@
 use base64::Engine;
 use rmcp::ErrorData as McpError;
 use systemprompt_files::uploads::{
-    NewUpload, UploadError, UploadService, UploadSession, UploadStatus,
+    NewUpload, RefusalReason, UploadError, UploadService, UploadSession, UploadStatus,
 };
 use systemprompt_identifiers::{ContentHash, DocumentUploadId, JwtToken, McpExecutionId};
 use systemprompt_mcp::McpToolHandler;
@@ -42,6 +42,10 @@ pub(super) fn upload_error(error: &UploadError) -> McpError {
         | UploadError::QuotaExceeded { .. }
         | UploadError::PartBudgetExhausted { .. } => RefusalCode::TooLarge,
         UploadError::NotFound | UploadError::BlobNotOwned(_) => RefusalCode::NotFound,
+        UploadError::Refused {
+            reason: RefusalReason::UncheckedFormat,
+            ..
+        } => RefusalCode::InvalidParams,
         UploadError::Refused { .. } => RefusalCode::IntegrityMismatch,
         UploadError::Storage(_)
         | UploadError::Repository(_)
@@ -56,7 +60,7 @@ pub(super) fn upload_error(error: &UploadError) -> McpError {
     refusal(code, error.to_string())
 }
 
-fn uploads(tools: &DocumentsMcpTools) -> Result<&UploadService, McpError> {
+pub(super) fn uploads(tools: &DocumentsMcpTools) -> Result<&UploadService, McpError> {
     tools.uploads().ok_or_else(|| {
         refusal(
             RefusalCode::InvalidParams,

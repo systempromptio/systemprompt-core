@@ -5,7 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 #[cfg(feature = "notifications")]
-pub const TOOL_NAMES: [&str; 19] = [
+pub const TOOL_NAMES: [&str; 21] = [
     "documents_list",
     "documents_search",
     "documents_create",
@@ -18,17 +18,19 @@ pub const TOOL_NAMES: [&str; 19] = [
     "documents_access",
     "documents_copy",
     "documents_update",
+    "documents_folder",
     "documents_trash",
     "documents_untrash",
     "documents_export",
     "documents_upload",
+    "documents_import",
     "documents_guide",
     "documents_people",
     "documents_inbox",
 ];
 
 #[cfg(not(feature = "notifications"))]
-pub const TOOL_NAMES: [&str; 18] = [
+pub const TOOL_NAMES: [&str; 20] = [
     "documents_list",
     "documents_search",
     "documents_create",
@@ -41,10 +43,12 @@ pub const TOOL_NAMES: [&str; 18] = [
     "documents_access",
     "documents_copy",
     "documents_update",
+    "documents_folder",
     "documents_trash",
     "documents_untrash",
     "documents_export",
     "documents_upload",
+    "documents_import",
     "documents_guide",
     "documents_people",
 ];
@@ -63,7 +67,7 @@ never resend your old text.
 5. Do not re-read between your own writes. Details: documents_guide.
 6. An edit may land as a proposal (proposal_id in the ack); a reviewer accepts it with \
 documents_proposals.
-7. To bring a file in, documents_upload it and import the returned blob_ref."
+7. To bring a file in, documents_upload it, then documents_import the returned blob_ref."
     };
 }
 

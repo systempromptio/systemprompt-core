@@ -94,6 +94,10 @@ mod documents_mcp_browse;
 #[cfg(test)]
 mod documents_mcp_comments;
 #[cfg(test)]
+mod documents_mcp_folders;
+#[cfg(test)]
+mod documents_mcp_import;
+#[cfg(test)]
 mod documents_mcp_inbox;
 #[cfg(test)]
 mod documents_mcp_rig;

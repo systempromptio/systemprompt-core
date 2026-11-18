@@ -43,7 +43,7 @@ fn formats(tools: &DocumentsMcpTools) -> String {
          is listed, shared, downloaded (export native as url) and previewed (an image inline), \
          but it has no outline and is never edited: every edit op refuses with unsupported_op. \
          To change one, write a new version of the whole file, or upload a new file with \
-         documents_upload and import it.",
+         documents_upload and documents_import it.",
     );
     out
 }

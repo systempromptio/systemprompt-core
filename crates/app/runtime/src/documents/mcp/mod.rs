@@ -20,9 +20,11 @@ mod catalog;
 mod comment;
 mod comment_edit;
 mod export;
+mod folders;
 mod guide;
 mod guide_model;
 mod guide_topics;
+mod import;
 #[cfg(feature = "notifications")]
 mod inbox;
 mod inputs;
@@ -62,14 +64,16 @@ pub use browse::{HistoryHandler, ListHandler, SearchHandler};
 pub use catalog::{INSTRUCTIONS, TOOL_NAMES};
 pub use comment::CommentHandler;
 pub use export::ExportHandler;
+pub use folders::FolderHandler;
 pub use guide::GuideHandler;
+pub use import::ImportHandler;
 #[cfg(feature = "notifications")]
 pub use inbox::{InboxAction, InboxHandler, InboxInput, InboxOutput};
 pub use inputs::{
     AccessInput, CommentAction, CommentInput, CopyInput, CreateInput, DocumentInput, EditInput,
-    ExportAs, ExportFormat, ExportInput, GuideInput, HistoryInput, ListInput, ListScopeInput,
-    ListSortInput, MentionOptionInput, PeopleInput, ProposalAction, ProposalsInput, QuoteAnchor,
-    SearchInput, ShareInput, UpdateInput,
+    ExportAs, ExportFormat, ExportInput, FolderAction, FolderInput, GuideInput, HistoryInput,
+    ImportInput, ListInput, ListScopeInput, ListSortInput, MentionOptionInput, PeopleInput,
+    ProposalAction, ProposalsInput, QuoteAnchor, SearchInput, ShareInput, UpdateInput,
 };
 pub use lifecycle::{CopyHandler, TrashHandler, UntrashHandler, UpdateHandler};
 pub use outputs::{
@@ -130,7 +134,7 @@ pub struct DocumentsToolCall<'a> {
     pub hop: Option<&'a JwtToken>,
 }
 
-/// The nineteen document tools and the preview resource of one MCP server.
+/// The twenty-one document tools and the preview resource of one MCP server.
 #[derive(Clone)]
 pub struct DocumentsMcpTools {
     service: Arc<DocumentService>,
@@ -255,6 +259,7 @@ impl DocumentsMcpTools {
             "documents_access" => Box::pin(run(call, &AccessHandler { tools: self })).await,
             "documents_copy" => Box::pin(run(call, &CopyHandler { tools: self })).await,
             "documents_update" => Box::pin(run(call, &UpdateHandler { tools: self })).await,
+            "documents_folder" => Box::pin(run(call, &FolderHandler { tools: self })).await,
             "documents_trash" => Box::pin(run(call, &TrashHandler { tools: self })).await,
             "documents_untrash" => Box::pin(run(call, &UntrashHandler { tools: self })).await,
             "documents_export" => {
@@ -277,6 +282,7 @@ impl DocumentsMcpTools {
                 ))
                 .await
             },
+            "documents_import" => Box::pin(run(call, &ImportHandler { tools: self })).await,
             "documents_guide" => Box::pin(run(call, &GuideHandler { tools: self })).await,
             "documents_people" => Box::pin(run(call, &PeopleHandler { tools: self })).await,
             #[cfg(feature = "notifications")]

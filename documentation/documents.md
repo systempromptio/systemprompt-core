@@ -118,7 +118,7 @@ The sixteen document event names are `document.revision.created`, `document.driv
 
 ## MCP tools
 
-Document tools are exposed through MCP and authorise as the calling user, never as the server. There are sixteen tools. Read-only tools are annotated as such.
+Document tools are exposed through MCP and authorise as the calling user, never as the server. There are twenty-one tools (twenty when the installation is built without notifications, which drops `documents_inbox`). Read-only tools are annotated as such.
 
 A tool call is an agent acting for the user, attended when its token says a person is at the host. The bridge mints such a token for a desktop host the user enrolled in the browser: through the session exchange, or by exchanging at `/v1/auth/bridge/pat` the device key that `/v1/auth/bridge/session-pat` issues. A user-created PAT, and any token carrying a purpose, is unattended. Attended means a person is at the host, not that they approved each call.
 
@@ -136,12 +136,17 @@ A tool call is an agent acting for the user, attended when its token says a pers
 | `documents_access` | The owner, the grants on a document with each subject's display name, the grants it inherits from its folders with the folder named, and the caller's level; for holders of `share`, open access requests and, with `history: true`, the grant audit log. |
 | `documents_copy` | A new document owned by the caller from another document's head, with its own history. |
 | `documents_update` | Rename a document or move it to another folder; `folder_id: null` moves it to the root. |
+| `documents_folder` | `action: create` makes a folder under `parent_id` (absent or null for the root) and needs create access on the parent; `action: update` renames a folder (edit access) and moves it (`parent_id`, null for the root) in one transaction. Moving a folder is an administrative action, which an agent may take only where the agent access policy allows it. Subfolders are listed by `documents_list`; deleting a folder and setting its agent edit policy stay on the REST API. |
 | `documents_trash` | Move a document to the trash. |
 | `documents_untrash` | Bring a trashed document back. |
 | `documents_export` | A signed ten-minute download link, or the sanitised HTML preview returned in the result's structured content. |
+| `documents_upload` | Put a file in the store and answer its `blob_ref`: inline as base64 up to the inline limit, or as a resumable upload of signed parts. |
+| `documents_import` | A document from a `blob_ref` the caller uploaded, named by `name` and placed in `folder_id`; the name's extension picks the format unless `format` is given, and any other blob becomes a `file` document. The bytes are stored as uploaded once the format's codec has parsed them, so an HTML page keeps its scripts and styles. Another user's blob is `not_found`, a blob that did not pass the format's content check is `invalid_params`, and one past the document upload limit is `too_large`. |
 | `documents_guide` | Working detail by topic: the eight topics `editing`, `formats`, `sheets`, `slides`, `sharing`, `comments`, `lifecycle` and `proposals`, plus `refusal.<code>` for each of the 23 refusal codes. |
+| `documents_people` | Find people to mention or share with. |
+| `documents_inbox` | The caller's notifications, when the installation is built with notifications. |
 
-The server `instructions` carry the working contract in six points: read the outline first; edit by node id and hash or by quote in one call, with an `op_id` so a retry is safe; anchor the next edit on the acknowledgement and resume later with the changes since your last revision; on `guard_mismatch` or `stale_base` the head edit wins, so re-aim from the returned text and never resend the old text; do not re-read between your own writes; and an edit may land as a proposal, which a reviewer accepts with `documents_proposals`. The whole `tools/list` stays under 6144 bytes on the wire.
+The server `instructions` carry the working contract in seven points: read the outline first; edit by node id and hash or by quote in one call, with an `op_id` so a retry is safe; anchor the next edit on the acknowledgement and resume later with the changes since your last revision; on `guard_mismatch` or `stale_base` the head edit wins, so re-aim from the returned text and never resend the old text; do not re-read between your own writes; an edit may land as a proposal, which a reviewer accepts with `documents_proposals`; and a file is brought in with `documents_upload`, then `documents_import` of the returned `blob_ref`. The whole `tools/list` stays under 8 KiB on the wire.
 
 **Reading.** A line is `<node>:<hash>| <text>`; a cell is `<sheet>!<cell>:<hash>| <value>`. The text shows structure as the outline does: `# ` by heading level, `- ` for a list item, `| ` for a table cell and `## slide N` at each slide. The outline folds a run of list items after three as `gap blocks=N`. `view: node` reads one node and its children, `view: search` the blocks containing a text, `view: meta` the name, place, access, head, size and who is present, and `view: changes` with `since_revision` the blocks changed since that revision, a `gap blocks=N` line for each run of unchanged blocks and a `gone <id>` line for each deleted block.
 

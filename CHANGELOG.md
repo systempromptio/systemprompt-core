@@ -12,13 +12,14 @@
 - **Documents:** the root discovery document (`GET /api/v1`) carries `endpoints.documents`: `{"enabled": false}` while `files.documents.enabled` is off, and otherwise the `href`, `folders` and `uploads` route URLs with `limits` (`maxUploadBytes`, `inlineMaxBytes`, `uploadPartBytes`).
 - **Documents:** a landed revision sends `document.drive.changed` (`DocumentDriveChangedEvent { v: 1 }`, no ids) to the AG-UI stream, including `/v1/bridge/stream`, of every user who holds `view` or better on the document: the owner and the members of each grant subject on the document and its folder chain. The client re-reads its access-filtered change feed. Hints are coalesced per document on each replica to one immediately and one trailing hint every two seconds; when the audience cannot be resolved, no hint is sent.
 - **Documents:** a landed revision sends `document.drive.changed` (`DocumentDriveChangedEvent { v: 1 }`, no ids) to the AG-UI stream, including `/v1/bridge/stream`, of every user who holds `view` or better on the document: the owner and the members of each grant subject on the document and its folder chain. The client re-reads its access-filtered change feed. Hints are coalesced per document on each replica to one immediately and one trailing hint every two seconds; the audience is capped at 500 users (owner and author always kept), and when it cannot be resolved, no hint is sent.
-
 - **Events:** `EventRouter::route_agui_many(actor, recipients, event)` delivers one AG-UI event to many users through a single `event_outbox` row (channel `agui_many`), which each replica's bridge fans out locally.
 - **Bridge:** Drive sync wakes on `document.drive.changed` instead of waiting for its 20-second poll; the never-firing `document.revision.created` arm and `DriveSignal::RevisionCreated` are removed.
+- **Documents:** the MCP tools `documents_folder` (`action: create` makes a folder under `parent_id`; `action: update` renames and moves one in one transaction, a move needing the agent policy's `administer`) and `documents_import` (a document from a `blob_ref` the caller uploaded with `documents_upload`, stored byte for byte once its codec parses it, so an imported HTML page keeps its scripts and styles). The server instructions and the `uploads` guide topic named an import no tool offered; they now name `documents_import`.
 
 ### Fixed
 
 - **Documents:** `documentation/documents.md` no longer says that `document.revision.created` reaches the owner's and present users' AG-UI streams; since 0.77 it is published on the document's live channel only.
+- **Documents:** an MCP call naming a blob that did not pass the content check its format needs is refused as `invalid_params` (the message names `unchecked_format`), not `integrity_mismatch`.
 
 ## [0.83.0] - 2026-11-17
 

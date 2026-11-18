@@ -9,7 +9,7 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use systemprompt_files::documents::service::{FolderMove, MentionOption};
 use systemprompt_identifiers::{
-    DocumentCommentId, DocumentFolderId, DocumentId, DocumentNodeId, DocumentOpId,
+    ContentHash, DocumentCommentId, DocumentFolderId, DocumentId, DocumentNodeId, DocumentOpId,
     DocumentProposalId, DocumentRevisionId, DocumentTemplateId, UserId,
 };
 use systemprompt_models::documents::{AccessLevel, DocumentFormat, EditMode, EditOp};
@@ -263,6 +263,35 @@ where
     D: serde::Deserializer<'de>,
 {
     Option::<DocumentFolderId>::deserialize(deserializer).map(FolderMove::from_present)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum FolderAction {
+    Create,
+    Update,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct FolderInput {
+    pub action: FolderAction,
+    #[serde(default)]
+    pub folder_id: Option<DocumentFolderId>,
+    #[serde(default, deserialize_with = "folder_move")]
+    #[schemars(with = "Option<DocumentFolderId>", description = "null = root")]
+    pub parent_id: FolderMove,
+    #[serde(default)]
+    pub name: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct ImportInput {
+    pub blob_ref: ContentHash,
+    pub name: String,
+    #[serde(default)]
+    pub folder_id: Option<DocumentFolderId>,
+    #[serde(default)]
+    pub format: Option<DocumentFormat>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, JsonSchema)]

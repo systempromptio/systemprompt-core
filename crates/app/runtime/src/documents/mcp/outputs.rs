@@ -50,6 +50,7 @@ pub struct FolderItem {
     pub parent_id: Option<DocumentFolderId>,
     pub name: String,
 }
+documents_output_impl!(FolderItem, "documents_folder");
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct DocumentItem {
