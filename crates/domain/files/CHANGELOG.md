@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Breaking
+
+- `DocumentServiceParts` gains the `tasks` field (`BackgroundTasks`). Migrate by passing the composition root's `BackgroundTasks`.
+
+### Added
+
+- A landed revision sends `document.drive.changed` to every user who holds `view` or better on the document, coalesced per document to at most one every `DRIVE_HINT_INTERVAL` (two seconds) on each replica. A failure resolving the audience withholds the hint from everyone.
+
 ## [0.82.0] - 2026-11-16
 
 ### Breaking

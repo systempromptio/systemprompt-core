@@ -40,6 +40,7 @@ mod drive;
 mod drive_blob;
 mod drive_commit;
 mod drive_feed;
+mod drive_hint;
 mod file_create;
 mod first_revision;
 mod folder_moves;
@@ -88,6 +89,7 @@ mod visibility;
 use std::sync::Arc;
 
 use systemprompt_extension::{DynBrainSink, DynNotificationSink};
+use systemprompt_traits::BackgroundTasks;
 
 pub use access_requests::{AccessDecision, AccessRequestInput, DecideRequest};
 pub use access_view::{
@@ -98,6 +100,7 @@ pub use comments::{CommentRequest, ResolveCommentRequest};
 pub use comments_edit::{DeleteCommentRequest, EditCommentRequest};
 pub use comments_export::ExportedDocument;
 pub use drive::parse_drive_cursor;
+pub use drive_hint::DRIVE_HINT_INTERVAL;
 pub use file_create::FileCreateRequest;
 pub use folder_update::FolderUpdateRequest;
 pub use grants::{MAX_SHARE_MESSAGE_BYTES, ShareRequest};
@@ -148,6 +151,8 @@ pub struct DocumentService {
     uploads: Arc<std::sync::OnceLock<Arc<crate::uploads::UploadService>>>,
     agent_edits: Arc<AgentRateLimiter>,
     agent_rewrites: Arc<RewriteTracker>,
+    tasks: BackgroundTasks,
+    drive_hints: Arc<drive_hint::DriveHintGate>,
     #[cfg(feature = "collab")]
     collab: Arc<std::sync::OnceLock<std::sync::Weak<super::collab::CollabService>>>,
 }
@@ -164,6 +169,7 @@ pub struct DocumentServiceParts {
     pub notifications: DynNotificationSink,
     pub brain: DynBrainSink,
     pub config: DocumentsConfig,
+    pub tasks: BackgroundTasks,
 }
 
 impl std::fmt::Debug for DocumentService {
@@ -199,6 +205,8 @@ impl DocumentService {
                 parts.config.limits.agent_edits_per_hour_per_user,
             )),
             agent_rewrites: Arc::new(RewriteTracker::new()),
+            tasks: parts.tasks,
+            drive_hints: Arc::default(),
             config: parts.config,
             uploads: Arc::default(),
             #[cfg(feature = "collab")]

@@ -1,7 +1,9 @@
-//! What follows a new head revision: the search index and the
+//! What follows a new head revision: the search index, the
 //! `document.revision.created` event, published on the document's live
-//! topic only. Neither can undo the revision; each reports failure as
-//! `false` after logging it.
+//! topic only, and the `document.drive.changed` hint to the document's
+//! access holders (see `drive_hint`). None can undo the revision; the
+//! index and the event report failure as `false` after logging it, and the
+//! hint runs in the background.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -54,6 +56,7 @@ impl DocumentService {
             actor_kind: revision.actor_kind,
             origin_kind: revision.origin.kind(),
         };
+        self.hint_drive_changed(document, &revision.author_user_id);
         self.events.revision_created(&event).await.is_ok()
     }
 }

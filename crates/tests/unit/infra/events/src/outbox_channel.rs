@@ -99,3 +99,13 @@ fn every_channel_round_trips_through_parse() {
         assert_eq!(OutboxChannel::parse(channel.as_str()), Some(channel));
     }
 }
+
+#[test]
+fn agui_many_round_trips_under_its_own_name() {
+    assert_eq!(OutboxChannel::AgUiMany.as_str(), "agui_many");
+    assert_eq!(
+        OutboxChannel::parse("agui_many"),
+        Some(OutboxChannel::AgUiMany)
+    );
+    assert_ne!(OutboxChannel::AgUiMany, OutboxChannel::AgUi);
+}

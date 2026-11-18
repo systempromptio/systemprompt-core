@@ -132,6 +132,7 @@ impl DocumentsRuntime {
             notifications,
             brain,
             config,
+            tasks: background_tasks.clone(),
         }));
         service.attach_uploads(&uploads);
         #[cfg(feature = "collab")]

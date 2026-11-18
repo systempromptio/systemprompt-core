@@ -343,6 +343,7 @@ pub(crate) fn harness_wired(
         notifications: fixture_notification_sink(&db),
         brain,
         config,
+        tasks: BackgroundTasks::new(),
     });
     service.attach_uploads(&uploads);
     Harness {

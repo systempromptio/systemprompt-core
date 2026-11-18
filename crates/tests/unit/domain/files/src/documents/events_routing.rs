@@ -10,8 +10,8 @@ use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::events::{DocumentEvents, live_topic};
 use systemprompt_identifiers::{DocumentEditSessionId, DocumentId, UserId};
 use systemprompt_models::documents::{
-    DocumentCollabUpdateEvent, DocumentLockEvent, DocumentPresenceEvent, PresenceSource,
-    PresenceState,
+    DocumentCollabUpdateEvent, DocumentDriveChangedEvent, DocumentLockEvent, DocumentPresenceEvent,
+    PresenceSource, PresenceState,
 };
 
 const DOCUMENT: &str = "00000000-0000-4000-8000-00000000e001";
@@ -166,4 +166,56 @@ async fn an_event_with_no_recipient_and_a_failing_relay_still_errs_only_on_topic
         .lock(&[], &unlocked())
         .await
         .expect("no actor, no recipient: nothing relayed");
+}
+
+#[tokio::test]
+async fn the_drive_hint_reaches_each_recipient_stream_and_never_the_live_topic() {
+    use systemprompt_events::Broadcaster;
+    use systemprompt_identifiers::ConnectionId;
+
+    let (events, broadcasters) = local_events();
+    let reader = UserId::new("drive-hint-reader");
+    let editor = UserId::new("drive-hint-editor");
+    let (tx_r, mut rx_r) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
+    let (tx_e, mut rx_e) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
+    let (conn_r, conn_e) = (
+        ConnectionId::new("drive-hint-r"),
+        ConnectionId::new("drive-hint-e"),
+    );
+    broadcasters.agui.register(&reader, &conn_r, tx_r).await;
+    broadcasters.agui.register(&editor, &conn_e, tx_e).await;
+    let mut live = broadcasters
+        .topics
+        .subscribe(&live_topic(&DocumentId::new(DOCUMENT)));
+
+    events
+        .drive_changed(&editor, &[reader.clone(), editor.clone()])
+        .await
+        .expect("local delivery");
+
+    assert!(rx_r.try_recv().is_ok(), "the reader's stream gets the hint");
+    assert!(rx_e.try_recv().is_ok(), "the editor's stream gets the hint");
+    assert!(
+        live.try_recv().is_err(),
+        "the hint is never on the live topic"
+    );
+    assert_eq!(DocumentDriveChangedEvent::current().v, 1);
+
+    broadcasters.agui.unregister(&reader, &conn_r).await;
+    broadcasters.agui.unregister(&editor, &conn_e).await;
+}
+
+#[tokio::test]
+async fn a_drive_hint_whose_outbox_is_unreachable_reports_a_relay_failure() {
+    let (events, _broadcasters) = unreachable_events();
+    let error = events
+        .drive_changed(
+            &UserId::new("drive-hint-actor"),
+            &[UserId::new("drive-hint-to")],
+        )
+        .await
+        .expect_err("relay failure");
+    assert!(
+        matches!(error, DocumentsError::Events { event, .. } if event == DocumentDriveChangedEvent::NAME)
+    );
 }

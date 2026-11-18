@@ -4,9 +4,9 @@ use serde::de::DeserializeOwned;
 use systemprompt_identifiers::{DocumentId, DocumentRevisionId, DriveDeviceId};
 use systemprompt_models::ApiPaths;
 use systemprompt_models::documents::{
-    DocumentEventName, DocumentFormat, DocumentRevisionCreatedEvent, DriveChange, DriveChangeKind,
-    DriveChanges, DriveCommitMeta, DriveCommitResponse, DriveEntry, DriveManifest, PresenceBeacon,
-    PresenceSource, PresenceState, content_hash,
+    DocumentDriveChangedEvent, DocumentEventName, DocumentFormat, DocumentRevisionCreatedEvent,
+    DriveChange, DriveChangeKind, DriveChanges, DriveCommitMeta, DriveCommitResponse, DriveEntry,
+    DriveManifest, PresenceBeacon, PresenceSource, PresenceState, content_hash,
 };
 
 fn round_trip<T: Serialize + DeserializeOwned + PartialEq + std::fmt::Debug>(value: &T) {
@@ -92,6 +92,17 @@ fn event_names_match_payload_constants() {
         DocumentEventName::CollabUpdate.as_str(),
         "document.collab.update"
     );
+}
+
+#[test]
+fn the_drive_changed_hint_names_nothing_but_its_version() {
+    assert_eq!(DocumentDriveChangedEvent::NAME, "document.drive.changed");
+    assert_eq!(
+        DocumentEventName::DriveChanged.as_str(),
+        DocumentDriveChangedEvent::NAME
+    );
+    let value = serde_json::to_value(DocumentDriveChangedEvent::current()).expect("ser");
+    assert_eq!(value, serde_json::json!({ "v": 1 }));
 }
 
 #[test]

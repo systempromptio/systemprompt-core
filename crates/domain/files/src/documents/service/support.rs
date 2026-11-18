@@ -2,7 +2,10 @@
 //! calls, name rules, blob reads, event recipients and paths.
 //!
 //! Event recipients are the owner and every present user who still holds
-//! `view` or better when the event is emitted.
+//! `view` or better when the event is emitted. Access holders, the audience
+//! of the drive-change hint, are the owner and every member of a grant
+//! subject on the document or its folder chain who holds `view` or better
+//! now; any failure resolving them is an error, never a partial set.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -199,6 +202,38 @@ impl DocumentService {
             }
         }
         users.into_iter().collect()
+    }
+
+    pub(super) async fn access_holders(
+        &self,
+        document: &Document,
+    ) -> Result<Vec<UserId>, DocumentsError> {
+        let mut grants = self.repos.grants.list_for_document(&document.id).await?;
+        if let Some(folder) = &document.folder_id {
+            let mut chain = vec![folder.clone()];
+            chain.extend(self.repos.folders.ancestors(folder).await?);
+            grants.extend(self.repos.grants.list_for_folders(&chain).await?);
+        }
+        let mut candidates = BTreeSet::new();
+        candidates.insert(document.owner_user_id.clone());
+        for grant in grants {
+            if grant.subject_kind == super::ownership::USER_SUBJECT {
+                candidates.insert(UserId::new(grant.subject_value));
+                continue;
+            }
+            candidates.extend(
+                self.access
+                    .subject_members(&grant.subject_kind, &grant.subject_value)
+                    .await?,
+            );
+        }
+        let candidates: Vec<UserId> = candidates.into_iter().collect();
+        let levels = self.access.levels_of(document, &candidates).await?;
+        Ok(candidates
+            .into_iter()
+            .zip(levels)
+            .filter_map(|(user, level)| level.map(|_| user))
+            .collect())
     }
 
     pub(super) async fn folder_path(

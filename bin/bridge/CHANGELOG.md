@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Drive sync wakes on a `document.drive.changed` frame on the bridge stream, which servers from 0.84 send for every revision the user can read; the `document.revision.created` arm is kept for servers that still send it.
+
 ## [0.81.0] - 2026-11-12
 
 ### Security

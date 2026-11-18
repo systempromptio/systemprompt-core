@@ -29,7 +29,7 @@ use tracing::{error, info, warn};
 
 use super::bridge::PostgresEventBridge;
 use super::repository::OutboxRow;
-use super::routing::{EventRouter, OutboxChannel};
+use super::routing::{AgUiFanOut, EventRouter, OutboxChannel};
 use super::topics::TopicEvent;
 
 const REPLAY_SKEW: Duration = Duration::from_secs(120);
@@ -148,6 +148,12 @@ impl PostgresEventBridge {
                     local.route_agui_local(user_id, event).await;
                 },
                 Err(e) => error!(error = %e, "event bridge: failed to decode AG-UI event"),
+            },
+            OutboxChannel::AgUiMany => match serde_json::from_value::<AgUiFanOut>(payload) {
+                Ok(fan_out) => {
+                    local.route_agui_many_local(fan_out).await;
+                },
+                Err(e) => error!(error = %e, "event bridge: failed to decode AG-UI fan-out"),
             },
             OutboxChannel::A2A => match serde_json::from_value::<A2AEvent>(payload) {
                 Ok(event) => {

@@ -248,6 +248,63 @@ fn the_loop_syncs_and_folds_proxy_signals_into_the_status() {
 }
 
 #[test]
+fn a_drive_changed_signal_wakes_a_cycle_before_the_poll() {
+    sandboxed(async {
+        let server = MockServer::start().await;
+        let fx = Fixture::new(&server.uri());
+        let doc = DocumentId::generate();
+        let rev = DocumentRevisionId::generate();
+        fx.write("plan.md", b"# plan");
+        serve_sync_token(&server).await;
+        serve(
+            &server,
+            ApiPaths::BRIDGE_DRIVE_MANIFEST,
+            200,
+            manifest_json(&[(&doc, "plan.md", &rev, b"# plan")]),
+        )
+        .await;
+        serve(
+            &server,
+            ApiPaths::BRIDGE_DRIVE_CHANGES,
+            200,
+            serde_json::json!({"changes": [], "next_cursor": "c-next"}),
+        )
+        .await;
+        serve(
+            &server,
+            ApiPaths::BRIDGE_DRIVE_PROPOSALS,
+            200,
+            serde_json::json!({"proposals": []}),
+        )
+        .await;
+
+        let run = spawn(&fx, &server, token_ok());
+        until(&run.handle, "first cycle", |s| s.synced_at.is_some()).await;
+        let feed_reads = || async {
+            server
+                .received_requests()
+                .await
+                .expect("recorded")
+                .into_iter()
+                .filter(|r| r.url.path() == ApiPaths::BRIDGE_DRIVE_CHANGES)
+                .count()
+        };
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        let before = feed_reads().await;
+
+        run.signals.send(DriveSignal::DriveChanged);
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
+        while feed_reads().await <= before {
+            assert!(
+                tokio::time::Instant::now() < deadline,
+                "a drive-changed signal did not wake a cycle"
+            );
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+    });
+}
+
+#[test]
 fn a_server_without_the_document_store_turns_the_status_off_without_an_error() {
     sandboxed(async {
         let server = MockServer::start().await;

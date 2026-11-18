@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Breaking
+
+- `OutboxChannel` gains `AgUiMany`. Migrate an exhaustive match by adding the arm.
+
+### Added
+
+- `EventRouter::route_agui_many`: one AG-UI event for many users as a single outbox row (channel `agui_many`), fanned out locally by `PostgresEventBridge`.
+
 ## [0.78.0] - 2026-11-04
 
 ### Added

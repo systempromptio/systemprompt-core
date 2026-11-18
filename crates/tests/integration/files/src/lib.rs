@@ -72,6 +72,8 @@ mod documents_create_content_settings;
 #[cfg(test)]
 mod documents_drive_feed_order;
 #[cfg(test)]
+mod documents_drive_hint;
+#[cfg(test)]
 mod documents_drive_paths;
 #[cfg(test)]
 mod documents_engine_review;

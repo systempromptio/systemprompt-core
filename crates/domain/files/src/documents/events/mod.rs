@@ -17,11 +17,13 @@
 //! proposer or user), so it is published even with no recipient.
 //! Revisions, collab updates and awareness go to the topic only, as one
 //! outbox row each, and never to a user's AG-UI stream, which carries only
-//! what belongs in an inbox; a collab update carries
-//! `<session>:<seq>` as its resume id; a collab update that could not be
-//! relayed is followed by a relay-lost event on its topic, so subscribers on
-//! other replicas resynchronise instead of waiting on the missing sequence
-//! number. Awareness is published at most once
+//! what belongs in an inbox. What a user's stream learns of a revision is
+//! `document.drive.changed`, a hint naming nothing, sent to many users as
+//! one outbox row ([`EventRouter::route_agui_many`]) and never on the topic; a
+//! collab update carries `<session>:<seq>` as its resume id; a collab update
+//! that could not be relayed is followed by a relay-lost event on its topic, so
+//! subscribers on other replicas resynchronise instead of waiting on the
+//! missing sequence number. Awareness is published at most once
 //! per [`AWARENESS_INTERVAL`] per participant on each replica, so a
 //! participant posting through `n` replicas may publish up to `n` times as
 //! often.
@@ -43,8 +45,8 @@ use systemprompt_events::{EventRouter, RelayOutcome, TopicEvent, relay_lost_even
 use systemprompt_identifiers::{DocumentId, UserId};
 use systemprompt_models::agui::{AgUiEventBuilder, CustomPayload, GenericCustomPayload};
 use systemprompt_models::documents::{
-    DocumentCollabUpdateEvent, DocumentConflictEvent, DocumentLockEvent, DocumentPresenceEvent,
-    DocumentProposalEvent, DocumentRevisionCreatedEvent,
+    DocumentCollabUpdateEvent, DocumentConflictEvent, DocumentDriveChangedEvent, DocumentLockEvent,
+    DocumentPresenceEvent, DocumentProposalEvent, DocumentRevisionCreatedEvent,
 };
 
 use super::error::{DocumentsError, EventFailure};
@@ -105,6 +107,28 @@ impl DocumentEvents {
             Audience::Topic,
         )
         .await
+    }
+
+    pub async fn drive_changed(&self, actor: &UserId, to: &[UserId]) -> Result<(), DocumentsError> {
+        let name = DocumentDriveChangedEvent::NAME;
+        let value =
+            serde_json::to_value(DocumentDriveChangedEvent::current()).map_err(|source| {
+                DocumentsError::Events {
+                    event: name,
+                    source: EventFailure::Serialize(source),
+                }
+            })?;
+        let event = AgUiEventBuilder::custom(CustomPayload::Generic(GenericCustomPayload {
+            name: name.to_owned(),
+            value,
+        }));
+        match self.router.route_agui_many(actor, to, event).await.relay {
+            RelayOutcome::Failed(error) => Err(DocumentsError::Events {
+                event: name,
+                source: EventFailure::Relay(error),
+            }),
+            RelayOutcome::Relayed | RelayOutcome::NotInstalled => Ok(()),
+        }
     }
 
     pub async fn presence(

@@ -6,6 +6,7 @@ use std::time::Duration;
 use systemprompt_bridge::gateway::types::HelperOutput;
 use systemprompt_bridge::ids::BearerToken;
 use systemprompt_bridge::proxy::comms;
+use systemprompt_bridge::proxy::drive_signal::{DriveSignal, DriveSignals};
 use systemprompt_bridge::proxy::forward::ForwardError;
 use systemprompt_bridge::proxy::token_cache::{RefreshFn, TokenCache};
 use wiremock::matchers::{method, path};
@@ -90,6 +91,21 @@ impl Sandbox {
     where
         F: FnOnce(&MockServer) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send + '_>>,
     {
+        self.drive_signals(budget, setup, refresh).0
+    }
+
+    // Runs `run_loop` as `drive` does and also returns the Drive signals the
+    // stream's frames raised.
+    fn drive_signals<F>(
+        &self,
+        budget: Duration,
+        setup: F,
+        refresh: RefreshFn,
+    ) -> (usize, Vec<DriveSignal>)
+    where
+        F: FnOnce(&MockServer) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send + '_>>,
+    {
+        let (drive, mut drive_rx) = DriveSignals::channel();
         let requests = Arc::new(AtomicUsize::new(0));
         let seen = Arc::clone(&requests);
         let root = self.temp.path().to_path_buf();
@@ -126,7 +142,7 @@ impl Sandbox {
                             cfg,
                             cache,
                             client,
-                            systemprompt_bridge::proxy::drive_signal::DriveSignals::channel().0,
+                            drive,
                             systemprompt_bridge::proxy::notifications::NotificationSignals::channel().0,
                         ),
                     )
@@ -138,7 +154,11 @@ impl Sandbox {
                 });
             },
         );
-        requests.load(Ordering::SeqCst)
+        let mut signals = Vec::new();
+        while let Ok(signal) = drive_rx.try_recv() {
+            signals.push(signal);
+        }
+        (requests.load(Ordering::SeqCst), signals)
     }
 }
 
@@ -284,6 +304,27 @@ fn frames_that_are_not_comms_messages_are_ignored() {
     assert_eq!(sb.inbox_line_count("sess-a"), 1);
     assert!(sb.inbox_body("sess-a").contains("kept"));
     assert!(!sb.inbox_body("sess-a").contains("should not arrive"));
+}
+
+#[test]
+fn a_drive_changed_frame_raises_a_drive_signal() {
+    let sb = Sandbox::new();
+    let counter = Arc::new(AtomicUsize::new(0));
+    let hint =
+        serde_json::json!({ "name": "document.drive.changed", "value": { "v": 1 } }).to_string();
+    let (requests, signals) = sb.drive_signals(
+        Duration::from_millis(700),
+        sse_ok(frame(&hint)),
+        counting_refresh(&counter),
+    );
+
+    assert!(requests >= 1, "the stream was subscribed to");
+    assert!(
+        signals
+            .iter()
+            .any(|signal| matches!(signal, DriveSignal::DriveChanged)),
+        "{signals:?}"
+    );
 }
 
 #[test]

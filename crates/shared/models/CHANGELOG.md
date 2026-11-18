@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Breaking
+
+- `DocumentEventName` gains `DriveChanged`, and `DocumentEventName::ALL` holds 20 names. Migrate an exhaustive match by adding the arm.
+
+### Added
+
+- `DocumentDriveChangedEvent` (`document.drive.changed`, `{ "v": 1 }`): the id-less per-user hint that something the recipient can read changed.
+
 ## [0.83.0] - 2026-11-17
 
 ### Breaking

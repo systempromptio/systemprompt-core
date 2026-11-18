@@ -2,9 +2,21 @@
 
 ## [Unreleased]
 
+### Breaking
+
+- **Breaking:** **Files:** `DocumentServiceParts` gains the `tasks` field (`BackgroundTasks`). Migrate by passing the composition root's `BackgroundTasks`.
+- **Breaking:** **Events:** `OutboxChannel` gains `AgUiMany`, and `DocumentEventName` gains `DriveChanged` (`DocumentEventName::ALL` now holds 20 names). Migrate an exhaustive match by adding the arms.
+
 ### Added
 
 - **Documents:** the root discovery document (`GET /api/v1`) carries `endpoints.documents`: `{"enabled": false}` while `files.documents.enabled` is off, and otherwise the `href`, `folders` and `uploads` route URLs with `limits` (`maxUploadBytes`, `inlineMaxBytes`, `uploadPartBytes`).
+- **Documents:** a landed revision sends `document.drive.changed` (`DocumentDriveChangedEvent { v: 1 }`, no ids) to the AG-UI stream, including `/v1/bridge/stream`, of every user who holds `view` or better on the document: the owner and the members of each grant subject on the document and its folder chain. The client re-reads its access-filtered change feed. Hints are coalesced per document on each replica to one immediately and one trailing hint every two seconds; when the audience cannot be resolved, no hint is sent.
+- **Events:** `EventRouter::route_agui_many(actor, recipients, event)` delivers one AG-UI event to many users through a single `event_outbox` row (channel `agui_many`), which each replica's bridge fans out locally.
+- **Bridge:** Drive sync wakes on `document.drive.changed` instead of waiting for its 20-second poll; the `document.revision.created` arm is kept.
+
+### Fixed
+
+- **Documents:** `documentation/documents.md` no longer says that `document.revision.created` reaches the owner's and present users' AG-UI streams; since 0.77 it is published on the document's live channel only.
 
 ## [0.83.0] - 2026-11-17
 
