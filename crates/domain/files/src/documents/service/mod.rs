@@ -68,6 +68,7 @@ mod media_admission;
 mod media_backfill;
 mod media_read;
 mod mentions;
+mod name_conflicts;
 mod node_ids;
 mod notify;
 mod ownership;

@@ -12,8 +12,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::LazyLock;
-
 use scraper::Html;
 use systemprompt_provider_contracts::documents::CodecError;
 
@@ -27,17 +25,17 @@ const STRIPPED: &str = "the edited body holds markup an edit op would strip (a s
                         with documents_upload and call documents_edit {document_id, \
                         content_blob_ref}";
 
-static SANITISER: LazyLock<ammonia::Builder<'static>> = LazyLock::new(|| {
+fn sanitiser() -> ammonia::Builder<'static> {
     let mut builder = ammonia::Builder::default();
     builder
         .link_rel(None)
         .add_generic_attributes(&[PENDING_ATTR, "class"])
         .add_tag_attributes("a", &["rel"]);
     builder
-});
+}
 
 fn sanitise(markup: &str) -> String {
-    SANITISER.clean(markup).to_string()
+    sanitiser().clean(markup).to_string()
 }
 
 fn normalised(markup: &str) -> String {

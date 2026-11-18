@@ -19,16 +19,20 @@ mod browse;
 mod catalog;
 mod comment;
 mod comment_edit;
+mod create;
+mod dispatch;
 mod export;
 mod folders;
 mod guide;
 mod guide_model;
+mod guide_refusals;
 mod guide_topics;
 mod import;
 #[cfg(feature = "notifications")]
 mod inbox;
 mod inputs;
 mod lifecycle;
+mod lifecycle_inputs;
 mod listing;
 mod live_edit;
 mod media;
@@ -63,6 +67,7 @@ pub use access::AccessHandler;
 pub use browse::{HistoryHandler, ListHandler, SearchHandler};
 pub use catalog::{INSTRUCTIONS, TOOL_NAMES};
 pub use comment::CommentHandler;
+pub use create::{CreateHandler, create_content};
 pub use export::ExportHandler;
 pub use folders::FolderHandler;
 pub use guide::GuideHandler;
@@ -89,9 +94,7 @@ pub use refusal::{refusal, refusal_code, refusal_result, refused_error};
 pub use share::ShareHandler;
 pub use support::tool_error;
 pub use upload::{UploadHandler, UploadInput, UploadMode, UploadOutput};
-pub use write::{CreateHandler, EditHandler, create_content};
-
-use support::run;
+pub use write::EditHandler;
 
 use crate::documents::links::LinkIssuer;
 use crate::host::HostContext;
@@ -243,57 +246,5 @@ impl DocumentsMcpTools {
 
     pub async fn call(&self, call: DocumentsToolCall<'_>) -> Result<CallToolResult, McpError> {
         act_as(mentions::document_actor(call.context), self.dispatch(call)).await
-    }
-
-    async fn dispatch(&self, call: DocumentsToolCall<'_>) -> Result<CallToolResult, McpError> {
-        match call.request.name.as_ref() {
-            "documents_list" => Box::pin(run(call, &ListHandler { tools: self })).await,
-            "documents_search" => Box::pin(run(call, &SearchHandler { tools: self })).await,
-            "documents_create" => Box::pin(run(call, &CreateHandler { tools: self })).await,
-            "documents_read" => Box::pin(run(call, &ReadHandler { tools: self })).await,
-            "documents_edit" => Box::pin(run(call, &EditHandler { tools: self })).await,
-            "documents_comment" => Box::pin(run(call, &CommentHandler { tools: self })).await,
-            "documents_history" => Box::pin(run(call, &HistoryHandler { tools: self })).await,
-            "documents_proposals" => Box::pin(run(call, &ProposalsHandler { tools: self })).await,
-            "documents_share" => Box::pin(run(call, &ShareHandler { tools: self })).await,
-            "documents_access" => Box::pin(run(call, &AccessHandler { tools: self })).await,
-            "documents_copy" => Box::pin(run(call, &CopyHandler { tools: self })).await,
-            "documents_update" => Box::pin(run(call, &UpdateHandler { tools: self })).await,
-            "documents_folder" => Box::pin(run(call, &FolderHandler { tools: self })).await,
-            "documents_trash" => Box::pin(run(call, &TrashHandler { tools: self })).await,
-            "documents_untrash" => Box::pin(run(call, &UntrashHandler { tools: self })).await,
-            "documents_export" => {
-                Box::pin(run(
-                    call,
-                    &ExportHandler {
-                        tools: self,
-                        hop: call.hop,
-                    },
-                ))
-                .await
-            },
-            "documents_upload" => {
-                Box::pin(run(
-                    call,
-                    &UploadHandler {
-                        tools: self,
-                        hop: call.hop,
-                    },
-                ))
-                .await
-            },
-            "documents_import" => Box::pin(run(call, &ImportHandler { tools: self })).await,
-            "documents_guide" => Box::pin(run(call, &GuideHandler { tools: self })).await,
-            "documents_people" => Box::pin(run(call, &PeopleHandler { tools: self })).await,
-            #[cfg(feature = "notifications")]
-            "documents_inbox" => Box::pin(run(call, &InboxHandler { tools: self })).await,
-            other => Err(McpError::invalid_params(
-                format!(
-                    "Unknown tool: '{other}'. This server exposes: {}.",
-                    TOOL_NAMES.join(", ")
-                ),
-                None,
-            )),
-        }
     }
 }

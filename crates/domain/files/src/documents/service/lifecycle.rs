@@ -17,9 +17,10 @@
 use systemprompt_identifiers::{DocumentFolderId, DocumentId, TraceId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::DocumentAction;
-use systemprompt_traits::{ConstraintKind, RepositoryError};
 
 use super::first_revision::NewContent;
+pub(super) use super::name_conflicts::{folder_name_taken, is_folder_name_taken, name_taken};
+use super::name_conflicts::{is_name_taken, split_extension};
 use super::support::{document_name, join_path};
 use super::{Author, DocumentService};
 use crate::documents::access::AccessTarget;
@@ -251,53 +252,4 @@ impl DocumentService {
         }
         self.load_document(document).await
     }
-}
-
-const FOLDER_NAME_INDEX: &str = "uq_document_folders_parent_name";
-
-fn split_extension(name: &str) -> (&str, &str) {
-    name.rfind('.')
-        .filter(|&dot| dot > 0)
-        .map_or((name, ""), |dot| name.split_at(dot))
-}
-
-pub(super) fn name_taken(error: RepositoryError, name: &str) -> DocumentsError {
-    if is_name_taken(&error) {
-        DocumentsError::NameTaken {
-            name: name.to_owned(),
-        }
-    } else {
-        DocumentsError::Repository(error)
-    }
-}
-
-pub(super) fn folder_name_taken(error: RepositoryError, name: &str) -> DocumentsError {
-    if is_folder_name_taken(&error) {
-        DocumentsError::FolderNameTaken {
-            name: name.to_owned(),
-        }
-    } else {
-        DocumentsError::Repository(error)
-    }
-}
-
-pub(super) fn is_folder_name_taken(error: &RepositoryError) -> bool {
-    matches!(
-        error,
-        RepositoryError::Constraint {
-            kind: ConstraintKind::Unique,
-            constraint,
-            ..
-        } if constraint == FOLDER_NAME_INDEX
-    )
-}
-
-const fn is_name_taken(error: &RepositoryError) -> bool {
-    matches!(
-        error,
-        RepositoryError::Constraint {
-            kind: ConstraintKind::Unique,
-            ..
-        }
-    )
 }

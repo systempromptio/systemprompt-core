@@ -34,57 +34,20 @@ use std::sync::Arc;
 use systemprompt_identifiers::{EventOutboxId, InstanceId, UserId};
 use tracing::debug;
 
+use super::TopicEvent;
 use super::repository::{EventOutboxRepository, OutboxInsert};
-use super::{
-    A2ABroadcaster, AgUiBroadcaster, AnalyticsBroadcaster, ContextBroadcaster, TopicBroadcaster,
-    TopicEvent,
-};
 use crate::Broadcaster;
 use crate::error::{RelayError, RelayOutcome, RouteOutcome};
 use systemprompt_identifiers::Actor;
 use systemprompt_models::{A2AEvent, AgUiEvent, AnalyticsEvent, ContextEvent, SystemEvent};
 
+pub use super::event_broadcasters::{BroadcasterConnections, EventBroadcasters};
 pub use super::outbox_channel::{NOTIFICATION_FACTS_CHANNEL, OUTBOX_CHANNEL, OutboxChannel};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub(super) struct AgUiFanOut {
     pub(super) recipients: Vec<UserId>,
     pub(super) event: AgUiEvent,
-}
-
-/// The fan-out points for every event kind, built once and shared by the
-/// router, the cross-replica bridge and the SSE endpoints of one process.
-#[derive(Debug, Default)]
-pub struct EventBroadcasters {
-    pub context: Arc<ContextBroadcaster>,
-    pub agui: Arc<AgUiBroadcaster>,
-    pub a2a: Arc<A2ABroadcaster>,
-    pub analytics: Arc<AnalyticsBroadcaster>,
-    pub topics: Arc<TopicBroadcaster>,
-}
-
-impl EventBroadcasters {
-    #[must_use]
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub async fn total_connections(&self) -> BroadcasterConnections {
-        BroadcasterConnections {
-            context: self.context.total_connections().await,
-            agui: self.agui.total_connections().await,
-            a2a: self.a2a.total_connections().await,
-            analytics: self.analytics.total_connections().await,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct BroadcasterConnections {
-    pub context: usize,
-    pub agui: usize,
-    pub a2a: usize,
-    pub analytics: usize,
 }
 
 /// Routes events to local subscribers and, when built with an outbox, to the
