@@ -7,6 +7,8 @@ use axum::body::{Body, to_bytes};
 use axum::http::{Method, Request, StatusCode, header};
 use axum::{Extension, Router};
 use serde_json::{Value, json};
+use systemprompt_agent::models::context::ContextKind;
+use systemprompt_agent::repository::ContextRepository;
 use systemprompt_api::routes::documents::{DocumentsState, router};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, headers};
@@ -310,17 +312,17 @@ async fn trash_untrash_copy_and_scoped_listing() -> Result<()> {
     Ok(())
 }
 
-#[tokio::test]
-async fn an_x_context_id_header_lands_on_the_revision() -> Result<()> {
-    let (pool, state) = fixture().await?;
-    let owner = seed_bridge_credential(&pool, "docs-attribution").await?;
-    let (id, head) = create(&state, &owner, &unique("attribution")).await?;
-    let context = ContextId::generate();
+async fn edit_in_context(
+    state: &DocumentsState,
+    user: &AuthedFixture,
+    (id, head): (&str, &str),
+    context: &str,
+) -> Result<(StatusCode, Value)> {
     let req = Request::builder()
         .method(Method::POST)
         .uri(format!("/{id}/edits"))
         .header(header::CONTENT_TYPE, "application/json")
-        .header(headers::CONTEXT_ID, context.as_str())
+        .header(headers::CONTEXT_ID, context)
         .body(Body::from(
             json!({
                 "base_revision": head,
@@ -329,7 +331,24 @@ async fn an_x_context_id_header_lands_on_the_revision() -> Result<()> {
             .to_string(),
         ))
         .expect("request");
-    let (status, committed) = send(app(&state, &owner), req).await?;
+    send(app(state, user), req).await
+}
+
+async fn owned_context(pool: &DbPool, user: &AuthedFixture, name: &str) -> Result<ContextId> {
+    Ok(ContextRepository::new(pool)
+        .create_context(&user.user_id, None, name, ContextKind::User)
+        .await?)
+}
+
+#[tokio::test]
+async fn an_owned_x_context_id_lands_on_the_revision_and_is_named_in_history() -> Result<()> {
+    let (pool, state) = fixture().await?;
+    let owner = seed_bridge_credential(&pool, "docs-attribution").await?;
+    let name = format!("Plan review {}", Uuid::new_v4().simple());
+    let context = owned_context(&pool, &owner, &name).await?;
+    let (id, head) = create(&state, &owner, &unique("attribution")).await?;
+    let (status, committed) =
+        edit_in_context(&state, &owner, (&id, &head), context.as_str()).await?;
     assert!(status.is_success(), "{status} {committed}");
     let revision = committed["revision"]["id"]
         .as_str()
@@ -342,6 +361,66 @@ async fn an_x_context_id_header_lands_on_the_revision() -> Result<()> {
             .fetch_one(&*pool.pool())
             .await?;
     assert_eq!(stored.as_deref(), Some(context.as_str()));
+
+    let (status, history) = send(
+        app(&state, &owner),
+        empty(Method::GET, &format!("/{id}/revisions")),
+    )
+    .await?;
+    assert_eq!(status, StatusCode::OK, "{history}");
+    let entry = history["revisions"]
+        .as_array()
+        .expect("revisions")
+        .iter()
+        .find(|entry| entry["id"] == revision.as_str())
+        .expect("the attributed revision is listed");
+    assert_eq!(entry["context_id"], context.as_str());
+    assert_eq!(entry["context_name"], name.as_str());
+    Ok(())
+}
+
+#[tokio::test]
+async fn an_unknown_and_a_foreign_x_context_id_are_refused_alike() -> Result<()> {
+    let (pool, state) = fixture().await?;
+    let owner = seed_bridge_credential(&pool, "docs-context-owner").await?;
+    let stranger = seed_bridge_credential(&pool, "docs-context-stranger").await?;
+    let foreign = owned_context(&pool, &stranger, "Stranger's conversation").await?;
+    let (id, head) = create(&state, &owner, &unique("forged")).await?;
+    let mut answers = Vec::new();
+    for claimed in [ContextId::generate(), foreign] {
+        let (status, refused) =
+            edit_in_context(&state, &owner, (&id, &head), claimed.as_str()).await?;
+        assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{refused}");
+        assert_eq!(refused["error_key"], "unknown_context");
+        answers.push(refused["detail"].clone());
+    }
+    assert_eq!(answers[0], answers[1]);
+    let landed: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM document_revisions WHERE document_id = $1::uuid")
+            .bind(&id)
+            .fetch_one(&*pool.pool())
+            .await?;
+    assert_eq!(landed, 1, "a refused write stores nothing");
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_json_create_stores_its_message_on_the_first_revision() -> Result<()> {
+    let (pool, state) = fixture().await?;
+    let owner = seed_bridge_credential(&pool, "docs-create-message").await?;
+    let body = json!({
+        "template_id": "blank-markdown",
+        "name": unique("message"),
+        "params": { "values": { "title": "Plan" } },
+        "message": "drafted in the planning conversation"
+    });
+    let (status, created) =
+        send(app(&state, &owner), json_request(Method::POST, "/", &body)).await?;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+    assert_eq!(
+        created["revision"]["message"],
+        "drafted in the planning conversation"
+    );
     Ok(())
 }
 

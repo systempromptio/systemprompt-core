@@ -73,6 +73,7 @@ async fn replace_line(
                 }],
                 message: None,
                 verbose: false,
+                context_id: None,
             },
             ctx,
             &exec(),
@@ -123,6 +124,7 @@ fn edit_input(document: &DocumentId, op_id: &DocumentOpId, op: EditOp) -> EditIn
         ops: vec![op],
         message: None,
         verbose: false,
+        context_id: None,
     }
 }
 

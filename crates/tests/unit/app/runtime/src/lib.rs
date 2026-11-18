@@ -90,6 +90,8 @@ mod notifications_document_visibility;
 #[cfg(test)]
 mod brain_live;
 #[cfg(test)]
+mod documents_mcp_attribution;
+#[cfg(test)]
 mod documents_mcp_browse;
 #[cfg(test)]
 mod documents_mcp_comments;

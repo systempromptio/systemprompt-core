@@ -4,9 +4,9 @@ use systemprompt_files::documents::agents::{AgentCap, AgentCapability, AgentRefu
 use systemprompt_files::documents::models::{ListCursorError, LockHolder};
 use systemprompt_files::documents::templates::TemplateError;
 use systemprompt_identifiers::{
-    AgentName, ContentHash, DocumentAccessRequestId, DocumentCommentId, DocumentFolderId,
-    DocumentId, DocumentNodeId, DocumentOpId, DocumentProposalId, DocumentRevisionId,
-    DocumentTemplateId, EditorId,
+    AgentName, ContentHash, ContextId, DocumentAccessRequestId, DocumentCommentId,
+    DocumentFolderId, DocumentId, DocumentNodeId, DocumentOpId, DocumentProposalId,
+    DocumentRevisionId, DocumentTemplateId, EditorId,
 };
 use systemprompt_models::documents::{
     AccessLevel, AccessRequestStatus, DocumentAction, DocumentFormat, ProposalStatus,
@@ -43,6 +43,8 @@ const fn listed(error: &DocumentsError) -> bool {
         | DocumentsError::InvalidName { .. }
         | DocumentsError::NameTaken { .. }
         | DocumentsError::FolderNameTaken { .. }
+        | DocumentsError::UnknownContext { .. }
+        | DocumentsError::Contexts(_)
         | DocumentsError::UnknownSubjectKind { .. }
         | DocumentsError::UnknownSubject { .. }
         | DocumentsError::OwnNotGrantable
@@ -240,6 +242,12 @@ fn table() -> Vec<(DocumentsError, RefusalCode)> {
                 name: "Artifacts".to_owned(),
             },
             RefusalCode::NameTaken,
+        ),
+        (
+            DocumentsError::UnknownContext {
+                context_id: ContextId::generate(),
+            },
+            RefusalCode::UnknownContext,
         ),
         (
             DocumentsError::UnknownSubjectKind {

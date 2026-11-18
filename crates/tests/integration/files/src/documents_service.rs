@@ -67,6 +67,7 @@ async fn import_markdown(
                 mime_type: None,
                 bytes: text.as_bytes().to_vec(),
                 author: api_author(),
+                message: None,
             },
             &trace(),
         )

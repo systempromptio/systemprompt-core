@@ -54,6 +54,7 @@ pub(crate) async fn harness() -> McpHarness {
             Arc::clone(runtime.uploads()),
             SERVER,
         ),
+        contexts: Arc::clone(runtime.contexts()),
         server_name: McpServerId::new(SERVER),
     });
     McpHarness {
@@ -74,10 +75,12 @@ pub(crate) fn person(prefix: &str) -> AuthenticatedUser {
 
 pub(crate) fn ctx_for(user: Option<&AuthenticatedUser>) -> RequestContext {
     let actor_id = user.map_or_else(|| UserId::new("anonymous"), |u| u.id.clone());
+    let session = SessionId::new(format!("s-{}", Uuid::new_v4().simple()));
+    let context = ContextId::derived_from_session(&session);
     let ctx = RequestContext::new(
-        SessionId::new(format!("s-{}", Uuid::new_v4().simple())),
+        session,
         TraceId::generate(),
-        ContextId::generate(),
+        context,
         AgentName::try_new("documents-test").expect("agent name"),
         systemprompt_identifiers::Actor::user(actor_id),
     );
@@ -106,6 +109,7 @@ pub(crate) async fn create_text(
                 content: None,
                 ops: Vec::new(),
                 message: None,
+                context_id: None,
             },
             ctx,
             &exec(),
@@ -127,6 +131,7 @@ pub(crate) async fn create_text(
                 }],
                 message: Some("seed".to_owned()),
                 verbose: false,
+                context_id: None,
             },
             ctx,
             &exec(),

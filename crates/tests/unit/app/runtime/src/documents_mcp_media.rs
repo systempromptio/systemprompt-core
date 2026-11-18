@@ -47,6 +47,7 @@ async fn edit(
                 ops,
                 message: None,
                 verbose: false,
+                context_id: None,
             },
             ctx,
             &exec(),

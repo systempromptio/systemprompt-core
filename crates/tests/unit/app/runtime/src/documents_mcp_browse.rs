@@ -28,6 +28,7 @@ async fn create_markdown(
                 content: Some(json!({ "markdown": markdown })),
                 ops: Vec::new(),
                 message: None,
+                context_id: None,
             },
             ctx,
             &exec(),

@@ -25,6 +25,7 @@ fn comment(action: CommentAction, document: &DocumentId) -> CommentInput {
         mention_options: vec![],
         comment_id: None,
         answering: None,
+        context_id: None,
     }
 }
 
@@ -86,6 +87,7 @@ async fn comment_tool_creates_lists_and_resolves_and_edits_refuse_anchors_affect
         }],
         message: None,
         verbose: false,
+        context_id: None,
     };
     let refused = EditHandler { tools: &h.tools }
         .handle(edit(false), &ctx, &exec())
@@ -173,6 +175,7 @@ async fn trash_untrash_copy_update_and_access_tools() {
                 document_id: document.clone(),
                 name: Some(format!("duplicate-{}", uuid::Uuid::new_v4().simple())),
                 folder_id: None,
+                context_id: None,
             },
             &ctx,
             &exec(),

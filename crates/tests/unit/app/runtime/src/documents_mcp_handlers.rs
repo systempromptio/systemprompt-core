@@ -54,6 +54,7 @@ async fn stale_anchor_names_node_hashes_and_current_text() {
                 }],
                 message: None,
                 verbose: false,
+                context_id: None,
             },
             &ctx,
             &exec(),
@@ -95,6 +96,7 @@ async fn edit_acknowledges_the_written_lines_and_records_the_message() {
                 }],
                 message: Some("rename".to_owned()),
                 verbose: false,
+                context_id: None,
             },
             &ctx,
             &exec(),
@@ -150,6 +152,7 @@ async fn str_replace_reports_the_match_count() {
         }],
         message: Some("swap".to_owned()),
         verbose: false,
+        context_id: None,
     };
     let handler = EditHandler { tools: &h.tools };
     let twice = handler
@@ -200,6 +203,7 @@ async fn stale_base_names_the_head_revision() {
         }],
         message: None,
         verbose: false,
+        context_id: None,
     };
     let handler = EditHandler { tools: &h.tools };
     let (first, _) = handler
@@ -434,6 +438,7 @@ async fn create_applies_ops_in_the_first_revision_and_acknowledges_them() {
                     },
                 ],
                 message: Some("draft".to_owned()),
+                context_id: None,
             },
             &ctx,
             &exec(),

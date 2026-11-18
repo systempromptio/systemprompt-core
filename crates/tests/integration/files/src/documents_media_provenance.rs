@@ -217,6 +217,7 @@ async fn a_hash_the_writer_only_knows_is_refused_on_every_commit_path() {
                 mime_type: None,
                 bytes: linking(&hash),
                 author: api_author(),
+                message: None,
             },
             &trace(),
         )
@@ -338,6 +339,7 @@ async fn an_owner_upload_is_admitted_and_served_on_every_commit_path() {
                 mime_type: None,
                 bytes: linking(&hash_import),
                 author: api_author(),
+                message: None,
             },
             &trace(),
         )
