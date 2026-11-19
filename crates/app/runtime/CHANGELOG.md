@@ -5,9 +5,11 @@
 ### Breaking
 
 - `DocumentsRuntimeParts` and `documents::mcp::DocumentsMcpConfig` gain `contexts`, `RefusalCode` gains `UnknownContext`, and `views::comments_view` takes a `&dyn ContextDirectory`. Migrate by passing `DocumentsRuntime::contexts()` and adding the match arm.
+- `CommentAction` gains `Reopen`, and `CommentItem` gains `reopened_at` and `reopened_by`. Migrate an exhaustive match by adding the arm and a struct literal by setting both fields.
 
 ### Added
 
+- `documents_comment {action: reopen, document_id, comment_id}` reopens a resolved comment; the `comments` guide topic names it.
 - `EditInput::content_blob_ref`: `documents_edit` replaces the whole file from an uploaded blob in place of `ops` (exclusive with it; neither or both is `invalid_params`).
 - `documents::mcp::{FolderHandler, FolderInput, FolderAction, ImportHandler, ImportInput}`: the `documents_folder` and `documents_import` tools; `TOOL_NAMES` lists them (21 tools, 20 without `notifications`).
 - `documents::attribution`: the conversation a document write is attributed to, refused as `unknown_context` unless the caller owns it or it is the caller's session-derived context, and the owner-only context names. The document write tools take an optional `context_id`, `documents_import` a `message`, and history and comment items carry the agent, client and context.

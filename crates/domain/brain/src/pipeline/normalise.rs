@@ -8,8 +8,8 @@
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{EventOutboxId, UserId};
 use systemprompt_models::brain::{
-    BrainEnvelope, BrainEvent, CommentResolved, EnteredFact, FactSource, Pathway, RevisionLanded,
-    SessionTurnClosed,
+    BrainEnvelope, BrainEvent, CommentReopened, CommentResolved, EnteredFact, FactSource, Pathway,
+    RevisionLanded, SessionTurnClosed,
 };
 
 use crate::error::{BrainError, BrainResult};
@@ -19,6 +19,7 @@ use crate::error::{BrainError, BrainResult};
 pub enum EventPayload {
     Revision(RevisionLanded),
     Comment(CommentResolved),
+    Reopened(CommentReopened),
     Entered(EnteredFact),
     Session(SessionTurnClosed),
 }
@@ -45,7 +46,10 @@ impl Normalised {
     pub const fn observed_at(&self) -> Option<DateTime<Utc>> {
         match &self.payload {
             EventPayload::Entered(entered) => entered.observed_at,
-            EventPayload::Revision(_) | EventPayload::Comment(_) | EventPayload::Session(_) => None,
+            EventPayload::Revision(_)
+            | EventPayload::Comment(_)
+            | EventPayload::Reopened(_)
+            | EventPayload::Session(_) => None,
         }
     }
 
@@ -60,6 +64,10 @@ impl Normalised {
             EventPayload::Comment(resolved) => FactSource::Comment {
                 document_id: resolved.document_id.clone(),
                 comment_id: resolved.comment_id.clone(),
+            },
+            EventPayload::Reopened(reopened) => FactSource::Comment {
+                document_id: reopened.document_id.clone(),
+                comment_id: reopened.comment_id.clone(),
             },
             EventPayload::Entered(_) => FactSource::EnteredBy {
                 user_id: self.envelope.event.actor.clone(),
@@ -84,6 +92,7 @@ pub fn normalise(
     let payload = match envelope.pathway {
         Pathway::DocumentRevision => EventPayload::Revision(serde_json::from_value(payload)?),
         Pathway::CommentResolved => EventPayload::Comment(serde_json::from_value(payload)?),
+        Pathway::CommentReopened => EventPayload::Reopened(serde_json::from_value(payload)?),
         Pathway::Entered => EventPayload::Entered(serde_json::from_value(payload)?),
         Pathway::Session => EventPayload::Session(serde_json::from_value(payload)?),
     };

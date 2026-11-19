@@ -18,7 +18,8 @@ use super::access::{ActorKind, ProposalStatus, RevisionOriginKind};
 use super::awareness::DocumentAwarenessEvent;
 pub use super::collab_events::{DocumentCollabDegradedEvent, DocumentCollabUpdateEvent};
 use super::comment_events::{
-    DocumentCommentDeletedEvent, DocumentCommentMentionedEvent, DocumentCommentUpdatedEvent,
+    DocumentCommentDeletedEvent, DocumentCommentMentionedEvent, DocumentCommentReopenedEvent,
+    DocumentCommentUpdatedEvent,
 };
 use super::drive::{PresenceSource, PresenceState};
 
@@ -43,6 +44,8 @@ pub enum DocumentEventName {
     CommentCreated,
     #[serde(rename = "document.comment.resolved")]
     CommentResolved,
+    #[serde(rename = "document.comment.reopened")]
+    CommentReopened,
     #[serde(rename = "document.comment.updated")]
     CommentUpdated,
     #[serde(rename = "document.comment.deleted")]
@@ -72,7 +75,7 @@ pub enum DocumentEventName {
 }
 
 impl DocumentEventName {
-    pub const ALL: [Self; 20] = [
+    pub const ALL: [Self; 21] = [
         Self::RevisionCreated,
         Self::Presence,
         Self::Lock,
@@ -80,6 +83,7 @@ impl DocumentEventName {
         Self::CollabUpdate,
         Self::CommentCreated,
         Self::CommentResolved,
+        Self::CommentReopened,
         Self::CommentUpdated,
         Self::CommentDeleted,
         Self::CommentMentioned,
@@ -105,6 +109,7 @@ impl DocumentEventName {
             Self::CollabUpdate => DocumentCollabUpdateEvent::NAME,
             Self::CommentCreated => DocumentCommentCreatedEvent::NAME,
             Self::CommentResolved => DocumentCommentResolvedEvent::NAME,
+            Self::CommentReopened => DocumentCommentReopenedEvent::NAME,
             Self::CommentUpdated => DocumentCommentUpdatedEvent::NAME,
             Self::CommentDeleted => DocumentCommentDeletedEvent::NAME,
             Self::CommentMentioned => DocumentCommentMentionedEvent::NAME,

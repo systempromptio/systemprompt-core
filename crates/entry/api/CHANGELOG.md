@@ -8,6 +8,7 @@
 
 ### Added
 
+- `POST /api/v1/documents/{id}/comments/{comment_id}/reopen` reopens a resolved comment with the same `comment` access as resolving and answers the comment.
 - The root discovery document carries `endpoints.documents`: `{"enabled": false}` while the document store is off, and otherwise its route URLs and upload `limits` (`maxUploadBytes`, `inlineMaxBytes`, `uploadPartBytes`).
 - `POST /api/v1/documents` and `POST /api/v1/documents/import` take an optional `message` for the first revision; `GET /api/v1/documents/{id}/revisions` answers `context_id`, `agent_name`, `client_id` and the owner-only `context_name`.
 

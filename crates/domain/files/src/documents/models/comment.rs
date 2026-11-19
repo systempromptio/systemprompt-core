@@ -44,6 +44,8 @@ pub struct DocumentComment {
     pub parent_id: Option<DocumentCommentId>,
     pub resolved_at: Option<DateTime<Utc>>,
     pub resolved_by: Option<UserId>,
+    pub reopened_at: Option<DateTime<Utc>>,
+    pub reopened_by: Option<UserId>,
     pub answering_revision_id: Option<DocumentRevisionId>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,

@@ -62,6 +62,8 @@ mod documents_comments_export;
 #[cfg(test)]
 mod documents_comments_refusals;
 #[cfg(test)]
+mod documents_comments_reopen;
+#[cfg(test)]
 mod documents_comments_v2;
 #[cfg(test)]
 mod documents_commit_race;

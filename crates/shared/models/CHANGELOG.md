@@ -4,11 +4,13 @@
 
 ### Breaking
 
-- `DocumentEventName` gains `DriveChanged`, and `DocumentEventName::ALL` holds 20 names. Migrate an exhaustive match by adding the arm.
+- `DocumentEventName` gains `DriveChanged` and `CommentReopened`, and `DocumentEventName::ALL` holds 21 names. Migrate an exhaustive match by adding the arms.
+- `brain::Pathway` gains `CommentReopened` (`comment_reopened`). Migrate an exhaustive match by adding the arm.
 
 ### Added
 
 - `DocumentDriveChangedEvent` (`document.drive.changed`, `{ "v": 1 }`): the id-less per-user hint that something the recipient can read changed.
+- `DocumentCommentReopenedEvent` (`document.comment.reopened`), `BrainEventKind::COMMENT_REOPENED` / `comment_reopened()` and the `CommentReopened` brain payload.
 
 ## [0.83.0] - 2026-11-17
 

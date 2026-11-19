@@ -1,6 +1,7 @@
 //! [`DocumentCommentRepository`]: comment threads anchored to stable node
 //! ids and, optionally, a range of engine cursors; their mentions, edits and
-//! soft deletion, their resolution, and the revision that answered them. The
+//! soft deletion, their resolution and reopening, and the revision that
+//! answered them. The
 //! writes after insertion live in `comments_write`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -37,6 +38,8 @@ pub(super) struct CommentRow {
     pub(super) parent_id: Option<DocumentCommentId>,
     pub(super) resolved_at: Option<DateTime<Utc>>,
     pub(super) resolved_by: Option<UserId>,
+    pub(super) reopened_at: Option<DateTime<Utc>>,
+    pub(super) reopened_by: Option<UserId>,
     pub(super) answering_revision_id: Option<DocumentRevisionId>,
     pub(super) created_at: DateTime<Utc>,
     pub(super) updated_at: DateTime<Utc>,
@@ -67,6 +70,8 @@ impl From<CommentRow> for DocumentComment {
             parent_id: row.parent_id,
             resolved_at: row.resolved_at,
             resolved_by: row.resolved_by,
+            reopened_at: row.reopened_at,
+            reopened_by: row.reopened_by,
             answering_revision_id: row.answering_revision_id,
             created_at: row.created_at,
             updated_at: row.updated_at,
@@ -112,6 +117,7 @@ impl DocumentCommentRepository {
                          author_user_id AS "author_user_id: UserId",
                          body, mentions, parent_id::text AS "parent_id: DocumentCommentId",
                          resolved_at, resolved_by AS "resolved_by: UserId",
+                         reopened_at, reopened_by AS "reopened_by: UserId",
                          answering_revision_id::text AS "answering_revision_id: DocumentRevisionId",
                          created_at, updated_at, edited_at, deleted_at,
                          via_agent AS "via_agent: AgentName",
@@ -163,6 +169,7 @@ impl DocumentCommentRepository {
                       author_user_id AS "author_user_id: UserId",
                       body, mentions, parent_id::text AS "parent_id: DocumentCommentId",
                       resolved_at, resolved_by AS "resolved_by: UserId",
+                      reopened_at, reopened_by AS "reopened_by: UserId",
                       answering_revision_id::text AS "answering_revision_id: DocumentRevisionId",
                       created_at, updated_at, edited_at, deleted_at,
                       via_agent AS "via_agent: AgentName",

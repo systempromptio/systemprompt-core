@@ -213,3 +213,38 @@ async fn an_invalid_comment_id_is_refused() -> Result<()> {
     assert_eq!(listed(&doc).await?.len(), 1);
     Ok(())
 }
+
+#[tokio::test]
+async fn a_resolved_comment_is_reopened_and_a_stranger_cannot_reopen_it() -> Result<()> {
+    let doc = commented("docs-creopen").await?;
+    let uri = format!("/{}/comments/{}", doc.id, doc.comment);
+    let (status, resolved) = send(
+        app(&doc.state, &doc.owner),
+        empty(Method::POST, &format!("{uri}/resolve")),
+    )
+    .await?;
+    assert_eq!(status, StatusCode::OK, "{resolved}");
+    assert!(resolved["resolved_at"].is_string(), "{resolved}");
+
+    let (pool, _ctx) = setup_ctx().await?;
+    let stranger = seed_bridge_credential(&pool, "docs-creopen-x").await?;
+    let (status, _) = send(
+        app(&doc.state, &stranger),
+        empty(Method::POST, &format!("{uri}/reopen")),
+    )
+    .await?;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+
+    for _ in 0..2 {
+        let (status, reopened) = send(
+            app(&doc.state, &doc.owner),
+            empty(Method::POST, &format!("{uri}/reopen")),
+        )
+        .await?;
+        assert_eq!(status, StatusCode::OK, "{reopened}");
+        assert!(reopened.get("resolved_at").is_none(), "{reopened}");
+        assert_eq!(reopened["reopened_by"], doc.owner.user_id.as_str());
+    }
+    assert!(listed(&doc).await?[0].get("resolved_at").is_none());
+    Ok(())
+}

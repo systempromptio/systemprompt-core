@@ -2,8 +2,8 @@
 //! facts built on what it replaced even when nothing new is gathered.
 //!
 //! A landed revision stales the facts of earlier revisions of its document,
-//! and a resolved comment stales the facts built on it. Each mark is a
-//! `Staled` revision written by the repository.
+//! and a resolved or reopened comment stales the facts built on it. Each mark
+//! is a `Staled` revision written by the repository.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -26,6 +26,9 @@ pub async fn mark_stale(
         },
         EventPayload::Comment(resolved) => {
             FactRepository::mark_stale_for_comment(conn, &resolved.comment_id).await?
+        },
+        EventPayload::Reopened(reopened) => {
+            FactRepository::mark_stale_for_comment(conn, &reopened.comment_id).await?
         },
         EventPayload::Entered(_) | EventPayload::Session(_) => Vec::new(),
     };

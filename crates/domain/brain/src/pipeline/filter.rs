@@ -3,8 +3,9 @@
 //! Extension filters by ascending priority decide whether an event is worth
 //! reading. The first `Gather` or `Ignore` wins and an abstaining filter
 //! defers to the next; with no filter registered core gathers nothing. A
-//! person-entered fact bypasses the filters, and a pathway the profile does
-//! not capture is ignored before any filter runs.
+//! person-entered fact bypasses the filters, a reopened comment is never
+//! read (its stale stage is all it does), and a pathway the profile does not
+//! capture is ignored before any filter runs.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -19,6 +20,7 @@ use systemprompt_models::brain::{BrainEnvelope, Pathway};
 pub const CAPTURE_SOURCES: &str = "capture.sources";
 pub const ENTERED_BYPASS: &str = "entered";
 pub const ALL_ABSTAINED: &str = "abstained";
+pub const REOPENED_STALES_ONLY: &str = "comment_reopened";
 
 /// What the composite filter decided for one event. An empty `kinds`
 /// gathers every declared kind.
@@ -53,6 +55,11 @@ pub fn decide(
     if !capture.sources.contains(&capture_source(envelope.pathway)) {
         return FilterDecision::Ignored {
             filter: CAPTURE_SOURCES.to_owned(),
+        };
+    }
+    if envelope.pathway == Pathway::CommentReopened {
+        return FilterDecision::Ignored {
+            filter: REOPENED_STALES_ONLY.to_owned(),
         };
     }
     if envelope.pathway == Pathway::Entered {
@@ -93,7 +100,7 @@ pub fn composite(filters: &[Arc<dyn EventFilter>], envelope: &BrainEnvelope) -> 
 const fn capture_source(pathway: Pathway) -> CaptureSource {
     match pathway {
         Pathway::DocumentRevision => CaptureSource::Document,
-        Pathway::CommentResolved => CaptureSource::Comment,
+        Pathway::CommentResolved | Pathway::CommentReopened => CaptureSource::Comment,
         Pathway::Entered => CaptureSource::Entered,
         Pathway::Session => CaptureSource::Session,
     }

@@ -30,8 +30,8 @@ pub use awareness::{
     DocumentLiveClosedEvent, DocumentLiveReadyEvent, DocumentLiveResyncEvent, LiveResyncReason,
 };
 pub use comment_events::{
-    DocumentCommentDeletedEvent, DocumentCommentMentionedEvent, DocumentCommentUpdatedEvent,
-    MENTION_EVENT_VERSION, MENTION_EXCERPT_CHARS,
+    DocumentCommentDeletedEvent, DocumentCommentMentionedEvent, DocumentCommentReopenedEvent,
+    DocumentCommentUpdatedEvent, MENTION_EVENT_VERSION, MENTION_EXCERPT_CHARS,
 };
 pub use drive::{
     BRIDGE_DEVICE_AUDIENCE, DRIVE_SYNC_AUDIENCE, DriveChange, DriveChangeKind, DriveChanges,

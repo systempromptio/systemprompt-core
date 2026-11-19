@@ -58,7 +58,9 @@ pub use extraction::{
 pub use fact::BrainFact;
 pub use kind_decl::{ExtractorDecl, FieldDecl, FieldType, KindDecl, Materiality, SUBJECT_FIELD};
 pub use outcome::{BrainOutcome, CITED_IN_RESPONSE, OutcomeObservation, USER_CORRECTED_FACT};
-pub use payload::{CommentAnchorRef, CommentResolved, RevisionLanded, SessionTurnClosed};
+pub use payload::{
+    CommentAnchorRef, CommentReopened, CommentResolved, RevisionLanded, SessionTurnClosed,
+};
 pub use proposal::{BrainProposal, ProposalDraft, ProposalKind, ProposalStatus};
 pub use recall::{
     FactRef, InjectionPlan, RecallAudit, RecallCtx, RecallQuery, RecallRerank, RerankedFact,

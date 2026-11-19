@@ -52,6 +52,10 @@ pub struct CommentItem {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub resolved_by: Option<UserId>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub reopened_at: Option<DateTime<Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reopened_by: Option<UserId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub answering_revision_id: Option<DocumentRevisionId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub via_agent: Option<AgentName>,
@@ -84,6 +88,8 @@ impl From<DocumentComment> for CommentItem {
             edited_at: comment.edited_at,
             resolved_at: comment.resolved_at,
             resolved_by: comment.resolved_by,
+            reopened_at: comment.reopened_at,
+            reopened_by: comment.reopened_by,
             answering_revision_id: comment.answering_revision_id,
             via_agent: comment.via_agent,
             context_id: comment.context_id,

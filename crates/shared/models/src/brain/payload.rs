@@ -53,6 +53,19 @@ pub struct CommentResolved {
     pub folder_id: Option<DocumentFolderId>,
 }
 
+/// A resolved comment that was reopened: the facts built on its resolution
+/// no longer stand.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CommentReopened {
+    pub document_id: DocumentId,
+    pub comment_id: DocumentCommentId,
+    pub comment_author: UserId,
+    pub reopened_by: UserId,
+    pub anchor: CommentAnchorRef,
+    pub head_revision_id: Option<DocumentRevisionId>,
+    pub folder_id: Option<DocumentFolderId>,
+}
+
 /// A gateway turn that completed: the last user text and the assistant's
 /// answer, each bounded to the profile's `capture.session.max_chars`.
 ///

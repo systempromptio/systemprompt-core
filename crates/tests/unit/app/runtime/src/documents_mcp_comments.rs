@@ -164,6 +164,42 @@ async fn edit_rewrites_the_body_and_delete_removes_the_comment() {
 }
 
 #[tokio::test]
+async fn reopen_clears_a_resolution() {
+    let r = rig(false).await;
+    let owner = registered("c-reopen").await;
+    let ctx = ctx_for(Some(&owner));
+    let (document, node) = anchored(&r.tools, &ctx).await;
+    let created = call(
+        &r.tools,
+        &ctx,
+        input(
+            &document,
+            json!({"action": "create", "node": node, "body": "done?"}),
+        ),
+    )
+    .await
+    .expect("create");
+    let id = created.comments[0].id.clone();
+    let resolved = call(
+        &r.tools,
+        &ctx,
+        input(&document, json!({"action": "resolve", "comment_id": id})),
+    )
+    .await
+    .expect("resolve");
+    assert!(resolved.comments[0].resolved_at.is_some());
+    let reopened = call(
+        &r.tools,
+        &ctx,
+        input(&document, json!({"action": "reopen", "comment_id": id})),
+    )
+    .await
+    .expect("reopen");
+    assert_eq!(reopened.comments[0].resolved_at, None);
+    assert_eq!(reopened.comments[0].reopened_by.as_ref(), Some(&owner.id));
+}
+
+#[tokio::test]
 async fn edit_and_delete_refuse_missing_arguments() {
     let r = rig(false).await;
     let owner = registered("c-args").await;
@@ -180,6 +216,7 @@ async fn edit_and_delete_refuse_missing_arguments() {
         ),
         (json!({"action": "delete"}), "delete needs comment_id"),
         (json!({"action": "resolve"}), "resolve needs comment_id"),
+        (json!({"action": "reopen"}), "reopen needs comment_id"),
         (
             json!({"action": "create", "node": node, "body": ""}),
             "non-empty body",

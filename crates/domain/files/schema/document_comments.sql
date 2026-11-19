@@ -9,6 +9,8 @@ CREATE TABLE IF NOT EXISTS document_comments (
     parent_id UUID REFERENCES document_comments(id) ON DELETE CASCADE,
     resolved_at TIMESTAMPTZ,
     resolved_by VARCHAR(255),
+    reopened_at TIMESTAMPTZ,
+    reopened_by VARCHAR(255),
     answering_revision_id UUID REFERENCES document_revisions(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,

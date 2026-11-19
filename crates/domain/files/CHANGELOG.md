@@ -7,12 +7,14 @@
 - `DocumentsError` gains `FolderNameTaken` and `AgentRefusal` gains `WholesaleReplace`. Migrate by handling both variants in exhaustive matches (`FolderNameTaken` beside `NameTaken`, `WholesaleReplace` beside `BroadRewrite`).
 - `DocumentServiceParts` gains the `tasks` field (`BackgroundTasks`). Migrate by passing the composition root's `BackgroundTasks`.
 - `DocumentsError` gains `UnknownContext` and `Contexts`; `RevisionAttribution` gains `agent_name` and `client_id`; `CommentOrigin`, `NewComment` and `DocumentComment` gain `context_id` and `client_id` (`DocumentComment` also `via_agent`); `ImportRequest` and `FileCreateRequest` gain `message`. Migrate by adding the match arms and setting the fields.
+- `DocumentComment` gains `reopened_at` and `reopened_by`. Migrate a struct literal by setting both to `None`.
 
 ### Added
 
 - A landed revision sends `document.drive.changed` to every user who holds `view` or better on the document, coalesced per document to at most one every `DRIVE_HINT_INTERVAL` (two seconds) on each replica. The audience is capped at 500 users, the owner and the author always among them; a failure resolving it withholds the hint from everyone.
 - `DocumentService::propose_write`: a whole-file write proposed on its base, with comment access.
 - Migrations `041_document_attribution_agent_client` (nullable `agent_name`, `client_id` on `document_revisions`; `context_id`, `client_id` on `document_comments`) and `042_document_comments_context_index` (built `CONCURRENTLY`).
+- `DocumentService::reopen_comment` (`ReopenCommentRequest`) and `DocumentCommentRepository::reopen_in`: a resolved comment is reopened with `comment` access, clearing `resolved_at`/`resolved_by` and recording `reopened_at`/`reopened_by` (migration `043_document_comment_reopen`); the `document.comment.reopened` brain fact commits in the same transaction and the live event goes to the audience resolution reaches. Reopening an open comment returns it unchanged and records nothing.
 
 ### Fixed
 

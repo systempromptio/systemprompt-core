@@ -1,7 +1,7 @@
 use systemprompt_identifiers::DocumentCommentId;
 use systemprompt_models::brain::FactStatus;
 
-use crate::events::{Landed, comment_resolved, price};
+use crate::events::{Landed, comment_reopened, comment_resolved, price};
 use crate::harness::Harness;
 
 #[tokio::test]
@@ -58,5 +58,26 @@ async fn a_resolved_comment_stales_the_facts_sourced_from_it() {
         FactStatus::Proposed,
         "negative control: another comment's facts stay live"
     );
+    h.finish().await;
+}
+
+#[tokio::test]
+async fn a_reopened_comment_stales_the_facts_sourced_from_it_and_gathers_nothing() {
+    let h = Harness::new("brain_stale_reopen").await;
+    let author = h.user("author", &[]).await;
+    let doc = Landed::new();
+    let comment = DocumentCommentId::generate();
+    h.model
+        .push(serde_json::json!([price("acme", "emea", "1200")]));
+    h.emit(&comment_resolved(&author, &doc.document, &comment))
+        .await;
+    h.drain().await;
+    assert_eq!(h.only_fact("acme").await.status, FactStatus::Proposed);
+
+    h.emit(&comment_reopened(&author, &doc.document, &comment))
+        .await;
+    h.drain().await;
+
+    assert_eq!(h.only_fact("acme").await.status, FactStatus::Stale);
     h.finish().await;
 }

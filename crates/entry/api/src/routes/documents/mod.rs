@@ -190,6 +190,7 @@ pub fn router(state: DocumentsState) -> Router {
             "/{id}/comments/{comment_id}/resolve",
             post(comments::resolve),
         )
+        .route("/{id}/comments/{comment_id}/reopen", post(comments::reopen))
         .route(
             "/{id}/comments/{comment_id}",
             patch(comments::edit).delete(comments::delete),

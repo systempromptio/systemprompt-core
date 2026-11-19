@@ -1,6 +1,6 @@
 //! Payloads of the comment events beyond creation and resolution: an edit
-//! of a comment's body or mentions, a deletion, and the notice a mentioned
-//! user receives.
+//! of a comment's body or mentions, a resolved comment reopened, a deletion,
+//! and the notice a mentioned user receives.
 //!
 //! Like every document event they are also published on the document's live
 //! topic, so an open workspace updates its comment sidebar in place.
@@ -24,6 +24,17 @@ pub struct DocumentCommentUpdatedEvent {
 
 impl DocumentCommentUpdatedEvent {
     pub const NAME: &'static str = "document.comment.updated";
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct DocumentCommentReopenedEvent {
+    pub document_id: DocumentId,
+    pub comment_id: DocumentCommentId,
+    pub reopened_by: UserId,
+}
+
+impl DocumentCommentReopenedEvent {
+    pub const NAME: &'static str = "document.comment.reopened";
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

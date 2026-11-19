@@ -98,7 +98,8 @@ comment to a node id from a read and, with anchor, to the nth (0-based) occurren
 inside it. A reply is {action: create, document_id, parent_id, body}. {action: list, \
 document_id} returns every thread: id, anchor, author, body, parent_id, resolved_at and \
 answering_revision_id. {action: resolve, document_id, comment_id, answering?: revision_id} \
-resolves it. Anchors are stable ids, so edits elsewhere never move them; an edit that deletes \
+resolves it; {action: reopen, document_id, comment_id} reopens a resolved one (an open one \
+comes back as it is). Anchors are stable ids, so edits elsewhere never move them; an edit that deletes \
 the node or the quoted words refuses anchors_affected unless allow_detach: true, and a \
 detached comment keeps its node and drops its quote. documents_edit answering: <comment_id> \
 records the edit's revision on the comment. mentions: [user_id or email] on create or edit \

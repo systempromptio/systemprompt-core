@@ -88,7 +88,7 @@ A topic audience can widen a fact's scope (see [Topics](#topics)). It never bypa
 
 A document-sourced fact read by an agent is visible only when the document's agent cap for that agent, acting for the reader, is above `none`. Otherwise it is withheld as `agent_capped`.
 
-The profile's `capture.sources` names four pathways: `document`, `comment`, `session` and `entered`. Core produces events on three of them: `document.revision.landed`, `document.comment.resolved` and `brain.fact.entered`.
+The profile's `capture.sources` names four pathways: `document`, `comment`, `session` and `entered`. Core produces events on three of them: `document.revision.landed`, `document.comment.resolved` and `document.comment.reopened` (the `comment_resolved` and `comment_reopened` pathways, both captured as `comment`), and `brain.fact.entered`. A resolved or reopened comment stales the facts built on it; a reopened comment is never read for new facts, so no filter or extractor sees it.
 
 ### Topics
 

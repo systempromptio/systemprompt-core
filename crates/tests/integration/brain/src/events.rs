@@ -4,8 +4,8 @@ use systemprompt_identifiers::{
     DocumentRevisionId, FactKindId, UserId,
 };
 use systemprompt_models::brain::{
-    BrainEvent, BrainEventKind, CommentAnchorRef, CommentResolved, EnteredFact, EnteredStatus,
-    FactScope, RevisionLanded, SourceNode, SourceText, SubjectKey,
+    BrainEvent, BrainEventKind, CommentAnchorRef, CommentReopened, CommentResolved, EnteredFact,
+    EnteredStatus, FactScope, RevisionLanded, SourceNode, SourceText, SubjectKey,
 };
 use systemprompt_models::documents::{ActorKind, RevisionOriginKind};
 
@@ -87,6 +87,33 @@ pub(crate) fn comment_resolved(
     BrainEvent::new(
         BrainEventKind::comment_resolved(),
         resolver.clone(),
+        Utc::now(),
+    )
+    .with_payload(serde_json::to_value(payload).expect("payload"))
+}
+
+pub(crate) fn comment_reopened(
+    reopener: &UserId,
+    document: &DocumentId,
+    comment: &DocumentCommentId,
+) -> BrainEvent {
+    let payload = CommentReopened {
+        document_id: document.clone(),
+        comment_id: comment.clone(),
+        comment_author: reopener.clone(),
+        reopened_by: reopener.clone(),
+        anchor: CommentAnchorRef {
+            node_id: DocumentNodeId::try_new("n1").expect("node id"),
+            hash8: None,
+            find: None,
+            nth: None,
+        },
+        head_revision_id: None,
+        folder_id: None,
+    };
+    BrainEvent::new(
+        BrainEventKind::comment_reopened(),
+        reopener.clone(),
         Utc::now(),
     )
     .with_payload(serde_json::to_value(payload).expect("payload"))

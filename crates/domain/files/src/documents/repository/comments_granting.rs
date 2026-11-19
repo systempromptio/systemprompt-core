@@ -80,6 +80,7 @@ impl DocumentCommentRepository {
                       c.body AS "body!", c.mentions AS "mentions!",
                       c.parent_id::text AS "parent_id: DocumentCommentId",
                       c.resolved_at, c.resolved_by AS "resolved_by: UserId",
+                      c.reopened_at, c.reopened_by AS "reopened_by: UserId",
                       c.answering_revision_id::text AS "answering_revision_id: DocumentRevisionId",
                       c.created_at AS "created_at!", c.updated_at AS "updated_at!",
                       c.edited_at, c.deleted_at,

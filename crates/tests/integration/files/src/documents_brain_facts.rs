@@ -105,13 +105,13 @@ async fn harness_on_storage(brain: DynBrainSink, storage: Arc<TempDir>) -> Harne
     )
 }
 
-async fn recording() -> Harness {
+pub(crate) async fn recording() -> Harness {
     let db = test_db_pool().await;
     let outbox = DurableOutbox::new(db.write_pool().as_ref().clone(), unique_instance());
     harness_with(Arc::new(RecordingBrainSink { outbox })).await
 }
 
-async fn text_document(h: &Harness, owner: &AuthenticatedUser) -> DocumentId {
+pub(crate) async fn text_document(h: &Harness, owner: &AuthenticatedUser) -> DocumentId {
     let mut request = create("blank-text", None);
     request.ops = vec![EditOp::SetText {
         text: "alpha beta\n".to_owned(),
@@ -163,7 +163,7 @@ async fn head(h: &Harness, owner: &AuthenticatedUser, document: &DocumentId) -> 
         .id
 }
 
-async fn brain_facts(kind: &str, document: &DocumentId) -> Vec<serde_json::Value> {
+pub(crate) async fn brain_facts(kind: &str, document: &DocumentId) -> Vec<serde_json::Value> {
     let db = test_db_pool().await;
     sqlx::query_scalar(
         "SELECT fact->'data' FROM event_outbox \

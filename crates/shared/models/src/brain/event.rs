@@ -31,6 +31,7 @@ pub struct BrainEventKindError {
 impl BrainEventKind {
     pub const REVISION_LANDED: &'static str = "document.revision.landed";
     pub const COMMENT_RESOLVED: &'static str = "document.comment.resolved";
+    pub const COMMENT_REOPENED: &'static str = "document.comment.reopened";
     pub const FACT_ENTERED: &'static str = "brain.fact.entered";
     pub const SESSION_TURN_CLOSED: &'static str = "session.turn.closed";
 
@@ -50,6 +51,11 @@ impl BrainEventKind {
     #[must_use]
     pub fn comment_resolved() -> Self {
         Self(Self::COMMENT_RESOLVED.to_owned())
+    }
+
+    #[must_use]
+    pub fn comment_reopened() -> Self {
+        Self(Self::COMMENT_REOPENED.to_owned())
     }
 
     #[must_use]

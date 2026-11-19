@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- The `comment_reopened` pathway: a `document.comment.reopened` event stales the facts sourced from its comment, like a resolution, and is never read for new facts (the filter stage records it as ignored by `comment_reopened`).
+
 ## [0.81.0] - 2026-11-12
 
 ### Breaking

@@ -58,6 +58,7 @@ pub(super) const OWNED: &[Row] = &[
     owned(DOC, "GET", r#""/{id}/comments""#, Documents, NotFound, Empty),
     owned(DOC, "POST", r#""/{id}/comments""#, Documents, NotFound, Json(r#"{"body":"x"}"#)),
     owned(DOC, "POST", r#""/{id}/comments/{comment_id}/resolve""#, Documents, NotFound, Empty),
+    owned(DOC, "POST", r#""/{id}/comments/{comment_id}/reopen""#, Documents, NotFound, Empty),
     owned(DOC, "PATCH", r#""/{id}/comments/{comment_id}""#, Documents, NotFound, Json(r#"{"body":"x"}"#)),
     owned(DOC, "DELETE", r#""/{id}/comments/{comment_id}""#, Documents, NotFound, Empty),
     owned(DOC, "GET", r#""/{id}/export/docx""#, Documents, NotFound, Empty),

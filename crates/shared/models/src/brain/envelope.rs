@@ -23,6 +23,7 @@ use super::event::{BrainEvent, BrainEventKind};
 pub enum Pathway {
     DocumentRevision,
     CommentResolved,
+    CommentReopened,
     Entered,
     Session,
 }
@@ -33,6 +34,7 @@ impl Pathway {
         match self {
             Self::DocumentRevision => "document_revision",
             Self::CommentResolved => "comment_resolved",
+            Self::CommentReopened => "comment_reopened",
             Self::Entered => "entered",
             Self::Session => "session",
         }
@@ -43,6 +45,7 @@ impl Pathway {
         match kind.as_str() {
             BrainEventKind::REVISION_LANDED => Some(Self::DocumentRevision),
             BrainEventKind::COMMENT_RESOLVED => Some(Self::CommentResolved),
+            BrainEventKind::COMMENT_REOPENED => Some(Self::CommentReopened),
             BrainEventKind::FACT_ENTERED => Some(Self::Entered),
             BrainEventKind::SESSION_TURN_CLOSED => Some(Self::Session),
             _ => None,
@@ -52,7 +55,10 @@ impl Pathway {
     #[must_use]
     pub const fn default_weight(self) -> PathwayWeight {
         match self {
-            Self::DocumentRevision | Self::CommentResolved | Self::Entered => PathwayWeight::High,
+            Self::DocumentRevision
+            | Self::CommentResolved
+            | Self::CommentReopened
+            | Self::Entered => PathwayWeight::High,
             Self::Session => PathwayWeight::Medium,
         }
     }

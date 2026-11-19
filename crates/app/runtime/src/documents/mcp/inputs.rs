@@ -180,6 +180,7 @@ pub enum CommentAction {
     Create,
     List,
     Resolve,
+    Reopen,
     Edit,
     Delete,
 }

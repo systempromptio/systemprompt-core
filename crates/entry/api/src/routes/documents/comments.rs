@@ -1,7 +1,7 @@
 //! Comment threads on one document: list, create (a node anchor with an
 //! optional quote and range of engine cursors, or a reply by `parent_id`,
-//! with optional mentions), resolve, edit (the author's body and mentions)
-//! and delete.
+//! with optional mentions), resolve, reopen, edit (the author's body and
+//! mentions) and delete.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,7 +13,8 @@ use axum::{Extension, Json};
 use serde::Deserialize;
 use systemprompt_files::documents::models::{CommentAnchor, CommentRange};
 use systemprompt_files::documents::service::{
-    CommentRequest, DeleteCommentRequest, EditCommentRequest, MentionOption, ResolveCommentRequest,
+    CommentRequest, DeleteCommentRequest, EditCommentRequest, MentionOption, ReopenCommentRequest,
+    ResolveCommentRequest,
 };
 use systemprompt_identifiers::{DocumentCommentId, DocumentNodeId, DocumentRevisionId, UserId};
 use systemprompt_models::RequestContext;
@@ -145,6 +146,23 @@ pub(super) async fn resolve(
         .resolve_comment(&who.user, request, &who.trace)
         .await?;
     Ok(Json(CommentItem::from(resolved)))
+}
+
+pub(super) async fn reopen(
+    State(state): State<DocumentsState>,
+    Extension(req_ctx): Extension<RequestContext>,
+    Path((id, comment)): Path<(String, String)>,
+) -> DocumentsResult<Json<CommentItem>> {
+    let who = caller(&state, &req_ctx).await?;
+    let request = ReopenCommentRequest {
+        document: document_id(&id)?,
+        comment: DocumentCommentId::try_new(&comment)?,
+    };
+    let reopened = state
+        .service
+        .reopen_comment(&who.user, request, &who.trace)
+        .await?;
+    Ok(Json(CommentItem::from(reopened)))
 }
 
 #[derive(Debug, Deserialize)]
