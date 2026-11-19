@@ -1,6 +1,7 @@
 //! The `documents_people` tool finds people a caller can mention or share with.
 //!
-//! It searches active people by name, email or id prefix through
+//! It searches active people whose name, email or id has a word starting with
+//! each query word, accents ignored, through
 //! [`people_search_view`], the view the HTTP route answers with too. With
 //! `document_id`, each match carries the level it already holds there, so an
 //! agent knows who a mention would share the document with; reading that
@@ -33,7 +34,7 @@ impl McpToolHandler for PeopleHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Find people to mention or share."
+        "Find people to mention or share. Each query word must start a word of their name, email or id, in any order; accents are ignored."
     }
 
     fn read_only(&self) -> bool {

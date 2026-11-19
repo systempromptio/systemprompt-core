@@ -6,6 +6,10 @@
 
 - The root discovery document carries `endpoints.documents`: `{"enabled": false}` while the document store is off, and otherwise its route URLs and upload `limits` (`maxUploadBytes`, `inlineMaxBytes`, `uploadPartBytes`).
 
+### Fixed
+
+- `GET /api/v1/documents/people?query=` and user search in `GET /api/v1/documents/subjects` match several words in any order, ignoring accents.
+
 ## [0.82.0] - 2026-11-16
 
 ### Breaking

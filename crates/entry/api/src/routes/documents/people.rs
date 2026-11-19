@@ -2,8 +2,9 @@
 //! with, from the same directory and with the same fields as the
 //! `documents_people` MCP tool.
 //!
-//! Exactly one mode per request: `query` searches active people by name,
-//! email or id prefix (up to `limit`), and `ids` names the active people
+//! Exactly one mode per request: `query` searches active people whose name,
+//! email or id has a word starting with each query word, accents ignored (up to
+//! `limit`), and `ids` names the active people
 //! among a comma-separated list of user ids, leaving out unknown and inactive
 //! ones. Either mode takes `document_id` to report each person's level there.
 //!

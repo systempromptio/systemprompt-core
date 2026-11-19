@@ -9,6 +9,7 @@
 
 ### Fixed
 
+- `documents_people` finds people by several words in any order, ignoring accents (`jesus vargas` finds «Jesús Vargas Sánchez»); its description says so.
 - `DocumentsError::FolderNameTaken` and `AgentRefusal::WholesaleReplace` map to the `name_taken` and `agent_forbidden` refusals.
 - A documents MCP call naming a blob that did not pass its format's content check is refused as `invalid_params`, not `integrity_mismatch`.
 

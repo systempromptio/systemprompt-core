@@ -1,7 +1,8 @@
 //! People a caller can mention or share with, as plain structs.
 //!
 //! Both surfaces read the store's one directory: [`people_search_view`]
-//! matches active people by name, email or id prefix and
+//! matches active people whose name, email or id has a word starting with each
+//! query word, accents ignored, and
 //! [`people_lookup_view`] names the active people among a list of user ids,
 //! leaving out unknown, inactive and service accounts. With a document, each
 //! person carries the level they already hold there; reading that needs
