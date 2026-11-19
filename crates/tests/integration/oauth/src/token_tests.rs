@@ -257,6 +257,7 @@ async fn test_refresh_token_lifecycle() {
         scope: scopes,
         expires_at,
         resource: None,
+        authenticated_at: chrono::Utc::now(),
         lineage: RefreshTokenLineage::Family(&RefreshTokenFamilyId::new(format!(
             "fam-{}",
             uuid::Uuid::new_v4()
@@ -307,6 +308,7 @@ async fn test_refresh_token_expiration() {
         scope: scopes,
         expires_at,
         resource: None,
+        authenticated_at: chrono::Utc::now(),
         lineage: RefreshTokenLineage::Family(&RefreshTokenFamilyId::new(format!(
             "fam-{}",
             uuid::Uuid::new_v4()
@@ -349,6 +351,7 @@ async fn test_refresh_token_revocation() {
         scope: scopes,
         expires_at,
         resource: None,
+        authenticated_at: chrono::Utc::now(),
         lineage: RefreshTokenLineage::Family(&RefreshTokenFamilyId::new(format!(
             "fam-{}",
             uuid::Uuid::new_v4()

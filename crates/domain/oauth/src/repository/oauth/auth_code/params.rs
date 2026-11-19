@@ -4,6 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{AuthorizationCode, ClientId, RefreshTokenId, UserId};
 
 #[derive(Debug)]
@@ -39,6 +40,7 @@ pub struct AuthCodeValidationResult {
     pub user_id: UserId,
     pub scope: String,
     pub resource: Option<String>,
+    pub issued_at: DateTime<Utc>,
 }
 
 /// One attempt to redeem an authorization code, naming the refresh token the

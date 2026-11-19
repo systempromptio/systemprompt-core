@@ -124,6 +124,10 @@ impl OAuthRepository {
         client_repo.find_by_client_id(client_id).await
     }
 
+    pub async fn is_person_ui_client(&self, client_id: &ClientId) -> OauthResult<bool> {
+        self.client_repo.is_person_ui(client_id).await
+    }
+
     pub async fn find_registration_token_hash(
         &self,
         client_id: &ClientId,

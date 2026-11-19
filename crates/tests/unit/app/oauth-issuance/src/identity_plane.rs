@@ -182,3 +182,73 @@ fn rendered_declarations_load_back_to_the_same_entities() {
     assert_eq!(reloaded.entries, declared.entries);
     assert_eq!(reloaded.hash, declared.hash);
 }
+
+fn person_ui_client(
+    id: &str,
+) -> systemprompt_oauth_issuance::identity::declaration::DeclaredClient {
+    systemprompt_oauth_issuance::identity::declaration::DeclaredClient {
+        client_id: systemprompt_identifiers::ClientId::new(id),
+        name: "Desk".to_owned(),
+        owner: "ops@example.com".to_owned(),
+        redirect_uris: vec![
+            "http://127.0.0.1:53682/callback".to_owned(),
+            "com.example.desk:/oauth".to_owned(),
+        ],
+        grant_types: vec!["authorization_code".to_owned(), "refresh_token".to_owned()],
+        scopes: vec!["user".to_owned()],
+        secret_key: None,
+        active: true,
+        person_ui: true,
+    }
+}
+
+#[test]
+fn a_public_native_person_ui_client_is_declarable() {
+    person_ui_client("desk_ui").validate().expect("valid");
+}
+
+#[test]
+fn person_ui_is_refused_on_a_platform_client() {
+    for id in ["sp_web", "sp_bridge", "sp_cli", "sys_agent"] {
+        assert!(person_ui_client(id).validate().is_err(), "{id}");
+    }
+}
+
+#[test]
+fn a_person_ui_client_is_public_and_code_only() {
+    let mut secret = person_ui_client("desk_ui");
+    secret.secret_key = Some("desk_secret".to_owned());
+    assert!(secret.validate().is_err());
+    let mut machine = person_ui_client("desk_ui");
+    machine.grant_types.push("client_credentials".to_owned());
+    assert!(machine.validate().is_err());
+    let mut refresh_only = person_ui_client("desk_ui");
+    refresh_only.grant_types = vec!["refresh_token".to_owned()];
+    assert!(refresh_only.validate().is_err());
+}
+
+#[test]
+fn a_person_ui_client_redirects_only_to_loopback_or_a_private_scheme() {
+    for uri in [
+        "https://desk.example.com/cb",
+        "http://localhost:8080/cb",
+        "http://192.168.1.4:8080/cb",
+        "http://127.0.0.1:8080/cb#fragment",
+        "desk:/cb",
+    ] {
+        let mut client = person_ui_client("desk_ui");
+        client.redirect_uris = vec![uri.to_owned()];
+        assert!(client.validate().is_err(), "{uri}");
+    }
+    let mut none = person_ui_client("desk_ui");
+    none.redirect_uris.clear();
+    assert!(none.validate().is_err());
+}
+
+#[test]
+fn a_client_that_is_not_person_ui_keeps_its_canonical_value() {
+    let mut client = person_ui_client("portal");
+    client.person_ui = false;
+    let value = serde_json::to_string(&client.value()).expect("encode");
+    assert!(!value.contains("person_ui"));
+}

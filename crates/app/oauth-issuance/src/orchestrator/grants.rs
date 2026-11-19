@@ -1,6 +1,11 @@
 //! User-bound grants: authorization-code redemption and refresh-token
 //! rotation.
 //!
+//! These are the only two grants that can mint a person's UI session: the
+//! code grant for a client the operator declared `person_ui`, with the code's
+//! issue time as the sign-in, and the refresh of that grant's own token, which
+//! carries the sign-in time forward unchanged.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -43,6 +48,7 @@ impl TokenIssuanceOrchestrator<'_> {
         let client =
             validate_client_credentials(repo, &client_id, request.client_secret.as_deref()).await?;
         require_public_client_redirect(&client.token_endpoint_auth_method, &request)?;
+        let ui_session = repo.is_person_ui_client(&client_id).await?;
 
         let refresh_token = MintedRefreshToken::mint();
         let validation_result = validate_authorization_code(AuthCodeValidationParams {
@@ -67,6 +73,8 @@ impl TokenIssuanceOrchestrator<'_> {
                 resource: validation_result.resource.as_deref(),
                 refresh_token: &refresh_token,
                 lineage: RefreshTokenLineage::AuthorizationCode(&code),
+                authenticated_at: validation_result.issued_at,
+                ui_session,
                 config: self.config,
             },
             self.state,
@@ -112,6 +120,7 @@ impl TokenIssuanceOrchestrator<'_> {
         };
 
         validate_client_credentials(repo, &client_id, request.client_secret.as_deref()).await?;
+        let ui_session = repo.is_person_ui_client(&client_id).await?;
 
         let stored_resource = repo
             .refresh_token_resource(&refresh_token, &client_id)
@@ -142,12 +151,14 @@ impl TokenIssuanceOrchestrator<'_> {
                 resource,
                 refresh_token: &MintedRefreshToken::mint(),
                 lineage: RefreshTokenLineage::Family(family_id),
+                authenticated_at: consumed.authenticated_at,
+                ui_session,
                 config: self.config,
             },
             self.state,
         )
         .await
-        .map_err(|e| IssuanceError::server("Token generation failed", e))?;
+        .map_err(refresh_generation_error)?;
 
         let token_response = generated.response;
         tracing::info!(
@@ -197,7 +208,27 @@ fn narrow_scope<'a>(requested: Option<&'a str>, original: &'a str) -> IssuanceRe
 fn code_generation_error(error: UserTokenError) -> IssuanceError {
     match error {
         UserTokenError::Oauth(oauth @ OauthError::Validation(_)) => authorization_code_error(oauth),
+        UserTokenError::UiSessionResource => ui_session_resource_error(),
+        UserTokenError::UiSessionExpired => IssuanceError::InvalidGrant {
+            reason: UserTokenError::UiSessionExpired.to_string(),
+        },
         other => IssuanceError::server("Token generation failed", other),
+    }
+}
+
+fn refresh_generation_error(error: UserTokenError) -> IssuanceError {
+    match error {
+        UserTokenError::UiSessionResource => ui_session_resource_error(),
+        UserTokenError::UiSessionExpired => IssuanceError::InvalidRefreshToken {
+            reason: UserTokenError::UiSessionExpired.to_string(),
+        },
+        other => IssuanceError::server("Token generation failed", other),
+    }
+}
+
+fn ui_session_resource_error() -> IssuanceError {
+    IssuanceError::InvalidTarget {
+        message: UserTokenError::UiSessionResource.to_string(),
     }
 }
 

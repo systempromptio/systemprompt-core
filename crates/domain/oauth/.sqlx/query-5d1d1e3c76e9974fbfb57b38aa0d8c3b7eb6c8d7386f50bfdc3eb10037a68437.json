@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT EXISTS (\n                SELECT 1 FROM oauth_clients\n                WHERE client_id = $1 AND is_active AND person_ui\n                  AND declared_source IS NOT NULL\n            ) AS \"person_ui!\"\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "person_ui!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "5d1d1e3c76e9974fbfb57b38aa0d8c3b7eb6c8d7386f50bfdc3eb10037a68437"
+}

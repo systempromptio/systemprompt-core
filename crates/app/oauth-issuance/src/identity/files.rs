@@ -1,5 +1,6 @@
 //! Reading the `services/identity/` declaration files into entities, and
-//! rendering a snapshot back into one document.
+//! rendering a snapshot back into one document, and hashing a declared
+//! client's secret from the secrets document.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,6 +12,8 @@ use systemprompt_extension::prelude::{
     PlaneSnapshot,
 };
 use systemprompt_identifiers::ClientId;
+use systemprompt_manifest::secrets::Secrets;
+use systemprompt_oauth::services::hash_client_secret;
 
 use super::declaration::{
     CLIENT_PREFIX, ClientValue, IdentityDocument, USER_PREFIX, UserValue, client_key, user_key,
@@ -30,6 +33,25 @@ pub(super) fn backend(error: impl std::error::Error + Send + Sync + 'static) -> 
         plane: IDENTITY_PLANE.to_owned(),
         source: Box::new(error),
     }
+}
+
+pub(super) fn declared_secret_hash(
+    secrets: Option<&Secrets>,
+    client_id: &ClientId,
+    key: Option<&str>,
+) -> ConfigPlaneResult<Option<String>> {
+    let Some(key) = key else {
+        return Ok(None);
+    };
+    let secret = secrets.and_then(|s| s.get(key)).ok_or_else(|| {
+        invalid(
+            IDENTITY_DIR,
+            &format_args!(
+                "oauth client {client_id}: secret_key '{key}' is not in the secrets document"
+            ),
+        )
+    })?;
+    Ok(Some(hash_client_secret(secret).map_err(backend)?))
 }
 
 pub(super) fn unreadable(path: &str, error: std::io::Error) -> ConfigPlaneError {

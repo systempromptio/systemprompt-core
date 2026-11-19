@@ -132,7 +132,7 @@ impl OAuthRepository {
              SET used_at = $1, refresh_token_id = $3
              WHERE code = $2 AND used_at IS NULL
              RETURNING client_id, user_id, scope, expires_at, redirect_uri, code_challenge,
-                       code_challenge_method, resource",
+                       code_challenge_method, resource, created_at",
             now,
             code_hash,
             refresh_token_id_hash
@@ -189,6 +189,7 @@ impl OAuthRepository {
             user_id: UserId::new(row.user_id),
             scope: row.scope,
             resource: row.resource,
+            issued_at: row.created_at,
         })
     }
 
