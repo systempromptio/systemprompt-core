@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- The actor of an event stays a recipient when the event names them directly at `agent` attention (a self-mention handed to their own agent); otherwise the actor is still never their own recipient.
+
 ## [0.81.0] - 2026-11-12
 
 ### Breaking

@@ -25,6 +25,7 @@
 - **Documents:** `POST /api/v1/documents` (JSON, or a multipart `message` part), `POST /api/v1/documents/import` and `documents_import` take an optional `message`, stored on the first revision as `documents_create` already did.
 - **Traits:** `ContextDirectory` (`owned_context`, `owned_names`), implemented by `ContextProviderService`, answers only the conversations a user owns.
 - **Documents:** a resolved comment can be reopened: `POST /api/v1/documents/{id}/comments/{comment_id}/reopen` and `documents_comment {action: reopen}`, with the same `comment` access as resolving. It clears `resolved_at` and `resolved_by`, records `reopened_at` and `reopened_by` (files migration `043_document_comment_reopen`), emits `document.comment.reopened` to the audience resolution reaches, and records a `document.comment.reopened` brain fact on the `comment_reopened` pathway, which stales the facts built on the comment and gathers nothing. Reopening an open comment returns it unchanged and records nothing, as resolving a resolved one keeps its first resolution.
+- **Documents:** an author who mentions themselves at `mention_options` attention `agent` is delivered the mention: an inbox item at `agent` attention and the live `document.comment.mentioned`, the hand-off to their own agent. A self-mention at `human` or `silent` attention, or with none chosen, stays undelivered, and no longer sends the live mention event either. The notifications pipeline keeps an event's actor as a recipient only when the event names them directly at `agent` attention.
 
 ### Fixed
 

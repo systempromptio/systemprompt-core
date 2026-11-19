@@ -105,7 +105,8 @@ detached comment keeps its node and drops its quote. documents_edit answering: <
 records the edit's revision on the comment. mentions: [user_id or email] on create or edit \
 mentions active people: each is written into the body as @[Name](user:<id>) (a plain \
 @<email> or @<id> in the body becomes that token, otherwise it is appended), and the body's \
-tokens are the mention list. Each newly mentioned user is notified; one who cannot see the \
+tokens are the mention list. Each newly mentioned user is notified (yourself only at \
+mention_options attention agent, a hand-off to your own agent); one who cannot see the \
 document is given comment access in the same call, which needs your share access. \
 documents_people {query, document_id?} finds people and the access each holds on the \
 document. {action: edit, document_id, comment_id, body, mentions?} rewrites your \

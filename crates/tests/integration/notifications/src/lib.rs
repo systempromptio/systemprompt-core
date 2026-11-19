@@ -39,6 +39,8 @@ mod receipts;
 #[cfg(test)]
 mod retention;
 #[cfg(test)]
+mod self_mentions;
+#[cfg(test)]
 mod simulate;
 #[cfg(test)]
 mod streams;

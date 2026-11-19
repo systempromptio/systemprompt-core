@@ -130,6 +130,8 @@ mod documents_revision_engine;
 #[cfg(test)]
 mod documents_search_visibility;
 #[cfg(test)]
+mod documents_self_mentions;
+#[cfg(test)]
 mod documents_service;
 #[cfg(test)]
 mod documents_service_drive;

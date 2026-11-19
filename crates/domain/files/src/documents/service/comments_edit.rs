@@ -20,7 +20,9 @@ use systemprompt_models::documents::{
 
 use super::DocumentService;
 use super::mentions::{CommentOrigin, MentionInput};
-use super::notify::{MentionContext, MentionNotice, MentionOption, check_mention_options};
+use super::notify::{
+    MentionContext, MentionNotice, MentionOption, check_mention_options, notified,
+};
 use systemprompt_traits::RepositoryError;
 
 use crate::documents::error::DocumentsError;
@@ -132,7 +134,8 @@ impl DocumentService {
             tracing::warn!(document_id = %document.id, error = %error, "Comment event not relayed");
         }
         let edited = self.comment_of(&document.id, &request.comment).await?;
-        self.announce_mentions(who, &document, &edited, &fresh, &plan.grants)
+        let announced = notified(&who.id, &fresh, &request.mention_options);
+        self.announce_mentions(who, &document, &edited, &announced, &plan.grants)
             .await;
         Ok(edited)
     }

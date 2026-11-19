@@ -9,7 +9,7 @@
 
 ### Added
 
-- `documents_comment {action: reopen, document_id, comment_id}` reopens a resolved comment; the `comments` guide topic names it.
+- `documents_comment {action: reopen, document_id, comment_id}` reopens a resolved comment; the `comments` guide topic names it and the `agent`-attention self-mention hand-off.
 - `EditInput::content_blob_ref`: `documents_edit` replaces the whole file from an uploaded blob in place of `ops` (exclusive with it; neither or both is `invalid_params`).
 - `documents::mcp::{FolderHandler, FolderInput, FolderAction, ImportHandler, ImportInput}`: the `documents_folder` and `documents_import` tools; `TOOL_NAMES` lists them (21 tools, 20 without `notifications`).
 - `documents::attribution`: the conversation a document write is attributed to, refused as `unknown_context` unless the caller owns it or it is the caller's session-derived context, and the owner-only context names. The document write tools take an optional `context_id`, `documents_import` a `message`, and history and comment items carry the agent, client and context.

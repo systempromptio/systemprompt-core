@@ -23,7 +23,9 @@ use super::DocumentService;
 use super::comment_anchors::anchor_holds;
 use super::comments_edit::check_range;
 use super::mentions::{CommentOrigin, MentionInput};
-use super::notify::{MentionContext, MentionNotice, MentionOption, check_mention_options};
+use super::notify::{
+    MentionContext, MentionNotice, MentionOption, check_mention_options, notified,
+};
 use systemprompt_traits::RepositoryError;
 
 use crate::documents::error::DocumentsError;
@@ -121,7 +123,8 @@ impl DocumentService {
         if let Err(error) = self.events.comment_created(&to, &event).await {
             tracing::warn!(document_id = %document.id, error = %error, "Comment event not relayed");
         }
-        self.announce_mentions(who, &document, &comment, &comment.mentions, &plan.grants)
+        let announced = notified(&who.id, &comment.mentions, &request.mention_options);
+        self.announce_mentions(who, &document, &comment, &announced, &plan.grants)
             .await;
         Ok(comment)
     }
