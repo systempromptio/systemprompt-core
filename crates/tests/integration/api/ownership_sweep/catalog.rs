@@ -64,6 +64,7 @@ pub(super) const NOT_USER_OWNED: &[Row] = &[
     free("routes/content/mod.rs::public_router", "POST", r#""/query""#, CONTENT),
     free("routes/content/mod.rs::redirect_router", "GET", r#""/r/{short_code}""#, CONTENT),
     free("routes/documents/drive.rs::router", "POST", "ApiPaths::gateway_relative(ApiPaths::BRIDGE_DRIVE_TOKEN)", TOKEN),
+    free("routes/documents/mod.rs::router", "GET", r#""/people""#, CATALOG),
     free("routes/documents/mod.rs::router", "GET", r#""/schema""#, CATALOG),
     free("routes/documents/mod.rs::router", "GET", r#""/subject-kinds""#, CATALOG),
     free("routes/documents/mod.rs::router", "GET", r#""/subjects""#, CATALOG),
