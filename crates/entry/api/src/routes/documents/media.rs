@@ -102,6 +102,6 @@ pub(super) async fn image(
             headers.insert(name, value);
         }
     }
-    harden(&mut response, USER_CONTENT_CSP);
+    harden(&mut response, HeaderValue::from_static(USER_CONTENT_CSP));
     Ok(response)
 }

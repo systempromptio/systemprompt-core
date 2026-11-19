@@ -6,6 +6,9 @@
 mod document_limits;
 mod documents;
 mod issues;
+mod remote_origin;
+mod rendered_csp;
+mod rendered_html;
 mod types;
 mod upload_limits;
 mod validator;
@@ -17,9 +20,11 @@ pub(crate) use document_limits::{
 };
 pub use documents::{
     CollabConfig, CollabOwnerConfig, DocumentsConfig, MAX_DOCUMENT_UPLOAD_BYTES,
-    MIN_DOCUMENT_UPLOAD_BYTES, RenderedHtmlConfig,
+    MIN_DOCUMENT_UPLOAD_BYTES,
 };
 pub use issues::IssuesConfig;
+pub use remote_origin::RemoteOrigin;
+pub use rendered_html::{RenderedHtmlConfig, RenderedHtmlError, RenderedHtmlTier};
 pub use types::{AllowedFileTypes, FilePersistenceMode, FileUploadConfig, FilesConfigYaml};
 pub use upload_limits::UploadLimits;
 pub use validator::FilesConfigValidator;

@@ -53,8 +53,8 @@ pub use extension::FilesExtension;
 pub use config::{
     AllowedFileTypes, CollabConfig, CollabOwnerConfig, DocumentLimits, DocumentsConfig,
     FilePersistenceMode, FileUploadConfig, FilesConfig, FilesConfigValidator, FilesConfigYaml,
-    IssuesConfig, MAX_DOCUMENT_UPLOAD_BYTES, MIN_DOCUMENT_UPLOAD_BYTES, RenderedHtmlConfig,
-    UploadLimits,
+    IssuesConfig, MAX_DOCUMENT_UPLOAD_BYTES, MIN_DOCUMENT_UPLOAD_BYTES, RemoteOrigin,
+    RenderedHtmlConfig, RenderedHtmlError, RenderedHtmlTier, UploadLimits,
 };
 pub use jobs::FileIngestionJob;
 pub use models::{

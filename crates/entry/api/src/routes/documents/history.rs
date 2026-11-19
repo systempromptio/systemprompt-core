@@ -198,6 +198,6 @@ async fn pdf_preview(
         HeaderValue::from_static("inline"),
     );
     set_revision_tags(headers, &revision.id, &revision.content_sha256);
-    harden(&mut response, INLINE_PDF_CSP);
+    harden(&mut response, HeaderValue::from_static(INLINE_PDF_CSP));
     Ok(Some(response))
 }

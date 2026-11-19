@@ -1,13 +1,15 @@
 //! The `endpoints.documents` block of the root discovery document: whether
 //! the document store is on and, when it is, where its routes are and the
-//! byte limits an upload, a part of one and an inline upload stay within, so
-//! a client learns the Drive from discovery instead of probing for a `404`.
+//! byte limits an upload, a part of one and an inline upload stay within, and
+//! the rendered-HTML policy (`renderedHtml`: `scripts`, `remoteOrigins` and
+//! the `agentAuthored` tier), so a client learns the Drive from discovery
+//! instead of probing for a `404`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::Serialize;
-use systemprompt_files::DocumentsConfig;
+use systemprompt_files::{DocumentsConfig, RenderedHtmlConfig};
 use systemprompt_models::modules::ApiPaths;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -25,6 +27,7 @@ struct DocumentsSurface {
     folders: String,
     uploads: String,
     limits: DocumentsLimits,
+    rendered_html: RenderedHtmlConfig,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -56,6 +59,7 @@ impl DocumentsDiscovery {
                     inline_max: config.uploads.inline_max_bytes,
                     upload_part: config.uploads.part_size_bytes,
                 },
+                rendered_html: config.rendered_html.clone(),
             }),
         }
     }

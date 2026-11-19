@@ -8,6 +8,7 @@
 - `DocumentServiceParts` gains the `tasks` field (`BackgroundTasks`). Migrate by passing the composition root's `BackgroundTasks`.
 - `DocumentsError` gains `UnknownContext` and `Contexts`; `RevisionAttribution` gains `agent_name` and `client_id`; `CommentOrigin`, `NewComment` and `DocumentComment` gain `context_id` and `client_id` (`DocumentComment` also `via_agent`); `ImportRequest` and `FileCreateRequest` gain `message`. Migrate by adding the match arms and setting the fields.
 - `DocumentComment` gains `reopened_at` and `reopened_by`. Migrate a struct literal by setting both to `None`.
+- `files.documents.renderedHtml.remoteAssets` is replaced by `remoteOrigins` (a list of `RemoteOrigin`, each exactly an `https` origin) and `agentAuthored` (`RenderedHtmlTier`); `RenderedHtmlConfig` is built with `RenderedHtmlConfig::new(top, agent_authored)`, which refuses an `agentAuthored` tier wider than the top level (`RenderedHtmlError`) and builds each tier's `Content-Security-Policy` once (`RenderedHtmlConfig::csp(agent_content)`, always with `base-uri 'none'`), and is no longer `Copy`. `remoteAssets: true` has no equivalent: migrate by listing the origins.
 
 ### Added
 

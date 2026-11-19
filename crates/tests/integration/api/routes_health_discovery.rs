@@ -11,9 +11,11 @@ use systemprompt_api::services::server::builder::{
     handle_agents_discovery, handle_core_discovery, handle_health, handle_mcp_discovery,
     handle_root_discovery,
 };
+use systemprompt_files::{DocumentsConfig, RemoteOrigin, RenderedHtmlConfig, RenderedHtmlTier};
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_app_context_documents_disabled, fixture_config, test_db_pool,
+    ensure_test_bootstrap, fixture_app_context_documents_configured,
+    fixture_app_context_documents_disabled, fixture_config, test_db_pool,
 };
 use tower::ServiceExt;
 
@@ -65,6 +67,47 @@ async fn root_discovery_advertises_the_enabled_document_store() -> anyhow::Resul
                 "inlineMaxBytes": config.uploads.inline_max_bytes,
                 "uploadPartBytes": config.uploads.part_size_bytes,
             },
+            "renderedHtml": {
+                "scripts": false,
+                "remoteOrigins": [],
+                "agentAuthored": { "scripts": false, "remoteOrigins": [] },
+            },
+        })
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn root_discovery_publishes_the_rendered_html_tiers() -> anyhow::Result<()> {
+    let bootstrap = ensure_test_bootstrap();
+    let pool = test_db_pool().await;
+    let cdn = RemoteOrigin::try_new("https://cdn.example.com")?;
+    let documents = DocumentsConfig {
+        enabled: true,
+        rendered_html: RenderedHtmlConfig::new(
+            RenderedHtmlTier {
+                scripts: true,
+                remote_origins: vec![cdn.clone()],
+            },
+            RenderedHtmlTier {
+                scripts: false,
+                remote_origins: vec![cdn],
+            },
+        )?,
+        ..DocumentsConfig::default()
+    };
+    let ctx = fixture_app_context_documents_configured(
+        &pool,
+        fixture_config(&bootstrap.database_url),
+        documents,
+    )?;
+    let block = root_documents_block(discovery_router_over(&ctx)).await?;
+    assert_eq!(
+        block["renderedHtml"],
+        serde_json::json!({
+            "scripts": true,
+            "remoteOrigins": ["https://cdn.example.com"],
+            "agentAuthored": { "scripts": false, "remoteOrigins": ["https://cdn.example.com"] },
         })
     );
     Ok(())
