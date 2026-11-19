@@ -6,11 +6,14 @@
 
 - `DocumentEventName` gains `DriveChanged` and `CommentReopened`, and `DocumentEventName::ALL` holds 21 names. Migrate an exhaustive match by adding the arms.
 - `brain::Pathway` gains `CommentReopened` (`comment_reopened`). Migrate an exhaustive match by adding the arm.
+- `DocumentEventName` gains `DriveChanged`, and `DocumentEventName::ALL` holds 20 names. Migrate an exhaustive match by adding the arm.
+- `JwtAudience` gains `Ui`, `CustomClaims` gains `ui_session`, `UserJwtRequest` gains `ui_session` and `auth_time`, `AuthContext` gains `ui_session_auth_time`, and `TokenError` gains `UiSessionShape`. Migrate a struct literal with `ui_session: false`, `auth_time: None`, `ui_session_auth_time: None`, and add the match arms.
 
 ### Added
 
 - `DocumentDriveChangedEvent` (`document.drive.changed`, `{ "v": 1 }`): the id-less per-user hint that something the recipient can read changed.
 - `DocumentCommentReopenedEvent` (`document.comment.reopened`), `BrainEventKind::COMMENT_REOPENED` / `comment_reopened()` and the `CommentReopened` brain payload.
+- `auth::ui_session`: the UI-session lifetimes (`UI_SESSION_ACCESS_TTL_SECS`, `UI_SESSION_ABSOLUTE_SECS`, `UI_SESSION_STEP_UP_MAX_AGE_SECS`) and `step_up_required`; `JwtAudience::FIRST_PARTY_AND_UI`; `JwtClaims::ui_session_well_formed`; `RequestContext::{with_ui_session, is_ui_session, ui_session_auth_time}`.
 
 ## [0.83.0] - 2026-11-17
 

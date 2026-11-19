@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Breaking
+
+- `UserTokenParams` gains `authenticated_at` and `ui_session`, `UserTokenError` gains `UiSessionResource` and `UiSessionExpired`, and `DeclaredClient` and `ClientValue` gain `person_ui`. Migrate a struct literal by setting them.
+
+### Added
+
+- A declared `person_ui` client's code grant and its refreshes mint a UI session: the `ui` audience only, `ui_session`, a 300-second access token, the sign-in as `auth_time`, and a refresh token capped 12 hours after the sign-in. `DeclaredClient::validate` restricts `person_ui` to public, code-only, native-redirect, non-platform clients.
+
 ## [0.81.0] - 2026-11-12
 
 ### Breaking

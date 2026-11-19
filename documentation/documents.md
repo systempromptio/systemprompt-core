@@ -294,6 +294,16 @@ Core ships no browser UI and no browser client library. Pages, editors, panels, 
 
 Every edit carries a caller-stable `op_id`, so a retried request replays its first acknowledgement. All subscribers on a page should share one AG-UI stream, because each user may hold at most ten streams. A live-session editor vendors its own CRDT client at the engine's wire version and speaks the collab routes above.
 
+### First-party desktop UI
+
+A desktop UI can act as the person on the document routes without the browser cookie. The operator opts a client in with `person_ui: true` on its entry in `services/identity/*.yaml`; dynamic client registration, the CLI and the bridge can never set it. Such a client must be public (no `secret_key`), declare only the `authorization_code` and `refresh_token` grants, and redirect only to an IP loopback `http` URI or a private-use (reverse-DNS) scheme, as RFC 8252 describes. It cannot be the web, bridge or CLI client.
+
+The client signs the person in with the standard authorization-code + PKCE flow in the system browser. The token endpoint then issues a UI session: an access token with exactly the `ui` audience and the `ui_session` claim, valid for 300 seconds, whose `auth_time` is the sign-in. Refreshing it keeps that `auth_time`, and the session ends 12 hours after the sign-in whatever the refreshes. Nothing else mints a UI session: not a PAT, a device key, the bridge exchange, token exchange or client credentials.
+
+Only `/api/v1/documents`, `/api/v1/document-folders` and `/api/v1/uploads` accept the `ui` audience; MCP, the gateway, A2A, the bridge stream and every other route answer `401`. The token must arrive in the `Authorization` header; sent as the session cookie it is refused `401`. On the document routes it runs as the person, not as an agent.
+
+Sharing (creating or revoking grants, revoking all, granting an access request), transfer, deleting a document or folder and setting an agent cap need a recent sign-in. When the UI session's `auth_time` is more than 600 seconds old, those routes answer `401` with `WWW-Authenticate: Bearer error="insufficient_user_authentication", max_age=600` (RFC 9470), and the client sends the person through the sign-in again. The 300-second access lifetime, the 12-hour session and the 600-second window are fixed in this release.
+
 ## Bridge Drive sync
 
 The bridge keeps `~/<workspace>/Drive` in step with the store. It talks to six endpoints under `/v1/bridge/drive/`, authenticated like the bridge heartbeat.
@@ -404,3 +414,5 @@ Document rows reference users by id without a foreign key, so a user purge remov
 ## Threat model pointers
 
 The document store's trust boundaries and controls are listed in [security/threat-model.md § Document store](security/threat-model.md#47-document-store) and [security/outbound-egress-controls.md](security/outbound-egress-controls.md). In short: Office content is parsed, never executed; previews are sanitised and sandboxed; download links are purpose-bound JWTs; PDF rendering and previews make no outbound request; and every access decision fails closed to `not_found`.
+
+A first-party desktop UI's session is bounded, not unbreakable. Its agent harness runs as the same OS user as the UI, so it can steal the UI's refresh token unless the client keeps that token in a keychain item whose access is bound to the UI's code signature; it can also inject into the UI process, or start its own sign-in, which still needs the person to complete the passkey prompt. The residual risk: a compromised machine means a compromised person for up to 12 hours, with share, transfer and trash limited to the 10 minutes after each passkey ceremony. Revoking the refresh-token family on sign-out, rotation reuse detection and the client id on the token bound the rest.
