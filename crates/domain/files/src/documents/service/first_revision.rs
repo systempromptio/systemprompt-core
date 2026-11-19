@@ -25,6 +25,7 @@ pub(super) struct NewContent {
     pub(super) ops: Option<Vec<EditOp>>,
     pub(super) mime_type: Option<String>,
     pub(super) vouched: Vec<String>,
+    pub(super) agent_content: bool,
 }
 
 impl DocumentService {
@@ -61,6 +62,7 @@ impl DocumentService {
             merged_from: None,
             applied: content.ops.as_ref().map_or(0, Vec::len),
             media,
+            agent_content: content.agent_content,
         };
         let comments = CommentPolicy::detach();
         let placement = Placement {

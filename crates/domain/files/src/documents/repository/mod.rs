@@ -17,6 +17,7 @@
 mod access_requests;
 mod agent_batch;
 mod agent_caps;
+mod agent_content;
 mod blob_holders;
 mod blobs;
 mod collab_owners;

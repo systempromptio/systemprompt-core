@@ -81,6 +81,7 @@ mod proposal_body;
 mod proposal_reads;
 mod proposal_review;
 mod proposals;
+mod provenance;
 mod publish;
 mod reads;
 mod suggested_write;

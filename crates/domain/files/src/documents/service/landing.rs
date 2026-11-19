@@ -3,7 +3,9 @@
 //! Before the transaction: carry ids forward from the parent (see
 //! `landing_ids`) and check which comment anchors the commit detaches. Inside
 //! it: reserve the created nodes' ids and renumber them, insert the revision
-//! and its ids, admit the images it may serve (see `media_admission`), claim
+//! and its ids, set the document's sticky agent-content flag when an agent
+//! wrote it, it settles an agent's proposal or it copies a flagged document,
+//! admit the images it may serve (see `media_admission`), claim
 //! the op id's acknowledgement, move the head by compare-and-swap (which also
 //! refuses a foreign lock), mark the revision landed, settle the proposal being
 //! accepted, and record the `document.revision.landed` brain fact. Any refusal
@@ -17,7 +19,7 @@
 use systemprompt_identifiers::{
     DocumentCommentId, DocumentId, DocumentOpId, DocumentProposalId, DocumentRevisionId, UserId,
 };
-use systemprompt_models::documents::Projection;
+use systemprompt_models::documents::{ActorKind, Projection};
 use systemprompt_traits::RepositoryError;
 
 use super::landing_ids::{Carried, carry, reserve};
@@ -41,6 +43,7 @@ pub(super) struct Prepared {
     pub(super) merged_from: Option<DocumentRevisionId>,
     pub(super) applied: usize,
     pub(super) media: Vec<String>,
+    pub(super) agent_content: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -126,7 +129,23 @@ async fn claim_op(
     Ok(DocumentWriteAckRepository::claim(tx, claim).await?)
 }
 
+async fn mark_agent_content(
+    tx: &mut sqlx::PgConnection,
+    document: &DocumentId,
+    authored: bool,
+    settles: Option<&DocumentProposalId>,
+) -> Result<(), DocumentsError> {
+    if authored || settles.is_some() {
+        DocumentRepository::mark_agent_content_in(tx, document, authored, settles).await?;
+    }
+    Ok(())
+}
+
 impl DocumentService {
+    fn agent_wrote(&self, actor_kind: ActorKind) -> bool {
+        actor_kind == ActorKind::Agent || self.access.actor().as_agent().is_some()
+    }
+
     async fn detached_by(
         &self,
         document: &Document,
@@ -156,6 +175,7 @@ impl DocumentService {
             merged_from,
             applied,
             media,
+            agent_content,
         } = prepared;
         let carried = carry_live(next, previous, hints).await?;
         let detached = self.detached_by(document, &carried, &placement).await?;
@@ -173,6 +193,8 @@ impl DocumentService {
         let ids = with_ids(carried.next, &entries);
         let parent = revision.parent_revision_id.clone();
         let mut revision = DocumentRevisionRepository::insert_in(&mut tx, revision).await?;
+        let authored = agent_content || self.agent_wrote(revision.actor_kind);
+        mark_agent_content(&mut tx, &document.id, authored, placement.settles).await?;
         DocumentNodeIdRepository::insert(&mut tx, &document.id, &revision.id, &entries).await?;
         admit_media_in(&mut tx, &document.id, &media, &revision.author_user_id).await?;
         let ack = WriteAck {
@@ -240,6 +262,8 @@ impl DocumentService {
         }
         proposed.landed_at =
             Some(DocumentRevisionRepository::mark_landed(&mut tx, &proposed.id).await?);
+        let authored = self.agent_wrote(proposed.actor_kind);
+        mark_agent_content(&mut tx, &document.id, authored, Some(proposal)).await?;
         if !DocumentProposalRepository::settle_landed(&mut tx, proposal, &proposed.id).await? {
             drop(tx);
             return Err(self.proposal_closed(proposal).await);

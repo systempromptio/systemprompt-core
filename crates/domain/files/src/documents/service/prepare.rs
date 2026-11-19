@@ -114,6 +114,7 @@ impl DocumentService {
             merged_from: parent.filter(|_| applied.merged),
             applied: count,
             media,
+            agent_content: false,
         })
     }
 }

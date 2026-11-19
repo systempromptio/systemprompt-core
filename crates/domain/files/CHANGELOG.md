@@ -16,6 +16,7 @@
 - Migrations `041_document_attribution_agent_client` (nullable `agent_name`, `client_id` on `document_revisions`; `context_id`, `client_id` on `document_comments`) and `042_document_comments_context_index` (built `CONCURRENTLY`).
 - `DocumentService::reopen_comment` (`ReopenCommentRequest`) and `DocumentCommentRepository::reopen_in`: a resolved comment is reopened with `comment` access, clearing `resolved_at`/`resolved_by` and recording `reopened_at`/`reopened_by` (migration `043_document_comment_reopen`); the `document.comment.reopened` brain fact commits in the same transaction and the live event goes to the audience resolution reaches. Reopening an open comment returns it unchanged and records nothing.
 - A self-mention at `mention_options` attention `agent` is delivered: the mention fact names the author as a direct recipient at `agent`, and the author receives `document.comment.mentioned`. A self-mention at `human` or `silent` attention, or with none chosen, records no fact and sends no live mention.
+- `documents.agent_content` (migration `044_document_agent_content`, with a backfill): set in the landing transaction of an agent's revision or proposal, an accepted agent proposal, an agent's create and a copy of a flagged document; never cleared. Read with `DocumentService::agent_content`.
 
 ### Fixed
 

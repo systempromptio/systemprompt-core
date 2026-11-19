@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE documents SET agent_content = true\n               WHERE id = $1::text::uuid\n                 AND NOT agent_content\n                 AND ($2::bool OR EXISTS (\n                     SELECT 1 FROM document_proposals p\n                     WHERE p.id = $3::text::uuid AND p.actor_kind = 'agent'\n                 ))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Bool",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "dc744b6a3680e653b8c09d9b4e62816861733c51ee6ca634f407fec3dc0f6f75"
+}

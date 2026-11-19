@@ -9,7 +9,8 @@
 //! free ` (restored)`, ` (restored 2)`, … suffix; a copy without a name takes
 //! the first free ` (copy)`, ` (copy 2)`, … name in its folder. Both retry once
 //! when a concurrent write takes the name. A copy starts a new revision chain
-//! from the source's head bytes and belongs to the caller.
+//! from the source's head bytes and belongs to the caller; it carries the
+//! source's agent-content flag, read after those bytes.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -153,6 +154,7 @@ impl DocumentService {
         let bytes = self
             .revision_bytes(&self.resolve_revision(&source, None).await?)
             .await?;
+        let agent_content = self.repos.documents.agent_content(&source.id).await?;
         let carried = self.access.check_copy(who, &source).await?;
         self.ensure_media_backfilled(&source.id).await?;
         let vouched = self.repos.media.of_document(&source.id).await?;
@@ -180,6 +182,7 @@ impl DocumentService {
                 ops: None,
                 mime_type: Some(source.mime_type.clone()),
                 vouched: vouched.clone(),
+                agent_content,
             };
             match self.create_with_bytes(who, content).await {
                 Err(DocumentsError::NameTaken { .. }) if attempt == 1 && explicit.is_none() => {},
