@@ -26,6 +26,7 @@
 - **Documents:** an agent's `str_replace` whose `old_str` covers more than half of a document of three or more nodes is a broad rewrite and needs the agent access policy's `broad_rewrite`, like rewriting more than half the blocks with node ops.
 - **Documents:** creating, renaming or moving a folder to a name a sibling folder already has is refused as `name_taken` (409 over REST), not a generic store failure.
 - **Documents:** an MCP call naming a blob that did not pass the content check its format needs is refused as `invalid_params` (the message names `unchecked_format`), not `integrity_mismatch`.
+- **Dependencies:** `heapless` 0.9 is 0.9.4 in every lockfile (RUSTSEC-2026-0574 through -0582); the 0.7.17 and 0.8.0 copies under `loro` have no fixed release and are recorded in `deny.toml`.
 
 ## [0.83.0] - 2026-11-17
 
