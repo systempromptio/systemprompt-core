@@ -5,6 +5,10 @@
 //! wherever managed MCP servers run, a worker included), or nothing when
 //! `files.documents.enabled` is off.
 //!
+//! These three are the only routers mounted behind the context middleware
+//! that admits a person's UI session (the `ui` audience); every other surface
+//! refuses it.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -39,7 +43,7 @@ pub(super) fn mount_documents(
             ApiPaths::DOCUMENTS,
             with_download_tokens(
                 documents_router(state.clone())
-                    .with_auth(mount.user_middleware.clone(), AuthzPolicy::user()),
+                    .with_auth(mount.documents_middleware.clone(), AuthzPolicy::user()),
                 state.clone(),
             )
             .with_rate_limit(mount.limits, per_second, "documents")?,
@@ -48,7 +52,7 @@ pub(super) fn mount_documents(
             ApiPaths::UPLOADS,
             with_upload_tokens(
                 uploads_router(state.clone())
-                    .with_auth(mount.user_middleware.clone(), AuthzPolicy::user()),
+                    .with_auth(mount.documents_middleware.clone(), AuthzPolicy::user()),
                 state.clone(),
             )
             .with_rate_limit(mount.limits, per_second, "documents")?,
@@ -57,7 +61,7 @@ pub(super) fn mount_documents(
             ApiPaths::DOCUMENT_FOLDERS,
             folders_router(state)
                 .with_rate_limit(mount.limits, per_second, "documents")?
-                .with_auth(mount.user_middleware.clone(), AuthzPolicy::user()),
+                .with_auth(mount.documents_middleware.clone(), AuthzPolicy::user()),
         ))
 }
 

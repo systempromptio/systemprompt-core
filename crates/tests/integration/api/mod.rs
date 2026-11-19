@@ -209,6 +209,8 @@ mod documents_sharing;
 #[cfg(test)]
 mod documents_subject_levels;
 #[cfg(test)]
+mod documents_ui_session;
+#[cfg(test)]
 mod internal_links;
 #[cfg(test)]
 mod internal_links_worker;

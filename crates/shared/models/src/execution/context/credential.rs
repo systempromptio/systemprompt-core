@@ -1,9 +1,11 @@
 //! Which credential authenticated a request. `browser_session` is set only
 //! when the token arrived as the session cookie *and* carries the
 //! `browser_session` claim the first-party web login mints; `cookie_transport`
-//! records the cookie alone. The auth middleware sets both, never from a
-//! header the caller names; they decide whether document calls run as the
-//! person or as an agent.
+//! records the cookie alone. `ui_session_auth_time` is set only when a
+//! `ui_session` token arrived as a bearer header, never as the cookie, and
+//! holds the time the person signed in. The auth middleware sets both, never
+//! from a header the caller names; they decide whether document calls run as
+//! the person or as an agent.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -20,6 +22,22 @@ impl RequestContext {
     #[must_use]
     pub const fn is_browser_session(&self) -> bool {
         self.auth.browser_session
+    }
+
+    #[must_use]
+    pub const fn with_ui_session(mut self, auth_time: i64) -> Self {
+        self.auth.ui_session_auth_time = Some(auth_time);
+        self
+    }
+
+    #[must_use]
+    pub const fn is_ui_session(&self) -> bool {
+        self.auth.ui_session_auth_time.is_some()
+    }
+
+    #[must_use]
+    pub const fn ui_session_auth_time(&self) -> Option<i64> {
+        self.auth.ui_session_auth_time
     }
 
     #[must_use]

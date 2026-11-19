@@ -1,8 +1,9 @@
 //! The middleware that runs every document and folder route as the actor
 //! the request's credential proves.
 //!
-//! A first-party browser session is the person, any bearer token an agent
-//! (see [`systemprompt_runtime::documents::actor`]). A request that reaches
+//! A first-party browser session is the person, and so is the UI session a
+//! `person_ui` client holds; any other bearer token is an agent (see
+//! [`systemprompt_runtime::documents::actor`]). A request that reaches
 //! the routes without a context is refused `401`, and a browser-session
 //! request on a router without the site configuration is a wiring fault
 //! answered `500`.
