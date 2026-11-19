@@ -55,6 +55,12 @@ pub enum TokenError {
     InvalidLifetime { seconds: i64 },
 
     #[error(
+        "a ui_session token carries exactly the `ui` audience and a client_id, and no purpose, \
+         act chain or browser session"
+    )]
+    UiSessionShape,
+
+    #[error(
         "signed claims must carry a numeric `exp` claim at most {max_lifetime_secs}s (365 days) \
          after now; got {}",
         exp.map_or_else(|| "no `exp`".to_owned(), |exp| format!("exp={exp}"))
@@ -83,6 +89,8 @@ pub struct UserJwtRequest {
     pub plugin_id: Option<PluginId>,
     pub interaction: Option<TokenInteraction>,
     pub browser_session: bool,
+    pub ui_session: bool,
+    pub auth_time: Option<i64>,
 }
 
 pub trait TokenAuthority: Send + Sync + std::fmt::Debug {

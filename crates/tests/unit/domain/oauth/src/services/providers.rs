@@ -142,6 +142,7 @@ mod config_backed {
                 purpose: None,
                 interaction: None,
                 browser_session: false,
+                ui_session: false,
             },
         };
         let keys = systemprompt_test_fixtures::test_signing_keys();

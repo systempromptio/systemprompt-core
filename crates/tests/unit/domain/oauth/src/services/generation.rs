@@ -218,6 +218,8 @@ fn test_jwt_config_custom() {
         purpose: None,
         interaction: None,
         browser_session: false,
+        ui_session: false,
+        auth_time: None,
     };
 
     assert_eq!(config.permissions.len(), 2);

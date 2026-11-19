@@ -1,5 +1,11 @@
 //! The `aud` claim domain: which surface a token is minted for.
 //!
+//! `ui` is the audience of a person's UI session (see
+//! [`crate::auth::ui_session`]). It is outside [`JwtAudience::FIRST_PARTY`] and
+//! [`JwtAudience::service`], so every surface that validates against those
+//! refuses it; only a surface that names [`JwtAudience::FIRST_PARTY_AND_UI`]
+//! admits it.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -19,12 +25,16 @@ pub enum JwtAudience {
     Internal,
     Bridge,
     Hook,
+    Ui,
     #[serde(untagged)]
     Resource(String),
 }
 
 impl JwtAudience {
     pub const FIRST_PARTY: &'static [Self] = &[Self::Web, Self::Api, Self::A2a, Self::Mcp];
+
+    pub const FIRST_PARTY_AND_UI: &'static [Self] =
+        &[Self::Web, Self::Api, Self::A2a, Self::Mcp, Self::Ui];
 
     pub const fn as_str(&self) -> &str {
         match self {
@@ -35,6 +45,7 @@ impl JwtAudience {
             Self::Internal => "internal",
             Self::Bridge => "bridge",
             Self::Hook => "hook",
+            Self::Ui => "ui",
             Self::Resource(s) => s.as_str(),
         }
     }
@@ -65,6 +76,7 @@ impl FromStr for JwtAudience {
             "internal" => Ok(Self::Internal),
             "bridge" => Ok(Self::Bridge),
             "hook" => Ok(Self::Hook),
+            "ui" => Ok(Self::Ui),
             _ => Ok(Self::Resource(s.to_owned())),
         }
     }

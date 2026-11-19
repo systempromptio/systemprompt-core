@@ -36,6 +36,7 @@ fn sample_claims() -> JwtClaims {
             purpose: None,
             interaction: None,
             browser_session: false,
+            ui_session: false,
         },
     }
 }

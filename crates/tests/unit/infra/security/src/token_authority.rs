@@ -32,6 +32,8 @@ fn request(audience: Vec<JwtAudience>, permissions: Vec<Permission>) -> UserJwtR
         plugin_id: None,
         interaction: None,
         browser_session: false,
+        ui_session: false,
+        auth_time: None,
     }
 }
 
@@ -263,4 +265,52 @@ fn sign_claims_stamps_the_active_kid_and_verifies() {
         .verify_bearer(&token, &[JwtAudience::Mcp])
         .expect("verify");
     assert_eq!(verified.registered.jti, "j1");
+}
+
+fn ui_request() -> UserJwtRequest {
+    let mut req = request(vec![JwtAudience::Ui], vec![Permission::User]);
+    req.purpose = None;
+    req.client_id = Some(systemprompt_identifiers::ClientId::new("desk_ui"));
+    req.ui_session = true;
+    req
+}
+
+#[test]
+fn a_ui_session_mints_with_its_sign_in_time_and_only_the_ui_audience() {
+    let authority = authority();
+    let mut req = ui_request();
+    let signed_in = Utc::now().timestamp() - 120;
+    req.auth_time = Some(signed_in);
+    let token = authority.mint_user_jwt(&req).expect("mint");
+    let claims = authority
+        .verify_bearer(&token, JwtAudience::FIRST_PARTY_AND_UI)
+        .expect("verify");
+    assert!(claims.custom.ui_session);
+    assert_eq!(claims.custom.auth_time, signed_in);
+    assert!(
+        authority
+            .verify_bearer(&token, JwtAudience::FIRST_PARTY)
+            .is_err()
+    );
+}
+
+#[test]
+fn a_ui_session_is_never_minted_in_another_shape() {
+    let authority = authority();
+    let mut extra = ui_request();
+    extra.audience.push(JwtAudience::Mcp);
+    let mut purposed = ui_request();
+    purposed.purpose = Some("farm:run-1".to_owned());
+    let mut clientless = ui_request();
+    clientless.client_id = None;
+    let mut browser = ui_request();
+    browser.browser_session = true;
+    let mut claimless = ui_request();
+    claimless.ui_session = false;
+    for req in [extra, purposed, clientless, browser, claimless] {
+        assert!(matches!(
+            authority.mint_user_jwt(&req),
+            Err(TokenError::UiSessionShape)
+        ));
+    }
 }

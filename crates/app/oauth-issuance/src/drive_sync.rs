@@ -92,6 +92,8 @@ impl DriveSyncTokenService {
             plugin_id: None,
             interaction: device.interaction,
             browser_session: false,
+            ui_session: false,
+            auth_time: None,
         };
         let token = self
             .tokens
