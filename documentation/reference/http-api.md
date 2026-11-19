@@ -372,7 +372,7 @@ The shared document store ([documents.md](../documents.md)). Mounted only while 
 | POST | `/api/v1/documents/{id}/edits` | Structured edit operations with optional `base_revision`, `op_id`, `answering`, `allow_detach` and `mode` (`land`, `propose`); a proposal answers `201`. |
 | GET | `/api/v1/documents/{id}/read` | The `documents_read` views: `view=outline`, `text`, `range`, `cells`, `changes`, `node`, `search`, `meta`; `revision_id`, `verbose`. |
 | GET | `/api/v1/documents/{id}/revisions`, `/projection`, `/preview` | History; node projection; sanitised sandboxed HTML preview. |
-| GET, HEAD | `/api/v1/documents/{id}/rendered` | An HTML document's stored bytes at `?revision=`, inline as `text/html` under a `sandbox` CSP without `allow-same-origin`, never cached and frameable only by the app; scripts and `https:` assets load only as `files.documents.renderedHtml` allows. Any other format is refused as `unsupported_op`. |
+| GET, HEAD | `/api/v1/documents/{id}/rendered` | An HTML document's stored bytes at `?revision=`, inline as `text/html` under a `sandbox` CSP without `allow-same-origin`, never cached and frameable only by the app; scripts and loads from listed `https` origins happen only as `files.documents.renderedHtml` allows, under its `agentAuthored` tier for a document with agent content. Any other format is refused as `unsupported_op`. |
 | GET, POST | `/api/v1/documents/{id}/comments` | Comment threads; `POST .../comments/{comment_id}/resolve` resolves one. |
 | GET | `/api/v1/documents/{id}/proposals`, `/proposals/{pid}` | Proposals (`?status=`); one proposal with its changed lines. |
 | POST | `/api/v1/documents/{id}/proposals/{pid}/accept`, `/reject` | Review with an optional `note`; `self_review` for one's own. |
