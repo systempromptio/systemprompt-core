@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- `UserRepository::search_active_by_prefix` matches word by word: the query splits on whitespace into at most four words, each of which must start a word of `display_name`, `name`, `email`, `full_name` or `id` (`.`, `-`, `_` and `@` separate words), in any order. Case and the common Latin accents are ignored on both sides. An empty query still matches every active user.
+
 ## [0.81.0] - 2026-11-12
 
 ### Breaking

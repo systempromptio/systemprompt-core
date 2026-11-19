@@ -55,6 +55,22 @@ impl BrainSink for NoBrain {
     }
 }
 
+fn fold(text: &str) -> String {
+    text.to_lowercase()
+        .chars()
+        .map(|c| match c {
+            'á' | 'à' | 'ä' | 'â' | 'ã' | 'å' => 'a',
+            'é' | 'è' | 'ë' | 'ê' => 'e',
+            'í' | 'ì' | 'ï' | 'î' => 'i',
+            'ó' | 'ò' | 'ö' | 'ô' | 'õ' => 'o',
+            'ú' | 'ù' | 'ü' | 'û' => 'u',
+            'ñ' => 'n',
+            'ç' => 'c',
+            other => other,
+        })
+        .collect()
+}
+
 pub(crate) const GROUP: RuleType = RuleType::extension_static("group");
 
 pub(crate) struct GroupSource {
@@ -196,11 +212,17 @@ impl SubjectDirectory for RoleDirectory {
         query: &str,
         limit: usize,
     ) -> Result<Vec<SubjectMatch>, SubjectDirectoryError> {
-        let query = query.to_lowercase();
+        let words: Vec<String> = query.split_whitespace().take(4).map(fold).collect();
         Ok(self
             .users
             .iter()
-            .filter(|(_, display)| display.to_lowercase().starts_with(&query))
+            .filter(|(user, display)| {
+                let text = fold(&format!("{display} {user}"));
+                let starts: Vec<&str> = text.split([' ', '.', '-', '_', '@']).collect();
+                words
+                    .iter()
+                    .all(|word| starts.iter().any(|start| start.starts_with(word.as_str())))
+            })
             .take(limit)
             .map(|(user, display)| SubjectMatch {
                 value: user.as_str().to_owned(),
