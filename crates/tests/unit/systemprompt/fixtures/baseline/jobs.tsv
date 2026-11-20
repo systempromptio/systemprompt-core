@@ -31,7 +31,7 @@ issue_report_retention	files	systemprompt-files	crates/domain/files/src/issues/j
 licence_checkin	scheduler	systemprompt-scheduler	crates/app/scheduler/src/jobs/licence_checkin.rs:194
 log_summary_rollup	scheduler	systemprompt-scheduler	crates/app/scheduler/src/jobs/log_summary_rollup.rs:48
 malicious_ip_blacklist	analytics	systemprompt-analytics	crates/domain/analytics/src/jobs/malicious_ip_blacklist.rs:263
-managed_inventory_refresh	scheduler	systemprompt-scheduler	crates/app/scheduler/src/jobs/inventory.rs:135
+managed_inventory_refresh	managed_resources	systemprompt-marketplace	crates/domain/marketplace/src/inventory/job.rs:72
 mcp_session_cleanup	mcp	systemprompt-mcp	crates/domain/mcp/src/jobs/mcp_session_cleanup.rs:77
 no_js_cleanup	analytics	systemprompt-analytics	crates/domain/analytics/src/jobs/no_js_cleanup.rs:57
 notification_retention	notifications	systemprompt-notifications	crates/domain/notifications/src/jobs.rs:136

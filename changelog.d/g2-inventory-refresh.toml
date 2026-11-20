@@ -1,0 +1,29 @@
+[root]
+section = "Changed"
+area = "Scheduler"
+text = "The `managed_inventory_refresh` job is contributed by the `managed_resources` member and runs the `Arc<InventoryRefresher>` that member provides. The refresher reads the profile's bundle sources from a sealed `BundleSources` kernel seed, never the profile."
+
+[[crate]]
+name = "systemprompt-marketplace"
+section = "Added"
+text = "`inventory::InventoryRefresher`, `InventoryRefresherParts` and `InventoryRefreshJob`."
+
+[[crate]]
+name = "systemprompt-marketplace"
+section = "Breaking"
+text = "`inventory::SourcesContext` holds `bundles: &BundleSources` instead of the profile."
+
+[[crate]]
+name = "systemprompt-loader"
+section = "Breaking"
+text = "`bundle::sources_provenance` and `bundle::owning_bundle_hashes` take `&BundleSources`; `BundleSources` and `PinnedSource` are added."
+
+[[crate]]
+name = "systemprompt-scheduler"
+section = "Breaking"
+text = "`jobs::InventoryRefreshJob`, `jobs::InventoryRefreshMemo` and `SchedulerError::Inventory` are removed."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`managed` (`managed::inventory`, `OrchestrationError`) is removed. The kernel state seeds `BundleSources` sealed."

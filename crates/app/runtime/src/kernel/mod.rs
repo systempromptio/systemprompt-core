@@ -11,8 +11,13 @@
 //! in place of the composition: declared migrations ([`AdmittedMigrations`]),
 //! configuration sections ([`AdmittedConfigs`]) and asset declarations
 //! ([`AdmittedAssets`]), each open. It then builds the state from
-//! the [`Admitted`] handoff: every admitted member's provide fns in
-//! composition order, each reading what was provided before it; every slot,
+//! the [`Admitted`] handoff: every admitted member's early provide fns in
+//! composition order, each reading what was provided before it; the admitted
+//! owner reassignments ([`AdmittedOwnerReassignments`], sealed: kernel code
+//! and provide fns read them, no member runtime context does), each built by
+//! its owner's factory and refused unless it names only the owner's own
+//! tables;
+//! every slot,
 //! built from its admitted entries (core first where the slot asks for it)
 //! and inserted as `Arc<S::Built>`, after the shared audience-resolver set
 //! ([`AudienceResolvers`]) every audience-reading slot consults; the governance
@@ -20,10 +25,13 @@
 //! [`PolicyCatalog`] and the
 //! [`GatewayGuards`](systemprompt_extension::GatewayGuards) — each inserted as
 //! an `Arc`, a reserved or doubly declared subject dimension refusing the
-//! resolution; and last every member's declared requirements, checked against
+//! resolution; then every member's provide fns declared to run after
+//! governance, which may read the slots and governance surfaces; and last
+//! every member's declared requirements, checked against
 //! the finished state, so a member may require a slot's built value or a
 //! governance surface. The values the kernel inserts after the provide fns run
-//! — the audience resolvers and the three governance surfaces — are reserved
+//! — the audience resolvers, the owner reassignments and the three governance
+//! surfaces — are reserved
 //! before any member's code runs: a member that provides one, or opens a slot
 //! that builds one, is refused with [`KernelError::ReservedType`]. Only
 //! admitted members' entries are present, so nothing a disabled member
@@ -47,9 +55,9 @@ use std::sync::Arc;
 use systemprompt_agent_runs::origin::AdmittedRunOrigins;
 use systemprompt_extension::contribute::{SlotBuildInput, build_slot};
 use systemprompt_extension::{
-    Admitted, AdmittedAssets, AdmittedConfigs, AdmittedMigrations, AdmittedProjections,
-    AdmittedPurge, AdmittedSchedule, AudienceResolvers, BuiltState, HandleId, KernelHandle,
-    Resolved,
+    Admitted, AdmittedAssets, AdmittedConfigs, AdmittedMigrations, AdmittedOwnerReassignments,
+    AdmittedProjections, AdmittedPurge, AdmittedSchedule, AudienceResolvers, BuiltState, HandleId,
+    KernelHandle, ProvidePhase, Resolved,
 };
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_governance::policy::PolicyCatalog;
@@ -114,11 +122,15 @@ impl Kernel {
         self.state.insert(AdmittedConfigs::of(admitted.built()));
         self.state.insert(AdmittedAssets::of(admitted.built()));
         refuse_kernel_types(admitted.built())?;
-        self.provide_all(admitted)?;
+        self.provide_all(admitted, ProvidePhase::Early)?;
         let audiences = AudienceResolvers::from_admitted(admitted.built(), &self.resolved())?;
         self.state.insert(Arc::new(audiences));
+        let reassignments =
+            AdmittedOwnerReassignments::of(admitted.built(), &self.resolved())?;
+        self.state.insert_sealed(Arc::new(reassignments));
         self.build_slots(admitted)?;
         self.build_governance(admitted.built())?;
+        self.provide_all(admitted, ProvidePhase::AfterGovernance)?;
         self.check_requirements(admitted)
     }
 
@@ -142,9 +154,14 @@ impl Kernel {
         self.state.clone().withholding_sealed()
     }
 
-    fn provide_all(&mut self, admitted: &Admitted) -> Result<(), KernelError> {
+    fn provide_all(&mut self, admitted: &Admitted, phase: ProvidePhase) -> Result<(), KernelError> {
         for member in admitted.built().members() {
-            for entry in member.sink.provides() {
+            for entry in member
+                .sink
+                .provides()
+                .iter()
+                .filter(|entry| entry.phase() == phase)
+            {
                 let value = entry
                     .compute(&Resolved::__new(&*self, &self.state))
                     .map_err(|source| KernelError::Provide {

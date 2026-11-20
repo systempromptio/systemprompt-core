@@ -67,8 +67,10 @@
 pub mod admitted;
 pub mod admitted_assets;
 pub mod admitted_configs;
+pub mod admitted_doctor;
 pub mod admitted_migrations;
 pub mod admitted_purge;
+pub mod admitted_reassignment;
 pub mod admitted_schedule;
 mod asset;
 pub mod authz;
@@ -105,10 +107,14 @@ mod traits;
 pub use admitted::{Admitted, BuiltState, DeclaredCommands};
 pub use admitted_assets::AdmittedAssets;
 pub use admitted_configs::AdmittedConfigs;
+pub use admitted_doctor::{AdmittedDoctorChecks, OwnedDoctorCheck};
 pub use admitted_migrations::AdmittedMigrations;
 pub use admitted_purge::{
     AdmittedPurge, OwnedPurge, PurgeAdmissionError, PurgeClaim, created_table_names,
     purge_declarations,
+};
+pub use admitted_reassignment::{
+    AdmittedOwnerReassignments, OwnedReassignment, ReassignmentAdmissionError, ReassignmentClaim,
 };
 pub use admitted_schedule::{AdmittedSchedule, DuplicateJobOwner};
 pub use asset::{AssetDefinition, AssetDefinitionBuilder, AssetPaths, AssetType};
@@ -126,7 +132,8 @@ pub use brain::{
 pub use brain::{BrainSink, DynBrainSink};
 pub use contribute::{
     AudienceEntry, AudienceResolvers, ContributionError, Contributions, ExtensionConfig, Factory,
-    FactoryError, FromState, Handed, HandleId, KernelHandle, ProvideError, ProvideFn, Resolved,
+    FactoryError, FromState, Handed, HandleId, KernelHandle, ProvideError, ProvideFn, ProvidePhase,
+    Resolved,
     Slot, SlotEntry, SlotError, SlotOrder, StandingTag, build_factories, handles,
 };
 pub use cost::{CostDirective, CostDirectiveError, TriggerPolicy};

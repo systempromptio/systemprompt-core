@@ -35,8 +35,6 @@ pub enum ManagedError {
     Io(#[from] std::io::Error),
     #[error("Managed resource serialization failed: {0}")]
     Json(#[from] serde_json::Error),
-    #[error("Managed publication policy is not bound")]
-    PolicyUnbound,
 }
 
 impl From<sqlx::Error> for ManagedError {

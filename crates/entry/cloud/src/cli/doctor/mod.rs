@@ -5,7 +5,8 @@
 //! the required keys and provider credentials, a
 //! `trusted_proxies` set that covers the Fly peer range — and probes
 //! database/hook reachability, and reports the profile's `unapplied_planes`
-//! mode with whether each runtime config plane has been applied. It fails a
+//! mode with whether each runtime config plane has been applied, and runs every
+//! admitted member's contributed doctor checks (`member_checks`). It fails a
 //! database whose schema is newer than the binary and warns when a split-role
 //! deployment keeps files on node-local storage. The preflight
 //! runs automatically before `cloud deploy` builds an image, and is exposed
@@ -19,7 +20,7 @@
 
 mod checks;
 pub mod distributed;
-pub mod git_credential_checks;
+mod member_checks;
 mod partial;
 mod plane_checks;
 pub mod restore_checks;
@@ -252,7 +253,7 @@ pub(in crate::cli) async fn run(
     checks.push(schema_check(&secrets, views).await);
     checks.push(plane_checks::check_config_planes(profile, &secrets).await);
     checks.push(plane_checks::check_services_source(profile));
-    checks.push(git_credential_checks::check_git_credentials(&secrets).await);
+    checks.extend(member_checks::run_member_checks(&secrets, views).await);
     if distributed {
         checks.extend(distributed::run(profile, &secrets).await);
     }

@@ -24,3 +24,7 @@ pub use types::{
 
 mod installation_coverage;
 pub use installation_coverage::InstallationCoverage;
+mod job;
+pub use job::InventoryRefreshJob;
+mod refresh;
+pub use refresh::{InventoryRefresher, InventoryRefresherParts};

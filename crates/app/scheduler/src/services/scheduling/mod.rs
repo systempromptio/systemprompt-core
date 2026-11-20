@@ -22,7 +22,6 @@ mod registration;
 mod unlisted;
 
 use crate::error::{SchedulerError, SchedulerResult};
-use crate::jobs::InventoryRefreshMemo;
 use crate::models::{SchedulerConfig, SkippedJob};
 use crate::repository::SchedulerRepository;
 use std::collections::{HashMap, HashSet};
@@ -143,7 +142,6 @@ pub struct SchedulerService {
     user_repository: Arc<systemprompt_users::UserRepository>,
     logging_repository: systemprompt_logging::LoggingRepository,
     app_context: Arc<AppContext>,
-    inventory_memo: Arc<InventoryRefreshMemo>,
     schedule: Arc<AdmittedSchedule>,
 }
 
@@ -163,7 +161,6 @@ impl SchedulerService {
             user_repository,
             logging_repository,
             app_context,
-            inventory_memo: Arc::new(InventoryRefreshMemo::new()),
             schedule,
         }
     }

@@ -6,7 +6,9 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use systemprompt_content_entry::cli::sitemap::generate::{GenerateArgs, execute_with_profile};
+use systemprompt_config::paths::AppPaths;
+use systemprompt_content_entry::cli::sitemap::generate::{GenerateArgs, execute_with_paths};
+use systemprompt_extension::cli::CommandOutput;
 use systemprompt_manifest::services::SystemAdminConfig;
 use systemprompt_manifest::{
     ContentNegotiationConfig, ExtensionsConfig, PathsConfig, Profile, ProfileDatabaseConfig,
@@ -152,6 +154,11 @@ fn make_profile(services: &Path, web_path: &Path) -> Profile {
     }
 }
 
+fn generate(args: &GenerateArgs, profile: &Profile) -> anyhow::Result<CommandOutput> {
+    let paths = AppPaths::from_profile(&profile.paths, profile.path_resolution(), None)?;
+    execute_with_paths(args, &paths)
+}
+
 struct Fixture {
     _root: tempfile::TempDir,
     profile: Profile,
@@ -183,7 +190,7 @@ fn generate_collects_static_urls_sorted_by_priority() {
         include_dynamic: false,
     };
 
-    execute_with_profile(&args, &fx.profile).unwrap();
+    generate(&args, &fx.profile).unwrap();
 
     let xml = fs::read_to_string(fx.web.join("dist/sitemap.xml")).unwrap();
     assert!(xml.contains("<loc>https://site.test/</loc>"));
@@ -211,7 +218,7 @@ fn generate_reads_base_url_from_metadata_and_honours_output_override() {
         include_dynamic: false,
     };
 
-    execute_with_profile(&args, &fx.profile).unwrap();
+    generate(&args, &fx.profile).unwrap();
 
     let xml = fs::read_to_string(&out).unwrap();
     assert!(xml.contains("<loc>https://meta.test/docs</loc>"));
@@ -226,7 +233,7 @@ fn generate_falls_back_to_example_base_url_without_metadata() {
         include_dynamic: false,
     };
 
-    execute_with_profile(&args, &fx.profile).unwrap();
+    generate(&args, &fx.profile).unwrap();
 
     let xml = fs::read_to_string(fx.web.join("dist/sitemap.xml")).unwrap();
     assert!(xml.contains("<loc>https://example.com/docs</loc>"));
@@ -241,10 +248,10 @@ fn generate_errors_when_content_config_missing_or_invalid() {
         base_url: Some("https://site.test".to_owned()),
         include_dynamic: false,
     };
-    let err = execute_with_profile(&args, &fx.profile).unwrap_err();
+    let err = generate(&args, &fx.profile).unwrap_err();
     assert!(err.to_string().contains("Failed to read content config"));
 
     let fx = fixture("content_sources: [not, a, map]");
-    let err = execute_with_profile(&args, &fx.profile).unwrap_err();
+    let err = generate(&args, &fx.profile).unwrap_err();
     assert!(err.to_string().contains("Failed to parse content config"));
 }

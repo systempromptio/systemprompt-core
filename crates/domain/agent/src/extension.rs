@@ -49,6 +49,13 @@ impl Extension for AgentExtension {
             column: "user_id",
             predicate: None,
         });
+        c.owner_reassignment(
+            |r: &Resolved<'_>| -> Result<systemprompt_traits::DynOwnerReassignment, FactoryError> {
+                Ok(std::sync::Arc::new(crate::repository::AgentOwnerReassignment::new(
+                    &r.get::<systemprompt_database::DbPool>()?,
+                )))
+            },
+        );
         Ok(())
     }
 }

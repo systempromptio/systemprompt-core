@@ -39,6 +39,7 @@ http = [
 cli = [
     "systemprompt-extension/cli",
     "systemprompt-logging/cli",
+    "dep:systemprompt-config",
     "dep:systemprompt-content",
     "dep:systemprompt-database",
     "dep:systemprompt-files",
@@ -67,6 +68,7 @@ systemprompt-generator = { workspace = true, optional = true }
 systemprompt-identifiers = { workspace = true, optional = true }
 systemprompt-logging = { workspace = true, optional = true }
 systemprompt-manifest = { workspace = true, optional = true }
+systemprompt-config = { workspace = true, optional = true }
 systemprompt-models = { workspace = true, optional = true }
 systemprompt-traits = { workspace = true, optional = true }
 anyhow = { workspace = true, optional = true }

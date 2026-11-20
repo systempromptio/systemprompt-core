@@ -38,7 +38,7 @@ pub struct CohortSelector {
 
 impl ManagedRepository {
     pub async fn consumer_rings(&self, consumer: &UserId) -> Result<Vec<CohortRing>> {
-        let policy = self.publication_policy()?;
+        let policy = self.publication_policy();
         let mut held: BTreeMap<&str, Vec<String>> = BTreeMap::new();
         let mut matched = Vec::new();
         for ring in &policy.config.rings {
@@ -59,7 +59,7 @@ impl ManagedRepository {
 
     async fn dimension_values(&self, dimension: &str, consumer: &UserId) -> Result<Vec<String>> {
         if dimension == ROLE_DIMENSION {
-            let directory = self.publication_policy()?.roles.as_ref().ok_or_else(|| {
+            let directory = self.publication_policy().roles.as_ref().ok_or_else(|| {
                 invalid("A cohort ring names roles but no role directory is registered")
             })?;
             return directory
@@ -71,7 +71,7 @@ impl ManagedRepository {
                 });
         }
         let provider = self
-            .publication_policy()?
+            .publication_policy()
             .subjects
             .find(dimension)
             .ok_or_else(|| invalid("A cohort ring names an unregistered subject dimension"))?;
@@ -167,7 +167,7 @@ impl ManagedRepository {
     }
 
     pub(crate) async fn cohort_stamp(&self, consumer: &UserId) -> Result<String> {
-        if self.publication_policy()?.config.rings.is_empty() {
+        if self.publication_policy().config.rings.is_empty() {
             return Ok(String::new());
         }
         let rings = self.consumer_rings(consumer).await?;

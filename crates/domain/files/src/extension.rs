@@ -75,6 +75,13 @@ impl Extension for FilesExtension {
         c.migrations(extension_migrations!());
         contribute_files(c);
         contribute_documents_and_issues(c);
+        c.owner_reassignment(
+            |r: &Resolved<'_>| -> Result<systemprompt_traits::DynOwnerReassignment, FactoryError> {
+                Ok(Arc::new(crate::FilesOwnerReassignment::new(
+                    &r.get::<DbPool>()?,
+                )))
+            },
+        );
         Ok(())
     }
 }

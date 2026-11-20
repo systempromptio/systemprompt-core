@@ -32,7 +32,6 @@ use tracing::{debug, error, trace, warn};
 use super::claim::{Claim, acquire_cluster_claim, acquire_node_claim};
 use super::{JobRun, RunningJobs, make_job_context};
 use crate::error::{SchedulerError, SchedulerResult};
-use crate::jobs::InventoryRefreshMemo;
 use crate::models::{JobRunRecord, JobStatus};
 use crate::repository::SchedulerRepository;
 use crate::services::job_metrics;
@@ -49,7 +48,6 @@ pub(super) struct JobDispatch {
     pub(super) claim_policy: ClaimPolicy,
     pub(super) enforce: bool,
     pub(super) parameters: HashMap<String, String>,
-    pub(super) inventory_memo: Arc<InventoryRefreshMemo>,
     pub(super) schedule: Arc<AdmittedSchedule>,
 }
 
@@ -64,7 +62,6 @@ pub(super) async fn execute_job(dispatch: JobDispatch) {
         claim_policy,
         enforce,
         parameters,
-        inventory_memo,
         schedule,
     } = dispatch;
     let instance_id = app_context.config().instance_id.clone();
@@ -110,7 +107,6 @@ pub(super) async fn execute_job(dispatch: JobDispatch) {
         },
         &app_context,
         &schedule,
-        &inventory_memo,
     )
     .with_enforce(enforce)
     .with_parameters(parameters);

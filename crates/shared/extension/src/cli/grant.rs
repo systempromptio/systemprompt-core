@@ -8,7 +8,8 @@
 /// `ChildHost` skips the profile, session and cloud credentials; `ServesApi`
 /// hands interrupt handling to the server; `CloudOperator` loads the operator
 /// cloud credentials and runs against a cloud profile with no remote route;
-/// `LocalExport` keeps an `--export` run on this machine; `SkipValidation`
+/// `LocalExport` keeps an `--export` run on this machine and serves the
+/// profile's local exports directory through `CommandHost::export_dir`; `SkipValidation`
 /// skips the services-config validation; `BootProfile` lets the command boot a
 /// profile at a path through
 /// [`CommandHost::boot_config`](crate::cli::CommandHost::boot_config);
@@ -17,7 +18,11 @@
 /// its resolver; `TargetAdmission` admits the binary's composition against the
 /// disabled-member list of a profile at a path and returns its open admitted
 /// views through
-/// [`CommandHost::admitted_views`](crate::cli::CommandHost::admitted_views). A
+/// [`CommandHost::admitted_views`](crate::cli::CommandHost::admitted_views);
+/// `ServicesTree` serves the active services root and the non-secret
+/// profile values read beside it through `CommandHost::services_tree`,
+/// without a database boot; `CallerSession` serves the CLI caller's own
+/// session token through `CommandHost::caller_session`. A
 /// member's command requests the grants it needs; the composition and the CLI
 /// registry refuse a request the reserved CLI paths do not list for that path
 /// and owner.
@@ -31,10 +36,12 @@ pub enum KernelGrant {
     BootProfile,
     ConfigReconcile,
     TargetAdmission,
+    ServicesTree,
+    CallerSession,
 }
 
 impl KernelGrant {
-    pub const ALL: [Self; 8] = [
+    pub const ALL: [Self; 10] = [
         Self::ChildHost,
         Self::ServesApi,
         Self::CloudOperator,
@@ -43,6 +50,8 @@ impl KernelGrant {
         Self::BootProfile,
         Self::ConfigReconcile,
         Self::TargetAdmission,
+        Self::ServicesTree,
+        Self::CallerSession,
     ];
 }
 
@@ -57,6 +66,8 @@ impl std::fmt::Display for KernelGrant {
             Self::BootProfile => "boot-profile",
             Self::ConfigReconcile => "config-reconcile",
             Self::TargetAdmission => "target-admission",
+            Self::ServicesTree => "services-tree",
+            Self::CallerSession => "caller-session",
         })
     }
 }

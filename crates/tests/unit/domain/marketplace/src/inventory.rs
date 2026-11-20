@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use systemprompt_identifiers::{ManagedResourceId, ResourceRevisionId, UserId};
+use systemprompt_loader::bundle::BundleSources;
 use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_marketplace::inventory::{
     BaselineScope, InventoryService, LatestPublication, LatestPublicationStatus, PublishGuard,
@@ -12,9 +13,12 @@ use systemprompt_marketplace::managed::{
 use systemprompt_models::feedback::inventory::{InventoryAvailability, InventoryOrigin};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, seed_user_row, test_db_pool};
 
+static BUNDLES: std::sync::LazyLock<BundleSources> =
+    std::sync::LazyLock::new(|| BundleSources::of(ensure_test_bootstrap().boot.profile()));
+
 fn sources() -> SourcesContext<'static> {
     SourcesContext {
-        profile: ensure_test_bootstrap().boot.profile(),
+        bundles: &BUNDLES,
         active_root: None,
     }
 }

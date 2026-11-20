@@ -138,28 +138,6 @@ pub(super) fn build_repositories(
     }
 }
 
-pub fn owner_reassignments(database: &DbPool) -> Vec<systemprompt_traits::DynOwnerReassignment> {
-    let logging = systemprompt_logging::LoggingOwnerReassignment::new(database);
-    let events =
-        systemprompt_events::EventsOwnerReassignment::new(database.write_pool().as_ref().clone());
-    vec![
-        Arc::new(systemprompt_agent::repository::AgentOwnerReassignment::new(
-            database,
-        )),
-        Arc::new(systemprompt_mcp::repository::McpOwnerReassignment::new(
-            database,
-        )),
-        Arc::new(systemprompt_ai::repository::AiOwnerReassignment::new(
-            database,
-        )),
-        Arc::new(systemprompt_analytics::repository::AnalyticsOwnerReassignment::new(database)),
-        Arc::new(systemprompt_files::FilesOwnerReassignment::new(database)),
-        Arc::new(systemprompt_content::repository::ContentOwnerReassignment::new(database)),
-        Arc::new(logging),
-        Arc::new(events),
-    ]
-}
-
 pub(super) fn new_plugins(mcp_registry: RegistryService, inputs: &PluginInputs) -> Plugins {
     Plugins {
         mcp_registry,
@@ -178,25 +156,18 @@ pub(crate) fn build_artifact_ingest(
 
 pub(super) async fn load_identity(
     boot: &BootContext,
-    database: &DbPool,
     users: &Arc<systemprompt_users::UserRepository>,
     services: &ServicesState,
-) -> RuntimeResult<(
-    Arc<UserService>,
-    Arc<systemprompt_manifest::SystemAdmin>,
-    RegistryService,
-)> {
+) -> RuntimeResult<(Arc<systemprompt_manifest::SystemAdmin>, RegistryService)> {
     let config = boot.config()?;
-    let user_service = Arc::new(
-        UserService::new(Arc::clone(users)).with_owner_reassignments(owner_reassignments(database)),
-    );
-    let system_admin = assembly::load_system_admin(config, &user_service).await?;
+    let lookup = Arc::new(UserService::new(Arc::clone(users)));
+    let system_admin = assembly::load_system_admin(config, &lookup).await?;
     let mcp_registry = RegistryService::new(
         system_admin.id().clone(),
         services.view(),
         Arc::clone(config),
     );
-    Ok((user_service, system_admin, mcp_registry))
+    Ok((system_admin, mcp_registry))
 }
 
 pub(super) async fn build_domain_layer(

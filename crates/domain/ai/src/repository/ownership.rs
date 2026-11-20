@@ -10,8 +10,22 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{QuotaSubjectKind, UserId};
-use systemprompt_traits::{OwnerReassignment, ReassignedRows};
+use systemprompt_traits::{OwnerReassignment, ReassignedColumn, ReassignedRows};
 
+const COLUMNS: &[ReassignedColumn] = &[
+    ReassignedColumn {
+        table: "ai_requests",
+        column: "user_id",
+    },
+    ReassignedColumn {
+        table: "ai_quota_buckets",
+        column: "subject_id",
+    },
+    ReassignedColumn {
+        table: "ai_gateway_thought_signatures",
+        column: "user_id",
+    },
+];
 
 #[derive(Debug, Clone)]
 pub struct AiOwnerReassignment {
@@ -33,6 +47,10 @@ fn shared_error(e: sqlx::Error) -> systemprompt_traits::RepositoryError {
 impl OwnerReassignment for AiOwnerReassignment {
     fn domain(&self) -> &'static str {
         "ai"
+    }
+
+    fn columns(&self) -> &'static [ReassignedColumn] {
+        COLUMNS
     }
 
     async fn reassign_owner(

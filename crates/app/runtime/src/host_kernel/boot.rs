@@ -14,8 +14,6 @@ use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_governance::contract::AuthzHooks;
 use systemprompt_governance::policy::PolicyCatalog;
 use systemprompt_loader::{ConfigLoader, ServicesSourceBootstrap, ServicesState};
-use systemprompt_marketplace::contract::MarketplaceSeams;
-use systemprompt_marketplace::managed::PublicationPolicyCell;
 use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_models::subprocess::VERIFICATION_KEYS_ENV;
 use systemprompt_security::jwt::VerifyingTokenAuthority;
@@ -144,7 +142,7 @@ impl HostKernel {
         kernel.resolve(&admitted).map_err(RuntimeError::from)?;
         let r = kernel.resolved();
 
-        let (publication, authz_hook, market) = authz_stage(
+        let (authz_hook, market) = authz_stage(
             profile,
             &database,
             &services,
@@ -155,9 +153,6 @@ impl HostKernel {
                     .get::<Arc<SubjectProviderSet>>()
                     .map_err(RuntimeError::from)?,
                 hooks: &*r.get::<Arc<AuthzHooks>>().map_err(RuntimeError::from)?,
-                seams: &*r
-                    .get::<Arc<MarketplaceSeams>>()
-                    .map_err(RuntimeError::from)?,
             },
         )?;
         let governance = load_governance(
@@ -204,10 +199,6 @@ impl HostKernel {
             &r,
         )?;
 
-        r.get::<PublicationPolicyCell>()
-            .map_err(RuntimeError::from)?
-            .bind(publication.clone())
-            .map_err(RuntimeError::from)?;
         let managed_skills = r
             .get::<DynManagedSkillResolver>()
             .map_err(RuntimeError::from)?;
@@ -242,7 +233,6 @@ impl HostKernel {
             secrets,
             verification,
             authz_hook,
-            publication,
             documents,
             background_tasks,
             log_sink,

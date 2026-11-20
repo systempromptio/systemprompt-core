@@ -61,13 +61,13 @@ impl InventoryService {
         let owner = scope.owner;
         let provenance = PassProvenance {
             composed_hash: systemprompt_loader::bundle::sources_provenance(
-                scope.sources.profile,
+                scope.sources.bundles,
                 scope.sources.active_root,
                 self.repository.base_tree_hash_memo(),
             )
             .composed_hash,
             inventory_generation: self.repository.inventory_status(owner).await?.generation,
-            bundle_hashes: systemprompt_loader::bundle::owning_bundle_hashes(scope.sources.profile),
+            bundle_hashes: systemprompt_loader::bundle::owning_bundle_hashes(scope.sources.bundles),
         };
         let mut outcomes = Vec::new();
         let mut after: Option<InventoryEntryId> = None;

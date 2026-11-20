@@ -1,0 +1,34 @@
+[root]
+section = "Breaking"
+area = "CLI"
+text = "A member command reaches kernel-held material only through a grant listed on its reserved CLI path. `CommandHost::profile` is served to a member command only under `boot-profile` (the `cloud` path); every other member command is refused it. Two grants are added: `services-tree` (`core marketplace`, `core plugins`, `core skills`) serves the active services root with the published API URL and site GitHub link through `CommandHost::services_tree`, without a database; `caller-session` (`plugins mcp`) serves the CLI caller's own session token through `CommandHost::caller_session`. `local-export` also serves the profile's exports directory through `CommandHost::export_dir`. An install command holds no grant."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`CommandHost` gains `services_tree`, `export_dir` and `caller_session`; `KernelGrant` gains `ServicesTree` and `CallerSession` (`KernelGrant::ALL` has ten entries); the `core marketplace`, `core plugins` and `core skills` rows of `RESERVED_CLI_PATHS` list `ServicesTree` and the `plugins mcp` row lists `CallerSession`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`cli::ServicesTree` and `cli::CallerSession`."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Changed"
+text = "`MemberHost` serves `profile` only under `KernelGrant::BootProfile`, `services_tree` under `ServicesTree`, `export_dir` under `LocalExport` and `caller_session` under `CallerSession`; the command context's own command face refuses all three granted values. The detached command kernel seeds the open `Arc<AppPaths>`."
+
+[[crate]]
+name = "systemprompt-content-entry"
+section = "Breaking"
+text = "`web sitemap` reads the resolved `Arc<AppPaths>` instead of the profile: `cli::sitemap::execute` and `show::execute` take `&AppPaths`, `show::execute_with_config_path` takes `&Path`, and `generate::execute_with_profile` is replaced by `generate::execute_with_paths`."
+
+[[crate]]
+name = "systemprompt-analytics-entry"
+section = "Changed"
+text = "A relative `--export` path resolves against `CommandHost::export_dir`."
+
+[[crate]]
+name = "systemprompt-mcp"
+section = "Added"
+text = "`McpServiceObserver`, a read-only view of MCP server health and the recorded running set with no spawner and no secrets, provided by the `mcp` member as `Arc<McpServiceObserver>`; `McpOrchestrator::service_statuses` and `get_running_servers` answer through it."

@@ -7,12 +7,12 @@ use anyhow::{Context, Result};
 use chrono::Utc;
 use clap::Args;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use systemprompt_extension::cli::{CliConfig, CommandOutput};
 use systemprompt_generator::{SitemapUrl, build_sitemap_xml};
 use systemprompt_logging::CliService;
-use systemprompt_manifest::Profile;
+use systemprompt_config::paths::AppPaths;
 use systemprompt_models::content_config::ContentConfigRaw;
 
 use super::types::SitemapGenerateOutput;
@@ -32,15 +32,15 @@ pub struct GenerateArgs {
 pub(super) fn execute(
     args: &GenerateArgs,
     _config: &CliConfig,
-    profile: &Profile,
+    paths: &AppPaths,
 ) -> Result<CommandOutput> {
-    execute_with_profile(args, profile)
+    execute_with_paths(args, paths)
 }
 
-pub fn execute_with_profile(args: &GenerateArgs, profile: &Profile) -> Result<CommandOutput> {
-    let content_config = load_content_config(profile)?;
-    let base_url = resolve_base_url(args, profile);
-    let output_path = resolve_output_path(args, profile)?;
+pub fn execute_with_paths(args: &GenerateArgs, paths: &AppPaths) -> Result<CommandOutput> {
+    let content_config = load_content_config(paths.system().content_config())?;
+    let base_url = resolve_base_url(args, paths.web().metadata());
+    let output_path = resolve_output_path(args, paths.web().root())?;
 
     CliService::info("Generating sitemap...");
 
@@ -66,32 +66,36 @@ pub fn execute_with_profile(args: &GenerateArgs, profile: &Profile) -> Result<Co
     Ok(CommandOutput::card_value("Sitemap Generated", &output))
 }
 
-fn load_content_config(profile: &Profile) -> Result<ContentConfigRaw> {
-    let content_config_path = profile.paths.content_config();
+fn load_content_config(content_config_path: &Path) -> Result<ContentConfigRaw> {
+    let content = fs::read_to_string(content_config_path).with_context(|| {
+        format!(
+            "Failed to read content config at {}",
+            content_config_path.display()
+        )
+    })?;
 
-    let content = fs::read_to_string(&content_config_path)
-        .with_context(|| format!("Failed to read content config at {}", content_config_path))?;
-
-    serde_yaml::from_str(&content)
-        .with_context(|| format!("Failed to parse content config at {}", content_config_path))
+    serde_yaml::from_str(&content).with_context(|| {
+        format!(
+            "Failed to parse content config at {}",
+            content_config_path.display()
+        )
+    })
 }
 
-fn resolve_base_url(args: &GenerateArgs, profile: &Profile) -> String {
+fn resolve_base_url(args: &GenerateArgs, metadata_path: &Path) -> String {
     args.base_url.clone().unwrap_or_else(|| {
-        let metadata_path = profile.paths.web_metadata();
-        fs::read_to_string(&metadata_path)
+        fs::read_to_string(metadata_path)
             .ok()
             .and_then(|content| extract_base_url(&content))
             .unwrap_or_else(|| "https://example.com".to_owned())
     })
 }
 
-fn resolve_output_path(args: &GenerateArgs, profile: &Profile) -> Result<PathBuf> {
-    let web_path = profile.paths.web_path_resolved();
+fn resolve_output_path(args: &GenerateArgs, web_root: &Path) -> Result<PathBuf> {
     let output_path = args
         .output
         .clone()
-        .unwrap_or_else(|| PathBuf::from(&web_path).join("dist").join("sitemap.xml"));
+        .unwrap_or_else(|| web_root.join("dist").join("sitemap.xml"));
 
     if let Some(parent) = output_path.parent() {
         fs::create_dir_all(parent)

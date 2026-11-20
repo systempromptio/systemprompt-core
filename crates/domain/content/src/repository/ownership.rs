@@ -7,5 +7,5 @@
 systemprompt_database::owner_reassignment! {
     pub struct ContentOwnerReassignment;
     domain = "content";
-    update "link_clicks" => "UPDATE link_clicks SET user_id = $2 WHERE user_id = $1";
+    update "link_clicks" (link_clicks.user_id) => "UPDATE link_clicks SET user_id = $2 WHERE user_id = $1";
 }

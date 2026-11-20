@@ -10,6 +10,8 @@ mod bundle;
 pub mod consumer;
 mod diff;
 pub use diff::{ChangeKind, FileChange, diff_files};
+mod doctor;
+pub use doctor::{GitCredentialCheck, classify_git_credentials};
 mod error;
 pub mod git_execution;
 pub mod git_sources;
@@ -35,7 +37,7 @@ pub use publication::{
     CohortSelector, ComparisonEvidence, GateContext, GateVerdict, INVENTORY_REFRESH_SOURCE,
     ManagedResolution, PublicationAction, PublicationAdmission, PublicationDecision,
     PublicationGate, PublicationGateError, PublicationHistoryEntry, PublicationPolicy,
-    PublicationPolicyCell, PublicationRequest, ResourceResolutionRow,
+    PublicationRequest, ResourceResolutionRow,
 };
 pub use reconciliation::{
     ConflictDecision, ConflictResolution, ReconciliationConflict, ReconciliationRecord,

@@ -159,7 +159,6 @@ impl SchedulerService {
         let repository = self.repository.clone();
         let app_context = Arc::clone(&self.app_context);
         let running_jobs = Arc::clone(running_jobs);
-        let inventory_memo = Arc::clone(&self.inventory_memo);
         let schedule = Arc::clone(&self.schedule);
         let claim_policy = dispatch::claim_policy(
             &self.config,
@@ -174,7 +173,6 @@ impl SchedulerService {
             let repository = repository.clone();
             let app_context = Arc::clone(&app_context);
             let running_jobs = Arc::clone(&running_jobs);
-            let inventory_memo = Arc::clone(&inventory_memo);
             let schedule = Arc::clone(&schedule);
             let job = Arc::clone(&registered_job);
             let parameters = parameters.clone();
@@ -192,7 +190,6 @@ impl SchedulerService {
                     claim_policy,
                     enforce,
                     parameters,
-                    inventory_memo,
                     schedule,
                 })
                 .instrument(span.span().clone())

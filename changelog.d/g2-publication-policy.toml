@@ -1,0 +1,24 @@
+[root]
+section = "Changed"
+area = "Extensions"
+text = "A member may provide a value after every slot and governance surface is built (`Contributions::provide_after_governance`). The `managed_resources` member builds its publication policy there and provides `Arc<ManagedRepository>` with it bound; the host no longer binds a late policy."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`Contributions::provide_after_governance`, `ProvidePhase` and `ProvideEntry::phase`."
+
+[[crate]]
+name = "systemprompt-marketplace"
+section = "Breaking"
+text = "`PublicationPolicyCell`, `ManagedRepository::with_publication_cell` and `ManagedError::PolicyUnbound` are removed."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`HostParts::publication` is removed and the crate no longer depends on `systemprompt-marketplace`."
+
+[[crate]]
+name = "systemprompt-mcp-host"
+section = "Breaking"
+text = "`McpHost::publication_policy` is removed."

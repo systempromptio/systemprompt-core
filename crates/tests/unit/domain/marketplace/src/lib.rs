@@ -17,6 +17,8 @@ mod catalog_rules;
 #[cfg(test)]
 mod dev_files;
 #[cfg(test)]
+mod doctor_git_credentials;
+#[cfg(test)]
 mod errors;
 #[cfg(test)]
 mod helpers;

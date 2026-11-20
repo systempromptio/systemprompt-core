@@ -35,6 +35,7 @@ use super::lifecycle::LifecycleService;
 use super::monitoring::MonitoringService;
 use super::monitoring::status::McpServiceStatus;
 use super::network::NetworkService;
+use super::observer::McpServiceObserver;
 use super::process::ProcessService;
 use super::registry::RegistryService;
 use crate::McpServerConfig;
@@ -116,25 +117,11 @@ impl McpOrchestrator {
     }
 
     pub async fn service_statuses(&self) -> McpDomainResult<Vec<McpServiceStatus>> {
-        use super::monitoring::health::perform_health_check;
+        self.observer().service_statuses().await
+    }
 
-        let servers = self.registry.get_enabled_servers()?;
-        let mut statuses = Vec::with_capacity(servers.len());
-
-        for server in &servers {
-            let health = perform_health_check(server).await?;
-            let pid = if server.is_external() {
-                None
-            } else {
-                self.database
-                    .get_service_by_name(&server.service_name())
-                    .await?
-                    .and_then(|info| super::database::stored_pid(info.pid))
-            };
-            statuses.push(McpServiceStatus::observed(server, &health, pid));
-        }
-
-        Ok(statuses)
+    fn observer(&self) -> McpServiceObserver {
+        McpServiceObserver::over(self.database.clone(), self.registry.clone())
     }
 
     pub async fn show_status(&self) -> McpDomainResult<()> {
@@ -187,7 +174,7 @@ impl McpOrchestrator {
     }
 
     pub async fn get_running_servers(&self) -> McpDomainResult<Vec<McpServerConfig>> {
-        self.database.get_running_servers().await
+        self.observer().running_servers().await
     }
 
     pub async fn get_service_info(

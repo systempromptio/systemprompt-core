@@ -3,17 +3,23 @@
 //! opens the [`MarketplaceSlot`], so the built marketplace seams are present
 //! whenever this member is admitted.
 //!
-//! It provides the marketplace's runtime state:
+//! It contributes the `git-credentials` `cloud doctor` check
+//! ([`GitCredentialCheck`]) and provides the marketplace's runtime state:
 //!
-//! - the [`PublicationPolicyCell`] and the `Arc<ManagedRepository>` that reads
-//!   it — the host binds the cell with the policy it assembles from the built
-//!   seams and subject providers before it serves anything;
+//! - after governance, the `Arc<ManagedRepository>` with its publication
+//!   policy, assembled from the services marketplace configuration, the
+//!   marketplace seams this member's slot builds and the subject providers;
 //! - the per-process `Arc<MarketplaceCache>` of the resolved catalogue and
 //!   plugin bundles;
 //! - the per-process `Arc<Mutex<PublishGuard>>` that serializes inventory
 //!   publication passes;
-//! - the organization skill resolver (`DynManagedSkillResolver`), which
-//!   resolves managed skills against the system admin's managed inventory.
+//! - after governance, the `Arc<InventoryRefresher>` the
+//!   `managed_inventory_refresh` job (contributed here) and the admin
+//!   services refresh run, built from the sealed bundle sources, services
+//!   root and system admin;
+//! - after governance, the organization skill resolver
+//!   (`DynManagedSkillResolver`), which resolves managed skills against the
+//!   system admin's managed inventory.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -22,14 +28,21 @@ use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_extension::prelude::*;
-use systemprompt_manifest::services::SystemAdmin;
+use systemprompt_governance::authz::SubjectProviderSet;
+use systemprompt_loader::bundle::BundleSources;
+use systemprompt_manifest::services::root::ActiveServicesRoot;
+use systemprompt_manifest::services::{ServicesView, SystemAdmin};
 use systemprompt_traits::DynManagedSkillResolver;
 use tokio::sync::Mutex;
 
 use crate::catalog::MarketplaceCache;
-use crate::contract::MarketplaceSlot;
-use crate::inventory::PublishGuard;
-use crate::managed::{ManagedRepository, OrganizationSkillResolver, PublicationPolicyCell};
+use crate::contract::{MarketplaceSeams, MarketplaceSlot};
+use crate::inventory::{
+    InventoryRefreshJob, InventoryRefresher, InventoryRefresherParts, PublishGuard,
+};
+use crate::managed::{
+    GitCredentialCheck, ManagedRepository, OrganizationSkillResolver, PublicationPolicy,
+};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ManagedResourcesExtension;
@@ -63,22 +76,43 @@ impl Extension for ManagedResourcesExtension {
         });
         provide_state(c);
         c.slot::<MarketplaceSlot>();
+        c.job(InventoryRefreshJob::default())
+            .doctor_check(Arc::new(GitCredentialCheck));
         Ok(())
     }
 }
 
 fn provide_state(c: &mut Contributions<'_>) {
-    c.provide(|_: &Resolved<'_>| Ok(PublicationPolicyCell::default()))
-        .provide(|r: &Resolved<'_>| {
+    c.provide(|_: &Resolved<'_>| Ok(Arc::new(MarketplaceCache::default())))
+        .provide(|_: &Resolved<'_>| Ok(Arc::new(Mutex::new(PublishGuard::default()))))
+        .provide_after_governance(|r: &Resolved<'_>| {
             let db = r.get::<DbPool>()?;
-            let cell = r.get::<PublicationPolicyCell>()?;
+            let marketplace = r
+                .get::<ServicesView>()?
+                .config()
+                .marketplace
+                .clone()
+                .unwrap_or_default();
+            let policy = PublicationPolicy::from_seams(
+                marketplace,
+                &*r.get::<Arc<MarketplaceSeams>>()?,
+                r.get::<Arc<SubjectProviderSet>>()?.as_ref().clone(),
+            );
             Ok(Arc::new(
-                ManagedRepository::new(&db).with_publication_cell(cell),
+                ManagedRepository::new(&db).with_publication_policy(policy),
             ))
         })
-        .provide(|_: &Resolved<'_>| Ok(Arc::new(MarketplaceCache::default())))
-        .provide(|_: &Resolved<'_>| Ok(Arc::new(Mutex::new(PublishGuard::default()))))
-        .provide(
+        .provide_after_governance(|r: &Resolved<'_>| {
+            Ok(Arc::new(InventoryRefresher::new(InventoryRefresherParts {
+                repository: r.get::<Arc<ManagedRepository>>()?,
+                guard: r.get::<Arc<Mutex<PublishGuard>>>()?,
+                bundles: r.get::<BundleSources>()?,
+                active_root: r.get::<ActiveServicesRoot>()?,
+                services: r.get::<ServicesView>()?,
+                owner: r.get::<SystemAdmin>()?.id().clone(),
+            })))
+        })
+        .provide_after_governance(
             |r: &Resolved<'_>| -> Result<DynManagedSkillResolver, ProvideError> {
                 let repository = r.get::<Arc<ManagedRepository>>()?;
                 let owner = r.get::<SystemAdmin>()?;

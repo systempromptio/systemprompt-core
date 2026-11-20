@@ -1,7 +1,6 @@
 //! The kernel's built-in jobs.
 //!
-//! Config reconcile, the licence check-in, the inventory refresh, the
-//! drainers of kernel-owned projections, session housekeeping, OTLP export,
+//! Config reconcile, the licence check-in, the drainers of kernel-owned projections, session housekeeping, OTLP export,
 //! and the two jobs that iterate what capability crates contribute
 //! (`database_cleanup` over admitted retention purges, sweeps and holds,
 //! `backfill_rollups` over admitted projection drains). Capability jobs live
@@ -18,7 +17,6 @@ pub mod backfill_rollups;
 mod cleanup_inactive_sessions;
 mod config_reconcile;
 pub(crate) mod database_cleanup;
-mod inventory;
 pub mod licence_checkin;
 mod log_summary_rollup;
 #[cfg(feature = "otel")]
@@ -32,7 +30,6 @@ pub use backfill_rollups::BackfillRollupsJob;
 pub use cleanup_inactive_sessions::CleanupInactiveSessionsJob;
 pub use config_reconcile::ConfigReconcileJob;
 pub use database_cleanup::{DatabaseCleanupJob, RetentionTarget};
-pub use inventory::{InventoryRefreshJob, InventoryRefreshMemo};
 pub use licence_checkin::LicenceCheckinJob;
 pub use log_summary_rollup::LogSummaryRollupJob;
 #[cfg(feature = "otel")]

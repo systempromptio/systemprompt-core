@@ -9,7 +9,7 @@
 systemprompt_database::owner_reassignment! {
     pub struct AnalyticsOwnerReassignment;
     domain = "analytics";
-    update "engagement_events" => "UPDATE engagement_events SET user_id = $2 WHERE user_id = $1";
-    update "fingerprint_reputation" => "UPDATE fingerprint_reputation SET associated_user_ids = \
+    update "engagement_events" (engagement_events.user_id) => "UPDATE engagement_events SET user_id = $2 WHERE user_id = $1";
+    update "fingerprint_reputation" (fingerprint_reputation.associated_user_ids) => "UPDATE fingerprint_reputation SET associated_user_ids = \
              array_replace(associated_user_ids, $1, $2) WHERE $1 = ANY(associated_user_ids)";
 }

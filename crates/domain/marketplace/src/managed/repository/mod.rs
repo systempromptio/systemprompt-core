@@ -10,6 +10,7 @@ pub use listing::{Page, ResourceSummary, RevisionSummary};
 mod git_credentials;
 mod revisions;
 mod sources;
+pub(crate) use git_credentials::git_credential_sources;
 pub use git_credentials::GitCredentialSource;
 
 use std::collections::BTreeMap;
@@ -21,7 +22,7 @@ use systemprompt_identifiers::{
     ManagedResourceId, ManagedSourceId, ResourceRevisionId, SourceSnapshotId,
 };
 
-use super::{DependencyRef, ManagedError, PublicationPolicy, PublicationPolicyCell, RevisionFiles};
+use super::{DependencyRef, PublicationPolicy, RevisionFiles};
 use crate::catalog::VerifiedRevisions;
 use systemprompt_loader::bundle::BaseTreeHashMemo;
 
@@ -30,7 +31,7 @@ pub struct ManagedRepository {
     pub(crate) pool: PgPool,
     verified: Arc<VerifiedRevisions>,
     tree_hash: Arc<BaseTreeHashMemo>,
-    publication: PublicationPolicyCell,
+    publication: Arc<PublicationPolicy>,
 }
 
 impl ManagedRepository {
@@ -41,24 +42,18 @@ impl ManagedRepository {
             pool: db.write_pool().as_ref().clone(),
             verified: Arc::new(VerifiedRevisions::default()),
             tree_hash: Arc::new(BaseTreeHashMemo::new()),
-            publication: PublicationPolicyCell::bound(PublicationPolicy::default()),
+            publication: Arc::new(PublicationPolicy::default()),
         }
     }
 
     #[must_use]
     pub fn with_publication_policy(mut self, policy: PublicationPolicy) -> Self {
-        self.publication = PublicationPolicyCell::bound(policy);
+        self.publication = Arc::new(policy);
         self
     }
 
-    #[must_use]
-    pub fn with_publication_cell(mut self, cell: PublicationPolicyCell) -> Self {
-        self.publication = cell;
-        self
-    }
-
-    pub(crate) fn publication_policy(&self) -> Result<&PublicationPolicy, ManagedError> {
-        self.publication.policy()
+    pub(crate) fn publication_policy(&self) -> &PublicationPolicy {
+        &self.publication
     }
 
     pub(crate) fn base_tree_hash_memo(&self) -> &BaseTreeHashMemo {

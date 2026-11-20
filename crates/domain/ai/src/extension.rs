@@ -41,6 +41,13 @@ impl Extension for AiExtension {
             column: "user_id",
             predicate: None,
         });
+        c.owner_reassignment(
+            |r: &Resolved<'_>| -> Result<systemprompt_traits::DynOwnerReassignment, FactoryError> {
+                Ok(Arc::new(crate::repository::AiOwnerReassignment::new(
+                    &r.get::<DbPool>()?,
+                )))
+            },
+        );
         Ok(())
     }
 }

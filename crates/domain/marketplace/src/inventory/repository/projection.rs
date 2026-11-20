@@ -53,7 +53,7 @@ impl ManagedRepository {
             source: Box::new(error),
         })?;
         let sources = serde_json::to_value(systemprompt_loader::bundle::sources_provenance(
-            sources.profile,
+            sources.bundles,
             sources.active_root,
             self.base_tree_hash_memo(),
         ))?;

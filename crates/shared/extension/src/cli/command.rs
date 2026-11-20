@@ -21,7 +21,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::future::Future;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::Arc;
 
@@ -33,6 +33,7 @@ use systemprompt_traits::DatabaseHandle;
 use super::admitted_views::AdmittedViews;
 use super::child::ChildSupervisor;
 use super::descriptor::{CommandDescriptor, DbUrlRouting, DescribeCommand};
+use super::granted::{CallerSession, ServicesTree};
 use super::output::CommandOutput;
 use super::prompt::Prompter;
 use super::settings::CliConfig;
@@ -199,6 +200,19 @@ pub struct DescribedCommand {
 /// [`KernelGrant::TargetAdmission`](super::KernelGrant::TargetAdmission), at
 /// most once per run.
 ///
+/// [`CommandHost::profile`] is served only to a command holding
+/// [`KernelGrant::BootProfile`](super::KernelGrant::BootProfile); every
+/// other member command is refused it. A member command reaches kernel-held
+/// material only through a grant listed on its reserved CLI path's row:
+/// [`CommandHost::services_tree`] needs
+/// [`KernelGrant::ServicesTree`](super::KernelGrant::ServicesTree) and reads
+/// the boot context without a database; [`CommandHost::caller_session`] needs
+/// [`KernelGrant::CallerSession`](super::KernelGrant::CallerSession) and
+/// resolves the caller's own session; [`CommandHost::export_dir`] needs
+/// [`KernelGrant::LocalExport`](super::KernelGrant::LocalExport) and is the
+/// profile's local exports directory. A command without the grant is refused,
+/// and a command whose path lists no grant holds none.
+///
 /// [`CommandHost::render`] renders an intermediate output through the
 /// kernel's sink (a command that redraws until interrupted); the output a
 /// command returns is rendered once at exit, and a command that fails with
@@ -221,4 +235,7 @@ pub trait CommandHost: Send + Sync {
         profile: &'a Path,
     ) -> BoxFuture<'a, Result<Arc<Config>, CommandError>>;
     fn admitted_views(&self, profile: &Path) -> Result<AdmittedViews, CommandError>;
+    fn services_tree(&self) -> Result<ServicesTree, CommandError>;
+    fn export_dir(&self) -> Result<PathBuf, CommandError>;
+    fn caller_session(&self) -> BoxFuture<'_, Result<CallerSession, CommandError>>;
 }

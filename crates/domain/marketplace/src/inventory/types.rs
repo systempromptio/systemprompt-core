@@ -10,7 +10,7 @@ use systemprompt_identifiers::{
     InventoryEntryId, ManagedReconciliationId, ManagedResourceId, ManagedSourceId,
     ResourceRevisionId, UserId,
 };
-use systemprompt_manifest::profile::Profile;
+use systemprompt_loader::bundle::BundleSources;
 use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_models::feedback::inventory::{InventoryAvailability, InventoryOrigin};
@@ -60,7 +60,7 @@ pub(super) fn managed_identity(resource: &ManagedResourceId) -> InventoryEntryId
 
 #[derive(Debug, Clone, Copy)]
 pub struct SourcesContext<'a> {
-    pub profile: &'a Profile,
+    pub bundles: &'a BundleSources,
     pub active_root: Option<&'a ActiveServicesRoot>,
 }
 

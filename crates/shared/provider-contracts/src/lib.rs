@@ -48,6 +48,7 @@ mod component;
 pub mod config_plane;
 mod content_data;
 mod dependencies;
+mod doctor;
 pub mod documents;
 mod error;
 mod extender;
@@ -77,6 +78,7 @@ pub use config_plane::{
 };
 pub use content_data::{ContentDataContext, ContentDataProvider};
 pub use dependencies::{Dependencies, DependencyProvider, DuplicateDependency, MissingDependency};
+pub use doctor::{DoctorCheck, DoctorContext, DoctorOutcome, DoctorStatus, SecretPresence};
 pub use error::{ProviderError, ProviderResult};
 pub use extender::{ExtendedData, ExtenderContext, ExtenderContextBuilder, TemplateDataExtender};
 pub use frame_options::FrameOptions;

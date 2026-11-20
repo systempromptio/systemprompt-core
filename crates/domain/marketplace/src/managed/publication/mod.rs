@@ -14,12 +14,10 @@ use systemprompt_identifiers::{
 use super::error::invalid;
 use super::{AssetDigest, ManagedError, ManagedRepository, ResourceKind, Result, RevisionBundle};
 
-mod cell;
 mod cohort;
 mod gate;
 mod repository;
 
-pub use cell::PublicationPolicyCell;
 pub use cohort::CohortSelector;
 pub use gate::{
     GateContext, GateVerdict, PublicationGate, PublicationGateError, PublicationPolicy,
