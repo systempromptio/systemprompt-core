@@ -53,16 +53,16 @@ pub use agent::{
 pub use app_context::{
     default_governance_engine, default_governance_watch, fixture_admitted, fixture_admitted_of,
     fixture_admitted_without, fixture_analytics_repositories, fixture_app_context_on_bootstrap,
-    fixture_app_context_reloaded_on, fixture_app_context_with_build,
-    fixture_app_context_with_config, fixture_app_context_with_extensions,
-    fixture_app_context_with_filter, fixture_app_context_with_hook,
-    fixture_app_context_with_services, fixture_artifact_ingest, fixture_config,
-    fixture_context_builder, fixture_core_members, fixture_event_bridge,
-    fixture_fingerprint_repository, fixture_job_context_over, fixture_kernel, fixture_secret_store,
-    fixture_services_state, fixture_services_view, fixture_subject_providers,
+    fixture_app_context_reloaded_on, fixture_app_context_reloaded_with,
+    fixture_app_context_with_build, fixture_app_context_with_config,
+    fixture_app_context_with_extensions, fixture_app_context_with_filter,
+    fixture_app_context_with_hook, fixture_app_context_with_services, fixture_artifact_ingest,
+    fixture_config, fixture_context_builder, fixture_core_members, fixture_event_bridge,
+    fixture_fingerprint_repository, fixture_job_context_over, fixture_kernel, fixture_kernel_seed,
+    fixture_secret_store, fixture_services_state, fixture_services_view, fixture_subject_providers,
     fixture_upstream_issuer, offline_kernel, offline_rate_windows, seed_fixture_system_admin_at,
     test_app_context, test_app_context_on, test_app_context_on_with, test_config, test_config_with,
-    FIXTURE_JWT_ISSUER, FIXTURE_UPSTREAM_ISSUER,
+    FixtureSeedParts, FIXTURE_JWT_ISSUER, FIXTURE_UPSTREAM_ISSUER,
 };
 pub use bootstrap::{
     enabled_documents, ensure_messaging_bootstrap, ensure_test_bootstrap, init_documents_bootstrap,
@@ -86,9 +86,9 @@ pub use credential::{
 pub use db::{closed_db_pool, lazy_pg_pool, test_database_url, test_db_pool, test_pg_pool};
 pub use disposable_db::DisposableDb;
 pub use documents::{
-    fixture_documents_runtime, fixture_documents_runtime_configured, fixture_documents_runtime_on,
-    fixture_documents_runtime_with, fixture_notification_sink, fixture_notifications,
-    notifications_service,
+    fixture_documents_admitted, fixture_documents_runtime, fixture_documents_runtime_configured,
+    fixture_documents_runtime_on, fixture_documents_runtime_with, fixture_notification_sink,
+    fixture_notifications, notifications_service,
 };
 pub use error_chain::error_chain;
 pub use governance::{apply_governance, apply_governance_plane, record_plane_applied};
