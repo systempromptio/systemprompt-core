@@ -1,0 +1,14 @@
+[root]
+section = "Breaking"
+area = "Config planes"
+text = "A config-plane context carries no secrets document (`Arc<Secrets>`). The identity plane hashes a declared OAuth client's secret through `IdentityClientSecrets`, which the identity member provides from the sealed secret store and which resolves custom secrets only; a client `secret_key` naming a built-in secret (a signing key, a database URL, a provider key) is refused as absent. An install plane that read `Arc<Secrets>` provides its own narrow handle from `Arc<dyn SecretStore>` in a provide fn instead."
+
+[[crate]]
+name = "systemprompt-oauth-issuance"
+section = "Added"
+text = "`IdentityClientSecrets`, the identity member's provided handle the identity plane resolves declared client secrets through."
+
+[[crate]]
+name = "systemprompt-scheduler"
+section = "Breaking"
+text = "`ConfigReconcileService::new` withholds every sealed seed of the map it is given, and `from_app_context` builds the plane context from `Kernel::runtime_state` plus the user provider; neither carries `Arc<Secrets>`. `ConfigReconcileService::plane_dependencies` returns that map."

@@ -1,0 +1,24 @@
+[root]
+section = "Breaking"
+area = "Extensions"
+text = "A job name has one owner: two admitted members contributing the same name, an install job named like a scheduler job included, are refused at composition (`CompositionError::DuplicateJob`) and when the kernel builds the schedule (`KernelError::DuplicateJob`), before any schedule row is written. Rename the install's job. The scheduler's kernel-job handles attach only to jobs whose admitted owner is the scheduler member with core standing."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`AdmittedSchedule::of` returns `Result<AdmittedSchedule, DuplicateJobOwner>`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`DuplicateJobOwner { job, first, second }`, `DuplicateJobOwner::refuse` and `AdmittedSchedule::owner_of`, which returns a job's admitted owner and stamped standing."
+
+[[crate]]
+name = "systemprompt"
+section = "Added"
+text = "`CompositionError::DuplicateJob`."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Added"
+text = "`KernelError::DuplicateJob`."

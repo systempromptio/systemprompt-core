@@ -64,7 +64,8 @@ Public traits in `crates/shared/extension/`:
 - the `extension_migrations!` macro and `build::emit_migrations` contract
 - the CLI contract a member's commands implement (`CliCommandGroup`, `CommandDecl`, `CommandHost`, `CommandOutput`, `CommandError`)
 - the kernel's reservations (`reserved::RESERVED_PATHS`, `RESERVED_CLI_PATHS`, `PRIVILEGED_SHAPES`) as a closed set an install member cannot extend
-- the kernel seed types a job, runner service or config plane resolves by type (`DbPool`, `Arc<AppPaths>`, `InstanceId`, `ServicesView`, `Arc<dyn FileStorage>`, `BackgroundTasks`, `DynInstanceRegistry`, `DynLeaseRepository`, `DynAdvisoryLocks`) and the sealed set withheld from them
+- the kernel seed types a job, runner service or config plane resolves by type (`DbPool`, `Arc<AppPaths>`, `InstanceId`, `ServicesView`, `Arc<dyn FileStorage>`, `BackgroundTasks`, `DynInstanceRegistry`, `DynLeaseRepository`, `DynAdvisoryLocks`) and the sealed set withheld from them (`Arc<Config>`, `Arc<dyn SecretStore>`, `SigningKeys`, `SystemAdmin`, `ActiveServicesRoot`, `Arc<EventRouter>`); no job, runner service or config plane context carries the secrets document or the profile
+- one owner per job name across an admitted composition (`DuplicateJobOwner`)
 
 In the `systemprompt` facade: `Composition`, `reference()`, `with`, `without`, `secrets_source`, `run` and `CORE_MEMBER_IDS`.
 

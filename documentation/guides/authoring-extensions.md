@@ -210,7 +210,7 @@ Gateway routes (`c.gateway_route(GatewayRouteDecl)`, built with `RouteSet::gatew
 
 `c.job(job)` contributes a scheduled job (a `Job` implementation with a `name` and a cron `schedule`). The scheduler runs only the jobs of admitted members, read from `AdmittedSchedule`. Retention declarations (`c.retention`), job-run scopes (`c.job_run_scope`) and projection drains (`c.projection`) are admitted the same way.
 
-A job's `JobContext` reads the kernel's open seeds and provided values with `ctx.get::<T>()`; sealed seeds (configuration, secret store, system admin, services root, event router) are withheld. See [Runtime seams](#runtime-seams).
+A job's `JobContext` reads the kernel's open seeds and provided values with `ctx.get::<T>()`; sealed seeds (configuration, secret store, JWT signing keys, system admin, services root, event router) are withheld, and no job, runner service or config plane can read the secrets document or the profile. A job that needs a secret- or key-derived capability resolves a narrow handle its member builds in a provide fn (or, for a runner service, in its factory). `Job::configured` receives no profile: an install job that needs a deployment fact reads its member's provided value in `execute`. Job names are unique across the composition: a job named like another member's job, a scheduler job included, is refused (`CompositionError::DuplicateJob`). See [Runtime seams](#runtime-seams).
 
 ### Commands
 
@@ -219,7 +219,7 @@ A job's `JobContext` reads the kernel's open seeds and provided values with `ctx
 A member command:
 
 - needs a profile, unless it declares `DbUrlRouting::Direct`: on a bare `--database-url` run (no profile) a `Direct` command runs over every linked member with none disabled, whatever its standing, and any other member command is refused (`ProfileRequired`). A cloud profile that reaches its database directly (`external_db_access`) is still a profiled run: admission is against that profile and a disabled member's command is refused (`CommandDisabled`);
-- reads state through `host.resolved().await`, which withholds the kernel's sealed values (the configuration, the secret store, the system admin, the active services root and the event router) and holds no secrets sources, environment overrides, boot context or application context. A value a member's own provide fn builds from a sealed value is not withheld, so an install that wraps one hands it to its commands;
+- reads state through `host.resolved().await`, which withholds the kernel's sealed values (the configuration, the secret store, the JWT signing keys, the system admin, the active services root, the event router and, in the CLI, the loaded profile) and holds no secrets sources, environment overrides, boot context or application context. A value a member's own provide fn builds from a sealed value is not withheld, so an install that wraps one hands it to its commands;
 - may request kernel grants with `CommandDecl::requesting` only on a reserved CLI path its core owner holds (`admin mcp`, `analytics`, `cloud`). An install member holds no reserved CLI path, so a grant request by an install is refused (`CompositionError::GrantNotConferred`), as is a command at a reserved path (`ReservedCliPath`) or a path declared twice.
 
 ### User purge of the member's own tables
