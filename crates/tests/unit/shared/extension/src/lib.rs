@@ -29,3 +29,7 @@ mod migration_slots;
 mod purge_admission;
 #[cfg(test)]
 mod purge_label;
+#[cfg(test)]
+mod reassignment_admission;
+#[cfg(test)]
+mod reserved_nesting;

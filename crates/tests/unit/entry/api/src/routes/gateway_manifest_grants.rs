@@ -712,7 +712,7 @@ async fn consumer_http_flow_binds_receipts_and_refuses_another_device() {
             &owner,
             &[],
             systemprompt_marketplace::inventory::SourcesContext {
-                profile: harness.ctx.profile(),
+                bundles: &systemprompt_loader::bundle::BundleSources::of(harness.ctx.profile()),
                 active_root: harness.ctx.boot().services_root(),
             },
         )

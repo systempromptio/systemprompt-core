@@ -46,7 +46,7 @@ fn sitemap_show_lists_enabled_routes() {
     let out = execute_with_config_path(
         ShowArgs { preview: true },
         &cfg(),
-        config_path.to_str().unwrap(),
+        &config_path,
     )
     .unwrap();
     let json = serde_json::to_value(out.artifact()).unwrap();
@@ -57,7 +57,7 @@ fn sitemap_show_lists_enabled_routes() {
     let err = execute_with_config_path(
         ShowArgs { preview: false },
         &cfg(),
-        "/nonexistent/content-config.yaml",
+        std::path::Path::new("/nonexistent/content-config.yaml"),
     )
     .unwrap_err();
     assert!(err.to_string().contains("Failed to read content config"));

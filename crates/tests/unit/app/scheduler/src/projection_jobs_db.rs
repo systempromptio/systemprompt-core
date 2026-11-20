@@ -3,10 +3,10 @@ use std::sync::Arc;
 use systemprompt_analytics::jobs::LinkFactsRollupJob;
 use systemprompt_identifiers::{Actor, UserId};
 use systemprompt_scheduler::jobs::{
-    BackfillRollupsJob, InventoryRefreshJob, InventoryRefreshMemo, LogSummaryRollupJob,
-    SessionBotTypeRollupJob, TraceFactsRollupJob, VertexDiscoveryJob,
+    BackfillRollupsJob, LogSummaryRollupJob, SessionBotTypeRollupJob, TraceFactsRollupJob,
+    VertexDiscoveryJob,
 };
-use systemprompt_test_fixtures::{seed_user_row, test_database_url, test_db_pool};
+use systemprompt_test_fixtures::{test_database_url, test_db_pool};
 use systemprompt_traits::{Job, JobContext};
 
 async fn ctx(pool: &systemprompt_database::DbPool, url: &str) -> JobContext {
@@ -26,7 +26,6 @@ fn ctx_for(
         .clone()
         .with(Arc::clone(app_ctx.app_paths_arc()))
         .with(Arc::clone(pool))
-        .with(Arc::new(InventoryRefreshMemo::new()))
         .with(app_ctx);
     JobContext::new(
         Actor::job(UserId::new("projection-job-admin"), "test".to_owned()),
@@ -69,24 +68,6 @@ async fn log_summary_rollup_drains() {
 #[tokio::test]
 async fn session_bot_type_rollup_drains() {
     assert_drains(&SessionBotTypeRollupJob).await;
-}
-
-#[tokio::test]
-async fn inventory_refresh_runs_twice_with_a_shared_memo() {
-    let url = test_database_url();
-    let pool = test_db_pool().await;
-    let app_ctx = systemprompt_test_fixtures::test_app_context(&url).await;
-    let admin_email = format!("{}@example.test", app_ctx.system_admin().id().as_str());
-    seed_user_row(&pool, app_ctx.system_admin().id(), &admin_email)
-        .await
-        .expect("seed system admin");
-    let context = ctx_for(&pool, app_ctx);
-    let job = InventoryRefreshJob;
-    let first = job.execute(&context).await.expect("first refresh");
-    assert!(first.success);
-    let second = job.execute(&context).await.expect("second refresh");
-    assert!(second.success);
-    assert_eq!(job.name(), "managed_inventory_refresh");
 }
 
 #[tokio::test]

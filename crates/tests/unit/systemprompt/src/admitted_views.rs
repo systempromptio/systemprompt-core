@@ -112,3 +112,32 @@ fn a_member_command_reads_the_open_views() {
     assert!(resolved.get::<AdmittedConfigs>().is_ok());
     assert!(resolved.get::<AdmittedAssets>().is_ok());
 }
+
+#[test]
+fn the_admitted_views_carry_the_marketplace_doctor_check_and_no_other_owners() {
+    let admitted = systemprompt_test_fixtures::fixture_admitted();
+    let views = systemprompt_extension::cli::AdmittedViews::of(&admitted);
+    let checks: Vec<(&str, &str)> = views
+        .doctor
+        .entries()
+        .iter()
+        .map(|owned| (owned.owner.as_str(), owned.check.name()))
+        .collect();
+    assert!(
+        checks.contains(&("managed_resources", "git-credentials")),
+        "{checks:?}"
+    );
+
+    let without = systemprompt_test_fixtures::fixture_admitted_without(&[
+        systemprompt_identifiers::ExtensionId::new("managed_resources"),
+    ]);
+    let views = systemprompt_extension::cli::AdmittedViews::of(&without);
+    assert!(
+        views
+            .doctor
+            .entries()
+            .iter()
+            .all(|owned| owned.owner.as_str() != "managed_resources"),
+        "a member outside the composition contributes no doctor check"
+    );
+}

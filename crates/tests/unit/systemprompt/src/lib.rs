@@ -72,6 +72,10 @@ mod providers;
 #[cfg(test)]
 mod reserved_ids;
 #[cfg(test)]
+mod owner_reassignments;
+#[cfg(test)]
+mod reserved_grants;
+#[cfg(test)]
 mod reserved_paths;
 #[cfg(test)]
 mod schema_members_drift;

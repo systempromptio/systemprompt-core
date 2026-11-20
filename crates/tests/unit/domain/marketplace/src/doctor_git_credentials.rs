@@ -1,14 +1,14 @@
-//! `cloud doctor` Git credential check: a credential under its bare label
-//! fails and names the migrate command; a host-bound one passes.
+//! The marketplace's `cloud doctor` Git credential check: a credential under
+//! its bare label fails and names the migrate command; a host-bound one
+//! passes.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use std::collections::HashMap;
 
-use systemprompt_cloud_entry::cli::doctor::CheckStatus;
-use systemprompt_cloud_entry::cli::doctor::git_credential_checks::classify_git_credentials;
 use systemprompt_identifiers::ManagedSourceId;
-use systemprompt_marketplace::managed::GitCredentialSource;
+use systemprompt_marketplace::managed::{GitCredentialSource, classify_git_credentials};
+use systemprompt_traits::DoctorStatus;
 
 fn source(label: &str) -> GitCredentialSource {
     GitCredentialSource {
@@ -29,7 +29,7 @@ fn secrets(pairs: &[(&str, &str)]) -> HashMap<String, String> {
 #[test]
 fn a_bare_label_secret_fails_and_names_the_migrate_command() {
     let result = classify_git_credentials(&secrets(&[("CI", "tok")]), &[source("ci")]);
-    assert_eq!(result.status, CheckStatus::Fail);
+    assert_eq!(result.status, DoctorStatus::Fail);
     assert!(
         result
             .detail
@@ -47,11 +47,11 @@ fn a_host_bound_secret_passes() {
         &secrets(&[("GIT_SOURCE__GITHUB_2ECOM__CI", "tok")]),
         &[source("ci")],
     );
-    assert_eq!(result.status, CheckStatus::Pass, "{}", result.detail);
+    assert_eq!(result.status, DoctorStatus::Pass, "{}", result.detail);
 }
 
 #[test]
 fn a_label_with_no_secret_warns() {
     let result = classify_git_credentials(&secrets(&[]), &[source("ci")]);
-    assert_eq!(result.status, CheckStatus::Warn);
+    assert_eq!(result.status, DoctorStatus::Warn);
 }

@@ -33,8 +33,6 @@ mod commands;
 #[cfg(test)]
 mod deploy_vault_secrets;
 #[cfg(test)]
-mod doctor_git_credentials;
-#[cfg(test)]
 mod doctor_vault_checks;
 #[cfg(all(test, unix))]
 #[path = "../../cli/src/process_sandbox.rs"]
