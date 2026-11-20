@@ -109,7 +109,8 @@ async fn file_validation_reports_supported_and_rejected_files_without_uploading_
         .downcast_ref::<CommandError>()
         .and_then(CommandError::output)
         .expect("the failure carries the validation report");
-    assert_eq!(report.title(), Some("File Invalid"));
+    let card = serde_json::to_value(report.artifact()).unwrap();
+    assert_eq!(card["title"], "File Invalid", "{card}");
 
     let missing = files::execute(
         parse(&[
