@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.84.0] - 2026-11-20
+
+### Changed
+
+- The MCP token an agent run mints sets the new `UserJwtRequest` fields to `ui_session: false` and `auth_time: None`: a run's token is never a person's UI session.
+
 ## [0.81.0] - 2026-11-12
 
 ### Breaking

@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.84.0] - 2026-11-20
 
 ### Breaking
 
@@ -19,9 +19,6 @@
 ### Fixed
 
 - A REST comment written with an agent's bearer token records the agent.
-
-### Fixed
-
 - `GET /api/v1/documents/people?query=` and user search in `GET /api/v1/documents/subjects` match several words in any order, ignoring accents.
 - The documents, folders and uploads routes admit a person's UI session (`JwtContextExtractor::admitting_ui_sessions`), refuse it as the session cookie, and gate sharing, transfer, delete and agent-cap writes behind RFC 9470 step-up (`401` `insufficient_user_authentication`, `max_age=600`).
 
