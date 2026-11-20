@@ -435,7 +435,10 @@ pub fn fixture_job_context_over(
     systemprompt_traits::JobContext::new(
         crate::fixture_actor(),
         seed.with(Arc::clone(pool))
-            .with(systemprompt_database::BudgetedDb::new(Arc::clone(pool), None)),
+            .with(systemprompt_database::BudgetedDb::new(
+                Arc::clone(pool),
+                None,
+            )),
     )
 }
 

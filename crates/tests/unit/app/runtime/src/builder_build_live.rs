@@ -289,7 +289,6 @@ async fn build_fails_with_the_typed_unmet_state_requirement() {
 
 #[tokio::test]
 async fn build_seeds_the_kernel_entries_and_keeps_provided_state() {
-
     let admin = unique_admin("state");
     let fixture = boot(&BootOptions {
         admin_username: admin.clone(),

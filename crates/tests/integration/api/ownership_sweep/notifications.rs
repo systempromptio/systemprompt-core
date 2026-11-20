@@ -33,7 +33,9 @@ struct Notifications {
 }
 
 fn notifications_router(ctx: &AppContext) -> Router {
-    let slot = ctx.kernel().state()
+    let slot = ctx
+        .kernel()
+        .state()
         .get::<NotificationsServiceSlot>()
         .expect("notification service handle provided")
         .clone();

@@ -19,8 +19,8 @@
 //!
 //! It admits the same composition the API admits and resolves its own
 //! kernel over it, so documents granted to an extension audience resolve as
-//! they do on the API; its token authority only verifies. An escalated notification is left
-//! for the API's notifications consumer to deliver
+//! they do on the API; its token authority only verifies. An escalated
+//! notification is left for the API's notifications consumer to deliver
 //! (`EscalationDelivery::Consumer`), because the host delivers through no
 //! extension channel.
 //!

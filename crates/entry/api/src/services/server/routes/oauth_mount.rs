@@ -24,8 +24,7 @@
 use axum::Router;
 use std::sync::Arc;
 use systemprompt_extension::{
-    AuthzPolicy, ContextKind, LoaderError, ProtectionLayer, RateBudget,
-    RateLimit, RouteProtection,
+    AuthzPolicy, ContextKind, LoaderError, ProtectionLayer, RateBudget, RateLimit, RouteProtection,
 };
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_oauth::services::WebAuthnService;

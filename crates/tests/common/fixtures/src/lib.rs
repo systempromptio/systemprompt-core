@@ -57,11 +57,11 @@ pub use app_context::{
     fixture_app_context_with_filter, fixture_app_context_with_hook,
     fixture_app_context_with_services, fixture_artifact_ingest, fixture_config,
     fixture_context_builder, fixture_core_members, fixture_event_bridge,
-    fixture_fingerprint_repository, fixture_job_context_over, fixture_kernel, fixture_secret_store, fixture_services_state,
-    fixture_services_view, fixture_subject_providers, fixture_upstream_issuer, offline_kernel,
-    offline_rate_windows, seed_fixture_system_admin_at, test_app_context, test_app_context_on,
-    test_app_context_on_with, test_config, test_config_with, FIXTURE_JWT_ISSUER,
-    FIXTURE_UPSTREAM_ISSUER,
+    fixture_fingerprint_repository, fixture_job_context_over, fixture_kernel, fixture_secret_store,
+    fixture_services_state, fixture_services_view, fixture_subject_providers,
+    fixture_upstream_issuer, offline_kernel, offline_rate_windows, seed_fixture_system_admin_at,
+    test_app_context, test_app_context_on, test_app_context_on_with, test_config, test_config_with,
+    FIXTURE_JWT_ISSUER, FIXTURE_UPSTREAM_ISSUER,
 };
 pub use bootstrap::{
     enabled_documents, ensure_messaging_bootstrap, ensure_test_bootstrap, init_documents_bootstrap,

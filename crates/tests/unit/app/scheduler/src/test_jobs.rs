@@ -440,7 +440,10 @@ impl Job for SealedSeedProbeJob {
         if leaked.is_empty() {
             Ok(JobResult::success())
         } else {
-            Ok(JobResult::failure(format!("reachable: {}", leaked.join(","))))
+            Ok(JobResult::failure(format!(
+                "reachable: {}",
+                leaked.join(",")
+            )))
         }
     }
 }

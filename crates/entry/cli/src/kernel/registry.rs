@@ -67,9 +67,7 @@ impl RegistryEntry {
         match &self.owner {
             CommandOwner::Kernel => core == CoreId::Kernel,
             CommandOwner::Member(id) => {
-                core != CoreId::Kernel
-                    && id.as_str() == core.id()
-                    && self.core == Some(core)
+                core != CoreId::Kernel && id.as_str() == core.id() && self.core == Some(core)
             },
         }
     }

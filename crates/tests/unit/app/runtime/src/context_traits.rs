@@ -7,14 +7,13 @@ use std::sync::Arc;
 
 use systemprompt_extension::{HasAnalytics, HasFingerprint, HasRouteClassifier, HasUserService};
 use systemprompt_identifiers::{InstanceId, LeaseKey};
-use systemprompt_traits::{
-    BackgroundTasks, DynAdvisoryLocks, DynInstanceRegistry, DynLeaseRepository, FileStorage,
-    SecretStore,
-};
 use systemprompt_models::RouteType;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_database_url};
-use systemprompt_traits::AppContext as AppContextTrait;
+use systemprompt_traits::{
+    AppContext as AppContextTrait, BackgroundTasks, DynAdvisoryLocks, DynInstanceRegistry,
+    DynLeaseRepository, FileStorage, SecretStore,
+};
 
 async fn context() -> (Arc<AppContext>, String) {
     ensure_test_bootstrap();
@@ -106,7 +105,9 @@ async fn the_coordination_seeds_answer_from_the_shared_repositories() {
     assert!(!instances.is_alive(&stranger).await.expect("is_alive"));
     let leases = state.get::<DynLeaseRepository>().expect("leases seed");
     assert!(leases.holder(&key).await.expect("holder").is_none());
-    state.get::<DynAdvisoryLocks>().expect("advisory locks seed");
+    state
+        .get::<DynAdvisoryLocks>()
+        .expect("advisory locks seed");
 }
 
 #[tokio::test]

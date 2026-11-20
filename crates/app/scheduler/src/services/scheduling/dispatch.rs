@@ -112,8 +112,8 @@ pub(super) async fn execute_job(dispatch: JobDispatch) {
         &schedule,
         &inventory_memo,
     )
-        .with_enforce(enforce)
-        .with_parameters(parameters);
+    .with_enforce(enforce)
+    .with_parameters(parameters);
     let started = std::time::Instant::now();
     let result = execute_in_scope(job.as_ref(), &job_name, &ctx, &schedule).await;
     job_metrics::record_job_run(

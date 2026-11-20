@@ -66,11 +66,7 @@ impl ConfigReconcileService {
         ctx: &Arc<AppContext>,
         repository: ConfigReconcileRepository,
     ) -> SchedulerResult<Self> {
-        let mut dependencies = ctx
-            .kernel()
-            .state()
-            .clone()
-            .with(ctx.secrets().get());
+        let mut dependencies = ctx.kernel().state().clone().with(ctx.secrets().get());
         if let Some(users) = ctx.user_provider() {
             dependencies.insert(users);
         }

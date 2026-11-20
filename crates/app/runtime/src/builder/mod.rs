@@ -140,7 +140,8 @@ impl AppContextBuilder {
             &database,
             self.show_startup_warnings,
         )?;
-        let seeded = seeded_repositories(&database, &self.boot.secrets().get(), &config.instance_id)?;
+        let seeded =
+            seeded_repositories(&database, &self.boot.secrets().get(), &config.instance_id)?;
         let (user_service, system_admin, mcp_registry) =
             load_identity(&self.boot, &database, &seeded.users, &services).await?;
         let (ai_service, connector_tokens) = ai_service::build_ai_service(

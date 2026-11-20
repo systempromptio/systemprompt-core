@@ -8,7 +8,9 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use systemprompt_database::DbPool;
-use systemprompt_traits::{FileStorage, Job, JobContext, JobResult, JobScope, ProviderError, ProviderResult};
+use systemprompt_traits::{
+    FileStorage, Job, JobContext, JobResult, JobScope, ProviderError, ProviderResult,
+};
 
 use crate::FilesConfig;
 use crate::documents::agents::{DocumentActor, act_as};

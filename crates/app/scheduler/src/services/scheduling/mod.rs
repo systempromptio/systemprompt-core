@@ -38,9 +38,7 @@ use tokio_cron_scheduler::JobScheduler;
 use tracing::{debug, info, warn};
 
 pub(crate) use claim::{ClaimPolicy, claim_policy};
-pub(crate) use job_context::{
-    JobRun, deployment_dependencies, kernel_handles, make_job_context,
-};
+pub(crate) use job_context::{JobRun, deployment_dependencies, kernel_handles, make_job_context};
 pub use unlisted::unlisted_job_names;
 
 pub(crate) type RunningJobs = Arc<Mutex<HashSet<JobName>>>;

@@ -2,9 +2,7 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use systemprompt_database::DbPool;
-use systemprompt_extension::{
-    ContributionError, Contributions, Extension, ExtensionMetadata,
-};
+use systemprompt_extension::{ContributionError, Contributions, Extension, ExtensionMetadata};
 use systemprompt_models::api::{ApiError, ErrorCode};
 use systemprompt_provider_contracts::{
     ApplyMode, ChangeActor, ChangeRequest, ConfigPlane, ConfigPlaneError, EntityScope,

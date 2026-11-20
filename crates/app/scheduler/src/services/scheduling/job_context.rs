@@ -54,11 +54,13 @@ pub(crate) fn make_job_context(
     schedule: &AdmittedSchedule,
     inventory_memo: &Arc<InventoryRefreshMemo>,
 ) -> JobContext {
-    let mut dependencies =
-        brain_dependencies(app_context, app_context.kernel().state().clone())
-            .with(Arc::clone(inventory_memo))
-            .with(app_context.signing_keys().clone())
-            .with(BudgetedDb::new(Arc::clone(app_context.db_pool()), run.budget));
+    let mut dependencies = brain_dependencies(app_context, app_context.kernel().state().clone())
+        .with(Arc::clone(inventory_memo))
+        .with(app_context.signing_keys().clone())
+        .with(BudgetedDb::new(
+            Arc::clone(app_context.db_pool()),
+            run.budget,
+        ));
     if is_kernel_job(schedule, run.job_name) {
         dependencies.insert(KernelJobHandles {
             app: Arc::clone(app_context),

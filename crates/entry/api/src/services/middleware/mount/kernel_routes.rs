@@ -10,8 +10,8 @@
 
 use axum::Router;
 use systemprompt_extension::{
-    AuthzPolicy, ContextKind, HandlerVerifier, ProtectionLayer, RateBudget,
-    RateLimit, RouteGroup, RouteProtection,
+    AuthzPolicy, ContextKind, HandlerVerifier, ProtectionLayer, RateBudget, RateLimit, RouteGroup,
+    RouteProtection,
 };
 use systemprompt_provider_contracts::FrameOptions;
 
@@ -78,7 +78,6 @@ impl KernelRoutes {
         self.group = group;
         self
     }
-
 }
 
 #[must_use]

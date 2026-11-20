@@ -11,7 +11,8 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use systemprompt_database::DbPool;
 use systemprompt_traits::{
-    BackgroundTasks, FileStorage, Job, JobContext, JobResult, JobScope, ProviderError, ProviderResult,
+    BackgroundTasks, FileStorage, Job, JobContext, JobResult, JobScope, ProviderError,
+    ProviderResult,
 };
 
 use super::super::repository::DocumentUploadRepository;

@@ -99,8 +99,7 @@ pub(super) async fn execute(args: RunArgs, host: &dyn KernelHost) -> Result<()> 
         Arc::new(HttpWebhookBroadcaster::from_config(host.config())?),
         host.services_state().view(),
     );
-    let agent_state =
-        RunLauncher::resolve(host.state()).apply(agent_state, &args.agent_name);
+    let agent_state = RunLauncher::resolve(host.state()).apply(agent_state, &args.agent_name);
     let agent_state = Arc::new(agent_state);
 
     let ai_service = Arc::clone(agent.ai_service());

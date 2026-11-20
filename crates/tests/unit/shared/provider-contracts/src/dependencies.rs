@@ -49,7 +49,10 @@ fn withholding_sealed_removes_every_sealed_entry_and_keeps_the_open_ones() {
     let withheld = deps.withholding_sealed();
     assert_eq!(withheld.get::<u16>(), Ok(&1));
     assert!(withheld.get::<Arc<u32>>().is_err());
-    assert!(deps.get::<Arc<u32>>().is_ok(), "the original keeps its sealed entry");
+    assert!(
+        deps.get::<Arc<u32>>().is_ok(),
+        "the original keeps its sealed entry"
+    );
 }
 
 #[test]

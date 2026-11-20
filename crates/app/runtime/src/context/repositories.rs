@@ -63,5 +63,4 @@ impl AppContext {
     pub const fn managed_repository(&self) -> &Arc<ManagedRepository> {
         &self.data.managed_repository
     }
-
 }
