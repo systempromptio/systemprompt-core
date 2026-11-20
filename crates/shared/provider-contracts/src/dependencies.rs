@@ -35,7 +35,13 @@
 //! and [`Dependencies::withholding_sealed`] returns a copy in which every
 //! sealed entry is removed and its type reserved, so neither a read nor a
 //! later `provide` reaches it. A job, runner-service and config-plane
-//! context is built only from such a copy.
+//! context is built only from such a copy. Whether a type reaches member
+//! runtime code is decided here and nowhere else: a value carrying signing
+//! material, secrets or the profile is sealed in the kernel state, and a
+//! member that needs a capability derived from one builds a narrow handle
+//! from it in its `provide` fn or factory. [`Dependencies::sealed_types`]
+//! enumerates the sealed set, so a check over every context sees a type the
+//! moment it is sealed.
 //!
 //! The map is copy-on-write: a clone shares every entry, and inserting into a
 //! clone never changes the original, so the state the host owns after boot
@@ -45,7 +51,7 @@
 //! |---------|-------------|
 //! | `Resolved` (provide fns, factories, slots, route sets, commands) | kernel handles + every enabled extension's `provide` |
 //! | `JobContext` (scheduler, runner services) | the extension state without its sealed seeds + per-run handles |
-//! | config-plane context | the extension state, sealed seeds refused + per-call handles |
+//! | config-plane context | the extension state without its sealed seeds + per-call handles |
 //! | prerender contexts | the extension state + per-call handles |
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -155,6 +161,16 @@ impl Dependencies {
         self.sealed.contains(&TypeId::of::<T>())
     }
 
+    pub fn sealed_types(&self) -> impl Iterator<Item = (TypeId, &'static str)> + '_ {
+        self.sealed.iter().filter_map(|id| {
+            self.entries
+                .get(id)
+                .map(|e| e.type_name)
+                .or_else(|| self.reserved.get(id).copied())
+                .map(|name| (*id, name))
+        })
+    }
+
     pub fn provide<T: Any + Send + Sync>(
         &mut self,
         provider: &ExtensionId,
@@ -234,16 +250,7 @@ impl fmt::Debug for Dependencies {
         names.sort_unstable();
         let mut reserved: Vec<&str> = self.reserved.values().copied().collect();
         reserved.sort_unstable();
-        let mut sealed: Vec<&str> = self
-            .sealed
-            .iter()
-            .filter_map(|id| {
-                self.entries
-                    .get(id)
-                    .map(|e| e.type_name)
-                    .or_else(|| self.reserved.get(id).copied())
-            })
-            .collect();
+        let mut sealed: Vec<&str> = self.sealed_types().map(|(_, name)| name).collect();
         sealed.sort_unstable();
         f.debug_struct("Dependencies")
             .field("types", &names)

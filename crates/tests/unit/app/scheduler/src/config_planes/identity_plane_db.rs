@@ -2,13 +2,15 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use systemprompt_extension::prelude::{ChangeActor, ConfigPlane};
-use systemprompt_manifest::secrets::Secrets;
-use systemprompt_oauth_issuance::IdentityPlane;
+use systemprompt_oauth_issuance::{IdentityClientSecrets, IdentityPlane};
 use systemprompt_provider_contracts::Dependencies;
 use systemprompt_runtime::ConfigPlaneSet;
 use systemprompt_scheduler::repository::ConfigReconcileRepository;
 use systemprompt_scheduler::services::{ApplyOptions, ConfigApplyService, ConfigReconcileService};
 use systemprompt_test_fixtures::DisposableDb;
+use systemprompt_traits::{
+    ExtensionSecret, ReloadOutcome, SECRET_SEED_BYTES, SecretStore, SecretStoreError, SecretsStatus,
+};
 
 const USERS: &str = "users:\n  - email: alice@example.com\n    name: Alice\n    roles: [admin]\n  \
                      - email: robot@example.com\n    name: Robot\n    kind: service\n";
@@ -23,13 +25,52 @@ fn write(root: &std::path::Path, file: &str, body: &str) {
     std::fs::write(path, body).expect("write");
 }
 
-fn secrets() -> Arc<Secrets> {
-    Arc::new(
-        Secrets::parse(
-            r#"{"oauth_at_rest_pepper":"0123456789abcdef0123456789abcdef","database_url":"postgres://x","portal_secret":"s3cr3t-value"}"#,
-        )
-        .expect("secrets"),
-    )
+#[derive(Debug)]
+struct PortalSecret;
+
+#[async_trait::async_trait]
+impl SecretStore for PortalSecret {
+    fn secret(&self, name: &str) -> Option<ExtensionSecret> {
+        (name == "portal_secret").then(|| ExtensionSecret::new("s3cr3t-value".to_owned()))
+    }
+
+    fn key_names(&self) -> Result<Vec<String>, SecretStoreError> {
+        Ok(vec!["portal_secret".to_owned()])
+    }
+
+    fn manifest_signing_secret_seed(&self) -> Result<[u8; SECRET_SEED_BYTES], SecretStoreError> {
+        Ok([0; SECRET_SEED_BYTES])
+    }
+
+    fn encryption_master_key(&self) -> Result<[u8; SECRET_SEED_BYTES], SecretStoreError> {
+        Ok([0; SECRET_SEED_BYTES])
+    }
+
+    fn status(&self) -> SecretsStatus {
+        SecretsStatus {
+            source: "test".to_owned(),
+            generation: 0,
+            initialised_at: chrono::Utc::now(),
+            last_reload_at: None,
+            last_error: None,
+        }
+    }
+
+    fn refresh_interval(&self) -> Option<Duration> {
+        None
+    }
+
+    async fn reload(&self) -> Result<ReloadOutcome, SecretStoreError> {
+        Ok(ReloadOutcome {
+            generation: 0,
+            changed_keys: Vec::new(),
+            swapped: false,
+        })
+    }
+}
+
+fn secrets() -> IdentityClientSecrets {
+    IdentityClientSecrets::new(Arc::new(PortalSecret))
 }
 
 fn service(

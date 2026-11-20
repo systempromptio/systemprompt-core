@@ -1,0 +1,9 @@
+[root]
+section = "Breaking"
+area = "Scheduler"
+text = "`Job::configured` receives no profile: its deployment map holds only the scheduler member's typed facts for its own jobs. A member job that needs a deployment fact reads a value its own member provides from its execution context."
+
+[[crate]]
+name = "systemprompt-provider-contracts"
+section = "Breaking"
+text = "The `Dependencies` handed to `Job::configured` no longer carries `Arc<LoadedProfile>`."

@@ -11,6 +11,11 @@
 //! [`crate::services::ConfigApplyService::apply_file_managed`] just before
 //! each pass. A plane with no declaration file is reported as `undeclared`.
 //!
+//! Every plane reads the kernel's runtime state with every sealed seed
+//! withheld ([`ConfigReconcileService::new`] withholds whatever map it is
+//! handed), plus the user provider: no signing key, secret, profile or
+//! runtime `Config` reaches a plane.
+//!
 //! The pass runs at boot (a plane whose declaration does not load fails the
 //! boot) and as the `config_reconcile` job. Each pass rewrites
 //! `config_plane_state` and the `systemprompt_config_drift_rows` /
@@ -50,7 +55,7 @@ pub struct ConfigReconcileService {
 
 impl ConfigReconcileService {
     #[must_use]
-    pub const fn new(
+    pub fn new(
         planes: ConfigPlaneSet,
         repository: ConfigReconcileRepository,
         dependencies: Dependencies,
@@ -58,7 +63,7 @@ impl ConfigReconcileService {
         Self {
             planes,
             repository,
-            dependencies,
+            dependencies: dependencies.withholding_sealed(),
         }
     }
 
@@ -66,11 +71,16 @@ impl ConfigReconcileService {
         ctx: &Arc<AppContext>,
         repository: ConfigReconcileRepository,
     ) -> SchedulerResult<Self> {
-        let mut dependencies = ctx.kernel().state().clone().with(ctx.secrets().get());
+        let mut dependencies = ctx.kernel().runtime_state();
         if let Some(users) = ctx.user_provider() {
             dependencies.insert(users);
         }
         Ok(Self::new(ctx.config_planes()?, repository, dependencies))
+    }
+
+    #[must_use]
+    pub const fn plane_dependencies(&self) -> &Dependencies {
+        &self.dependencies
     }
 
     #[must_use]

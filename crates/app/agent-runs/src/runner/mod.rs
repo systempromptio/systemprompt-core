@@ -12,6 +12,12 @@
 //! under (`<storage data>/agent-runs/<run id>`). [`credential_request`] is the
 //! claimed row and request mapped to the run's credentials.
 //!
+//! The service is assembled by its factory ([`A2aRunnerService::new`]) from
+//! the full resolver, the one place the sealed runtime `Config` and signing
+//! keys are readable: the keys go into the [`RunCredentialService`] that issues
+//! one run's credentials and nothing else, so the runner-service context the
+//! service later runs in carries neither.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -40,9 +46,9 @@ pub use systemprompt_agent::services::a2a_server::handlers::request::agent_run::
 use crate::credentials::{IssueRunCredentials, RunCredentialLimits, RunCredentialService};
 use crate::governance::HookBases;
 use crate::layout::RunLayout;
-use crate::repository::AgentRunRepositories;
+use crate::repository::{AgentRunRepositories, AgentRunRepository};
 use crate::request::RunRequest;
-use crate::service::{ClaimLoop, claimer_id};
+use crate::service::{ClaimLoop, RunHandler, claimer_id};
 
 pub const A2A_RUNNER_MAX_CONCURRENT: usize = 2;
 pub const A2A_RUNS_DIR: &str = "agent-runs";
@@ -105,44 +111,36 @@ pub fn credential_request(
     }
 }
 
-#[derive(Debug, Clone, Copy, Default)]
-pub struct A2aRunnerService;
+#[derive(Clone)]
+pub struct A2aRunnerService {
+    handler: Arc<A2aRunHandler>,
+    runs: AgentRunRepository,
+    claimed_by: String,
+}
 
-#[async_trait]
-impl RunnerService for A2aRunnerService {
-    fn name(&self) -> &'static str {
-        SERVICE_NAME
+impl std::fmt::Debug for A2aRunnerService {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("A2aRunnerService")
+            .field("claimed_by", &self.claimed_by)
+            .finish_non_exhaustive()
     }
+}
 
-    async fn run(&self, ctx: JobContext, shutdown: CancellationToken) {
-        let Ok(db) = ctx.get::<DbPool>().cloned() else {
-            tracing::error!("A2A agent-run runner has no DbPool; no A2A run will be claimed");
-            return;
-        };
-        let Ok(paths) = ctx.get::<Arc<AppPaths>>() else {
-            tracing::error!("A2A agent-run runner has no AppPaths; no A2A run will be claimed");
-            return;
-        };
-        let Ok(signing_keys) = ctx.get::<SigningKeys>().cloned() else {
-            tracing::error!("A2A agent-run runner has no SigningKeys; no A2A run will be claimed");
-            return;
-        };
-        let Ok(config) = ctx.get::<Arc<Config>>().cloned() else {
-            tracing::error!("A2A agent-run runner has no Config; no A2A run will be claimed");
-            return;
-        };
-        let Ok(oauth) = ctx.get::<Arc<OAuthRepositories>>().cloned() else {
-            tracing::error!(
-                "A2A agent-run runner has no OAuthRepositories; no A2A run will be claimed"
-            );
-            return;
-        };
+impl A2aRunnerService {
+    #[must_use]
+    pub fn new(
+        db: &DbPool,
+        oauth: &OAuthRepositories,
+        config: &Arc<Config>,
+        paths: &AppPaths,
+        signing_keys: SigningKeys,
+    ) -> Self {
         let runner = A2aRunnerConfig::new(
             &config.api_internal_url,
             &config.jwt_issuer,
             paths.storage().data(),
         );
-        let repos = AgentRunRepositories::new(&db, oauth.oauth.clone());
+        let repos = AgentRunRepositories::new(db, oauth.oauth.clone());
         let handler = A2aRunHandler::new(
             RunCredentialService::new(
                 repos.credentials,
@@ -151,17 +149,33 @@ impl RunnerService for A2aRunnerService {
                     signing_keys,
                     config.jwt_issuer.clone(),
                 )),
-                Arc::clone(&config),
+                Arc::clone(config),
             ),
             runner,
         )
         .with_harness_source(Arc::new(repos.managed));
+        Self {
+            handler: Arc::new(handler),
+            runs: repos.runs,
+            claimed_by: claimer_id(config.instance_id.as_str()),
+        }
+    }
+}
+
+#[async_trait]
+impl RunnerService for A2aRunnerService {
+    fn name(&self) -> &'static str {
+        SERVICE_NAME
+    }
+
+    async fn run(&self, _ctx: JobContext, shutdown: CancellationToken) {
         let mut claim = ClaimLoop::new(
-            repos.runs,
+            self.runs.clone(),
             AGENT_RUN_ORIGIN_KIND,
-            claimer_id(config.instance_id.as_str()),
+            self.claimed_by.clone(),
         );
         claim.max_concurrent = A2A_RUNNER_MAX_CONCURRENT;
-        claim.run(shutdown, Arc::new(handler)).await;
+        let handler: Arc<dyn RunHandler> = Arc::<A2aRunHandler>::clone(&self.handler);
+        claim.run(shutdown, handler).await;
     }
 }

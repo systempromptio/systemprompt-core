@@ -1,0 +1,24 @@
+[root]
+section = "Breaking"
+area = "Extensions"
+text = "The JWT signing keys are a sealed kernel seed: no job or runner-service context carries `SigningKeys`. A member that mints tokens builds a purpose-typed issuer from the sealed keys in its provide fn or runner-service factory (as the agent-runs runner service does for run credentials) and its runtime code reads that issuer."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Added"
+text = "`ApiKernelSeed::signing_keys`, sealed into the kernel state, and `Kernel::runtime_state`, the resolved state with every sealed seed withheld, from which every job, runner-service and config-plane context is built."
+
+[[crate]]
+name = "systemprompt-provider-contracts"
+section = "Added"
+text = "`Dependencies::sealed_types` enumerates the sealed set; a withheld copy keeps naming its sealed types while holding none of them."
+
+[[crate]]
+name = "systemprompt-agent-runs"
+section = "Breaking"
+text = "`A2aRunnerService::new(db, oauth, config, paths, signing_keys)` builds the runner and its run-credential issuer in the runner-service factory; the service no longer reads `SigningKeys` or `Arc<Config>` from its runner-service context."
+
+[[crate]]
+name = "systemprompt-agent-runs"
+section = "Fixed"
+text = "The A2A runner service claims runs again: it no longer reads the sealed runtime `Config` from its runner-service context, where it is withheld."

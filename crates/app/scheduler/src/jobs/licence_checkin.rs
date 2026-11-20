@@ -15,13 +15,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use systemprompt_client::{GuardedClientConfig, guarded_client};
-use systemprompt_config::LoadedProfile;
 use systemprompt_database::{DbPool, RoleCount};
 use systemprompt_identifiers::InstanceId;
 use systemprompt_manifest::profile::{LICENCE_SIGNING_SECRET, LicenceConfig, Profile};
@@ -34,7 +32,7 @@ use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::{debug, info, warn};
 
 use crate::repository::LicenceCheckinRepository;
-use crate::services::scheduling::kernel_handles;
+use crate::services::scheduling::{JobDeployment, kernel_handles};
 
 pub const JOB_NAME: &str = "licence_checkin";
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(20);
@@ -123,8 +121,8 @@ impl Job for LicenceCheckinJob {
     // process.
     fn configured(&self, deployment: &Dependencies) -> bool {
         deployment
-            .get::<Arc<LoadedProfile>>()
-            .is_ok_and(|profile| profile.licence.enabled())
+            .get::<JobDeployment>()
+            .is_ok_and(|facts| facts.licence_checkin)
     }
 
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {

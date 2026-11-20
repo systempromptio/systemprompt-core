@@ -1,5 +1,7 @@
-//! The `identity` member: the `identity` config plane and core's generic OIDC
-//! SSO provider. This crate owns no tables; the plane writes users through the
+//! The `identity` member: the `identity` config plane, the
+//! [`IdentityClientSecrets`] handle it reads declared client secrets through
+//! (built here from the sealed secret store), and core's generic OIDC SSO
+//! provider. This crate owns no tables; the plane writes users through the
 //! users domain's repository and static OAuth clients through the OAuth
 //! domain's.
 //!
@@ -9,9 +11,10 @@
 use std::sync::Arc;
 
 use systemprompt_extension::prelude::*;
+use systemprompt_traits::SecretStore;
 
 use crate::contract::SsoSlot;
-use crate::identity::IdentityPlane;
+use crate::identity::{IdentityClientSecrets, IdentityPlane};
 use crate::sso::{SsoHookContext, oidc};
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -27,7 +30,14 @@ impl Extension for IdentityExtension {
     }
 
     fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
-        c.config_plane(Arc::new(IdentityPlane));
+        c.provide(
+            |r: &Resolved<'_>| -> Result<IdentityClientSecrets, ProvideError> {
+                Ok(IdentityClientSecrets::new(
+                    r.get::<Arc<dyn SecretStore>>()?,
+                ))
+            },
+        )
+        .config_plane(Arc::new(IdentityPlane));
         c.slot::<SsoSlot>().provider(|r: &Resolved<'_>| {
             oidc::factory(&SsoHookContext::from_resolved(r)?)
                 .map_err(|e| FactoryError::Failed(Box::new(e)))

@@ -37,7 +37,7 @@ use systemprompt_manifest::Profile;
 use admit::admit_commands;
 #[cfg(feature = "config")]
 use admit::check_secrets;
-use admit::{apply_removals, check_member_dependencies};
+use admit::{apply_removals, check_job_names, check_member_dependencies};
 pub use error::{CompositionError, RunError};
 
 mod admit;
@@ -254,6 +254,7 @@ impl Composition {
             });
         }
         check_member_dependencies(&declared)?;
+        check_job_names(&declared)?;
         #[cfg(feature = "cli")]
         let commands = admit_commands(&mut declared)?;
         Ok(Declared {

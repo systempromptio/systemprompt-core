@@ -33,7 +33,6 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use chrono::Utc;
 use sqlx::PgPool;
-use systemprompt_config::LoadedProfile;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiRequestId, InstanceId};
 use systemprompt_manifest::profile::{OtlpExportConfig, OtlpSignal};
@@ -54,7 +53,7 @@ use crate::repository::otlp::{
     BATCH_ROWS, OtlpAuditTailRepository, OtlpExportState, OtlpExportStateRepository, SETTLE,
     Watermark,
 };
-use crate::services::scheduling::kernel_handles;
+use crate::services::scheduling::{JobDeployment, kernel_handles};
 
 pub const JOB_NAME: &str = "otlp_export";
 
@@ -80,8 +79,8 @@ impl Job for OtlpExportJob {
     // of the process.
     fn configured(&self, deployment: &Dependencies) -> bool {
         deployment
-            .get::<Arc<LoadedProfile>>()
-            .is_ok_and(|profile| profile.observability.otlp().is_some())
+            .get::<JobDeployment>()
+            .is_ok_and(|facts| facts.otlp_export)
     }
 
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {

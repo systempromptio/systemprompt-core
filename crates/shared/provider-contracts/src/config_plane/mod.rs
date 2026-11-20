@@ -138,8 +138,12 @@ impl<'a> PlaneContext<'a> {
 /// leave the admitted entities equal to the declaration (a following
 /// [`ConfigPlane::read_current`] on the same transaction diffs clean): the
 /// host re-reads after every apply and rolls back an apply that did not
-/// converge. The host inserts `DbPool` into the context's dependencies; a
-/// sealed kernel seed reads as missing through [`PlaneContext::get`].
+/// converge. The context's dependencies are the kernel state without its
+/// sealed seeds, so no signing key, secret, profile or runtime `Config` is
+/// reachable; a sealed type also reads as missing through
+/// [`PlaneContext::get`] when a caller builds the context over an unwithheld
+/// map. A plane that needs a secret-derived value reads a narrow handle its
+/// own member provides.
 ///
 /// [`ConfigPlane::apply`] defaults to [`resolve_apply`] over
 /// [`ConfigPlane::read_current`] and [`ConfigPlane::write`], so a plane that

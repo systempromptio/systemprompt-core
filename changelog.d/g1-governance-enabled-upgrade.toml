@@ -1,0 +1,4 @@
+[root]
+section = "Changed"
+area = "Governance"
+text = "Upgrade: a `governance_config` row stored by an earlier release from a declaration whose `enabled` was not a boolean now fails governance engine construction (`GovernanceConfigError::InvalidEnabled`). Find such rows with `SELECT entity FROM governance_config WHERE (value::jsonb) ? 'enabled' AND jsonb_typeof((value::jsonb)->'enabled') <> 'boolean'`, correct `enabled` to `true` or `false` in the governance declaration and run `systemprompt admin config apply` before starting the upgraded API."

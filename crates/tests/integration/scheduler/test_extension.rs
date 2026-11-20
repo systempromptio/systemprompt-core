@@ -43,7 +43,9 @@ pub(crate) fn admitted_with_test_jobs() -> Arc<Admitted> {
 
 pub(crate) async fn app_with_test_jobs() -> (Arc<AppContext>, Arc<AdmittedSchedule>) {
     let admitted = admitted_with_test_jobs();
-    let schedule = Arc::new(AdmittedSchedule::of(admitted.built()));
+    let schedule = Arc::new(
+        AdmittedSchedule::of(admitted.built()).expect("one owner per job name"),
+    );
     let config = fixture_config(&test_database_url());
     let app = fixture_app_context_with_extensions(config, admitted)
         .await
