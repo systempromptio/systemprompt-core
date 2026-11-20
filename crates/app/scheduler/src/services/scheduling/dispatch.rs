@@ -105,7 +105,7 @@ pub(super) async fn execute_job(dispatch: JobDispatch) {
     let ctx = make_job_context(
         JobRun {
             actor,
-            job_name: job_name.as_str(),
+            job_name: &job_name,
             budget,
         },
         &app_context,

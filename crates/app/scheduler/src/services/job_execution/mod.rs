@@ -175,7 +175,7 @@ impl JobExecutionService {
         let job_ctx = make_job_context(
             JobRun {
                 actor,
-                job_name: job_name.as_str(),
+                job_name,
                 budget: job.db_budget(),
             },
             &self.ctx,

@@ -116,6 +116,22 @@ pub struct ApiKernelSeed<'a> {
     pub content_config: Option<&'a Arc<ContentConfigRaw>>,
 }
 
+impl KernelCoordination {
+    #[must_use]
+    pub fn over(
+        services: &Arc<systemprompt_database::ServiceRepository>,
+        coordination: &systemprompt_database::CoordinationRepositories,
+    ) -> Self {
+        Self {
+            instances: Arc::<systemprompt_database::ServiceRepository>::clone(services),
+            leases: Arc::<systemprompt_database::InstanceLeaseRepository>::clone(
+                &coordination.leases,
+            ),
+            locks: Arc::<systemprompt_database::SessionAdvisoryLocks>::clone(&coordination.locks),
+        }
+    }
+}
+
 impl std::fmt::Debug for KernelCoordination {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("KernelCoordination").finish_non_exhaustive()

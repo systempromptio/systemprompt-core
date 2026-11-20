@@ -23,7 +23,7 @@ use std::sync::Arc;
 
 use systemprompt_database::BudgetedDb;
 use systemprompt_extension::AdmittedSchedule;
-use systemprompt_identifiers::Actor;
+use systemprompt_identifiers::{Actor, JobName};
 use systemprompt_loader::BootContext;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{DbBudget, Dependencies, JobContext};
@@ -44,7 +44,7 @@ impl KernelJobHandles {
 
 pub(crate) struct JobRun<'a> {
     pub(crate) actor: Actor,
-    pub(crate) job_name: &'a str,
+    pub(crate) job_name: &'a JobName,
     pub(crate) budget: Option<DbBudget>,
 }
 
@@ -67,9 +67,9 @@ pub(crate) fn make_job_context(
     JobContext::new(run.actor, dependencies)
 }
 
-fn is_kernel_job(schedule: &AdmittedSchedule, job_name: &str) -> bool {
+fn is_kernel_job(schedule: &AdmittedSchedule, job_name: &JobName) -> bool {
     schedule
-        .job(job_name)
+        .job(job_name.as_str())
         .is_some_and(|(owner, _)| owner.as_str() == SCHEDULER_MEMBER_ID)
 }
 

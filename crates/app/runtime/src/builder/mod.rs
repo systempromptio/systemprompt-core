@@ -140,8 +140,7 @@ impl AppContextBuilder {
             &database,
             self.show_startup_warnings,
         )?;
-        let seeded =
-            seeded_repositories(&database, &self.boot.secrets().get(), &config.instance_id)?;
+        let seeded = seeded_repositories(&database, &self.boot.secrets().get(), &config.instance_id)?;
         let (user_service, system_admin, mcp_registry) =
             load_identity(&self.boot, &database, &seeded.users, &services).await?;
         let (ai_service, connector_tokens) = ai_service::build_ai_service(
@@ -171,17 +170,7 @@ impl AppContextBuilder {
                 secrets,
                 file_storage: Arc::clone(&file_storage),
                 background_tasks: background_tasks.clone(),
-                coordination: KernelCoordination {
-                    instances: Arc::<systemprompt_database::ServiceRepository>::clone(
-                        &seeded.services,
-                    ),
-                    leases: Arc::<systemprompt_database::InstanceLeaseRepository>::clone(
-                        &seeded.coordination.leases,
-                    ),
-                    locks: Arc::<systemprompt_database::SessionAdvisoryLocks>::clone(
-                        &seeded.coordination.locks,
-                    ),
-                },
+                coordination: KernelCoordination::over(&seeded.services, &seeded.coordination),
                 system_admin: &system_admin,
                 event_router: &router,
                 documents: documents_slot,

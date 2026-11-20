@@ -12,8 +12,7 @@
 //!
 //! A [`SlotOrder::CoreFirst`] slot is built only when a core-standing member
 //! contributes to it: with its core owner disabled the slot is absent, never
-//! built from install entries alone, and the install entries it does not
-//! build are logged at `warn` with the slot and their owners.
+//! built from install entries alone (those entries are logged at `warn`).
 //!
 //! A built value enters the state through the same duplicate-checked insert
 //! a provided value does, owned by the slot's first core-standing
@@ -211,23 +210,15 @@ pub fn build_slot(
     let Some(first) = inputs.first() else {
         return Ok(None);
     };
-    let (slot, built, order, build, insert) = (
-        first.slot,
-        first.built,
-        first.order,
-        first.build,
-        first.insert,
-    );
+    let (slot, order, build, insert) = (first.slot, first.order, first.build, first.insert);
+    let built = first.built;
     let mut owner = first.entry.owner.clone();
     inputs.retain(|input| input.slot == slot);
     let core_present = inputs
         .iter()
         .any(|input| input.entry.standing == StandingTag::Core);
     if order == SlotOrder::CoreFirst && !core_present {
-        let owners: Vec<&str> = inputs
-            .iter()
-            .map(|input| input.entry.owner.as_str())
-            .collect();
+        let owners: Vec<&str> = inputs.iter().map(|i| i.entry.owner.as_str()).collect();
         tracing::warn!(
             slot = built,
             owners = ?owners,
