@@ -124,7 +124,7 @@ A tool call is an agent acting for the user, attended when its token says a pers
 
 | Tool | Purpose |
 |---|---|
-| `documents_list` | Documents by scope: one folder with its subfolders, documents shared with the caller, the caller's own, or the ones the caller last edited, commented on or opened. Filtered by name, sorted by name, last update or last touch, paged by cursor. Each item carries its size and the caller's access level. |
+| `documents_list` | Documents by scope: one folder with its subfolders, documents shared with the caller, the caller's own, the ones the caller last edited, commented on or opened, or (`scope: context`) the ones a conversation of the caller's wrote a revision or comment on, by default the calling conversation. Filtered by name, sorted by name, last update or last touch, paged by cursor. Each item carries its size and the caller's access level. |
 | `documents_search` | Full-text search over the head revision of every visible document. |
 | `documents_create` | Create from a template, optionally applying edit operations in the same first revision. |
 | `documents_read` | A revision as hashlines, by outline, text, node range, one node, spreadsheet cells or search; the changes since a revision; or the document's metadata and who is in it now. |
@@ -214,7 +214,7 @@ Routes mount under `/api/v1/documents` and `/api/v1/document-folders` with user 
 
 | Route | Purpose |
 |---|---|
-| `GET`, `POST /api/v1/documents` | List by `scope` (`folder`, `shared`, `mine`, `recent`), `folder`, `query` and `sort` (`name`, `updated`, `recent`), with each document's `size_bytes` and `my_access`; create from a template, or import by multipart upload. |
+| `GET`, `POST /api/v1/documents` | List by `scope` (`folder`, `shared`, `mine`, `recent`, `context`), `folder`, `context_id` (required with `context`; a conversation the caller does not own and an unknown one are both `422 unknown_context`), `query` and `sort` (`name`, `updated`, `recent`), with each document's `size_bytes` and `my_access`; create from a template, or import by multipart upload. |
 | `GET`, `HEAD`, `PATCH`, `DELETE /api/v1/documents/{id}` | Metadata, rename and move, and trash. The `ETag` is the quoted head revision id; the head's content hash is in `x-document-content-sha256`. |
 | `POST /api/v1/documents/{id}/untrash`, `/copy` | Bring back from the trash; copy into a new document. |
 | `GET /api/v1/documents/{id}/read` | The `documents_read` views, assembled by the same code: `view=outline`, `text`, `range` (`from_node`, `to_node`), `cells` (`sheet`, `cells`), `changes` (`since_revision`), `node` (`node_id`), `search` (`text`) or `meta`, at `revision_id` or the head; `verbose=true` as on the tool. |
