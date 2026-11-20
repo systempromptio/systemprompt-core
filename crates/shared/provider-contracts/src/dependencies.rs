@@ -136,19 +136,18 @@ impl Dependencies {
     }
 
     #[must_use]
-    pub fn withholding_sealed(&self) -> Self {
-        let mut out = self.clone();
+    pub fn withholding_sealed(mut self) -> Self {
         if self.sealed.is_empty() {
-            return out;
+            return self;
         }
-        let entries = Arc::make_mut(&mut out.entries);
-        let reserved = Arc::make_mut(&mut out.reserved);
+        let entries = Arc::make_mut(&mut self.entries);
+        let reserved = Arc::make_mut(&mut self.reserved);
         for id in self.sealed.iter() {
             if let Some(entry) = entries.remove(id) {
                 reserved.insert(*id, entry.type_name);
             }
         }
-        out
+        self
     }
 
     #[must_use]

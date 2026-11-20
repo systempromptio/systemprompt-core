@@ -154,7 +154,7 @@ pub(super) fn build_repositories(
     RepositoryBundles {
         a2a: Arc::new(a2a_repositories(
             database,
-            instance_id.clone(),
+            instance_id,
             managed.as_ref(),
             session_usage,
         )),

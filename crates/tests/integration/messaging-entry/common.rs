@@ -29,7 +29,7 @@ pub fn mount_set<C: Clone + Send + Sync + 'static>(
     let seed = ctx
         .kernel()
         .state()
-        .with(ctx.services())
+        .clone()
         .with(std::sync::Arc::clone(ctx.secrets()))
         .with(clients);
     let kernel = systemprompt_test_fixtures::offline_kernel(seed);

@@ -129,10 +129,11 @@ pub struct AdmittedGatewayRoute {
     pub decl: crate::router::GatewayRouteDecl,
 }
 
-/// One admitted CLI command, with the owner the composition stamped: its id
-/// and the core id its core terms carry (`None` for an install or a core
-/// member with no conferral). The CLI registry admits a reserved path only
-/// for the entry whose stamped core id owns it.
+/// One admitted CLI command, with the owner the composition stamped.
+///
+/// The stamp is the member id and the core id its core terms carry (`None`
+/// for an install or a core member with no conferral). The CLI registry
+/// admits a reserved path only for the entry whose stamped core id owns it.
 #[cfg(feature = "cli")]
 #[derive(Debug, Clone)]
 pub struct AdmittedCommand {

@@ -11,6 +11,7 @@ use serde_json::{Value, json};
 use systemprompt_identifiers::{McpServerId, headers};
 use systemprompt_mcp_host::toolsets::serve_on;
 use systemprompt_mcp_host::{HostBootError, HostContext};
+use systemprompt_models::auth::TokenAuthority as _;
 use systemprompt_models::subprocess::VERIFICATION_KEYS_ENV;
 use systemprompt_test_fixtures::{
     TestBootstrap, host_child_env, init_services_bootstrap, mint_mcp_hop,

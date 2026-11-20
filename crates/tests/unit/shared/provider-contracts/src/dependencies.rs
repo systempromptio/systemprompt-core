@@ -46,7 +46,7 @@ fn missing_dependency_converts_into_provider_error() {
 #[test]
 fn withholding_sealed_removes_every_sealed_entry_and_keeps_the_open_ones() {
     let deps = Dependencies::new().with(1u16).with_sealed(Arc::new(2u32));
-    let withheld = deps.withholding_sealed();
+    let withheld = deps.clone().withholding_sealed();
     assert_eq!(withheld.get::<u16>(), Ok(&1));
     assert!(withheld.get::<Arc<u32>>().is_err());
     assert!(

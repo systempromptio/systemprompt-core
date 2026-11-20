@@ -24,7 +24,7 @@ impl HostContext {
         Ok(Self::over(HostKernel::boot(lookup, admit).await?))
     }
 
-    fn over(parts: systemprompt_runtime::HostParts) -> Self {
+    const fn over(parts: systemprompt_runtime::HostParts) -> Self {
         Self { parts }
     }
 }

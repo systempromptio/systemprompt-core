@@ -211,17 +211,17 @@ pub fn build_slot(
         return Ok(None);
     };
     let (slot, order, build, insert) = (first.slot, first.order, first.build, first.insert);
-    let built = first.built;
+    let slot_type = first.built;
     let mut owner = first.entry.owner.clone();
     inputs.retain(|input| input.slot == slot);
     let core_present = inputs
         .iter()
         .any(|input| input.entry.standing == StandingTag::Core);
     if order == SlotOrder::CoreFirst && !core_present {
-        let owners: Vec<&str> = inputs.iter().map(|i| i.entry.owner.as_str()).collect();
+        let dropped: Vec<&str> = inputs.iter().map(|i| i.entry.owner.as_str()).collect();
         tracing::warn!(
-            slot = built,
-            owners = ?owners,
+            slot = slot_type,
+            owners = ?dropped,
             "core-first slot has no admitted core owner; its install entries are not built"
         );
         return Ok(None);
