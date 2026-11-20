@@ -80,7 +80,7 @@ pub fn fixture_notifications(
 }
 
 pub fn notifications_service(ctx: &AppContext) -> Arc<NotificationsService> {
-    let state = systemprompt_extension::ExtensionContext::extension_state(ctx);
+    let state = ctx.kernel().state();
     let slot = state
         .get::<NotificationsServiceSlot>()
         .expect("the notifications extension provides its service slot");

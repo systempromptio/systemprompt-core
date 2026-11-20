@@ -428,14 +428,6 @@ pub fn fixture_subject_providers(
     systemprompt_governance::authz::SubjectProviderSet::default()
 }
 
-pub async fn fixture_extension_context(
-    database_url: &str,
-) -> Arc<dyn systemprompt_extension::ExtensionContext> {
-    let concrete = test_app_context(database_url).await;
-    let ctx: Arc<dyn systemprompt_extension::ExtensionContext> = concrete;
-    ctx
-}
-
 pub fn fixture_kernel(
     pool: &DbPool,
     seed: systemprompt_extension::prelude::Dependencies,

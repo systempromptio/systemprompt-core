@@ -9,12 +9,8 @@
 use std::sync::Arc;
 
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
-use systemprompt_extension::{
-    ExtensionContext, HasAnalytics, HasFingerprint, HasRouteClassifier, HasUserService,
-};
-use systemprompt_manifest::{Config, Profile};
+use systemprompt_extension::{HasAnalytics, HasFingerprint, HasRouteClassifier, HasUserService};
 use systemprompt_models::RouteClassifier;
-use systemprompt_models::auth::TokenAuthority;
 use systemprompt_traits::{
     AnalyticsProvider, AppContext as AppContextTrait, ConfigProvider, DatabaseHandle,
     FingerprintProvider, UserProvider,
@@ -60,98 +56,6 @@ impl AppContextTrait for AppContext {
         let concrete = Arc::clone(self.data.user_service.as_ref()?);
         let provider: Arc<dyn UserProvider> = concrete;
         Some(provider)
-    }
-}
-
-impl ExtensionContext for AppContext {
-    fn services(&self) -> systemprompt_manifest::services::ServicesView {
-        self.services_state().view()
-    }
-
-    fn subject_attributes(&self) -> Arc<dyn systemprompt_models::authz::SubjectAttributeSource> {
-        Arc::new(self.subject_handle().clone())
-    }
-
-    fn provider_tokens(&self) -> Arc<dyn systemprompt_traits::ProviderTokenCache> {
-        Arc::<systemprompt_security::credential::TokenCache>::clone(self.connector_tokens())
-    }
-
-    fn system_owner_id(&self) -> systemprompt_identifiers::UserId {
-        self.system_admin().id().clone()
-    }
-
-    fn config(&self) -> Arc<dyn ConfigProvider> {
-        let concrete = Arc::clone(&self.cfg.config);
-        let provider: Arc<dyn ConfigProvider> = concrete;
-        provider
-    }
-
-    fn profile(&self) -> Arc<Profile> {
-        Arc::new(self.cfg.boot.profile().clone())
-    }
-
-    fn app_config(&self) -> Arc<Config> {
-        Arc::clone(&self.cfg.config)
-    }
-
-    fn services_root(&self) -> systemprompt_manifest::services::root::ActiveServicesRoot {
-        self.cfg.boot.require_services_root()
-    }
-
-    fn token_authority(&self) -> Arc<dyn TokenAuthority> {
-        Self::token_authority(self)
-    }
-
-    fn database(&self) -> Arc<dyn DatabaseHandle> {
-        let concrete = Arc::clone(&self.data.database);
-        let handle: Arc<dyn DatabaseHandle> = concrete;
-        handle
-    }
-
-    fn file_storage(&self) -> Arc<dyn systemprompt_traits::FileStorage> {
-        Arc::clone(Self::file_storage(self))
-    }
-
-    fn instance_id(&self) -> systemprompt_identifiers::InstanceId {
-        self.config().instance_id.clone()
-    }
-
-    fn background_tasks(&self) -> systemprompt_traits::BackgroundTasks {
-        Self::background_tasks(self).clone()
-    }
-
-    fn instances(&self) -> systemprompt_traits::DynInstanceRegistry {
-        let concrete = Arc::clone(self.service_repository());
-        let registry: systemprompt_traits::DynInstanceRegistry = concrete;
-        registry
-    }
-
-    fn leases(&self) -> systemprompt_traits::DynLeaseRepository {
-        let concrete = Arc::clone(&self.coordination_repositories().leases);
-        let leases: systemprompt_traits::DynLeaseRepository = concrete;
-        leases
-    }
-
-    fn advisory_locks(&self) -> systemprompt_traits::DynAdvisoryLocks {
-        let concrete = Arc::clone(&self.coordination_repositories().locks);
-        let locks: systemprompt_traits::DynAdvisoryLocks = concrete;
-        locks
-    }
-
-    fn secrets(&self) -> Arc<dyn systemprompt_traits::SecretStore> {
-        let concrete = Arc::clone(Self::secrets(self));
-        let store: Arc<dyn systemprompt_traits::SecretStore> = concrete;
-        store
-    }
-
-    fn extension_state(&self) -> systemprompt_provider_contracts::Dependencies {
-        self.kernel.state().clone()
-    }
-
-    fn config_planes(
-        &self,
-    ) -> systemprompt_provider_contracts::ConfigPlaneResult<crate::ConfigPlaneSet> {
-        Self::config_planes(self)
     }
 }
 

@@ -10,8 +10,10 @@
 //! starts them.
 //!
 //! The service reaches the host's handles through the [`JobContext`] it is
-//! given, exactly as a job does: `DbPool`, `Arc<AppContext>` and
-//! `Arc<AppPaths>`.
+//! given, exactly as a job does: the kernel's open seeds (`DbPool`,
+//! `Arc<AppPaths>`, the file storage, …) and every admitted member's
+//! provided values. Sealed seeds are withheld and the application context is
+//! not in it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

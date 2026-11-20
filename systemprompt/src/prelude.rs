@@ -11,8 +11,8 @@
 
 #[cfg(feature = "core")]
 pub use systemprompt_extension::{
-    AuthzPolicy, ContextKind, ContributionError, Contributions, Extension, ExtensionContext,
-    ExtensionMetadata, FromState, Resolved, SchemaDefinition,
+    AuthzPolicy, ContextKind, ContributionError, Contributions, Extension, ExtensionMetadata,
+    FromState, Resolved, SchemaDefinition,
 };
 
 #[cfg(feature = "full")]

@@ -8,8 +8,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use systemprompt_database::DbPool;
-use systemprompt_extension::ExtensionContext;
-use systemprompt_traits::{Job, JobContext, JobResult, JobScope, ProviderError, ProviderResult};
+use systemprompt_traits::{FileStorage, Job, JobContext, JobResult, JobScope, ProviderError, ProviderResult};
 
 use crate::FilesConfig;
 use crate::documents::agents::{DocumentActor, act_as};
@@ -30,7 +29,7 @@ impl DocumentBlobGcJob {
             return Ok(JobResult::success().with_message("document store disabled"));
         }
         let grace_hours = documents.blob_gc_grace_hours;
-        let storage = ctx.get::<Arc<dyn ExtensionContext>>()?.file_storage();
+        let storage = Arc::clone(ctx.get::<Arc<dyn FileStorage>>()?);
         let store = BlobStore::new(
             storage,
             Arc::new(DocumentBlobRepository::new(

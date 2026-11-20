@@ -9,7 +9,6 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use serde::Serialize;
 use std::sync::Arc;
-use systemprompt_extension::ExtensionContext as _;
 use systemprompt_identifiers::McpServerId;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::oauth::{OAuthServerConfig, ProtectedResourceMetadata};
@@ -145,7 +144,8 @@ pub async fn handle_oauth_protected_resource_with_path(
     let base_url = base.as_str().to_owned();
 
     let registry = ctx
-        .extension_state()
+        .kernel()
+        .state()
         .get::<Arc<dyn McpRegistryProvider>>()
         .ok()
         .cloned();

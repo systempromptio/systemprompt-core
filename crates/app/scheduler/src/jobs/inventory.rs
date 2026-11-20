@@ -27,7 +27,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::time::{Duration, Instant};
 
 use crate::SchedulerError;
-use crate::services::scheduling::job_app_context;
+use crate::services::scheduling::kernel_handles;
 use async_trait::async_trait;
 use systemprompt_database::{DbPool, projection};
 use systemprompt_runtime::AppContext;
@@ -86,7 +86,7 @@ impl Job for InventoryRefreshJob {
         JobScope::Node
     }
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
-        let app = job_app_context(ctx)?;
+        let app = kernel_handles(ctx)?.app();
         let memo = ctx.get::<Arc<InventoryRefreshMemo>>()?;
         let owner = app.system_admin().id();
         let published = match catalog_fingerprint(app) {

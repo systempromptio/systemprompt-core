@@ -24,7 +24,6 @@ A member implements `Extension`: `metadata()` and one `contribute(&mut Contribut
 | `build` | Build-script helper (`emit_migrations`) that generates the migration list from `schema/migrations/*.sql`, read with the `extension_migrations!` macro. |
 | `capabilities` | The `Has*` capability traits (`HasAnalytics`, `HasFingerprint`, `HasRouteClassifier`, `HasUserService`). |
 | `cli` | `KernelGrant`; with the `cli` feature, `CliCommandGroup`, `CliCommandLeaf`, `CommandDecl`, `CommandHost`, `CommandOutput` and `CommandError`. |
-| `context` | `ExtensionContext` and `DynExtensionContext`. |
 | `contribute` | `Contributions`, `Resolved` and `FromState`, deferred `ProvideFn`s and `Factory`s, `Slot`s and kernel handles. |
 | `cost` | `CostDirective`, `CostDirectiveError`, `TriggerPolicy`. |
 | `error` | `LoaderError`, `ExtensionStateError`, `ExtensionConfigError`, `MigrationFault`, `SchemaFault`. |

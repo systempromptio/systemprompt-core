@@ -24,7 +24,7 @@
 use axum::Router;
 use std::sync::Arc;
 use systemprompt_extension::{
-    AuthzPolicy, ContextKind, ExtensionContext as _, LoaderError, ProtectionLayer, RateBudget,
+    AuthzPolicy, ContextKind, LoaderError, ProtectionLayer, RateBudget,
     RateLimit, RouteProtection,
 };
 use systemprompt_models::modules::ApiPaths;
@@ -44,7 +44,8 @@ fn create_oauth_state(ctx: &AppContext) -> Result<OAuthState, LoaderError> {
     let users = require_provider("oauth", ctx.user_provider())?;
     let sessions = require_provider("oauth", ctx.session_provider())?;
     let mcp_registry = ctx
-        .extension_state()
+        .kernel()
+        .state()
         .get::<Arc<dyn McpRegistryProvider>>()
         .cloned();
     let oauth_repository = ctx.oauth_repositories().oauth.clone();

@@ -1,0 +1,19 @@
+[root]
+section = "Breaking"
+area = "Extensions"
+text = "The `ExtensionContext` trait, `DynExtensionContext` and their prelude re-export are removed. Every value it handed out is a typed kernel seed: a job, runner service or config plane resolves `Arc<dyn FileStorage>`, `BackgroundTasks`, `InstanceId`, `ServicesView`, `DynInstanceRegistry`, `DynLeaseRepository` and `DynAdvisoryLocks` with `ctx.get::<T>()`; a provide fn, factory, slot build or route set reads those and the sealed `Arc<Config>`, `Arc<dyn SecretStore>`, `SystemAdmin` and `ActiveServicesRoot` with `r.get::<T>()`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`ExtensionContext` and `DynExtensionContext` are removed; read the typed kernel seeds through `Resolved` or the job context instead."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`KernelSeed` gains `file_storage`, `background_tasks` and `coordination` (`KernelCoordination`), seeded open on every host; `AppContext` no longer implements `ExtensionContext`."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`KernelRoutes` drops its enable predicate (`EnablePredicate`, `enabled`, `enabled_when`, `is_enabled`), and `mount` no longer takes a context."

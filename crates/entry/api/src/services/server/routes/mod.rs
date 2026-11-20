@@ -39,7 +39,7 @@ use axum::Router;
 use std::sync::Arc;
 use systemprompt_extension::reserved::WEB_ROOT_BASE_PATH;
 use systemprompt_extension::{
-    AuthzPolicy, ContextKind, ExtensionContext as _, LoaderError, RateBudget, RateLimit, RouteGroup,
+    AuthzPolicy, ContextKind, LoaderError, RateBudget, RateLimit, RouteGroup,
 };
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::profile::NodeRole;
@@ -170,7 +170,7 @@ fn finish_router(
     let ctx = mount.ctx;
     let bans = require_provider(
         "ip_ban",
-        ctx.extension_state().find::<DynIpBanStore>().cloned(),
+        ctx.kernel().state().find::<DynIpBanStore>().cloned(),
     )?;
     let trusted_proxies = Arc::new(ctx.config().trusted_proxies.clone());
 

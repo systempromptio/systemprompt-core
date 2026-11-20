@@ -14,10 +14,9 @@ use systemprompt_database::DbPool;
 use systemprompt_events::services::durable::DurableOutbox;
 use systemprompt_extension::{Contributions, RetentionDecl};
 use systemprompt_governance::GovernanceDecisionRetention;
+use systemprompt_identifiers::InstanceId;
 use systemprompt_logging::{AnalyticsRepository, LoggingRepository};
 use systemprompt_traits::{JobContext, ProviderError, ProviderResult, RetentionPurge};
-
-use crate::services::scheduling::job_app_context;
 
 fn internal<E: std::error::Error + Send + Sync + 'static>(error: E) -> ProviderError {
     ProviderError::Internal(Box::new(error))
@@ -82,7 +81,7 @@ impl RetentionPurge for EventOutboxPurge {
         batch: i64,
     ) -> ProviderResult<u64> {
         let db = Arc::clone(ctx.get::<DbPool>()?);
-        let instance_id = job_app_context(ctx)?.config().instance_id.clone();
+        let instance_id = ctx.get::<InstanceId>()?.clone();
         DurableOutbox::new(db.write_pool().as_ref().clone(), instance_id)
             .purge_processed_before(cutoff, batch)
             .await

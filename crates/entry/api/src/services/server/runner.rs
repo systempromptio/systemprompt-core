@@ -16,7 +16,7 @@ use systemprompt_identifiers::Actor;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::services::SchedulerHandle;
 use systemprompt_traits::{
-    JobContext, OwnedTask, Phase, RunnerService, StartupEventExt, StartupEventSender,
+    Dependencies, JobContext, OwnedTask, Phase, RunnerService, StartupEventExt, StartupEventSender,
 };
 
 use super::lifecycle::{
@@ -174,7 +174,11 @@ async fn serve_until_shutdown(
 }
 
 fn start_runner_services(ctx: &AppContext, brain: Option<Arc<dyn RunnerService>>) -> Result<()> {
-    let shared = Arc::new(ctx.clone());
+    let shared = ctx
+        .kernel()
+        .state()
+        .clone()
+        .with(ctx.signing_keys().clone());
     let mut started = 0usize;
     if let Some(consumer) = brain {
         spawn_runner_service(ctx, &shared, consumer);
@@ -201,25 +205,12 @@ fn start_runner_services(ctx: &AppContext, brain: Option<Arc<dyn RunnerService>>
     Ok(())
 }
 
-fn spawn_runner_service(
-    ctx: &AppContext,
-    shared: &Arc<AppContext>,
-    service: Arc<dyn RunnerService>,
-) {
+fn spawn_runner_service(ctx: &AppContext, shared: &Dependencies, service: Arc<dyn RunnerService>) {
     let name = service.name();
     let admin = ctx.system_admin().id().clone();
-    let shared = Arc::clone(shared);
+    let shared = shared.clone();
     super::runner_supervisor::supervise(ctx.background_tasks(), service, move || {
-        let dependencies = shared
-            .kernel()
-            .state()
-            .clone()
-            .with(shared.signing_keys().clone())
-            .with::<Arc<dyn systemprompt_extension::ExtensionContext>>(Arc::<AppContext>::clone(
-                &shared,
-            ))
-            .with(Arc::clone(&shared));
-        JobContext::new(Actor::job(admin.clone(), name), dependencies)
+        JobContext::new(Actor::job(admin.clone(), name), shared.clone())
     });
 }
 

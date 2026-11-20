@@ -4,7 +4,6 @@
 //! no unscoped secret lookup.
 
 use axum::http::StatusCode;
-use systemprompt_extension::ExtensionContext;
 use systemprompt_test_fixtures::{
     TEST_SLACK_SIGNING_SECRET, ensure_messaging_bootstrap, test_app_context,
 };
@@ -42,7 +41,12 @@ async fn the_extension_secret_store_resolves_no_built_in_secret() -> anyhow::Res
         ctx.secrets().get().get("oauth_at_rest_pepper").is_some(),
         "the platform holds the pepper, so a None below is the store's scope"
     );
-    let store = ExtensionContext::secrets(&*ctx);
+    let store = std::sync::Arc::clone(
+        ctx.kernel()
+            .state()
+            .get::<std::sync::Arc<dyn systemprompt_traits::SecretStore>>()
+            .expect("the secret store is a kernel seed"),
+    );
     for name in ["signing_key_pem", "oauth_at_rest_pepper", "database_url"] {
         assert!(
             store.secret(name).is_none(),
@@ -50,7 +54,8 @@ async fn the_extension_secret_store_resolves_no_built_in_secret() -> anyhow::Res
         );
     }
     assert!(
-        ctx.extension_state()
+        ctx.kernel()
+            .state()
             .find::<std::sync::Arc<dyn SecretLookup>>()
             .is_none(),
         "the shared extension state carries no unscoped secret lookup"

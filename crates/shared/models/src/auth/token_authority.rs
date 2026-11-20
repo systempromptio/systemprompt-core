@@ -1,12 +1,12 @@
 //! The deployment's token authority: verification and signing of its own
 //! RS256 JWTs behind one object-safe trait.
 //!
-//! Extension code holds only `&dyn ExtensionContext`; it reaches the
+//! Extension code holds no signing key; it reaches the
 //! deployment's keys and issuer through [`TokenAuthority`] and never through
 //! the key material itself. The trait is `dyn`-compatible on purpose: the
 //! implementor lives in the infra layer (`systemprompt_security`), the
 //! consumers live in domain, app and extension crates that must not depend on
-//! it, and the object is handed across the `ExtensionContext` seam.
+//! it, so the object is handed across the layers as `Arc<dyn TokenAuthority>`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

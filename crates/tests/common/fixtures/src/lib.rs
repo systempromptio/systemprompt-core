@@ -56,7 +56,7 @@ pub use app_context::{
     fixture_app_context_with_config, fixture_app_context_with_extensions,
     fixture_app_context_with_filter, fixture_app_context_with_hook,
     fixture_app_context_with_services, fixture_artifact_ingest, fixture_config,
-    fixture_context_builder, fixture_core_members, fixture_event_bridge, fixture_extension_context,
+    fixture_context_builder, fixture_core_members, fixture_event_bridge,
     fixture_fingerprint_repository, fixture_kernel, fixture_secret_store, fixture_services_state,
     fixture_services_view, fixture_subject_providers, fixture_upstream_issuer, offline_kernel,
     offline_rate_windows, seed_fixture_system_admin_at, test_app_context, test_app_context_on,

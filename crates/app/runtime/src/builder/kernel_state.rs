@@ -6,7 +6,11 @@
 //! extension's values, and cannot provide a type the kernel already holds.
 //!
 //! Every host seeds the database handle, the paths, the files, notifications
-//! and brain profiles, the instance id, the runtime `Config`, the services
+//! and brain profiles, the instance id, the file storage
+//! (`Arc<dyn FileStorage>`), the background-task owner (`BackgroundTasks`),
+//! the coordination seams (`DynInstanceRegistry`, `DynLeaseRepository`,
+//! `DynAdvisoryLocks`; a child host seeds `UnavailableCoordination` for all
+//! three), the runtime `Config`, the services
 //! view and active services root, the secret store, the system admin, the
 //! event router and the escalation delivery mode the notifications member
 //! assembles its service with (`InProcess` on the API, `Consumer` on a
@@ -25,7 +29,7 @@
 //!
 //! The process's one `AiService` (present only when inference is configured)
 //! is composed from several domains, so the composition root seeds it; an
-//! extension router reads them from [`ExtensionContext::extension_state`] and
+//! route set or factory resolves them from the built state and
 //! an absent `AiService` is a typed `MissingDependency`, never a fallback
 //! service. An absent `AiService` is still reserved for the kernel, so no
 //! extension can `provide` its own.
@@ -49,8 +53,6 @@
 //! analytics broadcaster to the one core route declaration that streams it,
 //! never to the shared state.
 //!
-//! [`ExtensionContext::extension_state`]: systemprompt_extension::ExtensionContext::extension_state
-//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -72,7 +74,17 @@ use systemprompt_models::{ContentConfigRaw, LateBound};
 use systemprompt_notifications::service::EscalationDelivery;
 use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_provider_contracts::Dependencies;
-use systemprompt_traits::{MessagingDispatcher, SecretStore};
+use systemprompt_traits::{
+    BackgroundTasks, DynAdvisoryLocks, DynInstanceRegistry, DynLeaseRepository, FileStorage,
+    MessagingDispatcher, SecretStore,
+};
+
+/// The cross-replica coordination seams every host seeds.
+pub struct KernelCoordination {
+    pub instances: DynInstanceRegistry,
+    pub leases: DynLeaseRepository,
+    pub locks: DynAdvisoryLocks,
+}
 
 /// The handles every host seeds its kernel state from.
 pub struct KernelSeed<'a> {
@@ -84,6 +96,9 @@ pub struct KernelSeed<'a> {
     pub services: systemprompt_manifest::services::ServicesView,
     pub services_root: ActiveServicesRoot,
     pub secrets: Arc<dyn SecretStore>,
+    pub file_storage: Arc<dyn FileStorage>,
+    pub background_tasks: BackgroundTasks,
+    pub coordination: KernelCoordination,
     pub system_admin: &'a SystemAdmin,
     pub event_router: &'a EventRouter,
     pub documents: DocumentsHandlesSlot,
@@ -99,6 +114,12 @@ pub struct ApiKernelSeed<'a> {
     pub ai_service: Option<&'a Arc<AiService>>,
     pub geoip: Option<&'a GeoIpReader>,
     pub content_config: Option<&'a Arc<ContentConfigRaw>>,
+}
+
+impl std::fmt::Debug for KernelCoordination {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("KernelCoordination").finish_non_exhaustive()
+    }
 }
 
 impl std::fmt::Debug for KernelSeed<'_> {
@@ -126,6 +147,11 @@ pub fn base_kernel_state(seed: KernelSeed<'_>) -> Dependencies {
         .with(Arc::new(seed.profile.notifications))
         .with(Arc::new(seed.profile.brain.clone()))
         .with(seed.config.instance_id.clone())
+        .with(seed.file_storage)
+        .with(seed.background_tasks)
+        .with(seed.coordination.instances)
+        .with(seed.coordination.leases)
+        .with(seed.coordination.locks)
         .with_sealed(Arc::clone(seed.config))
         .with(seed.services)
         .with_sealed(seed.services_root)

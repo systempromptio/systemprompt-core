@@ -24,7 +24,6 @@ use axum::response::Response;
 use std::sync::Arc;
 
 use systemprompt_analytics::repository::AnalyticsRepositories;
-use systemprompt_extension::ExtensionContext as _;
 use systemprompt_identifiers::SessionId;
 use systemprompt_logging::AnalyticsRepository;
 use systemprompt_models::{RequestContext, RouteClassifier};
@@ -72,7 +71,7 @@ impl std::fmt::Debug for AnalyticsMiddleware {
 
 impl AnalyticsMiddleware {
     pub fn new(app_context: &AppContext) -> Self {
-        let state = app_context.extension_state();
+        let state = app_context.kernel().state();
         let sessions = state.find::<DynSessionStore>().cloned();
         let scoring = state
             .find::<DynSessionBehaviourScorer>()

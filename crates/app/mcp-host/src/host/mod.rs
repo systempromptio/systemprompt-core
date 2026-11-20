@@ -15,16 +15,11 @@
 //! token of the call it is serving.
 //!
 //! The boot sequence is [`HostKernel`](systemprompt_runtime::HostKernel), the
-//! runtime's composition stages run over the child's granted environment; the
-//! host context adds the
-//! [`ExtensionContext`](systemprompt_extension::ExtensionContext) those stages
-//! finish over.
+//! runtime's composition stages run over the child's granted environment.
 //!
 //! It admits the same composition the API admits and resolves its own
 //! kernel over it, so documents granted to an extension audience resolve as
-//! they do on the API; its
-//! [`ExtensionContext`](systemprompt_extension::ExtensionContext) token
-//! authority only verifies. An escalated notification is left
+//! they do on the API; its token authority only verifies. An escalated notification is left
 //! for the API's notifications consumer to deliver
 //! (`EscalationDelivery::Consumer`), because the host delivers through no
 //! extension channel.
@@ -33,7 +28,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod boot;
-mod extension_context;
 
 use std::sync::Arc;
 
@@ -53,7 +47,6 @@ use systemprompt_provider_contracts::Dependencies;
 use systemprompt_runtime::HostParts;
 use systemprompt_runtime::documents::DocumentsRuntime;
 use systemprompt_runtime::documents::links::{ApiLinkIssuer, LinkIssueError, LinkIssuer};
-use systemprompt_security::credential::TokenCache;
 use systemprompt_security::keys::VerificationKeyring;
 use systemprompt_traits::{BackgroundTasks, DynToolCallIntentClaims, SecretStore};
 use systemprompt_users::UserRepository;
@@ -64,7 +57,6 @@ pub use systemprompt_runtime::{HostBootError, PROFILE_ENV};
 #[derive(Clone)]
 pub struct HostContext {
     parts: HostParts,
-    provider_tokens: Arc<TokenCache>,
 }
 
 impl std::fmt::Debug for HostContext {

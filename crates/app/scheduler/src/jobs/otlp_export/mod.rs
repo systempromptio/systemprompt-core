@@ -54,7 +54,7 @@ use crate::repository::otlp::{
     BATCH_ROWS, OtlpAuditTailRepository, OtlpExportState, OtlpExportStateRepository, SETTLE,
     Watermark,
 };
-use crate::services::scheduling::job_app_context;
+use crate::services::scheduling::kernel_handles;
 
 pub const JOB_NAME: &str = "otlp_export";
 
@@ -86,7 +86,7 @@ impl Job for OtlpExportJob {
 
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start = std::time::Instant::now();
-        let app = job_app_context(ctx)?;
+        let app = kernel_handles(ctx)?.app();
         let Some(config) = app.profile().observability.otlp() else {
             debug!("observability.otlp is not configured; nothing to export");
             return Ok(JobResult::success().with_duration(start.elapsed().as_millis() as u64));

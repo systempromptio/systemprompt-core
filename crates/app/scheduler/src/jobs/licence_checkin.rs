@@ -34,7 +34,7 @@ use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::{debug, info, warn};
 
 use crate::repository::LicenceCheckinRepository;
-use crate::services::scheduling::job_app_context;
+use crate::services::scheduling::kernel_handles;
 
 pub const JOB_NAME: &str = "licence_checkin";
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(20);
@@ -129,7 +129,7 @@ impl Job for LicenceCheckinJob {
 
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start = std::time::Instant::now();
-        let app = job_app_context(ctx)?;
+        let app = kernel_handles(ctx)?.app();
         let profile = app.profile();
         if !profile.licence.enabled() {
             debug!("licence.multi_tenant is off; no check-in");

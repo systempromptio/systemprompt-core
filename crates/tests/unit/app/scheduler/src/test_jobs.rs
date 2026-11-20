@@ -25,6 +25,7 @@ pub const WORKING_JOB: &str = "sp_test_working_job";
 pub const IDLE_JOB: &str = "sp_test_idle_job";
 pub const BUDGETED_JOB: &str = "sp_test_budgeted_job";
 pub const KERNEL_STATE_JOB: &str = "sp_test_kernel_state_job";
+pub const SEALED_SEED_PROBE_JOB: &str = "sp_test_sealed_seed_probe_job";
 
 pub static BUDGETED_JOB_SETTINGS: std::sync::Mutex<Vec<(String, String, String)>> =
     std::sync::Mutex::new(Vec::new());
@@ -302,7 +303,8 @@ pub(crate) fn contribute(c: &mut Contributions<'_>) {
         .job(WorkingJob)
         .job(IdleJob)
         .job(BudgetedJob)
-        .job(KernelStateJob);
+        .job(KernelStateJob)
+        .job(SealedSeedProbeJob);
 }
 
 struct BudgetedJob;
@@ -378,5 +380,67 @@ impl Job for KernelStateJob {
             ));
         }
         Ok(JobResult::success())
+    }
+}
+
+pub struct SealedSeedProbeJob;
+
+#[async_trait]
+impl Job for SealedSeedProbeJob {
+    fn name(&self) -> &'static str {
+        SEALED_SEED_PROBE_JOB
+    }
+
+    fn schedule(&self) -> &'static str {
+        ""
+    }
+
+    fn enabled(&self) -> bool {
+        false
+    }
+
+    async fn execute(
+        &self,
+        ctx: &JobContext,
+    ) -> systemprompt_provider_contracts::ProviderResult<JobResult> {
+        let reachable = [
+            (
+                "app_context",
+                ctx.find::<std::sync::Arc<systemprompt_runtime::AppContext>>()
+                    .is_some(),
+            ),
+            (
+                "config",
+                ctx.find::<std::sync::Arc<systemprompt_manifest::Config>>()
+                    .is_some(),
+            ),
+            (
+                "secret_store",
+                ctx.find::<std::sync::Arc<dyn systemprompt_traits::SecretStore>>()
+                    .is_some(),
+            ),
+            (
+                "system_admin",
+                ctx.find::<systemprompt_manifest::services::SystemAdmin>()
+                    .is_some(),
+            ),
+            (
+                "services_root",
+                ctx.find::<systemprompt_manifest::services::root::ActiveServicesRoot>()
+                    .is_some(),
+            ),
+        ];
+        let leaked: Vec<&str> = reachable
+            .iter()
+            .filter(|(_, present)| *present)
+            .map(|(name, _)| *name)
+            .collect();
+        ctx.get::<systemprompt_database::DbPool>()?;
+        ctx.get::<std::sync::Arc<dyn systemprompt_traits::FileStorage>>()?;
+        if leaked.is_empty() {
+            Ok(JobResult::success())
+        } else {
+            Ok(JobResult::failure(format!("reachable: {}", leaked.join(","))))
+        }
     }
 }

@@ -210,7 +210,7 @@ Gateway routes (`c.gateway_route(GatewayRouteDecl)`, built with `RouteSet::gatew
 
 `c.job(job)` contributes a scheduled job (a `Job` implementation with a `name` and a cron `schedule`). The scheduler runs only the jobs of admitted members, read from `AdmittedSchedule`. Retention declarations (`c.retention`), job-run scopes (`c.job_run_scope`) and projection drains (`c.projection`) are admitted the same way.
 
-A job's `JobContext` reads the host context with `ctx.get::<Arc<dyn ExtensionContext>>()` and provided values with `ctx.get::<T>()`; see [Runtime seams](#runtime-seams).
+A job's `JobContext` reads the kernel's open seeds and provided values with `ctx.get::<T>()`; sealed seeds (configuration, secret store, system admin, services root, event router) are withheld. See [Runtime seams](#runtime-seams).
 
 ### Commands
 
@@ -351,22 +351,23 @@ The runner never executes, records or checksums a tombstoned slot, and `emit_mig
 
 ## Runtime seams
 
-Core owns these contracts so a member never reimplements them against core tables. `ctx` below is the `ExtensionContext` a job reads with `ctx.get::<Arc<dyn ExtensionContext>>()`.
+Core owns these contracts so a member never reimplements them against core tables. `ctx` below is the job's `JobContext`; each seam is a kernel seed it resolves by type.
 
 - **Governance:** build a `PolicyRequest` and call `GovernanceEngine::charge_and_evaluate`. The engine charges every armed rate window before the chain runs.
-- **Replica liveness:** `ctx.instances().is_alive(&instance_id)` is true while that replica holds its instance claim or heartbeats its `services` rows within 90 seconds. `ctx.instance_id()` is this node's identity.
-- **Leases:** `ctx.leases().claim(&LeaseKey::new("…"), ttl)` grants an expiring single-owner claim on a named resource, or `None` while another live replica holds it. A dead owner's lease is forfeit even before it expires.
-- **Advisory locks:** `ctx.advisory_locks().try_acquire(&AdvisoryLockKey::new("…"))` (or `acquire_within(key, wait)`) takes a cluster-wide lock on the session pool. Call `release().await` on the guard; dropping it closes the locking session, which also frees the lock.
+- **Replica liveness:** `ctx.get::<DynInstanceRegistry>()?.is_alive(&instance_id)` is true while that replica holds its instance claim or heartbeats its `services` rows within 90 seconds. `ctx.get::<InstanceId>()?` is this node's identity.
+- **Leases:** `ctx.get::<DynLeaseRepository>()?.claim(&LeaseKey::new("…"), ttl)` grants an expiring single-owner claim on a named resource, or `None` while another live replica holds it. A dead owner's lease is forfeit even before it expires.
+- **Advisory locks:** `ctx.get::<DynAdvisoryLocks>()?.try_acquire(&AdvisoryLockKey::new("…"))` (or `acquire_within(key, wait)`) takes a cluster-wide lock on the session pool. Call `release().await` on the guard; dropping it closes the locking session, which also frees the lock.
 - **Job database budgets:** override `Job::db_budget` to return a `DbBudget`, then open the job's transactions with `ctx.get::<BudgetedDb>()?.begin()`. The budget is applied with `SET LOCAL`.
 - **Batched jobs:** drain a backlog with `run_batched(BatchPlan { deadline, full_batch }, || batch())`; `BatchedRun::into_job_result` reports what remains for the next run.
 - **Once per release:** `ReleaseStampRepository::run_once(ReleaseRun { name, release: env!("CARGO_PKG_VERSION"), gate, wait }, work)` runs `work` under a cluster-wide lock when this release is ahead of the recorded one (`ReleaseGate::IfBehind`) or not behind it (`ReleaseGate::UnlessNewer`), and records the release only when `work` succeeds.
-- **Secrets:** `ctx.secrets().secret("my_api_key")` returns a custom secret from the platform secrets document as an `ExtensionSecret` that redacts itself in `Debug`. Do not read credentials or `HOSTNAME` from the environment.
+- **Secrets:** the secret store is a sealed seed: a provide fn reads `r.get::<Arc<dyn SecretStore>>()?.secret("my_api_key")` (an `ExtensionSecret` that redacts itself in `Debug`) and provides the member's own typed client or credential, which its jobs then resolve. Do not read credentials or `HOSTNAME` from the environment.
 - **Readiness:** a check contributed with `c.readiness` runs on every `/readyz`; a check that fails, errors or overruns the probe timeout answers 503 with the failing check under `extensions`.
 - **Metrics:** emit through the `metrics` facade and declare each metric with `c.metric(MetricDescriptor)`, so a histogram renders as buckets and its help text appears on `/metrics`.
 
 ## Upgrading from 0.82
 
 - Move each defaulted hook body (`schemas`, `migrations`, `routers`, `jobs`, `provide`, `requires`, the seam hooks) into `contribute`, and replace each `register_*!`/`submit_*!` registration with the matching `Contributions` method or the owning crate's `contract` slot. Drop the `inventory` dependency.
+- Replace every `ExtensionContext` read with the typed seed: `ctx.get::<Arc<dyn FileStorage>>()`, `ctx.get::<InstanceId>()`, `ctx.get::<DynLeaseRepository>()` and so on in a job; `r.get::<T>()` in a provide fn, factory or route set state. Configuration, secrets, the system admin and the services root are read in a provide fn only.
 - Replace `ExtensionRouter` with `RouteSet`s under the member's own `/api/` base or the web root, and any root fallback with an explicit prefix.
 - Move command groups to `run(&dyn CommandHost) -> CommandOutput`.
 - Replace the binary's `main` with `reference().with(..).run()`.

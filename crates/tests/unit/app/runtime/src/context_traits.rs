@@ -1,16 +1,16 @@
-//! `AppContext` seen through the trait objects extensions and providers hold:
-//! the `systemprompt_traits::AppContext` provider accessors, the
-//! `ExtensionContext` handed to extension routers, and the `Has*` capability
-//! traits. Each view must answer from the same planes as the concrete
-//! accessors, so a caller holding only a trait object sees the same config,
-//! database, owner and services as one holding the concrete context.
+//! `AppContext` seen through the trait objects providers hold (the
+//! `systemprompt_traits::AppContext` provider accessors and the `Has*`
+//! capability traits) and through the kernel seeds a member resolves by
+//! type. Each must answer from the same planes as the concrete accessors.
 
 use std::sync::Arc;
 
-use systemprompt_extension::{
-    ExtensionContext, HasAnalytics, HasFingerprint, HasRouteClassifier, HasUserService,
-};
+use systemprompt_extension::{HasAnalytics, HasFingerprint, HasRouteClassifier, HasUserService};
 use systemprompt_identifiers::{InstanceId, LeaseKey};
+use systemprompt_traits::{
+    BackgroundTasks, DynAdvisoryLocks, DynInstanceRegistry, DynLeaseRepository, FileStorage,
+    SecretStore,
+};
 use systemprompt_models::RouteType;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_database_url};
@@ -46,43 +46,36 @@ async fn the_provider_view_shares_the_concrete_config_and_database() {
 }
 
 #[tokio::test]
-async fn the_extension_view_names_the_system_owner_and_this_instance() {
-    let (ctx, url) = context().await;
-    let view: &dyn ExtensionContext = ctx.as_ref();
+async fn the_kernel_seeds_name_this_instance_and_share_the_file_storage() {
+    let (ctx, _url) = context().await;
+    let state = ctx.kernel().state();
 
-    assert_eq!(view.system_owner_id(), *ctx.system_admin().id());
-    assert_eq!(view.instance_id(), ctx.config().instance_id);
-    assert_eq!(ExtensionContext::config(view).database_url(), url);
-    assert!(view.database().is_connected());
+    assert_eq!(
+        state.get::<InstanceId>().expect("instance id seed"),
+        &ctx.config().instance_id
+    );
     assert!(Arc::ptr_eq(
-        &ExtensionContext::file_storage(view),
+        state
+            .get::<Arc<dyn FileStorage>>()
+            .expect("file storage seed"),
         AppContext::file_storage(ctx.as_ref())
     ));
 }
 
 #[tokio::test]
-async fn the_extension_view_resolves_loaded_secrets_and_refuses_unknown_ones() {
+async fn the_sealed_secret_store_resolves_loaded_secrets_and_refuses_unknown_ones() {
     let (ctx, _url) = context().await;
-    let view: &dyn ExtensionContext = ctx.as_ref();
+    let state = ctx.kernel().state();
+    assert!(state.is_sealed::<Arc<dyn SecretStore>>());
+    let store = state
+        .get::<Arc<dyn SecretStore>>()
+        .expect("the secret store is a sealed kernel seed");
 
-    let key = view
-        .secrets()
+    let key = store
         .secret("encryption_master_key")
         .expect("the fixture secrets carry an encryption master key");
     assert!(!key.expose().is_empty());
-    assert!(
-        view.secrets()
-            .secret("sp_no_such_secret_ctx_traits")
-            .is_none()
-    );
-}
-
-#[tokio::test]
-async fn the_extension_view_reads_the_same_config_planes() {
-    let (ctx, _url) = context().await;
-    let view: &dyn ExtensionContext = ctx.as_ref();
-
-    assert_eq!(view.config_planes().is_ok(), ctx.config_planes().is_ok());
+    assert!(store.secret("sp_no_such_secret_ctx_traits").is_none());
 }
 
 #[tokio::test]
@@ -103,39 +96,39 @@ async fn the_capability_traits_expose_the_shared_services() {
 }
 
 #[tokio::test]
-async fn the_extension_view_coordinates_through_the_shared_repositories() {
+async fn the_coordination_seeds_answer_from_the_shared_repositories() {
     let (ctx, _url) = context().await;
-    let view: &dyn ExtensionContext = ctx.as_ref();
+    let state = ctx.kernel().state();
     let stranger = InstanceId::new(format!("ctx-traits-{}", uuid::Uuid::new_v4().simple()));
     let key = LeaseKey::new(format!("ctx-traits-{}", uuid::Uuid::new_v4().simple()));
 
-    assert!(
-        !view
-            .instances()
-            .is_alive(&stranger)
-            .await
-            .expect("is_alive")
-    );
-    assert!(view.leases().holder(&key).await.expect("holder").is_none());
-    let _locks = view.advisory_locks();
+    let instances = state.get::<DynInstanceRegistry>().expect("instances seed");
+    assert!(!instances.is_alive(&stranger).await.expect("is_alive"));
+    let leases = state.get::<DynLeaseRepository>().expect("leases seed");
+    assert!(leases.holder(&key).await.expect("holder").is_none());
+    state.get::<DynAdvisoryLocks>().expect("advisory locks seed");
 }
 
 #[tokio::test]
-async fn the_extension_view_hands_out_the_shared_background_tasks() {
+async fn the_background_task_seed_shares_the_context_owner() {
     let (ctx, _url) = context().await;
-    let view: &dyn ExtensionContext = ctx.as_ref();
+    let tasks = ctx
+        .kernel()
+        .state()
+        .get::<BackgroundTasks>()
+        .expect("background tasks seed")
+        .clone();
     let (release, released) = tokio::sync::oneshot::channel::<()>();
     let before = ctx.background_tasks().in_flight();
 
-    view.background_tasks()
-        .spawn("context-traits-test", async move {
-            released.await.ok();
-        });
+    tasks.spawn("context-traits-test", async move {
+        released.await.ok();
+    });
 
     assert_eq!(
         ctx.background_tasks().in_flight(),
         before + 1,
-        "a task spawned through the extension view is tracked by the context's owner"
+        "a task spawned through the seed is tracked by the context's owner"
     );
     release.send(()).expect("task still waiting");
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
@@ -168,12 +161,6 @@ async fn the_kernel_state_never_carries_the_analytics_broadcaster() {
             .find::<Arc<systemprompt_events::AnalyticsBroadcaster>>()
             .is_none(),
         "the analytics broadcaster is handed to its core route row, never seeded"
-    );
-    let view: &dyn ExtensionContext = ctx.as_ref();
-    assert!(
-        view.extension_state()
-            .find::<Arc<systemprompt_events::AnalyticsBroadcaster>>()
-            .is_none()
     );
 }
 

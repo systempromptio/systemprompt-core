@@ -33,7 +33,7 @@ struct Notifications {
 }
 
 fn notifications_router(ctx: &AppContext) -> Router {
-    let slot = systemprompt_extension::ExtensionContext::extension_state(ctx)
+    let slot = ctx.kernel().state()
         .get::<NotificationsServiceSlot>()
         .expect("notification service handle provided")
         .clone();

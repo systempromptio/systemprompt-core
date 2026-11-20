@@ -16,7 +16,7 @@ use axum::{Extension, Json};
 use serde::Deserialize;
 use std::sync::Arc;
 
-use systemprompt_extension::{ExtensionContext as _, MissingDependency};
+use systemprompt_extension::MissingDependency;
 use systemprompt_identifiers::{ArtifactId, TaskId};
 use systemprompt_mcp::McpDomainError;
 use systemprompt_mcp::services::ui_renderer::registry::resolve_artifact_type;
@@ -141,7 +141,7 @@ pub async fn get_artifact_ui(
         .await?;
     let artifact = artifact_repo.find_owned_artifact(&owned).await?;
 
-    let state = app_context.extension_state();
+    let state = app_context.kernel().state();
     let registry = state
         .get::<Arc<UiRendererRegistry>>()
         .map_err(ArtifactUiError::Renderers)?;

@@ -41,7 +41,9 @@ pub mod storage;
 pub mod trace;
 mod validation;
 
-pub use builder::kernel_state::{ApiKernelSeed, KernelSeed, base_kernel_state, kernel_state};
+pub use builder::kernel_state::{
+    ApiKernelSeed, KernelCoordination, KernelSeed, base_kernel_state, kernel_state,
+};
 pub use builder::{AppContextBuilder, discover_vertex_models, owner_reassignments};
 pub use context::{
     AppContext, ConfigPlane, ContextPlanes, DataPlane, Plugins, ShutdownRequest, Subsystems,

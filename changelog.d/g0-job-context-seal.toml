@@ -1,0 +1,14 @@
+[root]
+section = "Changed"
+area = "Scheduler"
+text = "A job, runner-service and config-plane context withholds every sealed kernel seed, and none carries the application context. The scheduler's own jobs read a crate-private kernel handle inserted only when the dispatched job's admitted owner is the scheduler member."
+
+[[crate]]
+name = "systemprompt-provider-contracts"
+section = "Added"
+text = "`Dependencies::withholding_sealed` returns a copy with every sealed entry removed and its type reserved; `JobContext::new` builds from it and `PlaneContext::get` refuses a sealed type as missing."
+
+[[crate]]
+name = "systemprompt-provider-contracts"
+section = "Breaking"
+text = "A job context no longer carries `Arc<AppContext>` or `Arc<dyn ExtensionContext>`, and a sealed seed (`Arc<Config>`, the secret store, the system admin, the services root, the event router) reads as missing in a job, runner-service or config-plane context."

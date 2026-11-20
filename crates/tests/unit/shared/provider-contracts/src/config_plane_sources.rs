@@ -168,3 +168,13 @@ async fn default_read_is_read_current_and_write_is_refused() {
         })
     ));
 }
+
+#[test]
+fn a_plane_context_refuses_a_sealed_seed_and_serves_an_open_one() {
+    let deps = Dependencies::new()
+        .with(3u16)
+        .with_sealed(std::sync::Arc::new(String::from("secret")));
+    let ctx = PlaneContext::new(Path::new("/unused"), &deps);
+    assert_eq!(ctx.get::<u16>(), Ok(&3));
+    assert!(ctx.get::<std::sync::Arc<String>>().is_err());
+}

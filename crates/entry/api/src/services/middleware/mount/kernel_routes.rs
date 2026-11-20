@@ -3,24 +3,17 @@
 //! The server's own groups — OAuth, protocol, documents, gateway, static and
 //! the rest — are kernel built-ins, not composition contributions. Each is a
 //! [`KernelRoutes`]: the router, its base path, its [`RouteProtection`], the
-//! [`RouteGroup`] that decides which node roles serve it and an enable
-//! predicate over the runtime context.
+//! [`RouteGroup`] that decides which node roles serve it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::Router;
 use systemprompt_extension::{
-    AuthzPolicy, ContextKind, ExtensionContext, HandlerVerifier, ProtectionLayer, RateBudget,
+    AuthzPolicy, ContextKind, HandlerVerifier, ProtectionLayer, RateBudget,
     RateLimit, RouteGroup, RouteProtection,
 };
 use systemprompt_provider_contracts::FrameOptions;
-
-pub type EnablePredicate = fn(&dyn ExtensionContext) -> bool;
-
-const fn always_enabled(_: &dyn ExtensionContext) -> bool {
-    true
-}
 
 /// A server-owned router and the declaration it is mounted from.
 #[derive(Debug, Clone)]
@@ -29,7 +22,6 @@ pub struct KernelRoutes {
     pub base_path: &'static str,
     pub protection: RouteProtection,
     pub group: RouteGroup,
-    pub enabled: EnablePredicate,
 }
 
 impl KernelRoutes {
@@ -54,7 +46,6 @@ impl KernelRoutes {
             base_path,
             protection,
             group: RouteGroup::Extensions,
-            enabled: always_enabled,
         }
     }
 
@@ -88,16 +79,6 @@ impl KernelRoutes {
         self
     }
 
-    #[must_use]
-    pub const fn enabled_when(mut self, predicate: EnablePredicate) -> Self {
-        self.enabled = predicate;
-        self
-    }
-
-    #[must_use]
-    pub fn is_enabled(&self, ctx: &dyn ExtensionContext) -> bool {
-        (self.enabled)(ctx)
-    }
 }
 
 #[must_use]

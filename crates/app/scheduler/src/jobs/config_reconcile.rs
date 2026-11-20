@@ -6,15 +6,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
 use std::time::Instant;
 
 use async_trait::async_trait;
 use systemprompt_provider_contracts::ChangeActor;
-use systemprompt_runtime::AppContext;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 
 use crate::repository::ConfigReconcileRepository;
+use crate::services::scheduling::kernel_handles;
 use crate::services::{
     ConfigApplyService, ConfigReconcileService, RECONCILE_LOCK_WAIT, ReconcileTrigger,
 };
@@ -38,7 +37,7 @@ impl Job for ConfigReconcileJob {
 
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let started = Instant::now();
-        let app = ctx.get::<Arc<AppContext>>()?;
+        let app = kernel_handles(ctx)?.app();
         let service = ConfigReconcileService::from_app_context(
             app,
             ConfigReconcileRepository::new(app.db_pool()),

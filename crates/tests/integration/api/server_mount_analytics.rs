@@ -31,7 +31,7 @@ use systemprompt::CompositionError;
 use systemprompt_analytics::repository::AnalyticsRepositories;
 use systemprompt_analytics_entry::extension::{ANALYTICS_HTTP_EXTENSION, AnalyticsHttpExtension};
 use systemprompt_extension::contribute::ContributionSink;
-use systemprompt_extension::{Contributions, Extension, ExtensionContext};
+use systemprompt_extension::{Contributions, Extension};
 use systemprompt_identifiers::{ExtensionId, JwtToken};
 use systemprompt_manifest::profile::RateLimitsConfig;
 use systemprompt_test_fixtures::{
@@ -329,7 +329,7 @@ async fn disabling_the_routes_extension_unmounts_both_groups_and_keeps_the_analy
         assert!(analytics_jobs.contains(&job), "{job} in {analytics_jobs:?}");
     }
 
-    let state = ctx.extension_state();
+    let state = ctx.kernel().state();
     assert!(
         state
             .find::<std::sync::Arc<AnalyticsRepositories>>()

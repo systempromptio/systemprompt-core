@@ -15,7 +15,7 @@
 //! images named by revisions written before admissions were recorded. All
 //! are cluster-scoped and contributed by the files member's `contribute`. Each
 //! run builds its repositories from the job context's `DbPool` and takes file
-//! storage from the context's `ExtensionContext`.
+//! storage from the context's `Arc<dyn FileStorage>` kernel seed.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

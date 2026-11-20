@@ -19,11 +19,15 @@
 //! [`Job::db_budget`] declares the statement, lock and memory limits the
 //! job's run transactions carry; see [`crate::DbBudget`].
 //!
-//! A job reaches the host's handles through [`JobContext::get`]: the scheduler
-//! inserts `DbPool`, `BudgetedDb`, `Arc<AppContext>` and `Arc<AppPaths>` into
-//! the context's [`Dependencies`], and `ctx.get::<DbPool>()?` inside `execute`
-//! either yields the pool or fails the run with
-//! [`crate::ProviderError::MissingDependency`].
+//! A job reaches the host's handles through [`JobContext::get`]: the context
+//! carries the kernel's open seeds (`DbPool`, `Arc<AppPaths>`, the file
+//! storage, the instance id, the services view, …), every admitted member's
+//! provided values and the per-run handles (`BudgetedDb`), and
+//! `ctx.get::<DbPool>()?` inside `execute` either yields the pool or fails the
+//! run with [`crate::ProviderError::MissingDependency`]. [`JobContext::new`]
+//! withholds every sealed seed (the runtime `Config`, the secret store, the
+//! system admin, the services root, the event router), so no job or runner
+//! service reads one; the application context is never in a job context.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -111,7 +115,7 @@ impl JobContext {
     pub fn new(actor: Actor, dependencies: Dependencies) -> Self {
         Self {
             actor,
-            dependencies,
+            dependencies: dependencies.withholding_sealed(),
             parameters: HashMap::new(),
             enforce: false,
         }

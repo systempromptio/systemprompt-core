@@ -49,7 +49,7 @@
 //! and the managed consumer (1 MiB, `routes/managed/consumer/mod.rs`). They
 //! are reviewed at those sites.
 //!
-//! A group skipped by its role or enable predicate is logged at `info`.
+//! A group its node role does not serve is logged at `info`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -64,7 +64,7 @@ mod recheck;
 pub use admitted::{MountedGatewayRoute, gateway_routes, mount_admitted, protection_of};
 pub use error::MountError;
 pub use guards::{ClientWritesGuard, ProtectionGuards, SiteAuthGuard};
-pub use kernel_routes::{EnablePredicate, KernelRoutes, gateway_protection, path_under};
+pub use kernel_routes::{KernelRoutes, gateway_protection, path_under};
 pub use recheck::recheck;
 
 use std::sync::Arc;
@@ -72,7 +72,7 @@ use std::sync::Arc;
 use axum::Router;
 use systemprompt_extension::reserved::{PRIVILEGED_SHAPES, WEB_ROOT_BASE_PATH};
 use systemprompt_extension::router::{Allowance, BaseRef, BodyLimit};
-use systemprompt_extension::{ContextKind, ExtensionContext, RouteGroup, RouteProtection};
+use systemprompt_extension::{ContextKind, RouteGroup, RouteProtection};
 
 use self::layers::{authenticated, inner_layers, outer_layers, rate_limited};
 use crate::services::middleware::context::{
@@ -237,7 +237,6 @@ pub fn mount(
     tree: Router,
     declared: KernelRoutes,
     layers: &MountLayers,
-    ctx: &dyn ExtensionContext,
     serves: &dyn Fn(RouteGroup) -> bool,
 ) -> Result<Router, MountError> {
     if !serves(declared.group) {
@@ -245,15 +244,6 @@ pub fn mount(
             base_path = declared.base_path,
             group = ?declared.group,
             reason = "role_does_not_serve_group",
-            "Route declaration not mounted"
-        );
-        return Ok(tree);
-    }
-    if !declared.is_enabled(ctx) {
-        tracing::info!(
-            base_path = declared.base_path,
-            group = ?declared.group,
-            reason = "enable_predicate_false",
             "Route declaration not mounted"
         );
         return Ok(tree);

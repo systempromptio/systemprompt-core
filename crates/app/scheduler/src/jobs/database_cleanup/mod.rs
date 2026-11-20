@@ -45,7 +45,7 @@ use systemprompt_manifest::profile::RetentionConfig;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::debug;
 
-use crate::services::scheduling::job_app_context;
+use crate::services::scheduling::kernel_handles;
 
 use self::archived_users::purge_archived_users;
 use self::holds::HoldOutcome;
@@ -74,7 +74,7 @@ impl Job for DatabaseCleanupJob {
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start_time = Instant::now();
         let db_pool = Arc::clone(ctx.get::<DbPool>()?);
-        let app = job_app_context(ctx)?;
+        let app = kernel_handles(ctx)?.app();
         let mut retention = app.config().retention;
         // Why: the parameter predates the profile block and operators still
         // pass it from the CLI; it stays as an override for the logs window.

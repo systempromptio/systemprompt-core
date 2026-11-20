@@ -293,7 +293,6 @@ async fn build_fails_with_the_typed_unmet_state_requirement() {
 
 #[tokio::test]
 async fn build_seeds_the_kernel_entries_and_keeps_provided_state() {
-    use systemprompt_extension::ExtensionContext;
 
     let admin = unique_admin("state");
     let fixture = boot(&BootOptions {
@@ -307,7 +306,7 @@ async fn build_seeds_the_kernel_entries_and_keeps_provided_state() {
         .await
         .expect("the provided state satisfies the build");
 
-    let state = ctx.extension_state();
+    let state = ctx.kernel().state();
     assert_eq!(state.get::<ProvidedCache>().map(|c| c.0), Ok(7));
     let pool_entry = state
         .get::<systemprompt_database::DbPool>()

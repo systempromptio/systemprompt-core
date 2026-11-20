@@ -10,9 +10,8 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use systemprompt_database::DbPool;
-use systemprompt_extension::ExtensionContext;
 use systemprompt_traits::{
-    BackgroundTasks, Job, JobContext, JobResult, JobScope, ProviderError, ProviderResult,
+    BackgroundTasks, FileStorage, Job, JobContext, JobResult, JobScope, ProviderError, ProviderResult,
 };
 
 use super::super::repository::DocumentUploadRepository;
@@ -35,7 +34,7 @@ impl DocumentUploadExpiryJob {
         if !documents.is_enabled() {
             return Ok(JobResult::success().with_message("document store disabled"));
         }
-        let storage = ctx.get::<Arc<dyn ExtensionContext>>()?.file_storage();
+        let storage = Arc::clone(ctx.get::<Arc<dyn FileStorage>>()?);
         let blobs = Arc::new(BlobStore::new(
             Arc::clone(&storage),
             Arc::new(DocumentBlobRepository::new(
