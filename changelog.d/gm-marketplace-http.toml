@@ -1,0 +1,19 @@
+[root]
+section = "Breaking"
+area = "Marketplace routes"
+text = "The `/api/v1/marketplace` routes are contributed by the `marketplace-http` member (`systemprompt-marketplace-entry`, feature `http`) instead of being mounted by the API server; a profile that disables `marketplace-http` answers 404 on them. The group is now rate-limited under the `marketplace` scope with the `content` budget, and the plugin-file and catalogue routes build the API external URL from the runtime `Config`. `systemprompt_api::routes::marketplace` is removed."
+
+[[crate]]
+name = "systemprompt-marketplace-entry"
+section = "Added"
+text = "`MarketplaceHttpExtension` (`marketplace-http`) and `http::public_routes`: the marketplace catalogue and plugin-file route set at `/api/v1/marketplace`, with `MarketplaceHttpState` and `MarketplaceHttpError`."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`routes::marketplace` is removed; the marketplace routes are the `marketplace-http` member's route set."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`ApiBase::Sync` is removed; `/api/v1/marketplace` is held by `CoreId::MarketplaceHttp`, with its privileged shape (public, public context, `marketplace` scope, content budget)."
