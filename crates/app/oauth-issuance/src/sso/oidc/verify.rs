@@ -110,6 +110,10 @@ pub fn identity_from_claims(
         .get("exp")
         .and_then(Value::as_i64)
         .and_then(|exp| DateTime::<Utc>::from_timestamp(exp, 0));
+    let authenticated_at = claims
+        .get("auth_time")
+        .and_then(Value::as_i64)
+        .and_then(|auth_time| DateTime::<Utc>::from_timestamp(auth_time, 0));
 
     Ok(ExternalIdentity {
         subject,
@@ -121,6 +125,7 @@ pub fn identity_from_claims(
         tenant_id: None,
         assertion_id,
         assertion_expires_at,
+        authenticated_at,
         raw_claims: claims,
     })
 }

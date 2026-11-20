@@ -99,9 +99,10 @@ pub struct SecurityConfig {
 /// Only the authorization-code + PKCE grant for such a client mints one, and
 /// only refreshing that grant's own refresh token renews it. The access token
 /// lives `access_ttl_secs`; its `auth_time` is the sign-in, carried unchanged
-/// through every refresh until `absolute_secs` after it, when the session
-/// ends whatever the refreshes. A high-impact document action wants a sign-in
-/// no older than `step_up_max_age_secs` (RFC 9470).
+/// through every refresh until `absolute_secs` after the grant's authorization
+/// code was issued, when the session ends whatever the refreshes. A high-impact
+/// document action wants a sign-in no older than `step_up_max_age_secs` (RFC
+/// 9470).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 #[expect(

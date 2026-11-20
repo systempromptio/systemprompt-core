@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Breaking
+
+- `sso::ExternalIdentity` gains `authenticated_at: Option<DateTime<Utc>>`. Migrate a provider by setting the time the identity provider asserts the person authenticated, or `None`.
+
 ## [0.84.0] - 2026-11-20
 
 ### Added

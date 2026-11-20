@@ -2,9 +2,11 @@
 //! rotation.
 //!
 //! These are the only two grants that can mint a person's UI session: the
-//! code grant for a client the operator declared `person_ui`, with the code's
-//! issue time as the sign-in, and the refresh of that grant's own token, which
-//! carries the sign-in time forward unchanged.
+//! code grant for a client the operator declared `person_ui`, and the refresh
+//! of that grant's own token. Both carry two times: the session start (when
+//! the code was issued), which anchors the absolute cap, and the sign-in (when
+//! the person presented a credential), which is the token's `auth_time`. A
+//! refresh hands both forward unchanged, for every client.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -73,7 +75,8 @@ impl TokenIssuanceOrchestrator<'_> {
                 resource: validation_result.resource.as_deref(),
                 refresh_token: &refresh_token,
                 lineage: RefreshTokenLineage::AuthorizationCode(&code),
-                authenticated_at: validation_result.issued_at,
+                session_started_at: validation_result.issued_at,
+                authenticated_at: validation_result.authenticated_at,
                 ui_session,
                 config: self.config,
             },
@@ -151,6 +154,7 @@ impl TokenIssuanceOrchestrator<'_> {
                 resource,
                 refresh_token: &MintedRefreshToken::mint(),
                 lineage: RefreshTokenLineage::Family(family_id),
+                session_started_at: consumed.session_started_at,
                 authenticated_at: consumed.authenticated_at,
                 ui_session,
                 config: self.config,

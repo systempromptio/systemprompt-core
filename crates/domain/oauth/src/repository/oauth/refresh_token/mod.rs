@@ -4,7 +4,9 @@
 //! tombstones (`consumed_at IS NOT NULL`) so a replay can be distinguished
 //! from "token never existed" and trigger family-wide revocation per
 //! RFC 6819 §5.2.2.3. `authenticated_at` is when the person signed in for the
-//! grant; a rotated token is stored with the value its predecessor carried.
+//! grant and `session_started_at` is when the authorization code the family
+//! descends from was issued; a rotated token is stored with the values its
+//! predecessor carried.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -25,6 +27,7 @@ pub struct RefreshTokenParams<'a> {
     pub expires_at: i64,
     pub resource: Option<&'a str>,
     pub authenticated_at: DateTime<Utc>,
+    pub session_started_at: DateTime<Utc>,
     pub lineage: RefreshTokenLineage<'a>,
 }
 
@@ -45,6 +48,7 @@ pub struct ConsumedRefreshToken {
     pub scope: String,
     pub family_id: RefreshTokenFamilyId,
     pub authenticated_at: DateTime<Utc>,
+    pub session_started_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone)]

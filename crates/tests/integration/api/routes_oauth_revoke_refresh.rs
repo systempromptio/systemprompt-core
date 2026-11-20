@@ -54,6 +54,7 @@ async fn fixture() -> anyhow::Result<Fixture> {
             expires_at: chrono::Utc::now().timestamp() + 3600,
             resource: None,
             authenticated_at: chrono::Utc::now(),
+            session_started_at: chrono::Utc::now(),
             lineage: RefreshTokenLineage::Family(&RefreshTokenFamilyId::new(format!(
                 "fam-{}",
                 Uuid::new_v4().simple()

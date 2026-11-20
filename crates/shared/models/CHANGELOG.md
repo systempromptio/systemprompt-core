@@ -4,6 +4,7 @@
 
 ### Breaking
 
+- `auth::TokenError` gains `SignInTimeMissing`: a `UserJwtRequest` with `browser_session` or `ui_session` set states its `auth_time`. Migrate by setting it to when the person signed in.
 - `auth::ui_session` is removed with `UI_SESSION_ACCESS_TTL_SECS`, `UI_SESSION_ABSOLUTE_SECS`, `UI_SESSION_STEP_UP_MAX_AGE_SECS` and `step_up_required`. Migrate by reading the lifetimes from `systemprompt_manifest::profile::UiSessionConfig` (`Config::ui_session`) and calling its `step_up_required`.
 
 ## [0.84.0] - 2026-11-20

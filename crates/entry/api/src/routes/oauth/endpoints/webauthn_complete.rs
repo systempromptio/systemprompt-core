@@ -123,6 +123,7 @@ pub async fn handle_webauthn_complete(
             code_challenge: params.code_challenge.as_deref().unwrap_or_default(),
             code_challenge_method: params.code_challenge_method.as_deref().unwrap_or_default(),
             resource: params.resource.as_deref(),
+            authenticated_at: chrono::Utc::now(),
         })
         .await?;
 

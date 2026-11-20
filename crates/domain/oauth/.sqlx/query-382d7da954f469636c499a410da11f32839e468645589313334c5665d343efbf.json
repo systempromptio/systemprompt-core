@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO oauth_refresh_tokens (token_id, client_id, user_id, scope, expires_at, created_at, family_id, resource, authenticated_at, session_started_at)\n                     SELECT $1, $2, $3, $4, $5, $6, $1, $7, $9, $10\n                     FROM oauth_auth_codes\n                     WHERE code = $8 AND refresh_token_id = $1\n                     FOR UPDATE",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Varchar",
+        "Varchar",
+        "Text",
+        "Timestamptz",
+        "Timestamptz",
+        "Text",
+        "Text",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "382d7da954f469636c499a410da11f32839e468645589313334c5665d343efbf"
+}

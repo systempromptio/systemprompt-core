@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "UPDATE oauth_refresh_tokens\n             SET consumed_at = $1\n             WHERE token_id = $2 AND client_id = $3\n               AND consumed_at IS NULL\n               AND expires_at >= $1\n             RETURNING user_id, scope, family_id, authenticated_at",
+  "query": "UPDATE oauth_refresh_tokens\n             SET consumed_at = $1\n             WHERE token_id = $2 AND client_id = $3\n               AND consumed_at IS NULL\n               AND expires_at >= $1\n             RETURNING user_id, scope, family_id, authenticated_at, session_started_at",
   "describe": {
     "columns": [
       {
@@ -46,6 +46,17 @@
             "name": "authenticated_at"
           }
         }
+      },
+      {
+        "ordinal": 4,
+        "name": "session_started_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "oauth_refresh_tokens",
+            "name": "session_started_at"
+          }
+        }
       }
     ],
     "parameters": {
@@ -59,8 +70,9 @@
       false,
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "9af3387b353fca9e4e1a24df8c4b3400dd2f37a1d0deda40accaf0ed47b2fd40"
+  "hash": "6a08908465d51775ef5f9ee48b74814f5398cfae043b19561982d911d8857e31"
 }

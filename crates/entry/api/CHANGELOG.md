@@ -14,6 +14,10 @@
 - `POST /oauth/revoke` admits a person's UI session as the caller, limited to tokens of the same user and the same `client_id`; revoking its refresh token also ends the bearer it presented.
 - The OAuth well-known documents and `endpoints.oauth` of `GET /api/v1` carry `ui_session_supported` and `ui_session` (`access_token_lifetime`, `session_lifetime`, `step_up_max_age`, in seconds).
 
+### Changed
+
+- The passkey completion (`/oauth/webauthn/complete`) states the sign-in time on the authorization code it mints: the moment the ceremony completes.
+
 ### Fixed
 
 - Revoking a `ui`-audience access token answered `200` and revoked nothing; its `jti` and session are now revoked.

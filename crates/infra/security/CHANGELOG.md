@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Breaking
+
+- `user_claims` and `DeploymentTokenAuthority::mint_user_jwt` return `TokenError::SignInTimeMissing` for a request with `browser_session` or `ui_session` set and `auth_time: None`; the sign-in time was defaulted to now. Migrate by setting `UserJwtRequest::auth_time`.
+
 ## [0.84.0] - 2026-11-20
 
 ### Breaking

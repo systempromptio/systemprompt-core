@@ -23,8 +23,9 @@ impl OAuthRepository {
             RefreshTokenLineage::Family(family_id) => {
                 sqlx::query!(
                     "INSERT INTO oauth_refresh_tokens (token_id, client_id, user_id, scope, \
-                     expires_at, created_at, family_id, resource, authenticated_at)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+                     expires_at, created_at, family_id, resource, authenticated_at, \
+                     session_started_at)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
                     token_id_hash,
                     client_id,
                     user_id,
@@ -33,7 +34,8 @@ impl OAuthRepository {
                     now,
                     family_id.as_str(),
                     params.resource,
-                    params.authenticated_at
+                    params.authenticated_at,
+                    params.session_started_at
                 )
                 .execute(self.write_pool_ref())
                 .await?;
@@ -42,8 +44,9 @@ impl OAuthRepository {
                 let code_hash = self.hash_at_rest(code.as_str())?;
                 let inserted = sqlx::query!(
                     "INSERT INTO oauth_refresh_tokens (token_id, client_id, user_id, scope, \
-                     expires_at, created_at, family_id, resource, authenticated_at)
-                     SELECT $1, $2, $3, $4, $5, $6, $1, $7, $9
+                     expires_at, created_at, family_id, resource, authenticated_at, \
+                     session_started_at)
+                     SELECT $1, $2, $3, $4, $5, $6, $1, $7, $9, $10
                      FROM oauth_auth_codes
                      WHERE code = $8 AND refresh_token_id = $1
                      FOR UPDATE",
@@ -55,7 +58,8 @@ impl OAuthRepository {
                     now,
                     params.resource,
                     code_hash,
-                    params.authenticated_at
+                    params.authenticated_at,
+                    params.session_started_at
                 )
                 .execute(self.write_pool_ref())
                 .await?;
@@ -100,7 +104,7 @@ impl OAuthRepository {
              WHERE token_id = $2 AND client_id = $3
                AND consumed_at IS NULL
                AND expires_at >= $1
-             RETURNING user_id, scope, family_id, authenticated_at",
+             RETURNING user_id, scope, family_id, authenticated_at, session_started_at",
             now,
             token_id_hash,
             client_id_str
@@ -114,6 +118,7 @@ impl OAuthRepository {
                 scope: row.scope,
                 family_id: RefreshTokenFamilyId::new(row.family_id),
                 authenticated_at: row.authenticated_at,
+                session_started_at: row.session_started_at,
             });
         }
 

@@ -2,7 +2,8 @@
 //! uploads routes take it, and act as the person; MCP, the gateway, A2A, the
 //! bridge stream and the other session routes refuse it by its audience; sent
 //! as the session cookie it is refused; and a high-impact action wants a
-//! sign-in no older than the step-up window (RFC 9470). The gateway is off in
+//! sign-in no older than the step-up window (RFC 9470), judged on when the
+//! person signed in and not on how new the session is. The gateway is off in
 //! this fixture; its decode is the first-party session policy, whose refusal of
 //! the `ui` audience the security unit tests pin.
 
@@ -12,7 +13,9 @@ use serde_json::{Value, json};
 
 use systemprompt_manifest::profile::UiSessionConfig;
 
-use super::routes_oauth_person_ui::{Person, claims, person, person_with, send, sign_in};
+use super::routes_oauth_person_ui::{
+    Person, SignIn, claims, person, person_with, send, sign_in, sign_in_at,
+};
 
 fn bearer(
     method: Method,
@@ -237,5 +240,44 @@ async fn the_configured_step_up_window_decides_and_is_reported() -> anyhow::Resu
     )
     .await?;
     assert_ne!(status, StatusCode::UNAUTHORIZED, "{text}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_fresh_session_with_an_old_sign_in_is_asked_to_step_up() -> anyhow::Result<()> {
+    let p = person(true).await?;
+    let window = p.ui_session.step_up_max_age_secs;
+    let fresh = ui_token(&p, 5).await?;
+    let id = create_document(&p, &fresh).await?["document"]["id"]
+        .as_str()
+        .unwrap_or_default()
+        .to_owned();
+
+    let (status, v) = sign_in_at(
+        &p,
+        SignIn {
+            code_issued_ago_secs: 0,
+            authenticated_ago_secs: 2 * window,
+        },
+    )
+    .await?;
+    assert_eq!(status, StatusCode::OK, "{v}");
+    assert_eq!(
+        v["expires_in"].as_i64(),
+        Some(p.ui_session.access_ttl_secs),
+        "{v}"
+    );
+    let new_session = v["access_token"].as_str().unwrap_or_default();
+
+    let uri = format!("/api/v1/documents/{id}");
+    let (status, text) = send(&p.app, bearer(Method::GET, &uri, new_session, None)?).await?;
+    assert_eq!(status, StatusCode::OK, "{text}");
+    let (status, text) = send(&p.app, bearer(Method::DELETE, &uri, new_session, None)?).await?;
+    assert_eq!(status, StatusCode::UNAUTHORIZED, "{text}");
+    assert!(
+        text.contains("error=\"insufficient_user_authentication\""),
+        "{text}"
+    );
+    assert!(text.contains(&format!("max_age={window}")), "{text}");
     Ok(())
 }

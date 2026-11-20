@@ -84,6 +84,7 @@ pub(super) async fn seed_grant(resource: Option<&str>) -> anyhow::Result<SeededG
         scope: "user",
         code_challenge: &pair.challenge,
         resource,
+        authenticated_at: chrono::Utc::now(),
     };
     repo.store_authorization_code(params)
         .await

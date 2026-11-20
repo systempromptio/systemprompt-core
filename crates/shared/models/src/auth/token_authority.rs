@@ -61,6 +61,12 @@ pub enum TokenError {
     UiSessionShape,
 
     #[error(
+        "a browser session or ui_session token states when the person signed in; the request \
+         carries no auth_time"
+    )]
+    SignInTimeMissing,
+
+    #[error(
         "signed claims must carry a numeric `exp` claim at most {max_lifetime_secs}s (365 days) \
          after now; got {}",
         exp.map_or_else(|| "no `exp`".to_owned(), |exp| format!("exp={exp}"))
