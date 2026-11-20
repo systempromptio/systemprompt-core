@@ -70,6 +70,9 @@ fn a_core_path_requesting_a_grant_its_row_does_not_list_is_refused() {
 
 #[test]
 fn a_core_path_requesting_a_grant_its_row_lists_is_admitted() {
-    CommandRegistry::build(&forged_cloud(&[KernelGrant::BootProfile]), &kernel_commands())
-        .expect("negative control: the cloud row lists boot-profile");
+    CommandRegistry::build(
+        &forged_cloud(&[KernelGrant::BootProfile]),
+        &kernel_commands(),
+    )
+    .expect("negative control: the cloud row lists boot-profile");
 }
