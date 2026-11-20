@@ -2,10 +2,10 @@
 //!
 //! Every admitted route set and gateway route that uses a privilege — a
 //! reserved prefix, a closed core base, the engagement web path, a
-//! handler-verified policy, the agent body limit, a kernel handle or a
-//! gateway path — must match a [`PRIVILEGED_SHAPES`] entry exactly (base,
-//! group, allowance, shape, routes); its owner must be that entry's
-//! [`CoreId`]; and no owner may hold privileges under two core ids. A
+//! handler-verified policy, the UI-session context, the agent body limit, a
+//! kernel handle or a gateway path — must match a [`PRIVILEGED_SHAPES`] entry
+//! exactly (base, group, allowance, shape, routes); its owner must be that
+//! entry's [`CoreId`]; and no owner may hold privileges under two core ids. A
 //! handoff built any other way than by the composition therefore gains
 //! nothing beyond a listed shape. A nested service is never privileged: it
 //! is held only by an install, at an unreserved extension base or the web
@@ -80,18 +80,12 @@ fn recheck_route_set(
         needed.push(Allowance::ReservedPrefix);
     }
     for def in set.defs() {
-        if let Some(pinned) = pinned_at(path_ref, def) {
-            needed.push(pinned.allowance);
-        }
-        if let Some(verifier) = def.spec.policy.handler_verifier() {
-            needed.push(Allowance::HandlerVerified(verifier));
-        }
-        if def.spec.context == ContextKind::UserUi {
-            needed.push(Allowance::UiSession);
-        }
-        if def.spec.limits.body == BodyLimit::Agent {
-            needed.push(Allowance::BodyLimit);
-        }
+        let spec = &def.spec;
+        let verifier = spec.policy.handler_verifier();
+        needed.extend(pinned_at(path_ref, def).map(|pinned| pinned.allowance));
+        needed.extend(verifier.map(Allowance::HandlerVerified));
+        needed.extend((spec.context == ContextKind::UserUi).then_some(Allowance::UiSession));
+        needed.extend((spec.limits.body == BodyLimit::Agent).then_some(Allowance::BodyLimit));
     }
     recheck_services(admitted, base, &needed)?;
     let privileged = !needed.is_empty() || !admitted.handles.is_empty();

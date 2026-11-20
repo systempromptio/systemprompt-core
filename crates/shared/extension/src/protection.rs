@@ -23,8 +23,9 @@ use crate::authz::AuthzPolicy;
 ///
 /// `HandlerResolved` mounts none and pairs only with a handler-verified
 /// policy. `UserUi` is the user context that also admits a person's UI
-/// session (the `ui` audience); it is conferred, never plain. Deliberately exhaustive: the host matches every kind, so a new kind
-/// cannot reach a wildcard arm and mount with less protection.
+/// session (the `ui` audience); it is conferred, never plain. Deliberately
+/// exhaustive: the host matches every kind, so a new kind cannot reach a
+/// wildcard arm and mount with less protection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ContextKind {
     Public,

@@ -19,10 +19,11 @@
 use systemprompt_identifiers::{
     DocumentCommentId, DocumentId, DocumentOpId, DocumentProposalId, DocumentRevisionId, UserId,
 };
-use systemprompt_models::documents::{ActorKind, Projection};
+use systemprompt_models::documents::Projection;
 use systemprompt_traits::RepositoryError;
 
 use super::landing_ids::{Carried, carry, reserve};
+use super::provenance::mark_agent_content;
 use super::{CommentPolicy, DocumentService};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{
@@ -141,23 +142,7 @@ async fn claim_op(
     Ok(DocumentWriteAckRepository::claim(tx, claim).await?)
 }
 
-pub(super) async fn mark_agent_content(
-    tx: &mut sqlx::PgConnection,
-    document: &DocumentId,
-    authored: bool,
-    settles: Option<&DocumentProposalId>,
-) -> Result<(), DocumentsError> {
-    if authored || settles.is_some() {
-        DocumentRepository::mark_agent_content_in(tx, document, authored, settles).await?;
-    }
-    Ok(())
-}
-
 impl DocumentService {
-    pub(super) fn agent_wrote(&self, actor_kind: ActorKind) -> bool {
-        actor_kind == ActorKind::Agent || self.access.actor().as_agent().is_some()
-    }
-
     async fn detached_by(
         &self,
         document: &Document,

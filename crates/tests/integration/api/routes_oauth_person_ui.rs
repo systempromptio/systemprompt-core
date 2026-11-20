@@ -48,7 +48,7 @@ pub(super) async fn person(person_ui: bool) -> anyhow::Result<Person> {
         None,
         &std::sync::Arc::new(ReadinessState::new()),
     )
-        .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
+    .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
     let user = UserId::new(Uuid::new_v4().to_string());
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")
         .bind(user.as_str())

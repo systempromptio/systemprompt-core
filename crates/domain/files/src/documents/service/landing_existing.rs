@@ -9,7 +9,8 @@
 use systemprompt_identifiers::{DocumentProposalId, DocumentRevisionId};
 
 use super::DocumentService;
-use super::landing::{mark_agent_content, sql};
+use super::landing::sql;
+use super::provenance::mark_agent_content;
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentRevision};
 use crate::documents::repository::{
