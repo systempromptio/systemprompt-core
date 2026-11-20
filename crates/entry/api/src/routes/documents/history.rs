@@ -22,6 +22,7 @@ use systemprompt_identifiers::{DocumentId, DocumentRevisionId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::documents::{DocumentFormat, Projection};
 use systemprompt_provider_contracts::FrameOptions;
+use systemprompt_runtime::documents::attribution::owned_context_names;
 
 use super::DocumentsState;
 use super::caller::{Caller, caller};
@@ -63,8 +64,19 @@ pub(super) async fn revisions(
         .service
         .history(&who.user, &id, page, &who.trace)
         .await?;
+    let names = owned_context_names(
+        state.contexts.as_ref(),
+        &who.user.id,
+        revisions
+            .iter()
+            .filter_map(|revision| revision.attribution.context_id.as_ref()),
+    )
+    .await?;
     Ok(Json(HistoryJson {
-        revisions: revisions.into_iter().map(Into::into).collect(),
+        revisions: revisions
+            .into_iter()
+            .map(|revision| RevisionJson::from(revision).named(&names))
+            .collect(),
     }))
 }
 
@@ -186,6 +198,6 @@ async fn pdf_preview(
         HeaderValue::from_static("inline"),
     );
     set_revision_tags(headers, &revision.id, &revision.content_sha256);
-    harden(&mut response, INLINE_PDF_CSP);
+    harden(&mut response, HeaderValue::from_static(INLINE_PDF_CSP));
     Ok(Some(response))
 }

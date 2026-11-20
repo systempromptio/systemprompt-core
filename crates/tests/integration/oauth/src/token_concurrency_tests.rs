@@ -229,6 +229,7 @@ async fn test_refresh_token_replay_revokes_family() {
         scope: "openid",
         expires_at,
         resource: None,
+        authenticated_at: chrono::Utc::now(),
         lineage: RefreshTokenLineage::Family(&RefreshTokenFamilyId::new(format!(
             "fam-{}",
             uuid::Uuid::new_v4()
@@ -251,6 +252,7 @@ async fn test_refresh_token_replay_revokes_family() {
         scope: "openid",
         expires_at,
         resource: None,
+        authenticated_at: chrono::Utc::now(),
         lineage: RefreshTokenLineage::Family(&family),
     })
     .await
@@ -308,6 +310,7 @@ async fn test_concurrent_refresh_rotation_admits_exactly_one() {
         scope: "openid",
         expires_at,
         resource: None,
+        authenticated_at: chrono::Utc::now(),
         lineage: RefreshTokenLineage::Family(&RefreshTokenFamilyId::new(format!(
             "fam-{}",
             uuid::Uuid::new_v4()

@@ -1,8 +1,8 @@
 //! Conversation context provider trait used by chat and agent surfaces.
 //!
-//! `ContextMaterializer` is dispatched as a trait object
-//! (`dyn ContextMaterializer`), so it uses `#[async_trait]`; native `async fn`
-//! in traits is not yet `dyn`-compatible. `ContextProvider` is only used
+//! `ContextMaterializer` and `ContextDirectory` are dispatched as trait
+//! objects, so they use `#[async_trait]`; native `async fn` in traits is not
+//! yet `dyn`-compatible. `ContextProvider` is only used
 //! through concrete types and declares native `async` methods.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -10,6 +10,7 @@
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
+use std::collections::HashMap;
 use std::future::Future;
 use std::sync::Arc;
 use systemprompt_identifiers::{ContextId, SessionId, UserId};
@@ -140,3 +141,33 @@ pub trait ContextMaterializer: Send + Sync {
 }
 
 pub type DynContextMaterializer = Arc<dyn ContextMaterializer>;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OwnedContextSummary {
+    pub context_id: ContextId,
+    pub name: String,
+}
+
+/// Lookups of the conversation contexts one user owns.
+///
+/// For surfaces outside the agent domain that attribute work to a
+/// conversation (the document store): a context another user owns reads as
+/// absent, so a caller can never learn that it exists.
+///
+/// Injected as `dyn ContextDirectory`, hence `#[async_trait]`.
+#[async_trait]
+pub trait ContextDirectory: Send + Sync {
+    async fn owned_context(
+        &self,
+        user_id: &UserId,
+        context_id: &ContextId,
+    ) -> Result<Option<OwnedContextSummary>, ContextProviderError>;
+
+    async fn owned_names(
+        &self,
+        user_id: &UserId,
+        context_ids: &[ContextId],
+    ) -> Result<HashMap<ContextId, String>, ContextProviderError>;
+}
+
+pub type DynContextDirectory = Arc<dyn ContextDirectory>;

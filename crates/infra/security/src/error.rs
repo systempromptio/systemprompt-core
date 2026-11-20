@@ -49,6 +49,12 @@ pub enum AuthError {
     #[error("audience policy is empty; token decoding requires at least one expected audience")]
     EmptyAudiencePolicy,
 
+    #[error(
+        "token pairs the `ui_session` claim or the `ui` audience with anything but exactly the \
+         `ui` audience, a client_id, no purpose, no act chain and no browser session"
+    )]
+    UiSessionShape,
+
     #[error("token is missing `kid` header")]
     MissingKid,
 

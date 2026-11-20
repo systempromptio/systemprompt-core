@@ -35,6 +35,9 @@ pub fn route(event: &Normalised, candidate: &FactCandidate) -> Routed {
         EventPayload::Comment(resolved) => {
             (resolved.folder_id.as_ref(), resolved.comment_author.clone())
         },
+        EventPayload::Reopened(reopened) => {
+            (reopened.folder_id.as_ref(), reopened.comment_author.clone())
+        },
         EventPayload::Entered(_) | EventPayload::Session(_) => (None, event.actor().clone()),
     };
     let scope = candidate

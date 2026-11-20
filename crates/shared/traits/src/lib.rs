@@ -124,8 +124,9 @@ pub use managed_resources::{
 };
 
 pub use context_provider::{
-    ContextMaterializer, ContextProvider, ContextProviderError, ContextStats, ContextWithStats,
-    DynContextMaterializer, EnsureContextParams,
+    ContextDirectory, ContextMaterializer, ContextProvider, ContextProviderError, ContextStats,
+    ContextWithStats, DynContextDirectory, DynContextMaterializer, EnsureContextParams,
+    OwnedContextSummary,
 };
 
 pub use validation::{MetadataValidation, MetadataValidationError, Validate, ValidationResult};

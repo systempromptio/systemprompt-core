@@ -11,11 +11,11 @@ use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::execution::context::RequestContext;
 
+use crate::documents::actor::signed_agent_name;
 use crate::documents::{active_user_display, subject_display};
 
 use super::DocumentsMcpTools;
 use super::inputs::ShareInput;
-use super::mentions::agent_origin;
 use super::outputs::ShareOutput;
 use super::refusal::refusal;
 use super::support::{caller, tool_error};
@@ -73,7 +73,7 @@ impl ShareHandler<'_> {
                     level,
                     valid_until: input.valid_until,
                     message: input.message,
-                    via_agent: agent_origin(ctx).via_agent,
+                    via_agent: Some(signed_agent_name(ctx)),
                 },
                 ctx.trace_id(),
             )

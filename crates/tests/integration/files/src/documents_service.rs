@@ -67,6 +67,7 @@ async fn import_markdown(
                 mime_type: None,
                 bytes: text.as_bytes().to_vec(),
                 author: api_author(),
+                message: None,
             },
             &trace(),
         )
@@ -357,6 +358,7 @@ async fn a_group_folder_grant_reaches_members_only() {
             ListFolderRequest {
                 scope: ListScope::Folder,
                 folder: Some(folder.id.clone()),
+                context_id: None,
                 query: None,
                 sort: ListSort::Updated,
                 cursor: None,

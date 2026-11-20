@@ -2,7 +2,8 @@
 //!
 //! `POST /` takes JSON to create from a template, or `multipart/form-data`
 //! to import an uploaded file (parts `file`, optional `name`, `folder_id`,
-//! `format`). A multipart file is first stored as an upload, so it passes
+//! `format`, `message`); either form's `message` is stored on the first
+//! revision. A multipart file is first stored as an upload, so it passes
 //! the same content checks, quota and recorded MIME type as the resumable
 //! API, and is then imported from that blob exactly as `POST /import` does.
 //!
@@ -93,6 +94,8 @@ pub(super) struct CreateBody {
     name: String,
     #[serde(default)]
     params: TemplateParams,
+    #[serde(default)]
+    message: Option<String>,
 }
 
 pub(super) async fn create(
@@ -101,7 +104,7 @@ pub(super) async fn create(
     request: Request,
 ) -> DocumentsResult<Response> {
     let who = caller(&state, &req_ctx).await?;
-    let author = api_author(&req_ctx, request.headers());
+    let author = api_author(&state, &req_ctx, request.headers()).await?;
     let multipart = request
         .headers()
         .get(header::CONTENT_TYPE)
@@ -117,6 +120,7 @@ pub(super) async fn create(
             mime: file.mime,
             bytes: file.bytes,
             author,
+            message: file.message,
         };
         state
             .service
@@ -131,7 +135,7 @@ pub(super) async fn create(
             params: body.params,
             ops: Vec::new(),
             author,
-            message: None,
+            message: body.message,
             content: None,
             media: Media::new(),
         };

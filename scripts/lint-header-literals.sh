@@ -36,7 +36,7 @@ defined=$(
         grep -hoE 'const [A-Z_]+: &str = "x-[a-z0-9-]+"' "$f" | grep -oE '"x-[a-z0-9-]+"' | tr -d '"'
     done | sort -u
 )
-defined_alt=$(paste -sd'|' <<<"$defined")
+defined_alt=$(paste -sd'|' - <<<"$defined")
 own_ns='x-(systemprompt|bridge)-[a-z0-9-]*'
 
 declare -A allowed

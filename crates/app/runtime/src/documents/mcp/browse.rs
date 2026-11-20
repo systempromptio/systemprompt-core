@@ -4,10 +4,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::HashMap;
+
 use rmcp::ErrorData as McpError;
-use systemprompt_files::documents::models::{
-    Document, ListScope, ListSort, ListedDocument, ListingCursor,
-};
+use systemprompt_files::documents::models::{Document, ListedDocument, ListingCursor};
 use systemprompt_files::documents::service::{HistoryPage, ListFolderRequest};
 use systemprompt_identifiers::McpExecutionId;
 use systemprompt_mcp::McpToolHandler;
@@ -15,12 +15,13 @@ use systemprompt_models::documents::DocumentUri;
 use systemprompt_models::execution::context::RequestContext;
 
 use super::DocumentsMcpTools;
-use super::inputs::{HistoryInput, ListInput, ListScopeInput, ListSortInput, SearchInput};
+use super::inputs::{HistoryInput, ListInput, ListScopeInput, SearchInput};
 use super::outputs::{
     DocumentItem, FolderItem, HistoryOutput, ListOutput, RevisionAttributionItem, RevisionItem,
     SearchHit, SearchOutput,
 };
 use super::support::{caller, clamp_limit, tool_error};
+use crate::documents::attribution::{attributed_context, owned_context_names};
 
 fn document_uri(document: &Document) -> DocumentUri {
     let uri = DocumentUri::new(document.id.clone());
@@ -49,23 +50,6 @@ fn listed_item(listed: ListedDocument, verbose: bool) -> DocumentItem {
         size_bytes: listed.size_bytes,
         my_access: Some(listed.my_access),
         ..document_item(listed.document, verbose)
-    }
-}
-
-const fn scope(input: ListScopeInput) -> ListScope {
-    match input {
-        ListScopeInput::Folder => ListScope::Folder,
-        ListScopeInput::Shared => ListScope::Shared,
-        ListScopeInput::Mine => ListScope::Mine,
-        ListScopeInput::Recent => ListScope::Recent,
-    }
-}
-
-const fn sort(input: ListSortInput) -> ListSort {
-    match input {
-        ListSortInput::Name => ListSort::Name,
-        ListSortInput::Updated => ListSort::Updated,
-        ListSortInput::Recent => ListSort::Recent,
     }
 }
 
@@ -110,16 +94,28 @@ impl McpToolHandler for ListHandler<'_> {
                 })
             })
             .transpose()?;
+        let context_id = if input.scope == ListScopeInput::Context {
+            let claimed = input
+                .context_id
+                .as_ref()
+                .unwrap_or_else(|| ctx.context_id());
+            attributed_context(self.tools.contexts().as_ref(), ctx, Some(claimed))
+                .await
+                .map_err(tool_error)?
+        } else {
+            None
+        };
         let listing = self
             .tools
             .service()
             .list_folder(
                 who,
                 ListFolderRequest {
-                    scope: scope(input.scope),
+                    scope: input.scope.scope(),
                     folder: input.folder_id,
+                    context_id,
                     query: input.query,
-                    sort: sort(input.sort),
+                    sort: input.sort.sort(),
                     cursor,
                     limit: clamp_limit(input.limit),
                 },
@@ -246,6 +242,19 @@ impl McpToolHandler for HistoryHandler<'_> {
             .await
             .map_err(tool_error)?;
         let verbose = input.verbose;
+        let names = if verbose {
+            owned_context_names(
+                self.tools.contexts().as_ref(),
+                &who.id,
+                revisions
+                    .iter()
+                    .filter_map(|r| r.attribution.context_id.as_ref()),
+            )
+            .await
+            .map_err(tool_error)?
+        } else {
+            HashMap::new()
+        };
         let revisions: Vec<RevisionItem> = revisions
             .into_iter()
             .map(|r| RevisionItem {
@@ -257,12 +266,19 @@ impl McpToolHandler for HistoryHandler<'_> {
                 actor_kind: r.actor_kind,
                 message: r.message,
                 content_sha256: verbose.then_some(r.content_sha256),
-                attribution: verbose.then_some(RevisionAttributionItem {
+                attribution: verbose.then(|| RevisionAttributionItem {
+                    context_name: r
+                        .attribution
+                        .context_id
+                        .as_ref()
+                        .and_then(|id| names.get(id).cloned()),
                     session_id: r.attribution.session_id,
                     context_id: r.attribution.context_id,
                     trace_id: r.attribution.trace_id,
                     task_id: r.attribution.task_id,
                     on_behalf_of: r.attribution.on_behalf_of,
+                    agent_name: r.attribution.agent_name,
+                    client_id: r.attribution.client_id,
                 }),
                 created_at: r.created_at,
             })

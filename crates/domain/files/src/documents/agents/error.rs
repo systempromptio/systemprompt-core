@@ -38,6 +38,16 @@ pub enum AgentRefusal {
         blocks: usize,
     },
     #[error(
+        "agent {agent}'s str_replace replaces {replaced} of this document's {size} bytes, which \
+         is as much as replacing it; edit the blocks you mean to change, land it with mode: \
+         propose for a person to review, or ask the user to make the change"
+    )]
+    WholesaleReplace {
+        agent: AgentName,
+        replaced: usize,
+        size: usize,
+    },
+    #[error(
         "agents may only suggest on this document: {reason}. Write the change with mode: \
          propose and a person will review it"
     )]

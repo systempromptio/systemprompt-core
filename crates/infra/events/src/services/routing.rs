@@ -18,6 +18,10 @@
 //! through the *local-only* path (`route_*_local`) — never back through
 //! the outbox, which would loop forever.
 //!
+//! [`EventRouter::route_agui_many`] addresses one AG-UI event to many users
+//! through a single outbox row; the receiving bridge fans it out to each
+//! recipient locally.
+//!
 //! An [`EventRouter`] is a value built once at the composition root and
 //! handed to whatever routes events: [`EventRouter::with_outbox`] relays
 //! through the given pool, [`EventRouter::local_only`] never touches the
@@ -30,51 +34,20 @@ use std::sync::Arc;
 use systemprompt_identifiers::{EventOutboxId, InstanceId, UserId};
 use tracing::debug;
 
+use super::TopicEvent;
 use super::repository::{EventOutboxRepository, OutboxInsert};
-use super::{
-    A2ABroadcaster, AgUiBroadcaster, AnalyticsBroadcaster, ContextBroadcaster, TopicBroadcaster,
-    TopicEvent,
-};
 use crate::Broadcaster;
 use crate::error::{RelayError, RelayOutcome, RouteOutcome};
 use systemprompt_identifiers::Actor;
 use systemprompt_models::{A2AEvent, AgUiEvent, AnalyticsEvent, ContextEvent, SystemEvent};
 
+pub use super::event_broadcasters::{BroadcasterConnections, EventBroadcasters};
 pub use super::outbox_channel::{NOTIFICATION_FACTS_CHANNEL, OUTBOX_CHANNEL, OutboxChannel};
 
-/// The fan-out points for every event kind, built once and shared by the
-/// router, the cross-replica bridge and the SSE endpoints of one process.
-#[derive(Debug, Default)]
-pub struct EventBroadcasters {
-    pub context: Arc<ContextBroadcaster>,
-    pub agui: Arc<AgUiBroadcaster>,
-    pub a2a: Arc<A2ABroadcaster>,
-    pub analytics: Arc<AnalyticsBroadcaster>,
-    pub topics: Arc<TopicBroadcaster>,
-}
-
-impl EventBroadcasters {
-    #[must_use]
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub async fn total_connections(&self) -> BroadcasterConnections {
-        BroadcasterConnections {
-            context: self.context.total_connections().await,
-            agui: self.agui.total_connections().await,
-            a2a: self.a2a.total_connections().await,
-            analytics: self.analytics.total_connections().await,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct BroadcasterConnections {
-    pub context: usize,
-    pub agui: usize,
-    pub a2a: usize,
-    pub analytics: usize,
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub(super) struct AgUiFanOut {
+    pub(super) recipients: Vec<UserId>,
+    pub(super) event: AgUiEvent,
 }
 
 /// Routes events to local subscribers and, when built with an outbox, to the
@@ -223,6 +196,32 @@ impl EventRouter {
             .await;
         let local = self.route_agui_local(user_id, event).await;
         RouteOutcome { local, relay }
+    }
+
+    pub async fn route_agui_many(
+        &self,
+        actor: &UserId,
+        recipients: &[UserId],
+        event: AgUiEvent,
+    ) -> RouteOutcome<usize> {
+        let fan_out = AgUiFanOut {
+            recipients: recipients.to_vec(),
+            event,
+        };
+        let relay = self
+            .enqueue_outbox(OutboxChannel::AgUiMany, actor, &fan_out)
+            .await;
+        let local = self.route_agui_many_local(fan_out).await;
+        RouteOutcome { local, relay }
+    }
+
+    pub(super) async fn route_agui_many_local(&self, fan_out: AgUiFanOut) -> usize {
+        let mut reached = 0;
+        for user in &fan_out.recipients {
+            let (agui, _context) = self.route_agui_local(user, fan_out.event.clone()).await;
+            reached += agui;
+        }
+        reached
     }
 
     pub async fn route_a2a(

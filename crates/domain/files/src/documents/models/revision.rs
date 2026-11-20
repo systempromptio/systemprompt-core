@@ -5,7 +5,8 @@
 
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{
-    ContentHash, ContextId, DocumentId, DocumentRevisionId, SessionId, TaskId, TraceId, UserId,
+    AgentName, ClientId, ContentHash, ContextId, DocumentId, DocumentRevisionId, SessionId, TaskId,
+    TraceId, UserId,
 };
 use systemprompt_models::documents::{ActorKind, EditOp};
 use systemprompt_traits::StoredFileId;
@@ -37,7 +38,8 @@ pub struct DocumentRevision {
 }
 
 /// The request a revision was written in: the session, conversation context,
-/// trace and task, and the user an agent acted for.
+/// trace and task, the user an agent acted for, and the agent and OAuth
+/// client that wrote it.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct RevisionAttribution {
     pub session_id: Option<SessionId>,
@@ -45,6 +47,8 @@ pub struct RevisionAttribution {
     pub trace_id: Option<TraceId>,
     pub task_id: Option<TaskId>,
     pub on_behalf_of: Option<UserId>,
+    pub agent_name: Option<AgentName>,
+    pub client_id: Option<ClientId>,
 }
 
 #[derive(Debug, Clone)]

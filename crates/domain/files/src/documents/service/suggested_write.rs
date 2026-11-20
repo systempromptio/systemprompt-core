@@ -6,7 +6,9 @@
 //!
 //! A proposal is reviewed before it can change the document, so this path
 //! does not need the `replace_content` capability a landed whole-file write
-//! does. It counts as one agent edit against the hourly ceiling.
+//! does. It counts as one agent edit against the hourly ceiling. A caller
+//! that asked to propose (or whose edit mode resolves to propose) writes the
+//! same whole-body proposal directly, with comment access.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -48,6 +50,18 @@ impl DocumentService {
         Ok(ExternalWrite::Landed(
             self.commit_external(who, request, trace).await?,
         ))
+    }
+
+    pub async fn propose_write(
+        &self,
+        who: &AuthenticatedUser,
+        request: CommitRequest,
+        trace: &TraceId,
+    ) -> Result<Proposed, DocumentsError> {
+        let document = self
+            .authorized_document(who, &request.document_id, DocumentAction::Comment, trace)
+            .await?;
+        self.propose_external(who, &document, request, trace).await
     }
 
     async fn suggest_only(

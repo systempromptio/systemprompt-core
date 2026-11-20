@@ -51,7 +51,7 @@ pub(super) async fn copy(
         source: document_id(&id)?,
         name: body.name,
         folder: body.folder_id,
-        author: api_author(&req_ctx, &headers),
+        author: api_author(&state, &req_ctx, &headers).await?,
     };
     let (document, revision) = state.service.copy(&who.user, request, &who.trace).await?;
     let created = CreatedJson {

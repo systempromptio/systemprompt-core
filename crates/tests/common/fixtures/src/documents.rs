@@ -115,5 +115,8 @@ pub fn fixture_documents_runtime_configured(
         )),
         background_tasks,
         unscoped_actor: Some(DocumentActor::Human),
+        contexts: Arc::new(systemprompt_agent::services::ContextProviderService::new(
+            systemprompt_agent::repository::ContextRepository::new(pool),
+        )),
     }))
 }

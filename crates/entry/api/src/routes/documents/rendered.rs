@@ -5,10 +5,12 @@
 //! CSP carries `sandbox` without `allow-same-origin`, which makes the page
 //! an opaque-origin document wherever it is opened, framed or not: it holds
 //! no session, reads no cookie and reaches no route of this installation.
-//! `files.documents.renderedHtml` decides whether its scripts run and
-//! whether it loads `https:` assets; both are off unless the profile turns
-//! them on. The response is never cached, so a profile change applies to the
-//! next load. Only the app may frame it.
+//! `files.documents.renderedHtml` decides whether its scripts run and which
+//! `https` origins it loads from, at two tiers: a document that carries
+//! agent content (its sticky `agent_content` flag) is served under
+//! `agentAuthored`, never wider than the top level. Both tiers' policies are
+//! built once, when the profile loads. The response is never cached. Only
+//! the app may frame it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -28,7 +30,7 @@ use super::content::{RevisionQuery, request_context, revision_id};
 use super::error::DocumentsResult;
 use super::headers::set_revision_tags;
 use super::items::document_id;
-use crate::routes::user_content::{harden, rendered_html_csp};
+use crate::routes::user_content::harden;
 
 const RENDERED_OP: &str = "rendered";
 
@@ -80,10 +82,10 @@ pub(super) async fn rendered(
         HeaderValue::from_static("no-referrer"),
     );
     set_revision_tags(headers, &revision.id, &revision.content_sha256);
-    let policy = &state.service.config().rendered_html;
+    let agent_content = state.service.agent_content(&id).await?;
     harden(
         &mut response,
-        rendered_html_csp(policy.scripts, policy.remote_assets),
+        state.service.config().rendered_html.csp(agent_content),
     );
     Ok(response)
 }

@@ -3,10 +3,10 @@
 //! A cycle pulls before it uploads, so a local edit is always committed on
 //! top of the newest head this device knows of. Editing beacons go first,
 //! while a touched file still differs from the synced revision, and a beacon
-//! that fails never holds up the sync. Cycles are woken by the
-//! watcher, a `document.revision.created` frame, an explicit "sync now" or the
-//! [`TICK`], and serialised on the handle's cycle lock. Every failure is
-//! logged and recorded as the status's `last_error`; `synced_at` moves only
+//! that fails never holds up the sync. Cycles are woken by the watcher, a
+//! `document.drive.changed` frame, an explicit "sync now" or the [`TICK`],
+//! and serialised on the handle's cycle lock. Every failure is logged and
+//! recorded as the status's `last_error`; `synced_at` moves only
 //! when a whole cycle succeeded. A server with the document store disabled is
 //! not a failure: the status turns `enabled = false` with no error and the
 //! loop re-checks at its normal cadence. The status turns `enabled = true`
@@ -148,8 +148,8 @@ impl Runner<'_> {
                 }
                 ours
             },
-            DriveSignal::RevisionCreated(event) => {
-                tracing::debug!(document_id = %event.document_id, "drive revision announced");
+            DriveSignal::DriveChanged => {
+                tracing::debug!("drive change announced");
                 true
             },
             DriveSignal::Notice(notice) => {

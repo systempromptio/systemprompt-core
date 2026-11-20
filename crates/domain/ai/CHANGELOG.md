@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.84.0] - 2026-11-20
+
+### Fixed
+
+- `AiService::generate_with_tools` and `execute_tools` materialise the request's context as the user's before the tool calls go out (`RequestStorage::materialize_context`).
+
 ## [0.83.0] - 2026-11-17
 
 ### Breaking

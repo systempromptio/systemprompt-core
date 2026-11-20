@@ -1,6 +1,7 @@
 //! `GET /api/v1/documents/{id}/rendered`: an HTML document's stored bytes
 //! served inline under a sandbox policy that never grants the app's origin,
-//! with scripts and remote assets admitted only by `renderedHtml`.
+//! with scripts and listed remote origins admitted only by `renderedHtml`,
+//! and a document with agent content served under its `agentAuthored` tier.
 
 use std::sync::Arc;
 
@@ -10,7 +11,7 @@ use axum::http::{Method, StatusCode, header};
 use serde_json::json;
 use systemprompt_api::routes::documents::DocumentsState;
 use systemprompt_database::DbPool;
-use systemprompt_files::{DocumentsConfig, RenderedHtmlConfig};
+use systemprompt_files::{DocumentsConfig, RemoteOrigin, RenderedHtmlConfig, RenderedHtmlTier};
 use systemprompt_test_fixtures::{
     AuthedFixture, ensure_test_bootstrap, fixture_app_context_documents_configured, fixture_config,
     seed_bridge_credential, test_db_pool,
@@ -110,45 +111,104 @@ async fn a_rendered_page_is_the_stored_bytes_inline_and_runs_nothing_by_default(
     assert!(!policy.contains("allow-"), "{policy}");
     assert!(!policy.contains("script-src"), "{policy}");
     assert!(!policy.contains("https:"), "{policy}");
+    assert!(policy.contains("base-uri 'none'"), "{policy}");
+    Ok(())
+}
+
+fn tiers(top: (bool, &[&str]), agent: (bool, &[&str])) -> Result<RenderedHtmlConfig> {
+    let tier = |(scripts, origins): (bool, &[&str])| -> Result<RenderedHtmlTier> {
+        Ok(RenderedHtmlTier {
+            scripts,
+            remote_origins: origins
+                .iter()
+                .map(|origin| RemoteOrigin::try_new(*origin))
+                .collect::<Result<_, _>>()?,
+        })
+    };
+    Ok(RenderedHtmlConfig::new(tier(top)?, tier(agent)?)?)
+}
+
+fn assert_never_widened(policy: &str) {
+    for never in [
+        "allow-same-origin",
+        "allow-top-navigation",
+        "allow-popups",
+        "allow-forms",
+        "connect-src",
+        "https:;",
+        "https: ",
+        "*",
+    ] {
+        assert!(!policy.contains(never), "{never} in {policy}");
+    }
+    assert!(policy.contains("default-src 'none'"), "{policy}");
+    assert!(policy.contains("form-action 'none'"), "{policy}");
+    assert!(policy.contains("base-uri 'none'"), "{policy}");
+}
+
+async fn flag_agent_content(pool: &DbPool, id: &str) -> Result<()> {
+    sqlx::query("UPDATE documents SET agent_content = true WHERE id = $1::uuid")
+        .bind(id)
+        .execute(pool.write_pool().as_ref())
+        .await?;
     Ok(())
 }
 
 #[tokio::test]
 async fn each_rendered_html_switch_widens_only_its_own_directives() -> Result<()> {
-    let cases = [
-        (true, false, true, false),
-        (false, true, false, true),
-        (true, true, true, true),
-    ];
-    for (scripts, remote_assets, runs, remote) in cases {
-        let (pool, state) = configured(RenderedHtmlConfig {
-            scripts,
-            remote_assets,
-        })
-        .await?;
+    const CDN: &str = "https://cdn.example.com";
+    let cases: [(bool, &[&str]); 3] = [(true, &[]), (false, &[CDN]), (true, &[CDN])];
+    for (scripts, origins) in cases {
+        let (pool, state) = configured(tiers((scripts, origins), (false, &[]))?).await?;
         let owner = seed_bridge_credential(&pool, "docs-rendered-on").await?;
         let id = designed_page(&state, &owner).await?;
         let policy = csp(&rendered(&state, &owner, &id).await?);
-        assert_eq!(policy.contains("sandbox allow-scripts;"), runs, "{policy}");
-        assert_eq!(policy.contains("script-src"), runs, "{policy}");
-        assert_eq!(policy.contains("https:"), remote, "{policy}");
+        let remote = !origins.is_empty();
         assert_eq!(
-            policy.contains("script-src 'unsafe-inline' 'unsafe-eval' https:"),
-            runs && remote,
+            policy.contains("sandbox allow-scripts;"),
+            scripts,
             "{policy}"
         );
-        for never in [
-            "allow-same-origin",
-            "allow-top-navigation",
-            "allow-popups",
-            "allow-forms",
-            "connect-src",
-        ] {
-            assert!(!policy.contains(never), "{never} in {policy}");
-        }
-        assert!(policy.contains("default-src 'none'"), "{policy}");
-        assert!(policy.contains("form-action 'none'"), "{policy}");
+        assert_eq!(policy.contains("script-src"), scripts, "{policy}");
+        assert_eq!(policy.contains(CDN), remote, "{policy}");
+        assert_eq!(
+            policy.contains(&format!("script-src 'unsafe-inline' 'unsafe-eval' {CDN}")),
+            scripts && remote,
+            "{policy}"
+        );
+        assert_eq!(
+            policy.contains(&format!("img-src data: blob: {CDN};")),
+            remote,
+            "{policy}"
+        );
+        assert_never_widened(&policy);
     }
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_document_with_agent_content_is_served_under_the_agent_tier() -> Result<()> {
+    const CDN: &str = "https://cdn.example.com";
+    const FONTS: &str = "https://fonts.example.com";
+    let (pool, state) = configured(tiers((true, &[CDN, FONTS]), (false, &[FONTS]))?).await?;
+    let owner = seed_bridge_credential(&pool, "docs-rendered-tier").await?;
+    let id = designed_page(&state, &owner).await?;
+
+    let person = csp(&rendered(&state, &owner, &id).await?);
+    assert!(person.starts_with("sandbox allow-scripts;"), "{person}");
+    assert!(person.contains(CDN) && person.contains(FONTS), "{person}");
+    assert_never_widened(&person);
+
+    flag_agent_content(&pool, &id).await?;
+    let agent = csp(&rendered(&state, &owner, &id).await?);
+    assert!(agent.starts_with("sandbox;"), "{agent}");
+    assert!(!agent.contains("script-src"), "{agent}");
+    assert!(!agent.contains(CDN), "{agent}");
+    assert!(
+        agent.contains(&format!("style-src 'unsafe-inline' {FONTS};")),
+        "{agent}"
+    );
+    assert_never_widened(&agent);
     Ok(())
 }
 

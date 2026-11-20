@@ -1,5 +1,8 @@
 //! Planning and per-recipient decisions, shared by delivery and simulation.
 //!
+//! The actor is never their own recipient, except where the event names them
+//! directly at `agent` attention: a hand-off to their own agent.
+//!
 //! [`plan`] runs the routers, gates and expands the audience and loads the
 //! recipients' own rules and the rule subjects' memberships; it only reads.
 //! [`decide`] turns one planned recipient into a delivery or a withholding
@@ -66,7 +69,9 @@ pub(crate) async fn plan(
     let (mut routed, mut failures) = route::route(routers, event, members.timeout).await?;
     let audience = expand_audience(&mut *conn, ctx, members, event, &mut routed).await?;
     failures.extend(audience.failures);
-    routed.recipients.retain(|d| d.user != event.actor);
+    routed
+        .recipients
+        .retain(|d| d.user != event.actor || hands_off_to_own_agent(event));
     let recipients: Vec<UserId> = routed.recipients.iter().map(|d| d.user.clone()).collect();
     let owner_rules = NotificationRuleRepository::list_for_owners(&mut *conn, &recipients).await?;
     let global_rules = ctx.global_rules().to_vec();
@@ -101,6 +106,13 @@ pub(crate) async fn plan(
         owner_rules,
         failures,
     })
+}
+
+fn hands_off_to_own_agent(event: &NotificationEvent) -> bool {
+    event
+        .direct_recipients
+        .iter()
+        .any(|direct| direct.user == event.actor && direct.attention == Some(Attention::Agent))
 }
 
 fn rule_subjects<'r>(rules: impl Iterator<Item = &'r RuleDecl> + 'r) -> Vec<AudienceSubject> {

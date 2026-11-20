@@ -25,6 +25,7 @@ fn auth_context() -> AuthContext {
         token_exp: None,
         browser_session: false,
         cookie_transport: false,
+        ui_session_auth_time: None,
     }
 }
 

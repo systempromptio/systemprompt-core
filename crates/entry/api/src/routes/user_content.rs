@@ -10,9 +10,9 @@
 //! keeps a route's own value rather than the configured one.
 //!
 //! A rendered HTML document is the one body that is meant to render as its
-//! author designed it: `rendered_html_csp` keeps the opaque origin and
-//! admits inline styles and embedded images, fonts and media, and, when the
-//! profile says so, the page's scripts and `https:` assets.
+//! author designed it: its policy is the one `RenderedHtmlConfig::csp` built
+//! for the document's tier when the profile loaded, which is why `harden`
+//! takes a header value rather than one of the fixed policies here.
 //!
 //! The response also carries a [`FrameOptionsOverride`] (same origin): the
 //! security-headers middleware replaces a route's CSP with the app's own
@@ -39,33 +39,7 @@ pub(crate) const USER_CONTENT_CSP: &str = "sandbox; default-src 'none'";
 pub(crate) const INLINE_PDF_CSP: &str =
     "default-src 'none'; object-src 'self'; frame-ancestors 'self'";
 
-const RENDERED_HTML_CSP: &str = "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src \
-                                 data: blob:; font-src data:; media-src data: blob:; form-action \
-                                 'none'";
-
-const RENDERED_HTML_REMOTE_CSP: &str = "sandbox; default-src 'none'; style-src 'unsafe-inline' \
-                                        https:; img-src data: blob: https:; font-src data: \
-                                        https:; media-src data: blob: https:; form-action 'none'";
-
-const RENDERED_HTML_SCRIPTS_CSP: &str = "sandbox allow-scripts; default-src 'none'; script-src \
-                                         'unsafe-inline' 'unsafe-eval'; style-src \
-                                         'unsafe-inline'; img-src data: blob:; font-src data:; \
-                                         media-src data: blob:; form-action 'none'";
-
-const RENDERED_HTML_SCRIPTS_REMOTE_CSP: &str = "sandbox allow-scripts; default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' https:; \
-     style-src 'unsafe-inline' https:; img-src data: blob: https:; font-src data: https:; \
-     media-src data: blob: https:; form-action 'none'";
-
-pub(crate) const fn rendered_html_csp(scripts: bool, remote_assets: bool) -> &'static str {
-    match (scripts, remote_assets) {
-        (false, false) => RENDERED_HTML_CSP,
-        (false, true) => RENDERED_HTML_REMOTE_CSP,
-        (true, false) => RENDERED_HTML_SCRIPTS_CSP,
-        (true, true) => RENDERED_HTML_SCRIPTS_REMOTE_CSP,
-    }
-}
-
-pub(crate) fn harden(response: &mut Response, csp: &'static str) {
+pub(crate) fn harden(response: &mut Response, csp: HeaderValue) {
     if response
         .extensions()
         .get::<FrameOptionsOverride>()
@@ -80,8 +54,5 @@ pub(crate) fn harden(response: &mut Response, csp: &'static str) {
         header::X_CONTENT_TYPE_OPTIONS,
         HeaderValue::from_static("nosniff"),
     );
-    headers.insert(
-        header::CONTENT_SECURITY_POLICY,
-        HeaderValue::from_static(csp),
-    );
+    headers.insert(header::CONTENT_SECURITY_POLICY, csp);
 }

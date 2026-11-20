@@ -13,7 +13,7 @@
 
 use rmcp::ErrorData as McpError;
 use systemprompt_files::documents::models::DocumentProposal;
-use systemprompt_files::documents::service::{ProposeRequest, ReviewRequest};
+use systemprompt_files::documents::service::{ProposeRequest, Proposed, ReviewRequest};
 use systemprompt_identifiers::McpExecutionId;
 use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::documents::{DocumentUri, ProposalStatus};
@@ -39,13 +39,21 @@ pub(super) async fn propose_ops(call: EditCall<'_>) -> Result<(EditOutput, Strin
                 document_id: call.document.clone(),
                 base_revision: call.base.clone(),
                 ops: call.ops.clone(),
-                author: agent_author(call.ctx, call.exec_id),
+                author: call.author.clone(),
                 message: call.message.clone(),
             },
             call.ctx.trace_id(),
         )
         .await
         .map_err(tool_error)?;
+    proposal_ack(&call, proposed, applied).await
+}
+
+pub(super) async fn proposal_ack(
+    call: &EditCall<'_>,
+    proposed: Proposed,
+    applied: usize,
+) -> Result<(EditOutput, String), McpError> {
     let revision = proposed.revision;
     let view = call
         .tools
@@ -151,7 +159,7 @@ impl ProposalsHandler<'_> {
         let request = ReviewRequest {
             proposal_id,
             note: input.note,
-            reviewer: agent_author(ctx, exec_id),
+            reviewer: agent_author(self.tools, ctx, exec_id, input.context_id.as_ref()).await?,
         };
         let service = self.tools.service();
         let reviewed = if input.action == ProposalAction::Accept {

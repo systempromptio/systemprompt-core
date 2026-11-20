@@ -1,6 +1,9 @@
 //! Document listings: one folder, documents shared with the caller, the
-//! caller's own, or the ones the caller touched last, filtered by name and
-//! sorted by name, last update or last touch.
+//! caller's own, the ones the caller touched last, or the ones a conversation
+//! the caller owns touched, filtered by name and sorted by name, last update
+//! or last touch. A `context` listing names its conversation by
+//! `context_id`; one the caller does not own and one that does not exist are
+//! both `unknown_context`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,8 +13,10 @@ use axum::{Extension, Json};
 use serde::Deserialize;
 use systemprompt_files::documents::models::{ListScope, ListSort, ListingCursor};
 use systemprompt_files::documents::service::ListFolderRequest;
+use systemprompt_identifiers::ContextId;
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
+use systemprompt_runtime::documents::attribution::attributed_context;
 
 use super::DocumentsState;
 use super::caller::caller;
@@ -30,6 +35,7 @@ pub(super) enum ScopeParam {
     Shared,
     Mine,
     Recent,
+    Context,
 }
 
 #[derive(Debug, Clone, Copy, Default, Deserialize)]
@@ -46,6 +52,7 @@ pub(super) struct ListQuery {
     #[serde(default)]
     scope: ScopeParam,
     folder: Option<String>,
+    context_id: Option<ContextId>,
     query: Option<String>,
     #[serde(default)]
     sort: SortParam,
@@ -59,6 +66,7 @@ const fn list_scope(scope: ScopeParam) -> ListScope {
         ScopeParam::Shared => ListScope::Shared,
         ScopeParam::Mine => ListScope::Mine,
         ScopeParam::Recent => ListScope::Recent,
+        ScopeParam::Context => ListScope::Context,
     }
 }
 
@@ -81,15 +89,33 @@ fn listing_cursor(raw: Option<&str>) -> DocumentsResult<Option<ListingCursor>> {
     .transpose()
 }
 
+async fn listed_context(
+    state: &DocumentsState,
+    req_ctx: &RequestContext,
+    claimed: Option<ContextId>,
+) -> DocumentsResult<ContextId> {
+    let Some(claimed) = claimed else {
+        return Err(ApiError::bad_request("scope=context needs a context_id").into());
+    };
+    let owned = attributed_context(state.contexts.as_ref(), req_ctx, Some(&claimed)).await?;
+    Ok(owned.unwrap_or(claimed))
+}
+
 pub(super) async fn list(
     State(state): State<DocumentsState>,
     Extension(req_ctx): Extension<RequestContext>,
     Query(query): Query<ListQuery>,
 ) -> DocumentsResult<Json<ListingJson>> {
     let who = caller(&state, &req_ctx).await?;
+    let scope = list_scope(query.scope);
+    let context_id = match scope {
+        ListScope::Context => Some(listed_context(&state, &req_ctx, query.context_id).await?),
+        _ => None,
+    };
     let request = ListFolderRequest {
-        scope: list_scope(query.scope),
+        scope,
         folder: folder_id(query.folder.as_deref())?,
+        context_id,
         query: query.query,
         sort: list_sort(query.sort),
         cursor: listing_cursor(query.cursor.as_deref())?,

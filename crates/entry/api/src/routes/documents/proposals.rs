@@ -178,7 +178,7 @@ async fn review_request(
     Ok(ReviewRequest {
         proposal_id: pid,
         note,
-        reviewer: api_author(req_ctx, headers),
+        reviewer: api_author(state, req_ctx, headers).await?,
     })
 }
 

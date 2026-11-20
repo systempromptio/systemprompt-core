@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            DELETE FROM oauth_refresh_tokens\n            WHERE client_id = $1\n              AND EXISTS (SELECT 1 FROM oauth_clients\n                          WHERE client_id = $1 AND person_ui <> $2)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "89efab89ae6ecc676717d2cb2741f932b5bbdd713c2a7af7b84f0f07bf8da332"
+}

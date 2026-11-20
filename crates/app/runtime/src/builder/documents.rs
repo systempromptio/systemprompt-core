@@ -5,6 +5,8 @@
 
 use std::sync::Arc;
 
+use systemprompt_agent::repository::ContextRepository;
+use systemprompt_agent::services::ContextProviderService;
 use systemprompt_database::DbPool;
 use systemprompt_events::EventRouter;
 use systemprompt_extension::{DynBrainSink, DynNotificationSink, ExtensionRegistry};
@@ -65,6 +67,9 @@ pub(crate) fn build_documents(
         )),
         background_tasks: inputs.background_tasks.clone(),
         unscoped_actor: None,
+        contexts: Arc::new(ContextProviderService::new(ContextRepository::new(
+            inputs.database,
+        ))),
     })))
 }
 

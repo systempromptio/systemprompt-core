@@ -90,9 +90,21 @@ mod notifications_document_visibility;
 #[cfg(test)]
 mod brain_live;
 #[cfg(test)]
+mod documents_mcp_attribution;
+#[cfg(test)]
 mod documents_mcp_browse;
 #[cfg(test)]
+mod documents_mcp_comment_cells;
+#[cfg(test)]
 mod documents_mcp_comments;
+#[cfg(test)]
+mod documents_mcp_context_listing;
+#[cfg(test)]
+mod documents_mcp_edit_body;
+#[cfg(test)]
+mod documents_mcp_folders;
+#[cfg(test)]
+mod documents_mcp_import;
 #[cfg(test)]
 mod documents_mcp_inbox;
 #[cfg(test)]

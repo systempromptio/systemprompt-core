@@ -18,6 +18,11 @@
 //! [`JwtAudience::FIRST_PARTY`], so a token minted for a narrower surface
 //! (`hook`, a custom resource) cannot ride the session middleware.
 //!
+//! Every decode also refuses a token whose `ui_session` claim or `ui`
+//! audience is not the exact UI-session shape
+//! ([`JwtClaims::ui_session_well_formed`]), so a person's UI session can
+//! never carry a second audience, a purpose or a delegation chain.
+//!
 //! Federated subject-token verification (token-exchange) is deliberately *not*
 //! a caller: it resolves keys from an external issuer's JWKS rather than this
 //! deployment's signing authority, so it is a genuinely different operation.
@@ -97,9 +102,13 @@ pub fn decode_rs256_claims(
     let audience_strs: Vec<&str> = policy.audiences.iter().map(JwtAudience::as_str).collect();
     validation.set_audience(&audience_strs);
 
-    decode::<JwtClaims>(token, key, &validation)
+    let claims = decode::<JwtClaims>(token, key, &validation)
         .map(|data| data.claims)
-        .map_err(AuthError::InvalidToken)
+        .map_err(AuthError::InvalidToken)?;
+    if !claims.ui_session_well_formed() {
+        return Err(AuthError::UiSessionShape);
+    }
+    Ok(claims)
 }
 
 pub fn decode_session_claims(

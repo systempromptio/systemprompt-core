@@ -76,7 +76,15 @@ impl DocumentService {
             name: name.as_deref(),
             agent_edit_policy,
         };
-        match self.repos.folders.update(update).await? {
+        let outcome = match self.repos.folders.update(update).await {
+            Ok(outcome) => outcome,
+            Err(error) => {
+                return Err(self
+                    .folder_write_failure(error, folder, name.as_deref())
+                    .await);
+            },
+        };
+        match outcome {
             FolderUpdateOutcome::Updated => {},
             FolderUpdateOutcome::Missing => {
                 return Err(DocumentsError::not_found("folder", folder));

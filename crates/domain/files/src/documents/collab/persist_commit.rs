@@ -273,6 +273,7 @@ fn session_author(body: &Body, committer: &AuthenticatedUser, fence: &Fence<'_>)
         attribution: RevisionAttribution {
             trace_id: Some(fence.trace.clone()),
             on_behalf_of,
+            agent_name: body.state.actor.as_agent().map(|agent| agent.name.clone()),
             ..RevisionAttribution::default()
         },
     }

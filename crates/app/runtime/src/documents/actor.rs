@@ -1,15 +1,20 @@
 //! The document actor of a request, derived from its credential alone.
 //!
-//! Only a first-party browser session cookie is the person: a bearer token
-//! of any kind (a bridge JWT, a PAT, an API or MCP token, an agent run's
+//! The person is a first-party browser session cookie, or the UI session a
+//! client the operator declared `person_ui` holds (a bearer token carrying the
+//! `ui_session` claim, which only the documents routes admit). Any other bearer
+//! token (a bridge JWT, a PAT, an API or MCP token, an agent run's
 //! token, one carrying a purpose or a delegation chain) is an agent acting
 //! for them. The agent's name and whether it is attended come from signed
 //! claims, never from request metadata: the name is the token's `purpose`
 //! (an agent run's `farm:<run>`), else its `client_id`, else `agent`;
 //! `attended` is `true` only for a token whose `interaction` claim is
-//! `interactive`, which only the exchange-code bridge host flow mints, and
-//! never for one carrying a `purpose` (a service account's, a broker's or
-//! an agent run's), whatever else it claims.
+//! `interactive`, which the bridge mints for a desktop host a person
+//! enrolled in the browser (the exchange-code session flow, and the
+//! `/v1/auth/bridge/pat` exchange of the device key `session-pat` issues),
+//! and never for one carrying a `purpose` (a service account's, a broker's
+//! or an agent run's), whatever else it claims. A user-created PAT is
+//! unattended.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -33,7 +38,7 @@ pub fn request_actor(ctx: &RequestContext) -> DocumentActor {
 #[must_use]
 pub fn caller_actor(ctx: &RequestContext) -> RequestActor {
     let interaction = ctx.settings.user_interaction_mode;
-    let person = ctx.is_browser_session()
+    let person = (ctx.is_browser_session() || ctx.is_ui_session())
         && ctx.caller_purpose().is_none()
         && ctx.act_chain().is_empty()
         && interaction != Some(UserInteractionMode::NonInteractive);

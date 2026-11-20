@@ -31,6 +31,7 @@ pub(super) struct MountCtx<'a> {
     pub limits: &'a RateLimitState,
     pub public_middleware: &'a PublicContextMiddleware,
     pub user_middleware: &'a UserOnlyContextMiddleware,
+    pub documents_middleware: &'a UserOnlyContextMiddleware,
 }
 
 pub(super) fn mount_agent(

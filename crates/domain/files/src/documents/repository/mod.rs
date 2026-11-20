@@ -17,6 +17,7 @@
 mod access_requests;
 mod agent_batch;
 mod agent_caps;
+mod agent_content;
 mod blob_holders;
 mod blobs;
 mod collab_owners;
@@ -47,6 +48,7 @@ mod grants;
 mod head;
 mod listing;
 mod listing_scopes;
+mod listing_scopes_context;
 mod listing_scopes_personal;
 mod listing_scopes_root;
 mod listing_scopes_shared;

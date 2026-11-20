@@ -63,6 +63,7 @@ fn listing(scope: ListScope, query: Option<&str>, sort: ListSort) -> ListFolderR
     ListFolderRequest {
         scope,
         folder: None,
+        context_id: None,
         query: query.map(str::to_owned),
         sort,
         cursor: None,
@@ -196,6 +197,7 @@ async fn recent_orders_by_the_callers_last_touch() {
                     node,
                     find: None,
                     nth: None,
+                    cells: None,
                 }),
                 body: "seen".to_owned(),
                 parent_id: None,

@@ -10,7 +10,8 @@
 use chrono::{DateTime, Utc};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{
-    ContentHash, ContextId, DocumentId, DocumentRevisionId, SessionId, TaskId, TraceId, UserId,
+    AgentName, ClientId, ContentHash, ContextId, DocumentId, DocumentRevisionId, SessionId, TaskId,
+    TraceId, UserId,
 };
 use systemprompt_models::documents::EditOp;
 
@@ -40,6 +41,8 @@ pub(super) struct RevisionRow {
     pub(super) trace_id: Option<TraceId>,
     pub(super) task_id: Option<TaskId>,
     pub(super) on_behalf_of: Option<UserId>,
+    pub(super) agent_name: Option<AgentName>,
+    pub(super) client_id: Option<ClientId>,
     pub(super) created_at: DateTime<Utc>,
     pub(super) landed_at: Option<DateTime<Utc>>,
 }
@@ -74,6 +77,8 @@ impl TryFrom<RevisionRow> for DocumentRevision {
                 trace_id: row.trace_id,
                 task_id: row.task_id,
                 on_behalf_of: row.on_behalf_of,
+                agent_name: row.agent_name,
+                client_id: row.client_id,
             },
             created_at: row.created_at,
             landed_at: row.landed_at,
@@ -106,6 +111,8 @@ impl DocumentRevisionRepository {
                       trace_id AS "trace_id: TraceId",
                       task_id AS "task_id: TaskId",
                       on_behalf_of AS "on_behalf_of: UserId",
+                      agent_name AS "agent_name: AgentName",
+                      client_id AS "client_id: ClientId",
                       created_at, landed_at
                FROM document_revisions WHERE id = $1::text::uuid"#,
             id.as_str()
@@ -130,6 +137,8 @@ r#"SELECT id::text AS "id!: DocumentRevisionId",
                       trace_id AS "trace_id: TraceId",
                       task_id AS "task_id: TaskId",
                       on_behalf_of AS "on_behalf_of: UserId",
+                      agent_name AS "agent_name: AgentName",
+                      client_id AS "client_id: ClientId",
                       created_at, landed_at
                FROM document_revisions WHERE id = (SELECT head_revision_id FROM documents WHERE id = $1::text::uuid)"#,
             document_id.as_str()
@@ -159,6 +168,8 @@ r#"SELECT id::text AS "id!: DocumentRevisionId",
                       trace_id AS "trace_id: TraceId",
                       task_id AS "task_id: TaskId",
                       on_behalf_of AS "on_behalf_of: UserId",
+                      agent_name AS "agent_name: AgentName",
+                      client_id AS "client_id: ClientId",
                       created_at, landed_at
                FROM document_revisions WHERE document_id = $1::text::uuid
                AND landed_at IS NOT NULL
@@ -193,6 +204,8 @@ r#"SELECT id::text AS "id!: DocumentRevisionId",
                       trace_id AS "trace_id: TraceId",
                       task_id AS "task_id: TaskId",
                       on_behalf_of AS "on_behalf_of: UserId",
+                      agent_name AS "agent_name: AgentName",
+                      client_id AS "client_id: ClientId",
                       created_at, landed_at
                FROM document_revisions WHERE content_sha256 = $1
              ORDER BY created_at DESC, id DESC

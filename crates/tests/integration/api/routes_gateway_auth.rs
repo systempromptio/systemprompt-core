@@ -15,6 +15,9 @@ use std::sync::Arc;
 use systemprompt_api::routes::gateway::{auth, bridge_manifest};
 use systemprompt_api::services::middleware::client_addr::ClientIp;
 use systemprompt_api::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
+use systemprompt_files::documents::agents::DocumentActor;
+use systemprompt_models::auth::TokenInteraction;
+use systemprompt_runtime::documents::actor::bearer_actor;
 use systemprompt_traits::AppContext as _;
 use systemprompt_users::{ApiKeyService, IssueApiKeyParams};
 
@@ -245,6 +248,114 @@ async fn session_with_valid_code_issues_bridge_access() -> Result<()> {
     .await
     .expect("valid exchange code must issue bridge access");
     assert_eq!(resp.into_response().status(), StatusCode::OK);
+    Ok(())
+}
+
+async fn issue_key(
+    ctx: &systemprompt_runtime::AppContext,
+    pool: &systemprompt_database::DbPool,
+    kind: systemprompt_users::ApiKeyKind,
+    purpose: Option<&str>,
+) -> Result<String> {
+    let uniq = uuid::Uuid::new_v4();
+    let user = systemprompt_identifiers::UserId::new(uniq.to_string());
+    systemprompt_test_fixtures::seed_user_row(pool, &user, &format!("key-{uniq}@example.invalid"))
+        .await?;
+    let service = ApiKeyService::new(
+        Arc::clone(ctx.user_repository()),
+        systemprompt_users::ApiKeyLifetime::unbounded(),
+    );
+    let issued = service
+        .issue(IssueApiKeyParams {
+            user_id: &user,
+            name: "attended pin",
+            expires_at: None,
+            limits: &systemprompt_users::ApiKeyLimits::default(),
+            scopes: &[],
+            purpose,
+            kind,
+        })
+        .await?;
+    Ok(issued.secret)
+}
+
+async fn exchanged_actor(
+    ctx: &systemprompt_runtime::AppContext,
+    secret: &str,
+) -> Result<(Option<TokenInteraction>, DocumentActor)> {
+    let Json(access) = auth::pat(ctx.clone(), bearer_request(secret))
+        .await
+        .expect("a valid key must exchange for bridge access");
+    let (claims, _user) = jwt_extractor(ctx)?
+        .decode_for_gateway(&systemprompt_identifiers::JwtToken::new(&access.token))
+        .await
+        .expect("the exchanged bridge token must decode");
+    let actor = bearer_actor(
+        claims.purpose.as_deref(),
+        claims.client_id.as_ref(),
+        claims.interaction,
+    );
+    Ok((claims.interaction, actor))
+}
+
+fn is_attended(actor: &DocumentActor) -> bool {
+    matches!(actor, DocumentActor::Agent(agent) if agent.attended)
+}
+
+#[tokio::test]
+async fn device_key_from_session_pat_exchanges_for_an_attended_token() -> Result<()> {
+    let (pool, ctx) = setup_ctx().await?;
+    let (code, _user) = seed_exchange_code(&ctx, &pool).await?;
+    let Json(device) = auth::session_pat(
+        (*ctx).clone(),
+        Json(auth::SessionPatBody {
+            code,
+            device_name: Some("attended host".to_owned()),
+        }),
+    )
+    .await
+    .expect("valid exchange code must mint a device key");
+
+    let (interaction, actor) = exchanged_actor(&ctx, &device.pat).await?;
+    assert_eq!(interaction, Some(TokenInteraction::Interactive));
+    assert!(
+        is_attended(&actor),
+        "a device key's token is attended: {actor:?}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn user_pat_exchanges_for_an_unattended_token() -> Result<()> {
+    let (pool, ctx) = setup_ctx().await?;
+    let secret = issue_key(&ctx, &pool, systemprompt_users::ApiKeyKind::User, None).await?;
+
+    let (interaction, actor) = exchanged_actor(&ctx, &secret).await?;
+    assert_eq!(interaction, None);
+    assert!(
+        matches!(actor, DocumentActor::Agent(_)) && !is_attended(&actor),
+        "a user PAT's token is an unattended agent: {actor:?}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn device_key_with_a_purpose_exchanges_for_an_unattended_token() -> Result<()> {
+    let (pool, ctx) = setup_ctx().await?;
+    let secret = issue_key(
+        &ctx,
+        &pool,
+        systemprompt_users::ApiKeyKind::Device,
+        Some("workflow:attended-pin"),
+    )
+    .await?;
+
+    let (interaction, actor) = exchanged_actor(&ctx, &secret).await?;
+    assert_eq!(interaction, None);
+    assert!(
+        matches!(actor, DocumentActor::Agent(_)) && !is_attended(&actor),
+        "a purpose-bound device key's token is an unattended agent: {actor:?}"
+    );
     Ok(())
 }
 

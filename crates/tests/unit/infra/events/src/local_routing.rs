@@ -226,3 +226,42 @@ async fn route_system_local_multiple_context_subscribers() {
 fn sse_buffer_size_is_expected() {
     assert_eq!(systemprompt_events::SSE_BUFFER, 1024);
 }
+
+#[tokio::test]
+async fn route_agui_many_delivers_one_copy_to_each_recipient_and_none_elsewhere() {
+    let broadcasters = Arc::new(EventBroadcasters::new());
+    let first = unique_user_id("agui-many-a");
+    let second = unique_user_id("agui-many-b");
+    let bystander = unique_user_id("agui-many-c");
+    let (tx_a, mut rx_a) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
+    let (tx_b, mut rx_b) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
+    let (tx_c, mut rx_c) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
+    let (conn_a, conn_b, conn_c) = (
+        ConnectionId::new("lc-many-a"),
+        ConnectionId::new("lc-many-b"),
+        ConnectionId::new("lc-many-c"),
+    );
+    broadcasters.agui.register(&first, &conn_a, tx_a).await;
+    broadcasters.agui.register(&second, &conn_b, tx_b).await;
+    broadcasters.agui.register(&bystander, &conn_c, tx_c).await;
+
+    let outcome = EventRouter::local_only(Arc::clone(&broadcasters))
+        .route_agui_many(&first, &[first.clone(), second.clone()], agui_event())
+        .await;
+    assert_eq!(outcome.local, 2);
+    assert!(matches!(
+        outcome.relay,
+        systemprompt_events::RelayOutcome::NotInstalled
+    ));
+    assert!(rx_a.try_recv().is_ok());
+    assert!(rx_b.try_recv().is_ok());
+    assert!(rx_a.try_recv().is_err(), "one copy per recipient");
+    assert!(
+        rx_c.try_recv().is_err(),
+        "a user not addressed receives nothing"
+    );
+
+    broadcasters.agui.unregister(&first, &conn_a).await;
+    broadcasters.agui.unregister(&second, &conn_b).await;
+    broadcasters.agui.unregister(&bystander, &conn_c).await;
+}

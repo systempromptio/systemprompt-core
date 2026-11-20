@@ -82,6 +82,7 @@ impl DocumentService {
                 ops: recorded,
                 mime_type: None,
                 vouched,
+                agent_content: false,
             },
         )
         .await
@@ -124,10 +125,11 @@ impl DocumentService {
                 template_id: None,
                 bytes,
                 author: request.author,
-                message: None,
+                message: request.message,
                 ops: None,
                 mime_type,
                 vouched: Vec::new(),
+                agent_content: false,
             },
         )
         .await

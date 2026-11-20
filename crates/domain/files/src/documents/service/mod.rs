@@ -31,6 +31,7 @@ mod comment_anchors;
 mod comments;
 mod comments_edit;
 mod comments_export;
+mod comments_reopen;
 mod comments_resolve;
 mod commit;
 mod commit_build;
@@ -40,6 +41,7 @@ mod drive;
 mod drive_blob;
 mod drive_commit;
 mod drive_feed;
+mod drive_hint;
 mod file_create;
 mod first_revision;
 mod folder_moves;
@@ -67,6 +69,7 @@ mod media_admission;
 mod media_backfill;
 mod media_read;
 mod mentions;
+mod name_conflicts;
 mod node_ids;
 mod notify;
 mod ownership;
@@ -78,6 +81,7 @@ mod proposal_body;
 mod proposal_reads;
 mod proposal_review;
 mod proposals;
+mod provenance;
 mod publish;
 mod reads;
 mod suggested_write;
@@ -88,6 +92,7 @@ mod visibility;
 use std::sync::Arc;
 
 use systemprompt_extension::{DynBrainSink, DynNotificationSink};
+use systemprompt_traits::BackgroundTasks;
 
 pub use access_requests::{AccessDecision, AccessRequestInput, DecideRequest};
 pub use access_view::{
@@ -97,7 +102,9 @@ pub use agent_caps::{AgentCapTarget, AgentCapView};
 pub use comments::{CommentRequest, ResolveCommentRequest};
 pub use comments_edit::{DeleteCommentRequest, EditCommentRequest};
 pub use comments_export::ExportedDocument;
+pub use comments_reopen::ReopenCommentRequest;
 pub use drive::parse_drive_cursor;
+pub use drive_hint::DRIVE_HINT_INTERVAL;
 pub use file_create::FileCreateRequest;
 pub use folder_update::FolderUpdateRequest;
 pub use grants::{MAX_SHARE_MESSAGE_BYTES, ShareRequest};
@@ -148,6 +155,8 @@ pub struct DocumentService {
     uploads: Arc<std::sync::OnceLock<Arc<crate::uploads::UploadService>>>,
     agent_edits: Arc<AgentRateLimiter>,
     agent_rewrites: Arc<RewriteTracker>,
+    tasks: BackgroundTasks,
+    drive_hints: Arc<drive_hint::DriveHintGate>,
     #[cfg(feature = "collab")]
     collab: Arc<std::sync::OnceLock<std::sync::Weak<super::collab::CollabService>>>,
 }
@@ -164,6 +173,7 @@ pub struct DocumentServiceParts {
     pub notifications: DynNotificationSink,
     pub brain: DynBrainSink,
     pub config: DocumentsConfig,
+    pub tasks: BackgroundTasks,
 }
 
 impl std::fmt::Debug for DocumentService {
@@ -199,6 +209,8 @@ impl DocumentService {
                 parts.config.limits.agent_edits_per_hour_per_user,
             )),
             agent_rewrites: Arc::new(RewriteTracker::new()),
+            tasks: parts.tasks,
+            drive_hints: Arc::default(),
             config: parts.config,
             uploads: Arc::default(),
             #[cfg(feature = "collab")]

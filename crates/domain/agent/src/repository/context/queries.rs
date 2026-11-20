@@ -83,6 +83,47 @@ impl ContextRepository {
         })
     }
 
+    // Why: a client writes with a context it created a moment earlier, and an
+    // AI turn materialises its context just before its tool calls; a read
+    // replica that has not caught up would refuse both, so ownership is read
+    // from the primary.
+    pub async fn find_owned_name(
+        &self,
+        context_id: &ContextId,
+        user_id: &UserId,
+    ) -> Result<Option<String>, RepositoryError> {
+        Ok(sqlx::query_scalar!(
+            r#"SELECT name AS "name!" FROM user_contexts WHERE context_id = $1 AND user_id = $2"#,
+            context_id.as_str(),
+            user_id.as_str()
+        )
+        .fetch_optional(&*self.write_pool)
+        .await?)
+    }
+
+    pub async fn owned_names(
+        &self,
+        user_id: &UserId,
+        context_ids: &[ContextId],
+    ) -> Result<Vec<(ContextId, String)>, RepositoryError> {
+        let ids: Vec<String> = context_ids
+            .iter()
+            .map(|id| id.as_str().to_owned())
+            .collect();
+        let rows = sqlx::query!(
+            r#"SELECT context_id AS "context_id!", name AS "name!"
+               FROM user_contexts
+               WHERE user_id = $1 AND context_id = ANY($2::text[])"#,
+            user_id.as_str(),
+            &ids,
+        )
+        .fetch_all(&*self.pool)
+        .await?;
+        rows.into_iter()
+            .map(|row| Ok((stored_context_id(row.context_id)?, row.name)))
+            .collect()
+    }
+
     pub async fn list_contexts_basic(
         &self,
         user_id: &UserId,

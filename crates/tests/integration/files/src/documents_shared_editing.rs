@@ -11,7 +11,8 @@ use systemprompt_files::documents::service::{
     Author, CommentPolicy, CommitOutcome, CommitRequest, HistoryPage,
 };
 use systemprompt_identifiers::{
-    ContextId, DocumentId, DocumentNodeId, DocumentRevisionId, SessionId, TaskId, TraceId,
+    AgentName, ClientId, ContextId, DocumentId, DocumentNodeId, DocumentRevisionId, SessionId,
+    TaskId, TraceId,
 };
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{
@@ -415,6 +416,8 @@ async fn revisions_carry_attribution_into_history_and_the_report_view() {
         trace_id: Some(TraceId::generate()),
         task_id: Some(TaskId::new(uuid::Uuid::new_v4().to_string())),
         on_behalf_of: Some(owner.id.clone()),
+        agent_name: Some(AgentName::new("attributing-agent")),
+        client_id: Some(ClientId::new("sp_attributing_client")),
     };
     let base = ids(&h, &owner, &document, &first).await;
     let mut request = ops_on(

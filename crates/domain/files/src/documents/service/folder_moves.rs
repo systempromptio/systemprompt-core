@@ -93,7 +93,10 @@ impl DocumentService {
             parent_chain: &prepared.parent_chain,
             mover: &who.id,
         };
-        let outcome = self.repos.folders.move_to(relocation).await?;
+        let outcome = match self.repos.folders.move_to(relocation).await {
+            Ok(outcome) => outcome,
+            Err(error) => return Err(self.folder_write_failure(error, folder, None).await),
+        };
         if let Some(refusal) = move_refusal(outcome, folder) {
             return Err(refusal);
         }

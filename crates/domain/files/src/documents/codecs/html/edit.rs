@@ -15,7 +15,7 @@ use systemprompt_provider_contracts::documents::{
 
 use super::super::anchors::{str_replace_once, verify_anchor};
 use super::super::text::escape_html;
-use super::markup::{markdown_markup, pending_markup};
+use super::markup::{markdown_markup, pending_markup, unaltered_body};
 use super::tree::{HtmlProjection, Located, anchor_node, node_text};
 
 const DETACHED: CodecError = CodecError::Malformed {
@@ -84,8 +84,9 @@ fn parse_into(html: &mut Html, fragment: &str) -> Result<Vec<NodeId>, CodecError
 }
 
 fn set_body(html: &mut Html, body: NodeId, markup: &str) -> Result<(), CodecError> {
+    let cleaned = unaltered_body(markup)?;
     clear_children(html, body)?;
-    let nodes = parse_into(html, &ammonia::clean(markup))?;
+    let nodes = parse_into(html, &cleaned)?;
     let mut target = html.tree.get_mut(body).ok_or(DETACHED)?;
     for id in nodes {
         target.append_id(id);

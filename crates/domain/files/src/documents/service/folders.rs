@@ -15,7 +15,7 @@ use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{AccessLevel, DocumentAction};
 use systemprompt_traits::RepositoryError;
 
-use super::lifecycle::TRASHED_NOTE;
+use super::lifecycle::{TRASHED_NOTE, folder_name_taken, is_folder_name_taken};
 use super::support::validate_name;
 use super::{DocumentService, NewFolderRequest};
 use crate::documents::access::AccessTarget;
@@ -33,6 +33,7 @@ impl DocumentService {
         trace: &TraceId,
     ) -> Result<DocumentFolder, DocumentsError> {
         validate_name(&request.name)?;
+        let name = request.name.clone();
         self.access
             .authorize(
                 who,
@@ -50,7 +51,8 @@ impl DocumentService {
                 owner_user_id: who.id.clone(),
                 created_by: who.id.clone(),
             })
-            .await?;
+            .await
+            .map_err(|error| folder_name_taken(error, &name))?;
         if let Err(error) = self.complete_folder(who, &folder, trace).await {
             if let Err(undo) = self.repos.folders.soft_delete(&folder.id).await {
                 tracing::error!(
@@ -110,7 +112,13 @@ impl DocumentService {
                 trace,
             )
             .await?;
-        if !self.repos.folders.rename(folder, name).await? {
+        if !self
+            .repos
+            .folders
+            .rename(folder, name)
+            .await
+            .map_err(|error| folder_name_taken(error, name))?
+        {
             return Err(DocumentsError::not_found("folder", folder));
         }
         self.load_folder(folder).await
@@ -223,6 +231,24 @@ impl DocumentService {
             if done {
                 return Ok(documents);
             }
+        }
+    }
+
+    pub(super) async fn folder_write_failure(
+        &self,
+        error: RepositoryError,
+        folder: &DocumentFolderId,
+        name: Option<&str>,
+    ) -> DocumentsError {
+        if !is_folder_name_taken(&error) {
+            return error.into();
+        }
+        match name {
+            Some(name) => folder_name_taken(error, name),
+            None => match self.load_folder(folder).await {
+                Ok(current) => folder_name_taken(error, &current.name),
+                Err(_) => error.into(),
+            },
         }
     }
 

@@ -3,13 +3,15 @@
 //! values never touch the database. Consumed tokens are retained as
 //! tombstones (`consumed_at IS NOT NULL`) so a replay can be distinguished
 //! from "token never existed" and trigger family-wide revocation per
-//! RFC 6819 §5.2.2.3.
+//! RFC 6819 §5.2.2.3. `authenticated_at` is when the person signed in for the
+//! grant; a rotated token is stored with the value its predecessor carried.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod ops;
 
+use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{
     AuthorizationCode, ClientId, RefreshTokenFamilyId, RefreshTokenId, UserId,
 };
@@ -22,6 +24,7 @@ pub struct RefreshTokenParams<'a> {
     pub scope: &'a str,
     pub expires_at: i64,
     pub resource: Option<&'a str>,
+    pub authenticated_at: DateTime<Utc>,
     pub lineage: RefreshTokenLineage<'a>,
 }
 
@@ -41,6 +44,7 @@ pub struct ConsumedRefreshToken {
     pub user_id: UserId,
     pub scope: String,
     pub family_id: RefreshTokenFamilyId,
+    pub authenticated_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone)]

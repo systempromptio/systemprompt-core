@@ -97,7 +97,7 @@ pub(super) async fn content(
     if let Some(range) = read.range {
         set(header::CONTENT_RANGE, range.content_range());
     }
-    harden(&mut response, USER_CONTENT_CSP);
+    harden(&mut response, HeaderValue::from_static(USER_CONTENT_CSP));
     Ok(response)
 }
 

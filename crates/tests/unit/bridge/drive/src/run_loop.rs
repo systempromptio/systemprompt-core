@@ -12,13 +12,10 @@ use systemprompt_bridge::proxy::drive_signal::{
 use systemprompt_bridge::proxy::forward::ForwardError;
 use systemprompt_bridge::proxy::token_cache::{RefreshFn, TokenCache};
 use systemprompt_identifiers::{
-    ContentHash, DocumentId, DocumentRevisionId, DriveDeviceId, UserId, ValidatedUrl,
+    DocumentId, DocumentRevisionId, DriveDeviceId, UserId, ValidatedUrl,
 };
 use systemprompt_models::ApiPaths;
-use systemprompt_models::documents::{
-    ActorKind, DocumentPresenceEvent, DocumentRevisionCreatedEvent, PresenceSource, PresenceState,
-    RevisionOriginKind,
-};
+use systemprompt_models::documents::{DocumentPresenceEvent, PresenceSource, PresenceState};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -213,17 +210,7 @@ fn the_loop_syncs_and_folds_proxy_signals_into_the_status() {
         run.signals.send(DriveSignal::Touched(
             std::env::temp_dir().join("elsewhere.md"),
         ));
-        run.signals.send(DriveSignal::RevisionCreated(Box::new(
-            DocumentRevisionCreatedEvent {
-                document_id: doc.clone(),
-                revision_id: DocumentRevisionId::generate(),
-                parent_revision_id: None,
-                content_sha256: ContentHash::try_new("0".repeat(64)).expect("hash"),
-                author_id: UserId::new("bob"),
-                actor_kind: ActorKind::User,
-                origin_kind: RevisionOriginKind::WebSession,
-            },
-        )));
+        run.signals.send(DriveSignal::DriveChanged);
 
         let deadline = tokio::time::Instant::now() + Duration::from_secs(15);
         loop {
@@ -244,6 +231,63 @@ fn the_loop_syncs_and_folds_proxy_signals_into_the_status() {
             tokio::time::sleep(Duration::from_millis(25)).await;
         }
         assert_eq!(fx.state().cursor.as_deref(), Some("c-next"));
+    });
+}
+
+#[test]
+fn a_drive_changed_signal_wakes_a_cycle_before_the_poll() {
+    sandboxed(async {
+        let server = MockServer::start().await;
+        let fx = Fixture::new(&server.uri());
+        let doc = DocumentId::generate();
+        let rev = DocumentRevisionId::generate();
+        fx.write("plan.md", b"# plan");
+        serve_sync_token(&server).await;
+        serve(
+            &server,
+            ApiPaths::BRIDGE_DRIVE_MANIFEST,
+            200,
+            manifest_json(&[(&doc, "plan.md", &rev, b"# plan")]),
+        )
+        .await;
+        serve(
+            &server,
+            ApiPaths::BRIDGE_DRIVE_CHANGES,
+            200,
+            serde_json::json!({"changes": [], "next_cursor": "c-next"}),
+        )
+        .await;
+        serve(
+            &server,
+            ApiPaths::BRIDGE_DRIVE_PROPOSALS,
+            200,
+            serde_json::json!({"proposals": []}),
+        )
+        .await;
+
+        let run = spawn(&fx, &server, token_ok());
+        until(&run.handle, "first cycle", |s| s.synced_at.is_some()).await;
+        let feed_reads = || async {
+            server
+                .received_requests()
+                .await
+                .expect("recorded")
+                .into_iter()
+                .filter(|r| r.url.path() == ApiPaths::BRIDGE_DRIVE_CHANGES)
+                .count()
+        };
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        let before = feed_reads().await;
+
+        run.signals.send(DriveSignal::DriveChanged);
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
+        while feed_reads().await <= before {
+            assert!(
+                tokio::time::Instant::now() < deadline,
+                "a drive-changed signal did not wake a cycle"
+            );
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
     });
 }
 

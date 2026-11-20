@@ -28,6 +28,18 @@ fn only_a_browser_session_is_the_person() {
 }
 
 #[test]
+fn a_ui_session_is_the_person() {
+    let ui = context()
+        .with_client_id(ClientId::new("desk_ui"))
+        .with_ui_session(1_900_000_000);
+    assert_eq!(request_actor(&ui), DocumentActor::Human);
+    let purposed = ui.clone().with_caller_purpose("farm:run-7".to_owned());
+    assert!(request_actor(&purposed).is_agent());
+    let delegated = ui.with_act_chain(vec![Actor::user(UserId::new("delegate"))]);
+    assert!(request_actor(&delegated).is_agent());
+}
+
+#[test]
 fn a_browser_session_with_a_purpose_or_delegation_is_an_agent() {
     let purposed = context()
         .with_browser_session()

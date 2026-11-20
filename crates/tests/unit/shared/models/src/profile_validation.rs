@@ -321,6 +321,20 @@ mod security_settings {
         p.security.audiences = vec![JwtAudience::Web, JwtAudience::Hook];
         assert!(!errors_of(&p).contains("jwt_audiences"));
     }
+
+    #[test]
+    fn the_ui_audience_is_refused_in_jwt_audiences() {
+        let mut p = valid_profile();
+        p.security.audiences = vec![JwtAudience::Api, JwtAudience::Ui];
+        assert!(errors_of(&p).contains("jwt_audiences must not include `ui`"));
+    }
+
+    #[test]
+    fn the_ui_audience_is_refused_as_a_resource_audience() {
+        let mut p = valid_profile();
+        p.security.allowed_resource_audiences.push("ui".to_owned());
+        assert!(errors_of(&p).contains("allowed_resource_audiences must not include `ui`"));
+    }
 }
 
 mod database_pool {

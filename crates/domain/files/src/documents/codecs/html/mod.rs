@@ -13,8 +13,15 @@
 //!   the start of the body when the anchor is `body`.
 //! - `delete` removes the element and its subtree.
 //! - `str_replace` replaces exactly one occurrence in the body's inner HTML,
-//!   and `set_html` replaces the body's inner HTML; both pass the new markup
-//!   through `ammonia`, so script and event-handler attributes are dropped.
+//!   and `set_html` replaces the body's inner HTML. Both are refused when the
+//!   resulting body holds markup the codec's sanitiser would drop (scripts,
+//!   `<style>`, `id` and `style` attributes, event handlers, comments; `class`
+//!   is kept), so neither writes active content nor silently strips it from a
+//!   page; such a page is rewritten whole, as a byte commit.
+//!
+//! The preview keeps `ammonia`'s stricter defaults rather than the edit
+//! sanitiser: it is shown without the page's stylesheet, so a class does
+//! nothing there, and its links gain `rel="noopener noreferrer"`.
 //!
 //! `<head>` and the attributes of untouched elements are kept as parsed. The
 //! document is reserialised from its parsed tree, so markup the HTML parser

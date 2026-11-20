@@ -12,7 +12,7 @@ use super::service::DocumentAccessService;
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, SubjectPairs};
 
-const MAX_SUBJECT_MEMBERS: usize = 500;
+pub(crate) const MAX_SUBJECT_MEMBERS: usize = 500;
 
 pub(super) const USER_KIND: &str = "user";
 pub(super) const ROLE_KIND: &str = "role";

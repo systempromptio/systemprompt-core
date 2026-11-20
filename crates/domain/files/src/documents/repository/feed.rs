@@ -25,7 +25,8 @@
 
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{
-    ContentHash, ContextId, DocumentId, DocumentRevisionId, SessionId, TaskId, TraceId, UserId,
+    AgentName, ClientId, ContentHash, ContextId, DocumentId, DocumentRevisionId, SessionId, TaskId,
+    TraceId, UserId,
 };
 
 use super::revisions::{DocumentRevisionRepository, RevisionRow};
@@ -54,6 +55,8 @@ struct LandedRow {
     trace_id: Option<TraceId>,
     task_id: Option<TaskId>,
     on_behalf_of: Option<UserId>,
+    agent_name: Option<AgentName>,
+    client_id: Option<ClientId>,
     created_at: DateTime<Utc>,
     landed_at: Option<DateTime<Utc>>,
     landing_xid: i64,
@@ -82,6 +85,8 @@ impl LandedRow {
             trace_id: self.trace_id,
             task_id: self.task_id,
             on_behalf_of: self.on_behalf_of,
+            agent_name: self.agent_name,
+            client_id: self.client_id,
             created_at: self.created_at,
             landed_at: self.landed_at,
         })?;
@@ -139,6 +144,8 @@ impl DocumentRevisionRepository {
                       trace_id AS "trace_id: TraceId",
                       task_id AS "task_id: TaskId",
                       on_behalf_of AS "on_behalf_of: UserId",
+                      agent_name AS "agent_name: AgentName",
+                      client_id AS "client_id: ClientId",
                       created_at, landed_at,
                       landing_xid AS "landing_xid!", landing_seq AS "landing_seq!"
                FROM document_revisions

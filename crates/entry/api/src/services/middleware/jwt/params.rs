@@ -72,6 +72,11 @@ pub fn build_context(params: BuildContextParams) -> RequestContext {
             TokenInteraction::NonInteractive => UserInteractionMode::NonInteractive,
         });
     }
+    // Why: a UI session is a bearer credential the person's own client holds;
+    // sent as the cookie it is not one, and the documents routes refuse it.
+    if jwt_context.ui_session && !cookie_transport {
+        ctx = ctx.with_ui_session(jwt_context.auth_time);
+    }
     if cookie_transport {
         ctx = ctx.with_cookie_transport();
         // Why: only a token the first-party web login minted, sent as its

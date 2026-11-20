@@ -1,6 +1,7 @@
-//! The writes to a comment after insertion: resolving it, recording the
-//! revision that answered it, detaching quotes from deleted text, editing its
-//! body and mentions (its author only), and soft deletion.
+//! The writes to a comment after insertion: resolving and reopening it,
+//! recording the revision that answered it, detaching quotes and cell
+//! ranges from deleted text and sheets, editing its body and mentions (its
+//! author only), and soft deletion.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -40,6 +41,27 @@ impl DocumentCommentRepository {
         Ok(result.rows_affected() == 1)
     }
 
+    pub async fn reopen_in(
+        conn: &mut PgConnection,
+        document: &DocumentId,
+        comment: &DocumentCommentId,
+        by: &UserId,
+    ) -> RepoResult<bool> {
+        let result = sqlx::query!(
+            "UPDATE document_comments
+             SET resolved_at = NULL, resolved_by = NULL,
+                 reopened_at = now(), reopened_by = $3, updated_at = now()
+             WHERE id = $1::text::uuid AND document_id = $2::text::uuid
+               AND resolved_at IS NOT NULL",
+            comment.as_str(),
+            document.as_str(),
+            by.as_str(),
+        )
+        .execute(&mut *conn)
+        .await?;
+        Ok(result.rows_affected() == 1)
+    }
+
     pub async fn set_answering_in(
         conn: &mut PgConnection,
         document: &DocumentId,
@@ -67,7 +89,7 @@ impl DocumentCommentRepository {
         let ids: Vec<String> = comments.iter().map(|id| id.as_str().to_owned()).collect();
         let result = sqlx::query!(
             "UPDATE document_comments
-             SET anchor_find = NULL, anchor_nth = NULL, updated_at = now()
+             SET anchor_find = NULL, anchor_nth = NULL, anchor_cells = NULL, updated_at = now()
              WHERE document_id = $1::text::uuid AND id = ANY($2::text[]::uuid[])",
             document.as_str(),
             &ids,

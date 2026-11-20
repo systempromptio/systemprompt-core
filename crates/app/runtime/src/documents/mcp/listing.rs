@@ -23,9 +23,9 @@ use systemprompt_mcp::McpToolHandler;
 use super::InboxHandler;
 use super::{
     AccessHandler, CommentHandler, CopyHandler, CreateHandler, DocumentsMcpTools, EditHandler,
-    ExportHandler, GuideHandler, HistoryHandler, ListHandler, PeopleHandler, ProposalsHandler,
-    ReadHandler, SearchHandler, ShareHandler, TrashHandler, UntrashHandler, UpdateHandler,
-    UploadHandler,
+    ExportHandler, FolderHandler, GuideHandler, HistoryHandler, ImportHandler, ListHandler,
+    PeopleHandler, ProposalsHandler, ReadHandler, SearchHandler, ShareHandler, TrashHandler,
+    UntrashHandler, UpdateHandler, UploadHandler,
 };
 
 const OP_NAMES: [&str; 11] = [
@@ -208,10 +208,12 @@ pub(super) fn tool_list(tools: &DocumentsMcpTools) -> Vec<Tool> {
         compact(AccessHandler { tools }.tool_definition(server)),
         compact(CopyHandler { tools }.tool_definition(server)),
         compact(UpdateHandler { tools }.tool_definition(server)),
+        compact(FolderHandler { tools }.tool_definition(server)),
         compact(TrashHandler { tools }.tool_definition(server)),
         compact(UntrashHandler { tools }.tool_definition(server)),
         compact(ExportHandler { tools, hop: None }.tool_definition(server)),
         compact(UploadHandler { tools, hop: None }.tool_definition(server)),
+        compact(ImportHandler { tools }.tool_definition(server)),
         compact(GuideHandler { tools }.tool_definition(server)),
         compact(PeopleHandler { tools }.tool_definition(server)),
     ];

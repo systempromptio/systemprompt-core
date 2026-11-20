@@ -5,7 +5,11 @@
 //! declared client stores the secrets-document key its secret came from, never
 //! the secret; the secret is stored as its bcrypt hash like every other
 //! client's. Releasing a client (its declaration was removed) clears both
-//! stamps and deactivates it.
+//! stamps and `person_ui` and deactivates it. `person_ui` is written only here,
+//! and [`ClientRepository::is_person_ui`] honours it only on an active row that
+//! still carries its declaration stamp. Changing a client's `person_ui` revokes
+//! its outstanding refresh tokens, so no grant outlives the kind of session it
+//! was minted for.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -29,6 +33,7 @@ pub struct DeclaredClientRow {
     pub redirect_uris: Vec<String>,
     pub grant_types: Vec<String>,
     pub scopes: Vec<String>,
+    pub person_ui: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -42,6 +47,7 @@ pub struct DeclaredClientWrite<'a> {
     pub redirect_uris: &'a [String],
     pub grant_types: &'a [String],
     pub scopes: &'a [String],
+    pub person_ui: bool,
     pub source: &'a str,
 }
 
@@ -50,7 +56,7 @@ impl ClientRepository {
         let rows = sqlx::query!(
             r#"
             SELECT c.client_id, c.client_name, c.owner_user_id, c.is_active,
-                   c.declared_secret_key,
+                   c.declared_secret_key, c.person_ui,
                    COALESCE((SELECT array_agg(r.redirect_uri
                                               ORDER BY r.is_primary DESC, r.redirect_uri)
                              FROM oauth_client_redirect_uris r
@@ -79,6 +85,7 @@ impl ClientRepository {
                 redirect_uris: row.redirect_uris,
                 grant_types: row.grant_types,
                 scopes: row.scopes,
+                person_ui: row.person_ui,
             })
             .collect())
     }
@@ -94,11 +101,23 @@ impl ClientRepository {
         };
         sqlx::query!(
             r#"
+            DELETE FROM oauth_refresh_tokens
+            WHERE client_id = $1
+              AND EXISTS (SELECT 1 FROM oauth_clients
+                          WHERE client_id = $1 AND person_ui <> $2)
+            "#,
+            client.client_id.as_str(),
+            client.person_ui,
+        )
+        .execute(&mut **tx)
+        .await?;
+        sqlx::query!(
+            r#"
             INSERT INTO oauth_clients (client_id, client_secret_hash, client_name,
                                        token_endpoint_auth_method, application_type,
                                        is_active, created_at, updated_at, owner_user_id,
-                                       declared_source, declared_secret_key)
-            VALUES ($1, $2, $3, $4, 'web', $5, $6, $6, $7, $8, $9)
+                                       declared_source, declared_secret_key, person_ui)
+            VALUES ($1, $2, $3, $4, 'web', $5, $6, $6, $7, $8, $9, $10)
             ON CONFLICT (client_id) DO UPDATE
             SET client_secret_hash = EXCLUDED.client_secret_hash,
                 client_name = EXCLUDED.client_name,
@@ -107,6 +126,7 @@ impl ClientRepository {
                 owner_user_id = EXCLUDED.owner_user_id,
                 declared_source = EXCLUDED.declared_source,
                 declared_secret_key = EXCLUDED.declared_secret_key,
+                person_ui = EXCLUDED.person_ui,
                 updated_at = EXCLUDED.updated_at
             "#,
             client.client_id.as_str(),
@@ -118,6 +138,7 @@ impl ClientRepository {
             client.owner_user_id.as_str(),
             client.source,
             client.secret_key,
+            client.person_ui,
         )
         .execute(&mut **tx)
         .await?;
@@ -137,12 +158,28 @@ impl ClientRepository {
         .await
     }
 
+    pub async fn is_person_ui(&self, client_id: &ClientId) -> Result<bool> {
+        let person_ui = sqlx::query_scalar!(
+            r#"
+            SELECT EXISTS (
+                SELECT 1 FROM oauth_clients
+                WHERE client_id = $1 AND is_active AND person_ui
+                  AND declared_source IS NOT NULL
+            ) AS "person_ui!"
+            "#,
+            client_id.as_str()
+        )
+        .fetch_one(&*self.write_pool)
+        .await?;
+        Ok(person_ui)
+    }
+
     pub async fn release_declared_on(conn: &mut PgConnection, client_id: &ClientId) -> Result<()> {
         sqlx::query!(
             r#"
             UPDATE oauth_clients
-            SET declared_source = NULL, declared_secret_key = NULL, is_active = false,
-                updated_at = $2
+            SET declared_source = NULL, declared_secret_key = NULL, person_ui = false,
+                is_active = false, updated_at = $2
             WHERE client_id = $1 AND declared_source IS NOT NULL
             "#,
             client_id.as_str(),

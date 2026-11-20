@@ -1,18 +1,20 @@
 //! Comment anchors against a projection: whether an anchor still holds
 //! (its node exists and, with a quote, the quote's `nth` occurrence is
-//! still in the node's text), which open comments a commit would detach,
-//! and settling them once the commit lands.
+//! still in the node's text; a cell range holds while its sheet node does,
+//! since cells are positional), whether a new cell range anchor is well
+//! placed, which open comments a commit would detach, and settling them
+//! once the commit lands.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::{DocumentCommentId, DocumentId, DocumentRevisionId};
-use systemprompt_models::documents::{Projection, ProjectionNode};
+use systemprompt_models::documents::{NodeKind, Projection, ProjectionNode};
 use systemprompt_traits::RepositoryError;
 
 use super::{CommentPolicy, DocumentService};
 use crate::documents::error::DocumentsError;
-use crate::documents::models::CommentAnchor;
+use crate::documents::models::{CommentAnchor, CommentRange};
 use crate::documents::repository::DocumentCommentRepository;
 
 fn node_text(node: &ProjectionNode) -> String {
@@ -33,10 +35,37 @@ pub(super) fn anchor_holds(ids: &Projection, anchor: &CommentAnchor) -> bool {
     let Some(node) = ids.find(&anchor.node) else {
         return false;
     };
+    if anchor.cells.is_some() {
+        return node.kind == NodeKind::Sheet;
+    }
     anchor.find.as_deref().is_none_or(|find| {
         let nth = usize::try_from(anchor.nth.unwrap_or(0)).unwrap_or(0);
         node_text(node).matches(find).count() > nth
     })
+}
+
+pub(super) fn check_cells(
+    ids: &Projection,
+    anchor: &CommentAnchor,
+    range: Option<&CommentRange>,
+) -> Result<(), DocumentsError> {
+    if anchor.cells.is_none() {
+        return Ok(());
+    }
+    if anchor.find.is_some() || anchor.nth.is_some() || range.is_some() {
+        return Err(DocumentsError::InvalidComment {
+            detail: "a cell range anchor takes no find, nth or range",
+        });
+    }
+    if ids
+        .find(&anchor.node)
+        .is_some_and(|node| node.kind != NodeKind::Sheet)
+    {
+        return Err(DocumentsError::InvalidComment {
+            detail: "a cell range anchors to a sheet node of a spreadsheet",
+        });
+    }
+    Ok(())
 }
 
 impl DocumentService {

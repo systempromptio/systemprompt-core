@@ -49,7 +49,7 @@ Shared tool-use governance types that produce the same `Decision` shape as the a
 
 ```toml
 [dependencies]
-systemprompt-governance = "0.83"
+systemprompt-governance = "0.84"
 ```
 
 ## License

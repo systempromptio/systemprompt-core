@@ -329,6 +329,7 @@ async fn a_prefixed_package_bomb_is_refused_on_import() {
                 mime_type: None,
                 bytes: prefixed_bomb(&docx),
                 author: api_author(),
+                message: None,
             },
             &trace(),
         )

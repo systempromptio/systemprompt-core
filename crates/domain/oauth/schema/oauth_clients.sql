@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS oauth_clients (
     owner_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     registration_token_hash TEXT,
     declared_source TEXT,
-    declared_secret_key TEXT
+    declared_secret_key TEXT,
+    person_ui BOOLEAN NOT NULL DEFAULT false
 );
 CREATE INDEX IF NOT EXISTS idx_oauth_clients_active ON oauth_clients(is_active);
 CREATE INDEX IF NOT EXISTS idx_oauth_clients_owner_user_id ON oauth_clients(owner_user_id);

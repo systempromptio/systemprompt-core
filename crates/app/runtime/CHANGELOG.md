@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.84.0] - 2026-11-20
+
+### Breaking
+
+- The documents MCP inputs `CreateInput`, `CopyInput` and `ProposalsInput` gain `context_id`, and `RevisionAttributionItem` gains `agent_name`, `client_id` and `context_name`. Migrate a struct literal by setting the new fields to `None`.
+- `documents::mcp::ListScopeInput` gains `Context` and `ListInput` gains `context_id`. Migrate an exhaustive match by adding the arm and a struct literal by setting `context_id: None`.
+- `DocumentsRuntimeParts` and `documents::mcp::DocumentsMcpConfig` gain `contexts`, `RefusalCode` gains `UnknownContext`, and `views::comments_view` takes a `&dyn ContextDirectory`. Migrate by passing `DocumentsRuntime::contexts()` and adding the match arm.
+- `CommentAction` gains `Reopen`, and `CommentItem` gains `reopened_at` and `reopened_by`. Migrate an exhaustive match by adding the arm and a struct literal by setting both fields.
+- `CommentAnchorItem` and `documents::mcp::CommentInput` gain `cells: Option<CellRange>`. Migrate a struct literal by setting `cells: None`.
+
+### Added
+
+- `documents_list {scope: "context", context_id?}` lists what a conversation of the caller's touched; `context_id` defaults to the calling conversation, and one the caller does not own is `unknown_context`. The `documents` guide topic names the scope.
+- `documents_comment {action: create, node: <sheet node>, cells: "B2:D9"}` anchors a comment to a cell range on a spreadsheet; listings answer `anchor.cells`, and the `comments` guide topic describes it.
+- `documents_comment {action: reopen, document_id, comment_id}` reopens a resolved comment; the `comments` guide topic names it and the `agent`-attention self-mention hand-off.
+- `EditInput::content_blob_ref`: `documents_edit` replaces the whole file from an uploaded blob in place of `ops` (exclusive with it; neither or both is `invalid_params`).
+- `documents::mcp::{FolderHandler, FolderInput, FolderAction, ImportHandler, ImportInput}`: the `documents_folder` and `documents_import` tools; `TOOL_NAMES` lists them (21 tools, 20 without `notifications`).
+- `documents::attribution`: the conversation a document write is attributed to, refused as `unknown_context` unless the caller owns it or it is the caller's session-derived context, and the owner-only context names. The document write tools take an optional `context_id`, `documents_import` a `message`, and history and comment items carry the agent, client and context.
+- `documents::actor::caller_actor` treats a UI session like a browser session: the person, unless it carries a purpose, a delegation chain or a non-interactive claim.
+
+### Fixed
+
+- `documents_people` finds people by several words in any order, ignoring accents (`jesus vargas` finds «Jesús Vargas Sánchez»); its description says so.
+- `DocumentsError::FolderNameTaken` and `AgentRefusal::WholesaleReplace` map to the `name_taken` and `agent_forbidden` refusals.
+- A documents MCP call naming a blob that did not pass its format's content check is refused as `invalid_params`, not `integrity_mismatch`.
+
 ## [0.82.0] - 2026-11-16
 
 ### Breaking

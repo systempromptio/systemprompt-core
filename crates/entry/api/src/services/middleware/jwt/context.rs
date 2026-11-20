@@ -8,6 +8,12 @@
 //! `load_user` reads the user an API key names through the same record and
 //! short-TTL cache, so both credential kinds see the same roles.
 //!
+//! The extractor validates the first-party audiences. Only the one
+//! [`JwtContextExtractor::admitting_ui_sessions`] returns, which the documents,
+//! folders and uploads routes mount, also admits the `ui` audience of a
+//! person's UI session; the gateway decode and `verified_claims` never do. A
+//! UI session sent as the session cookie is refused: it is a bearer credential.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -34,6 +40,10 @@ use super::params::{
 use super::revocation::JtiRevocationChecker;
 use super::validation::{UserCache, user_is_admin, validate_session_exists, validate_user_exists};
 
+#[derive(Debug, Clone, Copy, thiserror::Error)]
+#[error("a ui_session token is a bearer credential and is refused as the session cookie")]
+struct UiSessionCookieRefused;
+
 #[derive(Clone)]
 pub struct JwtContextExtractor {
     token_extractor: TokenExtractor,
@@ -43,12 +53,14 @@ pub struct JwtContextExtractor {
     jti_revocation: JtiRevocationChecker,
     issuer: String,
     keys: SigningKeys,
+    audiences: &'static [JwtAudience],
 }
 
 impl std::fmt::Debug for JwtContextExtractor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("JwtContextExtractor")
             .field("token_extractor", &self.token_extractor)
+            .field("audiences", &self.audiences)
             .finish_non_exhaustive()
     }
 }
@@ -69,7 +81,14 @@ impl JwtContextExtractor {
             jti_revocation,
             issuer,
             keys,
+            audiences: JwtAudience::FIRST_PARTY,
         }
+    }
+
+    #[must_use]
+    pub const fn admitting_ui_sessions(mut self) -> Self {
+        self.audiences = JwtAudience::FIRST_PARTY_AND_UI;
+        self
     }
 
     fn extract_jwt_context(
@@ -80,7 +99,8 @@ impl JwtContextExtractor {
             .token_extractor
             .extract(headers)
             .map_err(|_e| ContextExtractionError::MissingAuthHeader)?;
-        extract_user_context(self.keys.keyring(), &token, &self.issuer)
+        let policy = ValidationPolicy::issuer_scoped(&self.issuer, self.audiences);
+        extract_user_context_for(self.keys.keyring(), &token, &policy)
             .map_err(|e| ContextExtractionError::InvalidToken(e.into()))
     }
 
@@ -114,6 +134,12 @@ impl JwtContextExtractor {
         headers: &HeaderMap,
     ) -> Result<RequestContext, ContextExtractionError> {
         let jwt_context = self.extract_jwt_context(headers)?;
+        let cookie_transport = is_cookie_transport(&self.token_extractor, headers);
+        if jwt_context.ui_session && cookie_transport {
+            return Err(ContextExtractionError::InvalidToken(Box::new(
+                UiSessionCookieRefused,
+            )));
+        }
         let user = self.validate(&jwt_context, "").await?;
 
         let context_id = headers
@@ -140,7 +166,7 @@ impl JwtContextExtractor {
             task_id,
             auth_token,
             user_type,
-            cookie_transport: is_cookie_transport(&self.token_extractor, headers),
+            cookie_transport,
         }))
     }
 

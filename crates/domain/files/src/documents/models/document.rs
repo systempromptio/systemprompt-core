@@ -5,7 +5,7 @@
 
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{
-    DocumentFolderId, DocumentId, DocumentRevisionId, DocumentTemplateId, UserId,
+    ContextId, DocumentFolderId, DocumentId, DocumentRevisionId, DocumentTemplateId, UserId,
 };
 use systemprompt_models::documents::{AccessLevel, DocumentFormat};
 
@@ -53,6 +53,7 @@ pub enum ListScope {
     Shared,
     Mine,
     Recent,
+    Context,
 }
 
 impl ListScope {
@@ -63,6 +64,7 @@ impl ListScope {
             Self::Shared => "shared",
             Self::Mine => "mine",
             Self::Recent => "recent",
+            Self::Context => "context",
         }
     }
 }
@@ -90,6 +92,7 @@ impl ListSort {
 pub struct ScopedListing {
     pub scope: ListScope,
     pub folder_id: Option<DocumentFolderId>,
+    pub context_id: Option<ContextId>,
     pub query: Option<String>,
     pub sort: ListSort,
     pub cursor: Option<ListingCursor>,

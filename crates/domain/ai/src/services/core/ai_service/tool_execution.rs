@@ -91,6 +91,9 @@ impl AiService {
 
         request_logging::log_ai_response(&response, tool_calls.len());
 
+        if !tool_calls.is_empty() {
+            self.storage.materialize_context(&request.context).await;
+        }
         let (tool_calls, tool_results) = self
             .tooled_executor
             .execute_tool_calls(tool_calls, tools, &request.context, None)
@@ -239,6 +242,9 @@ impl AiService {
         context: &RequestContext,
         agent_overrides: Option<&systemprompt_models::ai::ToolModelOverrides>,
     ) -> (Vec<ToolCall>, Vec<CallToolResult>) {
+        if !tool_calls.is_empty() {
+            self.storage.materialize_context(context).await;
+        }
         self.tooled_executor
             .execute_tool_calls(tool_calls, tools, context, agent_overrides)
             .await

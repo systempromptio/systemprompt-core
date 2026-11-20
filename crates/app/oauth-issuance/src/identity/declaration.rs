@@ -7,6 +7,12 @@
 //! with the first (primary) one kept first and the rest sorted, so a file and
 //! the rows it produced compare equal exactly when they mean the same thing.
 //!
+//! `person_ui` marks a client as a person's own UI: its code grant mints a UI
+//! session (see [`systemprompt_models::auth::ui_session`]). Only this file can
+//! set it, and only on a public client limited to the `authorization_code` and
+//! `refresh_token` grants whose redirects are loopback or private-use-scheme
+//! (RFC 8252), never on a platform client.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -33,7 +39,7 @@ const DECLARABLE_GRANT_TYPES: &[&str] =
 pub struct DeclarationError(String);
 
 impl DeclarationError {
-    const fn new(message: String) -> Self {
+    pub(super) const fn new(message: String) -> Self {
         Self(message)
     }
 }
@@ -76,6 +82,8 @@ pub struct DeclaredClient {
     pub secret_key: Option<String>,
     #[serde(default = "default_active")]
     pub active: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub person_ui: bool,
 }
 
 fn default_roles() -> Vec<String> {
@@ -111,6 +119,8 @@ pub struct ClientValue {
     pub scopes: Vec<String>,
     pub secret_key: Option<String>,
     pub active: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub person_ui: bool,
 }
 
 #[must_use]
@@ -221,6 +231,9 @@ impl DeclaredClient {
                 "oauth client {id}: secret_key is empty"
             )));
         }
+        if self.person_ui {
+            super::person_ui::validate(self, id)?;
+        }
         Ok(())
     }
 
@@ -234,6 +247,7 @@ impl DeclaredClient {
             scopes: sorted_unique(&self.scopes),
             secret_key: self.secret_key.as_deref().map(|k| k.trim().to_owned()),
             active: self.active,
+            person_ui: self.person_ui,
         }
     }
 }
@@ -263,6 +277,7 @@ impl ClientValue {
             scopes: self.scopes,
             secret_key: self.secret_key,
             active: self.active,
+            person_ui: self.person_ui,
         }
     }
 }

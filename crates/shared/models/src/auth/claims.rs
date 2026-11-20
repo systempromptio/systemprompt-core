@@ -143,6 +143,8 @@ pub struct CustomClaims {
     pub interaction: Option<TokenInteraction>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub browser_session: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub ui_session: bool,
 }
 
 /// The `interaction` claim: how the caller of a token is attended.
@@ -230,5 +232,21 @@ impl JwtClaims {
 
     pub fn roles(&self) -> &[String] {
         &self.custom.roles
+    }
+
+    #[must_use]
+    pub fn ui_session_well_formed(&self) -> bool {
+        let ui = JwtAudience::Ui.as_str();
+        let carries_ui = self.registered.aud.iter().any(|aud| aud.as_str() == ui);
+        if !self.custom.ui_session && !carries_ui {
+            return true;
+        }
+        self.custom.ui_session
+            && self.registered.aud.len() == 1
+            && carries_ui
+            && self.custom.client_id.is_some()
+            && self.custom.purpose.is_none()
+            && self.custom.act.is_none()
+            && !self.custom.browser_session
     }
 }

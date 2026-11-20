@@ -33,6 +33,8 @@ pub struct AuthContext {
     pub browser_session: bool,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub cookie_transport: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ui_session_auth_time: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

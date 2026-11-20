@@ -55,6 +55,22 @@ impl BrainSink for NoBrain {
     }
 }
 
+fn fold(text: &str) -> String {
+    text.to_lowercase()
+        .chars()
+        .map(|c| match c {
+            'á' | 'à' | 'ä' | 'â' | 'ã' | 'å' => 'a',
+            'é' | 'è' | 'ë' | 'ê' => 'e',
+            'í' | 'ì' | 'ï' | 'î' => 'i',
+            'ó' | 'ò' | 'ö' | 'ô' | 'õ' => 'o',
+            'ú' | 'ù' | 'ü' | 'û' => 'u',
+            'ñ' => 'n',
+            'ç' => 'c',
+            other => other,
+        })
+        .collect()
+}
+
 pub(crate) const GROUP: RuleType = RuleType::extension_static("group");
 
 pub(crate) struct GroupSource {
@@ -123,6 +139,7 @@ impl SubjectAttributeSource for GroupSource {
 pub(crate) struct RoleDirectory {
     roles: HashMap<String, Vec<UserId>>,
     users: Vec<(UserId, String)>,
+    members_fail: bool,
 }
 
 impl RoleDirectory {
@@ -131,6 +148,11 @@ impl RoleDirectory {
             role.to_owned(),
             members.iter().map(|user| (*user).clone()).collect(),
         );
+        self
+    }
+
+    pub(crate) const fn failing_members(mut self) -> Self {
+        self.members_fail = true;
         self
     }
 
@@ -169,6 +191,11 @@ impl SubjectDirectory for RoleDirectory {
         value: &str,
         limit: usize,
     ) -> Result<Vec<UserId>, SubjectDirectoryError> {
+        if self.members_fail {
+            return Err(SubjectDirectoryError(Box::new(std::io::Error::other(
+                "subject directory unavailable",
+            ))));
+        }
         Ok(match kind {
             "user" => vec![UserId::new(value)],
             "role" => self
@@ -185,16 +212,41 @@ impl SubjectDirectory for RoleDirectory {
         query: &str,
         limit: usize,
     ) -> Result<Vec<SubjectMatch>, SubjectDirectoryError> {
-        let query = query.to_lowercase();
+        let words: Vec<String> = query.split_whitespace().take(4).map(fold).collect();
         Ok(self
             .users
             .iter()
-            .filter(|(_, display)| display.to_lowercase().starts_with(&query))
+            .filter(|(user, display)| {
+                let text = fold(&format!("{display} {user}"));
+                let starts: Vec<&str> = text.split([' ', '.', '-', '_', '@']).collect();
+                words
+                    .iter()
+                    .all(|word| starts.iter().any(|start| start.starts_with(word.as_str())))
+            })
             .take(limit)
             .map(|(user, display)| SubjectMatch {
                 value: user.as_str().to_owned(),
                 display: display.clone(),
                 detail: None,
+            })
+            .collect())
+    }
+
+    async fn find_people(
+        &self,
+        users: &[UserId],
+    ) -> Result<Vec<SubjectMatch>, SubjectDirectoryError> {
+        Ok(users
+            .iter()
+            .filter_map(|user| {
+                self.users
+                    .iter()
+                    .find(|(known, _)| known == user)
+                    .map(|(known, display)| SubjectMatch {
+                        value: known.as_str().to_owned(),
+                        display: display.clone(),
+                        detail: None,
+                    })
             })
             .collect())
     }
@@ -343,6 +395,7 @@ pub(crate) fn harness_wired(
         notifications: fixture_notification_sink(&db),
         brain,
         config,
+        tasks: BackgroundTasks::new(),
     });
     service.attach_uploads(&uploads);
     Harness {

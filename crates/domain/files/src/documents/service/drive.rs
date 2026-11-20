@@ -47,6 +47,7 @@ impl DocumentService {
                 let listing = ScopedListing {
                     scope,
                     folder_id: None,
+                    context_id: None,
                     query: None,
                     sort: ListSort::Updated,
                     cursor,

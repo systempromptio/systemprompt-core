@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.84.0] - 2026-11-20
+
+### Added
+
+- `ContextProviderService` implements `ContextDirectory`; `ContextRepository::{find_owned_name, owned_names}`.
+
 ## [0.81.0] - 2026-11-12
 
 ### Breaking

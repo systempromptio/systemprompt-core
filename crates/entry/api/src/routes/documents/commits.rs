@@ -137,7 +137,7 @@ pub(super) async fn write(
         document_id: id.clone(),
         base_revision: base_revision(headers)?,
         body: CommitBody::Bytes(body.to_vec()),
-        author: api_author(req_ctx, headers),
+        author: api_author(&state, req_ctx, headers).await?,
         message: query.message,
         lock_holder: None,
         comments: CommentPolicy::detach(),
@@ -199,7 +199,7 @@ pub(super) async fn edits(
             document_id: id,
             base_revision: body.base_revision,
             ops: body.ops,
-            author: api_author(&req_ctx, &headers),
+            author: api_author(&state, &req_ctx, &headers).await?,
             message: body.message,
         };
         let proposed = state
@@ -212,7 +212,7 @@ pub(super) async fn edits(
         document_id: id.clone(),
         base_revision: body.base_revision,
         body: CommitBody::Ops(body.ops),
-        author: api_author(&req_ctx, &headers),
+        author: api_author(&state, &req_ctx, &headers).await?,
         message: body.message,
         lock_holder: None,
         comments: CommentPolicy {

@@ -210,7 +210,8 @@ const fn agent_code(refusal: &AgentRefusal) -> RefusalCode {
     match refusal {
         AgentRefusal::CapExceeded { .. }
         | AgentRefusal::HardRule { .. }
-        | AgentRefusal::BroadRewrite { .. } => RefusalCode::AgentForbidden,
+        | AgentRefusal::BroadRewrite { .. }
+        | AgentRefusal::WholesaleReplace { .. } => RefusalCode::AgentForbidden,
         AgentRefusal::SuggestOnly { .. } => RefusalCode::AgentSuggestOnly,
         AgentRefusal::RateLimited { .. } => RefusalCode::AgentRateLimited,
         AgentRefusal::OverrideLooser { .. } | AgentRefusal::MoveRefused { .. } => {
@@ -249,13 +250,16 @@ const fn plain_code(error: &DocumentsError) -> Option<RefusalCode> {
         | DocumentsError::NotFound { .. }
         | DocumentsError::CommentNotFound { .. } => Some(RefusalCode::NotFound),
         DocumentsError::UnknownSubject { .. } => Some(RefusalCode::UnknownSubject),
+        DocumentsError::UnknownContext { .. } => Some(RefusalCode::UnknownContext),
         DocumentsError::LockHeld { .. } => Some(RefusalCode::Locked),
         DocumentsError::FolderNotEmpty { .. } | DocumentsError::SubtreeChanged { .. } => {
             Some(RefusalCode::FolderNotEmpty)
         },
         DocumentsError::OwnershipChanged { .. } => Some(RefusalCode::Forbidden),
         DocumentsError::ProposalClosed { .. } => Some(RefusalCode::ProposalClosed),
-        DocumentsError::NameTaken { .. } => Some(RefusalCode::NameTaken),
+        DocumentsError::NameTaken { .. } | DocumentsError::FolderNameTaken { .. } => {
+            Some(RefusalCode::NameTaken)
+        },
         DocumentsError::IntegrityMismatch { .. } => Some(RefusalCode::IntegrityMismatch),
         DocumentsError::UnsupportedFormat { .. }
         | DocumentsError::LiveUnsupported { .. }
@@ -289,6 +293,7 @@ const fn plain_code(error: &DocumentsError) -> Option<RefusalCode> {
         | DocumentsError::Events { .. }
         | DocumentsError::Worker(_)
         | DocumentsError::Directory(_)
+        | DocumentsError::Contexts(_)
         | DocumentsError::LiveSession(_) => None,
     }
 }

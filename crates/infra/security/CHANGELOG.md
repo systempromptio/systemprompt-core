@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.84.0] - 2026-11-20
+
+### Breaking
+
+- `JwtUserContext` gains `ui_session` and `auth_time`, and `AuthError` gains `UiSessionShape`. Migrate a struct literal with `ui_session: false` and the token's `auth_time`, and add the match arm.
+
+### Security
+
+- `decode_rs256_claims` refuses a token whose `ui_session` claim or `ui` audience is not exactly the UI-session shape, and `user_claims` refuses to mint one; `user_claims` takes the request's `auth_time` (never later than now).
+
 ## [0.81.0] - 2026-11-12
 
 ### Breaking

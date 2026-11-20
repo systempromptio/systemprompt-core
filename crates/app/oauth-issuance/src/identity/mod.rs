@@ -25,6 +25,7 @@
 
 pub mod declaration;
 mod files;
+mod person_ui;
 
 use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
@@ -39,10 +40,9 @@ use systemprompt_extension::prelude::{
 use systemprompt_identifiers::{ClientId, UserId};
 use systemprompt_manifest::secrets::Secrets;
 use systemprompt_oauth::repository::{ClientRepository, DeclaredClientWrite};
-use systemprompt_oauth::services::hash_client_secret;
 use systemprompt_users::{DeclaredUserWrite, UserRepository};
 
-use files::{backend, encode, invalid};
+use files::{backend, declared_secret_hash, encode, invalid};
 pub use files::{declared_entities, render_document};
 
 use declaration::{CLIENT_PREFIX, ClientValue, USER_PREFIX, UserValue, client_key, user_key};
@@ -121,21 +121,7 @@ impl IdentityPlane {
                     ),
                 )
             })?;
-        let secret_hash = match client.secret_key.as_deref() {
-            None => None,
-            Some(key) => {
-                let secret = secrets.and_then(|s| s.get(key)).ok_or_else(|| {
-                    invalid(
-                        IDENTITY_DIR,
-                        &format_args!(
-                            "oauth client {client_id}: secret_key '{key}' is not in the \
-                                 secrets document"
-                        ),
-                    )
-                })?;
-                Some(hash_client_secret(secret).map_err(backend)?)
-            },
-        };
+        let secret_hash = declared_secret_hash(secrets, &client_id, client.secret_key.as_deref())?;
         ClientRepository::upsert_declared_on(
             tx,
             &DeclaredClientWrite {
@@ -148,6 +134,7 @@ impl IdentityPlane {
                 redirect_uris: &client.redirect_uris,
                 grant_types: &client.grant_types,
                 scopes: &client.scopes,
+                person_ui: client.person_ui,
                 source,
             },
         )
@@ -235,6 +222,7 @@ impl ConfigPlane for IdentityPlane {
                 scopes: row.scopes,
                 secret_key: row.secret_key,
                 active: row.is_active,
+                person_ui: row.person_ui,
             })?;
             snapshot.insert(client_key(&row.client_id), value);
         }
