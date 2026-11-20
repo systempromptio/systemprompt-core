@@ -54,7 +54,7 @@ files:
 |--------|---------|
 | `config` | Profile-driven configuration loading, validation, and persistence modes |
 | `error` | `FilesError` and `FilesResult` shared across the crate |
-| `extension` | `FilesExtension`, contributing the schemas, migrations, jobs, document-actor job-run scope and user-purge declarations, and opening the files slots |
+| `extension` | `FilesExtension`, contributing the schemas, migrations, jobs, document-actor job-run scope and user-purge declarations, providing the `Arc<FileRepository>` the `files-http` commands resolve, and opening the files slots |
 | `contract` | `BlobHolderSlot` (`holder`), `AgentAccessSlot` (`policy`, single-valued) and `DocumentsSlot` (`codec`, `template_provider`) |
 | `jobs` | Background file ingestion, contributed by `FilesExtension` |
 | `models` | Data structures: `File`, `ContentFile`, `FileRole`, metadata variants |

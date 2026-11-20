@@ -29,7 +29,6 @@ pub(super) fn build_data_plane(
         service_repository: repositories.services,
         coordination: repositories.coordination,
         ai_repositories: repositories.ai,
-        file_repository: repositories.files,
         mcp_session_repository: repositories.mcp_sessions,
         managed_repository: repositories.managed,
     }
@@ -55,7 +54,6 @@ pub(super) struct RepositoryBundles {
     services: Arc<systemprompt_database::ServiceRepository>,
     coordination: Arc<systemprompt_database::CoordinationRepositories>,
     pub(super) ai: Arc<systemprompt_ai::repository::AiRepositories>,
-    files: Arc<systemprompt_files::FileRepository>,
     mcp_sessions: Arc<systemprompt_mcp::repository::McpSessionRepository>,
     managed: Arc<systemprompt_marketplace::managed::ManagedRepository>,
 }
@@ -166,7 +164,6 @@ pub(super) fn build_repositories(
         services: Arc::clone(&seeded.services),
         coordination: Arc::clone(&seeded.coordination),
         ai: Arc::clone(&seeded.ai),
-        files: Arc::new(systemprompt_files::FileRepository::new(database)),
         mcp_sessions: Arc::new(systemprompt_mcp::repository::McpSessionRepository::new(
             database,
         )),

@@ -1,0 +1,14 @@
+[root]
+section = "Changed"
+area = "Extensions"
+text = "The `files` member provides `Arc<FileRepository>` into the composition state; the runtime no longer builds its own."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`AppContext::file_repository` and the `DataPlane::file_repository` field are removed; resolve `Arc<FileRepository>` from the kernel state, which the `files` member provides."
+
+[[crate]]
+name = "systemprompt-files"
+section = "Added"
+text = "`FilesExtension` provides `Arc<FileRepository>`."

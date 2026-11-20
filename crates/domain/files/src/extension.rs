@@ -1,8 +1,15 @@
-//! [`FilesExtension`]: contributes the `files`, `content_files` and document
-//! store schemas, the `report_document_revisions` and
-//! `report_document_sharing` views, the migrations, the files jobs and the
-//! document-actor job run scope, and the user-purge rows of the document store
-//! and issue report tables.
+//! [`FilesExtension`]: contributes the files capability and the document
+//! store and issue reports it hosts.
+//!
+//! The files contributions (`contribute_files`) are the `files` and
+//! `content_files` schemas, the `files` user-purge row, the
+//! `file_ingestion` job and the provided `Arc<FileRepository>`, which the
+//! `files-http` member's commands resolve. The document and issue
+//! contributions (`contribute_documents_and_issues`) are the document store
+//! schemas, the `report_document_revisions` and `report_document_sharing`
+//! views, the document and issue jobs, the document-actor job run scope and
+//! the user-purge rows of the document store and issue report tables. The
+//! migrations are one chain for the crate.
 //!
 //! It opens the three files slots ([`BlobHolderSlot`], [`AgentAccessSlot`],
 //! [`DocumentsSlot`]) and fills them with the issue attachment holder, the
@@ -24,6 +31,7 @@
 
 use std::sync::Arc;
 
+use systemprompt_database::DbPool;
 use systemprompt_extension::brain::{SourceAccess, SourceContent};
 use systemprompt_extension::prelude::*;
 use systemprompt_extension::{NotificationAudienceResolver, ResourceVisibility};
@@ -48,6 +56,7 @@ use crate::documents::templates::CoreTemplateProvider;
 use crate::issues::IssueRetentionJob;
 use crate::issues::repository::{ISSUE_ATTACHMENTS_HOLDER, ISSUE_USER_PURGES};
 use crate::jobs::{DocumentActorScope, FileIngestionJob};
+use crate::repository::FileRepository;
 use crate::uploads::DocumentUploadExpiryJob;
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -63,71 +72,82 @@ impl Extension for FilesExtension {
     }
 
     fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
-        c.schema(
-            SchemaDefinition::new("files", include_str!("../schema/files.sql"))
-                .with_required_columns(vec![
-                    "id".into(),
-                    "path".into(),
-                    "mime_type".into(),
-                    "created_at".into(),
-                ]),
-        )
-        .schema(
-            SchemaDefinition::new("content_files", include_str!("../schema/content_files.sql"))
-                .with_required_columns(vec!["id".into(), "content_id".into(), "file_id".into()]),
-        );
-        for (table, sql, columns) in DOCUMENT_SCHEMAS {
-            c.schema(
-                SchemaDefinition::new(*table, *sql)
-                    .with_required_columns(columns.iter().map(|c| (*c).into()).collect()),
-            );
-        }
-        for view in [
-            include_str!("../schema/report_document_revisions.sql"),
-            include_str!("../schema/report_document_sharing.sql"),
-        ] {
-            c.schema(SchemaDefinition::sql_only(view));
-        }
         c.migrations(extension_migrations!());
-        c.user_purge(UserPurgeTable {
-            table: "files",
-            column: "user_id",
-            predicate: None,
-        });
-        for purge in DOCUMENT_USER_PURGES.iter().chain(ISSUE_USER_PURGES) {
-            c.user_purge(*purge);
-        }
-        c.job(FileIngestionJob)
-            .job(IssueRetentionJob)
-            .job(DocumentUploadExpiryJob)
-            .job(DocumentAgentReadRetentionJob)
-            .job(DocumentBlobGcJob)
-            .job(DocumentCollabUpdateSweepJob)
-            .job(DocumentMediaBackfillJob)
-            .job(DocumentNodeIdsBackfillJob)
-            .job(DocumentPresenceSweepJob)
-            .job(DocumentTrashPurgeJob)
-            .job_run_scope(Arc::new(DocumentActorScope));
-        #[cfg(feature = "collab")]
-        c.job(crate::documents::jobs::DocumentCollabReaperJob);
-        provide_core_seams(c);
-        c.slot::<BlobHolderSlot>().holder(ISSUE_ATTACHMENTS_HOLDER);
-        c.slot::<AgentAccessSlot>();
-        let documents = c.slot::<DocumentsSlot>();
-        for codec in core_codecs() {
-            documents.codec(
-                move |_: &Resolved<'_>| -> Result<Arc<dyn DocumentCodec>, FactoryError> {
-                    Ok(Arc::clone(&codec))
-                },
-            );
-        }
-        documents.template_provider(
-            |_: &Resolved<'_>| -> Result<Arc<dyn DocumentTemplateProvider>, FactoryError> {
-                Ok(Arc::new(CoreTemplateProvider))
-            },
-        );
+        contribute_files(c);
+        contribute_documents_and_issues(c);
         Ok(())
     }
+}
+
+fn contribute_files(c: &mut Contributions<'_>) {
+    c.schema(
+        SchemaDefinition::new("files", include_str!("../schema/files.sql"))
+            .with_required_columns(vec![
+                "id".into(),
+                "path".into(),
+                "mime_type".into(),
+                "created_at".into(),
+            ]),
+    )
+    .schema(
+        SchemaDefinition::new("content_files", include_str!("../schema/content_files.sql"))
+            .with_required_columns(vec!["id".into(), "content_id".into(), "file_id".into()]),
+    )
+    .user_purge(UserPurgeTable {
+        table: "files",
+        column: "user_id",
+        predicate: None,
+    })
+    .job(FileIngestionJob)
+    .provide(|r: &Resolved<'_>| -> Result<Arc<FileRepository>, ProvideError> {
+        Ok(Arc::new(FileRepository::new(&r.get::<DbPool>()?)))
+    });
+}
+
+fn contribute_documents_and_issues(c: &mut Contributions<'_>) {
+    for (table, sql, columns) in DOCUMENT_SCHEMAS {
+        c.schema(
+            SchemaDefinition::new(*table, *sql)
+                .with_required_columns(columns.iter().map(|c| (*c).into()).collect()),
+        );
+    }
+    for view in [
+        include_str!("../schema/report_document_revisions.sql"),
+        include_str!("../schema/report_document_sharing.sql"),
+    ] {
+        c.schema(SchemaDefinition::sql_only(view));
+    }
+    for purge in DOCUMENT_USER_PURGES.iter().chain(ISSUE_USER_PURGES) {
+        c.user_purge(*purge);
+    }
+    c.job(IssueRetentionJob)
+        .job(DocumentUploadExpiryJob)
+        .job(DocumentAgentReadRetentionJob)
+        .job(DocumentBlobGcJob)
+        .job(DocumentCollabUpdateSweepJob)
+        .job(DocumentMediaBackfillJob)
+        .job(DocumentNodeIdsBackfillJob)
+        .job(DocumentPresenceSweepJob)
+        .job(DocumentTrashPurgeJob)
+        .job_run_scope(Arc::new(DocumentActorScope));
+    #[cfg(feature = "collab")]
+    c.job(crate::documents::jobs::DocumentCollabReaperJob);
+    provide_core_seams(c);
+    c.slot::<BlobHolderSlot>().holder(ISSUE_ATTACHMENTS_HOLDER);
+    c.slot::<AgentAccessSlot>();
+    let documents = c.slot::<DocumentsSlot>();
+    for codec in core_codecs() {
+        documents.codec(
+            move |_: &Resolved<'_>| -> Result<Arc<dyn DocumentCodec>, FactoryError> {
+                Ok(Arc::clone(&codec))
+            },
+        );
+    }
+    documents.template_provider(
+        |_: &Resolved<'_>| -> Result<Arc<dyn DocumentTemplateProvider>, FactoryError> {
+            Ok(Arc::new(CoreTemplateProvider))
+        },
+    );
 }
 
 type DocumentVisibilitySeam = CoreSeam<dyn ResourceVisibility, core_seam::DocumentVisibility>;

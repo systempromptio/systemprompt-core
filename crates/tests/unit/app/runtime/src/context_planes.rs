@@ -80,7 +80,6 @@ async fn plane_debug_impls_flag_optional_members() {
             )
             .expect("at-rest cipher"),
         )),
-        file_repository: Arc::new(systemprompt_files::FileRepository::new(&pool)),
         mcp_session_repository: Arc::new(systemprompt_mcp::repository::McpSessionRepository::new(
             &pool,
         )),

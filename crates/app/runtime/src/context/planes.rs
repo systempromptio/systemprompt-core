@@ -13,7 +13,7 @@ use systemprompt_config::paths::AppPaths;
 use systemprompt_content::repository::ContentRepositories;
 use systemprompt_database::{CoordinationRepositories, DbPool, ServiceRepository};
 use systemprompt_events::{EventBridgeHandle, EventRouter};
-use systemprompt_files::{FileRepository, FilesConfig};
+use systemprompt_files::FilesConfig;
 use systemprompt_governance::authz::SharedAuthzHook;
 use systemprompt_governance::policy::GovernanceEngine;
 use systemprompt_loader::BootContext;
@@ -59,7 +59,6 @@ pub struct DataPlane {
     pub service_repository: Arc<ServiceRepository>,
     pub coordination: Arc<CoordinationRepositories>,
     pub ai_repositories: Arc<AiRepositories>,
-    pub file_repository: Arc<FileRepository>,
     pub mcp_session_repository: Arc<McpSessionRepository>,
     pub managed_repository: Arc<ManagedRepository>,
 }
