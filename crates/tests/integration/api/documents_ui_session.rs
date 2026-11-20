@@ -76,7 +76,7 @@ async fn every_other_surface_refuses_a_ui_session() -> anyhow::Result<()> {
     for (method, uri) in [
         (Method::GET, "/api/v1/core/contexts"),
         (Method::POST, "/api/v1/mcp/documents/mcp"),
-        (Method::POST, "/api/v1/agents/assistant/"),
+        (Method::POST, "/api/v1/agents/assistant"),
         (Method::GET, "/v1/bridge/stream"),
         (Method::GET, "/v1/bridge/whoami"),
     ] {
