@@ -78,3 +78,24 @@ fn sealed_types_name_every_sealed_entry_before_and_after_withholding() {
         "a withheld copy still names its sealed types but holds none of them"
     );
 }
+
+#[test]
+fn host_types_name_host_seeds_and_reservations_but_no_provided_value() {
+    let mut deps = Dependencies::new()
+        .with(1u16)
+        .with_sealed(Arc::new(2u32))
+        .reserving::<i64>();
+    let owner = systemprompt_identifiers::ExtensionId::new("probe");
+    deps.provide(&owner, Arc::new(3u8))
+        .expect("a fresh type is provided");
+
+    let mut named: Vec<&str> = deps.host_types().map(|(_, name)| name).collect();
+    named.sort_unstable();
+    let mut expected = vec![
+        std::any::type_name::<u16>(),
+        std::any::type_name::<Arc<u32>>(),
+        std::any::type_name::<i64>(),
+    ];
+    expected.sort_unstable();
+    assert_eq!(named, expected);
+}
