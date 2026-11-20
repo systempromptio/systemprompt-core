@@ -137,7 +137,7 @@ async fn an_accepted_agent_proposal_sets_the_flag_when_it_lands_as_the_reviewer(
         )
         .await
         .expect("owner edit");
-    assert!(!flagged(&h, &document).await);
+    assert!(!column(&document).await);
 
     let accepted = h
         .service
@@ -154,5 +154,33 @@ async fn an_accepted_agent_proposal_sets_the_flag_when_it_lands_as_the_reviewer(
         .expect("accept");
     assert!(accepted.rebased, "the head moved, so the reviewer lands it");
     assert_eq!(accepted.revision.author_user_id, owner.id);
-    assert!(flagged(&h, &document).await);
+    assert!(
+        column(&document).await,
+        "landing the agent's proposal sets the column"
+    );
+}
+
+#[tokio::test]
+async fn a_document_an_agent_wrote_before_the_column_reads_as_agent_content() {
+    let h = edit_harness().await;
+    let owner = person("content-legacy");
+    let id = document(&h, &owner).await;
+    assert!(!flagged(&h, &id).await);
+    let pool = test_db_pool().await;
+    sqlx::query("UPDATE document_revisions SET actor_kind = 'agent' WHERE document_id = $1::uuid")
+        .bind(id.as_str())
+        .execute(pool.write_pool().as_ref())
+        .await
+        .expect("plant a pre-044 agent revision");
+    assert!(!column(&id).await, "the column itself is never backfilled");
+    assert!(flagged(&h, &id).await);
+}
+
+async fn column(id: &DocumentId) -> bool {
+    let pool = test_db_pool().await;
+    sqlx::query_scalar::<_, bool>("SELECT agent_content FROM documents WHERE id = $1::uuid")
+        .bind(id.as_str())
+        .fetch_one(pool.write_pool().as_ref())
+        .await
+        .expect("agent_content column")
 }
