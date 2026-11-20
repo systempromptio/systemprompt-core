@@ -53,6 +53,9 @@ members = [
     "crates/entry/cloud",
     "crates/entry/analytics",
     "crates/entry/content",
+    "crates/entry/marketplace",
+    "crates/entry/files",
+    "crates/entry/mcp",
     # Main library crate (for crates.io)
     "systemprompt",
 ]
@@ -370,6 +373,9 @@ systemprompt-notifications-entry = { path = "crates/entry/notifications", versio
 systemprompt-cloud-entry = { path = "crates/entry/cloud", version = "0.84.0" }
 systemprompt-analytics-entry = { path = "crates/entry/analytics", version = "0.84.0" }
 systemprompt-content-entry = { path = "crates/entry/content", version = "0.84.0" }
+systemprompt-marketplace-entry = { path = "crates/entry/marketplace", version = "0.84.0" }
+systemprompt-files-entry = { path = "crates/entry/files", version = "0.84.0" }
+systemprompt-mcp-entry = { path = "crates/entry/mcp", version = "0.84.0" }
 
 # Why: several agents build one checkout against a core that moves daily, and
 # cargo never prunes stale incremental sessions; target/debug/incremental grew

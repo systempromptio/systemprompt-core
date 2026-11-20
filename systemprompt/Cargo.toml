@@ -56,6 +56,9 @@ api = [
     "systemprompt-notifications-entry?/http",
     "systemprompt-content-entry?/http",
     "systemprompt-analytics-entry?/http",
+    "systemprompt-marketplace-entry?/http",
+    "systemprompt-files-entry?/http",
+    "systemprompt-mcp-entry?/http",
 ]
 
 # Cloud infrastructure (API client, credentials, OAuth)
@@ -70,7 +73,7 @@ client = ["dep:systemprompt-client"]
 security = ["dep:systemprompt-security", "dep:systemprompt-governance"]
 
 # CLI entry point for product binaries (standalone, use 'full' for everything)
-cli = ["config", "dep:systemprompt-cli", "dep:systemprompt-extension", "systemprompt-extension/cli", "systemprompt-cloud-entry?/cli", "systemprompt-content-entry?/cli", "systemprompt-analytics-entry?/cli"]
+cli = ["config", "dep:systemprompt-cli", "dep:systemprompt-extension", "systemprompt-extension/cli", "systemprompt-cloud-entry?/cli", "systemprompt-content-entry?/cli", "systemprompt-analytics-entry?/cli", "systemprompt-marketplace-entry?/cli", "systemprompt-files-entry?/cli", "systemprompt-mcp-entry?/cli"]
 
 # Runtime builder for embedding systemprompt as a library
 runtime = ["cli", "dep:systemprompt-extension"]
@@ -84,6 +87,18 @@ analytics = ["dep:systemprompt-analytics", "dep:systemprompt-analytics-entry"]
 # `systemprompt-content-entry` (served when `api` / `cli` are also enabled).
 # `full` implies it.
 content = ["dep:systemprompt-content", "dep:systemprompt-content-entry", "systemprompt-analytics-entry?/content-commands"]
+
+# The marketplace capability: plugins, skills and managed resources, with its
+# routes and commands from `systemprompt-marketplace-entry`. `full` implies it.
+marketplace = ["dep:systemprompt-marketplace", "dep:systemprompt-marketplace-entry"]
+
+# The files capability: the domain crate with its routes and commands from
+# `systemprompt-files-entry`. `full` implies it.
+files = ["dep:systemprompt-files", "dep:systemprompt-files-entry"]
+
+# The hosted MCP capability: the domain crate with its routes and commands
+# from `systemprompt-mcp-entry`. `full` implies it.
+mcp-servers = ["dep:systemprompt-mcp", "dep:systemprompt-mcp-entry"]
 
 # Slack integration: the domain crate and the `/api/v1/slack` inbound routes
 # (Events API, slash commands, interactivity). Opt-in: excluded from `default`
@@ -138,18 +153,18 @@ full = [
     "cli",
     "dep:systemprompt-agent",
     "dep:systemprompt-ai",
-    "dep:systemprompt-mcp",
+    "mcp-servers",
     "dep:systemprompt-oauth",
     "dep:systemprompt-users",
     "content",
     "analytics",
-    "dep:systemprompt-marketplace",
+    "marketplace",
     "dep:systemprompt-scheduler",
     "dep:systemprompt-generator",
     "logging",
     "systemprompt-logging/cli",
     "config",
-    "dep:systemprompt-files",
+    "files",
     "files-office",
     "files-pdf",
     "files-collab-loro",
@@ -208,6 +223,9 @@ systemprompt-oauth = { workspace = true, optional = true }
 systemprompt-users = { workspace = true, optional = true }
 systemprompt-content = { workspace = true, optional = true }
 systemprompt-content-entry = { workspace = true, optional = true }
+systemprompt-marketplace-entry = { workspace = true, optional = true }
+systemprompt-files-entry = { workspace = true, optional = true }
+systemprompt-mcp-entry = { workspace = true, optional = true }
 systemprompt-analytics = { workspace = true, optional = true }
 systemprompt-analytics-entry = { workspace = true, optional = true }
 systemprompt-marketplace = { workspace = true, optional = true }

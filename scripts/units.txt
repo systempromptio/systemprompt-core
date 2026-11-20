@@ -33,6 +33,7 @@ systemprompt                       kernel
 systemprompt-cloud                 capability:cloud
 systemprompt-cloud-entry           capability:cloud
 systemprompt-files                 capability:files
+systemprompt-files-entry           capability:files
 systemprompt-analytics             capability:analytics
 systemprompt-analytics-entry       capability:analytics
 systemprompt-content               capability:content
@@ -40,10 +41,12 @@ systemprompt-content-entry         capability:content
 systemprompt-templates             capability:content
 systemprompt-generator             capability:content
 systemprompt-mcp                   capability:mcp
+systemprompt-mcp-entry             capability:mcp
 systemprompt-ai                    capability:ai
 systemprompt-gateway               capability:gateway
 systemprompt-agent                 capability:agents
 systemprompt-marketplace           capability:marketplace
+systemprompt-marketplace-entry     capability:marketplace
 systemprompt-slack                 capability:slack
 systemprompt-slack-entry           capability:slack
 systemprompt-teams                 capability:teams

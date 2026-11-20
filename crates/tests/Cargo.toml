@@ -82,6 +82,9 @@ members = [
     "unit/entry/analytics",
     "unit/entry/cloud",
     "unit/entry/content",
+    "unit/entry/marketplace",
+    "unit/entry/files",
+    "unit/entry/mcp",
     "unit/entry/api",
     "unit/entry/cli",
     "unit/entry/notifications",
@@ -322,6 +325,9 @@ systemprompt-agent-runs-entry = { path = "../entry/agent-runs" }
 systemprompt-analytics-entry = { path = "../entry/analytics" }
 systemprompt-cloud-entry = { path = "../entry/cloud" }
 systemprompt-content-entry = { path = "../entry/content" }
+systemprompt-marketplace-entry = { path = "../entry/marketplace" }
+systemprompt-files-entry = { path = "../entry/files" }
+systemprompt-mcp-entry = { path = "../entry/mcp" }
 systemprompt-notifications-entry = { path = "../entry/notifications" }
 systemprompt-bridge = { path = "../../bin/bridge" }
 

@@ -8334,6 +8334,7 @@ dependencies = [
  "systemprompt-events",
  "systemprompt-extension",
  "systemprompt-files",
+ "systemprompt-files-entry",
  "systemprompt-gateway",
  "systemprompt-generator",
  "systemprompt-governance",
@@ -8342,7 +8343,9 @@ dependencies = [
  "systemprompt-logging",
  "systemprompt-manifest",
  "systemprompt-marketplace",
+ "systemprompt-marketplace-entry",
  "systemprompt-mcp",
+ "systemprompt-mcp-entry",
  "systemprompt-mcp-host",
  "systemprompt-models",
  "systemprompt-notifications",
@@ -10493,6 +10496,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-files-entry"
+version = "0.84.0"
+dependencies = [
+ "systemprompt-extension",
+]
+
+[[package]]
+name = "systemprompt-files-entry-tests"
+version = "0.0.11"
+dependencies = [
+ "systemprompt-files-entry",
+ "systemprompt-test-hack",
+]
+
+[[package]]
 name = "systemprompt-files-integration-tests"
 version = "0.0.11"
 dependencies = [
@@ -11012,6 +11030,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-marketplace-entry"
+version = "0.84.0"
+dependencies = [
+ "systemprompt-extension",
+]
+
+[[package]]
+name = "systemprompt-marketplace-entry-tests"
+version = "0.0.11"
+dependencies = [
+ "systemprompt-marketplace-entry",
+ "systemprompt-test-hack",
+]
+
+[[package]]
 name = "systemprompt-marketplace-tests"
 version = "0.0.11"
 dependencies = [
@@ -11080,6 +11113,21 @@ dependencies = [
  "tracing",
  "url",
  "uuid",
+]
+
+[[package]]
+name = "systemprompt-mcp-entry"
+version = "0.84.0"
+dependencies = [
+ "systemprompt-extension",
+]
+
+[[package]]
+name = "systemprompt-mcp-entry-tests"
+version = "0.0.11"
+dependencies = [
+ "systemprompt-mcp-entry",
+ "systemprompt-test-hack",
 ]
 
 [[package]]

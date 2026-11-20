@@ -6315,6 +6315,7 @@ dependencies = [
  "systemprompt-events",
  "systemprompt-extension",
  "systemprompt-files",
+ "systemprompt-files-entry",
  "systemprompt-gateway",
  "systemprompt-generator",
  "systemprompt-governance",
@@ -6323,7 +6324,9 @@ dependencies = [
  "systemprompt-logging",
  "systemprompt-manifest",
  "systemprompt-marketplace",
+ "systemprompt-marketplace-entry",
  "systemprompt-mcp",
+ "systemprompt-mcp-entry",
  "systemprompt-mcp-host",
  "systemprompt-models",
  "systemprompt-notifications",
@@ -6992,6 +6995,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-files-entry"
+version = "0.84.0"
+dependencies = [
+ "systemprompt-extension",
+]
+
+[[package]]
 name = "systemprompt-gateway"
 version = "0.84.0"
 dependencies = [
@@ -7225,6 +7235,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-marketplace-entry"
+version = "0.84.0"
+dependencies = [
+ "systemprompt-extension",
+]
+
+[[package]]
 name = "systemprompt-mcp"
 version = "0.84.0"
 dependencies = [
@@ -7261,6 +7278,13 @@ dependencies = [
  "tracing",
  "url",
  "uuid",
+]
+
+[[package]]
+name = "systemprompt-mcp-entry"
+version = "0.84.0"
+dependencies = [
+ "systemprompt-extension",
 ]
 
 [[package]]
