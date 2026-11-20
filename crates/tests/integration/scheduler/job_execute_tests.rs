@@ -1,36 +1,35 @@
-//! Job::execute() smoke tests that exercise the real query paths against the
-//! test Postgres database. Each test wires the job's required dependencies
-//! (DbPool / AppPaths) into a JobContext and asserts that the job reports
-//! success.
+//! Job smoke tests that exercise the real query paths against the test
+//! Postgres database. A job that needs only a database runs under a
+//! JobContext carrying the pool; the scheduler-owned retention job runs
+//! through the scheduler's execution service, the one path that hands it its
+//! kernel handles, and a hand-built context without them is refused.
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use systemprompt_database::DbPool;
-use systemprompt_scheduler::{CleanupInactiveSessionsJob, DatabaseCleanupJob};
-use systemprompt_test_fixtures::{fixture_actor, test_database_url, test_db_pool};
+use systemprompt_identifiers::JobName;
+use systemprompt_scheduler::{
+    CleanupInactiveSessionsJob, DatabaseCleanupJob, JobConfig, JobExecutionService, SchedulerConfig,
+};
+use systemprompt_test_fixtures::{fixture_actor, test_db_pool};
 use systemprompt_traits::{Dependencies, Job, JobContext};
 
 fn make_ctx(pool: &DbPool) -> JobContext {
     JobContext::new(fixture_actor(), Dependencies::new().with(Arc::clone(pool)))
 }
 
-async fn make_ctx_with_app(pool: &DbPool) -> JobContext {
-    let app = systemprompt_test_fixtures::test_app_context(&test_database_url()).await;
-    let dependencies = app
-        .kernel()
-        .state()
-        .clone()
-        .with(Arc::clone(pool))
-        .with(app);
-    JobContext::new(fixture_actor(), dependencies)
-}
-
 #[tokio::test]
 async fn database_cleanup_job_execute_succeeds() {
-    let pool = test_db_pool().await;
-    let ctx = make_ctx_with_app(&pool).await;
-    let result = DatabaseCleanupJob.execute(&ctx).await.expect("job runs");
-    assert!(result.success);
+    let (app, schedule) = crate::test_extension::app_with_test_jobs().await;
+    let name = JobName::new(DatabaseCleanupJob.name());
+    let mut config = SchedulerConfig::with_system_admin();
+    config.jobs = vec![JobConfig::new(name.clone())];
+    config.distributed_lock = false;
+    let result = JobExecutionService::new(app, config, schedule)
+        .run_job(&name, &HashMap::new())
+        .await;
+    assert!(result.success, "job runs: {:?}", result.message);
     let message = result.message.as_deref().expect("job records what it did");
     for table in [
         "orphaned_logs",
@@ -53,7 +52,7 @@ async fn database_cleanup_job_execute_succeeds() {
 }
 
 #[tokio::test]
-async fn database_cleanup_job_without_an_app_context_fails() {
+async fn database_cleanup_job_without_its_kernel_handles_fails() {
     let pool = test_db_pool().await;
     let ctx = make_ctx(&pool);
     let error = DatabaseCleanupJob
@@ -61,7 +60,7 @@ async fn database_cleanup_job_without_an_app_context_fails() {
         .await
         .expect_err("retention windows come from the profile, so there is nothing to fall back to");
     assert!(
-        error.to_string().contains("AppContext"),
+        error.to_string().contains("KernelJobHandles"),
         "unexpected error: {error}"
     );
 }

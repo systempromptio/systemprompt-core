@@ -6,21 +6,16 @@
 //! flagged for abuse is kept with its IP address and user agent cleared.
 
 
-use systemprompt_scheduler::DatabaseCleanupJob;
+use systemprompt_scheduler::JobRunReport;
 use systemprompt_test_fixtures::{test_database_url, test_db_pool};
-use systemprompt_traits::{Job, JobContext};
+
+use crate::test_extension::{retention_job, run_admitted_job, scheduled_app};
 
 const STALE_DAYS: i32 = 4000;
 
-async fn ctx(pool: &systemprompt_database::DbPool, url: &str) -> JobContext {
-    use systemprompt_identifiers::{Actor, UserId};
-
-    let dependencies = crate::test_extension::job_dependencies(pool, url).await;
-    JobContext::new(
-        Actor::job(UserId::new("retention-targets-admin"), "test".to_owned()),
-        dependencies,
-    )
-    .with_enforce(true)
+async fn run(url: &str) -> JobRunReport {
+    let (app, schedule) = scheduled_app(url).await;
+    run_admitted_job(app, schedule, retention_job(true, &[])).await
 }
 
 struct Seeded {
@@ -187,10 +182,7 @@ async fn every_target_removes_the_stale_row_and_keeps_the_fresh_one() {
     };
     seed_all(&pg, &seeded).await;
 
-    let result = DatabaseCleanupJob
-        .execute(&ctx(&pool, &url).await)
-        .await
-        .expect("enforced retention run");
+    let result = run(&url).await;
     assert!(result.success, "{:?}", result.message);
 
     for (table, key) in [

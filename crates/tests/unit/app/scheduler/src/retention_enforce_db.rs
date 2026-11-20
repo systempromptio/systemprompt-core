@@ -2,18 +2,14 @@
 //! a row past its window is gone afterwards while a fresh one stays.
 
 
-use systemprompt_scheduler::DatabaseCleanupJob;
+use systemprompt_scheduler::JobRunReport;
 use systemprompt_test_fixtures::{test_database_url, test_db_pool};
-use systemprompt_traits::{Job, JobContext};
 
-async fn ctx(pool: &systemprompt_database::DbPool, url: &str) -> JobContext {
-    use systemprompt_identifiers::{Actor, UserId};
+use crate::test_extension::{retention_job, run_admitted_job, scheduled_app};
 
-    let dependencies = crate::test_extension::job_dependencies(pool, url).await;
-    JobContext::new(
-        Actor::job(UserId::new("retention-test-admin"), "test".to_owned()),
-        dependencies,
-    )
+async fn run(url: &str, enforce: bool, parameters: &[(&str, &str)]) -> JobRunReport {
+    let (app, schedule) = scheduled_app(url).await;
+    run_admitted_job(app, schedule, retention_job(enforce, parameters)).await
 }
 
 async fn seed_log(pool: &sqlx::PgPool, id: &str, days_ago: i32) {
@@ -47,12 +43,9 @@ async fn enforce_deletes_rows_past_their_window_and_keeps_fresh_ones() {
     seed_log(&pg, &old, 4000).await;
     seed_log(&pg, &fresh, 0).await;
 
-    let result = DatabaseCleanupJob
-        .execute(&ctx(&pool, &url).await.with_enforce(true))
-        .await
-        .expect("enforced retention run");
+    let result = run(&url, true, &[]).await;
 
-    assert!(result.success);
+    assert!(result.success, "{:?}", result.message);
     let message = result.message.unwrap_or_default();
     for table in [
         "logs=",
@@ -88,14 +81,9 @@ async fn without_enforce_an_expired_row_is_kept() {
     let id = format!("ret_dry_{}", uuid::Uuid::new_v4().simple());
     seed_log(&pg, &id, 4000).await;
 
-    let mut params = std::collections::HashMap::new();
-    params.insert("log_retention_days".to_owned(), "1".to_owned());
-    let result = DatabaseCleanupJob
-        .execute(&ctx(&pool, &url).await.with_parameters(params))
-        .await
-        .expect("dry-run retention");
+    let result = run(&url, false, &[("log_retention_days", "1")]).await;
 
-    assert!(result.success);
+    assert!(result.success, "{:?}", result.message);
     assert!(log_exists(&pg, &id).await, "a dry run deletes nothing");
     sqlx::query("DELETE FROM logs WHERE id = $1")
         .bind(&id)

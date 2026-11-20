@@ -1,7 +1,9 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use systemprompt_analytics::jobs::LinkFactsRollupJob;
-use systemprompt_identifiers::{Actor, UserId};
+use systemprompt_identifiers::{Actor, JobName, UserId};
+use systemprompt_scheduler::JobConfig;
 use systemprompt_scheduler::jobs::{
     BackfillRollupsJob, InventoryRefreshJob, InventoryRefreshMemo, LogSummaryRollupJob,
     SessionBotTypeRollupJob, TraceFactsRollupJob, VertexDiscoveryJob,
@@ -75,29 +77,31 @@ async fn session_bot_type_rollup_drains() {
 async fn inventory_refresh_runs_twice_with_a_shared_memo() {
     let url = test_database_url();
     let pool = test_db_pool().await;
-    let app_ctx = systemprompt_test_fixtures::test_app_context(&url).await;
-    let admin_email = format!("{}@example.test", app_ctx.system_admin().id().as_str());
-    seed_user_row(&pool, app_ctx.system_admin().id(), &admin_email)
+    let (app, schedule) = crate::test_extension::scheduled_app(&url).await;
+    let admin_email = format!("{}@example.test", app.system_admin().id().as_str());
+    seed_user_row(&pool, app.system_admin().id(), &admin_email)
         .await
         .expect("seed system admin");
-    let context = ctx_for(&pool, app_ctx);
-    let job = InventoryRefreshJob;
-    let first = job.execute(&context).await.expect("first refresh");
-    assert!(first.success);
-    let second = job.execute(&context).await.expect("second refresh");
-    assert!(second.success);
-    assert_eq!(job.name(), "managed_inventory_refresh");
+    let name = JobName::new(InventoryRefreshJob.name());
+    let service =
+        crate::test_extension::job_service(app, schedule, vec![JobConfig::new(name.clone())]);
+    let first = service.run_job(&name, &HashMap::new()).await;
+    assert!(first.success, "first refresh: {:?}", first.message);
+    let second = service.run_job(&name, &HashMap::new()).await;
+    assert!(second.success, "second refresh: {:?}", second.message);
+    assert_eq!(InventoryRefreshJob.name(), "managed_inventory_refresh");
 }
 
 #[tokio::test]
 async fn vertex_discovery_with_no_vertex_endpoints_scans_nothing() {
     let url = test_database_url();
-    let pool = test_db_pool().await;
-    let context = ctx(&pool, &url).await;
-    let result = VertexDiscoveryJob
-        .execute(&context)
-        .await
-        .expect("discovery runs");
-    assert!(result.success);
+    let (app, schedule) = crate::test_extension::scheduled_app(&url).await;
+    let result = crate::test_extension::run_admitted_job(
+        app,
+        schedule,
+        JobConfig::new(JobName::new(VertexDiscoveryJob.name())),
+    )
+    .await;
+    assert!(result.success, "discovery runs: {:?}", result.message);
     assert_eq!(result.items_processed, Some(0));
 }
