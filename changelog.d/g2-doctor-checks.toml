@@ -1,0 +1,24 @@
+[root]
+section = "Changed"
+area = "Cloud"
+text = "`cloud doctor` runs the checks the checked profile's admitted members contribute, each under its own name. The marketplace member contributes the `git-credentials` check; it sees whether a secret is present, never its value. Without an admitted composition the member checks report `not evaluated`."
+
+[[crate]]
+name = "systemprompt-provider-contracts"
+section = "Added"
+text = "`DoctorCheck`, `DoctorContext`, `DoctorOutcome`, `DoctorStatus` and `SecretPresence` (implemented for `HashMap<String, String>`)."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`cli::AdmittedViews` gains `doctor: AdmittedDoctorChecks`. `Contributions::doctor_check`, `ContributionSink::doctor_checks`, `AdmittedDoctorChecks` and `OwnedDoctorCheck` are added."
+
+[[crate]]
+name = "systemprompt-marketplace"
+section = "Added"
+text = "`managed::GitCredentialCheck` and `managed::classify_git_credentials`."
+
+[[crate]]
+name = "systemprompt-cloud-entry"
+section = "Breaking"
+text = "`cli::doctor::git_credential_checks` is removed; the crate no longer depends on `systemprompt-marketplace`."

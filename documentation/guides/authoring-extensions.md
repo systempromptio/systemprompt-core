@@ -219,8 +219,9 @@ A job's `JobContext` reads the kernel's open seeds and provided values with `ctx
 A member command:
 
 - needs a profile, unless it declares `DbUrlRouting::Direct`: on a bare `--database-url` run (no profile) a `Direct` command runs over every linked member with none disabled, whatever its standing, and any other member command is refused (`ProfileRequired`). A cloud profile that reaches its database directly (`external_db_access`) is still a profiled run: admission is against that profile and a disabled member's command is refused (`CommandDisabled`);
-- reads state through `host.resolved().await`, which withholds the kernel's sealed values (the configuration, the secret store, the JWT signing keys, the system admin, the active services root, the event router and, in the CLI, the loaded profile) and holds no secrets sources, environment overrides, boot context or application context. A value a member's own provide fn builds from a sealed value is not withheld, so an install that wraps one hands it to its commands;
-- may request kernel grants with `CommandDecl::requesting` only on a reserved CLI path its core owner holds (`admin mcp`, `analytics`, `cloud`). An install member holds no reserved CLI path, so a grant request by an install is refused (`CompositionError::GrantNotConferred`), as is a command at a reserved path (`ReservedCliPath`) or a path declared twice.
+- reads state through `host.resolved().await`, which withholds the kernel's sealed values (the configuration, the secret store, the JWT signing keys, the system admin, the active services root, the services bundle sources, the event router and, in the CLI, the loaded profile) and holds no secrets sources, environment overrides, boot context or application context. A value a member's own provide fn builds from a sealed value is not withheld, so an install that wraps one hands it to its commands;
+- may request kernel grants with `CommandDecl::requesting` only on a reserved CLI path its core owner holds, and only the grants that path's row lists (`admin mcp`: `child-host`; `analytics`: `local-export`, `skip-validation`; `cloud`: `cloud-operator`, `boot-profile`, `config-reconcile`, `target-admission`; `core marketplace`, `core plugins`, `core skills`: `services-tree`; `plugins mcp`: `caller-session`; `core files`: none). An install member holds no reserved CLI path, so a grant request by an install is refused (`CompositionError::GrantNotConferred`), as is a command at a reserved path (`ReservedCliPath`) or a path declared twice;
+- reaches kernel-held material only through a grant on its path's row: `host.profile()` and `host.boot_config(path)` need `boot-profile`, `host.admitted_views(path)` needs `target-admission`, `host.export_dir()` (the profile's local exports directory) needs `local-export`, `host.services_tree()` (the active services root plus the published API URL and site GitHub link, read without a database) needs `services-tree`, and `host.caller_session()` (the CLI caller's own session token, never one minted for another subject) needs `caller-session`. Every other caller is refused.
 
 ### User purge of the member's own tables
 
@@ -239,13 +240,29 @@ c.user_purge(UserPurgeTable { table: "demo_items", column: "user_id", predicate:
 
 A `PurgePredicate` (`{ column, any_of }`) narrows a table to rows whose column holds one of a fixed set of values. It is not SQL: the column is rendered as a quoted identifier and the values are bound. A purge table, and both tables of an orphan sweep, are admitted only over the declaring member's own schema tables, whatever its standing; anything else is refused when the kernel resolves (`KernelError::Purge`) and at schema install (`LoaderError::PurgeAdmission`). The installer records each member's declarations in `schema_purge_records`.
 
+### Owner reassignment of the member's own tables
+
+A member whose tables key rows on a user contributes how an account merge moves them, as an `OwnerReassignment` built by a factory:
+
+```rust
+c.owner_reassignment(|r: &Resolved<'_>| -> Result<DynOwnerReassignment, FactoryError> {
+    Ok(Arc::new(DemoOwnerReassignment::new(&r.get::<DbPool>()?)))
+});
+```
+
+`systemprompt_database::owner_reassignment!` declares the type from per-column statements (`update "demo_items" (demo_items.user_id) => "UPDATE …"`); its `columns()` names every `table.column` it rewrites. The kernel builds each factory after the early provide fns run and admits the reassignment only when every column is a plain identifier on a table the member's own schema creates; anything else is refused when the kernel resolves (`KernelError::Reassignment`). An account merge runs the admitted reassignments in composition order.
+
+### `cloud doctor` checks
+
+`c.doctor_check(Arc::new(check))` contributes a `DoctorCheck` that `cloud doctor` runs for the checked profile's admitted composition. A check receives a `DoctorContext`: whether a named secret is present (never its value) and the handles the doctor opened (a database pool when the profile's database is reachable), and returns a `DoctorOutcome` the doctor reports under the check's name.
+
 ### Configuration
 
 `c.config::<C>()` declares a typed configuration section: `C` implements `ExtensionConfig` (`serde::Deserialize` + `schemars::JsonSchema`, a `PREFIX` and `validate`). Startup validation reads `<services>/config/<PREFIX>.yaml` (an absent file validates as `{}`) and reports a malformed section under `<PREFIX>.config`. `c.config_plane(plane)` contributes a config plane reconciled against the services tree.
 
 ### Shared state
 
-`c.provide::<T, _>(|r| …)` provides a value of type `T` built from the resolved state; `c.requires::<T>()` declares a type the member cannot run without; `c.depends_on::<E>()` orders the member after `E`. A provide fn reads dependencies with `r.get::<T>()` (a missing one fails boot) or `r.optional::<T>()`. Each type has exactly one provider: two members providing one type are refused (`DuplicateProvider`), and a type the kernel inserts (the audience resolvers, subject provider set, policy catalog and gateway guards) cannot be provided or slot-built by any member (`KernelError::ReservedType`). An install-provided value cannot meet a core member's requirement (`InstallSubstitution`).
+`c.provide::<T, _>(|r| …)` provides a value of type `T` built from the resolved state; `c.requires::<T>()` declares a type the member cannot run without; `c.depends_on::<E>()` orders the member after `E`. A provide fn reads dependencies with `r.get::<T>()` (a missing one fails boot) or `r.optional::<T>()`. Each type has exactly one provider: two members providing one type are refused (`DuplicateProvider`), and a type the kernel inserts (the audience resolvers, subject provider set, policy catalog and gateway guards) cannot be provided or slot-built by any member (`KernelError::ReservedType`). An install-provided value cannot meet a core member's requirement (`InstallSubstitution`). `c.provide_after_governance::<T, _>(|r| …)` provides the same way after every slot, the subject provider set, the policy catalog and the gateway guards are built, for a value assembled from them; no slot build or governance factory can read it.
 
 Readiness checks (`c.readiness`), diagnostic probes (`c.diagnostic`), metric descriptors (`c.metric`), runner services (`c.runner_service`), gateway guards (`c.gateway_guard`), subject attribute providers (`c.subject_attributes`), governance policies (`c.policy`), site auth (`c.site_auth`), roles (`c.role`), run origins (`c.run_origin`) and assets (`c.asset_with`) are contributed the same way, each as a factory or value the kernel builds after admission.
 

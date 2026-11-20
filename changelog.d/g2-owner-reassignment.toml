@@ -1,0 +1,34 @@
+[root]
+section = "Breaking"
+area = "Extensions"
+text = "Owner reassignment is a contribution: each member whose tables key rows on a user declares its own reassignment with `Contributions::owner_reassignment`, and the kernel admits it only when every column it names is a plain identifier on a table the member's own schema creates (`KernelError::Reassignment`). An account merge runs the admitted reassignments in composition order; the kernel no longer holds a list of them."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`Contributions::owner_reassignment`, `ContributionSink::owner_reassignments`, `AdmittedOwnerReassignments`, `OwnedReassignment`, `ReassignmentClaim` and `ReassignmentAdmissionError`."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Breaking"
+text = "`OwnerReassignment` requires `columns() -> &'static [ReassignedColumn]`. `ReassignedColumn` and `is_plain_identifier` are added."
+
+[[crate]]
+name = "systemprompt-database"
+section = "Breaking"
+text = "`owner_reassignment!` statements name their column: `update \"label\" (table.column) => \"SQL\";`."
+
+[[crate]]
+name = "systemprompt-events"
+section = "Breaking"
+text = "`EventsOwnerReassignment` is declared through `owner_reassignment!` and built with `EventsOwnerReassignment::new(&DbPool)`."
+
+[[crate]]
+name = "systemprompt-users"
+section = "Breaking"
+text = "`UserService::with_owner_reassignments` takes `Arc<AdmittedOwnerReassignments>`."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`owner_reassignments` is removed; the user service is built after the kernel resolves, over the admitted reassignments. `KernelError::Reassignment` is added."

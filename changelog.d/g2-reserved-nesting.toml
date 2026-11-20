@@ -1,0 +1,9 @@
+[root]
+section = "Changed"
+area = "Extensions"
+text = "A reserved path held by a core member inside a kernel namespace is `Exact` or `Subtree`, never `Prefix`, and the reserved table is checked at compile time. `/api/v1/admin/notifications` is now a subtree: `/api/v1/admin/notificationsx` belongs to the kernel's `/api/v1/admin`, while every path below `/api/v1/admin/notifications/` stays with `notifications-http`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`reserved::nested_under_kernel` and `reserved::nested_rows_are_bounded`."
