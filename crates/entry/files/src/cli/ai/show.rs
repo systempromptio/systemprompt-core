@@ -3,18 +3,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use clap::Args;
-use systemprompt_database::DbPool;
 use systemprompt_files::{FileRepository, TypeSpecificMetadata};
 use systemprompt_identifiers::FileId;
 
-use crate::commands::core::files::types::{
+use crate::cli::types::{
     ChecksumsOutput, FileDetailOutput, FileMetadataOutput, ImageMetadataOutput,
 };
-use crate::commands::shared::app_context;
-use systemprompt_extension::cli::{CliConfig, CommandOutput};
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
 #[derive(Debug, Clone, Args)]
 pub struct ShowArgs {
@@ -22,19 +19,15 @@ pub struct ShowArgs {
     pub file: String,
 }
 
-pub(super) async fn execute(args: ShowArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let app = app_context(host).await?;
-    execute_with_pool(args, app.db_pool(), host.output()).await
+pub(super) async fn execute(args: ShowArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    execute_with_repository(args, &*crate::cli::file_repository(host).await?).await
 }
 
-pub async fn execute_with_pool(
+pub async fn execute_with_repository(
     args: ShowArgs,
-    pool: &DbPool,
-    _config: &CliConfig,
+    service: &FileRepository,
 ) -> Result<CommandOutput> {
     let file_id = parse_file_id(&args.file)?;
-
-    let service = FileRepository::new(pool);
 
     let file = service
         .find_by_id(&file_id)

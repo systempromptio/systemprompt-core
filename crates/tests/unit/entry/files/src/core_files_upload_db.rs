@@ -6,18 +6,15 @@
 use std::path::PathBuf;
 
 use sha2::{Digest, Sha256};
-use systemprompt_cli::core::files::upload::{self, UploadArgs};
 use systemprompt_cli::{CommandContext, EnvOverrides};
-use systemprompt_extension::cli::{CliConfig, OutputFormat};
+use systemprompt_files_entry::cli::upload::{self, UploadArgs};
 use systemprompt_identifiers::ContextId;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context};
 use tempfile::TempDir;
 
 async fn ctx(database_url: &str) -> CommandContext {
-    crate::boot_ctx::with_app_boot(
-        CliConfig::new()
-            .with_interactive(false)
-            .with_output_format(OutputFormat::Json),
+    crate::common::with_app(
+        crate::common::json_cli(),
         EnvOverrides::default(),
         test_app_context(database_url).await,
     )

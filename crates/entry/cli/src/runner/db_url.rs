@@ -11,7 +11,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::args::Commands;
-use crate::commands::{admin, core, infrastructure};
+use crate::commands::{admin, infrastructure};
 use systemprompt_extension::cli::DbUrlRouting;
 
 impl admin::AdminCommands {
@@ -40,8 +40,7 @@ impl Commands {
         match self {
             Self::Admin(cmd) => cmd.db_url_routing(),
 
-            Self::Core(core::CoreCommands::Files(_))
-            | Self::Infra(
+            Self::Infra(
                 infrastructure::InfraCommands::Db(_)
                 | infrastructure::InfraCommands::Logs(_)
                 | infrastructure::InfraCommands::Jobs(infrastructure::jobs::JobsCommands::History(_)),

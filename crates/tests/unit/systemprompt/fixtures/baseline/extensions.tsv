@@ -12,6 +12,7 @@ content-http	ContentHttpExtension	systemprompt-content-entry	crates/entry/conten
 database	DatabaseExtension	systemprompt-database	crates/infra/database/src/extension.rs
 events	EventsExtension	systemprompt-events	crates/infra/events/src/extension.rs
 files	FilesExtension	systemprompt-files	crates/domain/files/src/extension.rs
+files-http	FilesHttpExtension	systemprompt-files-entry	crates/entry/files/src/extension.rs
 gateway	GatewayExtension	systemprompt-gateway	crates/app/gateway/src/extension.rs
 generator	GeneratorExtension	systemprompt-generator	crates/app/generator/src/extension.rs
 identity	IdentityExtension	systemprompt-oauth-issuance	crates/app/oauth-issuance/src/extension.rs

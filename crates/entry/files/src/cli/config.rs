@@ -3,10 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
-use anyhow::Result;
 use clap::Args;
-use systemprompt_files::FilePersistenceMode;
+use systemprompt_files::{FilePersistenceMode, FilesConfig};
 
 use super::types::{AllowedTypesOutput, FileConfigOutput, StoragePathsOutput};
 use systemprompt_extension::cli::CommandOutput;
@@ -14,8 +12,7 @@ use systemprompt_extension::cli::CommandOutput;
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ConfigArgs;
 
-pub(super) fn execute(_args: ConfigArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let files_config = super::load_files_config(host)?;
+pub(super) fn execute(_args: ConfigArgs, files_config: &FilesConfig) -> CommandOutput {
     let upload_config = files_config.upload();
 
     let persistence_mode = match upload_config.persistence_mode {
@@ -57,8 +54,5 @@ pub(super) fn execute(_args: ConfigArgs, host: &dyn KernelHost) -> Result<Comman
         storage_paths,
     };
 
-    Ok(CommandOutput::card_value(
-        "File Upload Configuration",
-        &output,
-    ))
+    CommandOutput::card_value("File Upload Configuration", &output)
 }

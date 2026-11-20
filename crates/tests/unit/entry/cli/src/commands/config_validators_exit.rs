@@ -1,9 +1,7 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use clap::Parser;
 use systemprompt_cli::admin::config::paths::{self, PathsCommands};
 use systemprompt_cli::admin::config::rate_limits::{self, RateLimitsCommands};
-use systemprompt_cli::core::files::{self, FilesCommands};
 use systemprompt_cli::interactive::ScriptedPrompter;
 use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_config::LoadedProfile;
@@ -50,33 +48,6 @@ fn rate_limits_validate_fails_on_a_zero_rate_the_loader_lets_through_while_disab
     let err = rate_limits::execute(RateLimitsCommands::Validate, &prompter, &context(&tree))
         .expect_err("a zero rate must fail the command");
     assert!(format!("{err:#}").contains("errors"), "{err:#}");
-}
-
-#[derive(Debug, Parser)]
-struct FilesHarness {
-    #[command(subcommand)]
-    command: FilesCommands,
-}
-
-#[tokio::test]
-async fn files_validate_fails_for_a_file_the_upload_policy_rejects() {
-    let ctx = crate::boot_ctx::new_with_boot(
-        CliConfig::new()
-            .with_interactive(false)
-            .with_output_format(OutputFormat::Json),
-        EnvOverrides::default(),
-    );
-    let dir = tempfile::tempdir().expect("tempdir");
-    let file = dir.path().join("payload.exe");
-    std::fs::write(&file, b"MZ").expect("write");
-
-    let cmd = FilesHarness::try_parse_from(["files", "validate", file.to_str().expect("utf-8")])
-        .expect("parse")
-        .command;
-    let err = files::execute(cmd, &ctx)
-        .await
-        .expect_err("a rejected file must fail the command");
-    assert!(format!("{err:#}").contains("validation"), "{err:#}");
 }
 
 fn carried_output(err: &anyhow::Error) -> Option<&CommandOutput> {

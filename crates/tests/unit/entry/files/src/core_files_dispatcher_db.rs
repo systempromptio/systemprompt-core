@@ -6,43 +6,31 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use clap::Parser;
-use systemprompt_cli::core::{self, CoreCommands};
 use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_database::DbPool;
-use systemprompt_extension::cli::{CliConfig, OutputFormat};
-use systemprompt_runtime::DatabaseContext;
-use systemprompt_test_fixtures::{test_database_url, test_db_pool};
+use systemprompt_extension::cli::CommandError;
+use systemprompt_files_entry::cli::{self as files, FilesCommands};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context, test_db_pool};
 
 #[derive(Debug, Parser)]
 struct Harness {
     #[command(subcommand)]
-    cmd: CoreCommands,
+    cmd: FilesCommands,
 }
 
-fn parse(args: &[&str]) -> CoreCommands {
-    Harness::try_parse_from(std::iter::once("core").chain(args.iter().copied()))
-        .unwrap()
-        .cmd
+fn parse(args: &[&str]) -> FilesCommands {
+    Harness::try_parse_from(args.iter().copied()).unwrap().cmd
 }
-
 
 fn ctx(pool: &DbPool) -> CommandContext {
-    crate::boot_ctx::with_database(
-        CliConfig::new()
-            .with_interactive(false)
-            .with_output_format(OutputFormat::Json),
-        EnvOverrides::default(),
-        DatabaseContext::from_pool(pool.clone()),
-        test_database_url(),
-    )
+    crate::common::with_database(pool)
 }
 
-fn profile_ctx() -> CommandContext {
-    crate::boot_ctx::new_with_boot(
-        CliConfig::new()
-            .with_interactive(false)
-            .with_output_format(OutputFormat::Json),
+async fn profile_ctx() -> CommandContext {
+    crate::common::with_app(
+        crate::common::json_cli(),
         EnvOverrides::default(),
+        test_app_context(&ensure_test_bootstrap().database_url).await,
     )
 }
 
@@ -51,16 +39,16 @@ async fn read_only_file_arms_run_against_the_database() {
     let pool = test_db_pool().await;
     let ctx = ctx(&pool);
 
-    core::execute(parse(&["files", "list"]), &ctx)
+    files::execute(parse(&["files", "list"]), &ctx)
         .await
         .unwrap();
-    core::execute(parse(&["files", "list", "--limit", "5"]), &ctx)
+    files::execute(parse(&["files", "list", "--limit", "5"]), &ctx)
         .await
         .unwrap();
-    core::execute(parse(&["files", "stats"]), &ctx)
+    files::execute(parse(&["files", "stats"]), &ctx)
         .await
         .unwrap();
-    core::execute(parse(&["files", "search", "covquery"]), &ctx)
+    files::execute(parse(&["files", "search", "covquery"]), &ctx)
         .await
         .unwrap();
 }
@@ -70,7 +58,7 @@ async fn show_arm_reports_an_unknown_file_id() {
     let pool = test_db_pool().await;
     let ctx = ctx(&pool);
 
-    let err = core::execute(parse(&["files", "show", "cov_absent_file"]), &ctx)
+    let err = files::execute(parse(&["files", "show", "cov_absent_file"]), &ctx)
         .await
         .unwrap_err();
     assert!(format!("{err:#}").contains("Failed to show file"));
@@ -87,7 +75,7 @@ async fn profile_only_file_arms_are_refused_under_a_database_scope() {
         vec!["files", "delete", "cov_absent_file", "--yes"],
         vec!["files", "ai", "list"],
     ] {
-        let err = core::execute(parse(&args), &ctx).await.unwrap_err();
+        let err = files::execute(parse(&args), &ctx).await.unwrap_err();
         assert!(
             format!("{err:#}").contains("requires full profile context"),
             "{args:?}: {err:#}"
@@ -97,29 +85,33 @@ async fn profile_only_file_arms_are_refused_under_a_database_scope() {
 
 #[tokio::test]
 async fn file_validation_reports_supported_and_rejected_files_without_uploading_them() {
-    systemprompt_test_fixtures::ensure_test_bootstrap();
     let temp = tempfile::tempdir().unwrap();
     let accepted = temp.path().join("operator-notes.txt");
     let rejected = temp.path().join("unknown-payload.exe");
     std::fs::write(&accepted, "review notes\n").unwrap();
     std::fs::write(&rejected, [0_u8, 159, 146, 150]).unwrap();
 
-    let ctx = profile_ctx();
-    core::execute(
+    let ctx = profile_ctx().await;
+    files::execute(
         parse(&["files", "validate", accepted.to_str().unwrap()]),
         &ctx,
     )
     .await
     .expect("an allowed text file produces a validation report");
-    let invalid = core::execute(
+    let invalid = files::execute(
         parse(&["files", "validate", rejected.to_str().unwrap()]),
         &ctx,
     )
     .await
     .expect_err("a rejected file is reported and the command exits non-zero");
     assert!(format!("{invalid:#}").contains("failed validation"));
+    let report = invalid
+        .downcast_ref::<CommandError>()
+        .and_then(CommandError::output)
+        .expect("the failure carries the validation report");
+    assert_eq!(report.title(), Some("File Invalid"));
 
-    let missing = core::execute(
+    let missing = files::execute(
         parse(&[
             "files",
             "validate",

@@ -126,6 +126,10 @@ fn entry_members() -> Vec<Member> {
         Member::core::<systemprompt_content_entry::extension::ContentHttpExtension>(
             CoreTerms::conferred(CoreId::ContentHttp),
         ),
+        #[cfg(feature = "files")]
+        Member::core::<systemprompt_files_entry::extension::FilesHttpExtension>(
+            CoreTerms::conferred(CoreId::FilesHttp),
+        ),
         #[cfg(feature = "analytics")]
         Member::core::<systemprompt_analytics_entry::extension::AnalyticsHttpExtension>(
             CoreTerms::conferred(CoreId::AnalyticsHttp),

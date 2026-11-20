@@ -1,17 +1,17 @@
-//! DB-backed tests for the pool-seamed `core files ai` (list/show) and
-//! `core files delete` commands, driving `execute_with_pool` directly against
-//! a fixture pool.
+//! DB-backed tests for the repository-seamed `core files ai` (list/show) and
+//! `core files delete` commands, driving `execute_with_repository` directly
+//! against a repository over a fixture pool.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use std::sync::Arc;
 
 use serde_json::Value;
-use systemprompt_cli::core::files::{ai, delete};
 use systemprompt_cli::interactive::ScriptedPrompter;
 use systemprompt_database::DbPool;
 use systemprompt_extension::cli::{CliConfig, CommandOutput};
 use systemprompt_files::FileRepository;
+use systemprompt_files_entry::cli::{ai, delete};
 use systemprompt_identifiers::FileId;
 use systemprompt_storage::{FileStorageBackend, build_file_storage};
 use systemprompt_test_fixtures::test_db_pool;
@@ -67,7 +67,7 @@ async fn ai_list_includes_ai_files_and_excludes_regular() {
     let ai_id = seed_file(&pool, true, &user).await;
     let plain_id = seed_file(&pool, false, &user).await;
 
-    let out = ai::list::execute_with_pool(list_args(500, None), &pool, &cfg())
+    let out = ai::list::execute_with_repository(list_args(500, None), &FileRepository::new(&pool))
         .await
         .unwrap();
 
@@ -86,9 +86,12 @@ async fn ai_list_filters_by_user() {
     let my_id = seed_file(&pool, true, &mine).await;
     let other_id = seed_file(&pool, true, &other).await;
 
-    let out = ai::list::execute_with_pool(list_args(500, Some(mine)), &pool, &cfg())
-        .await
-        .unwrap();
+    let out = ai::list::execute_with_repository(
+        list_args(500, Some(mine)),
+        &FileRepository::new(&pool),
+    )
+    .await
+    .unwrap();
 
     assert!(contains_id(&out, &my_id));
     assert!(!contains_id(&out, &other_id));
@@ -100,9 +103,12 @@ async fn ai_show_renders_ai_file() {
     let user = format!("u-{}", Uuid::new_v4().simple());
     let id = seed_file(&pool, true, &user).await;
 
-    let out = ai::show::execute_with_pool(ai::show::ShowArgs { file: id.clone() }, &pool, &cfg())
-        .await
-        .unwrap();
+    let out = ai::show::execute_with_repository(
+        ai::show::ShowArgs { file: id.clone() },
+        &FileRepository::new(&pool),
+    )
+    .await
+    .unwrap();
 
     assert!(contains_id(&out, &id));
 }
@@ -113,9 +119,12 @@ async fn ai_show_rejects_non_ai_file() {
     let user = format!("u-{}", Uuid::new_v4().simple());
     let id = seed_file(&pool, false, &user).await;
 
-    let err = ai::show::execute_with_pool(ai::show::ShowArgs { file: id }, &pool, &cfg())
-        .await
-        .unwrap_err();
+    let err = ai::show::execute_with_repository(
+        ai::show::ShowArgs { file: id },
+        &FileRepository::new(&pool),
+    )
+    .await
+    .unwrap_err();
 
     assert!(err.to_string().contains("not an AI-generated image"));
 }
@@ -123,12 +132,11 @@ async fn ai_show_rejects_non_ai_file() {
 #[tokio::test]
 async fn ai_show_rejects_bad_uuid() {
     let pool = test_db_pool().await;
-    let err = ai::show::execute_with_pool(
+    let err = ai::show::execute_with_repository(
         ai::show::ShowArgs {
             file: "not-a-uuid".to_owned(),
         },
-        &pool,
-        &cfg(),
+        &FileRepository::new(&pool),
     )
     .await
     .unwrap_err();
@@ -140,9 +148,12 @@ async fn ai_show_rejects_bad_uuid() {
 async fn ai_show_missing_file_errors() {
     let pool = test_db_pool().await;
     let ghost = Uuid::new_v4().to_string();
-    let err = ai::show::execute_with_pool(ai::show::ShowArgs { file: ghost }, &pool, &cfg())
-        .await
-        .unwrap_err();
+    let err = ai::show::execute_with_repository(
+        ai::show::ShowArgs { file: ghost },
+        &FileRepository::new(&pool),
+    )
+    .await
+    .unwrap_err();
 
     assert!(err.to_string().contains("File not found"));
 }
@@ -201,10 +212,10 @@ async fn delete_with_yes_removes_file() {
     let user = format!("u-{}", Uuid::new_v4().simple());
     let id = seed_file(&pool, false, &user).await;
 
-    let out = delete::execute_with_pool(
+    let out = delete::execute_with_repository(
         delete_args(&id, true, false),
         &ScriptedPrompter::new(Vec::<String>::new()),
-        &pool,
+        &FileRepository::new(&pool),
         unused_storage(),
         &cfg(),
     )
@@ -221,10 +232,10 @@ async fn delete_dry_run_preserves_file() {
     let user = format!("u-{}", Uuid::new_v4().simple());
     let id = seed_file(&pool, false, &user).await;
 
-    delete::execute_with_pool(
+    delete::execute_with_repository(
         delete_args(&id, false, true),
         &ScriptedPrompter::new(Vec::<String>::new()),
-        &pool,
+        &FileRepository::new(&pool),
         unused_storage(),
         &cfg(),
     )
@@ -240,10 +251,10 @@ async fn delete_non_interactive_without_yes_errors() {
     let user = format!("u-{}", Uuid::new_v4().simple());
     let id = seed_file(&pool, false, &user).await;
 
-    let err = delete::execute_with_pool(
+    let err = delete::execute_with_repository(
         delete_args(&id, false, false),
         &ScriptedPrompter::new(Vec::<String>::new()),
-        &pool,
+        &FileRepository::new(&pool),
         unused_storage(),
         &cfg(),
     )
@@ -260,10 +271,10 @@ async fn delete_interactive_confirm_yes_removes_file() {
     let user = format!("u-{}", Uuid::new_v4().simple());
     let id = seed_file(&pool, false, &user).await;
 
-    delete::execute_with_pool(
+    delete::execute_with_repository(
         delete_args(&id, false, false),
         &ScriptedPrompter::new(vec!["y"]),
-        &pool,
+        &FileRepository::new(&pool),
         unused_storage(),
         &CliConfig::new()
             .with_interactive(true)
@@ -281,10 +292,10 @@ async fn delete_interactive_confirm_no_preserves_file() {
     let user = format!("u-{}", Uuid::new_v4().simple());
     let id = seed_file(&pool, false, &user).await;
 
-    let err = delete::execute_with_pool(
+    let err = delete::execute_with_repository(
         delete_args(&id, false, false),
         &ScriptedPrompter::new(vec!["n"]),
-        &pool,
+        &FileRepository::new(&pool),
         unused_storage(),
         &CliConfig::new()
             .with_interactive(true)
@@ -301,10 +312,10 @@ async fn delete_interactive_confirm_no_preserves_file() {
 async fn delete_missing_file_errors() {
     let pool = test_db_pool().await;
     let ghost = Uuid::new_v4().to_string();
-    let err = delete::execute_with_pool(
+    let err = delete::execute_with_repository(
         delete_args(&ghost, true, false),
         &ScriptedPrompter::new(Vec::<String>::new()),
-        &pool,
+        &FileRepository::new(&pool),
         unused_storage(),
         &cfg(),
     )
@@ -322,10 +333,10 @@ async fn delete_removes_the_stored_object_with_the_row() {
     let (id, stored) = seed_stored_file(&pool, &storage).await;
     assert!(dir.path().join(&stored).is_file());
 
-    let out = delete::execute_with_pool(
+    let out = delete::execute_with_repository(
         delete_args(&id, true, false),
         &ScriptedPrompter::new(Vec::<String>::new()),
-        &pool,
+        &FileRepository::new(&pool),
         Arc::clone(&storage),
         &cfg(),
     )
@@ -349,10 +360,10 @@ async fn delete_dry_run_preserves_the_stored_object() {
     let storage = storage_at(dir.path());
     let (id, stored) = seed_stored_file(&pool, &storage).await;
 
-    delete::execute_with_pool(
+    delete::execute_with_repository(
         delete_args(&id, false, true),
         &ScriptedPrompter::new(Vec::<String>::new()),
-        &pool,
+        &FileRepository::new(&pool),
         Arc::clone(&storage),
         &cfg(),
     )
@@ -371,10 +382,10 @@ async fn delete_of_a_row_whose_object_is_gone_removes_the_row() {
     let (id, stored) = seed_stored_file(&pool, &storage).await;
     std::fs::remove_file(dir.path().join(&stored)).unwrap();
 
-    let out = delete::execute_with_pool(
+    let out = delete::execute_with_repository(
         delete_args(&id, true, false),
         &ScriptedPrompter::new(Vec::<String>::new()),
-        &pool,
+        &FileRepository::new(&pool),
         storage,
         &cfg(),
     )

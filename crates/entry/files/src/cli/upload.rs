@@ -3,21 +3,21 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use anyhow::{Context, Result, anyhow};
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use clap::Args;
 use sha2::{Digest, Sha256};
-use systemprompt_files::{FileUploadRequest, FileUploadService};
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_files::{FileRepository, FileUploadRequest, FileUploadService, FilesConfig};
 use systemprompt_identifiers::{ContextId, SessionId, UserId};
+use systemprompt_traits::FileStorage;
 use tokio::fs;
 
 use super::types::FileUploadOutput;
-use crate::commands::shared::app_context;
-use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
 pub struct UploadArgs {
@@ -37,12 +37,12 @@ pub struct UploadArgs {
     pub ai: bool,
 }
 
-pub async fn execute(args: UploadArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let app = app_context(host).await?;
+pub async fn execute(args: UploadArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let resolved = host.resolved().await?;
     let service = FileUploadService::new(
-        (**app.file_repository()).clone(),
-        (**app.files_config()).clone(),
-        std::sync::Arc::clone(app.file_storage()),
+        (*resolved.get::<Arc<FileRepository>>()?).clone(),
+        (*resolved.get::<Arc<FilesConfig>>()?).clone(),
+        resolved.get::<Arc<dyn FileStorage>>()?,
     );
 
     if !service.is_enabled() {

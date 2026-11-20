@@ -203,7 +203,6 @@ fn every_destructive_command_demands_an_explicit_cloud_profile() {
         vec!["admin", "users", "ban", "cleanup"],
         vec!["admin", "agents", "delete", "a", "--yes"],
         vec!["admin", "bootstrap"],
-        vec!["core", "files", "delete", "f", "--yes"],
         vec!["core", "contexts", "delete", "c", "--yes"],
         vec!["core", "services", "refresh"],
         vec![
