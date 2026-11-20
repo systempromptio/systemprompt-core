@@ -5,6 +5,9 @@
 //! cache entry that passed every check. A partially-written staging directory
 //! is removed on the way out rather than left to be mistaken for a good one.
 //!
+//! A failure carries the digest the remote advertised when one was read, so
+//! the caller can say which upload was refused and not only that one was.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -19,8 +22,8 @@ use systemprompt_manifest::services::bundle::{
 use crate::bundle::cache::{BundleCache, discard_staging};
 use crate::bundle::error::{BundleError, BundleResult};
 use crate::bundle::extract::{ExtractOptions, TarLayout, extract_tarball};
-use crate::bundle::source::{AnyFetcher, BundleFetcher, MAX_BUNDLE_BYTES};
-use crate::bundle::verify::{verify_bundle, verify_extracted};
+use crate::bundle::source::{AnyFetcher, BundleFetcher, MAX_BUNDLE_BYTES, RemoteRef};
+use crate::bundle::verify::{require_core, verify_bundle, verify_extracted};
 use systemprompt_identifiers::ContentHash;
 
 pub(super) struct ResolvedSource {
@@ -37,14 +40,44 @@ pub(super) struct SourceContext<'a> {
     pub(super) client: &'a reqwest::Client,
 }
 
+pub(super) struct SourceFailure {
+    pub(super) error: BundleError,
+    pub(super) attempted_digest: Option<String>,
+}
+
+impl SourceFailure {
+    const fn unattempted(error: BundleError) -> Self {
+        Self {
+            error,
+            attempted_digest: None,
+        }
+    }
+}
+
 pub(super) async fn resolve_source(
     source: &ServicesSource,
     ctx: &SourceContext<'_>,
     auth: Option<String>,
+) -> Result<ResolvedSource, SourceFailure> {
+    let fetcher =
+        AnyFetcher::from_source(source, auth, ctx.client).map_err(SourceFailure::unattempted)?;
+    let remote = fetcher.head().await.map_err(SourceFailure::unattempted)?;
+    let attempted_digest = (!remote.is_unknown()).then(|| remote.digest.clone());
+    reuse_or_install(source, ctx, &fetcher, remote)
+        .await
+        .map_err(|error| SourceFailure {
+            error,
+            attempted_digest,
+        })
+}
+
+async fn reuse_or_install(
+    source: &ServicesSource,
+    ctx: &SourceContext<'_>,
+    fetcher: &AnyFetcher,
+    remote: RemoteRef,
 ) -> BundleResult<ResolvedSource> {
     let (cache, state) = (ctx.cache, ctx.state);
-    let fetcher = AnyFetcher::from_source(source, auth, ctx.client)?;
-    let remote = fetcher.head().await?;
 
     if !remote.is_unknown()
         && let Some(known) = state.sources.get(&source.name)
@@ -52,6 +85,7 @@ pub(super) async fn resolve_source(
         && cache.bundle_dir(&source.name, &known.content_hash).is_dir()
     {
         let signed = cache.read_manifest(&source.name, &known.content_hash)?;
+        require_core(&signed.manifest, ctx.core_version)?;
         tracing::debug!(source = %source.name, digest = %known.digest, "Reusing cached bundle");
         return Ok(ResolvedSource {
             name: source.name.clone(),
@@ -66,7 +100,7 @@ pub(super) async fn resolve_source(
     fs::create_dir_all(&staging_dir)?;
     let archive = staging_dir.join(format!("{}.tar.gz", source.name));
 
-    let outcome = download_and_install(source, ctx, &fetcher, &archive).await;
+    let outcome = download_and_install(source, ctx, fetcher, &archive).await;
     discard_staging(&staging_dir);
     let (signed, digest) = outcome?;
 

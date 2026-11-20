@@ -73,19 +73,23 @@ pub fn verify_bundle(
 
     verify_signature(&signed, &verification.ed25519_public_keys)?;
 
-    let satisfied = signed
-        .manifest
-        .core_satisfies(core_version)
-        .map_err(|e| BundleError::policy_context("requires_core is not a semver range", e))?;
-    if !satisfied {
-        return Err(VerifyFailure::RequiresCore {
-            required: signed.manifest.requires_core,
-            actual: core_version.to_owned(),
-        }
-        .into());
-    }
+    require_core(&signed.manifest, core_version)?;
 
     Ok(signed)
+}
+
+pub fn require_core(manifest: &ServicesBundleManifest, core_version: &str) -> BundleResult<()> {
+    let satisfied = manifest
+        .core_satisfies(core_version)
+        .map_err(|e| BundleError::policy_context("requires_core is not a semver range", e))?;
+    if satisfied {
+        return Ok(());
+    }
+    Err(VerifyFailure::RequiresCore {
+        required: manifest.requires_core.clone(),
+        actual: core_version.to_owned(),
+    }
+    .into())
 }
 
 pub fn read_manifest(archive: &Path) -> BundleResult<SignedBundleManifest> {

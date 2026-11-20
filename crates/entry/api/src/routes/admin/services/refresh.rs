@@ -166,6 +166,7 @@ async fn run_refresh(
     }
 
     let state = cache.read_state();
+    let refused = cache.read_refusals();
     let restart_recommended = changed && owns_static_config(&cache, &state);
     let restarting = changed && restart;
 
@@ -174,6 +175,7 @@ async fn run_refresh(
         changed,
         reconciled,
         restart_recommended,
+        refused = refused.len(),
         composed_hash = new_hash.as_deref().unwrap_or("none"),
         provenance = %provenance_view(&resolved.provenance).kind,
         restarting,
@@ -194,7 +196,9 @@ async fn run_refresh(
     Ok(ServicesRefreshResponse {
         changed,
         composed_hash: new_hash,
+        provenance: provenance_view(&resolved.provenance),
         sources: source_views(&state),
+        refused,
         reconciled,
         restart_recommended,
         restarting,

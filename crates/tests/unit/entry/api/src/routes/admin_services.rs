@@ -2,8 +2,11 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use chrono::{TimeZone, Utc};
-use systemprompt_api::routes::admin::services::{RefreshLock, build_status};
+use systemprompt_api::routes::admin::services::{
+    ProvenanceView, RefreshLock, build_status, served_provenance,
+};
 use systemprompt_identifiers::ContentHash;
+use systemprompt_loader::bundle::DegradedRecord;
 use systemprompt_manifest::services::bundle::{BundleSourceState, ServicesBundleState};
 use systemprompt_manifest::services::root::{ActiveServicesRoot, ServicesProvenance};
 
@@ -163,4 +166,47 @@ async fn a_second_refresh_cannot_take_the_single_flight_lock() {
         lock.try_acquire().is_some(),
         "the lock must be released when the refresh finishes"
     );
+}
+
+fn boot_view(kind: &str, error: Option<&str>) -> ProvenanceView {
+    ProvenanceView {
+        kind: kind.to_owned(),
+        composed_hash: Some("composed-0".to_owned()),
+        error: error.map(str::to_owned),
+    }
+}
+
+#[test]
+fn a_fallback_recorded_after_boot_replaces_the_boot_provenance() {
+    let record = DegradedRecord {
+        serving: "last_good".to_owned(),
+        error: "verification failed: bundle requires core >=0.83, this build is 0.82.0".to_owned(),
+        recorded_at: "2026-11-20T10:45:00+00:00".to_owned(),
+    };
+
+    let served = served_provenance(boot_view("fetched", None), Some(&record), &staged_state());
+
+    assert_eq!(served.kind, "last_good");
+    assert_eq!(served.composed_hash.as_deref(), Some("composed-1"));
+    assert!(served.error.is_some_and(|e| e.contains("requires core")));
+}
+
+#[test]
+fn an_import_that_recovered_after_a_boot_fallback_reads_as_fetched() {
+    let served = served_provenance(
+        boot_view("last_good", Some("registry unreachable")),
+        None,
+        &staged_state(),
+    );
+
+    assert_eq!(served.kind, "fetched");
+    assert_eq!(served.composed_hash.as_deref(), Some("composed-1"));
+    assert_eq!(served.error, None);
+}
+
+#[test]
+fn a_healthy_boot_with_no_record_keeps_its_provenance() {
+    let boot = boot_view("fetched", None);
+
+    assert_eq!(served_provenance(boot.clone(), None, &staged_state()), boot);
 }

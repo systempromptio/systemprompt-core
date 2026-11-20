@@ -96,6 +96,20 @@ pub(super) fn check_services_source(profile: &Profile) -> CheckResult {
             ),
         );
     }
+    let refused = cache.read_refusals();
+    if !refused.is_empty() {
+        let held: Vec<String> = refused
+            .iter()
+            .map(|r| format!("{} on {} ({})", r.source, r.serving_version, r.reason))
+            .collect();
+        return CheckResult::warn(
+            SOURCE,
+            format!(
+                "source(s) held back on a previous bundle: {}",
+                held.join("; ")
+            ),
+        );
+    }
     let state = cache.read_state();
     if state.composed_hash.is_empty() {
         return CheckResult::pass(SOURCE, "sources are pinned and not fetched yet");
