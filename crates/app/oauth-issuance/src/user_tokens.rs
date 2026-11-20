@@ -6,10 +6,12 @@
 //! carrying the refresh-token family forward when one is given.
 //!
 //! A grant for a client the operator declared `person_ui` mints the person's
-//! UI session instead (see [`systemprompt_models::auth::ui_session`]): exactly
-//! the `ui` audience, the `ui_session` claim, a short access lifetime, the
-//! sign-in time as `auth_time`, and a refresh token that never outlives the
-//! absolute cap counted from that sign-in.
+//! UI session instead: exactly the `ui` audience, the `ui_session` claim, the
+//! sign-in time as `auth_time`, and the lifetimes of the profile's
+//! [`UiSessionConfig`] — a short access token and a refresh token that never
+//! outlives the absolute cap counted from that sign-in.
+//!
+//! [`UiSessionConfig`]: systemprompt_manifest::profile::UiSessionConfig
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -21,7 +23,6 @@ use systemprompt_identifiers::{
     AccessTokenId, ClientId, RefreshTokenId, SessionId, SessionSource, UserId,
 };
 use systemprompt_manifest::Config;
-use systemprompt_models::auth::ui_session::{UI_SESSION_ABSOLUTE_SECS, UI_SESSION_ACCESS_TTL_SECS};
 use systemprompt_models::auth::{
     AuthenticatedUser, JwtAudience, Permission, parse_permissions, permissions_to_string,
 };
@@ -179,14 +180,15 @@ impl GrantShape {
         if params.resource.is_some() {
             return Err(UserTokenError::UiSessionResource);
         }
-        let session_ends = params.authenticated_at.timestamp() + UI_SESSION_ABSOLUTE_SECS;
+        let ui_session = config.ui_session;
+        let session_ends = params.authenticated_at.timestamp() + ui_session.absolute_secs;
         let remaining = session_ends - now.timestamp();
         if remaining <= 0 {
             return Err(UserTokenError::UiSessionExpired);
         }
         Ok(Self {
             audience: vec![JwtAudience::Ui],
-            access_ttl: Duration::seconds(UI_SESSION_ACCESS_TTL_SECS.min(remaining)),
+            access_ttl: Duration::seconds(ui_session.access_ttl_secs.min(remaining)),
             refresh_expires_at: refresh_expires_at.min(session_ends),
             auth_time: Some(params.authenticated_at.timestamp()),
             browser_session: false,

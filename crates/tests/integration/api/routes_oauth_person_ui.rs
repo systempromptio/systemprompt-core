@@ -2,7 +2,7 @@
 //! client the operator declared `person_ui` mints a short `ui`-audience token
 //! carrying `ui_session` and the sign-in time, the same grant for any other
 //! client never does, and refreshing it keeps the sign-in time and stops at the
-//! absolute cap.
+//! absolute cap. The lifetimes are the profile's `security.ui_session` block.
 
 use std::net::SocketAddr;
 
@@ -15,8 +15,7 @@ use serde_json::Value;
 use systemprompt_api::services::server::{ReadinessState, setup_api_server};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AuthorizationCode, UserId};
-use systemprompt_manifest::profile::RateLimitsConfig;
-use systemprompt_models::auth::ui_session::UI_SESSION_ACCESS_TTL_SECS;
+use systemprompt_manifest::profile::{RateLimitsConfig, UiSessionConfig};
 use systemprompt_oauth::repository::AuthCodeParams;
 use systemprompt_test_fixtures::{
     OAuthClientFixture, ensure_test_bootstrap, fixture_app_context_with_config, fixture_config,
@@ -30,14 +29,23 @@ pub(super) struct Person {
     pub(super) app: Router,
     pub(super) user: UserId,
     pub(super) client: OAuthClientFixture,
+    pub(super) ui_session: UiSessionConfig,
 }
 
 pub(super) async fn person(person_ui: bool) -> anyhow::Result<Person> {
+    person_with(person_ui, UiSessionConfig::default()).await
+}
+
+pub(super) async fn person_with(
+    person_ui: bool,
+    ui_session: UiSessionConfig,
+) -> anyhow::Result<Person> {
     let bootstrap = ensure_test_bootstrap();
     let pool = test_db_pool().await;
     let mut config = fixture_config(&bootstrap.database_url);
     config.rate_limits = RateLimitsConfig::disabled();
     config.trusted_proxies = Vec::new();
+    config.ui_session = ui_session;
     let ctx = fixture_app_context_with_config(&pool, config)?;
     let app = setup_api_server(&ctx, None, &std::sync::Arc::new(ReadinessState::new()))
         .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
@@ -53,6 +61,7 @@ pub(super) async fn person(person_ui: bool) -> anyhow::Result<Person> {
         app,
         user,
         client,
+        ui_session,
     })
 }
 
@@ -83,6 +92,7 @@ pub(super) async fn same_person_through_another_client(
         app: p.app.clone(),
         user: p.user.clone(),
         client: client_of(&p.pool, &p.user, person_ui).await?,
+        ui_session: p.ui_session,
     })
 }
 
@@ -192,9 +202,10 @@ async fn the_code_grant_of_a_person_ui_client_mints_a_ui_session() -> anyhow::Re
     let p = person(true).await?;
     let (status, v) = sign_in(&p, 30).await?;
     assert_eq!(status, StatusCode::OK, "{v}");
+    assert_eq!(p.ui_session.access_ttl_secs, 300);
     assert_eq!(
         v["expires_in"].as_i64(),
-        Some(UI_SESSION_ACCESS_TTL_SECS),
+        Some(p.ui_session.access_ttl_secs),
         "{v}"
     );
     let c = claims(v["access_token"].as_str().unwrap_or_default());
@@ -230,10 +241,11 @@ async fn refresh_keeps_the_sign_in_time_and_stops_at_the_absolute_cap() -> anyho
     let (_, first) = sign_in(&p, 60).await?;
     let auth_time = claims(first["access_token"].as_str().unwrap_or_default())["auth_time"].clone();
     let capped: bool = sqlx::query_scalar(
-        "SELECT bool_and(expires_at <= authenticated_at + interval '12 hours') \
+        "SELECT bool_and(expires_at <= authenticated_at + make_interval(secs => $2)) \
          FROM oauth_refresh_tokens WHERE client_id = $1",
     )
     .bind(p.client.client_id.as_str())
+    .bind(p.ui_session.absolute_secs as f64)
     .fetch_one(p.pool.write_pool().as_ref())
     .await?;
     assert!(capped);
@@ -245,10 +257,11 @@ async fn refresh_keeps_the_sign_in_time_and_stops_at_the_absolute_cap() -> anyho
     assert_eq!(c["ui_session"], Value::Bool(true), "{c}");
 
     sqlx::query(
-        "UPDATE oauth_refresh_tokens SET authenticated_at = now() - interval '13 hours' \
+        "UPDATE oauth_refresh_tokens SET authenticated_at = now() - make_interval(secs => $2) \
          WHERE client_id = $1 AND consumed_at IS NULL",
     )
     .bind(p.client.client_id.as_str())
+    .bind((p.ui_session.absolute_secs + 3600) as f64)
     .execute(p.pool.write_pool().as_ref())
     .await?;
     let (status, third) = refresh(&p, second["refresh_token"].as_str().unwrap_or_default()).await?;
@@ -259,8 +272,51 @@ async fn refresh_keeps_the_sign_in_time_and_stops_at_the_absolute_cap() -> anyho
 #[tokio::test]
 async fn a_sign_in_older_than_the_absolute_cap_mints_nothing() -> anyhow::Result<()> {
     let p = person(true).await?;
-    let (status, v) = sign_in(&p, 13 * 3600).await?;
+    let (status, v) = sign_in(&p, p.ui_session.absolute_secs + 3600).await?;
     assert_eq!(status, StatusCode::BAD_REQUEST, "{v}");
     assert!(v.get("access_token").is_none(), "{v}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn the_configured_lifetimes_bound_the_minted_session() -> anyhow::Result<()> {
+    let p = person_with(
+        true,
+        UiSessionConfig {
+            access_ttl_secs: 120,
+            absolute_secs: 600,
+            step_up_max_age_secs: 60,
+        },
+    )
+    .await?;
+    let (status, v) = sign_in(&p, 30).await?;
+    assert_eq!(status, StatusCode::OK, "{v}");
+    assert_eq!(v["expires_in"].as_i64(), Some(120), "{v}");
+    let c = claims(v["access_token"].as_str().unwrap_or_default());
+    assert_eq!(
+        c["exp"].as_i64().unwrap_or_default() - c["iat"].as_i64().unwrap_or_default(),
+        120,
+        "{c}"
+    );
+    let refresh_lifetime: f64 = sqlx::query_scalar(
+        "SELECT extract(epoch FROM max(expires_at - authenticated_at))::float8 \
+         FROM oauth_refresh_tokens WHERE client_id = $1",
+    )
+    .bind(p.client.client_id.as_str())
+    .fetch_one(p.pool.write_pool().as_ref())
+    .await?;
+    assert!(
+        (599.0..=600.0).contains(&refresh_lifetime),
+        "{refresh_lifetime}"
+    );
+
+    let (status, near_the_end) = sign_in(&p, 540).await?;
+    assert_eq!(status, StatusCode::OK, "{near_the_end}");
+    let left = near_the_end["expires_in"].as_i64().unwrap_or_default();
+    assert!((1..=60).contains(&left), "{near_the_end}");
+
+    let (status, past_the_end) = sign_in(&p, 700).await?;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{past_the_end}");
+    assert!(past_the_end.get("access_token").is_none(), "{past_the_end}");
     Ok(())
 }

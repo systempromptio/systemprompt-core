@@ -9,9 +9,7 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use serde::Serialize;
 use systemprompt_identifiers::McpServerId;
-use systemprompt_models::auth::ui_session::{
-    UI_SESSION_ABSOLUTE_SECS, UI_SESSION_ACCESS_TTL_SECS, UI_SESSION_STEP_UP_MAX_AGE_SECS,
-};
+use systemprompt_manifest::profile::UiSessionConfig;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::oauth::{OAuthServerConfig, ProtectedResourceMetadata};
 use systemprompt_oauth::services::validation::id_jag::ID_JAG_GRANT_PROFILE;
@@ -20,7 +18,8 @@ use systemprompt_runtime::AppContext;
 use crate::routes::proxy::mcp::get_mcp_server_scopes;
 use crate::services::request_base_url::RequestBaseUrl;
 
-/// The lifetimes, in seconds, of a person's UI session.
+/// The lifetimes, in seconds, of a person's UI session, as the profile's
+/// `security.ui_session` block sets them.
 ///
 /// A `person_ui` client reads this capability from either discovery document
 /// instead of probing `/authorize`; neither document names a client.
@@ -33,11 +32,11 @@ pub struct UiSessionDiscovery {
 
 impl UiSessionDiscovery {
     #[must_use]
-    pub const fn current() -> Self {
+    pub const fn from_config(config: &UiSessionConfig) -> Self {
         Self {
-            access_token_lifetime: UI_SESSION_ACCESS_TTL_SECS,
-            session_lifetime: UI_SESSION_ABSOLUTE_SECS,
-            step_up_max_age: UI_SESSION_STEP_UP_MAX_AGE_SECS,
+            access_token_lifetime: config.access_ttl_secs,
+            session_lifetime: config.absolute_secs,
+            step_up_max_age: config.step_up_max_age_secs,
         }
     }
 }
@@ -125,7 +124,7 @@ pub async fn handle_well_known(
         ],
         authorization_grant_profiles_supported: vec![ID_JAG_GRANT_PROFILE.to_owned()],
         ui_session_supported: true,
-        ui_session: UiSessionDiscovery::current(),
+        ui_session: UiSessionDiscovery::from_config(&ctx.config().ui_session),
     };
 
     (StatusCode::OK, Json(response)).into_response()

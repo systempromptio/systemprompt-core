@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- A UI session's access lifetime and absolute cap are read from `Config::ui_session` (`security.ui_session.access_ttl_secs`, `absolute_secs`); the defaults are the former fixed 300 seconds and 12 hours.
+
 ## [0.84.0] - 2026-11-20
 
 ### Breaking

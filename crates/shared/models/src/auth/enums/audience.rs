@@ -1,10 +1,14 @@
 //! The `aud` claim domain: which surface a token is minted for.
 //!
-//! `ui` is the audience of a person's UI session (see
-//! [`crate::auth::ui_session`]). It is outside [`JwtAudience::FIRST_PARTY`] and
-//! [`JwtAudience::service`], so every surface that validates against those
-//! refuses it; only a surface that names [`JwtAudience::FIRST_PARTY_AND_UI`]
-//! admits it.
+//! `ui` is the audience of a person's UI session, the bearer token a
+//! `person_ui` client holds for the person who signed in through it
+//! ([`JwtClaims::ui_session_well_formed`] is its shape; the profile's
+//! `security.ui_session` block sets its lifetimes). It is outside
+//! [`JwtAudience::FIRST_PARTY`] and [`JwtAudience::service`], so every surface
+//! that validates against those refuses it; only a surface that names
+//! [`JwtAudience::FIRST_PARTY_AND_UI`] admits it.
+//!
+//! [`JwtClaims::ui_session_well_formed`]: crate::auth::JwtClaims::ui_session_well_formed
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

@@ -4,11 +4,15 @@
 
 ### Breaking
 
-- **Breaking:** **API:** `routes::oauth::discovery::WellKnownResponse` gains `ui_session_supported` and `ui_session`. Migrate a struct literal by adding `ui_session_supported: true, ui_session: UiSessionDiscovery::current()`.
+- **Breaking:** **API:** `routes::oauth::discovery::WellKnownResponse` gains `ui_session_supported` and `ui_session`. Migrate a struct literal by adding `ui_session_supported: true, ui_session: UiSessionDiscovery::from_config(&config.ui_session)`.
+- **Breaking:** **Models:** `systemprompt_models::auth::ui_session` is removed with its constants `UI_SESSION_ACCESS_TTL_SECS`, `UI_SESSION_ABSOLUTE_SECS` and `UI_SESSION_STEP_UP_MAX_AGE_SECS` and the function `step_up_required`. Migrate by reading `access_ttl_secs`, `absolute_secs` and `step_up_max_age_secs` from `Config::ui_session` (`systemprompt_manifest::profile::UiSessionConfig`) and calling `UiSessionConfig::step_up_required(auth_time, now)`.
+- **Breaking:** **Manifest:** `SecurityConfig` and `Config` gain `ui_session: UiSessionConfig`. Migrate a struct literal by adding `ui_session: UiSessionConfig::default()` (`Default::default()`).
+- **Breaking:** **API:** `routes::oauth::discovery::UiSessionDiscovery::current()` is replaced by `UiSessionDiscovery::from_config(&UiSessionConfig)`. Migrate by passing `&ctx.config().ui_session`.
 - **Breaking:** **API:** `routes::oauth::authenticated_router()` no longer carries `/revoke`; it is `routes::oauth::revocation_router()` (also `routes::oauth_revocation_router`). Migrate a hand-assembled router with `.merge(revocation_router())`; `routes::oauth::router()` already includes it.
 
 ### Added
 
+- **OAuth:** the lifetimes of a person's UI session are profile fields. `security.ui_session` takes `access_ttl_secs` (default `300`, `60`–`3600`), `absolute_secs` (default `43200`, `300`–`2592000`) and `step_up_max_age_secs` (default `600`, `60`–`absolute_secs`); `access_ttl_secs` may not exceed `absolute_secs`, an unknown key is refused, and a value outside its bounds fails profile validation. A profile without the block behaves as before. The token endpoint, the step-up on the document routes (including the `max_age` its `401` reports) and the `ui_session` discovery block read the configured values. The session still ends `absolute_secs` after the sign-in whatever the refreshes.
 - **OAuth:** discovery advertises the UI session capability: `/.well-known/oauth-authorization-server`, `/.well-known/openid-configuration` and `endpoints.oauth` of `GET /api/v1` carry `ui_session_supported` and `ui_session` (`access_token_lifetime`, `session_lifetime`, `step_up_max_age`, in seconds), so a `person_ui` client no longer probes `/authorize`. No client is named.
 - **OAuth:** `POST /oauth/revoke` admits a person's UI session as the caller, so a `person_ui` client signs its own session out with its own credential. A UI caller reaches only its own grant: the token must belong to the same user and the same `client_id`, and an admin role widens nothing. Revoking its refresh token also ends the bearer it presented (RFC 7009 §2.1). Every other authenticated OAuth route still refuses the `ui` audience.
 

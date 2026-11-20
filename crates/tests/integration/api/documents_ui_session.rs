@@ -10,7 +10,9 @@ use axum::body::Body;
 use axum::http::{Method, Request, StatusCode, header};
 use serde_json::{Value, json};
 
-use super::routes_oauth_person_ui::{Person, claims, person, send, sign_in};
+use systemprompt_manifest::profile::UiSessionConfig;
+
+use super::routes_oauth_person_ui::{Person, claims, person, person_with, send, sign_in};
 
 fn bearer(
     method: Method,
@@ -115,7 +117,9 @@ async fn a_ui_session_sent_as_the_cookie_is_refused() -> anyhow::Result<()> {
 async fn high_impact_actions_want_a_recent_sign_in() -> anyhow::Result<()> {
     let p = person(true).await?;
     let fresh = ui_token(&p, 5).await?;
-    let stale = ui_token(&p, 20 * 60).await?;
+    let window = p.ui_session.step_up_max_age_secs;
+    assert_eq!(window, 600);
+    let stale = ui_token(&p, 2 * window).await?;
     let id = create_document(&p, &fresh).await?["document"]["id"]
         .as_str()
         .unwrap_or_default()
@@ -161,7 +165,7 @@ async fn high_impact_actions_want_a_recent_sign_in() -> anyhow::Result<()> {
             text.contains("error=\"insufficient_user_authentication\""),
             "{uri}: {text}"
         );
-        assert!(text.contains("max_age=600"), "{uri}: {text}");
+        assert!(text.contains(&format!("max_age={window}")), "{uri}: {text}");
     }
     let (status, text) = send(
         &p.app,
@@ -182,6 +186,54 @@ async fn high_impact_actions_want_a_recent_sign_in() -> anyhow::Result<()> {
             &fresh,
             None,
         )?,
+    )
+    .await?;
+    assert_ne!(status, StatusCode::UNAUTHORIZED, "{text}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn the_configured_step_up_window_decides_and_is_reported() -> anyhow::Result<()> {
+    let signed_in_ago = 300;
+    let grant_uri = |id: &str| format!("/api/v1/documents/{id}/grants/all");
+
+    let short = person_with(
+        true,
+        UiSessionConfig {
+            step_up_max_age_secs: 120,
+            ..UiSessionConfig::default()
+        },
+    )
+    .await?;
+    let fresh = ui_token(&short, 5).await?;
+    let id = create_document(&short, &fresh).await?["document"]["id"]
+        .as_str()
+        .unwrap_or_default()
+        .to_owned();
+    let token = ui_token(&short, signed_in_ago).await?;
+    let (status, text) = send(
+        &short.app,
+        bearer(Method::DELETE, &grant_uri(&id), &token, None)?,
+    )
+    .await?;
+    assert_eq!(status, StatusCode::UNAUTHORIZED, "{text}");
+    assert!(
+        text.contains("error=\"insufficient_user_authentication\""),
+        "{text}"
+    );
+    assert!(text.contains("max_age=120"), "{text}");
+    assert!(!text.contains("max_age=600"), "{text}");
+
+    let default = person(true).await?;
+    let fresh = ui_token(&default, 5).await?;
+    let id = create_document(&default, &fresh).await?["document"]["id"]
+        .as_str()
+        .unwrap_or_default()
+        .to_owned();
+    let token = ui_token(&default, signed_in_ago).await?;
+    let (status, text) = send(
+        &default.app,
+        bearer(Method::DELETE, &grant_uri(&id), &token, None)?,
     )
     .await?;
     assert_ne!(status, StatusCode::UNAUTHORIZED, "{text}");
