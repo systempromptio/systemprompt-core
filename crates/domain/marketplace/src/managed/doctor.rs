@@ -15,8 +15,8 @@ use async_trait::async_trait;
 use systemprompt_database::DbPool;
 use systemprompt_traits::{DoctorCheck, DoctorContext, DoctorOutcome, SecretPresence};
 
-use super::git_sources::{MIGRATE_GIT_CREDENTIALS_COMMAND, git_credential_key};
 use super::GitCredentialSource;
+use super::git_sources::{MIGRATE_GIT_CREDENTIALS_COMMAND, git_credential_key};
 use super::repository::git_credential_sources;
 
 /// The Git source credential check `cloud doctor` runs for this member.

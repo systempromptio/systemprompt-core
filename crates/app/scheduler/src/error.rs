@@ -99,7 +99,6 @@ pub enum SchedulerError {
     #[error("Distributed lock error: {0}")]
     DistributedLock(#[source] RepositoryError),
 
-
     #[error("Logging error: {0}")]
     Logging(#[from] systemprompt_logging::models::LoggingError),
 

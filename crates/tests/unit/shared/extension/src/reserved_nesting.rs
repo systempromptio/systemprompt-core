@@ -80,5 +80,8 @@ fn a_row_under_an_exact_kernel_row_is_not_nested() {
         path: "/api/v1",
         reach: ReservedReach::Exact,
     };
-    assert!(!nested_under_kernel(&member_row(ReservedReach::Prefix), &[kernel]));
+    assert!(!nested_under_kernel(
+        &member_row(ReservedReach::Prefix),
+        &[kernel]
+    ));
 }

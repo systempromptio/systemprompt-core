@@ -4,9 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::{
-    Admitted, AdmittedAssets, AdmittedConfigs, AdmittedDoctorChecks, AdmittedMigrations,
-};
+use crate::{Admitted, AdmittedAssets, AdmittedConfigs, AdmittedDoctorChecks, AdmittedMigrations};
 
 /// The declared migrations, configuration sections, assets and `cloud doctor`
 /// checks of an admitted composition, each open.

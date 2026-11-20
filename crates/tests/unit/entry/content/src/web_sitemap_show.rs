@@ -43,12 +43,7 @@ fn sitemap_show_lists_enabled_routes() {
     let config_path = dir.path().join("config.yaml");
     fs::write(&config_path, CONTENT_CONFIG).unwrap();
 
-    let out = execute_with_config_path(
-        ShowArgs { preview: true },
-        &cfg(),
-        &config_path,
-    )
-    .unwrap();
+    let out = execute_with_config_path(ShowArgs { preview: true }, &cfg(), &config_path).unwrap();
     let json = serde_json::to_value(out.artifact()).unwrap();
     let items = json["items"].as_array().unwrap();
     assert_eq!(items.len(), 2);

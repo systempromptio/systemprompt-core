@@ -33,9 +33,9 @@ use systemprompt_loader::bundle::bootstrap::baked::BASE_SOURCE_NAME;
 use systemprompt_loader::bundle::{BundleCache, cache_root};
 use systemprompt_loader::{ConfigLoadError, ConfigLoader, ServicesSourceBootstrap};
 use systemprompt_manifest::services::bundle::ServicesBundleState;
+use systemprompt_marketplace::inventory::InventoryRefresher;
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
-use systemprompt_marketplace::inventory::InventoryRefresher;
 use systemprompt_runtime::services_reconcile::{ReconcileOutcome, reconcile_fetched_services};
 use systemprompt_runtime::{AppContext, RuntimeError};
 use systemprompt_traits::CacheDomain;
@@ -110,6 +110,19 @@ pub async fn refresh(
         .map(Json)
 }
 
+async fn refresh_inventory(ctx: &AppContext, actor: &UserId) {
+    match ctx.kernel().state().get::<Arc<InventoryRefresher>>() {
+        Ok(refresher) => {
+            if let Err(error) = refresher.publish_latest(actor).await {
+                tracing::warn!(%error, "Inventory refresh after services import failed; the scheduled pass will retry");
+            }
+        },
+        Err(error) => {
+            tracing::warn!(%error, "Inventory refresher is not provided; the inventory was not refreshed");
+        },
+    }
+}
+
 async fn run_refresh(
     ctx: &AppContext,
     actor: &UserId,
@@ -160,16 +173,7 @@ async fn run_refresh(
         reconciled = outcome == ReconcileOutcome::Projected;
         ctx.cache_epochs().advance(CacheDomain::Services);
 
-        match ctx.kernel().state().get::<Arc<InventoryRefresher>>() {
-            Ok(refresher) => {
-                if let Err(error) = refresher.publish_latest(actor).await {
-                    tracing::warn!(%error, "Inventory refresh after services import failed; the scheduled pass will retry");
-                }
-            },
-            Err(error) => {
-                tracing::warn!(%error, "Inventory refresher is not provided; the inventory was not refreshed");
-            },
-        }
+        refresh_inventory(ctx, actor).await;
     }
 
     let state = cache.read_state();

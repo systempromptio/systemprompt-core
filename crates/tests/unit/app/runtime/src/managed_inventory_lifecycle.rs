@@ -44,10 +44,7 @@ async fn runtime_inventory_retains_last_good_membership_across_scan_failure_and_
     let first = inventory.refresh().await.unwrap();
     assert_eq!(first.entries, 1);
     assert!(first.last_error.is_none());
-    let published = inventory
-        .publish_latest(&owner)
-        .await
-        .unwrap();
+    let published = inventory.publish_latest(&owner).await.unwrap();
     assert_eq!(published.len(), 1);
     assert_eq!(published[0].status, LatestPublicationStatus::Published);
     assert_eq!(published[0].generation, Some(1));
@@ -60,7 +57,8 @@ async fn runtime_inventory_retains_last_good_membership_across_scan_failure_and_
     let retained_skills = boot.services_path.join("skills-retained");
     std::fs::rename(&skills, &retained_skills).unwrap();
     std::os::unix::fs::symlink(&retained_skills, &skills).unwrap();
-    let error = inventory.refresh()
+    let error = inventory
+        .refresh()
         .await
         .expect_err("a symlinked configured catalog must fail the refresh");
     assert!(
@@ -88,10 +86,7 @@ async fn runtime_inventory_retains_last_good_membership_across_scan_failure_and_
     assert!(repaired.generation > first.generation);
     assert_eq!(repaired.entries, 1);
     assert!(repaired.last_error.is_none());
-    let republished = inventory
-        .publish_latest(&owner)
-        .await
-        .unwrap();
+    let republished = inventory.publish_latest(&owner).await.unwrap();
     assert_eq!(republished.len(), 1);
     assert_eq!(republished[0].status, LatestPublicationStatus::Published);
     assert_eq!(republished[0].generation, Some(2));

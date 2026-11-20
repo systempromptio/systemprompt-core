@@ -15,11 +15,11 @@ pub mod types;
 
 use anyhow::{Context, Result};
 use clap::Subcommand;
+use std::sync::Arc;
 use systemprompt_extension::cli::{
     CliCommandGroup, CliConfig, CommandDescriptor, CommandError, CommandHost, CommandOutput,
     DataImpact, DescribeCommand,
 };
-use std::sync::Arc;
 
 use systemprompt_config::paths::AppPaths;
 
@@ -57,17 +57,12 @@ impl CliCommandGroup for SitemapCommands {
     const NAME: &'static str = "sitemap";
     const ABOUT: &'static str = "Sitemap operations";
 
-    fn run(
-        self,
-        host: &dyn CommandHost,
-    ) -> impl Future<Output = Result<CommandOutput, CommandError>> + Send {
-        async move {
-            let paths = host
-                .resolved()
-                .await?
-                .get::<Arc<AppPaths>>()
-                .map_err(CommandError::new)?;
-            execute(self, host.output(), &paths).map_err(CommandError::new)
-        }
+    async fn run(self, host: &dyn CommandHost) -> Result<CommandOutput, CommandError> {
+        let paths = host
+            .resolved()
+            .await?
+            .get::<Arc<AppPaths>>()
+            .map_err(CommandError::new)?;
+        execute(self, host.output(), &paths).map_err(CommandError::new)
     }
 }

@@ -1,10 +1,11 @@
 //! The kernel's built-in jobs.
 //!
-//! Config reconcile, the licence check-in, the drainers of kernel-owned projections, session housekeeping, OTLP export,
-//! and the two jobs that iterate what capability crates contribute
-//! (`database_cleanup` over admitted retention purges, sweeps and holds,
-//! `backfill_rollups` over admitted projection drains). Capability jobs live
-//! in, and are contributed by, their owning members.
+//! Config reconcile, the licence check-in, the drainers of kernel-owned
+//! projections, session housekeeping, OTLP export, and the two jobs that
+//! iterate what capability crates contribute (`database_cleanup` over admitted
+//! retention purges, sweeps and holds, `backfill_rollups` over admitted
+//! projection drains). Capability jobs live in, and are contributed by, their
+//! owning members.
 //!
 //! Each module exposes a single zero-sized type implementing
 //! [`systemprompt_traits::Job`]; [`crate::SchedulerExtension`] contributes

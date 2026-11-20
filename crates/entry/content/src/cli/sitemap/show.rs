@@ -8,9 +8,9 @@ use clap::Args;
 use std::fs;
 use std::path::Path;
 
+use systemprompt_config::paths::AppPaths;
 use systemprompt_extension::cli::{CliConfig, CommandOutput};
 use systemprompt_logging::CliService;
-use systemprompt_config::paths::AppPaths;
 use systemprompt_models::content_config::ContentConfigRaw;
 
 use super::types::SitemapRoute;
@@ -34,21 +34,19 @@ pub fn execute_with_config_path(
     _config: &CliConfig,
     content_config_path: &Path,
 ) -> Result<CommandOutput> {
-    let content = fs::read_to_string(content_config_path)
-        .with_context(|| {
-            format!(
-                "Failed to read content config at {}",
-                content_config_path.display()
-            )
-        })?;
+    let content = fs::read_to_string(content_config_path).with_context(|| {
+        format!(
+            "Failed to read content config at {}",
+            content_config_path.display()
+        )
+    })?;
 
-    let config: ContentConfigRaw = serde_yaml::from_str(&content)
-        .with_context(|| {
-            format!(
-                "Failed to parse content config at {}",
-                content_config_path.display()
-            )
-        })?;
+    let config: ContentConfigRaw = serde_yaml::from_str(&content).with_context(|| {
+        format!(
+            "Failed to parse content config at {}",
+            content_config_path.display()
+        )
+    })?;
 
     let mut routes: Vec<SitemapRoute> = Vec::new();
 

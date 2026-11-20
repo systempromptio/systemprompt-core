@@ -51,9 +51,11 @@ impl Extension for AgentExtension {
         });
         c.owner_reassignment(
             |r: &Resolved<'_>| -> Result<systemprompt_traits::DynOwnerReassignment, FactoryError> {
-                Ok(std::sync::Arc::new(crate::repository::AgentOwnerReassignment::new(
-                    &r.get::<systemprompt_database::DbPool>()?,
-                )))
+                Ok(std::sync::Arc::new(
+                    crate::repository::AgentOwnerReassignment::new(
+                        &r.get::<systemprompt_database::DbPool>()?,
+                    ),
+                ))
             },
         );
         Ok(())

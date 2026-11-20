@@ -110,9 +110,9 @@ impl Extension for AnalyticsExtension {
             .retention(RetentionDecl::Purge(Arc::new(FingerprintReputationPurge)));
         c.owner_reassignment(
             |r: &Resolved<'_>| -> Result<systemprompt_traits::DynOwnerReassignment, FactoryError> {
-                Ok(Arc::new(crate::repository::AnalyticsOwnerReassignment::new(
-                    &r.get::<DbPool>()?,
-                )))
+                Ok(Arc::new(
+                    crate::repository::AnalyticsOwnerReassignment::new(&r.get::<DbPool>()?),
+                ))
             },
         );
 

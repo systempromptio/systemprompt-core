@@ -6,13 +6,13 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use systemprompt_config::paths::StoragePaths;
 use systemprompt_extension::Resolved;
 use systemprompt_extension::cli::{
     AdmittedViews, BoxFuture, CallerSession, ChildSupervisor, CliConfig, CommandDescriptor,
     CommandError, CommandHost, CommandOutput, DescribedCommand, KernelGrant, Prompter,
     ServicesTree,
 };
-use systemprompt_config::paths::StoragePaths;
 use systemprompt_loader::load_boot::load_boot_from_path;
 use systemprompt_manifest::{Config, Profile};
 use systemprompt_runtime::Kernel;

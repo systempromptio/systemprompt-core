@@ -14,9 +14,9 @@
 //! - the per-process `Arc<Mutex<PublishGuard>>` that serializes inventory
 //!   publication passes;
 //! - after governance, the `Arc<InventoryRefresher>` the
-//!   `managed_inventory_refresh` job (contributed here) and the admin
-//!   services refresh run, built from the sealed bundle sources, services
-//!   root and system admin;
+//!   `managed_inventory_refresh` job (contributed here) and the admin services
+//!   refresh run, built from the sealed bundle sources, services root and
+//!   system admin;
 //! - after governance, the organization skill resolver
 //!   (`DynManagedSkillResolver`), which resolves managed skills against the
 //!   system admin's managed inventory.

@@ -13,8 +13,8 @@ use systemprompt_extension::prelude::*;
 
 use crate::jobs::{
     BackfillRollupsJob, CleanupInactiveSessionsJob, ConfigReconcileJob, DatabaseCleanupJob,
-    LicenceCheckinJob, LogSummaryRollupJob, OutboxBacklogRollupJob,
-    SessionBotTypeRollupJob, TraceFactsRollupJob, VertexDiscoveryJob,
+    LicenceCheckinJob, LogSummaryRollupJob, OutboxBacklogRollupJob, SessionBotTypeRollupJob,
+    TraceFactsRollupJob, VertexDiscoveryJob,
 };
 
 pub(crate) const SCHEDULER_MEMBER_ID: &str = "scheduler";

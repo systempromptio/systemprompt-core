@@ -9,9 +9,9 @@
 /// hands interrupt handling to the server; `CloudOperator` loads the operator
 /// cloud credentials and runs against a cloud profile with no remote route;
 /// `LocalExport` keeps an `--export` run on this machine and serves the
-/// profile's local exports directory through `CommandHost::export_dir`; `SkipValidation`
-/// skips the services-config validation; `BootProfile` lets the command boot a
-/// profile at a path through
+/// profile's local exports directory through `CommandHost::export_dir`;
+/// `SkipValidation` skips the services-config validation; `BootProfile` lets
+/// the command boot a profile at a path through
 /// [`CommandHost::boot_config`](crate::cli::CommandHost::boot_config);
 /// `ConfigReconcile` serves the command the kernel-built config apply service
 /// (database rows of every config plane, read with the loaded secrets) through

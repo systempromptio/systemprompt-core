@@ -133,8 +133,7 @@ pub use coordination::{
 };
 
 pub use ownership::{
-    DynOwnerReassignment, OwnerReassignment, ReassignedColumn, ReassignedRows,
-    is_plain_identifier,
+    DynOwnerReassignment, OwnerReassignment, ReassignedColumn, ReassignedRows, is_plain_identifier,
 };
 pub use tool_executions::{
     DynToolCallIntentClaims, DynToolExecutionLookup, ToolCallIntentClaims, ToolExecutionLookup,

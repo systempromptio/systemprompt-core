@@ -7,10 +7,10 @@
 
 use std::any::TypeId;
 
-use super::sink::ContributionSink;
-use super::slot::{Slot, SlotRecord};
 #[cfg(feature = "router")]
 use super::error::ContributionError;
+use super::sink::ContributionSink;
+use super::slot::{Slot, SlotRecord};
 
 impl ContributionSink {
     pub(super) fn slot_builder<S: Slot>(&mut self) -> &mut S::Builder {

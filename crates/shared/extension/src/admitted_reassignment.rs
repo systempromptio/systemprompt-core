@@ -18,6 +18,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeSet;
+use std::sync::Arc;
 
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_traits::{DynOwnerReassignment, ReassignedColumn, is_plain_identifier};
@@ -130,13 +131,16 @@ impl AdmittedOwnerReassignments {
 
     pub fn admit(claims: &[ReassignmentClaim<'_>]) -> Result<Self, ReassignmentAdmissionError> {
         let mut entries = Vec::new();
-        for claim in claims.iter().filter(|claim| !claim.reassignments.is_empty()) {
+        for claim in claims
+            .iter()
+            .filter(|claim| !claim.reassignments.is_empty())
+        {
             let own = own_tables(claim.owner, claim.schemas)?;
             for reassignment in claim.reassignments {
                 check_columns(claim.owner, reassignment.columns(), &own)?;
                 entries.push(OwnedReassignment {
                     owner: claim.owner.clone(),
-                    reassignment: reassignment.clone(),
+                    reassignment: Arc::clone(reassignment),
                 });
             }
         }
@@ -149,7 +153,7 @@ impl AdmittedOwnerReassignments {
     }
 
     #[must_use]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
 }

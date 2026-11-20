@@ -8,10 +8,10 @@
 //! with plain handles ([`kernel_state`]) before it resolves, so every member's
 //! provide fn, slot and governance surface reads the kernel seeds; the authz
 //! hook, policy engine, user service (over the admitted owner reassignments)
-//! and document store are built from what it resolved. The host seeds the read half of the document store cell
-//! (`DocumentsHandlesSlot`) and binds it, through the binder it kept out of the
-//! state, once the store exists, so other members' document seams read it from
-//! then on. A failing step propagates as
+//! and document store are built from what it resolved. The host seeds the read
+//! half of the document store cell (`DocumentsHandlesSlot`) and binds it,
+//! through the binder it kept out of the state, once the store exists, so other
+//! members' document seams read it from then on. A failing step propagates as
 //! [`RuntimeError`](crate::error::RuntimeError); helpers are in [`assembly`].
 //!
 //! [`Kernel::resolve`]: crate::Kernel::resolve

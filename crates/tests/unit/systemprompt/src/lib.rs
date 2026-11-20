@@ -66,15 +66,15 @@ mod mcp_http;
 #[cfg(test)]
 mod mcp_slots;
 #[cfg(test)]
+mod owner_reassignments;
+#[cfg(test)]
 mod probe;
 #[cfg(test)]
 mod providers;
 #[cfg(test)]
-mod reserved_ids;
-#[cfg(test)]
-mod owner_reassignments;
-#[cfg(test)]
 mod reserved_grants;
+#[cfg(test)]
+mod reserved_ids;
 #[cfg(test)]
 mod reserved_paths;
 #[cfg(test)]

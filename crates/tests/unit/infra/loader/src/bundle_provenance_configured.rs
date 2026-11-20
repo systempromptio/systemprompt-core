@@ -74,7 +74,8 @@ fn assert_provenance_survives_manifest_damage(
     manifest_path: &Path,
     manifest_backup: &Path,
 ) {
-    let provenance = sources_provenance(&BundleSources::of(profile), None, &BaseTreeHashMemo::new());
+    let provenance =
+        sources_provenance(&BundleSources::of(profile), None, &BaseTreeHashMemo::new());
     assert_eq!(
         provenance.composed_hash.as_deref(),
         Some("composed-fixture-hash")

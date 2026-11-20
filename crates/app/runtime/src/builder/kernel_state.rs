@@ -28,10 +28,10 @@
 //! (a job, a runner service, a config plane, a member command) is built
 //! without them. `Config`, the secret store and the signing keys carry
 //! credentials; the system admin, the services root and the bundle sources
-//! are boot-only identity and layout; the event router publishes to and subscribes on every user's
-//! stream. Every other seed is open. A member whose runtime code needs a
-//! capability derived from a sealed seed builds a narrow handle in its provide
-//! fn or factory.
+//! are boot-only identity and layout; the event router publishes to and
+//! subscribes on every user's stream. Every other seed is open. A member whose
+//! runtime code needs a capability derived from a sealed seed builds a narrow
+//! handle in its provide fn or factory.
 //!
 //! The process's one `AiService` (present only when inference is configured)
 //! is composed from several domains, so the composition root seeds it; an

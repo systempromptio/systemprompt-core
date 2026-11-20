@@ -49,7 +49,9 @@ impl CommandContext {
             .and_then(BootContext::services_root)
             .map(|root| root.path.clone());
         AppPaths::from_profile(&profile.paths, profile.path_resolution(), root.as_deref())
-            .inspect_err(|error| tracing::warn!(%error, "profile paths unresolved; no paths are readable"))
+            .inspect_err(
+                |error| tracing::warn!(%error, "profile paths unresolved; no paths are readable"),
+            )
             .ok()
     }
 
