@@ -228,13 +228,15 @@ fn install_cloud_cli_and_grant_are_refused() {
 
 #[test]
 fn install_requesting_a_reserved_path_grant_is_refused() {
-    for grant in [
-        KernelGrant::ServicesTree,
-        KernelGrant::CallerSession,
-        KernelGrant::BootProfile,
-    ] {
-        let error = build_with(Probe::new("probe-install", |c| {
-            c.command(CommandDecl::group::<ProbeGroup>().requesting(&[grant]));
+    const REQUESTS: [&[KernelGrant]; 3] = [
+        &[KernelGrant::ServicesTree],
+        &[KernelGrant::CallerSession],
+        &[KernelGrant::BootProfile],
+    ];
+    for request in REQUESTS {
+        let grant = request[0];
+        let error = build_with(Probe::new("probe-install", move |c| {
+            c.command(CommandDecl::group::<ProbeGroup>().requesting(request));
         }))
         .expect_err("an install command holds no grant");
         assert!(

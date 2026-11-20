@@ -41,7 +41,7 @@
 //! member that needs a capability derived from one builds a narrow handle
 //! from it in its `provide` fn or factory. [`Dependencies::sealed_types`]
 //! enumerates the sealed set, so a check over every context sees a type the
-//! moment it is sealed.
+//! moment it is sealed; [`Dependencies::host_types`] names the host's seeds.
 //!
 //! The map is copy-on-write: a clone shares every entry, and inserting into a
 //! clone never changes the original, so the state the host owns after boot
@@ -169,6 +169,14 @@ impl Dependencies {
                 .or_else(|| self.reserved.get(id).copied())
                 .map(|name| (*id, name))
         })
+    }
+
+    pub fn host_types(&self) -> impl Iterator<Item = (TypeId, &'static str)> + '_ {
+        self.entries
+            .iter()
+            .filter(|(_, entry)| entry.provider == DependencyProvider::Host)
+            .map(|(id, entry)| (*id, entry.type_name))
+            .chain(self.reserved.iter().map(|(id, name)| (*id, *name)))
     }
 
     pub fn provide<T: Any + Send + Sync>(

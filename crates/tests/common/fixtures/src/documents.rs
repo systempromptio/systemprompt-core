@@ -103,6 +103,15 @@ pub fn fixture_documents_runtime(
     )
 }
 
+// The members a document store's provided values come from: the files
+// member, and the users member whose role audience its issue visibility reads.
+pub fn fixture_documents_admitted() -> Arc<systemprompt_extension::Admitted> {
+    crate::app_context::fixture_admitted_of(vec![
+        Box::new(systemprompt_users::UsersExtension),
+        Box::new(systemprompt_files::FilesExtension),
+    ])
+}
+
 pub fn fixture_documents_runtime_with(
     pool: &DbPool,
     file_storage: &Arc<dyn FileStorage>,
@@ -142,15 +151,17 @@ pub fn fixture_documents_runtime_configured(
     config: DocumentsConfig,
 ) -> Arc<DocumentsRuntime> {
     let (slot, binder) = DocumentsHandlesSlot::unbound();
-    let roles: Arc<dyn NotificationAudienceResolver> = Arc::new(UserRoleAudienceResolver::new(
-        Arc::new(UserRepository::new(pool)),
-    ));
-    let seed = Dependencies::new()
-        .with(slot)
-        .with(CoreSeam::<dyn NotificationAudienceResolver, RoleAudience>::new(roles));
-    let admitted =
-        crate::app_context::fixture_admitted_of(vec![Box::new(systemprompt_files::FilesExtension)]);
-    let kernel = crate::composed::resolved_kernel(pool, &admitted, seed)
+    let event_router = EventRouter::local_only(Arc::new(EventBroadcasters::new()));
+    let seed = crate::app_context::fixture_kernel_seed(
+        pool,
+        crate::app_context::FixtureSeedParts {
+            file_storage: Arc::clone(file_storage),
+            background_tasks: background_tasks.clone(),
+            event_router: event_router.clone(),
+            documents: slot,
+        },
+    );
+    let kernel = crate::composed::resolved_kernel(pool, &fixture_documents_admitted(), seed)
         .expect("the files member resolves over the fixture seeds");
     let r = kernel.resolved();
     let documents_enabled = config.is_enabled();
@@ -165,7 +176,7 @@ pub fn fixture_documents_runtime_configured(
             Vec::new(),
             Arc::new(systemprompt_extension::AudienceResolvers::default()),
         )),
-        event_router: EventRouter::local_only(Arc::new(EventBroadcasters::new())),
+        event_router,
         notifications: fixture_notification_sink(pool),
         brain: Arc::new(systemprompt_runtime::documents::BrainUnavailableSink),
         catalog: Vec::new(),

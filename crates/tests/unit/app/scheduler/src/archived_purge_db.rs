@@ -4,9 +4,10 @@
 //! reports the count; a complete purge succeeds. Each case owns a
 //! disposable database, so the ownership rows it records reach no other test.
 
-use systemprompt_scheduler::DatabaseCleanupJob;
-use systemprompt_test_fixtures::{DisposableDb, fixture_actor};
-use systemprompt_traits::{Job, JobContext, JobResult};
+use systemprompt_scheduler::JobRunReport;
+use systemprompt_test_fixtures::DisposableDb;
+
+use crate::test_extension::{retention_job, run_admitted_job, scheduled_app};
 
 async fn archive_a_user(pool: &sqlx::PgPool, tag: &str) {
     sqlx::query(
@@ -19,13 +20,9 @@ async fn archive_a_user(pool: &sqlx::PgPool, tag: &str) {
     .expect("seed an archived user");
 }
 
-async fn run(database: &DisposableDb) -> JobResult {
-    let pool = database.test_pool().await;
-    let dependencies = crate::test_extension::job_dependencies(&pool, database.url()).await;
-    DatabaseCleanupJob
-        .execute(&JobContext::new(fixture_actor(), dependencies).with_enforce(true))
-        .await
-        .expect("the retention job runs")
+async fn run(database: &DisposableDb) -> JobRunReport {
+    let (app, schedule) = scheduled_app(database.url()).await;
+    run_admitted_job(app, schedule, retention_job(true, &[])).await
 }
 
 #[tokio::test]

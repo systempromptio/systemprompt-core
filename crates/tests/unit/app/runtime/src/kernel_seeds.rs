@@ -1,13 +1,17 @@
 //! Each kernel seed is what a provide fn reads: withheld, resolving a member
 //! that reads it fails naming the seed's type; supplied, the same member
 //! resolves. The admitted views the kernel inserts on resolve are present to
-//! every provide fn and absent from a kernel that never resolved.
+//! every provide fn and absent from a kernel that never resolved. The fixture
+//! seed set a test resolves members over names the same open and sealed host
+//! types as the API host's, apart from the seeds only the API composes.
 
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use systemprompt_ai::repository::AiRepositories;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
+use systemprompt_events::{EventBroadcasters, EventRouter};
 use systemprompt_extension::prelude::Dependencies;
 use systemprompt_extension::{
     Admitted, AdmittedAssets, AdmittedConfigs, AdmittedMigrations, AdmittedProjections,
@@ -18,10 +22,13 @@ use systemprompt_files::documents::DocumentsHandlesSlot;
 use systemprompt_identifiers::InstanceId;
 use systemprompt_manifest::services::ServicesView;
 use systemprompt_oauth::repository::OAuthRepositories;
+use systemprompt_storage::LocalFileStorage;
 use systemprompt_test_fixtures::{
-    ComposedParts, Probe, ensure_test_bootstrap, fixture_kernel, lazy_pg_pool, probe_admitted,
-    resolved_kernel, test_app_context, test_database_url,
+    ComposedParts, FixtureSeedParts, Probe, ensure_test_bootstrap, fixture_documents_admitted,
+    fixture_kernel, fixture_kernel_seed, lazy_pg_pool, probe_admitted, resolved_kernel,
+    test_app_context, test_database_url,
 };
+use systemprompt_traits::{BackgroundTasks, FileStorage};
 
 #[derive(Clone)]
 struct SeedRead;
@@ -174,4 +181,75 @@ fn the_admitted_assets_view() {
 #[test]
 fn the_admitted_projections_view() {
     assert_admitted_view::<AdmittedProjections>();
+}
+
+const API_ONLY_SEEDS: &[&str] = &[
+    "systemprompt_security::keys::signing_keys::SigningKeys",
+    "alloc::sync::Arc<systemprompt_oauth::repository::OAuthRepositories>",
+    "alloc::sync::Arc<systemprompt_ai::repository::AiRepositories>",
+    "systemprompt_models::late_bound::LateBound<dyn systemprompt_traits::messaging::MessagingDispatcher>",
+    "alloc::sync::Arc<systemprompt_ai::services::core::ai_service::service::AiService>",
+    "alloc::sync::Arc<maxminddb::reader::Reader<alloc::vec::Vec<u8>>>",
+    "alloc::sync::Arc<systemprompt_models::content_config::ContentConfigRaw>",
+];
+
+fn host_seed_names(state: &Dependencies) -> (BTreeSet<&'static str>, BTreeSet<&'static str>) {
+    let sealed: BTreeSet<&'static str> = state.sealed_types().map(|(_, name)| name).collect();
+    let open = state
+        .host_types()
+        .map(|(_, name)| name)
+        .filter(|name| !sealed.contains(name))
+        .collect();
+    (open, sealed)
+}
+
+#[tokio::test]
+async fn the_fixture_seed_set_names_the_hosts_open_and_sealed_types() {
+    let host = kernel_state().await;
+    let pool = offline_pool();
+    let storage = tempfile::tempdir().expect("storage dir");
+    let file_storage: Arc<dyn FileStorage> =
+        Arc::new(LocalFileStorage::new(storage.path().to_path_buf()));
+    let (documents, _binder) = DocumentsHandlesSlot::unbound();
+    let seed = fixture_kernel_seed(
+        &pool,
+        FixtureSeedParts {
+            file_storage,
+            background_tasks: BackgroundTasks::new(),
+            event_router: EventRouter::local_only(Arc::new(EventBroadcasters::new())),
+            documents,
+        },
+    );
+    let fixture = resolved_kernel(&pool, &fixture_documents_admitted(), seed)
+        .unwrap_or_else(|e| panic!("the document members resolve over the fixture seeds: {e:#}"))
+        .state()
+        .clone();
+
+    let (host_open, host_sealed) = host_seed_names(&host);
+    for name in API_ONLY_SEEDS {
+        assert!(
+            host_open.contains(name) || host_sealed.contains(name),
+            "the API host seeds or reserves {name}"
+        );
+    }
+    let (fixture_open, fixture_sealed) = host_seed_names(&fixture);
+    let host_open: BTreeSet<_> = host_open
+        .into_iter()
+        .filter(|name| !API_ONLY_SEEDS.contains(name))
+        .collect();
+    let host_sealed: BTreeSet<_> = host_sealed
+        .into_iter()
+        .filter(|name| !API_ONLY_SEEDS.contains(name))
+        .collect();
+    for (kind, fixture, host) in [
+        ("open", &fixture_open, &host_open),
+        ("sealed", &fixture_sealed, &host_sealed),
+    ] {
+        let only_fixture: Vec<_> = fixture.difference(host).collect();
+        let only_host: Vec<_> = host.difference(fixture).collect();
+        assert!(
+            only_fixture.is_empty() && only_host.is_empty(),
+            "{kind} host seeds differ: only the fixture seeds {only_fixture:?}; only the host seeds {only_host:?}"
+        );
+    }
 }

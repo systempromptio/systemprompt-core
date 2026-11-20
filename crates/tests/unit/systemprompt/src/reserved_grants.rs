@@ -43,20 +43,23 @@ fn the_boot_profile_grant_is_listed_only_on_cloud() {
     );
 }
 
-fn forged_cloud(grant: KernelGrant) -> DeclaredCommands {
+fn forged_cloud(request: &'static [KernelGrant]) -> DeclaredCommands {
     DeclaredCommands::__from_facade(DeclaredCommandParts {
         commands: vec![AdmittedCommand {
             owner: ExtensionId::new(CoreId::Cloud.id()),
             core: Some(CoreId::Cloud),
-            decl: CommandDecl::group::<CloudGroup>().requesting(&[grant]),
+            decl: CommandDecl::group::<CloudGroup>().requesting(request),
         }],
     })
 }
 
 #[test]
 fn a_core_path_requesting_a_grant_its_row_does_not_list_is_refused() {
-    for grant in [KernelGrant::ServicesTree, KernelGrant::CallerSession] {
-        let error = CommandRegistry::build(&forged_cloud(grant), &kernel_commands())
+    const REQUESTS: [&[KernelGrant]; 2] =
+        [&[KernelGrant::ServicesTree], &[KernelGrant::CallerSession]];
+    for request in REQUESTS {
+        let grant = request[0];
+        let error = CommandRegistry::build(&forged_cloud(request), &kernel_commands())
             .expect_err("the cloud row lists neither grant");
         assert!(
             matches!(error, RegistryError::GrantNotListed { grant: refused, .. } if refused == grant),
@@ -67,6 +70,6 @@ fn a_core_path_requesting_a_grant_its_row_does_not_list_is_refused() {
 
 #[test]
 fn a_core_path_requesting_a_grant_its_row_lists_is_admitted() {
-    CommandRegistry::build(&forged_cloud(KernelGrant::BootProfile), &kernel_commands())
+    CommandRegistry::build(&forged_cloud(&[KernelGrant::BootProfile]), &kernel_commands())
         .expect("negative control: the cloud row lists boot-profile");
 }

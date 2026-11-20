@@ -4,27 +4,20 @@
 //! than a fresh row another test seeds. The scenarios run in one test because
 //! each enforced run prunes `logs` globally.
 
-use std::collections::HashMap;
-
-use chrono::{Duration, Utc};
 use std::sync::Arc;
 
-use systemprompt_extension::{AdmittedSchedule, RetentionDecl, RetentionHold, RetentionTarget};
-use systemprompt_scheduler::DatabaseCleanupJob;
+use chrono::{Duration, Utc};
+use systemprompt_extension::{RetentionDecl, RetentionHold, RetentionTarget};
+use systemprompt_scheduler::JobRunReport;
 use systemprompt_test_fixtures::{test_database_url, test_db_pool};
-use systemprompt_traits::{Job, JobContext, JobResult};
+
+use crate::test_extension::{app_over, retention_job, run_admitted_job};
 
 use crate::retention_holds::{failing, hold};
 
 const STALE_DAYS: i32 = 4000;
 
-async fn run(
-    pool: &systemprompt_database::DbPool,
-    url: &str,
-    holds: Vec<Arc<dyn RetentionHold>>,
-) -> JobResult {
-    use systemprompt_identifiers::{Actor, UserId};
-
+async fn run(url: &str, holds: Vec<Arc<dyn RetentionHold>>) -> JobRunReport {
     let mut members = systemprompt_test_fixtures::fixture_core_members();
     members.push(Box::new(systemprompt_test_fixtures::Probe::new(
         "retention-holds-probe",
@@ -34,22 +27,17 @@ async fn run(
             }
         },
     )));
-    let admitted = systemprompt_test_fixtures::fixture_admitted_of(members);
-    let dependencies = crate::test_extension::job_dependencies(pool, url)
-        .await
-        .with(AdmittedSchedule::of(admitted.built()).expect("one owner per job name"));
-    let mut params = HashMap::new();
-    params.insert("log_retention_days".to_owned(), "1".to_owned());
-    let ctx = JobContext::new(
-        Actor::job(UserId::new("retention-holds-admin"), "test".to_owned()),
-        dependencies,
+    let (app, schedule) = app_over(
+        url,
+        systemprompt_test_fixtures::fixture_admitted_of(members),
     )
-    .with_enforce(true)
-    .with_parameters(params);
-    DatabaseCleanupJob
-        .execute(&ctx)
-        .await
-        .expect("enforced retention run")
+    .await;
+    run_admitted_job(
+        app,
+        schedule,
+        retention_job(true, &[("log_retention_days", "1")]),
+    )
+    .await
 }
 
 async fn seed_log(pool: &sqlx::PgPool, id: &str, days_ago: i32) {
@@ -89,7 +77,7 @@ async fn holds_clamp_withhold_and_compose_on_an_enforced_run() {
     let id = |name: &str| format!("hold_{name}_{suffix}");
 
     seed_log(&pg, &id("unheld"), 2).await;
-    let result = run(&pool, &url, Vec::new()).await;
+    let result = run(&url, Vec::new()).await;
     assert!(result.success, "{:?}", result.message);
     assert!(
         !log_exists(&pg, &id("unheld")).await,
@@ -100,7 +88,6 @@ async fn holds_clamp_withhold_and_compose_on_an_enforced_run() {
     seed_log(&pg, &id("single_after"), 2).await;
     let watermark = Utc::now() - Duration::days(3);
     let result = run(
-        &pool,
         &url,
         vec![hold("exporter", RetentionTarget::Logs, watermark)],
     )
@@ -117,7 +104,6 @@ async fn holds_clamp_withhold_and_compose_on_an_enforced_run() {
     seed_log(&pg, &id("pair_before"), 6).await;
     seed_log(&pg, &id("pair_between"), 4).await;
     let result = run(
-        &pool,
         &url,
         vec![
             hold(
@@ -151,7 +137,7 @@ async fn holds_clamp_withhold_and_compose_on_an_enforced_run() {
     .execute(&*pg)
     .await
     .expect("seed analytics event");
-    let result = run(&pool, &url, vec![failing("broken", RetentionTarget::Logs)]).await;
+    let result = run(&url, vec![failing("broken", RetentionTarget::Logs)]).await;
     assert!(result.success, "{:?}", result.message);
     assert_eq!(result.items_failed, Some(1), "one target withheld");
     let message = result.message.unwrap_or_default();

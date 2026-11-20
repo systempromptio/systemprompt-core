@@ -273,12 +273,23 @@ pub async fn fixture_app_context_reloaded_on(
     database_url: &str,
     admitted: Arc<Admitted>,
 ) -> Result<Arc<AppContext>> {
-    let services = systemprompt_loader::ServicesState::load(&bootstrap.boot)?;
     let mut config = bootstrap_config(bootstrap);
     database_url.clone_into(&mut config.database_url);
+    fixture_app_context_reloaded_with(bootstrap, config, admitted).await
+}
+
+// As [`fixture_app_context_on_bootstrap`], with the services tree read again
+// at build, so files a test writes after the bootstrap was created are seen.
+pub async fn fixture_app_context_reloaded_with(
+    bootstrap: &TestBootstrap,
+    config: Config,
+    admitted: Arc<Admitted>,
+) -> Result<Arc<AppContext>> {
+    let services = systemprompt_loader::ServicesState::load(&bootstrap.boot)?;
+    let database_url = config.database_url.clone();
     build(
         fixture_context_builder(bootstrap, config, admitted)?.with_services(services),
-        database_url,
+        &database_url,
     )
     .await
 }
@@ -458,6 +469,47 @@ pub fn offline_kernel(
         None,
     ));
     fixture_kernel(&pool, seed)
+}
+
+pub struct FixtureSeedParts {
+    pub file_storage: Arc<dyn systemprompt_traits::FileStorage>,
+    pub background_tasks: systemprompt_traits::BackgroundTasks,
+    pub event_router: systemprompt_events::EventRouter,
+    pub documents: systemprompt_files::documents::DocumentsHandlesSlot,
+}
+
+// The kernel seeds a host composes, built by the host's own
+// `base_kernel_state` over the test bootstrap: a fixture that resolves an
+// admitted member over these seeds sees what the member sees in a real host.
+// Coordination is the child-host shape (`UnavailableCoordination`).
+pub fn fixture_kernel_seed(
+    pool: &DbPool,
+    parts: FixtureSeedParts,
+) -> systemprompt_extension::prelude::Dependencies {
+    let bootstrap = ensure_test_bootstrap();
+    systemprompt_runtime::base_kernel_state(systemprompt_runtime::KernelSeed {
+        database: pool,
+        app_paths: &Arc::new(bootstrap.app_paths.clone()),
+        files_config: &Arc::new(bootstrap.files_config()),
+        profile: bootstrap.boot.profile(),
+        config: bootstrap.boot_config(),
+        services: fixture_services_view(),
+        services_root: crate::bootstrap::test_boot_active_services_root(),
+        secrets: fixture_secret_store(),
+        file_storage: parts.file_storage,
+        background_tasks: parts.background_tasks,
+        coordination: systemprompt_runtime::KernelCoordination {
+            instances: Arc::new(systemprompt_traits::UnavailableCoordination),
+            leases: Arc::new(systemprompt_traits::UnavailableCoordination),
+            locks: Arc::new(systemprompt_traits::UnavailableCoordination),
+        },
+        system_admin: &crate::user::fixture_system_admin(
+            crate::credential::FIXTURE_SYSTEM_ADMIN_USERNAME,
+        ),
+        event_router: &parts.event_router,
+        documents: parts.documents,
+        escalation: systemprompt_notifications::service::EscalationDelivery::InProcess,
+    })
 }
 
 pub fn fixture_secret_store() -> Arc<dyn systemprompt_traits::SecretStore> {

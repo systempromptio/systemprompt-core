@@ -1,21 +1,27 @@
 //! The member that contributes this crate's test jobs. It is admitted beside
 //! the core members, so the test jobs reach the scheduler through the same
 //! `AdmittedSchedule` production jobs do; assertions about production jobs
-//! use [`core_schedule`], which does not admit it.
+//! use [`core_schedule`], which does not admit it. A scheduler-owned job runs
+//! through [`run_admitted_job`]: the scheduler's public execution path, which
+//! hands the job its kernel handles exactly as a dispatched run does. Its
+//! runs leave the cross-replica lock off, as a single-node deployment does:
+//! the tests share one database, so a run must not be refused because a
+//! concurrent test holds the job's lock.
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
-use systemprompt_database::DbPool;
 use systemprompt_extension::{
     Admitted, AdmittedSchedule, ContributionError, Contributions, Extension, ExtensionMetadata,
 };
+use systemprompt_identifiers::JobName;
 use systemprompt_manifest::Config;
 use systemprompt_runtime::AppContext;
+use systemprompt_scheduler::{JobConfig, JobExecutionService, JobRunReport, SchedulerConfig};
 use systemprompt_test_fixtures::{
     core_members, fixture_admitted, fixture_admitted_of, fixture_app_context_with_extensions,
     fixture_config,
 };
-use systemprompt_traits::Dependencies;
 
 pub const TEST_JOBS_OWNER: &str = "scheduler_test_jobs";
 
@@ -75,12 +81,34 @@ pub async fn scheduled_app(database_url: &str) -> (Arc<AppContext>, Arc<Admitted
     app_over(database_url, admitted_with_test_jobs()).await
 }
 
-pub async fn job_dependencies(pool: &DbPool, database_url: &str) -> Dependencies {
-    let app = systemprompt_test_fixtures::test_app_context(database_url).await;
-    app.kernel()
-        .state()
-        .clone()
-        .with(Arc::clone(app.app_paths_arc()))
-        .with(Arc::clone(pool))
-        .with(app)
+pub fn job_service(
+    app: Arc<AppContext>,
+    schedule: Arc<AdmittedSchedule>,
+    jobs: Vec<JobConfig>,
+) -> JobExecutionService {
+    let mut config = SchedulerConfig::with_system_admin();
+    config.jobs = jobs;
+    config.distributed_lock = false;
+    JobExecutionService::new(app, config, schedule)
+}
+
+pub async fn run_admitted_job(
+    app: Arc<AppContext>,
+    schedule: Arc<AdmittedSchedule>,
+    job: JobConfig,
+) -> JobRunReport {
+    let name = job.name.clone();
+    job_service(app, schedule, vec![job])
+        .run_job(&name, &HashMap::new())
+        .await
+}
+
+pub fn retention_job(enforce: bool, parameters: &[(&str, &str)]) -> JobConfig {
+    let mut job = JobConfig::new(JobName::new("database_cleanup"));
+    job.enforce = enforce;
+    job.parameters = parameters
+        .iter()
+        .map(|(key, value)| ((*key).to_owned(), (*value).to_owned()))
+        .collect();
+    job
 }

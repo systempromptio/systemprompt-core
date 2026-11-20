@@ -1,7 +1,9 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use systemprompt_analytics::jobs::LinkFactsRollupJob;
-use systemprompt_identifiers::{Actor, UserId};
+use systemprompt_identifiers::{Actor, JobName, UserId};
+use systemprompt_scheduler::JobConfig;
 use systemprompt_scheduler::jobs::{
     BackfillRollupsJob, LogSummaryRollupJob, SessionBotTypeRollupJob, TraceFactsRollupJob,
     VertexDiscoveryJob,
@@ -73,12 +75,13 @@ async fn session_bot_type_rollup_drains() {
 #[tokio::test]
 async fn vertex_discovery_with_no_vertex_endpoints_scans_nothing() {
     let url = test_database_url();
-    let pool = test_db_pool().await;
-    let context = ctx(&pool, &url).await;
-    let result = VertexDiscoveryJob
-        .execute(&context)
-        .await
-        .expect("discovery runs");
-    assert!(result.success);
+    let (app, schedule) = crate::test_extension::scheduled_app(&url).await;
+    let result = crate::test_extension::run_admitted_job(
+        app,
+        schedule,
+        JobConfig::new(JobName::new(VertexDiscoveryJob.name())),
+    )
+    .await;
+    assert!(result.success, "discovery runs: {:?}", result.message);
     assert_eq!(result.items_processed, Some(0));
 }

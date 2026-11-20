@@ -9,7 +9,8 @@
 //!
 //! Only the `All` and `Api` roles serve the group, and a profile that
 //! disables `managed_resources` while `marketplace-http` stays enabled is
-//! refused at boot.
+//! refused at boot. A plugin file is served from the services tree as the
+//! node reads it at build, after the test writes the plugin into it.
 
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -22,27 +23,49 @@ use axum::http::{Request, StatusCode, header};
 use http_body_util::BodyExt;
 use systemprompt_api::services::server::{ReadinessState, setup_api_server};
 use systemprompt_identifiers::ExtensionId;
+use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::{NodeRole, RateLimitsConfig};
 use systemprompt_marketplace_entry::extension::MARKETPLACE_HTTP_EXTENSION;
+use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_app_context_with_extensions, fixture_config,
+    ensure_test_bootstrap, fixture_app_context_reloaded_with, fixture_app_context_with_extensions,
+    fixture_config,
 };
 use tower::ServiceExt;
 
 const LIST: &str = "/api/v1/marketplace/marketplaces";
 const PLUGIN_FILE: &str = "/api/v1/marketplace/plugins/cov-plugin/skills/covskill/SKILL.md";
 
-async fn node(role: NodeRole, disabled: &[ExtensionId]) -> Result<Router> {
-    let bootstrap = ensure_test_bootstrap();
-    let mut config = fixture_config(&bootstrap.database_url);
+fn fixture_node_config(role: NodeRole) -> Config {
+    let mut config = fixture_config(&ensure_test_bootstrap().database_url);
     config.role = role;
     config.rate_limits = RateLimitsConfig::disabled();
     config.trusted_proxies = Vec::new();
-    let ctx =
-        fixture_app_context_with_extensions(config, super::common::reference_admitted(disabled)?)
-            .await?;
+    config
+}
+
+async fn node(role: NodeRole, disabled: &[ExtensionId]) -> Result<Router> {
+    let ctx = fixture_app_context_with_extensions(
+        fixture_node_config(role),
+        super::common::reference_admitted(disabled)?,
+    )
+    .await?;
+    router(&ctx)
+}
+
+async fn node_over_the_services_tree(disabled: &[ExtensionId]) -> Result<Router> {
+    let ctx = fixture_app_context_reloaded_with(
+        ensure_test_bootstrap(),
+        fixture_node_config(NodeRole::All),
+        super::common::reference_admitted(disabled)?,
+    )
+    .await?;
+    router(&ctx)
+}
+
+fn router(ctx: &AppContext) -> Result<Router> {
     setup_api_server(
-        &ctx,
+        ctx,
         systemprompt_api::services::server::routes::Composed {
             admitted: ctx.admitted(),
             kernel: ctx.kernel(),
@@ -76,7 +99,7 @@ async fn the_marketplace_group_serves_an_anonymous_caller() -> Result<()> {
 #[tokio::test]
 async fn a_plugin_file_is_served_from_the_bundle_and_a_missing_file_is_404() -> Result<()> {
     super::routes_bridge_plugin_file::seed_plugin_tree();
-    let app = node(NodeRole::All, &[]).await?;
+    let app = node_over_the_services_tree(&[]).await?;
     let (status, body) = get(&app, PLUGIN_FILE).await?;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert!(body.contains("Cov skill instructions."), "{body}");
@@ -115,11 +138,7 @@ async fn a_manifest_outside_the_marketplaces_root_is_forbidden() -> Result<()> {
 #[tokio::test]
 async fn disabling_marketplace_http_unmounts_the_group() -> Result<()> {
     super::routes_bridge_plugin_file::seed_plugin_tree();
-    let app = node(
-        NodeRole::All,
-        &[ExtensionId::new(MARKETPLACE_HTTP_EXTENSION)],
-    )
-    .await?;
+    let app = node_over_the_services_tree(&[ExtensionId::new(MARKETPLACE_HTTP_EXTENSION)]).await?;
     assert_eq!(get(&app, LIST).await?.0, StatusCode::NOT_FOUND);
     assert_eq!(get(&app, PLUGIN_FILE).await?.0, StatusCode::NOT_FOUND);
     Ok(())
