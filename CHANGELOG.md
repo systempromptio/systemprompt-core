@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Breaking
+
+- **Breaking:** **API:** `routes::oauth::discovery::WellKnownResponse` gains `ui_session_supported` and `ui_session`. Migrate a struct literal by adding `ui_session_supported: true, ui_session: UiSessionDiscovery::current()`.
+
+### Added
+
+- **OAuth:** discovery advertises the UI session capability: `/.well-known/oauth-authorization-server`, `/.well-known/openid-configuration` and `endpoints.oauth` of `GET /api/v1` carry `ui_session_supported` and `ui_session` (`access_token_lifetime`, `session_lifetime`, `step_up_max_age`, in seconds), so a `person_ui` client no longer probes `/authorize`. No client is named.
+
 ### Fixed
 
 - **OAuth:** the passkey pages (`webauthn_oauth.html` on `/authorize`, `link_passkey.html` on `/auth/link-passkey`) post the credential's binary fields (`rawId`, `attestationObject`, `clientDataJSON`, `authenticatorData`, `signature`, `userHandle`) as unpadded base64url strings. Since 0.81.0 (`webauthn-rs` 0.6.2) the finish endpoints read only that form, and the pages still sent byte arrays, so registering, signing in with and linking a passkey from a browser all failed with `400 credential.rawId: invalid type: sequence, expected a base64 encoded string`.

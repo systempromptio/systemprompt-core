@@ -9,6 +9,9 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use serde::Serialize;
 use systemprompt_identifiers::McpServerId;
+use systemprompt_models::auth::ui_session::{
+    UI_SESSION_ABSOLUTE_SECS, UI_SESSION_ACCESS_TTL_SECS, UI_SESSION_STEP_UP_MAX_AGE_SECS,
+};
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::oauth::{OAuthServerConfig, ProtectedResourceMetadata};
 use systemprompt_oauth::services::validation::id_jag::ID_JAG_GRANT_PROFILE;
@@ -16,6 +19,28 @@ use systemprompt_runtime::AppContext;
 
 use crate::routes::proxy::mcp::get_mcp_server_scopes;
 use crate::services::request_base_url::RequestBaseUrl;
+
+/// The lifetimes, in seconds, of a person's UI session.
+///
+/// A `person_ui` client reads this capability from either discovery document
+/// instead of probing `/authorize`; neither document names a client.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct UiSessionDiscovery {
+    pub access_token_lifetime: i64,
+    pub session_lifetime: i64,
+    pub step_up_max_age: i64,
+}
+
+impl UiSessionDiscovery {
+    #[must_use]
+    pub const fn current() -> Self {
+        Self {
+            access_token_lifetime: UI_SESSION_ACCESS_TTL_SECS,
+            session_lifetime: UI_SESSION_ABSOLUTE_SECS,
+            step_up_max_age: UI_SESSION_STEP_UP_MAX_AGE_SECS,
+        }
+    }
+}
 
 #[derive(Debug, Serialize)]
 pub struct WellKnownResponse {
@@ -40,6 +65,8 @@ pub struct WellKnownResponse {
     pub subject_token_types_supported: Vec<String>,
     pub issued_token_types_supported: Vec<String>,
     pub authorization_grant_profiles_supported: Vec<String>,
+    pub ui_session_supported: bool,
+    pub ui_session: UiSessionDiscovery,
 }
 
 pub async fn handle_well_known(
@@ -97,6 +124,8 @@ pub async fn handle_well_known(
             "urn:ietf:params:oauth:token-type:id-jag".to_owned(),
         ],
         authorization_grant_profiles_supported: vec![ID_JAG_GRANT_PROFILE.to_owned()],
+        ui_session_supported: true,
+        ui_session: UiSessionDiscovery::current(),
     };
 
     (StatusCode::OK, Json(response)).into_response()

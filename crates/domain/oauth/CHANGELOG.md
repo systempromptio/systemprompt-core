@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- The passkey pages (`webauthn_oauth.html`, `link_passkey.html`) post the credential's binary fields as unpadded base64url strings, the only form `webauthn-rs` 0.6.2 reads; they sent byte arrays, which the finish endpoints refused with a 400.
+
 ## [0.84.0] - 2026-11-20
 
 ### Breaking

@@ -5,7 +5,7 @@ use axum::body::to_bytes;
 use axum::response::IntoResponse;
 use http::StatusCode;
 use systemprompt_api::routes::oauth::OAuthHttpError;
-use systemprompt_api::routes::oauth::discovery::WellKnownResponse;
+use systemprompt_api::routes::oauth::discovery::{UiSessionDiscovery, WellKnownResponse};
 use systemprompt_models::oauth::ProtectedResourceMetadata;
 
 #[test]
@@ -35,6 +35,8 @@ fn test_well_known_response_serialization() {
         authorization_grant_profiles_supported: vec![
             "urn:ietf:params:oauth:grant-profile:id-jag".to_owned(),
         ],
+        ui_session_supported: true,
+        ui_session: UiSessionDiscovery::current(),
     };
 
     let json = serde_json::to_value(&response).unwrap();
@@ -71,6 +73,8 @@ fn test_well_known_response_optional_registration_endpoint() {
         authorization_grant_profiles_supported: vec![
             "urn:ietf:params:oauth:grant-profile:id-jag".to_owned(),
         ],
+        ui_session_supported: true,
+        ui_session: UiSessionDiscovery::current(),
     };
 
     let json = serde_json::to_value(&response).unwrap();

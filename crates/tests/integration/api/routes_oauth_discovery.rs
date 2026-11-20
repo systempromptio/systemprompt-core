@@ -5,6 +5,9 @@
 use axum::Router;
 use axum::routing::get;
 use systemprompt_api::routes::oauth;
+use systemprompt_models::auth::ui_session::{
+    UI_SESSION_ABSOLUTE_SECS, UI_SESSION_ACCESS_TTL_SECS, UI_SESSION_STEP_UP_MAX_AGE_SECS,
+};
 use tower::ServiceExt;
 
 use super::common::{body_to_string, empty_get, setup_ctx};
@@ -169,5 +172,28 @@ async fn well_known_advertises_registration_while_dcr_is_open() -> anyhow::Resul
             .is_some_and(|e| e.ends_with("/api/v1/core/oauth/register")),
         "{json}"
     );
+    Ok(())
+}
+
+#[tokio::test]
+async fn well_known_advertises_the_ui_session_capability() -> anyhow::Result<()> {
+    let app = discovery_app().await?;
+    let resp = app
+        .oneshot(empty_get("/.well-known/openid-configuration"))
+        .await?;
+    let (status, body) = body_to_string(resp).await?;
+    assert!(status.is_success(), "{status}");
+    let json: serde_json::Value = serde_json::from_str(&body)?;
+    assert_eq!(json["ui_session_supported"], true, "{body}");
+    assert_eq!(
+        json["ui_session"],
+        serde_json::json!({
+            "access_token_lifetime": UI_SESSION_ACCESS_TTL_SECS,
+            "session_lifetime": UI_SESSION_ABSOLUTE_SECS,
+            "step_up_max_age": UI_SESSION_STEP_UP_MAX_AGE_SECS,
+        }),
+        "{body}"
+    );
+    assert!(!body.contains("client_id"), "{body}");
     Ok(())
 }

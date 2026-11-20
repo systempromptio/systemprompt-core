@@ -1,4 +1,7 @@
-use systemprompt_api::routes::oauth::discovery::WellKnownResponse;
+use systemprompt_api::routes::oauth::discovery::{UiSessionDiscovery, WellKnownResponse};
+use systemprompt_models::auth::ui_session::{
+    UI_SESSION_ABSOLUTE_SECS, UI_SESSION_ACCESS_TTL_SECS, UI_SESSION_STEP_UP_MAX_AGE_SECS,
+};
 use systemprompt_models::oauth::ProtectedResourceMetadata;
 
 #[test]
@@ -28,6 +31,8 @@ fn test_well_known_response_serialize() {
         authorization_grant_profiles_supported: vec![
             "urn:ietf:params:oauth:grant-profile:id-jag".to_owned(),
         ],
+        ui_session_supported: true,
+        ui_session: UiSessionDiscovery::current(),
     };
 
     let json = serde_json::to_value(&response).unwrap();
@@ -46,6 +51,28 @@ fn test_well_known_response_serialize() {
     assert_eq!(
         json["code_challenge_methods_supported"].as_array().unwrap()[0],
         "S256"
+    );
+    assert_eq!(json["ui_session_supported"], true);
+    assert_eq!(
+        json["ui_session"],
+        serde_json::json!({
+            "access_token_lifetime": UI_SESSION_ACCESS_TTL_SECS,
+            "session_lifetime": UI_SESSION_ABSOLUTE_SECS,
+            "step_up_max_age": UI_SESSION_STEP_UP_MAX_AGE_SECS,
+        })
+    );
+}
+
+#[test]
+fn the_ui_session_capability_names_lifetimes_and_no_client() {
+    let json = serde_json::to_value(UiSessionDiscovery::current()).unwrap();
+    assert_eq!(
+        json,
+        serde_json::json!({
+            "access_token_lifetime": 300,
+            "session_lifetime": 43_200,
+            "step_up_max_age": 600,
+        })
     );
 }
 
