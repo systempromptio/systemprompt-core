@@ -4,6 +4,7 @@
 
 ### Breaking
 
+- The documents MCP inputs `CreateInput`, `CopyInput` and `ProposalsInput` gain `context_id`, and `RevisionAttributionItem` gains `agent_name`, `client_id` and `context_name`. Migrate a struct literal by setting the new fields to `None`.
 - `documents::mcp::ListScopeInput` gains `Context` and `ListInput` gains `context_id`. Migrate an exhaustive match by adding the arm and a struct literal by setting `context_id: None`.
 - `DocumentsRuntimeParts` and `documents::mcp::DocumentsMcpConfig` gain `contexts`, `RefusalCode` gains `UnknownContext`, and `views::comments_view` takes a `&dyn ContextDirectory`. Migrate by passing `DocumentsRuntime::contexts()` and adding the match arm.
 - `CommentAction` gains `Reopen`, and `CommentItem` gains `reopened_at` and `reopened_by`. Migrate an exhaustive match by adding the arm and a struct literal by setting both fields.

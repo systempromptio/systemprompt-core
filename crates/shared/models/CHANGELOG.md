@@ -4,6 +4,7 @@
 
 ### Breaking
 
+- `Pathway::CommentReopened` sits between `CommentResolved` and `Entered`, so `Pathway`'s derived `Ord` changes; pathways are stored and serialised by name, so no stored row changes.
 - `DocumentEventName` gains `DriveChanged` and `CommentReopened`, and `DocumentEventName::ALL` holds 21 names. Migrate an exhaustive match by adding the arms.
 - `brain::Pathway` gains `CommentReopened` (`comment_reopened`). Migrate an exhaustive match by adding the arm.
 - `DocumentEventName` gains `DriveChanged`, and `DocumentEventName::ALL` holds 20 names. Migrate an exhaustive match by adding the arm.

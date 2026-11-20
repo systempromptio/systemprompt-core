@@ -2,6 +2,10 @@
 
 ## [0.84.0] - 2026-11-20
 
+### Breaking
+
+- The pipeline's `EventPayload` gains `Reopened`. Migrate an exhaustive match by adding the arm.
+
 ### Added
 
 - The `comment_reopened` pathway: a `document.comment.reopened` event stales the facts sourced from its comment, like a resolution, and is never read for new facts (the filter stage records it as ignored by `comment_reopened`).
