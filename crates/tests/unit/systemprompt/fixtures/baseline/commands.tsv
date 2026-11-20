@@ -282,19 +282,19 @@ core contexts list	leaf	-	kernel
 core contexts new	leaf	-	kernel
 core contexts show	leaf	-	kernel
 core contexts use	leaf	-	kernel
-core files	group	-	kernel
-core files ai	group	-	kernel
-core files ai count	leaf	-	kernel
-core files ai list	leaf	-	kernel
-core files ai show	leaf	-	kernel
-core files config	leaf	-	kernel
-core files delete	leaf	-	kernel
-core files list	leaf	-	kernel
-core files search	leaf	-	kernel
-core files show	leaf	-	kernel
-core files stats	leaf	-	kernel
-core files upload	leaf	-	kernel
-core files validate	leaf	-	kernel
+core files	group	-	files-http
+core files ai	group	-	files-http
+core files ai count	leaf	-	files-http
+core files ai list	leaf	-	files-http
+core files ai show	leaf	-	files-http
+core files config	leaf	-	files-http
+core files delete	leaf	-	files-http
+core files list	leaf	-	files-http
+core files search	leaf	-	files-http
+core files show	leaf	-	files-http
+core files stats	leaf	-	files-http
+core files upload	leaf	-	files-http
+core files validate	leaf	-	files-http
 core hooks	group	-	kernel
 core hooks list	leaf	-	kernel
 core hooks validate	leaf	-	kernel

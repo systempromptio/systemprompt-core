@@ -3,18 +3,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use std::sync::Arc;
-use systemprompt_database::DbPool;
 use systemprompt_files::{FileDeleteService, FileRepository, StoredObjectOutcome};
 use systemprompt_identifiers::FileId;
 use systemprompt_traits::FileStorage;
 
 use super::types::FileDeleteOutput;
-use crate::commands::shared::app_context;
-use systemprompt_extension::cli::{CliConfig, CommandOutput, Prompter};
+use systemprompt_extension::cli::{CliConfig, CommandHost, CommandOutput, Prompter};
 
 #[derive(Debug, Clone, Args)]
 pub struct DeleteArgs {
@@ -35,29 +32,28 @@ pub struct DeleteArgs {
 pub(super) async fn execute(
     args: DeleteArgs,
     prompter: &dyn Prompter,
-    host: &dyn KernelHost,
+    host: &dyn CommandHost,
 ) -> Result<CommandOutput> {
-    let app = app_context(host).await?;
-    execute_with_pool(
+    let resolved = host.resolved().await?;
+    let repository = resolved.get::<Arc<FileRepository>>()?;
+    execute_with_repository(
         args,
         prompter,
-        app.db_pool(),
-        Arc::clone(app.file_storage()),
+        &repository,
+        resolved.get::<Arc<dyn FileStorage>>()?,
         host.output(),
     )
     .await
 }
 
-pub async fn execute_with_pool(
+pub async fn execute_with_repository(
     args: DeleteArgs,
     prompter: &dyn Prompter,
-    pool: &DbPool,
+    repository: &FileRepository,
     storage: Arc<dyn FileStorage>,
     config: &CliConfig,
 ) -> Result<CommandOutput> {
     let file_id = parse_file_id(&args.file)?;
-
-    let repository = FileRepository::new(pool);
 
     let file = repository
         .find_by_id(&file_id)
@@ -95,7 +91,7 @@ pub async fn execute_with_pool(
         }
     }
 
-    let outcome = FileDeleteService::new(repository, storage)
+    let outcome = FileDeleteService::new(repository.clone(), storage)
         .delete_file(&file)
         .await?;
 

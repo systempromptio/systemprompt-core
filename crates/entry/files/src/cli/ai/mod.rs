@@ -10,11 +10,10 @@ pub mod count;
 pub mod list;
 pub mod show;
 
-use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use clap::Subcommand;
 
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
 #[derive(Debug, Subcommand)]
 pub enum AiCommands {
@@ -28,7 +27,7 @@ pub enum AiCommands {
     Count(count::CountArgs),
 }
 
-pub async fn execute(cmd: AiCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
+pub async fn execute(cmd: AiCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     match cmd {
         AiCommands::List(args) => list::execute(args, host)
             .await

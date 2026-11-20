@@ -34,6 +34,8 @@ mod disabled_provenance;
 #[cfg(test)]
 mod external_db_admission;
 #[cfg(test)]
+mod files_http;
+#[cfg(test)]
 mod files_marketplace_slots;
 #[cfg(test)]
 mod forged_command_types;

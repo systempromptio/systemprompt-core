@@ -4,23 +4,22 @@ use std::process::Command;
 
 use clap::Parser;
 use systemprompt_cli::EnvOverrides;
-use systemprompt_cli::core::{self, CoreCommands};
-use systemprompt_extension::cli::{CliConfig, OutputFormat};
+use systemprompt_files_entry::cli::{self as files, FilesCommands};
 use systemprompt_identifiers::UserId;
 use systemprompt_test_fixtures::{
     DisposableDb, bounded_output, ensure_test_bootstrap, seed_user_row, test_app_context,
 };
 
-const HELPER: &str = "commands::core_files_ai_output_lifecycle::files_ai_output_helper";
+const HELPER: &str = "core_files_ai_output_lifecycle::files_ai_output_helper";
 
 #[derive(Debug, Parser)]
 struct Harness {
     #[command(subcommand)]
-    command: CoreCommands,
+    command: FilesCommands,
 }
 
-fn parse(args: &[&str]) -> CoreCommands {
-    Harness::try_parse_from(std::iter::once("core").chain(args.iter().copied()))
+fn parse(args: &[&str]) -> FilesCommands {
+    Harness::try_parse_from(args.iter().copied())
         .expect("parse core files AI command")
         .command
 }
@@ -83,17 +82,15 @@ async fn files_ai_output_helper() {
     .await
     .expect("seed filtering controls");
 
-    let context = crate::boot_ctx::with_app_boot(
-        CliConfig::new()
-            .with_interactive(false)
-            .with_output_format(OutputFormat::Json),
+    let context = crate::common::with_app(
+        crate::common::json_cli(),
         EnvOverrides::default(),
         test_app_context(database.url()).await,
     );
     println!("BEGIN_AI_LIST");
-    crate::boot_ctx::rendered(
+    crate::common::rendered(
         &context,
-        core::execute(
+        files::execute(
             parse(&[
                 "files",
                 "ai",
@@ -110,16 +107,16 @@ async fn files_ai_output_helper() {
     .expect("public AI list");
     println!("END_AI_LIST");
     println!("BEGIN_AI_SHOW");
-    crate::boot_ctx::rendered(
+    crate::common::rendered(
         &context,
-        core::execute(parse(&["files", "ai", "show", &id.to_string()]), &context).await,
+        files::execute(parse(&["files", "ai", "show", &id.to_string()]), &context).await,
     )
     .expect("public AI show");
     println!("END_AI_SHOW");
     println!("BEGIN_AI_COUNT");
-    crate::boot_ctx::rendered(
+    crate::common::rendered(
         &context,
-        core::execute(
+        files::execute(
             parse(&["files", "ai", "count", "--user", user.as_str()]),
             &context,
         )

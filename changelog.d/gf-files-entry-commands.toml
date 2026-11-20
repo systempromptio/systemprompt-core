@@ -1,0 +1,14 @@
+[root]
+section = "Changed"
+area = "CLI"
+text = "`core files` is contributed by the `files-http` composition member (`systemprompt-files-entry`); a profile that disables `files-http` refuses the group at dispatch. `core files upload`, `delete` and `ai` resolve the file repository the `files` member provides, and `core files validate` and `config` read the runtime's files configuration instead of rebuilding it from the profile. A failing `core files validate` returns its report with the error, rendered once."
+
+[[crate]]
+name = "systemprompt-files-entry"
+section = "Added"
+text = "`FilesHttpExtension` (`files-http`) and the `core files` commands under `cli` (`systemprompt_files_entry::cli`). The `http` feature carries no routes."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`systemprompt_cli::core::files` and `CoreCommands::Files` are removed; the commands are `systemprompt_files_entry::cli` (`FilesCommands`). `core::files::{ai::list, ai::show, delete}::execute_with_pool` are replaced by `execute_with_repository`, which take a `&FileRepository`; `ai::count::execute_with_repository` is added."

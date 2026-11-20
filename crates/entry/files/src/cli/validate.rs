@@ -3,12 +3,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use std::path::PathBuf;
 
 use anyhow::{Result, anyhow};
 use clap::Args;
-use systemprompt_files::FileValidator;
+use systemprompt_files::{FileValidator, FilesConfig};
 
 use super::types::FileValidationOutput;
 use super::upload::detect_mime_type;
@@ -20,7 +19,10 @@ pub struct ValidateArgs {
     pub file_path: PathBuf,
 }
 
-pub(super) fn execute(args: &ValidateArgs, host: &dyn KernelHost) -> Result<(CommandOutput, bool)> {
+pub(super) fn execute(
+    args: &ValidateArgs,
+    files_config: &FilesConfig,
+) -> Result<(CommandOutput, bool)> {
     let file_path = args
         .file_path
         .canonicalize()
@@ -31,7 +33,6 @@ pub(super) fn execute(args: &ValidateArgs, host: &dyn KernelHost) -> Result<(Com
 
     let mime_type = detect_mime_type(&file_path);
 
-    let files_config = super::load_files_config(host)?;
     let upload_config = files_config.upload();
     let validator = FileValidator::new(*upload_config);
 

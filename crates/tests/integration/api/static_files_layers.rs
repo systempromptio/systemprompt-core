@@ -12,7 +12,7 @@ use systemprompt_api::services::static_content::static_files::{
     StaticContentState, serve_static_content,
 };
 use systemprompt_files::{
-    FileDeleteService, FileUploadRequest, FileUploadService, StoredObjectOutcome,
+    FileDeleteService, FileRepository, FileUploadRequest, FileUploadService, StoredObjectOutcome,
 };
 use systemprompt_identifiers::{ContextId, FileId};
 use systemprompt_models::RouteClassifier;
@@ -135,7 +135,7 @@ async fn a_file_stored_through_the_backend_is_served() -> anyhow::Result<()> {
 async fn an_upload_is_served_at_its_public_url_until_it_is_deleted() -> anyhow::Result<()> {
     let l = layers().await?;
     let ctx = &l.state.ctx;
-    let repository = (**ctx.file_repository()).clone();
+    let repository = FileRepository::new(ctx.db_pool());
     let uploads = FileUploadService::new(
         repository.clone(),
         (**ctx.files_config()).clone(),

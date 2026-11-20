@@ -5,12 +5,10 @@
 
 use clap::Parser;
 use serde_json::json;
-use systemprompt_cli::core::files::{self, FilesCommands};
-use systemprompt_cli::{CommandContext, EnvOverrides};
+use systemprompt_cli::CommandContext;
 use systemprompt_database::DbPool;
-use systemprompt_extension::cli::{CliConfig, OutputFormat};
-use systemprompt_runtime::DatabaseContext;
-use systemprompt_test_fixtures::{test_database_url, test_db_pool};
+use systemprompt_files_entry::cli::{self as files, FilesCommands};
+use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;
 
 #[derive(Debug, Parser)]
@@ -25,16 +23,8 @@ fn parse(args: &[&str]) -> FilesCommands {
         .cmd
 }
 
-
 fn ctx(pool: &DbPool) -> CommandContext {
-    crate::boot_ctx::with_database(
-        CliConfig::new()
-            .with_interactive(false)
-            .with_output_format(OutputFormat::Json),
-        EnvOverrides::default(),
-        DatabaseContext::from_pool(pool.clone()),
-        test_database_url(),
-    )
+    crate::common::with_database(pool)
 }
 
 async fn seed_file(pool: &DbPool, metadata: serde_json::Value) -> (String, String) {

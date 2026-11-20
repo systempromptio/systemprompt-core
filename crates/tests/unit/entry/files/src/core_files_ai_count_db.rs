@@ -11,10 +11,10 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::core::files::ai::count::{CountArgs, execute};
 use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_database::DbPool;
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
+use systemprompt_files_entry::cli::ai::count::{CountArgs, execute};
 use systemprompt_identifiers::UserId;
 use systemprompt_test_fixtures::{
     seed_user_row, test_app_context, test_database_url, test_db_pool,
@@ -24,7 +24,7 @@ use uuid::Uuid;
 
 async fn ctx() -> CommandContext {
     let url = test_database_url();
-    crate::boot_ctx::with_app_boot(
+    crate::common::with_app(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
@@ -45,12 +45,6 @@ struct File<'a> {
     user: Option<&'a str>,
     ai: bool,
     deleted: bool,
-}
-
-fn cfg_json() -> CliConfig {
-    CliConfig::new()
-        .with_interactive(false)
-        .with_output_format(OutputFormat::Json)
 }
 
 async fn seed_file(pool: &DbPool, f: &File<'_>) -> String {
@@ -236,16 +230,21 @@ async fn an_unfiltered_count_spans_users_rather_than_scoping_to_one() {
     );
 }
 
-// `core files ai show` and `list` reach the database through a pool seam, so
+// `core files ai show` and `list` take their repository as an argument, so
 // these drive the seam directly. The guard worth asserting is that `ai show`
 // refuses a file that is not AI-generated: without it the command is just
 // `files show` under a name that promises otherwise, and an operator filtering
 // for generated content sees uploads.
 mod show_and_list {
-    use super::{File, cfg_json, seed_file, seeded_user, test_db_pool};
-    use systemprompt_cli::core::files::ai::list::{ListArgs, execute_with_pool as list_with_pool};
-    use systemprompt_cli::core::files::ai::show::{ShowArgs, execute_with_pool as show_with_pool};
+    use super::{File, seed_file, seeded_user, test_db_pool};
     use systemprompt_database::DbPool;
+    use systemprompt_files::FileRepository;
+    use systemprompt_files_entry::cli::ai::list::{
+        ListArgs, execute_with_repository as list_with_repository,
+    };
+    use systemprompt_files_entry::cli::ai::show::{
+        ShowArgs, execute_with_repository as show_with_repository,
+    };
     use uuid::Uuid;
 
     async fn ai_file(pool: &DbPool, user: &str) -> String {
@@ -261,26 +260,24 @@ mod show_and_list {
     }
 
     async fn show(pool: &DbPool, id: &str) -> anyhow::Result<serde_json::Value> {
-        let out = show_with_pool(
+        let out = show_with_repository(
             ShowArgs {
                 file: id.to_owned(),
             },
-            pool,
-            &cfg_json(),
+            &FileRepository::new(pool),
         )
         .await?;
         Ok(serde_json::to_value(out.artifact()).expect("serialise artifact"))
     }
 
     async fn list_ids(pool: &DbPool, user: Option<&str>) -> Vec<String> {
-        let out = list_with_pool(
+        let out = list_with_repository(
             ListArgs {
                 limit: 100,
                 offset: 0,
                 user: user.map(str::to_owned),
             },
-            pool,
-            &cfg_json(),
+            &FileRepository::new(pool),
         )
         .await
         .expect("listing should succeed");

@@ -11,5 +11,25 @@ publish = false
 workspace = true
 
 [dependencies]
+systemprompt-cli = { workspace = true }
+systemprompt-database = { workspace = true }
+systemprompt-extension = { workspace = true, features = ["cli"] }
+systemprompt-files = { workspace = true }
 systemprompt-files-entry = { workspace = true, features = ["cli", "http"] }
+systemprompt-identifiers = { workspace = true }
+systemprompt-provider-contracts = { workspace = true }
+systemprompt-runtime = { workspace = true }
+systemprompt-storage = { workspace = true }
+systemprompt-test-fixtures = { workspace = true }
+systemprompt-traits = { workspace = true }
 systemprompt-test-hack = { version = "0.1", path = "../../../common/hack" }
+
+[dev-dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+sqlx = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true }
+uuid = { workspace = true }

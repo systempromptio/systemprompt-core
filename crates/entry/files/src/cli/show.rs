@@ -3,7 +3,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_database::DbPool;
@@ -15,7 +14,7 @@ use super::types::{
     FileMetadataOutput, ImageMetadataOutput, VideoMetadataOutput,
 };
 use systemprompt_database::pool_from_handle;
-use systemprompt_extension::cli::{CliConfig, CommandOutput};
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
 #[derive(Debug, Clone, Args)]
 pub struct ShowArgs {
@@ -23,14 +22,13 @@ pub struct ShowArgs {
     pub identifier: String,
 }
 
-pub(super) async fn execute(args: ShowArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    execute_with_pool(args, &pool_from_handle(host.db().await?)?, host.output()).await
+pub(super) async fn execute(args: ShowArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    execute_with_pool(args, &pool_from_handle(host.db().await?)?).await
 }
 
 pub(super) async fn execute_with_pool(
     args: ShowArgs,
     pool: &DbPool,
-    _config: &CliConfig,
 ) -> Result<CommandOutput> {
     let service = FileRepository::new(pool);
 

@@ -38,7 +38,7 @@ Configuration comes from the active profile unless `--profile` or `--database-ur
 |------------|------------------|---------|
 | `core artifacts` | — | Artifact inspection and debugging. |
 | `core content` | — | Content management and analytics. |
-| `core files` | — | File management and uploads. |
+| `core files` | `list`, `show`, `search`, `stats`, `upload`, `delete`, `validate`, `config`, `ai` | File management and uploads, contributed by the `files-http` member (`crates/entry/files/src/cli/`). `list`, `show`, `search` and `stats` also run with `--database-url` alone. |
 | `core contexts` | `list`, `show`, `create`, `rename`, `delete`, `use`, `create-and-use` | Context management. |
 | `core skills` | `list`, `show` | Skill management and database sync. |
 | `core plugins` | — | Plugin management and marketplace generation. |

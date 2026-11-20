@@ -3,15 +3,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Args;
 use systemprompt_files::FileRepository;
 use systemprompt_identifiers::UserId;
 
-use crate::commands::core::files::types::AiFilesCountOutput;
-use crate::commands::shared::app_context;
-use systemprompt_extension::cli::CommandOutput;
+use crate::cli::types::AiFilesCountOutput;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
 #[derive(Debug, Clone, Args)]
 pub struct CountArgs {
@@ -22,9 +20,14 @@ pub struct CountArgs {
     pub user: Option<String>,
 }
 
-pub async fn execute(args: CountArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let app = app_context(host).await?;
-    let service = FileRepository::new(app.db_pool());
+pub async fn execute(args: CountArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    execute_with_repository(args, &*crate::cli::file_repository(host).await?).await
+}
+
+pub async fn execute_with_repository(
+    args: CountArgs,
+    service: &FileRepository,
+) -> Result<CommandOutput> {
 
     let user_id = args.user.as_ref().map(|u| UserId::new(u.clone()));
 

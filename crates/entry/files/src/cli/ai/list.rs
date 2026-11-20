@@ -3,16 +3,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Args;
-use systemprompt_database::DbPool;
 use systemprompt_files::FileRepository;
 use systemprompt_identifiers::UserId;
 
-use crate::commands::core::files::types::AiFilesListOutput;
-use crate::commands::shared::app_context;
-use systemprompt_extension::cli::{CliConfig, CommandOutput, FileSummary};
+use crate::cli::types::AiFilesListOutput;
+use systemprompt_extension::cli::{CommandHost, CommandOutput, FileSummary};
 
 #[derive(Debug, Clone, Args)]
 pub struct ListArgs {
@@ -26,18 +23,14 @@ pub struct ListArgs {
     pub user: Option<String>,
 }
 
-pub(super) async fn execute(args: ListArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let app = app_context(host).await?;
-    execute_with_pool(args, app.db_pool(), host.output()).await
+pub(super) async fn execute(args: ListArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    execute_with_repository(args, &*crate::cli::file_repository(host).await?).await
 }
 
-pub async fn execute_with_pool(
+pub async fn execute_with_repository(
     args: ListArgs,
-    pool: &DbPool,
-    _config: &CliConfig,
+    service: &FileRepository,
 ) -> Result<CommandOutput> {
-    let service = FileRepository::new(pool);
-
     let files = match &args.user {
         Some(user_id) => {
             let user_id = UserId::new(user_id.clone());

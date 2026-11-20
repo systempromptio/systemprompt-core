@@ -70,12 +70,6 @@ mod core_contexts_db;
 mod core_contexts_public_lifecycle;
 mod core_database_scope_db;
 mod core_dispatcher_fs;
-mod core_dispatchers_db;
-mod core_files_ai_count_db;
-mod core_files_ai_delete_db;
-mod core_files_ai_output_lifecycle;
-mod core_files_dispatcher_db;
-mod core_files_show_db;
 mod core_hooks_validate_fs;
 mod core_managed_skills_db;
 mod core_marketplace_explain_fs;
@@ -128,8 +122,6 @@ mod web_template_delete_preservation;
 mod web_templates_fs;
 mod web_validate_paths_fs;
 
-#[cfg(test)]
-mod core_files_upload_db;
 
 #[cfg(test)]
 mod agents_shared_args;
