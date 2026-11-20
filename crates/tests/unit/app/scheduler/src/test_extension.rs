@@ -46,7 +46,7 @@ pub fn admitted_with_test_jobs() -> Arc<Admitted> {
 }
 
 pub fn schedule_of(admitted: &Admitted) -> Arc<AdmittedSchedule> {
-    Arc::new(AdmittedSchedule::of(admitted.built()))
+    Arc::new(AdmittedSchedule::of(admitted.built()).expect("one owner per job name"))
 }
 
 pub fn core_schedule() -> Arc<AdmittedSchedule> {

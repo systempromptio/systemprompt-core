@@ -10,6 +10,7 @@ use systemprompt_identifiers::InstanceId;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::SystemAdmin;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
+use systemprompt_security::keys::SigningKeys;
 use systemprompt_runtime::{AppContext, Kernel};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_database_url};
 use systemprompt_traits::{AppContext as AppContextTrait, BackgroundTasks, SecretStore};
@@ -37,6 +38,7 @@ async fn the_kernel_state_seals_the_secret_and_boot_only_seeds() {
     assert!(state.is_sealed::<SystemAdmin>());
     assert!(state.is_sealed::<ActiveServicesRoot>());
     assert!(state.is_sealed::<Arc<EventRouter>>());
+    assert!(state.is_sealed::<SigningKeys>(), "the JWT signing keys are sealed");
     assert!(!state.is_sealed::<InstanceId>(), "the instance id is open");
 }
 
@@ -51,6 +53,7 @@ async fn a_member_command_resolver_refuses_every_sealed_seed() {
     assert!(member.get::<SystemAdmin>().is_err());
     assert!(member.get::<ActiveServicesRoot>().is_err());
     assert!(member.get::<Arc<EventRouter>>().is_err());
+    assert!(member.get::<SigningKeys>().is_err());
     assert!(member.optional::<Arc<Config>>().is_none());
     let missing = member.get::<SystemAdmin>().expect_err("sealed");
     assert_eq!(
@@ -72,4 +75,21 @@ async fn the_provide_and_kernel_resolver_serves_every_sealed_seed() {
     assert!(provide.get::<SystemAdmin>().is_ok());
     assert!(provide.get::<ActiveServicesRoot>().is_ok());
     assert!(provide.get::<Arc<EventRouter>>().is_ok());
+    assert!(provide.get::<SigningKeys>().is_ok());
+}
+
+#[tokio::test]
+async fn the_runtime_state_withholds_every_sealed_seed() {
+    let ctx = context().await;
+    let state = ctx.kernel().state();
+    let runtime = ctx.kernel().runtime_state();
+
+    let reachable: Vec<&str> = state
+        .sealed_types()
+        .filter(|(id, _)| runtime.contains_type(*id))
+        .map(|(_, name)| name)
+        .collect();
+    assert!(reachable.is_empty(), "sealed seeds in the runtime state: {reachable:?}");
+    assert!(runtime.get::<SigningKeys>().is_err());
+    assert!(runtime.get::<InstanceId>().is_ok(), "an open seed stays");
 }

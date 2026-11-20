@@ -37,7 +37,7 @@ async fn run(
     let admitted = systemprompt_test_fixtures::fixture_admitted_of(members);
     let dependencies = crate::test_extension::job_dependencies(pool, url)
         .await
-        .with(AdmittedSchedule::of(admitted.built()));
+        .with(AdmittedSchedule::of(admitted.built()).expect("one owner per job name"));
     let mut params = HashMap::new();
     params.insert("log_retention_days".to_owned(), "1".to_owned());
     let ctx = JobContext::new(

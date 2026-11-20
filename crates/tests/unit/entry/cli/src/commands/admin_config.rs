@@ -27,7 +27,7 @@ use systemprompt_scheduler::{JobConfig, SchedulerConfig};
 use systemprompt_test_fixtures::fixture_admitted;
 
 fn schedule() -> AdmittedSchedule {
-    AdmittedSchedule::of(fixture_admitted().built())
+    AdmittedSchedule::of(fixture_admitted().built()).expect("one owner per job name")
 }
 
 fn make_profile(services: &Path) -> Profile {

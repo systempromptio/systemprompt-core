@@ -32,6 +32,8 @@ mod disable_probe;
 #[cfg(test)]
 mod disabled_provenance;
 #[cfg(test)]
+mod duplicate_job_names;
+#[cfg(test)]
 mod external_db_admission;
 #[cfg(test)]
 mod files_marketplace_slots;

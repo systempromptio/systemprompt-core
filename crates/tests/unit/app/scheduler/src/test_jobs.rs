@@ -429,11 +429,27 @@ impl Job for SealedSeedProbeJob {
                 ctx.find::<systemprompt_manifest::services::root::ActiveServicesRoot>()
                     .is_some(),
             ),
+            (
+                "profile",
+                ctx.find::<std::sync::Arc<systemprompt_config::LoadedProfile>>()
+                    .is_some(),
+            ),
+            (
+                "secrets_document",
+                ctx.find::<std::sync::Arc<systemprompt_manifest::secrets::Secrets>>()
+                    .is_some(),
+            ),
         ];
+        let deps = ctx.dependencies();
         let leaked: Vec<&str> = reachable
             .iter()
             .filter(|(_, present)| *present)
             .map(|(name, _)| *name)
+            .chain(
+                deps.sealed_types()
+                    .filter(|(id, _)| deps.contains_type(*id))
+                    .map(|(_, name)| name),
+            )
             .collect();
         ctx.get::<systemprompt_database::DbPool>()?;
         ctx.get::<std::sync::Arc<dyn systemprompt_traits::FileStorage>>()?;

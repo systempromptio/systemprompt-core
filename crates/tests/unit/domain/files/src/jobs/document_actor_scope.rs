@@ -65,7 +65,7 @@ fn the_files_member_contributes_one_job_run_scope() {
 #[tokio::test]
 async fn the_admitted_schedule_scopes_a_run_only_when_files_is_admitted() {
     let admitted = systemprompt_test_fixtures::fixture_admitted();
-    let with_files = AdmittedSchedule::of(admitted.built());
+    let with_files = AdmittedSchedule::of(admitted.built()).expect("one owner per job name");
     let observed = with_files
         .run_in_scopes("scope_probe_job", async {
             assert_eq!(current_actor(), DocumentActor::system("scope_probe_job"));
@@ -77,7 +77,7 @@ async fn the_admitted_schedule_scopes_a_run_only_when_files_is_admitted() {
 
     let without =
         systemprompt_test_fixtures::fixture_admitted_without(&[ExtensionId::new("files")]);
-    let without_files = AdmittedSchedule::of(without.built());
+    let without_files = AdmittedSchedule::of(without.built()).expect("one owner per job name");
     let unscoped = without_files
         .run_in_scopes("scope_probe_job", async {
             assert_eq!(current_actor(), unscoped_actor());
