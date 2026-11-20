@@ -8863,6 +8863,7 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-manifest",
  "systemprompt-marketplace",
+ "systemprompt-marketplace-entry",
  "systemprompt-mcp",
  "systemprompt-models",
  "systemprompt-notifications",
@@ -11063,15 +11064,35 @@ dependencies = [
 name = "systemprompt-marketplace-entry"
 version = "0.84.0"
 dependencies = [
+ "axum",
+ "serde_json",
+ "systemprompt-config",
  "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-manifest",
+ "systemprompt-marketplace",
+ "systemprompt-models",
+ "thiserror 2.0.21",
+ "tokio",
 ]
 
 [[package]]
 name = "systemprompt-marketplace-entry-tests"
 version = "0.0.11"
 dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum",
+ "http",
+ "http-body-util",
  "systemprompt-marketplace-entry",
+ "systemprompt-runtime",
+ "systemprompt-test-fixtures",
  "systemprompt-test-hack",
+ "systemprompt-traits",
+ "tokio",
+ "tower",
+ "uuid",
 ]
 
 [[package]]
@@ -11082,6 +11103,7 @@ dependencies = [
  "base64 0.23.1",
  "chrono",
  "ed25519-dalek 3.0.0",
+ "proptest",
  "reqwest",
  "serde_json",
  "serde_yaml_ng",
