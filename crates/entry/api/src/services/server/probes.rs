@@ -201,7 +201,9 @@ pub(super) fn degraded_services_source(ctx: &AppContext) -> Option<serde_json::V
             "serving": "bundled",
             "error": error,
         })),
-        ServicesProvenance::Bundled | ServicesProvenance::Fetched { .. } => None,
+        ServicesProvenance::Bundled | ServicesProvenance::Fetched { .. } => {
+            crate::routes::admin::services::held_back_block(ctx.profile())
+        },
     }
 }
 

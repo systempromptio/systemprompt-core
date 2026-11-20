@@ -42,6 +42,7 @@ fn packed(dir: &Path, key: Option<&BundleSigningKey>) -> SignedBundleManifest {
             source_commit: None,
             workflow_run: None,
             marketplace_only: false,
+            requires_core: None,
         },
         key,
     )

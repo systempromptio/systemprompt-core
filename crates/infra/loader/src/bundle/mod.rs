@@ -19,6 +19,7 @@
 //!   active tree, for projections that record where declarations came from.
 //! - [`mod@compose`] — overlaying several bundles with an ownership check.
 //! - [`bootstrap`] — the boot path and its failure policy.
+//! - [`refusal`] — the record of sources held back on a previous bundle.
 //! - [`error`] — [`error::BundleError`] and [`error::VerifyFailure`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -33,6 +34,7 @@ pub mod extract;
 pub mod ownership;
 pub mod pack;
 pub mod provenance;
+pub mod refusal;
 pub mod source;
 pub mod verify;
 
@@ -45,5 +47,6 @@ pub use extract::{BUNDLE_TREE_PREFIX, ExtractOptions, TarLayout, extract_bytes, 
 pub use provenance::{
     BaseTreeHashMemo, BundleProvenance, SourcesProvenance, owning_bundle_hashes, sources_provenance,
 };
+pub use refusal::{RefusalKind, SourceRefusal};
 pub use source::{AnyFetcher, BundleFetcher, FetchedBundle, RemoteRef};
 pub use verify::{verify_bundle, verify_extracted};

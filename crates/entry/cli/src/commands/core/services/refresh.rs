@@ -1,5 +1,11 @@
 //! `services refresh` — re-resolve the profile's bundle sources.
 //!
+//! Resolution never fails outright under a fallback policy: a refused or
+//! unreachable source is held back on its cached bundle, and a composition
+//! that cannot be built falls back whole. Both are read back from the bundle
+//! cache after the swap and end the command with an error, so a script sees
+//! a release that was not served as a failure rather than as "unchanged".
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -96,6 +102,10 @@ pub async fn execute(args: &RefreshArgs, ctx: &CommandContext) -> Result<()> {
         );
     }
 
+    if !args.check {
+        report_unserved(&cache, ctx)?;
+    }
+
     // Why: a supervisor script distinguishes "nothing to do" from "restart me"
     // by exit status, and every error path the binary has collapses to 1.
     let code = exit_code_for(outcome);
@@ -108,6 +118,32 @@ pub async fn execute(args: &RefreshArgs, ctx: &CommandContext) -> Result<()> {
         std::process::exit(code);
     }
     Ok(())
+}
+
+fn report_unserved(cache: &BundleCache, ctx: &CommandContext) -> Result<()> {
+    if let Some(record) = cache.read_degraded() {
+        anyhow::bail!(
+            "the sources could not be composed; serving the {} services tree: {}",
+            record.serving,
+            record.error
+        );
+    }
+    let refused = cache.read_refusals();
+    if refused.is_empty() {
+        return Ok(());
+    }
+    render_result(
+        &CommandOutput::table_of(
+            vec!["source", "kind", "serving_version", "reason"],
+            &refused,
+        )
+        .with_title("Sources Held Back"),
+        &ctx.cli,
+    );
+    anyhow::bail!(
+        "{} source(s) were refused and keep serving their previous bundle",
+        refused.len()
+    )
 }
 
 async fn check_sources(
