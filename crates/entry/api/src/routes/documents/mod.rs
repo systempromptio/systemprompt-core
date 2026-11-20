@@ -11,7 +11,7 @@
 //! documents live. `/{id}/live` is the document's live channel and
 //! `/{id}/collab/awareness` posts awareness; both work without an engine.
 //! Sharing, transfer, delete and agent-cap writes sit behind the RFC 9470
-//! step-up a person's UI session must meet (see [`step_up`]).
+//! step-up a person's UI session must meet (see `step_up.rs`).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
