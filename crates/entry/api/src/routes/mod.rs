@@ -1,7 +1,7 @@
 //! HTTP route modules for the API server.
 //!
 //! Each submodule owns one functional area (admin, agent, documents, gateway,
-//! marketplace, mcp, oauth, proxy, stream, sync, users, wellknown) and exposes
+//! marketplace, oauth, proxy, stream, sync, users, wellknown) and exposes
 //! a `Router` builder. The
 //! re-exports here surface the router constructors the API assembler composes
 //! into the top-level service.
@@ -20,7 +20,6 @@ pub mod issues;
 #[cfg(feature = "bridge")]
 pub mod managed;
 pub mod marketplace;
-pub mod mcp;
 pub mod oauth;
 pub mod proxy;
 pub mod sso;
@@ -32,7 +31,6 @@ pub mod users;
 pub mod wellknown;
 
 pub use agent::{artifacts_router, contexts_router, registry_router, tasks_router, webhook_router};
-pub use mcp::registry_router as mcp_registry_router;
 pub use oauth::{
     authenticated_router as oauth_authenticated_router, public_router as oauth_public_router,
 };

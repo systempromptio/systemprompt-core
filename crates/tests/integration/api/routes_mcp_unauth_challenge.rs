@@ -212,28 +212,6 @@ async fn unauthenticated_mcp_get_does_not_hit_generic_anon_403() -> anyhow::Resu
 }
 
 #[tokio::test]
-async fn unauthenticated_mcp_registry_get_is_not_anon_denied() -> anyhow::Result<()> {
-    let app = boot_full_router().await?;
-    let mut req = Request::builder()
-        .method(Method::GET)
-        .uri("/api/v1/mcp-registry")
-        .header(header::HOST, "127.0.0.1")
-        .body(Body::empty())?;
-    req.extensions_mut().insert(ConnectInfo(
-        "203.0.113.9:41000"
-            .parse::<SocketAddr>()
-            .expect("peer address must parse"),
-    ));
-    let resp = app.oneshot(req).await?;
-    let (status, body) = body_text(resp).await;
-    assert!(
-        !body.contains("'anon' is not authorized for this route"),
-        "mcp-registry regressed to anon-denial gate. status={status} body={body}"
-    );
-    Ok(())
-}
-
-#[tokio::test]
 async fn unauthenticated_execution_lookup_is_refused() -> anyhow::Result<()> {
     let app = boot_full_router().await?;
     let mut req = Request::builder()

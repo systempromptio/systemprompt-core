@@ -227,7 +227,9 @@ curl http://127.0.0.1:8080/api/v1/agents/registry
 | GET | `/api/v1/mcp/{service_name}/mcp/.well-known/oauth-authorization-server` | Restricted | Per-server AS metadata. |
 | * | `/api/v1/mcp/{service_name}/{path}` | Restricted | Proxy to a named MCP server. The streamable-http transport endpoint is `/api/v1/mcp/{server}/mcp`. |
 
-The MCP subtree is restricted to user types `User`, `Admin`, `Mcp`, and `Service` (`protocol.rs:126`). MCP protocol version 1.6.
+Execution lookups require an authenticated caller. The proxy routes verify the caller in the handler, which answers an unauthenticated call with `401` and a `WWW-Authenticate` challenge naming the protected-resource metadata (RFC 9728). MCP protocol version 1.6.
+
+The registry route is declared by the `mcp-http` extension (`systemprompt-mcp-entry`), which holds `/api/v1/mcp/registry` and no other path under `/api/v1/mcp`; the executions and proxy routes are the server's own. A profile that disables `mcp-http` does not mount the registry, and the path answers 404. Disabling `mcp` while `mcp-http` stays enabled is refused at boot.
 
 ```bash
 curl http://127.0.0.1:8080/api/v1/mcp/registry

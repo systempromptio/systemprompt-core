@@ -105,7 +105,7 @@ pub(super) const NOT_USER_OWNED: &[Row] = &[
     free("routes/marketplace.rs::router", "GET", r#""/marketplaces/{id}""#, CATALOG),
     free("routes/marketplace.rs::router", "GET", r#""/marketplaces/{id}/manifest.yaml""#, CATALOG),
     free("routes/marketplace.rs::router", "GET", r#""/plugins/{plugin_id}/{*path}""#, CATALOG),
-    free("routes/mcp/mod.rs::registry_router", "GET", r#""/""#, CATALOG),
+    free("mcp/http/mod.rs::registry_routes", "GET", r#""/""#, CATALOG),
     free("analytics/extension.rs::contribute", "GET", r#""/stream""#, INGEST),
     free("analytics/extension.rs::contribute", "POST", r#""/events""#, INGEST),
     free("analytics/extension.rs::contribute", "POST", r#""/events/batch""#, INGEST),

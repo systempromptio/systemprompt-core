@@ -75,7 +75,10 @@ fn agent_info_fields_accessible() {
 fn mcp_server_info_fields_accessible() {
     let s = McpServerInfo {
         name: "mcp-server".to_owned(),
+        version: "1.0.0".to_owned(),
+        description: String::new(),
         port: Some(3000),
+        display_in_web: false,
         enabled: true,
         oauth: ServiceOAuthConfig::default(),
     };

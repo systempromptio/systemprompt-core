@@ -58,7 +58,10 @@ pub struct AgentInfo {
 #[derive(Debug, Clone)]
 pub struct McpServerInfo {
     pub name: String,
+    pub version: String,
+    pub description: String,
     pub port: Option<u16>,
+    pub display_in_web: bool,
     pub enabled: bool,
     pub oauth: ServiceOAuthConfig,
 }

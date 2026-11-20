@@ -1,107 +1,108 @@
-//! Tests for the public MCP registry endpoint.
-//!
-//! `handle_mcp_registry` projects the configured MCP servers into the discovery
-//! document clients read. Whether the registry can be enumerated depends on
-//! process-global services config that other tests in this binary may or may
-//! not have installed, so these assert the contract that holds in both states
-//! rather than pinning one status: the response is always JSON, a success
-//! always carries a server list, and a failure is the typed 5xx envelope
-//! whose cause stays in the log. In particular a registry that cannot be read
-//! must never present as an empty list under `data` — that would tell clients
-//! this deployment has no MCP servers, which is a different and wrong answer.
+//! `handle_mcp_registry` projects the registry the `mcp` member provides into
+//! the discovery document clients read. A success carries every listed server
+//! under `data` with its endpoint synthesised from the server name; a
+//! registry that cannot be read is the typed 5xx envelope with the fixed
+//! public message, never an empty server list.
 
-#![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
+use std::sync::Arc;
 
+use async_trait::async_trait;
 use axum::extract::State;
-use axum::response::IntoResponse;
-use systemprompt_api::routes::mcp::registry::handle_mcp_registry;
-use systemprompt_test_fixtures::{test_app_context, test_database_url};
+use axum::http::StatusCode;
+use systemprompt_mcp_entry::http::{McpRegistryState, handle_mcp_registry};
+use systemprompt_traits::{McpRegistryProvider, McpServerInfo, RegistryError, ServiceOAuthConfig};
 
-async fn ctx() -> systemprompt_runtime::AppContext {
-    let url = test_database_url();
-    (*test_app_context(&url).await).clone()
+enum Stub {
+    Servers(Vec<McpServerInfo>),
+    Unreadable,
 }
 
-struct Reply {
-    status: axum::http::StatusCode,
-    content_type: String,
-    body: String,
+#[async_trait]
+impl McpRegistryProvider for Stub {
+    async fn get_server(&self, name: &str) -> Result<McpServerInfo, RegistryError> {
+        Err(RegistryError::NotFound(name.to_owned()))
+    }
+
+    async fn list_enabled_servers(&self) -> Result<Vec<McpServerInfo>, RegistryError> {
+        match self {
+            Self::Servers(servers) => Ok(servers.clone()),
+            Self::Unreadable => Err(RegistryError::Configuration(
+                "services config unreadable".into(),
+            )),
+        }
+    }
 }
 
-async fn call() -> Reply {
-    let response = handle_mcp_registry(State(ctx().await))
-        .await
-        .into_response();
+fn server(name: &str) -> McpServerInfo {
+    McpServerInfo {
+        name: name.to_owned(),
+        version: "2.1.0".to_owned(),
+        description: "An enabled fixture MCP server".to_owned(),
+        port: None,
+        display_in_web: true,
+        enabled: true,
+        oauth: ServiceOAuthConfig {
+            required: true,
+            scopes: vec!["user".to_owned(), "mcp".to_owned()],
+            audience: "mcp".to_owned(),
+            ema: false,
+        },
+    }
+}
+
+async fn call(stub: Stub) -> (StatusCode, serde_json::Value) {
+    let response = handle_mcp_registry(State(McpRegistryState::new(Arc::new(stub)))).await;
     let status = response.status();
-    let content_type = response
-        .headers()
-        .get(axum::http::header::CONTENT_TYPE)
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or_default()
-        .to_owned();
     let bytes = axum::body::to_bytes(response.into_body(), 1 << 20)
         .await
         .expect("body");
-    Reply {
-        status,
-        content_type,
-        body: String::from_utf8_lossy(&bytes).into_owned(),
-    }
+    (status, serde_json::from_slice(&bytes).expect("a JSON body"))
 }
 
 #[tokio::test]
-async fn the_response_is_always_json() {
-    let reply = call().await;
+async fn a_listed_server_carries_its_fields_and_a_synthesised_endpoint() {
+    let (status, body) = call(Stub::Servers(vec![server("fixture_enabled_mcp")])).await;
 
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let entries = body["data"].as_array().expect("servers under data");
+    assert_eq!(entries.len(), 1, "{body}");
+    let entry = &entries[0];
+    assert_eq!(entry["name"], "fixture_enabled_mcp");
+    assert_eq!(entry["version"], "2.1.0");
+    assert_eq!(entry["description"], "An enabled fixture MCP server");
+    assert_eq!(entry["display_in_web"], true);
+    assert_eq!(entry["oauth_required"], true);
+    assert_eq!(entry["oauth_scopes"], serde_json::json!(["user", "mcp"]));
+    assert_eq!(entry["status"], "enabled");
     assert!(
-        reply.content_type.contains("json"),
-        "clients parse this endpoint as JSON, got content-type {:?}",
-        reply.content_type
+        entry.get("port").is_none(),
+        "no port is listed for an external server: {entry}"
     );
-    assert!(
-        serde_json::from_str::<serde_json::Value>(&reply.body).is_ok(),
-        "body must be valid JSON in both the success and failure cases: {}",
-        reply.body
+    assert_eq!(
+        entry["endpoint"],
+        systemprompt_models::modules::ApiPaths::mcp_server_endpoint("fixture_enabled_mcp")
     );
+    assert!(body["meta"]["version"].is_string(), "{body}");
 }
 
 #[tokio::test]
-async fn a_failure_is_a_server_error_and_never_an_empty_list() {
-    let reply = call().await;
+async fn an_empty_registry_is_an_empty_list() {
+    let (status, body) = call(Stub::Servers(Vec::new())).await;
 
-    if reply.status.is_success() {
-        let value: serde_json::Value = serde_json::from_str(&reply.body).expect("json");
-        assert!(
-            value["data"].is_array(),
-            "a success must carry the server list under `data`: {}",
-            reply.body
-        );
-        assert!(
-            value["meta"]["version"].is_string(),
-            "the success envelope must carry meta.version: {}",
-            reply.body
-        );
-    } else {
-        assert_eq!(
-            reply.status,
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            "the only non-success outcome is a load failure"
-        );
-        let value: serde_json::Value = serde_json::from_str(&reply.body).expect("json");
-        assert_eq!(
-            value["code"], "internal_error",
-            "a failure is the typed 5xx envelope: {}",
-            reply.body
-        );
-        assert_eq!(
-            value["message"], "Internal server error",
-            "a 5xx body carries only the fixed public message; the cause is logged: {}",
-            reply.body
-        );
-        assert!(
-            !value["data"].is_array(),
-            "a failed load must not present as an empty server list: {}",
-            reply.body
-        );
-    }
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["data"], serde_json::json!([]), "{body}");
+}
+
+#[tokio::test]
+async fn an_unreadable_registry_is_the_fixed_server_error_and_never_an_empty_list() {
+    let (status, body) = call(Stub::Unreadable).await;
+
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR, "{body}");
+    assert_eq!(body["code"], "internal_error", "{body}");
+    assert_eq!(body["message"], "Internal server error", "{body}");
+    assert!(
+        !body.to_string().contains("services config unreadable"),
+        "the cause stays in the log: {body}"
+    );
+    assert!(!body["data"].is_array(), "{body}");
 }

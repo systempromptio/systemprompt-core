@@ -59,7 +59,6 @@ mod gateway_sessions_mint;
 
 mod gateway_otel_authed;
 mod gateway_otel_handle;
-mod mcp_registry_handler;
 
 mod wellknown_agent_cards;
 mod wellknown_agent_cards_configured;

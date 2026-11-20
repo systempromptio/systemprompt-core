@@ -210,7 +210,7 @@ GET	/api/v1/marketplace/marketplaces/{id}/manifest.yaml	public	Public	-	Default	
 GET	/api/v1/marketplace/plugins/{plugin_id}/{*path}	public	Public	-	Default	ContentAndMisc	kernel	-
 GET	/api/v1/mcp	public	Public	-	Default	Discovery	kernel	-
 GET	/api/v1/mcp/executions/{id}	authenticated	User	mcp/Mcp	Default	McpAndStream	kernel	-
-GET	/api/v1/mcp/registry	public	Public	mcp_registry/McpRegistry	Default	McpAndStream	kernel	-
+GET	/api/v1/mcp/registry	public	Public	mcp_registry/McpRegistry	Default	McpAndStream	mcp-http	-
 GET	/api/v1/mcp/{service_name}/mcp/.well-known/oauth-authorization-server	deferred_to_handler	Mcp	mcp/Mcp	Default	McpAndStream	kernel	-
 GET	/api/v1/mcp/{service_name}/mcp/.well-known/oauth-protected-resource	deferred_to_handler	Mcp	mcp/Mcp	Default	McpAndStream	kernel	-
 ANY	/api/v1/mcp/{service_name}/{*path}	deferred_to_handler	Mcp	mcp/Mcp	Default	McpAndStream	kernel	-

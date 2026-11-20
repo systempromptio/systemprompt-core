@@ -12,7 +12,7 @@ A process monitor reconciles database-recorded service PIDs against live process
 
 ## The registry
 
-Rather than each consumer holding its own MCP server configuration, the platform keeps a single central registry (`RegistryService`, constructed in the runtime bootstrap with the system-admin identity). The registry is the source of truth for which servers exist and how to reach them, which avoids local configuration drift across consumers. It is exposed at `/api/v1/mcp/registry`.
+Rather than each consumer holding its own MCP server configuration, the platform keeps a single central registry (`RegistryService`, constructed in the runtime bootstrap with the system-admin identity). The registry is the source of truth for which servers exist and how to reach them, which avoids local configuration drift across consumers. It is exposed at `/api/v1/mcp/registry` by the `mcp-http` extension, which lists every enabled server with the endpoint a client connects to.
 
 ## The streamable-HTTP transport
 

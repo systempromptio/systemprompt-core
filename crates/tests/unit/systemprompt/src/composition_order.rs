@@ -35,6 +35,7 @@ const EDGES: &[(&str, &str)] = &[
     ("content-http", "content"),
     ("analytics-http", "analytics"),
     ("analytics-http", "content"),
+    ("mcp-http", "mcp"),
 ];
 
 #[test]
