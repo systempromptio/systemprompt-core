@@ -28,6 +28,9 @@ pub enum ApiBase {
     Agents,
     Slack,
     Teams,
+    Marketplace,
+    Sync,
+    McpRegistry,
     Extension(&'static str),
 }
 
@@ -50,6 +53,9 @@ impl BasePath {
                 ApiBase::Agents => ApiPaths::AGENTS_BASE,
                 ApiBase::Slack => ApiPaths::SLACK_BASE,
                 ApiBase::Teams => ApiPaths::TEAMS_BASE,
+                ApiBase::Marketplace => ApiPaths::MARKETPLACE_BASE,
+                ApiBase::Sync => ApiPaths::SYNC_BASE,
+                ApiBase::McpRegistry => ApiPaths::MCP_REGISTRY,
                 ApiBase::Extension(path) => path,
             },
             Self::Web(WebBase::TrackEngagement) => ApiPaths::TRACK_ENGAGEMENT,
