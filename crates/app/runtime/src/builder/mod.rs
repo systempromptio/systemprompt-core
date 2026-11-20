@@ -194,7 +194,6 @@ impl AppContextBuilder {
         kernel.resolve(&self.admitted)?;
         let r = kernel.resolved();
 
-        let seams = r.get::<Arc<MarketplaceSeams>>()?;
         let (policy, authz_hook, market) = authz_stage(
             profile,
             &database,
@@ -204,21 +203,15 @@ impl AppContextBuilder {
                 epochs: &cache_epochs,
                 providers: &*r.get::<Arc<SubjectProviderSet>>()?,
                 hooks: &*r.get::<Arc<AuthzHooks>>()?,
-                seams: &seams,
+                seams: &*r.get::<Arc<MarketplaceSeams>>()?,
             },
         )?;
         let governance = ConfigWatch::new(
             load_governance(profile, &database, &*r.get::<Arc<PolicyCatalog>>()?).await?,
         );
         r.get::<PublicationPolicyCell>()?.bind(policy)?;
-        let repositories = build_domain_layer(
-            &self.boot,
-            &database,
-            &seeded,
-            &system_admin,
-            r.get::<systemprompt_traits::DynManagedSkillResolver>()?,
-        )
-        .await?;
+        let repositories =
+            build_domain_layer(&self.boot, &database, &seeded, &system_admin, &r).await?;
         let plugins = new_plugins(mcp_registry, &market);
 
         #[cfg(feature = "notifications")]

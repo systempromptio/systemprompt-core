@@ -207,9 +207,10 @@ pub(super) async fn build_domain_layer(
     database: &DbPool,
     seeded: &SeededRepositories,
     system_admin: &systemprompt_manifest::SystemAdmin,
-    managed_skills: systemprompt_traits::DynManagedSkillResolver,
+    resolved: &systemprompt_extension::Resolved<'_>,
 ) -> RuntimeResult<RepositoryBundles> {
     let config = boot.config()?;
+    let managed_skills = resolved.get::<systemprompt_traits::DynManagedSkillResolver>()?;
     let repositories =
         build_repositories(database, config.instance_id.clone(), seeded, managed_skills);
     ensure_legacy_context(&repositories, system_admin).await?;
