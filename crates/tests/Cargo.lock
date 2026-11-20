@@ -10368,19 +10368,11 @@ dependencies = [
 name = "systemprompt-extension-tests"
 version = "0.0.11"
 dependencies = [
- "async-trait",
- "bytes",
- "chrono",
- "futures",
  "serde_json",
  "systemprompt-extension",
  "systemprompt-identifiers",
- "systemprompt-manifest",
- "systemprompt-models",
- "systemprompt-provider-contracts",
  "systemprompt-test-fixtures",
  "systemprompt-test-hack",
- "systemprompt-traits",
  "tokio",
  "trybuild",
 ]
@@ -11870,7 +11862,6 @@ dependencies = [
  "sha2 0.11.1",
  "sqlx",
  "systemprompt-client",
- "systemprompt-config",
  "systemprompt-database",
  "systemprompt-events",
  "systemprompt-extension",

@@ -38,11 +38,16 @@ impl Extension for MarketplaceHttpExtension {
         }
     }
 
+    #[cfg_attr(
+        not(feature = "http"),
+        expect(
+            unused_variables,
+            reason = "the member contributes its routes only with the http feature"
+        )
+    )]
     fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
         #[cfg(feature = "http")]
         routes::contribute(c);
-        #[cfg(not(feature = "http"))]
-        let _ = c;
         Ok(())
     }
 }

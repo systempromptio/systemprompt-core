@@ -127,6 +127,14 @@ impl<'a> PlaneContext<'a> {
         }
         self.dependencies.get::<T>()
     }
+
+    #[must_use]
+    pub fn find<T: std::any::Any + Send + Sync>(&self) -> Option<&'a T> {
+        if self.dependencies.is_sealed::<T>() {
+            return None;
+        }
+        self.dependencies.find::<T>()
+    }
 }
 
 /// One declared configuration plane an extension contributes through

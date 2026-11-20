@@ -238,7 +238,7 @@ impl ConfigPlane for IdentityPlane {
         tx: &mut PlaneTx<'_>,
         entities: &ResolvedEntities,
     ) -> ConfigPlaneResult<ApplyOutcome> {
-        let secrets = ctx.get::<IdentityClientSecrets>().ok();
+        let secrets = ctx.find::<IdentityClientSecrets>();
         let tx = tx.get::<PlaneTransaction>()?;
         let mut outcome = ApplyOutcome::default();
         let (users, clients): (BTreeMap<_, _>, BTreeMap<_, _>) = entities

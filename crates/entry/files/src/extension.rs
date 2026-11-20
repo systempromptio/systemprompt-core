@@ -32,11 +32,16 @@ impl Extension for FilesHttpExtension {
         }
     }
 
+    #[cfg_attr(
+        not(feature = "cli"),
+        expect(
+            unused_variables,
+            reason = "the member contributes its commands only with the cli feature"
+        )
+    )]
     fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
         #[cfg(feature = "cli")]
         commands::contribute(c);
-        #[cfg(not(feature = "cli"))]
-        let _ = c;
         Ok(())
     }
 }

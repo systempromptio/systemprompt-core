@@ -7572,7 +7572,6 @@ dependencies = [
  "sha2 0.11.1",
  "sqlx",
  "systemprompt-client",
- "systemprompt-config",
  "systemprompt-database",
  "systemprompt-events",
  "systemprompt-extension",

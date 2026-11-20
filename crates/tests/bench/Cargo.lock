@@ -6763,6 +6763,7 @@ dependencies = [
  "systemprompt-events",
  "systemprompt-extension",
  "systemprompt-files",
+ "systemprompt-files-entry",
  "systemprompt-gateway",
  "systemprompt-generator",
  "systemprompt-governance",
@@ -6771,7 +6772,9 @@ dependencies = [
  "systemprompt-logging",
  "systemprompt-manifest",
  "systemprompt-marketplace",
+ "systemprompt-marketplace-entry",
  "systemprompt-mcp",
+ "systemprompt-mcp-entry",
  "systemprompt-mcp-host",
  "systemprompt-models",
  "systemprompt-notifications",
@@ -7456,6 +7459,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-files-entry"
+version = "0.84.0"
+dependencies = [
+ "anyhow",
+ "base64 0.23.1",
+ "chrono",
+ "clap",
+ "schemars 1.2.3",
+ "serde",
+ "sha2 0.11.1",
+ "systemprompt-database",
+ "systemprompt-extension",
+ "systemprompt-files",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-traits",
+ "tokio",
+]
+
+[[package]]
 name = "systemprompt-gateway"
 version = "0.84.0"
 dependencies = [
@@ -7687,6 +7710,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-marketplace-entry"
+version = "0.84.0"
+dependencies = [
+ "axum",
+ "serde_json",
+ "systemprompt-config",
+ "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-manifest",
+ "systemprompt-marketplace",
+ "systemprompt-models",
+ "thiserror 2.0.21",
+ "tokio",
+]
+
+[[package]]
 name = "systemprompt-mcp"
 version = "0.84.0"
 dependencies = [
@@ -7723,6 +7762,17 @@ dependencies = [
  "tracing",
  "url",
  "uuid",
+]
+
+[[package]]
+name = "systemprompt-mcp-entry"
+version = "0.84.0"
+dependencies = [
+ "axum",
+ "serde",
+ "systemprompt-extension",
+ "systemprompt-models",
+ "systemprompt-traits",
 ]
 
 [[package]]
@@ -8325,6 +8375,7 @@ dependencies = [
  "systemprompt-files",
  "systemprompt-identifiers",
  "systemprompt-logging",
+ "systemprompt-mcp-entry",
  "systemprompt-mcp-host",
  "systemprompt-models",
  "systemprompt-provider-contracts",
