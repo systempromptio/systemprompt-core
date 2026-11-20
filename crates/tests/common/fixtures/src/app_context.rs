@@ -428,6 +428,17 @@ pub fn fixture_subject_providers(
     systemprompt_governance::authz::SubjectProviderSet::default()
 }
 
+pub fn fixture_job_context_over(
+    pool: &DbPool,
+    seed: systemprompt_extension::prelude::Dependencies,
+) -> systemprompt_traits::JobContext {
+    systemprompt_traits::JobContext::new(
+        crate::fixture_actor(),
+        seed.with(Arc::clone(pool))
+            .with(systemprompt_database::BudgetedDb::new(Arc::clone(pool), None)),
+    )
+}
+
 pub fn fixture_kernel(
     pool: &DbPool,
     seed: systemprompt_extension::prelude::Dependencies,

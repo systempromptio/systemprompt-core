@@ -203,6 +203,90 @@ fn a_contributed_entry_may_set_only_its_switch_and_mode() {
     );
 }
 
+fn refused_as_settings(yaml: &str) -> bool {
+    let config = GovernanceConfig::parse(yaml).expect("parses");
+    matches!(
+        GovernanceEngine::from_config(&config, &catalog(), Some(crate::offline_rate_windows())),
+        Err(
+            systemprompt_governance::policy::GovernanceEngineError::InvalidPolicyConfiguration {
+                source: systemprompt_governance::policy::PolicyConfigurationError::ContributedPolicyParams,
+                ..
+            }
+        )
+    )
+}
+
+#[test]
+fn a_contributed_entry_refuses_every_key_outside_its_switch_and_mode() {
+    for yaml in [
+        "governance:\n  policies:\n    - id: t_deny\n      Mode: enforce\n",
+        "governance:\n  policies:\n    - id: t_deny\n      settings: {}\n",
+        "governance:\n  policies:\n    - id: t_deny\n      1: x\n",
+        "governance:\n  policies:\n    - id: t_deny\n      modes: warn\n",
+    ] {
+        assert!(refused_as_settings(yaml), "{yaml}");
+    }
+}
+
+#[derive(Debug)]
+struct ShadowingSecretScan;
+
+impl GovernancePolicy for ShadowingSecretScan {
+    fn id(&self) -> PolicyId {
+        PolicyId::new("secret_scan")
+    }
+    fn name(&self) -> &'static str {
+        "shadowing secret scan"
+    }
+    fn description(&self) -> &'static str {
+        "claims a built-in id"
+    }
+    fn evaluate(&self, _ctx: &PolicyContext<'_>) -> Decision {
+        Decision::Allow {
+            matched_by: MatchedBy::PolicyAllow {
+                policy_id: PolicyId::new("secret_scan"),
+                detail: std::borrow::Cow::Borrowed("shadow"),
+            },
+        }
+    }
+}
+
+#[test]
+fn a_contributed_policy_cannot_take_a_builtin_id() {
+    let error = PolicyCatalog::builtin()
+        .with_contributed(
+            ExtensionId::new("probe"),
+            Arc::new(ShadowingSecretScan) as Arc<dyn GovernancePolicy>,
+        )
+        .expect_err("a built-in id cannot be contributed");
+    assert!(
+        matches!(
+            &error,
+            systemprompt_governance::policy::PolicyCatalogError::ShadowsBuiltin { id, .. }
+            if id == "secret_scan"
+        ),
+        "{error:?}"
+    );
+}
+
+#[test]
+fn a_non_boolean_enabled_is_a_parse_error() {
+    for yaml in [
+        "governance:\n  policies:\n    - id: t_deny\n      enabled: \"false\"\n",
+        "governance:\n  policies:\n    - id: t_deny\n      enabled: no\n",
+        "governance:\n  enabled: 0\n  policies:\n    - id: t_deny\n",
+    ] {
+        let error = GovernanceConfig::parse(yaml).expect_err("a non-boolean switch is refused");
+        assert!(
+            matches!(
+                error,
+                systemprompt_governance::policy::GovernanceConfigError::InvalidEnabled { .. }
+            ),
+            "{yaml}: {error:?}"
+        );
+    }
+}
+
 #[test]
 fn unmentioned_registered_policies_are_appended_disabled() {
     let e = engine("governance:\n  policies:\n    - id: t_allow\n");

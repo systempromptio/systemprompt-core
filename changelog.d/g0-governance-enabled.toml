@@ -1,0 +1,9 @@
+[root]
+section = "Fixed"
+area = "Governance"
+text = "A non-boolean `enabled` on `governance` or on a `governance.policies` entry is a parse error (`GovernanceConfigError::InvalidEnabled`) instead of being read as `true`."
+
+[[crate]]
+name = "systemprompt-governance"
+section = "Added"
+text = "`GovernanceConfigError::InvalidEnabled { location, value }`."

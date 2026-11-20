@@ -325,6 +325,7 @@ const UNCLASSIFIED: &[(&str, &str)] = &[
         "AlterDatabaseSetStmt",
     ),
     ("CREATE ROLE kp_role;", "CreateRoleStmt"),
+    ("ALTER SCHEMA kp_s OWNER TO kp_role;", "AlterOwnerStmt"),
 ];
 
 fn leak(sql: String) -> &'static str {

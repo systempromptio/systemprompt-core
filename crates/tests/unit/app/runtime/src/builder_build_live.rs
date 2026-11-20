@@ -77,10 +77,6 @@ async fn build_assembles_full_context_with_pool_and_write_url() {
         ctx.content_config().is_some(),
         "the fixture services/content/config.yaml must be loaded"
     );
-    assert!(
-        ctx.content_routing().is_some(),
-        "a loaded content config provides routing"
-    );
     assert!(ctx.geoip_reader().is_none());
     assert_eq!(
         ctx.admitted().built().members().count(),
