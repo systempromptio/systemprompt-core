@@ -57,8 +57,8 @@ mod gateway_overhead_metrics;
 mod server_load_shed;
 
 #[cfg(test)]
-#[path = "routes_mcp_registry.rs"]
-mod routes_mcp_registry;
+#[path = "routes_mcp_registry_mounted.rs"]
+mod routes_mcp_registry_mounted;
 
 #[cfg(test)]
 #[path = "routes_wellknown.rs"]
@@ -577,8 +577,8 @@ mod routes_admin_cli_subprocess;
 mod routes_admin_keys_seeded;
 
 #[cfg(test)]
-#[path = "routes_mcp_registry_populated.rs"]
-mod routes_mcp_registry_populated;
+#[path = "routes_mcp_discovery_populated.rs"]
+mod routes_mcp_discovery_populated;
 
 #[cfg(test)]
 #[path = "routes_oauth_webauthn_link.rs"]

@@ -1,0 +1,34 @@
+[root]
+section = "Changed"
+area = "API"
+text = "`GET /api/v1/mcp/registry` is declared by the `mcp-http` extension (new crate `systemprompt-mcp-entry`) with the same public gate, public context, `mcp_registry` rate limit and role groups. The extension holds that one path and no other path under `/api/v1/mcp`; a profile that disables `mcp-http` answers 404 there, and disabling `mcp` while `mcp-http` stays enabled is refused at boot."
+
+[[crate]]
+name = "systemprompt-mcp-entry"
+section = "Added"
+text = "`McpHttpExtension` (id `mcp-http`, `http` feature) contributes `GET /api/v1/mcp/registry`; `http::{registry_routes, McpRegistryState, handle_mcp_registry, McpRegistryServer}` are its route set, state, handler and listing entry. The handler reads `Arc<dyn McpRegistryProvider>` from the `mcp` member."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`routes::mcp` (`registry_router`, `registry::handle_mcp_registry`, `registry::McpRegistryServer`) and the `routes::mcp_registry_router` re-export are removed; the registry route is `systemprompt_mcp_entry::http`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`RESERVED_PATHS` holds `/api/v1/mcp/registry` exactly (`ReservedReach::Exact`) for `CoreId::McpHttp`, and `PRIVILEGED_SHAPES` gains the `mcp-http` registry shape pinned to `GET /` (`reserved::MCP_REGISTRY_ROUTES`)."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Breaking"
+text = "`McpServerInfo` gains `version`, `description` and `display_in_web`; a struct literal must set them."
+
+[[crate]]
+name = "systemprompt"
+section = "Added"
+text = "The reference composition admits `mcp-http` (`systemprompt-mcp-entry`) under `full`, with the conferral `CoreId::McpHttp`."
+
+[[crate]]
+name = "systemprompt-mcp"
+section = "Changed"
+text = "`RegistryService`'s `McpRegistryProvider` projection carries each server's version, description and `display_in_web`."

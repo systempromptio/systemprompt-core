@@ -60,6 +60,8 @@ mod install_services;
 #[cfg(test)]
 mod kernel_reserved;
 #[cfg(test)]
+mod mcp_http;
+#[cfg(test)]
 mod mcp_slots;
 #[cfg(test)]
 mod probe;

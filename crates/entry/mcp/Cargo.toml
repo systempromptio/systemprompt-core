@@ -10,7 +10,7 @@ homepage.workspace = true
 documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "The MCP registry HTTP routes and CLI commands of systemprompt.io."
+description = "The MCP server registry route of systemprompt.io."
 readme = "README.md"
 include = ["src/**/*", "Cargo.toml", "README.md", "CHANGELOG.md"]
 
@@ -23,8 +23,18 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = []
-http = ["systemprompt-extension/router"]
+http = [
+    "systemprompt-extension/router",
+    "dep:systemprompt-models",
+    "dep:systemprompt-traits",
+    "dep:axum",
+    "dep:serde",
+]
 cli = ["systemprompt-extension/cli"]
 
 [dependencies]
 systemprompt-extension = { workspace = true }
+systemprompt-models = { workspace = true, optional = true }
+systemprompt-traits = { workspace = true, optional = true }
+axum = { workspace = true, optional = true }
+serde = { workspace = true, optional = true }

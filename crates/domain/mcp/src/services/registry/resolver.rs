@@ -268,20 +268,19 @@ impl McpDeploymentProvider for McpDeploymentProviderImpl {
 }
 
 fn server_info(server: crate::McpServerConfig) -> McpServerInfo {
+    let oauth = server.oauth;
     McpServerInfo {
         name: server.name,
+        version: server.version,
+        description: server.description,
         port: server.port,
+        display_in_web: server.display_in_web,
         enabled: server.enabled,
         oauth: ServiceOAuthConfig {
-            required: server.oauth.required,
-            scopes: server
-                .oauth
-                .scopes
-                .iter()
-                .map(ToString::to_string)
-                .collect(),
-            audience: server.oauth.audience.to_string(),
-            ema: server.oauth.ema,
+            required: oauth.required,
+            scopes: oauth.scopes.iter().map(ToString::to_string).collect(),
+            audience: oauth.audience.to_string(),
+            ema: oauth.ema,
         },
     }
 }

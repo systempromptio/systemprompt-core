@@ -19,6 +19,7 @@ identity	IdentityExtension	systemprompt-oauth-issuance	crates/app/oauth-issuance
 logging	LoggingExtension	systemprompt-logging	crates/infra/logging/src/extension.rs
 managed_resources	ManagedResourcesExtension	systemprompt-marketplace	crates/domain/marketplace/src/extension.rs
 mcp	McpExtension	systemprompt-mcp	crates/domain/mcp/src/extension.rs
+mcp-http	McpHttpExtension	systemprompt-mcp-entry	crates/entry/mcp/src/extension.rs
 notifications	NotificationsExtension	systemprompt-notifications	crates/domain/notifications/src/extension.rs
 notifications-http	NotificationsHttpExtension	systemprompt-notifications-entry	crates/entry/notifications/src/extension.rs
 oauth	OauthExtension	systemprompt-oauth	crates/domain/oauth/src/extension.rs

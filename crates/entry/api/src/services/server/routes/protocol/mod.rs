@@ -146,18 +146,6 @@ pub(super) fn mount_mcp_and_stream(
     let ctx = mount.ctx;
     let group = RouteGroup::McpAndStream;
 
-    router = mount.mount(
-        router,
-        declare(
-            crate::routes::mcp::registry_router(ctx),
-            ApiPaths::MCP_REGISTRY,
-            AuthzPolicy::public(),
-            ContextKind::Public,
-            group,
-        )
-        .with_rate_limit(RateLimit::new("mcp_registry", RateBudget::McpRegistry)),
-    )?;
-
     let mcp_rate = RateLimit::new("mcp", RateBudget::Mcp);
     let executions = mount.protect(
         crate::routes::proxy::mcp::executions_router(ctx),

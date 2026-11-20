@@ -30,7 +30,9 @@ use crate::router::{Allowance, BaseRef, RouteShape};
 
 mod shapes;
 
-pub use shapes::{CONTENT_GENERATE_ROUTES, CONTENT_REDIRECT_ROUTES, PRIVILEGED_SHAPES};
+pub use shapes::{
+    CONTENT_GENERATE_ROUTES, CONTENT_REDIRECT_ROUTES, MCP_REGISTRY_ROUTES, PRIVILEGED_SHAPES,
+};
 
 pub const WEB_ROOT_BASE_PATH: &str = "/";
 
@@ -73,6 +75,14 @@ const fn held(owner: CoreId, path: &'static str) -> ReservedPath {
         owner,
         path,
         reach: ReservedReach::Prefix,
+    }
+}
+
+const fn exact(owner: CoreId, path: &'static str) -> ReservedPath {
+    ReservedPath {
+        owner,
+        path,
+        reach: ReservedReach::Exact,
     }
 }
 
@@ -126,6 +136,7 @@ pub const RESERVED_PATHS: &[ReservedPath] = &[
     held(CoreId::Slack, ApiPaths::SLACK_BASE),
     held(CoreId::Teams, ApiPaths::TEAMS_BASE),
     held(CoreId::Cloud, ApiPaths::CLOUD_TENANTS),
+    exact(CoreId::McpHttp, ApiPaths::MCP_REGISTRY),
 ];
 
 pub const BUILTIN_GATEWAY_PREFIXES: &[&str; 31] = &[

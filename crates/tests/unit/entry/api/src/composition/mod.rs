@@ -6,6 +6,7 @@ mod forge;
 mod forged_bases;
 mod forged_gateway_paths;
 mod forged_handoff;
+mod forged_mcp_registry;
 mod forged_reserved;
 mod forged_services;
 mod full_path;
