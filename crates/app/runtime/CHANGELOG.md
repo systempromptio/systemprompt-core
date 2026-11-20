@@ -7,10 +7,12 @@
 - `documents::mcp::ListScopeInput` gains `Context` and `ListInput` gains `context_id`. Migrate an exhaustive match by adding the arm and a struct literal by setting `context_id: None`.
 - `DocumentsRuntimeParts` and `documents::mcp::DocumentsMcpConfig` gain `contexts`, `RefusalCode` gains `UnknownContext`, and `views::comments_view` takes a `&dyn ContextDirectory`. Migrate by passing `DocumentsRuntime::contexts()` and adding the match arm.
 - `CommentAction` gains `Reopen`, and `CommentItem` gains `reopened_at` and `reopened_by`. Migrate an exhaustive match by adding the arm and a struct literal by setting both fields.
+- `CommentAnchorItem` and `documents::mcp::CommentInput` gain `cells: Option<CellRange>`. Migrate a struct literal by setting `cells: None`.
 
 ### Added
 
 - `documents_list {scope: "context", context_id?}` lists what a conversation of the caller's touched; `context_id` defaults to the calling conversation, and one the caller does not own is `unknown_context`. The `documents` guide topic names the scope.
+- `documents_comment {action: create, node: <sheet node>, cells: "B2:D9"}` anchors a comment to a cell range on a spreadsheet; listings answer `anchor.cells`, and the `comments` guide topic describes it.
 - `documents_comment {action: reopen, document_id, comment_id}` reopens a resolved comment; the `comments` guide topic names it and the `agent`-attention self-mention hand-off.
 - `EditInput::content_blob_ref`: `documents_edit` replaces the whole file from an uploaded blob in place of `ops` (exclusive with it; neither or both is `invalid_params`).
 - `documents::mcp::{FolderHandler, FolderInput, FolderAction, ImportHandler, ImportInput}`: the `documents_folder` and `documents_import` tools; `TOOL_NAMES` lists them (21 tools, 20 without `notifications`).

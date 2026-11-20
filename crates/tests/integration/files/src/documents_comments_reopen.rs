@@ -43,6 +43,7 @@ async fn open_comment(
                     node,
                     find: Some("beta".to_owned()),
                     nth: None,
+                    cells: None,
                 }),
                 range: None,
                 body: "settle this".to_owned(),

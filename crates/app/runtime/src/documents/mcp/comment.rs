@@ -1,9 +1,9 @@
 //! Comment threads anchor to a stable node id and an optional quote inside
-//! it, so a thread survives edits elsewhere in the document and is detached,
-//! not lost, when its words go. A comment may mention users by id or email
-//! (`mentions`), which shares the document with any of them who cannot see
-//! it; its author can edit it, and it can be deleted (`comment_edit`). A
-//! resolved thread can be reopened.
+//! it (or, on a sheet node, an A1 cell range), so a thread survives edits
+//! elsewhere in the document and is detached, not lost, when its words go. A
+//! comment may mention users by id or email (`mentions`), which shares the
+//! document with any of them who cannot see it; its author can edit it, and it
+//! can be deleted (`comment_edit`). A resolved thread can be reopened.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -46,6 +46,7 @@ impl CommentHandler<'_> {
             node,
             find: input.anchor.as_ref().map(|a| a.find.clone()),
             nth: input.anchor.as_ref().and_then(|a| a.nth),
+            cells: input.cells,
         });
         let resolved = resolve_mentions(self.tools.users(), input.mentions, body).await?;
         let origin = agent_origin(self.tools, ctx, input.context_id.as_ref()).await?;

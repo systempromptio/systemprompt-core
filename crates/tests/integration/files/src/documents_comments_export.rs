@@ -65,6 +65,7 @@ async fn comment(
                     node: node.id.clone(),
                     find: None,
                     nth: None,
+                    cells: None,
                 }),
                 body: body.to_owned(),
                 parent_id: None,

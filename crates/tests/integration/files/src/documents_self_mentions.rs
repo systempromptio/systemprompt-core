@@ -80,6 +80,7 @@ async fn self_mention(
                     node,
                     find: None,
                     nth: None,
+                    cells: None,
                 }),
                 range: None,
                 body: format!("pick this up @[Me](user:{})", author.id),

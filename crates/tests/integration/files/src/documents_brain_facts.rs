@@ -261,6 +261,7 @@ async fn resolving_a_comment_appends_one_comment_resolved_fact() {
                     node: node.clone(),
                     find: Some("beta".to_owned()),
                     nth: None,
+                    cells: None,
                 }),
                 range: None,
                 body: "settle this".to_owned(),

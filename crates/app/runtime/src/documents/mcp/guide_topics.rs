@@ -95,13 +95,15 @@ grants inherited from folders.";
 pub(super) const COMMENTS: &str = "\
 documents_comment {action: create, document_id, node, anchor?: {find, nth?}, body} anchors a \
 comment to a node id from a read and, with anchor, to the nth (0-based) occurrence of find \
-inside it. A reply is {action: create, document_id, parent_id, body}. {action: list, \
+inside it. On a spreadsheet, {node: <sheet node>, cells: \"B2:D9\" or \"B2\"} anchors it to a \
+cell range instead (not with anchor); it holds while the sheet exists, whatever its cells \
+hold. A reply is {action: create, document_id, parent_id, body}. {action: list, \
 document_id} returns every thread: id, anchor, author, body, parent_id, resolved_at and \
 answering_revision_id. {action: resolve, document_id, comment_id, answering?: revision_id} \
 resolves it; {action: reopen, document_id, comment_id} reopens a resolved one (an open one \
 comes back as it is). Anchors are stable ids, so edits elsewhere never move them; an edit that deletes \
 the node or the quoted words refuses anchors_affected unless allow_detach: true, and a \
-detached comment keeps its node and drops its quote. documents_edit answering: <comment_id> \
+detached comment keeps its node and drops its quote and cells. documents_edit answering: <comment_id> \
 records the edit's revision on the comment. mentions: [user_id or email] on create or edit \
 mentions active people: each is written into the body as @[Name](user:<id>) (a plain \
 @<email> or @<id> in the body becomes that token, otherwise it is appended), and the body's \

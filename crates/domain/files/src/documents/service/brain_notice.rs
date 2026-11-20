@@ -44,6 +44,7 @@ fn anchor_ref(comment: &DocumentComment) -> CommentAnchorRef {
         hash8: None,
         find: comment.anchor.find.clone(),
         nth: comment.anchor.nth,
+        cells: comment.anchor.cells,
     }
 }
 

@@ -6,7 +6,7 @@
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::Serialize;
-use systemprompt_files::documents::models::DocumentComment;
+use systemprompt_files::documents::models::{CellRange, DocumentComment};
 use systemprompt_files::documents::{DocumentService, DocumentsError};
 use systemprompt_identifiers::{
     AgentName, ClientId, ContextId, DocumentCommentId, DocumentId, DocumentNodeId,
@@ -26,6 +26,8 @@ pub struct CommentAnchorItem {
     pub nth: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub range: Option<CommentRangeItem>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cells: Option<CellRange>,
 }
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
@@ -75,6 +77,7 @@ impl From<DocumentComment> for CommentItem {
                 node: comment.anchor.node,
                 find: comment.anchor.find,
                 nth: comment.anchor.nth,
+                cells: comment.anchor.cells,
                 range: comment.range.map(|range| CommentRangeItem {
                     start: range.start,
                     end: range.end,

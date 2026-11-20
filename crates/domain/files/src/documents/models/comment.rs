@@ -1,5 +1,6 @@
 //! Comment rows: a thread entry anchored to a stable node id and,
-//! optionally, a quote inside that node and a range of engine cursors.
+//! optionally, a quote inside that node and a range of engine cursors, or,
+//! on a spreadsheet's sheet node, an A1 cell range.
 //!
 //! The range is two cursors of the live document's CRDT engine, opaque to
 //! core: the editor resolves them, so the highlighted span follows
@@ -15,15 +16,20 @@ use systemprompt_identifiers::{
     AgentName, ClientId, ContextId, DocumentCommentId, DocumentId, DocumentNodeId,
     DocumentRevisionId, TraceId, UserId,
 };
+use systemprompt_models::documents::CellRange;
 
-/// Where a comment points: a node, and optionally the `nth` (0-based)
-/// occurrence of `find` inside it. A detached comment keeps its node and
-/// loses the quote.
+/// Where a comment points: a node and what inside it.
+///
+/// Inside the node, the `nth` (0-based) occurrence of `find`, or, on a
+/// sheet node, the `cells` of a range, which is exclusive with `find`,
+/// `nth` and a cursor range. A detached comment keeps its node and loses
+/// the quote and the cells.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CommentAnchor {
     pub node: DocumentNodeId,
     pub find: Option<String>,
     pub nth: Option<i32>,
+    pub cells: Option<CellRange>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

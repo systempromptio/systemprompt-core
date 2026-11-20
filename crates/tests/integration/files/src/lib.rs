@@ -60,6 +60,8 @@ mod documents_collab_timer;
 #[cfg(test)]
 mod documents_comments;
 #[cfg(test)]
+mod documents_comments_cells;
+#[cfg(test)]
 mod documents_comments_export;
 #[cfg(test)]
 mod documents_comments_refusals;

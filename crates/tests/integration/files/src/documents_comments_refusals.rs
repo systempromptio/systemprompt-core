@@ -38,6 +38,7 @@ async fn commented(h: &Harness, owner: &AuthenticatedUser) -> (DocumentId, Comme
             node: node.id.clone(),
             find: None,
             nth: None,
+            cells: None,
         }),
         range: None,
         body: "plain".to_owned(),

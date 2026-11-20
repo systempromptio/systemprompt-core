@@ -197,6 +197,7 @@ async fn recent_orders_by_the_callers_last_touch() {
                     node,
                     find: None,
                     nth: None,
+                    cells: None,
                 }),
                 body: "seen".to_owned(),
                 parent_id: None,

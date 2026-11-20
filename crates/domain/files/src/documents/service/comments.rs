@@ -1,8 +1,9 @@
 //! Comments: threads anchored to a stable node id and, optionally, the
 //! `nth` occurrence of a quote inside that node and a range of engine
-//! cursors. A comment may mention users, and shares the document with a
-//! mentioned user who cannot see it (`mentions`); editing and deletion live
-//! in `comments_edit`. A deleted comment leaves listings and anchor checks.
+//! cursors, or a cell range on a sheet node. A comment may mention users, and
+//! shares the document with a mentioned user who cannot see it (`mentions`);
+//! editing and deletion live in `comments_edit`. A deleted comment leaves
+//! listings and anchor checks.
 //!
 //! Commenting needs `comment`; reading the thread needs `view`. A reply
 //! carries its parent's anchor. Because the anchor is a stable id, an edit
@@ -20,7 +21,7 @@ use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{DocumentAction, DocumentCommentCreatedEvent};
 
 use super::DocumentService;
-use super::comment_anchors::anchor_holds;
+use super::comment_anchors::{anchor_holds, check_cells};
 use super::comments_edit::check_range;
 use super::mentions::{CommentOrigin, MentionInput};
 use super::notify::{
@@ -185,6 +186,7 @@ impl DocumentService {
         if ids.find(&anchor.node).is_none() {
             return Err(DocumentsError::UnknownNode { node: anchor.node });
         }
+        check_cells(&ids, &anchor, range.as_ref())?;
         if !anchor_holds(&ids, &anchor) {
             return Err(DocumentsError::FindNone {
                 find: anchor.find.unwrap_or_default(),

@@ -36,7 +36,6 @@ impl DocumentCommentRepository {
         grants: &MentionGrants,
     ) -> RepoResult<DocumentComment> {
         let (start, end) = request.range.map(|range| (range.start, range.end)).unzip();
-        let mentions = ids(&request.mentions);
         let grantees = ids(&grants.users);
         let row = sqlx::query_as!(
             CommentRow,
@@ -44,9 +43,9 @@ impl DocumentCommentRepository {
                    INSERT INTO document_comments
                        (document_id, node_id, anchor_find, anchor_nth, anchor_start, anchor_end,
                         author_user_id, body, mentions, parent_id, via_agent, context_id,
-                        client_id)
+                        client_id, anchor_cells)
                    VALUES ($1::text::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10::text::uuid, $11,
-                           $15, $16)
+                           $15, $16, $17)
                    RETURNING *),
                prev AS (
                    SELECT subject_value, access_level FROM document_grants
@@ -75,7 +74,7 @@ impl DocumentCommentRepository {
                SELECT c.id::text AS "id!: DocumentCommentId",
                       c.document_id::text AS "document_id!: DocumentId",
                       c.node_id AS "node_id!: DocumentNodeId",
-                      c.anchor_find, c.anchor_nth, c.anchor_start, c.anchor_end,
+                      c.anchor_find, c.anchor_nth, c.anchor_start, c.anchor_end, c.anchor_cells,
                       c.author_user_id AS "author_user_id!: UserId",
                       c.body AS "body!", c.mentions AS "mentions!",
                       c.parent_id::text AS "parent_id: DocumentCommentId",
@@ -96,7 +95,7 @@ impl DocumentCommentRepository {
             end,
             request.author_user_id.as_str(),
             request.body,
-            &mentions,
+            &ids(&request.mentions),
             request.parent_id.as_ref().map(DocumentCommentId::as_str),
             grants.via_agent.as_ref().map(AgentName::as_str),
             grants.granted_by.as_str(),
@@ -104,6 +103,7 @@ impl DocumentCommentRepository {
             grants.trace_id.as_str(),
             request.context_id.as_ref().map(ContextId::as_str),
             request.client_id.as_ref().map(ClientId::as_str),
+            request.anchor.cells.map(|cells| cells.to_string()),
         )
         .fetch_one(&mut *conn)
         .await?;

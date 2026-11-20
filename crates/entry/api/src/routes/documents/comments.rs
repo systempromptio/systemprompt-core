@@ -1,7 +1,7 @@
 //! Comment threads on one document: list, create (a node anchor with an
-//! optional quote and range of engine cursors, or a reply by `parent_id`,
-//! with optional mentions), resolve, reopen, edit (the author's body and
-//! mentions) and delete.
+//! optional quote and range of engine cursors, a sheet node with an A1 cell
+//! range, or a reply by `parent_id`, with optional mentions), resolve,
+//! reopen, edit (the author's body and mentions) and delete.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,7 +11,7 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use serde::Deserialize;
-use systemprompt_files::documents::models::{CommentAnchor, CommentRange};
+use systemprompt_files::documents::models::{CellRange, CommentAnchor, CommentRange};
 use systemprompt_files::documents::service::{
     CommentRequest, DeleteCommentRequest, EditCommentRequest, MentionOption, ReopenCommentRequest,
     ResolveCommentRequest,
@@ -55,6 +55,8 @@ pub(super) struct AnchorBody {
     nth: Option<i32>,
     #[serde(default)]
     range: Option<CommentRange>,
+    #[serde(default)]
+    cells: Option<CellRange>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -102,6 +104,7 @@ pub(super) async fn create(
                 node: anchor.node,
                 find: anchor.find,
                 nth: anchor.nth,
+                cells: anchor.cells,
             };
             (node, anchor.range)
         })

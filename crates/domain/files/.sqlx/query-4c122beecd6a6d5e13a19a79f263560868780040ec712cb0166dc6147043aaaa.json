@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "WITH c AS (\n                   INSERT INTO document_comments\n                       (document_id, node_id, anchor_find, anchor_nth, anchor_start, anchor_end,\n                        author_user_id, body, mentions, parent_id, via_agent, context_id,\n                        client_id)\n                   VALUES ($1::text::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10::text::uuid, $11,\n                           $15, $16)\n                   RETURNING *),\n               prev AS (\n                   SELECT subject_value, access_level FROM document_grants\n                   WHERE document_id = $1::text::uuid AND folder_id IS NULL\n                     AND subject_kind = 'user' AND subject_value = ANY($13::text[])),\n               g AS (\n                   INSERT INTO document_grants\n                       (document_id, subject_kind, subject_value, access_level, granted_by)\n                   SELECT $1::text::uuid, 'user', grantee, 'comment', $12\n                   FROM unnest($13::text[]) AS grantee\n                   ON CONFLICT (document_id, folder_id, subject_kind, subject_value) DO UPDATE\n                       SET access_level = 'comment', valid_until = NULL,\n                           granted_by = EXCLUDED.granted_by, updated_at = now()\n                       WHERE document_grants.valid_until IS NOT NULL\n                         AND document_grants.valid_until <= now()\n                   RETURNING *),\n               e AS (\n                   INSERT INTO document_grant_events\n                       (event, target_kind, target_id, subject_kind, subject_value, old_level,\n                        new_level, actor_user_id, trace_id, reason, via_agent)\n                   SELECT CASE WHEN prev.access_level IS NULL THEN 'granted' ELSE 'changed' END,\n                          'document', g.document_id, g.subject_kind, g.subject_value,\n                          prev.access_level, g.access_level, $12, $14,\n                          'mentioned in comment ' || (SELECT c.id::text FROM c), $11\n                   FROM g LEFT JOIN prev ON prev.subject_value = g.subject_value)\n               SELECT c.id::text AS \"id!: DocumentCommentId\",\n                      c.document_id::text AS \"document_id!: DocumentId\",\n                      c.node_id AS \"node_id!: DocumentNodeId\",\n                      c.anchor_find, c.anchor_nth, c.anchor_start, c.anchor_end,\n                      c.author_user_id AS \"author_user_id!: UserId\",\n                      c.body AS \"body!\", c.mentions AS \"mentions!\",\n                      c.parent_id::text AS \"parent_id: DocumentCommentId\",\n                      c.resolved_at, c.resolved_by AS \"resolved_by: UserId\",\n                      c.reopened_at, c.reopened_by AS \"reopened_by: UserId\",\n                      c.answering_revision_id::text AS \"answering_revision_id: DocumentRevisionId\",\n                      c.created_at AS \"created_at!\", c.updated_at AS \"updated_at!\",\n                      c.edited_at, c.deleted_at,\n                      c.via_agent AS \"via_agent: AgentName\",\n                      c.context_id AS \"context_id: ContextId\",\n                      c.client_id AS \"client_id: ClientId\"\n               FROM c",
+  "query": "INSERT INTO document_comments\n                   (document_id, node_id, anchor_find, anchor_nth, anchor_start, anchor_end,\n                    author_user_id, body, mentions, parent_id, via_agent, context_id,\n                    client_id, anchor_cells)\n               VALUES ($1::text::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10::text::uuid, $11,\n                       $12, $13, $14)\n               RETURNING id::text AS \"id!: DocumentCommentId\",\n                         document_id::text AS \"document_id!: DocumentId\",\n                         node_id AS \"node_id: DocumentNodeId\",\n                         anchor_find, anchor_nth, anchor_start, anchor_end, anchor_cells,\n                         author_user_id AS \"author_user_id: UserId\",\n                         body, mentions, parent_id::text AS \"parent_id: DocumentCommentId\",\n                         resolved_at, resolved_by AS \"resolved_by: UserId\",\n                         reopened_at, reopened_by AS \"reopened_by: UserId\",\n                         answering_revision_id::text AS \"answering_revision_id: DocumentRevisionId\",\n                         created_at, updated_at, edited_at, deleted_at,\n                         via_agent AS \"via_agent: AgentName\",\n                         context_id AS \"context_id: ContextId\",\n                         client_id AS \"client_id: ClientId\"",
   "describe": {
     "columns": [
       {
@@ -17,7 +17,7 @@
       },
       {
         "ordinal": 2,
-        "name": "node_id!: DocumentNodeId",
+        "name": "node_id: DocumentNodeId",
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -72,7 +72,18 @@
       },
       {
         "ordinal": 7,
-        "name": "author_user_id!: UserId",
+        "name": "anchor_cells",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_comments",
+            "name": "anchor_cells"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "author_user_id: UserId",
         "type_info": "Varchar",
         "origin": {
           "Table": {
@@ -82,8 +93,8 @@
         }
       },
       {
-        "ordinal": 8,
-        "name": "body!",
+        "ordinal": 9,
+        "name": "body",
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -93,8 +104,8 @@
         }
       },
       {
-        "ordinal": 9,
-        "name": "mentions!",
+        "ordinal": 10,
+        "name": "mentions",
         "type_info": "TextArray",
         "origin": {
           "Table": {
@@ -104,13 +115,13 @@
         }
       },
       {
-        "ordinal": 10,
+        "ordinal": 11,
         "name": "parent_id: DocumentCommentId",
         "type_info": "Text",
         "origin": "Expression"
       },
       {
-        "ordinal": 11,
+        "ordinal": 12,
         "name": "resolved_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -121,7 +132,7 @@
         }
       },
       {
-        "ordinal": 12,
+        "ordinal": 13,
         "name": "resolved_by: UserId",
         "type_info": "Varchar",
         "origin": {
@@ -132,7 +143,7 @@
         }
       },
       {
-        "ordinal": 13,
+        "ordinal": 14,
         "name": "reopened_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -143,7 +154,7 @@
         }
       },
       {
-        "ordinal": 14,
+        "ordinal": 15,
         "name": "reopened_by: UserId",
         "type_info": "Varchar",
         "origin": {
@@ -154,14 +165,14 @@
         }
       },
       {
-        "ordinal": 15,
+        "ordinal": 16,
         "name": "answering_revision_id: DocumentRevisionId",
         "type_info": "Text",
         "origin": "Expression"
       },
       {
-        "ordinal": 16,
-        "name": "created_at!",
+        "ordinal": 17,
+        "name": "created_at",
         "type_info": "Timestamptz",
         "origin": {
           "Table": {
@@ -171,8 +182,8 @@
         }
       },
       {
-        "ordinal": 17,
-        "name": "updated_at!",
+        "ordinal": 18,
+        "name": "updated_at",
         "type_info": "Timestamptz",
         "origin": {
           "Table": {
@@ -182,7 +193,7 @@
         }
       },
       {
-        "ordinal": 18,
+        "ordinal": 19,
         "name": "edited_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -193,7 +204,7 @@
         }
       },
       {
-        "ordinal": 19,
+        "ordinal": 20,
         "name": "deleted_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -204,7 +215,7 @@
         }
       },
       {
-        "ordinal": 20,
+        "ordinal": 21,
         "name": "via_agent: AgentName",
         "type_info": "Text",
         "origin": {
@@ -215,7 +226,7 @@
         }
       },
       {
-        "ordinal": 21,
+        "ordinal": 22,
         "name": "context_id: ContextId",
         "type_info": "Varchar",
         "origin": {
@@ -226,7 +237,7 @@
         }
       },
       {
-        "ordinal": 22,
+        "ordinal": 23,
         "name": "client_id: ClientId",
         "type_info": "Text",
         "origin": {
@@ -251,9 +262,7 @@
         "Text",
         "Text",
         "Varchar",
-        "TextArray",
         "Text",
-        "Varchar",
         "Text"
       ]
     },
@@ -261,6 +270,7 @@
       null,
       null,
       false,
+      true,
       true,
       true,
       true,
@@ -283,5 +293,5 @@
       true
     ]
   },
-  "hash": "2cb1fed53bfe116b8f1a6cf1ec691dcaf069128bc5e50f1e7e507fde667005f1"
+  "hash": "4c122beecd6a6d5e13a19a79f263560868780040ec712cb0166dc6147043aaaa"
 }

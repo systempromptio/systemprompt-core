@@ -92,6 +92,7 @@ async fn comment_in(
             node,
             find: None,
             nth: None,
+            cells: None,
         }),
         body: "from the conversation".to_owned(),
         parent_id: None,

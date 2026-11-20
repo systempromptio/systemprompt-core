@@ -13,7 +13,7 @@ use systemprompt_identifiers::{
     ContentHash, ContextId, DocumentCommentId, DocumentFolderId, DocumentId, DocumentNodeId,
     DocumentOpId, DocumentRevisionId, DocumentTemplateId, UserId,
 };
-use systemprompt_models::documents::{AccessLevel, DocumentFormat, EditMode, EditOp};
+use systemprompt_models::documents::{AccessLevel, CellRange, DocumentFormat, EditMode, EditOp};
 use systemprompt_models::notifications::Attention;
 
 pub use super::lifecycle_inputs::{
@@ -241,6 +241,8 @@ pub struct CommentInput {
     pub node: Option<DocumentNodeId>,
     #[serde(default)]
     pub anchor: Option<QuoteAnchor>,
+    #[serde(default)]
+    pub cells: Option<CellRange>,
     #[serde(default)]
     pub body: Option<String>,
     #[serde(default)]

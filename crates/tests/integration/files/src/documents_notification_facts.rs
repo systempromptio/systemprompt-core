@@ -85,6 +85,7 @@ async fn a_comment_mentioning_several_users_appends_one_fact() {
                     node: node.id.clone(),
                     find: None,
                     nth: None,
+                    cells: None,
                 }),
                 range: None,
                 body,

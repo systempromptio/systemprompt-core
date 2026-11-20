@@ -10,7 +10,7 @@ use systemprompt_identifiers::{
     DocumentNodeId, DocumentRevisionId, GatewayConversationId, SessionId, TaskId, TraceId, UserId,
 };
 
-use crate::documents::{ActorKind, RevisionOriginKind};
+use crate::documents::{ActorKind, CellRange, RevisionOriginKind};
 
 /// A revision that moved its document's head.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -31,13 +31,16 @@ pub struct RevisionLanded {
 }
 
 /// Where a resolved comment was anchored: its stable node and, optionally,
-/// the `nth` occurrence of a quote inside it.
+/// the `nth` occurrence of a quote inside it or, on a sheet node, a cell
+/// range.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CommentAnchorRef {
     pub node_id: DocumentNodeId,
     pub hash8: Option<String>,
     pub find: Option<String>,
     pub nth: Option<i32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cells: Option<CellRange>,
 }
 
 /// A comment that was resolved, with the head it was resolved against.

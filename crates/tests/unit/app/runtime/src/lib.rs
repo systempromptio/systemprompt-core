@@ -94,6 +94,8 @@ mod documents_mcp_attribution;
 #[cfg(test)]
 mod documents_mcp_browse;
 #[cfg(test)]
+mod documents_mcp_comment_cells;
+#[cfg(test)]
 mod documents_mcp_comments;
 #[cfg(test)]
 mod documents_mcp_context_listing;

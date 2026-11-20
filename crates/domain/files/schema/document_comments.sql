@@ -22,7 +22,9 @@ CREATE TABLE IF NOT EXISTS document_comments (
     via_agent TEXT CHECK (via_agent IS NULL OR length(via_agent) BETWEEN 1 AND 64),
     context_id VARCHAR(255),
     client_id TEXT,
-    CONSTRAINT document_comments_anchor_nth CHECK (anchor_nth IS NULL OR anchor_find IS NOT NULL)
+    anchor_cells TEXT,
+    CONSTRAINT document_comments_anchor_nth CHECK (anchor_nth IS NULL OR anchor_find IS NOT NULL),
+    CONSTRAINT document_comments_anchor_cells CHECK (anchor_cells IS NULL OR anchor_find IS NULL)
 );
 
 CREATE INDEX IF NOT EXISTS idx_document_comments_document_created

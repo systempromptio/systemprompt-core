@@ -19,6 +19,7 @@ fn comment(action: CommentAction, document: &DocumentId) -> CommentInput {
         document_id: document.clone(),
         node: None,
         anchor: None,
+        cells: None,
         body: None,
         parent_id: None,
         mentions: Vec::new(),

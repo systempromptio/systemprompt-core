@@ -32,6 +32,7 @@ async fn comment_on(h: &Harness, owner: &AuthenticatedUser, id: &DocumentId) -> 
             node: node.id.clone(),
             find: None,
             nth: None,
+            cells: None,
         }),
         range: None,
         body: "looks right".to_owned(),

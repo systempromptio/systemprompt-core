@@ -189,6 +189,8 @@ mod documents_access_requests;
 #[cfg(test)]
 mod documents_collab;
 #[cfg(test)]
+mod documents_comment_cells;
+#[cfg(test)]
 mod documents_comment_edit;
 #[cfg(test)]
 mod documents_drive_policy;
