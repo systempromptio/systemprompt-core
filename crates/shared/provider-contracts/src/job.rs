@@ -10,7 +10,11 @@
 //! reports no stats at all is always recorded. [`Job::configured`] answers
 //! whether this deployment has what the job needs (an exporter with no
 //! destination answers `false`); an unconfigured job is never put on the cron
-//! schedule, so it costs no ticks, but it can still be run by name.
+//! schedule, so it costs no ticks, but it can still be run by name. The
+//! deployment map it reads carries no profile, configuration or secret: only
+//! the typed deployment facts the scheduler member derives for its own jobs,
+//! so a member's job that needs a deployment fact reads a value its own
+//! member provides from its execution context instead.
 //! [`Job::default_schedule`] is the opt-in for a job whose absence breaks
 //! something (a read model it alone fills): under the scheduler's
 //! `unlisted_jobs: default` it is scheduled even when the configuration does
@@ -26,8 +30,9 @@
 //! `ctx.get::<DbPool>()?` inside `execute` either yields the pool or fails the
 //! run with [`crate::ProviderError::MissingDependency`]. [`JobContext::new`]
 //! withholds every sealed seed (the runtime `Config`, the secret store, the
-//! system admin, the services root, the event router), so no job or runner
-//! service reads one; the application context is never in a job context.
+//! signing keys, the system admin, the services root, the event router), so no
+//! job or runner service reads one; the application context and the profile
+//! are never in a job context.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

@@ -15,10 +15,13 @@
 //! (`declared_source`), so users created by SSO, the console or the CLI are
 //! never taken over or removed by an apply. Removing an entity from the files
 //! releases its row: the stamp is cleared and the user or client deactivated.
-//! A client's secret is hashed from the secrets document at write time, which
-//! the host provides as an `Arc<Secrets>` dependency; rotating a secret is
-//! done by pointing `secret_key` at a new key, since the declaration compares
-//! the key name, not the secret.
+//! A client's secret is hashed at write time from the custom secret its
+//! `secret_key` names, read through [`IdentityClientSecrets`], the narrow
+//! handle the identity member provides from the sealed secret store; the plane
+//! context carries no secrets document, so a built-in secret (a signing key, a
+//! database URL, a provider key) is never reachable as a client secret.
+//! Rotating a secret is done by pointing `secret_key` at a new key, since the
+//! declaration compares the key name, not the secret.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -26,10 +29,10 @@
 pub mod declaration;
 mod files;
 mod person_ui;
+mod secrets;
 
 use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
-use std::sync::Arc;
 
 use async_trait::async_trait;
 use systemprompt_database::PlaneTransaction;
@@ -38,12 +41,12 @@ use systemprompt_extension::prelude::{
     PlaneSnapshot, PlaneTx, ResolvedEntities,
 };
 use systemprompt_identifiers::{ClientId, UserId};
-use systemprompt_manifest::secrets::Secrets;
 use systemprompt_oauth::repository::{ClientRepository, DeclaredClientWrite};
 use systemprompt_users::{DeclaredUserWrite, UserRepository};
 
 use files::{backend, declared_secret_hash, encode, invalid};
 pub use files::{declared_entities, render_document};
+pub use secrets::IdentityClientSecrets;
 
 use declaration::{CLIENT_PREFIX, ClientValue, USER_PREFIX, UserValue, client_key, user_key};
 
@@ -94,7 +97,7 @@ impl IdentityPlane {
 
     async fn write_client(
         tx: &mut PlaneTransaction,
-        secrets: Option<&Secrets>,
+        secrets: Option<&IdentityClientSecrets>,
         client_id: ClientId,
         declared: Declared<'_>,
         outcome: &mut ApplyOutcome,
@@ -235,7 +238,7 @@ impl ConfigPlane for IdentityPlane {
         tx: &mut PlaneTx<'_>,
         entities: &ResolvedEntities,
     ) -> ConfigPlaneResult<ApplyOutcome> {
-        let secrets: Option<&Secrets> = ctx.get::<Arc<Secrets>>().ok().map(|s| &**s);
+        let secrets = ctx.get::<IdentityClientSecrets>().ok();
         let tx = tx.get::<PlaneTransaction>()?;
         let mut outcome = ApplyOutcome::default();
         let (users, clients): (BTreeMap<_, _>, BTreeMap<_, _>) = entities

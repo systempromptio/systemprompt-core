@@ -78,7 +78,12 @@ impl CommandContext {
     pub fn with_detached_kernel(self) -> Self {
         let mut seed = self.command_seed(Dependencies::new());
         if let Some(admitted) = &self.admitted {
-            seed.insert(AdmittedSchedule::of(admitted.built()));
+            match AdmittedSchedule::of(admitted.built()) {
+                Ok(schedule) => seed.insert(schedule),
+                Err(error) => {
+                    tracing::error!(%error, "admitted schedule refused; no job is readable");
+                },
+            }
             let views = AdmittedViews::of(admitted);
             seed.insert(views.migrations);
             seed.insert(views.configs);
@@ -91,7 +96,7 @@ impl CommandContext {
     fn command_seed(&self, base: Dependencies) -> Dependencies {
         let mut seed = base.with(self.interrupt_shield().clone());
         if let Ok(profile) = self.loaded_profile() {
-            seed.insert(Arc::clone(profile));
+            seed.insert_sealed(Arc::clone(profile));
         }
         if let Some(services) = self.services() {
             seed.insert(services.clone());

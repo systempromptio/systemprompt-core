@@ -48,7 +48,7 @@ pub use client_credentials::{ClientCredentialsError, ClientTokenOptions, generat
 pub use drive_sync::{DriveSyncError, DriveSyncTokenService};
 pub use error::{IssuanceError, IssuanceResult};
 pub use extension::IdentityExtension;
-pub use identity::{IDENTITY_PLANE, IdentityPlane};
+pub use identity::{IDENTITY_PLANE, IdentityClientSecrets, IdentityPlane};
 pub use orchestrator::TokenIssuanceOrchestrator;
 pub use request::{RequestOrigin, TokenRequest, TokenResponse};
 pub use token_exchange::{

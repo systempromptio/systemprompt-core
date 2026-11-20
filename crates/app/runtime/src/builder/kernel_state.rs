@@ -20,12 +20,16 @@
 //! the bind half outside the state and binds it once the store is built.
 //!
 //! The runtime `Config`, the secret store, the system admin, the active
-//! services root and the event router are sealed: a provide fn, a factory, a
-//! slot build, a kernel command and a route set read them, and the resolver
-//! a member's command runs against refuses them as missing. `Config` and the
-//! secret store carry credentials; the system admin and the services root are
-//! boot-only identity and layout; the event router publishes to and
-//! subscribes on every user's stream. Every other seed is open.
+//! services root and the event router are sealed, and so are the JWT signing
+//! keys the API seeds: a provide fn, a factory, a slot build, a kernel command
+//! and a route set read them, and every context handed to member runtime code
+//! (a job, a runner service, a config plane, a member command) is built
+//! without them. `Config`, the secret store and the signing keys carry
+//! credentials; the system admin and the services root are boot-only identity
+//! and layout; the event router publishes to and subscribes on every user's
+//! stream. Every other seed is open. A member whose runtime code needs a
+//! capability derived from a sealed seed builds a narrow handle in its provide
+//! fn or factory.
 //!
 //! The process's one `AiService` (present only when inference is configured)
 //! is composed from several domains, so the composition root seeds it; an
@@ -74,6 +78,7 @@ use systemprompt_models::{ContentConfigRaw, LateBound};
 use systemprompt_notifications::service::EscalationDelivery;
 use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_provider_contracts::Dependencies;
+use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{
     BackgroundTasks, DynAdvisoryLocks, DynInstanceRegistry, DynLeaseRepository, FileStorage,
     MessagingDispatcher, SecretStore,
@@ -109,6 +114,7 @@ pub struct KernelSeed<'a> {
 /// The handles only the API seeds on top of [`KernelSeed`].
 pub struct ApiKernelSeed<'a> {
     pub base: KernelSeed<'a>,
+    pub signing_keys: &'a SigningKeys,
     pub oauth: &'a Arc<OAuthRepositories>,
     pub ai: &'a Arc<AiRepositories>,
     pub ai_service: Option<&'a Arc<AiService>>,
@@ -182,6 +188,7 @@ pub fn base_kernel_state(seed: KernelSeed<'_>) -> Dependencies {
 
 pub fn kernel_state(seed: ApiKernelSeed<'_>) -> Dependencies {
     let mut state = base_kernel_state(seed.base)
+        .with_sealed(seed.signing_keys.clone())
         .with(Arc::clone(seed.oauth))
         .with(Arc::clone(seed.ai))
         .with(LateBound::<dyn MessagingDispatcher>::default());

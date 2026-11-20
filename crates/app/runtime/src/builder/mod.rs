@@ -1,20 +1,18 @@
 //! Builder that assembles an [`AppContext`] from profile + config state over
 //! the admitted composition.
 //!
-//! The builder owns the bootstrap order: profile -> paths -> files ->
-//! database -> logging -> schema install over the admitted members ->
-//! kernel seeds -> [`Kernel::resolve`] -> the stages that read the resolved
-//! state (authz, governance, repositories, documents) -> the context. The
-//! kernel is seeded with plain handles ([`kernel_state`]) before it resolves,
-//! so every member's provide fn, slot and governance surface reads the
-//! database, config, event router and the other kernel seeds; the authz hook,
-//! publication policy, policy engine and document store are built from what
-//! it resolved. The host seeds the read half of the document store cell
-//! (`DocumentsHandlesSlot`) and binds it, through the binder it kept out of
-//! the state, once the store exists, so the document seams other
-//! members' slots appended read it from then on. A failing step propagates
-//! as [`RuntimeError`](crate::error::RuntimeError); helpers live in
-//! [`assembly`].
+//! The builder owns the bootstrap order: profile -> paths -> files -> database
+//! -> logging -> schema install over the admitted members -> kernel seeds ->
+//! [`Kernel::resolve`] -> the stages that read the resolved state (authz,
+//! governance, repositories, documents) -> the context. The kernel is seeded
+//! with plain handles ([`kernel_state`]) before it resolves, so every member's
+//! provide fn, slot and governance surface reads the kernel seeds; the authz
+//! hook, publication policy, policy engine and document store are built from
+//! what it resolved. The host seeds the read half of the document store cell
+//! (`DocumentsHandlesSlot`) and binds it, through the binder it kept out of the
+//! state, once the store exists, so other members' document seams read it from
+//! then on. A failing step propagates as
+//! [`RuntimeError`](crate::error::RuntimeError); helpers are in [`assembly`].
 //!
 //! [`Kernel::resolve`]: crate::Kernel::resolve
 //!
@@ -178,6 +176,7 @@ impl AppContextBuilder {
                 #[cfg(feature = "notifications")]
                 escalation: systemprompt_notifications::service::EscalationDelivery::InProcess,
             },
+            signing_keys: &signing_keys,
             oauth: &seeded.oauth,
             ai: &seeded.ai,
             ai_service: ai_service.as_ref(),

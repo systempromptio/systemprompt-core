@@ -110,7 +110,7 @@ pub use admitted_purge::{
     AdmittedPurge, OwnedPurge, PurgeAdmissionError, PurgeClaim, created_table_names,
     purge_declarations,
 };
-pub use admitted_schedule::AdmittedSchedule;
+pub use admitted_schedule::{AdmittedSchedule, DuplicateJobOwner};
 pub use asset::{AssetDefinition, AssetDefinitionBuilder, AssetPaths, AssetType};
 pub use authz::{AuthzPolicy, HandlerVerifier};
 pub use brain::{

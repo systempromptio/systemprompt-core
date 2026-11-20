@@ -5,7 +5,10 @@
 //! supervises them all itself; a worker supervises the processes whose
 //! per-process leases it holds ([`super::lifecycle::process_ownership`]); a
 //! runner node starts each extension's [`systemprompt_traits::RunnerService`]
-//! under a supervisor that restarts it with backoff when it stops.
+//! under a supervisor that restarts it with backoff when it stops. A runner
+//! service's context is the kernel's runtime state: no signing key, secret,
+//! profile or runtime `Config`; what a service needs from a sealed seed its
+//! factory builds while it reads the full resolver.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -174,11 +177,7 @@ async fn serve_until_shutdown(
 }
 
 fn start_runner_services(ctx: &AppContext, brain: Option<Arc<dyn RunnerService>>) -> Result<()> {
-    let shared = ctx
-        .kernel()
-        .state()
-        .clone()
-        .with(ctx.signing_keys().clone());
+    let shared = ctx.kernel().runtime_state();
     let mut started = 0usize;
     if let Some(consumer) = brain {
         spawn_runner_service(ctx, &shared, consumer);

@@ -4,12 +4,18 @@
 //!
 //! The kernel builds one [`AdmittedSchedule`] from the admitted composition
 //! and seeds it into state; the scheduler, its jobs and the `infra jobs`
-//! commands read it. A disabled member is never admitted, so its jobs are
+//! commands read it. A job name has exactly one owner: two admitted members
+//! contributing the same name refuse the build with [`DuplicateJobOwner`]
+//! naming both, before any schedule row is written. Each job keeps the
+//! standing the facade stamped on its owner ([`AdmittedSchedule::owner_of`]),
+//! so a privilege bound to a job is decided by its admitted owner, never by
+//! its name. A disabled member is never admitted, so its jobs are
 //! unknown names here and its retention work and scopes never run.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::HashMap;
 use std::fmt;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -19,7 +25,38 @@ use systemprompt_provider_contracts::{Job, JobResult, ProviderResult};
 use systemprompt_traits::{JobRunScope, RetentionPurge, RetentionSweep};
 
 use crate::admitted::BuiltState;
+use crate::contribute::StandingTag;
 use crate::retention::{RetentionDecl, RetentionHold, RetentionHolds};
+
+/// Two admitted members contributed a job of the same name.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error(
+    "job '{job}' is contributed by both '{first}' and '{second}'; every job name has exactly one \
+     owner"
+)]
+pub struct DuplicateJobOwner {
+    pub job: &'static str,
+    pub first: ExtensionId,
+    pub second: ExtensionId,
+}
+
+impl DuplicateJobOwner {
+    pub fn refuse<'a>(
+        jobs: impl IntoIterator<Item = (&'a ExtensionId, &'static str)>,
+    ) -> Result<(), Self> {
+        let mut owners: HashMap<&'static str, &ExtensionId> = HashMap::new();
+        for (owner, job) in jobs {
+            if let Some(first) = owners.insert(job, owner) {
+                return Err(Self {
+                    job,
+                    first: first.clone(),
+                    second: owner.clone(),
+                });
+            }
+        }
+        Ok(())
+    }
+}
 
 type JobRun<'a> = Pin<Box<dyn Future<Output = ProviderResult<JobResult>> + Send + 'a>>;
 
@@ -28,6 +65,7 @@ type JobRun<'a> = Pin<Box<dyn Future<Output = ProviderResult<JobResult>> + Send 
 #[derive(Clone, Default)]
 pub struct AdmittedSchedule {
     jobs: Vec<(ExtensionId, Arc<dyn Job>)>,
+    owners: HashMap<&'static str, (ExtensionId, StandingTag)>,
     purges: Vec<(ExtensionId, Arc<dyn RetentionPurge>)>,
     sweeps: Vec<(ExtensionId, Arc<dyn RetentionSweep>)>,
     holds: Vec<(ExtensionId, Arc<dyn RetentionHold>)>,
@@ -71,18 +109,18 @@ impl fmt::Debug for AdmittedSchedule {
 }
 
 impl AdmittedSchedule {
-    #[must_use]
-    pub fn of(built: &BuiltState) -> Self {
+    pub fn of(built: &BuiltState) -> Result<Self, DuplicateJobOwner> {
+        DuplicateJobOwner::refuse(built.jobs().map(|(owner, job)| (owner, job.job().name())))?;
         let mut schedule = Self::default();
         for member in built.members() {
             let owner = &member.owner;
-            schedule.jobs.extend(
-                member
-                    .sink
-                    .jobs()
-                    .iter()
-                    .map(|job| (owner.clone(), Arc::clone(job.job()))),
-            );
+            for contributed in member.sink.jobs() {
+                let job = contributed.job();
+                schedule
+                    .owners
+                    .insert(job.name(), (owner.clone(), member.standing));
+                schedule.jobs.push((owner.clone(), Arc::clone(job)));
+            }
             for decl in member.sink.retention() {
                 match decl {
                     RetentionDecl::Purge(purge) => {
@@ -104,7 +142,14 @@ impl AdmittedSchedule {
                     .map(|scope| (owner.clone(), Arc::clone(scope))),
             );
         }
-        schedule
+        Ok(schedule)
+    }
+
+    #[must_use]
+    pub fn owner_of(&self, name: &str) -> Option<(&ExtensionId, StandingTag)> {
+        self.owners
+            .get(name)
+            .map(|(owner, standing)| (owner, *standing))
     }
 
     #[must_use]

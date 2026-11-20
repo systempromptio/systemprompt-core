@@ -29,6 +29,10 @@
 //! admitted members' entries are present, so nothing a disabled member
 //! contributed runs.
 //!
+//! [`Kernel::runtime_state`] is the one base every context handed to member
+//! runtime code is built from — a job, a runner service and a config plane:
+//! the resolved state with every sealed seed withheld.
+//!
 //! [`Kernel::detached`] holds a seeded state without a database and without
 //! resolving any member: a CLI command whose descriptor needs no database
 //! reads the profile-level seeds through it.
@@ -42,99 +46,22 @@ use std::sync::Arc;
 
 use systemprompt_agent_runs::origin::AdmittedRunOrigins;
 use systemprompt_extension::contribute::{SlotBuildInput, build_slot};
-use systemprompt_extension::prelude::RuleType;
 use systemprompt_extension::{
     Admitted, AdmittedAssets, AdmittedConfigs, AdmittedMigrations, AdmittedProjections,
-    AdmittedPurge, AdmittedSchedule, AudienceResolvers, BuiltState, FactoryError, HandleId,
-    KernelHandle, ProvideError, Resolved, SlotError,
+    AdmittedPurge, AdmittedSchedule, AudienceResolvers, BuiltState, HandleId, KernelHandle,
+    Resolved,
 };
-use systemprompt_governance::authz::{SubjectProviderError, SubjectProviderSet};
-use systemprompt_governance::policy::{PolicyCatalog, PolicyCatalogError};
-use systemprompt_identifiers::ExtensionId;
-use systemprompt_provider_contracts::{Dependencies, DuplicateDependency};
+use systemprompt_governance::authz::SubjectProviderSet;
+use systemprompt_governance::policy::PolicyCatalog;
+use systemprompt_provider_contracts::Dependencies;
 use systemprompt_traits::{BackgroundTasks, DatabaseHandle};
 
 use self::reserved::{gateway_guards, refuse_kernel_types};
 
+mod error;
 mod reserved;
 
-#[derive(Debug, thiserror::Error)]
-pub enum KernelError {
-    #[error("{owner} failed to provide {ty}")]
-    Provide {
-        owner: ExtensionId,
-        ty: &'static str,
-        #[source]
-        source: ProvideError,
-    },
-    #[error("state value provided twice")]
-    Duplicate(#[from] DuplicateDependency),
-    #[error("{owner} requires {ty}, which no enabled member or the kernel provides")]
-    Missing {
-        owner: ExtensionId,
-        ty: &'static str,
-    },
-    #[error("{owner} provides {ty}, which only the kernel inserts")]
-    ReservedType {
-        owner: ExtensionId,
-        ty: &'static str,
-    },
-    #[error(
-        "the admitted composition was already resolved; the slot entries of {owner} were consumed"
-    )]
-    AlreadyResolved { owner: ExtensionId },
-    #[error("slot build failed")]
-    Slot(#[from] SlotError),
-    #[error("user purge declarations refused")]
-    Purge(#[from] systemprompt_extension::PurgeAdmissionError),
-    #[error("{owner} declares reserved subject dimension {dimension}")]
-    ReservedDimension {
-        owner: ExtensionId,
-        dimension: RuleType,
-    },
-    #[error("subject dimension {dimension} declared by {second}, already owned by {first}")]
-    DimensionConflict {
-        dimension: RuleType,
-        first: ExtensionId,
-        second: ExtensionId,
-    },
-    #[error("subject provider factory of {owner} failed")]
-    SubjectProvider {
-        owner: ExtensionId,
-        #[source]
-        source: FactoryError,
-    },
-    #[error("policy catalog build failed")]
-    Policies(#[from] PolicyCatalogError),
-    #[error("gateway guard factory of {owner} failed")]
-    GatewayGuard {
-        owner: ExtensionId,
-        #[source]
-        source: FactoryError,
-    },
-}
-
-impl From<SubjectProviderError> for KernelError {
-    fn from(error: SubjectProviderError) -> Self {
-        match error {
-            SubjectProviderError::Factory { owner, source } => {
-                Self::SubjectProvider { owner, source }
-            },
-            SubjectProviderError::ReservedDimension { owner, dimension } => {
-                Self::ReservedDimension { owner, dimension }
-            },
-            SubjectProviderError::DimensionConflict {
-                dimension,
-                first,
-                second,
-            } => Self::DimensionConflict {
-                dimension,
-                first,
-                second,
-            },
-        }
-    }
-}
+pub use error::KernelError;
 
 pub struct Kernel {
     pub(crate) database: Arc<dyn DatabaseHandle>,
@@ -182,7 +109,7 @@ impl Kernel {
         self.state.insert(AdmittedProjections::of(admitted.built()));
         self.state.insert(AdmittedRunOrigins::of(admitted.built()));
         self.state.insert(AdmittedPurge::of(admitted.built())?);
-        self.state.insert(AdmittedSchedule::of(admitted.built()));
+        self.state.insert(AdmittedSchedule::of(admitted.built())?);
         self.state.insert(AdmittedMigrations::of(admitted.built()));
         self.state.insert(AdmittedConfigs::of(admitted.built()));
         self.state.insert(AdmittedAssets::of(admitted.built()));
@@ -208,6 +135,11 @@ impl Kernel {
     #[must_use]
     pub const fn state(&self) -> &Dependencies {
         &self.state
+    }
+
+    #[must_use]
+    pub fn runtime_state(&self) -> Dependencies {
+        self.state.withholding_sealed()
     }
 
     fn provide_all(&mut self, admitted: &Admitted) -> Result<(), KernelError> {

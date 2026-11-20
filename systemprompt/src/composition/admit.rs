@@ -1,5 +1,6 @@
-//! The admission checks: removals, secrets kinds, member dependencies,
-//! disabled members, providers, CLI commands, route sets and gateway routes.
+//! The admission checks: removals, secrets kinds, member dependencies, job
+//! names (one owner per name), disabled members, providers, CLI commands,
+//! route sets and gateway routes.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -8,6 +9,7 @@ use std::any::TypeId;
 
 #[cfg(feature = "cli")]
 use systemprompt_extension::admitted::AdmittedCommand;
+use systemprompt_extension::DuplicateJobOwner;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::DisabledExtension;
 
@@ -90,6 +92,17 @@ pub(super) fn check_member_dependencies(
             }
         }
     }
+    Ok(())
+}
+
+pub(super) fn check_job_names(members: &[DeclaredMember]) -> Result<(), CompositionError> {
+    DuplicateJobOwner::refuse(members.iter().flat_map(|member| {
+        member
+            .sink
+            .jobs()
+            .iter()
+            .map(move |job| (&member.id, job.job().name()))
+    }))?;
     Ok(())
 }
 

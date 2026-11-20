@@ -128,6 +128,8 @@ pub enum CompositionError {
         leaf: &'static str,
         parent: &'static [&'static str],
     },
+    #[error("job name contributed twice")]
+    DuplicateJob(#[from] systemprompt_extension::DuplicateJobOwner),
     #[error("command path {path:?} declared twice")]
     CommandConflict { path: Vec<&'static str> },
     #[error("route {method} {path} declared twice")]
@@ -186,6 +188,7 @@ impl From<systemprompt_runtime::KernelError> for CompositionError {
                 first,
                 second,
             },
+            KernelError::DuplicateJob(duplicate) => Self::DuplicateJob(duplicate),
             other => Self::Kernel(other),
         }
     }

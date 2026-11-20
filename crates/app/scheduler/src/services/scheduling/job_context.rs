@@ -1,17 +1,22 @@
-//! The [`JobContext`] every dispatched job receives: the resolved kernel
-//! state (the kernel's open seeds, every admitted member's provided values
-//! and built slots, the [`AdmittedSchedule`] the retention job reads its
-//! purges, sweeps and holds from, and the [`AdmittedProjections`] the
-//! drainers read) extended with only the per-run handles: the budgeted
-//! database, the inventory refresh memo and the signing keys.
-//! [`JobContext::new`] withholds every sealed seed.
+//! The [`JobContext`] every dispatched job receives: the kernel's runtime
+//! state ([`systemprompt_runtime::Kernel::runtime_state`]: the open seeds,
+//! every admitted member's provided values and built slots, the
+//! [`AdmittedSchedule`] the retention job reads its purges, sweeps and holds
+//! from, and the [`AdmittedProjections`] the drainers read, every sealed seed
+//! withheld) extended with only the per-run handles: the budgeted database and
+//! the inventory refresh memo. No signing key, secret, profile or runtime
+//! `Config` is in it.
 //!
 //! A job the scheduler member itself contributes is kernel work and also
 //! receives [`KernelJobHandles`]. The type is private to this crate, so no
 //! member's job can name it, and it is inserted only when the dispatched
-//! job's admitted owner is the scheduler member: a member's job context never
-//! carries it, and nothing in a member's job context yields the application
-//! context, the runtime `Config`, the secret store or the profile.
+//! job's admitted owner is the scheduler member with the core standing the
+//! facade stamped: an install cannot take the scheduler's id or core standing,
+//! and a job name has one owner, so a member's job context never carries it.
+//!
+//! [`deployment_dependencies`] is the map [`systemprompt_traits::Job::configured`]
+//! reads: the [`JobDeployment`] facts the scheduler's own jobs need, derived
+//! from the profile here, and nothing else.
 //!
 //! [`AdmittedSchedule`]: systemprompt_extension::AdmittedSchedule
 //! [`AdmittedProjections`]: systemprompt_extension::AdmittedProjections
@@ -22,7 +27,7 @@
 use std::sync::Arc;
 
 use systemprompt_database::BudgetedDb;
-use systemprompt_extension::AdmittedSchedule;
+use systemprompt_extension::{AdmittedSchedule, StandingTag};
 use systemprompt_identifiers::{Actor, JobName};
 use systemprompt_loader::BootContext;
 use systemprompt_runtime::AppContext;
@@ -42,6 +47,12 @@ impl KernelJobHandles {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct JobDeployment {
+    pub(crate) licence_checkin: bool,
+    pub(crate) otlp_export: bool,
+}
+
 pub(crate) struct JobRun<'a> {
     pub(crate) actor: Actor,
     pub(crate) job_name: &'a JobName,
@@ -54,9 +65,8 @@ pub(crate) fn make_job_context(
     schedule: &AdmittedSchedule,
     inventory_memo: &Arc<InventoryRefreshMemo>,
 ) -> JobContext {
-    let mut dependencies = brain_dependencies(app_context, app_context.kernel().state().clone())
+    let mut dependencies = brain_dependencies(app_context, app_context.kernel().runtime_state())
         .with(Arc::clone(inventory_memo))
-        .with(app_context.signing_keys().clone())
         .with(BudgetedDb::new(
             Arc::clone(app_context.db_pool()),
             run.budget,
@@ -71,8 +81,10 @@ pub(crate) fn make_job_context(
 
 fn is_kernel_job(schedule: &AdmittedSchedule, job_name: &JobName) -> bool {
     schedule
-        .job(job_name.as_str())
-        .is_some_and(|(owner, _)| owner.as_str() == SCHEDULER_MEMBER_ID)
+        .owner_of(job_name.as_str())
+        .is_some_and(|(owner, standing)| {
+            standing == StandingTag::Core && owner.as_str() == SCHEDULER_MEMBER_ID
+        })
 }
 
 #[cfg(feature = "brain")]
@@ -90,7 +102,11 @@ const fn brain_dependencies(_: &AppContext, dependencies: Dependencies) -> Depen
 }
 
 pub(crate) fn deployment_dependencies(boot: &BootContext) -> Dependencies {
-    Dependencies::new().with(Arc::clone(boot.loaded_profile()))
+    let profile = boot.loaded_profile();
+    Dependencies::new().with(JobDeployment {
+        licence_checkin: profile.licence.enabled(),
+        otlp_export: profile.observability.otlp().is_some(),
+    })
 }
 
 pub(crate) fn kernel_handles(ctx: &JobContext) -> SchedulerResult<&KernelJobHandles> {

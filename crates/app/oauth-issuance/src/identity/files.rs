@@ -1,6 +1,6 @@
 //! Reading the `services/identity/` declaration files into entities, and
 //! rendering a snapshot back into one document, and hashing a declared
-//! client's secret from the secrets document.
+//! client's secret read through [`IdentityClientSecrets`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,13 +12,12 @@ use systemprompt_extension::prelude::{
     PlaneSnapshot,
 };
 use systemprompt_identifiers::ClientId;
-use systemprompt_manifest::secrets::Secrets;
 use systemprompt_oauth::services::hash_client_secret;
 
 use super::declaration::{
     CLIENT_PREFIX, ClientValue, IdentityDocument, USER_PREFIX, UserValue, client_key, user_key,
 };
-use super::{IDENTITY_DIR, IDENTITY_PLANE};
+use super::{IDENTITY_DIR, IDENTITY_PLANE, IdentityClientSecrets};
 
 pub(super) fn invalid(path: &str, error: &dyn std::fmt::Display) -> ConfigPlaneError {
     ConfigPlaneError::Invalid {
@@ -36,14 +35,14 @@ pub(super) fn backend(error: impl std::error::Error + Send + Sync + 'static) -> 
 }
 
 pub(super) fn declared_secret_hash(
-    secrets: Option<&Secrets>,
+    secrets: Option<&IdentityClientSecrets>,
     client_id: &ClientId,
     key: Option<&str>,
 ) -> ConfigPlaneResult<Option<String>> {
     let Some(key) = key else {
         return Ok(None);
     };
-    let secret = secrets.and_then(|s| s.get(key)).ok_or_else(|| {
+    let secret = secrets.and_then(|s| s.client_secret(key)).ok_or_else(|| {
         invalid(
             IDENTITY_DIR,
             &format_args!(
@@ -51,7 +50,7 @@ pub(super) fn declared_secret_hash(
             ),
         )
     })?;
-    Ok(Some(hash_client_secret(secret).map_err(backend)?))
+    Ok(Some(hash_client_secret(secret.expose()).map_err(backend)?))
 }
 
 pub(super) fn unreadable(path: &str, error: std::io::Error) -> ConfigPlaneError {
