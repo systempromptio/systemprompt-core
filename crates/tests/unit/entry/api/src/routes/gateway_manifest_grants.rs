@@ -278,7 +278,7 @@ async fn grant_row(
 async fn manifest_fetch_grants_every_published_skill_it_delivers() {
     let harness = harness(Arc::new(AllowAllFilter)).await;
     let owner = harness.ctx.system_admin().id().clone();
-    let repository = harness.ctx.managed_repository();
+    let repository = systemprompt_test_fixtures::fixture_managed_repository(&harness.ctx);
     let (key, resource) = publish_organisation_skill(repository, &owner).await;
     let consumer = seed_bridge_credential(&harness.pool, "manifest-grants@example.invalid")
         .await
@@ -321,7 +321,7 @@ async fn manifest_fetch_grants_every_published_skill_it_delivers() {
 async fn manifest_fetch_records_no_grant_for_a_skill_the_filter_dropped() {
     let harness = harness(Arc::new(DropSkillsFilter)).await;
     let owner = harness.ctx.system_admin().id().clone();
-    let repository = harness.ctx.managed_repository();
+    let repository = systemprompt_test_fixtures::fixture_managed_repository(&harness.ctx);
     let (key, resource) = publish_organisation_skill(repository, &owner).await;
     let consumer = seed_bridge_credential(&harness.pool, "manifest-filtered@example.invalid")
         .await
@@ -355,9 +355,7 @@ async fn consumer_token(
         .execute(writer.as_ref())
         .await
         .expect("device");
-    let credential = harness
-        .ctx
-        .managed_repository()
+    let credential = systemprompt_test_fixtures::fixture_managed_repository(&harness.ctx)
         .issue_consumer_credential(&cert)
         .await
         .expect("device credential")
@@ -390,7 +388,11 @@ async fn consumer_bundle_status(
 async fn consumer_bundle_rejects_missing_and_malformed_credentials_before_granting() {
     let harness = harness(Arc::new(AllowAllFilter)).await;
     let owner = harness.ctx.system_admin().id().clone();
-    let (_, resource) = publish_organisation_skill(harness.ctx.managed_repository(), &owner).await;
+    let (_, resource) = publish_organisation_skill(
+        systemprompt_test_fixtures::fixture_managed_repository(&harness.ctx),
+        &owner,
+    )
+    .await;
     let publication: String = sqlx::query_scalar(
         "SELECT id FROM managed_publications WHERE owner_id=$1 AND resource_id=$2 ORDER BY created_at DESC LIMIT 1",
     )
@@ -423,16 +425,18 @@ async fn consumer_bundle_rejects_missing_and_malformed_credentials_before_granti
 async fn revoked_consumer_credential_cannot_retain_a_catalog_grant() {
     let harness = harness(Arc::new(AllowAllFilter)).await;
     let owner = harness.ctx.system_admin().id().clone();
-    let (_, resource) = publish_organisation_skill(harness.ctx.managed_repository(), &owner).await;
+    let (_, resource) = publish_organisation_skill(
+        systemprompt_test_fixtures::fixture_managed_repository(&harness.ctx),
+        &owner,
+    )
+    .await;
     let consumer = seed_bridge_credential(&harness.pool, "revoked-consumer@example.invalid")
         .await
         .unwrap();
     let (cert, token) = consumer_token(&harness, &consumer.user_id, "revoked consumer").await;
     let publication: String = sqlx::query_scalar("SELECT id FROM managed_publications WHERE owner_id=$1 AND resource_id=$2 ORDER BY created_at DESC LIMIT 1")
         .bind(owner.as_str()).bind(resource.as_str()).fetch_one(harness.pool.pool().as_ref()).await.unwrap();
-    harness
-        .ctx
-        .managed_repository()
+    systemprompt_test_fixtures::fixture_managed_repository(&harness.ctx)
         .revoke_consumer_credential(&cert)
         .await
         .unwrap();
@@ -489,7 +493,11 @@ async fn unknown_resource_id_cannot_be_used_to_mint_a_catalog_grant() {
 async fn filtered_resource_cannot_be_recovered_by_guessing_its_bundle_url() {
     let harness = harness(Arc::new(DropSkillsFilter)).await;
     let owner = harness.ctx.system_admin().id().clone();
-    let (_, resource) = publish_organisation_skill(harness.ctx.managed_repository(), &owner).await;
+    let (_, resource) = publish_organisation_skill(
+        systemprompt_test_fixtures::fixture_managed_repository(&harness.ctx),
+        &owner,
+    )
+    .await;
     let consumer = seed_bridge_credential(&harness.pool, "filtered-bundle@example.invalid")
         .await
         .unwrap();
@@ -518,7 +526,7 @@ async fn filtered_resource_cannot_be_recovered_by_guessing_its_bundle_url() {
 async fn consumer_bundle_enforces_host_scope_without_changing_the_catalog_grant() {
     let harness = harness(Arc::new(AllowAllFilter)).await;
     let owner = harness.ctx.system_admin().id().clone();
-    let repository = harness.ctx.managed_repository();
+    let repository = systemprompt_test_fixtures::fixture_managed_repository(&harness.ctx);
     let (key, resource) =
         publish_organisation_skill_with_hosts(repository, &owner, &["claude-code"]).await;
     let consumer = seed_bridge_credential(&harness.pool, "host-scoped-bundle@example.invalid")
@@ -601,7 +609,7 @@ async fn consumer_bundle_enforces_host_scope_without_changing_the_catalog_grant(
 async fn consumer_http_flow_binds_receipts_and_refuses_another_device() {
     let (database, harness) = private_harness("consumer_http_flow").await;
     let owner = harness.ctx.system_admin().id().clone();
-    let repository = harness.ctx.managed_repository();
+    let repository = systemprompt_test_fixtures::fixture_managed_repository(&harness.ctx);
     let (_, resource) = publish_organisation_skill(repository, &owner).await;
     let consumer = seed_bridge_credential(&harness.pool, "consumer-http@example.invalid")
         .await
@@ -824,7 +832,11 @@ async fn private_harness(label: &str) -> (systemprompt_test_fixtures::Disposable
 async fn private_consumer(label: &str) -> PrivateConsumer {
     let (database, harness) = private_harness(label).await;
     let owner = harness.ctx.system_admin().id().clone();
-    let (_, resource) = publish_organisation_skill(harness.ctx.managed_repository(), &owner).await;
+    let (_, resource) = publish_organisation_skill(
+        systemprompt_test_fixtures::fixture_managed_repository(&harness.ctx),
+        &owner,
+    )
+    .await;
     let consumer = seed_bridge_credential(&harness.pool, &format!("{label}@example.invalid"))
         .await
         .unwrap();
@@ -841,9 +853,7 @@ async fn private_consumer(label: &str) -> PrivateConsumer {
         .unwrap()
         .clone();
     let (_, token) = consumer_token(&harness, &consumer.user_id, label).await;
-    let plan = harness
-        .ctx
-        .managed_repository()
+    let plan = systemprompt_test_fixtures::fixture_managed_repository(&harness.ctx)
         .consumer_installation_plan(
             &token,
             &resource,

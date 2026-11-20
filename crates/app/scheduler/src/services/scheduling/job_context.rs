@@ -14,9 +14,10 @@
 //! facade stamped: an install cannot take the scheduler's id or core standing,
 //! and a job name has one owner, so a member's job context never carries it.
 //!
-//! [`deployment_dependencies`] is the map [`systemprompt_traits::Job::configured`]
-//! reads: the [`JobDeployment`] facts the scheduler's own jobs need, derived
-//! from the profile here, and nothing else.
+//! [`deployment_dependencies`] is the map
+//! [`systemprompt_traits::Job::configured`] reads: the [`JobDeployment`] facts
+//! the scheduler's own jobs need, derived from the profile here, and nothing
+//! else.
 //!
 //! [`AdmittedSchedule`]: systemprompt_extension::AdmittedSchedule
 //! [`AdmittedProjections`]: systemprompt_extension::AdmittedProjections

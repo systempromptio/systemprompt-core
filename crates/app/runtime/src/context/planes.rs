@@ -20,9 +20,6 @@ use systemprompt_loader::BootContext;
 use systemprompt_logging::LoggingRuntime;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::SystemAdmin;
-use systemprompt_marketplace::inventory::PublishGuard;
-use systemprompt_marketplace::managed::ManagedRepository;
-use systemprompt_marketplace::{MarketplaceCache, MarketplaceFilter};
 use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::{ContentConfigRaw, RouteClassifier};
@@ -60,7 +57,6 @@ pub struct DataPlane {
     pub coordination: Arc<CoordinationRepositories>,
     pub ai_repositories: Arc<AiRepositories>,
     pub mcp_session_repository: Arc<McpSessionRepository>,
-    pub managed_repository: Arc<ManagedRepository>,
 }
 
 #[derive(Clone)]
@@ -77,8 +73,6 @@ pub struct ConfigPlane {
 #[derive(Clone)]
 pub struct Plugins {
     pub mcp_registry: RegistryService,
-    pub marketplace_filter: Arc<dyn MarketplaceFilter>,
-    pub marketplace_cache: Arc<MarketplaceCache>,
     pub subject_providers: systemprompt_governance::authz::SubjectProviderSet,
     pub subjects: systemprompt_models::authz::SubjectSourceHandle,
 }
@@ -102,7 +96,6 @@ pub struct Subsystems {
     pub shutdown: ShutdownRequest,
     pub background_tasks: BackgroundTasks,
     pub spawner: Arc<systemprompt_loader::subprocess::Spawner>,
-    pub publish_guard: Arc<tokio::sync::Mutex<PublishGuard>>,
     pub connector_tokens: Arc<TokenCache>,
     pub documents: Arc<crate::documents::DocumentsRuntime>,
 }

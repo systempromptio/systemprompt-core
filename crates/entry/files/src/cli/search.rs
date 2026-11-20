@@ -25,10 +25,7 @@ pub(super) async fn execute(args: SearchArgs, host: &dyn CommandHost) -> Result<
     execute_with_pool(args, &pool_from_handle(host.db().await?)?).await
 }
 
-pub(super) async fn execute_with_pool(
-    args: SearchArgs,
-    pool: &DbPool,
-) -> Result<CommandOutput> {
+pub(super) async fn execute_with_pool(args: SearchArgs, pool: &DbPool) -> Result<CommandOutput> {
     if args.query.trim().is_empty() {
         return Err(anyhow!("Search query cannot be empty"));
     }

@@ -25,7 +25,7 @@ This crate:
 | Module | Purpose |
 |--------|---------|
 | `context` | `AppContext` and its planes (`DataPlane`, `ConfigPlane`, `Plugins`, `Subsystems`), plus the GeoIP and content-config loaders |
-| `builder` | `AppContextBuilder::new(boot, admitted)` construction (`with_marketplace_filter`, `with_authz_hook`, `with_services`, …), plane assembly and kernel state seeding (`KernelSeed`, `kernel_state`) |
+| `builder` | `AppContextBuilder::new(boot, admitted)` construction (`with_authz_hook`, `with_services`, …), plane assembly and kernel state seeding (`KernelSeed`, `kernel_state`) |
 | `kernel`, `host_kernel` | `Kernel` resolution of the admitted members' provided state and slots (`KernelError`), and `HostKernel`, the host boot path |
 | `startup_validation` | `StartupValidator` across files, rate limits, web/content config, agents, MCP servers, AI providers, and extensions |
 | `database_context` | `DatabaseContext`, a database-only context for CLI tools that do not need the full runtime |

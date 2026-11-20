@@ -20,8 +20,6 @@ use systemprompt_extension::Admitted;
 use systemprompt_governance::authz::SharedAuthzHook;
 use systemprompt_loader::BootContext;
 use systemprompt_manifest::Config;
-use systemprompt_marketplace::inventory::PublishGuard;
-use systemprompt_marketplace::{MarketplaceCache, MarketplaceFilter};
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::ContentConfigRaw;
 use systemprompt_security::keys::SigningKeys;
@@ -167,27 +165,12 @@ impl AppContext {
         &self.cfg.app_paths
     }
 
-    pub fn marketplace_filter(&self) -> &Arc<dyn MarketplaceFilter> {
-        &self.plugins.marketplace_filter
-    }
-
-    pub const fn marketplace_cache(&self) -> &Arc<MarketplaceCache> {
-        &self.plugins.marketplace_cache
-    }
-
     pub const fn event_bridge(&self) -> &Arc<EventBridgeHandle> {
         &self.subsystems.event_bridge
     }
 
     pub const fn event_router(&self) -> &EventRouter {
         &self.subsystems.event_router
-    }
-
-    // Why: the guard memoises per-entry tree digests across passes; the
-    // scheduled job and the manual route share it so neither re-captures a
-    // tree the other already published.
-    pub const fn publish_guard(&self) -> &Arc<tokio::sync::Mutex<PublishGuard>> {
-        &self.subsystems.publish_guard
     }
 
     pub const fn mcp_registry(&self) -> &RegistryService {

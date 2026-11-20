@@ -86,12 +86,10 @@ async fn ai_list_filters_by_user() {
     let my_id = seed_file(&pool, true, &mine).await;
     let other_id = seed_file(&pool, true, &other).await;
 
-    let out = ai::list::execute_with_repository(
-        list_args(500, Some(mine)),
-        &FileRepository::new(&pool),
-    )
-    .await
-    .unwrap();
+    let out =
+        ai::list::execute_with_repository(list_args(500, Some(mine)), &FileRepository::new(&pool))
+            .await
+            .unwrap();
 
     assert!(contains_id(&out, &my_id));
     assert!(!contains_id(&out, &other_id));

@@ -7,9 +7,9 @@
 
 use std::any::TypeId;
 
+use systemprompt_extension::DuplicateJobOwner;
 #[cfg(feature = "cli")]
 use systemprompt_extension::admitted::AdmittedCommand;
-use systemprompt_extension::DuplicateJobOwner;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::DisabledExtension;
 

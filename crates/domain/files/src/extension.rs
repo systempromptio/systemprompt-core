@@ -81,13 +81,14 @@ impl Extension for FilesExtension {
 
 fn contribute_files(c: &mut Contributions<'_>) {
     c.schema(
-        SchemaDefinition::new("files", include_str!("../schema/files.sql"))
-            .with_required_columns(vec![
+        SchemaDefinition::new("files", include_str!("../schema/files.sql")).with_required_columns(
+            vec![
                 "id".into(),
                 "path".into(),
                 "mime_type".into(),
                 "created_at".into(),
-            ]),
+            ],
+        ),
     )
     .schema(
         SchemaDefinition::new("content_files", include_str!("../schema/content_files.sql"))
@@ -99,9 +100,11 @@ fn contribute_files(c: &mut Contributions<'_>) {
         predicate: None,
     })
     .job(FileIngestionJob)
-    .provide(|r: &Resolved<'_>| -> Result<Arc<FileRepository>, ProvideError> {
-        Ok(Arc::new(FileRepository::new(&r.get::<DbPool>()?)))
-    });
+    .provide(
+        |r: &Resolved<'_>| -> Result<Arc<FileRepository>, ProvideError> {
+            Ok(Arc::new(FileRepository::new(&r.get::<DbPool>()?)))
+        },
+    );
 }
 
 fn contribute_documents_and_issues(c: &mut Contributions<'_>) {

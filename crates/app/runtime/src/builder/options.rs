@@ -9,7 +9,6 @@ use std::sync::Arc;
 use systemprompt_database::MigrationConfig;
 use systemprompt_events::EventRouter;
 use systemprompt_governance::authz::{AuthzDecisionHook, SharedAuthzHook};
-use systemprompt_marketplace::MarketplaceFilter;
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::BackgroundTasks;
 
@@ -20,12 +19,6 @@ impl AppContextBuilder {
     #[must_use]
     pub const fn with_startup_warnings(mut self, show: bool) -> Self {
         self.show_startup_warnings = show;
-        self
-    }
-
-    #[must_use]
-    pub fn with_marketplace_filter(mut self, filter: Arc<dyn MarketplaceFilter>) -> Self {
-        self.marketplace_filter = Some(filter);
         self
     }
 

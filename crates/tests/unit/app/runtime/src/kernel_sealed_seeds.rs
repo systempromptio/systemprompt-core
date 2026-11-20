@@ -10,8 +10,8 @@ use systemprompt_identifiers::InstanceId;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::SystemAdmin;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
-use systemprompt_security::keys::SigningKeys;
 use systemprompt_runtime::{AppContext, Kernel};
+use systemprompt_security::keys::SigningKeys;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_database_url};
 use systemprompt_traits::{AppContext as AppContextTrait, BackgroundTasks, SecretStore};
 
@@ -38,7 +38,10 @@ async fn the_kernel_state_seals_the_secret_and_boot_only_seeds() {
     assert!(state.is_sealed::<SystemAdmin>());
     assert!(state.is_sealed::<ActiveServicesRoot>());
     assert!(state.is_sealed::<Arc<EventRouter>>());
-    assert!(state.is_sealed::<SigningKeys>(), "the JWT signing keys are sealed");
+    assert!(
+        state.is_sealed::<SigningKeys>(),
+        "the JWT signing keys are sealed"
+    );
     assert!(!state.is_sealed::<InstanceId>(), "the instance id is open");
 }
 
@@ -89,7 +92,10 @@ async fn the_runtime_state_withholds_every_sealed_seed() {
         .filter(|(id, _)| runtime.contains_type(*id))
         .map(|(_, name)| name)
         .collect();
-    assert!(reachable.is_empty(), "sealed seeds in the runtime state: {reachable:?}");
+    assert!(
+        reachable.is_empty(),
+        "sealed seeds in the runtime state: {reachable:?}"
+    );
     assert!(runtime.get::<SigningKeys>().is_err());
     assert!(runtime.get::<InstanceId>().is_ok(), "an open seed stays");
 }

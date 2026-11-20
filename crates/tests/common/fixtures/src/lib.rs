@@ -27,6 +27,7 @@ pub mod jwt;
 pub mod keys;
 pub mod keystore;
 pub mod liveness;
+pub mod marketplace;
 pub mod messaging;
 pub mod net;
 pub mod oauth;
@@ -100,6 +101,7 @@ pub use jwt::{
 pub use keys::{next_test_key, test_key, AUTHORITY_KEY_INDEX, ROTATING_KEY_COUNT};
 pub use keystore::install_headless_keystore;
 pub use liveness::LivePids;
+pub use marketplace::{fixture_admitted_with_filter, fixture_managed_repository, FilterMember};
 pub use messaging::{agent_error_response_json, agent_reply_response_json, seed_agent_backend};
 pub use net::{bind_in_range, free_port_in_range, port_is_unheld};
 pub use oauth::{

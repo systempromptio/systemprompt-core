@@ -32,9 +32,7 @@ impl Extension for IdentityExtension {
     fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
         c.provide(
             |r: &Resolved<'_>| -> Result<IdentityClientSecrets, ProvideError> {
-                Ok(IdentityClientSecrets::new(
-                    r.get::<Arc<dyn SecretStore>>()?,
-                ))
+                Ok(IdentityClientSecrets::new(r.get::<Arc<dyn SecretStore>>()?))
             },
         )
         .config_plane(Arc::new(IdentityPlane));

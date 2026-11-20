@@ -61,9 +61,9 @@ fn boot() -> &'static TestBootstrap {
 }
 
 // The protected-resource discovery document derives its advertised scopes from
-// the MCP server registry, via `get_mcp_server_scopes`. That lookup only produces
-// scopes for a registered server whose `oauth.required` is set, so it is
-// unreachable without a populated services config.
+// the MCP server registry, via `get_mcp_server_scopes`. That lookup only
+// produces scopes for a registered server whose `oauth.required` is set, so it
+// is unreachable without a populated services config.
 async fn protected_resource(path: &str) -> anyhow::Result<(u16, serde_json::Value)> {
     let b = boot();
     let ctx = test_app_context_on(&b).await;

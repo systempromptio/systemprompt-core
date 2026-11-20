@@ -28,10 +28,18 @@ async fn every_runtime_context_withholds_every_sealed_seed_of_the_kernel_state()
     );
 
     let runtime = app.kernel().runtime_state();
-    assert_eq!(reachable(state, &runtime), Vec::<&str>::new(), "runner-service state");
+    assert_eq!(
+        reachable(state, &runtime),
+        Vec::<&str>::new(),
+        "runner-service state"
+    );
 
     let job = JobContext::new(fixture_actor(), state.clone());
-    assert_eq!(reachable(state, job.dependencies()), Vec::<&str>::new(), "job context");
+    assert_eq!(
+        reachable(state, job.dependencies()),
+        Vec::<&str>::new(),
+        "job context"
+    );
 
     let planes = app.config_planes().expect("config planes");
     let built = ConfigReconcileService::new(
@@ -45,9 +53,11 @@ async fn every_runtime_context_withholds_every_sealed_seed_of_the_kernel_state()
         "plane context over the unwithheld state"
     );
 
-    let composed =
-        ConfigReconcileService::from_app_context(&app, ConfigReconcileRepository::new(app.db_pool()))
-            .expect("plane service");
+    let composed = ConfigReconcileService::from_app_context(
+        &app,
+        ConfigReconcileRepository::new(app.db_pool()),
+    )
+    .expect("plane service");
     assert_eq!(
         reachable(state, composed.plane_dependencies()),
         Vec::<&str>::new(),

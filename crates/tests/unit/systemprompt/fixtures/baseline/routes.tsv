@@ -203,11 +203,11 @@ PATCH	/api/v1/issues/admin/{id}	user	User	issues/Content	Default	ContentAndMisc	
 GET	/api/v1/issues/{id}	user	User	issues/Content	Default	ContentAndMisc	kernel	-
 POST	/api/v1/issues/{id}/attachments	user	User	issues/Content	Default	ContentAndMisc	kernel	-
 POST	/api/v1/issues/{id}/attachments/{upload_id}	user	User	issues/Content	Default	ContentAndMisc	kernel	-
-GET	/api/v1/marketplace/marketplace.json	public	Public	-	Default	ContentAndMisc	kernel	-
-GET	/api/v1/marketplace/marketplaces	public	Public	-	Default	ContentAndMisc	kernel	-
-GET	/api/v1/marketplace/marketplaces/{id}	public	Public	-	Default	ContentAndMisc	kernel	-
-GET	/api/v1/marketplace/marketplaces/{id}/manifest.yaml	public	Public	-	Default	ContentAndMisc	kernel	-
-GET	/api/v1/marketplace/plugins/{plugin_id}/{*path}	public	Public	-	Default	ContentAndMisc	kernel	-
+GET	/api/v1/marketplace/marketplace.json	public	Public	marketplace/Content	Default	ContentAndMisc	marketplace-http	-
+GET	/api/v1/marketplace/marketplaces	public	Public	marketplace/Content	Default	ContentAndMisc	marketplace-http	-
+GET	/api/v1/marketplace/marketplaces/{id}	public	Public	marketplace/Content	Default	ContentAndMisc	marketplace-http	-
+GET	/api/v1/marketplace/marketplaces/{id}/manifest.yaml	public	Public	marketplace/Content	Default	ContentAndMisc	marketplace-http	-
+GET	/api/v1/marketplace/plugins/{plugin_id}/{*path}	public	Public	marketplace/Content	Default	ContentAndMisc	marketplace-http	-
 GET	/api/v1/mcp	public	Public	-	Default	Discovery	kernel	-
 GET	/api/v1/mcp/executions/{id}	authenticated	User	mcp/Mcp	Default	McpAndStream	kernel	-
 GET	/api/v1/mcp/registry	public	Public	mcp_registry/McpRegistry	Default	McpAndStream	mcp-http	-

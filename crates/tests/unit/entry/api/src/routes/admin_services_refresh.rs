@@ -13,7 +13,6 @@ use systemprompt_api::routes::admin::services::{RefreshLock, RefreshQuery, refre
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_loader::BootContext;
 use systemprompt_manifest::services::root::{ActiveServicesRoot, ServicesProvenance};
-use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::{AppContext, AppContextBuilder};
 use systemprompt_test_fixtures::{
@@ -42,7 +41,6 @@ async fn context_serving(root: ActiveServicesRoot) -> std::sync::Arc<AppContext>
         .await
         .expect("the fixture admin is seeded");
     let ctx = AppContextBuilder::new(boot, fixture_admitted())
-        .with_marketplace_filter(std::sync::Arc::new(AllowAllFilter))
         .with_signing_keys(test_signing_keys())
         .with_services(bootstrap.services.clone())
         .build()

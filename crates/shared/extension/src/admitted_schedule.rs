@@ -76,6 +76,7 @@ impl fmt::Debug for AdmittedSchedule {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("AdmittedSchedule")
             .field("jobs", &self.job_names().collect::<Vec<_>>())
+            .field("owners", &self.owners)
             .field(
                 "purges",
                 &self

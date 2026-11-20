@@ -47,7 +47,6 @@ mod gateway_otel_ingest;
 mod gateway_otel_json;
 mod gateway_scope_header_only;
 mod gateway_upstream_status_mapping;
-mod marketplace_yaml;
 mod oauth;
 mod proxy_mcp_metadata;
 mod role_table;

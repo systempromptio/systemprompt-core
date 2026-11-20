@@ -1,8 +1,8 @@
-//! The content-and-misc route group the server mounts itself: the platform
-//! routes (sync, marketplace) and the account routes (users, admin). The
-//! content routes and the short-link redirect are declared by the
-//! `content-http` extension; the analytics and engagement routes by the
-//! `analytics-http` extension.
+//! The content-and-misc route group the server mounts itself: the services
+//! tree sync route and the account routes (users, admin). The content routes
+//! and the short-link redirect are declared by the `content-http` extension;
+//! the analytics and engagement routes by the `analytics-http` extension; the
+//! marketplace routes by the `marketplace-http` extension.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -23,33 +23,17 @@ pub(crate) fn mount_content_and_misc(
     mount_accounts(router, mount)
 }
 
-fn mount_platform(mut router: Router, mount: &MountCtx<'_>) -> Result<Router, MountError> {
-    let ctx = mount.ctx;
-    let group = RouteGroup::ContentAndMisc;
-
-    router = mount.mount(
+fn mount_platform(router: Router, mount: &MountCtx<'_>) -> Result<Router, MountError> {
+    mount.mount(
         router,
         declare(
-            crate::routes::sync::router().with_state(ctx.clone()),
+            crate::routes::sync::router().with_state(mount.ctx.clone()),
             ApiPaths::SYNC_BASE,
             AuthzPolicy::restricted_to(&[UserType::Service]),
             ContextKind::User,
-            group,
+            RouteGroup::ContentAndMisc,
         ),
-    )?;
-
-    router = mount.mount(
-        router,
-        declare(
-            crate::routes::marketplace::router().with_state(ctx.clone()),
-            ApiPaths::MARKETPLACE_BASE,
-            AuthzPolicy::public(),
-            ContextKind::Public,
-            group,
-        ),
-    )?;
-
-    Ok(router)
+    )
 }
 
 fn mount_accounts(mut router: Router, mount: &MountCtx<'_>) -> Result<Router, MountError> {

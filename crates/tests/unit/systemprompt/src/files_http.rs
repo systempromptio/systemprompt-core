@@ -78,7 +78,9 @@ fn files_http_requires_the_file_repository() {
         .collect();
     assert_eq!(
         required,
-        [std::any::type_name::<Arc<systemprompt::files::FileRepository>>()]
+        [std::any::type_name::<
+            Arc<systemprompt::files::FileRepository>,
+        >()]
     );
 }
 

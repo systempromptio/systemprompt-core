@@ -13,6 +13,7 @@ use systemprompt_models::feedback::receipts::AuthenticatedConsumerDevice;
 use systemprompt_runtime::AppContext;
 
 use super::error::ConsumerHttpError;
+use crate::routes::managed::state::managed_repository;
 
 pub(super) fn credential(headers: &HeaderMap) -> Result<&str, ConsumerHttpError> {
     headers
@@ -29,8 +30,7 @@ pub(super) async fn authenticate_device(
     ctx: &AppContext,
     credential: &str,
 ) -> Result<AuthenticatedConsumerDevice, ConsumerHttpError> {
-    match ctx
-        .managed_repository()
+    match managed_repository(ctx)?
         .authenticate_consumer_device(credential)
         .await
     {
@@ -83,11 +83,9 @@ pub(super) async fn resource(
     }) {
         return Err(ConsumerHttpError(StatusCode::FORBIDDEN));
     }
-    let owner = ctx
-        .managed_repository()
-        .consumer_resource_owner(resource)
-        .await?;
-    ctx.managed_repository()
+    let repository = managed_repository(ctx)?;
+    let owner = repository.consumer_resource_owner(resource).await?;
+    repository
         .retain_consumer_catalog_grant(&owner, resource, &identity.consumer_id)
         .await?;
     Ok(())

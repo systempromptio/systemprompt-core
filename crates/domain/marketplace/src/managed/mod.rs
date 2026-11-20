@@ -12,6 +12,7 @@ mod diff;
 pub use diff::{ChangeKind, FileChange, diff_files};
 mod error;
 pub mod git_execution;
+pub mod git_sources;
 mod import;
 mod installation;
 mod provenance;
@@ -34,7 +35,7 @@ pub use publication::{
     CohortSelector, ComparisonEvidence, GateContext, GateVerdict, INVENTORY_REFRESH_SOURCE,
     ManagedResolution, PublicationAction, PublicationAdmission, PublicationDecision,
     PublicationGate, PublicationGateError, PublicationHistoryEntry, PublicationPolicy,
-    PublicationRequest, ResourceResolutionRow,
+    PublicationPolicyCell, PublicationRequest, ResourceResolutionRow,
 };
 pub use reconciliation::{
     ConflictDecision, ConflictResolution, ReconciliationConflict, ReconciliationRecord,

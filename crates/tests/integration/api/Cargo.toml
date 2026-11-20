@@ -42,6 +42,7 @@ systemprompt-agent = { workspace = true }
 systemprompt-content = { workspace = true }
 systemprompt-content-entry = { workspace = true, features = ["http"] }
 systemprompt-marketplace = { workspace = true }
+systemprompt-marketplace-entry = { workspace = true, features = ["http"] }
 systemprompt-mcp = { workspace = true }
 systemprompt-users = { workspace = true }
 systemprompt-notifications = { workspace = true }

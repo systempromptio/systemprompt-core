@@ -139,7 +139,7 @@ impl Kernel {
 
     #[must_use]
     pub fn runtime_state(&self) -> Dependencies {
-        self.state.withholding_sealed()
+        self.state.clone().withholding_sealed()
     }
 
     fn provide_all(&mut self, admitted: &Admitted) -> Result<(), KernelError> {

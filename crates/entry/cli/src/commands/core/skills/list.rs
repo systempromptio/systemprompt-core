@@ -144,10 +144,22 @@ async fn managed_context(
     if app.db_pool().pool().is_closed() {
         return None;
     }
+    let repository = match app
+        .kernel()
+        .state()
+        .get::<std::sync::Arc<systemprompt_marketplace::ManagedRepository>>()
+    {
+        Ok(repository) => repository.as_ref().clone(),
+        Err(error) => {
+            tracing::warn!(
+                %error,
+                "managed skills are not resolved: no managed repository; listing disk skills only"
+            );
+            return None;
+        },
+    };
     Some((
-        systemprompt_marketplace::ManagedResourceResolver::new(
-            app.managed_repository().as_ref().clone(),
-        ),
+        systemprompt_marketplace::ManagedResourceResolver::new(repository),
         app.system_admin().id().clone(),
     ))
 }

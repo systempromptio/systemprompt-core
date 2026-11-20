@@ -66,7 +66,6 @@ async fn app_context_accessors_via_from_parts_path() -> Result<()> {
     let _ = ctx.db_pool();
     let _ = ctx.app_paths();
     let _ = ctx.app_paths_arc();
-    let _ = ctx.marketplace_filter();
     let _ = ctx.event_bridge();
     let _ = ctx.mcp_registry();
     let _ = ctx.route_classifier();

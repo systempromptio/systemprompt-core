@@ -14,3 +14,4 @@
 pub mod consumer;
 pub mod contract;
 pub mod origin;
+pub(crate) mod state;

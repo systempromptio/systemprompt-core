@@ -26,6 +26,7 @@ use super::bridge_error::{BridgeError, authenticate_bridge};
 use super::bridge_plugin_archive::ArchiveMemo;
 use super::{bridge_plugin_archive, bridge_resolved};
 use crate::kernel::{ApiHttpError, JwtContextExtractor};
+use crate::routes::managed::state::marketplace_cache;
 
 pub async fn handle(
     memo: ArchiveMemo,
@@ -97,7 +98,9 @@ pub(super) async fn resolve_entitled(
 ) -> Result<Arc<ResolvedCatalog>, BridgeError> {
     let grants =
         |resolved: &ResolvedCatalog| resolved.candidate.plugins.iter().any(|p| &p.id == id);
-    if let Some(latest) = ctx.marketplace_cache().latest_resolved(user_id)
+    let cache = marketplace_cache(ctx)
+        .map_err(|e| BridgeError::internal("plugin bundle: catalogue cache unavailable", e))?;
+    if let Some(latest) = cache.latest_resolved(user_id)
         && grants(&latest)
     {
         return Ok(latest);

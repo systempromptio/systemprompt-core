@@ -1,4 +1,4 @@
-//! Application-owned credential resolution for Git source synchronization.
+//! Credential resolution for Git source synchronization.
 //!
 //! A source's `credential_reference` is a label, not a secret name: it resolves
 //! only the custom secret `GIT_SOURCE__<HOST>__<LABEL>`, where `<HOST>` is the
@@ -13,22 +13,34 @@
 //! `__`, the separator, and the encoding is injective over (host, label).
 //!
 //! A credential still stored under the bare label is not used; the sync fails
-//! with [`OrchestrationError::CredentialNotMigrated`], which names
+//! with [`GitSourceError::CredentialNotMigrated`], which names
 //! `admin config secret migrate-git-credentials`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::PathBuf;
-
-use super::OrchestrationError;
 use std::sync::Arc;
 
 use systemprompt_identifiers::{ManagedSourceId, UserId};
-use systemprompt_marketplace::managed::{
-    GitSyncRequest, GitSyncResult, ManagedRepository, SourceSpec,
-};
 use systemprompt_traits::SecretStore;
+
+use super::{GitSyncRequest, GitSyncResult, ManagedError, ManagedRepository, SourceSpec};
+
+#[derive(Debug, thiserror::Error)]
+pub enum GitSourceError {
+    #[error(transparent)]
+    Managed(#[from] ManagedError),
+    #[error("Git credential reference is unresolved")]
+    CredentialUnresolved,
+    #[error(
+        "Git credential is stored under its bare label; the runtime resolves only {expected}. \
+         Run `admin config secret migrate-git-credentials --apply`"
+    )]
+    CredentialNotMigrated { expected: String },
+    #[error("Operation requires a registered Git source")]
+    NotGitSource,
+}
 
 #[derive(Debug, Clone)]
 pub struct GitSourceOrchestrator {
@@ -54,7 +66,7 @@ impl GitSourceOrchestrator {
         &self,
         owner: &UserId,
         request: &GitSyncRequest,
-    ) -> Result<GitSyncResult, OrchestrationError> {
+    ) -> Result<GitSyncResult, GitSourceError> {
         let credential = self.credential(owner, &request.source_id).await?;
         Ok(self
             .managed
@@ -71,7 +83,7 @@ impl GitSourceOrchestrator {
         &self,
         owner: &UserId,
         source: &ManagedSourceId,
-    ) -> Result<Option<String>, OrchestrationError> {
+    ) -> Result<Option<String>, GitSourceError> {
         match self.managed.get_source(owner, source).await? {
             SourceSpec::Git {
                 repository,
@@ -79,7 +91,7 @@ impl GitSourceOrchestrator {
                 ..
             } => {
                 let key = git_credential_key(&repository, &reference)
-                    .ok_or(OrchestrationError::CredentialUnresolved)?;
+                    .ok_or(GitSourceError::CredentialUnresolved)?;
                 let present = |name: &str| {
                     self.secrets
                         .secret(name)
@@ -88,16 +100,16 @@ impl GitSourceOrchestrator {
                 match present(&key) {
                     Some(credential) => Ok(Some(credential.expose().to_owned())),
                     None if present(&reference).is_some() => {
-                        Err(OrchestrationError::CredentialNotMigrated { expected: key })
+                        Err(GitSourceError::CredentialNotMigrated { expected: key })
                     },
-                    None => Err(OrchestrationError::CredentialUnresolved),
+                    None => Err(GitSourceError::CredentialUnresolved),
                 }
             },
             SourceSpec::Git {
                 credential_reference: None,
                 ..
             } => Ok(None),
-            _ => Err(OrchestrationError::NotGitSource),
+            _ => Err(GitSourceError::NotGitSource),
         }
     }
 }

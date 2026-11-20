@@ -12,7 +12,6 @@ impl std::fmt::Debug for AppContextBuilder {
             .field("boot", &self.boot)
             .field("admitted", &self.admitted.built().members().count())
             .field("show_startup_warnings", &self.show_startup_warnings)
-            .field("marketplace_filter", &self.marketplace_filter.is_some())
             .field("authz_hook", &self.core.authz_hook.is_some())
             .field("signing_keys", &self.core.signing_keys.is_some())
             .field("install_schemas", &self.schema.install)

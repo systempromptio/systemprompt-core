@@ -8,7 +8,6 @@ use super::{Arc, DataPlane, RuntimeResult, UserService, assembly};
 use crate::context::Plugins;
 use systemprompt_database::DbPool;
 use systemprompt_loader::{BootContext, ServicesState};
-use systemprompt_marketplace::MarketplaceFilter;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_security::at_rest::AtRestCipher;
 
@@ -30,7 +29,6 @@ pub(super) fn build_data_plane(
         coordination: repositories.coordination,
         ai_repositories: repositories.ai,
         mcp_session_repository: repositories.mcp_sessions,
-        managed_repository: repositories.managed,
     }
 }
 
@@ -55,29 +53,17 @@ pub(super) struct RepositoryBundles {
     coordination: Arc<systemprompt_database::CoordinationRepositories>,
     pub(super) ai: Arc<systemprompt_ai::repository::AiRepositories>,
     mcp_sessions: Arc<systemprompt_mcp::repository::McpSessionRepository>,
-    managed: Arc<systemprompt_marketplace::managed::ManagedRepository>,
-}
-
-impl RepositoryBundles {
-    pub(super) fn install_organization_resolver(
-        &mut self,
-        owner: &systemprompt_identifiers::UserId,
-    ) {
-        self.a2a = Arc::new(organization_skills(&self.a2a, &self.managed, owner));
-    }
 }
 
 pub(crate) fn a2a_repositories(
     database: &DbPool,
     instance_id: systemprompt_identifiers::InstanceId,
-    managed: &systemprompt_marketplace::managed::ManagedRepository,
+    managed_skills: systemprompt_traits::DynManagedSkillResolver,
     session_usage: systemprompt_traits::DynSessionUsageCounters,
 ) -> systemprompt_agent::repository::A2ARepositories {
     let tool_executions: systemprompt_traits::DynToolExecutionLookup = Arc::new(
         systemprompt_mcp::repository::ToolUsageRepository::new(database),
     );
-    let managed_skills: systemprompt_traits::DynManagedSkillResolver =
-        Arc::new(systemprompt_marketplace::managed::ManagedResourceResolver::new(managed.clone()));
     systemprompt_agent::repository::A2ARepositories::new(
         database,
         systemprompt_agent::repository::A2aDependencies {
@@ -87,20 +73,6 @@ pub(crate) fn a2a_repositories(
             tool_executions,
         },
     )
-}
-
-pub(crate) fn organization_skills(
-    a2a: &systemprompt_agent::repository::A2ARepositories,
-    managed: &systemprompt_marketplace::managed::ManagedRepository,
-    owner: &systemprompt_identifiers::UserId,
-) -> systemprompt_agent::repository::A2ARepositories {
-    let resolver = Arc::new(
-        systemprompt_marketplace::managed::OrganizationSkillResolver::new(
-            managed.clone(),
-            owner.clone(),
-        ),
-    );
-    a2a.clone().with_managed_skill_resolver(resolver)
 }
 
 pub(super) struct SeededRepositories {
@@ -140,20 +112,16 @@ pub(super) fn seeded_repositories(
 pub(super) fn build_repositories(
     database: &DbPool,
     instance_id: systemprompt_identifiers::InstanceId,
-    publication: systemprompt_marketplace::managed::PublicationPolicy,
     seeded: &SeededRepositories,
+    managed_skills: systemprompt_traits::DynManagedSkillResolver,
 ) -> RepositoryBundles {
     let session_usage: systemprompt_traits::DynSessionUsageCounters =
         Arc::new(systemprompt_users::SessionRepository::new(database));
-    let managed = Arc::new(
-        systemprompt_marketplace::managed::ManagedRepository::new(database)
-            .with_publication_policy(publication),
-    );
     RepositoryBundles {
         a2a: Arc::new(a2a_repositories(
             database,
             instance_id,
-            managed.as_ref(),
+            managed_skills,
             session_usage,
         )),
         content: Arc::new(systemprompt_content::repository::ContentRepositories::new(
@@ -167,7 +135,6 @@ pub(super) fn build_repositories(
         mcp_sessions: Arc::new(systemprompt_mcp::repository::McpSessionRepository::new(
             database,
         )),
-        managed,
     }
 }
 
@@ -193,16 +160,9 @@ pub fn owner_reassignments(database: &DbPool) -> Vec<systemprompt_traits::DynOwn
     ]
 }
 
-pub(super) fn new_plugins(
-    mcp_registry: RegistryService,
-    marketplace_filter: Option<Arc<dyn MarketplaceFilter>>,
-    seams: &systemprompt_marketplace::contract::MarketplaceSeams,
-    inputs: &PluginInputs,
-) -> Plugins {
+pub(super) fn new_plugins(mcp_registry: RegistryService, inputs: &PluginInputs) -> Plugins {
     Plugins {
         mcp_registry,
-        marketplace_filter: marketplace_filter.unwrap_or_else(|| seams.filter()),
-        marketplace_cache: Arc::default(),
         subject_providers: inputs.subject_providers.clone(),
         subjects: inputs.subjects.clone(),
     }
@@ -242,13 +202,14 @@ pub(super) async fn load_identity(
 pub(super) async fn build_domain_layer(
     boot: &BootContext,
     database: &DbPool,
-    policy: systemprompt_marketplace::managed::PublicationPolicy,
     seeded: &SeededRepositories,
     system_admin: &systemprompt_manifest::SystemAdmin,
+    resolved: &systemprompt_extension::Resolved<'_>,
 ) -> RuntimeResult<RepositoryBundles> {
     let config = boot.config()?;
-    let mut repositories = build_repositories(database, config.instance_id.clone(), policy, seeded);
-    repositories.install_organization_resolver(system_admin.id());
+    let managed_skills = resolved.get::<systemprompt_traits::DynManagedSkillResolver>()?;
+    let repositories =
+        build_repositories(database, config.instance_id.clone(), seeded, managed_skills);
     ensure_legacy_context(&repositories, system_admin).await?;
     Ok(repositories)
 }

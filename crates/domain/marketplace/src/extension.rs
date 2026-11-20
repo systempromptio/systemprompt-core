@@ -3,12 +3,33 @@
 //! opens the [`MarketplaceSlot`], so the built marketplace seams are present
 //! whenever this member is admitted.
 //!
+//! It provides the marketplace's runtime state:
+//!
+//! - the [`PublicationPolicyCell`] and the `Arc<ManagedRepository>` that reads
+//!   it — the host binds the cell with the policy it assembles from the built
+//!   seams and subject providers before it serves anything;
+//! - the per-process `Arc<MarketplaceCache>` of the resolved catalogue and
+//!   plugin bundles;
+//! - the per-process `Arc<Mutex<PublishGuard>>` that serializes inventory
+//!   publication passes;
+//! - the organization skill resolver (`DynManagedSkillResolver`), which
+//!   resolves managed skills against the system admin's managed inventory.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_extension::prelude::*;
+use std::sync::Arc;
 
+use systemprompt_database::DbPool;
+use systemprompt_extension::prelude::*;
+use systemprompt_manifest::services::SystemAdmin;
+use systemprompt_traits::DynManagedSkillResolver;
+use tokio::sync::Mutex;
+
+use crate::catalog::MarketplaceCache;
 use crate::contract::MarketplaceSlot;
+use crate::inventory::PublishGuard;
+use crate::managed::{ManagedRepository, OrganizationSkillResolver, PublicationPolicyCell};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ManagedResourcesExtension;
@@ -40,9 +61,33 @@ impl Extension for ManagedResourcesExtension {
             required_columns: Vec::new(),
             schema: None,
         });
+        provide_state(c);
         c.slot::<MarketplaceSlot>();
         Ok(())
     }
+}
+
+fn provide_state(c: &mut Contributions<'_>) {
+    c.provide(|_: &Resolved<'_>| Ok(PublicationPolicyCell::default()))
+        .provide(|r: &Resolved<'_>| {
+            let db = r.get::<DbPool>()?;
+            let cell = r.get::<PublicationPolicyCell>()?;
+            Ok(Arc::new(
+                ManagedRepository::new(&db).with_publication_cell(cell),
+            ))
+        })
+        .provide(|_: &Resolved<'_>| Ok(Arc::new(MarketplaceCache::default())))
+        .provide(|_: &Resolved<'_>| Ok(Arc::new(Mutex::new(PublishGuard::default()))))
+        .provide(
+            |r: &Resolved<'_>| -> Result<DynManagedSkillResolver, ProvideError> {
+                let repository = r.get::<Arc<ManagedRepository>>()?;
+                let owner = r.get::<SystemAdmin>()?;
+                Ok(Arc::new(OrganizationSkillResolver::new(
+                    repository.as_ref().clone(),
+                    owner.id().clone(),
+                )))
+            },
+        );
 }
 
 fn source_schemas() -> Vec<SchemaDefinition> {

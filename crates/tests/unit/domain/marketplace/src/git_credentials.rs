@@ -2,9 +2,8 @@
 //! execution.
 
 use systemprompt_identifiers::{ManagedResourceId, ResourceRevisionId, TraceId, UserId};
+use systemprompt_marketplace::managed::git_sources::{GitSourceError, GitSourceOrchestrator};
 use systemprompt_marketplace::managed::{GitSyncRequest, ManagedRepository, SourceSpec};
-use systemprompt_runtime::managed::OrchestrationError;
-use systemprompt_runtime::managed::git_sources::GitSourceOrchestrator;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, seed_user_row, test_db_pool};
 
 #[tokio::test]
@@ -50,7 +49,7 @@ async fn missing_private_credentials_fail_initial_import_and_sync_without_launch
         .await
         .expect("credential rejection before import/sync")
         .expect_err("unresolved reference");
-        assert!(matches!(error, OrchestrationError::CredentialUnresolved));
+        assert!(matches!(error, GitSourceError::CredentialUnresolved));
         assert!(!error.to_string().contains(&reference));
     }
 }
@@ -114,7 +113,7 @@ async fn sync_with_secrets(
     repository_url: &str,
     reference: &str,
     secrets: &[(&str, &str)],
-) -> OrchestrationError {
+) -> GitSourceError {
     ensure_test_bootstrap();
     let db = test_db_pool().await;
     let owner = UserId::new(format!("git-credentials-{}", TraceId::generate()));
@@ -167,7 +166,7 @@ async fn a_reference_cannot_name_a_secret_outside_the_git_source_namespace() {
     )
     .await;
     assert!(
-        matches!(error, OrchestrationError::CredentialNotMigrated { .. }),
+        matches!(error, GitSourceError::CredentialNotMigrated { .. }),
         "{error}"
     );
     assert!(!error.to_string().contains("xoxb-platform-token"));
@@ -182,7 +181,7 @@ async fn a_credential_stored_for_one_host_is_not_sent_to_another() {
     )
     .await;
     assert!(
-        matches!(error, OrchestrationError::CredentialUnresolved),
+        matches!(error, GitSourceError::CredentialUnresolved),
         "{error}"
     );
 }
@@ -196,7 +195,7 @@ async fn a_credential_under_its_bare_label_fails_naming_the_migration() {
     )
     .await;
     match &error {
-        OrchestrationError::CredentialNotMigrated { expected } => {
+        GitSourceError::CredentialNotMigrated { expected } => {
             assert_eq!(expected, "GIT_SOURCE__EXAMPLE_2EINVALID__CI");
         },
         other => panic!("expected CredentialNotMigrated, got {other}"),
@@ -211,7 +210,7 @@ async fn a_credential_under_its_bare_label_fails_naming_the_migration() {
 
 #[test]
 fn credential_keys_are_namespaced_by_the_repository_host() {
-    use systemprompt_runtime::managed::git_sources::git_credential_key;
+    use systemprompt_marketplace::managed::git_sources::git_credential_key;
     assert_eq!(
         git_credential_key("https://GitHub.com/org/repo.git", "ci").as_deref(),
         Some("GIT_SOURCE__GITHUB_2ECOM__CI")
@@ -239,7 +238,7 @@ fn credential_keys_are_namespaced_by_the_repository_host() {
 
 #[test]
 fn credential_keys_use_only_env_safe_characters() {
-    use systemprompt_runtime::managed::git_sources::git_credential_key;
+    use systemprompt_marketplace::managed::git_sources::git_credential_key;
     let key = git_credential_key("https://h.example/r", "a-b.c_d/E").expect("key");
     assert!(
         key.bytes()
@@ -257,7 +256,7 @@ proptest::proptest! {
         host_b in "[a-z0-9.:_-]{1,12}",
         label_b in "[A-Za-z0-9._/-]{1,12}",
     ) {
-        use systemprompt_runtime::managed::git_sources::git_credential_key;
+        use systemprompt_marketplace::managed::git_sources::git_credential_key;
         let a = git_credential_key(&format!("https://{host_a}/r"), &label_a).expect("key a");
         let b = git_credential_key(&format!("https://{host_b}/r"), &label_b).expect("key b");
         proptest::prop_assert_eq!(a == b, host_a == host_b && label_a == label_b);

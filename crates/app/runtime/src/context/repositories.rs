@@ -10,7 +10,6 @@ use systemprompt_agent::repository::A2ARepositories;
 use systemprompt_ai::repository::AiRepositories;
 use systemprompt_content::repository::ContentRepositories;
 use systemprompt_database::{CoordinationRepositories, ServiceRepository};
-use systemprompt_marketplace::managed::ManagedRepository;
 use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_users::UserRepository;
@@ -53,9 +52,5 @@ impl AppContext {
 
     pub const fn mcp_session_repository(&self) -> &Arc<McpSessionRepository> {
         &self.data.mcp_session_repository
-    }
-
-    pub const fn managed_repository(&self) -> &Arc<ManagedRepository> {
-        &self.data.managed_repository
     }
 }

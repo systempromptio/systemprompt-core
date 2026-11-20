@@ -7251,7 +7251,16 @@ dependencies = [
 name = "systemprompt-marketplace-entry"
 version = "0.84.0"
 dependencies = [
+ "axum",
+ "serde_json",
+ "systemprompt-config",
  "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-manifest",
+ "systemprompt-marketplace",
+ "systemprompt-models",
+ "thiserror 2.0.21",
+ "tokio",
 ]
 
 [[package]]

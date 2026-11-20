@@ -19,10 +19,7 @@ pub(super) async fn execute(args: StatsArgs, host: &dyn CommandHost) -> Result<C
     execute_with_pool(args, &pool_from_handle(host.db().await?)?).await
 }
 
-pub(super) async fn execute_with_pool(
-    _args: StatsArgs,
-    pool: &DbPool,
-) -> Result<CommandOutput> {
+pub(super) async fn execute_with_pool(_args: StatsArgs, pool: &DbPool) -> Result<CommandOutput> {
     let service = FileRepository::new(pool);
 
     let stats: FileStats = service.get_stats().await?;

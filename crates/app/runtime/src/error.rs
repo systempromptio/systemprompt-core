@@ -28,7 +28,6 @@ use systemprompt_governance::authz::AuthzError;
 use systemprompt_governance::policy::GovernanceEngineError;
 use systemprompt_identifiers::SecretName;
 use systemprompt_loader::{BundleError, ConfigLoadError};
-use systemprompt_marketplace::managed::ManagedError;
 use systemprompt_mcp::McpDomainError;
 use systemprompt_models::errors::GlobalConfigError;
 use systemprompt_oauth::OauthError;
@@ -97,9 +96,6 @@ pub enum RuntimeError {
 
     #[error(transparent)]
     Governance(#[from] GovernanceEngineError),
-
-    #[error(transparent)]
-    Managed(#[from] ManagedError),
 
     #[error(transparent)]
     Secrets(#[from] SecretsBootstrapError),

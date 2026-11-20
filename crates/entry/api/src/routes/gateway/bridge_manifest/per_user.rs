@@ -13,6 +13,7 @@ use systemprompt_runtime::AppContext;
 
 use super::super::bridge_data;
 use super::super::bridge_error::BridgeError;
+use crate::routes::managed::state::managed_repository;
 
 // Why: the recorded grant is the consumer's reach — a manifest whose grants
 // could not be written must not serve the skills it would grant.
@@ -32,7 +33,11 @@ pub(super) async fn record_catalog_grants(
         .filter_map(|skill| skill.publication.as_ref())
         .map(|publication| publication.resource_id.clone())
         .collect();
-    ctx.managed_repository()
+    managed_repository(ctx)
+        .map_err(|source| BridgeError::CatalogGrants {
+            count: resources.len(),
+            source,
+        })?
         .retain_consumer_catalog_grants(owner, &resources, user_id)
         .await
         .map_err(|source| BridgeError::CatalogGrants {

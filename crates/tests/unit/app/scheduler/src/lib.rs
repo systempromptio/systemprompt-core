@@ -51,8 +51,6 @@ mod licence_state_db;
 #[cfg(test)]
 mod lock_key_collision;
 #[cfg(test)]
-mod sealed_contexts_db;
-#[cfg(test)]
 mod manual_run_lock_db;
 #[cfg(test)]
 mod models;
@@ -82,6 +80,8 @@ mod retention_holds;
 mod retention_holds_db;
 #[cfg(test)]
 mod retention_targets_db;
+#[cfg(test)]
+mod sealed_contexts_db;
 #[cfg(test)]
 mod service_config_manifest;
 #[cfg(test)]

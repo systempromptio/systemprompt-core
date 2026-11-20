@@ -193,6 +193,8 @@ mod consumer_evidence;
 mod consumer_fixture;
 
 #[cfg(test)]
+mod git_credentials;
+#[cfg(test)]
 mod git_execution;
 
 #[cfg(test)]

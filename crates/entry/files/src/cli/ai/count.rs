@@ -28,7 +28,6 @@ pub async fn execute_with_repository(
     args: CountArgs,
     service: &FileRepository,
 ) -> Result<CommandOutput> {
-
     let user_id = args.user.as_ref().map(|u| UserId::new(u.clone()));
 
     let count = match &user_id {

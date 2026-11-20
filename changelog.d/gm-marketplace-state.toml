@@ -1,0 +1,14 @@
+[root]
+section = "Breaking"
+area = "Marketplace state"
+text = "The `managed_resources` member provides the managed repository, the catalogue cache, the inventory publish guard and the organization skill resolver into the kernel state; `AppContext::{marketplace_filter, marketplace_cache, managed_repository, publish_guard}` and `AppContextBuilder::with_marketplace_filter` are removed. A per-user marketplace filter is contributed to the `MarketplaceSlot` by a member."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`AppContext::{marketplace_filter, marketplace_cache, managed_repository, publish_guard}`, `AppContextBuilder::with_marketplace_filter`, the `DataPlane::managed_repository`, `Plugins::{marketplace_filter, marketplace_cache}` and `Subsystems::publish_guard` fields, `RuntimeError::Managed` and `managed::git_sources` are removed; `managed::OrchestrationError` drops its credential variants and gains `State`."
+
+[[crate]]
+name = "systemprompt-marketplace"
+section = "Added"
+text = "`managed::PublicationPolicyCell` and `ManagedRepository::with_publication_cell`; `ManagedError::PolicyUnbound`; `managed::git_sources` (`GitSourceOrchestrator`, `GitSourceError`, `git_credential_key`); `From<MarketplaceError> for ApiError`. `ManagedResourcesExtension` provides `PublicationPolicyCell`, `Arc<ManagedRepository>`, `Arc<MarketplaceCache>`, `Arc<Mutex<PublishGuard>>` and `DynManagedSkillResolver`."

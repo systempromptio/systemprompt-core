@@ -87,7 +87,7 @@ async fn fixture() -> ManagedSkillFixture {
     )
     .await
     .unwrap();
-    let repository = app.managed_repository();
+    let repository = systemprompt_test_fixtures::fixture_managed_repository(&app);
     let key = format!("cli_managed_{}", Uuid::new_v4().simple());
     seed_disk_skill(&key);
     let source = repository
@@ -154,7 +154,7 @@ async fn fixture() -> ManagedSkillFixture {
 async fn publish(fixture: &ManagedSkillFixture) {
     let app = fixture.ctx.app_context().await.unwrap();
     let owner = app.system_admin().id();
-    app.managed_repository()
+    systemprompt_test_fixtures::fixture_managed_repository(&app)
         .review_and_publish(
             owner,
             owner,
@@ -176,7 +176,7 @@ async fn publish(fixture: &ManagedSkillFixture) {
 async fn withdraw(fixture: &ManagedSkillFixture) {
     let app = fixture.ctx.app_context().await.unwrap();
     let owner = app.system_admin().id();
-    app.managed_repository()
+    systemprompt_test_fixtures::fixture_managed_repository(&app)
         .review_and_publish(
             owner,
             owner,

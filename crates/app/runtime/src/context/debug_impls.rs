@@ -18,7 +18,6 @@ impl std::fmt::Debug for AppContext {
             .field("fingerprint_repo", &self.data.fingerprint_repo.is_some())
             .field("user_service", &self.data.user_service.is_some())
             .field("app_paths", &"AppPaths")
-            .field("marketplace_filter", &self.plugins.marketplace_filter)
             .field("event_bridge", &self.subsystems.event_bridge.status())
             .field("system_admin", &self.subsystems.system_admin.username())
             .field("mcp_registry", &"RegistryService")
@@ -43,7 +42,6 @@ impl std::fmt::Debug for DataPlane {
             .field("coordination", &"CoordinationRepositories")
             .field("ai_repositories", &"AiRepositories")
             .field("mcp_session_repository", &"McpSessionRepository")
-            .field("managed_repository", &"ManagedRepository")
             .finish()
     }
 }
@@ -66,8 +64,6 @@ impl std::fmt::Debug for Plugins {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Plugins")
             .field("mcp_registry", &"RegistryService")
-            .field("marketplace_filter", &self.marketplace_filter)
-            .field("marketplace_cache", &self.marketplace_cache)
             .field("subject_providers", &self.subject_providers)
             .field("subjects", &self.subjects)
             .finish()
@@ -101,7 +97,6 @@ impl std::fmt::Debug for Subsystems {
                 &self.background_tasks.in_flight(),
             )
             .field("spawner", &"Spawner")
-            .field("publish_guard", &"Mutex<PublishGuard>")
             .field("connector_tokens", &"TokenCache")
             .field("documents", &self.documents);
         debug.finish()

@@ -26,10 +26,7 @@ pub(super) async fn execute(args: ShowArgs, host: &dyn CommandHost) -> Result<Co
     execute_with_pool(args, &pool_from_handle(host.db().await?)?).await
 }
 
-pub(super) async fn execute_with_pool(
-    args: ShowArgs,
-    pool: &DbPool,
-) -> Result<CommandOutput> {
+pub(super) async fn execute_with_pool(args: ShowArgs, pool: &DbPool) -> Result<CommandOutput> {
     let service = FileRepository::new(pool);
 
     let file = find_file(&service, &args.identifier).await?;

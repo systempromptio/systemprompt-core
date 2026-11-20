@@ -402,7 +402,7 @@ A refused document request answers the common error envelope with `error_key` se
 
 ## Other mounted areas
 
-These areas are mounted by `mount_content_and_misc` (`crates/entry/api/src/services/server/routes/protocol/content.rs`), except the content routes, which the `content-http` extension (`systemprompt-content-entry`) declares in the same role group. A profile that disables `content-http` mounts none of them, and those paths answer 404.
+These areas are mounted by `mount_content_and_misc` (`crates/entry/api/src/services/server/routes/protocol/content.rs`), except the content routes, which the `content-http` extension (`systemprompt-content-entry`) declares in the same role group, and the marketplace routes, which the `marketplace-http` extension (`systemprompt-marketplace-entry`) declares there. A profile that disables `content-http` mounts none of the content routes, and one that disables `marketplace-http` mounts none of the marketplace routes; those paths answer 404.
 
 | Base path | Auth | Purpose |
 |-----------|------|---------|
@@ -411,7 +411,7 @@ These areas are mounted by `mount_content_and_misc` (`crates/entry/api/src/servi
 | `/r/{short_code}` | Public | Short-link redirect; a click is recorded for every session that is not a detected bot. |
 | `/api/v1/documents`, `/api/v1/document-folders`, `/v1/bridge/drive` | User; device | The document store, listed under [Documents](#documents) above. |
 | `/api/v1/sync` | Restricted (Service) | Cloud sync of files. |
-| `/api/v1/marketplace` | Public | Marketplace catalog. |
+| `/api/v1/marketplace` | Public | Marketplace catalog (`/marketplace.json`, `/marketplaces`, `/marketplaces/{id}`, `/marketplaces/{id}/manifest.yaml`) and plugin files (`/plugins/{plugin_id}/{*path}`), rate-limited under the `content` budget. |
 | `/api/v1/admin` | Admin | Admin operations (logs, users, CLI relay, keys). |
 | `/auth/link-passkey` | Public | Passkey-linking page. |
 

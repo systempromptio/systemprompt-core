@@ -171,7 +171,3 @@ mod validate_database_path;
 mod validation;
 #[cfg(test)]
 mod validation_report_extended;
-
-
-#[cfg(test)]
-mod git_credentials;

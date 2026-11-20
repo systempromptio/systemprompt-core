@@ -1,4 +1,8 @@
-//! Marketplace error types.
+//! Marketplace error types, and the one mapping of [`MarketplaceError`] onto
+//! the API error model: a repository failure is classified by
+//! `RepositoryError`, an unknown or unavailable marketplace or resource is
+//! 404, invalid input 400, a conflict 409, and every other failure the fixed
+//! 5xx body with its cause kept as the source.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -6,6 +10,7 @@
 use std::path::Path;
 
 use systemprompt_identifiers::MarketplaceId;
+use systemprompt_models::api::ApiError;
 use systemprompt_security::ManifestSigningError;
 use systemprompt_traits::BoxedSource;
 use thiserror::Error;
@@ -68,6 +73,33 @@ impl MarketplaceError {
             path: path.display().to_string(),
             context: context.into(),
             source: source.into(),
+        }
+    }
+}
+
+impl From<MarketplaceError> for ApiError {
+    fn from(err: MarketplaceError) -> Self {
+        use crate::managed::ManagedError;
+        match err {
+            MarketplaceError::Managed(ManagedError::Repository(inner)) => Self::from(inner),
+            e @ (MarketplaceError::NotFound(_)
+            | MarketplaceError::NoDefault
+            | MarketplaceError::Managed(ManagedError::Unavailable)) => {
+                Self::not_found(e.to_string())
+            },
+            e @ MarketplaceError::Managed(
+                ManagedError::Invalid(_) | ManagedError::InvalidInput { .. },
+            ) => Self::bad_request(e.to_string()),
+            e @ MarketplaceError::Managed(ManagedError::Conflict(_)) => {
+                Self::conflict(e.to_string())
+            },
+            e @ (MarketplaceError::Catalog(_)
+            | MarketplaceError::CatalogSource { .. }
+            | MarketplaceError::Managed(_)
+            | MarketplaceError::Import { .. }
+            | MarketplaceError::ImportSource { .. }
+            | MarketplaceError::Signing(_)
+            | MarketplaceError::Filter(_)) => Self::internal("Marketplace operation failed", e),
         }
     }
 }
