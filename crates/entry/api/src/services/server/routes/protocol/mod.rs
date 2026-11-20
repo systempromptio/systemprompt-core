@@ -39,7 +39,7 @@ pub struct Composed<'a> {
 
 impl MountCtx<'_> {
     pub(super) fn mount(&self, tree: Router, declared: KernelRoutes) -> Result<Router, MountError> {
-        mount(tree, declared, self.layers, self.ctx, self.serves)
+        mount(tree, declared, self.layers, self.serves)
     }
 
     pub(super) fn protect(

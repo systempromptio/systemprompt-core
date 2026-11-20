@@ -348,4 +348,21 @@ mod kernel_state_context {
             .expect_err("no kernel state, no schedule");
         assert!(err.to_string().contains("AdmittedSchedule"), "{err}");
     }
+
+    #[tokio::test]
+    async fn a_member_job_reaches_no_sealed_seed_and_no_application_context() {
+        let (app_ctx, schedule) = crate::test_extension::scheduled_app(&test_database_url()).await;
+        let mut config = systemprompt_manifest::SchedulerConfig::with_system_admin();
+        config.distributed_lock = false;
+        let service = JobExecutionService::new(app_ctx, config, Arc::clone(&schedule));
+
+        let report = service
+            .run_job(
+                &JobName::new(crate::test_jobs::SEALED_SEED_PROBE_JOB),
+                &HashMap::new(),
+            )
+            .await;
+
+        assert!(report.success, "{:?}", report.message);
+    }
 }

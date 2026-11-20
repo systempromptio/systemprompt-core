@@ -2,7 +2,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use systemprompt_database::DbPool;
-use systemprompt_extension::ExtensionContext;
 use systemprompt_files::uploads::{
     DocumentUploadExpiryJob, DocumentUploadRepository, UploadStatus,
 };
@@ -73,15 +72,13 @@ async fn the_enabled_expiry_job_closes_an_upload_past_its_lifetime() {
     .await
     .expect("backdate");
     let app = test_app_context(disposable.url()).await;
-    let extensions: Arc<dyn ExtensionContext> = app.clone();
     let ctx = JobContext::new(
         fixture_actor(),
         app.kernel()
             .state()
             .clone()
             .with(Arc::clone(&db))
-            .with(enabled())
-            .with(extensions),
+            .with(enabled()),
     );
 
     let result = DocumentUploadExpiryJob

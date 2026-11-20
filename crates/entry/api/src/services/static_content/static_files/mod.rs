@@ -25,7 +25,6 @@ use axum::extract::State;
 use axum::http::{HeaderMap, Method, Uri};
 use axum::response::IntoResponse;
 use std::sync::Arc;
-use systemprompt_extension::ExtensionContext as _;
 use systemprompt_traits::DynContentCatalogStats;
 
 use super::config::StaticContentMatcher;
@@ -200,7 +199,8 @@ async fn serve_content_page(
     }
 
     let Some(catalog) = ctx
-        .extension_state()
+        .kernel()
+        .state()
         .find::<DynContentCatalogStats>()
         .cloned()
     else {

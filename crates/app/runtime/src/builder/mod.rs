@@ -64,7 +64,7 @@ pub use core_layer::discover_vertex_models;
 use core_layer::{CoreLayer, CoreOverrides, SchemaPolicy, init_core, install_schemas};
 use events::event_plane;
 pub(crate) use governance::load_governance;
-use kernel_state::{ApiKernelSeed, KernelSeed, kernel_state};
+use kernel_state::{ApiKernelSeed, KernelCoordination, KernelSeed, kernel_state};
 
 /// Assembles an [`AppContext`], owning the bootstrap order described on the
 /// module.
@@ -140,7 +140,7 @@ impl AppContextBuilder {
             &database,
             self.show_startup_warnings,
         )?;
-        let seeded = seeded_repositories(&database, &self.boot.secrets().get())?;
+        let seeded = seeded_repositories(&database, &self.boot.secrets().get(), &config.instance_id)?;
         let (user_service, system_admin, mcp_registry) =
             load_identity(&self.boot, &database, &seeded.users, &services).await?;
         let (ai_service, connector_tokens) = ai_service::build_ai_service(
@@ -168,6 +168,9 @@ impl AppContextBuilder {
                 services: services.view(),
                 services_root,
                 secrets,
+                file_storage: Arc::clone(&file_storage),
+                background_tasks: background_tasks.clone(),
+                coordination: KernelCoordination::over(&seeded.services, &seeded.coordination),
                 system_admin: &system_admin,
                 event_router: &router,
                 documents: documents_slot,

@@ -1,14 +1,12 @@
 //! Exercises trait implementations on [`AppContext`] via the
 //! [`test_app_context`](systemprompt_test_fixtures::test_app_context) helper.
 //! Each test holds the context, dispatches via the relevant trait
-//! (`AppContextTrait`, `ExtensionContext`, `HasAnalytics`, `HasFingerprint`,
+//! (`AppContextTrait`, `HasAnalytics`, `HasFingerprint`,
 //! `HasUserService`, `HasRouteClassifier`), and checks the resulting provider
 //! Arc / inner reference is wired through unchanged.
 
 use anyhow::Result;
-use systemprompt_extension::{
-    ExtensionContext, HasAnalytics, HasFingerprint, HasRouteClassifier, HasUserService,
-};
+use systemprompt_extension::{HasAnalytics, HasFingerprint, HasRouteClassifier, HasUserService};
 use systemprompt_test_fixtures::{fixture_admitted, test_database_url};
 use systemprompt_traits::AppContext as AppContextTrait;
 
@@ -30,14 +28,6 @@ async fn app_context_trait_optional_providers_present() -> Result<()> {
     let ctx = build_ctx().await;
     assert!(AppContextTrait::fingerprint_provider(ctx.as_ref()).is_some());
     assert!(AppContextTrait::user_provider(ctx.as_ref()).is_some());
-    Ok(())
-}
-
-#[tokio::test]
-async fn extension_context_dispatch() -> Result<()> {
-    let ctx = build_ctx().await;
-    let _cfg = ExtensionContext::config(ctx.as_ref());
-    let _db = ExtensionContext::database(ctx.as_ref());
     Ok(())
 }
 
@@ -82,7 +72,6 @@ async fn app_context_accessors_via_from_parts_path() -> Result<()> {
     let _ = ctx.route_classifier();
     let _ = ctx.geoip_reader();
     let _ = ctx.content_config();
-    let _ = ctx.content_routing();
     let _ = ctx.system_admin();
     let _ = ctx.authz_hook();
     let addr = ctx.server_address();

@@ -12,7 +12,6 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolResult, Tool};
-use systemprompt_extension::ExtensionContext;
 use systemprompt_identifiers::McpServerId;
 use systemprompt_mcp::{McpToolset, ToolsetCall};
 
@@ -100,7 +99,7 @@ pub fn documents_tools(
         })?;
     Ok(DocumentsMcpTools::for_host(
         host.parts(),
-        &host.extension_state(),
+        host.state(),
         links,
         server_name,
     ))

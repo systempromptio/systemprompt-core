@@ -14,7 +14,7 @@ use std::sync::Arc;
 
 use systemprompt_analytics::{AnalyticsService, GeoIpReader};
 use systemprompt_config::paths::AppPaths;
-use systemprompt_database::{DbPool, SchemaInstallReport};
+use systemprompt_database::DbPool;
 use systemprompt_events::{EventBridgeHandle, EventRouter};
 use systemprompt_extension::Admitted;
 use systemprompt_governance::authz::SharedAuthzHook;
@@ -23,7 +23,7 @@ use systemprompt_manifest::Config;
 use systemprompt_marketplace::inventory::PublishGuard;
 use systemprompt_marketplace::{MarketplaceCache, MarketplaceFilter};
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_models::{ContentConfigRaw, ContentRouting};
+use systemprompt_models::ContentConfigRaw;
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::FileStorage;
 
@@ -128,12 +128,6 @@ impl AppContext {
         self.cfg.content_config.as_ref().map(AsRef::as_ref)
     }
 
-    pub fn content_routing(&self) -> Option<Arc<dyn ContentRouting>> {
-        let concrete = Arc::clone(self.cfg.content_config.as_ref()?);
-        let routing: Arc<dyn ContentRouting> = concrete;
-        Some(routing)
-    }
-
     pub const fn db_pool(&self) -> &DbPool {
         &self.data.database
     }
@@ -200,10 +194,6 @@ impl AppContext {
         &self.plugins.mcp_registry
     }
 
-    pub const fn subject_handle(&self) -> &systemprompt_models::authz::SubjectSourceHandle {
-        &self.plugins.subjects
-    }
-
     pub const fn subject_providers(&self) -> &systemprompt_governance::authz::SubjectProviderSet {
         &self.plugins.subject_providers
     }
@@ -215,11 +205,6 @@ impl AppContext {
     #[must_use]
     pub const fn signing_keys(&self) -> &SigningKeys {
         &self.subsystems.signing_keys
-    }
-
-    #[must_use]
-    pub fn schema_install(&self) -> &SchemaInstallReport {
-        self.subsystems.schema_install.boot()
     }
 
     #[must_use]

@@ -7,7 +7,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
 
 use systemprompt_runtime::{AdmitFn, HostBootError, HostKernel};
 
@@ -26,9 +25,6 @@ impl HostContext {
     }
 
     fn over(parts: systemprompt_runtime::HostParts) -> Self {
-        Self {
-            parts,
-            provider_tokens: Arc::default(),
-        }
+        Self { parts }
     }
 }

@@ -83,7 +83,6 @@ pub mod build;
 pub mod capabilities;
 pub mod cli;
 pub mod compat;
-pub mod context;
 pub mod contribute;
 pub mod cost;
 pub mod error;
@@ -125,7 +124,6 @@ pub use brain::{
 };
 #[cfg(feature = "sqlx")]
 pub use brain::{BrainSink, DynBrainSink};
-pub use context::{DynExtensionContext, ExtensionContext};
 pub use contribute::{
     AudienceEntry, AudienceResolvers, ContributionError, Contributions, ExtensionConfig, Factory,
     FactoryError, FromState, Handed, HandleId, KernelHandle, ProvideError, ProvideFn, Resolved,

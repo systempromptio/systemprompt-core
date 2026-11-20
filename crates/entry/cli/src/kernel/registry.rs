@@ -6,10 +6,10 @@
 //! [`KernelGrant`], is re-checked here whatever handed it over: the path's
 //! listed [`CoreId`] must own it, every requested grant must be listed for
 //! that path, and no owner may hold reserved paths under two core ids. The
-//! owner is bound to its type as well as its id: a member entry holds a
-//! reserved path only when the Rust type the composition stamped on it is
-//! the core owner's type ([`core_owner_type`]), so a handoff naming a core
-//! id under another type is refused. A
+//! owner is bound to its standing as well as its id: a member entry holds a
+//! reserved path only when the core id the composition stamped from the
+//! member's core terms is the path's owner, so a handoff naming a core id
+//! without that standing is refused. A
 //! command attaches under a kernel group or under another entry, and never
 //! shadows an existing subcommand.
 //!
@@ -36,22 +36,6 @@ pub enum CommandOwner {
     Member(ExtensionId),
 }
 
-#[must_use]
-pub const fn core_owner_type(core: CoreId) -> Option<&'static str> {
-    match core {
-        CoreId::AnalyticsHttp => {
-            Some("systemprompt_analytics_entry::extension::AnalyticsHttpExtension")
-        },
-        CoreId::Cloud => Some("systemprompt_cloud_entry::extension::CloudCliExtension"),
-        CoreId::ContentHttp
-        | CoreId::NotificationsHttp
-        | CoreId::AgentRunsApi
-        | CoreId::Slack
-        | CoreId::Teams
-        | CoreId::Kernel => None,
-    }
-}
-
 impl std::fmt::Display for CommandOwner {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -64,7 +48,7 @@ impl std::fmt::Display for CommandOwner {
 #[derive(Debug, Clone)]
 pub struct RegistryEntry {
     owner: CommandOwner,
-    owner_type: Option<&'static str>,
+    core: Option<CoreId>,
     decl: CommandDecl,
 }
 
@@ -85,7 +69,7 @@ impl RegistryEntry {
             CommandOwner::Member(id) => {
                 core != CoreId::Kernel
                     && id.as_str() == core.id()
-                    && core_owner_type(core).is_some_and(|owner| self.owner_type == Some(owner))
+                    && self.core == Some(core)
             },
         }
     }
@@ -129,13 +113,13 @@ impl CommandRegistry {
             .iter()
             .map(|decl| RegistryEntry {
                 owner: CommandOwner::Kernel,
-                owner_type: None,
+                core: Some(CoreId::Kernel),
                 decl: *decl,
             })
             .collect();
         entries.extend(declared.commands().iter().map(|command| RegistryEntry {
             owner: CommandOwner::Member(command.owner.clone()),
-            owner_type: Some(command.owner_type),
+            core: command.core,
             decl: command.decl,
         }));
         refuse_duplicates(&entries)?;

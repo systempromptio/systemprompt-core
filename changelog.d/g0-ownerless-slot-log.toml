@@ -1,0 +1,4 @@
+[root]
+section = "Changed"
+area = "Extensions"
+text = "A core-first slot whose core owner is not admitted logs the install entries it does not build, with the slot and their owners, at `warn`."

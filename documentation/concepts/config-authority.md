@@ -44,7 +44,7 @@ Each plane's read, apply and audit run in one database transaction. The host pas
 
 ## Writing a plane's rows from a console: the writer token
 
-An extension that edits a plane's rows directly (an admin page or an API route) must hold a `PlaneWriter` for that plane. The only way to get one is `ConfigPlaneSet::writer(name)`, available as `ExtensionContext::config_planes()?.writer(name)?`. `PlaneWriter` has no public constructor, so a write path that takes `&PlaneWriter` cannot run without that check.
+An extension that edits a plane's rows directly (an admin page or an API route) must hold a `PlaneWriter` for that plane. The only way to get one is `ConfigPlaneSet::writer(name)` on the kernel-built plane set. `PlaneWriter` has no public constructor, so a write path that takes `&PlaneWriter` cannot run without that check.
 
 `writer()` refuses a plane under effective `file` authority with `ConfigPlaneError::FileManaged`. Converted to an HTTP error, this becomes `409 Conflict` with error key `config_plane_file_managed`, because the next apply would overwrite the edit. An unknown plane is `404`. A plane under `db` or `undeclared` authority gets a writer.
 

@@ -1,0 +1,9 @@
+[root]
+section = "Added"
+area = "Extensions"
+text = "Three core ids for the capability entry members — `marketplace-http`, `files-http` and `mcp-http` — are reserved (no install may take them), with their reserved CLI paths (`core marketplace`, `core plugins`, `core skills`, `core files`, `plugins mcp`) and the `ApiBase::Marketplace`, `ApiBase::Sync` and `ApiBase::McpRegistry` route bases."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`CoreId` gains `MarketplaceHttp`, `FilesHttp` and `McpHttp` (`CoreId::ALL` has 11 entries) and `ApiBase` gains `Marketplace`, `Sync` and `McpRegistry`; an exhaustive match over either must cover them."

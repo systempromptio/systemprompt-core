@@ -340,3 +340,20 @@ mod get_parameter_parsed_tests {
         assert!(ctx.with_enforce(true).enforce());
     }
 }
+
+mod sealed_seed_tests {
+    use super::*;
+    use systemprompt_provider_contracts::Dependencies;
+
+    #[test]
+    fn a_job_context_withholds_every_sealed_seed() {
+        let deps = Dependencies::new()
+            .with(7u16)
+            .with_sealed(Arc::new(String::from("secret")));
+        let ctx = JobContext::new(test_actor(), deps);
+        assert_eq!(ctx.get::<u16>(), Ok(&7));
+        assert!(ctx.get::<Arc<String>>().is_err());
+        assert!(ctx.find::<Arc<String>>().is_none());
+        assert!(ctx.dependencies().get::<Arc<String>>().is_err());
+    }
+}

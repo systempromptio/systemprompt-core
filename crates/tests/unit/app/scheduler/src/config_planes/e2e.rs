@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 
 use systemprompt_database::DbPool;
 use systemprompt_extension::{
-    ContributionError, Contributions, Extension, ExtensionContext, ExtensionMetadata,
+    ContributionError, Contributions, Extension, ExtensionMetadata,
 };
 use systemprompt_models::api::{ApiError, ErrorCode};
 use systemprompt_provider_contracts::{
@@ -194,7 +194,7 @@ async fn the_extension_context_writer_refuses_a_file_managed_plane_with_409() {
     )
     .await;
 
-    let set = ExtensionContext::config_planes(&*h.ctx).expect("planes");
+    let set = h.ctx.config_planes().expect("planes");
     let api: ApiError = set.writer(file_name).expect_err("file-managed").into();
     assert!(matches!(api.code, ErrorCode::ConflictError));
     assert_eq!(api.error_key.as_deref(), Some("config_plane_file_managed"));
@@ -381,7 +381,7 @@ async fn an_extension_plane_depending_on_an_unregistered_plane_fails_assembly() 
     )
     .await;
 
-    let err = ExtensionContext::config_planes(&*ctx).expect_err("refused");
+    let err = ctx.config_planes().expect_err("refused");
     assert!(matches!(
         err,
         ConfigPlaneError::UnknownDependency { ref dependency, .. } if dependency == "no_such_plane"

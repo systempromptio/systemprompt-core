@@ -30,8 +30,12 @@
 //! The host can also [`Dependencies::insert_sealed`] a seed that carries
 //! secrets or boot-only data. A sealed entry is read like any other through
 //! this map; [`Dependencies::is_sealed`] lets the one reader that must
-//! withhold it (the resolver a member's command runs against) refuse it with
-//! the same [`MissingDependency`] an absent type gets.
+//! withhold it refuse it with the same [`MissingDependency`] an absent type
+//! gets: the resolver a member's command runs against checks it per read,
+//! and [`Dependencies::withholding_sealed`] returns a copy in which every
+//! sealed entry is removed and its type reserved, so neither a read nor a
+//! later `provide` reaches it. A job, runner-service and config-plane
+//! context is built only from such a copy.
 //!
 //! The map is copy-on-write: a clone shares every entry, and inserting into a
 //! clone never changes the original, so the state the host owns after boot
@@ -39,9 +43,10 @@
 //!
 //! | Context | Seeded from |
 //! |---------|-------------|
-//! | `ExtensionContext::extension_state` | kernel handles + every enabled extension's `provide` |
-//! | `JobContext` (scheduler, runner services) | the extension state + per-run handles |
-//! | config-plane and prerender contexts | the extension state + per-call handles |
+//! | `Resolved` (provide fns, factories, slots, route sets, commands) | kernel handles + every enabled extension's `provide` |
+//! | `JobContext` (scheduler, runner services) | the extension state without its sealed seeds + per-run handles |
+//! | config-plane context | the extension state, sealed seeds refused + per-call handles |
+//! | prerender contexts | the extension state + per-call handles |
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -128,6 +133,22 @@ impl Dependencies {
     pub fn insert_sealed<T: Any + Send + Sync>(&mut self, value: T) {
         self.insert(value);
         Arc::make_mut(&mut self.sealed).insert(TypeId::of::<T>());
+    }
+
+    #[must_use]
+    pub fn withholding_sealed(&self) -> Self {
+        let mut out = self.clone();
+        if self.sealed.is_empty() {
+            return out;
+        }
+        let entries = Arc::make_mut(&mut out.entries);
+        let reserved = Arc::make_mut(&mut out.reserved);
+        for id in self.sealed.iter() {
+            if let Some(entry) = entries.remove(id) {
+                reserved.insert(*id, entry.type_name);
+            }
+        }
+        out
     }
 
     #[must_use]

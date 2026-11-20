@@ -51,7 +51,7 @@ These rules govern declarations and member commands. They do not isolate in-proc
 
 The platform has one type-keyed map, `Dependencies`, used for the kernel state, job contexts, config-plane contexts and prerender contexts alike. A route set's state type implements `FromState` and is built from the resolved state; a provide fn and a factory read it through `Resolved` (`get`, `optional`). The finished state is immutable after boot. This is how a member builds a repository, service or cache once and shares it between its routes, jobs and seams without a global.
 
-Jobs read the host's `ExtensionContext` from their context. It hands a job the profile, the resolved configuration, the services view and root, the database handle, file storage, custom secrets, background tasks, the instance id, a token authority, provider tokens and the cross-replica coordination seams (instances, leases, advisory locks).
+A job, a runner service and a config plane resolve the kernel's open seeds by type from their context: the database pool, the paths, the services view, the instance id, file storage, background tasks and the cross-replica coordination seams (instances, leases, advisory locks), plus every admitted member's provided values. The sealed seeds (the resolved configuration, the secret store, the system admin, the services root and the event router) are withheld from all three and from a member's command; a provide fn, a factory, a slot build and a route set read them. A member that needs a secret or a configuration value in a job reads it in its provide fn and provides its own typed value.
 
 ## Why composition, not discovery
 

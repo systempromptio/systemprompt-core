@@ -24,7 +24,6 @@ use systemprompt_agent::AgentState;
 use systemprompt_agent::services::a2a_server::run_standalone;
 use systemprompt_agent::services::a2a_server::streaming::webhook_client::HttpWebhookBroadcaster;
 use systemprompt_ai::AiService;
-use systemprompt_extension::ExtensionContext;
 use systemprompt_identifiers::AgentName;
 use systemprompt_mcp_host::AgentHost;
 
@@ -101,7 +100,7 @@ pub(super) async fn execute(args: RunArgs, host: &dyn KernelHost) -> Result<()> 
         host.services_state().view(),
     );
     let agent_state =
-        RunLauncher::resolve(&host.extension_state()).apply(agent_state, &args.agent_name);
+        RunLauncher::resolve(host.state()).apply(agent_state, &args.agent_name);
     let agent_state = Arc::new(agent_state);
 
     let ai_service = Arc::clone(agent.ai_service());

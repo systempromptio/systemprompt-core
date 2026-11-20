@@ -172,11 +172,14 @@ pub enum CoreId {
     Slack,
     Teams,
     Cloud,
+    MarketplaceHttp,
+    FilesHttp,
+    McpHttp,
     Kernel,
 }
 
 impl CoreId {
-    pub const ALL: [Self; 8] = [
+    pub const ALL: [Self; 11] = [
         Self::ContentHttp,
         Self::AnalyticsHttp,
         Self::NotificationsHttp,
@@ -184,6 +187,9 @@ impl CoreId {
         Self::Slack,
         Self::Teams,
         Self::Cloud,
+        Self::MarketplaceHttp,
+        Self::FilesHttp,
+        Self::McpHttp,
         Self::Kernel,
     ];
 
@@ -202,6 +208,9 @@ impl CoreId {
             Self::Slack => "slack",
             Self::Teams => "teams",
             Self::Cloud => "cloud",
+            Self::MarketplaceHttp => "marketplace-http",
+            Self::FilesHttp => "files-http",
+            Self::McpHttp => "mcp-http",
             Self::Kernel => "kernel",
         }
     }
@@ -235,6 +244,31 @@ pub const RESERVED_CLI_PATHS: &[ReservedCliPath] = &[
             KernelGrant::ConfigReconcile,
             KernelGrant::TargetAdmission,
         ],
+    },
+    ReservedCliPath {
+        owner: CoreId::MarketplaceHttp,
+        path: &["core", "marketplace"],
+        grants: &[],
+    },
+    ReservedCliPath {
+        owner: CoreId::MarketplaceHttp,
+        path: &["core", "plugins"],
+        grants: &[],
+    },
+    ReservedCliPath {
+        owner: CoreId::MarketplaceHttp,
+        path: &["core", "skills"],
+        grants: &[],
+    },
+    ReservedCliPath {
+        owner: CoreId::FilesHttp,
+        path: &["core", "files"],
+        grants: &[],
+    },
+    ReservedCliPath {
+        owner: CoreId::McpHttp,
+        path: &["plugins", "mcp"],
+        grants: &[],
     },
 ];
 

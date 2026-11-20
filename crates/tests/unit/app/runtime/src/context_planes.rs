@@ -193,11 +193,6 @@ async fn plane_debug_impls_flag_optional_members() {
         Arc::clone(resolved.admitted()),
     )
     .expect("context over the resolved core kernel");
-    let routing = ctx.content_routing();
-    assert!(
-        routing.is_some(),
-        "content_routing must be Some when a content config is present"
-    );
     assert!(
         ctx.content_config().is_some(),
         "content_config accessor must expose the raw config"

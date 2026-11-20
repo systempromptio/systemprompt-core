@@ -16,7 +16,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::services::scheduling::job_app_context;
+use crate::services::scheduling::kernel_handles;
 use async_trait::async_trait;
 use chrono::{Days, NaiveDate};
 use std::sync::Arc;
@@ -72,7 +72,7 @@ impl Job for VertexDiscoveryJob {
 
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start = std::time::Instant::now();
-        let app = job_app_context(ctx)?;
+        let app = kernel_handles(ctx)?.app();
         let services = app.services_state().view();
         let scanned = Self::probe(&services, app.secrets().get())
             .await

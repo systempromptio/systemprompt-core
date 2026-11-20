@@ -7,7 +7,9 @@
 //! can say so rather than looking healthy.
 //!
 //! The boot context installs the root once, before the services config is
-//! read, and extensions read it through `ExtensionContext::services_root`.
+//! read; it is a sealed kernel seed, read by provide fns, factories, slot
+//! builds, kernel commands and route sets, never by a member command, job or
+//! config plane.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

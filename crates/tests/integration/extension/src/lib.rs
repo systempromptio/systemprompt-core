@@ -4,10 +4,6 @@
 //! the project's testing policy of keeping tests in separate crates.
 
 #[cfg(test)]
-#[cfg(test)]
-mod context_tests;
-
-#[cfg(test)]
 mod error_tests;
 
 #[cfg(test)]

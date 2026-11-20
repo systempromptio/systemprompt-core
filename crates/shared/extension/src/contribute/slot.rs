@@ -12,7 +12,7 @@
 //!
 //! A [`SlotOrder::CoreFirst`] slot is built only when a core-standing member
 //! contributes to it: with its core owner disabled the slot is absent, never
-//! built from install entries alone.
+//! built from install entries alone (those entries are logged at `warn`).
 //!
 //! A built value enters the state through the same duplicate-checked insert
 //! a provided value does, owned by the slot's first core-standing
@@ -141,6 +141,7 @@ impl SlotRecord {
             .take()?;
         Some(SlotBuildInput {
             slot: self.slot,
+            built: self.built.type_name(),
             order: self.order,
             build: self.build,
             insert: self.insert,
@@ -167,6 +168,7 @@ impl std::fmt::Debug for SlotRecord {
 #[doc(hidden)]
 pub struct SlotBuildInput {
     slot: TypeId,
+    built: &'static str,
     order: SlotOrder,
     build: BuildFn,
     insert: InsertFn,
@@ -209,12 +211,19 @@ pub fn build_slot(
         return Ok(None);
     };
     let (slot, order, build, insert) = (first.slot, first.order, first.build, first.insert);
+    let built = first.built;
     let mut owner = first.entry.owner.clone();
     inputs.retain(|input| input.slot == slot);
     let core_present = inputs
         .iter()
         .any(|input| input.entry.standing == StandingTag::Core);
     if order == SlotOrder::CoreFirst && !core_present {
+        let owners: Vec<&str> = inputs.iter().map(|i| i.entry.owner.as_str()).collect();
+        tracing::warn!(
+            slot = built,
+            owners = ?owners,
+            "core-first slot has no admitted core owner; its install entries are not built"
+        );
         return Ok(None);
     }
     if order == SlotOrder::CoreFirst {

@@ -36,7 +36,7 @@ use systemprompt_manifest::SchedulerConfig;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::Job;
 
-use super::scheduling::make_job_context;
+use super::scheduling::{JobRun, make_job_context};
 use crate::error::SchedulerResult;
 use crate::jobs::InventoryRefreshMemo;
 use crate::models::{JobRunRecord, JobStatus};
@@ -173,9 +173,13 @@ impl JobExecutionService {
             .unwrap_or_default();
         merged.extend(parameters.clone());
         let job_ctx = make_job_context(
-            actor,
-            Arc::clone(&self.ctx),
-            job.db_budget(),
+            JobRun {
+                actor,
+                job_name,
+                budget: job.db_budget(),
+            },
+            &self.ctx,
+            &self.schedule,
             &self.inventory_memo,
         )
         .with_enforce(enforce)

@@ -124,6 +124,13 @@ impl HostKernel {
             services: services.view(),
             services_root: services_root.clone(),
             secrets: store,
+            file_storage: Arc::clone(&file_storage),
+            background_tasks: background_tasks.clone(),
+            coordination: crate::KernelCoordination {
+                instances: Arc::new(systemprompt_traits::UnavailableCoordination),
+                leases: Arc::new(systemprompt_traits::UnavailableCoordination),
+                locks: Arc::new(systemprompt_traits::UnavailableCoordination),
+            },
             system_admin: &system_admin,
             event_router: &event_router,
             documents: documents_slot,

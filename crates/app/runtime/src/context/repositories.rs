@@ -11,7 +11,6 @@ use systemprompt_ai::repository::AiRepositories;
 use systemprompt_content::repository::ContentRepositories;
 use systemprompt_database::{CoordinationRepositories, ServiceRepository};
 use systemprompt_files::FileRepository;
-use systemprompt_files::documents::repository::DocumentRepositories;
 use systemprompt_marketplace::managed::ManagedRepository;
 use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_oauth::repository::OAuthRepositories;
@@ -65,8 +64,4 @@ impl AppContext {
         &self.data.managed_repository
     }
 
-    #[must_use]
-    pub fn document_repositories(&self) -> &Arc<DocumentRepositories> {
-        self.subsystems.documents.repositories()
-    }
 }

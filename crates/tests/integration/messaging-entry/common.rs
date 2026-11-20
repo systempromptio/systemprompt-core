@@ -25,10 +25,10 @@ pub fn mount_set<C: Clone + Send + Sync + 'static>(
     set: &systemprompt_extension::router::RouteSet,
     clients: C,
 ) -> axum::Router {
-    use systemprompt_extension::ExtensionContext;
     systemprompt_api::services::messaging::bind_dispatcher(ctx).expect("dispatcher slot seeded");
     let seed = ctx
-        .extension_state()
+        .kernel()
+        .state()
         .with(ctx.services())
         .with(std::sync::Arc::clone(ctx.secrets()))
         .with(clients);

@@ -30,7 +30,7 @@ use systemprompt_traits::{Job as JobTrait, JobResult};
 use tracing::{debug, error, trace, warn};
 
 use super::claim::{Claim, acquire_cluster_claim, acquire_node_claim};
-use super::{RunningJobs, make_job_context};
+use super::{JobRun, RunningJobs, make_job_context};
 use crate::error::{SchedulerError, SchedulerResult};
 use crate::jobs::InventoryRefreshMemo;
 use crate::models::{JobRunRecord, JobStatus};
@@ -102,7 +102,16 @@ pub(super) async fn execute_job(dispatch: JobDispatch) {
     trace!(job_name = %job_name, "Starting job");
 
     let budget = job.db_budget();
-    let ctx = make_job_context(actor, app_context, budget, &inventory_memo)
+    let ctx = make_job_context(
+        JobRun {
+            actor,
+            job_name: &job_name,
+            budget,
+        },
+        &app_context,
+        &schedule,
+        &inventory_memo,
+    )
         .with_enforce(enforce)
         .with_parameters(parameters);
     let started = std::time::Instant::now();

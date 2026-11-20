@@ -245,12 +245,11 @@ async fn the_host_serves_a_hop_authenticated_tool_call_on_its_grants_alone() {
 }
 
 #[tokio::test]
-async fn the_extension_context_the_host_hands_out_verifies_and_never_signs() {
-    use systemprompt_extension::ExtensionContext;
+async fn the_token_authority_the_host_holds_verifies_and_never_signs() {
     use systemprompt_models::auth::{McpHopIdentity, TokenError, UserType};
 
     let host = boot_with(host_child_env(bootstrap())).await.expect("host");
-    let tokens = ExtensionContext::token_authority(&host);
+    let tokens = std::sync::Arc::clone(&host.parts().tokens);
     let server = McpServerId::new("host_docs");
     let user = registered("host-ext-ctx").await;
     let identity = McpHopIdentity {
@@ -279,7 +278,7 @@ async fn the_extension_context_the_host_hands_out_verifies_and_never_signs() {
         .expect("a hop the API signed verifies against the public keys");
     assert_eq!(claims.identity.user_id, user.id);
     assert!(
-        ExtensionContext::extension_state(&host)
+        host.state()
             .get::<std::sync::Arc<systemprompt_oauth::repository::OAuthRepositories>>()
             .is_err()
     );

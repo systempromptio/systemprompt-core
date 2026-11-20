@@ -70,8 +70,7 @@ impl ConfigReconcileService {
             .kernel()
             .state()
             .clone()
-            .with(ctx.secrets().get())
-            .with(Arc::clone(ctx));
+            .with(ctx.secrets().get());
         if let Some(users) = ctx.user_provider() {
             dependencies.insert(users);
         }

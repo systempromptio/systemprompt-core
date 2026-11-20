@@ -42,6 +42,8 @@ use super::secrets::{SecretPatternError, SecretScanner};
 pub enum GovernanceConfigError {
     #[error("governance config is not valid YAML: {0}")]
     Yaml(#[from] serde_yaml::Error),
+    #[error("governance config has a non-boolean `enabled` `{value}` at {location}")]
+    InvalidEnabled { location: String, value: String },
     #[error("governance config has no `governance.policies` sequence")]
     MissingPolicies,
     #[error("governance config policy entry {index} has no non-empty string `id`")]
@@ -61,6 +63,17 @@ pub enum GovernanceConfigError {
     DuplicatePolicyId { id: String },
     #[error("governance config could not be encoded as a plane entity: {0}")]
     Canonical(#[source] serde_json::Error),
+}
+
+fn read_enabled(node: Option<&YamlValue>, location: &str) -> Result<bool, GovernanceConfigError> {
+    let Some(raw) = node.and_then(|n| n.get("enabled")) else {
+        return Ok(true);
+    };
+    raw.as_bool()
+        .ok_or_else(|| GovernanceConfigError::InvalidEnabled {
+            location: location.to_owned(),
+            value: format!("{raw:?}"),
+        })
 }
 
 fn read_mode(
@@ -126,10 +139,7 @@ impl GovernanceConfig {
     pub fn parse(yaml: &str) -> Result<Self, GovernanceConfigError> {
         let root: YamlValue = serde_yaml::from_str(yaml)?;
         let governance = root.get("governance");
-        let enabled = governance
-            .and_then(|g| g.get("enabled"))
-            .and_then(YamlValue::as_bool)
-            .unwrap_or(true);
+        let enabled = read_enabled(governance, "governance")?;
         let default_mode = read_mode(governance, "governance")?.unwrap_or_default();
         let policies = governance
             .and_then(|g| g.get("policies"))
@@ -143,12 +153,9 @@ impl GovernanceConfig {
                 .and_then(YamlValue::as_str)
                 .and_then(|raw| PolicyId::try_new(raw).ok())
                 .ok_or(GovernanceConfigError::MissingPolicyId { index })?;
-            let enabled = entry
-                .get("enabled")
-                .and_then(YamlValue::as_bool)
-                .unwrap_or(true);
-            let mode = read_mode(Some(entry), &format!("governance.policies[{index}] ({id})"))?
-                .unwrap_or(default_mode);
+            let location = format!("governance.policies[{index}] ({id})");
+            let enabled = read_enabled(Some(entry), &location)?;
+            let mode = read_mode(Some(entry), &location)?.unwrap_or(default_mode);
             if id == SECRET_SCAN_ID {
                 SecretScanner::from_policy_yaml(entry)?;
             }

@@ -47,7 +47,7 @@ pub(crate) fn agent_runs(
     let seed = Dependencies::default()
         .with(Arc::clone(pool))
         .with(Arc::clone(ctx.app_paths_arc()))
-        .with(systemprompt_extension::ExtensionContext::app_config(ctx))
+        .with(Arc::clone(ctx.config_arc()))
         .with(runs.clone())
         .with(AdmittedRunOrigins::new(origins.iter().copied()));
     let kernel = Arc::new(fixture_kernel(pool, seed));

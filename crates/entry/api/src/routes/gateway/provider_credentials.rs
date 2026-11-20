@@ -67,7 +67,8 @@ pub async fn set(
     let Json(body) = body.map_err(BridgeError::InvalidBody)?;
     let catalog = ctx.services_state().catalog();
     let resolved = personal_credential(catalog, &credential).map_err(key_error)?;
-    let tokens = systemprompt_extension::ExtensionContext::provider_tokens(&ctx);
+    let tokens: Arc<dyn systemprompt_traits::ProviderTokenCache> =
+        Arc::<systemprompt_security::credential::TokenCache>::clone(ctx.connector_tokens());
     let meta = store_personal_key(
         &tokens,
         repository(&ctx),

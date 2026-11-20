@@ -109,11 +109,14 @@ pub(super) struct SeededRepositories {
     pub(super) oauth: Arc<systemprompt_oauth::repository::OAuthRepositories>,
     pub(super) ai: Arc<systemprompt_ai::repository::AiRepositories>,
     pub(super) users: Arc<systemprompt_users::UserRepository>,
+    pub(super) services: Arc<systemprompt_database::ServiceRepository>,
+    pub(super) coordination: Arc<systemprompt_database::CoordinationRepositories>,
 }
 
 pub(super) fn seeded_repositories(
     database: &DbPool,
     secrets: &systemprompt_manifest::secrets::Secrets,
+    instance_id: &systemprompt_identifiers::InstanceId,
 ) -> RuntimeResult<SeededRepositories> {
     let cipher = AtRestCipher::from_secrets(secrets)?;
     let pepper: Arc<str> = Arc::from(secrets.oauth_at_rest_pepper.as_str());
@@ -125,6 +128,14 @@ pub(super) fn seeded_repositories(
             database, cipher,
         )),
         users: Arc::new(systemprompt_users::UserRepository::new(database)),
+        services: Arc::new(systemprompt_database::ServiceRepository::new(
+            database,
+            instance_id.clone(),
+        )),
+        coordination: Arc::new(systemprompt_database::CoordinationRepositories::new(
+            database,
+            instance_id.clone(),
+        )),
     })
 }
 
@@ -152,14 +163,8 @@ pub(super) fn build_repositories(
         )),
         oauth: Arc::clone(&seeded.oauth),
         users: Arc::clone(&seeded.users),
-        services: Arc::new(systemprompt_database::ServiceRepository::new(
-            database,
-            instance_id.clone(),
-        )),
-        coordination: Arc::new(systemprompt_database::CoordinationRepositories::new(
-            database,
-            instance_id,
-        )),
+        services: Arc::clone(&seeded.services),
+        coordination: Arc::clone(&seeded.coordination),
         ai: Arc::clone(&seeded.ai),
         files: Arc::new(systemprompt_files::FileRepository::new(database)),
         mcp_sessions: Arc::new(systemprompt_mcp::repository::McpSessionRepository::new(

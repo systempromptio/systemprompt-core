@@ -130,13 +130,14 @@ pub struct AdmittedGatewayRoute {
 }
 
 /// One admitted CLI command, with the owner the composition stamped: its id
-/// and the fully-qualified Rust type that implements it, which the CLI
-/// registry matches against a reserved path's core owner type.
+/// and the core id its core terms carry (`None` for an install or a core
+/// member with no conferral). The CLI registry admits a reserved path only
+/// for the entry whose stamped core id owns it.
 #[cfg(feature = "cli")]
 #[derive(Debug, Clone)]
 pub struct AdmittedCommand {
     pub owner: ExtensionId,
-    pub owner_type: &'static str,
+    pub core: Option<crate::reserved::CoreId>,
     pub decl: crate::cli::CommandDecl,
 }
 

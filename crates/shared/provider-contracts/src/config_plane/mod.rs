@@ -122,6 +122,9 @@ impl<'a> PlaneContext<'a> {
     }
 
     pub fn get<T: std::any::Any + Send + Sync>(&self) -> Result<&'a T, MissingDependency> {
+        if self.dependencies.is_sealed::<T>() {
+            return Err(MissingDependency::of::<T>());
+        }
         self.dependencies.get::<T>()
     }
 }
@@ -135,7 +138,8 @@ impl<'a> PlaneContext<'a> {
 /// leave the admitted entities equal to the declaration (a following
 /// [`ConfigPlane::read_current`] on the same transaction diffs clean): the
 /// host re-reads after every apply and rolls back an apply that did not
-/// converge. The host inserts `DbPool` into the context's dependencies.
+/// converge. The host inserts `DbPool` into the context's dependencies; a
+/// sealed kernel seed reads as missing through [`PlaneContext::get`].
 ///
 /// [`ConfigPlane::apply`] defaults to [`resolve_apply`] over
 /// [`ConfigPlane::read_current`] and [`ConfigPlane::write`], so a plane that

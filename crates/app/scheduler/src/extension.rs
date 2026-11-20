@@ -17,13 +17,15 @@ use crate::jobs::{
     SessionBotTypeRollupJob, TraceFactsRollupJob, VertexDiscoveryJob,
 };
 
+pub(crate) const SCHEDULER_MEMBER_ID: &str = "scheduler";
+
 #[derive(Debug, Clone, Copy, Default)]
 pub struct SchedulerExtension;
 
 impl Extension for SchedulerExtension {
     fn metadata(&self) -> ExtensionMetadata {
         ExtensionMetadata {
-            id: "scheduler",
+            id: SCHEDULER_MEMBER_ID,
             name: "Scheduler",
             version: env!("CARGO_PKG_VERSION"),
         }

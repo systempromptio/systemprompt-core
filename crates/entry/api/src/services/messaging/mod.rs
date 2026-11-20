@@ -26,7 +26,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use serde_json::json;
-use systemprompt_extension::{AlreadyBound, ExtensionContext, LateBound};
+use systemprompt_extension::{AlreadyBound, LateBound};
 use systemprompt_governance::authz::{AuthzContext, AuthzDecision, AuthzRequest, EntityRef};
 use systemprompt_identifiers::{Actor, SessionId, TraceId};
 use systemprompt_mcp::repository::McpProxySessionRepository;
@@ -155,7 +155,7 @@ impl MessagingDispatcher for A2aMessagingDispatcher {
 }
 
 pub fn bind_dispatcher(ctx: &AppContext) -> Result<(), MissingDependency> {
-    let state = ctx.extension_state();
+    let state = ctx.kernel().state();
     let slot = state.get::<LateBound<dyn MessagingDispatcher>>()?;
     if !slot.is_bound() {
         match slot.bind(Arc::new(A2aMessagingDispatcher::new(ctx.clone()))) {
