@@ -52,7 +52,7 @@ pub(super) struct ListQuery {
     #[serde(default)]
     scope: ScopeParam,
     folder: Option<String>,
-    context_id: Option<String>,
+    context_id: Option<ContextId>,
     query: Option<String>,
     #[serde(default)]
     sort: SortParam,
@@ -92,12 +92,11 @@ fn listing_cursor(raw: Option<&str>) -> DocumentsResult<Option<ListingCursor>> {
 async fn listed_context(
     state: &DocumentsState,
     req_ctx: &RequestContext,
-    raw: Option<&str>,
+    claimed: Option<ContextId>,
 ) -> DocumentsResult<ContextId> {
-    let Some(raw) = raw.filter(|raw| !raw.is_empty()) else {
+    let Some(claimed) = claimed else {
         return Err(ApiError::bad_request("scope=context needs a context_id").into());
     };
-    let claimed = ContextId::try_new(raw)?;
     let owned = attributed_context(state.contexts.as_ref(), req_ctx, Some(&claimed)).await?;
     Ok(owned.unwrap_or(claimed))
 }
@@ -110,9 +109,7 @@ pub(super) async fn list(
     let who = caller(&state, &req_ctx).await?;
     let scope = list_scope(query.scope);
     let context_id = match scope {
-        ListScope::Context => {
-            Some(listed_context(&state, &req_ctx, query.context_id.as_deref()).await?)
-        },
+        ListScope::Context => Some(listed_context(&state, &req_ctx, query.context_id).await?),
         _ => None,
     };
     let request = ListFolderRequest {
