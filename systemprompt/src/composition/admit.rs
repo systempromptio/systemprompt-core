@@ -154,7 +154,7 @@ pub(super) fn admit_commands(
             }
             admitted.push(AdmittedCommand {
                 owner: member.id.clone(),
-                owner_type: member.type_name,
+                core: member.standing.terms().and_then(|terms| terms.core),
                 decl,
             });
         }

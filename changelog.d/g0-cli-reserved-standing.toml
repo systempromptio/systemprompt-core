@@ -1,0 +1,14 @@
+[root]
+section = "Changed"
+area = "CLI"
+text = "A reserved CLI path is admitted only for the entry whose facade-stamped core id owns it; no Rust type name is compared."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`AdmittedCommand::owner_type` is replaced by `core: Option<CoreId>`, stamped by the composition from the member's core terms."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Removed"
+text = "`kernel::core_owner_type` is removed."

@@ -131,7 +131,6 @@ pub(super) struct Member {
     pub(super) ext: Box<dyn Extension>,
     pub(super) standing: Standing,
     pub(super) type_id: TypeId,
-    pub(super) type_name: &'static str,
 }
 
 impl Member {
@@ -140,7 +139,6 @@ impl Member {
             ext: Box::new(E::default()),
             standing: Standing::Core(terms),
             type_id: TypeId::of::<E>(),
-            type_name: std::any::type_name::<E>(),
         }
     }
 }
@@ -186,7 +184,6 @@ impl Composition {
             ext: Box::new(e),
             standing: Standing::Install,
             type_id: TypeId::of::<E>(),
-            type_name: std::any::type_name::<E>(),
         });
         self
     }
@@ -253,7 +250,6 @@ impl Composition {
                 id,
                 standing: member.standing,
                 type_id: member.type_id,
-                type_name: member.type_name,
                 sink,
             });
         }

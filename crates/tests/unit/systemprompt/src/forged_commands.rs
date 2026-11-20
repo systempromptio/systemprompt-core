@@ -2,7 +2,7 @@
 //! CLI paths: a reserved path or its grant under a non-core id is refused
 //! however the handoff was built (T24, B1).
 
-use systemprompt_cli::kernel::{CommandRegistry, RegistryError, core_owner_type, kernel_commands};
+use systemprompt_cli::kernel::{CommandRegistry, RegistryError, kernel_commands};
 use systemprompt_extension::DeclaredCommands;
 use systemprompt_extension::admitted::{AdmittedCommand, DeclaredCommandParts};
 use systemprompt_extension::cli::{CommandDecl, KernelGrant};
@@ -17,9 +17,7 @@ fn forged(commands: Vec<(&str, CommandDecl)>) -> DeclaredCommands {
             .into_iter()
             .map(|(owner, decl)| AdmittedCommand {
                 owner: ExtensionId::new(owner),
-                owner_type: CoreId::for_id(owner)
-                    .and_then(core_owner_type)
-                    .unwrap_or(std::any::type_name::<ProbeGroup>()),
+                core: CoreId::for_id(owner),
                 decl,
             })
             .collect(),
