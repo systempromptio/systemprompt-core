@@ -487,6 +487,9 @@ mod routes_oauth_person_ui;
 mod routes_oauth_revoke_refresh;
 
 #[cfg(test)]
+mod routes_oauth_ui_revoke;
+
+#[cfg(test)]
 #[path = "routes_oauth_userinfo.rs"]
 mod routes_oauth_userinfo;
 

@@ -5,13 +5,16 @@
 ### Breaking
 
 - **Breaking:** **API:** `routes::oauth::discovery::WellKnownResponse` gains `ui_session_supported` and `ui_session`. Migrate a struct literal by adding `ui_session_supported: true, ui_session: UiSessionDiscovery::current()`.
+- **Breaking:** **API:** `routes::oauth::authenticated_router()` no longer carries `/revoke`; it is `routes::oauth::revocation_router()` (also `routes::oauth_revocation_router`). Migrate a hand-assembled router with `.merge(revocation_router())`; `routes::oauth::router()` already includes it.
 
 ### Added
 
 - **OAuth:** discovery advertises the UI session capability: `/.well-known/oauth-authorization-server`, `/.well-known/openid-configuration` and `endpoints.oauth` of `GET /api/v1` carry `ui_session_supported` and `ui_session` (`access_token_lifetime`, `session_lifetime`, `step_up_max_age`, in seconds), so a `person_ui` client no longer probes `/authorize`. No client is named.
+- **OAuth:** `POST /oauth/revoke` admits a person's UI session as the caller, so a `person_ui` client signs its own session out with its own credential. A UI caller reaches only its own grant: the token must belong to the same user and the same `client_id`, and an admin role widens nothing. Revoking its refresh token also ends the bearer it presented (RFC 7009 §2.1). Every other authenticated OAuth route still refuses the `ui` audience.
 
 ### Fixed
 
+- **OAuth:** revoking a `ui`-audience access token answered `200` and left the token live, for any caller: it was verified against the configured audiences only, which never hold `ui`. It is now verified with the `ui` audience admitted and its `jti` and session are revoked.
 - **OAuth:** the passkey pages (`webauthn_oauth.html` on `/authorize`, `link_passkey.html` on `/auth/link-passkey`) post the credential's binary fields (`rawId`, `attestationObject`, `clientDataJSON`, `authenticatorData`, `signature`, `userHandle`) as unpadded base64url strings. Since 0.81.0 (`webauthn-rs` 0.6.2) the finish endpoints read only that form, and the pages still sent byte arrays, so registering, signing in with and linking a passkey from a browser all failed with `400 credential.rawId: invalid type: sequence, expected a base64 encoded string`.
 
 ## [0.84.0] - 2026-11-20

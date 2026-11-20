@@ -55,6 +55,7 @@ pub use engagement::router as engagement_router;
 pub use mcp::registry_router as mcp_registry_router;
 pub use oauth::{
     authenticated_router as oauth_authenticated_router, public_router as oauth_public_router,
+    revocation_router as oauth_revocation_router,
 };
 pub use stream::stream_router;
 pub use sync::router as sync_router;

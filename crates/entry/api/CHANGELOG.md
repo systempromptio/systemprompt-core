@@ -5,10 +5,16 @@
 ### Breaking
 
 - `routes::oauth::discovery::WellKnownResponse` gains `ui_session_supported` and `ui_session`. Migrate a struct literal by adding `ui_session_supported: true, ui_session: UiSessionDiscovery::current()`.
+- `routes::oauth::authenticated_router()` no longer carries `/revoke`; it is `routes::oauth::revocation_router()`. Migrate a hand-assembled router with `.merge(revocation_router())`.
 
 ### Added
 
+- `POST /oauth/revoke` admits a person's UI session as the caller, limited to tokens of the same user and the same `client_id`; revoking its refresh token also ends the bearer it presented.
 - The OAuth well-known documents and `endpoints.oauth` of `GET /api/v1` carry `ui_session_supported` and `ui_session` (`access_token_lifetime`, `session_lifetime`, `step_up_max_age`, in seconds).
+
+### Fixed
+
+- Revoking a `ui`-audience access token answered `200` and revoked nothing; its `jti` and session are now revoked.
 
 ## [0.84.0] - 2026-11-20
 

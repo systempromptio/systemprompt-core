@@ -39,6 +39,7 @@ async fn authenticated_app() -> anyhow::Result<Router> {
         systemprompt_test_fixtures::test_oauth_signing(),
     );
     Ok(authenticated_router()
+        .merge(systemprompt_api::routes::oauth::revocation_router())
         .with_state(state)
         .layer(axum::Extension(ctx.config_arc().clone())))
 }

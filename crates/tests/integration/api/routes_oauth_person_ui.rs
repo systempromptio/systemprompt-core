@@ -47,7 +47,21 @@ pub(super) async fn person(person_ui: bool) -> anyhow::Result<Person> {
         .bind(format!("{}@person-ui.invalid", user.as_str()))
         .execute(pool.write_pool().as_ref())
         .await?;
-    let client = seed_oauth_client(&pool, &user).await?;
+    let client = client_of(&pool, &user, person_ui).await?;
+    Ok(Person {
+        pool,
+        app,
+        user,
+        client,
+    })
+}
+
+async fn client_of(
+    pool: &DbPool,
+    user: &UserId,
+    person_ui: bool,
+) -> anyhow::Result<OAuthClientFixture> {
+    let client = seed_oauth_client(pool, user).await?;
     if person_ui {
         sqlx::query(
             "UPDATE oauth_clients SET person_ui = true, declared_source = 'identity/desk.yaml' \
@@ -57,11 +71,18 @@ pub(super) async fn person(person_ui: bool) -> anyhow::Result<Person> {
         .execute(pool.write_pool().as_ref())
         .await?;
     }
+    Ok(client)
+}
+
+pub(super) async fn same_person_through_another_client(
+    p: &Person,
+    person_ui: bool,
+) -> anyhow::Result<Person> {
     Ok(Person {
-        pool,
-        app,
-        user,
-        client,
+        pool: p.pool.clone(),
+        app: p.app.clone(),
+        user: p.user.clone(),
+        client: client_of(&p.pool, &p.user, person_ui).await?,
     })
 }
 
