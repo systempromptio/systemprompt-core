@@ -6998,7 +6998,20 @@ dependencies = [
 name = "systemprompt-files-entry"
 version = "0.84.0"
 dependencies = [
+ "anyhow",
+ "base64 0.23.1",
+ "chrono",
+ "clap",
+ "schemars 1.2.3",
+ "serde",
+ "sha2 0.11.1",
+ "systemprompt-database",
  "systemprompt-extension",
+ "systemprompt-files",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-traits",
+ "tokio",
 ]
 
 [[package]]
@@ -7284,7 +7297,11 @@ dependencies = [
 name = "systemprompt-mcp-entry"
 version = "0.84.0"
 dependencies = [
+ "axum",
+ "serde",
  "systemprompt-extension",
+ "systemprompt-models",
+ "systemprompt-traits",
 ]
 
 [[package]]

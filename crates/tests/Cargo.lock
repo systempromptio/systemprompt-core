@@ -9777,7 +9777,6 @@ dependencies = [
  "systemprompt-runtime",
  "systemprompt-scheduler",
  "systemprompt-security",
- "systemprompt-storage",
  "systemprompt-test-fixtures",
  "systemprompt-test-hack",
  "systemprompt-traits",
@@ -10499,15 +10498,46 @@ dependencies = [
 name = "systemprompt-files-entry"
 version = "0.84.0"
 dependencies = [
+ "anyhow",
+ "base64 0.23.1",
+ "chrono",
+ "clap",
+ "schemars 1.2.3",
+ "serde",
+ "sha2 0.11.1",
+ "systemprompt-database",
  "systemprompt-extension",
+ "systemprompt-files",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-traits",
+ "tokio",
 ]
 
 [[package]]
 name = "systemprompt-files-entry-tests"
 version = "0.0.11"
 dependencies = [
+ "anyhow",
+ "clap",
+ "serde_json",
+ "sha2 0.11.1",
+ "sqlx",
+ "systemprompt-cli",
+ "systemprompt-database",
+ "systemprompt-extension",
+ "systemprompt-files",
  "systemprompt-files-entry",
+ "systemprompt-identifiers",
+ "systemprompt-provider-contracts",
+ "systemprompt-runtime",
+ "systemprompt-storage",
+ "systemprompt-test-fixtures",
  "systemprompt-test-hack",
+ "systemprompt-traits",
+ "tempfile",
+ "tokio",
+ "uuid",
 ]
 
 [[package]]
@@ -11119,15 +11149,26 @@ dependencies = [
 name = "systemprompt-mcp-entry"
 version = "0.84.0"
 dependencies = [
+ "axum",
+ "serde",
  "systemprompt-extension",
+ "systemprompt-models",
+ "systemprompt-traits",
 ]
 
 [[package]]
 name = "systemprompt-mcp-entry-tests"
 version = "0.0.11"
 dependencies = [
+ "async-trait",
+ "axum",
+ "serde_json",
+ "systemprompt-extension",
  "systemprompt-mcp-entry",
+ "systemprompt-models",
  "systemprompt-test-hack",
+ "systemprompt-traits",
+ "tokio",
 ]
 
 [[package]]
@@ -12422,6 +12463,7 @@ dependencies = [
  "systemprompt-files",
  "systemprompt-identifiers",
  "systemprompt-logging",
+ "systemprompt-mcp-entry",
  "systemprompt-mcp-host",
  "systemprompt-models",
  "systemprompt-provider-contracts",
