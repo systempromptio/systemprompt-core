@@ -21,7 +21,6 @@ fn builder_default_flags_are_false() {
         "got: {dbg}"
     );
     assert!(dbg.contains("authz_hook: false"), "got: {dbg}");
-    assert!(dbg.contains("marketplace_filter: false"), "got: {dbg}");
 }
 
 #[test]
@@ -89,26 +88,14 @@ fn builder_with_shared_authz_hook_reflects_in_debug() {
 }
 
 #[test]
-fn builder_with_marketplace_filter_reflects_in_debug() {
-    use std::sync::Arc;
-    use systemprompt_marketplace::AllowAllFilter;
-    let builder = AppContextBuilder::new(ensure_test_bootstrap().boot.clone(), fixture_admitted())
-        .with_marketplace_filter(Arc::new(AllowAllFilter));
-    let dbg = format!("{builder:?}");
-    assert!(dbg.contains("marketplace_filter: true"), "got: {dbg}");
-}
-
-#[test]
 fn builder_full_chain_all_flags_set() {
     use std::sync::Arc;
     use systemprompt_governance::authz::{AllowAllHook, NullAuditSink};
-    use systemprompt_marketplace::AllowAllFilter;
 
     let builder = AppContextBuilder::new(ensure_test_bootstrap().boot.clone(), fixture_admitted())
         .with_startup_warnings(true)
         .with_migrations(true)
         .with_migration_config(MigrationConfig::default())
-        .with_marketplace_filter(Arc::new(AllowAllFilter))
         .with_authz_hook(AllowAllHook::new(Arc::new(NullAuditSink)));
 
     let dbg = format!("{builder:?}");
@@ -121,7 +108,6 @@ fn builder_full_chain_all_flags_set() {
         )),
         "got: {dbg}"
     );
-    assert!(dbg.contains("marketplace_filter: true"), "got: {dbg}");
     assert!(dbg.contains("authz_hook: true"), "got: {dbg}");
 }
 

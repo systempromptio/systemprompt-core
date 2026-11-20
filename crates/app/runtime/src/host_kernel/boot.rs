@@ -15,19 +15,20 @@ use systemprompt_governance::contract::AuthzHooks;
 use systemprompt_governance::policy::PolicyCatalog;
 use systemprompt_loader::{ConfigLoader, ServicesSourceBootstrap, ServicesState};
 use systemprompt_marketplace::contract::MarketplaceSeams;
-use systemprompt_marketplace::managed::ManagedRepository;
+use systemprompt_marketplace::managed::PublicationPolicyCell;
 use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_models::subprocess::VERIFICATION_KEYS_ENV;
 use systemprompt_security::jwt::VerifyingTokenAuthority;
 use systemprompt_security::keys::{TokenVerificationKeys, VerificationKeyring};
 use systemprompt_traits::{
-    BackgroundTasks, CacheEpochs, DatabaseHandle, DynSessionUsageCounters, SecretStore,
+    BackgroundTasks, CacheEpochs, DatabaseHandle, DynManagedSkillResolver,
+    DynSessionUsageCounters, SecretStore,
 };
 use systemprompt_users::{SessionRepository, UserRepository};
 
 use crate::builder::assembly::load_system_admin;
 use crate::builder::authz::{AuthzBuilt, authz_stage};
-use crate::builder::composition::{a2a_repositories, build_artifact_ingest, organization_skills};
+use crate::builder::composition::{a2a_repositories, build_artifact_ingest};
 use crate::builder::core_layer::init_files_config;
 use crate::builder::database::connect_database;
 use crate::builder::documents::{DocumentsInputs, build_documents};
@@ -203,13 +204,19 @@ impl HostKernel {
             &r,
         )?;
 
-        let managed =
-            ManagedRepository::new(&database).with_publication_policy(publication.clone());
+        r.get::<PublicationPolicyCell>()
+            .map_err(RuntimeError::from)?
+            .bind(publication.clone())
+            .map_err(RuntimeError::from)?;
+        let managed_skills = r
+            .get::<DynManagedSkillResolver>()
+            .map_err(RuntimeError::from)?;
         let session_usage: DynSessionUsageCounters = Arc::new(SessionRepository::new(&database));
-        let a2a = Arc::new(organization_skills(
-            &a2a_repositories(&database, instance_id.clone(), &managed, session_usage),
-            &managed,
-            &system_owner,
+        let a2a = Arc::new(a2a_repositories(
+            &database,
+            instance_id.clone(),
+            managed_skills,
+            session_usage,
         ));
 
         let parts = HostParts {

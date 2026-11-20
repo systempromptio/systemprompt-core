@@ -1,8 +1,7 @@
-//! Public marketplace and plugin-file routes.
+//! The marketplace route handlers.
 //!
-//! [`router`] serves the default `marketplace.json`, lists and renders
-//! individual marketplaces (JSON and raw `config.yaml`), and streams plugin
-//! files. Plugin files are served from `plugin_bundles` — the same scoped,
+//! They serve the default `marketplace.json`, list and render individual
+//! marketplaces (JSON and raw `config.yaml`), and stream plugin files. Plugin files are served from `plugin_bundles` — the same scoped,
 //! content-gated map the signed manifest is hashed from — so the byte stream
 //! and the manifest cannot drift: a plugin the manifest excludes (content-less
 //! or in no enabled marketplace) is absent from the map and yields a 404,
@@ -11,59 +10,24 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use axum::Router;
 use axum::extract::{Path as AxumPath, State};
 use axum::http::{StatusCode, header};
 use axum::response::IntoResponse;
-use axum::routing::get;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use systemprompt_extension::router::ApiHttpError;
 use systemprompt_identifiers::{MarketplaceId, PluginId};
 use systemprompt_marketplace::{
     MarketplaceService, render_marketplace_json, render_marketplace_list,
 };
 use systemprompt_models::api::ApiError;
-use systemprompt_runtime::AppContext;
 
-use crate::kernel::ApiHttpError;
+use super::MarketplaceHttpState;
+use super::error::{MarketplaceHttpError, MarketplaceRouteError};
 
-pub fn router() -> Router<AppContext> {
-    Router::new()
-        .route("/marketplace.json", get(serve_default_marketplace_json))
-        .route("/marketplaces", get(list_marketplaces))
-        .route("/marketplaces/{id}", get(get_marketplace))
-        .route(
-            "/marketplaces/{id}/manifest.yaml",
-            get(get_marketplace_yaml),
-        )
-        .route("/plugins/{plugin_id}/{*path}", get(serve_plugin_file))
-}
-
-fn marketplaces_path(ctx: &AppContext) -> PathBuf {
-    ctx.app_paths().system().services().join("marketplaces")
-}
-
-#[derive(Debug, thiserror::Error)]
-enum MarketplaceRouteError {
-    #[error("failed to render marketplace JSON")]
-    Render(#[source] serde_json::Error),
-    #[error("failed to read marketplace config")]
-    ReadConfig(#[source] std::io::Error),
-}
-
-impl From<MarketplaceRouteError> for ApiHttpError {
-    fn from(err: MarketplaceRouteError) -> Self {
-        let context = match &err {
-            MarketplaceRouteError::Render(_) => "Failed to render marketplace",
-            MarketplaceRouteError::ReadConfig(_) => "Failed to read marketplace config",
-        };
-        Self::from(ApiError::internal(context, err))
-    }
-}
-
-async fn serve_default_marketplace_json(
-    State(ctx): State<AppContext>,
-) -> Result<impl IntoResponse, ApiHttpError> {
-    let services = ctx.services_config();
+pub async fn serve_default_marketplace_json(
+    State(state): State<MarketplaceHttpState>,
+) -> Result<impl IntoResponse, MarketplaceHttpError> {
+    let services = state.services.config();
     let service = MarketplaceService::new(&services);
 
     let (id, marketplace) = service.resolve_default()?;
@@ -81,10 +45,10 @@ async fn serve_default_marketplace_json(
     ))
 }
 
-async fn list_marketplaces(
-    State(ctx): State<AppContext>,
-) -> Result<impl IntoResponse, ApiHttpError> {
-    let services = ctx.services_config();
+pub async fn list_marketplaces(
+    State(state): State<MarketplaceHttpState>,
+) -> Result<impl IntoResponse, MarketplaceHttpError> {
+    let services = state.services.config();
     let service = MarketplaceService::new(&services);
 
     let body = serde_json::to_vec_pretty(&render_marketplace_list(service.list()))
@@ -100,12 +64,12 @@ async fn list_marketplaces(
     ))
 }
 
-async fn get_marketplace(
-    State(ctx): State<AppContext>,
+pub async fn get_marketplace(
+    State(state): State<MarketplaceHttpState>,
     AxumPath(id): AxumPath<String>,
-) -> Result<impl IntoResponse, ApiHttpError> {
+) -> Result<impl IntoResponse, MarketplaceHttpError> {
     let id = MarketplaceId::try_new(id).map_err(ApiError::from)?;
-    let services = ctx.services_config();
+    let services = state.services.config();
     let service = MarketplaceService::new(&services);
 
     let marketplace = service.get(&id)?;
@@ -123,12 +87,12 @@ async fn get_marketplace(
     ))
 }
 
-async fn get_marketplace_yaml(
-    State(ctx): State<AppContext>,
+pub async fn get_marketplace_yaml(
+    State(state): State<MarketplaceHttpState>,
     AxumPath(id): AxumPath<String>,
-) -> Result<impl IntoResponse, ApiHttpError> {
+) -> Result<impl IntoResponse, MarketplaceHttpError> {
     let id = MarketplaceId::try_new(id).map_err(ApiError::from)?;
-    let marketplaces_root = marketplaces_path(&ctx);
+    let marketplaces_root = state.services_root.join("marketplaces");
     let requested = marketplaces_root.join(id.as_str()).join("config.yaml");
 
     let canonical_root = marketplaces_root
@@ -139,13 +103,13 @@ async fn get_marketplace_yaml(
         .map_err(|_e| ApiHttpError::not_found(format!("Marketplace '{id}' has no config.yaml")))?;
 
     if !canonical_requested.starts_with(&canonical_root) {
-        return Err(ApiHttpError::forbidden("Invalid marketplace id"));
+        return Err(ApiHttpError::forbidden("Invalid marketplace id").into());
     }
 
     if !canonical_requested.is_file() {
         return Err(ApiHttpError::not_found(format!(
             "Marketplace '{id}' has no config.yaml"
-        )));
+        )).into());
     }
 
     let content = tokio::fs::read(&canonical_requested)
@@ -162,41 +126,33 @@ async fn get_marketplace_yaml(
     ))
 }
 
-async fn serve_plugin_file(
-    State(ctx): State<AppContext>,
+pub async fn serve_plugin_file(
+    State(state): State<MarketplaceHttpState>,
     AxumPath((plugin_id, file_path)): AxumPath<(String, String)>,
-) -> Result<impl IntoResponse, ApiHttpError> {
-    let services = ctx.services_config();
-    let profile = ctx.profile();
-    let api_external_url = &profile.server.api_external_url;
-    let services_root = ctx.app_paths().system().services();
-
+) -> Result<impl IntoResponse, MarketplaceHttpError> {
+    let services = state.services.config();
     let disk_catalog =
-        ctx.marketplace_cache()
-            .catalog(&services, services_root, api_external_url)?;
+        state
+            .cache
+            .catalog(&services, &state.services_root, &state.api_external_url)?;
     let catalog = (*disk_catalog)
         .clone()
-        .without_organization_resources(
-            ctx.managed_repository().as_ref().clone(),
-            ctx.system_admin().id(),
-        )
+        .without_organization_resources(state.repository.as_ref().clone(), &state.owner)
         .await?;
-    let bundles = ctx
-        .marketplace_cache()
-        .bundles(&services, &catalog.as_content())?;
+    let bundles = state.cache.bundles(&services, &catalog.as_content())?;
 
     let id = PluginId::try_new(&plugin_id)
         .map_err(|_e| ApiHttpError::not_found(format!("Plugin '{plugin_id}' not found")))?;
     let Some(bundle) = bundles.get(&id) else {
         return Err(ApiHttpError::not_found(format!(
             "Plugin '{plugin_id}' not found"
-        )));
+        )).into());
     };
 
     let Some(file) = bundle.get(&file_path) else {
         return Err(ApiHttpError::not_found(format!(
             "File not found: {file_path}"
-        )));
+        )).into());
     };
 
     Ok((

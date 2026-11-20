@@ -134,6 +134,10 @@ fn entry_members() -> Vec<Member> {
         Member::core::<systemprompt_notifications_entry::extension::NotificationsHttpExtension>(
             CoreTerms::conferred(CoreId::NotificationsHttp),
         ),
+        #[cfg(feature = "marketplace")]
+        Member::core::<systemprompt_marketplace_entry::extension::MarketplaceHttpExtension>(
+            CoreTerms::conferred(CoreId::MarketplaceHttp),
+        ),
         #[cfg(all(feature = "agent-runs", feature = "api"))]
         Member::core::<systemprompt_agent_runs_entry::extension::AgentRunsApiExtension>(
             CoreTerms::conferred(CoreId::AgentRunsApi),

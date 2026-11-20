@@ -1,16 +1,8 @@
 //! Integration tests for `systemprompt-api` HTTP route handlers.
 
 #[cfg(test)]
-#[path = "routes_marketplace.rs"]
-mod routes_marketplace;
-
-#[cfg(test)]
-#[path = "routes_marketplace_success.rs"]
-mod routes_marketplace_success;
-
-#[cfg(test)]
-#[path = "routes_marketplace_services_watch.rs"]
-mod routes_marketplace_services_watch;
+#[path = "routes_marketplace_mounted.rs"]
+mod routes_marketplace_mounted;
 
 #[cfg(test)]
 #[path = "routes_gateway_auth.rs"]

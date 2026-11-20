@@ -52,8 +52,7 @@ async fn context() -> AppContext {
 
 async fn fetch(id: &str) -> (StatusCode, Vec<u8>) {
     let ctx = context().await;
-    let response = systemprompt_api::routes::marketplace::router()
-        .with_state(ctx)
+    let response = crate::common::marketplace_router(&ctx)
         .oneshot(
             Request::builder()
                 .uri(format!("/marketplaces/{id}/manifest.yaml"))
@@ -140,8 +139,7 @@ async fn a_marketplace_config_is_served_verbatim_as_yaml() {
     std::fs::write(scratch.entry().join("config.yaml"), b"name: coverage\n").expect("config");
 
     let ctx = context().await;
-    let response = systemprompt_api::routes::marketplace::router()
-        .with_state(ctx)
+    let response = crate::common::marketplace_router(&ctx)
         .oneshot(
             Request::builder()
                 .uri(format!("/marketplaces/{}/manifest.yaml", scratch.id))

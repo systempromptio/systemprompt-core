@@ -40,8 +40,7 @@ async fn runtime_inventory_retains_last_good_membership_across_scan_failure_and_
     assert_eq!(published.len(), 1);
     assert_eq!(published[0].status, LatestPublicationStatus::Published);
     assert_eq!(published[0].generation, Some(1));
-    let last_good = ctx
-        .managed_repository()
+    let last_good = systemprompt_test_fixtures::fixture_managed_repository(&ctx)
         .inventory_status(&owner)
         .await
         .unwrap();
@@ -58,8 +57,7 @@ async fn runtime_inventory_retains_last_good_membership_across_scan_failure_and_
             .to_string()
             .contains("Configured catalog is a symlink")
     );
-    let failed = ctx
-        .managed_repository()
+    let failed = systemprompt_test_fixtures::fixture_managed_repository(&ctx)
         .inventory_status(&owner)
         .await
         .unwrap();

@@ -49,8 +49,8 @@ use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_governance::contract::AuthzHooks;
 use systemprompt_governance::policy::PolicyCatalog;
 use systemprompt_loader::BootContext;
-use systemprompt_marketplace::MarketplaceFilter;
 use systemprompt_marketplace::contract::MarketplaceSeams;
+use systemprompt_marketplace::managed::PublicationPolicyCell;
 use systemprompt_traits::{BackgroundTasks, ConfigWatch, DatabaseHandle, SecretStore};
 use systemprompt_users::UserService;
 
@@ -70,14 +70,12 @@ use kernel_state::{ApiKernelSeed, KernelCoordination, KernelSeed, kernel_state};
 /// module.
 ///
 /// The admitted composition is fixed at construction. Schema installation is
-/// off by default, and the marketplace filter is the one the marketplace
-/// seams built. Override these with the `with_*` methods before calling
+/// off by default. Override it with the `with_*` methods before calling
 /// [`build`](Self::build).
 pub struct AppContextBuilder {
     boot: BootContext,
     admitted: Arc<Admitted>,
     show_startup_warnings: bool,
-    marketplace_filter: Option<Arc<dyn MarketplaceFilter>>,
     core: CoreOverrides,
     schema: SchemaPolicy,
     migration_config: MigrationConfig,
@@ -94,7 +92,6 @@ impl AppContextBuilder {
             boot,
             admitted,
             show_startup_warnings: false,
-            marketplace_filter: None,
             core: CoreOverrides::default(),
             schema: SchemaPolicy::default(),
             migration_config: MigrationConfig::default(),
@@ -213,9 +210,16 @@ impl AppContextBuilder {
         let governance = ConfigWatch::new(
             load_governance(profile, &database, &*r.get::<Arc<PolicyCatalog>>()?).await?,
         );
-        let repositories =
-            build_domain_layer(&self.boot, &database, policy, &seeded, &system_admin).await?;
-        let plugins = new_plugins(mcp_registry, self.marketplace_filter, &seams, &market);
+        r.get::<PublicationPolicyCell>()?.bind(policy)?;
+        let repositories = build_domain_layer(
+            &self.boot,
+            &database,
+            &seeded,
+            &system_admin,
+            r.get::<systemprompt_traits::DynManagedSkillResolver>()?,
+        )
+        .await?;
+        let plugins = new_plugins(mcp_registry, &market);
 
         #[cfg(feature = "notifications")]
         let notification_sink = systemprompt_notifications::OutboxNotificationSink::over_write_pool(
@@ -269,7 +273,6 @@ impl AppContextBuilder {
             shutdown: self.shutdown.unwrap_or_default(),
             background_tasks,
             spawner: new_spawner()?,
-            publish_guard: Arc::default(),
             connector_tokens,
             documents,
         };

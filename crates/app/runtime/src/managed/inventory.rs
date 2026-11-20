@@ -1,18 +1,28 @@
 //! Core inventory orchestration uses configured services roots and
-//! organizational ownership.
+//! organizational ownership. The managed repository and the publish guard are
+//! the ones the `managed_resources` member provides into the kernel state.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+
+use std::sync::Arc;
 
 use super::OrchestrationError;
 use crate::AppContext;
 use systemprompt_identifiers::UserId;
 use systemprompt_marketplace::inventory::{
-    BaselineScope, InventoryService, InventoryStatus, SourcesContext,
+    BaselineScope, InventoryService, InventoryStatus, PublishGuard, SourcesContext,
 };
+use systemprompt_marketplace::managed::ManagedRepository;
+use tokio::sync::Mutex;
 pub use systemprompt_marketplace::inventory::{
     LatestPublication, LatestPublicationStatus, configured_inventory_fingerprint,
 };
+
+fn service(ctx: &AppContext) -> Result<InventoryService, OrchestrationError> {
+    let repository = ctx.kernel().state().get::<Arc<ManagedRepository>>()?;
+    Ok(InventoryService::new(repository.as_ref().clone()))
+}
 
 fn sources(ctx: &AppContext) -> SourcesContext<'_> {
     SourcesContext {
@@ -26,16 +36,14 @@ pub async fn refresh(
     owner: &UserId,
 ) -> Result<InventoryStatus, OrchestrationError> {
     let services = ctx.services_config();
-    Ok(
-        InventoryService::new(ctx.managed_repository().as_ref().clone())
-            .refresh(
-                owner,
-                ctx.app_paths().system().services(),
-                &services,
-                sources(ctx),
-            )
-            .await?,
-    )
+    Ok(service(ctx)?
+        .refresh(
+            owner,
+            ctx.app_paths().system().services(),
+            &services,
+            sources(ctx),
+        )
+        .await?)
 }
 
 pub async fn publish_latest(
@@ -44,7 +52,8 @@ pub async fn publish_latest(
     actor: &UserId,
 ) -> Result<Vec<LatestPublication>, OrchestrationError> {
     let services = ctx.services_config();
-    let service = InventoryService::new(ctx.managed_repository().as_ref().clone());
+    let service = service(ctx)?;
+    let guard = Arc::clone(ctx.kernel().state().get::<Arc<Mutex<PublishGuard>>>()?);
     service
         .refresh(
             owner,
@@ -53,7 +62,7 @@ pub async fn publish_latest(
             sources(ctx),
         )
         .await?;
-    let mut guard = ctx.publish_guard().lock().await;
+    let mut guard = guard.lock().await;
     Ok(service
         .publish_latest(
             &BaselineScope {

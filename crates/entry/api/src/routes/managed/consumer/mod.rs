@@ -14,6 +14,7 @@ use axum::{Json, Router};
 use systemprompt_models::feedback::receipts::{ConsumerReceiptRequest, SessionBindingRequest};
 use systemprompt_runtime::AppContext;
 
+use super::state::managed_repository;
 use error::ConsumerHttpError;
 use systemprompt_models::ApiPaths;
 
@@ -52,7 +53,7 @@ async fn receipt(
     ))
     .await?;
     Ok(Json(
-        ctx.managed_repository()
+        managed_repository(&ctx)?
             .record_consumer_receipt(credential, &input)
             .await?,
     ))
@@ -64,8 +65,7 @@ async fn bind_session(
     Json(input): Json<SessionBindingRequest>,
 ) -> Result<impl axum::response::IntoResponse, ConsumerHttpError> {
     let credential = authorization::credential(&headers)?;
-    let resource = ctx
-        .managed_repository()
+    let resource = managed_repository(&ctx)?
         .consumer_receipt_resource(credential, &input.receipt_id)
         .await?;
     Box::pin(authorization::resource(
@@ -73,7 +73,7 @@ async fn bind_session(
     ))
     .await?;
     Ok(Json(
-        ctx.managed_repository()
+        managed_repository(&ctx)?
             .bind_consumer_session(credential, &input)
             .await?,
     ))
@@ -118,7 +118,7 @@ async fn bundle(
     ))
     .await?;
     Ok(Json(
-        ctx.managed_repository()
+        managed_repository(&ctx)?
             .consumer_installation_plan(credential, &resource, &publication, query.host)
             .await?,
     ))

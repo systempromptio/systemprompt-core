@@ -2,7 +2,7 @@
 //!
 //! Every context is built by [`AppContextBuilder`] over an admitted
 //! composition, on a test bootstrap's profile with the given [`Config`]
-//! installed, an allow-all marketplace filter and the fixture signing keys.
+//! installed and the fixture signing keys.
 //! The fixture profile's authorization mode is `unrestricted`, so the default
 //! builder supplies no extension hook; [`fixture_app_context_with_hook`] builds
 //! on a copy of the profile whose mode is `extension`. Every build seeds the
@@ -29,7 +29,7 @@ use systemprompt_manifest::profile::{
     ContentNegotiationConfig, RateLimitsConfig, SecurityHeadersConfig,
 };
 use systemprompt_manifest::Config;
-use systemprompt_marketplace::{AllowAllFilter, MarketplaceFilter};
+use systemprompt_marketplace::MarketplaceFilter;
 use systemprompt_runtime::{AppContext, AppContextBuilder};
 
 use crate::bootstrap::{ensure_test_bootstrap, TestBootstrap};
@@ -200,7 +200,6 @@ fn context_builder_on_profile(
     let boot = BootContext::new(profile, Arc::clone(bootstrap.boot.secrets()));
     boot.install_config(config)?;
     Ok(AppContextBuilder::new(boot, admitted)
-        .with_marketplace_filter(Arc::new(AllowAllFilter))
         .with_signing_keys(crate::jwt::test_signing_keys())
         .with_services(bootstrap.services.clone()))
 }
@@ -316,9 +315,8 @@ pub async fn fixture_app_context_with_filter(
         fixture_context_builder(
             ensure_test_bootstrap(),
             fixture_config(database_url),
-            fixture_admitted(),
-        )?
-        .with_marketplace_filter(marketplace_filter),
+            crate::marketplace::fixture_admitted_with_filter(marketplace_filter),
+        )?,
         database_url,
     )
     .await

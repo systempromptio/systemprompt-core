@@ -1,6 +1,6 @@
 //! Protocol-surface route mounting.
 //!
-//! Mounts the agent (A2A), MCP, stream, and content/admin/marketplace route
+//! Mounts the agent (A2A), MCP, stream, and content/admin route
 //! groups onto the server router. Each group is an [`KernelRoutes`]
 //! declaration — base path, `AuthzPolicy`, context kind, rate limit, body
 //! limit — mounted through the one declaration mount in

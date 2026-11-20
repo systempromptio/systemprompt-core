@@ -8,7 +8,6 @@ use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_governance::authz::{AllowAllHook, NullAuditSink};
 use systemprompt_manifest::profile::PathsConfig;
-use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::{ContentConfigRaw, RouteClassifier};
 use systemprompt_runtime::{
@@ -84,9 +83,6 @@ async fn plane_debug_impls_flag_optional_members() {
         mcp_session_repository: Arc::new(systemprompt_mcp::repository::McpSessionRepository::new(
             &pool,
         )),
-        managed_repository: Arc::new(systemprompt_marketplace::managed::ManagedRepository::new(
-            &pool,
-        )),
     };
     let dbg = format!("{data:?}");
     assert!(dbg.contains("DataPlane"), "got: {dbg}");
@@ -127,14 +123,12 @@ async fn plane_debug_impls_flag_optional_members() {
             systemprompt_test_fixtures::fixture_services_view(),
             systemprompt_test_fixtures::test_config(),
         ),
-        marketplace_filter: Arc::new(AllowAllFilter),
-        marketplace_cache: Arc::new(systemprompt_marketplace::MarketplaceCache::default()),
         subject_providers: Default::default(),
         subjects: Default::default(),
     };
     let dbg = format!("{plugins:?}");
     assert!(dbg.contains("Plugins"), "got: {dbg}");
-    assert!(dbg.contains("marketplace_filter"), "got: {dbg}");
+    assert!(dbg.contains("subject_providers"), "got: {dbg}");
 
     let authz_hook: systemprompt_governance::authz::SharedAuthzHook =
         Arc::new(AllowAllHook::new(Arc::new(NullAuditSink)));
@@ -168,9 +162,6 @@ async fn plane_debug_impls_flag_optional_members() {
         shutdown: Default::default(),
         background_tasks: Default::default(),
         spawner: systemprompt_test_fixtures::test_spawner(),
-        publish_guard: Arc::new(tokio::sync::Mutex::new(
-            systemprompt_marketplace::inventory::PublishGuard::default(),
-        )),
         connector_tokens: Arc::default(),
         documents,
     };

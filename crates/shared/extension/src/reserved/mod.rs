@@ -103,7 +103,6 @@ pub const RESERVED_PATHS: &[ReservedPath] = &[
     kernel(ApiPaths::UPLOADS, ReservedReach::Prefix),
     kernel("/api/v1/internal", ReservedReach::Prefix),
     kernel("/api/v1/issues", ReservedReach::Prefix),
-    kernel(ApiPaths::MARKETPLACE_BASE, ReservedReach::Prefix),
     kernel(ApiPaths::SYNC_BASE, ReservedReach::Prefix),
     kernel(ApiPaths::WEBHOOK, ReservedReach::Prefix),
     kernel(ApiPaths::HEALTH, ReservedReach::Prefix),
@@ -126,6 +125,7 @@ pub const RESERVED_PATHS: &[ReservedPath] = &[
     held(CoreId::Slack, ApiPaths::SLACK_BASE),
     held(CoreId::Teams, ApiPaths::TEAMS_BASE),
     held(CoreId::Cloud, ApiPaths::CLOUD_TENANTS),
+    held(CoreId::MarketplaceHttp, ApiPaths::MARKETPLACE_BASE),
 ];
 
 pub const BUILTIN_GATEWAY_PREFIXES: &[&str; 31] = &[

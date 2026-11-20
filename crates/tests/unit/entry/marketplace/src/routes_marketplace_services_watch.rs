@@ -1,5 +1,6 @@
-//! The marketplace routes read the services config from the `AppContext`
-//! services watch, never from the loader per request.
+//! The marketplace routes read the services config from the services view
+//! the kernel seeds (the context's services watch), never from the loader per
+//! request.
 //!
 //! A marketplace written to disk after the context is built, and primed into
 //! the loader's memo, stays invisible to the routes until the `services`
@@ -12,13 +13,12 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use axum::Router;
-use systemprompt_api::routes::marketplace;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context};
 use systemprompt_traits::{CacheDomain, ConfigVersionSource, RepositoryError, WatchSignals};
 use tower::ServiceExt;
 
-use super::common::{body_to_string, empty_get};
+use crate::common::{body_to_string, empty_get, marketplace_router};
 
 const LATE_YAML: &str = r#"marketplace:
   id: late
@@ -73,7 +73,7 @@ async fn a_tree_change_is_not_served_until_the_watch_reloads() -> anyhow::Result
         "the loader reads the new marketplace from disk"
     );
 
-    let router = marketplace::router().with_state(ctx.clone());
+    let router = marketplace_router(&ctx);
     assert_eq!(
         status_of(router, "/marketplaces/late").await?,
         404,
@@ -110,7 +110,7 @@ async fn advancing_the_services_epoch_serves_the_new_tree() -> anyhow::Result<()
         ctx.services_watch().reloads() > 0,
         "the epoch reloads the watch"
     );
-    let router = marketplace::router().with_state(ctx.clone());
+    let router = marketplace_router(&ctx);
     assert_eq!(status_of(router, "/marketplaces/late").await?, 200);
     Ok(())
 }

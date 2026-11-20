@@ -1,7 +1,5 @@
 //! Tests for AppContextBuilder fluent helpers not covered in context.rs.
 
-use std::sync::Arc;
-use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_runtime::{AppContextBuilder, MigrationConfig};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_admitted};
 
@@ -10,8 +8,7 @@ fn chain_combines_all_flags() {
     let builder = AppContextBuilder::new(ensure_test_bootstrap().boot.clone(), fixture_admitted())
         .with_startup_warnings(true)
         .with_migrations(true)
-        .with_migration_config(MigrationConfig::default())
-        .with_marketplace_filter(Arc::new(AllowAllFilter));
+        .with_migration_config(MigrationConfig::default());
     let dbg = format!("{:?}", builder);
     assert!(dbg.contains("show_startup_warnings: true"));
     assert!(dbg.contains("install_schemas: true"));

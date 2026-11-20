@@ -19,6 +19,7 @@ use systemprompt_users::{
 };
 
 use super::bridge_error::{BridgeError, authenticate_bridge};
+use crate::routes::managed::state::managed_repository;
 use crate::kernel::{ApiHttpError, JwtContextExtractor};
 
 pub async fn enroll_self(
@@ -38,8 +39,8 @@ pub async fn enroll_self(
         .await
         .map_err(classify_enrolment_error)?;
 
-    let issued = ctx
-        .managed_repository()
+    let issued = managed_repository(&ctx)
+        .map_err(|e| BridgeError::unavailable("device credential issue failed", e))?
         .issue_consumer_credential(&cert.id)
         .await
         .map_err(|e| BridgeError::unavailable("device credential issue failed", e))?;

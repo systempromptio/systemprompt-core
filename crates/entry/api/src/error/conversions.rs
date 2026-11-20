@@ -14,7 +14,6 @@ use systemprompt_governance::authz::{AuthzError, ScopeBindingError, SubjectAttri
 use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_loader::{BundleError, ConfigLoadError};
 use systemprompt_marketplace::MarketplaceError;
-use systemprompt_marketplace::managed::ManagedError;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::errors::GlobalConfigError;
 use systemprompt_models::execution::ContextExtractionError;
@@ -106,28 +105,7 @@ impl From<AgentError> for ApiHttpError {
 
 impl From<MarketplaceError> for ApiHttpError {
     fn from(err: MarketplaceError) -> Self {
-        let api = match err {
-            MarketplaceError::Managed(ManagedError::Repository(inner)) => ApiError::from(inner),
-            e @ (MarketplaceError::NotFound(_)
-            | MarketplaceError::NoDefault
-            | MarketplaceError::Managed(ManagedError::Unavailable)) => {
-                ApiError::not_found(e.to_string())
-            },
-            e @ MarketplaceError::Managed(
-                ManagedError::Invalid(_) | ManagedError::InvalidInput { .. },
-            ) => ApiError::bad_request(e.to_string()),
-            e @ MarketplaceError::Managed(ManagedError::Conflict(_)) => {
-                ApiError::conflict(e.to_string())
-            },
-            e @ (MarketplaceError::Catalog(_)
-            | MarketplaceError::CatalogSource { .. }
-            | MarketplaceError::Managed(_)
-            | MarketplaceError::Import { .. }
-            | MarketplaceError::ImportSource { .. }
-            | MarketplaceError::Signing(_)
-            | MarketplaceError::Filter(_)) => ApiError::internal("Marketplace operation failed", e),
-        };
-        Self(Box::new(api))
+        Self(Box::new(ApiError::from(err)))
     }
 }
 

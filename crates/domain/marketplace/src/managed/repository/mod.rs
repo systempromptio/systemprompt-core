@@ -21,7 +21,7 @@ use systemprompt_identifiers::{
     ManagedResourceId, ManagedSourceId, ResourceRevisionId, SourceSnapshotId,
 };
 
-use super::{DependencyRef, PublicationPolicy, RevisionFiles};
+use super::{DependencyRef, ManagedError, PublicationPolicy, PublicationPolicyCell, RevisionFiles};
 use crate::catalog::VerifiedRevisions;
 use systemprompt_loader::bundle::BaseTreeHashMemo;
 
@@ -30,7 +30,7 @@ pub struct ManagedRepository {
     pub(crate) pool: PgPool,
     verified: Arc<VerifiedRevisions>,
     tree_hash: Arc<BaseTreeHashMemo>,
-    publication: Arc<PublicationPolicy>,
+    publication: PublicationPolicyCell,
 }
 
 impl ManagedRepository {
@@ -41,18 +41,24 @@ impl ManagedRepository {
             pool: db.write_pool().as_ref().clone(),
             verified: Arc::new(VerifiedRevisions::default()),
             tree_hash: Arc::new(BaseTreeHashMemo::new()),
-            publication: Arc::new(PublicationPolicy::default()),
+            publication: PublicationPolicyCell::bound(PublicationPolicy::default()),
         }
     }
 
     #[must_use]
     pub fn with_publication_policy(mut self, policy: PublicationPolicy) -> Self {
-        self.publication = Arc::new(policy);
+        self.publication = PublicationPolicyCell::bound(policy);
         self
     }
 
-    pub(crate) fn publication_policy(&self) -> &PublicationPolicy {
-        &self.publication
+    #[must_use]
+    pub fn with_publication_cell(mut self, cell: PublicationPolicyCell) -> Self {
+        self.publication = cell;
+        self
+    }
+
+    pub(crate) fn publication_policy(&self) -> Result<&PublicationPolicy, ManagedError> {
+        self.publication.policy()
     }
 
     pub(crate) fn base_tree_hash_memo(&self) -> &BaseTreeHashMemo {

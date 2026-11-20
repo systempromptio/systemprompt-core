@@ -1,18 +1,18 @@
 //! Exercise the marketplace HTTP routes through `oneshot`.
 //!
-//! These tests do not set up a profile/services config, so handlers that call
-//! `ConfigLoader::load()` will return 500. That is intentional — the routing,
-//! state plumbing, header negotiation, and error-mapping paths all execute.
+//! These tests configure no marketplace, so the default and by-id lookups
+//! answer with an error. The routing, state plumbing and error-mapping paths
+//! all execute.
 
 use axum::Router;
-use systemprompt_api::routes::marketplace;
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context};
 use tower::ServiceExt;
 
-use super::common::{empty_get, setup_ctx};
+use crate::common::{empty_get, marketplace_router};
 
 async fn router() -> anyhow::Result<Router> {
-    let (_pool, ctx) = setup_ctx().await?;
-    Ok(marketplace::router().with_state((*ctx).clone()))
+    let ctx = test_app_context(&ensure_test_bootstrap().database_url).await;
+    Ok(marketplace_router(&ctx))
 }
 
 #[tokio::test]

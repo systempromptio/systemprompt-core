@@ -43,7 +43,7 @@ const ANALYTICS_ADMIN: RouteShape = shape(AuthzPolicy::admin(), ContextKind::Use
 pub const CONTENT_GENERATE_ROUTES: &[(Method, &str)] = &[(Method::POST, "/links/generate")];
 pub const CONTENT_REDIRECT_ROUTES: &[(Method, &str)] = &[(Method::GET, "/r/{short_code}")];
 
-const ALWAYS: [PrivilegedShape; 11] = [
+const ALWAYS: [PrivilegedShape; 12] = [
     PrivilegedShape {
         owner: CoreId::ContentHttp,
         base: BaseRef::Path(BasePath::Api(ApiBase::Content)),
@@ -154,6 +154,18 @@ const ALWAYS: [PrivilegedShape; 11] = [
         ),
         routes: None,
     },
+    PrivilegedShape {
+        owner: CoreId::MarketplaceHttp,
+        base: BaseRef::Path(BasePath::Api(ApiBase::Marketplace)),
+        group: RouteGroup::ContentAndMisc,
+        allowance: Allowance::ReservedPrefix,
+        shape: shape(
+            AuthzPolicy::public(),
+            ContextKind::Public,
+            limits(RateLimit::new("marketplace", RateBudget::Content)),
+        ),
+        routes: None,
+    },
 ];
 
 #[cfg(feature = "slack")]
@@ -188,7 +200,7 @@ macro_rules! privileged_shapes {
     ($($extra:expr),*) => {
         &[
             ALWAYS[0], ALWAYS[1], ALWAYS[2], ALWAYS[3], ALWAYS[4], ALWAYS[5], ALWAYS[6],
-            ALWAYS[7], ALWAYS[8], ALWAYS[9], ALWAYS[10] $(, $extra)*
+            ALWAYS[7], ALWAYS[8], ALWAYS[9], ALWAYS[10], ALWAYS[11] $(, $extra)*
         ]
     };
 }

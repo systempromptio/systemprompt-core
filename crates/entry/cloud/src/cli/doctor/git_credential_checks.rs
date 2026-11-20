@@ -16,10 +16,10 @@ use std::time::Duration;
 
 use sqlx::postgres::PgPoolOptions;
 use systemprompt_database::Database;
-use systemprompt_marketplace::managed::{GitCredentialSource, ManagedRepository};
-use systemprompt_runtime::managed::git_sources::{
+use systemprompt_marketplace::managed::git_sources::{
     MIGRATE_GIT_CREDENTIALS_COMMAND, git_credential_key,
 };
+use systemprompt_marketplace::managed::{GitCredentialSource, ManagedRepository};
 
 use super::CheckResult;
 

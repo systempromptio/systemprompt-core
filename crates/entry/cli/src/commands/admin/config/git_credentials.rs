@@ -23,8 +23,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use systemprompt_config::write_private_atomic;
 use systemprompt_logging::CliService;
+use systemprompt_marketplace::managed::git_sources::git_credential_key;
 use systemprompt_marketplace::managed::{GitCredentialSource, ManagedRepository};
-use systemprompt_runtime::managed::git_sources::git_credential_key;
 
 use systemprompt_extension::cli::CommandOutput;
 

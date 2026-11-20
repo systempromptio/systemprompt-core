@@ -38,6 +38,7 @@ pub mod schema_template;
 pub mod secrets;
 #[cfg(test)]
 mod self_check;
+pub mod marketplace;
 pub mod service_row;
 pub mod slots;
 pub mod subprocess;
@@ -73,6 +74,7 @@ pub use bootstrap::{
     TEST_TEAMS_UNRESOLVABLE_APP_ID, TEST_TEAMS_UNRESOLVABLE_TENANT_ID,
 };
 pub use brain::fixture_brain;
+pub use marketplace::{fixture_admitted_with_filter, fixture_managed_repository, FilterMember};
 pub use composed::{
     empty_resolved_kernel, gateway_probe_admitted, gateway_resolved_kernel,
     offline_resolved_kernel, probe_admitted, resolved_kernel, ComposedParts, Probe,
