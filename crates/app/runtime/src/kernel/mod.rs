@@ -13,8 +13,10 @@
 //! ([`AdmittedAssets`]), each open. It then builds the state from
 //! the [`Admitted`] handoff: every admitted member's early provide fns in
 //! composition order, each reading what was provided before it; the admitted
-//! owner reassignments ([`AdmittedOwnerReassignments`]), each built by its
-//! owner's factory and refused unless it names only the owner's own tables;
+//! owner reassignments ([`AdmittedOwnerReassignments`], sealed: kernel code
+//! and provide fns read them, no member runtime context does), each built by
+//! its owner's factory and refused unless it names only the owner's own
+//! tables;
 //! every slot,
 //! built from its admitted entries (core first where the slot asks for it)
 //! and inserted as `Arc<S::Built>`, after the shared audience-resolver set
@@ -125,7 +127,7 @@ impl Kernel {
         self.state.insert(Arc::new(audiences));
         let reassignments =
             AdmittedOwnerReassignments::of(admitted.built(), &self.resolved())?;
-        self.state.insert(Arc::new(reassignments));
+        self.state.insert_sealed(Arc::new(reassignments));
         self.build_slots(admitted)?;
         self.build_governance(admitted.built())?;
         self.provide_all(admitted, ProvidePhase::AfterGovernance)?;
