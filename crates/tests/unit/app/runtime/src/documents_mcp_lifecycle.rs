@@ -221,6 +221,7 @@ async fn share_transfers_ownership_and_lists_show_access() {
             ListInput {
                 scope: ListScopeInput::Shared,
                 folder_id: None,
+                context_id: None,
                 query: None,
                 sort: ListSortInput::Updated,
                 cursor: None,

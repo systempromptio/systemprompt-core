@@ -4,6 +4,7 @@
 
 ### Breaking
 
+- **Breaking:** **Documents:** `ListScope` gains `Context`, `ScopedListing` and `ListFolderRequest` gain `context_id`, and the documents MCP `ListScopeInput` gains `Context` and `ListInput` `context_id`. Migrate an exhaustive match by adding the arm and a struct literal by setting `context_id: None`.
 - **Breaking:** **Files:** `DocumentServiceParts` gains the `tasks` field (`BackgroundTasks`). Migrate by passing the composition root's `BackgroundTasks`.
 - **Breaking:** **Events:** `OutboxChannel` gains `AgUiMany`, and `DocumentEventName` gains `DriveChanged` (`DocumentEventName::ALL` now holds 20 names). Migrate an exhaustive match by adding the arms.
 - **Breaking:** **Files:** `SubjectDirectory` gains `find_people(&[UserId])`, the active people among a list of user ids in the order asked. Migrate an implementation by answering the active, non-service users it knows among them.
@@ -16,6 +17,7 @@
 
 ### Added
 
+- **Documents:** `scope=context` lists the documents one of the caller's conversations touched: a revision or a comment carries its context id. `GET /api/v1/documents?scope=context&context_id=` and `documents_list {scope: "context", context_id?}` (by default the calling conversation) list only documents the caller can still see, ranked, sorted and paged as the other scopes. A conversation the caller does not own and one that does not exist are both `422 unknown_context`; `scope=context` without a `context_id` is `400` over REST.
 - **Documents:** the root discovery document (`GET /api/v1`) carries `endpoints.documents`: `{"enabled": false}` while `files.documents.enabled` is off, and otherwise the `href`, `folders` and `uploads` route URLs with `limits` (`maxUploadBytes`, `inlineMaxBytes`, `uploadPartBytes`).
 - **Documents:** a landed revision sends `document.drive.changed` (`DocumentDriveChangedEvent { v: 1 }`, no ids) to the AG-UI stream, including `/v1/bridge/stream`, of every user who holds `view` or better on the document: the owner and the members of each grant subject on the document and its folder chain. The client re-reads its access-filtered change feed. Hints are coalesced per document on each replica to one immediately and one trailing hint every two seconds; the audience is capped at 500 users (owner and author always kept), and when it cannot be resolved, no hint is sent.
 - **Events:** `EventRouter::route_agui_many(actor, recipients, event)` delivers one AG-UI event to many users through a single `event_outbox` row (channel `agui_many`), which each replica's bridge fans out locally.

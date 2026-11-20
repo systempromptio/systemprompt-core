@@ -125,6 +125,7 @@ fn request(scope: ListScope, folder: Option<DocumentFolderId>) -> ListFolderRequ
     ListFolderRequest {
         scope,
         folder,
+        context_id: None,
         query: None,
         sort: ListSort::Updated,
         cursor: None,

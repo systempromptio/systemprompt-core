@@ -7,6 +7,7 @@
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::Deserialize;
+use systemprompt_files::documents::models::{ListScope, ListSort};
 use systemprompt_files::documents::service::MentionOption;
 use systemprompt_identifiers::{
     ContentHash, ContextId, DocumentCommentId, DocumentFolderId, DocumentId, DocumentNodeId,
@@ -25,6 +26,8 @@ pub struct ListInput {
     pub scope: ListScopeInput,
     #[serde(default)]
     pub folder_id: Option<DocumentFolderId>,
+    #[serde(default)]
+    pub context_id: Option<ContextId>,
     #[serde(default)]
     pub query: Option<String>,
     #[serde(default)]
@@ -45,6 +48,19 @@ pub enum ListScopeInput {
     Shared,
     Mine,
     Recent,
+    Context,
+}
+
+impl ListScopeInput {
+    pub(super) const fn scope(self) -> ListScope {
+        match self {
+            Self::Folder => ListScope::Folder,
+            Self::Shared => ListScope::Shared,
+            Self::Mine => ListScope::Mine,
+            Self::Recent => ListScope::Recent,
+            Self::Context => ListScope::Context,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, JsonSchema)]
@@ -54,6 +70,16 @@ pub enum ListSortInput {
     #[default]
     Updated,
     Recent,
+}
+
+impl ListSortInput {
+    pub(super) const fn sort(self) -> ListSort {
+        match self {
+            Self::Name => ListSort::Name,
+            Self::Updated => ListSort::Updated,
+            Self::Recent => ListSort::Recent,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]

@@ -5,8 +5,10 @@
 //! visibility for all of them, and each visible child then passes the authz
 //! hook (and, for an agent caller, the agent gate). Pages advance on the last
 //! fetched child, whether or not the hook admitted it, and stop at a fixed
-//! page bound; `shared`, `mine` and
-//! `recent` span every folder. The repository decides grant visibility, and
+//! page bound; `shared`, `mine`,
+//! `recent` and `context` span every folder. A `context` listing names its
+//! conversation; whether the caller owns it is checked by the caller of this
+//! service. The repository decides grant visibility, and
 //! every row then passes the authz hook for its folder, so a listing never
 //! shows what a read would refuse, and a document whose agent cap is `none` is
 //! dropped for an agent caller.
@@ -36,6 +38,11 @@ impl DocumentService {
         request: ListFolderRequest,
         trace: &TraceId,
     ) -> Result<Listing, DocumentsError> {
+        if request.scope == ListScope::Context && request.context_id.is_none() {
+            return Err(DocumentsError::InvalidParams {
+                detail: "a context listing names a context_id",
+            });
+        }
         let (pairs, folders) = if request.scope == ListScope::Folder {
             let granted = self
                 .access
@@ -59,6 +66,7 @@ impl DocumentService {
         let listing = ScopedListing {
             scope: request.scope,
             folder_id: request.folder,
+            context_id: request.context_id,
             query: request.query,
             sort: request.sort,
             cursor: request.cursor,

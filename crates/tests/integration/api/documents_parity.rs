@@ -497,3 +497,44 @@ async fn non_members_get_not_found_and_viewers_see_only_owner_and_self() -> Resu
     assert_eq!(status, StatusCode::BAD_REQUEST, "{refused}");
     Ok(())
 }
+
+#[tokio::test]
+async fn a_context_listing_answers_only_the_callers_own_conversation() -> Result<()> {
+    let (pool, state) = fixture().await?;
+    let owner = seed_bridge_credential(&pool, "docs-context-list").await?;
+    let stranger = seed_bridge_credential(&pool, "docs-context-list-stranger").await?;
+    let context = owned_context(&pool, &owner, "Listing conversation").await?;
+    let foreign = owned_context(&pool, &stranger, "Stranger's listing").await?;
+    let (id, head) = create(&state, &owner, &unique("context-listed")).await?;
+    let (untouched, _) = create(&state, &owner, &unique("context-untouched")).await?;
+    let (status, committed) =
+        edit_in_context(&state, &owner, (&id, &head), context.as_str()).await?;
+    assert!(status.is_success(), "{status} {committed}");
+
+    let uri = format!("/?scope=context&context_id={}", context.as_str());
+    let (status, listing) = send(app(&state, &owner), empty(Method::GET, &uri)).await?;
+    assert_eq!(status, StatusCode::OK, "{listing}");
+    let listed: Vec<&str> = listing["documents"]
+        .as_array()
+        .expect("documents")
+        .iter()
+        .filter_map(|d| d["id"].as_str())
+        .collect();
+    assert_eq!(listed, vec![id.as_str()]);
+    assert!(!listed.contains(&untouched.as_str()));
+
+    let mut answers = Vec::new();
+    for claimed in [foreign, ContextId::generate()] {
+        let uri = format!("/?scope=context&context_id={}", claimed.as_str());
+        let (status, refused) = send(app(&state, &owner), empty(Method::GET, &uri)).await?;
+        assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{refused}");
+        assert_eq!(refused["error_key"], "unknown_context");
+        answers.push(refused["detail"].clone());
+    }
+    assert_eq!(answers[0], answers[1]);
+
+    let (status, missing) =
+        send(app(&state, &owner), empty(Method::GET, "/?scope=context")).await?;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{missing}");
+    Ok(())
+}

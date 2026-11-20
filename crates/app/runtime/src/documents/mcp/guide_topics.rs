@@ -135,10 +135,11 @@ folder_id?} renames or moves. documents_folder {action: create, name, parent_id?
 folder (create access on the parent; no parent_id is the root); {action: update, folder_id, \
 name?, parent_id?} renames it and moves it (parent_id null is the root) in one step. Moving \
 a folder is administration, which agents may do only where the deployment's policy allows. \
-documents_list {scope: folder | shared | mine | recent, folder_id?, query?, sort: name | \
-updated | recent, limit, cursor} also lists a folder's subfolders: shared is what others \
-shared with you, recent is what you last edited, commented on or opened; each item carries \
-size_bytes and my_access.";
+documents_list {scope: folder | shared | mine | recent | context, folder_id?, context_id?, \
+query?, sort: name | updated | recent, limit, cursor} also lists a folder's subfolders: shared \
+is what others shared with you, recent is what you last edited, commented on or opened, \
+context is what a conversation of yours wrote or commented on (context_id, by default this \
+one; another user's is unknown_context); each item carries size_bytes and my_access.";
 
 pub(super) const PROPOSALS: &str = "\
 An edit lands on the head, or is written as a proposal: a revision off the head that a \

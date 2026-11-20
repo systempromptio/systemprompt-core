@@ -4,6 +4,7 @@
 
 ### Breaking
 
+- `ListScope` gains `Context`, and `ScopedListing` and `ListFolderRequest` gain `context_id`. Migrate an exhaustive match by adding the arm and a struct literal by setting `context_id: None`.
 - `DocumentsError` gains `FolderNameTaken` and `AgentRefusal` gains `WholesaleReplace`. Migrate by handling both variants in exhaustive matches (`FolderNameTaken` beside `NameTaken`, `WholesaleReplace` beside `BroadRewrite`).
 - `DocumentServiceParts` gains the `tasks` field (`BackgroundTasks`). Migrate by passing the composition root's `BackgroundTasks`.
 - `DocumentsError` gains `UnknownContext` and `Contexts`; `RevisionAttribution` gains `agent_name` and `client_id`; `CommentOrigin`, `NewComment` and `DocumentComment` gain `context_id` and `client_id` (`DocumentComment` also `via_agent`); `ImportRequest` and `FileCreateRequest` gain `message`. Migrate by adding the match arms and setting the fields.
@@ -12,6 +13,7 @@
 
 ### Added
 
+- `ListScope::Context`: the documents a conversation touched through a revision or a comment carrying its context id, drawn from the `(context_id, created_at)` indexes and ranked, paged and hook-filtered as the other scopes; a document the caller can no longer see drops out. `list_folder` refuses the scope without a `context_id` as `invalid_params`; whether the caller owns the conversation is checked by the caller of the service. No migration.
 - A landed revision sends `document.drive.changed` to every user who holds `view` or better on the document, coalesced per document to at most one every `DRIVE_HINT_INTERVAL` (two seconds) on each replica. The audience is capped at 500 users, the owner and the author always among them; a failure resolving it withholds the hint from everyone.
 - `DocumentService::propose_write`: a whole-file write proposed on its base, with comment access.
 - Migrations `041_document_attribution_agent_client` (nullable `agent_name`, `client_id` on `document_revisions`; `context_id`, `client_id` on `document_comments`) and `042_document_comments_context_index` (built `CONCURRENTLY`).

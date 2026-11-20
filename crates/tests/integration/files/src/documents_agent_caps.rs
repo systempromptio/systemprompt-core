@@ -113,6 +113,7 @@ async fn under_none_the_document_is_missing_from_an_agents_listing() {
     let request = ListFolderRequest {
         scope: ListScope::Mine,
         folder: None,
+        context_id: None,
         query: None,
         sort: ListSort::Updated,
         cursor: None,

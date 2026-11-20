@@ -63,6 +63,7 @@ fn listing(scope: ListScope, query: Option<&str>, sort: ListSort) -> ListFolderR
     ListFolderRequest {
         scope,
         folder: None,
+        context_id: None,
         query: query.map(str::to_owned),
         sort,
         cursor: None,

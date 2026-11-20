@@ -1,10 +1,12 @@
 //! Scoped document listings: a folder, documents shared with the caller,
-//! the caller's own documents, or the documents the caller touched last.
+//! the caller's own documents, the documents the caller touched last, or the
+//! documents one conversation touched.
 //!
 //! Each scope has its own statement that first builds a bounded candidate
 //! set from an index (the folder's documents, the caller's own, the
 //! documents the caller's grants reach directly or through a folder chain, or
-//! the documents the caller authored, commented on or is present in), then
+//! the documents the caller authored, commented on or is present in, or the
+//! documents a conversation's revisions and comments name), then
 //! ranks and pages it, and only then reads the head blob size and the touch
 //! time for the rows on the page. A grant matches any of the caller's subject
 //! pairs, exactly as access checks resolve it, and a stored `own` grant reports
@@ -159,6 +161,10 @@ impl DocumentRepository {
             (ListScope::Mine, _) => self.list_mine(&args).await?,
             (ListScope::Shared, _) => self.list_shared(&args).await?,
             (ListScope::Recent, _) => self.list_recent(&args).await?,
+            (ListScope::Context, _) => match listing.context_id.as_ref() {
+                Some(context) => self.list_in_context(context, &args).await?,
+                None => Vec::new(),
+            },
         };
         let mut documents = rows
             .into_iter()

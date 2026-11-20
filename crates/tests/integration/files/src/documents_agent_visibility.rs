@@ -47,6 +47,7 @@ async fn a_none_folder_never_lists_for_an_agent() {
     let root = ListFolderRequest {
         scope: ListScope::Folder,
         folder: None,
+        context_id: None,
         query: None,
         sort: ListSort::Name,
         cursor: None,

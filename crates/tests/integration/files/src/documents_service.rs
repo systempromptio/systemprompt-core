@@ -358,6 +358,7 @@ async fn a_group_folder_grant_reaches_members_only() {
             ListFolderRequest {
                 scope: ListScope::Folder,
                 folder: Some(folder.id.clone()),
+                context_id: None,
                 query: None,
                 sort: ListSort::Updated,
                 cursor: None,
