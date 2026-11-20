@@ -462,12 +462,17 @@ async fn a_multipart_import_names_its_document_and_refuses_bad_parts() -> Result
         &[
             ("file", Some(file.as_str()), "# Imported\n\nbody\n"),
             ("format", None, "markdown"),
+            ("message", None, "imported from the desktop"),
             ("ignored", None, "x"),
         ],
     )
     .await?;
     assert_eq!(imported.status, StatusCode::CREATED, "{}", imported.json());
     assert_eq!(imported.json()["document"]["name"], file.as_str());
+    assert_eq!(
+        imported.json()["revision"]["message"],
+        "imported from the desktop"
+    );
     let id = id_of(&imported.json());
     let content = send(
         app(&state, &owner),

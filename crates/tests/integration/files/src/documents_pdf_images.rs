@@ -87,6 +87,7 @@ async fn imported(
                 mime_type: None,
                 bytes,
                 author: api_author(),
+                message: None,
             },
             &trace(),
         )

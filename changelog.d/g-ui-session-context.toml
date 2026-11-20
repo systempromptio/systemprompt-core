@@ -1,0 +1,19 @@
+[root]
+section = "Added"
+area = "Extension contract"
+text = "`ContextKind::UserUi` mounts a route behind the user context that also admits a person's UI session (the `ui` audience). It is conferred, never plain: an install route set declaring it is refused with `CompositionError::NotConferred` naming `Allowance::UiSession`. The documents, document-folders and uploads routes are the only ones mounted with it."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`ContextKind::UserUi` and `Allowance::UiSession`."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Changed"
+text = "`MountLayers` carries `user_ui`, the user context middleware admitting UI sessions; the mount re-check requires `Allowance::UiSession` for a route declaring `ContextKind::UserUi`."
+
+[[crate]]
+name = "systemprompt"
+section = "Changed"
+text = "Composition admission refuses an install route declaring `ContextKind::UserUi`."

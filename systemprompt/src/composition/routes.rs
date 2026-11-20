@@ -176,6 +176,9 @@ fn admit_unconferred(
                 HandlerVerifier::GatewayCredential,
             )));
         }
+        if def.spec.context == ContextKind::UserUi {
+            return Err(refuse(Allowance::UiSession));
+        }
         if def.spec.limits.body == BodyLimit::Agent {
             return Err(refuse(Allowance::BodyLimit));
         }

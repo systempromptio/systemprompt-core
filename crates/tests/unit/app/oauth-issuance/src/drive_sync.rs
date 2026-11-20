@@ -73,6 +73,8 @@ fn device(expires_in_secs: i64) -> JwtUserContext {
         purpose: None,
         interaction: None,
         browser_session: false,
+        ui_session: false,
+        auth_time: 0,
     }
 }
 

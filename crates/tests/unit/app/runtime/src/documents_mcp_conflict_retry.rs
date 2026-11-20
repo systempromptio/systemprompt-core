@@ -71,6 +71,8 @@ async fn an_edit_aborted_by_a_deadlock_with_a_schema_install_lands_on_its_retry(
                         }],
                         message: Some("racing the install".to_owned()),
                         verbose: false,
+                        content_blob_ref: None,
+                        context_id: None,
                     },
                     &ctx,
                     &exec(),

@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::documents::refusal::RefusalCode;
+pub(super) use super::guide_refusals::refusal_text;
 
 pub(super) const EDITING: &str = "\
 Read: documents_read view outline first; each line is `<node>:<hash>| <text>`, with `# ` per \
@@ -21,6 +21,11 @@ str_replace {old_str, new_str} (old_str must occur once); set_cells {sheet, rang
 insert_slide {after, layout, title, body}; set_text {text}; set_html {html}; append_markdown \
 {markdown}; insert_from_revision {revision_id, node, after} copies a block back from history; \
 restore {revision_id} alone makes an old revision the head (base_revision must be the head).
+Whole file: documents_edit {document_id, content_blob_ref, base_revision, mode?} with no ops \
+replaces the content with a blob you uploaded with documents_upload, byte for byte, as one \
+revision (or a proposal) on the revision you read. In html, str_replace and set_html refuse a body holding scripts, \
+styles, ids, inline styles or other markup they would strip (classes are kept); rewrite \
+such a page whole this way.
 Rich ops (html, markdown, docx, odt; a batch of only these): set_marks {node, expected_hash, \
 find?, nth?, add: [{mark: bold|italic|underline|strike|code|link|color|highlight, value?}], \
 remove: [mark]}; set_block_type {node, expected_hash, block: {type: paragraph} | {type: \
@@ -90,16 +95,20 @@ grants inherited from folders.";
 pub(super) const COMMENTS: &str = "\
 documents_comment {action: create, document_id, node, anchor?: {find, nth?}, body} anchors a \
 comment to a node id from a read and, with anchor, to the nth (0-based) occurrence of find \
-inside it. A reply is {action: create, document_id, parent_id, body}. {action: list, \
+inside it. On a spreadsheet, {node: <sheet node>, cells: \"B2:D9\" or \"B2\"} anchors it to a \
+cell range instead (not with anchor); it holds while the sheet exists, whatever its cells \
+hold. A reply is {action: create, document_id, parent_id, body}. {action: list, \
 document_id} returns every thread: id, anchor, author, body, parent_id, resolved_at and \
 answering_revision_id. {action: resolve, document_id, comment_id, answering?: revision_id} \
-resolves it. Anchors are stable ids, so edits elsewhere never move them; an edit that deletes \
+resolves it; {action: reopen, document_id, comment_id} reopens a resolved one (an open one \
+comes back as it is). Anchors are stable ids, so edits elsewhere never move them; an edit that deletes \
 the node or the quoted words refuses anchors_affected unless allow_detach: true, and a \
-detached comment keeps its node and drops its quote. documents_edit answering: <comment_id> \
+detached comment keeps its node and drops its quote and cells. documents_edit answering: <comment_id> \
 records the edit's revision on the comment. mentions: [user_id or email] on create or edit \
 mentions active people: each is written into the body as @[Name](user:<id>) (a plain \
 @<email> or @<id> in the body becomes that token, otherwise it is appended), and the body's \
-tokens are the mention list. Each newly mentioned user is notified; one who cannot see the \
+tokens are the mention list. Each newly mentioned user is notified (yourself only at \
+mention_options attention agent, a hand-off to your own agent); one who cannot see the \
 document is given comment access in the same call, which needs your share access. \
 documents_people {query, document_id?} finds people and the access each holds on the \
 document. {action: edit, document_id, comment_id, body, mentions?} rewrites your \
@@ -124,10 +133,15 @@ edits and shares refuse trashed. documents_untrash \
 {document_id} brings it back; trashed documents are deleted for good after the retention \
 period. Both need own. documents_copy {document_id, name?, folder_id?} starts a new document \
 you own from the head, with its own history. documents_update {document_id, name?, \
-folder_id?} renames or moves. documents_list {scope: folder | shared | mine | recent, \
-folder_id?, query?, sort: name | updated | recent, limit, cursor}: shared is what others \
-shared with you, recent is what you last edited, commented on or opened; each item carries \
-size_bytes and my_access.";
+folder_id?} renames or moves. documents_folder {action: create, name, parent_id?} makes a \
+folder (create access on the parent; no parent_id is the root); {action: update, folder_id, \
+name?, parent_id?} renames it and moves it (parent_id null is the root) in one step. Moving \
+a folder is administration, which agents may do only where the deployment's policy allows. \
+documents_list {scope: folder | shared | mine | recent | context, folder_id?, context_id?, \
+query?, sort: name | updated | recent, limit, cursor} also lists a folder's subfolders: shared \
+is what others shared with you, recent is what you last edited, commented on or opened, \
+context is what a conversation of yours wrote or commented on (context_id, by default this \
+one; another user's is unknown_context); each item carries size_bytes and my_access.";
 
 pub(super) const PROPOSALS: &str = "\
 An edit lands on the head, or is written as a proposal: a revision off the head that a \
@@ -152,148 +166,17 @@ deployment's agent policy and an owner's override on the document or a folder ab
 which can only tighten it; documents_access shows your agent_cap and why. Whatever the cap, \
 agents do not share or change grants, give access by mentioning someone (mention only people \
 who can already see the document), trash, untrash or delete, move or transfer, restore an \
-old revision, replace the whole content (a whole file, set_text or set_html, or ops rewriting \
-more than half the nodes: edit what you mean to change), accept and reject proposals, or copy \
+old revision, replace the whole content (a whole file, set_text or set_html, a str_replace over \
+more than half the document, or ops rewriting more than half the nodes: edit what you mean to \
+change), accept and reject proposals, or copy \
 a document capped below edit (a copy keeps its source's cap), unless the policy allows it: \
 ask your user. Agent \
 edits are limited per user per hour (agent_rate_limited).";
 
-pub(super) const fn refusal_text(code: RefusalCode) -> &'static str {
-    match code {
-        RefusalCode::StaleBase => {
-            "stale_base: a restore or whole-file write named a base that is no longer the head; \
-             head_revision, written_by, actor_kind and at say who moved it, base_revision what you sent. The head edit wins: \
-             read head_revision, re-aim at the text as it stands, never resend your old text."
-        },
-        RefusalCode::GuardMismatch => {
-            "guard_mismatch: a node you touched changed since you read it; current_text and \
-             hash are its state now. The head edit wins: re-aim at current_text with hash as \
-             expected_hash, or drop the edit; never resend your old text."
-        },
-        RefusalCode::FindNone => {
-            "find_none: old_str or a target find matched `matches` places, not one. Quote it \
-             exactly as read and widen it until it is unique. For a target find that matched \
-             nothing, node, hash and current_text name the closest block: re-aim at it or \
-             quote its current_text."
-        },
-        RefusalCode::UnsupportedOp => {
-            "unsupported_op: this format does not take the op or node kind; accepted_kinds lists \
-             what insert_after takes. A file document (PDF, image, any upload) takes no op at \
-             all. See topic formats."
-        },
-        RefusalCode::UnsupportedFormat => {
-            "unsupported_format: no codec handles the requested format; export native or pdf \
-             as url, or html as preview."
-        },
-        RefusalCode::TemplateFailed => {
-            "template_failed: the template could not be instantiated; the text names the \
-             template and the cause. Pick another template or report it."
-        },
-        _ => access_refusal_text(code),
-    }
-}
-
-const fn access_refusal_text(code: RefusalCode) -> &'static str {
-    match code {
-        RefusalCode::Forbidden => {
-            "forbidden: you lack the access level the action needs; the text names the level \
-             held and needed, and owner names who can share it. existing_level means the \
-             subject already holds more than you; leave that grant to its owner."
-        },
-        RefusalCode::NotFound => {
-            "not_found: the document, folder, revision, comment or node does not exist or is \
-             deleted; read the outline again for node ids."
-        },
-        RefusalCode::Trashed => {
-            "trashed: the document is in the trash; documents_untrash brings it back before \
-             you read, edit or share it."
-        },
-        RefusalCode::FolderNotEmpty => {
-            "folder_not_empty: the folder still holds documents or folders; move or trash them \
-             first, or delete recursively."
-        },
-        RefusalCode::ProposalClosed => {
-            "proposal_closed: the proposal was already accepted, rejected or superseded; only an \
-             open proposal can be reviewed. List open proposals again."
-        },
-        RefusalCode::IntegrityMismatch => {
-            "integrity_mismatch: the uploaded bytes do not hash to the declared content hash; \
-             the upload was corrupted, send it again."
-        },
-        RefusalCode::Locked => "locked: another holder has the document locked; wait and retry.",
-        RefusalCode::AnchorsAffected => {
-            "anchors_affected: the edit removes a node or quoted text that the listed comments \
-             are anchored to. Re-aim the edit, or resend it with allow_detach: true to detach \
-             them; a detached comment keeps its node."
-        },
-        RefusalCode::ProposalConflict => {
-            "proposal_conflict: the head moved and a node the proposal touches changed; node \
-             and current_text are its state at head_revision. Reject the proposal, or propose \
-             again on head_revision."
-        },
-        RefusalCode::InvalidParams => {
-            "invalid_params: the call is malformed; fix the named field and resend. An op that \
-             names a node by id without expected_hash is refused this way."
-        },
-        RefusalCode::TooLarge => {
-            "too_large: the call exceeds an input limit (ops per call, op text, markdown, \
-             comment body, collaborative update or cursor); split it into smaller calls."
-        },
-        RefusalCode::OpIdMismatch => {
-            "op_id_mismatch: this op_id was already used for a different request; send a new \
-             op_id for a new write."
-        },
-        RefusalCode::SelfReview => {
-            "self_review: you proposed this; another editor has to accept it."
-        },
-        RefusalCode::UnknownSubject => {
-            "unknown_subject: no active user or subject has that id; check the id and resend."
-        },
-        RefusalCode::AccessRequestOpen => {
-            "access_request_open: you already have an open request on this document; wait for \
-             the owner to answer it."
-        },
-        RefusalCode::AccessRequestNotNeeded => {
-            "access_request_not_needed: you already hold a level on this document; ask a holder \
-             of share to raise it."
-        },
-        RefusalCode::AccessRequestClosed => {
-            "access_request_closed: the request was already granted or declined; only an open \
-             request can be answered."
-        },
-        _ => agent_refusal_text(code),
-    }
-}
-
 pub(super) const UPLOADS: &str = "\
 documents_upload: send content_base64 (up to 5 MiB) and get a blob_ref back; for a larger file \
 declare size and sha256 and get signed part URLs and a token, then complete it for the \
-blob_ref; upload_id re-issues the token. Import a blob_ref as a document, or place it as an \
-image in a docx (guide topic model). A blob_ref is yours: another user's never resolves.";
-
-const fn agent_refusal_text(code: RefusalCode) -> &'static str {
-    match code {
-        RefusalCode::AgentForbidden => {
-            "agent_forbidden: your user may do this but agents may not here: the document's \
-             agent cap is below the action, or the action is one agents never take. Ask your \
-             user. See topic agents."
-        },
-        RefusalCode::AgentSuggestOnly => {
-            "agent_suggest_only: agents may only suggest on this document; resend the change \
-             with mode: propose and a person reviews it."
-        },
-        RefusalCode::AgentRateLimited => {
-            "agent_rate_limited: your user's agents have made the most edits allowed this \
-             hour; wait the seconds the message names, then retry with the same op_id."
-        },
-        RefusalCode::CursorReset => {
-            "cursor_reset: the Drive cursor sent is not a position of the current change \
-             feed; drop it, read the manifest again and continue from its cursor."
-        },
-        RefusalCode::NameTaken => {
-            "name_taken: the folder already holds a document of that name; choose another name \
-             or edit the existing document."
-        },
-        _ => "",
-    }
-}
+blob_ref; upload_id re-issues the token. documents_import a blob_ref as a document (name's \
+extension picks the format unless format is given; the bytes are kept as uploaded, so an \
+HTML page keeps its scripts), or place it as an image (guide topic model). A blob_ref is \
+yours: another user's never resolves.";

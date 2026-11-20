@@ -312,6 +312,7 @@ fn code_refresh_token<'a>(
         scope: "openid",
         expires_at: (chrono::Utc::now() + chrono::Duration::hours(1)).timestamp(),
         resource: None,
+        authenticated_at: chrono::Utc::now(),
         lineage: RefreshTokenLineage::AuthorizationCode(code),
     }
 }

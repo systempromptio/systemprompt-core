@@ -189,6 +189,9 @@ pub fn fixture_documents_runtime_configured(
         agent_access: r
             .get::<Arc<AgentAccess>>()
             .expect("the files member builds its agent access"),
+        contexts: Arc::new(systemprompt_agent::services::ContextProviderService::new(
+            systemprompt_agent::repository::ContextRepository::new(pool),
+        )),
     }));
     let service = documents_enabled.then(|| Arc::clone(runtime.service()));
     binder

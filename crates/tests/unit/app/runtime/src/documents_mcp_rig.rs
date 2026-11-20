@@ -40,6 +40,7 @@ pub(crate) async fn rig(with_uploads: bool) -> Rig {
             Arc::clone(runtime.uploads()),
             SERVER,
         ),
+        contexts: Arc::clone(runtime.contexts()),
         server_name: McpServerId::new(SERVER),
     });
     Rig {

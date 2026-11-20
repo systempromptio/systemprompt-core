@@ -205,6 +205,8 @@ mod documents_access_requests;
 #[cfg(test)]
 mod documents_collab;
 #[cfg(test)]
+mod documents_comment_cells;
+#[cfg(test)]
 mod documents_comment_edit;
 #[cfg(test)]
 mod documents_drive_policy;
@@ -212,6 +214,8 @@ mod documents_drive_policy;
 mod documents_parity;
 #[cfg(test)]
 mod documents_pdf;
+#[cfg(test)]
+mod documents_people;
 #[cfg(test)]
 mod documents_read_parity;
 #[cfg(test)]
@@ -222,6 +226,8 @@ mod documents_review;
 mod documents_sharing;
 #[cfg(test)]
 mod documents_subject_levels;
+#[cfg(test)]
+mod documents_ui_session;
 #[cfg(test)]
 mod internal_links;
 #[cfg(test)]
@@ -475,6 +481,8 @@ mod routes_oauth_clients;
 #[path = "routes_oauth_introspect_revoke.rs"]
 mod routes_oauth_introspect_revoke;
 
+#[cfg(test)]
+mod routes_oauth_person_ui;
 #[cfg(test)]
 mod routes_oauth_revoke_refresh;
 

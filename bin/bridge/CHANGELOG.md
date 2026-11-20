@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.84.0] - 2026-11-20
+
+### Added
+
+- Drive sync wakes on a `document.drive.changed` frame on the bridge stream, which servers from 0.84 send for every revision the user can read.
+
+### Removed
+
+- The `document.revision.created` arm of the bridge stream and `DriveSignal::RevisionCreated`: no server has sent that event on a user's stream since 0.77, so it never fired.
+
 ## [0.81.0] - 2026-11-12
 
 ### Security

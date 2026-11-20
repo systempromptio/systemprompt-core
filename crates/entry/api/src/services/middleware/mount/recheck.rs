@@ -33,7 +33,7 @@ use systemprompt_extension::router::{
     Allowance, ApiBase, BasePath, BaseRef, BodyLimit, GatewayDefRefusal, RouteDef, RouteSet,
     WebBase, first_overlap, path_covers, refused_gateway_def, refused_reservation, reserved_below,
 };
-use systemprompt_extension::{Admitted, StandingTag};
+use systemprompt_extension::{Admitted, ContextKind, StandingTag};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_models::modules::ApiPaths;
 
@@ -85,6 +85,9 @@ fn recheck_route_set(
         }
         if let Some(verifier) = def.spec.policy.handler_verifier() {
             needed.push(Allowance::HandlerVerified(verifier));
+        }
+        if def.spec.context == ContextKind::UserUi {
+            needed.push(Allowance::UiSession);
         }
         if def.spec.limits.body == BodyLimit::Agent {
             needed.push(Allowance::BodyLimit);

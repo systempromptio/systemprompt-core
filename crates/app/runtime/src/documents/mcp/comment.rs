@@ -1,15 +1,18 @@
 //! Comment threads anchor to a stable node id and an optional quote inside
-//! it, so a thread survives edits elsewhere in the document and is detached,
-//! not lost, when its words go. A comment may mention users by id or email
-//! (`mentions`), which shares the document with any of them who cannot see
-//! it; its author can edit it, and it can be deleted (`comment_edit`).
+//! it (or, on a sheet node, an A1 cell range), so a thread survives edits
+//! elsewhere in the document and is detached, not lost, when its words go. A
+//! comment may mention users by id or email (`mentions`), which shares the
+//! document with any of them who cannot see it; its author can edit it, and it
+//! can be deleted (`comment_edit`). A resolved thread can be reopened.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use rmcp::ErrorData as McpError;
 use systemprompt_files::documents::models::CommentAnchor;
-use systemprompt_files::documents::service::{CommentRequest, ResolveCommentRequest};
+use systemprompt_files::documents::service::{
+    CommentRequest, ReopenCommentRequest, ResolveCommentRequest,
+};
 use systemprompt_identifiers::McpExecutionId;
 use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::auth::AuthenticatedUser;
@@ -43,8 +46,10 @@ impl CommentHandler<'_> {
             node,
             find: input.anchor.as_ref().map(|a| a.find.clone()),
             nth: input.anchor.as_ref().and_then(|a| a.nth),
+            cells: input.cells,
         });
         let resolved = resolve_mentions(self.tools.users(), input.mentions, body).await?;
+        let origin = agent_origin(self.tools, ctx, input.context_id.as_ref()).await?;
         let comment = self
             .tools
             .service()
@@ -59,7 +64,7 @@ impl CommentHandler<'_> {
                     mention_options: input.mention_options.into_iter().map(Into::into).collect(),
                     parent_id: input.parent_id,
                 },
-                &agent_origin(ctx),
+                &origin,
                 ctx.trace_id(),
             )
             .await
@@ -96,6 +101,33 @@ impl CommentHandler<'_> {
             comments: vec![resolved.into()],
         })
     }
+
+    async fn reopen(
+        &self,
+        who: &AuthenticatedUser,
+        input: CommentInput,
+        ctx: &RequestContext,
+    ) -> Result<CommentOutput, McpError> {
+        let comment = input
+            .comment_id
+            .ok_or_else(|| refusal(RefusalCode::InvalidParams, "reopen needs comment_id"))?;
+        let reopened = self
+            .tools
+            .service()
+            .reopen_comment(
+                who,
+                ReopenCommentRequest {
+                    document: input.document_id,
+                    comment,
+                },
+                ctx.trace_id(),
+            )
+            .await
+            .map_err(tool_error)?;
+        Ok(CommentOutput {
+            comments: vec![reopened.into()],
+        })
+    }
 }
 
 impl McpToolHandler for CommentHandler<'_> {
@@ -120,10 +152,12 @@ impl McpToolHandler for CommentHandler<'_> {
         let output = match input.action {
             CommentAction::Create => self.create(who, input, ctx).await?,
             CommentAction::Resolve => self.resolve(who, input, ctx).await?,
+            CommentAction::Reopen => self.reopen(who, input, ctx).await?,
             CommentAction::Edit => self.edit(who, input, ctx).await?,
             CommentAction::Delete => self.delete(who, input, ctx).await?,
             CommentAction::List => comments_view(
                 self.tools.service(),
+                self.tools.contexts().as_ref(),
                 who,
                 &input.document_id,
                 ctx.trace_id(),

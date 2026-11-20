@@ -1,5 +1,9 @@
 //! OAuth client update endpoint.
 //!
+//! A client declared `person_ui` is refused: its redirect URIs and grants are
+//! what makes its UI session safe to mint, and only its declaration may change
+//! them.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -23,6 +27,11 @@ pub async fn update_client(
 ) -> Result<Response, OAuthHttpError> {
     let client_id = systemprompt_identifiers::ClientId::try_new(client_id)?;
     let prev_client = managed_client(&repository, &req_ctx, &client_id).await?;
+    if repository.is_person_ui_client(&client_id).await? {
+        return Err(OAuthHttpError::invalid_request(
+            "a person_ui client is declared in services/identity; change its declaration instead",
+        ));
+    }
 
     let client = repository
         .update_client(

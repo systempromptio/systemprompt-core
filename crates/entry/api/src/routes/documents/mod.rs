@@ -10,6 +10,8 @@
 //! `collab` feature the `/{id}/collab/*` routes co-edit HTML and Markdown
 //! documents live. `/{id}/live` is the document's live channel and
 //! `/{id}/collab/awareness` posts awareness; both work without an engine.
+//! Sharing, transfer, delete and agent-cap writes sit behind the RFC 9470
+//! step-up a person's UI session must meet (see `step_up.rs`).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -43,19 +45,21 @@ mod lifecycle;
 mod listing;
 mod live;
 mod media;
+mod people;
 mod proposals;
 mod read;
 mod rendered;
 mod requests;
 mod schema;
 mod sharing;
+mod step_up;
 mod views;
 
 use std::sync::Arc;
 
 use axum::Router;
 use axum::extract::DefaultBodyLimit;
-use axum::routing::{delete, get, patch, post, put};
+use axum::routing::{MethodRouter, delete, get, patch, post, put};
 use systemprompt_files::documents::DocumentService;
 #[cfg(feature = "collab")]
 use systemprompt_files::documents::collab::CollabService;
@@ -64,7 +68,7 @@ use systemprompt_models::auth::TokenAuthority;
 use systemprompt_runtime::AppContext;
 #[cfg(feature = "collab")]
 use systemprompt_traits::BackgroundTasks;
-use systemprompt_traits::{AppContext as _, UserProvider};
+use systemprompt_traits::{AppContext as _, DynContextDirectory, UserProvider};
 use systemprompt_users::UserRepository;
 
 /// Router-scoped state of the document and upload routes: the one document
@@ -77,6 +81,7 @@ pub struct DocumentsState {
     pub(crate) users: Arc<dyn UserProvider>,
     pub(crate) user_repository: Arc<UserRepository>,
     pub(crate) tokens: Arc<dyn TokenAuthority>,
+    pub(crate) contexts: DynContextDirectory,
     #[cfg(feature = "collab")]
     pub(crate) collab: Arc<CollabService>,
     #[cfg(feature = "collab")]
@@ -105,6 +110,7 @@ impl DocumentsState {
                 .ok_or(DocumentsMountError::MissingUserProvider)?,
             user_repository: Arc::clone(ctx.user_repository()),
             tokens: ctx.token_authority(),
+            contexts: Arc::clone(ctx.documents().contexts()),
             #[cfg(feature = "collab")]
             collab: collab_service(ctx),
             #[cfg(feature = "collab")]
@@ -151,6 +157,10 @@ const fn with_collab(router: Router<DocumentsState>) -> Router<DocumentsState> {
     router
 }
 
+fn stepped_up(route: MethodRouter<DocumentsState>) -> MethodRouter<DocumentsState> {
+    route.route_layer(axum::middleware::from_fn(step_up::require_recent_sign_in))
+}
+
 fn with_views(router: Router<DocumentsState>) -> Router<DocumentsState> {
     router
         .route("/{id}/projection", get(history::projection))
@@ -172,7 +182,7 @@ pub fn router(state: DocumentsState) -> Router {
             get(items::get)
                 .head(items::get)
                 .patch(items::update)
-                .delete(items::delete),
+                .merge(stepped_up(delete(items::delete))),
         )
         .route(
             "/{id}/content",
@@ -187,6 +197,7 @@ pub fn router(state: DocumentsState) -> Router {
             "/{id}/comments/{comment_id}/resolve",
             post(comments::resolve),
         )
+        .route("/{id}/comments/{comment_id}/reopen", post(comments::reopen))
         .route(
             "/{id}/comments/{comment_id}",
             patch(comments::edit).delete(comments::delete),
@@ -197,16 +208,20 @@ pub fn router(state: DocumentsState) -> Router {
         .route("/{id}/access", get(access::access))
         .route(
             "/{id}/agent-cap",
-            get(agent_cap::get_document).put(agent_cap::put_document),
+            get(agent_cap::get_document).merge(stepped_up(put(agent_cap::put_document))),
         )
-        .route("/{id}/transfer", post(access::transfer))
-        .route("/{id}/grants/all", delete(access::revoke_all))
+        .route("/{id}/transfer", stepped_up(post(access::transfer)))
+        .route("/{id}/grants/all", stepped_up(delete(access::revoke_all)))
         .route("/{id}/untrash", post(lifecycle::untrash))
         .route("/{id}/copy", post(lifecycle::copy))
         .route("/subject-kinds", get(access::subject_kinds))
         .route("/subjects", get(access::subjects))
+        .route("/people", get(people::people))
         .route("/{id}/access-requests", post(requests::create))
-        .route("/{id}/access-requests/{rid}/grant", post(requests::grant))
+        .route(
+            "/{id}/access-requests/{rid}/grant",
+            stepped_up(post(requests::grant)),
+        )
         .route(
             "/{id}/access-requests/{rid}/decline",
             post(requests::decline),
@@ -219,8 +234,7 @@ pub fn router(state: DocumentsState) -> Router {
         .route(
             "/{id}/grants",
             get(sharing::list_grants)
-                .post(sharing::share)
-                .delete(sharing::revoke),
+                .merge(stepped_up(post(sharing::share).delete(sharing::revoke))),
         )
         .route(
             "/{id}/presence",
@@ -242,17 +256,20 @@ pub fn with_download_tokens(router: Router, state: DocumentsState) -> Router {
 pub fn folders_router(state: DocumentsState) -> Router {
     Router::new()
         .route("/", get(folders::list).post(folders::create))
-        .route("/{id}", patch(folders::update).delete(folders::delete))
+        .route(
+            "/{id}",
+            patch(folders::update).merge(stepped_up(delete(folders::delete))),
+        )
         .route(
             "/{id}/grants",
-            get(folder_sharing::list_grants)
-                .post(folder_sharing::share)
-                .delete(folder_sharing::revoke),
+            get(folder_sharing::list_grants).merge(stepped_up(
+                post(folder_sharing::share).delete(folder_sharing::revoke),
+            )),
         )
         .route("/{id}/access", get(folder_sharing::access))
         .route(
             "/{id}/agent-cap",
-            get(agent_cap::get_folder).put(agent_cap::put_folder),
+            get(agent_cap::get_folder).merge(stepped_up(put(agent_cap::put_folder))),
         )
         .route_layer(axum::middleware::from_fn(actor_scope::scope))
         .with_state(state)

@@ -156,6 +156,57 @@ async fn agui_event_relays_through_bridge_to_local_subscriber() {
 }
 
 #[tokio::test]
+async fn agui_fan_out_relays_through_bridge_to_each_recipient() {
+    let broadcasters = Arc::new(EventBroadcasters::new());
+    let pool = fixture_pool().await;
+    let _guard = BRIDGE_LOCK.lock().await;
+    let actor = unique_user_id("bridge-many-actor");
+    let recipient = unique_user_id("bridge-many-recipient");
+    let conn = ConnectionId::new("bridge-many-conn");
+
+    let router =
+        EventRouter::with_outbox(pool.clone(), unique_instance(), Arc::clone(&broadcasters));
+    let handle = PostgresEventBridge::new(
+        pool.clone(),
+        unique_instance(),
+        systemprompt_traits::CacheEpochs::new(),
+        Arc::clone(&broadcasters),
+    )
+    .start();
+    await_listening(&handle).await;
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<R>(systemprompt_events::SSE_BUFFER);
+    broadcasters.agui.register(&recipient, &conn, tx).await;
+
+    let actor_for_route = actor.clone();
+    let recipients = vec![actor.clone(), recipient.clone()];
+    let router_for_route = router.clone();
+    let delivered = relay_until_delivered(
+        move || {
+            let actor = actor_for_route.clone();
+            let recipients = recipients.clone();
+            let router = router_for_route.clone();
+            Box::pin(async move {
+                router
+                    .route_agui_many(&actor, &recipients, agui_event())
+                    .await
+                    .into_local_logged();
+            })
+        },
+        &mut rx,
+    )
+    .await;
+
+    broadcasters.agui.unregister(&recipient, &conn).await;
+    handle.shutdown().await;
+    cleanup(&pool, &actor).await;
+
+    assert!(
+        delivered,
+        "an AG-UI fan-out routed on one replica must reach each recipient via the bridge"
+    );
+}
+
+#[tokio::test]
 async fn a2a_event_relays_through_bridge_to_local_subscriber() {
     let broadcasters = Arc::new(EventBroadcasters::new());
     let pool = fixture_pool().await;

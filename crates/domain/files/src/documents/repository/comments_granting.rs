@@ -16,7 +16,8 @@
 
 use sqlx::PgConnection;
 use systemprompt_identifiers::{
-    AgentName, DocumentCommentId, DocumentId, DocumentNodeId, DocumentRevisionId, UserId,
+    AgentName, ClientId, ContextId, DocumentCommentId, DocumentId, DocumentNodeId,
+    DocumentRevisionId, UserId,
 };
 
 use super::comments::{CommentRow, DocumentCommentRepository};
@@ -35,15 +36,16 @@ impl DocumentCommentRepository {
         grants: &MentionGrants,
     ) -> RepoResult<DocumentComment> {
         let (start, end) = request.range.map(|range| (range.start, range.end)).unzip();
-        let mentions = ids(&request.mentions);
         let grantees = ids(&grants.users);
         let row = sqlx::query_as!(
             CommentRow,
             r#"WITH c AS (
                    INSERT INTO document_comments
                        (document_id, node_id, anchor_find, anchor_nth, anchor_start, anchor_end,
-                        author_user_id, body, mentions, parent_id, via_agent)
-                   VALUES ($1::text::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10::text::uuid, $11)
+                        author_user_id, body, mentions, parent_id, via_agent, context_id,
+                        client_id, anchor_cells)
+                   VALUES ($1::text::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10::text::uuid, $11,
+                           $15, $16, $17)
                    RETURNING *),
                prev AS (
                    SELECT subject_value, access_level FROM document_grants
@@ -72,14 +74,18 @@ impl DocumentCommentRepository {
                SELECT c.id::text AS "id!: DocumentCommentId",
                       c.document_id::text AS "document_id!: DocumentId",
                       c.node_id AS "node_id!: DocumentNodeId",
-                      c.anchor_find, c.anchor_nth, c.anchor_start, c.anchor_end,
+                      c.anchor_find, c.anchor_nth, c.anchor_start, c.anchor_end, c.anchor_cells,
                       c.author_user_id AS "author_user_id!: UserId",
                       c.body AS "body!", c.mentions AS "mentions!",
                       c.parent_id::text AS "parent_id: DocumentCommentId",
                       c.resolved_at, c.resolved_by AS "resolved_by: UserId",
+                      c.reopened_at, c.reopened_by AS "reopened_by: UserId",
                       c.answering_revision_id::text AS "answering_revision_id: DocumentRevisionId",
                       c.created_at AS "created_at!", c.updated_at AS "updated_at!",
-                      c.edited_at, c.deleted_at
+                      c.edited_at, c.deleted_at,
+                      c.via_agent AS "via_agent: AgentName",
+                      c.context_id AS "context_id: ContextId",
+                      c.client_id AS "client_id: ClientId"
                FROM c"#,
             request.document_id.as_str(),
             request.anchor.node.as_str(),
@@ -89,12 +95,15 @@ impl DocumentCommentRepository {
             end,
             request.author_user_id.as_str(),
             request.body,
-            &mentions,
+            &ids(&request.mentions),
             request.parent_id.as_ref().map(DocumentCommentId::as_str),
             grants.via_agent.as_ref().map(AgentName::as_str),
             grants.granted_by.as_str(),
             &grantees,
             grants.trace_id.as_str(),
+            request.context_id.as_ref().map(ContextId::as_str),
+            request.client_id.as_ref().map(ClientId::as_str),
+            request.anchor.cells.map(|cells| cells.to_string()),
         )
         .fetch_one(&mut *conn)
         .await?;

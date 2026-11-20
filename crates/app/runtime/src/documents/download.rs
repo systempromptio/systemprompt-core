@@ -122,6 +122,8 @@ pub fn signed_download_url(
         plugin_id: None,
         interaction: None,
         browser_session: false,
+        ui_session: false,
+        auth_time: None,
     };
     let token = authority
         .mint_user_jwt(&request)

@@ -53,6 +53,7 @@ fn tools(ctx: &Arc<AppContext>) -> DocumentsMcpTools {
             )
             .expect("link client"),
         ),
+        contexts: Arc::clone(ctx.documents().contexts()),
         server_name: McpServerId::new("documents"),
     })
 }

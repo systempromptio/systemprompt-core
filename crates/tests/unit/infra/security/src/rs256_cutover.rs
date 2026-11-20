@@ -52,6 +52,7 @@ fn sample_claims(iss: &str) -> JwtClaims {
             purpose: None,
             interaction: None,
             browser_session: false,
+            ui_session: false,
         },
     }
 }

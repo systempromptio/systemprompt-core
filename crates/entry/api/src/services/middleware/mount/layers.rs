@@ -89,6 +89,7 @@ pub(super) fn authenticated(
     match protection.context {
         ContextKind::Public => router.with_auth_reaching(layers.public, policy, reach),
         ContextKind::User => router.with_auth_reaching(layers.user.clone(), policy, reach),
+        ContextKind::UserUi => router.with_auth_reaching(layers.user_ui.clone(), policy, reach),
         ContextKind::A2a => router.with_auth_reaching(layers.a2a.clone(), policy, reach),
         ContextKind::Mcp => router.with_auth_reaching(layers.mcp.clone(), policy, reach),
         ContextKind::HandlerResolved => router,

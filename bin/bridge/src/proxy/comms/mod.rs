@@ -37,7 +37,7 @@ use crate::proxy::drive_signal::{DriveSignal, DriveSignals, notice_for};
 use crate::proxy::notifications::{NotificationSignal, NotificationSignals, signal_for};
 use crate::proxy::token_cache::TokenCache;
 use systemprompt_models::ApiPaths;
-use systemprompt_models::documents::{DocumentPresenceEvent, DocumentRevisionCreatedEvent};
+use systemprompt_models::documents::{DocumentDriveChangedEvent, DocumentPresenceEvent};
 
 const AUTH_THRESHOLD_SECS: u64 = 300;
 const EVENT_NAME: &str = "comms.message";
@@ -84,11 +84,7 @@ fn handle_frame(
                 deliver_announcement(&announcement);
             }
         },
-        DocumentRevisionCreatedEvent::NAME => {
-            if let Some(event) = decode(&value) {
-                drive.send(DriveSignal::RevisionCreated(Box::new(event)));
-            }
-        },
+        DocumentDriveChangedEvent::NAME => drive.send(DriveSignal::DriveChanged),
         DocumentPresenceEvent::NAME => {
             if let Some(event) = decode(&value) {
                 drive.send(DriveSignal::Presence(Box::new(event)));

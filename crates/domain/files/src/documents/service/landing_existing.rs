@@ -9,7 +9,7 @@
 use systemprompt_identifiers::{DocumentProposalId, DocumentRevisionId};
 
 use super::DocumentService;
-use super::landing::sql;
+use super::landing::{mark_agent_content, sql};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentRevision};
 use crate::documents::repository::{
@@ -55,6 +55,8 @@ impl DocumentService {
         }
         proposed.landed_at =
             Some(DocumentRevisionRepository::mark_landed(&mut tx, &proposed.id).await?);
+        let authored = self.agent_wrote(proposed.actor_kind);
+        mark_agent_content(&mut tx, &document.id, authored, Some(proposal)).await?;
         if !DocumentProposalRepository::settle_landed(&mut tx, proposal, &proposed.id).await? {
             drop(tx);
             return Err(self.proposal_closed(proposal).await);

@@ -16,6 +16,8 @@ CREATE TABLE IF NOT EXISTS document_revisions (
     trace_id VARCHAR(255),
     task_id VARCHAR(255),
     on_behalf_of VARCHAR(255),
+    agent_name TEXT,
+    client_id TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     landed_at TIMESTAMPTZ,
     landing_xid BIGINT,

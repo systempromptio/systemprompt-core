@@ -20,7 +20,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{AgentName, DocumentId, TraceId, UserId};
+use systemprompt_identifiers::{AgentName, ClientId, ContextId, DocumentId, TraceId, UserId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{
     AccessLevel, DocumentAction, DocumentCommentMentionedEvent, MENTION_EVENT_VERSION,
@@ -36,11 +36,16 @@ use crate::documents::models::{Document, DocumentComment, MentionGrants};
 
 const MAX_MENTIONS: usize = 20;
 
-/// Who wrote a comment on the calling user's behalf: `None` for the user
-/// themselves, the agent's name when an agent did.
+/// Who wrote a comment, and where it was written.
+///
+/// `via_agent` is `None` for the user themselves and the agent's name when
+/// an agent wrote it on their behalf; `context_id` is the conversation it was
+/// written in and `client_id` the OAuth client that sent it.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CommentOrigin {
     pub via_agent: Option<AgentName>,
+    pub context_id: Option<ContextId>,
+    pub client_id: Option<ClientId>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

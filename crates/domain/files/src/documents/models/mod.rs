@@ -41,3 +41,4 @@ pub use session::{DocumentEditSession, DocumentTextIndexRow, EditSessionOpen};
 pub use sharing::{
     DocumentAccessRequest, DocumentGrantEvent, GrantActor, NewAccessRequest, OwnerTransfer,
 };
+pub use systemprompt_models::documents::CellRange;

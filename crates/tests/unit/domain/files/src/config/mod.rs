@@ -2,6 +2,7 @@ mod config_injected;
 mod documents_config;
 mod persistence_and_types;
 mod profile_edge;
+mod rendered_html;
 mod serde_roundtrip;
 mod storage_structure;
 mod upload_and_yaml;

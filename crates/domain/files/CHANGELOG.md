@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.84.0] - 2026-11-20
+
+### Breaking
+
+- `ListScope` gains `Context`, and `ScopedListing` and `ListFolderRequest` gain `context_id`. Migrate an exhaustive match by adding the arm and a struct literal by setting `context_id: None`.
+- `DocumentsError` gains `FolderNameTaken` and `AgentRefusal` gains `WholesaleReplace`. Migrate by handling both variants in exhaustive matches (`FolderNameTaken` beside `NameTaken`, `WholesaleReplace` beside `BroadRewrite`).
+- `DocumentServiceParts` gains the `tasks` field (`BackgroundTasks`). Migrate by passing the composition root's `BackgroundTasks`.
+- `DocumentsError` gains `UnknownContext` and `Contexts`; `RevisionAttribution` gains `agent_name` and `client_id`; `CommentOrigin`, `NewComment` and `DocumentComment` gain `context_id` and `client_id` (`DocumentComment` also `via_agent`); `ImportRequest` and `FileCreateRequest` gain `message`. Migrate by adding the match arms and setting the fields.
+- `DocumentComment` gains `reopened_at` and `reopened_by`. Migrate a struct literal by setting both to `None`.
+- `CommentAnchor` gains `cells: Option<CellRange>`. Migrate a struct literal by setting `cells: None`. Migration `045_document_comment_cells` adds `document_comments.anchor_cells` with a `CHECK` that it is never set beside `anchor_find` (DDL only, validated in the same file).
+- `files.documents.renderedHtml.remoteAssets` is replaced by `remoteOrigins` (a list of `RemoteOrigin`, each exactly an `https` origin) and `agentAuthored` (`RenderedHtmlTier`); `RenderedHtmlConfig` is built with `RenderedHtmlConfig::new(top, agent_authored)`, which refuses an `agentAuthored` tier wider than the top level (`RenderedHtmlError`) and builds each tier's `Content-Security-Policy` once (`RenderedHtmlConfig::csp(agent_content)`, always with `base-uri 'none'`), and is no longer `Copy`. `remoteAssets: true` has no equivalent: migrate by listing the origins.
+
+### Added
+
+- `ListScope::Context`: the documents a conversation touched through a revision or a comment carrying its context id, drawn from the `(context_id, created_at)` indexes and ranked, paged and hook-filtered as the other scopes; a document the caller can no longer see drops out. `list_folder` refuses the scope without a `context_id` as `invalid_params`; whether the caller owns the conversation is checked by the caller of the service. No migration.
+- Cell range comment anchors: a `CommentAnchor` with `cells` on a sheet node (`xlsx`, `ods`) is stored in `anchor_cells` and holds while the sheet node exists; a detach clears it with the quote. `create_comment` refuses (`InvalidComment`) a range on a node that is not a sheet, or beside `find`, `nth` or a cursor range. `models::CellRange` re-exports `systemprompt_models::documents::CellRange`, and the `document.comment.resolved`/`reopened` brain facts carry the range.
+- A landed revision sends `document.drive.changed` to every user who holds `view` or better on the document, coalesced per document to at most one every `DRIVE_HINT_INTERVAL` (two seconds) on each replica. The audience is capped at 500 users, the owner and the author always among them; a failure resolving it withholds the hint from everyone.
+- `DocumentService::propose_write`: a whole-file write proposed on its base, with comment access.
+- Migrations `041_document_attribution_agent_client` (nullable `agent_name`, `client_id` on `document_revisions`; `context_id`, `client_id` on `document_comments`) and `042_document_comments_context_index` (built `CONCURRENTLY`).
+- `DocumentService::reopen_comment` (`ReopenCommentRequest`) and `DocumentCommentRepository::reopen_in`: a resolved comment is reopened with `comment` access, clearing `resolved_at`/`resolved_by` and recording `reopened_at`/`reopened_by` (migration `043_document_comment_reopen`); the `document.comment.reopened` brain fact commits in the same transaction and the live event goes to the audience resolution reaches. Reopening an open comment returns it unchanged and records nothing.
+- A self-mention at `mention_options` attention `agent` is delivered: the mention fact names the author as a direct recipient at `agent`, and the author receives `document.comment.mentioned`. A self-mention at `human` or `silent` attention, or with none chosen, records no fact and sends no live mention.
+- `documents.agent_content` (migration `044_document_agent_content`, DDL only: `agent_content` also answers true for a document an agent created, revised or proposed on before the column existed): set in the landing transaction of an agent's revision or proposal, an accepted agent proposal, an agent's create and a copy of a flagged document; never cleared. Read with `DocumentService::agent_content`.
+
+### Fixed
+
+- The HTML codec's `str_replace` and `set_html` refuse (`CodecError::Refused`) a resulting body its sanitiser would alter instead of stripping scripts, styles, classes and pending blocks from the whole body; one codec-wide sanitiser keeps `class`, `data-pending` and link `rel` and still drops `id`, inline `style`, `<style>`, scripts and event handlers. Previews keep ammonia's defaults.
+- An agent's `str_replace` covering more than half the head's bytes in a document of three or more nodes needs `broad_rewrite`.
+- Creating, renaming or moving a folder onto a sibling's name is `FolderNameTaken`, not a repository error.
+
 ## [0.82.0] - 2026-11-16
 
 ### Breaking

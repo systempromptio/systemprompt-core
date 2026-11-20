@@ -2,7 +2,9 @@
 //!
 //! Users are matched by name, display name or email prefix through the
 //! [`SubjectDirectory`](super::SubjectDirectory), people only: a service
-//! account is never a user subject. Roles come from the role
+//! account is never a user subject. A lookup by id names at most
+//! [`MAX_SUBJECT_SEARCH`] distinct users and answers only the active people
+//! among them, in the order asked. Roles come from the role
 //! catalogue the directory holds; a dimension's values come from its
 //! provider when the provider can enumerate them. A dimension that cannot is
 //! reported as not searchable, and validating a value against it answers
@@ -77,6 +79,24 @@ impl DocumentAccessService {
             searchable: matches.is_some(),
             matches: matches.unwrap_or_default(),
         })
+    }
+
+    pub async fn find_people(&self, users: &[UserId]) -> Result<Vec<SubjectMatch>, DocumentsError> {
+        let mut distinct: Vec<UserId> = Vec::with_capacity(users.len());
+        for user in users {
+            if !distinct.contains(user) {
+                distinct.push(user.clone());
+            }
+        }
+        if distinct.len() > MAX_SUBJECT_SEARCH {
+            return Err(DocumentsError::InvalidParams {
+                detail: "a people lookup names at most 20 user ids",
+            });
+        }
+        if distinct.is_empty() {
+            return Ok(Vec::new());
+        }
+        Ok(self.directory.find_people(&distinct).await?)
     }
 
     pub async fn validate_subject(

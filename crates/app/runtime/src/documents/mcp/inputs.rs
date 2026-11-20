@@ -7,13 +7,18 @@
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::Deserialize;
-use systemprompt_files::documents::service::{FolderMove, MentionOption};
+use systemprompt_files::documents::models::{ListScope, ListSort};
+use systemprompt_files::documents::service::MentionOption;
 use systemprompt_identifiers::{
-    DocumentCommentId, DocumentFolderId, DocumentId, DocumentNodeId, DocumentOpId,
-    DocumentProposalId, DocumentRevisionId, DocumentTemplateId, UserId,
+    ContentHash, ContextId, DocumentCommentId, DocumentFolderId, DocumentId, DocumentNodeId,
+    DocumentOpId, DocumentRevisionId, DocumentTemplateId, UserId,
 };
-use systemprompt_models::documents::{AccessLevel, DocumentFormat, EditMode, EditOp};
+use systemprompt_models::documents::{AccessLevel, CellRange, DocumentFormat, EditMode, EditOp};
 use systemprompt_models::notifications::Attention;
+
+pub use super::lifecycle_inputs::{
+    CopyInput, FolderAction, FolderInput, ImportInput, ProposalAction, ProposalsInput, UpdateInput,
+};
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct ListInput {
@@ -21,6 +26,8 @@ pub struct ListInput {
     pub scope: ListScopeInput,
     #[serde(default)]
     pub folder_id: Option<DocumentFolderId>,
+    #[serde(default)]
+    pub context_id: Option<ContextId>,
     #[serde(default)]
     pub query: Option<String>,
     #[serde(default)]
@@ -41,6 +48,19 @@ pub enum ListScopeInput {
     Shared,
     Mine,
     Recent,
+    Context,
+}
+
+impl ListScopeInput {
+    pub(super) const fn scope(self) -> ListScope {
+        match self {
+            Self::Folder => ListScope::Folder,
+            Self::Shared => ListScope::Shared,
+            Self::Mine => ListScope::Mine,
+            Self::Recent => ListScope::Recent,
+            Self::Context => ListScope::Context,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, JsonSchema)]
@@ -50,6 +70,16 @@ pub enum ListSortInput {
     #[default]
     Updated,
     Recent,
+}
+
+impl ListSortInput {
+    pub(super) const fn sort(self) -> ListSort {
+        match self {
+            Self::Name => ListSort::Name,
+            Self::Updated => ListSort::Updated,
+            Self::Recent => ListSort::Recent,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -76,6 +106,8 @@ pub struct CreateInput {
     pub ops: Vec<EditOp>,
     #[serde(default)]
     pub message: Option<String>,
+    #[serde(default)]
+    pub context_id: Option<ContextId>,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -83,8 +115,10 @@ pub struct EditInput {
     pub document_id: DocumentId,
     #[serde(default)]
     pub base_revision: Option<DocumentRevisionId>,
-    #[serde(deserialize_with = "super::op_inputs::ops")]
+    #[serde(default, deserialize_with = "super::op_inputs::ops")]
     pub ops: Vec<EditOp>,
+    #[serde(default)]
+    pub content_blob_ref: Option<ContentHash>,
     #[serde(default)]
     pub mode: Option<EditMode>,
     #[serde(default)]
@@ -97,6 +131,8 @@ pub struct EditInput {
     pub allow_detach: bool,
     #[serde(default)]
     pub verbose: bool,
+    #[serde(default)]
+    pub context_id: Option<ContextId>,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -170,6 +206,7 @@ pub enum CommentAction {
     Create,
     List,
     Resolve,
+    Reopen,
     Edit,
     Delete,
 }
@@ -205,6 +242,8 @@ pub struct CommentInput {
     #[serde(default)]
     pub anchor: Option<QuoteAnchor>,
     #[serde(default)]
+    pub cells: Option<CellRange>,
+    #[serde(default)]
     pub body: Option<String>,
     #[serde(default)]
     pub parent_id: Option<DocumentCommentId>,
@@ -216,6 +255,8 @@ pub struct CommentInput {
     pub mentions: Vec<UserId>,
     #[serde(default)]
     pub mention_options: Vec<MentionOptionInput>,
+    #[serde(default)]
+    pub context_id: Option<ContextId>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, JsonSchema)]
@@ -237,51 +278,4 @@ pub struct AccessInput {
     pub document_id: DocumentId,
     #[serde(default)]
     pub history: bool,
-}
-
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
-pub struct CopyInput {
-    pub document_id: DocumentId,
-    #[serde(default)]
-    pub name: Option<String>,
-    #[serde(default)]
-    pub folder_id: Option<DocumentFolderId>,
-}
-
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
-pub struct UpdateInput {
-    pub document_id: DocumentId,
-    #[serde(default)]
-    pub name: Option<String>,
-    #[serde(default, deserialize_with = "folder_move")]
-    #[schemars(with = "Option<DocumentFolderId>", description = "null = root")]
-    pub folder_id: FolderMove,
-}
-
-fn folder_move<'de, D>(deserializer: D) -> Result<FolderMove, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    Option::<DocumentFolderId>::deserialize(deserializer).map(FolderMove::from_present)
-}
-
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum ProposalAction {
-    #[default]
-    List,
-    Accept,
-    Reject,
-}
-
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
-pub struct ProposalsInput {
-    #[serde(default)]
-    pub action: ProposalAction,
-    #[serde(default)]
-    pub document_id: Option<DocumentId>,
-    #[serde(default)]
-    pub proposal_id: Option<DocumentProposalId>,
-    #[serde(default)]
-    pub note: Option<String>,
 }

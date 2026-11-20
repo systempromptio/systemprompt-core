@@ -14,6 +14,7 @@
 use axum::Json;
 use axum::extract::multipart::{MultipartError, MultipartRejection};
 use axum::extract::rejection::JsonRejection;
+use axum::http::header::ToStrError;
 use axum::response::{IntoResponse, Response};
 use serde::Serialize;
 use systemprompt_files::documents::DocumentsError;
@@ -50,6 +51,14 @@ impl From<ApiHttpError> for DocumentsHttpError {
 impl From<ApiError> for DocumentsHttpError {
     fn from(error: ApiError) -> Self {
         Self::Api(Box::new(ApiHttpError::from(error)))
+    }
+}
+
+impl From<ToStrError> for DocumentsHttpError {
+    fn from(error: ToStrError) -> Self {
+        Self::from(
+            ApiError::bad_request("a request header is not visible ASCII text").with_source(error),
+        )
     }
 }
 
@@ -212,7 +221,8 @@ pub(crate) fn status_of(error: &DocumentsError) -> fn(String) -> ApiError {
         | DocumentsError::ProposalClosed { .. }
         | DocumentsError::AccessRequestOpen { .. }
         | DocumentsError::AccessRequestClosed { .. }
-        | DocumentsError::NameTaken { .. } => conflict,
+        | DocumentsError::NameTaken { .. }
+        | DocumentsError::FolderNameTaken { .. } => conflict,
         DocumentsError::Agent(AgentRefusal::RateLimited { .. }) => rate_limited,
         DocumentsError::Agent(
             AgentRefusal::OverrideLooser { .. } | AgentRefusal::MoveRefused { .. },
@@ -236,7 +246,8 @@ pub(crate) fn status_of(error: &DocumentsError) -> fn(String) -> ApiError {
             source: TemplateError::MissingPlaceholder { .. } | TemplateError::Codec(_),
             ..
         }
-        | DocumentsError::ContentRefused { .. } => unprocessable,
+        | DocumentsError::ContentRefused { .. }
+        | DocumentsError::UnknownContext { .. } => unprocessable,
         DocumentsError::Codec(codec) => codec_status(codec),
         _ => bad_request,
     }

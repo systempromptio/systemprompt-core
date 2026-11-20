@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.84.0] - 2026-11-20
+
+### Added
+
+- Profile validation refuses `ui` in `security.jwt_audiences` and `security.allowed_resource_audiences`.
+
 ## [0.81.1] - 2026-11-13
 
 ### Fixed

@@ -4,7 +4,8 @@
 //! codec seam in `systemprompt_provider_contracts::documents` and
 //! re-exported here, so every layer names one set of types. This module
 //! adds what only the store and its clients need: access levels, actions,
-//! grant audit events and access request states ([`access`]), the bridge
+//! grant audit events and access request states ([`access`]), the A1 cell
+//! range a spreadsheet comment anchors to ([`cells`]), the bridge
 //! drive sync protocol ([`drive`]), the AG-UI custom event payloads
 //! ([`events`], with the comment edit, delete and mention payloads in
 //! [`comment_events`]) and the `document://` URI ([`uri`]).
@@ -14,6 +15,7 @@
 
 pub mod access;
 pub mod awareness;
+pub mod cells;
 pub mod collab_events;
 pub mod comment_events;
 pub mod drive;
@@ -29,9 +31,10 @@ pub use awareness::{
     AwarenessCursor, AwarenessMode, AwarenessState, AwarenessViewport, DocumentAwarenessEvent,
     DocumentLiveClosedEvent, DocumentLiveReadyEvent, DocumentLiveResyncEvent, LiveResyncReason,
 };
+pub use cells::{CellRange, CellRangeError, MAX_CELL_COLUMN, MAX_CELL_ROW};
 pub use comment_events::{
-    DocumentCommentDeletedEvent, DocumentCommentMentionedEvent, DocumentCommentUpdatedEvent,
-    MENTION_EVENT_VERSION, MENTION_EXCERPT_CHARS,
+    DocumentCommentDeletedEvent, DocumentCommentMentionedEvent, DocumentCommentReopenedEvent,
+    DocumentCommentUpdatedEvent, MENTION_EVENT_VERSION, MENTION_EXCERPT_CHARS,
 };
 pub use drive::{
     BRIDGE_DEVICE_AUDIENCE, DRIVE_SYNC_AUDIENCE, DriveChange, DriveChangeKind, DriveChanges,
@@ -42,8 +45,9 @@ pub use drive::{
 pub use events::{
     DocumentAccessRequestedEvent, DocumentCollabDegradedEvent, DocumentCollabUpdateEvent,
     DocumentCommentCreatedEvent, DocumentCommentResolvedEvent, DocumentConflictEvent,
-    DocumentEventName, DocumentLockEvent, DocumentOwnershipTransferredEvent, DocumentPresenceEvent,
-    DocumentProposalEvent, DocumentRevisionCreatedEvent, DocumentSharedEvent, SHARED_EVENT_VERSION,
+    DocumentDriveChangedEvent, DocumentEventName, DocumentLockEvent,
+    DocumentOwnershipTransferredEvent, DocumentPresenceEvent, DocumentProposalEvent,
+    DocumentRevisionCreatedEvent, DocumentSharedEvent, SHARED_EVENT_VERSION,
 };
 pub use systemprompt_provider_contracts::documents::{
     CellValue, ContentAs, DocumentFormat, EditOp, NodeKind, NodeTarget, Projection, ProjectionNode,

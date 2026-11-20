@@ -9,7 +9,9 @@
 //!
 //! A mention may carry a chosen [`Attention`] per mentioned user
 //! ([`MentionOption`]); an option for a user the comment does not mention is
-//! refused. The author mentioning themselves is never notified.
+//! refused. The author mentioning themselves is notified only at `agent`
+//! attention, the explicit hand-off to their own agent; a self-mention at
+//! `human` or `silent` attention, or with none chosen, is never delivered.
 //!
 //! When the injected sink reports itself unavailable (a server built without
 //! the notifications fabric) the write commits and no event is recorded,
@@ -41,6 +43,25 @@ const EXCERPT_CHARS: usize = 280;
 pub struct MentionOption {
     pub user_id: UserId,
     pub attention: Attention,
+}
+
+fn chosen_attention(options: &[MentionOption], user: &UserId) -> Option<Attention> {
+    options
+        .iter()
+        .find(|option| option.user_id == *user)
+        .map(|option| option.attention)
+}
+
+pub(super) fn notified(
+    author: &UserId,
+    mentioned: &[UserId],
+    options: &[MentionOption],
+) -> Vec<UserId> {
+    mentioned
+        .iter()
+        .filter(|user| *user != author || chosen_attention(options, user) == Some(Attention::Agent))
+        .cloned()
+        .collect()
 }
 
 pub(super) fn check_mention_options(
@@ -131,16 +152,11 @@ impl DocumentService {
             "mentions": notice.mentions,
             "granted": granted,
         });
-        let recipients: Vec<DirectRecipient> = notice
-            .notify
-            .iter()
-            .filter(|user| **user != who.id)
+        let recipients: Vec<DirectRecipient> = notified(&who.id, notice.notify, options)
+            .into_iter()
             .map(|user| DirectRecipient {
-                user: user.clone(),
-                attention: options
-                    .iter()
-                    .find(|option| option.user_id == *user)
-                    .map(|option| option.attention),
+                attention: chosen_attention(options, &user),
+                user,
             })
             .collect();
         if recipients.is_empty() {

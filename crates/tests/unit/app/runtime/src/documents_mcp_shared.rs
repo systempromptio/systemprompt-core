@@ -59,6 +59,7 @@ async fn replace_line(
         .handle(
             EditInput {
                 document_id: document.clone(),
+                content_blob_ref: None,
                 base_revision: None,
                 mode: None,
                 op_id,
@@ -72,6 +73,7 @@ async fn replace_line(
                 }],
                 message: None,
                 verbose: false,
+                context_id: None,
             },
             ctx,
             &exec(),
@@ -113,6 +115,7 @@ async fn changes_since_a_revision_return_only_what_changed() {
 fn edit_input(document: &DocumentId, op_id: &DocumentOpId, op: EditOp) -> EditInput {
     EditInput {
         document_id: document.clone(),
+        content_blob_ref: None,
         base_revision: None,
         mode: None,
         op_id: Some(op_id.clone()),
@@ -121,6 +124,7 @@ fn edit_input(document: &DocumentId, op_id: &DocumentOpId, op: EditOp) -> EditIn
         ops: vec![op],
         message: None,
         verbose: false,
+        context_id: None,
     }
 }
 

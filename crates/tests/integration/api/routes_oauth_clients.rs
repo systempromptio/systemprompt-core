@@ -264,6 +264,37 @@ async fn update_client_applies_new_name() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
+async fn update_of_a_person_ui_client_is_refused() -> anyhow::Result<()> {
+    let (owner, client) = seed_existing_client().await?;
+    let pool = test_db_pool().await;
+    sqlx::query(
+        "UPDATE oauth_clients SET person_ui = true, declared_source = 'identity/desk.yaml' \
+         WHERE client_id = $1",
+    )
+    .bind(client.client_id.as_str())
+    .execute(pool.pool().as_ref())
+    .await?;
+    let app = clients_app(owner).await?;
+    let body = serde_json::json!({ "redirect_uris": ["https://attacker.example/callback"] });
+    let resp = app
+        .oneshot(json_request(
+            http::Method::PUT,
+            &format!("/clients/{}", client.client_id.as_str()),
+            body,
+        ))
+        .await?;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST, "{}", resp.status());
+    let uris: Vec<String> = sqlx::query_scalar(
+        "SELECT redirect_uri FROM oauth_client_redirect_uris WHERE client_id = $1",
+    )
+    .bind(client.client_id.as_str())
+    .fetch_all(pool.pool().as_ref())
+    .await?;
+    assert!(uris.iter().all(|u| !u.contains("attacker")), "{uris:?}");
+    Ok(())
+}
+
+#[tokio::test]
 async fn update_unknown_client_returns_404() -> anyhow::Result<()> {
     let owner = seed_owner().await?;
     let app = clients_app(owner).await?;

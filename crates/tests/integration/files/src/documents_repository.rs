@@ -157,6 +157,7 @@ fn listing_by_name(scope: ListScope, name: &str) -> ScopedListing {
     ScopedListing {
         scope,
         folder_id: None,
+        context_id: None,
         query: Some(name.to_owned()),
         sort: ListSort::Updated,
         cursor: None,
@@ -732,6 +733,7 @@ async fn keyset_cursor_round_trips_and_pages_without_duplicates() {
         let listing = ScopedListing {
             scope: ListScope::Mine,
             folder_id: None,
+            context_id: None,
             query: Some(tag.clone()),
             sort: ListSort::Updated,
             cursor,

@@ -57,6 +57,7 @@ fn request(
             node: node.id.clone(),
             find: None,
             nth: None,
+            cells: None,
         }),
         range: Some(CommentRange {
             start: "cursor-start".to_owned(),

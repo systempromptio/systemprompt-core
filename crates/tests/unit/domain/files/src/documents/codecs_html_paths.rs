@@ -5,6 +5,9 @@ use systemprompt_provider_contracts::documents::{
 
 use super::{SAMPLE_HTML, apply_str, delete, hash_of, id, insert_after, replace};
 
+const PLAIN: &[u8] = b"<!DOCTYPE html><html><head><title>Keep Me</title></head><body>\
+<h1>Heading</h1><p>First para</p><p>Second para</p></body></html>";
+
 fn apply(ops: &[EditOp]) -> Result<Vec<u8>, CodecError> {
     let base = HtmlCodec.project(SAMPLE_HTML).expect("project");
     HtmlCodec.apply(SAMPLE_HTML, &base, ops)
@@ -19,11 +22,7 @@ fn str_replace(old: &str, new: &str) -> EditOp {
 
 #[test]
 fn str_replace_rewrites_body_once() {
-    let out = apply_str(
-        &HtmlCodec,
-        SAMPLE_HTML,
-        &[str_replace("Second para", "Swapped")],
-    );
+    let out = apply_str(&HtmlCodec, PLAIN, &[str_replace("Second para", "Swapped")]);
     assert!(out.contains("Swapped"));
     assert!(!out.contains("Second para"));
     assert!(out.contains("<title>Keep Me</title>"));
@@ -31,12 +30,17 @@ fn str_replace_rewrites_body_once() {
 
 #[test]
 fn anchored_op_after_whole_document_op_is_refused() {
-    let base = HtmlCodec.project(SAMPLE_HTML).expect("project");
-    let err = apply(&[
-        str_replace("Second para", "Swapped"),
-        delete("body/p[1]", hash_of(&base, "body/p[1]")),
-    ])
-    .expect_err("ordering");
+    let base = HtmlCodec.project(PLAIN).expect("project");
+    let err = HtmlCodec
+        .apply(
+            PLAIN,
+            &base,
+            &[
+                str_replace("Second para", "Swapped"),
+                delete("body/p[1]", hash_of(&base, "body/p[1]")),
+            ],
+        )
+        .expect_err("ordering");
     assert!(matches!(err, CodecError::Malformed { .. }));
 }
 

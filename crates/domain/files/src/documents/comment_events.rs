@@ -1,7 +1,7 @@
 //! The comment events, emitted through [`DocumentEvents`]: routed to each
-//! recipient, and creation, resolution, edits and deletions also published
-//! once on the document's live topic; the mention reaches its recipient
-//! only.
+//! recipient, and creation, resolution, reopening, edits and deletions also
+//! published once on the document's live topic; the mention reaches its
+//! recipient only.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -9,7 +9,7 @@
 use systemprompt_identifiers::UserId;
 use systemprompt_models::documents::{
     DocumentCommentCreatedEvent, DocumentCommentDeletedEvent, DocumentCommentMentionedEvent,
-    DocumentCommentResolvedEvent, DocumentCommentUpdatedEvent,
+    DocumentCommentReopenedEvent, DocumentCommentResolvedEvent, DocumentCommentUpdatedEvent,
 };
 
 use super::error::DocumentsError;
@@ -31,6 +31,15 @@ impl DocumentEvents {
         event: &DocumentCommentResolvedEvent,
     ) -> Result<(), DocumentsError> {
         self.emit(DocumentCommentResolvedEvent::NAME, to, event)
+            .await
+    }
+
+    pub async fn comment_reopened(
+        &self,
+        to: &[UserId],
+        event: &DocumentCommentReopenedEvent,
+    ) -> Result<(), DocumentsError> {
+        self.emit(DocumentCommentReopenedEvent::NAME, to, event)
             .await
     }
 

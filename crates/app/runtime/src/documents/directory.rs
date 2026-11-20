@@ -77,6 +77,18 @@ fn lookup_failed(error: UserError) -> SubjectDirectoryError {
     SubjectDirectoryError(Box::new(error))
 }
 
+const fn is_listed_person(user: &User) -> bool {
+    user.is_active() && !user.is_service_account()
+}
+
+fn person(user: User) -> SubjectMatch {
+    SubjectMatch {
+        value: user.id.as_str().to_owned(),
+        detail: Some(user.email),
+        display: user.display_name.or(user.full_name).unwrap_or(user.name),
+    }
+}
+
 #[async_trait]
 impl SubjectDirectory for UserSubjectDirectory {
     async fn roles_of(&self, user: &UserId) -> Result<Option<Vec<String>>, SubjectDirectoryError> {
@@ -138,17 +150,33 @@ impl SubjectDirectory for UserSubjectDirectory {
         Ok(users
             .into_iter()
             .filter(|user| !user.is_service_account())
-            .map(|user| SubjectMatch {
-                value: user.id.as_str().to_owned(),
-                detail: Some(user.email),
-                display: user.display_name.or(user.full_name).unwrap_or(user.name),
-            })
+            .map(person)
+            .collect())
+    }
+
+    async fn find_people(
+        &self,
+        users: &[UserId],
+    ) -> Result<Vec<SubjectMatch>, SubjectDirectoryError> {
+        let mut found: HashMap<UserId, User> = self
+            .users
+            .find_by_ids(users)
+            .await
+            .map_err(lookup_failed)?
+            .into_iter()
+            .filter(is_listed_person)
+            .map(|user| (user.id.clone(), user))
+            .collect();
+        Ok(users
+            .iter()
+            .filter_map(|user| found.remove(user))
+            .map(person)
             .collect())
     }
 
     async fn is_person(&self, user: &UserId) -> Result<bool, SubjectDirectoryError> {
         let found = self.users.find_by_id(user).await.map_err(lookup_failed)?;
-        Ok(found.is_some_and(|u| u.is_active() && !u.is_service_account()))
+        Ok(found.as_ref().is_some_and(is_listed_person))
     }
 
     async fn roles(&self) -> Result<Vec<String>, SubjectDirectoryError> {

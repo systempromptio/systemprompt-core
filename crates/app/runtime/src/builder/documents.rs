@@ -12,6 +12,8 @@
 
 use std::sync::Arc;
 
+use systemprompt_agent::repository::ContextRepository;
+use systemprompt_agent::services::ContextProviderService;
 use systemprompt_database::DbPool;
 use systemprompt_events::EventRouter;
 use systemprompt_extension::{
@@ -79,6 +81,9 @@ pub(crate) fn build_documents(
         blob_holders: r.get::<Arc<BlobHolders>>()?,
         seams: r.get::<Arc<DocumentSeams>>()?,
         agent_access: r.get::<Arc<AgentAccess>>()?,
+        contexts: Arc::new(ContextProviderService::new(ContextRepository::new(
+            inputs.database,
+        ))),
     }));
     bind_documents(&documents, inputs.files_config, inputs.binder)?;
     Ok(documents)

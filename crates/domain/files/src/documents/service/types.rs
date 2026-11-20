@@ -6,7 +6,7 @@
 use std::time::Duration;
 
 use systemprompt_identifiers::{
-    DocumentCommentId, DocumentFolderId, DocumentId, DocumentOpId, DocumentRevisionId,
+    ContextId, DocumentCommentId, DocumentFolderId, DocumentId, DocumentOpId, DocumentRevisionId,
     DocumentTemplateId,
 };
 use systemprompt_models::documents::{AccessLevel, ActorKind, DocumentFormat, EditOp, Projection};
@@ -37,6 +37,7 @@ pub struct NewFolderRequest {
 pub struct ListFolderRequest {
     pub scope: ListScope,
     pub folder: Option<DocumentFolderId>,
+    pub context_id: Option<ContextId>,
     pub query: Option<String>,
     pub sort: ListSort,
     pub cursor: Option<ListingCursor>,
@@ -90,6 +91,7 @@ pub struct ImportRequest {
     pub mime_type: Option<String>,
     pub bytes: Vec<u8>,
     pub author: Author,
+    pub message: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

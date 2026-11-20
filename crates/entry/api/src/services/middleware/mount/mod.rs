@@ -89,6 +89,7 @@ pub struct MountLayers {
     pub limits: RateLimitState,
     pub public: PublicContextMiddleware,
     pub user: UserOnlyContextMiddleware,
+    pub user_ui: UserOnlyContextMiddleware,
     pub a2a: A2AContextMiddleware,
     pub mcp: McpContextMiddleware,
     pub bearer: Option<Arc<JwtContextExtractor>>,

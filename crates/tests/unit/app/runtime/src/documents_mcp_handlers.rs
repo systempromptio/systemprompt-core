@@ -40,6 +40,7 @@ async fn stale_anchor_names_node_hashes_and_current_text() {
         .handle(
             EditInput {
                 document_id: document,
+                content_blob_ref: None,
                 base_revision: Some(revision),
                 mode: None,
                 op_id: None,
@@ -53,6 +54,7 @@ async fn stale_anchor_names_node_hashes_and_current_text() {
                 }],
                 message: None,
                 verbose: false,
+                context_id: None,
             },
             &ctx,
             &exec(),
@@ -80,6 +82,7 @@ async fn edit_acknowledges_the_written_lines_and_records_the_message() {
         .handle(
             EditInput {
                 document_id: document.clone(),
+                content_blob_ref: None,
                 base_revision: Some(revision.clone()),
                 mode: None,
                 op_id: None,
@@ -93,6 +96,7 @@ async fn edit_acknowledges_the_written_lines_and_records_the_message() {
                 }],
                 message: Some("rename".to_owned()),
                 verbose: false,
+                context_id: None,
             },
             &ctx,
             &exec(),
@@ -136,6 +140,7 @@ async fn str_replace_reports_the_match_count() {
     let (document, revision) = create_text(&h.tools, &ctx, "alpha\nbeta\nalpha").await;
     let replace = |old: &str| EditInput {
         document_id: document.clone(),
+        content_blob_ref: None,
         base_revision: Some(revision.clone()),
         mode: None,
         op_id: None,
@@ -147,6 +152,7 @@ async fn str_replace_reports_the_match_count() {
         }],
         message: Some("swap".to_owned()),
         verbose: false,
+        context_id: None,
     };
     let handler = EditHandler { tools: &h.tools };
     let twice = handler
@@ -186,6 +192,7 @@ async fn stale_base_names_the_head_revision() {
     let (document, base) = create_text(&h.tools, &ctx, "alpha\nbeta").await;
     let set = |text: &str| EditInput {
         document_id: document.clone(),
+        content_blob_ref: None,
         base_revision: Some(base.clone()),
         mode: None,
         op_id: None,
@@ -196,6 +203,7 @@ async fn stale_base_names_the_head_revision() {
         }],
         message: None,
         verbose: false,
+        context_id: None,
     };
     let handler = EditHandler { tools: &h.tools };
     let (first, _) = handler
@@ -285,6 +293,7 @@ async fn a_call_without_an_authenticated_user_is_refused() {
                 scope: ListScopeInput::Folder,
                 sort: ListSortInput::Updated,
                 folder_id: None,
+                context_id: None,
                 query: None,
                 cursor: None,
                 limit: None,
@@ -314,6 +323,7 @@ async fn list_shows_the_owners_root_document() {
                 scope: ListScopeInput::Folder,
                 sort: ListSortInput::Updated,
                 folder_id: None,
+                context_id: None,
                 query: Some("notes-".to_owned()),
                 cursor: None,
                 limit: Some(200),
@@ -430,6 +440,7 @@ async fn create_applies_ops_in_the_first_revision_and_acknowledges_them() {
                     },
                 ],
                 message: Some("draft".to_owned()),
+                context_id: None,
             },
             &ctx,
             &exec(),

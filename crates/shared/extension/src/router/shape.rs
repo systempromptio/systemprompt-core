@@ -104,6 +104,7 @@ pub enum Allowance {
     ReservedPrefix,
     WebPath,
     BodyLimit,
+    UiSession,
     HandlerVerified(HandlerVerifier),
     KernelHandle(HandleId),
     GatewayRoute,

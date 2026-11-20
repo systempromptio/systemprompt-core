@@ -41,6 +41,30 @@ impl Profile {
             );
         }
 
+        if self.security.audiences.contains(&JwtAudience::Ui) {
+            errors.push(
+                "security.jwt_audiences must not include `ui` — it is the audience of a person's \
+                 UI session, which only the documents routes admit; listing it would mint every \
+                 token for that surface and widen what it accepts. Remove it from the profile \
+                 YAML and restart."
+                    .to_owned(),
+            );
+        }
+
+        if self
+            .security
+            .allowed_resource_audiences
+            .iter()
+            .any(|aud| aud == JwtAudience::Ui.as_str())
+        {
+            errors.push(
+                "security.allowed_resource_audiences must not include `ui` — a resource token \
+                 must never carry the UI-session audience. Remove it from the profile YAML and \
+                 restart."
+                    .to_owned(),
+            );
+        }
+
         for required in GATEWAY_REQUIRED_RESOURCE_AUDIENCES {
             if !self
                 .security

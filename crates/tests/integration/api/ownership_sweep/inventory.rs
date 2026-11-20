@@ -6,6 +6,8 @@ const METHODS: [&str; 8] = [
     "get", "post", "put", "patch", "delete", "head", "options", "any",
 ];
 
+const TRANSPARENT_CALLS: [&str; 2] = ["merge", "stepped_up"];
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub(super) struct RouteKey {
     pub(super) site: String,
@@ -253,7 +255,14 @@ fn top_level_methods(handler: &str) -> Vec<String> {
                     .find(|ch: char| !(ch.is_alphanumeric() || ch == '_'))
                     .map_or(bytes.len(), |n| i + n);
                 let word = &handler[i..end];
-                if METHODS.contains(&word) && bytes.get(end) == Some(&b'(') {
+                let called = bytes.get(end) == Some(&b'(');
+                if called && TRANSPARENT_CALLS.contains(&word) {
+                    let close = matching_close(handler, end + 1);
+                    methods.extend(top_level_methods(&handler[end + 1..close]));
+                    i = close + 1;
+                    continue;
+                }
+                if METHODS.contains(&word) && called {
                     methods.push(word.to_ascii_uppercase());
                 }
                 i = end;

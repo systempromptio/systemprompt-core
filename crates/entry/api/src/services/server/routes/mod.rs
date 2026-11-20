@@ -150,6 +150,7 @@ fn mount_layers(ctx: &AppContext, role: NodeRole) -> Result<MountLayers, RouteMo
         limits,
         public: PublicContextMiddleware::new(),
         user: UserOnlyContextMiddleware::new(jwt_extractor.clone()),
+        user_ui: UserOnlyContextMiddleware::new(jwt_extractor.clone().admitting_ui_sessions()),
         a2a: A2AContextMiddleware::new(
             jwt_extractor.clone(),
             systemprompt_models::net::AGENT_REQUEST_BODY_LIMIT_BYTES,

@@ -128,6 +128,8 @@ fn mint_self_issued_subject(scopes: Vec<Permission>) -> String {
         purpose: None,
         interaction: None,
         browser_session: false,
+        ui_session: false,
+        auth_time: None,
     };
     let keys = systemprompt_test_fixtures::test_signing_keys();
     let signing = JwtSigningParams {

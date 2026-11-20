@@ -36,6 +36,7 @@ fn make_claims(issuer: &str, aud: Vec<JwtAudience>) -> JwtClaims {
             purpose: None,
             interaction: None,
             browser_session: false,
+            ui_session: false,
         },
     }
 }
@@ -253,4 +254,75 @@ fn session_context_rejects_a_foreign_issuer() {
         matches!(err, AuthError::InvalidToken(_)),
         "the session policy pins the issuer, got {err:?}"
     );
+}
+
+fn ui_claims() -> JwtClaims {
+    let mut claims = make_claims("test", vec![JwtAudience::Ui]);
+    claims.custom.ui_session = true;
+    claims.custom.client_id = Some(systemprompt_identifiers::ClientId::new("desk_ui"));
+    claims
+}
+
+#[test]
+fn a_ui_session_is_refused_by_the_first_party_policy() {
+    let token = mint_active_kid(&ui_claims());
+    let err = decode_rs256_claims(
+        test_signing_keys().keyring(),
+        &token,
+        &ValidationPolicy::session_context("test"),
+    )
+    .unwrap_err();
+    assert!(matches!(err, AuthError::InvalidToken(_)), "{err:?}");
+}
+
+#[test]
+fn a_ui_session_decodes_where_the_ui_audience_is_admitted() {
+    let token = mint_active_kid(&ui_claims());
+    let claims = decode_rs256_claims(
+        test_signing_keys().keyring(),
+        &token,
+        &ValidationPolicy::issuer_scoped("test", JwtAudience::FIRST_PARTY_AND_UI),
+    )
+    .expect("decode");
+    assert!(claims.custom.ui_session);
+}
+
+#[test]
+fn a_ui_session_in_any_other_shape_is_refused() {
+    let mut second_audience = ui_claims();
+    second_audience.registered.aud.push(JwtAudience::Api);
+    let mut clientless = ui_claims();
+    clientless.custom.client_id = None;
+    let mut purposed = ui_claims();
+    purposed.custom.purpose = Some("farm:run-1".to_owned());
+    let mut delegated = ui_claims();
+    delegated.custom.act = Some(systemprompt_models::auth::ActClaim {
+        iss: "test".to_owned(),
+        sub: "delegate".to_owned(),
+        act: Box::new(None),
+    });
+    let mut browser = ui_claims();
+    browser.custom.browser_session = true;
+    let mut claimless = ui_claims();
+    claimless.custom.ui_session = false;
+    let mut first_party = make_claims("test", JwtAudience::standard());
+    first_party.custom.ui_session = true;
+    for claims in [
+        second_audience,
+        clientless,
+        purposed,
+        delegated,
+        browser,
+        claimless,
+        first_party,
+    ] {
+        let token = mint_active_kid(&claims);
+        let err = decode_rs256_claims(
+            test_signing_keys().keyring(),
+            &token,
+            &ValidationPolicy::issuer_scoped("test", JwtAudience::FIRST_PARTY_AND_UI),
+        )
+        .unwrap_err();
+        assert!(matches!(err, AuthError::UiSessionShape), "{err:?}");
+    }
 }

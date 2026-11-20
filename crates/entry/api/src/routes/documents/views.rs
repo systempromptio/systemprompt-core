@@ -3,6 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::HashMap;
+
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 use systemprompt_files::documents::models::{
@@ -11,7 +13,8 @@ use systemprompt_files::documents::models::{
 };
 use systemprompt_files::documents::service::{DocumentView, Listing};
 use systemprompt_identifiers::{
-    ContentHash, DocumentFolderId, DocumentId, DocumentRevisionId, DocumentTemplateId, UserId,
+    AgentName, ClientId, ContentHash, ContextId, DocumentFolderId, DocumentId, DocumentRevisionId,
+    DocumentTemplateId, UserId,
 };
 use systemprompt_models::documents::{
     AccessLevel, ActorKind, AgentEditPolicy, DocumentFormat, PresenceSource, PresenceState,
@@ -60,7 +63,22 @@ pub(super) struct RevisionJson {
     actor_kind: ActorKind,
     origin_kind: RevisionOriginKind,
     message: Option<String>,
+    context_id: Option<ContextId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    context_name: Option<String>,
+    agent_name: Option<AgentName>,
+    client_id: Option<ClientId>,
     created_at: DateTime<Utc>,
+}
+
+impl RevisionJson {
+    pub(super) fn named(mut self, names: &HashMap<ContextId, String>) -> Self {
+        self.context_name = self
+            .context_id
+            .as_ref()
+            .and_then(|id| names.get(id).cloned());
+        self
+    }
 }
 
 impl From<DocumentRevision> for RevisionJson {
@@ -74,6 +92,10 @@ impl From<DocumentRevision> for RevisionJson {
             actor_kind: r.actor_kind,
             origin_kind: r.origin.kind(),
             message: r.message,
+            context_id: r.attribution.context_id,
+            context_name: None,
+            agent_name: r.attribution.agent_name,
+            client_id: r.attribution.client_id,
             created_at: r.created_at,
         }
     }

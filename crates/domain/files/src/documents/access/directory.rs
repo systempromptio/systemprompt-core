@@ -5,8 +5,9 @@
 //! user repository. It answers which roles an active user holds (to evaluate
 //! another user's level when filtering event recipients), which active users
 //! a subject names (to address `document.shared` and to clear presence when
-//! a grant goes away), which active users match a name prefix and which
-//! roles exist (to search and validate grant subjects).
+//! a grant goes away), which active users match a name prefix, which active
+//! people a list of ids names (to name mentioned users) and which roles
+//! exist (to search and validate grant subjects).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -53,6 +54,11 @@ pub trait SubjectDirectory: Send + Sync {
         &self,
         query: &str,
         limit: usize,
+    ) -> Result<Vec<SubjectMatch>, SubjectDirectoryError>;
+
+    async fn find_people(
+        &self,
+        users: &[UserId],
     ) -> Result<Vec<SubjectMatch>, SubjectDirectoryError>;
 
     async fn roles(&self) -> Result<Vec<String>, SubjectDirectoryError>;

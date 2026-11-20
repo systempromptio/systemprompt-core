@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.84.0] - 2026-11-20
+
+### Breaking
+
+- `GET /api/v1/documents` accepts `scope=context`, which requires a `context_id`. Migrate a client that matched every scope by adding it.
+- A document write whose `x-context-id` is not a conversation the caller owns answers `422 unknown_context` and writes nothing; a header that is not a context id answers `400`.
+
+### Added
+
+- `GET /api/v1/documents?scope=context&context_id=` lists the documents one of the caller's conversations touched; a conversation the caller does not own and an unknown one both answer `422 unknown_context`, and a missing `context_id` `400`.
+- `POST /api/v1/documents/{id}/comments` takes `anchor.cells`, an A1 range (`B2` or `B2:D9`) on a spreadsheet's sheet node; comment responses and listings answer it. A malformed range is refused by the JSON body, and one off a sheet or beside `find`, `nth` or `range` answers `400 invalid_params`.
+- `POST /api/v1/documents/{id}/comments/{comment_id}/reopen` reopens a resolved comment with the same `comment` access as resolving and answers the comment.
+- `GET /api/v1/documents/{id}/rendered` serves a document with agent content under `renderedHtml.agentAuthored`; each tier's CSP (`RenderedHtmlConfig::csp`, built once when the profile loads) lists only its configured `https` origins and always carries `base-uri 'none'`. `endpoints.documents` in discovery carries `renderedHtml`.
+- The root discovery document carries `endpoints.documents`: `{"enabled": false}` while the document store is off, and otherwise its route URLs and upload `limits` (`maxUploadBytes`, `inlineMaxBytes`, `uploadPartBytes`).
+- `POST /api/v1/documents` and `POST /api/v1/documents/import` take an optional `message` for the first revision; `GET /api/v1/documents/{id}/revisions` answers `context_id`, `agent_name`, `client_id` and the owner-only `context_name`.
+
+### Fixed
+
+- A REST comment written with an agent's bearer token records the agent.
+- `GET /api/v1/documents/people?query=` and user search in `GET /api/v1/documents/subjects` match several words in any order, ignoring accents.
+- The documents, folders and uploads routes admit a person's UI session (`JwtContextExtractor::admitting_ui_sessions`), refuse it as the session cookie, and gate sharing, transfer, delete and agent-cap writes behind RFC 9470 step-up (`401` `insufficient_user_authentication`, `max_age=600`).
+
 ## [0.82.0] - 2026-11-16
 
 ### Breaking

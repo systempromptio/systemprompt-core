@@ -93,6 +93,18 @@ fn install_agent_body_limit_is_not_conferred() {
 }
 
 #[test]
+fn install_ui_session_context_is_not_conferred() {
+    let spec = RouteSpec::new(AuthzPolicy::user(), ContextKind::UserUi, PLAIN_LIMITS);
+    assert!(matches!(
+        refused_with(spec),
+        CompositionError::NotConferred {
+            allowance: Allowance::UiSession,
+            ..
+        }
+    ));
+}
+
+#[test]
 fn install_track_engagement_is_not_conferred() {
     let error = build_with(Probe::new("probe-install", |c| {
         c.routes(plain_set(BasePath::Web(WebBase::TrackEngagement), "/x"));

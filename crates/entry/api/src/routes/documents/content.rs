@@ -213,7 +213,7 @@ fn stream_response(read: StoredFileRead, served: &Served<'_>) -> Response {
         set(header::CONTENT_RANGE, range.content_range());
     }
     set_content_sha256(headers, served.hash);
-    harden(&mut response, USER_CONTENT_CSP);
+    harden(&mut response, HeaderValue::from_static(USER_CONTENT_CSP));
     response
 }
 
@@ -255,7 +255,7 @@ async fn serve_pdf(
         rendered.revision.id.as_str().to_owned(),
     );
     set(header::CONTENT_LENGTH, length.to_string());
-    harden(&mut response, USER_CONTENT_CSP);
+    harden(&mut response, HeaderValue::from_static(USER_CONTENT_CSP));
     Ok(response)
 }
 

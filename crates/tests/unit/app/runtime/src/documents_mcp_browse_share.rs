@@ -28,6 +28,7 @@ fn list(scope: ListScopeInput, sort: ListSortInput) -> ListInput {
         scope,
         sort,
         folder_id: None,
+        context_id: None,
         query: None,
         cursor: None,
         limit: Some(200),

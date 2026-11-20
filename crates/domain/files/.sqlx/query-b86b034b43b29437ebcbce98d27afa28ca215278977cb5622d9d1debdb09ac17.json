@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT (d.agent_content\n                       OR d.created_by_agent IS NOT NULL\n                       OR EXISTS (SELECT 1 FROM document_revisions r\n                                  WHERE r.document_id = d.id AND r.actor_kind = 'agent')\n                       OR EXISTS (SELECT 1 FROM document_proposals p\n                                  WHERE p.document_id = d.id AND p.actor_kind = 'agent'))\n                      AS \"flagged!\"\n               FROM documents d WHERE d.id = $1::text::uuid",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "flagged!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "b86b034b43b29437ebcbce98d27afa28ca215278977cb5622d9d1debdb09ac17"
+}

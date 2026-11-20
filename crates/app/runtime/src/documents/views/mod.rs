@@ -5,7 +5,9 @@
 //! the MCP tools and the HTTP routes both call it, so both surfaces answer
 //! alike. The read views are outline, text, changes, node, search, meta,
 //! range, cells and model; `access_view`, `folder_access_view` and
-//! `comments_view` read sharing and comment threads; `proposal_lines`
+//! `comments_view` read sharing and comment threads; `people_search_view`
+//! and `people_lookup_view` name the people a caller can mention;
+//! `proposal_lines`
 //! renders what a proposal changes; `edit_ack` renders a landed write's
 //! acknowledgement.
 //!
@@ -18,6 +20,7 @@ mod lines;
 mod meta;
 mod model;
 mod outline;
+mod people;
 mod read;
 mod records;
 mod touched;
@@ -35,6 +38,9 @@ pub use lines::{
 pub use outline::{
     ProposalChange, ProposalChangeKind, change_lines, node_lines, outline, proposal_changes,
     proposal_lines, search_lines,
+};
+pub use people::{
+    DEFAULT_PEOPLE, PeopleOutput, PeopleSearch, PersonItem, people_lookup_view, people_search_view,
 };
 pub use read::read_view;
 pub use records::{CommentAnchorItem, CommentItem, CommentOutput, CommentRangeItem, comments_view};

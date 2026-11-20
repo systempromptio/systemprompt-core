@@ -12,6 +12,10 @@
 //! a session, and are served wherever managed MCP servers run, a worker
 //! included.
 //!
+//! These three are the only routers mounted behind the context middleware
+//! that admits a person's UI session (the `ui` audience); every other surface
+//! refuses it.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -43,7 +47,7 @@ pub(super) fn mount_documents(
     }
     let state = DocumentsState::build(mount.ctx)
         .map_err(|source| RouteMountError::initialization("documents", source))?;
-    let user_gate = RouteProtection::new(AuthzPolicy::user(), ContextKind::User);
+    let user_gate = RouteProtection::new(AuthzPolicy::user(), ContextKind::UserUi);
     let group = RouteGroup::ContentAndMisc;
 
     let documents = with_download_tokens(
@@ -88,7 +92,7 @@ pub(super) fn mount_documents(
             folders_router(state),
             ApiPaths::DOCUMENT_FOLDERS,
             AuthzPolicy::user(),
-            ContextKind::User,
+            ContextKind::UserUi,
             group,
         )
         .with_rate_limit(DOCUMENTS_RATE),

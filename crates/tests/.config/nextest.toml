@@ -98,6 +98,11 @@ cloud-checkout-port = { max-threads = 1 }
 # profile against the proxy on the default port, so a sibling serving there
 # leaves the enrolment `Pending`.
 bridge-proxy-port = { max-threads = 1 }
+# Why: Postgres raises "could not open relation with OID" when the schema
+# installer's catalog digest reads a table a sibling test drops mid-query. The
+# database suites that run `install_extension_schemas` each create and drop
+# their own tables in the shared database, so they share one slot.
+schema-install-db = { max-threads = 1 }
 # Why: `McpProxySessionRepository::cleanup_expired` is an unscoped
 # `DELETE FROM mcp_external_sessions WHERE expires_at <= NOW()`, so it reaps
 # every expired binding in the shared database, not just its own. Tests that
@@ -142,6 +147,10 @@ collab-reaper-db = { max-threads = 1 }
 # queue, so a backfill test that queues a document stops a concurrent GC test
 # collecting its own aged blobs. Serialise the GC and backfill tests.
 document-blob-gc-db = { max-threads = 1 }
+
+[[profile.default.overrides]]
+filter = 'package(systemprompt-database-integration-tests) and test(/^(declarative_object_refs|migration_schema_ahead|interrupted_install|schema_migration_order|migration_supersedes|fresh_install_retirement|fresh_install_stamp|migration_slot_reuse|migration_plan_status)::/)'
+test-group = 'schema-install-db'
 
 [[profile.default.overrides]]
 filter = 'package(systemprompt-database-tests) and test(/lifecycle::/)'

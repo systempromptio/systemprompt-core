@@ -14,6 +14,8 @@ mod documents_agent_access;
 #[cfg(test)]
 mod documents_agent_caps;
 #[cfg(test)]
+mod documents_agent_content;
+#[cfg(test)]
 mod documents_agent_context;
 #[cfg(test)]
 mod documents_agent_fixture;
@@ -58,9 +60,13 @@ mod documents_collab_timer;
 #[cfg(test)]
 mod documents_comments;
 #[cfg(test)]
+mod documents_comments_cells;
+#[cfg(test)]
 mod documents_comments_export;
 #[cfg(test)]
 mod documents_comments_refusals;
+#[cfg(test)]
+mod documents_comments_reopen;
 #[cfg(test)]
 mod documents_comments_v2;
 #[cfg(test)]
@@ -71,6 +77,8 @@ mod documents_create_content;
 mod documents_create_content_settings;
 #[cfg(test)]
 mod documents_drive_feed_order;
+#[cfg(test)]
+mod documents_drive_hint;
 #[cfg(test)]
 mod documents_drive_paths;
 #[cfg(test)]
@@ -87,6 +95,8 @@ mod documents_jobs_run;
 mod documents_lifecycle;
 #[cfg(test)]
 mod documents_listing;
+#[cfg(test)]
+mod documents_listing_context;
 #[cfg(test)]
 mod documents_listing_scale;
 #[cfg(test)]
@@ -125,6 +135,8 @@ mod documents_repository_any;
 mod documents_revision_engine;
 #[cfg(test)]
 mod documents_search_visibility;
+#[cfg(test)]
+mod documents_self_mentions;
 #[cfg(test)]
 mod documents_service;
 #[cfg(test)]

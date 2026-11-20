@@ -1,6 +1,10 @@
 //! The outbox's `NOTIFY` channels and the [`OutboxChannel`] a row is
 //! relayed on.
 //!
+//! An [`OutboxChannel::AgUiMany`] row carries one AG-UI event and every
+//! user it is addressed to, so a fan-out to many users is one row and one
+//! `NOTIFY` rather than one per user; its `user_id` column is the actor.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -10,6 +14,7 @@ pub const NOTIFICATION_FACTS_CHANNEL: &str = "systemprompt_notification_facts";
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OutboxChannel {
     AgUi,
+    AgUiMany,
     A2A,
     System,
     Analytics,
@@ -22,6 +27,7 @@ impl OutboxChannel {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::AgUi => "agui",
+            Self::AgUiMany => "agui_many",
             Self::A2A => "a2a",
             Self::System => "system",
             Self::Analytics => "analytics",
@@ -34,6 +40,7 @@ impl OutboxChannel {
     pub fn parse(value: &str) -> Option<Self> {
         match value {
             "agui" => Some(Self::AgUi),
+            "agui_many" => Some(Self::AgUiMany),
             "a2a" => Some(Self::A2A),
             "system" => Some(Self::System),
             "analytics" => Some(Self::Analytics),

@@ -11,24 +11,25 @@
 
 use systemprompt_extension::{BrainSinkError, NotificationSinkError};
 use systemprompt_identifiers::{
-    ContentHash, DocumentAccessRequestId, DocumentCommentId, DocumentFolderId, DocumentId,
-    DocumentNodeId, DocumentOpId, DocumentProposalId, DocumentRevisionId, DocumentTemplateId,
-    UserId,
+    ContentHash, ContextId, DocumentAccessRequestId, DocumentCommentId, DocumentFolderId,
+    DocumentId, DocumentNodeId, DocumentOpId, DocumentProposalId, DocumentRevisionId,
+    DocumentTemplateId, UserId,
 };
 use systemprompt_models::documents::{
     AccessLevel, AccessRequestStatus, DocumentAction, DocumentFormat, ProposalStatus,
 };
 use systemprompt_models::notifications::NotificationKindError;
 use systemprompt_provider_contracts::documents::{ClosestBlock, CodecError};
-use systemprompt_traits::RepositoryError;
+use systemprompt_traits::{ContextProviderError, RepositoryError};
 
 use self::labels::{
     base_label, closest_label, comment_list, conflict_label, held_label, kinds_label, policy_label,
 };
 use self::messages::{
-    access_request_not_needed, access_request_open, guard_missing, integrity_mismatch,
-    invalid_name, live_unsupported, name_taken, op_id_mismatch, ownership_changed,
-    share_below_existing, stale_anchor, subtree_changed, trashed, unknown_node, unknown_subject,
+    access_request_not_needed, access_request_open, folder_name_taken, guard_missing,
+    integrity_mismatch, invalid_name, live_unsupported, name_taken, op_id_mismatch,
+    ownership_changed, share_below_existing, stale_anchor, subtree_changed, trashed, unknown_node,
+    unknown_subject,
 };
 use super::access::SubjectDirectoryError;
 use super::agents::AgentRefusal;
@@ -157,6 +158,8 @@ pub enum DocumentsError {
     InvalidName { name: String },
     #[error("{}", name_taken(.name))]
     NameTaken { name: String },
+    #[error("{}", folder_name_taken(.name))]
+    FolderNameTaken { name: String },
     #[error("subject kind \"{kind}\" is not user, role or a registered subject dimension")]
     UnknownSubjectKind { kind: String },
     #[error("{}", unknown_subject(.kind, .value))]
@@ -250,6 +253,13 @@ pub enum DocumentsError {
     Worker(#[from] tokio::task::JoinError),
     #[error("grant subjects could not be resolved to users")]
     Directory(#[from] SubjectDirectoryError),
+    #[error(
+        "context {context_id} is not one of your conversations: send the id of a conversation \
+         you own (POST /api/v1/core/contexts creates one), or none to write without one"
+    )]
+    UnknownContext { context_id: ContextId },
+    #[error("the conversation context could not be looked up")]
+    Contexts(#[source] ContextProviderError),
     #[error("the notification could not be recorded; nothing was stored")]
     Notifications(#[from] NotificationSinkError),
     #[error("notification kind is invalid")]

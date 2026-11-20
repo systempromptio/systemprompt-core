@@ -200,3 +200,101 @@ async fn an_agent_restore_or_whole_file_body_needs_its_capability() {
         .expect("text");
     assert_eq!(text, "line 0\nline 1\n");
 }
+
+
+fn str_replace(old: &str, new: &str) -> CommitBody {
+    CommitBody::Ops(vec![EditOp::StrReplace {
+        old_str: old.to_owned(),
+        new_str: new.to_owned(),
+    }])
+}
+
+#[tokio::test]
+async fn a_str_replace_over_most_of_the_body_is_a_wholesale_replace() {
+    let h = agent_harness(
+        AgentCap::Edit,
+        Vec::new(),
+        RoleDirectory::default(),
+        DocumentsConfig::default(),
+    )
+    .await;
+    let owner = person("wholesale-owner");
+    let id = lines(&h, &owner, 8).await;
+    let narrow = as_agent(h.service.commit(
+        &owner,
+        commit(&id, str_replace("line 1\n", "one\n")),
+        &trace(),
+    ))
+    .await
+    .expect("a narrow str_replace");
+    assert!(landed(&narrow));
+    let wide = "line 2\nline 3\nline 4\nline 5\nline 6\nline 7\n";
+    let refused = as_agent(h.service.commit(
+        &owner,
+        commit(&id, str_replace(wide, "gone\n")),
+        &trace(),
+    ))
+    .await
+    .expect_err("most of the body in one str_replace");
+    match agent_refusal(&refused) {
+        Some(AgentRefusal::WholesaleReplace { replaced, size, .. }) => {
+            assert_eq!(*replaced, wide.len());
+            assert!(replaced.saturating_mul(2) > *size, "{replaced} of {size}");
+        },
+        other => panic!("expected a wholesale replace refusal, got {other:?}"),
+    }
+    let (_, text) = h
+        .service
+        .plain_text(&owner, &id, None, &trace())
+        .await
+        .expect("text");
+    assert!(text.contains("line 7"), "the refused commit stored nothing");
+    let person_edit = h
+        .service
+        .commit(&owner, commit(&id, str_replace(wide, "owner\n")), &trace())
+        .await
+        .expect("a person is never weighed");
+    assert!(landed(&person_edit));
+}
+
+#[tokio::test]
+async fn a_short_document_or_a_policy_allowing_broad_rewrites_admits_a_wholesale_str_replace() {
+    let short = agent_harness(
+        AgentCap::Edit,
+        Vec::new(),
+        RoleDirectory::default(),
+        DocumentsConfig::default(),
+    )
+    .await;
+    let owner = person("wholesale-short");
+    let id = lines(&short, &owner, 1).await;
+    let outcome = as_agent(short.service.commit(
+        &owner,
+        commit(&id, str_replace("line 0\n", "replaced\n")),
+        &trace(),
+    ))
+    .await
+    .expect("a one-line document is below the broad-rewrite floor");
+    assert!(landed(&outcome));
+
+    let allowed = agent_harness(
+        AgentCap::Edit,
+        vec![AgentCapability::BroadRewrite],
+        RoleDirectory::default(),
+        DocumentsConfig::default(),
+    )
+    .await;
+    let owner = person("wholesale-allowed");
+    let id = lines(&allowed, &owner, 8).await;
+    let outcome = as_agent(allowed.service.commit(
+        &owner,
+        commit(
+            &id,
+            str_replace("line 0\nline 1\nline 2\nline 3\nline 4\n", "kept\n"),
+        ),
+        &trace(),
+    ))
+    .await
+    .expect("allowed");
+    assert!(landed(&outcome));
+}

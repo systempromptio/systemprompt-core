@@ -239,6 +239,8 @@ fn minted_with(config: &Config, interaction: Option<TokenInteraction>) -> String
             plugin_id: None,
             interaction,
             browser_session: false,
+            ui_session: false,
+            auth_time: None,
         })
         .expect("mint subject")
 }

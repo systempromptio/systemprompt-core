@@ -35,6 +35,8 @@ pub struct JwtUserContext {
     pub purpose: Option<String>,
     pub interaction: Option<TokenInteraction>,
     pub browser_session: bool,
+    pub ui_session: bool,
+    pub auth_time: i64,
 }
 
 pub fn extract_user_context(
@@ -77,5 +79,7 @@ pub fn extract_user_context_for(
         purpose: claims.custom.purpose,
         interaction: claims.custom.interaction,
         browser_session: claims.custom.browser_session,
+        ui_session: claims.custom.ui_session,
+        auth_time: claims.custom.auth_time,
     })
 }

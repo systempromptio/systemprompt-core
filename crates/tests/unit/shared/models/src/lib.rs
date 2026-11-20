@@ -434,6 +434,9 @@ mod documents_access;
 mod documents_uri;
 
 #[cfg(test)]
+mod documents_cells;
+
+#[cfg(test)]
 mod documents_drive;
 
 #[cfg(test)]

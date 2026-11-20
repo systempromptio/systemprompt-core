@@ -1,8 +1,9 @@
 //! Comments: threads anchored to a stable node id and, optionally, the
 //! `nth` occurrence of a quote inside that node and a range of engine
-//! cursors. A comment may mention users, and shares the document with a
-//! mentioned user who cannot see it (`mentions`); editing and deletion live
-//! in `comments_edit`. A deleted comment leaves listings and anchor checks.
+//! cursors, or a cell range on a sheet node. A comment may mention users, and
+//! shares the document with a mentioned user who cannot see it (`mentions`);
+//! editing and deletion live in `comments_edit`. A deleted comment leaves
+//! listings and anchor checks.
 //!
 //! Commenting needs `comment`; reading the thread needs `view`. A reply
 //! carries its parent's anchor. Because the anchor is a stable id, an edit
@@ -21,10 +22,12 @@ use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{DocumentAction, DocumentCommentCreatedEvent};
 
 use super::DocumentService;
-use super::comment_anchors::anchor_holds;
+use super::comment_anchors::{anchor_holds, check_cells};
 use super::comments_edit::check_range;
 use super::mentions::{CommentOrigin, MentionInput};
-use super::notify::{MentionContext, MentionNotice, MentionOption, check_mention_options};
+use super::notify::{
+    MentionContext, MentionNotice, MentionOption, check_mention_options, notified,
+};
 use systemprompt_traits::RepositoryError;
 
 use crate::documents::error::DocumentsError;
@@ -99,6 +102,8 @@ impl DocumentService {
             mentions: plan.mentions,
             parent_id: request.parent_id,
             via_agent: origin.via_agent.clone(),
+            context_id: origin.context_id.clone(),
+            client_id: origin.client_id.clone(),
         };
         let context = MentionContext {
             who,
@@ -120,7 +125,8 @@ impl DocumentService {
         if let Err(error) = self.events.comment_created(&to, &event).await {
             tracing::warn!(document_id = %document.id, error = %error, "Comment event not relayed");
         }
-        self.announce_mentions(who, &document, &comment, &comment.mentions, &plan.grants)
+        let announced = notified(&who.id, &comment.mentions, &request.mention_options);
+        self.announce_mentions(who, &document, &comment, &announced, &plan.grants)
             .await;
         Ok(comment)
     }
@@ -190,6 +196,7 @@ impl DocumentService {
         if ids.find(&anchor.node).is_none() {
             return Err(DocumentsError::UnknownNode { node: anchor.node });
         }
+        check_cells(&ids, &anchor, range.as_ref())?;
         if !anchor_holds(&ids, &anchor) {
             return Err(DocumentsError::FindNone {
                 find: anchor.find.unwrap_or_default(),

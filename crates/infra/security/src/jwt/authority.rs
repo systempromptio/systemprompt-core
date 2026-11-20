@@ -63,7 +63,7 @@ pub fn user_claims(issuer: &str, req: &UserJwtRequest) -> TokenResult<JwtClaims>
     }
     let now = Utc::now().timestamp();
     let user_type = UserType::from_permissions(&req.permissions);
-    Ok(JwtClaims {
+    let claims = JwtClaims {
         registered: RegisteredClaims {
             sub: req.user.id.to_string(),
             iat: now,
@@ -82,7 +82,7 @@ pub fn user_claims(issuer: &str, req: &UserJwtRequest) -> TokenResult<JwtClaims>
             attributes: req.user.attributes().clone(),
             client_id: req.client_id.clone(),
             token_type: TokenType::Bearer,
-            auth_time: now,
+            auth_time: req.auth_time.map_or(now, |auth_time| auth_time.min(now)),
             session_id: Some(req.session_id.clone()),
             rate_limit_tier: Some(user_type.rate_tier()),
             plugin_id: req.plugin_id.clone(),
@@ -90,8 +90,13 @@ pub fn user_claims(issuer: &str, req: &UserJwtRequest) -> TokenResult<JwtClaims>
             purpose: req.purpose.clone(),
             interaction: req.interaction,
             browser_session: req.browser_session,
+            ui_session: req.ui_session,
         },
-    })
+    };
+    if !claims.ui_session_well_formed() {
+        return Err(TokenError::UiSessionShape);
+    }
+    Ok(claims)
 }
 
 impl From<AuthError> for TokenError {

@@ -2,7 +2,13 @@
 //! calls, name rules, blob reads, event recipients and paths.
 //!
 //! Event recipients are the owner and every present user who still holds
-//! `view` or better when the event is emitted.
+//! `view` or better when the event is emitted. Access holders, the audience
+//! of the drive-change hint, are the owner and every member of a grant
+//! subject on the document or its folder chain who holds `view` or better
+//! now; any failure resolving them is an error, never a partial set. The
+//! candidates are capped at `MAX_SUBJECT_MEMBERS`: the owner and the author
+//! always, then the rest in user-id order; the truncation is logged and the
+//! users past it rely on their poll.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -17,6 +23,7 @@ use systemprompt_provider_contracts::documents::{
 };
 
 use super::DocumentService;
+use crate::documents::access::MAX_SUBJECT_MEMBERS;
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentRevision};
 
@@ -201,6 +208,38 @@ impl DocumentService {
         users.into_iter().collect()
     }
 
+    pub(super) async fn access_holders(
+        &self,
+        document: &Document,
+        author: &UserId,
+    ) -> Result<Vec<UserId>, DocumentsError> {
+        let mut grants = self.repos.grants.list_for_document(&document.id).await?;
+        if let Some(folder) = &document.folder_id {
+            let mut chain = vec![folder.clone()];
+            chain.extend(self.repos.folders.ancestors(folder).await?);
+            grants.extend(self.repos.grants.list_for_folders(&chain).await?);
+        }
+        let mut candidates = BTreeSet::new();
+        for grant in grants {
+            if grant.subject_kind == super::ownership::USER_SUBJECT {
+                candidates.insert(UserId::new(grant.subject_value));
+                continue;
+            }
+            candidates.extend(
+                self.access
+                    .subject_members(&grant.subject_kind, &grant.subject_value)
+                    .await?,
+            );
+        }
+        let candidates = capped_candidates(document, author, candidates);
+        let levels = self.access.levels_of(document, &candidates).await?;
+        Ok(candidates
+            .into_iter()
+            .zip(levels)
+            .filter_map(|(user, level)| level.map(|_| user))
+            .collect())
+    }
+
     pub(super) async fn folder_path(
         &self,
         folder: Option<&DocumentFolderId>,
@@ -222,6 +261,31 @@ impl DocumentService {
             &document.name,
         ))
     }
+}
+
+fn capped_candidates(
+    document: &Document,
+    author: &UserId,
+    mut others: BTreeSet<UserId>,
+) -> Vec<UserId> {
+    let mut kept = vec![document.owner_user_id.clone()];
+    if *author != document.owner_user_id {
+        kept.push(author.clone());
+    }
+    for user in &kept {
+        others.remove(user);
+    }
+    let room = MAX_SUBJECT_MEMBERS.saturating_sub(kept.len());
+    if others.len() > room {
+        tracing::warn!(
+            document_id = %document.id,
+            limit = MAX_SUBJECT_MEMBERS,
+            candidates = others.len() + kept.len(),
+            "Drive-change hint has more candidates than the fan-out limit; the rest rely on their poll"
+        );
+    }
+    kept.extend(others.into_iter().take(room));
+    kept
 }
 
 pub(super) fn join_path(folder: Option<&str>, name: &str) -> String {

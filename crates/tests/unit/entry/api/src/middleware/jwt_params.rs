@@ -28,6 +28,8 @@ fn jwt_context(user_id: &UserId, session_id: &SessionId) -> JwtUserContext {
         purpose: None,
         interaction: None,
         browser_session: false,
+        ui_session: false,
+        auth_time: 0,
     }
 }
 
@@ -142,4 +144,22 @@ fn only_a_web_login_token_sent_as_the_cookie_is_a_browser_session() {
         !bearer.is_browser_session(),
         "a web token sent as a bearer header"
     );
+}
+
+#[test]
+fn a_ui_session_is_recorded_only_when_it_arrives_as_a_bearer_header() {
+    let user_id = UserId::new("user-ui");
+    let session_id = SessionId::generate();
+    let mut jwt = jwt_context(&user_id, &session_id);
+    jwt.ui_session = true;
+    jwt.auth_time = 1_800_000_000;
+    let bearer = build_context(params(jwt.clone()));
+    assert_eq!(bearer.ui_session_auth_time(), Some(1_800_000_000));
+    assert!(!bearer.is_browser_session());
+
+    let mut cookie = params(jwt);
+    cookie.cookie_transport = true;
+    let cookie = build_context(cookie);
+    assert!(!cookie.is_ui_session());
+    assert!(!cookie.is_browser_session());
 }

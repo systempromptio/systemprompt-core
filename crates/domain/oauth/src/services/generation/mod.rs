@@ -46,6 +46,10 @@ pub struct JwtConfig {
     pub interaction: Option<TokenInteraction>,
     #[serde(default)]
     pub browser_session: bool,
+    #[serde(default)]
+    pub ui_session: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auth_time: Option<i64>,
 }
 
 const MAX_TOKEN_LIFETIME: Duration = Duration::days(365);
@@ -95,6 +99,8 @@ impl Default for JwtConfig {
             purpose: None,
             interaction: None,
             browser_session: false,
+            ui_session: false,
+            auth_time: None,
         }
     }
 }
@@ -146,6 +152,8 @@ fn build_claims(
         plugin_id: config.plugin_id,
         interaction: config.interaction,
         browser_session: config.browser_session,
+        ui_session: config.ui_session,
+        auth_time: config.auth_time,
     };
     Ok(user_claims(signing.issuer, &request)?)
 }
@@ -202,6 +210,8 @@ pub fn generate_anonymous_jwt_with_expiry(
         plugin_id: None,
         interaction: None,
         browser_session: false,
+        ui_session: false,
+        auth_time: None,
     };
     Ok(authority.mint_user_jwt(&request)?)
 }

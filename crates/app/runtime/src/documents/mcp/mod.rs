@@ -19,14 +19,20 @@ mod browse;
 mod catalog;
 mod comment;
 mod comment_edit;
+mod create;
+mod dispatch;
 mod export;
+mod folders;
 mod guide;
 mod guide_model;
+mod guide_refusals;
 mod guide_topics;
+mod import;
 #[cfg(feature = "notifications")]
 mod inbox;
 mod inputs;
 mod lifecycle;
+mod lifecycle_inputs;
 mod listing;
 mod live_edit;
 mod media;
@@ -56,27 +62,31 @@ use systemprompt_models::execution::context::RequestContext;
 #[cfg(feature = "notifications")]
 use systemprompt_notifications::service::{NotificationsService, NotificationsServiceSlot};
 use systemprompt_provider_contracts::Dependencies;
+use systemprompt_traits::DynContextDirectory;
 use systemprompt_users::UserRepository;
 
 pub use access::AccessHandler;
 pub use browse::{HistoryHandler, ListHandler, SearchHandler};
 pub use catalog::{INSTRUCTIONS, TOOL_NAMES};
 pub use comment::CommentHandler;
+pub use create::{CreateHandler, create_content};
 pub use export::ExportHandler;
+pub use folders::FolderHandler;
 pub use guide::GuideHandler;
+pub use import::ImportHandler;
 #[cfg(feature = "notifications")]
 pub use inbox::{InboxAction, InboxHandler, InboxInput, InboxOutput};
 pub use inputs::{
     AccessInput, CommentAction, CommentInput, CopyInput, CreateInput, DocumentInput, EditInput,
-    ExportAs, ExportFormat, ExportInput, GuideInput, HistoryInput, ListInput, ListScopeInput,
-    ListSortInput, MentionOptionInput, PeopleInput, ProposalAction, ProposalsInput, QuoteAnchor,
-    SearchInput, ShareInput, UpdateInput,
+    ExportAs, ExportFormat, ExportInput, FolderAction, FolderInput, GuideInput, HistoryInput,
+    ImportInput, ListInput, ListScopeInput, ListSortInput, MentionOptionInput, PeopleInput,
+    ProposalAction, ProposalsInput, QuoteAnchor, SearchInput, ShareInput, UpdateInput,
 };
 pub use lifecycle::{CopyHandler, TrashHandler, UntrashHandler, UpdateHandler};
 pub use outputs::{
     CreateOutput, DocumentItem, ExportOutput, FolderItem, GuideOutput, HistoryOutput, ListOutput,
-    PeopleOutput, PersonItem, ProposalItem, ProposalsOutput, ReviewOutput, RevisionAttributionItem,
-    RevisionItem, SearchHit, SearchOutput, ShareOutput,
+    ProposalItem, ProposalsOutput, ReviewOutput, RevisionAttributionItem, RevisionItem, SearchHit,
+    SearchOutput, ShareOutput,
 };
 pub use people::PeopleHandler;
 pub use proposals::ProposalsHandler;
@@ -86,9 +96,7 @@ pub use refusal::{refusal, refusal_code, refusal_result, refused_error};
 pub use share::ShareHandler;
 pub use support::tool_error;
 pub use upload::{UploadHandler, UploadInput, UploadMode, UploadOutput};
-pub use write::{CreateHandler, EditHandler, create_content};
-
-use support::run;
+pub use write::EditHandler;
 
 use crate::documents::links::LinkIssuer;
 
@@ -103,6 +111,7 @@ pub struct DocumentsMcpConfig {
     pub uploads: Option<Arc<UploadService>>,
     pub users: Arc<UserRepository>,
     pub links: Arc<dyn LinkIssuer>,
+    pub contexts: DynContextDirectory,
     pub server_name: McpServerId,
 }
 
@@ -116,7 +125,7 @@ pub struct DocumentsToolCall<'a> {
     pub hop: Option<&'a JwtToken>,
 }
 
-/// The nineteen document tools and the preview resource of one MCP server.
+/// The twenty-one document tools and the preview resource of one MCP server.
 #[derive(Clone)]
 pub struct DocumentsMcpTools {
     service: Arc<DocumentService>,
@@ -125,6 +134,7 @@ pub struct DocumentsMcpTools {
     uploads: Option<Arc<UploadService>>,
     users: Arc<UserRepository>,
     links: Arc<dyn LinkIssuer>,
+    contexts: DynContextDirectory,
     server_name: McpServerId,
 }
 
@@ -154,6 +164,7 @@ impl DocumentsMcpTools {
             uploads: config.uploads,
             users: config.users,
             links: config.links,
+            contexts: config.contexts,
             server_name: config.server_name,
         }
     }
@@ -182,6 +193,7 @@ impl DocumentsMcpTools {
             uploads: Some(Arc::clone(parts.documents.uploads())),
             users: Arc::clone(&parts.user_repository),
             links,
+            contexts: Arc::clone(parts.documents.contexts()),
             server_name,
         })
     }
@@ -213,6 +225,11 @@ impl DocumentsMcpTools {
     }
 
     #[must_use]
+    pub const fn contexts(&self) -> &DynContextDirectory {
+        &self.contexts
+    }
+
+    #[must_use]
     pub const fn server_name(&self) -> &McpServerId {
         &self.server_name
     }
@@ -229,57 +246,5 @@ impl DocumentsMcpTools {
 
     pub async fn call(&self, call: DocumentsToolCall<'_>) -> Result<CallToolResult, McpError> {
         act_as(mentions::document_actor(call.context), self.dispatch(call)).await
-    }
-
-    async fn dispatch(&self, call: DocumentsToolCall<'_>) -> Result<CallToolResult, McpError> {
-        match call.request.name.as_ref() {
-            "documents_list" => Box::pin(run(call, &ListHandler { tools: self })).await,
-            "documents_search" => Box::pin(run(call, &SearchHandler { tools: self })).await,
-            "documents_create" => Box::pin(run(call, &CreateHandler { tools: self })).await,
-            "documents_read" => Box::pin(run(call, &ReadHandler { tools: self })).await,
-            "documents_edit" => Box::pin(run(call, &EditHandler { tools: self })).await,
-            "documents_comment" => Box::pin(run(call, &CommentHandler { tools: self })).await,
-            "documents_history" => Box::pin(run(call, &HistoryHandler { tools: self })).await,
-            "documents_proposals" => Box::pin(run(call, &ProposalsHandler { tools: self })).await,
-            "documents_share" => Box::pin(run(call, &ShareHandler { tools: self })).await,
-            "documents_access" => Box::pin(run(call, &AccessHandler { tools: self })).await,
-            "documents_copy" => Box::pin(run(call, &CopyHandler { tools: self })).await,
-            "documents_update" => Box::pin(run(call, &UpdateHandler { tools: self })).await,
-            "documents_trash" => Box::pin(run(call, &TrashHandler { tools: self })).await,
-            "documents_untrash" => Box::pin(run(call, &UntrashHandler { tools: self })).await,
-            "documents_export" => {
-                Box::pin(run(
-                    call,
-                    &ExportHandler {
-                        tools: self,
-                        hop: call.hop,
-                    },
-                ))
-                .await
-            },
-            "documents_upload" => {
-                Box::pin(run(
-                    call,
-                    &UploadHandler {
-                        tools: self,
-                        hop: call.hop,
-                    },
-                ))
-                .await
-            },
-            "documents_guide" => Box::pin(run(call, &GuideHandler { tools: self })).await,
-            "documents_people" => Box::pin(run(call, &PeopleHandler { tools: self })).await,
-            #[cfg(feature = "notifications")]
-            "documents_inbox" if self.notifications.is_some() => {
-                Box::pin(run(call, &InboxHandler { tools: self })).await
-            },
-            other => Err(McpError::invalid_params(
-                format!(
-                    "Unknown tool: '{other}'. This server exposes: {}.",
-                    TOOL_NAMES.join(", ")
-                ),
-                None,
-            )),
-        }
     }
 }

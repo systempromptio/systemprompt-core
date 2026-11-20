@@ -69,6 +69,7 @@ async fn layers() -> MountLayers {
         limits: RateLimitState::new(&config, Arc::new(UserRateLimitBucketRepository::new(&db))),
         public: PublicContextMiddleware::new(),
         user: UserOnlyContextMiddleware::new(NoContext),
+        user_ui: UserOnlyContextMiddleware::new(NoContext),
         a2a: A2AContextMiddleware::new(NoContext, 1024, BodyBudget::new(64 * 1024 * 1024)),
         mcp: McpContextMiddleware::new(NoContext),
         bearer: None,

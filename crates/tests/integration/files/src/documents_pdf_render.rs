@@ -28,6 +28,7 @@ async fn markdown(h: &Harness, owner: &AuthenticatedUser, name: &str, text: &str
                 mime_type: None,
                 bytes: text.as_bytes().to_vec(),
                 author: api_author(),
+                message: None,
             },
             &trace(),
         )
@@ -48,6 +49,7 @@ async fn file(h: &Harness, owner: &AuthenticatedUser, name: &str, bytes: &[u8]) 
                 mime: "application/octet-stream".to_owned(),
                 bytes: bytes.to_vec(),
                 author: api_author(),
+                message: None,
             },
             &trace(),
         )
@@ -262,6 +264,7 @@ async fn a_file_that_does_not_import_is_refused_and_its_name_picks_the_format() 
         mime: "application/octet-stream".to_owned(),
         bytes: bytes.to_vec(),
         author: api_author(),
+        message: None,
     };
     let error = h
         .service

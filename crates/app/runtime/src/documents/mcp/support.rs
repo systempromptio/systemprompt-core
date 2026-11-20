@@ -12,18 +12,17 @@
 use rmcp::ErrorData as McpError;
 use rmcp::model::CallToolResult;
 use systemprompt_files::documents::DocumentsError;
-use systemprompt_files::documents::models::{
-    DocumentRevision, RevisionAttribution, RevisionOrigin,
-};
+use systemprompt_files::documents::models::{DocumentRevision, RevisionOrigin};
 use systemprompt_files::documents::service::Author;
-use systemprompt_identifiers::{DocumentId, DocumentRevisionId, McpExecutionId};
+use systemprompt_identifiers::{ContextId, DocumentId, DocumentRevisionId, McpExecutionId};
 use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::ActorKind;
 use systemprompt_models::execution::context::RequestContext;
 
-use super::DocumentsToolCall;
 use super::refusal::{refusal, refusal_result, refused_error};
+use super::{DocumentsMcpTools, DocumentsToolCall};
+use crate::documents::attribution::request_author;
 use crate::documents::refusal::{RefusalCode, refusal_of, stale_base as stale_base_refusal};
 
 pub(super) const DEFAULT_LIMIT: i64 = 50;
@@ -39,19 +38,23 @@ pub(super) fn caller(ctx: &RequestContext) -> Result<&AuthenticatedUser, McpErro
     })
 }
 
-pub(super) fn agent_author(ctx: &RequestContext, exec_id: &McpExecutionId) -> Author {
-    let present = |value: &str| !value.is_empty();
-    Author {
-        actor_kind: ActorKind::Agent,
-        origin: RevisionOrigin::McpExecution(exec_id.clone()),
-        attribution: RevisionAttribution {
-            session_id: Some(ctx.session_id().clone()).filter(|id| present(id.as_str())),
-            context_id: Some(ctx.context_id().clone()).filter(|id| present(id.as_str())),
-            trace_id: Some(ctx.trace_id().clone()).filter(|id| present(id.as_str())),
-            task_id: ctx.task_id().cloned(),
-            on_behalf_of: Some(ctx.user_id().clone()).filter(|id| present(id.as_str())),
-        },
-    }
+pub(super) async fn agent_author(
+    tools: &DocumentsMcpTools,
+    ctx: &RequestContext,
+    exec_id: &McpExecutionId,
+    context_id: Option<&ContextId>,
+) -> Result<Author, McpError> {
+    request_author(
+        tools.contexts().as_ref(),
+        ctx,
+        (
+            ActorKind::Agent,
+            RevisionOrigin::McpExecution(exec_id.clone()),
+        ),
+        context_id.or_else(|| Some(ctx.context_id())),
+    )
+    .await
+    .map_err(tool_error)
 }
 
 pub(super) fn clamp_limit(limit: Option<i64>) -> i64 {

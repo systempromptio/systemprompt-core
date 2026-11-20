@@ -135,7 +135,8 @@ impl McpToolHandler for CopyHandler<'_> {
                     source: input.document_id,
                     name: input.name,
                     folder: input.folder_id,
-                    author: agent_author(ctx, exec_id),
+                    author: agent_author(self.tools, ctx, exec_id, input.context_id.as_ref())
+                        .await?,
                 },
                 ctx.trace_id(),
             )

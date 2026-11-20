@@ -73,6 +73,7 @@ pub(super) async fn layers(rate_limits: RateLimitsConfig, caller: UserType) -> M
         limits: RateLimitState::new(&config, Arc::new(UserRateLimitBucketRepository::new(&db))),
         public: PublicContextMiddleware::new(),
         user: UserOnlyContextMiddleware::new(extractor.clone()),
+        user_ui: UserOnlyContextMiddleware::new(extractor.clone()),
         a2a: A2AContextMiddleware::new(extractor.clone(), 1024, BodyBudget::new(64 * 1024 * 1024)),
         mcp: McpContextMiddleware::new(extractor),
         bearer: None,

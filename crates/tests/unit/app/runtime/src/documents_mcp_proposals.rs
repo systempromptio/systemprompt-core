@@ -34,6 +34,7 @@ async fn edit(
         .handle(
             EditInput {
                 document_id: document.clone(),
+                content_blob_ref: None,
                 base_revision: None,
                 mode,
                 op_id: None,
@@ -47,6 +48,7 @@ async fn edit(
                 }],
                 message: Some("suggestion".to_owned()),
                 verbose: false,
+                context_id: None,
             },
             ctx,
             &exec(),
@@ -121,6 +123,7 @@ async fn mode_propose_acknowledges_a_proposal_and_review_accepts_it() {
                 document_id: Some(document.clone()),
                 proposal_id: None,
                 note: None,
+                context_id: None,
             },
             &ctx,
             &exec(),
@@ -136,6 +139,7 @@ async fn mode_propose_acknowledges_a_proposal_and_review_accepts_it() {
         document_id: None,
         proposal_id: Some(proposal.clone()),
         note: None,
+        context_id: None,
     };
     let own = ProposalsHandler { tools: &h.tools }
         .handle(accept.clone(), &ctx, &exec())
@@ -190,6 +194,7 @@ async fn a_comment_only_edit_proposes_and_a_viewer_review_is_refused() {
                 document_id: None,
                 proposal_id: Some(proposal.clone()),
                 note: None,
+                context_id: None,
             },
             &ctx_for(Some(&viewer)),
             &exec(),
@@ -205,6 +210,7 @@ async fn a_comment_only_edit_proposes_and_a_viewer_review_is_refused() {
                 document_id: None,
                 proposal_id: Some(proposal),
                 note: Some("keep green".to_owned()),
+                context_id: None,
             },
             &owner_ctx,
             &exec(),

@@ -150,6 +150,8 @@ pub async fn handle_token_exchange(
         purpose: None,
         interaction: subject.interaction,
         browser_session: false,
+        ui_session: false,
+        auth_time: None,
     };
     let signing = JwtSigningParams {
         issuer: &global.jwt_issuer,

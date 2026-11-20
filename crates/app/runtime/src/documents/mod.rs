@@ -15,6 +15,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod actor;
+/// The conversation a write is attributed to, checked against the caller's own.
+pub mod attribution;
 mod directory;
 /// Signed, short-lived document download links.
 pub mod download;

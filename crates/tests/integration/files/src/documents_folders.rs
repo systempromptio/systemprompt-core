@@ -63,6 +63,102 @@ async fn rename_folder_updates_the_name_and_refuses_bad_names() {
 }
 
 #[tokio::test]
+async fn a_folder_name_a_sibling_holds_is_refused_as_taken() {
+    let h = harness(allow(), GroupSource::new(&[])).await;
+    let owner = person("folder-taken");
+    let parent = folder(&h, &owner, None).await;
+    let name = unique("Taken");
+    let create_named = |name: String, parent: Option<DocumentFolderId>| {
+        let h = &h;
+        let owner = &owner;
+        async move {
+            h.service
+                .create_folder(owner, NewFolderRequest { parent, name }, &trace())
+                .await
+        }
+    };
+    let first = create_named(name.clone(), Some(parent.clone()))
+        .await
+        .expect("first")
+        .id;
+    let again = create_named(name.clone(), Some(parent.clone()))
+        .await
+        .expect_err("same name, same parent");
+    assert!(
+        matches!(&again, DocumentsError::FolderNameTaken { name: taken } if *taken == name),
+        "{again:?}"
+    );
+    assert!(again.to_string().contains("folder"), "{again}");
+
+    let sibling = folder(&h, &owner, Some(&parent)).await;
+    let renamed = h
+        .service
+        .rename_folder(&owner, &sibling, &name, &trace())
+        .await
+        .expect_err("rename onto a sibling's name");
+    assert!(
+        matches!(renamed, DocumentsError::FolderNameTaken { .. }),
+        "{renamed:?}"
+    );
+    let updated = h
+        .service
+        .update_folder(
+            &owner,
+            &sibling,
+            FolderUpdateRequest {
+                name: Some(name.clone()),
+                ..FolderUpdateRequest::default()
+            },
+            &trace(),
+        )
+        .await
+        .expect_err("update onto a sibling's name");
+    assert!(
+        matches!(updated, DocumentsError::FolderNameTaken { .. }),
+        "{updated:?}"
+    );
+
+    let elsewhere = create_named(name.clone(), None)
+        .await
+        .expect("same name at the root")
+        .id;
+    let moved = h
+        .service
+        .move_folder(&owner, &elsewhere, Some(&parent), &trace())
+        .await
+        .expect_err("move beside a folder of the same name");
+    assert!(
+        matches!(&moved, DocumentsError::FolderNameTaken { name: taken } if *taken == name),
+        "{moved:?}"
+    );
+    let moved_by_update = h
+        .service
+        .update_folder(
+            &owner,
+            &elsewhere,
+            FolderUpdateRequest {
+                parent: FolderMove::Into(parent.clone()),
+                ..FolderUpdateRequest::default()
+            },
+            &trace(),
+        )
+        .await
+        .expect_err("update moving beside a folder of the same name");
+    assert!(
+        matches!(moved_by_update, DocumentsError::FolderNameTaken { .. }),
+        "{moved_by_update:?}"
+    );
+    let kept = h
+        .repos
+        .folders
+        .find(&first)
+        .await
+        .expect("find")
+        .expect("first kept");
+    assert_eq!(kept.name, name);
+}
+
+#[tokio::test]
 async fn move_folder_reparents_and_refuses_cycles() {
     let h = harness(allow(), GroupSource::new(&[])).await;
     let owner = person("folder-move");

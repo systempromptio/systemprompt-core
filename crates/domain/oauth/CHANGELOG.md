@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.84.0] - 2026-11-20
+
+### Breaking
+
+- `RefreshTokenParams` gains `authenticated_at`, `ConsumedRefreshToken` gains `authenticated_at`, `AuthCodeValidationResult` gains `issued_at`, `DeclaredClientWrite` and `DeclaredClientRow` gain `person_ui`, and `JwtConfig` gains `ui_session` and `auth_time`. Migrate a struct literal by setting them.
+
+### Added
+
+- `ClientRepository::is_person_ui` and `OAuthRepository::is_person_ui_client`: true only for an active, still-declared client whose `person_ui` is set. Changing a declared client's `person_ui` revokes its refresh tokens. Migration `025_person_ui_clients` adds `oauth_clients.person_ui` and `oauth_refresh_tokens.authenticated_at`.
+
 ## [0.81.0] - 2026-11-12
 
 ### Breaking

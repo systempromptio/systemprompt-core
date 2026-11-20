@@ -19,12 +19,14 @@ fn comment(action: CommentAction, document: &DocumentId) -> CommentInput {
         document_id: document.clone(),
         node: None,
         anchor: None,
+        cells: None,
         body: None,
         parent_id: None,
         mentions: Vec::new(),
         mention_options: vec![],
         comment_id: None,
         answering: None,
+        context_id: None,
     }
 }
 
@@ -72,6 +74,7 @@ async fn comment_tool_creates_lists_and_resolves_and_edits_refuse_anchors_affect
 
     let edit = |allow_detach: bool| EditInput {
         document_id: document.clone(),
+        content_blob_ref: None,
         base_revision: None,
         mode: None,
         op_id: None,
@@ -85,6 +88,7 @@ async fn comment_tool_creates_lists_and_resolves_and_edits_refuse_anchors_affect
         }],
         message: None,
         verbose: false,
+        context_id: None,
     };
     let refused = EditHandler { tools: &h.tools }
         .handle(edit(false), &ctx, &exec())
@@ -172,6 +176,7 @@ async fn trash_untrash_copy_update_and_access_tools() {
                 document_id: document.clone(),
                 name: Some(format!("duplicate-{}", uuid::Uuid::new_v4().simple())),
                 folder_id: None,
+                context_id: None,
             },
             &ctx,
             &exec(),
@@ -217,6 +222,7 @@ async fn share_transfers_ownership_and_lists_show_access() {
             ListInput {
                 scope: ListScopeInput::Shared,
                 folder_id: None,
+                context_id: None,
                 query: None,
                 sort: ListSortInput::Updated,
                 cursor: None,

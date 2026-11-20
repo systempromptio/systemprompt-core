@@ -27,6 +27,7 @@ pub struct FileCreateRequest {
     pub mime: String,
     pub bytes: Vec<u8>,
     pub author: Author,
+    pub message: Option<String>,
 }
 
 impl DocumentService {
@@ -47,6 +48,7 @@ impl DocumentService {
             mime,
             bytes,
             author,
+            message,
         } = request;
         let format = format
             .or_else(|| format_of_name(&name))
@@ -73,6 +75,7 @@ impl DocumentService {
                 mime_type: Some(origin.mime),
                 bytes,
                 author,
+                message,
             };
             self.import(who, import, trace).await
         }
