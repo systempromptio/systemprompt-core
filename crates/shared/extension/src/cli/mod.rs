@@ -20,6 +20,8 @@ mod decl;
 mod descriptor;
 mod grant;
 #[cfg(feature = "cli")]
+mod granted;
+#[cfg(feature = "cli")]
 mod output;
 #[cfg(feature = "cli")]
 pub mod parsers;
@@ -43,6 +45,8 @@ pub use decl::{CommandDecl, CommandKind, ParsedCommand};
 #[cfg(feature = "cli")]
 pub use descriptor::{CommandDescriptor, DataImpact, DbUrlRouting, DescribeCommand, RoutingClass};
 pub use grant::KernelGrant;
+#[cfg(feature = "cli")]
+pub use granted::{CallerSession, ServicesTree};
 #[cfg(feature = "cli")]
 pub use output::{
     ChartType, CommandOutput, FileSummary, KeyValueItem, KeyValueOutput, SuccessOutput,

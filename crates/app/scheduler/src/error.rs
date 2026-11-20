@@ -99,8 +99,6 @@ pub enum SchedulerError {
     #[error("Distributed lock error: {0}")]
     DistributedLock(#[source] RepositoryError),
 
-    #[error("Inventory refresh failed: {0}")]
-    Inventory(#[from] systemprompt_runtime::managed::OrchestrationError),
 
     #[error("Logging error: {0}")]
     Logging(#[from] systemprompt_logging::models::LoggingError),

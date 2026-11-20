@@ -15,6 +15,9 @@
 //! 2. its owner's extension id equals that entry's [`CoreId::id`];
 //! 3. no extension id holds privileged entries under two different [`CoreId`]s.
 //!
+//! A member row nested in the kernel's namespace is bounded
+//! ([`nested_rows_are_bounded`], checked at compile time).
+//!
 //! The Slack and Teams shapes exist only in a build with the `slack` or
 //! `teams` feature.
 //!
@@ -28,8 +31,10 @@ use crate::cli::KernelGrant;
 use crate::protection::RouteGroup;
 use crate::router::{Allowance, BaseRef, RouteShape};
 
+mod nesting;
 mod shapes;
 
+pub use nesting::{nested_rows_are_bounded, nested_under_kernel};
 pub use shapes::{
     CONTENT_GENERATE_ROUTES, CONTENT_REDIRECT_ROUTES, MCP_REGISTRY_ROUTES, PRIVILEGED_SHAPES,
 };
@@ -130,7 +135,7 @@ pub const RESERVED_PATHS: &[ReservedPath] = &[
     held(CoreId::AnalyticsHttp, ApiPaths::ANALYTICS_BASE),
     subtree(CoreId::AnalyticsHttp, ApiPaths::TRACK_BASE),
     held(CoreId::NotificationsHttp, ApiPaths::NOTIFICATIONS),
-    held(CoreId::NotificationsHttp, ApiPaths::ADMIN_NOTIFICATIONS),
+    subtree(CoreId::NotificationsHttp, ApiPaths::ADMIN_NOTIFICATIONS),
     held(CoreId::AgentRunsApi, ApiPaths::AGENT_RUNS),
     held(CoreId::Slack, ApiPaths::SLACK_BASE),
     held(CoreId::Teams, ApiPaths::TEAMS_BASE),
@@ -259,17 +264,17 @@ pub const RESERVED_CLI_PATHS: &[ReservedCliPath] = &[
     ReservedCliPath {
         owner: CoreId::MarketplaceHttp,
         path: &["core", "marketplace"],
-        grants: &[],
+        grants: &[KernelGrant::ServicesTree],
     },
     ReservedCliPath {
         owner: CoreId::MarketplaceHttp,
         path: &["core", "plugins"],
-        grants: &[],
+        grants: &[KernelGrant::ServicesTree],
     },
     ReservedCliPath {
         owner: CoreId::MarketplaceHttp,
         path: &["core", "skills"],
-        grants: &[],
+        grants: &[KernelGrant::ServicesTree],
     },
     ReservedCliPath {
         owner: CoreId::FilesHttp,
@@ -279,7 +284,7 @@ pub const RESERVED_CLI_PATHS: &[ReservedCliPath] = &[
     ReservedCliPath {
         owner: CoreId::McpHttp,
         path: &["plugins", "mcp"],
-        grants: &[],
+        grants: &[KernelGrant::CallerSession],
     },
 ];
 

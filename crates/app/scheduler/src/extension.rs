@@ -2,7 +2,7 @@
 //!
 //! It owns the `scheduled_jobs`, config-plane, OTLP export and licence
 //! check-in schemas and migrations, and the built-in jobs (config reconcile,
-//! licence check-in, the inventory refresh, the drainers of kernel-owned
+//! licence check-in, the drainers of kernel-owned
 //! projections, session housekeeping, database cleanup, Vertex discovery and,
 //! with `otel`, the OTLP export).
 //!
@@ -13,7 +13,7 @@ use systemprompt_extension::prelude::*;
 
 use crate::jobs::{
     BackfillRollupsJob, CleanupInactiveSessionsJob, ConfigReconcileJob, DatabaseCleanupJob,
-    InventoryRefreshJob, LicenceCheckinJob, LogSummaryRollupJob, OutboxBacklogRollupJob,
+    LicenceCheckinJob, LogSummaryRollupJob, OutboxBacklogRollupJob,
     SessionBotTypeRollupJob, TraceFactsRollupJob, VertexDiscoveryJob,
 };
 
@@ -38,7 +38,6 @@ impl Extension for SchedulerExtension {
         c.migrations(extension_migrations!())
             .job(ConfigReconcileJob)
             .job(LicenceCheckinJob)
-            .job(InventoryRefreshJob)
             .job(BackfillRollupsJob)
             .job(LogSummaryRollupJob)
             .job(OutboxBacklogRollupJob)

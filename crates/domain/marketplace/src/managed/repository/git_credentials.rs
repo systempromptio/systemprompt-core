@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use sqlx::PgPool;
 use sqlx::types::Json;
 use systemprompt_identifiers::ManagedSourceId;
 
@@ -19,27 +20,31 @@ pub struct GitCredentialSource {
 
 impl ManagedRepository {
     pub async fn git_sources_with_credentials(&self) -> Result<Vec<GitCredentialSource>> {
-        let rows = sqlx::query!(
-            r#"SELECT id, name, specification AS "specification!: Json<SourceSpec>"
-               FROM managed_sources WHERE kind = 'git' ORDER BY name, id"#
-        )
-        .fetch_all(&self.pool)
-        .await?;
-        Ok(rows
-            .into_iter()
-            .filter_map(|row| match row.specification.0 {
-                SourceSpec::Git {
-                    repository,
-                    credential_reference: Some(label),
-                    ..
-                } => Some(GitCredentialSource {
-                    id: ManagedSourceId::new(row.id),
-                    name: row.name,
-                    repository,
-                    credential_reference: label,
-                }),
-                _ => None,
-            })
-            .collect())
+        git_credential_sources(&self.pool).await
     }
+}
+
+pub(crate) async fn git_credential_sources(pool: &PgPool) -> Result<Vec<GitCredentialSource>> {
+    let rows = sqlx::query!(
+        r#"SELECT id, name, specification AS "specification!: Json<SourceSpec>"
+               FROM managed_sources WHERE kind = 'git' ORDER BY name, id"#
+    )
+    .fetch_all(pool)
+    .await?;
+    Ok(rows
+        .into_iter()
+        .filter_map(|row| match row.specification.0 {
+            SourceSpec::Git {
+                repository,
+                credential_reference: Some(label),
+                ..
+            } => Some(GitCredentialSource {
+                id: ManagedSourceId::new(row.id),
+                name: row.name,
+                repository,
+                credential_reference: label,
+            }),
+            _ => None,
+        })
+        .collect())
 }

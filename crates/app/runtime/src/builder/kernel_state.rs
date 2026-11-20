@@ -20,13 +20,15 @@
 //! the bind half outside the state and binds it once the store is built.
 //!
 //! The runtime `Config`, the secret store, the system admin, the active
-//! services root and the event router are sealed, and so are the JWT signing
+//! services root, the profile's services bundle sources (`BundleSources`:
+//! the pinned sources, bundle cache and base tree, never another profile
+//! value) and the event router are sealed, and so are the JWT signing
 //! keys the API seeds: a provide fn, a factory, a slot build, a kernel command
 //! and a route set read them, and every context handed to member runtime code
 //! (a job, a runner service, a config plane, a member command) is built
 //! without them. `Config`, the secret store and the signing keys carry
-//! credentials; the system admin and the services root are boot-only identity
-//! and layout; the event router publishes to and subscribes on every user's
+//! credentials; the system admin, the services root and the bundle sources
+//! are boot-only identity and layout; the event router publishes to and subscribes on every user's
 //! stream. Every other seed is open. A member whose runtime code needs a
 //! capability derived from a sealed seed builds a narrow handle in its provide
 //! fn or factory.
@@ -70,6 +72,7 @@ use systemprompt_database::DbPool;
 use systemprompt_events::EventRouter;
 use systemprompt_files::FilesConfig;
 use systemprompt_files::documents::DocumentsHandlesSlot;
+use systemprompt_loader::bundle::BundleSources;
 use systemprompt_manifest::services::SystemAdmin;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_manifest::{Config, Profile};
@@ -177,6 +180,7 @@ pub fn base_kernel_state(seed: KernelSeed<'_>) -> Dependencies {
         .with_sealed(Arc::clone(seed.config))
         .with(seed.services)
         .with_sealed(seed.services_root)
+        .with_sealed(BundleSources::of(seed.profile))
         .with_sealed(seed.secrets)
         .with_sealed(seed.system_admin.clone())
         .with_sealed(Arc::new(seed.event_router.clone()))

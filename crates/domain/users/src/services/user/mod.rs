@@ -6,9 +6,10 @@
 //! updates, bulk operations and statistics.
 //!
 //! Account merging spans every domain that keys rows on a user. The service
-//! runs each injected
-//! [`OwnerReassignment`](systemprompt_traits::OwnerReassignment)
-//! — one per owning crate, each in its own transaction and re-runnable — and
+//! runs each admitted
+//! [`OwnerReassignment`](systemprompt_traits::OwnerReassignment) of the
+//! composition ([`AdmittedOwnerReassignments`]) — one per owning member,
+//! over its own tables, each in its own transaction and re-runnable — and
 //! only then the users-owned step that moves sessions, records the merge and
 //! deletes the source. A failed reassignment stops the merge with the source
 //! still present, so a rerun completes it. A service built without
@@ -27,9 +28,8 @@ mod provider;
 
 use std::fmt;
 use std::sync::Arc;
-use systemprompt_extension::AdmittedPurge;
+use systemprompt_extension::{AdmittedOwnerReassignments, AdmittedPurge};
 use systemprompt_identifiers::{SessionId, UserId};
-use systemprompt_traits::DynOwnerReassignment;
 
 use crate::error::Result;
 use crate::models::{User, UserActivity, UserRole, UserSession, UserStatus, UserWithSessions};
@@ -38,15 +38,16 @@ use crate::repository::{PurgeOutcome, UpdateUserParams, UserRepository};
 #[derive(Clone)]
 pub struct UserService {
     pub(super) repository: Arc<UserRepository>,
-    pub(super) owner_reassignments: Arc<[DynOwnerReassignment]>,
+    pub(super) owner_reassignments: Arc<AdmittedOwnerReassignments>,
 }
 
 impl fmt::Debug for UserService {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let domains: Vec<&str> = self
             .owner_reassignments
+            .entries()
             .iter()
-            .map(|reassignment| reassignment.domain())
+            .map(|owned| owned.reassignment.domain())
             .collect();
         f.debug_struct("UserService")
             .field("repository", &self.repository)
@@ -59,13 +60,16 @@ impl UserService {
     pub fn new(repository: Arc<UserRepository>) -> Self {
         Self {
             repository,
-            owner_reassignments: Arc::from([]),
+            owner_reassignments: Arc::default(),
         }
     }
 
     #[must_use]
-    pub fn with_owner_reassignments(mut self, reassignments: Vec<DynOwnerReassignment>) -> Self {
-        self.owner_reassignments = Arc::from(reassignments);
+    pub fn with_owner_reassignments(
+        mut self,
+        reassignments: Arc<AdmittedOwnerReassignments>,
+    ) -> Self {
+        self.owner_reassignments = reassignments;
         self
     }
 

@@ -28,7 +28,8 @@ impl UserService {
 
         let mut tasks = 0;
         let mut total_rows = 0;
-        for reassignment in self.owner_reassignments.iter() {
+        for owned in self.owner_reassignments.entries() {
+            let reassignment = &owned.reassignment;
             let moved = reassignment
                 .reassign_owner(source_id, target_id)
                 .await

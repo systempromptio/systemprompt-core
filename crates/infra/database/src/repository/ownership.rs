@@ -11,12 +11,16 @@
 //! An `update` statement binds the source user as `$1` and the target user
 //! as `$2`; a `delete` statement binds only the source user as `$1`, for
 //! rows that are credentials minted for the old user and must not be rebound.
+//! Every statement names the `table.column` it keys on; the generated
+//! `columns()` lists them, and the kernel admits the reassignment only when
+//! each table is one the contributing member's own schema creates. The names
+//! are Rust identifiers, so each is a plain SQL identifier by construction.
 //!
 //! ```ignore
 //! systemprompt_database::owner_reassignment! {
 //!     pub struct FilesOwnerReassignment;
 //!     domain = "files";
-//!     update "files" => "UPDATE files SET user_id = $2 WHERE user_id = $1";
+//!     update "files" (files.user_id) => "UPDATE files SET user_id = $2 WHERE user_id = $1";
 //! }
 //! ```
 //!
@@ -30,7 +34,7 @@ macro_rules! owner_reassignment {
     (
         $vis:vis struct $name:ident;
         domain = $domain:literal;
-        $( $kind:ident $table:literal => $sql:literal; )+
+        $( $kind:ident $label:literal ($table:ident . $column:ident) => $sql:literal; )+
     ) => {
         #[derive(Debug, Clone)]
         $vis struct $name {
@@ -45,10 +49,17 @@ macro_rules! owner_reassignment {
             }
         }
 
-        #[::async_trait::async_trait]
+        #[$crate::__owner_reassignment_async_trait]
         impl ::systemprompt_traits::OwnerReassignment for $name {
             fn domain(&self) -> &'static str {
                 $domain
+            }
+
+            fn columns(&self) -> &'static [::systemprompt_traits::ReassignedColumn] {
+                &[$(::systemprompt_traits::ReassignedColumn {
+                    table: stringify!($table),
+                    column: stringify!($column),
+                }),+]
             }
 
             async fn reassign_owner(
@@ -63,7 +74,7 @@ macro_rules! owner_reassignment {
                 let mut tables = ::std::vec::Vec::new();
                 $(
                     let rows = $crate::owner_reassignment!(@step $kind tx from to $sql);
-                    tables.push(($table, rows));
+                    tables.push(($label, rows));
                 )+
                 tx.commit().await?;
                 Ok(::systemprompt_traits::ReassignedRows { tables })

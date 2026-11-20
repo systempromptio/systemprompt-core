@@ -61,6 +61,8 @@ impl CommandDescriptor {
     const FLAG_BOOT_PROFILE: u32 = 0b0100_0000_0000_0000;
     const FLAG_CONFIG_RECONCILE: u32 = 0b1000_0000_0000_0000;
     const FLAG_TARGET_ADMISSION: u32 = 0b0001_0000_0000_0000_0000;
+    const FLAG_SERVICES_TREE: u32 = 0b0010_0000_0000_0000_0000;
+    const FLAG_CALLER_SESSION: u32 = 0b0100_0000_0000_0000_0000;
 
     pub const NONE: Self = Self { flags: 0 };
 
@@ -186,6 +188,8 @@ impl CommandDescriptor {
             KernelGrant::BootProfile => Self::FLAG_BOOT_PROFILE,
             KernelGrant::ConfigReconcile => Self::FLAG_CONFIG_RECONCILE,
             KernelGrant::TargetAdmission => Self::FLAG_TARGET_ADMISSION,
+            KernelGrant::ServicesTree => Self::FLAG_SERVICES_TREE,
+            KernelGrant::CallerSession => Self::FLAG_CALLER_SESSION,
         }
     }
 

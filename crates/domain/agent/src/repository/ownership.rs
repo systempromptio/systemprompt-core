@@ -8,7 +8,7 @@
 systemprompt_database::owner_reassignment! {
     pub struct AgentOwnerReassignment;
     domain = "agent";
-    update "user_contexts" => "UPDATE user_contexts SET user_id = $2, updated_at = CURRENT_TIMESTAMP WHERE user_id = $1";
-    update "agent_tasks" => "UPDATE agent_tasks SET user_id = $2, updated_at = CURRENT_TIMESTAMP WHERE user_id = $1";
-    update "task_messages" => "UPDATE task_messages SET user_id = $2 WHERE user_id = $1";
+    update "user_contexts" (user_contexts.user_id) => "UPDATE user_contexts SET user_id = $2, updated_at = CURRENT_TIMESTAMP WHERE user_id = $1";
+    update "agent_tasks" (agent_tasks.user_id) => "UPDATE agent_tasks SET user_id = $2, updated_at = CURRENT_TIMESTAMP WHERE user_id = $1";
+    update "task_messages" (task_messages.user_id) => "UPDATE task_messages SET user_id = $2 WHERE user_id = $1";
 }

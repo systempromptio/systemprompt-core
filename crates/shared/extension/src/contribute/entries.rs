@@ -17,9 +17,23 @@ type ErasedValue = Arc<dyn Any + Send + Sync>;
 type ComputeFn = Box<dyn Fn(&Resolved<'_>) -> Result<ErasedValue, ProvideError> + Send + Sync>;
 type InsertFn = fn(&mut Dependencies, &ExtensionId, ErasedValue) -> Result<(), DuplicateDependency>;
 
-/// One deferred state value: its type, the provide fn and the monomorphised
-/// insert into the extension state.
+/// When the kernel runs a provide fn.
+///
+/// `Early` provide fns run in composition order before any slot is built.
+/// `AfterGovernance` provide fns run once every slot, the subject providers,
+/// the policy catalog and the gateway guards are built, so they may read
+/// `Arc<SubjectProviderSet>`, `Arc<PolicyCatalog>` and every slot-built
+/// value; no slot build or governance factory may read their values.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProvidePhase {
+    Early,
+    AfterGovernance,
+}
+
+/// One deferred state value: its type, the provide fn, the phase it runs in
+/// and the monomorphised insert into the extension state.
 pub struct ProvideEntry {
+    phase: ProvidePhase,
     type_id: TypeId,
     type_name: &'static str,
     compute: ComputeFn,
@@ -27,12 +41,18 @@ pub struct ProvideEntry {
 }
 
 impl ProvideEntry {
-    pub(crate) fn new<T, F>(f: F) -> Self
+    #[must_use]
+    pub const fn phase(&self) -> ProvidePhase {
+        self.phase
+    }
+
+    pub(crate) fn new<T, F>(phase: ProvidePhase, f: F) -> Self
     where
         T: Clone + Send + Sync + 'static,
         F: Fn(&Resolved<'_>) -> Result<T, ProvideError> + Send + Sync + 'static,
     {
         Self {
+            phase,
             type_id: TypeId::of::<T>(),
             type_name: type_name::<T>(),
             compute: Box::new(move |r| {

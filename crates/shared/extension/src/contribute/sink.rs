@@ -13,21 +13,15 @@
 use std::sync::Arc;
 
 use systemprompt_provider_contracts::ConfigPlane;
-use systemprompt_provider_contracts::governance::GovernancePolicy;
-use systemprompt_traits::authz::SubjectAttributeProvider;
-use systemprompt_traits::{JobRunScope, RunOrigin, RunnerService};
+use systemprompt_traits::{JobRunScope, RunOrigin};
 
 use super::config::ConfigDecl;
 use super::entries::{ContributedJob, MemberDependency, ProvideEntry};
 use super::error::ContributionError;
-use super::resolved::Factory;
 use super::slot::SlotRecord;
-use crate::asset::{AssetDefinition, AssetPaths};
-use crate::gateway_guard::GatewayRequestGuard;
-use crate::health::{DiagnosticProbe, MetricDescriptor, ReadinessCheck};
+use crate::health::MetricDescriptor;
 use crate::metadata::{ExtensionRole, SchemaDefinition};
 use crate::migration::Migration;
-use crate::notifications::NotificationAudienceResolver;
 use crate::projection::ProjectionEntry;
 use crate::protection::SiteAuthConfig;
 use crate::purge::{OrphanSweep, UserPurgeTable};
@@ -35,14 +29,11 @@ use crate::retention::RetentionDecl;
 use crate::seed::Seed;
 use crate::state::StateRequirement;
 
-pub type AssetFn = Arc<dyn Fn(&dyn AssetPaths) -> Vec<AssetDefinition> + Send + Sync>;
-pub type RunnerServiceFactory = Box<dyn Factory<Arc<dyn RunnerService>>>;
-pub type ReadinessFactory = Box<dyn Factory<Arc<dyn ReadinessCheck>>>;
-pub type DiagnosticFactory = Box<dyn Factory<Arc<dyn DiagnosticProbe>>>;
-pub type GatewayGuardFactory = Box<dyn Factory<Arc<dyn GatewayRequestGuard>>>;
-pub type SubjectProviderFactory = Box<dyn Factory<Arc<dyn SubjectAttributeProvider>>>;
-pub type PolicyFactory = Box<dyn Factory<Arc<dyn GovernancePolicy>>>;
-pub type AudienceResolverFactory = Box<dyn Factory<Arc<dyn NotificationAudienceResolver>>>;
+pub use super::factories::{
+    AssetFn, AudienceResolverFactory, DiagnosticFactory, DoctorCheckRef, GatewayGuardFactory,
+    OwnerReassignmentFactory, PolicyFactory, ReadinessFactory, RunnerServiceFactory,
+    SubjectProviderFactory,
+};
 
 /// Everything one member contributed, in declaration order.
 #[derive(Default)]
@@ -54,6 +45,8 @@ pub struct ContributionSink {
     pub(crate) cross_tables: Vec<&'static str>,
     pub(crate) user_purges: Vec<UserPurgeTable>,
     pub(crate) orphan_sweeps: Vec<OrphanSweep>,
+    pub(crate) owner_reassignments: Vec<OwnerReassignmentFactory>,
+    pub(crate) doctor_checks: Vec<DoctorCheckRef>,
     pub(crate) roles: Vec<ExtensionRole>,
     pub(crate) assets: Vec<AssetFn>,
     pub(crate) configs: Vec<ConfigDecl>,
@@ -119,6 +112,16 @@ impl ContributionSink {
     #[must_use]
     pub fn orphan_sweeps(&self) -> &[OrphanSweep] {
         &self.orphan_sweeps
+    }
+
+    #[must_use]
+    pub fn owner_reassignments(&self) -> &[OwnerReassignmentFactory] {
+        &self.owner_reassignments
+    }
+
+    #[must_use]
+    pub fn doctor_checks(&self) -> &[DoctorCheckRef] {
+        &self.doctor_checks
     }
 
     #[must_use]

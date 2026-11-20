@@ -9,7 +9,6 @@ use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use systemprompt_config::paths::StoragePaths;
 use systemprompt_extension::cli::CommandHost;
 
 pub fn resolve_export_path(user_path: &Path, host: &dyn CommandHost) -> Result<PathBuf> {
@@ -21,11 +20,10 @@ pub fn resolve_export_path(user_path: &Path, host: &dyn CommandHost) -> Result<P
         return Ok(user_path.to_path_buf());
     }
 
-    let profile = host.profile().context("Profile not initialized")?;
-    let storage =
-        StoragePaths::from_profile(&profile.paths).context("Failed to resolve storage paths")?;
-
-    Ok(storage.exports().join(user_path))
+    let exports = host
+        .export_dir()
+        .context("Failed to resolve the exports directory")?;
+    Ok(exports.join(user_path))
 }
 
 pub fn resolve_export_option(

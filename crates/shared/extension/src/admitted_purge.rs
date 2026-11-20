@@ -121,7 +121,7 @@ fn table_name(relation: &pg_query::protobuf::RangeVar) -> Option<String> {
     }
 }
 
-fn own_tables(
+pub(crate) fn own_tables(
     owner: &ExtensionId,
     schemas: &[SchemaDefinition],
 ) -> Result<BTreeSet<String>, PurgeAdmissionError> {

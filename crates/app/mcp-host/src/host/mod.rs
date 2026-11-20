@@ -40,7 +40,6 @@ use systemprompt_identifiers::{McpServerId, UserId};
 use systemprompt_loader::ServicesState;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_manifest::{Config, Profile};
-use systemprompt_marketplace::managed::PublicationPolicy;
 use systemprompt_mcp::ArtifactIngest;
 use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_provider_contracts::Dependencies;
@@ -137,11 +136,6 @@ impl HostContext {
     #[must_use]
     pub const fn authz_hook(&self) -> &SharedAuthzHook {
         &self.parts.authz_hook
-    }
-
-    #[must_use]
-    pub const fn publication_policy(&self) -> &PublicationPolicy {
-        &self.parts.publication
     }
 
     #[must_use]

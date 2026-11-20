@@ -8,15 +8,18 @@
 use std::any::TypeId;
 use std::sync::Arc;
 
-use systemprompt_extension::{AudienceResolvers, BuiltState, GatewayGuards, Resolved};
+use systemprompt_extension::{
+    AdmittedOwnerReassignments, AudienceResolvers, BuiltState, GatewayGuards, Resolved,
+};
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_governance::policy::PolicyCatalog;
 
 use super::KernelError;
 
-const fn kernel_inserted() -> [TypeId; 4] {
+const fn kernel_inserted() -> [TypeId; 5] {
     [
         TypeId::of::<Arc<AudienceResolvers>>(),
+        TypeId::of::<Arc<AdmittedOwnerReassignments>>(),
         TypeId::of::<Arc<SubjectProviderSet>>(),
         TypeId::of::<Arc<PolicyCatalog>>(),
         TypeId::of::<Arc<GatewayGuards>>(),

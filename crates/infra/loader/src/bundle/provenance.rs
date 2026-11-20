@@ -13,7 +13,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Mutex, PoisonError};
 use std::time::SystemTime;
 
@@ -48,6 +48,69 @@ pub struct SourcesProvenance {
     pub bundles: Vec<BundleProvenance>,
 }
 
+/// One bundle source the profile pins: its name and the reference it is
+/// fetched from (an OCI reference or an HTTPS URL).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PinnedSource {
+    pub name: String,
+    pub reference: String,
+}
+
+/// What provenance reads from a profile: the pinned bundle sources, the
+/// bundle cache they are fetched into and the base services tree.
+///
+/// Built once from the profile with [`BundleSources::of`]; it carries no
+/// secret and no other profile value.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BundleSources {
+    pinned: Vec<PinnedSource>,
+    cache_root: PathBuf,
+    base_tree: PathBuf,
+}
+
+impl BundleSources {
+    #[must_use]
+    pub fn of(profile: &Profile) -> Self {
+        Self {
+            pinned: profile
+                .services
+                .sources
+                .iter()
+                .map(|source| PinnedSource {
+                    name: source.name.clone(),
+                    reference: source.oci.as_ref().map_or_else(
+                        || {
+                            source
+                                .https
+                                .as_ref()
+                                .map(|h| h.url.clone())
+                                .unwrap_or_default()
+                        },
+                        |oci| oci.reference.clone(),
+                    ),
+                })
+                .collect(),
+            cache_root: cache_root(profile),
+            base_tree: PathBuf::from(&profile.paths.services),
+        }
+    }
+
+    #[must_use]
+    pub fn pinned(&self) -> &[PinnedSource] {
+        &self.pinned
+    }
+
+    #[must_use]
+    pub fn cache_root(&self) -> &Path {
+        &self.cache_root
+    }
+
+    #[must_use]
+    pub fn base_tree(&self) -> &Path {
+        &self.base_tree
+    }
+}
+
 /// Memo of the base services tree hash, owned by whoever records provenance
 /// repeatedly and handed to [`sources_provenance`].
 #[derive(Debug, Default)]
@@ -64,31 +127,21 @@ impl BaseTreeHashMemo {
 
 #[must_use]
 pub fn sources_provenance(
-    profile: &Profile,
+    sources: &BundleSources,
     root: Option<&ActiveServicesRoot>,
     memo: &BaseTreeHashMemo,
 ) -> SourcesProvenance {
-    let cache = BundleCache::new(cache_root(profile));
+    let cache = BundleCache::new(sources.cache_root.clone());
     let state = cache.read_state();
-    let bundles: Vec<BundleProvenance> = profile
-        .services
-        .sources
+    let bundles: Vec<BundleProvenance> = sources
+        .pinned
         .iter()
         .map(|source| {
             let active = state.sources.get(&source.name);
-            let reference = source.oci.as_ref().map_or_else(
-                || {
-                    source
-                        .https
-                        .as_ref()
-                        .map(|h| h.url.clone())
-                        .unwrap_or_default()
-                },
-                |oci| oci.reference.clone(),
-            );
             BundleProvenance {
                 name: source.name.clone(),
-                pinned_digest: reference
+                pinned_digest: source
+                    .reference
                     .split_once("@sha256:")
                     .map(|(_, digest)| format!("sha256:{digest}")),
                 active_digest: active.map(|a| a.digest.clone()),
@@ -97,7 +150,7 @@ pub fn sources_provenance(
             }
         })
         .collect();
-    let base = base_tree_hash(memo, Path::new(&profile.paths.services)).map(String::from);
+    let base = base_tree_hash(memo, &sources.base_tree).map(String::from);
     SourcesProvenance {
         // Why: with no bundles pinned no boot records a composed hash; the
         // composition is the base tree alone.
@@ -113,11 +166,11 @@ pub fn sources_provenance(
 // hand and needs the kit that declares it, which only the cached manifest
 // knows.
 #[must_use]
-pub fn owning_bundle_hashes(profile: &Profile) -> BTreeMap<String, ContentHash> {
-    let cache = BundleCache::new(cache_root(profile));
+pub fn owning_bundle_hashes(sources: &BundleSources) -> BTreeMap<String, ContentHash> {
+    let cache = BundleCache::new(sources.cache_root.clone());
     let state = cache.read_state();
     let mut owners = BTreeMap::new();
-    for source in &profile.services.sources {
+    for source in &sources.pinned {
         let Some(active) = state.sources.get(&source.name) else {
             continue;
         };

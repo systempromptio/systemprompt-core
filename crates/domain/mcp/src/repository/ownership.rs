@@ -10,8 +10,8 @@
 systemprompt_database::owner_reassignment! {
     pub struct McpOwnerReassignment;
     domain = "mcp";
-    update "mcp_tool_executions" => "UPDATE mcp_tool_executions SET user_id = $2 WHERE user_id = $1";
-    update "mcp_artifacts" => "UPDATE mcp_artifacts SET user_id = $2 WHERE user_id = $1";
-    update "mcp_sessions" => "UPDATE mcp_sessions SET user_id = $2 WHERE user_id = $1";
-    delete "mcp_external_sessions" => "DELETE FROM mcp_external_sessions WHERE user_id = $1";
+    update "mcp_tool_executions" (mcp_tool_executions.user_id) => "UPDATE mcp_tool_executions SET user_id = $2 WHERE user_id = $1";
+    update "mcp_artifacts" (mcp_artifacts.user_id) => "UPDATE mcp_artifacts SET user_id = $2 WHERE user_id = $1";
+    update "mcp_sessions" (mcp_sessions.user_id) => "UPDATE mcp_sessions SET user_id = $2 WHERE user_id = $1";
+    delete "mcp_external_sessions" (mcp_external_sessions.user_id) => "DELETE FROM mcp_external_sessions WHERE user_id = $1";
 }

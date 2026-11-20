@@ -3,8 +3,8 @@
 //! every admitted member's provided values and built slots, the
 //! [`AdmittedSchedule`] the retention job reads its purges, sweeps and holds
 //! from, and the [`AdmittedProjections`] the drainers read, every sealed seed
-//! withheld) extended with only the per-run handles: the budgeted database and
-//! the inventory refresh memo. No signing key, secret, profile or runtime
+//! withheld) extended with only the per-run handle: the budgeted database. No
+//! signing key, secret, profile or runtime
 //! `Config` is in it.
 //!
 //! A job the scheduler member itself contributes is kernel work and also
@@ -36,7 +36,6 @@ use systemprompt_traits::{DbBudget, Dependencies, JobContext};
 
 use crate::error::SchedulerResult;
 use crate::extension::SCHEDULER_MEMBER_ID;
-use crate::jobs::InventoryRefreshMemo;
 
 pub(crate) struct KernelJobHandles {
     app: Arc<AppContext>,
@@ -64,10 +63,8 @@ pub(crate) fn make_job_context(
     run: JobRun<'_>,
     app_context: &Arc<AppContext>,
     schedule: &AdmittedSchedule,
-    inventory_memo: &Arc<InventoryRefreshMemo>,
 ) -> JobContext {
     let mut dependencies = brain_dependencies(app_context, app_context.kernel().runtime_state())
-        .with(Arc::clone(inventory_memo))
         .with(BudgetedDb::new(
             Arc::clone(app_context.db_pool()),
             run.budget,

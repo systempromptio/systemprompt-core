@@ -38,7 +38,6 @@ use systemprompt_identifiers::UserId;
 use systemprompt_loader::ServicesState;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_manifest::{Config, Profile};
-use systemprompt_marketplace::managed::PublicationPolicy;
 use systemprompt_mcp::ArtifactIngest;
 use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_models::authz::SubjectSourceHandle;
@@ -103,7 +102,6 @@ pub struct HostParts {
     pub secrets: Arc<GrantedSecrets>,
     pub verification: VerificationKeyring,
     pub authz_hook: SharedAuthzHook,
-    pub publication: PublicationPolicy,
     pub subject_providers: SubjectProviderSet,
     pub subjects: SubjectSourceHandle,
     pub artifact_ingest: Arc<ArtifactIngest>,

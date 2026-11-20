@@ -9,20 +9,20 @@ use std::sync::Arc;
 use anyhow::Context;
 use systemprompt_config::SecretsSources;
 use systemprompt_extension::cli::{
-    AdmittedViews, BoxFuture, ChildSupervisor, CliConfig, CommandError, CommandHost, CommandOutput,
-    DescribedCommand, Prompter,
+    AdmittedViews, BoxFuture, CallerSession, ChildSupervisor, CliConfig, CommandError, CommandHost,
+    CommandOutput, DescribedCommand, KernelGrant, Prompter, ServicesTree,
 };
-use systemprompt_extension::{Admitted, AdmittedSchedule, Resolved};
+use systemprompt_extension::{Admitted, Resolved};
 use systemprompt_loader::BootContext;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_manifest::{Config, Profile, Secrets};
 use systemprompt_runtime::{AppContext, AppContextBuilder, Kernel};
-use systemprompt_traits::{AppContext as _, BackgroundTasks, DatabaseHandle, Dependencies};
+use systemprompt_traits::DatabaseHandle;
 
 use crate::context::CommandContext;
 use crate::env_overrides::EnvOverrides;
 use crate::kernel::{CommandRegistry, classify_command_line};
-use crate::member_host::{boot_profile_config, boot_profile_refused};
+use crate::member_host::{boot_profile_config, grant_refused};
 
 /// What the CLI kernel's own commands may ask of it beyond [`CommandHost`].
 ///
@@ -72,50 +72,6 @@ impl CommandContext {
     pub fn with_kernel(mut self, kernel: Arc<Kernel>) -> Self {
         self.kernel = tokio::sync::OnceCell::new_with(Some(kernel));
         self
-    }
-
-    #[must_use]
-    pub fn with_detached_kernel(self) -> Self {
-        let mut seed = self.command_seed(Dependencies::new());
-        if let Some(admitted) = &self.admitted {
-            match AdmittedSchedule::of(admitted.built()) {
-                Ok(schedule) => seed.insert(schedule),
-                Err(error) => {
-                    tracing::error!(%error, "admitted schedule refused; no job is readable");
-                },
-            }
-            let views = AdmittedViews::of(admitted);
-            seed.insert(views.migrations);
-            seed.insert(views.configs);
-            seed.insert(views.assets);
-        }
-        let kernel = Kernel::detached(BackgroundTasks::new(), seed);
-        self.with_kernel(Arc::new(kernel))
-    }
-
-    fn command_seed(&self, base: Dependencies) -> Dependencies {
-        let mut seed = base.with(self.interrupt_shield().clone());
-        if let Ok(profile) = self.loaded_profile() {
-            seed.insert_sealed(Arc::clone(profile));
-        }
-        if let Some(services) = self.services() {
-            seed.insert(services.clone());
-        }
-        seed
-    }
-
-    pub(crate) async fn command_kernel(&self) -> anyhow::Result<&Arc<Kernel>> {
-        self.kernel
-            .get_or_try_init(|| async {
-                let app = self.app_context().await?;
-                let state = self.command_seed(app.kernel().state().clone());
-                Ok(Arc::new(Kernel::new(
-                    app.database_handle(),
-                    app.background_tasks().clone(),
-                    state,
-                )))
-            })
-            .await
     }
 
     pub fn admitted(&self) -> anyhow::Result<&Arc<Admitted>> {
@@ -189,13 +145,25 @@ impl CommandHost for CommandContext {
         &'a self,
         _profile: &'a Path,
     ) -> BoxFuture<'a, Result<Arc<Config>, CommandError>> {
-        Box::pin(async move { Err(boot_profile_refused()) })
+        Box::pin(async move { Err(grant_refused(KernelGrant::BootProfile)) })
     }
 
     fn admitted_views(&self, _profile: &Path) -> Result<AdmittedViews, CommandError> {
         Err(CommandError::new(
             crate::kernel::TargetAdmissionError::Refused,
         ))
+    }
+
+    fn services_tree(&self) -> Result<ServicesTree, CommandError> {
+        Err(grant_refused(KernelGrant::ServicesTree))
+    }
+
+    fn export_dir(&self) -> Result<std::path::PathBuf, CommandError> {
+        Err(grant_refused(KernelGrant::LocalExport))
+    }
+
+    fn caller_session(&self) -> BoxFuture<'_, Result<CallerSession, CommandError>> {
+        Box::pin(async move { Err(grant_refused(KernelGrant::CallerSession)) })
     }
 }
 

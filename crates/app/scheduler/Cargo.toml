@@ -42,7 +42,6 @@ sqlx = { workspace = true }
 
 # Kernel crates; capability jobs live in their owning crates
 systemprompt-client = { workspace = true }
-systemprompt-config = { workspace = true }
 systemprompt-loader = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-events = { workspace = true }

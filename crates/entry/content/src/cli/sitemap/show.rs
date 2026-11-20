@@ -6,10 +6,11 @@
 use anyhow::{Context, Result};
 use clap::Args;
 use std::fs;
+use std::path::Path;
 
 use systemprompt_extension::cli::{CliConfig, CommandOutput};
 use systemprompt_logging::CliService;
-use systemprompt_manifest::Profile;
+use systemprompt_config::paths::AppPaths;
 use systemprompt_models::content_config::ContentConfigRaw;
 
 use super::types::SitemapRoute;
@@ -23,21 +24,31 @@ pub struct ShowArgs {
 pub(super) fn execute(
     args: ShowArgs,
     config: &CliConfig,
-    profile: &Profile,
+    paths: &AppPaths,
 ) -> Result<CommandOutput> {
-    execute_with_config_path(args, config, profile.paths.content_config().as_str())
+    execute_with_config_path(args, config, paths.system().content_config())
 }
 
 pub fn execute_with_config_path(
     args: ShowArgs,
     _config: &CliConfig,
-    content_config_path: &str,
+    content_config_path: &Path,
 ) -> Result<CommandOutput> {
     let content = fs::read_to_string(content_config_path)
-        .with_context(|| format!("Failed to read content config at {}", content_config_path))?;
+        .with_context(|| {
+            format!(
+                "Failed to read content config at {}",
+                content_config_path.display()
+            )
+        })?;
 
     let config: ContentConfigRaw = serde_yaml::from_str(&content)
-        .with_context(|| format!("Failed to parse content config at {}", content_config_path))?;
+        .with_context(|| {
+            format!(
+                "Failed to parse content config at {}",
+                content_config_path.display()
+            )
+        })?;
 
     let mut routes: Vec<SitemapRoute> = Vec::new();
 

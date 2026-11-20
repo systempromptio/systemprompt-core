@@ -3,8 +3,8 @@
 //!
 //! [`SitemapCommands`] shows the configured routes or generates a
 //! `sitemap.xml`. `content-http` contributes it under the kernel's `web`
-//! group. It needs the profile, secrets and paths, and leaves
-//! the data behind the profile unchanged.
+//! group. It needs the profile, secrets and paths, reads the resolved
+//! `AppPaths`, and leaves the data behind the profile unchanged.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -19,7 +19,9 @@ use systemprompt_extension::cli::{
     CliCommandGroup, CliConfig, CommandDescriptor, CommandError, CommandHost, CommandOutput,
     DataImpact, DescribeCommand,
 };
-use systemprompt_manifest::Profile;
+use std::sync::Arc;
+
+use systemprompt_config::paths::AppPaths;
 
 #[derive(Debug, Subcommand)]
 pub enum SitemapCommands {
@@ -33,14 +35,14 @@ pub enum SitemapCommands {
 pub fn execute(
     command: SitemapCommands,
     config: &CliConfig,
-    profile: &Profile,
+    paths: &AppPaths,
 ) -> Result<CommandOutput> {
     match command {
         SitemapCommands::Show(args) => {
-            show::execute(args, config, profile).context("Failed to show sitemap")
+            show::execute(args, config, paths).context("Failed to show sitemap")
         },
         SitemapCommands::Generate(args) => {
-            generate::execute(&args, config, profile).context("Failed to generate sitemap")
+            generate::execute(&args, config, paths).context("Failed to generate sitemap")
         },
     }
 }
@@ -59,10 +61,13 @@ impl CliCommandGroup for SitemapCommands {
         self,
         host: &dyn CommandHost,
     ) -> impl Future<Output = Result<CommandOutput, CommandError>> + Send {
-        std::future::ready(
-            host.profile().and_then(|profile| {
-                execute(self, host.output(), profile).map_err(CommandError::new)
-            }),
-        )
+        async move {
+            let paths = host
+                .resolved()
+                .await?
+                .get::<Arc<AppPaths>>()
+                .map_err(CommandError::new)?;
+            execute(self, host.output(), &paths).map_err(CommandError::new)
+        }
     }
 }

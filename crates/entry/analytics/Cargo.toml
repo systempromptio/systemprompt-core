@@ -37,7 +37,6 @@ http = [
 cli = [
     "dep:systemprompt-analytics",
     "systemprompt-extension/cli",
-    "dep:systemprompt-config",
     "dep:systemprompt-database",
     "dep:systemprompt-identifiers",
     "systemprompt-logging/cli",
@@ -59,7 +58,6 @@ content-commands = []
 
 [dependencies]
 systemprompt-analytics = { workspace = true, optional = true }
-systemprompt-config = { workspace = true, optional = true }
 systemprompt-database = { workspace = true, optional = true }
 systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true, optional = true }

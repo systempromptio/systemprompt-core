@@ -53,6 +53,13 @@ impl Extension for ContentExtension {
             .page_data_provider(|_: &Resolved<'_>| Ok(default_branding_provider()))
             .page_data_provider(|_: &Resolved<'_>| Ok(default_list_branding_provider()))
             .component_renderer(|_: &Resolved<'_>| Ok(default_list_items_renderer()));
+        c.owner_reassignment(
+            |r: &Resolved<'_>| -> Result<systemprompt_traits::DynOwnerReassignment, FactoryError> {
+                Ok(Arc::new(crate::repository::ContentOwnerReassignment::new(
+                    &r.get::<DbPool>()?,
+                )))
+            },
+        );
         Ok(())
     }
 }

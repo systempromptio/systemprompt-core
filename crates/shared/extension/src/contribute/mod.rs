@@ -12,7 +12,10 @@
 //! entry is the member whose sink holds it.
 //!
 //! A value a member provides with [`Contributions::provide`] is provided on
-//! every host that admits the member: there is no conditional provide. A
+//! every host that admits the member: there is no conditional provide.
+//! [`Contributions::provide_after_governance`] provides the same way, after
+//! every slot and the governance surfaces (subject providers, policy catalog,
+//! gateway guards) are built, for a value assembled from them. A
 //! provide fn reads its dependencies with `r.get`, and a missing dependency
 //! fails the boot; a consumer that may run without a value reads it with
 //! `r.optional`.
@@ -24,33 +27,35 @@ pub mod audience;
 mod config;
 mod entries;
 mod error;
+mod factories;
 pub mod handles;
 mod resolved;
 mod sink;
+mod sink_push;
 mod slot;
 mod standing;
 mod view;
 
-use std::any::TypeId;
 use std::sync::Arc;
 
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::governance::GovernancePolicy;
-use systemprompt_provider_contracts::{ConfigPlane, Job};
+use systemprompt_provider_contracts::{ConfigPlane, DoctorCheck, Job};
 use systemprompt_traits::authz::SubjectAttributeProvider;
-use systemprompt_traits::{JobRunScope, RunOrigin, RunnerService};
+use systemprompt_traits::{DynOwnerReassignment, JobRunScope, RunOrigin, RunnerService};
 
 pub use audience::{AudienceEntry, AudienceResolvers};
 pub use config::{ConfigDecl, ExtensionConfig};
-pub use entries::{ContributedJob, MemberDependency, ProvideEntry, ProvidedValue};
+pub use entries::{ContributedJob, MemberDependency, ProvideEntry, ProvidePhase, ProvidedValue};
 pub use error::{ContributionError, FactoryError, ProvideError, SlotError};
 pub use resolved::{
     Factory, FromState, Handed, HandleId, KernelAccess, KernelHandle, ProvideFn, Resolved,
     build_factories,
 };
 pub use sink::{
-    AssetFn, AudienceResolverFactory, ContributionSink, DiagnosticFactory, GatewayGuardFactory,
-    PolicyFactory, ReadinessFactory, RunnerServiceFactory, SubjectProviderFactory,
+    AssetFn, AudienceResolverFactory, ContributionSink, DiagnosticFactory, DoctorCheckRef,
+    GatewayGuardFactory, OwnerReassignmentFactory, PolicyFactory, ReadinessFactory,
+    RunnerServiceFactory, SubjectProviderFactory,
 };
 pub use slot::{Slot, SlotBuildInput, SlotBuilt, SlotEntry, SlotOrder, SlotRecord, build_slot};
 pub use standing::StandingTag;
@@ -126,6 +131,16 @@ impl<'a> Contributions<'a> {
         self
     }
 
+    pub fn owner_reassignment<F: Factory<DynOwnerReassignment>>(&mut self, f: F) -> &mut Self {
+        self.sink.owner_reassignments.push(Box::new(f));
+        self
+    }
+
+    pub fn doctor_check(&mut self, check: Arc<dyn DoctorCheck>) -> &mut Self {
+        self.sink.doctor_checks.push(check);
+        self
+    }
+
     pub fn role(&mut self, r: ExtensionRole) -> &mut Self {
         self.sink.roles.push(r);
         self
@@ -159,7 +174,20 @@ impl<'a> Contributions<'a> {
         T: Clone + Send + Sync + 'static,
         F: ProvideFn<T>,
     {
-        self.sink.provides.push(ProvideEntry::new::<T, F>(f));
+        self.sink
+            .provides
+            .push(ProvideEntry::new::<T, F>(ProvidePhase::Early, f));
+        self
+    }
+
+    pub fn provide_after_governance<T, F>(&mut self, f: F) -> &mut Self
+    where
+        T: Clone + Send + Sync + 'static,
+        F: ProvideFn<T>,
+    {
+        self.sink
+            .provides
+            .push(ProvideEntry::new::<T, F>(ProvidePhase::AfterGovernance, f));
         self
     }
 
@@ -236,42 +264,18 @@ impl<'a> Contributions<'a> {
     }
 
     pub fn slot<S: Slot>(&mut self) -> &mut S::Builder {
-        let slots = &mut self.sink.slots;
-        let index = slots
-            .iter()
-            .position(|record| record.slot() == TypeId::of::<S>())
-            .unwrap_or_else(|| {
-                slots.push(SlotRecord::new::<S>());
-                slots.len() - 1
-            });
-        slots[index]
-            .builder_mut::<S>()
-            .unwrap_or_else(|| unreachable!("slot records are keyed by the slot's TypeId"))
+        self.sink.slot_builder::<S>()
     }
 
     #[cfg(feature = "router")]
     pub fn routes(&mut self, r: crate::router::RouteSet) -> &mut Self {
-        let mut r = r;
-        if let Some(error) = r.take_error() {
-            self.sink.errors.push(error);
-        }
-        if let base @ crate::router::BaseRef::Gateway(_) = r.base() {
-            self.sink.errors.push(ContributionError::RouteSetKind(base));
-        }
-        self.sink.routes.push(r);
+        self.sink.push_route_set(r);
         self
     }
 
     #[cfg(feature = "router")]
     pub fn gateway_route(&mut self, r: crate::router::GatewayRouteDecl) -> &mut Self {
-        let mut r = r;
-        if let Some(error) = r.router.take_error() {
-            self.sink.errors.push(error);
-        }
-        if let base @ crate::router::BaseRef::Path(_) = r.router.base() {
-            self.sink.errors.push(ContributionError::RouteSetKind(base));
-        }
-        self.sink.gateway_routes.push(r);
+        self.sink.push_gateway_route(r);
         self
     }
 

@@ -22,6 +22,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
 use std::time::Duration;
 
 use axum::Json;
@@ -34,7 +35,7 @@ use systemprompt_loader::{ConfigLoadError, ConfigLoader, ServicesSourceBootstrap
 use systemprompt_manifest::services::bundle::ServicesBundleState;
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
-use systemprompt_runtime::managed::inventory::publish_latest;
+use systemprompt_marketplace::inventory::InventoryRefresher;
 use systemprompt_runtime::services_reconcile::{ReconcileOutcome, reconcile_fetched_services};
 use systemprompt_runtime::{AppContext, RuntimeError};
 use systemprompt_traits::CacheDomain;
@@ -159,9 +160,15 @@ async fn run_refresh(
         reconciled = outcome == ReconcileOutcome::Projected;
         ctx.cache_epochs().advance(CacheDomain::Services);
 
-        let system_admin = ctx.system_admin().id().clone();
-        if let Err(error) = publish_latest(ctx, &system_admin, actor).await {
-            tracing::warn!(%error, "Inventory refresh after services import failed; the scheduled pass will retry");
+        match ctx.kernel().state().get::<Arc<InventoryRefresher>>() {
+            Ok(refresher) => {
+                if let Err(error) = refresher.publish_latest(actor).await {
+                    tracing::warn!(%error, "Inventory refresh after services import failed; the scheduled pass will retry");
+                }
+            },
+            Err(error) => {
+                tracing::warn!(%error, "Inventory refresher is not provided; the inventory was not refreshed");
+            },
         }
     }
 

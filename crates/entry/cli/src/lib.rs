@@ -18,6 +18,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod command_kernel;
 pub mod commands;
 pub mod context;
 pub mod env_overrides;

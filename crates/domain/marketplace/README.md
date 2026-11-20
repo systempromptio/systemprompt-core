@@ -96,7 +96,11 @@ Historical receipts keep their existing evidence and have no invented consumer o
 device identity. Their session-shaped metadata cannot establish a consumer binding.
 
 Installation coverage per resource is recomputed by the `managed_inventory_refresh`
-job and written only when it changed.
+job, which the `managed_resources` member contributes, and written only when it
+changed. The job and the admin services refresh run the `Arc<InventoryRefresher>`
+the member provides; it reads the profile's bundle sources from the sealed
+`BundleSources` kernel seed. The member also contributes the `git-credentials`
+`cloud doctor` check and builds its publication policy after governance.
 
 ## Git source synchronization
 

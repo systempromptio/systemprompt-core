@@ -1,7 +1,9 @@
 //! [`McpExtension`]: contributes the MCP tables, migrations, jobs and
 //! retention purge, and provides the tool-execution lookup and the MCP server
 //! registry (`Arc<dyn McpRegistryProvider>`, which sign-in reads for MCP
-//! resource scopes). It opens the [`UiSlot`] and the [`AccessRecorderSlot`],
+//! resource scopes) and the read-only `Arc<McpServiceObserver>` (server
+//! health, recorded process ids and the running set; no spawner, no
+//! secrets). It opens the [`UiSlot`] and the [`AccessRecorderSlot`],
 //! so both built values are present whenever this member is admitted.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -9,7 +11,9 @@
 
 use std::sync::Arc;
 
-use systemprompt_database::DbPool;
+use systemprompt_config::paths::AppPaths;
+use systemprompt_database::{DbPool, ServiceRepository};
+use systemprompt_identifiers::InstanceId;
 use systemprompt_extension::prelude::*;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::{ServicesView, SystemAdmin};
@@ -17,6 +21,7 @@ use systemprompt_traits::{DynToolExecutionLookup, McpRegistryProvider};
 
 use crate::contract::{AccessRecorderSlot, UiSlot};
 use crate::repository::ToolUsageRepository;
+use crate::services::McpServiceObserver;
 use crate::services::registry::RegistryService;
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -128,6 +133,21 @@ impl Extension for McpExtension {
                 )))
             },
         );
+        c.provide(
+            |r: &Resolved<'_>| -> Result<Arc<McpServiceObserver>, ProvideError> {
+                let db = r.get::<DbPool>()?;
+                let registry = RegistryService::new(
+                    r.get::<SystemAdmin>()?.id().clone(),
+                    r.get::<ServicesView>()?,
+                    r.get::<Arc<Config>>()?,
+                );
+                Ok(Arc::new(McpServiceObserver::new(
+                    ServiceRepository::new(&db, r.get::<InstanceId>()?),
+                    r.get::<Arc<AppPaths>>()?,
+                    registry,
+                )))
+            },
+        );
         crate::jobs::contribute(c);
         c.slot::<UiSlot>();
         c.slot::<AccessRecorderSlot>();
@@ -158,6 +178,13 @@ impl Extension for McpExtension {
             via: "payload_sha256",
             user_column: "user_id",
         });
+        c.owner_reassignment(
+            |r: &Resolved<'_>| -> Result<systemprompt_traits::DynOwnerReassignment, FactoryError> {
+                Ok(Arc::new(crate::repository::McpOwnerReassignment::new(
+                    &r.get::<DbPool>()?,
+                )))
+            },
+        );
         Ok(())
     }
 }

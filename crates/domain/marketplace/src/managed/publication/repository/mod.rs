@@ -91,7 +91,7 @@ impl ManagedRepository {
         request: &PublicationRequest,
         bundle_digest: Option<&AssetDigest>,
     ) -> Result<Option<GateAdmission>> {
-        let policy = self.publication_policy()?;
+        let policy = self.publication_policy();
         if let Some(cohort) = &request.cohort
             && policy
                 .config

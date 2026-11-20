@@ -7,8 +7,8 @@
 //! governance, repositories, documents) -> the context. The kernel is seeded
 //! with plain handles ([`kernel_state`]) before it resolves, so every member's
 //! provide fn, slot and governance surface reads the kernel seeds; the authz
-//! hook, publication policy, policy engine and document store are built from
-//! what it resolved. The host seeds the read half of the document store cell
+//! hook, policy engine, user service (over the admitted owner reassignments)
+//! and document store are built from what it resolved. The host seeds the read half of the document store cell
 //! (`DocumentsHandlesSlot`) and binds it, through the binder it kept out of the
 //! state, once the store exists, so other members' document seams read it from
 //! then on. A failing step propagates as
@@ -31,7 +31,6 @@ pub(crate) mod events;
 pub(crate) mod governance;
 pub(crate) mod kernel_state;
 mod options;
-pub use composition::owner_reassignments;
 use composition::{
     build_artifact_ingest, build_data_plane, build_domain_layer, load_identity, new_plugins,
     new_spawner, seeded_repositories,
@@ -41,14 +40,12 @@ use std::sync::Arc;
 
 use systemprompt_database::MigrationConfig;
 use systemprompt_events::EventRouter;
-use systemprompt_extension::Admitted;
+use systemprompt_extension::{Admitted, AdmittedOwnerReassignments};
 use systemprompt_files::documents::DocumentsHandlesSlot;
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_governance::contract::AuthzHooks;
 use systemprompt_governance::policy::PolicyCatalog;
 use systemprompt_loader::BootContext;
-use systemprompt_marketplace::contract::MarketplaceSeams;
-use systemprompt_marketplace::managed::PublicationPolicyCell;
 use systemprompt_traits::{BackgroundTasks, ConfigWatch, DatabaseHandle, SecretStore};
 use systemprompt_users::UserService;
 
@@ -137,8 +134,8 @@ impl AppContextBuilder {
         )?;
         let seeded =
             seeded_repositories(&database, &self.boot.secrets().get(), &config.instance_id)?;
-        let (user_service, system_admin, mcp_registry) =
-            load_identity(&self.boot, &database, &seeded.users, &services).await?;
+        let (system_admin, mcp_registry) =
+            load_identity(&self.boot, &seeded.users, &services).await?;
         let (ai_service, connector_tokens) = ai_service::build_ai_service(
             &self.boot,
             &database,
@@ -193,7 +190,7 @@ impl AppContextBuilder {
         kernel.resolve(&self.admitted)?;
         let r = kernel.resolved();
 
-        let (policy, authz_hook, market) = authz_stage(
+        let (authz_hook, market) = authz_stage(
             profile,
             &database,
             &services,
@@ -202,13 +199,15 @@ impl AppContextBuilder {
                 epochs: &cache_epochs,
                 providers: &*r.get::<Arc<SubjectProviderSet>>()?,
                 hooks: &*r.get::<Arc<AuthzHooks>>()?,
-                seams: &*r.get::<Arc<MarketplaceSeams>>()?,
             },
         )?;
         let governance = ConfigWatch::new(
             load_governance(profile, &database, &*r.get::<Arc<PolicyCatalog>>()?).await?,
         );
-        r.get::<PublicationPolicyCell>()?.bind(policy)?;
+        let user_service = Arc::new(
+            UserService::new(Arc::clone(&seeded.users))
+                .with_owner_reassignments(r.get::<Arc<AdmittedOwnerReassignments>>()?),
+        );
         let repositories =
             build_domain_layer(&self.boot, &database, &seeded, &system_admin, &r).await?;
         let plugins = new_plugins(mcp_registry, &market);
