@@ -161,3 +161,40 @@ fn separate_https_sources_require_independent_credentials_and_rotate_without_cro
     root.request("repo.git", "first-token")
         .expect("independent root still authenticated");
 }
+
+#[derive(Debug)]
+pub(crate) struct GitTooOld {
+    found: String,
+}
+
+impl std::fmt::Display for GitTooOld {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "native git capture needs git >= {}.{}, found `{}`",
+            NATIVE_CAPTURE_GIT.0, NATIVE_CAPTURE_GIT.1, self.found
+        )
+    }
+}
+
+const NATIVE_CAPTURE_GIT: (u32, u32) = (2, 37);
+
+pub(crate) fn native_capture_git() -> Result<(), GitTooOld> {
+    let output = Command::new("git")
+        .arg("--version")
+        .output()
+        .expect("git installed");
+    let found = String::from_utf8_lossy(&output.stdout).trim().to_owned();
+    let mut numbers = found
+        .split_whitespace()
+        .nth(2)
+        .unwrap_or_default()
+        .split('.')
+        .map(|part| part.parse::<u32>().unwrap_or(0));
+    let version = (numbers.next().unwrap_or(0), numbers.next().unwrap_or(0));
+    if version >= NATIVE_CAPTURE_GIT {
+        Ok(())
+    } else {
+        Err(GitTooOld { found })
+    }
+}
