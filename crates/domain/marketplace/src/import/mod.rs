@@ -159,7 +159,7 @@ pub fn import_anthropic_tree_with(
 
     let mut seen_rules: BTreeSet<String> = report.rules.iter().cloned().collect();
     let mut root_rules: Vec<String> = Vec::new();
-    rules::import_rules_dir(&from.join("rules"), &mut seen_rules, &sink, &mut root_rules)?;
+    rules::import_rules_dir(from, &from.join("rules"), &mut seen_rules, &sink, &mut root_rules)?;
     if !root_rules.is_empty() {
         report.warnings.push(ImportWarning::UnattachedRootRules {
             rules: root_rules.clone(),

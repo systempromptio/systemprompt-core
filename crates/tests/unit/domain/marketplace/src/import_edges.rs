@@ -1097,3 +1097,24 @@ fn a_marketplace_with_no_version_gets_the_importer_default() {
     assert!(text.contains("version: 0.1.0"), "{text}");
     assert!(text.contains("license: proprietary"), "{text}");
 }
+
+#[cfg(unix)]
+#[test]
+fn a_skill_file_linked_outside_the_source_tree_refuses_the_import() {
+    let tree = Tree::new();
+    let outside = TempDir::new().expect("tempdir");
+    std::fs::write(outside.path().join("secret.txt"), "outside").expect("write secret");
+    tree.write(
+        ".claude-plugin/marketplace.json",
+        &marketplace_json(r#"{"name":"alpha","source":"./plugins/alpha"}"#),
+    );
+    minimal_plugin(&tree, "plugins/alpha", r#"{"name":"alpha"}"#);
+    std::os::unix::fs::symlink(
+        outside.path().join("secret.txt"),
+        tree.path().join("plugins/alpha/skills/a-skill/notes.txt"),
+    )
+    .expect("link");
+
+    let err = expect_err(&tree);
+    assert!(err.contains("confine to the source tree"), "{err}");
+}

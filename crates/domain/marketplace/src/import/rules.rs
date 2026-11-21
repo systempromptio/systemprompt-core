@@ -34,6 +34,7 @@ struct RuleFrontmatter {
 }
 
 pub(super) fn import_rules_dir(
+    root: &Path,
     rules_dir: &Path,
     seen: &mut BTreeSet<String>,
     sink: &Sink,
@@ -64,7 +65,7 @@ pub(super) fn import_rules_dir(
                 message: format!("rule '{name}' is defined more than once in the tree"),
             });
         }
-        if !import_rule(&name, &path, sink)? {
+        if !import_rule(root, &name, &path, sink)? {
             without_opencode.push(name.clone());
         }
         imported.push(name);
@@ -73,9 +74,13 @@ pub(super) fn import_rules_dir(
     Ok(without_opencode)
 }
 
-fn import_rule(name: &str, path: &Path, sink: &Sink) -> Result<bool, MarketplaceError> {
-    let raw =
-        std::fs::read_to_string(path).map_err(|e| MarketplaceError::import(path, "read", e))?;
+fn import_rule(
+    root: &Path,
+    name: &str,
+    path: &Path,
+    sink: &Sink,
+) -> Result<bool, MarketplaceError> {
+    let raw = super::writer::read_source(root, path)?;
 
     let front: RuleFrontmatter = match split_frontmatter(&raw) {
         Some(f) => serde_yaml::from_str(f.yaml)
@@ -107,7 +112,7 @@ fn import_rule(name: &str, path: &Path, sink: &Sink) -> Result<bool, Marketplace
     };
 
     let rel = Path::new("rules").join(name);
-    sink.copy_file(path, &rel.join(DEFAULT_RULE_CONTENT_FILE))?;
+    sink.copy_file(root, path, &rel.join(DEFAULT_RULE_CONTENT_FILE))?;
     sink.write_yaml(&rel.join("config.yaml"), &doc)?;
     Ok(HostProduct::OpenCode.targeted_by(&doc.hosts))
 }

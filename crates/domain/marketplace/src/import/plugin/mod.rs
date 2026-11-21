@@ -59,17 +59,16 @@ pub(super) fn plugin_dir(
         },
         |path| strip_dot(path).to_owned(),
     );
-    systemprompt_models::managed::validate_path(&relative).map_err(|error| {
-        MarketplaceError::import(
-            &from.join(&relative),
-            format!(
-                "plugin `{}` source must stay inside the marketplace tree",
-                entry.name
-            ),
-            error,
-        )
-    })?;
-    Ok(from.join(relative))
+    let dir = from.join(&relative);
+    let outside = format!(
+        "plugin `{}` source must stay inside the marketplace tree",
+        entry.name
+    );
+    systemprompt_models::managed::validate_path(&relative)
+        .map_err(|error| MarketplaceError::import(&dir, &outside, error))?;
+    let located = systemprompt_models::path_confine::locate_within(from, &dir)
+        .map_err(|error| MarketplaceError::import(&dir, &outside, error))?;
+    Ok(located.unwrap_or(dir))
 }
 
 fn strip_dot(path: &str) -> &str {
@@ -110,7 +109,7 @@ pub(super) fn import_plugin(
 
     let mut rules = Vec::new();
     let rules_without_opencode =
-        import_rules_dir(&dir.join("rules"), scope.seen_rules, sink, &mut rules)?;
+        import_rules_dir(dir, &dir.join("rules"), scope.seen_rules, sink, &mut rules)?;
 
     let imported_hooks = hooks::import_plugin_hooks(&id, dir, sink)?;
     warnings.extend(imported_hooks.warnings);
@@ -224,7 +223,7 @@ fn import_skills(
         }
         let typed = SkillId::try_new(skill_id.as_str())
             .map_err(|e| MarketplaceError::import(&skill_dir, "skill id", e))?;
-        import_skill(&typed, &skill_dir, Some(category), sink)?;
+        import_skill(&typed, dir, &skill_dir, Some(category), sink)?;
         warnings.extend(skill_body_warnings(&typed, &skill_dir, sink));
         skills.push(skill_id);
     }

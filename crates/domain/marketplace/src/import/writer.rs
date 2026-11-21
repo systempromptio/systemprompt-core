@@ -8,6 +8,12 @@
 //! A skill folder is copied through [`Sink::copy_skill_tree`], which drops the
 //! dev-only files the kit's [`DevFileFilter`] excludes.
 //!
+//! Every source read names the tree it is read from (the authoring tree, or
+//! the plugin directory for a plugin's files) and is confined to it through
+//! `systemprompt_models::path_confine`: a file, or any entry of a copied
+//! directory, that resolves outside that tree (a symbolic link out of it
+//! included) refuses the import rather than copying the link's target.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -17,8 +23,20 @@ use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 
+use systemprompt_models::path_confine::{confine_within, entries_within, read_within};
+
 use crate::dev_files::DevFileFilter;
 use crate::error::MarketplaceError;
+
+pub(super) fn read_source(root: &Path, path: &Path) -> Result<String, MarketplaceError> {
+    read_within(root, path).map_err(|e| MarketplaceError::import(path, "read", e))
+}
+
+#[derive(Debug, Clone, Copy)]
+struct CopyRoots<'a> {
+    tree: &'a Path,
+    filter: &'a Path,
+}
 
 #[derive(Debug)]
 pub(super) struct Sink {
@@ -60,7 +78,14 @@ impl Sink {
         self.write_bytes(rel, text.as_bytes())
     }
 
-    pub(super) fn copy_file(&self, src: &Path, rel: &Path) -> Result<(), MarketplaceError> {
+    pub(super) fn copy_file(
+        &self,
+        root: &Path,
+        src: &Path,
+        rel: &Path,
+    ) -> Result<(), MarketplaceError> {
+        let src = &confine_within(root, src)
+            .map_err(|e| MarketplaceError::import(src, "confine to the source tree", e))?;
         if !src.is_file() {
             return Err(MarketplaceError::Import {
                 path: src.display().to_string(),
@@ -80,12 +105,30 @@ impl Sink {
             .map_err(|e| io_err(&dest, e))
     }
 
-    pub(super) fn copy_tree(&self, src: &Path, rel: &Path) -> Result<(), MarketplaceError> {
-        self.copy_filtered(src, src, rel, None)
+    pub(super) fn copy_tree(
+        &self,
+        root: &Path,
+        src: &Path,
+        rel: &Path,
+    ) -> Result<(), MarketplaceError> {
+        self.copy_filtered(CopyRoots { tree: root, filter: src }, src, rel, None)
     }
 
-    pub(super) fn copy_skill_tree(&self, src: &Path, rel: &Path) -> Result<(), MarketplaceError> {
-        self.copy_filtered(src, src, rel, Some(&self.dev_files))
+    pub(super) fn copy_skill_tree(
+        &self,
+        root: &Path,
+        src: &Path,
+        rel: &Path,
+    ) -> Result<(), MarketplaceError> {
+        self.copy_filtered(
+            CopyRoots {
+                tree: root,
+                filter: src,
+            },
+            src,
+            rel,
+            Some(&self.dev_files),
+        )
     }
 
     pub(super) fn copy_plugin_subtree(
@@ -94,12 +137,20 @@ impl Sink {
         src: &Path,
         rel: &Path,
     ) -> Result<(), MarketplaceError> {
-        self.copy_filtered(plugin_dir, src, rel, Some(&self.dev_files))
+        self.copy_filtered(
+            CopyRoots {
+                tree: plugin_dir,
+                filter: plugin_dir,
+            },
+            src,
+            rel,
+            Some(&self.dev_files),
+        )
     }
 
     fn copy_filtered(
         &self,
-        skill_root: &Path,
+        roots: CopyRoots<'_>,
         src: &Path,
         rel: &Path,
         filter: Option<&DevFileFilter>,
@@ -110,21 +161,18 @@ impl Sink {
                 message: "expected a directory".to_owned(),
             });
         }
-        for entry in std::fs::read_dir(src).map_err(|e| io_err(src, e))? {
-            let entry = entry.map_err(|e| io_err(src, e))?;
-            let path = entry.path();
-            let Some(name) = path.file_name() else {
-                continue;
-            };
-            let child = rel.join(name);
-            let is_dir = path.is_dir();
-            if filter.is_some_and(|f| f.excludes_on_disk(skill_root, &path, is_dir)) {
+        let entries = entries_within(roots.tree, src)
+            .map_err(|e| MarketplaceError::import(src, "confine to the source tree", e))?;
+        for entry in entries {
+            let path = src.join(&entry.name);
+            let child = rel.join(&entry.name);
+            if filter.is_some_and(|f| f.excludes_on_disk(roots.filter, &path, entry.is_dir)) {
                 continue;
             }
-            if is_dir {
-                self.copy_filtered(skill_root, &path, &child, filter)?;
+            if entry.is_dir {
+                self.copy_filtered(roots, &path, &child, filter)?;
             } else {
-                self.copy_file(&path, &child)?;
+                self.copy_file(roots.tree, &path, &child)?;
             }
         }
         Ok(())

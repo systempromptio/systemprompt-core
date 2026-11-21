@@ -22,7 +22,7 @@ use systemprompt_identifiers::SkillId;
 use systemprompt_manifest::SKILL_CONFIG_FILENAME;
 use systemprompt_marketplace::ManagedSkillResolution;
 use systemprompt_marketplace::managed::{ManagedSkill, OrganizationSkillResolver};
-use systemprompt_models::path_confine::confine_within;
+use systemprompt_models::path_confine::{confine_within, entries_within, locate_within};
 use systemprompt_models::text::truncate_with_ellipsis;
 
 use super::types::{SkillDetail, SkillListOutput, SkillSummary, parse_skill_from_config};
@@ -223,24 +223,23 @@ fn scan_skills(skills_path: &Path) -> Result<Vec<SkillSummary>> {
 
     let mut skills = Vec::new();
 
-    for entry in std::fs::read_dir(skills_path)? {
-        let entry = entry?;
-        let skill_path = entry.path();
-
-        if !skill_path.is_dir() {
+    for entry in entries_within(skills_path, skills_path)? {
+        if !entry.is_dir {
             continue;
         }
+        let skill_path = entry.path;
 
-        let config_path = skill_path.join(SKILL_CONFIG_FILENAME);
-        if !config_path.exists() {
+        let Some(config_path) =
+            locate_within(&skill_path, &skill_path.join(SKILL_CONFIG_FILENAME))?
+        else {
             continue;
-        }
+        };
 
         match parse_skill_from_config(&config_path, &skill_path) {
             Ok(parsed) => {
-                let dir_name = skill_path
-                    .file_name()
-                    .and_then(|n| n.to_str())
+                let dir_name = entry
+                    .name
+                    .to_str()
                     .ok_or_else(|| anyhow!("Invalid skill directory name"))?;
 
                 skills.push(SkillSummary {

@@ -1,7 +1,8 @@
 //! `.mcp.json` fragment generation for plugin bundles.
 //!
 //! Each included MCP server's port is read from the services tree's
-//! `config/config.yaml` (`mcp_servers.<name>.port`, default 5000); the
+//! `config/config.yaml` (`mcp_servers.<name>.port`, default 5000), read only
+//! when it resolves inside the services tree; the
 //! generator names no MCP domain type and reaches no MCP server state.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -12,6 +13,7 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::Path;
 use systemprompt_manifest::PluginConfig;
+use systemprompt_models::path_confine::read_within;
 
 #[derive(Debug, Deserialize)]
 struct McpPortConfig {
@@ -38,7 +40,7 @@ pub fn generate_mcp_json(
     let mut mcp_servers = serde_json::Map::new();
 
     for mcp_name in &plugin.mcp_servers.include {
-        let port = resolve_mcp_port(mcp_name, &config_path).unwrap_or(5000);
+        let port = resolve_mcp_port(mcp_name, services_path, &config_path).unwrap_or(5000);
         let url = format!("http://localhost:{}/api/v1/mcp/{}/mcp", port, mcp_name);
         let mut server = serde_json::Map::new();
         server.insert("url".to_owned(), serde_json::Value::String(url));
@@ -54,8 +56,8 @@ pub fn generate_mcp_json(
     Ok(())
 }
 
-fn resolve_mcp_port(mcp_name: &str, config_path: &Path) -> Option<u16> {
-    let content = std::fs::read_to_string(config_path)
+fn resolve_mcp_port(mcp_name: &str, services_path: &Path, config_path: &Path) -> Option<u16> {
+    let content = read_within(services_path, config_path)
         .inspect_err(|e| {
             tracing::debug!(error = %e, path = %config_path.display(), "Failed to read config for MCP port resolution");
         })
