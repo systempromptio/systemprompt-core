@@ -58,7 +58,10 @@ struct ExplainRow {
     reason: String,
 }
 
-pub async fn execute(command: MarketplaceCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(
+    command: MarketplaceCommands,
+    host: &dyn CommandHost,
+) -> Result<CommandOutput> {
     match command {
         MarketplaceCommands::Explain(args) => explain(&args, host)
             .await

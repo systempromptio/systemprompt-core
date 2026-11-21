@@ -58,11 +58,7 @@ async fn internal_status_helper() {
     println!("BEGIN_DETAILED_STATUS");
     rendered(
         &host,
-        mcp::execute(
-            parse(&["status", "--server", SERVER, "--detailed"]),
-            &host,
-        )
-        .await,
+        mcp::execute(parse(&["status", "--server", SERVER, "--detailed"]), &host).await,
     )
     .expect("detailed internal status");
     println!("END_DETAILED_STATUS");

@@ -164,8 +164,8 @@ async fn validating_a_server_that_is_not_configured_names_it() {
         parse(&["validate", "ghost-server", "--timeout", "1"]),
         &member(&context),
     )
-        .await
-        .expect_err("a server absent from the config cannot be validated");
+    .await
+    .expect_err("a server absent from the config cannot be validated");
 
     assert!(
         message(&err).contains("ghost-server"),
@@ -288,8 +288,7 @@ fn running_external_validation_reports_its_configuration_error() {
 }
 const VALIDATE_CLOSED_DATABASE_HELPER: &str =
     "plugins_mcp_configured_db::validate_closed_database_helper";
-const VALIDATE_STOPPED_HELPER: &str =
-    "plugins_mcp_configured_db::validate_stopped_outputs_helper";
+const VALIDATE_STOPPED_HELPER: &str = "plugins_mcp_configured_db::validate_stopped_outputs_helper";
 
 struct ValidateChild(std::process::Child);
 
@@ -495,4 +494,3 @@ fn validation_reports_exact_named_and_batch_stopped_results() {
         );
     }
 }
-

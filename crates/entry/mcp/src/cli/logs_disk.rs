@@ -8,9 +8,9 @@ use std::process::Command;
 
 use anyhow::{Context, Result, anyhow};
 
+use super::disk_logs::{display_names, find_log_file, list_log_files, read_log_lines};
 use super::logs::LogsArgs;
 use super::types::McpLogsOutput;
-use super::disk_logs::{display_names, find_log_file, list_log_files, read_log_lines};
 use systemprompt_extension::cli::{
     ChildSupervisor, CliConfig, CommandOutput, Prompter, resolve_required,
 };

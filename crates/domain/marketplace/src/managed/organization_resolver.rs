@@ -1,7 +1,8 @@
 //! Explicit organization authority with consumer-scoped grants.
 //!
 //! [`OrganizationSkillResolver`] is bound to one owner: a consumer's skill
-//! resolves through the owner's grants, and [`OrganizationSkillResolver::owned_skills`]
+//! resolves through the owner's grants, and
+//! [`OrganizationSkillResolver::owned_skills`]
 //! and [`OrganizationSkillResolver::resolve_owned`] read the owner's own
 //! managed skills without handing the owner id to the caller.
 //!

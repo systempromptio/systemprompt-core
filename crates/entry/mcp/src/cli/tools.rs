@@ -129,7 +129,11 @@ async fn collect_tools(
         match tools_result {
             Ok(tools) => {
                 all_tools.extend(tools.into_iter().map(|tool| {
-                    McpToolEntry::from_probe(tool, server.name.clone(), args.detailed || args.schema)
+                    McpToolEntry::from_probe(
+                        tool,
+                        server.name.clone(),
+                        args.detailed || args.schema,
+                    )
                 }));
                 servers_queried += 1;
             },

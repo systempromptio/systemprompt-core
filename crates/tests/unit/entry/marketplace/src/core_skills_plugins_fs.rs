@@ -7,10 +7,10 @@ use std::fs;
 use std::path::Path;
 
 use clap::Parser;
+use systemprompt_identifiers::SkillId;
 use systemprompt_marketplace_entry::cli::skills;
 use systemprompt_marketplace_entry::cli::skills::list::{execute_with_path, show_skill_detail};
 use systemprompt_marketplace_entry::cli::skills::types::parse_skill_from_config;
-use systemprompt_identifiers::SkillId;
 
 #[derive(Debug, Parser)]
 struct SkillsListHarness {

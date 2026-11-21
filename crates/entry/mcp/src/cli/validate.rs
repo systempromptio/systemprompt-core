@@ -13,8 +13,8 @@ use clap::Args;
 use systemprompt_extension::cli::{CommandHost, CommandOutput, Prompter, resolve_required};
 use systemprompt_identifiers::ServiceName;
 use systemprompt_manifest::ServicesConfig;
-use systemprompt_mcp::{McpDomainResult, McpServerConfig};
 use systemprompt_mcp::services::client::validate_connection_with_auth;
+use systemprompt_mcp::{McpDomainResult, McpServerConfig};
 use systemprompt_models::Deployment;
 
 use super::types::{McpBatchValidateOutput, McpValidateOutput, McpValidateSummary};

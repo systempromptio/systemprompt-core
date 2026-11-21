@@ -16,13 +16,13 @@
 //! - after governance, the inventory refresher, built from the sealed bundle
 //!   sources, services root and system admin. It is provided as the
 //!   crate-private `MemberRefresher` the `managed_inventory_refresh` job
-//!   (contributed here) resolves, and as the open `DynInventoryPublisher`
-//!   the admin services refresh runs: publish the latest configured skills
-//!   with the caller as the actor, and nothing else;
+//!   (contributed here) resolves, and as the open `DynInventoryPublisher` the
+//!   admin services refresh runs: publish the latest configured skills with the
+//!   caller as the actor, and nothing else;
 //! - after governance, the organization skill resolver, bound to the system
-//!   admin's managed inventory: as `Arc<OrganizationSkillResolver>` (the
-//!   `core skills` commands list and resolve the owner's skills through it
-//!   without learning the owner) and as `DynManagedSkillResolver`.
+//!   admin's managed inventory: as `Arc<OrganizationSkillResolver>` (the `core
+//!   skills` commands list and resolve the owner's skills through it without
+//!   learning the owner) and as `DynManagedSkillResolver`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -106,14 +106,16 @@ fn provide_state(c: &mut Contributions<'_>) {
             ))
         })
         .provide_after_governance(|r: &Resolved<'_>| {
-            Ok(MemberRefresher(Arc::new(InventoryRefresher::new(InventoryRefresherParts {
-                repository: r.get::<Arc<ManagedRepository>>()?,
-                guard: r.get::<Arc<Mutex<PublishGuard>>>()?,
-                bundles: r.get::<BundleSources>()?,
-                active_root: r.get::<ActiveServicesRoot>()?,
-                services: r.get::<ServicesView>()?,
-                owner: r.get::<SystemAdmin>()?.id().clone(),
-            }))))
+            Ok(MemberRefresher(Arc::new(InventoryRefresher::new(
+                InventoryRefresherParts {
+                    repository: r.get::<Arc<ManagedRepository>>()?,
+                    guard: r.get::<Arc<Mutex<PublishGuard>>>()?,
+                    bundles: r.get::<BundleSources>()?,
+                    active_root: r.get::<ActiveServicesRoot>()?,
+                    services: r.get::<ServicesView>()?,
+                    owner: r.get::<SystemAdmin>()?.id().clone(),
+                },
+            ))))
         })
         .provide_after_governance(
             |r: &Resolved<'_>| -> Result<DynInventoryPublisher, ProvideError> {

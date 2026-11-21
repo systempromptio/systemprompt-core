@@ -45,7 +45,8 @@ pub fn member(ctx: &CommandContext) -> MemberHost<'_> {
 }
 
 pub fn mcp_kernel(app: &AppContext) -> Kernel {
-    let handle: Arc<dyn DatabaseHandle> = Arc::<systemprompt_database::Database>::clone(app.db_pool());
+    let handle: Arc<dyn DatabaseHandle> =
+        Arc::<systemprompt_database::Database>::clone(app.db_pool());
     let registry = app.mcp_registry().clone();
     let observer = McpServiceObserver::new(
         (**app.service_repository()).clone(),
@@ -86,9 +87,13 @@ pub fn with_boot(cli: CliConfig) -> CommandContext {
 pub async fn app_on_database(bootstrap: &TestBootstrap, database_url: &str) -> Arc<AppContext> {
     let mut config = systemprompt_manifest::Config::clone(bootstrap.boot_config());
     config.database_url = database_url.to_owned();
-    systemprompt_test_fixtures::fixture_app_context_on_bootstrap(bootstrap, config, fixture_admitted())
-        .await
-        .expect("fixture app context on the bootstrap's own paths")
+    systemprompt_test_fixtures::fixture_app_context_on_bootstrap(
+        bootstrap,
+        config,
+        fixture_admitted(),
+    )
+    .await
+    .expect("fixture app context on the bootstrap's own paths")
 }
 
 pub fn rendered(

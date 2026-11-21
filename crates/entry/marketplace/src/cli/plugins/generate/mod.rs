@@ -1,9 +1,10 @@
 //! Generation of Claude Code plugin output from `config.yaml` definitions.
 //!
 //! `execute` reads one or all plugin configs under the services tree's
-//! plugins directory and materialises skill, agent, MCP, script, and marketplace artifacts
-//! into the plugins storage directory. The per-component generators live in the
-//! `agents`, `mcp`, `skills`, and `marketplace` submodules.
+//! plugins directory and materialises skill, agent, MCP, script, and
+//! marketplace artifacts into the plugins storage directory. The per-component
+//! generators live in the `agents`, `mcp`, `skills`, and `marketplace`
+//! submodules.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

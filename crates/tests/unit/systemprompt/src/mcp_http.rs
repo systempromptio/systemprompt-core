@@ -20,7 +20,9 @@ use systemprompt_cli::kernel::{
     CommandRegistry, ResolvedCommand, describe_command_line, kernel_commands,
 };
 use systemprompt_cli::runner::refuse_disabled;
-use systemprompt_extension::cli::{CommandDecl, CommandDescriptor, DataImpact, KernelGrant, parents};
+use systemprompt_extension::cli::{
+    CommandDecl, CommandDescriptor, DataImpact, KernelGrant, parents,
+};
 use systemprompt_extension::reserved::CoreId;
 use systemprompt_extension::router::{
     Allowance, ApiBase, BasePath, BaseRef, RouteSet, RouteSpec, WebBase,

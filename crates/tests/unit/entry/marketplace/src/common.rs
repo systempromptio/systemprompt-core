@@ -12,7 +12,6 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, Response};
 use http_body_util::BodyExt;
-use systemprompt_marketplace_entry::http::public_routes;
 use systemprompt_cli::kernel::MemberHost;
 use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_extension::cli::{
@@ -20,6 +19,7 @@ use systemprompt_extension::cli::{
     OutputFormat,
 };
 use systemprompt_loader::{BootContext, ServicesState};
+use systemprompt_marketplace_entry::http::public_routes;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_admitted};
 

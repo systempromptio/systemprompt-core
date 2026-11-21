@@ -3,13 +3,13 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_cli::ScriptedPrompter;
+use systemprompt_identifiers::ServiceName;
+use systemprompt_manifest::ServicesConfig;
+use systemprompt_mcp::services::client::{McpConnectionResult, McpProtocolInfo};
 use systemprompt_mcp_entry::cli::validate::{
     FailureDetail, failure_output, prompt_server_selection, run_connection_validation,
     success_output,
 };
-use systemprompt_identifiers::ServiceName;
-use systemprompt_manifest::ServicesConfig;
-use systemprompt_mcp::services::client::{McpConnectionResult, McpProtocolInfo};
 use systemprompt_models::Deployment;
 
 fn deployment(port: u16) -> Deployment {

@@ -86,9 +86,10 @@ async fn call_tool(params: ToolCallParams<'_>) -> Result<CallToolResult> {
     let mut request = CallToolRequestParams::new(String::from(tool_name));
     request.arguments = arguments.and_then(|v| v.as_object().cloned());
 
-    let result = client.call_tool(request).await.map_err(|e| {
-        anyhow!("MCP tool '{tool_name}' on '{server_name}' rejected the call: {e}")
-    })?;
+    let result = client
+        .call_tool(request)
+        .await
+        .map_err(|e| anyhow!("MCP tool '{tool_name}' on '{server_name}' rejected the call: {e}"))?;
 
     client.cancel().await?;
     Ok(result)
@@ -161,9 +162,8 @@ async fn connect(
         cli_limits(timeout_secs),
     )?;
     let config = match token {
-        Some(token) => {
-            StreamableHttpClientTransportConfig::with_uri(url).auth_header(token.as_str().to_owned())
-        },
+        Some(token) => StreamableHttpClientTransportConfig::with_uri(url)
+            .auth_header(token.as_str().to_owned()),
         None => StreamableHttpClientTransportConfig::with_uri(url),
     };
     let transport = StreamableHttpClientTransport::with_client(http_client, config);

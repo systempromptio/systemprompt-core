@@ -40,10 +40,7 @@ async fn profile_only_groups_are_refused_under_a_database_scope() {
     let pool = test_db_pool().await;
     let ctx = ctx(&pool);
 
-    for args in [
-        vec!["hooks", "list"],
-        vec!["contexts", "list"],
-    ] {
+    for args in [vec!["hooks", "list"], vec!["contexts", "list"]] {
         let err = format!("{:#}", core::execute(parse(&args), &ctx).await.unwrap_err());
         assert!(
             err.contains("requires full profile context") || err.contains("does not support"),

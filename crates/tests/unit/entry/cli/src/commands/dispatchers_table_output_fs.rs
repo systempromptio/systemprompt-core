@@ -182,10 +182,7 @@ async fn core_commands_render_through_the_terminal_renderer() {
     services_root();
     let ctx = table_ctx();
 
-    for args in [
-        vec!["hooks", "list"],
-        vec!["hooks", "validate"],
-    ] {
+    for args in [vec!["hooks", "list"], vec!["hooks", "validate"]] {
         let cmd = CoreHarness::try_parse_from(std::iter::once("core").chain(args.iter().copied()))
             .unwrap()
             .cmd;

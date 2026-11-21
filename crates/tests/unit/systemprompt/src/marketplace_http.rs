@@ -125,7 +125,15 @@ fn the_offline_commands_need_no_database_and_skills_does() {
         assert!(descriptor.holds(KernelGrant::ServicesTree), "{args:?}");
         assert_eq!(descriptor.data_impact(), DataImpact::Preserving, "{args:?}");
     }
-    let import = describe(&["core", "marketplace", "import", "--from", "a", "--into", "b"]);
+    let import = describe(&[
+        "core",
+        "marketplace",
+        "import",
+        "--from",
+        "a",
+        "--into",
+        "b",
+    ]);
     assert!(!import.profile() && !import.database());
     for args in [
         ["core", "skills", "list"].as_slice(),

@@ -34,7 +34,12 @@ pub use plugins::PluginsCommands;
 pub use skills::SkillsCommands;
 
 async fn services_config(host: &dyn CommandHost) -> Result<Arc<ServicesConfig>> {
-    Ok(host.resolved().await?.get::<ServicesState>()?.view().config())
+    Ok(host
+        .resolved()
+        .await?
+        .get::<ServicesState>()?
+        .view()
+        .config())
 }
 
 fn command_error(error: anyhow::Error) -> CommandError {

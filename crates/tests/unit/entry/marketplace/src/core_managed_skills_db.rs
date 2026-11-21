@@ -11,12 +11,12 @@ use std::collections::BTreeMap;
 use clap::Parser;
 use systemprompt_cli::CommandContext;
 use systemprompt_extension::cli::CommandDescriptor;
-use systemprompt_marketplace_entry::cli::skills::list::show_resolved_skill;
-use systemprompt_marketplace_entry::cli::skills::{self, SkillsCommands};
 use systemprompt_marketplace::managed::{
     AssetDigest, AssetFile, ComparisonEvidence, NewResource, NewRevision, PublicationAction,
     PublicationRequest, ResourceKind, RevisionFiles, SnapshotProvenance, SourceSpec,
 };
+use systemprompt_marketplace_entry::cli::skills::list::show_resolved_skill;
+use systemprompt_marketplace_entry::cli::skills::{self, SkillsCommands};
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, seed_user_row, test_app_context, test_db_pool,
 };
@@ -200,12 +200,9 @@ async fn published_managed_skill_detail_replaces_same_named_filesystem_content()
     let fixture = fixture().await;
     publish(&fixture).await;
 
-    skills::execute(
-        command(&["show", fixture.key.as_str()]),
-        &host(&fixture),
-    )
-    .await
-    .unwrap();
+    skills::execute(command(&["show", fixture.key.as_str()]), &host(&fixture))
+        .await
+        .unwrap();
     let output = show_resolved_skill(
         &systemprompt_identifiers::SkillId::new(fixture.key.as_str()),
         &host(&fixture),
@@ -226,12 +223,9 @@ async fn published_managed_skill_detail_replaces_same_named_filesystem_content()
 async fn never_adopted_managed_skill_suppresses_same_named_disk_skill() {
     let fixture = fixture().await;
 
-    let error = skills::execute(
-        command(&["show", fixture.key.as_str()]),
-        &host(&fixture),
-    )
-    .await
-    .unwrap_err();
+    let error = skills::execute(command(&["show", fixture.key.as_str()]), &host(&fixture))
+        .await
+        .unwrap_err();
     let message = format!("{error:#}");
     assert!(message.contains("managed but withheld"), "{message}");
     assert!(message.contains("never adopted"), "{message}");
@@ -244,12 +238,9 @@ async fn withdrawn_managed_skill_hides_disk_fallback_and_named_lookup_errors() {
     publish(&fixture).await;
     withdraw(&fixture).await;
 
-    let error = skills::execute(
-        command(&["show", fixture.key.as_str()]),
-        &host(&fixture),
-    )
-    .await
-    .unwrap_err();
+    let error = skills::execute(command(&["show", fixture.key.as_str()]), &host(&fixture))
+        .await
+        .unwrap_err();
     let message = format!("{error:#}");
     assert!(message.contains("managed but withheld"), "{message}");
     assert!(message.contains("withdrawn"), "{message}");

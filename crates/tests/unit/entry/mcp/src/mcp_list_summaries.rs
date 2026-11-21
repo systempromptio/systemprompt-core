@@ -54,7 +54,10 @@ fn get_binary_info_reports_path_and_timestamp() {
     touch_binary(tmp.path(), "debug", "svc");
 
     let (path, created) = get_binary_info(Some(tmp.path()), "svc", false);
-    assert_eq!(path.as_deref(), tmp.path().join("debug").join("svc").to_str());
+    assert_eq!(
+        path.as_deref(),
+        tmp.path().join("debug").join("svc").to_str()
+    );
     assert!(created.is_some());
 }
 

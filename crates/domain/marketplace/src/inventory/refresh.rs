@@ -28,8 +28,7 @@ use tokio::sync::Mutex;
 
 use super::{
     BaselineScope, InventoryService, InventoryStatus, LatestPublication, LatestPublicationStatus,
-    PublishGuard,
-    SourcesContext, configured_inventory_fingerprint,
+    PublishGuard, SourcesContext, configured_inventory_fingerprint,
 };
 use crate::managed::{ManagedRepository, Result};
 
@@ -119,7 +118,10 @@ impl InventoryRefresher {
 
 #[async_trait]
 impl InventoryPublisher for InventoryRefresher {
-    async fn publish_latest(&self, actor: &UserId) -> std::result::Result<usize, InventoryPublishError> {
+    async fn publish_latest(
+        &self,
+        actor: &UserId,
+    ) -> std::result::Result<usize, InventoryPublishError> {
         let outcomes = Self::publish_latest(self, actor)
             .await
             .map_err(|error| InventoryPublishError::Failed(Box::new(error)))?;

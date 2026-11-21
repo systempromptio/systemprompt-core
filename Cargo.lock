@@ -7250,16 +7250,23 @@ dependencies = [
 name = "systemprompt-marketplace-entry"
 version = "0.84.0"
 dependencies = [
+ "anyhow",
  "axum",
+ "clap",
+ "schemars 1.2.3",
+ "serde",
  "serde_json",
+ "serde_yaml_ng",
  "systemprompt-config",
  "systemprompt-extension",
  "systemprompt-identifiers",
+ "systemprompt-loader",
  "systemprompt-manifest",
  "systemprompt-marketplace",
  "systemprompt-models",
  "thiserror 2.0.21",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -7305,11 +7312,25 @@ dependencies = [
 name = "systemprompt-mcp-entry"
 version = "0.84.0"
 dependencies = [
+ "anyhow",
  "axum",
+ "chrono",
+ "clap",
+ "rmcp",
+ "schemars 1.2.3",
  "serde",
+ "serde_json",
+ "systemprompt-config",
+ "systemprompt-database",
  "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-logging",
+ "systemprompt-manifest",
+ "systemprompt-mcp",
  "systemprompt-models",
  "systemprompt-traits",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

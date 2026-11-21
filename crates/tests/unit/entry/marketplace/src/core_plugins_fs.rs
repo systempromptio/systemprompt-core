@@ -5,6 +5,9 @@
 use std::fs;
 use std::path::Path;
 
+use systemprompt_identifiers::PluginId;
+use systemprompt_manifest::services::ServicesConfig;
+use systemprompt_manifest::{PluginConfig, PluginConfigFile};
 use systemprompt_marketplace_entry::cli::plugins::generate::agents::generate_agents;
 use systemprompt_marketplace_entry::cli::plugins::generate::mcp::generate_mcp_json;
 use systemprompt_marketplace_entry::cli::plugins::generate::skills::generate_skills;
@@ -12,9 +15,6 @@ use systemprompt_marketplace_entry::cli::plugins::generate::{
     PluginGenerateContext, generate_plugin, marketplace,
 };
 use systemprompt_marketplace_entry::cli::plugins::{self, validate};
-use systemprompt_identifiers::PluginId;
-use systemprompt_manifest::services::ServicesConfig;
-use systemprompt_manifest::{PluginConfig, PluginConfigFile};
 
 const PLUGIN_YAML: &str = r#"
 plugin:

@@ -8,7 +8,9 @@
 
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
-use systemprompt_extension::cli::{CommandError, CommandHost, CommandOutput, Prompter, resolve_required};
+use systemprompt_extension::cli::{
+    CommandError, CommandHost, CommandOutput, Prompter, resolve_required,
+};
 use systemprompt_identifiers::{McpServerId, McpToolName, SessionToken};
 use systemprompt_manifest::ServicesConfig;
 use systemprompt_models::ai::tools::CallToolResult;
@@ -58,7 +60,10 @@ pub(super) async fn execute(args: CallArgs, host: &dyn CommandHost) -> Result<Co
         prompt_server_selection(prompter, &services_config)
     })?;
 
-    if !services_config.mcp_servers.contains_key(server_name.as_str()) {
+    if !services_config
+        .mcp_servers
+        .contains_key(server_name.as_str())
+    {
         return Err(anyhow!(
             "MCP server '{server_name}' not found in configuration"
         ));
@@ -148,7 +153,9 @@ fn success_outcome(
             .collect::<Vec<_>>()
             .join("\n");
         if detail.is_empty() {
-            format!("MCP tool '{tool_name}' on '{server_name}' reported is_error=true with no message")
+            format!(
+                "MCP tool '{tool_name}' on '{server_name}' reported is_error=true with no message"
+            )
         } else {
             format!("MCP tool '{tool_name}' on '{server_name}' reported is_error=true: {detail}")
         }

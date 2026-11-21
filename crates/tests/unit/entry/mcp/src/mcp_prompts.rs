@@ -6,9 +6,9 @@
 use std::collections::HashMap;
 
 use systemprompt_cli::interactive::ScriptedPrompter;
+use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_mcp_entry::cli::call::prompt_server_selection as call_prompt_server_selection;
 use systemprompt_mcp_entry::cli::validate::prompt_server_selection as validate_prompt_server_selection;
-use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::mcp::deployment::{Deployment, McpServerType, OAuthRequirement};
 
