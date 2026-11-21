@@ -8461,7 +8461,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-agent-runs-entry"
-version = "0.84.0"
+version = "0.85.0"
 dependencies = [
  "async-stream",
  "axum",
@@ -8647,7 +8647,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-analytics-entry"
-version = "0.84.0"
+version = "0.85.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -9861,7 +9861,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-cloud-entry"
-version = "0.84.0"
+version = "0.85.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -10087,7 +10087,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-content-entry"
-version = "0.84.0"
+version = "0.85.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -10489,7 +10489,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-files-entry"
-version = "0.84.0"
+version = "0.85.0"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -11054,7 +11054,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-marketplace-entry"
-version = "0.84.0"
+version = "0.85.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -11178,7 +11178,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-mcp-entry"
-version = "0.84.0"
+version = "0.85.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -11235,7 +11235,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-mcp-host"
-version = "0.84.0"
+version = "0.85.0"
 dependencies = [
  "async-trait",
  "rmcp",
@@ -11475,7 +11475,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-notifications-entry"
-version = "0.84.0"
+version = "0.85.0"
 dependencies = [
  "axum",
  "serde",
@@ -12137,7 +12137,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-slack-entry"
-version = "0.84.0"
+version = "0.85.0"
 dependencies = [
  "axum",
  "chrono",
@@ -12251,7 +12251,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-teams-entry"
-version = "0.84.0"
+version = "0.85.0"
 dependencies = [
  "axum",
  "chrono",

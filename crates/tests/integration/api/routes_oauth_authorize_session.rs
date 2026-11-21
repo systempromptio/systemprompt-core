@@ -100,9 +100,17 @@ async fn world_with(customize: impl FnOnce(&mut Config)) -> anyhow::Result<World
     config.rate_limits = RateLimitsConfig::disabled();
     config.trusted_proxies = Vec::new();
     customize(&mut config);
-    let ctx = fixture_app_context_with_config(&pool, config)?;
-    let app = setup_api_server(&ctx, None, &Arc::new(ReadinessState::new()))
-        .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
+    let ctx = fixture_app_context_with_config(config).await?;
+    let app = setup_api_server(
+        &ctx,
+        systemprompt_api::services::server::routes::Composed {
+            admitted: ctx.admitted(),
+            kernel: ctx.kernel(),
+        },
+        None,
+        &Arc::new(ReadinessState::new()),
+    )
+    .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
     let user = UserId::new(Uuid::new_v4().to_string());
     let email = format!("{}@authorize-session.invalid", user.as_str());
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")
