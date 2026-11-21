@@ -16,7 +16,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::consent::{Allow, allow, consent_page, require_same_origin};
-use super::decision::{Decision, decide, silent_allowed};
+use super::decision::{Decision, Standing, decide, silent_allowed};
 use super::issue::{issue_code_redirect, response_issuer, session_grant};
 use super::login_redirect::{login_page_redirect_target, reauth_binding};
 use super::response_builder::{convert_form_to_query, generate_webauthn_form};
@@ -116,8 +116,10 @@ async fn decide_request(
         params,
         reauth_since,
         request.map(|request| request.sign_in),
-        consent_covered,
-        silent,
+        Standing {
+            consent_covered,
+            silent_allowed: silent,
+        },
         now,
     );
     tracing::info!(
@@ -131,17 +133,15 @@ async fn decide_request(
     Ok(decision)
 }
 
-fn sign_in_response(
+fn login_page_redirect(
     repo: &OAuthRepository,
     config: &Config,
     params: &AuthorizeQuery,
-    validated: &ValidatedAuthorizeRequest,
     original: &Uri,
     now: i64,
-) -> Result<Response, OAuthHttpError> {
-    let form = || Html(generate_webauthn_form(config, params, validated)).into_response();
+) -> Result<Option<Response>, OAuthHttpError> {
     let Some(login_page_url) = config.login_page_url.as_deref() else {
-        return Ok(form());
+        return Ok(None);
     };
     let return_path = original
         .path_and_query()
@@ -149,7 +149,7 @@ fn sign_in_response(
     let marker = repo.reauth_marker(&reauth_binding(params), now)?;
     Ok(
         login_page_redirect_target(login_page_url, params, &return_path, &marker)
-            .map_or_else(form, |target| Redirect::to(&target).into_response()),
+            .map(|target| Redirect::to(&target).into_response()),
     )
 }
 
@@ -214,9 +214,10 @@ pub async fn handle_authorize_get(
         (Decision::PasskeyForm, _) => {
             Ok(Html(generate_webauthn_form(&config, &params, &validated)).into_response())
         },
-        (Decision::SignIn, _) => {
-            sign_in_response(repo, &config, &params, &validated, &original, now)
-        },
+        (Decision::SignIn, _) => Ok(login_page_redirect(repo, &config, &params, &original, now)?
+            .unwrap_or_else(|| {
+                Html(generate_webauthn_form(&config, &params, &validated)).into_response()
+            })),
         (Decision::ConsentRequired, _) => Err(refuse(OAuthHttpError::consent_required(
             "The person has not allowed this client the requested scopes",
         ))),

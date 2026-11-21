@@ -92,15 +92,24 @@ fn sign_in_usable(
     )
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Standing {
+    pub consent_covered: bool,
+    pub silent_allowed: bool,
+}
+
 #[must_use]
 pub fn decide(
     params: &AuthorizeQuery,
     reauth_since: Option<i64>,
     sign_in: Option<&BrowserSignIn>,
-    consent_covered: bool,
-    silent_allowed: bool,
+    standing: Standing,
     now: i64,
 ) -> Decision {
+    let Standing {
+        consent_covered,
+        silent_allowed,
+    } = standing;
     let prompt = Prompt::of(params);
     if prompt.passkey {
         return Decision::PasskeyForm;

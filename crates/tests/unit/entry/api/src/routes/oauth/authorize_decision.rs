@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 
 use systemprompt_api::routes::oauth::endpoints::authorize::AuthorizeQuery;
 use systemprompt_api::routes::oauth::endpoints::authorize::decision::{
-    Decision, REAUTH_WINDOW_SECS, decide, is_native_redirect, silent_allowed,
+    Decision, REAUTH_WINDOW_SECS, Standing, decide, is_native_redirect, silent_allowed,
 };
 use systemprompt_api::routes::oauth::endpoints::authorize::session::{
     BrowserSignIn, session_subject,
@@ -211,8 +211,10 @@ fn decision_matrix() {
             &query(c.prompt, c.max_age),
             c.reauth_since,
             sign_in.as_ref(),
-            c.covered,
-            c.silent,
+            Standing {
+                consent_covered: c.covered,
+                silent_allowed: c.silent,
+            },
             NOW,
         );
         assert_eq!(got, c.expect, "{}", c.name);
@@ -328,8 +330,10 @@ fn a_return_from_the_login_page_is_never_sent_to_sign_in_again() {
             &query(c.prompt, c.max_age),
             c.reauth_since,
             sign_in.as_ref(),
-            c.covered,
-            c.silent,
+            Standing {
+                consent_covered: c.covered,
+                silent_allowed: c.silent,
+            },
             NOW,
         );
         assert_eq!(got, c.expect, "{}", c.name);
@@ -344,8 +348,10 @@ fn without_a_verified_marker_prompt_login_and_max_age_zero_ask_for_a_sign_in() {
             &query(prompt, max_age),
             None,
             Some(&five_minutes_old),
-            true,
-            true,
+            Standing {
+                consent_covered: true,
+                silent_allowed: true,
+            },
             NOW,
         );
         assert_eq!(got, Decision::SignIn, "{prompt:?} {max_age:?}");
