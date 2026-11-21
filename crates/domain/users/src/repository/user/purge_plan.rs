@@ -9,7 +9,10 @@
 //! as `$2`, so nothing a declaration carries is spliced in as SQL. An owner
 //! reassignment is rendered the same way from its declaration, re-validating
 //! every name, with the source user bound as `$1` and the target as `$2`, so
-//! the statement touches exactly the table the declaration names.
+//! the statement touches exactly the table the declaration names. Its columns
+//! are qualified only through the fixed aliases `reassigned` (the updated
+//! row) and `counterpart` (the target's row), never through the table name,
+//! so no declared table name can collide with a qualifier.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -201,18 +204,20 @@ pub(super) fn reassign_sql(reassignment: &OwnerReassignment) -> Result<ReassignS
             touch,
             keep_target_on,
         } => {
-            let mut text = format!("UPDATE {table} SET {column} = $2");
+            let mut text = format!("UPDATE {table} AS reassigned SET {column} = $2");
             if let Some(touched) = touch {
                 let touched = identifier("touched column", touched)?;
                 text.push_str(&format!(", {touched} = CURRENT_TIMESTAMP"));
             }
-            text.push_str(&format!(" WHERE {column} = $1"));
+            text.push_str(&format!(" WHERE reassigned.{column} = $1"));
             if !keep_target_on.is_empty() {
-                let mut kept =
-                    format!(" AND NOT EXISTS (SELECT 1 FROM {table} kept WHERE kept.{column} = $2");
+                let mut kept = format!(
+                    " AND NOT EXISTS (SELECT 1 FROM {table} AS counterpart \
+                     WHERE counterpart.{column} = $2"
+                );
                 for key in keep_target_on {
                     let key = identifier("kept key column", key)?;
-                    kept.push_str(&format!(" AND kept.{key} = {table}.{key}"));
+                    kept.push_str(&format!(" AND counterpart.{key} = reassigned.{key}"));
                 }
                 kept.push(')');
                 text.push_str(&kept);

@@ -1,0 +1,4 @@
+[[crate]]
+name = "systemprompt-users"
+section = "Fixed"
+text = "An owner reassignment that keeps the target's counterpart row qualifies its columns through fixed aliases, so a member table named `kept` is reassigned row by row instead of comparing each row with itself."
