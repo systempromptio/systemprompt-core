@@ -133,9 +133,7 @@ pub use coordination::{
     LeaseRepository, UnavailableCoordination,
 };
 
-pub use ownership::{
-    DynOwnerReassignment, OwnerReassignment, ReassignedColumn, ReassignedRows, is_plain_identifier,
-};
+pub use ownership::is_plain_identifier;
 pub use tool_executions::{
     DynToolCallIntentClaims, DynToolExecutionLookup, ToolCallIntentClaims, ToolExecutionLookup,
 };

@@ -12,14 +12,12 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub(crate) mod durable;
-mod ownership;
 
 use sqlx::{PgConnection, PgPool, Postgres, Transaction};
 use systemprompt_identifiers::{Actor, EventOutboxId, InstanceId, UserId};
 
 use super::routing::{OUTBOX_CHANNEL, OutboxChannel};
 
-pub use ownership::EventsOwnerReassignment;
 
 // Why: the bridge prunes on every relay tick, so one bounded batch per tick
 // keeps the statement short and leaves the remainder for the next tick.

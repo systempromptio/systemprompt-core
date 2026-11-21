@@ -8,7 +8,7 @@ use std::sync::Arc;
 use systemprompt_provider_contracts::DoctorCheck;
 use systemprompt_provider_contracts::governance::GovernancePolicy;
 use systemprompt_traits::authz::SubjectAttributeProvider;
-use systemprompt_traits::{DynOwnerReassignment, RunnerService};
+use systemprompt_traits::RunnerService;
 
 use super::resolved::Factory;
 use crate::asset::{AssetDefinition, AssetPaths};
@@ -24,5 +24,4 @@ pub type GatewayGuardFactory = Box<dyn Factory<Arc<dyn GatewayRequestGuard>>>;
 pub type SubjectProviderFactory = Box<dyn Factory<Arc<dyn SubjectAttributeProvider>>>;
 pub type PolicyFactory = Box<dyn Factory<Arc<dyn GovernancePolicy>>>;
 pub type AudienceResolverFactory = Box<dyn Factory<Arc<dyn NotificationAudienceResolver>>>;
-pub type OwnerReassignmentFactory = Box<dyn Factory<DynOwnerReassignment>>;
 pub type DoctorCheckRef = Arc<dyn DoctorCheck>;

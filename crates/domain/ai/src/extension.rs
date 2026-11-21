@@ -41,13 +41,32 @@ impl Extension for AiExtension {
             column: "user_id",
             predicate: None,
         });
-        c.owner_reassignment(
-            |r: &Resolved<'_>| -> Result<systemprompt_traits::DynOwnerReassignment, FactoryError> {
-                Ok(Arc::new(crate::repository::AiOwnerReassignment::new(
-                    &r.get::<DbPool>()?,
-                )))
+        c.owner_reassignment(OwnerReassignment {
+            table: "ai_requests",
+            column: "user_id",
+            action: ReassignAction::Update {
+                touch: Some("updated_at"),
+                keep_target_on: &[],
             },
-        );
+        });
+        c.owner_reassignment(OwnerReassignment {
+            table: "ai_quota_buckets",
+            column: "subject_id",
+            action: ReassignAction::Delete {
+                predicate: Some(PurgePredicate {
+                    column: "subject_kind",
+                    any_of: &["user"],
+                }),
+            },
+        });
+        c.owner_reassignment(OwnerReassignment {
+            table: "ai_gateway_thought_signatures",
+            column: "user_id",
+            action: ReassignAction::Update {
+                touch: None,
+                keep_target_on: &["conversation_id", "tool_use_id"],
+            },
+        });
         Ok(())
     }
 }

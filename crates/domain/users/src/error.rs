@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_database::IdentifierError;
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{ExtensionId, UserId};
 use systemprompt_models::domain_error;
 
 domain_error! {
@@ -58,11 +58,13 @@ domain_error! {
         #[error("account merge is unavailable: no owner reassignments are configured")]
         MergeUnavailable,
 
-        #[error("owner reassignment failed in the {domain} domain: {source}")]
+        #[error("owner reassignment of {table}.{column} declared by '{owner}' failed")]
         OwnerReassignment {
-            domain: &'static str,
+            owner: ExtensionId,
+            table: String,
+            column: String,
             #[source]
-            source: systemprompt_traits::RepositoryError,
+            source: sqlx::Error,
         },
     }
 }

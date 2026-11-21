@@ -1,7 +1,8 @@
 //! Document store rows that leave with a deleted user.
 //!
 //! Documents, folders and revisions are shared content: they move to a new
-//! owner through `FilesOwnerReassignment` rather than being purged. Only the
+//! owner through the files member's owner reassignments rather than being
+//! purged. Only the
 //! user's own leases, presence rows, live-session peer ids and user-subject
 //! grants are deleted.
 //!

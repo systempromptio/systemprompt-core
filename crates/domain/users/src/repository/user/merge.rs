@@ -1,16 +1,17 @@
-//! The users-owned half of an account merge.
+//! An account merge, in one transaction.
 //!
-//! Every other domain's rows are moved by its own
-//! [`OwnerReassignment`](systemprompt_traits::OwnerReassignment) before this
-//! runs; what is left is this crate's own: the source's sessions move to the
+//! Every admitted owner reassignment of the composition
+//! ([`AdmittedOwnerReassignments`]) is rendered from its declaration and run
+//! first; then this crate's own rows: the source's sessions move to the
 //! target, the merge is recorded as a governance decision, and the source user
-//! is deleted — in one transaction, so a failure leaves the source in place
-//! for a rerun.
+//! is deleted. Everything commits together, so a failure anywhere leaves every
+//! row and the source user in place for a rerun.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use sqlx::{Acquire, Postgres, Transaction};
+use systemprompt_extension::AdmittedOwnerReassignments;
 use systemprompt_governance::authz::types::DecisionTag;
 use systemprompt_governance::authz::{GovernanceDecisionRecord, insert_governance_decision};
 use systemprompt_identifiers::{Actor, ContextId, SessionId, UserId};
@@ -43,10 +44,24 @@ pub const MERGE_EXCLUDED_SECURITY_TABLES: &[&str] = &[
 ];
 
 impl UserRepository {
-    pub async fn complete_merge(&self, source_id: &UserId, target_id: &UserId) -> Result<u64> {
+    pub async fn merge(
+        &self,
+        source_id: &UserId,
+        target_id: &UserId,
+        reassignments: &AdmittedOwnerReassignments,
+    ) -> Result<MergeResult> {
         let mut conn = self.write_pool.acquire().await?;
         let mut tx = conn.begin().await?;
         Self::lock_unless_held(&mut tx, source_id).await?;
+
+        let moved =
+            Self::reassign_owned_rows(&mut tx, source_id, target_id, reassignments).await?;
+        let tasks = moved
+            .iter()
+            .filter(|(table, _)| *table == "agent_tasks")
+            .map(|(_, rows)| rows)
+            .sum::<u64>();
+        let reassigned = moved.iter().map(|(_, rows)| rows).sum::<u64>();
 
         let sessions = sqlx::query!(
             "UPDATE user_sessions SET user_id = $1 WHERE user_id = $2",
@@ -64,7 +79,11 @@ impl UserRepository {
             .await?;
 
         tx.commit().await?;
-        Ok(sessions)
+        Ok(MergeResult {
+            sessions,
+            tasks,
+            total_rows: reassigned + sessions,
+        })
     }
 }
 

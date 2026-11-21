@@ -128,7 +128,7 @@ impl Kernel {
         self.provide_all(admitted, ProvidePhase::Early)?;
         let audiences = AudienceResolvers::from_admitted(admitted.built(), &self.resolved())?;
         self.state.insert(Arc::new(audiences));
-        let reassignments = AdmittedOwnerReassignments::of(admitted.built(), &self.resolved())?;
+        let reassignments = AdmittedOwnerReassignments::of(admitted.built())?;
         self.state.insert_sealed(Arc::new(reassignments));
         self.build_slots(admitted)?;
         self.build_governance(admitted.built())?;

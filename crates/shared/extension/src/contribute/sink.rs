@@ -25,14 +25,14 @@ use crate::migration::Migration;
 use crate::projection::ProjectionEntry;
 use crate::protection::SiteAuthConfig;
 use crate::purge::{OrphanSweep, UserPurgeTable};
+use crate::reassignment::OwnerReassignment;
 use crate::retention::RetentionDecl;
 use crate::seed::Seed;
 use crate::state::StateRequirement;
 
 pub use super::factories::{
     AssetFn, AudienceResolverFactory, DiagnosticFactory, DoctorCheckRef, GatewayGuardFactory,
-    OwnerReassignmentFactory, PolicyFactory, ReadinessFactory, RunnerServiceFactory,
-    SubjectProviderFactory,
+    PolicyFactory, ReadinessFactory, RunnerServiceFactory, SubjectProviderFactory,
 };
 
 /// Everything one member contributed, in declaration order.
@@ -45,7 +45,7 @@ pub struct ContributionSink {
     pub(crate) cross_tables: Vec<&'static str>,
     pub(crate) user_purges: Vec<UserPurgeTable>,
     pub(crate) orphan_sweeps: Vec<OrphanSweep>,
-    pub(crate) owner_reassignments: Vec<OwnerReassignmentFactory>,
+    pub(crate) owner_reassignments: Vec<OwnerReassignment>,
     pub(crate) doctor_checks: Vec<DoctorCheckRef>,
     pub(crate) roles: Vec<ExtensionRole>,
     pub(crate) assets: Vec<AssetFn>,
@@ -115,7 +115,7 @@ impl ContributionSink {
     }
 
     #[must_use]
-    pub fn owner_reassignments(&self) -> &[OwnerReassignmentFactory] {
+    pub fn owner_reassignments(&self) -> &[OwnerReassignment] {
         &self.owner_reassignments
     }
 

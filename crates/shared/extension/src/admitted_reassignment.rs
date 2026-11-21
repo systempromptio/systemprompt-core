@@ -1,36 +1,36 @@
-//! Every admitted member's user-owner reassignments, stamped with their
-//! owners in composition order.
+//! Every admitted member's owner reassignments, stamped with their owners in
+//! composition order.
 //!
-//! A member that owns user-keyed rows contributes the reassignment of its own
-//! rows with `Contributions::owner_reassignment`. The kernel builds each
-//! contributed factory once the members' provide fns have run and admits the
-//! built reassignment only when every [`ReassignedColumn`] it names is a
-//! plain identifier on a table the contributing member's own schema SQL
-//! creates (read by [`created_table_names`](crate::created_table_names), the
-//! same check user purges pass); anything else is refused with
-//! [`ReassignmentAdmissionError`], whatever the member's standing. No member
-//! declares a reassignment for another member's tables, so a composition
-//! that leaves a member out leaves out exactly that member's reassignment.
+//! A member that owns user-keyed rows declares each reassigned column with
+//! `Contributions::owner_reassignment` as an [`OwnerReassignment`]: a table,
+//! a column and an action, never code. The kernel admits a declaration only
+//! when every name it carries is a plain identifier and its table is one the
+//! contributing member's own schema SQL creates (read by
+//! [`created_table_names`](crate::created_table_names), the same check user
+//! purges pass); anything else is refused with [`ReassignmentAdmissionError`],
+//! whatever the member's standing. No member declares a reassignment for
+//! another member's tables, so a composition that leaves a member out leaves
+//! out exactly that member's reassignments.
 //!
-//! The users domain's merge runs the admitted set in composition order.
+//! The users domain's merge renders each admitted declaration into its
+//! statement and runs them all in one transaction, in composition order.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeSet;
-use std::sync::Arc;
 
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_traits::{DynOwnerReassignment, ReassignedColumn, is_plain_identifier};
+use systemprompt_traits::is_plain_identifier;
 use thiserror::Error;
 
 use crate::admitted::BuiltState;
 use crate::admitted_purge::{PurgeAdmissionError, own_tables};
-use crate::contribute::{FactoryError, Resolved};
 use crate::metadata::SchemaDefinition;
+use crate::reassignment::{OwnerReassignment, ReassignAction};
 
 /// Why a member's owner reassignment was refused at admission.
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq, Eq)]
 pub enum ReassignmentAdmissionError {
     #[error(
         "member '{member}' declares an owner reassignment over table '{table}', which is not \
@@ -38,57 +38,36 @@ pub enum ReassignmentAdmissionError {
     )]
     ForeignTable { member: ExtensionId, table: String },
     #[error(
-        "member '{member}' declares an owner reassignment over '{table}.{column}', which is not a \
-         plain identifier"
+        "member '{member}' declares an owner reassignment over table '{table}' naming '{name}', \
+         which is not a plain identifier"
     )]
-    InvalidColumn {
+    InvalidIdentifier {
         member: ExtensionId,
         table: String,
-        column: String,
+        name: String,
     },
-    #[error("member '{member}' declares an owner reassignment that names no column")]
-    NoColumns { member: ExtensionId },
-    #[error("owner reassignment factory of '{member}' failed")]
-    Factory {
-        member: ExtensionId,
-        #[source]
-        source: FactoryError,
-    },
+    #[error(
+        "member '{member}' declares an owner reassignment over table '{table}' with an empty \
+         predicate"
+    )]
+    EmptyPredicate { member: ExtensionId, table: String },
     #[error("schema tables of a reassigning member could not be read")]
     Schema(#[from] PurgeAdmissionError),
 }
 
-/// One member's built reassignments with what admission judges them by.
-#[derive(Clone, Copy)]
+/// One member's reassignment declarations with what admission judges them by.
+#[derive(Debug, Clone, Copy)]
 pub struct ReassignmentClaim<'a> {
     pub owner: &'a ExtensionId,
     pub schemas: &'a [SchemaDefinition],
-    pub reassignments: &'a [DynOwnerReassignment],
-}
-
-impl std::fmt::Debug for ReassignmentClaim<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ReassignmentClaim")
-            .field("owner", self.owner)
-            .field("reassignments", &self.reassignments.len())
-            .finish_non_exhaustive()
-    }
+    pub reassignments: &'a [OwnerReassignment],
 }
 
 /// One admitted reassignment with its owner.
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OwnedReassignment {
     pub owner: ExtensionId,
-    pub reassignment: DynOwnerReassignment,
-}
-
-impl std::fmt::Debug for OwnedReassignment {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("OwnedReassignment")
-            .field("owner", &self.owner)
-            .field("domain", &self.reassignment.domain())
-            .finish()
-    }
+    pub reassignment: OwnerReassignment,
 }
 
 /// The owner-stamped reassignments of an admitted composition.
@@ -98,32 +77,13 @@ pub struct AdmittedOwnerReassignments {
 }
 
 impl AdmittedOwnerReassignments {
-    pub fn of(built: &BuiltState, r: &Resolved<'_>) -> Result<Self, ReassignmentAdmissionError> {
-        let reassignments: Vec<Vec<DynOwnerReassignment>> = built
-            .members()
-            .map(|member| {
-                member
-                    .sink
-                    .owner_reassignments()
-                    .iter()
-                    .map(|factory| {
-                        factory
-                            .build(r)
-                            .map_err(|source| ReassignmentAdmissionError::Factory {
-                                member: member.owner.clone(),
-                                source,
-                            })
-                    })
-                    .collect::<Result<Vec<_>, _>>()
-            })
-            .collect::<Result<_, _>>()?;
+    pub fn of(built: &BuiltState) -> Result<Self, ReassignmentAdmissionError> {
         let claims: Vec<ReassignmentClaim<'_>> = built
             .members()
-            .zip(&reassignments)
-            .map(|(member, reassignments)| ReassignmentClaim {
+            .map(|member| ReassignmentClaim {
                 owner: &member.owner,
                 schemas: member.sink.schemas(),
-                reassignments,
+                reassignments: member.sink.owner_reassignments(),
             })
             .collect();
         Self::admit(&claims)
@@ -137,10 +97,10 @@ impl AdmittedOwnerReassignments {
         {
             let own = own_tables(claim.owner, claim.schemas)?;
             for reassignment in claim.reassignments {
-                check_columns(claim.owner, reassignment.columns(), &own)?;
+                check_declaration(claim.owner, reassignment, &own)?;
                 entries.push(OwnedReassignment {
                     owner: claim.owner.clone(),
-                    reassignment: Arc::clone(reassignment),
+                    reassignment: *reassignment,
                 });
             }
         }
@@ -158,30 +118,38 @@ impl AdmittedOwnerReassignments {
     }
 }
 
-fn check_columns(
+fn check_declaration(
     owner: &ExtensionId,
-    columns: &[ReassignedColumn],
+    reassignment: &OwnerReassignment,
     own: &BTreeSet<String>,
 ) -> Result<(), ReassignmentAdmissionError> {
-    if columns.is_empty() {
-        return Err(ReassignmentAdmissionError::NoColumns {
+    let table = reassignment.table;
+    if let Some(name) = reassignment
+        .identifiers()
+        .into_iter()
+        .find(|name| !is_plain_identifier(name))
+    {
+        return Err(ReassignmentAdmissionError::InvalidIdentifier {
             member: owner.clone(),
+            table: table.to_owned(),
+            name: name.to_owned(),
         });
     }
-    for column in columns {
-        if !is_plain_identifier(column.table) || !is_plain_identifier(column.column) {
-            return Err(ReassignmentAdmissionError::InvalidColumn {
-                member: owner.clone(),
-                table: column.table.to_owned(),
-                column: column.column.to_owned(),
-            });
-        }
-        if !own.contains(column.table) {
-            return Err(ReassignmentAdmissionError::ForeignTable {
-                member: owner.clone(),
-                table: column.table.to_owned(),
-            });
-        }
+    if !own.contains(table) {
+        return Err(ReassignmentAdmissionError::ForeignTable {
+            member: owner.clone(),
+            table: table.to_owned(),
+        });
+    }
+    if let ReassignAction::Delete {
+        predicate: Some(predicate),
+    } = reassignment.action
+        && predicate.any_of.is_empty()
+    {
+        return Err(ReassignmentAdmissionError::EmptyPredicate {
+            member: owner.clone(),
+            table: table.to_owned(),
+        });
     }
     Ok(())
 }

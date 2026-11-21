@@ -49,15 +49,27 @@ impl Extension for AgentExtension {
             column: "user_id",
             predicate: None,
         });
-        c.owner_reassignment(
-            |r: &Resolved<'_>| -> Result<systemprompt_traits::DynOwnerReassignment, FactoryError> {
-                Ok(std::sync::Arc::new(
-                    crate::repository::AgentOwnerReassignment::new(
-                        &r.get::<systemprompt_database::DbPool>()?,
-                    ),
-                ))
+        c.owner_reassignment(OwnerReassignment {
+            table: "user_contexts",
+            column: "user_id",
+            action: ReassignAction::Update {
+                touch: Some("updated_at"),
+                keep_target_on: &[],
             },
-        );
+        });
+        c.owner_reassignment(OwnerReassignment {
+            table: "agent_tasks",
+            column: "user_id",
+            action: ReassignAction::Update {
+                touch: Some("updated_at"),
+                keep_target_on: &[],
+            },
+        });
+        c.owner_reassignment(OwnerReassignment {
+            table: "task_messages",
+            column: "user_id",
+            action: ReassignAction::UPDATE,
+        });
         Ok(())
     }
 }

@@ -75,13 +75,56 @@ impl Extension for FilesExtension {
         c.migrations(extension_migrations!());
         contribute_files(c);
         contribute_documents_and_issues(c);
-        c.owner_reassignment(
-            |r: &Resolved<'_>| -> Result<systemprompt_traits::DynOwnerReassignment, FactoryError> {
-                Ok(Arc::new(crate::FilesOwnerReassignment::new(
-                    &r.get::<DbPool>()?,
-                )))
-            },
-        );
+        c.owner_reassignment(OwnerReassignment {
+            table: "files",
+            column: "user_id",
+            action: ReassignAction::UPDATE,
+        });
+        c.owner_reassignment(OwnerReassignment {
+            table: "documents",
+            column: "owner_user_id",
+            action: ReassignAction::UPDATE,
+        });
+        c.owner_reassignment(OwnerReassignment {
+            table: "documents",
+            column: "created_by",
+            action: ReassignAction::UPDATE,
+        });
+        c.owner_reassignment(OwnerReassignment {
+            table: "document_folders",
+            column: "owner_user_id",
+            action: ReassignAction::UPDATE,
+        });
+        c.owner_reassignment(OwnerReassignment {
+            table: "document_folders",
+            column: "created_by",
+            action: ReassignAction::UPDATE,
+        });
+        c.owner_reassignment(OwnerReassignment {
+            table: "document_revisions",
+            column: "author_user_id",
+            action: ReassignAction::UPDATE,
+        });
+        c.owner_reassignment(OwnerReassignment {
+            table: "document_grants",
+            column: "granted_by",
+            action: ReassignAction::UPDATE,
+        });
+        c.owner_reassignment(OwnerReassignment {
+            table: "documents",
+            column: "trashed_by",
+            action: ReassignAction::UPDATE,
+        });
+        c.owner_reassignment(OwnerReassignment {
+            table: "document_comments",
+            column: "author_user_id",
+            action: ReassignAction::UPDATE,
+        });
+        c.owner_reassignment(OwnerReassignment {
+            table: "document_comments",
+            column: "resolved_by",
+            action: ReassignAction::UPDATE,
+        });
         Ok(())
     }
 }

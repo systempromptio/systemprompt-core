@@ -10,12 +10,10 @@
 
 pub mod content;
 pub mod link;
-mod ownership;
 pub mod search;
 
 pub use content::ContentRepository;
 pub use link::{LinkAnalyticsRepository, LinkRepository};
-pub use ownership::ContentOwnerReassignment;
 pub use search::SearchRepository;
 
 use systemprompt_database::DbPool;

@@ -11,19 +11,26 @@
 //! in the outcome: the purge cannot vouch for its rows. The same plan,
 //! counted instead of deleted, is the dry run.
 //!
+//! The same file runs an account merge's owner reassignments
+//! ([`AdmittedOwnerReassignments`]): each admitted declaration is rendered
+//! into its statement (`purge_plan::reassign_sql`) and run inside the merging
+//! transaction, in composition order.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use sqlx::types::Json;
 use sqlx::{AssertSqlSafe, PgConnection, Postgres, Transaction};
-use systemprompt_extension::{AdmittedPurge, PurgeDeclaration};
+use systemprompt_extension::{AdmittedOwnerReassignments, AdmittedPurge, PurgeDeclaration};
 use systemprompt_identifiers::{ExtensionId, UserId};
 use tracing::warn;
 
 pub(crate) use super::purge_plan::USERS_OWNER;
 pub use super::purge_plan::{PurgeCount, PurgeOutcome, SkippedPurge};
-use super::purge_plan::{PurgeStep, RecordedPurge, plan_steps, sweep_sql, table_sql};
-use crate::error::Result;
+use super::purge_plan::{
+    PurgeStep, RecordedPurge, plan_steps, reassign_sql, sweep_sql, table_sql,
+};
+use crate::error::{Result, UserError};
 use crate::repository::UserRepository;
 
 const RECORDS_PRESENT_SQL: &str = "SELECT to_regclass('schema_purge_records') IS NOT NULL";
@@ -228,5 +235,37 @@ impl UserRepository {
             }
         }
         Ok(outcome)
+    }
+
+    pub(super) async fn reassign_owned_rows(
+        tx: &mut Transaction<'_, Postgres>,
+        from: &UserId,
+        to: &UserId,
+        plan: &AdmittedOwnerReassignments,
+    ) -> Result<Vec<(&'static str, u64)>> {
+        let mut moved = Vec::with_capacity(plan.entries().len());
+        for owned in plan.entries() {
+            let declared = &owned.reassignment;
+            let sql = reassign_sql(declared)?;
+            let mut query = sqlx::query(AssertSqlSafe(sql.text)).bind(from.as_str());
+            if sql.binds_target {
+                query = query.bind(to.as_str());
+            }
+            if let Some(values) = sql.any_of {
+                query = query.bind(values);
+            }
+            let rows = query
+                .execute(&mut **tx)
+                .await
+                .map_err(|source| UserError::OwnerReassignment {
+                    owner: owned.owner.clone(),
+                    table: declared.table.to_owned(),
+                    column: declared.column.to_owned(),
+                    source,
+                })?
+                .rows_affected();
+            moved.push((declared.table, rows));
+        }
+        Ok(moved)
     }
 }

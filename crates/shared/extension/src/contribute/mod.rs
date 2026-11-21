@@ -37,7 +37,7 @@ use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::governance::GovernancePolicy;
 use systemprompt_provider_contracts::{ConfigPlane, DoctorCheck, Job};
 use systemprompt_traits::authz::SubjectAttributeProvider;
-use systemprompt_traits::{DynOwnerReassignment, JobRunScope, RunOrigin, RunnerService};
+use systemprompt_traits::{JobRunScope, RunOrigin, RunnerService};
 
 pub use audience::{AudienceEntry, AudienceResolvers};
 pub use config::{ConfigDecl, ExtensionConfig};
@@ -49,8 +49,8 @@ pub use resolved::{
 };
 pub use sink::{
     AssetFn, AudienceResolverFactory, ContributionSink, DiagnosticFactory, DoctorCheckRef,
-    GatewayGuardFactory, OwnerReassignmentFactory, PolicyFactory, ReadinessFactory,
-    RunnerServiceFactory, SubjectProviderFactory,
+    GatewayGuardFactory, PolicyFactory, ReadinessFactory, RunnerServiceFactory,
+    SubjectProviderFactory,
 };
 pub use slot::{Slot, SlotBuildInput, SlotBuilt, SlotEntry, SlotOrder, SlotRecord, build_slot};
 pub use standing::StandingTag;
@@ -65,6 +65,7 @@ use crate::migration::Migration;
 use crate::projection::{DrainTarget, ProjectionDrain, ProjectionEntry};
 use crate::protection::SiteAuthConfig;
 use crate::purge::{OrphanSweep, UserPurgeTable};
+use crate::reassignment::OwnerReassignment;
 use crate::retention::RetentionDecl;
 use crate::seed::Seed;
 use crate::state::StateRequirement;
@@ -126,8 +127,8 @@ impl<'a> Contributions<'a> {
         self
     }
 
-    pub fn owner_reassignment<F: Factory<DynOwnerReassignment>>(&mut self, f: F) -> &mut Self {
-        self.sink.owner_reassignments.push(Box::new(f));
+    pub fn owner_reassignment(&mut self, r: OwnerReassignment) -> &mut Self {
+        self.sink.owner_reassignments.push(r);
         self
     }
 

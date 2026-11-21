@@ -1,7 +1,8 @@
 //! `admin users merge` command merging anonymous rows into an identified user.
 //!
 //! The merge runs the owner reassignments the admitted composition's members
-//! contribute, each admitted over its owner's own tables.
+//! declare, each admitted over its owner's own tables and run with the rest of
+//! the merge in one transaction.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,10 +11,7 @@ use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use std::sync::Arc;
-use systemprompt_database::DbPool;
 use systemprompt_extension::AdmittedOwnerReassignments;
-use systemprompt_runtime::Kernel;
-use systemprompt_traits::{BackgroundTasks, DatabaseHandle, Dependencies};
 use systemprompt_users::{UserAdminService, UserRepository, UserService};
 
 use super::types::UserMergeOutput;
@@ -31,22 +29,6 @@ pub struct MergeArgs {
     pub yes: bool,
 }
 
-fn admitted_reassignments(
-    host: &dyn KernelHost,
-    pool: &DbPool,
-) -> Result<AdmittedOwnerReassignments> {
-    let handle: Arc<dyn DatabaseHandle> = Arc::<systemprompt_database::Database>::clone(pool);
-    let kernel = Kernel::new(
-        handle,
-        BackgroundTasks::new(),
-        Dependencies::new().with(Arc::clone(pool)),
-    );
-    Ok(AdmittedOwnerReassignments::of(
-        host.admitted()?.built(),
-        &kernel.resolved(),
-    )?)
-}
-
 pub(super) async fn execute(args: MergeArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     if !args.yes {
         return Err(anyhow!(
@@ -57,7 +39,9 @@ pub(super) async fn execute(args: MergeArgs, host: &dyn KernelHost) -> Result<Co
 
     let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
     let user_service = UserService::new(Arc::new(UserRepository::new(&pool)))
-        .with_owner_reassignments(Arc::new(admitted_reassignments(host, &pool)?));
+        .with_owner_reassignments(Arc::new(AdmittedOwnerReassignments::of(
+            host.admitted()?.built(),
+        )?));
     let admin_service = UserAdminService::new(user_service.clone());
 
     let source_user = admin_service

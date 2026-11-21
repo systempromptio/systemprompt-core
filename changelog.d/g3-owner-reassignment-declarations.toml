@@ -1,0 +1,64 @@
+[root]
+section = "Breaking"
+area = "Security"
+text = "An owner reassignment is a declaration, not code: a member declares each user-keyed column an account merge moves as `OwnerReassignment { table, column, action }` (`ReassignAction::Update { touch, keep_target_on }`, `Delete { predicate }` or `ReplaceInArray`). Admission refuses a declaration over a table the member's schema does not create or naming anything that is not a plain identifier, and the merge renders each admitted declaration into its statement from quoted identifiers, so the table a declaration names is the table its statement touches. Every reassignment of a merge runs with the users-owned half (sessions, the governance record, the source delete) in one transaction, so a failure part-way leaves no half-merged account. Migrate a factory-built reassignment to one declaration per column."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`Contributions::owner_reassignment` takes an `OwnerReassignment` declaration; `ContributionSink::owner_reassignments` returns `&[OwnerReassignment]`. `AdmittedOwnerReassignments::of` takes only the `BuiltState`; `OwnedReassignment.reassignment` is the declaration; `ReassignmentClaim.reassignments` is `&[OwnerReassignment]`. `ReassignmentAdmissionError` loses `InvalidColumn`, `NoColumns` and `Factory` and gains `InvalidIdentifier` and `EmptyPredicate`. `OwnerReassignmentFactory` is removed. Added `OwnerReassignment` and `ReassignAction` (also in the prelude)."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Breaking"
+text = "`OwnerReassignment`, `DynOwnerReassignment`, `ReassignedColumn` and `ReassignedRows` are removed; `is_plain_identifier` remains."
+
+[[crate]]
+name = "systemprompt-database"
+section = "Breaking"
+text = "The `owner_reassignment!` macro is removed."
+
+[[crate]]
+name = "systemprompt-users"
+section = "Breaking"
+text = "`UserRepository::complete_merge` is replaced by `UserRepository::merge(source, target, &AdmittedOwnerReassignments) -> MergeResult`, which runs every reassignment and the users-owned half in one transaction. `UserError::OwnerReassignment` carries `owner: ExtensionId`, `table`, `column` and a `sqlx::Error` source in place of `domain` and a `RepositoryError`."
+
+[[crate]]
+name = "systemprompt-ai"
+section = "Breaking"
+text = "`AiOwnerReassignment` is removed; the member declares its reassignments."
+
+[[crate]]
+name = "systemprompt-agent"
+section = "Breaking"
+text = "`AgentOwnerReassignment` is removed; the member declares its reassignments."
+
+[[crate]]
+name = "systemprompt-mcp"
+section = "Breaking"
+text = "`McpOwnerReassignment` is removed; the member declares its reassignments."
+
+[[crate]]
+name = "systemprompt-analytics"
+section = "Breaking"
+text = "`AnalyticsOwnerReassignment` is removed; the member declares its reassignments."
+
+[[crate]]
+name = "systemprompt-content"
+section = "Breaking"
+text = "`ContentOwnerReassignment` is removed; the member declares its reassignments."
+
+[[crate]]
+name = "systemprompt-files"
+section = "Breaking"
+text = "`FilesOwnerReassignment` is removed; the member declares its reassignments."
+
+[[crate]]
+name = "systemprompt-logging"
+section = "Breaking"
+text = "`LoggingOwnerReassignment` is removed; the member declares its reassignments."
+
+[[crate]]
+name = "systemprompt-events"
+section = "Breaking"
+text = "`EventsOwnerReassignment` is removed; the member declares its reassignments."

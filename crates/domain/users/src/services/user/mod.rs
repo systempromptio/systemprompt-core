@@ -6,15 +6,14 @@
 //! updates, bulk operations and statistics.
 //!
 //! Account merging spans every domain that keys rows on a user. The service
-//! runs each admitted
-//! [`OwnerReassignment`](systemprompt_traits::OwnerReassignment) of the
-//! composition ([`AdmittedOwnerReassignments`]) — one per owning member,
-//! over its own tables, each in its own transaction and re-runnable — and
-//! only then the users-owned step that moves sessions, records the merge and
-//! deletes the source. A failed reassignment stops the merge with the source
-//! still present, so a rerun completes it. A service built without
-//! reassignments refuses to merge rather than delete a user whose rows it
-//! cannot move.
+//! hands the composition's admitted owner reassignments
+//! ([`AdmittedOwnerReassignments`]) — declarations, each over its owning
+//! member's own table — to the repository, which renders and runs every one
+//! and then the users-owned step that moves sessions, records the merge and
+//! deletes the source, all in one transaction. A failure rolls the whole merge
+//! back with the source still present, so a rerun completes it. A service
+//! built without reassignments refuses to merge rather than delete a user
+//! whose rows it cannot move.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -43,11 +42,11 @@ pub struct UserService {
 
 impl fmt::Debug for UserService {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let domains: Vec<&str> = self
+        let domains: Vec<String> = self
             .owner_reassignments
             .entries()
             .iter()
-            .map(|owned| owned.reassignment.domain())
+            .map(|owned| format!("{}:{}", owned.owner, owned.reassignment.table))
             .collect();
         f.debug_struct("UserService")
             .field("repository", &self.repository)
