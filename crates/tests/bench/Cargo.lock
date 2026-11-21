@@ -6957,7 +6957,6 @@ dependencies = [
  "serde",
  "serde_json",
  "systemprompt-analytics",
- "systemprompt-config",
  "systemprompt-database",
  "systemprompt-extension",
  "systemprompt-identifiers",
@@ -7216,6 +7215,7 @@ name = "systemprompt-cloud-entry"
 version = "0.84.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "chrono",
  "clap",
  "hex",
@@ -7318,6 +7318,7 @@ dependencies = [
  "schemars 1.2.3",
  "serde",
  "serde_yaml_ng",
+ "systemprompt-config",
  "systemprompt-content",
  "systemprompt-database",
  "systemprompt-extension",
@@ -7362,13 +7363,13 @@ dependencies = [
 name = "systemprompt-events"
 version = "0.84.0"
 dependencies = [
- "async-trait",
  "axum",
  "chrono",
  "metrics",
  "serde",
  "serde_json",
  "sqlx",
+ "systemprompt-database",
  "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-models",
@@ -7713,16 +7714,23 @@ dependencies = [
 name = "systemprompt-marketplace-entry"
 version = "0.84.0"
 dependencies = [
+ "anyhow",
  "axum",
+ "clap",
+ "schemars 1.2.3",
+ "serde",
  "serde_json",
+ "serde_yaml_ng",
  "systemprompt-config",
  "systemprompt-extension",
  "systemprompt-identifiers",
+ "systemprompt-loader",
  "systemprompt-manifest",
  "systemprompt-marketplace",
  "systemprompt-models",
  "thiserror 2.0.21",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -7768,11 +7776,26 @@ dependencies = [
 name = "systemprompt-mcp-entry"
 version = "0.84.0"
 dependencies = [
+ "anyhow",
  "axum",
+ "chrono",
+ "clap",
+ "rmcp",
+ "schemars 1.2.3",
  "serde",
+ "serde_json",
+ "systemprompt-config",
+ "systemprompt-database",
  "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-logging",
+ "systemprompt-manifest",
+ "systemprompt-mcp",
  "systemprompt-models",
  "systemprompt-traits",
+ "thiserror 2.0.21",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -7792,7 +7815,6 @@ dependencies = [
  "systemprompt-loader",
  "systemprompt-logging",
  "systemprompt-manifest",
- "systemprompt-marketplace",
  "systemprompt-mcp",
  "systemprompt-models",
  "systemprompt-oauth",
@@ -7997,7 +8019,6 @@ dependencies = [
  "systemprompt-loader",
  "systemprompt-logging",
  "systemprompt-manifest",
- "systemprompt-marketplace",
  "systemprompt-mcp",
  "systemprompt-models",
  "systemprompt-notifications",
@@ -8030,7 +8051,6 @@ dependencies = [
  "sha2 0.11.1",
  "sqlx",
  "systemprompt-client",
- "systemprompt-config",
  "systemprompt-database",
  "systemprompt-events",
  "systemprompt-extension",
@@ -8375,7 +8395,6 @@ dependencies = [
  "systemprompt-files",
  "systemprompt-identifiers",
  "systemprompt-logging",
- "systemprompt-mcp-entry",
  "systemprompt-mcp-host",
  "systemprompt-models",
  "systemprompt-provider-contracts",

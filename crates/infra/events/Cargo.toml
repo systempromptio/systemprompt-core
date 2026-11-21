@@ -39,7 +39,6 @@ sqlx = { workspace = true }
 chrono = { workspace = true }
 
 # systemprompt.io dependencies
-systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true, features = ["router"] }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
 systemprompt-models = { workspace = true }
