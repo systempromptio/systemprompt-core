@@ -5,12 +5,12 @@
 ### Breaking
 
 - `routes::oauth::discovery::WellKnownResponse` gains `ui_session_supported` and `ui_session`. Migrate a struct literal by adding `ui_session_supported: true, ui_session: UiSessionDiscovery::from_config(&config.ui_session)`.
-- `routes::oauth::discovery::UiSessionDiscovery::current()` is replaced by `UiSessionDiscovery::from_config(&UiSessionConfig)`. Migrate by passing `&ctx.config().ui_session`.
 - `routes::oauth::authenticated_router()` no longer carries `/revoke`; it is `routes::oauth::revocation_router()`. Migrate a hand-assembled router with `.merge(revocation_router())`.
 - `GET` and `POST /oauth/consent` and `routes::oauth::endpoints::consent` are removed. Migrate by sending the person to `/oauth/authorize`.
 - `POST /oauth/authorize` requires the server's own `Origin`; `AuthorizeRequest` loses `username` and `password` and gains `consent_token`; `user_consent=allow` needs the browser session and the consent page's token instead of answering `unsupported_grant_type`. Migrate a struct literal by dropping the two fields and setting `consent_token: None`.
+- `routes::oauth::endpoints::authorize::handle_authorize_post` (also `endpoints::handle_authorize_post`) takes `State<OAuthState>`, `Extension<Arc<Config>>`, `RequestBaseUrl`, `HeaderMap` and the form; it no longer takes `Extension<RequestContext>` or `OAuthRepo`. Migrate a hand-mounted route by serving it where the `Config` extension is present; `routes::oauth::router()` already does.
 - `AuthorizeQuery` gains `login_hint` and `reauth_since` (both `Option<String>`). Migrate a struct literal by setting both to `None`.
-- `login_page_redirect_target(login_page_url, params, return_path, now)` takes the request's path and query and the current Unix time, lives in `authorize::login_redirect`, and no longer special-cases `prompt=passkey`. Migrate by passing `OriginalUri`'s path and query and `Utc::now().timestamp()`.
+- `login_page_redirect_target(login_page_url, params, return_path, reauth_marker)` takes the request's path and query and the signed re-authentication marker, lives in `authorize::login_redirect`, and no longer special-cases `prompt=passkey`. Migrate by passing `OriginalUri`'s path and query and the marker `OAuthRepository::reauth_marker` mints for `reauth_binding(params)`.
 - `authorize::response_builder::is_user_consent_granted` is removed. Migrate by comparing `user_consent` with `Some("allow")`.
 - `OAuthErrorCode` gains `LoginRequired`, `ConsentRequired`, `InteractionRequired` and `AccountSelectionRequired`. Migrate an exhaustive match by adding the arms.
 - `WellKnownResponse` gains `prompt_values_supported`. Migrate a struct literal by setting it.
