@@ -8,6 +8,8 @@ mod common;
 #[cfg(test)]
 mod mcp_call_client;
 #[cfg(test)]
+mod mcp_call_credential;
+#[cfg(test)]
 mod mcp_internal_status_lifecycle;
 #[cfg(test)]
 mod mcp_list_summaries;

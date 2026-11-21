@@ -1,22 +1,22 @@
 //! `plugins mcp tools` command collecting tools across running servers.
 //!
-//! The caller's session is resolved only when a queried server requires
-//! OAuth; the command never starts a server.
+//! The caller's session is resolved only when a queried server is hosted by
+//! the platform, and is presented only to those servers; an external server
+//! never receives it, and one that requires a credential is refused by name.
+//! The command never starts a server.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
-use systemprompt_extension::cli::{CommandHost, CommandOutput};
-use systemprompt_identifiers::{McpServerId, SessionToken};
-use systemprompt_manifest::ServicesConfig;
+use systemprompt_extension::cli::{CallerSession, CommandHost, CommandOutput};
 use systemprompt_mcp::McpServerConfig;
 
-use super::call_client::{direct_url, list_tools};
+use super::call_client::{McpTarget, ServerCredential, list_tools, server_credential};
+use super::observer;
 use super::tools_schema::schema_view;
 use super::types::{McpToolEntry, McpToolsOutput, McpToolsSummary};
-use super::{observer, services_config};
 
 #[derive(Debug, Args)]
 pub struct ToolsArgs {
@@ -34,10 +34,6 @@ pub struct ToolsArgs {
 }
 
 pub(super) async fn execute(args: ToolsArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
-    let services_config = services_config(host)
-        .await
-        .context("Failed to load services configuration")?;
-
     let running_servers = observer(host)
         .await?
         .running_servers()
@@ -45,18 +41,27 @@ pub(super) async fn execute(args: ToolsArgs, host: &dyn CommandHost) -> Result<C
         .context("Failed to get running servers")?;
 
     let servers_to_query = select_servers(&running_servers, args.server.as_ref())?;
+    if args.server.is_some() {
+        for server in &servers_to_query {
+            if let Err(refused) = server_credential(server) {
+                return Err(refused.into());
+            }
+        }
+    }
 
-    let token = if servers_to_query
-        .iter()
-        .any(|server| requires_auth(&services_config, server))
-    {
-        Some(host.caller_session().await?.token().clone())
+    let session = if servers_to_query.iter().any(|server| {
+        matches!(
+            server_credential(server),
+            Ok(ServerCredential::CallerSession)
+        )
+    }) {
+        Some(host.caller_session().await?)
     } else {
         None
     };
 
     let (mut all_tools, servers_queried) =
-        collect_tools(&servers_to_query, &services_config, token.as_ref(), &args).await;
+        collect_tools(&servers_to_query, session.as_ref(), &args).await;
 
     all_tools.sort_by(|a, b| (&a.server, &a.name).cmp(&(&b.server, &b.name)));
 
@@ -82,13 +87,6 @@ pub(super) async fn execute(args: ToolsArgs, host: &dyn CommandHost) -> Result<C
     .with_title("MCP Tools"))
 }
 
-fn requires_auth(services_config: &ServicesConfig, server: &McpServerConfig) -> bool {
-    services_config
-        .mcp_servers
-        .get(&server.name)
-        .is_some_and(|c| c.oauth.required)
-}
-
 fn select_servers<'a>(
     running_servers: &'a [McpServerConfig],
     filter: Option<&String>,
@@ -111,18 +109,15 @@ fn select_servers<'a>(
 
 async fn collect_tools(
     servers: &[&McpServerConfig],
-    services_config: &ServicesConfig,
-    token: Option<&SessionToken>,
+    session: Option<&CallerSession>,
     args: &ToolsArgs,
 ) -> (Vec<McpToolEntry>, usize) {
     let mut all_tools = Vec::new();
     let mut servers_queried = 0;
 
     for server in servers {
-        let server_token = token.filter(|_| requires_auth(services_config, server));
-        let server_id = McpServerId::new(server.name.clone());
-        let tools_result = match direct_url(server) {
-            Ok(url) => list_tools(&server_id, &url, server_token, args.timeout).await,
+        let tools_result = match McpTarget::resolve(server, session) {
+            Ok(target) => list_tools(&target, args.timeout).await,
             Err(e) => Err(e),
         };
 
