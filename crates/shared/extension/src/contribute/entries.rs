@@ -34,6 +34,7 @@ pub enum ProvidePhase {
 /// and the monomorphised insert into the extension state.
 pub struct ProvideEntry {
     phase: ProvidePhase,
+    sealed: bool,
     type_id: TypeId,
     type_name: &'static str,
     compute: ComputeFn,
@@ -46,13 +47,19 @@ impl ProvideEntry {
         self.phase
     }
 
-    pub(crate) fn new<T, F>(phase: ProvidePhase, f: F) -> Self
+    #[must_use]
+    pub const fn is_sealed(&self) -> bool {
+        self.sealed
+    }
+
+    pub(crate) fn new<T, F>(phase: ProvidePhase, sealed: bool, f: F) -> Self
     where
         T: Clone + Send + Sync + 'static,
         F: Fn(&Resolved<'_>) -> Result<T, ProvideError> + Send + Sync + 'static,
     {
         Self {
             phase,
+            sealed,
             type_id: TypeId::of::<T>(),
             type_name: type_name::<T>(),
             compute: Box::new(move |r| {
@@ -61,7 +68,11 @@ impl ProvideEntry {
                     erased
                 })
             }),
-            insert: insert_provided::<T>,
+            insert: if sealed {
+                insert_sealed::<T>
+            } else {
+                insert_provided::<T>
+            },
         }
     }
 
@@ -121,6 +132,16 @@ fn insert_provided<T: Send + Sync + 'static>(
     value
         .downcast::<T>()
         .map_or(Ok(()), |typed| state.provide(provider, typed))
+}
+
+fn insert_sealed<T: Send + Sync + 'static>(
+    state: &mut Dependencies,
+    provider: &ExtensionId,
+    value: ErasedValue,
+) -> Result<(), DuplicateDependency> {
+    value
+        .downcast::<T>()
+        .map_or(Ok(()), |typed| state.provide_sealed(provider, typed))
 }
 
 /// A declared dependency on another member of the same capability, by type.

@@ -1,17 +1,12 @@
 //! [`Dependencies`]: the one type-keyed map of host handles and
 //! extension-provided state.
 //!
-//! This crate sits below every crate that owns a concrete handle — the
-//! database pool (`systemprompt-database`), the runtime `AppContext`
-//! (`systemprompt-runtime`), `AppPaths` (`systemprompt-config`) and the
-//! content configuration (`systemprompt-models`) — so the contexts cannot
-//! name those types. Each value is keyed by its concrete type, and a reader
-//! asks for exactly that type with [`Dependencies::get`] (a borrow) or
-//! [`Dependencies::get_arc`] (shared ownership). A type that is not present
-//! is a [`MissingDependency`] naming the requested type; it is never a panic
-//! or a silent `None`. A reader for which absence is a normal state (an
-//! optional collaborator such as a configured `GeoIP` database) asks with
-//! [`Dependencies::find`], whose `Option` states that in the signature.
+//! This crate sits below every crate that owns a concrete handle, so the
+//! contexts cannot name those types. Each value is keyed by its concrete
+//! type and read with [`Dependencies::get`] (a borrow) or
+//! [`Dependencies::get_arc`] (shared ownership); an absent type is a
+//! [`MissingDependency`] naming it, never a panic or a silent `None`. A
+//! reader for which absence is normal asks with [`Dependencies::find`].
 //!
 //! Every entry records its [`DependencyProvider`]. The host seeds the map
 //! with [`Dependencies::insert`] (a later insert of the same type replaces
@@ -23,25 +18,20 @@
 //! dependency order.
 //!
 //! The host can also [`Dependencies::reserve`] a type it owns but holds no
-//! value for (a service that is absent because it is not configured): a
-//! reserved type reads as missing, does not satisfy a requirement, and an
+//! value for: it reads as missing, does not satisfy a requirement, and an
 //! extension's `provide` of it is refused as a duplicate of the host's.
 //!
-//! The host can also [`Dependencies::insert_sealed`] a seed that carries
-//! secrets or boot-only data. A sealed entry is read like any other through
-//! this map; [`Dependencies::is_sealed`] lets the one reader that must
-//! withhold it refuse it with the same [`MissingDependency`] an absent type
-//! gets: the resolver a member's command runs against checks it per read,
-//! and [`Dependencies::withholding_sealed`] returns a copy in which every
-//! sealed entry is removed and its type reserved, so neither a read nor a
-//! later `provide` reaches it. A job, runner-service and config-plane
-//! context is built only from such a copy. Whether a type reaches member
-//! runtime code is decided here and nowhere else: a value carrying signing
-//! material, secrets or the profile is sealed in the kernel state, and a
-//! member that needs a capability derived from one builds a narrow handle
-//! from it in its `provide` fn or factory. [`Dependencies::sealed_types`]
-//! enumerates the sealed set, so a check over every context sees a type the
-//! moment it is sealed; [`Dependencies::host_types`] names the host's seeds.
+//! A sealed entry ([`Dependencies::insert_sealed`] for a host seed carrying
+//! secrets or boot-only data, [`Dependencies::provide_sealed`] for a member
+//! value that acts with standing authority) is read like any other through
+//! this map. [`Dependencies::is_sealed`] lets a resolver refuse it per read
+//! with the same [`MissingDependency`] an absent type gets, and
+//! [`Dependencies::withholding_sealed`] returns a copy with every sealed
+//! entry removed and its type reserved; every job, runner-service and
+//! config-plane context is built only from such a copy. A member that needs a
+//! capability derived from a sealed value builds a narrow handle from it in
+//! its `provide` fn or factory. [`Dependencies::sealed_types`] enumerates
+//! the sealed set; [`Dependencies::host_types`] names the host's seeds.
 //!
 //! The map is copy-on-write: a clone shares every entry, and inserting into a
 //! clone never changes the original, so the state the host owns after boot
@@ -208,6 +198,16 @@ impl Dependencies {
                 provider: DependencyProvider::Extension(provider.clone()),
             },
         );
+        Ok(())
+    }
+
+    pub fn provide_sealed<T: Any + Send + Sync>(
+        &mut self,
+        provider: &ExtensionId,
+        value: Arc<T>,
+    ) -> Result<(), DuplicateDependency> {
+        self.provide(provider, value)?;
+        Arc::make_mut(&mut self.sealed).insert(TypeId::of::<T>());
         Ok(())
     }
 

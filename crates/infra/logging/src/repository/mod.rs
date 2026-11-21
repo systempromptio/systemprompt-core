@@ -19,10 +19,8 @@ use crate::models::{LogEntry, LogFilter, LoggingError};
 
 pub mod analytics;
 mod operations;
-mod ownership;
 
 pub use analytics::{AnalyticsEvent, AnalyticsRepository};
-pub use ownership::LoggingOwnerReassignment;
 
 #[derive(Clone, Debug)]
 pub struct LoggingRepository {

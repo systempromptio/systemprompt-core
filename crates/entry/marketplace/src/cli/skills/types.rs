@@ -2,7 +2,8 @@
 //!
 //! Defines the list/detail response shapes and [`parse_skill_from_config`],
 //! which loads a skill's YAML config plus its frontmatter-stripped instruction
-//! body from disk.
+//! body from disk. The instruction file a config names is read only when it
+//! resolves inside the skill's own directory.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,6 +13,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use systemprompt_manifest::{DiskSkillConfig, strip_frontmatter};
+use systemprompt_models::path_confine::confine_within;
 
 pub use systemprompt_manifest::services::{SkillDetail, SkillSummary};
 
@@ -39,6 +41,7 @@ pub fn parse_skill_from_config(config_path: &Path, skill_dir: &Path) -> Result<P
     let content_path = skill_dir.join(config.content_file());
 
     let instructions = if content_path.exists() {
+        let content_path = confine_within(skill_dir, &content_path)?;
         let raw = std::fs::read_to_string(&content_path)
             .with_context(|| format!("Failed to read {}", content_path.display()))?;
         strip_frontmatter(&raw)

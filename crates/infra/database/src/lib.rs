@@ -71,8 +71,6 @@ pub mod repository;
 pub mod resilience;
 pub mod services;
 
-#[doc(hidden)]
-pub use async_trait::async_trait as __owner_reassignment_async_trait;
 pub use extension::DatabaseExtension;
 pub use quoting::quote_identifier;
 

@@ -9,12 +9,11 @@ use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_content::{ContentHooks, ContentRepository};
 use systemprompt_database::DbPool;
-use systemprompt_manifest::Config;
 use systemprompt_provider_contracts::{
     Job, JobContext, JobResult, JobScope, ProviderError, ProviderResult,
 };
 
-use crate::prerender::{PrerenderEnv, prerender_content};
+use crate::prerender::{PrerenderEnv, PrerenderSettings, prerender_content};
 
 #[derive(Debug, Clone, Copy)]
 pub struct ContentPrerenderJob;
@@ -41,7 +40,7 @@ impl Job for ContentPrerenderJob {
         let start_time = std::time::Instant::now();
         let db_pool = Arc::clone(ctx.get::<DbPool>()?);
         let paths = ctx.get::<Arc<AppPaths>>()?.as_ref();
-        let config = ctx.get::<Arc<Config>>()?.as_ref();
+        let settings = ctx.get::<PrerenderSettings>()?;
         let hooks = Arc::clone(ctx.get::<Arc<ContentHooks>>()?);
 
         tracing::info!("Job started");
@@ -50,7 +49,7 @@ impl Job for ContentPrerenderJob {
             db_pool,
             content_repo,
             PrerenderEnv {
-                config,
+                settings,
                 paths,
                 hooks: &hooks,
                 state: ctx.dependencies(),

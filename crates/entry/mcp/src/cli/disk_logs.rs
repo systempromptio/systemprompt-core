@@ -2,6 +2,8 @@
 //!
 //! Log files follow the `<prefix><name>.log` convention; lookup also accepts
 //! a bare `<name>.log` path and a substring match over the discovered set.
+//! The server name is accepted only as a single path segment, so a lookup
+//! never leaves the logs directory.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,6 +12,7 @@ use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, anyhow};
+use systemprompt_models::path_confine::single_segment;
 
 pub(super) fn list_log_files(logs_dir: &Path, prefix: &str) -> Result<Vec<String>> {
     let mut files = std::fs::read_dir(logs_dir)
@@ -34,6 +37,7 @@ pub(super) fn list_log_files(logs_dir: &Path, prefix: &str) -> Result<Vec<String
 }
 
 pub(super) fn find_log_file(logs_dir: &Path, prefix: &str, name: &str) -> Result<PathBuf> {
+    let name = single_segment("MCP server name", name)?;
     let exact_path = logs_dir.join(format!("{name}.log"));
     if exact_path.exists() {
         return Ok(exact_path);

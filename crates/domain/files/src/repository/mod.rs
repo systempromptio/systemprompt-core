@@ -10,7 +10,5 @@
 mod ai;
 mod content;
 mod file;
-mod ownership;
 
 pub use file::{FileRepository, FileStats, InsertFileRequest};
-pub use ownership::FilesOwnerReassignment;

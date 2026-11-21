@@ -210,7 +210,7 @@ Gateway routes (`c.gateway_route(GatewayRouteDecl)`, built with `RouteSet::gatew
 
 `c.job(job)` contributes a scheduled job (a `Job` implementation with a `name` and a cron `schedule`). The scheduler runs only the jobs of admitted members, read from `AdmittedSchedule`. Retention declarations (`c.retention`), job-run scopes (`c.job_run_scope`) and projection drains (`c.projection`) are admitted the same way.
 
-A job's `JobContext` reads the kernel's open seeds and provided values with `ctx.get::<T>()`; sealed seeds (configuration, secret store, JWT signing keys, system admin, services root, event router) are withheld, and no job, runner service or config plane can read the secrets document or the profile. A job that needs a secret- or key-derived capability resolves a narrow handle its member builds in a provide fn (or, for a runner service, in its factory). `Job::configured` receives no profile: an install job that needs a deployment fact reads its member's provided value in `execute`. Job names are unique across the composition: a job named like another member's job, a scheduler job included, is refused (`CompositionError::DuplicateJob`). See [Runtime seams](#runtime-seams).
+A job's `JobContext` reads the kernel's open seeds and provided values with `ctx.get::<T>()`; sealed seeds (configuration, secret store, JWT signing keys, system admin, services root, event router) are withheld, and no job, runner service or config plane can read the secrets document or the profile. A job that needs a secret- or key-derived capability, or a configuration fact, resolves a narrow handle its member builds in a provide fn (or, for a runner service, in its factory). A member value that acts with standing authority is provided sealed (`Contributions::provide_sealed`, `provide_sealed_after_governance`) and is withheld exactly like a sealed seed: from every job, runner-service and config-plane context, every member command and the route state of every member but its provider; the kernel and provide-phase code read it. The `managed_resources` member provides `DynInventoryPublisher` (publishes as the system admin) and `DynManagedSkillResolver` (resolves for a caller-named owner) sealed. `Job::configured` receives no profile: an install job that needs a deployment fact reads its member's provided value in `execute`. Job names are unique across the composition: a job named like another member's job, a scheduler job included, is refused (`CompositionError::DuplicateJob`). See [Runtime seams](#runtime-seams).
 
 ### Commands
 
@@ -221,7 +221,7 @@ A member command:
 - needs a profile, unless it declares `DbUrlRouting::Direct`: on a bare `--database-url` run (no profile) a `Direct` command runs over every linked member with none disabled, whatever its standing, and any other member command is refused (`ProfileRequired`). A cloud profile that reaches its database directly (`external_db_access`) is still a profiled run: admission is against that profile and a disabled member's command is refused (`CommandDisabled`);
 - reads state through `host.resolved().await`, which withholds the kernel's sealed values (the configuration, the secret store, the JWT signing keys, the system admin, the active services root, the services bundle sources, the event router and, in the CLI, the loaded profile) and holds no secrets sources, environment overrides, boot context or application context. A value a member's own provide fn builds from a sealed value is not withheld, so an install that wraps one hands it to its commands;
 - may request kernel grants with `CommandDecl::requesting` only on a reserved CLI path its core owner holds, and only the grants that path's row lists (`admin mcp`: `child-host`; `analytics`: `local-export`, `skip-validation`; `cloud`: `cloud-operator`, `boot-profile`, `config-reconcile`, `target-admission`; `core marketplace`, `core plugins`, `core skills`: `services-tree`; `plugins mcp`: `caller-session`; `core files`: none). An install member holds no reserved CLI path, so a grant request by an install is refused (`CompositionError::GrantNotConferred`), as is a command at a reserved path (`ReservedCliPath`) or a path declared twice;
-- reaches kernel-held material only through a grant on its path's row: `host.profile()` and `host.boot_config(path)` need `boot-profile`, `host.admitted_views(path)` needs `target-admission`, `host.export_dir()` (the profile's local exports directory) needs `local-export`, `host.services_tree()` (the active services root plus the published API URL and site GitHub link, read without a database) needs `services-tree`, and `host.caller_session()` (the CLI caller's own session token, never one minted for another subject) needs `caller-session`. Every other caller is refused.
+- reaches kernel-held material only through a grant on its path's row: `host.profile()` and `host.boot_config(path)` need `boot-profile`, `host.admitted_views(path)` needs `target-admission`, `host.export_dir()` (the profile's local exports directory) needs `local-export`, `host.services_tree()` (the active services root plus the published API URL and site GitHub link, read without a database) needs `services-tree`, and `host.caller_session()` (the CLI caller's own session: its token and the caller's own session, user and context ids, never one minted for another subject; a command presents it only to an endpoint the platform hosts) needs `caller-session`. Every other caller is refused.
 
 ### User purge of the member's own tables
 
@@ -242,19 +242,26 @@ A `PurgePredicate` (`{ column, any_of }`) narrows a table to rows whose column h
 
 ### Owner reassignment of the member's own tables
 
-A member whose tables key rows on a user contributes how an account merge moves them, as an `OwnerReassignment` built by a factory:
+A member whose tables key rows on a user declares how an account merge moves them, one `OwnerReassignment` per user-keyed column. A declaration is data, not code:
 
 ```rust
-c.owner_reassignment(|r: &Resolved<'_>| -> Result<DynOwnerReassignment, FactoryError> {
-    Ok(Arc::new(DemoOwnerReassignment::new(&r.get::<DbPool>()?)))
+c.owner_reassignment(OwnerReassignment {
+    table: "demo_items",
+    column: "user_id",
+    action: ReassignAction::UPDATE,
+})
+.owner_reassignment(OwnerReassignment {
+    table: "demo_tokens",
+    column: "user_id",
+    action: ReassignAction::DELETE,
 });
 ```
 
-`systemprompt_database::owner_reassignment!` declares the type from per-column statements (`update "demo_items" (demo_items.user_id) => "UPDATE …"`); its `columns()` names every `table.column` it rewrites. The kernel builds each factory after the early provide fns run and admits the reassignment only when every column is a plain identifier on a table the member's own schema creates; anything else is refused when the kernel resolves (`KernelError::Reassignment`). An account merge runs the admitted reassignments in composition order.
+`ReassignAction::Update { touch, keep_target_on }` rewrites the column to the target user; `touch` names a timestamp column set to the current time, and `keep_target_on` names the columns that, with the user column, identify a row, so a source row whose counterpart the target already holds is left in place instead of colliding. `ReassignAction::Delete { predicate }` deletes the source user's rows (credentials or counters minted for that user), optionally narrowed by a `PurgePredicate`. `ReassignAction::ReplaceInArray` replaces the source id with the target id inside an array column. The kernel admits a declaration only when its table is one the member's own schema creates and every name it carries is a plain identifier; anything else is refused when the kernel resolves (`KernelError::Reassignment`). An account merge renders each admitted declaration into its statement from quoted identifiers, with the user ids bound, and runs all of them, in composition order, with the users-owned half of the merge in one transaction: the table a declaration names is the table its statement touches, and a failure anywhere leaves the merge undone.
 
 ### `cloud doctor` checks
 
-`c.doctor_check(Arc::new(check))` contributes a `DoctorCheck` that `cloud doctor` runs for the checked profile's admitted composition. A check receives a `DoctorContext`: whether a named secret is present (never its value) and the handles the doctor opened (a database pool when the profile's database is reachable), and returns a `DoctorOutcome` the doctor reports under the check's name.
+`c.doctor_check(Arc::new(check))` contributes a `DoctorCheck` that `cloud doctor` runs for the checked profile's admitted composition. A check receives a `DoctorContext`: whether a named secret is present (never its value) and `DoctorProbes`, the read-only facts the doctor answers itself with a fixed read in a read-only database session (today the registered Git sources that name a credential label). A check receives no database pool, connection or handle map; a fact a new check needs is added as a probe method in `systemprompt-provider-contracts`. A probe whose database is unreachable answers `DoctorProbeError::Unreachable`, which a check reports as a warning. The checks of core and install members all run, against the same context, so an install's check sees nothing a core check does not. It returns a `DoctorOutcome` the doctor reports under the check's name.
 
 ### Configuration
 

@@ -11,6 +11,7 @@ use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
 use super::types::{PluginComponentRef, PluginDetailOutput};
 use systemprompt_identifiers::PluginId;
+use systemprompt_models::path_confine::confine_within;
 
 #[derive(Debug, Clone, Args)]
 pub struct ShowArgs {
@@ -29,11 +30,13 @@ pub fn execute_with_path(args: &ShowArgs, plugins_path: &Path) -> Result<Command
     if !plugin_dir.exists() {
         return Err(anyhow!("Plugin '{}' not found", args.id));
     }
+    let plugin_dir = confine_within(plugins_path, &plugin_dir)?;
 
     let config_path = plugin_dir.join("config.yaml");
     if !config_path.exists() {
         return Err(anyhow!("Plugin '{}' has no config.yaml file", args.id));
     }
+    let config_path = confine_within(&plugin_dir, &config_path)?;
 
     let plugin_file = super::read_plugin_config(&config_path)?;
     let plugin = &plugin_file.plugin;

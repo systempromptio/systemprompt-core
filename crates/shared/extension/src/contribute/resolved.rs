@@ -12,7 +12,10 @@
 //! and a route set; the resolver a member's command runs against
 //! ([`Resolved::__member_command`]) refuses it with the same
 //! `MissingDependency` an absent type gets. A value a member provided from a
-//! sealed seed is the member's own and stays readable.
+//! sealed seed is the member's own and stays readable; a value a member
+//! provided sealed is withheld from that resolver too, and from the state of a
+//! route set another member owns ([`Resolved::__route_scoped`] names the
+//! set's owner).
 //!
 //! A kernel handle is not reachable through a public method. It is read only
 //! through [`Handed<K>`]'s [`FromState`] impl, which consults the resolution's
@@ -29,7 +32,7 @@ use std::any::Any;
 use std::sync::Arc;
 
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_provider_contracts::{Dependencies, MissingDependency};
+use systemprompt_provider_contracts::{Dependencies, DependencyProvider, MissingDependency};
 use systemprompt_traits::{BackgroundTasks, DatabaseHandle};
 
 use super::error::{FactoryError, ProvideError, SlotError};
@@ -47,6 +50,7 @@ pub struct Resolved<'a> {
     state: &'a Dependencies,
     conferred: &'a [HandleId],
     withhold_sealed: bool,
+    viewer: Option<&'a ExtensionId>,
 }
 
 impl<'a> Resolved<'a> {
@@ -57,6 +61,7 @@ impl<'a> Resolved<'a> {
             state,
             conferred: &[],
             withhold_sealed: false,
+            viewer: None,
         }
     }
 
@@ -67,6 +72,7 @@ impl<'a> Resolved<'a> {
             state,
             conferred: &[],
             withhold_sealed: true,
+            viewer: None,
         }
     }
 
@@ -74,6 +80,7 @@ impl<'a> Resolved<'a> {
     pub const fn __route_scoped(
         access: &'a dyn KernelAccess,
         state: &'a Dependencies,
+        owner: &'a ExtensionId,
         conferred: &'a [HandleId],
     ) -> Self {
         Self {
@@ -81,6 +88,7 @@ impl<'a> Resolved<'a> {
             state,
             conferred,
             withhold_sealed: false,
+            viewer: Some(owner),
         }
     }
 }
@@ -91,10 +99,20 @@ impl Resolved<'_> {
     }
 
     pub fn optional<T: Clone + Send + Sync + 'static>(&self) -> Option<T> {
-        if self.withhold_sealed && self.state.is_sealed::<T>() {
+        if self.state.is_sealed::<T>() && self.withholds_sealed::<T>() {
             return None;
         }
         self.state.find::<T>().cloned()
+    }
+
+    fn withholds_sealed<T: Send + Sync + 'static>(&self) -> bool {
+        if self.withhold_sealed {
+            return true;
+        }
+        match (self.viewer, self.state.provider_of::<T>()) {
+            (Some(viewer), Some(DependencyProvider::Extension(provider))) => provider != viewer,
+            _ => false,
+        }
     }
 
     pub fn db(&self) -> Arc<dyn DatabaseHandle> {
@@ -122,6 +140,7 @@ impl std::fmt::Debug for Resolved<'_> {
             .field("state", self.state)
             .field("conferred", &self.conferred)
             .field("withhold_sealed", &self.withhold_sealed)
+            .field("viewer", &self.viewer)
             .finish_non_exhaustive()
     }
 }

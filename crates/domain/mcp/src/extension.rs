@@ -184,11 +184,24 @@ fn contribute_user_data(c: &mut Contributions<'_>) {
         via: "payload_sha256",
         user_column: "user_id",
     });
-    c.owner_reassignment(
-        |r: &Resolved<'_>| -> Result<systemprompt_traits::DynOwnerReassignment, FactoryError> {
-            Ok(Arc::new(crate::repository::McpOwnerReassignment::new(
-                &r.get::<DbPool>()?,
-            )))
-        },
-    );
+    c.owner_reassignment(OwnerReassignment {
+        table: "mcp_tool_executions",
+        column: "user_id",
+        action: ReassignAction::UPDATE,
+    });
+    c.owner_reassignment(OwnerReassignment {
+        table: "mcp_artifacts",
+        column: "user_id",
+        action: ReassignAction::UPDATE,
+    });
+    c.owner_reassignment(OwnerReassignment {
+        table: "mcp_sessions",
+        column: "user_id",
+        action: ReassignAction::UPDATE,
+    });
+    c.owner_reassignment(OwnerReassignment {
+        table: "mcp_external_sessions",
+        column: "user_id",
+        action: ReassignAction::DELETE,
+    });
 }

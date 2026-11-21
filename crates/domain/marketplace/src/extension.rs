@@ -16,13 +16,19 @@
 //! - after governance, the inventory refresher, built from the sealed bundle
 //!   sources, services root and system admin. It is provided as the
 //!   crate-private `MemberRefresher` the `managed_inventory_refresh` job
-//!   (contributed here) resolves, and as the open `DynInventoryPublisher` the
-//!   admin services refresh runs: publish the latest configured skills with the
-//!   caller as the actor, and nothing else;
+//!   (contributed here) resolves, and as the sealed `DynInventoryPublisher`
+//!   the kernel's admin services refresh route runs with the authenticated
+//!   request's user as the actor: publish the latest configured skills, and
+//!   nothing else. It publishes as the system admin, so it is provided sealed:
+//!   no member job, runner service, config plane, command or route state can
+//!   resolve it;
 //! - after governance, the organization skill resolver, bound to the system
 //!   admin's managed inventory: as `Arc<OrganizationSkillResolver>` (the `core
 //!   skills` commands list and resolve the owner's skills through it without
-//!   learning the owner) and as `DynManagedSkillResolver`.
+//!   learning the owner; read-only and bound to one owner, so it stays open)
+//!   and, sealed, as the `DynManagedSkillResolver` the kernel hands the
+//!   agent runtime: it resolves for a caller-named owner, so no member runtime
+//!   context resolves it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -117,7 +123,7 @@ fn provide_state(c: &mut Contributions<'_>) {
                 },
             ))))
         })
-        .provide_after_governance(
+        .provide_sealed_after_governance(
             |r: &Resolved<'_>| -> Result<DynInventoryPublisher, ProvideError> {
                 let MemberRefresher(refresher) = r.get::<MemberRefresher>()?;
                 Ok(refresher)
@@ -131,7 +137,7 @@ fn provide_state(c: &mut Contributions<'_>) {
                 owner.id().clone(),
             )))
         })
-        .provide_after_governance(
+        .provide_sealed_after_governance(
             |r: &Resolved<'_>| -> Result<DynManagedSkillResolver, ProvideError> {
                 let resolver = r.get::<Arc<OrganizationSkillResolver>>()?;
                 Ok(resolver)

@@ -1,10 +1,12 @@
-//! The rule that bounds a member row nested in the kernel's namespace, and the
+//! The rule that bounds a row nested in another owner's namespace, and the
 //! compile-time check of the reserved table against it.
 //!
-//! A member row nested in the kernel's namespace (`/api/v1/mcp/registry`
-//! inside `/api/v1/mcp`) is `Exact` or `Subtree`, never `Prefix`: a prefix
-//! row would hand its holder every path whose text continues it
-//! (`/api/v1/mcp/registryx`), beside routes the kernel serves.
+//! A row nested in a namespace another owner holds (`/api/v1/mcp/registry`
+//! inside the kernel's `/api/v1/mcp`, or one member's row inside another
+//! member's) is `Exact` or `Subtree`, never `Prefix`: a prefix row would
+//! hand its holder every path whose text continues it
+//! (`/api/v1/mcp/registryx`), beside routes the enclosing owner serves. Rows
+//! of one owner nested in each other are that owner's own business.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,7 +15,7 @@ use super::{CoreId, RESERVED_PATHS, ReservedPath, ReservedReach};
 
 const _: () = assert!(
     nested_rows_are_bounded(RESERVED_PATHS),
-    "a member row nested under a kernel row must be Exact or Subtree, never Prefix"
+    "a row nested under another owner's row must be Exact or Subtree, never Prefix"
 );
 
 const fn bytes_start_with(path: &[u8], prefix: &[u8]) -> bool {
@@ -44,12 +46,16 @@ const fn encloses_text(outer: &ReservedPath, inner: &ReservedPath) -> bool {
     }
 }
 
+const fn same_owner(a: CoreId, b: CoreId) -> bool {
+    a as u8 == b as u8
+}
+
 #[must_use]
-pub const fn nested_under_kernel(entry: &ReservedPath, table: &[ReservedPath]) -> bool {
+pub const fn nested_under_another_owner(entry: &ReservedPath, table: &[ReservedPath]) -> bool {
     let mut index = 0;
     while index < table.len() {
         let outer = &table[index];
-        if matches!(outer.owner, CoreId::Kernel) && encloses_text(outer, entry) {
+        if !same_owner(outer.owner, entry.owner) && encloses_text(outer, entry) {
             return true;
         }
         index += 1;
@@ -62,9 +68,7 @@ pub const fn nested_rows_are_bounded(table: &[ReservedPath]) -> bool {
     let mut index = 0;
     while index < table.len() {
         let entry = &table[index];
-        if !matches!(entry.owner, CoreId::Kernel)
-            && matches!(entry.reach, ReservedReach::Prefix)
-            && nested_under_kernel(entry, table)
+        if matches!(entry.reach, ReservedReach::Prefix) && nested_under_another_owner(entry, table)
         {
             return false;
         }

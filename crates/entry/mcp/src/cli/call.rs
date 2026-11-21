@@ -1,7 +1,9 @@
 //! `plugins mcp call` command invoking one tool on a running server.
 //!
-//! The server must be configured and recorded as running; the command
-//! connects with the caller's own session and never starts a server.
+//! The server must be configured and recorded as running; the command never
+//! starts a server. A server the platform hosts is called with the caller's
+//! own session, so the execution is attributed to that caller; an external
+//! server never receives it (see [`super::call_client::server_credential`]).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,12 +13,14 @@ use clap::Args;
 use systemprompt_extension::cli::{
     CommandError, CommandHost, CommandOutput, Prompter, resolve_required,
 };
-use systemprompt_identifiers::{McpServerId, McpToolName, SessionToken};
+use systemprompt_identifiers::{McpServerId, McpToolName};
 use systemprompt_manifest::ServicesConfig;
+use systemprompt_mcp::McpServerConfig;
 use systemprompt_models::ai::tools::CallToolResult;
 
 use super::call_client::{
-    ToolCallParams, convert_content, direct_url, execute_tool_call, list_tools,
+    McpTarget, ServerCredential, ToolCallParams, convert_content, execute_tool_call, list_tools,
+    server_credential,
 };
 use super::types::{McpCallOutput, McpToolContent};
 use super::{observer, services_config};
@@ -69,12 +73,15 @@ pub(super) async fn execute(args: CallArgs, host: &dyn CommandHost) -> Result<Co
         ));
     }
 
-    let url = resolve_running_url(&server_name, host).await?;
-    let session = host.caller_session().await?;
-    let token = session.token();
+    let server = resolve_running_server(&server_name, host).await?;
+    let session = match server_credential(&server)? {
+        ServerCredential::CallerSession => Some(host.caller_session().await?),
+        ServerCredential::Withheld => None,
+    };
+    let target = McpTarget::resolve(&server, session.as_ref())?;
 
     let tool_name = resolve_required(args.tool.clone(), "tool", config, || {
-        prompt_tool_selection(prompter, &server_name, &url, token, timeout_secs)
+        prompt_tool_selection(prompter, &target, timeout_secs)
     })?;
 
     let tool_args: Option<serde_json::Value> = args
@@ -87,11 +94,9 @@ pub(super) async fn execute(args: CallArgs, host: &dyn CommandHost) -> Result<Co
     let start_time = std::time::Instant::now();
 
     let result = execute_tool_call(ToolCallParams {
-        server_name: &server_name,
-        url: &url,
+        target: &target,
         tool_name: &tool_name,
         arguments: tool_args,
-        token,
         timeout_secs,
     })
     .await;
@@ -115,22 +120,24 @@ pub(super) async fn execute(args: CallArgs, host: &dyn CommandHost) -> Result<Co
     }
 }
 
-async fn resolve_running_url(server_name: &McpServerId, host: &dyn CommandHost) -> Result<String> {
+async fn resolve_running_server(
+    server_name: &McpServerId,
+    host: &dyn CommandHost,
+) -> Result<McpServerConfig> {
     let running_servers = observer(host)
         .await?
         .running_servers()
         .await
         .context("Failed to get running servers")?;
 
-    let server = running_servers
-        .iter()
+    running_servers
+        .into_iter()
         .find(|s| s.name == server_name.as_str())
         .ok_or_else(|| {
             anyhow!(
                 "MCP server '{server_name}' is not running; start it with `infra services start`"
             )
-        })?;
-    direct_url(server)
+        })
 }
 
 fn success_outcome(
@@ -210,16 +217,17 @@ pub fn prompt_server_selection(
 
 fn prompt_tool_selection(
     prompter: &dyn Prompter,
-    server_name: &McpServerId,
-    url: &str,
-    token: &SessionToken,
+    target: &McpTarget<'_>,
     timeout_secs: u64,
 ) -> Result<McpToolName> {
     let rt = tokio::runtime::Handle::current();
-    let tools = rt.block_on(list_tools(server_name, url, Some(token), timeout_secs))?;
+    let tools = rt.block_on(list_tools(target, timeout_secs))?;
 
     if tools.is_empty() {
-        return Err(anyhow!("No tools available on server '{server_name}'"));
+        return Err(anyhow!(
+            "No tools available on server '{}'",
+            target.server_name()
+        ));
     }
 
     let names: Vec<String> = tools.into_iter().map(|tool| tool.name).collect();

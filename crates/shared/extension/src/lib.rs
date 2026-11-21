@@ -43,7 +43,7 @@
 //! - [`cli`] — [`cli::KernelGrant`]; with the `cli` feature, command
 //!   declarations and the [`cli::CommandHost`] surface.
 //! - [`protection`], [`authz`] — the protection a mounted group carries.
-//! - [`metadata`], [`migration`], [`seed`], [`purge`], [`retention`],
+//! - [`metadata`], [`migration`], [`seed`], [`purge`], [`reassignment`], [`retention`],
 //!   [`projection`] — the data a member declares.
 //! - [`build`] — build-script helper that generates the migration list from
 //!   `schema/migrations/*.sql`, read with [`extension_migrations!`].
@@ -97,6 +97,7 @@ pub mod notifications;
 pub mod projection;
 pub mod protection;
 pub mod purge;
+pub mod reassignment;
 pub mod reserved;
 pub mod retention;
 pub mod router;
@@ -165,6 +166,7 @@ pub use protection::{
     SiteAuthConfig,
 };
 pub use purge::{OrphanSweep, PurgeDeclaration, PurgeFilter, PurgePredicate, UserPurgeTable};
+pub use reassignment::{OwnerReassignment, ReassignAction};
 pub use retention::{
     EffectiveCutoff, RetentionDecl, RetentionHold, RetentionHoldError, RetentionHolds,
     RetentionTarget,
@@ -194,8 +196,9 @@ pub mod prelude {
     pub use crate::state::{StateHandle, StateRequirement};
     pub use crate::{
         AuthzPolicy, ContextKind, Extension, ExtensionMetadata, ExtensionRole, Migration,
-        MissingDependency, OrphanSweep, PurgePredicate, RateBudget, RateLimit, RouteProtection,
-        SchemaDefinition, SiteAuthConfig, UserPurgeTable, extension_migrations,
+        MissingDependency, OrphanSweep, OwnerReassignment, PurgePredicate, RateBudget, RateLimit,
+        ReassignAction, RouteProtection, SchemaDefinition, SiteAuthConfig, UserPurgeTable,
+        extension_migrations,
     };
     pub use systemprompt_models::LateBound;
 

@@ -6,17 +6,10 @@
 use sqlx::PgPool;
 use sqlx::types::Json;
 use systemprompt_identifiers::ManagedSourceId;
+use systemprompt_traits::GitCredentialSource;
 
 use super::ManagedRepository;
 use crate::managed::{Result, SourceSpec};
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct GitCredentialSource {
-    pub id: ManagedSourceId,
-    pub name: String,
-    pub repository: String,
-    pub credential_reference: String,
-}
 
 impl ManagedRepository {
     pub async fn git_sources_with_credentials(&self) -> Result<Vec<GitCredentialSource>> {
@@ -24,7 +17,7 @@ impl ManagedRepository {
     }
 }
 
-pub(crate) async fn git_credential_sources(pool: &PgPool) -> Result<Vec<GitCredentialSource>> {
+async fn git_credential_sources(pool: &PgPool) -> Result<Vec<GitCredentialSource>> {
     let rows = sqlx::query!(
         r#"SELECT id, name, specification AS "specification!: Json<SourceSpec>"
                FROM managed_sources WHERE kind = 'git' ORDER BY name, id"#

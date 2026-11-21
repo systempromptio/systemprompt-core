@@ -1,6 +1,10 @@
 //! Finished runs keep their directory (logs, `outputs/`) on disk only for
 //! `profile.retention.agent_run_dirs_days`; the row outlives it.
 //!
+//! The job reads the retention window as [`AgentRunRetention`], which the
+//! agent-runs member narrows from the sealed runtime `Config` in its provide
+//! fn; no job context carries the `Config`.
+//!
 //! Only a directory under the runner's runs root is removed, so a row whose
 //! `run_dir` points elsewhere is cleared without touching the filesystem.
 //! Without `enforce` the job reports what it would remove.
@@ -23,6 +27,27 @@ use crate::runner::A2aRunnerConfig;
 
 const BATCH: i64 = 200;
 
+/// How long a finished run keeps its directory, narrowed from the runtime
+/// configuration's retention section.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AgentRunRetention {
+    days: u32,
+}
+
+impl AgentRunRetention {
+    #[must_use]
+    pub fn of(config: &Config) -> Self {
+        Self {
+            days: config.retention.agent_run_dirs_days,
+        }
+    }
+
+    #[must_use]
+    pub const fn days(self) -> u32 {
+        self.days
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct AgentRunDirsCleanupJob;
 
@@ -43,8 +68,7 @@ impl Job for AgentRunDirsCleanupJob {
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start = std::time::Instant::now();
         let paths = Arc::clone(ctx.get::<Arc<AppPaths>>()?);
-        let config = Arc::clone(ctx.get::<Arc<Config>>()?);
-        let days = config.retention.agent_run_dirs_days;
+        let days = ctx.get::<AgentRunRetention>()?.days();
         let cutoff = Utc::now() - chrono::Duration::days(i64::from(days));
         let runs_root = A2aRunnerConfig::runs_root(paths.storage().data());
         let repo = ctx.get::<AgentRunRepository>()?;

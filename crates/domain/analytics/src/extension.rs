@@ -108,13 +108,16 @@ impl Extension for AnalyticsExtension {
             .job(LinkFactsRollupJob)
             .retention(RetentionDecl::Purge(Arc::new(EngagementEventsPurge)))
             .retention(RetentionDecl::Purge(Arc::new(FingerprintReputationPurge)));
-        c.owner_reassignment(
-            |r: &Resolved<'_>| -> Result<systemprompt_traits::DynOwnerReassignment, FactoryError> {
-                Ok(Arc::new(
-                    crate::repository::AnalyticsOwnerReassignment::new(&r.get::<DbPool>()?),
-                ))
-            },
-        );
+        c.owner_reassignment(OwnerReassignment {
+            table: "engagement_events",
+            column: "user_id",
+            action: ReassignAction::UPDATE,
+        });
+        c.owner_reassignment(OwnerReassignment {
+            table: "fingerprint_reputation",
+            column: "associated_user_ids",
+            action: ReassignAction::ReplaceInArray,
+        });
 
         crate::jobs::rollups::contribute(c);
         Ok(())

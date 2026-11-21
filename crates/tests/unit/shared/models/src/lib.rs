@@ -444,3 +444,6 @@ mod builder_edges;
 
 #[cfg(test)]
 mod subprocess_grants;
+
+#[cfg(test)]
+mod path_confine;

@@ -7,8 +7,9 @@
 //! services view. The refresher is provided only as the member's own
 //! [`MemberRefresher`], a type no other crate can name, so only the
 //! member's `managed_inventory_refresh` job resolves it. A kernel route
-//! reaches the refresher only as the open `DynInventoryPublisher`
-//! (`publish_latest` with the caller as the actor). Neither reads the
+//! reaches the refresher only as the sealed `DynInventoryPublisher`
+//! (`publish_latest` with the authenticated request's user as the actor);
+//! no member runtime context resolves it. Neither reads the
 //! profile, the configuration or a secret: everything a refresh reads from
 //! the profile is the [`BundleSources`] value inside it.
 //!

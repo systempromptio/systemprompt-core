@@ -5,19 +5,20 @@
 //! A secret still stored under the bare label fails the check and names the
 //! migrate command; the runtime never falls back to the bare label. A label
 //! with no secret under either name is a warning, and so is a run where the
-//! doctor holds no database pool for the checked profile. The check reads
-//! only whether a secret is present, never its value.
+//! doctor's read-only probe cannot list the sources. The check reads only
+//! whether a secret is present, never its value, and the source list the
+//! doctor's probe answers; it holds no database handle.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
-use systemprompt_database::DbPool;
-use systemprompt_traits::{DoctorCheck, DoctorContext, DoctorOutcome, SecretPresence};
+use systemprompt_traits::{
+    DoctorCheck, DoctorContext, DoctorOutcome, DoctorProbeError, GitCredentialSource,
+    SecretPresence,
+};
 
-use super::GitCredentialSource;
 use super::git_sources::{MIGRATE_GIT_CREDENTIALS_COMMAND, git_credential_key};
-use super::repository::git_credential_sources;
 
 /// The Git source credential check `cloud doctor` runs for this member.
 #[derive(Debug, Clone, Copy, Default)]
@@ -30,11 +31,11 @@ impl DoctorCheck for GitCredentialCheck {
     }
 
     async fn check(&self, ctx: DoctorContext<'_>) -> DoctorOutcome {
-        let Some(db) = ctx.handles.find::<DbPool>() else {
-            return DoctorOutcome::warn("no reachable database, so Git sources were not checked");
-        };
-        match git_credential_sources(&db.write_pool()).await {
+        match ctx.probes.git_credential_sources().await {
             Ok(sources) => classify_git_credentials(ctx.secrets, &sources),
+            Err(DoctorProbeError::Unreachable) => {
+                DoctorOutcome::warn("no reachable database, so Git sources were not checked")
+            },
             Err(error) => DoctorOutcome::warn(format!("Git sources could not be listed ({error})")),
         }
     }

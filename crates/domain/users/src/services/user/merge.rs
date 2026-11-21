@@ -26,32 +26,9 @@ impl UserService {
             }
         }
 
-        let mut tasks = 0;
-        let mut total_rows = 0;
-        for owned in self.owner_reassignments.entries() {
-            let reassignment = &owned.reassignment;
-            let moved = reassignment
-                .reassign_owner(source_id, target_id)
-                .await
-                .map_err(|source| UserError::OwnerReassignment {
-                    domain: reassignment.domain(),
-                    source,
-                })?;
-            tasks += moved
-                .tables
-                .iter()
-                .filter(|(table, _)| *table == "agent_tasks")
-                .map(|(_, rows)| rows)
-                .sum::<u64>();
-            total_rows += moved.total();
-        }
-
-        let sessions = self.repository.complete_merge(source_id, target_id).await?;
-        Ok(MergeResult {
-            sessions,
-            tasks,
-            total_rows: total_rows + sessions,
-        })
+        self.repository
+            .merge(source_id, target_id, &self.owner_reassignments)
+            .await
     }
 
     pub async fn promote_anonymous(

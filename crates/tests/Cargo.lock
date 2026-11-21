@@ -9864,6 +9864,7 @@ name = "systemprompt-cloud-entry"
 version = "0.84.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "chrono",
  "clap",
  "hex",
@@ -9886,6 +9887,7 @@ dependencies = [
  "systemprompt-loader",
  "systemprompt-logging",
  "systemprompt-manifest",
+ "systemprompt-marketplace",
  "systemprompt-models",
  "systemprompt-runtime",
  "systemprompt-scheduler",
@@ -11198,6 +11200,7 @@ dependencies = [
  "systemprompt-mcp",
  "systemprompt-models",
  "systemprompt-traits",
+ "thiserror 2.0.21",
  "tokio",
  "tracing",
 ]
@@ -12522,6 +12525,7 @@ dependencies = [
  "systemprompt-files",
  "systemprompt-identifiers",
  "systemprompt-logging",
+ "systemprompt-mcp-entry",
  "systemprompt-mcp-host",
  "systemprompt-models",
  "systemprompt-provider-contracts",

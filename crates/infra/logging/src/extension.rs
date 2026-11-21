@@ -28,13 +28,16 @@ impl Extension for LoggingExtension {
             column: "user_id",
             predicate: None,
         });
-        c.owner_reassignment(
-            |r: &Resolved<'_>| -> Result<systemprompt_traits::DynOwnerReassignment, FactoryError> {
-                Ok(std::sync::Arc::new(crate::LoggingOwnerReassignment::new(
-                    &r.get::<systemprompt_database::DbPool>()?,
-                )))
-            },
-        );
+        c.owner_reassignment(OwnerReassignment {
+            table: "logs",
+            column: "user_id",
+            action: ReassignAction::UPDATE,
+        });
+        c.owner_reassignment(OwnerReassignment {
+            table: "analytics_events",
+            column: "user_id",
+            action: ReassignAction::UPDATE,
+        });
         Ok(())
     }
 }

@@ -1,0 +1,24 @@
+[root]
+section = "Breaking"
+area = "Marketplace"
+text = "`SkillId`, `PluginId` and `MarketplaceId` accept only one path segment: `try_new`, `FromStr` and deserialization refuse a `/` or `\\` separator, a null byte, `.` and `..`. Reads through the services tree (`GET /api/v1/marketplaces/{id}.yaml`, `core skills list|show`, `core plugins show|validate|generate`) refuse a path that resolves outside its root, a skill `file` outside the skill's directory, a script `source` outside the plugin's directory and a script `name` that is not one path segment; `plugins mcp logs` refuses a server name that is not one path segment. Migrate by renaming any skill, plugin or marketplace directory whose id fails these rules."
+
+[[crate]]
+name = "systemprompt-identifiers"
+section = "Breaking"
+text = "`SkillId`, `PluginId` and `MarketplaceId` validate as one path segment (no `/`, `\\`, null byte, `.` or `..`); `MarketplaceId` becomes a checked id and no longer implements `From<String>` or `From<&str>`. Migrate by constructing with `MarketplaceId::try_new` or `MarketplaceId::new`."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Added"
+text = "`path_confine::confine_within` resolves a path beneath a root and refuses one that resolves outside it; `path_confine::single_segment` accepts a name only as one path segment; both report `PathConfinementError`."
+
+[[crate]]
+name = "systemprompt-marketplace-entry"
+section = "Fixed"
+text = "`core skills`, `core plugins` and the marketplace YAML route read the services tree only through `confine_within`, so a skill directory, skill instruction file, plugin config or script source that resolves outside its root is refused, and a script name must be one path segment."
+
+[[crate]]
+name = "systemprompt-mcp-entry"
+section = "Fixed"
+text = "`plugins mcp logs` refuses a server name that is not one path segment before it looks up a log file."

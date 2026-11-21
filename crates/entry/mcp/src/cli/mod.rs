@@ -11,7 +11,7 @@
 //! | `list-packages` | `Arc<dyn McpRegistryProvider>` |
 //! | `status` | `ServicesView`, `Arc<McpServiceObserver>`, `Arc<AppPaths>` |
 //! | `validate` | `ServicesView`, `Arc<McpServiceObserver>` |
-//! | `tools`, `call` | `ServicesView`, `Arc<McpServiceObserver>`, the caller's own session |
+//! | `tools`, `call` | `ServicesView`, `Arc<McpServiceObserver>`, the caller's own session (presented only to platform-hosted servers) |
 //! | `logs` | `ServicesView`, the database handle, `Arc<AppPaths>`, the child supervisor |
 //!
 //! None of them starts, stops, restarts or signals a server: `tools` and

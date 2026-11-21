@@ -10,8 +10,7 @@ pub use listing::{Page, ResourceSummary, RevisionSummary};
 mod git_credentials;
 mod revisions;
 mod sources;
-pub use git_credentials::GitCredentialSource;
-pub(crate) use git_credentials::git_credential_sources;
+pub use systemprompt_traits::GitCredentialSource;
 
 use std::collections::BTreeMap;
 use std::sync::Arc;

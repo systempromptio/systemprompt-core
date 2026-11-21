@@ -170,7 +170,9 @@ async fn prerender_runs_fixture_components_extenders_and_enrichment() {
         db.clone(),
         content_repo(&db),
         systemprompt_generator::PrerenderEnv {
-            config: ensure_test_bootstrap().boot_config(),
+            settings: &systemprompt_generator::PrerenderSettings::of(
+                ensure_test_bootstrap().boot_config(),
+            ),
             paths: &boot.app_paths,
             hooks: &crate::ext_fixtures::fixture_hooks(&db),
             state: &systemprompt_provider_contracts::Dependencies::default(),
@@ -221,7 +223,9 @@ async fn prerender_pages_renders_fixture_page_with_provider_data() {
         db.clone(),
         content_repo(&db),
         systemprompt_generator::PrerenderEnv {
-            config: ensure_test_bootstrap().boot_config(),
+            settings: &systemprompt_generator::PrerenderSettings::of(
+                ensure_test_bootstrap().boot_config(),
+            ),
             paths: &boot.app_paths,
             hooks: &crate::ext_fixtures::fixture_hooks(&db),
             state: &systemprompt_provider_contracts::Dependencies::default(),
@@ -270,7 +274,9 @@ async fn prerender_empty_source_retries_then_renders_nothing() {
         db.clone(),
         content_repo(&db),
         systemprompt_generator::PrerenderEnv {
-            config: ensure_test_bootstrap().boot_config(),
+            settings: &systemprompt_generator::PrerenderSettings::of(
+                ensure_test_bootstrap().boot_config(),
+            ),
             paths: &boot.app_paths,
             hooks: &crate::ext_fixtures::fixture_hooks(&db),
             state: &systemprompt_provider_contracts::Dependencies::default(),
@@ -354,7 +360,10 @@ async fn get_templates_path_falls_back_when_configured_path_missing() {
         web_config_yaml_with_templates_path(""),
     )
     .expect("write web config");
-    let mut cfg = load_web_config(ensure_test_bootstrap().boot_config(), &boot.app_paths)
+    let mut cfg = load_web_config(
+        std::path::Path::new(&ensure_test_bootstrap().boot_config().web_config_path),
+        &boot.app_paths,
+    )
         .await
         .expect("web config");
     cfg.paths.templates = "/nonexistent/configured/templates".to_owned();

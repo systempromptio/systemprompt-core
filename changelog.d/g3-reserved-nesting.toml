@@ -1,0 +1,9 @@
+[root]
+section = "Fixed"
+area = "Security"
+text = "The compile-time nesting rule of the reserved paths covers every row: a row nested under a row another owner holds, the kernel's or a member's, is `Exact` or `Subtree`, never `Prefix`. It previously judged only member rows nested under a kernel row."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`reserved::nested_under_kernel` is replaced by `reserved::nested_under_another_owner`."

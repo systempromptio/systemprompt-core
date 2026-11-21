@@ -1,16 +1,36 @@
 //! Tests for the `plugins mcp` client helpers: content conversion, the
-//! caller's token on every frame, `tools/list` params and the call deadline.
+//! caller's token on every frame sent to a platform-hosted server,
+//! `tools/list` params and the call deadline.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use rmcp::model::ContentBlock;
-use systemprompt_identifiers::{McpServerId, McpToolName, SessionToken};
+use systemprompt_extension::cli::CallerSession;
+use systemprompt_identifiers::{ContextId, McpToolName, SessionId, SessionToken, UserId};
+use systemprompt_mcp::McpServerConfig;
 use systemprompt_mcp_entry::cli::call_client::{
-    ToolCallParams, convert_content, execute_tool_call, list_tools,
+    McpTarget, ToolCallParams, convert_content, execute_tool_call, list_tools,
 };
+use systemprompt_models::auth::UserType;
 
-fn token() -> SessionToken {
-    SessionToken::new("tok")
+use crate::mcp_call_credential::server_config;
+
+const CALLER_CONTEXT: &str = "7c1d5e9a-3b2f-4c8d-9e6a-1f0b2c3d4e5f";
+
+fn session() -> CallerSession {
+    CallerSession::new(
+        SessionToken::new("tok"),
+        SessionId::new("sess-caller"),
+        UserId::new("user-caller"),
+        ContextId::try_new(CALLER_CONTEXT).expect("a v4 context id"),
+        UserType::Admin,
+    )
+}
+
+fn internal(name: &str, port: u16) -> McpServerConfig {
+    let mut config = server_config(name);
+    config.port = Some(port);
+    config
 }
 
 fn block(json: serde_json::Value) -> ContentBlock {
@@ -71,11 +91,9 @@ fn convert_content_renders_embedded_resources_as_json() {
 #[tokio::test]
 async fn execute_tool_call_fails_fast_against_closed_port() {
     let err = execute_tool_call(ToolCallParams {
-        server_name: &McpServerId::new("svc"),
-        url: &format!("http://127.0.0.1:{}/mcp", free_port()),
+        target: &McpTarget::resolve(&internal("svc", free_port()), Some(&session())).unwrap(),
         tool_name: &McpToolName::new("echo"),
         arguments: Some(serde_json::json!({"x": 1})),
-        token: &token(),
         timeout_secs: 5,
     })
     .await
@@ -87,9 +105,7 @@ async fn execute_tool_call_fails_fast_against_closed_port() {
 #[tokio::test]
 async fn list_tools_fails_fast_against_closed_port() {
     let err = list_tools(
-        &McpServerId::new("svc"),
-        &format!("http://127.0.0.1:{}/mcp", free_port()),
-        Some(&token()),
+        &McpTarget::resolve(&internal("svc", free_port()), Some(&session())).unwrap(),
         5,
     )
     .await
@@ -262,9 +278,11 @@ async fn list_tools_sends_non_null_object_params_and_preserves_names() {
     let tools_result = tokio::time::timeout(
         std::time::Duration::from_secs(10),
         list_tools(
-            &McpServerId::new("strict"),
-            &format!("{}/mcp", server.uri()),
-            Some(&token()),
+            &McpTarget::resolve(
+                &internal("strict", server.address().port()),
+                Some(&session()),
+            )
+            .unwrap(),
             5,
         ),
     )
@@ -329,11 +347,13 @@ async fn execute_tool_call_sends_arguments_and_surfaces_jsonrpc_rejection() {
     let result = tokio::time::timeout(
         std::time::Duration::from_secs(10),
         execute_tool_call(ToolCallParams {
-            server_name: &McpServerId::new("strict"),
-            url: &format!("{}/mcp", success.uri()),
+            target: &McpTarget::resolve(
+                &internal("strict", success.address().port()),
+                Some(&session()),
+            )
+            .unwrap(),
             tool_name: &McpToolName::new("echo"),
             arguments: Some(serde_json::json!({"message": "owned-value"})),
-            token: &token(),
             timeout_secs: 5,
         }),
     )
@@ -373,11 +393,13 @@ async fn execute_tool_call_sends_arguments_and_surfaces_jsonrpc_rejection() {
     let error = tokio::time::timeout(
         std::time::Duration::from_secs(10),
         execute_tool_call(ToolCallParams {
-            server_name: &McpServerId::new("strict"),
-            url: &format!("{}/mcp", rejected.uri()),
+            target: &McpTarget::resolve(
+                &internal("strict", rejected.address().port()),
+                Some(&session()),
+            )
+            .unwrap(),
             tool_name: &McpToolName::new("denied"),
             arguments: None,
-            token: &token(),
             timeout_secs: 5,
         }),
     )
@@ -422,11 +444,13 @@ async fn execute_tool_call_timeout_bounds_a_call_the_server_never_answers() {
     let error = tokio::time::timeout(
         std::time::Duration::from_secs(20),
         execute_tool_call(ToolCallParams {
-            server_name: &McpServerId::new("strict"),
-            url: &format!("{}/mcp", server.uri()),
+            target: &McpTarget::resolve(
+                &internal("strict", server.address().port()),
+                Some(&session()),
+            )
+            .unwrap(),
             tool_name: &McpToolName::new("hang"),
             arguments: None,
-            token: &token(),
             timeout_secs: 1,
         }),
     )

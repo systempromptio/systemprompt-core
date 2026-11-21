@@ -182,7 +182,9 @@ async fn prerender_content_malformed_content_config_is_parse_error() {
         db.clone(),
         content_repo(&db),
         systemprompt_generator::PrerenderEnv {
-            config: ensure_test_bootstrap().boot_config(),
+            settings: &systemprompt_generator::PrerenderSettings::of(
+                ensure_test_bootstrap().boot_config(),
+            ),
             paths: &boot.app_paths,
             hooks: &crate::ext_fixtures::fixture_hooks(&db),
             state: &systemprompt_provider_contracts::Dependencies::default(),
@@ -209,7 +211,9 @@ async fn prerender_content_missing_content_config_is_read_error() {
         db.clone(),
         content_repo(&db),
         systemprompt_generator::PrerenderEnv {
-            config: ensure_test_bootstrap().boot_config(),
+            settings: &systemprompt_generator::PrerenderSettings::of(
+                ensure_test_bootstrap().boot_config(),
+            ),
             paths: &boot.app_paths,
             hooks: &crate::ext_fixtures::fixture_hooks(&db),
             state: &systemprompt_provider_contracts::Dependencies::default(),
@@ -236,7 +240,9 @@ async fn prerender_content_malformed_web_config_is_web_config_error() {
         db.clone(),
         content_repo(&db),
         systemprompt_generator::PrerenderEnv {
-            config: ensure_test_bootstrap().boot_config(),
+            settings: &systemprompt_generator::PrerenderSettings::of(
+                ensure_test_bootstrap().boot_config(),
+            ),
             paths: &boot.app_paths,
             hooks: &crate::ext_fixtures::fixture_hooks(&db),
             state: &systemprompt_provider_contracts::Dependencies::default(),
@@ -256,7 +262,10 @@ async fn load_web_config_missing_file_is_io_error() {
     let boot = ensure_test_bootstrap();
     let cfg = boot.services_path.join("web/config.yaml");
     let _ = fs::remove_file(&cfg);
-    let err = load_web_config(ensure_test_bootstrap().boot_config(), &boot.app_paths)
+    let err = load_web_config(
+        std::path::Path::new(&ensure_test_bootstrap().boot_config().web_config_path),
+        &boot.app_paths,
+    )
         .await
         .expect_err("missing web config");
     assert!(
@@ -276,7 +285,10 @@ async fn load_web_config_rejects_nonexistent_templates_path() {
         boot,
         &web_config_yaml_with_templates_path("/nonexistent/templates/dir/zzz"),
     );
-    let err = load_web_config(ensure_test_bootstrap().boot_config(), &boot.app_paths)
+    let err = load_web_config(
+        std::path::Path::new(&ensure_test_bootstrap().boot_config().web_config_path),
+        &boot.app_paths,
+    )
         .await
         .expect_err("nonexistent templates path must be rejected");
     assert!(
@@ -294,7 +306,10 @@ async fn get_templates_path_prefers_existing_configured_path() {
         boot,
         &web_config_yaml_with_templates_path(&tmp.path().to_string_lossy()),
     );
-    let cfg = load_web_config(ensure_test_bootstrap().boot_config(), &boot.app_paths)
+    let cfg = load_web_config(
+        std::path::Path::new(&ensure_test_bootstrap().boot_config().web_config_path),
+        &boot.app_paths,
+    )
         .await
         .expect("web config");
     assert_eq!(get_templates_path(&cfg, &boot.app_paths), tmp.path());
@@ -305,7 +320,10 @@ async fn get_templates_path_falls_back_to_web_root_when_unconfigured() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
     write_web_config(boot, &web_config_yaml_with_templates_path(""));
-    let cfg = load_web_config(ensure_test_bootstrap().boot_config(), &boot.app_paths)
+    let cfg = load_web_config(
+        std::path::Path::new(&ensure_test_bootstrap().boot_config().web_config_path),
+        &boot.app_paths,
+    )
         .await
         .expect("web config");
     assert_eq!(
@@ -328,7 +346,9 @@ async fn prerender_content_missing_templates_dir_is_config_error() {
         db.clone(),
         content_repo(&db),
         systemprompt_generator::PrerenderEnv {
-            config: ensure_test_bootstrap().boot_config(),
+            settings: &systemprompt_generator::PrerenderSettings::of(
+                ensure_test_bootstrap().boot_config(),
+            ),
             paths: &boot.app_paths,
             hooks: &crate::ext_fixtures::fixture_hooks(&db),
             state: &systemprompt_provider_contracts::Dependencies::default(),
@@ -371,7 +391,9 @@ async fn prerender_content_with_closed_pool_is_fetch_error() {
         closed.clone(),
         content_repo(&closed),
         systemprompt_generator::PrerenderEnv {
-            config: ensure_test_bootstrap().boot_config(),
+            settings: &systemprompt_generator::PrerenderSettings::of(
+                ensure_test_bootstrap().boot_config(),
+            ),
             paths: &boot.app_paths,
             hooks: &crate::ext_fixtures::fixture_hooks(&closed),
             state: &systemprompt_provider_contracts::Dependencies::default(),

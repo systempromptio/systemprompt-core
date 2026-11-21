@@ -1,0 +1,14 @@
+[root]
+section = "Changed"
+area = "CLI"
+text = "`core skills list|show` run on this machine against the active profile's own database whatever kind of profile is active; they are never forwarded to a tenant. `core marketplace explain` is remote-eligible again, as every `core` command without its own descriptor is."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`CommandDescriptor::LOCAL_DATABASE`: the profile, secrets, paths and database boot of `FULL`, never routed to a tenant."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`CallerSession::new` takes the caller's session id, user id, context id and user type beside the token; `CallerSession` exposes them and builds the caller's `RequestContext` with `request_context`."

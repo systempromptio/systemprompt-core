@@ -108,3 +108,6 @@ mod documents_tests;
 
 #[cfg(test)]
 mod external_id_validation_tests;
+
+#[cfg(test)]
+mod path_segment_ids_tests;

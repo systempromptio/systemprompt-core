@@ -78,7 +78,10 @@ pub use config_plane::{
 };
 pub use content_data::{ContentDataContext, ContentDataProvider};
 pub use dependencies::{Dependencies, DependencyProvider, DuplicateDependency, MissingDependency};
-pub use doctor::{DoctorCheck, DoctorContext, DoctorOutcome, DoctorStatus, SecretPresence};
+pub use doctor::{
+    DoctorCheck, DoctorContext, DoctorOutcome, DoctorProbeError, DoctorProbes, DoctorStatus,
+    GitCredentialSource, SecretPresence,
+};
 pub use error::{ProviderError, ProviderResult};
 pub use extender::{ExtendedData, ExtenderContext, ExtenderContextBuilder, TemplateDataExtender};
 pub use frame_options::FrameOptions;

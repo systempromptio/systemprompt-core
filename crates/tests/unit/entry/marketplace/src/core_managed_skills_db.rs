@@ -250,7 +250,7 @@ async fn withdrawn_managed_skill_hides_disk_fallback_and_named_lookup_errors() {
 const LIST_HELPER: &str = "core_managed_skills_db::managed_list_output_helper";
 
 fn host(fixture: &ManagedSkillFixture) -> systemprompt_cli::kernel::MemberHost<'_> {
-    crate::common::granted_with(&fixture.ctx, CommandDescriptor::FULL)
+    crate::common::granted_with(&fixture.ctx, CommandDescriptor::LOCAL_DATABASE)
 }
 
 #[tokio::test]

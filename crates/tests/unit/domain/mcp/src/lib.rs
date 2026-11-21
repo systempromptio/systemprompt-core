@@ -57,7 +57,6 @@ mod middleware;
 #[cfg(test)]
 mod models;
 #[cfg(test)]
-mod owner_reassignment_db;
 #[cfg(test)]
 mod repository;
 #[cfg(test)]

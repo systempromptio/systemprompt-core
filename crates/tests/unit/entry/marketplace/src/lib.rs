@@ -30,3 +30,5 @@ mod routes_marketplace;
 mod routes_marketplace_services_watch;
 #[cfg(test)]
 mod routes_marketplace_success;
+#[cfg(test)]
+mod services_tree_confinement_fs;

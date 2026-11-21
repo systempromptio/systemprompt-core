@@ -56,7 +56,7 @@ pub fn mount_admitted(
             );
             continue;
         }
-        let routers = set.set.materialize(&kernel.route_scoped(&set.handles))?;
+        let routers = set.set.materialize(&kernel.route_scoped(&set.owner, &set.handles))?;
         let mut group = Router::new();
         for (def, router) in set.set.defs().iter().zip(routers) {
             group = group.merge(protect(
@@ -92,7 +92,7 @@ pub fn gateway_routes(
     recheck(admitted)?;
     let mut mounted = Vec::new();
     for route in admitted.gateway_routes() {
-        let routers = route.decl.router.materialize(&kernel.route_scoped(&[]))?;
+        let routers = route.decl.router.materialize(&kernel.route_scoped(&route.owner, &[]))?;
         for (def, router) in route.decl.router.defs().iter().zip(routers) {
             mounted.push(MountedGatewayRoute {
                 router,

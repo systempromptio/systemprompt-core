@@ -38,14 +38,7 @@ pub fn fixture_logging_runtime() -> LoggingRuntime {
 
 pub fn merging_user_service(pool: &DbPool) -> anyhow::Result<UserService> {
     let admitted = crate::app_context::fixture_admitted();
-    let kernel = crate::app_context::fixture_kernel(
-        pool,
-        systemprompt_extension::prelude::Dependencies::new().with(Arc::clone(pool)),
-    );
-    let reassignments = systemprompt_extension::AdmittedOwnerReassignments::of(
-        admitted.built(),
-        &kernel.resolved(),
-    )?;
+    let reassignments = systemprompt_extension::AdmittedOwnerReassignments::of(admitted.built())?;
     Ok(UserService::new(Arc::new(UserRepository::new(pool)))
         .with_owner_reassignments(Arc::new(reassignments)))
 }

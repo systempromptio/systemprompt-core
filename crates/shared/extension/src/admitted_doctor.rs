@@ -2,8 +2,11 @@
 //! in composition order.
 //!
 //! The view is open: it holds check values, which read only what the doctor
-//! hands them (`DoctorContext`), and is built from the admitted composition
-//! without running any member code.
+//! hands them (`DoctorContext`: secret presence and read-only probes), and
+//! is built from the admitted composition without running any member code.
+//! Core and install members' checks are both admitted and are run by
+//! [`AdmittedDoctorChecks::run`] against one context, so no standing sees
+//! more than another.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,7 +14,7 @@
 use std::sync::Arc;
 
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_provider_contracts::DoctorCheck;
+use systemprompt_provider_contracts::{DoctorCheck, DoctorContext, DoctorOutcome};
 
 use crate::admitted::BuiltState;
 
@@ -60,5 +63,13 @@ impl AdmittedDoctorChecks {
     #[must_use]
     pub fn entries(&self) -> &[OwnedDoctorCheck] {
         &self.entries
+    }
+
+    pub async fn run(&self, ctx: DoctorContext<'_>) -> Vec<(&OwnedDoctorCheck, DoctorOutcome)> {
+        let mut outcomes = Vec::with_capacity(self.entries.len());
+        for owned in &self.entries {
+            outcomes.push((owned, owned.check.check(ctx).await));
+        }
+        outcomes
     }
 }

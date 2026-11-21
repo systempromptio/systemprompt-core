@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "MCP"
+text = "`plugins mcp call` and `plugins mcp tools` present the caller's platform session only to MCP servers the platform hosts, with the caller's own session, user and context ids, so a tool execution is attributed to that caller. An external server never receives the platform session; one that requires a credential (OAuth or a per-user bearer) is refused with an error naming it and pointing at the gateway route `/api/v1/mcp/<server>/mcp`."

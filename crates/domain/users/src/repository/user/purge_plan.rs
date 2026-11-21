@@ -1,17 +1,23 @@
-//! The user purge's plan and statement text.
+//! The user purge's plan and statement text, and the statement text of an
+//! account merge's owner reassignments.
 //!
 //! A purge runs the admitted members' declarations ([`AdmittedPurge`]) and,
 //! after them, the recorded declarations of every member absent from this
 //! composition, in recorded composition order. Statement text is rendered
 //! here from typed declarations: every table and column is a validated,
 //! quoted identifier, the user id is bound as `$1` and a predicate's values
-//! as `$2`, so nothing a declaration carries is spliced in as SQL.
+//! as `$2`, so nothing a declaration carries is spliced in as SQL. An owner
+//! reassignment is rendered the same way from its declaration, re-validating
+//! every name, with the source user bound as `$1` and the target as `$2`, so
+//! the statement touches exactly the table the declaration names.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_database::admin::SafeIdentifier;
-use systemprompt_extension::{AdmittedPurge, OrphanSweep, PurgeDeclaration, PurgeFilter};
+use systemprompt_extension::{
+    AdmittedPurge, OrphanSweep, OwnerReassignment, PurgeDeclaration, PurgeFilter, ReassignAction,
+};
 use systemprompt_identifiers::ExtensionId;
 
 use crate::error::{Result, UserError};
@@ -179,4 +185,64 @@ pub(super) fn sweep_sql(declaration: &PurgeDeclaration) -> Result<Option<SweepSq
              AND NOT EXISTS ({referrer} AND r.{user}::text IS DISTINCT FROM $1)"
         ),
     }))
+}
+
+pub(super) struct ReassignSql {
+    pub(super) text: String,
+    pub(super) binds_target: bool,
+    pub(super) any_of: Option<Vec<String>>,
+}
+
+pub(super) fn reassign_sql(reassignment: &OwnerReassignment) -> Result<ReassignSql> {
+    let table = identifier("reassigned table", reassignment.table)?;
+    let column = identifier("reassigned column", reassignment.column)?;
+    match reassignment.action {
+        ReassignAction::Update {
+            touch,
+            keep_target_on,
+        } => {
+            let mut text = format!("UPDATE {table} SET {column} = $2");
+            if let Some(touched) = touch {
+                let touched = identifier("touched column", touched)?;
+                text.push_str(&format!(", {touched} = CURRENT_TIMESTAMP"));
+            }
+            text.push_str(&format!(" WHERE {column} = $1"));
+            if !keep_target_on.is_empty() {
+                let mut kept = format!(
+                    " AND NOT EXISTS (SELECT 1 FROM {table} kept WHERE kept.{column} = $2"
+                );
+                for key in keep_target_on {
+                    let key = identifier("kept key column", key)?;
+                    kept.push_str(&format!(" AND kept.{key} = {table}.{key}"));
+                }
+                kept.push(')');
+                text.push_str(&kept);
+            }
+            Ok(ReassignSql {
+                text,
+                binds_target: true,
+                any_of: None,
+            })
+        },
+        ReassignAction::Delete { predicate } => {
+            let filter = predicate.map(|p| PurgeFilter {
+                column: p.column.to_owned(),
+                any_of: p.any_of.iter().map(|v| (*v).to_owned()).collect(),
+            });
+            let sql = table_sql(reassignment.table, reassignment.column, filter.as_ref())?;
+            Ok(ReassignSql {
+                text: format!("DELETE {}", sql.from_where),
+                binds_target: false,
+                any_of: sql.any_of,
+            })
+        },
+        ReassignAction::ReplaceInArray => Ok(ReassignSql {
+            text: format!(
+                "UPDATE {table} SET {column} = array_replace({column}, $1, $2) \
+                 WHERE $1 = ANY({column})"
+            ),
+            binds_target: true,
+            any_of: None,
+        }),
+    }
 }

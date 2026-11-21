@@ -189,7 +189,7 @@ impl CommandHost for MemberHost<'_> {
             let session = crate::session::get_or_create_session(self.ctx)
                 .await
                 .map_err(CommandError::new)?;
-            Ok(CallerSession::new(session.session_token().clone()))
+            Ok(session.caller_session())
         })
     }
 }

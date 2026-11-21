@@ -22,14 +22,12 @@ pub mod context;
 mod empty_contexts;
 pub mod execution;
 pub mod owned;
-pub mod ownership;
 pub(crate) mod parts;
 pub mod task;
 
 pub use context::ContextRepository;
 pub use empty_contexts::EmptyContextRepository;
 pub use owned::{OwnedArtifact, OwnedContext, OwnedTask, RuntimeTask, TaskHandle};
-pub use ownership::AgentOwnerReassignment;
 pub use systemprompt_traits::RepositoryError;
 
 /// The collaborators [`A2ARepositories`] needs beyond the database: every

@@ -9,7 +9,6 @@ mod ai_request_trace;
 mod ai_requests;
 mod ai_requests_status_check_db;
 mod ai_safety_findings;
-mod ownership;
 mod personal_credentials;
 mod quota_usage;
 mod thought_signatures_db;

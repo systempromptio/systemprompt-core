@@ -21,6 +21,7 @@ use systemprompt_marketplace::{
     MarketplaceService, render_marketplace_json, render_marketplace_list,
 };
 use systemprompt_models::api::ApiError;
+use systemprompt_models::path_confine::{PathConfinementError, confine_within};
 
 use super::MarketplaceHttpState;
 use super::error::{MarketplaceHttpError, MarketplaceRouteError};
@@ -96,16 +97,18 @@ pub async fn get_marketplace_yaml(
     let marketplaces_root = state.services_root.join("marketplaces");
     let requested = marketplaces_root.join(id.as_str()).join("config.yaml");
 
-    let canonical_root = marketplaces_root
-        .canonicalize()
-        .map_err(|_e| ApiHttpError::not_found(format!("Marketplace '{id}' not found")))?;
-    let canonical_requested = requested
-        .canonicalize()
-        .map_err(|_e| ApiHttpError::not_found(format!("Marketplace '{id}' has no config.yaml")))?;
-
-    if !canonical_requested.starts_with(&canonical_root) {
-        return Err(ApiHttpError::forbidden("Invalid marketplace id").into());
-    }
+    let canonical_requested =
+        confine_within(&marketplaces_root, &requested).map_err(|error| match error {
+            PathConfinementError::Escapes { .. } => {
+                ApiHttpError::forbidden("Invalid marketplace id")
+            },
+            PathConfinementError::RootUnresolved { .. } => {
+                ApiHttpError::not_found(format!("Marketplace '{id}' not found"))
+            },
+            PathConfinementError::Unresolved { .. } | PathConfinementError::NotASegment { .. } => {
+                ApiHttpError::not_found(format!("Marketplace '{id}' has no config.yaml"))
+            },
+        })?;
 
     if !canonical_requested.is_file() {
         return Err(

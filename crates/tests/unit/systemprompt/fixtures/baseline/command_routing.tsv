@@ -1,0 +1,105 @@
+path	args	routing
+analytics agents list	-	read-only
+analytics agents show	x	read-only
+analytics agents stats	-	read-only
+analytics agents trends	-	read-only
+analytics content stats	-	read-only
+analytics content top	-	read-only
+analytics content trends	-	read-only
+analytics conversations list	-	read-only
+analytics conversations stats	-	read-only
+analytics conversations trends	-	read-only
+analytics costs breakdown	-	read-only
+analytics costs summary	-	read-only
+analytics costs trends	-	read-only
+analytics overview	-	read-only
+analytics requests list	-	read-only
+analytics requests models	-	read-only
+analytics requests stats	-	read-only
+analytics requests trends	-	read-only
+analytics sessions live	-	read-only
+analytics sessions stats	-	read-only
+analytics sessions trends	-	read-only
+analytics tools list	-	read-only
+analytics tools show	x	read-only
+analytics tools stats	-	read-only
+analytics tools trends	-	read-only
+analytics traffic bots	-	read-only
+analytics traffic devices	-	read-only
+analytics traffic geo	-	read-only
+analytics traffic navigation	-	read-only
+analytics traffic pages	-	read-only
+analytics traffic sources	-	read-only
+cloud auth login	-	local-only
+cloud auth logout	-	local-only
+cloud auth whoami	-	local-only
+cloud backup	-	local-only
+cloud deploy	-	local-only
+cloud dockerfile	-	local-only
+cloud doctor	-	local-only
+cloud fleet run	x	local-only
+cloud fleet versions	-	local-only
+cloud init	-	local-only
+cloud profile create	local	local-only
+cloud profile delete	local	local-only
+cloud profile edit	-	local-only
+cloud profile list	-	local-only
+cloud profile show	-	local-only
+cloud status	-	local-only
+cloud sync export	-	read-only
+cloud tenant add	--id t --name n --hostname h.example.com --provider kubernetes	local-only
+cloud tenant create	-	local-only
+cloud tenant delete	-	local-only
+cloud tenant edit	-	local-only
+cloud tenant list	-	local-only
+cloud tenant rotate-credentials	-	local-only
+cloud tenant show	-	local-only
+core content analytics campaign	x	mutating
+core content analytics clicks	x	mutating
+core content analytics journey	-	mutating
+core content delete	x	mutating
+core content delete-source	x	mutating
+core content edit	-	mutating
+core content files featured	x	mutating
+core content files link	f --content c --role featured	mutating
+core content files list	-	mutating
+core content files unlink	f --content c	mutating
+core content link delete	x	mutating
+core content link generate	--url https://example.com	mutating
+core content link list	-	mutating
+core content link performance	x	mutating
+core content link show	x	mutating
+core content list	-	mutating
+core content popular	blog	mutating
+core content search	x	mutating
+core content show	x	mutating
+core content status	--source x	mutating
+core content verify	x	mutating
+core files ai count	-	mutating
+core files ai list	-	mutating
+core files ai show	x	mutating
+core files config	-	mutating
+core files delete	x	mutating
+core files list	-	mutating
+core files search	x	mutating
+core files show	x	mutating
+core files stats	-	mutating
+core files upload	/tmp/x --context c	mutating
+core files validate	/tmp/x	mutating
+core marketplace explain	-	mutating
+core marketplace import	--from /tmp/a --into /tmp/b	local-only
+core plugins generate	-	local-only
+core plugins list	-	local-only
+core plugins show	x	local-only
+core plugins validate	-	local-only
+core skills list	-	local-only
+core skills show	x	local-only
+plugins mcp call	-	mutating
+plugins mcp list	-	mutating
+plugins mcp list-packages	-	mutating
+plugins mcp logs	-	mutating
+plugins mcp status	-	mutating
+plugins mcp tools	-	mutating
+plugins mcp validate	-	mutating
+web sitemap generate	-	local-only
+web sitemap show	-	local-only

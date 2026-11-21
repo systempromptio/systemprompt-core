@@ -146,13 +146,13 @@ fn handle_is_unreachable_outside_a_conferred_route_set() {
     assert!(set.handles.is_empty(), "an install base confers no handle");
     assert!(
         set.set
-            .materialize(&kernel.route_scoped(&set.handles))
+            .materialize(&kernel.route_scoped(&set.owner, &set.handles))
             .is_err(),
         "a route set at an unconferred base cannot resolve the handle"
     );
     assert!(
         set.set
-            .materialize(&kernel.route_scoped(&[HandleId::AnalyticsBroadcaster]))
+            .materialize(&kernel.route_scoped(&set.owner, &[HandleId::AnalyticsBroadcaster]))
             .is_ok(),
         "negative control: the same set resolves with the conferral"
     );

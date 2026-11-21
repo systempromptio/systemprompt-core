@@ -51,7 +51,7 @@ impl SkillsCommands {
 
 impl DescribeCommand for SkillsCommands {
     fn descriptor(&self) -> CommandDescriptor {
-        CommandDescriptor::FULL.with_data_impact(self.data_impact())
+        CommandDescriptor::LOCAL_DATABASE.with_data_impact(self.data_impact())
     }
 }
 

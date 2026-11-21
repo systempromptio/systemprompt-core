@@ -1,0 +1,19 @@
+[[crate]]
+name = "systemprompt-generator"
+section = "Fixed"
+text = "The `content_prerender` and `page_prerender` jobs resolve `PrerenderSettings`, which the `generator` member provides from the runtime configuration, instead of the sealed `Arc<Config>` no job context carries; both jobs ran into `MissingDependency` on every run."
+
+[[crate]]
+name = "systemprompt-generator"
+section = "Breaking"
+text = "`PrerenderEnv::config` is replaced by `PrerenderEnv::settings: &PrerenderSettings`, and `load_web_config` takes the web configuration path (`&Path`) instead of `&Config`. `PrerenderSettings` is added."
+
+[[crate]]
+name = "systemprompt-agent-runs"
+section = "Fixed"
+text = "The `agent_run_dirs_cleanup` job resolves `AgentRunRetention`, which the `agent_runs` member provides from the runtime configuration, instead of the sealed `Arc<Config>`; the job ran into `MissingDependency` on every run and no run directory was removed."
+
+[[crate]]
+name = "systemprompt-agent-runs"
+section = "Added"
+text = "`AgentRunRetention`."

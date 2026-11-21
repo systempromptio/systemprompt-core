@@ -3,7 +3,9 @@
 //! runner service.
 //!
 //! It is the crate's composition root: it provides the
-//! [`AgentRunRepository`] and the [`DynAgentRunLauncher`] over it. The `admin
+//! [`AgentRunRepository`], the [`DynAgentRunLauncher`] over it and the
+//! [`AgentRunRetention`] window the retention job reads, narrowed from the
+//! sealed runtime `Config`. The `admin
 //! agents run` child host hands that launcher to its A2A server, the agent-runs
 //! routes and the run-directory retention job read the repository, and the one
 //! runner service, [`A2aRunnerService`], claims the runs the A2A server queues.
@@ -26,7 +28,7 @@ use systemprompt_traits::{DynAgentRunLauncher, RunnerService};
 
 use crate::launcher::RepositoryRunLauncher;
 use crate::repository::AgentRunRepository;
-use crate::retention::AgentRunDirsCleanupJob;
+use crate::retention::{AgentRunDirsCleanupJob, AgentRunRetention};
 use crate::runner::A2aRunnerService;
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -63,6 +65,12 @@ impl Extension for AgentRunsExtension {
         .provide(
             |r: &Resolved<'_>| -> Result<AgentRunRepository, ProvideError> {
                 Ok(AgentRunRepository::new(&r.get::<DbPool>()?))
+            },
+        )
+        .provide(
+            |r: &Resolved<'_>| -> Result<AgentRunRetention, ProvideError> {
+                let config = r.get::<Arc<Config>>()?;
+                Ok(AgentRunRetention::of(&config))
             },
         )
         .provide(

@@ -32,13 +32,11 @@ impl Extension for EventsExtension {
             column: "user_id",
             predicate: None,
         });
-        c.owner_reassignment(
-            |r: &Resolved<'_>| -> Result<systemprompt_traits::DynOwnerReassignment, FactoryError> {
-                Ok(std::sync::Arc::new(crate::EventsOwnerReassignment::new(
-                    &r.get::<systemprompt_database::DbPool>()?,
-                )))
-            },
-        );
+        c.owner_reassignment(OwnerReassignment {
+            table: "event_outbox",
+            column: "user_id",
+            action: ReassignAction::UPDATE,
+        });
         Ok(())
     }
 }

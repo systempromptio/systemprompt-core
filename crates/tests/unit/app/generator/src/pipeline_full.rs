@@ -225,7 +225,9 @@ async fn prerender_content_with_empty_templates_dir_runs_engine() {
         db.clone(),
         content_repo(&db),
         systemprompt_generator::PrerenderEnv {
-            config: ensure_test_bootstrap().boot_config(),
+            settings: &systemprompt_generator::PrerenderSettings::of(
+                ensure_test_bootstrap().boot_config(),
+            ),
             paths: &paths,
             hooks: &crate::ext_fixtures::fixture_hooks(&db),
             state: &systemprompt_provider_contracts::Dependencies::default(),
@@ -244,7 +246,9 @@ async fn prerender_pages_with_empty_templates_dir_runs_engine() {
         db.clone(),
         content_repo(&db),
         systemprompt_generator::PrerenderEnv {
-            config: ensure_test_bootstrap().boot_config(),
+            settings: &systemprompt_generator::PrerenderSettings::of(
+                ensure_test_bootstrap().boot_config(),
+            ),
             paths: &paths,
             hooks: &crate::ext_fixtures::fixture_hooks(&db),
             state: &systemprompt_provider_contracts::Dependencies::default(),

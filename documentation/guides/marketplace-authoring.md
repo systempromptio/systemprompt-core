@@ -244,6 +244,8 @@ Frontmatter `description` must be present and non-empty. `name`, `tags`, `catego
 
 A skill id claimed by two plugins is an error. Skill ids are unique across the whole tree, not per plugin.
 
+Skill, plugin and marketplace ids are directory names in the services tree, so each must be one path segment: no `/` or `\`, no null byte, and never `.` or `..`. A skill's `file` must lie inside the skill's directory, and a plugin script's `source` inside the plugin's directory; a script's `name` is one path segment.
+
 ### Skill frontmatter
 
 The platform owns seven frontmatter keys and passes every other key through as you wrote it:

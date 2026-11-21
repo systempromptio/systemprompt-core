@@ -5,6 +5,8 @@
 //!
 //! - [`prerender_content`] / [`prerender_pages`] — top-level entry points
 //! - [`PagePrerenderResult`] — outcome of a single page prerenderer
+//! - [`PrerenderSettings`] — the configuration a run reads, provided by the
+//!   generator member
 //!
 //! Internal helpers are organised by responsibility: `context` (config + DI),
 //! `fetch` (database access), `content` (per-source orchestration), `render`
@@ -23,9 +25,11 @@ mod fetch;
 mod json_merge;
 mod list;
 mod render;
+mod settings;
 mod toc;
 
 pub use engine::{PagePrerenderResult, PrerenderEnv, prerender_content, prerender_pages};
 pub use fetch::{PopularContent, fetch_popular_ids};
 pub use json_merge::merge_json_data;
+pub use settings::PrerenderSettings;
 pub use toc::{TocResult, generate_toc};

@@ -11,7 +11,11 @@
 
 use std::path::{Path, PathBuf};
 
-use systemprompt_identifiers::SessionToken;
+use systemprompt_identifiers::{
+    Actor, AgentName, ContextId, JwtToken, SessionId, SessionToken, TraceId, UserId,
+};
+use systemprompt_models::auth::UserType;
+use systemprompt_models::execution::context::RequestContext;
 
 /// The active services tree and the public site values read beside it.
 ///
@@ -65,24 +69,76 @@ impl ServicesTree {
     }
 }
 
-/// The session token of the person running the CLI.
+/// The session of the person running the CLI: its token and the caller's own
+/// session, user and context ids.
 ///
 /// The host resolves it through the same path the kernel's own commands use;
 /// it is always the caller's own session and is never minted for another
-/// subject.
+/// subject. A request a command makes with it is attributed to that caller,
+/// never to an anonymous or shared identity. The token is a platform
+/// credential: a command presents it only to an endpoint the platform hosts.
 #[derive(Debug, Clone)]
 pub struct CallerSession {
     token: SessionToken,
+    session_id: SessionId,
+    user_id: UserId,
+    context_id: ContextId,
+    user_type: UserType,
 }
 
 impl CallerSession {
     #[must_use]
-    pub const fn new(token: SessionToken) -> Self {
-        Self { token }
+    pub const fn new(
+        token: SessionToken,
+        session_id: SessionId,
+        user_id: UserId,
+        context_id: ContextId,
+        user_type: UserType,
+    ) -> Self {
+        Self {
+            token,
+            session_id,
+            user_id,
+            context_id,
+            user_type,
+        }
     }
 
     #[must_use]
     pub const fn token(&self) -> &SessionToken {
         &self.token
+    }
+
+    #[must_use]
+    pub const fn session_id(&self) -> &SessionId {
+        &self.session_id
+    }
+
+    #[must_use]
+    pub const fn user_id(&self) -> &UserId {
+        &self.user_id
+    }
+
+    #[must_use]
+    pub const fn context_id(&self) -> &ContextId {
+        &self.context_id
+    }
+
+    #[must_use]
+    pub const fn user_type(&self) -> UserType {
+        self.user_type
+    }
+
+    #[must_use]
+    pub fn request_context(&self, agent_name: AgentName) -> RequestContext {
+        RequestContext::new(
+            self.session_id.clone(),
+            TraceId::generate(),
+            self.context_id.clone(),
+            agent_name,
+            Actor::user(self.user_id.clone()),
+        )
+        .with_auth_token(JwtToken::new(self.token.as_str()))
+        .with_user_type(self.user_type)
     }
 }

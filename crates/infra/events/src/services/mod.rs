@@ -30,7 +30,6 @@ pub use cache_invalidation::{
     receive_cache_invalidation,
 };
 pub use origin::{process_origin, relays_row, scoped_origin};
-pub use repository::EventsOwnerReassignment;
 pub use routing::{
     BroadcasterConnections, EventBroadcasters, EventRouter, NOTIFICATION_FACTS_CHANNEL,
     OUTBOX_CHANNEL, OutboxChannel,

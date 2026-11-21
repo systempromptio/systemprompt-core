@@ -1,0 +1,24 @@
+[root]
+section = "Breaking"
+area = "Cloud"
+text = "a `cloud doctor` check contributed by a member receives secret presence and read-only, purpose-typed probes (`DoctorProbes`) in place of a handle map holding the tenant database pool. The probes read through a session with `default_transaction_read_only` on. Core and install members' checks run against the same context."
+
+[[crate]]
+name = "systemprompt-provider-contracts"
+section = "Breaking"
+text = "`DoctorContext::handles` is replaced by `probes: &dyn DoctorProbes`. `DoctorProbes`, `DoctorProbeError` and `GitCredentialSource` are added."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`AdmittedDoctorChecks::run` runs every admitted check, core and install, against one `DoctorContext`."
+
+[[crate]]
+name = "systemprompt-marketplace"
+section = "Changed"
+text = "`managed::GitCredentialSource` is re-exported from `systemprompt-traits`; `GitCredentialCheck` reads Git sources through `DoctorProbes`."
+
+[[crate]]
+name = "systemprompt-cloud-entry"
+section = "Changed"
+text = "the crate depends on `systemprompt-marketplace` and `async-trait` under the `cli` feature to answer the doctor's read-only Git source probe."

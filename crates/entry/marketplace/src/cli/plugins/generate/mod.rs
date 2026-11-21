@@ -20,6 +20,7 @@ use std::path::{Path, PathBuf};
 
 use systemprompt_extension::cli::{CommandHost, CommandOutput};
 use systemprompt_identifiers::PluginId;
+use systemprompt_models::path_confine::confine_within;
 
 use super::collect_plugin_ids;
 use super::types::{PluginGenerateAllOutput, PluginGenerateOutput};
@@ -59,6 +60,7 @@ pub(super) async fn execute(args: &GenerateArgs, host: &dyn CommandHost) -> Resu
             if !plugin_dir.exists() {
                 return Err(anyhow!("Plugin '{}' not found", id));
             }
+            confine_within(&plugins_path, &plugin_dir)?;
             vec![id.clone()]
         },
         None => collect_plugin_ids(&plugins_path)?,
@@ -105,10 +107,10 @@ pub fn generate_plugin(
     plugin_id: &PluginId,
     ctx: &PluginGenerateContext<'_>,
 ) -> Result<PluginGenerateOutput> {
-    let config_path = ctx
-        .plugins_path
-        .join(plugin_id.as_str())
-        .join("config.yaml");
+    let config_path = confine_within(
+        ctx.plugins_path,
+        &ctx.plugins_path.join(plugin_id.as_str()).join("config.yaml"),
+    )?;
     let plugin_file = super::read_plugin_config(&config_path)?;
     let plugin = &plugin_file.plugin;
 

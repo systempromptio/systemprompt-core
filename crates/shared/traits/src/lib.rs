@@ -105,7 +105,8 @@ pub mod validation;
 
 pub use systemprompt_provider_contracts::{
     BatchPlan, BatchedRun, ChangeActor, ChangeSource, DbBudget, Dependencies, DoctorCheck,
-    DoctorContext, DoctorOutcome, DoctorStatus, Job, JobContext, JobResult, JobScope,
+    DoctorContext, DoctorOutcome, DoctorProbeError, DoctorProbes, DoctorStatus,
+    GitCredentialSource, Job, JobContext, JobResult, JobScope,
     MissingDependency, ProviderError, ProviderResult, SecretPresence, ServerListingFailure,
     ToolCallRequest, ToolCallResult, ToolContent, ToolContext, ToolDefinition, ToolInventory,
     ToolProvider, ToolProviderError, ToolProviderResult, run_batched,
@@ -132,9 +133,7 @@ pub use coordination::{
     LeaseRepository, UnavailableCoordination,
 };
 
-pub use ownership::{
-    DynOwnerReassignment, OwnerReassignment, ReassignedColumn, ReassignedRows, is_plain_identifier,
-};
+pub use ownership::is_plain_identifier;
 pub use tool_executions::{
     DynToolCallIntentClaims, DynToolExecutionLookup, ToolCallIntentClaims, ToolExecutionLookup,
 };

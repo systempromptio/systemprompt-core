@@ -60,7 +60,7 @@ async fn load_sitemap_context(
             source,
         })?;
 
-    let web_config = load_web_config(config, paths).await?;
+    let web_config = load_web_config(Path::new(&config.web_config_path), paths).await?;
 
     let web_dir = paths.web().dist().to_path_buf();
     let base_url = config.api_external_url.clone();
