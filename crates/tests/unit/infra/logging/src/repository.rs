@@ -8,7 +8,7 @@ use serde_json::json;
 use systemprompt_identifiers::{AnalyticsEventId, LogId, SessionId, TraceId, UserId};
 use systemprompt_logging::models::{LogEntry, LogFilter, LogLevel};
 use systemprompt_logging::{AnalyticsRepository, DatabaseLogService, LoggingRepository};
-use systemprompt_test_fixtures::test_db_pool;
+use systemprompt_test_fixtures::{DisposableDb, test_db_pool};
 
 fn unique_id(prefix: &str) -> String {
     format!("{prefix}-{}", uuid::Uuid::new_v4().simple())
@@ -305,7 +305,8 @@ async fn analytics_repository_constructs() {
 
 #[tokio::test]
 async fn a_log_row_with_null_user_id_decodes_to_an_error() {
-    let db = test_db_pool().await;
+    let disposable = DisposableDb::with_schema("logging_null_user_row").await;
+    let db = disposable.test_pool().await;
     let pool = db.write_pool();
     let repo = LoggingRepository::new(&db);
     let id = LogId::generate();
@@ -326,11 +327,16 @@ async fn a_log_row_with_null_user_id_decodes_to_an_error() {
         fetched.is_err(),
         "a NULL user_id must surface as an error, got {fetched:?}"
     );
+    drop(repo);
+    drop(pool);
+    drop(db);
+    disposable.drop_now().await;
 }
 
 #[tokio::test]
 async fn a_log_row_with_an_unparseable_context_id_decodes_to_a_repository_error() {
-    let db = test_db_pool().await;
+    let disposable = DisposableDb::with_schema("logging_blank_context_row").await;
+    let db = disposable.test_pool().await;
     let pool = db.write_pool();
     let repo = LoggingRepository::new(&db);
     let id = LogId::generate();
@@ -355,4 +361,8 @@ async fn a_log_row_with_an_unparseable_context_id_decodes_to_a_repository_error(
         ),
         "a blank context_id must decode to a typed repository error, got {fetched:?}"
     );
+    drop(repo);
+    drop(pool);
+    drop(db);
+    disposable.drop_now().await;
 }

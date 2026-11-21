@@ -40,7 +40,7 @@ fn the_generator_member_contributes_both_prerender_jobs() {
     owned.sort_unstable();
     assert_eq!(owned, vec!["content_prerender", "page_prerender"]);
     assert!(sink.schemas().is_empty());
-    assert!(sink.provides().is_empty());
+    assert_eq!(sink.provides().len(), 1);
 }
 
 #[test]
