@@ -34,7 +34,7 @@ use systemprompt_security::keys::JwksClient;
 use systemprompt_traits::SecretStore;
 use systemprompt_traits::sso::{
     CookieSameSite, ExternalIdentity, SsoError, SsoIdentityPolicy, SsoPaths, SsoProtocol,
-    SsoProvider, SsoRedirect, SsoReturn, SsoStart, SsoStateContext, SsoStateSeed,
+    SsoProvider, SsoReauth, SsoRedirect, SsoReturn, SsoStart, SsoStateContext, SsoStateSeed,
 };
 use uuid::Uuid;
 
@@ -157,6 +157,7 @@ pub struct AuthorizeParams<'a> {
     pub state: &'a str,
     pub nonce: &'a str,
     pub code_challenge: &'a str,
+    pub reauth: SsoReauth,
 }
 
 #[must_use]
@@ -170,9 +171,11 @@ pub fn build_authorize_url(
         state,
         nonce,
         code_challenge,
+        reauth,
     } = params;
     let scope = cfg.scopes.join(" ");
-    let query = url::form_urlencoded::Serializer::new(String::new())
+    let mut query = url::form_urlencoded::Serializer::new(String::new());
+    query
         .append_pair("client_id", cfg.client_id.as_str())
         .append_pair("response_type", "code")
         .append_pair("redirect_uri", redirect_uri)
@@ -180,8 +183,14 @@ pub fn build_authorize_url(
         .append_pair("state", state)
         .append_pair("nonce", nonce)
         .append_pair("code_challenge", code_challenge)
-        .append_pair("code_challenge_method", "S256")
-        .finish();
+        .append_pair("code_challenge_method", "S256");
+    if reauth.force {
+        query.append_pair("prompt", "login");
+    }
+    if let Some(max_age) = reauth.max_age.filter(|max_age| *max_age >= 0) {
+        query.append_pair("max_age", &max_age.to_string());
+    }
+    let query = query.finish();
     let separator = if authorization_endpoint.contains('?') {
         '&'
     } else {
@@ -237,6 +246,7 @@ impl SsoProvider for OidcProvider {
                 state: &state,
                 nonce: &nonce,
                 code_challenge: &pkce_challenge(&verifier),
+                reauth: input.reauth,
             },
         );
         Ok(SsoRedirect {

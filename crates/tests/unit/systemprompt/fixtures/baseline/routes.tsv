@@ -97,8 +97,6 @@ POST	/api/v1/core/oauth/clients	user	User	oauth_auth/OauthAuth	Default	Oauth	ker
 GET	/api/v1/core/oauth/clients/{client_id}	user	User	oauth_auth/OauthAuth	Default	Oauth	kernel	layer:RefuseFileManagedClientWrites
 PUT	/api/v1/core/oauth/clients/{client_id}	user	User	oauth_auth/OauthAuth	Default	Oauth	kernel	layer:RefuseFileManagedClientWrites
 DELETE	/api/v1/core/oauth/clients/{client_id}	user	User	oauth_auth/OauthAuth	Default	Oauth	kernel	layer:RefuseFileManagedClientWrites
-GET	/api/v1/core/oauth/consent	user	User	oauth_auth/OauthAuth	Default	Oauth	kernel	layer:RefuseFileManagedClientWrites
-POST	/api/v1/core/oauth/consent	user	User	oauth_auth/OauthAuth	Default	Oauth	kernel	layer:RefuseFileManagedClientWrites
 GET	/api/v1/core/oauth/health	public	Public	oauth_public/OauthPublic	Default	Oauth	kernel	-
 POST	/api/v1/core/oauth/introspect	user	User	oauth_auth/OauthAuth	Default	Oauth	kernel	layer:RefuseFileManagedClientWrites
 POST	/api/v1/core/oauth/logout	user	User	oauth_auth/OauthAuth	Default	Oauth	kernel	layer:RefuseFileManagedClientWrites

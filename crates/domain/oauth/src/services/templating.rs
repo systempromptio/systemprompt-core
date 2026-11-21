@@ -28,6 +28,8 @@ impl TemplateService {
             .replace('>', "&gt;")
             .replace('"', "&quot;")
             .replace('\'', "&#x27;")
+            .replace('{', "&#123;")
+            .replace('}', "&#125;")
     }
 
     pub const fn load_authorize_template() -> &'static str {
@@ -36,6 +38,10 @@ impl TemplateService {
 
     pub const fn load_webauthn_oauth_template() -> &'static str {
         include_str!("../../templates/webauthn_oauth.html")
+    }
+
+    pub const fn load_consent_template() -> &'static str {
+        include_str!("../../templates/consent.html")
     }
 
     pub const fn load_link_passkey_template() -> &'static str {

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="referrer" content="no-referrer">
+    <title>Authorize {client_name}</title>
+    <style>
+        body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin: 0; background: #f5f6f8; color: #1c1e21; }
+        main { max-width: 26rem; margin: 4rem auto; padding: 2rem; background: #fff; border-radius: 0.75rem; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12); }
+        h1 { font-size: 1.25rem; margin: 0 0 1rem; }
+        p { line-height: 1.5; margin: 0 0 0.75rem; }
+        dl { margin: 1rem 0 1.5rem; }
+        dt { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: #5f6570; }
+        dd { margin: 0 0 0.75rem; word-break: break-word; }
+        .actions { display: flex; gap: 0.75rem; }
+        button { flex: 1; padding: 0.7rem 1rem; border-radius: 0.5rem; border: 1px solid #c9ccd1; background: #fff; font-size: 1rem; cursor: pointer; }
+        button.allow { background: #1a56db; border-color: #1a56db; color: #fff; }
+    </style>
+</head>
+<body>
+    <main>
+        <h1>Authorize {client_name}</h1>
+        <p><strong>{client_name}</strong> is asking for access to your account.</p>
+        <dl>
+            <dt>Signed in as</dt>
+            <dd>{account}</dd>
+            <dt>Requested access</dt>
+            <dd>{scope}</dd>
+            <dt>Returns to</dt>
+            <dd>{redirect_host}</dd>
+            <dt>Client</dt>
+            <dd>{client_id}</dd>
+        </dl>
+        <form method="post" action="{authorize_path}">
+            <input type="hidden" name="response_type" value="{response_type}">
+            <input type="hidden" name="client_id" value="{client_id}">
+            <input type="hidden" name="redirect_uri" value="{redirect_uri}">
+            <input type="hidden" name="scope" value="{scope}">
+            <input type="hidden" name="state" value="{state}">
+            <input type="hidden" name="code_challenge" value="{code_challenge}">
+            <input type="hidden" name="code_challenge_method" value="{code_challenge_method}">
+            <input type="hidden" name="resource" value="{resource}">
+            <input type="hidden" name="consent_token" value="{consent_token}">
+            <div class="actions">
+                <button type="submit" name="user_consent" value="deny">Deny</button>
+                <button type="submit" name="user_consent" value="allow" class="allow">Allow</button>
+            </div>
+        </form>
+    </main>
+</body>
+</html>

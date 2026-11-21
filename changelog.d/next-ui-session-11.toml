@@ -1,4 +1,0 @@
-[root]
-section = "Added"
-area = "OAuth"
-text = "discovery advertises the UI session capability: `/.well-known/oauth-authorization-server`, `/.well-known/openid-configuration` and `endpoints.oauth` of `GET /api/v1` carry `ui_session_supported` and `ui_session` (`access_token_lifetime`, `session_lifetime`, `step_up_max_age`, in seconds), so a `person_ui` client no longer probes `/authorize`. No client is named."

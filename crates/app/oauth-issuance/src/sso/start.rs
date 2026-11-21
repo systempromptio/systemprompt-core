@@ -8,7 +8,7 @@ use chrono::{Duration, Utc};
 use systemprompt_identifiers::SsoRequestId;
 use systemprompt_oauth::repository::SsoStateParams;
 use systemprompt_oauth::services::generate_secure_token;
-use systemprompt_traits::sso::{SsoError, SsoStart};
+use systemprompt_traits::sso::{SsoError, SsoReauth, SsoStart};
 
 use super::cookie::CookieSpec;
 use super::driver::{SsoDriver, StartOutcome};
@@ -26,7 +26,12 @@ pub fn sanitize_return_to(return_to: &str) -> Option<&str> {
 }
 
 impl SsoDriver {
-    pub async fn start(&self, id: &str, return_to: Option<&str>) -> Result<StartOutcome, SsoError> {
+    pub async fn start(
+        &self,
+        id: &str,
+        return_to: Option<&str>,
+        reauth: SsoReauth,
+    ) -> Result<StartOutcome, SsoError> {
         let provider = self
             .provider(id)
             .ok_or_else(|| SsoError::Unavailable(format!("no SSO provider '{id}'")))?;
@@ -42,6 +47,7 @@ impl SsoDriver {
             .start(SsoStart {
                 return_to: &return_to,
                 callback_url: &callback_url,
+                reauth,
             })
             .await?;
         if redirect.seed.state.is_empty() {

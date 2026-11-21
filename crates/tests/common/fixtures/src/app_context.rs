@@ -130,6 +130,7 @@ pub fn fixture_config(database_url: &str) -> Config {
         api_key_max_lifetime_days: None,
         login_page_url: None,
         ui_session: Default::default(),
+        authorize: Default::default(),
     }
 }
 

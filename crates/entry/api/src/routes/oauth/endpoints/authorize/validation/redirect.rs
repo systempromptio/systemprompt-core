@@ -22,6 +22,11 @@ pub struct RegisteredRedirect {
 
 impl RegisteredRedirect {
     #[must_use]
+    pub fn uri(&self) -> &str {
+        &self.uri
+    }
+
+    #[must_use]
     pub fn attach(&self, err: OAuthHttpError) -> OAuthHttpError {
         err.with_redirect(self.uri.clone(), self.state.clone())
     }

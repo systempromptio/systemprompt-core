@@ -1,4 +1,0 @@
-[root]
-section = "Breaking"
-area = "Manifest"
-text = "`SecurityConfig` and `Config` gain `ui_session: UiSessionConfig`. Migrate a struct literal by adding `ui_session: UiSessionConfig::default()` (`Default::default()`)."

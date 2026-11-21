@@ -1,4 +1,0 @@
-[root]
-section = "Breaking"
-area = "OAuth issuance"
-text = "`UserTokenParams` gains `session_started_at: DateTime<Utc>`, the anchor of a UI session's absolute cap, and `authenticated_at` is now only the `auth_time`; `sso::mint_browser_session` takes `authenticated_at: DateTime<Utc>` before `analytics`. Migrate by passing the code's `issued_at` (or the consumed token's `session_started_at`) and the time the person signed in."

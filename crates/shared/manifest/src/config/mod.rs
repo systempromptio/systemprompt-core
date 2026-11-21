@@ -11,7 +11,8 @@ pub use systemprompt_identifiers::InstanceId;
 use systemprompt_traits::ConfigProvider;
 
 use crate::profile::{
-    ContentNegotiationConfig, SecurityHeadersConfig, TrustedIssuer, UiSessionConfig,
+    AuthorizeConfig, ContentNegotiationConfig, SecurityHeadersConfig, TrustedIssuer,
+    UiSessionConfig,
 };
 use systemprompt_models::auth::JwtAudience;
 
@@ -108,6 +109,7 @@ pub struct Config {
     pub api_key_max_lifetime_days: Option<u32>,
     pub login_page_url: Option<String>,
     pub ui_session: UiSessionConfig,
+    pub authorize: AuthorizeConfig,
     pub system_admin_username: String,
     pub system_admin_email: Option<systemprompt_identifiers::Email>,
 }
@@ -182,6 +184,7 @@ impl std::fmt::Debug for Config {
             .field("api_key_max_lifetime_days", &self.api_key_max_lifetime_days)
             .field("login_page_url", &self.login_page_url)
             .field("ui_session", &self.ui_session)
+            .field("authorize", &self.authorize)
             .field("system_admin_username", &self.system_admin_username)
             .field("system_admin_email", &self.system_admin_email)
             .finish()

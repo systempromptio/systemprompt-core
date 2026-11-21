@@ -1,4 +1,0 @@
-[root]
-section = "Breaking"
-area = "Models, Security"
-text = "`TokenError` gains `SignInTimeMissing`, and `user_claims`, `TokenAuthority::mint_user_jwt` and `generate_jwt` return it for a request with `browser_session` or `ui_session` set and `auth_time: None`; such a token was minted with `auth_time` set to now. Migrate by setting `auth_time: Some(..)` (`UserJwtRequest`, `JwtConfig`) to when the person signed in. Tokens with neither flag are unchanged."

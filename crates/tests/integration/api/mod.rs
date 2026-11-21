@@ -291,12 +291,12 @@ mod messaging_dispatch;
 mod messaging_linking;
 
 #[cfg(test)]
-#[path = "routes_oauth_consent.rs"]
-mod routes_oauth_consent;
-
-#[cfg(test)]
 #[path = "routes_oauth_authorize.rs"]
 mod routes_oauth_authorize;
+
+#[cfg(test)]
+#[path = "routes_oauth_authorize_session.rs"]
+mod routes_oauth_authorize_session;
 
 #[cfg(test)]
 #[path = "routes_oauth_logout.rs"]

@@ -213,6 +213,7 @@ fn build_config(
         api_key_max_lifetime_days: profile.security.api_keys.max_lifetime_days,
         login_page_url: profile.security.login_page_url.clone(),
         ui_session: profile.security.ui_session,
+        authorize: profile.security.authorize,
         system_admin_username,
         system_admin_email: profile.system_admin.email.clone(),
     })

@@ -12,7 +12,7 @@ An extension is a composition member: a type that implements `Extension` and is 
 ```toml
 # Cargo.toml
 [dependencies]
-systemprompt = { version = "0.84", features = ["full"] }
+systemprompt = { version = "0.85", features = ["full"] }
 ```
 
 The complete minimal member and binary is the facade example `systemprompt/examples/extension.rs`:

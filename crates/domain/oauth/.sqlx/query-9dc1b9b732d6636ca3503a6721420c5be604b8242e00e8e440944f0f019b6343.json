@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT EXISTS (\n                SELECT 1\n                FROM oauth_consents k\n                JOIN oauth_clients c ON c.client_id = k.client_id\n                WHERE k.user_id = $1 AND k.client_id = $2 AND k.scopes @> $3\n                  AND c.is_active AND c.declared_source IS NOT NULL\n            ) AS \"covered!\"\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "covered!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "9dc1b9b732d6636ca3503a6721420c5be604b8242e00e8e440944f0f019b6343"
+}

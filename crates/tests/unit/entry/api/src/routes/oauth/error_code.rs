@@ -39,6 +39,13 @@ fn as_str_emits_canonical_rfc_wire_strings() {
         (OAuthErrorCode::LinkFailed, "link_failed"),
         (OAuthErrorCode::InvalidTarget, "invalid_target"),
         (OAuthErrorCode::NotFound, "not_found"),
+        (OAuthErrorCode::LoginRequired, "login_required"),
+        (OAuthErrorCode::ConsentRequired, "consent_required"),
+        (OAuthErrorCode::InteractionRequired, "interaction_required"),
+        (
+            OAuthErrorCode::AccountSelectionRequired,
+            "account_selection_required",
+        ),
     ];
     for (code, wire) in pairs {
         assert_eq!(code.as_str(), wire);
@@ -59,6 +66,10 @@ fn default_status_400_for_request_shape_errors() {
         OAuthErrorCode::LinkFailed,
         OAuthErrorCode::InvalidTarget,
         OAuthErrorCode::RegistrationFailed,
+        OAuthErrorCode::LoginRequired,
+        OAuthErrorCode::ConsentRequired,
+        OAuthErrorCode::InteractionRequired,
+        OAuthErrorCode::AccountSelectionRequired,
     ];
     for c in codes {
         assert_eq!(c.default_status(), StatusCode::BAD_REQUEST, "{c:?}");

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.85.0] - 2026-11-21
+
+### Changed
+
+- `admin setup` profiles set `security.ui_session` to its defaults, which a written profile omits.
+- `admin setup` profiles set `security.authorize` to its defaults, which a written profile omits.
+
 ## [0.82.0] - 2026-11-16
 
 ### Added

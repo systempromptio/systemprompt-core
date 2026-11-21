@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO oauth_consents (user_id, client_id, scopes)\n            SELECT $1, c.client_id, $3::text[]\n            FROM oauth_clients c\n            WHERE c.client_id = $2 AND c.is_active AND c.declared_source IS NOT NULL\n            ON CONFLICT (user_id, client_id) DO UPDATE\n            SET scopes = ARRAY(\n                    SELECT DISTINCT granted\n                    FROM unnest(oauth_consents.scopes || EXCLUDED.scopes) AS granted\n                    ORDER BY granted\n                ),\n                updated_at = CURRENT_TIMESTAMP\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Text",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7be144f5a6650de9e5621e72471f0f54d94a48b2a682a80c47c1c2e8eec64917"
+}

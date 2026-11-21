@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT EXISTS (\n                SELECT 1 FROM oauth_clients\n                WHERE client_id = $1 AND is_active AND declared_source IS NOT NULL\n            ) AS \"declared!\"\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "declared!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "af772a6d2e669f944edb8db63956ea5ff6ddf5a6e946e202a6de053e82322c44"
+}

@@ -8,8 +8,9 @@
 //! stamps and `person_ui` and deactivates it. `person_ui` is written only here,
 //! and [`ClientRepository::is_person_ui`] honours it only on an active row that
 //! still carries its declaration stamp. Changing a client's `person_ui` revokes
-//! its outstanding refresh tokens, so no grant outlives the kind of session it
-//! was minted for.
+//! its outstanding refresh tokens and the consent people remembered for it, so
+//! no grant outlives the kind of session it was minted for; releasing it drops
+//! that consent too.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -90,15 +91,10 @@ impl ClientRepository {
             .collect())
     }
 
-    pub async fn upsert_declared_on(
+    async fn clear_grants_on_person_ui_change(
         tx: &mut Transaction<'_, Postgres>,
         client: &DeclaredClientWrite<'_>,
     ) -> Result<()> {
-        let auth_method = if client.secret_hash.is_some() {
-            TokenAuthMethod::ClientSecretBasic
-        } else {
-            TokenAuthMethod::None
-        };
         sqlx::query!(
             r#"
             DELETE FROM oauth_refresh_tokens
@@ -111,6 +107,31 @@ impl ClientRepository {
         )
         .execute(&mut **tx)
         .await?;
+        sqlx::query!(
+            r#"
+            DELETE FROM oauth_consents
+            WHERE client_id = $1
+              AND EXISTS (SELECT 1 FROM oauth_clients
+                          WHERE client_id = $1 AND person_ui <> $2)
+            "#,
+            client.client_id.as_str(),
+            client.person_ui,
+        )
+        .execute(&mut **tx)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn upsert_declared_on(
+        tx: &mut Transaction<'_, Postgres>,
+        client: &DeclaredClientWrite<'_>,
+    ) -> Result<()> {
+        let auth_method = if client.secret_hash.is_some() {
+            TokenAuthMethod::ClientSecretBasic
+        } else {
+            TokenAuthMethod::None
+        };
+        Self::clear_grants_on_person_ui_change(tx, client).await?;
         sqlx::query!(
             r#"
             INSERT INTO oauth_clients (client_id, client_secret_hash, client_name,
@@ -175,6 +196,12 @@ impl ClientRepository {
     }
 
     pub async fn release_declared_on(conn: &mut PgConnection, client_id: &ClientId) -> Result<()> {
+        sqlx::query!(
+            "DELETE FROM oauth_consents WHERE client_id = $1",
+            client_id.as_str()
+        )
+        .execute(&mut *conn)
+        .await?;
         sqlx::query!(
             r#"
             UPDATE oauth_clients
