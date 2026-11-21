@@ -6,7 +6,7 @@ use systemprompt_marketplace::managed::{
     GitCaptureRequest, GitSourceCapture, ManagedError, NativeGitSourceCapture,
 };
 
-use crate::git_https::Fixture;
+use crate::git_https::{Fixture, native_capture_git};
 use systemprompt_models::net::LoopbackPolicy;
 
 fn run(directory: &Path, args: &[&str]) -> String {
@@ -72,14 +72,22 @@ struct Harness {
 }
 
 impl Harness {
-    fn start() -> Self {
+    fn start() -> Option<Self> {
+        if let Err(skip) = native_capture_git() {
+            assert!(
+                std::env::var_os("CI").is_none(),
+                "{skip}: CI runners must provide it"
+            );
+            eprintln!("skipped: {skip}");
+            return None;
+        }
         let fixture = Fixture::start();
         let url = format!("https://127.0.0.1:{}/repo.git", fixture.port);
-        Self {
+        Some(Self {
             fixture,
             scratch: tempfile::tempdir().expect("scratch root"),
             url,
-        }
+        })
     }
 
     fn trusted(&self) -> NativeGitSourceCapture {
@@ -109,7 +117,11 @@ impl Harness {
 
 #[test]
 fn branch_capture_imports_only_the_rooted_regular_files() {
-    let harness = Harness::start();
+    // skip-ok: native capture needs git >= 2.37 (skipped with its reason, refused
+    // under CI)
+    let Some(harness) = Harness::start() else {
+        return;
+    };
     let commit = publish(&harness.fixture, "main", skill_tree);
 
     let captured = harness
@@ -131,7 +143,11 @@ fn branch_capture_imports_only_the_rooted_regular_files() {
 
 #[test]
 fn pinned_commit_capture_skips_ref_resolution() {
-    let harness = Harness::start();
+    // skip-ok: native capture needs git >= 2.37 (skipped with its reason, refused
+    // under CI)
+    let Some(harness) = Harness::start() else {
+        return;
+    };
     let commit = publish(&harness.fixture, "main", skill_tree);
 
     let captured = harness
@@ -145,7 +161,11 @@ fn pinned_commit_capture_skips_ref_resolution() {
 
 #[test]
 fn absent_root_captures_an_empty_tree() {
-    let harness = Harness::start();
+    // skip-ok: native capture needs git >= 2.37 (skipped with its reason, refused
+    // under CI)
+    let Some(harness) = Harness::start() else {
+        return;
+    };
     publish(&harness.fixture, "main", skill_tree);
 
     let captured = harness
@@ -158,7 +178,11 @@ fn absent_root_captures_an_empty_tree() {
 
 #[test]
 fn unknown_reference_fails_and_leaves_no_checkout() {
-    let harness = Harness::start();
+    // skip-ok: native capture needs git >= 2.37 (skipped with its reason, refused
+    // under CI)
+    let Some(harness) = Harness::start() else {
+        return;
+    };
     publish(&harness.fixture, "main", skill_tree);
 
     let error = harness
@@ -172,7 +196,11 @@ fn unknown_reference_fails_and_leaves_no_checkout() {
 
 #[test]
 fn untrusted_certificate_is_refused_without_a_configured_authority() {
-    let harness = Harness::start();
+    // skip-ok: native capture needs git >= 2.37 (skipped with its reason, refused
+    // under CI)
+    let Some(harness) = Harness::start() else {
+        return;
+    };
     publish(&harness.fixture, "main", skill_tree);
     let capture = NativeGitSourceCapture::new(harness.scratch.path().to_path_buf())
         .with_loopback_policy(LoopbackPolicy::Allow);
@@ -187,7 +215,11 @@ fn untrusted_certificate_is_refused_without_a_configured_authority() {
 
 #[test]
 fn wrong_credential_is_refused_without_echoing_the_token() {
-    let harness = Harness::start();
+    // skip-ok: native capture needs git >= 2.37 (skipped with its reason, refused
+    // under CI)
+    let Some(harness) = Harness::start() else {
+        return;
+    };
     publish(&harness.fixture, "main", skill_tree);
     let request = GitCaptureRequest {
         credential: Some("stale-token"),
@@ -201,7 +233,11 @@ fn wrong_credential_is_refused_without_echoing_the_token() {
 
 #[test]
 fn symbolic_links_under_the_root_are_rejected() {
-    let harness = Harness::start();
+    // skip-ok: native capture needs git >= 2.37 (skipped with its reason, refused
+    // under CI)
+    let Some(harness) = Harness::start() else {
+        return;
+    };
     publish(&harness.fixture, "linked", |root| {
         skill_tree(root);
         std::os::unix::fs::symlink("SKILL.md", root.join("plugins/skill-a/alias.md"))
@@ -219,7 +255,11 @@ fn symbolic_links_under_the_root_are_rejected() {
 
 #[test]
 fn nested_git_metadata_anywhere_in_the_tree_is_rejected() {
-    let harness = Harness::start();
+    // skip-ok: native capture needs git >= 2.37 (skipped with its reason, refused
+    // under CI)
+    let Some(harness) = Harness::start() else {
+        return;
+    };
     publish(&harness.fixture, "submodule", |root| {
         skill_tree(root);
         write(root, ".gitmodules", "[submodule \"x\"]\n");
@@ -235,7 +275,11 @@ fn nested_git_metadata_anywhere_in_the_tree_is_rejected() {
 
 #[test]
 fn unportable_paths_under_the_root_are_rejected() {
-    let harness = Harness::start();
+    // skip-ok: native capture needs git >= 2.37 (skipped with its reason, refused
+    // under CI)
+    let Some(harness) = Harness::start() else {
+        return;
+    };
     publish(&harness.fixture, "colon", |root| {
         skill_tree(root);
         write(root, "plugins/skill-a/a:b.md", "colon");

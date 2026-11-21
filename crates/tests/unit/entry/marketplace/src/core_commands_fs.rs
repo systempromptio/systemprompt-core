@@ -80,7 +80,7 @@ fn seed_plugin() -> PathBuf {
 }
 
 async fn run(args: &[&str]) -> anyhow::Result<()> {
-    let ctx = crate::common::services_tree_ctx();
+    let ctx = crate::common::try_services_tree_ctx()?;
     run_on(args, &crate::common::granted(&ctx)).await.map(drop)
 }
 
@@ -288,7 +288,7 @@ marketplaces:
 }
 
 #[tokio::test]
-async fn a_plugin_missing_its_referenced_skill_is_reported_as_invalid() {
+async fn a_plugin_missing_its_referenced_skill_is_refused_when_the_services_tree_loads() {
     let plugin = services_root().join("plugins/covinvalid");
     std::fs::create_dir_all(&plugin).unwrap();
     std::fs::write(
@@ -302,18 +302,15 @@ async fn a_plugin_missing_its_referenced_skill_is_reported_as_invalid() {
     .unwrap();
 
     let err = run(&["plugins", "validate"]).await.unwrap_err();
+    let message = format!("{err:#}");
     assert!(
-        format!("{err:#}").contains("Plugin validation failed"),
-        "{err:#}"
+        message.contains("Failed to load the services configuration"),
+        "{message}"
     );
-    let report = err
-        .downcast_ref::<systemprompt_extension::cli::CommandError>()
-        .and_then(systemprompt_extension::cli::CommandError::output)
-        .expect("a failing validation carries its report");
-    let wire = serde_json::to_value(report.artifact()).unwrap().to_string();
-    assert!(wire.contains("cov_absent_skill"), "{wire}");
+    assert!(message.contains("covinvalid"), "{message}");
+    assert!(message.contains("cov_absent_skill"), "{message}");
 
-    // `validate` takes the id positionally, and an unknown one is a hard error.
+    std::fs::remove_dir_all(&plugin).unwrap();
     let err = run(&["plugins", "validate", "cov_absent_plugin"])
         .await
         .unwrap_err();
@@ -321,7 +318,7 @@ async fn a_plugin_missing_its_referenced_skill_is_reported_as_invalid() {
 }
 
 #[tokio::test]
-async fn an_unparseable_plugin_config_is_reported_by_the_generator() {
+async fn an_unparseable_plugin_config_is_refused_when_the_services_tree_loads() {
     let plugin = services_root().join("plugins/covunparseable");
     std::fs::create_dir_all(&plugin).unwrap();
     std::fs::write(plugin.join("config.yaml"), "plugin: [not a mapping\n").unwrap();
@@ -330,5 +327,10 @@ async fn an_unparseable_plugin_config_is_reported_by_the_generator() {
         .await
         .unwrap_err();
 
-    assert!(format!("{err:#}").contains("covunparseable"), "{err:#}");
+    let message = format!("{err:#}");
+    assert!(
+        message.contains("Failed to load the services configuration"),
+        "{message}"
+    );
+    assert!(message.contains("covunparseable"), "{message}");
 }

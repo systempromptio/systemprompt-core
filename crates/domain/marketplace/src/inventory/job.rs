@@ -83,19 +83,19 @@ impl Job for InventoryRefreshJob {
     }
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let MemberRefresher(refresher) = ctx.get::<MemberRefresher>()?;
-        let fingerprint = refresher
-            .fingerprint()
-            .inspect_err(|error| tracing::debug!(%error, "Inventory fingerprint unavailable"))
-            .ok();
+        let fingerprint = refresher.fingerprint();
         let published = match fingerprint {
-            Some(fingerprint) if self.memo.unchanged(&fingerprint) => 0,
+            Ok(fingerprint) if self.memo.unchanged(&fingerprint) => 0,
             fingerprint => {
                 let outcomes = refresher
                     .publish_latest(&ctx.actor().user_id)
                     .await
                     .map_err(internal)?;
-                if let Some(fingerprint) = fingerprint {
-                    self.memo.remember(fingerprint);
+                match fingerprint {
+                    Ok(fingerprint) => self.memo.remember(fingerprint),
+                    Err(error) => {
+                        tracing::warn!(%error, "Inventory published without a fingerprint; the next run refreshes again");
+                    },
                 }
                 let count = outcomes
                     .iter()

@@ -7,7 +7,7 @@
 
 use std::sync::Arc;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, Response};
@@ -56,13 +56,18 @@ fn booted(boot: &BootContext) -> BootContext {
 }
 
 pub fn services_tree_ctx() -> CommandContext {
+    try_services_tree_ctx().expect("the bootstrap services config loads")
+}
+
+pub fn try_services_tree_ctx() -> Result<CommandContext> {
     let boot = booted(&ensure_test_bootstrap().boot);
-    let services = ServicesState::load(&boot).expect("the bootstrap services config loads");
-    CommandContext::new(json_cli(), EnvOverrides::default())
+    let services =
+        ServicesState::load(&boot).context("Failed to load the services configuration")?;
+    Ok(CommandContext::new(json_cli(), EnvOverrides::default())
         .with_boot(Some(boot))
         .with_admitted(Some(fixture_admitted()))
         .with_services(Some(services))
-        .with_detached_kernel()
+        .with_detached_kernel())
 }
 
 pub fn app_ctx(app: Arc<AppContext>) -> CommandContext {

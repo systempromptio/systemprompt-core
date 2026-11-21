@@ -12,6 +12,8 @@ use serde::Serialize;
 use systemprompt_analytics_entry::cli::shared::export::{
     ensure_export_dir, export_to_csv, resolve_export_path,
 };
+use systemprompt_cli::kernel::MemberHost;
+use systemprompt_extension::cli::{CommandDescriptor, CommandHost, KernelGrant};
 
 #[derive(Serialize)]
 struct Row {
@@ -41,11 +43,26 @@ fn a_parented_relative_export_path_is_returned_unchanged() {
 
 #[test]
 fn a_bare_filename_is_resolved_under_the_profile_exports_directory() {
-    let resolved = resolve_export_path(Path::new("report.csv"), &bootstrap_ctx()).unwrap();
+    let ctx = bootstrap_ctx();
+    let host = MemberHost::new(
+        &ctx,
+        CommandDescriptor::FULL.with_grant(KernelGrant::LocalExport),
+    );
+
+    let resolved = resolve_export_path(Path::new("report.csv"), &host).unwrap();
 
     assert!(resolved.is_absolute(), "{}", resolved.display());
-    assert!(resolved.ends_with("report.csv"), "{}", resolved.display());
-    assert_ne!(resolved, PathBuf::from("report.csv"));
+    assert_eq!(resolved, host.export_dir().unwrap().join("report.csv"));
+}
+
+#[test]
+fn a_bare_filename_is_refused_without_the_local_export_grant() {
+    let error = resolve_export_path(Path::new("report.csv"), &bootstrap_ctx()).unwrap_err();
+
+    assert!(
+        format!("{error:#}").contains("`local-export` kernel grant"),
+        "{error:#}"
+    );
 }
 
 #[test]

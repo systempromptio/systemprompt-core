@@ -10,7 +10,10 @@ use systemprompt_marketplace::inventory::{
 };
 use systemprompt_marketplace::managed::ManagedRepository;
 use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::{init_isolated_bootstrap, test_app_context_on, test_db_pool};
+use systemprompt_test_fixtures::{
+    DisposableDb, fixture_admitted, fixture_app_context_reloaded_on, init_isolated_bootstrap,
+    test_app_context_on, test_db_pool,
+};
 use systemprompt_traits::{Job, JobContext};
 
 fn refresher(ctx: &AppContext) -> InventoryRefresher {
@@ -61,11 +64,10 @@ fn skill(root: &std::path::Path, body: &str) {
 async fn runtime_inventory_retains_last_good_membership_across_scan_failure_and_republishes_repair()
 {
     let boot = init_isolated_bootstrap("http://127.0.0.1", "{}\n");
-    let pool = test_db_pool().await;
-    systemprompt_test_fixtures::seed_fixture_system_admin(&pool)
+    let database = DisposableDb::with_schema("runtime_inventory_lifecycle").await;
+    let ctx = fixture_app_context_reloaded_on(&boot, database.url(), fixture_admitted())
         .await
-        .expect("seed the system admin");
-    let ctx = test_app_context_on(&boot).await;
+        .expect("an app context over the disposable database");
     let inventory = refresher(&ctx);
     let owner = inventory.owner().clone();
     skill(&boot.services_path, "# generation one\n");
@@ -119,6 +121,9 @@ async fn runtime_inventory_retains_last_good_membership_across_scan_failure_and_
     assert_eq!(republished.len(), 1);
     assert_eq!(republished[0].status, LatestPublicationStatus::Published);
     assert_eq!(republished[0].generation, Some(2));
+    drop(inventory);
+    drop(ctx);
+    database.drop_now().await;
 }
 
 #[tokio::test]

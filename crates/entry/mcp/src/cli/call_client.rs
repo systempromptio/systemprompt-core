@@ -161,11 +161,13 @@ async fn connect(
         request_context(server_name, token),
         cli_limits(timeout_secs),
     )?;
-    let config = match token {
-        Some(token) => StreamableHttpClientTransportConfig::with_uri(url)
-            .auth_header(token.as_str().to_owned()),
-        None => StreamableHttpClientTransportConfig::with_uri(url),
-    };
+    let config = token.map_or_else(
+        || StreamableHttpClientTransportConfig::with_uri(url),
+        |token| {
+            StreamableHttpClientTransportConfig::with_uri(url)
+                .auth_header(token.as_str().to_owned())
+        },
+    );
     let transport = StreamableHttpClientTransport::with_client(http_client, config);
 
     let client_info = ClientConfig::new(

@@ -119,7 +119,14 @@ fn make_profile(services: &Path, web_path: &Path) -> Profile {
             services: services.to_string_lossy().to_string(),
             bin: "/tmp/test/bin".to_string(),
             web_path: Some(web_path.to_string_lossy().to_string()),
-            storage: None,
+            storage: Some(
+                services
+                    .parent()
+                    .unwrap()
+                    .join("storage")
+                    .to_string_lossy()
+                    .to_string(),
+            ),
             geoip_database: None,
             shipped_files: None,
             data: None,
