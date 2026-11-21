@@ -82,6 +82,7 @@ pub(crate) fn local_profile() -> Profile {
             api_keys: Default::default(),
             login_page_url: None,
             ui_session: Default::default(),
+            authorize: Default::default(),
             signing_key_path: std::path::PathBuf::from("/tmp/test-signing-key.pem"),
             trusted_issuers: vec![],
             id_jag_ttl_secs: systemprompt_manifest::profile::DEFAULT_ID_JAG_TTL_SECS,

@@ -9,11 +9,17 @@
 
 ### Added
 
-- Migration `026` adds `oauth_auth_codes.authenticated_at` (backfilled from `created_at`) and `oauth_refresh_tokens.session_started_at` (backfilled from `authenticated_at`). A stored code's sign-in time is never later than its issue.
+- Migration `026` adds `oauth_auth_codes.authenticated_at` and `oauth_refresh_tokens.session_started_at` (DDL only; a row that predates them takes the migration time). A stored code's sign-in time is never later than its issue.
+- Migration `027` and `schema/oauth_consents.sql` add `oauth_consents` (one row per user and client, a `TEXT[]` of scopes, cascading with the user and the client).
+- `OAuthRepository::is_declared_client`, `consent_covers` and `record_consent` (an upsert that unions the scopes). Consent is read and written only for an active client that carries its declaration stamp; `record_consent` answers `false` and writes nothing for any other.
+- `OAuthRepository::consent_token` and `consent_token_matches` over a `ConsentBinding`: the at-rest HMAC of the person, session and authorization request with an expiry of at most `CONSENT_TOKEN_TTL_SECS`, compared in constant time.
+- `templates/consent.html` and `TemplateService::load_consent_template`.
+- `ClientRepository::upsert_declared_on` deletes a client's consents when its `person_ui` changes, and `release_declared_on` deletes them.
 
 ### Fixed
 
 - The passkey pages (`webauthn_oauth.html`, `link_passkey.html`) post the credential's binary fields as unpadded base64url strings, the only form `webauthn-rs` 0.6.2 reads; they sent byte arrays, which the finish endpoints refused with a 400.
+- `TemplateService::render` escapes `{` and `}` in substituted values, so a value naming another placeholder is not expanded.
 
 ## [0.84.0] - 2026-11-20
 

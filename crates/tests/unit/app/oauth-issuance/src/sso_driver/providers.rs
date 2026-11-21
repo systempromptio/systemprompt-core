@@ -147,8 +147,13 @@ impl SsoProvider for FakeProvider {
         };
         Ok(SsoRedirect {
             url: format!(
-                "https://idp.test/authorize?state={state}&redirect_uri={}",
-                input.callback_url
+                "https://idp.test/authorize?state={state}&redirect_uri={}&force={}&max_age={}",
+                input.callback_url,
+                input.reauth.force,
+                input
+                    .reauth
+                    .max_age
+                    .map_or_else(String::new, |age| age.to_string()),
             ),
             seed: SsoStateSeed {
                 nonce: Some(nonce_for(&state)),

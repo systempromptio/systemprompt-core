@@ -1,5 +1,5 @@
 //! Profile `security:` block: signing keys, trusted issuers, resource
-//! audiences, UI-session lifetimes.
+//! audiences, UI-session lifetimes, authorization-endpoint policy.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -90,6 +90,38 @@ pub struct SecurityConfig {
 
     #[serde(default, skip_serializing_if = "UiSessionConfig::is_default")]
     pub ui_session: UiSessionConfig,
+
+    #[serde(default, skip_serializing_if = "AuthorizeConfig::is_default")]
+    pub authorize: AuthorizeConfig,
+}
+
+/// Policy of the authorization endpoint for a person already signed in to the
+/// browser (`security.authorize`).
+///
+/// `/authorize` issues a code without any page when the person holds a browser
+/// session and has already allowed the requesting operator-declared client
+/// the requested scopes. A client whose `redirect_uri` is a loopback address
+/// or a private-use scheme cannot prove its identity (RFC 8252 §8.6): any
+/// process on the person's machine can open the same authorization URL and
+/// receive the code. For such a redirect the endpoint therefore always shows
+/// the one-click consent page, whatever consent is remembered.
+/// `silent_native_clients: true` removes that page for native redirects too;
+/// the person then has no chance to notice a local process impersonating the
+/// client, and PKCE alone decides who can redeem the code.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema,
+)]
+#[serde(deny_unknown_fields)]
+pub struct AuthorizeConfig {
+    #[serde(default)]
+    pub silent_native_clients: bool,
+}
+
+impl AuthorizeConfig {
+    #[must_use]
+    pub fn is_default(&self) -> bool {
+        *self == Self::default()
+    }
 }
 
 /// Lifetimes, in seconds, of a person's UI session (`security.ui_session`):

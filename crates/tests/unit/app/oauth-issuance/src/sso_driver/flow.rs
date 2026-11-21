@@ -1,6 +1,6 @@
 use systemprompt_oauth_issuance::sso::{BINDER_COOKIE_NAME, FinishOutcome, SSO_STATE_TTL_SECS};
 use systemprompt_test_fixtures::closed_db_pool;
-use systemprompt_traits::sso::{CookieSameSite, SsoError};
+use systemprompt_traits::sso::{CookieSameSite, SsoError, SsoReauth};
 
 use super::providers::{
     BLANK, CLOSED, DEFAULT_RETURN, OPEN, OPEN_CALLBACK, Recorded, events_for_sub,
@@ -13,7 +13,7 @@ async fn start_binds_the_attempt_to_a_callback_scoped_secure_cookie() {
 
     let outcome = h
         .driver
-        .start(OPEN, Some("/dashboard"))
+        .start(OPEN, Some("/dashboard"), SsoReauth::default())
         .await
         .expect("start");
 
@@ -40,17 +40,59 @@ async fn a_plain_http_deployment_gets_a_lax_insecure_binder() {
         "http://sso.test",
     );
 
-    let outcome = h.driver.start(OPEN, None).await.expect("start");
+    let outcome = h
+        .driver
+        .start(OPEN, None, SsoReauth::default())
+        .await
+        .expect("start");
 
     assert!(!outcome.binder_cookie.secure);
     assert_eq!(outcome.binder_cookie.same_site, CookieSameSite::Lax);
 }
 
 #[tokio::test]
+async fn start_hands_the_reauthentication_request_to_the_provider() {
+    let h = harness().await;
+
+    let plain = h
+        .driver
+        .start(OPEN, None, SsoReauth::default())
+        .await
+        .expect("start");
+    assert!(
+        plain.redirect_url.ends_with("&force=false&max_age="),
+        "{}",
+        plain.redirect_url
+    );
+
+    let forced = h
+        .driver
+        .start(
+            OPEN,
+            None,
+            SsoReauth {
+                force: true,
+                max_age: Some(300),
+            },
+        )
+        .await
+        .expect("start");
+    assert!(
+        forced.redirect_url.ends_with("&force=true&max_age=300"),
+        "{}",
+        forced.redirect_url
+    );
+}
+
+#[tokio::test]
 async fn start_for_an_unknown_provider_is_unavailable() {
     let h = harness().await;
 
-    let err = h.driver.start("nope", None).await.expect_err("unknown id");
+    let err = h
+        .driver
+        .start("nope", None, SsoReauth::default())
+        .await
+        .expect_err("unknown id");
 
     assert!(matches!(err, SsoError::Unavailable(_)), "{err:?}");
 }
@@ -59,7 +101,11 @@ async fn start_for_an_unknown_provider_is_unavailable() {
 async fn a_provider_returning_an_empty_state_cannot_start() {
     let h = harness().await;
 
-    let err = h.driver.start(BLANK, None).await.expect_err("empty state");
+    let err = h
+        .driver
+        .start(BLANK, None, SsoReauth::default())
+        .await
+        .expect_err("empty state");
 
     assert!(matches!(err, SsoError::Internal(_)), "{err:?}");
 }
@@ -68,7 +114,11 @@ async fn a_provider_returning_an_empty_state_cannot_start() {
 async fn start_fails_closed_when_the_state_store_is_down() {
     let h = harness_on(&closed_db_pool().await, "https://sso.test");
 
-    let err = h.driver.start(OPEN, None).await.expect_err("closed pool");
+    let err = h
+        .driver
+        .start(OPEN, None, SsoReauth::default())
+        .await
+        .expect_err("closed pool");
 
     assert!(matches!(err, SsoError::Internal(_)), "{err:?}");
 }

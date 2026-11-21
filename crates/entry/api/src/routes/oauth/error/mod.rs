@@ -5,7 +5,8 @@
 //! and emits an RFC 6749 §5.2 wire shape `{"error": "...", "error_description":
 //! "..."}`. The authorize-flow variant (§4.1.2.1) carries a redirect target so
 //! the response renders as a 302 to the client's `redirect_uri` with the same
-//! error fields encoded as query parameters. A 5xx description is logged but
+//! error fields encoded as query parameters, and the RFC 9207 `iss` when the
+//! handler states one. A 5xx description is logged but
 //! never sent: the wire carries a fixed message, so internal error text cannot
 //! reach a client or a third-party redirect URI.
 //!
@@ -22,6 +23,7 @@ use axum::response::{IntoResponse, Redirect, Response};
 use serde::Serialize;
 use systemprompt_traits::BoxedSource;
 
+mod authorize;
 mod code;
 mod conversions;
 
@@ -39,6 +41,7 @@ pub struct OAuthHttpError {
     status: StatusCode,
     description: String,
     redirect: Option<RedirectContext>,
+    redirect_issuer: Option<String>,
     source: Option<BoxedSource>,
 }
 
@@ -50,6 +53,7 @@ impl OAuthHttpError {
             code,
             description: description.into(),
             redirect: None,
+            redirect_issuer: None,
             source: None,
         }
     }
@@ -242,6 +246,10 @@ impl IntoResponse for OAuthHttpError {
             if let Some(state) = &redirect.state {
                 target.push_str("&state=");
                 target.push_str(&urlencoding::encode(state));
+            }
+            if let Some(issuer) = &self.redirect_issuer {
+                target.push_str("&iss=");
+                target.push_str(&urlencoding::encode(issuer));
             }
             return Redirect::to(&target).into_response();
         }

@@ -127,7 +127,6 @@ async fn revoke_is_the_only_oauth_route_that_takes_a_ui_bearer() -> anyhow::Resu
         (Method::GET, "/api/v1/core/oauth/userinfo"),
         (Method::POST, "/api/v1/core/oauth/introspect"),
         (Method::POST, "/api/v1/core/oauth/logout"),
-        (Method::GET, "/api/v1/core/oauth/consent"),
         (Method::GET, "/api/v1/core/oauth/clients"),
     ] {
         let req = Request::builder()

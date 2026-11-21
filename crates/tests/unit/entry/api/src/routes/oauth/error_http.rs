@@ -57,6 +57,51 @@ fn helper_constructors_match_code() {
     check!(link_failed, OAuthErrorCode::LinkFailed);
     check!(invalid_target, OAuthErrorCode::InvalidTarget);
     check!(not_found, OAuthErrorCode::NotFound);
+    check!(login_required, OAuthErrorCode::LoginRequired);
+    check!(consent_required, OAuthErrorCode::ConsentRequired);
+    check!(interaction_required, OAuthErrorCode::InteractionRequired);
+    check!(
+        account_selection_required,
+        OAuthErrorCode::AccountSelectionRequired
+    );
+}
+
+#[tokio::test]
+async fn a_redirected_error_carries_the_issuer_only_when_one_is_stated() {
+    let location = |e: OAuthHttpError| {
+        e.into_response()
+            .headers()
+            .get(header::LOCATION)
+            .expect("Location header")
+            .to_str()
+            .unwrap()
+            .to_owned()
+    };
+    let with_issuer = location(
+        OAuthHttpError::login_required("sign in")
+            .with_redirect("https://app.example/cb", Some("xyz".into()))
+            .with_redirect_issuer("https://issuer.example"),
+    );
+    assert!(
+        with_issuer.ends_with("&state=xyz&iss=https%3A%2F%2Fissuer.example"),
+        "{with_issuer}"
+    );
+    assert!(
+        with_issuer.contains("error=login_required"),
+        "{with_issuer}"
+    );
+
+    let without = location(
+        OAuthHttpError::consent_required("ask")
+            .with_redirect("https://app.example/cb", Some("xyz".into())),
+    );
+    assert!(!without.contains("iss="), "{without}");
+
+    let in_place = OAuthHttpError::interaction_required("confirm")
+        .with_redirect_issuer("https://issuer.example")
+        .into_response();
+    assert_eq!(in_place.status(), StatusCode::BAD_REQUEST);
+    assert!(in_place.headers().get(header::LOCATION).is_none());
 }
 
 #[test]

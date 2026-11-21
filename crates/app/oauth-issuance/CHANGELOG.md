@@ -5,10 +5,12 @@
 ### Breaking
 
 - `UserTokenParams` gains `session_started_at`, and `sso::mint_browser_session` takes `authenticated_at: DateTime<Utc>` before `analytics`. Migrate by passing the code's issue time (or the consumed refresh token's `session_started_at`) and the time the person signed in.
+- `SsoDriver::start` takes `reauth: SsoReauth` after `return_to`, and `sso::oidc::AuthorizeParams` gains `reauth`. Migrate with `SsoReauth::default()` or the `prompt`/`max_age` the login page received.
 
 ### Added
 
 - The OIDC provider reads the `id_token` `auth_time` claim into `ExternalIdentity::authenticated_at`, and the SSO session cookie carries it as `auth_time`, never later than the return.
+- The OIDC provider sends `prompt=login` when `SsoReauth::force` is set and `max_age` when one is given (a negative value is never sent).
 
 ### Fixed
 

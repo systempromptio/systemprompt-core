@@ -32,6 +32,8 @@ fn valid_query() -> AuthorizeQuery {
         max_age: None,
         ui_locales: None,
         resource: None,
+        login_hint: None,
+        reauth_since: None,
     }
 }
 
@@ -321,6 +323,25 @@ fn test_prompt_valid_multiple_values_accepted() {
         ..valid_query()
     };
     assert!(validate_oauth_parameters(&query, &default_origin()).is_ok());
+}
+
+#[test]
+fn test_prompt_none_beside_any_other_value_rejected() {
+    for prompt in [
+        "none login",
+        "login none",
+        "none consent",
+        "none select_account",
+        "none passkey",
+        "none none",
+    ] {
+        let query = AuthorizeQuery {
+            prompt: Some(prompt.to_string()),
+            ..valid_query()
+        };
+        let err = validate_oauth_parameters(&query, &default_origin()).unwrap_err();
+        assert!(err.to_string().contains("none"), "{prompt}: {err}");
+    }
 }
 
 #[test]

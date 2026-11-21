@@ -5,6 +5,7 @@
 ### Changed
 
 - Authored profiles set `security.ui_session` to its defaults, which a written profile omits.
+- Authored profiles set `security.authorize` to its defaults, which a written profile omits.
 
 ## [0.81.0] - 2026-11-12
 

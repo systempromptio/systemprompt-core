@@ -18,7 +18,7 @@ use systemprompt_oauth::services::SessionCreationService;
 use systemprompt_oauth_issuance::sso::{FinishOutcome, SsoCallback, SsoDriver};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_config, test_db_pool};
 use systemprompt_traits::SessionAnalytics;
-use systemprompt_traits::sso::{SsoReturn, SsoReturnBinding};
+use systemprompt_traits::sso::{SsoReauth, SsoReturn, SsoReturnBinding};
 
 use stores::{CountingSessions, MemoryUsers};
 
@@ -128,7 +128,7 @@ struct Started {
 
 async fn start(driver: &SsoDriver, id: &str, return_to: Option<&str>) -> Started {
     let outcome = driver
-        .start(id, return_to)
+        .start(id, return_to, SsoReauth::default())
         .await
         .expect("start stores the attempt");
     Started {

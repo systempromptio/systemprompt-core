@@ -60,6 +60,7 @@ pub struct WellKnownResponse {
     pub subject_types_supported: Vec<String>,
     pub id_token_signing_alg_values_supported: Vec<String>,
     pub claims_supported: Vec<String>,
+    pub prompt_values_supported: Vec<String>,
     pub authorization_response_iss_parameter_supported: bool,
     pub subject_token_types_supported: Vec<String>,
     pub issued_token_types_supported: Vec<String>,
@@ -110,6 +111,12 @@ pub async fn handle_well_known(
             "iss".to_owned(),
             "aud".to_owned(),
             "jti".to_owned(),
+        ],
+        prompt_values_supported: vec![
+            "none".to_owned(),
+            "login".to_owned(),
+            "consent".to_owned(),
+            "select_account".to_owned(),
         ],
         authorization_response_iss_parameter_supported: true,
         subject_token_types_supported: vec![

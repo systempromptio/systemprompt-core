@@ -7,12 +7,26 @@
 - `routes::oauth::discovery::WellKnownResponse` gains `ui_session_supported` and `ui_session`. Migrate a struct literal by adding `ui_session_supported: true, ui_session: UiSessionDiscovery::from_config(&config.ui_session)`.
 - `routes::oauth::discovery::UiSessionDiscovery::current()` is replaced by `UiSessionDiscovery::from_config(&UiSessionConfig)`. Migrate by passing `&ctx.config().ui_session`.
 - `routes::oauth::authenticated_router()` no longer carries `/revoke`; it is `routes::oauth::revocation_router()`. Migrate a hand-assembled router with `.merge(revocation_router())`.
+- `GET` and `POST /oauth/consent` and `routes::oauth::endpoints::consent` are removed. Migrate by sending the person to `/oauth/authorize`.
+- `POST /oauth/authorize` requires the server's own `Origin`; `AuthorizeRequest` loses `username` and `password` and gains `consent_token`; `user_consent=allow` needs the browser session and the consent page's token instead of answering `unsupported_grant_type`. Migrate a struct literal by dropping the two fields and setting `consent_token: None`.
+- `AuthorizeQuery` gains `login_hint` and `reauth_since`. Migrate a struct literal by setting both to `None`.
+- `login_page_redirect_target(login_page_url, params, return_path, now)` takes the request's path and query and the current Unix time, lives in `authorize::login_redirect`, and no longer special-cases `prompt=passkey`. Migrate by passing `OriginalUri`'s path and query and `Utc::now().timestamp()`.
+- `authorize::response_builder::is_user_consent_granted` is removed. Migrate by comparing `user_consent` with `Some("allow")`.
+- `OAuthErrorCode` gains `LoginRequired`, `ConsentRequired`, `InteractionRequired` and `AccountSelectionRequired`. Migrate an exhaustive match by adding the arms.
+- `WellKnownResponse` gains `prompt_values_supported`. Migrate a struct literal by setting it.
+- `/oauth/authorize` refuses `prompt=none` beside any other prompt value as `invalid_request`. Migrate by sending `none` alone.
 
 ### Added
 
 - The step-up on the document and folder routes and the `ui_session` discovery block read `Config::ui_session`: the window and the `max_age` of the `401` follow `security.ui_session.step_up_max_age_secs`, and discovery reports the configured lifetimes.
 - `POST /oauth/revoke` admits a person's UI session as the caller, limited to tokens of the same user and the same `client_id`; revoking its refresh token also ends the bearer it presented.
 - The OAuth well-known documents and `endpoints.oauth` of `GET /api/v1` carry `ui_session_supported` and `ui_session` (`access_token_lifetime`, `session_lifetime`, `step_up_max_age`, in seconds).
+- `/oauth/authorize` recognises the web login's browser session (`authorize::session::browser_sign_in`), decides with the pure `authorize::decision::decide`, and issues a code silently, renders the consent page, sends the person to sign in, or answers `login_required`, `consent_required` or `interaction_required` with `state` and `iss`. `prompt` and `max_age` are honoured; `security.authorize.silent_native_clients` governs silent issuance to loopback and private-scheme redirects.
+- `POST /oauth/authorize` takes the consent page's Allow (bound by `consent_token` to the person, session and request) and Deny.
+- The redirect to `security.login_page_url` carries `redirect` (this request with `reauth_since` appended), `prompt`, `max_age` and `login_hint`; a return that is still not freshly signed in answers `login_required`.
+- `GET /sso/{id}/start` accepts `prompt` and `max_age`.
+- `OAuthHttpError::login_required`, `consent_required`, `interaction_required`, `account_selection_required` and `with_redirect_issuer`, which adds the RFC 9207 `iss` to a redirected error.
+- The OAuth well-known documents carry `prompt_values_supported`.
 
 ### Changed
 
@@ -21,6 +35,8 @@
 ### Fixed
 
 - Revoking a `ui`-audience access token answered `200` and revoked nothing; its `jti` and session are now revoked.
+- Security: the removed `/oauth/consent` page interpolated `state`, `scope` and `client_id` unescaped into an inline script (reflected XSS).
+- The passkey completion appends the code with `&` to a `redirect_uri` that already has a query.
 
 ## [0.84.0] - 2026-11-20
 

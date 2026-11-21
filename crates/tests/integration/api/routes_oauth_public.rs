@@ -163,15 +163,6 @@ async fn userinfo_runs_handler() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
-async fn consent_get_runs_handler() -> anyhow::Result<()> {
-    let app = authenticated_app().await?;
-    let resp = app.oneshot(empty_get("/consent")).await?;
-    let status = resp.status().as_u16();
-    assert!((200..600).contains(&status));
-    Ok(())
-}
-
-#[tokio::test]
 async fn register_client_runs_handler() -> anyhow::Result<()> {
     let app = authenticated_app().await?;
     let body = serde_json::json!({

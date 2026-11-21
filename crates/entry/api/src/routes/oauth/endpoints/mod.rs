@@ -1,7 +1,7 @@
 //! OAuth 2.0 / OIDC protocol endpoints.
 //!
 //! Collects every handler that backs the OAuth surface: [`authorize`],
-//! [`token`], [`consent`], dynamic registration ([`register`],
+//! [`token`], dynamic registration ([`register`],
 //! [`client_config`]), introspection and revocation, [`userinfo`], [`logout`],
 //! the [`anonymous`] grant, and the [`webauthn_complete`] step.
 //!
@@ -11,7 +11,6 @@
 pub mod anonymous;
 pub mod authorize;
 pub mod client_config;
-pub mod consent;
 pub mod introspect;
 pub mod logout;
 pub mod register;
@@ -26,9 +25,6 @@ pub use authorize::{
 };
 pub use client_config::{
     delete_client_configuration, get_client_configuration, update_client_configuration,
-};
-pub use consent::{
-    ConsentQuery, ConsentRequest, ConsentResponse, handle_consent_get, handle_consent_post,
 };
 pub use introspect::{IntrospectRequest, IntrospectResponse, handle_introspect};
 pub use logout::handle_logout;

@@ -1,8 +1,8 @@
 use serde_json::json;
 use systemprompt_oauth_issuance::sso::oidc::OidcProvider;
 use systemprompt_traits::sso::{
-    CookieSameSite, SsoError, SsoProtocol, SsoProvider, SsoReturn, SsoReturnBinding, SsoStart,
-    SsoStateContext,
+    CookieSameSite, SsoError, SsoProtocol, SsoProvider, SsoReauth, SsoReturn, SsoReturnBinding,
+    SsoStart, SsoStateContext,
 };
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -156,8 +156,64 @@ async fn an_unreachable_discovery_document_fails_the_start() {
         .start(SsoStart {
             return_to: "/admin",
             callback_url: "https://console.example.com/api/v1/core/sso/oidc/callback",
+            reauth: SsoReauth::default(),
         })
         .await;
 
     assert!(matches!(outcome, Err(SsoError::Internal(_))), "{outcome:?}");
+}
+
+async fn authorize_query(reauth: SsoReauth) -> std::collections::BTreeMap<String, String> {
+    let (_server, issuer) = keycloak().await;
+    let redirect = provider(&issuer)
+        .start(SsoStart {
+            return_to: "/admin",
+            callback_url: "https://console.example.com/api/v1/core/sso/oidc/callback",
+            reauth,
+        })
+        .await
+        .expect("start");
+    url::Url::parse(&redirect.url)
+        .expect("authorize url")
+        .query_pairs()
+        .into_owned()
+        .collect()
+}
+
+#[tokio::test]
+async fn a_plain_start_asks_the_idp_for_no_reauthentication() {
+    let query = authorize_query(SsoReauth::default()).await;
+
+    assert!(!query.contains_key("prompt"), "{query:?}");
+    assert!(!query.contains_key("max_age"), "{query:?}");
+}
+
+#[tokio::test]
+async fn a_forced_start_sends_prompt_login_and_the_max_age() {
+    let query = authorize_query(SsoReauth {
+        force: true,
+        max_age: Some(0),
+    })
+    .await;
+    assert_eq!(query["prompt"], "login");
+    assert_eq!(query["max_age"], "0");
+
+    let query = authorize_query(SsoReauth {
+        force: false,
+        max_age: Some(900),
+    })
+    .await;
+    assert!(!query.contains_key("prompt"), "{query:?}");
+    assert_eq!(query["max_age"], "900");
+}
+
+#[tokio::test]
+async fn a_negative_max_age_is_never_sent_to_the_idp() {
+    let query = authorize_query(SsoReauth {
+        force: false,
+        max_age: Some(-1),
+    })
+    .await;
+
+    assert!(!query.contains_key("max_age"), "{query:?}");
 }
