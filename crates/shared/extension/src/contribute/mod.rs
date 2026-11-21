@@ -11,14 +11,8 @@
 //! No method returns or accepts another member's entries; the owner of every
 //! entry is the member whose sink holds it.
 //!
-//! A value a member provides with [`Contributions::provide`] is provided on
-//! every host that admits the member: there is no conditional provide.
-//! [`Contributions::provide_after_governance`] provides the same way, after
-//! every slot and the governance surfaces (subject providers, policy catalog,
-//! gateway guards) are built, for a value assembled from them. A
-//! provide fn reads its dependencies with `r.get`, and a missing dependency
-//! fails the boot; a consumer that may run without a value reads it with
-//! `r.optional`.
+//! The provide methods (open and sealed, early and after governance) are in
+//! the `provide` module.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -29,6 +23,7 @@ mod entries;
 mod error;
 mod factories;
 pub mod handles;
+mod provide;
 mod resolved;
 mod sink;
 mod sink_push;
@@ -166,28 +161,6 @@ impl<'a> Contributions<'a> {
 
     pub fn site_auth(&mut self, s: SiteAuthConfig) -> &mut Self {
         self.sink.site_auth.push(s);
-        self
-    }
-
-    pub fn provide<T, F>(&mut self, f: F) -> &mut Self
-    where
-        T: Clone + Send + Sync + 'static,
-        F: ProvideFn<T>,
-    {
-        self.sink
-            .provides
-            .push(ProvideEntry::new::<T, F>(ProvidePhase::Early, f));
-        self
-    }
-
-    pub fn provide_after_governance<T, F>(&mut self, f: F) -> &mut Self
-    where
-        T: Clone + Send + Sync + 'static,
-        F: ProvideFn<T>,
-    {
-        self.sink
-            .provides
-            .push(ProvideEntry::new::<T, F>(ProvidePhase::AfterGovernance, f));
         self
     }
 

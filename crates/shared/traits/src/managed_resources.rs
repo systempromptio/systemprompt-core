@@ -84,7 +84,8 @@ pub enum InventoryPublishError {
 /// Publishes the latest configured revision of every available skill in the
 /// installation's configured inventory, recording the caller as the actor.
 ///
-/// It is the only inventory reach a kernel route holds: it cannot choose the
+/// It is the only inventory reach a kernel route holds, and its provider
+/// seals it, so no member runtime context resolves it: it cannot choose the
 /// owner, scan another tree or read the refresher's state. Held as
 /// `Arc<dyn InventoryPublisher>` so the API kernel does not name the
 /// marketplace domain; hence `#[async_trait]`.

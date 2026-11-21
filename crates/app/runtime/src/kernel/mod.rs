@@ -39,7 +39,9 @@
 //!
 //! [`Kernel::runtime_state`] is the one base every context handed to member
 //! runtime code is built from — a job, a runner service and a config plane:
-//! the resolved state with every sealed seed withheld.
+//! the resolved state with every sealed seed and every sealed provide
+//! withheld. [`Kernel::route_scoped`] resolves a route set's state for its
+//! owner, which is refused a value another member provided sealed.
 //!
 //! [`Kernel::detached`] holds a seeded state without a database and without
 //! resolving any member: a CLI command whose descriptor needs no database
@@ -61,6 +63,7 @@ use systemprompt_extension::{
 };
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_governance::policy::PolicyCatalog;
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::Dependencies;
 use systemprompt_traits::{BackgroundTasks, DatabaseHandle};
 
@@ -139,8 +142,12 @@ impl Kernel {
     }
 
     #[must_use]
-    pub fn route_scoped<'a>(&'a self, conferred: &'a [HandleId]) -> Resolved<'a> {
-        Resolved::__route_scoped(self, &self.state, conferred)
+    pub fn route_scoped<'a>(
+        &'a self,
+        owner: &'a ExtensionId,
+        conferred: &'a [HandleId],
+    ) -> Resolved<'a> {
+        Resolved::__route_scoped(self, &self.state, owner, conferred)
     }
 
     #[must_use]

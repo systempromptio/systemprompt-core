@@ -1,19 +1,24 @@
 //! The kernel state seals its secret-bearing and boot-only seeds: the
 //! resolver a provide fn and a kernel command read serves them, the resolver
-//! a member's command runs against refuses them as missing.
+//! a member's command runs against refuses them as missing. A member value
+//! provided sealed (one that acts with standing authority) is sealed the same
+//! way, and a route set's resolver serves it only to its provider.
 
 use std::sync::Arc;
 
 use systemprompt_events::EventRouter;
 use systemprompt_extension::Resolved;
-use systemprompt_identifiers::InstanceId;
+use systemprompt_identifiers::{ExtensionId, InstanceId};
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::SystemAdmin;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_runtime::{AppContext, Kernel};
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_database_url};
-use systemprompt_traits::{AppContext as AppContextTrait, BackgroundTasks, SecretStore};
+use systemprompt_traits::{
+    AppContext as AppContextTrait, BackgroundTasks, DynInventoryPublisher, DynManagedSkillResolver,
+    SecretStore,
+};
 
 async fn context() -> Arc<AppContext> {
     ensure_test_bootstrap();
@@ -98,4 +103,40 @@ async fn the_runtime_state_withholds_every_sealed_seed() {
     );
     assert!(runtime.get::<SigningKeys>().is_err());
     assert!(runtime.get::<InstanceId>().is_ok(), "an open seed stays");
+}
+
+#[tokio::test]
+async fn a_sealed_provide_is_withheld_from_every_member_runtime_context() {
+    let ctx = context().await;
+    let kernel: &Kernel = ctx.kernel();
+    let state = kernel.state();
+
+    assert!(state.is_sealed::<DynInventoryPublisher>());
+    assert!(state.is_sealed::<DynManagedSkillResolver>());
+    assert!(state.get::<DynInventoryPublisher>().is_ok(), "the kernel reads it");
+    assert!(kernel.resolved().get::<DynInventoryPublisher>().is_ok());
+
+    let runtime = kernel.runtime_state();
+    assert!(runtime.get::<DynInventoryPublisher>().is_err());
+    assert!(runtime.get::<DynManagedSkillResolver>().is_err());
+
+    let member = Resolved::__member_command(kernel, state);
+    assert!(member.get::<DynInventoryPublisher>().is_err());
+
+    let other = ExtensionId::new("content");
+    assert!(
+        kernel
+            .route_scoped(&other, &[])
+            .get::<DynInventoryPublisher>()
+            .is_err(),
+        "another member's route state is refused it"
+    );
+    let provider = ExtensionId::new("marketplace");
+    assert!(
+        kernel
+            .route_scoped(&provider, &[])
+            .get::<DynInventoryPublisher>()
+            .is_ok(),
+        "its provider's own route state reads it"
+    );
 }

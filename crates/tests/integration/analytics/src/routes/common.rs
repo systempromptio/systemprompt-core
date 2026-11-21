@@ -25,11 +25,12 @@ pub async fn setup_ctx() -> Result<(DbPool, Arc<AppContext>)> {
 
 fn member_router(ctx: &AppContext, base: BaseRef, handles: &[HandleId]) -> Router {
     let mut sink = ContributionSink::default();
-    let mut contributions = Contributions::__new(ExtensionId::new("analytics_http"), &mut sink);
+    let owner = ExtensionId::new("analytics_http");
+    let mut contributions = Contributions::__new(owner.clone(), &mut sink);
     AnalyticsHttpExtension
         .contribute(&mut contributions)
         .expect("the analytics_http member contributes");
-    let resolved = ctx.kernel().route_scoped(handles);
+    let resolved = ctx.kernel().route_scoped(&owner, handles);
     sink.routes()
         .iter()
         .filter(|set| set.base() == base)
