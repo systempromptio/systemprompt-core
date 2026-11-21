@@ -12,8 +12,8 @@ use chrono::{Duration, Utc};
 use systemprompt_identifiers::SsoAssertionId;
 use systemprompt_traits::SessionAnalytics;
 use systemprompt_traits::sso::{
-    CookieSameSite, SsoError, SsoLoginRefused, SsoLoginSuccess, SsoProvider, SsoReturn,
-    SsoStateContext,
+    CookieSameSite, ExternalIdentity, SsoError, SsoLoginRefused, SsoLoginSuccess, SsoProvider,
+    SsoReturn, SsoStateContext,
 };
 
 use super::cookie::CookieSpec;
@@ -105,19 +105,7 @@ impl SsoDriver {
         }
         attempt.external_sub = Some(identity.subject.clone());
 
-        if let Some(assertion_id) = identity.assertion_id.as_ref().map(SsoAssertionId::as_str) {
-            let expires_at = identity
-                .assertion_expires_at
-                .unwrap_or_else(|| Utc::now() + Duration::seconds(DEFAULT_REPLAY_WINDOW_SECS));
-            let first_sight = self
-                .inner
-                .replay
-                .claim(&format!("sso:{id}"), assertion_id, expires_at)
-                .await?;
-            if !first_sight {
-                return Err(SsoError::Replayed);
-            }
-        }
+        self.claim_assertion(id, &identity).await?;
 
         let email = identity
             .email
@@ -139,6 +127,8 @@ impl SsoDriver {
         .await?;
         gated.roles = resolved.roles;
 
+        let now = Utc::now();
+        let authenticated_at = identity.authenticated_at.unwrap_or(now).min(now);
         let minted = mint_browser_session(
             &self.inner.session_service,
             &self.inner.config,
@@ -148,6 +138,7 @@ impl SsoDriver {
                 email: &gated.email,
                 roles: &gated.roles,
             },
+            authenticated_at,
             analytics,
         )
         .await?;
@@ -167,6 +158,25 @@ impl SsoDriver {
             minted.max_age_secs,
             correlated.return_to,
         ))
+    }
+
+    async fn claim_assertion(&self, id: &str, identity: &ExternalIdentity) -> Result<(), SsoError> {
+        let Some(assertion_id) = identity.assertion_id.as_ref().map(SsoAssertionId::as_str) else {
+            return Ok(());
+        };
+        let expires_at = identity
+            .assertion_expires_at
+            .unwrap_or_else(|| Utc::now() + Duration::seconds(DEFAULT_REPLAY_WINDOW_SECS));
+        let first_sight = self
+            .inner
+            .replay
+            .claim(&format!("sso:{id}"), assertion_id, expires_at)
+            .await?;
+        if first_sight {
+            Ok(())
+        } else {
+            Err(SsoError::Replayed)
+        }
     }
 
     async fn correlate(

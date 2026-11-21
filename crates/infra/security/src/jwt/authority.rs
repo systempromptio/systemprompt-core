@@ -62,6 +62,13 @@ pub fn user_claims(issuer: &str, req: &UserJwtRequest) -> TokenResult<JwtClaims>
         });
     }
     let now = Utc::now().timestamp();
+    let auth_time = match req.auth_time {
+        Some(auth_time) => auth_time.min(now),
+        None if req.browser_session || req.ui_session => {
+            return Err(TokenError::SignInTimeMissing);
+        },
+        None => now,
+    };
     let user_type = UserType::from_permissions(&req.permissions);
     let claims = JwtClaims {
         registered: RegisteredClaims {
@@ -82,7 +89,7 @@ pub fn user_claims(issuer: &str, req: &UserJwtRequest) -> TokenResult<JwtClaims>
             attributes: req.user.attributes().clone(),
             client_id: req.client_id.clone(),
             token_type: TokenType::Bearer,
-            auth_time: req.auth_time.map_or(now, |auth_time| auth_time.min(now)),
+            auth_time,
             session_id: Some(req.session_id.clone()),
             rate_limit_tier: Some(user_type.rate_tier()),
             plugin_id: req.plugin_id.clone(),

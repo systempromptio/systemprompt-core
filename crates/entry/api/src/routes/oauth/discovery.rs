@@ -10,6 +10,7 @@ use axum::response::IntoResponse;
 use serde::Serialize;
 use std::sync::Arc;
 use systemprompt_identifiers::McpServerId;
+use systemprompt_manifest::profile::UiSessionConfig;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::oauth::{OAuthServerConfig, ProtectedResourceMetadata};
 use systemprompt_oauth::services::validation::id_jag::ID_JAG_GRANT_PROFILE;
@@ -18,6 +19,29 @@ use systemprompt_traits::McpRegistryProvider;
 
 use crate::kernel::RequestBaseUrl;
 use crate::routes::proxy::mcp::get_mcp_server_scopes;
+
+/// The lifetimes, in seconds, of a person's UI session, as the profile's
+/// `security.ui_session` block sets them.
+///
+/// A `person_ui` client reads this capability from either discovery document
+/// instead of probing `/authorize`; neither document names a client.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct UiSessionDiscovery {
+    pub access_token_lifetime: i64,
+    pub session_lifetime: i64,
+    pub step_up_max_age: i64,
+}
+
+impl UiSessionDiscovery {
+    #[must_use]
+    pub const fn from_config(config: &UiSessionConfig) -> Self {
+        Self {
+            access_token_lifetime: config.access_ttl_secs,
+            session_lifetime: config.absolute_secs,
+            step_up_max_age: config.step_up_max_age_secs,
+        }
+    }
+}
 
 #[derive(Debug, Serialize)]
 pub struct WellKnownResponse {
@@ -42,6 +66,8 @@ pub struct WellKnownResponse {
     pub subject_token_types_supported: Vec<String>,
     pub issued_token_types_supported: Vec<String>,
     pub authorization_grant_profiles_supported: Vec<String>,
+    pub ui_session_supported: bool,
+    pub ui_session: UiSessionDiscovery,
 }
 
 pub async fn handle_well_known(
@@ -99,6 +125,8 @@ pub async fn handle_well_known(
             "urn:ietf:params:oauth:token-type:id-jag".to_owned(),
         ],
         authorization_grant_profiles_supported: vec![ID_JAG_GRANT_PROFILE.to_owned()],
+        ui_session_supported: true,
+        ui_session: UiSessionDiscovery::from_config(&ctx.config().ui_session),
     };
 
     (StatusCode::OK, Json(response)).into_response()

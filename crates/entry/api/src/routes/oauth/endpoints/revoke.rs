@@ -7,6 +7,14 @@
 //! client. A token that fails any of these checks is left untouched and the
 //! endpoint still answers 200, as RFC 7009 §2.2 requires for unknown tokens.
 //!
+//! A person's UI session is admitted both as the token to revoke (the `ui`
+//! audience is verified alongside the configured ones) and as the caller. A UI
+//! caller reaches only its own grant: the token must belong to the same user
+//! and have been issued to the caller's own `client_id`, and being an admin
+//! widens nothing. A refresh token is not linked to the sessions minted from
+//! it, so when a UI caller revokes its refresh token the bearer it presented
+//! is ended in the same call (RFC 7009 §2.1).
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -20,7 +28,7 @@ use std::sync::Arc;
 use systemprompt_identifiers::{AccessTokenId, ClientId, RefreshTokenId, UserId};
 use systemprompt_manifest::Config;
 use systemprompt_models::RequestContext;
-use systemprompt_models::auth::UserType;
+use systemprompt_models::auth::{JwtAudience, UserType};
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::validate_jwt_token;
@@ -39,18 +47,25 @@ pub struct RevokeRequest {
 }
 
 struct Caller<'a> {
-    user_id: &'a UserId,
-    is_admin: bool,
-    client_id: Option<&'a ClientId>,
+    bearer: &'a RequestContext,
+    authenticating_client: Option<&'a ClientId>,
 }
 
 impl Caller<'_> {
-    fn owns(&self, owner: &UserId) -> bool {
-        self.is_admin || owner == self.user_id
+    fn may_revoke(&self, owner: &UserId, issued_to: Option<&ClientId>) -> bool {
+        let own = owner == self.bearer.user_id();
+        if self.bearer.is_ui_session() {
+            return own
+                && self
+                    .bearer
+                    .client_id()
+                    .is_some_and(|client| issued_to == Some(client));
+        }
+        own || self.bearer.user_type() == UserType::Admin
     }
 
     fn check_client(&self, issued_to: Option<&ClientId>) -> Result<(), OAuthHttpError> {
-        if let (Some(caller), Some(issued)) = (self.client_id, issued_to)
+        if let (Some(caller), Some(issued)) = (self.authenticating_client, issued_to)
             && caller != issued
         {
             return Err(OAuthHttpError::invalid_request(
@@ -89,20 +104,19 @@ pub async fn handle_revoke(
     };
 
     let caller = Caller {
-        user_id: req_ctx.user_id(),
-        is_admin: req_ctx.user_type() == UserType::Admin,
-        client_id: client_id.as_ref(),
+        bearer: &req_ctx,
+        authenticating_client: client_id.as_ref(),
     };
 
     match request.token_type_hint.as_deref() {
         Some("refresh_token") => {
-            revoke_refresh_token(&repo, &request.token, &caller).await?;
+            revoke_refresh_token(&state, &repo, &request.token, &caller).await?;
         },
         Some("access_token") => {
             revoke_access_token(&state, &config, &repo, &request.token, &caller).await?;
         },
         _ => {
-            if !revoke_refresh_token(&repo, &request.token, &caller).await? {
+            if !revoke_refresh_token(&state, &repo, &request.token, &caller).await? {
                 revoke_access_token(&state, &config, &repo, &request.token, &caller).await?;
             }
         },
@@ -121,6 +135,7 @@ pub async fn handle_revoke(
 }
 
 async fn revoke_refresh_token(
+    state: &OAuthState,
     repo: &OAuthRepository,
     token: &str,
     caller: &Caller<'_>,
@@ -133,17 +148,34 @@ async fn revoke_refresh_token(
     };
     caller.check_client(Some(&holder.client_id))?;
 
-    let owner = holder.user_id;
-    if !caller.owns(&owner) {
+    if !caller.may_revoke(&holder.user_id, Some(&holder.client_id)) {
         tracing::warn!(
-            caller = %caller.user_id,
-            "Refused to revoke a refresh token owned by another user"
+            caller = %caller.bearer.user_id(),
+            "Refused to revoke a refresh token outside the caller's reach"
         );
         return Ok(true);
     }
 
     repo.revoke_refresh_token(&token_id).await?;
+    if caller.bearer.is_ui_session() {
+        end_bearer(state, repo, caller.bearer).await?;
+    }
     Ok(true)
+}
+
+async fn end_bearer(
+    state: &OAuthState,
+    repo: &OAuthRepository,
+    bearer: &RequestContext,
+) -> Result<(), OAuthHttpError> {
+    if let (Some(jti), Some(exp)) = (bearer.jti(), bearer.token_exp()) {
+        record_jti_revocation(repo, jti, bearer.user_id(), exp).await?;
+    }
+    state
+        .session_provider()
+        .revoke_session(bearer.session_id())
+        .await
+        .map_err(|e| internal::server_error("Failed to revoke session", e))
 }
 
 async fn revoke_access_token(
@@ -153,18 +185,21 @@ async fn revoke_access_token(
     token: &str,
     caller: &Caller<'_>,
 ) -> Result<(), OAuthHttpError> {
-    let claims = match validate_jwt_token(
-        state.token_authority().as_ref(),
-        token,
-        &config.jwt_audiences,
-    ) {
+    let audiences: Vec<JwtAudience> = config
+        .jwt_audiences
+        .iter()
+        .cloned()
+        .chain([JwtAudience::Ui])
+        .collect();
+    let claims = match validate_jwt_token(state.token_authority().as_ref(), token, &audiences) {
         Ok(claims) => claims,
         Err(e) => {
             tracing::debug!(error = %e, "Access token did not verify; nothing to revoke");
             return Ok(());
         },
     };
-    caller.check_client(claims.custom.client_id.as_ref())?;
+    let issued_to = claims.custom.client_id.as_ref();
+    caller.check_client(issued_to)?;
 
     let owner = match UserId::try_new(&claims.registered.sub) {
         Ok(owner) => owner,
@@ -173,10 +208,10 @@ async fn revoke_access_token(
             return Ok(());
         },
     };
-    if !caller.owns(&owner) {
+    if !caller.may_revoke(&owner, issued_to) {
         tracing::warn!(
-            caller = %caller.user_id,
-            "Refused to revoke an access token owned by another user"
+            caller = %caller.bearer.user_id(),
+            "Refused to revoke an access token outside the caller's reach"
         );
         return Ok(());
     }

@@ -13,6 +13,7 @@ fn identity(groups: &[&str]) -> ExternalIdentity {
         tenant_id: None,
         assertion_id: None,
         assertion_expires_at: None,
+        authenticated_at: None,
         raw_claims: serde_json::Value::Null,
     }
 }

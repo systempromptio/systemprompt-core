@@ -352,6 +352,9 @@ mod profile_unapplied_planes;
 mod profile_validation;
 
 #[cfg(test)]
+mod profile_ui_session;
+
+#[cfg(test)]
 mod profile_database_scaling;
 
 #[cfg(test)]

@@ -18,7 +18,7 @@ use systemprompt_test_fixtures::{
 };
 use tower::ServiceExt;
 
-use super::common::{body_to_string, empty_get, setup_ctx};
+use super::common::{body_to_string, empty_get, setup_ctx, setup_ctx_customised};
 
 async fn discovery_app() -> anyhow::Result<Router> {
     let (_pool, ctx) = setup_ctx().await?;
@@ -147,6 +147,46 @@ async fn root_discovery_returns_endpoints() -> anyhow::Result<()> {
     assert!(
         data.get("version").is_some(),
         "root discovery missing version: {body}"
+    );
+    let oauth = &data["endpoints"]["oauth"];
+    assert_eq!(oauth["ui_session_supported"], true, "{body}");
+    assert_eq!(
+        oauth["ui_session"],
+        serde_json::json!({
+            "access_token_lifetime": 300,
+            "session_lifetime": 43_200,
+            "step_up_max_age": 600,
+        }),
+        "{body}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn root_discovery_advertises_the_configured_ui_session_lifetimes() -> anyhow::Result<()> {
+    let (_pool, ctx) = setup_ctx_customised(|config| {
+        config.ui_session = systemprompt_manifest::profile::UiSessionConfig {
+            access_ttl_secs: 120,
+            absolute_secs: 3600,
+            step_up_max_age_secs: 180,
+        };
+    })
+    .await?;
+    let resp = discovery_router_over(&ctx)
+        .oneshot(empty_get(ApiPaths::DISCOVERY))
+        .await?;
+    let (status, body) = body_to_string(resp).await?;
+    assert!(status.is_success(), "{status} {body}");
+    let v: serde_json::Value = serde_json::from_str(&body)?;
+    let data = v.get("data").unwrap_or(&v);
+    assert_eq!(
+        data["endpoints"]["oauth"]["ui_session"],
+        serde_json::json!({
+            "access_token_lifetime": 120,
+            "session_lifetime": 3600,
+            "step_up_max_age": 180,
+        }),
+        "{body}"
     );
     Ok(())
 }

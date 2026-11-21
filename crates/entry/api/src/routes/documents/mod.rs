@@ -64,6 +64,7 @@ use systemprompt_files::documents::DocumentService;
 #[cfg(feature = "collab")]
 use systemprompt_files::documents::collab::CollabService;
 use systemprompt_files::uploads::UploadService;
+use systemprompt_manifest::profile::UiSessionConfig;
 use systemprompt_models::auth::TokenAuthority;
 use systemprompt_runtime::AppContext;
 #[cfg(feature = "collab")]
@@ -72,8 +73,8 @@ use systemprompt_traits::{AppContext as _, DynContextDirectory, UserProvider};
 use systemprompt_users::UserRepository;
 
 /// Router-scoped state of the document and upload routes: the one document
-/// service, the upload service and the user provider that resolves a
-/// caller's roles.
+/// service, the upload service, the user provider that resolves a caller's
+/// roles and the UI-session lifetimes the step-up reads.
 #[derive(Clone)]
 pub struct DocumentsState {
     pub(crate) service: Arc<DocumentService>,
@@ -82,6 +83,7 @@ pub struct DocumentsState {
     pub(crate) user_repository: Arc<UserRepository>,
     pub(crate) tokens: Arc<dyn TokenAuthority>,
     pub(crate) contexts: DynContextDirectory,
+    pub(crate) ui_session: UiSessionConfig,
     #[cfg(feature = "collab")]
     pub(crate) collab: Arc<CollabService>,
     #[cfg(feature = "collab")]
@@ -111,6 +113,7 @@ impl DocumentsState {
             user_repository: Arc::clone(ctx.user_repository()),
             tokens: ctx.token_authority(),
             contexts: Arc::clone(ctx.documents().contexts()),
+            ui_session: ctx.config().ui_session,
             #[cfg(feature = "collab")]
             collab: collab_service(ctx),
             #[cfg(feature = "collab")]
@@ -157,8 +160,16 @@ const fn with_collab(router: Router<DocumentsState>) -> Router<DocumentsState> {
     router
 }
 
-fn stepped_up(route: MethodRouter<DocumentsState>) -> MethodRouter<DocumentsState> {
-    route.route_layer(axum::middleware::from_fn(step_up::require_recent_sign_in))
+fn step_up_of(
+    state: &DocumentsState,
+) -> impl Fn(MethodRouter<DocumentsState>) -> MethodRouter<DocumentsState> + use<> {
+    let ui_session = state.ui_session;
+    move |route| {
+        route.route_layer(axum::middleware::from_fn_with_state(
+            ui_session,
+            step_up::require_recent_sign_in,
+        ))
+    }
 }
 
 fn with_views(router: Router<DocumentsState>) -> Router<DocumentsState> {
@@ -172,7 +183,7 @@ fn with_views(router: Router<DocumentsState>) -> Router<DocumentsState> {
 }
 
 pub fn router(state: DocumentsState) -> Router {
-    let limit = state.max_body_bytes();
+    let stepped_up = step_up_of(&state);
     with_views(with_collab(Router::new()))
         .route("/", get(listing::list).post(items::create))
         .route("/import", post(import::import))
@@ -244,7 +255,7 @@ pub fn router(state: DocumentsState) -> Router {
             "/{id}/lock",
             post(sharing::acquire_lock).delete(sharing::release_lock),
         )
-        .layer(DefaultBodyLimit::max(limit))
+        .layer(DefaultBodyLimit::max(state.max_body_bytes()))
         .route_layer(axum::middleware::from_fn(actor_scope::scope))
         .with_state(state)
 }
@@ -254,6 +265,7 @@ pub fn with_download_tokens(router: Router, state: DocumentsState) -> Router {
 }
 
 pub fn folders_router(state: DocumentsState) -> Router {
+    let stepped_up = step_up_of(&state);
     Router::new()
         .route("/", get(folders::list).post(folders::create))
         .route(

@@ -122,6 +122,15 @@
             return Uint8Array.from(binary, c => c.charCodeAt(0)).buffer;
         }
 
+        function bufferToBase64url(buffer) {
+            const bytes = new Uint8Array(buffer);
+            let binary = '';
+            for (let i = 0; i < bytes.length; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        }
+
         async function init() {
             if (!token) {
                 showError('No token provided. Generate one with: just webauthn-admin your@email.com');
@@ -178,10 +187,10 @@
                         token: token,
                         credential: {
                             id: credential.id,
-                            rawId: Array.from(new Uint8Array(credential.rawId)),
+                            rawId: bufferToBase64url(credential.rawId),
                             response: {
-                                attestationObject: Array.from(new Uint8Array(credential.response.attestationObject)),
-                                clientDataJSON: Array.from(new Uint8Array(credential.response.clientDataJSON))
+                                attestationObject: bufferToBase64url(credential.response.attestationObject),
+                                clientDataJSON: bufferToBase64url(credential.response.clientDataJSON)
                             },
                             type: credential.type
                         }

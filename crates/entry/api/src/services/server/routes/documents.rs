@@ -12,9 +12,9 @@
 //! a session, and are served wherever managed MCP servers run, a worker
 //! included.
 //!
-//! These three are the only routers mounted behind the context middleware
-//! that admits a person's UI session (the `ui` audience); every other surface
-//! refuses it.
+//! These three and the OAuth `/revoke` route are the only routers mounted
+//! behind the context middleware that admits a person's UI session (the `ui`
+//! audience); every other surface refuses it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

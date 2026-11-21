@@ -97,6 +97,7 @@ async fn test_concurrent_auth_code_exchange_admits_exactly_one() {
         scope: "openid",
         code_challenge: &challenge,
         resource: None,
+        authenticated_at: chrono::Utc::now(),
     })
     .await
     .expect("store code");
@@ -167,6 +168,7 @@ async fn test_auth_code_expiry_rejected_after_ttl() {
         scope: "openid",
         code_challenge: &challenge,
         resource: None,
+        authenticated_at: chrono::Utc::now(),
     })
     .await
     .expect("store code");
@@ -230,6 +232,7 @@ async fn test_refresh_token_replay_revokes_family() {
         expires_at,
         resource: None,
         authenticated_at: chrono::Utc::now(),
+        session_started_at: chrono::Utc::now(),
         lineage: RefreshTokenLineage::Family(&RefreshTokenFamilyId::new(format!(
             "fam-{}",
             uuid::Uuid::new_v4()
@@ -253,6 +256,7 @@ async fn test_refresh_token_replay_revokes_family() {
         expires_at,
         resource: None,
         authenticated_at: chrono::Utc::now(),
+        session_started_at: chrono::Utc::now(),
         lineage: RefreshTokenLineage::Family(&family),
     })
     .await
@@ -311,6 +315,7 @@ async fn test_concurrent_refresh_rotation_admits_exactly_one() {
         expires_at,
         resource: None,
         authenticated_at: chrono::Utc::now(),
+        session_started_at: chrono::Utc::now(),
         lineage: RefreshTokenLineage::Family(&RefreshTokenFamilyId::new(format!(
             "fam-{}",
             uuid::Uuid::new_v4()
@@ -387,6 +392,7 @@ async fn test_concurrent_pkce_verifier_mismatch_never_admits_wrong_verifier() {
         scope: "openid",
         code_challenge: &challenge,
         resource: None,
+        authenticated_at: chrono::Utc::now(),
     })
     .await
     .expect("store pkce code");

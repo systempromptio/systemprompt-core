@@ -1,5 +1,25 @@
 # Changelog
 
+## [Unreleased]
+
+### Breaking
+
+- `UserTokenParams` gains `session_started_at`, and `sso::mint_browser_session` takes `authenticated_at: DateTime<Utc>` before `analytics`. Migrate by passing the code's issue time (or the consumed refresh token's `session_started_at`) and the time the person signed in.
+
+### Added
+
+- The OIDC provider reads the `id_token` `auth_time` claim into `ExternalIdentity::authenticated_at`, and the SSO session cookie carries it as `auth_time`, never later than the return.
+
+### Fixed
+
+- A refresh no longer re-stamps `auth_time`: every token of the authorization-code and refresh grants carries the grant's sign-in time, for the `sp_web` client as for a UI session.
+
+### Changed
+
+- A UI session's absolute cap counts from the session start (the authorization code's issue) and its `auth_time` is the code's sign-in time; the two were one timestamp.
+
+- A UI session's access lifetime and absolute cap are read from `Config::ui_session` (`security.ui_session.access_ttl_secs`, `absolute_secs`); the defaults are the former fixed 300 seconds and 12 hours.
+
 ## [0.84.0] - 2026-11-20
 
 ### Breaking

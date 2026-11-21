@@ -1,5 +1,7 @@
 //! The browser session every SSO sign-in ends in: an authenticated session
 //! row, a signed access token, and how long the cookie carrying it may live.
+//! The caller states when the person signed in; the token carries that as
+//! `auth_time` and there is no default.
 //!
 //! A token is checked on `permissions`, not roles, so a subject holding the
 //! `admin` role is minted `Admin` in addition to (never instead of) `User`.
@@ -7,6 +9,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{AccessTokenId, SessionId, SessionSource, UserId};
 use systemprompt_manifest::Config;
 use systemprompt_models::auth::{AuthenticatedUser, BaseRoles, Permission, UserJwtRequest};
@@ -42,6 +45,7 @@ pub async fn mint_browser_session(
     session_service: &SessionCreationService,
     config: &Config,
     subject: &BrowserSessionSubject<'_>,
+    authenticated_at: DateTime<Utc>,
     analytics: &SessionAnalytics,
 ) -> Result<MintedSession, SsoError> {
     let session_id = session_service
@@ -70,7 +74,7 @@ pub async fn mint_browser_session(
         interaction: None,
         browser_session: true,
         ui_session: false,
-        auth_time: None,
+        auth_time: Some(authenticated_at.timestamp()),
     };
     let access_token = session_service
         .token_authority()

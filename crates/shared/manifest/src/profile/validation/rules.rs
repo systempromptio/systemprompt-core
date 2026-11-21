@@ -64,6 +64,7 @@ pub(crate) const RULES: &[ProfileRule] = &[
             "security.jwt_access_token_expiration",
             "security.jwt_refresh_token_expiration",
             "security.api_keys",
+            "security.ui_session",
         ],
         check: |p, e| p.validate_security_settings(e),
     },

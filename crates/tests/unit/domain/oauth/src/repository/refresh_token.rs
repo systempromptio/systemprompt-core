@@ -51,6 +51,7 @@ async fn store_in_family(ctx: &Ctx, token: &RefreshTokenId, exp: i64, family: Op
             expires_at: exp,
             resource: None,
             authenticated_at: chrono::Utc::now(),
+            session_started_at: chrono::Utc::now(),
             lineage: RefreshTokenLineage::Family(&family),
         })
         .await

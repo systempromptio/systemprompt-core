@@ -191,6 +191,7 @@ async fn minting_a_session_for_an_unknown_user_fails() {
             email: "nobody@example.test",
             roles: &["admin".to_owned()],
         },
+        chrono::Utc::now(),
         &SessionAnalytics::default(),
     )
     .await
@@ -225,4 +226,61 @@ async fn metadata_is_served_only_by_providers_that_publish_it() {
     assert_eq!(doc.body, METADATA_BODY);
     assert!(h.driver.metadata(CLOSED).await.is_none());
     assert!(h.driver.metadata("nope").await.is_none());
+}
+
+async fn signed_in_claims(h: &Harness, auth_time: Option<i64>) -> serde_json::Value {
+    use base64::Engine;
+
+    let sub = unique("sub");
+    let email = format!("{sub}@example.test");
+    let stated = auth_time.map(|at| at.to_string());
+    let mut params = vec![("sub", sub.as_str()), ("email", email.as_str())];
+    if let Some(stated) = stated.as_deref() {
+        params.push(("auth_time", stated));
+    }
+    let outcome = sign_in(h, &params).await;
+    let FinishOutcome::Success { access_token, .. } = &outcome else {
+        panic!("expected success, got {outcome:?}");
+    };
+    let payload = access_token.split('.').nth(1).expect("jwt payload");
+    let bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(payload)
+        .expect("base64url payload");
+    serde_json::from_slice(&bytes).expect("claims")
+}
+
+#[tokio::test]
+async fn the_session_cookie_carries_the_sign_in_time_the_provider_asserted() {
+    let h = harness().await;
+    let ten_days_ago = chrono::Utc::now().timestamp() - 864_000;
+
+    let claims = signed_in_claims(&h, Some(ten_days_ago)).await;
+
+    assert_eq!(claims["browser_session"], true, "{claims}");
+    assert_eq!(claims["auth_time"].as_i64(), Some(ten_days_ago), "{claims}");
+    assert!(claims["iat"].as_i64().expect("iat") - ten_days_ago >= 864_000);
+}
+
+#[tokio::test]
+async fn a_provider_asserting_no_sign_in_time_dates_it_at_the_return() {
+    let h = harness().await;
+    let before = chrono::Utc::now().timestamp();
+
+    let claims = signed_in_claims(&h, None).await;
+
+    let auth_time = claims["auth_time"].as_i64().expect("auth_time");
+    let iat = claims["iat"].as_i64().expect("iat");
+    assert!((before..=iat).contains(&auth_time), "{claims}");
+}
+
+#[tokio::test]
+async fn a_sign_in_time_in_the_future_is_dated_at_the_return() {
+    let h = harness().await;
+    let before = chrono::Utc::now().timestamp();
+
+    let claims = signed_in_claims(&h, Some(before + 3600)).await;
+
+    let auth_time = claims["auth_time"].as_i64().expect("auth_time");
+    let iat = claims["iat"].as_i64().expect("iat");
+    assert!((before..=iat).contains(&auth_time), "{claims}");
 }

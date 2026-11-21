@@ -16,7 +16,7 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
 use axum::middleware::{self, Next};
-use systemprompt_api::routes::oauth::authenticated_router;
+use systemprompt_api::routes::oauth::{authenticated_router, revocation_router};
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_oauth::OAuthState;
@@ -56,6 +56,7 @@ async fn oauth_app(user: UserId) -> anyhow::Result<Router> {
         }
     };
     Ok(authenticated_router()
+        .merge(revocation_router())
         .layer(middleware::from_fn(inject))
         .with_state(state)
         .layer(axum::Extension(ctx.config_arc().clone())))

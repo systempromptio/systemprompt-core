@@ -10,9 +10,9 @@
 //!
 //! The extractor validates the first-party audiences. Only the one
 //! [`JwtContextExtractor::admitting_ui_sessions`] returns, which the documents,
-//! folders and uploads routes mount, also admits the `ui` audience of a
-//! person's UI session; the gateway decode and `verified_claims` never do. A
-//! UI session sent as the session cookie is refused: it is a bearer credential.
+//! folders and uploads routes and OAuth `/revoke` mount, also admits the `ui`
+//! audience of a person's UI session; the gateway decode and `verified_claims`
+//! never do. A UI session sent as the cookie is refused: it is a bearer.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
