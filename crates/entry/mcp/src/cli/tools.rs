@@ -1,26 +1,22 @@
-//! `plugins mcp tools` command collecting tools across servers.
+//! `plugins mcp tools` command collecting tools across running servers.
+//!
+//! The caller's session is resolved only when a queried server requires
+//! OAuth; the command never starts a server.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
-use std::sync::Arc;
-
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
-
-use super::tools_schema::print_schema_view;
-use super::types::{McpToolsOutput, McpToolsSummary};
-use crate::commands::shared::app_context;
-use crate::commands::shared::mcp_tools::{
-    McpToolEntry, direct_url, list_tools_authenticated, list_tools_unauthenticated,
-};
-use crate::session::get_or_create_session;
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 use systemprompt_identifiers::{McpServerId, SessionToken};
 use systemprompt_manifest::ServicesConfig;
-use systemprompt_mcp::services::McpOrchestrator;
-use systemprompt_models::McpServerConfig;
+use systemprompt_mcp::McpServerConfig;
+
+use super::call_client::{direct_url, list_tools};
+use super::tools_schema::schema_view;
+use super::types::{McpToolEntry, McpToolsOutput, McpToolsSummary};
+use super::{observer, services_config};
 
 #[derive(Debug, Args)]
 pub struct ToolsArgs {
@@ -37,46 +33,46 @@ pub struct ToolsArgs {
     pub timeout: u64,
 }
 
-pub(super) async fn execute(args: ToolsArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let config = host.output();
-    let app = app_context(host)
+pub(super) async fn execute(args: ToolsArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let services_config = services_config(host)
         .await
-        .context("Failed to initialize application context")?;
-    let services_config = app.services_config();
+        .context("Failed to load services configuration")?;
 
-    let session_ctx = get_or_create_session(host).await?;
-    let session_token = session_ctx.session_token();
-
-    let manager = McpOrchestrator::new(
-        (**app.service_repository()).clone(),
-        Arc::clone(app.app_paths_arc()),
-        app.mcp_registry().clone(),
-        Arc::clone(app.spawner()),
-        Arc::clone(app.secrets()),
-    )
-    .context("Failed to initialize MCP manager")?;
-    let running_servers = manager
-        .get_running_servers()
+    let running_servers = observer(host)
+        .await?
+        .running_servers()
         .await
         .context("Failed to get running servers")?;
 
     let servers_to_query = select_servers(&running_servers, args.server.as_ref())?;
 
+    let token = if servers_to_query
+        .iter()
+        .any(|server| requires_auth(&services_config, server))
+    {
+        Some(host.caller_session().await?.token().clone())
+    } else {
+        None
+    };
+
     let (mut all_tools, servers_queried) =
-        collect_tools(&servers_to_query, &services_config, session_token, &args).await;
+        collect_tools(&servers_to_query, &services_config, token.as_ref(), &args).await;
 
     all_tools.sort_by(|a, b| (&a.server, &a.name).cmp(&(&b.server, &b.name)));
 
-    if args.schema && !config.is_json_output() {
-        print_schema_view(&all_tools);
+    if args.schema && !host.output().is_json_output() {
+        return Ok(CommandOutput::text_titled(
+            "MCP Tool Schemas",
+            schema_view(&all_tools),
+        ));
     }
 
     let output = McpToolsOutput {
-        tools: all_tools.clone(),
         summary: McpToolsSummary {
             total_tools: all_tools.len(),
             servers_queried,
         },
+        tools: all_tools,
     };
 
     Ok(CommandOutput::table_of(
@@ -84,6 +80,13 @@ pub(super) async fn execute(args: ToolsArgs, host: &dyn KernelHost) -> Result<Co
         &output.tools,
     )
     .with_title("MCP Tools"))
+}
+
+fn requires_auth(services_config: &ServicesConfig, server: &McpServerConfig) -> bool {
+    services_config
+        .mcp_servers
+        .get(&server.name)
+        .is_some_and(|c| c.oauth.required)
 }
 
 fn select_servers<'a>(
@@ -98,7 +101,7 @@ fn select_servers<'a>(
     if selected.is_empty() {
         let message = filter.map_or_else(
             || "No MCP servers are currently running".to_owned(),
-            |name| format!("MCP server '{}' is not running", name),
+            |name| format!("MCP server '{name}' is not running"),
         );
         return Err(anyhow!(message));
     }
@@ -109,34 +112,25 @@ fn select_servers<'a>(
 async fn collect_tools(
     servers: &[&McpServerConfig],
     services_config: &ServicesConfig,
-    session_token: &SessionToken,
+    token: Option<&SessionToken>,
     args: &ToolsArgs,
 ) -> (Vec<McpToolEntry>, usize) {
     let mut all_tools = Vec::new();
     let mut servers_queried = 0;
 
     for server in servers {
-        let server_config = services_config.mcp_servers.get(&server.name);
-        let requires_auth = server_config.is_some_and(|c| c.oauth.required);
-
+        let server_token = token.filter(|_| requires_auth(services_config, server));
         let server_id = McpServerId::new(server.name.clone());
         let tools_result = match direct_url(server) {
-            Ok(url) if requires_auth => {
-                list_tools_authenticated(&server_id, &url, session_token, args.timeout).await
-            },
-            Ok(url) => list_tools_unauthenticated(&server_id, &url, args.timeout).await,
+            Ok(url) => list_tools(&server_id, &url, server_token, args.timeout).await,
             Err(e) => Err(e),
         };
 
         match tools_result {
             Ok(tools) => {
-                for tool in tools {
-                    all_tools.push(McpToolEntry::from_probe(
-                        tool,
-                        server.name.clone(),
-                        args.detailed || args.schema,
-                    ));
-                }
+                all_tools.extend(tools.into_iter().map(|tool| {
+                    McpToolEntry::from_probe(tool, server.name.clone(), args.detailed || args.schema)
+                }));
                 servers_queried += 1;
             },
             Err(e) => {

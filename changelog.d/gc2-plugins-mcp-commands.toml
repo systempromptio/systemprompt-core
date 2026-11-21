@@ -1,0 +1,14 @@
+[root]
+section = "Breaking"
+area = "CLI"
+text = "`plugins mcp` is contributed by the `mcp-http` composition member (`systemprompt-mcp-entry`) with the `caller-session` grant; a profile that disables `mcp-http` refuses the group at dispatch. The commands read the `mcp` member's read-only `McpServiceObserver` and registry and can no longer start, stop or signal a server: `tools`, `call` and `validate` reach only servers the service table records as running (start one with `infra services start`; `admin mcp` remains the control surface). `tools` and `call` present the caller's own session token over an anonymous request context, and `tools` resolves the session only when a queried server requires OAuth. `list` and `status` find build binaries under the profile's build directory instead of a project root discovered from the working directory. `tools --schema` on non-JSON output returns the schema view in place of the table, and a failing `call` or `validate` returns its card with the error, rendered once."
+
+[[crate]]
+name = "systemprompt-mcp-entry"
+section = "Added"
+text = "`plugins mcp` under the `cli` feature (`systemprompt_mcp_entry::cli`, `McpCommands`), contributed by `McpHttpExtension` with `KernelGrant::CallerSession`; the extension module is built with either feature and requires `Arc<McpServiceObserver>` under `cli`."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`systemprompt_cli::plugins::mcp` and `PluginsCommands::Mcp` are removed; the commands are `systemprompt_mcp_entry::cli` (`McpCommands`). `logs_db::execute_db_mode_with_pool` no longer takes a `CliConfig`, `list::{summarize_server, get_binary_info}` take the build target directory, and `call_client::{list_available_tools, ToolCallParams::session_ctx}` are replaced by `call_client::list_tools` and `ToolCallParams::token`."

@@ -1,11 +1,10 @@
-//! DB-backed tests for the pool-seamed `admin agents logs` and `plugins mcp
-//! logs` database modes, driving `execute_db_mode_with_pool` against a fixture
-//! pool with seeded log rows.
+//! DB-backed tests for the pool-seamed `admin agents logs` database mode,
+//! driving `execute_db_mode_with_pool` against a fixture pool with seeded log
+//! rows.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_cli::admin::agents::{logs as agent_logs, logs_db as agent_logs_db};
-use systemprompt_cli::plugins::mcp::{logs as mcp_logs, logs_db as mcp_logs_db};
 use systemprompt_database::DbPool;
 use systemprompt_extension::cli::{CliConfig, CommandOutput};
 use systemprompt_identifiers::{SessionId, TraceId};
@@ -51,17 +50,6 @@ fn agent_args(agent: &str) -> agent_logs::LogsArgs {
     }
 }
 
-fn mcp_args(server: &str, level: Option<mcp_logs::LogLevel>) -> mcp_logs::LogsArgs {
-    mcp_logs::LogsArgs {
-        server: Some(server.to_owned()),
-        lines: 50,
-        follow: false,
-        disk: false,
-        logs_dir: None,
-        level,
-    }
-}
-
 #[tokio::test]
 async fn agent_logs_db_returns_matching_entries() {
     let pool = test_db_pool().await;
@@ -76,39 +64,4 @@ async fn agent_logs_db_returns_matching_entries() {
 
     assert!(contains(&out, &msg));
     assert!(contains(&out, "database"));
-}
-
-#[tokio::test]
-async fn mcp_logs_db_returns_matching_entries() {
-    let pool = test_db_pool().await;
-    let token = format!("covmcp{}", Uuid::new_v4().simple());
-    let msg = format!("mcp-log-needle-{}", Uuid::new_v4().simple());
-    seed_log(&pool, &format!("mcp.{token}"), &msg).await;
-
-    let out =
-        mcp_logs_db::execute_db_mode_with_pool(&mcp_args(&token, None), &pool, &services(), &cfg())
-            .await
-            .unwrap();
-
-    assert!(contains(&out, &msg));
-    assert!(contains(&out, "database"));
-}
-
-#[tokio::test]
-async fn mcp_logs_db_level_filter_keeps_error() {
-    let pool = test_db_pool().await;
-    let token = format!("covmcplvl{}", Uuid::new_v4().simple());
-    let msg = format!("mcp-error-needle-{}", Uuid::new_v4().simple());
-    seed_log(&pool, &format!("mcp.{token}"), &msg).await;
-
-    let out = mcp_logs_db::execute_db_mode_with_pool(
-        &mcp_args(&token, Some(mcp_logs::LogLevel::Error)),
-        &pool,
-        &services(),
-        &cfg(),
-    )
-    .await
-    .unwrap();
-
-    assert!(contains(&out, &msg));
 }

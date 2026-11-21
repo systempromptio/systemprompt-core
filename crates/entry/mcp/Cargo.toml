@@ -10,7 +10,7 @@ homepage.workspace = true
 documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "The MCP server registry route of systemprompt.io."
+description = "The MCP server registry route and the plugins mcp commands of systemprompt.io."
 readme = "README.md"
 include = ["src/**/*", "Cargo.toml", "README.md", "CHANGELOG.md"]
 
@@ -30,11 +30,44 @@ http = [
     "dep:axum",
     "dep:serde",
 ]
-cli = ["systemprompt-extension/cli"]
+cli = [
+    "systemprompt-extension/cli",
+    "dep:systemprompt-config",
+    "dep:systemprompt-database",
+    "dep:systemprompt-identifiers",
+    "dep:systemprompt-logging",
+    "dep:systemprompt-manifest",
+    "dep:systemprompt-mcp",
+    "dep:systemprompt-models",
+    "dep:systemprompt-traits",
+    "dep:anyhow",
+    "dep:chrono",
+    "dep:clap",
+    "dep:rmcp",
+    "dep:schemars",
+    "dep:serde",
+    "dep:serde_json",
+    "dep:tokio",
+    "dep:tracing",
+]
 
 [dependencies]
+systemprompt-config = { workspace = true, optional = true }
+systemprompt-database = { workspace = true, optional = true }
 systemprompt-extension = { workspace = true }
+systemprompt-identifiers = { workspace = true, optional = true }
+systemprompt-logging = { workspace = true, optional = true }
+systemprompt-manifest = { workspace = true, optional = true }
+systemprompt-mcp = { workspace = true, optional = true }
 systemprompt-models = { workspace = true, optional = true }
 systemprompt-traits = { workspace = true, optional = true }
+anyhow = { workspace = true, optional = true }
 axum = { workspace = true, optional = true }
+chrono = { workspace = true, optional = true }
+clap = { workspace = true, optional = true }
+rmcp = { workspace = true, optional = true, features = ["client", "transport-streamable-http-client"] }
+schemars = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true, features = ["time", "rt"] }
+tracing = { workspace = true, optional = true }

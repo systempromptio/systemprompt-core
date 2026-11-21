@@ -2,27 +2,15 @@
 
 use std::process::Command;
 
-use clap::Parser;
 use systemprompt_cli::EnvOverrides;
-use systemprompt_cli::plugins::mcp::{self, McpCommands};
-use systemprompt_extension::cli::{CliConfig, OutputFormat};
+use systemprompt_mcp_entry::cli as mcp;
 use systemprompt_test_fixtures::{DisposableDb, bounded_output, init_services_bootstrap};
+
+use crate::common::{app_on_database, json_cli, marked_json, member, parse, rendered, with_app};
 
 const SERVER: &str = "cov_internal_status";
 const BINARY: &str = "cov-internal-mcp";
-const HELPER: &str = "commands::mcp_internal_status_lifecycle::internal_status_helper";
-
-#[derive(Debug, Parser)]
-struct Harness {
-    #[command(subcommand)]
-    command: McpCommands,
-}
-
-fn parse(args: &[&str]) -> McpCommands {
-    Harness::try_parse_from(std::iter::once("mcp").chain(args.iter().copied()))
-        .expect("parse MCP status command")
-        .command
-}
+const HELPER: &str = "mcp_internal_status_lifecycle::internal_status_helper";
 
 fn services_yaml() -> String {
     format!(
@@ -56,48 +44,34 @@ async fn internal_status_helper() {
 
     let database = DisposableDb::with_schema("cli_mcp_internal_status").await;
     let pool = database.test_pool().await;
-    let app = crate::boot_ctx::app_on_database(&boot, database.url()).await;
-    let context = crate::boot_ctx::with_app_boot(
-        CliConfig::new()
-            .with_interactive(false)
-            .with_output_format(OutputFormat::Json),
-        EnvOverrides::default(),
-        app,
-    );
+    let app = app_on_database(&boot, database.url()).await;
+    let context = with_app(json_cli(), EnvOverrides::default(), app);
+    let host = member(&context);
 
     println!("BEGIN_COMPACT_STATUS");
-    crate::boot_ctx::rendered(
-        &context,
-        mcp::execute(parse(&["status", "--server", SERVER]), &context).await,
+    rendered(
+        &host,
+        mcp::execute(parse(&["status", "--server", SERVER]), &host).await,
     )
     .expect("compact internal status");
     println!("END_COMPACT_STATUS");
     println!("BEGIN_DETAILED_STATUS");
-    crate::boot_ctx::rendered(
-        &context,
+    rendered(
+        &host,
         mcp::execute(
             parse(&["status", "--server", SERVER, "--detailed"]),
-            &context,
+            &host,
         )
         .await,
     )
     .expect("detailed internal status");
     println!("END_DETAILED_STATUS");
 
+    drop(host);
     drop(context);
     pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
-}
-
-fn marked_json(stdout: &str, start: &str, end: &str) -> serde_json::Value {
-    let json = stdout
-        .split_once(start)
-        .and_then(|(_, tail)| tail.split_once(end))
-        .map(|(value, _)| value.trim())
-        .unwrap_or_else(|| panic!("missing {start}/{end} markers in {stdout}"));
-    serde_json::from_str(json)
-        .unwrap_or_else(|error| panic!("invalid status JSON: {error}: {json}"))
 }
 
 #[test]

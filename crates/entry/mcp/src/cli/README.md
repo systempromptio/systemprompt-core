@@ -1,6 +1,8 @@
 # MCP CLI Commands
 
-Command reference for mcp. Use the installed command’s `--help` output for its complete arguments and defaults.
+Command reference for `plugins mcp`, contributed by the `mcp-http` member (`systemprompt-mcp-entry`). Use the installed command’s `--help` output for its complete arguments and defaults.
+
+No command here starts, stops, restarts or signals an MCP server: `status` and `validate` read the `mcp` member's read-only observer, and `tools` and `call` connect only to a server the service table records as running, presenting the caller's own session token. Start servers with `infra services start`.
 
 ---
 
@@ -9,7 +11,7 @@ Command reference for mcp. Use the installed command’s `--help` output for its
 ```bash
 export SYSTEMPROMPT_PROFILE=~/.systemprompt/profiles/local/profile.yaml
 cd /var/www/html/systemprompt-core
-cargo build --package systemprompt-cli
+cargo build --package systemprompt --features full,cli
 
 alias sp="./target/debug/systemprompt --non-interactive"
 ```
@@ -84,7 +86,7 @@ sp plugins mcp list --disabled
 
 ### mcp status
 
-Report health and running state of configured MCP servers via the orchestrator.
+Report health and running state of configured MCP servers through the `mcp` member's read-only observer. Binary paths are looked up under the profile's build directory.
 
 ```bash
 sp plugins mcp status
@@ -154,7 +156,7 @@ sp plugins mcp validate --all --timeout 5
 | `--timeout` | `10` | Connection timeout in seconds |
 
 **Validation Checks:**
-- Service is running (checked via database)
+- Service is running (the running set the `mcp` member's observer reads from the service table)
 - Connection can be established
 - MCP protocol handshake succeeds
 - Tools are registered
@@ -307,7 +309,7 @@ sp plugins mcp list-packages --raw
 
 ### mcp tools
 
-List tools advertised by running MCP servers, optionally with full schemas.
+List tools advertised by running MCP servers, optionally with full schemas. The caller's session is resolved only when a queried server requires OAuth. With `--schema` and non-JSON output the command returns the readable schema view instead of the table.
 
 ```bash
 sp plugins mcp tools
@@ -351,7 +353,7 @@ sp plugins mcp tools --timeout 60
 
 ### mcp call
 
-Invoke a named tool on a running MCP server with JSON arguments and render the result.
+Invoke a named tool on a running MCP server with JSON arguments and render the result. A server that is not running is refused; start it with `infra services start`.
 
 ```bash
 sp plugins mcp call <server> <tool>
@@ -536,7 +538,7 @@ sp plugins mcp validate filesystem
 # Returns: health_status: "stopped", validation_type: "not_running"
 
 sp plugins mcp call filesystem read_file
-# Error: MCP server 'filesystem' is not running
+# Error: MCP server 'filesystem' is not running; start it with `infra services start`
 ```
 
 ### Connection Timeout

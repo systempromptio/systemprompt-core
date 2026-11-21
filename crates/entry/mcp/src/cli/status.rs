@@ -1,23 +1,23 @@
-//! `plugins mcp status` command.
+//! `plugins mcp status` command: each configured server's health, recorded
+//! process id and build binaries, read through the `mcp` member's read-only
+//! observer.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use clap::Args;
-
-use super::types::{McpStatusEntry, McpStatusOutput, McpStatusSummary};
-use crate::commands::shared::app_context;
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 use systemprompt_manifest::ServicesConfig;
-use systemprompt_mcp::services::McpOrchestrator;
 use systemprompt_mcp::{HealthStatus, McpServiceStatus};
 use systemprompt_models::mcp::McpServerType;
+
+use super::list::binary_path;
+use super::types::{McpStatusEntry, McpStatusOutput, McpStatusSummary};
+use super::{build_target_dir, observer, services_config};
 
 #[derive(Debug, Clone, Args)]
 pub struct StatusArgs {
@@ -28,31 +28,26 @@ pub struct StatusArgs {
     pub server: Option<String>,
 }
 
-pub(super) async fn execute(args: StatusArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let app = app_context(host)
+pub(super) async fn execute(args: StatusArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let services_config = services_config(host)
         .await
-        .context("Failed to initialize application context")?;
-    let services_config = app.services_config();
+        .context("Failed to load services configuration")?;
+    let target_dir = build_target_dir(host).await?;
 
-
-    let bin_path = app.app_paths().build().bin().to_path_buf();
-
-    let manager = McpOrchestrator::new(
-        (**app.service_repository()).clone(),
-        Arc::clone(app.app_paths_arc()),
-        app.mcp_registry().clone(),
-        Arc::clone(app.spawner()),
-        Arc::clone(app.secrets()),
-    )
-    .context("Failed to initialize MCP manager")?;
-    let statuses = manager
+    let statuses = observer(host)
+        .await?
         .service_statuses()
         .await
         .context("Failed to get MCP service statuses")?;
     let status_by_name: HashMap<&str, &McpServiceStatus> =
         statuses.iter().map(|s| (s.name.as_str(), s)).collect();
 
-    let mut servers = collect_status_entries(&args, &services_config, &status_by_name, &bin_path);
+    let mut servers = collect_status_entries(
+        &args,
+        &services_config,
+        &status_by_name,
+        target_dir.as_deref(),
+    );
 
     servers.sort_by(|a, b| a.name.cmp(&b.name));
 
@@ -90,7 +85,7 @@ fn collect_status_entries(
     args: &StatusArgs,
     services_config: &ServicesConfig,
     status_by_name: &HashMap<&str, &McpServiceStatus>,
-    bin_path: &Path,
+    target_dir: Option<&Path>,
 ) -> Vec<McpStatusEntry> {
     let mut servers = Vec::new();
 
@@ -133,10 +128,10 @@ fn collect_status_entries(
                     endpoint: None,
                     binary: deployment.binary.clone(),
                     release_binary: deployment.binary.as_deref().and_then(|binary| {
-                        binary_display(bin_path, "release", binary, args.detailed)
+                        binary_display(target_dir, "release", binary, args.detailed)
                     }),
                     debug_binary: deployment.binary.as_deref().and_then(|binary| {
-                        binary_display(bin_path, "debug", binary, args.detailed)
+                        binary_display(target_dir, "debug", binary, args.detailed)
                     }),
                 },
             };
@@ -148,20 +143,16 @@ fn collect_status_entries(
 }
 
 fn binary_display(
-    bin_path: &Path,
+    target_dir: Option<&Path>,
     profile: &str,
     binary_name: &str,
     detailed: bool,
 ) -> Option<String> {
-    bin_path
-        .parent()
-        .map(|p| p.join(profile).join(binary_name))
-        .filter(|p| p.exists())
-        .map(|p| {
-            if detailed {
-                p.display().to_string()
-            } else {
-                "exists".to_owned()
-            }
-        })
+    binary_path(target_dir, binary_name, profile).map(|p| {
+        if detailed {
+            p.display().to_string()
+        } else {
+            "exists".to_owned()
+        }
+    })
 }

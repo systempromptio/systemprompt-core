@@ -1,51 +1,57 @@
-//! Schema property rendering for MCP tool listings.
+//! Readable parameter-schema view for `plugins mcp tools --schema`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_logging::CliService;
+use std::collections::HashSet;
 
-use crate::commands::shared::mcp_tools::McpToolEntry;
+use super::types::McpToolEntry;
 
-pub(super) fn print_schema_view(tools: &[McpToolEntry]) {
-    CliService::section("MCP Tool Schemas");
+pub(super) fn schema_view(tools: &[McpToolEntry]) -> String {
+    let mut lines: Vec<String> = Vec::new();
 
     for tool in tools {
-        CliService::info("");
-        CliService::info(&format!("╭─ {}/{}", tool.server, tool.name));
+        lines.push(String::new());
+        lines.push(format!("╭─ {}/{}", tool.server, tool.name));
 
         if let Some(ref desc) = tool.description {
-            CliService::info(&format!("│  {}", desc));
+            lines.push(format!("│  {desc}"));
         }
 
         if let Some(ref schema) = tool.input_schema {
-            CliService::info("│");
-            CliService::info("│  Parameters:");
-            print_schema_properties(schema, "│    ");
+            lines.push("│".to_owned());
+            lines.push("│  Parameters:".to_owned());
+            lines.extend(schema_properties(schema, "│    "));
         } else {
-            CliService::info("│  (no parameters)");
+            lines.push("│  (no parameters)".to_owned());
         }
 
-        CliService::info("╰─");
+        lines.push("╰─".to_owned());
     }
+
+    lines.join("\n")
 }
 
 // JSON: MCP `inputSchema` — JSON Schema owned by the server.
-fn print_schema_properties(schema: &serde_json::Value, indent: &str) {
-    let properties = schema.get("properties").and_then(|p| p.as_object());
-    let required = schema
+fn schema_properties(schema: &serde_json::Value, indent: &str) -> Vec<String> {
+    let Some(props) = schema.get("properties").and_then(|p| p.as_object()) else {
+        return Vec::new();
+    };
+    let required: HashSet<&str> = schema
         .get("required")
         .and_then(|r| r.as_array())
-        .map_or_else(std::collections::HashSet::new, |arr| {
-            arr.iter()
-                .filter_map(|v| v.as_str())
-                .collect::<std::collections::HashSet<_>>()
+        .map_or_else(HashSet::new, |arr| {
+            arr.iter().filter_map(|v| v.as_str()).collect()
         });
 
-    if let Some(props) = properties {
-        for (name, prop_schema) in props {
-            let is_required = required.contains(name.as_str());
-            let req_marker = if is_required { "*" } else { "" };
+    props
+        .iter()
+        .map(|(name, prop_schema)| {
+            let req_marker = if required.contains(name.as_str()) {
+                "*"
+            } else {
+                ""
+            };
 
             let prop_type = prop_schema
                 .get("type")
@@ -65,16 +71,13 @@ fn print_schema_properties(schema: &serde_json::Value, indent: &str) {
                     |values| {
                         let vals: Vec<String> = values
                             .iter()
-                            .filter_map(|v| v.as_str().map(|s| format!("\"{}\"", s)))
+                            .filter_map(|v| v.as_str().map(|s| format!("\"{s}\"")))
                             .collect();
                         format!("enum[{}]", vals.join("|"))
                     },
                 );
 
-            CliService::info(&format!(
-                "{}{}{}: {} - {}",
-                indent, name, req_marker, type_display, description
-            ));
-        }
-    }
+            format!("{indent}{name}{req_marker}: {type_display} - {description}")
+        })
+        .collect()
 }

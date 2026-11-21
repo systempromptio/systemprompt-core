@@ -1,23 +1,25 @@
 //! `plugins mcp validate` command with per-service connection checks.
 //!
+//! A server is probed only when the `mcp` member's observer reports it
+//! running; the command never starts one.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
+use std::time::Duration;
+
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
-use std::sync::Arc;
-use std::time::Duration;
+use systemprompt_extension::cli::{CommandHost, CommandOutput, Prompter, resolve_required};
+use systemprompt_identifiers::ServiceName;
+use systemprompt_manifest::ServicesConfig;
+use systemprompt_mcp::{McpDomainResult, McpServerConfig};
+use systemprompt_mcp::services::client::validate_connection_with_auth;
+use systemprompt_models::Deployment;
 
 use super::types::{McpBatchValidateOutput, McpValidateOutput, McpValidateSummary};
 pub use super::validate_output::{FailureDetail, failure_output, success_output};
-use crate::commands::shared::app_context;
-use systemprompt_extension::cli::{CommandOutput, Prompter, resolve_required};
-use systemprompt_identifiers::ServiceName;
-use systemprompt_manifest::services::ServiceStatus;
-use systemprompt_mcp::services::client::validate_connection_with_auth;
-use systemprompt_mcp::services::database::DatabaseService;
-use systemprompt_models::Deployment;
+use super::{observer, services_config};
 
 #[derive(Debug, Args)]
 pub struct ValidateArgs {
@@ -41,21 +43,13 @@ pub struct ValidateArgs {
 
 pub(super) async fn execute(
     args: ValidateArgs,
-    host: &dyn KernelHost,
+    host: &dyn CommandHost,
 ) -> Result<(CommandOutput, bool)> {
     let prompter = host.prompter();
     let config = host.output();
-    let app = app_context(host)
+    let services_config = services_config(host)
         .await
-        .context("Failed to initialize application context")?;
-    let services_config = app.services_config();
-
-
-    let database = DatabaseService::new(
-        (**app.service_repository()).clone(),
-        Arc::clone(app.app_paths_arc()),
-        app.mcp_registry().clone(),
-    );
+        .context("Failed to load services configuration")?;
 
     let server_arg = args.server.or(args.service);
 
@@ -78,11 +72,13 @@ pub(super) async fn execute(
             vec![service]
         };
 
+    let running = observer(host).await?.running_servers().await;
+
     let mut results = Vec::new();
 
     for service_name in &servers_to_validate {
         let result =
-            validate_single_service(service_name, &services_config, &database, args.timeout).await;
+            validate_single_service(service_name, &services_config, &running, args.timeout).await;
         results.push(result);
     }
 
@@ -120,8 +116,8 @@ pub(super) async fn execute(
 
 async fn validate_single_service(
     service_name: &ServiceName,
-    services_config: &systemprompt_manifest::ServicesConfig,
-    database: &DatabaseService,
+    services_config: &ServicesConfig,
+    running: &McpDomainResult<Vec<McpServerConfig>>,
     timeout_secs: u64,
 ) -> McpValidateOutput {
     let Some(server) = services_config.mcp_servers.get(service_name.as_str()) else {
@@ -137,8 +133,8 @@ async fn validate_single_service(
         );
     };
 
-    let service_info = match database.get_service_by_name(service_name).await {
-        Ok(info) => info,
+    let running = match running {
+        Ok(running) => running,
         Err(e) => {
             return failure_output(
                 service_name,
@@ -153,11 +149,7 @@ async fn validate_single_service(
         },
     };
 
-    let is_running = service_info
-        .as_ref()
-        .is_some_and(|info| info.status == ServiceStatus::Running);
-
-    if !is_running {
+    if !running.iter().any(|s| s.name == service_name.as_str()) {
         return failure_output(
             service_name,
             FailureDetail {
@@ -230,7 +222,7 @@ pub async fn run_connection_validation(
 
 pub fn prompt_server_selection(
     prompter: &dyn Prompter,
-    config: &systemprompt_manifest::ServicesConfig,
+    config: &ServicesConfig,
 ) -> Result<ServiceName> {
     let mut servers: Vec<String> = config.mcp_servers.keys().cloned().collect();
     servers.sort();

@@ -10,7 +10,7 @@ use anyhow::{Context, Result, anyhow};
 
 use super::logs::LogsArgs;
 use super::types::McpLogsOutput;
-use crate::shared::disk_logs::{display_names, find_log_file, list_log_files, read_log_lines};
+use super::disk_logs::{display_names, find_log_file, list_log_files, read_log_lines};
 use systemprompt_extension::cli::{
     ChildSupervisor, CliConfig, CommandOutput, Prompter, resolve_required,
 };

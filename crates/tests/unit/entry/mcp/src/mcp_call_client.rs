@@ -1,129 +1,16 @@
-//! Tests for the `plugins mcp call` client helpers.
+//! Tests for the `plugins mcp` client helpers: content conversion, the
+//! caller's token on every frame, `tools/list` params and the call deadline.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use std::path::PathBuf;
-
 use rmcp::model::ContentBlock;
-use systemprompt_cli::plugins::mcp::call_client::{
-    ToolCallParams, convert_content, execute_tool_call, list_available_tools,
+use systemprompt_identifiers::{McpServerId, McpToolName, SessionToken};
+use systemprompt_mcp_entry::cli::call_client::{
+    ToolCallParams, convert_content, execute_tool_call, list_tools,
 };
-use systemprompt_cli::session::CliSessionContext;
-use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity};
-use systemprompt_identifiers::{
-    ContextId, Email, McpServerId, McpToolName, ProfileName, SessionId, SessionToken, UserId,
-};
-use systemprompt_manifest::services::SystemAdminConfig;
-use systemprompt_manifest::{
-    ContentNegotiationConfig, ExtensionsConfig, PathsConfig, Profile, ProfileDatabaseConfig,
-    ProfileType, RateLimitsConfig, RuntimeConfig, SecurityConfig, SecurityHeadersConfig,
-    ServerConfig, SiteConfig,
-};
-use systemprompt_models::auth::UserType;
 
-fn session_ctx() -> CliSessionContext {
-    let session = CliSession::builder(
-        SessionBinding::new(
-            ProfileName::try_new("test").expect("valid ProfileName"),
-            "http://localhost:8080".to_owned(),
-        ),
-        SessionToken::new("tok"),
-        SessionId::generate(),
-        ContextId::generate(),
-        SessionIdentity::new(
-            UserId::new("user-mcp-call"),
-            Email::try_new("a@b.test").expect("valid Email"),
-            UserType::Admin,
-        ),
-    )
-    .build();
-    CliSessionContext {
-        session,
-        profile: minimal_profile(),
-    }
-}
-
-fn minimal_profile() -> Profile {
-    Profile {
-        storage: Default::default(),
-        observability: Default::default(),
-        config_planes: Default::default(),
-        licence: Default::default(),
-        notifications: Default::default(),
-        brain: Default::default(),
-        name: "test".to_string(),
-        display_name: "Test".to_string(),
-        target: ProfileType::Local,
-        site: SiteConfig {
-            name: "Test Site".to_string(),
-            github_link: None,
-        },
-        database: ProfileDatabaseConfig {
-            db_type: "postgres".to_string(),
-            external_db_access: false,
-            migrate_on_boot: true,
-            pool: None,
-        },
-        server: ServerConfig {
-            host: "127.0.0.1".to_string(),
-            port: 8080,
-            api_server_url: "http://localhost:8080".to_string(),
-            api_internal_url: "http://localhost:8080".to_string(),
-            external_url: "https://example.com".to_string(),
-            extra_cors_origins: Vec::new(),
-            api_external_url: "https://example.com".to_string(),
-            use_https: false,
-            cors_allowed_origins: vec![],
-            content_negotiation: ContentNegotiationConfig::default(),
-            security_headers: SecurityHeadersConfig::default(),
-            instance_id: None,
-            metrics_port: None,
-            max_concurrent_streams: systemprompt_manifest::config::DEFAULT_MAX_CONCURRENT_STREAMS,
-            role: Default::default(),
-            advertise_url: None,
-            max_in_flight: None,
-            shutdown: Default::default(),
-            trusted_proxies: Vec::new(),
-        },
-        paths: PathsConfig {
-            root: None,
-            system: "/tmp/test".to_string(),
-            services: "/tmp/test/services".to_string(),
-            bin: "/tmp/test/bin".to_string(),
-            web_path: None,
-            storage: None,
-            geoip_database: None,
-            shipped_files: None,
-            data: None,
-        },
-        security: SecurityConfig {
-            issuer: "https://issuer.test".to_string(),
-            access_token_expiration: 3600,
-            refresh_token_expiration: 86400,
-            audiences: vec![systemprompt_models::auth::JwtAudience::Api],
-            allowed_resource_audiences: vec![],
-            allow_registration: true,
-            allow_dynamic_client_registration: true,
-            api_keys: Default::default(),
-            login_page_url: None,
-            signing_key_path: PathBuf::from("/tmp/test-signing-key.pem"),
-            trusted_issuers: vec![],
-            id_jag_ttl_secs: systemprompt_manifest::profile::DEFAULT_ID_JAG_TTL_SECS,
-        },
-        rate_limits: RateLimitsConfig::default(),
-        runtime: RuntimeConfig::default(),
-        cloud: None,
-        secrets: None,
-        extensions: ExtensionsConfig::default(),
-        governance: None,
-        judge: Default::default(),
-        retention: Default::default(),
-        services: Default::default(),
-        system_admin: SystemAdminConfig {
-            username: "admin".to_string(),
-            email: None,
-        },
-    }
+fn token() -> SessionToken {
+    SessionToken::new("tok")
 }
 
 fn block(json: serde_json::Value) -> ContentBlock {
@@ -183,13 +70,12 @@ fn convert_content_renders_embedded_resources_as_json() {
 
 #[tokio::test]
 async fn execute_tool_call_fails_fast_against_closed_port() {
-    let ctx = session_ctx();
     let err = execute_tool_call(ToolCallParams {
         server_name: &McpServerId::new("svc"),
         url: &format!("http://127.0.0.1:{}/mcp", free_port()),
         tool_name: &McpToolName::new("echo"),
         arguments: Some(serde_json::json!({"x": 1})),
-        session_ctx: &ctx,
+        token: &token(),
         timeout_secs: 5,
     })
     .await
@@ -199,12 +85,11 @@ async fn execute_tool_call_fails_fast_against_closed_port() {
 }
 
 #[tokio::test]
-async fn list_available_tools_fails_fast_against_closed_port() {
-    let ctx = session_ctx();
-    let err = list_available_tools(
+async fn list_tools_fails_fast_against_closed_port() {
+    let err = list_tools(
         &McpServerId::new("svc"),
         &format!("http://127.0.0.1:{}/mcp", free_port()),
-        &ctx,
+        Some(&token()),
         5,
     )
     .await
@@ -342,7 +227,7 @@ async fn assert_initialize_frame(server: &wiremock::MockServer) {
 }
 
 #[tokio::test]
-async fn list_available_tools_sends_non_null_object_params_and_preserves_names() {
+async fn list_tools_sends_non_null_object_params_and_preserves_names() {
     use wiremock::matchers::{body_json, header, method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -376,10 +261,10 @@ async fn list_available_tools_sends_non_null_object_params_and_preserves_names()
 
     let tools_result = tokio::time::timeout(
         std::time::Duration::from_secs(10),
-        list_available_tools(
+        list_tools(
             &McpServerId::new("strict"),
             &format!("{}/mcp", server.uri()),
-            &session_ctx(),
+            Some(&token()),
             5,
         ),
     )
@@ -387,7 +272,8 @@ async fn list_available_tools_sends_non_null_object_params_and_preserves_names()
     .expect("tools/list must finish within ten seconds");
     assert_initialize_frame(&server).await;
     let tools = tools_result.expect("strict tools/list succeeds");
-    assert_eq!(tools, vec!["alpha", "zeta"]);
+    let names: Vec<&str> = tools.iter().map(|tool| tool.name.as_str()).collect();
+    assert_eq!(names, ["alpha", "zeta"]);
     let requests = server
         .received_requests()
         .await
@@ -440,7 +326,6 @@ async fn execute_tool_call_sends_arguments_and_surfaces_jsonrpc_rejection() {
         .expect(1)
         .mount(&success)
         .await;
-    let success_ctx = session_ctx();
     let result = tokio::time::timeout(
         std::time::Duration::from_secs(10),
         execute_tool_call(ToolCallParams {
@@ -448,7 +333,7 @@ async fn execute_tool_call_sends_arguments_and_surfaces_jsonrpc_rejection() {
             url: &format!("{}/mcp", success.uri()),
             tool_name: &McpToolName::new("echo"),
             arguments: Some(serde_json::json!({"message": "owned-value"})),
-            session_ctx: &success_ctx,
+            token: &token(),
             timeout_secs: 5,
         }),
     )
@@ -485,7 +370,6 @@ async fn execute_tool_call_sends_arguments_and_surfaces_jsonrpc_rejection() {
         .expect(1)
         .mount(&rejected)
         .await;
-    let ctx = session_ctx();
     let error = tokio::time::timeout(
         std::time::Duration::from_secs(10),
         execute_tool_call(ToolCallParams {
@@ -493,7 +377,7 @@ async fn execute_tool_call_sends_arguments_and_surfaces_jsonrpc_rejection() {
             url: &format!("{}/mcp", rejected.uri()),
             tool_name: &McpToolName::new("denied"),
             arguments: None,
-            session_ctx: &ctx,
+            token: &token(),
             timeout_secs: 5,
         }),
     )
@@ -534,7 +418,6 @@ async fn execute_tool_call_timeout_bounds_a_call_the_server_never_answers() {
         )
         .mount(&server)
         .await;
-    let ctx = session_ctx();
     let started = std::time::Instant::now();
     let error = tokio::time::timeout(
         std::time::Duration::from_secs(20),
@@ -543,7 +426,7 @@ async fn execute_tool_call_timeout_bounds_a_call_the_server_never_answers() {
             url: &format!("{}/mcp", server.uri()),
             tool_name: &McpToolName::new("hang"),
             arguments: None,
-            session_ctx: &ctx,
+            token: &token(),
             timeout_secs: 1,
         }),
     )

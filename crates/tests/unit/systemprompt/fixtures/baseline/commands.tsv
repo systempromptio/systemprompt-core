@@ -390,14 +390,14 @@ plugins capabilities templates	leaf	-	kernel
 plugins capabilities tools	leaf	-	kernel
 plugins config	leaf	-	kernel
 plugins list	leaf	-	kernel
-plugins mcp	group	-	kernel
-plugins mcp call	leaf	-	kernel
-plugins mcp list	leaf	-	kernel
-plugins mcp list-packages	leaf	-	kernel
-plugins mcp logs	leaf	-	kernel
-plugins mcp status	leaf	-	kernel
-plugins mcp tools	leaf	-	kernel
-plugins mcp validate	leaf	-	kernel
+plugins mcp	group	CallerSession	mcp-http
+plugins mcp call	leaf	CallerSession	mcp-http
+plugins mcp list	leaf	CallerSession	mcp-http
+plugins mcp list-packages	leaf	CallerSession	mcp-http
+plugins mcp logs	leaf	CallerSession	mcp-http
+plugins mcp status	leaf	CallerSession	mcp-http
+plugins mcp tools	leaf	CallerSession	mcp-http
+plugins mcp validate	leaf	CallerSession	mcp-http
 plugins run	leaf	-	kernel
 plugins seams	leaf	-	kernel
 plugins show	leaf	-	kernel

@@ -7,29 +7,24 @@
 //! nothing is listening on: the per-server loops run, and every connection
 //! attempt lands on the unreachable arm rather than the happy path.
 //!
-//! `plugins mcp tools` resolves a CLI session before anything else, so this
-//! suite seeds one for the bootstrap profile. Without it the command dies on
-//! "No session for active profile" and never reaches the unreachable-server
-//! arm these tests assert on.
+//! `plugins mcp tools` resolves the caller's session only when a queried
+//! server requires OAuth; neither fixture server does and neither is
+//! running, so no session is seeded.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use std::sync::{Arc, OnceLock};
 
-use clap::Parser;
-use systemprompt_cli::plugins::mcp::{self, McpCommands};
 use systemprompt_cli::{CommandContext, EnvOverrides};
-use systemprompt_cloud::paths::ResolvedPaths;
-use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity, SessionKey, SessionStore};
 use systemprompt_database::DbPool;
-use systemprompt_extension::cli::{CliConfig, OutputFormat};
-use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken};
-use systemprompt_models::auth::UserType;
+use systemprompt_mcp_entry::cli as mcp;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    FIXTURE_EXTERNAL_URL, TestBootstrap, fixture_user_id, free_port_in_range,
-    init_services_bootstrap, seed_fixture_system_admin, test_db_pool,
+    TestBootstrap, free_port_in_range, init_services_bootstrap, seed_fixture_system_admin,
+    test_db_pool,
 };
+
+use crate::common::{json_cli, marked_json, member, parse, rendered, with_app};
 
 const ENABLED: &str = "fixture_enabled_server";
 const DISABLED: &str = "fixture_disabled_server";
@@ -56,63 +51,7 @@ fn services_yaml() -> String {
 static BOOT: OnceLock<TestBootstrap> = OnceLock::new();
 
 fn boot() -> &'static TestBootstrap {
-    BOOT.get_or_init(|| {
-        let b = init_services_bootstrap(&services_yaml());
-        seed_cli_session(&b);
-        b
-    })
-}
-
-fn seed_cli_session(b: &TestBootstrap) {
-    let profile_dir = b
-        .profile_path
-        .parent()
-        .expect("the bootstrap profile.yaml has a parent directory");
-    let profile_name_str = profile_dir
-        .file_name()
-        .and_then(|n| n.to_str())
-        .expect("the bootstrap profile directory has a usable name")
-        .to_owned();
-    let profile_name = ProfileName::try_new(profile_name_str.as_str())
-        .expect("the bootstrap profile directory name is a valid ProfileName");
-
-    let session = CliSession::builder(
-        SessionBinding::new(profile_name, FIXTURE_EXTERNAL_URL.to_owned()),
-        SessionToken::new("fixture-session-token"),
-        SessionId::generate(),
-        ContextId::generate(),
-        SessionIdentity::new(
-            fixture_user_id(),
-            Email::try_new("fixture@example.com").expect("fixture email"),
-            UserType::Admin,
-        ),
-    )
-    .with_profile_path(&b.profile_path)
-    .build();
-
-    // Why: the store persists between runs, so a stale `active_profile_name`
-    // from an earlier fixture tempdir would not match this one and the session
-    // would be rejected before the command body runs. Claim both.
-    let sessions_dir = ResolvedPaths::discover().sessions_dir();
-    let mut store =
-        SessionStore::load_or_create(&sessions_dir).expect("load the CLI session store");
-    store.upsert_session(&SessionKey::Local, session);
-    store.set_active_with_profile(&SessionKey::Local, &pname(profile_name_str.as_str()));
-    store
-        .save(&sessions_dir)
-        .expect("persist the CLI session store");
-}
-
-#[derive(Debug, Parser)]
-struct Harness {
-    #[command(subcommand)]
-    cmd: McpCommands,
-}
-
-fn parse(args: &[&str]) -> McpCommands {
-    Harness::try_parse_from(std::iter::once("mcp").chain(args.iter().copied()))
-        .unwrap_or_else(|e| panic!("parse {args:?}: {e}"))
-        .cmd
+    BOOT.get_or_init(|| init_services_bootstrap(&services_yaml()))
 }
 
 async fn app_over(database_url: &str) -> Arc<AppContext> {
@@ -136,19 +75,14 @@ async fn app() -> (DbPool, Arc<AppContext>) {
 }
 
 fn ctx(app: &Arc<AppContext>) -> CommandContext {
-    crate::boot_ctx::with_app_boot(
-        CliConfig::new()
-            .with_interactive(false)
-            .with_output_format(OutputFormat::Json),
-        EnvOverrides::default(),
-        Arc::clone(app),
-    )
+    with_app(json_cli(), EnvOverrides::default(), Arc::clone(app))
 }
 
 async fn run(args: &[&str]) -> anyhow::Result<()> {
     let (_pool, app) = app().await;
     assert_configured();
-    mcp::execute(parse(args), &ctx(&app)).await.map(drop)
+    let context = ctx(&app);
+    mcp::execute(parse(args), &member(&context)).await.map(drop)
 }
 
 fn assert_configured() {
@@ -224,9 +158,12 @@ async fn the_service_alias_selects_the_same_server_as_the_positional_name() {
 async fn validating_a_server_that_is_not_configured_names_it() {
     let (_pool, app) = app().await;
     assert_configured();
-    let ctx = ctx(&app);
+    let context = ctx(&app);
 
-    let err = mcp::execute(parse(&["validate", "ghost-server", "--timeout", "1"]), &ctx)
+    let err = mcp::execute(
+        parse(&["validate", "ghost-server", "--timeout", "1"]),
+        &member(&context),
+    )
         .await
         .expect_err("a server absent from the config cannot be validated");
 
@@ -264,7 +201,7 @@ async fn listing_tools_for_a_named_server_that_is_not_running_names_it() {
 }
 
 const VALIDATE_EXTERNAL_HELPER: &str =
-    "commands::plugins_mcp_configured_db::validate_running_external_helper";
+    "plugins_mcp_configured_db::validate_running_external_helper";
 
 #[tokio::test]
 #[ignore = "re-executed by running_external_validation_reports_its_configuration_error"]
@@ -290,14 +227,16 @@ async fn validate_running_external_helper() {
         .expect("register the external MCP service as running");
 
     let context = ctx(&app);
+    let host = member(&context);
     println!("BEGIN_VALIDATE_EXTERNAL");
-    crate::boot_ctx::rendered(
-        &context,
-        mcp::execute(parse(&["validate", ENABLED, "--timeout", "1"]), &context).await,
+    rendered(
+        &host,
+        mcp::execute(parse(&["validate", ENABLED, "--timeout", "1"]), &host).await,
     )
     .expect_err("an invalid server renders its report and exits non-zero");
     println!("END_VALIDATE_EXTERNAL");
 
+    drop(host);
     drop(context);
     drop(app);
     drop(pool);
@@ -348,9 +287,9 @@ fn running_external_validation_reports_its_configuration_error() {
     );
 }
 const VALIDATE_CLOSED_DATABASE_HELPER: &str =
-    "commands::plugins_mcp_configured_db::validate_closed_database_helper";
+    "plugins_mcp_configured_db::validate_closed_database_helper";
 const VALIDATE_STOPPED_HELPER: &str =
-    "commands::plugins_mcp_configured_db::validate_stopped_outputs_helper";
+    "plugins_mcp_configured_db::validate_stopped_outputs_helper";
 
 struct ValidateChild(std::process::Child);
 
@@ -408,15 +347,6 @@ fn capture_validate_helper(name: &str) -> String {
     stdout
 }
 
-fn marked_json(stdout: &str, begin: &str, end: &str) -> serde_json::Value {
-    let body = stdout
-        .split_once(begin)
-        .and_then(|(_, tail)| tail.split_once(end))
-        .map(|(body, _)| body.trim())
-        .unwrap_or_else(|| panic!("missing {begin}/{end}: {stdout}"));
-    serde_json::from_str(body).expect("validation JSON artifact")
-}
-
 fn validation_content<'a>(artifact: &'a serde_json::Value, heading: &str) -> &'a serde_json::Value {
     &artifact["sections"]
         .as_array()
@@ -437,13 +367,17 @@ async fn validate_closed_database_helper() {
     let app = app_over(database.url()).await;
     app.db_pool().pool().close().await;
     app.db_pool().write_pool().close().await;
+    let context = ctx(&app);
+    let host = member(&context);
     println!("BEGIN_VALIDATE_CLOSED_DATABASE");
-    crate::boot_ctx::rendered(
-        &ctx(&app),
-        mcp::execute(parse(&["validate", ENABLED, "--timeout", "1"]), &ctx(&app)).await,
+    rendered(
+        &host,
+        mcp::execute(parse(&["validate", ENABLED, "--timeout", "1"]), &host).await,
     )
     .expect_err("database lookup failure renders its report and exits non-zero");
     println!("END_VALIDATE_CLOSED_DATABASE");
+    drop(host);
+    drop(context);
     drop(app);
     database.drop_now().await;
 }
@@ -491,20 +425,22 @@ async fn validate_stopped_outputs_helper() {
     let pool = database.test_pool().await;
     let app = app_over(database.url()).await;
     let context = ctx(&app);
+    let host = member(&context);
     println!("BEGIN_VALIDATE_NAMED_STOPPED");
-    crate::boot_ctx::rendered(
-        &context,
-        mcp::execute(parse(&["validate", ENABLED, "--timeout", "1"]), &context).await,
+    rendered(
+        &host,
+        mcp::execute(parse(&["validate", ENABLED, "--timeout", "1"]), &host).await,
     )
     .expect_err("a stopped server renders its report and exits non-zero");
     println!("END_VALIDATE_NAMED_STOPPED");
     println!("BEGIN_VALIDATE_BATCH_STOPPED");
-    crate::boot_ctx::rendered(
-        &context,
-        mcp::execute(parse(&["validate", "--all", "--timeout", "1"]), &context).await,
+    rendered(
+        &host,
+        mcp::execute(parse(&["validate", "--all", "--timeout", "1"]), &host).await,
     )
     .expect_err("a stopped batch renders its report and exits non-zero");
     println!("END_VALIDATE_BATCH_STOPPED");
+    drop(host);
     drop(context);
     drop(app);
     drop(pool);
@@ -560,6 +496,3 @@ fn validation_reports_exact_named_and_batch_stopped_results() {
     }
 }
 
-fn pname(name: &str) -> systemprompt_identifiers::ProfileName {
-    systemprompt_identifiers::ProfileName::try_new(name).expect("valid ProfileName")
-}

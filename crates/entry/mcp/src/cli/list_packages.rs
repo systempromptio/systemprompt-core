@@ -1,16 +1,16 @@
-//! List MCP package names for build scripts
+//! `plugins mcp list-packages`: the enabled MCP servers' package names, read
+//! from the registry the `mcp` member provides, for build scripts.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use clap::Args;
-
-use super::types::McpPackagesOutput;
-use crate::commands::shared::app_context;
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 use systemprompt_models::artifacts::ListItem;
+
+use super::registry;
+use super::types::McpPackagesOutput;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ListPackagesArgs {
@@ -20,17 +20,15 @@ pub struct ListPackagesArgs {
 
 pub(super) async fn execute(
     args: ListPackagesArgs,
-    host: &dyn KernelHost,
+    host: &dyn CommandHost,
 ) -> Result<CommandOutput> {
-    let app = app_context(host)
+    let servers = registry(host)
+        .await?
+        .list_enabled_servers()
         .await
-        .context("Failed to bootstrap AppContext")?;
-    let servers = app
-        .mcp_registry()
-        .get_enabled_servers()
         .context("Failed to get enabled MCP servers")?;
 
-    let packages: Vec<String> = servers.iter().map(|s| s.name.clone()).collect();
+    let packages: Vec<String> = servers.into_iter().map(|s| s.name).collect();
 
     let output = if args.raw {
         McpPackagesOutput {
