@@ -9,7 +9,7 @@
 - `routes::oauth::authenticated_router()` no longer carries `/revoke`; it is `routes::oauth::revocation_router()`. Migrate a hand-assembled router with `.merge(revocation_router())`.
 - `GET` and `POST /oauth/consent` and `routes::oauth::endpoints::consent` are removed. Migrate by sending the person to `/oauth/authorize`.
 - `POST /oauth/authorize` requires the server's own `Origin`; `AuthorizeRequest` loses `username` and `password` and gains `consent_token`; `user_consent=allow` needs the browser session and the consent page's token instead of answering `unsupported_grant_type`. Migrate a struct literal by dropping the two fields and setting `consent_token: None`.
-- `AuthorizeQuery` gains `login_hint` and `reauth_since`. Migrate a struct literal by setting both to `None`.
+- `AuthorizeQuery` gains `login_hint` and `reauth_since` (both `Option<String>`). Migrate a struct literal by setting both to `None`.
 - `login_page_redirect_target(login_page_url, params, return_path, now)` takes the request's path and query and the current Unix time, lives in `authorize::login_redirect`, and no longer special-cases `prompt=passkey`. Migrate by passing `OriginalUri`'s path and query and `Utc::now().timestamp()`.
 - `authorize::response_builder::is_user_consent_granted` is removed. Migrate by comparing `user_consent` with `Some("allow")`.
 - `OAuthErrorCode` gains `LoginRequired`, `ConsentRequired`, `InteractionRequired` and `AccountSelectionRequired`. Migrate an exhaustive match by adding the arms.
@@ -22,8 +22,8 @@
 - `POST /oauth/revoke` admits a person's UI session as the caller, limited to tokens of the same user and the same `client_id`; revoking its refresh token also ends the bearer it presented.
 - The OAuth well-known documents and `endpoints.oauth` of `GET /api/v1` carry `ui_session_supported` and `ui_session` (`access_token_lifetime`, `session_lifetime`, `step_up_max_age`, in seconds).
 - `/oauth/authorize` recognises the web login's browser session (`authorize::session::browser_sign_in`), decides with the pure `authorize::decision::decide`, and issues a code silently, renders the consent page, sends the person to sign in, or answers `login_required`, `consent_required` or `interaction_required` with `state` and `iss`. `prompt` and `max_age` are honoured; `security.authorize.silent_native_clients` governs silent issuance to loopback and private-scheme redirects.
-- `POST /oauth/authorize` takes the consent page's Allow (bound by `consent_token` to the person, session and request) and Deny.
-- The redirect to `security.login_page_url` carries `redirect` (this request with `reauth_since` appended), `prompt`, `max_age` and `login_hint`; a return that is still not freshly signed in answers `login_required`.
+- `POST /oauth/authorize` takes the consent page's Allow (bound by `consent_token` to the person, session and request, PKCE method and response type included) and Deny.
+- The redirect to `security.login_page_url` carries `redirect` (this request with `reauth_since` set to a server-signed marker bound to the request), `prompt`, `max_age` and `login_hint`; a return whose marker verifies but is still not freshly signed in answers `login_required`, and a marker that does not verify for the request counts as absent.
 - `GET /sso/{id}/start` accepts `prompt` and `max_age`.
 - `OAuthHttpError::login_required`, `consent_required`, `interaction_required`, `account_selection_required` and `with_redirect_issuer`, which adds the RFC 9207 `iss` to a redirected error.
 - The OAuth well-known documents carry `prompt_values_supported`.

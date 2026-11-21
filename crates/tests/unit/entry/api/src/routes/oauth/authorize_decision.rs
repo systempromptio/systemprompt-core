@@ -1,5 +1,5 @@
-//! The `/authorize` decision as a matrix: prompt, max_age, the reauth marker,
-//! the browser sign-in, remembered consent and the silence policy in, one
+//! The `/authorize` decision as a matrix: prompt, max_age, the verified reauth
+//! time, the browser sign-in, remembered consent and the silence policy in, one
 //! [`Decision`] out. Also the interaction floor for native redirects and the
 //! claims a cookie token must carry to count as a browser session.
 
@@ -21,7 +21,7 @@ use systemprompt_models::auth::{
 
 const NOW: i64 = 1_800_000_000;
 
-fn query(prompt: Option<&str>, max_age: Option<i64>, reauth_since: Option<i64>) -> AuthorizeQuery {
+fn query(prompt: Option<&str>, max_age: Option<i64>) -> AuthorizeQuery {
     AuthorizeQuery {
         response_type: "code".to_string(),
         client_id: ClientId::new("sp_test_client"),
@@ -37,7 +37,7 @@ fn query(prompt: Option<&str>, max_age: Option<i64>, reauth_since: Option<i64>) 
         ui_locales: None,
         resource: None,
         login_hint: None,
-        reauth_since,
+        reauth_since: None,
     }
 }
 
@@ -208,7 +208,8 @@ fn decision_matrix() {
     for c in cases {
         let sign_in = c.signed_in_ago.map(signed_in);
         let got = decide(
-            &query(c.prompt, c.max_age, c.reauth_since),
+            &query(c.prompt, c.max_age),
+            c.reauth_since,
             sign_in.as_ref(),
             c.covered,
             c.silent,
@@ -324,13 +325,30 @@ fn a_return_from_the_login_page_is_never_sent_to_sign_in_again() {
     for c in cases {
         let sign_in = c.signed_in_ago.map(signed_in);
         let got = decide(
-            &query(c.prompt, c.max_age, c.reauth_since),
+            &query(c.prompt, c.max_age),
+            c.reauth_since,
             sign_in.as_ref(),
             c.covered,
             c.silent,
             NOW,
         );
         assert_eq!(got, c.expect, "{}", c.name);
+    }
+}
+
+#[test]
+fn without_a_verified_marker_prompt_login_and_max_age_zero_ask_for_a_sign_in() {
+    let five_minutes_old = signed_in(300);
+    for (prompt, max_age) in [(Some("login"), None), (None, Some(0))] {
+        let got = decide(
+            &query(prompt, max_age),
+            None,
+            Some(&five_minutes_old),
+            true,
+            true,
+            NOW,
+        );
+        assert_eq!(got, Decision::SignIn, "{prompt:?} {max_age:?}");
     }
 }
 

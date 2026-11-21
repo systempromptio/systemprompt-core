@@ -4,9 +4,11 @@
 //! A sign-in is usable when nothing asks for a new one: `prompt` names
 //! neither `login` nor `select_account`, and the sign-in is no older than
 //! `max_age` (`max_age=0` always asks). A request that returns from the login
-//! page carries `reauth_since`; it is satisfied only by a sign-in at or after
-//! that marker, within [`REAUTH_WINDOW_SECS`] of it, and is otherwise answered
-//! `login_required` rather than sent to sign in a second time.
+//! page carries the time the endpoint sent it there, which the handler passes
+//! in only once the server-signed marker has verified for this very request.
+//! It is satisfied only by a sign-in at or after that time, within
+//! [`REAUTH_WINDOW_SECS`] of it, and is otherwise answered `login_required`
+//! rather than sent to sign in a second time.
 //!
 //! A usable sign-in yields a code with no page only when consent is remembered
 //! and the client may be issued to silently. A `redirect_uri` that is not
@@ -18,12 +20,13 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_manifest::profile::AuthorizeConfig;
+use systemprompt_oauth::repository::REAUTH_MARKER_TTL_SECS;
 use systemprompt_oauth::services::validation::registration_redirect::is_loopback;
 
 use super::AuthorizeQuery;
 use super::session::BrowserSignIn;
 
-pub const REAUTH_WINDOW_SECS: i64 = 600;
+pub const REAUTH_WINDOW_SECS: i64 = REAUTH_MARKER_TTL_SECS;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Decision {
@@ -67,12 +70,13 @@ impl Prompt {
 
 fn sign_in_usable(
     params: &AuthorizeQuery,
+    reauth_since: Option<i64>,
     sign_in: &BrowserSignIn,
     prompt: Prompt,
     now: i64,
 ) -> bool {
     let age = now.saturating_sub(sign_in.auth_time);
-    params.reauth_since.map_or_else(
+    reauth_since.map_or_else(
         || {
             let asked = prompt.login || params.max_age == Some(0);
             let stale = params.max_age.is_some_and(|max_age| age > max_age);
@@ -91,6 +95,7 @@ fn sign_in_usable(
 #[must_use]
 pub fn decide(
     params: &AuthorizeQuery,
+    reauth_since: Option<i64>,
     sign_in: Option<&BrowserSignIn>,
     consent_covered: bool,
     silent_allowed: bool,
@@ -100,9 +105,10 @@ pub fn decide(
     if prompt.passkey {
         return Decision::PasskeyForm;
     }
-    let signed_in = sign_in.is_some_and(|sign_in| sign_in_usable(params, sign_in, prompt, now));
+    let signed_in =
+        sign_in.is_some_and(|sign_in| sign_in_usable(params, reauth_since, sign_in, prompt, now));
     if !signed_in {
-        return if prompt.none || params.reauth_since.is_some() {
+        return if prompt.none || reauth_since.is_some() {
             Decision::LoginRequired
         } else {
             Decision::SignIn

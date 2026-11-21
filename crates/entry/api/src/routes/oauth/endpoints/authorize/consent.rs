@@ -3,7 +3,8 @@
 //! The page is rendered only for a person signed in to this browser and names
 //! the client, the scopes, the account and where the browser returns to. Its
 //! form restates the request and carries a consent token: the at-rest HMAC of
-//! the person, their session and the request (see
+//! the person, their session and the request, PKCE method and response type
+//! included (see
 //! [`systemprompt_oauth::repository::ConsentBinding`]), valid for at most
 //! [`CONSENT_TOKEN_TTL_SECS`] and never past the request's `max_age`. The page
 //! is never framed and never cached.
@@ -75,6 +76,8 @@ fn binding<'a>(request: &SignedInRequest<'a>) -> ConsentBinding<'a> {
         scope: &validated.scope,
         state: params.state.as_deref().unwrap_or_default(),
         code_challenge: params.code_challenge.as_deref().unwrap_or_default(),
+        code_challenge_method: params.code_challenge_method.as_deref().unwrap_or_default(),
+        response_type: &params.response_type,
         resource: params.resource.as_deref(),
     }
 }

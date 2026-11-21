@@ -21,17 +21,19 @@ pub mod session;
 pub mod validation;
 
 pub use handler::{handle_authorize_get, handle_authorize_post};
-pub use login_redirect::login_page_redirect_target;
+pub use login_redirect::{login_page_redirect_target, reauth_binding};
 
 use serde::Deserialize;
 use systemprompt_identifiers::ClientId;
 
 /// The query of `GET /authorize`.
 ///
-/// `reauth_since` is not a client parameter: the endpoint appends it, as Unix
-/// seconds, to the return address it hands the login page, and on the way
-/// back accepts only a sign-in at or after it. It is unsigned because a caller
-/// who supplies it can only make the endpoint stricter.
+/// `reauth_since` is not a client parameter: the endpoint appends it to the
+/// return address it hands the login page, as `<unix seconds>.<hmac>` minted
+/// for this request (see [`systemprompt_oauth::repository::ReauthBinding`]).
+/// On the way back a marker that verifies satisfies `prompt=login` and
+/// `max_age=0` with a sign-in at or after its time; a marker that is
+/// malformed, expired or minted for another request counts as absent.
 #[derive(Debug, Clone, Deserialize)]
 pub struct AuthorizeQuery {
     pub response_type: String,
@@ -48,7 +50,7 @@ pub struct AuthorizeQuery {
     pub ui_locales: Option<String>,
     pub resource: Option<String>,
     pub login_hint: Option<String>,
-    pub reauth_since: Option<i64>,
+    pub reauth_since: Option<String>,
 }
 
 /// The form of `POST /authorize`.

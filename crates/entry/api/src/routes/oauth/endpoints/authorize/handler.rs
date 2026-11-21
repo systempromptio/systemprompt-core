@@ -18,7 +18,7 @@
 use super::consent::{Allow, allow, consent_page, require_same_origin};
 use super::decision::{Decision, decide, silent_allowed};
 use super::issue::{issue_code_redirect, response_issuer, session_grant};
-use super::login_redirect::login_page_redirect_target;
+use super::login_redirect::{login_page_redirect_target, reauth_binding};
 use super::response_builder::{convert_form_to_query, generate_webauthn_form};
 use super::session::{SignedInRequest, browser_sign_in};
 use super::validation::{
@@ -94,6 +94,8 @@ async fn decide_request(
     params: &AuthorizeQuery,
     now: i64,
 ) -> Result<Decision, OAuthHttpError> {
+    let reauth_since =
+        repo.verified_reauth_since(&reauth_binding(params), params.reauth_since.as_deref(), now)?;
     let (consent_covered, silent) = match request {
         Some(request) => {
             let client_id = &request.params.client_id;
@@ -112,6 +114,7 @@ async fn decide_request(
     };
     let decision = decide(
         params,
+        reauth_since,
         request.map(|request| request.sign_in),
         consent_covered,
         silent,
@@ -121,6 +124,7 @@ async fn decide_request(
         client_id = %params.client_id,
         signed_in = request.is_some(),
         consent_covered,
+        reauth_verified = reauth_since.is_some(),
         ?decision,
         "Authorization request decided"
     );
@@ -128,23 +132,25 @@ async fn decide_request(
 }
 
 fn sign_in_response(
+    repo: &OAuthRepository,
     config: &Config,
     params: &AuthorizeQuery,
     validated: &ValidatedAuthorizeRequest,
     original: &Uri,
     now: i64,
-) -> Response {
+) -> Result<Response, OAuthHttpError> {
+    let form = || Html(generate_webauthn_form(config, params, validated)).into_response();
+    let Some(login_page_url) = config.login_page_url.as_deref() else {
+        return Ok(form());
+    };
     let return_path = original
         .path_and_query()
         .map_or_else(|| original.path().to_owned(), ToString::to_string);
-    config
-        .login_page_url
-        .as_deref()
-        .and_then(|url| login_page_redirect_target(url, params, &return_path, now))
-        .map_or_else(
-            || Html(generate_webauthn_form(config, params, validated)).into_response(),
-            |target| Redirect::to(&target).into_response(),
-        )
+    let marker = repo.reauth_marker(&reauth_binding(params), now)?;
+    Ok(
+        login_page_redirect_target(login_page_url, params, &return_path, &marker)
+            .map_or_else(form, |target| Redirect::to(&target).into_response()),
+    )
 }
 
 #[instrument(skip_all, fields(client_id = %params.client_id))]
@@ -208,9 +214,9 @@ pub async fn handle_authorize_get(
         (Decision::PasskeyForm, _) => {
             Ok(Html(generate_webauthn_form(&config, &params, &validated)).into_response())
         },
-        (Decision::SignIn, _) => Ok(sign_in_response(
-            &config, &params, &validated, &original, now,
-        )),
+        (Decision::SignIn, _) => {
+            sign_in_response(repo, &config, &params, &validated, &original, now)
+        },
         (Decision::ConsentRequired, _) => Err(refuse(OAuthHttpError::consent_required(
             "The person has not allowed this client the requested scopes",
         ))),

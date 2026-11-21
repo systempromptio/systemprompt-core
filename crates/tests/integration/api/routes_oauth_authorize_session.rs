@@ -21,7 +21,9 @@ use systemprompt_identifiers::{ClientId, PluginId, SessionId, UserId};
 use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::RateLimitsConfig;
 use systemprompt_models::auth::{JwtAudience, Permission, TokenInteraction, UserJwtRequest};
-use systemprompt_oauth::repository::{ClientRepository, ConsentBinding, DeclaredClientWrite};
+use systemprompt_oauth::repository::{
+    ClientRepository, ConsentBinding, DeclaredClientWrite, ReauthBinding,
+};
 use systemprompt_test_fixtures::{
     OAuthClientFixture, PkcePair, browser_session_cookie, ensure_test_bootstrap,
     fixture_app_context_with_config, fixture_config, oauth_fixture_repository, pkce_pair,
@@ -537,8 +539,117 @@ fn binding<'a>(w: &'a World, user: &'a UserId, session: &'a SessionId) -> Consen
         scope: "user",
         state: STATE,
         code_challenge: &w.pkce.challenge,
+        code_challenge_method: "S256",
+        response_type: "code",
         resource: None,
     }
+}
+
+fn reauth<'a>(w: &'a World, state: &'a str, client_id: &'a ClientId) -> ReauthBinding<'a> {
+    ReauthBinding {
+        client_id,
+        response_type: "code",
+        redirect_uri: Some(&w.client.redirect_uri),
+        scope: Some("user"),
+        state: Some(state),
+        code_challenge: Some(&w.pkce.challenge),
+        code_challenge_method: Some("S256"),
+        resource: None,
+    }
+}
+
+#[tokio::test]
+async fn a_consent_token_binds_the_challenge_method_and_response_type() -> anyhow::Result<()> {
+    let w = world().await?;
+    let repo = oauth_fixture_repository(&w.pool);
+    let session = SessionId::new("sess-consent-binding");
+    let now = chrono::Utc::now().timestamp();
+    let bound = binding(&w, &w.user, &session);
+    let token = repo.consent_token(&bound, now + 300)?;
+    assert!(repo.consent_token_matches(&bound, &token, now)?);
+    for (name, other) in [
+        (
+            "plain challenge method",
+            ConsentBinding {
+                code_challenge_method: "plain",
+                ..bound
+            },
+        ),
+        (
+            "token response type",
+            ConsentBinding {
+                response_type: "token",
+                ..bound
+            },
+        ),
+    ] {
+        assert!(!repo.consent_token_matches(&other, &token, now)?, "{name}");
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn only_a_marker_minted_for_this_request_waives_a_new_sign_in() -> anyhow::Result<()> {
+    let w = declared(
+        world_with(|c| c.login_page_url = Some(LOGIN_PAGE.to_owned())).await?,
+        WEB_REDIRECT,
+    )
+    .await?;
+    remember(&w, &["user"]).await?;
+    let repo = oauth_fixture_repository(&w.pool);
+    let now = chrono::Utc::now().timestamp();
+    let issued = now - 360;
+    let five_minutes_old = browser_session_cookie(&w.pool, &w.user, 300).await?;
+    let other_client = ClientId::new("sp_some_other_client");
+    let unsigned = issued.to_string();
+    let forged = format!("{issued}.{}", "0".repeat(64));
+    let other_state = repo.reauth_marker(
+        &reauth(
+            &w,
+            "another-state-with-enough-entropy-0000",
+            &w.client.client_id,
+        ),
+        issued,
+    )?;
+    let other_client_marker = repo.reauth_marker(&reauth(&w, STATE, &other_client), issued)?;
+    let genuine = repo.reauth_marker(&reauth(&w, STATE, &w.client.client_id), issued)?;
+    let expired = repo.reauth_marker(&reauth(&w, STATE, &w.client.client_id), now - 3600)?;
+
+    for marker in [
+        unsigned.as_str(),
+        forged.as_str(),
+        other_state.as_str(),
+        other_client_marker.as_str(),
+        expired.as_str(),
+        "not-a-marker",
+    ] {
+        for asked in [("prompt", "login"), ("max_age", "0")] {
+            let reply = authorize(
+                &w,
+                &[asked, ("reauth_since", marker)],
+                Some(&five_minutes_old),
+            )
+            .await?;
+            assert_eq!(reply.status, StatusCode::SEE_OTHER, "{marker} {asked:?}");
+            assert!(
+                reply.location().starts_with(&format!("{LOGIN_PAGE}?")),
+                "{marker} {asked:?}: {}",
+                reply.location()
+            );
+        }
+    }
+    assert_eq!(codes_minted(&w).await?, 0);
+
+    for asked in [("prompt", "login"), ("max_age", "0")] {
+        let reply = authorize(
+            &w,
+            &[asked, ("reauth_since", genuine.as_str())],
+            Some(&five_minutes_old),
+        )
+        .await?;
+        assert_code_redirect(&w, &reply);
+    }
+    Ok(())
 }
 
 #[tokio::test]
@@ -809,7 +920,8 @@ async fn prompt_login_and_a_stale_max_age_go_to_the_login_page_with_the_way_back
             path.starts_with(&format!("{AUTHORIZE}?response_type=code")),
             "{way_back}"
         );
-        assert!(marker.parse::<i64>()? >= before, "{way_back}");
+        let (issued, _mac) = marker.split_once('.').expect("issued.mac");
+        assert!(issued.parse::<i64>()? >= before, "{way_back}");
 
         let returned = get_uri(&w, way_back, Some(&cookie)).await?;
         assert_error_redirect(&w, &returned, "login_required");

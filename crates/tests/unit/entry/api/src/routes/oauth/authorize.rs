@@ -374,3 +374,14 @@ fn test_authorize_request_with_resource_uri() {
         Some("https://api.example.com/v1")
     );
 }
+
+#[test]
+fn test_authorize_query_reauth_since_is_kept_as_presented() {
+    let json = serde_json::json!({
+        "response_type": "code",
+        "client_id": "sp_test_client",
+        "reauth_since": "1800000000.0123abcd",
+    });
+    let query: AuthorizeQuery = serde_json::from_value(json).expect("deserializes");
+    assert_eq!(query.reauth_since.as_deref(), Some("1800000000.0123abcd"));
+}
