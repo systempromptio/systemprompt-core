@@ -1,7 +1,7 @@
 //! The reference composition admits `marketplace-http`'s commands as its
 //! conferral describes: the `core marketplace`, `core plugins` and
 //! `core skills` groups, each requesting only the services-tree grant, and a
-//! requirement on the owner-bound `Arc<OrganizationSkillResolver>` the
+//! requirement on the owner-only `Arc<OwnerSkillView>` the
 //! `managed_resources` member provides. `core plugins` and
 //! `core marketplace explain` need no database; `core skills` does. A
 //! profile disabling `marketplace-http` refuses each group at dispatch; one
@@ -90,7 +90,7 @@ fn marketplace_http_declares_the_three_core_groups_with_only_the_services_tree_g
 }
 
 #[test]
-fn marketplace_http_requires_the_organization_skill_resolver() {
+fn marketplace_http_requires_the_owner_skill_view() {
     let admitted = build(reference()).expect("the reference composition admits");
     let member = admitted
         .built()
@@ -105,7 +105,7 @@ fn marketplace_http_requires_the_organization_skill_resolver() {
         .collect();
     assert!(
         required.contains(&std::any::type_name::<
-            Arc<systemprompt::marketplace::managed::OrganizationSkillResolver>,
+            Arc<systemprompt::marketplace::managed::OwnerSkillView>,
         >()),
         "{required:?}"
     );
@@ -117,7 +117,6 @@ fn the_offline_commands_need_no_database_and_skills_does() {
         ["core", "plugins", "list"].as_slice(),
         &["core", "plugins", "validate"],
         &["core", "plugins", "generate"],
-        &["core", "marketplace", "explain"],
     ] {
         let descriptor = describe(args);
         assert!(!descriptor.database(), "{args:?}");
@@ -138,6 +137,7 @@ fn the_offline_commands_need_no_database_and_skills_does() {
     for args in [
         ["core", "skills", "list"].as_slice(),
         &["core", "skills", "show", "s"],
+        &["core", "marketplace", "explain"],
     ] {
         let descriptor = describe(args);
         assert!(descriptor.database(), "{args:?}");

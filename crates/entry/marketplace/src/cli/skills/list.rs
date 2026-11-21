@@ -4,7 +4,7 @@
 //! either a filtered summary table or, when a skill name is given, a
 //! single-skill detail card with an instructions preview. A managed skill of
 //! the organization's inventory, read through the owner-bound
-//! `Arc<OrganizationSkillResolver>` the `managed_resources` member provides,
+//! `Arc<OwnerSkillView>` the `managed_resources` member provides,
 //! replaces the same-keyed disk skill or, when withheld, suppresses it. When
 //! the resolver cannot be resolved (no reachable database), only disk skills
 //! are listed.
@@ -21,8 +21,8 @@ use systemprompt_extension::cli::{CommandHost, CommandOutput};
 use systemprompt_identifiers::SkillId;
 use systemprompt_manifest::SKILL_CONFIG_FILENAME;
 use systemprompt_marketplace::ManagedSkillResolution;
-use systemprompt_marketplace::managed::{ManagedSkill, OrganizationSkillResolver};
-use systemprompt_models::path_confine::confine_within;
+use systemprompt_marketplace::managed::{ManagedSkill, OwnerSkillView};
+use systemprompt_models::path_confine::{confine_within, entries_within, locate_within};
 use systemprompt_models::text::truncate_with_ellipsis;
 
 use super::types::{SkillDetail, SkillListOutput, SkillSummary, parse_skill_from_config};
@@ -113,7 +113,7 @@ fn render_list(enabled: bool, disabled: bool, skills: Vec<SkillSummary>) -> Comm
     .with_title("Skills")
 }
 
-async fn organization_skills(host: &dyn CommandHost) -> Option<Arc<OrganizationSkillResolver>> {
+async fn organization_skills(host: &dyn CommandHost) -> Option<Arc<OwnerSkillView>> {
     let resolved = match host.resolved().await {
         Ok(resolved) => resolved,
         Err(error) => {
@@ -125,7 +125,7 @@ async fn organization_skills(host: &dyn CommandHost) -> Option<Arc<OrganizationS
         },
     };
     resolved
-        .get::<Arc<OrganizationSkillResolver>>()
+        .get::<Arc<OwnerSkillView>>()
         .inspect_err(|error| {
             tracing::warn!(
                 %error,
@@ -223,24 +223,23 @@ fn scan_skills(skills_path: &Path) -> Result<Vec<SkillSummary>> {
 
     let mut skills = Vec::new();
 
-    for entry in std::fs::read_dir(skills_path)? {
-        let entry = entry?;
-        let skill_path = entry.path();
-
-        if !skill_path.is_dir() {
+    for entry in entries_within(skills_path, skills_path)? {
+        if !entry.is_dir {
             continue;
         }
+        let skill_path = entry.path;
 
-        let config_path = skill_path.join(SKILL_CONFIG_FILENAME);
-        if !config_path.exists() {
+        let Some(config_path) =
+            locate_within(&skill_path, &skill_path.join(SKILL_CONFIG_FILENAME))?
+        else {
             continue;
-        }
+        };
 
         match parse_skill_from_config(&config_path, &skill_path) {
             Ok(parsed) => {
-                let dir_name = skill_path
-                    .file_name()
-                    .and_then(|n| n.to_str())
+                let dir_name = entry
+                    .name
+                    .to_str()
                     .ok_or_else(|| anyhow!("Invalid skill directory name"))?;
 
                 skills.push(SkillSummary {

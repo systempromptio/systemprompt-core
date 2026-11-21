@@ -105,7 +105,9 @@ pub async fn get_marketplace_yaml(
             PathConfinementError::RootUnresolved { .. } => {
                 ApiHttpError::not_found(format!("Marketplace '{id}' not found"))
             },
-            PathConfinementError::Unresolved { .. } | PathConfinementError::NotASegment { .. } => {
+            PathConfinementError::Unresolved { .. }
+            | PathConfinementError::Read { .. }
+            | PathConfinementError::NotASegment { .. } => {
                 ApiHttpError::not_found(format!("Marketplace '{id}' has no config.yaml"))
             },
         })?;

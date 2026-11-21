@@ -6,6 +6,7 @@
 use anyhow::Result;
 use clap::Args;
 use std::path::Path;
+use systemprompt_models::path_confine::{entries_within, locate_within};
 
 use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
@@ -60,18 +61,13 @@ pub fn scan_plugins(plugins_path: &Path) -> Result<Vec<PluginSummary>> {
 
     let mut plugins = Vec::new();
 
-    for entry in std::fs::read_dir(plugins_path)? {
-        let entry = entry?;
-        let plugin_path = entry.path();
-
-        if !plugin_path.is_dir() {
+    for entry in entries_within(plugins_path, plugins_path)? {
+        if !entry.is_dir {
             continue;
         }
-
-        let config_path = plugin_path.join("config.yaml");
-        if !config_path.exists() {
+        let Some(config_path) = locate_within(&entry.path, &entry.path.join("config.yaml"))? else {
             continue;
-        }
+        };
 
         match super::read_plugin_config(&config_path) {
             Ok(plugin_file) => {

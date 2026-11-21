@@ -6,9 +6,18 @@
 //! accepts a name only when it is one path segment, by the same rule the
 //! typed identifiers of the services tree apply in `try_new`.
 //!
+//! Every other read beneath a root goes through the same rule:
+//! [`locate_within`] confines a path that may be absent, [`read_within`]
+//! reads a confined file, and [`entries_within`] enumerates a directory.
+//! An enumeration refuses, with [`PathConfinementError::Escapes`] (or
+//! [`PathConfinementError::Unresolved`] for a dangling link), when any entry
+//! resolves outside the root: an escaping link is never followed and never
+//! silently skipped.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::ffi::OsString;
 use std::path::{Component, Path, PathBuf};
 
 use systemprompt_identifiers::error::IdValidationError;
@@ -30,6 +39,12 @@ pub enum PathConfinementError {
     },
     #[error("path {} resolves outside {}", path.display(), root.display())]
     Escapes { path: PathBuf, root: PathBuf },
+    #[error("{} cannot be read", path.display())]
+    Read {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
     #[error("{kind} is not a single path segment")]
     NotASegment {
         kind: &'static str,
@@ -60,6 +75,56 @@ pub fn confine_within(root: &Path, candidate: &Path) -> Result<PathBuf, PathConf
             root: root.to_path_buf(),
         })
     }
+}
+
+pub fn locate_within(
+    root: &Path,
+    candidate: &Path,
+) -> Result<Option<PathBuf>, PathConfinementError> {
+    match candidate.symlink_metadata() {
+        Ok(_) => confine_within(root, candidate).map(Some),
+        Err(source) if source.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(source) => Err(PathConfinementError::Unresolved {
+            path: candidate.to_path_buf(),
+            source,
+        }),
+    }
+}
+
+pub fn read_within(root: &Path, candidate: &Path) -> Result<String, PathConfinementError> {
+    let path = confine_within(root, candidate)?;
+    std::fs::read_to_string(&path).map_err(|source| PathConfinementError::Read { path, source })
+}
+
+/// One entry of a directory enumerated beneath a root, resolved inside it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConfinedEntry {
+    pub name: OsString,
+    pub path: PathBuf,
+    pub is_dir: bool,
+}
+
+pub fn entries_within(root: &Path, dir: &Path) -> Result<Vec<ConfinedEntry>, PathConfinementError> {
+    let resolved = confine_within(root, dir)?;
+    let read = std::fs::read_dir(&resolved).map_err(|source| PathConfinementError::Read {
+        path: resolved.clone(),
+        source,
+    })?;
+    let mut entries = Vec::new();
+    for entry in read {
+        let entry = entry.map_err(|source| PathConfinementError::Read {
+            path: resolved.clone(),
+            source,
+        })?;
+        let path = confine_within(root, &entry.path())?;
+        entries.push(ConfinedEntry {
+            name: entry.file_name(),
+            is_dir: path.is_dir(),
+            path,
+        });
+    }
+    entries.sort_by(|left, right| left.name.cmp(&right.name));
+    Ok(entries)
 }
 
 pub fn single_segment<'a>(

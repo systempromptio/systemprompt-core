@@ -1,6 +1,6 @@
 //! DB-backed tests for `core skills` over a managed skill of the
 //! organization's inventory: the command resolves the owner-bound
-//! `Arc<OrganizationSkillResolver>` the `managed_resources` member provides,
+//! `Arc<OwnerSkillView>` the `managed_resources` member provides,
 //! so a published managed skill replaces the same-keyed disk skill and a
 //! withheld one suppresses it.
 

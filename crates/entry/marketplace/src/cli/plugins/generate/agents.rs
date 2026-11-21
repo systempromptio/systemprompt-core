@@ -8,6 +8,7 @@ use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::path::Path;
 use systemprompt_manifest::PluginConfig;
+use systemprompt_models::path_confine::{entries_within, locate_within, read_within};
 use systemprompt_models::plugin::ComponentSource;
 
 use super::DEFAULT_AGENT_TOOLS;
@@ -60,7 +61,7 @@ pub fn generate_agents(
     let services_agents_dir = services_path.join("agents");
 
     for agent in &agents {
-        let agent_md = build_agent_md(agent, &services_agents_dir)?;
+        let agent_md = build_agent_md(agent, services_path, &services_agents_dir)?;
         let agent_path = agents_dir.join(format!("{agent}.md"));
         std::fs::write(&agent_path, &agent_md)?;
         files_generated.push(agent_path.to_string_lossy().to_string());
@@ -74,12 +75,15 @@ fn resolve_agents(plugin: &PluginConfig, services_path: &Path) -> Result<Vec<Str
         return Ok(plugin.agents.include.clone());
     }
 
-    let agents_config_path = services_path.join("config").join("config.yaml");
-    if !agents_config_path.exists() {
+    let Some(agents_config_path) = locate_within(
+        services_path,
+        &services_path.join("config").join("config.yaml"),
+    )?
+    else {
         return Ok(Vec::new());
-    }
+    };
 
-    let content = std::fs::read_to_string(&agents_config_path)?;
+    let content = read_within(services_path, &agents_config_path)?;
     let config: AgentNames = serde_yaml::from_str(&content)?;
 
     Ok(config
@@ -89,16 +93,15 @@ fn resolve_agents(plugin: &PluginConfig, services_path: &Path) -> Result<Vec<Str
         .collect())
 }
 
-fn build_agent_md(agent: &str, services_agents_dir: &Path) -> Result<String> {
+fn build_agent_md(agent: &str, services_path: &Path, services_agents_dir: &Path) -> Result<String> {
     if services_agents_dir.exists() {
-        for entry in std::fs::read_dir(services_agents_dir)? {
-            let entry = entry?;
-            let path = entry.path();
+        for entry in entries_within(services_path, services_agents_dir)? {
+            let path = entry.path;
             let ext = path.extension().and_then(|e| e.to_str());
-            if ext != Some("yaml") && ext != Some("yml") {
+            if entry.is_dir || (ext != Some("yaml") && ext != Some("yml")) {
                 continue;
             }
-            let content = std::fs::read_to_string(&path)?;
+            let content = read_within(services_path, &path)?;
             let mut config: AgentsFile = match serde_yaml::from_str(&content) {
                 Ok(c) => c,
                 Err(e) => {

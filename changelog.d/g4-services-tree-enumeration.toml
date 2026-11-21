@@ -1,0 +1,9 @@
+[root]
+section = "Fixed"
+area = "CLI"
+text = "`core skills list` and `core plugins list|validate|generate` refuse a services tree whose skills or plugins directory holds an entry resolving outside it, and read every enumerated skill's config and body files only inside the skill's directory. `core marketplace import` refuses an authoring tree in which a copied file, a skill, rule or hook file, or a vendored plugin directory resolves outside the tree."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Added"
+text = "`path_confine::{locate_within, read_within, entries_within, ConfinedEntry}` and `PathConfinementError::Read`: confined lookup, read and directory enumeration beneath a root."

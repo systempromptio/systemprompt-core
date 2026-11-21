@@ -16,7 +16,10 @@ use systemprompt_extension::cli::{CommandHost, CommandOutput};
 use super::collect_plugin_ids;
 use super::types::{PluginValidateAllOutput, PluginValidateOutput};
 use systemprompt_identifiers::PluginId;
-use systemprompt_models::path_confine::{confine_within, single_segment};
+use systemprompt_models::path_confine::{
+    PathConfinementError, confine_within, entries_within, locate_within, read_within,
+    single_segment,
+};
 
 #[derive(Debug, Clone, Args)]
 pub struct ValidateArgs {
@@ -145,7 +148,13 @@ fn validate_skill_refs(
     warnings: &mut Vec<String>,
 ) {
     if plugin.skills.source == systemprompt_models::plugin::ComponentSource::Explicit {
-        let skills = declared_skills(skills_path);
+        let skills = match declared_skills(skills_path) {
+            Ok(skills) => skills,
+            Err(e) => {
+                errors.push(format!("Skills directory cannot be read: {e}"));
+                return;
+            },
+        };
         for skill_id in &plugin.skills.include {
             match skills.get(skill_id.as_str()) {
                 None => errors.push(format!(
@@ -179,25 +188,28 @@ struct DeclaredSkill {
     unknown_host: Option<systemprompt_models::bridge::host::UnknownHostKind>,
 }
 
-fn declared_skills(skills_path: &Path) -> std::collections::HashMap<String, DeclaredSkill> {
+fn declared_skills(
+    skills_path: &Path,
+) -> Result<std::collections::HashMap<String, DeclaredSkill>, PathConfinementError> {
     let mut skills = std::collections::HashMap::new();
-    let Ok(entries) = std::fs::read_dir(skills_path) else {
-        return skills;
-    };
-    for entry in entries.flatten() {
-        let dir = entry.path();
-        if !dir.is_dir() {
+    if !skills_path.exists() {
+        return Ok(skills);
+    }
+    for entry in entries_within(skills_path, skills_path)? {
+        if !entry.is_dir {
             continue;
         }
-        let Ok(content) = std::fs::read_to_string(dir.join("config.yaml")) else {
+        let dir = entry.path;
+        let Some(config_path) = locate_within(&dir, &dir.join("config.yaml"))? else {
             continue;
         };
+        let content = read_within(&dir, &config_path)?;
         let Ok(config) = serde_yaml::from_str::<systemprompt_manifest::DiskSkillConfig>(&content)
         else {
             continue;
         };
         let id = config.id.as_ref().map_or_else(
-            || entry.file_name().to_string_lossy().into_owned(),
+            || entry.name.to_string_lossy().into_owned(),
             |id| id.as_str().to_owned(),
         );
         skills.insert(
@@ -208,7 +220,7 @@ fn declared_skills(skills_path: &Path) -> std::collections::HashMap<String, Decl
             },
         );
     }
-    skills
+    Ok(skills)
 }
 
 fn validate_scripts(

@@ -1,0 +1,4 @@
+[[crate]]
+name = "systemprompt-scheduler"
+section = "Added"
+text = "`JobRunReport::executed` records whether the job's `execute` ran, and `JobRunReport::error` keeps the typed `ProviderError` it returned."

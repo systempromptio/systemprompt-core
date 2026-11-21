@@ -6,7 +6,9 @@
 //! under a [`systemprompt_traits::JobContext`] actored to the system admin,
 //! and records the outcome on the job's `scheduled_jobs` row. Callers render
 //! the returned [`JobRunReport`] / [`JobBatchReport`]; a missing job is
-//! reported as a failed run rather than an error so a batch keeps going.
+//! reported as a failed run rather than an error so a batch keeps going. A
+//! report records whether the job's `execute` ran, and keeps the typed
+//! `ProviderError` it returned beside the rendered message.
 //!
 //! A manual run claims a job exactly as the cron loop does: with
 //! `scheduler.distributed_lock` on, a `cluster`-scoped job runs only under
@@ -194,8 +196,15 @@ impl JobExecutionService {
                 items_processed: result.items_processed,
                 items_failed: result.items_failed,
                 lock_contended: false,
+                executed: true,
+                error: None,
             },
-            Err(e) => failed_report(job_name, start, Some(e.to_string())),
+            Err(e) => JobRunReport {
+                executed: true,
+                message: Some(e.to_string()),
+                error: Some(Arc::new(e)),
+                ..failed_report(job_name, start, None)
+            },
         }
     }
 

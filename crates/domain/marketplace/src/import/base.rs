@@ -59,7 +59,7 @@ pub(super) fn copy_base_tree(from: &Path, sink: &Sink) -> Result<Vec<String>, Ma
 
     let mut copied = Vec::with_capacity(dirs.len());
     for (name, path) in dirs {
-        sink.copy_tree(&path, Path::new(&name))?;
+        sink.copy_tree(from, &path, Path::new(&name))?;
         copied.push(name);
     }
     Ok(copied)

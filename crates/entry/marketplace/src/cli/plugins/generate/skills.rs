@@ -7,7 +7,9 @@ use anyhow::Result;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 use systemprompt_manifest::{PluginConfig, strip_frontmatter};
-use systemprompt_models::path_confine::{confine_within, single_segment};
+use systemprompt_models::path_confine::{
+    entries_within, locate_within, read_within, single_segment,
+};
 use systemprompt_models::plugin::{ComponentFilter, ComponentSource};
 
 #[derive(Debug, Deserialize)]
@@ -44,9 +46,7 @@ fn resolve_skills(plugin: &PluginConfig, skills_path: &Path) -> Result<Vec<(Stri
     if plugin.skills.source == ComponentSource::Explicit {
         for skill_id in &plugin.skills.include {
             let segment = single_segment("skill id", skill_id.as_str())?;
-            let skill_dir = skills_path.join(segment);
-            if skill_dir.exists() {
-                confine_within(skills_path, &skill_dir)?;
+            if let Some(skill_dir) = locate_within(skills_path, &skills_path.join(segment))? {
                 resolved.push((skill_id.clone(), skill_dir));
             }
         }
@@ -57,31 +57,29 @@ fn resolve_skills(plugin: &PluginConfig, skills_path: &Path) -> Result<Vec<(Stri
         return Ok(resolved);
     }
 
-    for entry in std::fs::read_dir(skills_path)? {
-        let entry = entry?;
-        let path = entry.path();
-        if !path.is_dir() {
+    for entry in entries_within(skills_path, skills_path)? {
+        if !entry.is_dir {
             continue;
         }
+        let path = entry.path;
 
-        let skill_id = entry.file_name().to_string_lossy().to_string();
+        let skill_id = entry.name.to_string_lossy().to_string();
 
         if plugin.skills.exclude.contains(&skill_id) {
             continue;
         }
 
-        if plugin.skills.filter == Some(ComponentFilter::Enabled) {
-            let config_path = path.join("config.yaml");
-            if config_path.exists() {
-                let cfg_text = std::fs::read_to_string(&config_path)?;
-                let cfg: serde_yaml::Value = serde_yaml::from_str(&cfg_text)?;
-                let enabled = cfg
-                    .get("enabled")
-                    .and_then(serde_yaml::Value::as_bool)
-                    .unwrap_or(true);
-                if !enabled {
-                    continue;
-                }
+        if plugin.skills.filter == Some(ComponentFilter::Enabled)
+            && let Some(config_path) = locate_within(&path, &path.join("config.yaml"))?
+        {
+            let cfg_text = read_within(&path, &config_path)?;
+            let cfg: serde_yaml::Value = serde_yaml::from_str(&cfg_text)?;
+            let enabled = cfg
+                .get("enabled")
+                .and_then(serde_yaml::Value::as_bool)
+                .unwrap_or(true);
+            if !enabled {
+                continue;
             }
         }
 
@@ -93,27 +91,25 @@ fn resolve_skills(plugin: &PluginConfig, skills_path: &Path) -> Result<Vec<(Stri
 }
 
 fn build_skill_md(skill: &str, skill_dir: &Path) -> Result<String> {
-    let index_md = skill_dir.join("index.md");
-    let skill_md_path = skill_dir.join("SKILL.md");
+    let index_md = locate_within(skill_dir, &skill_dir.join("index.md"))?;
+    let skill_md_path = locate_within(skill_dir, &skill_dir.join("SKILL.md"))?;
 
-    let config_path = skill_dir.join("config.yaml");
-    let (name, description) = if config_path.exists() {
-        let cfg_text = std::fs::read_to_string(&config_path)?;
-        let cfg: SkillConfigHeader = serde_yaml::from_str(&cfg_text)?;
-        (
-            cfg.name.unwrap_or_else(|| skill.to_owned()),
-            cfg.description.unwrap_or_default(),
-        )
-    } else {
-        (skill.to_owned(), String::new())
-    };
+    let (name, description) =
+        if let Some(config_path) = locate_within(skill_dir, &skill_dir.join("config.yaml"))? {
+            let cfg_text = read_within(skill_dir, &config_path)?;
+            let cfg: SkillConfigHeader = serde_yaml::from_str(&cfg_text)?;
+            (
+                cfg.name.unwrap_or_else(|| skill.to_owned()),
+                cfg.description.unwrap_or_default(),
+            )
+        } else {
+            (skill.to_owned(), String::new())
+        };
 
-    let body = if index_md.exists() {
-        let content = std::fs::read_to_string(&index_md)?;
-        strip_frontmatter(&content)
-    } else if skill_md_path.exists() {
-        let content = std::fs::read_to_string(&skill_md_path)?;
-        strip_frontmatter(&content)
+    let body = if let Some(index_md) = index_md {
+        strip_frontmatter(&read_within(skill_dir, &index_md)?)
+    } else if let Some(skill_md_path) = skill_md_path {
+        strip_frontmatter(&read_within(skill_dir, &skill_md_path)?)
     } else {
         format!(
             "$(systemprompt core skills show {} --raw 2>/dev/null || echo \"Skill not available\")",

@@ -487,7 +487,7 @@ fn generate_plugin_errors_on_missing_config() {
         output_dir_override: None,
     };
     let err = generate_plugin(&PluginId::new("ghost"), &ctx).unwrap_err();
-    assert!(err.to_string().contains("Failed to read"));
+    assert!(err.to_string().contains("cannot be resolved"), "{err}");
 }
 
 #[test]

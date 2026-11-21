@@ -4,9 +4,11 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::Instant;
 
 use systemprompt_identifiers::JobName;
+use systemprompt_provider_contracts::ProviderError;
 
 use crate::error::{SchedulerError, SchedulerResult};
 
@@ -26,6 +28,8 @@ pub struct JobRunReport {
     pub items_processed: Option<u64>,
     pub items_failed: Option<u64>,
     pub lock_contended: bool,
+    pub executed: bool,
+    pub error: Option<Arc<ProviderError>>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -62,6 +66,8 @@ pub(super) fn failed_report(
         items_processed: None,
         items_failed: None,
         lock_contended: false,
+        executed: false,
+        error: None,
     }
 }
 

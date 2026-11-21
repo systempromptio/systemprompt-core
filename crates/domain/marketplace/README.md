@@ -102,8 +102,10 @@ type no other crate can name; the admin services refresh reaches it only as the
 open `DynInventoryPublisher` (publish the latest configured skills with the
 caller as the actor). The refresher reads the profile's bundle sources from the
 sealed `BundleSources` kernel seed. The `core skills` commands read the
-owner's managed skills through the provided `Arc<OrganizationSkillResolver>`,
-which never hands out the owner id. The member also contributes the `git-credentials`
+owner's own managed skills through the provided `Arc<OwnerSkillView>`, which
+takes no consumer and never hands out the owner id. The consumer-scoped
+`OrganizationSkillResolver` is built separately and provided only as the
+sealed `DynManagedSkillResolver`. The member also contributes the `git-credentials`
 `cloud doctor` check and builds its publication policy after governance.
 
 ## Git source synchronization

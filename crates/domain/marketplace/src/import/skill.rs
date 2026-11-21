@@ -117,13 +117,13 @@ fn push_skill(out: &mut Vec<(String, PathBuf)>, dir: PathBuf) {
 
 pub(super) fn import_skill(
     id: &SkillId,
+    root: &Path,
     skill_dir: &Path,
     fallback_category: Option<&str>,
     sink: &Sink,
 ) -> Result<(), MarketplaceError> {
     let skill_md = skill_dir.join(SKILL_FILE);
-    let raw = std::fs::read_to_string(&skill_md)
-        .map_err(|e| MarketplaceError::import(&skill_md, "read", e))?;
+    let raw = super::writer::read_source(root, &skill_md)?;
 
     let SplitSkillFrontmatter { owned, passthrough } = split_skill_frontmatter(
         authored_skill_frontmatter(&raw)
@@ -173,6 +173,6 @@ pub(super) fn import_skill(
     };
 
     let rel = Path::new("skills").join(id.as_str());
-    sink.copy_skill_tree(skill_dir, &rel)?;
+    sink.copy_skill_tree(root, skill_dir, &rel)?;
     sink.write_yaml(&rel.join("config.yaml"), &doc)
 }

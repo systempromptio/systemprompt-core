@@ -45,8 +45,7 @@ pub(super) fn import_plugin_hooks(
         return Ok(out);
     }
 
-    let text =
-        std::fs::read_to_string(&path).map_err(|e| MarketplaceError::import(&path, "read", e))?;
+    let text = super::writer::read_source(plugin_dir, &path)?;
     let file: HooksFile = serde_json::from_str(&text)
         .map_err(|e| MarketplaceError::import(&path, "hooks.json is not valid", e))?;
 

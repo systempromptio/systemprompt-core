@@ -28,6 +28,7 @@ use systemprompt_extension::cli::{
 };
 use systemprompt_identifiers::PluginId;
 use systemprompt_manifest::PluginConfigFile;
+use systemprompt_models::path_confine::{entries_within, locate_within};
 
 #[derive(Debug, Subcommand)]
 pub enum PluginsCommands {
@@ -71,11 +72,10 @@ pub fn collect_plugin_ids(plugins_path: &Path) -> Result<Vec<PluginId>> {
     }
 
     let mut ids = Vec::new();
-    for entry in std::fs::read_dir(plugins_path)? {
-        let entry = entry?;
-        if entry.path().is_dir()
-            && entry.path().join("config.yaml").exists()
-            && let Some(name) = entry.file_name().to_str()
+    for entry in entries_within(plugins_path, plugins_path)? {
+        if entry.is_dir
+            && locate_within(&entry.path, &entry.path.join("config.yaml"))?.is_some()
+            && let Some(name) = entry.name.to_str()
         {
             ids.push(PluginId::new(name));
         }

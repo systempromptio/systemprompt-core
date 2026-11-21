@@ -36,7 +36,7 @@ pub(super) fn copy_plugin_scripts(
         let rel = Path::new("plugins")
             .join(plugin_id.as_str())
             .join(&script.source);
-        sink.copy_file(&src, &rel)?;
+        sink.copy_file(dir, &src, &rel)?;
     }
     Ok(())
 }
@@ -56,7 +56,7 @@ pub(super) fn copy_node_package_files(
     };
     for name in [NODE_PACKAGE_FILE, lockfile] {
         let rel = Path::new("plugins").join(plugin_id.as_str()).join(name);
-        sink.copy_file(&dir.join(name), &rel)?;
+        sink.copy_file(dir, &dir.join(name), &rel)?;
     }
     Ok(())
 }
