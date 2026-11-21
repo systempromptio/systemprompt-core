@@ -14,7 +14,6 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{McpServerId, McpToolName, ServiceName};
 
-
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct McpListOutput {
     pub servers: Vec<McpServerSummary>,
