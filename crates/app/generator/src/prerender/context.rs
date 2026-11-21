@@ -10,7 +10,7 @@ use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_content::{ContentHooks, ContentRepository};
 use systemprompt_database::DbPool;
-use systemprompt_manifest::{Config, WebConfig};
+use systemprompt_manifest::WebConfig;
 use systemprompt_models::ContentConfigRaw;
 use systemprompt_provider_contracts::{ContentDataProvider, Dependencies};
 use systemprompt_template_provider::{DynTemplateLoader, DynTemplateProvider, FileSystemLoader};
@@ -21,6 +21,7 @@ use tokio::fs;
 
 use crate::error::{GeneratorResult, PublishError};
 use crate::prerender::engine::PrerenderEnv;
+use crate::prerender::settings::PrerenderSettings;
 use crate::templates::{get_templates_path, load_web_config};
 
 pub(super) struct PrerenderAssets {
@@ -66,7 +67,7 @@ pub(super) async fn load_prerender_context(
     content_repo: ContentRepository,
     env: PrerenderEnv<'_>,
 ) -> GeneratorResult<PrerenderContext> {
-    let assets = Arc::new(load_prerender_assets(env.config, env.paths, env.hooks).await?);
+    let assets = Arc::new(load_prerender_assets(env.settings, env.paths, env.hooks).await?);
 
     let dependencies = env.state.clone().with(db_pool).with(assets.config.clone());
     Ok(PrerenderContext {
@@ -77,7 +78,7 @@ pub(super) async fn load_prerender_context(
 }
 
 async fn load_prerender_assets(
-    config: &Config,
+    settings: &PrerenderSettings,
     paths: &AppPaths,
     hooks: &ContentHooks,
 ) -> GeneratorResult<PrerenderAssets> {
@@ -95,7 +96,7 @@ async fn load_prerender_assets(
             source,
         })?;
 
-    let web_config = load_web_config(config, paths).await?;
+    let web_config = load_web_config(settings.web_config_path(), paths).await?;
 
     tracing::debug!(config_path = %config_path.display(), "Loaded config");
 

@@ -4,6 +4,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::path::Path;
+
 use async_trait::async_trait;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_content::ContentRepository;
@@ -46,7 +48,7 @@ impl DefaultRssFeedProvider {
         paths: &AppPaths,
     ) -> GeneratorResult<Self> {
         let content_config = load_content_config(paths).await?;
-        let web_config = load_web_config(config, paths).await?;
+        let web_config = load_web_config(Path::new(&config.web_config_path), paths).await?;
 
         Ok(Self {
             content_repo,

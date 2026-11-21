@@ -242,7 +242,9 @@ async fn prerender_excludes_non_public_rows() {
         db.clone(),
         content_repo(&db),
         systemprompt_generator::PrerenderEnv {
-            config: ensure_test_bootstrap().boot_config(),
+            settings: &systemprompt_generator::PrerenderSettings::of(
+                ensure_test_bootstrap().boot_config(),
+            ),
             paths: &boot.app_paths,
             hooks: &crate::ext_fixtures::fixture_hooks(&db),
             state: &systemprompt_provider_contracts::Dependencies::default(),
@@ -311,7 +313,9 @@ async fn prerender_removes_now_private_slug() {
         db.clone(),
         content_repo(&db),
         systemprompt_generator::PrerenderEnv {
-            config: ensure_test_bootstrap().boot_config(),
+            settings: &systemprompt_generator::PrerenderSettings::of(
+                ensure_test_bootstrap().boot_config(),
+            ),
             paths: &boot.app_paths,
             hooks: &crate::ext_fixtures::fixture_hooks(&db),
             state: &systemprompt_provider_contracts::Dependencies::default(),
@@ -365,7 +369,9 @@ async fn prerender_purge_refuses_slug_that_escapes_the_source_dir() {
         db.clone(),
         content_repo(&db),
         systemprompt_generator::PrerenderEnv {
-            config: ensure_test_bootstrap().boot_config(),
+            settings: &systemprompt_generator::PrerenderSettings::of(
+                ensure_test_bootstrap().boot_config(),
+            ),
             paths: &boot.app_paths,
             hooks: &crate::ext_fixtures::fixture_hooks(&db),
             state: &systemprompt_provider_contracts::Dependencies::default(),

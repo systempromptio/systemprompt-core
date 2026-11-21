@@ -41,7 +41,7 @@ pub use content::{extract_frontmatter, render_markdown};
 pub use error::{GeneratorResult, PublishError};
 pub use extension::{GENERATOR_EXTENSION, GeneratorExtension};
 pub use prerender::{
-    PagePrerenderResult, PopularContent, PrerenderEnv, TocResult, fetch_popular_ids, generate_toc,
+    PagePrerenderResult, PopularContent, PrerenderEnv, PrerenderSettings, TocResult, fetch_popular_ids, generate_toc,
     merge_json_data, prerender_content, prerender_pages,
 };
 pub use rss::{

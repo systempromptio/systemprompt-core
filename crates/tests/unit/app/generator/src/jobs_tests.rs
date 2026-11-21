@@ -129,7 +129,7 @@ async fn run_prerender_jobs_with_empty_sources(with_hooks: bool) {
 
     let mut state = Dependencies::new()
         .with(db.clone())
-        .with(Arc::clone(boot.boot_config()))
+        .with(systemprompt_generator::PrerenderSettings::of(boot.boot_config()))
         .with(Arc::new(boot.app_paths.clone()));
     if with_hooks {
         state.insert(Arc::new(crate::ext_fixtures::fixture_hooks(&db)));

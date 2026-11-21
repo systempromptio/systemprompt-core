@@ -6,17 +6,20 @@
 use std::path::{Path, PathBuf};
 
 use systemprompt_config::paths::AppPaths;
-use systemprompt_manifest::{Config, WebConfig};
+use systemprompt_manifest::WebConfig;
 use systemprompt_models::WebConfigError;
 use tokio::fs;
 
 use crate::error::GeneratorResult;
 
-pub async fn load_web_config(config: &Config, paths: &AppPaths) -> GeneratorResult<WebConfig> {
-    let content = fs::read_to_string(&config.web_config_path)
+pub async fn load_web_config(
+    web_config_path: &Path,
+    paths: &AppPaths,
+) -> GeneratorResult<WebConfig> {
+    let content = fs::read_to_string(web_config_path)
         .await
         .map_err(|e| WebConfigError::Io {
-            path: PathBuf::from(&config.web_config_path),
+            path: web_config_path.to_path_buf(),
             source: e,
         })?;
 
