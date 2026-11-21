@@ -24,7 +24,7 @@ use systemprompt_extension::MissingDependency;
 use systemprompt_identifiers::JobName;
 use systemprompt_provider_contracts::ProviderError;
 use systemprompt_scheduler::{JobExecutionService, SchedulerConfig};
-use systemprompt_test_fixtures::{fixture_admitted, test_database_url};
+use systemprompt_test_fixtures::{DisposableDb, fixture_admitted};
 
 const PER_JOB: Duration = Duration::from_secs(60);
 
@@ -59,8 +59,8 @@ fn a_wrapped_missing_dependency_is_found_through_the_source_chain() {
 
 #[tokio::test]
 async fn every_admitted_core_job_resolves_its_context_under_the_seal() {
-    let (app, schedule) =
-        crate::test_extension::app_over(&test_database_url(), fixture_admitted()).await;
+    let database = DisposableDb::with_schema("core_jobs_resolve").await;
+    let (app, schedule) = crate::test_extension::app_over(database.url(), fixture_admitted()).await;
     let service = JobExecutionService::new(
         Arc::clone(&app),
         SchedulerConfig::with_system_admin(),

@@ -4,6 +4,11 @@ use systemprompt_test_fixtures::{
     fixture_app_context_on_bootstrap, fixture_config, init_services_bootstrap,
 };
 
+fn agent_port_candidates() -> impl Iterator<Item = u16> {
+    let offset = u16::try_from(std::process::id() % 1000).unwrap_or(0);
+    (0..1000_u16).map(move |step| 9000 + (offset + step) % 1000)
+}
+
 fn agent_yaml(name: &str, port: u16, display: &str, enabled: bool) -> String {
     format!(
         r#"agents:
@@ -49,7 +54,7 @@ fn agent_yaml(name: &str, port: u16, display: &str, enabled: bool) -> String {
 
 #[tokio::test]
 async fn coverage_required_agent_failure_is_retried_and_blocks_api_startup() {
-    let listener = (9000..=9999)
+    let listener = agent_port_candidates()
         .find_map(|port| std::net::TcpListener::bind(("127.0.0.1", port)).ok())
         .unwrap();
     let port = listener.local_addr().unwrap().port();
@@ -72,7 +77,7 @@ async fn coverage_required_agent_failure_is_retried_and_blocks_api_startup() {
 
 #[tokio::test]
 async fn coverage_disabled_agent_does_not_block_api_startup_on_an_occupied_port() {
-    let listener = (9000..=9999)
+    let listener = agent_port_candidates()
         .find_map(|port| std::net::TcpListener::bind(("127.0.0.1", port)).ok())
         .unwrap();
     let port = listener.local_addr().unwrap().port();
@@ -159,7 +164,7 @@ impl Drop for OwnedMarkedAgent {
 #[cfg(unix)]
 #[tokio::test]
 async fn reconciliation_terminates_an_owned_running_agent_before_retrying_failed_startup() {
-    let reservation = (9000..=9999)
+    let reservation = agent_port_candidates()
         .find_map(|port| std::net::TcpListener::bind(("127.0.0.1", port)).ok())
         .expect("an allowed agent port is available");
     let port = reservation
