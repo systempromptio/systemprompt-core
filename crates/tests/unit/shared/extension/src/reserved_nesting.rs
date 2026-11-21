@@ -1,6 +1,6 @@
 use systemprompt_extension::reserved::{
     CoreId, RESERVED_PATHS, ReservedPath, ReservedReach, nested_rows_are_bounded,
-    nested_under_kernel,
+    nested_under_another_owner,
 };
 
 const KERNEL_MCP: ReservedPath = ReservedPath {
@@ -18,17 +18,16 @@ fn member_row(reach: ReservedReach) -> ReservedPath {
 }
 
 #[test]
-fn every_member_row_nested_under_a_kernel_row_is_bounded() {
+fn every_row_nested_under_another_owners_row_is_bounded() {
     assert!(nested_rows_are_bounded(RESERVED_PATHS));
     for entry in RESERVED_PATHS
         .iter()
-        .filter(|entry| entry.owner != CoreId::Kernel)
-        .filter(|entry| nested_under_kernel(entry, RESERVED_PATHS))
+        .filter(|entry| nested_under_another_owner(entry, RESERVED_PATHS))
     {
         assert_ne!(
             entry.reach,
             ReservedReach::Prefix,
-            "{} is nested under a kernel row",
+            "{} is nested under another owner's row",
             entry.path
         );
     }
@@ -39,7 +38,7 @@ fn the_live_table_holds_nested_member_rows() {
     let nested: Vec<&str> = RESERVED_PATHS
         .iter()
         .filter(|entry| entry.owner != CoreId::Kernel)
-        .filter(|entry| nested_under_kernel(entry, RESERVED_PATHS))
+        .filter(|entry| nested_under_another_owner(entry, RESERVED_PATHS))
         .map(|entry| entry.path)
         .collect();
     assert!(nested.contains(&"/api/v1/mcp/registry"));
@@ -80,8 +79,61 @@ fn a_row_under_an_exact_kernel_row_is_not_nested() {
         path: "/api/v1",
         reach: ReservedReach::Exact,
     };
-    assert!(!nested_under_kernel(
+    assert!(!nested_under_another_owner(
         &member_row(ReservedReach::Prefix),
         &[kernel]
     ));
+}
+
+#[test]
+fn a_prefix_row_nested_under_another_members_row_is_refused() {
+    let table = [
+        ReservedPath {
+            owner: CoreId::MarketplaceHttp,
+            path: "/api/v1/marketplace",
+            reach: ReservedReach::Prefix,
+        },
+        ReservedPath {
+            owner: CoreId::FilesHttp,
+            path: "/api/v1/marketplace/files",
+            reach: ReservedReach::Prefix,
+        },
+    ];
+    assert!(nested_under_another_owner(&table[1], &table));
+    assert!(!nested_rows_are_bounded(&table));
+}
+
+#[test]
+fn a_kernel_prefix_row_nested_under_a_members_row_is_refused() {
+    let table = [
+        ReservedPath {
+            owner: CoreId::ContentHttp,
+            path: "/api/v1/content",
+            reach: ReservedReach::Subtree,
+        },
+        ReservedPath {
+            owner: CoreId::Kernel,
+            path: "/api/v1/content/internal",
+            reach: ReservedReach::Prefix,
+        },
+    ];
+    assert!(!nested_rows_are_bounded(&table));
+}
+
+#[test]
+fn a_prefix_row_nested_under_its_own_owners_row_is_accepted() {
+    let table = [
+        ReservedPath {
+            owner: CoreId::AnalyticsHttp,
+            path: "/api/v1/analytics",
+            reach: ReservedReach::Prefix,
+        },
+        ReservedPath {
+            owner: CoreId::AnalyticsHttp,
+            path: "/api/v1/analytics/events",
+            reach: ReservedReach::Prefix,
+        },
+    ];
+    assert!(!nested_under_another_owner(&table[1], &table));
+    assert!(nested_rows_are_bounded(&table));
 }

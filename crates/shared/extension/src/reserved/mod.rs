@@ -15,8 +15,8 @@
 //! 2. its owner's extension id equals that entry's [`CoreId::id`];
 //! 3. no extension id holds privileged entries under two different [`CoreId`]s.
 //!
-//! A member row nested in the kernel's namespace is bounded
-//! ([`nested_rows_are_bounded`], checked at compile time).
+//! A row nested in another owner's namespace (the kernel's or a member's) is
+//! bounded ([`nested_rows_are_bounded`], checked at compile time).
 //!
 //! The Slack and Teams shapes exist only in a build with the `slack` or
 //! `teams` feature.
@@ -34,7 +34,7 @@ use crate::router::{Allowance, BaseRef, RouteShape};
 mod nesting;
 mod shapes;
 
-pub use nesting::{nested_rows_are_bounded, nested_under_kernel};
+pub use nesting::{nested_rows_are_bounded, nested_under_another_owner};
 pub use shapes::{
     CONTENT_GENERATE_ROUTES, CONTENT_REDIRECT_ROUTES, MCP_REGISTRY_ROUTES, PRIVILEGED_SHAPES,
 };
