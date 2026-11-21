@@ -1,11 +1,5 @@
 # Changelog
 
-## [Unreleased]
-
-### Added
-
-- `build_from_profile` carries `security.ui_session` onto `Config::ui_session`.
-
 ## [0.81.0] - 2026-11-12
 
 ### Breaking

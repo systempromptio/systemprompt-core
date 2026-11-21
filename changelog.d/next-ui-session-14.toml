@@ -1,0 +1,4 @@
+[root]
+section = "Added"
+area = "OAuth"
+text = "an SSO sign-in's session cookie carries the `auth_time` the identity provider asserted: core's OIDC provider reads the `id_token` `auth_time` claim into `ExternalIdentity::authenticated_at`, never dated later than the return; a provider asserting none dates the sign-in at the return, as before."

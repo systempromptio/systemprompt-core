@@ -1,0 +1,4 @@
+[root]
+section = "Added"
+area = "OAuth"
+text = "the lifetimes of a person's UI session are profile fields. `security.ui_session` takes `access_ttl_secs` (default `300`, `60`–`3600`), `absolute_secs` (default `43200`, `300`–`2592000`) and `step_up_max_age_secs` (default `600`, `60`–`absolute_secs`); `access_ttl_secs` may not exceed `absolute_secs`, an unknown key is refused, and a value outside its bounds fails profile validation. A profile without the block behaves as before. The token endpoint, the step-up on the document routes (including the `max_age` its `401` reports) and the `ui_session` discovery block read the configured values. The session still ends `absolute_secs` after the sign-in whatever the refreshes."

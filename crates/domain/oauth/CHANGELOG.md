@@ -1,20 +1,5 @@
 # Changelog
 
-## [Unreleased]
-
-### Breaking
-
-- `AuthCodeParams` and `MintAuthCodeParams` gain `authenticated_at`, `AuthCodeValidationResult` gains `authenticated_at`, and `RefreshTokenParams` and `ConsumedRefreshToken` gain `session_started_at`. Migrate a code mint by stating when the person signed in, and a refresh-token store by passing the code's `issued_at` or the consumed token's `session_started_at`.
-- `generate_jwt` refuses a `JwtConfig` with `browser_session` or `ui_session` set and `auth_time: None` (`TokenError::SignInTimeMissing`). Migrate by setting `auth_time`.
-
-### Added
-
-- Migration `026` adds `oauth_auth_codes.authenticated_at` (backfilled from `created_at`) and `oauth_refresh_tokens.session_started_at` (backfilled from `authenticated_at`). A stored code's sign-in time is never later than its issue.
-
-### Fixed
-
-- The passkey pages (`webauthn_oauth.html`, `link_passkey.html`) post the credential's binary fields as unpadded base64url strings, the only form `webauthn-rs` 0.6.2 reads; they sent byte arrays, which the finish endpoints refused with a 400.
-
 ## [0.84.0] - 2026-11-20
 
 ### Breaking

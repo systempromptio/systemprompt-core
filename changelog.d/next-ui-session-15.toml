@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "OAuth"
+text = "refreshing a token re-stamped `auth_time` to the time of the refresh for every client but a `person_ui` one, so a session cookie renewed through the `sp_web` client claimed a sign-in that never happened. Every access token minted by the authorization-code and refresh grants now carries the grant's sign-in time, unchanged across refreshes. A refresh token stored before 0.84.0 carries the time migration `025` ran."
