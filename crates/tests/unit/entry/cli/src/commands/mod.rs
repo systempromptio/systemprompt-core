@@ -55,7 +55,7 @@ mod agent_tools_mixed_lifecycle;
 mod agents_delete;
 mod agents_delete_flow;
 mod agents_logs_disk_selection;
-mod agents_mcp_logs_db;
+mod agents_logs_db;
 mod agents_registry_projection;
 mod agents_validate_checks;
 mod bridge_signing_key_fingerprint;
