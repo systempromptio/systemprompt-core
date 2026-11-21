@@ -168,7 +168,9 @@ File records hold the path relative to `paths.storage` (for example `files/uploa
 | `allow_registration` | `allow_registration` | bool | no | `false` | Whether self-service passkey (user) registration is open. |
 | `allow_dynamic_client_registration` | `allow_dynamic_client_registration` | bool | no | `false` | Whether RFC 7591 dynamic client registration is open. Remote MCP clients that register themselves depend on it; set `true` explicitly when they connect, leave it `false` when clients are pre-provisioned. |
 | `api_keys.max_lifetime_days` | `api_keys.max_lifetime_days` | integer | no | unset | Maximum lifetime of a personal access token, in days (must be greater than 0). Applies to every issuance path (admin API, CLI, bridge sign-in, agent runs): a key issued without an expiry gets the maximum, and a longer expiry is rejected. Unset means no ceiling. |
+| `login_page_url` | `login_page_url` | absolute `http(s)` URL | no | unset | The deployment's sign-in page. When set, `/authorize` sends a person who must sign in there instead of rendering the built-in passkey page. See [`security.login_page_url`](#securitylogin_page_url). |
 | `ui_session` | `ui_session` | object | no | see below | Lifetimes of a person's UI session. See [`security.ui_session`](#securityui_session). |
+| `authorize` | `authorize` | object | no | see below | Policy of the authorization endpoint for a signed-in person. See [`security.authorize`](#securityauthorize). |
 | `signing_key_path` | `signing_key_path` | path | no | `signing_key.pem` | Path to the RS256 signing key (PEM). |
 | `trusted_issuers` | `trusted_issuers` | list of object | no | `[]` | Federated issuers accepted in addition to `jwt_issuer`. |
 
@@ -192,6 +194,44 @@ security:
     access_ttl_secs: 300
     absolute_secs: 86400
     step_up_max_age_secs: 900
+```
+
+### `security.login_page_url`
+
+When `GET /api/v1/core/oauth/authorize` needs the person to sign in (no browser session, `prompt` containing `login` or `select_account`, or a sign-in older than `max_age`), it answers `303` to this URL. A value that is not an absolute `http` or `https` URL is ignored and logged, and the built-in passkey page is rendered; `prompt=passkey` always selects the passkey page.
+
+The page receives these query parameters:
+
+| Parameter | Present | Meaning |
+|-----------|---------|---------|
+| `response_type`, `client_id` | always | The authorization request. |
+| `redirect_uri`, `scope`, `state`, `code_challenge`, `code_challenge_method`, `resource` | when the client sent them | The authorization request. |
+| `prompt`, `max_age`, `login_hint` | when the client sent them | What the client asked of the sign-in. |
+| `redirect` | always | Where to send the browser once the person is signed in: the path and query of the authorization request on this server, with `reauth_since=<unix seconds>` appended. It always begins with a single `/`. |
+
+The page's contract:
+
+1. Sign the person in and set the browser-session cookie (`access_token`, as the SSO callback `/api/v1/core/sso/{id}/callback` sets it). Starting the sign-in at `/api/v1/core/sso/{id}/start?redirect=<redirect>` does both and returns the browser to `redirect`.
+2. Answer `302`/`303` to `redirect`, unchanged. `/authorize` then decides the request again against the new session.
+3. When `prompt` contains `login` or `select_account`, or `max_age` is present, do not short-circuit on an existing session: make the identity provider authenticate the person again. `/api/v1/core/sso/{id}/start` accepts `prompt` and `max_age` and forwards them; the built-in OIDC provider sends `prompt=login` and `max_age` to the identity provider.
+
+`/authorize` never sends the same request to the page twice. A request that returns with `reauth_since` is issued a code only for a browser session whose sign-in time is at or after that marker and no more than 600 seconds after it; any other outcome answers `login_required` on the client's `redirect_uri`. The sign-in time is the one the identity provider asserts (OIDC `auth_time`, SAML `AuthnInstant`); a provider that asserts none dates the sign-in at its return, so re-authentication is then only as strong as the page's own behaviour in step 3. `reauth_since` is unsigned: a caller who supplies or alters it can only cause `login_required`.
+
+### `security.authorize`
+
+| Key | Type | Default | Meaning |
+|-----|------|---------|---------|
+| `silent_native_clients` | bool | `false` | Whether remembered consent lets `/authorize` issue a code with no page to a client whose `redirect_uri` is a loopback address or a private-use scheme. |
+
+`/authorize` issues a code without rendering any page when the person holds a browser session, the client is operator-declared (`services/identity/*.yaml`), and the person has already allowed that client the requested scopes. A dynamically registered client is always shown the consent page and no consent is stored for it.
+
+A `redirect_uri` that is not `https` to a non-loopback host (`http://127.0.0.1:<port>/…`, `http://localhost/…`, `myapp://…`) cannot prove which program receives the code: any process running as the person can open the same authorization URL and listen on the same address or scheme (RFC 8252 §8.6). With the default `false`, such a client always gets the one-click consent page (no email, no passkey) while a browser session exists, so the person sees each request for a code. With `true`, a native client that has remembered consent receives codes with no visible step; a local process impersonating it then obtains a code the person never saw, and PKCE and the token endpoint's client authentication are the only remaining controls. Set it only where every machine that can reach the authorization endpoint is trusted to that degree.
+
+```yaml
+security:
+  login_page_url: https://app.example.com/admin/login
+  authorize:
+    silent_native_clients: false
 ```
 
 ### `security.trusted_issuers[]`

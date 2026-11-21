@@ -1,11 +1,11 @@
 //! `/authorize` OAuth authorization endpoint — `handle_authorize_get` and
 //! `handle_authorize_post`. The GET path validates CSRF/state, PKCE and the
 //! OAuth parameter set, resolves the client, then renders the WebAuthn
-//! challenge form; the POST path rejects password auth (and denied consent)
-//! after validation. We cover the happy render (plain state and a path-shaped
-//! state echoed unchanged), and the missing-state, bad-pkce,
-//! unsupported-response-type, unknown-client, denied-consent and
-//! password-attempt branches.
+//! challenge form; the POST path takes a same-origin Deny (answered
+//! `access_denied`) and refuses an Allow that has no browser session. We cover
+//! the happy render (plain state and a path-shaped state echoed unchanged), and
+//! the missing-state, bad-pkce, unsupported-response-type, unknown-client,
+//! denied-consent, sessionless-allow and cross-origin branches.
 
 
 use axum::Router;
@@ -78,6 +78,7 @@ fn form_post(uri: &str, body: String) -> Request<Body> {
         .method(http::Method::POST)
         .uri(uri)
         .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+        .header(header::ORIGIN, "http://127.0.0.1")
         .body(Body::from(body))
         .expect("build")
 }
@@ -285,16 +286,60 @@ async fn authorize_post_denied_consent_returns_access_denied() -> anyhow::Result
         ("user_consent", "deny"),
     ]);
     let resp = app.oneshot(form_post("/authorize", body)).await?;
-    let status = resp.status();
+    assert_eq!(resp.status(), StatusCode::SEE_OTHER);
+    let location = resp
+        .headers()
+        .get(header::LOCATION)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or_default();
     assert!(
-        status.is_client_error() || status.is_redirection(),
-        "denied consent must be rejected, got {status}"
+        location.starts_with("http://127.0.0.1/callback?error=access_denied"),
+        "{location}"
+    );
+    assert!(
+        location.contains(&format!("state={VALID_STATE}")),
+        "{location}"
+    );
+    assert!(
+        location.ends_with("&iss=http%3A%2F%2F127.0.0.1"),
+        "{location}"
     );
     Ok(())
 }
 
 #[tokio::test]
-async fn authorize_post_password_attempt_is_unsupported() -> anyhow::Result<()> {
+async fn authorize_post_from_another_origin_or_none_is_forbidden() -> anyhow::Result<()> {
+    let client = seeded_client().await?;
+    let body = urlencode(&[
+        ("response_type", "code"),
+        ("client_id", client.client_id.as_str()),
+        ("redirect_uri", "http://127.0.0.1/callback"),
+        ("scope", "user"),
+        ("state", VALID_STATE),
+        ("code_challenge", VALID_CHALLENGE),
+        ("code_challenge_method", "S256"),
+        ("user_consent", "deny"),
+    ]);
+    for origin in [None, Some("https://evil.example"), Some("null")] {
+        let mut req = Request::builder()
+            .method(http::Method::POST)
+            .uri("/authorize")
+            .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded");
+        if let Some(origin) = origin {
+            req = req.header(header::ORIGIN, origin);
+        }
+        let resp = authorize_app()
+            .await?
+            .oneshot(req.body(Body::from(body.clone()))?)
+            .await?;
+        assert_eq!(resp.status(), StatusCode::FORBIDDEN, "{origin:?}");
+        assert!(resp.headers().get(header::LOCATION).is_none(), "{origin:?}");
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn authorize_post_allow_without_a_browser_session_is_forbidden() -> anyhow::Result<()> {
     let client = seeded_client().await?;
     let app = authorize_app().await?;
     let body = urlencode(&[
@@ -310,10 +355,10 @@ async fn authorize_post_password_attempt_is_unsupported() -> anyhow::Result<()> 
         ("password", "hunter2"),
     ]);
     let resp = app.oneshot(form_post("/authorize", body)).await?;
-    let status = resp.status();
+    assert_eq!(resp.status(), StatusCode::FORBIDDEN);
     assert!(
-        status.is_client_error() || status.is_redirection(),
-        "password auth must be rejected as unsupported, got {status}"
+        resp.headers().get(header::LOCATION).is_none(),
+        "a password is never accepted and nothing is issued"
     );
     Ok(())
 }

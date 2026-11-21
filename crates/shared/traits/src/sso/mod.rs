@@ -58,10 +58,24 @@ impl CookieSameSite {
     }
 }
 
+/// What a sign-in asks of the identity provider beyond identifying the person.
+///
+/// `force` demands that the person present a credential again whatever
+/// session the identity provider holds, and `max_age` bounds, in seconds, how
+/// old the authentication it reports may be. A provider whose protocol can
+/// carry them sends them (OIDC `prompt=login` and `max_age`, SAML
+/// `ForceAuthn`); the default asks for neither.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct SsoReauth {
+    pub force: bool,
+    pub max_age: Option<i64>,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct SsoStart<'a> {
     pub return_to: &'a str,
     pub callback_url: &'a str,
+    pub reauth: SsoReauth,
 }
 
 /// What the provider needs remembered between `start` and `finish`. `state`

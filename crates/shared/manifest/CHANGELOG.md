@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.85.0] - 2026-11-21
+
+### Breaking
+
+- `SecurityConfig` and `Config` gain `ui_session: UiSessionConfig`. Migrate a struct literal by adding `ui_session: UiSessionConfig::default()`.
+- `SecurityConfig` and `Config` gain `authorize: AuthorizeConfig`. Migrate a struct literal by adding `authorize: AuthorizeConfig::default()`.
+
+### Added
+
+- `profile::UiSessionConfig` (`security.ui_session`): `access_ttl_secs` (default `300`), `absolute_secs` (default `43200`) and `step_up_max_age_secs` (default `600`), with `step_up_required(auth_time, now)`. Profile validation bounds them to `60`–`3600`, `300`–`2592000` and `60`–`absolute_secs`, and refuses an `access_ttl_secs` above `absolute_secs`.
+- `profile::AuthorizeConfig` (`security.authorize`): `silent_native_clients` (default `false`), whether remembered consent lets `/authorize` issue silently to a loopback or private-scheme redirect. A default block is omitted from a written profile and an unknown key is refused.
+
 ## [0.84.0] - 2026-11-20
 
 ### Added

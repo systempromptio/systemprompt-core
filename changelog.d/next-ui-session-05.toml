@@ -1,4 +1,0 @@
-[root]
-section = "Breaking"
-area = "OAuth"
-text = "`AuthCodeParams` and `MintAuthCodeParams` gain `authenticated_at: DateTime<Utc>`, when the person presented a credential for the code; `AuthCodeValidationResult` gains `authenticated_at` (its `issued_at` stays the code's issue time); `RefreshTokenParams` and `ConsumedRefreshToken` gain `session_started_at`. Migrate a code mint by stating the real sign-in time (`Utc::now()` when the credential was checked in the same request), a refresh-token store by passing the code's `issued_at` or the consumed token's `session_started_at`, and a struct literal by setting the fields."

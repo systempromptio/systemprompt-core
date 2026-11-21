@@ -93,8 +93,8 @@ Base path `/api/v1/core/oauth` (`crates/entry/api/src/routes/oauth/core.rs`). OA
 |--------|------|------|---------|
 | GET | `/api/v1/core/oauth/health` | Public | Subsystem health. |
 | POST | `/api/v1/core/oauth/session` | Public | Issue an anonymous session token. |
-| GET | `/api/v1/core/oauth/authorize` | Public | Authorization endpoint (browser flow). |
-| POST | `/api/v1/core/oauth/authorize` | Public | Authorization decision submission. |
+| GET | `/api/v1/core/oauth/authorize` | Public | Authorization endpoint (browser flow). See [Authorization endpoint](#authorization-endpoint). |
+| POST | `/api/v1/core/oauth/authorize` | Public | Allow or Deny, posted from a page the endpoint rendered. Same-origin only. |
 | POST | `/api/v1/core/oauth/token` | Public | Token endpoint (authorization_code, refresh_token, client_credentials). |
 | GET | `/api/v1/core/oauth/webauthn/complete` | Public | Complete a WebAuthn-bound authorization. |
 | POST | `/api/v1/core/oauth/webauthn/register/start` | Public | Begin WebAuthn credential registration. |
@@ -112,13 +112,51 @@ Base path `/api/v1/core/oauth` (`crates/entry/api/src/routes/oauth/core.rs`). OA
 | POST | `/api/v1/core/oauth/revoke` | User | RFC 7009 token revocation. |
 | POST | `/api/v1/core/oauth/logout` | User | End the current session. |
 | GET | `/api/v1/core/oauth/userinfo` | User | OIDC userinfo. |
-| GET | `/api/v1/core/oauth/consent` | User | Render consent state. |
-| POST | `/api/v1/core/oauth/consent` | User | Submit consent decision. |
 | POST | `/api/v1/core/oauth/register` | Public | Dynamic client registration (RFC 7591). Open only with `security.allow_dynamic_client_registration: true`; otherwise 403 and discovery omits `registration_endpoint`. |
 | GET | `/api/v1/core/oauth/register/{client_id}` | Registration token | Read a registered client (RFC 7592; `Authorization: Bearer <registration_access_token>`). |
 | PUT | `/api/v1/core/oauth/register/{client_id}` | Registration token | Update a registered client. |
 | DELETE | `/api/v1/core/oauth/register/{client_id}` | Registration token | Delete a registered client. |
 | * | `/api/v1/core/oauth/clients/*` | User | Client management subtree. |
+
+### Authorization endpoint
+
+`GET /api/v1/core/oauth/authorize` takes `response_type=code`, `client_id`, `redirect_uri`, `scope`, `state` (required), `code_challenge` with `code_challenge_method=S256` (required), and optionally `resource`, `prompt`, `max_age`, `login_hint`, `display`, `ui_locales` and `response_mode=query`.
+
+**Browser session.** The endpoint recognises a person already signed in to this browser by the `access_token` cookie the first-party web login sets (an SSO sign-in). Only that token counts: a token issued by `/token` to any client, a UI session, a bridge or plugin token and an anonymous session are not a browser session, nor is a token whose session or `jti` is revoked or whose user is inactive or a service account. A bearer header is not read. The session is used only when `redirect_uri` is present and registered for the client.
+
+**Outcome.** With a usable browser session:
+
+| Condition | Response |
+|-----------|----------|
+| The client is operator-declared, the person has allowed it the requested scopes, `prompt` does not contain `consent`, and the `redirect_uri` is `https` to a non-loopback host or `security.authorize.silent_native_clients` is `true` | `303` to `redirect_uri` with `code`, `client_id`, `state` and `iss`. No page is rendered. |
+| Otherwise | A consent page naming the client, the scopes, the signed-in account and the redirect host, with Allow and Deny. It is served with `X-Frame-Options: DENY`, `frame-ancestors 'none'` and `Cache-Control: no-store`. |
+
+The code's sign-in time, and so the `auth_time` of the tokens it is exchanged for, is the browser session's sign-in, not the time of this request. Allow stores the consent for an operator-declared client (a later Allow adds its scopes) and nothing for any other client. Consent is cleared when the client's `person_ui` setting changes or its declaration is removed; `/revoke` and `/logout` leave it.
+
+Without a usable browser session the endpoint answers `303` to `security.login_page_url` (see [configuration.md](configuration.md#securitylogin_page_url)), or renders the passkey page when that is unset. `prompt=passkey` always renders the passkey page.
+
+**`prompt` and `max_age`.**
+
+| Request | Effect |
+|---------|--------|
+| `prompt=login`, `prompt=select_account` | The existing sign-in is not used; the person signs in again. |
+| `max_age=N` | A sign-in older than `N` seconds is not used. `max_age=0` is `prompt=login`. |
+| `prompt=consent` | The consent page is shown even when consent is remembered. |
+| `prompt=none` | No page is ever rendered: the answer is a code or one of the errors below. |
+| `prompt=none` with any other value | `invalid_request` (OIDC Core §3.1.2.1). |
+
+**Errors.** Once `redirect_uri` is confirmed registered, errors are returned to it as `error`, `error_description` and `state`; the errors in the table below also carry `iss` (RFC 9207). Before that they are a `400` JSON body.
+
+| `error` | When |
+|---------|------|
+| `login_required` | `prompt=none` and no usable sign-in; or the browser returned from the login page still without a sign-in made for this request. |
+| `consent_required` | `prompt=none` and the person has not allowed this client the requested scopes (always, for a client that is not operator-declared). |
+| `interaction_required` | `prompt=none`, consent is remembered, and the client's `redirect_uri` is native with `silent_native_clients` off. |
+| `access_denied` | The person chose Deny. |
+
+`account_selection_required` is defined and not emitted: one browser holds one session.
+
+**`POST /api/v1/core/oauth/authorize`** accepts the form of a page this endpoint rendered: the request's parameters, `user_consent` (`allow` or `deny`) and, for Allow, `consent_token`. The `Origin` header must be this server's own origin; any other, or none, answers `403`. Allow also requires the same browser session that the consent page was rendered for and a `consent_token` that matches the person, session, client, `redirect_uri`, scope, `state`, `code_challenge` and `resource` and has not expired (600 seconds at most, and never past the request's `max_age`); a missing session answers `403` and a token that does not match `400`, in both cases with no redirect, no code and no stored consent. Deny answers `access_denied` on the registered `redirect_uri`. No password is accepted.
 
 ### Well-known documents
 
@@ -136,6 +174,8 @@ Base path `/api/v1/core/oauth` (`crates/entry/api/src/routes/oauth/core.rs`). OA
 ```bash
 curl http://127.0.0.1:8080/.well-known/openid-configuration
 ```
+
+The OIDC and OAuth authorization-server documents list `prompt_values_supported` (`none`, `login`, `consent`, `select_account`), `authorization_response_iss_parameter_supported: true`, and the UI-session capability (`ui_session_supported`, `ui_session`).
 
 ## Core: contexts, tasks, artifacts, users
 

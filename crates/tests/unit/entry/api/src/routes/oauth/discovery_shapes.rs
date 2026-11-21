@@ -21,6 +21,7 @@ fn test_well_known_response_serialize() {
         subject_types_supported: vec!["public".to_string()],
         id_token_signing_alg_values_supported: vec!["HS256".to_string()],
         claims_supported: vec!["sub".to_string(), "email".to_string()],
+        prompt_values_supported: vec!["none".to_string(), "login".to_string()],
         authorization_response_iss_parameter_supported: true,
         subject_token_types_supported: vec![
             "urn:ietf:params:oauth:token-type:access_token".to_string(),

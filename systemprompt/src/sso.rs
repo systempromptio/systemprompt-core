@@ -22,6 +22,6 @@ pub use systemprompt_oauth_issuance::sso::{
 pub use systemprompt_traits::sso::{
     AuthEventSink, CookieSameSite, ExternalIdentity, GatedIdentity, ReplayGuard, SsoError,
     SsoIdentityPolicy, SsoLoginRefused, SsoLoginSuccess, SsoMetadataDoc, SsoPaths, SsoProtocol,
-    SsoProvider, SsoRedirect, SsoRefusal, SsoReturn, SsoReturnBinding, SsoStart, SsoStateContext,
-    SsoStateSeed,
+    SsoProvider, SsoReauth, SsoRedirect, SsoRefusal, SsoReturn, SsoReturnBinding, SsoStart,
+    SsoStateContext, SsoStateSeed,
 };

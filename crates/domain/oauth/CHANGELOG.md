@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.85.0] - 2026-11-21
+
+### Breaking
+
+- `AuthCodeParams` and `MintAuthCodeParams` gain `authenticated_at`, `AuthCodeValidationResult` gains `authenticated_at`, and `RefreshTokenParams` and `ConsumedRefreshToken` gain `session_started_at`. Migrate a code mint by stating when the person signed in, and a refresh-token store by passing the code's `issued_at` or the consumed token's `session_started_at`.
+- `generate_jwt` refuses a `JwtConfig` with `browser_session` or `ui_session` set and `auth_time: None` (`TokenError::SignInTimeMissing`). Migrate by setting `auth_time`.
+
+### Added
+
+- Migration `026` adds `oauth_auth_codes.authenticated_at` and `oauth_refresh_tokens.session_started_at` (DDL only; a row that predates them takes the migration time). A stored code's sign-in time is never later than its issue.
+- Migration `027` and `schema/oauth_consents.sql` add `oauth_consents` (one row per user and client, a `TEXT[]` of scopes, cascading with the user and the client).
+- `OAuthRepository::is_declared_client`, `consent_covers` and `record_consent` (an upsert that unions the scopes). Consent is read and written only for an active client that carries its declaration stamp; `record_consent` answers `false` and writes nothing for any other.
+- `OAuthRepository::consent_token` and `consent_token_matches` over a `ConsentBinding`: the at-rest HMAC of the person, session and authorization request (client, redirect, scope, `state`, PKCE challenge and method, response type, resource) with an expiry of at most `CONSENT_TOKEN_TTL_SECS`, compared in constant time.
+- `OAuthRepository::reauth_marker` and `verified_reauth_since` over a `ReauthBinding`: the re-authentication marker `/authorize` hands the login page, `<unix seconds>.<hmac>` under its own domain, honoured for at most `REAUTH_MARKER_TTL_SECS`; anything that does not verify yields `None`.
+- `templates/consent.html` and `TemplateService::load_consent_template`.
+- `ClientRepository::upsert_declared_on` deletes a client's consents when its `person_ui` changes, and `release_declared_on` deletes them.
+
+### Fixed
+
+- The passkey pages (`webauthn_oauth.html`, `link_passkey.html`) post the credential's binary fields as unpadded base64url strings, the only form `webauthn-rs` 0.6.2 reads; they sent byte arrays, which the finish endpoints refused with a 400.
+- `TemplateService::render` escapes `{` and `}` in substituted values, so a value naming another placeholder is not expanded.
+
 ## [0.84.0] - 2026-11-20
 
 ### Breaking

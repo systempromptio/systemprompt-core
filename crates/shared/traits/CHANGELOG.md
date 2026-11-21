@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.85.0] - 2026-11-21
+
+### Breaking
+
+- `sso::ExternalIdentity` gains `authenticated_at: Option<DateTime<Utc>>`. Migrate a provider by setting the time the identity provider asserts the person authenticated, or `None`.
+- `sso::SsoStart` gains `reauth: SsoReauth`. Migrate a struct literal with `reauth: SsoReauth::default()`; a provider that can ask its identity provider to re-authenticate honours `force` and `max_age`.
+
+### Added
+
+- `sso::SsoReauth { force, max_age }`: what a sign-in asks of the identity provider beyond identifying the person.
+
 ## [0.84.0] - 2026-11-20
 
 ### Added

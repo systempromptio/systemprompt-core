@@ -1,5 +1,6 @@
-//! RFC 6749 §5.2 error codes plus the `WebAuthn` / RFC 7591 extensions this
-//! server emits, and their default HTTP status mapping.
+//! RFC 6749 §5.2 error codes plus the `WebAuthn` / RFC 7591 extensions and
+//! the OIDC Core §3.1.2.6 authentication-request errors this server emits,
+//! and their default HTTP status mapping.
 //!
 //! `Display` (via [`OAuthErrorCode::as_str`]) yields the wire string. The
 //! default status follows §5.2: token-endpoint errors return 400 except
@@ -35,6 +36,10 @@ pub enum OAuthErrorCode {
     LinkFailed,
     InvalidTarget,
     NotFound,
+    LoginRequired,
+    ConsentRequired,
+    InteractionRequired,
+    AccountSelectionRequired,
 }
 
 impl OAuthErrorCode {
@@ -61,6 +66,10 @@ impl OAuthErrorCode {
             Self::LinkFailed => "link_failed",
             Self::InvalidTarget => "invalid_target",
             Self::NotFound => "not_found",
+            Self::LoginRequired => "login_required",
+            Self::ConsentRequired => "consent_required",
+            Self::InteractionRequired => "interaction_required",
+            Self::AccountSelectionRequired => "account_selection_required",
         }
     }
 
@@ -77,7 +86,11 @@ impl OAuthErrorCode {
             | Self::InvalidCredential
             | Self::LinkFailed
             | Self::InvalidTarget
-            | Self::RegistrationFailed => StatusCode::BAD_REQUEST,
+            | Self::RegistrationFailed
+            | Self::LoginRequired
+            | Self::ConsentRequired
+            | Self::InteractionRequired
+            | Self::AccountSelectionRequired => StatusCode::BAD_REQUEST,
             Self::InvalidClient
             | Self::AccessDenied
             | Self::AuthenticationFailed

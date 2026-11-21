@@ -10,10 +10,11 @@ use std::collections::BTreeMap;
 
 use chrono::{Duration, Utc};
 use jsonwebtoken::{encode, Algorithm, Header};
-use systemprompt_identifiers::{JwtToken, SessionId, UserId};
+use systemprompt_database::DbPool;
+use systemprompt_identifiers::{AccessTokenId, JwtToken, SessionId, UserId};
 use systemprompt_models::auth::{
-    CustomClaims, JwtAudience, JwtClaims, Permission, RateLimitTier, RegisteredClaims, TokenType,
-    UserType,
+    AuthenticatedUser, CustomClaims, JwtAudience, JwtClaims, Permission, RateLimitTier,
+    RegisteredClaims, TokenType, UserJwtRequest, UserType,
 };
 use systemprompt_security::jwt::{AdminTokenParams, JwtService};
 use systemprompt_security::keys::SigningKeys;
@@ -91,6 +92,60 @@ pub fn test_token_authority(
         test_signing_keys(),
         issuer,
     ))
+}
+
+// The `Cookie` header a browser signed in through the web login sends: the
+// token `mint_browser_session` mints (a browser session with no client id) for
+// `user`, whose sign-in was `signed_in_ago_secs` ago, over a live session row.
+pub async fn browser_session_cookie(
+    pool: &DbPool,
+    user: &UserId,
+    signed_in_ago_secs: i64,
+) -> anyhow::Result<String> {
+    session_cookie_with(pool, user, signed_in_ago_secs, |_| {}).await
+}
+
+// The same cookie with the mint request changed by `edit` first, for a token
+// that is deliberately not the web login's.
+pub async fn session_cookie_with(
+    pool: &DbPool,
+    user: &UserId,
+    signed_in_ago_secs: i64,
+    edit: impl FnOnce(&mut UserJwtRequest),
+) -> anyhow::Result<String> {
+    let email: String = sqlx::query_scalar("SELECT email FROM users WHERE id = $1")
+        .bind(user.as_str())
+        .fetch_one(pool.write_pool().as_ref())
+        .await?;
+    let session_id = SessionId::generate();
+    crate::credential::seed_user_session(pool, user, &session_id).await?;
+    let permissions = vec![Permission::User];
+    let mut request = UserJwtRequest {
+        user: AuthenticatedUser::new_with_roles(
+            user.clone(),
+            email.clone(),
+            email,
+            permissions.clone(),
+            vec!["user".to_owned()],
+        ),
+        session_id,
+        jti: AccessTokenId::generate(),
+        permissions,
+        audience: JwtAudience::standard(),
+        ttl: Duration::hours(1),
+        client_id: None,
+        purpose: None,
+        plugin_id: None,
+        interaction: None,
+        browser_session: true,
+        ui_session: false,
+        auth_time: Some(Utc::now().timestamp() - signed_in_ago_secs),
+    };
+    edit(&mut request);
+    let token = test_token_authority(crate::app_context::FIXTURE_JWT_ISSUER)
+        .mint_user_jwt(&request)
+        .map_err(|e| anyhow::anyhow!("mint browser session token: {e}"))?;
+    Ok(format!("access_token={token}"))
 }
 
 pub fn test_oauth_signing() -> systemprompt_oauth::OAuthSigning {

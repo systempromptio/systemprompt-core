@@ -1,12 +1,10 @@
 //! Unit tests for OAuth authorize response_builder module
 //!
-//! Tests the convert_form_to_query and is_user_consent_granted functions
-//! that support the authorize POST handler.
+//! Tests the convert_form_to_query function that supports the authorize POST
+//! handler.
 
 use systemprompt_api::routes::oauth::endpoints::authorize::AuthorizeRequest;
-use systemprompt_api::routes::oauth::endpoints::authorize::response_builder::{
-    convert_form_to_query, is_user_consent_granted,
-};
+use systemprompt_api::routes::oauth::endpoints::authorize::response_builder::convert_form_to_query;
 use systemprompt_identifiers::ClientId;
 
 fn create_full_authorize_request() -> AuthorizeRequest {
@@ -19,8 +17,7 @@ fn create_full_authorize_request() -> AuthorizeRequest {
         code_challenge: Some("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk".to_string()),
         code_challenge_method: Some("S256".to_string()),
         user_consent: Some("allow".to_string()),
-        username: Some("testuser".to_string()),
-        password: Some("testpass".to_string()),
+        consent_token: Some("consent-token".to_string()),
         resource: Some("https://api.example.com/v1".to_string()),
     }
 }
@@ -35,8 +32,7 @@ fn create_minimal_authorize_request() -> AuthorizeRequest {
         code_challenge: None,
         code_challenge_method: None,
         user_consent: None,
-        username: None,
-        password: None,
+        consent_token: None,
         resource: None,
     }
 }
@@ -99,61 +95,22 @@ fn test_convert_form_to_query_with_minimal_fields() {
 }
 
 #[test]
-fn test_is_user_consent_granted_returns_true_for_allow() {
+fn test_convert_form_to_query_reads_empty_hidden_fields_as_absent() {
     let form = AuthorizeRequest {
-        user_consent: Some("allow".to_string()),
+        redirect_uri: Some(String::new()),
+        scope: Some(String::new()),
+        code_challenge: Some(String::new()),
+        code_challenge_method: Some(String::new()),
+        resource: Some(String::new()),
         ..create_minimal_authorize_request()
     };
+    let query = convert_form_to_query(&form);
 
-    assert!(is_user_consent_granted(&form));
-}
-
-#[test]
-fn test_is_user_consent_granted_returns_false_for_deny() {
-    let form = AuthorizeRequest {
-        user_consent: Some("deny".to_string()),
-        ..create_minimal_authorize_request()
-    };
-
-    assert!(!is_user_consent_granted(&form));
-}
-
-#[test]
-fn test_is_user_consent_granted_returns_false_for_none() {
-    let form = AuthorizeRequest {
-        user_consent: None,
-        ..create_minimal_authorize_request()
-    };
-
-    assert!(!is_user_consent_granted(&form));
-}
-
-#[test]
-fn test_is_user_consent_granted_returns_false_for_empty_string() {
-    let form = AuthorizeRequest {
-        user_consent: Some(String::new()),
-        ..create_minimal_authorize_request()
-    };
-
-    assert!(!is_user_consent_granted(&form));
-}
-
-#[test]
-fn test_is_user_consent_granted_is_case_sensitive() {
-    let form = AuthorizeRequest {
-        user_consent: Some("Allow".to_string()),
-        ..create_minimal_authorize_request()
-    };
-
-    assert!(!is_user_consent_granted(&form));
-}
-
-#[test]
-fn test_is_user_consent_granted_returns_false_for_arbitrary_string() {
-    let form = AuthorizeRequest {
-        user_consent: Some("yes_please".to_string()),
-        ..create_minimal_authorize_request()
-    };
-
-    assert!(!is_user_consent_granted(&form));
+    assert!(query.redirect_uri.is_none());
+    assert!(query.scope.is_none());
+    assert!(query.code_challenge.is_none());
+    assert!(query.code_challenge_method.is_none());
+    assert!(query.resource.is_none());
+    assert!(query.login_hint.is_none());
+    assert!(query.reauth_since.is_none());
 }

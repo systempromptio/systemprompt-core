@@ -1,4 +1,0 @@
-[root]
-section = "Breaking"
-area = "Models"
-text = "`systemprompt_models::auth::ui_session` is removed with its constants `UI_SESSION_ACCESS_TTL_SECS`, `UI_SESSION_ABSOLUTE_SECS` and `UI_SESSION_STEP_UP_MAX_AGE_SECS` and the function `step_up_required`. Migrate by reading `access_ttl_secs`, `absolute_secs` and `step_up_max_age_secs` from `Config::ui_session` (`systemprompt_manifest::profile::UiSessionConfig`) and calling `UiSessionConfig::step_up_required(auth_time, now)`."
