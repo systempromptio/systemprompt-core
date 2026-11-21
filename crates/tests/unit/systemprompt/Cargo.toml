@@ -16,7 +16,6 @@ systemprompt-agent-runs = { workspace = true }
 systemprompt-cli = { workspace = true }
 systemprompt-extension = { workspace = true, features = ["router", "cli"] }
 systemprompt-governance = { workspace = true }
-systemprompt-database = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-manifest = { workspace = true }
 systemprompt-mcp = { workspace = true }

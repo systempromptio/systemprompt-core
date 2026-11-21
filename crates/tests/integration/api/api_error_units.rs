@@ -13,7 +13,7 @@ use systemprompt_api::error::ApiHttpError;
 use systemprompt_api::services::middleware::context::middleware::error::extraction_error_to_api_error;
 use systemprompt_api::services::proxy::{ProxyError, ResponseBuildError};
 use systemprompt_api::services::static_content::fallback::{get_api_suggestions, is_api_path};
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{MarketplaceId, UserId};
 use systemprompt_marketplace::MarketplaceError;
 use systemprompt_models::execution::ContextExtractionError;
 use systemprompt_oauth::OauthError;
@@ -62,7 +62,12 @@ fn api_http_error_into_inner_round_trips() {
 #[test]
 fn marketplace_error_variants_classify() {
     assert_eq!(
-        status_of(MarketplaceError::NotFound("m".to_owned().into()).into()),
+        status_of(
+            MarketplaceError::NotFound(
+                MarketplaceId::try_new("m").expect("a valid marketplace id")
+            )
+            .into()
+        ),
         StatusCode::NOT_FOUND
     );
     assert_eq!(
