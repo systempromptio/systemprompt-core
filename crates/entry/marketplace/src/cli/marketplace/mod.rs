@@ -6,22 +6,27 @@
 //! [`MarketplaceCommands::Import`] converts an Anthropic-format authoring
 //! repository into the services tree the loader discovers.
 //!
+//! `explain` reads the services tree and the published API URL through the
+//! services-tree grant and the loaded services configuration from the open
+//! `ServicesState` seed; it needs no database. `import` reads and writes
+//! only the paths it is given.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod import;
 
-use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use clap::{Args, Subcommand};
 use serde::Serialize;
+use systemprompt_extension::cli::{
+    CliCommandGroup, CommandDescriptor, CommandError, CommandHost, CommandOutput, DataImpact,
+    DescribeCommand,
+};
 use systemprompt_identifiers::UserId;
 use systemprompt_marketplace::{
     AllowAllFilter, AssembleRequest, ManifestService, ManifestTrace, MarketplaceCache,
 };
-
-use systemprompt_extension::cli::CommandOutput;
-use systemprompt_loader::ConfigLoader;
 
 #[derive(Debug, Subcommand)]
 pub enum MarketplaceCommands {
@@ -53,7 +58,7 @@ struct ExplainRow {
     reason: String,
 }
 
-pub async fn execute(command: MarketplaceCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
+pub async fn execute(command: MarketplaceCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     match command {
         MarketplaceCommands::Explain(args) => explain(&args, host)
             .await
@@ -62,11 +67,10 @@ pub async fn execute(command: MarketplaceCommands, host: &dyn KernelHost) -> Res
     }
 }
 
-pub async fn explain(args: &ExplainArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let profile = host.profile()?;
-    let services_root = host.services_root()?.path;
-    let services = ConfigLoader::for_profile(profile, &services_root)
-        .load()
+pub async fn explain(args: &ExplainArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let tree = host.services_tree()?;
+    let services = super::services_config(host)
+        .await
         .context("Failed to load services config")?;
     let user_id = UserId::new(
         args.user
@@ -77,13 +81,13 @@ pub async fn explain(args: &ExplainArgs, host: &dyn KernelHost) -> Result<Comman
     let mut trace = ManifestTrace::default();
     let candidate = ManifestService::assemble_candidate_traced(
         &AssembleRequest {
-            services: &services,
-            services_root: &services_root,
+            services: services.as_ref(),
+            services_root: tree.root(),
             filter: &AllowAllFilter,
             user_id: &user_id,
             cache: &MarketplaceCache::default(),
         },
-        &profile.server.api_external_url,
+        tree.api_external_url(),
         &mut trace,
     )
     .await
@@ -104,6 +108,33 @@ pub async fn explain(args: &ExplainArgs, host: &dyn KernelHost) -> Result<Comman
         &rows,
     )
     .with_title("Manifest Assembly Explain"))
+}
+
+impl MarketplaceCommands {
+    pub const fn data_impact(&self) -> DataImpact {
+        match self {
+            Self::Explain(_) | Self::Import(_) => DataImpact::Preserving,
+        }
+    }
+}
+
+impl DescribeCommand for MarketplaceCommands {
+    fn descriptor(&self) -> CommandDescriptor {
+        match self {
+            Self::Explain(_) => CommandDescriptor::PROFILE_SECRETS_AND_PATHS,
+            Self::Import(_) => CommandDescriptor::NONE,
+        }
+        .with_data_impact(self.data_impact())
+    }
+}
+
+impl CliCommandGroup for MarketplaceCommands {
+    const NAME: &'static str = "marketplace";
+    const ABOUT: &'static str = "Marketplace manifest diagnostics";
+
+    async fn run(self, host: &dyn CommandHost) -> Result<CommandOutput, CommandError> {
+        execute(self, host).await.map_err(super::command_error)
+    }
 }
 
 fn build_rows(

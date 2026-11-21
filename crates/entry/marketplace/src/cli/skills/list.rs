@@ -1,27 +1,30 @@
 //! `skills list` subcommand.
 //!
-//! Scans the profile's skills directory for skill configs, rendering either a
-//! filtered summary table or, when a skill name is given, a single-skill detail
-//! card with an instructions preview.
+//! Scans the services tree's skills directory for skill configs, rendering
+//! either a filtered summary table or, when a skill name is given, a
+//! single-skill detail card with an instructions preview. A managed skill of
+//! the organization's inventory, read through the owner-bound
+//! `Arc<OrganizationSkillResolver>` the `managed_resources` member provides,
+//! replaces the same-keyed disk skill or, when withheld, suppresses it. When
+//! the resolver cannot be resolved (no reachable database), only disk skills
+//! are listed.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
 use anyhow::{Result, anyhow};
 use clap::Args;
-use std::path::Path;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 use systemprompt_identifiers::SkillId;
 use systemprompt_manifest::SKILL_CONFIG_FILENAME;
-
-
-use crate::commands::shared::app_context;
-use crate::shared::truncate_with_ellipsis;
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_marketplace::ManagedSkillResolution;
+use systemprompt_marketplace::managed::{ManagedSkill, OrganizationSkillResolver};
+use systemprompt_models::text::truncate_with_ellipsis;
 
 use super::types::{SkillDetail, SkillListOutput, SkillSummary, parse_skill_from_config};
-use systemprompt_marketplace::ManagedSkillResolution;
-use systemprompt_marketplace::managed::ResourceKind;
 
 #[derive(Debug, Clone, Args)]
 pub struct ListArgs {
@@ -38,58 +41,42 @@ pub struct ListArgs {
     pub disabled: bool,
 }
 
-pub(super) async fn execute(args: ListArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: ListArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
     let skills_path = get_skills_path(host)?;
     if let Some(name) = args.name {
         return show_resolved_skill(&name, host).await;
     }
     let mut skills = scan_skills(&skills_path)?;
-    let Some((resolver, owner)) = managed_context(host).await else {
+    let Some(resolver) = organization_skills(host).await else {
         return Ok(render_list(args.enabled, args.disabled, skills));
     };
-    let repository = resolver.repository();
-    let mut offset = 0;
-    loop {
-        let page = repository.list_resources(&owner, offset).await?;
-        let has_more = page.has_more;
-        for resource in page
-            .items
-            .into_iter()
-            .filter(|resource| resource.kind == ResourceKind::Skill)
-        {
-            skills.retain(|item| item.skill_id.as_str() != resource.resource_key);
-            match resolver
-                .resolve_skill(&owner, &resource.resource_key)
-                .await?
-            {
-                ManagedSkillResolution::Published(managed) => skills.push(SkillSummary {
-                    file_path: Some(format!(
-                        "managed://{}@{}",
-                        managed.id.as_str(),
-                        managed.bundle_digest.as_str()
-                    )),
-                    skill_id: managed.id,
-                    name: managed.name.clone(),
-                    display_name: managed.name,
-                    enabled: true,
-                    tags: Vec::new(),
-                }),
-                ManagedSkillResolution::Withheld(_) => {},
-                ManagedSkillResolution::NotManaged => {
-                    return Err(anyhow!(
-                        "Managed skill '{}' lost its binding",
-                        resource.resource_key
-                    ));
-                },
-            }
+    for owned in resolver.owned_skills().await? {
+        skills.retain(|item| item.skill_id.as_str() != owned.key);
+        match owned.resolution {
+            ManagedSkillResolution::Published(managed) => skills.push(SkillSummary {
+                file_path: Some(managed_path(&managed)),
+                skill_id: managed.id,
+                name: managed.name.clone(),
+                display_name: managed.name,
+                enabled: true,
+                tags: Vec::new(),
+            }),
+            ManagedSkillResolution::Withheld(_) => {},
+            ManagedSkillResolution::NotManaged => {
+                return Err(anyhow!("Managed skill '{}' lost its binding", owned.key));
+            },
         }
-        if !has_more {
-            break;
-        }
-        offset += systemprompt_marketplace::ManagedRepository::PAGE_SIZE;
     }
     skills.sort_by(|left, right| left.skill_id.cmp(&right.skill_id));
     Ok(render_list(args.enabled, args.disabled, skills))
+}
+
+fn managed_path(skill: &ManagedSkill) -> String {
+    format!(
+        "managed://{}@{}",
+        skill.id.as_str(),
+        skill.bundle_digest.as_str()
+    )
 }
 
 pub fn execute_with_path(args: ListArgs, skills_path: &Path) -> Result<CommandOutput> {
@@ -125,51 +112,34 @@ fn render_list(enabled: bool, disabled: bool, skills: Vec<SkillSummary>) -> Comm
     .with_title("Skills")
 }
 
-async fn managed_context(
-    host: &dyn KernelHost,
-) -> Option<(
-    systemprompt_marketplace::ManagedResourceResolver,
-    systemprompt_identifiers::UserId,
-)> {
-    let app = match app_context(host).await {
-        Ok(app) => app,
+async fn organization_skills(host: &dyn CommandHost) -> Option<Arc<OrganizationSkillResolver>> {
+    let resolved = match host.resolved().await {
+        Ok(resolved) => resolved,
         Err(error) => {
             tracing::warn!(
                 %error,
-                "managed skills are not resolved: no application context; listing disk skills only"
+                "managed skills are not resolved: no command kernel; listing disk skills only"
             );
             return None;
         },
     };
-    if app.db_pool().pool().is_closed() {
-        return None;
-    }
-    let repository = match app
-        .kernel()
-        .state()
-        .get::<std::sync::Arc<systemprompt_marketplace::ManagedRepository>>()
-    {
-        Ok(repository) => repository.as_ref().clone(),
-        Err(error) => {
+    resolved
+        .get::<Arc<OrganizationSkillResolver>>()
+        .inspect_err(|error| {
             tracing::warn!(
                 %error,
-                "managed skills are not resolved: no managed repository; listing disk skills only"
+                "managed skills are not resolved: no organization skill resolver; listing disk skills only"
             );
-            return None;
-        },
-    };
-    Some((
-        systemprompt_marketplace::ManagedResourceResolver::new(repository),
-        app.system_admin().id().clone(),
-    ))
+        })
+        .ok()
 }
 
 pub async fn show_resolved_skill(
     skill_id: &SkillId,
-    host: &dyn KernelHost,
+    host: &dyn CommandHost,
 ) -> Result<CommandOutput> {
-    if let Some((resolver, owner)) = managed_context(host).await {
-        match resolver.resolve_skill(&owner, skill_id.as_str()).await? {
+    if let Some(resolver) = organization_skills(host).await {
+        match resolver.resolve_owned(skill_id.as_str()).await? {
             ManagedSkillResolution::Withheld(reason) => {
                 return Err(anyhow!(
                     "Skill '{}' is managed but withheld ({})",
@@ -180,11 +150,7 @@ pub async fn show_resolved_skill(
             ManagedSkillResolution::NotManaged => {},
             ManagedSkillResolution::Published(skill) => {
                 let output = SkillDetail {
-                    file_path: Some(format!(
-                        "managed://{}@{}",
-                        skill.id.as_str(),
-                        skill.bundle_digest.as_str()
-                    )),
+                    file_path: Some(managed_path(&skill)),
                     skill_id: skill.id,
                     name: skill.name.clone(),
                     display_name: skill.name,
@@ -204,8 +170,8 @@ pub async fn show_resolved_skill(
     show_skill_detail(skill_id, &get_skills_path(host)?)
 }
 
-fn get_skills_path(host: &dyn KernelHost) -> Result<std::path::PathBuf> {
-    Ok(host.services_root()?.path.join("skills"))
+fn get_skills_path(host: &dyn CommandHost) -> Result<PathBuf> {
+    Ok(host.services_tree()?.skills())
 }
 
 pub fn show_skill_detail(skill_id: &SkillId, skills_path: &Path) -> Result<CommandOutput> {

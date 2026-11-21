@@ -142,8 +142,9 @@ pub use tool_executions::{
 pub use log_service::LogService;
 
 pub use managed_resources::{
-    DynManagedSkillResolver, ManagedSkillResolver, ManagedSkillResolverError, ResolvedManagedSkill,
-    SkillResolution, WithheldReason,
+    DynInventoryPublisher, DynManagedSkillResolver, InventoryPublishError, InventoryPublisher,
+    ManagedSkillResolver, ManagedSkillResolverError, ResolvedManagedSkill, SkillResolution,
+    WithheldReason,
 };
 
 pub use context_provider::{

@@ -1,10 +1,11 @@
 //! `core` command group: the platform's primary domain commands.
 //!
-//! Dispatches the [`CoreCommands`] subgroups — artifacts, contexts, skills,
-//! plugins, marketplace, hooks and services bundles. Each requires a full
-//! profile context; none is served on a `--database-url` invocation.
-//! Capabilities contribute further subgroups under `core` (such as
-//! `core content` and `core files`) with `CommandDecl::group_under`.
+//! Dispatches the [`CoreCommands`] subgroups — artifacts, contexts, hooks
+//! and services bundles. Each requires a full profile context; none is
+//! served on a `--database-url` invocation. Capabilities contribute further
+//! subgroups under `core` (such as `core content`, `core files`,
+//! `core marketplace`, `core plugins` and `core skills`) with
+//! `CommandDecl::group_under`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,10 +13,7 @@
 pub mod artifacts;
 pub mod contexts;
 pub mod hooks;
-pub mod marketplace;
-pub mod plugins;
 pub mod services;
-pub mod skills;
 
 use crate::kernel::KernelHost;
 use anyhow::Result;
@@ -30,15 +28,6 @@ pub enum CoreCommands {
 
     #[command(subcommand, about = "Context management")]
     Contexts(contexts::ContextsCommands),
-
-    #[command(subcommand, about = "Skill management and database sync")]
-    Skills(skills::SkillsCommands),
-
-    #[command(subcommand, about = "Plugin management and marketplace generation")]
-    Plugins(plugins::PluginsCommands),
-
-    #[command(subcommand, about = "Marketplace manifest diagnostics")]
-    Marketplace(marketplace::MarketplaceCommands),
 
     #[command(subcommand, about = "Hook validation and inspection")]
     Hooks(hooks::HooksCommands),
@@ -58,9 +47,6 @@ pub async fn execute(cmd: CoreCommands, host: &dyn KernelHost) -> Result<Command
     match cmd {
         CoreCommands::Artifacts(cmd) => Box::pin(artifacts::execute(cmd, host)).await,
         CoreCommands::Contexts(cmd) => Box::pin(contexts::execute(cmd, host)).await,
-        CoreCommands::Skills(cmd) => skills::execute(cmd, host).await,
-        CoreCommands::Plugins(cmd) => plugins::execute(cmd, host),
-        CoreCommands::Marketplace(cmd) => marketplace::execute(cmd, host).await,
         CoreCommands::Hooks(cmd) => hooks::execute(cmd, host),
         CoreCommands::Services(cmd) => Box::pin(services::execute(cmd, host)).await,
     }
@@ -69,8 +55,7 @@ pub async fn execute(cmd: CoreCommands, host: &dyn KernelHost) -> Result<Command
 impl DescribeCommand for CoreCommands {
     fn descriptor(&self) -> CommandDescriptor {
         match self {
-            Self::Marketplace(marketplace::MarketplaceCommands::Import(_))
-            | Self::Services(
+            Self::Services(
                 services::ServicesCommands::Validate(_)
                 | services::ServicesCommands::Bundle(_)
                 | services::ServicesCommands::Keygen(_),
@@ -89,11 +74,7 @@ impl DescribeCommand for CoreCommands {
                     CommandDescriptor::NONE
                 }
             },
-            Self::Hooks(_)
-            | Self::Plugins(_)
-            | Self::Skills(skills::SkillsCommands::List(_) | skills::SkillsCommands::Show(_)) => {
-                CommandDescriptor::PROFILE_SECRETS_AND_PATHS
-            },
+            Self::Hooks(_) => CommandDescriptor::PROFILE_SECRETS_AND_PATHS,
             _ => CommandDescriptor::FULL,
         }
     }
@@ -117,9 +98,6 @@ impl CoreCommands {
             | Self::Artifacts(
                 artifacts::ArtifactsCommands::List(_) | artifacts::ArtifactsCommands::Show(_),
             )
-            | Self::Skills(_)
-            | Self::Plugins(_)
-            | Self::Marketplace(_)
             | Self::Hooks(_)
             | Self::Services(
                 services::ServicesCommands::Validate(_)

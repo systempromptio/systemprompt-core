@@ -97,9 +97,13 @@ device identity. Their session-shaped metadata cannot establish a consumer bindi
 
 Installation coverage per resource is recomputed by the `managed_inventory_refresh`
 job, which the `managed_resources` member contributes, and written only when it
-changed. The job and the admin services refresh run the `Arc<InventoryRefresher>`
-the member provides; it reads the profile's bundle sources from the sealed
-`BundleSources` kernel seed. The member also contributes the `git-credentials`
+changed. The job runs the member's own `InventoryRefresher`, provided under a
+type no other crate can name; the admin services refresh reaches it only as the
+open `DynInventoryPublisher` (publish the latest configured skills with the
+caller as the actor). The refresher reads the profile's bundle sources from the
+sealed `BundleSources` kernel seed. The `core skills` commands read the
+owner's managed skills through the provided `Arc<OrganizationSkillResolver>`,
+which never hands out the owner id. The member also contributes the `git-credentials`
 `cloud doctor` check and builds its publication policy after governance.
 
 ## Git source synchronization

@@ -10,7 +10,7 @@ homepage.workspace = true
 documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "The marketplace HTTP routes of systemprompt.io: the marketplace catalogue and plugin files."
+description = "The marketplace entry surface of systemprompt.io: the marketplace catalogue and plugin-file routes, and the core marketplace, plugins and skills commands."
 readme = "README.md"
 include = ["src/**/*", "Cargo.toml", "README.md", "CHANGELOG.md"]
 
@@ -35,16 +35,37 @@ http = [
     "dep:thiserror",
     "dep:tokio",
 ]
-cli = ["systemprompt-extension/cli"]
+cli = [
+    "systemprompt-extension/cli",
+    "dep:systemprompt-identifiers",
+    "dep:systemprompt-loader",
+    "dep:systemprompt-manifest",
+    "dep:systemprompt-marketplace",
+    "dep:systemprompt-models",
+    "dep:anyhow",
+    "dep:clap",
+    "dep:schemars",
+    "dep:serde",
+    "dep:serde_json",
+    "dep:serde_yaml",
+    "dep:tracing",
+]
 
 [dependencies]
 systemprompt-config = { workspace = true, optional = true }
 systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true, optional = true }
+systemprompt-loader = { workspace = true, optional = true }
 systemprompt-manifest = { workspace = true, optional = true }
 systemprompt-marketplace = { workspace = true, optional = true }
 systemprompt-models = { workspace = true, optional = true }
+anyhow = { workspace = true, optional = true }
 axum = { workspace = true, optional = true }
+clap = { workspace = true, optional = true }
+schemars = { workspace = true, optional = true }
+serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
+serde_yaml = { workspace = true, optional = true }
 thiserror = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
+tracing = { workspace = true, optional = true }

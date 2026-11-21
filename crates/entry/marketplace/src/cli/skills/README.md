@@ -9,7 +9,7 @@ Command reference for skills. Use the installed command’s `--help` output for 
 ```bash
 export SYSTEMPROMPT_PROFILE=~/.systemprompt/profiles/local/profile.yaml
 cd /var/www/html/systemprompt-core
-cargo build --package systemprompt-cli
+cargo build --package systemprompt
 
 alias sp="./target/debug/systemprompt --non-interactive"
 ```
@@ -20,8 +20,8 @@ alias sp="./target/debug/systemprompt --non-interactive"
 
 | Command | Description | Artifact Type | Requires Services |
 |---------|-------------|---------------|-------------------|
-| `core skills list` | List configured skills | `Table` | No |
-| `core skills show <id>` | Show skill details | `Card` | No |
+| `core skills list` | List configured skills | `Table` | Database for managed skills |
+| `core skills show <id>` | Show skill details | `Card` | Database for managed skills |
 
 ---
 
@@ -29,7 +29,9 @@ alias sp="./target/debug/systemprompt --non-interactive"
 
 ### skills list
 
-List skills discovered in the profile's skills directory. Passing a skill ID as the positional argument renders that single skill's detail card instead of the table.
+List the skills in the services tree's `skills/` directory together with the organization's managed skills. A published managed skill replaces the disk skill with the same key (its `file_path` is `managed://<id>@<digest>`), and a withheld one (never adopted, withdrawn) hides it. With no reachable database only disk skills are listed. Passing a skill ID as the positional argument renders that single skill's detail card instead of the table.
+
+The `core skills` group is contributed by the `marketplace-http` member and is refused when a profile disables it.
 
 ```bash
 sp core skills list
@@ -76,7 +78,7 @@ When a skill ID is passed, the command instead returns a detail card with
 
 ### skills show
 
-Show details for a single skill by its ID (directory name), including an instructions preview.
+Show details for a single skill by its ID (directory name), including an instructions preview. A managed skill of that key wins over the disk skill; a withheld one is an error naming the reason.
 
 ```bash
 sp core skills show code_review

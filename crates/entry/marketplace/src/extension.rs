@@ -1,5 +1,5 @@
 //! [`MarketplaceHttpExtension`] (`marketplace-http`): the marketplace route
-//! set.
+//! set and the marketplace commands.
 //!
 //! With `http` it contributes one route set at `/api/v1/marketplace` in the
 //! content-and-misc role group, behind the public gate with a public request
@@ -9,14 +9,16 @@
 //! managed repository and the catalogue cache the `managed_resources` member
 //! provides, which this member `requires`.
 //!
-//! The `core marketplace`, `core plugins` and `core skills` command paths
-//! are conferred to this member; the commands themselves are still served by
-//! the CLI kernel.
+//! With `cli` it contributes the `core marketplace`, `core plugins` and
+//! `core skills` groups under the kernel's `core` group, each requesting
+//! `KernelGrant::ServicesTree`, the grant their reserved CLI rows list. The
+//! `core skills` commands resolve the owner-bound
+//! `Arc<OrganizationSkillResolver>` the `managed_resources` member provides.
 //!
-//! | profile disables | `/api/v1/marketplace` |
-//! |---|---|
-//! | `marketplace-http` | 404 |
-//! | `managed_resources` | boot refused (unmet `Arc<ManagedRepository>`) |
+//! | profile disables | `/api/v1/marketplace` | CLI |
+//! |---|---|---|
+//! | `marketplace-http` | 404 | `core marketplace`, `core plugins`, `core skills` refused at dispatch |
+//! | `managed_resources` | boot refused (required member) | boot refused (required member) |
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -39,15 +41,17 @@ impl Extension for MarketplaceHttpExtension {
     }
 
     #[cfg_attr(
-        not(feature = "http"),
+        not(any(feature = "http", feature = "cli")),
         expect(
             unused_variables,
-            reason = "the member contributes its routes only with the http feature"
+            reason = "the member contributes its routes only with the http feature and its commands only with the cli feature"
         )
     )]
     fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
         #[cfg(feature = "http")]
         routes::contribute(c);
+        #[cfg(feature = "cli")]
+        commands::contribute(c);
         Ok(())
     }
 }
@@ -66,5 +70,34 @@ mod routes {
         c.requires::<Arc<ManagedRepository>>()
             .requires::<Arc<MarketplaceCache>>()
             .routes(public_routes());
+    }
+}
+
+#[cfg(feature = "cli")]
+mod commands {
+    use std::sync::Arc;
+
+    use systemprompt_extension::cli::{CommandDecl, KernelGrant, parents};
+    use systemprompt_extension::prelude::*;
+    use systemprompt_marketplace::managed::OrganizationSkillResolver;
+
+    use crate::cli::{MarketplaceCommands, PluginsCommands, SkillsCommands};
+
+    const SERVICES_TREE: &[KernelGrant] = &[KernelGrant::ServicesTree];
+
+    pub(super) fn contribute(c: &mut Contributions<'_>) {
+        c.requires::<Arc<OrganizationSkillResolver>>()
+            .command(
+                CommandDecl::group_under::<parents::Core, MarketplaceCommands>()
+                    .requesting(SERVICES_TREE),
+            )
+            .command(
+                CommandDecl::group_under::<parents::Core, PluginsCommands>()
+                    .requesting(SERVICES_TREE),
+            )
+            .command(
+                CommandDecl::group_under::<parents::Core, SkillsCommands>()
+                    .requesting(SERVICES_TREE),
+            );
     }
 }

@@ -2,30 +2,19 @@
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
-use systemprompt_logging::CliService;
 
 use anyhow::Result;
 use serde::Serialize;
 use std::path::Path;
 use systemprompt_identifiers::PluginId;
-use systemprompt_loader::ConfigLoader;
 use systemprompt_manifest::services::ServicesConfig;
-use systemprompt_manifest::{MarketplaceConfig, PluginConfig, Profile};
+use systemprompt_manifest::{MarketplaceConfig, PluginConfig};
 use systemprompt_models::bridge::plugin_bundle::{ManifestAuthor, PluginManifest};
 
 pub(super) fn generate_marketplace_json(
-    profile: &Profile,
-    services_root: &Path,
+    services: &ServicesConfig,
     system_path: &Path,
 ) -> Result<()> {
-    let services = match ConfigLoader::for_profile(profile, services_root).load() {
-        Ok(s) => s,
-        Err(e) => {
-            tracing::warn!(error = %e, "Failed to load services config; skipping marketplace generation");
-            return Ok(());
-        },
-    };
-
     if services.marketplaces.is_empty() {
         tracing::info!(
             "No marketplaces declared in services config; skipping marketplace.json generation"
@@ -47,8 +36,8 @@ pub(super) fn generate_marketplace_json(
             continue;
         }
 
-        let json = render_marketplace(id.as_str(), marketplace, &services);
-        let content = CliService::json_string(&json)?;
+        let json = render_marketplace(id.as_str(), marketplace, services);
+        let content = serde_json::to_string_pretty(&json)?;
 
         let file_name = format!("marketplace-{}.json", id.as_str());
         std::fs::write(marketplace_dir.join(&file_name), &content)?;
@@ -145,7 +134,7 @@ pub fn generate_plugin_json(
     };
 
     let plugin_json_path = claude_plugin_dir.join("plugin.json");
-    let content = CliService::json_string(&manifest)?;
+    let content = serde_json::to_string_pretty(&manifest)?;
     std::fs::write(&plugin_json_path, content)?;
     files_generated.push(plugin_json_path.to_string_lossy().to_string());
 

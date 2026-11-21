@@ -3,12 +3,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
-use anyhow::{Context, Result};
+use anyhow::Result;
 use clap::Args;
 use std::path::Path;
 
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
 use super::types::{PluginListOutput, PluginSummary};
 
@@ -21,8 +20,8 @@ pub struct ListArgs {
     pub disabled: bool,
 }
 
-pub(super) fn execute(args: ListArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let plugins_path = host.services_root()?.path.join("plugins");
+pub(super) fn execute(args: ListArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let plugins_path = host.services_tree()?.plugins();
     let plugins = scan_plugins(&plugins_path)?;
 
     let filtered: Vec<PluginSummary> = plugins
@@ -74,7 +73,7 @@ pub fn scan_plugins(plugins_path: &Path) -> Result<Vec<PluginSummary>> {
             continue;
         }
 
-        match parse_plugin_config(&config_path) {
+        match super::read_plugin_config(&config_path) {
             Ok(plugin_file) => {
                 let plugin = &plugin_file.plugin;
                 let mut summary: PluginSummary = plugin.into();
@@ -94,14 +93,6 @@ pub fn scan_plugins(plugins_path: &Path) -> Result<Vec<PluginSummary>> {
 
     plugins.sort_by(|a, b| a.id.cmp(&b.id));
     Ok(plugins)
-}
-
-fn parse_plugin_config(config_path: &Path) -> Result<systemprompt_manifest::PluginConfigFile> {
-    let content = std::fs::read_to_string(config_path)
-        .with_context(|| format!("Failed to read {}", config_path.display()))?;
-    let plugin_file: systemprompt_manifest::PluginConfigFile = serde_yaml::from_str(&content)
-        .with_context(|| format!("Failed to parse {}", config_path.display()))?;
-    Ok(plugin_file)
 }
 
 fn estimate_component_count(component: &systemprompt_models::plugin::PluginComponentRef) -> usize {

@@ -7,6 +7,10 @@
 //! for that key and the disk copy must not be used either. Corrupt retained
 //! content is an error, not a withholding.
 //!
+//! [`InventoryPublisher`] is the installation's configured-inventory
+//! publication as a kernel route reaches it: publish the latest configured
+//! skills with the caller as the actor, and nothing else.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -70,3 +74,23 @@ pub trait ManagedSkillResolver: Send + Sync + std::fmt::Debug {
 }
 
 pub type DynManagedSkillResolver = Arc<dyn ManagedSkillResolver>;
+
+#[derive(Debug, thiserror::Error)]
+pub enum InventoryPublishError {
+    #[error("inventory publication failed")]
+    Failed(#[source] BoxedSource),
+}
+
+/// Publishes the latest configured revision of every available skill in the
+/// installation's configured inventory, recording the caller as the actor.
+///
+/// It is the only inventory reach a kernel route holds: it cannot choose the
+/// owner, scan another tree or read the refresher's state. Held as
+/// `Arc<dyn InventoryPublisher>` so the API kernel does not name the
+/// marketplace domain; hence `#[async_trait]`.
+#[async_trait]
+pub trait InventoryPublisher: Send + Sync + std::fmt::Debug {
+    async fn publish_latest(&self, actor: &UserId) -> Result<usize, InventoryPublishError>;
+}
+
+pub type DynInventoryPublisher = Arc<dyn InventoryPublisher>;
