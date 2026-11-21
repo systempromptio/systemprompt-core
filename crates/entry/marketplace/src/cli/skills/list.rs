@@ -4,7 +4,7 @@
 //! either a filtered summary table or, when a skill name is given, a
 //! single-skill detail card with an instructions preview. A managed skill of
 //! the organization's inventory, read through the owner-bound
-//! `Arc<OrganizationSkillResolver>` the `managed_resources` member provides,
+//! `Arc<OwnerSkillView>` the `managed_resources` member provides,
 //! replaces the same-keyed disk skill or, when withheld, suppresses it. When
 //! the resolver cannot be resolved (no reachable database), only disk skills
 //! are listed.
@@ -21,7 +21,7 @@ use systemprompt_extension::cli::{CommandHost, CommandOutput};
 use systemprompt_identifiers::SkillId;
 use systemprompt_manifest::SKILL_CONFIG_FILENAME;
 use systemprompt_marketplace::ManagedSkillResolution;
-use systemprompt_marketplace::managed::{ManagedSkill, OrganizationSkillResolver};
+use systemprompt_marketplace::managed::{ManagedSkill, OwnerSkillView};
 use systemprompt_models::path_confine::{confine_within, entries_within, locate_within};
 use systemprompt_models::text::truncate_with_ellipsis;
 
@@ -113,7 +113,7 @@ fn render_list(enabled: bool, disabled: bool, skills: Vec<SkillSummary>) -> Comm
     .with_title("Skills")
 }
 
-async fn organization_skills(host: &dyn CommandHost) -> Option<Arc<OrganizationSkillResolver>> {
+async fn organization_skills(host: &dyn CommandHost) -> Option<Arc<OwnerSkillView>> {
     let resolved = match host.resolved().await {
         Ok(resolved) => resolved,
         Err(error) => {
@@ -125,7 +125,7 @@ async fn organization_skills(host: &dyn CommandHost) -> Option<Arc<OrganizationS
         },
     };
     resolved
-        .get::<Arc<OrganizationSkillResolver>>()
+        .get::<Arc<OwnerSkillView>>()
         .inspect_err(|error| {
             tracing::warn!(
                 %error,

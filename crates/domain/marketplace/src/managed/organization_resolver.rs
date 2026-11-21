@@ -1,10 +1,14 @@
 //! Explicit organization authority with consumer-scoped grants.
 //!
-//! [`OrganizationSkillResolver`] is bound to one owner: a consumer's skill
-//! resolves through the owner's grants, and
-//! [`OrganizationSkillResolver::owned_skills`]
-//! and [`OrganizationSkillResolver::resolve_owned`] read the owner's own
-//! managed skills without handing the owner id to the caller.
+//! [`OrganizationSkillResolver`] is bound to one owner: a skill resolves
+//! for a caller-named consumer through the owner's grants. It is the
+//! capability behind the sealed `DynManagedSkillResolver`.
+//!
+//! [`OwnerSkillView`] is the narrow view of the same owner: it reads the
+//! owner's own managed skills ([`OwnerSkillView::owned_skills`],
+//! [`OwnerSkillView::resolve_owned`]), takes no consumer, does not
+//! implement `ManagedSkillResolver`, and shares no allocation with the
+//! resolver.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -66,6 +70,32 @@ impl OrganizationSkillResolver {
         Ok(resolved)
     }
 
+    async fn granted(&self, consumer: &UserId, key: &str) -> Result<bool> {
+        if consumer == &self.owner {
+            return Ok(true);
+        }
+        self.resolver
+            .repository()
+            .has_active_skill_grant(&self.owner, consumer, key)
+            .await
+    }
+}
+
+/// The owner's own managed skills, with no consumer parameter.
+#[derive(Debug, Clone)]
+pub struct OwnerSkillView {
+    resolver: ManagedResourceResolver,
+    owner: UserId,
+}
+
+impl OwnerSkillView {
+    pub const fn new(repository: ManagedRepository, owner: UserId) -> Self {
+        Self {
+            resolver: ManagedResourceResolver::new(repository),
+            owner,
+        }
+    }
+
     pub async fn resolve_owned(&self, key: &str) -> Result<ManagedSkillResolution> {
         self.resolver.resolve_skill(&self.owner, key).await
     }
@@ -92,16 +122,6 @@ impl OrganizationSkillResolver {
             }
             offset += ManagedRepository::PAGE_SIZE;
         }
-    }
-
-    async fn granted(&self, consumer: &UserId, key: &str) -> Result<bool> {
-        if consumer == &self.owner {
-            return Ok(true);
-        }
-        self.resolver
-            .repository()
-            .has_active_skill_grant(&self.owner, consumer, key)
-            .await
     }
 }
 

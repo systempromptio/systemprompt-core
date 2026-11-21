@@ -11,9 +11,9 @@
 //! | group | descriptor | database |
 //! |---|---|---|
 //! | `core plugins` | profile, secrets and paths | none (detached kernel) |
-//! | `core marketplace explain` | profile, secrets and paths | none (detached kernel) |
+//! | `core marketplace explain` | full | none |
 //! | `core marketplace import` | none | none |
-//! | `core skills` | full | the owner-bound `Arc<OrganizationSkillResolver>` the `managed_resources` member provides; disk only when it cannot be resolved |
+//! | `core skills` | full | the owner-bound `Arc<OwnerSkillView>` the `managed_resources` member provides; disk only when it cannot be resolved |
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

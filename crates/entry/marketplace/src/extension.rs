@@ -13,7 +13,7 @@
 //! `core skills` groups under the kernel's `core` group, each requesting
 //! `KernelGrant::ServicesTree`, the grant their reserved CLI rows list. The
 //! `core skills` commands resolve the owner-bound
-//! `Arc<OrganizationSkillResolver>` the `managed_resources` member provides.
+//! `Arc<OwnerSkillView>` the `managed_resources` member provides.
 //!
 //! | profile disables | `/api/v1/marketplace` | CLI |
 //! |---|---|---|
@@ -79,14 +79,14 @@ mod commands {
 
     use systemprompt_extension::cli::{CommandDecl, KernelGrant, parents};
     use systemprompt_extension::prelude::*;
-    use systemprompt_marketplace::managed::OrganizationSkillResolver;
+    use systemprompt_marketplace::managed::OwnerSkillView;
 
     use crate::cli::{MarketplaceCommands, PluginsCommands, SkillsCommands};
 
     const SERVICES_TREE: &[KernelGrant] = &[KernelGrant::ServicesTree];
 
     pub(super) fn contribute(c: &mut Contributions<'_>) {
-        c.requires::<Arc<OrganizationSkillResolver>>()
+        c.requires::<Arc<OwnerSkillView>>()
             .command(
                 CommandDecl::group_under::<parents::Core, MarketplaceCommands>()
                     .requesting(SERVICES_TREE),

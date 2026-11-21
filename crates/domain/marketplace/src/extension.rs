@@ -22,13 +22,14 @@
 //!   nothing else. It publishes as the system admin, so it is provided sealed:
 //!   no member job, runner service, config plane, command or route state can
 //!   resolve it;
-//! - after governance, the organization skill resolver, bound to the system
-//!   admin's managed inventory: as `Arc<OrganizationSkillResolver>` (the `core
-//!   skills` commands list and resolve the owner's skills through it without
-//!   learning the owner; read-only and bound to one owner, so it stays open)
-//!   and, sealed, as the `DynManagedSkillResolver` the kernel hands the agent
-//!   runtime: it resolves for a caller-named owner, so no member runtime
-//!   context resolves it.
+//! - after governance, two separate values bound to the system admin's
+//!   managed inventory. `Arc<OwnerSkillView>` is open: the `core skills`
+//!   commands list and resolve the owner's own skills through it, with no
+//!   consumer parameter and without learning the owner. The
+//!   `DynManagedSkillResolver` the kernel hands the agent runtime is a
+//!   separately built `OrganizationSkillResolver` provided sealed: it resolves
+//!   for a caller-named consumer, so no member runtime context resolves it, and
+//!   no open value wraps, aliases or coerces to it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -50,7 +51,8 @@ use crate::inventory::{
     InventoryRefreshJob, InventoryRefresher, InventoryRefresherParts, MemberRefresher, PublishGuard,
 };
 use crate::managed::{
-    GitCredentialCheck, ManagedRepository, OrganizationSkillResolver, PublicationPolicy,
+    GitCredentialCheck, ManagedRepository, OrganizationSkillResolver, OwnerSkillView,
+    PublicationPolicy,
 };
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -132,15 +134,19 @@ fn provide_state(c: &mut Contributions<'_>) {
         .provide_after_governance(|r: &Resolved<'_>| {
             let repository = r.get::<Arc<ManagedRepository>>()?;
             let owner = r.get::<SystemAdmin>()?;
-            Ok(Arc::new(OrganizationSkillResolver::new(
+            Ok(Arc::new(OwnerSkillView::new(
                 repository.as_ref().clone(),
                 owner.id().clone(),
             )))
         })
         .provide_sealed_after_governance(
             |r: &Resolved<'_>| -> Result<DynManagedSkillResolver, ProvideError> {
-                let resolver = r.get::<Arc<OrganizationSkillResolver>>()?;
-                Ok(resolver)
+                let repository = r.get::<Arc<ManagedRepository>>()?;
+                let owner = r.get::<SystemAdmin>()?;
+                Ok(Arc::new(OrganizationSkillResolver::new(
+                    repository.as_ref().clone(),
+                    owner.id().clone(),
+                )))
             },
         );
 }

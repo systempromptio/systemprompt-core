@@ -1,0 +1,9 @@
+[root]
+section = "Fixed"
+area = "Extensions"
+text = "The sealed `DynManagedSkillResolver` is no longer reachable through an open value: `managed_resources` builds it separately and provides only an owner-only `Arc<OwnerSkillView>` open, which the `core skills` commands read."
+
+[[crate]]
+name = "systemprompt-marketplace"
+section = "Breaking"
+text = "`OrganizationSkillResolver::owned_skills` and `resolve_owned` move to the new `OwnerSkillView` (`OwnerSkillView::new(repository, owner)`); `managed_resources` provides `Arc<OwnerSkillView>` and no longer provides `Arc<OrganizationSkillResolver>`."

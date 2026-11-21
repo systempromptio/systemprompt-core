@@ -2,8 +2,13 @@
 //! resolver a provide fn and a kernel command read serves them, the resolver
 //! a member's command runs against refuses them as missing. A member value
 //! provided sealed (one that acts with standing authority) is sealed the same
-//! way, and a route set's resolver serves it only to its provider.
+//! way, and a route set's resolver serves it only to its provider. A seal
+//! covers the capability, not one type name: no open value of the runtime
+//! state is a member-sealed value's implementor, wraps one, or shares its
+//! allocation.
 
+use std::any::{TypeId, type_name};
+use std::collections::{BTreeSet, HashSet};
 use std::sync::Arc;
 
 use systemprompt_events::EventRouter;
@@ -12,6 +17,8 @@ use systemprompt_identifiers::{ExtensionId, InstanceId};
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::SystemAdmin;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
+use systemprompt_marketplace::inventory::InventoryRefresher;
+use systemprompt_marketplace::managed::{OrganizationSkillResolver, OwnerSkillView};
 use systemprompt_runtime::{AppContext, Kernel};
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_database_url};
@@ -134,12 +141,74 @@ async fn a_sealed_provide_is_withheld_from_every_member_runtime_context() {
             .is_err(),
         "another member's route state is refused it"
     );
-    let provider = ExtensionId::new("marketplace");
+    let provider = ExtensionId::new("managed_resources");
     assert!(
         kernel
             .route_scoped(&provider, &[])
             .get::<DynInventoryPublisher>()
             .is_ok(),
         "its provider's own route state reads it"
+    );
+}
+
+fn carrier<T: 'static>() -> [(TypeId, &'static str); 2] {
+    [
+        (TypeId::of::<T>(), type_name::<T>()),
+        (TypeId::of::<Arc<T>>(), type_name::<Arc<T>>()),
+    ]
+}
+
+#[tokio::test]
+async fn no_open_value_carries_a_member_sealed_capability() {
+    let ctx = context().await;
+    let state = ctx.kernel().state();
+    let runtime = ctx.kernel().runtime_state();
+
+    let probes: [(&str, [(TypeId, &str); 2]); 2] = [
+        (
+            type_name::<DynManagedSkillResolver>(),
+            carrier::<OrganizationSkillResolver>(),
+        ),
+        (
+            type_name::<DynInventoryPublisher>(),
+            carrier::<InventoryRefresher>(),
+        ),
+    ];
+    let host: HashSet<TypeId> = state.host_types().map(|(id, _)| id).collect();
+    let member_sealed: BTreeSet<&str> = state
+        .sealed_types()
+        .filter(|(id, _)| !host.contains(id))
+        .map(|(_, name)| name)
+        .collect();
+    let probed: BTreeSet<&str> = probes.iter().map(|(sealed, _)| *sealed).collect();
+    assert_eq!(
+        member_sealed, probed,
+        "every member-sealed provide names the implementors no open value may carry"
+    );
+
+    let open_names = format!("{runtime:?}");
+    for (sealed, implementors) in &probes {
+        for (id, name) in implementors {
+            assert!(
+                !runtime.contains_type(*id),
+                "{name} is open in the runtime state while {sealed} is sealed"
+            );
+            assert!(
+                !open_names.contains(name),
+                "an open runtime value wraps {name} while {sealed} is sealed"
+            );
+        }
+    }
+
+    let sealed = state
+        .get::<DynManagedSkillResolver>()
+        .expect("the kernel reads the sealed resolver");
+    let view = runtime
+        .get::<Arc<OwnerSkillView>>()
+        .expect("the owner-only view is open");
+    assert_ne!(
+        Arc::as_ptr(sealed).cast::<()>(),
+        Arc::as_ptr(view).cast::<()>(),
+        "the open view is not the sealed resolver's allocation"
     );
 }

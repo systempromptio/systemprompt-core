@@ -194,12 +194,13 @@ const API_ONLY_SEEDS: &[&str] = &[
 ];
 
 fn host_seed_names(state: &Dependencies) -> (BTreeSet<&'static str>, BTreeSet<&'static str>) {
-    let sealed: BTreeSet<&'static str> = state.sealed_types().map(|(_, name)| name).collect();
-    let open = state
-        .host_types()
+    let host: BTreeSet<&'static str> = state.host_types().map(|(_, name)| name).collect();
+    let sealed: BTreeSet<&'static str> = state
+        .sealed_types()
         .map(|(_, name)| name)
-        .filter(|name| !sealed.contains(name))
+        .filter(|name| host.contains(name))
         .collect();
+    let open = host.difference(&sealed).copied().collect();
     (open, sealed)
 }
 
